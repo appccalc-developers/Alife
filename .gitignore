@@ -50,8 +50,7 @@ webapp-logs/
 *.temp
 launchSettings.json
 
-# Backend only
+# Code only
 .venv/
-frontend/
 VibeCoding/
 Communication/
