@@ -12,8 +12,6 @@ var builder = Host.CreateApplicationBuilder(args);
 var configPath = AppContext.BaseDirectory;
 builder.Configuration
     .SetBasePath(configPath)
-    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: false)
-    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: false)
     .AddEnvironmentVariables()
     .AddCommandLine(args);
 
