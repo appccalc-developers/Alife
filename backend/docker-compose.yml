@@ -19,10 +19,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    ports:
-      - "8080:8080"
+    expose:
+      - "8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__Default=Server=sqlserver,1433;Database=AlifeDb;User Id=sa;Password=${MSSQL_SA_PASSWORD:-YourStrong!Passw0rd};TrustServerCertificate=True;Encrypt=False
       - Jwt__Issuer=alife-api
       - Jwt__Audience=alife-web
       - Jwt__Key=${JWT_KEY}
@@ -30,9 +31,27 @@ services:
       - Twilio__AuthToken=${TWILIO_AUTH_TOKEN}
       - Twilio__VerifyServiceSid=${TWILIO_VERIFY_SERVICE_SID}
       - Twilio__Channel=${TWILIO_CHANNEL:-sms}
+      - YOUTUBE_API_KEY=${YOUTUBE_API_KEY}
+      - YOUTUBE_PLAYLIST_ID=${YOUTUBE_PLAYLIST_ID}
     depends_on:
       sqlserver:
         condition: service_healthy
 
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - CADDY_SITE_ADDRESS=${CADDY_SITE_ADDRESS:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - alife-api
+
 volumes:
   sqlserver_data:
+  caddy_data:
+  caddy_config:

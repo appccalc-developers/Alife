@@ -1,4 +1,4 @@
-using Alife.Application.Common.Interfaces;
+﻿using Alife.Application.Common.Interfaces;
 using Alife.Application.Abstractions.Integrations;
 using Alife.Application.Abstractions.Security;
 using Alife.Application.Groups.Services;
@@ -40,6 +40,11 @@ public static class DependencyInjection
 		{
 			client.BaseAddress = new Uri("https://verify.twilio.com");
 			client.Timeout = TimeSpan.FromSeconds(15);
+		});
+		services.AddHttpClient("youtube", client =>
+		{
+			client.BaseAddress = new Uri("https://www.googleapis.com/youtube/v3/");
+			client.Timeout = TimeSpan.FromSeconds(20);
 		});
 		services.AddScoped<IYoutubeService, YoutubeService>();
 		services.AddScoped<IGroupReadService, GroupReadService>();

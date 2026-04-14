@@ -112,6 +112,20 @@ dotnet test backend/tests/Alife.Tests.Unit/Alife.Tests.Unit.csproj -c Debug
 - Build image: `mcr.microsoft.com/dotnet/sdk:10.0`
 - Runtime image: `mcr.microsoft.com/dotnet/aspnet:10.0-jammy-chiseled`
 
+### Docker Compose with Caddy (HTTPS)
+
+`backend/docker-compose.yml` includes a `caddy` reverse proxy in front of `alife-api`:
+
+- `https://{CADDY_SITE_ADDRESS}` -> `alife-api:8080`
+- Defaults to `https://localhost` when `CADDY_SITE_ADDRESS` is not set.
+
+Start stack:
+
+```bash
+cd backend
+docker compose up -d --build
+```
+
 ## Troubleshooting
 
 - Port busy: stop existing `Alife.Api` process before rerun.

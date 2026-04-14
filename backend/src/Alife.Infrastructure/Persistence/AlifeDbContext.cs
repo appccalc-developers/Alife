@@ -1,4 +1,4 @@
-using Alife.Application.Common.Interfaces;
+﻿using Alife.Application.Common.Interfaces;
 using Alife.Domain.Entities;
 using Alife.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +13,7 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 	public DbSet<Page> Pages => Set<Page>();
 	public DbSet<Section> Sections => Set<Section>();
 	public DbSet<Link> Links => Set<Link>();
+	public DbSet<Sermon> Sermons => Set<Sermon>();
 
 	protected override void OnModelCreating(ModelBuilder modelBuilder)
 	{
@@ -89,6 +90,18 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 			cfg.HasOne(x => x.OwnerSection).WithMany(x => x.Links).HasForeignKey(x => x.OwnerSectionId);
 			cfg.Property(x => x.Title).HasMaxLength(200).IsRequired();
 			cfg.Property(x => x.ImageUrl).HasMaxLength(500);
+		});
+
+		modelBuilder.Entity<Sermon>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.YoutubeVideoId).HasMaxLength(50).IsRequired();
+			cfg.Property(x => x.Title).HasMaxLength(400).IsRequired();
+			cfg.Property(x => x.SpeakerName).HasMaxLength(200).IsRequired();
+			cfg.Property(x => x.ThumbnailUrl).HasMaxLength(1000);
+			cfg.Property(x => x.VideoUrl).HasMaxLength(1000);
+			cfg.HasIndex(x => x.YoutubeVideoId).IsUnique();
+			cfg.HasIndex(x => x.SortOrder);
 		});
 	}
 }

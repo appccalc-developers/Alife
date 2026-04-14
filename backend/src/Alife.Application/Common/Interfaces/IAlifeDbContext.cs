@@ -1,4 +1,4 @@
-using Alife.Domain.Entities;
+﻿using Alife.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace Alife.Application.Common.Interfaces;
@@ -11,6 +11,7 @@ public interface IAlifeDbContext
     DbSet<Page> Pages { get; }
     DbSet<Section> Sections { get; }
     DbSet<Link> Links { get; }
+    DbSet<Sermon> Sermons { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
