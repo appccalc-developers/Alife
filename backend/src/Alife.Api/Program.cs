@@ -24,7 +24,7 @@ ApiHealthCheckSetup.ConfigureServices(builder.Services);
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Frontend", policy =>
-        policy.WithOrigins(builder.Configuration["Frontend:Origin"] ?? "http://localhost:5173")
+        policy.SetIsOriginAllowed(_ => true)
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials());

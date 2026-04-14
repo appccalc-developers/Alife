@@ -26,7 +26,6 @@ services:
       - Jwt__Issuer=alife-api
       - Jwt__Audience=alife-web
       - Jwt__Key=${JWT_KEY}
-      - Frontend__Origin=${FRONTEND_ORIGIN:-http://localhost:5173}
       - Twilio__AccountSid=${TWILIO_ACCOUNT_SID}
       - Twilio__AuthToken=${TWILIO_AUTH_TOKEN}
       - Twilio__VerifyServiceSid=${TWILIO_VERIFY_SERVICE_SID}

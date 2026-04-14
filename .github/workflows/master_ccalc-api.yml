@@ -40,26 +40,17 @@ jobs:
       - name: Configure App Service runtime settings
         shell: bash
         env:
-          RUNTIME_DB_CONNECTION_STRING: ${{ secrets.API_DB_CONNECTION_STRING }}
-          FALLBACK_DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
-          FRONTEND_ORIGIN: ${{ secrets.FRONTEND_ORIGIN }}
+          DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
           JWT_KEY: ${{ secrets.JWT_KEY }}
         run: |
           set -euo pipefail
 
-          if [ -z "${RUNTIME_DB_CONNECTION_STRING:-}" ] && [ -n "${FALLBACK_DB_CONNECTION_STRING:-}" ]; then
-            RUNTIME_DB_CONNECTION_STRING="$FALLBACK_DB_CONNECTION_STRING"
-          fi
-
-          if [ -z "${RUNTIME_DB_CONNECTION_STRING:-}" ]; then
-            echo "Missing runtime DB connection string. Set API_DB_CONNECTION_STRING or DB_CONNECTION_STRING."
+          if [ -z "${DB_CONNECTION_STRING:-}" ]; then
+            echo "Missing runtime DB connection string. Set DB_CONNECTION_STRING."
             exit 1
           fi
 
-          settings=("ConnectionStrings__Default=$RUNTIME_DB_CONNECTION_STRING")
-          if [ -n "${FRONTEND_ORIGIN:-}" ]; then
-            settings+=("Frontend__Origin=$FRONTEND_ORIGIN")
-          fi
+          settings=("ConnectionStrings__Default=$DB_CONNECTION_STRING")
           if [ -n "${JWT_KEY:-}" ]; then
             settings+=("Jwt__Key=$JWT_KEY")
           fi
