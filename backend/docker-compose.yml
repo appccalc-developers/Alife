@@ -1,0 +1,39 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-YourStrong!Passw0rd}
+    ports:
+      - "14333:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$${MSSQL_SA_PASSWORD}\" -C -Q \"SELECT 1\" || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
+
+  alife-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - Jwt__Issuer=alife-api
+      - Jwt__Audience=alife-web
+      - Jwt__Key=${JWT_KEY}
+      - Frontend__Origin=${FRONTEND_ORIGIN:-http://localhost:5173}
+      - Twilio__AccountSid=${TWILIO_ACCOUNT_SID}
+      - Twilio__AuthToken=${TWILIO_AUTH_TOKEN}
+      - Twilio__VerifyServiceSid=${TWILIO_VERIFY_SERVICE_SID}
+      - Twilio__Channel=${TWILIO_CHANNEL:-sms}
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+
+volumes:
+  sqlserver_data:

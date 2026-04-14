@@ -1,0 +1,8 @@
+**/.git
+**/.vs
+**/bin
+**/obj
+**/*.user
+**/*.lock.json
+.env
+launchSettings.json

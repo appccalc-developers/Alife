@@ -1,0 +1,204 @@
+name: Alife.API Migration and Deploy
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    branches:
+      - master
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  migrate-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      AZURE_WEBAPP_NAME: ccalc-api
+      AZURE_RESOURCE_GROUP: ccalc
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.x'
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Configure App Service runtime settings
+        shell: bash
+        env:
+          RUNTIME_DB_CONNECTION_STRING: ${{ secrets.API_DB_CONNECTION_STRING }}
+          FALLBACK_DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
+          FRONTEND_ORIGIN: ${{ secrets.FRONTEND_ORIGIN }}
+          JWT_KEY: ${{ secrets.JWT_KEY }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${RUNTIME_DB_CONNECTION_STRING:-}" ] && [ -n "${FALLBACK_DB_CONNECTION_STRING:-}" ]; then
+            RUNTIME_DB_CONNECTION_STRING="$FALLBACK_DB_CONNECTION_STRING"
+          fi
+
+          if [ -z "${RUNTIME_DB_CONNECTION_STRING:-}" ]; then
+            echo "Missing runtime DB connection string. Set API_DB_CONNECTION_STRING or DB_CONNECTION_STRING."
+            exit 1
+          fi
+
+          settings=("ConnectionStrings__Default=$RUNTIME_DB_CONNECTION_STRING")
+          if [ -n "${FRONTEND_ORIGIN:-}" ]; then
+            settings+=("Frontend__Origin=$FRONTEND_ORIGIN")
+          fi
+          if [ -n "${JWT_KEY:-}" ]; then
+            settings+=("Jwt__Key=$JWT_KEY")
+          fi
+
+          az webapp config appsettings set \
+            --name "${{ env.AZURE_WEBAPP_NAME }}" \
+            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+            --settings "${settings[@]}" \
+            --only-show-errors \
+            --output none
+
+      - name: Remove legacy App Service connection string override
+        shell: bash
+        run: |
+          az webapp config connection-string delete \
+            --name "${{ env.AZURE_WEBAPP_NAME }}" \
+            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+            --setting-names Default \
+            --only-show-errors \
+            --output none || true
+
+      - name: Resolve SQL server and runner IP
+        id: sqlfw
+        shell: bash
+        env:
+          DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
+        run: |
+          set -euo pipefail
+
+          runner_ip="$(curl -fsSL https://api.ipify.org)"
+
+          server_entry="$(echo "$DB_CONNECTION_STRING" | tr ';' '\n' | grep -E -i '^(server|data source)=' | head -n1 | cut -d'=' -f2- || true)"
+          if [ -z "$server_entry" ]; then
+            echo "Could not parse SQL server from DB_CONNECTION_STRING."
+            exit 1
+          fi
+
+          server_entry="${server_entry#tcp:}"
+          server_fqdn="${server_entry%%,*}"
+          server_name="${server_fqdn%%.*}"
+
+          if [ -z "$server_name" ]; then
+            echo "Could not derive Azure SQL server name from '$server_fqdn'."
+            exit 1
+          fi
+
+          rule_name="gha-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
+          echo "runner_ip=$runner_ip" >> "$GITHUB_OUTPUT"
+          echo "server_name=$server_name" >> "$GITHUB_OUTPUT"
+          echo "rule_name=$rule_name" >> "$GITHUB_OUTPUT"
+
+      - name: Allow App Service outbound IPs in Azure SQL firewall
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          outbound_ips="$(az webapp show \
+            --name "${{ env.AZURE_WEBAPP_NAME }}" \
+            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+            --query outboundIpAddresses \
+            -o tsv)"
+
+          IFS=',' read -ra ips <<< "$outbound_ips"
+          for ip in "${ips[@]}"; do
+            ip="$(echo "$ip" | xargs)"
+            [ -z "$ip" ] && continue
+            rule_name="appsvc-${{ env.AZURE_WEBAPP_NAME }}-${ip//./-}"
+            az sql server firewall-rule create \
+              --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+              --server "${{ steps.sqlfw.outputs.server_name }}" \
+              --name "$rule_name" \
+              --start-ip-address "$ip" \
+              --end-ip-address "$ip" \
+              --only-show-errors \
+              --output none
+          done
+
+      - name: Allow GitHub runner IP in Azure SQL firewall
+        shell: bash
+        run: |
+          set -euo pipefail
+          az sql server firewall-rule create \
+            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+            --server "${{ steps.sqlfw.outputs.server_name }}" \
+            --name "${{ steps.sqlfw.outputs.rule_name }}" \
+            --start-ip-address "${{ steps.sqlfw.outputs.runner_ip }}" \
+            --end-ip-address "${{ steps.sqlfw.outputs.runner_ip }}" \
+            --only-show-errors
+
+      - name: Wait for firewall propagation
+        shell: bash
+        run: sleep 30
+
+      - name: Run Alife.DbMigrator
+        working-directory: ./backend/src/Alife.DbMigrator
+        shell: bash
+        env:
+          DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
+          ConnectionStrings__Default: ${{ secrets.DB_CONNECTION_STRING }}
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            echo "Running migrator (attempt $attempt/3)..."
+            if dotnet run --configuration Release; then
+              exit 0
+            fi
+
+            if [ "$attempt" -lt 3 ]; then
+              echo "Migrator failed; retrying in 30 seconds..."
+              sleep 30
+            fi
+          done
+
+          echo "Migrator failed after 3 attempts."
+          exit 1
+
+      - name: Build Alife.API
+        working-directory: ./backend/src/Alife.Api
+        run: dotnet build --configuration Release
+
+      - name: Publish Alife.API
+        working-directory: ./backend/src/Alife.Api
+        run: dotnet publish --configuration Release --output ${{ github.workspace }}/publish
+
+      - name: Deploy Alife.API to Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          slot-name: Production
+          package: ${{ github.workspace }}/publish
+
+      - name: Remove GitHub runner IP from Azure SQL firewall
+        if: always()
+        shell: bash
+        run: |
+          az sql server firewall-rule delete \
+            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+            --server "${{ steps.sqlfw.outputs.server_name }}" \
+            --name "${{ steps.sqlfw.outputs.rule_name }}" \
+            --yes \
+            --only-show-errors || true
