@@ -3,7 +3,6 @@ using Alife.Application.Abstractions.Security;
 using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
 using Alife.Application.Members.Dtos;
-using Alife.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -35,79 +34,57 @@ public sealed class ConfirmPhoneVerificationCommandHandler(
             };
         }
 
-        Member member;
-        bool isNewMember = false;
+        var member = request.CurrentMemberId is Guid currentMemberId
+            ? await dbContext.Members.FirstOrDefaultAsync(x => x.Id == currentMemberId, cancellationToken)
+            : null;
 
-        if (request.CurrentMemberId is null)
-        {
-            member = CreateNewMember(Guid.NewGuid());
-            dbContext.Members.Add(member);
-            isNewMember = true;
-        }
-        else
-        {
-            var existingMember = await dbContext.Members.FirstOrDefaultAsync(x => x.Id == request.CurrentMemberId, cancellationToken);
-            if (existingMember is null)
-            {
-                member = CreateNewMember(request.CurrentMemberId.Value);
-                dbContext.Members.Add(member);
-                isNewMember = true;
-            }
-            else
-            {
-                member = existingMember;
-            }
-        }
-
-        if (member.IsRegistered)
-        {
-            var alreadyRegistered = await dbContext.Members.AnyAsync(
-                x => x.Id != member.Id && x.IsRegistered && x.PhoneE164 == request.PhoneE164,
-                cancellationToken);
-
-            if (alreadyRegistered)
-            {
-                return AppResult<MemberActionResultDto>.Conflict("Phone already registered.");
-            }
-        }
+        var memberId = member?.Id;
 
         var existingRegisteredMember = await dbContext.Members
             .AsNoTracking()
             .FirstOrDefaultAsync(
-                x => x.Id != member.Id && x.IsRegistered && x.PhoneE164 == request.PhoneE164,
+                x => x.IsRegistered && x.PhoneE164 == request.PhoneE164 && (!memberId.HasValue || x.Id != memberId.Value),
                 cancellationToken);
 
-        member.PhoneE164 = request.PhoneE164;
-        member.PhoneVerifiedUtc = DateTime.UtcNow;
+        if (member?.IsRegistered == true && existingRegisteredMember is not null)
+        {
+            return AppResult<MemberActionResultDto>.Conflict("Phone already registered.");
+        }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        if (existingRegisteredMember is not null)
+        {
+            var signInToken = jwtTokenService.CreateToken(existingRegisteredMember, isGuest: false);
+            return AppResult<MemberActionResultDto>.Success(new MemberActionResultDto(
+                true,
+                DisplayName: existingRegisteredMember.DisplayName,
+                Sex: existingRegisteredMember.Sex,
+                Age: existingRegisteredMember.Age,
+                Email: existingRegisteredMember.Email,
+                IsRegistered: true,
+                Token: signInToken.Token,
+                ExpiresUtc: signInToken.ExpiresUtc));
+        }
 
         string? token = null;
         DateTime? expiresUtc = null;
 
-        if (isNewMember)
+        if (member is not null)
         {
-            var tokenResult = jwtTokenService.CreateToken(member, isGuest: true);
-            token = tokenResult.Token;
-            expiresUtc = tokenResult.ExpiresUtc;
+            member.PhoneE164 = request.PhoneE164;
+            member.PhoneVerifiedUtc = DateTime.UtcNow;
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        else
+        {
+            var onboardingToken = jwtTokenService.CreateVerifiedPhoneToken(request.PhoneE164);
+            token = onboardingToken.Token;
+            expiresUtc = onboardingToken.ExpiresUtc;
         }
 
         return AppResult<MemberActionResultDto>.Success(new MemberActionResultDto(
             true,
-            DisplayName: existingRegisteredMember?.DisplayName,
-            Sex: existingRegisteredMember?.Sex,
-            Age: existingRegisteredMember?.Age,
-            Email: existingRegisteredMember?.Email,
-            IsRegistered: existingRegisteredMember?.IsRegistered ?? false,
+            IsRegistered: false,
             Token: token,
             ExpiresUtc: expiresUtc));
     }
-
-    private static Member CreateNewMember(Guid id) => new()
-    {
-        Id = id,
-        IsRegistered = false,
-        IsAdmin = false,
-        CreatedUtc = DateTime.UtcNow
-    };
 }

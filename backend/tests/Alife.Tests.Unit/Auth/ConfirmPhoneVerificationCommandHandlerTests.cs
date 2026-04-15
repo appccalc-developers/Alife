@@ -33,11 +33,15 @@ public class ConfirmPhoneVerificationCommandHandlerTests
         var expiresUtc = DateTime.UtcNow.AddDays(7);
         jwtService.CreateToken(Arg.Any<Member>(), Arg.Any<bool>())
             .Returns(("fake-token", expiresUtc));
+        jwtService.CreateGuestToken()
+            .Returns(("guest-token", expiresUtc));
+        jwtService.CreateVerifiedPhoneToken(Arg.Any<string>())
+            .Returns(("verified-phone-token", expiresUtc));
         return jwtService;
     }
 
     [Fact]
-    public async Task Handle_WithNullMemberId_CreatesNewMemberAndReturnsToken()
+    public async Task Handle_WithNullMemberId_DoesNotCreateMemberAndReturnsToken()
     {
         // Arrange
         using var dbContext = CreateInMemoryDbContext();
@@ -55,13 +59,9 @@ public class ConfirmPhoneVerificationCommandHandlerTests
         Assert.NotNull(result.Value);
         Assert.NotNull(result.Value.Token);
         Assert.NotNull(result.Value.ExpiresUtc);
+        Assert.Empty(await dbContext.Members.ToListAsync());
 
-        var createdMember = await dbContext.Members.SingleAsync();
-        Assert.Equal("+12025551234", createdMember.PhoneE164);
-        Assert.NotNull(createdMember.PhoneVerifiedUtc);
-        Assert.False(createdMember.IsRegistered);
-
-        jwtService.Received(1).CreateToken(Arg.Any<Member>(), isGuest: true);
+        jwtService.DidNotReceive().CreateToken(Arg.Any<Member>(), isGuest: true);
     }
 
     [Fact]
@@ -102,7 +102,7 @@ public class ConfirmPhoneVerificationCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WithNullMemberId_ReturnsExistingRegisteredMemberInfo_WhenPhoneAlreadyRegistered()
+    public async Task Handle_WithNullMemberId_ReturnsExistingRegisteredMemberInfo_WithoutCreatingAnotherMember()
     {
         // Arrange
         using var dbContext = CreateInMemoryDbContext();
@@ -127,14 +127,13 @@ public class ConfirmPhoneVerificationCommandHandlerTests
         // Act
         var result = await handler.Handle(command, CancellationToken.None);
 
-        // Assert: The existing registered member's info is surfaced in the response so the
-        // frontend can pre-fill the registration form.  A new unregistered member is created
-        // for the current session and a token is issued so the user can proceed to /register.
+        // Assert
         Assert.True(result.IsSuccess);
         Assert.NotNull(result.Value);
         Assert.Equal("Existing User", result.Value.DisplayName);
         Assert.True(result.Value.IsRegistered);
         Assert.NotNull(result.Value.Token);
+        Assert.Single(await dbContext.Members.ToListAsync());
     }
 
     [Fact]

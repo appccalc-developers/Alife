@@ -12,4 +12,7 @@ public class CurrentMemberAccessor(IHttpContextAccessor httpContextAccessor) : I
 
         return Guid.TryParse(sub, out var memberId) ? memberId : null;
     }
+
+    public string? GetVerifiedPhoneE164()
+        => httpContextAccessor.HttpContext?.User.FindFirstValue("verified_phone");
 }

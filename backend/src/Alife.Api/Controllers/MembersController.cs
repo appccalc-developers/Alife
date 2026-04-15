@@ -144,13 +144,15 @@ public class MembersController(
     public async Task<IActionResult> Register([FromBody] RegisterRequest request, CancellationToken cancellationToken)
     {
         var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
-        if (currentMemberId is null)
+        var verifiedPhoneE164 = currentMemberAccessor.GetVerifiedPhoneE164();
+
+        if (currentMemberId is null && string.IsNullOrWhiteSpace(verifiedPhoneE164))
         {
             return Unauthorized();
         }
 
         var result = await mediator.Send(
-            new RegisterMemberCommand(currentMemberId.Value, request.Name, request.Sex, request.Age, request.Email),
+            new RegisterMemberCommand(currentMemberId, verifiedPhoneE164, request.Name, request.Sex, request.Age, request.Email),
             cancellationToken);
 
         if (!result.IsSuccess || result.Value is null)
@@ -158,7 +160,11 @@ public class MembersController(
             return this.ToActionResult(result);
         }
 
-        await hybridCache.RemoveAsync(GetMemberProfileCacheKey(currentMemberId.Value), cancellationToken);
+        if (currentMemberId is not null)
+        {
+            await hybridCache.RemoveAsync(GetMemberProfileCacheKey(currentMemberId.Value), cancellationToken);
+        }
+
         AuthCookie.WriteCookie(Response, result.Value.Token, result.Value.ExpiresUtc, environment.IsDevelopment());
         return Ok(new { ok = true, expiresUtc = result.Value.ExpiresUtc });
     }
