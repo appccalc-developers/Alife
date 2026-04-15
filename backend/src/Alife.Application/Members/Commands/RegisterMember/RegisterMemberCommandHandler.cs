@@ -23,29 +23,59 @@ public sealed class RegisterMemberCommandHandler(
             return AppResult<MemberRegistrationResultDto>.Validation("Name is required.");
         }
 
-        var member = await dbContext.Members.FirstOrDefaultAsync(x => x.Id == request.CurrentMemberId, cancellationToken);
-        if (member is null)
+        var verifiedPhoneE164 = request.VerifiedPhoneE164?.Trim();
+        Member? currentMember = null;
+
+        if (request.CurrentMemberId is Guid currentMemberId)
         {
-            return AppResult<MemberRegistrationResultDto>.NotFound("Current member was not found.");
+            currentMember = await dbContext.Members.FirstOrDefaultAsync(x => x.Id == currentMemberId, cancellationToken);
+            if (currentMember is not null)
+            {
+                verifiedPhoneE164 ??= currentMember.PhoneE164;
+
+                if (currentMember.PhoneVerifiedUtc is null && !string.IsNullOrWhiteSpace(verifiedPhoneE164))
+                {
+                    currentMember.PhoneE164 = verifiedPhoneE164;
+                    currentMember.PhoneVerifiedUtc = DateTime.UtcNow;
+                }
+            }
         }
 
-        if (member.PhoneVerifiedUtc is null)
+        if (string.IsNullOrWhiteSpace(verifiedPhoneE164))
         {
             return AppResult<MemberRegistrationResultDto>.Validation("Phone verification required.");
         }
 
-        var memberToRegister = member;
+        var memberToRegister = currentMember;
 
-        if (!string.IsNullOrWhiteSpace(member.PhoneE164))
+        var memberToRegisterId = memberToRegister?.Id;
+
+        var alreadyRegisteredMember = await dbContext.Members.FirstOrDefaultAsync(
+            x => x.IsRegistered && x.PhoneE164 == verifiedPhoneE164 && (!memberToRegisterId.HasValue || x.Id != memberToRegisterId.Value),
+            cancellationToken);
+
+        if (alreadyRegisteredMember is not null)
         {
-            var alreadyRegisteredMember = await dbContext.Members.FirstOrDefaultAsync(
-                x => x.Id != member.Id && x.IsRegistered && x.PhoneE164 == member.PhoneE164,
-                cancellationToken);
-
-            if (alreadyRegisteredMember is not null)
+            memberToRegister = alreadyRegisteredMember;
+        }
+        else if (memberToRegister is null)
+        {
+            memberToRegister = new Member
             {
-                memberToRegister = alreadyRegisteredMember;
-            }
+                Id = Guid.NewGuid(),
+                PhoneE164 = verifiedPhoneE164,
+                PhoneVerifiedUtc = DateTime.UtcNow,
+                IsRegistered = false,
+                IsAdmin = false,
+                CreatedUtc = DateTime.UtcNow
+            };
+
+            dbContext.Members.Add(memberToRegister);
+        }
+        else
+        {
+            memberToRegister.PhoneE164 = verifiedPhoneE164;
+            memberToRegister.PhoneVerifiedUtc ??= DateTime.UtcNow;
         }
 
         memberToRegister.DisplayName = request.Name.Trim();

@@ -7,4 +7,6 @@ public sealed record MemberActionResultDto(
 	string? Sex = null,
 	int? Age = null,
 	string? Email = null,
-	bool IsRegistered = false);
+	bool IsRegistered = false,
+	string? Token = null,
+	DateTime? ExpiresUtc = null);

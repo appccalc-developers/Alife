@@ -1,7 +1,6 @@
 using Alife.Api.Security;
 using Alife.Application.Abstractions.Identity;
 using Alife.Application.Auth.Commands.CreateDevAdminSession;
-using Alife.Application.Auth.Commands.CreateGuestSession;
 using Alife.Application.Auth.Commands.Login;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -16,22 +15,6 @@ public class AuthController(
     ICurrentMemberAccessor currentMemberAccessor,
     IWebHostEnvironment environment) : ControllerBase
 {
-    [HttpPost("guest")]
-    [AllowAnonymous]
-    public async Task<IActionResult> Guest(CancellationToken cancellationToken)
-    {
-        var result = await mediator.Send(new CreateGuestSessionCommand(), cancellationToken);
-        if (!result.IsSuccess || result.Value is null)
-        {
-            return result.Status == Application.Common.Models.AppResultStatus.NotFound
-                ? NotFound(new { message = result.Message })
-                : BadRequest(new { message = result.Message });
-        }
-
-        AuthCookie.WriteCookie(Response, result.Value.Token, result.Value.ExpiresUtc, environment.IsDevelopment());
-        return Ok(new { expiresUtc = result.Value.ExpiresUtc, isGuest = true });
-    }
-
     [HttpPost("login")]
     [Authorize]
     public async Task<IActionResult> Login(CancellationToken cancellationToken)

@@ -12,10 +12,6 @@ public class JwtTokenService(IConfiguration configuration) : IJwtTokenService
 {
 	public (string Token, DateTime ExpiresUtc) CreateToken(Member member, bool isGuest)
 	{
-		var issuer = configuration["Jwt:Issuer"] ?? "alife-api";
-		var audience = configuration["Jwt:Audience"] ?? "alife-web";
-		var key = configuration["Jwt:Key"] ?? "replace-me-in-production-with-long-random-key";
-
 		var expiresUtc = DateTime.UtcNow.AddDays(isGuest ? 7 : 30);
 		var claims = new List<Claim>
 		{
@@ -24,6 +20,42 @@ public class JwtTokenService(IConfiguration configuration) : IJwtTokenService
 			new("is_registered", member.IsRegistered ? "true" : "false"),
 			new("is_admin", member.IsAdmin ? "true" : "false")
 		};
+
+		return WriteToken(claims, expiresUtc);
+	}
+
+	public (string Token, DateTime ExpiresUtc) CreateGuestToken()
+	{
+		var expiresUtc = DateTime.UtcNow.AddDays(7);
+		var claims = new List<Claim>
+		{
+			new("is_registered", "false"),
+			new("is_admin", "false"),
+			new("session_kind", "guest")
+		};
+
+		return WriteToken(claims, expiresUtc);
+	}
+
+	public (string Token, DateTime ExpiresUtc) CreateVerifiedPhoneToken(string phoneE164)
+	{
+		var expiresUtc = DateTime.UtcNow.AddMinutes(30);
+		var claims = new List<Claim>
+		{
+			new("is_registered", "false"),
+			new("is_admin", "false"),
+			new("verified_phone", phoneE164),
+			new("session_kind", "verified_phone")
+		};
+
+		return WriteToken(claims, expiresUtc);
+	}
+
+	private (string Token, DateTime ExpiresUtc) WriteToken(IEnumerable<Claim> claims, DateTime expiresUtc)
+	{
+		var issuer = configuration["Jwt:Issuer"] ?? "alife-api";
+		var audience = configuration["Jwt:Audience"] ?? "alife-web";
+		var key = configuration["Jwt:Key"] ?? "replace-me-in-production-with-long-random-key";
 
 		var creds = new SigningCredentials(
 			new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),

@@ -45,9 +45,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true)
     try {
       await fetchMe()
-    } catch {
-      await authService.createGuest()
-      await fetchMe()
     } finally {
       setLoading(false)
       setInitialized(true)

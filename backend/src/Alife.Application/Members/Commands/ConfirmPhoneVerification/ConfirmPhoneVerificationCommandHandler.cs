@@ -1,8 +1,8 @@
 using Alife.Application.Abstractions.Integrations;
+using Alife.Application.Abstractions.Security;
 using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
 using Alife.Application.Members.Dtos;
-using Alife.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,7 +10,8 @@ namespace Alife.Application.Members.Commands.ConfirmPhoneVerification;
 
 public sealed class ConfirmPhoneVerificationCommandHandler(
     IAlifeDbContext dbContext,
-    ITwilioVerifyService twilioVerifyService)
+    ITwilioVerifyService twilioVerifyService,
+    IJwtTokenService jwtTokenService)
     : IRequestHandler<ConfirmPhoneVerificationCommand, AppResult<MemberActionResultDto>>
 {
     public async Task<AppResult<MemberActionResultDto>> Handle(
@@ -33,48 +34,57 @@ public sealed class ConfirmPhoneVerificationCommandHandler(
             };
         }
 
-        var member = await dbContext.Members.FirstOrDefaultAsync(x => x.Id == request.CurrentMemberId, cancellationToken);
-        if (member is null)
-        {
-            member = new Member
-            {
-                Id = request.CurrentMemberId,
-                IsRegistered = false,
-                IsAdmin = false,
-                CreatedUtc = DateTime.UtcNow
-            };
+        var member = request.CurrentMemberId is Guid currentMemberId
+            ? await dbContext.Members.FirstOrDefaultAsync(x => x.Id == currentMemberId, cancellationToken)
+            : null;
 
-            dbContext.Members.Add(member);
-        }
-
-        if (member.IsRegistered)
-        {
-            var alreadyRegistered = await dbContext.Members.AnyAsync(
-                x => x.Id != request.CurrentMemberId && x.IsRegistered && x.PhoneE164 == request.PhoneE164,
-                cancellationToken);
-
-            if (alreadyRegistered)
-            {
-                return AppResult<MemberActionResultDto>.Conflict("Phone already registered.");
-            }
-        }
+        var memberId = member?.Id;
 
         var existingRegisteredMember = await dbContext.Members
             .AsNoTracking()
             .FirstOrDefaultAsync(
-                x => x.Id != request.CurrentMemberId && x.IsRegistered && x.PhoneE164 == request.PhoneE164,
+                x => x.IsRegistered && x.PhoneE164 == request.PhoneE164 && (!memberId.HasValue || x.Id != memberId.Value),
                 cancellationToken);
 
-        member.PhoneE164 = request.PhoneE164;
-        member.PhoneVerifiedUtc = DateTime.UtcNow;
+        if (member?.IsRegistered == true && existingRegisteredMember is not null)
+        {
+            return AppResult<MemberActionResultDto>.Conflict("Phone already registered.");
+        }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        if (existingRegisteredMember is not null)
+        {
+            var signInToken = jwtTokenService.CreateToken(existingRegisteredMember, isGuest: false);
+            return AppResult<MemberActionResultDto>.Success(new MemberActionResultDto(
+                true,
+                DisplayName: existingRegisteredMember.DisplayName,
+                Sex: existingRegisteredMember.Sex,
+                Age: existingRegisteredMember.Age,
+                Email: existingRegisteredMember.Email,
+                IsRegistered: true,
+                Token: signInToken.Token,
+                ExpiresUtc: signInToken.ExpiresUtc));
+        }
+
+        string? token = null;
+        DateTime? expiresUtc = null;
+
+        if (member is not null)
+        {
+            member.PhoneE164 = request.PhoneE164;
+            member.PhoneVerifiedUtc = DateTime.UtcNow;
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        else
+        {
+            var onboardingToken = jwtTokenService.CreateVerifiedPhoneToken(request.PhoneE164);
+            token = onboardingToken.Token;
+            expiresUtc = onboardingToken.ExpiresUtc;
+        }
+
         return AppResult<MemberActionResultDto>.Success(new MemberActionResultDto(
             true,
-            DisplayName: existingRegisteredMember?.DisplayName,
-            Sex: existingRegisteredMember?.Sex,
-            Age: existingRegisteredMember?.Age,
-            Email: existingRegisteredMember?.Email,
-            IsRegistered: existingRegisteredMember?.IsRegistered ?? false));
+            IsRegistered: false,
+            Token: token,
+            ExpiresUtc: expiresUtc));
     }
 }

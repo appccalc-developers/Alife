@@ -7,10 +7,6 @@ export const authService = {
     return data
   },
 
-  async createGuest() {
-    await http.post('/api/auth/guest')
-  },
-
   async logout() {
     await http.post('/api/auth/logout')
   },
