@@ -3,7 +3,7 @@ services:
     image: mcr.microsoft.com/mssql/server:2022-latest
     environment:
       ACCEPT_EULA: "Y"
-      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-YourStrong!Passw0rd}
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-AlifeDevPass123}
     ports:
       - "14333:1433"
     volumes:
@@ -19,11 +19,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    expose:
-      - "8080"
+    ports:
+      - "8080:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__Default=Server=sqlserver,1433;Database=AlifeDb;User Id=sa;Password=${MSSQL_SA_PASSWORD:-YourStrong!Passw0rd};TrustServerCertificate=True;Encrypt=False
+      - ConnectionStrings__Default=Server=sqlserver,1433;Database=alife_db;User Id=sa;Password=AlifeDevPass123;TrustServerCertificate=True;Encrypt=False
       - Jwt__Issuer=alife-api
       - Jwt__Audience=alife-web
       - Jwt__Key=${JWT_KEY}
@@ -37,21 +37,5 @@ services:
       sqlserver:
         condition: service_healthy
 
-  caddy:
-    image: caddy:2
-    ports:
-      - "80:80"
-      - "443:443"
-    environment:
-      - CADDY_SITE_ADDRESS=${CADDY_SITE_ADDRESS:-localhost}
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      - alife-api
-
 volumes:
   sqlserver_data:
-  caddy_data:
-  caddy_config:
