@@ -19,7 +19,9 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(PRE_CACHE_URLS))
   );
-  // Activate immediately so returning users get the latest SW.
+  // Activate the new SW immediately instead of waiting for all tabs to close.
+  // This is acceptable here because the cache-first strategy still serves
+  // previously-cached assets; only newly-fetched resources use the updated SW.
   self.skipWaiting();
 });
 
@@ -83,7 +85,8 @@ async function cacheFirst(request) {
         return fallback;
       }
     }
-    return new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
+    // Return an empty response appropriate for the request type.
+    return new Response('', { status: 503, statusText: 'Service Unavailable' });
   }
 }
 
