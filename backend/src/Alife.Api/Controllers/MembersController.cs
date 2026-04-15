@@ -27,12 +27,23 @@ public class MembersController(
     IConfiguration configuration) : ControllerBase
 {
     [HttpGet("me")]
+    [AllowAnonymous]
     public async Task<IActionResult> Me(CancellationToken cancellationToken)
     {
         var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
         if (currentMemberId is null)
         {
-            return Unauthorized();
+            return Ok(new CurrentMemberDto(
+                Guid.Empty,
+                DisplayName: null,
+                Sex: null,
+                Age: null,
+                Email: null,
+                PhoneE164: null,
+                IsGuest: true,
+                IsRegistered: false,
+                IsAdmin: false,
+                Memberships: []));
         }
 
         var profile = await hybridCache.GetOrCreateAsync(
@@ -75,6 +86,7 @@ public class MembersController(
     }
 
     [HttpPost("members/phone/start")]
+    [AllowAnonymous]
     public async Task<IActionResult> StartPhoneVerification([FromBody] StartPhoneRequest request, CancellationToken cancellationToken)
     {
         if (!TryNormalizeToE164(request.PhoneE164, out var phoneE164, out var errorMessage))
@@ -91,13 +103,10 @@ public class MembersController(
         return this.ToActionResult(result);
     }
     [HttpPost("members/phone/confirm")]
+    [AllowAnonymous]
     public async Task<IActionResult> ConfirmPhoneVerification([FromBody] ConfirmPhoneRequest request, CancellationToken cancellationToken)
     {
         var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
-        if (currentMemberId is null)
-        {
-            return Unauthorized();
-        }
 
         if (!TryNormalizeToE164(request.PhoneE164, out var phoneE164, out var errorMessage))
         {
@@ -105,16 +114,25 @@ public class MembersController(
         }
 
         var result = await mediator.Send(
-            new ConfirmPhoneVerificationCommand(currentMemberId.Value, phoneE164, request.Code),
+            new ConfirmPhoneVerificationCommand(currentMemberId, phoneE164, request.Code),
             cancellationToken);
 
         if (result.IsSuccess && result.Value is not null)
         {
-            await hybridCache.RemoveAsync(GetMemberProfileCacheKey(currentMemberId.Value), cancellationToken);
-            return Ok(result.Value with { PhoneE164 = phoneE164 });
+            if (currentMemberId is not null)
+            {
+                await hybridCache.RemoveAsync(GetMemberProfileCacheKey(currentMemberId.Value), cancellationToken);
+            }
+
+            if (result.Value.Token is not null && result.Value.ExpiresUtc is not null)
+            {
+                AuthCookie.WriteCookie(Response, result.Value.Token, result.Value.ExpiresUtc.Value, environment.IsDevelopment());
+            }
+
+            return Ok(result.Value with { PhoneE164 = phoneE164, Token = null, ExpiresUtc = null });
         }
 
-        if (result.IsSuccess)
+        if (result.IsSuccess && currentMemberId is not null)
         {
             await hybridCache.RemoveAsync(GetMemberProfileCacheKey(currentMemberId.Value), cancellationToken);
         }

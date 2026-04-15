@@ -1,4 +1,5 @@
 using Alife.Application.Abstractions.Integrations;
+using Alife.Application.Abstractions.Security;
 using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
 using Alife.Application.Members.Dtos;
@@ -10,7 +11,8 @@ namespace Alife.Application.Members.Commands.ConfirmPhoneVerification;
 
 public sealed class ConfirmPhoneVerificationCommandHandler(
     IAlifeDbContext dbContext,
-    ITwilioVerifyService twilioVerifyService)
+    ITwilioVerifyService twilioVerifyService,
+    IJwtTokenService jwtTokenService)
     : IRequestHandler<ConfirmPhoneVerificationCommand, AppResult<MemberActionResultDto>>
 {
     public async Task<AppResult<MemberActionResultDto>> Handle(
@@ -33,24 +35,48 @@ public sealed class ConfirmPhoneVerificationCommandHandler(
             };
         }
 
-        var member = await dbContext.Members.FirstOrDefaultAsync(x => x.Id == request.CurrentMemberId, cancellationToken);
-        if (member is null)
+        Member member;
+        bool isNewMember = false;
+
+        if (request.CurrentMemberId is null)
         {
             member = new Member
             {
-                Id = request.CurrentMemberId,
+                Id = Guid.NewGuid(),
                 IsRegistered = false,
                 IsAdmin = false,
                 CreatedUtc = DateTime.UtcNow
             };
 
             dbContext.Members.Add(member);
+            isNewMember = true;
+        }
+        else
+        {
+            var existingMember = await dbContext.Members.FirstOrDefaultAsync(x => x.Id == request.CurrentMemberId, cancellationToken);
+            if (existingMember is null)
+            {
+                member = new Member
+                {
+                    Id = request.CurrentMemberId.Value,
+                    IsRegistered = false,
+                    IsAdmin = false,
+                    CreatedUtc = DateTime.UtcNow
+                };
+
+                dbContext.Members.Add(member);
+                isNewMember = true;
+            }
+            else
+            {
+                member = existingMember;
+            }
         }
 
         if (member.IsRegistered)
         {
             var alreadyRegistered = await dbContext.Members.AnyAsync(
-                x => x.Id != request.CurrentMemberId && x.IsRegistered && x.PhoneE164 == request.PhoneE164,
+                x => x.Id != member.Id && x.IsRegistered && x.PhoneE164 == request.PhoneE164,
                 cancellationToken);
 
             if (alreadyRegistered)
@@ -62,19 +88,32 @@ public sealed class ConfirmPhoneVerificationCommandHandler(
         var existingRegisteredMember = await dbContext.Members
             .AsNoTracking()
             .FirstOrDefaultAsync(
-                x => x.Id != request.CurrentMemberId && x.IsRegistered && x.PhoneE164 == request.PhoneE164,
+                x => x.Id != member.Id && x.IsRegistered && x.PhoneE164 == request.PhoneE164,
                 cancellationToken);
 
         member.PhoneE164 = request.PhoneE164;
         member.PhoneVerifiedUtc = DateTime.UtcNow;
 
         await dbContext.SaveChangesAsync(cancellationToken);
+
+        string? token = null;
+        DateTime? expiresUtc = null;
+
+        if (isNewMember)
+        {
+            var tokenResult = jwtTokenService.CreateToken(member, isGuest: true);
+            token = tokenResult.Token;
+            expiresUtc = tokenResult.ExpiresUtc;
+        }
+
         return AppResult<MemberActionResultDto>.Success(new MemberActionResultDto(
             true,
             DisplayName: existingRegisteredMember?.DisplayName,
             Sex: existingRegisteredMember?.Sex,
             Age: existingRegisteredMember?.Age,
             Email: existingRegisteredMember?.Email,
-            IsRegistered: existingRegisteredMember?.IsRegistered ?? false));
+            IsRegistered: existingRegisteredMember?.IsRegistered ?? false,
+            Token: token,
+            ExpiresUtc: expiresUtc));
     }
 }

@@ -15,10 +15,6 @@ type PhoneActionResponse = {
 
 const getErrorMessage = (error: unknown, fallback: string) => {
   const apiError = error as Partial<ApiError> | undefined
-  if (apiError?.status === 401) {
-    return 'Session is not ready. Guest sign-in failed; please try again shortly.'
-  }
-
   return apiError?.message || fallback
 }
 
