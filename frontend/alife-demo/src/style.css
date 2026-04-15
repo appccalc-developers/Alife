@@ -5,4 +5,16 @@
 body {
   margin: 0;
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  /* Prevent overscroll bounce on iOS standalone mode */
+  overscroll-behavior-y: none;
+}
+
+/* Safe area insets for iOS devices with notches / home indicators */
+@supports (padding: env(safe-area-inset-top)) {
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
 }
