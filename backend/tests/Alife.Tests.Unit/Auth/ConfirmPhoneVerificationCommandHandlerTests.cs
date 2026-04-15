@@ -127,7 +127,9 @@ public class ConfirmPhoneVerificationCommandHandlerTests
         // Act
         var result = await handler.Handle(command, CancellationToken.None);
 
-        // Assert
+        // Assert: The existing registered member's info is surfaced in the response so the
+        // frontend can pre-fill the registration form.  A new unregistered member is created
+        // for the current session and a token is issued so the user can proceed to /register.
         Assert.True(result.IsSuccess);
         Assert.NotNull(result.Value);
         Assert.Equal("Existing User", result.Value.DisplayName);

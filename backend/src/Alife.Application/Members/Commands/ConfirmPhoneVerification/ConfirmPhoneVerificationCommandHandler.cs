@@ -40,14 +40,7 @@ public sealed class ConfirmPhoneVerificationCommandHandler(
 
         if (request.CurrentMemberId is null)
         {
-            member = new Member
-            {
-                Id = Guid.NewGuid(),
-                IsRegistered = false,
-                IsAdmin = false,
-                CreatedUtc = DateTime.UtcNow
-            };
-
+            member = CreateNewMember(Guid.NewGuid());
             dbContext.Members.Add(member);
             isNewMember = true;
         }
@@ -56,14 +49,7 @@ public sealed class ConfirmPhoneVerificationCommandHandler(
             var existingMember = await dbContext.Members.FirstOrDefaultAsync(x => x.Id == request.CurrentMemberId, cancellationToken);
             if (existingMember is null)
             {
-                member = new Member
-                {
-                    Id = request.CurrentMemberId.Value,
-                    IsRegistered = false,
-                    IsAdmin = false,
-                    CreatedUtc = DateTime.UtcNow
-                };
-
+                member = CreateNewMember(request.CurrentMemberId.Value);
                 dbContext.Members.Add(member);
                 isNewMember = true;
             }
@@ -116,4 +102,12 @@ public sealed class ConfirmPhoneVerificationCommandHandler(
             Token: token,
             ExpiresUtc: expiresUtc));
     }
+
+    private static Member CreateNewMember(Guid id) => new()
+    {
+        Id = id,
+        IsRegistered = false,
+        IsAdmin = false,
+        CreatedUtc = DateTime.UtcNow
+    };
 }
