@@ -51,6 +51,30 @@ public class JwtTokenService(IConfiguration configuration) : IJwtTokenService
 		return WriteToken(claims, expiresUtc);
 	}
 
+	public (string Token, DateTime ExpiresUtc) CreateVerifiedLineToken(string lineUID, string? displayName, string? email)
+	{
+		var expiresUtc = DateTime.UtcNow.AddMinutes(30);
+		var claims = new List<Claim>
+		{
+			new("is_registered", "false"),
+			new("is_admin", "false"),
+			new("verified_line_uid", lineUID),
+			new("session_kind", "verified_line")
+		};
+
+		if (!string.IsNullOrWhiteSpace(displayName))
+		{
+			claims.Add(new Claim("line_display_name", displayName));
+		}
+
+		if (!string.IsNullOrWhiteSpace(email))
+		{
+			claims.Add(new Claim("line_email", email));
+		}
+
+		return WriteToken(claims, expiresUtc);
+	}
+
 	private (string Token, DateTime ExpiresUtc) WriteToken(IEnumerable<Claim> claims, DateTime expiresUtc)
 	{
 		var issuer = configuration["Jwt:Issuer"] ?? "alife-api";

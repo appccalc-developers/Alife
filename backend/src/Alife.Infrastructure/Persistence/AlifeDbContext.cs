@@ -37,9 +37,13 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 			cfg.Property(x => x.DisplayName).HasMaxLength(150);
 			cfg.Property(x => x.Email).HasMaxLength(200);
 			cfg.Property(x => x.PhoneE164).HasMaxLength(30);
+			cfg.Property(x => x.LineUID).HasMaxLength(100);
 			cfg.HasIndex(x => x.PhoneE164)
 				.IsUnique()
 				.HasFilter(phoneUniqueFilter);
+			cfg.HasIndex(x => x.LineUID)
+				.IsUnique()
+				.HasFilter("[line_uid] IS NOT NULL AND [is_registered] = 1");
 		});
 
 		modelBuilder.Entity<GroupMembership>(cfg =>

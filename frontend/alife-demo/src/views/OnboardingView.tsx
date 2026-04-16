@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { http, type ApiError } from '../api/http'
 import { useAuthStore } from '../stores/auth'
 
@@ -13,6 +13,10 @@ type PhoneActionResponse = {
   isRegistered?: boolean
 }
 
+type LineLoginResponse = {
+  authUrl: string
+}
+
 const getErrorMessage = (error: unknown, fallback: string) => {
   const apiError = error as Partial<ApiError> | undefined
   return apiError?.message || fallback
@@ -21,6 +25,7 @@ const getErrorMessage = (error: unknown, fallback: string) => {
 const OnboardingView = () => {
   const auth = useAuthStore()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
 
   const [phoneInput, setPhoneInput] = useState('')
   const [canonicalPhoneE164, setCanonicalPhoneE164] = useState('')
@@ -32,10 +37,12 @@ const OnboardingView = () => {
   const [message, setMessage] = useState('')
   const [startSucceeded, setStartSucceeded] = useState(false)
   const [phoneConfirmed, setPhoneConfirmed] = useState(false)
-  const [existingPhoneDetected, setExistingPhoneDetected] = useState(false)
+  const [lineConfirmed, setLineConfirmed] = useState(false)
+  const [existingAccountDetected, setExistingAccountDetected] = useState(false)
   const [isStarting, setIsStarting] = useState(false)
   const [isConfirming, setIsConfirming] = useState(false)
   const [isRegistering, setIsRegistering] = useState(false)
+  const [isLineLoading, setIsLineLoading] = useState(false)
 
   const codeInputRef = useRef<HTMLInputElement | null>(null)
   const nameInputRef = useRef<HTMLInputElement | null>(null)
@@ -56,7 +63,30 @@ const OnboardingView = () => {
 
   const canStart = isPhoneValid && !isStarting
   const canConfirm = startSucceeded && code.trim().length > 0 && !isConfirming
-  const canRegister = phoneConfirmed && !isRegistering
+  const canRegister = (phoneConfirmed || lineConfirmed) && !isRegistering
+
+  useEffect(() => {
+    const lineLogin = searchParams.get('line_login')
+    const lineError = searchParams.get('line_error')
+    const lineDisplayName = searchParams.get('line_display_name')
+    const lineEmail = searchParams.get('line_email')
+
+    if (lineError) {
+      setMessage(`LINE login failed: ${lineError}`)
+      return
+    }
+
+    if (lineLogin === 'true') {
+      if (lineDisplayName) {
+        setName(lineDisplayName)
+      }
+      if (lineEmail) {
+        setEmail(lineEmail)
+      }
+      setLineConfirmed(true)
+      setMessage('LINE verified. Please complete your profile.')
+    }
+  }, [searchParams])
 
   useEffect(() => {
     if (startSucceeded) {
@@ -65,10 +95,10 @@ const OnboardingView = () => {
   }, [startSucceeded])
 
   useEffect(() => {
-    if (phoneConfirmed) {
+    if (phoneConfirmed || lineConfirmed) {
       nameInputRef.current?.focus()
     }
-  }, [phoneConfirmed])
+  }, [phoneConfirmed, lineConfirmed])
 
   const start = async () => {
     if (!canStart) {
@@ -87,7 +117,7 @@ const OnboardingView = () => {
       setPhoneInput(nextCanonical)
       setStartSucceeded(true)
       setPhoneConfirmed(false)
-      setExistingPhoneDetected(false)
+      setExistingAccountDetected(false)
       setMessage('Verification started.')
     } catch (error) {
       setMessage(getErrorMessage(error, 'Unable to start verification.'))
@@ -117,7 +147,7 @@ const OnboardingView = () => {
       setSex(data.sex ?? 'Unknown')
       setAge(data.age ?? null)
       setEmail(data.email ?? '')
-      setExistingPhoneDetected(
+      setExistingAccountDetected(
         Boolean(data.isRegistered) ||
           Boolean(data.displayName) ||
           Boolean(data.sex) ||
@@ -130,6 +160,18 @@ const OnboardingView = () => {
       setMessage(getErrorMessage(error, 'Unable to confirm code.'))
     } finally {
       setIsConfirming(false)
+    }
+  }
+
+  const loginWithLine = async () => {
+    setIsLineLoading(true)
+    try {
+      await auth.bootstrap()
+      const { data } = await http.get<LineLoginResponse>('/api/members/line/login')
+      window.location.href = data.authUrl
+    } catch (error) {
+      setMessage(getErrorMessage(error, 'Unable to start LINE login.'))
+      setIsLineLoading(false)
     }
   }
 
@@ -160,22 +202,42 @@ const OnboardingView = () => {
   return (
     <section className="mx-auto max-w-xl space-y-4 rounded-xl border bg-white p-6">
       <h1 className="text-2xl font-bold">Onboarding</h1>
-      <input
-        value={phoneInput}
-        onChange={(event) => setPhoneInput(event.target.value)}
-        className="w-full rounded border p-2"
-        placeholder="Input your number here"
-      />
-      <button
-        type="button"
-        className="rounded bg-slate-900 px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-50"
-        disabled={!canStart}
-        onClick={() => {
-          start().catch(() => undefined)
-        }}
-      >
-        Start Verification
-      </button>
+
+      {!lineConfirmed && (
+        <>
+          <input
+            value={phoneInput}
+            onChange={(event) => setPhoneInput(event.target.value)}
+            className="w-full rounded border p-2"
+            placeholder="Input your number here"
+          />
+          <button
+            type="button"
+            className="rounded bg-slate-900 px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={!canStart}
+            onClick={() => {
+              start().catch(() => undefined)
+            }}
+          >
+            Start Verification
+          </button>
+
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-slate-500">or</span>
+          </div>
+
+          <button
+            type="button"
+            className="flex w-full items-center justify-center gap-2 rounded bg-green-500 px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={isLineLoading}
+            onClick={() => {
+              loginWithLine().catch(() => undefined)
+            }}
+          >
+            {isLineLoading ? 'Redirecting...' : 'Login with LINE'}
+          </button>
+        </>
+      )}
 
       {startSucceeded ? (
         <>
@@ -198,10 +260,10 @@ const OnboardingView = () => {
         </>
       ) : null}
 
-      {phoneConfirmed ? (
+      {(phoneConfirmed || lineConfirmed) ? (
         <>
-          <p className={`rounded px-3 py-2 text-sm font-medium ${existingPhoneDetected ? 'bg-amber-100 text-amber-900' : 'bg-emerald-100 text-emerald-900'}`}>
-            {existingPhoneDetected ? 'Existing account' : 'New account'}
+          <p className={`rounded px-3 py-2 text-sm font-medium ${existingAccountDetected ? 'bg-amber-100 text-amber-900' : 'bg-emerald-100 text-emerald-900'}`}>
+            {existingAccountDetected ? 'Existing account' : 'New account'}
           </p>
           <input ref={nameInputRef} value={name} onChange={(event) => setName(event.target.value)} className="w-full rounded border p-2" placeholder="Display Name" />
           <input value={sex} onChange={(event) => setSex(event.target.value)} className="w-full rounded border p-2" placeholder="Sex" />
@@ -221,7 +283,7 @@ const OnboardingView = () => {
               register().catch(() => undefined)
             }}
           >
-            {existingPhoneDetected ? 'Login' : 'Complete Registration'}
+            {existingAccountDetected ? 'Login' : 'Complete Registration'}
           </button>
         </>
       ) : null}
