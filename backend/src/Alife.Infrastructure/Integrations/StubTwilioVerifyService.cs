@@ -9,7 +9,5 @@ public class StubTwilioVerifyService : ITwilioVerifyService
 		=> Task.FromResult(AppResult<bool>.Success(true));
 
 	public Task<AppResult<bool>> ConfirmCodeAsync(string phoneE164, string code, CancellationToken cancellationToken = default)
-		=> Task.FromResult(code == "000000"
-			? AppResult<bool>.Success(true)
-			: AppResult<bool>.Validation("Invalid code."));
+		=> Task.FromResult(AppResult<bool>.Success(true));
 }
