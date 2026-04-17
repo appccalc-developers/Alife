@@ -6,7 +6,6 @@ using Alife.Application.Abstractions.Identity;
 using Alife.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,7 +16,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentMemberAccessor, CurrentMemberAccessor>();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddOpenApi();
+builder.Services.AddSwaggerGen();
 builder.Services.AddProblemDetails();
 ApiHealthCheckSetup.ConfigureServices(builder.Services);
 
@@ -75,23 +74,19 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-app.MapOpenApi();
-app.MapScalarApiReference("/scalar", options =>
+app.UseSwagger();
+app.UseSwaggerUI(options =>
 {
-    options.WithTitle("Alife API Reference");
-    options.WithTheme(ScalarTheme.BluePlanet);
-    options.WithOpenApiRoutePattern("/openapi/{documentName}.json");
+    options.SwaggerEndpoint("/swagger/v1/swagger.json", "Alife API v1");
+    options.RoutePrefix = "swagger";
 });
-app.MapGet("/", () => Results.Redirect("/scalar"));
+app.MapGet("/", () => Results.Redirect("/swagger"));
 
 app.UseCors("Frontend");
 app.UseAuthentication();
 app.UseAuthorization();
 ApiHealthCheckSetup.MapEndpoints(app);
 
-// Serve pre-built SPA assets through .NET 10 static asset endpoints.
-app.MapStaticAssets();
 app.MapControllers();
-app.MapFallbackToFile("{*path:regex(^(?!api).*$)}", "index.html");
 
 app.Run();

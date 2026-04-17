@@ -108,8 +108,7 @@ If authorized: proceed | If unauthorized: 403 Forbidden
 
 - Health endpoint: `GET /health`
 - API endpoints: under `/api/*`
-- OpenAPI endpoint (Development): `GET /openapi/v1.json`
-- Swagger UI dependency has been removed to avoid framework/version coupling during .NET 10 migration.
+- Swagger UI: `GET /swagger` (Swashbuckle)
 
 **Application Layer** (business logic):
 - Commands - Write operations (create, update, delete)
@@ -130,13 +129,6 @@ If authorized: proceed | If unauthorized: 403 Forbidden
 - This provides coordinated local/distributed cache behavior and built-in stampede protection semantics.
 - `/api/me` member profile path is cached via HybridCache and invalidated on profile-changing operations.
 - Source-level `IMemoryCache` and `AddMemoryCache()` usage were removed from application wiring.
-
-### Static Assets and SPA Hosting
-
-- API uses endpoint-based static serving via `MapStaticAssets()`.
-- Vue `dist` artifacts are linked into API static output during build/publish when present.
-- SPA fallback route is mapped for non-API paths.
-- A source `wwwroot` folder is kept in the API project to satisfy static web asset startup requirements.
 
 ### Database Schema
 
