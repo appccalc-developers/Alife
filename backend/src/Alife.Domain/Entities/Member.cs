@@ -8,6 +8,7 @@ public class Member
 	public int? Age { get; set; }
 	public string? Email { get; set; }
 	public string? PhoneE164 { get; set; }
+	public string? LineUID { get; set; }
 	public DateTime? PhoneVerifiedUtc { get; set; }
 	public bool IsRegistered { get; set; }
 	public bool IsAdmin { get; set; }

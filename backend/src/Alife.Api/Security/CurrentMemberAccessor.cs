@@ -15,4 +15,7 @@ public class CurrentMemberAccessor(IHttpContextAccessor httpContextAccessor) : I
 
     public string? GetVerifiedPhoneE164()
         => httpContextAccessor.HttpContext?.User.FindFirstValue("verified_phone");
+
+    public string? GetVerifiedLineUID()
+        => httpContextAccessor.HttpContext?.User.FindFirstValue("verified_line_uid");
 }

@@ -57,6 +57,10 @@ public static class DependencyInjection
 			client.Timeout = TimeSpan.FromSeconds(20);
 		});
 		services.AddScoped<IYoutubeService, YoutubeService>();
+		services.AddHttpClient<ILineLoginService, LineLoginService>(client =>
+		{
+			client.Timeout = TimeSpan.FromSeconds(15);
+		});
 		services.AddScoped<IGroupReadService, GroupReadService>();
 		services.AddScoped<IGroupCacheInvalidationService, GroupCacheInvalidationService>();
 		services.AddScoped<IGroupAuthorizationService, GroupAuthorizationService>();

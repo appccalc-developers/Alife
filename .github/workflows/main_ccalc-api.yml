@@ -42,6 +42,13 @@ jobs:
         env:
           DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
           JWT_KEY: ${{ secrets.JWT_KEY }}
+          LINE_LOGIN_CLIENT_ID: ${{ secrets.LINE_LOGIN_CLIENT_ID }}
+          LINE_LOGIN_CLIENT_SECRET: ${{ secrets.LINE_LOGIN_CLIENT_SECRET }}
+          LINE_LOGIN_REDIRECT_URI: ${{ secrets.LINE_LOGIN_REDIRECT_URI }}
+          FRONTEND_BASE_URL: ${{ secrets.FRONTEND_BASE_URL }}
+          TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+          TWILIO_VERIFY_SERVICE_SID: ${{ secrets.TWILIO_VERIFY_SERVICE_SID }}
         run: |
           set -euo pipefail
 
@@ -51,9 +58,14 @@ jobs:
           fi
 
           settings=("ConnectionStrings__Default=$DB_CONNECTION_STRING")
-          if [ -n "${JWT_KEY:-}" ]; then
-            settings+=("Jwt__Key=$JWT_KEY")
-          fi
+          [ -n "${JWT_KEY:-}" ] && settings+=("Jwt__Key=$JWT_KEY")
+          [ -n "${LINE_LOGIN_CLIENT_ID:-}" ] && settings+=("LineLogin__ClientId=$LINE_LOGIN_CLIENT_ID")
+          [ -n "${LINE_LOGIN_CLIENT_SECRET:-}" ] && settings+=("LineLogin__ClientSecret=$LINE_LOGIN_CLIENT_SECRET")
+          [ -n "${LINE_LOGIN_REDIRECT_URI:-}" ] && settings+=("LineLogin__RedirectUri=$LINE_LOGIN_REDIRECT_URI")
+          [ -n "${FRONTEND_BASE_URL:-}" ] && settings+=("Frontend__BaseUrl=$FRONTEND_BASE_URL")
+          [ -n "${TWILIO_ACCOUNT_SID:-}" ] && settings+=("Twilio__AccountSid=$TWILIO_ACCOUNT_SID")
+          [ -n "${TWILIO_AUTH_TOKEN:-}" ] && settings+=("Twilio__AuthToken=$TWILIO_AUTH_TOKEN")
+          [ -n "${TWILIO_VERIFY_SERVICE_SID:-}" ] && settings+=("Twilio__VerifyServiceSid=$TWILIO_VERIFY_SERVICE_SID")
 
           az webapp config appsettings set \
             --name "${{ env.AZURE_WEBAPP_NAME }}" \

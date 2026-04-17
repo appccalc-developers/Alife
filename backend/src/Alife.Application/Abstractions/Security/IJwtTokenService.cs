@@ -7,4 +7,5 @@ public interface IJwtTokenService
 	(string Token, DateTime ExpiresUtc) CreateToken(Member member, bool isGuest);
 	(string Token, DateTime ExpiresUtc) CreateGuestToken();
 	(string Token, DateTime ExpiresUtc) CreateVerifiedPhoneToken(string phoneE164);
+	(string Token, DateTime ExpiresUtc) CreateVerifiedLineToken(string lineUID, string? displayName, string? email);
 }
