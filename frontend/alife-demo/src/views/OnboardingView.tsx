@@ -205,6 +205,21 @@ const OnboardingView = () => {
 
       {!lineConfirmed && (
         <>
+          <button
+            type="button"
+            className="flex w-full items-center justify-center gap-2 rounded bg-green-500 px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={isLineLoading}
+            onClick={() => {
+              loginWithLine().catch(() => undefined)
+            }}
+          >
+            {isLineLoading ? 'Redirecting...' : 'Login with LINE'}
+          </button>
+
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-slate-500">or</span>
+          </div>
+
           <input
             value={phoneInput}
             onChange={(event) => setPhoneInput(event.target.value)}
@@ -222,43 +237,29 @@ const OnboardingView = () => {
             Start Verification
           </button>
 
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-slate-500">or</span>
-          </div>
+          {startSucceeded ? (
+            <>
+              <input
+                ref={codeInputRef}
+                value={code}
+                onChange={(event) => setCode(event.target.value)}
+                className="w-full rounded border p-2"
+                placeholder="6 digit code"
+              />
+              <button
+                type="button"
+                className="rounded bg-slate-900 px-3 py-2 text-white"
+                onClick={() => {
+                  confirm().catch(() => undefined)
+                }}
+              >
+                Confirm
+              </button>
+            </>
+          ) : null}
 
-          <button
-            type="button"
-            className="flex w-full items-center justify-center gap-2 rounded bg-green-500 px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={isLineLoading}
-            onClick={() => {
-              loginWithLine().catch(() => undefined)
-            }}
-          >
-            {isLineLoading ? 'Redirecting...' : 'Login with LINE'}
-          </button>
         </>
       )}
-
-      {startSucceeded ? (
-        <>
-          <input
-            ref={codeInputRef}
-            value={code}
-            onChange={(event) => setCode(event.target.value)}
-            className="w-full rounded border p-2"
-            placeholder="6 digit code"
-          />
-          <button
-            type="button"
-            className="rounded bg-slate-900 px-3 py-2 text-white"
-            onClick={() => {
-              confirm().catch(() => undefined)
-            }}
-          >
-            Confirm
-          </button>
-        </>
-      ) : null}
 
       {(phoneConfirmed || lineConfirmed) ? (
         <>
