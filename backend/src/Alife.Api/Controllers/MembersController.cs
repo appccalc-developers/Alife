@@ -194,7 +194,7 @@ public class MembersController(
 
         if (result.Value.IsRegistered)
         {
-            return Redirect($"{frontendBaseUrl}/");
+            return Redirect($"{frontendBaseUrl}?login=success&t={DateTimeOffset.UtcNow.ToUnixTimeSeconds()}");
         }
 
         var queryParams = new System.Text.StringBuilder($"{frontendBaseUrl}/onboarding?line_login=true");

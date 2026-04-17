@@ -75,7 +75,7 @@ Override via environment variables or secrets for real environments.
 
 - `ConnectionStrings:Default`
 - `Jwt:Issuer`, `Jwt:Audience`, `Jwt:Key`
-- `Frontend:Origin`
+- `Frontend:BaseUrl`
 - `Twilio:*`
 
 ## Authentication

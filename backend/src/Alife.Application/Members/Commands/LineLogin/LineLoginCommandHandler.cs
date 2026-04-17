@@ -45,7 +45,7 @@ public sealed class LineLoginCommandHandler(
 
         if (existingRegisteredMember is not null)
         {
-            var signInToken = jwtTokenService.CreateToken(existingRegisteredMember, isGuest: false);
+            var (Token, ExpiresUtc) = jwtTokenService.CreateToken(existingRegisteredMember, isGuest: false);
             return AppResult<MemberActionResultDto>.Success(new MemberActionResultDto(
                 true,
                 DisplayName: existingRegisteredMember.DisplayName,
@@ -53,8 +53,8 @@ public sealed class LineLoginCommandHandler(
                 Age: existingRegisteredMember.Age,
                 Email: existingRegisteredMember.Email,
                 IsRegistered: true,
-                Token: signInToken.Token,
-                ExpiresUtc: signInToken.ExpiresUtc));
+                Token: Token,
+                ExpiresUtc: ExpiresUtc));
         }
 
         string? token = null;
