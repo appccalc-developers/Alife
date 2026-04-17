@@ -91,13 +91,6 @@ Frontend default URL: `http://localhost:5173`
 - Members `/api/me` now uses HybridCache with stampede protection.
 - Legacy `AddMemoryCache()` usage was removed from source.
 
-## Static Assets (Backend)
-
-- API uses `app.MapStaticAssets()`.
-- SPA fallback is enabled for non-API routes.
-- Frontend `dist` output is copied into API static assets during build/publish when present.
-- A source `wwwroot` folder is included so local startup does not fail when dist is absent.
-
 ## Useful Commands
 
 ```bash
