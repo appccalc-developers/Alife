@@ -164,15 +164,17 @@ public class MembersController(
     [AllowAnonymous]
     public async Task<IActionResult> LineCallback([FromQuery] string? code, [FromQuery] string? state, CancellationToken cancellationToken)
     {
+        var frontendBaseUrl = (configuration["Frontend:BaseUrl"] ?? "").TrimEnd('/');
+
         if (string.IsNullOrWhiteSpace(code))
         {
-            return Redirect("/onboarding?line_error=missing_code");
+            return Redirect($"{frontendBaseUrl}/onboarding?line_error=missing_code");
         }
 
         var storedState = Request.Cookies["line_oauth_state"];
         if (!string.IsNullOrWhiteSpace(storedState) && storedState != state)
         {
-            return Redirect("/onboarding?line_error=invalid_state");
+            return Redirect($"{frontendBaseUrl}/onboarding?line_error=invalid_state");
         }
 
         Response.Cookies.Delete("line_oauth_state");
@@ -182,7 +184,7 @@ public class MembersController(
 
         if (!result.IsSuccess || result.Value is null)
         {
-            return Redirect("/onboarding?line_error=login_failed");
+            return Redirect($"{frontendBaseUrl}/onboarding?line_error=login_failed");
         }
 
         if (result.Value.Token is not null && result.Value.ExpiresUtc is not null)
@@ -192,10 +194,10 @@ public class MembersController(
 
         if (result.Value.IsRegistered)
         {
-            return Redirect("/");
+            return Redirect($"{frontendBaseUrl}/");
         }
 
-        var queryParams = new System.Text.StringBuilder("/onboarding?line_login=true");
+        var queryParams = new System.Text.StringBuilder($"{frontendBaseUrl}/onboarding?line_login=true");
         if (!string.IsNullOrWhiteSpace(result.Value.DisplayName))
         {
             queryParams.Append($"&line_display_name={Uri.EscapeDataString(result.Value.DisplayName)}");
@@ -210,6 +212,7 @@ public class MembersController(
     }
 
     [HttpPost("members/register")]
+    [AllowAnonymous]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request, CancellationToken cancellationToken)
     {
         var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
