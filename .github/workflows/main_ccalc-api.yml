@@ -17,7 +17,7 @@ jobs:
   migrate-and-deploy:
     runs-on: ubuntu-latest
     env:
-      AZURE_FUNCTIONAPP_NAME: ccalc-api
+      AZURE_FUNCTIONAPP_NAME: fapi-ccalc
       AZURE_RESOURCE_GROUP: ccalc
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
