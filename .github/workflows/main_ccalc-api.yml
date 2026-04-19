@@ -176,8 +176,7 @@ jobs:
 
       - name: Publish Alife.API
         working-directory: ./backend/src/Alife.Api
-        run: dotnet publish --configuration Release --runtime linux-x64 --self-contained true \
-              --output ${{ github.workspace }}/publish
+        run: dotnet publish --configuration Release --output "${{ github.workspace }}/publish"
 
       - name: Deploy Alife.API to Azure Functions
         uses: Azure/functions-action@v1
@@ -193,5 +192,5 @@ jobs:
             --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
             --server "${{ steps.sqlfw.outputs.server_name }}" \
             --name "${{ steps.sqlfw.outputs.rule_name }}" \
-            --y \
+            -y \
             --only-show-errors || true
