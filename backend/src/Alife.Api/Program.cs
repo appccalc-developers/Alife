@@ -5,9 +5,15 @@ using Alife.Application;
 using Alife.Application.Abstractions.Identity;
 using Alife.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.IdentityModel.Tokens;
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = FunctionsApplication.CreateBuilder(args);
+builder.ConfigureFunctionsWebApplication();
+
+builder.Services.AddApplicationInsightsTelemetryWorkerService();
+builder.Services.ConfigureFunctionsApplicationInsights();
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -71,22 +77,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
+builder.Services.AddSingleton<ApiHttpPipeline>();
 
 var app = builder.Build();
-
-app.UseSwagger();
-app.UseSwaggerUI(options =>
-{
-    options.SwaggerEndpoint("/swagger/v1/swagger.json", "Alife API v1");
-    options.RoutePrefix = "swagger";
-});
-app.MapGet("/", () => Results.Redirect("/swagger"));
-
-app.UseCors("Frontend");
-app.UseAuthentication();
-app.UseAuthorization();
-ApiHealthCheckSetup.MapEndpoints(app);
-
-app.MapControllers();
-
-app.Run();
+await app.RunAsync();

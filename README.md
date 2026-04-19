@@ -1,14 +1,14 @@
 # alife-church-app
 
-Alife is a full-stack church management MVP with a .NET 10 backend and a Vue 3 frontend.
+Alife is a full-stack church management MVP with an Azure Functions (.NET isolated) backend and a Vue 3 frontend.
 
 ## Current Stack
 
-- Backend: .NET 10 (Clean Architecture)
+- Backend: Azure Functions (.NET 10 Isolated Worker, Native AOT publish)
 - Frontend: Vue 3 + TypeScript + Vite + Pinia + Tailwind
 - Database: SQL Server 2022 (Docker)
 - API auth: JWT in HttpOnly cookie (`alife_auth`)
-- API docs: built-in OpenAPI endpoint (`/openapi/v1.json`)
+- API docs: Swagger/OpenAPI endpoint (`/swagger/v1/swagger.json`)
 
 ## Repository Layout
 
@@ -51,10 +51,10 @@ dotnet run --project src/Alife.DbMigrator
 From repo root:
 
 ```bash
-dotnet run --project backend/src/Alife.Api --launch-profile http
+dotnet run --project backend/src/Alife.Api
 ```
 
-Default launch profile URL: `http://localhost:5097`
+Default local URL: `http://localhost:7071`
 
 Health endpoint:
 
@@ -65,7 +65,7 @@ GET /health
 OpenAPI document in development:
 
 ```text
-GET /openapi/v1.json
+GET /swagger/v1/swagger.json
 ```
 
 ### 4) Run frontend
