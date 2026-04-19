@@ -177,7 +177,7 @@ jobs:
 
       - name: Publish Alife.API
         working-directory: ./backend/src/Alife.Api
-        run: dotnet publish --configuration Release --output ${{ github.workspace }}/publish -r linux-x64 -p:PublishAot=true -p:SelfContained=true
+        run: dotnet publish --configuration Release --output ${{ github.workspace }}/publish
 
       - name: Deploy Alife.API to Azure Functions
         uses: Azure/functions-action@v1
