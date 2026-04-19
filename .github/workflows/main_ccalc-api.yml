@@ -31,7 +31,7 @@ jobs:
           dotnet-version: '10.x'
 
       - name: Azure Login (OIDC)
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
         uses: azure/login@v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
