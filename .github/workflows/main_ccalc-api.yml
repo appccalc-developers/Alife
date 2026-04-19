@@ -31,7 +31,6 @@ jobs:
           dotnet-version: '10.x'
 
       - name: Azure Login (OIDC)
-        if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
         uses: azure/login@v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -39,7 +38,6 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Configure Function App runtime settings
-        if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
         shell: bash
         env:
           DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
@@ -73,7 +71,6 @@ jobs:
             --name "${{ env.AZURE_FUNCTIONAPP_NAME }}" \
             --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
             --settings "${settings[@]}" \
-              "FUNCTIONS_WORKER_RUNTIME=dotnet-isolated" \
             --only-show-errors \
             --output none
 
