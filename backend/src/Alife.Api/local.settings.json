@@ -10,5 +10,9 @@
     "Jwt:KeyId": "alife-local-hs256",
     "Twilio:Skip": "true",
     "Twilio:Channel": "sms"
+  },
+  "Host": {
+    "CORS": "http://localhost:5173",
+    "CORSCredentials": true
   }
 }

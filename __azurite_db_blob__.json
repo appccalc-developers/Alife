@@ -179,14 +179,14 @@
                         "count": 0
                     },
                     "meta": {
-                        "revision": 324,
+                        "revision": 428,
                         "created": 1776647043992,
                         "version": 0,
-                        "updated": 1776653720148
+                        "updated": 1776657569189
                     },
                     "$loki": 1,
-                    "leaseId": "ea3efd95-bea6-44cb-aa9c-b958fa568d92",
-                    "leaseExpireTime": "2026-04-20T02:55:35.145Z",
+                    "leaseId": "43413ffe-f570-4c19-b05e-0afc044f9de7",
+                    "leaseExpireTime": "2026-04-20T03:59:44.185Z",
                     "leaseDurationSeconds": 15
                 },
                 {
@@ -199,8 +199,8 @@
                     "name": "locks/stephendtop-1062787515/host",
                     "properties": {
                         "creationTime": "2026-04-20T01:04:08.636Z",
-                        "lastModified": "2026-04-20T01:32:32.258Z",
-                        "etag": "\"0x1D4BFADF3999240\"",
+                        "lastModified": "2026-04-20T03:46:40.095Z",
+                        "etag": "\"0x229A58A12FE2560\"",
                         "contentLength": 0,
                         "contentType": "application/octet-stream",
                         "contentMD5": {
@@ -241,14 +241,14 @@
                         "count": 0
                     },
                     "meta": {
-                        "revision": 207,
+                        "revision": 273,
                         "created": 1776647048644,
                         "version": 0,
-                        "updated": 1776653717750
+                        "updated": 1776657568107
                     },
                     "$loki": 3,
                     "leaseId": "000000000000000000000000F5ADF030",
-                    "leaseExpireTime": "2026-04-20T02:55:32.748Z",
+                    "leaseExpireTime": "2026-04-20T03:59:43.105Z",
                     "leaseDurationSeconds": 15
                 },
                 {

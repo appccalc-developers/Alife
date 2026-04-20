@@ -1,6 +1,6 @@
 // Alife Church – Service Worker
-// Provides offline caching with a network-first strategy for API calls
-// and a cache-first strategy for static assets.
+// Provides offline caching with a network-first strategy for API calls,
+// HTML/JS/CSS, and a cache-first strategy for images/fonts.
 
 const CACHE_NAME = 'alife-cache-v1';
 
@@ -57,8 +57,27 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cache-first for static assets (JS, CSS, images, fonts).
-  event.respondWith(cacheFirst(request));
+  const { destination } = request;
+
+  // Network-first for app shell/document/script/style.
+  if (
+    request.mode === 'navigate' ||
+    destination === 'document' ||
+    destination === 'script' ||
+    destination === 'style'
+  ) {
+    event.respondWith(networkFirst(request));
+    return;
+  }
+
+  // Cache-first for media assets.
+  if (destination === 'image' || destination === 'font') {
+    event.respondWith(cacheFirst(request));
+    return;
+  }
+
+  // Default to network-first for everything else.
+  event.respondWith(networkFirst(request));
 });
 
 // ── Strategies ──────────────────────────────────────────────────────
