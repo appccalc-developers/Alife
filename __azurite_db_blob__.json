@@ -179,14 +179,14 @@
                         "count": 0
                     },
                     "meta": {
-                        "revision": 428,
+                        "revision": 458,
                         "created": 1776647043992,
                         "version": 0,
-                        "updated": 1776657569189
+                        "updated": 1776661097969
                     },
                     "$loki": 1,
-                    "leaseId": "43413ffe-f570-4c19-b05e-0afc044f9de7",
-                    "leaseExpireTime": "2026-04-20T03:59:44.185Z",
+                    "leaseId": "a79d2307-ce7e-4855-b585-9f6aa32feba6",
+                    "leaseExpireTime": "2026-04-20T04:58:32.966Z",
                     "leaseDurationSeconds": 15
                 },
                 {
@@ -199,8 +199,8 @@
                     "name": "locks/stephendtop-1062787515/host",
                     "properties": {
                         "creationTime": "2026-04-20T01:04:08.636Z",
-                        "lastModified": "2026-04-20T03:46:40.095Z",
-                        "etag": "\"0x229A58A12FE2560\"",
+                        "lastModified": "2026-04-20T04:54:44.941Z",
+                        "etag": "\"0x25125F0A4FEC440\"",
                         "contentLength": 0,
                         "contentType": "application/octet-stream",
                         "contentMD5": {
@@ -241,14 +241,14 @@
                         "count": 0
                     },
                     "meta": {
-                        "revision": 273,
+                        "revision": 293,
                         "created": 1776647048644,
                         "version": 0,
-                        "updated": 1776657568107
+                        "updated": 1776661100975
                     },
                     "$loki": 3,
                     "leaseId": "000000000000000000000000F5ADF030",
-                    "leaseExpireTime": "2026-04-20T03:59:43.105Z",
+                    "leaseExpireTime": "2026-04-20T04:58:35.974Z",
                     "leaseDurationSeconds": 15
                 },
                 {
@@ -486,8 +486,8 @@
                     "name": "accountName",
                     "dirty": false,
                     "values": [
-                        0,
                         1,
+                        0,
                         3,
                         2,
                         5,
@@ -498,8 +498,8 @@
                     "name": "containerName",
                     "dirty": false,
                     "values": [
-                        0,
                         1,
+                        0,
                         3,
                         2,
                         5,
@@ -522,8 +522,8 @@
                     "name": "snapshot",
                     "dirty": false,
                     "values": [
-                        0,
                         1,
+                        0,
                         3,
                         2,
                         5,
