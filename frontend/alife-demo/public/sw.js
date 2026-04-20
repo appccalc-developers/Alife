@@ -90,7 +90,7 @@ async function cacheFirst(request) {
 
   try {
     const response = await fetch(request);
-    if (response.ok) {
+    if (response.ok && (request.method === 'GET' && (request.destination === 'image' || request.destination === 'font'))) {
       const cache = await caches.open(CACHE_NAME);
       cache.put(request, response.clone());
     }
