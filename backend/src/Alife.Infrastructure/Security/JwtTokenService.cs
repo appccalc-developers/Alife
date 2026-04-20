@@ -80,9 +80,15 @@ public class JwtTokenService(IConfiguration configuration) : IJwtTokenService
 		var issuer = configuration["Jwt:Issuer"] ?? "alife-api";
 		var audience = configuration["Jwt:Audience"] ?? "alife-web";
 		var key = configuration["Jwt:Key"] ?? "replace-me-in-production-with-long-random-key";
+		var keyId = configuration["Jwt:KeyId"] ?? "alife-local-hs256";
+
+		var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key))
+		{
+			KeyId = keyId
+		};
 
 		var creds = new SigningCredentials(
-			new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
+			signingKey,
 			SecurityAlgorithms.HmacSha256);
 
 		var token = new JwtSecurityToken(issuer, audience, claims, expires: expiresUtc, signingCredentials: creds);

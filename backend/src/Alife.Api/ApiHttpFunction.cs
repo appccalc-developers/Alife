@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 
@@ -20,6 +19,8 @@ internal sealed class ApiHttpFunction(ApiHttpPipeline pipeline)
             Route = "{*path}")]
         HttpRequest request)
     {
+        request.HttpContext.SetEndpoint(null);
+        request.HttpContext.Request.RouteValues.Clear();
         await pipeline.InvokeAsync(request.HttpContext);
         return new EmptyResult();
     }

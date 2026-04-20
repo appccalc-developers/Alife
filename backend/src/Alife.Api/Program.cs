@@ -20,7 +20,9 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHybridCache();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentMemberAccessor, CurrentMemberAccessor>();
-builder.Services.AddControllers();
+builder.Services
+    .AddControllers()
+    .AddApplicationPart(typeof(Alife.Api.Controllers.GroupsController).Assembly);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddProblemDetails();
@@ -36,6 +38,11 @@ builder.Services.AddCors(options =>
 });
 
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "replace-me-in-production-with-long-random-key";
+var jwtKeyId = builder.Configuration["Jwt:KeyId"] ?? "alife-local-hs256";
+var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+{
+    KeyId = jwtKeyId
+};
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -48,7 +55,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "alife-api",
             ValidAudience = builder.Configuration["Jwt:Audience"] ?? "alife-web",
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+            IssuerSigningKey = signingKey,
+            TryAllIssuerSigningKeys = true,
+            ValidAlgorithms = [SecurityAlgorithms.HmacSha256]
         };
 
         options.Events = new JwtBearerEvents
@@ -60,6 +69,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                     context.Token = token;
                 }
 
+                return Task.CompletedTask;
+            },
+            OnAuthenticationFailed = context =>
+            {
+                context.NoResult();
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 return Task.CompletedTask;
             },
             OnChallenge = context =>
