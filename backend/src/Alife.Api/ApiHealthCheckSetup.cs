@@ -1,7 +1,9 @@
 using System.Text.Json;
 using Alife.Api.HealthChecks;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Routing;
 
 namespace Alife.Api;
 
@@ -15,7 +17,7 @@ internal static class ApiHealthCheckSetup
             .AddCheck<DatabaseTouchHealthCheck>("database-touch", tags: ["ready", "db"]);
     }
 
-    public static void MapEndpoints(WebApplication app)
+    public static void MapEndpoints(IEndpointRouteBuilder app)
     {
         app.MapHealthChecks("/health/live", new HealthCheckOptions
         {

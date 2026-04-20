@@ -1,12 +1,13 @@
 # Alife Backend
 
-REST API for Alife Church App, now running on .NET 10.
+REST API for Alife Church App, now running on Azure Functions (.NET Isolated Worker) with .NET 10.
 
 ## Key Updates
 
 - Target framework upgraded to `net10.0` for all backend projects.
-- Built-in OpenAPI is used (`/openapi/v1.json` in Development).
-- Swashbuckle/Swagger UI is removed.
+- Backend host moved from Azure Web App to Azure Functions isolated worker.
+- OpenAPI is served by Swagger (`/swagger/v1/swagger.json`).
+- Native AOT publish is enabled for Release builds.
 - Caching moved to HybridCache in read/invalidation paths.
 - API auth challenge/forbidden handling returns status codes for frontend API calls.
 - Dockerfile moved to .NET 10 + Ubuntu chiseled runtime.
@@ -49,27 +50,27 @@ dotnet run --project src/Alife.DbMigrator
 From repository root:
 
 ```bash
-dotnet run --project backend/src/Alife.Api --launch-profile http
+dotnet run --project backend/src/Alife.Api
 ```
 
-Default launch URL: `http://localhost:5097`
+Default local URL: `http://localhost:7071`
 
 ## Endpoints
 
 - Health: `GET /health`
-- OpenAPI (Development): `GET /openapi/v1.json`
+- OpenAPI (Development): `GET /swagger/v1/swagger.json`
 - Auth, Groups, Members, Pages, Sections, Admin are under `/api/*`
 
 ## Configuration
 
 ### Development settings
 
-`src/Alife.Api/appsettings.Development.json` includes local placeholders so startup validation succeeds:
+Runtime settings should be provided through environment variables (or Function App settings in Azure):
 
-- Connection string (local SQL at `localhost,14333`)
-- Twilio section placeholders (`Twilio:AccountSid`, `Twilio:AuthToken`, `Twilio:VerifyServiceSid`, `Twilio:Channel`)
+- `ConnectionStrings__Default` (local SQL can be `localhost,14333`)
+- Twilio settings (`Twilio__AccountSid`, `Twilio__AuthToken`, `Twilio__VerifyServiceSid`, `Twilio__Channel`)
 
-Override via environment variables or secrets for real environments.
+For local Functions runtime, `local.settings.json` provides `FUNCTIONS_WORKER_RUNTIME=dotnet-isolated` and storage defaults.
 
 ### Important settings
 
@@ -92,12 +93,13 @@ Override via environment variables or secrets for real environments.
   - Group/page cache invalidation services
 - Source-level `IMemoryCache` and `AddMemoryCache()` usage were removed.
 
-## Static Assets + SPA
+## Native AOT Compatibility Notes
 
-- `MapStaticAssets()` serves backend static assets.
-- SPA fallback is mapped for non-API routes.
-- Frontend `dist` is copied into API output/publish as static assets when present.
-- A source `wwwroot` folder exists to prevent startup errors when dist is missing.
+- Release publish uses native AOT and trimming; keep new dependencies trim-safe.
+- Current compatibility blockers are warning-only:
+  - ASP.NET Core MVC controllers emit trim/AOT warnings.
+  - EF Core emits trim/AOT warnings.
+- Mitigation decision: keep AOT publish enabled in CI/CD and track these warnings for gradual reduction while preserving existing endpoint behavior.
 
 ## Build/Test
 
@@ -105,6 +107,7 @@ Override via environment variables or secrets for real environments.
 dotnet restore backend/Alife.sln
 dotnet build backend/Alife.sln -c Debug
 dotnet test backend/tests/Alife.Tests.Unit/Alife.Tests.Unit.csproj -c Debug
+dotnet publish backend/src/Alife.Api/Alife.Api.csproj -c Release -r linux-x64 -p:PublishAot=true -p:SelfContained=true
 ```
 
 ## Docker
