@@ -1,9 +1,10 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 
 namespace Alife.Api;
 
-internal sealed class ApiHttpFunction(ApiHttpPipeline pipeline)
+internal sealed class ApiHttpFunction(ApiHttpPipeline pipeline, IHttpContextAccessor httpContextAccessor)
 {
     [Function("ApiHttpFunction")]
     public async Task<IActionResult> Run(
@@ -21,7 +22,18 @@ internal sealed class ApiHttpFunction(ApiHttpPipeline pipeline)
     {
         request.HttpContext.SetEndpoint(null);
         request.HttpContext.Request.RouteValues.Clear();
-        await pipeline.InvokeAsync(request.HttpContext);
+        var previousHttpContext = httpContextAccessor.HttpContext;
+        httpContextAccessor.HttpContext = request.HttpContext;
+
+        try
+        {
+            await pipeline.InvokeAsync(request.HttpContext);
+        }
+        finally
+        {
+            httpContextAccessor.HttpContext = previousHttpContext;
+        }
+
         return new EmptyResult();
     }
 }

@@ -7,15 +7,19 @@ public class CurrentMemberAccessor(IHttpContextAccessor httpContextAccessor) : I
 {
     public Guid? GetCurrentMemberId()
     {
-        var sub = httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? httpContextAccessor.HttpContext?.User.FindFirstValue("sub");
+        var principal = GetCurrentPrincipal();
+        var sub = principal?.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? principal?.FindFirstValue("sub");
 
         return Guid.TryParse(sub, out var memberId) ? memberId : null;
     }
 
     public string? GetVerifiedPhoneE164()
-        => httpContextAccessor.HttpContext?.User.FindFirstValue("verified_phone");
+        => GetCurrentPrincipal()?.FindFirstValue("verified_phone");
 
     public string? GetVerifiedLineUID()
-        => httpContextAccessor.HttpContext?.User.FindFirstValue("verified_line_uid");
+        => GetCurrentPrincipal()?.FindFirstValue("verified_line_uid");
+
+    private ClaimsPrincipal? GetCurrentPrincipal()
+        => httpContextAccessor.HttpContext?.User;
 }
