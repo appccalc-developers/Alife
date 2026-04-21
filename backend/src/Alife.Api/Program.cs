@@ -5,31 +5,35 @@ using Alife.Application;
 using Alife.Application.Abstractions.Identity;
 using Alife.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.IdentityModel.Tokens;
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = FunctionsApplication.CreateBuilder(args);
+builder.ConfigureFunctionsWebApplication();
+
+builder.Services.AddApplicationInsightsTelemetryWorkerService();
+builder.Services.ConfigureFunctionsApplicationInsights();
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHybridCache();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentMemberAccessor, CurrentMemberAccessor>();
-builder.Services.AddControllers();
+builder.Services
+    .AddControllers()
+    .AddApplicationPart(typeof(Alife.Api.Controllers.GroupsController).Assembly);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddProblemDetails();
 ApiHealthCheckSetup.ConfigureServices(builder.Services);
 
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("Frontend", policy =>
-        policy.SetIsOriginAllowed(_ => true)
-            .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials());
-});
-
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "replace-me-in-production-with-long-random-key";
+var jwtKeyId = builder.Configuration["Jwt:KeyId"] ?? "alife-local-hs256";
+var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+{
+    KeyId = jwtKeyId
+};
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -42,7 +46,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "alife-api",
             ValidAudience = builder.Configuration["Jwt:Audience"] ?? "alife-web",
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+            IssuerSigningKey = signingKey,
+            TryAllIssuerSigningKeys = true,
+            ValidAlgorithms = [SecurityAlgorithms.HmacSha256]
         };
 
         options.Events = new JwtBearerEvents
@@ -54,6 +60,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                     context.Token = token;
                 }
 
+                return Task.CompletedTask;
+            },
+            OnAuthenticationFailed = context =>
+            {
+                context.NoResult();
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 return Task.CompletedTask;
             },
             OnChallenge = context =>
@@ -71,22 +83,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
+builder.Services.AddSingleton<ApiHttpPipeline>();
 
 var app = builder.Build();
-
-app.UseSwagger();
-app.UseSwaggerUI(options =>
-{
-    options.SwaggerEndpoint("/swagger/v1/swagger.json", "Alife API v1");
-    options.RoutePrefix = "swagger";
-});
-app.MapGet("/", () => Results.Redirect("/swagger"));
-
-app.UseCors("Frontend");
-app.UseAuthentication();
-app.UseAuthorization();
-ApiHealthCheckSetup.MapEndpoints(app);
-
-app.MapControllers();
-
-app.Run();
+await app.RunAsync();

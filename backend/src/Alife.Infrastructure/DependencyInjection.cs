@@ -67,7 +67,6 @@ public static class DependencyInjection
 		services.AddScoped<IMemberReadService, MemberReadService>();
 		services.AddScoped<IPageReadService, PageReadService>();
 		services.AddScoped<IPageCacheInvalidationService, PageCacheInvalidationService>();
-		services.AddHostedService<SermonSyncHostedService>();
 
 		return services;
 	}

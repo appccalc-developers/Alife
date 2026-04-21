@@ -1,0 +1,18 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+    "ConnectionStrings:Default": "Server=localhost,14333;Database=alife_db;User Id=sa;Password=AlifeDevPass123;TrustServerCertificate=True;Encrypt=False",
+    "Jwt:Issuer": "alife-api",
+    "Jwt:Audience": "alife-web",
+    "Jwt:Key": "replace-me-in-production-with-long-random-key",
+    "Jwt:KeyId": "alife-local-hs256",
+    "Twilio:Skip": "true",
+    "Twilio:Channel": "sms"
+  },
+  "Host": {
+    "CORS": "http://localhost:5173",
+    "CORSCredentials": true
+  }
+}

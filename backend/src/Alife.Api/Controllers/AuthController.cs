@@ -16,10 +16,11 @@ public class AuthController(
     IWebHostEnvironment environment) : ControllerBase
 {
     [HttpPost("login")]
-    [Authorize]
+    [AllowAnonymous]
     public async Task<IActionResult> Login(CancellationToken cancellationToken)
     {
         var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+
         if (currentMemberId is null)
         {
             return Unauthorized();
@@ -31,7 +32,7 @@ public class AuthController(
             return BadRequest(new { message = result.Message });
         }
 
-        AuthCookie.WriteCookie(Response, result.Value.Token, result.Value.ExpiresUtc, environment.IsDevelopment());
+        AuthCookie.WriteCookie(Request, Response, result.Value.Token, result.Value.ExpiresUtc);
         return Ok(new { expiresUtc = result.Value.ExpiresUtc, isGuest = false });
     }
 
@@ -39,7 +40,7 @@ public class AuthController(
     [AllowAnonymous]
     public IActionResult Logout()
     {
-        AuthCookie.ClearCookie(Response, environment.IsDevelopment());
+        AuthCookie.ClearCookie(Request, Response);
         return Ok(new { ok = true });
     }
 
@@ -53,7 +54,7 @@ public class AuthController(
             return NotFound(new { message = result.Message });
         }
 
-        AuthCookie.WriteCookie(Response, result.Value.Token, result.Value.ExpiresUtc, environment.IsDevelopment());
+        AuthCookie.WriteCookie(Request, Response, result.Value.Token, result.Value.ExpiresUtc);
         return Ok(new { expiresUtc = result.Value.ExpiresUtc, isGuest = false, isAdmin = true });
     }
 }

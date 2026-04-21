@@ -13,7 +13,7 @@ jobs:
   migrate-and-deploy:
     runs-on: ubuntu-latest
     env:
-      AZURE_WEBAPP_NAME: ccalc-api
+      AZURE_FUNCTIONAPP_NAME: fapi-ccalc
       AZURE_RESOURCE_GROUP: ccalc
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -33,7 +33,7 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Configure App Service runtime settings
+      - name: Configure Function App runtime settings
         shell: bash
         env:
           DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
@@ -63,22 +63,12 @@ jobs:
           [ -n "${TWILIO_AUTH_TOKEN:-}" ] && settings+=("Twilio__AuthToken=$TWILIO_AUTH_TOKEN")
           [ -n "${TWILIO_VERIFY_SERVICE_SID:-}" ] && settings+=("Twilio__VerifyServiceSid=$TWILIO_VERIFY_SERVICE_SID")
 
-          az webapp config appsettings set \
-            --name "${{ env.AZURE_WEBAPP_NAME }}" \
+          az functionapp config appsettings set \
+            --name "${{ env.AZURE_FUNCTIONAPP_NAME }}" \
             --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
             --settings "${settings[@]}" \
             --only-show-errors \
             --output none
-
-      - name: Remove legacy App Service connection string override
-        shell: bash
-        run: |
-          az webapp config connection-string delete \
-            --name "${{ env.AZURE_WEBAPP_NAME }}" \
-            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
-            --setting-names Default \
-            --only-show-errors \
-            --output none || true
 
       - name: Resolve SQL server and runner IP
         id: sqlfw
@@ -111,13 +101,13 @@ jobs:
           echo "server_name=$server_name" >> "$GITHUB_OUTPUT"
           echo "rule_name=$rule_name" >> "$GITHUB_OUTPUT"
 
-      - name: Allow App Service outbound IPs in Azure SQL firewall
+      - name: Allow Function App outbound IPs in Azure SQL firewall
         shell: bash
         run: |
           set -euo pipefail
 
-          outbound_ips="$(az webapp show \
-            --name "${{ env.AZURE_WEBAPP_NAME }}" \
+          outbound_ips="$(az functionapp show \
+            --name "${{ env.AZURE_FUNCTIONAPP_NAME }}" \
             --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
             --query outboundIpAddresses \
             -o tsv)"
@@ -126,7 +116,7 @@ jobs:
           for ip in "${ips[@]}"; do
             ip="$(echo "$ip" | xargs)"
             [ -z "$ip" ] && continue
-            rule_name="appsvc-${{ env.AZURE_WEBAPP_NAME }}-${ip//./-}"
+            rule_name="func-${{ env.AZURE_FUNCTIONAPP_NAME }}-${ip//./-}"
             az sql server firewall-rule create \
               --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
               --server "${{ steps.sqlfw.outputs.server_name }}" \
@@ -182,13 +172,12 @@ jobs:
 
       - name: Publish Alife.API
         working-directory: ./backend/src/Alife.Api
-        run: dotnet publish --configuration Release --output ${{ github.workspace }}/publish
+        run: dotnet publish --configuration Release --runtime linux-x64 --self-contained true --output ${{ github.workspace }}/publish
 
-      - name: Deploy Alife.API to Azure App Service
-        uses: azure/webapps-deploy@v3
+      - name: Deploy Alife.API to Azure Functions
+        uses: Azure/functions-action@v1
         with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          slot-name: Production
+          app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
           package: ${{ github.workspace }}/publish
 
       - name: Remove GitHub runner IP from Azure SQL firewall
@@ -199,5 +188,5 @@ jobs:
             --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
             --server "${{ steps.sqlfw.outputs.server_name }}" \
             --name "${{ steps.sqlfw.outputs.rule_name }}" \
-            --yes \
+            -y \
             --only-show-errors || true
