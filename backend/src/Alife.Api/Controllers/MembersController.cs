@@ -25,7 +25,6 @@ public class MembersController(
     IMediator mediator,
     ICurrentMemberAccessor currentMemberAccessor,
     HybridCache hybridCache,
-    IWebHostEnvironment environment,
     IConfiguration configuration,
     ILineLoginService lineLoginService) : ControllerBase
 {
@@ -129,7 +128,7 @@ public class MembersController(
 
             if (result.Value.Token is not null && result.Value.ExpiresUtc is not null)
             {
-                AuthCookie.WriteCookie(Response, result.Value.Token, result.Value.ExpiresUtc.Value, environment.IsDevelopment());
+                AuthCookie.WriteCookie(Request, Response, result.Value.Token, result.Value.ExpiresUtc.Value);
             }
 
             return Ok(result.Value with { PhoneE164 = phoneE164, Token = null, ExpiresUtc = null });
@@ -148,13 +147,10 @@ public class MembersController(
     public IActionResult LineLogin()
     {
         var state = Guid.NewGuid().ToString("N");
-        Response.Cookies.Append("line_oauth_state", state, new CookieOptions
-        {
-            HttpOnly = true,
-            Secure = !environment.IsDevelopment(),
-            SameSite = environment.IsDevelopment() ? SameSiteMode.Lax : SameSiteMode.None,
-            Expires = DateTimeOffset.UtcNow.AddMinutes(10)
-        });
+        Response.Cookies.Append(
+            "line_oauth_state",
+            state,
+            AuthCookie.CreateStateCookieOptions(Request, DateTimeOffset.UtcNow.AddMinutes(10)));
 
         var authUrl = lineLoginService.GetAuthorizationUrl(state);
         return Ok(new { authUrl });
@@ -189,7 +185,7 @@ public class MembersController(
 
         if (result.Value.Token is not null && result.Value.ExpiresUtc is not null)
         {
-            AuthCookie.WriteCookie(Response, result.Value.Token, result.Value.ExpiresUtc.Value, environment.IsDevelopment());
+            AuthCookie.WriteCookie(Request, Response, result.Value.Token, result.Value.ExpiresUtc.Value);
         }
 
         if (result.Value.IsRegistered)
@@ -238,7 +234,7 @@ public class MembersController(
             await hybridCache.RemoveAsync(GetMemberProfileCacheKey(currentMemberId.Value), cancellationToken);
         }
 
-        AuthCookie.WriteCookie(Response, result.Value.Token, result.Value.ExpiresUtc, environment.IsDevelopment());
+        AuthCookie.WriteCookie(Request, Response, result.Value.Token, result.Value.ExpiresUtc);
         return Ok(new { ok = true, expiresUtc = result.Value.ExpiresUtc });
     }
 

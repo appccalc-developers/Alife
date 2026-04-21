@@ -199,6 +199,21 @@ const OnboardingView = () => {
     }
   }
 
+  const loginExisting = async () => {
+    setIsRegistering(true)
+    try {
+      await auth.bootstrap()
+      await http.post('/api/auth/login')
+      await auth.fetchMe()
+      setMessage('Logged in successfully.')
+      navigate('/')
+    } catch (error) {
+      setMessage(getErrorMessage(error, 'Unable to login.'))
+    } finally {
+      setIsRegistering(false)
+    }
+  }
+
   return (
     <section className="mx-auto max-w-xl space-y-4 rounded-xl border bg-white p-6">
       <h1 className="text-2xl font-bold">Onboarding</h1>
@@ -281,6 +296,11 @@ const OnboardingView = () => {
             className="rounded bg-blue-600 px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-50"
             disabled={!canRegister}
             onClick={() => {
+              if (existingAccountDetected) {
+                loginExisting().catch(() => undefined)
+                return
+              }
+
               register().catch(() => undefined)
             }}
           >
