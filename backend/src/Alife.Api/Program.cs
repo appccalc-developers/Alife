@@ -28,15 +28,6 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddProblemDetails();
 ApiHealthCheckSetup.ConfigureServices(builder.Services);
 
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("Frontend", policy =>
-        policy.SetIsOriginAllowed(_ => true)
-            .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials());
-});
-
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "replace-me-in-production-with-long-random-key";
 var jwtKeyId = builder.Configuration["Jwt:KeyId"] ?? "alife-local-hs256";
 var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
