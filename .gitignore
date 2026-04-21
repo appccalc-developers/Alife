@@ -51,5 +51,6 @@ launchSettings.json
 
 # Code only
 .venv/
+.dotnet-cli/
 VibeCoding/
 Communication/

@@ -16,10 +16,11 @@ public class AuthController(
     IWebHostEnvironment environment) : ControllerBase
 {
     [HttpPost("login")]
-    [Authorize]
+    [AllowAnonymous]
     public async Task<IActionResult> Login(CancellationToken cancellationToken)
     {
         var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+
         if (currentMemberId is null)
         {
             return Unauthorized();
