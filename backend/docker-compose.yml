@@ -14,7 +14,8 @@ services:
       timeout: 10s
       retries: 5
       start_period: 45s
-
+    networks:
+      - alife-network
   alife-api:
     build:
       context: .
@@ -24,7 +25,6 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__Default=Server=sqlserver,1433;Database=alife_db;User Id=sa;Password=AlifeDevPass123;TrustServerCertificate=True;Encrypt=False
-      - Jwt__Issuer=alife-api
       - Jwt__Audience=alife-web
       - Jwt__Key=${JWT_KEY}
       - Twilio__AccountSid=${TWILIO_ACCOUNT_SID}
@@ -40,6 +40,12 @@ services:
     depends_on:
       sqlserver:
         condition: service_healthy
+    networks:
+      - alife-network
+
+networks:
+  alife-network:
+    driver: bridge
 
 volumes:
   sqlserver_data:
