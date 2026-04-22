@@ -3,8 +3,10 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { http, type ApiError } from '../api/http'
 import { useAuthStore } from '../stores/auth'
 
-type LineLoginResponse = {
-  authUrl: string
+const getLineLoginRedirectUrl = () => {
+  const baseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').trim()
+  const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
+  return normalizedBaseUrl ? `${normalizedBaseUrl}/api/members/line/login/redirect` : '/api/members/line/login/redirect'
 }
 
 const getErrorMessage = (error: unknown, fallback: string) => {
@@ -62,8 +64,7 @@ const OnboardingView = () => {
     setIsLineLoading(true)
     try {
       await auth.bootstrap()
-      const { data } = await http.get<LineLoginResponse>('/api/members/line/login')
-      window.location.href = data.authUrl
+      window.location.assign(getLineLoginRedirectUrl())
     } catch (error) {
       setMessage(getErrorMessage(error, 'Unable to start LINE login.'))
       setIsLineLoading(false)

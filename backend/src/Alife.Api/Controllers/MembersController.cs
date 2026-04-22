@@ -98,6 +98,20 @@ public class MembersController(
         return Ok(new { authUrl });
     }
 
+    [HttpGet("members/line/login/redirect")]
+    [AllowAnonymous]
+    public IActionResult LineLoginRedirect()
+    {
+        var state = Guid.NewGuid().ToString("N");
+        Response.Cookies.Append(
+            "line_oauth_state",
+            state,
+            AuthCookie.CreateStateCookieOptions(Request, DateTimeOffset.UtcNow.AddMinutes(10)));
+
+        var authUrl = lineLoginService.GetAuthorizationUrl(state);
+        return Redirect(authUrl);
+    }
+
     [HttpGet("members/line/callback")]
     [AllowAnonymous]
     public async Task<IActionResult> LineCallback([FromQuery] string? code, [FromQuery] string? state, CancellationToken cancellationToken)
