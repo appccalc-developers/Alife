@@ -1,35 +1,39 @@
 # ── Build stage ────────────────────────────────────────────────────────────────
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
-WORKDIR /
+WORKDIR /app
 
-# Copy project files first so NuGet restore is cached as a separate layer
+# Copy project files first to cache NuGet restore
 COPY Alife.sln .
-COPY src/Alife.Api/Alife.Api.csproj                   src/Alife.Api/
-COPY src/Alife.Application/Alife.Application.csproj   src/Alife.Application/
-COPY src/Alife.Domain/Alife.Domain.csproj             src/Alife.Domain/
-COPY src/Alife.Infrastructure/Alife.Infrastructure.csproj src/Alife.Infrastructure/
-COPY src/Alife.DbMigrator/Alife.DbMigrator.csproj     src/Alife.DbMigrator/
-COPY tests/Alife.Tests.Unit/Alife.Tests.Unit.csproj   tests/Alife.Tests.Unit/
+COPY src/Alife.Api/Alife.Api.csproj                   src/Alife.Api/ [cite:2]
+COPY src/Alife.Application/Alife.Application.csproj   src/Alife.Application/ [cite:2]
+COPY src/Alife.Domain/Alife.Domain.csproj             src/Alife.Domain/ [cite:2]
+COPY src/Alife.Infrastructure/Alife.Infrastructure.csproj src/Alife.Infrastructure/ [cite:2]
+COPY src/Alife.DbMigrator/Alife.DbMigrator.csproj     src/Alife.DbMigrator/ [cite:2]
+COPY tests/Alife.Tests.Unit/Alife.Tests.Unit.csproj   tests/Alife.Tests.Unit/ [cite:2]
 
-RUN dotnet restore src/Alife.Api/Alife.Api.csproj
+RUN dotnet restore Alife.sln
 
-# Copy remaining source and publish
-COPY . .
-RUN dotnet publish src/Alife.Api/Alife.Api.csproj \
-    -c Release \
-    -o /app/publish \
-    --no-restore
+# Copy remaining source and publish both apps
+COPY . . 
+RUN dotnet publish src/Alife.Api/Alife.Api.csproj -c Release -o /app/publish/api --no-restore
+RUN dotnet publish src/Alife.DbMigrator/Alife.DbMigrator.csproj -c Release -o /app/publish/migrator --no-restore
 
 # ── Runtime stage ───────────────────────────────────────────────────────────────
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble AS runtime
 WORKDIR /app
 
-COPY --from=build /app/publish .
+# Install ICU for SQL Server globalization support
+RUN apt-get update && apt-get install -y libicu-dev && rm -rf /var/lib/apt/lists/*
 
-# .NET non-root images listen on 8080 by default
+# Copy published outputs
+COPY --from=build /app/publish/api ./api
+COPY --from=build /app/publish/migrator ./migrator
+
+# Default to the API folder
+WORKDIR /app/api
 EXPOSE 8080
 
 ENTRYPOINT ["dotnet", "Alife.Api.dll"]
 
-# SQL Server client requires full globalization support.
+# Enable globalization for SQL Client [cite: 5]
 ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
