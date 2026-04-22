@@ -39,7 +39,7 @@ Api (Controllers, HTTP layer)
 - Membership statuses: Invited, Requested, Approved, Active, Rejected, Removed
 
 #### Members
-- Authentication via phone OTP verification
+- Authentication via LINE Login OAuth
 - Profile includes name, phone, email
 - Associated with groups via membership records
 - Current member identity always from JWT `sub` claim
@@ -65,7 +65,7 @@ Api (Controllers, HTTP layer)
 - Follows OWASP best practices
 
 **Flow:**
-1. User authenticates (guest signup or admin login)
+1. User authenticates (LINE login or admin login)
 2. Backend creates JWT with minimal claims:
    - `sub` - Member ID (unique identifier)
    - `exp` - Expiration time
@@ -98,7 +98,7 @@ If authorized: proceed | If unauthorized: 403 Forbidden
 **Controllers** (request/response handling):
 - AdminController - Admin operations
 - AuthController - Authentication (guest, dev login)
-- MembersController - Member registration, phone verification
+- MembersController - Member registration, LINE login/callback, profile
 - GroupsController - Group CRUD operations
 - PagesController - Page management
 - SectionsController - Section management
@@ -121,7 +121,7 @@ If authorized: proceed | If unauthorized: 403 Forbidden
 - Migrations - Database schema versioning
 - ReadServices - Optimized read database queries
 - Security - Cookie, JWT handling
-- Services - Email, SMS, external integrations
+- Services - External integrations (LINE OAuth, YouTube)
 
 ### Caching Architecture
 
@@ -175,11 +175,10 @@ src/
    - Checks if member is authenticated
 
 3. **If 401 Unauthorized**
-   - Call `POST /api/auth/guest` to create guest identity
-   - Retry `GET /api/me`
+    - Navigate to onboarding and start LINE login
 
 4. **User Registration**
-   - Phone OTP verification
+    - LINE OAuth callback verification
    - Profile completion
    - JWT cookie issued (longer-lived)
 
@@ -245,8 +244,7 @@ FRONTEND_ORIGIN=http://localhost:5173
 ## Runtime Configuration Notes
 
 - .NET SDK is pinned by `global.json` to 10.0 feature band.
-- Development config includes Twilio placeholders so startup options validation can pass in local environments.
-- Real Twilio and JWT secrets should be supplied via environment variables or secure secret storage in non-local environments.
+- LINE login and JWT secrets should be supplied via environment variables or secure secret storage in non-local environments.
 
 ## Data Flow Examples
 
@@ -255,12 +253,10 @@ FRONTEND_ORIGIN=http://localhost:5173
 ```
 Guest opens app
 ├─ Frontend: GET /api/me → 401 Unauthorized
-├─ Frontend: POST /api/auth/guest → Guest member created
-├─ Frontend: GET /api/me → Returns guest profile
-├─ User: Enter phone
-├─ Frontend: POST /api/members/phone/start → OTP sent
-├─ User: Enter OTP
-├─ Frontend: POST /api/members/phone/confirm → Phone verified
+├─ User: Click LINE Login
+├─ Frontend: GET /api/members/line/login → LINE auth URL
+├─ User: Complete LINE OAuth
+├─ Backend: GET /api/members/line/callback → verified LINE onboarding session
 ├─ User: Complete profile
 ├─ Frontend: POST /api/members/register → Member upgraded
 └─ Backend: Issue permanent JWT cookie

@@ -37,20 +37,6 @@ public class JwtTokenService(IConfiguration configuration) : IJwtTokenService
 		return WriteToken(claims, expiresUtc);
 	}
 
-	public (string Token, DateTime ExpiresUtc) CreateVerifiedPhoneToken(string phoneE164)
-	{
-		var expiresUtc = DateTime.UtcNow.AddMinutes(30);
-		var claims = new List<Claim>
-		{
-			new("is_registered", "false"),
-			new("is_admin", "false"),
-			new("verified_phone", phoneE164),
-			new("session_kind", "verified_phone")
-		};
-
-		return WriteToken(claims, expiresUtc);
-	}
-
 	public (string Token, DateTime ExpiresUtc) CreateVerifiedLineToken(string lineUID, string? displayName, string? email)
 	{
 		var expiresUtc = DateTime.UtcNow.AddMinutes(30);

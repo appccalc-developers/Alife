@@ -23,7 +23,6 @@ public sealed class RegisterMemberCommandHandler(
             return AppResult<MemberRegistrationResultDto>.Validation("Name is required.");
         }
 
-        var verifiedPhoneE164 = request.VerifiedPhoneE164?.Trim();
         var verifiedLineUID = request.VerifiedLineUID?.Trim();
         Member? currentMember = null;
 
@@ -32,20 +31,13 @@ public sealed class RegisterMemberCommandHandler(
             currentMember = await dbContext.Members.FirstOrDefaultAsync(x => x.Id == currentMemberId, cancellationToken);
             if (currentMember is not null)
             {
-                verifiedPhoneE164 ??= currentMember.PhoneE164;
                 verifiedLineUID ??= currentMember.LineUID;
-
-                if (currentMember.PhoneVerifiedUtc is null && !string.IsNullOrWhiteSpace(verifiedPhoneE164))
-                {
-                    currentMember.PhoneE164 = verifiedPhoneE164;
-                    currentMember.PhoneVerifiedUtc = DateTime.UtcNow;
-                }
             }
         }
 
-        if (string.IsNullOrWhiteSpace(verifiedPhoneE164) && string.IsNullOrWhiteSpace(verifiedLineUID))
+        if (string.IsNullOrWhiteSpace(verifiedLineUID))
         {
-            return AppResult<MemberRegistrationResultDto>.Validation("Phone or LINE verification required.");
+            return AppResult<MemberRegistrationResultDto>.Validation("LINE verification required.");
         }
 
         var memberToRegister = currentMember;
@@ -61,13 +53,6 @@ public sealed class RegisterMemberCommandHandler(
                 cancellationToken);
         }
 
-        if (alreadyRegisteredMember is null && !string.IsNullOrWhiteSpace(verifiedPhoneE164))
-        {
-            alreadyRegisteredMember = await dbContext.Members.FirstOrDefaultAsync(
-                x => x.IsRegistered && x.PhoneE164 == verifiedPhoneE164 && (!memberToRegisterId.HasValue || x.Id != memberToRegisterId.Value),
-                cancellationToken);
-        }
-
         if (alreadyRegisteredMember is not null)
         {
             memberToRegister = alreadyRegisteredMember;
@@ -77,9 +62,7 @@ public sealed class RegisterMemberCommandHandler(
             memberToRegister = new Member
             {
                 Id = Guid.NewGuid(),
-                PhoneE164 = string.IsNullOrWhiteSpace(verifiedPhoneE164) ? null : verifiedPhoneE164,
                 LineUID = string.IsNullOrWhiteSpace(verifiedLineUID) ? null : verifiedLineUID,
-                PhoneVerifiedUtc = string.IsNullOrWhiteSpace(verifiedPhoneE164) ? null : DateTime.UtcNow,
                 IsRegistered = false,
                 IsAdmin = false,
                 CreatedUtc = DateTime.UtcNow
@@ -89,12 +72,6 @@ public sealed class RegisterMemberCommandHandler(
         }
         else
         {
-            if (!string.IsNullOrWhiteSpace(verifiedPhoneE164))
-            {
-                memberToRegister.PhoneE164 = verifiedPhoneE164;
-                memberToRegister.PhoneVerifiedUtc ??= DateTime.UtcNow;
-            }
-
             if (!string.IsNullOrWhiteSpace(verifiedLineUID))
             {
                 memberToRegister.LineUID = verifiedLineUID;

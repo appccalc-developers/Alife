@@ -22,7 +22,6 @@
   - DB connection.
   - JWT issuer/audience/key.
   - Frontend base URL and CORS origins.
-  - Twilio credentials and verification channel.
   - LINE client credentials and callback URI.
   - YouTube API key and playlist ID.
 - Confirm secure storage in GitHub secrets and Azure app settings.
@@ -44,7 +43,7 @@
 ### 2.4 Data and Persistence
 - Validate EF Core migrations apply cleanly.
 - Validate critical constraints:
-  - Unique phone and LINE identity behavior.
+  - Unique LINE identity behavior.
   - Group membership role/status constraints.
   - Page slug uniqueness per scope/language.
 - Confirm seed strategy for local/dev usability.
@@ -62,7 +61,6 @@
 
 #### Authentication and Onboarding
 - Guest session bootstrap.
-- Phone OTP start/confirm flow.
 - LINE login callback/linking.
 - Registration completion profile updates.
 
@@ -152,7 +150,7 @@
   - Mitigation: Controlled migrator step and release checklist enforcement.
 - Risk: Role/state inconsistency in membership workflows.
   - Mitigation: Scenario tests for all status transitions and authorization checks.
-- Risk: External API failures (Twilio/LINE/YouTube).
+- Risk: External API failures (LINE/YouTube).
   - Mitigation: Timeout/retry strategy and clear operator alerts.
 - Risk: User confusion during onboarding and approvals.
   - Mitigation: Short guided instructions and quick support fallback path.

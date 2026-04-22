@@ -68,7 +68,7 @@ Default local URL: `http://localhost:7071`
 Runtime settings should be provided through environment variables (or Function App settings in Azure):
 
 - `ConnectionStrings__Default` (local SQL can be `localhost,14333`)
-- Twilio settings (`Twilio__AccountSid`, `Twilio__AuthToken`, `Twilio__VerifyServiceSid`, `Twilio__Channel`)
+- LINE settings (`LineLogin__ClientId`, `LineLogin__ClientSecret`, `LineLogin__RedirectUri`)
 
 For local Functions runtime, `local.settings.json` provides `FUNCTIONS_WORKER_RUNTIME=dotnet-isolated` and storage defaults.
 
@@ -77,7 +77,7 @@ For local Functions runtime, `local.settings.json` provides `FUNCTIONS_WORKER_RU
 - `ConnectionStrings:Default`
 - `Jwt:Issuer`, `Jwt:Audience`, `Jwt:Key`
 - `Frontend:BaseUrl`
-- `Twilio:*`
+- `LineLogin:*`
 
 ## Authentication
 
@@ -133,4 +133,4 @@ docker compose up -d --build
 
 - Port busy: stop existing `Alife.Api` process before rerun.
 - SQL errors: verify SQL container on `localhost,14333`.
-- Twilio validation errors: provide `Twilio:*` config values.
+- LINE login configuration errors: provide `LineLogin:*` config values.
