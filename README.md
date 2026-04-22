@@ -106,19 +106,15 @@ dotnet run
 
 ## Notes
 
-- Development Twilio placeholders exist in `appsettings.Development.json` so options validation passes locally.
-- Replace Twilio and JWT secrets with real values for non-local environments.
+- Configure LINE login and JWT secrets with real values for non-local environments.
 
 ## Configuration
 
-### Twilio SMS Verification
+### LINE Login
 
 | Setting | Required | Description |
 |---|---|---|
-| `Twilio:AccountSid` | Yes (unless Skip enabled) | Twilio Account SID |
-| `Twilio:AuthToken` | Yes (unless Skip enabled) | Twilio Auth Token |
-| `Twilio:VerifyServiceSid` | Yes (unless Skip enabled) | Twilio Verify Service SID |
-| `Twilio:Channel` | No (default: `sms`) | Delivery channel: `sms`, `whatsapp`, or `call` |
-| `Twilio:Skip` | No (default: unset/disabled) | Set to `1` or `true` to bypass Twilio entirely (dev/test only) |
-
-When `Twilio:Skip` is `1` or `true`, all phone numbers and verification codes are accepted as valid without calling Twilio APIs. This is intended for development and testing only — do **not** enable in production.
+| `LineLogin:ClientId` | Yes | LINE Login channel client ID |
+| `LineLogin:ClientSecret` | Yes | LINE Login channel secret |
+| `LineLogin:RedirectUri` | Yes | Backend callback URI for LINE OAuth |
+| `Frontend:BaseUrl` | Yes | Frontend base URL used for callback redirects |

@@ -20,15 +20,6 @@ public static class DependencyInjection
 {
 	public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
 	{
-		services
-			.AddOptions<TwilioVerifyOptions>()
-			.Bind(configuration.GetSection(TwilioVerifyOptions.SectionName))
-			.Validate(x => x.IsSkipEnabled || !string.IsNullOrWhiteSpace(x.AccountSid), "Twilio:AccountSid is required.")
-			.Validate(x => x.IsSkipEnabled || !string.IsNullOrWhiteSpace(x.AuthToken), "Twilio:AuthToken is required.")
-			.Validate(x => x.IsSkipEnabled || !string.IsNullOrWhiteSpace(x.VerifyServiceSid), "Twilio:VerifyServiceSid is required.")
-			.Validate(x => x.IsSkipEnabled || TwilioVerifyOptions.IsValidChannel(x.Channel), "Twilio:Channel must be one of sms, whatsapp, or call.")
-			.ValidateOnStart();
-
 		services.AddDbContext<AlifeDbContext>(options =>
 			options
 				.UseSqlServer(configuration.GetConnectionString("Default"))
@@ -37,20 +28,6 @@ public static class DependencyInjection
 
 		services.AddScoped<IJwtTokenService, JwtTokenService>();
 
-		var skipRaw = configuration[$"{TwilioVerifyOptions.SectionName}:Skip"];
-		var skipVerification = TwilioVerifyOptions.ParseSkip(skipRaw);
-		if (skipVerification)
-		{
-			services.AddScoped<ITwilioVerifyService, StubTwilioVerifyService>();
-		}
-		else
-		{
-			services.AddHttpClient<ITwilioVerifyService, TwilioVerifyService>(client =>
-			{
-				client.BaseAddress = new Uri("https://verify.twilio.com");
-				client.Timeout = TimeSpan.FromSeconds(15);
-			});
-		}
 		services.AddHttpClient("youtube", client =>
 		{
 			client.BaseAddress = new Uri("https://www.googleapis.com/youtube/v3/");

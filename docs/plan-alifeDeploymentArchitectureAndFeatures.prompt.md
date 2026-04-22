@@ -15,7 +15,7 @@ Build and validate a clear deployment plan, architecture map, and feature/use an
 - Frontend SPA/PWA served by Azure Static Web Apps.
 - Backend API served by Azure Functions (.NET isolated worker).
 - Primary data store in Azure SQL.
-- External integrations for Twilio, LINE OAuth, and YouTube sync.
+- External integrations for LINE OAuth and YouTube sync.
 
 ### 1.3 Domain Model Plan
 - Member: identity and registration lifecycle (guest to registered), profile, admin flag.
@@ -56,14 +56,12 @@ Build and validate a clear deployment plan, architecture map, and feature/use an
 - Azurite support for local storage emulation where needed.
 
 ### 3.2 Configuration Strategy
-- Keep connection strings, JWT settings, Twilio, LINE, and YouTube values in environment configuration.
-- Use development-safe flags for local OTP bypass where appropriate.
+- Keep connection strings, JWT settings, LINE, and YouTube values in environment configuration.
 
 ## 4. Feature Plan and Usage Map
 
 ### 4.1 Auth and Onboarding
 - Guest session bootstrap.
-- Phone OTP verification flow.
 - LINE OAuth login/link flow.
 - Persistent auth through HttpOnly cookie.
 

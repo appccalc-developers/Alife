@@ -14,9 +14,6 @@ public class CurrentMemberAccessor(IHttpContextAccessor httpContextAccessor) : I
         return Guid.TryParse(sub, out var memberId) ? memberId : null;
     }
 
-    public string? GetVerifiedPhoneE164()
-        => GetCurrentPrincipal()?.FindFirstValue("verified_phone");
-
     public string? GetVerifiedLineUID()
         => GetCurrentPrincipal()?.FindFirstValue("verified_line_uid");
 

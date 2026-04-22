@@ -1,15 +1,19 @@
 {
   "IsEncrypted": false,
   "Values": {
-    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "AzureWebJobsStorage": "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFeqCnf2xRdrJ6nZfLw0R8J1Qm3b8f6k7v4w5x6y7z8A9B0C1D2E3F4G5H6I7J8K9L0M==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;QueueEndpoint=http://127.0.0.1:10001/devstoreaccount1;TableEndpoint=http://127.0.0.1:10002/devstoreaccount1;",
     "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
     "ConnectionStrings:Default": "Server=localhost,14333;Database=alife_db;User Id=sa;Password=AlifeDevPass123;TrustServerCertificate=True;Encrypt=False",
     "Jwt:Issuer": "alife-api",
     "Jwt:Audience": "alife-web",
-    "Jwt:Key": "replace-me-in-production-with-long-random-key",
+    "Jwt:Key": "dev-only-key-change-in-prod-0123456789",
     "Jwt:KeyId": "alife-local-hs256",
-    "Twilio:Skip": "true",
-    "Twilio:Channel": "sms"
+    "YOUTUBE_API_KEY": "AIzaSyDqyxV-9TUWmyVP27xwIuhV2lKLh8-gpas",
+    "YOUTUBE_PLAYLIST_ID": "PLlZwsUoL6TOaEwk2wkvVrrZnsSiCl7VKb",
+    "LineLogin:ClientId": "2009810383",
+    "LineLogin:ClientSecret": "7f773e34958e7bb16edab5e6c77161b7",
+    "LineLogin:RedirectUri": "http://localhost:7071/api/members/line/callback",
+    "Frontend:BaseUrl": "http://localhost:5173"
   },
   "Host": {
     "CORS": "http://localhost:5173",

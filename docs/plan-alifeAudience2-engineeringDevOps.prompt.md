@@ -9,7 +9,7 @@ Deliver Alife with production-grade reliability, security, and operability acros
 - Frontend: React + TypeScript SPA/PWA on Azure Static Web Apps.
 - Backend: .NET isolated Azure Functions API.
 - Data: Azure SQL (EF Core migrations via DbMigrator).
-- Integrations: Twilio Verify, LINE OAuth, YouTube Data API.
+- Integrations: LINE OAuth, YouTube Data API.
 - Auth: JWT in HttpOnly cookie with server-side authorization checks.
 
 ### 1.2 Backend Layering Rules
@@ -74,7 +74,6 @@ Deliver Alife with production-grade reliability, security, and operability acros
 - Centralized secret inventory:
   - DB connection
   - JWT key/issuer/audience
-  - Twilio creds
   - LINE creds
   - YouTube key/playlist
 - Rotation cadence and owner assigned.
@@ -83,7 +82,6 @@ Deliver Alife with production-grade reliability, security, and operability acros
 
 ### 4.1 Auth and Onboarding
 - Guest bootstrap endpoint path.
-- Phone OTP start/confirm flow.
 - LINE login callback/link behavior.
 - Registration completion and profile persistence.
 
