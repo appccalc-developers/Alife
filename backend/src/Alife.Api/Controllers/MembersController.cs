@@ -2,8 +2,6 @@ using Alife.Api.Results;
 using Alife.Api.Security;
 using Alife.Application.Abstractions.Identity;
 using Alife.Application.Abstractions.Integrations;
-using Alife.Application.Common.Models;
-using Alife.Application.Members.Commands.LineLogin;
 using Alife.Application.Members.Commands.RegisterMember;
 using Alife.Application.Members.Dtos;
 using Alife.Application.Members.Queries.GetCurrentMemberProfile;
@@ -95,6 +93,7 @@ public class MembersController(
             AuthCookie.CreateStateCookieOptions(Request, DateTimeOffset.UtcNow.AddMinutes(10)));
 
         var authUrl = lineLoginService.GetAuthorizationUrl(state);
+        Console.WriteLine($"Redirecting to LINE login URL: {authUrl}");
         return Ok(new { authUrl });
     }
 
@@ -109,6 +108,7 @@ public class MembersController(
             AuthCookie.CreateStateCookieOptions(Request, DateTimeOffset.UtcNow.AddMinutes(10)));
 
         var authUrl = lineLoginService.GetAuthorizationUrl(state);
+        Console.WriteLine($"Redirecting to LINE login URL: {authUrl}");
         return Redirect(authUrl);
     }
 
