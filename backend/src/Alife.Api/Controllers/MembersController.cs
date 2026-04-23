@@ -110,7 +110,8 @@ public class MembersController(
 
         var authUrl = lineLoginService.GetAuthorizationUrl(state);
         Console.WriteLine($"Redirecting to LINE login URL: {authUrl}");
-        return Redirect(authUrl);
+        return Ok(new { authUrl });
+        // return Redirect(authUrl);
     }
 
     [HttpGet("members/line/callback")]
