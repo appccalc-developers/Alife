@@ -25,7 +25,7 @@ public class LineLoginService(
 		query["client_id"] = clientId;
 		query["redirect_uri"] = redirectUri;
 		query["state"] = state;
-		query["scope"] = "profile openid email";
+		query["scope"] = "profile openid";
 
 		return $"{LineAuthorizeUrl}?{query}";
 	}
