@@ -2,6 +2,7 @@ using Alife.Api.Results;
 using Alife.Api.Security;
 using Alife.Application.Abstractions.Identity;
 using Alife.Application.Abstractions.Integrations;
+using Alife.Application.Members.Commands.LineLogin;
 using Alife.Application.Members.Commands.RegisterMember;
 using Alife.Application.Members.Dtos;
 using Alife.Application.Members.Queries.GetCurrentMemberProfile;
