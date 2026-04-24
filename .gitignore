@@ -54,3 +54,5 @@ launchSettings.json
 .dotnet-cli/
 VibeCoding/
 Communication/
+
+.sql*/
