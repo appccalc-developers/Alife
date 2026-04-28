@@ -30,6 +30,8 @@ const OnboardingView = () => {
   const [lineConfirmed, setLineConfirmed] = useState(false)
   const [isRegistering, setIsRegistering] = useState(false)
   const [isLineLoading, setIsLineLoading] = useState(false)
+  const [displayNameLogin, setDisplayNameLogin] = useState('')
+  const [isDisplayNameLoading, setIsDisplayNameLoading] = useState(false)
 
   const nameInputRef = useRef<HTMLInputElement | null>(null)
   const canRegister = lineConfirmed && !isRegistering
@@ -71,6 +73,25 @@ const OnboardingView = () => {
     } catch (error) {
       setMessage(getErrorMessage(error, 'Unable to start LINE login.'))
       setIsLineLoading(false)
+    }
+  }
+
+  const loginWithDisplayName = async () => {
+    if (!displayNameLogin.trim()) {
+      setMessage('Please enter your display name.')
+      return
+    }
+    setIsDisplayNameLoading(true)
+    setMessage('')
+    try {
+      await auth.bootstrap()
+      await http.post('/api/members/login/display-name', { displayName: displayNameLogin.trim() })
+      await auth.fetchMe()
+      navigate('/')
+    } catch (error) {
+      setMessage(getErrorMessage(error, 'Unable to login with display name.'))
+    } finally {
+      setIsDisplayNameLoading(false)
     }
   }
 
@@ -117,6 +138,41 @@ const OnboardingView = () => {
           LINE is the only sign-in method. Your LINE account will be used to securely authenticate and match your member profile.
         </p>
       </>
+
+      {!lineConfirmed ? (
+        <>
+          <div className="flex items-center gap-2">
+            <hr className="flex-1 border-slate-300" />
+            <span className="text-sm text-slate-400">or</span>
+            <hr className="flex-1 border-slate-300" />
+          </div>
+          <p className="text-sm font-medium text-slate-700">Already a member? Login with your display name:</p>
+          <div className="flex gap-2">
+            <input
+              value={displayNameLogin}
+              onChange={(event) => setDisplayNameLogin(event.target.value)}
+              className="flex-1 rounded border p-2"
+              placeholder="Display Name"
+              disabled={isDisplayNameLoading}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  loginWithDisplayName().catch(() => undefined)
+                }
+              }}
+            />
+            <button
+              type="button"
+              className="rounded bg-blue-600 px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={isDisplayNameLoading || !displayNameLogin.trim()}
+              onClick={() => {
+                loginWithDisplayName().catch(() => undefined)
+              }}
+            >
+              {isDisplayNameLoading ? 'Logging in...' : 'Login'}
+            </button>
+          </div>
+        </>
+      ) : null}
 
       {lineConfirmed ? (
         <>

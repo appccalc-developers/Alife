@@ -3,6 +3,7 @@ using Alife.Api.Security;
 using Alife.Application.Abstractions.Identity;
 using Alife.Application.Abstractions.Integrations;
 using Alife.Application.Members.Commands.LineLogin;
+using Alife.Application.Members.Commands.LoginByDisplayName;
 using Alife.Application.Members.Commands.RegisterMember;
 using Alife.Application.Members.Dtos;
 using Alife.Application.Members.Queries.GetCurrentMemberProfile;
@@ -194,6 +195,25 @@ public class MembersController(
         return Ok(new { ok = true, expiresUtc = result.Value.ExpiresUtc });
     }
 
+    [HttpPost("members/login/display-name")]
+    [AllowAnonymous]
+    public async Task<IActionResult> LoginByDisplayName([FromBody] LoginByDisplayNameRequest request, CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new LoginByDisplayNameCommand(request.DisplayName), cancellationToken);
+
+        if (!result.IsSuccess || result.Value is null)
+        {
+            return this.ToActionResult(result);
+        }
+
+        if (result.Value.Token is not null && result.Value.ExpiresUtc is not null)
+        {
+            AuthCookie.WriteCookie(Request, Response, result.Value.Token, result.Value.ExpiresUtc.Value);
+        }
+
+        return Ok(new { ok = true, expiresUtc = result.Value.ExpiresUtc });
+    }
+
     private static string GetMemberProfileCacheKey(Guid memberId) => $"member-profile:{memberId}";
 
     private static bool IsGuestPrincipal(ClaimsPrincipal principal)
@@ -205,4 +225,5 @@ public class MembersController(
     private static bool GetBooleanClaim(ClaimsPrincipal principal, string claimName)
         => bool.TryParse(principal.FindFirstValue(claimName), out var value) && value;
     public record RegisterRequest(string Name, string? Sex, int? Age, string? Email);
+    public record LoginByDisplayNameRequest(string DisplayName);
 }
