@@ -2,10 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
+import AppSectionCard from '../components/layout/AppSectionCard'
 import PageEditorShell from '../components/page-editor/PageEditorShell'
 import PageMetaForm from '../components/page-editor/PageMetaForm'
 import PageSettingsPanel from '../components/page-editor/PageSettingsPanel'
 import SectionListEditor from '../components/page-editor/SectionListEditor'
+import GroupPagePreview from '../components/page-editor/GroupPagePreview'
 import { groupService } from '../api/groupService'
 import { useAuthStore } from '../stores/auth'
 import type { GroupPageDto, PageVisibility } from '../types/group'
@@ -13,9 +15,24 @@ import type { PageEditModel, PageEditorValidation, SectionEditModel } from '../t
 
 const createEmptySection = (): SectionEditModel => ({
   order: 0,
-  type: 'RichText',
-  contentJson: { text: '' },
-  styleJson: {},
+  type: 'Hero',
+  contentJson: {
+    backgroundImage: 'https://images.unsplash.com/photo-1529070538774-1843cb3265df?w=1600&q=80',
+    backgroundImageUrl: 'https://images.unsplash.com/photo-1529070538774-1843cb3265df?w=1600&q=80',
+    title: '',
+    headline: '',
+    centerText: '',
+    body: '',
+    subtitle: '',
+    subheadline: '',
+    linkLabel: '',
+    linkText: '',
+    ctaLabel: '',
+    linkUrl: '',
+    ctaUrl: '',
+    href: '',
+  },
+  styleJson: { layout: 'featured' },
 })
 
 const slugify = (value: string) =>
@@ -71,6 +88,7 @@ const PageEditorView = () => {
 
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
 
@@ -380,6 +398,8 @@ const PageEditorView = () => {
     })
   }
 
+  const openPreview = () => setPreviewOpen(true)
+
   return (
     <PageEditorShell
       title={editorTitle}
@@ -394,6 +414,9 @@ const PageEditorView = () => {
           <AppActionButton variant="primary" disabled={!canSaveDraft || saving} onClick={() => saveDraft().catch(() => undefined)}>
             Save Draft
           </AppActionButton>
+          <AppActionButton variant="ghost" onClick={openPreview}>
+            Preview
+          </AppActionButton>
           <AppActionButton variant="secondary" disabled={!canPublish || saving} onClick={() => publish().catch(() => undefined)}>
             Publish
           </AppActionButton>
@@ -405,52 +428,56 @@ const PageEditorView = () => {
         </>
       }
       main={
-        <>
-          <PageMetaForm
-            model={pageModel}
-            canEdit={canEditPage}
-            isCreateMode={isCreateMode}
-            titleError={validation.title}
-            onChange={setPageModel}
-          />
+        previewOpen ? (
+          <AppSectionCard title="Page Preview" subtitle="Preview current unsaved edits.">
+            <div className="mb-3">
+              <AppActionButton variant="ghost" onClick={() => setPreviewOpen(false)}>
+                Back to Editor
+              </AppActionButton>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-100/70 p-2">
+              <GroupPagePreview
+                title={pageModel.title}
+                description={pageModel.description}
+                slug={pageModel.slug}
+                visibility={pageModel.visibility}
+                sections={pageModel.sections}
+              />
+            </div>
+          </AppSectionCard>
+        ) : (
+          <>
+            <PageSettingsPanel
+              model={pageModel}
+              canEditVisibility={canEditVisibility}
+              message={message}
+              onChange={setPageModel}
+            />
 
-          <SectionListEditor
-            sections={pageModel.sections}
-            canEdit={canEditPage}
-            sectionTypeErrors={validation.sectionTypeErrors}
-            onAdd={addSection}
-            onUpdate={({ index, section }) => updateSection(index, section)}
-            onRemove={removeSection}
-            onMoveUp={(index) => moveSection(index, -1)}
-            onMoveDown={(index) => moveSection(index, 1)}
-          />
-        </>
+            <div className="w-full space-y-4">
+              <PageMetaForm
+                model={pageModel}
+                canEdit={canEditPage}
+                isCreateMode={isCreateMode}
+                titleError={validation.title}
+                onChange={setPageModel}
+              />
+
+              <SectionListEditor
+                sections={pageModel.sections}
+                canEdit={canEditPage}
+                sectionTypeErrors={validation.sectionTypeErrors}
+                onAdd={addSection}
+                onUpdate={({ index, section }) => updateSection(index, section)}
+                onRemove={removeSection}
+                onMoveUp={(index) => moveSection(index, -1)}
+                onMoveDown={(index) => moveSection(index, 1)}
+              />
+            </div>
+          </>
+        )
       }
-      sidebar={
-        <PageSettingsPanel
-          model={pageModel}
-          canEditVisibility={canEditVisibility}
-          canPublish={canPublish}
-          canDelete={canDelete}
-          canSaveDraft={canSaveDraft}
-          isCreateMode={isCreateMode}
-          isBusy={saving}
-          message={message}
-          onChange={setPageModel}
-          onSaveDraft={() => {
-            saveDraft().catch(() => undefined)
-          }}
-          onPublish={() => {
-            publish().catch(() => undefined)
-          }}
-          onDelete={() => {
-            removePage().catch(() => undefined)
-          }}
-          onCancel={() => {
-            cancel().catch(() => undefined)
-          }}
-        />
-      }
+      sidebar={null}
     />
   )
 }

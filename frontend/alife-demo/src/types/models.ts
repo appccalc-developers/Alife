@@ -45,6 +45,9 @@ export type LinkDto = {
 
 export type SectionType =
   | 'Hero'
+  | 'MediaSpotlight'
+  | 'IconFeatureGrid'
+  | 'SermonSpotlight'
   | 'RichText'
   | 'PostFeed'
   | 'Sermon'

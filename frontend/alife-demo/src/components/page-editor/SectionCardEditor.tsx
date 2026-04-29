@@ -17,9 +17,12 @@ type Props = {
   onMoveDown: () => void
 }
 
-const sectionTypes: SectionType[] = ['Hero', 'RichText', 'PostFeed', 'Sermon', 'GroupList', 'PageList', 'SermonList']
+const sectionTypes: SectionType[] = ['Hero', 'MediaSpotlight', 'IconFeatureGrid', 'SermonSpotlight', 'RichText']
+const sectionTypeLabel = (type: SectionType) =>
+  type === 'IconFeatureGrid' ? 'Icon Feature Grid' : type === 'SermonSpotlight' ? 'Sermon Spotlight' : type
 
 const stringifyPretty = (value: unknown) => JSON.stringify(value ?? {}, null, 2)
+const DEFAULT_HERO_IMAGE = 'https://images.unsplash.com/photo-1529070538774-1843cb3265df?w=1600&q=80'
 
 const parseJson = (value: string): { ok: true; data: JsonMap } | { ok: false; error: string } => {
   try {
@@ -52,6 +55,132 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
   }, [section.styleJson])
 
   const patchSection = (patch: Partial<SectionEditModel>) => onUpdate({ ...section, ...patch })
+
+  const applyTypeDefaults = (nextType: SectionEditModel['type']) => {
+    if (nextType !== 'Hero' && nextType !== 'MediaSpotlight' && nextType !== 'IconFeatureGrid' && nextType !== 'SermonSpotlight') {
+      if (nextType === 'RichText') {
+        patchSection({
+          type: 'RichText',
+          contentJson: {
+            ...section.contentJson,
+            backgroundImage: (section.contentJson.backgroundImage as string) || (section.contentJson.backgroundImageUrl as string) || DEFAULT_HERO_IMAGE,
+            backgroundImageUrl: (section.contentJson.backgroundImageUrl as string) || (section.contentJson.backgroundImage as string) || DEFAULT_HERO_IMAGE,
+            title: (section.contentJson.title as string) || '',
+            subtitle: (section.contentJson.subtitle as string) || '',
+            text: (section.contentJson.text as string) || '',
+            quoteAuthor: (section.contentJson.quoteAuthor as string) || '',
+          },
+          styleJson: {
+            ...section.styleJson,
+            variant: 'quoteOverlay',
+          },
+        })
+        return
+      }
+      patchSection({ type: nextType })
+      return
+    }
+
+    if (nextType === 'IconFeatureGrid') {
+      patchSection({
+        type: 'IconFeatureGrid',
+        contentJson: {
+          ...section.contentJson,
+          backgroundImage: (section.contentJson.backgroundImage as string) || (section.contentJson.backgroundImageUrl as string) || DEFAULT_HERO_IMAGE,
+          backgroundImageUrl: (section.contentJson.backgroundImageUrl as string) || (section.contentJson.backgroundImage as string) || DEFAULT_HERO_IMAGE,
+          title: (section.contentJson.title as string) || (section.contentJson.headline as string) || '',
+          headline: (section.contentJson.headline as string) || (section.contentJson.title as string) || '',
+          subtitle: (section.contentJson.subtitle as string) || (section.contentJson.subheadline as string) || '',
+          subheadline: (section.contentJson.subheadline as string) || (section.contentJson.subtitle as string) || '',
+          iconItems: Array.isArray(section.contentJson.iconItems) ? section.contentJson.iconItems : [],
+        },
+        styleJson: {
+          ...section.styleJson,
+          layout: 'iconFeatureGrid',
+          displayStyle: (section.styleJson.displayStyle as string) || 'iconGrid',
+          imageShape: (section.styleJson.imageShape as string) || 'square',
+        },
+      })
+      return
+    }
+
+    if (nextType === 'SermonSpotlight') {
+      patchSection({
+        type: 'SermonSpotlight',
+        contentJson: {
+          ...section.contentJson,
+          title: (section.contentJson.title as string) || (section.contentJson.headline as string) || '',
+          headline: (section.contentJson.headline as string) || (section.contentJson.title as string) || '',
+          subtitle: (section.contentJson.subtitle as string) || (section.contentJson.subheadline as string) || '',
+          subheadline: (section.contentJson.subheadline as string) || (section.contentJson.subtitle as string) || '',
+          centerText: (section.contentJson.centerText as string) || (section.contentJson.body as string) || '',
+          body: (section.contentJson.body as string) || (section.contentJson.centerText as string) || '',
+          youtubeUrl: (section.contentJson.youtubeUrl as string) || '',
+          linkLabel: (section.contentJson.linkLabel as string) || (section.contentJson.linkText as string) || (section.contentJson.ctaLabel as string) || '',
+          linkText: (section.contentJson.linkText as string) || (section.contentJson.linkLabel as string) || (section.contentJson.ctaLabel as string) || '',
+          ctaLabel: (section.contentJson.ctaLabel as string) || (section.contentJson.linkLabel as string) || (section.contentJson.linkText as string) || '',
+          linkUrl: (section.contentJson.linkUrl as string) || (section.contentJson.ctaUrl as string) || (section.contentJson.href as string) || '',
+          ctaUrl: (section.contentJson.ctaUrl as string) || (section.contentJson.linkUrl as string) || (section.contentJson.href as string) || '',
+          href: (section.contentJson.href as string) || (section.contentJson.linkUrl as string) || (section.contentJson.ctaUrl as string) || '',
+        },
+        styleJson: {
+          ...section.styleJson,
+          layout: 'sermonSpotlight',
+        },
+      })
+      return
+    }
+
+    patchSection({
+      type: nextType,
+      contentJson: {
+        ...section.contentJson,
+        backgroundImage: (section.contentJson.backgroundImage as string) || (section.contentJson.backgroundImageUrl as string) || DEFAULT_HERO_IMAGE,
+        backgroundImageUrl: (section.contentJson.backgroundImageUrl as string) || (section.contentJson.backgroundImage as string) || DEFAULT_HERO_IMAGE,
+        title: (section.contentJson.title as string) || (section.contentJson.headline as string) || '',
+        headline: (section.contentJson.headline as string) || (section.contentJson.title as string) || '',
+        subtitle: (section.contentJson.subtitle as string) || (section.contentJson.subheadline as string) || '',
+        subheadline: (section.contentJson.subheadline as string) || (section.contentJson.subtitle as string) || '',
+        centerText: (section.contentJson.centerText as string) || (section.contentJson.body as string) || '',
+        body: (section.contentJson.body as string) || (section.contentJson.centerText as string) || '',
+        linkLabel:
+          (section.contentJson.linkLabel as string) ||
+          (section.contentJson.linkText as string) ||
+          (section.contentJson.ctaLabel as string) ||
+          '',
+        linkText:
+          (section.contentJson.linkText as string) ||
+          (section.contentJson.linkLabel as string) ||
+          (section.contentJson.ctaLabel as string) ||
+          '',
+        ctaLabel:
+          (section.contentJson.ctaLabel as string) ||
+          (section.contentJson.linkLabel as string) ||
+          (section.contentJson.linkText as string) ||
+          '',
+        linkUrl:
+          (section.contentJson.linkUrl as string) ||
+          (section.contentJson.ctaUrl as string) ||
+          (section.contentJson.href as string) ||
+          '',
+        ctaUrl:
+          (section.contentJson.ctaUrl as string) ||
+          (section.contentJson.linkUrl as string) ||
+          (section.contentJson.href as string) ||
+          '',
+        href:
+          (section.contentJson.href as string) ||
+          (section.contentJson.linkUrl as string) ||
+          (section.contentJson.ctaUrl as string) ||
+          '',
+      },
+      styleJson: {
+        ...section.styleJson,
+        layout: nextType === 'MediaSpotlight' ? 'mediaSpotlight' : 'featured',
+        imagePosition: (section.styleJson.imagePosition as string) || 'right',
+      },
+    })
+  }
 
   const onContentRawChange = (value: string) => {
     setContentText(value)
@@ -95,11 +224,11 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
             value={section.type}
             disabled={!canEdit}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100"
-            onChange={(event) => patchSection({ type: event.target.value as SectionEditModel['type'] })}
+            onChange={(event) => applyTypeDefaults(event.target.value as SectionEditModel['type'])}
           >
             <option value="">Select type</option>
             {sectionTypes.map((sectionType) => (
-              <option key={sectionType} value={sectionType}>{sectionType}</option>
+              <option key={sectionType} value={sectionType}>{sectionTypeLabel(sectionType)}</option>
             ))}
           </select>
           {typeError ? <p className="text-xs text-red-600">{typeError}</p> : null}

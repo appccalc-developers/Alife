@@ -63,21 +63,44 @@ const normalizeSectionType = (value: number | string): SectionEditModel['type'] 
   }
 
   const normalized = String(value)
-  const values = ['Hero', 'RichText', 'PostFeed', 'Sermon', 'GroupList', 'PageList', 'SermonList'] as const
+  const values = ['Hero', 'MediaSpotlight', 'IconFeatureGrid', 'SermonSpotlight', 'RichText', 'PostFeed', 'Sermon', 'GroupList', 'PageList', 'SermonList'] as const
   return values.includes(normalized as (typeof values)[number]) ? (normalized as SectionEditModel['type']) : 'RichText'
 }
 
-const toSectionEditModel = (section: SectionDto): SectionEditModel => ({
-  id: section.id,
-  order: section.order,
-  type: normalizeSectionType(section.type),
-  contentJson: parseJsonObject(section.contentJson),
-  styleJson: parseJsonObject(section.styleJson),
-})
+const toSectionEditModel = (section: SectionDto): SectionEditModel => {
+  const contentJson = parseJsonObject(section.contentJson)
+  const styleJson = parseJsonObject(section.styleJson)
+  const normalizedType = normalizeSectionType(section.type)
+  const layout = typeof styleJson.layout === 'string' ? styleJson.layout : ''
+
+  // Backend currently stores custom visual templates as Hero; restore editor types from style.
+  const type =
+    normalizedType === 'Hero' && (layout === 'mediaSpotlight' || layout === 'split')
+      ? 'MediaSpotlight'
+      : normalizedType === 'Hero' && layout === 'iconFeatureGrid'
+        ? 'IconFeatureGrid'
+        : normalizedType === 'Hero' && layout === 'sermonSpotlight'
+          ? 'SermonSpotlight'
+        : normalizedType
+
+  return {
+    id: section.id,
+    order: section.order,
+    type,
+    contentJson,
+    styleJson,
+  }
+}
 
 const toSectionPayloadType = (type: SectionEditModel['type']): number => {
   switch (type) {
     case 'Hero':
+      return 0
+    case 'MediaSpotlight':
+      return 0
+    case 'IconFeatureGrid':
+      return 0
+    case 'SermonSpotlight':
       return 0
     case 'RichText':
       return 1
