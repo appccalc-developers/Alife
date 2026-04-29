@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import AppActionButton from '../components/layout/AppActionButton'
-import AppBadge from '../components/layout/AppBadge'
+import PagePreview from '../components/page/PagePreview'
 import PageEditorShell from '../components/page-editor/PageEditorShell'
 import PageMetaForm from '../components/page-editor/PageMetaForm'
 import PageSettingsPanel from '../components/page-editor/PageSettingsPanel'
 import SectionListEditor from '../components/page-editor/SectionListEditor'
+import { useNavigationDrawer } from '../components/layout/NavigationDrawerContext'
 import { groupService } from '../api/groupService'
 import { useAuthStore } from '../stores/auth'
 import type { GroupPageDto, PageVisibility } from '../types/group'
@@ -68,11 +68,14 @@ const PageEditorView = () => {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const auth = useAuthStore()
+  const { setDrawer, closeDrawer } = useNavigationDrawer()
 
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const [subgroupItems, setSubgroupItems] = useState<Array<{ id: string; name: string; accessType: string }>>([])
+  const [groupPageItems, setGroupPageItems] = useState<Array<{ id: string; title: string; slug: string; visibility: string }>>([])
 
   const createGroupId = createGroupIdParam ?? ''
   const editPageId = editPageIdParam ?? ''
@@ -124,16 +127,6 @@ const PageEditorView = () => {
   const canDelete = !isCreateMode && (canEditAllPages || isCreatorDraft)
   const canEditVisibility = canEditAllPages
 
-  const visibilityVariant = useMemo(() => {
-    if (pageModel.visibility === 'VisiblePublic') {
-      return 'success' as const
-    }
-    if (pageModel.visibility === 'VisibleToGroup') {
-      return 'info' as const
-    }
-    return 'warning' as const
-  }, [pageModel.visibility])
-
   const validation = useMemo<PageEditorValidation>(() => {
     const title = pageModel.title.trim()
     const sectionTypeErrors = pageModel.sections.map((section) => (section.type ? '' : 'Section type is required.'))
@@ -150,6 +143,16 @@ const PageEditorView = () => {
 
   const saveSectionsWithFallback = async (targetPageId: string) => {
     await groupService.savePageSections(targetPageId, pageModel.sections)
+  }
+
+  const loadPreviewCollections = async (targetGroupId: string) => {
+    const [subgroups, pages] = await Promise.all([
+      groupService.getSubgroups(targetGroupId),
+      groupService.getGroupPages(targetGroupId, auth.language),
+    ])
+
+    setSubgroupItems(subgroups)
+    setGroupPageItems(pages)
   }
 
   const loadExistingPage = async () => {
@@ -193,10 +196,15 @@ const PageEditorView = () => {
     setLoading(true)
     setError('')
     setMessage('')
+    setSubgroupItems([])
+    setGroupPageItems([])
 
     try {
       if (isCreateMode) {
         setPageModel(createInitialModel(createGroupId))
+        if (createGroupId) {
+          await loadPreviewCollections(createGroupId)
+        }
         if (!canCreatePage) {
           setMessage('You need approved membership to create a page in this group.')
         }
@@ -204,6 +212,9 @@ const PageEditorView = () => {
       }
 
       await loadExistingPage()
+      if (resolvedGroupId) {
+        await loadPreviewCollections(resolvedGroupId)
+      }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Failed to load page editor.')
     } finally {
@@ -380,53 +391,28 @@ const PageEditorView = () => {
     })
   }
 
-  return (
-    <PageEditorShell
-      title={editorTitle}
-      loading={loading}
-      error={error}
-      actions={
-        <>
-          <AppBadge variant={visibilityVariant}>{pageModel.visibility}</AppBadge>
-          <AppActionButton variant="ghost" disabled={saving} onClick={() => cancel().catch(() => undefined)}>
-            Back
-          </AppActionButton>
-          <AppActionButton variant="primary" disabled={!canSaveDraft || saving} onClick={() => saveDraft().catch(() => undefined)}>
-            Save Draft
-          </AppActionButton>
-          <AppActionButton variant="secondary" disabled={!canPublish || saving} onClick={() => publish().catch(() => undefined)}>
-            Publish
-          </AppActionButton>
-          {!isCreateMode ? (
-            <AppActionButton variant="danger" disabled={!canDelete || saving} onClick={() => removePage().catch(() => undefined)}>
-              Delete
-            </AppActionButton>
-          ) : null}
-        </>
-      }
-      main={
-        <>
-          <PageMetaForm
-            model={pageModel}
-            canEdit={canEditPage}
-            isCreateMode={isCreateMode}
-            titleError={validation.title}
-            onChange={setPageModel}
-          />
+  const drawerContent = useMemo(
+    () => (
+      <>
+        <PageMetaForm
+          model={pageModel}
+          canEdit={canEditPage}
+          isCreateMode={isCreateMode}
+          titleError={validation.title}
+          onChange={setPageModel}
+        />
 
-          <SectionListEditor
-            sections={pageModel.sections}
-            canEdit={canEditPage}
-            sectionTypeErrors={validation.sectionTypeErrors}
-            onAdd={addSection}
-            onUpdate={({ index, section }) => updateSection(index, section)}
-            onRemove={removeSection}
-            onMoveUp={(index) => moveSection(index, -1)}
-            onMoveDown={(index) => moveSection(index, 1)}
-          />
-        </>
-      }
-      sidebar={
+        <SectionListEditor
+          sections={pageModel.sections}
+          canEdit={canEditPage}
+          sectionTypeErrors={validation.sectionTypeErrors}
+          onAdd={addSection}
+          onUpdate={({ index, section }) => updateSection(index, section)}
+          onRemove={removeSection}
+          onMoveUp={(index) => moveSection(index, -1)}
+          onMoveDown={(index) => moveSection(index, 1)}
+        />
+
         <PageSettingsPanel
           model={pageModel}
           canEditVisibility={canEditVisibility}
@@ -449,6 +435,57 @@ const PageEditorView = () => {
           onCancel={() => {
             cancel().catch(() => undefined)
           }}
+        />
+      </>
+    ),
+    [
+      canDelete,
+      canEditPage,
+      canEditVisibility,
+      canPublish,
+      canSaveDraft,
+      isCreateMode,
+      message,
+      pageModel,
+      saving,
+      validation.sectionTypeErrors,
+      validation.title,
+    ],
+  )
+
+  useEffect(() => {
+    setDrawer({
+      title: editorTitle,
+      content: drawerContent,
+    })
+  }, [drawerContent, editorTitle, setDrawer])
+
+  useEffect(
+    () => () => {
+      closeDrawer()
+      setDrawer({})
+    },
+    [closeDrawer, setDrawer],
+  )
+
+  return (
+    <PageEditorShell
+      title="Page Preview"
+      loading={loading}
+      error={error}
+      main={
+        <PagePreview
+          page={{
+            id: pageModel.id,
+            ownerGroupId: resolvedGroupId,
+            title: pageModel.title,
+            description: pageModel.description,
+            slug: pageModel.slug.trim() || slugify(pageModel.title),
+            visibility: pageModel.visibility,
+          }}
+          sections={pageModel.sections}
+          subgroupItems={subgroupItems}
+          groupPageItems={groupPageItems}
         />
       }
     />

@@ -8,10 +8,9 @@ type Props = {
   error?: string
   actions?: ReactNode
   main: ReactNode
-  sidebar: ReactNode
 }
 
-const PageEditorShell = ({ title, loading, error, actions, main, sidebar }: Props) => (
+const PageEditorShell = ({ title, loading, error, actions, main }: Props) => (
   <AppPageShell title={title} subtitle="Draft pages stay private until they are published." actions={actions}>
     {loading ? (
       <AppSectionCard dense>
@@ -26,10 +25,7 @@ const PageEditorShell = ({ title, loading, error, actions, main, sidebar }: Prop
     ) : null}
 
     {!loading && !error ? (
-      <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-        <main className="space-y-4">{main}</main>
-        <aside className="space-y-4">{sidebar}</aside>
-      </div>
+      <main className="space-y-4">{main}</main>
     ) : null}
   </AppPageShell>
 )
