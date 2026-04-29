@@ -16,28 +16,6 @@ services:
       start_period: 45s
     networks:
       - alife-network
-  alife-api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "8080:8080"
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__Default=Server=sqlserver,1433;Database=alife_db;User Id=sa;Password=AlifeDevPass123;TrustServerCertificate=True;Encrypt=False
-      - Jwt__Audience=alife-web
-      - Jwt__Key=${JWT_KEY}
-      - YOUTUBE_API_KEY=${YOUTUBE_API_KEY}
-      - YOUTUBE_PLAYLIST_ID=${YOUTUBE_PLAYLIST_ID}
-      - LineLogin__ClientId=${LINE_LOGIN_CLIENT_ID}
-      - LineLogin__ClientSecret=${LINE_LOGIN_CLIENT_SECRET}
-      - LineLogin__RedirectUri=${LINE_LOGIN_REDIRECT_URI}
-      - Frontend__BaseUrl=${FRONTEND_BASE_URL}
-    depends_on:
-      sqlserver:
-        condition: service_healthy
-    networks:
-      - alife-network
 
 networks:
   alife-network:
