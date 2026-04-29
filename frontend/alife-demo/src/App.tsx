@@ -258,6 +258,7 @@ const OnboardingRoute = ({ children }: { children: ReactElement }) => {
 const App = () => {
   const auth = useAuthStore()
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [isDesktopViewport, setIsDesktopViewport] = useState(false)
   const [drawer, setDrawer] = useState<NavigationDrawerState>({})
   const openDrawer = useCallback(() => setDrawerOpen(true), [])
   const closeDrawer = useCallback(() => setDrawerOpen(false), [])
@@ -274,6 +275,7 @@ const App = () => {
   useEffect(() => {
     const mediaQuery = window.matchMedia(`(min-width: ${DESKTOP_NAV_SIDEBAR_MIN_WIDTH_PX}px)`)
     const syncDrawerForViewport = (matches: boolean) => {
+      setIsDesktopViewport(matches)
       if (matches) {
         setDrawerOpen(false)
       }
@@ -395,10 +397,13 @@ const App = () => {
       </div>
 
       <BottomNav items={navItems} />
-      <NavigationDrawer title={drawer.title} open={drawerOpen} onClose={closeDrawer}>
-        {drawer.content ? <>{drawer.content}</> : null}
-      </NavigationDrawer>
-      <DesktopDrawer title={drawer.title}>{drawer.content ? <>{drawer.content}</> : null}</DesktopDrawer>
+      {isDesktopViewport ? (
+        <DesktopDrawer title={drawer.title}>{drawer.content ? <>{drawer.content}</> : null}</DesktopDrawer>
+      ) : (
+        <NavigationDrawer title={drawer.title} open={drawerOpen} onClose={closeDrawer}>
+          {drawer.content ? <>{drawer.content}</> : null}
+        </NavigationDrawer>
+      )}
       <FloatingActionButton onClick={openDrawer} />
     </div>
     </NavigationDrawerContext.Provider>
