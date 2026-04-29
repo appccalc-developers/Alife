@@ -1,6 +1,6 @@
 import { groupService as groups } from '../services/groupService'
-import { pageService } from '../services/pageService'
 import { http } from '../services/http'
+import { pageService, type PublishPageOptimizedPayload } from '../services/pageService'
 import type { PageSummaryDto, PageVisibility } from '../types'
 import type { SectionEditModel } from '../types/page-editor'
 
@@ -32,6 +32,7 @@ export const groupService = {
   updatePage: pageService.updatePage,
   publishPage: (pageId: string, visibility: PageVisibility = 'VisibleToGroup') =>
     pageService.publishPage(pageId, { visibility }),
+  publishPageOptimized: (pageId: string, payload: PublishPageOptimizedPayload) => pageService.publishPageOptimized(pageId, payload),
   deletePage: pageService.deletePage,
   getPageBySlug: async (slug: string, lang = 'en') => {
     const { data } = await http.get<PageSummaryDto>(`/api/pages/${slug}`, { params: { lang } })

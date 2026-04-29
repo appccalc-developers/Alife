@@ -21,6 +21,25 @@ export type PublishPagePayload = {
   visibility: PageVisibility
 }
 
+export type PublishPageOptimizedPayload = {
+  visibility: PageVisibility
+  page: {
+    title: string
+    description?: string
+    tagsJson?: string
+    titleDisplayStyle?: string
+    language?: string
+    slug?: string
+  }
+  sections: Array<{
+    id?: string
+    order: number
+    type: number
+    contentJson: string
+    styleJson: string
+  }>
+}
+
 type SectionDto = {
   id: string
   pageId: string
@@ -119,6 +138,19 @@ const toSectionPayloadType = (type: SectionEditModel['type']): number => {
   }
 }
 
+const buildSectionWritePayload = (section: SectionEditModel, order: number) => ({
+  type: toSectionPayloadType(section.type === '' ? 'RichText' : section.type),
+  contentJson: JSON.stringify(section.contentJson ?? {}),
+  styleJson: JSON.stringify(section.styleJson ?? {}),
+  order,
+})
+
+const toSectionPublishPayload = (sections: SectionEditModel[]) =>
+  sections.map((section, index) => ({
+    id: section.id,
+    ...buildSectionWritePayload(section, index + 1),
+  }))
+
 const parseTags = (tagsJson: string | undefined) => {
   if (!tagsJson) {
     return [] as string[]
@@ -176,6 +208,22 @@ export const pageService = {
     return data
   },
 
+  async publishPageOptimized(pageId: string, payload: PublishPageOptimizedPayload) {
+    const endpointCandidates = [`/api/pages/${pageId}/publish-optimized`, `/api/pages/${pageId}/publish/full`]
+    let lastError: unknown
+
+    for (const endpoint of endpointCandidates) {
+      try {
+        const { data } = await http.post<PageSummaryDto>(endpoint, payload)
+        return data
+      } catch (error) {
+        lastError = error
+      }
+    }
+
+    throw lastError
+  },
+
   async deletePage(pageId: string) {
     await http.delete(`/api/pages/${pageId}`)
   },
@@ -192,18 +240,10 @@ export const pageService = {
     const existing = await pageService.getPageSections(pageId)
     const existingById = new Map(existing.filter((x) => x.id).map((x) => [x.id as string, x]))
 
-    const incomingWithOrder = sections.map((section, index) => ({
-      ...section,
-      order: index + 1,
-    }))
+    const incomingWithOrder = sections.map((section, index) => ({ ...section, order: index + 1 }))
 
     for (const section of incomingWithOrder) {
-      const payload = {
-        type: toSectionPayloadType(section.type === '' ? 'RichText' : section.type),
-        contentJson: JSON.stringify(section.contentJson ?? {}),
-        styleJson: JSON.stringify(section.styleJson ?? {}),
-        order: section.order,
-      }
+      const payload = buildSectionWritePayload(section, section.order)
 
       if (!section.id) {
         await http.post(`/api/pages/${pageId}/sections`, payload)
@@ -218,6 +258,8 @@ export const pageService = {
       await http.delete(`/api/sections/${sectionId}`)
     }
   },
+
+  toSectionPublishPayload,
 }
 
 export const toPageEditModel = (page: PageDetailDto, groupId: string): PageEditModel => ({

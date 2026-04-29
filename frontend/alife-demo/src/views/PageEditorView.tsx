@@ -9,6 +9,8 @@ import PageSettingsPanel from '../components/page-editor/PageSettingsPanel'
 import SectionListEditor from '../components/page-editor/SectionListEditor'
 import GroupPagePreview from '../components/page-editor/GroupPagePreview'
 import { groupService } from '../api/groupService'
+import { cloudflareImageService } from '../services/cloudflareImageService'
+import { pageService } from '../services/pageService'
 import { useAuthStore } from '../stores/auth'
 import type { GroupPageDto, PageVisibility } from '../types/group'
 import type { PageEditModel, PageEditorValidation, SectionEditModel } from '../types/page-editor'
@@ -166,10 +168,6 @@ const PageEditorView = () => {
 
   const canSaveDraft = canEditPage && !saving && !hasValidationErrors
 
-  const saveSectionsWithFallback = async (targetPageId: string) => {
-    await groupService.savePageSections(targetPageId, pageModel.sections)
-  }
-
   const loadExistingPage = async () => {
     const targetPageId = editPageId
     if (!targetPageId) {
@@ -234,10 +232,6 @@ const PageEditorView = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth.initialized, createGroupId, editPageId, queryGroupId, auth.language])
 
-  const applyVisibility = async (targetPageId: string, visibility: PageVisibility) => {
-    await groupService.publishPage(targetPageId, visibility)
-  }
-
   const persist = async (publish: boolean) => {
     if (!canSaveDraft) {
       return
@@ -255,16 +249,29 @@ const PageEditorView = () => {
     try {
       let targetPageId = editPageId
       const tagsJson = JSON.stringify(pageModel.tags)
+      const title = pageModel.title.trim()
+      const slug = pageModel.slug.trim() || slugify(pageModel.title)
+      const language = pageModel.language.trim() || auth.language
+      const description = pageModel.description.trim()
+      const titleDisplayStyle = pageModel.titleDisplayStyle.trim() || 'Default'
+
+      let sectionsToPersist = pageModel.sections
+
+      const imagePrefix = `g-${resolvedGroupId}-${editPageId || 'new'}`
+      if (cloudflareImageService.sectionsHaveLocalDataImages(pageModel.sections)) {
+        setMessage('Uploading local images…')
+        sectionsToPersist = await cloudflareImageService.resolveSectionImages(pageModel.sections, imagePrefix)
+        setPageModel((current) => ({ ...current, sections: normalizeSort(sectionsToPersist) }))
+      }
 
       if (isCreateMode) {
-        const slug = pageModel.slug.trim() || slugify(pageModel.title)
         const created = await groupService.createGroupPage(resolvedGroupId, {
-          title: pageModel.title.trim(),
+          title,
           slug,
-          language: pageModel.language.trim() || auth.language,
-          description: pageModel.description.trim(),
+          language,
+          description,
           tagsJson,
-          titleDisplayStyle: pageModel.titleDisplayStyle.trim() || 'Default',
+          titleDisplayStyle,
         })
 
         targetPageId = created.id
@@ -277,24 +284,34 @@ const PageEditorView = () => {
           visibility: created.visibility,
         }))
 
-        await saveSectionsWithFallback(targetPageId)
+        await groupService.savePageSections(targetPageId, sectionsToPersist)
       } else {
         await groupService.updatePage(targetPageId, {
-          title: pageModel.title.trim(),
-          description: pageModel.description.trim(),
+          title,
+          description,
           tagsJson,
-          titleDisplayStyle: pageModel.titleDisplayStyle.trim() || 'Default',
+          titleDisplayStyle,
         })
-        await saveSectionsWithFallback(targetPageId)
+        await groupService.savePageSections(targetPageId, sectionsToPersist)
       }
 
       if (publish && canEditAllPages && targetPageId) {
-        const nextVisibility = pageModel.visibility === 'VisiblePublic' ? 'VisiblePublic' : 'VisibleToGroup'
-        await applyVisibility(targetPageId, nextVisibility)
+        const nextVisibility: PageVisibility = pageModel.visibility === 'VisiblePublic' ? 'VisiblePublic' : 'VisibleToGroup'
+        const publishPayload = {
+          visibility: nextVisibility,
+          page: { title, slug, language, description, tagsJson, titleDisplayStyle },
+          sections: pageService.toSectionPublishPayload(sectionsToPersist),
+        }
+        setMessage('Publishing…')
+        try {
+          await groupService.publishPageOptimized(targetPageId, publishPayload)
+        } catch {
+          await groupService.publishPage(targetPageId, nextVisibility)
+        }
         setPageModel((current) => ({ ...current, visibility: nextVisibility }))
         setMessage('Page saved and published.')
       } else if (canEditVisibility && targetPageId && pageModel.visibility === 'InvisibleDraft') {
-        await applyVisibility(targetPageId, 'InvisibleDraft')
+        await groupService.publishPage(targetPageId, 'InvisibleDraft')
         setMessage('Draft saved.')
       } else {
         setMessage('Page saved.')
