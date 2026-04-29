@@ -1,7 +1,11 @@
 import type { ReactElement } from 'react'
-import { useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Link, Navigate, NavLink, Route, Routes, useParams } from 'react-router-dom'
 import logo from './assets/logo.png'
+import {
+  NavigationDrawerContext,
+  type NavigationDrawerState,
+} from './components/layout/NavigationDrawerContext'
 import { useAuthStore } from './stores/auth'
 import AdminView from './views/AdminView'
 import GroupDetailView from './views/GroupDetailView'
@@ -134,7 +138,17 @@ const BottomNav = ({ items }: { items: ShellNavItem[] }) => (
   </nav>
 )
 
-const NavigationDrawer = ({ open, onClose }: { open: boolean; onClose: () => void }) => (
+const NavigationDrawer = ({
+  open,
+  title,
+  children,
+  onClose,
+}: {
+  open: boolean
+  title?: string
+  children?: ReactElement | null
+  onClose: () => void
+}) => (
   <div className={open ? 'fixed inset-0 z-50' : 'pointer-events-none fixed inset-0 z-50'} aria-hidden={!open}>
     <button
       type="button"
@@ -144,11 +158,16 @@ const NavigationDrawer = ({ open, onClose }: { open: boolean; onClose: () => voi
     />
     <aside
       className={[
-        'absolute bottom-0 right-0 top-0 w-full max-w-sm border-l border-slate-200 bg-white shadow-2xl transition-transform duration-200',
+        'absolute bottom-0 right-0 top-0 flex w-full max-w-sm flex-col border-l border-slate-200 bg-white shadow-2xl transition-transform duration-200',
         open ? 'translate-x-0' : 'translate-x-full',
       ].join(' ')}
       aria-label="Navigation drawer"
     >
+      {title ? (
+        <header className="border-b border-slate-200 px-5 py-4 pr-16">
+          <h2 className="text-base font-semibold text-slate-950">{title}</h2>
+        </header>
+      ) : null}
       <button
         type="button"
         className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 hover:text-slate-950"
@@ -157,6 +176,7 @@ const NavigationDrawer = ({ open, onClose }: { open: boolean; onClose: () => voi
       >
         <CloseIcon />
       </button>
+      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">{children}</div>
     </aside>
   </div>
 )
@@ -219,6 +239,18 @@ const OnboardingRoute = ({ children }: { children: ReactElement }) => {
 const App = () => {
   const auth = useAuthStore()
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [drawer, setDrawer] = useState<NavigationDrawerState>({})
+  const openDrawer = useCallback(() => setDrawerOpen(true), [])
+  const closeDrawer = useCallback(() => setDrawerOpen(false), [])
+  const drawerContext = useMemo(
+    () => ({
+      drawer,
+      setDrawer,
+      openDrawer,
+      closeDrawer,
+    }),
+    [closeDrawer, drawer, openDrawer],
+  )
 
   const toggleLanguageLabel = auth.language.toUpperCase()
   const primaryMembershipGroupId = auth.memberships[0]?.groupId || ''
@@ -233,6 +265,7 @@ const App = () => {
   ]
 
   return (
+    <NavigationDrawerContext.Provider value={drawerContext}>
     <div className="min-h-screen bg-slate-100 text-slate-900">
       <SideNav items={navItems} />
 
@@ -266,7 +299,7 @@ const App = () => {
                 type="button"
                 className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50"
                 aria-label="Open navigation drawer"
-                onClick={() => setDrawerOpen(true)}
+                onClick={openDrawer}
               >
                 <MenuIcon />
               </button>
@@ -313,9 +346,12 @@ const App = () => {
       </div>
 
       <BottomNav items={navItems} />
-      <NavigationDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
-      <FloatingActionButton onClick={() => setDrawerOpen(true)} />
+      <NavigationDrawer title={drawer.title} open={drawerOpen} onClose={closeDrawer}>
+        {drawer.content ? <>{drawer.content}</> : null}
+      </NavigationDrawer>
+      <FloatingActionButton onClick={openDrawer} />
     </div>
+    </NavigationDrawerContext.Provider>
   )
 }
 
