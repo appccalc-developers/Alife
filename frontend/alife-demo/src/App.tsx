@@ -404,7 +404,7 @@ const App = () => {
           {drawer.content ? <>{drawer.content}</> : null}
         </NavigationDrawer>
       )}
-      <FloatingActionButton onClick={openDrawer} />
+      {!isDesktopViewport ? <FloatingActionButton onClick={openDrawer} /> : null}
     </div>
     </NavigationDrawerContext.Provider>
   )
