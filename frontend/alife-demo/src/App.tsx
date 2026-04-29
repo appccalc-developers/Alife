@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, NavLink, Route, Routes, useParams } from 'react-router-dom'
 import logo from './assets/logo.png'
 import {
@@ -21,6 +21,8 @@ type ShellNavItem = {
   to: string
   icon: ReactElement
 }
+
+const DESKTOP_NAV_SIDEBAR_MIN_WIDTH_PX = 1024
 
 const RouteLoading = () => <p className="rounded bg-white p-3">Loading identity...</p>
 
@@ -149,7 +151,7 @@ const NavigationDrawer = ({
   children?: ReactElement | null
   onClose: () => void
 }) => (
-  <div className={open ? 'fixed inset-0 z-50' : 'pointer-events-none fixed inset-0 z-50'} aria-hidden={!open}>
+  <div className={open ? 'fixed inset-0 z-50 lg:hidden' : 'pointer-events-none fixed inset-0 z-50 lg:hidden'} aria-hidden={!open}>
     <button
       type="button"
       className={['absolute inset-0 bg-slate-950/35 transition-opacity', open ? 'opacity-100' : 'opacity-0'].join(' ')}
@@ -161,6 +163,9 @@ const NavigationDrawer = ({
         'absolute bottom-0 right-0 top-0 flex w-full max-w-sm flex-col border-l border-slate-200 bg-white shadow-2xl transition-transform duration-200',
         open ? 'translate-x-0' : 'translate-x-full',
       ].join(' ')}
+      id="navigation-drawer-panel"
+      role="dialog"
+      aria-modal="true"
       aria-label="Navigation drawer"
     >
       {title ? (
@@ -181,10 +186,24 @@ const NavigationDrawer = ({
   </div>
 )
 
+const DesktopDrawer = ({ title, children }: { title?: string; children?: ReactElement | null }) => (
+  <aside
+    className="fixed inset-y-0 right-0 z-20 hidden w-96 flex-col border-l border-slate-200 bg-white/95 shadow-sm backdrop-blur lg:flex"
+    aria-label="Navigation sidebar"
+  >
+    {title ? (
+      <header className="border-b border-slate-200 px-5 py-4">
+        <h2 className="text-base font-semibold text-slate-950">{title}</h2>
+      </header>
+    ) : null}
+    <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">{children}</div>
+  </aside>
+)
+
 const FloatingActionButton = ({ onClick }: { onClick: () => void }) => (
   <button
     type="button"
-    className="fixed bottom-24 right-5 z-40 inline-flex h-16 w-16 items-center justify-center rounded-full bg-emerald-700 text-white shadow-xl shadow-emerald-900/30 transition hover:bg-emerald-800 focus:outline-none focus:ring-4 focus:ring-emerald-200 lg:bottom-8 lg:right-8"
+    className="fixed bottom-24 right-5 z-40 inline-flex h-16 w-16 items-center justify-center rounded-full bg-emerald-700 text-white shadow-xl shadow-emerald-900/30 transition hover:bg-emerald-800 focus:outline-none focus:ring-4 focus:ring-emerald-200 lg:hidden"
     aria-label="Open navigation drawer"
     title="Open navigation drawer"
     onClick={onClick}
@@ -252,6 +271,34 @@ const App = () => {
     [closeDrawer, drawer, openDrawer],
   )
 
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(`(min-width: ${DESKTOP_NAV_SIDEBAR_MIN_WIDTH_PX}px)`)
+    const syncDrawerForViewport = (matches: boolean) => {
+      if (matches) {
+        setDrawerOpen(false)
+      }
+    }
+    const handleDesktopChange = (event: MediaQueryListEvent) => {
+      syncDrawerForViewport(event.matches)
+    }
+
+    syncDrawerForViewport(mediaQuery.matches)
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', handleDesktopChange)
+    } else {
+      mediaQuery.addListener(handleDesktopChange)
+    }
+
+    return () => {
+      if (typeof mediaQuery.removeEventListener === 'function') {
+        mediaQuery.removeEventListener('change', handleDesktopChange)
+      } else {
+        mediaQuery.removeListener(handleDesktopChange)
+      }
+    }
+  }, [])
+
   const toggleLanguageLabel = auth.language.toUpperCase()
   const primaryMembershipGroupId = auth.memberships[0]?.groupId || ''
   const navItems: ShellNavItem[] = [
@@ -269,7 +316,7 @@ const App = () => {
     <div className="min-h-screen bg-slate-100 text-slate-900">
       <SideNav items={navItems} />
 
-      <div className="min-h-screen lg:pl-72">
+      <div className="min-h-screen lg:pl-72 lg:pr-96">
         <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 backdrop-blur">
           <div className="flex min-h-16 items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
             <Link to="/" className="flex items-center gap-2 rounded-lg text-slate-950 lg:hidden" aria-label="Home">
@@ -297,8 +344,10 @@ const App = () => {
               </button>
               <button
                 type="button"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50 lg:hidden"
                 aria-label="Open navigation drawer"
+                aria-controls="navigation-drawer-panel"
+                aria-expanded={drawerOpen}
                 onClick={openDrawer}
               >
                 <MenuIcon />
@@ -349,6 +398,7 @@ const App = () => {
       <NavigationDrawer title={drawer.title} open={drawerOpen} onClose={closeDrawer}>
         {drawer.content ? <>{drawer.content}</> : null}
       </NavigationDrawer>
+      <DesktopDrawer title={drawer.title}>{drawer.content ? <>{drawer.content}</> : null}</DesktopDrawer>
       <FloatingActionButton onClick={openDrawer} />
     </div>
     </NavigationDrawerContext.Provider>
