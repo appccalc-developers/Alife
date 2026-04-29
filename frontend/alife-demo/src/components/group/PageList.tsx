@@ -11,7 +11,7 @@ type Props = {
   showCreateAction?: boolean
   onCreate: () => void
   onOpen: (slug: string) => void
-  onEdit: (pageId: string) => void
+  onEdit: (slug: string) => void
   onDelete: (pageId: string) => void
   onToggleVisibility: (page: GroupPageDto) => void
 }
@@ -82,7 +82,7 @@ const PageList = ({
                 <AppActionButton size="sm" onClick={() => onOpen(page.slug)}>Open</AppActionButton>
                 {canManage ? (
                   <>
-                    <AppActionButton size="sm" variant="ghost" onClick={() => onEdit(page.id)}>Edit</AppActionButton>
+                    <AppActionButton size="sm" variant="ghost" onClick={() => onEdit(page.slug)}>Edit</AppActionButton>
                     <AppActionButton size="sm" variant="danger" onClick={() => onDelete(page.id)}>Delete</AppActionButton>
                     {canPublish ? (
                       <AppActionButton size="sm" variant="secondary" onClick={() => onToggleVisibility(page)}>

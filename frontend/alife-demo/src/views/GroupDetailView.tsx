@@ -118,9 +118,9 @@ const GroupDetailView = () => {
           closeDrawer()
           navigate(`/pages/${slug}`)
         }}
-        onEditPage={(pageId) => {
+        onEditPage={(slug) => {
           closeDrawer()
-          navigate(`/pages/${pageId}/edit?groupId=${groupId}`)
+          navigate(`/pages/${slug}`)
         }}
         onDeletePage={(pageId) => {
           if (!window.confirm('Remove this page?')) {

@@ -12,7 +12,6 @@ import GroupDetailView from './views/GroupDetailView'
 import GroupManageView from './views/GroupManageView'
 import HomeView from './views/HomeView'
 import OnboardingView from './views/OnboardingView'
-import PageEditorView from './views/PageEditorView'
 import PageView from './views/PageView'
 import SermonsView from './views/SermonsView'
 
@@ -260,6 +259,7 @@ const App = () => {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [isDesktopViewport, setIsDesktopViewport] = useState(false)
   const [drawer, setDrawer] = useState<NavigationDrawerState>({})
+  const hasDrawerContent = Boolean(drawer.content)
   const openDrawer = useCallback(() => setDrawerOpen(true), [])
   const closeDrawer = useCallback(() => setDrawerOpen(false), [])
   const drawerContext = useMemo(
@@ -318,7 +318,7 @@ const App = () => {
     <div className="min-h-screen bg-slate-100 text-slate-900">
       <SideNav items={navItems} />
 
-      <div className="min-h-screen lg:pl-72 lg:pr-96">
+      <div className={['min-h-screen lg:pl-72', hasDrawerContent ? 'lg:pr-96' : ''].join(' ')}>
         <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 backdrop-blur">
           <div className="flex min-h-16 items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
             <Link to="/" className="flex items-center gap-2 rounded-lg text-slate-950 lg:hidden" aria-label="Home">
@@ -351,6 +351,7 @@ const App = () => {
                 aria-controls="navigation-drawer-panel"
                 aria-expanded={drawerOpen}
                 onClick={openDrawer}
+                hidden={!hasDrawerContent}
               >
                 <MenuIcon />
               </button>
@@ -373,8 +374,8 @@ const App = () => {
             />
             <Route path="/pages/:slug" element={<PageView />} />
             <Route path="/sermons" element={<SermonsView />} />
-            <Route path="/groups/:groupId/pages/new" element={<PageEditorView />} />
-            <Route path="/pages/:pageId/edit" element={<PageEditorView />} />
+            <Route path="/groups/:groupId/pages/new" element={<PageView />} />
+            <Route path="/pages/:pageId/edit" element={<PageView />} />
             <Route
               path="/onboarding"
               element={
@@ -397,14 +398,14 @@ const App = () => {
       </div>
 
       <BottomNav items={navItems} />
-      {isDesktopViewport ? (
+      {hasDrawerContent && isDesktopViewport ? (
         <DesktopDrawer title={drawer.title}>{drawer.content ? <>{drawer.content}</> : null}</DesktopDrawer>
-      ) : (
+      ) : hasDrawerContent ? (
         <NavigationDrawer title={drawer.title} open={drawerOpen} onClose={closeDrawer}>
           {drawer.content ? <>{drawer.content}</> : null}
         </NavigationDrawer>
-      )}
-      {!isDesktopViewport ? <FloatingActionButton onClick={openDrawer} /> : null}
+      ) : null}
+      {!isDesktopViewport && hasDrawerContent ? <FloatingActionButton onClick={openDrawer} /> : null}
     </div>
     </NavigationDrawerContext.Provider>
   )
