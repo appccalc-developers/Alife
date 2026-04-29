@@ -27,7 +27,7 @@ type Props = {
   onDeleteSubgroup: (subgroupId: string) => void
   onAddPage: () => void
   onOpenPage: (slug: string) => void
-  onEditPage: (pageId: string) => void
+  onEditPage: (slug: string) => void
   onDeletePage: (pageId: string) => void
   onTogglePageVisibility: (page: GroupPageDto) => void
   onApproveMember: (memberId: string) => void
@@ -184,7 +184,7 @@ const GroupToolsDrawer = ({
                     </AppActionButton>
                     {canEditAllPages ? (
                       <>
-                        <AppActionButton size="sm" variant="ghost" onClick={() => onEditPage(page.id)}>
+                        <AppActionButton size="sm" variant="ghost" onClick={() => onEditPage(page.slug)}>
                           Edit
                         </AppActionButton>
                         <AppActionButton size="sm" variant="danger" onClick={() => onDeletePage(page.id)}>

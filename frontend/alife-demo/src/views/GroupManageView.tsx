@@ -90,8 +90,8 @@ const GroupManageView = () => {
       onOpenPage={(slug) => {
         navigate(`/pages/${slug}`)
       }}
-      onEditPage={(pageId) => {
-        navigate(`/pages/${pageId}/edit?groupId=${groupId}`)
+      onEditPage={(slug) => {
+        navigate(`/pages/${slug}`)
       }}
       onDeletePage={(pageId) => {
         deletePage(pageId).catch(() => undefined)
