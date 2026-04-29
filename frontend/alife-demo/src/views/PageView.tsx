@@ -195,7 +195,7 @@ const PageView = () => {
                                 rel="noopener noreferrer"
                                 className="inline-flex rounded bg-red-500 px-6 py-2 text-sm font-medium text-white shadow hover:bg-red-400"
                               >
-                                {linkLabel.trim() || linkUrl}
+                                {linkLabel.trim() || 'View slides'}
                               </a>
                             ) : null}
                           </div>

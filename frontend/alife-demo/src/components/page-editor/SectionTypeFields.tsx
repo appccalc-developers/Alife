@@ -325,16 +325,7 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
                       </p>
                       <div>
                         <span className="inline-flex rounded bg-red-500 px-6 py-2 text-sm font-medium text-white shadow">
-                          <span
-                            role="textbox"
-                            contentEditable={!disabled}
-                            suppressContentEditableWarning
-                            className="rounded px-1 outline-none focus:bg-white/20"
-                            onBlur={(event) => {
-                              const value = event.currentTarget.textContent ?? ''
-                              patchContent({ linkLabel: value, linkText: value, ctaLabel: value })
-                            }}
-                          >
+                          <span className="rounded px-1">
                             {heroLinkLabel.trim() || 'View slides'}
                           </span>
                         </span>
@@ -562,13 +553,28 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
                 placeholder="YouTube URL (watch?v=... or youtu.be/...)"
                 onChange={(event) => patchContent({ youtubeUrl: event.target.value })}
               />
-              <input
-                value={heroLinkUrl}
-                disabled={disabled}
-                className="w-full rounded border border-slate-300 px-2 py-1 text-sm disabled:bg-slate-100"
-                placeholder="Button link URL"
-                onChange={(event) => patchContent({ linkUrl: event.target.value, ctaUrl: event.target.value, href: event.target.value })}
-              />
+              <label className="block space-y-1">
+                <span className="text-xs font-medium text-slate-600">Button text</span>
+                <input
+                  value={heroLinkLabel}
+                  disabled={disabled}
+                  className="w-full rounded border border-slate-300 px-2 py-1 text-sm disabled:bg-slate-100"
+                  placeholder="e.g. View slides"
+                  onChange={(event) =>
+                    patchContent({ linkLabel: event.target.value, linkText: event.target.value, ctaLabel: event.target.value })
+                  }
+                />
+              </label>
+              <label className="block space-y-1">
+                <span className="text-xs font-medium text-slate-600">Button link URL</span>
+                <input
+                  value={heroLinkUrl}
+                  disabled={disabled}
+                  className="w-full rounded border border-slate-300 px-2 py-1 text-sm disabled:bg-slate-100"
+                  placeholder="https://…"
+                  onChange={(event) => patchContent({ linkUrl: event.target.value, ctaUrl: event.target.value, href: event.target.value })}
+                />
+              </label>
             </div>
           ) : type === 'IconFeatureGrid' ? (
             <div className="space-y-2 rounded-lg border border-slate-200 bg-white p-3">

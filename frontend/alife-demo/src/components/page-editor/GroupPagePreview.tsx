@@ -130,7 +130,7 @@ const GroupPagePreview = ({
                                 : 'inline-flex rounded bg-red-500 px-5 py-2 text-sm font-medium text-white shadow hover:bg-red-400'
                             }
                           >
-                            {linkLabel.trim() || linkUrl}
+                            {linkLabel.trim() || 'View slides'}
                           </a>
                         ) : null}
                       </div>
