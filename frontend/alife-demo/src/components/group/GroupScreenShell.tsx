@@ -16,7 +16,6 @@ type Props = {
   loading: boolean
   error: string
   activeTab: GroupTab
-  summary: string
   membershipStatus: 'Not joined' | 'Requested' | 'Approved' | 'Invited'
   membershipRole: 'Member' | 'CoLeader' | 'Leader' | null
   canManageGroup: boolean
@@ -49,7 +48,6 @@ const GroupScreenShell = ({
   loading,
   error,
   activeTab,
-  summary,
   membershipStatus,
   membershipRole,
   canManageGroup,
@@ -137,7 +135,6 @@ const GroupScreenShell = ({
             subgroups={subgroups}
             pages={pages}
             memberships={memberships}
-            summary={summary}
             membershipStatus={membershipStatus}
             membershipRole={membershipRole}
             canManageGroup={canManageGroup}

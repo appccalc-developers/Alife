@@ -16,7 +16,6 @@ const GroupDetailView = () => {
     error,
     statusMessage,
     setStatusMessage,
-    summary,
     membershipStatus,
     membershipRole,
     canManageGroup,
@@ -45,7 +44,6 @@ const GroupDetailView = () => {
       loading={loading}
       error={error}
       activeTab={activeTab}
-      summary={summary}
       membershipStatus={membershipStatus}
       membershipRole={membershipRole}
       canManageGroup={Boolean(canManageGroup)}

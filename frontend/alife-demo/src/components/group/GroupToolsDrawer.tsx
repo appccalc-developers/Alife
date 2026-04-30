@@ -1,3 +1,4 @@
+import type { ButtonHTMLAttributes, ReactNode, SVGProps } from 'react'
 import AppActionButton from '../layout/AppActionButton'
 import AppBadge from '../layout/AppBadge'
 import AccessTypeBadge from './AccessTypeBadge'
@@ -11,7 +12,6 @@ type Props = {
   subgroups: GroupSummaryDto[]
   pages: GroupPageDto[]
   memberships: GroupMemberToolRow[]
-  summary: string
   membershipStatus: 'Not joined' | 'Requested' | 'Approved' | 'Invited'
   membershipRole: 'Member' | 'CoLeader' | 'Leader' | null
   canManageGroup: boolean
@@ -42,6 +42,125 @@ const CloseIcon = () => (
   </svg>
 )
 
+const Icon = ({ children, ...props }: SVGProps<SVGSVGElement> & { children: ReactNode }) => (
+  <svg
+    aria-hidden="true"
+    viewBox="0 0 24 24"
+    className="h-4 w-4"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  >
+    {children}
+  </svg>
+)
+
+const AddIcon = () => (
+  <Icon>
+    <path d="M12 5v14" />
+    <path d="M5 12h14" />
+  </Icon>
+)
+
+const OpenIcon = () => (
+  <Icon>
+    <path d="M7 17 17 7" />
+    <path d="M8 7h9v9" />
+  </Icon>
+)
+
+const EditIcon = () => (
+  <Icon>
+    <path d="m12 20 8-8-4-4-8 8-2 6 6-2Z" />
+    <path d="m14 6 4 4" />
+  </Icon>
+)
+
+const RemoveIcon = () => (
+  <Icon>
+    <path d="M3 6h18" />
+    <path d="M8 6V4h8v2" />
+    <path d="m19 6-1 14H6L5 6" />
+    <path d="M10 11v5" />
+    <path d="M14 11v5" />
+  </Icon>
+)
+
+const EyeIcon = () => (
+  <Icon>
+    <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z" />
+    <circle cx="12" cy="12" r="3" />
+  </Icon>
+)
+
+const EyeOffIcon = () => (
+  <Icon>
+    <path d="m3 3 18 18" />
+    <path d="M10.6 10.6A2 2 0 0 0 13.4 13.4" />
+    <path d="M9.9 5.2A10.6 10.6 0 0 1 12 5c6.5 0 10 7 10 7a17.6 17.6 0 0 1-3.1 4.1" />
+    <path d="M6.6 6.6C3.7 8.5 2 12 2 12s3.5 7 10 7a9.7 9.7 0 0 0 4.4-1" />
+  </Icon>
+)
+
+const UserAddIcon = () => (
+  <Icon>
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M19 8v6" />
+    <path d="M16 11h6" />
+  </Icon>
+)
+
+const CheckIcon = () => (
+  <Icon>
+    <path d="m20 6-11 11-5-5" />
+  </Icon>
+)
+
+const RejectIcon = () => (
+  <Icon>
+    <path d="M18 6 6 18" />
+    <path d="m6 6 12 12" />
+  </Icon>
+)
+
+const StarIcon = () => (
+  <Icon>
+    <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3Z" />
+  </Icon>
+)
+
+const UserMinusIcon = () => (
+  <Icon>
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M16 11h6" />
+  </Icon>
+)
+
+type DrawerIconButtonProps = {
+  label: string
+  variant?: 'primary' | 'secondary' | 'danger' | 'ghost'
+  children: ReactNode
+} & ButtonHTMLAttributes<HTMLButtonElement>
+
+const DrawerIconButton = ({ label, variant = 'secondary', children, className = '', ...props }: DrawerIconButtonProps) => (
+  <AppActionButton
+    size="sm"
+    variant={variant}
+    className={`h-8 w-8 p-0 ${className}`.trim()}
+    aria-label={label}
+    title={label}
+    {...props}
+  >
+    <span className="sr-only">{label}</span>
+    {children}
+  </AppActionButton>
+)
+
 const shortId = (value: string) => (value.length > 8 ? value.slice(0, 8) : value)
 
 const DrawerPanel = ({
@@ -49,7 +168,6 @@ const DrawerPanel = ({
   subgroups,
   pages,
   memberships,
-  summary,
   membershipStatus,
   membershipRole,
   canManageGroup,
@@ -101,22 +219,11 @@ const DrawerPanel = ({
             {membershipRole ? <AppBadge variant="info">Role: {membershipRole}</AppBadge> : null}
           </div>
           {group.description ? <p className="text-sm leading-6 text-slate-600">{group.description}</p> : null}
-          <p className="text-sm text-slate-600">{summary}</p>
-          <dl className="grid grid-cols-2 gap-2 text-xs text-slate-600">
-            <div className="rounded-lg border border-slate-200 p-3">
-              <dt className="font-medium text-slate-500">Subgroups</dt>
-              <dd className="mt-1 text-lg font-semibold text-slate-900">{subgroups.length}</dd>
-            </div>
-            <div className="rounded-lg border border-slate-200 p-3">
-              <dt className="font-medium text-slate-500">Pages</dt>
-              <dd className="mt-1 text-lg font-semibold text-slate-900">{pages.length}</dd>
-            </div>
-          </dl>
           <div className="flex flex-wrap gap-2">
             {showJoinAction ? (
-              <AppActionButton variant="primary" onClick={onJoin}>
-                Join / Request
-              </AppActionButton>
+              <DrawerIconButton label="Join or request access" variant="primary" onClick={onJoin}>
+                <UserAddIcon />
+              </DrawerIconButton>
             ) : null}
           </div>
         </section>
@@ -125,9 +232,9 @@ const DrawerPanel = ({
           <div className="flex items-center justify-between gap-3">
             <h3 className="text-sm font-semibold text-slate-900">Subgroups</h3>
             {canManageGroup ? (
-              <AppActionButton size="sm" variant="ghost" onClick={onAddSubgroup}>
-                Add
-              </AppActionButton>
+              <DrawerIconButton label="Add subgroup" variant="ghost" onClick={onAddSubgroup}>
+                <AddIcon />
+              </DrawerIconButton>
             ) : null}
           </div>
           {subgroups.length === 0 ? (
@@ -136,28 +243,26 @@ const DrawerPanel = ({
             <ul className="space-y-2">
               {subgroups.map((subgroup) => (
                 <li key={subgroup.id} className="rounded-lg border border-slate-200 p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-medium text-slate-900">{subgroup.name}</p>
-                      <div className="mt-1">
-                        <AccessTypeBadge accessType={subgroup.accessType} />
-                      </div>
+                  <div>
+                    <p className="font-medium text-slate-900">{subgroup.name}</p>
+                    <div className="mt-1">
+                      <AccessTypeBadge accessType={subgroup.accessType} />
                     </div>
-                    <div className="flex shrink-0 flex-wrap justify-end gap-1">
-                      <AppActionButton size="sm" onClick={() => onOpenSubgroup(subgroup.id)}>
-                        Open
-                      </AppActionButton>
-                      {canManageGroup ? (
-                        <>
-                          <AppActionButton size="sm" variant="ghost" onClick={() => onEditSubgroup(subgroup.id)}>
-                            Edit
-                          </AppActionButton>
-                          <AppActionButton size="sm" variant="danger" onClick={() => onDeleteSubgroup(subgroup.id)}>
-                            Remove
-                          </AppActionButton>
-                        </>
-                      ) : null}
-                    </div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap justify-end gap-1">
+                    <DrawerIconButton label={`Open ${subgroup.name}`} onClick={() => onOpenSubgroup(subgroup.id)}>
+                      <OpenIcon />
+                    </DrawerIconButton>
+                    {canManageGroup ? (
+                      <>
+                        <DrawerIconButton label={`Edit ${subgroup.name}`} variant="ghost" onClick={() => onEditSubgroup(subgroup.id)}>
+                          <EditIcon />
+                        </DrawerIconButton>
+                        <DrawerIconButton label={`Remove ${subgroup.name}`} variant="danger" onClick={() => onDeleteSubgroup(subgroup.id)}>
+                          <RemoveIcon />
+                        </DrawerIconButton>
+                      </>
+                    ) : null}
                   </div>
                 </li>
               ))}
@@ -170,28 +275,34 @@ const DrawerPanel = ({
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-sm font-semibold text-slate-900">Page tools</h3>
               {canCreatePage ? (
-                <AppActionButton size="sm" variant="primary" onClick={onAddPage}>
-                  Add page
-                </AppActionButton>
+                <DrawerIconButton label="Add page" variant="primary" onClick={onAddPage}>
+                  <AddIcon />
+                </DrawerIconButton>
               ) : null}
             </div>
             {canEditAllPages ? (
               <ul className="space-y-2">
                 {pages.map((page) => (
                   <li key={page.id} className="rounded-lg border border-slate-200 p-3">
-                    <p className="font-medium text-slate-900">{page.title}</p>
-                    <p className="mt-1 text-xs text-slate-500">{page.visibility}</p>
-                    <div className="mt-3 flex flex-wrap gap-1">
-                      <AppActionButton size="sm" variant="ghost" onClick={() => onEditPage(page.id)}>
-                        Edit
-                      </AppActionButton>
-                      <AppActionButton size="sm" variant="danger" onClick={() => onDeletePage(page.id)}>
-                        Remove
-                      </AppActionButton>
+                    <div>
+                      <p className="font-medium text-slate-900">{page.title}</p>
+                      <p className="mt-1 text-xs text-slate-500">{page.visibility}</p>
+                    </div>
+                    <div className="mt-3 flex flex-wrap justify-end gap-1">
+                      <DrawerIconButton label={`Edit ${page.title}`} variant="ghost" onClick={() => onEditPage(page.id)}>
+                        <EditIcon />
+                      </DrawerIconButton>
+                      <DrawerIconButton label={`Remove ${page.title}`} variant="danger" onClick={() => onDeletePage(page.id)}>
+                        <RemoveIcon />
+                      </DrawerIconButton>
                       {canPublishPages ? (
-                        <AppActionButton size="sm" variant="secondary" onClick={() => onTogglePageVisibility(page)}>
-                          {page.visibility === 'InvisibleDraft' ? 'Publish' : 'Unpublish'}
-                        </AppActionButton>
+                        <DrawerIconButton
+                          label={page.visibility === 'InvisibleDraft' ? `Publish ${page.title}` : `Unpublish ${page.title}`}
+                          variant="secondary"
+                          onClick={() => onTogglePageVisibility(page)}
+                        >
+                          {page.visibility === 'InvisibleDraft' ? <EyeIcon /> : <EyeOffIcon />}
+                        </DrawerIconButton>
                       ) : null}
                     </div>
                   </li>
@@ -205,9 +316,9 @@ const DrawerPanel = ({
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-sm font-semibold text-slate-900">Member tools</h3>
-              <AppActionButton size="sm" variant="ghost" onClick={onInviteMember}>
-                Invite
-              </AppActionButton>
+              <DrawerIconButton label="Invite member" variant="ghost" onClick={onInviteMember}>
+                <UserAddIcon />
+              </DrawerIconButton>
             </div>
             {requestedMembers.length > 0 ? (
               <div className="space-y-2">
@@ -216,12 +327,12 @@ const DrawerPanel = ({
                   <div key={member.memberId} className="rounded-lg border border-slate-200 p-3">
                     <p className="font-medium text-slate-900">Member {shortId(member.memberId)}</p>
                     <div className="mt-3 flex flex-wrap gap-1">
-                      <AppActionButton size="sm" variant="primary" onClick={() => onApproveMember(member.memberId)}>
-                        Approve
-                      </AppActionButton>
-                      <AppActionButton size="sm" variant="danger" onClick={() => onRejectMember(member.memberId)}>
-                        Reject
-                      </AppActionButton>
+                      <DrawerIconButton label={`Approve member ${shortId(member.memberId)}`} variant="primary" onClick={() => onApproveMember(member.memberId)}>
+                        <CheckIcon />
+                      </DrawerIconButton>
+                      <DrawerIconButton label={`Reject member ${shortId(member.memberId)}`} variant="danger" onClick={() => onRejectMember(member.memberId)}>
+                        <RejectIcon />
+                      </DrawerIconButton>
                     </div>
                   </div>
                 ))}
@@ -243,13 +354,17 @@ const DrawerPanel = ({
                         <AppActionButton
                           size="sm"
                           variant="ghost"
+                          className="h-8 w-8 p-0"
+                          aria-label={member.role === 'CoLeader' ? `Reset co-leader ${shortId(member.memberId)}` : `Set co-leader ${shortId(member.memberId)}`}
+                          title={member.role === 'CoLeader' ? `Reset co-leader ${shortId(member.memberId)}` : `Set co-leader ${shortId(member.memberId)}`}
                           onClick={() => onSetCoLeader(member.memberId, member.role !== 'CoLeader')}
                         >
-                          {member.role === 'CoLeader' ? 'Reset co-leader' : 'Set co-leader'}
+                          <span className="sr-only">{member.role === 'CoLeader' ? `Reset co-leader ${shortId(member.memberId)}` : `Set co-leader ${shortId(member.memberId)}`}</span>
+                          {member.role === 'CoLeader' ? <UserMinusIcon /> : <StarIcon />}
                         </AppActionButton>
-                        <AppActionButton size="sm" variant="danger" onClick={() => onKickMember(member.memberId)}>
-                          Remove
-                        </AppActionButton>
+                        <DrawerIconButton label={`Remove member ${shortId(member.memberId)}`} variant="danger" onClick={() => onKickMember(member.memberId)}>
+                          <RemoveIcon />
+                        </DrawerIconButton>
                       </div>
                     ) : null}
                   </div>
