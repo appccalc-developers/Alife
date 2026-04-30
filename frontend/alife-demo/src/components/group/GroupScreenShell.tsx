@@ -23,6 +23,7 @@ type Props = {
   canEditAllPages: boolean
   canPublishPages: boolean
   contentMode?: 'pages' | 'tabs'
+  selectedPageId?: string
   statusMessage?: string
   onJoin: () => void
   onAddSubgroup: () => void
@@ -55,6 +56,7 @@ const GroupScreenShell = ({
   canEditAllPages,
   canPublishPages,
   contentMode = 'tabs',
+  selectedPageId = '',
   statusMessage,
   onJoin,
   onAddSubgroup,
@@ -117,6 +119,7 @@ const GroupScreenShell = ({
               <GroupPageTabs
                 pages={pages}
                 subgroups={subgroups}
+                selectedPageId={selectedPageId}
                 showCreateAction={contentMode === 'tabs' && canCreatePage}
                 onCreate={onAddPage}
               />

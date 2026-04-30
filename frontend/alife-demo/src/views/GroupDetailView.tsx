@@ -1,10 +1,14 @@
-import { useNavigate, useParams } from 'react-router-dom'
+import { useEffect } from 'react'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import GroupScreenShell from '../components/group/GroupScreenShell'
 import { useGroupScreen } from '../hooks/useGroupScreen'
+import { useCurrentGroupStore } from '../stores/currentGroup'
 
 const GroupDetailView = () => {
   const { groupId = '' } = useParams<{ groupId: string }>()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const { setCurrentGroup } = useCurrentGroupStore()
 
   const {
     activeTab,
@@ -35,6 +39,12 @@ const GroupDetailView = () => {
     setCoLeader,
   } = useGroupScreen(groupId)
 
+  useEffect(() => {
+    if (group) {
+      setCurrentGroup(group)
+    }
+  }, [group, setCurrentGroup])
+
   return (
     <GroupScreenShell
       group={group}
@@ -51,6 +61,7 @@ const GroupDetailView = () => {
       canEditAllPages={Boolean(canEditAllPages)}
       canPublishPages={Boolean(canPublishPages)}
       contentMode="pages"
+      selectedPageId={searchParams.get('page') ?? ''}
       statusMessage={statusMessage}
       onJoin={() => {
         joinOrRequest().catch(() => undefined)
