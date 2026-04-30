@@ -5,15 +5,18 @@ import App from './App'
 import { registerServiceWorker } from './registerSW'
 import './style.css'
 import { AuthProvider } from './stores/auth'
+import { CurrentGroupProvider } from './stores/currentGroup'
 
 registerServiceWorker()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <AuthProvider>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <CurrentGroupProvider>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </CurrentGroupProvider>
     </AuthProvider>
   </StrictMode>,
 )

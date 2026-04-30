@@ -1,8 +1,10 @@
 import type { ReactElement } from 'react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import logo from './assets/logo.png'
+import { groupService } from './services/groupService'
 import { useAuthStore } from './stores/auth'
+import { useCurrentGroupStore } from './stores/currentGroup'
 import AdminView from './views/AdminView'
 import GroupDetailView from './views/GroupDetailView'
 import HomeView from './views/HomeView'
@@ -16,6 +18,7 @@ type ShellNavItem = {
   label: string
   to: string
   icon: ReactElement
+  matchSearch?: string
 }
 
 const RouteLoading = () => <p className="rounded bg-white p-3">Loading identity...</p>
@@ -42,6 +45,15 @@ const GroupIcon = () => (
     <path d="M3 20c0-3.3 2.7-6 6-6" />
     <circle cx="17" cy="9" r="2.5" />
     <path d="M14 15c2.8.4 5 2.8 5 5" />
+  </svg>
+)
+
+const PageIcon = () => (
+  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M6 3h9l4 4v14H6Z" />
+    <path d="M14 3v5h5" />
+    <path d="M9 13h6" />
+    <path d="M9 17h6" />
   </svg>
 )
 
@@ -101,6 +113,36 @@ const ShellNavLink = ({ item, mobile = false }: { item: ShellNavItem; mobile?: b
   </NavLink>
 )
 
+const ShellSearchNavLink = ({ item, mobile = false }: { item: ShellNavItem; mobile?: boolean }) => {
+  const location = useLocation()
+  const target = new URL(item.to, window.location.origin)
+  const isActive = location.pathname === target.pathname && (!item.matchSearch || location.search === item.matchSearch)
+
+  return (
+    <Link
+      to={item.to}
+      className={[
+        'flex items-center rounded-lg font-medium transition',
+        mobile ? 'min-w-0 flex-1 flex-col justify-center gap-1 px-1 py-2 text-xs' : 'gap-3 px-3 py-2.5 text-sm',
+        isActive ? 'bg-emerald-700 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950',
+      ].join(' ')}
+    >
+      <span className={mobile ? 'flex h-6 items-center justify-center' : 'flex h-5 w-5 items-center justify-center'}>
+        {item.icon}
+      </span>
+      <span className={mobile ? 'max-w-full truncate leading-tight' : ''}>{item.label}</span>
+    </Link>
+  )
+}
+
+const HeaderNav = ({ items }: { items: ShellNavItem[] }) => (
+  <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto" aria-label="App navigation">
+    {items.map((item) => (
+      <ShellNavLink key={item.to} item={item} />
+    ))}
+  </nav>
+)
+
 const SideNav = ({ items }: { items: ShellNavItem[] }) => (
   <aside className="fixed inset-y-0 left-0 z-20 hidden w-72 border-r border-slate-200 bg-white/95 px-4 py-5 shadow-sm backdrop-blur desktop:block">
     <Link to="/" className="flex items-center gap-3 rounded-lg px-2 py-2 text-slate-950">
@@ -115,7 +157,7 @@ const SideNav = ({ items }: { items: ShellNavItem[] }) => (
 
     <nav className="mt-8 space-y-1" aria-label="Primary">
       {items.map((item) => (
-        <ShellNavLink key={item.to} item={item} />
+        <ShellSearchNavLink key={item.to} item={item} />
       ))}
     </nav>
   </aside>
@@ -128,7 +170,7 @@ const BottomNav = ({ items }: { items: ShellNavItem[] }) => (
   >
     <div className="mx-auto flex max-w-lg items-stretch gap-1">
       {items.map((item) => (
-        <ShellNavLink key={item.to} item={item} mobile />
+        <ShellSearchNavLink key={item.to} item={item} mobile />
       ))}
     </div>
   </nav>
@@ -203,8 +245,10 @@ const OnboardingRoute = ({ children }: { children: ReactElement }) => {
 
 const App = () => {
   const auth = useAuthStore()
+  const { CurrentGroup } = useCurrentGroupStore()
   const location = useLocation()
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [currentGroupPages, setCurrentGroupPages] = useState<ShellNavItem[]>([])
   const isGroupScreen = /^\/groups\/[^/]+$/.test(location.pathname)
 
   const openContextualDrawer = () => {
@@ -218,7 +262,7 @@ const App = () => {
 
   const toggleLanguageLabel = auth.language.toUpperCase()
   const primaryMembershipGroupId = auth.memberships[0]?.groupId || ''
-  const navItems: ShellNavItem[] = [
+  const appNavItems: ShellNavItem[] = [
     { label: 'Home', to: '/', icon: <HomeIcon /> },
     { label: 'Sermons', to: '/sermons', icon: <SermonsIcon /> },
     ...(primaryMembershipGroupId
@@ -228,9 +272,44 @@ const App = () => {
     ...(!auth.loading && auth.me?.isAdmin ? [{ label: 'Admin', to: '/admin', icon: <AdminIcon /> }] : []),
   ]
 
+  useEffect(() => {
+    if (!CurrentGroup?.id) {
+      setCurrentGroupPages([])
+      return
+    }
+
+    let cancelled = false
+
+    groupService
+      .getGroupPages(CurrentGroup.id, auth.language)
+      .then((pages) => {
+        if (cancelled) {
+          return
+        }
+
+        setCurrentGroupPages(
+          pages.map((page) => ({
+            label: page.title,
+            to: `/groups/${CurrentGroup.id}?page=${encodeURIComponent(page.id)}`,
+            matchSearch: `?page=${encodeURIComponent(page.id)}`,
+            icon: <PageIcon />,
+          })),
+        )
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setCurrentGroupPages([])
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [CurrentGroup?.id, auth.language])
+
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
-      <SideNav items={navItems} />
+      <SideNav items={currentGroupPages} />
 
       <div className="min-h-screen desktop:pl-72">
         <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 backdrop-blur">
@@ -246,6 +325,8 @@ const App = () => {
               <p className="text-sm font-medium text-slate-500">Alife</p>
               <h1 className="text-xl font-semibold leading-tight text-slate-950">Community workspace</h1>
             </div>
+
+            <HeaderNav items={appNavItems} />
 
             <div className="ml-auto flex items-center gap-2">
               {!auth.loading && auth.me ? (
@@ -302,7 +383,7 @@ const App = () => {
         </main>
       </div>
 
-      <BottomNav items={navItems} />
+      <BottomNav items={currentGroupPages} />
       <NavigationDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
       <FloatingActionButton label={isGroupScreen ? 'Open group tools' : 'Open navigation drawer'} onClick={openContextualDrawer} />
     </div>
