@@ -1,35 +1,31 @@
+import { useEffect, useState } from 'react'
 import AppActionButton from '../layout/AppActionButton'
 import AppEmptyState from '../layout/AppEmptyState'
 import AppPageShell from '../layout/AppPageShell'
 import AppSectionCard from '../layout/AppSectionCard'
 import type { GroupDto, GroupPageDto, GroupSummaryDto, GroupTab } from '../../types/group'
-import GroupActionBar from './GroupActionBar'
-import GroupHeaderCard from './GroupHeaderCard'
-import GroupOverviewPanel from './GroupOverviewPanel'
-import ManagementBanner from './ManagementBanner'
-import GroupTabs from './GroupTabs'
+import type { GroupMemberToolRow } from '../../hooks/useGroupScreen'
+import GroupToolsDrawer from './GroupToolsDrawer'
 import PageList from './PageList'
-import SubgroupList from './SubgroupList'
 
 type Props = {
   group: GroupDto | null
   subgroups: GroupSummaryDto[]
   pages: GroupPageDto[]
+  memberships?: GroupMemberToolRow[]
   loading: boolean
   error: string
   activeTab: GroupTab
   summary: string
   membershipStatus: 'Not joined' | 'Requested' | 'Approved' | 'Invited'
   membershipRole: 'Member' | 'CoLeader' | 'Leader' | null
-  managementMode?: boolean
   canManageGroup: boolean
   canCreatePage: boolean
   canEditAllPages: boolean
   canPublishPages: boolean
+  contentMode?: 'pages' | 'tabs'
   statusMessage?: string
-  onActiveTabChange: (value: GroupTab) => void
   onJoin: () => void
-  onManage: () => void
   onAddSubgroup: () => void
   onAddPage: () => void
   onInviteMember: () => void
@@ -40,27 +36,30 @@ type Props = {
   onEditPage: (pageId: string) => void
   onDeletePage: (pageId: string) => void
   onTogglePageVisibility: (page: GroupPageDto) => void
+  onApproveMember?: (memberId: string) => void
+  onRejectMember?: (memberId: string) => void
+  onKickMember?: (memberId: string) => void
+  onSetCoLeader?: (memberId: string, isCoLeader: boolean) => void
 }
 
 const GroupScreenShell = ({
   group,
   subgroups,
   pages,
+  memberships = [],
   loading,
   error,
   activeTab,
   summary,
   membershipStatus,
   membershipRole,
-  managementMode,
   canManageGroup,
   canCreatePage,
   canEditAllPages,
   canPublishPages,
+  contentMode = 'tabs',
   statusMessage,
-  onActiveTabChange,
   onJoin,
-  onManage,
   onAddSubgroup,
   onAddPage,
   onInviteMember,
@@ -71,22 +70,35 @@ const GroupScreenShell = ({
   onEditPage,
   onDeletePage,
   onTogglePageVisibility,
+  onApproveMember = () => undefined,
+  onRejectMember = () => undefined,
+  onKickMember = () => undefined,
+  onSetCoLeader = () => undefined,
 }: Props) => {
-  const showJoinAction = membershipStatus === 'Not joined' || membershipStatus === 'Invited'
-  const subtitle = managementMode ? 'Management workspace for this group.' : 'Group workspace'
+  const [toolsOpen, setToolsOpen] = useState(false)
+  const subtitle = contentMode === 'pages' ? 'Pages published for this group.' : 'Group workspace'
+  const title = contentMode === 'pages' ? 'Group pages' : group?.name || 'Group'
+
+  useEffect(() => {
+    const openTools = () => setToolsOpen(true)
+    window.addEventListener('open-group-tools', openTools)
+
+    return () => {
+      window.removeEventListener('open-group-tools', openTools)
+    }
+  }, [])
 
   return (
     <AppPageShell
-      title={group?.name || 'Group'}
+      title={title}
       subtitle={subtitle}
       actions={
         <>
-          {showJoinAction && !managementMode ? (
-            <AppActionButton variant="primary" onClick={onJoin}>
-              Join / Request
+          {group ? (
+            <AppActionButton variant="primary" onClick={() => setToolsOpen(true)} className="desktop:hidden">
+              Group tools
             </AppActionButton>
           ) : null}
-          {canManageGroup && !managementMode ? <AppActionButton onClick={onManage}>Manage Group</AppActionButton> : null}
         </>
       }
     >
@@ -103,72 +115,59 @@ const GroupScreenShell = ({
       ) : null}
 
       {!loading && !error && group ? (
-        <>
-          <GroupHeaderCard
-            group={group}
-            membershipStatus={membershipStatus}
-            membershipRole={membershipRole}
-            summary={summary}
-            managementMode={managementMode}
-            actions={
-              canCreatePage && !managementMode ? (
-                <div className="flex flex-wrap gap-2">
-                  <AppActionButton variant="secondary" onClick={onAddPage}>
-                    Create Page
-                  </AppActionButton>
-                </div>
-              ) : undefined
-            }
-          />
-
-          {managementMode ? (
-            <ManagementBanner>
-              <GroupActionBar onAddSubgroup={onAddSubgroup} onAddPage={onAddPage} onInviteMember={onInviteMember} />
-            </ManagementBanner>
-          ) : null}
-
-          <GroupTabs value={activeTab} onChange={onActiveTabChange} />
-
-          {activeTab === 'overview' ? (
-            <div className="space-y-3">
-              <GroupOverviewPanel group={group} subgroupCount={subgroups.length} pageCount={pages.length} />
-            </div>
-          ) : null}
-
-          {activeTab === 'subgroups' ? (
-            <div className="space-y-3">
-              <SubgroupList
-                items={subgroups}
-                canManage={managementMode}
-                onOpen={onOpenSubgroup}
-                onEdit={onEditSubgroup}
-                onDelete={onDeleteSubgroup}
-              />
-            </div>
-          ) : null}
-
-          {activeTab === 'pages' ? (
-            <div className="space-y-3">
+        <div className="grid gap-6 desktop:grid-cols-[minmax(0,1fr)_22rem]">
+          <div className="space-y-6">
+            {(contentMode === 'pages' || activeTab === 'pages') ? (
               <PageList
                 items={pages}
-                canManage={canEditAllPages}
-                canPublish={canPublishPages}
-                showCreateAction={canCreatePage || managementMode}
+                canManage={contentMode === 'tabs' && canEditAllPages}
+                canPublish={contentMode === 'tabs' && canPublishPages}
+                showCreateAction={contentMode === 'tabs' && canCreatePage}
                 onCreate={onAddPage}
                 onOpen={onOpenPage}
                 onEdit={onEditPage}
                 onDelete={onDeletePage}
                 onToggleVisibility={onTogglePageVisibility}
               />
-            </div>
-          ) : null}
+            ) : null}
 
-          {statusMessage ? (
-            <AppSectionCard dense>
-              <p className="text-sm text-slate-600">{statusMessage}</p>
-            </AppSectionCard>
-          ) : null}
-        </>
+            {statusMessage ? (
+              <AppSectionCard dense>
+                <p className="text-sm text-slate-600">{statusMessage}</p>
+              </AppSectionCard>
+            ) : null}
+          </div>
+
+          <GroupToolsDrawer
+            open={toolsOpen}
+            group={group}
+            subgroups={subgroups}
+            pages={pages}
+            memberships={memberships}
+            summary={summary}
+            membershipStatus={membershipStatus}
+            membershipRole={membershipRole}
+            canManageGroup={canManageGroup}
+            canCreatePage={canCreatePage}
+            canEditAllPages={canEditAllPages}
+            canPublishPages={canPublishPages}
+            onClose={() => setToolsOpen(false)}
+            onJoin={onJoin}
+            onAddSubgroup={onAddSubgroup}
+            onAddPage={onAddPage}
+            onInviteMember={onInviteMember}
+            onOpenSubgroup={onOpenSubgroup}
+            onEditSubgroup={onEditSubgroup}
+            onDeleteSubgroup={onDeleteSubgroup}
+            onEditPage={onEditPage}
+            onDeletePage={onDeletePage}
+            onTogglePageVisibility={onTogglePageVisibility}
+            onApproveMember={onApproveMember}
+            onRejectMember={onRejectMember}
+            onKickMember={onKickMember}
+            onSetCoLeader={onSetCoLeader}
+          />
+        </div>
       ) : null}
 
       {!loading && !error && !group ? (

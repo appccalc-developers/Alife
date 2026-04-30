@@ -359,13 +359,6 @@ const PageEditorView = () => {
   }
 
   const cancel = async () => {
-    const fromManage = searchParams.get('from') === 'manage'
-
-    if (fromManage && resolvedGroupId) {
-      navigate(`/groups/${resolvedGroupId}/manage`)
-      return
-    }
-
     if (resolvedGroupId) {
       navigate(`/groups/${resolvedGroupId}`)
       return
