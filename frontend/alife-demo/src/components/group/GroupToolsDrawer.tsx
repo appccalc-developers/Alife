@@ -265,7 +265,7 @@ const DrawerPanel = ({
 
 const GroupToolsDrawer = ({ open, ...props }: Props) => (
   <>
-    <aside className="hidden h-fit max-h-[calc(100vh-7rem)] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm desktop:sticky desktop:top-24 desktop:block">
+    <aside className="hidden h-[calc(100vh-7rem)] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm desktop:sticky desktop:top-24 desktop:block">
       <DrawerPanel {...props} />
     </aside>
 
