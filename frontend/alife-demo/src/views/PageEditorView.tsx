@@ -2,20 +2,39 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
+import AppSectionCard from '../components/layout/AppSectionCard'
 import PageEditorShell from '../components/page-editor/PageEditorShell'
 import PageMetaForm from '../components/page-editor/PageMetaForm'
 import PageSettingsPanel from '../components/page-editor/PageSettingsPanel'
 import SectionListEditor from '../components/page-editor/SectionListEditor'
+import GroupPagePreview from '../components/page-editor/GroupPagePreview'
 import { groupService } from '../api/groupService'
+import { cloudflareImageService } from '../services/cloudflareImageService'
+import { pageService } from '../services/pageService'
 import { useAuthStore } from '../stores/auth'
 import type { GroupPageDto, PageVisibility } from '../types/group'
 import type { PageEditModel, PageEditorValidation, SectionEditModel } from '../types/page-editor'
 
 const createEmptySection = (): SectionEditModel => ({
   order: 0,
-  type: 'RichText',
-  contentJson: { text: '' },
-  styleJson: {},
+  type: 'Hero',
+  contentJson: {
+    backgroundImage: 'https://images.unsplash.com/photo-1529070538774-1843cb3265df?w=1600&q=80',
+    backgroundImageUrl: 'https://images.unsplash.com/photo-1529070538774-1843cb3265df?w=1600&q=80',
+    title: '',
+    headline: '',
+    centerText: '',
+    body: '',
+    subtitle: '',
+    subheadline: '',
+    linkLabel: '',
+    linkText: '',
+    ctaLabel: '',
+    linkUrl: '',
+    ctaUrl: '',
+    href: '',
+  },
+  styleJson: { layout: 'featured' },
 })
 
 const slugify = (value: string) =>
@@ -71,6 +90,7 @@ const PageEditorView = () => {
 
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
 
@@ -148,10 +168,6 @@ const PageEditorView = () => {
 
   const canSaveDraft = canEditPage && !saving && !hasValidationErrors
 
-  const saveSectionsWithFallback = async (targetPageId: string) => {
-    await groupService.savePageSections(targetPageId, pageModel.sections)
-  }
-
   const loadExistingPage = async () => {
     const targetPageId = editPageId
     if (!targetPageId) {
@@ -216,10 +232,6 @@ const PageEditorView = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth.initialized, createGroupId, editPageId, queryGroupId, auth.language])
 
-  const applyVisibility = async (targetPageId: string, visibility: PageVisibility) => {
-    await groupService.publishPage(targetPageId, visibility)
-  }
-
   const persist = async (publish: boolean) => {
     if (!canSaveDraft) {
       return
@@ -237,16 +249,29 @@ const PageEditorView = () => {
     try {
       let targetPageId = editPageId
       const tagsJson = JSON.stringify(pageModel.tags)
+      const title = pageModel.title.trim()
+      const slug = pageModel.slug.trim() || slugify(pageModel.title)
+      const language = pageModel.language.trim() || auth.language
+      const description = pageModel.description.trim()
+      const titleDisplayStyle = pageModel.titleDisplayStyle.trim() || 'Default'
+
+      let sectionsToPersist = pageModel.sections
+
+      const imagePrefix = `g-${resolvedGroupId}-${editPageId || 'new'}`
+      if (cloudflareImageService.sectionsHaveLocalDataImages(pageModel.sections)) {
+        setMessage('Uploading local images…')
+        sectionsToPersist = await cloudflareImageService.resolveSectionImages(pageModel.sections, imagePrefix)
+        setPageModel((current) => ({ ...current, sections: normalizeSort(sectionsToPersist) }))
+      }
 
       if (isCreateMode) {
-        const slug = pageModel.slug.trim() || slugify(pageModel.title)
         const created = await groupService.createGroupPage(resolvedGroupId, {
-          title: pageModel.title.trim(),
+          title,
           slug,
-          language: pageModel.language.trim() || auth.language,
-          description: pageModel.description.trim(),
+          language,
+          description,
           tagsJson,
-          titleDisplayStyle: pageModel.titleDisplayStyle.trim() || 'Default',
+          titleDisplayStyle,
         })
 
         targetPageId = created.id
@@ -259,24 +284,34 @@ const PageEditorView = () => {
           visibility: created.visibility,
         }))
 
-        await saveSectionsWithFallback(targetPageId)
+        await groupService.savePageSections(targetPageId, sectionsToPersist)
       } else {
         await groupService.updatePage(targetPageId, {
-          title: pageModel.title.trim(),
-          description: pageModel.description.trim(),
+          title,
+          description,
           tagsJson,
-          titleDisplayStyle: pageModel.titleDisplayStyle.trim() || 'Default',
+          titleDisplayStyle,
         })
-        await saveSectionsWithFallback(targetPageId)
+        await groupService.savePageSections(targetPageId, sectionsToPersist)
       }
 
       if (publish && canEditAllPages && targetPageId) {
-        const nextVisibility = pageModel.visibility === 'VisiblePublic' ? 'VisiblePublic' : 'VisibleToGroup'
-        await applyVisibility(targetPageId, nextVisibility)
+        const nextVisibility: PageVisibility = pageModel.visibility === 'VisiblePublic' ? 'VisiblePublic' : 'VisibleToGroup'
+        const publishPayload = {
+          visibility: nextVisibility,
+          page: { title, slug, language, description, tagsJson, titleDisplayStyle },
+          sections: pageService.toSectionPublishPayload(sectionsToPersist),
+        }
+        setMessage('Publishing…')
+        try {
+          await groupService.publishPageOptimized(targetPageId, publishPayload)
+        } catch {
+          await groupService.publishPage(targetPageId, nextVisibility)
+        }
         setPageModel((current) => ({ ...current, visibility: nextVisibility }))
         setMessage('Page saved and published.')
       } else if (canEditVisibility && targetPageId && pageModel.visibility === 'InvisibleDraft') {
-        await applyVisibility(targetPageId, 'InvisibleDraft')
+        await groupService.publishPage(targetPageId, 'InvisibleDraft')
         setMessage('Draft saved.')
       } else {
         setMessage('Page saved.')
@@ -380,6 +415,8 @@ const PageEditorView = () => {
     })
   }
 
+  const openPreview = () => setPreviewOpen(true)
+
   return (
     <PageEditorShell
       title={editorTitle}
@@ -394,6 +431,9 @@ const PageEditorView = () => {
           <AppActionButton variant="primary" disabled={!canSaveDraft || saving} onClick={() => saveDraft().catch(() => undefined)}>
             Save Draft
           </AppActionButton>
+          <AppActionButton variant="ghost" onClick={openPreview}>
+            Preview
+          </AppActionButton>
           <AppActionButton variant="secondary" disabled={!canPublish || saving} onClick={() => publish().catch(() => undefined)}>
             Publish
           </AppActionButton>
@@ -405,52 +445,56 @@ const PageEditorView = () => {
         </>
       }
       main={
-        <>
-          <PageMetaForm
-            model={pageModel}
-            canEdit={canEditPage}
-            isCreateMode={isCreateMode}
-            titleError={validation.title}
-            onChange={setPageModel}
-          />
+        previewOpen ? (
+          <AppSectionCard title="Page Preview" subtitle="Preview current unsaved edits.">
+            <div className="mb-3">
+              <AppActionButton variant="ghost" onClick={() => setPreviewOpen(false)}>
+                Back to Editor
+              </AppActionButton>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-100/70 p-2">
+              <GroupPagePreview
+                title={pageModel.title}
+                description={pageModel.description}
+                slug={pageModel.slug}
+                visibility={pageModel.visibility}
+                sections={pageModel.sections}
+              />
+            </div>
+          </AppSectionCard>
+        ) : (
+          <>
+            <PageSettingsPanel
+              model={pageModel}
+              canEditVisibility={canEditVisibility}
+              message={message}
+              onChange={setPageModel}
+            />
 
-          <SectionListEditor
-            sections={pageModel.sections}
-            canEdit={canEditPage}
-            sectionTypeErrors={validation.sectionTypeErrors}
-            onAdd={addSection}
-            onUpdate={({ index, section }) => updateSection(index, section)}
-            onRemove={removeSection}
-            onMoveUp={(index) => moveSection(index, -1)}
-            onMoveDown={(index) => moveSection(index, 1)}
-          />
-        </>
+            <div className="w-full space-y-4">
+              <PageMetaForm
+                model={pageModel}
+                canEdit={canEditPage}
+                isCreateMode={isCreateMode}
+                titleError={validation.title}
+                onChange={setPageModel}
+              />
+
+              <SectionListEditor
+                sections={pageModel.sections}
+                canEdit={canEditPage}
+                sectionTypeErrors={validation.sectionTypeErrors}
+                onAdd={addSection}
+                onUpdate={({ index, section }) => updateSection(index, section)}
+                onRemove={removeSection}
+                onMoveUp={(index) => moveSection(index, -1)}
+                onMoveDown={(index) => moveSection(index, 1)}
+              />
+            </div>
+          </>
+        )
       }
-      sidebar={
-        <PageSettingsPanel
-          model={pageModel}
-          canEditVisibility={canEditVisibility}
-          canPublish={canPublish}
-          canDelete={canDelete}
-          canSaveDraft={canSaveDraft}
-          isCreateMode={isCreateMode}
-          isBusy={saving}
-          message={message}
-          onChange={setPageModel}
-          onSaveDraft={() => {
-            saveDraft().catch(() => undefined)
-          }}
-          onPublish={() => {
-            publish().catch(() => undefined)
-          }}
-          onDelete={() => {
-            removePage().catch(() => undefined)
-          }}
-          onCancel={() => {
-            cancel().catch(() => undefined)
-          }}
-        />
-      }
+      sidebar={null}
     />
   )
 }

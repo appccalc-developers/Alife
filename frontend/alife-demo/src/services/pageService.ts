@@ -21,6 +21,25 @@ export type PublishPagePayload = {
   visibility: PageVisibility
 }
 
+export type PublishPageOptimizedPayload = {
+  visibility: PageVisibility
+  page: {
+    title: string
+    description?: string
+    tagsJson?: string
+    titleDisplayStyle?: string
+    language?: string
+    slug?: string
+  }
+  sections: Array<{
+    id?: string
+    order: number
+    type: number
+    contentJson: string
+    styleJson: string
+  }>
+}
+
 type SectionDto = {
   id: string
   pageId: string
@@ -63,21 +82,44 @@ const normalizeSectionType = (value: number | string): SectionEditModel['type'] 
   }
 
   const normalized = String(value)
-  const values = ['Hero', 'RichText', 'PostFeed', 'Sermon', 'GroupList', 'PageList', 'SermonList'] as const
+  const values = ['Hero', 'MediaSpotlight', 'IconFeatureGrid', 'SermonSpotlight', 'RichText', 'PostFeed', 'Sermon', 'GroupList', 'PageList', 'SermonList'] as const
   return values.includes(normalized as (typeof values)[number]) ? (normalized as SectionEditModel['type']) : 'RichText'
 }
 
-const toSectionEditModel = (section: SectionDto): SectionEditModel => ({
-  id: section.id,
-  order: section.order,
-  type: normalizeSectionType(section.type),
-  contentJson: parseJsonObject(section.contentJson),
-  styleJson: parseJsonObject(section.styleJson),
-})
+const toSectionEditModel = (section: SectionDto): SectionEditModel => {
+  const contentJson = parseJsonObject(section.contentJson)
+  const styleJson = parseJsonObject(section.styleJson)
+  const normalizedType = normalizeSectionType(section.type)
+  const layout = typeof styleJson.layout === 'string' ? styleJson.layout : ''
+
+  // Backend currently stores custom visual templates as Hero; restore editor types from style.
+  const type =
+    normalizedType === 'Hero' && (layout === 'mediaSpotlight' || layout === 'split')
+      ? 'MediaSpotlight'
+      : normalizedType === 'Hero' && layout === 'iconFeatureGrid'
+        ? 'IconFeatureGrid'
+        : normalizedType === 'Hero' && layout === 'sermonSpotlight'
+          ? 'SermonSpotlight'
+        : normalizedType
+
+  return {
+    id: section.id,
+    order: section.order,
+    type,
+    contentJson,
+    styleJson,
+  }
+}
 
 const toSectionPayloadType = (type: SectionEditModel['type']): number => {
   switch (type) {
     case 'Hero':
+      return 0
+    case 'MediaSpotlight':
+      return 0
+    case 'IconFeatureGrid':
+      return 0
+    case 'SermonSpotlight':
       return 0
     case 'RichText':
       return 1
@@ -95,6 +137,19 @@ const toSectionPayloadType = (type: SectionEditModel['type']): number => {
       return 1
   }
 }
+
+const buildSectionWritePayload = (section: SectionEditModel, order: number) => ({
+  type: toSectionPayloadType(section.type === '' ? 'RichText' : section.type),
+  contentJson: JSON.stringify(section.contentJson ?? {}),
+  styleJson: JSON.stringify(section.styleJson ?? {}),
+  order,
+})
+
+const toSectionPublishPayload = (sections: SectionEditModel[]) =>
+  sections.map((section, index) => ({
+    id: section.id,
+    ...buildSectionWritePayload(section, index + 1),
+  }))
 
 const parseTags = (tagsJson: string | undefined) => {
   if (!tagsJson) {
@@ -153,6 +208,22 @@ export const pageService = {
     return data
   },
 
+  async publishPageOptimized(pageId: string, payload: PublishPageOptimizedPayload) {
+    const endpointCandidates = [`/api/pages/${pageId}/publish-optimized`, `/api/pages/${pageId}/publish/full`]
+    let lastError: unknown
+
+    for (const endpoint of endpointCandidates) {
+      try {
+        const { data } = await http.post<PageSummaryDto>(endpoint, payload)
+        return data
+      } catch (error) {
+        lastError = error
+      }
+    }
+
+    throw lastError
+  },
+
   async deletePage(pageId: string) {
     await http.delete(`/api/pages/${pageId}`)
   },
@@ -169,18 +240,10 @@ export const pageService = {
     const existing = await pageService.getPageSections(pageId)
     const existingById = new Map(existing.filter((x) => x.id).map((x) => [x.id as string, x]))
 
-    const incomingWithOrder = sections.map((section, index) => ({
-      ...section,
-      order: index + 1,
-    }))
+    const incomingWithOrder = sections.map((section, index) => ({ ...section, order: index + 1 }))
 
     for (const section of incomingWithOrder) {
-      const payload = {
-        type: toSectionPayloadType(section.type === '' ? 'RichText' : section.type),
-        contentJson: JSON.stringify(section.contentJson ?? {}),
-        styleJson: JSON.stringify(section.styleJson ?? {}),
-        order: section.order,
-      }
+      const payload = buildSectionWritePayload(section, section.order)
 
       if (!section.id) {
         await http.post(`/api/pages/${pageId}/sections`, payload)
@@ -195,6 +258,8 @@ export const pageService = {
       await http.delete(`/api/sections/${sectionId}`)
     }
   },
+
+  toSectionPublishPayload,
 }
 
 export const toPageEditModel = (page: PageDetailDto, groupId: string): PageEditModel => ({

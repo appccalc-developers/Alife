@@ -1,4 +1,3 @@
-import AppActionButton from '../layout/AppActionButton'
 import AppBadge from '../layout/AppBadge'
 import AppSectionCard from '../layout/AppSectionCard'
 import type { PageVisibility } from '../../types/group'
@@ -7,17 +6,8 @@ import type { PageEditModel } from '../../types/page-editor'
 type Props = {
   model: PageEditModel
   canEditVisibility: boolean
-  canPublish: boolean
-  canDelete: boolean
-  canSaveDraft: boolean
-  isCreateMode: boolean
-  isBusy: boolean
   message?: string
   onChange: (value: PageEditModel) => void
-  onSaveDraft: () => void
-  onPublish: () => void
-  onDelete: () => void
-  onCancel: () => void
 }
 
 const visibilityOptions: PageVisibility[] = ['InvisibleDraft', 'VisibleToGroup', 'VisiblePublic']
@@ -25,19 +15,10 @@ const visibilityOptions: PageVisibility[] = ['InvisibleDraft', 'VisibleToGroup',
 const PageSettingsPanel = ({
   model,
   canEditVisibility,
-  canPublish,
-  canDelete,
-  canSaveDraft,
-  isCreateMode,
-  isBusy,
   message,
   onChange,
-  onSaveDraft,
-  onPublish,
-  onDelete,
-  onCancel,
 }: Props) => (
-  <div className="space-y-4">
+  <div className="grid gap-4 lg:grid-cols-2">
     <AppSectionCard title="Page Settings" subtitle="Visibility and publishing controls.">
       <div className="space-y-3">
         <label className="block space-y-1">
@@ -63,22 +44,6 @@ const PageSettingsPanel = ({
           <AppBadge variant="success">Public: VisiblePublic</AppBadge>
         </div>
 
-        <div className="space-y-2">
-          <AppActionButton block variant="primary" disabled={!canSaveDraft || isBusy} onClick={onSaveDraft}>
-            Save Draft
-          </AppActionButton>
-          <AppActionButton block variant="secondary" disabled={!canPublish || isBusy} onClick={onPublish}>
-            Publish
-          </AppActionButton>
-          {!isCreateMode ? (
-            <AppActionButton block variant="danger" disabled={!canDelete || isBusy} onClick={onDelete}>
-              Delete
-            </AppActionButton>
-          ) : null}
-          <AppActionButton block variant="ghost" onClick={onCancel}>
-            Cancel
-          </AppActionButton>
-        </div>
       </div>
     </AppSectionCard>
 

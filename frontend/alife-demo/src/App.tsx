@@ -9,6 +9,7 @@ import GroupManageView from './views/GroupManageView'
 import HomeView from './views/HomeView'
 import OnboardingView from './views/OnboardingView'
 import PageEditorView from './views/PageEditorView'
+import PagePreviewDraftView from './views/PagePreviewDraftView'
 import PageView from './views/PageView'
 import SermonsView from './views/SermonsView'
 
@@ -291,6 +292,7 @@ const App = () => {
             <Route path="/sermons" element={<SermonsView />} />
             <Route path="/groups/:groupId/pages/new" element={<PageEditorView />} />
             <Route path="/pages/:pageId/edit" element={<PageEditorView />} />
+          <Route path="/pages/preview-draft" element={<PagePreviewDraftView />} />
             <Route
               path="/onboarding"
               element={

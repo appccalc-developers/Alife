@@ -26,10 +26,14 @@ const PageEditorShell = ({ title, loading, error, actions, main, sidebar }: Prop
     ) : null}
 
     {!loading && !error ? (
-      <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
+      sidebar ? (
+        <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
+          <main className="space-y-4">{main}</main>
+          <aside className="space-y-4">{sidebar}</aside>
+        </div>
+      ) : (
         <main className="space-y-4">{main}</main>
-        <aside className="space-y-4">{sidebar}</aside>
-      </div>
+      )
     ) : null}
   </AppPageShell>
 )
