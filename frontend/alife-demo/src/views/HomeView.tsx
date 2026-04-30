@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { groupService } from '../api/groupService'
 import { useAuthStore } from '../stores/auth'
@@ -11,8 +11,6 @@ const HomeView = () => {
   const [pages, setPages] = useState<GroupPageDto[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-
-  const canManageChurch = useMemo(() => (church ? auth.hasLeaderAccess(church.id) : false), [auth, church])
 
   const load = async () => {
     setLoading(true)
@@ -66,11 +64,6 @@ const HomeView = () => {
                   <Link to={`/groups/${church.id}`} className="rounded border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100">
                     Open Group
                   </Link>
-                  {canManageChurch ? (
-                    <Link to={`/groups/${church.id}/manage`} className="rounded bg-slate-900 px-3 py-2 text-sm text-white hover:bg-slate-800">
-                      Manage Group
-                    </Link>
-                  ) : null}
                 </div>
               </div>
             </article>

@@ -1,11 +1,10 @@
 import type { ReactElement } from 'react'
 import { useState } from 'react'
-import { Link, Navigate, NavLink, Route, Routes, useParams } from 'react-router-dom'
+import { Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import logo from './assets/logo.png'
 import { useAuthStore } from './stores/auth'
 import AdminView from './views/AdminView'
 import GroupDetailView from './views/GroupDetailView'
-import GroupManageView from './views/GroupManageView'
 import HomeView from './views/HomeView'
 import OnboardingView from './views/OnboardingView'
 import PageEditorView from './views/PageEditorView'
@@ -103,7 +102,7 @@ const ShellNavLink = ({ item, mobile = false }: { item: ShellNavItem; mobile?: b
 )
 
 const SideNav = ({ items }: { items: ShellNavItem[] }) => (
-  <aside className="fixed inset-y-0 left-0 z-20 hidden w-72 border-r border-slate-200 bg-white/95 px-4 py-5 shadow-sm backdrop-blur lg:block">
+  <aside className="fixed inset-y-0 left-0 z-20 hidden w-72 border-r border-slate-200 bg-white/95 px-4 py-5 shadow-sm backdrop-blur desktop:block">
     <Link to="/" className="flex items-center gap-3 rounded-lg px-2 py-2 text-slate-950">
       <span className="flex h-12 w-12 items-center justify-center rounded-xl border border-slate-200 bg-white shadow-sm">
         <img src={logo} alt="Alife" className="h-8 w-auto" />
@@ -124,7 +123,7 @@ const SideNav = ({ items }: { items: ShellNavItem[] }) => (
 
 const BottomNav = ({ items }: { items: ShellNavItem[] }) => (
   <nav
-    className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-2 pb-[calc(env(safe-area-inset-bottom)+0.375rem)] pt-1.5 shadow-[0_-12px_30px_rgba(15,23,42,0.10)] backdrop-blur lg:hidden"
+    className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-2 pb-[calc(env(safe-area-inset-bottom)+0.375rem)] pt-1.5 shadow-[0_-12px_30px_rgba(15,23,42,0.10)] backdrop-blur desktop:hidden"
     aria-label="Primary"
   >
     <div className="mx-auto flex max-w-lg items-stretch gap-1">
@@ -162,32 +161,17 @@ const NavigationDrawer = ({ open, onClose }: { open: boolean; onClose: () => voi
   </div>
 )
 
-const FloatingActionButton = ({ onClick }: { onClick: () => void }) => (
+const FloatingActionButton = ({ label, onClick }: { label: string; onClick: () => void }) => (
   <button
     type="button"
-    className="fixed bottom-24 right-5 z-40 inline-flex h-16 w-16 items-center justify-center rounded-full bg-emerald-700 text-white shadow-xl shadow-emerald-900/30 transition hover:bg-emerald-800 focus:outline-none focus:ring-4 focus:ring-emerald-200 lg:bottom-8 lg:right-8"
-    aria-label="Open navigation drawer"
-    title="Open navigation drawer"
+    className="fixed bottom-24 right-5 z-40 inline-flex h-16 w-16 items-center justify-center rounded-full bg-emerald-700 text-white shadow-xl shadow-emerald-900/30 transition hover:bg-emerald-800 focus:outline-none focus:ring-4 focus:ring-emerald-200 desktop:bottom-8 desktop:right-8"
+    aria-label={label}
+    title={label}
     onClick={onClick}
   >
     <PlusIcon />
   </button>
 )
-
-const LeaderRoute = ({ children }: { children: ReactElement }) => {
-  const auth = useAuthStore()
-  const { groupId } = useParams<{ groupId: string }>()
-
-  if (!auth.initialized) {
-    return <RouteLoading />
-  }
-
-  if (!groupId || !auth.hasLeaderAccess(groupId)) {
-    return <Navigate to={groupId ? `/groups/${groupId}` : '/'} replace />
-  }
-
-  return children
-}
 
 const AdminRoute = ({ children }: { children: ReactElement }) => {
   const auth = useAuthStore()
@@ -219,7 +203,18 @@ const OnboardingRoute = ({ children }: { children: ReactElement }) => {
 
 const App = () => {
   const auth = useAuthStore()
+  const location = useLocation()
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const isGroupScreen = /^\/groups\/[^/]+$/.test(location.pathname)
+
+  const openContextualDrawer = () => {
+    if (isGroupScreen) {
+      window.dispatchEvent(new Event('open-group-tools'))
+      return
+    }
+
+    setDrawerOpen(true)
+  }
 
   const toggleLanguageLabel = auth.language.toUpperCase()
   const primaryMembershipGroupId = auth.memberships[0]?.groupId || ''
@@ -237,17 +232,17 @@ const App = () => {
     <div className="min-h-screen bg-slate-100 text-slate-900">
       <SideNav items={navItems} />
 
-      <div className="min-h-screen lg:pl-72">
+      <div className="min-h-screen desktop:pl-72">
         <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 backdrop-blur">
-          <div className="flex min-h-16 items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
-            <Link to="/" className="flex items-center gap-2 rounded-lg text-slate-950 lg:hidden" aria-label="Home">
+          <div className="flex min-h-16 items-center justify-between gap-3 px-4 py-3 sm:px-6 desktop:px-8">
+            <Link to="/" className="flex items-center gap-2 rounded-lg text-slate-950 desktop:hidden" aria-label="Home">
               <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white shadow-sm">
                 <img src={logo} alt="Alife" className="h-7 w-auto" />
               </span>
               <span className="text-base font-semibold">Alife</span>
             </Link>
 
-            <div className="hidden lg:block">
+            <div className="hidden desktop:block">
               <p className="text-sm font-medium text-slate-500">Alife</p>
               <h1 className="text-xl font-semibold leading-tight text-slate-950">Community workspace</h1>
             </div>
@@ -266,8 +261,9 @@ const App = () => {
               <button
                 type="button"
                 className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50"
-                aria-label="Open navigation drawer"
-                onClick={() => setDrawerOpen(true)}
+                aria-label={isGroupScreen ? 'Open group tools' : 'Open navigation drawer'}
+                title={isGroupScreen ? 'Group tools' : 'Open navigation drawer'}
+                onClick={openContextualDrawer}
               >
                 <MenuIcon />
               </button>
@@ -275,24 +271,16 @@ const App = () => {
           </div>
         </header>
 
-        <main className="mx-auto max-w-6xl px-4 pb-32 pt-6 sm:px-6 lg:px-8 lg:pb-10">
+        <main className="mx-auto max-w-6xl px-4 pb-32 pt-6 sm:px-6 desktop:px-8 desktop:pb-10">
           {auth.loading ? <RouteLoading /> : null}
           <Routes>
             <Route path="/" element={<HomeView />} />
             <Route path="/groups/:groupId" element={<GroupDetailView />} />
-            <Route
-              path="/groups/:groupId/manage"
-              element={
-                <LeaderRoute>
-                  <GroupManageView />
-                </LeaderRoute>
-              }
-            />
             <Route path="/pages/:slug" element={<PageView />} />
             <Route path="/sermons" element={<SermonsView />} />
             <Route path="/groups/:groupId/pages/new" element={<PageEditorView />} />
             <Route path="/pages/:pageId/edit" element={<PageEditorView />} />
-          <Route path="/pages/preview-draft" element={<PagePreviewDraftView />} />
+            <Route path="/pages/preview-draft" element={<PagePreviewDraftView />} />
             <Route
               path="/onboarding"
               element={
@@ -316,7 +304,7 @@ const App = () => {
 
       <BottomNav items={navItems} />
       <NavigationDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
-      <FloatingActionButton onClick={() => setDrawerOpen(true)} />
+      <FloatingActionButton label={isGroupScreen ? 'Open group tools' : 'Open navigation drawer'} onClick={openContextualDrawer} />
     </div>
   )
 }

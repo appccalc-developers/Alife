@@ -6,6 +6,13 @@ import type { GroupDto, GroupSummaryDto, GroupTab, PageSummaryDto } from '../typ
 
 type MembershipStatusLabel = 'Not joined' | 'Requested' | 'Approved' | 'Invited'
 type MembershipRole = 'Member' | 'CoLeader' | 'Leader' | null
+export type GroupMemberToolRow = {
+  memberId: string
+  status: 'Invited' | 'Requested' | 'Approved' | 'Rejected' | 'Removed'
+  role: 'Member' | 'CoLeader' | 'Leader'
+  createdUtc?: string
+  updatedUtc?: string
+}
 
 export const useGroupScreen = (groupId: string) => {
   const auth = useAuthStore()
@@ -13,6 +20,7 @@ export const useGroupScreen = (groupId: string) => {
   const [group, setGroup] = useState<GroupDto | null>(null)
   const [subgroups, setSubgroups] = useState<GroupSummaryDto[]>([])
   const [pages, setPages] = useState<PageSummaryDto[]>([])
+  const [memberships, setMemberships] = useState<GroupMemberToolRow[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [statusMessage, setStatusMessage] = useState('')
@@ -91,6 +99,17 @@ export const useGroupScreen = (groupId: string) => {
     return next
   }
 
+  const refreshMemberships = async () => {
+    if (!groupId || !canManageGroup) {
+      setMemberships([])
+      return []
+    }
+
+    const next = await groupService.getGroupMemberships(groupId)
+    setMemberships(next)
+    return next
+  }
+
   const joinOrRequest = async () => {
     if (!groupId) {
       return
@@ -117,7 +136,48 @@ export const useGroupScreen = (groupId: string) => {
     }
 
     await groupService.inviteMember(groupId, { targetPhoneE164 })
+    await refreshMemberships()
     setStatusMessage('Invite sent.')
+  }
+
+  const approveMember = async (memberId: string) => {
+    if (!groupId) {
+      return
+    }
+
+    await groupService.approveMember(groupId, { memberId })
+    await refreshMemberships()
+    setStatusMessage('Member approved.')
+  }
+
+  const rejectMember = async (memberId: string) => {
+    if (!groupId) {
+      return
+    }
+
+    await groupService.rejectMember(groupId, { memberId })
+    await refreshMemberships()
+    setStatusMessage('Member request rejected.')
+  }
+
+  const kickMember = async (memberId: string) => {
+    if (!groupId) {
+      return
+    }
+
+    await groupService.kickMember(groupId, { memberId })
+    await refreshMemberships()
+    setStatusMessage('Member removed.')
+  }
+
+  const setCoLeader = async (memberId: string, isCoLeader: boolean) => {
+    if (!groupId) {
+      return
+    }
+
+    await groupService.setCoLeader(groupId, { memberId, isCoLeader })
+    await refreshMemberships()
+    setStatusMessage(isCoLeader ? 'Co-leader set.' : 'Co-leader reset.')
   }
 
   const editSubgroup = async (subgroupId: string) => {
@@ -148,12 +208,20 @@ export const useGroupScreen = (groupId: string) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupId, auth.language])
 
+  useEffect(() => {
+    refreshMemberships().catch(() => {
+      setMemberships([])
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupId, canManageGroup])
+
   return {
     activeTab,
     setActiveTab,
     group,
     subgroups,
     pages,
+    memberships,
     loading,
     error,
     statusMessage,
@@ -169,9 +237,14 @@ export const useGroupScreen = (groupId: string) => {
     load,
     refreshSubgroups,
     refreshPages,
+    refreshMemberships,
     joinOrRequest,
     addSubgroup,
     inviteMember,
+    approveMember,
+    rejectMember,
+    kickMember,
+    setCoLeader,
     editSubgroup,
     deleteSubgroup,
     deletePage,

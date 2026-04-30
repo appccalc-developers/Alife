@@ -10,11 +10,10 @@ type Props = {
   membershipStatus: 'Not joined' | 'Requested' | 'Approved' | 'Invited'
   membershipRole: 'Member' | 'CoLeader' | 'Leader' | null
   summary: string
-  managementMode?: boolean
   actions?: ReactNode
 }
 
-const GroupHeaderCard = ({ group, membershipStatus, membershipRole, summary, managementMode, actions }: Props) => (
+const GroupHeaderCard = ({ group, membershipStatus, membershipRole, summary, actions }: Props) => (
   <AppSectionCard>
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div className="space-y-2">
@@ -27,7 +26,6 @@ const GroupHeaderCard = ({ group, membershipStatus, membershipRole, summary, man
         <AccessTypeBadge accessType={group.accessType} />
         <MembershipStatusBadge status={membershipStatus} />
         {membershipRole ? <AppBadge variant="info">Role: {membershipRole}</AppBadge> : null}
-        {managementMode ? <AppBadge variant="warning">Manage Mode</AppBadge> : null}
       </div>
     </div>
     {actions ? <div className="mt-4">{actions}</div> : null}
