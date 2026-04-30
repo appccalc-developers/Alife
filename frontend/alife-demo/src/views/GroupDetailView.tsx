@@ -97,9 +97,6 @@ const GroupDetailView = () => {
           setStatusMessage(reason instanceof Error ? reason.message : 'Subgroup delete is not available yet.')
         })
       }}
-      onOpenPage={(slug) => {
-        navigate(`/pages/${slug}`)
-      }}
       onEditPage={(pageId) => {
         navigate(`/pages/${pageId}/edit?groupId=${groupId}`)
       }}

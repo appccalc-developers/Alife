@@ -5,8 +5,8 @@ import AppPageShell from '../layout/AppPageShell'
 import AppSectionCard from '../layout/AppSectionCard'
 import type { GroupDto, GroupPageDto, GroupSummaryDto, GroupTab } from '../../types/group'
 import type { GroupMemberToolRow } from '../../hooks/useGroupScreen'
+import GroupPageTabs from './GroupPageTabs'
 import GroupToolsDrawer from './GroupToolsDrawer'
-import PageList from './PageList'
 
 type Props = {
   group: GroupDto | null
@@ -32,7 +32,6 @@ type Props = {
   onOpenSubgroup: (subgroupId: string) => void
   onEditSubgroup: (subgroupId: string) => void
   onDeleteSubgroup: (subgroupId: string) => void
-  onOpenPage: (slug: string) => void
   onEditPage: (pageId: string) => void
   onDeletePage: (pageId: string) => void
   onTogglePageVisibility: (page: GroupPageDto) => void
@@ -66,7 +65,6 @@ const GroupScreenShell = ({
   onOpenSubgroup,
   onEditSubgroup,
   onDeleteSubgroup,
-  onOpenPage,
   onEditPage,
   onDeletePage,
   onTogglePageVisibility,
@@ -118,16 +116,11 @@ const GroupScreenShell = ({
         <div className="grid gap-6 desktop:grid-cols-[minmax(0,1fr)_22rem]">
           <div className="space-y-6">
             {(contentMode === 'pages' || activeTab === 'pages') ? (
-              <PageList
-                items={pages}
-                canManage={contentMode === 'tabs' && canEditAllPages}
-                canPublish={contentMode === 'tabs' && canPublishPages}
+              <GroupPageTabs
+                pages={pages}
+                subgroups={subgroups}
                 showCreateAction={contentMode === 'tabs' && canCreatePage}
                 onCreate={onAddPage}
-                onOpen={onOpenPage}
-                onEdit={onEditPage}
-                onDelete={onDeletePage}
-                onToggleVisibility={onTogglePageVisibility}
               />
             ) : null}
 
