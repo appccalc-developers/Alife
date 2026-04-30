@@ -145,7 +145,6 @@ const PageView = () => {
                 const youtubeUrl = readText(section.contentJson, 'youtubeUrl')
                 const youtubeEmbedUrl = toYouTubeEmbedUrl(youtubeUrl)
                 const linkUrl = readText(section.contentJson, 'linkUrl', 'ctaUrl', 'href')
-                const linkLabel = readText(section.contentJson, 'linkLabel', 'linkText', 'ctaLabel')
                 const body = readText(section.contentJson, 'centerText', 'body')
                 const displayStyle = readText(section.styleJson, 'displayStyle') === 'newsGrid' ? 'newsGrid' : 'iconGrid'
                 const imageShape = readText(section.styleJson, 'imageShape') === 'circle' ? 'circle' : 'square'
@@ -195,7 +194,7 @@ const PageView = () => {
                                 rel="noopener noreferrer"
                                 className="inline-flex rounded bg-red-500 px-6 py-2 text-sm font-medium text-white shadow hover:bg-red-400"
                               >
-                                {linkLabel.trim() || 'View slides'}
+                                View
                               </a>
                             ) : null}
                           </div>

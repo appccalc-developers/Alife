@@ -325,9 +325,7 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
                       </p>
                       <div>
                         <span className="inline-flex rounded bg-red-500 px-6 py-2 text-sm font-medium text-white shadow">
-                          <span className="rounded px-1">
-                            {heroLinkLabel.trim() || 'View slides'}
-                          </span>
+                          <span className="rounded px-1">View</span>
                         </span>
                       </div>
                     </div>
@@ -553,18 +551,6 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
                 placeholder="YouTube URL (watch?v=... or youtu.be/...)"
                 onChange={(event) => patchContent({ youtubeUrl: event.target.value })}
               />
-              <label className="block space-y-1">
-                <span className="text-xs font-medium text-slate-600">Button text</span>
-                <input
-                  value={heroLinkLabel}
-                  disabled={disabled}
-                  className="w-full rounded border border-slate-300 px-2 py-1 text-sm disabled:bg-slate-100"
-                  placeholder="e.g. View slides"
-                  onChange={(event) =>
-                    patchContent({ linkLabel: event.target.value, linkText: event.target.value, ctaLabel: event.target.value })
-                  }
-                />
-              </label>
               <label className="block space-y-1">
                 <span className="text-xs font-medium text-slate-600">Button link URL</span>
                 <input
