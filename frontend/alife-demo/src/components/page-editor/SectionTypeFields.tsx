@@ -299,6 +299,7 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
                       {youtubeEmbedUrl ? (
                         <iframe
                           src={youtubeEmbedUrl}
+                          referrerPolicy="strict-origin-when-cross-origin"
                           title="Sermon video"
                           className="aspect-video w-full"
                           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
