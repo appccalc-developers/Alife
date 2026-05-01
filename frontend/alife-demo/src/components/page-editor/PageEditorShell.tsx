@@ -13,6 +13,11 @@ type Props = {
 
 const PageEditorShell = ({ title, loading, error, actions, main, sidebar }: Props) => (
   <AppPageShell >
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <h1 className="text-2xl font-semibold text-slate-950">{title}</h1>
+      {actions ? <div className="flex flex-wrap items-center justify-end gap-2">{actions}</div> : null}
+    </div>
+
     {loading ? (
       <AppSectionCard dense>
         <p className="text-sm text-slate-600">Loading editor...</p>

@@ -3,39 +3,18 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
 import AppSectionCard from '../components/layout/AppSectionCard'
+import PageContentEditor, {
+  normalizePageSections,
+  validatePageContent,
+} from '../components/page/PageContentEditor'
 import PageEditorShell from '../components/page-editor/PageEditorShell'
-import PageMetaForm from '../components/page-editor/PageMetaForm'
-import PageSettingsPanel from '../components/page-editor/PageSettingsPanel'
-import SectionListEditor from '../components/page-editor/SectionListEditor'
 import GroupPagePreview from '../components/page-editor/GroupPagePreview'
 import { groupService } from '../api/groupService'
 import { cloudflareImageService } from '../services/cloudflareImageService'
 import { pageService } from '../services/pageService'
 import { useAuthStore } from '../stores/auth'
 import type { GroupPageDto, PageVisibility } from '../types/group'
-import type { PageEditModel, PageEditorValidation, SectionEditModel } from '../types/page-editor'
-
-const createEmptySection = (): SectionEditModel => ({
-  order: 0,
-  type: 'Hero',
-  contentJson: {
-    backgroundImage: 'https://images.unsplash.com/photo-1529070538774-1843cb3265df?w=1600&q=80',
-    backgroundImageUrl: 'https://images.unsplash.com/photo-1529070538774-1843cb3265df?w=1600&q=80',
-    title: '',
-    headline: '',
-    centerText: '',
-    body: '',
-    subtitle: '',
-    subheadline: '',
-    linkLabel: '',
-    linkText: '',
-    ctaLabel: '',
-    linkUrl: '',
-    ctaUrl: '',
-    href: '',
-  },
-  styleJson: { layout: 'featured' },
-})
+import type { PageEditModel } from '../types/page-editor'
 
 const slugify = (value: string) =>
   value
@@ -61,12 +40,6 @@ const parseTags = (tagsJson?: string): string[] => {
     return []
   }
 }
-
-const normalizeSort = (sections: SectionEditModel[]) =>
-  sections.map((section, index) => ({
-    ...section,
-    order: index,
-  }))
 
 const mapPageToEditModel = (page: GroupPageDto, groupId: string): PageEditModel => ({
   id: page.id,
@@ -154,15 +127,7 @@ const PageEditorView = () => {
     return 'warning' as const
   }, [pageModel.visibility])
 
-  const validation = useMemo<PageEditorValidation>(() => {
-    const title = pageModel.title.trim()
-    const sectionTypeErrors = pageModel.sections.map((section) => (section.type ? '' : 'Section type is required.'))
-
-    return {
-      title: title ? undefined : 'Page title is required.',
-      sectionTypeErrors,
-    }
-  }, [pageModel.sections, pageModel.title])
+  const validation = useMemo(() => validatePageContent(pageModel), [pageModel])
 
   const hasValidationErrors = Boolean(validation.title) || validation.sectionTypeErrors.some((item) => item.length > 0)
 
@@ -197,7 +162,7 @@ const PageEditorView = () => {
 
     setPageModel({
       ...baseModel,
-      sections: normalizeSort(sections),
+      sections: normalizePageSections(sections),
     })
   }
 
@@ -261,7 +226,7 @@ const PageEditorView = () => {
       if (cloudflareImageService.sectionsHaveLocalDataImages(pageModel.sections)) {
         setMessage('Uploading local images…')
         sectionsToPersist = await cloudflareImageService.resolveSectionImages(pageModel.sections, imagePrefix)
-        setPageModel((current) => ({ ...current, sections: normalizeSort(sectionsToPersist) }))
+        setPageModel((current) => ({ ...current, sections: normalizePageSections(sectionsToPersist) }))
       }
 
       if (isCreateMode) {
@@ -367,47 +332,6 @@ const PageEditorView = () => {
     navigate('/')
   }
 
-  const addSection = () => {
-    setPageModel((current) => ({
-      ...current,
-      sections: normalizeSort([...current.sections, createEmptySection()]),
-    }))
-  }
-
-  const updateSection = (index: number, section: SectionEditModel) => {
-    setPageModel((current) => {
-      const sections = [...current.sections]
-      sections[index] = section
-      return { ...current, sections: normalizeSort(sections) }
-    })
-  }
-
-  const removeSection = (index: number) => {
-    setPageModel((current) => {
-      const sections = [...current.sections]
-      sections.splice(index, 1)
-      return { ...current, sections: normalizeSort(sections) }
-    })
-  }
-
-  const moveSection = (index: number, direction: -1 | 1) => {
-    setPageModel((current) => {
-      const nextIndex = index + direction
-      if (nextIndex < 0 || nextIndex >= current.sections.length) {
-        return current
-      }
-
-      const sections = [...current.sections]
-      const [item] = sections.splice(index, 1)
-      if (!item) {
-        return current
-      }
-      sections.splice(nextIndex, 0, item)
-
-      return { ...current, sections: normalizeSort(sections) }
-    })
-  }
-
   const openPreview = () => setPreviewOpen(true)
 
   return (
@@ -456,35 +380,15 @@ const PageEditorView = () => {
             </div>
           </AppSectionCard>
         ) : (
-          <>
-            <PageSettingsPanel
-              model={pageModel}
-              canEditVisibility={canEditVisibility}
-              message={message}
-              onChange={setPageModel}
-            />
-
-            <div className="w-full space-y-4">
-              <PageMetaForm
-                model={pageModel}
-                canEdit={canEditPage}
-                isCreateMode={isCreateMode}
-                titleError={validation.title}
-                onChange={setPageModel}
-              />
-
-              <SectionListEditor
-                sections={pageModel.sections}
-                canEdit={canEditPage}
-                sectionTypeErrors={validation.sectionTypeErrors}
-                onAdd={addSection}
-                onUpdate={({ index, section }) => updateSection(index, section)}
-                onRemove={removeSection}
-                onMoveUp={(index) => moveSection(index, -1)}
-                onMoveDown={(index) => moveSection(index, 1)}
-              />
-            </div>
-          </>
+          <PageContentEditor
+            model={pageModel}
+            canEdit={canEditPage}
+            canEditVisibility={canEditVisibility}
+            isCreateMode={isCreateMode}
+            message={message}
+            validation={validation}
+            onChange={setPageModel}
+          />
         )
       }
       sidebar={null}
