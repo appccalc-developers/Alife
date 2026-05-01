@@ -197,7 +197,7 @@ const NavigationDrawer = ({ open, onClose }: { open: boolean; onClose: () => voi
 const FloatingActionButton = ({ label, onClick }: { label: string; onClick: () => void }) => (
   <button
     type="button"
-    className="fixed bottom-24 right-5 z-40 inline-flex h-16 w-16 items-center justify-center rounded-full bg-emerald-700 text-white shadow-xl shadow-emerald-900/30 transition hover:bg-emerald-800 focus:outline-none focus:ring-4 focus:ring-emerald-200 desktop:bottom-8 desktop:right-8"
+    className="fixed bottom-24 right-5 z-40 inline-flex h-16 w-16 items-center justify-center rounded-full bg-emerald-700 text-white shadow-xl shadow-emerald-900/30 transition hover:bg-emerald-800 focus:outline-none focus:ring-4 focus:ring-emerald-200 desktop:hidden"
     aria-label={label}
     title={label}
     onClick={onClick}
@@ -323,7 +323,7 @@ const App = () => {
               </button>
               <button
                 type="button"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50 desktop:hidden"
                 aria-label={isGroupScreen ? 'Open group tools' : 'Open navigation drawer'}
                 title={isGroupScreen ? 'Group tools' : 'Open navigation drawer'}
                 onClick={openContextualDrawer}
