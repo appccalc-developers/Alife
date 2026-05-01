@@ -12,7 +12,7 @@ type Props = {
 }
 
 const PageEditorShell = ({ title, loading, error, actions, main, sidebar }: Props) => (
-  <AppPageShell title={title} subtitle="Draft pages stay private until they are published." actions={actions}>
+  <AppPageShell >
     {loading ? (
       <AppSectionCard dense>
         <p className="text-sm text-slate-600">Loading editor...</p>
