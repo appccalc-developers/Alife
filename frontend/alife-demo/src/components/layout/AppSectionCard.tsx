@@ -9,6 +9,12 @@ type Props = {
 
 const AppSectionCard = ({ title, subtitle, dense = false, children }: Props) => (
   <article className={`rounded-2xl border border-slate-200 bg-white shadow-sm ${dense ? 'p-4' : 'p-5 sm:p-6'}`}>
+    {title || subtitle ? (
+      <header className="mb-4">
+        {title ? <h2 className="text-base font-semibold text-slate-900">{title}</h2> : null}
+        {subtitle ? <p className="mt-1 text-sm text-slate-600">{subtitle}</p> : null}
+      </header>
+    ) : null}
     {children}
   </article>
 )

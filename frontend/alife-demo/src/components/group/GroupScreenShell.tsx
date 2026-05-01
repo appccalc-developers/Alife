@@ -31,9 +31,9 @@ type Props = {
   onOpenSubgroup: (subgroupId: string) => void
   onEditSubgroup: (subgroupId: string) => void
   onDeleteSubgroup: (subgroupId: string) => void
-  onEditPage: (pageId: string) => void
   onDeletePage: (pageId: string) => void
   onTogglePageVisibility: (page: GroupPageDto) => void
+  onPageSaved?: () => void
   onApproveMember?: (memberId: string) => void
   onRejectMember?: (memberId: string) => void
   onKickMember?: (memberId: string) => void
@@ -64,15 +64,16 @@ const GroupScreenShell = ({
   onOpenSubgroup,
   onEditSubgroup,
   onDeleteSubgroup,
-  onEditPage,
   onDeletePage,
   onTogglePageVisibility,
+  onPageSaved = () => undefined,
   onApproveMember = () => undefined,
   onRejectMember = () => undefined,
   onKickMember = () => undefined,
   onSetCoLeader = () => undefined,
 }: Props) => {
   const [toolsOpen, setToolsOpen] = useState(false)
+  const [pageContentMode, setPageContentMode] = useState<'view' | 'edit'>('view')
 
   useEffect(() => {
     const openTools = () => setToolsOpen(true)
@@ -106,6 +107,9 @@ const GroupScreenShell = ({
                 pages={pages}
                 subgroups={subgroups}
                 selectedPageId={selectedPageId}
+                mode={pageContentMode}
+                canEditAllPages={canEditAllPages}
+                onSaved={onPageSaved}
                 showCreateAction={contentMode === 'tabs' && canCreatePage}
                 onCreate={onAddPage}
               />
@@ -130,6 +134,8 @@ const GroupScreenShell = ({
             canCreatePage={canCreatePage}
             canEditAllPages={canEditAllPages}
             canPublishPages={canPublishPages}
+            selectedPageId={selectedPageId}
+            pageContentMode={pageContentMode}
             onClose={() => setToolsOpen(false)}
             onJoin={onJoin}
             onAddSubgroup={onAddSubgroup}
@@ -138,7 +144,7 @@ const GroupScreenShell = ({
             onOpenSubgroup={onOpenSubgroup}
             onEditSubgroup={onEditSubgroup}
             onDeleteSubgroup={onDeleteSubgroup}
-            onEditPage={onEditPage}
+            onPageContentModeChange={setPageContentMode}
             onDeletePage={onDeletePage}
             onTogglePageVisibility={onTogglePageVisibility}
             onApproveMember={onApproveMember}

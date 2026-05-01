@@ -18,6 +18,8 @@ type Props = {
   canCreatePage: boolean
   canEditAllPages: boolean
   canPublishPages: boolean
+  selectedPageId?: string
+  pageContentMode?: 'view' | 'edit'
   onClose: () => void
   onJoin: () => void
   onAddSubgroup: () => void
@@ -26,7 +28,7 @@ type Props = {
   onOpenSubgroup: (subgroupId: string) => void
   onEditSubgroup: (subgroupId: string) => void
   onDeleteSubgroup: (subgroupId: string) => void
-  onEditPage: (pageId: string) => void
+  onPageContentModeChange?: (mode: 'view' | 'edit') => void
   onDeletePage: (pageId: string) => void
   onTogglePageVisibility: (page: GroupPageDto) => void
   onApproveMember: (memberId: string) => void
@@ -174,6 +176,8 @@ const DrawerPanel = ({
   canCreatePage,
   canEditAllPages,
   canPublishPages,
+  selectedPageId = '',
+  pageContentMode = 'view',
   onClose,
   onJoin,
   onAddSubgroup,
@@ -182,7 +186,7 @@ const DrawerPanel = ({
   onOpenSubgroup,
   onEditSubgroup,
   onDeleteSubgroup,
-  onEditPage,
+  onPageContentModeChange = () => undefined,
   onDeletePage,
   onTogglePageVisibility,
   onApproveMember,
@@ -193,6 +197,7 @@ const DrawerPanel = ({
   const showJoinAction = membershipStatus === 'Not joined' || membershipStatus === 'Invited'
   const requestedMembers = memberships.filter((member) => member.status === 'Requested')
   const approvedMembers = memberships.filter((member) => member.status === 'Approved')
+  const activePage = pages.find((page) => page.id === selectedPageId) ?? pages[0] ?? null
 
   return (
     <div className="flex h-full flex-col bg-white">
@@ -227,6 +232,67 @@ const DrawerPanel = ({
             ) : null}
           </div>
         </section>
+
+        {(canCreatePage || canEditAllPages || canPublishPages) && (
+          <section className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-sm font-semibold text-slate-900">Current page</h3>
+              {canCreatePage ? (
+                <DrawerIconButton label="Add page" variant="primary" onClick={onAddPage}>
+                  <AddIcon />
+                </DrawerIconButton>
+              ) : null}
+            </div>
+            {canEditAllPages ? (
+              <ul className="space-y-2">
+                {activePage ? [activePage].map((page) => (
+                  <li key={page.id} className="rounded-lg border border-slate-200 p-3">
+                    <div>
+                      <p className="font-medium text-slate-900">{page.title}</p>
+                      <p className="mt-1 text-xs text-slate-500">{page.visibility}</p>
+                    </div>
+                    <div className="mt-3 flex flex-wrap justify-end gap-1">
+                      <div className="inline-flex rounded-lg border border-slate-300 bg-white p-0.5" aria-label={`${page.title} view mode`}>
+                        <button
+                          type="button"
+                          className={`rounded-md px-2 py-1 text-xs font-medium ${
+                            pageContentMode === 'view' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'
+                          }`}
+                          onClick={() => onPageContentModeChange('view')}
+                        >
+                          View
+                        </button>
+                        <button
+                          type="button"
+                          className={`rounded-md px-2 py-1 text-xs font-medium ${
+                            pageContentMode === 'edit' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'
+                          }`}
+                          onClick={() => {
+                            onPageContentModeChange('edit')
+                          }}
+                        >
+                          Edit
+                        </button>
+                      </div>
+                      <DrawerIconButton label={`Remove ${page.title}`} variant="danger" onClick={() => onDeletePage(page.id)}>
+                        <RemoveIcon />
+                      </DrawerIconButton>
+                      {canPublishPages ? (
+                        <DrawerIconButton
+                          label={page.visibility === 'InvisibleDraft' ? `Publish ${page.title}` : `Unpublish ${page.title}`}
+                          variant="secondary"
+                          onClick={() => onTogglePageVisibility(page)}
+                        >
+                          {page.visibility === 'InvisibleDraft' ? <EyeIcon /> : <EyeOffIcon />}
+                        </DrawerIconButton>
+                      ) : null}
+                    </div>
+                  </li>
+                )) : null}
+              </ul>
+            ) : null}
+          </section>
+        )}
 
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-3">
@@ -269,48 +335,6 @@ const DrawerPanel = ({
             </ul>
           )}
         </section>
-
-        {(canCreatePage || canEditAllPages || canPublishPages) && (
-          <section className="space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <h3 className="text-sm font-semibold text-slate-900">Page tools</h3>
-              {canCreatePage ? (
-                <DrawerIconButton label="Add page" variant="primary" onClick={onAddPage}>
-                  <AddIcon />
-                </DrawerIconButton>
-              ) : null}
-            </div>
-            {canEditAllPages ? (
-              <ul className="space-y-2">
-                {pages.map((page) => (
-                  <li key={page.id} className="rounded-lg border border-slate-200 p-3">
-                    <div>
-                      <p className="font-medium text-slate-900">{page.title}</p>
-                      <p className="mt-1 text-xs text-slate-500">{page.visibility}</p>
-                    </div>
-                    <div className="mt-3 flex flex-wrap justify-end gap-1">
-                      <DrawerIconButton label={`Edit ${page.title}`} variant="ghost" onClick={() => onEditPage(page.id)}>
-                        <EditIcon />
-                      </DrawerIconButton>
-                      <DrawerIconButton label={`Remove ${page.title}`} variant="danger" onClick={() => onDeletePage(page.id)}>
-                        <RemoveIcon />
-                      </DrawerIconButton>
-                      {canPublishPages ? (
-                        <DrawerIconButton
-                          label={page.visibility === 'InvisibleDraft' ? `Publish ${page.title}` : `Unpublish ${page.title}`}
-                          variant="secondary"
-                          onClick={() => onTogglePageVisibility(page)}
-                        >
-                          {page.visibility === 'InvisibleDraft' ? <EyeIcon /> : <EyeOffIcon />}
-                        </DrawerIconButton>
-                      ) : null}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </section>
-        )}
 
         {canManageGroup ? (
           <section className="space-y-3">

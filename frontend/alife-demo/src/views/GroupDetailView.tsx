@@ -33,6 +33,7 @@ const GroupDetailView = () => {
     deleteSubgroup: runDeleteSubgroup,
     deletePage,
     togglePageVisibility,
+    refreshPages,
     approveMember,
     rejectMember,
     kickMember,
@@ -106,9 +107,6 @@ const GroupDetailView = () => {
           setStatusMessage(reason instanceof Error ? reason.message : 'Subgroup delete is not available yet.')
         })
       }}
-      onEditPage={(pageId) => {
-        navigate(`/pages/${pageId}/edit?groupId=${groupId}`)
-      }}
       onDeletePage={(pageId) => {
         if (!window.confirm('Remove this page?')) {
           return
@@ -122,6 +120,9 @@ const GroupDetailView = () => {
         togglePageVisibility(page).catch(() => {
           setStatusMessage('Failed to update page visibility.')
         })
+      }}
+      onPageSaved={() => {
+        refreshPages().catch(() => undefined)
       }}
       onApproveMember={(memberId) => {
         approveMember(memberId).catch(() => {
