@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import AppActionButton from '../layout/AppActionButton'
 import AppEmptyState from '../layout/AppEmptyState'
 import AppPageShell from '../layout/AppPageShell'
 import AppSectionCard from '../layout/AppSectionCard'
@@ -74,8 +73,6 @@ const GroupScreenShell = ({
   onSetCoLeader = () => undefined,
 }: Props) => {
   const [toolsOpen, setToolsOpen] = useState(false)
-  const subtitle = contentMode === 'pages' ? 'Pages published for this group.' : 'Group workspace'
-  const title = contentMode === 'pages' ? 'Group pages' : group?.name || 'Group'
 
   useEffect(() => {
     const openTools = () => setToolsOpen(true)
@@ -88,17 +85,6 @@ const GroupScreenShell = ({
 
   return (
     <AppPageShell
-      title={title}
-      subtitle={subtitle}
-      actions={
-        <>
-          {group ? (
-            <AppActionButton variant="primary" onClick={() => setToolsOpen(true)} className="desktop:hidden">
-              Group tools
-            </AppActionButton>
-          ) : null}
-        </>
-      }
     >
       {loading ? (
         <AppSectionCard dense>

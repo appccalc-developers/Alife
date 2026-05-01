@@ -56,19 +56,16 @@ const GroupPageTabs = ({ pages, subgroups, selectedPageId = '', onCreate, showCr
 
   if (pages.length === 0) {
     return (
-      <AppSectionCard title="Pages" subtitle="Published and draft pages for this group.">
         <AppEmptyState
           title="No pages yet"
           description="Create a page to share updates, events, and resources."
           actionLabel={showCreateAction ? 'Create Page' : undefined}
           onAction={showCreateAction ? onCreate : undefined}
         />
-      </AppSectionCard>
     )
   }
 
   return (
-    <AppSectionCard title={activePage?.title || 'Page'} subtitle={activePage?.description || 'Selected group page.'}>
       <div className="space-y-4">
         {showCreateAction ? (
           <div className="flex justify-end">
@@ -95,7 +92,6 @@ const GroupPageTabs = ({ pages, subgroups, selectedPageId = '', onCreate, showCr
           />
         ) : null}
       </div>
-    </AppSectionCard>
   )
 }
 

@@ -39,15 +39,6 @@ const SermonsIcon = () => (
   </svg>
 )
 
-const GroupIcon = () => (
-  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-    <circle cx="9" cy="8" r="3" />
-    <path d="M3 20c0-3.3 2.7-6 6-6" />
-    <circle cx="17" cy="9" r="2.5" />
-    <path d="M14 15c2.8.4 5 2.8 5 5" />
-  </svg>
-)
-
 const PageIcon = () => (
   <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M6 3h9l4 4v14H6Z" />
@@ -261,13 +252,9 @@ const App = () => {
   }
 
   const toggleLanguageLabel = auth.language.toUpperCase()
-  const primaryMembershipGroupId = auth.memberships[0]?.groupId || ''
   const appNavItems: ShellNavItem[] = [
     { label: 'Home', to: '/', icon: <HomeIcon /> },
     { label: 'Sermons', to: '/sermons', icon: <SermonsIcon /> },
-    ...(primaryMembershipGroupId
-      ? [{ label: 'My Group', to: `/groups/${primaryMembershipGroupId}`, icon: <GroupIcon /> }]
-      : []),
     ...(!auth.loading && auth.isGuest ? [{ label: 'Onboarding', to: '/onboarding', icon: <OnboardingIcon /> }] : []),
     ...(!auth.loading && auth.me?.isAdmin ? [{ label: 'Admin', to: '/admin', icon: <AdminIcon /> }] : []),
   ]
@@ -320,11 +307,6 @@ const App = () => {
               </span>
               <span className="text-base font-semibold">Alife</span>
             </Link>
-
-            <div className="hidden desktop:block">
-              <p className="text-sm font-medium text-slate-500">Alife</p>
-              <h1 className="text-xl font-semibold leading-tight text-slate-950">Community workspace</h1>
-            </div>
 
             <HeaderNav items={appNavItems} />
 
