@@ -56,3 +56,4 @@ VibeCoding/
 Communication/
 
 .sql*/
+__azurite_db_blob__.json
