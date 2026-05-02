@@ -237,6 +237,14 @@ const GroupPageTabs = ({
 
         {activePage && mode === 'edit' && activeModel && validation && !loadingPageId ? (
           <div className="space-y-4">
+            <PageContentEditor
+              model={activeModel}
+              canEdit={canEditAllPages}
+              canEditVisibility={canEditAllPages}
+              message={message}
+              validation={validation}
+              onChange={updateActiveModel}
+            />
             <div className="flex flex-wrap items-center justify-end gap-2">
               <AppActionButton
                 variant="primary"
@@ -246,14 +254,6 @@ const GroupPageTabs = ({
                 {saving ? 'Saving...' : 'Save Page'}
               </AppActionButton>
             </div>
-            <PageContentEditor
-              model={activeModel}
-              canEdit={canEditAllPages}
-              canEditVisibility={canEditAllPages}
-              message={message}
-              validation={validation}
-              onChange={updateActiveModel}
-            />
           </div>
         ) : null}
       </div>

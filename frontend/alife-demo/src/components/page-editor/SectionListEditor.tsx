@@ -17,13 +17,6 @@ type Props = {
 
 const SectionListEditor = ({ sections, canEdit, sectionTypeErrors, onAdd, onUpdate, onRemove, onMoveUp, onMoveDown }: Props) => (
   <AppSectionCard title="Section List" subtitle="Compose your page with modular content blocks.">
-    <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-      <p className="text-sm text-slate-600">Reorder sections with move controls and configure each section below.</p>
-      <AppActionButton variant="primary" disabled={!canEdit} onClick={onAdd}>
-        Add Section
-      </AppActionButton>
-    </div>
-
     {sections.length === 0 ? (
       <AppEmptyState
         title="No sections yet"
@@ -49,6 +42,13 @@ const SectionListEditor = ({ sections, canEdit, sectionTypeErrors, onAdd, onUpda
         ))}
       </div>
     )}
+    <br />
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+      <p className="text-sm text-slate-600">Reorder sections with move controls and configure each section below.</p>
+      <AppActionButton variant="primary" disabled={!canEdit} onClick={onAdd}>
+        Add Section
+      </AppActionButton>
+    </div>
   </AppSectionCard>
 )
 

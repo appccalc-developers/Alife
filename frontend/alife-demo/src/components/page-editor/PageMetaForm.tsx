@@ -48,52 +48,6 @@ const PageMetaForm = ({ model, canEdit, isCreateMode, titleError, onChange }: Pr
             onChange={(event) => updateField('description', event.target.value)}
           />
         </label>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block space-y-1">
-            <span className="text-sm font-medium text-slate-700">Slug</span>
-            <input
-              value={model.slug}
-              disabled={!isCreateMode || !canEdit}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 disabled:bg-slate-100"
-              onChange={(event) => updateField('slug', event.target.value)}
-            />
-          </label>
-
-          <label className="block space-y-1">
-            <span className="text-sm font-medium text-slate-700">Language</span>
-            <input
-              value={model.language}
-              disabled={!canEdit}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 disabled:bg-slate-100"
-              onChange={(event) => updateField('language', event.target.value)}
-            />
-          </label>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block space-y-1">
-            <span className="text-sm font-medium text-slate-700">Tags</span>
-            <input
-              value={model.tags.join(', ')}
-              disabled={!canEdit}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 disabled:bg-slate-100"
-              placeholder="welcome, youth, sunday"
-              onChange={(event) => onTagsInput(event.target.value)}
-            />
-          </label>
-
-          <label className="block space-y-1">
-            <span className="text-sm font-medium text-slate-700">Title Display Style</span>
-            <input
-              value={model.titleDisplayStyle}
-              disabled={!canEdit}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 disabled:bg-slate-100"
-              placeholder="Default"
-              onChange={(event) => updateField('titleDisplayStyle', event.target.value)}
-            />
-          </label>
-        </div>
       </div>
     </AppSectionCard>
   )
