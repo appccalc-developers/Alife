@@ -1,7 +1,7 @@
 {
   "IsEncrypted": false,
   "Values": {
-    "AzureWebJobsStorage": "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFeqCnf2xRdrJ6nZfLw0R8J1Qm3b8f6k7v4w5x6y7z8A9B0C1D2E3F4G5H6I7J8K9L0M==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;QueueEndpoint=http://127.0.0.1:10001/devstoreaccount1;TableEndpoint=http://127.0.0.1:10002/devstoreaccount1;",
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
     "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
     "ConnectionStrings:Default": "Server=localhost,14333;Database=alife_db;User Id=sa;Password=AlifeDevPass123;TrustServerCertificate=True;Encrypt=False",
     "Jwt:Issuer": "alife-api",

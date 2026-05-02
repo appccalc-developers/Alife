@@ -1,5 +1,4 @@
 import PageMetaForm from '../page-editor/PageMetaForm'
-import PageSettingsPanel from '../page-editor/PageSettingsPanel'
 import SectionListEditor from '../page-editor/SectionListEditor'
 import type { PageEditModel, PageEditorValidation, SectionEditModel } from '../../types/page-editor'
 
@@ -54,9 +53,7 @@ export const validatePageContent = (model: PageEditModel): PageEditorValidation 
 const PageContentEditor = ({
   model,
   canEdit,
-  canEditVisibility,
   isCreateMode = false,
-  message,
   validation = validatePageContent(model),
   onChange,
 }: Props) => {
@@ -97,13 +94,6 @@ const PageContentEditor = ({
 
   return (
     <>
-      <PageSettingsPanel
-        model={model}
-        canEditVisibility={canEditVisibility}
-        message={message}
-        onChange={onChange}
-      />
-
       <div className="w-full space-y-4">
         <PageMetaForm
           model={model}
