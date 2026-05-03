@@ -4,22 +4,13 @@ import type { PageEditModel } from '../../types/page-editor'
 type Props = {
   model: PageEditModel
   canEdit: boolean
-  isCreateMode: boolean
   titleError?: string
   onChange: (value: PageEditModel) => void
 }
 
-const PageMetaForm = ({ model, canEdit, isCreateMode, titleError, onChange }: Props) => {
+const PageMetaForm = ({ model, canEdit, titleError, onChange }: Props) => {
   const updateField = <K extends keyof PageEditModel>(key: K, value: PageEditModel[K]) => {
     onChange({ ...model, [key]: value })
-  }
-
-  const onTagsInput = (value: string) => {
-    const tags = value
-      .split(',')
-      .map((item) => item.trim())
-      .filter(Boolean)
-    updateField('tags', tags)
   }
 
   return (

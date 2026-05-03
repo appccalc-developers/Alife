@@ -53,7 +53,6 @@ export const validatePageContent = (model: PageEditModel): PageEditorValidation 
 const PageContentEditor = ({
   model,
   canEdit,
-  isCreateMode = false,
   validation = validatePageContent(model),
   onChange,
 }: Props) => {
@@ -98,7 +97,6 @@ const PageContentEditor = ({
         <PageMetaForm
           model={model}
           canEdit={canEdit}
-          isCreateMode={isCreateMode}
           titleError={validation.title}
           onChange={onChange}
         />
