@@ -6,6 +6,8 @@ const VERSION_DB_NAME = 'alife-sync';
 const VERSION_STORE = 'versions';
 const API_UPDATE_CHANNEL = 'api-updates';
 
+const API_PATH_REGEX = /^\/api\//;
+
 const PRE_CACHE_URLS = [
   '/',
   '/manifest.json',
@@ -33,12 +35,16 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  if (url.origin !== self.location.origin) {
+// Update: Store if it's a successful GET and EITHER a static asset OR an API call
+  const isApi = API_PATH_REGEX.test(url.pathname);
+  const isStatic = request.destination === 'image' || request.destination === 'font';
+
+  if (isApi || isStatic) {
+    event.respondWith(cacheFirst(request));
     return;
   }
 
-  if (url.pathname.startsWith('/api/')) {
-    event.respondWith(networkFirst(request));
+  if (url.origin !== self.location.origin) {
     return;
   }
 
@@ -81,7 +87,10 @@ async function cacheFirst(request) {
 
   try {
     const response = await fetch(request);
-    if (response.ok && request.method === 'GET' && (request.destination === 'image' || request.destination === 'font')) {
+// Update: Store if it's a successful GET and EITHER a static asset OR an API call
+  const isApi = API_PATH_REGEX.test(new URL(request.url).pathname);
+  const isStatic = request.destination === 'image' || request.destination === 'font';    
+    if (response.ok && request.method === 'GET' && (isApi || isStatic)) {
       const cache = await caches.open(CACHE_NAME);
       await cache.put(request, response.clone());
     }
@@ -101,7 +110,9 @@ async function cacheFirst(request) {
 async function networkFirst(request) {
   try {
     const response = await fetch(request);
-    if (response.ok && request.method === 'GET') {
+    const isApi = API_PATH_REGEX.test(new URL(request.url).pathname);
+    const isStatic = request.destination === 'image' || request.destination === 'font';
+    if (response.ok && request.method === 'GET' && (isApi || isStatic)) {
       const cache = await caches.open(CACHE_NAME);
       await cache.put(request, response.clone());
     }

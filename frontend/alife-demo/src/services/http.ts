@@ -41,12 +41,10 @@ export const normalizeApiError = (error: unknown): ApiError => {
   return { message: 'Unknown error.' }
 }
 
-const productionBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').trim()
-// In dev, same-origin `/api/*` is proxied by Vite (see vite.config.ts) so the browser never hits cross-origin CORS.
-const baseURL = import.meta.env.DEV ? '' : productionBaseUrl
+export const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').trim().replace(/\/$/, '')
 
 export const http = axios.create({
-  baseURL,
+  baseURL: apiBaseUrl,
   withCredentials: true,
 })
 

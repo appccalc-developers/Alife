@@ -1,8 +1,10 @@
 name = "alife-sync-signal"
 main = "src/worker.ts"
 compatibility_date = "2026-05-03"
+workers_dev = false
+preview_urls = false
 
 [[kv_namespaces]]
 binding = "SYNC_VERSIONS"
-id = "replace-with-cloudflare-kv-namespace-id"
+id = "27fd2119685645ad938dc2dc538dbb82"
 

@@ -48,6 +48,7 @@ appsettings.*.json
 webapp-logs/
 *.temp
 launchSettings.json
+local.settings.json
 
 # Code only
 .venv/

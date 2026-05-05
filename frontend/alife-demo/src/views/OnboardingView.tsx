@@ -1,15 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { http, type ApiError } from '../api/http'
+import { apiBaseUrl, http, type ApiError } from '../api/http'
 import { useAuthStore } from '../stores/auth'
 
 const getLineLoginRedirectUrl = () => {
-  if (import.meta.env.DEV) {
-    return `${window.location.origin}/api/members/line/login/redirect`
-  }
-  const baseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').trim()
-  const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
-  return normalizedBaseUrl ? `${normalizedBaseUrl}/api/members/line/login/redirect` : '/api/members/line/login/redirect'
+  return apiBaseUrl ? `${apiBaseUrl}/api/members/line/login/redirect` : '/api/members/line/login/redirect'
 }
 
 const getErrorMessage = (error: unknown, fallback: string) => {

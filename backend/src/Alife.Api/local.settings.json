@@ -13,7 +13,13 @@
     "LineLogin:ClientId": "2009810383",
     "LineLogin:ClientSecret": "7f773e34958e7bb16edab5e6c77161b7",
     "LineLogin:RedirectUri": "http://localhost:7071/api/members/line/callback",
-    "Frontend:BaseUrl": "http://localhost:5173"
+    "Frontend:BaseUrl": "http://localhost:5173",
+      "CADDY:SiteAddress": "localhost",
+      "Cloudflare:SyncWorkerBaseUrl": "https://cache.ccalc.live",
+      "Cloudflare:SyncApiToken": "cfat_4tif7iItwpCTH626KtRzNXfHy4jGmsKoK0DUqRcE452da3d7",
+      "Push:Subject": "mailto:app.ccalc@gmail.com",
+      "Push:VapidPublicKey": "BGruK1XAHwpjWQ00uej0DhFiGYhyX1vEiRjo1DZ0VMUWACiw-PgYaxI0ZrYtMUe0hxXR2T3RODKg7UIMVBFhI7E",
+      "Push:VapidPrivateKey": "BrWNU2Hrv8fTJZzo9DEt8ZzMxfGobGbai6QuaTEhQXU"
   },
   "Host": {
     "CORS": "http://localhost:5173",
