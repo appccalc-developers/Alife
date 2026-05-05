@@ -9,7 +9,7 @@ The app is configured as a standalone PWA so users can install it to their home 
 | Feature | Status |
 |---|---|
 | Web App Manifest | ✅ `/manifest.json` |
-| Service Worker | ✅ `/sw.js` (cache-first for assets, network-first for API) |
+| Service Worker | ✅ `/sw.js` (cache-first for assets, cache-first for API) |
 | Offline shell | ✅ Cached app shell returned when offline |
 | Home screen install | ✅ Android prompt + iOS "Add to Home Screen" |
 | Splash screens | ✅ Apple touch startup images for all modern iPhones & iPads |
@@ -36,6 +36,8 @@ Icons list both `any` and `maskable` purpose entries so Android adaptive icons w
 3. Uses a **network-first** strategy for `/api/*` calls, falling back to cached responses when offline.
 4. Returns the cached `/` for navigation requests when offline, allowing the SPA router to render its own offline UI.
 5. Cleans up old caches when a new service worker version activates.
+6. Listens for silent Web Push `ENTITY_UPDATED` payloads, refreshes the affected cached API response, stores version stamps in IndexedDB, and broadcasts update messages on the `api-updates` channel.
+7. Accepts `SYNC_CHECK` messages from the React app so missed push notifications are self-healed through `/api/sync/versions`, which proxies the Cloudflare KV version store.
 
 ### Updating the cache
 

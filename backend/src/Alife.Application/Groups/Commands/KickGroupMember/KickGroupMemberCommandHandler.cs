@@ -1,5 +1,6 @@
 using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
+using Alife.Application.Common.Sync;
 using Alife.Application.Groups.Dtos;
 using Alife.Application.Groups.Services;
 using Alife.Domain.Enums;
@@ -11,7 +12,8 @@ namespace Alife.Application.Groups.Commands.KickGroupMember;
 public sealed class KickGroupMemberCommandHandler(
     IAlifeDbContext dbContext,
     IGroupAuthorizationService groupAuthorizationService,
-    IGroupCacheInvalidationService groupCacheInvalidationService)
+    IGroupCacheInvalidationService groupCacheInvalidationService,
+    ISyncNotificationService syncNotificationService)
     : IRequestHandler<KickGroupMemberCommand, AppResult<GroupKickResultDto>>
 {
     public async Task<AppResult<GroupKickResultDto>> Handle(
@@ -48,8 +50,35 @@ public sealed class KickGroupMemberCommandHandler(
         {
             await groupCacheInvalidationService.RemoveMembershipsAsync(groupId, cancellationToken);
         }
+        await syncNotificationService.PublishAsync(
+            new SyncEntityChange(
+                "group-memberships",
+                request.GroupId.ToString("N"),
+                $"/api/groups/{request.GroupId}/memberships",
+                targetGroupIds.Select(SyncKeys.GroupMemberships).Append(SyncKeys.Member(request.MemberId)).ToArray(),
+                await GetRemainingMemberIdsAsync(targetGroupIds, request.MemberId, cancellationToken)),
+            cancellationToken);
 
         return AppResult<GroupKickResultDto>.Success(new GroupKickResultDto(true, memberships.Count));
+    }
+
+    private async Task<IReadOnlyCollection<Guid>> GetRemainingMemberIdsAsync(
+        IReadOnlyCollection<Guid> groupIds,
+        Guid removedMemberId,
+        CancellationToken cancellationToken)
+    {
+        var recipients = await dbContext.GroupMemberships
+            .Where(x => groupIds.Contains(x.GroupId) && x.Status == MembershipStatus.Approved)
+            .Select(x => x.MemberId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        if (!recipients.Contains(removedMemberId))
+        {
+            recipients.Add(removedMemberId);
+        }
+
+        return recipients;
     }
 
     private async Task<List<Guid>> GetDescendantGroupIdsAsync(Guid groupId, CancellationToken cancellationToken)

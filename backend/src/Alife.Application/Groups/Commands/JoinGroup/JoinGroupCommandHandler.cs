@@ -1,5 +1,6 @@
 using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
+using Alife.Application.Common.Sync;
 using Alife.Application.Groups.Dtos;
 using Alife.Application.Groups.Services;
 using Alife.Domain.Entities;
@@ -12,7 +13,8 @@ namespace Alife.Application.Groups.Commands.JoinGroup;
 public sealed class JoinGroupCommandHandler(
     IAlifeDbContext dbContext,
     IGroupAuthorizationService groupAuthorizationService,
-    IGroupCacheInvalidationService groupCacheInvalidationService)
+    IGroupCacheInvalidationService groupCacheInvalidationService,
+    ISyncNotificationService syncNotificationService)
     : IRequestHandler<JoinGroupCommand, AppResult<GroupStatusResultDto>>
 {
     public async Task<AppResult<GroupStatusResultDto>> Handle(JoinGroupCommand request, CancellationToken cancellationToken)
@@ -62,7 +64,34 @@ public sealed class JoinGroupCommandHandler(
 
         await dbContext.SaveChangesAsync(cancellationToken);
         await groupCacheInvalidationService.RemoveMembershipsAsync(request.GroupId, cancellationToken);
+        await syncNotificationService.PublishAsync(
+            new SyncEntityChange(
+                "group-memberships",
+                request.GroupId.ToString("N"),
+                $"/api/groups/{request.GroupId}/memberships",
+                [SyncKeys.GroupMemberships(request.GroupId), SyncKeys.Member(request.CurrentMemberId)],
+                await GetMembershipUpdateRecipientsAsync(request.GroupId, request.CurrentMemberId, cancellationToken)),
+            cancellationToken);
 
         return AppResult<GroupStatusResultDto>.Success(new GroupStatusResultDto(status.ToString()));
+    }
+
+    private async Task<IReadOnlyCollection<Guid>> GetMembershipUpdateRecipientsAsync(
+        Guid groupId,
+        Guid currentMemberId,
+        CancellationToken cancellationToken)
+    {
+        var recipients = await dbContext.GroupMemberships
+            .Where(x => x.GroupId == groupId && x.Status == MembershipStatus.Approved)
+            .Select(x => x.MemberId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        if (!recipients.Contains(currentMemberId))
+        {
+            recipients.Add(currentMemberId);
+        }
+
+        return recipients;
     }
 }

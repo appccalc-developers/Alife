@@ -1,5 +1,6 @@
 using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
+using Alife.Application.Common.Sync;
 using Alife.Application.Groups.Dtos;
 using Alife.Application.Groups.Services;
 using Alife.Domain.Entities;
@@ -12,7 +13,8 @@ namespace Alife.Application.Groups.Commands.InviteGroupMember;
 public sealed class InviteGroupMemberCommandHandler(
     IAlifeDbContext dbContext,
     IGroupAuthorizationService groupAuthorizationService,
-    IGroupCacheInvalidationService groupCacheInvalidationService)
+    IGroupCacheInvalidationService groupCacheInvalidationService,
+    ISyncNotificationService syncNotificationService)
     : IRequestHandler<InviteGroupMemberCommand, AppResult<GroupActionResultDto>>
 {
     public async Task<AppResult<GroupActionResultDto>> Handle(
@@ -65,7 +67,34 @@ public sealed class InviteGroupMemberCommandHandler(
 
         await dbContext.SaveChangesAsync(cancellationToken);
         await groupCacheInvalidationService.RemoveMembershipsAsync(request.GroupId, cancellationToken);
+        await syncNotificationService.PublishAsync(
+            new SyncEntityChange(
+                "group-memberships",
+                request.GroupId.ToString("N"),
+                $"/api/groups/{request.GroupId}/memberships",
+                [SyncKeys.GroupMemberships(request.GroupId), SyncKeys.Member(target.Id)],
+                await GetRecipientsAsync(request.GroupId, target.Id, cancellationToken)),
+            cancellationToken);
 
         return AppResult<GroupActionResultDto>.Success(new GroupActionResultDto(true));
+    }
+
+    private async Task<IReadOnlyCollection<Guid>> GetRecipientsAsync(
+        Guid groupId,
+        Guid targetMemberId,
+        CancellationToken cancellationToken)
+    {
+        var recipients = await dbContext.GroupMemberships
+            .Where(x => x.GroupId == groupId && x.Status == MembershipStatus.Approved)
+            .Select(x => x.MemberId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        if (!recipients.Contains(targetMemberId))
+        {
+            recipients.Add(targetMemberId);
+        }
+
+        return recipients;
     }
 }

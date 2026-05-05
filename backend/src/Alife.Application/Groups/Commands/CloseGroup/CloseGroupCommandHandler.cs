@@ -1,5 +1,6 @@
 using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
+using Alife.Application.Common.Sync;
 using Alife.Application.Groups.Dtos;
 using Alife.Application.Groups.Services;
 using MediatR;
@@ -10,7 +11,8 @@ namespace Alife.Application.Groups.Commands.CloseGroup;
 public sealed class CloseGroupCommandHandler(
     IAlifeDbContext dbContext,
     IGroupAuthorizationService groupAuthorizationService,
-    IGroupCacheInvalidationService groupCacheInvalidationService)
+    IGroupCacheInvalidationService groupCacheInvalidationService,
+    ISyncNotificationService syncNotificationService)
     : IRequestHandler<CloseGroupCommand, AppResult<GroupActionResultDto>>
 {
     public async Task<AppResult<GroupActionResultDto>> Handle(CloseGroupCommand request, CancellationToken cancellationToken)
@@ -41,7 +43,24 @@ public sealed class CloseGroupCommandHandler(
         {
             await groupCacheInvalidationService.RemoveSubgroupsAsync(group.ParentGroupId.Value, cancellationToken);
         }
+        await syncNotificationService.PublishAsync(
+            new SyncEntityChange(
+                "group",
+                group.Id.ToString("N"),
+                $"/api/groups/{group.Id}",
+                group.ParentGroupId.HasValue
+                    ? [SyncKeys.Group(group.Id), SyncKeys.GroupTree(group.ParentGroupId.Value)]
+                    : [SyncKeys.Group(group.Id)],
+                await GetApprovedGroupMemberIdsAsync(group.Id, cancellationToken)),
+            cancellationToken);
 
         return AppResult<GroupActionResultDto>.Success(new GroupActionResultDto(true));
     }
+
+    private async Task<IReadOnlyCollection<Guid>> GetApprovedGroupMemberIdsAsync(Guid groupId, CancellationToken cancellationToken)
+        => await dbContext.GroupMemberships
+            .Where(x => x.GroupId == groupId && x.Status == Domain.Enums.MembershipStatus.Approved)
+            .Select(x => x.MemberId)
+            .Distinct()
+            .ToArrayAsync(cancellationToken);
 }

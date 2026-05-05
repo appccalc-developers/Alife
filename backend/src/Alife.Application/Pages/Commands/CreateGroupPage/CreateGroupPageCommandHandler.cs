@@ -1,18 +1,21 @@
 using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
+using Alife.Application.Common.Sync;
 using Alife.Application.Groups.Services;
 using Alife.Application.Pages.Dtos;
 using Alife.Application.Pages.Services;
 using Alife.Domain.Entities;
 using Alife.Domain.Enums;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 namespace Alife.Application.Pages.Commands.CreateGroupPage;
 
 public sealed class CreateGroupPageCommandHandler(
     IAlifeDbContext dbContext,
     IGroupAuthorizationService groupAuthorizationService,
-    IPageCacheInvalidationService pageCacheInvalidationService)
+    IPageCacheInvalidationService pageCacheInvalidationService,
+    ISyncNotificationService syncNotificationService)
     : IRequestHandler<CreateGroupPageCommand, AppResult<PageDto>>
 {
     public async Task<AppResult<PageDto>> Handle(CreateGroupPageCommand request, CancellationToken cancellationToken)
@@ -54,9 +57,29 @@ public sealed class CreateGroupPageCommandHandler(
 
         await pageCacheInvalidationService.RemoveGroupPagesAsync(request.GroupId, request.Language, cancellationToken);
         await pageCacheInvalidationService.RemoveBySlugAsync(request.Slug, request.Language, cancellationToken);
+        await syncNotificationService.PublishAsync(
+            new SyncEntityChange(
+                "page",
+                page.Id.ToString("N"),
+                $"/api/pages/{Uri.EscapeDataString(page.Slug)}?lang={Uri.EscapeDataString(page.Language)}",
+                [
+                    SyncKeys.Page(page.Id),
+                    SyncKeys.PageSlug(page.Slug, page.Language),
+                    SyncKeys.GroupPages(request.GroupId, request.Language),
+                    SyncKeys.GroupTree(request.GroupId)
+                ],
+                await GetApprovedGroupMemberIdsAsync(request.GroupId, cancellationToken)),
+            cancellationToken);
 
         return AppResult<PageDto>.Success(ToDto(page));
     }
+
+    private async Task<IReadOnlyCollection<Guid>> GetApprovedGroupMemberIdsAsync(Guid groupId, CancellationToken cancellationToken)
+        => await dbContext.GroupMemberships
+            .Where(x => x.GroupId == groupId && x.Status == MembershipStatus.Approved)
+            .Select(x => x.MemberId)
+            .Distinct()
+            .ToArrayAsync(cancellationToken);
 
     private static PageDto ToDto(Page page)
         => new(

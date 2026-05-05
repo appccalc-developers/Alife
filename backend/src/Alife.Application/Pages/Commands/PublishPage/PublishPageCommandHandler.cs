@@ -1,5 +1,6 @@
 using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
+using Alife.Application.Common.Sync;
 using Alife.Application.Groups.Services;
 using Alife.Application.Pages.Dtos;
 using Alife.Application.Pages.Services;
@@ -12,7 +13,8 @@ namespace Alife.Application.Pages.Commands.PublishPage;
 public sealed class PublishPageCommandHandler(
     IAlifeDbContext dbContext,
     IGroupAuthorizationService groupAuthorizationService,
-    IPageCacheInvalidationService pageCacheInvalidationService)
+    IPageCacheInvalidationService pageCacheInvalidationService,
+    ISyncNotificationService syncNotificationService)
     : IRequestHandler<PublishPageCommand, AppResult<PageActionResultDto>>
 {
     public async Task<AppResult<PageActionResultDto>> Handle(PublishPageCommand request, CancellationToken cancellationToken)
@@ -44,6 +46,14 @@ public sealed class PublishPageCommandHandler(
 
         await dbContext.SaveChangesAsync(cancellationToken);
         await InvalidatePageAsync(page, cancellationToken);
+        await syncNotificationService.PublishAsync(
+            new SyncEntityChange(
+                "page",
+                page.Id.ToString("N"),
+                $"/api/pages/{Uri.EscapeDataString(page.Slug)}?lang={Uri.EscapeDataString(page.Language)}",
+                GetVersionKeys(page),
+                await GetRecipientIdsAsync(page, cancellationToken)),
+            cancellationToken);
 
         return AppResult<PageActionResultDto>.Success(new PageActionResultDto(true));
     }
@@ -62,5 +72,47 @@ public sealed class PublishPageCommandHandler(
         {
             await pageCacheInvalidationService.RemoveGroupPagesAsync(page.OwnerGroupId.Value, page.Language, cancellationToken);
         }
+    }
+
+    private static IReadOnlyCollection<string> GetVersionKeys(Domain.Entities.Page page)
+    {
+        var keys = new List<string>
+        {
+            SyncKeys.Page(page.Id),
+            SyncKeys.PageSlug(page.Slug, page.Language)
+        };
+
+        if (page.Scope == PageScope.Global)
+        {
+            keys.Add(SyncKeys.GlobalPages(page.Language));
+        }
+        else if (page.OwnerGroupId.HasValue)
+        {
+            keys.Add(SyncKeys.GroupPages(page.OwnerGroupId.Value, page.Language));
+        }
+
+        return keys;
+    }
+
+    private async Task<IReadOnlyCollection<Guid>> GetRecipientIdsAsync(Domain.Entities.Page page, CancellationToken cancellationToken)
+    {
+        if (page.Scope == PageScope.Global)
+        {
+            return await dbContext.Members
+                .Where(x => x.IsRegistered)
+                .Select(x => x.Id)
+                .ToArrayAsync(cancellationToken);
+        }
+
+        if (page.OwnerGroupId is not Guid groupId)
+        {
+            return [page.CreatedByMemberId];
+        }
+
+        return await dbContext.GroupMemberships
+            .Where(x => x.GroupId == groupId && x.Status == MembershipStatus.Approved)
+            .Select(x => x.MemberId)
+            .Distinct()
+            .ToArrayAsync(cancellationToken);
     }
 }

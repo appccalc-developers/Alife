@@ -1,8 +1,10 @@
 import type { ReactElement } from 'react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import logo from './assets/logo.png'
+import { useApiUpdates } from './hooks/useApiUpdates'
 import { groupService } from './services/groupService'
+import { pwaSyncService, syncKeys } from './services/pwaSyncService'
 import { useAuthStore } from './stores/auth'
 import { useCurrentGroupStore } from './stores/currentGroup'
 import AdminView from './views/AdminView'
@@ -82,6 +84,13 @@ const CloseIcon = () => (
   <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M18 6 6 18" />
     <path d="m6 6 12 12" />
+  </svg>
+)
+
+const BellIcon = () => (
+  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+    <path d="M10 21h4" />
   </svg>
 )
 
@@ -240,6 +249,10 @@ const App = () => {
   const location = useLocation()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [currentGroupPages, setCurrentGroupPages] = useState<ShellNavItem[]>([])
+  const [syncRefreshToken, setSyncRefreshToken] = useState(0)
+  const [notificationPermission, setNotificationPermission] = useState(() =>
+    'Notification' in window ? Notification.permission : 'denied',
+  )
   const isGroupScreen = /^\/groups\/[^/]+$/.test(location.pathname)
 
   const openContextualDrawer = () => {
@@ -258,6 +271,62 @@ const App = () => {
     ...(!auth.loading && auth.isGuest ? [{ label: 'Onboarding', to: '/onboarding', icon: <OnboardingIcon /> }] : []),
     ...(!auth.loading && auth.me?.isAdmin ? [{ label: 'Admin', to: '/admin', icon: <AdminIcon /> }] : []),
   ]
+
+  const handleApiUpdate = useCallback(
+    (message: { versionKeys?: string[]; entityType: string }) => {
+      const keys = message.versionKeys ?? []
+      const currentGroupId = CurrentGroup?.id
+
+      if (
+        message.entityType === 'member' ||
+        keys.some((key) => key.startsWith('member:') || key.includes(':memberships:'))
+      ) {
+        auth.fetchMe().catch(() => undefined)
+      }
+
+      if (
+        currentGroupId &&
+        keys.some(
+          (key) =>
+            key === syncKeys.groupPages(currentGroupId, auth.language) ||
+            key === syncKeys.groupTree(currentGroupId) ||
+            key === syncKeys.groupMemberships(currentGroupId),
+        )
+      ) {
+        setSyncRefreshToken((value) => value + 1)
+      }
+    },
+    [CurrentGroup?.id, auth, auth.language],
+  )
+
+  useApiUpdates(handleApiUpdate)
+
+  useEffect(() => {
+    pwaSyncService.subscribeToPushIfAllowed().catch(() => undefined)
+  }, [auth.me?.id])
+
+  const enablePushSync = async () => {
+    const granted = await pwaSyncService.requestPushSubscription()
+    setNotificationPermission(granted ? 'granted' : 'denied')
+  }
+
+  useEffect(() => {
+    const keys = [syncKeys.globalPages(auth.language)]
+    if (auth.me?.id) {
+      keys.push(syncKeys.member(auth.me.id))
+    }
+
+    if (CurrentGroup?.id) {
+      keys.push(
+        syncKeys.group(CurrentGroup.id),
+        syncKeys.groupTree(CurrentGroup.id),
+        syncKeys.groupMemberships(CurrentGroup.id),
+        syncKeys.groupPages(CurrentGroup.id, auth.language),
+      )
+    }
+
+    pwaSyncService.postVersionCheck(keys)
+  }, [CurrentGroup?.id, auth.language, auth.me?.id])
 
   useEffect(() => {
     if (!CurrentGroup?.id) {
@@ -292,7 +361,7 @@ const App = () => {
     return () => {
       cancelled = true
     }
-  }, [CurrentGroup?.id, auth.language])
+  }, [CurrentGroup?.id, auth.language, syncRefreshToken])
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
@@ -313,6 +382,17 @@ const App = () => {
             <div className="ml-auto flex items-center gap-2">
               {!auth.loading && auth.me ? (
                 <span className="text-sm text-slate-700">{auth.me.displayName || 'Guest'}</span>
+              ) : null}
+              {auth.me && notificationPermission === 'default' && 'PushManager' in window ? (
+                <button
+                  type="button"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50"
+                  aria-label="Enable update notifications"
+                  title="Enable update notifications"
+                  onClick={enablePushSync}
+                >
+                  <BellIcon />
+                </button>
               ) : null}
               <button
                 type="button"

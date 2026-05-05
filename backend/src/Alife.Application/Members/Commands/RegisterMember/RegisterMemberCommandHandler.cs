@@ -1,6 +1,7 @@
 using Alife.Application.Abstractions.Security;
 using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
+using Alife.Application.Common.Sync;
 using Alife.Application.Members.Dtos;
 using Alife.Domain.Entities;
 using Alife.Domain.Enums;
@@ -11,7 +12,8 @@ namespace Alife.Application.Members.Commands.RegisterMember;
 
 public sealed class RegisterMemberCommandHandler(
     IAlifeDbContext dbContext,
-    IJwtTokenService jwtTokenService)
+    IJwtTokenService jwtTokenService,
+    ISyncNotificationService syncNotificationService)
     : IRequestHandler<RegisterMemberCommand, AppResult<MemberRegistrationResultDto>>
 {
     public async Task<AppResult<MemberRegistrationResultDto>> Handle(
@@ -109,6 +111,14 @@ public sealed class RegisterMemberCommandHandler(
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        await syncNotificationService.PublishAsync(
+            new SyncEntityChange(
+                "member",
+                memberToRegister.Id.ToString("N"),
+                "/api/me",
+                [SyncKeys.Member(memberToRegister.Id)],
+                [memberToRegister.Id]),
+            cancellationToken);
 
         var (token, expiresUtc) = jwtTokenService.CreateToken(memberToRegister, isGuest: false);
         return AppResult<MemberRegistrationResultDto>.Success(new MemberRegistrationResultDto(token, expiresUtc));

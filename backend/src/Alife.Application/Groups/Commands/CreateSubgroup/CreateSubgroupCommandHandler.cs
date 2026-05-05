@@ -1,5 +1,6 @@
 using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
+using Alife.Application.Common.Sync;
 using Alife.Application.Groups.Dtos;
 using Alife.Application.Groups.Services;
 using Alife.Domain.Entities;
@@ -12,7 +13,8 @@ namespace Alife.Application.Groups.Commands.CreateSubgroup;
 public sealed class CreateSubgroupCommandHandler(
     IAlifeDbContext dbContext,
     IGroupAuthorizationService groupAuthorizationService,
-    IGroupCacheInvalidationService groupCacheInvalidationService)
+    IGroupCacheInvalidationService groupCacheInvalidationService,
+    ISyncNotificationService syncNotificationService)
     : IRequestHandler<CreateSubgroupCommand, AppResult<GroupDto>>
 {
     public async Task<AppResult<GroupDto>> Handle(CreateSubgroupCommand request, CancellationToken cancellationToken)
@@ -60,6 +62,14 @@ public sealed class CreateSubgroupCommandHandler(
 
         await dbContext.SaveChangesAsync(cancellationToken);
         await groupCacheInvalidationService.RemoveSubgroupsAsync(request.GroupId, cancellationToken);
+        await syncNotificationService.PublishAsync(
+            new SyncEntityChange(
+                "group",
+                subgroup.Id.ToString("N"),
+                $"/api/groups/{subgroup.Id}",
+                [SyncKeys.Group(subgroup.Id), SyncKeys.GroupTree(request.GroupId)],
+                await GetApprovedGroupMemberIdsAsync(request.GroupId, cancellationToken)),
+            cancellationToken);
 
         return AppResult<GroupDto>.Success(new GroupDto(
             subgroup.Id,
@@ -71,4 +81,11 @@ public sealed class CreateSubgroupCommandHandler(
             subgroup.CreatedUtc,
             subgroup.UpdatedUtc));
     }
+
+    private async Task<IReadOnlyCollection<Guid>> GetApprovedGroupMemberIdsAsync(Guid groupId, CancellationToken cancellationToken)
+        => await dbContext.GroupMemberships
+            .Where(x => x.GroupId == groupId && x.Status == MembershipStatus.Approved)
+            .Select(x => x.MemberId)
+            .Distinct()
+            .ToArrayAsync(cancellationToken);
 }
