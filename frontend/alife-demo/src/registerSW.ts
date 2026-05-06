@@ -1,3 +1,5 @@
+import { registerSW } from 'virtual:pwa-register'
+
 /**
  * Register the service worker for PWA support.
  *
@@ -10,10 +12,10 @@ export function registerServiceWorker(): void {
     return
   }
 
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch((err: unknown) => {
+  registerSW({
+    onRegisterError(err: unknown) {
       // eslint-disable-next-line no-console
       console.warn('Service worker registration failed:', err)
-    })
+    },
   })
 }
