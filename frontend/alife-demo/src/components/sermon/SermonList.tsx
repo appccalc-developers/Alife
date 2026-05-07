@@ -1,41 +1,48 @@
-import { useEffect, useState } from 'react'
-import { normalizeApiError } from '../../api/http'
-import { sermonService, type SermonDto } from '../../services/sermonService'
+import { useEffect, useMemo, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { useLiveQuery } from '@tanstack/react-db'
+import { getCachedSermons, sermonsCollection, sermonsQueryKey } from '../../db/collections/sermonsCollection'
 import SermonCardSkeleton from './SermonCardSkeleton'
 
 const SermonList = () => {
-  const [sermons, setSermons] = useState<SermonDto[]>([])
-  const [initialLoading, setInitialLoading] = useState(false)
+  const queryClient = useQueryClient()
+  const { data, isLoading, isError } = useLiveQuery(sermonsCollection)
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const [error, setError] = useState('')
+  const [cachedSermons, setCachedSermons] = useState<Awaited<ReturnType<typeof getCachedSermons>>>([])
 
-  const loadSermons = async ({ initial = false }: { initial?: boolean } = {}) => {
-    if (initial) {
-      setInitialLoading(true)
-    } else {
-      setIsRefreshing(true)
-    }
-
-    setError('')
-
-    try {
-      setSermons(await sermonService.getLatest())
-    } catch (reason) {
-      setError(normalizeApiError(reason).message)
-    } finally {
-      if (initial) {
-        setInitialLoading(false)
-      } else {
-        setIsRefreshing(false)
+  useEffect(() => {
+    let cancelled = false
+    getCachedSermons().then((cached) => {
+      if (!cancelled) {
+        setCachedSermons(cached)
       }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const sermons = useMemo(() => {
+    if (data && data.length > 0) {
+      return data
+    }
+    return cachedSermons
+  }, [cachedSermons, data])
+
+  const loadSermons = async () => {
+    setIsRefreshing(true)
+    try {
+      await queryClient.invalidateQueries({ queryKey: sermonsQueryKey })
+    } finally {
+      setIsRefreshing(false)
     }
   }
 
-  useEffect(() => {
-    loadSermons({ initial: true }).catch(() => undefined)
-  }, [])
+  const errorMessage = isError ? 'Failed to load sermons.' : ''
+  const initialLoading = isLoading && sermons.length === 0
 
-  if (initialLoading && sermons.length === 0) {
+  if (initialLoading) {
     return (
       <section className="space-y-4">
         <header className="space-y-2">
@@ -62,7 +69,7 @@ const SermonList = () => {
         <button
           type="button"
           className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={isRefreshing || initialLoading}
+          disabled={isRefreshing || isLoading}
           onClick={() => {
             loadSermons().catch(() => undefined)
           }}
@@ -71,16 +78,16 @@ const SermonList = () => {
         </button>
       </header>
 
-      {error && sermons.length === 0 ? (
-        <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>
+      {errorMessage && sermons.length === 0 ? (
+        <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{errorMessage}</p>
       ) : null}
 
-      {!error && sermons.length === 0 ? (
+      {!errorMessage && sermons.length === 0 ? (
         <p className="rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-600">No sermons available right now.</p>
       ) : null}
 
-      {error && sermons.length > 0 ? (
-        <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">{error}</p>
+      {errorMessage && sermons.length > 0 ? (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">{errorMessage}</p>
       ) : null}
 
       {sermons.length > 0 ? (
