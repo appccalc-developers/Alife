@@ -1,0 +1,24 @@
+name = "alife-cloudflare-api"
+main = "worker/index.js"
+compatibility_date = "2026-04-17"
+workers_dev = true
+
+[[routes]]
+pattern = "images.ccalc.live"
+custom_domain = true
+
+[[r2_buckets]]
+binding = "IMAGE_BUCKET"
+bucket_name = "ccalc"
+preview_bucket_name = "ccalc"
+
+[[r2_buckets]]
+binding = "HELP_BUCKET"
+bucket_name = "ccalc"
+preview_bucket_name = "ccalc"
+
+[vars]
+R2_BUCKET_NAME = "ccalc"
+R2_PUBLIC_BASE_URL = "https://images.ccalc.live"
+BUCKET_LIST_LIMIT = "500"
+HELP_BUCKET_OBJECT_KEY = "images.ccalc.live/openapi.yaml"
