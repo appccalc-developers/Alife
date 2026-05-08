@@ -37,7 +37,8 @@ public sealed class DeletePageCommandHandler(
             return AppResult<PageActionResultDto>.Forbidden("You do not have permission to delete this page.");
         }
 
-        dbContext.Pages.Remove(page);
+        page.IsDeleted = true;
+        page.UpdatedUtc = DateTime.UtcNow;
         await dbContext.SaveChangesAsync(cancellationToken);
 
         await pageCacheInvalidationService.RemoveBySlugAsync(page.Slug, page.Language, cancellationToken);
