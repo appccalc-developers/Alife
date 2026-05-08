@@ -10,6 +10,7 @@ public class Section
 	public SectionType Type { get; set; }
 	public string ContentJson { get; set; } = "{}";
 	public string StyleJson { get; set; } = "{}";
+	public bool IsDeleted { get; set; }
 
 	public Page Page { get; set; } = null!;
 	public ICollection<Link> Links { get; set; } = [];

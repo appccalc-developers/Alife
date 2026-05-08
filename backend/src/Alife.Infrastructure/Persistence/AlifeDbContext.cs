@@ -29,6 +29,7 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 				.WithMany(x => x.Subgroups)
 				.HasForeignKey(x => x.ParentGroupId)
 				.OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => new { x.ParentGroupId, x.UpdatedUtc });
 		});
 
 		modelBuilder.Entity<Member>(cfg =>
@@ -38,6 +39,7 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 			cfg.Property(x => x.Email).HasMaxLength(200);
 			cfg.Property(x => x.PhoneE164).HasMaxLength(30);
 			cfg.Property(x => x.LineUID).HasMaxLength(100);
+			cfg.HasIndex(x => x.UpdatedUtc);
 			cfg.HasIndex(x => x.PhoneE164)
 				.IsUnique()
 				.HasFilter(phoneUniqueFilter);
@@ -55,6 +57,8 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 			cfg.HasIndex(x => new { x.GroupId, x.MemberId })
 				.IsUnique()
 				.HasFilter(approvedMembershipFilter);
+			cfg.HasIndex(x => new { x.MemberId, x.UpdatedUtc });
+			cfg.HasIndex(x => new { x.GroupId, x.UpdatedUtc });
 
 			cfg.HasIndex(x => new { x.GroupId, x.Role })
 				.IsUnique()
@@ -80,12 +84,15 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 				.OnDelete(DeleteBehavior.Restrict);
 
 			cfg.HasIndex(x => new { x.Scope, x.OwnerGroupId, x.Slug, x.Language }).IsUnique();
+			cfg.HasIndex(x => new { x.Scope, x.OwnerGroupId, x.Language, x.UpdatedUtc });
+			cfg.HasQueryFilter(x => !x.IsDeleted);
 		});
 
 		modelBuilder.Entity<Section>(cfg =>
 		{
 			cfg.HasKey(x => x.Id);
 			cfg.HasOne(x => x.Page).WithMany(x => x.Sections).HasForeignKey(x => x.PageId);
+			cfg.HasQueryFilter(x => !x.IsDeleted);
 		});
 
 		modelBuilder.Entity<Link>(cfg =>
@@ -106,6 +113,8 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 			cfg.Property(x => x.VideoUrl).HasMaxLength(1000);
 			cfg.HasIndex(x => x.YoutubeVideoId).IsUnique();
 			cfg.HasIndex(x => x.SortOrder);
+			cfg.HasIndex(x => x.UpdatedUtc);
+			cfg.HasQueryFilter(x => !x.IsDeleted);
 		});
 	}
 }

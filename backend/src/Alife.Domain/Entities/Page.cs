@@ -16,6 +16,7 @@ public class Page
 	public string Language { get; set; } = "en";
 	public PageVisibility Visibility { get; set; }
 	public DateTime UpdatedUtc { get; set; }
+	public bool IsDeleted { get; set; }
 
 	public Group? OwnerGroup { get; set; }
 	public Member CreatedByMember { get; set; } = null!;

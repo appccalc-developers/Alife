@@ -41,6 +41,7 @@ public class YoutubeService(
         var videoIds = latestSermons.Select(x => x.VideoId).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         var existingByVideoId = await dbContext.Sermons
+            .IgnoreQueryFilters()
             .Where(x => videoIds.Contains(x.YoutubeVideoId))
             .ToDictionaryAsync(x => x.YoutubeVideoId, StringComparer.OrdinalIgnoreCase, cancellationToken);
 
@@ -51,6 +52,14 @@ public class YoutubeService(
             var item = latestSermons[index];
             if (existingByVideoId.TryGetValue(item.VideoId, out var existing))
             {
+                var changed = existing.IsDeleted ||
+                              existing.Title != item.Title ||
+                              existing.SpeakerName != item.SpeakerName ||
+                              existing.ThumbnailUrl != item.ThumbnailUrl ||
+                              existing.VideoUrl != item.VideoUrl ||
+                              existing.PreachedAtUtc != item.PreachedAtUtc ||
+                              existing.SortOrder != index;
+
                 existing.Title = item.Title;
                 existing.SpeakerName = item.SpeakerName;
                 existing.ThumbnailUrl = item.ThumbnailUrl;
@@ -58,6 +67,11 @@ public class YoutubeService(
                 existing.PreachedAtUtc = item.PreachedAtUtc;
                 existing.SortOrder = index;
                 existing.SyncedUtc = now;
+                existing.IsDeleted = false;
+                if (changed)
+                {
+                    existing.UpdatedUtc = now;
+                }
                 continue;
             }
 
@@ -72,16 +86,19 @@ public class YoutubeService(
                 PreachedAtUtc = item.PreachedAtUtc,
                 SortOrder = index,
                 SyncedUtc = now,
+                UpdatedUtc = now,
             });
         }
 
         var staleSermons = await dbContext.Sermons
+            .IgnoreQueryFilters()
             .Where(x => !videoIds.Contains(x.YoutubeVideoId))
             .ToListAsync(cancellationToken);
 
-        if (staleSermons.Count > 0)
+        foreach (var staleSermon in staleSermons.Where(x => !x.IsDeleted))
         {
-            dbContext.Sermons.RemoveRange(staleSermons);
+            staleSermon.IsDeleted = true;
+            staleSermon.UpdatedUtc = now;
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);

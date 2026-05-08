@@ -74,7 +74,8 @@ public static class SeedData
 			PhoneVerifiedUtc = now,
 			IsRegistered = true,
 			IsAdmin = true,
-			CreatedUtc = now
+			CreatedUtc = now,
+			UpdatedUtc = now
 		};
 
 		var memberships = groups.Select(group => new GroupMembership

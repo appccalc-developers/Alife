@@ -24,6 +24,7 @@ public sealed class RegisterMemberCommandHandler(
         }
 
         var verifiedLineUID = request.VerifiedLineUID?.Trim();
+        var now = DateTime.UtcNow;
         Member? currentMember = null;
 
         if (request.CurrentMemberId is Guid currentMemberId)
@@ -65,7 +66,8 @@ public sealed class RegisterMemberCommandHandler(
                 LineUID = string.IsNullOrWhiteSpace(verifiedLineUID) ? null : verifiedLineUID,
                 IsRegistered = false,
                 IsAdmin = false,
-                CreatedUtc = DateTime.UtcNow
+                CreatedUtc = now,
+                UpdatedUtc = now
             };
 
             dbContext.Members.Add(memberToRegister);
@@ -83,6 +85,7 @@ public sealed class RegisterMemberCommandHandler(
         memberToRegister.Age = request.Age;
         memberToRegister.Email = request.Email;
         memberToRegister.IsRegistered = true;
+        memberToRegister.UpdatedUtc = now;
 
         var church = await dbContext.Groups.FirstOrDefaultAsync(x => x.IsChurch, cancellationToken);
         if (church is not null)
@@ -102,8 +105,8 @@ public sealed class RegisterMemberCommandHandler(
                     MemberId = memberToRegister.Id,
                     Status = MembershipStatus.Requested,
                     Role = MembershipRole.Member,
-                    CreatedUtc = DateTime.UtcNow,
-                    UpdatedUtc = DateTime.UtcNow
+                    CreatedUtc = now,
+                    UpdatedUtc = now
                 });
             }
         }

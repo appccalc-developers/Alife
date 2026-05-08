@@ -54,6 +54,23 @@ test('GET requests are served from cache on the second hit', async () => {
   assert.equal(fetchCalls.length, 1)
 })
 
+test('matching If-None-Match is answered from edge cache with 304', async () => {
+  const url = 'https://app.ccalc.live/api/pages/home?lang=en'
+  cacheStore.set(cacheKey(new Request(url)), Response.json(
+    { title: 'Fresh page' },
+    { headers: { etag: '"638507"', 'cache-control': 'public, max-age=60' } },
+  ))
+
+  const response = await dispatch(url, {
+    headers: { 'if-none-match': '"638507"' },
+  })
+
+  assert.equal(response.status, 304)
+  assert.equal(response.headers.get('x-alife-cache'), 'REVALIDATED')
+  assert.equal(await response.text(), '')
+  assert.equal(fetchCalls.length, 0)
+})
+
 test('successful PUT evicts the corresponding GET cache entry', async () => {
   const url = 'https://app.ccalc.live/api/pages/home?lang=en'
   cacheStore.set(cacheKey(new Request(url)), Response.json({ title: 'Stale page' }))
