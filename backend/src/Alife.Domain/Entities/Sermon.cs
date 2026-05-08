@@ -11,4 +11,6 @@ public class Sermon
     public DateTime? PreachedAtUtc { get; set; }
     public int SortOrder { get; set; }
     public DateTime SyncedUtc { get; set; }
+    public DateTime UpdatedUtc { get; set; }
+    public bool IsDeleted { get; set; }
 }

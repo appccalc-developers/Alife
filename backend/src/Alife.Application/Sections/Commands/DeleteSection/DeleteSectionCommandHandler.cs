@@ -28,7 +28,7 @@ public sealed class DeleteSectionCommandHandler(
 			return AppResult<bool>.Forbidden("Only the page owner can delete sections.");
 		}
 
-		dbContext.Sections.Remove(section);
+		section.IsDeleted = true;
 		section.Page.UpdatedUtc = DateTime.UtcNow;
 		await dbContext.SaveChangesAsync(cancellationToken);
 		await InvalidatePageAsync(section.Page, cancellationToken);

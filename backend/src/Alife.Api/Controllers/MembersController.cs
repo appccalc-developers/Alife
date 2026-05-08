@@ -1,3 +1,4 @@
+using Alife.Api.Http;
 using Alife.Api.Results;
 using Alife.Api.Security;
 using Alife.Application.Abstractions.Identity;
@@ -12,6 +13,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Hybrid;
 using System.Security.Claims;
+using Alife.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 
 namespace Alife.Api.Controllers;
 
@@ -23,7 +26,8 @@ public class MembersController(
     ICurrentMemberAccessor currentMemberAccessor,
     HybridCache hybridCache,
     IConfiguration configuration,
-    ILineLoginService lineLoginService) : ControllerBase
+    ILineLoginService lineLoginService,
+    AlifeDbContext dbContext) : ControllerBase
 {
     [HttpGet("me")]
     [AllowAnonymous]
@@ -32,6 +36,7 @@ public class MembersController(
         var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
         if (currentMemberId is null)
         {
+            this.ApplySyncCacheHeaders(null);
             return Ok(new CurrentMemberDto(
                 Guid.Empty,
                 DisplayName: null,
@@ -45,8 +50,21 @@ public class MembersController(
                 Memberships: []));
         }
 
+        var memberUpdatedUtc = await dbContext.Members
+            .Where(x => x.Id == currentMemberId.Value)
+            .Select(x => (DateTime?)x.UpdatedUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+        var membershipUpdatedUtc = await dbContext.GroupMemberships
+            .Where(x => x.MemberId == currentMemberId.Value)
+            .MaxAsync(x => (DateTime?)x.UpdatedUtc, cancellationToken);
+        var updatedUtc = new[] { memberUpdatedUtc, membershipUpdatedUtc }.Max();
+        if (this.IsNotModified(updatedUtc))
+        {
+            return StatusCode(StatusCodes.Status304NotModified);
+        }
+
         var profile = await hybridCache.GetOrCreateAsync(
-            GetMemberProfileCacheKey(currentMemberId.Value),
+            GetMemberProfileCacheKey(currentMemberId.Value, updatedUtc),
             async cancel =>
             {
                 var result = await mediator.Send(new GetCurrentMemberProfileQuery(currentMemberId.Value), cancel);
@@ -61,6 +79,7 @@ public class MembersController(
 
         if (profile is not null)
         {
+            this.ApplySyncCacheHeaders(updatedUtc);
             return Ok(profile);
         }
 
@@ -78,6 +97,7 @@ public class MembersController(
                 IsAdmin: IsAdminPrincipal(User),
                 Memberships: []);
 
+            this.ApplySyncCacheHeaders(updatedUtc);
             return Ok(fallbackGuest);
         }
 
@@ -188,7 +208,7 @@ public class MembersController(
 
         if (currentMemberId is not null)
         {
-            await hybridCache.RemoveAsync(GetMemberProfileCacheKey(currentMemberId.Value), cancellationToken);
+            await hybridCache.RemoveAsync(GetMemberProfileCacheKey(currentMemberId.Value, null), cancellationToken);
         }
 
         AuthCookie.WriteCookie(Request, Response, result.Value.Token, result.Value.ExpiresUtc);
@@ -214,7 +234,8 @@ public class MembersController(
         return Ok(new { ok = true, expiresUtc = result.Value.ExpiresUtc });
     }
 
-    private static string GetMemberProfileCacheKey(Guid memberId) => $"member-profile:{memberId}";
+    private static string GetMemberProfileCacheKey(Guid memberId, DateTime? updatedUtc)
+        => $"member-profile:{memberId}:{updatedUtc?.Ticks ?? 0L}";
 
     private static bool IsGuestPrincipal(ClaimsPrincipal principal)
         => !GetBooleanClaim(principal, "is_registered");

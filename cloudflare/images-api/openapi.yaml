@@ -1,0 +1,51 @@
+openapi: 3.1.0
+info:
+  title: Cloudflare R2 Image Manager API
+  version: 1.0.0
+  summary: API for listing, uploading, streaming, and deleting images in an R2 bucket.
+servers:
+  - url: https://images.ccalc.live
+paths:
+  /api/config:
+    get:
+      summary: Get runtime configuration
+      responses:
+        "200":
+          description: Configuration payload
+  /api/images:
+    get:
+      summary: List images
+      responses:
+        "200":
+          description: Image list
+    post:
+      summary: Upload image
+      requestBody:
+        required: true
+      responses:
+        "201":
+          description: Created
+  /api/images/{key}:
+    delete:
+      summary: Delete image by key
+      parameters:
+        - in: path
+          name: key
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+  /api/images/object/{key}:
+    get:
+      summary: Stream image object
+      parameters:
+        - in: path
+          name: key
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
