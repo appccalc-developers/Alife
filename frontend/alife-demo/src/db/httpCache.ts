@@ -83,7 +83,7 @@ export const conditionalGet = async <TData>({ queryKey, path, parser }: Conditio
 
   await writeRecord<TData>(queryKey, {
     meta: {
-      timestamp: Date.now(),
+      timestamp: Date.now(), // 可以根据需要改为服务器返回的时间戳!!
     },
     data,
   })
