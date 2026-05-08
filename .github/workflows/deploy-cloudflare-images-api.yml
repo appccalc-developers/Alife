@@ -1,0 +1,46 @@
+name: Deploy Cloudflare Images API
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/deploy-cloudflare-images-api.yml"
+      - "cloudflare/images-api/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-images-api-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - name: Test images API Worker
+        run: node --test cloudflare/images-api/worker/index.test.mjs
+
+      - name: Deploy images API Worker
+        run: npx wrangler@4.88.0 deploy --config cloudflare/images-api/wrangler.toml
+
+      - name: Deploy OpenAPI spec to R2
+        run: >
+          npx wrangler@4.88.0 r2 object put
+          ccalc/images.ccalc.live/openapi.yaml
+          --file cloudflare/images-api/openapi.yaml
+          --remote
