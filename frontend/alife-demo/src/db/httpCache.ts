@@ -1,8 +1,7 @@
 import { createStore, get, set } from 'idb-keyval'
 
 type CacheMeta = {
-  lastModified?: string
-  lastSuccessAt?: number
+  timestamp?: number
 }
 
 type CacheRecord<TData> = {
@@ -59,16 +58,16 @@ const toAbsoluteUrl = (path: string) => {
 
 export const conditionalGet = async <TData>({ queryKey, path, parser }: ConditionalGetOptions<TData>): Promise<TData> => {
   const previous = await readRecord<TData>(queryKey)
-  const headers = new Headers()
 
-  if (previous?.meta.lastModified) {
-    headers.set('If-Modified-Since', previous.meta.lastModified)
+  // 拼接 timestamp query 参数
+  const url = new URL(toAbsoluteUrl(path), window.location.origin)
+  if (previous?.meta.timestamp) {
+    url.searchParams.set('timestamp', String(previous.meta.timestamp))
   }
 
-  const response = await fetch(toAbsoluteUrl(path), {
+  const response = await fetch(url.toString(), {
     method: 'GET',
     credentials: 'include',
-    headers,
   })
 
   if (response.status === 304 && previous?.data !== undefined) {
@@ -81,12 +80,10 @@ export const conditionalGet = async <TData>({ queryKey, path, parser }: Conditio
 
   const rawData = (await response.json()) as unknown
   const data = parser ? parser(rawData) : (rawData as TData)
-  const lastModified = response.headers.get('Last-Modified') ?? previous?.meta.lastModified
 
   await writeRecord<TData>(queryKey, {
     meta: {
-      lastModified: lastModified ?? undefined,
-      lastSuccessAt: Date.now(),
+      timestamp: Date.now(),
     },
     data,
   })
