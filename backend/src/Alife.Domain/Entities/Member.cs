@@ -13,6 +13,7 @@ public class Member
 	public bool IsRegistered { get; set; }
 	public bool IsAdmin { get; set; }
 	public DateTime CreatedUtc { get; set; }
+	public DateTime UpdatedUtc { get; set; }
 
 	public ICollection<GroupMembership> Memberships { get; set; } = [];
 }

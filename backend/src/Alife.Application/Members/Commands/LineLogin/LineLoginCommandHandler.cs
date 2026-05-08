@@ -63,6 +63,7 @@ public sealed class LineLoginCommandHandler(
         if (member is not null)
         {
             member.LineUID = lineUID;
+            member.UpdatedUtc = DateTime.UtcNow;
             await dbContext.SaveChangesAsync(cancellationToken);
         }
         else

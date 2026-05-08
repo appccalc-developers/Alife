@@ -1,3 +1,4 @@
+using Alife.Api.Http;
 using Alife.Api.Results;
 using Alife.Application.Abstractions.Identity;
 using Alife.Application.Pages.Commands.CreateGroupPage;
@@ -8,22 +9,37 @@ using Alife.Application.Pages.Queries.GetGlobalPages;
 using Alife.Application.Pages.Queries.GetGroupPages;
 using Alife.Application.Pages.Queries.GetPageBySlug;
 using Alife.Domain.Enums;
+using Alife.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Alife.Api.Controllers;
 
 [ApiController]
 [Route("api")]
 [Authorize]
-public class PagesController(IMediator mediator, ICurrentMemberAccessor currentMemberAccessor) : ControllerBase
+public class PagesController(
+    IMediator mediator,
+    ICurrentMemberAccessor currentMemberAccessor,
+    AlifeDbContext dbContext) : ControllerBase
 {
     [HttpGet("pages/global")]
     [AllowAnonymous]
     public async Task<IActionResult> GlobalPages([FromQuery] string lang = "en", CancellationToken cancellationToken = default)
     {
+        var updatedUtc = await dbContext.Pages
+            .IgnoreQueryFilters()
+            .Where(x => x.Scope == PageScope.Global && x.Language == lang)
+            .MaxAsync(x => (DateTime?)x.UpdatedUtc, cancellationToken);
+        if (this.IsNotModified(updatedUtc))
+        {
+            return StatusCode(StatusCodes.Status304NotModified);
+        }
+
         var result = await mediator.Send(new GetGlobalPagesQuery(lang), cancellationToken);
+        this.ApplySyncCacheHeaders(updatedUtc);
         return this.ToActionResult(result);
     }
 
@@ -36,7 +52,17 @@ public class PagesController(IMediator mediator, ICurrentMemberAccessor currentM
             return Unauthorized();
         }
 
+        var updatedUtc = await dbContext.Pages
+            .IgnoreQueryFilters()
+            .Where(x => x.Slug == slug && x.Language == lang)
+            .MaxAsync(x => (DateTime?)x.UpdatedUtc, cancellationToken);
+        if (this.IsNotModified(updatedUtc))
+        {
+            return StatusCode(StatusCodes.Status304NotModified);
+        }
+
         var result = await mediator.Send(new GetPageBySlugQuery(slug, lang, currentMemberId.Value), cancellationToken);
+        this.ApplySyncCacheHeaders(updatedUtc);
         return this.ToActionResult(result);
     }
 
@@ -49,7 +75,17 @@ public class PagesController(IMediator mediator, ICurrentMemberAccessor currentM
             return Unauthorized();
         }
 
+        var updatedUtc = await dbContext.Pages
+            .IgnoreQueryFilters()
+            .Where(x => x.Scope == PageScope.Group && x.OwnerGroupId == groupId && x.Language == lang)
+            .MaxAsync(x => (DateTime?)x.UpdatedUtc, cancellationToken);
+        if (this.IsNotModified(updatedUtc))
+        {
+            return StatusCode(StatusCodes.Status304NotModified);
+        }
+
         var result = await mediator.Send(new GetGroupPagesQuery(groupId, lang, currentMemberId.Value), cancellationToken);
+        this.ApplySyncCacheHeaders(updatedUtc);
         return this.ToActionResult(result);
     }
 

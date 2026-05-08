@@ -9,9 +9,9 @@ type ExecutionContext = {
 const DEFAULT_API_PROXY_TARGET = 'https://api.ccalc.live'
 const ALLOWED_ORIGINS = new Set(['https://app.ccalc.live', 'http://localhost:5173'])
 const ALLOWED_METHODS = 'GET, POST, PUT, PATCH, DELETE, OPTIONS'
-const ALLOWED_HEADERS = 'Content-Type, Authorization, X-Requested-With'
+const ALLOWED_HEADERS = 'Content-Type, Authorization, X-Requested-With, If-None-Match'
 const PREFLIGHT_MAX_AGE_SECONDS = '86400'
-const CACHE_TTL_SECONDS = 86400; // 1 day in seconds
+const CACHE_TTL_SECONDS = 60
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 
 export default {
@@ -46,9 +46,18 @@ async function handleRequest(request: Request, env: Env, ctx: ExecutionContext):
   }
 
   if (request.method === 'GET') {
-    const cacheKey = createCacheKey(request)
+    const cacheKey = await createCacheKey(request)
     const cached = await caches.default.match(cacheKey)
     if (cached) {
+      const clientEtag = request.headers.get('if-none-match')
+      const cachedEtag = cached.headers.get('etag')
+      if (clientEtag && cachedEtag && matchesIfNoneMatch(clientEtag, cachedEtag)) {
+        return addCorsHeaders(request, withCacheHeader(new Response(null, {
+          status: 304,
+          headers: cached.headers,
+        }), 'REVALIDATED'))
+      }
+
       return addCorsHeaders(request, withCacheHeader(cached, 'HIT'))
     }
   }
@@ -62,8 +71,8 @@ async function handleRequest(request: Request, env: Env, ctx: ExecutionContext):
 
   if (originResponse.status === 200 && request.method === 'GET') {
     const responseForCache = withCacheControl(originResponse.clone())
-    ctx.waitUntil(caches.default.put(createCacheKey(request), responseForCache))
-    return addCorsHeaders(request, withCacheHeader(originResponse, 'MISS'))
+    ctx.waitUntil(createCacheKey(request).then((cacheKey) => caches.default.put(cacheKey, responseForCache)))
+    return addCorsHeaders(request, withCacheHeader(withCacheControl(originResponse), 'MISS'))
   }
 
   return addCorsHeaders(request, withCacheHeader(originResponse, 'BYPASS'))
@@ -89,6 +98,7 @@ function addCorsHeaders(request: Request, response: Response) {
 
   if (allowedOrigin) {
     headers.set('access-control-allow-origin', allowedOrigin)
+    headers.set('access-control-allow-credentials', 'true')
     headers.set('vary', appendVaryOrigin(headers.get('vary')))
   }
 
@@ -136,15 +146,19 @@ function createOriginRequest(request: Request, env: Env) {
   return new Request(targetUrl, init)
 }
 
-function createCacheKey(request: Request) {
+async function createCacheKey(request: Request) {
   const url = new URL(request.url)
   url.hash = ''
   url.searchParams.sort()
+  const credentialKey = await createCredentialCacheKey(request)
+  if (credentialKey) {
+    url.searchParams.set('__alife_credential', credentialKey)
+  }
 
   return new Request(url.toString(), { method: 'GET' })
 }
 
-function withCacheHeader(response: Response, value: 'HIT' | 'MISS' | 'BYPASS') {
+function withCacheHeader(response: Response, value: 'HIT' | 'MISS' | 'BYPASS' | 'REVALIDATED') {
   const headers = new Headers(response.headers)
   headers.set('x-alife-cache', value)
 
@@ -158,7 +172,8 @@ function withCacheHeader(response: Response, value: 'HIT' | 'MISS' | 'BYPASS') {
 
 function withCacheControl(response: Response) {
   const headers = new Headers(response.headers)
-  headers.set('cache-control', `public, s-maxage=${CACHE_TTL_SECONDS}, max-age=0`);
+  headers.set('cache-control', `public, max-age=${CACHE_TTL_SECONDS}`)
+  headers.set('vary', appendVary(headers.get('vary'), 'Accept-Encoding'))
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
@@ -167,7 +182,40 @@ function withCacheControl(response: Response) {
 }
 
 async function passivelyInvalidate(request: Request, env: Env) {
-  const cacheKey = createCacheKey(request)
+  const cacheKey = await createCacheKey(request)
 
   await caches.default.delete(cacheKey)
+}
+
+function matchesIfNoneMatch(ifNoneMatch: string, etag: string) {
+  return ifNoneMatch
+    .split(',')
+    .map((value) => value.trim())
+    .some((value) => value === etag || value === `W/${etag}`)
+}
+
+function appendVary(vary: string | null, value: string) {
+  if (!vary) {
+    return value
+  }
+
+  return vary
+    .split(',')
+    .map((item) => item.trim().toLowerCase())
+    .includes(value.toLowerCase())
+    ? vary
+    : `${vary}, ${value}`
+}
+
+async function createCredentialCacheKey(request: Request) {
+  const authorization = request.headers.get('authorization') ?? ''
+  const cookie = request.headers.get('cookie') ?? ''
+  const credential = `${authorization}\n${cookie}`
+  if (!credential.trim()) {
+    return ''
+  }
+
+  const encoded = new TextEncoder().encode(credential)
+  const hash = await crypto.subtle.digest('SHA-256', encoded)
+  return Array.from(new Uint8Array(hash), (byte) => byte.toString(16).padStart(2, '0')).join('')
 }
