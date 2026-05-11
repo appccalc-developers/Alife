@@ -156,12 +156,15 @@ public sealed class GeminiService(
         };
 
         var client = httpClientFactory.CreateClient("gemini");
-        var url = $"v1beta/models/gemini-2.0-flash:generateContent?key={Uri.EscapeDataString(apiKey)}";
+        var url = "v1beta/models/gemini-2.0-flash:generateContent";
 
         HttpResponseMessage response;
         try
         {
-            response = await client.PostAsJsonAsync(url, requestBody, cancellationToken);
+            using var httpRequest = new HttpRequestMessage(HttpMethod.Post, url);
+            httpRequest.Headers.Add("x-goog-api-key", apiKey);
+            httpRequest.Content = JsonContent.Create(requestBody);
+            response = await client.SendAsync(httpRequest, cancellationToken);
         }
         catch (Exception ex)
         {
