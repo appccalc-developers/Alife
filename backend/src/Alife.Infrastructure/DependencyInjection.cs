@@ -34,13 +34,6 @@ public static class DependencyInjection
 			client.Timeout = TimeSpan.FromSeconds(20);
 		});
 		services.AddScoped<IYoutubeService, YoutubeService>();
-
-		services.AddHttpClient("gemini", client =>
-		{
-			client.BaseAddress = new Uri("https://generativelanguage.googleapis.com/");
-			client.Timeout = TimeSpan.FromSeconds(30);
-		});
-		services.AddScoped<IGeminiService, GeminiService>();
 		services.AddHttpClient<ILineLoginService, LineLoginService>(client =>
 		{
 			client.Timeout = TimeSpan.FromSeconds(15);
