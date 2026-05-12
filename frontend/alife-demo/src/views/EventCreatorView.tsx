@@ -3,6 +3,8 @@ import type { EventDto, MultilingualString } from '../types/event'
 import { eventService } from '../services/eventService'
 import { normalizeApiError } from '../services/http'
 import { useAuthStore } from '../stores/auth'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 // ────────────────────────────────────────────────────────────────────────────
 // Helper sub-components
@@ -160,7 +162,7 @@ const EventPreview = ({ event, lang }: { event: EventDto; lang: string }) => {
 // Main view
 // ────────────────────────────────────────────────────────────────────────────
 
-type ChatMessage = { role: 'user' | 'assistant'; text: string }
+type ChatMessage = { role: 'user' | 'assistant'; text: string; markdown?: boolean }
 
 const EventCreatorView = () => {
   const { language } = useAuthStore()
@@ -168,6 +170,7 @@ const EventCreatorView = () => {
     {
       role: 'assistant',
       text: "Hi! I'm your AI event assistant. Describe your event in English or Chinese (or both!) and I'll extract the details for you.\n\nExample: \"Plan a West Coast trip for 15 families on Dec 1–3 2026. Everyone must take the chartered bus. Optional kayaking is $30 per person. Fee: $150/adult, $80/child.\"",
+      markdown: true,
     },
   ])
   const [input, setInput] = useState('')
@@ -192,22 +195,36 @@ const EventCreatorView = () => {
     setLoading(true)
 
     try {
-      const dto = await eventService.extractFromChat(msg)
-      setEventDraft(dto)
-      const lang = language === 'zh' ? dto.title.zh : dto.title.en
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: 'assistant',
-          text: `✅ I've extracted the event details for "${lang || 'your event'}". Review the preview below and refine by chatting further.`,
-        },
-      ])
+      const response = await eventService.extractFromChat(msg)
+
+      if (response.responseMode === 'result' && response.result) {
+        const dto = response.result
+        setEventDraft(dto)
+        const lang = language === 'zh' ? dto.title.zh : dto.title.en
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            text: `✅ I've extracted the event details for "${lang || 'your event'}". Review the preview below and refine by chatting further.`,
+          },
+        ])
+      } else {
+        const markdown = response.markdown?.trim()
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            text: markdown || 'I need a bit more information before I can finalize the event details.',
+            markdown: true,
+          },
+        ])
+      }
     } catch (err) {
       const apiError = normalizeApiError(err)
       setError(apiError.message)
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', text: `❌ Sorry, I couldn't extract event details: ${apiError.message}` },
+        { role: 'assistant', text: `❌ Sorry, I couldn't extract event details: ${apiError.message}`, markdown: true },
       ])
     } finally {
       setLoading(false)
@@ -243,12 +260,27 @@ const EventCreatorView = () => {
                 : 'mr-auto bg-white text-slate-800 shadow-sm',
             ].join(' ')}
           >
-            {msg.text.split('\n').map((line, j) => (
-              <span key={j}>
-                {line}
-                {j < msg.text.split('\n').length - 1 && <br />}
-              </span>
-            ))}
+            {msg.markdown && msg.role === 'assistant' ? (
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                  ul: ({ children }) => <ul className="mb-2 list-disc pl-5 last:mb-0">{children}</ul>,
+                  ol: ({ children }) => <ol className="mb-2 list-decimal pl-5 last:mb-0">{children}</ol>,
+                  li: ({ children }) => <li className="mb-1">{children}</li>,
+                  code: ({ children }) => <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">{children}</code>,
+                }}
+              >
+                {msg.text}
+              </ReactMarkdown>
+            ) : (
+              msg.text.split('\n').map((line, j) => (
+                <span key={j}>
+                  {line}
+                  {j < msg.text.split('\n').length - 1 && <br />}
+                </span>
+              ))
+            )}
           </div>
         ))}
         {loading && (

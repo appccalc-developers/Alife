@@ -35,3 +35,9 @@ export type EventDto = {
   galleryUrls: string[]
   legacySummary?: MultilingualString | null
 }
+
+export type ExtractEventFromChatResponse = {
+  responseMode: 'markdown' | 'result'
+  markdown?: string | null
+  result?: EventDto | null
+}

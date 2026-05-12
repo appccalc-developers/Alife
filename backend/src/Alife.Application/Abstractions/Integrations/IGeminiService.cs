@@ -7,7 +7,7 @@ public interface IGeminiService
 {
     /// <summary>
     /// Sends the user's natural-language message to Gemini together with the EventDto system
-    /// instructions and returns a partially-or-fully populated <see cref="EventDto"/>.
+    /// instructions and returns either markdown follow-up content or a final parsed EventDto.
     /// </summary>
-    Task<EventDto?> ExtractEventAsync(string userMessage, CancellationToken cancellationToken = default);
+    Task<ExtractEventFromChatResponseDto?> ExtractEventAsync(string userMessage, CancellationToken cancellationToken = default);
 }
