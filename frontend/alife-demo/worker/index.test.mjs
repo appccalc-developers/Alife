@@ -121,14 +121,87 @@ test('CORS headers are only added for authorized origins', async () => {
   assert.equal(denied.headers.get('access-control-allow-origin'), null)
 })
 
+test('POST /api/events/extract calls Gemini at the edge and returns EventDto', async () => {
+  const eventDto = {
+    id: '',
+    organizerId: '',
+    title: { zh: '西海岸之旅', en: 'West Coast Trip' },
+    description: { zh: '家庭出游', en: 'A family outing' },
+    locationName: { zh: '西海岸', en: 'West Coast' },
+    startDate: '2026-12-01T08:00:00Z',
+    endDate: '2026-12-03T18:00:00Z',
+    registrationDeadline: '2026-11-20T00:00:00Z',
+    maxCapacity: 15,
+    capacityUnit: 'Families',
+    hardConstraints: [
+      { ruleKey: 'Transport', displayMessage: { zh: '必须乘坐包车', en: 'Must take the chartered bus' }, isMandatory: true },
+    ],
+    optionalActivities: [{ id: '', name: { zh: '皮划艇', en: 'Kayaking' }, extraFee: 30 }],
+    baseFeePerAdult: 150,
+    baseFeePerChild: 80,
+    currency: 'NZD',
+    posterImageUrl: null,
+    galleryUrls: [],
+    legacySummary: null,
+  }
+
+  // Gemini API response
+  originResponses.push(
+    Response.json({
+      candidates: [{ content: { parts: [{ text: JSON.stringify(eventDto) }] } }],
+    }),
+  )
+
+  const response = await dispatch('https://app.ccalc.live/api/events/extract', {
+    method: 'POST',
+    body: JSON.stringify({ message: 'West Coast trip 15 families Dec 1-3. Must take bus. Kayaking $30. $150/adult $80/child.' }),
+    headers: { 'content-type': 'application/json' },
+    env: { GEMINI_API_KEY: 'test-key', API_PROXY_TARGET: 'https://api.ccalc.live' },
+  })
+
+  assert.equal(response.status, 200)
+  const body = await response.json()
+  assert.equal(body.title.en, 'West Coast Trip')
+  assert.equal(body.hardConstraints.length, 1)
+  assert.equal(body.hardConstraints[0].ruleKey, 'Transport')
+  // Must NOT have been proxied to origin
+  assert.equal(fetchCalls.length, 1)
+  assert.ok(String(fetchCalls[0]).includes('generativelanguage.googleapis.com'))
+})
+
+test('POST /api/events/extract returns 503 when GEMINI_API_KEY is not set', async () => {
+  const response = await dispatch('https://app.ccalc.live/api/events/extract', {
+    method: 'POST',
+    body: JSON.stringify({ message: 'Some event' }),
+    headers: { 'content-type': 'application/json' },
+    env: { API_PROXY_TARGET: 'https://api.ccalc.live' },
+  })
+
+  assert.equal(response.status, 503)
+  assert.equal(fetchCalls.length, 0)
+})
+
+test('POST /api/events/extract returns 400 for empty message', async () => {
+  const response = await dispatch('https://app.ccalc.live/api/events/extract', {
+    method: 'POST',
+    body: JSON.stringify({ message: '   ' }),
+    headers: { 'content-type': 'application/json' },
+    env: { GEMINI_API_KEY: 'test-key', API_PROXY_TARGET: 'https://api.ccalc.live' },
+  })
+
+  assert.equal(response.status, 400)
+  assert.equal(fetchCalls.length, 0)
+})
+
 async function dispatch(url, init = {}) {
-  const headers = new Headers(init.headers)
+  const { env: envOverride, ...requestInit } = init
+  const headers = new Headers(requestInit.headers)
   if (!headers.has('origin')) {
     headers.set('origin', ORIGIN)
   }
 
-  const request = new Request(url, { ...init, headers })
-  return worker.fetch(request, createEnv(), createCtx())
+  const request = new Request(url, { ...requestInit, headers })
+  return worker.fetch(request, envOverride ?? createEnv(), createCtx())
 }
 
 function createEnv() {
