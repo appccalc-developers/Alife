@@ -1,15 +1,11 @@
 import { createStore, get, set } from 'idb-keyval'
 
-type CacheMeta = {
-  timestamp?: number
-}
-
 type CacheRecord<TData> = {
-  meta: CacheMeta
-  data?: TData
+  etag: string
+  data: TData
 }
 
-const STORAGE_PREFIX = 'alife:db:cache:'
+const STORAGE_PREFIX = 'alife:db:cache:etag:'
 const idbStore = createStore('alife-cache-db', 'http-cache')
 
 const getStorageKey = (queryKey: readonly unknown[]) => `${STORAGE_PREFIX}${JSON.stringify(queryKey)}`
@@ -59,17 +55,22 @@ const toAbsoluteUrl = (path: string) => {
 export const conditionalGet = async <TData>({ queryKey, path, parser }: ConditionalGetOptions<TData>): Promise<TData> => {
   const previous = await readRecord<TData>(queryKey)
 
-  // 拼接 timestamp query 参数
-  const url = new URL(toAbsoluteUrl(path), window.location.origin)
-  if (previous?.meta.timestamp) {
-    url.searchParams.set('timestamp', String(previous.meta.timestamp))
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
   }
 
-  const response = await fetch(url.toString(), {
+  // 如果有缓存的 etag，放到 If-None-Match 请求头
+  if (previous?.etag) {
+    headers['If-None-Match'] = previous.etag
+  }
+
+  const response = await fetch(toAbsoluteUrl(path), {
     method: 'GET',
+    headers,
     credentials: 'include',
   })
 
+  // 304 Not Modified — 返回缓存数据
   if (response.status === 304 && previous?.data !== undefined) {
     return previous.data
   }
@@ -78,17 +79,20 @@ export const conditionalGet = async <TData>({ queryKey, path, parser }: Conditio
     throw new Error(`GET ${path} failed with status ${response.status}`)
   }
 
+  // 从响应头中获取 etag
+  const etag = response.headers.get('ETag')
+  if (!etag) {
+    throw new Error(`GET ${path} response missing ETag header`)
+  }
+
   const rawData = (await response.json()) as unknown
   const data = parser ? parser(rawData) : (rawData as TData)
 
-  await writeRecord<TData>(queryKey, {
-    meta: {
-      timestamp: Date.now(), // 可以根据需要改为服务器返回的时间戳!!
-    },
-    data,
-  })
+  // 以 etag 作为缓存 key 存入 DB
+  await writeRecord<TData>(queryKey, { etag, data })
 
   return data
 }
 
 export const getCachedRecord = <TData>(queryKey: readonly unknown[]) => readRecord<TData>(queryKey)
+
