@@ -9,7 +9,7 @@ import { groupQueryKey, getCachedSubgroups } from '../db/collections/groupCollec
 import { subgroupsCollection } from '../db/collections/groupCollection'
 import { groupPagesCollection, getCachedGroupPages } from '../db/collections/groupCollection'
 import { groupMembershipsCollection, getCachedGroupMemberships } from '../db/collections/groupCollection'
-import type { GroupDto, GroupSummaryDto, GroupTab, PageSummaryDto } from '../types/group'
+import type { GroupDto, GroupTab, PageSummaryDto } from '../types/group'
 
 type MembershipStatusLabel = 'Not joined' | 'Requested' | 'Approved' | 'Invited'
 type MembershipRole = 'Member' | 'CoLeader' | 'Leader' | null
