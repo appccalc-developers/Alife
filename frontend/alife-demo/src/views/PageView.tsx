@@ -1,9 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useLiveQuery } from '@tanstack/react-db'
 import PageContentRenderer from '../components/page/PageContentRenderer'
-import { groupService } from '../api/groupService'
-import { pageService } from '../services/pageService'
 import { useAuthStore } from '../stores/auth'
+import { conditionalGet } from '../db/httpCache'
+import { pageBySlugQueryKey } from '../db/collections/pageCollection'
+import { pageSectionsCollection } from '../db/collections/pageCollection'
+import { subgroupsCollection } from '../db/collections/groupCollection'
+import { groupPagesCollection } from '../db/collections/groupCollection'
 import type { GroupPageDto } from '../types/group'
 import type { SectionEditModel } from '../types/page-editor'
 
@@ -13,52 +17,66 @@ const PageView = () => {
   const auth = useAuthStore()
 
   const [page, setPage] = useState<GroupPageDto | null>(null)
-  const [sections, setSections] = useState<SectionEditModel[]>([])
-  const [subgroupItems, setSubgroupItems] = useState<Array<{ id: string; name: string; accessType: string }>>([])
-  const [groupPageItems, setGroupPageItems] = useState<Array<{ id: string; title: string; slug: string; visibility: string }>>([])
-  const [loading, setLoading] = useState(false)
+  const [pageLoading, setPageLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const load = async () => {
-    if (!slug) {
-      return
-    }
-
-    setLoading(true)
+  // page by slug（单个对象，用 conditionalGet）
+  useEffect(() => {
+    if (!slug) return
+    let cancelled = false
+    setPageLoading(true)
     setError('')
 
-    try {
-      const nextPage = await groupService.getPageBySlug(slug, auth.language)
-      setPage(nextPage)
+    conditionalGet<{ id: string; title: string; slug: string; language: string; visibility: string; createdByMemberId: string; description?: string | null; tagsJson?: string; titleDisplayStyle?: string; updatedUtc?: string; scope?: string; ownerGroupId?: string | null }>({
+      queryKey: pageBySlugQueryKey(slug, auth.language),
+      path: `/api/pages/${slug}`,
+    })
+      .then((data) => {
+        if (!cancelled) setPage(data as unknown as GroupPageDto)
+      })
+      .catch(() => {
+        if (!cancelled) setError('Page not found or not accessible for your membership.')
+      })
+      .finally(() => {
+        if (!cancelled) setPageLoading(false)
+      })
 
-      const nextSections = nextPage?.id ? await pageService.getPageSections(nextPage.id) : []
-      setSections(nextSections)
-
-      if (nextPage?.ownerGroupId) {
-        const [subgroups, pages] = await Promise.all([
-          groupService.getSubgroups(nextPage.ownerGroupId),
-          groupService.getGroupPages(nextPage.ownerGroupId, auth.language),
-        ])
-        setSubgroupItems(subgroups)
-        setGroupPageItems(pages)
-      } else {
-        setSubgroupItems([])
-        setGroupPageItems([])
-      }
-    } catch {
-      setError('Page not found or not accessible for your membership.')
-      setSections([])
-      setSubgroupItems([])
-      setGroupPageItems([])
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    load().catch(() => undefined)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => { cancelled = true }
   }, [slug, auth.language])
+
+  // sections（数组，用 useLiveQuery）
+  const sectionsColl = useMemo(() => (page?.id ? pageSectionsCollection(page.id) : null), [page?.id])
+  const { data: sectionsRaw = [] } = useLiveQuery(sectionsColl as NonNullable<typeof sectionsColl>)
+  const sections = useMemo(
+    () =>
+      (sectionsRaw as Array<{ id: string; pageId: string; order: number; type: number | string; contentJson: string; styleJson: string }>)
+        .slice()
+        .sort((a, b) => a.order - b.order)
+        .map((s) => ({
+          id: s.id,
+          order: s.order,
+          type: s.type,
+          contentJson: (() => {
+            try { return JSON.parse(s.contentJson) } catch { return {} }
+          })(),
+          styleJson: (() => {
+            try { return JSON.parse(s.styleJson) } catch { return {} }
+          })(),
+        })) as SectionEditModel[],
+    [sectionsRaw],
+  )
+
+  // subgroups & pages for sidebar（数组，用 useLiveQuery）
+  const subColl = useMemo(() => (page?.ownerGroupId ? subgroupsCollection(page.ownerGroupId) : null), [page?.ownerGroupId])
+  const { data: subgroupItems = [] } = useLiveQuery(subColl as NonNullable<typeof subColl>)
+
+  const gpColl = useMemo(
+    () => (page?.ownerGroupId ? groupPagesCollection(page.ownerGroupId, auth.language) : null),
+    [page?.ownerGroupId, auth.language],
+  )
+  const { data: groupPageItems = [] } = useLiveQuery(gpColl as NonNullable<typeof gpColl>)
+
+  const loading = pageLoading
 
   return (
     <section className="mx-auto w-full max-w-5xl space-y-4 px-3 sm:px-4">
@@ -69,8 +87,8 @@ const PageView = () => {
         <PageContentRenderer
           page={page}
           sections={sections}
-          subgroupItems={subgroupItems}
-          groupPageItems={groupPageItems}
+          subgroupItems={subgroupItems as Array<{ id: string; name: string; accessType: string }>}
+          groupPageItems={groupPageItems as Array<{ id: string; title: string; slug: string; visibility: string }>}
           onEditPage={(pageId, groupId) => {
             navigate(`/pages/${pageId}/edit?groupId=${groupId}`)
           }}

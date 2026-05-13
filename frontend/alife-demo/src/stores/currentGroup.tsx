@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { groupService } from '../services/groupService'
+import { conditionalGet } from '../db/httpCache'
+import { churchQueryKey } from '../db/collections/groupCollection'
 import type { GroupDto } from '../types'
 
 type CurrentGroupContextValue = {
@@ -22,7 +23,10 @@ export const CurrentGroupProvider = ({ children }: { children: ReactNode }) => {
     setError('')
 
     try {
-      const church = await groupService.getChurch()
+      const church = await conditionalGet<GroupDto>({
+        queryKey: churchQueryKey,
+        path: '/api/groups/church',
+      })
       setCurrentGroup(church)
       return church
     } catch {
