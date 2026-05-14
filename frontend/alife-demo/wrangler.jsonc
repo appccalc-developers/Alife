@@ -13,8 +13,25 @@
     ]
   },
   "vars": {
-    "API_PROXY_TARGET": "https://api.ccalc.live"
+    "API_PROXY_TARGET": "https://api.ccalc.live",
+    "GEMINI_MODEL": "gemini-3-pro"
   },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "EVENT_SESSIONS",
+        "class_name": "EventPlanningSession"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1_event_planning_sessions",
+      "new_sqlite_classes": [
+        "EventPlanningSession"
+      ]
+    }
+  ],
   "routes": [
     {
       "pattern": "app.ccalc.live",

@@ -6,6 +6,7 @@ import worker from '../dist/app_ccalc/index.js'
 const ORIGIN = 'https://app.ccalc.live'
 
 let fetchCalls
+let fetchInits
 let originResponses
 let cacheStore
 let deletedCacheKeys
@@ -13,13 +14,15 @@ let waitUntilPromises
 
 beforeEach(() => {
   fetchCalls = []
+  fetchInits = []
   originResponses = []
   cacheStore = new Map()
   deletedCacheKeys = []
   waitUntilPromises = []
 
-  globalThis.fetch = async (request) => {
+  globalThis.fetch = async (request, init) => {
     fetchCalls.push(request)
+    fetchInits.push(init)
     return originResponses.shift() ?? Response.json({ ok: true })
   }
 
@@ -161,12 +164,14 @@ test('POST /api/events/extract calls Gemini at the edge and returns EventDto', a
 
   assert.equal(response.status, 200)
   const body = await response.json()
-  assert.equal(body.title.en, 'West Coast Trip')
-  assert.equal(body.hardConstraints.length, 1)
-  assert.equal(body.hardConstraints[0].ruleKey, 'Transport')
+  assert.equal(body.responseMode, 'result')
+  assert.equal(body.result.title.en, 'West Coast Trip')
+  assert.equal(body.result.hardConstraints.length, 1)
+  assert.equal(body.result.hardConstraints[0].ruleKey, 'Transport')
   // Must NOT have been proxied to origin
   assert.equal(fetchCalls.length, 1)
   assert.ok(String(fetchCalls[0]).includes('generativelanguage.googleapis.com'))
+  assert.equal(fetchInits[0].headers['x-goog-api-key'], 'test-key')
 })
 
 test('POST /api/events/extract returns 503 when GEMINI_API_KEY is not set', async () => {

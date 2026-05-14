@@ -1,15 +1,33 @@
 import extractor from './extractor'
+import { EventPlanningSession } from './extractor'
 import proxy from './proxy'
 
 export type Env = {
   API_PROXY_TARGET?: string
   /** Gemini API key stored as a Cloudflare Worker secret. */
   GEMINI_API_KEY?: string
+  /** Optional Gemini model override. Defaults to Gemini 3 Pro. */
+  GEMINI_MODEL?: string
+  /** Durable Object namespace for live event-planning sessions. */
+  EVENT_SESSIONS?: DurableObjectNamespace
 }
 
 export type ExecutionContext = {
   waitUntil(promise: Promise<unknown>): void
 }
+
+export type DurableObjectNamespace = {
+  idFromName(name: string): DurableObjectId
+  get(id: DurableObjectId): DurableObjectStub
+}
+
+export type DurableObjectId = unknown
+
+export type DurableObjectStub = {
+  fetch(request: Request): Promise<Response>
+}
+
+export { EventPlanningSession }
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -17,6 +35,10 @@ export default {
 
     try {
       if (url.pathname === '/api/events/extract' && request.method === 'POST') {
+        return await extractor.fetch(request, env)
+      }
+
+      if (url.pathname.startsWith('/api/events/session/')) {
         return await extractor.fetch(request, env)
       }
 

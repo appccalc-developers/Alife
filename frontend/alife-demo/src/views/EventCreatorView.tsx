@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react'
-import type { EventDto, MultilingualString } from '../types/event'
+import { useEffect, useRef, useState } from 'react'
+import type { EventDto, EventSessionSsePayload, EventSessionState, MultilingualString } from '../types/event'
 import { eventService } from '../services/eventService'
 import { normalizeApiError } from '../services/http'
 import { useAuthStore } from '../stores/auth'
@@ -164,8 +164,51 @@ const EventPreview = ({ event, lang }: { event: EventDto; lang: string }) => {
 
 type ChatMessage = { role: 'user' | 'assistant'; text: string; markdown?: boolean }
 
+type SpeechRecognitionLike = {
+  continuous: boolean
+  interimResults: boolean
+  lang: string
+  start(): void
+  stop(): void
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null
+  onend: (() => void) | null
+  onerror: (() => void) | null
+}
+
+type SpeechRecognitionEventLike = {
+  results: ArrayLike<ArrayLike<{ transcript: string }>>
+}
+
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike
+
+const EVENT_SESSION_STORAGE_KEY = 'alife-event-planning-session-id'
+
+const createSessionId = (memberId?: string) => {
+  if (memberId) {
+    return `member-${memberId}-event-draft`
+  }
+
+  const existing = localStorage.getItem(EVENT_SESSION_STORAGE_KEY)
+  if (existing) {
+    return existing
+  }
+
+  const next = crypto.randomUUID()
+  localStorage.setItem(EVENT_SESSION_STORAGE_KEY, next)
+  return next
+}
+
+const getSpeechRecognition = (): SpeechRecognitionConstructor | null => {
+  const speechWindow = window as Window & {
+    SpeechRecognition?: SpeechRecognitionConstructor
+    webkitSpeechRecognition?: SpeechRecognitionConstructor
+  }
+
+  return speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition ?? null
+}
+
 const EventCreatorView = () => {
-  const { language } = useAuthStore()
+  const { language, me } = useAuthStore()
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: 'assistant',
@@ -175,10 +218,48 @@ const EventCreatorView = () => {
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [listening, setListening] = useState(false)
   const [eventDraft, setEventDraft] = useState<EventDto | null>(null)
+  const [aiInsight, setAiInsight] = useState<MultilingualString | null>(null)
   const [error, setError] = useState('')
+  const sessionIdRef = useRef(createSessionId(me?.id))
+  const speechRecognitionRef = useRef<SpeechRecognitionLike | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    let isMounted = true
+    const sessionId = sessionIdRef.current
+    const source = eventService.createSessionStream(sessionId)
+
+    const applySessionState = (state: EventSessionState) => {
+      if (!isMounted) return
+      if (state.eventDraft) {
+        setEventDraft(state.eventDraft)
+      }
+      setAiInsight(state.legacySummary)
+    }
+
+    source.addEventListener('snapshot', (event) => {
+      applySessionState(JSON.parse((event as MessageEvent<string>).data) as EventSessionState)
+    })
+
+    source.addEventListener('message', (event) => {
+      const payload = JSON.parse((event as MessageEvent<string>).data) as EventSessionSsePayload
+      if (payload.type === 'eventDraft') {
+        applySessionState(payload.state)
+      }
+    })
+
+    eventService.getSessionState(sessionId)
+      .then(applySessionState)
+      .catch(() => undefined)
+
+    return () => {
+      isMounted = false
+      source.close()
+    }
+  }, [])
 
   const scrollToBottom = () => {
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
@@ -195,11 +276,12 @@ const EventCreatorView = () => {
     setLoading(true)
 
     try {
-      const response = await eventService.extractFromChat(msg)
+      const response = await eventService.extractFromChat(msg, sessionIdRef.current)
 
       if (response.responseMode === 'result' && response.result) {
         const dto = response.result
         setEventDraft(dto)
+        setAiInsight(response.legacySummary ?? dto.legacySummary ?? null)
         const lang = language === 'zh' ? dto.title.zh : dto.title.en
         setMessages((prev) => [
           ...prev,
@@ -239,12 +321,47 @@ const EventCreatorView = () => {
     }
   }
 
+  const handleVoiceToggle = () => {
+    if (listening) {
+      speechRecognitionRef.current?.stop()
+      setListening(false)
+      return
+    }
+
+    const SpeechRecognition = getSpeechRecognition()
+    if (!SpeechRecognition) {
+      setError('Voice input is not supported by this browser. You can paste a transcript instead.')
+      return
+    }
+
+    const recognition = new SpeechRecognition()
+    recognition.continuous = true
+    recognition.interimResults = true
+    recognition.lang = language === 'zh' ? 'zh-CN' : 'en-NZ'
+    recognition.onresult = (event) => {
+      const transcript = Array.from(event.results)
+        .map((result) => result[0]?.transcript ?? '')
+        .join(' ')
+        .trim()
+
+      setInput(transcript)
+    }
+    recognition.onend = () => setListening(false)
+    recognition.onerror = () => {
+      setListening(false)
+      setError('Voice input stopped unexpectedly. Please try again or type the message.')
+    }
+    speechRecognitionRef.current = recognition
+    recognition.start()
+    setListening(true)
+  }
+
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Create Event with AI</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Chat with Gemini to design your event. Supports voice transcript paste or typed input.
+          Chat with Gemini to design your event. The draft restores automatically across refreshes and devices using the session bridge.
         </p>
       </div>
 
@@ -305,6 +422,23 @@ const EventCreatorView = () => {
         />
         <button
           type="button"
+          onClick={handleVoiceToggle}
+          className={[
+            'inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border shadow-sm transition',
+            listening
+              ? 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100'
+              : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50',
+          ].join(' ')}
+          aria-label={listening ? 'Stop voice input' : 'Start voice input'}
+        >
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+            <path d="M12 19v3" />
+          </svg>
+        </button>
+        <button
+          type="button"
           onClick={handleSend}
           disabled={loading || !input.trim()}
           className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-700 text-white shadow-sm transition hover:bg-emerald-800 disabled:opacity-50"
@@ -322,6 +456,12 @@ const EventCreatorView = () => {
       )}
 
       {/* Event Preview */}
+      {aiInsight && (
+        <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+          <span className="font-semibold">AI Insight: </span>
+          {language === 'zh' ? aiInsight.zh : aiInsight.en}
+        </div>
+      )}
       {eventDraft && <EventPreview event={eventDraft} lang={language} />}
     </div>
   )
