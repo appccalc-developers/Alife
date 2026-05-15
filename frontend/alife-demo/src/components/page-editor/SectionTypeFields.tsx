@@ -1073,36 +1073,32 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
                       {typeof contentJson.eventDescription === 'string' ? contentJson.eventDescription : '' || 'Event description goes here'}
                     </p>
                     <div className="mt-4 flex items-center justify-center gap-2 text-sm text-slate-200">
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      <span
-                        role="textbox"
-                        contentEditable={!disabled}
-                        suppressContentEditableWarning
-                        className="inline-block rounded px-1 outline-none focus:bg-black/20"
-                        onBlur={(event) => {
-                          const value = event.currentTarget.textContent ?? ''
-                          patchContent({ eventStartDate: value })
-                        }}
-                      >
-                        {typeof contentJson.eventStartDate === 'string' ? contentJson.eventStartDate : '' || 'Start date'}
-                      </span>
+                      <label className="relative inline-flex cursor-pointer items-center gap-1 rounded px-1 outline-none hover:bg-black/20">
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <input
+                          type="date"
+                          value={typeof contentJson.eventStartDate === 'string' ? contentJson.eventStartDate : ''}
+                          disabled={disabled}
+                          className="absolute inset-0 cursor-pointer opacity-0"
+                          onChange={(event) => patchContent({ eventStartDate: event.target.value })}
+                        />
+                        <span>{typeof contentJson.eventStartDate === 'string' && contentJson.eventStartDate ? contentJson.eventStartDate : '添加日期'}</span>
+                      </label>
                       {typeof contentJson.eventEndDate === 'string' && contentJson.eventEndDate ? (
                         <>
                           <span>-</span>
-                          <span
-                            role="textbox"
-                            contentEditable={!disabled}
-                            suppressContentEditableWarning
-                            className="inline-block rounded px-1 outline-none focus:bg-black/20"
-                            onBlur={(event) => {
-                              const value = event.currentTarget.textContent ?? ''
-                              patchContent({ eventEndDate: value })
-                            }}
-                          >
-                            {contentJson.eventEndDate}
-                          </span>
+                          <label className="relative inline-flex cursor-pointer items-center gap-1 rounded px-1 outline-none hover:bg-black/20">
+                            <input
+                              type="date"
+                              value={contentJson.eventEndDate}
+                              disabled={disabled}
+                              className="absolute inset-0 cursor-pointer opacity-0"
+                              onChange={(event) => patchContent({ eventEndDate: event.target.value })}
+                            />
+                            <span>{contentJson.eventEndDate}</span>
+                          </label>
                         </>
                       ) : null}
                     </div>
