@@ -1,6 +1,67 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { GroupListSection } from '../sections/GroupListSection'
-import type { JsonMap, SectionType } from '../../types/page-editor'
+import { useListSourceResolver } from '../../hooks/useListSourceResolver'
+import type { JsonMap, SectionType, ListViewMetadata } from '../../types/page-editor'
+import type { EventDto } from '../../services/eventService'
+
+const PastEventsList = () => {
+  const meta = useMemo<ListViewMetadata>(() => ({
+    sourceType: 'events',
+    sourceScope: 'global',
+    limit: 20,
+  }), [])
+
+  const { data, isLoading, error } = useListSourceResolver(meta)
+  const events = data as EventDto[] | undefined
+
+  if (isLoading) {
+    return (
+      <div className="space-y-2">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-12 animate-pulse rounded bg-slate-200" />
+        ))}
+      </div>
+    )
+  }
+
+  if (error || !events || events.length === 0) {
+    return <p className="text-xs text-slate-400">当前为空</p>
+  }
+
+  const formatDate = (d: string) => {
+    try {
+      return new Date(d).toLocaleDateString('zh-CN', { year: 'numeric', month: 'short', day: 'numeric' })
+    } catch {
+      return d
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      {events.slice(0, 5).map((event) => (
+        <div key={event.id} className="flex items-center gap-3 rounded border border-slate-200 bg-white p-2">
+          {event.backgroundImage ? (
+            <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded">
+              <img src={event.backgroundImage} alt="" className="h-full w-full object-cover" />
+            </div>
+          ) : (
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded bg-slate-100 text-slate-400">
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xs font-medium text-slate-800">{event.title}</p>
+            {event.startDate ? (
+              <p className="text-[10px] text-slate-500">{formatDate(event.startDate)}</p>
+            ) : null}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
 
 type Props = {
   type: SectionType | ''
@@ -1100,18 +1161,25 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
             </div>
           ) : null}
 
-          <div className="space-y-2 border-t border-slate-100 pt-3">
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Live preview (TanStack DB)</p>
-            {!contextGroupId &&
-            (readText(contentJson, 'sourceType') === 'subgroups' ||
-              readText(contentJson, 'sourceType') === 'members' ||
-              readText(contentJson, 'sourceType') === 'pages') ? (
-              <p className="text-xs text-amber-700">
-                Add <code className="rounded bg-amber-50 px-1">?groupId=…</code> to the editor URL or open create-page from a group so subgroup / member / group-page lists can load.
-              </p>
-            ) : null}
-            <GroupListSection metadata={contentJson} groupId={contextGroupId} compact />
-          </div>
+          {readText(contentJson, 'sourceType') === 'events' ? (
+            <div className="space-y-2 border-t border-slate-100 pt-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">历史活动</p>
+              <PastEventsList />
+            </div>
+          ) : (
+            <div className="space-y-2 border-t border-slate-100 pt-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Live preview (TanStack DB)</p>
+              {!contextGroupId &&
+              (readText(contentJson, 'sourceType') === 'subgroups' ||
+                readText(contentJson, 'sourceType') === 'members' ||
+                readText(contentJson, 'sourceType') === 'pages') ? (
+                <p className="text-xs text-amber-700">
+                  Add <code className="rounded bg-amber-50 px-1">?groupId=…</code> to the editor URL or open create-page from a group so subgroup / member / group-page lists can load.
+                </p>
+              ) : null}
+              <GroupListSection metadata={contentJson} groupId={contextGroupId} compact />
+            </div>
+          )}
         </div>
       ) : null}
 
