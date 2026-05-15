@@ -1,10 +1,12 @@
 import type { ButtonHTMLAttributes, ReactNode, SVGProps } from 'react'
+import { useNavigate } from 'react-router-dom'
 import AppActionButton from '../layout/AppActionButton'
 import AppBadge from '../layout/AppBadge'
 import AccessTypeBadge from './AccessTypeBadge'
 import MembershipStatusBadge from './MembershipStatusBadge'
 import type { GroupDto, GroupPageDto, GroupSummaryDto } from '../../types/group'
 import type { GroupMemberToolRow } from '../../hooks/useGroupScreen'
+import type { GroupEventRecord } from '../../types/event'
 
 type Props = {
   open: boolean
@@ -12,6 +14,7 @@ type Props = {
   subgroups: GroupSummaryDto[]
   pages: GroupPageDto[]
   memberships: GroupMemberToolRow[]
+  events: GroupEventRecord[]
   membershipStatus: 'Not joined' | 'Requested' | 'Approved' | 'Invited'
   membershipRole: 'Member' | 'CoLeader' | 'Leader' | null
   canManageGroup: boolean
@@ -35,6 +38,7 @@ type Props = {
   onRejectMember: (memberId: string) => void
   onKickMember: (memberId: string) => void
   onSetCoLeader: (memberId: string, isCoLeader: boolean) => void
+  onDeleteEvent: (eventId: string) => void
 }
 
 const CloseIcon = () => (
@@ -170,6 +174,7 @@ const DrawerPanel = ({
   subgroups,
   pages,
   memberships,
+  events,
   membershipStatus,
   membershipRole,
   canManageGroup,
@@ -193,7 +198,9 @@ const DrawerPanel = ({
   onRejectMember,
   onKickMember,
   onSetCoLeader,
+  onDeleteEvent,
 }: Omit<Props, 'open'>) => {
+  const navigate = useNavigate()
   const showJoinAction = membershipStatus === 'Not joined' || membershipStatus === 'Invited'
   const requestedMembers = memberships.filter((member) => member.status === 'Requested')
   const approvedMembers = memberships.filter((member) => member.status === 'Approved')
@@ -335,6 +342,46 @@ const DrawerPanel = ({
             </ul>
           )}
         </section>
+
+        {canManageGroup ? (
+          <section className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-sm font-semibold text-slate-900">Events</h3>
+              <DrawerIconButton
+                label="Create event with AI"
+                variant="ghost"
+                onClick={() => navigate(`/events/new?groupId=${group.id}`)}
+              >
+                <AddIcon />
+              </DrawerIconButton>
+            </div>
+            {events.length === 0 ? (
+              <p className="text-sm text-slate-500">No events yet.</p>
+            ) : (
+              <ul className="space-y-2">
+                {events.map((event) => {
+                  const title = event.titleEn || event.titleZh || 'Untitled'
+                  const start = event.startDate
+                    ? new Date(event.startDate).toLocaleDateString()
+                    : '—'
+                  return (
+                    <li key={event.id} className="rounded-lg border border-slate-200 p-3">
+                      <div>
+                        <p className="font-medium text-slate-900">{title}</p>
+                        <p className="mt-1 text-xs text-slate-500">{start}</p>
+                      </div>
+                      <div className="mt-3 flex flex-wrap justify-end gap-1">
+                        <DrawerIconButton label={`Delete event: ${title}`} variant="danger" onClick={() => onDeleteEvent(event.id)}>
+                          <RemoveIcon />
+                        </DrawerIconButton>
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </section>
+        ) : null}
 
         {canManageGroup ? (
           <section className="space-y-3">

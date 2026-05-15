@@ -3,12 +3,15 @@ import { useLiveQuery } from '@tanstack/react-db'
 import { useQueryClient } from '@tanstack/react-query'
 import { groupService } from '../services/groupService'
 import { pageService } from '../services/pageService'
+import { eventService } from '../services/eventService'
 import { useAuthStore } from '../stores/auth'
 import { conditionalGet } from '../db/httpCache'
 import { groupQueryKey, getCachedSubgroups } from '../db/collections/groupCollection'
 import { subgroupsCollection } from '../db/collections/groupCollection'
 import { groupPagesCollection, getCachedGroupPages } from '../db/collections/groupCollection'
 import { groupMembershipsCollection, getCachedGroupMemberships } from '../db/collections/groupCollection'
+import type { GroupDto, GroupTab, PageSummaryDto } from '../types/group'
+import type { GroupEventRecord } from '../types/event'
 import type { GroupDto, GroupTab, PageSummaryDto } from '../types/group'
 
 type MembershipStatusLabel = 'Not joined' | 'Requested' | 'Approved' | 'Invited'
@@ -29,6 +32,7 @@ export const useGroupScreen = (groupId: string) => {
   const [groupLoading, setGroupLoading] = useState(true)
   const [error, setError] = useState('')
   const [statusMessage, setStatusMessage] = useState('')
+  const [events, setEvents] = useState<GroupEventRecord[]>([])
 
   // group（单个对象，用 conditionalGet）
   useEffect(() => {
@@ -83,6 +87,16 @@ export const useGroupScreen = (groupId: string) => {
   const canCreatePage = membership?.status === 'Approved'
   const canEditAllPages = canManageGroup
   const canPublishPages = canManageGroup
+
+  // Fetch events for leaders/co-leaders
+  useEffect(() => {
+    if (!groupId || !canManageGroup) return
+    let cancelled = false
+    eventService.getGroupEvents(groupId)
+      .then((data) => { if (!cancelled) setEvents(data) })
+      .catch(() => { if (!cancelled) setEvents([]) })
+    return () => { cancelled = true }
+  }, [groupId, canManageGroup])
 
   const summary = useMemo(() => {
     if (!group) return ''
@@ -203,6 +217,22 @@ export const useGroupScreen = (groupId: string) => {
     [queryClient, groupId, auth.language],
   )
 
+  const deleteEvent = useCallback(
+    async (eventId: string) => {
+      if (!groupId) return
+      await eventService.deleteGroupEvent(groupId, eventId)
+      setEvents((prev) => prev.filter((e) => e.id !== eventId))
+      setStatusMessage('Event deleted.')
+    },
+    [groupId],
+  )
+
+  const refreshEvents = useCallback(async () => {
+    if (!groupId) return
+    const data = await eventService.getGroupEvents(groupId)
+    setEvents(data)
+  }, [groupId])
+
   return {
     activeTab,
     setActiveTab,
@@ -210,6 +240,7 @@ export const useGroupScreen = (groupId: string) => {
     subgroups,
     pages,
     memberships,
+    events,
     loading,
     error,
     statusMessage,
@@ -226,6 +257,7 @@ export const useGroupScreen = (groupId: string) => {
     refreshSubgroups,
     refreshPages,
     refreshMemberships,
+    refreshEvents,
     joinOrRequest,
     addSubgroup,
     inviteMember,
@@ -237,6 +269,7 @@ export const useGroupScreen = (groupId: string) => {
     deleteSubgroup,
     deletePage,
     togglePageVisibility,
+    deleteEvent,
   }
 }
 

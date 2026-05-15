@@ -13,6 +13,7 @@ import PageEditorView from './views/PageEditorView'
 import PagePreviewDraftView from './views/PagePreviewDraftView'
 import PageView from './views/PageView'
 import SermonsView from './views/SermonsView'
+import EventCreatorView from './views/EventCreatorView'
 
 type ShellNavItem = {
   label: string
@@ -60,6 +61,14 @@ const AdminIcon = () => (
   <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3Z" />
     <path d="M9 12l2 2 4-4" />
+  </svg>
+)
+
+const EventsIcon = () => (
+  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+    <rect x="3" y="4" width="18" height="18" rx="2" />
+    <path d="M16 2v4M8 2v4M3 10h18" />
+    <path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01" />
   </svg>
 )
 
@@ -255,6 +264,7 @@ const App = () => {
   const appNavItems: ShellNavItem[] = [
     { label: 'Home', to: '/', icon: <HomeIcon /> },
     { label: 'Sermons', to: '/sermons', icon: <SermonsIcon /> },
+    { label: 'Events', to: '/events/new', icon: <EventsIcon /> },
     ...(!auth.loading && auth.isGuest ? [{ label: 'Onboarding', to: '/onboarding', icon: <OnboardingIcon /> }] : []),
     ...(!auth.loading && auth.me?.isAdmin ? [{ label: 'Admin', to: '/admin', icon: <AdminIcon /> }] : []),
   ]
@@ -341,6 +351,7 @@ const App = () => {
             <Route path="/groups/:groupId" element={<GroupDetailView />} />
             <Route path="/pages/:slug" element={<PageView />} />
             <Route path="/sermons" element={<SermonsView />} />
+            <Route path="/events/new" element={<EventCreatorView />} />
             <Route path="/groups/:groupId/pages/new" element={<PageEditorView />} />
             <Route path="/pages/:pageId/edit" element={<PageEditorView />} />
             <Route path="/pages/preview-draft" element={<PagePreviewDraftView />} />

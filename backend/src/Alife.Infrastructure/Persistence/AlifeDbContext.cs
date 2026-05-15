@@ -14,6 +14,7 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 	public DbSet<Section> Sections => Set<Section>();
 	public DbSet<Link> Links => Set<Link>();
 	public DbSet<Sermon> Sermons => Set<Sermon>();
+	public DbSet<GroupEvent> GroupEvents => Set<GroupEvent>();
 
 	protected override void OnModelCreating(ModelBuilder modelBuilder)
 	{
@@ -114,6 +115,27 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 			cfg.HasIndex(x => x.YoutubeVideoId).IsUnique();
 			cfg.HasIndex(x => x.SortOrder);
 			cfg.HasIndex(x => x.UpdatedUtc);
+			cfg.HasQueryFilter(x => !x.IsDeleted);
+		});
+
+		modelBuilder.Entity<GroupEvent>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.TitleEn).HasMaxLength(300).IsRequired();
+			cfg.Property(x => x.TitleZh).HasMaxLength(300).IsRequired();
+
+			cfg.HasOne(x => x.Group)
+				.WithMany()
+				.HasForeignKey(x => x.GroupId)
+				.OnDelete(DeleteBehavior.Restrict);
+
+			cfg.HasOne(x => x.CreatedByMember)
+				.WithMany()
+				.HasForeignKey(x => x.CreatedByMemberId)
+				.OnDelete(DeleteBehavior.Restrict);
+
+			cfg.HasIndex(x => new { x.GroupId, x.UpdatedUtc });
+			cfg.HasIndex(x => x.CreatedByMemberId);
 			cfg.HasQueryFilter(x => !x.IsDeleted);
 		});
 	}

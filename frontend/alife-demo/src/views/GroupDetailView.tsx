@@ -16,6 +16,7 @@ const GroupDetailView = () => {
     subgroups,
     pages,
     memberships,
+    events,
     loading,
     error,
     statusMessage,
@@ -38,6 +39,7 @@ const GroupDetailView = () => {
     rejectMember,
     kickMember,
     setCoLeader,
+    deleteEvent,
   } = useGroupScreen(groupId)
 
   useEffect(() => {
@@ -52,6 +54,7 @@ const GroupDetailView = () => {
       subgroups={subgroups}
       pages={pages}
       memberships={memberships}
+      events={events}
       loading={loading}
       error={error}
       activeTab={activeTab}
@@ -146,6 +149,15 @@ const GroupDetailView = () => {
       onSetCoLeader={(memberId, isCoLeader) => {
         setCoLeader(memberId, isCoLeader).catch(() => {
           setStatusMessage('Failed to update co-leader.')
+        })
+      }}
+      onDeleteEvent={(eventId) => {
+        if (!window.confirm('Delete this event?')) {
+          return
+        }
+
+        deleteEvent(eventId).catch(() => {
+          setStatusMessage('Failed to delete event.')
         })
       }}
     />
