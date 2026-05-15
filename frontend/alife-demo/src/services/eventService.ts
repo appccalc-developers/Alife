@@ -1,5 +1,5 @@
 import type { ExtractEventFromChatResponse, EventSessionState, EventDto, GroupEventRecord } from '../types/event'
-import { sameOriginHttp } from './http'
+import { http, sameOriginHttp } from './http'
 
 export const eventService = {
   extractFromChat: async (
@@ -24,14 +24,14 @@ export const eventService = {
     new EventSource(`/api/events/session/${encodeURIComponent(sessionId)}/stream`),
 
   getGroupEvents: async (groupId: string): Promise<GroupEventRecord[]> => {
-    const { data } = await sameOriginHttp.get<GroupEventRecord[]>(`/api/groups/${groupId}/events`)
+    const { data } = await http.get<GroupEventRecord[]>(`/api/groups/${groupId}/events`)
     return data
   },
 
   createGroupEvent: async (groupId: string, eventDto: EventDto): Promise<GroupEventRecord> => {
     const titleEn = eventDto.title.en || eventDto.title.zh || ''
     const titleZh = eventDto.title.zh || eventDto.title.en || ''
-    const { data } = await sameOriginHttp.post<GroupEventRecord>(`/api/groups/${groupId}/events`, {
+    const { data } = await http.post<GroupEventRecord>(`/api/groups/${groupId}/events`, {
       titleEn,
       titleZh,
       startDate: eventDto.startDate,
@@ -42,6 +42,6 @@ export const eventService = {
   },
 
   deleteGroupEvent: async (groupId: string, eventId: string): Promise<void> => {
-    await sameOriginHttp.delete(`/api/groups/${groupId}/events/${eventId}`)
+    await http.delete(`/api/groups/${groupId}/events/${eventId}`)
   },
 }
