@@ -56,3 +56,16 @@ export type EventSessionSsePayload = {
   type: 'eventDraft'
   state: EventSessionState
 }
+
+export type GroupEventRecord = {
+  id: string
+  groupId: string
+  createdByMemberId: string
+  titleEn: string
+  titleZh: string
+  startDate: string
+  endDate: string
+  eventDataJson: string
+  createdUtc: string
+  updatedUtc: string
+}

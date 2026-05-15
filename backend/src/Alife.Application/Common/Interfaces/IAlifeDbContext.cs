@@ -12,6 +12,7 @@ public interface IAlifeDbContext
     DbSet<Section> Sections { get; }
     DbSet<Link> Links { get; }
     DbSet<Sermon> Sermons { get; }
+    DbSet<GroupEvent> GroupEvents { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
