@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import type { EventDto, EventSessionSsePayload, EventSessionState, MultilingualString } from '../types/event'
 import { eventService } from '../services/eventService'
 import { normalizeApiError } from '../services/http'
 import { useAuthStore } from '../stores/auth'
+import { useCurrentGroupStore } from '../stores/currentGroup'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
@@ -209,6 +211,11 @@ const getSpeechRecognition = (): SpeechRecognitionConstructor | null => {
 
 const EventCreatorView = () => {
   const { language, me } = useAuthStore()
+  const { CurrentGroup } = useCurrentGroupStore()
+  const [searchParams] = useSearchParams()
+  const groupIdFromParams = searchParams.get('groupId')
+  const effectiveGroupId = groupIdFromParams ?? CurrentGroup?.id ?? null
+
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: 'assistant',
@@ -222,6 +229,7 @@ const EventCreatorView = () => {
   const [eventDraft, setEventDraft] = useState<EventDto | null>(null)
   const [aiInsight, setAiInsight] = useState<MultilingualString | null>(null)
   const [error, setError] = useState('')
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const sessionIdRef = useRef(createSessionId(me?.id))
   const speechRecognitionRef = useRef<SpeechRecognitionLike | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -281,6 +289,7 @@ const EventCreatorView = () => {
       if (response.responseMode === 'result' && response.result) {
         const dto = response.result
         setEventDraft(dto)
+        setSaveStatus('idle')
         setAiInsight(response.legacySummary ?? dto.legacySummary ?? null)
         const lang = language === 'zh' ? dto.title.zh : dto.title.en
         setMessages((prev) => [
@@ -356,19 +365,48 @@ const EventCreatorView = () => {
     setListening(true)
   }
 
-  const handleCommitDraft = () => {
+  const handleCommitDraft = async () => {
     if (!eventDraft) {
       return
     }
 
     const eventName = (language === 'zh' ? eventDraft.title.zh : eventDraft.title.en) || eventDraft.title.en || eventDraft.title.zh || 'your event'
-    setMessages((prev) => [
-      ...prev,
-      {
-        role: 'assistant',
-        text: `✅ "${eventName}" marked as committed in this draft preview.`,
-      },
-    ])
+
+    if (!effectiveGroupId) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          text: `⚠️ No group selected. Please navigate to a group first, or use the "Events" link in a group's tools drawer.`,
+        },
+      ])
+      scrollToBottom()
+      return
+    }
+
+    setSaveStatus('saving')
+    try {
+      await eventService.createGroupEvent(effectiveGroupId, eventDraft)
+      setSaveStatus('saved')
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          text: `✅ "${eventName}" has been saved to the group successfully! You can view it in the group's Events section.`,
+        },
+      ])
+    } catch (err) {
+      setSaveStatus('error')
+      const apiError = normalizeApiError(err)
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          text: `❌ Failed to save event: ${apiError.message}`,
+          markdown: true,
+        },
+      ])
+    }
     scrollToBottom()
   }
 
@@ -480,13 +518,20 @@ const EventCreatorView = () => {
       )}
       {eventDraft && <EventPreview event={eventDraft} lang={language} />}
       {eventDraft && (
-        <div className="flex justify-end">
+        <div className="flex items-center justify-end gap-3">
+          {!effectiveGroupId && (
+            <p className="text-xs text-amber-600">No group context — open from a group to save.</p>
+          )}
+          {saveStatus === 'saved' && (
+            <p className="text-xs text-emerald-600">✓ Event saved to group</p>
+          )}
           <button
             type="button"
-            onClick={handleCommitDraft}
-            className="inline-flex items-center rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800"
+            onClick={() => { void handleCommitDraft() }}
+            disabled={saveStatus === 'saving'}
+            className="inline-flex items-center rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 disabled:opacity-60"
           >
-            Commit
+            {saveStatus === 'saving' ? 'Saving…' : 'Save to Group'}
           </button>
         </div>
       )}

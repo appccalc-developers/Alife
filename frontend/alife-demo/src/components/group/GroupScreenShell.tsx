@@ -4,6 +4,7 @@ import AppPageShell from '../layout/AppPageShell'
 import AppSectionCard from '../layout/AppSectionCard'
 import type { GroupDto, GroupPageDto, GroupSummaryDto, GroupTab } from '../../types/group'
 import type { GroupMemberToolRow } from '../../hooks/useGroupScreen'
+import type { GroupEventRecord } from '../../types/event'
 import GroupPageTabs from './GroupPageTabs'
 import GroupToolsDrawer from './GroupToolsDrawer'
 
@@ -12,6 +13,7 @@ type Props = {
   subgroups: GroupSummaryDto[]
   pages: GroupPageDto[]
   memberships?: GroupMemberToolRow[]
+  events?: GroupEventRecord[]
   loading: boolean
   error: string
   activeTab: GroupTab
@@ -38,6 +40,7 @@ type Props = {
   onRejectMember?: (memberId: string) => void
   onKickMember?: (memberId: string) => void
   onSetCoLeader?: (memberId: string, isCoLeader: boolean) => void
+  onDeleteEvent?: (eventId: string) => void
 }
 
 const GroupScreenShell = ({
@@ -45,6 +48,7 @@ const GroupScreenShell = ({
   subgroups,
   pages,
   memberships = [],
+  events = [],
   loading,
   error,
   activeTab,
@@ -71,6 +75,7 @@ const GroupScreenShell = ({
   onRejectMember = () => undefined,
   onKickMember = () => undefined,
   onSetCoLeader = () => undefined,
+  onDeleteEvent = () => undefined,
 }: Props) => {
   const [toolsOpen, setToolsOpen] = useState(false)
   const [pageContentMode, setPageContentMode] = useState<'view' | 'edit'>('view')
@@ -128,6 +133,7 @@ const GroupScreenShell = ({
             subgroups={subgroups}
             pages={pages}
             memberships={memberships}
+            events={events}
             membershipStatus={membershipStatus}
             membershipRole={membershipRole}
             canManageGroup={canManageGroup}
@@ -151,6 +157,7 @@ const GroupScreenShell = ({
             onRejectMember={onRejectMember}
             onKickMember={onKickMember}
             onSetCoLeader={onSetCoLeader}
+            onDeleteEvent={onDeleteEvent}
           />
         </div>
       ) : null}
