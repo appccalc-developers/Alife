@@ -135,6 +135,7 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 				.OnDelete(DeleteBehavior.Restrict);
 
 			cfg.HasIndex(x => new { x.GroupId, x.UpdatedUtc });
+			cfg.HasIndex(x => x.CreatedByMemberId);
 			cfg.HasQueryFilter(x => !x.IsDeleted);
 		});
 	}
