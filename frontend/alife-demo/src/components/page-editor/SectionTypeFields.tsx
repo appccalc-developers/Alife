@@ -979,7 +979,7 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
 
       {type === 'GroupList' ? (
         <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Group List Metadata (Smart Source)</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">ListView</p>
 
           <label className="block space-y-1">
             <span className="text-xs font-medium text-slate-600">Source Type</span>

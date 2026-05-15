@@ -20,7 +20,7 @@ type Props = {
 
 const sectionTypes: SectionType[] = ['Hero', 'MediaSpotlight', 'IconFeatureGrid', 'SermonSpotlight', 'RichText', 'GroupList']
 const sectionTypeLabel = (type: SectionType) =>
-  type === 'IconFeatureGrid' ? 'Icon Feature Grid' : type === 'SermonSpotlight' ? 'Sermon Spotlight' : type === 'GroupList' ? 'Group List (Smart)' : type
+  type === 'IconFeatureGrid' ? 'Icon Feature Grid' : type === 'SermonSpotlight' ? 'Sermon Spotlight' : type === 'GroupList' ? 'ListView' : type
 
 const stringifyPretty = (value: unknown) => JSON.stringify(value ?? {}, null, 2)
 const DEFAULT_HERO_IMAGE = 'https://images.unsplash.com/photo-1529070538774-1843cb3265df?w=1600&q=80'
