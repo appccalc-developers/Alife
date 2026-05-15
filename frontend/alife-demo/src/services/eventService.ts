@@ -1,5 +1,5 @@
 import type { ExtractEventFromChatResponse, EventSessionState } from '../types/event'
-import { http } from './http'
+import { sameOriginHttp } from './http'
 
 export const eventService = {
   extractFromChat: async (
@@ -7,7 +7,7 @@ export const eventService = {
     sessionId: string,
     inputMode: 'text' | 'voice' = 'text',
   ): Promise<ExtractEventFromChatResponse> => {
-    const { data } = await http.post<ExtractEventFromChatResponse>('/api/events/extract', {
+    const { data } = await sameOriginHttp.post<ExtractEventFromChatResponse>('/api/events/extract', {
       message,
       sessionId,
       inputMode,
@@ -16,7 +16,7 @@ export const eventService = {
   },
 
   getSessionState: async (sessionId: string): Promise<EventSessionState> => {
-    const { data } = await http.get<EventSessionState>(`/api/events/session/${encodeURIComponent(sessionId)}/state`)
+    const { data } = await sameOriginHttp.get<EventSessionState>(`/api/events/session/${encodeURIComponent(sessionId)}/state`)
     return data
   },
 

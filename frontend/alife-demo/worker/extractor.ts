@@ -1,7 +1,7 @@
 import type { Env } from './index'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com'
-const DEFAULT_GEMINI_MODEL = 'gemini-3-pro'
+const DEFAULT_GEMINI_MODEL = 'gemini-3.1-flash-lite'
 const DEFAULT_SESSION_ID = 'default'
 const SESSION_STORAGE_KEY = 'event-session-state'
 
@@ -51,7 +51,6 @@ type ChatMessage = {
 type SessionState = {
   sessionId: string
   eventDraft: EventDto | null
-  legacySummary: MultilingualString | null
   chatHistory: ChatMessage[]
   updatedAt: string
 }
@@ -121,13 +120,13 @@ const EVENT_DTO_RESPONSE_SCHEMA = {
         },
       },
     },
-    baseFeePerAdult: { type: ['number', 'null'] },
-    baseFeePerChild: { type: ['number', 'null'] },
+    baseFeePerAdult: { type: 'number', nullable: true },
+    baseFeePerChild: { type: 'number', nullable: true },
     currency: { type: 'string' },
-    posterImageUrl: { type: ['string', 'null'] },
+    posterImageUrl: { type: 'string', nullable: true },
     galleryUrls: { type: 'array', items: { type: 'string' } },
     legacySummary: {
-      type: ['object', 'null'],
+      type: 'object',
       description: 'Creative ideas, venue research, logistics suggestions, and conversational context that are not strict DTO facts.',
       properties: {
         zh: { type: 'string' },
@@ -152,8 +151,7 @@ Critical extraction rules:
 6. Do not fabricate precise dates, prices, capacities, or venue facts. If the user gives only a month, set the date fields to the first day and include the ambiguity in legacySummary.
 7. The current reference date is CURRENT_DATE_PLACEHOLDER.
 
-West Coast demo calibration:
-If the user mentions Wainui Park, a March camp, and asks about the hall, create or update a Wainui Park Camp draft. Put the hall inquiry in legacySummary. If an insight sentence is useful, include this English wording in legacySummary.en: "I've noted the hall inquiry. Wainui Park has a hall for 80 people; would you like me to add it to the budget?"`
+`
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -440,7 +438,7 @@ function normalizeEventDto(value: unknown): EventDto {
     currency: typeof candidate.currency === 'string' && candidate.currency.trim() ? candidate.currency : 'NZD',
     posterImageUrl: typeof candidate.posterImageUrl === 'string' ? candidate.posterImageUrl : null,
     galleryUrls: Array.isArray(candidate.galleryUrls) ? candidate.galleryUrls.filter((url) => typeof url === 'string') : [],
-    legacySummary: candidate.legacySummary == null ? null : normalizeMultilingualString(candidate.legacySummary),
+    legacySummary: candidate.legacySummary,
   }
 }
 

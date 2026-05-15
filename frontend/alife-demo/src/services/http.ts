@@ -45,12 +45,20 @@ const productionBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').trim()
 // In dev, same-origin `/api/*` is proxied by Vite (see vite.config.ts) so the browser never hits cross-origin CORS.
 const baseURL = import.meta.env.DEV ? '' : productionBaseUrl
 
-export const http = axios.create({
+const attachErrorNormalization = (client: ReturnType<typeof axios.create>) => {
+  client.interceptors.response.use(
+    (response) => response,
+    (error) => Promise.reject(normalizeApiError(error)),
+  )
+
+  return client
+}
+
+export const http = attachErrorNormalization(axios.create({
   baseURL,
   withCredentials: true,
-})
+}))
 
-http.interceptors.response.use(
-  (response) => response,
-  (error) => Promise.reject(normalizeApiError(error)),
-)
+export const sameOriginHttp = attachErrorNormalization(axios.create({
+  withCredentials: true,
+}))

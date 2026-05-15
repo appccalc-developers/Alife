@@ -356,6 +356,22 @@ const EventCreatorView = () => {
     setListening(true)
   }
 
+  const handleCommitDraft = () => {
+    if (!eventDraft) {
+      return
+    }
+
+    const eventName = (language === 'zh' ? eventDraft.title.zh : eventDraft.title.en) || eventDraft.title.en || eventDraft.title.zh || 'your event'
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: 'assistant',
+        text: `✅ "${eventName}" marked as committed in this draft preview.`,
+      },
+    ])
+    scrollToBottom()
+  }
+
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
       <div>
@@ -463,6 +479,17 @@ const EventCreatorView = () => {
         </div>
       )}
       {eventDraft && <EventPreview event={eventDraft} lang={language} />}
+      {eventDraft && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={handleCommitDraft}
+            className="inline-flex items-center rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800"
+          >
+            Commit
+          </button>
+        </div>
+      )}
     </div>
   )
 }
