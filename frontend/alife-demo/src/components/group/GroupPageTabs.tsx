@@ -243,6 +243,7 @@ const GroupPageTabs = ({
               canEditVisibility={canEditAllPages}
               message={message}
               validation={validation}
+              contextGroupId={activePage.ownerGroupId ?? activeModel.groupId}
               onChange={updateActiveModel}
             />
             <div className="flex flex-wrap items-center justify-end gap-2">

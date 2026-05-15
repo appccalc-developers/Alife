@@ -13,9 +13,10 @@ type Props = {
   onRemove: (index: number) => void
   onMoveUp: (index: number) => void
   onMoveDown: (index: number) => void
+  contextGroupId?: string
 }
 
-const SectionListEditor = ({ sections, canEdit, sectionTypeErrors, onAdd, onUpdate, onRemove, onMoveUp, onMoveDown }: Props) => (
+const SectionListEditor = ({ sections, canEdit, sectionTypeErrors, onAdd, onUpdate, onRemove, onMoveUp, onMoveDown, contextGroupId }: Props) => (
   <AppSectionCard title="Section List" subtitle="Compose your page with modular content blocks.">
     {sections.length === 0 ? (
       <AppEmptyState
@@ -34,6 +35,7 @@ const SectionListEditor = ({ sections, canEdit, sectionTypeErrors, onAdd, onUpda
             total={sections.length}
             canEdit={canEdit}
             typeError={sectionTypeErrors[index]}
+            contextGroupId={contextGroupId}
             onUpdate={(nextSection) => onUpdate({ index, section: nextSection })}
             onRemove={() => onRemove(index)}
             onMoveUp={() => onMoveUp(index)}

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { parseLimit, readText } from '../../utils/pageSectionContent'
+import { GroupListSection } from '../sections/GroupListSection'
 import type { GroupPageDto } from '../../types/group'
 import type { SectionEditModel } from '../../types/page-editor'
 
@@ -55,7 +56,7 @@ const toYouTubeEmbedUrl = (rawUrl: string) => {
   return ''
 }
 
-const PageContentRenderer = ({ page, sections, subgroupItems, groupPageItems, showHeader = true, framed = true, onEditPage }: Props) => (
+const PageContentRenderer = ({ page, sections, groupPageItems, showHeader = true, framed = true, onEditPage }: Props) => (
   <article className={framed ? 'space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5' : 'space-y-4'}>
     {showHeader ? (
       <header className="space-y-2 border-b border-slate-200 pb-3">
@@ -333,22 +334,13 @@ const PageContentRenderer = ({ page, sections, subgroupItems, groupPageItems, sh
         }
 
         if (section.type === 'GroupList') {
+          // New smart GroupListSection: resolves data via useListSourceResolver using the section's metadata
           return (
-            <section key={key} className="rounded-lg border border-slate-200 bg-white p-4">
-              <h3 className="text-lg font-semibold text-slate-900">{readText(section.contentJson, 'title') || 'Groups'}</h3>
-              {readText(section.contentJson, 'description') ? (
-                <p className="mt-1 text-sm text-slate-600">{readText(section.contentJson, 'description')}</p>
-              ) : null}
-              <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-                {subgroupItems.slice(0, parseLimit(section.contentJson, 'limit', 6)).map((group) => (
-                  <li key={group.id} className="rounded border border-slate-200 bg-slate-50 px-3 py-2">
-                    <p className="font-medium text-slate-900">{group.name}</p>
-                    <p className="text-xs text-slate-500">Access: {group.accessType}</p>
-                  </li>
-                ))}
-              </ul>
-              {subgroupItems.length === 0 ? <p className="mt-3 text-sm text-slate-500">No groups available.</p> : null}
-            </section>
+            <GroupListSection
+              key={key}
+              metadata={section.contentJson as Record<string, unknown>}
+              groupId={page.ownerGroupId ?? undefined}
+            />
           )
         }
 

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { GroupListSection } from '../sections/GroupListSection'
 import type { JsonMap, SectionType } from '../../types/page-editor'
 
 type Props = {
@@ -8,6 +9,8 @@ type Props = {
   disabled?: boolean
   onContentChange: (value: JsonMap) => void
   onStyleChange: (value: JsonMap) => void
+  /** Current page group id — required for subgroup/member/group-page list previews in editor */
+  contextGroupId?: string
 }
 
 const readText = (source: JsonMap, key: string) => {
@@ -66,7 +69,7 @@ const toYouTubeEmbedUrl = (rawUrl: string) => {
   return ''
 }
 
-const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentChange, onStyleChange }: Props) => {
+const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentChange, onStyleChange, contextGroupId }: Props) => {
   const [selectedFileName, setSelectedFileName] = useState('')
   const [imageSourceMode, setImageSourceMode] = useState<'url' | 'upload'>('url')
   const patchContent = (patch: JsonMap) => onContentChange({ ...contentJson, ...patch })
@@ -914,23 +917,69 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
       ) : null}
 
       {type === 'GroupList' ? (
-        <>
-          <input
-            value={readText(contentJson, 'title')}
-            disabled={disabled}
-            className="w-full rounded border border-slate-300 px-2 py-1 text-sm disabled:bg-slate-100"
-            placeholder="List title"
-            onChange={(event) => patchContent({ title: event.target.value })}
-          />
-          <textarea
-            value={readText(contentJson, 'description')}
-            disabled={disabled}
-            rows={3}
-            className="w-full rounded border border-slate-300 px-2 py-1 text-sm disabled:bg-slate-100"
-            placeholder="List description"
-            onChange={(event) => patchContent({ description: event.target.value })}
-          />
-        </>
+        <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Group List Metadata (Smart Source)</p>
+
+          <label className="block space-y-1">
+            <span className="text-xs font-medium text-slate-600">Source Type</span>
+            <select
+              value={readText(contentJson, 'sourceType') || 'sermons'}
+              disabled={disabled}
+              className="w-full rounded border border-slate-300 px-2 py-1 text-sm disabled:bg-slate-100"
+              onChange={(event) => patchContent({ sourceType: event.target.value })}
+            >
+              <option value="sermons">Sermons</option>
+              <option value="events">Events</option>
+              <option value="pages">Pages</option>
+              <option value="subgroups">Subgroups</option>
+              <option value="members">Members</option>
+            </select>
+          </label>
+
+          <label className="block space-y-1">
+            <span className="text-xs font-medium text-slate-600">Source Scope</span>
+            <select
+              value={readText(contentJson, 'sourceScope') || 'global'}
+              disabled={disabled}
+              className="w-full rounded border border-slate-300 px-2 py-1 text-sm disabled:bg-slate-100"
+              onChange={(event) => patchContent({ sourceScope: event.target.value })}
+            >
+              <option value="global">Global (Church-wide)</option>
+              <option value="group">Group Scope</option>
+            </select>
+            <p className="text-xs text-slate-400">
+              {readText(contentJson, 'sourceType') === 'sermons' ? 'Sermons are always global.' :
+               readText(contentJson, 'sourceType') === 'members' || readText(contentJson, 'sourceType') === 'subgroups' ? 'Members & subgroups are always group-scoped.' :
+               'Events and pages can be global or group-scoped.'}
+            </p>
+          </label>
+
+          <label className="block space-y-1">
+            <span className="text-xs font-medium text-slate-600">Limit</span>
+            <input
+              type="number"
+              min={1}
+              max={50}
+              value={typeof contentJson.limit === 'number' ? contentJson.limit : 10}
+              disabled={disabled}
+              className="w-full rounded border border-slate-300 px-2 py-1 text-sm disabled:bg-slate-100"
+              onChange={(event) => patchContent({ limit: Math.min(Math.max(parseInt(event.target.value) || 10, 1), 50) })}
+            />
+          </label>
+
+          <div className="space-y-2 border-t border-slate-100 pt-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Live preview (TanStack DB)</p>
+            {!contextGroupId &&
+            (readText(contentJson, 'sourceType') === 'subgroups' ||
+              readText(contentJson, 'sourceType') === 'members' ||
+              (readText(contentJson, 'sourceType') === 'pages' && readText(contentJson, 'sourceScope') === 'group')) ? (
+              <p className="text-xs text-amber-700">
+                Add <code className="rounded bg-amber-50 px-1">?groupId=…</code> to the editor URL or open create-page from a group so subgroup / member / group-page lists can load.
+              </p>
+            ) : null}
+            <GroupListSection metadata={contentJson} groupId={contextGroupId} compact />
+          </div>
+        </div>
       ) : null}
 
       {type === 'PageList' ? (

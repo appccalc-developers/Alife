@@ -4,6 +4,14 @@ export type MembershipRole = 'Member' | 'CoLeader' | 'Leader'
 export type PageScope = 'Global' | 'Group'
 export type PageVisibility = 'InvisibleDraft' | 'VisibleToGroup' | 'VisiblePublic'
 
+export type ListSourceType = 'sermons' | 'pages' | 'subgroups' | 'events' | 'members'
+export type ListSourceScope = 'group' | 'global'
+export interface ListViewMetadata {
+  sourceType: ListSourceType
+  sourceScope: ListSourceScope
+  limit: number
+}
+
 export type GroupDto = {
   id: string
   name: string
@@ -123,3 +131,4 @@ export type PageEditorValidation = {
   title?: string
   sectionTypeErrors: string[]
 }
+
