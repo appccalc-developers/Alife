@@ -938,7 +938,7 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
 
           {readText(contentJson, 'sourceType') === 'pages' ? (
             <input type="hidden" value="group" />
-          ) : (
+          ) : readText(contentJson, 'sourceType') !== 'events' ? (
             <label className="block space-y-1">
               <span className="text-xs font-medium text-slate-600">Source Scope</span>
               <select
@@ -956,20 +956,149 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
                  'Events can be global or group-scoped.'}
               </p>
             </label>
-          )}
+          ) : readText(contentJson, 'sourceType') === 'events' ? (
+            <input type="hidden" value="global" />
+          ) : null}
 
-          <label className="block space-y-1">
-            <span className="text-xs font-medium text-slate-600">Limit</span>
-            <input
-              type="number"
-              min={1}
-              max={50}
-              value={typeof contentJson.limit === 'number' ? contentJson.limit : 10}
-              disabled={disabled}
-              className="w-full rounded border border-slate-300 px-2 py-1 text-sm disabled:bg-slate-100"
-              onChange={(event) => patchContent({ limit: Math.min(Math.max(parseInt(event.target.value) || 10, 1), 50) })}
-            />
-          </label>
+          {readText(contentJson, 'sourceType') !== 'events' ? (
+            <label className="block space-y-1">
+              <span className="text-xs font-medium text-slate-600">Limit</span>
+              <input
+                type="number"
+                min={1}
+                max={50}
+                value={typeof contentJson.limit === 'number' ? contentJson.limit : 10}
+                disabled={disabled}
+                className="w-full rounded border border-slate-300 px-2 py-1 text-sm disabled:bg-slate-100"
+                onChange={(event) => patchContent({ limit: Math.min(Math.max(parseInt(event.target.value) || 10, 1), 50) })}
+              />
+            </label>
+          ) : null}
+
+          {readText(contentJson, 'sourceType') === 'events' ? (
+            <div className="space-y-3 rounded-lg border border-blue-100 bg-blue-50 p-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-blue-600">Event 可视化编辑</p>
+
+              <div className="overflow-hidden rounded-lg border border-slate-200">
+                <div
+                  className="bg-cover bg-center px-4 py-10 text-white sm:px-6 sm:py-14"
+                  style={{
+                    backgroundImage: `linear-gradient(rgba(15, 23, 42, 0.6), rgba(15, 23, 42, 0.6)), url(${typeof contentJson.eventBackgroundImage === 'string' ? contentJson.eventBackgroundImage : '' || ''})`,
+                  }}
+                >
+                  <div className="mx-auto max-w-2xl text-center">
+                    <h2
+                      role="textbox"
+                      contentEditable={!disabled}
+                      suppressContentEditableWarning
+                      className="inline-block rounded px-2 py-1 text-2xl font-bold tracking-wide outline-none focus:bg-black/20 sm:text-4xl"
+                      onBlur={(event) => {
+                        const value = event.currentTarget.textContent ?? ''
+                        patchContent({ eventTitle: value })
+                      }}
+                    >
+                      {readText(contentJson, 'eventTitle') || 'Event Title'}
+                    </h2>
+                    <p
+                      role="textbox"
+                      contentEditable={!disabled}
+                      suppressContentEditableWarning
+                      className="mt-3 inline-block whitespace-pre-wrap rounded px-2 py-1 text-base text-slate-100 outline-none focus:bg-black/20 sm:text-lg"
+                      onBlur={(event) => {
+                        const value = event.currentTarget.textContent ?? ''
+                        patchContent({ eventDescription: value })
+                      }}
+                    >
+                      {typeof contentJson.eventDescription === 'string' ? contentJson.eventDescription : '' || 'Event description goes here'}
+                    </p>
+                    <div className="mt-4 flex items-center justify-center gap-2 text-sm text-slate-200">
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span
+                        role="textbox"
+                        contentEditable={!disabled}
+                        suppressContentEditableWarning
+                        className="inline-block rounded px-1 outline-none focus:bg-black/20"
+                        onBlur={(event) => {
+                          const value = event.currentTarget.textContent ?? ''
+                          patchContent({ eventStartDate: value })
+                        }}
+                      >
+                        {typeof contentJson.eventStartDate === 'string' ? contentJson.eventStartDate : '' || 'Start date'}
+                      </span>
+                      {typeof contentJson.eventEndDate === 'string' && contentJson.eventEndDate ? (
+                        <>
+                          <span>-</span>
+                          <span
+                            role="textbox"
+                            contentEditable={!disabled}
+                            suppressContentEditableWarning
+                            className="inline-block rounded px-1 outline-none focus:bg-black/20"
+                            onBlur={(event) => {
+                              const value = event.currentTarget.textContent ?? ''
+                              patchContent({ eventEndDate: value })
+                            }}
+                          >
+                            {contentJson.eventEndDate}
+                          </span>
+                        </>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-2 md:grid-cols-2">
+                <select
+                  value={imageSourceMode}
+                  disabled={disabled}
+                  className="h-9 w-full rounded border border-slate-300 px-2 text-sm disabled:bg-slate-100"
+                  onChange={(event) => setImageSourceMode(event.target.value as 'url' | 'upload')}
+                >
+                  <option value="url">URL</option>
+                  <option value="upload">Upload</option>
+                </select>
+                {imageSourceMode === 'upload' ? (
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled={disabled}
+                    className="h-9 w-full rounded border border-slate-300 px-2 text-sm file:mr-3 file:rounded file:border-0 file:bg-slate-200 file:px-2 file:py-1 file:text-xs file:font-medium disabled:bg-slate-100"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0]
+                      setSelectedFileName(file?.name ?? '')
+                      if (!file) {
+                        return
+                      }
+                      const reader = new FileReader()
+                      reader.onload = () => {
+                        const dataUrl = typeof reader.result === 'string' ? reader.result : ''
+                        if (!dataUrl) {
+                          return
+                        }
+                        patchContent({ eventBackgroundImage: dataUrl })
+                      }
+                      reader.readAsDataURL(file)
+                    }}
+                  />
+                ) : (
+                  <input
+                    value={typeof contentJson.eventBackgroundImage === 'string' ? contentJson.eventBackgroundImage : ''}
+                    disabled={disabled}
+                    className="h-9 w-full rounded border border-slate-300 px-2 text-sm disabled:bg-slate-100"
+                    placeholder="Background image URL"
+                    onChange={(event) => patchContent({ eventBackgroundImage: event.target.value })}
+                  />
+                )}
+              </div>
+              {selectedFileName ? (
+                <p className="text-xs text-amber-700">
+                  Selected: {selectedFileName}. Preview is applied locally; backend upload API is not connected yet.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="space-y-2 border-t border-slate-100 pt-3">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Live preview (TanStack DB)</p>
