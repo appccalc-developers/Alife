@@ -52,13 +52,15 @@ export function memberToCardItem(member: { memberId: string; status: string; rol
   }
 }
 
-export function pageToCardItem(page: any): UniversalCardItem {
+export function pageToCardItem(page: any, groupId?: string): UniversalCardItem {
+  const pageId = (page as { id: string }).id
+  const slug = (page as { slug?: string }).slug
   return {
-    id: page.id,
+    id: pageId,
     title: page.title || 'Untitled Page',
-    subtitle: (page as { description?: string }).description || (page as { slug?: string }).slug || '',
+    subtitle: (page as { description?: string }).description || slug || '',
     date: (page as { updatedUtc?: string }).updatedUtc,
-    url: `/pages/${(page as { slug?: string }).slug || page.id}`,
+    url: groupId ? `/groups/${groupId}?page=${encodeURIComponent(pageId)}` : `/pages/${slug || pageId}`,
     type: 'page',
   }
 }
@@ -148,10 +150,13 @@ export const GroupListSection: React.FC<GroupListSectionProps> = ({ metadata, gr
   const { data, isLoading, error } = useListSourceResolver(meta, { groupId })
 
   const cardItems = useMemo(() => {
+    if (meta.sourceType === 'pages') {
+      return (data ?? []).map((item: any) => pageToCardItem(item, groupId)).filter(Boolean)
+    }
     const adapter = adapterMap[meta.sourceType]
     if (!adapter || !data) return []
     return data.map((item) => adapter(item)).filter(Boolean)
-  }, [data, meta.sourceType])
+  }, [data, meta.sourceType, groupId])
 
   const gridCls = compact ? 'grid grid-cols-1 gap-2 sm:grid-cols-2' : 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3'
   const shellPad = compact ? 'p-2' : 'p-4'

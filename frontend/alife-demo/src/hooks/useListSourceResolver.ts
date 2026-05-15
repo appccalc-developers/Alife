@@ -7,7 +7,6 @@ import {
   groupMembershipsCollection,
   groupPagesCollection,
 } from '../db/collections/groupCollection'
-import { globalPagesCollection } from '../db/collections/pageCollection'
 import { useAuthStore } from '../stores/auth'
 import type { ListViewMetadata } from '../types/page-editor'
 import type { SermonDto } from '../services/sermonService'
@@ -51,10 +50,10 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
         break
       case 'members':
       case 'subgroups':
+      case 'pages':
         isGlobal = false
         break
       case 'events':
-      case 'pages':
         isGlobal = sourceScope === 'global'
         break
       default:
@@ -71,8 +70,7 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
   const isSermons = sourceType === 'sermons'
   const isSubgroups = sourceType === 'subgroups'
   const isMembers = sourceType === 'members'
-  const isGroupPages = sourceType === 'pages' && !queryConfig.isGlobal
-  const isGlobalPages = sourceType === 'pages' && queryConfig.isGlobal
+  const isGroupPages = sourceType === 'pages'
 
   // Sermons (always global, always available)
   const sermonsLive = useLiveQuery(
@@ -117,10 +115,11 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
   const membershipsReady = isMembers ? (membershipsLive.isReady ?? false) : true
   const membershipsError = isMembers ? (membershipsLive.isError ?? false) : false
 
-  // Group-scoped pages
+  // Group-scoped pages — always create collection when active, so TanStack DB can trigger conditionalGet
   const groupPagesLive = useLiveQuery(
     () => {
-      if (!isGroupPages || !currentGroupId) return undefined
+      if (!isGroupPages) return undefined
+      if (!currentGroupId) return undefined
       return groupPagesCollection(currentGroupId, auth.language)
     },
     [isGroupPages, currentGroupId, auth.language],
@@ -129,19 +128,6 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
   const groupPagesLoading = isGroupPages ? (groupPagesLive.isLoading ?? true) : false
   const groupPagesReady = isGroupPages ? (groupPagesLive.isReady ?? false) : true
   const groupPagesError = isGroupPages ? (groupPagesLive.isError ?? false) : false
-
-  // Global pages
-  const globalPagesLive = useLiveQuery(
-    () => {
-      if (!isGlobalPages) return undefined
-      return globalPagesCollection(auth.language)
-    },
-    [isGlobalPages, auth.language],
-  )
-  const globalPagesData = isGlobalPages ? ((globalPagesLive.data ?? []) as any[]) : ([] as any[])
-  const globalPagesLoading = isGlobalPages ? (globalPagesLive.isLoading ?? true) : false
-  const globalPagesReady = isGlobalPages ? (globalPagesLive.isReady ?? false) : true
-  const globalPagesError = isGlobalPages ? (globalPagesLive.isError ?? false) : false
 
   // Build the result data based on source type
   const result = useMemo(() => {
@@ -157,16 +143,13 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
           .filter((m) => m.status === 'Approved')
           .slice(0, queryConfig.limit)
       case 'pages':
-        if (queryConfig.isGlobal) {
-          return (globalPagesData as any[]).slice(0, queryConfig.limit)
-        }
         return (groupPagesData as any[]).slice(0, queryConfig.limit)
       case 'events':
         return []
       default:
         return []
     }
-  }, [sourceType, sermonsData, subgroupsData, membershipsData, groupPagesData, globalPagesData, queryConfig.limit, currentGroupId])
+  }, [sourceType, sermonsData, subgroupsData, membershipsData, groupPagesData, queryConfig.limit, currentGroupId])
 
   // Determine loading/ready/error state from the active source
   const { isLoading: isCollectionLoading, isReady, isError: hasError } = useMemo(() => {
@@ -174,16 +157,20 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
     if (isSubgroups) return { isLoading: subgroupsLoading, isReady: subgroupsReady, isError: subgroupsError }
     if (isMembers) return { isLoading: membershipsLoading, isReady: membershipsReady, isError: membershipsError }
     if (isGroupPages) return { isLoading: groupPagesLoading, isReady: groupPagesReady, isError: groupPagesError }
-    if (isGlobalPages) return { isLoading: globalPagesLoading, isReady: globalPagesReady, isError: globalPagesError }
     return { isLoading: false, isReady: true, isError: false }
   }, [
-    isSermons, isSubgroups, isMembers, isGroupPages, isGlobalPages,
+    isSermons, isSubgroups, isMembers, isGroupPages,
     sermonsLoading, sermonsReady, sermonsError,
     subgroupsLoading, subgroupsReady, subgroupsError,
     membershipsLoading, membershipsReady, membershipsError,
     groupPagesLoading, groupPagesReady, groupPagesError,
-    globalPagesLoading, globalPagesReady, globalPagesError,
   ])
+
+  // When using a collection that hasn't started loading yet but also hasn't errored,
+  // treat it as loading to avoid flashing empty state
+  const effectiveLoading = !isReady && !isCollectionLoading && !hasError
+    ? true
+    : isCollectionLoading
 
   // Build the error (only if collection has failed)
   const error = useMemo(() => {
@@ -191,13 +178,13 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
     if (isSermons) return new Error('Failed to load sermons')
     if (isSubgroups) return new Error('Failed to load subgroups')
     if (isMembers) return new Error('Failed to load members')
-    if (isGroupPages || isGlobalPages) return new Error('Failed to load pages')
+    if (isGroupPages) return new Error('Failed to load pages')
     return null
-  }, [hasError, isSermons, isSubgroups, isMembers, isGroupPages, isGlobalPages])
+  }, [hasError, isSermons, isSubgroups, isMembers, isGroupPages])
 
   return {
     data: result,
-    isLoading: !isReady && isCollectionLoading,
+    isLoading: !isReady && effectiveLoading,
     isReady,
     error,
   }

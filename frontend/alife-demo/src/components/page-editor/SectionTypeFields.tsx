@@ -936,23 +936,27 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
             </select>
           </label>
 
-          <label className="block space-y-1">
-            <span className="text-xs font-medium text-slate-600">Source Scope</span>
-            <select
-              value={readText(contentJson, 'sourceScope') || 'global'}
-              disabled={disabled}
-              className="w-full rounded border border-slate-300 px-2 py-1 text-sm disabled:bg-slate-100"
-              onChange={(event) => patchContent({ sourceScope: event.target.value })}
-            >
-              <option value="global">Global (Church-wide)</option>
-              <option value="group">Group Scope</option>
-            </select>
-            <p className="text-xs text-slate-400">
-              {readText(contentJson, 'sourceType') === 'sermons' ? 'Sermons are always global.' :
-               readText(contentJson, 'sourceType') === 'members' || readText(contentJson, 'sourceType') === 'subgroups' ? 'Members & subgroups are always group-scoped.' :
-               'Events and pages can be global or group-scoped.'}
-            </p>
-          </label>
+          {readText(contentJson, 'sourceType') === 'pages' ? (
+            <input type="hidden" value="group" />
+          ) : (
+            <label className="block space-y-1">
+              <span className="text-xs font-medium text-slate-600">Source Scope</span>
+              <select
+                value={readText(contentJson, 'sourceScope') || 'global'}
+                disabled={disabled}
+                className="w-full rounded border border-slate-300 px-2 py-1 text-sm disabled:bg-slate-100"
+                onChange={(event) => patchContent({ sourceScope: event.target.value })}
+              >
+                <option value="global">Global (Church-wide)</option>
+                <option value="group">Group Scope</option>
+              </select>
+              <p className="text-xs text-slate-400">
+                {readText(contentJson, 'sourceType') === 'sermons' ? 'Sermons are always global.' :
+                 readText(contentJson, 'sourceType') === 'members' || readText(contentJson, 'sourceType') === 'subgroups' ? 'Members & subgroups are always group-scoped.' :
+                 'Events can be global or group-scoped.'}
+              </p>
+            </label>
+          )}
 
           <label className="block space-y-1">
             <span className="text-xs font-medium text-slate-600">Limit</span>
@@ -972,7 +976,7 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
             {!contextGroupId &&
             (readText(contentJson, 'sourceType') === 'subgroups' ||
               readText(contentJson, 'sourceType') === 'members' ||
-              (readText(contentJson, 'sourceType') === 'pages' && readText(contentJson, 'sourceScope') === 'group')) ? (
+              readText(contentJson, 'sourceType') === 'pages') ? (
               <p className="text-xs text-amber-700">
                 Add <code className="rounded bg-amber-50 px-1">?groupId=…</code> to the editor URL or open create-page from a group so subgroup / member / group-page lists can load.
               </p>
