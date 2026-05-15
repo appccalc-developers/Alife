@@ -26,7 +26,7 @@ export function sermonToCardItem(sermon: SermonDto): UniversalCardItem {
     subtitle: sermon.speakerName || 'Sermon',
     imageUrl: sermon.thumbnailUrl || undefined,
     date: sermon.preachedAt || undefined,
-    url: `/sermons/${sermon.id}`,
+    url: sermon.videoUrl || `/sermons/${sermon.id}`,
     type: 'sermon',
   }
 }
@@ -106,6 +106,8 @@ export const ListCard: React.FC<{ item: UniversalCardItem; compact?: boolean }> 
         )}
         <a
           href={item.url}
+          target={item.type === 'sermon' ? '_blank' : undefined}
+          rel={item.type === 'sermon' ? 'noopener noreferrer' : undefined}
           className={`mt-2 inline-flex items-center font-medium text-blue-600 hover:text-blue-800 ${compact ? 'text-[10px]' : 'text-xs'}`}
         >
           查看详情
