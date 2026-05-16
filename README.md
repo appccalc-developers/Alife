@@ -1,32 +1,46 @@
-# alife-church-app
+# Alife Church App
 
-Alife is a full-stack church management MVP with an Azure Functions (.NET isolated) backend and a Vue 3 frontend.
+Full-stack church management application. Clean Architecture .NET backend on Azure Functions, React 19 PWA frontend deployed to Azure Static Web Apps / Cloudflare Workers.
 
-## Current Stack
+## Stack
 
-- Backend: Azure Functions (.NET 10 Isolated Worker, Native AOT publish)
-- Frontend: Vue 3 + TypeScript + Vite + Pinia + Tailwind
-- Database: SQL Server 2022 (Docker)
-- API auth: JWT in HttpOnly cookie (`alife_auth`)
-- API docs: Swagger/OpenAPI endpoint (`/swagger/v1/swagger.json`)
+| Layer | Technology |
+|---|---|
+| Backend | Azure Functions (.NET 10 Isolated Worker, Native AOT) |
+| Frontend | React 19 + TypeScript + Vite + Tailwind CSS (PWA) |
+| Database | SQL Server 2022 (Docker) |
+| Edge | Cloudflare Workers (frontend proxy, images API) |
+| Auth | LINE Login OAuth → JWT in HttpOnly cookie (`alife_auth`) |
+| Caching | .NET 10 HybridCache |
+| API Docs | Swagger/OpenAPI (`/swagger/v1/swagger.json`) |
 
 ## Repository Layout
 
-- `backend/src/Alife.Domain`
-- `backend/src/Alife.Application`
-- `backend/src/Alife.Infrastructure`
-- `backend/src/Alife.Api`
-- `backend/src/Alife.DbMigrator`
-- `backend/tests/Alife.Tests.Unit`
-- `frontend/alife-web`
-- `docs/architecture.md`
-- `global.json` (SDK pin for .NET 10)
+```
+backend/
+  src/
+    Alife.Domain/          # Entities, enums — no dependencies
+    Alife.Application/     # Use cases, commands, queries, DTOs
+    Alife.Infrastructure/  # Data access, migrations, services, security
+    Alife.Api/             # Azure Functions host, controllers, HTTP layer
+    Alife.DbMigrator/      # Database migration + seed runner
+  tests/
+    Alife.Tests.Unit/
+cloudflare/
+  images-api/              # Cloudflare Worker for image proxy/resize
+frontend/
+  alife-demo/              # React 19 SPA + Cloudflare Worker proxy
+docs/
+  architecture.md
+global.json                # .NET SDK version pin
+```
 
 ## Prerequisites
 
 - .NET SDK 10.0.x
 - Node.js 20+
 - Docker Desktop
+- Wrangler CLI (`npm install -g wrangler`) — for Cloudflare Workers
 
 ## Local Setup
 
@@ -37,7 +51,7 @@ cd backend
 docker compose up -d sqlserver
 ```
 
-SQL Server host port: `localhost,14333`
+SQL Server is available at `localhost,14333`.
 
 ### 2) Apply migrations and seed
 
@@ -46,58 +60,78 @@ cd backend
 dotnet run --project src/Alife.DbMigrator
 ```
 
-### 3) Run API
-
-From repo root:
+### 3) Run the API
 
 ```bash
 dotnet run --project backend/src/Alife.Api
 ```
 
-Default local URL: `http://localhost:7071`
+| Endpoint | URL |
+|---|---|
+| Local base | `http://localhost:7071` |
+| Health check | `GET /health` |
+| OpenAPI (dev) | `GET /swagger/v1/swagger.json` |
 
-Health endpoint:
-
-```text
-GET /health
-```
-
-OpenAPI document in development:
-
-```text
-GET /swagger/v1/swagger.json
-```
-
-### 4) Run frontend
+### 4) Run the frontend
 
 ```bash
-cd frontend/alife-web
+cd frontend/alife-demo
 npm install
-npm run dev
+npm run dev         # Vite dev server  → http://localhost:5173
 ```
 
-Frontend default URL: `http://localhost:5173`
+Copy `.env.example` to `.env` and set `VITE_API_BASE_URL`:
 
-## Auth + API Behavior
+```env
+VITE_API_BASE_URL=http://localhost:7071
+```
 
-- Frontend uses `withCredentials: true` in Axios.
-- Backend reads JWT from `alife_auth` cookie in `JwtBearer` events.
-- API endpoints return status codes (401/403) rather than auth redirects.
-- Identity source is JWT `sub`; permissions are DB-checked per request.
+To run through the Cloudflare Worker proxy locally (port 8788):
+
+```bash
+npm run preview     # build + wrangler dev
+```
+
+## Authentication
+
+- LINE Login OAuth flow ends at `/api/auth/line/callback`.
+- Backend issues a JWT stored in HttpOnly cookie `alife_auth` (XSS-immune).
+- JwtBearer reads the token from the cookie automatically.
+- JWT is minimal (`sub`, `exp`); group roles and permissions are DB-checked per request.
+- API returns `401`/`403` status codes; no auth redirects.
 
 ## Caching
 
-- Read and invalidation services are on `.NET 10 HybridCache`.
-- Members `/api/me` now uses HybridCache with stampede protection.
-- Legacy `AddMemoryCache()` usage was removed from source.
+- `HybridCache` (.NET 10) with stampede protection is used in:
+  - Member profile (`/api/me`)
+  - Group and page read services
+  - Group/page cache invalidation services
+
+## Key Configuration
+
+Backend settings (environment variables or `local.settings.json` for Functions):
+
+| Key | Notes |
+|---|---|
+| `ConnectionStrings__Default` | e.g. `Server=localhost,14333;...` |
+| `Jwt__Issuer`, `Jwt__Audience`, `Jwt__Key` | JWT signing |
+| `LineLogin__ClientId`, `LineLogin__ClientSecret`, `LineLogin__RedirectUri` | LINE OAuth |
+| `Frontend__BaseUrl` | CORS / redirect target |
 
 ## Useful Commands
 
 ```bash
-# Restore/build/test backend
+# Backend — restore / build / test
 dotnet restore backend/Alife.sln
-dotnet build backend/Alife.sln -c Debug
-dotnet test backend/tests/Alife.Tests.Unit/Alife.Tests.Unit.csproj -c Debug
+dotnet build  backend/Alife.sln -c Debug
+dotnet test   backend/tests/Alife.Tests.Unit/Alife.Tests.Unit.csproj -c Debug
+
+# Backend — release publish (Native AOT)
+dotnet publish backend/src/Alife.Api --configuration Release
+
+# Frontend — build + deploy to Cloudflare
+cd frontend/alife-demo
+npm run deploy
 
 # Run API directly from backend folder
 cd backend/src/Alife.Api
