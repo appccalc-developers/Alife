@@ -42,10 +42,11 @@ export function subgroupToCardItem(subgroup: GroupSummaryDto): UniversalCardItem
   }
 }
 
-export function memberToCardItem(member: { memberId: string; status: string; role: string }): UniversalCardItem {
+export function memberToCardItem(member: { memberId: string; status: string; role: string; name?: string; displayName?: string }): UniversalCardItem {
+  const displayName = member.name || member.displayName || `Member ${member.memberId.slice(0, 8)}`
   return {
     id: member.memberId,
-    title: `Member ${member.memberId.slice(0, 8)}`,
+    title: displayName,
     subtitle: `Role: ${member.role || 'Member'}`,
     url: `/members/${member.memberId}`,
     type: 'member',
@@ -62,6 +63,21 @@ export function pageToCardItem(page: any, groupId?: string): UniversalCardItem {
     date: (page as { updatedUtc?: string }).updatedUtc,
     url: groupId ? `/groups/${groupId}?page=${encodeURIComponent(pageId)}` : `/pages/${slug || pageId}`,
     type: 'page',
+  }
+}
+
+export function eventToCardItem(event: any): UniversalCardItem {
+  const title = event.titleZh || event.titleEn || 'Event'
+  const dateStr = event.startDate || ''
+  const dateDisplay = dateStr ? new Date(dateStr).toLocaleDateString('zh-CN', { year: 'numeric', month: 'short', day: 'numeric' }) : ''
+  return {
+    id: event.id,
+    title,
+    subtitle: dateDisplay,
+    imageUrl: undefined,
+    date: dateStr,
+    url: `/events/${event.id}`,
+    type: 'event',
   }
 }
 
@@ -137,7 +153,7 @@ const adapterMap: Record<string, (item: any) => UniversalCardItem> = {
   subgroups: subgroupToCardItem,
   members: memberToCardItem,
   pages: pageToCardItem,
-  // events: eventToCardItem, // TODO: implement when events collection exists
+  events: eventToCardItem,
 }
 
 export const GroupListSection: React.FC<GroupListSectionProps> = ({ metadata, groupId, compact }) => {

@@ -6,10 +6,12 @@ import {
   subgroupsCollection,
   groupMembershipsCollection,
   groupPagesCollection,
+  groupEventsCollection,
 } from '../db/collections/groupCollection'
 import { useAuthStore } from '../stores/auth'
 import type { ListViewMetadata } from '../types/page-editor'
 import type { SermonDto } from '../services/sermonService'
+import type { GroupEventRecord } from '../types/event'
 
 interface ListSourceResult {
   data: any[] | undefined
@@ -30,6 +32,12 @@ export type ListSourceResolverOptions = {
  * 1. Render: renders immediately from local DB (useLiveQuery)
  * 2. Fetch: if local collection is empty, triggers an API call via conditionalGet to the .NET API
  * 3. Persist: Results stored in TanStack DB via httpCache (conditionalGet writes to idb-keyval)
+ *
+ * 支持 metadata.id:
+ * - members 类型: id 为 subgroupId，精确查询该 subgroup 的成员
+ * - subgroups 类型: id 为父 groupId
+ * - events 类型: id 为 subgroupId，查询该 subgroup 的事件
+ * - 不传 id 则沿用当前 groupId
  */
 export function useListSourceResolver(metadata: ListViewMetadata, options?: ListSourceResolverOptions): ListSourceResult {
   const { groupId: routeGroupId } = useParams<{ groupId: string }>()
@@ -39,6 +47,8 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
   const sourceType = metadata.sourceType
   const sourceScope = metadata.sourceScope
   const limit = Math.min(Math.max(metadata.limit || 10, 1), 50)
+  // 如果 metadata.id 存在，用它覆盖 currentGroupId（精确查询某 subgroup 的数据）
+  const targetGroupId = metadata.id?.trim() || currentGroupId
 
   // Determine the config for the query
   const queryConfig = useMemo(() => {
@@ -54,7 +64,7 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
         isGlobal = false
         break
       case 'events':
-        isGlobal = sourceScope === 'global'
+        isGlobal = false
         break
       default:
         isGlobal = true
@@ -71,6 +81,7 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
   const isSubgroups = sourceType === 'subgroups'
   const isMembers = sourceType === 'members'
   const isGroupPages = sourceType === 'pages'
+  const isEvents = sourceType === 'events'
 
   // Sermons (always global, always available)
   const sermonsLive = useLiveQuery(
@@ -85,13 +96,13 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
   const sermonsReady = isSermons ? (sermonsLive.isReady ?? false) : true
   const sermonsError = isSermons ? (sermonsLive.isError ?? false) : false
 
-  // Subgroups (group-scoped)
+  // Subgroups (group-scoped, 使用 targetGroupId 以支持 metadata.id)
   const subgroupsLive = useLiveQuery(
     () => {
-      if (!isSubgroups || !currentGroupId) return undefined
-      return subgroupsCollection(currentGroupId)
+      if (!isSubgroups || !targetGroupId) return undefined
+      return subgroupsCollection(targetGroupId)
     },
-    [isSubgroups, currentGroupId],
+    [isSubgroups, targetGroupId],
   )
   const subgroupsData = isSubgroups
     ? ((subgroupsLive.data ?? []) as Array<{ id: string; name: string; accessType: string; parentGroupId: string | null }>)
@@ -100,13 +111,13 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
   const subgroupsReady = isSubgroups ? (subgroupsLive.isReady ?? false) : true
   const subgroupsError = isSubgroups ? (subgroupsLive.isError ?? false) : false
 
-  // Members (group-scoped)
+  // Members (group-scoped, 使用 targetGroupId 以支持 metadata.id)
   const membershipsLive = useLiveQuery(
     () => {
-      if (!isMembers || !currentGroupId) return undefined
-      return groupMembershipsCollection(currentGroupId)
+      if (!isMembers || !targetGroupId) return undefined
+      return groupMembershipsCollection(targetGroupId)
     },
-    [isMembers, currentGroupId],
+    [isMembers, targetGroupId],
   )
   const membershipsData = isMembers
     ? ((membershipsLive.data ?? []) as Array<{ memberId: string; status: string; role: string }>)
@@ -119,15 +130,36 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
   const groupPagesLive = useLiveQuery(
     () => {
       if (!isGroupPages) return undefined
-      if (!currentGroupId) return undefined
-      return groupPagesCollection(currentGroupId, auth.language)
+      if (!targetGroupId) return undefined
+      return groupPagesCollection(targetGroupId, auth.language)
     },
-    [isGroupPages, currentGroupId, auth.language],
+    [isGroupPages, targetGroupId, auth.language],
   )
   const groupPagesData = isGroupPages ? ((groupPagesLive.data ?? []) as any[]) : ([] as any[])
   const groupPagesLoading = isGroupPages ? (groupPagesLive.isLoading ?? true) : false
   const groupPagesReady = isGroupPages ? (groupPagesLive.isReady ?? false) : true
   const groupPagesError = isGroupPages ? (groupPagesLive.isError ?? false) : false
+
+  // Events (always group-scoped, no global option)
+  const groupEventsLive = useLiveQuery(
+    () => {
+      if (!isEvents || !targetGroupId) return undefined
+      return groupEventsCollection(targetGroupId)
+    },
+    [isEvents, targetGroupId],
+  )
+  const eventsData = isEvents
+    ? ((groupEventsLive.data ?? []) as GroupEventRecord[])
+    : ([] as GroupEventRecord[])
+  const eventsLoading = isEvents
+    ? (groupEventsLive.isLoading ?? true)
+    : false
+  const eventsReady = isEvents
+    ? (groupEventsLive.isReady ?? false)
+    : true
+  const eventsError = isEvents
+    ? (groupEventsLive.isError ?? false)
+    : false
 
   // Build the result data based on source type
   const result = useMemo(() => {
@@ -136,7 +168,7 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
         return (sermonsData as SermonDto[]).slice(0, queryConfig.limit)
       case 'subgroups':
         return (subgroupsData as Array<{ id: string; name: string; accessType: string; parentGroupId: string | null }>)
-          .filter((s) => s.parentGroupId === currentGroupId)
+          .filter((s) => s.parentGroupId === targetGroupId)
           .slice(0, queryConfig.limit)
       case 'members':
         return (membershipsData as Array<{ memberId: string; status: string; role: string }>)
@@ -145,11 +177,11 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
       case 'pages':
         return (groupPagesData as any[]).slice(0, queryConfig.limit)
       case 'events':
-        return []
+        return (eventsData as GroupEventRecord[]).slice(0, queryConfig.limit)
       default:
         return []
     }
-  }, [sourceType, sermonsData, subgroupsData, membershipsData, groupPagesData, queryConfig.limit, currentGroupId])
+  }, [sourceType, sermonsData, subgroupsData, membershipsData, groupPagesData, eventsData, queryConfig.limit, targetGroupId])
 
   // Determine loading/ready/error state from the active source
   const { isLoading: isCollectionLoading, isReady, isError: hasError } = useMemo(() => {
@@ -157,13 +189,15 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
     if (isSubgroups) return { isLoading: subgroupsLoading, isReady: subgroupsReady, isError: subgroupsError }
     if (isMembers) return { isLoading: membershipsLoading, isReady: membershipsReady, isError: membershipsError }
     if (isGroupPages) return { isLoading: groupPagesLoading, isReady: groupPagesReady, isError: groupPagesError }
+    if (isEvents) return { isLoading: eventsLoading, isReady: eventsReady, isError: eventsError }
     return { isLoading: false, isReady: true, isError: false }
   }, [
-    isSermons, isSubgroups, isMembers, isGroupPages,
+    isSermons, isSubgroups, isMembers, isGroupPages, isEvents,
     sermonsLoading, sermonsReady, sermonsError,
     subgroupsLoading, subgroupsReady, subgroupsError,
     membershipsLoading, membershipsReady, membershipsError,
     groupPagesLoading, groupPagesReady, groupPagesError,
+    eventsLoading, eventsReady, eventsError,
   ])
 
   // When using a collection that hasn't started loading yet but also hasn't errored,
@@ -179,8 +213,9 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
     if (isSubgroups) return new Error('Failed to load subgroups')
     if (isMembers) return new Error('Failed to load members')
     if (isGroupPages) return new Error('Failed to load pages')
+    if (isEvents) return new Error('Failed to load events')
     return null
-  }, [hasError, isSermons, isSubgroups, isMembers, isGroupPages])
+  }, [hasError, isSermons, isSubgroups, isMembers, isGroupPages, isEvents])
 
   return {
     data: result,

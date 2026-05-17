@@ -82,7 +82,9 @@ export const conditionalGet = async <TData>({ queryKey, path, parser }: Conditio
   // 从响应头中获取 etag
   const etag = response.headers.get('ETag')
   if (!etag) {
-    throw new Error(`GET ${path} response missing ETag header`)
+    // 后端没有 ETag 时，直接返回数据，不支持 304 缓存
+    const rawData = (await response.json()) as unknown
+    return parser ? parser(rawData) : (rawData as TData)
   }
 
   const rawData = (await response.json()) as unknown

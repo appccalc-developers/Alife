@@ -8,7 +8,7 @@ export function normalizeListViewMetadata(raw: Record<string, unknown>): ListVie
     ? (candidateType as ListSourceType)
     : 'sermons'
 
-  const candidateScope = String(raw.sourceScope ?? 'global')
+  const candidateScope = String(raw.sourceScope ?? (sourceType === 'events' ? 'group' : 'global'))
   const sourceScope: ListSourceScope = candidateScope === 'group' ? 'group' : 'global'
 
   let limit = 10
@@ -16,5 +16,7 @@ export function normalizeListViewMetadata(raw: Record<string, unknown>): ListVie
     limit = Math.min(Math.max(raw.limit, 1), 50)
   }
 
-  return { sourceType, sourceScope, limit }
+  const id = typeof raw.id === 'string' && raw.id.trim() ? raw.id.trim() : undefined
+
+  return { sourceType, sourceScope, limit, id }
 }

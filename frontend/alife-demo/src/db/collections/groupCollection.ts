@@ -1,6 +1,7 @@
 import { createCollection } from '@tanstack/react-db'
 import { queryCollectionOptions } from '@tanstack/query-db-collection'
 import type { GroupDto, GroupMembershipDto, GroupSummaryDto, PageSummaryDto } from '../../types'
+import type { GroupEventRecord } from '../../types/event'
 import { conditionalGet, getCachedRecord } from '../httpCache'
 import { queryClient } from '../queryClient'
 
@@ -81,4 +82,46 @@ export const groupMembershipsCollection = (groupId: string) =>
 
 export const getCachedGroupMemberships = async (groupId: string) =>
   (await getCachedRecord<MembershipRecord[]>(groupMembershipsQueryKey(groupId)))?.data ?? []
+
+// ---------- Group events ----------
+
+export const groupEventsQueryKey = (groupId: string) => ['groupEvents', groupId] as const
+
+export const groupEventsCollection = (groupId: string) =>
+  createCollection(
+    queryCollectionOptions({
+      queryClient,
+      queryKey: groupEventsQueryKey(groupId),
+      getKey: (item: GroupEventRecord) => item.id,
+      queryFn: async () =>
+        conditionalGet<GroupEventRecord[]>({
+          queryKey: groupEventsQueryKey(groupId),
+          path: `/api/groups/${groupId}/events`,
+        }),
+    }),
+  )
+
+export const getCachedGroupEvents = async (groupId: string) =>
+  (await getCachedRecord<GroupEventRecord[]>(groupEventsQueryKey(groupId)))?.data ?? []
+
+// ---------- Global events ----------
+
+export const globalEventsQueryKey = () => ['globalEvents'] as const
+
+export const globalEventsCollection = () =>
+  createCollection(
+    queryCollectionOptions({
+      queryClient,
+      queryKey: globalEventsQueryKey(),
+      getKey: (item: GroupEventRecord) => item.id,
+      queryFn: async () =>
+        conditionalGet<GroupEventRecord[]>({
+          queryKey: globalEventsQueryKey(),
+          path: '/api/events',
+        }),
+    }),
+  )
+
+export const getCachedGlobalEvents = async () =>
+  (await getCachedRecord<GroupEventRecord[]>(globalEventsQueryKey()))?.data ?? []
 

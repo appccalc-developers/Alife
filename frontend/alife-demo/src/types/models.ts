@@ -10,6 +10,8 @@ export interface ListViewMetadata {
   sourceType: ListSourceType
   sourceScope: ListSourceScope
   limit: number
+  /** 可选的资源 ID，如 subgroupId、eventId 等，用于精确查询某个资源下的数据 */
+  id?: string
 }
 
 export type GroupDto = {
