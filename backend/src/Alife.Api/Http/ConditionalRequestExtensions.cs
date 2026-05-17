@@ -5,7 +5,7 @@ namespace Alife.Api.Http;
 
 public static class ConditionalRequestExtensions
 {
-    private const int CacheTtlSeconds = 60;
+    private const int CacheTtlSeconds = 24*60*60;
 
     extension(ControllerBase controller)
     {
