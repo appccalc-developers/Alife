@@ -59,7 +59,14 @@ Default local URL: `http://localhost:7071`
 
 - Health: `GET /health`
 - OpenAPI (Development): `GET /swagger/v1/swagger.json`
-- Auth, Groups, Members, Pages, Sections, Admin are under `/api/*`
+- Auth, Groups, Members, Pages, Events, Sections, Admin are under `/api/*`
+
+### Group Events API
+
+- `GET /api/groups/{groupId}/events`
+- `POST /api/groups/{groupId}/events`
+- `PUT /api/events/{id}`
+- `DELETE /api/events/{id}`
 
 ## Configuration
 
