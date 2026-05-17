@@ -14,15 +14,12 @@ using Alife.Application.Groups.Queries.GetChurch;
 using Alife.Application.Groups.Queries.GetGroupById;
 using Alife.Application.Groups.Queries.GetGroupMemberships;
 using Alife.Application.Groups.Queries.GetSubgroups;
-using Alife.Application.Events.Queries.GetGroupEvents;
 using Alife.Domain.Enums;
 using Alife.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Alife.Application.Events.Commands.CreateGroupEvent;
-using Alife.Application.Events.Commands.DeleteGroupEvent;
 
 namespace Alife.Api.Controllers;
 
@@ -256,58 +253,8 @@ public class GroupsController(
 
         return this.ToActionResult(result);
     }
-    /// <summary>List all events for a group.</summary>
-    [HttpGet("{groupId:guid}/events")]
-    public async Task<IActionResult> GetGroupEvents(Guid groupId, CancellationToken cancellationToken)
-    {
-        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
-        if (currentMemberId is null) return Unauthorized();
-
-        var result = await mediator.Send(new GetGroupEventsQuery(groupId, currentMemberId.Value), cancellationToken);
-        return this.ToActionResult(result);
-    }
-
-    /// <summary>Create a new event in a group.</summary>
-    [HttpPost("{groupId:guid}/events")]
-    public async Task<IActionResult> CreateGroupEvent(Guid groupId, [FromBody] CreateGroupEventRequest request, CancellationToken cancellationToken)
-    {
-        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
-        if (currentMemberId is null) return Unauthorized();
-
-        var result = await mediator.Send(
-            new CreateGroupEventCommand(
-                groupId,
-                currentMemberId.Value,
-                request.TitleEn,
-                request.TitleZh,
-                request.StartDate,
-                request.EndDate,
-                request.EventDataJson),
-            cancellationToken);
-
-        return this.ToActionResult(result);
-    }
-
-    /// <summary>Delete a group event.</summary>
-    [HttpDelete("{groupId:guid}/events/{eventId:guid}")]
-    public async Task<IActionResult> DeleteGroupEvent(Guid groupId, Guid eventId, CancellationToken cancellationToken)
-    {
-        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
-        if (currentMemberId is null) return Unauthorized();
-
-        var result = await mediator.Send(new DeleteGroupEventCommand(eventId, currentMemberId.Value), cancellationToken);
-        return this.ToActionResult(result);
-    }
-
     public record CreateSubgroupRequest(string Name, AccessType AccessType);
     public record InviteRequest(string TargetPhoneE164);
     public record MemberTargetRequest(Guid MemberId);
     public record SetCoLeaderRequest(Guid MemberId, bool IsCoLeader);
-    public record CreateGroupEventRequest(
-        string TitleEn,
-        string TitleZh,
-        DateTime StartDate,
-        DateTime EndDate,
-        string EventDataJson
-    );
 }

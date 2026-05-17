@@ -46,7 +46,7 @@ export const eventService = {
     return data
   },
 
-  deleteGroupEvent: async (groupId: string, eventId: string): Promise<void> => {
-    await http.delete(`/api/groups/${groupId}/events/${eventId}`)
+  deleteGroupEvent: async (eventId: string): Promise<void> => {
+    await http.delete(`/api/events/${eventId}`)
   },
 }
