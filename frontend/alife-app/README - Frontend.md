@@ -5,7 +5,7 @@ React + TypeScript + Vite port of `frontend/alife-web`.
 ## Run
 
 ```bash
-cd frontend/alife-demo
+cd frontend/alife-app
 npm install
 npm run dev
 ```

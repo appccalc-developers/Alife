@@ -29,7 +29,7 @@ backend/
 cloudflare/
   images-api/              # Cloudflare Worker for image proxy/resize
 frontend/
-  alife-demo/              # React 19 SPA + Cloudflare Worker proxy
+  alife-app/               # React 19 SPA + Cloudflare Worker proxy
 docs/
   architecture.md
 global.json                # .NET SDK version pin
@@ -75,7 +75,7 @@ dotnet run --project backend/src/Alife.Api
 ### 4) Run the frontend
 
 ```bash
-cd frontend/alife-demo
+cd frontend/alife-app
 npm install
 npm run dev         # Vite dev server  → http://localhost:5173
 ```
@@ -130,7 +130,7 @@ dotnet test   backend/tests/Alife.Tests.Unit/Alife.Tests.Unit.csproj -c Debug
 dotnet publish backend/src/Alife.Api --configuration Release
 
 # Frontend — build + deploy to Cloudflare
-cd frontend/alife-demo
+cd frontend/alife-app
 npm run deploy
 
 # Run API directly from backend folder
