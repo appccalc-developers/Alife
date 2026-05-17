@@ -4,6 +4,16 @@ export type MembershipRole = 'Member' | 'CoLeader' | 'Leader'
 export type PageScope = 'Global' | 'Group'
 export type PageVisibility = 'InvisibleDraft' | 'VisibleToGroup' | 'VisiblePublic'
 
+export type ListSourceType = 'sermons' | 'pages' | 'subgroups' | 'events' | 'members'
+export type ListSourceScope = 'group' | 'global'
+export interface ListViewMetadata {
+  sourceType: ListSourceType
+  sourceScope: ListSourceScope
+  limit: number
+  /** 可选的资源 ID，如 subgroupId、eventId 等，用于精确查询某个资源下的数据 */
+  id?: string
+}
+
 export type GroupDto = {
   id: string
   name: string
@@ -123,3 +133,4 @@ export type PageEditorValidation = {
   title?: string
   sectionTypeErrors: string[]
 }
+

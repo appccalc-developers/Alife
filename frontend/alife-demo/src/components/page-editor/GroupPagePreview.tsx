@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { readText, parseLimit } from '../../utils/pageSectionContent'
+import { GroupListSection } from '../sections/GroupListSection'
 import type { SectionEditModel } from '../../types/page-editor'
 
 export type GroupPagePreviewSubgroup = { id: string; name: string; accessType: string }
@@ -15,15 +16,17 @@ type Props = {
   groupPageItems?: GroupPagePreviewPageItem[]
   /** When true, used inside a compact panel (smaller typography) */
   compact?: boolean
+  /** Resolves GroupList smart sections (subgroups/members/group pages) when not on /groups/:id route */
+  previewGroupId?: string
 }
 
 const GroupPagePreview = ({
   title,
   description,
   sections,
-  subgroupItems = [],
   groupPageItems = [],
   compact,
+  previewGroupId,
 }: Props) => {
   const toYouTubeEmbedUrl = (rawUrl: string) => {
     const value = rawUrl.trim()
@@ -458,30 +461,14 @@ const GroupPagePreview = ({
           }
 
           if (section.type === 'GroupList') {
+            // The smart GroupListSection resolves data via useListSourceResolver
             return (
-              <section key={key} className="rounded-lg border border-slate-200 bg-white p-3">
-                <h3 className={`font-semibold text-slate-900 ${compact ? 'text-sm' : 'text-lg'}`}>
-                  {readText(section.contentJson, 'title') || '小组'}
-                </h3>
-                {readText(section.contentJson, 'description') ? (
-                  <p className={`mt-1 text-slate-600 ${compact ? 'text-[11px]' : 'text-sm'}`}>
-                    {readText(section.contentJson, 'description')}
-                  </p>
-                ) : null}
-                <ul className={`mt-2 grid gap-1.5 ${compact ? '' : 'sm:grid-cols-2'}`}>
-                  {subgroupItems.slice(0, parseLimit(section.contentJson, 'limit', 6)).map((group) => (
-                    <li key={group.id} className="rounded border border-slate-200 bg-slate-50 px-2 py-1.5">
-                      <p className={`font-medium text-slate-900 ${compact ? 'text-xs' : 'text-sm'}`}>{group.name}</p>
-                      <p className="text-[10px] text-slate-500">Access: {group.accessType}</p>
-                    </li>
-                  ))}
-                </ul>
-                {subgroupItems.length === 0 ? (
-                  <p className={`mt-2 text-slate-500 ${compact ? 'text-[11px]' : 'text-sm'}`}>
-                    （发布后，读者将在此看到实际小组资料）
-                  </p>
-                ) : null}
-              </section>
+              <GroupListSection
+                key={key}
+                metadata={section.contentJson as Record<string, unknown>}
+                groupId={previewGroupId}
+                compact={compact}
+              />
             )
           }
 

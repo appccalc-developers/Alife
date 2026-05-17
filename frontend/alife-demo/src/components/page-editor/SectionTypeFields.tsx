@@ -1,5 +1,86 @@
-import { useState } from 'react'
-import type { JsonMap, SectionType } from '../../types/page-editor'
+import { useState, useMemo } from 'react'
+import { GroupListSection } from '../sections/GroupListSection'
+import { useListSourceResolver } from '../../hooks/useListSourceResolver'
+import type { JsonMap, SectionType, ListViewMetadata } from '../../types/page-editor'
+import type { GroupEventRecord } from '../../types/event'
+
+
+const PastEventsList = () => {
+  const meta = useMemo<ListViewMetadata>(() => ({
+    sourceType: 'events',
+    sourceScope: 'global',
+    limit: 20,
+  }), [])
+
+
+  const { data, isLoading, error } = useListSourceResolver(meta)
+  const events = data as GroupEventRecord[] | undefined
+
+
+  if (isLoading) {
+    return (
+      <div className="space-y-2">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-12 animate-pulse rounded bg-slate-200" />
+        ))}
+      </div>
+    )
+  }
+
+
+  if (error || !events || events.length === 0) {
+    return <p className="text-xs text-slate-400">当前为空</p>
+  }
+
+
+  const formatDate = (d: string) => {
+    try {
+      return new Date(d).toLocaleDateString('zh-CN', { year: 'numeric', month: 'short', day: 'numeric' })
+    } catch {
+      return d
+    }
+  }
+
+
+  return (
+    <div className="space-y-2">
+      {events.slice(0, 5).map((event) => {
+        let eventData: any = null
+        try {
+          eventData = JSON.parse(event.eventDataJson)
+        } catch {
+          // If parsing fails, eventData remains null
+        }
+        const displayTitle = eventData?.title?.zh || eventData?.title?.en || event.titleZh || event.titleEn || 'Untitled Event'
+        const posterImage = eventData?.posterImageUrl || null
+
+
+        return (
+          <div key={event.id} className="flex items-center gap-3 rounded border border-slate-200 bg-white p-2">
+            {posterImage ? (
+              <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded">
+                <img src={posterImage} alt="" className="h-full w-full object-cover" />
+              </div>
+            ) : (
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded bg-slate-100 text-slate-400">
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-medium text-slate-800">{displayTitle}</p>
+              {event.startDate ? (
+                <p className="text-[10px] text-slate-500">{formatDate(event.startDate)}</p>
+              ) : null}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 
 type Props = {
   type: SectionType | ''
@@ -8,20 +89,26 @@ type Props = {
   disabled?: boolean
   onContentChange: (value: JsonMap) => void
   onStyleChange: (value: JsonMap) => void
+  /** Current page group id — required for subgroup/member/group-page list previews in editor */
+  contextGroupId?: string
 }
+
 
 const readText = (source: JsonMap, key: string) => {
   const value = source[key]
   return typeof value === 'string' ? value : ''
 }
 
+
 type IconGridItem = { imageUrl: string; label: string; linkUrl: string; imageSource: 'url' | 'upload' }
+
 
 const parseIconItems = (source: JsonMap): IconGridItem[] => {
   const raw = source.iconItems
   if (!Array.isArray(raw)) {
     return []
   }
+
 
   return raw.map((item) => {
     if (!item || typeof item !== 'object') {
@@ -37,11 +124,13 @@ const parseIconItems = (source: JsonMap): IconGridItem[] => {
   })
 }
 
+
 const toYouTubeEmbedUrl = (rawUrl: string) => {
   const value = rawUrl.trim()
   if (!value) {
     return ''
   }
+
 
   try {
     const url = new URL(value)
@@ -63,10 +152,12 @@ const toYouTubeEmbedUrl = (rawUrl: string) => {
     return ''
   }
 
+
   return ''
 }
 
-const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentChange, onStyleChange }: Props) => {
+
+const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentChange, onStyleChange, contextGroupId }: Props) => {
   const [selectedFileName, setSelectedFileName] = useState('')
   const [imageSourceMode, setImageSourceMode] = useState<'url' | 'upload'>('url')
   const patchContent = (patch: JsonMap) => onContentChange({ ...contentJson, ...patch })
@@ -87,13 +178,16 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
   const youtubeUrl = readText(contentJson, 'youtubeUrl')
   const youtubeEmbedUrl = toYouTubeEmbedUrl(youtubeUrl)
 
+
   return (
     <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
       <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Section Type Helper Fields</p>
 
+
       {type === 'Hero' ? (
         <>
           <p className="text-xs text-slate-500">Hero 可视化模版（与页面渲染一致），直接点文字填写内容。</p>
+
 
           <div className="rounded-lg border border-slate-200 bg-white p-3">
             <section className="overflow-hidden rounded-lg border border-slate-200">
@@ -159,6 +253,7 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
                   </>
                 )}
 
+
                 {(heroLinkUrl || !disabled) ? (
                   <span className="mt-4 inline-flex rounded bg-red-500 px-5 py-2 text-sm font-medium text-white shadow sm:absolute sm:bottom-5 sm:left-1/2 sm:mt-0 sm:-translate-x-1/2">
                     <span
@@ -178,6 +273,7 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
               </div>
             </section>
           </div>
+
 
           <div className="grid gap-2 md:grid-cols-2">
             <label className="block space-y-1">
@@ -203,6 +299,7 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
               />
             </label>
           </div>
+
 
           <div className="grid gap-2 md:grid-cols-2">
             <select
@@ -255,6 +352,7 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
         </>
       ) : null}
 
+
       {type === 'IconFeatureGrid' || type === 'SermonSpotlight' ? (
         <>
           <p className="text-xs text-slate-500">
@@ -262,6 +360,7 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
               ? 'Sermon Spotlight：YouTube + 标题内容 + 按钮链接。'
               : 'Icon Feature Grid：背景图 + 标题文案 + 多个图标链接项。'}
           </p>
+
 
           <div className="rounded-lg border border-slate-200 bg-white p-3">
             {iconFeatureLayout === 'sermonSpotlight' ? (
@@ -293,6 +392,7 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
                       {heroSub || 'God loves us all'}
                     </p>
                   </div>
+
 
                   <div className="mt-8 grid gap-4 md:grid-cols-[1fr_1.2fr] md:items-center">
                     <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
@@ -361,6 +461,7 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
                     >
                       {heroSub || 'God loves us all'}
                     </p>
+
 
                     <div className="mt-6 grid gap-4 sm:mt-8 sm:gap-6 sm:grid-cols-2 md:grid-cols-3">
                       {iconItems.map((item, idx) => (
@@ -433,6 +534,7 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
                       {heroSub || 'God loves us all'}
                     </p>
 
+
                     <div className="mt-6 grid grid-cols-2 gap-3 sm:mt-8 sm:gap-4 sm:grid-cols-3 md:grid-cols-6">
                       {iconItems.map((item, idx) => (
                         <a
@@ -467,6 +569,7 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
             )}
           </div>
 
+
           {type === 'IconFeatureGrid' ? (
             <div className="grid gap-2 md:grid-cols-2">
               <label className="block space-y-1">
@@ -495,6 +598,7 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
               </label>
             </div>
           ) : null}
+
 
           {type === 'IconFeatureGrid' ? (
             <div className="grid gap-2 md:grid-cols-[1fr_1fr]">
@@ -541,6 +645,7 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
               )}
             </div>
           ) : null}
+
 
           {type === 'SermonSpotlight' ? (
             <div className="space-y-2 rounded-lg border border-slate-200 bg-white p-3">
@@ -671,9 +776,11 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
         </>
       ) : null}
 
+
       {type === 'MediaSpotlight' ? (
         <>
           <p className="text-xs text-slate-500">Media Spotlight 模版：图文并排 + 按钮链接，支持左右切换。</p>
+
 
           <div className="rounded-lg border border-slate-200 bg-white p-3">
             <section className="overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
@@ -733,6 +840,7 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
             </section>
           </div>
 
+
           <div className="grid gap-2 md:grid-cols-2">
             <label className="block space-y-1">
               <span className="text-xs font-medium text-slate-600">Image Position</span>
@@ -757,6 +865,7 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
               />
             </label>
           </div>
+
 
           <div className="grid gap-2 md:grid-cols-2">
             <select
@@ -808,6 +917,7 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
           ) : null}
         </>
       ) : null}
+
 
       {type === 'RichText' ? (
         <>
@@ -862,6 +972,7 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
             </section>
           </div>
 
+
           <div className="grid gap-2 md:grid-cols-[1fr_1.5fr]">
             <select
               value={imageSourceMode}
@@ -913,25 +1024,82 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
         </>
       ) : null}
 
+
       {type === 'GroupList' ? (
-        <>
-          <input
-            value={readText(contentJson, 'title')}
-            disabled={disabled}
-            className="w-full rounded border border-slate-300 px-2 py-1 text-sm disabled:bg-slate-100"
-            placeholder="List title"
-            onChange={(event) => patchContent({ title: event.target.value })}
-          />
-          <textarea
-            value={readText(contentJson, 'description')}
-            disabled={disabled}
-            rows={3}
-            className="w-full rounded border border-slate-300 px-2 py-1 text-sm disabled:bg-slate-100"
-            placeholder="List description"
-            onChange={(event) => patchContent({ description: event.target.value })}
-          />
-        </>
+        <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">ListView</p>
+
+
+          <label className="block space-y-1">
+            <span className="text-xs font-medium text-slate-600">Source Type</span>
+            <select
+              value={readText(contentJson, 'sourceType') || 'sermons'}
+              disabled={disabled}
+              className="w-full rounded border border-slate-300 px-2 py-1 text-sm disabled:bg-slate-100"
+              onChange={(event) => patchContent({ sourceType: event.target.value })}
+            >
+              <option value="sermons">Sermons</option>
+              <option value="events">Events</option>
+              <option value="pages">Pages</option>
+              <option value="subgroups">Subgroups</option>
+              <option value="members">Members</option>
+            </select>
+          </label>
+
+
+          {readText(contentJson, 'sourceType') === 'pages' || readText(contentJson, 'sourceType') === 'events' ? (
+            <input type="hidden" value="group" />
+          ) : (
+            <label className="block space-y-1">
+              <span className="text-xs font-medium text-slate-600">Source Scope</span>
+              <select
+                value={readText(contentJson, 'sourceScope') || 'global'}
+                disabled={disabled}
+                className="w-full rounded border border-slate-300 px-2 py-1 text-sm disabled:bg-slate-100"
+                onChange={(event) => patchContent({ sourceScope: event.target.value })}
+              >
+                <option value="global">Global (Church-wide)</option>
+                <option value="group">Group Scope</option>
+              </select>
+              <p className="text-xs text-slate-400">
+                {readText(contentJson, 'sourceType') === 'sermons' ? 'Sermons are always global.' :
+                 readText(contentJson, 'sourceType') === 'members' || readText(contentJson, 'sourceType') === 'subgroups' ? 'Members & subgroups are always group-scoped.' :
+                 'Events can be global or group-scoped.'}
+              </p>
+            </label>
+          )}
+
+
+          <label className="block space-y-1">
+              <span className="text-xs font-medium text-slate-600">Limit</span>
+              <input
+                type="number"
+                min={1}
+                max={50}
+                value={typeof contentJson.limit === 'number' ? contentJson.limit : 10}
+                disabled={disabled}
+                className="w-full rounded border border-slate-300 px-2 py-1 text-sm disabled:bg-slate-100"
+                onChange={(event) => patchContent({ limit: Math.min(Math.max(parseInt(event.target.value) || 10, 1), 50) })}
+              />
+            </label>
+
+          {(
+            <div className="space-y-2 border-t border-slate-100 pt-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Live preview (TanStack DB)</p>
+              {!contextGroupId &&
+              (readText(contentJson, 'sourceType') === 'subgroups' ||
+                readText(contentJson, 'sourceType') === 'members' ||
+                readText(contentJson, 'sourceType') === 'pages') ? (
+                <p className="text-xs text-amber-700">
+                  Add <code className="rounded bg-amber-50 px-1">?groupId=…</code> to the editor URL or open create-page from a group so subgroup / member / group-page lists can load.
+                </p>
+              ) : null}
+              <GroupListSection metadata={contentJson} groupId={contextGroupId} compact />
+            </div>
+          )}
+        </div>
       ) : null}
+
 
       {type === 'PageList' ? (
         <input
@@ -942,6 +1110,7 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
           onChange={(event) => patchContent({ title: event.target.value })}
         />
       ) : null}
+
 
       {type === 'SermonList' ? (
         <>
@@ -962,12 +1131,15 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
         </>
       ) : null}
 
+
       {!['Hero', 'MediaSpotlight', 'IconFeatureGrid', 'SermonSpotlight', 'RichText', 'GroupList', 'PageList', 'SermonList'].includes(type) ? (
         <p className="text-xs text-slate-500">No helper fields for this section type. Use raw JSON editors below.</p>
       ) : null}
 
+
     </div>
   )
 }
+
 
 export default SectionTypeFields

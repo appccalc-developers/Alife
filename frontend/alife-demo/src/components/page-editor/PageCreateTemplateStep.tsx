@@ -153,6 +153,7 @@ const PageCreateTemplateStep = ({ model, canEdit, initialSections, onApplyTempla
               slug={model.slug}
               visibility={model.visibility}
               sections={model.sections}
+              previewGroupId={model.groupId}
             />
           </div>
         </div>

@@ -376,6 +376,7 @@ const PageEditorView = () => {
                 slug={pageModel.slug}
                 visibility={pageModel.visibility}
                 sections={pageModel.sections}
+                previewGroupId={resolvedGroupId}
               />
             </div>
           </AppSectionCard>
@@ -387,6 +388,7 @@ const PageEditorView = () => {
             isCreateMode={isCreateMode}
             message={message}
             validation={validation}
+            contextGroupId={resolvedGroupId}
             onChange={setPageModel}
           />
         )

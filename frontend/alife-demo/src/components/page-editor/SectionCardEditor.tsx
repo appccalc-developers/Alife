@@ -15,11 +15,12 @@ type Props = {
   onRemove: () => void
   onMoveUp: () => void
   onMoveDown: () => void
+  contextGroupId?: string
 }
 
-const sectionTypes: SectionType[] = ['Hero', 'MediaSpotlight', 'IconFeatureGrid', 'SermonSpotlight', 'RichText']
+const sectionTypes: SectionType[] = ['Hero', 'MediaSpotlight', 'IconFeatureGrid', 'SermonSpotlight', 'RichText', 'GroupList']
 const sectionTypeLabel = (type: SectionType) =>
-  type === 'IconFeatureGrid' ? 'Icon Feature Grid' : type === 'SermonSpotlight' ? 'Sermon Spotlight' : type
+  type === 'IconFeatureGrid' ? 'Icon Feature Grid' : type === 'SermonSpotlight' ? 'Sermon Spotlight' : type === 'GroupList' ? 'ListView' : type
 
 const stringifyPretty = (value: unknown) => JSON.stringify(value ?? {}, null, 2)
 const DEFAULT_HERO_IMAGE = 'https://images.unsplash.com/photo-1529070538774-1843cb3265df?w=1600&q=80'
@@ -37,7 +38,7 @@ const parseJson = (value: string): { ok: true; data: JsonMap } | { ok: false; er
   }
 }
 
-const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate, onRemove, onMoveUp, onMoveDown }: Props) => {
+const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate, onRemove, onMoveUp, onMoveDown, contextGroupId }: Props) => {
   const [contentText, setContentText] = useState(stringifyPretty(section.contentJson))
   const [styleText, setStyleText] = useState(stringifyPretty(section.styleJson))
   const [contentError, setContentError] = useState('')
@@ -57,26 +58,41 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
   const patchSection = (patch: Partial<SectionEditModel>) => onUpdate({ ...section, ...patch })
 
   const applyTypeDefaults = (nextType: SectionEditModel['type']) => {
+    if (nextType === 'RichText') {
+      patchSection({
+        type: 'RichText',
+        contentJson: {
+          ...section.contentJson,
+          backgroundImage: (section.contentJson.backgroundImage as string) || (section.contentJson.backgroundImageUrl as string) || DEFAULT_HERO_IMAGE,
+          backgroundImageUrl: (section.contentJson.backgroundImageUrl as string) || (section.contentJson.backgroundImage as string) || DEFAULT_HERO_IMAGE,
+          title: (section.contentJson.title as string) || '',
+          subtitle: (section.contentJson.subtitle as string) || '',
+          text: (section.contentJson.text as string) || '',
+          quoteAuthor: (section.contentJson.quoteAuthor as string) || '',
+        },
+        styleJson: {
+          ...section.styleJson,
+          variant: 'quoteOverlay',
+        },
+      })
+      return
+    }
+
+    if (nextType === 'GroupList') {
+      patchSection({
+        type: 'GroupList',
+        contentJson: {
+          ...section.contentJson,
+          sourceType: (section.contentJson.sourceType as string) || 'sermons',
+          sourceScope: (section.contentJson.sourceScope as string) || 'global',
+          limit: typeof section.contentJson.limit === 'number' ? section.contentJson.limit : 10,
+        },
+        styleJson: {},
+      })
+      return
+    }
+
     if (nextType !== 'Hero' && nextType !== 'MediaSpotlight' && nextType !== 'IconFeatureGrid' && nextType !== 'SermonSpotlight') {
-      if (nextType === 'RichText') {
-        patchSection({
-          type: 'RichText',
-          contentJson: {
-            ...section.contentJson,
-            backgroundImage: (section.contentJson.backgroundImage as string) || (section.contentJson.backgroundImageUrl as string) || DEFAULT_HERO_IMAGE,
-            backgroundImageUrl: (section.contentJson.backgroundImageUrl as string) || (section.contentJson.backgroundImage as string) || DEFAULT_HERO_IMAGE,
-            title: (section.contentJson.title as string) || '',
-            subtitle: (section.contentJson.subtitle as string) || '',
-            text: (section.contentJson.text as string) || '',
-            quoteAuthor: (section.contentJson.quoteAuthor as string) || '',
-          },
-          styleJson: {
-            ...section.styleJson,
-            variant: 'quoteOverlay',
-          },
-        })
-        return
-      }
       patchSection({ type: nextType })
       return
     }
@@ -239,6 +255,7 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
           contentJson={section.contentJson}
           styleJson={section.styleJson}
           disabled={!canEdit}
+          contextGroupId={contextGroupId}
           onContentChange={(value) => patchSection({ contentJson: value })}
           onStyleChange={(value) => patchSection({ styleJson: value })}
         />

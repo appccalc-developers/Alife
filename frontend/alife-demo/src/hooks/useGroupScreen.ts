@@ -12,6 +12,7 @@ import { groupPagesCollection, getCachedGroupPages } from '../db/collections/gro
 import { groupMembershipsCollection, getCachedGroupMemberships } from '../db/collections/groupCollection'
 import type { GroupDto, GroupTab, PageSummaryDto } from '../types/group'
 import type { GroupEventRecord } from '../types/event'
+import type { GroupDto, GroupTab, PageSummaryDto } from '../types/group'
 
 type MembershipStatusLabel = 'Not joined' | 'Requested' | 'Approved' | 'Invited'
 type MembershipRole = 'Member' | 'CoLeader' | 'Leader' | null

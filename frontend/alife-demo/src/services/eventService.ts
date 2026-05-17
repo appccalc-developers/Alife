@@ -23,6 +23,11 @@ export const eventService = {
   createSessionStream: (sessionId: string): EventSource =>
     new EventSource(`/api/events/session/${encodeURIComponent(sessionId)}/stream`),
 
+  getGlobalEvents: async (): Promise<GroupEventRecord[]> => {
+    const { data } = await http.get<GroupEventRecord[]>('/api/events')
+    return data
+  },
+
   getGroupEvents: async (groupId: string): Promise<GroupEventRecord[]> => {
     const { data } = await http.get<GroupEventRecord[]>(`/api/groups/${groupId}/events`)
     return data

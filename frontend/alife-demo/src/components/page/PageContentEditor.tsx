@@ -10,6 +10,8 @@ type Props = {
   message?: string
   validation?: PageEditorValidation
   onChange: (value: PageEditModel) => void
+  /** Group id for GroupList smart previews in the section editor */
+  contextGroupId?: string
 }
 
 export const createEmptyPageSection = (): SectionEditModel => ({
@@ -55,6 +57,7 @@ const PageContentEditor = ({
   canEdit,
   validation = validatePageContent(model),
   onChange,
+  contextGroupId,
 }: Props) => {
   const addSection = () => {
     onChange({
@@ -105,6 +108,7 @@ const PageContentEditor = ({
           sections={model.sections}
           canEdit={canEdit}
           sectionTypeErrors={validation.sectionTypeErrors}
+          contextGroupId={contextGroupId}
           onAdd={addSection}
           onUpdate={({ index, section }) => updateSection(index, section)}
           onRemove={removeSection}
