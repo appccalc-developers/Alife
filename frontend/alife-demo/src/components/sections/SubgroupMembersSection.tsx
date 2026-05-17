@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import { useSubgroupPageMembers, membersConfigToListViewMetadata } from '../../hooks/useSubgroupPageMembers'
 import type { SubgroupPageMembersConfig } from '../../types/subgroup-pages'
 import { GroupListSection } from './GroupListSection'
@@ -42,7 +42,7 @@ export const SubgroupMembersSection: React.FC<SubgroupMembersSectionProps> = ({
   }
 
   // 编辑模式 - 使用 hook 管理保存/加载
-  const { members, loading, error, fromCache, load, save } = useSubgroupPageMembers({
+  const { loading, error, fromCache, save } = useSubgroupPageMembers({
     config,
     autoLoad: !editMode && autoLoad,
   })

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { getSubgroupMembers, saveSubgroupMembersConfig, membersQueryKey } from '../api/subgroupPagesService'
 import { getCachedRecord } from '../db/httpCache'
 import type { SubgroupPageMembersConfig } from '../types/subgroup-pages'
