@@ -271,7 +271,7 @@ async function fetchBucketObject(env, key) {
   const headers = new Headers();
   object.writeHttpMetadata(headers);
   headers.set("etag", object.httpEtag);
-  headers.set("cache-control", "public, max-age=300");
+  headers.set("cache-control", "public, max-age=86400, immutable");
 
   return new Response(object.body, {
     status: 200,

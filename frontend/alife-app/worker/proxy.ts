@@ -5,7 +5,7 @@ const ALLOWED_ORIGINS = new Set(['https://app.ccalc.live', 'http://localhost:517
 const ALLOWED_METHODS = 'GET, POST, PUT, PATCH, DELETE, OPTIONS'
 const ALLOWED_HEADERS = 'Content-Type, Authorization, X-Requested-With, If-None-Match'
 const PREFLIGHT_MAX_AGE_SECONDS = '86400'
-const CACHE_TTL_SECONDS = 60
+const CACHE_TTL_SECONDS = 86400 // 24 hours
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 
 export default {
