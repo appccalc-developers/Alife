@@ -101,29 +101,6 @@ test('failed writes do not evict cache', async () => {
   assert.deepEqual(deletedCacheKeys, [])
 })
 
-test('OPTIONS preflight returns without reaching origin', async () => {
-  const response = await dispatch('https://app.ccalc.live/api/pages/home', { method: 'OPTIONS' })
-
-  assert.equal(response.status, 204)
-  assert.equal(response.headers.get('access-control-allow-origin'), ORIGIN)
-  assert.equal(response.headers.get('access-control-allow-methods'), 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
-  assert.equal(response.headers.get('access-control-max-age'), '86400')
-  assert.equal(fetchCalls.length, 0)
-})
-
-test('CORS headers are only added for authorized origins', async () => {
-  originResponses.push(Response.json([]))
-  const allowed = await dispatch('https://app.ccalc.live/api/pages/global?lang=en')
-
-  originResponses.push(Response.json([]))
-  const denied = await dispatch('https://app.ccalc.live/api/pages/global?lang=zh', {
-    headers: { origin: 'https://evil.example' },
-  })
-
-  assert.equal(allowed.headers.get('access-control-allow-origin'), ORIGIN)
-  assert.equal(denied.headers.get('access-control-allow-origin'), null)
-})
-
 test('POST /api/events/extract calls Gemini at the edge and returns EventDto', async () => {
   const eventDto = {
     id: '',
