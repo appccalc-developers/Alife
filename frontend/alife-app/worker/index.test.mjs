@@ -159,7 +159,7 @@ test('POST /api/events/extract calls Gemini at the edge and returns EventDto', a
     method: 'POST',
     body: JSON.stringify({ message: 'West Coast trip 15 families Dec 1-3. Must take bus. Kayaking $30. $150/adult $80/child.' }),
     headers: { 'content-type': 'application/json' },
-    env: { GEMINI_API_KEY: 'test-key', API_PROXY_TARGET: 'https://api.ccalc.live' },
+    env: { GEMINI_API_KEY: 'test-key', API_PROXY_TARGET: 'https://ccalc.live' },
   })
 
   assert.equal(response.status, 200)
@@ -179,7 +179,7 @@ test('POST /api/events/extract returns 503 when GEMINI_API_KEY is not set', asyn
     method: 'POST',
     body: JSON.stringify({ message: 'Some event' }),
     headers: { 'content-type': 'application/json' },
-    env: { API_PROXY_TARGET: 'https://api.ccalc.live' },
+    env: { API_PROXY_TARGET: 'https://ccalc.live' },
   })
 
   assert.equal(response.status, 503)
@@ -191,7 +191,7 @@ test('POST /api/events/extract returns 400 for empty message', async () => {
     method: 'POST',
     body: JSON.stringify({ message: '   ' }),
     headers: { 'content-type': 'application/json' },
-    env: { GEMINI_API_KEY: 'test-key', API_PROXY_TARGET: 'https://api.ccalc.live' },
+    env: { GEMINI_API_KEY: 'test-key', API_PROXY_TARGET: 'https://ccalc.live' },
   })
 
   assert.equal(response.status, 400)
@@ -211,7 +211,7 @@ async function dispatch(url, init = {}) {
 
 function createEnv() {
   return {
-    API_PROXY_TARGET: 'https://api.ccalc.live',
+    API_PROXY_TARGET: 'https://ccalc.live',
   }
 }
 

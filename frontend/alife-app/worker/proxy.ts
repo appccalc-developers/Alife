@@ -1,7 +1,7 @@
 import type { Env, ExecutionContext } from './index'
 
 const DEFAULT_API_PROXY_TARGET = 'https://api.ccalc.live'
-const ALLOWED_ORIGINS = new Set(['https://app.ccalc.live', 'http://localhost:5173'])
+const ALLOWED_ORIGINS = new Set(['https://ccalc.live', 'http://localhost:5173'])
 const ALLOWED_METHODS = 'GET, POST, PUT, PATCH, DELETE, OPTIONS'
 const ALLOWED_HEADERS = 'Content-Type, Authorization, X-Requested-With, If-None-Match'
 const PREFLIGHT_MAX_AGE_SECONDS = '86400'
