@@ -14,7 +14,7 @@
     ]
   },
   "vars": {
-    "API_PROXY_TARGET": "https://ccalc.live",
+    "API_PROXY_TARGET": "https://api.ccalc.live",
     "GEMINI_MODEL": "gemini-3.1-flash-lite"
   },
   "durable_objects": {
