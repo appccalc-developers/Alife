@@ -1,4 +1,4 @@
-import { defineConfig, loadEnv } from 'vite'
+import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
@@ -8,9 +8,7 @@ const ONE_WEEK_IN_SECONDS = 7 * 24 * 60 * 60
 const THIRTY_DAYS_IN_SECONDS = 30 * 24 * 60 * 60
 declare const self: { location: { origin: string } }
 
-export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '')
-  const proxyTarget = (env.API_PROXY_TARGET || 'https://api.ccalc.live').replace(/\/$/, '')
+export default defineConfig(() => {
 
   return {
     plugins: [react(), VitePWA({
@@ -68,12 +66,12 @@ export default defineConfig(({ mode }) => {
       },
     }), cloudflare()],
     server: {
-      proxy: {
-        '/api': {
-          target: proxyTarget,
-          changeOrigin: true,
-        },
-      },
+      // proxy: {
+      //   '/api': {
+      //     target: proxyTarget,
+      //     changeOrigin: true,
+      //   },
+      // },
     },
   };
 })
