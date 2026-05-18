@@ -24,11 +24,6 @@ internal sealed class ApiHttpPipeline
 
         app.UseEndpoints(endpoints =>
         {
-            endpoints.MapGet("/", context =>
-            {
-                context.Response.Redirect("/swagger");
-                return Task.CompletedTask;
-            });
             ApiHealthCheckSetup.MapEndpoints(endpoints);
             endpoints.MapControllers();
         });
