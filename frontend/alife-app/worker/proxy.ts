@@ -38,6 +38,8 @@ export default {
     }
 
     const originRequest = createOriginRequest(request, env)
+    console.log('Proxying request to origin:', originRequest.url)
+
     const originResponse = await fetch(originRequest)
 
     if (originResponse.ok && MUTATING_METHODS.has(request.method)) {
