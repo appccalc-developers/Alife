@@ -3,7 +3,7 @@ import { beforeEach, test } from 'node:test'
 
 import worker from '../dist/app_ccalc/index.js'
 
-const ORIGIN = 'https://app.ccalc.live'
+const ORIGIN = 'https://ccalc.live'
 
 let fetchCalls
 let fetchInits
@@ -45,15 +45,35 @@ beforeEach(() => {
 test('GET requests are served from cache on the second hit', async () => {
   originResponses.push(Response.json({ title: 'Fresh page' }))
 
-  const first = await dispatch('https://app.ccalc.live/api/pages/home?lang=en')
+  const first = await dispatch('https://ccalc.live/api/pages/home?lang=en')
   await flushWaitUntil()
-  const second = await dispatch('https://app.ccalc.live/api/pages/home?lang=en')
+  const second = await dispatch('https://ccalc.live/api/pages/home?lang=en')
 
   assert.equal(first.status, 200)
   assert.equal(first.headers.get('x-alife-cache'), 'MISS')
   assert.equal(second.status, 200)
   assert.equal(second.headers.get('x-alife-cache'), 'HIT')
   assert.deepEqual(await second.json(), { title: 'Fresh page' })
+  assert.match(first.headers.get('cache-control') ?? '', /s-maxage=86400/)
+  assert.equal(fetchCalls.length, 1)
+})
+
+test('non-auth cookie churn does not fragment GET cache key', async () => {
+  originResponses.push(Response.json({ title: 'Scoped page' }))
+
+  const tokenA = createJwtWithSub('member-1')
+  const first = await dispatch('https://ccalc.live/api/pages/home?lang=en', {
+    headers: { cookie: `alife_auth=${tokenA}; analytics_id=abc` },
+  })
+  await flushWaitUntil()
+
+  const tokenB = createJwtWithSub('member-1')
+  const second = await dispatch('https://ccalc.live/api/pages/home?lang=en', {
+    headers: { cookie: `alife_auth=${tokenB}; analytics_id=xyz` },
+  })
+
+  assert.equal(first.headers.get('x-alife-cache'), 'MISS')
+  assert.equal(second.headers.get('x-alife-cache'), 'HIT')
   assert.equal(fetchCalls.length, 1)
 })
 
@@ -75,7 +95,7 @@ test('matching If-None-Match is answered from edge cache with 304', async () => 
 })
 
 test('successful PUT evicts the corresponding GET cache entry', async () => {
-  const url = 'https://app.ccalc.live/api/pages/home?lang=en'
+  const url = 'https://ccalc.live/api/pages/home?lang=en'
   cacheStore.set(cacheKey(new Request(url)), Response.json({ title: 'Stale page' }))
   originResponses.push(Response.json({ title: 'Updated page' }))
 
@@ -89,7 +109,7 @@ test('successful PUT evicts the corresponding GET cache entry', async () => {
 })
 
 test('failed writes do not evict cache', async () => {
-  const url = 'https://app.ccalc.live/api/pages/home?lang=en'
+  const url = 'https://ccalc.live/api/pages/home?lang=en'
   cacheStore.set(cacheKey(new Request(url)), Response.json({ title: 'Stale page' }))
   originResponses.push(Response.json({ message: 'No' }, { status: 400 }))
 
@@ -132,7 +152,7 @@ test('POST /api/events/extract calls Gemini at the edge and returns EventDto', a
     }),
   )
 
-  const response = await dispatch('https://app.ccalc.live/api/events/extract', {
+  const response = await dispatch('https://ccalc.live/api/events/extract', {
     method: 'POST',
     body: JSON.stringify({ message: 'West Coast trip 15 families Dec 1-3. Must take bus. Kayaking $30. $150/adult $80/child.' }),
     headers: { 'content-type': 'application/json' },
@@ -152,7 +172,7 @@ test('POST /api/events/extract calls Gemini at the edge and returns EventDto', a
 })
 
 test('POST /api/events/extract returns 503 when GEMINI_API_KEY is not set', async () => {
-  const response = await dispatch('https://app.ccalc.live/api/events/extract', {
+  const response = await dispatch('https://ccalc.live/api/events/extract', {
     method: 'POST',
     body: JSON.stringify({ message: 'Some event' }),
     headers: { 'content-type': 'application/json' },
@@ -164,7 +184,7 @@ test('POST /api/events/extract returns 503 when GEMINI_API_KEY is not set', asyn
 })
 
 test('POST /api/events/extract returns 400 for empty message', async () => {
-  const response = await dispatch('https://app.ccalc.live/api/events/extract', {
+  const response = await dispatch('https://ccalc.live/api/events/extract', {
     method: 'POST',
     body: JSON.stringify({ message: '   ' }),
     headers: { 'content-type': 'application/json' },
@@ -210,4 +230,18 @@ function cacheKey(request) {
   url.hash = ''
   url.searchParams.sort()
   return url.toString()
+}
+
+function createJwtWithSub(sub) {
+  const header = toBase64Url(JSON.stringify({ alg: 'none', typ: 'JWT' }))
+  const payload = toBase64Url(JSON.stringify({ sub, exp: 4700000000 }))
+  return `${header}.${payload}.sig`
+}
+
+function toBase64Url(value) {
+  return Buffer.from(value, 'utf8')
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '')
 }
