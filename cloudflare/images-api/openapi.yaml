@@ -1,51 +1,204 @@
 openapi: 3.1.0
 info:
   title: Cloudflare R2 Image Manager API
-  version: 1.0.0
-  summary: API for listing, uploading, streaming, and deleting images in an R2 bucket.
+  version: 2.0.0
+  summary: >
+    API for hierarchical image management in an R2 bucket. Supports folder
+    organization, recursive folder deletion, automatic empty-folder cleanup,
+    and path-based upload/streaming.
 servers:
   - url: https://images.ccalc.live
 paths:
-  /api/config:
+  /api/images/config:
     get:
       summary: Get runtime configuration
+      description: Returns bucket binding, public base URL, list limit, and help file key.
       responses:
         "200":
           description: Configuration payload
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bucketBinding: { type: string }
+                  bucketName: { type: string }
+                  publicBaseUrl: { type: string }
+                  listLimit: { type: string }
+                  helpBucketObjectKey: { type: string }
+  /api/config:
+    get:
+      summary: Get runtime configuration (legacy alias)
+      description: Alias of /api/images/config kept for backwards compatibility.
+      responses:
+        "200":
+          description: Configuration payload
+  /api/images/list/{path}:
+    get:
+      summary: List images and subfolders at a folder path
+      description: >
+        Returns the direct images and immediate subfolders at the given path.
+        Use an empty path (or omit it) to list the root. Folder paths are
+        virtual (R2 key prefixes); they appear as long as they contain objects.
+      parameters:
+        - in: path
+          name: path
+          required: false
+          description: Folder path to list (e.g. "animals" or "animals/cats"). Omit for root.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Folder contents
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  path:
+                    type: string
+                    description: The requested folder path (/ for root)
+                  folders:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        type: { type: string, enum: [folder] }
+                        path: { type: string, description: Folder prefix including trailing slash }
+                        name: { type: string, description: Folder display name }
+                  images:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        type: { type: string, enum: [image] }
+                        key: { type: string }
+                        name: { type: string }
+                        size: { type: integer }
+                        uploaded: { type: string, format: date-time }
+                        etag: { type: string }
+                        contentType: { type: string }
+                        url: { type: string, format: uri }
   /api/images:
     get:
-      summary: List images
+      summary: List root images and subfolders (legacy alias of /api/images/list)
       responses:
         "200":
-          description: Image list
+          description: Root folder contents
     post:
-      summary: Upload image
+      summary: Upload image to root
+      description: Alias of POST /api/images/ for uploading to the root folder.
       requestBody:
         required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
       responses:
         "201":
-          description: Created
-  /api/images/{key}:
-    delete:
-      summary: Delete image by key
-      parameters:
-        - in: path
-          name: key
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: Deleted
-  /api/images/object/{key}:
+          description: Image uploaded to root
+  /api/images/{path}:
     get:
-      summary: Stream image object
+      summary: Stream image object by path
+      description: >
+        Fetches and streams the image stored at the given key path. Returns
+        404 if the key does not exist.
       parameters:
         - in: path
-          name: key
+          name: path
           required: true
+          description: Full image key path (e.g. "animals/cats/tabby.jpg")
           schema:
             type: string
       responses:
         "200":
-          description: OK
+          description: Image binary stream
+          content:
+            image/*:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Image not found
+    post:
+      summary: Upload image into a folder path
+      description: >
+        Uploads an image into the folder at {path}. The uploaded filename is
+        taken from the multipart "file" field and sanitized. The resulting R2
+        key is {path}/{filename}.
+      parameters:
+        - in: path
+          name: path
+          required: false
+          description: Destination folder path (e.g. "animals/cats"). Omit for root.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "201":
+          description: Image uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  image:
+                    type: object
+                    properties:
+                      key: { type: string }
+                      name: { type: string }
+                      folder: { type: string }
+                      size: { type: integer }
+                      uploaded: { type: string, format: date-time }
+                      contentType: { type: string }
+                      url: { type: string, format: uri }
+        "400":
+          description: Bad request (not multipart, missing file, or non-image type)
+    delete:
+      summary: Delete image or folder (and all contents) at path
+      description: >
+        If {path} matches an existing image key, that image is deleted.
+        If {path} is a folder prefix (virtual folder), all images and
+        subfolders under it are deleted recursively. In both cases, empty
+        parent folder markers are automatically cleaned up.
+      parameters:
+        - in: path
+          name: path
+          required: true
+          description: Image key or folder path to delete (e.g. "animals/cats/tabby.jpg" or "animals/cats")
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    type: string
+                    description: The path that was deleted
+                  type:
+                    type: string
+                    enum: [image, folder]
+                    description: Whether an image or folder was deleted
+                  count:
+                    type: integer
+                    description: Number of objects deleted (folder deletions only)
+        "404":
+          description: Path not found

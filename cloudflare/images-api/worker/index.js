@@ -31,53 +31,64 @@ const EMPTY = "";
 const OPENAPI_FALLBACK_YAML = `openapi: 3.1.0
 info:
   title: CCalc Image API
-  version: 1.0.0
+  version: 2.0.0
 servers:
   - url: https://images.ccalc.live
 paths:
-  /api/config:
+  /api/images/config:
     get:
       summary: Get API runtime config
       responses:
         '200':
           description: OK
-  /api/images:
+  /api/images/list/{path}:
     get:
-      summary: List images
+      summary: List images and subfolders at path
+      parameters:
+        - in: path
+          name: path
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+  /api/images/{path}:
+    get:
+      summary: Stream image object by path
+      parameters:
+        - in: path
+          name: path
+          required: true
+          schema:
+            type: string
       responses:
         '200':
           description: OK
     post:
-      summary: Upload image
+      summary: Upload image into folder at path
+      parameters:
+        - in: path
+          name: path
+          required: false
+          schema:
+            type: string
       requestBody:
         required: true
       responses:
         '201':
           description: Created
-  /api/images/{key}:
     delete:
-      summary: Delete image by key
+      summary: Delete image or folder (and all contents) at path
       parameters:
         - in: path
-          name: key
+          name: path
           required: true
           schema:
             type: string
       responses:
         '200':
           description: Deleted
-  /api/images/object/{key}:
-    get:
-      summary: Stream image object
-      parameters:
-        - in: path
-          name: key
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: OK
 `;
 
 function json(value, status = 200) {
@@ -140,7 +151,7 @@ function keyToUrlPath(key) {
 function toImageUrl(request, env, key) {
   const base = typeof env.R2_PUBLIC_BASE_URL === "string" ? env.R2_PUBLIC_BASE_URL.trim() : "";
   const origin = new URL(request.url).origin;
-  const apiObjectUrl = `${origin}/api/images/object/${encodeURIComponent(key)}`;
+  const apiObjectUrl = `${origin}/api/images/${keyToUrlPath(key)}`;
   if (!base) {
     return apiObjectUrl;
   }
@@ -168,26 +179,48 @@ function sanitizeFileName(name) {
   return trimmed.replace(/\\/g, "/").split("/").at(-1).replace(/\s+/g, "-");
 }
 
-async function listImages(request, env) {
+/**
+ * List images and subfolders at a given folder path.
+ * Uses R2 delimiter listing to return virtual folders (delimitedPrefixes)
+ * and image objects at this level.
+ */
+async function listFolder(request, env, folderPath) {
   const configuredLimit = Number.parseInt(env.BUCKET_LIST_LIMIT ?? "500", 10);
   const limit = Number.isFinite(configuredLimit) && configuredLimit > 0 ? configuredLimit : 500;
-  const listing = await env.IMAGE_BUCKET.list({ delimiter: "/", limit });
-  const images = listing.objects
-    .filter((object) => isImageObject(object.key, object.httpMetadata?.contentType))
-    .map((object) => ({
-      key: object.key,
-      size: object.size,
-      uploaded: object.uploaded,
-      etag: object.httpEtag,
-      contentType: object.httpMetadata?.contentType || TYPE_BY_EXTENSION[getKeyExtension(object.key)] || EMPTY,
-      url: toImageUrl(request, env, object.key),
-    }))
-    .sort((left, right) => String(right.uploaded).localeCompare(String(left.uploaded)));
 
-  return json({ images });
+  // Normalize: non-root folders must end with '/'
+  const prefix = folderPath ? folderPath.replace(/\/$/, "") + "/" : "";
+
+  const listing = await env.IMAGE_BUCKET.list({ prefix, delimiter: "/", limit });
+
+  const folders = (listing.delimitedPrefixes || []).map((p) => {
+    const name = p.replace(/\/$/, "").split("/").pop();
+    return { type: "folder", path: p, name };
+  });
+
+  const images = listing.objects
+    .filter((obj) => isImageObject(obj.key, obj.httpMetadata?.contentType))
+    .map((obj) => ({
+      type: "image",
+      key: obj.key,
+      name: obj.key.split("/").pop(),
+      size: obj.size,
+      uploaded: obj.uploaded,
+      etag: obj.httpEtag,
+      contentType: obj.httpMetadata?.contentType || TYPE_BY_EXTENSION[getKeyExtension(obj.key)] || EMPTY,
+      url: toImageUrl(request, env, obj.key),
+    }))
+    .sort((a, b) => String(b.uploaded).localeCompare(String(a.uploaded)));
+
+  return json({ path: folderPath || "/", folders, images });
 }
 
-async function uploadImage(request, env) {
+/**
+ * Upload an image into a folder path. The form field "file" provides the image.
+ * The resulting key is: <folderPath>/<sanitized-filename>
+ * (or just <sanitized-filename> for the root).
+ */
+async function uploadToPath(request, env, folderPath) {
   const contentType = request.headers.get("content-type") || "";
   if (!contentType.toLowerCase().includes("multipart/form-data")) {
     return json({ error: 'Use multipart/form-data with field name "file".' }, 400);
@@ -205,7 +238,10 @@ async function uploadImage(request, env) {
     return json({ error: "Only image files can be uploaded." }, 400);
   }
 
-  const key = sanitizeFileName(file.name);
+  const fileName = sanitizeFileName(file.name);
+  const folder = folderPath ? folderPath.replace(/\/$/, "") + "/" : "";
+  const key = folder + fileName;
+
   await env.IMAGE_BUCKET.put(key, file.stream(), {
     httpMetadata: {
       contentType: candidateType || "application/octet-stream",
@@ -217,6 +253,8 @@ async function uploadImage(request, env) {
     {
       image: {
         key,
+        name: fileName,
+        folder: folderPath || "/",
         size: uploadedObject?.size ?? file.size,
         uploaded: uploadedObject?.uploaded ?? new Date().toISOString(),
         contentType: uploadedObject?.httpMetadata?.contentType || candidateType || EMPTY,
@@ -227,19 +265,81 @@ async function uploadImage(request, env) {
   );
 }
 
-async function deleteImage(_request, env, pathname) {
-  const encodedKey = pathname.slice("/api/images/".length);
-  const key = decodeURIComponent(encodedKey);
-  if (!key) {
-    return json({ error: "Image key is required." }, 400);
+/**
+ * Delete an image file or an entire folder (and all its contents).
+ * - If targetPath matches an existing object key → delete that image.
+ * - If targetPath is a folder prefix with objects → delete all recursively.
+ * After deletion, empty parent folder markers are cleaned up.
+ */
+async function deletePath(_request, env, targetPath) {
+  if (!targetPath) {
+    return json({ error: "Path is required." }, 400);
   }
 
-  await env.IMAGE_BUCKET.delete(key);
-  return json({ deleted: key });
+  // Check if it is an existing object (image file)
+  const head = await env.IMAGE_BUCKET.head(targetPath);
+  if (head) {
+    await env.IMAGE_BUCKET.delete(targetPath);
+    await cleanupEmptyParentFolders(env, targetPath);
+    return json({ deleted: targetPath, type: "image" });
+  }
+
+  // Check if it is a folder (objects exist under this prefix)
+  const folderPrefix = targetPath.replace(/\/$/, "") + "/";
+  const count = await deleteAllWithPrefix(env, folderPrefix);
+  if (count > 0) {
+    await cleanupEmptyParentFolders(env, folderPrefix);
+    return json({ deleted: targetPath, type: "folder", count });
+  }
+
+  return json({ error: "Not found." }, 404);
 }
 
-async function fetchObject(_request, env, pathname) {
-  const encodedKey = pathname.slice("/api/images/object/".length);
+/**
+ * Recursively delete all R2 objects whose keys begin with the given prefix.
+ * Returns the total count of deleted objects.
+ */
+async function deleteAllWithPrefix(env, prefix) {
+  let cursor;
+  let count = 0;
+  do {
+    const options = { prefix, limit: 1000 };
+    if (cursor) {
+      options.cursor = cursor;
+    }
+    const listing = await env.IMAGE_BUCKET.list(options);
+    const keys = listing.objects.map((obj) => obj.key);
+    if (keys.length > 0) {
+      await env.IMAGE_BUCKET.delete(keys);
+      count += keys.length;
+    }
+    cursor = listing.truncated ? listing.cursor : null;
+  } while (cursor);
+  return count;
+}
+
+/**
+ * After deleting an object, walk up the folder hierarchy and remove any explicit
+ * folder marker objects (keys ending in '/') that are now empty.
+ */
+async function cleanupEmptyParentFolders(env, key) {
+  const parts = key.split("/").filter(Boolean);
+  for (let i = parts.length - 1; i > 0; i--) {
+    const folderPrefix = parts.slice(0, i).join("/") + "/";
+    const listing = await env.IMAGE_BUCKET.list({ prefix: folderPrefix, limit: 1 });
+    const isEmpty =
+      listing.objects.length === 0 && (!listing.delimitedPrefixes || listing.delimitedPrefixes.length === 0);
+    if (isEmpty) {
+      // Remove explicit folder marker if present (key == folderPrefix)
+      await env.IMAGE_BUCKET.delete(folderPrefix);
+    } else {
+      // Parent folder still has content; stop climbing
+      break;
+    }
+  }
+}
+
+async function fetchObjectByKey(_request, env, encodedKey) {
   const key = decodeURIComponent(encodedKey);
   if (!key) {
     return json({ error: "Image key is required." }, 400);
@@ -349,42 +449,76 @@ function helpHtml() {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    const pathname = url.pathname;
+    const method = request.method;
+
     try {
-      if (request.method === "OPTIONS" && url.pathname.startsWith("/api/")) {
+      // CORS preflight
+      if (method === "OPTIONS" && pathname.startsWith("/api/")) {
         return handleOptions(request);
       }
-      if (url.pathname === "/api/config" && request.method === "GET") {
+
+      // ── Config ──────────────────────────────────────────────────────────
+      // New canonical path: GET /api/images/config
+      // Legacy path kept for backwards compatibility: GET /api/config
+      if (method === "GET" && (pathname === "/api/images/config" || pathname === "/api/config")) {
         return withCors(configResponse(env), request);
       }
-      if (url.pathname === "/api/images" && request.method === "GET") {
-        return withCors(await listImages(request, env), request);
+
+      // ── List folder: GET /api/images/list[/{path}] ─────────────────────
+      if (method === "GET" && pathname.startsWith("/api/images/list")) {
+        const raw = pathname.slice("/api/images/list".length).replace(/^\//, "");
+        const folderPath = raw ? decodeURIComponent(raw) : "";
+        return withCors(await listFolder(request, env, folderPath), request);
       }
-      if (url.pathname === "/api/images" && request.method === "POST") {
-        return withCors(await uploadImage(request, env), request);
+
+      // ── Legacy flat list: GET /api/images ─────────────────────────────
+      if (method === "GET" && pathname === "/api/images") {
+        return withCors(await listFolder(request, env, ""), request);
       }
-      if (url.pathname.startsWith("/api/images/object/") && request.method === "GET") {
-        return withCors(await fetchObject(request, env, url.pathname), request);
+
+      // ── Upload: POST /api/images[/{path}] ──────────────────────────────
+      if (method === "POST" && (pathname === "/api/images" || pathname.startsWith("/api/images/"))) {
+        const raw = pathname === "/api/images" ? "" : pathname.slice("/api/images/".length);
+        const folderPath = raw ? decodeURIComponent(raw) : "";
+        return withCors(await uploadToPath(request, env, folderPath), request);
       }
-      if (url.pathname.startsWith("/api/images/") && request.method === "DELETE") {
-        return withCors(await deleteImage(request, env, url.pathname), request);
+
+      // ── Delete image or folder: DELETE /api/images/{path} ──────────────
+      if (method === "DELETE" && pathname.startsWith("/api/images/")) {
+        const encodedPath = pathname.slice("/api/images/".length);
+        const targetPath = decodeURIComponent(encodedPath);
+        return withCors(await deletePath(request, env, targetPath), request);
       }
-      if (url.pathname === "/help" && request.method === "GET") {
+
+      // ── Stream image: GET /api/images/{path} ───────────────────────────
+      // Must come after /api/images/list and /api/images/config checks above.
+      if (method === "GET" && pathname.startsWith("/api/images/")) {
+        const encodedKey = pathname.slice("/api/images/".length);
+        return withCors(await fetchObjectByKey(request, env, encodedKey), request);
+      }
+
+      // ── Documentation ──────────────────────────────────────────────────
+      if (pathname === "/help" && method === "GET") {
         return helpHtml();
       }
-      if (url.pathname === "/help/raw" && request.method === "GET") {
+      if (pathname === "/help/raw" && method === "GET") {
         return helpRaw(env);
       }
-      if (request.method === "GET" && url.pathname !== "/" && !url.pathname.startsWith("/help")) {
-        return fetchObjectByPublicPath(env, url.pathname);
+
+      // ── Public path fallback (serve image by public URL path) ──────────
+      if (method === "GET" && pathname !== "/" && !pathname.startsWith("/help") && !pathname.startsWith("/api/")) {
+        return fetchObjectByPublicPath(env, pathname);
       }
-      if (url.pathname.startsWith("/api/")) {
+
+      if (pathname.startsWith("/api/")) {
         return withCors(json({ error: "Not found." }, 404), request);
       }
 
       return json({ error: "Not found." }, 404);
     } catch (error) {
       const response = json({ error: error instanceof Error ? error.message : "Unexpected error." }, 500);
-      return url.pathname.startsWith("/api/") ? withCors(response, request) : response;
+      return pathname.startsWith("/api/") ? withCors(response, request) : response;
     }
   },
 };
