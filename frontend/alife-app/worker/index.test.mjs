@@ -121,6 +121,18 @@ test('failed writes do not evict cache', async () => {
   assert.deepEqual(deletedCacheKeys, [])
 })
 
+test('GET /images/api/... is proxied to images.ccalc.live', async () => {
+  originResponses.push(Response.json({ ok: true }))
+
+  const response = await dispatch('https://ccalc.live/images/api/config?size=small', {
+    env: { API_PROXY_TARGET: 'https://api.example.com' },
+  })
+
+  assert.equal(response.status, 200)
+  assert.equal(fetchCalls.length, 1)
+  assert.equal(fetchCalls[0].url, 'https://images.ccalc.live/images/api/config?size=small')
+})
+
 test('POST /api/events/extract calls Gemini at the edge and returns EventDto', async () => {
   const eventDto = {
     id: '',

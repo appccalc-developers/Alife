@@ -1,6 +1,7 @@
 import type { Env, ExecutionContext } from './index'
 
 const DEFAULT_API_PROXY_TARGET = 'https://api.ccalc.live'
+const DEFAULT_IMAGES_API_PROXY_TARGET = 'https://images.ccalc.live'
 const ALLOWED_ORIGINS = new Set(['https://ccalc.live', 'http://localhost:5173'])
 const ALLOWED_METHODS = 'GET, POST, PUT, PATCH, DELETE, OPTIONS'
 const ALLOWED_HEADERS = 'Content-Type, Authorization, X-Requested-With, If-None-Match'
@@ -14,7 +15,7 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url)
 
-    if (!url.pathname.startsWith('/api/')) {
+    if (!isProxyPath(url.pathname)) {
       return addCorsHeaders(request, new Response('Not found', { status: 404 }))
     }
 
@@ -115,7 +116,7 @@ function createOriginRequest(
   options?: { stripConditionalHeaders?: boolean },
 ) {
   const incomingUrl = new URL(request.url)
-  const targetBase = new URL((env.API_PROXY_TARGET || DEFAULT_API_PROXY_TARGET).replace(/\/$/, ''))
+  const targetBase = new URL(getProxyTargetForPath(incomingUrl.pathname, env).replace(/\/$/, ''))
   const targetUrl = new URL(incomingUrl.pathname + incomingUrl.search, targetBase)
   const headers = new Headers(request.headers)
 
@@ -138,6 +139,18 @@ function createOriginRequest(
   }
 
   return new Request(targetUrl, init)
+}
+
+function isProxyPath(pathname: string) {
+  return pathname.startsWith('/api/') || pathname === '/images/api' || pathname.startsWith('/images/api/')
+}
+
+function getProxyTargetForPath(pathname: string, env: Env) {
+  if (pathname === '/images/api' || pathname.startsWith('/images/api/')) {
+    return DEFAULT_IMAGES_API_PROXY_TARGET
+  }
+
+  return env.API_PROXY_TARGET || DEFAULT_API_PROXY_TARGET
 }
 
 async function createCacheKey(request: Request) {
