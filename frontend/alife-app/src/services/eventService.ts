@@ -46,6 +46,19 @@ export const eventService = {
     return data
   },
 
+  updateGroupEvent: async (eventId: string, eventDto: EventDto): Promise<GroupEventRecord> => {
+    const titleEn = eventDto.title.en || eventDto.title.zh || ''
+    const titleZh = eventDto.title.zh || eventDto.title.en || ''
+    const { data } = await http.put<GroupEventRecord>(`/api/events/${eventId}`, {
+      titleEn,
+      titleZh,
+      startDate: eventDto.startDate,
+      endDate: eventDto.endDate,
+      eventDataJson: JSON.stringify(eventDto),
+    })
+    return data
+  },
+
   deleteGroupEvent: async (eventId: string): Promise<void> => {
     await http.delete(`/api/events/${eventId}`)
   },

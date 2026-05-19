@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import type { EventDto, EventSessionSsePayload, EventSessionState, MultilingualString } from '../types/event'
+import { useLocation, useParams, useSearchParams } from 'react-router-dom'
+import type { EventDto, EventSessionSsePayload, EventSessionState, GroupEventRecord, MultilingualString } from '../types/event'
 import { eventService } from '../services/eventService'
 import { normalizeApiError } from '../services/http'
 import { useAuthStore } from '../stores/auth'
@@ -209,12 +209,49 @@ const getSpeechRecognition = (): SpeechRecognitionConstructor | null => {
   return speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition ?? null
 }
 
+const fallbackDraftFromRecord = (record: GroupEventRecord): EventDto => ({
+  id: record.id,
+  title: { zh: record.titleZh || record.titleEn, en: record.titleEn || record.titleZh },
+  description: { zh: '', en: '' },
+  locationName: { zh: '', en: '' },
+  startDate: record.startDate,
+  endDate: record.endDate,
+  registrationDeadline: record.startDate,
+  maxCapacity: 0,
+  capacityUnit: 'People',
+  hardConstraints: [],
+  optionalActivities: [],
+  baseFeePerAdult: null,
+  baseFeePerChild: null,
+  currency: 'USD',
+  posterImageUrl: null,
+  galleryUrls: [],
+  legacySummary: null,
+})
+
+const getDraftFromRecord = (record: GroupEventRecord): EventDto => {
+  try {
+    const parsed = JSON.parse(record.eventDataJson) as EventDto
+    if (parsed && parsed.title && parsed.description && parsed.locationName) {
+      return { ...parsed, id: record.id }
+    }
+  } catch {
+    // no-op
+  }
+
+  return fallbackDraftFromRecord(record)
+}
+
 const EventCreatorView = () => {
   const { language, me } = useAuthStore()
   const { CurrentGroup } = useCurrentGroupStore()
+  const location = useLocation()
+  const { eventId } = useParams<{ eventId?: string }>()
+  const isEditMode = Boolean(eventId)
   const [searchParams] = useSearchParams()
   const groupIdFromParams = searchParams.get('groupId')
   const effectiveGroupId = groupIdFromParams ?? CurrentGroup?.id ?? null
+  const eventFromNavigationState = (location.state as { event?: GroupEventRecord } | null)?.event
 
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -236,6 +273,10 @@ const EventCreatorView = () => {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
+    if (isEditMode) {
+      return
+    }
+
     let isMounted = true
     const sessionId = sessionIdRef.current
     const source = eventService.createSessionStream(sessionId)
@@ -267,7 +308,51 @@ const EventCreatorView = () => {
       isMounted = false
       source.close()
     }
-  }, [])
+  }, [isEditMode])
+
+  useEffect(() => {
+    if (!isEditMode || !eventId) {
+      return
+    }
+
+    if (eventFromNavigationState && eventFromNavigationState.id === eventId) {
+      const draft = getDraftFromRecord(eventFromNavigationState)
+      setError('')
+      setEventDraft(draft)
+      setAiInsight(draft.legacySummary ?? null)
+      return
+    }
+
+    if (!effectiveGroupId) {
+      setError('Unable to load event for editing. Open this page from the group events sidebar.')
+      return
+    }
+
+    let cancelled = false
+    eventService.getGroupEvents(effectiveGroupId)
+      .then((records) => {
+        if (cancelled) return
+        const record = records.find((item) => item.id === eventId)
+        if (!record) {
+          setError('Event not found for editing.')
+          return
+        }
+
+        const draft = getDraftFromRecord(record)
+        setError('')
+        setEventDraft(draft)
+        setAiInsight(draft.legacySummary ?? null)
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setError('Unable to load event for editing.')
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [effectiveGroupId, eventFromNavigationState, eventId, isEditMode])
 
   const scrollToBottom = () => {
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
@@ -372,7 +457,7 @@ const EventCreatorView = () => {
 
     const eventName = (language === 'zh' ? eventDraft.title.zh : eventDraft.title.en) || eventDraft.title.en || eventDraft.title.zh || 'your event'
 
-    if (!effectiveGroupId) {
+    if (!isEditMode && !effectiveGroupId) {
       setMessages((prev) => [
         ...prev,
         {
@@ -386,13 +471,21 @@ const EventCreatorView = () => {
 
     setSaveStatus('saving')
     try {
-      await eventService.createGroupEvent(effectiveGroupId, eventDraft)
+      if (isEditMode && eventId) {
+        await eventService.updateGroupEvent(eventId, eventDraft)
+      } else if (effectiveGroupId) {
+        await eventService.createGroupEvent(effectiveGroupId, eventDraft)
+      } else {
+        throw new Error('Missing group id for event creation.')
+      }
       setSaveStatus('saved')
       setMessages((prev) => [
         ...prev,
         {
           role: 'assistant',
-          text: `✅ "${eventName}" has been saved to the group successfully! You can view it in the group's Events section.`,
+          text: isEditMode
+            ? `✅ "${eventName}" has been updated successfully!`
+            : `✅ "${eventName}" has been saved to the group successfully! You can view it in the group's Events section.`,
         },
       ])
     } catch (err) {
@@ -413,9 +506,11 @@ const EventCreatorView = () => {
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Create Event with AI</h1>
+        <h1 className="text-2xl font-bold text-slate-900">{isEditMode ? 'Edit Event with AI' : 'Create Event with AI'}</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Chat with Gemini to design your event. The draft restores automatically across refreshes and devices using the session bridge.
+          {isEditMode
+            ? 'Refine this event using the same AI-assisted editor, then save your updates.'
+            : 'Chat with Gemini to design your event. The draft restores automatically across refreshes and devices using the session bridge.'}
         </p>
       </div>
 
@@ -531,7 +626,7 @@ const EventCreatorView = () => {
             disabled={saveStatus === 'saving'}
             className="inline-flex items-center rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 disabled:opacity-60"
           >
-            {saveStatus === 'saving' ? 'Saving…' : 'Save to Group'}
+            {saveStatus === 'saving' ? 'Saving…' : isEditMode ? 'Update Event' : 'Save to Group'}
           </button>
         </div>
       )}
