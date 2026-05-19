@@ -62,4 +62,35 @@ export const eventService = {
   deleteGroupEvent: async (eventId: string): Promise<void> => {
     await http.delete(`/api/events/${eventId}`)
   },
+
+  enrollEvent: async (
+    payload: {
+      groupId: string
+      eventId: string
+      name?: string
+      consent?: boolean
+    },
+    files: File[] = [],
+  ): Promise<{
+    status: 'needs_input' | 'completed'
+    nextField?: 'name' | 'consent' | 'paymentFiles'
+    prompt?: string
+    message?: string
+  }> => {
+    const formData = new FormData()
+    formData.set('groupId', payload.groupId)
+    formData.set('eventId', payload.eventId)
+
+    if (payload.name) {
+      formData.set('name', payload.name)
+    }
+
+    if (typeof payload.consent === 'boolean') {
+      formData.set('consent', payload.consent ? 'true' : 'false')
+    }
+
+    files.forEach((file) => formData.append('paymentFiles', file))
+    const { data } = await sameOriginHttp.post('/api/event/enroll', formData)
+    return data
+  },
 }

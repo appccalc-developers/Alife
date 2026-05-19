@@ -13,6 +13,7 @@ public interface IAlifeDbContext
     DbSet<Link> Links { get; }
     DbSet<Sermon> Sermons { get; }
     DbSet<GroupEvent> GroupEvents { get; }
+    DbSet<EventEnrollment> EventEnrollments { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

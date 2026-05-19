@@ -232,6 +232,56 @@ export const useGroupScreen = (groupId: string) => {
     setEvents(data)
   }, [groupId])
 
+  const enrollEvent = useCallback(
+    async (eventId: string) => {
+      if (!groupId) return
+
+      let name: string | undefined
+      let consent: boolean | undefined
+      let paymentFiles: File[] = []
+
+      for (let attemptCount = 0; attemptCount < 6; attemptCount += 1) {
+        const response = await eventService.enrollEvent({ groupId, eventId, name, consent }, paymentFiles)
+
+        if (response.status === 'completed') {
+          setStatusMessage(response.message || 'Enrollment submitted.')
+          return
+        }
+
+        if (response.nextField === 'name') {
+          const value = window.prompt(response.prompt || 'Please enter your name for enrollment.')
+          if (!value?.trim()) {
+            throw new Error('Enrollment cancelled: name is required.')
+          }
+          name = value.trim()
+          continue
+        }
+
+        if (response.nextField === 'consent') {
+          const accepted = window.confirm(response.prompt || 'Do you consent to submit your enrollment data?')
+          if (!accepted) {
+            throw new Error('Enrollment cancelled: consent is required.')
+          }
+          consent = true
+          continue
+        }
+
+        if (response.nextField === 'paymentFiles') {
+          paymentFiles = await selectPaymentFiles()
+          if (paymentFiles.length === 0) {
+            throw new Error('Enrollment cancelled: at least one payment file is required.')
+          }
+          continue
+        }
+
+        throw new Error('Enrollment flow returned an unsupported step.')
+      }
+
+      throw new Error('Enrollment flow exceeded maximum guidance steps.')
+    },
+    [groupId],
+  )
+
   return {
     activeTab,
     setActiveTab,
@@ -257,6 +307,7 @@ export const useGroupScreen = (groupId: string) => {
     refreshPages,
     refreshMemberships,
     refreshEvents,
+    enrollEvent,
     joinOrRequest,
     addSubgroup,
     inviteMember,
@@ -271,3 +322,18 @@ export const useGroupScreen = (groupId: string) => {
     deleteEvent,
   }
 }
+
+const selectPaymentFiles = () =>
+  new Promise<File[]>((resolve) => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'image/*,.pdf'
+    input.multiple = true
+
+    input.onchange = () => {
+      const files = Array.from(input.files ?? [])
+      resolve(files)
+    }
+
+    input.click()
+  })
