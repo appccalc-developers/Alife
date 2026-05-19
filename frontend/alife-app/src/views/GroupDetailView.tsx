@@ -40,6 +40,7 @@ const GroupDetailView = () => {
     kickMember,
     setCoLeader,
     deleteEvent,
+    enrollEvent,
   } = useGroupScreen(groupId)
 
   useEffect(() => {
@@ -158,6 +159,11 @@ const GroupDetailView = () => {
 
         deleteEvent(eventId).catch(() => {
           setStatusMessage('Failed to delete event.')
+        })
+      }}
+      onEnrollEvent={(eventId) => {
+        enrollEvent(eventId).catch((reason) => {
+          setStatusMessage(reason instanceof Error ? reason.message : 'Failed to enroll for this event.')
         })
       }}
     />

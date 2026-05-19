@@ -207,6 +207,64 @@ test('POST /api/events/extract returns 400 for empty message', async () => {
   assert.equal(fetchCalls.length, 0)
 })
 
+test('POST /api/event/enroll asks Gemini-guided question when name is missing', async () => {
+  originResponses.push(Response.json({
+    candidates: [{ content: { parts: [{ text: 'Please tell me your full name for enrollment.' }] } }],
+  }))
+
+  const response = await dispatch('https://ccalc.live/api/event/enroll', {
+    method: 'POST',
+    body: JSON.stringify({ groupId: crypto.randomUUID(), eventId: crypto.randomUUID() }),
+    headers: { 'content-type': 'application/json' },
+    env: { GEMINI_API_KEY: 'test-key', API_PROXY_TARGET: 'https://api.ccalc.live' },
+  })
+
+  assert.equal(response.status, 200)
+  const body = await response.json()
+  assert.equal(body.status, 'needs_input')
+  assert.equal(body.nextField, 'name')
+  assert.equal(body.prompt, 'Please tell me your full name for enrollment.')
+  assert.equal(fetchCalls.length, 1)
+  assert.ok(String(fetchCalls[0]).includes('generativelanguage.googleapis.com'))
+})
+
+test('POST /api/event/enroll uploads files and commits AI JSON to backend', async () => {
+  const eventId = crypto.randomUUID()
+  const groupId = crypto.randomUUID()
+  originResponses.push(
+    Response.json({
+      image: { url: `https://images.ccalc.live/enrollments/${eventId}/proof.png` },
+    }, { status: 201 }),
+  )
+  originResponses.push(Response.json({
+    candidates: [{ content: { parts: [{ text: JSON.stringify({ eventId, applicantName: 'Alice', consent: true }) }] } }],
+  }))
+  originResponses.push(Response.json({ ok: true }, { status: 200 }))
+
+  const formData = new FormData()
+  formData.set('groupId', groupId)
+  formData.set('eventId', eventId)
+  formData.set('name', 'Alice')
+  formData.set('consent', 'true')
+  formData.append('paymentFiles', new File(['dummy'], 'proof.png', { type: 'image/png' }))
+
+  const response = await dispatch('https://ccalc.live/api/event/enroll', {
+    method: 'POST',
+    body: formData,
+    env: { GEMINI_API_KEY: 'test-key', API_PROXY_TARGET: 'https://api.ccalc.live' },
+  })
+
+  assert.equal(response.status, 200)
+  const body = await response.json()
+  assert.equal(body.status, 'completed')
+  assert.equal(fetchCalls.length, 3)
+  assert.equal(String(fetchCalls[0]), `https://images.ccalc.live/api/images/enrollments/${eventId}`)
+  assert.ok(String(fetchCalls[1]).includes('generativelanguage.googleapis.com'))
+  assert.equal(String(fetchCalls[2]), `https://api.ccalc.live/api/group/${groupId}/enroll`)
+  assert.equal(fetchInits[2].method, 'POST')
+  assert.deepEqual(JSON.parse(fetchInits[2].body), { eventId, applicantName: 'Alice', consent: true })
+})
+
 async function dispatch(url, init = {}) {
   const { env: envOverride, ...requestInit } = init
   const headers = new Headers(requestInit.headers)

@@ -39,6 +39,7 @@ type Props = {
   onKickMember: (memberId: string) => void
   onSetCoLeader: (memberId: string, isCoLeader: boolean) => void
   onDeleteEvent: (eventId: string) => void
+  onEnrollEvent: (eventId: string) => void
 }
 
 const CloseIcon = () => (
@@ -199,6 +200,7 @@ const DrawerPanel = ({
   onKickMember,
   onSetCoLeader,
   onDeleteEvent,
+  onEnrollEvent,
 }: Omit<Props, 'open'>) => {
   const navigate = useNavigate()
   const showJoinAction = membershipStatus === 'Not joined' || membershipStatus === 'Invited'
@@ -343,17 +345,19 @@ const DrawerPanel = ({
           )}
         </section>
 
-        {canManageGroup ? (
+        {membershipStatus === 'Approved' ? (
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-sm font-semibold text-slate-900">Events</h3>
-              <DrawerIconButton
-                label="Create event with AI"
-                variant="ghost"
-                onClick={() => navigate(`/events/new?groupId=${group.id}`)}
-              >
-                <AddIcon />
-              </DrawerIconButton>
+              {canManageGroup ? (
+                <DrawerIconButton
+                  label="Create event with AI"
+                  variant="ghost"
+                  onClick={() => navigate(`/events/new?groupId=${group.id}`)}
+                >
+                  <AddIcon />
+                </DrawerIconButton>
+              ) : null}
             </div>
             {events.length === 0 ? (
               <p className="text-sm text-slate-500">No events yet.</p>
@@ -371,16 +375,23 @@ const DrawerPanel = ({
                         <p className="mt-1 text-xs text-slate-500">{start}</p>
                       </div>
                       <div className="mt-3 flex flex-wrap justify-end gap-1">
-                        <DrawerIconButton
-                          label={`Edit event: ${title}`}
-                          variant="ghost"
-                          onClick={() => navigate(`/events/${event.id}/edit?groupId=${group.id}`, { state: { event } })}
-                        >
-                          <EditIcon />
-                        </DrawerIconButton>
-                        <DrawerIconButton label={`Delete event: ${title}`} variant="danger" onClick={() => onDeleteEvent(event.id)}>
-                          <RemoveIcon />
-                        </DrawerIconButton>
+                        <AppActionButton size="sm" variant="primary" onClick={() => onEnrollEvent(event.id)}>
+                          Enroll
+                        </AppActionButton>
+                        {canManageGroup ? (
+                          <>
+                            <DrawerIconButton
+                              label={`Edit event: ${title}`}
+                              variant="ghost"
+                              onClick={() => navigate(`/events/${event.id}/edit?groupId=${group.id}`, { state: { event } })}
+                            >
+                              <EditIcon />
+                            </DrawerIconButton>
+                            <DrawerIconButton label={`Delete event: ${title}`} variant="danger" onClick={() => onDeleteEvent(event.id)}>
+                              <RemoveIcon />
+                            </DrawerIconButton>
+                          </>
+                        ) : null}
                       </div>
                     </li>
                   )

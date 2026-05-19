@@ -1,5 +1,6 @@
 import extractor from './extractor'
 import { EventPlanningSession } from './extractor'
+import enrollment from './enrollment'
 import proxy from './proxy'
 
 export type Env = {
@@ -40,6 +41,10 @@ export default {
 
       if (url.pathname.startsWith('/api/events/session/')) {
         return await extractor.fetch(request, env)
+      }
+
+      if (url.pathname === '/api/event/enroll' && request.method === 'POST') {
+        return await enrollment.fetch(request, env)
       }
 
       return await proxy.fetch(request, env, ctx)
