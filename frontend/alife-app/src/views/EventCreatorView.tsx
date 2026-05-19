@@ -211,7 +211,7 @@ const getSpeechRecognition = (): SpeechRecognitionConstructor | null => {
 
 const fallbackDraftFromRecord = (record: GroupEventRecord): EventDto => ({
   id: record.id,
-  title: { zh: record.titleZh || record.titleEn, en: record.titleEn || record.titleZh },
+  title: { zh: record.titleZh, en: record.titleEn },
   description: { zh: '', en: '' },
   locationName: { zh: '', en: '' },
   startDate: record.startDate,
@@ -248,10 +248,13 @@ const EventCreatorView = () => {
   const location = useLocation()
   const { eventId } = useParams<{ eventId?: string }>()
   const isEditMode = Boolean(eventId)
+  const eventIdValue = eventId ?? ''
   const [searchParams] = useSearchParams()
   const groupIdFromParams = searchParams.get('groupId')
   const effectiveGroupId = groupIdFromParams ?? CurrentGroup?.id ?? null
   const eventFromNavigationState = (location.state as { event?: GroupEventRecord } | null)?.event
+  const eventFromNavigationStateId = eventFromNavigationState ? String(eventFromNavigationState.id) : ''
+  const eventFromNavigationStateData = eventFromNavigationState?.eventDataJson ?? ''
 
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -315,7 +318,7 @@ const EventCreatorView = () => {
       return
     }
 
-    if (eventFromNavigationState && eventFromNavigationState.id === eventId) {
+    if (eventFromNavigationState && eventFromNavigationStateId === eventIdValue) {
       const draft = getDraftFromRecord(eventFromNavigationState)
       setError('')
       setEventDraft(draft)
@@ -332,7 +335,7 @@ const EventCreatorView = () => {
     eventService.getGroupEvents(effectiveGroupId)
       .then((records) => {
         if (cancelled) return
-        const record = records.find((item) => item.id === eventId)
+        const record = records.find((item) => String(item.id) === eventIdValue)
         if (!record) {
           setError('Event not found for editing.')
           return
@@ -352,7 +355,7 @@ const EventCreatorView = () => {
     return () => {
       cancelled = true
     }
-  }, [effectiveGroupId, eventFromNavigationState, eventId, isEditMode])
+  }, [effectiveGroupId, eventFromNavigationState, eventFromNavigationStateData, eventFromNavigationStateId, eventIdValue, isEditMode])
 
   const scrollToBottom = () => {
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
