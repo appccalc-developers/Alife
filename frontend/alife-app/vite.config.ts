@@ -39,15 +39,41 @@ export default defineConfig(() => {
             },
           },
           {
+            // Cover images and thumbnails - StaleWhileRevalidate for instant secondary loads
+            // Serve cached instantly, update in background
             urlPattern: ({ request, url }) =>
               url.origin === self.location.origin &&
               (request.destination === 'image' || request.destination === 'font'),
-            handler: 'CacheFirst',
+            handler: 'StaleWhileRevalidate',
             options: {
-              cacheName: 'alife-asset-cache',
+              cacheName: 'alife-image-cache',
               expiration: {
                 maxEntries: 120,
                 maxAgeSeconds: THIRTY_DAYS_IN_SECONDS,
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+              // Warm cache: pre-cache images on first load
+              backgroundSync: {
+                name: 'image-sync',
+              },
+            },
+          },
+          {
+            // External images (from Cloudflare Image Service) - StaleWhileRevalidate
+            urlPattern: ({ url }) =>
+              url.origin !== self.location.origin &&
+              (url.pathname.match(/\/images\//) || url.pathname.match(/\/covers\//)),
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'alife-external-image-cache',
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: THIRTY_DAYS_IN_SECONDS,
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
               },
             },
           },

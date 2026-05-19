@@ -18,3 +18,44 @@ body {
     padding-right: env(safe-area-inset-right);
   }
 }
+
+/* Image loading shimmer animation */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* Image fade-in transition */
+.img-fade-in {
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out;
+}
+
+.img-fade-in.loaded {
+  opacity: 1;
+}
+
+/* Prevent layout shift for images with unknown dimensions */
+.img-container {
+  position: relative;
+  overflow: hidden;
+  background-color: #f1f5f9;
+}
+
+.img-container > img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}

@@ -1,9 +1,11 @@
-import React, { useMemo } from 'react'
+import React, { useEffect, useMemo, useRef } from 'react'
 import { useListSourceResolver } from '../../hooks/useListSourceResolver'
 import type { ListViewMetadata } from '../../types/page-editor'
 import { normalizeListViewMetadata } from '../../utils/listViewMetadata'
 import type { SermonDto } from '../../services/sermonService'
 import type { GroupSummaryDto } from '../../types'
+import { useImagePreloader } from '../../hooks/useImagePreloader'
+import CoverImage from '../CoverImage'
 
 // ---------- Universal Card Interface ----------
 
@@ -91,20 +93,28 @@ const sourceTypeLabels: Record<string, string> = {
   members: '成员',
 }
 
-export const ListCard: React.FC<{ item: UniversalCardItem; compact?: boolean }> = ({ item, compact }) => {
+export const ListCard: React.FC<{ item: UniversalCardItem; compact?: boolean; cardIndex?: number }> = ({ item, compact, cardIndex = 0 }) => {
   const imgH = compact ? 'h-24' : 'h-40'
   const iconH = compact ? 'h-14' : 'h-20'
   const pad = compact ? 'p-2' : 'p-4'
   const titleCls = compact ? 'text-xs' : 'text-sm'
 
   return (
-    <div className="group rounded-lg border border-slate-200 bg-white shadow-sm transition-all hover:shadow-md hover:border-slate-300">
+    <a
+      href={item.url}
+      target={item.type === 'sermon' ? '_blank' : undefined}
+      rel={item.type === 'sermon' ? 'noopener noreferrer' : undefined}
+      className="group block rounded-lg border border-slate-200 bg-white shadow-sm transition-all hover:shadow-md hover:border-slate-300"
+    >
       {item.imageUrl ? (
         <div className={`${imgH} overflow-hidden rounded-t-lg`}>
-          <img
+          <CoverImage
             src={item.imageUrl}
             alt={item.title}
-            className="h-full w-full object-cover transition-transform group-hover:scale-105"
+            index={cardIndex}
+            aspectRatio={16 / 9}
+            className="h-full w-full"
+            fixedHeight
           />
         </div>
       ) : (
@@ -122,19 +132,14 @@ export const ListCard: React.FC<{ item: UniversalCardItem; compact?: boolean }> 
             {new Date(item.date).toLocaleDateString('zh-CN', { year: 'numeric', month: 'short', day: 'numeric' })}
           </p>
         )}
-        <a
-          href={item.url}
-          target={item.type === 'sermon' ? '_blank' : undefined}
-          rel={item.type === 'sermon' ? 'noopener noreferrer' : undefined}
-          className={`mt-2 inline-flex items-center font-medium text-blue-600 hover:text-blue-800 ${compact ? 'text-[10px]' : 'text-xs'}`}
-        >
+        <span className={`mt-2 inline-flex items-center font-medium text-blue-600 hover:text-blue-800 ${compact ? 'text-[10px]' : 'text-xs'}`}>
           查看详情
           <svg className="ml-1 h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
-        </a>
+        </span>
       </div>
-    </div>
+    </a>
   )
 }
 
@@ -174,6 +179,18 @@ export const GroupListSection: React.FC<GroupListSectionProps> = ({ metadata, gr
     return data.map((item) => adapter(item)).filter(Boolean)
   }, [data, meta.sourceType, groupId])
 
+  // Preload images for first 4 cards when data is ready
+  const { preloadImages } = useImagePreloader()
+  const initialLoadDone = useRef(false)
+
+  useEffect(() => {
+    if (cardItems.length > 0 && !initialLoadDone.current) {
+      initialLoadDone.current = true
+      const imageUrls = cardItems.slice(0, 4).map((item) => item.imageUrl)
+      preloadImages(imageUrls).catch(() => undefined)
+    }
+  }, [cardItems, preloadImages])
+
   const gridCls = compact ? 'grid grid-cols-1 gap-2 sm:grid-cols-2' : 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3'
   const shellPad = compact ? 'p-2' : 'p-4'
 
@@ -211,8 +228,8 @@ export const GroupListSection: React.FC<GroupListSectionProps> = ({ metadata, gr
   return (
     <div className={`rounded-lg border border-slate-200 bg-white ${shellPad}`}>
       <div className={gridCls}>
-        {cardItems.map((item) => (
-          <ListCard key={item.id} item={item} compact={compact} />
+        {cardItems.map((item, index) => (
+          <ListCard key={item.id} item={item} compact={compact} cardIndex={index} />
         ))}
       </div>
     </div>
