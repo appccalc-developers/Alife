@@ -240,7 +240,7 @@ export const useGroupScreen = (groupId: string) => {
       let consent: boolean | undefined
       let paymentFiles: File[] = []
 
-      for (let safety = 0; safety < 6; safety += 1) {
+      for (let attemptCount = 0; attemptCount < 6; attemptCount += 1) {
         const response = await eventService.enrollEvent({ groupId, eventId, name, consent }, paymentFiles)
 
         if (response.status === 'completed') {
