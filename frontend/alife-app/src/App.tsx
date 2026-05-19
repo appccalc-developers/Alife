@@ -352,6 +352,7 @@ const App = () => {
             <Route path="/pages/:slug" element={<PageView />} />
             <Route path="/sermons" element={<SermonsView />} />
             <Route path="/events/new" element={<EventCreatorView />} />
+            <Route path="/events/:eventId/edit" element={<EventCreatorView />} />
             <Route path="/groups/:groupId/pages/new" element={<PageEditorView />} />
             <Route path="/pages/:pageId/edit" element={<PageEditorView />} />
             <Route path="/pages/preview-draft" element={<PagePreviewDraftView />} />

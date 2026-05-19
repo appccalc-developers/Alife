@@ -371,6 +371,13 @@ const DrawerPanel = ({
                         <p className="mt-1 text-xs text-slate-500">{start}</p>
                       </div>
                       <div className="mt-3 flex flex-wrap justify-end gap-1">
+                        <DrawerIconButton
+                          label={`Edit event: ${title}`}
+                          variant="ghost"
+                          onClick={() => navigate(`/events/${event.id}/edit?groupId=${group.id}`, { state: { event } })}
+                        >
+                          <EditIcon />
+                        </DrawerIconButton>
                         <DrawerIconButton label={`Delete event: ${title}`} variant="danger" onClick={() => onDeleteEvent(event.id)}>
                           <RemoveIcon />
                         </DrawerIconButton>
