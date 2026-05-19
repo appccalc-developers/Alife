@@ -6,6 +6,8 @@ const ALLOWED_METHODS = 'GET, POST, PUT, PATCH, DELETE, OPTIONS'
 const ALLOWED_HEADERS = 'Content-Type, Authorization, X-Requested-With, If-None-Match'
 const PREFLIGHT_MAX_AGE_SECONDS = '86400'
 const CACHE_TTL_SECONDS = 86400 // 24 hours
+const CACHE_STALE_WHILE_REVALIDATE_SECONDS = 300
+const CACHE_STALE_IF_ERROR_SECONDS = 86400
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 
 export default {
@@ -37,7 +39,9 @@ export default {
       }
     }
 
-    const originRequest = createOriginRequest(request, env)
+    const originRequest = createOriginRequest(request, env, {
+      stripConditionalHeaders: request.method === 'GET',
+    })
     console.log('Proxying request to origin:', originRequest.url)
 
     const originResponse = await fetch(originRequest)
@@ -105,14 +109,26 @@ function appendVaryOrigin(vary: string | null) {
     : `${vary}, Origin`
 }
 
-function createOriginRequest(request: Request, env: Env) {
+function createOriginRequest(
+  request: Request,
+  env: Env,
+  options?: { stripConditionalHeaders?: boolean },
+) {
   const incomingUrl = new URL(request.url)
   const targetBase = new URL((env.API_PROXY_TARGET || DEFAULT_API_PROXY_TARGET).replace(/\/$/, ''))
   const targetUrl = new URL(incomingUrl.pathname + incomingUrl.search, targetBase)
+  const headers = new Headers(request.headers)
+
+  // On an edge miss, forwarding browser validators can produce origin 304 responses
+  // without a body, which prevents populating the edge cache for this key.
+  if (options?.stripConditionalHeaders) {
+    headers.delete('if-none-match')
+    headers.delete('if-modified-since')
+  }
 
   const init: RequestInit & { duplex?: 'half' } = {
     method: request.method,
-    headers: request.headers,
+    headers,
     redirect: 'manual',
   }
 
@@ -149,7 +165,10 @@ function withCacheHeader(response: Response, value: 'HIT' | 'MISS' | 'BYPASS' | 
 
 function withCacheControl(response: Response) {
   const headers = new Headers(response.headers)
-  headers.set('cache-control', `public, max-age=${CACHE_TTL_SECONDS}`)
+  headers.set(
+    'cache-control',
+    `public, max-age=${CACHE_TTL_SECONDS}, s-maxage=${CACHE_TTL_SECONDS}, stale-while-revalidate=${CACHE_STALE_WHILE_REVALIDATE_SECONDS}, stale-if-error=${CACHE_STALE_IF_ERROR_SECONDS}`,
+  )
   headers.set('vary', appendVary(headers.get('vary'), 'Accept-Encoding'))
   return new Response(response.body, {
     status: response.status,
@@ -165,10 +184,26 @@ async function passivelyInvalidate(request: Request) {
 }
 
 function matchesIfNoneMatch(ifNoneMatch: string, etag: string) {
-  return ifNoneMatch
-    .split(',')
-    .map((value) => value.trim())
-    .some((value) => value === etag || value === `W/${etag}`)
+  // Fast path: exact match first
+  if (ifNoneMatch === etag) {
+    return true
+  }
+  
+  // Weak tag comparison
+  if (ifNoneMatch === `W/${etag}`) {
+    return true
+  }
+  
+  // Only split if simple checks fail
+  const values = ifNoneMatch.split(',')
+  for (let i = 0; i < values.length; i++) {
+    const trimmed = values[i].trim()
+    if (trimmed === etag || trimmed === `W/${etag}`) {
+      return true
+    }
+  }
+  
+  return false
 }
 
 function appendVary(vary: string | null, value: string) {
@@ -186,15 +221,107 @@ function appendVary(vary: string | null, value: string) {
 
 async function createCredentialCacheKey(request: Request) {
   const authorization = request.headers.get('authorization') ?? ''
-  const cookie = request.headers.get('cookie') ?? ''
-  const credential = `${authorization}\n${cookie}`
-  if (!credential.trim()) {
+  const cookies = parseCookies(request.headers.get('cookie') ?? '')
+
+  const authPrincipal = extractPrincipalFromAuthorization(authorization)
+  const cookiePrincipal = extractPrincipalFromJwt(cookies.alife_auth)
+
+  const credentialScope = [
+    authPrincipal ? `auth:${authPrincipal}` : '',
+    cookiePrincipal ? `cookie:${cookiePrincipal}` : '',
+  ].filter(Boolean).join('|')
+
+  if (!credentialScope) {
     return ''
   }
 
-  const encoded = new TextEncoder().encode(credential)
+  const encoded = new TextEncoder().encode(credentialScope)
   const hash = await crypto.subtle.digest('SHA-256', encoded)
   return Array.from(new Uint8Array(hash), (byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
+function parseCookies(cookieHeader: string) {
+  const pairs = cookieHeader
+    .split(';')
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+
+  const result: Record<string, string> = {}
+  for (const pair of pairs) {
+    const separator = pair.indexOf('=')
+    if (separator <= 0) {
+      continue
+    }
+
+    const name = pair.slice(0, separator).trim()
+    const value = pair.slice(separator + 1).trim()
+    if (!name || !value) {
+      continue
+    }
+
+    result[name] = value
+  }
+
+  return result
+}
+
+function extractPrincipalFromAuthorization(authorizationHeader: string) {
+  if (!authorizationHeader) {
+    return ''
+  }
+
+  const parts = authorizationHeader.trim().split(/\s+/)
+  if (parts.length !== 2 || parts[0].toLowerCase() !== 'bearer') {
+    return stableFallbackPrincipal(authorizationHeader)
+  }
+
+  return extractPrincipalFromJwt(parts[1]) || stableFallbackPrincipal(parts[1])
+}
+
+function extractPrincipalFromJwt(token: string | undefined) {
+  if (!token) {
+    return ''
+  }
+
+  const sections = token.split('.')
+  if (sections.length < 2) {
+    return ''
+  }
+
+  try {
+    const payloadJson = decodeBase64Url(sections[1])
+    const payload = JSON.parse(payloadJson) as Record<string, unknown>
+    const subject = payload.sub
+    if (typeof subject === 'string' && subject.trim()) {
+      return `sub:${subject}`
+    }
+  } catch {
+    return ''
+  }
+
+  return ''
+}
+
+function decodeBase64Url(value: string) {
+  const base64 = value.replace(/-/g, '+').replace(/_/g, '/')
+  const padLength = (4 - (base64.length % 4)) % 4
+  const padded = `${base64}${'='.repeat(padLength)}`
+  const raw = atob(padded)
+  return decodeUtf8(raw)
+}
+
+function decodeUtf8(raw: string) {
+  const bytes = Uint8Array.from(raw, (char) => char.charCodeAt(0))
+  return new TextDecoder().decode(bytes)
+}
+
+function stableFallbackPrincipal(value: string) {
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return ''
+  }
+
+  return `raw:${trimmed}`
 }
 
 function getEdgeCache() {

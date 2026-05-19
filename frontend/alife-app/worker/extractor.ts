@@ -52,6 +52,7 @@ type SessionState = {
   sessionId: string
   eventDraft: EventDto | null
   chatHistory: ChatMessage[]
+  legacySummary: MultilingualString | null
   updatedAt: string
 }
 

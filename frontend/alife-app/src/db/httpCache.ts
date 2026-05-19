@@ -3,6 +3,7 @@ import { createStore, get, set } from 'idb-keyval'
 type CacheRecord<TData> = {
   etag: string
   data: TData
+  storedAt: number
 }
 
 const STORAGE_PREFIX = 'alife:db:cache:etag:'
@@ -41,6 +42,11 @@ type ConditionalGetOptions<TData> = {
   parser?: (input: unknown) => TData
 }
 
+const LOCAL_CACHE_MAX_AGE_SECONDS = Number(import.meta.env.VITE_LOCAL_CACHE_MAX_AGE_SECONDS ?? 120)
+const LOCAL_CACHE_MAX_AGE_MS = Number.isFinite(LOCAL_CACHE_MAX_AGE_SECONDS) && LOCAL_CACHE_MAX_AGE_SECONDS > 0
+  ? LOCAL_CACHE_MAX_AGE_SECONDS * 1000
+  : 120000
+
 const productionBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').trim()
 const apiBaseUrl = import.meta.env.DEV ? '' : productionBaseUrl
 
@@ -54,6 +60,10 @@ const toAbsoluteUrl = (path: string) => {
 
 export const conditionalGet = async <TData>({ queryKey, path, parser }: ConditionalGetOptions<TData>): Promise<TData> => {
   const previous = await readRecord<TData>(queryKey)
+
+  if (previous?.data !== undefined && typeof previous.storedAt === 'number' && Date.now() - previous.storedAt < LOCAL_CACHE_MAX_AGE_MS) {
+    return previous.data
+  }
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -72,6 +82,12 @@ export const conditionalGet = async <TData>({ queryKey, path, parser }: Conditio
 
   // 304 Not Modified — 返回缓存数据
   if (response.status === 304 && previous?.data !== undefined) {
+    await writeRecord<TData>(queryKey, {
+      etag: previous.etag,
+      data: previous.data,
+      storedAt: Date.now(),
+    })
+
     return previous.data
   }
 
@@ -91,7 +107,7 @@ export const conditionalGet = async <TData>({ queryKey, path, parser }: Conditio
   const data = parser ? parser(rawData) : (rawData as TData)
 
   // 以 etag 作为缓存 key 存入 DB
-  await writeRecord<TData>(queryKey, { etag, data })
+  await writeRecord<TData>(queryKey, { etag, data, storedAt: Date.now() })
 
   return data
 }
