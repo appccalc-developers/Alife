@@ -179,7 +179,7 @@ test('POST /api/events/extract calls Gemini at the edge and returns EventDto', a
   assert.equal(body.result.hardConstraints[0].ruleKey, 'Transport')
   // Must NOT have been proxied to origin
   assert.equal(fetchCalls.length, 1)
-  assert.ok(String(fetchCalls[0]).includes('generativelanguage.googleapis.com'))
+  assert.equal(new URL(String(fetchCalls[0])).hostname, 'generativelanguage.googleapis.com')
   assert.equal(fetchInits[0].headers['x-goog-api-key'], 'test-key')
 })
 
@@ -207,48 +207,127 @@ test('POST /api/events/extract returns 400 for empty message', async () => {
   assert.equal(fetchCalls.length, 0)
 })
 
-test('POST /api/event/enroll asks Gemini-guided question when name is missing', async () => {
+test('POST /api/events/session/:id/message persists event draft state', async () => {
+  const sessionId = 'member-1-event-draft'
   originResponses.push(Response.json({
-    candidates: [{ content: { parts: [{ text: 'Please tell me your full name for enrollment.' }] } }],
+    candidates: [{
+      content: {
+        parts: [{
+          text: JSON.stringify({
+            title: { zh: '家庭營', en: 'Family Camp' },
+            description: { zh: '兩天一夜', en: 'Two-day retreat' },
+            locationName: { zh: '漢密爾頓', en: 'Hamilton' },
+            startDate: '2026-07-01T08:00:00Z',
+            endDate: '2026-07-02T17:00:00Z',
+            registrationDeadline: '2026-06-20T00:00:00Z',
+            maxCapacity: 20,
+            capacityUnit: 'Families',
+            hardConstraints: [],
+            optionalActivities: [],
+            currency: 'NZD',
+            galleryUrls: [],
+            legacySummary: { zh: '安排共乘。', en: 'Arrange carpooling.' },
+          }),
+        }],
+      },
+    }],
   }))
 
-  const response = await dispatch('https://ccalc.live/api/event/enroll', {
+  const messageResponse = await dispatch(`https://ccalc.live/api/events/session/${sessionId}/message`, {
     method: 'POST',
-    body: JSON.stringify({ groupId: crypto.randomUUID(), eventId: crypto.randomUUID() }),
+    body: JSON.stringify({ message: 'Plan a family camp in Hamilton.' }),
+    headers: { 'content-type': 'application/json' },
+    env: { GEMINI_API_KEY: 'test-key', API_PROXY_TARGET: 'https://ccalc.live' },
+  })
+  const stateResponse = await dispatch(`https://ccalc.live/api/events/session/${sessionId}/state`, {
+    env: { GEMINI_API_KEY: 'test-key', API_PROXY_TARGET: 'https://ccalc.live' },
+  })
+
+  assert.equal(messageResponse.status, 200)
+  assert.equal(stateResponse.status, 200)
+  const state = await stateResponse.json()
+  assert.equal(state.draft.title.en, 'Family Camp')
+  assert.equal(state.context.en, 'Arrange carpooling.')
+})
+
+test('POST /api/enrollments/session/:id/message returns enrollment draft', async () => {
+  const eventId = crypto.randomUUID()
+  const sessionId = `member-1-event-${eventId}-enrollment`
+  originResponses.push(Response.json({
+    candidates: [{
+      content: {
+        parts: [{
+          text: JSON.stringify({
+            eventId,
+            applicantName: 'Alice',
+            consentStatus: 'granted',
+            assistantReply: {
+              zh: '我已記下你的姓名與同意，請附上付款憑證。',
+              en: 'I captured your name and consent. Please attach your payment proof.',
+            },
+          }),
+        }],
+      },
+    }],
+  }))
+
+  const response = await dispatch(`https://ccalc.live/api/enrollments/session/${sessionId}/message`, {
+    method: 'POST',
+    body: JSON.stringify({ message: 'My name is Alice and I consent to submit this enrollment.' }),
     headers: { 'content-type': 'application/json' },
     env: { GEMINI_API_KEY: 'test-key', API_PROXY_TARGET: 'https://api.ccalc.live' },
   })
 
   assert.equal(response.status, 200)
   const body = await response.json()
-  assert.equal(body.status, 'needs_input')
-  assert.equal(body.nextField, 'name')
-  assert.equal(body.prompt, 'Please tell me your full name for enrollment.')
+  assert.equal(body.responseMode, 'result')
+  assert.equal(body.result.applicantName, 'Alice')
+  assert.equal(body.result.consentStatus, 'granted')
+  assert.equal(body.context.en, 'I captured your name and consent. Please attach your payment proof.')
   assert.equal(fetchCalls.length, 1)
-  assert.ok(String(fetchCalls[0]).includes('generativelanguage.googleapis.com'))
+  assert.equal(new URL(String(fetchCalls[0])).hostname, 'generativelanguage.googleapis.com')
 })
 
-test('POST /api/event/enroll uploads files and commits AI JSON to backend', async () => {
+test('POST /api/enrollments/session/:id/commit uploads files and commits backend enrollment JSON', async () => {
   const eventId = crypto.randomUUID()
   const groupId = crypto.randomUUID()
+  const sessionId = `member-1-event-${eventId}-enrollment`
+  originResponses.push(Response.json({
+    candidates: [{
+      content: {
+        parts: [{
+          text: JSON.stringify({
+            eventId,
+            applicantName: 'Alice',
+            consentStatus: 'granted',
+            assistantReply: {
+              zh: '請附上付款憑證。',
+              en: 'Please attach your payment proof.',
+            },
+          }),
+        }],
+      },
+    }],
+  }))
   originResponses.push(
     Response.json({
       image: { url: `https://images.ccalc.live/enrollments/${eventId}/proof.png` },
     }, { status: 201 }),
   )
-  originResponses.push(Response.json({
-    candidates: [{ content: { parts: [{ text: JSON.stringify({ eventId, applicantName: 'Alice', consent: true }) }] } }],
-  }))
   originResponses.push(Response.json({ ok: true }, { status: 200 }))
+
+  await dispatch(`https://ccalc.live/api/enrollments/session/${sessionId}/message`, {
+    method: 'POST',
+    body: JSON.stringify({ message: 'My name is Alice and I consent to submit this enrollment.' }),
+    headers: { 'content-type': 'application/json' },
+    env: { GEMINI_API_KEY: 'test-key', API_PROXY_TARGET: 'https://api.ccalc.live' },
+  })
 
   const formData = new FormData()
   formData.set('groupId', groupId)
-  formData.set('eventId', eventId)
-  formData.set('name', 'Alice')
-  formData.set('consent', 'true')
   formData.append('paymentFiles', new File(['dummy'], 'proof.png', { type: 'image/png' }))
 
-  const response = await dispatch('https://ccalc.live/api/event/enroll', {
+  const response = await dispatch(`https://ccalc.live/api/enrollments/session/${sessionId}/commit`, {
     method: 'POST',
     body: formData,
     env: { GEMINI_API_KEY: 'test-key', API_PROXY_TARGET: 'https://api.ccalc.live' },
@@ -258,11 +337,22 @@ test('POST /api/event/enroll uploads files and commits AI JSON to backend', asyn
   const body = await response.json()
   assert.equal(body.status, 'completed')
   assert.equal(fetchCalls.length, 3)
-  assert.equal(String(fetchCalls[0]), `https://images.ccalc.live/api/images/enrollments/${eventId}`)
-  assert.ok(String(fetchCalls[1]).includes('generativelanguage.googleapis.com'))
+  assert.equal(new URL(String(fetchCalls[0])).hostname, 'generativelanguage.googleapis.com')
+  assert.equal(String(fetchCalls[1]), `https://images.ccalc.live/api/images/enrollments/${eventId}`)
   assert.equal(String(fetchCalls[2]), `https://api.ccalc.live/api/group/${groupId}/enroll`)
   assert.equal(fetchInits[2].method, 'POST')
-  assert.deepEqual(JSON.parse(fetchInits[2].body), { eventId, applicantName: 'Alice', consent: true })
+  assert.deepEqual(JSON.parse(fetchInits[2].body), {
+    eventId,
+    applicantName: 'Alice',
+    consent: true,
+    paymentFiles: [{
+      fileName: 'proof.png',
+      contentType: 'image/png',
+      size: 5,
+      url: `https://images.ccalc.live/enrollments/${eventId}/proof.png`,
+    }],
+    submittedAtUtc: JSON.parse(fetchInits[2].body).submittedAtUtc,
+  })
 })
 
 async function dispatch(url, init = {}) {

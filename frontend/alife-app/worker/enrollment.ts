@@ -1,65 +1,163 @@
 import type { Env } from './index'
+import {
+  AiChatSession,
+  createMemoryDurableObjectState,
+  getSessionIdFromPath,
+  multilingualSchema,
+  resolveAiSessionObjectPath,
+  type DurableObjectStateLike,
+} from './ai-session'
 
-const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com'
-const DEFAULT_GEMINI_MODEL = 'gemini-3.1-flash-lite'
 const DEFAULT_IMAGES_API_BASE = 'https://images.ccalc.live'
 const DEFAULT_API_PROXY_TARGET = 'https://api.ccalc.live'
+const DEFAULT_SESSION_ID = 'default'
+const SESSION_STORAGE_KEY = 'enrollment-session-state'
+const fallbackStates = new Map<string, DurableObjectStateLike>()
 
-type EnrollmentStep = 'name' | 'consent' | 'paymentFiles'
-
-type EnrollmentPayload = {
-  groupId: string
-  eventId: string
-  name?: string
-  consent?: boolean
-  paymentFiles: File[]
+type MultilingualString = {
+  zh: string
+  en: string
 }
+
+type EnrollmentDraft = {
+  eventId: string
+  applicantName: string
+  consentStatus: 'unknown' | 'granted' | 'declined'
+  assistantReply: MultilingualString | null
+}
+
+const ENROLLMENT_RESPONSE_SCHEMA = {
+  type: 'object',
+  required: ['eventId', 'applicantName', 'consentStatus', 'assistantReply'],
+  properties: {
+    eventId: { type: 'string' },
+    applicantName: { type: 'string' },
+    consentStatus: { type: 'string', enum: ['unknown', 'granted', 'declined'] },
+    assistantReply: multilingualSchema('A short bilingual response confirming what was captured and what the user should do next.'),
+  },
+} as const
+
+const ENROLLMENT_SYSTEM_INSTRUCTION = `You are the Alife enrollment assistant for a bilingual Chinese/English church community PWA.
+
+Return exactly one JSON object matching the response schema. Never return Markdown.
+
+Rules:
+1. Preserve the current draft and merge new user information into it.
+2. Keep eventId unchanged from the current draft.
+3. applicantName should contain the enrollment applicant's name, or an empty string if it is still unknown.
+4. consentStatus must be:
+   - "granted" only when the user clearly agrees to submit the enrollment and payment proof.
+   - "declined" only when the user clearly refuses.
+   - "unknown" when consent has not been clearly stated yet.
+5. assistantReply must be bilingual, concise, and guide the user toward any missing requirement.
+6. The current reference date is CURRENT_DATE_PLACEHOLDER.
+`
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    if (request.method !== 'POST') {
-      return Response.json({ message: 'Method not allowed.' }, { status: 405 })
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { status: 204 })
     }
 
-    const payload = await parsePayload(request)
-    if (!payload.groupId || !payload.eventId) {
-      return Response.json({ message: 'groupId and eventId are required.' }, { status: 400 })
-    }
-
-    if (!payload.name) {
-      return Response.json({
-        status: 'needs_input',
-        nextField: 'name',
-        prompt: await buildGuidancePrompt(env, 'name'),
-      })
-    }
-
-    if (payload.consent !== true) {
-      return Response.json({
-        status: 'needs_input',
-        nextField: 'consent',
-        prompt: await buildGuidancePrompt(env, 'consent', payload.name),
-      })
-    }
-
-    if (payload.paymentFiles.length === 0) {
-      return Response.json({
-        status: 'needs_input',
-        nextField: 'paymentFiles',
-        prompt: await buildGuidancePrompt(env, 'paymentFiles', payload.name),
-      })
-    }
-
-    const uploadedFiles = await uploadPaymentFiles(payload.eventId, payload.paymentFiles)
-    const enrollmentJson = await buildEnrollmentJson(env, {
-      groupId: payload.groupId,
-      eventId: payload.eventId,
-      name: payload.name,
-      consent: true,
-      paymentFiles: uploadedFiles,
+    const url = new URL(request.url)
+    const sessionId = getSessionId(request)
+    const targetPath = resolveAiSessionObjectPath(url, request, {
+      extraRoutes: ['/commit'],
     })
 
-    const backendResponse = await postEnrollmentToBackend(request, env, payload.groupId, enrollmentJson)
+    if (env.ENROLLMENT_SESSIONS) {
+      const objectId = env.ENROLLMENT_SESSIONS.idFromName(sessionId)
+      const object = env.ENROLLMENT_SESSIONS.get(objectId)
+      return object.fetch(new Request(new URL(targetPath, url.origin), request))
+    }
+
+    const fallbackObject = new EnrollmentSession(getFallbackState(sessionId), env)
+    return fallbackObject.fetch(new Request(new URL(targetPath, url.origin), request))
+  },
+}
+
+export class EnrollmentSession extends AiChatSession<EnrollmentDraft, MultilingualString | null> {
+  constructor(durableState: DurableObjectStateLike, env: Env) {
+    super(durableState, env, {
+      storageKey: SESSION_STORAGE_KEY,
+      routeNotFoundMessage: 'Enrollment session route not found.',
+      systemInstruction: (today) => ENROLLMENT_SYSTEM_INSTRUCTION.replace('CURRENT_DATE_PLACEHOLDER', today),
+      responseSchema: ENROLLMENT_RESPONSE_SCHEMA,
+      normalizeDraft: normalizeEnrollmentDraft,
+      validateDraft: validateEnrollmentDraft,
+      getInitialDraft: (sessionId) => ({
+        eventId: extractEventIdFromSessionId(sessionId),
+        applicantName: '',
+        consentStatus: 'unknown',
+        assistantReply: null,
+      }),
+      getContextFromDraft: (draft) => draft.assistantReply ?? null,
+      buildGeminiContext: ({ state, userMessage, inputMode }) => ({
+        inputMode,
+        currentDraft: state.draft,
+        chatHistory: state.chatHistory.slice(-12),
+        userMessage,
+      }),
+      formatChatHistoryEntry: (_draft, context) => JSON.stringify({ assistantReply: context }),
+    })
+  }
+
+  async fetch(request: Request): Promise<Response> {
+    const url = new URL(request.url)
+    const sessionId = getSessionId(request)
+
+    if (url.pathname.endsWith('/commit') && request.method === 'POST') {
+      return this.handleCommit(request, sessionId)
+    }
+
+    return this.handleRequest(request, sessionId)
+  }
+
+  private async handleCommit(request: Request, sessionId: string) {
+    const state = await this.getSessionState(sessionId)
+    const draft = state.draft
+
+    if (!draft?.eventId) {
+      return Response.json({ message: 'Enrollment draft is missing eventId.' }, { status: 400 })
+    }
+
+    if (!draft.applicantName.trim()) {
+      return Response.json({ message: 'Enrollment draft is missing applicant name.' }, { status: 400 })
+    }
+
+    if (draft.consentStatus !== 'granted') {
+      return Response.json({ message: 'Enrollment consent must be granted before submission.' }, { status: 400 })
+    }
+
+    const formData = await request.formData()
+    const groupId = String(formData.get('groupId') ?? '').trim()
+    if (!groupId) {
+      return Response.json({ message: 'groupId is required.' }, { status: 400 })
+    }
+
+    const paymentFiles = formData
+      .getAll('paymentFiles')
+      .filter((item): item is File => item instanceof File && item.size > 0)
+
+    if (paymentFiles.length === 0) {
+      return Response.json({ message: 'At least one payment file is required.' }, { status: 400 })
+    }
+
+    let uploadedFiles
+    try {
+      uploadedFiles = await uploadPaymentFiles(draft.eventId, paymentFiles)
+    } catch (error) {
+      return Response.json({ message: error instanceof Error ? error.message : 'Payment file upload failed.' }, { status: 502 })
+    }
+
+    const backendResponse = await postEnrollmentToBackend(request, this.env, groupId, {
+      eventId: draft.eventId,
+      applicantName: draft.applicantName,
+      consent: true,
+      paymentFiles: uploadedFiles,
+      submittedAtUtc: new Date().toISOString(),
+    })
+
     if (!backendResponse.ok) {
       const text = await backendResponse.text()
       return Response.json({ message: 'Failed to commit enrollment.', details: text }, { status: 502 })
@@ -69,105 +167,72 @@ export default {
       status: 'completed',
       message: 'Enrollment submitted successfully.',
     })
-  },
+  }
 }
 
-async function parsePayload(request: Request): Promise<EnrollmentPayload> {
-  const contentType = request.headers.get('content-type') ?? ''
-  if (contentType.includes('multipart/form-data')) {
-    const formData = await request.formData()
-    return {
-      groupId: String(formData.get('groupId') ?? '').trim(),
-      eventId: String(formData.get('eventId') ?? '').trim(),
-      name: String(formData.get('name') ?? '').trim() || undefined,
-      consent: parseBoolean(formData.get('consent')),
-      paymentFiles: formData
-        .getAll('paymentFiles')
-        .filter((item): item is File => item instanceof File && item.size > 0),
-    }
+function getSessionId(request: Request) {
+  return getSessionIdFromPath(request, '/api/enrollments/session', DEFAULT_SESSION_ID)
+}
+
+function getFallbackState(sessionId: string) {
+  const existing = fallbackStates.get(sessionId)
+  if (existing) {
+    return existing
   }
 
-  const body = await request.json().catch(() => ({})) as {
-    groupId?: unknown
-    eventId?: unknown
-    name?: unknown
-    consent?: unknown
-  }
+  const created = createMemoryDurableObjectState()
+  fallbackStates.set(sessionId, created)
+  return created
+}
+
+function extractEventIdFromSessionId(sessionId: string) {
+  const match = sessionId.match(/-event-([a-f0-9-]+)-enrollment$/i)
+  return match?.[1] ?? ''
+}
+
+function normalizeEnrollmentDraft(value: unknown): EnrollmentDraft {
+  const candidate = value as Partial<EnrollmentDraft>
 
   return {
-    groupId: typeof body.groupId === 'string' ? body.groupId.trim() : '',
-    eventId: typeof body.eventId === 'string' ? body.eventId.trim() : '',
-    name: typeof body.name === 'string' ? body.name.trim() : undefined,
-    consent: typeof body.consent === 'boolean' ? body.consent : undefined,
-    paymentFiles: [],
+    eventId: typeof candidate.eventId === 'string' ? candidate.eventId : '',
+    applicantName: typeof candidate.applicantName === 'string' ? candidate.applicantName.trim() : '',
+    consentStatus: candidate.consentStatus === 'granted' || candidate.consentStatus === 'declined'
+      ? candidate.consentStatus
+      : 'unknown',
+    assistantReply: normalizeMultilingualString(candidate.assistantReply),
   }
 }
 
-function parseBoolean(value: FormDataEntryValue | null) {
-  if (typeof value !== 'string') {
-    return undefined
+function validateEnrollmentDraft(draft: EnrollmentDraft) {
+  const errors: string[] = []
+  const assistantReply = draft.assistantReply
+
+  if (!draft.eventId.trim()) {
+    errors.push('eventId is required.')
   }
 
-  if (value === 'true') {
-    return true
+  if (!['unknown', 'granted', 'declined'].includes(draft.consentStatus)) {
+    errors.push('consentStatus must be unknown, granted, or declined.')
   }
 
-  if (value === 'false') {
-    return false
+  if (!assistantReply || !assistantReply.zh.trim()) {
+    errors.push('assistantReply.zh is required.')
   }
 
-  return undefined
+  if (!assistantReply || !assistantReply.en.trim()) {
+    errors.push('assistantReply.en is required.')
+  }
+
+  return errors
 }
 
-async function buildGuidancePrompt(env: Env, step: EnrollmentStep, name?: string) {
-  const fallback = fallbackPrompt(step, name)
-  if (!env.GEMINI_API_KEY) {
-    return fallback
+function normalizeMultilingualString(value: unknown): MultilingualString {
+  const candidate = value as Partial<MultilingualString>
+
+  return {
+    zh: typeof candidate?.zh === 'string' ? candidate.zh : '',
+    en: typeof candidate?.en === 'string' ? candidate.en : '',
   }
-
-  try {
-    const geminiRes = await fetch(`${GEMINI_API_BASE}/v1beta/models/${env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL}:generateContent`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-goog-api-key': env.GEMINI_API_KEY,
-      },
-      body: JSON.stringify({
-        system_instruction: {
-          parts: [{ text: 'You are an enrollment assistant. Return one short user-facing prompt in plain text.' }],
-        },
-        contents: [{ role: 'user', parts: [{ text: `Generate a concise prompt for step "${step}" for user "${name ?? ''}".` }] }],
-        generationConfig: {
-          temperature: 0.2,
-          maxOutputTokens: 160,
-        },
-      }),
-    })
-
-    if (!geminiRes.ok) {
-      return fallback
-    }
-
-    const geminiData = await geminiRes.json() as {
-      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>
-    }
-    const prompt = geminiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim()
-    return prompt || fallback
-  } catch {
-    return fallback
-  }
-}
-
-function fallbackPrompt(step: EnrollmentStep, name?: string) {
-  if (step === 'name') {
-    return 'Please enter your full name for this event enrollment.'
-  }
-
-  if (step === 'consent') {
-    return `Hi ${name ?? 'there'}, do you consent to submitting your enrollment and payment evidence for verification?`
-  }
-
-  return 'Please attach your payment proof file(s) (image or PDF).'
 }
 
 async function uploadPaymentFiles(eventId: string, files: File[]) {
@@ -212,70 +277,6 @@ function sanitizeFilename(value: string) {
 
 function sanitizePath(value: string) {
   return value.trim().replace(/[^a-zA-Z0-9._-]+/g, '-').slice(0, 120)
-}
-
-async function buildEnrollmentJson(
-  env: Env,
-  payload: {
-    groupId: string
-    eventId: string
-    name: string
-    consent: boolean
-    paymentFiles: Array<{ fileName: string; contentType: string; size: number; url: string }>
-  },
-) {
-  const fallback = {
-    eventId: payload.eventId,
-    applicantName: payload.name,
-    consent: payload.consent,
-    paymentFiles: payload.paymentFiles,
-    submittedAtUtc: new Date().toISOString(),
-  }
-
-  if (!env.GEMINI_API_KEY) {
-    return fallback
-  }
-
-  try {
-    const geminiRes = await fetch(`${GEMINI_API_BASE}/v1beta/models/${env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL}:generateContent`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-goog-api-key': env.GEMINI_API_KEY,
-      },
-      body: JSON.stringify({
-        system_instruction: {
-          parts: [{ text: 'Return ONLY JSON for event enrollment. Must include eventId as a string.' }],
-        },
-        contents: [{ role: 'user', parts: [{ text: JSON.stringify(payload) }] }],
-        generationConfig: {
-          responseMimeType: 'application/json',
-          temperature: 0.2,
-          maxOutputTokens: 1024,
-        },
-      }),
-    })
-
-    if (!geminiRes.ok) {
-      return fallback
-    }
-
-    const geminiData = await geminiRes.json() as {
-      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>
-    }
-    const jsonText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text
-    if (!jsonText) {
-      return fallback
-    }
-
-    const parsed = JSON.parse(jsonText) as Record<string, unknown>
-    if (typeof parsed.eventId !== 'string' || !parsed.eventId.trim()) {
-      parsed.eventId = payload.eventId
-    }
-    return parsed
-  } catch {
-    return fallback
-  }
 }
 
 function getForwardHeaders(request: Request) {
