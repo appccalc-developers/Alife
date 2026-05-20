@@ -87,7 +87,7 @@ export const useGroupScreen = (groupId: string) => {
   const canEditAllPages = canManageGroup
   const canPublishPages = canManageGroup
 
-  // Fetch events for approved members so they can enroll; leaders/co-leaders also manage them.
+  // Fetch events for any approved member; leaders/co-leaders are a subset and can additionally manage them.
   useEffect(() => {
     if (!groupId || membership?.status !== 'Approved') return
     let cancelled = false

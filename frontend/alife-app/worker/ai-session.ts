@@ -300,7 +300,7 @@ export function getSessionIdFromPath(request: Request, prefix: string, fallback 
   const pathSessionId = match?.[1] ? decodeURIComponent(match[1]) : ''
   const querySessionId = url.searchParams.get('sessionId') ?? ''
 
-  return sanitizeSessionId(pathSessionId || querySessionId || fallback, fallback)
+  return sanitizeSessionId(pathSessionId || querySessionId, fallback)
 }
 
 export function resolveAiSessionObjectPath(
