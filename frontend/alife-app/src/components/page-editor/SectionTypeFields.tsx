@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { GroupListSection } from '../sections/GroupListSection'
+import ImageCropUploadButton from '../ImageUpload/ImageCropUploadButton'
 import type { JsonMap, SectionType } from '../../types/page-editor'
 
 
@@ -81,10 +82,14 @@ const toYouTubeEmbedUrl = (rawUrl: string) => {
 
 
 const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentChange, onStyleChange, contextGroupId }: Props) => {
-  const [selectedFileName, setSelectedFileName] = useState('')
   const [imageSourceMode, setImageSourceMode] = useState<'url' | 'upload'>('url')
   const patchContent = (patch: JsonMap) => onContentChange({ ...contentJson, ...patch })
   const patchStyle = (patch: JsonMap) => onStyleChange({ ...styleJson, ...patch })
+
+  const handleProcessedImage = useCallback((dataUrl: string) => {
+    patchContent({ backgroundImage: dataUrl, backgroundImageUrl: dataUrl })
+  }, [patchContent])
+
   const rawHeroLayout = readText(styleJson, 'layout')
   const heroLayout = rawHeroLayout === 'classic' ? 'classic' : 'featured'
   const heroImagePosition = readText(styleJson, 'imagePosition') === 'left' ? 'left' : 'right'
@@ -235,28 +240,13 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
               <option value="upload">Upload</option>
             </select>
             {imageSourceMode === 'upload' ? (
-              <input
-                type="file"
-                accept="image/*"
+              <ImageCropUploadButton
+                onImageReady={handleProcessedImage}
                 disabled={disabled}
-                className="h-9 w-full rounded border border-slate-300 px-2 text-sm file:mr-3 file:rounded file:border-0 file:bg-slate-200 file:px-2 file:py-1 file:text-xs file:font-medium disabled:bg-slate-100"
-                onChange={(event) => {
-                  const file = event.target.files?.[0]
-                  setSelectedFileName(file?.name ?? '')
-                  if (!file) {
-                    return
-                  }
-                  const reader = new FileReader()
-                  reader.onload = () => {
-                    const dataUrl = typeof reader.result === 'string' ? reader.result : ''
-                    if (!dataUrl) {
-                      return
-                    }
-                    patchContent({ backgroundImage: dataUrl, backgroundImageUrl: dataUrl })
-                  }
-                  reader.readAsDataURL(file)
-                }}
-              />
+                aspectRatio={16 / 9}
+              >
+                Select &amp; Crop Image
+              </ImageCropUploadButton>
             ) : (
               <input
                 value={heroBg}
@@ -267,11 +257,6 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
               />
             )}
           </div>
-          {selectedFileName ? (
-            <p className="text-xs text-amber-700">
-              Selected: {selectedFileName}. Preview is applied locally; backend upload API is not connected yet.
-            </p>
-          ) : null}
         </>
       ) : null}
 
@@ -535,28 +520,13 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
                 <option value="upload">Upload</option>
               </select>
               {imageSourceMode === 'upload' ? (
-                <input
-                  type="file"
-                  accept="image/*"
+                <ImageCropUploadButton
+                  onImageReady={handleProcessedImage}
                   disabled={disabled}
-                  className="h-9 w-full rounded border border-slate-300 px-2 text-sm file:mr-3 file:rounded file:border-0 file:bg-slate-200 file:px-2 file:py-1 file:text-xs file:font-medium disabled:bg-slate-100"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0]
-                    setSelectedFileName(file?.name ?? '')
-                    if (!file) {
-                      return
-                    }
-                    const reader = new FileReader()
-                    reader.onload = () => {
-                      const dataUrl = typeof reader.result === 'string' ? reader.result : ''
-                      if (!dataUrl) {
-                        return
-                      }
-                      patchContent({ backgroundImage: dataUrl, backgroundImageUrl: dataUrl })
-                    }
-                    reader.readAsDataURL(file)
-                  }}
-                />
+                  aspectRatio={16 / 9}
+                >
+                  Select &amp; Crop Image
+                </ImageCropUploadButton>
               ) : (
                 <input
                   value={heroBg}
@@ -633,29 +603,17 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
                       <option value="upload">Upload</option>
                     </select>
                     {item.imageSource === 'upload' ? (
-                      <input
-                        type="file"
-                        accept="image/*"
-                        disabled={disabled}
-                        className="h-9 w-full rounded border border-slate-300 px-2 text-sm file:mr-2 file:rounded file:border-0 file:bg-slate-200 file:px-2 file:py-1 file:text-xs file:font-medium disabled:bg-slate-100"
-                        onChange={(event) => {
-                          const file = event.target.files?.[0]
-                          if (!file) {
-                            return
-                          }
-                          const reader = new FileReader()
-                          reader.onload = () => {
-                            const dataUrl = typeof reader.result === 'string' ? reader.result : ''
-                            if (!dataUrl) {
-                              return
-                            }
-                            const nextItems = iconItems.slice()
-                            nextItems[idx] = { ...item, imageUrl: dataUrl, imageSource: 'upload' }
-                            patchContent({ iconItems: nextItems })
-                          }
-                          reader.readAsDataURL(file)
+                      <ImageCropUploadButton
+                        onImageReady={(dataUrl) => {
+                          const nextItems = iconItems.slice()
+                          nextItems[idx] = { ...item, imageUrl: dataUrl, imageSource: 'upload' }
+                          patchContent({ iconItems: nextItems })
                         }}
-                      />
+                        disabled={disabled}
+                        aspectRatio={1}
+                      >
+                        Crop &amp; Upload
+                      </ImageCropUploadButton>
                     ) : (
                       <input
                         value={item.imageUrl}
@@ -809,35 +767,15 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
                 onChange={(event) => patchContent({ backgroundImage: event.target.value, backgroundImageUrl: event.target.value })}
               />
             ) : (
-              <input
-                type="file"
-                accept="image/*"
+              <ImageCropUploadButton
+                onImageReady={handleProcessedImage}
                 disabled={disabled}
-                className="h-9 w-full rounded border border-slate-300 px-2 text-sm file:mr-3 file:rounded file:border-0 file:bg-slate-200 file:px-2 file:py-1 file:text-xs file:font-medium disabled:bg-slate-100"
-                onChange={(event) => {
-                  const file = event.target.files?.[0]
-                  setSelectedFileName(file?.name ?? '')
-                  if (!file) {
-                    return
-                  }
-                  const reader = new FileReader()
-                  reader.onload = () => {
-                    const dataUrl = typeof reader.result === 'string' ? reader.result : ''
-                    if (!dataUrl) {
-                      return
-                    }
-                    patchContent({ backgroundImage: dataUrl, backgroundImageUrl: dataUrl })
-                  }
-                  reader.readAsDataURL(file)
-                }}
-              />
+                aspectRatio={16 / 9}
+              >
+                Select &amp; Crop Image
+              </ImageCropUploadButton>
             )}
           </div>
-          {selectedFileName ? (
-            <p className="text-xs text-amber-700">
-              Selected: {selectedFileName}. Preview is applied locally; backend upload API is not connected yet.
-            </p>
-          ) : null}
         </>
       ) : null}
 
@@ -915,35 +853,15 @@ const SectionTypeFields = ({ type, contentJson, styleJson, disabled, onContentCh
                 onChange={(event) => patchContent({ backgroundImage: event.target.value, backgroundImageUrl: event.target.value })}
               />
             ) : (
-              <input
-                type="file"
-                accept="image/*"
+              <ImageCropUploadButton
+                onImageReady={handleProcessedImage}
                 disabled={disabled}
-                className="w-full rounded border border-slate-300 px-2 py-1 text-sm file:mr-3 file:rounded file:border-0 file:bg-slate-200 file:px-2 file:py-1 file:text-xs file:font-medium disabled:bg-slate-100"
-                onChange={(event) => {
-                  const file = event.target.files?.[0]
-                  setSelectedFileName(file?.name ?? '')
-                  if (!file) {
-                    return
-                  }
-                  const reader = new FileReader()
-                  reader.onload = () => {
-                    const dataUrl = typeof reader.result === 'string' ? reader.result : ''
-                    if (!dataUrl) {
-                      return
-                    }
-                    patchContent({ backgroundImage: dataUrl, backgroundImageUrl: dataUrl })
-                  }
-                  reader.readAsDataURL(file)
-                }}
-              />
+                aspectRatio={16 / 9}
+              >
+                Select &amp; Crop Image
+              </ImageCropUploadButton>
             )}
           </div>
-          {selectedFileName ? (
-            <p className="text-xs text-amber-700">
-              Selected: {selectedFileName}. Preview is applied locally; backend upload API is not connected yet.
-            </p>
-          ) : null}
         </>
       ) : null}
 
