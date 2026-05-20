@@ -39,7 +39,7 @@ type Props = {
   onKickMember: (memberId: string) => void
   onSetCoLeader: (memberId: string, isCoLeader: boolean) => void
   onDeleteEvent: (eventId: string) => void
-  onEnrollEvent: (eventId: string) => void
+  onOpenEnrollDialog: (eventId: string) => void
 }
 
 const CloseIcon = () => (
@@ -200,7 +200,7 @@ const DrawerPanel = ({
   onKickMember,
   onSetCoLeader,
   onDeleteEvent,
-  onEnrollEvent,
+  onOpenEnrollDialog,
 }: Omit<Props, 'open'>) => {
   const navigate = useNavigate()
   const showJoinAction = membershipStatus === 'Not joined' || membershipStatus === 'Invited'
@@ -375,7 +375,7 @@ const DrawerPanel = ({
                         <p className="mt-1 text-xs text-slate-500">{start}</p>
                       </div>
                       <div className="mt-3 flex flex-wrap justify-end gap-1">
-                        <AppActionButton size="sm" variant="primary" onClick={() => onEnrollEvent(event.id)}>
+                        <AppActionButton size="sm" variant="primary" onClick={() => onOpenEnrollDialog(event.id)}>
                           Enroll
                         </AppActionButton>
                         {canManageGroup ? (

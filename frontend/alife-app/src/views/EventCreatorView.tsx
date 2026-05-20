@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useParams, useSearchParams } from 'react-router-dom'
-import type { EventDto, EventSessionSsePayload, EventSessionState, GroupEventRecord, MultilingualString } from '../types/event'
+import type { EventDto, GroupEventRecord, MultilingualString } from '../types/event'
 import { eventService } from '../services/eventService'
+import { useAiSession } from '../hooks/useAiSession'
 import { normalizeApiError } from '../services/http'
 import { useAuthStore } from '../stores/auth'
 import { useCurrentGroupStore } from '../stores/currentGroup'
@@ -271,6 +272,16 @@ const EventCreatorView = () => {
   const [error, setError] = useState('')
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const sessionIdRef = useRef(createSessionId(me?.id))
+  const {
+    state: sessionState,
+    loading: sessionLoading,
+    error: sessionError,
+    clearError: clearSessionError,
+    sendMessage,
+  } = useAiSession<EventDto, MultilingualString | null>(
+    isEditMode ? '' : sessionIdRef.current,
+    '/api/events/session',
+  )
   const speechRecognitionRef = useRef<SpeechRecognitionLike | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -279,39 +290,11 @@ const EventCreatorView = () => {
     if (isEditMode) {
       return
     }
-
-    let isMounted = true
-    const sessionId = sessionIdRef.current
-    const source = eventService.createSessionStream(sessionId)
-
-    const applySessionState = (state: EventSessionState) => {
-      if (!isMounted) return
-      if (state.eventDraft) {
-        setEventDraft(state.eventDraft)
-      }
-      setAiInsight(state.legacySummary)
+    if (sessionState?.draft) {
+      setEventDraft(sessionState.draft)
     }
-
-    source.addEventListener('snapshot', (event) => {
-      applySessionState(JSON.parse((event as MessageEvent<string>).data) as EventSessionState)
-    })
-
-    source.addEventListener('message', (event) => {
-      const payload = JSON.parse((event as MessageEvent<string>).data) as EventSessionSsePayload
-      if (payload.type === 'eventDraft') {
-        applySessionState(payload.state)
-      }
-    })
-
-    eventService.getSessionState(sessionId)
-      .then(applySessionState)
-      .catch(() => undefined)
-
-    return () => {
-      isMounted = false
-      source.close()
-    }
-  }, [isEditMode])
+    setAiInsight(sessionState?.context ?? null)
+  }, [isEditMode, sessionState])
 
   useEffect(() => {
     if (!isEditMode || !eventId) {
@@ -363,22 +346,37 @@ const EventCreatorView = () => {
 
   const handleSend = async () => {
     const msg = input.trim()
-    if (!msg || loading) return
+    const isSending = isEditMode ? loading : sessionLoading
+    if (!msg || isSending) return
 
     setInput('')
-    setError('')
+    if (isEditMode) {
+      setError('')
+    } else {
+      clearSessionError()
+    }
     setMessages((prev) => [...prev, { role: 'user', text: msg }])
     scrollToBottom()
-    setLoading(true)
+    if (isEditMode) {
+      setLoading(true)
+    }
 
     try {
-      const response = await eventService.extractFromChat(msg, sessionIdRef.current)
+      const response = isEditMode
+        ? await eventService.extractFromChat(msg, sessionIdRef.current)
+        : await sendMessage(msg)
 
       if (response.responseMode === 'result' && response.result) {
         const dto = response.result
+        let nextInsight: MultilingualString | null = dto.legacySummary ?? null
+        if (isEditMode) {
+          nextInsight = (response as typeof response & { legacySummary?: MultilingualString | null }).legacySummary ?? nextInsight
+        } else {
+          nextInsight = response.context ?? nextInsight
+        }
         setEventDraft(dto)
         setSaveStatus('idle')
-        setAiInsight(response.legacySummary ?? dto.legacySummary ?? null)
+        setAiInsight(nextInsight)
         const lang = language === 'zh' ? dto.title.zh : dto.title.en
         setMessages((prev) => [
           ...prev,
@@ -400,13 +398,17 @@ const EventCreatorView = () => {
       }
     } catch (err) {
       const apiError = normalizeApiError(err)
-      setError(apiError.message)
+      if (isEditMode) {
+        setError(apiError.message)
+      }
       setMessages((prev) => [
         ...prev,
         { role: 'assistant', text: `❌ Sorry, I couldn't extract event details: ${apiError.message}`, markdown: true },
       ])
     } finally {
-      setLoading(false)
+      if (isEditMode) {
+        setLoading(false)
+      }
       scrollToBottom()
     }
   }
@@ -506,6 +508,8 @@ const EventCreatorView = () => {
     scrollToBottom()
   }
 
+  const isSending = isEditMode ? loading : sessionLoading
+
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
       <div>
@@ -552,7 +556,7 @@ const EventCreatorView = () => {
             )}
           </div>
         ))}
-        {loading && (
+        {isSending && (
           <div className="mr-auto max-w-[85%] rounded-2xl bg-white px-4 py-2.5 text-sm text-slate-400 shadow-sm">
             <span className="animate-pulse">Gemini is thinking…</span>
           </div>
@@ -568,7 +572,7 @@ const EventCreatorView = () => {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          disabled={loading}
+          disabled={isSending}
           placeholder="Describe your event… (Enter to send, Shift+Enter for new line)"
           className="flex-1 resize-none rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder-slate-400 shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100 disabled:opacity-60"
         />
@@ -592,7 +596,7 @@ const EventCreatorView = () => {
         <button
           type="button"
           onClick={handleSend}
-          disabled={loading || !input.trim()}
+          disabled={isSending || !input.trim()}
           className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-700 text-white shadow-sm transition hover:bg-emerald-800 disabled:opacity-50"
           aria-label="Send"
         >
@@ -603,8 +607,8 @@ const EventCreatorView = () => {
         </button>
       </div>
 
-      {error && (
-        <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">{error}</p>
+      {(error || sessionError) && (
+        <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">{error || sessionError}</p>
       )}
 
       {/* Event Preview */}

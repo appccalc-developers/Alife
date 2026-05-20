@@ -41,7 +41,7 @@ type Props = {
   onKickMember?: (memberId: string) => void
   onSetCoLeader?: (memberId: string, isCoLeader: boolean) => void
   onDeleteEvent?: (eventId: string) => void
-  onEnrollEvent?: (eventId: string) => void
+  onOpenEnrollDialog?: (eventId: string) => void
 }
 
 const GroupScreenShell = ({
@@ -77,7 +77,7 @@ const GroupScreenShell = ({
   onKickMember = () => undefined,
   onSetCoLeader = () => undefined,
   onDeleteEvent = () => undefined,
-  onEnrollEvent = () => undefined,
+  onOpenEnrollDialog = () => undefined,
 }: Props) => {
   const [toolsOpen, setToolsOpen] = useState(false)
   const [pageContentMode, setPageContentMode] = useState<'view' | 'edit'>('view')
@@ -160,7 +160,7 @@ const GroupScreenShell = ({
             onKickMember={onKickMember}
             onSetCoLeader={onSetCoLeader}
             onDeleteEvent={onDeleteEvent}
-            onEnrollEvent={onEnrollEvent}
+            onOpenEnrollDialog={onOpenEnrollDialog}
           />
         </div>
       ) : null}

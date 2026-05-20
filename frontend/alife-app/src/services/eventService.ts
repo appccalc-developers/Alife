@@ -1,5 +1,8 @@
 import type { ExtractEventFromChatResponse, EventSessionState, EventDto, GroupEventRecord } from '../types/event'
-import { http, sameOriginHttp } from './http'
+import { http } from './http'
+import { createAiSessionService } from './aiSessionService'
+
+const eventSessionService = createAiSessionService<EventDto, EventDto['legacySummary']>('/api/events/session')
 
 export const eventService = {
   extractFromChat: async (
@@ -7,21 +10,30 @@ export const eventService = {
     sessionId: string,
     inputMode: 'text' | 'voice' = 'text',
   ): Promise<ExtractEventFromChatResponse> => {
-    const { data } = await sameOriginHttp.post<ExtractEventFromChatResponse>('/api/events/extract', {
-      message,
-      sessionId,
-      inputMode,
-    })
-    return data
+    const response = await eventSessionService.sendMessage(sessionId, message, inputMode)
+    return {
+      responseMode: response.responseMode,
+      sessionId: response.sessionId,
+      markdown: response.markdown,
+      result: response.result,
+      context: response.context ?? null,
+      legacySummary: response.context ?? null,
+    }
   },
 
   getSessionState: async (sessionId: string): Promise<EventSessionState> => {
-    const { data } = await sameOriginHttp.get<EventSessionState>(`/api/events/session/${encodeURIComponent(sessionId)}/state`)
-    return data
+    const state = await eventSessionService.getState(sessionId)
+    return {
+      sessionId: state.sessionId,
+      eventDraft: state.draft,
+      legacySummary: state.context ?? null,
+      chatHistory: state.chatHistory,
+      updatedAt: state.updatedAt,
+    }
   },
 
   createSessionStream: (sessionId: string): EventSource =>
-    new EventSource(`/api/events/session/${encodeURIComponent(sessionId)}/stream`),
+    eventSessionService.createStream(sessionId),
 
   getGlobalEvents: async (): Promise<GroupEventRecord[]> => {
     const { data } = await http.get<GroupEventRecord[]>('/api/events')
@@ -61,36 +73,5 @@ export const eventService = {
 
   deleteGroupEvent: async (eventId: string): Promise<void> => {
     await http.delete(`/api/events/${eventId}`)
-  },
-
-  enrollEvent: async (
-    payload: {
-      groupId: string
-      eventId: string
-      name?: string
-      consent?: boolean
-    },
-    files: File[] = [],
-  ): Promise<{
-    status: 'needs_input' | 'completed'
-    nextField?: 'name' | 'consent' | 'paymentFiles'
-    prompt?: string
-    message?: string
-  }> => {
-    const formData = new FormData()
-    formData.set('groupId', payload.groupId)
-    formData.set('eventId', payload.eventId)
-
-    if (payload.name) {
-      formData.set('name', payload.name)
-    }
-
-    if (typeof payload.consent === 'boolean') {
-      formData.set('consent', payload.consent ? 'true' : 'false')
-    }
-
-    files.forEach((file) => formData.append('paymentFiles', file))
-    const { data } = await sameOriginHttp.post('/api/event/enroll', formData)
-    return data
   },
 }

@@ -41,6 +41,7 @@ export type ExtractEventFromChatResponse = {
   sessionId?: string
   markdown?: string | null
   result?: EventDto | null
+  context?: MultilingualString | null
   legacySummary?: MultilingualString | null
 }
 

@@ -22,6 +22,10 @@
       {
         "name": "EVENT_SESSIONS",
         "class_name": "EventPlanningSession"
+      },
+      {
+        "name": "ENROLLMENT_SESSIONS",
+        "class_name": "EnrollmentSession"
       }
     ]
   },
@@ -30,6 +34,12 @@
       "tag": "v1_event_planning_sessions",
       "new_sqlite_classes": [
         "EventPlanningSession"
+      ]
+    },
+    {
+      "tag": "v2_enrollment_sessions",
+      "new_sqlite_classes": [
+        "EnrollmentSession"
       ]
     }
   ],

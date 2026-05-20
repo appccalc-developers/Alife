@@ -1,9 +1,15 @@
 import type { Env } from './index'
+import {
+  AiChatSession,
+  createMemoryDurableObjectState,
+  getSessionIdFromPath,
+  multilingualSchema,
+  resolveAiSessionObjectPath,
+} from './ai-session'
 
-const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com'
-const DEFAULT_GEMINI_MODEL = 'gemini-3.1-flash-lite'
 const DEFAULT_SESSION_ID = 'default'
 const SESSION_STORAGE_KEY = 'event-session-state'
+const fallbackStates = new Map<string, ReturnType<typeof createMemoryDurableObjectState>>()
 
 type MultilingualString = {
   zh: string
@@ -41,32 +47,6 @@ type EventDto = {
   posterImageUrl?: string | null
   galleryUrls: string[]
   legacySummary?: MultilingualString | null
-}
-
-type ChatMessage = {
-  role: 'user' | 'model'
-  text: string
-}
-
-type SessionState = {
-  sessionId: string
-  eventDraft: EventDto | null
-  chatHistory: ChatMessage[]
-  legacySummary: MultilingualString | null
-  updatedAt: string
-}
-
-type ExtractRequest = {
-  sessionId?: unknown
-  message?: unknown
-  inputMode?: unknown
-}
-
-type DurableObjectState = {
-  storage: {
-    get<T>(key: string): Promise<T | undefined>
-    put<T>(key: string, value: T): Promise<void>
-  }
 }
 
 const EVENT_DTO_RESPONSE_SCHEMA = {
@@ -162,7 +142,9 @@ export default {
 
     const url = new URL(request.url)
     const sessionId = getSessionId(request)
-    const targetPath = createDurableObjectPath(url, request)
+    const targetPath = resolveAiSessionObjectPath(url, request, {
+      messageAliasPaths: ['/api/events/extract'],
+    })
 
     if (env.EVENT_SESSIONS) {
       const objectId = env.EVENT_SESSIONS.idFromName(sessionId)
@@ -170,240 +152,78 @@ export default {
       return object.fetch(new Request(new URL(targetPath, url.origin), request))
     }
 
-    const fallbackObject = new EventPlanningSession(createMemoryDurableObjectState(), env)
+    const fallbackObject = new EventPlanningSession(getFallbackState(sessionId), env)
     return fallbackObject.fetch(new Request(new URL(targetPath, url.origin), request))
   },
 }
 
-export class EventPlanningSession {
-  private statePromise: Promise<SessionState>
-  private readonly clients = new Set<ReadableStreamDefaultController<Uint8Array>>()
-  private readonly durableState: DurableObjectState
-  private readonly env: Env
-
-  constructor(durableState: DurableObjectState, env: Env) {
-    this.durableState = durableState
-    this.env = env
-    this.statePromise = this.loadState()
+export class EventPlanningSession extends AiChatSession<EventDto, MultilingualString | null> {
+  constructor(durableState: ConstructorParameters<typeof AiChatSession<EventDto, MultilingualString | null>>[0], env: Env) {
+    super(durableState, env, {
+      storageKey: SESSION_STORAGE_KEY,
+      routeNotFoundMessage: 'Event planning session route not found.',
+      systemInstruction: (today) => GEMINI_SYSTEM_INSTRUCTION.replace('CURRENT_DATE_PLACEHOLDER', today),
+      responseSchema: EVENT_DTO_RESPONSE_SCHEMA,
+      normalizeDraft: normalizeEventDto,
+      validateDraft: validateEventDto,
+      getContextFromDraft: (draft) => draft.legacySummary ?? null,
+      buildGeminiContext: ({ state, userMessage, inputMode }) => ({
+        inputMode,
+        currentDraft: state.draft,
+        currentLegacySummary: state.context,
+        chatHistory: state.chatHistory.slice(-12),
+        userMessage,
+      }),
+      formatState: (state) => ({
+        sessionId: state.sessionId,
+        draft: state.draft,
+        eventDraft: state.draft,
+        context: state.context,
+        legacySummary: state.context,
+        chatHistory: state.chatHistory,
+        updatedAt: state.updatedAt,
+      }),
+      formatMessageResponse: (state) => ({
+        responseMode: 'result',
+        sessionId: state.sessionId,
+        result: state.draft,
+        context: state.context,
+        legacySummary: state.context,
+      }),
+      formatSsePayload: (state) => ({
+        type: 'eventDraft',
+        state: {
+          sessionId: state.sessionId,
+          draft: state.draft,
+          eventDraft: state.draft,
+          context: state.context,
+          legacySummary: state.context,
+          chatHistory: state.chatHistory,
+          updatedAt: state.updatedAt,
+        },
+      }),
+      formatChatHistoryEntry: (draft) => JSON.stringify({ eventDraft: draft }),
+    })
   }
 
   async fetch(request: Request): Promise<Response> {
-    const url = new URL(request.url)
-
-    if (url.pathname.endsWith('/stream') && request.method === 'GET') {
-      return this.openEventStream()
-    }
-
-    if (url.pathname.endsWith('/state') && request.method === 'GET') {
-      return Response.json(await this.statePromise)
-    }
-
-    if (url.pathname.endsWith('/message') && request.method === 'POST') {
-      return this.handleMessage(request)
-    }
-
-    return Response.json({ message: 'Event planning session route not found.' }, { status: 404 })
-  }
-
-  private async handleMessage(request: Request) {
-    if (!this.env.GEMINI_API_KEY) {
-      return Response.json({ message: 'GEMINI_API_KEY is not configured.' }, { status: 503 })
-    }
-
-    let body: ExtractRequest
-    try {
-      body = await request.json() as ExtractRequest
-    } catch {
-      return Response.json({ message: 'Invalid JSON body.' }, { status: 400 })
-    }
-
-    const userMessage = typeof body.message === 'string' ? body.message.trim() : ''
-    if (!userMessage) {
-      return Response.json({ message: 'User message cannot be empty.' }, { status: 400 })
-    }
-
-    const state = await this.statePromise
-    const inputMode = body.inputMode === 'voice' ? 'voice' : 'text'
-    let nextDraft: EventDto
-    try {
-      nextDraft = await this.callGemini(userMessage, inputMode, state)
-    } catch (error) {
-      console.error('Gemini event extraction failed', error)
-      return Response.json({ message: error instanceof Error ? error.message : 'AI extraction failed.' }, { status: 502 })
-    }
-    const validationErrors = validateEventDto(nextDraft)
-
-    if (validationErrors.length > 0) {
-      console.error('Gemini EventDto validation failed', validationErrors)
-      return Response.json(
-        { message: 'AI returned event data that failed EventDto validation.', validationErrors },
-        { status: 502 },
-      )
-    }
-
-    const nextState: SessionState = {
-      ...state,
-      eventDraft: nextDraft,
-      legacySummary: nextDraft.legacySummary ?? null,
-      chatHistory: [
-        ...state.chatHistory,
-        { role: 'user', text: userMessage },
-        { role: 'model', text: JSON.stringify({ eventDraft: nextDraft }) },
-      ].slice(-24),
-      updatedAt: new Date().toISOString(),
-    }
-
-    this.statePromise = Promise.resolve(nextState)
-    await this.durableState.storage.put(SESSION_STORAGE_KEY, nextState)
-    this.broadcast({ type: 'eventDraft', state: nextState })
-
-    return Response.json({
-      responseMode: 'result',
-      sessionId: nextState.sessionId,
-      result: nextState.eventDraft,
-      legacySummary: nextState.legacySummary,
-    })
-  }
-
-  private openEventStream() {
-    const encoder = new TextEncoder()
-    let streamController: ReadableStreamDefaultController<Uint8Array> | undefined
-
-    const stream = new ReadableStream<Uint8Array>({
-      start: async (controller) => {
-        streamController = controller
-        this.clients.add(controller)
-        controller.enqueue(encoder.encode(': connected\n\n'))
-        controller.enqueue(encoder.encode(sseMessage('snapshot', await this.statePromise)))
-      },
-      cancel: () => {
-        if (streamController) {
-          this.clients.delete(streamController)
-        }
-      },
-    })
-
-    return new Response(stream, {
-      status: 200,
-      headers: {
-        'content-type': 'text/event-stream; charset=utf-8',
-        'cache-control': 'no-cache, no-transform',
-        connection: 'keep-alive',
-      },
-    })
-  }
-
-  private async callGemini(userMessage: string, inputMode: 'text' | 'voice', state: SessionState): Promise<EventDto> {
-    const today = new Date().toISOString().slice(0, 10)
-    const systemText = GEMINI_SYSTEM_INSTRUCTION.replace('CURRENT_DATE_PLACEHOLDER', today)
-    const model = this.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL
-    const context = {
-      inputMode,
-      currentDraft: state.eventDraft,
-      currentLegacySummary: state.legacySummary,
-      chatHistory: state.chatHistory.slice(-12),
-      userMessage,
-    }
-
-    const geminiPayload = {
-      system_instruction: { parts: [{ text: systemText }] },
-      contents: [{ role: 'user', parts: [{ text: JSON.stringify(context) }] }],
-      generationConfig: {
-        responseMimeType: 'application/json',
-        responseSchema: EVENT_DTO_RESPONSE_SCHEMA,
-        temperature: 0.2,
-        maxOutputTokens: 4096,
-      },
-    }
-
-    const geminiRes = await fetch(
-      `${GEMINI_API_BASE}/v1beta/models/${model}:generateContent`,
-      {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-goog-api-key': this.env.GEMINI_API_KEY ?? '' },
-        body: JSON.stringify(geminiPayload),
-      },
-    )
-
-    if (!geminiRes.ok) {
-      const errorText = await geminiRes.text()
-      console.error('Gemini API error', geminiRes.status, errorText)
-      throw new Error('AI extraction failed. Please try again.')
-    }
-
-    const geminiData = await geminiRes.json() as {
-      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>
-    }
-    const jsonText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
-
-    try {
-      return normalizeEventDto(JSON.parse(jsonText))
-    } catch {
-      console.error('Gemini returned invalid JSON:', jsonText)
-      throw new Error('AI returned an unexpected response format.')
-    }
-  }
-
-  private async loadState(): Promise<SessionState> {
-    const stored = await this.durableState.storage.get<SessionState>(SESSION_STORAGE_KEY)
-    if (stored) {
-      return stored
-    }
-
-    return {
-      sessionId: crypto.randomUUID(),
-      eventDraft: null,
-      legacySummary: null,
-      chatHistory: [],
-      updatedAt: new Date().toISOString(),
-    }
-  }
-
-  private broadcast(payload: unknown) {
-    const message = new TextEncoder().encode(sseMessage('message', payload))
-
-    for (const client of Array.from(this.clients)) {
-      try {
-        client.enqueue(message)
-      } catch {
-        this.clients.delete(client)
-      }
-    }
+    return this.handleRequest(request, getSessionId(request))
   }
 }
 
 function getSessionId(request: Request) {
-  const url = new URL(request.url)
-  const pathMatch = url.pathname.match(/^\/api\/events\/session\/([^/]+)/)
-  const pathSessionId = pathMatch?.[1] ? decodeURIComponent(pathMatch[1]) : ''
-  const querySessionId = url.searchParams.get('sessionId') ?? ''
-
-  return sanitizeSessionId(pathSessionId || querySessionId || DEFAULT_SESSION_ID)
+  return getSessionIdFromPath(request, '/api/events/session', DEFAULT_SESSION_ID)
 }
 
-function createDurableObjectPath(url: URL, request: Request) {
-  if (url.pathname === '/api/events/extract') {
-    return '/message'
+function getFallbackState(sessionId: string) {
+  const existing = fallbackStates.get(sessionId)
+  if (existing) {
+    return existing
   }
 
-  if (url.pathname.endsWith('/stream')) {
-    return '/stream'
-  }
-
-  if (url.pathname.endsWith('/state')) {
-    return '/state'
-  }
-
-  if (request.method === 'POST') {
-    return '/message'
-  }
-
-  return '/state'
-}
-
-function sanitizeSessionId(value: string) {
-  const cleaned = value.trim().replace(/[^a-zA-Z0-9._:-]/g, '-').slice(0, 128)
-  return cleaned || DEFAULT_SESSION_ID
+  const created = createMemoryDurableObjectState()
+  fallbackStates.set(sessionId, created)
+  return created
 }
 
 function normalizeEventDto(value: unknown): EventDto {
@@ -439,7 +259,7 @@ function normalizeEventDto(value: unknown): EventDto {
     currency: typeof candidate.currency === 'string' && candidate.currency.trim() ? candidate.currency : 'NZD',
     posterImageUrl: typeof candidate.posterImageUrl === 'string' ? candidate.posterImageUrl : null,
     galleryUrls: Array.isArray(candidate.galleryUrls) ? candidate.galleryUrls.filter((url) => typeof url === 'string') : [],
-    legacySummary: candidate.legacySummary,
+    legacySummary: candidate.legacySummary ? normalizeMultilingualString(candidate.legacySummary) : null,
   }
 }
 
@@ -515,36 +335,5 @@ function requireMultilingual(errors: string[], value: MultilingualString, path: 
 function requireIsoDate(errors: string[], value: string, path: string) {
   if (!value.trim() || Number.isNaN(Date.parse(value))) {
     errors.push(`${path} must be an ISO-8601 date-time string.`)
-  }
-}
-
-function sseMessage(event: string, payload: unknown) {
-  return `event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`
-}
-
-function multilingualSchema(description: string) {
-  return {
-    type: 'object',
-    description,
-    required: ['zh', 'en'],
-    properties: {
-      zh: { type: 'string' },
-      en: { type: 'string' },
-    },
-  }
-}
-
-function createMemoryDurableObjectState(): DurableObjectState {
-  const storage = new Map<string, unknown>()
-
-  return {
-    storage: {
-      async get<T>(key: string) {
-        return storage.get(key) as T | undefined
-      },
-      async put<T>(key: string, value: T) {
-        storage.set(key, value)
-      },
-    },
   }
 }

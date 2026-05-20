@@ -1,6 +1,7 @@
 import extractor from './extractor'
 import { EventPlanningSession } from './extractor'
 import enrollment from './enrollment'
+import { EnrollmentSession } from './enrollment'
 import proxy from './proxy'
 
 export type Env = {
@@ -11,6 +12,8 @@ export type Env = {
   GEMINI_MODEL?: string
   /** Durable Object namespace for live event-planning sessions. */
   EVENT_SESSIONS?: DurableObjectNamespace
+  /** Durable Object namespace for live enrollment sessions. */
+  ENROLLMENT_SESSIONS?: DurableObjectNamespace
 }
 
 export type ExecutionContext = {
@@ -29,6 +32,7 @@ export type DurableObjectStub = {
 }
 
 export { EventPlanningSession }
+export { EnrollmentSession }
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -43,7 +47,7 @@ export default {
         return await extractor.fetch(request, env)
       }
 
-      if (url.pathname === '/api/event/enroll' && request.method === 'POST') {
+      if (url.pathname.startsWith('/api/enrollments/session/')) {
         return await enrollment.fetch(request, env)
       }
 
