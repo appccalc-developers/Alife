@@ -140,7 +140,9 @@ export class AiChatSession<TDraft, TContext = unknown> {
       )
     }
 
-    const nextContext = this.config.getContextFromDraft?.(nextDraft) ?? null
+    const nextContext = this.config.getContextFromDraft
+      ? (this.config.getContextFromDraft(nextDraft) ?? state.context ?? null)
+      : (state.context ?? null)
     const nextState: AiSessionState<TDraft, TContext> = {
       ...state,
       draft: nextDraft,

@@ -205,6 +205,7 @@ function normalizeEnrollmentDraft(value: unknown): EnrollmentDraft {
 
 function validateEnrollmentDraft(draft: EnrollmentDraft) {
   const errors: string[] = []
+  const assistantReply = draft.assistantReply
 
   if (!draft.eventId.trim()) {
     errors.push('eventId is required.')
@@ -214,11 +215,11 @@ function validateEnrollmentDraft(draft: EnrollmentDraft) {
     errors.push('consentStatus must be unknown, granted, or declined.')
   }
 
-  if (!draft.assistantReply.zh.trim()) {
+  if (!assistantReply || !assistantReply.zh.trim()) {
     errors.push('assistantReply.zh is required.')
   }
 
-  if (!draft.assistantReply.en.trim()) {
+  if (!assistantReply || !assistantReply.en.trim()) {
     errors.push('assistantReply.en is required.')
   }
 

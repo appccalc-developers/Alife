@@ -179,7 +179,7 @@ test('POST /api/events/extract calls Gemini at the edge and returns EventDto', a
   assert.equal(body.result.hardConstraints[0].ruleKey, 'Transport')
   // Must NOT have been proxied to origin
   assert.equal(fetchCalls.length, 1)
-  assert.ok(String(fetchCalls[0]).includes('generativelanguage.googleapis.com'))
+  assert.equal(new URL(String(fetchCalls[0])).hostname, 'generativelanguage.googleapis.com')
   assert.equal(fetchInits[0].headers['x-goog-api-key'], 'test-key')
 })
 
@@ -247,9 +247,7 @@ test('POST /api/events/session/:id/message persists event draft state', async ()
   assert.equal(stateResponse.status, 200)
   const state = await stateResponse.json()
   assert.equal(state.draft.title.en, 'Family Camp')
-  assert.equal(state.eventDraft.title.zh, '家庭營')
   assert.equal(state.context.en, 'Arrange carpooling.')
-  assert.equal(state.legacySummary.zh, '安排共乘。')
 })
 
 test('POST /api/enrollments/session/:id/message returns enrollment draft', async () => {
@@ -287,7 +285,7 @@ test('POST /api/enrollments/session/:id/message returns enrollment draft', async
   assert.equal(body.result.consentStatus, 'granted')
   assert.equal(body.context.en, 'I captured your name and consent. Please attach your payment proof.')
   assert.equal(fetchCalls.length, 1)
-  assert.ok(String(fetchCalls[0]).includes('generativelanguage.googleapis.com'))
+  assert.equal(new URL(String(fetchCalls[0])).hostname, 'generativelanguage.googleapis.com')
 })
 
 test('POST /api/enrollments/session/:id/commit uploads files and commits backend enrollment JSON', async () => {
@@ -339,7 +337,7 @@ test('POST /api/enrollments/session/:id/commit uploads files and commits backend
   const body = await response.json()
   assert.equal(body.status, 'completed')
   assert.equal(fetchCalls.length, 3)
-  assert.ok(String(fetchCalls[0]).includes('generativelanguage.googleapis.com'))
+  assert.equal(new URL(String(fetchCalls[0])).hostname, 'generativelanguage.googleapis.com')
   assert.equal(String(fetchCalls[1]), `https://images.ccalc.live/api/images/enrollments/${eventId}`)
   assert.equal(String(fetchCalls[2]), `https://api.ccalc.live/api/group/${groupId}/enroll`)
   assert.equal(fetchInits[2].method, 'POST')

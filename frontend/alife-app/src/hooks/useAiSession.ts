@@ -63,7 +63,7 @@ export const useAiSession = <TDraft, TContext = unknown>(sessionId: string, base
           ? {
             ...current,
             draft: nextDraft,
-            context: (response.context ?? current.context ?? null) as TContext | null,
+            context: response.context ?? current.context ?? null,
             updatedAt: new Date().toISOString(),
           }
           : current)
