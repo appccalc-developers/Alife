@@ -1,10 +1,12 @@
 import type { Env } from './index'
 import {
   AiChatSession,
+  createAiSessionObjectRequest,
   createMemoryDurableObjectState,
   getSessionIdFromPath,
   multilingualSchema,
   resolveAiSessionObjectPath,
+  type AiSessionAppContext,
 } from './ai-session'
 
 const DEFAULT_SESSION_ID = 'default'
@@ -31,6 +33,9 @@ type OptionalActivityDto = {
 type EventDto = {
   id?: string
   organizerId?: string
+  organizerDisplayName?: string
+  memberId?: string
+  groupId?: string
   title: MultilingualString
   description: MultilingualString
   locationName: MultilingualString
@@ -69,6 +74,9 @@ const EVENT_DTO_RESPONSE_SCHEMA = {
   properties: {
     id: { type: 'string' },
     organizerId: { type: 'string' },
+    organizerDisplayName: { type: 'string' },
+    memberId: { type: 'string' },
+    groupId: { type: 'string' },
     title: multilingualSchema('Event title in Simplified Chinese and New Zealand English.'),
     description: multilingualSchema('Event description in Simplified Chinese and New Zealand English.'),
     locationName: multilingualSchema('Venue or location name in both languages.'),
@@ -117,20 +125,27 @@ const EVENT_DTO_RESPONSE_SCHEMA = {
   },
 } as const
 
-const GEMINI_SYSTEM_INSTRUCTION = `You are the secure event-planning brain for Alife, a bilingual Chinese/English church community PWA.
+const GEMINI_SYSTEM_INSTRUCTION = `
+You are the secure event-planning brain for Alife, a bilingual Chinese/English church community PWA.
 
 Return exactly one JSON object that conforms to the provided EventDto response schema. Never return Markdown.
 
 Critical extraction rules:
-1. Bifurcate every response.
+1. Work bilingually.
+   - Understand either Chinese or English input.
+   - Populate every MultilingualString with equivalent Simplified Chinese and New Zealand English.
+   - If the app context specifies a preferred language, keep legacySummary concise in that language first while still filling both fields.
+2. Bifurcate every response.
    - Strict facts go into first-class EventDto fields: title, dates, locationName, capacity, fees, optionalActivities, and hardConstraints.
-   - Creative ideas, venue research, logistics suggestions, open questions, assumptions, and follow-up notes go into legacySummary.
-2. Maintain bilingual parity. Every MultilingualString must have both zh and en populated with equivalent meaning.
-3. Preserve state. You will receive the current in-progress EventDto and chat history; merge new information into the existing draft instead of starting over.
-4. Treat natural voice transcripts the same as typed text. Clean up filler words, but do not erase meaningful uncertainty.
-5. Extract hard constraints from non-negotiable language such as "must", "no", "deadline", "only", "required", and "not allowed".
-6. Do not fabricate precise dates, prices, capacities, or venue facts. If the user gives only a month, set the date fields to the first day and include the ambiguity in legacySummary.
-7. The current reference date is CURRENT_DATE_PLACEHOLDER.
+   - Creative ideas, venue research, logistics suggestions, open questions, assumptions, missing fields, and reflective follow-up notes go into legacySummary.
+3. Use supplied app context as known truth. You will receive userId/profile, memberId/profile, groupId/profile and member profiles, and possibly an existing eventId/eventData. Do not ask for these again when present.
+4. Preserve state. Merge new information into the existing draft instead of starting over. Keep id, organizerId, organizerDisplayName, memberId, and groupId unchanged unless app context supplies a more authoritative value.
+5. Guide the user. In legacySummary, briefly reflect what is known, what is still missing for creating/enrolling the event, and the next best question.
+6. Read attachments. If image or PDF parts are supplied, extract visible event details, dates, prices, poster text, QR/payment instructions, and relevant logistics. Mention uncertainty in legacySummary.
+7. Treat natural voice transcripts the same as typed text. Clean up filler words, but do not erase meaningful uncertainty.
+8. Extract hard constraints from non-negotiable language such as "must", "no", "deadline", "only", "required", and "not allowed".
+9. Do not fabricate precise dates, prices, capacities, or venue facts. If the user gives only a month, set the date fields to the first day and include the ambiguity in legacySummary.
+10. The current reference date is CURRENT_DATE_PLACEHOLDER.
 
 `
 
@@ -149,11 +164,11 @@ export default {
     if (env.EVENT_SESSIONS) {
       const objectId = env.EVENT_SESSIONS.idFromName(sessionId)
       const object = env.EVENT_SESSIONS.get(objectId)
-      return object.fetch(new Request(new URL(targetPath, url.origin), request))
+      return object.fetch(createAiSessionObjectRequest(targetPath, url, request, sessionId))
     }
 
     const fallbackObject = new EventPlanningSession(getFallbackState(sessionId), env)
-    return fallbackObject.fetch(new Request(new URL(targetPath, url.origin), request))
+    return fallbackObject.fetch(createAiSessionObjectRequest(targetPath, url, request, sessionId))
   },
 }
 
@@ -166,12 +181,50 @@ export class EventPlanningSession extends AiChatSession<EventDto, MultilingualSt
       responseSchema: EVENT_DTO_RESPONSE_SCHEMA,
       normalizeDraft: normalizeEventDto,
       validateDraft: validateEventDto,
+      getInitialDraft: () => ({
+        title: { zh: '', en: '' },
+        description: { zh: '', en: '' },
+        locationName: { zh: '', en: '' },
+        startDate: '',
+        endDate: '',
+        registrationDeadline: '',
+        maxCapacity: 1,
+        capacityUnit: 'Families',
+        hardConstraints: [],
+        optionalActivities: [],
+        currency: 'NZD',
+        galleryUrls: [],
+        legacySummary: null,
+      }),
+      onStart: (draft, payload) => ({
+        ...draft,
+        id: payload.eventId || payload.id || payload.appContext?.eventId || draft.id,
+        organizerId: payload.userId || payload.organizerId || payload.appContext?.userId || draft.organizerId,
+        organizerDisplayName: payload.displayName
+          || payload.userProfile?.displayName
+          || payload.appContext?.userProfile?.displayName
+          || draft.organizerDisplayName,
+        memberId: payload.memberId || payload.appContext?.memberId || draft.memberId,
+        groupId: payload.groupId || payload.appContext?.groupId || draft.groupId,
+      }),
+      mergeDraft: (previousDraft, nextDraft, state) => mergeEventDraft(previousDraft, nextDraft, state.appContext),
       getContextFromDraft: (draft) => draft.legacySummary ?? null,
-      buildGeminiContext: ({ state, userMessage, inputMode }) => ({
+      buildGeminiContext: ({ state, userMessage, inputMode, appContext, attachments }) => ({
+        task: 'event-planning',
         inputMode,
+        language: appContext.language ?? 'bilingual',
+        appContext,
+        knownContextPolicy: 'Treat appContext fields as already known by the application; do not ask the user to repeat them.',
         currentDraft: state.draft,
         currentLegacySummary: state.context,
         chatHistory: state.chatHistory.slice(-12),
+        attachments: attachments.map(({ name, contentType, size, source, url }) => ({
+          name,
+          contentType,
+          size,
+          source,
+          url,
+        })),
         userMessage,
       }),
       formatState: (state) => ({
@@ -211,6 +264,28 @@ export class EventPlanningSession extends AiChatSession<EventDto, MultilingualSt
   }
 }
 
+function mergeEventDraft(
+  previousDraft: EventDto | null,
+  nextDraft: EventDto,
+  appContext: AiSessionAppContext,
+): EventDto {
+  const eventData = appContext.eventData as Partial<EventDto> | null | undefined
+  const userProfile = appContext.userProfile ?? appContext.memberProfile
+
+  return {
+    ...nextDraft,
+    id: appContext.eventId || nextDraft.id || previousDraft?.id || eventData?.id || '',
+    organizerId: appContext.userId || nextDraft.organizerId || previousDraft?.organizerId || eventData?.organizerId || '',
+    organizerDisplayName: userProfile?.displayName
+      || userProfile?.name
+      || nextDraft.organizerDisplayName
+      || previousDraft?.organizerDisplayName
+      || '',
+    memberId: appContext.memberId || nextDraft.memberId || previousDraft?.memberId || '',
+    groupId: appContext.groupId || nextDraft.groupId || previousDraft?.groupId || eventData?.groupId || '',
+  }
+}
+
 function getSessionId(request: Request) {
   return getSessionIdFromPath(request, '/api/events/session', DEFAULT_SESSION_ID)
 }
@@ -232,6 +307,9 @@ function normalizeEventDto(value: unknown): EventDto {
   return {
     id: typeof candidate.id === 'string' ? candidate.id : '',
     organizerId: typeof candidate.organizerId === 'string' ? candidate.organizerId : '',
+    organizerDisplayName: typeof candidate.organizerDisplayName === 'string' ? candidate.organizerDisplayName : '',
+    memberId: typeof candidate.memberId === 'string' ? candidate.memberId : '',
+    groupId: typeof candidate.groupId === 'string' ? candidate.groupId : '',
     title: normalizeMultilingualString(candidate.title),
     description: normalizeMultilingualString(candidate.description),
     locationName: normalizeMultilingualString(candidate.locationName),

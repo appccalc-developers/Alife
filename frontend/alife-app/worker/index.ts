@@ -1,5 +1,5 @@
-import extractor from './extractor'
-import { EventPlanningSession } from './extractor'
+import planner from './eventplanner'
+import { EventPlanningSession } from './eventplanner'
 import enrollment from './enrollment'
 import { EnrollmentSession } from './enrollment'
 import proxy from './proxy'
@@ -40,11 +40,11 @@ export default {
 
     try {
       if (url.pathname === '/api/events/extract' && request.method === 'POST') {
-        return await extractor.fetch(request, env)
+        return await planner.fetch(request, env)
       }
 
       if (url.pathname.startsWith('/api/events/session/')) {
-        return await extractor.fetch(request, env)
+        return await planner.fetch(request, env)
       }
 
       if (url.pathname.startsWith('/api/enrollments/session/')) {

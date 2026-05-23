@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { GroupEventRecord, MultilingualString } from '../../types/event'
 import type { EnrollmentDraft } from '../../types/enrollment'
+import type { AiSessionAppContext } from '../../types/aiSession'
 import { useAiSession } from '../../hooks/useAiSession'
 import { enrollmentSessionService } from '../../services/enrollmentSessionService'
 import { normalizeApiError } from '../../services/http'
@@ -29,6 +30,29 @@ const initialMessage = (language: string): ChatMessage => ({
 
 const createEnrollmentSessionId = (memberId: string | undefined, eventId: string) =>
   `member-${memberId ?? 'anonymous'}-event-${eventId}-enrollment`
+
+const buildEnrollmentEventData = (event: GroupEventRecord) => {
+  const fallback = {
+    id: event.id,
+    titleEn: event.titleEn,
+    titleZh: event.titleZh,
+    startDate: event.startDate,
+    endDate: event.endDate,
+  }
+
+  try {
+    const parsed = JSON.parse(event.eventDataJson)
+    return typeof parsed === 'object' && parsed !== null
+      ? {
+        ...fallback,
+        ...parsed,
+        id: typeof parsed.id === 'string' ? parsed.id : event.id,
+      }
+      : fallback
+  } catch {
+    return fallback
+  }
+}
 
 const getLocalizedText = (value: MultilingualString | null | undefined, language: string) =>
   (language === 'zh' ? value?.zh : value?.en) || value?.en || value?.zh || ''
@@ -75,9 +99,17 @@ const EnrollmentChatDialog = ({
     () => createEnrollmentSessionId(memberId, event.id),
     [event.id, memberId],
   )
+  const appContext = useMemo<AiSessionAppContext>(() => ({
+    language,
+    groupId,
+    ...(memberId ? { memberId } : {}),
+    eventId: event.id,
+    eventData: buildEnrollmentEventData(event),
+  }), [event, groupId, language, memberId])
   const { state, loading, error, clearError, sendMessage } = useAiSession<EnrollmentDraft, MultilingualString | null>(
     sessionId,
     '/api/enrollments/session',
+    appContext,
   )
   const [messages, setMessages] = useState<ChatMessage[]>([initialMessage(language)])
   const [input, setInput] = useState('')
