@@ -2,9 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import { createAiSessionService } from '../services/aiSessionService'
 import { normalizeApiError } from '../services/http'
-import type { AiSessionResponse, AiSessionSsePayload, AiSessionState } from '../types/aiSession'
+import type { AiSessionAppContext, AiSessionMessageOptions, AiSessionResponse, AiSessionSsePayload, AiSessionState } from '../types/aiSession'
 
-export const useAiSession = <TDraft, TContext = unknown>(sessionId: string, basePath: string) => {
+export const useAiSession = <TDraft, TContext = unknown>(
+  sessionId: string,
+  basePath: string,
+  appContext?: AiSessionAppContext,
+) => {
   const service = useMemo(() => createAiSessionService<TDraft, TContext>(basePath), [basePath])
   const [state, setState] = useState<AiSessionState<TDraft, TContext> | null>(null)
   const [loading, setLoading] = useState(false)
@@ -17,7 +21,7 @@ export const useAiSession = <TDraft, TContext = unknown>(sessionId: string, base
     }
 
     let isMounted = true
-    const source = service.createStream(sessionId)
+    const source = service.createStream(sessionId, appContext)
 
     const applyState = (nextState: AiSessionState<TDraft, TContext>) => {
       if (isMounted) {
@@ -36,7 +40,7 @@ export const useAiSession = <TDraft, TContext = unknown>(sessionId: string, base
       }
     })
 
-    service.getState(sessionId)
+    service.getState(sessionId, appContext)
       .then(applyState)
       .catch((reason) => {
         if (isMounted) {
@@ -48,14 +52,20 @@ export const useAiSession = <TDraft, TContext = unknown>(sessionId: string, base
       isMounted = false
       source.close()
     }
-  }, [service, sessionId])
+  }, [appContext, service, sessionId])
 
-  const sendMessage = useCallback(async (message: string, inputMode: 'text' | 'voice' = 'text') => {
+  const sendMessage = useCallback(async (
+    message: string,
+    inputModeOrOptions: 'text' | 'voice' | AiSessionMessageOptions = 'text',
+  ) => {
     setLoading(true)
     setError('')
 
     try {
-      const response = await service.sendMessage(sessionId, message, inputMode)
+      const options = typeof inputModeOrOptions === 'string'
+        ? { inputMode: inputModeOrOptions, appContext }
+        : { ...inputModeOrOptions, appContext: inputModeOrOptions.appContext ?? appContext }
+      const response = await service.sendMessage(sessionId, message, options)
 
       if (response.responseMode === 'result' && response.result) {
         const nextDraft = response.result
@@ -77,7 +87,7 @@ export const useAiSession = <TDraft, TContext = unknown>(sessionId: string, base
     } finally {
       setLoading(false)
     }
-  }, [service, sessionId])
+  }, [appContext, service, sessionId])
 
   const clearError = useCallback(() => setError(''), [])
 
@@ -94,6 +104,6 @@ export const useAiSession = <TDraft, TContext = unknown>(sessionId: string, base
     loading: boolean
     error: string
     clearError: () => void
-    sendMessage: (message: string, inputMode?: 'text' | 'voice') => Promise<AiSessionResponse<TDraft, TContext>>
+    sendMessage: (message: string, inputModeOrOptions?: 'text' | 'voice' | AiSessionMessageOptions) => Promise<AiSessionResponse<TDraft, TContext>>
   }
 }

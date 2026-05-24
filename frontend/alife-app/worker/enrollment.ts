@@ -1,10 +1,12 @@
 import type { Env } from './index'
 import {
   AiChatSession,
+  createAiSessionObjectRequest,
   createMemoryDurableObjectState,
   getSessionIdFromPath,
   multilingualSchema,
   resolveAiSessionObjectPath,
+  type AiSessionAppContext,
   type DurableObjectStateLike,
 } from './ai-session'
 
@@ -19,38 +21,53 @@ type MultilingualString = {
   en: string
 }
 
-type EnrollmentDraft = {
+type EnrollmentDto = {
   eventId: string
+  groupId: string
+  memberId: string
   applicantName: string
+  applicantDisplayName: string
   consentStatus: 'unknown' | 'granted' | 'declined'
   assistantReply: MultilingualString | null
 }
 
 const ENROLLMENT_RESPONSE_SCHEMA = {
   type: 'object',
-  required: ['eventId', 'applicantName', 'consentStatus', 'assistantReply'],
+  required: ['eventId', 'applicantName', 'consentStatus', 'assistantReply', 'groupId', 'memberId', 'applicantDisplayName'],
   properties: {
     eventId: { type: 'string' },
+    groupId: { type: 'string' },
+    memberId: { type: 'string' },
     applicantName: { type: 'string' },
+    applicantDisplayName: { type: 'string' },
     consentStatus: { type: 'string', enum: ['unknown', 'granted', 'declined'] },
     assistantReply: multilingualSchema('A short bilingual response confirming what was captured and what the user should do next.'),
   },
 } as const
 
-const ENROLLMENT_SYSTEM_INSTRUCTION = `You are the Alife enrollment assistant for a bilingual Chinese/English church community PWA.
+const ENROLLMENT_SYSTEM_INSTRUCTION = `
+You are the Alife enrollment assistant for a bilingual Chinese/English church community PWA.
 
 Return exactly one JSON object matching the response schema. Never return Markdown.
 
 Rules:
-1. Preserve the current draft and merge new user information into it.
-2. Keep eventId unchanged from the current draft.
-3. applicantName should contain the enrollment applicant's name, or an empty string if it is still unknown.
-4. consentStatus must be:
+1. Work bilingually.
+   - Understand Chinese or English input.
+   - assistantReply must always contain equivalent Simplified Chinese and New Zealand English.
+2. Bifurcate every response.
+   - Preserve the current draft (eventId, groupId, memberId, applicantDisplayName) and merge new user information into it.
+   - Generate a concise assistantReply in both Simplified Chinese and New Zealand English that confirms the captured information and guides the user on any missing requirements for enrollment submission.
+3. Use supplied app context as known truth. You will receive user/member profile, group profile, event id, and event data when the app already knows them. Do not ask the user for those fields again.
+4. Keep eventId, groupId, memberId, and applicantDisplayName unchanged unless app context supplies a more authoritative value.
+5. applicantName should contain the enrollment applicant's full name. If the user profile gives a reliable full name, use it. If unknown, leave as empty string and ask the user to provide it.
+6. consentStatus must be:
    - "granted" only when the user clearly agrees to submit the enrollment and payment proof.
    - "declined" only when the user clearly refuses.
    - "unknown" when consent has not been clearly stated yet.
-5. assistantReply must be bilingual, concise, and guide the user toward any missing requirement.
-6. The current reference date is CURRENT_DATE_PLACEHOLDER.
+7. If image/PDF attachments are supplied, read them as uploaded payment proof or event reference material. Reflect whether the attachment looks usable, but do not approve payment validity beyond visible facts.
+8. assistantReply must be concise, reflective, and guide the user toward missing requirements (name, consent, or payment proof).
+9. If all requirements are met, confirm that they are ready to click the "Submit" button.
+10. The current reference date is CURRENT_DATE_PLACEHOLDER.
 `
 
 export default {
@@ -68,34 +85,65 @@ export default {
     if (env.ENROLLMENT_SESSIONS) {
       const objectId = env.ENROLLMENT_SESSIONS.idFromName(sessionId)
       const object = env.ENROLLMENT_SESSIONS.get(objectId)
-      return object.fetch(new Request(new URL(targetPath, url.origin), request))
+      return object.fetch(createAiSessionObjectRequest(targetPath, url, request, sessionId))
     }
 
     const fallbackObject = new EnrollmentSession(getFallbackState(sessionId), env)
-    return fallbackObject.fetch(new Request(new URL(targetPath, url.origin), request))
+    return fallbackObject.fetch(createAiSessionObjectRequest(targetPath, url, request, sessionId))
   },
 }
 
-export class EnrollmentSession extends AiChatSession<EnrollmentDraft, MultilingualString | null> {
+export class EnrollmentSession extends AiChatSession<EnrollmentDto, MultilingualString | null> {
   constructor(durableState: DurableObjectStateLike, env: Env) {
     super(durableState, env, {
       storageKey: SESSION_STORAGE_KEY,
       routeNotFoundMessage: 'Enrollment session route not found.',
       systemInstruction: (today) => ENROLLMENT_SYSTEM_INSTRUCTION.replace('CURRENT_DATE_PLACEHOLDER', today),
       responseSchema: ENROLLMENT_RESPONSE_SCHEMA,
-      normalizeDraft: normalizeEnrollmentDraft,
-      validateDraft: validateEnrollmentDraft,
+      normalizeDraft: normalizeEnrollmentDto,
+      validateDraft: validateEnrollmentDto,
       getInitialDraft: (sessionId) => ({
         eventId: extractEventIdFromSessionId(sessionId),
+        groupId: '',
+        memberId: '',
         applicantName: '',
+        applicantDisplayName: '',
         consentStatus: 'unknown',
         assistantReply: null,
       }),
+      onStart: (draft, payload) => ({
+        ...draft,
+        eventId: payload.eventId || payload.appContext?.eventId || draft.eventId,
+        groupId: payload.groupId || payload.appContext?.groupId || draft.groupId,
+        memberId: payload.memberId || payload.appContext?.memberId || draft.memberId,
+        applicantName: payload.applicantName
+          || payload.userProfile?.name
+          || payload.appContext?.userProfile?.name
+          || payload.appContext?.memberProfile?.name
+          || draft.applicantName,
+        applicantDisplayName: payload.displayName
+          || payload.userProfile?.displayName
+          || payload.appContext?.userProfile?.displayName
+          || payload.appContext?.memberProfile?.displayName
+          || draft.applicantDisplayName,
+      }),
+      mergeDraft: (previousDraft, nextDraft, state) => mergeEnrollmentDraft(previousDraft, nextDraft, state.appContext),
       getContextFromDraft: (draft) => draft.assistantReply ?? null,
-      buildGeminiContext: ({ state, userMessage, inputMode }) => ({
+      buildGeminiContext: ({ state, userMessage, inputMode, appContext, attachments }) => ({
+        task: 'event-enrollment',
         inputMode,
+        language: appContext.language ?? 'bilingual',
+        appContext,
+        knownContextPolicy: 'Treat appContext fields as already known by the application; do not ask the user to repeat them.',
         currentDraft: state.draft,
         chatHistory: state.chatHistory.slice(-12),
+        attachments: attachments.map(({ name, contentType, size, source, url }) => ({
+          name,
+          contentType,
+          size,
+          source,
+          url,
+        })),
         userMessage,
       }),
       formatChatHistoryEntry: (_draft, context) => JSON.stringify({ assistantReply: context }),
@@ -117,7 +165,11 @@ export class EnrollmentSession extends AiChatSession<EnrollmentDraft, Multilingu
     const state = await this.getSessionState(sessionId)
     const draft = state.draft
 
-    if (!draft?.eventId) {
+    if (!draft) {
+      return Response.json({ message: 'Enrollment draft not found.' }, { status: 400 })
+    }
+
+    if (!draft.eventId) {
       return Response.json({ message: 'Enrollment draft is missing eventId.' }, { status: 400 })
     }
 
@@ -130,7 +182,7 @@ export class EnrollmentSession extends AiChatSession<EnrollmentDraft, Multilingu
     }
 
     const formData = await request.formData()
-    const groupId = String(formData.get('groupId') ?? '').trim()
+    const groupId = draft.groupId || String(formData.get('groupId') ?? '').trim()
     if (!groupId) {
       return Response.json({ message: 'groupId is required.' }, { status: 400 })
     }
@@ -153,6 +205,7 @@ export class EnrollmentSession extends AiChatSession<EnrollmentDraft, Multilingu
     const backendResponse = await postEnrollmentToBackend(request, this.env, groupId, {
       eventId: draft.eventId,
       applicantName: draft.applicantName,
+      ...(draft.memberId ? { memberId: draft.memberId } : {}),
       consent: true,
       paymentFiles: uploadedFiles,
       submittedAtUtc: new Date().toISOString(),
@@ -168,6 +221,53 @@ export class EnrollmentSession extends AiChatSession<EnrollmentDraft, Multilingu
       message: 'Enrollment submitted successfully.',
     })
   }
+}
+
+function mergeEnrollmentDraft(
+  previousDraft: EnrollmentDto | null,
+  nextDraft: EnrollmentDto,
+  appContext: AiSessionAppContext,
+): EnrollmentDto {
+  const userProfile = appContext.userProfile ?? appContext.memberProfile
+  const eventData = appContext.eventData
+
+  return {
+    ...nextDraft,
+    eventId: appContext.eventId || nextDraft.eventId || previousDraft?.eventId || extractEventId(eventData) || '',
+    groupId: appContext.groupId || nextDraft.groupId || previousDraft?.groupId || '',
+    memberId: appContext.memberId || nextDraft.memberId || previousDraft?.memberId || appContext.userId || '',
+    applicantName: nextDraft.applicantName
+      || stringFromProfile(userProfile, 'name')
+      || previousDraft?.applicantName
+      || '',
+    applicantDisplayName: stringFromProfile(userProfile, 'displayName')
+      || stringFromProfile(userProfile, 'name')
+      || nextDraft.applicantDisplayName
+      || previousDraft?.applicantDisplayName
+      || '',
+  }
+}
+
+function extractEventId(eventData: unknown) {
+  return typeof eventData === 'object'
+    && eventData !== null
+    && 'id' in eventData
+    && typeof eventData.id === 'string'
+    ? eventData.id
+    : ''
+}
+
+function stringFromProfile(profile: unknown, key: 'name' | 'displayName') {
+  const record = typeof profile === 'object' && profile !== null
+    ? profile as Record<string, unknown>
+    : null
+
+  return typeof profile === 'object'
+    && profile !== null
+    && key in profile
+    && typeof record?.[key] === 'string'
+    ? record[key]
+    : ''
 }
 
 function getSessionId(request: Request) {
@@ -186,16 +286,19 @@ function getFallbackState(sessionId: string) {
 }
 
 function extractEventIdFromSessionId(sessionId: string) {
-  const match = sessionId.match(/-event-([a-f0-9-]+)-enrollment$/i)
+  const match = sessionId.match(/-event-(.+)-enrollment$/i)
   return match?.[1] ?? ''
 }
 
-function normalizeEnrollmentDraft(value: unknown): EnrollmentDraft {
-  const candidate = value as Partial<EnrollmentDraft>
+function normalizeEnrollmentDto(value: unknown): EnrollmentDto {
+  const candidate = value as Partial<EnrollmentDto>
 
   return {
     eventId: typeof candidate.eventId === 'string' ? candidate.eventId : '',
+    groupId: typeof candidate.groupId === 'string' ? candidate.groupId : '',
+    memberId: typeof candidate.memberId === 'string' ? candidate.memberId : '',
     applicantName: typeof candidate.applicantName === 'string' ? candidate.applicantName.trim() : '',
+    applicantDisplayName: typeof candidate.applicantDisplayName === 'string' ? candidate.applicantDisplayName : '',
     consentStatus: candidate.consentStatus === 'granted' || candidate.consentStatus === 'declined'
       ? candidate.consentStatus
       : 'unknown',
@@ -203,7 +306,7 @@ function normalizeEnrollmentDraft(value: unknown): EnrollmentDraft {
   }
 }
 
-function validateEnrollmentDraft(draft: EnrollmentDraft) {
+function validateEnrollmentDto(draft: EnrollmentDto) {
   const errors: string[] = []
   const assistantReply = draft.assistantReply
 
@@ -246,12 +349,13 @@ async function uploadPaymentFiles(eventId: string, files: File[]) {
 
     const formData = new FormData()
     formData.set('file', file, sanitizeFilename(file.name))
+    console.log(`Uploading payment file to: ${DEFAULT_IMAGES_API_BASE}/api/images/${folder}`)
     const response = await fetch(`${DEFAULT_IMAGES_API_BASE}/api/images/${folder}`, {
       method: 'POST',
       body: formData,
     })
-
     if (!response.ok) {
+      console.error('Payment file upload failed:', await response.text())
       throw new Error('Payment file upload failed.')
     }
 

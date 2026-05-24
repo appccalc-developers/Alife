@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { beforeEach, test } from 'node:test'
 
 import worker from '../dist/app_ccalc/index.js'
+import { EventPlanningSession } from '../dist/app_ccalc/index.js'
 
 const ORIGIN = 'https://ccalc.live'
 
@@ -250,6 +251,157 @@ test('POST /api/events/session/:id/message persists event draft state', async ()
   assert.equal(state.context.en, 'Arrange carpooling.')
 })
 
+test('POST /api/events/session/:id/message forwards known app context to Gemini', async () => {
+  const sessionId = 'member-1-event-draft'
+  originResponses.push(Response.json({
+    candidates: [{
+      content: {
+        parts: [{
+          text: JSON.stringify({
+            title: { zh: '家庭營', en: 'Family Camp' },
+            description: { zh: '兩天一夜', en: 'Two-day retreat' },
+            locationName: { zh: '漢密爾頓', en: 'Hamilton' },
+            startDate: '2026-07-01T08:00:00Z',
+            endDate: '2026-07-02T17:00:00Z',
+            registrationDeadline: '2026-06-20T00:00:00Z',
+            maxCapacity: 20,
+            capacityUnit: 'Families',
+            hardConstraints: [],
+            optionalActivities: [],
+            currency: 'NZD',
+            galleryUrls: [],
+            legacySummary: { zh: '已使用小組資料。', en: 'Used group context.' },
+          }),
+        }],
+      },
+    }],
+  }))
+
+  const appContextParams = new URLSearchParams({
+    language: 'en',
+    userId: 'user-1',
+    userProfile: JSON.stringify({ displayName: 'Alice' }),
+    groupId: 'group-1',
+    groupProfile: JSON.stringify({ name: 'West Auckland Families' }),
+  })
+  const response = await dispatch(`https://ccalc.live/api/events/session/${sessionId}/message?${appContextParams}`, {
+    method: 'POST',
+    body: JSON.stringify({
+      message: 'Plan a family camp.',
+    }),
+    headers: { 'content-type': 'application/json' },
+    env: { GEMINI_API_KEY: 'test-key', API_PROXY_TARGET: 'https://ccalc.live' },
+  })
+
+  assert.equal(response.status, 200)
+  const geminiBody = JSON.parse(fetchInits[0].body)
+  const prompt = JSON.parse(geminiBody.contents[0].parts[0].text)
+  assert.equal(prompt.appContext.userId, 'user-1')
+  assert.equal(prompt.appContext.groupId, 'group-1')
+  assert.equal(prompt.knownContextPolicy.includes('do not ask'), true)
+})
+
+test('POST /api/events/session/:id/message sends uploaded image as Gemini inline data', async () => {
+  const sessionId = 'member-1-event-draft'
+  originResponses.push(Response.json({
+    candidates: [{
+      content: {
+        parts: [{
+          text: JSON.stringify({
+            title: { zh: '海報活動', en: 'Poster Event' },
+            description: { zh: '從海報讀取', en: 'Read from poster' },
+            locationName: { zh: '教會', en: 'Church' },
+            startDate: '2026-08-01T08:00:00Z',
+            endDate: '2026-08-01T17:00:00Z',
+            registrationDeadline: '2026-07-20T00:00:00Z',
+            maxCapacity: 50,
+            capacityUnit: 'People',
+            hardConstraints: [],
+            optionalActivities: [],
+            currency: 'NZD',
+            galleryUrls: [],
+            legacySummary: { zh: '已讀取圖片。', en: 'Read the image.' },
+          }),
+        }],
+      },
+    }],
+  }))
+
+  const formData = new FormData()
+  formData.set('message', 'Read this poster.')
+  formData.append('attachments', new File(['fake-image'], 'poster.png', { type: 'image/png' }))
+
+  const response = await dispatch(`https://ccalc.live/api/events/session/${sessionId}/message`, {
+    method: 'POST',
+    body: formData,
+    env: { GEMINI_API_KEY: 'test-key', API_PROXY_TARGET: 'https://ccalc.live' },
+  })
+
+  assert.equal(response.status, 200)
+  const geminiBody = JSON.parse(fetchInits[0].body)
+  assert.equal(geminiBody.contents[0].parts[1].inline_data.mime_type, 'image/png')
+  assert.equal(typeof geminiBody.contents[0].parts[1].inline_data.data, 'string')
+  const prompt = JSON.parse(geminiBody.contents[0].parts[0].text)
+  assert.equal(prompt.attachments[0].name, 'poster.png')
+})
+
+test('POST /api/events/session/:id/message repairs legacy malformed attachment state', async () => {
+  const durableState = createDurableState({
+    'event-session-state': {
+      sessionId: 'legacy-session',
+      draft: null,
+      context: null,
+      appContext: {},
+      attachments: {
+        name: 'legacy-proof.png',
+      },
+      chatHistory: [],
+      updatedAt: '2026-05-22T00:00:00.000Z',
+    },
+  })
+  const session = new EventPlanningSession(durableState, {
+    GEMINI_API_KEY: 'test-key',
+    API_PROXY_TARGET: 'https://ccalc.live',
+  })
+
+  originResponses.push(Response.json({
+    candidates: [{
+      content: {
+        parts: [{
+          text: JSON.stringify({
+            title: { zh: '家庭營', en: 'Family Camp' },
+            description: { zh: '兩天一夜', en: 'Two-day retreat' },
+            locationName: { zh: '漢密爾頓', en: 'Hamilton' },
+            startDate: '2026-07-01T08:00:00Z',
+            endDate: '2026-07-02T17:00:00Z',
+            registrationDeadline: '2026-06-20T00:00:00Z',
+            maxCapacity: 20,
+            capacityUnit: 'Families',
+            hardConstraints: [],
+            optionalActivities: [],
+            currency: 'NZD',
+            galleryUrls: [],
+            legacySummary: null,
+          }),
+        }],
+      },
+    }],
+  }))
+
+  const response = await session.fetch(new Request('https://ccalc.live/api/events/session/legacy-session/message', {
+    method: 'POST',
+    headers: {
+      origin: ORIGIN,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ message: 'Plan a family camp in Hamilton.' }),
+  }))
+
+  assert.equal(response.status, 200)
+  const storedState = await durableState.storage.get('event-session-state')
+  assert.deepEqual(storedState.attachments, [])
+})
+
 test('POST /api/enrollments/session/:id/message returns enrollment draft', async () => {
   const eventId = crypto.randomUUID()
   const sessionId = `member-1-event-${eventId}-enrollment`
@@ -271,7 +423,13 @@ test('POST /api/enrollments/session/:id/message returns enrollment draft', async
     }],
   }))
 
-  const response = await dispatch(`https://ccalc.live/api/enrollments/session/${sessionId}/message`, {
+  const appContextParams = new URLSearchParams({
+    memberId: 'member-1',
+    groupId: 'group-1',
+    userProfile: JSON.stringify({ displayName: 'Alice C', name: 'Alice' }),
+    eventData: JSON.stringify({ id: eventId, titleEn: 'Family Camp' }),
+  })
+  const response = await dispatch(`https://ccalc.live/api/enrollments/session/${sessionId}/message?${appContextParams}`, {
     method: 'POST',
     body: JSON.stringify({ message: 'My name is Alice and I consent to submit this enrollment.' }),
     headers: { 'content-type': 'application/json' },
@@ -282,10 +440,82 @@ test('POST /api/enrollments/session/:id/message returns enrollment draft', async
   const body = await response.json()
   assert.equal(body.responseMode, 'result')
   assert.equal(body.result.applicantName, 'Alice')
+  assert.equal(body.result.groupId, 'group-1')
+  assert.equal(body.result.memberId, 'member-1')
+  assert.equal(body.result.applicantDisplayName, 'Alice C')
   assert.equal(body.result.consentStatus, 'granted')
   assert.equal(body.context.en, 'I captured your name and consent. Please attach your payment proof.')
   assert.equal(fetchCalls.length, 1)
   assert.equal(new URL(String(fetchCalls[0])).hostname, 'generativelanguage.googleapis.com')
+  const geminiBody = JSON.parse(fetchInits[0].body)
+  const prompt = JSON.parse(geminiBody.contents[0].parts[0].text)
+  assert.equal(prompt.appContext.eventData.titleEn, 'Family Camp')
+})
+
+test('POST /api/enrollments/session/:id/message uses provided eventId when AI omits it', async () => {
+  const eventId = crypto.randomUUID()
+  originResponses.push(Response.json({
+    candidates: [{
+      content: {
+        parts: [{
+          text: JSON.stringify({
+            applicantName: 'Alice',
+            consentStatus: 'unknown',
+            assistantReply: {
+              zh: '我已記下你的姓名，請確認是否同意提交報名。',
+              en: 'I captured your name. Please confirm whether you consent to submit the enrollment.',
+            },
+          }),
+        }],
+      },
+    }],
+  }))
+
+  const response = await dispatch(`https://ccalc.live/api/enrollments/session/manual-enrollment/message?eventId=${encodeURIComponent(eventId)}&groupId=group-1`, {
+    method: 'POST',
+    body: JSON.stringify({ message: 'My name is Alice.' }),
+    headers: { 'content-type': 'application/json' },
+    env: { GEMINI_API_KEY: 'test-key', API_PROXY_TARGET: 'https://api.ccalc.live' },
+  })
+
+  assert.equal(response.status, 200)
+  const body = await response.json()
+  assert.equal(body.responseMode, 'result')
+  assert.equal(body.result.eventId, eventId)
+  assert.equal(body.result.groupId, 'group-1')
+})
+
+test('POST /api/enrollments/session/:id/message preserves non-uuid eventId from session id', async () => {
+  const eventId = 'spring-retreat-2026'
+  const sessionId = `member-1-event-${eventId}-enrollment`
+  originResponses.push(Response.json({
+    candidates: [{
+      content: {
+        parts: [{
+          text: JSON.stringify({
+            applicantName: 'Alice',
+            consentStatus: 'unknown',
+            assistantReply: {
+              zh: '我已記下你的姓名，請確認是否同意提交報名。',
+              en: 'I captured your name. Please confirm whether you consent to submit the enrollment.',
+            },
+          }),
+        }],
+      },
+    }],
+  }))
+
+  const response = await dispatch(`https://ccalc.live/api/enrollments/session/${sessionId}/message`, {
+    method: 'POST',
+    body: JSON.stringify({ message: 'My name is Alice.' }),
+    headers: { 'content-type': 'application/json' },
+    env: { GEMINI_API_KEY: 'test-key', API_PROXY_TARGET: 'https://api.ccalc.live' },
+  })
+
+  assert.equal(response.status, 200)
+  const body = await response.json()
+  assert.equal(body.responseMode, 'result')
+  assert.equal(body.result.eventId, eventId)
 })
 
 test('POST /api/enrollments/session/:id/commit uploads files and commits backend enrollment JSON', async () => {
@@ -369,6 +599,21 @@ async function dispatch(url, init = {}) {
 function createEnv() {
   return {
     API_PROXY_TARGET: 'https://api.ccalc.live',
+  }
+}
+
+function createDurableState(initialState = {}) {
+  const storage = new Map(Object.entries(initialState))
+
+  return {
+    storage: {
+      async get(key) {
+        return storage.get(key)
+      },
+      async put(key, value) {
+        storage.set(key, value)
+      },
+    },
   }
 }
 
