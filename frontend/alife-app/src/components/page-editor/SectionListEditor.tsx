@@ -49,10 +49,6 @@ const SectionListEditor = ({ sections, canEdit, sectionTypeErrors, onAdd, onUpda
 
   return (
     <section className="space-y-3">
-      <div>
-        <h2 className="text-lg font-semibold text-slate-900">Section List</h2>
-        <p className="text-sm text-slate-600">Click a section to edit it in place. Other sections stay in render mode.</p>
-      </div>
       {sections.length === 0 ? (
         <AppEmptyState
           title="No sections yet"
