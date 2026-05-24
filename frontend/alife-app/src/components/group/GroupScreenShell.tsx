@@ -1,97 +1,48 @@
-import { useEffect, useState } from 'react'
 import AppEmptyState from '../layout/AppEmptyState'
+import AppActionButton from '../layout/AppActionButton'
 import AppPageShell from '../layout/AppPageShell'
 import AppSectionCard from '../layout/AppSectionCard'
 import type { GroupDto, GroupPageDto, GroupSummaryDto, GroupTab } from '../../types/group'
-import type { GroupMemberToolRow } from '../../hooks/useGroupScreen'
-import type { GroupEventRecord } from '../../types/event'
 import GroupPageTabs from './GroupPageTabs'
-import GroupToolsDrawer from './GroupToolsDrawer'
+import GroupHeaderCard from './GroupHeaderCard'
 
 type Props = {
   group: GroupDto | null
   subgroups: GroupSummaryDto[]
   pages: GroupPageDto[]
-  memberships?: GroupMemberToolRow[]
-  events?: GroupEventRecord[]
   loading: boolean
   error: string
   activeTab: GroupTab
   membershipStatus: 'Not joined' | 'Requested' | 'Approved' | 'Invited'
   membershipRole: 'Member' | 'CoLeader' | 'Leader' | null
-  canManageGroup: boolean
   canCreatePage: boolean
   canEditAllPages: boolean
-  canPublishPages: boolean
   contentMode?: 'pages' | 'tabs'
   selectedPageId?: string
   statusMessage?: string
   onJoin: () => void
-  onAddSubgroup: () => void
   onAddPage: () => void
-  onInviteMember: () => void
-  onOpenSubgroup: (subgroupId: string) => void
-  onEditSubgroup: (subgroupId: string) => void
-  onDeleteSubgroup: (subgroupId: string) => void
-  onDeletePage: (pageId: string) => void
-  onTogglePageVisibility: (page: GroupPageDto) => void
   onPageSaved?: () => void
-  onApproveMember?: (memberId: string) => void
-  onRejectMember?: (memberId: string) => void
-  onKickMember?: (memberId: string) => void
-  onSetCoLeader?: (memberId: string, isCoLeader: boolean) => void
-  onDeleteEvent?: (eventId: string) => void
-  onOpenEnrollDialog?: (eventId: string) => void
 }
 
 const GroupScreenShell = ({
   group,
   subgroups,
   pages,
-  memberships = [],
-  events = [],
   loading,
   error,
   activeTab,
   membershipStatus,
   membershipRole,
-  canManageGroup,
   canCreatePage,
   canEditAllPages,
-  canPublishPages,
   contentMode = 'tabs',
   selectedPageId = '',
   statusMessage,
   onJoin,
-  onAddSubgroup,
   onAddPage,
-  onInviteMember,
-  onOpenSubgroup,
-  onEditSubgroup,
-  onDeleteSubgroup,
-  onDeletePage,
-  onTogglePageVisibility,
   onPageSaved = () => undefined,
-  onApproveMember = () => undefined,
-  onRejectMember = () => undefined,
-  onKickMember = () => undefined,
-  onSetCoLeader = () => undefined,
-  onDeleteEvent = () => undefined,
-  onOpenEnrollDialog = () => undefined,
-}: Props) => {
-  const [toolsOpen, setToolsOpen] = useState(false)
-  const [pageContentMode, setPageContentMode] = useState<'view' | 'edit'>('view')
-
-  useEffect(() => {
-    const openTools = () => setToolsOpen(true)
-    window.addEventListener('open-group-tools', openTools)
-
-    return () => {
-      window.removeEventListener('open-group-tools', openTools)
-    }
-  }, [])
-
-  return (
+}: Props) => (
     <AppPageShell
     >
       {loading ? (
@@ -107,14 +58,25 @@ const GroupScreenShell = ({
       ) : null}
 
       {!loading && !error && group ? (
-        <div className="grid gap-6 desktop:grid-cols-[minmax(0,1fr)_22rem]">
-          <div className="space-y-6">
+        <div className="space-y-6">
+          <GroupHeaderCard
+            group={group}
+            membershipStatus={membershipStatus}
+            membershipRole={membershipRole}
+            summary={group.description || `${subgroups.length} subgroups · ${pages.length} pages`}
+            actions={
+              membershipStatus === 'Not joined' || membershipStatus === 'Invited' ? (
+                <AppActionButton variant="primary" onClick={onJoin}>Join group</AppActionButton>
+              ) : null
+            }
+          />
+
             {(contentMode === 'pages' || activeTab === 'pages') ? (
               <GroupPageTabs
                 pages={pages}
                 subgroups={subgroups}
                 selectedPageId={selectedPageId}
-                mode={pageContentMode}
+                mode="view"
                 canEditAllPages={canEditAllPages}
                 onSaved={onPageSaved}
                 showCreateAction={contentMode === 'tabs' && canCreatePage}
@@ -127,41 +89,6 @@ const GroupScreenShell = ({
                 <p className="text-sm text-slate-600">{statusMessage}</p>
               </AppSectionCard>
             ) : null}
-          </div>
-
-          <GroupToolsDrawer
-            open={toolsOpen}
-            group={group}
-            subgroups={subgroups}
-            pages={pages}
-            memberships={memberships}
-            events={events}
-            membershipStatus={membershipStatus}
-            membershipRole={membershipRole}
-            canManageGroup={canManageGroup}
-            canCreatePage={canCreatePage}
-            canEditAllPages={canEditAllPages}
-            canPublishPages={canPublishPages}
-            selectedPageId={selectedPageId}
-            pageContentMode={pageContentMode}
-            onClose={() => setToolsOpen(false)}
-            onJoin={onJoin}
-            onAddSubgroup={onAddSubgroup}
-            onAddPage={onAddPage}
-            onInviteMember={onInviteMember}
-            onOpenSubgroup={onOpenSubgroup}
-            onEditSubgroup={onEditSubgroup}
-            onDeleteSubgroup={onDeleteSubgroup}
-            onPageContentModeChange={setPageContentMode}
-            onDeletePage={onDeletePage}
-            onTogglePageVisibility={onTogglePageVisibility}
-            onApproveMember={onApproveMember}
-            onRejectMember={onRejectMember}
-            onKickMember={onKickMember}
-            onSetCoLeader={onSetCoLeader}
-            onDeleteEvent={onDeleteEvent}
-            onOpenEnrollDialog={onOpenEnrollDialog}
-          />
         </div>
       ) : null}
 
@@ -172,7 +99,6 @@ const GroupScreenShell = ({
         />
       ) : null}
     </AppPageShell>
-  )
-}
+)
 
 export default GroupScreenShell

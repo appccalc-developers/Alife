@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import AppActionButton from '../components/layout/AppActionButton'
-import AppBadge from '../components/layout/AppBadge'
 import AppSectionCard from '../components/layout/AppSectionCard'
 import PageContentEditor, {
   normalizePageSections,
@@ -66,6 +65,7 @@ const PageEditorView = () => {
   const [previewOpen, setPreviewOpen] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const [savedModelSnapshot, setSavedModelSnapshot] = useState('')
 
   const createGroupId = createGroupIdParam ?? ''
   const editPageId = editPageIdParam ?? ''
@@ -88,7 +88,6 @@ const PageEditorView = () => {
   const [pageModel, setPageModel] = useState<PageEditModel>(() => createInitialModel(createGroupId))
 
   const resolvedGroupId = createGroupId || queryGroupId || pageModel.groupId
-  const editorTitle = isCreateMode ? 'Create Group Page' : 'Edit Group Page'
 
   const membership = useMemo(
     () => auth.memberships.find((item) => item.groupId === resolvedGroupId),
@@ -113,21 +112,11 @@ const PageEditorView = () => {
 
   const canCreatePage = Boolean(membership?.status === 'Approved' || canEditAllPages)
   const canEditPage = isCreateMode ? canCreatePage : canEditAllPages || isCreatorDraft
-  const canPublish = canEditAllPages && !isCreateMode
-  const canDelete = !isCreateMode && (canEditAllPages || isCreatorDraft)
   const canEditVisibility = canEditAllPages
 
-  const visibilityVariant = useMemo(() => {
-    if (pageModel.visibility === 'VisiblePublic') {
-      return 'success' as const
-    }
-    if (pageModel.visibility === 'VisibleToGroup') {
-      return 'info' as const
-    }
-    return 'warning' as const
-  }, [pageModel.visibility])
-
   const validation = useMemo(() => validatePageContent(pageModel), [pageModel])
+  const currentModelSnapshot = useMemo(() => JSON.stringify(pageModel), [pageModel])
+  const hasUnsavedChanges = Boolean(savedModelSnapshot && currentModelSnapshot !== savedModelSnapshot)
 
   const hasValidationErrors = Boolean(validation.title) || validation.sectionTypeErrors.some((item) => item.length > 0)
 
@@ -160,10 +149,13 @@ const PageEditorView = () => {
     const baseModel = mapPageToEditModel(pageData, targetGroupId)
     const sections = await groupService.getPageSections(targetPageId)
 
-    setPageModel({
+    const editModel = {
       ...baseModel,
       sections: normalizePageSections(sections),
-    })
+    }
+
+    setPageModel(editModel)
+    setSavedModelSnapshot(JSON.stringify(editModel))
   }
 
   const initialize = async () => {
@@ -177,7 +169,9 @@ const PageEditorView = () => {
 
     try {
       if (isCreateMode) {
-        setPageModel(createInitialModel(createGroupId))
+        const initialModel = createInitialModel(createGroupId)
+        setPageModel(initialModel)
+        setSavedModelSnapshot(JSON.stringify(initialModel))
         if (!canCreatePage) {
           setMessage('You need approved membership to create a page in this group.')
         }
@@ -274,11 +268,14 @@ const PageEditorView = () => {
           await groupService.publishPage(targetPageId, nextVisibility)
         }
         setPageModel((current) => ({ ...current, visibility: nextVisibility }))
+        setSavedModelSnapshot(JSON.stringify({ ...pageModel, sections: normalizePageSections(sectionsToPersist), visibility: nextVisibility }))
         setMessage('Page saved and published.')
       } else if (canEditVisibility && targetPageId && pageModel.visibility === 'InvisibleDraft') {
         await groupService.publishPage(targetPageId, 'InvisibleDraft')
+        setSavedModelSnapshot(JSON.stringify({ ...pageModel, sections: normalizePageSections(sectionsToPersist) }))
         setMessage('Draft saved.')
       } else {
+        setSavedModelSnapshot(JSON.stringify({ ...pageModel, sections: normalizePageSections(sectionsToPersist) }))
         setMessage('Page saved.')
       }
 
@@ -292,75 +289,49 @@ const PageEditorView = () => {
     }
   }
 
-  const saveDraft = async () => {
+  const saveDraft = useCallback(async () => {
     await persist(false)
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canSaveDraft, pageModel, resolvedGroupId, editPageId, isCreateMode, canEditAllPages, canEditVisibility, auth.language])
 
-  const publish = async () => {
-    if (!canPublish) {
-      return
-    }
-
-    await persist(true)
-  }
-
-  const removePage = async () => {
-    if (!canDelete || !editPageId) {
-      return
-    }
-
-    setSaving(true)
-    setError('')
-    setMessage('')
-
-    try {
-      await groupService.deletePage(editPageId)
-      navigate(resolvedGroupId ? `/groups/${resolvedGroupId}` : '/')
-    } catch {
-      setError('Failed to delete page.')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const cancel = async () => {
+  const leaveEditor = useCallback(() => {
     if (resolvedGroupId) {
       navigate(`/groups/${resolvedGroupId}`)
       return
     }
 
     navigate('/')
-  }
+  }, [navigate, resolvedGroupId])
 
-  const openPreview = () => setPreviewOpen(true)
+  const cancel = useCallback(async () => {
+    if (hasUnsavedChanges && !window.confirm('You have unsaved changes. Exit without saving?')) {
+      return
+    }
+
+    leaveEditor()
+  }, [hasUnsavedChanges, leaveEditor])
+
+  useEffect(() => {
+    const saveHandler = () => {
+      saveDraft().catch(() => undefined)
+    }
+    const exitHandler = () => {
+      cancel().catch(() => undefined)
+    }
+
+    window.addEventListener('alife-page-editor-save', saveHandler)
+    window.addEventListener('alife-page-editor-exit', exitHandler)
+
+    return () => {
+      window.removeEventListener('alife-page-editor-save', saveHandler)
+      window.removeEventListener('alife-page-editor-exit', exitHandler)
+    }
+  }, [cancel, saveDraft])
 
   return (
     <PageEditorShell
-      title={editorTitle}
       loading={loading}
       error={error}
-      actions={
-        <>
-          <AppBadge variant={visibilityVariant}>{pageModel.visibility}</AppBadge>
-          <AppActionButton variant="ghost" disabled={saving} onClick={() => cancel().catch(() => undefined)}>
-            Back
-          </AppActionButton>
-          <AppActionButton variant="primary" disabled={!canSaveDraft || saving} onClick={() => saveDraft().catch(() => undefined)}>
-            Save Draft
-          </AppActionButton>
-          <AppActionButton variant="ghost" onClick={openPreview}>
-            Preview
-          </AppActionButton>
-          <AppActionButton variant="secondary" disabled={!canPublish || saving} onClick={() => publish().catch(() => undefined)}>
-            Publish
-          </AppActionButton>
-          {!isCreateMode ? (
-            <AppActionButton variant="danger" disabled={!canDelete || saving} onClick={() => removePage().catch(() => undefined)}>
-              Delete
-            </AppActionButton>
-          ) : null}
-        </>
-      }
       main={
         previewOpen ? (
           <AppSectionCard title="Page Preview" subtitle="Preview current unsaved edits.">
