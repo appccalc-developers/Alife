@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import AppActionButton from '../layout/AppActionButton'
-import AppSectionCard from '../layout/AppSectionCard'
 import RawJsonEditor from './RawJsonEditor'
 import SectionBlock from '../page-sections/SectionBlock'
 import type { JsonMap, SectionEditModel, SectionType } from '../../types/page-editor'
@@ -233,7 +232,7 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
     <div
       role="button"
       tabIndex={0}
-      className={`rounded-xl outline-none transition ${isActive ? 'ring-2 ring-blue-500 ring-offset-2' : 'cursor-pointer hover:ring-2 hover:ring-blue-200 hover:ring-offset-2'}`}
+      className={`overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm outline-none transition ${isActive ? 'ring-2 ring-blue-500 ring-offset-2' : 'cursor-pointer hover:ring-2 hover:ring-blue-200 hover:ring-offset-2'}`}
       onClick={(event) => {
         if (!isActive && (event.target as HTMLElement).closest('a')) {
           event.preventDefault()
@@ -247,8 +246,8 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
         }
       }}
     >
-    <AppSectionCard dense>
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      {isActive ? (<>
+      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
         <h3 className="text-sm font-semibold text-slate-900">Section {index + 1} · {section.type || 'Select type'}</h3>
         {isActive ? <div className="flex flex-wrap gap-2" onClick={(event) => event.stopPropagation()}>
           <AppActionButton size="sm" disabled={index === 0 || !canEdit} onClick={onMoveUp}>Move Up</AppActionButton>
@@ -256,9 +255,7 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
           <AppActionButton size="sm" variant="danger" disabled={!canEdit} onClick={onRemove}>Remove</AppActionButton>
         </div> : null}
       </div>
-
-      <div className="mt-3 space-y-3" onClick={(event) => isActive && event.stopPropagation()}>
-        {isActive ? (
+      <div className="border-t border-slate-100 px-4 py-3" onClick={(event) => event.stopPropagation()}>
         <label className="block space-y-1">
           <span className="text-sm font-medium text-slate-700">Type</span>
           <select
@@ -274,8 +271,10 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
           </select>
           {typeError ? <p className="text-xs text-red-600">{typeError}</p> : null}
         </label>
-        ) : null}
+      </div>
+      </>) : null}
 
+      <div className="border-t border-slate-100" onClick={(event) => isActive && event.stopPropagation()}>
         <SectionBlock
           section={section}
           mode={isActive ? 'edit' : 'render'}
@@ -283,38 +282,37 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
           contextGroupId={contextGroupId}
           onUpdate={onUpdate}
         />
+      </div>
 
-        {isActive ? (
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-          <button
-            type="button"
-            className="text-xs font-medium uppercase tracking-wide text-slate-600"
-            onClick={() => setRawOpen((value) => !value)}
-          >
-            {rawOpen ? 'Hide Raw JSON' : 'Show Raw JSON'}
-          </button>
-          {rawOpen ? (
-            <div className="mt-3 space-y-3">
-              <RawJsonEditor
-                label="contentJson"
-                value={contentText}
-                parseError={contentError}
-                disabled={!canEdit}
-                onChange={onContentRawChange}
-              />
-              <RawJsonEditor
-                label="styleJson"
-                value={styleText}
-                parseError={styleError}
-                disabled={!canEdit}
-                onChange={onStyleRawChange}
-              />
-            </div>
-          ) : null}
-        </div>
+      {isActive ? (
+      <div className="border-t border-slate-200 bg-slate-50 px-4 py-3" onClick={(event) => event.stopPropagation()}>
+        <button
+          type="button"
+          className="text-xs font-medium uppercase tracking-wide text-slate-600"
+          onClick={() => setRawOpen((value) => !value)}
+        >
+          {rawOpen ? 'Hide Raw JSON' : 'Show Raw JSON'}
+        </button>
+        {rawOpen ? (
+          <div className="mt-3 space-y-3">
+            <RawJsonEditor
+              label="contentJson"
+              value={contentText}
+              parseError={contentError}
+              disabled={!canEdit}
+              onChange={onContentRawChange}
+            />
+            <RawJsonEditor
+              label="styleJson"
+              value={styleText}
+              parseError={styleError}
+              disabled={!canEdit}
+              onChange={onStyleRawChange}
+            />
+          </div>
         ) : null}
       </div>
-    </AppSectionCard>
+      ) : null}
     </div>
   )
 }
