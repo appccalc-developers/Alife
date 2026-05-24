@@ -1,0 +1,141 @@
+import type { FocusEvent } from 'react'
+import type { EditableTextProps, PropertyPanelProps } from './types'
+import type { JsonMap, SectionEditModel } from '../../types/page-editor'
+
+export const DEFAULT_HERO_IMAGE = 'https://images.unsplash.com/photo-1529070538774-1843cb3265df?w=1600&q=80'
+
+export const readText = (source: JsonMap | undefined, ...keys: string[]) => {
+  if (!source) {
+    return ''
+  }
+
+  for (const key of keys) {
+    const value = source[key]
+    if (typeof value === 'string') {
+      return value
+    }
+  }
+
+  return ''
+}
+
+export const parseLimit = (source: JsonMap | undefined, key = 'limit', fallback = 8) => {
+  const value = source?.[key]
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback
+}
+
+export const toYouTubeEmbedUrl = (rawUrl: string) => {
+  const value = rawUrl.trim()
+  if (!value) {
+    return ''
+  }
+
+  try {
+    const url = new URL(value)
+    if (url.hostname.includes('youtu.be')) {
+      const id = url.pathname.replace('/', '').trim()
+      return id ? `https://www.youtube.com/embed/${id}` : ''
+    }
+    if (url.hostname.includes('youtube.com')) {
+      const id = url.searchParams.get('v')?.trim()
+      if (id) {
+        return `https://www.youtube.com/embed/${id}`
+      }
+      const shortsMatch = url.pathname.match(/\/shorts\/([^/]+)/)
+      if (shortsMatch?.[1]) {
+        return `https://www.youtube.com/embed/${shortsMatch[1]}`
+      }
+    }
+  } catch {
+    return ''
+  }
+
+  return ''
+}
+
+export const patchContent = (section: SectionEditModel, patch: JsonMap): SectionEditModel => ({
+  ...section,
+  contentJson: { ...section.contentJson, ...patch },
+})
+
+export const patchStyle = (section: SectionEditModel, patch: JsonMap): SectionEditModel => ({
+  ...section,
+  styleJson: { ...section.styleJson, ...patch },
+})
+
+export const EditableText = ({ value, fallback, disabled, className, as = 'span', multiline, onChange }: EditableTextProps) => {
+  const Tag = as
+  const editable = !disabled && Boolean(onChange)
+  const handleBlur = (event: FocusEvent<HTMLElement>) => onChange?.(event.currentTarget.textContent ?? '')
+
+  return (
+    <Tag
+      role={editable ? 'textbox' : undefined}
+      contentEditable={editable}
+      suppressContentEditableWarning={editable}
+      className={`${className} ${editable ? 'rounded px-1 outline-none focus:bg-black/10 focus:ring-2 focus:ring-blue-300' : ''} ${multiline ? 'whitespace-pre-wrap' : ''}`}
+      onBlur={editable ? handleBlur : undefined}
+    >
+      {value || fallback}
+    </Tag>
+  )
+}
+
+export const PropertyPanel = ({ children }: PropertyPanelProps) => (
+  <div className="mt-3 grid gap-2 rounded-lg border border-slate-200 bg-white/90 p-3 md:grid-cols-2">
+    {children}
+  </div>
+)
+
+export const TextInput = ({
+  label,
+  value,
+  disabled,
+  placeholder,
+  onChange,
+}: {
+  label: string
+  value: string
+  disabled?: boolean
+  placeholder?: string
+  onChange: (value: string) => void
+}) => (
+  <label className="block space-y-1">
+    <span className="text-xs font-medium text-slate-600">{label}</span>
+    <input
+      value={value}
+      disabled={disabled}
+      className="h-9 w-full rounded border border-slate-300 px-2 text-sm disabled:bg-slate-100"
+      placeholder={placeholder}
+      onChange={(event) => onChange(event.target.value)}
+    />
+  </label>
+)
+
+export const SelectInput = ({
+  label,
+  value,
+  disabled,
+  options,
+  onChange,
+}: {
+  label: string
+  value: string
+  disabled?: boolean
+  options: Array<{ value: string; label: string }>
+  onChange: (value: string) => void
+}) => (
+  <label className="block space-y-1">
+    <span className="text-xs font-medium text-slate-600">{label}</span>
+    <select
+      value={value}
+      disabled={disabled}
+      className="h-9 w-full rounded border border-slate-300 px-2 text-sm disabled:bg-slate-100"
+      onChange={(event) => onChange(event.target.value)}
+    >
+      {options.map((option) => (
+        <option key={option.value} value={option.value}>{option.label}</option>
+      ))}
+    </select>
+  </label>
+)

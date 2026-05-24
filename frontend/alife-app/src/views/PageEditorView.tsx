@@ -2,10 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppSectionCard from '../components/layout/AppSectionCard'
-import PageContentEditor, {
+import PageContentRenderer, {
   normalizePageSections,
   validatePageContent,
-} from '../components/page/PageContentEditor'
+} from '../components/page/PageContentRenderer'
 import PageEditorShell from '../components/page-editor/PageEditorShell'
 import GroupPagePreview from '../components/page-editor/GroupPagePreview'
 import { groupService } from '../api/groupService'
@@ -352,15 +352,17 @@ const PageEditorView = () => {
             </div>
           </AppSectionCard>
         ) : (
-          <PageContentEditor
-            model={pageModel}
+          <PageContentRenderer
+            page={pageModel}
+            sections={pageModel.sections}
+            subgroupItems={[]}
+            groupPageItems={[]}
+            editing
             canEdit={canEditPage}
-            canEditVisibility={canEditVisibility}
-            isCreateMode={isCreateMode}
             message={message}
             validation={validation}
             contextGroupId={resolvedGroupId}
-            onChange={setPageModel}
+            onSectionsChange={(sections) => setPageModel((current) => ({ ...current, sections }))}
           />
         )
       }

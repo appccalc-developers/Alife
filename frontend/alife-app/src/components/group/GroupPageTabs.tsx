@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import AppActionButton from '../layout/AppActionButton'
 import AppEmptyState from '../layout/AppEmptyState'
-import PageContentEditor, {
+import PageContentRenderer, {
   normalizePageSections,
   validatePageContent,
-} from '../page/PageContentEditor'
-import PageContentRenderer from '../page/PageContentRenderer'
+} from '../page/PageContentRenderer'
 import { cloudflareImageService } from '../../services/cloudflareImageService'
 import { pageService } from '../../services/pageService'
 import type { GroupPageDto, GroupSummaryDto } from '../../types/group'
@@ -237,14 +236,17 @@ const GroupPageTabs = ({
 
         {activePage && mode === 'edit' && activeModel && validation && !loadingPageId ? (
           <div className="space-y-4">
-            <PageContentEditor
-              model={activeModel}
+            <PageContentRenderer
+              page={activeModel}
+              sections={activeModel.sections}
+              subgroupItems={subgroups}
+              groupPageItems={pages}
+              editing
               canEdit={canEditAllPages}
-              canEditVisibility={canEditAllPages}
               message={message}
               validation={validation}
               contextGroupId={activePage.ownerGroupId ?? activeModel.groupId}
-              onChange={updateActiveModel}
+              onSectionsChange={(sections) => updateActiveModel({ ...activeModel, sections })}
             />
             <div className="flex flex-wrap items-center justify-end gap-2">
               <AppActionButton
