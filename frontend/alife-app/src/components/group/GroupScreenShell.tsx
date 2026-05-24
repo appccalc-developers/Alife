@@ -1,10 +1,8 @@
 import AppEmptyState from '../layout/AppEmptyState'
-import AppActionButton from '../layout/AppActionButton'
 import AppPageShell from '../layout/AppPageShell'
 import AppSectionCard from '../layout/AppSectionCard'
 import type { GroupDto, GroupPageDto, GroupSummaryDto, GroupTab } from '../../types/group'
 import GroupPageTabs from './GroupPageTabs'
-import GroupHeaderCard from './GroupHeaderCard'
 
 type Props = {
   group: GroupDto | null
@@ -13,14 +11,11 @@ type Props = {
   loading: boolean
   error: string
   activeTab: GroupTab
-  membershipStatus: 'Not joined' | 'Requested' | 'Approved' | 'Invited'
-  membershipRole: 'Member' | 'CoLeader' | 'Leader' | null
   canCreatePage: boolean
   canEditAllPages: boolean
   contentMode?: 'pages' | 'tabs'
   selectedPageId?: string
   statusMessage?: string
-  onJoin: () => void
   onAddPage: () => void
   onPageSaved?: () => void
 }
@@ -32,14 +27,11 @@ const GroupScreenShell = ({
   loading,
   error,
   activeTab,
-  membershipStatus,
-  membershipRole,
   canCreatePage,
   canEditAllPages,
   contentMode = 'tabs',
   selectedPageId = '',
   statusMessage,
-  onJoin,
   onAddPage,
   onPageSaved = () => undefined,
 }: Props) => (
@@ -59,18 +51,6 @@ const GroupScreenShell = ({
 
       {!loading && !error && group ? (
         <div className="space-y-6">
-          <GroupHeaderCard
-            group={group}
-            membershipStatus={membershipStatus}
-            membershipRole={membershipRole}
-            summary={group.description || `${subgroups.length} subgroups · ${pages.length} pages`}
-            actions={
-              membershipStatus === 'Not joined' || membershipStatus === 'Invited' ? (
-                <AppActionButton variant="primary" onClick={onJoin}>Join group</AppActionButton>
-              ) : null
-            }
-          />
-
             {(contentMode === 'pages' || activeTab === 'pages') ? (
               <GroupPageTabs
                 pages={pages}

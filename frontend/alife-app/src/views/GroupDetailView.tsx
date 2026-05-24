@@ -18,11 +18,8 @@ const GroupDetailView = () => {
     loading,
     error,
     statusMessage,
-    membershipStatus,
-    membershipRole,
     canCreatePage,
     canEditAllPages,
-    joinOrRequest,
     refreshPages,
   } = useGroupScreen(groupId)
 
@@ -40,16 +37,11 @@ const GroupDetailView = () => {
       loading={loading}
       error={error}
       activeTab={activeTab}
-      membershipStatus={membershipStatus}
-      membershipRole={membershipRole}
       canCreatePage={Boolean(canCreatePage)}
       canEditAllPages={Boolean(canEditAllPages)}
       contentMode="pages"
       selectedPageId={searchParams.get('page') ?? ''}
       statusMessage={statusMessage}
-      onJoin={() => {
-        joinOrRequest().catch(() => undefined)
-      }}
       onAddPage={() => {
         navigate(`/groups/${groupId}/pages/new`)
       }}
