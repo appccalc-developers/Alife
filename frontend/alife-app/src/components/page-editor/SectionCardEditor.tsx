@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import AppActionButton from '../layout/AppActionButton'
 import AppSectionCard from '../layout/AppSectionCard'
 import RawJsonEditor from './RawJsonEditor'
-import SectionTypeFields from './SectionTypeFields'
+import SectionBlock from '../page-sections/SectionBlock'
 import type { JsonMap, SectionEditModel, SectionType } from '../../types/page-editor'
 
 type Props = {
@@ -16,11 +16,18 @@ type Props = {
   onMoveUp: () => void
   onMoveDown: () => void
   contextGroupId?: string
+  isActive: boolean
+  onSelect: () => void
 }
 
-const sectionTypes: SectionType[] = ['Hero', 'MediaSpotlight', 'IconFeatureGrid', 'SermonSpotlight', 'RichText', 'GroupList']
+const sectionTypes: SectionType[] = ['Hero', 'MediaSpotlight', 'IconFeatureGrid', 'SermonSpotlight', 'RichText', 'PostFeed', 'Sermon', 'GroupList', 'PageList', 'SermonList']
 const sectionTypeLabel = (type: SectionType) =>
-  type === 'IconFeatureGrid' ? 'Icon Feature Grid' : type === 'SermonSpotlight' ? 'Sermon Spotlight' : type === 'GroupList' ? 'ListView' : type
+  type === 'IconFeatureGrid' ? 'Icon Feature Grid'
+    : type === 'SermonSpotlight' ? 'Sermon Spotlight'
+      : type === 'GroupList' ? 'ListView'
+        : type === 'PageList' ? 'Page List'
+          : type === 'SermonList' ? 'Sermon List'
+            : type
 
 const stringifyPretty = (value: unknown) => JSON.stringify(value ?? {}, null, 2)
 const DEFAULT_HERO_IMAGE = 'https://images.unsplash.com/photo-1529070538774-1843cb3265df?w=1600&q=80'
@@ -38,7 +45,7 @@ const parseJson = (value: string): { ok: true; data: JsonMap } | { ok: false; er
   }
 }
 
-const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate, onRemove, onMoveUp, onMoveDown, contextGroupId }: Props) => {
+const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate, onRemove, onMoveUp, onMoveDown, contextGroupId, isActive, onSelect }: Props) => {
   const [contentText, setContentText] = useState(stringifyPretty(section.contentJson))
   const [styleText, setStyleText] = useState(stringifyPretty(section.styleJson))
   const [contentError, setContentError] = useState('')
@@ -223,17 +230,35 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
   }
 
   return (
+    <div
+      role="button"
+      tabIndex={0}
+      className={`rounded-xl outline-none transition ${isActive ? 'ring-2 ring-blue-500 ring-offset-2' : 'cursor-pointer hover:ring-2 hover:ring-blue-200 hover:ring-offset-2'}`}
+      onClick={(event) => {
+        if (!isActive && (event.target as HTMLElement).closest('a')) {
+          event.preventDefault()
+        }
+        onSelect()
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          onSelect()
+        }
+      }}
+    >
     <AppSectionCard dense>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold text-slate-900">Section {index + 1}</h3>
-        <div className="flex flex-wrap gap-2">
+        <h3 className="text-sm font-semibold text-slate-900">Section {index + 1} · {section.type || 'Select type'}</h3>
+        {isActive ? <div className="flex flex-wrap gap-2" onClick={(event) => event.stopPropagation()}>
           <AppActionButton size="sm" disabled={index === 0 || !canEdit} onClick={onMoveUp}>Move Up</AppActionButton>
           <AppActionButton size="sm" disabled={index === total - 1 || !canEdit} onClick={onMoveDown}>Move Down</AppActionButton>
           <AppActionButton size="sm" variant="danger" disabled={!canEdit} onClick={onRemove}>Remove</AppActionButton>
-        </div>
+        </div> : null}
       </div>
 
-      <div className="mt-3 space-y-3">
+      <div className="mt-3 space-y-3" onClick={(event) => isActive && event.stopPropagation()}>
+        {isActive ? (
         <label className="block space-y-1">
           <span className="text-sm font-medium text-slate-700">Type</span>
           <select
@@ -249,17 +274,17 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
           </select>
           {typeError ? <p className="text-xs text-red-600">{typeError}</p> : null}
         </label>
+        ) : null}
 
-        <SectionTypeFields
-          type={section.type}
-          contentJson={section.contentJson}
-          styleJson={section.styleJson}
+        <SectionBlock
+          section={section}
+          mode={isActive ? 'edit' : 'render'}
           disabled={!canEdit}
           contextGroupId={contextGroupId}
-          onContentChange={(value) => patchSection({ contentJson: value })}
-          onStyleChange={(value) => patchSection({ styleJson: value })}
+          onUpdate={onUpdate}
         />
 
+        {isActive ? (
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
           <button
             type="button"
@@ -287,8 +312,10 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
             </div>
           ) : null}
         </div>
+        ) : null}
       </div>
     </AppSectionCard>
+    </div>
   )
 }
 
