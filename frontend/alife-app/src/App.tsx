@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react'
 import { useEffect, useState } from 'react'
-import { Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
+import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import logo from './assets/logo.png'
 import { groupService } from './services/groupService'
 import { useAuthStore } from './stores/auth'
@@ -14,31 +14,23 @@ import PagePreviewDraftView from './views/PagePreviewDraftView'
 import PageView from './views/PageView'
 import SermonsView from './views/SermonsView'
 import EventCreatorView from './views/EventCreatorView'
+import GroupManageView from './views/GroupManageView'
 
 type ShellNavItem = {
   label: string
   to: string
   icon: ReactElement
   matchSearch?: string
+  pageId?: string
+}
+
+type ShellFabItem = {
+  label: string
+  icon: ReactElement
+  onClick: () => void
 }
 
 const RouteLoading = () => <p className="rounded bg-white p-3">Loading identity...</p>
-
-const HomeIcon = () => (
-  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="m3 10 9-7 9 7" />
-    <path d="M5 10v10h14V10" />
-    <path d="M9 20v-6h6v6" />
-  </svg>
-)
-
-const SermonsIcon = () => (
-  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M5 5h14" />
-    <path d="M5 12h14" />
-    <path d="M5 19h9" />
-  </svg>
-)
 
 const PageIcon = () => (
   <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
@@ -46,6 +38,32 @@ const PageIcon = () => (
     <path d="M14 3v5h5" />
     <path d="M9 13h6" />
     <path d="M9 17h6" />
+  </svg>
+)
+
+const GroupIcon = () => (
+  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M4 20V8l8-4 8 4v12" />
+    <path d="M9 20v-6h6v6" />
+    <path d="M8 10h.01M16 10h.01" />
+  </svg>
+)
+
+const SubgroupsIcon = () => (
+  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+    <rect x="3" y="4" width="7" height="6" rx="1" />
+    <rect x="14" y="4" width="7" height="6" rx="1" />
+    <rect x="8.5" y="14" width="7" height="6" rx="1" />
+    <path d="M10 7h4M12 10v4" />
+  </svg>
+)
+
+const MembersIcon = () => (
+  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
   </svg>
 )
 
@@ -57,13 +75,6 @@ const OnboardingIcon = () => (
   </svg>
 )
 
-const AdminIcon = () => (
-  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3Z" />
-    <path d="M9 12l2 2 4-4" />
-  </svg>
-)
-
 const EventsIcon = () => (
   <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
     <rect x="3" y="4" width="18" height="18" rx="2" />
@@ -72,25 +83,32 @@ const EventsIcon = () => (
   </svg>
 )
 
-const MenuIcon = () => (
+const EditIcon = () => (
   <svg aria-hidden="true" viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M4 6h16" />
-    <path d="M4 12h16" />
-    <path d="M4 18h16" />
+    <path d="M12 20h9" />
+    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
   </svg>
 )
 
-const PlusIcon = () => (
-  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M12 5v14" />
-    <path d="M5 12h14" />
+const SettingsIcon = () => (
+  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Z" />
+    <path d="M19.4 15a1.8 1.8 0 0 0 .36 1.98l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.8 1.8 0 0 0-1.98-.36 1.8 1.8 0 0 0-1.1 1.65V21a2 2 0 1 1-4 0v-.09A1.8 1.8 0 0 0 8.75 19.3a1.8 1.8 0 0 0-1.98.36l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.8 1.8 0 0 0 .36-1.98 1.8 1.8 0 0 0-1.65-1.1H2.5a2 2 0 1 1 0-4h.09A1.8 1.8 0 0 0 4.2 8.7a1.8 1.8 0 0 0-.36-1.98l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.8 1.8 0 0 0 1.98.36h.1A1.8 1.8 0 0 0 9.85 2.6V2.5a2 2 0 1 1 4 0v.09a1.8 1.8 0 0 0 1.1 1.65 1.8 1.8 0 0 0 1.98-.36l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.8 1.8 0 0 0-.36 1.98v.1a1.8 1.8 0 0 0 1.65 1.1h.09a2 2 0 1 1 0 4h-.09A1.8 1.8 0 0 0 19.4 15Z" />
   </svg>
 )
 
-const CloseIcon = () => (
-  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M18 6 6 18" />
-    <path d="m6 6 12 12" />
+const SaveIcon = () => (
+  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z" />
+    <path d="M17 21v-8H7v8" />
+    <path d="M7 3v5h8" />
+  </svg>
+)
+
+const BackIcon = () => (
+  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M19 12H5" />
+    <path d="m12 19-7-7 7-7" />
   </svg>
 )
 
@@ -136,7 +154,13 @@ const ShellSearchNavLink = ({ item, mobile = false }: { item: ShellNavItem; mobi
 }
 
 const HeaderNav = ({ items }: { items: ShellNavItem[] }) => (
-  <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto" aria-label="App navigation">
+  <nav className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto" aria-label="App navigation">
+    <Link to="/" className="flex shrink-0 items-center gap-2.5 rounded-lg mr-1 text-slate-950" aria-label="Home">
+      <span className="flex items-center justify-center rounded-xl bg-emerald-50 p-1.5">
+        <img src={logo} alt="Aboundant Life Church" className="h-8 w-auto drop-shadow-sm" />
+      </span>
+      <span className="text-base font-bold tracking-tight">Aboundant Life Church</span>
+    </Link>
     {items.map((item) => (
       <ShellNavLink key={item.to} item={item} />
     ))}
@@ -144,18 +168,8 @@ const HeaderNav = ({ items }: { items: ShellNavItem[] }) => (
 )
 
 const SideNav = ({ items }: { items: ShellNavItem[] }) => (
-  <aside className="fixed inset-y-0 left-0 z-20 hidden w-72 border-r border-slate-200 bg-white/95 px-4 py-5 shadow-sm backdrop-blur desktop:block">
-    <Link to="/" className="flex items-center gap-3 rounded-lg px-2 py-2 text-slate-950">
-      <span className="flex h-12 w-12 items-center justify-center rounded-xl border border-slate-200 bg-white shadow-sm">
-        <img src={logo} alt="Alife" className="h-8 w-auto" />
-      </span>
-      <span className="min-w-0">
-        <span className="block text-base font-semibold leading-tight">Alife</span>
-        <span className="block text-sm text-slate-500">Community hub</span>
-      </span>
-    </Link>
-
-    <nav className="mt-8 space-y-1" aria-label="Primary">
+  <aside className="fixed bottom-0 left-0 top-16 z-20 hidden w-72 bg-white/95 px-4 py-5 shadow-sm backdrop-blur desktop:block">
+    <nav className="space-y-1" aria-label="Primary">
       {items.map((item) => (
         <ShellSearchNavLink key={item.to} item={item} />
       ))}
@@ -176,43 +190,21 @@ const BottomNav = ({ items }: { items: ShellNavItem[] }) => (
   </nav>
 )
 
-const NavigationDrawer = ({ open, onClose }: { open: boolean; onClose: () => void }) => (
-  <div className={open ? 'fixed inset-0 z-50' : 'pointer-events-none fixed inset-0 z-50'} aria-hidden={!open}>
-    <button
-      type="button"
-      className={['absolute inset-0 bg-slate-950/35 transition-opacity', open ? 'opacity-100' : 'opacity-0'].join(' ')}
-      aria-label="Close navigation drawer"
-      onClick={onClose}
-    />
-    <aside
-      className={[
-        'absolute bottom-0 right-0 top-0 w-full max-w-sm border-l border-slate-200 bg-white shadow-2xl transition-transform duration-200',
-        open ? 'translate-x-0' : 'translate-x-full',
-      ].join(' ')}
-      aria-label="Navigation drawer"
-    >
+const FloatingActionButtons = ({ items }: { items: ShellFabItem[] }) => (
+  <div className="fixed bottom-24 right-5 z-40 flex flex-col-reverse items-end gap-3 desktop:bottom-6">
+    {items.map((item) => (
       <button
+        key={item.label}
         type="button"
-        className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 hover:text-slate-950"
-        aria-label="Close navigation drawer"
-        onClick={onClose}
+        className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-emerald-700 text-white shadow-xl shadow-emerald-900/30 transition hover:bg-emerald-800 focus:outline-none focus:ring-4 focus:ring-emerald-200"
+        aria-label={item.label}
+        title={item.label}
+        onClick={item.onClick}
       >
-        <CloseIcon />
+        {item.icon}
       </button>
-    </aside>
+    ))}
   </div>
-)
-
-const FloatingActionButton = ({ label, onClick }: { label: string; onClick: () => void }) => (
-  <button
-    type="button"
-    className="fixed bottom-24 right-5 z-40 inline-flex h-16 w-16 items-center justify-center rounded-full bg-emerald-700 text-white shadow-xl shadow-emerald-900/30 transition hover:bg-emerald-800 focus:outline-none focus:ring-4 focus:ring-emerald-200 desktop:hidden"
-    aria-label={label}
-    title={label}
-    onClick={onClick}
-  >
-    <PlusIcon />
-  </button>
 )
 
 const AdminRoute = ({ children }: { children: ReactElement }) => {
@@ -247,30 +239,85 @@ const App = () => {
   const auth = useAuthStore()
   const { CurrentGroup } = useCurrentGroupStore()
   const location = useLocation()
-  const [drawerOpen, setDrawerOpen] = useState(false)
+  const navigate = useNavigate()
   const [currentGroupPages, setCurrentGroupPages] = useState<ShellNavItem[]>([])
-  const isGroupScreen = /^\/groups\/[^/]+$/.test(location.pathname)
-
-  const openContextualDrawer = () => {
-    if (isGroupScreen) {
-      window.dispatchEvent(new Event('open-group-tools'))
-      return
-    }
-
-    setDrawerOpen(true)
-  }
+  const groupScreenMatch = location.pathname.match(/^\/groups\/([^/]+)$/)
+  const groupManageMatch = location.pathname.match(/^\/groups\/([^/]+)\/manage$/)
+  const groupCreatePageMatch = location.pathname.match(/^\/groups\/([^/]+)\/pages\/new$/)
+  const pageEditMatch = location.pathname.match(/^\/pages\/([^/]+)\/edit$/)
+  const searchParams = new URLSearchParams(location.search)
+  const isGroupScreen = Boolean(groupScreenMatch)
+  const isManagementScreen = Boolean(groupManageMatch)
+  const isPageEditorScreen = Boolean(groupCreatePageMatch || pageEditMatch)
+  const contextualGroupId =
+    groupScreenMatch?.[1] ||
+    groupManageMatch?.[1] ||
+    groupCreatePageMatch?.[1] ||
+    (pageEditMatch ? searchParams.get('groupId') || CurrentGroup?.id || '' : '')
+  const currentGroupMembership = contextualGroupId
+    ? auth.memberships.find((item) => item.groupId === contextualGroupId)
+    : null
+  const canManageCurrentGroup =
+    currentGroupMembership?.status === 'Approved' &&
+    (currentGroupMembership.role === 'Leader' || currentGroupMembership.role === 'CoLeader')
+  const selectedPageId = searchParams.get('page') || currentGroupPages[0]?.pageId || ''
+  const managementNavItems: ShellNavItem[] = contextualGroupId
+    ? [
+        { label: 'Group', to: `/groups/${contextualGroupId}/manage?section=group`, matchSearch: '?section=group', icon: <GroupIcon /> },
+        { label: 'Subgroups', to: `/groups/${contextualGroupId}/manage?section=subgroups`, matchSearch: '?section=subgroups', icon: <SubgroupsIcon /> },
+        { label: 'Members', to: `/groups/${contextualGroupId}/manage?section=members`, matchSearch: '?section=members', icon: <MembersIcon /> },
+        { label: 'Pages', to: `/groups/${contextualGroupId}/manage?section=pages`, matchSearch: '?section=pages', icon: <PageIcon /> },
+        { label: 'Events', to: `/groups/${contextualGroupId}/manage?section=events`, matchSearch: '?section=events', icon: <EventsIcon /> },
+      ]
+    : []
+  const shellNavItems = isManagementScreen ? managementNavItems : isGroupScreen || isPageEditorScreen ? currentGroupPages : []
+  const fabItems: ShellFabItem[] = isGroupScreen && canManageCurrentGroup
+    ? [
+        ...(selectedPageId
+          ? [
+              {
+                label: 'Edit current page',
+                icon: <EditIcon />,
+                onClick: () => navigate(`/pages/${selectedPageId}/edit?groupId=${contextualGroupId}`),
+              },
+            ]
+          : []),
+        {
+          label: 'Manage group',
+          icon: <SettingsIcon />,
+          onClick: () => navigate(`/groups/${contextualGroupId}/manage?section=group`),
+        },
+      ]
+    : isPageEditorScreen
+      ? [
+          {
+            label: 'Save page',
+            icon: <SaveIcon />,
+            onClick: () => window.dispatchEvent(new Event('alife-page-editor-save')),
+          },
+          {
+            label: 'Exit editor',
+            icon: <BackIcon />,
+            onClick: () => window.dispatchEvent(new Event('alife-page-editor-exit')),
+          },
+        ]
+      : isManagementScreen
+        ? [
+            {
+              label: 'Back to group',
+              icon: <BackIcon />,
+              onClick: () => navigate(`/groups/${contextualGroupId}`),
+            },
+          ]
+        : []
 
   const toggleLanguageLabel = auth.language.toUpperCase()
   const appNavItems: ShellNavItem[] = [
-    { label: 'Home', to: '/', icon: <HomeIcon /> },
-    { label: 'Sermons', to: '/sermons', icon: <SermonsIcon /> },
-    { label: 'Events', to: '/events/new', icon: <EventsIcon /> },
     ...(!auth.loading && auth.isGuest ? [{ label: 'Onboarding', to: '/onboarding', icon: <OnboardingIcon /> }] : []),
-    ...(!auth.loading && auth.me?.isAdmin ? [{ label: 'Admin', to: '/admin', icon: <AdminIcon /> }] : []),
   ]
 
   useEffect(() => {
-    if (!CurrentGroup?.id) {
+    if (!contextualGroupId || isManagementScreen) {
       setCurrentGroupPages([])
       return
     }
@@ -278,7 +325,7 @@ const App = () => {
     let cancelled = false
 
     groupService
-      .getGroupPages(CurrentGroup.id, auth.language)
+      .getGroupPages(contextualGroupId, auth.language)
       .then((pages) => {
         if (cancelled) {
           return
@@ -287,8 +334,9 @@ const App = () => {
         setCurrentGroupPages(
           pages.map((page) => ({
             label: page.title,
-            to: `/groups/${CurrentGroup.id}?page=${encodeURIComponent(page.id)}`,
+            to: `/groups/${contextualGroupId}?page=${encodeURIComponent(page.id)}`,
             matchSearch: `?page=${encodeURIComponent(page.id)}`,
+            pageId: page.id,
             icon: <PageIcon />,
           })),
         )
@@ -302,53 +350,37 @@ const App = () => {
     return () => {
       cancelled = true
     }
-  }, [CurrentGroup?.id, auth.language])
+  }, [contextualGroupId, auth.language, isManagementScreen])
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
-      <SideNav items={currentGroupPages} />
+      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 backdrop-blur">
+        <div className="flex min-h-16 items-center justify-between gap-3 px-4 py-3 sm:px-6 desktop:px-8">
+          <HeaderNav items={appNavItems} />
 
-      <div className="min-h-screen desktop:pl-72">
-        <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 backdrop-blur">
-          <div className="flex min-h-16 items-center justify-between gap-3 px-4 py-3 sm:px-6 desktop:px-8">
-            <Link to="/" className="flex items-center gap-2 rounded-lg text-slate-950 desktop:hidden" aria-label="Home">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white shadow-sm">
-                <img src={logo} alt="Alife" className="h-7 w-auto" />
-              </span>
-              <span className="text-base font-semibold">Alife</span>
-            </Link>
-
-            <HeaderNav items={appNavItems} />
-
-            <div className="ml-auto flex items-center gap-2">
-              {!auth.loading && auth.me ? (
-                <span className="text-sm text-slate-700">{auth.me.displayName || 'Guest'}</span>
-              ) : null}
-              <button
-                type="button"
-                className="inline-flex h-10 min-w-12 items-center justify-center rounded-full border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
-                onClick={() => auth.setLanguage(auth.language === 'en' ? 'zh' : 'en')}
-              >
-                {toggleLanguageLabel}
-              </button>
-              <button
-                type="button"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50 desktop:hidden"
-                aria-label={isGroupScreen ? 'Open group tools' : 'Open navigation drawer'}
-                title={isGroupScreen ? 'Group tools' : 'Open navigation drawer'}
-                onClick={openContextualDrawer}
-              >
-                <MenuIcon />
-              </button>
-            </div>
+          <div className="ml-auto flex items-center gap-2">
+            {!auth.loading && auth.me ? (
+              <span className="text-sm text-slate-700">{auth.me.displayName || 'Guest'}</span>
+            ) : null}
+            <button
+              type="button"
+              className="inline-flex h-10 min-w-12 items-center justify-center rounded-full border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+              onClick={() => auth.setLanguage(auth.language === 'en' ? 'zh' : 'en')}
+            >
+              {toggleLanguageLabel}
+            </button>
           </div>
-        </header>
+        </div>
+      </header>
+      <div className="min-h-screen desktop:pl-72">
+        <SideNav items={shellNavItems} />
 
         <main className="mx-auto max-w-6xl px-4 pb-32 pt-6 sm:px-6 desktop:px-8 desktop:pb-10">
           {auth.loading ? <RouteLoading /> : null}
           <Routes>
             <Route path="/" element={<HomeView />} />
             <Route path="/groups/:groupId" element={<GroupDetailView />} />
+            <Route path="/groups/:groupId/manage" element={<GroupManageView />} />
             <Route path="/pages/:slug" element={<PageView />} />
             <Route path="/sermons" element={<SermonsView />} />
             <Route path="/events/new" element={<EventCreatorView />} />
@@ -377,9 +409,8 @@ const App = () => {
         </main>
       </div>
 
-      <BottomNav items={currentGroupPages} />
-      <NavigationDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
-      <FloatingActionButton label={isGroupScreen ? 'Open group tools' : 'Open navigation drawer'} onClick={openContextualDrawer} />
+      <BottomNav items={shellNavItems} />
+      <FloatingActionButtons items={fabItems} />
     </div>
   )
 }

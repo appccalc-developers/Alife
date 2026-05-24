@@ -2,311 +2,350 @@
 
 ## Overview
 
-Alife is a full-stack church management application built with:
-- **Backend**: .NET 10 (Clean Architecture)
-- **Frontend**: Vue 3 TypeScript SPA (Vite, Tailwind, Pinia)
-- **Database**: SQL Server 2022
-- **Containerization**: Docker Compose
-- **API Docs**: Built-in OpenAPI (`/openapi/v1.json` in Development)
+Alife is a full-stack church operations application built with:
+- **Backend**: .NET 10 Azure Functions using Clean Architecture.
+- **Frontend**: React 19 + TypeScript PWA using Vite and Tailwind CSS.
+- **Database**: SQL Server 2022.
+- **Containerization**: Docker Compose for local infrastructure.
+- **Edge**: Cloudflare Workers for the frontend proxy and image API.
+- **API Docs**: Swagger/OpenAPI in development.
+
+## Product Value Model
+
+Alife's current product value goal is to reduce the operational load of church group life:
+- Members should quickly find group content, activities, sermons, and join flows.
+- Leaders and co-leaders should manage their group without hunting through unrelated navigation.
+- Ministry operators should publish pages and run recurring admin jobs with clear feedback.
+- System admins should keep authentication, permissions, content, and integrations reliable.
+
+### Primary Users
+
+- **Guest**: can enter onboarding, sign in, and request or accept group access.
+- **Member**: can view accessible groups, pages, sermons, and events, and enroll in activities.
+- **Leader / CoLeader**: can manage subgroups, members, pages, and activities for approved groups.
+- **Admin**: can access global admin operations such as sermon synchronization.
+
+### Current UX Direction
+
+Group pages separate day-to-day reading from management work:
+- The group page focuses on visible content and lightweight contextual tools.
+- The group tools drawer shows membership state, current page shortcuts, and a single management entry point.
+- The group management route (`/groups/:groupId/manage`) owns subgroup, member, page, and event management.
 
 ## Backend Architecture
 
 ### Clean Architecture Layers
 
-```
+```text
 Domain (Entities, Enums)
-    ↑
-Application (Use Cases, Commands, Queries, DTOs)
-    ↑
-Infrastructure (Data Access, Migrations, Services, Security)
-    ↑
-Api (Controllers, HTTP layer)
+  -> Application (Use Cases, Commands, Queries, DTOs)
+  -> Infrastructure (Data Access, Migrations, Services, Security)
+  -> Api (Azure Functions host, controllers, HTTP layer)
 ```
 
 **Project Dependencies:**
-- `Alife.Domain` - No dependencies
-- `Alife.Application` → Domain
-- `Alife.Infrastructure` → Application, Domain
-- `Alife.Api` → Application, Infrastructure
-- `Alife.DbMigrator` → Infrastructure, Application
+- `Alife.Domain` has no project dependencies.
+- `Alife.Application` depends on Domain.
+- `Alife.Infrastructure` depends on Application and Domain.
+- `Alife.Api` depends on Application and Infrastructure.
+- `Alife.DbMigrator` depends on Infrastructure and Application.
 
 ### Domain Model
 
 #### Groups
-- Hierarchical structure with Church as root
-- Three access types: Public, Protected (with approval), Private
-- Roles: Owner, Leader, CoLeader, Member
-- Membership statuses: Invited, Requested, Approved, Active, Rejected, Removed
+- Hierarchical structure with Church as the root group.
+- Access types: Public, Protected, Private.
+- Roles: Owner, Leader, CoLeader, Member.
+- Membership statuses: Invited, Requested, Approved, Active, Rejected, Removed.
 
 #### Members
-- Authentication via LINE Login OAuth
-- Profile includes name, phone, email
-- Associated with groups via membership records
-- Current member identity always from JWT `sub` claim
+- Authentication via LINE Login OAuth or development/admin flows.
+- Profile includes display name, phone, email, and registration state.
+- Members relate to groups through membership records.
+- Current member identity is resolved from the JWT `sub` claim.
 
 #### Pages
-- Lifecycle states: Draft → Visible → Public
-- Can be managed globally (for all groups) or per-group
-- Multilingual support (English, Chinese)
-- Versions tracked in database
+- Group-scoped and global pages.
+- Visibility supports draft and group-visible states.
+- Multilingual support through language-specific page records.
+- Sections define rendered content blocks inside pages.
 
-#### Sections
-- Sub-units within pages
-- Support for section link replacement with ownership validation
-- Customizable content per group if needed
+#### Events
+- Group-owned activities with structured event data.
+- Enrollment is handled through event enrollment APIs and frontend chat UI.
+- Leaders/co-leaders can create, edit, and delete group events.
 
-### Security Architecture
+## Security Architecture
 
-#### JWT in HttpOnly Cookies
+### JWT in HttpOnly Cookies
 
 **Why HttpOnly?**
-- Immune to XSS (JavaScript cannot access the cookie)
-- Automatically sent with all requests
-- Follows OWASP best practices
+- JavaScript cannot read the cookie, reducing XSS token theft risk.
+- Cookies are automatically sent with API requests.
+- The approach follows OWASP-friendly browser auth defaults.
 
 **Flow:**
-1. User authenticates (LINE login or admin login)
-2. Backend creates JWT with minimal claims:
-   - `sub` - Member ID (unique identifier)
-   - `exp` - Expiration time
-3. JWT stored in HttpOnly cookie `alife_auth`
-4. JwtBearer middleware reads from cookie automatically
-5. Current identity always validated from `sub` claim
+1. User authenticates through LINE login, display-name login, or admin/dev login.
+2. Backend creates a JWT with minimal claims such as `sub` and `exp`.
+3. JWT is stored in the HttpOnly cookie `alife_auth`.
+4. JwtBearer middleware reads the token from the cookie.
+5. Current identity is validated from the `sub` claim.
 
-#### Authorization Model
+### Authorization Model
 
-**No Role Caching in JWT**
-- JWT intentionally minimal to reduce data leakage
-- Group roles and permissions queried from database on each request
-- Ensures real-time permission updates
+**No role caching in JWT**
+- JWT claims stay minimal to reduce leakage and stale authorization.
+- Group roles and permissions are checked from the database for protected actions.
+- Permission changes take effect without forcing token refresh.
 
 **Authorization Flow:**
-```
+
+```text
 Request arrives
-    ↓
-JwtBearer middleware reads cookie → validates JWT → extracts `sub`
-    ↓
-CurrentMemberAccessor retrieves member ID from JWT
-    ↓
-Controller/Service queries DB for group membership
-    ↓
-If authorized: proceed | If unauthorized: 403 Forbidden
+  -> JwtBearer middleware validates cookie JWT and extracts sub
+  -> CurrentMemberAccessor resolves the current member
+  -> Controller or application service checks group membership
+  -> Authorized requests proceed; unauthorized requests return 403
 ```
 
-### API Structure
+## API Structure
 
-**Controllers** (request/response handling):
-- AdminController - Admin operations
-- AuthController - Authentication (guest, dev login)
-- MembersController - Member registration, LINE login/callback, profile
-- GroupsController - Group CRUD operations
-- PagesController - Page management
-- SectionsController - Section management
-- HealthController - Health checks
+**Controllers:**
+- `AdminController` - admin operations.
+- `AuthController` - authentication and session operations.
+- `MembersController` - registration, LINE login/callback, profile.
+- `GroupsController` - group and membership workflows.
+- `PagesController` - page management.
+- `SectionsController` - section management.
+- `EventsController` and `EventEnrollmentsController` - activity and enrollment workflows.
+- `SermonsController` - sermon listing.
 
 ### HTTP and API Surface
 
-- Health endpoint: `GET /health`
-- API endpoints: under `/api/*`
-- Swagger UI: `GET /swagger` (Swashbuckle)
+- Health endpoint: `GET /health`.
+- API endpoints: under `/api/*`.
+- Swagger UI: `GET /swagger` in development.
 
-**Application Layer** (business logic):
-- Commands - Write operations (create, update, delete)
-- Queries - Read operations
-- DTOs - Data transfer objects
-- Services - Domain logic and validations
+### Application Layer
 
-**Infrastructure Layer**:
-- DbContext - Entity Framework configuration
-- Migrations - Database schema versioning
-- ReadServices - Optimized read database queries
-- Security - Cookie, JWT handling
-- Services - External integrations (LINE OAuth, YouTube)
+- Commands handle write operations.
+- Queries handle read operations.
+- DTOs define API-facing payload shapes.
+- Services centralize domain rules and authorization helpers.
+
+### Infrastructure Layer
+
+- EF Core DbContext and migrations.
+- Read services for optimized group, member, and page reads.
+- HybridCache-backed read paths and invalidation services.
+- JWT, cookie, LINE Login, and YouTube integration services.
 
 ### Caching Architecture
 
-- Read services and invalidation services now use `HybridCache`.
-- This provides coordinated local/distributed cache behavior and built-in stampede protection semantics.
-- `/api/me` member profile path is cached via HybridCache and invalidated on profile-changing operations.
-- Source-level `IMemoryCache` and `AddMemoryCache()` usage were removed from application wiring.
+- Read services and invalidation services use `HybridCache`.
+- `/api/me` is cached and invalidated on profile-changing operations.
+- Group and page reads use cache keys owned by application services.
+- Source-level `IMemoryCache` usage has been removed from application wiring.
 
-### Database Schema
+## Database Schema
 
-Key tables:
-- `Members` - User accounts
-- `Groups` - Organizational units
-- `MemberGroupMemberships` - Member-to-group relationships
-- `Pages` - Content pages
-- `Sections` - Page sections
-- `MemberGroupRoles` - Role assignments
+Key tables include:
+- `Members` - user accounts.
+- `Groups` - organizational units.
+- `GroupMemberships` - member-to-group relationships.
+- `Pages` - global and group content pages.
+- `Sections` - page content sections.
+- `GroupEvents` - group activity records.
+- `EventEnrollments` - event registration records.
+- `Sermons` - synchronized sermon metadata.
 
 ## Frontend Architecture
 
 ### Technology Stack
 
-- **Framework**: Vue 3 with Composition API
-- **Language**: TypeScript
-- **Build Tool**: Vite (HMR, optimized builds)
-- **Styling**: Tailwind CSS
-- **State Management**: Pinia (simpler than Vuex)
-- **Routing**: Vue Router 4
-- **HTTP Client**: Axios (automatic cookie handling)
+- **Framework**: React 19.
+- **Language**: TypeScript.
+- **Build Tool**: Vite.
+- **Styling**: Tailwind CSS.
+- **Routing**: React Router.
+- **Server State**: TanStack Query and TanStack DB live queries.
+- **Local App State**: React context providers such as `AuthProvider` and `CurrentGroupProvider`.
+- **HTTP Client**: Axios with `withCredentials` enabled.
+- **PWA**: Vite PWA service worker registration.
 
 ### Application Structure
 
+```text
+frontend/alife-app/src/
+  App.tsx                 Route tree, app shell, navigation
+  main.tsx                React root, providers, router, service worker
+  stores/                 React context stores for auth and current group
+  views/                  Route-level screens
+  components/             Reusable UI and domain components
+  services/               Axios-backed API clients
+  api/                    Additional API helpers
+  db/                     TanStack Query/DB collections and HTTP cache
+  hooks/                  Screen and data composition hooks
+  types/                  TypeScript DTO and model types
+  assets/                 Static frontend assets
 ```
-src/
-├── router.ts           - Route definitions
-├── stores/             - Pinia stores (global state)
-├── components/         - Reusable Vue components
-├── views/              - Page-level components
-├── api/                - API client functions
-├── types/              - TypeScript interfaces
-└── assets/             - Static files
-```
 
-### Authentication & Bootstrap Flow
+### Authentication and Bootstrap Flow
 
-1. **App Initialization**
-   - `main.ts` creates Vue app and mounts
-
-2. **Bootstrap Check**
-   - `router.ts` or `App.vue` calls `GET /api/me`
-   - Checks if member is authenticated
-
-3. **If 401 Unauthorized**
-    - Navigate to onboarding and start LINE login
-
-4. **User Registration**
-    - LINE OAuth callback verification
-   - Profile completion
-   - JWT cookie issued (longer-lived)
-
-5. **State Management**
-   - Pinia store holds current user
-   - Reactive to auth changes
-   - router navigation guards check auth state
+1. `main.tsx` creates the React root and mounts providers.
+2. `AuthProvider` bootstraps identity by calling `GET /api/me` through `authService`.
+3. If the user is a guest or unauthenticated, onboarding routes can guide LINE login or registration.
+4. After registration or login, the backend issues the `alife_auth` cookie.
+5. The app reads membership and role data from `/api/me` and uses it for route-aware UI.
 
 ### Cookie Handling
 
-**Axios Configuration**:
-```javascript
-// All requests automatically include withCredentials
-// Allows browser to send cookie with cross-origin requests
-axios.defaults.withCredentials = true
+**Axios Configuration:**
+
+```ts
+export const http = axios.create({
+  baseURL,
+  withCredentials: true,
+})
 ```
 
-**CORS Requirements**:
-- Backend must allow `withCredentials`
-- Frontend origin must be in CORS whitelist
-- Cookie must be marked `SameSite=None; Secure` for cross-origin (not needed for localhost)
+**Environment behavior:**
+- In development, Vite proxies same-origin `/api/*` requests where configured.
+- In production, `VITE_API_BASE_URL` supplies the API base URL.
+- Backend CORS must allow credentials for cross-origin deployments.
+- Secure production cookies should use the correct `SameSite` and `Secure` settings for the deployment topology.
+
+### Frontend Information Architecture
+
+**Global shell:**
+- Home, sermons, global events entry, onboarding, admin.
+- Current group pages appear in the side/bottom navigation when a group is active.
+- Group leaders and co-leaders also see a `Manage` entry for the current group.
+
+**Group detail screen:**
+- `GroupDetailView` composes `useGroupScreen` data.
+- `GroupScreenShell` renders page content and lightweight contextual tools.
+- `GroupToolsDrawer` is intentionally narrow: status, join action, current-page shortcut, and management entry.
+
+**Group management screen:**
+- `GroupManageView` owns management workflows for leaders and co-leaders.
+- It groups operations into Subgroups, Members, Pages, and Events sections.
+- Direct access is guarded in the UI by group role and redirects non-managers back to the group page.
 
 ### Component Architecture
 
-**Key Components**:
-- Navigation/Layout - Main app shell
-- AuthFlow - Login/registration flow
-- GroupList - Group browsing
-- MemberProfile - User profile management
-- PageViewer - Content display
-- AdminDashboard - Admin operations
+**Key components:**
+- Layout primitives: `AppPageShell`, `AppSectionCard`, `AppActionButton`, `AppBadge`, `AppEmptyState`.
+- Group screens: `GroupScreenShell`, `GroupToolsDrawer`, `GroupPageTabs`, `EnrollmentChatDialog`.
+- Content screens: `PageView`, `PageEditorView`, `PageContentRenderer`, page editor components.
+- Admin and operations screens: `AdminView`, `SermonsView`, `EventCreatorView`, `GroupManageView`.
 
 ## Deployment Architecture
 
 ### Docker Compose (Development)
 
-**Services**:
-- **sqlserver** - SQL Server 2022 on port 14333
-- **alife-api** - Built from Dockerfile on port 8080
+**Services:**
+- `sqlserver` - SQL Server 2022 on port 14333.
+- `alife-api` - API container where applicable.
 
 ### Container Images
 
-- Build stage: `.NET SDK 10`
-- Runtime stage: `aspnet:10.0-jammy-chiseled` (reduced attack surface)
+- Build stage: `.NET SDK 10`.
+- Runtime stage: ASP.NET runtime image for the API.
 
-**Environment Variables**:
-```
+**Environment Variables:**
+
+```text
 ASPNETCORE_ENVIRONMENT=Development
-MSSQL_SA_PASSWORD=YourStrong!Passw0rd
-JWT_KEY=your-jwt-secret
-FRONTEND_ORIGIN=http://localhost:5173
+ConnectionStrings__Default=...
+Jwt__Issuer=...
+Jwt__Audience=...
+Jwt__Key=...
+Frontend__BaseUrl=http://localhost:5173
 ```
 
 ### Production Considerations
 
-- Remove HttpOnly flag only if frontend on same host
-- Use environment-specific JWT keys
-- Enable HTTPS (TLS)
-- Configure health checks for load balancers
-- Set up proper SQL Server backup strategy
-- Use managed identity or secure secret storage for credentials
+- Use environment-specific JWT keys.
+- Enable HTTPS.
+- Configure health checks for platform routing and monitoring.
+- Run migrations through a controlled migrator step.
+- Keep database backup and restore expectations documented.
+- Store LINE, YouTube, and deployment secrets outside source control.
 
 ## Runtime Configuration Notes
 
-- .NET SDK is pinned by `global.json` to 10.0 feature band.
-- LINE login and JWT secrets should be supplied via environment variables or secure secret storage in non-local environments.
+- .NET SDK is pinned by `global.json`.
+- LINE login and JWT secrets should be supplied through environment variables or secure secret storage.
+- Frontend local development uses `frontend/alife-app/.env` and Vite dev server configuration.
 
 ## Data Flow Examples
 
 ### User Registration Flow
 
-```
+```text
 Guest opens app
-├─ Frontend: GET /api/me → 401 Unauthorized
-├─ User: Click LINE Login
-├─ Frontend: GET /api/members/line/login → LINE auth URL
-├─ User: Complete LINE OAuth
-├─ Backend: GET /api/members/line/callback → verified LINE onboarding session
-├─ User: Complete profile
-├─ Frontend: POST /api/members/register → Member upgraded
-└─ Backend: Issue permanent JWT cookie
+  -> Frontend calls GET /api/me
+  -> Guest enters onboarding
+  -> Frontend requests LINE login redirect or development login
+  -> User completes authentication and profile registration
+  -> Frontend posts registration data
+  -> Backend upgrades member and issues permanent JWT cookie
 ```
 
 ### Group Approval Flow
 
-```
+```text
 Member requests to join group
-├─ Frontend: POST /api/groups/{groupId}/join
-├─ Backend: Create pending membership
-├─ Leader/Admin: Reviews pending members
-├─ Frontend: PATCH /api/groups/{groupId}/members/{memberId}
-├─ Backend: Update membership status
-├─ Authorization check: Leader must have approval permission
-└─ Member notified (via DB, real-time TBD)
+  -> Frontend posts to /api/groups/{groupId}/join
+  -> Backend creates or updates pending membership
+  -> Leader opens /groups/{groupId}/manage
+  -> Leader approves or rejects pending members
+  -> Backend updates membership status after authorization check
+```
+
+### Group Management Flow
+
+```text
+Leader opens group page
+  -> Group shell shows page content and compact tools drawer
+  -> Leader opens Manage
+  -> Management page presents subgroups, members, pages, and events
+  -> Each action calls the existing group/page/event API client
+  -> Query caches are invalidated and status feedback is shown
 ```
 
 ## Key Design Decisions
 
 ### 1. JWT in HttpOnly Cookie
-**Rationale**: Secure default posture; immune to XSS attacks
-**Trade-off**: Cannot use token for non-browser clients (yet)
+**Rationale**: Secure browser default posture; JavaScript cannot read auth token.
+**Trade-off**: Non-browser clients need a separate auth strategy later.
 
 ### 2. Fresh Permission Checks
-**Rationale**: Real-time authorization without JWT refresh
-**Trade-off**: Slight performance overhead per request
-**Mitigation**: Database query caching if needed
+**Rationale**: Real-time authorization without JWT refresh.
+**Trade-off**: Protected actions require database-backed permission checks.
+**Mitigation**: Read paths use cache where appropriate.
 
 ### 3. Minimal JWT Claims
-**Rationale**: Reduce data leakage from token interception
-**Trade-off**: Every authorization check requires DB query
-**Mitigation**: Member ID cached in context, single lookup per request
+**Rationale**: Reduce token leakage impact and stale role risk.
+**Trade-off**: UI and backend must request current role data from the API.
 
-### 4. Cookie-based CORS
-**Rationale**: Simpler auth flow than bearer tokens
-**Trade-off**: Must handle SameSite restrictions
-**Works**: Automatic cookie inclusion with withCredentials
+### 4. Management Workflows Are Route-Level
+**Rationale**: Leaders need task-focused screens, not overloaded sidebars.
+**Trade-off**: Some actions require one extra navigation step.
+**Mitigation**: The group tools drawer provides a single clear management entry point.
 
 ## Testing Strategy
 
 ### Unit Tests
-- Located in `backend/tests/Alife.Tests.Unit`
-- Test domain logic, application services
-- No database dependencies
+- Located in `backend/tests/Alife.Tests.Unit`.
+- Cover domain and application behavior without database dependencies.
+
+### Frontend Verification
+- `npm run build` runs TypeScript project checks and Vite production build.
+- Future component tests should use a React testing stack such as Testing Library.
+- Future end-to-end tests should cover onboarding, group joining, management, page editing, event creation, and enrollment.
 
 ### Integration Tests (Future)
-- API endpoints with in-memory database
-- Full auth flow validation
-
-### Frontend Tests (Future)
-- Component testing with Vue Test Utils
-- Integration tests with Mock Service Worker
+- API endpoints with a test database or isolated integration fixture.
+- Full auth and authorization flow validation.
