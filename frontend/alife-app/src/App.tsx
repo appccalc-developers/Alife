@@ -334,7 +334,7 @@ const App = () => {
 
         setCurrentGroupPages(
           pages.map((page) => ({
-            label: localizeText(page.title, auth.language),
+            label: localizeText(page.title, auth.language) || 'Untitled page',
             to: `/groups/${contextualGroupId}?page=${encodeURIComponent(page.id)}`,
             matchSearch: `?page=${encodeURIComponent(page.id)}`,
             pageId: page.id,
@@ -351,7 +351,7 @@ const App = () => {
     return () => {
       cancelled = true
     }
-  }, [contextualGroupId, isManagementScreen])
+  }, [auth.language, contextualGroupId, isManagementScreen])
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">

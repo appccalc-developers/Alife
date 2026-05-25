@@ -247,6 +247,7 @@ const GroupPageTabs = ({
               message={message}
               validation={validation}
               contextGroupId={activePage.ownerGroupId ?? activeModel.groupId}
+              onPageChange={updateActiveModel}
               onSectionsChange={(sections) => updateActiveModel({ ...activeModel, sections })}
             />
             <div className="flex flex-wrap items-center justify-end gap-2">

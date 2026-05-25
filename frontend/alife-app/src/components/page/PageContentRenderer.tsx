@@ -4,7 +4,8 @@ import type { PageEditModel, PageEditorValidation, SectionEditModel } from '../.
 import type { PageLinkItem } from '../page-sections/types'
 import SectionListEditor from '../page-editor/SectionListEditor'
 import { useAuthStore } from '../../stores/auth'
-import { localizeText } from '../../utils/localizedText'
+import { languageKey, localizeText } from '../../utils/localizedText'
+import { EditableText } from '../page-sections/sectionUtils'
 
 type GroupLinkItem = {
   id: string
@@ -24,6 +25,7 @@ type Props = {
   showHeader?: boolean
   framed?: boolean
   message?: string
+  onPageChange?: (page: PageEditModel) => void
   onSectionsChange?: (sections: SectionEditModel[]) => void
   onEditPage?: (pageId: string, groupId: string) => void
 }
@@ -71,10 +73,30 @@ const PageContentRenderer = ({
   showHeader = true,
   framed = true,
   message,
+  onPageChange,
   onSectionsChange,
   onEditPage,
 }: Props) => {
   const auth = useAuthStore()
+  const editablePage = editing && canEdit && onPageChange && 'groupId' in page
+  const activeLanguageKey = languageKey(auth.language)
+  const pageTitle = localizeText(page.title, auth.language)
+  const pageDescription = localizeText(page.description, auth.language)
+  const updateLocalizedPageField = (field: 'title' | 'description', value: string) => {
+    if (!editablePage) {
+      return
+    }
+
+    const editPage = page as PageEditModel
+    onPageChange({
+      ...editPage,
+      [field]: {
+        ...editPage[field],
+        [activeLanguageKey]: value,
+      },
+    })
+  }
+
   const updateSections = (nextSections: SectionEditModel[]) => onSectionsChange?.(normalizePageSections(nextSections))
 
   const addSection = () => updateSections([...sections, createEmptyPageSection()])
@@ -111,8 +133,23 @@ const PageContentRenderer = ({
     <article className={framed ? 'space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5' : 'space-y-4'}>
       {showHeader ? (
         <header className="space-y-2 border-b border-slate-200 pb-3">
-          <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">{localizeText(page.title, auth.language)}</h1>
-          <p className="text-sm text-slate-600">{localizeText(page.description, auth.language) || 'No description for this page yet.'}</p>
+          <EditableText
+            as="h1"
+            value={pageTitle}
+            fallback="Untitled page"
+            disabled={!editablePage}
+            className="text-2xl font-bold text-slate-900 sm:text-3xl"
+            onChange={(value) => updateLocalizedPageField('title', value)}
+          />
+          <EditableText
+            as="p"
+            multiline
+            value={pageDescription}
+            fallback="No description for this page yet."
+            disabled={!editablePage}
+            className="text-sm text-slate-600"
+            onChange={(value) => updateLocalizedPageField('description', value)}
+          />
           <div className="flex flex-wrap gap-2 text-xs">
             <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">Visibility: {page.visibility}</span>
           </div>

@@ -26,7 +26,7 @@ export type EditableTextProps = {
   fallback: string
   disabled?: boolean
   className: string
-  as?: 'h2' | 'h3' | 'p' | 'span'
+  as?: 'h1' | 'h2' | 'h3' | 'p' | 'span'
   multiline?: boolean
   onChange?: (value: string) => void
 }
