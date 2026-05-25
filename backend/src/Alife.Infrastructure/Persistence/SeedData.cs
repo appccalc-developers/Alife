@@ -104,11 +104,9 @@ public static class SeedData
 				Scope = PageScope.Group,
 				OwnerGroupId = group.Id,
 				CreatedByMemberId = adminId,
-				Title = "Home",
-				Description = $"{group.Name} home page",
+				TitleJson = JsonSerializer.Serialize(new Dictionary<string, string> { ["en"] = "Home", ["cn"] = "主页" }),
+				DescriptionJson = JsonSerializer.Serialize(new Dictionary<string, string> { ["en"] = $"{group.Name} home page", ["cn"] = $"{group.Name} 主页" }),
 				TagsJson = "[\"home\"]",
-				Slug = "home",
-				Language = "en",
 				TitleDisplayStyle = "Default",
 				Visibility = PageVisibility.VisibleToGroup,
 				UpdatedUtc = now
@@ -120,11 +118,9 @@ public static class SeedData
 				Scope = PageScope.Group,
 				OwnerGroupId = group.Id,
 				CreatedByMemberId = adminId,
-				Title = "Events",
-				Description = $"{group.Name} events page",
+				TitleJson = JsonSerializer.Serialize(new Dictionary<string, string> { ["en"] = "Events", ["cn"] = "活动" }),
+				DescriptionJson = JsonSerializer.Serialize(new Dictionary<string, string> { ["en"] = $"{group.Name} events page", ["cn"] = $"{group.Name} 活动页" }),
 				TagsJson = "[\"events\"]",
-				Slug = "events",
-				Language = "en",
 				TitleDisplayStyle = "Default",
 				Visibility = PageVisibility.VisibleToGroup,
 				UpdatedUtc = now
@@ -141,8 +137,8 @@ public static class SeedData
 				Type = SectionType.Hero,
 				ContentJson = JsonSerializer.Serialize(new
 				{
-					title = $"{group.Name} Home",
-					subtitle = $"Welcome to the {group.Name} page.",
+					title = new { en = $"{group.Name} Home", cn = $"{group.Name} 主页" },
+					subtitle = new { en = $"Welcome to the {group.Name} page.", cn = $"欢迎来到 {group.Name} 页面。" },
 					backgroundImage = heroImageUrl
 				}),
 				StyleJson = JsonSerializer.Serialize(new { height = "420px" })
@@ -156,8 +152,8 @@ public static class SeedData
 				Type = SectionType.Hero,
 				ContentJson = JsonSerializer.Serialize(new
 				{
-					title = $"{group.Name} Events",
-					subtitle = $"See upcoming events for {group.Name}.",
+					title = new { en = $"{group.Name} Events", cn = $"{group.Name} 活动" },
+					subtitle = new { en = $"See upcoming events for {group.Name}.", cn = $"查看 {group.Name} 的近期活动。" },
 					backgroundImage = heroImageUrl
 				}),
 				StyleJson = JsonSerializer.Serialize(new { height = "420px" })

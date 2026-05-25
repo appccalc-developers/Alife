@@ -4,6 +4,7 @@ export type {
   GroupMembershipDto,
   GroupSummaryDto,
   LinkDto,
+  LocalizedText,
   MembershipRole,
   MembershipStatus,
   MeDto,

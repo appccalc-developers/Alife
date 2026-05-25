@@ -3,6 +3,8 @@ import type { GroupPageDto } from '../../types/group'
 import type { PageEditModel, PageEditorValidation, SectionEditModel } from '../../types/page-editor'
 import type { PageLinkItem } from '../page-sections/types'
 import SectionListEditor from '../page-editor/SectionListEditor'
+import { useAuthStore } from '../../stores/auth'
+import { localizeText } from '../../utils/localizedText'
 
 type GroupLinkItem = {
   id: string
@@ -72,6 +74,7 @@ const PageContentRenderer = ({
   onSectionsChange,
   onEditPage,
 }: Props) => {
+  const auth = useAuthStore()
   const updateSections = (nextSections: SectionEditModel[]) => onSectionsChange?.(normalizePageSections(nextSections))
 
   const addSection = () => updateSections([...sections, createEmptyPageSection()])
@@ -108,10 +111,9 @@ const PageContentRenderer = ({
     <article className={framed ? 'space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5' : 'space-y-4'}>
       {showHeader ? (
         <header className="space-y-2 border-b border-slate-200 pb-3">
-          <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">{page.title}</h1>
-          <p className="text-sm text-slate-600">{page.description || 'No description for this page yet.'}</p>
+          <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">{localizeText(page.title, auth.language)}</h1>
+          <p className="text-sm text-slate-600">{localizeText(page.description, auth.language) || 'No description for this page yet.'}</p>
           <div className="flex flex-wrap gap-2 text-xs">
-            <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">Slug: {page.slug}</span>
             <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">Visibility: {page.visibility}</span>
           </div>
           {message ? <p className="rounded-lg border border-blue-100 bg-blue-50 p-2 text-sm text-blue-700">{message}</p> : null}

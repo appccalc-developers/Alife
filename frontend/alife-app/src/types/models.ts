@@ -3,6 +3,7 @@ export type MembershipStatus = 'Invited' | 'Requested' | 'Approved' | 'Rejected'
 export type MembershipRole = 'Member' | 'CoLeader' | 'Leader'
 export type PageScope = 'Global' | 'Group'
 export type PageVisibility = 'InvisibleDraft' | 'VisibleToGroup' | 'VisiblePublic'
+export type LocalizedText = Record<string, string>
 
 export type ListSourceType = 'sermons' | 'pages' | 'subgroups' | 'events' | 'members'
 export type ListSourceScope = 'group' | 'global'
@@ -75,42 +76,36 @@ export type SectionEditModel = {
 
 export type PageSummaryDto = {
   id: string
-  title: string
-  slug: string
-  language: string
+  title: LocalizedText
   visibility: PageVisibility
   createdByMemberId: string
   updatedUtc?: string
   scope?: PageScope
   ownerGroupId?: string | null
-  description?: string | null
+  description?: LocalizedText | null
   tagsJson?: string
   titleDisplayStyle?: string
 }
 
 export type PageDetailDto = {
   id: string
-  title: string
-  description?: string | null
+  title: LocalizedText
+  description?: LocalizedText | null
   tags: string[]
   titleDisplayStyle: string
-  language: string
   visibility: PageVisibility
   sections: SectionEditModel[]
-  slug: string
-  createdByMemberId?: string
+  createdByMemberId: string
   ownerGroupId?: string | null
 }
 
 export type PageEditModel = {
   id?: string
   groupId: string
-  slug: string
-  title: string
-  description: string
+  title: LocalizedText
+  description: LocalizedText
   tags: string[]
   titleDisplayStyle: string
-  language: string
   visibility: PageVisibility
   sections: SectionEditModel[]
   createdByMemberId?: string

@@ -1,8 +1,6 @@
 import { groupService as groups } from '../services/groupService'
-import { http } from '../services/http'
 import { pageService, type PublishPageOptimizedPayload } from '../services/pageService'
-import type { PageSummaryDto, PageVisibility } from '../types'
-import type { SectionEditModel } from '../types/page-editor'
+import type { PageVisibility } from '../types'
 
 // Backward compatibility adapter for existing imports under src/api.
 export const groupService = {
@@ -34,15 +32,6 @@ export const groupService = {
     pageService.publishPage(pageId, { visibility }),
   publishPageOptimized: (pageId: string, payload: PublishPageOptimizedPayload) => pageService.publishPageOptimized(pageId, payload),
   deletePage: pageService.deletePage,
-  getPageBySlug: async (slug: string, lang = 'en') => {
-    const { data } = await http.get<PageSummaryDto>(`/api/pages/${slug}`, { params: { lang } })
-    return data
-  },
-  getPageById: async (_pageId: string, _lang = 'en'): Promise<PageSummaryDto> => {
-    // TODO: backend endpoint is not available yet for get page by id.
-    throw new Error('Get page by id endpoint is not implemented on the backend.')
-  },
-  getPageSections: pageService.getPageSections,
-  savePageSections: (pageId: string, sections: SectionEditModel[]) => pageService.savePageSections(pageId, sections),
+  getPageById: (pageId: string) => pageService.getPageById(pageId),
   syncSermons: groups.syncSermons,
 }

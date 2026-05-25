@@ -14,14 +14,7 @@ import { pageService } from '../services/pageService'
 import { useAuthStore } from '../stores/auth'
 import type { GroupPageDto, PageVisibility } from '../types/group'
 import type { PageEditModel } from '../types/page-editor'
-
-const slugify = (value: string) =>
-  value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
+import { localizeText, toLocalizedText } from '../utils/localizedText'
 
 const parseTags = (tagsJson?: string): string[] => {
   if (!tagsJson) {
@@ -44,14 +37,12 @@ const mapPageToEditModel = (page: GroupPageDto, groupId: string): PageEditModel 
   id: page.id,
   groupId,
   createdByMemberId: page.createdByMemberId,
-  slug: page.slug,
-  title: page.title,
-  description: page.description ?? '',
+  title: toLocalizedText(page.title),
+  description: toLocalizedText(page.description),
   tags: parseTags(page.tagsJson),
   titleDisplayStyle: page.titleDisplayStyle ?? 'Default',
-  language: page.language,
   visibility: page.visibility,
-  sections: [],
+  sections: 'sections' in page ? normalizePageSections((page as unknown as PageEditModel).sections ?? []) : [],
 })
 
 const PageEditorView = () => {
@@ -75,12 +66,10 @@ const PageEditorView = () => {
 
   const createInitialModel = (groupId: string): PageEditModel => ({
     groupId,
-    slug: '',
-    title: '',
-    description: '',
+    title: { en: '', cn: '' },
+    description: { en: '', cn: '' },
     tags: [],
     titleDisplayStyle: 'Default',
-    language: auth.language,
     visibility: 'InvisibleDraft',
     sections: [],
   })
@@ -129,16 +118,16 @@ const PageEditorView = () => {
     }
 
     let targetGroupId = resolvedGroupId
-    let pageData: GroupPageDto | null = null
+    let pageData: (GroupPageDto & { sections?: PageEditModel['sections'] }) | null = null
 
     if (targetGroupId) {
-      const pages = await groupService.getGroupPages(targetGroupId, auth.language)
+      const pages = await groupService.getGroupPages(targetGroupId)
       pageData = pages.find((page) => page.id === targetPageId) ?? null
     }
 
     if (!pageData) {
-      const fallbackPage = await groupService.getPageById(targetPageId, auth.language)
-      pageData = fallbackPage
+      const fallbackPage = await groupService.getPageById(targetPageId)
+      pageData = fallbackPage as unknown as GroupPageDto & { sections?: PageEditModel['sections'] }
       targetGroupId = fallbackPage.ownerGroupId ?? targetGroupId
     }
 
@@ -146,13 +135,7 @@ const PageEditorView = () => {
       throw new Error('Failed to resolve page/group context for editor.')
     }
 
-    const baseModel = mapPageToEditModel(pageData, targetGroupId)
-    const sections = await groupService.getPageSections(targetPageId)
-
-    const editModel = {
-      ...baseModel,
-      sections: normalizePageSections(sections),
-    }
+    const editModel = mapPageToEditModel(pageData, targetGroupId)
 
     setPageModel(editModel)
     setSavedModelSnapshot(JSON.stringify(editModel))
@@ -208,10 +191,8 @@ const PageEditorView = () => {
     try {
       let targetPageId = editPageId
       const tagsJson = JSON.stringify(pageModel.tags)
-      const title = pageModel.title.trim()
-      const slug = pageModel.slug.trim() || slugify(pageModel.title)
-      const language = pageModel.language.trim() || auth.language
-      const description = pageModel.description.trim()
+      const title = pageModel.title
+      const description = pageModel.description
       const titleDisplayStyle = pageModel.titleDisplayStyle.trim() || 'Default'
 
       let sectionsToPersist = pageModel.sections
@@ -226,11 +207,10 @@ const PageEditorView = () => {
       if (isCreateMode) {
         const created = await groupService.createGroupPage(resolvedGroupId, {
           title,
-          slug,
-          language,
           description,
           tagsJson,
           titleDisplayStyle,
+          sections: sectionsToPersist,
         })
 
         targetPageId = created.id
@@ -238,27 +218,24 @@ const PageEditorView = () => {
           ...current,
           id: created.id,
           groupId: resolvedGroupId,
-          slug: created.slug,
           createdByMemberId: created.createdByMemberId,
           visibility: created.visibility,
         }))
-
-        await groupService.savePageSections(targetPageId, sectionsToPersist)
       } else {
         await groupService.updatePage(targetPageId, {
           title,
           description,
           tagsJson,
           titleDisplayStyle,
+          sections: sectionsToPersist,
         })
-        await groupService.savePageSections(targetPageId, sectionsToPersist)
       }
 
       if (publish && canEditAllPages && targetPageId) {
         const nextVisibility: PageVisibility = pageModel.visibility === 'VisiblePublic' ? 'VisiblePublic' : 'VisibleToGroup'
         const publishPayload = {
           visibility: nextVisibility,
-          page: { title, slug, language, description, tagsJson, titleDisplayStyle },
+          page: { title, description, tagsJson, titleDisplayStyle },
           sections: pageService.toSectionPublishPayload(sectionsToPersist),
         }
         setMessage('Publishing…')
@@ -344,9 +321,8 @@ const PageEditorView = () => {
             </div>
             <div className="rounded-lg border border-slate-200 bg-slate-100/70 p-2">
               <GroupPagePreview
-                title={pageModel.title}
-                description={pageModel.description}
-                slug={pageModel.slug}
+                title={localizeText(pageModel.title, auth.language)}
+                description={localizeText(pageModel.description, auth.language)}
                 visibility={pageModel.visibility}
                 sections={pageModel.sections}
                 previewGroupId={resolvedGroupId}

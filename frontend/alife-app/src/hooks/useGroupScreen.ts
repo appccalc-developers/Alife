@@ -59,7 +59,7 @@ export const useGroupScreen = (groupId: string) => {
   const { data: subgroups = [] } = useLiveQuery(subCollection as NonNullable<typeof subCollection>)
 
   // pages（数组，用 useLiveQuery）
-  const pagesColl = useMemo(() => (groupId ? groupPagesCollection(groupId, auth.language) : null), [groupId, auth.language])
+  const pagesColl = useMemo(() => (groupId ? groupPagesCollection(groupId) : null), [groupId])
   const { data: pages = [] } = useLiveQuery(pagesColl as NonNullable<typeof pagesColl>)
 
   // memberships（数组，用 useLiveQuery）
@@ -112,9 +112,9 @@ export const useGroupScreen = (groupId: string) => {
 
   const refreshPages = useCallback(async () => {
     if (!groupId) return
-    await queryClient.invalidateQueries({ queryKey: ['groupPages', groupId, auth.language] })
-    return getCachedGroupPages(groupId, auth.language)
-  }, [queryClient, groupId, auth.language])
+    await queryClient.invalidateQueries({ queryKey: ['groupPages', groupId] })
+    return getCachedGroupPages(groupId)
+  }, [queryClient, groupId])
 
   const refreshMemberships = useCallback(async () => {
     if (!groupId || !canManageGroup) return []
@@ -200,20 +200,20 @@ export const useGroupScreen = (groupId: string) => {
   const deletePage = useCallback(
     async (pageId: string) => {
       await pageService.deletePage(pageId)
-      await queryClient.invalidateQueries({ queryKey: ['groupPages', groupId, auth.language] })
+      await queryClient.invalidateQueries({ queryKey: ['groupPages', groupId] })
       setStatusMessage('Page deleted.')
     },
-    [queryClient, groupId, auth.language],
+    [queryClient, groupId],
   )
 
   const togglePageVisibility = useCallback(
     async (page: PageSummaryDto) => {
       const nextVisibility = page.visibility === 'InvisibleDraft' ? 'VisibleToGroup' : 'InvisibleDraft'
       await pageService.publishPage(page.id, { visibility: nextVisibility })
-      await queryClient.invalidateQueries({ queryKey: ['groupPages', groupId, auth.language] })
+      await queryClient.invalidateQueries({ queryKey: ['groupPages', groupId] })
       setStatusMessage(nextVisibility === 'VisibleToGroup' ? 'Page published.' : 'Page moved to draft.')
     },
-    [queryClient, groupId, auth.language],
+    [queryClient, groupId],
   )
 
   const deleteEvent = useCallback(

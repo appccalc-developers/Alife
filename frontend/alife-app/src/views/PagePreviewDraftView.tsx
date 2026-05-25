@@ -4,7 +4,6 @@ import type { SectionEditModel } from '../types/page-editor'
 type DraftPayload = {
   title: string
   description: string
-  slug: string
   visibility: string
   sections: SectionEditModel[]
   createdAt: number
@@ -33,7 +32,6 @@ const PagePreviewDraftView = () => {
       <GroupPagePreview
         title={payload.title}
         description={payload.description}
-        slug={payload.slug}
         visibility={payload.visibility}
         sections={payload.sections}
       />

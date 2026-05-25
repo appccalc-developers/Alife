@@ -145,9 +145,7 @@ public class SectionCommandAuthorizationTests
             Scope = PageScope.Group,
             OwnerGroupId = groupId,
             CreatedByMemberId = authorId,
-            Title = "Group page",
-            Slug = "group-page",
-            Language = "en",
+            TitleJson = "{\"en\":\"Group page\",\"cn\":\"Group page\"}",
             Visibility = visibility,
             UpdatedUtc = DateTime.UtcNow
         };

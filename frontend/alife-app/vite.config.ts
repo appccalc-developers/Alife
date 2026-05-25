@@ -9,6 +9,7 @@ const THIRTY_DAYS_IN_SECONDS = 30 * 24 * 60 * 60
 declare const self: { location: { origin: string } }
 
 export default defineConfig(() => {
+  const apiProxyTarget = process.env.API_PROXY_TARGET || 'http://localhost:7071'
 
   return {
     plugins: [react(), VitePWA({
@@ -92,12 +93,12 @@ export default defineConfig(() => {
       },
     }), cloudflare()],
     server: {
-      // proxy: {
-      //   '/api': {
-      //     target: proxyTarget,
-      //     changeOrigin: true,
-      //   },
-      // },
+      proxy: {
+        '/api': {
+          target: apiProxyTarget,
+          changeOrigin: true,
+        },
+      },
     },
   };
 })

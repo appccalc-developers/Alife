@@ -7,9 +7,8 @@ namespace Alife.Application.Pages.Commands.CreateGroupPage;
 public sealed record CreateGroupPageCommand(
     Guid GroupId,
     Guid CurrentMemberId,
-    string Title,
-    string Slug,
-    string Language,
-    string? Description,
+    IReadOnlyDictionary<string, string> Title,
+    IReadOnlyDictionary<string, string>? Description,
     string? TagsJson,
-    string? TitleDisplayStyle) : IRequest<AppResult<PageDto>>;
+    string? TitleDisplayStyle,
+    IReadOnlyList<PageSectionDto> Sections) : IRequest<AppResult<PageDetailDto>>;

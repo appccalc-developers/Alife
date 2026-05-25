@@ -4,68 +4,107 @@ using Alife.Domain.Enums;
 using Alife.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Hybrid;
+using System.Text.Json;
 
 namespace Alife.Infrastructure.ReadServices;
 
 public sealed class PageReadService(AlifeDbContext dbContext, HybridCache hybridCache) : IPageReadService
 {
-    public Task<IReadOnlyList<PageDto>> GetGlobalPagesAsync(string lang, CancellationToken cancellationToken)
+    public Task<IReadOnlyList<PageDto>> GetGlobalPagesAsync(CancellationToken cancellationToken)
         => GetOrCreateAsync(
-            PageCacheKeys.Global(lang),
+            PageCacheKeys.Global(),
             async token =>
             {
                 var pages = await dbContext.Pages
                     .AsNoTracking()
-                    .Where(x => x.Scope == PageScope.Global && x.Language == lang)
-                    .OrderBy(x => x.Title)
-                    .Select(ToDto())
+                    .Where(x => x.Scope == PageScope.Global)
+                    .OrderBy(x => x.UpdatedUtc)
                     .ToListAsync(token);
 
-                return (IReadOnlyList<PageDto>)pages;
+                return (IReadOnlyList<PageDto>)pages.Select(ToDto).ToList();
             },
             cancellationToken);
 
-    public Task<PageDto?> GetBySlugAsync(string slug, string lang, CancellationToken cancellationToken)
+    public Task<PageDetailDto?> GetByIdAsync(Guid pageId, CancellationToken cancellationToken)
         => GetOrCreateAsync(
-            PageCacheKeys.BySlug(slug, lang),
-            async token => await dbContext.Pages
-                .AsNoTracking()
-                .OrderBy(x => x.Scope)
-                .Where(x => x.Slug == slug && x.Language == lang)
-                .Select(ToDto())
-                .FirstOrDefaultAsync(token),
+            PageCacheKeys.Detail(pageId),
+            async token =>
+            {
+                var page = await dbContext.Pages
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Id == pageId, token);
+
+                if (page is null)
+                {
+                    return null;
+                }
+
+                var sections = await dbContext.Sections
+                    .AsNoTracking()
+                    .Where(x => x.PageId == pageId)
+                    .OrderBy(x => x.Order)
+                    .Select(x => new PageSectionDto(x.Id, x.Order, x.Type, x.ContentJson, x.StyleJson))
+                    .ToListAsync(token);
+
+                return new PageDetailDto(
+                    page.Id,
+                    page.Scope,
+                    page.OwnerGroupId,
+                    page.CreatedByMemberId,
+                    ReadTextMap(page.TitleJson),
+                    ReadTextMap(page.DescriptionJson),
+                    page.TagsJson,
+                    page.TitleDisplayStyle,
+                    page.Visibility,
+                    page.UpdatedUtc,
+                    sections);
+            },
             cancellationToken);
 
-    public Task<IReadOnlyList<PageDto>> GetGroupPagesAsync(Guid groupId, string lang, CancellationToken cancellationToken)
+    public Task<IReadOnlyList<PageDto>> GetGroupPagesAsync(Guid groupId, CancellationToken cancellationToken)
         => GetOrCreateAsync(
-            PageCacheKeys.GroupPages(groupId, lang),
+            PageCacheKeys.GroupPages(groupId),
             async token =>
             {
                 var pages = await dbContext.Pages
                     .AsNoTracking()
-                    .Where(x => x.Scope == PageScope.Group && x.OwnerGroupId == groupId && x.Language == lang)
+                    .Where(x => x.Scope == PageScope.Group && x.OwnerGroupId == groupId)
                     .OrderByDescending(x => x.UpdatedUtc)
-                    .Select(ToDto())
                     .ToListAsync(token);
 
-                return (IReadOnlyList<PageDto>)pages;
+                return (IReadOnlyList<PageDto>)pages.Select(ToDto).ToList();
             },
             cancellationToken);
 
-    private static System.Linq.Expressions.Expression<Func<Domain.Entities.Page, PageDto>> ToDto()
-        => x => new PageDto(
-            x.Id,
-            x.Scope,
-            x.OwnerGroupId,
-            x.CreatedByMemberId,
-            x.Title,
-            x.Description,
-            x.TagsJson,
-            x.TitleDisplayStyle,
-            x.Slug,
-            x.Language,
-            x.Visibility,
-            x.UpdatedUtc);
+    private static PageDto ToDto(Domain.Entities.Page page)
+        => new(
+            page.Id,
+            page.Scope,
+            page.OwnerGroupId,
+            page.CreatedByMemberId,
+            ReadTextMap(page.TitleJson),
+            ReadTextMap(page.DescriptionJson),
+            page.TagsJson,
+            page.TitleDisplayStyle,
+            page.Visibility,
+            page.UpdatedUtc);
+
+    private static IReadOnlyDictionary<string, string> ReadTextMap(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return new Dictionary<string, string>();
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<Dictionary<string, string>>(value) ?? new Dictionary<string, string>();
+        }
+        catch
+        {
+            return new Dictionary<string, string> { ["en"] = value };
+        }
+    }
 
     private Task<T> GetOrCreateAsync<T>(
         string cacheKey,

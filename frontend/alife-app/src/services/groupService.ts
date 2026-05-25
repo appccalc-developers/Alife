@@ -20,8 +20,8 @@ export type SetCoLeaderPayload = {
 }
 
 export const groupService = {
-  async getGlobalPages(lang = 'en') {
-    const { data } = await http.get<PageSummaryDto[]>('/api/pages/global', { params: { lang } })
+  async getGlobalPages() {
+    const { data } = await http.get<PageSummaryDto[]>('/api/pages/global')
     return data
   },
 
@@ -40,8 +40,8 @@ export const groupService = {
     return data
   },
 
-  async getGroupPages(groupId: string, lang = 'en') {
-    const { data } = await http.get<PageSummaryDto[]>(`/api/groups/${groupId}/pages`, { params: { lang } })
+  async getGroupPages(groupId: string) {
+    const { data } = await http.get<PageSummaryDto[]>(`/api/groups/${groupId}/pages`)
     return data
   },
 

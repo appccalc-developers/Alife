@@ -6,6 +6,13 @@ export const readText = (source: SourceMap, ...keys: string[]) => {
     if (typeof value === 'string' && value.trim()) {
       return value
     }
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      const map = value as Record<string, unknown>
+      const text = map.en || map.cn || Object.values(map)[0]
+      if (typeof text === 'string' && text.trim()) {
+        return text
+      }
+    }
   }
 
   return ''

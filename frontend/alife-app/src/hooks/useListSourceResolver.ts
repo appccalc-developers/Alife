@@ -8,7 +8,6 @@ import {
   groupPagesCollection,
   groupEventsCollection,
 } from '../db/collections/groupCollection'
-import { useAuthStore } from '../stores/auth'
 import type { ListViewMetadata } from '../types/page-editor'
 import type { SermonDto } from '../services/sermonService'
 import type { GroupEventRecord } from '../types/event'
@@ -41,7 +40,6 @@ export type ListSourceResolverOptions = {
  */
 export function useListSourceResolver(metadata: ListViewMetadata, options?: ListSourceResolverOptions): ListSourceResult {
   const { groupId: routeGroupId } = useParams<{ groupId: string }>()
-  const auth = useAuthStore()
 
   const currentGroupId = (options?.groupId?.trim() || routeGroupId || '').trim()
   const sourceType = metadata.sourceType
@@ -131,9 +129,9 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
     () => {
       if (!isGroupPages) return undefined
       if (!targetGroupId) return undefined
-      return groupPagesCollection(targetGroupId, auth.language)
+      return groupPagesCollection(targetGroupId)
     },
-    [isGroupPages, targetGroupId, auth.language],
+    [isGroupPages, targetGroupId],
   )
   const groupPagesData = isGroupPages ? ((groupPagesLive.data ?? []) as any[]) : ([] as any[])
   const groupPagesLoading = isGroupPages ? (groupPagesLive.isLoading ?? true) : false

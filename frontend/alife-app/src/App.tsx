@@ -15,6 +15,7 @@ import PageView from './views/PageView'
 import SermonsView from './views/SermonsView'
 import EventCreatorView from './views/EventCreatorView'
 import GroupManageView from './views/GroupManageView'
+import { localizeText } from './utils/localizedText'
 
 type ShellNavItem = {
   label: string
@@ -325,7 +326,7 @@ const App = () => {
     let cancelled = false
 
     groupService
-      .getGroupPages(contextualGroupId, auth.language)
+      .getGroupPages(contextualGroupId)
       .then((pages) => {
         if (cancelled) {
           return
@@ -333,7 +334,7 @@ const App = () => {
 
         setCurrentGroupPages(
           pages.map((page) => ({
-            label: page.title,
+            label: localizeText(page.title, auth.language),
             to: `/groups/${contextualGroupId}?page=${encodeURIComponent(page.id)}`,
             matchSearch: `?page=${encodeURIComponent(page.id)}`,
             pageId: page.id,
@@ -350,7 +351,7 @@ const App = () => {
     return () => {
       cancelled = true
     }
-  }, [contextualGroupId, auth.language, isManagementScreen])
+  }, [contextualGroupId, isManagementScreen])
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
@@ -381,7 +382,7 @@ const App = () => {
             <Route path="/" element={<HomeView />} />
             <Route path="/groups/:groupId" element={<GroupDetailView />} />
             <Route path="/groups/:groupId/manage" element={<GroupManageView />} />
-            <Route path="/pages/:slug" element={<PageView />} />
+            <Route path="/pages/:pageId" element={<PageView />} />
             <Route path="/sermons" element={<SermonsView />} />
             <Route path="/events/new" element={<EventCreatorView />} />
             <Route path="/events/:eventId/edit" element={<EventCreatorView />} />

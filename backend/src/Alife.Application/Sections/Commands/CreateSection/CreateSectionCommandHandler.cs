@@ -74,16 +74,16 @@ public sealed class CreateSectionCommandHandler(
 
 	private async Task InvalidatePageAsync(Domain.Entities.Page page, CancellationToken cancellationToken)
 	{
-		await pageCacheInvalidationService.RemoveBySlugAsync(page.Slug, page.Language, cancellationToken);
+		await pageCacheInvalidationService.RemoveDetailAsync(page.Id, cancellationToken);
 		if (page.Scope == Domain.Enums.PageScope.Global)
 		{
-			await pageCacheInvalidationService.RemoveGlobalAsync(page.Language, cancellationToken);
+			await pageCacheInvalidationService.RemoveGlobalAsync(cancellationToken);
 			return;
 		}
 
 		if (page.OwnerGroupId.HasValue)
 		{
-			await pageCacheInvalidationService.RemoveGroupPagesAsync(page.OwnerGroupId.Value, page.Language, cancellationToken);
+			await pageCacheInvalidationService.RemoveGroupPagesAsync(page.OwnerGroupId.Value, cancellationToken);
 		}
 	}
 

@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react'
 import type { GroupPageDto } from '../../types/group'
+import type { LocalizedText } from '../../types'
 import type { JsonMap, SectionEditModel } from '../../types/page-editor'
 
 export type PageLinkItem = {
   id: string
-  title: string
-  slug: string
+  title: string | LocalizedText
   visibility: string
 }
 
