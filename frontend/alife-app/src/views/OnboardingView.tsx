@@ -19,6 +19,7 @@ const getErrorMessage = (error: unknown, fallback: string) => {
 
 const OnboardingView = () => {
   const auth = useAuthStore()
+  const { fetchMe } = auth
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
 
@@ -48,6 +49,7 @@ const OnboardingView = () => {
     }
 
     if (lineLogin === 'true') {
+      fetchMe().catch(() => undefined)
       if (lineDisplayName) {
         setName(lineDisplayName)
       }
@@ -57,7 +59,7 @@ const OnboardingView = () => {
       setLineConfirmed(true)
       setMessage('LINE verified. Please complete your profile to finish onboarding.')
     }
-  }, [searchParams])
+  }, [fetchMe, searchParams])
 
   useEffect(() => {
     if (lineConfirmed) {
