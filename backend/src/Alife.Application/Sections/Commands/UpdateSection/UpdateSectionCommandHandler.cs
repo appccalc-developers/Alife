@@ -1,8 +1,10 @@
 using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
+using Alife.Application.Groups.Services;
 using Alife.Application.Pages.Services;
 using Alife.Application.Sections.Dtos;
 using Alife.Domain.Entities;
+using Alife.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,6 +12,7 @@ namespace Alife.Application.Sections.Commands.UpdateSection;
 
 public sealed class UpdateSectionCommandHandler(
 	IAlifeDbContext dbContext,
+	IGroupAuthorizationService groupAuthorizationService,
 	IPageCacheInvalidationService pageCacheInvalidationService)
 	: IRequestHandler<UpdateSectionCommand, AppResult<SectionDto>>
 {
@@ -24,9 +27,10 @@ public sealed class UpdateSectionCommandHandler(
 			return AppResult<SectionDto>.NotFound("Section was not found.");
 		}
 
-		if (section.Page.CreatedByMemberId != request.CurrentMemberId)
+		var canEdit = await CanEditPageAsync(section.Page, request.CurrentMemberId, cancellationToken);
+		if (!canEdit)
 		{
-			return AppResult<SectionDto>.Forbidden("Only the page owner can edit sections.");
+			return AppResult<SectionDto>.Forbidden("You do not have permission to edit this section.");
 		}
 
 		section.Type = request.Type;
@@ -39,6 +43,26 @@ public sealed class UpdateSectionCommandHandler(
 		await InvalidatePageAsync(section.Page, cancellationToken);
 
 		return AppResult<SectionDto>.Success(ToDto(section));
+	}
+
+	private async Task<bool> CanEditPageAsync(Page page, Guid currentMemberId, CancellationToken cancellationToken)
+	{
+		if (page.Scope == PageScope.Global)
+		{
+			return await groupAuthorizationService.IsAdminAsync(currentMemberId, cancellationToken);
+		}
+
+		if (page.OwnerGroupId is null)
+		{
+			return false;
+		}
+
+		if (page.CreatedByMemberId == currentMemberId && page.Visibility == PageVisibility.InvisibleDraft)
+		{
+			return true;
+		}
+
+		return await groupAuthorizationService.IsLeaderOrCoLeaderAsync(page.OwnerGroupId.Value, currentMemberId, cancellationToken);
 	}
 
 	private async Task InvalidatePageAsync(Page page, CancellationToken cancellationToken)

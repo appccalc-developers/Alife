@@ -1,8 +1,10 @@
 using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
+using Alife.Application.Groups.Services;
 using Alife.Application.Pages.Services;
 using Alife.Application.Sections.Dtos;
 using Alife.Domain.Entities;
+using Alife.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,6 +12,7 @@ namespace Alife.Application.Sections.Commands.CreateSection;
 
 public sealed class CreateSectionCommandHandler(
 	IAlifeDbContext dbContext,
+	IGroupAuthorizationService groupAuthorizationService,
 	IPageCacheInvalidationService pageCacheInvalidationService)
 	: IRequestHandler<CreateSectionCommand, AppResult<SectionDto>>
 {
@@ -24,9 +27,10 @@ public sealed class CreateSectionCommandHandler(
 			return AppResult<SectionDto>.NotFound("Page was not found.");
 		}
 
-		if (page.CreatedByMemberId != request.CurrentMemberId)
+		var canEdit = await CanEditPageAsync(page, request.CurrentMemberId, cancellationToken);
+		if (!canEdit)
 		{
-			return AppResult<SectionDto>.Forbidden("Only the page owner can add sections.");
+			return AppResult<SectionDto>.Forbidden("You do not have permission to add sections to this page.");
 		}
 
 		var order = request.Order ?? (page.Sections.Count == 0 ? 1 : page.Sections.Max(x => x.Order) + 1);
@@ -46,6 +50,26 @@ public sealed class CreateSectionCommandHandler(
 		await InvalidatePageAsync(page, cancellationToken);
 
 		return AppResult<SectionDto>.Success(ToDto(section));
+	}
+
+	private async Task<bool> CanEditPageAsync(Page page, Guid currentMemberId, CancellationToken cancellationToken)
+	{
+		if (page.Scope == PageScope.Global)
+		{
+			return await groupAuthorizationService.IsAdminAsync(currentMemberId, cancellationToken);
+		}
+
+		if (page.OwnerGroupId is null)
+		{
+			return false;
+		}
+
+		if (page.CreatedByMemberId == currentMemberId && page.Visibility == PageVisibility.InvisibleDraft)
+		{
+			return true;
+		}
+
+		return await groupAuthorizationService.IsLeaderOrCoLeaderAsync(page.OwnerGroupId.Value, currentMemberId, cancellationToken);
 	}
 
 	private async Task InvalidatePageAsync(Domain.Entities.Page page, CancellationToken cancellationToken)

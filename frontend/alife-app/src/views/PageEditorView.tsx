@@ -296,12 +296,14 @@ const PageEditorView = () => {
 
   const leaveEditor = useCallback(() => {
     if (resolvedGroupId) {
-      navigate(`/groups/${resolvedGroupId}`)
+      const pageId = editPageId || pageModel.id
+      const pageSearch = pageId ? `?page=${encodeURIComponent(pageId)}` : ''
+      navigate(`/groups/${resolvedGroupId}${pageSearch}`)
       return
     }
 
     navigate('/')
-  }, [navigate, resolvedGroupId])
+  }, [editPageId, navigate, pageModel.id, resolvedGroupId])
 
   const cancel = useCallback(async () => {
     if (hasUnsavedChanges && !window.confirm('You have unsaved changes. Exit without saving?')) {

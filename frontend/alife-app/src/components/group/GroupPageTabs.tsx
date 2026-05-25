@@ -149,6 +149,8 @@ const GroupPageTabs = ({
       return
     }
 
+    const pageId = activeModel.id || activePage.id
+
     setSaving(true)
     setMessage('')
     setError('')
@@ -158,32 +160,33 @@ const GroupPageTabs = ({
 
       if (cloudflareImageService.sectionsHaveLocalDataImages(sectionsToPersist)) {
         setMessage('Uploading local images...')
-        sectionsToPersist = await cloudflareImageService.resolveSectionImages(sectionsToPersist, `g-${activeModel.groupId || 'group'}-${activePage.id}`)
+        sectionsToPersist = await cloudflareImageService.resolveSectionImages(sectionsToPersist, `g-${activeModel.groupId || 'group'}-${pageId}`)
         updateActiveModel({ ...activeModel, sections: normalizePageSections(sectionsToPersist) })
       }
 
-      await pageService.updatePage(activePage.id, {
+      await pageService.updatePage(pageId, {
         title: activeModel.title.trim(),
         description: activeModel.description.trim(),
         tagsJson: JSON.stringify(activeModel.tags),
         titleDisplayStyle: activeModel.titleDisplayStyle.trim() || 'Default',
       })
 
-      await pageService.savePageSections(activePage.id, sectionsToPersist)
+      await pageService.savePageSections(pageId, sectionsToPersist)
 
       if (activeModel.visibility !== activePage.visibility) {
-        await pageService.publishPage(activePage.id, { visibility: activeModel.visibility })
+        await pageService.publishPage(pageId, { visibility: activeModel.visibility })
       }
 
       const savedSections = normalizePageSections(sectionsToPersist)
       setSectionsByPageId((current) => ({
         ...current,
-        [activePage.id]: savedSections,
+        [pageId]: savedSections,
       }))
       setModelsByPageId((current) => ({
         ...current,
-        [activePage.id]: {
+        [pageId]: {
           ...activeModel,
+          id: pageId,
           sections: savedSections,
         },
       }))
