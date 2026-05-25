@@ -1,6 +1,7 @@
 import type { FocusEvent } from 'react'
 import type { EditableTextProps, PropertyPanelProps } from './types'
 import type { JsonMap, SectionEditModel } from '../../types/page-editor'
+import { languageKey, localizeText } from '../../utils/localizedText'
 
 export const DEFAULT_HERO_IMAGE = 'https://images.unsplash.com/photo-1529070538774-1843cb3265df?w=1600&q=80'
 
@@ -18,6 +19,27 @@ export const readText = (source: JsonMap | undefined, ...keys: string[]) => {
       const map = value as Record<string, unknown>
       const text = map.en || map.cn || Object.values(map)[0]
       if (typeof text === 'string') {
+        return text
+      }
+    }
+  }
+
+  return ''
+}
+
+export const readLocalizedText = (source: JsonMap | undefined, language: string, ...keys: string[]) => {
+  if (!source) {
+    return ''
+  }
+
+  for (const key of keys) {
+    const value = source[key]
+    if (typeof value === 'string') {
+      return value
+    }
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      const text = localizeText(value as Record<string, string>, language)
+      if (text) {
         return text
       }
     }
@@ -64,6 +86,40 @@ export const patchContent = (section: SectionEditModel, patch: JsonMap): Section
   ...section,
   contentJson: { ...section.contentJson, ...patch },
 })
+
+const toLocalizedValue = (current: unknown, language: string, value: string) => {
+  const key = languageKey(language)
+  if (current && typeof current === 'object' && !Array.isArray(current)) {
+    return {
+      ...(current as Record<string, string>),
+      [key]: value,
+    }
+  }
+
+  const previous = typeof current === 'string' ? current : ''
+  const fallbackKey = key === 'en' ? 'cn' : 'en'
+  return {
+    [fallbackKey]: previous,
+    [key]: value,
+  }
+}
+
+export const patchLocalizedContent = (
+  section: SectionEditModel,
+  language: string,
+  patch: Record<string, string>,
+): SectionEditModel => {
+  const nextContent = { ...section.contentJson }
+
+  for (const [key, value] of Object.entries(patch)) {
+    nextContent[key] = toLocalizedValue(section.contentJson[key], language, value)
+  }
+
+  return {
+    ...section,
+    contentJson: nextContent,
+  }
+}
 
 export const patchStyle = (section: SectionEditModel, patch: JsonMap): SectionEditModel => ({
   ...section,

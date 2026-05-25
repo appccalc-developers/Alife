@@ -1,4 +1,5 @@
-import { EditableText, PropertyPanel, SelectInput, TextInput, patchContent, patchStyle, readText } from './sectionUtils'
+import { useAuthStore } from '../../stores/auth'
+import { EditableText, PropertyPanel, SelectInput, TextInput, patchContent, patchLocalizedContent, patchStyle, readLocalizedText, readText } from './sectionUtils'
 import type { SectionComponentProps } from './types'
 
 type IconItem = { imageUrl: string; label: string; linkUrl: string }
@@ -16,14 +17,16 @@ const parseItems = (raw: unknown): IconItem[] =>
     : []
 
 const IconFeatureGridSection = ({ section, mode, disabled, onUpdate }: SectionComponentProps) => {
+  const auth = useAuthStore()
   const editable = mode === 'edit' && !disabled && onUpdate
-  const title = readText(section.contentJson, 'title', 'headline')
-  const subtitle = readText(section.contentJson, 'subtitle', 'subheadline')
+  const title = readLocalizedText(section.contentJson, auth.language, 'title', 'headline')
+  const subtitle = readLocalizedText(section.contentJson, auth.language, 'subtitle', 'subheadline')
   const bg = readText(section.contentJson, 'backgroundImage', 'backgroundImageUrl')
   const displayStyle = readText(section.styleJson, 'displayStyle') === 'newsGrid' ? 'newsGrid' : 'iconGrid'
   const imageShape = readText(section.styleJson, 'imageShape') === 'circle' ? 'circle' : 'square'
   const items = parseItems(section.contentJson.iconItems)
   const updateContent = (patch: Record<string, unknown>) => onUpdate?.(patchContent(section, patch))
+  const updateLocalizedContent = (patch: Record<string, string>) => onUpdate?.(patchLocalizedContent(section, auth.language, patch))
   const updateStyle = (patch: Record<string, unknown>) => onUpdate?.(patchStyle(section, patch))
 
   if (displayStyle === 'newsGrid') {
@@ -31,8 +34,8 @@ const IconFeatureGridSection = ({ section, mode, disabled, onUpdate }: SectionCo
       <section className="overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
         <div className="px-5 py-8">
           <div className="mx-auto max-w-5xl text-center">
-            <EditableText as="h2" value={title} fallback="Latest News" disabled={!editable} className="text-2xl font-semibold text-slate-700 sm:text-4xl" onChange={(value) => updateContent({ title: value, headline: value })} />
-            <EditableText as="p" value={subtitle} fallback="God loves us all" disabled={!editable} className="mt-1 block text-base text-slate-500 sm:text-lg" onChange={(value) => updateContent({ subtitle: value, subheadline: value })} />
+            <EditableText as="h2" value={title} fallback="Latest News" disabled={!editable} className="text-2xl font-semibold text-slate-700 sm:text-4xl" onChange={(value) => updateLocalizedContent({ title: value, headline: value })} />
+            <EditableText as="p" value={subtitle} fallback="God loves us all" disabled={!editable} className="mt-1 block text-base text-slate-500 sm:text-lg" onChange={(value) => updateLocalizedContent({ subtitle: value, subheadline: value })} />
             <div className="mt-8 grid gap-6 sm:grid-cols-2 md:grid-cols-3">
               {(items.length ? items : [{ imageUrl: '', label: '[title]', linkUrl: '' }]).map((item, idx) => (
                 <a key={`news-${idx}`} href={mode === 'render' ? item.linkUrl || undefined : undefined} target={mode === 'render' && item.linkUrl ? '_blank' : undefined} rel={mode === 'render' && item.linkUrl ? 'noopener noreferrer' : undefined} className="flex flex-col items-center gap-3" onClick={(event) => mode === 'edit' && event.preventDefault()}>
@@ -52,8 +55,8 @@ const IconFeatureGridSection = ({ section, mode, disabled, onUpdate }: SectionCo
     <section className="overflow-hidden rounded-lg border border-slate-200">
       <div className="bg-cover bg-center px-5 py-10 text-white" style={{ backgroundImage: `linear-gradient(rgba(2, 6, 23, 0.7), rgba(2, 6, 23, 0.7)), url(${bg})` }}>
         <div className="mx-auto max-w-4xl text-center">
-          <EditableText as="h2" value={title} fallback="Our Church main activities" disabled={!editable} className="text-2xl font-semibold sm:text-4xl" onChange={(value) => updateContent({ title: value, headline: value })} />
-          <EditableText as="p" value={subtitle} fallback="God loves us all" disabled={!editable} className="mt-2 block text-base text-slate-200 sm:text-lg" onChange={(value) => updateContent({ subtitle: value, subheadline: value })} />
+          <EditableText as="h2" value={title} fallback="Our Church main activities" disabled={!editable} className="text-2xl font-semibold sm:text-4xl" onChange={(value) => updateLocalizedContent({ title: value, headline: value })} />
+          <EditableText as="p" value={subtitle} fallback="God loves us all" disabled={!editable} className="mt-2 block text-base text-slate-200 sm:text-lg" onChange={(value) => updateLocalizedContent({ subtitle: value, subheadline: value })} />
           <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-6">
             {(items.length ? items : [{ imageUrl: '', label: 'Untitled', linkUrl: '' }]).map((item, idx) => (
               <a key={`icon-${idx}`} href={mode === 'render' ? item.linkUrl || undefined : undefined} target={mode === 'render' && item.linkUrl ? '_blank' : undefined} rel={mode === 'render' && item.linkUrl ? 'noopener noreferrer' : undefined} className="flex flex-col items-center gap-2 rounded px-2 py-2 hover:bg-white/10" onClick={(event) => mode === 'edit' && event.preventDefault()}>

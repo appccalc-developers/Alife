@@ -145,7 +145,7 @@ const PageEditorView = () => {
   useEffect(() => {
     initialize().catch(() => undefined)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auth.initialized, createGroupId, editPageId, queryGroupId, auth.language])
+  }, [auth.initialized, createGroupId, editPageId, queryGroupId])
 
   const persist = async (publish: boolean) => {
     if (!canSaveDraft) {
@@ -242,7 +242,7 @@ const PageEditorView = () => {
   const saveDraft = useCallback(async () => {
     await persist(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canSaveDraft, pageModel, resolvedGroupId, editPageId, isCreateMode, canEditAllPages, canEditVisibility, auth.language])
+  }, [canSaveDraft, pageModel, resolvedGroupId, editPageId, isCreateMode, canEditAllPages, canEditVisibility])
 
   const leaveEditor = useCallback(() => {
     if (resolvedGroupId) {
