@@ -12,37 +12,21 @@ import { groupService } from '../api/groupService'
 import { cloudflareImageService } from '../services/cloudflareImageService'
 import { pageService } from '../services/pageService'
 import { useAuthStore } from '../stores/auth'
-import type { GroupPageDto, PageVisibility } from '../types/group'
+import type { PageDetailDto } from '../types'
+import type { PageVisibility } from '../types/group'
 import type { PageEditModel } from '../types/page-editor'
 import { localizeText, toLocalizedText } from '../utils/localizedText'
 
-const parseTags = (tagsJson?: string): string[] => {
-  if (!tagsJson) {
-    return []
-  }
-
-  try {
-    const parsed = JSON.parse(tagsJson) as unknown
-    if (!Array.isArray(parsed)) {
-      return []
-    }
-
-    return parsed.map((item) => String(item)).filter(Boolean)
-  } catch {
-    return []
-  }
-}
-
-const mapPageToEditModel = (page: GroupPageDto, groupId: string): PageEditModel => ({
+const mapPageToEditModel = (page: PageDetailDto, groupId: string): PageEditModel => ({
   id: page.id,
   groupId,
   createdByMemberId: page.createdByMemberId,
   title: toLocalizedText(page.title),
   description: toLocalizedText(page.description),
-  tags: parseTags(page.tagsJson),
+  tags: page.tags,
   titleDisplayStyle: page.titleDisplayStyle ?? 'Default',
   visibility: page.visibility,
-  sections: 'sections' in page ? normalizePageSections((page as unknown as PageEditModel).sections ?? []) : [],
+  sections: normalizePageSections(page.sections ?? []),
 })
 
 const PageEditorView = () => {
@@ -117,19 +101,8 @@ const PageEditorView = () => {
       return
     }
 
-    let targetGroupId = resolvedGroupId
-    let pageData: (GroupPageDto & { sections?: PageEditModel['sections'] }) | null = null
-
-    if (targetGroupId) {
-      const pages = await groupService.getGroupPages(targetGroupId)
-      pageData = pages.find((page) => page.id === targetPageId) ?? null
-    }
-
-    if (!pageData) {
-      const fallbackPage = await groupService.getPageById(targetPageId)
-      pageData = fallbackPage as unknown as GroupPageDto & { sections?: PageEditModel['sections'] }
-      targetGroupId = fallbackPage.ownerGroupId ?? targetGroupId
-    }
+    const pageData = await groupService.getPageById(targetPageId)
+    const targetGroupId = pageData.ownerGroupId ?? resolvedGroupId
 
     if (!pageData || !targetGroupId) {
       throw new Error('Failed to resolve page/group context for editor.')
