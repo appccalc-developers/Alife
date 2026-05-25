@@ -95,6 +95,26 @@ test('matching If-None-Match is answered from edge cache with 304', async () => 
   assert.equal(fetchCalls.length, 0)
 })
 
+test('GET /api/me bypasses edge cache', async () => {
+  originResponses.push(Response.json({ memberId: 'member-1' }))
+  originResponses.push(Response.json({ memberId: 'member-2' }))
+
+  const first = await dispatch('https://ccalc.live/api/me')
+  await flushWaitUntil()
+  const second = await dispatch('https://ccalc.live/api/me')
+  await flushWaitUntil()
+
+  assert.equal(first.status, 200)
+  assert.equal(first.headers.get('x-alife-cache'), 'BYPASS')
+  assert.equal(first.headers.get('cache-control'), 'no-store')
+  assert.equal(second.status, 200)
+  assert.equal(second.headers.get('x-alife-cache'), 'BYPASS')
+  assert.deepEqual(await first.json(), { memberId: 'member-1' })
+  assert.deepEqual(await second.json(), { memberId: 'member-2' })
+  assert.equal(fetchCalls.length, 2)
+  assert.equal(cacheStore.size, 0)
+})
+
 test('successful PUT evicts the corresponding GET cache entry', async () => {
   const url = 'https://ccalc.live/api/pages/home?lang=en'
   cacheStore.set(cacheKey(new Request(url)), Response.json({ title: 'Stale page' }))
@@ -122,7 +142,7 @@ test('failed writes do not evict cache', async () => {
   assert.deepEqual(deletedCacheKeys, [])
 })
 
-test('GET /images/api/... is proxied to images.ccalc.live', async () => {
+test('GET /images/... is proxied to images.ccalc.live without the /images prefix', async () => {
   originResponses.push(Response.json({ ok: true }))
 
   const response = await dispatch('https://ccalc.live/images/api/config?size=small', {
@@ -131,7 +151,17 @@ test('GET /images/api/... is proxied to images.ccalc.live', async () => {
 
   assert.equal(response.status, 200)
   assert.equal(fetchCalls.length, 1)
-  assert.equal(fetchCalls[0].url, 'https://images.ccalc.live/images/api/config?size=small')
+  assert.equal(fetchCalls[0].url, 'https://images.ccalc.live/api/config?size=small')
+})
+
+test('GET /images object paths are proxied to images.ccalc.live object paths', async () => {
+  originResponses.push(new Response('image-bytes', { status: 200 }))
+
+  const response = await dispatch('https://ccalc.live/images/folder/hero.png')
+
+  assert.equal(response.status, 200)
+  assert.equal(fetchCalls.length, 1)
+  assert.equal(fetchCalls[0].url, 'https://images.ccalc.live/folder/hero.png')
 })
 
 test('POST /api/events/extract calls Gemini at the edge and returns EventDto', async () => {

@@ -10,6 +10,7 @@ const CACHE_TTL_SECONDS = 86400 // 24 hours
 const CACHE_STALE_WHILE_REVALIDATE_SECONDS = 300
 const CACHE_STALE_IF_ERROR_SECONDS = 86400
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
+const UNCACHEABLE_API_PATHS = new Set(['/api/me'])
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -23,7 +24,9 @@ export default {
       return handleOptions(request)
     }
 
-    if (request.method === 'GET') {
+    const bypassEdgeCache = shouldBypassEdgeCache(url.pathname)
+
+    if (request.method === 'GET' && !bypassEdgeCache) {
       const cacheKey = await createCacheKey(request)
       const cached = await getEdgeCache().match(cacheKey)
       if (cached) {
@@ -41,7 +44,7 @@ export default {
     }
 
     const originRequest = createOriginRequest(request, env, {
-      stripConditionalHeaders: request.method === 'GET',
+      stripConditionalHeaders: request.method === 'GET' && !bypassEdgeCache,
     })
     console.log('Proxying request to origin:', originRequest.url)
 
@@ -51,13 +54,14 @@ export default {
       ctx.waitUntil(passivelyInvalidate(request))
     }
 
-    if (originResponse.status === 200 && request.method === 'GET') {
+    if (originResponse.status === 200 && request.method === 'GET' && !bypassEdgeCache) {
       const responseForCache = withCacheControl(originResponse.clone())
       ctx.waitUntil(createCacheKey(request).then((cacheKey) => getEdgeCache().put(cacheKey, responseForCache)))
       return addCorsHeaders(request, withCacheHeader(withCacheControl(originResponse), 'MISS'))
     }
 
-    return addCorsHeaders(request, withCacheHeader(originResponse, 'BYPASS'))
+    const response = bypassEdgeCache ? withNoStore(originResponse) : originResponse
+    return addCorsHeaders(request, withCacheHeader(response, 'BYPASS'))
   },
 }
 
@@ -117,7 +121,8 @@ function createOriginRequest(
 ) {
   const incomingUrl = new URL(request.url)
   const targetBase = new URL(getProxyTargetForPath(incomingUrl.pathname, env).replace(/\/$/, ''))
-  const targetUrl = new URL(incomingUrl.pathname + incomingUrl.search, targetBase)
+  const targetPath = getProxyTargetPath(incomingUrl.pathname)
+  const targetUrl = new URL(targetPath + incomingUrl.search, targetBase)
   const headers = new Headers(request.headers)
 
   // On an edge miss, forwarding browser validators can produce origin 304 responses
@@ -142,15 +147,31 @@ function createOriginRequest(
 }
 
 function isProxyPath(pathname: string) {
-  return pathname.startsWith('/api/') || pathname === '/images/api' || pathname.startsWith('/images/api/')
+  return pathname.startsWith('/api/') || pathname === '/images' || pathname.startsWith('/images/')
 }
 
 function getProxyTargetForPath(pathname: string, env: Env) {
-  if (pathname === '/images/api' || pathname.startsWith('/images/api/')) {
+  if (pathname === '/images' || pathname.startsWith('/images/')) {
     return DEFAULT_IMAGES_API_PROXY_TARGET
   }
 
   return env.API_PROXY_TARGET || DEFAULT_API_PROXY_TARGET
+}
+
+function getProxyTargetPath(pathname: string) {
+  if (pathname === '/images') {
+    return '/'
+  }
+
+  if (pathname.startsWith('/images/')) {
+    return pathname.slice('/images'.length) || '/'
+  }
+
+  return pathname
+}
+
+function shouldBypassEdgeCache(pathname: string) {
+  return UNCACHEABLE_API_PATHS.has(pathname)
 }
 
 async function createCacheKey(request: Request) {
@@ -183,6 +204,16 @@ function withCacheControl(response: Response) {
     `public, max-age=${CACHE_TTL_SECONDS}, s-maxage=${CACHE_TTL_SECONDS}, stale-while-revalidate=${CACHE_STALE_WHILE_REVALIDATE_SECONDS}, stale-if-error=${CACHE_STALE_IF_ERROR_SECONDS}`,
   )
   headers.set('vary', appendVary(headers.get('vary'), 'Accept-Encoding'))
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
+}
+
+function withNoStore(response: Response) {
+  const headers = new Headers(response.headers)
+  headers.set('cache-control', 'no-store')
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
