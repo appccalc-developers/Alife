@@ -1,14 +1,15 @@
 import { Link } from 'react-router-dom'
-import { PropertyPanel, TextInput, parseLimit, patchContent, readText } from './sectionUtils'
+import { PropertyPanel, TextInput, parseLimit, patchContent, patchLocalizedContent, readLocalizedText } from './sectionUtils'
 import type { SectionComponentProps } from './types'
 import { useAuthStore } from '../../stores/auth'
 import { localizeText } from '../../utils/localizedText'
 
 const PageListSection = ({ section, mode, disabled, groupPageItems = [], onUpdate }: SectionComponentProps) => {
   const auth = useAuthStore()
-  const title = readText(section.contentJson, 'title') || 'Pages'
+  const title = readLocalizedText(section.contentJson, auth.language, 'title') || 'Pages'
   const limit = parseLimit(section.contentJson, 'limit', 8)
   const updateContent = (patch: Record<string, unknown>) => onUpdate?.(patchContent(section, patch))
+  const updateLocalizedContent = (patch: Record<string, string>) => onUpdate?.(patchLocalizedContent(section, auth.language, patch))
 
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-4">
@@ -24,7 +25,7 @@ const PageListSection = ({ section, mode, disabled, groupPageItems = [], onUpdat
       {groupPageItems.length === 0 ? <p className="mt-3 text-sm text-slate-500">No pages available.</p> : null}
       {mode === 'edit' ? (
         <PropertyPanel>
-          <TextInput label="Title" value={title} disabled={disabled} onChange={(value) => updateContent({ title: value })} />
+          <TextInput label="Title" value={title} disabled={disabled} onChange={(value) => updateLocalizedContent({ title: value })} />
           <TextInput label="Limit" value={String(limit)} disabled={disabled} onChange={(value) => updateContent({ limit: Math.min(Math.max(parseInt(value) || 8, 1), 50) })} />
         </PropertyPanel>
       ) : null}

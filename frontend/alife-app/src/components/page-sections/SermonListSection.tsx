@@ -1,10 +1,13 @@
-import { PropertyPanel, TextInput, patchContent, readText } from './sectionUtils'
+import { useAuthStore } from '../../stores/auth'
+import { PropertyPanel, TextInput, patchContent, patchLocalizedContent, readLocalizedText, readText } from './sectionUtils'
 import type { SectionComponentProps } from './types'
 
 const SermonListSection = ({ section, mode, disabled, onUpdate }: SectionComponentProps) => {
-  const title = readText(section.contentJson, 'title') || 'Sermons'
+  const auth = useAuthStore()
+  const title = readLocalizedText(section.contentJson, auth.language, 'title') || 'Sermons'
   const channelId = readText(section.contentJson, 'youtubeChannelId')
   const updateContent = (patch: Record<string, unknown>) => onUpdate?.(patchContent(section, patch))
+  const updateLocalizedContent = (patch: Record<string, string>) => onUpdate?.(patchLocalizedContent(section, auth.language, patch))
 
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-4">
@@ -13,7 +16,7 @@ const SermonListSection = ({ section, mode, disabled, onUpdate }: SectionCompone
       {channelId ? <a className="mt-3 inline-flex rounded border border-red-300 px-3 py-2 text-sm text-red-700 hover:bg-red-50" href={`https://www.youtube.com/channel/${channelId}`} target="_blank" rel="noopener noreferrer">Open YouTube Channel</a> : null}
       {mode === 'edit' ? (
         <PropertyPanel>
-          <TextInput label="Title" value={title} disabled={disabled} onChange={(value) => updateContent({ title: value })} />
+          <TextInput label="Title" value={title} disabled={disabled} onChange={(value) => updateLocalizedContent({ title: value })} />
           <TextInput label="YouTube Channel ID" value={channelId} disabled={disabled} onChange={(value) => updateContent({ youtubeChannelId: value })} />
         </PropertyPanel>
       ) : null}

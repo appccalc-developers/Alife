@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import logo from './assets/logo.png'
 import { groupService } from './services/groupService'
@@ -16,6 +16,7 @@ import SermonsView from './views/SermonsView'
 import EventCreatorView from './views/EventCreatorView'
 import GroupManageView from './views/GroupManageView'
 import { localizeText } from './utils/localizedText'
+import type { PageSummaryDto } from './types'
 
 type ShellNavItem = {
   label: string
@@ -241,7 +242,7 @@ const App = () => {
   const { CurrentGroup } = useCurrentGroupStore()
   const location = useLocation()
   const navigate = useNavigate()
-  const [currentGroupPages, setCurrentGroupPages] = useState<ShellNavItem[]>([])
+  const [currentGroupPages, setCurrentGroupPages] = useState<PageSummaryDto[]>([])
   const groupScreenMatch = location.pathname.match(/^\/groups\/([^/]+)$/)
   const groupManageMatch = location.pathname.match(/^\/groups\/([^/]+)\/manage$/)
   const groupCreatePageMatch = location.pathname.match(/^\/groups\/([^/]+)\/pages\/new$/)
@@ -261,7 +262,18 @@ const App = () => {
   const canManageCurrentGroup =
     currentGroupMembership?.status === 'Approved' &&
     (currentGroupMembership.role === 'Leader' || currentGroupMembership.role === 'CoLeader')
-  const selectedPageId = searchParams.get('page') || currentGroupPages[0]?.pageId || ''
+  const currentGroupPageNavItems = useMemo<ShellNavItem[]>(
+    () =>
+      currentGroupPages.map((page) => ({
+        label: localizeText(page.title, auth.language) || 'Untitled page',
+        to: `/groups/${contextualGroupId}?page=${encodeURIComponent(page.id)}`,
+        matchSearch: `?page=${encodeURIComponent(page.id)}`,
+        pageId: page.id,
+        icon: <PageIcon />,
+      })),
+    [auth.language, contextualGroupId, currentGroupPages],
+  )
+  const selectedPageId = searchParams.get('page') || currentGroupPageNavItems[0]?.pageId || ''
   const managementNavItems: ShellNavItem[] = contextualGroupId
     ? [
         { label: 'Group', to: `/groups/${contextualGroupId}/manage?section=group`, matchSearch: '?section=group', icon: <GroupIcon /> },
@@ -271,7 +283,7 @@ const App = () => {
         { label: 'Events', to: `/groups/${contextualGroupId}/manage?section=events`, matchSearch: '?section=events', icon: <EventsIcon /> },
       ]
     : []
-  const shellNavItems = isManagementScreen ? managementNavItems : isGroupScreen || isPageEditorScreen ? currentGroupPages : []
+  const shellNavItems = isManagementScreen ? managementNavItems : isGroupScreen || isPageEditorScreen ? currentGroupPageNavItems : []
   const fabItems: ShellFabItem[] = isGroupScreen && canManageCurrentGroup
     ? [
         ...(selectedPageId
@@ -332,15 +344,7 @@ const App = () => {
           return
         }
 
-        setCurrentGroupPages(
-          pages.map((page) => ({
-            label: localizeText(page.title, auth.language) || 'Untitled page',
-            to: `/groups/${contextualGroupId}?page=${encodeURIComponent(page.id)}`,
-            matchSearch: `?page=${encodeURIComponent(page.id)}`,
-            pageId: page.id,
-            icon: <PageIcon />,
-          })),
-        )
+        setCurrentGroupPages(pages)
       })
       .catch(() => {
         if (!cancelled) {
@@ -351,7 +355,7 @@ const App = () => {
     return () => {
       cancelled = true
     }
-  }, [auth.language, contextualGroupId, isManagementScreen])
+  }, [contextualGroupId, isManagementScreen])
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">

@@ -1,19 +1,22 @@
-import { DEFAULT_HERO_IMAGE, EditableText, PropertyPanel, SelectInput, TextInput, patchContent, patchStyle, readText } from './sectionUtils'
+import { useAuthStore } from '../../stores/auth'
+import { DEFAULT_HERO_IMAGE, EditableText, PropertyPanel, SelectInput, TextInput, patchContent, patchLocalizedContent, patchStyle, readLocalizedText, readText } from './sectionUtils'
 import type { SectionComponentProps } from './types'
 
 const HeroSection = ({ section, mode, disabled, onUpdate }: SectionComponentProps) => {
+  const auth = useAuthStore()
   const editable = mode === 'edit' && !disabled && onUpdate
   const bg = readText(section.contentJson, 'backgroundImage', 'backgroundImageUrl') || DEFAULT_HERO_IMAGE
-  const title = readText(section.contentJson, 'title', 'headline')
-  const subtitle = readText(section.contentJson, 'subtitle', 'subheadline')
-  const body = readText(section.contentJson, 'centerText', 'body')
-  const linkLabel = readText(section.contentJson, 'linkLabel', 'linkText', 'ctaLabel')
+  const title = readLocalizedText(section.contentJson, auth.language, 'title', 'headline')
+  const subtitle = readLocalizedText(section.contentJson, auth.language, 'subtitle', 'subheadline')
+  const body = readLocalizedText(section.contentJson, auth.language, 'centerText', 'body')
+  const linkLabel = readLocalizedText(section.contentJson, auth.language, 'linkLabel', 'linkText', 'ctaLabel')
   const linkUrl = readText(section.contentJson, 'linkUrl', 'ctaUrl', 'href')
   const rawLayout = readText(section.styleJson, 'layout')
   const layout = rawLayout === 'classic' ? 'classic' : rawLayout === 'split' || rawLayout === 'mediaSpotlight' ? 'mediaSpotlight' : 'featured'
   const featured = layout === 'featured'
 
   const updateContent = (patch: Record<string, unknown>) => onUpdate?.(patchContent(section, patch))
+  const updateLocalizedContent = (patch: Record<string, string>) => onUpdate?.(patchLocalizedContent(section, auth.language, patch))
   const updateStyle = (patch: Record<string, unknown>) => onUpdate?.(patchStyle(section, patch))
 
   return (
@@ -30,7 +33,7 @@ const HeroSection = ({ section, mode, disabled, onUpdate }: SectionComponentProp
               fallback="Hero Section"
               disabled={!editable}
               className="text-3xl font-semibold tracking-wide text-yellow-300 sm:text-5xl"
-              onChange={(value) => updateContent({ title: value, headline: value })}
+              onChange={(value) => updateLocalizedContent({ title: value, headline: value })}
             />
             <EditableText
               as="p"
@@ -39,7 +42,7 @@ const HeroSection = ({ section, mode, disabled, onUpdate }: SectionComponentProp
               fallback="No hero content yet."
               disabled={!editable}
               className="text-sm text-slate-100"
-              onChange={(value) => updateContent({ centerText: value, body: value })}
+              onChange={(value) => updateLocalizedContent({ centerText: value, body: value })}
             />
           </div>
         ) : (
@@ -50,7 +53,7 @@ const HeroSection = ({ section, mode, disabled, onUpdate }: SectionComponentProp
               fallback="Hero Section"
               disabled={!editable}
               className="inline-block text-2xl font-bold"
-              onChange={(value) => updateContent({ title: value, headline: value })}
+              onChange={(value) => updateLocalizedContent({ title: value, headline: value })}
             />
             <EditableText
               as="p"
@@ -58,7 +61,7 @@ const HeroSection = ({ section, mode, disabled, onUpdate }: SectionComponentProp
               fallback="No subtitle yet."
               disabled={!editable}
               className="mt-2 block text-sm text-slate-100"
-              onChange={(value) => updateContent({ subtitle: value, subheadline: value })}
+              onChange={(value) => updateLocalizedContent({ subtitle: value, subheadline: value })}
             />
           </>
         )}
@@ -77,7 +80,7 @@ const HeroSection = ({ section, mode, disabled, onUpdate }: SectionComponentProp
               fallback={linkUrl || 'Button text'}
               disabled={!editable}
               className="text-sm"
-              onChange={(value) => updateContent({ linkLabel: value, linkText: value, ctaLabel: value })}
+              onChange={(value) => updateLocalizedContent({ linkLabel: value, linkText: value, ctaLabel: value })}
             />
           </a>
         ) : null}
