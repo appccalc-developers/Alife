@@ -1,7 +1,9 @@
 using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
+using Alife.Application.Groups.Services;
 using Alife.Application.Pages.Services;
 using Alife.Domain.Entities;
+using Alife.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,6 +11,7 @@ namespace Alife.Application.Sections.Commands.DeleteSection;
 
 public sealed class DeleteSectionCommandHandler(
 	IAlifeDbContext dbContext,
+	IGroupAuthorizationService groupAuthorizationService,
 	IPageCacheInvalidationService pageCacheInvalidationService)
 	: IRequestHandler<DeleteSectionCommand, AppResult<bool>>
 {
@@ -23,9 +26,10 @@ public sealed class DeleteSectionCommandHandler(
 			return AppResult<bool>.NotFound("Section was not found.");
 		}
 
-		if (section.Page.CreatedByMemberId != request.CurrentMemberId)
+		var canEdit = await CanEditPageAsync(section.Page, request.CurrentMemberId, cancellationToken);
+		if (!canEdit)
 		{
-			return AppResult<bool>.Forbidden("Only the page owner can delete sections.");
+			return AppResult<bool>.Forbidden("You do not have permission to delete this section.");
 		}
 
 		section.IsDeleted = true;
@@ -34,6 +38,26 @@ public sealed class DeleteSectionCommandHandler(
 		await InvalidatePageAsync(section.Page, cancellationToken);
 
 		return AppResult<bool>.Success(true);
+	}
+
+	private async Task<bool> CanEditPageAsync(Page page, Guid currentMemberId, CancellationToken cancellationToken)
+	{
+		if (page.Scope == PageScope.Global)
+		{
+			return await groupAuthorizationService.IsAdminAsync(currentMemberId, cancellationToken);
+		}
+
+		if (page.OwnerGroupId is null)
+		{
+			return false;
+		}
+
+		if (page.CreatedByMemberId == currentMemberId && page.Visibility == PageVisibility.InvisibleDraft)
+		{
+			return true;
+		}
+
+		return await groupAuthorizationService.IsLeaderOrCoLeaderAsync(page.OwnerGroupId.Value, currentMemberId, cancellationToken);
 	}
 
 	private async Task InvalidatePageAsync(Page page, CancellationToken cancellationToken)
