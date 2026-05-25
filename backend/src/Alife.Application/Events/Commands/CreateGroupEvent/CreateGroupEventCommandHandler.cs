@@ -1,6 +1,7 @@
 using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
 using Alife.Application.Events.Dtos;
+using Alife.Application.Events.Services;
 using Alife.Application.Groups.Services;
 using Alife.Domain.Entities;
 using MediatR;
@@ -9,7 +10,8 @@ namespace Alife.Application.Events.Commands.CreateGroupEvent;
 
 public sealed class CreateGroupEventCommandHandler(
     IAlifeDbContext dbContext,
-    IGroupAuthorizationService groupAuthorizationService)
+    IGroupAuthorizationService groupAuthorizationService,
+    IEventCacheInvalidationService eventCacheInvalidationService)
     : IRequestHandler<CreateGroupEventCommand, AppResult<GroupEventSummaryDto>>
 {
     public async Task<AppResult<GroupEventSummaryDto>> Handle(CreateGroupEventCommand request, CancellationToken cancellationToken)
@@ -41,6 +43,7 @@ public sealed class CreateGroupEventCommandHandler(
 
         dbContext.GroupEvents.Add(groupEvent);
         await dbContext.SaveChangesAsync(cancellationToken);
+        await eventCacheInvalidationService.RemoveGroupEventsAsync(request.GroupId, cancellationToken);
 
         return AppResult<GroupEventSummaryDto>.Success(ToDto(groupEvent));
     }

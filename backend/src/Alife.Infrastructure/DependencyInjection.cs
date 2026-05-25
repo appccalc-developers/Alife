@@ -1,9 +1,11 @@
 ﻿using Alife.Application.Common.Interfaces;
 using Alife.Application.Abstractions.Integrations;
 using Alife.Application.Abstractions.Security;
+using Alife.Application.Events.Services;
 using Alife.Application.Groups.Services;
 using Alife.Application.Members.Services;
 using Alife.Application.Pages.Services;
+using Alife.Application.Sermons.Services;
 using Alife.Infrastructure.HostedServices;
 using Alife.Infrastructure.Integrations;
 using Alife.Infrastructure.Persistence;
@@ -44,6 +46,10 @@ public static class DependencyInjection
 		services.AddScoped<IMemberReadService, MemberReadService>();
 		services.AddScoped<IPageReadService, PageReadService>();
 		services.AddScoped<IPageCacheInvalidationService, PageCacheInvalidationService>();
+		services.AddScoped<IEventReadService, EventReadService>();
+		services.AddScoped<IEventCacheInvalidationService, EventCacheInvalidationService>();
+		services.AddScoped<ISermonReadService, SermonReadService>();
+		services.AddScoped<ISermonCacheInvalidationService, SermonCacheInvalidationService>();
 
 		return services;
 	}

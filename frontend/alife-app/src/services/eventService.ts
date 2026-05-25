@@ -1,8 +1,17 @@
 import type { ExtractEventFromChatResponse, EventSessionState, EventDto, GroupEventRecord } from '../types/event'
+import { groupEventsQueryKey } from '../db/collections/groupCollection'
+import { removeCachedRecord } from '../db/httpCache'
+import { queryClient } from '../db/queryClient'
 import { http } from './http'
 import { createAiSessionService } from './aiSessionService'
 
 const eventSessionService = createAiSessionService<EventDto, EventDto['legacySummary']>('/api/events/session')
+
+const invalidateGroupEventsCache = async (groupId: string) => {
+  const queryKey = groupEventsQueryKey(groupId)
+  await removeCachedRecord(queryKey)
+  await queryClient.invalidateQueries({ queryKey })
+}
 
 export const eventService = {
   extractFromChat: async (
@@ -35,11 +44,6 @@ export const eventService = {
   createSessionStream: (sessionId: string): EventSource =>
     eventSessionService.createStream(sessionId),
 
-  getGlobalEvents: async (): Promise<GroupEventRecord[]> => {
-    const { data } = await http.get<GroupEventRecord[]>('/api/events')
-    return data
-  },
-
   getGroupEvents: async (groupId: string): Promise<GroupEventRecord[]> => {
     const { data } = await http.get<GroupEventRecord[]>(`/api/groups/${groupId}/events`)
     return data
@@ -55,6 +59,7 @@ export const eventService = {
       endDate: eventDto.endDate,
       eventDataJson: JSON.stringify(eventDto),
     })
+    await invalidateGroupEventsCache(groupId)
     return data
   },
 
@@ -68,10 +73,14 @@ export const eventService = {
       endDate: eventDto.endDate,
       eventDataJson: JSON.stringify(eventDto),
     })
+    await invalidateGroupEventsCache(data.groupId)
     return data
   },
 
-  deleteGroupEvent: async (eventId: string): Promise<void> => {
+  deleteGroupEvent: async (eventId: string, groupId?: string): Promise<void> => {
     await http.delete(`/api/events/${eventId}`)
+    if (groupId) {
+      await invalidateGroupEventsCache(groupId)
+    }
   },
 }

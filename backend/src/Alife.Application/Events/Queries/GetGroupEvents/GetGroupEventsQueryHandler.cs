@@ -1,14 +1,13 @@
-using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
 using Alife.Application.Events.Dtos;
+using Alife.Application.Events.Services;
 using Alife.Application.Groups.Services;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace Alife.Application.Events.Queries.GetGroupEvents;
 
 public sealed class GetGroupEventsQueryHandler(
-    IAlifeDbContext dbContext,
+    IEventReadService eventReadService,
     IGroupAuthorizationService groupAuthorizationService)
     : IRequestHandler<GetGroupEventsQuery, AppResult<IReadOnlyList<GroupEventSummaryDto>>>
 {
@@ -24,21 +23,7 @@ public sealed class GetGroupEventsQueryHandler(
             return AppResult<IReadOnlyList<GroupEventSummaryDto>>.Forbidden("You must be a member to view group events.");
         }
 
-        var events = await dbContext.GroupEvents
-            .Where(e => e.GroupId == request.GroupId)
-            .OrderBy(e => e.StartDate)
-            .Select(e => new GroupEventSummaryDto(
-                e.Id,
-                e.GroupId,
-                e.CreatedByMemberId,
-                e.TitleEn,
-                e.TitleZh,
-                e.StartDate,
-                e.EndDate,
-                e.EventDataJson,
-                e.CreatedUtc,
-                e.UpdatedUtc))
-            .ToListAsync(cancellationToken);
+        var events = await eventReadService.GetGroupEventsAsync(request.GroupId, cancellationToken);
 
         return AppResult<IReadOnlyList<GroupEventSummaryDto>>.Success(events);
     }

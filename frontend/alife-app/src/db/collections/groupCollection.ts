@@ -104,24 +104,3 @@ export const groupEventsCollection = (groupId: string) =>
 export const getCachedGroupEvents = async (groupId: string) =>
   (await getCachedRecord<GroupEventRecord[]>(groupEventsQueryKey(groupId)))?.data ?? []
 
-// ---------- Global events ----------
-
-export const globalEventsQueryKey = () => ['globalEvents'] as const
-
-export const globalEventsCollection = () =>
-  createCollection(
-    queryCollectionOptions({
-      queryClient,
-      queryKey: globalEventsQueryKey(),
-      getKey: (item: GroupEventRecord) => item.id,
-      queryFn: async () =>
-        conditionalGet<GroupEventRecord[]>({
-          queryKey: globalEventsQueryKey(),
-          path: '/api/events',
-        }),
-    }),
-  )
-
-export const getCachedGlobalEvents = async () =>
-  (await getCachedRecord<GroupEventRecord[]>(globalEventsQueryKey()))?.data ?? []
-

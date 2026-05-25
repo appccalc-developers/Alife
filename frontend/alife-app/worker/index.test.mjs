@@ -126,7 +126,7 @@ test('successful PUT evicts the corresponding GET cache entry', async () => {
   assert.equal(response.status, 200)
   assert.equal(response.headers.get('x-alife-cache'), 'BYPASS')
   assert.equal(cacheStore.has(cacheKey(new Request(url))), false)
-  assert.deepEqual(deletedCacheKeys, [url])
+  assert.equal(deletedCacheKeys.includes(url), true)
 })
 
 test('failed writes do not evict cache', async () => {
@@ -140,6 +140,74 @@ test('failed writes do not evict cache', async () => {
   assert.equal(response.status, 400)
   assert.equal(cacheStore.has(cacheKey(new Request(url))), true)
   assert.deepEqual(deletedCacheKeys, [])
+})
+
+test('successful POST to group pages evicts the group pages list cache', async () => {
+  const groupId = 'group-1'
+  const listUrl = `https://ccalc.live/api/groups/${groupId}/pages`
+  cacheStore.set(cacheKey(new Request(listUrl)), Response.json([{ id: 'page-1', ownerGroupId: groupId }]))
+  originResponses.push(Response.json({ id: 'page-2', ownerGroupId: groupId }))
+
+  const response = await dispatch(listUrl, { method: 'POST', body: JSON.stringify({ title: 'New page' }) })
+  await flushWaitUntil()
+
+  assert.equal(response.status, 200)
+  assert.equal(cacheStore.has(cacheKey(new Request(listUrl))), false)
+})
+
+test('successful member action evicts only that group membership list cache', async () => {
+  const groupId = 'group-1'
+  const otherGroupId = 'group-2'
+  const listUrl = `https://ccalc.live/api/groups/${groupId}/memberships`
+  const otherListUrl = `https://ccalc.live/api/groups/${otherGroupId}/memberships`
+  cacheStore.set(cacheKey(new Request(listUrl)), Response.json([{ memberId: 'member-1' }]))
+  cacheStore.set(cacheKey(new Request(otherListUrl)), Response.json([{ memberId: 'member-2' }]))
+  originResponses.push(Response.json({ ok: true }))
+
+  const response = await dispatch(`https://ccalc.live/api/groups/${groupId}/approve`, {
+    method: 'POST',
+    body: JSON.stringify({ memberId: 'member-1' }),
+  })
+  await flushWaitUntil()
+
+  assert.equal(response.status, 200)
+  assert.equal(cacheStore.has(cacheKey(new Request(listUrl))), false)
+  assert.equal(cacheStore.has(cacheKey(new Request(otherListUrl))), true)
+})
+
+test('successful event update evicts the group events list cache', async () => {
+  const groupId = 'group-1'
+  const eventId = 'event-1'
+  const listUrl = `https://ccalc.live/api/groups/${groupId}/events`
+  cacheStore.set(cacheKey(new Request(listUrl)), Response.json([{ id: eventId, groupId }]))
+  originResponses.push(Response.json({ id: eventId, groupId, titleEn: 'Updated' }))
+
+  const response = await dispatch(`https://ccalc.live/api/events/${eventId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ titleEn: 'Updated' }),
+  })
+  await flushWaitUntil()
+
+  assert.equal(response.status, 200)
+  assert.equal(cacheStore.has(cacheKey(new Request(listUrl))), false)
+})
+
+test('event delete can evict group events list using cached entity mapping', async () => {
+  const groupId = 'group-1'
+  const eventId = 'event-1'
+  const listUrl = `https://ccalc.live/api/groups/${groupId}/events`
+  originResponses.push(Response.json([{ id: eventId, groupId }]))
+
+  await dispatch(listUrl)
+  await flushWaitUntil()
+  assert.equal(cacheStore.has(cacheKey(new Request(listUrl))), true)
+
+  originResponses.push(Response.json(true))
+  const response = await dispatch(`https://ccalc.live/api/events/${eventId}`, { method: 'DELETE' })
+  await flushWaitUntil()
+
+  assert.equal(response.status, 200)
+  assert.equal(cacheStore.has(cacheKey(new Request(listUrl))), false)
 })
 
 test('GET /images/... is proxied to images.ccalc.live without the /images prefix', async () => {
