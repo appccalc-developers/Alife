@@ -1,10 +1,10 @@
 import { http } from './http'
 import { groupPagesQueryKey } from '../db/collections/groupCollection'
-import { globalPagesQueryKey, pageDetailQueryKey } from '../db/collections/pageCollection'
+import { globalPagesQueryKey, pageDetailQueryKey, setPageDetailCache } from '../db/collections/pageCollection'
 import { removeCachedRecord } from '../db/httpCache'
 import { queryClient } from '../db/queryClient'
 import type { LocalizedText, PageDetailDto, PageEditModel, PageSummaryDto, PageVisibility, SectionEditModel } from '../types'
-import { toLocalizedText } from '../utils/localizedText'
+import { normalizePageDetail } from '../utils/pageDetail'
 
 export type CreateGroupPagePayload = {
   title: LocalizedText
@@ -41,77 +41,6 @@ export type PublishPageOptimizedPayload = {
     contentJson: string
     styleJson: string
   }>
-}
-
-type SectionDto = {
-  id?: string
-  pageId: string
-  order: number
-  type: number | string
-  contentJson: string
-  styleJson: string
-}
-
-const parseJsonObject = (value: string | null | undefined): Record<string, unknown> => {
-  if (!value) {
-    return {}
-  }
-
-  try {
-    const parsed = JSON.parse(value) as unknown
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      return {}
-    }
-
-    return parsed as Record<string, unknown>
-  } catch {
-    return {}
-  }
-}
-
-const sectionTypeMapByNumber: Record<number, SectionEditModel['type']> = {
-  0: 'Hero',
-  1: 'RichText',
-  2: 'PostFeed',
-  3: 'Sermon',
-  4: 'GroupList',
-  5: 'PageList',
-  6: 'SermonList',
-}
-
-const normalizeSectionType = (value: number | string): SectionEditModel['type'] => {
-  if (typeof value === 'number') {
-    return sectionTypeMapByNumber[value] ?? 'RichText'
-  }
-
-  const normalized = String(value)
-  const values = ['Hero', 'MediaSpotlight', 'IconFeatureGrid', 'SermonSpotlight', 'RichText', 'PostFeed', 'Sermon', 'GroupList', 'PageList', 'SermonList'] as const
-  return values.includes(normalized as (typeof values)[number]) ? (normalized as SectionEditModel['type']) : 'RichText'
-}
-
-const toSectionEditModel = (section: SectionDto): SectionEditModel => {
-  const contentJson = parseJsonObject(section.contentJson)
-  const styleJson = parseJsonObject(section.styleJson)
-  const normalizedType = normalizeSectionType(section.type)
-  const layout = typeof styleJson.layout === 'string' ? styleJson.layout : ''
-
-  // Backend currently stores custom visual templates as Hero; restore editor types from style.
-  const type =
-    normalizedType === 'Hero' && (layout === 'mediaSpotlight' || layout === 'split')
-      ? 'MediaSpotlight'
-      : normalizedType === 'Hero' && layout === 'iconFeatureGrid'
-        ? 'IconFeatureGrid'
-        : normalizedType === 'Hero' && layout === 'sermonSpotlight'
-          ? 'SermonSpotlight'
-        : normalizedType
-
-  return {
-    id: section.id,
-    order: section.order,
-    type,
-    contentJson,
-    styleJson,
-  }
 }
 
 const toSectionPayloadType = (type: SectionEditModel['type']): number => {
@@ -154,45 +83,25 @@ const toSectionPublishPayload = (sections: SectionEditModel[]) =>
     ...buildSectionWritePayload(section, index + 1),
   }))
 
-const parseTags = (tagsJson: string | undefined) => {
-  if (!tagsJson) {
-    return [] as string[]
-  }
-
-  try {
-    const parsed = JSON.parse(tagsJson) as unknown
-    if (!Array.isArray(parsed)) {
-      return []
-    }
-
-    return parsed.map((item) => String(item)).filter(Boolean)
-  } catch {
-    return []
-  }
-}
-
 const invalidateQueryCache = async (queryKey: readonly unknown[]) => {
   await removeCachedRecord(queryKey)
   await queryClient.invalidateQueries({ queryKey })
 }
 
-const invalidatePageSummaryCaches = async (page: PageSummaryDto | PageDetailDto) => {
-  await Promise.all([
-    invalidateQueryCache(page.ownerGroupId ? groupPagesQueryKey(page.ownerGroupId) : globalPagesQueryKey()),
-    invalidateQueryCache(pageDetailQueryKey(page.id)),
-  ])
+const invalidatePageListCache = async (page: PageSummaryDto | PageDetailDto) => {
+  await invalidateQueryCache(page.ownerGroupId ? groupPagesQueryKey(page.ownerGroupId) : globalPagesQueryKey())
+}
+
+const cachePageDetail = (page: PageDetailDto & { tagsJson?: string }) => {
+  const normalized = normalizePageDetail(page)
+  setPageDetailCache(normalized)
+  return normalized
 }
 
 export const pageService = {
   async getPageById(pageId: string): Promise<PageDetailDto> {
     const { data } = await http.get<PageDetailDto>(`/api/pages/${pageId}`)
-    return {
-      ...data,
-      title: toLocalizedText(data.title),
-      description: toLocalizedText(data.description),
-      tags: parseTags((data as PageDetailDto & { tagsJson?: string }).tagsJson),
-      sections: (data.sections ?? []).map((section) => toSectionEditModel(section as unknown as SectionDto)),
-    }
+    return cachePageDetail(data as PageDetailDto & { tagsJson?: string })
   },
 
   async createGroupPage(groupId: string, payload: CreateGroupPagePayload) {
@@ -200,8 +109,9 @@ export const pageService = {
       ...payload,
       sections: toSectionPublishPayload(payload.sections),
     })
-    await invalidatePageSummaryCaches(data)
-    return data
+    const normalized = cachePageDetail(data as PageDetailDto & { tagsJson?: string })
+    await invalidatePageListCache(normalized)
+    return normalized
   },
 
   async updatePage(pageId: string, payload: UpdatePagePayload) {
@@ -209,13 +119,25 @@ export const pageService = {
       ...payload,
       sections: toSectionPublishPayload(payload.sections),
     })
-    await invalidatePageSummaryCaches(data)
-    return data
+    const normalized = cachePageDetail(data as PageDetailDto & { tagsJson?: string })
+    await invalidatePageListCache(normalized)
+    return normalized
   },
 
   async publishPage(pageId: string, payload: PublishPagePayload) {
     const { data } = await http.post<PageSummaryDto>(`/api/pages/${pageId}/publish`, payload)
-    await invalidatePageSummaryCaches(data)
+    const existingDetail = queryClient.getQueryData<PageDetailDto>(pageDetailQueryKey(pageId))
+    if (existingDetail) {
+      setPageDetailCache({
+        ...existingDetail,
+        visibility: data.visibility,
+        title: data.title ?? existingDetail.title,
+        description: data.description ?? existingDetail.description,
+        titleDisplayStyle: data.titleDisplayStyle ?? existingDetail.titleDisplayStyle,
+        ownerGroupId: data.ownerGroupId ?? existingDetail.ownerGroupId,
+      })
+    }
+    await invalidatePageListCache(data)
     return data
   },
 
@@ -224,9 +146,11 @@ export const pageService = {
       ...payload.page,
       sections: payload.sections,
     })
+    const normalized = cachePageDetail(data as PageDetailDto & { tagsJson?: string })
     await pageService.publishPage(pageId, { visibility: payload.visibility })
-    await invalidatePageSummaryCaches(data)
-    return data
+    const published = { ...normalized, visibility: payload.visibility }
+    setPageDetailCache(published)
+    return published
   },
 
   async deletePage(pageId: string) {

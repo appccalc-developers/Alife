@@ -5,6 +5,7 @@ import PageContentRenderer, {
   normalizePageSections,
   validatePageContent,
 } from '../page/PageContentRenderer'
+import { ensureFreshPageDetail } from '../../db/collections/pageCollection'
 import { cloudflareImageService } from '../../services/cloudflareImageService'
 import { pageService } from '../../services/pageService'
 import type { GroupPageDto, GroupSummaryDto } from '../../types/group'
@@ -88,8 +89,7 @@ const GroupPageTabs = ({
     setLoadingPageId(activePage.id)
     setError('')
 
-    pageService
-      .getPageById(activePage.id)
+    ensureFreshPageDetail(activePage.id)
       .then((detail) => {
         const normalizedSections = normalizePageSections(detail.sections)
         setSectionsByPageId((current) => ({
@@ -163,7 +163,7 @@ const GroupPageTabs = ({
         updateActiveModel({ ...activeModel, sections: normalizePageSections(sectionsToPersist) })
       }
 
-      await pageService.updatePage(pageId, {
+      const savedPage = await pageService.updatePage(pageId, {
         title: activeModel.title,
         description: activeModel.description,
         tagsJson: JSON.stringify(activeModel.tags),
@@ -175,7 +175,7 @@ const GroupPageTabs = ({
         await pageService.publishPage(pageId, { visibility: activeModel.visibility })
       }
 
-      const savedSections = normalizePageSections(sectionsToPersist)
+      const savedSections = normalizePageSections(savedPage.sections)
       setSectionsByPageId((current) => ({
         ...current,
         [pageId]: savedSections,
