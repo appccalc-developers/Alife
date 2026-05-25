@@ -219,7 +219,7 @@ export const useGroupScreen = (groupId: string) => {
   const deleteEvent = useCallback(
     async (eventId: string) => {
       if (!groupId) return
-      await eventService.deleteGroupEvent(eventId)
+      await eventService.deleteGroupEvent(eventId, groupId)
       setEvents((prev) => prev.filter((e) => e.id !== eventId))
       setStatusMessage('Event deleted.')
     },

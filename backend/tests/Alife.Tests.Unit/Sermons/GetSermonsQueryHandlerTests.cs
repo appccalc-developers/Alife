@@ -1,7 +1,10 @@
+using Alife.Application.Sermons.Dtos;
 using Alife.Application.Sermons.Queries.GetSermons;
+using Alife.Application.Sermons.Services;
 using Alife.Domain.Entities;
 using Alife.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using NSubstitute;
 
 namespace Alife.Tests.Unit.Sermons;
 
@@ -31,7 +34,8 @@ public class GetSermonsQueryHandlerTests
         });
         await dbContext.SaveChangesAsync();
 
-        var handler = new GetSermonsQueryHandler(dbContext);
+        var sermonReadService = CreateSermonReadService(dbContext);
+        var handler = new GetSermonsQueryHandler(sermonReadService);
 
         // Act
         var result = await handler.Handle(new GetSermonsQuery(), CancellationToken.None);
@@ -47,7 +51,8 @@ public class GetSermonsQueryHandlerTests
     {
         // Arrange
         using var dbContext = CreateInMemoryDbContext();
-        var handler = new GetSermonsQueryHandler(dbContext);
+        var sermonReadService = CreateSermonReadService(dbContext);
+        var handler = new GetSermonsQueryHandler(sermonReadService);
 
         // Act
         var result = await handler.Handle(new GetSermonsQuery(), CancellationToken.None);
@@ -69,7 +74,8 @@ public class GetSermonsQueryHandlerTests
             new Sermon { Id = Guid.NewGuid(), YoutubeVideoId = "id2", Title = "Newer", SpeakerName = "S", SortOrder = 1, PreachedAtUtc = newerDate, SyncedUtc = DateTime.UtcNow }
         );
         await dbContext.SaveChangesAsync();
-        var handler = new GetSermonsQueryHandler(dbContext);
+        var sermonReadService = CreateSermonReadService(dbContext);
+        var handler = new GetSermonsQueryHandler(sermonReadService);
 
         // Act
         var result = await handler.Handle(new GetSermonsQuery(), CancellationToken.None);
@@ -79,5 +85,25 @@ public class GetSermonsQueryHandlerTests
         Assert.Equal(2, result.Value!.Count);
         Assert.Equal("Newer", result.Value![0].Title);
         Assert.Equal("Older", result.Value![1].Title);
+    }
+
+    private static ISermonReadService CreateSermonReadService(AlifeDbContext dbContext)
+    {
+        var sermonReadService = Substitute.For<ISermonReadService>();
+        sermonReadService.GetSermonsAsync(Arg.Any<CancellationToken>()).Returns(_ =>
+            dbContext.Sermons
+                .AsNoTracking()
+                .OrderBy(x => x.SortOrder)
+                .ThenByDescending(x => x.PreachedAtUtc)
+                .Select(x => new SermonDto(
+                    x.Id,
+                    x.Title,
+                    x.SpeakerName,
+                    x.ThumbnailUrl,
+                    x.VideoUrl,
+                    x.PreachedAtUtc))
+                .ToList());
+
+        return sermonReadService;
     }
 }

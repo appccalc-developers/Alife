@@ -1,5 +1,6 @@
 ﻿using System.Net.Http.Json;
 using Alife.Application.Abstractions.Integrations;
+using Alife.Application.Sermons.Services;
 using Alife.Domain.Entities;
 using Alife.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -12,7 +13,8 @@ public class YoutubeService(
     AlifeDbContext dbContext,
     IHttpClientFactory httpClientFactory,
     IConfiguration configuration,
-    ILogger<YoutubeService> logger) : IYoutubeService
+    ILogger<YoutubeService> logger,
+    ISermonCacheInvalidationService sermonCacheInvalidationService) : IYoutubeService
 {
     private const int MaxResultsPerPage = 50;
     private const int MaxSermonsToSync = 100;
@@ -102,6 +104,7 @@ public class YoutubeService(
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        await sermonCacheInvalidationService.RemoveAllAsync(cancellationToken);
 
         logger.LogInformation(
             "Synced {Count} sermons from YouTube playlist {PlaylistId}. Removed {RemovedCount} stale rows.",

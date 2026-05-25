@@ -51,12 +51,15 @@ export default {
     const originResponse = await fetch(originRequest)
 
     if (originResponse.ok && MUTATING_METHODS.has(request.method)) {
-      ctx.waitUntil(passivelyInvalidate(request))
+      ctx.waitUntil(passivelyInvalidate(request, originResponse.clone()))
     }
 
     if (originResponse.status === 200 && request.method === 'GET' && !bypassEdgeCache) {
       const responseForCache = withCacheControl(originResponse.clone())
-      ctx.waitUntil(createCacheKey(request).then((cacheKey) => getEdgeCache().put(cacheKey, responseForCache)))
+      ctx.waitUntil(Promise.all([
+        createCacheKey(request).then((cacheKey) => getEdgeCache().put(cacheKey, responseForCache)),
+        rememberEntityGroups(request, originResponse.clone()),
+      ]))
       return addCorsHeaders(request, withCacheHeader(withCacheControl(originResponse), 'MISS'))
     }
 
@@ -174,8 +177,12 @@ function shouldBypassEdgeCache(pathname: string) {
   return UNCACHEABLE_API_PATHS.has(pathname)
 }
 
-async function createCacheKey(request: Request) {
+async function createCacheKey(request: Request, pathname?: string) {
   const url = new URL(request.url)
+  if (pathname) {
+    url.pathname = pathname
+    url.search = ''
+  }
   url.hash = ''
   url.searchParams.sort()
   const credentialKey = await createCredentialCacheKey(request)
@@ -221,10 +228,144 @@ function withNoStore(response: Response) {
   })
 }
 
-async function passivelyInvalidate(request: Request) {
-  const cacheKey = await createCacheKey(request)
+async function passivelyInvalidate(request: Request, response: Response) {
+  const paths = await getInvalidationPaths(request, response)
+  const originalCacheKey = await createCacheKey(request)
+  await Promise.all([
+    getEdgeCache().delete(originalCacheKey),
+    ...paths.map(async (path) => {
+      const cacheKey = await createCacheKey(request, path)
+      await getEdgeCache().delete(cacheKey)
+    }),
+  ])
+}
 
-  await getEdgeCache().delete(cacheKey)
+async function getInvalidationPaths(request: Request, response: Response) {
+  const url = new URL(request.url)
+  const path = url.pathname
+  const paths = new Set<string>()
+
+  const groupSubresourceMatch = path.match(/^\/api\/groups\/([^/]+)\/(subgroups|pages|events|memberships)$/)
+  if (groupSubresourceMatch) {
+    paths.add(`/api/groups/${groupSubresourceMatch[1]}/${groupSubresourceMatch[2]}`)
+  }
+
+  const groupActionMatch = path.match(/^\/api\/groups\/([^/]+)\/(join-request|invite|invite\/accept|approve|reject|set-coleader|kick)$/)
+  if (groupActionMatch) {
+    paths.add(`/api/groups/${groupActionMatch[1]}/memberships`)
+  }
+
+  const groupCloseMatch = path.match(/^\/api\/groups\/([^/]+)\/close$/)
+  if (groupCloseMatch) {
+    paths.add(`/api/groups/${groupCloseMatch[1]}`)
+  }
+
+  const pageId = path.match(/^\/api\/pages\/([^/]+)(?:\/publish)?$/)?.[1]
+  if (pageId) {
+    paths.add(`/api/pages/${pageId}`)
+    const body = await readJsonObject(response)
+    const ownerGroupId = readString(body?.ownerGroupId) ?? await readEntityGroup('page', pageId)
+    if (ownerGroupId) {
+      paths.add(`/api/groups/${ownerGroupId}/pages`)
+    }
+  }
+
+  const eventId = path.match(/^\/api\/events\/([^/]+)$/)?.[1]
+  if (eventId) {
+    const body = await readJsonObject(response)
+    const groupId = readString(body?.groupId) ?? await readEntityGroup('event', eventId)
+    if (groupId) {
+      paths.add(`/api/groups/${groupId}/events`)
+    }
+  }
+
+  const enrollmentMatch = path.match(/^\/api\/group\/([^/]+)\/enroll$/)
+  if (enrollmentMatch) {
+    paths.add(`/api/groups/${enrollmentMatch[1]}/events`)
+  }
+
+  if (path === '/api/admin/sermons/sync') {
+    paths.add('/api/sermons')
+  }
+
+  paths.add(path)
+  return Array.from(paths)
+}
+
+async function rememberEntityGroups(request: Request, response: Response) {
+  const path = new URL(request.url).pathname
+  const groupListMatch = path.match(/^\/api\/groups\/([^/]+)\/(pages|events)$/)
+  const pageDetailMatch = path.match(/^\/api\/pages\/([^/]+)$/)
+
+  if (!groupListMatch && !pageDetailMatch) {
+    return
+  }
+
+  const body = await readJson(response)
+  if (Array.isArray(body)) {
+    await Promise.all(body.map(async (item) => {
+      const entityType = groupListMatch?.[2] === 'events' ? 'event' : 'page'
+      const id = readString(item?.id)
+      const groupId = readString(item?.groupId) ?? readString(item?.ownerGroupId) ?? groupListMatch?.[1]
+      if (id && groupId) {
+        await writeEntityGroup(entityType, id, groupId)
+      }
+    }))
+    return
+  }
+
+  if (pageDetailMatch && body && typeof body === 'object') {
+    const id = readString((body as Record<string, unknown>).id) ?? pageDetailMatch[1]
+    const groupId = readString((body as Record<string, unknown>).ownerGroupId)
+    if (id && groupId) {
+      await writeEntityGroup('page', id, groupId)
+    }
+  }
+}
+
+async function readJsonObject(response: Response) {
+  const value = await readJson(response)
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null
+}
+
+async function readJson(response: Response) {
+  const contentType = response.headers.get('content-type') ?? ''
+  if (!contentType.includes('application/json')) {
+    return null
+  }
+
+  try {
+    return await response.json()
+  } catch {
+    return null
+  }
+}
+
+function readString(value: unknown) {
+  return typeof value === 'string' && value.trim() ? value : null
+}
+
+async function writeEntityGroup(entityType: string, entityId: string, groupId: string) {
+  await getEdgeCache().put(
+    createEntityGroupMapKey(entityType, entityId),
+    Response.json({ groupId }),
+  )
+}
+
+async function readEntityGroup(entityType: string, entityId: string) {
+  const response = await getEdgeCache().match(createEntityGroupMapKey(entityType, entityId))
+  if (!response) {
+    return null
+  }
+
+  const body = await readJsonObject(response)
+  return readString(body?.groupId)
+}
+
+function createEntityGroupMapKey(entityType: string, entityId: string) {
+  return new Request(`https://alife.local/__cache-map/${entityType}/${entityId}`, { method: 'GET' })
 }
 
 function matchesIfNoneMatch(ifNoneMatch: string, etag: string) {

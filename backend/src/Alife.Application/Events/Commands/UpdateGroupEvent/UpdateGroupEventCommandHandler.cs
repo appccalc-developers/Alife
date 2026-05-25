@@ -1,6 +1,7 @@
 using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
 using Alife.Application.Events.Dtos;
+using Alife.Application.Events.Services;
 using Alife.Application.Groups.Services;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -9,7 +10,8 @@ namespace Alife.Application.Events.Commands.UpdateGroupEvent;
 
 public sealed class UpdateGroupEventCommandHandler(
     IAlifeDbContext dbContext,
-    IGroupAuthorizationService groupAuthorizationService)
+    IGroupAuthorizationService groupAuthorizationService,
+    IEventCacheInvalidationService eventCacheInvalidationService)
     : IRequestHandler<UpdateGroupEventCommand, AppResult<GroupEventSummaryDto>>
 {
     public async Task<AppResult<GroupEventSummaryDto>> Handle(UpdateGroupEventCommand request, CancellationToken cancellationToken)
@@ -39,6 +41,7 @@ public sealed class UpdateGroupEventCommandHandler(
         groupEvent.EventDataJson = request.EventDataJson;
         groupEvent.UpdatedUtc = DateTime.UtcNow;
         await dbContext.SaveChangesAsync(cancellationToken);
+        await eventCacheInvalidationService.RemoveGroupEventsAsync(groupEvent.GroupId, cancellationToken);
 
         return AppResult<GroupEventSummaryDto>.Success(new GroupEventSummaryDto(
             groupEvent.Id,

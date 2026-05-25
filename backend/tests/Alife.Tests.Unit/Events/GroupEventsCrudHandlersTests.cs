@@ -2,6 +2,7 @@ using Alife.Application.Events.Commands.CreateGroupEvent;
 using Alife.Application.Events.Commands.DeleteGroupEvent;
 using Alife.Application.Events.Commands.UpdateGroupEvent;
 using Alife.Application.Events.Queries.GetGroupEvents;
+using Alife.Application.Events.Services;
 using Alife.Application.Groups.Services;
 using Alife.Domain.Entities;
 using Alife.Infrastructure.Persistence;
@@ -31,7 +32,8 @@ public class GroupEventsCrudHandlersTests
             .IsLeaderOrCoLeaderAsync(groupId, currentMemberId, Arg.Any<CancellationToken>())
             .Returns(true);
 
-        var handler = new CreateGroupEventCommandHandler(dbContext, groupAuthorizationService);
+        var eventCacheInvalidationService = Substitute.For<IEventCacheInvalidationService>();
+        var handler = new CreateGroupEventCommandHandler(dbContext, groupAuthorizationService, eventCacheInvalidationService);
 
         var result = await handler.Handle(
             new CreateGroupEventCommand(
@@ -105,7 +107,25 @@ public class GroupEventsCrudHandlersTests
             });
         await dbContext.SaveChangesAsync();
 
-        var handler = new GetGroupEventsQueryHandler(dbContext, groupAuthorizationService);
+        var eventReadService = Substitute.For<IEventReadService>();
+        eventReadService
+            .GetGroupEventsAsync(groupId, Arg.Any<CancellationToken>())
+            .Returns(dbContext.GroupEvents
+                .Where(e => e.GroupId == groupId && !e.IsDeleted)
+                .OrderBy(e => e.StartDate)
+                .Select(e => new Alife.Application.Events.Dtos.GroupEventSummaryDto(
+                    e.Id,
+                    e.GroupId,
+                    e.CreatedByMemberId,
+                    e.TitleEn,
+                    e.TitleZh,
+                    e.StartDate,
+                    e.EndDate,
+                    e.EventDataJson,
+                    e.CreatedUtc,
+                    e.UpdatedUtc))
+                .ToList());
+        var handler = new GetGroupEventsQueryHandler(eventReadService, groupAuthorizationService);
         var result = await handler.Handle(new GetGroupEventsQuery(groupId, currentMemberId), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -144,7 +164,8 @@ public class GroupEventsCrudHandlersTests
             .IsLeaderOrCoLeaderAsync(groupId, currentMemberId, Arg.Any<CancellationToken>())
             .Returns(true);
 
-        var handler = new UpdateGroupEventCommandHandler(dbContext, groupAuthorizationService);
+        var eventCacheInvalidationService = Substitute.For<IEventCacheInvalidationService>();
+        var handler = new UpdateGroupEventCommandHandler(dbContext, groupAuthorizationService, eventCacheInvalidationService);
         var result = await handler.Handle(
             new UpdateGroupEventCommand(
                 eventId,
@@ -192,7 +213,8 @@ public class GroupEventsCrudHandlersTests
             .IsLeaderOrCoLeaderAsync(groupId, currentMemberId, Arg.Any<CancellationToken>())
             .Returns(true);
 
-        var handler = new DeleteGroupEventCommandHandler(dbContext, groupAuthorizationService);
+        var eventCacheInvalidationService = Substitute.For<IEventCacheInvalidationService>();
+        var handler = new DeleteGroupEventCommandHandler(dbContext, groupAuthorizationService, eventCacheInvalidationService);
         var result = await handler.Handle(new DeleteGroupEventCommand(eventId, currentMemberId), CancellationToken.None);
 
         Assert.True(result.IsSuccess);

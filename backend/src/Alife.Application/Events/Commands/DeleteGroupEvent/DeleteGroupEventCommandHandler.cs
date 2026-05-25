@@ -1,5 +1,6 @@
 using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
+using Alife.Application.Events.Services;
 using Alife.Application.Groups.Services;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -8,7 +9,8 @@ namespace Alife.Application.Events.Commands.DeleteGroupEvent;
 
 public sealed class DeleteGroupEventCommandHandler(
     IAlifeDbContext dbContext,
-    IGroupAuthorizationService groupAuthorizationService)
+    IGroupAuthorizationService groupAuthorizationService,
+    IEventCacheInvalidationService eventCacheInvalidationService)
     : IRequestHandler<DeleteGroupEventCommand, AppResult<bool>>
 {
     public async Task<AppResult<bool>> Handle(DeleteGroupEventCommand request, CancellationToken cancellationToken)
@@ -34,6 +36,7 @@ public sealed class DeleteGroupEventCommandHandler(
         groupEvent.IsDeleted = true;
         groupEvent.UpdatedUtc = DateTime.UtcNow;
         await dbContext.SaveChangesAsync(cancellationToken);
+        await eventCacheInvalidationService.RemoveGroupEventsAsync(groupEvent.GroupId, cancellationToken);
 
         return AppResult<bool>.Success(true);
     }
