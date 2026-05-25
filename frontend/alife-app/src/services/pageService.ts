@@ -1,4 +1,8 @@
 import { http } from './http'
+import { groupPagesQueryKey } from '../db/collections/groupCollection'
+import { globalPagesQueryKey, pageBySlugQueryKey, pageSectionsQueryKey } from '../db/collections/pageCollection'
+import { removeCachedRecord } from '../db/httpCache'
+import { queryClient } from '../db/queryClient'
 import type { PageDetailDto, PageEditModel, PageSummaryDto, PageVisibility, SectionEditModel } from '../types'
 
 export type CreateGroupPagePayload = {
@@ -182,6 +186,29 @@ const toPageDetail = (page: PageSummaryDto): PageDetailDto => ({
   ownerGroupId: page.ownerGroupId ?? null,
 })
 
+const cacheLanguages = (language?: string) =>
+  Array.from(new Set(['en', 'zh', language].filter((value): value is string => Boolean(value))))
+
+const invalidateQueryCache = async (queryKey: readonly unknown[]) => {
+  await removeCachedRecord(queryKey)
+  await queryClient.invalidateQueries({ queryKey })
+}
+
+const invalidatePageSummaryCaches = async (page: PageSummaryDto) => {
+  const languages = cacheLanguages(page.language)
+
+  await Promise.all([
+    ...languages.map((language) =>
+      invalidateQueryCache(
+        page.ownerGroupId
+          ? groupPagesQueryKey(page.ownerGroupId, language)
+          : globalPagesQueryKey(language),
+      ),
+    ),
+    ...languages.map((language) => invalidateQueryCache(pageBySlugQueryKey(page.slug, language))),
+  ])
+}
+
 export const pageService = {
   async getPageBySlug(slug: string, lang = 'en') {
     const { data } = await http.get<PageSummaryDto>(`/api/pages/${slug}`, { params: { lang } })
@@ -195,16 +222,19 @@ export const pageService = {
 
   async createGroupPage(groupId: string, payload: CreateGroupPagePayload) {
     const { data } = await http.post<PageSummaryDto>(`/api/groups/${groupId}/pages`, payload)
+    await invalidatePageSummaryCaches(data)
     return data
   },
 
   async updatePage(pageId: string, payload: UpdatePagePayload) {
     const { data } = await http.put<PageSummaryDto>(`/api/pages/${pageId}`, payload)
+    await invalidatePageSummaryCaches(data)
     return data
   },
 
   async publishPage(pageId: string, payload: PublishPagePayload) {
     const { data } = await http.post<PageSummaryDto>(`/api/pages/${pageId}/publish`, payload)
+    await invalidatePageSummaryCaches(data)
     return data
   },
 
@@ -215,6 +245,7 @@ export const pageService = {
     for (const endpoint of endpointCandidates) {
       try {
         const { data } = await http.post<PageSummaryDto>(endpoint, payload)
+        await invalidatePageSummaryCaches(data)
         return data
       } catch (error) {
         lastError = error
@@ -257,6 +288,8 @@ export const pageService = {
     for (const [sectionId] of existingById) {
       await http.delete(`/api/sections/${sectionId}`)
     }
+
+    await invalidateQueryCache(pageSectionsQueryKey(pageId))
   },
 
   toSectionPublishPayload,

@@ -1,4 +1,4 @@
-import { createStore, get, set } from 'idb-keyval'
+import { createStore, del, get, set } from 'idb-keyval'
 
 type CacheRecord<TData> = {
   etag: string
@@ -42,11 +42,6 @@ type ConditionalGetOptions<TData> = {
   parser?: (input: unknown) => TData
 }
 
-const LOCAL_CACHE_MAX_AGE_SECONDS = Number(import.meta.env.VITE_LOCAL_CACHE_MAX_AGE_SECONDS ?? 120)
-const LOCAL_CACHE_MAX_AGE_MS = Number.isFinite(LOCAL_CACHE_MAX_AGE_SECONDS) && LOCAL_CACHE_MAX_AGE_SECONDS > 0
-  ? LOCAL_CACHE_MAX_AGE_SECONDS * 1000
-  : 120000
-
 const productionBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').trim()
 const apiBaseUrl = import.meta.env.DEV ? '' : productionBaseUrl
 
@@ -60,10 +55,6 @@ const toAbsoluteUrl = (path: string) => {
 
 export const conditionalGet = async <TData>({ queryKey, path, parser }: ConditionalGetOptions<TData>): Promise<TData> => {
   const previous = await readRecord<TData>(queryKey)
-
-  if (previous?.data !== undefined && typeof previous.storedAt === 'number' && Date.now() - previous.storedAt < LOCAL_CACHE_MAX_AGE_MS) {
-    return previous.data
-  }
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -113,4 +104,12 @@ export const conditionalGet = async <TData>({ queryKey, path, parser }: Conditio
 }
 
 export const getCachedRecord = <TData>(queryKey: readonly unknown[]) => readRecord<TData>(queryKey)
+
+export const removeCachedRecord = (queryKey: readonly unknown[]) => {
+  if (typeof window === 'undefined') {
+    return Promise.resolve()
+  }
+
+  return del(getStorageKey(queryKey), idbStore)
+}
 

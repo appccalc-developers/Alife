@@ -59,8 +59,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = useCallback(async () => {
     await authService.logout()
     setMe(null)
-    await bootstrap()
-  }, [bootstrap])
+    try {
+      await fetchMe()
+    } catch {
+      setMe(null)
+    } finally {
+      setInitialized(true)
+    }
+  }, [fetchMe])
 
   const memberships = me?.memberships ?? []
 
