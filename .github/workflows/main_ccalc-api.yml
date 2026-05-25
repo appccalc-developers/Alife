@@ -72,7 +72,27 @@ jobs:
         run: |
           set -euo pipefail
 
-          runner_ip="$(curl -fsSL https://api.ipify.org)"
+          get_runner_ip() {
+            local url
+            for url in \
+              "https://api.ipify.org" \
+              "https://ifconfig.me/ip" \
+              "https://ipv4.icanhazip.com"
+            do
+              ip="$(curl --retry 5 --retry-delay 2 --retry-all-errors -fsSL "$url" | tr -d '[:space:]' || true)"
+              if [[ "$ip" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+                echo "$ip"
+                return 0
+              fi
+            done
+            return 1
+          }
+
+          runner_ip="$(get_runner_ip)"
+          if [ -z "${runner_ip:-}" ]; then
+            echo "Could not determine GitHub runner public IP."
+            exit 1
+          fi
 
           server_entry="$(echo "$DB_CONNECTION_STRING" | tr ';' '\n' | grep -E -i '^(server|data source)=' | head -n1 | cut -d'=' -f2- || true)"
           if [ -z "$server_entry" ]; then
@@ -182,5 +202,4 @@ jobs:
             --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
             --server "${{ steps.sqlfw.outputs.server_name }}" \
             --name "${{ steps.sqlfw.outputs.rule_name }}" \
-            -y \
             --only-show-errors || true
