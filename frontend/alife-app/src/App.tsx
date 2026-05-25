@@ -29,6 +29,7 @@ type ShellNavItem = {
 type ShellFabItem = {
   label: string
   icon: ReactElement
+  tone: 'manage' | 'edit' | 'save' | 'exit'
   onClick: () => void
 }
 
@@ -192,13 +193,20 @@ const BottomNav = ({ items }: { items: ShellNavItem[] }) => (
   </nav>
 )
 
+const fabToneClass: Record<ShellFabItem['tone'], string> = {
+  manage: 'bg-indigo-600 text-white shadow-indigo-950/25 hover:bg-indigo-700 focus:ring-indigo-200',
+  edit: 'bg-amber-500 text-slate-950 shadow-amber-900/20 hover:bg-amber-400 focus:ring-amber-200',
+  save: 'bg-emerald-600 text-white shadow-emerald-950/25 hover:bg-emerald-700 focus:ring-emerald-200',
+  exit: 'bg-slate-700 text-white shadow-slate-950/20 hover:bg-slate-800 focus:ring-slate-200',
+}
+
 const FloatingActionButtons = ({ items }: { items: ShellFabItem[] }) => (
-  <div className="fixed bottom-24 right-5 z-40 flex flex-col-reverse items-end gap-3 desktop:bottom-6">
+  <div className="fixed bottom-24 right-4 z-40 flex flex-col-reverse items-end gap-2.5 desktop:bottom-6 desktop:right-6">
     {items.map((item) => (
       <button
         key={item.label}
         type="button"
-        className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-emerald-700 text-white shadow-xl shadow-emerald-900/30 transition hover:bg-emerald-800 focus:outline-none focus:ring-4 focus:ring-emerald-200"
+        className={`inline-flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition focus:outline-none focus:ring-4 ${fabToneClass[item.tone]}`}
         aria-label={item.label}
         title={item.label}
         onClick={item.onClick}
@@ -286,30 +294,34 @@ const App = () => {
   const shellNavItems = isManagementScreen ? managementNavItems : isGroupScreen || isPageEditorScreen ? currentGroupPageNavItems : []
   const fabItems: ShellFabItem[] = isGroupScreen && canManageCurrentGroup
     ? [
+        {
+          label: 'Manage group',
+          tone: 'manage',
+          icon: <SettingsIcon />,
+          onClick: () => navigate(`/groups/${contextualGroupId}/manage?section=group`),
+        },
         ...(selectedPageId
           ? [
               {
                 label: 'Edit current page',
+                tone: 'edit' as const,
                 icon: <EditIcon />,
                 onClick: () => navigate(`/pages/${selectedPageId}/edit?groupId=${contextualGroupId}`),
               },
             ]
           : []),
-        {
-          label: 'Manage group',
-          icon: <SettingsIcon />,
-          onClick: () => navigate(`/groups/${contextualGroupId}/manage?section=group`),
-        },
       ]
     : isPageEditorScreen
       ? [
           {
             label: 'Save page',
+            tone: 'save',
             icon: <SaveIcon />,
             onClick: () => window.dispatchEvent(new Event('alife-page-editor-save')),
           },
           {
             label: 'Exit editor',
+            tone: 'exit',
             icon: <BackIcon />,
             onClick: () => window.dispatchEvent(new Event('alife-page-editor-exit')),
           },
@@ -318,6 +330,7 @@ const App = () => {
         ? [
             {
               label: 'Back to group',
+              tone: 'exit',
               icon: <BackIcon />,
               onClick: () => navigate(`/groups/${contextualGroupId}`),
             },

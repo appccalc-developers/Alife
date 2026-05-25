@@ -9,6 +9,7 @@ import PageContentRenderer, {
 import PageEditorShell from '../components/page-editor/PageEditorShell'
 import GroupPagePreview from '../components/page-editor/GroupPagePreview'
 import { groupService } from '../api/groupService'
+import { ensureFreshPageDetail, setPageDetailCache } from '../db/collections/pageCollection'
 import { cloudflareImageService } from '../services/cloudflareImageService'
 import { pageService } from '../services/pageService'
 import { useAuthStore } from '../stores/auth'
@@ -101,7 +102,7 @@ const PageEditorView = () => {
       return
     }
 
-    const pageData = await groupService.getPageById(targetPageId)
+    const pageData = await ensureFreshPageDetail(targetPageId)
     const targetGroupId = pageData.ownerGroupId ?? resolvedGroupId
 
     if (!pageData || !targetGroupId) {
@@ -169,6 +170,7 @@ const PageEditorView = () => {
       const titleDisplayStyle = pageModel.titleDisplayStyle.trim() || 'Default'
 
       let sectionsToPersist = pageModel.sections
+      let savedPage: PageDetailDto | null = null
 
       const imagePrefix = `g-${resolvedGroupId}-${editPageId || 'new'}`
       if (cloudflareImageService.sectionsHaveLocalDataImages(pageModel.sections)) {
@@ -187,21 +189,26 @@ const PageEditorView = () => {
         })
 
         targetPageId = created.id
+        savedPage = created
+        sectionsToPersist = created.sections
         setPageModel((current) => ({
           ...current,
           id: created.id,
           groupId: resolvedGroupId,
           createdByMemberId: created.createdByMemberId,
           visibility: created.visibility,
+          sections: created.sections,
         }))
       } else {
-        await groupService.updatePage(targetPageId, {
+        const updated = await groupService.updatePage(targetPageId, {
           title,
           description,
           tagsJson,
           titleDisplayStyle,
           sections: sectionsToPersist,
         })
+        savedPage = updated
+        sectionsToPersist = updated.sections
       }
 
       if (publish && canEditAllPages && targetPageId) {
@@ -213,19 +220,53 @@ const PageEditorView = () => {
         }
         setMessage('Publishing…')
         try {
-          await groupService.publishPageOptimized(targetPageId, publishPayload)
+          savedPage = await groupService.publishPageOptimized(targetPageId, publishPayload)
         } catch {
           await groupService.publishPage(targetPageId, nextVisibility)
+          if (savedPage) {
+            savedPage = { ...savedPage, visibility: nextVisibility }
+            setPageDetailCache(savedPage)
+          }
         }
-        setPageModel((current) => ({ ...current, visibility: nextVisibility }))
-        setSavedModelSnapshot(JSON.stringify({ ...pageModel, sections: normalizePageSections(sectionsToPersist), visibility: nextVisibility }))
+        const savedModel = {
+          ...pageModel,
+          id: targetPageId,
+          groupId: resolvedGroupId,
+          createdByMemberId: savedPage?.createdByMemberId ?? pageModel.createdByMemberId,
+          sections: normalizePageSections(savedPage?.sections ?? sectionsToPersist),
+          visibility: nextVisibility,
+        }
+        setPageModel(savedModel)
+        setSavedModelSnapshot(JSON.stringify(savedModel))
         setMessage('Page saved and published.')
       } else if (canEditVisibility && targetPageId && pageModel.visibility === 'InvisibleDraft') {
         await groupService.publishPage(targetPageId, 'InvisibleDraft')
-        setSavedModelSnapshot(JSON.stringify({ ...pageModel, sections: normalizePageSections(sectionsToPersist) }))
+        const savedModel = {
+          ...pageModel,
+          id: targetPageId,
+          groupId: resolvedGroupId,
+          createdByMemberId: savedPage?.createdByMemberId ?? pageModel.createdByMemberId,
+          sections: normalizePageSections(savedPage?.sections ?? sectionsToPersist),
+        }
+        if (savedPage) {
+          setPageDetailCache(savedPage)
+        }
+        setPageModel(savedModel)
+        setSavedModelSnapshot(JSON.stringify(savedModel))
         setMessage('Draft saved.')
       } else {
-        setSavedModelSnapshot(JSON.stringify({ ...pageModel, sections: normalizePageSections(sectionsToPersist) }))
+        const savedModel = {
+          ...pageModel,
+          id: targetPageId,
+          groupId: resolvedGroupId,
+          createdByMemberId: savedPage?.createdByMemberId ?? pageModel.createdByMemberId,
+          sections: normalizePageSections(savedPage?.sections ?? sectionsToPersist),
+        }
+        if (savedPage) {
+          setPageDetailCache(savedPage)
+        }
+        setPageModel(savedModel)
+        setSavedModelSnapshot(JSON.stringify(savedModel))
         setMessage('Page saved.')
       }
 
