@@ -37,7 +37,7 @@ public sealed class GetGroupPagesQueryHandler(
             return AppResult<IReadOnlyList<PageDto>>.Forbidden("You do not have access to this group's pages.");
         }
 
-        var pages = await pageReadService.GetGroupPagesAsync(request.GroupId, request.Language, cancellationToken);
+        var pages = await pageReadService.GetGroupPagesAsync(request.GroupId, cancellationToken);
 
         if (isLeaderOrCoLeader)
         {

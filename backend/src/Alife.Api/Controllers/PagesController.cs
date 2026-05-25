@@ -7,7 +7,8 @@ using Alife.Application.Pages.Commands.PublishPage;
 using Alife.Application.Pages.Commands.UpdatePage;
 using Alife.Application.Pages.Queries.GetGlobalPages;
 using Alife.Application.Pages.Queries.GetGroupPages;
-using Alife.Application.Pages.Queries.GetPageBySlug;
+using Alife.Application.Pages.Queries.GetPageById;
+using Alife.Application.Pages.Dtos;
 using Alife.Domain.Enums;
 using Alife.Infrastructure.Persistence;
 using MediatR;
@@ -27,24 +28,24 @@ public class PagesController(
 {
     [HttpGet("pages/global")]
     [AllowAnonymous]
-    public async Task<IActionResult> GlobalPages([FromQuery] string lang = "en", CancellationToken cancellationToken = default)
+    public async Task<IActionResult> GlobalPages(CancellationToken cancellationToken = default)
     {
         var updatedUtc = await dbContext.Pages
             .IgnoreQueryFilters()
-            .Where(x => x.Scope == PageScope.Global && x.Language == lang)
+            .Where(x => x.Scope == PageScope.Global)
             .MaxAsync(x => (DateTime?)x.UpdatedUtc, cancellationToken);
         if (this.IsNotModified(updatedUtc))
         {
             return StatusCode(StatusCodes.Status304NotModified);
         }
 
-        var result = await mediator.Send(new GetGlobalPagesQuery(lang), cancellationToken);
+        var result = await mediator.Send(new GetGlobalPagesQuery(), cancellationToken);
         this.ApplySyncCacheHeaders(updatedUtc);
         return this.ToActionResult(result);
     }
 
-    [HttpGet("pages/{slug}")]
-    public async Task<IActionResult> GetBySlug(string slug, [FromQuery] string lang = "en", CancellationToken cancellationToken = default)
+    [HttpGet("pages/{id:guid}")]
+    public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken = default)
     {
         var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
         if (currentMemberId is null)
@@ -54,20 +55,20 @@ public class PagesController(
 
         var updatedUtc = await dbContext.Pages
             .IgnoreQueryFilters()
-            .Where(x => x.Slug == slug && x.Language == lang)
+            .Where(x => x.Id == id)
             .MaxAsync(x => (DateTime?)x.UpdatedUtc, cancellationToken);
         if (this.IsNotModified(updatedUtc))
         {
             return StatusCode(StatusCodes.Status304NotModified);
         }
 
-        var result = await mediator.Send(new GetPageBySlugQuery(slug, lang, currentMemberId.Value), cancellationToken);
+        var result = await mediator.Send(new GetPageByIdQuery(id, currentMemberId.Value), cancellationToken);
         this.ApplySyncCacheHeaders(updatedUtc);
         return this.ToActionResult(result);
     }
 
     [HttpGet("groups/{groupId:guid}/pages")]
-    public async Task<IActionResult> GroupPages(Guid groupId, [FromQuery] string lang = "en", CancellationToken cancellationToken = default)
+    public async Task<IActionResult> GroupPages(Guid groupId, CancellationToken cancellationToken = default)
     {
         var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
         if (currentMemberId is null)
@@ -77,14 +78,14 @@ public class PagesController(
 
         var updatedUtc = await dbContext.Pages
             .IgnoreQueryFilters()
-            .Where(x => x.Scope == PageScope.Group && x.OwnerGroupId == groupId && x.Language == lang)
+            .Where(x => x.Scope == PageScope.Group && x.OwnerGroupId == groupId)
             .MaxAsync(x => (DateTime?)x.UpdatedUtc, cancellationToken);
         if (this.IsNotModified(updatedUtc))
         {
             return StatusCode(StatusCodes.Status304NotModified);
         }
 
-        var result = await mediator.Send(new GetGroupPagesQuery(groupId, lang, currentMemberId.Value), cancellationToken);
+        var result = await mediator.Send(new GetGroupPagesQuery(groupId, currentMemberId.Value), cancellationToken);
         this.ApplySyncCacheHeaders(updatedUtc);
         return this.ToActionResult(result);
     }
@@ -103,11 +104,10 @@ public class PagesController(
                 groupId,
                 currentMemberId.Value,
                 request.Title,
-                request.Slug,
-                request.Language,
                 request.Description,
                 request.TagsJson,
-                request.TitleDisplayStyle),
+                request.TitleDisplayStyle,
+                request.Sections),
             cancellationToken);
 
         return this.ToActionResult(result);
@@ -123,7 +123,7 @@ public class PagesController(
         }
 
         var result = await mediator.Send(
-            new UpdatePageCommand(id, currentMemberId.Value, request.Title, request.Description, request.TagsJson, request.TitleDisplayStyle),
+            new UpdatePageCommand(id, currentMemberId.Value, request.Title, request.Description, request.TagsJson, request.TitleDisplayStyle, request.Sections),
             cancellationToken);
 
         return this.ToActionResult(result);
@@ -155,7 +155,18 @@ public class PagesController(
         return this.ToActionResult(result);
     }
 
-    public record CreatePageRequest(string Title, string Slug, string Language, string? Description, string? TagsJson, string? TitleDisplayStyle);
-    public record UpdatePageRequest(string Title, string? Description, string? TagsJson, string? TitleDisplayStyle);
+    public record CreatePageRequest(
+        IReadOnlyDictionary<string, string> Title,
+        IReadOnlyDictionary<string, string>? Description,
+        string? TagsJson,
+        string? TitleDisplayStyle,
+        IReadOnlyList<PageSectionDto> Sections);
+
+    public record UpdatePageRequest(
+        IReadOnlyDictionary<string, string> Title,
+        IReadOnlyDictionary<string, string>? Description,
+        string? TagsJson,
+        string? TitleDisplayStyle,
+        IReadOnlyList<PageSectionDto> Sections);
     public record PublishRequest(PageVisibility Visibility);
 }

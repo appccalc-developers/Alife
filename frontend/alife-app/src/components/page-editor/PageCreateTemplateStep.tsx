@@ -4,6 +4,7 @@ import AppSectionCard from '../layout/AppSectionCard'
 import GroupPagePreview from './GroupPagePreview'
 import { deriveTemplateStateFromSections, PAGE_TEMPLATES } from '../../lib/pageTemplates'
 import type { PageEditModel, SectionEditModel } from '../../types/page-editor'
+import { localizeText } from '../../utils/localizedText'
 
 const heroDefaults = () => ({ ...(PAGE_TEMPLATES.find((t) => t.id === 'heroFeatured')?.defaultDraft ?? {}) })
 const HERO_TEMPLATE = PAGE_TEMPLATES[0]
@@ -148,9 +149,8 @@ const PageCreateTemplateStep = ({ model, canEdit, initialSections, onApplyTempla
           <div className="max-h-[min(70vh,520px)] overflow-y-auto rounded-lg border border-slate-200 bg-slate-100/80 p-2">
             <GroupPagePreview
               compact
-              title={model.title}
-              description={model.description}
-              slug={model.slug}
+              title={localizeText(model.title)}
+              description={localizeText(model.description)}
               visibility={model.visibility}
               sections={model.sections}
               previewGroupId={model.groupId}

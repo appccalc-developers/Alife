@@ -9,6 +9,7 @@ import { cloudflareImageService } from '../../services/cloudflareImageService'
 import { pageService } from '../../services/pageService'
 import type { GroupPageDto, GroupSummaryDto } from '../../types/group'
 import type { PageEditModel, SectionEditModel } from '../../types/page-editor'
+import { toLocalizedText } from '../../utils/localizedText'
 
 type Props = {
   pages: GroupPageDto[]
@@ -38,12 +39,10 @@ const toEditModel = (page: GroupPageDto): PageEditModel => ({
   id: page.id,
   groupId: page.ownerGroupId ?? '',
   createdByMemberId: page.createdByMemberId,
-  slug: page.slug,
-  title: page.title,
-  description: page.description ?? '',
+  title: toLocalizedText(page.title),
+  description: toLocalizedText(page.description),
   tags: parseTags(page.tagsJson),
   titleDisplayStyle: page.titleDisplayStyle ?? 'Default',
-  language: page.language,
   visibility: page.visibility,
   sections: [],
 })
@@ -90,9 +89,9 @@ const GroupPageTabs = ({
     setError('')
 
     pageService
-      .getPageSections(activePage.id)
-      .then((sections) => {
-        const normalizedSections = normalizePageSections(sections)
+      .getPageById(activePage.id)
+      .then((detail) => {
+        const normalizedSections = normalizePageSections(detail.sections)
         setSectionsByPageId((current) => ({
           ...current,
           [activePage.id]: normalizedSections,
@@ -100,7 +99,7 @@ const GroupPageTabs = ({
         setModelsByPageId((current) => ({
           ...current,
           [activePage.id]: {
-            ...(current[activePage.id] ?? toEditModel(activePage)),
+            ...(current[activePage.id] ?? toEditModel({ ...activePage, ...detail })),
             sections: normalizedSections,
           },
         }))
@@ -165,13 +164,12 @@ const GroupPageTabs = ({
       }
 
       await pageService.updatePage(pageId, {
-        title: activeModel.title.trim(),
-        description: activeModel.description.trim(),
+        title: activeModel.title,
+        description: activeModel.description,
         tagsJson: JSON.stringify(activeModel.tags),
         titleDisplayStyle: activeModel.titleDisplayStyle.trim() || 'Default',
+        sections: sectionsToPersist,
       })
-
-      await pageService.savePageSections(pageId, sectionsToPersist)
 
       if (activeModel.visibility !== activePage.visibility) {
         await pageService.publishPage(pageId, { visibility: activeModel.visibility })

@@ -70,9 +70,7 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 		modelBuilder.Entity<Page>(cfg =>
 		{
 			cfg.HasKey(x => x.Id);
-			cfg.Property(x => x.Title).HasMaxLength(200).IsRequired();
-			cfg.Property(x => x.Slug).HasMaxLength(200).IsRequired();
-			cfg.Property(x => x.Language).HasMaxLength(5).IsRequired();
+			cfg.Property(x => x.TitleJson).IsRequired();
 			cfg.Property(x => x.TitleDisplayStyle).HasMaxLength(50).IsRequired();
 
 			cfg.HasOne(x => x.OwnerGroup)
@@ -85,8 +83,7 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 				.HasForeignKey(x => x.CreatedByMemberId)
 				.OnDelete(DeleteBehavior.Restrict);
 
-			cfg.HasIndex(x => new { x.Scope, x.OwnerGroupId, x.Slug, x.Language }).IsUnique();
-			cfg.HasIndex(x => new { x.Scope, x.OwnerGroupId, x.Language, x.UpdatedUtc });
+			cfg.HasIndex(x => new { x.Scope, x.OwnerGroupId, x.UpdatedUtc });
 			cfg.HasQueryFilter(x => !x.IsDeleted);
 		});
 

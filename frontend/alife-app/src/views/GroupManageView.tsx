@@ -11,6 +11,7 @@ import GroupOverviewPanel from '../components/group/GroupOverviewPanel'
 import MembershipStatusBadge from '../components/group/MembershipStatusBadge'
 import { useGroupScreen, type GroupMemberToolRow } from '../hooks/useGroupScreen'
 import { useAuthStore } from '../stores/auth'
+import { localizeText } from '../utils/localizedText'
 import { useCurrentGroupStore } from '../stores/currentGroup'
 import type { GroupPageDto } from '../types/group'
 import type { GroupEventRecord } from '../types/event'
@@ -105,13 +106,14 @@ const MembersPanel = ({ memberships, onInviteMember, onApproveMember, onRejectMe
 
 type PagesPanelProps = {
   groupId: string
+  language: string
   pages: GroupPageDto[]
   onAddPage: () => void
   onDeletePage: (pageId: string) => void
   onTogglePageVisibility: (page: GroupPageDto) => void
 }
 
-const PagesPanel = ({ groupId, pages, onAddPage, onDeletePage, onTogglePageVisibility }: PagesPanelProps) => (
+const PagesPanel = ({ groupId, language, pages, onAddPage, onDeletePage, onTogglePageVisibility }: PagesPanelProps) => (
   <AppSectionCard title="Pages" subtitle="Create, edit, publish, and retire group pages.">
     <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
       {sectionStats([
@@ -130,7 +132,7 @@ const PagesPanel = ({ groupId, pages, onAddPage, onDeletePage, onTogglePageVisib
         {pages.map((page) => (
           <div key={page.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 p-3">
             <div>
-              <p className="font-medium text-slate-950">{page.title}</p>
+              <p className="font-medium text-slate-950">{localizeText(page.title, language)}</p>
               <p className="mt-1 text-xs text-slate-500">{page.visibility}</p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -358,6 +360,7 @@ const GroupManageView = () => {
           {activeSection === 'pages' ? (
             <PagesPanel
               groupId={groupId}
+              language={language}
               pages={pages}
               onAddPage={() => navigate(`/groups/${groupId}/pages/new`)}
               onDeletePage={(pageId) => {

@@ -4,12 +4,11 @@ import { GroupListSection } from '../sections/GroupListSection'
 import type { SectionEditModel } from '../../types/page-editor'
 
 export type GroupPagePreviewSubgroup = { id: string; name: string; accessType: string }
-export type GroupPagePreviewPageItem = { id: string; title: string; slug: string; visibility: string }
+export type GroupPagePreviewPageItem = { id: string; title: string; visibility: string }
 
 type Props = {
   title: string
   description: string
-  slug?: string
   visibility?: string
   sections: SectionEditModel[]
   subgroupItems?: GroupPagePreviewSubgroup[]
@@ -481,7 +480,7 @@ const GroupPagePreview = ({
                 <ul className="mt-2 space-y-1.5">
                   {groupPageItems.slice(0, parseLimit(section.contentJson, 'limit', 8)).map((item) => (
                     <li key={item.id} className="rounded border border-slate-200 bg-slate-50 px-2 py-1.5">
-                      <Link className={`font-medium text-blue-700 hover:underline ${compact ? 'text-xs' : 'text-sm'}`} to={`/pages/${item.slug}`}>
+                      <Link className={`font-medium text-blue-700 hover:underline ${compact ? 'text-xs' : 'text-sm'}`} to={`/pages/${item.id}`}>
                         {item.title}
                       </Link>
                       <p className="text-[10px] text-slate-500">Visibility: {item.visibility}</p>

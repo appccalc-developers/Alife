@@ -4,5 +4,5 @@ using MediatR;
 
 namespace Alife.Application.Pages.Queries.GetGroupPages;
 
-public sealed record GetGroupPagesQuery(Guid GroupId, string Language, Guid CurrentMemberId)
+public sealed record GetGroupPagesQuery(Guid GroupId, Guid CurrentMemberId)
     : IRequest<AppResult<IReadOnlyList<PageDto>>>;

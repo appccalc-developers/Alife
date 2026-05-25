@@ -14,6 +14,13 @@ export const readText = (source: JsonMap | undefined, ...keys: string[]) => {
     if (typeof value === 'string') {
       return value
     }
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      const map = value as Record<string, unknown>
+      const text = map.en || map.cn || Object.values(map)[0]
+      if (typeof text === 'string') {
+        return text
+      }
+    }
   }
 
   return ''

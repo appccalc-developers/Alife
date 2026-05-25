@@ -5,29 +5,29 @@ using Alife.Application.Pages.Services;
 using Alife.Domain.Enums;
 using MediatR;
 
-namespace Alife.Application.Pages.Queries.GetPageBySlug;
+namespace Alife.Application.Pages.Queries.GetPageById;
 
-public sealed class GetPageBySlugQueryHandler(
+public sealed class GetPageByIdQueryHandler(
     IPageReadService pageReadService,
     IGroupAuthorizationService groupAuthorizationService)
-    : IRequestHandler<GetPageBySlugQuery, AppResult<PageDto>>
+    : IRequestHandler<GetPageByIdQuery, AppResult<PageDetailDto>>
 {
-    public async Task<AppResult<PageDto>> Handle(GetPageBySlugQuery request, CancellationToken cancellationToken)
+    public async Task<AppResult<PageDetailDto>> Handle(GetPageByIdQuery request, CancellationToken cancellationToken)
     {
-        var page = await pageReadService.GetBySlugAsync(request.Slug, request.Language, cancellationToken);
+        var page = await pageReadService.GetByIdAsync(request.PageId, cancellationToken);
         if (page is null)
         {
-            return AppResult<PageDto>.NotFound("Page was not found.");
+            return AppResult<PageDetailDto>.NotFound("Page was not found.");
         }
 
         if (page.Scope == PageScope.Global)
         {
-            return AppResult<PageDto>.Success(page);
+            return AppResult<PageDetailDto>.Success(page);
         }
 
         if (page.OwnerGroupId is null)
         {
-            return AppResult<PageDto>.Validation("Group page owner missing.");
+            return AppResult<PageDetailDto>.Validation("Group page owner missing.");
         }
 
         var isApproved = await groupAuthorizationService.IsApprovedMemberAsync(
@@ -43,7 +43,7 @@ public sealed class GetPageBySlugQueryHandler(
 
         var canView = (isApproved && page.Visibility != PageVisibility.InvisibleDraft) || isPrivileged;
         return canView
-            ? AppResult<PageDto>.Success(page)
-            : AppResult<PageDto>.Forbidden("You do not have access to this page.");
+            ? AppResult<PageDetailDto>.Success(page)
+            : AppResult<PageDetailDto>.Forbidden("You do not have access to this page.");
     }
 }

@@ -1,24 +1,25 @@
 import { http } from './http'
 import { groupPagesQueryKey } from '../db/collections/groupCollection'
-import { globalPagesQueryKey, pageBySlugQueryKey, pageSectionsQueryKey } from '../db/collections/pageCollection'
+import { globalPagesQueryKey, pageDetailQueryKey } from '../db/collections/pageCollection'
 import { removeCachedRecord } from '../db/httpCache'
 import { queryClient } from '../db/queryClient'
-import type { PageDetailDto, PageEditModel, PageSummaryDto, PageVisibility, SectionEditModel } from '../types'
+import type { LocalizedText, PageDetailDto, PageEditModel, PageSummaryDto, PageVisibility, SectionEditModel } from '../types'
+import { toLocalizedText } from '../utils/localizedText'
 
 export type CreateGroupPagePayload = {
-  title: string
-  slug: string
-  language: string
-  description?: string
+  title: LocalizedText
+  description?: LocalizedText
   tagsJson?: string
   titleDisplayStyle?: string
+  sections: SectionEditModel[]
 }
 
 export type UpdatePagePayload = {
-  title: string
-  description?: string
+  title: LocalizedText
+  description?: LocalizedText
   tagsJson?: string
   titleDisplayStyle?: string
+  sections: SectionEditModel[]
 }
 
 export type PublishPagePayload = {
@@ -28,12 +29,10 @@ export type PublishPagePayload = {
 export type PublishPageOptimizedPayload = {
   visibility: PageVisibility
   page: {
-    title: string
-    description?: string
+    title: LocalizedText
+    description?: LocalizedText
     tagsJson?: string
     titleDisplayStyle?: string
-    language?: string
-    slug?: string
   }
   sections: Array<{
     id?: string
@@ -45,7 +44,7 @@ export type PublishPageOptimizedPayload = {
 }
 
 type SectionDto = {
-  id: string
+  id?: string
   pageId: string
   order: number
   type: number | string
@@ -172,62 +171,44 @@ const parseTags = (tagsJson: string | undefined) => {
   }
 }
 
-const toPageDetail = (page: PageSummaryDto): PageDetailDto => ({
-  id: page.id,
-  title: page.title,
-  description: page.description ?? '',
-  tags: parseTags(page.tagsJson),
-  titleDisplayStyle: page.titleDisplayStyle ?? 'Default',
-  language: page.language,
-  visibility: page.visibility,
-  sections: [],
-  slug: page.slug,
-  createdByMemberId: page.createdByMemberId,
-  ownerGroupId: page.ownerGroupId ?? null,
-})
-
-const cacheLanguages = (language?: string) =>
-  Array.from(new Set(['en', 'zh', language].filter((value): value is string => Boolean(value))))
-
 const invalidateQueryCache = async (queryKey: readonly unknown[]) => {
   await removeCachedRecord(queryKey)
   await queryClient.invalidateQueries({ queryKey })
 }
 
-const invalidatePageSummaryCaches = async (page: PageSummaryDto) => {
-  const languages = cacheLanguages(page.language)
-
+const invalidatePageSummaryCaches = async (page: PageSummaryDto | PageDetailDto) => {
   await Promise.all([
-    ...languages.map((language) =>
-      invalidateQueryCache(
-        page.ownerGroupId
-          ? groupPagesQueryKey(page.ownerGroupId, language)
-          : globalPagesQueryKey(language),
-      ),
-    ),
-    ...languages.map((language) => invalidateQueryCache(pageBySlugQueryKey(page.slug, language))),
+    invalidateQueryCache(page.ownerGroupId ? groupPagesQueryKey(page.ownerGroupId) : globalPagesQueryKey()),
+    invalidateQueryCache(pageDetailQueryKey(page.id)),
   ])
 }
 
 export const pageService = {
-  async getPageBySlug(slug: string, lang = 'en') {
-    const { data } = await http.get<PageSummaryDto>(`/api/pages/${slug}`, { params: { lang } })
-    return toPageDetail(data)
-  },
-
-  async getPageById(_pageId: string): Promise<PageDetailDto> {
-    // TODO: backend endpoint is not available yet for get page by id.
-    throw new Error('Get page by id endpoint is not implemented on the backend.')
+  async getPageById(pageId: string): Promise<PageDetailDto> {
+    const { data } = await http.get<PageDetailDto>(`/api/pages/${pageId}`)
+    return {
+      ...data,
+      title: toLocalizedText(data.title),
+      description: toLocalizedText(data.description),
+      tags: parseTags((data as PageDetailDto & { tagsJson?: string }).tagsJson),
+      sections: (data.sections ?? []).map((section) => toSectionEditModel(section as unknown as SectionDto)),
+    }
   },
 
   async createGroupPage(groupId: string, payload: CreateGroupPagePayload) {
-    const { data } = await http.post<PageSummaryDto>(`/api/groups/${groupId}/pages`, payload)
+    const { data } = await http.post<PageDetailDto>(`/api/groups/${groupId}/pages`, {
+      ...payload,
+      sections: toSectionPublishPayload(payload.sections),
+    })
     await invalidatePageSummaryCaches(data)
     return data
   },
 
   async updatePage(pageId: string, payload: UpdatePagePayload) {
-    const { data } = await http.put<PageSummaryDto>(`/api/pages/${pageId}`, payload)
+    const { data } = await http.put<PageDetailDto>(`/api/pages/${pageId}`, {
+      ...payload,
+      sections: toSectionPublishPayload(payload.sections),
+    })
     await invalidatePageSummaryCaches(data)
     return data
   },
@@ -239,57 +220,17 @@ export const pageService = {
   },
 
   async publishPageOptimized(pageId: string, payload: PublishPageOptimizedPayload) {
-    const endpointCandidates = [`/api/pages/${pageId}/publish-optimized`, `/api/pages/${pageId}/publish/full`]
-    let lastError: unknown
-
-    for (const endpoint of endpointCandidates) {
-      try {
-        const { data } = await http.post<PageSummaryDto>(endpoint, payload)
-        await invalidatePageSummaryCaches(data)
-        return data
-      } catch (error) {
-        lastError = error
-      }
-    }
-
-    throw lastError
+    const { data } = await http.put<PageDetailDto>(`/api/pages/${pageId}`, {
+      ...payload.page,
+      sections: payload.sections,
+    })
+    await pageService.publishPage(pageId, { visibility: payload.visibility })
+    await invalidatePageSummaryCaches(data)
+    return data
   },
 
   async deletePage(pageId: string) {
     await http.delete(`/api/pages/${pageId}`)
-  },
-
-  async getPageSections(pageId: string) {
-    const { data } = await http.get<SectionDto[]>(`/api/pages/${pageId}/sections`)
-    return data
-      .slice()
-      .sort((a, b) => a.order - b.order)
-      .map(toSectionEditModel)
-  },
-
-  async savePageSections(pageId: string, sections: SectionEditModel[]) {
-    const existing = await pageService.getPageSections(pageId)
-    const existingById = new Map(existing.filter((x) => x.id).map((x) => [x.id as string, x]))
-
-    const incomingWithOrder = sections.map((section, index) => ({ ...section, order: index + 1 }))
-
-    for (const section of incomingWithOrder) {
-      const payload = buildSectionWritePayload(section, section.order)
-
-      if (!section.id) {
-        await http.post(`/api/pages/${pageId}/sections`, payload)
-        continue
-      }
-
-      existingById.delete(section.id)
-      await http.put(`/api/sections/${section.id}`, payload)
-    }
-
-    for (const [sectionId] of existingById) {
-      await http.delete(`/api/sections/${sectionId}`)
-    }
-
-    await invalidateQueryCache(pageSectionsQueryKey(pageId))
   },
 
   toSectionPublishPayload,
@@ -299,12 +240,10 @@ export const toPageEditModel = (page: PageDetailDto, groupId: string): PageEditM
   id: page.id,
   groupId,
   createdByMemberId: page.createdByMemberId,
-  slug: page.slug,
   title: page.title,
-  description: page.description ?? '',
+  description: page.description ?? { en: '', cn: '' },
   tags: page.tags,
   titleDisplayStyle: page.titleDisplayStyle,
-  language: page.language,
   visibility: page.visibility,
   sections: page.sections,
 })

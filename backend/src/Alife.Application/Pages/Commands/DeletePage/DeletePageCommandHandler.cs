@@ -41,14 +41,14 @@ public sealed class DeletePageCommandHandler(
         page.UpdatedUtc = DateTime.UtcNow;
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        await pageCacheInvalidationService.RemoveBySlugAsync(page.Slug, page.Language, cancellationToken);
+        await pageCacheInvalidationService.RemoveDetailAsync(page.Id, cancellationToken);
         if (page.Scope == PageScope.Global)
         {
-            await pageCacheInvalidationService.RemoveGlobalAsync(page.Language, cancellationToken);
+            await pageCacheInvalidationService.RemoveGlobalAsync(cancellationToken);
         }
         else if (page.OwnerGroupId.HasValue)
         {
-            await pageCacheInvalidationService.RemoveGroupPagesAsync(page.OwnerGroupId.Value, page.Language, cancellationToken);
+            await pageCacheInvalidationService.RemoveGroupPagesAsync(page.OwnerGroupId.Value, cancellationToken);
         }
 
         return AppResult<PageActionResultDto>.Success(new PageActionResultDto(true));

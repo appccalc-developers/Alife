@@ -7,7 +7,8 @@ namespace Alife.Application.Pages.Commands.UpdatePage;
 public sealed record UpdatePageCommand(
     Guid PageId,
     Guid CurrentMemberId,
-    string Title,
-    string? Description,
+    IReadOnlyDictionary<string, string> Title,
+    IReadOnlyDictionary<string, string>? Description,
     string? TagsJson,
-    string? TitleDisplayStyle) : IRequest<AppResult<PageDto>>;
+    string? TitleDisplayStyle,
+    IReadOnlyList<PageSectionDto> Sections) : IRequest<AppResult<PageDetailDto>>;

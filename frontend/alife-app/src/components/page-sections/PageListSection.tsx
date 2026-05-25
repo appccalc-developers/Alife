@@ -1,8 +1,11 @@
 import { Link } from 'react-router-dom'
 import { PropertyPanel, TextInput, parseLimit, patchContent, readText } from './sectionUtils'
 import type { SectionComponentProps } from './types'
+import { useAuthStore } from '../../stores/auth'
+import { localizeText } from '../../utils/localizedText'
 
 const PageListSection = ({ section, mode, disabled, groupPageItems = [], onUpdate }: SectionComponentProps) => {
+  const auth = useAuthStore()
   const title = readText(section.contentJson, 'title') || 'Pages'
   const limit = parseLimit(section.contentJson, 'limit', 8)
   const updateContent = (patch: Record<string, unknown>) => onUpdate?.(patchContent(section, patch))
@@ -13,7 +16,7 @@ const PageListSection = ({ section, mode, disabled, groupPageItems = [], onUpdat
       <ul className="mt-3 space-y-2">
         {groupPageItems.slice(0, limit).map((item) => (
           <li key={item.id} className="rounded border border-slate-200 bg-slate-50 px-3 py-2">
-            <Link className="font-medium text-blue-700 hover:underline" to={`/pages/${item.slug}`}>{item.title}</Link>
+            <Link className="font-medium text-blue-700 hover:underline" to={`/pages/${item.id}`}>{localizeText(item.title, auth.language)}</Link>
             <p className="text-xs text-slate-500">Visibility: {item.visibility}</p>
           </li>
         ))}

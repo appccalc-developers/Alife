@@ -4,4 +4,4 @@ using MediatR;
 
 namespace Alife.Application.Pages.Queries.GetGlobalPages;
 
-public sealed record GetGlobalPagesQuery(string Language) : IRequest<AppResult<IReadOnlyList<PageDto>>>;
+public sealed record GetGlobalPagesQuery : IRequest<AppResult<IReadOnlyList<PageDto>>>;

@@ -41,24 +41,24 @@ export const getCachedSubgroups = async (groupId: string) =>
 
 // ---------- Group pages ----------
 
-export const groupPagesQueryKey = (groupId: string, lang: string) => ['groupPages', groupId, lang] as const
+export const groupPagesQueryKey = (groupId: string) => ['groupPages', groupId] as const
 
-export const groupPagesCollection = (groupId: string, lang: string) =>
+export const groupPagesCollection = (groupId: string) =>
   createCollection(
     queryCollectionOptions({
       queryClient,
-      queryKey: groupPagesQueryKey(groupId, lang),
+      queryKey: groupPagesQueryKey(groupId),
       getKey: (item: PageSummaryDto) => item.id,
       queryFn: async () =>
         conditionalGet<PageSummaryDto[]>({
-          queryKey: groupPagesQueryKey(groupId, lang),
+          queryKey: groupPagesQueryKey(groupId),
           path: `/api/groups/${groupId}/pages`,
         }),
     }),
   )
 
-export const getCachedGroupPages = async (groupId: string, lang: string) =>
-  (await getCachedRecord<PageSummaryDto[]>(groupPagesQueryKey(groupId, lang)))?.data ?? []
+export const getCachedGroupPages = async (groupId: string) =>
+  (await getCachedRecord<PageSummaryDto[]>(groupPagesQueryKey(groupId)))?.data ?? []
 
 // ---------- Group memberships ----------
 

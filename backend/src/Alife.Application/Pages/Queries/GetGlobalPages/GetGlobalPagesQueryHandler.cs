@@ -10,7 +10,7 @@ public sealed class GetGlobalPagesQueryHandler(IPageReadService pageReadService)
 {
     public async Task<AppResult<IReadOnlyList<PageDto>>> Handle(GetGlobalPagesQuery request, CancellationToken cancellationToken)
     {
-        var pages = await pageReadService.GetGlobalPagesAsync(request.Language, cancellationToken);
+        var pages = await pageReadService.GetGlobalPagesAsync(cancellationToken);
         return AppResult<IReadOnlyList<PageDto>>.Success(pages);
     }
 }

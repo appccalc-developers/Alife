@@ -6,6 +6,7 @@ import type { SermonDto } from '../../services/sermonService'
 import type { GroupSummaryDto } from '../../types'
 import { useImagePreloader } from '../../hooks/useImagePreloader'
 import CoverImage from '../CoverImage'
+import { localizeText } from '../../utils/localizedText'
 
 // ---------- Universal Card Interface ----------
 
@@ -57,13 +58,12 @@ export function memberToCardItem(member: { memberId: string; status: string; rol
 
 export function pageToCardItem(page: any, groupId?: string): UniversalCardItem {
   const pageId = (page as { id: string }).id
-  const slug = (page as { slug?: string }).slug
   return {
     id: pageId,
-    title: page.title || 'Untitled Page',
-    subtitle: (page as { description?: string }).description || slug || '',
+    title: localizeText(page.title) || 'Untitled Page',
+    subtitle: localizeText((page as { description?: unknown }).description as never),
     date: (page as { updatedUtc?: string }).updatedUtc,
-    url: groupId ? `/groups/${groupId}?page=${encodeURIComponent(pageId)}` : `/pages/${slug || pageId}`,
+    url: groupId ? `/groups/${groupId}?page=${encodeURIComponent(pageId)}` : `/pages/${pageId}`,
     type: 'page',
   }
 }
