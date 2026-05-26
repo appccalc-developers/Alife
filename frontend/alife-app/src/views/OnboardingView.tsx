@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { http, type ApiError } from '../api/http'
+import { useUiText } from '../i18n/uiText'
 import { useAuthStore } from '../stores/auth'
 
 const getLineLoginRedirectUrl = () => {
@@ -19,6 +20,7 @@ const getErrorMessage = (error: unknown, fallback: string) => {
 
 const OnboardingView = () => {
   const auth = useAuthStore()
+  const t = useUiText()
   const { fetchMe } = auth
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -44,7 +46,7 @@ const OnboardingView = () => {
     const lineEmail = searchParams.get('line_email')
 
     if (lineError) {
-      setMessage(`LINE login failed: ${lineError}`)
+      setMessage(t('lineLoginFailed', { error: lineError }))
       return
     }
 
@@ -57,9 +59,9 @@ const OnboardingView = () => {
         setEmail(lineEmail)
       }
       setLineConfirmed(true)
-      setMessage('LINE verified. Please complete your profile to finish onboarding.')
+      setMessage(t('lineVerified'))
     }
-  }, [fetchMe, searchParams])
+  }, [fetchMe, searchParams, t])
 
   useEffect(() => {
     if (lineConfirmed) {
@@ -73,14 +75,14 @@ const OnboardingView = () => {
       await auth.bootstrap()
       window.location.assign(getLineLoginRedirectUrl())
     } catch (error) {
-      setMessage(getErrorMessage(error, 'Unable to start LINE login.'))
+      setMessage(getErrorMessage(error, t('lineLoginStartFailed')))
       setIsLineLoading(false)
     }
   }
 
   const loginWithDisplayName = async () => {
     if (!displayNameLogin.trim()) {
-      setMessage('Please enter your display name.')
+      setMessage(t('enterDisplayName'))
       return
     }
     setIsDisplayNameLoading(true)
@@ -91,7 +93,7 @@ const OnboardingView = () => {
       await auth.fetchMe()
       navigate('/')
     } catch (error) {
-      setMessage(getErrorMessage(error, 'Unable to login with display name.'))
+      setMessage(getErrorMessage(error, t('displayNameLoginFailed')))
     } finally {
       setIsDisplayNameLoading(false)
     }
@@ -112,10 +114,10 @@ const OnboardingView = () => {
         email,
       })
       await auth.fetchMe()
-      setMessage('Registered successfully.')
+      setMessage(t('registeredSuccessfully'))
       navigate('/')
     } catch (error) {
-      setMessage(getErrorMessage(error, 'Unable to complete registration.'))
+      setMessage(getErrorMessage(error, t('registrationFailed')))
     } finally {
       setIsRegistering(false)
     }
@@ -123,7 +125,7 @@ const OnboardingView = () => {
 
   return (
     <section className="mx-auto max-w-xl space-y-4 rounded-xl border bg-white p-6">
-      <h1 className="text-2xl font-bold">Onboarding</h1>
+      <h1 className="text-2xl font-bold">{t('onboarding')}</h1>
 
       <>
         <button
@@ -134,10 +136,10 @@ const OnboardingView = () => {
             loginWithLine().catch(() => undefined)
           }}
         >
-          {lineConfirmed ? 'Logged with LINE' : isLineLoading ? 'Redirecting...' : 'Login with LINE'}
+          {lineConfirmed ? t('loggedWithLine') : isLineLoading ? t('redirecting') : t('loginWithLine')}
         </button>
         <p className="text-sm text-slate-600">
-          LINE is the only sign-in method. Your LINE account will be used to securely authenticate and match your member profile.
+          {t('lineOnlyDescription')}
         </p>
       </>
 
@@ -145,16 +147,16 @@ const OnboardingView = () => {
         <>
           <div className="flex items-center gap-2">
             <hr className="flex-1 border-slate-300" />
-            <span className="text-sm text-slate-400">or</span>
+            <span className="text-sm text-slate-400">{t('or')}</span>
             <hr className="flex-1 border-slate-300" />
           </div>
-          <p className="text-sm font-medium text-slate-700">Already a member? Login with your display name:</p>
+          <p className="text-sm font-medium text-slate-700">{t('alreadyMemberLogin')}</p>
           <div className="flex gap-2">
             <input
               value={displayNameLogin}
               onChange={(event) => setDisplayNameLogin(event.target.value)}
               className="flex-1 rounded border p-2"
-              placeholder="Display Name"
+              placeholder={t('displayName')}
               disabled={isDisplayNameLoading}
               onKeyDown={(event) => {
                 if (event.key === 'Enter') {
@@ -170,7 +172,7 @@ const OnboardingView = () => {
                 loginWithDisplayName().catch(() => undefined)
               }}
             >
-              {isDisplayNameLoading ? 'Logging in...' : 'Login'}
+              {isDisplayNameLoading ? t('loggingIn') : t('login')}
             </button>
           </div>
         </>
@@ -178,16 +180,16 @@ const OnboardingView = () => {
 
       {lineConfirmed ? (
         <>
-          <input ref={nameInputRef} value={name} onChange={(event) => setName(event.target.value)} className="w-full rounded border p-2" placeholder="Display Name" />
-          <input value={sex} onChange={(event) => setSex(event.target.value)} className="w-full rounded border p-2" placeholder="Sex" />
+          <input ref={nameInputRef} value={name} onChange={(event) => setName(event.target.value)} className="w-full rounded border p-2" placeholder={t('displayName')} />
+          <input value={sex} onChange={(event) => setSex(event.target.value)} className="w-full rounded border p-2" placeholder={t('sex')} />
           <input
             value={age ?? ''}
             onChange={(event) => setAge(event.target.value ? Number(event.target.value) : null)}
             className="w-full rounded border p-2"
             type="number"
-            placeholder="Age"
+            placeholder={t('age')}
           />
-          <input value={email} onChange={(event) => setEmail(event.target.value)} className="w-full rounded border p-2" placeholder="Email" />
+          <input value={email} onChange={(event) => setEmail(event.target.value)} className="w-full rounded border p-2" placeholder={t('email')} />
           <button
             type="button"
             className="rounded bg-blue-600 px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-50"
@@ -196,7 +198,7 @@ const OnboardingView = () => {
               register().catch(() => undefined)
             }}
           >
-            Complete Registration
+            {t('completeRegistration')}
           </button>
         </>
       ) : null}

@@ -6,6 +6,7 @@ import { useAiSession } from '../hooks/useAiSession'
 import { normalizeApiError } from '../services/http'
 import { useAuthStore } from '../stores/auth'
 import { useCurrentGroupStore } from '../stores/currentGroup'
+import { useUiText } from '../i18n/uiText'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
@@ -37,6 +38,7 @@ const fmt = (iso: string) => {
 }
 
 const EventPreview = ({ event, lang }: { event: EventDto; lang: string }) => {
+  const ui = useUiText()
   const t = (ml: MultilingualString) => (lang === 'zh' ? ml.zh : ml.en) || ml.en || ml.zh || '—'
   const [showRaw, setShowRaw] = useState(false)
 
@@ -49,7 +51,7 @@ const EventPreview = ({ event, lang }: { event: EventDto; lang: string }) => {
           <p className="mt-0.5 text-sm text-slate-500">{t(event.locationName)}</p>
         </div>
         <span className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
-          Draft
+          {ui('draft')}
         </span>
       </div>
 
@@ -59,9 +61,9 @@ const EventPreview = ({ event, lang }: { event: EventDto; lang: string }) => {
       {/* Dates */}
       <div className="grid gap-2 text-sm sm:grid-cols-3">
         {[
-          { label: 'Start', value: fmt(event.startDate) },
-          { label: 'End', value: fmt(event.endDate) },
-          { label: 'Registration deadline', value: fmt(event.registrationDeadline) },
+          { label: ui('start'), value: fmt(event.startDate) },
+          { label: ui('end'), value: fmt(event.endDate) },
+          { label: ui('registrationDeadline'), value: fmt(event.registrationDeadline) },
         ].map(({ label, value }) => (
           <div key={label} className="rounded-lg border border-slate-100 bg-slate-50 p-2">
             <span className="block text-xs text-slate-500">{label}</span>
@@ -73,16 +75,16 @@ const EventPreview = ({ event, lang }: { event: EventDto; lang: string }) => {
       {/* Capacity & fees */}
       <div className="flex flex-wrap gap-3 text-sm">
         <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
-          Capacity: <strong>{event.maxCapacity} {event.capacityUnit}</strong>
+          {ui('capacity')}: <strong>{event.maxCapacity} {event.capacityUnit}</strong>
         </span>
         {event.baseFeePerAdult != null && (
           <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
-            Adult: <strong>{event.currency} {event.baseFeePerAdult}</strong>
+            {ui('adult')}: <strong>{event.currency} {event.baseFeePerAdult}</strong>
           </span>
         )}
         {event.baseFeePerChild != null && (
           <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
-            Child: <strong>{event.currency} {event.baseFeePerChild}</strong>
+            {ui('child')}: <strong>{event.currency} {event.baseFeePerChild}</strong>
           </span>
         )}
       </div>
@@ -90,7 +92,7 @@ const EventPreview = ({ event, lang }: { event: EventDto; lang: string }) => {
       {/* Hard constraints */}
       {event.hardConstraints.length > 0 && (
         <div>
-          <h3 className="mb-2 text-sm font-semibold text-slate-700">Rules &amp; Constraints</h3>
+          <h3 className="mb-2 text-sm font-semibold text-slate-700">{ui('rulesConstraints')}</h3>
           <ul className="space-y-1.5">
             {event.hardConstraints.map((rule, i) => (
               <li key={i} className="flex items-start gap-2 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-sm">
@@ -103,7 +105,7 @@ const EventPreview = ({ event, lang }: { event: EventDto; lang: string }) => {
                   </span>
                   {t(rule.displayMessage)}
                   {rule.isMandatory && (
-                    <span className="ml-1.5 text-xs text-red-500">(mandatory)</span>
+                    <span className="ml-1.5 text-xs text-red-500">({ui('mandatory')})</span>
                   )}
                 </span>
               </li>
@@ -115,7 +117,7 @@ const EventPreview = ({ event, lang }: { event: EventDto; lang: string }) => {
       {/* Optional activities */}
       {event.optionalActivities.length > 0 && (
         <div>
-          <h3 className="mb-2 text-sm font-semibold text-slate-700">Optional Activities</h3>
+          <h3 className="mb-2 text-sm font-semibold text-slate-700">{ui('optionalActivities')}</h3>
           <ul className="flex flex-wrap gap-2">
             {event.optionalActivities.map((act, i) => (
               <li key={i} className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm text-emerald-800">
@@ -132,13 +134,13 @@ const EventPreview = ({ event, lang }: { event: EventDto; lang: string }) => {
       {/* Bilingual fields (detailed) */}
       <details className="group">
         <summary className="cursor-pointer text-sm font-medium text-slate-500 group-open:text-slate-700">
-          Bilingual fields ▸
+          {ui('bilingualFields')}
         </summary>
         <div className="mt-3 space-y-3">
-          <BilingualField label="Title" value={event.title} />
-          <BilingualField label="Description" value={event.description} />
-          <BilingualField label="Location" value={event.locationName} />
-          {event.legacySummary && <BilingualField label="Legacy Summary" value={event.legacySummary} />}
+          <BilingualField label={ui('title')} value={event.title} />
+          <BilingualField label={ui('description')} value={event.description} />
+          <BilingualField label={ui('location')} value={event.locationName} />
+          {event.legacySummary && <BilingualField label={ui('legacySummary')} value={event.legacySummary} />}
         </div>
       </details>
 
@@ -149,7 +151,7 @@ const EventPreview = ({ event, lang }: { event: EventDto; lang: string }) => {
           onClick={() => setShowRaw((v) => !v)}
           className="text-xs text-emerald-600 hover:underline"
         >
-          {showRaw ? 'Hide' : 'Show'} raw JSON
+          {showRaw ? ui('hideRawJson') : ui('showRawJson')}
         </button>
         {showRaw && (
           <pre className="mt-2 max-h-64 overflow-auto rounded-lg bg-slate-900 p-3 text-xs text-emerald-300">
@@ -245,6 +247,7 @@ const getDraftFromRecord = (record: GroupEventRecord): EventDto => {
 
 const EventCreatorView = () => {
   const { language, me } = useAuthStore()
+  const t = useUiText()
   const { CurrentGroup } = useCurrentGroupStore()
   const location = useLocation()
   const { eventId } = useParams<{ eventId?: string }>()
@@ -260,7 +263,7 @@ const EventCreatorView = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: 'assistant',
-      text: "Hi! I'm your AI event assistant. Describe your event in English or Chinese (or both!) and I'll extract the details for you.\n\nExample: \"Plan a West Coast trip for 15 families on Dec 1–3 2026. Everyone must take the chartered bus. Optional kayaking is $30 per person. Fee: $150/adult, $80/child.\"",
+      text: t('eventAssistantIntro'),
       markdown: true,
     },
   ])
@@ -310,7 +313,7 @@ const EventCreatorView = () => {
     }
 
     if (!effectiveGroupId) {
-      setError('Unable to load event for editing. Open this page from the group events sidebar.')
+      setError(t('eventLoadFromGroupFailed'))
       return
     }
 
@@ -320,7 +323,7 @@ const EventCreatorView = () => {
         if (cancelled) return
         const record = records.find((item) => String(item.id) === eventIdValue)
         if (!record) {
-          setError('Event not found for editing.')
+          setError(t('eventNotFound'))
           return
         }
 
@@ -331,7 +334,7 @@ const EventCreatorView = () => {
       })
       .catch(() => {
         if (!cancelled) {
-          setError('Unable to load event for editing.')
+          setError(t('eventLoadFailed'))
         }
       })
 
@@ -382,7 +385,7 @@ const EventCreatorView = () => {
           ...prev,
           {
             role: 'assistant',
-            text: `✅ I've extracted the event details for "${lang || 'your event'}". Review the preview below and refine by chatting further.`,
+            text: t('eventExtracted', { name: lang || t('yourEvent') }),
           },
         ])
       } else {
@@ -391,7 +394,7 @@ const EventCreatorView = () => {
           ...prev,
           {
             role: 'assistant',
-            text: markdown || 'I need a bit more information before I can finalize the event details.',
+            text: markdown || t('eventNeedMoreInfo'),
             markdown: true,
           },
         ])
@@ -403,7 +406,7 @@ const EventCreatorView = () => {
       }
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', text: `❌ Sorry, I couldn't extract event details: ${apiError.message}`, markdown: true },
+        { role: 'assistant', text: t('eventExtractFailed', { message: apiError.message }), markdown: true },
       ])
     } finally {
       if (isEditMode) {
@@ -429,7 +432,7 @@ const EventCreatorView = () => {
 
     const SpeechRecognition = getSpeechRecognition()
     if (!SpeechRecognition) {
-      setError('Voice input is not supported by this browser. You can paste a transcript instead.')
+      setError(t('voiceUnsupported'))
       return
     }
 
@@ -448,7 +451,7 @@ const EventCreatorView = () => {
     recognition.onend = () => setListening(false)
     recognition.onerror = () => {
       setListening(false)
-      setError('Voice input stopped unexpectedly. Please try again or type the message.')
+      setError(t('voiceStopped'))
     }
     speechRecognitionRef.current = recognition
     recognition.start()
@@ -460,14 +463,14 @@ const EventCreatorView = () => {
       return
     }
 
-    const eventName = (language === 'zh' ? eventDraft.title.zh : eventDraft.title.en) || eventDraft.title.en || eventDraft.title.zh || 'your event'
+    const eventName = (language === 'zh' ? eventDraft.title.zh : eventDraft.title.en) || eventDraft.title.en || eventDraft.title.zh || t('yourEvent')
 
     if (!isEditMode && !effectiveGroupId) {
       setMessages((prev) => [
         ...prev,
         {
           role: 'assistant',
-          text: `⚠️ No group selected. Please navigate to a group first, or use the "Events" link in a group's tools drawer.`,
+          text: t('noGroupSelected'),
         },
       ])
       scrollToBottom()
@@ -481,7 +484,7 @@ const EventCreatorView = () => {
       } else if (effectiveGroupId) {
         await eventService.createGroupEvent(effectiveGroupId, eventDraft)
       } else {
-        throw new Error('Missing group id for event creation.')
+        throw new Error(t('missingGroupForEvent'))
       }
       setSaveStatus('saved')
       setMessages((prev) => [
@@ -489,8 +492,8 @@ const EventCreatorView = () => {
         {
           role: 'assistant',
           text: isEditMode
-            ? `✅ "${eventName}" has been updated successfully!`
-            : `✅ "${eventName}" has been saved to the group successfully! You can view it in the group's Events section.`,
+            ? t('eventUpdated', { name: eventName })
+            : t('eventSavedToGroup', { name: eventName }),
         },
       ])
     } catch (err) {
@@ -500,7 +503,7 @@ const EventCreatorView = () => {
         ...prev,
         {
           role: 'assistant',
-          text: `❌ Failed to save event: ${apiError.message}`,
+          text: t('eventSaveFailed', { message: apiError.message }),
           markdown: true,
         },
       ])
@@ -513,11 +516,11 @@ const EventCreatorView = () => {
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">{isEditMode ? 'Edit Event with AI' : 'Create Event with AI'}</h1>
+        <h1 className="text-2xl font-bold text-slate-900">{isEditMode ? t('editEventWithAi') : t('createEventWithAi')}</h1>
         <p className="mt-1 text-sm text-slate-500">
           {isEditMode
-            ? 'Refine this event using the same AI-assisted editor, then save your updates.'
-            : 'Chat with Gemini to design your event. The draft restores automatically across refreshes and devices using the session bridge.'}
+            ? t('editEventAiDescription')
+            : t('createEventAiDescription')}
         </p>
       </div>
 
@@ -558,7 +561,7 @@ const EventCreatorView = () => {
         ))}
         {isSending && (
           <div className="mr-auto max-w-[85%] rounded-2xl bg-white px-4 py-2.5 text-sm text-slate-400 shadow-sm">
-            <span className="animate-pulse">Gemini is thinking…</span>
+            <span className="animate-pulse">{t('geminiThinking')}</span>
           </div>
         )}
         <div ref={bottomRef} />
@@ -573,7 +576,7 @@ const EventCreatorView = () => {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           disabled={isSending}
-          placeholder="Describe your event… (Enter to send, Shift+Enter for new line)"
+          placeholder={t('describeEventPlaceholder')}
           className="flex-1 resize-none rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder-slate-400 shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100 disabled:opacity-60"
         />
         <button
@@ -585,7 +588,7 @@ const EventCreatorView = () => {
               ? 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100'
               : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50',
           ].join(' ')}
-          aria-label={listening ? 'Stop voice input' : 'Start voice input'}
+          aria-label={listening ? t('stopVoiceInput') : t('startVoiceInput')}
         >
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
@@ -598,7 +601,7 @@ const EventCreatorView = () => {
           onClick={handleSend}
           disabled={isSending || !input.trim()}
           className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-700 text-white shadow-sm transition hover:bg-emerald-800 disabled:opacity-50"
-          aria-label="Send"
+          aria-label={t('send')}
         >
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M22 2L11 13" />
@@ -614,7 +617,7 @@ const EventCreatorView = () => {
       {/* Event Preview */}
       {aiInsight && (
         <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
-          <span className="font-semibold">AI Insight: </span>
+          <span className="font-semibold">{t('aiInsight')}</span>
           {language === 'zh' ? aiInsight.zh : aiInsight.en}
         </div>
       )}
@@ -622,10 +625,10 @@ const EventCreatorView = () => {
       {eventDraft && (
         <div className="flex items-center justify-end gap-3">
           {!effectiveGroupId && (
-            <p className="text-xs text-amber-600">No group context — open from a group to save.</p>
+            <p className="text-xs text-amber-600">{t('noGroupContext')}</p>
           )}
           {saveStatus === 'saved' && (
-            <p className="text-xs text-emerald-600">✓ Event saved to group</p>
+            <p className="text-xs text-emerald-600">{t('eventSavedToGroupShort')}</p>
           )}
           <button
             type="button"
@@ -633,7 +636,7 @@ const EventCreatorView = () => {
             disabled={saveStatus === 'saving'}
             className="inline-flex items-center rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 disabled:opacity-60"
           >
-            {saveStatus === 'saving' ? 'Saving…' : isEditMode ? 'Update Event' : 'Save to Group'}
+            {saveStatus === 'saving' ? t('saving') : isEditMode ? t('updateEvent') : t('saveToGroup')}
           </button>
         </div>
       )}

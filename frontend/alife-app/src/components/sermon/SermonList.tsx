@@ -5,8 +5,10 @@ import { getCachedSermons, sermonsCollection, sermonsQueryKey } from '../../db/c
 import SermonCardSkeleton from './SermonCardSkeleton'
 import { useImagePreloader } from '../../hooks/useImagePreloader'
 import CoverImage from '../CoverImage'
+import { useUiText } from '../../i18n/uiText'
 
 const SermonList = () => {
+  const t = useUiText()
   const queryClient = useQueryClient()
   const { data, isLoading, isError } = useLiveQuery(sermonsCollection)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -52,7 +54,7 @@ const SermonList = () => {
     }
   }, [queryClient])
 
-  const errorMessage = isError ? 'Failed to load sermons.' : ''
+  const errorMessage = isError ? t('sermonsLoadFailed') : ''
   const initialLoading = isLoading && sermons.length === 0
 
   if (initialLoading) {
@@ -76,8 +78,8 @@ const SermonList = () => {
     <section className="space-y-4">
       <header className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Latest Sermons</h1>
-          <p className="text-sm text-slate-600">Watch the latest messages from the Alife channel.</p>
+          <h1 className="text-2xl font-bold text-slate-900">{t('latestSermons')}</h1>
+          <p className="text-sm text-slate-600">{t('latestSermonsDescription')}</p>
         </div>
         <button
           type="button"
@@ -87,7 +89,7 @@ const SermonList = () => {
             loadSermons().catch(() => undefined)
           }}
         >
-          {isRefreshing ? 'Refreshing...' : 'Refresh'}
+          {isRefreshing ? t('refreshing') : t('refresh')}
         </button>
       </header>
 
@@ -96,7 +98,7 @@ const SermonList = () => {
       ) : null}
 
       {!errorMessage && sermons.length === 0 ? (
-        <p className="rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-600">No sermons available right now.</p>
+        <p className="rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-600">{t('noSermons')}</p>
       ) : null}
 
       {errorMessage && sermons.length > 0 ? (
@@ -131,7 +133,7 @@ const SermonList = () => {
 
               <div className="space-y-2 p-4">
                 <h2 className="line-clamp-2 text-base font-semibold text-slate-900">{sermon.title}</h2>
-                <p className="text-sm text-slate-600">{sermon.speakerName || 'Guest Speaker'}</p>
+                <p className="text-sm text-slate-600">{sermon.speakerName || t('guestSpeaker')}</p>
 
                 {sermon.videoUrl ? (
                   <a
@@ -140,7 +142,7 @@ const SermonList = () => {
                     rel="noopener noreferrer"
                     className="inline-flex text-sm font-medium text-blue-700 hover:text-blue-600"
                   >
-                    Watch sermon
+                    {t('watchSermon')}
                   </a>
                 ) : null}
               </div>

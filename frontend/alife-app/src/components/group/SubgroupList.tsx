@@ -3,6 +3,7 @@ import AppEmptyState from '../layout/AppEmptyState'
 import AppSectionCard from '../layout/AppSectionCard'
 import AccessTypeBadge from './AccessTypeBadge'
 import type { GroupSummaryDto } from '../../types/group'
+import { useUiText } from '../../i18n/uiText'
 
 type Props = {
   items: GroupSummaryDto[]
@@ -12,12 +13,15 @@ type Props = {
   onDelete: (subgroupId: string) => void
 }
 
-const SubgroupList = ({ items, canManage, onOpen, onEdit, onDelete }: Props) => (
-  <AppSectionCard title="Subgroups" subtitle="Browse connected groups in this workspace.">
+const SubgroupList = ({ items, canManage, onOpen, onEdit, onDelete }: Props) => {
+  const t = useUiText()
+
+  return (
+  <AppSectionCard title={t('subgroups')} subtitle={t('browseSubgroupsSubtitle')}>
     {items.length === 0 ? (
       <AppEmptyState
-        title="No subgroups yet"
-        description="Subgroups created for this group will appear here."
+        title={t('noSubgroupsYetTitle')}
+        description={t('noSubgroupsYetDescription')}
       />
     ) : (
       <ul className="grid gap-3 md:grid-cols-2">
@@ -32,11 +36,11 @@ const SubgroupList = ({ items, canManage, onOpen, onEdit, onDelete }: Props) => 
               </div>
 
               <div className="flex flex-wrap gap-2">
-                <AppActionButton size="sm" onClick={() => onOpen(subgroup.id)}>Open</AppActionButton>
+                <AppActionButton size="sm" onClick={() => onOpen(subgroup.id)}>{t('open')}</AppActionButton>
                 {canManage ? (
                   <>
-                    <AppActionButton size="sm" variant="ghost" onClick={() => onEdit(subgroup.id)}>Edit</AppActionButton>
-                    <AppActionButton size="sm" variant="danger" onClick={() => onDelete(subgroup.id)}>Delete</AppActionButton>
+                    <AppActionButton size="sm" variant="ghost" onClick={() => onEdit(subgroup.id)}>{t('edit')}</AppActionButton>
+                    <AppActionButton size="sm" variant="danger" onClick={() => onDelete(subgroup.id)}>{t('delete')}</AppActionButton>
                   </>
                 ) : null}
               </div>
@@ -46,6 +50,7 @@ const SubgroupList = ({ items, canManage, onOpen, onEdit, onDelete }: Props) => 
       </ul>
     )}
   </AppSectionCard>
-)
+  )
+}
 
 export default SubgroupList

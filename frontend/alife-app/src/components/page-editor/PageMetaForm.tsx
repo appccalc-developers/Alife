@@ -1,5 +1,6 @@
 import AppSectionCard from '../layout/AppSectionCard'
 import type { PageEditModel } from '../../types/page-editor'
+import { useUiText } from '../../i18n/uiText'
 
 type Props = {
   model: PageEditModel
@@ -9,6 +10,7 @@ type Props = {
 }
 
 const PageMetaForm = ({ model, canEdit, titleError, onChange }: Props) => {
+  const t = useUiText()
   const updateField = <K extends keyof PageEditModel>(key: K, value: PageEditModel[K]) => {
     onChange({ ...model, [key]: value })
   }
@@ -16,22 +18,22 @@ const PageMetaForm = ({ model, canEdit, titleError, onChange }: Props) => {
   const updateDescription = (key: 'en' | 'cn', value: string) => updateField('description', { ...model.description, [key]: value })
 
   return (
-    <AppSectionCard title="Page Metadata" subtitle="Core page identity and discovery fields.">
+    <AppSectionCard title={t('pageMetadata')} subtitle={t('pageMetadataSubtitle')}>
       <div className="space-y-4">
         <label className="block space-y-1">
-          <span className="text-sm font-medium text-slate-700">Title (English)</span>
+          <span className="text-sm font-medium text-slate-700">{t('titleEnglish')}</span>
           <input
             value={model.title.en ?? ''}
             disabled={!canEdit}
             className="w-full rounded-md border border-slate-300 px-3 py-2 disabled:bg-slate-100"
-            placeholder="Page title"
+            placeholder={t('pageTitlePlaceholder')}
             onChange={(event) => updateTitle('en', event.target.value)}
           />
           {titleError ? <p className="text-xs text-red-600">{titleError}</p> : null}
         </label>
 
         <label className="block space-y-1">
-          <span className="text-sm font-medium text-slate-700">Title (Chinese)</span>
+          <span className="text-sm font-medium text-slate-700">{t('titleChinese')}</span>
           <input
             value={model.title.cn ?? ''}
             disabled={!canEdit}
@@ -42,19 +44,19 @@ const PageMetaForm = ({ model, canEdit, titleError, onChange }: Props) => {
         </label>
 
         <label className="block space-y-1">
-          <span className="text-sm font-medium text-slate-700">Description (English)</span>
+          <span className="text-sm font-medium text-slate-700">{t('descriptionEnglish')}</span>
           <textarea
             value={model.description.en ?? ''}
             disabled={!canEdit}
             rows={4}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100"
-            placeholder="Page summary"
+            placeholder={t('pageSummaryPlaceholder')}
             onChange={(event) => updateDescription('en', event.target.value)}
           />
         </label>
 
         <label className="block space-y-1">
-          <span className="text-sm font-medium text-slate-700">Description (Chinese)</span>
+          <span className="text-sm font-medium text-slate-700">{t('descriptionChinese')}</span>
           <textarea
             value={model.description.cn ?? ''}
             disabled={!canEdit}
