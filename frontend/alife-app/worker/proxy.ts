@@ -9,6 +9,7 @@ const PREFLIGHT_MAX_AGE_SECONDS = '86400'
 const CACHE_TTL_SECONDS = 86400 // 24 hours
 const CACHE_STALE_WHILE_REVALIDATE_SECONDS = 300
 const CACHE_STALE_IF_ERROR_SECONDS = 86400
+const AUTHZ_MIRROR_TTL_SECONDS = 7 * 24 * 60 * 60
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 const PUBLIC_CACHEABLE_API_PATHS = new Set(['/api/sermons', '/api/pages/global'])
 
@@ -25,10 +26,17 @@ export default {
     }
 
     const bypassEdgeCache = shouldBypassEdgeCache(url.pathname)
+    const groupDetailId = getGroupDetailId(url.pathname)
+    const groupDetailMemberId = groupDetailId ? extractMemberIdFromRequest(request) : ''
+    const groupAuthzStatus = groupDetailId
+      ? await getGroupAuthzStatus(env, groupDetailId, groupDetailMemberId)
+      : 'not-applicable'
+    const allowGroupSharedCache = groupAuthzStatus === 'hit'
 
     if (request.method === 'GET' && !bypassEdgeCache) {
       const cacheKey = await createCacheKey(request)
-      const cached = await getEdgeCache().match(cacheKey)
+      const canReadCache = !groupDetailId || allowGroupSharedCache
+      const cached = canReadCache ? await getEdgeCache().match(cacheKey) : undefined
       if (cached) {
         const clientEtag = request.headers.get('if-none-match')
         const cachedEtag = cached.headers.get('etag')
@@ -36,10 +44,10 @@ export default {
           return addCorsHeaders(request, withCacheHeader(withBrowserCacheControl(new Response(null, {
             status: 304,
             headers: cached.headers,
-          }), url.pathname), 'REVALIDATED'))
+          }), url.pathname, groupAuthzStatus), 'REVALIDATED'))
         }
 
-        return addCorsHeaders(request, withCacheHeader(withBrowserCacheControl(cached, url.pathname), 'HIT'))
+        return addCorsHeaders(request, withCacheHeader(withBrowserCacheControl(cached, url.pathname, groupAuthzStatus), 'HIT'))
       }
     }
 
@@ -59,12 +67,13 @@ export default {
       ctx.waitUntil(Promise.all([
         createCacheKey(request).then((cacheKey) => getEdgeCache().put(cacheKey, responseForCache)),
         rememberEntityGroups(request, originResponse.clone()),
+        rememberGroupAuthorization(env, groupDetailId, groupDetailMemberId, originResponse.clone()),
       ]))
-      return addCorsHeaders(request, withCacheHeader(withBrowserCacheControl(originResponse, url.pathname), 'MISS'))
+      return addCorsHeaders(request, withCacheHeader(withBrowserCacheControl(originResponse, url.pathname, groupAuthzStatus), 'MISS'))
     }
 
     const response = bypassEdgeCache ? withNoStore(originResponse) : originResponse
-    return addCorsHeaders(request, withCacheHeader(response, 'BYPASS'))
+    return addCorsHeaders(request, withCacheHeader(withGroupAuthzHeader(response, groupAuthzStatus), 'BYPASS'))
   },
 }
 
@@ -182,7 +191,15 @@ function shouldBypassEdgeCache(pathname: string) {
     return false
   }
 
+  if (getGroupDetailId(pathname)) {
+    return false
+  }
+
   return pathname.startsWith('/api/')
+}
+
+function getGroupDetailId(pathname: string) {
+  return pathname.match(/^\/api\/groups\/([^/]+)$/)?.[1] ?? ''
 }
 
 async function createCacheKey(request: Request, pathname?: string) {
@@ -193,12 +210,19 @@ async function createCacheKey(request: Request, pathname?: string) {
   }
   url.hash = ''
   url.searchParams.sort()
-  const credentialKey = await createCredentialCacheKey(request)
+  const credentialKey = shouldUseSharedCacheKey(url.pathname) ? '' : await createCredentialCacheKey(request)
   if (credentialKey) {
     url.searchParams.set('__alife_credential', credentialKey)
   }
 
   return new Request(url.toString(), { method: 'GET' })
+}
+
+function shouldUseSharedCacheKey(pathname: string) {
+  return pathname === '/images' ||
+    pathname.startsWith('/images/') ||
+    PUBLIC_CACHEABLE_API_PATHS.has(pathname) ||
+    Boolean(getGroupDetailId(pathname))
 }
 
 function withCacheHeader(response: Response, value: 'HIT' | 'MISS' | 'BYPASS' | 'REVALIDATED') {
@@ -226,7 +250,7 @@ function withEdgeCacheControl(response: Response) {
   })
 }
 
-function withBrowserCacheControl(response: Response, pathname: string) {
+function withBrowserCacheControl(response: Response, pathname: string, groupAuthzStatus?: GroupAuthzStatus) {
   const headers = new Headers(response.headers)
 
   if (pathname === '/images' || pathname.startsWith('/images/') || PUBLIC_CACHEABLE_API_PATHS.has(pathname)) {
@@ -243,7 +267,7 @@ function withBrowserCacheControl(response: Response, pathname: string) {
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
-    headers,
+    headers: withGroupAuthzHeaders(headers, groupAuthzStatus),
   })
 }
 
@@ -352,6 +376,46 @@ async function rememberEntityGroups(request: Request, response: Response) {
   }
 }
 
+type GroupAuthzStatus = 'hit' | 'miss' | 'unbound' | 'no-principal' | 'not-applicable'
+
+function withGroupAuthzHeader(response: Response, status?: GroupAuthzStatus) {
+  const headers = new Headers(response.headers)
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: withGroupAuthzHeaders(headers, status),
+  })
+}
+
+function withGroupAuthzHeaders(headers: Headers, status?: GroupAuthzStatus) {
+  if (status && status !== 'not-applicable') {
+    headers.set('x-alife-authz', status)
+  }
+
+  return headers
+}
+
+async function rememberGroupAuthorization(
+  env: Env,
+  groupId: string,
+  memberId: string,
+  response: Response,
+) {
+  if (!groupId || !memberId || response.status !== 200 || !env.ALIFE_AUTHZ) {
+    return
+  }
+
+  await env.ALIFE_AUTHZ.put(
+    createMembershipKey(groupId, memberId),
+    JSON.stringify({
+      status: 'Approved',
+      source: 'origin-validated',
+      updatedUtc: new Date().toISOString(),
+    }),
+    { expirationTtl: AUTHZ_MIRROR_TTL_SECONDS },
+  )
+}
+
 async function readJsonObject(response: Response) {
   const value = await readJson(response)
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -374,6 +438,32 @@ async function readJson(response: Response) {
 
 function readString(value: unknown) {
   return typeof value === 'string' && value.trim() ? value : null
+}
+
+async function getGroupAuthzStatus(env: Env, groupId: string, memberId: string): Promise<GroupAuthzStatus> {
+  if (!memberId) {
+    return 'no-principal'
+  }
+
+  if (!env.ALIFE_AUTHZ) {
+    return 'unbound'
+  }
+
+  const record = await env.ALIFE_AUTHZ.get(createMembershipKey(groupId, memberId), { type: 'json' })
+  return isApprovedMembershipRecord(record) ? 'hit' : 'miss'
+}
+
+function isApprovedMembershipRecord(record: unknown) {
+  if (!record || typeof record !== 'object') {
+    return false
+  }
+
+  const status = (record as Record<string, unknown>).status
+  return typeof status === 'string' && status.toLowerCase() === 'approved'
+}
+
+function createMembershipKey(groupId: string, memberId: string) {
+  return `membership:${groupId}:${memberId}`
 }
 
 async function writeEntityGroup(entityType: string, entityId: string, groupId: string) {
@@ -454,6 +544,13 @@ async function createCredentialCacheKey(request: Request) {
   return Array.from(new Uint8Array(hash), (byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
+function extractMemberIdFromRequest(request: Request) {
+  const authorization = request.headers.get('authorization') ?? ''
+  const cookies = parseCookies(request.headers.get('cookie') ?? '')
+
+  return extractSubjectFromAuthorization(authorization) || extractSubjectFromJwt(cookies.alife_auth)
+}
+
 function parseCookies(cookieHeader: string) {
   const pairs = cookieHeader
     .split(';')
@@ -492,6 +589,19 @@ function extractPrincipalFromAuthorization(authorizationHeader: string) {
   return extractPrincipalFromJwt(parts[1]) || stableFallbackPrincipal(parts[1])
 }
 
+function extractSubjectFromAuthorization(authorizationHeader: string) {
+  if (!authorizationHeader) {
+    return ''
+  }
+
+  const parts = authorizationHeader.trim().split(/\s+/)
+  if (parts.length !== 2 || parts[0].toLowerCase() !== 'bearer') {
+    return ''
+  }
+
+  return extractSubjectFromJwt(parts[1])
+}
+
 function extractPrincipalFromJwt(token: string | undefined) {
   if (!token) {
     return ''
@@ -514,6 +624,26 @@ function extractPrincipalFromJwt(token: string | undefined) {
   }
 
   return ''
+}
+
+function extractSubjectFromJwt(token: string | undefined) {
+  if (!token) {
+    return ''
+  }
+
+  const sections = token.split('.')
+  if (sections.length < 2) {
+    return ''
+  }
+
+  try {
+    const payloadJson = decodeBase64Url(sections[1])
+    const payload = JSON.parse(payloadJson) as Record<string, unknown>
+    const subject = payload.sub
+    return typeof subject === 'string' && subject.trim() ? subject : ''
+  } catch {
+    return ''
+  }
 }
 
 function decodeBase64Url(value: string) {

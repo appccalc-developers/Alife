@@ -1,56 +1,62 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "app-ccalc",
-  "compatibility_date": "2026-05-06",
-  "observability": {
-    "enabled": true
-  },
-  "main": "./worker/index.ts",
-  "assets": {
-    "directory": "./dist",
-    "not_found_handling": "single-page-application",
-    "run_worker_first": [
-      "/api/*",
-      "/images/*"
-    ]
-  },
-  "vars": {
-    "API_PROXY_TARGET": "https://api.ccalc.live",
-    "GEMINI_MODEL": "gemini-3.1-flash-lite"
-  },
-  "durable_objects": {
-    "bindings": [
-      {
-        "name": "EVENT_SESSIONS",
-        "class_name": "EventPlanningSession"
-      },
-      {
-        "name": "ENROLLMENT_SESSIONS",
-        "class_name": "EnrollmentSession"
-      }
-    ]
-  },
-  "migrations": [
-    {
-      "tag": "v1_event_planning_sessions",
-      "new_sqlite_classes": [
-        "EventPlanningSession"
-      ]
-    },
-    {
-      "tag": "v2_enrollment_sessions",
-      "new_sqlite_classes": [
-        "EnrollmentSession"
-      ]
-    }
-  ],
-  "routes": [
-    {
-      "pattern": "ccalc.live",
-      "custom_domain": true
-    }
-  ],
-  "compatibility_flags": [
-    "nodejs_compat"
-  ]
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "app-ccalc",
+	"compatibility_date": "2026-05-06",
+	"observability": {
+		"enabled": true
+	},
+	"main": "./worker/index.ts",
+	"assets": {
+		"directory": "./dist",
+		"not_found_handling": "single-page-application",
+		"run_worker_first": [
+			"/api/*",
+			"/images/*"
+		]
+	},
+	"vars": {
+		"API_PROXY_TARGET": "https://api.ccalc.live",
+		"GEMINI_MODEL": "gemini-3.1-flash-lite"
+	},
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "EVENT_SESSIONS",
+				"class_name": "EventPlanningSession"
+			},
+			{
+				"name": "ENROLLMENT_SESSIONS",
+				"class_name": "EnrollmentSession"
+			}
+		]
+	},
+	"migrations": [
+		{
+			"tag": "v1_event_planning_sessions",
+			"new_sqlite_classes": [
+				"EventPlanningSession"
+			]
+		},
+		{
+			"tag": "v2_enrollment_sessions",
+			"new_sqlite_classes": [
+				"EnrollmentSession"
+			]
+		}
+	],
+	"routes": [
+		{
+			"pattern": "ccalc.live",
+			"custom_domain": true
+		}
+	],
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"kv_namespaces": [
+		{
+			"binding": "ALIFE_AUTHZ",
+			"id": "bc088e5f6e524a46be427ae3ef68268d"
+		}
+	]
 }
