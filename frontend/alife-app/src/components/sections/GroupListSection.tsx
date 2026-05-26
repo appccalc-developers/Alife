@@ -4,9 +4,12 @@ import type { ListViewMetadata } from '../../types/page-editor'
 import { normalizeListViewMetadata } from '../../utils/listViewMetadata'
 import type { SermonDto } from '../../services/sermonService'
 import type { GroupSummaryDto } from '../../types'
+import type { GroupEventRecord } from '../../types/event'
 import { useImagePreloader } from '../../hooks/useImagePreloader'
 import CoverImage from '../CoverImage'
 import { localizeText } from '../../utils/localizedText'
+import { useAuthStore } from '../../stores/auth'
+import { useUiText } from '../../i18n/uiText'
 
 // ---------- Universal Card Interface ----------
 
@@ -56,22 +59,25 @@ export function memberToCardItem(member: { memberId: string; status: string; rol
   }
 }
 
-export function pageToCardItem(page: any, groupId?: string): UniversalCardItem {
+export function pageToCardItem(page: any, groupId?: string, language = 'en'): UniversalCardItem {
   const pageId = (page as { id: string }).id
   return {
     id: pageId,
-    title: localizeText(page.title) || 'Untitled Page',
-    subtitle: localizeText((page as { description?: unknown }).description as never),
+    title: localizeText(page.title, language) || 'Untitled Page',
+    subtitle: localizeText((page as { description?: unknown }).description as never, language),
     date: (page as { updatedUtc?: string }).updatedUtc,
     url: groupId ? `/groups/${groupId}?page=${encodeURIComponent(pageId)}` : `/pages/${pageId}`,
     type: 'page',
   }
 }
 
-export function eventToCardItem(event: any): UniversalCardItem {
-  const title = event.titleZh || event.titleEn || 'Event'
+export function eventToCardItem(event: GroupEventRecord, language = 'en'): UniversalCardItem {
+  const title = language === 'zh'
+    ? event.titleZh || event.titleEn || 'Event'
+    : event.titleEn || event.titleZh || 'Event'
   const dateStr = event.startDate || ''
-  const dateDisplay = dateStr ? new Date(dateStr).toLocaleDateString('zh-CN', { year: 'numeric', month: 'short', day: 'numeric' }) : ''
+  const locale = language === 'zh' ? 'zh-CN' : 'en-NZ'
+  const dateDisplay = dateStr ? new Date(dateStr).toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' }) : ''
   return {
     id: event.id,
     title,
@@ -94,10 +100,13 @@ const sourceTypeLabels: Record<string, string> = {
 }
 
 export const ListCard: React.FC<{ item: UniversalCardItem; compact?: boolean; cardIndex?: number }> = ({ item, compact, cardIndex = 0 }) => {
+  const { language } = useAuthStore()
+  const t = useUiText()
   const imgH = compact ? 'h-24' : 'h-40'
   const iconH = compact ? 'h-14' : 'h-20'
   const pad = compact ? 'p-2' : 'p-4'
   const titleCls = compact ? 'text-xs' : 'text-sm'
+  const dateLocale = language === 'zh' ? 'zh-CN' : 'en-NZ'
 
   return (
     <a
@@ -129,11 +138,11 @@ export const ListCard: React.FC<{ item: UniversalCardItem; compact?: boolean; ca
         <p className={`mt-1 text-slate-500 line-clamp-1 ${compact ? 'text-[10px]' : 'text-xs'}`}>{item.subtitle}</p>
         {item.date && (
           <p className={`mt-1 text-slate-400 ${compact ? 'text-[10px]' : 'text-xs'}`}>
-            {new Date(item.date).toLocaleDateString('zh-CN', { year: 'numeric', month: 'short', day: 'numeric' })}
+            {new Date(item.date).toLocaleDateString(dateLocale, { year: 'numeric', month: 'short', day: 'numeric' })}
           </p>
         )}
         <span className={`mt-2 inline-flex items-center font-medium text-blue-600 hover:text-blue-800 ${compact ? 'text-[10px]' : 'text-xs'}`}>
-          查看详情
+          {t('viewDetails')}
           <svg className="ml-1 h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
@@ -162,6 +171,7 @@ const adapterMap: Record<string, (item: any) => UniversalCardItem> = {
 }
 
 export const GroupListSection: React.FC<GroupListSectionProps> = ({ metadata, groupId, compact }) => {
+  const { language } = useAuthStore()
   const raw = metadata as Record<string, unknown>
   const meta = useMemo(
     () => normalizeListViewMetadata(raw),
@@ -172,12 +182,15 @@ export const GroupListSection: React.FC<GroupListSectionProps> = ({ metadata, gr
 
   const cardItems = useMemo(() => {
     if (meta.sourceType === 'pages') {
-      return (data ?? []).map((item: any) => pageToCardItem(item, groupId)).filter(Boolean)
+      return (data ?? []).map((item: any) => pageToCardItem(item, groupId, language)).filter(Boolean)
+    }
+    if (meta.sourceType === 'events') {
+      return (data ?? []).map((item: GroupEventRecord) => eventToCardItem(item, language)).filter(Boolean)
     }
     const adapter = adapterMap[meta.sourceType]
     if (!adapter || !data) return []
     return data.map((item) => adapter(item)).filter(Boolean)
-  }, [data, meta.sourceType, groupId])
+  }, [data, meta.sourceType, groupId, language])
 
   // Preload images for first 4 cards when data is ready
   const { preloadImages } = useImagePreloader()

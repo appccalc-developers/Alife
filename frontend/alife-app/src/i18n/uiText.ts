@@ -33,6 +33,7 @@ const text = {
   churchGroupLoadError: { en: 'Unable to load the Church group right now.', zh: '暂时无法加载教会小组。' },
   openChurch: { en: 'Open church', zh: '打开教会' },
   details: { en: 'Details', zh: '详情' },
+  viewDetails: { en: 'View details', zh: '查看详情' },
   admin: { en: 'Admin', zh: '管理' },
   adminDescription: { en: 'System-level operations for Alife administrators.', zh: 'Alife 管理员的系统级操作。' },
   sermons: { en: 'Sermons', zh: '讲道' },

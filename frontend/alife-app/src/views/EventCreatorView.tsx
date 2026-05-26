@@ -187,6 +187,11 @@ type SpeechRecognitionEventLike = {
 type SpeechRecognitionConstructor = new () => SpeechRecognitionLike
 
 const EVENT_SESSION_STORAGE_KEY = 'alife-event-planning-session-id'
+const createIntroMessage = (text: string): ChatMessage => ({
+  role: 'assistant',
+  text,
+  markdown: true,
+})
 
 const createSessionId = (memberId?: string) => {
   if (memberId) {
@@ -260,13 +265,7 @@ const EventCreatorView = () => {
   const eventFromNavigationStateId = eventFromNavigationState ? String(eventFromNavigationState.id) : ''
   const eventFromNavigationStateData = eventFromNavigationState?.eventDataJson ?? ''
 
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      role: 'assistant',
-      text: t('eventAssistantIntro'),
-      markdown: true,
-    },
-  ])
+  const [messages, setMessages] = useState<ChatMessage[]>(() => [createIntroMessage(t('eventAssistantIntro'))])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [listening, setListening] = useState(false)
@@ -288,6 +287,16 @@ const EventCreatorView = () => {
   const speechRecognitionRef = useRef<SpeechRecognitionLike | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    setMessages((prev) => {
+      if (prev.length !== 1 || prev[0]?.role !== 'assistant') {
+        return prev
+      }
+
+      return [createIntroMessage(t('eventAssistantIntro'))]
+    })
+  }, [t])
 
   useEffect(() => {
     if (isEditMode) {
