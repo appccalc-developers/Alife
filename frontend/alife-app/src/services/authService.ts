@@ -1,10 +1,11 @@
 import { http } from './http'
 import type { MeDto } from '../types'
+import { normalizeMe } from '../utils/apiEnums'
 
 export const authService = {
   async getMe() {
     const { data } = await http.get<MeDto>('/api/me')
-    return data
+    return normalizeMe(data)
   },
 
   async logout() {

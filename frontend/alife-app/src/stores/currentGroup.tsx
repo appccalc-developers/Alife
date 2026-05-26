@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { conditionalGet } from '../db/httpCache'
 import { churchQueryKey } from '../db/collections/groupCollection'
 import type { GroupDto } from '../types'
+import { normalizeGroup } from '../utils/apiEnums'
 
 type CurrentGroupContextValue = {
   CurrentGroup: GroupDto | null
@@ -27,8 +28,9 @@ export const CurrentGroupProvider = ({ children }: { children: ReactNode }) => {
         queryKey: churchQueryKey,
         path: '/api/groups/church',
       })
-      setCurrentGroup(church)
-      return church
+      const normalized = normalizeGroup(church)
+      setCurrentGroup(normalized)
+      return normalized
     } catch {
       setError('Failed to load the Church group.')
       return null

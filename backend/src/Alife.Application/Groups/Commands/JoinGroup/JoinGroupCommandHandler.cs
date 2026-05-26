@@ -1,3 +1,4 @@
+using Alife.Application.Common;
 using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
 using Alife.Application.Groups.Dtos;
@@ -63,6 +64,6 @@ public sealed class JoinGroupCommandHandler(
         await dbContext.SaveChangesAsync(cancellationToken);
         await groupCacheInvalidationService.RemoveMembershipsAsync(request.GroupId, cancellationToken);
 
-        return AppResult<GroupStatusResultDto>.Success(new GroupStatusResultDto(status.ToString()));
+        return AppResult<GroupStatusResultDto>.Success(new GroupStatusResultDto(EnumName.CamelCase(status)));
     }
 }

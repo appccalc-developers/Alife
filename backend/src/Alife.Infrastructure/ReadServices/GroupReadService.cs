@@ -1,3 +1,4 @@
+using Alife.Application.Common;
 using Alife.Application.Groups.Dtos;
 using Alife.Application.Groups.Services;
 using Alife.Infrastructure.Persistence;
@@ -92,8 +93,8 @@ public sealed class GroupReadService(AlifeDbContext dbContext, HybridCache hybri
                 return (IReadOnlyList<GroupMembershipDto>)rows
                     .Select(x => new GroupMembershipDto(
                         x.MemberId,
-                        x.Status.ToString(),
-                        x.Role.ToString(),
+                        EnumName.CamelCase(x.Status),
+                        EnumName.CamelCase(x.Role),
                         x.CreatedUtc,
                         x.UpdatedUtc))
                     .ToList();

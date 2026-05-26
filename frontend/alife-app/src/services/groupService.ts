@@ -1,5 +1,6 @@
 import { http } from './http'
 import type { GroupDto, GroupMembershipDto, GroupSummaryDto, PageSummaryDto } from '../types'
+import { normalizeGroup, normalizeGroupMembership, normalizeMembershipStatus, normalizePageSummary } from '../utils/apiEnums'
 
 export type CreateSubgroupPayload = {
   name: string
@@ -22,44 +23,44 @@ export type SetCoLeaderPayload = {
 export const groupService = {
   async getGlobalPages() {
     const { data } = await http.get<PageSummaryDto[]>('/api/pages/global')
-    return data
+    return data.map(normalizePageSummary)
   },
 
   async getChurch() {
     const { data } = await http.get<GroupDto>('/api/groups/church')
-    return data
+    return normalizeGroup(data)
   },
 
   async getGroup(groupId: string) {
     const { data } = await http.get<GroupDto>(`/api/groups/${groupId}`)
-    return data
+    return normalizeGroup(data)
   },
 
   async getSubgroups(groupId: string) {
     const { data } = await http.get<GroupSummaryDto[]>(`/api/groups/${groupId}/subgroups`)
-    return data
+    return data.map(normalizeGroup)
   },
 
   async getGroupPages(groupId: string) {
     const { data } = await http.get<PageSummaryDto[]>(`/api/groups/${groupId}/pages`)
-    return data
+    return data.map(normalizePageSummary)
   },
 
   async getGroupMemberships(groupId: string) {
     const { data } = await http.get<Array<Omit<GroupMembershipDto, 'groupId'> & { memberId: string }>>(
       `/api/groups/${groupId}/memberships`,
     )
-    return data
+    return data.map(normalizeGroupMembership)
   },
 
   async requestJoin(groupId: string) {
     const { data } = await http.post<{ status: string }>(`/api/groups/${groupId}/join-request`)
-    return data
+    return { ...data, status: normalizeMembershipStatus(data.status) }
   },
 
   async createSubgroup(groupId: string, payload: CreateSubgroupPayload) {
     const { data } = await http.post<GroupSummaryDto>(`/api/groups/${groupId}/subgroups`, payload)
-    return data
+    return normalizeGroup(data)
   },
 
   async updateSubgroup(_subgroupId: string, _payload: CreateSubgroupPayload) {
