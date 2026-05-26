@@ -43,13 +43,18 @@ public class GroupsController(
         var updatedUtc = await dbContext.Groups
             .Where(x => x.IsChurch)
             .MaxAsync(x => (DateTime?)x.UpdatedUtc, cancellationToken);
-        if (this.IsNotModified(updatedUtc))
+        var result = await mediator.Send(new GetChurchQuery(currentMemberId.Value), cancellationToken);
+        if (!result.IsSuccess)
+        {
+            return this.ToActionResult(result);
+        }
+
+        if (this.IsPrivateNotModified(updatedUtc))
         {
             return StatusCode(StatusCodes.Status304NotModified);
         }
 
-        var result = await mediator.Send(new GetChurchQuery(currentMemberId.Value), cancellationToken);
-        this.ApplySyncCacheHeaders(updatedUtc);
+        this.ApplyPrivateSyncCacheHeaders(updatedUtc);
         return this.ToActionResult(result);
     }
 
@@ -65,13 +70,18 @@ public class GroupsController(
         var updatedUtc = await dbContext.Groups
             .Where(x => x.Id == id)
             .MaxAsync(x => (DateTime?)x.UpdatedUtc, cancellationToken);
-        if (this.IsNotModified(updatedUtc))
+        var result = await mediator.Send(new GetGroupByIdQuery(id, currentMemberId.Value), cancellationToken);
+        if (!result.IsSuccess)
+        {
+            return this.ToActionResult(result);
+        }
+
+        if (this.IsPrivateNotModified(updatedUtc))
         {
             return StatusCode(StatusCodes.Status304NotModified);
         }
 
-        var result = await mediator.Send(new GetGroupByIdQuery(id, currentMemberId.Value), cancellationToken);
-        this.ApplySyncCacheHeaders(updatedUtc);
+        this.ApplyPrivateSyncCacheHeaders(updatedUtc);
         return this.ToActionResult(result);
     }
 
@@ -87,13 +97,18 @@ public class GroupsController(
         var updatedUtc = await dbContext.Groups
             .Where(x => x.ParentGroupId == id)
             .MaxAsync(x => (DateTime?)x.UpdatedUtc, cancellationToken);
-        if (this.IsNotModified(updatedUtc))
+        var result = await mediator.Send(new GetSubgroupsQuery(id, currentMemberId.Value), cancellationToken);
+        if (!result.IsSuccess)
+        {
+            return this.ToActionResult(result);
+        }
+
+        if (this.IsPrivateNotModified(updatedUtc))
         {
             return StatusCode(StatusCodes.Status304NotModified);
         }
 
-        var result = await mediator.Send(new GetSubgroupsQuery(id, currentMemberId.Value), cancellationToken);
-        this.ApplySyncCacheHeaders(updatedUtc);
+        this.ApplyPrivateSyncCacheHeaders(updatedUtc);
         return this.ToActionResult(result);
     }
 
@@ -138,13 +153,18 @@ public class GroupsController(
         var updatedUtc = await dbContext.GroupMemberships
             .Where(x => x.GroupId == id)
             .MaxAsync(x => (DateTime?)x.UpdatedUtc, cancellationToken);
-        if (this.IsNotModified(updatedUtc))
+        var result = await mediator.Send(new GetGroupMembershipsQuery(id, currentMemberId.Value), cancellationToken);
+        if (!result.IsSuccess)
+        {
+            return this.ToActionResult(result);
+        }
+
+        if (this.IsPrivateNotModified(updatedUtc))
         {
             return StatusCode(StatusCodes.Status304NotModified);
         }
 
-        var result = await mediator.Send(new GetGroupMembershipsQuery(id, currentMemberId.Value), cancellationToken);
-        this.ApplySyncCacheHeaders(updatedUtc);
+        this.ApplyPrivateSyncCacheHeaders(updatedUtc);
         return this.ToActionResult(result);
     }
 

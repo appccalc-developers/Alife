@@ -10,7 +10,7 @@ const CACHE_TTL_SECONDS = 86400 // 24 hours
 const CACHE_STALE_WHILE_REVALIDATE_SECONDS = 300
 const CACHE_STALE_IF_ERROR_SECONDS = 86400
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
-const UNCACHEABLE_API_PATHS = new Set(['/api/me'])
+const PUBLIC_CACHEABLE_API_PATHS = new Set(['/api/sermons', '/api/pages/global'])
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -33,13 +33,13 @@ export default {
         const clientEtag = request.headers.get('if-none-match')
         const cachedEtag = cached.headers.get('etag')
         if (clientEtag && cachedEtag && matchesIfNoneMatch(clientEtag, cachedEtag)) {
-          return addCorsHeaders(request, withCacheHeader(new Response(null, {
+          return addCorsHeaders(request, withCacheHeader(withBrowserCacheControl(new Response(null, {
             status: 304,
             headers: cached.headers,
-          }), 'REVALIDATED'))
+          }), url.pathname), 'REVALIDATED'))
         }
 
-        return addCorsHeaders(request, withCacheHeader(cached, 'HIT'))
+        return addCorsHeaders(request, withCacheHeader(withBrowserCacheControl(cached, url.pathname), 'HIT'))
       }
     }
 
@@ -55,12 +55,12 @@ export default {
     }
 
     if (originResponse.status === 200 && request.method === 'GET' && !bypassEdgeCache) {
-      const responseForCache = withCacheControl(originResponse.clone())
+      const responseForCache = withEdgeCacheControl(originResponse.clone())
       ctx.waitUntil(Promise.all([
         createCacheKey(request).then((cacheKey) => getEdgeCache().put(cacheKey, responseForCache)),
         rememberEntityGroups(request, originResponse.clone()),
       ]))
-      return addCorsHeaders(request, withCacheHeader(withCacheControl(originResponse), 'MISS'))
+      return addCorsHeaders(request, withCacheHeader(withBrowserCacheControl(originResponse, url.pathname), 'MISS'))
     }
 
     const response = bypassEdgeCache ? withNoStore(originResponse) : originResponse
@@ -174,7 +174,15 @@ function getProxyTargetPath(pathname: string) {
 }
 
 function shouldBypassEdgeCache(pathname: string) {
-  return UNCACHEABLE_API_PATHS.has(pathname)
+  if (pathname === '/images' || pathname.startsWith('/images/')) {
+    return false
+  }
+
+  if (PUBLIC_CACHEABLE_API_PATHS.has(pathname)) {
+    return false
+  }
+
+  return pathname.startsWith('/api/')
 }
 
 async function createCacheKey(request: Request, pathname?: string) {
@@ -204,13 +212,34 @@ function withCacheHeader(response: Response, value: 'HIT' | 'MISS' | 'BYPASS' | 
   })
 }
 
-function withCacheControl(response: Response) {
+function withEdgeCacheControl(response: Response) {
   const headers = new Headers(response.headers)
   headers.set(
     'cache-control',
     `public, max-age=${CACHE_TTL_SECONDS}, s-maxage=${CACHE_TTL_SECONDS}, stale-while-revalidate=${CACHE_STALE_WHILE_REVALIDATE_SECONDS}, stale-if-error=${CACHE_STALE_IF_ERROR_SECONDS}`,
   )
   headers.set('vary', appendVary(headers.get('vary'), 'Accept-Encoding'))
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
+}
+
+function withBrowserCacheControl(response: Response, pathname: string) {
+  const headers = new Headers(response.headers)
+
+  if (pathname === '/images' || pathname.startsWith('/images/') || PUBLIC_CACHEABLE_API_PATHS.has(pathname)) {
+    headers.set(
+      'cache-control',
+      `public, max-age=${CACHE_TTL_SECONDS}, s-maxage=${CACHE_TTL_SECONDS}, stale-while-revalidate=${CACHE_STALE_WHILE_REVALIDATE_SECONDS}, stale-if-error=${CACHE_STALE_IF_ERROR_SECONDS}`,
+    )
+    headers.set('vary', appendVary(headers.get('vary'), 'Accept-Encoding'))
+  } else {
+    headers.set('cache-control', 'private, no-cache')
+    headers.set('vary', appendVary(appendVary(appendVary(headers.get('vary'), 'Accept-Encoding'), 'Cookie'), 'Authorization'))
+  }
+
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,

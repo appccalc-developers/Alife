@@ -21,13 +21,13 @@ public class SermonsController(IMediator mediator, AlifeDbContext dbContext) : C
         var updatedUtc = await dbContext.Sermons
             .IgnoreQueryFilters()
             .MaxAsync(x => (DateTime?)x.UpdatedUtc, cancellationToken);
-        if (this.IsNotModified(updatedUtc))
+        if (this.IsPublicNotModified(updatedUtc))
         {
             return StatusCode(StatusCodes.Status304NotModified);
         }
 
         var result = await mediator.Send(new GetSermonsQuery(), cancellationToken);
-        this.ApplySyncCacheHeaders(updatedUtc);
+        this.ApplyPublicSyncCacheHeaders(updatedUtc);
         return this.ToActionResult(result);
     }
 }

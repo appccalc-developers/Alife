@@ -34,13 +34,18 @@ public class EventsController(
             .IgnoreQueryFilters()
             .Where(x => x.GroupId == groupId)
             .MaxAsync(x => (DateTime?)x.UpdatedUtc, cancellationToken);
-        if (this.IsNotModified(updatedUtc))
+        var result = await mediator.Send(new GetGroupEventsQuery(groupId, currentMemberId.Value), cancellationToken);
+        if (!result.IsSuccess)
+        {
+            return this.ToActionResult(result);
+        }
+
+        if (this.IsPrivateNotModified(updatedUtc))
         {
             return StatusCode(StatusCodes.Status304NotModified);
         }
 
-        var result = await mediator.Send(new GetGroupEventsQuery(groupId, currentMemberId.Value), cancellationToken);
-        this.ApplySyncCacheHeaders(updatedUtc);
+        this.ApplyPrivateSyncCacheHeaders(updatedUtc);
         return this.ToActionResult(result);
     }
 
