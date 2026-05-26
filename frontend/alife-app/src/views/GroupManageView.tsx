@@ -46,8 +46,8 @@ type MembersPanelProps = {
 
 const MembersPanel = ({ memberships, onInviteMember, onApproveMember, onRejectMember, onKickMember, onSetCoLeader }: MembersPanelProps) => {
   const t = useUiText()
-  const requestedMembers = memberships.filter((member) => member.status === 'Requested')
-  const approvedMembers = memberships.filter((member) => member.status === 'Approved')
+  const requestedMembers = memberships.filter((member) => member.status === 'requested')
+  const approvedMembers = memberships.filter((member) => member.status === 'approved')
 
   return (
     <AppSectionCard title={t('members')} subtitle={t('membersPanelSubtitle')}>
@@ -55,7 +55,7 @@ const MembersPanel = ({ memberships, onInviteMember, onApproveMember, onRejectMe
         {sectionStats([
           { label: t('pending'), value: requestedMembers.length },
           { label: t('approved'), value: approvedMembers.length },
-          { label: t('coLeaders'), value: approvedMembers.filter((member) => member.role === 'CoLeader').length },
+          { label: t('coLeaders'), value: approvedMembers.filter((member) => member.role === 'coLeader').length },
           { label: t('totalRows'), value: memberships.length },
         ])}
         <AppActionButton variant="primary" onClick={onInviteMember}>{t('inviteMember')}</AppActionButton>
@@ -68,7 +68,7 @@ const MembersPanel = ({ memberships, onInviteMember, onApproveMember, onRejectMe
             <div key={member.memberId} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50/60 p-3">
               <div>
                 <p className="font-medium text-slate-950">{t('memberShort', { id: shortId(member.memberId) })}</p>
-                <MembershipStatusBadge status="Requested" />
+                <MembershipStatusBadge status="requested" />
               </div>
               <div className="flex gap-2">
                 <AppActionButton size="sm" variant="primary" onClick={() => onApproveMember(member.memberId)}>{t('approve')}</AppActionButton>
@@ -90,10 +90,10 @@ const MembersPanel = ({ memberships, onInviteMember, onApproveMember, onRejectMe
                 <p className="font-medium text-slate-950">{t('memberShort', { id: shortId(member.memberId) })}</p>
                 <AppBadge variant="info">{member.role}</AppBadge>
               </div>
-              {member.role !== 'Leader' ? (
+              {member.role !== 'leader' ? (
                 <div className="flex gap-2">
-                  <AppActionButton size="sm" variant="secondary" onClick={() => onSetCoLeader(member.memberId, member.role !== 'CoLeader')}>
-                    {member.role === 'CoLeader' ? t('resetCoLeader') : t('setCoLeader')}
+                  <AppActionButton size="sm" variant="secondary" onClick={() => onSetCoLeader(member.memberId, member.role !== 'coLeader')}>
+                    {member.role === 'coLeader' ? t('resetCoLeader') : t('setCoLeader')}
                   </AppActionButton>
                   <AppActionButton size="sm" variant="danger" onClick={() => onKickMember(member.memberId)}>{t('remove')}</AppActionButton>
                 </div>
@@ -123,8 +123,8 @@ const PagesPanel = ({ groupId, language, pages, onAddPage, onDeletePage, onToggl
     <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
       {sectionStats([
         { label: t('pages'), value: pages.length },
-        { label: t('published'), value: pages.filter((page) => page.visibility !== 'InvisibleDraft').length },
-        { label: t('drafts'), value: pages.filter((page) => page.visibility === 'InvisibleDraft').length },
+        { label: t('published'), value: pages.filter((page) => page.visibility !== 'draft').length },
+        { label: t('drafts'), value: pages.filter((page) => page.visibility === 'draft').length },
         { label: t('group'), value: 1 },
       ])}
       <AppActionButton variant="primary" onClick={onAddPage}>{t('addPage')}</AppActionButton>
@@ -144,7 +144,7 @@ const PagesPanel = ({ groupId, language, pages, onAddPage, onDeletePage, onToggl
               <Link className="inline-flex items-center justify-center rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100" to={`/groups/${groupId}?page=${encodeURIComponent(page.id)}`}>{t('open')}</Link>
               <Link className="inline-flex items-center justify-center rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100" to={`/pages/${page.id}/edit?groupId=${groupId}`}>{t('edit')}</Link>
               <AppActionButton size="sm" variant="secondary" onClick={() => onTogglePageVisibility(page)}>
-                {page.visibility === 'InvisibleDraft' ? t('publish') : t('moveToDraft')}
+                {page.visibility === 'draft' ? t('publish') : t('moveToDraft')}
               </AppActionButton>
               <AppActionButton size="sm" variant="danger" onClick={() => onDeletePage(page.id)}>{t('delete')}</AppActionButton>
             </div>
@@ -300,14 +300,14 @@ const GroupManageView = () => {
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 {sectionStats([
                   { label: t('subgroups'), value: subgroups.length },
-                  { label: t('public'), value: subgroups.filter((subgroup) => subgroup.accessType === 'Public').length },
-                  { label: t('protected'), value: subgroups.filter((subgroup) => subgroup.accessType === 'Protected').length },
-                  { label: t('private'), value: subgroups.filter((subgroup) => subgroup.accessType === 'Private').length },
+                  { label: t('public'), value: subgroups.filter((subgroup) => subgroup.accessType === 'public').length },
+                  { label: t('protected'), value: subgroups.filter((subgroup) => subgroup.accessType === 'protected').length },
+                  { label: t('private'), value: subgroups.filter((subgroup) => subgroup.accessType === 'private').length },
                 ])}
                 <AppActionButton variant="primary" onClick={() => {
                   const subgroupName = window.prompt(t('subgroupName'))
                   if (!subgroupName?.trim()) return
-                  createSubgroup(subgroupName.trim(), 'Protected').catch(() => setStatusMessage(t('addSubgroupFailed')))
+                  createSubgroup(subgroupName.trim(), 'protected').catch(() => setStatusMessage(t('addSubgroupFailed')))
                 }}>
                   {t('addSubgroup')}
                 </AppActionButton>

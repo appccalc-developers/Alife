@@ -8,8 +8,8 @@ import { useUiText } from '../../i18n/uiText'
 
 type Props = {
   group: GroupDto
-  membershipStatus: 'Not joined' | 'Requested' | 'Approved' | 'Invited'
-  membershipRole: 'Member' | 'CoLeader' | 'Leader' | null
+  membershipStatus: 'Not joined' | 'requested' | 'approved' | 'invited'
+  membershipRole: 'member' | 'coLeader' | 'leader' | null
   summary: string
   actions?: ReactNode
 }

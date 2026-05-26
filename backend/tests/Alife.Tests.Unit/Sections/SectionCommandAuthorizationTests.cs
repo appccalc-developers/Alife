@@ -32,7 +32,7 @@ public class SectionCommandAuthorizationTests
         var currentMemberId = Guid.NewGuid();
         var pageId = Guid.NewGuid();
 
-        dbContext.Pages.Add(CreateGroupPage(pageId, groupId, authorId, PageVisibility.VisibleToGroup));
+        dbContext.Pages.Add(CreateGroupPage(pageId, groupId, authorId, PageVisibility.Group));
         await dbContext.SaveChangesAsync();
 
         groupAuthorizationService
@@ -64,7 +64,7 @@ public class SectionCommandAuthorizationTests
         var pageId = Guid.NewGuid();
         var sectionId = Guid.NewGuid();
 
-        dbContext.Pages.Add(CreateGroupPage(pageId, groupId, authorId, PageVisibility.VisibleToGroup));
+        dbContext.Pages.Add(CreateGroupPage(pageId, groupId, authorId, PageVisibility.Group));
         dbContext.Sections.Add(new Section
         {
             Id = sectionId,
@@ -108,7 +108,7 @@ public class SectionCommandAuthorizationTests
         var pageId = Guid.NewGuid();
         var sectionId = Guid.NewGuid();
 
-        dbContext.Pages.Add(CreateGroupPage(pageId, groupId, authorId, PageVisibility.VisibleToGroup));
+        dbContext.Pages.Add(CreateGroupPage(pageId, groupId, authorId, PageVisibility.Group));
         dbContext.Sections.Add(new Section
         {
             Id = sectionId,

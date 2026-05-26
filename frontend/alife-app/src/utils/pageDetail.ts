@@ -51,6 +51,19 @@ const normalizeSectionType = (value: number | string): SectionEditModel['type'] 
   }
 
   const normalized = String(value)
+  const sectionTypeMapByName: Record<string, SectionEditModel['type']> = {
+    hero: 'Hero',
+    richText: 'RichText',
+    postFeed: 'PostFeed',
+    sermon: 'Sermon',
+    groupList: 'GroupList',
+    pageList: 'PageList',
+    sermonList: 'SermonList',
+  }
+  if (sectionTypeMapByName[normalized]) {
+    return sectionTypeMapByName[normalized]
+  }
+
   const values = ['Hero', 'MediaSpotlight', 'IconFeatureGrid', 'SermonSpotlight', 'RichText', 'PostFeed', 'Sermon', 'GroupList', 'PageList', 'SermonList'] as const
   return values.includes(normalized as (typeof values)[number]) ? (normalized as SectionEditModel['type']) : 'RichText'
 }

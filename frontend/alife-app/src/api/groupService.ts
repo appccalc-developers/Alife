@@ -28,7 +28,7 @@ export const groupService = {
   kickMember: groups.kickMember,
   createGroupPage: pageService.createGroupPage,
   updatePage: pageService.updatePage,
-  publishPage: (pageId: string, visibility: PageVisibility = 'VisibleToGroup') =>
+  publishPage: (pageId: string, visibility: PageVisibility = 'group') =>
     pageService.publishPage(pageId, { visibility }),
   publishPageOptimized: (pageId: string, payload: PublishPageOptimizedPayload) => pageService.publishPageOptimized(pageId, payload),
   deletePage: pageService.deletePage,

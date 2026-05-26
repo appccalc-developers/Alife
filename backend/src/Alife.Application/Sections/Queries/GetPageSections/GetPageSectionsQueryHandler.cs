@@ -52,7 +52,7 @@ public sealed class GetPageSectionsQueryHandler(
 		var isPrivileged = page.CreatedByMemberId == currentMemberId ||
 			await groupAuthorizationService.IsLeaderOrCoLeaderAsync(page.OwnerGroupId.Value, currentMemberId, cancellationToken);
 
-		return (isApproved && page.Visibility != PageVisibility.InvisibleDraft) || isPrivileged;
+		return (isApproved && page.Visibility != PageVisibility.Draft) || isPrivileged;
 	}
 }
 

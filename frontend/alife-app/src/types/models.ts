@@ -1,8 +1,8 @@
-export type AccessType = 'Public' | 'Protected' | 'Private'
-export type MembershipStatus = 'Invited' | 'Requested' | 'Approved' | 'Rejected' | 'Removed'
-export type MembershipRole = 'Member' | 'CoLeader' | 'Leader'
-export type PageScope = 'Global' | 'Group'
-export type PageVisibility = 'InvisibleDraft' | 'VisibleToGroup' | 'VisiblePublic'
+export type AccessType = 'public' | 'protected' | 'private'
+export type MembershipStatus = 'invited' | 'requested' | 'approved' | 'rejected' | 'removed'
+export type MembershipRole = 'member' | 'coLeader' | 'leader'
+export type PageScope = 'global' | 'group'
+export type PageVisibility = 'draft' | 'group' | 'public'
 export type LocalizedText = Record<string, string>
 
 export type ListSourceType = 'sermons' | 'pages' | 'subgroups' | 'events' | 'members'

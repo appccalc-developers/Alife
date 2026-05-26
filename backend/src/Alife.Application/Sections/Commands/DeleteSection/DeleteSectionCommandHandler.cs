@@ -52,7 +52,7 @@ public sealed class DeleteSectionCommandHandler(
 			return false;
 		}
 
-		if (page.CreatedByMemberId == currentMemberId && page.Visibility == PageVisibility.InvisibleDraft)
+		if (page.CreatedByMemberId == currentMemberId && page.Visibility == PageVisibility.Draft)
 		{
 			return true;
 		}
