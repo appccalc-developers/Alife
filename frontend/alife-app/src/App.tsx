@@ -137,7 +137,10 @@ const ShellNavLink = ({ item, mobile = false }: { item: ShellNavItem; mobile?: b
 const ShellSearchNavLink = ({ item, mobile = false }: { item: ShellNavItem; mobile?: boolean }) => {
   const location = useLocation()
   const target = new URL(item.to, window.location.origin)
-  const isActive = location.pathname === target.pathname && (!item.matchSearch || location.search === item.matchSearch)
+  const pageEditMatch = location.pathname.match(/^\/pages\/([^/]+)\/edit$/)
+  const isActive =
+    (location.pathname === target.pathname && (!item.matchSearch || location.search === item.matchSearch)) ||
+    (Boolean(item.pageId) && pageEditMatch?.[1] === item.pageId)
 
   return (
     <Link
