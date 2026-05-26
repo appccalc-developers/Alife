@@ -48,7 +48,7 @@ beforeEach(() => {
 test('approved group member can read shared group detail cache', async () => {
   const groupId = 'group-1'
   const url = `https://ccalc.live/api/groups/${groupId}`
-  authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'Approved' }))
+  authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved' }))
   cacheStore.set(cacheKey(new Request(url)), Response.json({ id: groupId, name: 'Shared group' }))
 
   const response = await dispatch(url, {
@@ -78,13 +78,13 @@ test('group detail cache is gated by KV authorization mirror before cache hit', 
   assert.equal(response.headers.get('x-alife-authz'), 'miss')
   assert.deepEqual(await response.json(), { id: groupId, name: 'Origin group' })
   assert.equal(fetchCalls.length, 1)
-  assert.equal(JSON.parse(authzStore.get(`membership:${groupId}:member-1`)).status, 'Approved')
+  assert.equal(JSON.parse(authzStore.get(`membership:${groupId}:member-1`)).status, 'approved')
 })
 
 test('approved members share group detail edge cache entry', async () => {
   const groupId = 'group-1'
   const url = `https://ccalc.live/api/groups/${groupId}`
-  authzStore.set(`membership:${groupId}:member-2`, JSON.stringify({ status: 'Approved' }))
+  authzStore.set(`membership:${groupId}:member-2`, JSON.stringify({ status: 'approved' }))
   originResponses.push(Response.json({ id: groupId, name: 'Origin group' }))
 
   const first = await dispatch(url, {

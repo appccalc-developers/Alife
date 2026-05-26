@@ -408,7 +408,7 @@ async function rememberGroupAuthorization(
   await env.ALIFE_AUTHZ.put(
     createMembershipKey(groupId, memberId),
     JSON.stringify({
-      status: 'Approved',
+      status: 'approved',
       source: 'origin-validated',
       updatedUtc: new Date().toISOString(),
     }),

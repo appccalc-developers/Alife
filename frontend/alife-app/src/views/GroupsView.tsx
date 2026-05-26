@@ -6,6 +6,7 @@ import { subgroupsCollection } from '../db/collections/groupCollection'
 import { conditionalGet } from '../db/httpCache'
 import { useUiText } from '../i18n/uiText'
 import type { GroupDto } from '../types'
+import { normalizeGroup } from '../utils/apiEnums'
 
 const GroupsView = () => {
   const t = useUiText()
@@ -21,7 +22,7 @@ const GroupsView = () => {
       path: '/api/groups/church',
     })
       .then((data) => {
-        if (!cancelled) setChurch(data)
+        if (!cancelled) setChurch(normalizeGroup(data))
       })
       .catch(() => undefined)
       .finally(() => {

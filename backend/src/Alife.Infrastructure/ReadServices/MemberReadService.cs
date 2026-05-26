@@ -1,3 +1,4 @@
+using Alife.Application.Common;
 using Alife.Application.Members.Dtos;
 using Alife.Application.Members.Services;
 using Alife.Infrastructure.Persistence;
@@ -25,8 +26,8 @@ public sealed class MemberReadService(AlifeDbContext dbContext) : IMemberReadSer
                 x.Memberships
                     .Select(m => new MemberMembershipDto(
                         m.GroupId,
-                        m.Status.ToString(),
-                        m.Role.ToString()))
+                        EnumName.CamelCase(m.Status),
+                        EnumName.CamelCase(m.Role)))
                     .ToList()))
             .FirstOrDefaultAsync(cancellationToken);
     }

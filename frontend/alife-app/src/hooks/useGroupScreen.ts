@@ -6,6 +6,7 @@ import { pageService } from '../services/pageService'
 import { eventService } from '../services/eventService'
 import { useAuthStore } from '../stores/auth'
 import { conditionalGet } from '../db/httpCache'
+import { normalizeGroup } from '../utils/apiEnums'
 import { groupQueryKey, getCachedSubgroups } from '../db/collections/groupCollection'
 import { subgroupsCollection } from '../db/collections/groupCollection'
 import { groupPagesCollection, getCachedGroupPages } from '../db/collections/groupCollection'
@@ -43,7 +44,7 @@ export const useGroupScreen = (groupId: string) => {
       path: `/api/groups/${groupId}`,
     })
       .then((data) => {
-        if (!cancelled) setGroup(data)
+        if (!cancelled) setGroup(normalizeGroup(data))
       })
       .catch((reason) => {
         if (!cancelled) setError(reason instanceof Error ? reason.message : 'Failed to load group.')

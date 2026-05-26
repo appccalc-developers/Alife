@@ -1,4 +1,5 @@
 import type { PageDetailDto, SectionEditModel } from '../types'
+import { normalizePageVisibility } from './apiEnums'
 import { toLocalizedText } from './localizedText'
 
 type SectionDto = {
@@ -115,5 +116,6 @@ export const normalizePageDetail = (page: PageDetailDto & { tagsJson?: string })
   description: toLocalizedText(page.description),
   tags: Array.isArray(page.tags) ? page.tags : parseTags(page.tagsJson),
   titleDisplayStyle: page.titleDisplayStyle ?? 'Default',
+  visibility: normalizePageVisibility(page.visibility),
   sections: (page.sections ?? []).map((section) => normalizePageSection(section as unknown as SectionDto)),
 })
