@@ -329,12 +329,12 @@ const GroupDrawer = ({ currentGroup, churchGroup, items, open, onClose, onOpenGr
             <ul className="space-y-2">
               {items.map((subgroup) => {
                 const membership = auth.memberships.find((item) => item.groupId === subgroup.id)
-                const isApproved = membership?.status === 'Approved'
+                const isApproved = membership?.status === 'approved'
                 const statusLabel = isApproved
                   ? t('approved')
-                  : membership?.status === 'Requested'
+                  : membership?.status === 'requested'
                     ? t('requested')
-                    : membership?.status === 'Invited'
+                    : membership?.status === 'invited'
                       ? t('invited')
                       : t('notJoined')
 
@@ -427,9 +427,9 @@ const App = () => {
     ? auth.memberships.find((item) => item.groupId === contextualGroupId)
     : null
   const canManageCurrentGroup =
-    currentGroupMembership?.status === 'Approved' &&
-    (currentGroupMembership.role === 'Leader' || currentGroupMembership.role === 'CoLeader')
-  const canUseSubgroupMenu = currentGroupMembership?.status === 'Approved'
+    currentGroupMembership?.status === 'approved' &&
+    (currentGroupMembership.role === 'leader' || currentGroupMembership.role === 'coLeader')
+  const canUseSubgroupMenu = currentGroupMembership?.status === 'approved'
   const currentGroupPageNavItems = useMemo<ShellNavItem[]>(
     () =>
       currentGroupPages.map((page) => ({
@@ -603,7 +603,7 @@ const App = () => {
 
   const openSubgroup = (subgroupId: string) => {
     const membership = auth.memberships.find((item) => item.groupId === subgroupId)
-    navigate(membership?.status === 'Approved' ? `/groups/${subgroupId}` : `/groups/${subgroupId}/join`)
+    navigate(membership?.status === 'approved' ? `/groups/${subgroupId}` : `/groups/${subgroupId}/join`)
   }
 
   const openGroup = (groupId: string) => {

@@ -57,7 +57,7 @@ const PageEditorView = () => {
     description: { en: '', cn: '' },
     tags: [],
     titleDisplayStyle: 'Default',
-    visibility: 'InvisibleDraft',
+    visibility: 'draft',
     sections: [],
   })
 
@@ -83,10 +83,10 @@ const PageEditorView = () => {
       return false
     }
 
-    return auth.me.id === pageModel.createdByMemberId && pageModel.visibility === 'InvisibleDraft'
+    return auth.me.id === pageModel.createdByMemberId && pageModel.visibility === 'draft'
   }, [auth.me?.id, pageModel.createdByMemberId, pageModel.visibility])
 
-  const canCreatePage = Boolean(membership?.status === 'Approved' || canEditAllPages)
+  const canCreatePage = Boolean(membership?.status === 'approved' || canEditAllPages)
   const canEditPage = isCreateMode ? canCreatePage : canEditAllPages || isCreatorDraft
   const canEditVisibility = canEditAllPages
 
@@ -214,7 +214,7 @@ const PageEditorView = () => {
       }
 
       if (publish && canEditAllPages && targetPageId) {
-        const nextVisibility: PageVisibility = pageModel.visibility === 'VisiblePublic' ? 'VisiblePublic' : 'VisibleToGroup'
+        const nextVisibility: PageVisibility = pageModel.visibility === 'public' ? 'public' : 'group'
         const publishPayload = {
           visibility: nextVisibility,
           page: { title, description, tagsJson, titleDisplayStyle },
@@ -241,8 +241,8 @@ const PageEditorView = () => {
         setPageModel(savedModel)
         setSavedModelSnapshot(JSON.stringify(savedModel))
         setMessage(t('pageSavedPublished'))
-      } else if (canEditVisibility && targetPageId && pageModel.visibility === 'InvisibleDraft') {
-        await groupService.publishPage(targetPageId, 'InvisibleDraft')
+      } else if (canEditVisibility && targetPageId && pageModel.visibility === 'draft') {
+        await groupService.publishPage(targetPageId, 'draft')
         const savedModel = {
           ...pageModel,
           id: targetPageId,

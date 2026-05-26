@@ -24,7 +24,7 @@ public sealed class DeletePageCommandHandler(
         }
 
         var isCreatorDraft = page.CreatedByMemberId == request.CurrentMemberId &&
-                             page.Visibility == PageVisibility.InvisibleDraft;
+                             page.Visibility == PageVisibility.Draft;
         var canDelete = page.Scope == PageScope.Group &&
                         page.OwnerGroupId.HasValue &&
                         await groupAuthorizationService.IsLeaderOrCoLeaderAsync(

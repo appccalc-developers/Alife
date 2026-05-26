@@ -45,7 +45,7 @@ public sealed class CreateGroupPageCommandHandler(
             DescriptionJson = request.Description is null ? null : WriteTextMap(request.Description),
             TagsJson = request.TagsJson ?? "[]",
             TitleDisplayStyle = request.TitleDisplayStyle ?? "Default",
-            Visibility = PageVisibility.InvisibleDraft,
+            Visibility = PageVisibility.Draft,
             UpdatedUtc = DateTime.UtcNow
         };
 

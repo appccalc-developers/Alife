@@ -170,7 +170,7 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
           .slice(0, queryConfig.limit)
       case 'members':
         return (membershipsData as Array<{ memberId: string; status: string; role: string }>)
-          .filter((m) => m.status === 'Approved')
+          .filter((m) => m.status === 'approved')
           .slice(0, queryConfig.limit)
       case 'pages':
         return (groupPagesData as any[]).slice(0, queryConfig.limit)

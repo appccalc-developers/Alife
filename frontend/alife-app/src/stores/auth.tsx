@@ -72,12 +72,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const hasGroupRole = useCallback(
     (groupId: string, role: MembershipRole) =>
-      memberships.some((membership) => membership.groupId === groupId && membership.status === 'Approved' && membership.role === role),
+      memberships.some((membership) => membership.groupId === groupId && membership.status === 'approved' && membership.role === role),
     [memberships],
   )
 
   const canManageGroup = useCallback(
-    (groupId: string) => hasGroupRole(groupId, 'Leader') || hasGroupRole(groupId, 'CoLeader'),
+    (groupId: string) => hasGroupRole(groupId, 'leader') || hasGroupRole(groupId, 'coLeader'),
     [hasGroupRole],
   )
 

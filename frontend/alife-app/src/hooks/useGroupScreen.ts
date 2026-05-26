@@ -13,12 +13,12 @@ import { groupMembershipsCollection, getCachedGroupMemberships } from '../db/col
 import type { GroupDto, GroupTab, PageSummaryDto } from '../types/group'
 import type { GroupEventRecord } from '../types/event'
 
-type MembershipStatusLabel = 'Not joined' | 'Requested' | 'Approved' | 'Invited'
-type MembershipRole = 'Member' | 'CoLeader' | 'Leader' | null
+type MembershipStatusLabel = 'Not joined' | 'requested' | 'approved' | 'invited'
+type MembershipRole = 'member' | 'coLeader' | 'leader' | null
 export type GroupMemberToolRow = {
   memberId: string
-  status: 'Invited' | 'Requested' | 'Approved' | 'Rejected' | 'Removed'
-  role: 'Member' | 'CoLeader' | 'Leader'
+  status: 'invited' | 'requested' | 'approved' | 'rejected' | 'removed'
+  role: 'member' | 'coLeader' | 'leader'
   createdUtc?: string
   updatedUtc?: string
 }
@@ -74,7 +74,7 @@ export const useGroupScreen = (groupId: string) => {
 
   const membershipStatus = useMemo<MembershipStatusLabel>(() => {
     const status = membership?.status
-    if (status === 'Requested' || status === 'Approved' || status === 'Invited') {
+    if (status === 'requested' || status === 'approved' || status === 'invited') {
       return status
     }
     return 'Not joined'
@@ -82,14 +82,14 @@ export const useGroupScreen = (groupId: string) => {
 
   const membershipRole = useMemo<MembershipRole>(() => membership?.role ?? null, [membership?.role])
 
-  const canManageGroup = membership?.status === 'Approved' && (membership.role === 'Leader' || membership.role === 'CoLeader')
-  const canCreatePage = membership?.status === 'Approved'
+  const canManageGroup = membership?.status === 'approved' && (membership.role === 'leader' || membership.role === 'coLeader')
+  const canCreatePage = membership?.status === 'approved'
   const canEditAllPages = canManageGroup
   const canPublishPages = canManageGroup
 
   // Fetch events for any approved member; leaders/co-leaders are a subset and can additionally manage them.
   useEffect(() => {
-    if (!groupId || membership?.status !== 'Approved') return
+    if (!groupId || membership?.status !== 'approved') return
     let cancelled = false
     eventService.getGroupEvents(groupId)
       .then((data) => { if (!cancelled) setEvents(data) })
@@ -190,7 +190,7 @@ export const useGroupScreen = (groupId: string) => {
   )
 
   const editSubgroup = useCallback(async (subgroupId: string) => {
-    await groupService.updateSubgroup(subgroupId, { name: 'TODO', accessType: 'Protected' })
+    await groupService.updateSubgroup(subgroupId, { name: 'TODO', accessType: 'protected' })
   }, [])
 
   const deleteSubgroup = useCallback(async (subgroupId: string) => {
@@ -208,10 +208,10 @@ export const useGroupScreen = (groupId: string) => {
 
   const togglePageVisibility = useCallback(
     async (page: PageSummaryDto) => {
-      const nextVisibility = page.visibility === 'InvisibleDraft' ? 'VisibleToGroup' : 'InvisibleDraft'
+      const nextVisibility = page.visibility === 'draft' ? 'group' : 'draft'
       await pageService.publishPage(page.id, { visibility: nextVisibility })
       await queryClient.invalidateQueries({ queryKey: ['groupPages', groupId] })
-      setStatusMessage(nextVisibility === 'VisibleToGroup' ? 'Page published.' : 'Page moved to draft.')
+      setStatusMessage(nextVisibility === 'group' ? 'Page published.' : 'Page moved to draft.')
     },
     [queryClient, groupId],
   )

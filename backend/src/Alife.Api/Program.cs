@@ -1,4 +1,6 @@
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Alife.Api;
 using Alife.Api.Security;
 using Alife.Application;
@@ -22,6 +24,11 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentMemberAccessor, CurrentMemberAccessor>();
 builder.Services
     .AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(
+            new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false));
+    })
     .AddApplicationPart(typeof(Alife.Api.Controllers.GroupsController).Assembly);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

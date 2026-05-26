@@ -41,7 +41,7 @@ public sealed class GetPageByIdQueryHandler(
                                request.CurrentMemberId,
                                cancellationToken);
 
-        var canView = (isApproved && page.Visibility != PageVisibility.InvisibleDraft) || isPrivileged;
+        var canView = (isApproved && page.Visibility != PageVisibility.Draft) || isPrivileged;
         return canView
             ? AppResult<PageDetailDto>.Success(page)
             : AppResult<PageDetailDto>.Forbidden("You do not have access to this page.");

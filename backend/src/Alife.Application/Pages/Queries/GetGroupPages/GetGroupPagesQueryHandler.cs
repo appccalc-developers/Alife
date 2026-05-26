@@ -47,7 +47,7 @@ public sealed class GetGroupPagesQueryHandler(
         if (isApproved)
         {
             pages = pages
-                .Where(x => x.Visibility != PageVisibility.InvisibleDraft || x.CreatedByMemberId == request.CurrentMemberId)
+                .Where(x => x.Visibility != PageVisibility.Draft || x.CreatedByMemberId == request.CurrentMemberId)
                 .ToList();
 
             return AppResult<IReadOnlyList<PageDto>>.Success(pages);
@@ -56,7 +56,7 @@ public sealed class GetGroupPagesQueryHandler(
         if (group.IsChurch)
         {
             pages = pages
-                .Where(x => x.Visibility == PageVisibility.VisiblePublic)
+                .Where(x => x.Visibility == PageVisibility.Public)
                 .ToList();
 
             return AppResult<IReadOnlyList<PageDto>>.Success(pages);

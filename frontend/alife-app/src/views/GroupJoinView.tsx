@@ -28,10 +28,10 @@ const GroupJoinView = () => {
     () => auth.memberships.find((item) => item.groupId === groupId),
     [auth.memberships, groupId],
   )
-  const isApproved = membership?.status === 'Approved'
-  const isRequested = membership?.status === 'Requested'
-  const isInvited = membership?.status === 'Invited'
-  const canSubmit = Boolean(group && group.accessType !== 'Private' && !isApproved && !submitting && auth.isRegistered)
+  const isApproved = membership?.status === 'approved'
+  const isRequested = membership?.status === 'requested'
+  const isInvited = membership?.status === 'invited'
+  const canSubmit = Boolean(group && group.accessType !== 'private' && !isApproved && !submitting && auth.isRegistered)
 
   useEffect(() => {
     if (!groupId) return
@@ -72,7 +72,7 @@ const GroupJoinView = () => {
     try {
       const result = await groupService.requestJoin(group.id)
       await auth.fetchMe()
-      if (result.status === 'Approved') {
+      if (result.status === 'approved') {
         navigate(`/groups/${group.id}`, { replace: true })
         return
       }
@@ -108,9 +108,9 @@ const GroupJoinView = () => {
   )
 
   const description =
-    group.accessType === 'Public'
+    group.accessType === 'public'
       ? t('publicJoinDescription')
-      : group.accessType === 'Protected'
+      : group.accessType === 'protected'
         ? t('protectedJoinDescription')
         : t('privateJoinDescription')
 
@@ -151,7 +151,7 @@ const GroupJoinView = () => {
               <AppActionButton variant="primary" disabled={!canSubmit} onClick={submitJoin}>
                 {submitting
                   ? t('submitting')
-                  : group.accessType === 'Protected'
+                  : group.accessType === 'protected'
                     ? t('submitJoinRequest')
                     : t('confirmJoinGroup')}
               </AppActionButton>

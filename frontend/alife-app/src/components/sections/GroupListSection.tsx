@@ -41,7 +41,7 @@ export function subgroupToCardItem(subgroup: GroupSummaryDto): UniversalCardItem
   return {
     id: subgroup.id,
     title: subgroup.name,
-    subtitle: subgroup.accessType === 'Public' ? 'Public Group' : subgroup.accessType === 'Protected' ? 'Protected Group' : 'Private Group',
+    subtitle: subgroup.accessType === 'public' ? 'Public Group' : subgroup.accessType === 'protected' ? 'Protected Group' : 'Private Group',
     imageUrl: undefined,
     url: `/groups/${subgroup.id}`,
     type: 'subgroup',
@@ -53,7 +53,7 @@ export function memberToCardItem(member: { memberId: string; status: string; rol
   return {
     id: member.memberId,
     title: displayName,
-    subtitle: `Role: ${member.role || 'Member'}`,
+    subtitle: `Role: ${member.role || 'member'}`,
     url: `/members/${member.memberId}`,
     type: 'member',
   }

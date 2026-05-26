@@ -108,7 +108,7 @@ public static class SeedData
 				DescriptionJson = JsonSerializer.Serialize(new Dictionary<string, string> { ["en"] = $"{group.Name} home page", ["cn"] = $"{group.Name} 主页" }),
 				TagsJson = "[\"home\"]",
 				TitleDisplayStyle = "Default",
-				Visibility = PageVisibility.VisibleToGroup,
+				Visibility = PageVisibility.Group,
 				UpdatedUtc = now
 			};
 
@@ -122,7 +122,7 @@ public static class SeedData
 				DescriptionJson = JsonSerializer.Serialize(new Dictionary<string, string> { ["en"] = $"{group.Name} events page", ["cn"] = $"{group.Name} 活动页" }),
 				TagsJson = "[\"events\"]",
 				TitleDisplayStyle = "Default",
-				Visibility = PageVisibility.VisibleToGroup,
+				Visibility = PageVisibility.Group,
 				UpdatedUtc = now
 			};
 

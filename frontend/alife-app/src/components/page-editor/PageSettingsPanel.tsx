@@ -11,7 +11,7 @@ type Props = {
   onChange: (value: PageEditModel) => void
 }
 
-const visibilityOptions: PageVisibility[] = ['InvisibleDraft', 'VisibleToGroup', 'VisiblePublic']
+const visibilityOptions: PageVisibility[] = ['draft', 'group', 'public']
 
 const PageSettingsPanel = ({
   model,

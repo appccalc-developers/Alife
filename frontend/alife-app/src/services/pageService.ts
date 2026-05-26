@@ -37,36 +37,36 @@ export type PublishPageOptimizedPayload = {
   sections: Array<{
     id?: string
     order: number
-    type: number
+    type: string
     contentJson: string
     styleJson: string
   }>
 }
 
-const toSectionPayloadType = (type: SectionEditModel['type']): number => {
+const toSectionPayloadType = (type: SectionEditModel['type']): string => {
   switch (type) {
     case 'Hero':
-      return 0
+      return 'hero'
     case 'MediaSpotlight':
-      return 0
+      return 'hero'
     case 'IconFeatureGrid':
-      return 0
+      return 'hero'
     case 'SermonSpotlight':
-      return 0
+      return 'hero'
     case 'RichText':
-      return 1
+      return 'richText'
     case 'PostFeed':
-      return 2
+      return 'postFeed'
     case 'Sermon':
-      return 3
+      return 'sermon'
     case 'GroupList':
-      return 4
+      return 'groupList'
     case 'PageList':
-      return 5
+      return 'pageList'
     case 'SermonList':
-      return 6
+      return 'sermonList'
     default:
-      return 1
+      return 'richText'
   }
 }
 
