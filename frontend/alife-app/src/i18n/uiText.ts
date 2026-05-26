@@ -258,6 +258,39 @@ const text = {
   legacySummary: { en: 'Legacy Summary', zh: '旧版摘要' },
   hideRawJson: { en: 'Hide raw JSON', zh: '隐藏原始 JSON' },
   showRawJson: { en: 'Show raw JSON', zh: '显示原始 JSON' },
+  subgroupMenu: { en: 'Subgroup menu', zh: '子组菜单' },
+  close: { en: 'Close', zh: '关闭' },
+  openGroup: { en: 'Open group', zh: '打开小组' },
+  backToParentGroup: { en: 'Back to parent group', zh: '回到上一级小组' },
+  backToChurch: { en: 'Back to church', zh: '回到教会' },
+  applyToJoin: { en: 'Apply to join', zh: '申请加入' },
+  joinGroup: { en: 'Join group', zh: '加入小组' },
+  publicJoinDescription: {
+    en: 'This subgroup is public. After you confirm, you will become a member immediately and can open the subgroup without leader approval.',
+    zh: '这个子组是公开小组。确认后你会立即成为组员，不需要组长审批，就可以进入子组。',
+  },
+  protectedJoinDescription: {
+    en: 'This subgroup requires approval. After you submit the request, the group leader or co-leader can review it from member management.',
+    zh: '这个子组需要审批。提交申请后，组长或副组长可以在成员管理中审核。',
+  },
+  privateJoinDescription: {
+    en: 'This subgroup is private and invite only. Please contact the leader or co-leader for an invitation.',
+    zh: '这个子组是私密小组，只能通过邀请加入。请联系组长或副组长发送邀请。',
+  },
+  registrationRequiredToJoin: {
+    en: 'Please complete registration before joining a subgroup.',
+    zh: '请先完成注册，然后再加入子组。',
+  },
+  submitJoinRequest: { en: 'Submit request', zh: '提交申请' },
+  confirmJoinGroup: { en: 'Confirm and join', zh: '确认加入' },
+  submitting: { en: 'Submitting...', zh: '正在提交...' },
+  back: { en: 'Back', zh: '返回' },
+  joinRequestSubmitted: {
+    en: 'Request submitted. Please wait for leader approval.',
+    zh: '申请已提交，请等待组长审批。',
+  },
+  joinRequestFailed: { en: 'Failed to submit join request.', zh: '提交加入申请失败。' },
+  loadGroupFailed: { en: 'Failed to load group.', zh: '加载小组失败。' },
 } satisfies Record<string, UiText>
 
 export type UiTextKey = keyof typeof text

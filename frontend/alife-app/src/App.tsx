@@ -2,11 +2,13 @@ import type { ReactElement } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import logo from './assets/logo.png'
+import AccessTypeBadge from './components/group/AccessTypeBadge'
 import { groupService } from './services/groupService'
 import { useAuthStore } from './stores/auth'
 import { useCurrentGroupStore } from './stores/currentGroup'
 import AdminView from './views/AdminView'
 import GroupDetailView from './views/GroupDetailView'
+import GroupJoinView from './views/GroupJoinView'
 import HomeView from './views/HomeView'
 import OnboardingView from './views/OnboardingView'
 import PageEditorView from './views/PageEditorView'
@@ -16,7 +18,7 @@ import SermonsView from './views/SermonsView'
 import EventCreatorView from './views/EventCreatorView'
 import GroupManageView from './views/GroupManageView'
 import { localizeText } from './utils/localizedText'
-import type { PageSummaryDto } from './types'
+import type { GroupSummaryDto, PageSummaryDto } from './types'
 import { translateUi, useUiText } from './i18n/uiText'
 
 type ShellNavItem = {
@@ -116,6 +118,21 @@ const BackIcon = () => (
   <svg aria-hidden="true" viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M19 12H5" />
     <path d="m12 19-7-7 7-7" />
+  </svg>
+)
+
+const MenuIcon = () => (
+  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M4 7h16" />
+    <path d="M4 12h16" />
+    <path d="M4 17h16" />
+  </svg>
+)
+
+const CloseIcon = () => (
+  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M18 6 6 18" />
+    <path d="m6 6 12 12" />
   </svg>
 )
 
@@ -236,6 +253,122 @@ const FloatingActionButtons = ({ items }: { items: ShellFabItem[] }) => (
   </div>
 )
 
+type GroupDrawerProps = {
+  currentGroup?: GroupSummaryDto | null
+  churchGroup?: GroupSummaryDto | null
+  items: GroupSummaryDto[]
+  open: boolean
+  onClose: () => void
+  onOpenGroup: (groupId: string) => void
+  onOpenSubgroup: (subgroupId: string) => void
+}
+
+const GroupDrawer = ({ currentGroup, churchGroup, items, open, onClose, onOpenGroup, onOpenSubgroup }: GroupDrawerProps) => {
+  const auth = useAuthStore()
+  const t = useUiText()
+  const showParentActions = Boolean(currentGroup?.parentGroupId)
+
+  return (
+    <>
+      <div
+        className={[
+          'fixed inset-0 z-40 bg-slate-950/25 transition-opacity',
+          open ? 'opacity-100' : 'pointer-events-none opacity-0',
+        ].join(' ')}
+        aria-hidden="true"
+        onClick={onClose}
+      />
+      <aside
+        className={[
+          'fixed bottom-0 right-0 top-0 z-50 flex w-full max-w-sm transform flex-col border-l border-slate-200 bg-white shadow-2xl transition-transform sm:top-16',
+          open ? 'translate-x-0' : 'translate-x-full',
+        ].join(' ')}
+        aria-label={t('subgroupMenu')}
+      >
+        <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-4">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-slate-950">{t('subgroupMenu')}</p>
+            <p className="mt-1 truncate text-xs text-slate-500">{currentGroup?.name || t('group')}</p>
+          </div>
+          <button
+            type="button"
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+            aria-label={t('close')}
+            title={t('close')}
+            onClick={onClose}
+          >
+            <CloseIcon />
+          </button>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
+          {showParentActions ? (
+            <div className="mb-3 space-y-2 border-b border-slate-200 pb-3">
+              <button
+                type="button"
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-left text-sm font-semibold text-slate-900 transition hover:border-emerald-200 hover:bg-emerald-50"
+                onClick={() => currentGroup?.parentGroupId && onOpenGroup(currentGroup.parentGroupId)}
+              >
+                {t('backToParentGroup')}
+              </button>
+              {churchGroup ? (
+                <button
+                  type="button"
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-left text-sm font-semibold text-slate-900 transition hover:border-emerald-200 hover:bg-emerald-50"
+                  onClick={() => onOpenGroup(churchGroup.id)}
+                >
+                  {t('backToChurch')}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+
+          {items.length === 0 ? (
+            <p className="rounded-lg bg-slate-50 px-3 py-3 text-sm text-slate-600">{t('noSubgroupsYet')}</p>
+          ) : (
+            <ul className="space-y-2">
+              {items.map((subgroup) => {
+                const membership = auth.memberships.find((item) => item.groupId === subgroup.id)
+                const isApproved = membership?.status === 'Approved'
+                const statusLabel = isApproved
+                  ? t('approved')
+                  : membership?.status === 'Requested'
+                    ? t('requested')
+                    : membership?.status === 'Invited'
+                      ? t('invited')
+                      : t('notJoined')
+
+                return (
+                  <li key={subgroup.id}>
+                    <button
+                      type="button"
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-3 text-left transition hover:border-emerald-200 hover:bg-emerald-50"
+                      onClick={() => onOpenSubgroup(subgroup.id)}
+                    >
+                      <span className="flex items-start justify-between gap-3">
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-semibold text-slate-950">{subgroup.name}</span>
+                          <span className="mt-1 block text-xs text-slate-500">
+                            {isApproved ? t('openGroup') : t('applyToJoin')}
+                          </span>
+                        </span>
+                        <span className="flex shrink-0 flex-col items-end gap-1">
+                          <AccessTypeBadge accessType={subgroup.accessType} />
+                          <span className="text-[11px] font-medium text-slate-500">{statusLabel}</span>
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </div>
+      </aside>
+    </>
+  )
+}
+
 const AdminRoute = ({ children }: { children: ReactElement }) => {
   const auth = useAuthStore()
 
@@ -266,11 +399,17 @@ const OnboardingRoute = ({ children }: { children: ReactElement }) => {
 
 const App = () => {
   const auth = useAuthStore()
+  const t = useUiText()
   const { CurrentGroup } = useCurrentGroupStore()
   const location = useLocation()
   const navigate = useNavigate()
   const [currentGroupPages, setCurrentGroupPages] = useState<PageSummaryDto[]>([])
+  const [currentSubgroups, setCurrentSubgroups] = useState<GroupSummaryDto[]>([])
+  const [contextualGroup, setContextualGroup] = useState<GroupSummaryDto | null>(null)
+  const [churchGroup, setChurchGroup] = useState<GroupSummaryDto | null>(null)
+  const [groupDrawerOpen, setGroupDrawerOpen] = useState(false)
   const groupScreenMatch = location.pathname.match(/^\/groups\/([^/]+)$/)
+  const groupJoinMatch = location.pathname.match(/^\/groups\/([^/]+)\/join$/)
   const groupManageMatch = location.pathname.match(/^\/groups\/([^/]+)\/manage$/)
   const groupCreatePageMatch = location.pathname.match(/^\/groups\/([^/]+)\/pages\/new$/)
   const pageEditMatch = location.pathname.match(/^\/pages\/([^/]+)\/edit$/)
@@ -280,6 +419,7 @@ const App = () => {
   const isPageEditorScreen = Boolean(groupCreatePageMatch || pageEditMatch)
   const contextualGroupId =
     groupScreenMatch?.[1] ||
+    groupJoinMatch?.[1] ||
     groupManageMatch?.[1] ||
     groupCreatePageMatch?.[1] ||
     (pageEditMatch ? searchParams.get('groupId') || CurrentGroup?.id || '' : '')
@@ -289,6 +429,7 @@ const App = () => {
   const canManageCurrentGroup =
     currentGroupMembership?.status === 'Approved' &&
     (currentGroupMembership.role === 'Leader' || currentGroupMembership.role === 'CoLeader')
+  const canUseSubgroupMenu = currentGroupMembership?.status === 'Approved'
   const currentGroupPageNavItems = useMemo<ShellNavItem[]>(
     () =>
       currentGroupPages.map((page) => ({
@@ -389,6 +530,86 @@ const App = () => {
     }
   }, [contextualGroupId, isManagementScreen])
 
+  useEffect(() => {
+    if (!contextualGroupId) {
+      setCurrentSubgroups([])
+      setContextualGroup(null)
+      setGroupDrawerOpen(false)
+      return
+    }
+
+    let cancelled = false
+
+    groupService
+      .getGroup(contextualGroupId)
+      .then((group) => {
+        if (!cancelled) {
+          setContextualGroup(group)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setContextualGroup(null)
+        }
+      })
+
+    groupService
+      .getSubgroups(contextualGroupId)
+      .then((subgroups) => {
+        if (!cancelled) {
+          setCurrentSubgroups(subgroups)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setCurrentSubgroups([])
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [contextualGroupId])
+
+  useEffect(() => {
+    if (!contextualGroup?.parentGroupId) {
+      setChurchGroup(null)
+      return
+    }
+
+    let cancelled = false
+
+    groupService
+      .getChurch()
+      .then((group) => {
+        if (!cancelled) {
+          setChurchGroup(group)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setChurchGroup(null)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [contextualGroup?.parentGroupId])
+
+  useEffect(() => {
+    setGroupDrawerOpen(false)
+  }, [location.pathname, location.search])
+
+  const openSubgroup = (subgroupId: string) => {
+    const membership = auth.memberships.find((item) => item.groupId === subgroupId)
+    navigate(membership?.status === 'Approved' ? `/groups/${subgroupId}` : `/groups/${subgroupId}/join`)
+  }
+
+  const openGroup = (groupId: string) => {
+    navigate(`/groups/${groupId}`)
+  }
+
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
       <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 backdrop-blur">
@@ -406,6 +627,18 @@ const App = () => {
             >
               {toggleLanguageLabel}
             </button>
+            {contextualGroupId ? (
+              <button
+                type="button"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label={t('subgroupMenu')}
+                title={t('subgroupMenu')}
+                disabled={!canUseSubgroupMenu}
+                onClick={() => setGroupDrawerOpen(true)}
+              >
+                <MenuIcon />
+              </button>
+            ) : null}
           </div>
         </div>
       </header>
@@ -417,6 +650,7 @@ const App = () => {
           <Routes>
             <Route path="/" element={<HomeView />} />
             <Route path="/groups/:groupId" element={<GroupDetailView />} />
+            <Route path="/groups/:groupId/join" element={<GroupJoinView />} />
             <Route path="/groups/:groupId/manage" element={<GroupManageView />} />
             <Route path="/pages/:pageId" element={<PageView />} />
             <Route path="/sermons" element={<SermonsView />} />
@@ -448,6 +682,15 @@ const App = () => {
 
       <BottomNav items={shellNavItems} />
       <FloatingActionButtons items={fabItems} />
+      <GroupDrawer
+        currentGroup={contextualGroup || (CurrentGroup?.id === contextualGroupId ? CurrentGroup : null)}
+        churchGroup={churchGroup}
+        items={currentSubgroups}
+        open={groupDrawerOpen}
+        onClose={() => setGroupDrawerOpen(false)}
+        onOpenGroup={openGroup}
+        onOpenSubgroup={openSubgroup}
+      />
     </div>
   )
 }
