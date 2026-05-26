@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useUiText } from '../i18n/uiText'
 import { useCurrentGroupStore } from '../stores/currentGroup'
 
 const HomeView = () => {
+  const t = useUiText()
   const navigate = useNavigate()
   const { refreshChurchGroup } = useCurrentGroupStore()
   const [loading, setLoading] = useState(true)
@@ -25,13 +27,13 @@ const HomeView = () => {
         return
       }
 
-      setError('Unable to load the Church group right now.')
+      setError(t('churchGroupLoadError'))
       setLoading(false)
     }
 
     openChurchGroup().catch(() => {
       if (!cancelled) {
-        setError('Unable to load the Church group right now.')
+        setError(t('churchGroupLoadError'))
         setLoading(false)
       }
     })
@@ -39,11 +41,11 @@ const HomeView = () => {
     return () => {
       cancelled = true
     }
-  }, [navigate, refreshChurchGroup])
+  }, [navigate, refreshChurchGroup, t])
 
   return (
     <section className="space-y-5">
-      {loading ? <p className="rounded-lg border border-slate-200 bg-white p-3 text-slate-600">Opening church group...</p> : null}
+      {loading ? <p className="rounded-lg border border-slate-200 bg-white p-3 text-slate-600">{t('openingChurchGroup')}</p> : null}
       {!loading && error ? <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-red-700">{error}</p> : null}
     </section>
   )

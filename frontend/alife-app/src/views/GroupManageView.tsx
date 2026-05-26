@@ -13,13 +13,14 @@ import { useGroupScreen, type GroupMemberToolRow } from '../hooks/useGroupScreen
 import { useAuthStore } from '../stores/auth'
 import { localizeText } from '../utils/localizedText'
 import { useCurrentGroupStore } from '../stores/currentGroup'
+import { translateUi, useUiText } from '../i18n/uiText'
 import type { GroupPageDto } from '../types/group'
 import type { GroupEventRecord } from '../types/event'
 
 const shortId = (value: string) => (value.length > 8 ? value.slice(0, 8) : value)
 
-const formatDate = (value: string) => {
-  if (!value) return 'No date'
+const formatDate = (value: string, language: string) => {
+  if (!value) return translateUi(language, 'noDate')
   return new Date(value).toLocaleDateString()
 }
 
@@ -44,33 +45,34 @@ type MembersPanelProps = {
 }
 
 const MembersPanel = ({ memberships, onInviteMember, onApproveMember, onRejectMember, onKickMember, onSetCoLeader }: MembersPanelProps) => {
+  const t = useUiText()
   const requestedMembers = memberships.filter((member) => member.status === 'Requested')
   const approvedMembers = memberships.filter((member) => member.status === 'Approved')
 
   return (
-    <AppSectionCard title="Members" subtitle="Review requests, invite people, and delegate co-leaders.">
+    <AppSectionCard title={t('members')} subtitle={t('membersPanelSubtitle')}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         {sectionStats([
-          { label: 'Pending', value: requestedMembers.length },
-          { label: 'Approved', value: approvedMembers.length },
-          { label: 'Co-leaders', value: approvedMembers.filter((member) => member.role === 'CoLeader').length },
-          { label: 'Total rows', value: memberships.length },
+          { label: t('pending'), value: requestedMembers.length },
+          { label: t('approved'), value: approvedMembers.length },
+          { label: t('coLeaders'), value: approvedMembers.filter((member) => member.role === 'CoLeader').length },
+          { label: t('totalRows'), value: memberships.length },
         ])}
-        <AppActionButton variant="primary" onClick={onInviteMember}>Invite member</AppActionButton>
+        <AppActionButton variant="primary" onClick={onInviteMember}>{t('inviteMember')}</AppActionButton>
       </div>
 
       {requestedMembers.length > 0 ? (
         <div className="mb-5 space-y-2">
-          <h3 className="text-sm font-semibold text-slate-900">Requests</h3>
+          <h3 className="text-sm font-semibold text-slate-900">{t('requests')}</h3>
           {requestedMembers.map((member) => (
             <div key={member.memberId} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50/60 p-3">
               <div>
-                <p className="font-medium text-slate-950">Member {shortId(member.memberId)}</p>
+                <p className="font-medium text-slate-950">{t('memberShort', { id: shortId(member.memberId) })}</p>
                 <MembershipStatusBadge status="Requested" />
               </div>
               <div className="flex gap-2">
-                <AppActionButton size="sm" variant="primary" onClick={() => onApproveMember(member.memberId)}>Approve</AppActionButton>
-                <AppActionButton size="sm" variant="danger" onClick={() => onRejectMember(member.memberId)}>Reject</AppActionButton>
+                <AppActionButton size="sm" variant="primary" onClick={() => onApproveMember(member.memberId)}>{t('approve')}</AppActionButton>
+                <AppActionButton size="sm" variant="danger" onClick={() => onRejectMember(member.memberId)}>{t('reject')}</AppActionButton>
               </div>
             </div>
           ))}
@@ -78,22 +80,22 @@ const MembersPanel = ({ memberships, onInviteMember, onApproveMember, onRejectMe
       ) : null}
 
       <div className="space-y-2">
-        <h3 className="text-sm font-semibold text-slate-900">Active members</h3>
+        <h3 className="text-sm font-semibold text-slate-900">{t('activeMembers')}</h3>
         {approvedMembers.length === 0 ? (
-          <p className="text-sm text-slate-500">No approved members found.</p>
+          <p className="text-sm text-slate-500">{t('noApprovedMembers')}</p>
         ) : (
           approvedMembers.map((member) => (
             <div key={member.memberId} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 p-3">
               <div>
-                <p className="font-medium text-slate-950">Member {shortId(member.memberId)}</p>
+                <p className="font-medium text-slate-950">{t('memberShort', { id: shortId(member.memberId) })}</p>
                 <AppBadge variant="info">{member.role}</AppBadge>
               </div>
               {member.role !== 'Leader' ? (
                 <div className="flex gap-2">
                   <AppActionButton size="sm" variant="secondary" onClick={() => onSetCoLeader(member.memberId, member.role !== 'CoLeader')}>
-                    {member.role === 'CoLeader' ? 'Reset co-leader' : 'Set co-leader'}
+                    {member.role === 'CoLeader' ? t('resetCoLeader') : t('setCoLeader')}
                   </AppActionButton>
-                  <AppActionButton size="sm" variant="danger" onClick={() => onKickMember(member.memberId)}>Remove</AppActionButton>
+                  <AppActionButton size="sm" variant="danger" onClick={() => onKickMember(member.memberId)}>{t('remove')}</AppActionButton>
                 </div>
               ) : null}
             </div>
@@ -113,20 +115,23 @@ type PagesPanelProps = {
   onTogglePageVisibility: (page: GroupPageDto) => void
 }
 
-const PagesPanel = ({ groupId, language, pages, onAddPage, onDeletePage, onTogglePageVisibility }: PagesPanelProps) => (
-  <AppSectionCard title="Pages" subtitle="Create, edit, publish, and retire group pages.">
+const PagesPanel = ({ groupId, language, pages, onAddPage, onDeletePage, onTogglePageVisibility }: PagesPanelProps) => {
+  const t = useUiText()
+
+  return (
+  <AppSectionCard title={t('pages')} subtitle={t('pagesPanelSubtitle')}>
     <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
       {sectionStats([
-        { label: 'Pages', value: pages.length },
-        { label: 'Published', value: pages.filter((page) => page.visibility !== 'InvisibleDraft').length },
-        { label: 'Drafts', value: pages.filter((page) => page.visibility === 'InvisibleDraft').length },
-        { label: 'Group', value: 1 },
+        { label: t('pages'), value: pages.length },
+        { label: t('published'), value: pages.filter((page) => page.visibility !== 'InvisibleDraft').length },
+        { label: t('drafts'), value: pages.filter((page) => page.visibility === 'InvisibleDraft').length },
+        { label: t('group'), value: 1 },
       ])}
-      <AppActionButton variant="primary" onClick={onAddPage}>Add page</AppActionButton>
+      <AppActionButton variant="primary" onClick={onAddPage}>{t('addPage')}</AppActionButton>
     </div>
 
     {pages.length === 0 ? (
-      <p className="text-sm text-slate-500">No pages yet.</p>
+      <p className="text-sm text-slate-500">{t('noPagesYet')}</p>
     ) : (
       <div className="space-y-2">
         {pages.map((page) => (
@@ -136,19 +141,20 @@ const PagesPanel = ({ groupId, language, pages, onAddPage, onDeletePage, onToggl
               <p className="mt-1 text-xs text-slate-500">{page.visibility}</p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Link className="inline-flex items-center justify-center rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100" to={`/groups/${groupId}?page=${encodeURIComponent(page.id)}`}>Open</Link>
-              <Link className="inline-flex items-center justify-center rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100" to={`/pages/${page.id}/edit?groupId=${groupId}`}>Edit</Link>
+              <Link className="inline-flex items-center justify-center rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100" to={`/groups/${groupId}?page=${encodeURIComponent(page.id)}`}>{t('open')}</Link>
+              <Link className="inline-flex items-center justify-center rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100" to={`/pages/${page.id}/edit?groupId=${groupId}`}>{t('edit')}</Link>
               <AppActionButton size="sm" variant="secondary" onClick={() => onTogglePageVisibility(page)}>
-                {page.visibility === 'InvisibleDraft' ? 'Publish' : 'Move to draft'}
+                {page.visibility === 'InvisibleDraft' ? t('publish') : t('moveToDraft')}
               </AppActionButton>
-              <AppActionButton size="sm" variant="danger" onClick={() => onDeletePage(page.id)}>Delete</AppActionButton>
+              <AppActionButton size="sm" variant="danger" onClick={() => onDeletePage(page.id)}>{t('delete')}</AppActionButton>
             </div>
           </div>
         ))}
       </div>
     )}
   </AppSectionCard>
-)
+  )
+}
 
 type EventsPanelProps = {
   groupId: string
@@ -159,35 +165,37 @@ type EventsPanelProps = {
 
 const EventsPanel = ({ groupId, events, onOpenEnrollDialog, onDeleteEvent }: EventsPanelProps) => {
   const navigate = useNavigate()
+  const t = useUiText()
+  const { language } = useAuthStore()
 
   return (
-    <AppSectionCard title="Events" subtitle="Create activities and maintain the event list.">
+    <AppSectionCard title={t('events')} subtitle={t('eventsPanelSubtitle')}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         {sectionStats([
-          { label: 'Events', value: events.length },
-          { label: 'Upcoming', value: events.filter((event) => event.startDate && new Date(event.startDate) >= new Date()).length },
-          { label: 'Past', value: events.filter((event) => event.startDate && new Date(event.startDate) < new Date()).length },
-          { label: 'Group', value: 1 },
+          { label: t('events'), value: events.length },
+          { label: t('upcoming'), value: events.filter((event) => event.startDate && new Date(event.startDate) >= new Date()).length },
+          { label: t('past'), value: events.filter((event) => event.startDate && new Date(event.startDate) < new Date()).length },
+          { label: t('group'), value: 1 },
         ])}
-        <AppActionButton variant="primary" onClick={() => navigate(`/events/new?groupId=${groupId}`)}>Create event</AppActionButton>
+        <AppActionButton variant="primary" onClick={() => navigate(`/events/new?groupId=${groupId}`)}>{t('createEvent')}</AppActionButton>
       </div>
 
       {events.length === 0 ? (
-        <p className="text-sm text-slate-500">No events yet.</p>
+        <p className="text-sm text-slate-500">{t('noEventsYet')}</p>
       ) : (
         <div className="space-y-2">
           {events.map((event) => {
-            const title = event.titleEn || event.titleZh || 'Untitled'
+            const title = (language === 'zh' ? event.titleZh : event.titleEn) || event.titleEn || event.titleZh || t('untitled')
             return (
               <div key={event.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 p-3">
                 <div>
                   <p className="font-medium text-slate-950">{title}</p>
-                  <p className="mt-1 text-xs text-slate-500">{formatDate(event.startDate)}</p>
+                  <p className="mt-1 text-xs text-slate-500">{formatDate(event.startDate, language)}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <AppActionButton size="sm" variant="primary" onClick={() => onOpenEnrollDialog(event.id)}>Enroll</AppActionButton>
-                  <AppActionButton size="sm" variant="secondary" onClick={() => navigate(`/events/${event.id}/edit?groupId=${groupId}`, { state: { event } })}>Edit</AppActionButton>
-                  <AppActionButton size="sm" variant="danger" onClick={() => onDeleteEvent(event.id)}>Delete</AppActionButton>
+                  <AppActionButton size="sm" variant="primary" onClick={() => onOpenEnrollDialog(event.id)}>{t('enroll')}</AppActionButton>
+                  <AppActionButton size="sm" variant="secondary" onClick={() => navigate(`/events/${event.id}/edit?groupId=${groupId}`, { state: { event } })}>{t('edit')}</AppActionButton>
+                  <AppActionButton size="sm" variant="danger" onClick={() => onDeleteEvent(event.id)}>{t('delete')}</AppActionButton>
                 </div>
               </div>
             )
@@ -199,6 +207,7 @@ const EventsPanel = ({ groupId, events, onOpenEnrollDialog, onDeleteEvent }: Eve
 }
 
 const GroupManageView = () => {
+  const t = useUiText()
   const { groupId = '' } = useParams<{ groupId: string }>()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -250,9 +259,9 @@ const GroupManageView = () => {
     <AppPageShell>
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <Link to={`/groups/${groupId}`} className="text-sm font-medium text-slate-600 hover:text-slate-950">Back to group</Link>
-          <h1 className="mt-2 text-2xl font-semibold text-slate-950">{group?.name ?? 'Group'} management</h1>
-          <p className="mt-1 text-sm text-slate-600">Manage group settings, subgroups, members, pages, and activities.</p>
+          <Link to={`/groups/${groupId}`} className="text-sm font-medium text-slate-600 hover:text-slate-950">{t('backToGroup')}</Link>
+          <h1 className="mt-2 text-2xl font-semibold text-slate-950">{t('groupManagementTitle', { name: group?.name ?? t('group') })}</h1>
+          <p className="mt-1 text-sm text-slate-600">{t('groupManagementDescription')}</p>
         </div>
         {group ? (
           <div className="flex flex-wrap gap-2">
@@ -264,7 +273,7 @@ const GroupManageView = () => {
 
       {loading ? (
         <AppSectionCard dense>
-          <p className="text-sm text-slate-600">Loading management workspace...</p>
+          <p className="text-sm text-slate-600">{t('loadingManagementWorkspace')}</p>
         </AppSectionCard>
       ) : null}
 
@@ -287,25 +296,25 @@ const GroupManageView = () => {
           ) : null}
 
           {activeSection === 'subgroups' ? (
-            <AppSectionCard title="Subgroups" subtitle="Create child groups and open their own workspace.">
+            <AppSectionCard title={t('subgroups')} subtitle={t('subgroupsPanelSubtitle')}>
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 {sectionStats([
-                  { label: 'Subgroups', value: subgroups.length },
-                  { label: 'Public', value: subgroups.filter((subgroup) => subgroup.accessType === 'Public').length },
-                  { label: 'Protected', value: subgroups.filter((subgroup) => subgroup.accessType === 'Protected').length },
-                  { label: 'Private', value: subgroups.filter((subgroup) => subgroup.accessType === 'Private').length },
+                  { label: t('subgroups'), value: subgroups.length },
+                  { label: t('public'), value: subgroups.filter((subgroup) => subgroup.accessType === 'Public').length },
+                  { label: t('protected'), value: subgroups.filter((subgroup) => subgroup.accessType === 'Protected').length },
+                  { label: t('private'), value: subgroups.filter((subgroup) => subgroup.accessType === 'Private').length },
                 ])}
                 <AppActionButton variant="primary" onClick={() => {
-                  const subgroupName = window.prompt('Subgroup name')
+                  const subgroupName = window.prompt(t('subgroupName'))
                   if (!subgroupName?.trim()) return
-                  createSubgroup(subgroupName.trim(), 'Protected').catch(() => setStatusMessage('Failed to add subgroup.'))
+                  createSubgroup(subgroupName.trim(), 'Protected').catch(() => setStatusMessage(t('addSubgroupFailed')))
                 }}>
-                  Add subgroup
+                  {t('addSubgroup')}
                 </AppActionButton>
               </div>
 
               {subgroups.length === 0 ? (
-                <p className="text-sm text-slate-500">No subgroups yet.</p>
+                <p className="text-sm text-slate-500">{t('noSubgroupsYet')}</p>
               ) : (
                 <div className="space-y-2">
                   {subgroups.map((subgroup) => (
@@ -315,21 +324,21 @@ const GroupManageView = () => {
                         <AccessTypeBadge accessType={subgroup.accessType} />
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        <AppActionButton size="sm" variant="secondary" onClick={() => navigate(`/groups/${subgroup.id}`)}>Open</AppActionButton>
+                        <AppActionButton size="sm" variant="secondary" onClick={() => navigate(`/groups/${subgroup.id}`)}>{t('open')}</AppActionButton>
                         <AppActionButton size="sm" variant="secondary" onClick={() => {
                           runEditSubgroup(subgroup.id).catch((reason) => {
-                            setStatusMessage(reason instanceof Error ? reason.message : 'Subgroup edit is not available yet.')
+                            setStatusMessage(reason instanceof Error ? reason.message : t('subgroupEditUnavailable'))
                           })
                         }}>
-                          Edit
+                          {t('edit')}
                         </AppActionButton>
                         <AppActionButton size="sm" variant="danger" onClick={() => {
-                          if (!window.confirm('Remove this subgroup?')) return
+                          if (!window.confirm(t('removeSubgroupConfirm'))) return
                           runDeleteSubgroup(subgroup.id).catch((reason) => {
-                            setStatusMessage(reason instanceof Error ? reason.message : 'Subgroup delete is not available yet.')
+                            setStatusMessage(reason instanceof Error ? reason.message : t('subgroupDeleteUnavailable'))
                           })
                         }}>
-                          Delete
+                          {t('delete')}
                         </AppActionButton>
                       </div>
                     </div>
@@ -343,17 +352,17 @@ const GroupManageView = () => {
             <MembersPanel
               memberships={memberships}
               onInviteMember={() => {
-                const phone = window.prompt('Invite member by phone (E.164), e.g. +10000000008')
+                const phone = window.prompt(t('inviteMemberPrompt'))
                 if (!phone?.trim()) return
-                inviteMemberByPhone(phone.trim()).catch(() => setStatusMessage('Failed to send invite.'))
+                inviteMemberByPhone(phone.trim()).catch(() => setStatusMessage(t('inviteFailed')))
               }}
-              onApproveMember={(memberId) => approveMember(memberId).catch(() => setStatusMessage('Failed to approve member.'))}
-              onRejectMember={(memberId) => rejectMember(memberId).catch(() => setStatusMessage('Failed to reject member.'))}
+              onApproveMember={(memberId) => approveMember(memberId).catch(() => setStatusMessage(t('approveFailed')))}
+              onRejectMember={(memberId) => rejectMember(memberId).catch(() => setStatusMessage(t('rejectFailed')))}
               onKickMember={(memberId) => {
-                if (!window.confirm('Remove this member from the group?')) return
-                kickMember(memberId).catch(() => setStatusMessage('Failed to remove member.'))
+                if (!window.confirm(t('removeMemberConfirm'))) return
+                kickMember(memberId).catch(() => setStatusMessage(t('removeMemberFailed')))
               }}
-              onSetCoLeader={(memberId, isCoLeader) => setCoLeader(memberId, isCoLeader).catch(() => setStatusMessage('Failed to update co-leader.'))}
+              onSetCoLeader={(memberId, isCoLeader) => setCoLeader(memberId, isCoLeader).catch(() => setStatusMessage(t('updateCoLeaderFailed')))}
             />
           ) : null}
 
@@ -364,10 +373,10 @@ const GroupManageView = () => {
               pages={pages}
               onAddPage={() => navigate(`/groups/${groupId}/pages/new`)}
               onDeletePage={(pageId) => {
-                if (!window.confirm('Remove this page?')) return
-                deletePage(pageId).catch(() => setStatusMessage('Failed to remove page.'))
+                if (!window.confirm(t('removePageConfirm'))) return
+                deletePage(pageId).catch(() => setStatusMessage(t('removePageFailed')))
               }}
-              onTogglePageVisibility={(page) => togglePageVisibility(page).catch(() => setStatusMessage('Failed to update page visibility.'))}
+              onTogglePageVisibility={(page) => togglePageVisibility(page).catch(() => setStatusMessage(t('updatePageVisibilityFailed')))}
             />
           ) : null}
 
@@ -377,8 +386,8 @@ const GroupManageView = () => {
               events={events}
               onOpenEnrollDialog={(eventId) => setEnrollingEventId(eventId)}
               onDeleteEvent={(eventId) => {
-                if (!window.confirm('Delete this event?')) return
-                deleteEvent(eventId).catch(() => setStatusMessage('Failed to delete event.'))
+                if (!window.confirm(t('deleteEventConfirm'))) return
+                deleteEvent(eventId).catch(() => setStatusMessage(t('deleteEventFailed')))
               }}
             />
           ) : null}
@@ -386,7 +395,7 @@ const GroupManageView = () => {
       ) : null}
 
       {!loading && !error && !group ? (
-        <AppEmptyState title="Group not found" description="Try returning to the group list and selecting a different group." />
+        <AppEmptyState title={t('groupNotFound')} description={t('groupNotFoundDescription')} />
       ) : null}
 
       {enrollingEvent ? (

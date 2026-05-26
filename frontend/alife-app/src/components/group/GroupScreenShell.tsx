@@ -2,6 +2,7 @@ import AppEmptyState from '../layout/AppEmptyState'
 import AppPageShell from '../layout/AppPageShell'
 import AppSectionCard from '../layout/AppSectionCard'
 import type { GroupDto, GroupPageDto, GroupSummaryDto, GroupTab } from '../../types/group'
+import { useUiText } from '../../i18n/uiText'
 import GroupPageTabs from './GroupPageTabs'
 
 type Props = {
@@ -34,12 +35,15 @@ const GroupScreenShell = ({
   statusMessage,
   onAddPage,
   onPageSaved = () => undefined,
-}: Props) => (
+}: Props) => {
+  const t = useUiText()
+
+  return (
     <AppPageShell
     >
       {loading ? (
         <AppSectionCard dense>
-          <p className="text-sm text-slate-600">Loading group...</p>
+          <p className="text-sm text-slate-600">{t('loadingGroup')}</p>
         </AppSectionCard>
       ) : null}
 
@@ -74,11 +78,12 @@ const GroupScreenShell = ({
 
       {!loading && !error && !group ? (
         <AppEmptyState
-          title="Group not found"
-          description="Try returning to the group list and selecting a different group."
+          title={t('groupNotFound')}
+          description={t('groupNotFoundDescription')}
         />
       ) : null}
     </AppPageShell>
-)
+  )
+}
 
 export default GroupScreenShell

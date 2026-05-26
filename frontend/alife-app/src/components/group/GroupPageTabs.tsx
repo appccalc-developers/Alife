@@ -11,6 +11,7 @@ import { pageService } from '../../services/pageService'
 import type { GroupPageDto, GroupSummaryDto } from '../../types/group'
 import type { PageEditModel, SectionEditModel } from '../../types/page-editor'
 import { toLocalizedText } from '../../utils/localizedText'
+import { useUiText } from '../../i18n/uiText'
 
 type Props = {
   pages: GroupPageDto[]
@@ -58,6 +59,7 @@ const GroupPageTabs = ({
   onCreate,
   showCreateAction = false,
 }: Props) => {
+  const t = useUiText()
   const [sectionsByPageId, setSectionsByPageId] = useState<Record<string, SectionEditModel[]>>({})
   const [modelsByPageId, setModelsByPageId] = useState<Record<string, PageEditModel>>({})
   const [loadingPageId, setLoadingPageId] = useState('')
@@ -105,7 +107,7 @@ const GroupPageTabs = ({
         }))
       })
       .catch(() => {
-        setError('Unable to load page sections.')
+        setError(t('loadPageSectionsFailed'))
       })
       .finally(() => {
         setLoadingPageId((current) => (current === activePage.id ? '' : current))
@@ -158,7 +160,7 @@ const GroupPageTabs = ({
       let sectionsToPersist = activeModel.sections
 
       if (cloudflareImageService.sectionsHaveLocalDataImages(sectionsToPersist)) {
-        setMessage('Uploading local images...')
+        setMessage(t('uploadingLocalImages'))
         sectionsToPersist = await cloudflareImageService.resolveSectionImages(sectionsToPersist, `g-${activeModel.groupId || 'group'}-${pageId}`)
         updateActiveModel({ ...activeModel, sections: normalizePageSections(sectionsToPersist) })
       }
@@ -188,10 +190,10 @@ const GroupPageTabs = ({
           sections: savedSections,
         },
       }))
-      setMessage('Page saved.')
+      setMessage(t('pageSaved'))
       onSaved?.()
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Failed to save page.')
+      setError(reason instanceof Error ? reason.message : t('savePageFailed'))
     } finally {
       setSaving(false)
     }
@@ -200,9 +202,9 @@ const GroupPageTabs = ({
   if (pages.length === 0) {
     return (
         <AppEmptyState
-          title="No pages yet"
-          description="Create a page to share updates, events, and resources."
-          actionLabel={showCreateAction ? 'Create Page' : undefined}
+          title={t('noPagesYetTitle')}
+          description={t('noPagesYetDescription')}
+          actionLabel={showCreateAction ? t('createPage') : undefined}
           onAction={showCreateAction ? onCreate : undefined}
         />
     )
@@ -213,13 +215,13 @@ const GroupPageTabs = ({
         {showCreateAction ? (
           <div className="flex justify-end">
             <AppActionButton variant="primary" onClick={onCreate}>
-              Create Page
+              {t('createPage')}
             </AppActionButton>
           </div>
         ) : null}
 
         {loadingPageId && activePage?.id === loadingPageId ? (
-          <p className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">Loading page sections...</p>
+          <p className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">{t('loadingPageSections')}</p>
         ) : null}
 
         {error ? <p className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p> : null}
@@ -256,7 +258,7 @@ const GroupPageTabs = ({
                 disabled={!canEditAllPages || saving || hasValidationErrors}
                 onClick={() => saveActivePage().catch(() => undefined)}
               >
-                {saving ? 'Saving...' : 'Save Page'}
+                {saving ? t('saving') : t('savePageButton')}
               </AppActionButton>
             </div>
           </div>

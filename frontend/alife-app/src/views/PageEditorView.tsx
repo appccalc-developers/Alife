@@ -13,6 +13,7 @@ import { ensureFreshPageDetail, setPageDetailCache } from '../db/collections/pag
 import { cloudflareImageService } from '../services/cloudflareImageService'
 import { pageService } from '../services/pageService'
 import { useAuthStore } from '../stores/auth'
+import { useUiText } from '../i18n/uiText'
 import type { PageDetailDto } from '../types'
 import type { PageVisibility } from '../types/group'
 import type { PageEditModel } from '../types/page-editor'
@@ -35,6 +36,7 @@ const PageEditorView = () => {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const auth = useAuthStore()
+  const t = useUiText()
 
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -106,7 +108,7 @@ const PageEditorView = () => {
     const targetGroupId = pageData.ownerGroupId ?? resolvedGroupId
 
     if (!pageData || !targetGroupId) {
-      throw new Error('Failed to resolve page/group context for editor.')
+      throw new Error(t('loadEditorFailed'))
     }
 
     const editModel = mapPageToEditModel(pageData, targetGroupId)
@@ -130,14 +132,14 @@ const PageEditorView = () => {
         setPageModel(initialModel)
         setSavedModelSnapshot(JSON.stringify(initialModel))
         if (!canCreatePage) {
-          setMessage('You need approved membership to create a page in this group.')
+          setMessage(t('needApprovedMembershipForPage'))
         }
         return
       }
 
       await loadExistingPage()
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Failed to load page editor.')
+      setError(reason instanceof Error ? reason.message : t('loadEditorFailed'))
     } finally {
       setLoading(false)
     }
@@ -154,7 +156,7 @@ const PageEditorView = () => {
     }
 
     if (!resolvedGroupId) {
-      setError('Missing group context.')
+      setError(t('missingGroupContext'))
       return
     }
 
@@ -174,7 +176,7 @@ const PageEditorView = () => {
 
       const imagePrefix = `g-${resolvedGroupId}-${editPageId || 'new'}`
       if (cloudflareImageService.sectionsHaveLocalDataImages(pageModel.sections)) {
-        setMessage('Uploading local images…')
+        setMessage(t('uploadingLocalImages'))
         sectionsToPersist = await cloudflareImageService.resolveSectionImages(pageModel.sections, imagePrefix)
         setPageModel((current) => ({ ...current, sections: normalizePageSections(sectionsToPersist) }))
       }
@@ -218,7 +220,7 @@ const PageEditorView = () => {
           page: { title, description, tagsJson, titleDisplayStyle },
           sections: pageService.toSectionPublishPayload(sectionsToPersist),
         }
-        setMessage('Publishing…')
+        setMessage(t('publishing'))
         try {
           savedPage = await groupService.publishPageOptimized(targetPageId, publishPayload)
         } catch {
@@ -238,7 +240,7 @@ const PageEditorView = () => {
         }
         setPageModel(savedModel)
         setSavedModelSnapshot(JSON.stringify(savedModel))
-        setMessage('Page saved and published.')
+        setMessage(t('pageSavedPublished'))
       } else if (canEditVisibility && targetPageId && pageModel.visibility === 'InvisibleDraft') {
         await groupService.publishPage(targetPageId, 'InvisibleDraft')
         const savedModel = {
@@ -253,7 +255,7 @@ const PageEditorView = () => {
         }
         setPageModel(savedModel)
         setSavedModelSnapshot(JSON.stringify(savedModel))
-        setMessage('Draft saved.')
+        setMessage(t('draftSaved'))
       } else {
         const savedModel = {
           ...pageModel,
@@ -267,14 +269,14 @@ const PageEditorView = () => {
         }
         setPageModel(savedModel)
         setSavedModelSnapshot(JSON.stringify(savedModel))
-        setMessage('Page saved.')
+        setMessage(t('pageSaved'))
       }
 
       if (isCreateMode && targetPageId) {
         navigate(`/pages/${targetPageId}/edit?groupId=${resolvedGroupId}`, { replace: true })
       }
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Failed to save page.')
+      setError(reason instanceof Error ? reason.message : t('savePageFailed'))
     } finally {
       setSaving(false)
     }
@@ -297,12 +299,12 @@ const PageEditorView = () => {
   }, [editPageId, navigate, pageModel.id, resolvedGroupId])
 
   const cancel = useCallback(async () => {
-    if (hasUnsavedChanges && !window.confirm('You have unsaved changes. Exit without saving?')) {
+    if (hasUnsavedChanges && !window.confirm(t('unsavedExitConfirm'))) {
       return
     }
 
     leaveEditor()
-  }, [hasUnsavedChanges, leaveEditor])
+  }, [hasUnsavedChanges, leaveEditor, t])
 
   useEffect(() => {
     const saveHandler = () => {
@@ -327,10 +329,10 @@ const PageEditorView = () => {
       error={error}
       main={
         previewOpen ? (
-          <AppSectionCard title="Page Preview" subtitle="Preview current unsaved edits.">
+          <AppSectionCard title={t('pagePreview')} subtitle={t('pagePreviewSubtitle')}>
             <div className="mb-3">
               <AppActionButton variant="ghost" onClick={() => setPreviewOpen(false)}>
-                Back to Editor
+                {t('backToEditor')}
               </AppActionButton>
             </div>
             <div className="rounded-lg border border-slate-200 bg-slate-100/70 p-2">

@@ -4,9 +4,11 @@ import { useLiveQuery } from '@tanstack/react-db'
 import { churchQueryKey } from '../db/collections/groupCollection'
 import { subgroupsCollection } from '../db/collections/groupCollection'
 import { conditionalGet } from '../db/httpCache'
+import { useUiText } from '../i18n/uiText'
 import type { GroupDto } from '../types'
 
 const GroupsView = () => {
+  const t = useUiText()
   const [church, setChurch] = useState<GroupDto | null>(null)
   const [loadingChurch, setLoadingChurch] = useState(true)
 
@@ -45,12 +47,12 @@ const GroupsView = () => {
 
   return (
     <section className="space-y-4">
-      <h1 className="text-2xl font-bold">Groups</h1>
+      <h1 className="text-2xl font-bold">{t('groups')}</h1>
       {church ? (
         <article className="rounded-xl border bg-white p-4">
           <h2 className="text-xl font-semibold">{church.name}</h2>
           <Link className="text-blue-600" to={`/groups/${church.id}`}>
-            Open church
+            {t('openChurch')}
           </Link>
         </article>
       ) : null}
@@ -60,7 +62,7 @@ const GroupsView = () => {
             <h3 className="font-semibold">{group.name}</h3>
             <p className="text-sm text-slate-600">{group.accessType}</p>
             <Link className="text-blue-600" to={`/groups/${group.id}`}>
-              Details
+              {t('details')}
             </Link>
           </article>
         ))}

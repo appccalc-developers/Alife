@@ -3,6 +3,7 @@ import AppActionButton from '../layout/AppActionButton'
 import AppEmptyState from '../layout/AppEmptyState'
 import SectionCardEditor from './SectionCardEditor'
 import type { SectionEditModel } from '../../types/page-editor'
+import { useUiText } from '../../i18n/uiText'
 
 type Props = {
   sections: SectionEditModel[]
@@ -17,6 +18,7 @@ type Props = {
 }
 
 const SectionListEditor = ({ sections, canEdit, sectionTypeErrors, onAdd, onUpdate, onRemove, onMoveUp, onMoveDown, contextGroupId }: Props) => {
+  const t = useUiText()
   const [activeIndex, setActiveIndex] = useState(0)
 
   useEffect(() => {
@@ -51,9 +53,9 @@ const SectionListEditor = ({ sections, canEdit, sectionTypeErrors, onAdd, onUpda
     <section className="space-y-3">
       {sections.length === 0 ? (
         <AppEmptyState
-          title="No sections yet"
-          description="Add a section to start building this page."
-          actionLabel="Add Section"
+          title={t('noSectionsYet')}
+          description={t('noSectionsDescription')}
+          actionLabel={t('addSection')}
           onAction={addAndSelect}
         />
       ) : (
@@ -79,9 +81,9 @@ const SectionListEditor = ({ sections, canEdit, sectionTypeErrors, onAdd, onUpda
       )}
       <br />
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-slate-600">Only the selected section shows editing controls.</p>
+        <p className="text-sm text-slate-600">{t('selectedSectionOnly')}</p>
         <AppActionButton variant="primary" disabled={!canEdit} onClick={addAndSelect}>
-          Add Section
+          {t('addSection')}
         </AppActionButton>
       </div>
     </section>

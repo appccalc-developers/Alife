@@ -1,18 +1,22 @@
 import type { GroupTab } from '../../types/group'
+import { useUiText, type UiTextKey } from '../../i18n/uiText'
 
 type Props = {
   value: GroupTab
   onChange: (value: GroupTab) => void
 }
 
-const tabs: Array<{ key: GroupTab; label: string }> = [
-  { key: 'overview', label: 'Overview' },
-  { key: 'subgroups', label: 'Subgroups' },
-  { key: 'pages', label: 'Pages' },
+const tabs: Array<{ key: GroupTab; label: UiTextKey }> = [
+  { key: 'overview', label: 'overview' },
+  { key: 'subgroups', label: 'subgroups' },
+  { key: 'pages', label: 'pages' },
 ]
 
-const GroupTabs = ({ value, onChange }: Props) => (
-  <nav className="rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm" aria-label="Group sections">
+const GroupTabs = ({ value, onChange }: Props) => {
+  const t = useUiText()
+
+  return (
+  <nav className="rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm" aria-label={t('pageSections')}>
     <ul className="grid grid-cols-3 gap-1">
       {tabs.map((tab) => (
         <li key={tab.key}>
@@ -25,12 +29,13 @@ const GroupTabs = ({ value, onChange }: Props) => (
             type="button"
             onClick={() => onChange(tab.key)}
           >
-            {tab.label}
+            {t(tab.label)}
           </button>
         </li>
       ))}
     </ul>
   </nav>
-)
+  )
+}
 
 export default GroupTabs

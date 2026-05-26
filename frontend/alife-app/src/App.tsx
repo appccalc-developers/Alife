@@ -17,6 +17,7 @@ import EventCreatorView from './views/EventCreatorView'
 import GroupManageView from './views/GroupManageView'
 import { localizeText } from './utils/localizedText'
 import type { PageSummaryDto } from './types'
+import { translateUi, useUiText } from './i18n/uiText'
 
 type ShellNavItem = {
   label: string
@@ -33,7 +34,10 @@ type ShellFabItem = {
   onClick: () => void
 }
 
-const RouteLoading = () => <p className="rounded bg-white p-3">Loading identity...</p>
+const RouteLoading = () => {
+  const t = useUiText()
+  return <p className="rounded bg-white p-3">{t('loadingIdentity')}</p>
+}
 
 const PageIcon = () => (
   <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
@@ -159,34 +163,45 @@ const ShellSearchNavLink = ({ item, mobile = false }: { item: ShellNavItem; mobi
   )
 }
 
-const HeaderNav = ({ items }: { items: ShellNavItem[] }) => (
-  <nav className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto" aria-label="App navigation">
-    <Link to="/" className="flex shrink-0 items-center gap-2.5 rounded-lg mr-1 text-slate-950" aria-label="Home">
+const HeaderNav = ({ items }: { items: ShellNavItem[] }) => {
+  const t = useUiText()
+
+  return (
+  <nav className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto" aria-label={t('appNavigation')}>
+    <Link to="/" className="flex shrink-0 items-center gap-2.5 rounded-lg mr-1 text-slate-950" aria-label={t('home')}>
       <span className="flex items-center justify-center rounded-xl bg-emerald-50 p-1.5">
-        <img src={logo} alt="Aboundant Life Church" className="h-8 w-auto drop-shadow-sm" />
+        <img src={logo} alt={t('appName')} className="h-8 w-auto drop-shadow-sm" />
       </span>
-      <span className="text-base font-bold tracking-tight">Aboundant Life Church</span>
+      <span className="text-base font-bold tracking-tight">{t('appName')}</span>
     </Link>
     {items.map((item) => (
       <ShellNavLink key={item.to} item={item} />
     ))}
   </nav>
-)
+  )
+}
 
-const SideNav = ({ items }: { items: ShellNavItem[] }) => (
+const SideNav = ({ items }: { items: ShellNavItem[] }) => {
+  const t = useUiText()
+
+  return (
   <aside className="fixed bottom-0 left-0 top-16 z-20 hidden w-72 bg-white/95 px-4 py-5 shadow-sm backdrop-blur desktop:block">
-    <nav className="space-y-1" aria-label="Primary">
+    <nav className="space-y-1" aria-label={t('primaryNavigation')}>
       {items.map((item) => (
         <ShellSearchNavLink key={item.to} item={item} />
       ))}
     </nav>
   </aside>
-)
+  )
+}
 
-const BottomNav = ({ items }: { items: ShellNavItem[] }) => (
+const BottomNav = ({ items }: { items: ShellNavItem[] }) => {
+  const t = useUiText()
+
+  return (
   <nav
     className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-2 pb-[calc(env(safe-area-inset-bottom)+0.375rem)] pt-1.5 shadow-[0_-12px_30px_rgba(15,23,42,0.10)] backdrop-blur desktop:hidden"
-    aria-label="Primary"
+    aria-label={t('primaryNavigation')}
   >
     <div className="mx-auto flex max-w-lg items-stretch gap-1">
       {items.map((item) => (
@@ -194,7 +209,8 @@ const BottomNav = ({ items }: { items: ShellNavItem[] }) => (
       ))}
     </div>
   </nav>
-)
+  )
+}
 
 const fabToneClass: Record<ShellFabItem['tone'], string> = {
   manage: 'bg-indigo-600 text-white shadow-indigo-950/25 hover:bg-indigo-700 focus:ring-indigo-200',
@@ -276,7 +292,7 @@ const App = () => {
   const currentGroupPageNavItems = useMemo<ShellNavItem[]>(
     () =>
       currentGroupPages.map((page) => ({
-        label: localizeText(page.title, auth.language) || 'Untitled page',
+        label: localizeText(page.title, auth.language) || translateUi(auth.language, 'untitledPage'),
         to: `/groups/${contextualGroupId}?page=${encodeURIComponent(page.id)}`,
         matchSearch: `?page=${encodeURIComponent(page.id)}`,
         pageId: page.id,
@@ -287,18 +303,18 @@ const App = () => {
   const selectedPageId = searchParams.get('page') || currentGroupPageNavItems[0]?.pageId || ''
   const managementNavItems: ShellNavItem[] = contextualGroupId
     ? [
-        { label: 'Group', to: `/groups/${contextualGroupId}/manage?section=group`, matchSearch: '?section=group', icon: <GroupIcon /> },
-        { label: 'Subgroups', to: `/groups/${contextualGroupId}/manage?section=subgroups`, matchSearch: '?section=subgroups', icon: <SubgroupsIcon /> },
-        { label: 'Members', to: `/groups/${contextualGroupId}/manage?section=members`, matchSearch: '?section=members', icon: <MembersIcon /> },
-        { label: 'Pages', to: `/groups/${contextualGroupId}/manage?section=pages`, matchSearch: '?section=pages', icon: <PageIcon /> },
-        { label: 'Events', to: `/groups/${contextualGroupId}/manage?section=events`, matchSearch: '?section=events', icon: <EventsIcon /> },
+        { label: translateUi(auth.language, 'group'), to: `/groups/${contextualGroupId}/manage?section=group`, matchSearch: '?section=group', icon: <GroupIcon /> },
+        { label: translateUi(auth.language, 'subgroups'), to: `/groups/${contextualGroupId}/manage?section=subgroups`, matchSearch: '?section=subgroups', icon: <SubgroupsIcon /> },
+        { label: translateUi(auth.language, 'members'), to: `/groups/${contextualGroupId}/manage?section=members`, matchSearch: '?section=members', icon: <MembersIcon /> },
+        { label: translateUi(auth.language, 'pages'), to: `/groups/${contextualGroupId}/manage?section=pages`, matchSearch: '?section=pages', icon: <PageIcon /> },
+        { label: translateUi(auth.language, 'events'), to: `/groups/${contextualGroupId}/manage?section=events`, matchSearch: '?section=events', icon: <EventsIcon /> },
       ]
     : []
   const shellNavItems = isManagementScreen ? managementNavItems : isGroupScreen || isPageEditorScreen ? currentGroupPageNavItems : []
   const fabItems: ShellFabItem[] = isGroupScreen && canManageCurrentGroup
     ? [
         {
-          label: 'Manage group',
+          label: translateUi(auth.language, 'manageGroup'),
           tone: 'manage',
           icon: <SettingsIcon />,
           onClick: () => navigate(`/groups/${contextualGroupId}/manage?section=group`),
@@ -306,7 +322,7 @@ const App = () => {
         ...(selectedPageId
           ? [
               {
-                label: 'Edit current page',
+                label: translateUi(auth.language, 'editCurrentPage'),
                 tone: 'edit' as const,
                 icon: <EditIcon />,
                 onClick: () => navigate(`/pages/${selectedPageId}/edit?groupId=${contextualGroupId}`),
@@ -317,13 +333,13 @@ const App = () => {
     : isPageEditorScreen
       ? [
           {
-            label: 'Save page',
+            label: translateUi(auth.language, 'savePage'),
             tone: 'save',
             icon: <SaveIcon />,
             onClick: () => window.dispatchEvent(new Event('alife-page-editor-save')),
           },
           {
-            label: 'Exit editor',
+            label: translateUi(auth.language, 'exitEditor'),
             tone: 'exit',
             icon: <BackIcon />,
             onClick: () => window.dispatchEvent(new Event('alife-page-editor-exit')),
@@ -332,7 +348,7 @@ const App = () => {
       : isManagementScreen
         ? [
             {
-              label: 'Back to group',
+              label: translateUi(auth.language, 'backToGroup'),
               tone: 'exit',
               icon: <BackIcon />,
               onClick: () => navigate(`/groups/${contextualGroupId}`),
@@ -342,7 +358,7 @@ const App = () => {
 
   const toggleLanguageLabel = auth.language.toUpperCase()
   const appNavItems: ShellNavItem[] = [
-    ...(!auth.loading && auth.isGuest ? [{ label: 'Onboarding', to: '/onboarding', icon: <OnboardingIcon /> }] : []),
+    ...(!auth.loading && auth.isGuest ? [{ label: translateUi(auth.language, 'onboarding'), to: '/onboarding', icon: <OnboardingIcon /> }] : []),
   ]
 
   useEffect(() => {
@@ -381,7 +397,7 @@ const App = () => {
 
           <div className="ml-auto flex items-center gap-2">
             {!auth.loading && auth.me ? (
-              <span className="text-sm text-slate-700">{auth.me.displayName || 'Guest'}</span>
+              <span className="text-sm text-slate-700">{auth.me.displayName || translateUi(auth.language, 'guest')}</span>
             ) : null}
             <button
               type="button"

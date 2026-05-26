@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import AppPageShell from '../layout/AppPageShell'
 import AppSectionCard from '../layout/AppSectionCard'
+import { useUiText } from '../../i18n/uiText'
 
 type Props = {
   loading: boolean
@@ -9,11 +10,14 @@ type Props = {
   sidebar: ReactNode
 }
 
-const PageEditorShell = ({ loading, error, main, sidebar }: Props) => (
+const PageEditorShell = ({ loading, error, main, sidebar }: Props) => {
+  const t = useUiText()
+
+  return (
   <AppPageShell >
     {loading ? (
       <AppSectionCard dense>
-        <p className="text-sm text-slate-600">Loading editor...</p>
+        <p className="text-sm text-slate-600">{t('loadingEditor')}</p>
       </AppSectionCard>
     ) : null}
 
@@ -34,6 +38,7 @@ const PageEditorShell = ({ loading, error, main, sidebar }: Props) => (
       )
     ) : null}
   </AppPageShell>
-)
+  )
+}
 
 export default PageEditorShell
