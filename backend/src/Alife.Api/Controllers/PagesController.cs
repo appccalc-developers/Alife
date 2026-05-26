@@ -34,13 +34,13 @@ public class PagesController(
             .IgnoreQueryFilters()
             .Where(x => x.Scope == PageScope.Global)
             .MaxAsync(x => (DateTime?)x.UpdatedUtc, cancellationToken);
-        if (this.IsNotModified(updatedUtc))
+        if (this.IsPublicNotModified(updatedUtc))
         {
             return StatusCode(StatusCodes.Status304NotModified);
         }
 
         var result = await mediator.Send(new GetGlobalPagesQuery(), cancellationToken);
-        this.ApplySyncCacheHeaders(updatedUtc);
+        this.ApplyPublicSyncCacheHeaders(updatedUtc);
         return this.ToActionResult(result);
     }
 
@@ -57,13 +57,18 @@ public class PagesController(
             .IgnoreQueryFilters()
             .Where(x => x.Id == id)
             .MaxAsync(x => (DateTime?)x.UpdatedUtc, cancellationToken);
-        if (this.IsNotModified(updatedUtc))
+        var result = await mediator.Send(new GetPageByIdQuery(id, currentMemberId.Value), cancellationToken);
+        if (!result.IsSuccess)
+        {
+            return this.ToActionResult(result);
+        }
+
+        if (this.IsPrivateNotModified(updatedUtc))
         {
             return StatusCode(StatusCodes.Status304NotModified);
         }
 
-        var result = await mediator.Send(new GetPageByIdQuery(id, currentMemberId.Value), cancellationToken);
-        this.ApplySyncCacheHeaders(updatedUtc);
+        this.ApplyPrivateSyncCacheHeaders(updatedUtc);
         return this.ToActionResult(result);
     }
 
@@ -80,13 +85,18 @@ public class PagesController(
             .IgnoreQueryFilters()
             .Where(x => x.Scope == PageScope.Group && x.OwnerGroupId == groupId)
             .MaxAsync(x => (DateTime?)x.UpdatedUtc, cancellationToken);
-        if (this.IsNotModified(updatedUtc))
+        var result = await mediator.Send(new GetGroupPagesQuery(groupId, currentMemberId.Value), cancellationToken);
+        if (!result.IsSuccess)
+        {
+            return this.ToActionResult(result);
+        }
+
+        if (this.IsPrivateNotModified(updatedUtc))
         {
             return StatusCode(StatusCodes.Status304NotModified);
         }
 
-        var result = await mediator.Send(new GetGroupPagesQuery(groupId, currentMemberId.Value), cancellationToken);
-        this.ApplySyncCacheHeaders(updatedUtc);
+        this.ApplyPrivateSyncCacheHeaders(updatedUtc);
         return this.ToActionResult(result);
     }
 

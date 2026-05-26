@@ -79,7 +79,9 @@ export default defineConfig(() => {
             },
           },
           {
-            urlPattern: ({ url }) => url.origin === self.location.origin,
+            // API responses are managed by HTTP validators/IndexedDB and must not
+            // be replayed from the PWA runtime cache after auth or permission changes.
+            urlPattern: ({ url }) => url.origin === self.location.origin && !url.pathname.startsWith('/api/'),
             handler: 'NetworkFirst',
             options: {
               cacheName: 'alife-runtime-cache',

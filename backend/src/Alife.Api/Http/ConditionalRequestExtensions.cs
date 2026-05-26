@@ -9,21 +9,40 @@ public static class ConditionalRequestExtensions
 
     extension(ControllerBase controller)
     {
-        public bool IsNotModified(DateTime? updatedUtc)
+        public bool IsPublicNotModified(DateTime? updatedUtc)
         {
-            var etag = CreateEtag(updatedUtc);
-            controller.Response.Headers.ETag = etag;
-            controller.Response.Headers.CacheControl = $"public, max-age={CacheTtlSeconds}";
-            AppendVary(controller.Response.Headers, "Accept-Encoding");
+            controller.ApplyPublicSyncCacheHeaders(updatedUtc);
 
-            return MatchesIfNoneMatch(controller.Request.Headers.IfNoneMatch, etag);
+            return MatchesIfNoneMatch(controller.Request.Headers.IfNoneMatch, CreateEtag(updatedUtc));
         }
 
-        public void ApplySyncCacheHeaders(DateTime? updatedUtc)
+        public bool IsPrivateNotModified(DateTime? updatedUtc)
+        {
+            controller.ApplyPrivateSyncCacheHeaders(updatedUtc);
+
+            return MatchesIfNoneMatch(controller.Request.Headers.IfNoneMatch, CreateEtag(updatedUtc));
+        }
+
+        public void ApplyPublicSyncCacheHeaders(DateTime? updatedUtc)
         {
             controller.Response.Headers.ETag = CreateEtag(updatedUtc);
             controller.Response.Headers.CacheControl = $"public, max-age={CacheTtlSeconds}";
             AppendVary(controller.Response.Headers, "Accept-Encoding");
+        }
+
+        public void ApplyPrivateSyncCacheHeaders(DateTime? updatedUtc)
+        {
+            controller.Response.Headers.ETag = CreateEtag(updatedUtc);
+            controller.Response.Headers.CacheControl = "private, no-cache";
+            AppendVary(controller.Response.Headers, "Accept-Encoding");
+            AppendVary(controller.Response.Headers, "Cookie");
+            AppendVary(controller.Response.Headers, "Authorization");
+        }
+
+        public void ApplyNoStoreHeaders()
+        {
+            controller.Response.Headers.CacheControl = "no-store";
+            controller.Response.Headers.Pragma = "no-cache";
         }
     }
 

@@ -46,9 +46,9 @@ beforeEach(() => {
 test('GET requests are served from cache on the second hit', async () => {
   originResponses.push(Response.json({ title: 'Fresh page' }))
 
-  const first = await dispatch('https://ccalc.live/api/pages/home?lang=en')
+  const first = await dispatch('https://ccalc.live/api/pages/global?lang=en')
   await flushWaitUntil()
-  const second = await dispatch('https://ccalc.live/api/pages/home?lang=en')
+  const second = await dispatch('https://ccalc.live/api/pages/global?lang=en')
 
   assert.equal(first.status, 200)
   assert.equal(first.headers.get('x-alife-cache'), 'MISS')
@@ -60,16 +60,16 @@ test('GET requests are served from cache on the second hit', async () => {
 })
 
 test('non-auth cookie churn does not fragment GET cache key', async () => {
-  originResponses.push(Response.json({ title: 'Scoped page' }))
+  originResponses.push(Response.json([{ title: 'Public sermon' }]))
 
   const tokenA = createJwtWithSub('member-1')
-  const first = await dispatch('https://ccalc.live/api/pages/home?lang=en', {
+  const first = await dispatch('https://ccalc.live/api/sermons?lang=en', {
     headers: { cookie: `alife_auth=${tokenA}; analytics_id=abc` },
   })
   await flushWaitUntil()
 
   const tokenB = createJwtWithSub('member-1')
-  const second = await dispatch('https://ccalc.live/api/pages/home?lang=en', {
+  const second = await dispatch('https://ccalc.live/api/sermons?lang=en', {
     headers: { cookie: `alife_auth=${tokenB}; analytics_id=xyz` },
   })
 
@@ -79,7 +79,7 @@ test('non-auth cookie churn does not fragment GET cache key', async () => {
 })
 
 test('matching If-None-Match is answered from edge cache with 304', async () => {
-  const url = 'https://app.ccalc.live/api/pages/home?lang=en'
+  const url = 'https://app.ccalc.live/api/sermons?lang=en'
   cacheStore.set(cacheKey(new Request(url)), Response.json(
     { title: 'Fresh page' },
     { headers: { etag: '"638507"', 'cache-control': 'public, max-age=60' } },
@@ -192,22 +192,23 @@ test('successful event update evicts the group events list cache', async () => {
   assert.equal(cacheStore.has(cacheKey(new Request(listUrl))), false)
 })
 
-test('event delete can evict group events list using cached entity mapping', async () => {
+test('private group event reads bypass edge cache', async () => {
   const groupId = 'group-1'
-  const eventId = 'event-1'
   const listUrl = `https://ccalc.live/api/groups/${groupId}/events`
-  originResponses.push(Response.json([{ id: eventId, groupId }]))
+  originResponses.push(Response.json([{ id: 'event-1', groupId }]))
 
-  await dispatch(listUrl)
+  const first = await dispatch(listUrl)
   await flushWaitUntil()
-  assert.equal(cacheStore.has(cacheKey(new Request(listUrl))), true)
-
-  originResponses.push(Response.json(true))
-  const response = await dispatch(`https://ccalc.live/api/events/${eventId}`, { method: 'DELETE' })
-  await flushWaitUntil()
-
-  assert.equal(response.status, 200)
+  assert.equal(first.headers.get('x-alife-cache'), 'BYPASS')
+  assert.equal(first.headers.get('cache-control'), 'no-store')
   assert.equal(cacheStore.has(cacheKey(new Request(listUrl))), false)
+
+  originResponses.push(Response.json([{ id: 'event-2', groupId }]))
+  const second = await dispatch(listUrl)
+  await flushWaitUntil()
+
+  assert.equal(second.headers.get('x-alife-cache'), 'BYPASS')
+  assert.equal(fetchCalls.length, 2)
 })
 
 test('GET /images/... is proxied to images.ccalc.live without the /images prefix', async () => {

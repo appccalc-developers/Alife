@@ -36,7 +36,7 @@ public class MembersController(
         var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
         if (currentMemberId is null)
         {
-            this.ApplySyncCacheHeaders(null);
+            this.ApplyNoStoreHeaders();
             return Ok(new CurrentMemberDto(
                 Guid.Empty,
                 DisplayName: null,
@@ -58,11 +58,6 @@ public class MembersController(
             .Where(x => x.MemberId == currentMemberId.Value)
             .MaxAsync(x => (DateTime?)x.UpdatedUtc, cancellationToken);
         var updatedUtc = new[] { memberUpdatedUtc, membershipUpdatedUtc }.Max();
-        if (this.IsNotModified(updatedUtc))
-        {
-            return StatusCode(StatusCodes.Status304NotModified);
-        }
-
         var profile = await hybridCache.GetOrCreateAsync(
             GetMemberProfileCacheKey(currentMemberId.Value, updatedUtc),
             async cancel =>
@@ -79,7 +74,7 @@ public class MembersController(
 
         if (profile is not null)
         {
-            this.ApplySyncCacheHeaders(updatedUtc);
+            this.ApplyNoStoreHeaders();
             return Ok(profile);
         }
 
@@ -97,7 +92,7 @@ public class MembersController(
                 IsAdmin: IsAdminPrincipal(User),
                 Memberships: []);
 
-            this.ApplySyncCacheHeaders(updatedUtc);
+            this.ApplyNoStoreHeaders();
             return Ok(fallbackGuest);
         }
 
