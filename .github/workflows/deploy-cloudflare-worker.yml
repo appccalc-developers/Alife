@@ -47,13 +47,5 @@ jobs:
       - name: Test Worker speed layer
         run: npm run test:worker
 
-      - name: Sync Gemini API key to Cloudflare Worker secret
-        run: |
-          if [ -z "$GEMINI_API_KEY" ]; then
-            echo "GEMINI_API_KEY is not set in GitHub secrets" >&2
-            exit 1
-          fi
-          printf '%s' "$GEMINI_API_KEY" | npx wrangler secret put GEMINI_API_KEY
-
       - name: Deploy Worker
         run: npx wrangler deploy
