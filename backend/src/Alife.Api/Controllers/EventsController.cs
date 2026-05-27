@@ -5,11 +5,9 @@ using Alife.Application.Events.Commands.CreateGroupEvent;
 using Alife.Application.Events.Commands.DeleteGroupEvent;
 using Alife.Application.Events.Commands.UpdateGroupEvent;
 using Alife.Application.Events.Queries.GetGroupEvents;
-using Alife.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace Alife.Api.Controllers;
 
@@ -18,8 +16,7 @@ namespace Alife.Api.Controllers;
 [Authorize]
 public class EventsController(
     IMediator mediator,
-    ICurrentMemberAccessor currentMemberAccessor,
-    AlifeDbContext dbContext) : ControllerBase
+    ICurrentMemberAccessor currentMemberAccessor) : ControllerBase
 {
     [HttpGet("groups/{groupId:guid}/events")]
     public async Task<IActionResult> GroupEvents(Guid groupId, CancellationToken cancellationToken = default)
@@ -30,22 +27,13 @@ public class EventsController(
             return Unauthorized();
         }
 
-        var updatedUtc = await dbContext.GroupEvents
-            .IgnoreQueryFilters()
-            .Where(x => x.GroupId == groupId)
-            .MaxAsync(x => (DateTime?)x.UpdatedUtc, cancellationToken);
         var result = await mediator.Send(new GetGroupEventsQuery(groupId, currentMemberId.Value), cancellationToken);
         if (!result.IsSuccess)
         {
             return this.ToActionResult(result);
         }
 
-        if (this.IsPrivateNotModified(updatedUtc))
-        {
-            return StatusCode(StatusCodes.Status304NotModified);
-        }
-
-        this.ApplyPrivateSyncCacheHeaders(updatedUtc);
+        this.ApplyPrivateNoCacheHeaders();
         return this.ToActionResult(result);
     }
 

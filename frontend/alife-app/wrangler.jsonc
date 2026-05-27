@@ -67,6 +67,10 @@
 		{
 			"binding": "ALIFE_AUTHZ",
 			"id": "bc088e5f6e524a46be427ae3ef68268d"
+		},
+		{
+			"binding": "ALIFE_API_CACHE",
+			"id": "replace-with-alife-api-cache-kv-id"
 		}
 	]
 }

@@ -12,6 +12,8 @@ const CACHE_STALE_IF_ERROR_SECONDS = 86400
 const AUTHZ_MIRROR_TTL_SECONDS = 7 * 24 * 60 * 60
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 const PUBLIC_CACHEABLE_API_PATHS = new Set(['/api/sermons', '/api/pages/global'])
+const GROUP_SHARED_SUBRESOURCES = new Set(['pages', 'events', 'memberships', 'subgroups'])
+const EVENT_SHARED_SUBRESOURCES = new Set(['enrollments', 'reviews'])
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -25,18 +27,13 @@ export default {
       return handleOptions(request)
     }
 
-    const bypassEdgeCache = shouldBypassEdgeCache(url.pathname)
-    const groupDetailId = getGroupDetailId(url.pathname)
-    const groupDetailMemberId = groupDetailId ? extractMemberIdFromRequest(request) : ''
-    const groupAuthzStatus = groupDetailId
-      ? await getGroupAuthzStatus(env, groupDetailId, groupDetailMemberId)
-      : 'not-applicable'
-    const allowGroupSharedCache = groupAuthzStatus === 'hit'
+    const sharedContext = await getSharedCacheContext(request, env)
+    const bypassEdgeCache = shouldBypassEdgeCache(url.pathname, sharedContext)
 
     if (request.method === 'GET' && !bypassEdgeCache) {
-      const cacheKey = await createCacheKey(request)
-      const canReadCache = !groupDetailId || allowGroupSharedCache
-      const cached = canReadCache ? await getEdgeCache().match(cacheKey) : undefined
+      const cached = sharedContext
+        ? await readSharedCachedResponse(env, request, sharedContext)
+        : await getEdgeCache().match(await createCacheKey(request))
       if (cached) {
         const clientEtag = request.headers.get('if-none-match')
         const cachedEtag = cached.headers.get('etag')
@@ -44,10 +41,10 @@ export default {
           return addCorsHeaders(request, withCacheHeader(withBrowserCacheControl(new Response(null, {
             status: 304,
             headers: cached.headers,
-          }), url.pathname, groupAuthzStatus), 'REVALIDATED'))
+          }), url.pathname, sharedContext?.authzStatus), 'REVALIDATED'))
         }
 
-        return addCorsHeaders(request, withCacheHeader(withBrowserCacheControl(cached, url.pathname, groupAuthzStatus), 'HIT'))
+        return addCorsHeaders(request, withCacheHeader(withBrowserCacheControl(cached, url.pathname, sharedContext?.authzStatus), 'HIT'))
       }
     }
 
@@ -59,21 +56,38 @@ export default {
     const originResponse = await fetch(originRequest)
 
     if (originResponse.ok && MUTATING_METHODS.has(request.method)) {
-      ctx.waitUntil(passivelyInvalidate(request, originResponse.clone()))
+      ctx.waitUntil(passivelyInvalidate(env, request, originResponse.clone()))
     }
 
     if (originResponse.status === 200 && request.method === 'GET' && !bypassEdgeCache) {
-      const responseForCache = withEdgeCacheControl(originResponse.clone())
-      ctx.waitUntil(Promise.all([
-        createCacheKey(request).then((cacheKey) => getEdgeCache().put(cacheKey, responseForCache)),
-        rememberEntityGroups(request, originResponse.clone()),
-        rememberGroupAuthorization(env, groupDetailId, groupDetailMemberId, originResponse.clone()),
-      ]))
-      return addCorsHeaders(request, withCacheHeader(withBrowserCacheControl(originResponse, url.pathname, groupAuthzStatus), 'MISS'))
+      const waitUntilTasks = [
+        rememberEntityGroups(env, request, originResponse.clone()),
+        rememberGroupAuthorization(env, sharedContext?.groupId ?? '', sharedContext?.memberId ?? '', originResponse.clone()),
+      ]
+
+      if (sharedContext) {
+        if (sharedContext.memberId) {
+          waitUntilTasks.push(writeSharedCachedResponse(env, request, withEdgeCacheControl(originResponse.clone())))
+        }
+      } else {
+        const responseForCache = withEdgeCacheControl(originResponse.clone())
+        waitUntilTasks.push(createCacheKey(request).then((cacheKey) => getEdgeCache().put(cacheKey, responseForCache)))
+      }
+
+      ctx.waitUntil(Promise.all(waitUntilTasks))
+      return addCorsHeaders(request, withCacheHeader(withBrowserCacheControl(originResponse, url.pathname, sharedContext?.authzStatus), 'MISS'))
+    }
+
+    if (originResponse.status === 200 && request.method === 'GET' && (getEventSubresource(url.pathname) || getPageDetailId(url.pathname))) {
+      const tasks = [rememberEntityGroups(env, request, originResponse.clone())]
+      if (getPageDetailId(url.pathname)) {
+        tasks.push(writeSharedCachedResponse(env, request, withEdgeCacheControl(originResponse.clone())))
+      }
+      ctx.waitUntil(Promise.all(tasks))
     }
 
     const response = bypassEdgeCache ? withNoStore(originResponse) : originResponse
-    return addCorsHeaders(request, withCacheHeader(withGroupAuthzHeader(response, groupAuthzStatus), 'BYPASS'))
+    return addCorsHeaders(request, withCacheHeader(withGroupAuthzHeader(response, sharedContext?.authzStatus), 'BYPASS'))
   },
 }
 
@@ -182,7 +196,7 @@ function getProxyTargetPath(pathname: string) {
   return pathname
 }
 
-function shouldBypassEdgeCache(pathname: string) {
+function shouldBypassEdgeCache(pathname: string, sharedContext?: SharedCacheContext | null) {
   if (pathname === '/images' || pathname.startsWith('/images/')) {
     return false
   }
@@ -191,7 +205,7 @@ function shouldBypassEdgeCache(pathname: string) {
     return false
   }
 
-  if (getGroupDetailId(pathname)) {
+  if (sharedContext) {
     return false
   }
 
@@ -200,6 +214,28 @@ function shouldBypassEdgeCache(pathname: string) {
 
 function getGroupDetailId(pathname: string) {
   return pathname.match(/^\/api\/groups\/([^/]+)$/)?.[1] ?? ''
+}
+
+function getGroupSubresource(pathname: string) {
+  const match = pathname.match(/^\/api\/groups\/([^/]+)\/([^/]+)$/)
+  if (!match || !GROUP_SHARED_SUBRESOURCES.has(match[2])) {
+    return null
+  }
+
+  return { groupId: match[1], subresource: match[2] }
+}
+
+function getEventSubresource(pathname: string) {
+  const match = pathname.match(/^\/api\/events\/([^/]+)\/([^/]+)$/)
+  if (!match || !EVENT_SHARED_SUBRESOURCES.has(match[2])) {
+    return null
+  }
+
+  return { eventId: match[1], subresource: match[2] }
+}
+
+function getPageDetailId(pathname: string) {
+  return pathname.match(/^\/api\/pages\/([^/]+)$/)?.[1] ?? ''
 }
 
 async function createCacheKey(request: Request, pathname?: string) {
@@ -222,7 +258,10 @@ function shouldUseSharedCacheKey(pathname: string) {
   return pathname === '/images' ||
     pathname.startsWith('/images/') ||
     PUBLIC_CACHEABLE_API_PATHS.has(pathname) ||
-    Boolean(getGroupDetailId(pathname))
+    Boolean(getGroupDetailId(pathname)) ||
+    Boolean(getGroupSubresource(pathname)) ||
+    Boolean(getEventSubresource(pathname)) ||
+    Boolean(getPageDetailId(pathname))
 }
 
 function withCacheHeader(response: Response, value: 'HIT' | 'MISS' | 'BYPASS' | 'REVALIDATED') {
@@ -281,19 +320,191 @@ function withNoStore(response: Response) {
   })
 }
 
-async function passivelyInvalidate(request: Request, response: Response) {
-  const paths = await getInvalidationPaths(request, response)
+type SharedCacheContext = {
+  groupId: string
+  memberId: string
+  authzStatus: GroupAuthzStatus
+  authzRecord?: MembershipAuthzRecord
+  pageMeta?: PageMeta
+}
+
+type StoredResponse = {
+  status: number
+  statusText?: string
+  headers: Record<string, string>
+  body: string
+  storedAt: string
+}
+
+type MembershipAuthzRecord = {
+  status: string
+  role?: string
+}
+
+type PageMeta = {
+  groupId: string
+  ownerGroupId?: string
+  visibility?: string
+  createdByMemberId?: string
+}
+
+async function getSharedCacheContext(request: Request, env: Env): Promise<SharedCacheContext | null> {
+  if (request.method !== 'GET') {
+    return null
+  }
+
+  const url = new URL(request.url)
+  const pageDetailId = getPageDetailId(url.pathname)
+  const pageMeta = pageDetailId ? await readPageMeta(env, pageDetailId) : undefined
+  const groupId = await getSharedCacheGroupId(url.pathname, env, pageMeta)
+  if (!groupId) {
+    return null
+  }
+
+  const memberId = extractMemberIdFromRequest(request)
+  const authz = await getGroupAuthz(env, groupId, memberId)
+  return { groupId, memberId, authzStatus: authz.status, authzRecord: authz.record, pageMeta }
+}
+
+async function getSharedCacheGroupId(pathname: string, env: Env, pageMeta?: PageMeta) {
+  const groupDetailId = getGroupDetailId(pathname)
+  if (groupDetailId) {
+    return groupDetailId
+  }
+
+  const groupSubresource = getGroupSubresource(pathname)
+  if (groupSubresource) {
+    return groupSubresource.groupId
+  }
+
+  const eventSubresource = getEventSubresource(pathname)
+  if (eventSubresource) {
+    return await readEntityGroup(env, 'event', eventSubresource.eventId)
+  }
+
+  const pageDetailId = getPageDetailId(pathname)
+  if (pageDetailId) {
+    return pageMeta?.groupId ?? await readEntityGroup(env, 'page', pageDetailId)
+  }
+
+  return ''
+}
+
+async function readSharedCachedResponse(env: Env, request: Request, context: SharedCacheContext) {
+  if (!canReadSharedCache(context) || !env.ALIFE_API_CACHE) {
+    return undefined
+  }
+
+  const record = await env.ALIFE_API_CACHE.get(createApiCacheKey(request), { type: 'json' }) as StoredResponse | null
+  if (!isStoredResponse(record)) {
+    return undefined
+  }
+
+  return new Response(record.body, {
+    status: record.status,
+    statusText: record.statusText,
+    headers: record.headers,
+  })
+}
+
+function canReadSharedCache(context: SharedCacheContext) {
+  if (context.authzStatus !== 'hit') {
+    return false
+  }
+
+  if (!context.pageMeta || !isDraftVisibility(context.pageMeta.visibility)) {
+    return true
+  }
+
+  return isPageAuthor(context.pageMeta, context.memberId) || hasDraftPageRole(context.authzRecord)
+}
+
+function isDraftVisibility(visibility: string | undefined) {
+  return visibility?.toLowerCase() === 'draft'
+}
+
+function isPageAuthor(pageMeta: PageMeta, memberId: string) {
+  return Boolean(memberId && pageMeta.createdByMemberId && pageMeta.createdByMemberId === memberId)
+}
+
+function hasDraftPageRole(record: MembershipAuthzRecord | undefined) {
+  const role = record?.role?.toLowerCase().replace(/[^a-z]/g, '')
+  return role === 'leader' || role === 'coleader'
+}
+
+async function writeSharedCachedResponse(env: Env, request: Request, response: Response) {
+  if (!env.ALIFE_API_CACHE) {
+    return
+  }
+
+  const headers: Record<string, string> = {}
+  response.headers.forEach((value, key) => {
+    headers[key] = value
+  })
+
+  const record: StoredResponse = {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+    body: await response.text(),
+    storedAt: new Date().toISOString(),
+  }
+
+  await env.ALIFE_API_CACHE.put(
+    createApiCacheKey(request),
+    JSON.stringify(record),
+    { expirationTtl: CACHE_TTL_SECONDS },
+  )
+}
+
+function isStoredResponse(value: unknown): value is StoredResponse {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+
+  const record = value as Record<string, unknown>
+  return typeof record.status === 'number' &&
+    typeof record.headers === 'object' &&
+    record.headers !== null &&
+    typeof record.body === 'string'
+}
+
+function createApiCacheKey(requestOrPath: Request | string) {
+  if (typeof requestOrPath === 'string') {
+    return `api:${requestOrPath}`
+  }
+
+  const url = new URL(requestOrPath.url)
+  url.hash = ''
+  url.searchParams.sort()
+  return `api:${url.pathname}${url.search}`
+}
+
+async function passivelyInvalidate(env: Env, request: Request, response: Response) {
+  const paths = await getInvalidationPaths(env, request, response)
+  const keys = getInvalidationKeys(request)
   const originalCacheKey = await createCacheKey(request)
   await Promise.all([
     getEdgeCache().delete(originalCacheKey),
+    deleteApiCacheKey(env, createApiCacheKey(request)),
+    ...keys.map((key) => deleteApiCacheKey(env, key)),
     ...paths.map(async (path) => {
       const cacheKey = await createCacheKey(request, path)
       await getEdgeCache().delete(cacheKey)
+      await deleteApiCacheKey(env, createApiCacheKey(path))
     }),
   ])
 }
 
-async function getInvalidationPaths(request: Request, response: Response) {
+async function deleteApiCacheKey(env: Env, key: string) {
+  if (!env.ALIFE_API_CACHE) {
+    return
+  }
+
+  await env.ALIFE_API_CACHE.delete(key)
+}
+
+async function getInvalidationPaths(env: Env, request: Request, response: Response) {
   const url = new URL(request.url)
   const path = url.pathname
   const paths = new Set<string>()
@@ -317,7 +528,7 @@ async function getInvalidationPaths(request: Request, response: Response) {
   if (pageId) {
     paths.add(`/api/pages/${pageId}`)
     const body = await readJsonObject(response)
-    const ownerGroupId = readString(body?.ownerGroupId) ?? await readEntityGroup('page', pageId)
+    const ownerGroupId = readString(body?.ownerGroupId) ?? await readEntityGroup(env, 'page', pageId)
     if (ownerGroupId) {
       paths.add(`/api/groups/${ownerGroupId}/pages`)
     }
@@ -326,7 +537,7 @@ async function getInvalidationPaths(request: Request, response: Response) {
   const eventId = path.match(/^\/api\/events\/([^/]+)$/)?.[1]
   if (eventId) {
     const body = await readJsonObject(response)
-    const groupId = readString(body?.groupId) ?? await readEntityGroup('event', eventId)
+    const groupId = readString(body?.groupId) ?? await readEntityGroup(env, 'event', eventId)
     if (groupId) {
       paths.add(`/api/groups/${groupId}/events`)
     }
@@ -334,12 +545,12 @@ async function getInvalidationPaths(request: Request, response: Response) {
 
   const enrollmentMatch = path.match(/^\/api\/events\/([^/]+)\/enrollments(?:\/[^/]+)?$/)
   if (enrollmentMatch) {
-    paths.add(path)
+    paths.add(`/api/events/${enrollmentMatch[1]}/enrollments`)
   }
 
   const reviewMatch = path.match(/^\/api\/events\/([^/]+)\/reviews(?:\/[^/]+)?$/)
   if (reviewMatch) {
-    paths.add(path)
+    paths.add(`/api/events/${reviewMatch[1]}/reviews`)
   }
 
   if (path === '/api/admin/sermons/sync') {
@@ -350,12 +561,26 @@ async function getInvalidationPaths(request: Request, response: Response) {
   return Array.from(paths)
 }
 
-async function rememberEntityGroups(request: Request, response: Response) {
+function getInvalidationKeys(request: Request) {
+  const path = new URL(request.url).pathname
+  const pageId = path.match(/^\/api\/pages\/([^/]+)(?:\/publish)?$/)?.[1]
+  if (!pageId) {
+    return []
+  }
+
+  return [
+    createEntityGroupMapKey('page', pageId),
+    createPageMetaMapKey(pageId),
+  ]
+}
+
+async function rememberEntityGroups(env: Env, request: Request, response: Response) {
   const path = new URL(request.url).pathname
   const groupListMatch = path.match(/^\/api\/groups\/([^/]+)\/(pages|events)$/)
   const pageDetailMatch = path.match(/^\/api\/pages\/([^/]+)$/)
+  const eventSubresourceMatch = path.match(/^\/api\/events\/([^/]+)\/(enrollments|reviews)$/)
 
-  if (!groupListMatch && !pageDetailMatch) {
+  if (!groupListMatch && !pageDetailMatch && !eventSubresourceMatch) {
     return
   }
 
@@ -366,7 +591,10 @@ async function rememberEntityGroups(request: Request, response: Response) {
       const id = readString(item?.id)
       const groupId = readString(item?.groupId) ?? readString(item?.ownerGroupId) ?? groupListMatch?.[1]
       if (id && groupId) {
-        await writeEntityGroup(entityType, id, groupId)
+        await writeEntityGroup(env, entityType, id, groupId)
+        if (entityType === 'page') {
+          await writePageMeta(env, id, item as Record<string, unknown>, groupId)
+        }
       }
     }))
     return
@@ -376,7 +604,15 @@ async function rememberEntityGroups(request: Request, response: Response) {
     const id = readString((body as Record<string, unknown>).id) ?? pageDetailMatch[1]
     const groupId = readString((body as Record<string, unknown>).ownerGroupId)
     if (id && groupId) {
-      await writeEntityGroup('page', id, groupId)
+      await writeEntityGroup(env, 'page', id, groupId)
+      await writePageMeta(env, id, body as Record<string, unknown>, groupId)
+    }
+  }
+
+  if (eventSubresourceMatch && Array.isArray(body)) {
+    const groupId = body.map((item) => readString(item?.groupId)).find(Boolean)
+    if (groupId) {
+      await writeEntityGroup(env, 'event', eventSubresourceMatch[1], groupId)
     }
   }
 }
@@ -445,20 +681,20 @@ function readString(value: unknown) {
   return typeof value === 'string' && value.trim() ? value : null
 }
 
-async function getGroupAuthzStatus(env: Env, groupId: string, memberId: string): Promise<GroupAuthzStatus> {
+async function getGroupAuthz(env: Env, groupId: string, memberId: string): Promise<{ status: GroupAuthzStatus; record?: MembershipAuthzRecord }> {
   if (!memberId) {
-    return 'no-principal'
+    return { status: 'no-principal' }
   }
 
   if (!env.ALIFE_AUTHZ) {
-    return 'unbound'
+    return { status: 'unbound' }
   }
 
   const record = await env.ALIFE_AUTHZ.get(createMembershipKey(groupId, memberId), { type: 'json' })
-  return isApprovedMembershipRecord(record) ? 'hit' : 'miss'
+  return isApprovedMembershipRecord(record) ? { status: 'hit', record } : { status: 'miss' }
 }
 
-function isApprovedMembershipRecord(record: unknown) {
+function isApprovedMembershipRecord(record: unknown): record is MembershipAuthzRecord {
   if (!record || typeof record !== 'object') {
     return false
   }
@@ -471,15 +707,81 @@ function createMembershipKey(groupId: string, memberId: string) {
   return `membership:${groupId}:${memberId}`
 }
 
-async function writeEntityGroup(entityType: string, entityId: string, groupId: string) {
+async function writePageMeta(env: Env, pageId: string, item: Record<string, unknown>, fallbackGroupId: string) {
+  if (!env.ALIFE_API_CACHE) {
+    return
+  }
+
+  const groupId = readString(item.ownerGroupId) ?? readString(item.groupId) ?? fallbackGroupId
+  if (!groupId) {
+    return
+  }
+
+  const meta: PageMeta = {
+    groupId,
+    ownerGroupId: groupId,
+    visibility: readString(item.visibility) ?? undefined,
+    createdByMemberId: readString(item.createdByMemberId) ?? undefined,
+  }
+
+  await env.ALIFE_API_CACHE.put(
+    createPageMetaMapKey(pageId),
+    JSON.stringify(meta),
+    { expirationTtl: AUTHZ_MIRROR_TTL_SECONDS },
+  )
+}
+
+async function readPageMeta(env: Env, pageId: string) {
+  if (!env.ALIFE_API_CACHE) {
+    return undefined
+  }
+
+  const record = await env.ALIFE_API_CACHE.get(createPageMetaMapKey(pageId), { type: 'json' })
+  if (!record || typeof record !== 'object') {
+    return undefined
+  }
+
+  const groupId = readString((record as Record<string, unknown>).groupId) ?? readString((record as Record<string, unknown>).ownerGroupId)
+  if (!groupId) {
+    return undefined
+  }
+
+  return {
+    groupId,
+    ownerGroupId: groupId,
+    visibility: readString((record as Record<string, unknown>).visibility) ?? undefined,
+    createdByMemberId: readString((record as Record<string, unknown>).createdByMemberId) ?? undefined,
+  }
+}
+
+async function writeEntityGroup(env: Env, entityType: string, entityId: string, groupId: string) {
+  if (env.ALIFE_API_CACHE) {
+    await env.ALIFE_API_CACHE.put(
+      createEntityGroupMapKey(entityType, entityId),
+      JSON.stringify({ groupId }),
+      { expirationTtl: AUTHZ_MIRROR_TTL_SECONDS },
+    )
+    return
+  }
+
   await getEdgeCache().put(
-    createEntityGroupMapKey(entityType, entityId),
+    createLegacyEntityGroupMapRequest(entityType, entityId),
     Response.json({ groupId }),
   )
 }
 
-async function readEntityGroup(entityType: string, entityId: string) {
-  const response = await getEdgeCache().match(createEntityGroupMapKey(entityType, entityId))
+async function readEntityGroup(env: Env, entityType: string, entityId: string) {
+  if (env.ALIFE_API_CACHE) {
+    const record = await env.ALIFE_API_CACHE.get(createEntityGroupMapKey(entityType, entityId), { type: 'json' })
+    const groupId = readString((record as Record<string, unknown> | null)?.groupId)
+    if (groupId || entityType !== 'page') {
+      return groupId
+    }
+
+    return (await readPageMeta(env, entityId))?.groupId ?? null
+  }
+
+  const response = await getEdgeCache().match(createLegacyEntityGroupMapRequest(entityType, entityId))
   if (!response) {
     return null
   }
@@ -489,6 +791,14 @@ async function readEntityGroup(entityType: string, entityId: string) {
 }
 
 function createEntityGroupMapKey(entityType: string, entityId: string) {
+  return `map:${entityType}:${entityId}:group`
+}
+
+function createPageMetaMapKey(pageId: string) {
+  return `map:page:${pageId}:meta`
+}
+
+function createLegacyEntityGroupMapRequest(entityType: string, entityId: string) {
   return new Request(`https://alife.local/__cache-map/${entityType}/${entityId}`, { method: 'GET' })
 }
 

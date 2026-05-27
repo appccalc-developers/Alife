@@ -11,7 +11,8 @@ namespace Alife.Application.Groups.Commands.SetGroupCoLeader;
 public sealed class SetGroupCoLeaderCommandHandler(
     IAlifeDbContext dbContext,
     IGroupAuthorizationService groupAuthorizationService,
-    IGroupCacheInvalidationService groupCacheInvalidationService)
+    IGroupCacheInvalidationService groupCacheInvalidationService,
+    ICloudflareKvCacheService cloudflareKvCacheService)
     : IRequestHandler<SetGroupCoLeaderCommand, AppResult<GroupActionResultDto>>
 {
     public async Task<AppResult<GroupActionResultDto>> Handle(
@@ -43,6 +44,12 @@ public sealed class SetGroupCoLeaderCommandHandler(
         membership.UpdatedUtc = DateTime.UtcNow;
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        await cloudflareKvCacheService.PutApprovedMembershipAsync(
+            request.GroupId,
+            request.MemberId,
+            membership.Role,
+            membership.UpdatedUtc,
+            cancellationToken);
         await groupCacheInvalidationService.RemoveMembershipsAsync(request.GroupId, cancellationToken);
 
         return AppResult<GroupActionResultDto>.Success(new GroupActionResultDto(true));

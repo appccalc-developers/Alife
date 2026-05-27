@@ -10,11 +10,9 @@ using Alife.Application.Pages.Queries.GetGroupPages;
 using Alife.Application.Pages.Queries.GetPageById;
 using Alife.Application.Pages.Dtos;
 using Alife.Domain.Enums;
-using Alife.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace Alife.Api.Controllers;
 
@@ -23,24 +21,14 @@ namespace Alife.Api.Controllers;
 [Authorize]
 public class PagesController(
     IMediator mediator,
-    ICurrentMemberAccessor currentMemberAccessor,
-    AlifeDbContext dbContext) : ControllerBase
+    ICurrentMemberAccessor currentMemberAccessor) : ControllerBase
 {
     [HttpGet("pages/global")]
     [AllowAnonymous]
     public async Task<IActionResult> GlobalPages(CancellationToken cancellationToken = default)
     {
-        var updatedUtc = await dbContext.Pages
-            .IgnoreQueryFilters()
-            .Where(x => x.Scope == PageScope.Global)
-            .MaxAsync(x => (DateTime?)x.UpdatedUtc, cancellationToken);
-        if (this.IsPublicNotModified(updatedUtc))
-        {
-            return StatusCode(StatusCodes.Status304NotModified);
-        }
-
         var result = await mediator.Send(new GetGlobalPagesQuery(), cancellationToken);
-        this.ApplyPublicSyncCacheHeaders(updatedUtc);
+        this.ApplyPublicCacheHeaders();
         return this.ToActionResult(result);
     }
 
@@ -53,22 +41,13 @@ public class PagesController(
             return Unauthorized();
         }
 
-        var updatedUtc = await dbContext.Pages
-            .IgnoreQueryFilters()
-            .Where(x => x.Id == id)
-            .MaxAsync(x => (DateTime?)x.UpdatedUtc, cancellationToken);
         var result = await mediator.Send(new GetPageByIdQuery(id, currentMemberId.Value), cancellationToken);
         if (!result.IsSuccess)
         {
             return this.ToActionResult(result);
         }
 
-        if (this.IsPrivateNotModified(updatedUtc))
-        {
-            return StatusCode(StatusCodes.Status304NotModified);
-        }
-
-        this.ApplyPrivateSyncCacheHeaders(updatedUtc);
+        this.ApplyPrivateNoCacheHeaders();
         return this.ToActionResult(result);
     }
 
@@ -81,22 +60,13 @@ public class PagesController(
             return Unauthorized();
         }
 
-        var updatedUtc = await dbContext.Pages
-            .IgnoreQueryFilters()
-            .Where(x => x.Scope == PageScope.Group && x.OwnerGroupId == groupId)
-            .MaxAsync(x => (DateTime?)x.UpdatedUtc, cancellationToken);
         var result = await mediator.Send(new GetGroupPagesQuery(groupId, currentMemberId.Value), cancellationToken);
         if (!result.IsSuccess)
         {
             return this.ToActionResult(result);
         }
 
-        if (this.IsPrivateNotModified(updatedUtc))
-        {
-            return StatusCode(StatusCodes.Status304NotModified);
-        }
-
-        this.ApplyPrivateSyncCacheHeaders(updatedUtc);
+        this.ApplyPrivateNoCacheHeaders();
         return this.ToActionResult(result);
     }
 

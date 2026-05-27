@@ -1,6 +1,7 @@
 using Alife.Api.Controllers;
 using Alife.Application.Abstractions.Identity;
 using Alife.Application.Events.Dtos;
+using Alife.Application.Events.Services;
 using Alife.Application.Groups.Services;
 using Alife.Domain.Entities;
 using Alife.Infrastructure.Persistence;
@@ -36,7 +37,7 @@ public class EventReviewsControllerTests
         groupAuthorizationService
             .IsApprovedMemberAsync(groupId, memberId, Arg.Any<CancellationToken>())
             .Returns(true);
-        var controller = new EventReviewsController(dbContext, currentMemberAccessor, groupAuthorizationService);
+        var controller = CreateController(dbContext, currentMemberAccessor, groupAuthorizationService);
         var reviewId = Guid.NewGuid();
         var payload = JsonDocument.Parse($"{{\"reviewId\":\"{reviewId}\",\"reflection\":{{\"en\":\"Good\",\"zh\":\"好\"}}}}").RootElement;
 
@@ -77,7 +78,7 @@ public class EventReviewsControllerTests
         groupAuthorizationService
             .IsApprovedMemberAsync(groupId, memberId, Arg.Any<CancellationToken>())
             .Returns(true);
-        var controller = new EventReviewsController(dbContext, currentMemberAccessor, groupAuthorizationService);
+        var controller = CreateController(dbContext, currentMemberAccessor, groupAuthorizationService);
         var payload = JsonDocument.Parse("""{"reflection":{"en":"Good","zh":"好"}}""").RootElement;
 
         var result = await controller.Create(eventId, payload, CancellationToken.None);
@@ -86,7 +87,7 @@ public class EventReviewsControllerTests
     }
 
     [Fact]
-    public async Task List_WhenMember_ReturnsOnlyOwnReviews()
+    public async Task List_WhenMember_ReturnsAllReviews()
     {
         using var dbContext = CreateInMemoryDbContext();
         var groupId = Guid.NewGuid();
@@ -106,14 +107,13 @@ public class EventReviewsControllerTests
         groupAuthorizationService
             .IsApprovedMemberAsync(groupId, memberId, Arg.Any<CancellationToken>())
             .Returns(true);
-        var controller = new EventReviewsController(dbContext, currentMemberAccessor, groupAuthorizationService);
+        var controller = CreateController(dbContext, currentMemberAccessor, groupAuthorizationService);
 
         var result = await controller.List(eventId, CancellationToken.None);
 
         var ok = Assert.IsType<OkObjectResult>(result);
         var reviews = Assert.IsAssignableFrom<IEnumerable<EventReviewDto>>(ok.Value).ToList();
-        Assert.Single(reviews);
-        Assert.Equal(memberId, reviews[0].MemberId);
+        Assert.Equal(2, reviews.Count);
     }
 
     [Fact]
@@ -132,9 +132,9 @@ public class EventReviewsControllerTests
         currentMemberAccessor.GetCurrentMemberId().Returns(leaderId);
         var groupAuthorizationService = Substitute.For<IGroupAuthorizationService>();
         groupAuthorizationService
-            .IsLeaderOrCoLeaderAsync(groupId, leaderId, Arg.Any<CancellationToken>())
+            .IsApprovedMemberAsync(groupId, leaderId, Arg.Any<CancellationToken>())
             .Returns(true);
-        var controller = new EventReviewsController(dbContext, currentMemberAccessor, groupAuthorizationService);
+        var controller = CreateController(dbContext, currentMemberAccessor, groupAuthorizationService);
 
         var result = await controller.List(eventId, CancellationToken.None);
 
@@ -160,7 +160,7 @@ public class EventReviewsControllerTests
         groupAuthorizationService
             .IsLeaderOrCoLeaderAsync(groupId, otherMemberId, Arg.Any<CancellationToken>())
             .Returns(false);
-        var controller = new EventReviewsController(dbContext, currentMemberAccessor, groupAuthorizationService);
+        var controller = CreateController(dbContext, currentMemberAccessor, groupAuthorizationService);
 
         var result = await controller.Delete(eventId, review.Id, CancellationToken.None);
 
@@ -184,6 +184,16 @@ public class EventReviewsControllerTests
         });
         await dbContext.SaveChangesAsync();
     }
+
+    private static EventReviewsController CreateController(
+        AlifeDbContext dbContext,
+        ICurrentMemberAccessor currentMemberAccessor,
+        IGroupAuthorizationService groupAuthorizationService)
+        => new(
+            dbContext,
+            currentMemberAccessor,
+            groupAuthorizationService,
+            Substitute.For<IEventCacheInvalidationService>());
 
     private static async Task<EventReview> SeedReviewAsync(
         AlifeDbContext dbContext,

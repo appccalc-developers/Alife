@@ -12,7 +12,8 @@ namespace Alife.Application.Groups.Commands.InviteGroupMember;
 public sealed class InviteGroupMemberCommandHandler(
     IAlifeDbContext dbContext,
     IGroupAuthorizationService groupAuthorizationService,
-    IGroupCacheInvalidationService groupCacheInvalidationService)
+    IGroupCacheInvalidationService groupCacheInvalidationService,
+    ICloudflareKvCacheService cloudflareKvCacheService)
     : IRequestHandler<InviteGroupMemberCommand, AppResult<GroupActionResultDto>>
 {
     public async Task<AppResult<GroupActionResultDto>> Handle(
@@ -64,6 +65,7 @@ public sealed class InviteGroupMemberCommandHandler(
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        await cloudflareKvCacheService.RemoveMembershipAsync(request.GroupId, target.Id, cancellationToken);
         await groupCacheInvalidationService.RemoveMembershipsAsync(request.GroupId, cancellationToken);
 
         return AppResult<GroupActionResultDto>.Success(new GroupActionResultDto(true));

@@ -40,6 +40,18 @@ public static class DependencyInjection
 		{
 			client.Timeout = TimeSpan.FromSeconds(15);
 		});
+		services.AddHttpClient<ICloudflareKvCacheService, CloudflareKvCacheService>(client =>
+		{
+			client.BaseAddress = new Uri("https://api.cloudflare.com/client/v4/");
+			client.Timeout = TimeSpan.FromSeconds(10);
+
+			var apiToken = configuration["Cloudflare:ApiToken"];
+			if (!string.IsNullOrWhiteSpace(apiToken))
+			{
+				client.DefaultRequestHeaders.Authorization =
+					new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiToken);
+			}
+		});
 		services.AddScoped<IGroupReadService, GroupReadService>();
 		services.AddScoped<IGroupCacheInvalidationService, GroupCacheInvalidationService>();
 		services.AddScoped<IGroupAuthorizationService, GroupAuthorizationService>();
