@@ -13,6 +13,118 @@ import type { SermonDto } from '../services/sermonService'
 import type { GroupEventRecord } from '../types/event'
 import type { GroupSummaryDto } from '../types'
 
+type MembershipListRow = { memberId: string; status: string; role: string; name?: string; displayName?: string }
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+
+const localizedTextValues = (value: unknown) => {
+  if (typeof value === 'string') return [value]
+  if (!isRecord(value)) return []
+  return Object.values(value).filter((entry): entry is string => typeof entry === 'string')
+}
+
+const readString = (value: unknown) => typeof value === 'string' ? value : ''
+
+const searchableText = (sourceType: ListViewMetadata['sourceType'], item: unknown) => {
+  if (!isRecord(item)) return ''
+
+  switch (sourceType) {
+    case 'sermons':
+      return [
+        readString(item.title),
+        readString(item.speakerName),
+        readString(item.preachedAt),
+      ].join(' ')
+    case 'subgroups':
+      return [
+        ...localizedTextValues(item.name),
+        ...localizedTextValues(item.description),
+        readString(item.accessType),
+      ].join(' ')
+    case 'members':
+      return [
+        readString(item.memberId),
+        readString(item.name),
+        readString(item.displayName),
+        readString(item.status),
+        readString(item.role),
+      ].join(' ')
+    case 'pages':
+      return [
+        ...localizedTextValues(item.title),
+        ...localizedTextValues(item.description),
+        readString(item.updatedUtc),
+      ].join(' ')
+    case 'events':
+      return [
+        readString(item.titleEn),
+        readString(item.titleZh),
+        readString(item.startDate),
+        readString(item.endDate),
+      ].join(' ')
+    default:
+      return ''
+  }
+}
+
+const titleValue = (sourceType: ListViewMetadata['sourceType'], item: unknown) => {
+  if (!isRecord(item)) return ''
+
+  switch (sourceType) {
+    case 'sermons':
+      return readString(item.title)
+    case 'subgroups':
+    case 'pages':
+      return localizedTextValues(item.name ?? item.title)[0] ?? ''
+    case 'members':
+      return readString(item.name) || readString(item.displayName) || readString(item.memberId)
+    case 'events':
+      return readString(item.titleEn) || readString(item.titleZh)
+    default:
+      return ''
+  }
+}
+
+const dateValue = (sourceType: ListViewMetadata['sourceType'], item: unknown) => {
+  if (!isRecord(item)) return null
+
+  const raw =
+    sourceType === 'sermons' ? item.preachedAt
+      : sourceType === 'events' ? item.startDate
+        : sourceType === 'pages' ? item.updatedUtc
+          : isRecord(item) ? item.updatedUtc ?? item.createdUtc : null
+
+  if (typeof raw !== 'string' || !raw.trim()) return null
+  const time = new Date(raw).getTime()
+  return Number.isFinite(time) ? time : null
+}
+
+const applyListViewFilteringAndSorting = <T,>(items: T[], metadata: ListViewMetadata): T[] => {
+  const filter = metadata.filterText?.trim().toLowerCase()
+  const filtered = filter
+    ? items.filter((item) => searchableText(metadata.sourceType, item).toLowerCase().includes(filter))
+    : items
+
+  if (metadata.sortBy === 'source') {
+    return filtered
+  }
+
+  const direction = metadata.sortDirection === 'desc' ? -1 : 1
+  return [...filtered].sort((a, b) => {
+    if (metadata.sortBy === 'date') {
+      const aDate = dateValue(metadata.sourceType, a)
+      const bDate = dateValue(metadata.sourceType, b)
+      if (aDate === null && bDate === null) return 0
+      if (aDate === null) return 1
+      if (bDate === null) return -1
+      return direction * (aDate - bDate)
+    }
+
+    return direction * titleValue(metadata.sourceType, a).localeCompare(titleValue(metadata.sourceType, b))
+  })
+}
+
 interface ListSourceResult {
   data: any[] | undefined
   isLoading: boolean
@@ -119,8 +231,8 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
     [isMembers, targetGroupId],
   )
   const membershipsData = isMembers
-    ? ((membershipsLive.data ?? []) as Array<{ memberId: string; status: string; role: string }>)
-    : ([] as Array<{ memberId: string; status: string; role: string }>)
+    ? ((membershipsLive.data ?? []) as MembershipListRow[])
+    : ([] as MembershipListRow[])
   const membershipsLoading = isMembers ? (membershipsLive.isLoading ?? true) : false
   const membershipsReady = isMembers ? (membershipsLive.isReady ?? false) : true
   const membershipsError = isMembers ? (membershipsLive.isError ?? false) : false
@@ -163,24 +275,27 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
   // Build the result data based on source type
   const result = useMemo(() => {
     switch (sourceType) {
-      case 'sermons':
-        return (sermonsData as SermonDto[]).slice(0, queryConfig.limit)
-      case 'subgroups':
-        return (subgroupsData as GroupSummaryDto[])
+      case 'sermons': {
+        return applyListViewFilteringAndSorting(sermonsData as SermonDto[], metadata).slice(0, queryConfig.limit)
+      }
+      case 'subgroups': {
+        const items = (subgroupsData as GroupSummaryDto[])
           .filter((s) => s.parentGroupId === targetGroupId)
-          .slice(0, queryConfig.limit)
-      case 'members':
-        return (membershipsData as Array<{ memberId: string; status: string; role: string }>)
+        return applyListViewFilteringAndSorting(items, metadata).slice(0, queryConfig.limit)
+      }
+      case 'members': {
+        const items = (membershipsData as MembershipListRow[])
           .filter((m) => m.status === 'approved')
-          .slice(0, queryConfig.limit)
+        return applyListViewFilteringAndSorting(items, metadata).slice(0, queryConfig.limit)
+      }
       case 'pages':
-        return (groupPagesData as any[]).slice(0, queryConfig.limit)
+        return applyListViewFilteringAndSorting(groupPagesData as any[], metadata).slice(0, queryConfig.limit)
       case 'events':
-        return (eventsData as GroupEventRecord[]).slice(0, queryConfig.limit)
+        return applyListViewFilteringAndSorting(eventsData as GroupEventRecord[], metadata).slice(0, queryConfig.limit)
       default:
         return []
     }
-  }, [sourceType, sermonsData, subgroupsData, membershipsData, groupPagesData, eventsData, queryConfig.limit, targetGroupId])
+  }, [sourceType, sermonsData, subgroupsData, membershipsData, groupPagesData, eventsData, metadata, queryConfig.limit, targetGroupId])
 
   // Determine loading/ready/error state from the active source
   const { isLoading: isCollectionLoading, isReady, isError: hasError } = useMemo(() => {

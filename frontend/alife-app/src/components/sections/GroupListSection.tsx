@@ -175,7 +175,7 @@ export const GroupListSection: React.FC<GroupListSectionProps> = ({ metadata, gr
   const raw = metadata as Record<string, unknown>
   const meta = useMemo(
     () => normalizeListViewMetadata(raw),
-    [raw.sourceType, raw.sourceScope, raw.limit],
+    [raw.sourceType, raw.sourceScope, raw.limit, raw.sortBy, raw.sortDirection, raw.filterText],
   )
 
   const { data, isLoading, error } = useListSourceResolver(meta, { groupId })
