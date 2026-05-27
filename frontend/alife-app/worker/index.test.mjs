@@ -11,6 +11,7 @@ let fetchInits
 let originResponses
 let cacheStore
 let authzStore
+let apiCacheStore
 let deletedCacheKeys
 let waitUntilPromises
 
@@ -20,6 +21,7 @@ beforeEach(() => {
   originResponses = []
   cacheStore = new Map()
   authzStore = new Map()
+  apiCacheStore = new Map()
   deletedCacheKeys = []
   waitUntilPromises = []
 
@@ -49,7 +51,7 @@ test('approved group member can read shared group detail cache', async () => {
   const groupId = 'group-1'
   const url = `https://ccalc.live/api/groups/${groupId}`
   authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved' }))
-  cacheStore.set(cacheKey(new Request(url)), Response.json({ id: groupId, name: 'Shared group' }))
+  apiCacheStore.set(createApiCacheKey(url), createStoredResponse({ id: groupId, name: 'Shared group' }))
 
   const response = await dispatch(url, {
     headers: { cookie: `alife_auth=${createJwtWithSub('member-1')}` },
@@ -101,6 +103,175 @@ test('approved members share group detail edge cache entry', async () => {
   assert.equal(second.headers.get('x-alife-authz'), 'hit')
   assert.deepEqual(await second.json(), { id: groupId, name: 'Origin group' })
   assert.equal(fetchCalls.length, 1)
+})
+
+test('approved group member reads shared group pages and memberships from KV cache', async () => {
+  const groupId = 'group-1'
+  authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved' }))
+  apiCacheStore.set(
+    createApiCacheKey(`https://ccalc.live/api/groups/${groupId}/pages`),
+    createStoredResponse([{ id: 'page-1', ownerGroupId: groupId, visibility: 'draft' }]),
+  )
+  apiCacheStore.set(
+    createApiCacheKey(`https://ccalc.live/api/groups/${groupId}/memberships`),
+    createStoredResponse([{ memberId: 'member-1', status: 'approved' }]),
+  )
+
+  const headers = { cookie: `alife_auth=${createJwtWithSub('member-1')}` }
+  const pages = await dispatch(`https://ccalc.live/api/groups/${groupId}/pages`, { headers })
+  const memberships = await dispatch(`https://ccalc.live/api/groups/${groupId}/memberships`, { headers })
+
+  assert.equal(pages.headers.get('x-alife-cache'), 'HIT')
+  assert.equal(memberships.headers.get('x-alife-cache'), 'HIT')
+  assert.equal(fetchCalls.length, 0)
+})
+
+test('approved group member reads shared group subgroups from KV cache', async () => {
+  const groupId = 'group-1'
+  const url = `https://ccalc.live/api/groups/${groupId}/subgroups`
+  authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved' }))
+  apiCacheStore.set(createApiCacheKey(url), createStoredResponse([{ id: 'child-1', parentGroupId: groupId }]))
+
+  const response = await dispatch(url, {
+    headers: { cookie: `alife_auth=${createJwtWithSub('member-1')}` },
+  })
+
+  assert.equal(response.headers.get('x-alife-cache'), 'HIT')
+  assert.deepEqual(await response.json(), [{ id: 'child-1', parentGroupId: groupId }])
+  assert.equal(fetchCalls.length, 0)
+})
+
+test('approved group member reads non-draft page detail from shared KV cache', async () => {
+  const groupId = 'group-1'
+  const pageId = 'page-1'
+  const url = `https://ccalc.live/api/pages/${pageId}`
+  authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved', role: 'Member' }))
+  apiCacheStore.set(`map:page:${pageId}:meta`, JSON.stringify({
+    groupId,
+    visibility: 'Published',
+    createdByMemberId: 'member-2',
+  }))
+  apiCacheStore.set(createApiCacheKey(url), createStoredResponse({ id: pageId, ownerGroupId: groupId, sections: [{ id: 'section-1' }] }))
+
+  const response = await dispatch(url, {
+    headers: { cookie: `alife_auth=${createJwtWithSub('member-1')}` },
+  })
+
+  assert.equal(response.headers.get('x-alife-cache'), 'HIT')
+  assert.deepEqual(await response.json(), { id: pageId, ownerGroupId: groupId, sections: [{ id: 'section-1' }] })
+  assert.equal(fetchCalls.length, 0)
+})
+
+test('draft page detail shared cache is available to leader and author only', async () => {
+  const groupId = 'group-1'
+  const pageId = 'page-1'
+  const url = `https://ccalc.live/api/pages/${pageId}`
+  apiCacheStore.set(`map:page:${pageId}:meta`, JSON.stringify({
+    groupId,
+    visibility: 'Draft',
+    createdByMemberId: 'author-1',
+  }))
+  apiCacheStore.set(createApiCacheKey(url), createStoredResponse({ id: pageId, ownerGroupId: groupId, sections: [{ id: 'draft-section' }] }))
+  authzStore.set(`membership:${groupId}:leader-1`, JSON.stringify({ status: 'approved', role: 'CoLeader' }))
+  authzStore.set(`membership:${groupId}:author-1`, JSON.stringify({ status: 'approved', role: 'Member' }))
+
+  const leader = await dispatch(url, {
+    headers: { cookie: `alife_auth=${createJwtWithSub('leader-1')}` },
+  })
+  const author = await dispatch(url, {
+    headers: { cookie: `alife_auth=${createJwtWithSub('author-1')}` },
+  })
+
+  assert.equal(leader.headers.get('x-alife-cache'), 'HIT')
+  assert.equal(author.headers.get('x-alife-cache'), 'HIT')
+  assert.equal(fetchCalls.length, 0)
+})
+
+test('draft page detail shared cache is bypassed for approved non-author members', async () => {
+  const groupId = 'group-1'
+  const pageId = 'page-1'
+  const url = `https://ccalc.live/api/pages/${pageId}`
+  authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved', role: 'Member' }))
+  apiCacheStore.set(`map:page:${pageId}:meta`, JSON.stringify({
+    groupId,
+    visibility: 'Draft',
+    createdByMemberId: 'author-1',
+  }))
+  apiCacheStore.set(createApiCacheKey(url), createStoredResponse({ id: pageId, ownerGroupId: groupId, sections: [{ id: 'secret' }] }))
+  originResponses.push(Response.json({ message: 'Forbidden' }, { status: 403 }))
+
+  const response = await dispatch(url, {
+    headers: { cookie: `alife_auth=${createJwtWithSub('member-1')}` },
+  })
+
+  assert.equal(response.status, 403)
+  assert.equal(response.headers.get('x-alife-cache'), 'BYPASS')
+  assert.equal(fetchCalls.length, 1)
+})
+
+test('page detail missing metadata falls back to origin and records metadata and content cache', async () => {
+  const groupId = 'group-1'
+  const pageId = 'page-1'
+  const url = `https://ccalc.live/api/pages/${pageId}`
+  authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved', role: 'Member' }))
+  originResponses.push(Response.json({
+    id: pageId,
+    ownerGroupId: groupId,
+    visibility: 'Published',
+    createdByMemberId: 'member-2',
+    sections: [{ id: 'section-1' }],
+  }))
+
+  const first = await dispatch(url, {
+    headers: { cookie: `alife_auth=${createJwtWithSub('member-1')}` },
+  })
+  await flushWaitUntil()
+  const second = await dispatch(url, {
+    headers: { cookie: `alife_auth=${createJwtWithSub('member-1')}` },
+  })
+
+  assert.equal(first.headers.get('x-alife-cache'), 'BYPASS')
+  assert.deepEqual(JSON.parse(apiCacheStore.get(`map:page:${pageId}:meta`)), {
+    groupId,
+    ownerGroupId: groupId,
+    visibility: 'Published',
+    createdByMemberId: 'member-2',
+  })
+  assert.equal(second.headers.get('x-alife-cache'), 'HIT')
+  assert.equal(fetchCalls.length, 1)
+})
+
+test('shared group cache is not read without a principal', async () => {
+  const groupId = 'group-1'
+  const url = `https://ccalc.live/api/groups/${groupId}/pages`
+  apiCacheStore.set(createApiCacheKey(url), createStoredResponse([{ id: 'page-1', ownerGroupId: groupId }]))
+  originResponses.push(Response.json([{ id: 'page-2', ownerGroupId: groupId }]))
+
+  const response = await dispatch(url)
+  await flushWaitUntil()
+
+  assert.equal(response.headers.get('x-alife-cache'), 'MISS')
+  assert.equal(response.headers.get('x-alife-authz'), 'no-principal')
+  assert.deepEqual(await response.json(), [{ id: 'page-2', ownerGroupId: groupId }])
+  assert.equal(fetchCalls.length, 1)
+  assert.deepEqual(JSON.parse(JSON.parse(apiCacheStore.get(createApiCacheKey(url))).body), [{ id: 'page-1', ownerGroupId: groupId }])
+})
+
+test('event enrollments cache is gated by event group mapping and membership mirror', async () => {
+  const groupId = 'group-1'
+  const eventId = 'event-1'
+  const url = `https://ccalc.live/api/events/${eventId}/enrollments`
+  authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved' }))
+  apiCacheStore.set(`map:event:${eventId}:group`, JSON.stringify({ groupId }))
+  apiCacheStore.set(createApiCacheKey(url), createStoredResponse([{ id: 'enrollment-1', groupId, eventId }]))
+
+  const response = await dispatch(url, {
+    headers: { cookie: `alife_auth=${createJwtWithSub('member-1')}` },
+  })
+
+  assert.equal(response.headers.get('x-alife-cache'), 'HIT')
+  assert.deepEqual(await response.json(), [{ id: 'enrollment-1', groupId, eventId }])
+  assert.equal(fetchCalls.length, 0)
 })
 
 test('GET requests are served from cache on the second hit', async () => {
@@ -252,23 +423,28 @@ test('successful event update evicts the group events list cache', async () => {
   assert.equal(cacheStore.has(cacheKey(new Request(listUrl))), false)
 })
 
-test('private group event reads bypass edge cache', async () => {
+test('approved group event reads use shared KV cache', async () => {
   const groupId = 'group-1'
   const listUrl = `https://ccalc.live/api/groups/${groupId}/events`
+  authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved' }))
   originResponses.push(Response.json([{ id: 'event-1', groupId }]))
 
-  const first = await dispatch(listUrl)
+  const first = await dispatch(listUrl, {
+    headers: { cookie: `alife_auth=${createJwtWithSub('member-1')}` },
+  })
   await flushWaitUntil()
-  assert.equal(first.headers.get('x-alife-cache'), 'BYPASS')
-  assert.equal(first.headers.get('cache-control'), 'no-store')
-  assert.equal(cacheStore.has(cacheKey(new Request(listUrl))), false)
+  assert.equal(first.headers.get('x-alife-cache'), 'MISS')
+  assert.equal(first.headers.get('cache-control'), 'private, no-cache')
+  assert.equal(apiCacheStore.has(createApiCacheKey(listUrl)), true)
 
   originResponses.push(Response.json([{ id: 'event-2', groupId }]))
-  const second = await dispatch(listUrl)
+  const second = await dispatch(listUrl, {
+    headers: { cookie: `alife_auth=${createJwtWithSub('member-1')}` },
+  })
   await flushWaitUntil()
 
-  assert.equal(second.headers.get('x-alife-cache'), 'BYPASS')
-  assert.equal(fetchCalls.length, 2)
+  assert.equal(second.headers.get('x-alife-cache'), 'HIT')
+  assert.equal(fetchCalls.length, 1)
 })
 
 test('GET /images/... is proxied to images.ccalc.live without the /images prefix', async () => {
@@ -955,6 +1131,22 @@ function createEnv() {
         authzStore.delete(key)
       },
     },
+    ALIFE_API_CACHE: {
+      async get(key, options) {
+        const value = apiCacheStore.get(key)
+        if (value === undefined) {
+          return null
+        }
+
+        return options?.type === 'json' ? JSON.parse(value) : value
+      },
+      async put(key, value) {
+        apiCacheStore.set(key, value)
+      },
+      async delete(key) {
+        apiCacheStore.delete(key)
+      },
+    },
   }
 }
 
@@ -991,6 +1183,26 @@ function cacheKey(request) {
   url.hash = ''
   url.searchParams.sort()
   return url.toString()
+}
+
+function createApiCacheKey(url) {
+  const parsed = new URL(url)
+  parsed.hash = ''
+  parsed.searchParams.sort()
+  return `api:${parsed.pathname}${parsed.search}`
+}
+
+function createStoredResponse(body, headers = {}) {
+  return JSON.stringify({
+    status: 200,
+    statusText: '',
+    headers: {
+      'content-type': 'application/json',
+      ...headers,
+    },
+    body: JSON.stringify(body),
+    storedAt: new Date().toISOString(),
+  })
 }
 
 function createJwtWithSub(sub) {

@@ -1,5 +1,6 @@
 using Alife.Application.Abstractions.Identity;
 using Alife.Application.Events.Dtos;
+using Alife.Application.Events.Services;
 using Alife.Application.Groups.Services;
 using Alife.Domain.Entities;
 using Alife.Infrastructure.Persistence;
@@ -16,7 +17,8 @@ namespace Alife.Api.Controllers;
 public class EventReviewsController(
     AlifeDbContext dbContext,
     ICurrentMemberAccessor currentMemberAccessor,
-    IGroupAuthorizationService groupAuthorizationService) : ControllerBase
+    IGroupAuthorizationService groupAuthorizationService,
+    IEventCacheInvalidationService eventCacheInvalidationService) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> List(Guid eventId, CancellationToken cancellationToken)
@@ -33,11 +35,7 @@ public class EventReviewsController(
             return NotFound(new { message = "Event not found." });
         }
 
-        var isLeader = await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
-            groupEvent.GroupId,
-            currentMemberId.Value,
-            cancellationToken);
-        var isApprovedMember = isLeader || await groupAuthorizationService.IsApprovedMemberAsync(
+        var isApprovedMember = await groupAuthorizationService.IsApprovedMemberAsync(
             groupEvent.GroupId,
             currentMemberId.Value,
             cancellationToken);
@@ -50,11 +48,6 @@ public class EventReviewsController(
         var query = dbContext.EventReviews
             .AsNoTracking()
             .Where(x => x.EventId == eventId);
-
-        if (!isLeader)
-        {
-            query = query.Where(x => x.MemberId == currentMemberId.Value);
-        }
 
         var reviews = await query
             .OrderByDescending(x => x.UpdatedUtc)
@@ -132,6 +125,7 @@ public class EventReviewsController(
 
         dbContext.EventReviews.Add(review);
         await dbContext.SaveChangesAsync(cancellationToken);
+        await eventCacheInvalidationService.RemoveEventReviewsAsync(eventId, cancellationToken);
 
         return CreatedAtAction(nameof(List), new { eventId }, ToDto(review));
     }
@@ -166,6 +160,7 @@ public class EventReviewsController(
         review.UpdatedUtc = DateTime.UtcNow;
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        await eventCacheInvalidationService.RemoveEventReviewsAsync(eventId, cancellationToken);
 
         return Ok(ToDto(review));
     }
@@ -193,6 +188,7 @@ public class EventReviewsController(
 
         dbContext.EventReviews.Remove(review);
         await dbContext.SaveChangesAsync(cancellationToken);
+        await eventCacheInvalidationService.RemoveEventReviewsAsync(eventId, cancellationToken);
 
         return NoContent();
     }

@@ -42,6 +42,10 @@ jobs:
           LINE_LOGIN_CLIENT_SECRET: ${{ secrets.LINE_LOGIN_CLIENT_SECRET }}
           LINE_LOGIN_REDIRECT_URI: ${{ secrets.LINE_LOGIN_REDIRECT_URI }}
           FRONTEND_BASE_URL: ${{ secrets.FRONTEND_BASE_URL }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_AUTHZ_NAMESPACE_ID: ${{ secrets.CLOUDFLARE_AUTHZ_NAMESPACE_ID }}
+          CLOUDFLARE_API_CACHE_NAMESPACE_ID: ${{ secrets.CLOUDFLARE_API_CACHE_NAMESPACE_ID }}
         run: |
           set -euo pipefail
 
@@ -56,6 +60,10 @@ jobs:
           [ -n "${LINE_LOGIN_CLIENT_SECRET:-}" ] && settings+=("LineLogin__ClientSecret=$LINE_LOGIN_CLIENT_SECRET")
           [ -n "${LINE_LOGIN_REDIRECT_URI:-}" ] && settings+=("LineLogin__RedirectUri=$LINE_LOGIN_REDIRECT_URI")
           [ -n "${FRONTEND_BASE_URL:-}" ] && settings+=("Frontend__BaseUrl=$FRONTEND_BASE_URL")
+          [ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ] && settings+=("Cloudflare__AccountId=$CLOUDFLARE_ACCOUNT_ID")
+          [ -n "${CLOUDFLARE_API_TOKEN:-}" ] && settings+=("Cloudflare__ApiToken=$CLOUDFLARE_API_TOKEN")
+          [ -n "${CLOUDFLARE_AUTHZ_NAMESPACE_ID:-}" ] && settings+=("Cloudflare__AuthzNamespaceId=$CLOUDFLARE_AUTHZ_NAMESPACE_ID")
+          [ -n "${CLOUDFLARE_API_CACHE_NAMESPACE_ID:-}" ] && settings+=("Cloudflare__ApiCacheNamespaceId=$CLOUDFLARE_API_CACHE_NAMESPACE_ID")
 
           az functionapp config appsettings set \
             --name "${{ env.AZURE_FUNCTIONAPP_NAME }}" \

@@ -1,6 +1,7 @@
 using Alife.Api.Results;
 using Alife.Application.Abstractions.Identity;
 using Alife.Application.Events.Dtos;
+using Alife.Application.Events.Services;
 using Alife.Application.Groups.Services;
 using Alife.Domain.Entities;
 using Alife.Infrastructure.Persistence;
@@ -17,7 +18,8 @@ namespace Alife.Api.Controllers;
 public class EventEnrollmentsController(
     AlifeDbContext dbContext,
     ICurrentMemberAccessor currentMemberAccessor,
-    IGroupAuthorizationService groupAuthorizationService) : ControllerBase
+    IGroupAuthorizationService groupAuthorizationService,
+    IEventCacheInvalidationService eventCacheInvalidationService) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> List(Guid eventId, CancellationToken cancellationToken)
@@ -34,11 +36,7 @@ public class EventEnrollmentsController(
             return NotFound(new { message = "Event not found." });
         }
 
-        var isLeader = await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
-            groupEvent.GroupId,
-            currentMemberId.Value,
-            cancellationToken);
-        var isApprovedMember = isLeader || await groupAuthorizationService.IsApprovedMemberAsync(
+        var isApprovedMember = await groupAuthorizationService.IsApprovedMemberAsync(
             groupEvent.GroupId,
             currentMemberId.Value,
             cancellationToken);
@@ -51,11 +49,6 @@ public class EventEnrollmentsController(
         var query = dbContext.EventEnrollments
             .AsNoTracking()
             .Where(x => x.EventId == eventId);
-
-        if (!isLeader)
-        {
-            query = query.Where(x => x.MemberId == currentMemberId.Value);
-        }
 
         var enrollments = await query
             .OrderByDescending(x => x.UpdatedUtc)
@@ -140,6 +133,7 @@ public class EventEnrollmentsController(
 
         dbContext.EventEnrollments.Add(enrollment);
         await dbContext.SaveChangesAsync(cancellationToken);
+        await eventCacheInvalidationService.RemoveEventEnrollmentsAsync(eventId, cancellationToken);
 
         return CreatedAtAction(nameof(List), new { eventId }, ToDto(enrollment));
     }
@@ -174,6 +168,7 @@ public class EventEnrollmentsController(
         enrollment.UpdatedUtc = DateTime.UtcNow;
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        await eventCacheInvalidationService.RemoveEventEnrollmentsAsync(eventId, cancellationToken);
 
         return Ok(ToDto(enrollment));
     }
@@ -201,6 +196,7 @@ public class EventEnrollmentsController(
 
         dbContext.EventEnrollments.Remove(enrollment);
         await dbContext.SaveChangesAsync(cancellationToken);
+        await eventCacheInvalidationService.RemoveEventEnrollmentsAsync(eventId, cancellationToken);
 
         return NoContent();
     }

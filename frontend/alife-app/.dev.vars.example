@@ -1,0 +1,3 @@
+# Cloudflare Worker local secrets for `wrangler dev` / `npm run preview`.
+# Copy to .dev.vars (gitignored) and fill in real values.
+GEMINI_API_KEY=your-gemini-api-key

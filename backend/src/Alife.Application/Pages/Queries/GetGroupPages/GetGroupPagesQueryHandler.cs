@@ -46,10 +46,6 @@ public sealed class GetGroupPagesQueryHandler(
 
         if (isApproved)
         {
-            pages = pages
-                .Where(x => x.Visibility != PageVisibility.Draft || x.CreatedByMemberId == request.CurrentMemberId)
-                .ToList();
-
             return AppResult<IReadOnlyList<PageDto>>.Success(pages);
         }
 

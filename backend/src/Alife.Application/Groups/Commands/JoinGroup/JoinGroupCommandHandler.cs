@@ -13,7 +13,8 @@ namespace Alife.Application.Groups.Commands.JoinGroup;
 public sealed class JoinGroupCommandHandler(
     IAlifeDbContext dbContext,
     IGroupAuthorizationService groupAuthorizationService,
-    IGroupCacheInvalidationService groupCacheInvalidationService)
+    IGroupCacheInvalidationService groupCacheInvalidationService,
+    ICloudflareKvCacheService cloudflareKvCacheService)
     : IRequestHandler<JoinGroupCommand, AppResult<GroupStatusResultDto>>
 {
     public async Task<AppResult<GroupStatusResultDto>> Handle(JoinGroupCommand request, CancellationToken cancellationToken)
@@ -40,9 +41,11 @@ public sealed class JoinGroupCommandHandler(
             cancellationToken);
 
         var status = group.AccessType == AccessType.Public ? MembershipStatus.Approved : MembershipStatus.Requested;
+        DateTime updatedUtc;
         if (membership is null)
         {
             var now = DateTime.UtcNow;
+            updatedUtc = now;
             dbContext.GroupMemberships.Add(new GroupMembership
             {
                 Id = Guid.NewGuid(),
@@ -59,9 +62,23 @@ public sealed class JoinGroupCommandHandler(
             membership.Status = status;
             membership.Role = MembershipRole.Member;
             membership.UpdatedUtc = DateTime.UtcNow;
+            updatedUtc = membership.UpdatedUtc;
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        if (status == MembershipStatus.Approved)
+        {
+            await cloudflareKvCacheService.PutApprovedMembershipAsync(
+                request.GroupId,
+                request.CurrentMemberId,
+                MembershipRole.Member,
+                updatedUtc,
+                cancellationToken);
+        }
+        else
+        {
+            await cloudflareKvCacheService.RemoveMembershipAsync(request.GroupId, request.CurrentMemberId, cancellationToken);
+        }
         await groupCacheInvalidationService.RemoveMembershipsAsync(request.GroupId, cancellationToken);
 
         return AppResult<GroupStatusResultDto>.Success(new GroupStatusResultDto(EnumName.CamelCase(status)));

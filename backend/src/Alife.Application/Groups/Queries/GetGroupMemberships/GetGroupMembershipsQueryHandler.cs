@@ -14,12 +14,12 @@ public sealed class GetGroupMembershipsQueryHandler(
         GetGroupMembershipsQuery request,
         CancellationToken cancellationToken)
     {
-        var canManage = await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
+        var isApproved = await groupAuthorizationService.IsApprovedMemberAsync(
             request.GroupId,
             request.CurrentMemberId,
             cancellationToken);
 
-        if (!canManage)
+        if (!isApproved)
         {
             return AppResult<IReadOnlyList<GroupMembershipDto>>.Forbidden("You do not have access to group memberships.");
         }

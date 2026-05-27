@@ -42,6 +42,8 @@ public sealed class UpdateGroupEventCommandHandler(
         groupEvent.UpdatedUtc = DateTime.UtcNow;
         await dbContext.SaveChangesAsync(cancellationToken);
         await eventCacheInvalidationService.RemoveGroupEventsAsync(groupEvent.GroupId, cancellationToken);
+        await eventCacheInvalidationService.RemoveEventEnrollmentsAsync(groupEvent.Id, cancellationToken);
+        await eventCacheInvalidationService.RemoveEventReviewsAsync(groupEvent.Id, cancellationToken);
 
         return AppResult<GroupEventSummaryDto>.Success(new GroupEventSummaryDto(
             groupEvent.Id,

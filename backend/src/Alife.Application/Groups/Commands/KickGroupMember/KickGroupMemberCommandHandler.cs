@@ -11,7 +11,8 @@ namespace Alife.Application.Groups.Commands.KickGroupMember;
 public sealed class KickGroupMemberCommandHandler(
     IAlifeDbContext dbContext,
     IGroupAuthorizationService groupAuthorizationService,
-    IGroupCacheInvalidationService groupCacheInvalidationService)
+    IGroupCacheInvalidationService groupCacheInvalidationService,
+    ICloudflareKvCacheService cloudflareKvCacheService)
     : IRequestHandler<KickGroupMemberCommand, AppResult<GroupKickResultDto>>
 {
     public async Task<AppResult<GroupKickResultDto>> Handle(
@@ -46,6 +47,7 @@ public sealed class KickGroupMemberCommandHandler(
 
         foreach (var groupId in targetGroupIds)
         {
+            await cloudflareKvCacheService.RemoveMembershipAsync(groupId, request.MemberId, cancellationToken);
             await groupCacheInvalidationService.RemoveMembershipsAsync(groupId, cancellationToken);
         }
 
