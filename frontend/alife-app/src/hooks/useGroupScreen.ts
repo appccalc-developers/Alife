@@ -5,13 +5,14 @@ import { groupService } from '../services/groupService'
 import { pageService } from '../services/pageService'
 import { eventService } from '../services/eventService'
 import { useAuthStore } from '../stores/auth'
-import { conditionalGet } from '../db/httpCache'
+import { conditionalGet, removeCachedRecord } from '../db/httpCache'
 import { normalizeGroup } from '../utils/apiEnums'
 import { groupQueryKey, getCachedSubgroups } from '../db/collections/groupCollection'
 import { subgroupsCollection } from '../db/collections/groupCollection'
 import { groupPagesCollection, getCachedGroupPages } from '../db/collections/groupCollection'
 import { groupMembershipsCollection, getCachedGroupMemberships } from '../db/collections/groupCollection'
 import type { GroupDto, GroupTab, PageSummaryDto } from '../types/group'
+import type { LocalizedText } from '../types'
 import type { GroupEventRecord } from '../types/event'
 
 type MembershipStatusLabel = 'Not joined' | 'requested' | 'approved' | 'invited'
@@ -131,11 +132,27 @@ export const useGroupScreen = (groupId: string) => {
   }, [groupId, auth])
 
   const addSubgroup = useCallback(
-    async (name: string, accessType: GroupDto['accessType']) => {
+    async (name: LocalizedText, accessType: GroupDto['accessType'], description?: LocalizedText) => {
       if (!groupId) return
-      await groupService.createSubgroup(groupId, { name, accessType })
+      await groupService.createSubgroup(groupId, { name, description, accessType })
       await queryClient.invalidateQueries({ queryKey: ['subgroups', groupId] })
       setStatusMessage('Subgroup added.')
+    },
+    [groupId, queryClient],
+  )
+
+  const updateGroup = useCallback(
+    async (payload: { name: LocalizedText; description?: LocalizedText; accessType: GroupDto['accessType']; isClosed: boolean }) => {
+      if (!groupId) return null
+      const updated = await groupService.updateGroup(groupId, payload)
+      setGroup(updated)
+      await removeCachedRecord(groupQueryKey(groupId))
+      await queryClient.invalidateQueries({ queryKey: groupQueryKey(groupId) })
+      if (updated.parentGroupId) {
+        await queryClient.invalidateQueries({ queryKey: ['subgroups', updated.parentGroupId] })
+      }
+      setStatusMessage('Group updated.')
+      return updated
     },
     [groupId, queryClient],
   )
@@ -191,7 +208,7 @@ export const useGroupScreen = (groupId: string) => {
   )
 
   const editSubgroup = useCallback(async (subgroupId: string) => {
-    await groupService.updateSubgroup(subgroupId, { name: 'TODO', accessType: 'protected' })
+    await groupService.updateSubgroup(subgroupId, { name: { en: 'TODO', cn: 'TODO' }, accessType: 'protected' })
   }, [])
 
   const deleteSubgroup = useCallback(async (subgroupId: string) => {
@@ -260,6 +277,7 @@ export const useGroupScreen = (groupId: string) => {
     refreshEvents,
     joinOrRequest,
     addSubgroup,
+    updateGroup,
     inviteMember,
     approveMember,
     rejectMember,

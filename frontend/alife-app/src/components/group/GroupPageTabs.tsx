@@ -10,8 +10,9 @@ import { cloudflareImageService } from '../../services/cloudflareImageService'
 import { pageService } from '../../services/pageService'
 import type { GroupPageDto, GroupSummaryDto } from '../../types/group'
 import type { PageEditModel, SectionEditModel } from '../../types/page-editor'
-import { toLocalizedText } from '../../utils/localizedText'
+import { localizeText, toLocalizedText } from '../../utils/localizedText'
 import { useUiText } from '../../i18n/uiText'
+import { useAuthStore } from '../../stores/auth'
 
 type Props = {
   pages: GroupPageDto[]
@@ -60,6 +61,7 @@ const GroupPageTabs = ({
   showCreateAction = false,
 }: Props) => {
   const t = useUiText()
+  const { language } = useAuthStore()
   const [sectionsByPageId, setSectionsByPageId] = useState<Record<string, SectionEditModel[]>>({})
   const [modelsByPageId, setModelsByPageId] = useState<Record<string, PageEditModel>>({})
   const [loadingPageId, setLoadingPageId] = useState('')
@@ -77,6 +79,10 @@ const GroupPageTabs = ({
   const hasValidationErrors = validation
     ? Boolean(validation.title) || validation.sectionTypeErrors.some((item) => item.length > 0)
     : false
+  const localizedSubgroups = useMemo(
+    () => subgroups.map((subgroup) => ({ ...subgroup, name: localizeText(subgroup.name, language) })),
+    [language, subgroups],
+  )
 
   useEffect(() => {
     if (!activePage) {
@@ -230,7 +236,7 @@ const GroupPageTabs = ({
           <PageContentRenderer
             page={activePage}
             sections={sectionsByPageId[activePage.id] ?? []}
-            subgroupItems={subgroups}
+            subgroupItems={localizedSubgroups}
             groupPageItems={pages}
             showHeader
             framed={false}
@@ -242,7 +248,7 @@ const GroupPageTabs = ({
             <PageContentRenderer
               page={activeModel}
               sections={activeModel.sections}
-              subgroupItems={subgroups}
+              subgroupItems={localizedSubgroups}
               groupPageItems={pages}
               editing
               canEdit={canEditAllPages}

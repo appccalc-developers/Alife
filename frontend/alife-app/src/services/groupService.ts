@@ -1,10 +1,18 @@
 import { http } from './http'
-import type { GroupDto, GroupMembershipDto, GroupSummaryDto, PageSummaryDto } from '../types'
+import type { GroupDto, GroupMembershipDto, GroupSummaryDto, LocalizedText, PageSummaryDto } from '../types'
 import { normalizeGroup, normalizeGroupMembership, normalizeMembershipStatus, normalizePageSummary } from '../utils/apiEnums'
 
 export type CreateSubgroupPayload = {
-  name: string
+  name: LocalizedText
+  description?: LocalizedText
   accessType: GroupDto['accessType']
+}
+
+export type UpdateGroupPayload = {
+  name: LocalizedText
+  description?: LocalizedText
+  accessType: GroupDto['accessType']
+  isClosed: boolean
 }
 
 export type MemberTargetPayload = {
@@ -60,6 +68,11 @@ export const groupService = {
 
   async createSubgroup(groupId: string, payload: CreateSubgroupPayload) {
     const { data } = await http.post<GroupSummaryDto>(`/api/groups/${groupId}/subgroups`, payload)
+    return normalizeGroup(data)
+  },
+
+  async updateGroup(groupId: string, payload: UpdateGroupPayload) {
+    const { data } = await http.put<GroupDto>(`/api/groups/${groupId}`, payload)
     return normalizeGroup(data)
   },
 

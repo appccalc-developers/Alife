@@ -14,6 +14,7 @@ import OnboardingView from './views/OnboardingView'
 import PageEditorView from './views/PageEditorView'
 import PagePreviewDraftView from './views/PagePreviewDraftView'
 import PageView from './views/PageView'
+import ProfileView from './views/ProfileView'
 import SermonsView from './views/SermonsView'
 import EventCreatorView from './views/EventCreatorView'
 import GroupManageView from './views/GroupManageView'
@@ -180,17 +181,21 @@ const ShellSearchNavLink = ({ item, mobile = false }: { item: ShellNavItem; mobi
   )
 }
 
-const HeaderNav = ({ items }: { items: ShellNavItem[] }) => {
+const HeaderNav = ({ items, currentGroupName }: { items: ShellNavItem[]; currentGroupName?: string }) => {
   const t = useUiText()
 
   return (
   <nav className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto" aria-label={t('appNavigation')}>
-    <Link to="/" className="flex shrink-0 items-center gap-2.5 rounded-lg mr-1 text-slate-950" aria-label={t('home')}>
+    <Link to="/" className="mr-1 flex shrink-0 items-center rounded-lg text-slate-950" aria-label={t('home')}>
       <span className="flex items-center justify-center rounded-xl bg-emerald-50 p-1.5">
         <img src={logo} alt={t('appName')} className="h-8 w-auto drop-shadow-sm" />
       </span>
-      <span className="text-base font-bold tracking-tight">{t('appName')}</span>
     </Link>
+    {currentGroupName ? (
+      <span className="max-w-72 shrink-0 truncate text-sm font-semibold text-slate-700 sm:max-w-xs">
+        {currentGroupName}
+      </span>
+    ) : null}
     {items.map((item) => (
       <ShellNavLink key={item.to} item={item} />
     ))}
@@ -267,6 +272,7 @@ const GroupDrawer = ({ currentGroup, churchGroup, items, open, onClose, onOpenGr
   const auth = useAuthStore()
   const t = useUiText()
   const showParentActions = Boolean(currentGroup?.parentGroupId)
+  const currentGroupName = localizeText(currentGroup?.name, auth.language) || t('group')
 
   return (
     <>
@@ -288,7 +294,7 @@ const GroupDrawer = ({ currentGroup, churchGroup, items, open, onClose, onOpenGr
         <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-4">
           <div className="min-w-0">
             <p className="text-sm font-semibold text-slate-950">{t('subgroupMenu')}</p>
-            <p className="mt-1 truncate text-xs text-slate-500">{currentGroup?.name || t('group')}</p>
+            <p className="mt-1 truncate text-xs text-slate-500">{currentGroupName}</p>
           </div>
           <button
             type="button"
@@ -347,7 +353,7 @@ const GroupDrawer = ({ currentGroup, churchGroup, items, open, onClose, onOpenGr
                     >
                       <span className="flex items-start justify-between gap-3">
                         <span className="min-w-0">
-                          <span className="block truncate text-sm font-semibold text-slate-950">{subgroup.name}</span>
+                          <span className="block truncate text-sm font-semibold text-slate-950">{localizeText(subgroup.name, auth.language)}</span>
                           <span className="mt-1 block text-xs text-slate-500">
                             {isApproved ? t('openGroup') : t('applyToJoin')}
                           </span>
@@ -497,10 +503,12 @@ const App = () => {
           ]
         : []
 
-  const toggleLanguageLabel = auth.language.toUpperCase()
+  const toggleLanguageLabel = auth.language === 'zh' ? '漢' : auth.language.toUpperCase()
   const appNavItems: ShellNavItem[] = [
     ...(!auth.loading && auth.isGuest ? [{ label: translateUi(auth.language, 'onboarding'), to: '/onboarding', icon: <OnboardingIcon /> }] : []),
   ]
+  const headerGroup = CurrentGroup?.id === contextualGroupId ? CurrentGroup : contextualGroup
+  const headerGroupName = contextualGroupId ? localizeText(headerGroup?.name, auth.language) : ''
 
   useEffect(() => {
     if (!contextualGroupId || isManagementScreen) {
@@ -614,11 +622,13 @@ const App = () => {
     <div className="min-h-screen bg-slate-100 text-slate-900">
       <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 backdrop-blur">
         <div className="flex min-h-16 items-center justify-between gap-3 px-4 py-3 sm:px-6 desktop:px-8">
-          <HeaderNav items={appNavItems} />
+          <HeaderNav items={appNavItems} currentGroupName={headerGroupName} />
 
           <div className="ml-auto flex items-center gap-2">
             {!auth.loading && auth.me ? (
-              <span className="text-sm text-slate-700">{auth.me.displayName || translateUi(auth.language, 'guest')}</span>
+              <Link className="max-w-36 truncate text-sm font-medium text-slate-700 hover:text-slate-950" to="/profile">
+                {auth.me.displayName || translateUi(auth.language, 'guest')}
+              </Link>
             ) : null}
             <button
               type="button"
@@ -653,6 +663,7 @@ const App = () => {
             <Route path="/groups/:groupId/join" element={<GroupJoinView />} />
             <Route path="/groups/:groupId/manage" element={<GroupManageView />} />
             <Route path="/pages/:pageId" element={<PageView />} />
+            <Route path="/profile" element={<ProfileView />} />
             <Route path="/sermons" element={<SermonsView />} />
             <Route path="/events/new" element={<EventCreatorView />} />
             <Route path="/events/:eventId/edit" element={<EventCreatorView />} />

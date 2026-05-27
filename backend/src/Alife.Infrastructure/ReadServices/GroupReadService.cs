@@ -4,6 +4,7 @@ using Alife.Application.Groups.Services;
 using Alife.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Hybrid;
+using System.Text.Json;
 
 namespace Alife.Infrastructure.ReadServices;
 
@@ -14,19 +15,12 @@ public sealed class GroupReadService(AlifeDbContext dbContext, HybridCache hybri
             GroupCacheKeys.Church(),
             async token =>
             {
-                return await dbContext.Groups
+                var group = await dbContext.Groups
                     .AsNoTracking()
                     .Where(x => x.IsChurch)
-                    .Select(x => new GroupDto(
-                        x.Id,
-                        x.Name,
-                        x.ParentGroupId,
-                        x.AccessType,
-                        x.IsChurch,
-                        x.IsClosed,
-                        x.CreatedUtc,
-                        x.UpdatedUtc))
                     .FirstOrDefaultAsync(token);
+
+                return group is null ? null : ToDto(group);
             },
             cancellationToken);
 
@@ -35,19 +29,12 @@ public sealed class GroupReadService(AlifeDbContext dbContext, HybridCache hybri
             GroupCacheKeys.ById(groupId),
             async token =>
             {
-                return await dbContext.Groups
+                var group = await dbContext.Groups
                     .AsNoTracking()
                     .Where(x => x.Id == groupId)
-                    .Select(x => new GroupDto(
-                        x.Id,
-                        x.Name,
-                        x.ParentGroupId,
-                        x.AccessType,
-                        x.IsChurch,
-                        x.IsClosed,
-                        x.CreatedUtc,
-                        x.UpdatedUtc))
                     .FirstOrDefaultAsync(token);
+
+                return group is null ? null : ToDto(group);
             },
             cancellationToken);
 
@@ -56,19 +43,12 @@ public sealed class GroupReadService(AlifeDbContext dbContext, HybridCache hybri
             GroupCacheKeys.Subgroups(groupId),
             async token =>
             {
-                var items = await dbContext.Groups
+                var groups = await dbContext.Groups
                     .AsNoTracking()
                     .Where(x => x.ParentGroupId == groupId && !x.IsClosed)
-                    .Select(x => new GroupSummaryDto(
-                        x.Id,
-                        x.Name,
-                        x.ParentGroupId,
-                        x.AccessType,
-                        x.IsChurch,
-                        x.IsClosed))
                     .ToListAsync(token);
 
-                return (IReadOnlyList<GroupSummaryDto>)items;
+                return (IReadOnlyList<GroupSummaryDto>)groups.Select(ToSummaryDto).ToList();
             },
             cancellationToken);
 
@@ -117,4 +97,31 @@ public sealed class GroupReadService(AlifeDbContext dbContext, HybridCache hybri
                 cancellationToken: cancellationToken)
             .AsTask();
     }
+
+    private static GroupDto ToDto(Domain.Entities.Group group)
+        => new(
+            group.Id,
+            ReadTextMap(group.NameJson),
+            ReadTextMap(group.DescriptionJson),
+            group.ParentGroupId,
+            group.AccessType,
+            group.IsChurch,
+            group.IsClosed,
+            group.CreatedUtc,
+            group.UpdatedUtc);
+
+    private static GroupSummaryDto ToSummaryDto(Domain.Entities.Group group)
+        => new(
+            group.Id,
+            ReadTextMap(group.NameJson),
+            ReadTextMap(group.DescriptionJson),
+            group.ParentGroupId,
+            group.AccessType,
+            group.IsChurch,
+            group.IsClosed);
+
+    private static IReadOnlyDictionary<string, string> ReadTextMap(string? value)
+        => string.IsNullOrWhiteSpace(value)
+            ? new Dictionary<string, string>()
+            : JsonSerializer.Deserialize<Dictionary<string, string>>(value) ?? new Dictionary<string, string>();
 }

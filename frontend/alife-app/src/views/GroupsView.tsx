@@ -5,11 +5,14 @@ import { churchQueryKey } from '../db/collections/groupCollection'
 import { subgroupsCollection } from '../db/collections/groupCollection'
 import { conditionalGet } from '../db/httpCache'
 import { useUiText } from '../i18n/uiText'
+import { useAuthStore } from '../stores/auth'
 import type { GroupDto } from '../types'
 import { normalizeGroup } from '../utils/apiEnums'
+import { localizeText } from '../utils/localizedText'
 
 const GroupsView = () => {
   const t = useUiText()
+  const { language } = useAuthStore()
   const [church, setChurch] = useState<GroupDto | null>(null)
   const [loadingChurch, setLoadingChurch] = useState(true)
 
@@ -51,7 +54,10 @@ const GroupsView = () => {
       <h1 className="text-2xl font-bold">{t('groups')}</h1>
       {church ? (
         <article className="rounded-xl border bg-white p-4">
-          <h2 className="text-xl font-semibold">{church.name}</h2>
+          <h2 className="text-xl font-semibold">{localizeText(church.name, language)}</h2>
+          {localizeText(church.description, language) ? (
+            <p className="mt-1 text-sm text-slate-600">{localizeText(church.description, language)}</p>
+          ) : null}
           <Link className="text-blue-600" to={`/groups/${church.id}`}>
             {t('openChurch')}
           </Link>
@@ -60,7 +66,10 @@ const GroupsView = () => {
       <div className="grid gap-3 md:grid-cols-2">
         {(subgroups ?? []).map((group) => (
           <article key={group.id} className="rounded-xl border bg-white p-4">
-            <h3 className="font-semibold">{group.name}</h3>
+            <h3 className="font-semibold">{localizeText(group.name, language)}</h3>
+            {localizeText(group.description, language) ? (
+              <p className="text-sm text-slate-600">{localizeText(group.description, language)}</p>
+            ) : null}
             <p className="text-sm text-slate-600">{group.accessType}</p>
             <Link className="text-blue-600" to={`/groups/${group.id}`}>
               {t('details')}

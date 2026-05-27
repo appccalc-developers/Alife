@@ -10,6 +10,7 @@ using Alife.Application.Groups.Commands.JoinGroup;
 using Alife.Application.Groups.Commands.KickGroupMember;
 using Alife.Application.Groups.Commands.RejectGroupMember;
 using Alife.Application.Groups.Commands.SetGroupCoLeader;
+using Alife.Application.Groups.Commands.UpdateGroup;
 using Alife.Application.Groups.Queries.GetChurch;
 using Alife.Application.Groups.Queries.GetGroupById;
 using Alife.Application.Groups.Queries.GetGroupMemberships;
@@ -122,7 +123,23 @@ public class GroupsController(
         }
 
         var result = await mediator.Send(
-            new CreateSubgroupCommand(id, currentMemberId.Value, request.Name, request.AccessType),
+            new CreateSubgroupCommand(id, currentMemberId.Value, request.Name, request.Description, request.AccessType),
+            cancellationToken);
+
+        return this.ToActionResult(result);
+    }
+
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> UpdateGroup(Guid id, [FromBody] UpdateGroupRequest request, CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null)
+        {
+            return Unauthorized();
+        }
+
+        var result = await mediator.Send(
+            new UpdateGroupCommand(id, currentMemberId.Value, request.Name, request.Description, request.AccessType, request.IsClosed),
             cancellationToken);
 
         return this.ToActionResult(result);
@@ -273,7 +290,15 @@ public class GroupsController(
 
         return this.ToActionResult(result);
     }
-    public record CreateSubgroupRequest(string Name, AccessType AccessType);
+    public record CreateSubgroupRequest(
+        IReadOnlyDictionary<string, string> Name,
+        IReadOnlyDictionary<string, string>? Description,
+        AccessType AccessType);
+    public record UpdateGroupRequest(
+        IReadOnlyDictionary<string, string> Name,
+        IReadOnlyDictionary<string, string>? Description,
+        AccessType AccessType,
+        bool IsClosed);
     public record InviteRequest(string TargetPhoneE164);
     public record MemberTargetRequest(Guid MemberId);
     public record SetCoLeaderRequest(Guid MemberId, bool IsCoLeader);
