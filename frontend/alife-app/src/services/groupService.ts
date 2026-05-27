@@ -23,6 +23,11 @@ export type InviteMemberPayload = {
   targetPhoneE164: string
 }
 
+export type MemberSummaryDto = {
+  id: string
+  displayName: string | null
+}
+
 export type SetCoLeaderPayload = {
   memberId: string
   isCoLeader: boolean
@@ -92,6 +97,15 @@ export const groupService = {
 
   async inviteMember(groupId: string, payload: InviteMemberPayload) {
     await http.post(`/api/groups/${groupId}/invite`, payload)
+  },
+
+  async inviteMemberById(groupId: string, targetMemberId: string) {
+    await http.post(`/api/groups/${groupId}/invite-by-id`, { targetMemberId })
+  },
+
+  async getMembers(): Promise<MemberSummaryDto[]> {
+    const { data } = await http.get<MemberSummaryDto[]>('/api/members')
+    return data
   },
 
   async approveMember(groupId: string, payload: MemberTargetPayload) {

@@ -53,7 +53,7 @@ const MembersPanel = ({ memberships, onInviteMember, onApproveMember, onRejectMe
           {requestedMembers.map((member) => (
             <div key={member.memberId} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50/60 p-3">
               <div>
-                <p className="font-medium text-slate-950">{t('memberShort', { id: shortId(member.memberId) })}</p>
+                <p className="font-medium text-slate-950">{member.displayName || t('memberShort', { id: shortId(member.memberId) })}</p>
                 <MembershipStatusBadge status="requested" />
               </div>
               <div className="flex gap-2">
@@ -73,7 +73,7 @@ const MembersPanel = ({ memberships, onInviteMember, onApproveMember, onRejectMe
           approvedMembers.map((member) => (
             <div key={member.memberId} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 p-3">
               <div>
-                <p className="font-medium text-slate-950">{t('memberShort', { id: shortId(member.memberId) })}</p>
+                <p className="font-medium text-slate-950">{member.displayName || t('memberShort', { id: shortId(member.memberId) })}</p>
                 <AppBadge variant="info">{member.role}</AppBadge>
               </div>
               {member.role !== 'leader' ? (
@@ -205,7 +205,6 @@ const GroupManageView = () => {
     canManageGroup,
     updateGroup,
     addSubgroup: createSubgroup,
-    inviteMember: inviteMemberByPhone,
     editSubgroup: runEditSubgroup,
     deleteSubgroup: runDeleteSubgroup,
     deletePage,
@@ -345,11 +344,7 @@ const GroupManageView = () => {
           {activeSection === 'members' ? (
             <MembersPanel
               memberships={memberships}
-              onInviteMember={() => {
-                const phone = window.prompt(t('inviteMemberPrompt'))
-                if (!phone?.trim()) return
-                inviteMemberByPhone(phone.trim()).catch(() => setStatusMessage(t('inviteFailed')))
-              }}
+              onInviteMember={() => navigate(`/groups/${groupId}/manage/invite-members`)}
               onApproveMember={(memberId) => approveMember(memberId).catch(() => setStatusMessage(t('approveFailed')))}
               onRejectMember={(memberId) => rejectMember(memberId).catch(() => setStatusMessage(t('rejectFailed')))}
               onKickMember={(memberId) => {

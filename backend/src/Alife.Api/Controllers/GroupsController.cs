@@ -6,6 +6,7 @@ using Alife.Application.Groups.Commands.ApproveGroupMember;
 using Alife.Application.Groups.Commands.CloseGroup;
 using Alife.Application.Groups.Commands.CreateSubgroup;
 using Alife.Application.Groups.Commands.InviteGroupMember;
+using Alife.Application.Groups.Commands.InviteGroupMemberById;
 using Alife.Application.Groups.Commands.JoinGroup;
 using Alife.Application.Groups.Commands.KickGroupMember;
 using Alife.Application.Groups.Commands.RejectGroupMember;
@@ -214,6 +215,22 @@ public class GroupsController(
         return this.ToActionResult(result);
     }
 
+    [HttpPost("{id:guid}/invite-by-id")]
+    public async Task<IActionResult> InviteById(Guid id, [FromBody] InviteByIdRequest request, CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null)
+        {
+            return Unauthorized();
+        }
+
+        var result = await mediator.Send(
+            new InviteGroupMemberByIdCommand(id, currentMemberId.Value, request.TargetMemberId),
+            cancellationToken);
+
+        return this.ToActionResult(result);
+    }
+
     [HttpPost("{id:guid}/invite/accept")]
     public async Task<IActionResult> AcceptInvite(Guid id, CancellationToken cancellationToken)
     {
@@ -300,6 +317,7 @@ public class GroupsController(
         AccessType AccessType,
         bool IsClosed);
     public record InviteRequest(string TargetPhoneE164);
+    public record InviteByIdRequest(Guid TargetMemberId);
     public record MemberTargetRequest(Guid MemberId);
     public record SetCoLeaderRequest(Guid MemberId, bool IsCoLeader);
 }

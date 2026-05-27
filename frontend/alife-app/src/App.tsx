@@ -18,6 +18,7 @@ import ProfileView from './views/ProfileView'
 import SermonsView from './views/SermonsView'
 import EventCreatorView from './views/EventCreatorView'
 import GroupManageView from './views/GroupManageView'
+import InviteMembersView from './views/InviteMembersView'
 import { localizeText } from './utils/localizedText'
 import type { GroupSummaryDto, PageSummaryDto } from './types'
 import { translateUi, useUiText } from './i18n/uiText'
@@ -662,6 +663,7 @@ const App = () => {
             <Route path="/groups/:groupId" element={<GroupDetailView />} />
             <Route path="/groups/:groupId/join" element={<GroupJoinView />} />
             <Route path="/groups/:groupId/manage" element={<GroupManageView />} />
+            <Route path="/groups/:groupId/manage/invite-members" element={<InviteMembersView />} />
             <Route path="/pages/:pageId" element={<PageView />} />
             <Route path="/profile" element={<ProfileView />} />
             <Route path="/sermons" element={<SermonsView />} />

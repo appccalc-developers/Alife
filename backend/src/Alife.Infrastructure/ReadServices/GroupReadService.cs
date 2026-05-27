@@ -63,6 +63,7 @@ public sealed class GroupReadService(AlifeDbContext dbContext, HybridCache hybri
                     .Select(x => new
                     {
                         x.MemberId,
+                        x.Member.DisplayName,
                         x.Status,
                         x.Role,
                         x.CreatedUtc,
@@ -73,6 +74,7 @@ public sealed class GroupReadService(AlifeDbContext dbContext, HybridCache hybri
                 return (IReadOnlyList<GroupMembershipDto>)rows
                     .Select(x => new GroupMembershipDto(
                         x.MemberId,
+                        x.DisplayName,
                         EnumName.CamelCase(x.Status),
                         EnumName.CamelCase(x.Role),
                         x.CreatedUtc,

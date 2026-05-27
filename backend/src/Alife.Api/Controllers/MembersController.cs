@@ -240,6 +240,27 @@ public class MembersController(
 
     private static bool GetBooleanClaim(ClaimsPrincipal principal, string claimName)
         => bool.TryParse(principal.FindFirstValue(claimName), out var value) && value;
+
+    [HttpGet("members")]
+    public async Task<IActionResult> ListMembers(CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null)
+        {
+            return Unauthorized();
+        }
+
+        var members = await dbContext.Members
+            .AsNoTracking()
+            .Where(x => x.IsRegistered)
+            .OrderBy(x => x.DisplayName)
+            .Select(x => new MemberSummaryDto(x.Id, x.DisplayName))
+            .ToListAsync(cancellationToken);
+
+        return Ok(members);
+    }
+
     public record RegisterRequest(string Name, string? Sex, int? Age, string? Email);
     public record LoginByDisplayNameRequest(string DisplayName);
+    public record MemberSummaryDto(Guid Id, string? DisplayName);
 }
