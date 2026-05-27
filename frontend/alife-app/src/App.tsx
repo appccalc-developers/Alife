@@ -102,13 +102,6 @@ const EditIcon = () => (
   </svg>
 )
 
-const SettingsIcon = () => (
-  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Z" />
-    <path d="M19.4 15a1.8 1.8 0 0 0 .36 1.98l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.8 1.8 0 0 0-1.98-.36 1.8 1.8 0 0 0-1.1 1.65V21a2 2 0 1 1-4 0v-.09A1.8 1.8 0 0 0 8.75 19.3a1.8 1.8 0 0 0-1.98.36l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.8 1.8 0 0 0 .36-1.98 1.8 1.8 0 0 0-1.65-1.1H2.5a2 2 0 1 1 0-4h.09A1.8 1.8 0 0 0 4.2 8.7a1.8 1.8 0 0 0-.36-1.98l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.8 1.8 0 0 0 1.98.36h.1A1.8 1.8 0 0 0 9.85 2.6V2.5a2 2 0 1 1 4 0v.09a1.8 1.8 0 0 0 1.1 1.65 1.8 1.8 0 0 0 1.98-.36l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.8 1.8 0 0 0-.36 1.98v.1a1.8 1.8 0 0 0 1.65 1.1h.09a2 2 0 1 1 0 4h-.09A1.8 1.8 0 0 0 19.4 15Z" />
-  </svg>
-)
-
 const SaveIcon = () => (
   <svg aria-hidden="true" viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z" />
@@ -183,7 +176,7 @@ const ShellSearchNavLink = ({ item, mobile = false }: { item: ShellNavItem; mobi
   )
 }
 
-const HeaderNav = ({ items, currentGroupName }: { items: ShellNavItem[]; currentGroupName?: string }) => {
+const HeaderNav = ({ items, currentGroupName, currentGroupManageTo }: { items: ShellNavItem[]; currentGroupName?: string; currentGroupManageTo?: string }) => {
   const t = useUiText()
 
   return (
@@ -193,10 +186,15 @@ const HeaderNav = ({ items, currentGroupName }: { items: ShellNavItem[]; current
         <img src={logo} alt={t('appName')} className="h-8 w-auto drop-shadow-sm" />
       </span>
     </Link>
-    {currentGroupName ? (
-      <span className="max-w-72 shrink-0 truncate text-sm font-semibold text-slate-700 sm:max-w-xs">
+    {currentGroupName && currentGroupManageTo ? (
+      <Link
+        to={currentGroupManageTo}
+        className="max-w-72 shrink-0 truncate text-sm font-semibold text-slate-700 hover:text-emerald-700 sm:max-w-xs"
+      >
         {currentGroupName}
-      </span>
+      </Link>
+    ) : currentGroupName ? (
+      <span className="max-w-72 shrink-0 truncate text-sm font-semibold text-slate-700 sm:max-w-xs">{currentGroupName}</span>
     ) : null}
     {items.map((item) => (
       <ShellNavLink key={item.to} item={item} />
@@ -421,17 +419,21 @@ const App = () => {
   const groupManageMatch = location.pathname.match(/^\/groups\/([^/]+)\/manage$/)
   const groupCreatePageMatch = location.pathname.match(/^\/groups\/([^/]+)\/pages\/new$/)
   const groupEventEnrollmentMatch = location.pathname.match(/^\/groups\/([^/]+)\/events\/[^/]+\/enroll$/)
+  const eventCreateMatch = location.pathname.match(/^\/events\/new$/)
+  const eventEditMatch = location.pathname.match(/^\/events\/[^/]+\/edit$/)
   const pageEditMatch = location.pathname.match(/^\/pages\/([^/]+)\/edit$/)
   const searchParams = new URLSearchParams(location.search)
   const isGroupScreen = Boolean(groupScreenMatch)
   const isManagementScreen = Boolean(groupManageMatch)
   const isPageEditorScreen = Boolean(groupCreatePageMatch || pageEditMatch)
+  const isEventScreen = Boolean(eventCreateMatch || eventEditMatch || groupEventEnrollmentMatch)
   const contextualGroupId =
     groupScreenMatch?.[1] ||
     groupJoinMatch?.[1] ||
     groupManageMatch?.[1] ||
     groupCreatePageMatch?.[1] ||
     groupEventEnrollmentMatch?.[1] ||
+    (eventCreateMatch || eventEditMatch ? searchParams.get('groupId') || CurrentGroup?.id || '' : '') ||
     (pageEditMatch ? searchParams.get('groupId') || CurrentGroup?.id || '' : '')
   const currentGroupMembership = contextualGroupId
     ? auth.memberships.find((item) => item.groupId === contextualGroupId)
@@ -464,12 +466,6 @@ const App = () => {
   const shellNavItems = isManagementScreen ? managementNavItems : isGroupScreen || isPageEditorScreen ? currentGroupPageNavItems : []
   const fabItems: ShellFabItem[] = isGroupScreen && canManageCurrentGroup
     ? [
-        {
-          label: translateUi(auth.language, 'manageGroup'),
-          tone: 'manage',
-          icon: <SettingsIcon />,
-          onClick: () => navigate(`/groups/${contextualGroupId}/manage?section=group`),
-        },
         ...(selectedPageId
           ? [
               {
@@ -494,17 +490,26 @@ const App = () => {
             tone: 'exit',
             icon: <BackIcon />,
             onClick: () => window.dispatchEvent(new Event('alife-page-editor-exit')),
-          },
-        ]
-      : isManagementScreen
-        ? [
-            {
-              label: translateUi(auth.language, 'backToGroup'),
+            },
+          ]
+        : isManagementScreen
+          ? [
+              {
+              label: translateUi(auth.language, 'backToViews'),
               tone: 'exit',
               icon: <BackIcon />,
               onClick: () => navigate(`/groups/${contextualGroupId}`),
             },
           ]
+          : isEventScreen
+            ? [
+                {
+                  label: translateUi(auth.language, 'back'),
+                  tone: 'exit',
+                  icon: <BackIcon />,
+                  onClick: () => navigate(-1),
+                },
+              ]
         : []
 
   const toggleLanguageLabel = auth.language === 'zh' ? '漢' : auth.language.toUpperCase()
@@ -513,6 +518,7 @@ const App = () => {
   ]
   const headerGroup = CurrentGroup?.id === contextualGroupId ? CurrentGroup : contextualGroup
   const headerGroupName = contextualGroupId ? localizeText(headerGroup?.name, auth.language) : ''
+  const headerGroupManageTo = contextualGroupId && canManageCurrentGroup ? `/groups/${contextualGroupId}/manage?section=group` : undefined
 
   useEffect(() => {
     if (!contextualGroupId || isManagementScreen) {
@@ -626,7 +632,7 @@ const App = () => {
     <div className="min-h-screen bg-slate-100 text-slate-900">
       <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 backdrop-blur">
         <div className="flex min-h-16 items-center justify-between gap-3 px-4 py-3 sm:px-6 desktop:px-8">
-          <HeaderNav items={appNavItems} currentGroupName={headerGroupName} />
+          <HeaderNav items={appNavItems} currentGroupName={headerGroupName} currentGroupManageTo={headerGroupManageTo} />
 
           <div className="ml-auto flex items-center gap-2">
             {!auth.loading && auth.me ? (

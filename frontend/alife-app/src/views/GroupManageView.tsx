@@ -230,7 +230,7 @@ const GroupManageView = () => {
     <AppPageShell>
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <Link to={`/groups/${groupId}`} className="text-sm font-medium text-slate-600 hover:text-slate-950">{t('backToGroup')}</Link>
+          <Link to={`/groups/${groupId}`} className="text-sm font-medium text-slate-600 hover:text-slate-950">{t('backToViews')}</Link>
           <h1 className="mt-2 text-2xl font-semibold text-slate-950">{t('groupManagementTitle', { name: localizeText(group?.name, language) || t('group') })}</h1>
           <p className="mt-1 text-sm text-slate-600">{t('groupManagementDescription')}</p>
         </div>
