@@ -489,9 +489,9 @@ const EventCreatorView = () => {
     setSaveStatus('saving')
     try {
       if (isEditMode && eventId) {
-        await eventService.updateGroupEvent(eventId, eventDraft)
+        await eventService.updateGroupEvent(eventId, eventDraft, sessionIdRef.current)
       } else if (effectiveGroupId) {
-        await eventService.createGroupEvent(effectiveGroupId, eventDraft)
+        await eventService.createGroupEvent(effectiveGroupId, eventDraft, sessionIdRef.current)
       } else {
         throw new Error(t('missingGroupForEvent'))
       }

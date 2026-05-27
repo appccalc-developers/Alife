@@ -743,6 +743,62 @@ test('POST /api/enrollments/session/:id/commit uploads files and commits backend
     }],
     submittedAtUtc: JSON.parse(fetchInits[2].body).submittedAtUtc,
   })
+
+  const stateResponse = await dispatch(`https://ccalc.live/api/enrollments/session/${sessionId}/state`, {
+    env: { GEMINI_API_KEY: 'test-key', API_PROXY_TARGET: 'https://api.ccalc.live' },
+  })
+  const state = await stateResponse.json()
+  assert.equal(state.draft.applicantName, '')
+  assert.equal(state.draft.consentStatus, 'unknown')
+  assert.deepEqual(state.chatHistory, [])
+})
+
+test('POST /api/events/session/:id/close clears event session state', async () => {
+  const sessionId = 'member-1-event-close-test'
+  originResponses.push(Response.json({
+    candidates: [{
+      content: {
+        parts: [{
+          text: JSON.stringify({
+            title: { zh: 'ç‡Ÿæœƒ', en: 'Camp' },
+            description: { zh: 'é€±æœ«ç‡Ÿæœƒ', en: 'Weekend camp' },
+            locationName: { zh: 'å¥§å…‹è˜­', en: 'Auckland' },
+            startDate: '2026-06-01T09:00:00.000Z',
+            endDate: '2026-06-01T17:00:00.000Z',
+            registrationDeadline: '2026-05-30T17:00:00.000Z',
+            maxCapacity: 20,
+            capacityUnit: 'People',
+            hardConstraints: [],
+            optionalActivities: [],
+            currency: 'NZD',
+            galleryUrls: [],
+            legacySummary: { zh: 'è‰ç¨¿å·²å»ºç«‹ã€‚', en: 'Draft created.' },
+          }),
+        }],
+      },
+    }],
+  }))
+
+  await dispatch(`https://ccalc.live/api/events/session/${sessionId}/message`, {
+    method: 'POST',
+    body: JSON.stringify({ message: 'Create a camp.' }),
+    headers: { 'content-type': 'application/json' },
+    env: { GEMINI_API_KEY: 'test-key' },
+  })
+
+  const closeResponse = await dispatch(`https://ccalc.live/api/events/session/${sessionId}/close`, {
+    method: 'POST',
+    env: { GEMINI_API_KEY: 'test-key' },
+  })
+  assert.equal(closeResponse.status, 200)
+  assert.equal((await closeResponse.json()).status, 'closed')
+
+  const stateResponse = await dispatch(`https://ccalc.live/api/events/session/${sessionId}/state`, {
+    env: { GEMINI_API_KEY: 'test-key' },
+  })
+  const state = await stateResponse.json()
+  assert.equal(state.draft.title.en, '')
+  assert.deepEqual(state.chatHistory, [])
 })
 
 async function dispatch(url, init = {}) {

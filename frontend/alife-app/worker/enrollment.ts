@@ -79,7 +79,7 @@ export default {
     const url = new URL(request.url)
     const sessionId = getSessionId(request)
     const targetPath = resolveAiSessionObjectPath(url, request, {
-      extraRoutes: ['/commit'],
+      extraRoutes: ['/commit', '/close'],
     })
 
     if (env.ENROLLMENT_SESSIONS) {
@@ -216,6 +216,8 @@ export class EnrollmentSession extends AiChatSession<EnrollmentDto, Multilingual
       const text = await backendResponse.text()
       return Response.json({ message: 'Failed to commit enrollment.', details: text }, { status: 502 })
     }
+
+    await this.handleRequest(new Request(new URL('/close', request.url), { method: 'POST' }), sessionId)
 
     return Response.json({
       status: 'completed',
