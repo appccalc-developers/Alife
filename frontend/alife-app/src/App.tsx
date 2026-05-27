@@ -17,6 +17,7 @@ import PageView from './views/PageView'
 import ProfileView from './views/ProfileView'
 import SermonsView from './views/SermonsView'
 import EventCreatorView from './views/EventCreatorView'
+import EventEnrollmentView from './views/EventEnrollmentView'
 import GroupManageView from './views/GroupManageView'
 import InviteMembersView from './views/InviteMembersView'
 import { localizeText } from './utils/localizedText'
@@ -419,6 +420,7 @@ const App = () => {
   const groupJoinMatch = location.pathname.match(/^\/groups\/([^/]+)\/join$/)
   const groupManageMatch = location.pathname.match(/^\/groups\/([^/]+)\/manage$/)
   const groupCreatePageMatch = location.pathname.match(/^\/groups\/([^/]+)\/pages\/new$/)
+  const groupEventEnrollmentMatch = location.pathname.match(/^\/groups\/([^/]+)\/events\/[^/]+\/enroll$/)
   const pageEditMatch = location.pathname.match(/^\/pages\/([^/]+)\/edit$/)
   const searchParams = new URLSearchParams(location.search)
   const isGroupScreen = Boolean(groupScreenMatch)
@@ -429,6 +431,7 @@ const App = () => {
     groupJoinMatch?.[1] ||
     groupManageMatch?.[1] ||
     groupCreatePageMatch?.[1] ||
+    groupEventEnrollmentMatch?.[1] ||
     (pageEditMatch ? searchParams.get('groupId') || CurrentGroup?.id || '' : '')
   const currentGroupMembership = contextualGroupId
     ? auth.memberships.find((item) => item.groupId === contextualGroupId)
@@ -669,6 +672,7 @@ const App = () => {
             <Route path="/sermons" element={<SermonsView />} />
             <Route path="/events/new" element={<EventCreatorView />} />
             <Route path="/events/:eventId/edit" element={<EventCreatorView />} />
+            <Route path="/groups/:groupId/events/:eventId/enroll" element={<EventEnrollmentView />} />
             <Route path="/groups/:groupId/pages/new" element={<PageEditorView />} />
             <Route path="/pages/:pageId/edit" element={<PageEditorView />} />
             <Route path="/pages/preview-draft" element={<PagePreviewDraftView />} />

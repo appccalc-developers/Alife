@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
@@ -6,7 +6,6 @@ import AppEmptyState from '../components/layout/AppEmptyState'
 import AppPageShell from '../components/layout/AppPageShell'
 import AppSectionCard from '../components/layout/AppSectionCard'
 import AccessTypeBadge from '../components/group/AccessTypeBadge'
-import EnrollmentChatDialog from '../components/group/EnrollmentChatDialog'
 import GroupOverviewPanel from '../components/group/GroupOverviewPanel'
 import MembershipStatusBadge from '../components/group/MembershipStatusBadge'
 import { useGroupScreen, type GroupMemberToolRow } from '../hooks/useGroupScreen'
@@ -187,9 +186,8 @@ const GroupManageView = () => {
   const { groupId = '' } = useParams<{ groupId: string }>()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { language, me } = useAuthStore()
+  const { language } = useAuthStore()
   const { setCurrentGroup } = useCurrentGroupStore()
-  const [enrollingEventId, setEnrollingEventId] = useState('')
   const [savingGroup, setSavingGroup] = useState(false)
   const {
     group,
@@ -216,10 +214,6 @@ const GroupManageView = () => {
     deleteEvent,
   } = useGroupScreen(groupId)
 
-  const enrollingEvent = useMemo(
-    () => events.find((event) => event.id === enrollingEventId) ?? null,
-    [enrollingEventId, events],
-  )
   const activeSection = searchParams.get('section') ?? 'group'
 
   useEffect(() => {
@@ -373,7 +367,7 @@ const GroupManageView = () => {
             <EventsPanel
               groupId={groupId}
               events={events}
-              onOpenEnrollDialog={(eventId) => setEnrollingEventId(eventId)}
+              onOpenEnrollDialog={(eventId) => navigate(`/groups/${groupId}/events/${eventId}/enroll`)}
               onDeleteEvent={(eventId) => {
                 if (!window.confirm(t('deleteEventConfirm'))) return
                 deleteEvent(eventId).catch(() => setStatusMessage(t('deleteEventFailed')))
@@ -385,18 +379,6 @@ const GroupManageView = () => {
 
       {!loading && !error && !group ? (
         <AppEmptyState title={t('groupNotFound')} description={t('groupNotFoundDescription')} />
-      ) : null}
-
-      {enrollingEvent ? (
-        <EnrollmentChatDialog
-          open
-          groupId={groupId}
-          event={enrollingEvent}
-          memberId={me?.id}
-          language={language}
-          onClose={() => setEnrollingEventId('')}
-          onSuccess={(message) => setStatusMessage(message)}
-        />
       ) : null}
     </AppPageShell>
   )
