@@ -10,7 +10,7 @@ import {
   type DurableObjectStateLike,
 } from './ai-session'
 
-const DEFAULT_IMAGES_API_BASE = 'https://images.ccalc.live'
+const DEFAULT_IMAGES_API_BASE = 'https://ccalc.live/images'
 const DEFAULT_API_PROXY_TARGET = 'https://api.ccalc.live'
 const DEFAULT_SESSION_ID = 'default'
 const SESSION_STORAGE_KEY = 'enrollment-session-state'
@@ -195,14 +195,17 @@ export class EnrollmentSession extends AiChatSession<EnrollmentDto, Multilingual
       return Response.json({ message: 'At least one payment file is required.' }, { status: 400 })
     }
 
+    const enrollmentId = crypto.randomUUID()
     let uploadedFiles
     try {
-      uploadedFiles = await uploadPaymentFiles(draft.eventId, paymentFiles)
+      uploadedFiles = await uploadPaymentFiles(groupId, draft.eventId, enrollmentId, paymentFiles)
     } catch (error) {
       return Response.json({ message: error instanceof Error ? error.message : 'Payment file upload failed.' }, { status: 502 })
     }
 
     const backendResponse = await postEnrollmentToBackend(request, this.env, draft.eventId, {
+      id: enrollmentId,
+      enrollmentId,
       eventId: draft.eventId,
       groupId,
       applicantName: draft.applicantName,
@@ -341,9 +344,16 @@ function normalizeMultilingualString(value: unknown): MultilingualString {
   }
 }
 
-async function uploadPaymentFiles(eventId: string, files: File[]) {
-  const uploaded: Array<{ fileName: string; contentType: string; size: number; url: string }> = []
-  const folder = `enrollments/${sanitizePath(eventId)}`
+async function uploadPaymentFiles(groupId: string, eventId: string, enrollmentId: string, files: File[]) {
+  const uploaded: Array<{ fileName: string; contentType: string; size: number; key?: string; url: string }> = []
+  const folder = [
+    'groups',
+    sanitizePath(groupId),
+    'events',
+    sanitizePath(eventId),
+    'enrollments',
+    sanitizePath(enrollmentId),
+  ].join('/')
 
   for (const file of files) {
     if (!isAllowedPaymentFile(file)) {
@@ -362,13 +372,17 @@ async function uploadPaymentFiles(eventId: string, files: File[]) {
       throw new Error('Payment file upload failed.')
     }
 
-    const body = await response.json() as { image?: { url?: string } }
-    uploaded.push({
+    const body = await response.json() as { image?: { key?: string; url?: string } }
+    const uploadedFile: { fileName: string; contentType: string; size: number; key?: string; url: string } = {
       fileName: file.name,
       contentType: file.type || 'application/octet-stream',
       size: file.size,
       url: body.image?.url ?? '',
-    })
+    }
+    if (body.image?.key) {
+      uploadedFile.key = body.image.key
+    }
+    uploaded.push(uploadedFile)
   }
 
   return uploaded

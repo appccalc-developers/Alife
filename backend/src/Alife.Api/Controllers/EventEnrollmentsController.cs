@@ -110,10 +110,26 @@ public class EventEnrollmentsController(
             return Conflict(new { message = "Enrollment already exists for this event and member." });
         }
 
+        if (!TryReadRequestedEnrollmentId(enrollmentJson, out var requestedEnrollmentId, out var enrollmentIdError))
+        {
+            return BadRequest(new { message = enrollmentIdError });
+        }
+
+        if (requestedEnrollmentId.HasValue)
+        {
+            var idAlreadyExists = await dbContext.EventEnrollments
+                .AsNoTracking()
+                .AnyAsync(x => x.Id == requestedEnrollmentId.Value, cancellationToken);
+            if (idAlreadyExists)
+            {
+                return Conflict(new { message = "Enrollment id already exists." });
+            }
+        }
+
         var now = DateTime.UtcNow;
         var enrollment = new EventEnrollment
         {
-            Id = Guid.NewGuid(),
+            Id = requestedEnrollmentId ?? Guid.NewGuid(),
             GroupId = groupEvent.GroupId,
             EventId = eventId,
             MemberId = currentMemberId.Value,
@@ -209,6 +225,41 @@ public class EventEnrollmentsController(
 
     private static bool IsJsonObject(JsonElement value)
         => value.ValueKind == JsonValueKind.Object;
+
+    private static bool TryReadRequestedEnrollmentId(
+        JsonElement enrollmentJson,
+        out Guid? enrollmentId,
+        out string? error)
+    {
+        enrollmentId = null;
+        error = null;
+
+        foreach (var propertyName in new[] { "id", "enrollmentId" })
+        {
+            if (!enrollmentJson.TryGetProperty(propertyName, out var property))
+            {
+                continue;
+            }
+
+            if (property.ValueKind == JsonValueKind.Null)
+            {
+                continue;
+            }
+
+            if (property.ValueKind != JsonValueKind.String ||
+                !Guid.TryParse(property.GetString(), out var parsed) ||
+                parsed == Guid.Empty)
+            {
+                error = $"{propertyName} must be a non-empty GUID when provided.";
+                return false;
+            }
+
+            enrollmentId = parsed;
+            return true;
+        }
+
+        return true;
+    }
 
     private static EventEnrollmentDto ToDto(EventEnrollment enrollment) =>
         new(

@@ -3,7 +3,15 @@
  * - POST /api/images — multipart/form-data，字段名 `file`
  * - 响应 201：`{ image: { key, size, uploaded, contentType, url } }`
  */
-const IMAGE_API_BASE_URL = (import.meta.env.VITE_IMAGE_API_BASE_URL ?? 'https://images.ccalc.live').trim().replace(/\/$/, '')
+const getDefaultImageApiBaseUrl = () => {
+  if (typeof window !== 'undefined' && window.location.hostname === 'ccalc.live') {
+    return `${window.location.origin}/images`
+  }
+
+  return 'https://images.ccalc.live'
+}
+
+const IMAGE_API_BASE_URL = (import.meta.env.VITE_IMAGE_API_BASE_URL ?? getDefaultImageApiBaseUrl()).trim().replace(/\/$/, '')
 
 const IMAGE_EXTENSIONS = new Set([
   'jpg',
@@ -65,6 +73,15 @@ function apiUrl(path: string): string {
   return `${IMAGE_API_BASE_URL}${p}`
 }
 
+function pathSegments(path: string): string {
+  return path
+    .split('/')
+    .map((segment) => segment.trim())
+    .filter(Boolean)
+    .map(encodeURIComponent)
+    .join('/')
+}
+
 async function readJson<T>(response: Response): Promise<T> {
   try {
     return (await response.json()) as T
@@ -76,7 +93,7 @@ async function readJson<T>(response: Response): Promise<T> {
 /**
  * 上传单张图片，返回完整元数据（与 Worker `uploadImage` 响应体一致）。
  */
-export async function uploadImage(file: File): Promise<UploadedImage> {
+export async function uploadImage(file: File, folderPath = ''): Promise<UploadedImage> {
   if (!(file instanceof File)) {
     throw new Error('Missing file.')
   }
@@ -87,7 +104,10 @@ export async function uploadImage(file: File): Promise<UploadedImage> {
   const formData = new FormData()
   formData.append('file', file)
 
-  const response = await fetch(apiUrl('/api/images'), {
+  const normalizedFolderPath = pathSegments(folderPath)
+  const endpoint = normalizedFolderPath ? `/api/images/${normalizedFolderPath}` : '/api/images'
+
+  const response = await fetch(apiUrl(endpoint), {
     method: 'POST',
     body: formData,
   })
