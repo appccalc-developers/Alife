@@ -84,7 +84,7 @@ export function eventToCardItem(event: GroupEventRecord, language = 'en'): Unive
     subtitle: dateDisplay,
     imageUrl: undefined,
     date: dateStr,
-    url: `/events/${event.id}`,
+    url: `/groups/${event.groupId}/events/${event.id}/enroll`,
     type: 'event',
   }
 }
