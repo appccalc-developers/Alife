@@ -1,63 +1,50 @@
-# Extract reusable AI Session Facility (Frontend + Cloudflare DO)
+# Extract Reusable AI Session Facility (Frontend + Cloudflare DO)
 
 <!-- Issue title: Extract reusable AI Session Facility (Frontend + Cloudflare DO) -->
 <!-- Labels: enhancement, Cloudflare -->
 <!-- Milestone: Alife AI-Native Core (MVP) -->
 <!-- Part of Epic: Issue A -->
 
-## Context
+## Current Implementation Status
 
-The AI chat session logic is currently tightly coupled to two files:
+Implemented.
 
-- `frontend/alife-app/worker/extractor.ts` — `EventPlanningSession` Durable Object + Gemini call
-- `frontend/alife-app/src/views/EventCreatorView.tsx` — session ID management, SSE subscription, chat state
+## Delivered Scope
 
-Enrollment (Issue C) and future features (Issue #73) need the same primitives. This issue extracts
-them into a shared, reusable facility.
+### Cloudflare Worker Layer
 
-## Scope
+- `worker/ai-session.ts` provides a generic `AiChatSession<TDraft, TContext>` Durable Object base.
+- The base supports `/message`, `/state`, `/stream`, `/start`, and `/close`.
+- Session implementations provide system instructions, Gemini response schemas, draft normalization, validation, formatting, and context-building.
+- Durable Object namespaces in `wrangler.jsonc`:
+  - `EVENT_SESSIONS`
+  - `ENROLLMENT_SESSIONS`
+  - `REVIEW_SESSIONS`
 
-### Cloudflare Worker layer
+### Frontend Service + Hook Layer
 
-- Extract a generic `AiChatSession` Durable Object base class / factory from `EventPlanningSession` that:
-  - Holds `chatHistory`, `currentDraft`, and a `legacySummary`-equivalent context field
-  - Exposes `/message` (POST), `/state` (GET), `/stream` (GET SSE) sub-routes
-  - Accepts a pluggable Gemini system instruction + JSON response schema at construction time
-  - Validates AI output against the caller-supplied schema
-- Keep `EventPlanningSession` as a thin wrapper over the shared base (no behavior change)
-- Register an `ENROLLMENT_SESSIONS` Durable Object namespace in `wrangler.jsonc`
-- Route `/api/enrollments/session/...` to the enrollment DO (analogous to `/api/events/session/...`)
+- `src/services/aiSessionService.ts` provides `createAiSessionService<TDraft, TContext>(basePath)`.
+- `src/hooks/useAiSession.ts` encapsulates SSE subscription, state hydration, message dispatch, and API error normalization.
+- `src/types/aiSession.ts` contains shared frontend session types.
 
-### Frontend service + hooks layer
+### Current Consumers
 
-- Extract a generic `createAiSessionService(basePath: string)` factory in `src/services/` returning:
-  - `sendMessage(sessionId, message, inputMode)` → `AiSessionResponse<T>`
-  - `getState(sessionId)` → `AiSessionState<T>`
-  - `createStream(sessionId)` → `EventSource`
-- Keep existing `eventService` session methods unchanged (thin wrappers)
-- Provide `enrollmentSessionService` using the same factory
-- Extract a `useAiSession<T>(sessionId, basePath)` custom hook encapsulating SSE lifecycle + message dispatch
+- Event planning: `worker/eventplanner.ts`, `src/views/EventCreatorView.tsx`, `/api/events/session/*`.
+- Enrollment: `worker/enrollment.ts`, `src/views/EventEnrollmentView.tsx`, `/api/enrollments/session/*`.
+- Review: `worker/review.ts`, `src/views/EventReviewView.tsx`, `/api/reviews/session/*`.
 
-### Types (`src/types/aiSession.ts`)
+## Verification
 
-- `AiSessionState<T>` — generic session state with `draft: T | null`, `chatHistory`, `updatedAt`
-- `AiSessionResponse<T>` — generic response from a message send
+Use:
 
-## Acceptance Criteria
+```bash
+cd frontend/alife-app
+npm run build
+npm run test:worker
+```
 
-- [ ] `EventPlanningSession` continues to work without behavior change (existing tests pass)
-- [ ] `EnrollmentSession` Durable Object exists and accepts pluggable system instruction + schema
-- [ ] Generic frontend service factory and `useAiSession` hook exist
-- [ ] `npm run test:worker` passes with updated/added tests covering generic session lifecycle
-- [ ] `wrangler.jsonc` includes the `ENROLLMENT_SESSIONS` DO binding and migration
+## Follow-Up Candidates
 
-## Files Likely Touched
-
-- `frontend/alife-app/worker/extractor.ts`
-- `frontend/alife-app/worker/index.ts`
-- `frontend/alife-app/wrangler.jsonc`
-- `frontend/alife-app/src/services/eventService.ts` (thin wrapper refactor)
-- `frontend/alife-app/src/services/enrollmentSessionService.ts` (new)
-- `frontend/alife-app/src/hooks/useAiSession.ts` (new)
-- `frontend/alife-app/src/types/aiSession.ts` (new)
-- `frontend/alife-app/worker/index.test.mjs`
+- Add session TTL and cleanup expectations.
+- Add more failure-mode tests around malformed AI JSON, missing Gemini configuration, and SSE reconnects.
+- Consider a typed wrapper per feature where route-specific app context becomes repetitive.

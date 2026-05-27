@@ -19,10 +19,10 @@ Provide a shared plan that aligns ministry outcomes, product priorities, technic
   - sermon discovery and sync
 
 ### 2.2 How It Runs
-- Frontend hosted on Azure Static Web Apps.
+- Frontend hosted on Cloudflare Workers.
 - Backend API on Azure Functions.
 - Data in Azure SQL.
-- External services for phone verification, LINE sign-in, and YouTube sermon import.
+- External services for LINE sign-in, YouTube sermon import, image handling, and AI-assisted event workflows.
 
 ### 2.3 Why This Architecture
 - Scales with ministry demand and reduces infrastructure overhead.
@@ -32,7 +32,7 @@ Provide a shared plan that aligns ministry outcomes, product priorities, technic
 ## 3. Feature Portfolio and Business Usage
 
 ### 3.1 Member Onboarding
-- Guest start, phone verification, LINE sign-in, profile completion.
+- Guest start, LINE sign-in, profile completion, and phone-based member invitation where applicable.
 - Usage goal: reduce friction in first-time and returning user access.
 
 ### 3.2 Group Operations
@@ -52,7 +52,7 @@ Provide a shared plan that aligns ministry outcomes, product priorities, technic
 ## 4. Deployment and Governance Plan
 
 ### 4.1 Release Flow
-- GitHub-based automated deployment to Azure.
+- GitHub-based automated deployment to Cloudflare and Azure.
 - Preview environments for stakeholder sign-off before production.
 - Controlled release sequence: migration, deploy, smoke validation.
 

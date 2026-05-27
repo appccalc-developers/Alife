@@ -6,10 +6,10 @@ Deliver Alife with production-grade reliability, security, and operability acros
 ## 1. Architecture and Platform Baseline
 
 ### 1.1 System Topology
-- Frontend: React + TypeScript SPA/PWA on Azure Static Web Apps.
+- Frontend: React + TypeScript SPA/PWA served by Cloudflare Workers.
 - Backend: .NET isolated Azure Functions API.
 - Data: Azure SQL (EF Core migrations via DbMigrator).
-- Integrations: LINE OAuth, YouTube Data API.
+- Integrations: LINE OAuth, YouTube Data API, Cloudflare Images, Gemini AI sessions.
 - Auth: JWT in HttpOnly cookie with server-side authorization checks.
 
 ### 1.2 Backend Layering Rules
@@ -24,13 +24,14 @@ Deliver Alife with production-grade reliability, security, and operability acros
 - Group hierarchy + membership state machine.
 - Page/Section content model with visibility controls.
 - Sermon catalog synchronization boundaries and idempotency.
+- AI session Durable Object boundaries for event planning, enrollment, and reviews.
 
 ## 2. Delivery and Release Engineering
 
 ### 2.1 Environment Matrix
 - local: Docker/compose with SQL Server and optional Caddy.
-- preview: PR-based Static Web Apps environment.
-- prod: managed Azure resources and locked configuration.
+- preview: Cloudflare/Azure preview or staging targets where available.
+- prod: Cloudflare Worker frontend, Azure Functions API, Azure SQL, and locked configuration.
 
 ### 2.2 CI/CD Pipeline Contract
 - Trigger: push/PR events on default branch policy.
@@ -39,7 +40,7 @@ Deliver Alife with production-grade reliability, security, and operability acros
   - build frontend
   - run lint/type checks
   - run migrations gate (dry run or controlled apply)
-  - deploy Static Web Apps + API
+  - deploy Cloudflare Worker frontend + Azure Functions API
   - execute smoke tests
 - Required outcomes:
   - deterministic build
@@ -76,6 +77,8 @@ Deliver Alife with production-grade reliability, security, and operability acros
   - JWT key/issuer/audience
   - LINE creds
   - YouTube key/playlist
+  - Gemini API key/model
+  - Cloudflare Worker/Image credentials
 - Rotation cadence and owner assigned.
 
 ## 4. Feature Implementation Matrix
@@ -120,6 +123,7 @@ Deliver Alife with production-grade reliability, security, and operability acros
   - group approval action
   - page publish action
   - sermon list render
+  - AI enrollment/review session commit path where Gemini is configured
 
 ## 6. Milestones
 1. Platform Hardening

@@ -4,59 +4,50 @@
 <!-- Labels: enhancement, Cloudflare, epic -->
 <!-- Milestone: Alife AI-Native Core (MVP) -->
 
-## Overview
+## Current Implementation Status
 
-Issue #84 implemented event enrollment via a stateless Cloudflare Worker that walked users through a
-name → consent → file-upload loop using `window.prompt`/`window.confirm`. The UX is poor, the AI
-usage is superficial, and there is no session persistence.
+The epic has effectively landed in the current codebase:
 
-This epic replaces that implementation and, at the same time, extracts a reusable
-**AI Session Facility** (frontend + Cloudflare Durable Object) that will serve both event creation
-and enrollment today, and Memory Harvesting / Automated Witness Walls (#73) in the future.
+- Shared AI session infrastructure exists in `frontend/alife-app/worker/ai-session.ts`.
+- Frontend AI session helpers exist in `src/services/aiSessionService.ts` and `src/hooks/useAiSession.ts`.
+- Event planning, enrollment, and review each have Durable Object-backed session implementations:
+  - `worker/eventplanner.ts`
+  - `worker/enrollment.ts`
+  - `worker/review.ts`
+- Cloudflare bindings are registered in `frontend/alife-app/wrangler.jsonc` as `EVENT_SESSIONS`, `ENROLLMENT_SESSIONS`, and `REVIEW_SESSIONS`.
+- Enrollment commits now use `POST /api/events/{eventId}/enrollments`.
+- Reviews use `POST /api/events/{eventId}/reviews`.
 
-## Goals
+## Original Goal
 
-1. Replace the prompt/confirm enrollment loop with an AI chat dialog that mirrors the `EventCreatorView` pattern.
-2. Extract the AI session logic from `EventCreatorView`/`worker/extractor.ts` into a reusable facility consumed by both event creation and enrollment.
-3. Use a Cloudflare Durable Object session for enrollment (same as events), replacing the stateless `worker/enrollment.ts` handler.
-4. Lay the groundwork for #73 (Memory Harvesting & Automated Witness Walls) to consume the same facility.
+Replace the old prompt/confirm enrollment flow with a conversational AI workflow and extract reusable AI session primitives for current and future AI-native features.
 
-## Non-Goals
+## Delivered Shape
 
-- Changes to the backend enrollment API (`EventEnrollmentsController`, `EnrollGroupEventCommandHandler`) are out of scope unless a schema change is required.
-- Mobile-native features, push notifications, or offline-first enrollment are out of scope for this epic.
+1. Shared Durable Object base: `AiChatSession<TDraft, TContext>`.
+2. Shared frontend service factory: `createAiSessionService<TDraft, TContext>()`.
+3. Shared React hook: `useAiSession<TDraft, TContext>()`.
+4. Event planning route family: `/api/events/session/*`.
+5. Enrollment route family: `/api/enrollments/session/*`.
+6. Review route family: `/api/reviews/session/*`.
+7. Backend commit endpoints under `/api/events/{eventId}/enrollments` and `/api/events/{eventId}/reviews`.
 
-## Dependency Map
+## Remaining Follow-Up Candidates
 
-| Issue | Title | Depends on |
-|-------|-------|-----------|
-| **B** | Extract reusable AI Session Facility (Frontend + Cloudflare DO) | — |
-| **C** | Replace enrollment prompts with AI chat dialog + "Create Enrollment" action | B |
-| **D** | Migrate EventCreator AI flow to shared AI facility | B |
-| **#73** | Memory Harvesting & Automated Witness Walls | B (shared facility) |
+- Decide retention/expiry policy for Durable Object session state.
+- Add a manual enrollment fallback for Gemini outages.
+- Add broader end-to-end coverage for event creation, enrollment, review, and restore flows.
+- Confirm bilingual consent wording and any ministry-specific enrollment fields.
 
-## Delivery Order
+## Current References
 
-1. Issue B — shared facility foundation (unblocks all downstream)
-2. Issue C — enrollment UX rewrite (uses facility from B)
-3. Issue D — event flow migration onto facility (uses facility from B)
-4. Issue #73 — memory harvesting / witness walls (uses facility from B)
-
-## Open Questions / TBD
-
-- **Enrollment data model**: Fields beyond `eventId`, name, consent, and payment file URLs?
-  (e.g. dietary requirements, emergency contact, family size)
-- **Session scope**: Per member+event pair? Per device? Expiry/retention policy?
-- **File handling UX**: Attach files inline in chat, or as a final step after the draft is confirmed?
-- **AI output contract**: Strict JSON schema + validation rules (matching EventDto approach)?
-- **i18n**: Bilingual prompts/responses required for enrollment (zh + en)?
-- **Consent wording**: Legal/compliance text to include in the consent step?
-- **Failure fallback**: Manual form fallback if Gemini is unavailable?
-
-## References
-
-- Closed: #84 (prior enrollment implementation, now to be replaced)
-- Future: #73 (will consume the shared AI facility)
-- `frontend/alife-app/src/views/EventCreatorView.tsx` — event chat UI pattern to replicate
-- `frontend/alife-app/worker/extractor.ts` — `EventPlanningSession` DO to generalize
-- `frontend/alife-app/worker/enrollment.ts` — stateless handler to replace
+- `frontend/alife-app/worker/ai-session.ts`
+- `frontend/alife-app/worker/eventplanner.ts`
+- `frontend/alife-app/worker/enrollment.ts`
+- `frontend/alife-app/worker/review.ts`
+- `frontend/alife-app/src/services/aiSessionService.ts`
+- `frontend/alife-app/src/hooks/useAiSession.ts`
+- `frontend/alife-app/src/components/group/EnrollmentChatDialog.tsx`
+- `frontend/alife-app/src/views/EventEnrollmentView.tsx`
+- `backend/src/Alife.Api/Controllers/EventEnrollmentsController.cs`
+- `backend/src/Alife.Api/Controllers/EventReviewsController.cs`

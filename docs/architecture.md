@@ -116,15 +116,16 @@ Request arrives
 - `MembersController` - registration, LINE login/callback, profile.
 - `GroupsController` - group and membership workflows.
 - `PagesController` - page management.
-- `SectionsController` - section management.
-- `EventsController` and `EventEnrollmentsController` - activity and enrollment workflows.
+- Page section writes are handled through `PagesController` create/update payloads.
+- `EventsController`, `EventEnrollmentsController`, and `EventReviewsController` - activity, enrollment, and review workflows.
 - `SermonsController` - sermon listing.
 
 ### HTTP and API Surface
 
 - Health endpoint: `GET /health`.
 - API endpoints: under `/api/*`.
-- Swagger UI: `GET /swagger` in development.
+- OpenAPI document: `GET /api/swagger/v1/swagger.json` in development.
+- Swagger UI: `GET /api/help` in development.
 
 ### Application Layer
 
@@ -138,13 +139,14 @@ Request arrives
 - EF Core DbContext and migrations.
 - Read services for optimized group, member, and page reads.
 - HybridCache-backed read paths and invalidation services.
+- Cloudflare Durable Objects for AI-assisted event planning, enrollment, and review sessions.
 - JWT, cookie, LINE Login, and YouTube integration services.
 
 ### Caching Architecture
 
 - Read services and invalidation services use `HybridCache`.
 - `/api/me` is cached and invalidated on profile-changing operations.
-- Group and page reads use cache keys owned by application services.
+- Group, page, event, and sermon reads use cache keys owned by application services.
 - Source-level `IMemoryCache` usage has been removed from application wiring.
 
 ## Database Schema
@@ -224,8 +226,8 @@ export const http = axios.create({
 
 **Group detail screen:**
 - `GroupDetailView` composes `useGroupScreen` data.
-- `GroupScreenShell` renders page content and lightweight contextual tools.
-- `GroupToolsDrawer` is intentionally narrow: status, join action, current-page shortcut, and management entry.
+- `GroupScreenShell` renders selected group page content.
+- The app shell owns current-group page navigation, subgroup navigation, language switching, and manager-only floating actions.
 
 **Group management screen:**
 - `GroupManageView` owns management workflows for leaders and co-leaders.
@@ -236,9 +238,17 @@ export const http = axios.create({
 
 **Key components:**
 - Layout primitives: `AppPageShell`, `AppSectionCard`, `AppActionButton`, `AppBadge`, `AppEmptyState`.
-- Group screens: `GroupScreenShell`, `GroupToolsDrawer`, `GroupPageTabs`, `EnrollmentChatDialog`.
+- Group screens: `GroupScreenShell`, `GroupPageTabs`, `GroupHeaderCard`, `GroupOverviewPanel`, `EnrollmentChatDialog`, `ReviewChatDialog`.
 - Content screens: `PageView`, `PageEditorView`, `PageContentRenderer`, page editor components.
 - Admin and operations screens: `AdminView`, `SermonsView`, `EventCreatorView`, `GroupManageView`.
+
+### AI Session Frontend / Edge Architecture
+
+- `src/services/aiSessionService.ts` provides the generic frontend client for `/message`, `/state`, `/stream`, and `/close`.
+- `src/hooks/useAiSession.ts` centralizes SSE subscription, state updates, send-message handling, and error normalization.
+- `worker/ai-session.ts` provides the generic Durable Object base.
+- `worker/eventplanner.ts`, `worker/enrollment.ts`, and `worker/review.ts` configure event, enrollment, and review-specific prompts, schemas, and draft normalization.
+- Worker session routes are `/api/events/session/*`, `/api/enrollments/session/*`, and `/api/reviews/session/*`.
 
 ## Deployment Architecture
 
@@ -251,7 +261,7 @@ export const http = axios.create({
 ### Container Images
 
 - Build stage: `.NET SDK 10`.
-- Runtime stage: ASP.NET runtime image for the API.
+- Runtime stage: ASP.NET 10 Ubuntu chiseled runtime image for the API container.
 
 **Environment Variables:**
 
@@ -297,7 +307,7 @@ Guest opens app
 
 ```text
 Member requests to join group
-  -> Frontend posts to /api/groups/{groupId}/join
+  -> Frontend posts to /api/groups/{groupId}/join-request
   -> Backend creates or updates pending membership
   -> Leader opens /groups/{groupId}/manage
   -> Leader approves or rejects pending members
@@ -313,6 +323,17 @@ Leader opens group page
   -> Management page presents subgroups, members, pages, and events
   -> Each action calls the existing group/page/event API client
   -> Query caches are invalidated and status feedback is shown
+```
+
+### AI Enrollment Flow
+
+```text
+Member opens event enrollment route
+  -> Frontend creates or restores an enrollment session through /api/enrollments/session/*
+  -> EnrollmentSession Durable Object calls Gemini and stores chat/draft state
+  -> User attaches payment proof images when required
+  -> Frontend commits completed draft to POST /api/events/{eventId}/enrollments
+  -> Backend stores the enrollment JSON and enforces member/group authorization
 ```
 
 ## Key Design Decisions

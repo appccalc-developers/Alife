@@ -11,14 +11,14 @@ Launch a church app that is easy to use, safe for member data, and dependable fo
 
 ## Architecture Snapshot
 - Website and mobile-friendly app for members.
-- Cloud hosting on Azure for app and API.
+- Cloudflare hosting for the member app and Azure hosting for the API/data layer.
 - Central database for member, group, and page data.
-- Integrations for phone verification, LINE sign-in, and sermon updates from YouTube.
+- Integrations for LINE sign-in, sermon updates from YouTube, image handling, and AI-assisted event workflows.
 - Session security designed to protect member accounts.
 
 ## Feature Portfolio
 - Member onboarding:
-  - First-time visit, phone verification, LINE login, profile completion.
+  - First-time visit, LINE login, profile completion, and phone-based invitations where applicable.
 - Group life management:
   - Group structure, join requests, invitations, approvals, leader assignments.
 - Content publishing:
@@ -29,7 +29,7 @@ Launch a church app that is easy to use, safe for member data, and dependable fo
   - Restricted admin tools and health checks.
 
 ## Deployment Strategy
-- Automated deployment from GitHub to Azure.
+- Automated deployment from GitHub to Cloudflare and Azure.
 - Preview links for reviewing changes before release.
 - Secure deployment sign-in using modern cloud identity.
 - Release sequence: update database, deploy app, run quick business checks.

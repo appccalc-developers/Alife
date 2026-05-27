@@ -1,6 +1,6 @@
 # Alife Church App
 
-Full-stack church management application. Clean Architecture .NET backend on Azure Functions, React 19 PWA frontend deployed to Azure Static Web Apps / Cloudflare Workers.
+Full-stack church management application. Clean Architecture .NET backend on Azure Functions, React 19 PWA frontend served through Cloudflare Workers.
 
 ## Stack
 
@@ -12,7 +12,7 @@ Full-stack church management application. Clean Architecture .NET backend on Azu
 | Edge | Cloudflare Workers (frontend proxy, images API) |
 | Auth | LINE Login OAuth → JWT in HttpOnly cookie (`alife_auth`) |
 | Caching | .NET 10 HybridCache |
-| API Docs | Swagger/OpenAPI (`/swagger/v1/swagger.json`) |
+| API Docs | Swagger/OpenAPI (`/api/swagger/v1/swagger.json`) |
 
 ## Repository Layout
 
@@ -70,7 +70,8 @@ dotnet run --project backend/src/Alife.Api
 |---|---|
 | Local base | `http://localhost:7071` |
 | Health check | `GET /health` |
-| OpenAPI (dev) | `GET /swagger/v1/swagger.json` |
+| OpenAPI (dev) | `GET /api/swagger/v1/swagger.json` |
+| Swagger UI (dev) | `GET /api/help` |
 
 ### 4) Run the frontend
 
@@ -80,7 +81,10 @@ npm install
 npm run dev         # Vite dev server  → http://localhost:5173
 ```
 
-Copy `.env.example` to `.env` and set `VITE_API_BASE_URL`:
+For Vite local development, `/api/*` is proxied to the Functions host by `vite.config.ts`.
+Set `API_PROXY_TARGET` only when the API is not running on `http://localhost:7071`.
+
+For production builds, copy `.env.example` to `.env` and set `VITE_API_BASE_URL` when the frontend should call a separate API origin:
 
 ```env
 VITE_API_BASE_URL=http://localhost:7071
@@ -94,7 +98,7 @@ npm run preview     # build + wrangler dev
 
 ## Authentication
 
-- LINE Login OAuth flow ends at `/api/auth/line/callback`.
+- LINE Login OAuth flow ends at `/api/members/line/callback`.
 - Backend issues a JWT stored in HttpOnly cookie `alife_auth` (XSS-immune).
 - JwtBearer reads the token from the cookie automatically.
 - JWT is minimal (`sub`, `exp`); group roles and permissions are DB-checked per request.
@@ -104,8 +108,14 @@ npm run preview     # build + wrangler dev
 
 - `HybridCache` (.NET 10) with stampede protection is used in:
   - Member profile (`/api/me`)
-  - Group and page read services
-  - Group/page cache invalidation services
+  - Group, page, event, and sermon read services
+  - Group, page, event, and sermon cache invalidation services
+
+## AI Session Workflows
+
+- Cloudflare Durable Objects back the event planning, enrollment, and review chat sessions.
+- Session routes are exposed under `/api/events/session/*`, `/api/enrollments/session/*`, and `/api/reviews/session/*`.
+- Completed enrollment and review drafts are committed through backend REST endpoints under `/api/events/{eventId}/enrollments` and `/api/events/{eventId}/reviews`.
 
 ## Key Configuration
 
