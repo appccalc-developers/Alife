@@ -15,8 +15,8 @@ public sealed class SermonReadService(AlifeDbContext dbContext, HybridCache hybr
                 {
                     var sermons = await dbContext.Sermons
                         .AsNoTracking()
-                        .OrderBy(x => x.SortOrder)
-                        .ThenByDescending(x => x.PreachedAtUtc)
+                        .OrderByDescending(x => x.Title)
+                        .ThenBy(x => x.SortOrder)
                         .Select(x => new SermonDto(
                             x.Id,
                             x.Title,

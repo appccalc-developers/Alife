@@ -6,7 +6,5 @@ public enum SectionType
 	RichText = 1,
 	PostFeed = 2,
 	Sermon = 3,
-	GroupList = 4,
-	PageList = 5,
-	SermonList = 6
+	ListView = 4
 }

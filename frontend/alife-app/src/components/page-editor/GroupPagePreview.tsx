@@ -1,5 +1,4 @@
-import { Link } from 'react-router-dom'
-import { readText, parseLimit } from '../../utils/pageSectionContent'
+import { readText } from '../../utils/pageSectionContent'
 import { GroupListSection } from '../sections/GroupListSection'
 import type { SectionEditModel } from '../../types/page-editor'
 
@@ -15,7 +14,7 @@ type Props = {
   groupPageItems?: GroupPagePreviewPageItem[]
   /** When true, used inside a compact panel (smaller typography) */
   compact?: boolean
-  /** Resolves GroupList smart sections (subgroups/members/group pages) when not on /groups/:id route */
+  /** Resolves ListView smart sections (subgroups/members/group pages) when not on /groups/:id route */
   previewGroupId?: string
 }
 
@@ -23,7 +22,6 @@ const GroupPagePreview = ({
   title,
   description,
   sections,
-  groupPageItems = [],
   compact,
   previewGroupId,
 }: Props) => {
@@ -459,7 +457,7 @@ const GroupPagePreview = ({
             )
           }
 
-          if (section.type === 'GroupList') {
+          if (section.type === 'ListView') {
             // The smart GroupListSection resolves data via useListSourceResolver
             return (
               <GroupListSection
@@ -468,39 +466,6 @@ const GroupPagePreview = ({
                 groupId={previewGroupId}
                 compact={compact}
               />
-            )
-          }
-
-          if (section.type === 'PageList') {
-            return (
-              <section key={key} className="rounded-lg border border-slate-200 bg-white p-3">
-                <h3 className={`font-semibold text-slate-900 ${compact ? 'text-sm' : 'text-lg'}`}>
-                  {readText(section.contentJson, 'title') || '页面'}
-                </h3>
-                <ul className="mt-2 space-y-1.5">
-                  {groupPageItems.slice(0, parseLimit(section.contentJson, 'limit', 8)).map((item) => (
-                    <li key={item.id} className="rounded border border-slate-200 bg-slate-50 px-2 py-1.5">
-                      <Link className={`font-medium text-blue-700 hover:underline ${compact ? 'text-xs' : 'text-sm'}`} to={`/pages/${item.id}`}>
-                        {item.title}
-                      </Link>
-                      <p className="text-[10px] text-slate-500">Visibility: {item.visibility}</p>
-                    </li>
-                  ))}
-                </ul>
-                {groupPageItems.length === 0 ? (
-                  <p className={`mt-2 text-slate-500 ${compact ? 'text-[11px]' : 'text-sm'}`}>
-                    （发布后，读者将在此看到本团其他页面）
-                  </p>
-                ) : null}
-              </section>
-            )
-          }
-
-          if (section.type === 'SermonList') {
-            return (
-              <section key={key} className="rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-600">
-                讲道列表区块预览
-              </section>
             )
           }
 

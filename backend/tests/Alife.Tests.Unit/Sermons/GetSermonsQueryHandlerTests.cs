@@ -63,15 +63,13 @@ public class GetSermonsQueryHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ReturnsSermons_OrderedBySortOrderThenByPreachedAtDescending()
+    public async Task Handle_ReturnsSermons_OrderedByTitleDescending()
     {
         // Arrange
         using var dbContext = CreateInMemoryDbContext();
-        var olderDate = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-        var newerDate = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc);
         dbContext.Sermons.AddRange(
-            new Sermon { Id = Guid.NewGuid(), YoutubeVideoId = "id1", Title = "Older", SpeakerName = "S", SortOrder = 1, PreachedAtUtc = olderDate, SyncedUtc = DateTime.UtcNow },
-            new Sermon { Id = Guid.NewGuid(), YoutubeVideoId = "id2", Title = "Newer", SpeakerName = "S", SortOrder = 1, PreachedAtUtc = newerDate, SyncedUtc = DateTime.UtcNow }
+            new Sermon { Id = Guid.NewGuid(), YoutubeVideoId = "id1", Title = "2026 05 24 Latest", SpeakerName = "S", SortOrder = 2, SyncedUtc = DateTime.UtcNow },
+            new Sermon { Id = Guid.NewGuid(), YoutubeVideoId = "id2", Title = "2026 05 03 Older", SpeakerName = "S", SortOrder = 1, SyncedUtc = DateTime.UtcNow }
         );
         await dbContext.SaveChangesAsync();
         var sermonReadService = CreateSermonReadService(dbContext);
@@ -83,8 +81,8 @@ public class GetSermonsQueryHandlerTests
         // Assert
         Assert.True(result.IsSuccess);
         Assert.Equal(2, result.Value!.Count);
-        Assert.Equal("Newer", result.Value![0].Title);
-        Assert.Equal("Older", result.Value![1].Title);
+        Assert.Equal("2026 05 24 Latest", result.Value![0].Title);
+        Assert.Equal("2026 05 03 Older", result.Value![1].Title);
     }
 
     private static ISermonReadService CreateSermonReadService(AlifeDbContext dbContext)
@@ -93,8 +91,8 @@ public class GetSermonsQueryHandlerTests
         sermonReadService.GetSermonsAsync(Arg.Any<CancellationToken>()).Returns(_ =>
             dbContext.Sermons
                 .AsNoTracking()
-                .OrderBy(x => x.SortOrder)
-                .ThenByDescending(x => x.PreachedAtUtc)
+                .OrderByDescending(x => x.Title)
+                .ThenBy(x => x.SortOrder)
                 .Select(x => new SermonDto(
                     x.Id,
                     x.Title,

@@ -19,14 +19,11 @@ type Props = {
   onSelect: () => void
 }
 
-const sectionTypes: SectionType[] = ['Hero', 'MediaSpotlight', 'IconFeatureGrid', 'SermonSpotlight', 'RichText', 'PostFeed', 'Sermon', 'GroupList', 'PageList', 'SermonList']
+const sectionTypes: SectionType[] = ['Hero', 'MediaSpotlight', 'IconFeatureGrid', 'SermonSpotlight', 'RichText', 'PostFeed', 'Sermon', 'ListView']
 const sectionTypeLabel = (type: SectionType) =>
   type === 'IconFeatureGrid' ? 'Icon Feature Grid'
     : type === 'SermonSpotlight' ? 'Sermon Spotlight'
-      : type === 'GroupList' ? 'ListView'
-        : type === 'PageList' ? 'Page List'
-          : type === 'SermonList' ? 'Sermon List'
-            : type
+      : type
 
 const stringifyPretty = (value: unknown) => JSON.stringify(value ?? {}, null, 2)
 const DEFAULT_HERO_IMAGE = 'https://images.unsplash.com/photo-1529070538774-1843cb3265df?w=1600&q=80'
@@ -84,9 +81,9 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
       return
     }
 
-    if (nextType === 'GroupList') {
+    if (nextType === 'ListView') {
       patchSection({
-        type: 'GroupList',
+        type: 'ListView',
         contentJson: {
           ...section.contentJson,
           sourceType: (section.contentJson.sourceType as string) || 'sermons',
