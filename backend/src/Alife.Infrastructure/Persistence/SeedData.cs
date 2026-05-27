@@ -41,14 +41,14 @@ public static class SeedData
 
 		var groups = new[]
 		{
-			new Group { Id = churchId, Name = "Alife Church", AccessType = AccessType.Protected, IsChurch = true, IsClosed = false, CreatedUtc = now, UpdatedUtc = now },
-			new Group { Id = youthId, Name = "Youth Group (13-18)", ParentGroupId = churchId, AccessType = AccessType.Protected, IsChurch = false, IsClosed = false, CreatedUtc = now, UpdatedUtc = now },
-			new Group { Id = youngAdultsId, Name = "Young Adults (19-30)", ParentGroupId = churchId, AccessType = AccessType.Protected, IsChurch = false, IsClosed = false, CreatedUtc = now, UpdatedUtc = now },
-			new Group { Id = worshipId, Name = "Worship Team", ParentGroupId = churchId, AccessType = AccessType.Protected, IsChurch = false, IsClosed = false, CreatedUtc = now, UpdatedUtc = now },
-			new Group { Id = prayerId, Name = "Prayer Ministry", ParentGroupId = churchId, AccessType = AccessType.Protected, IsChurch = false, IsClosed = false, CreatedUtc = now, UpdatedUtc = now },
-			new Group { Id = kidsId, Name = "Kids Ministry (5-12)", ParentGroupId = churchId, AccessType = AccessType.Protected, IsChurch = false, IsClosed = false, CreatedUtc = now, UpdatedUtc = now },
-			new Group { Id = smallGroupCentralId, Name = "Small Group - Central District", ParentGroupId = churchId, AccessType = AccessType.Protected, IsChurch = false, IsClosed = false, CreatedUtc = now, UpdatedUtc = now },
-			new Group { Id = smallGroupWestId, Name = "Small Group - West Side", ParentGroupId = churchId, AccessType = AccessType.Protected, IsChurch = false, IsClosed = false, CreatedUtc = now, UpdatedUtc = now }
+			new Group { Id = churchId, NameJson = TextJson("Alife Church", "丰盛生命教会"), DescriptionJson = TextJson("Church-wide group workspace.", "教会整体小组工作区。"), AccessType = AccessType.Protected, IsChurch = true, IsClosed = false, CreatedUtc = now, UpdatedUtc = now },
+			new Group { Id = youthId, NameJson = TextJson("Youth Group (13-18)", "青少年小组（13-18）"), DescriptionJson = TextJson("For youth ministry members.", "青少年事工成员小组。"), ParentGroupId = churchId, AccessType = AccessType.Protected, IsChurch = false, IsClosed = false, CreatedUtc = now, UpdatedUtc = now },
+			new Group { Id = youngAdultsId, NameJson = TextJson("Young Adults (19-30)", "青年小组（19-30）"), DescriptionJson = TextJson("For young adults and students.", "青年与学生小组。"), ParentGroupId = churchId, AccessType = AccessType.Protected, IsChurch = false, IsClosed = false, CreatedUtc = now, UpdatedUtc = now },
+			new Group { Id = worshipId, NameJson = TextJson("Worship Team", "敬拜团队"), DescriptionJson = TextJson("Worship team planning and updates.", "敬拜团队计划与更新。"), ParentGroupId = churchId, AccessType = AccessType.Protected, IsChurch = false, IsClosed = false, CreatedUtc = now, UpdatedUtc = now },
+			new Group { Id = prayerId, NameJson = TextJson("Prayer Ministry", "祷告事工"), DescriptionJson = TextJson("Prayer ministry coordination.", "祷告事工协调。"), ParentGroupId = churchId, AccessType = AccessType.Protected, IsChurch = false, IsClosed = false, CreatedUtc = now, UpdatedUtc = now },
+			new Group { Id = kidsId, NameJson = TextJson("Kids Ministry (5-12)", "儿童事工（5-12）"), DescriptionJson = TextJson("Kids ministry team workspace.", "儿童事工团队工作区。"), ParentGroupId = churchId, AccessType = AccessType.Protected, IsChurch = false, IsClosed = false, CreatedUtc = now, UpdatedUtc = now },
+			new Group { Id = smallGroupCentralId, NameJson = TextJson("Small Group - Central District", "中区小组"), DescriptionJson = TextJson("Central district small group.", "中区小组。"), ParentGroupId = churchId, AccessType = AccessType.Protected, IsChurch = false, IsClosed = false, CreatedUtc = now, UpdatedUtc = now },
+			new Group { Id = smallGroupWestId, NameJson = TextJson("Small Group - West Side", "西区小组"), DescriptionJson = TextJson("West side small group.", "西区小组。"), ParentGroupId = churchId, AccessType = AccessType.Protected, IsChurch = false, IsClosed = false, CreatedUtc = now, UpdatedUtc = now }
 		};
 
 		var groupHeroImages = new Dictionary<Guid, string>
@@ -94,6 +94,7 @@ public static class SeedData
 
 		foreach (var group in groups)
 		{
+			var groupName = ReadText(group.NameJson);
 			var heroImageUrl = groupHeroImages[group.Id];
 			var homePageId = Guid.NewGuid();
 			var eventsPageId = Guid.NewGuid();
@@ -105,7 +106,7 @@ public static class SeedData
 				OwnerGroupId = group.Id,
 				CreatedByMemberId = adminId,
 				TitleJson = JsonSerializer.Serialize(new Dictionary<string, string> { ["en"] = "Home", ["cn"] = "主页" }),
-				DescriptionJson = JsonSerializer.Serialize(new Dictionary<string, string> { ["en"] = $"{group.Name} home page", ["cn"] = $"{group.Name} 主页" }),
+				DescriptionJson = JsonSerializer.Serialize(new Dictionary<string, string> { ["en"] = $"{groupName} home page", ["cn"] = $"{groupName} 主页" }),
 				TagsJson = "[\"home\"]",
 				TitleDisplayStyle = "Default",
 				Visibility = PageVisibility.Group,
@@ -119,7 +120,7 @@ public static class SeedData
 				OwnerGroupId = group.Id,
 				CreatedByMemberId = adminId,
 				TitleJson = JsonSerializer.Serialize(new Dictionary<string, string> { ["en"] = "Events", ["cn"] = "活动" }),
-				DescriptionJson = JsonSerializer.Serialize(new Dictionary<string, string> { ["en"] = $"{group.Name} events page", ["cn"] = $"{group.Name} 活动页" }),
+				DescriptionJson = JsonSerializer.Serialize(new Dictionary<string, string> { ["en"] = $"{groupName} events page", ["cn"] = $"{groupName} 活动页" }),
 				TagsJson = "[\"events\"]",
 				TitleDisplayStyle = "Default",
 				Visibility = PageVisibility.Group,
@@ -137,8 +138,8 @@ public static class SeedData
 				Type = SectionType.Hero,
 				ContentJson = JsonSerializer.Serialize(new
 				{
-					title = new { en = $"{group.Name} Home", cn = $"{group.Name} 主页" },
-					subtitle = new { en = $"Welcome to the {group.Name} page.", cn = $"欢迎来到 {group.Name} 页面。" },
+					title = new { en = $"{groupName} Home", cn = $"{groupName} 主页" },
+					subtitle = new { en = $"Welcome to the {groupName} page.", cn = $"欢迎来到 {groupName} 页面。" },
 					backgroundImage = heroImageUrl
 				}),
 				StyleJson = JsonSerializer.Serialize(new { height = "420px" })
@@ -152,8 +153,8 @@ public static class SeedData
 				Type = SectionType.Hero,
 				ContentJson = JsonSerializer.Serialize(new
 				{
-					title = new { en = $"{group.Name} Events", cn = $"{group.Name} 活动" },
-					subtitle = new { en = $"See upcoming events for {group.Name}.", cn = $"查看 {group.Name} 的近期活动。" },
+					title = new { en = $"{groupName} Events", cn = $"{groupName} 活动" },
+					subtitle = new { en = $"See upcoming events for {groupName}.", cn = $"查看 {groupName} 的近期活动。" },
 					backgroundImage = heroImageUrl
 				}),
 				StyleJson = JsonSerializer.Serialize(new { height = "420px" })
@@ -173,5 +174,14 @@ public static class SeedData
 			TargetMemberFound: true,
 			TargetMemberPagesFound: pages.Count,
 			SectionsInserted: sections.Count);
+	}
+
+	private static string TextJson(string en, string cn)
+		=> JsonSerializer.Serialize(new Dictionary<string, string> { ["en"] = en, ["cn"] = cn });
+
+	private static string ReadText(string json)
+	{
+		var value = JsonSerializer.Deserialize<Dictionary<string, string>>(json) ?? [];
+		return value.GetValueOrDefault("en") ?? value.GetValueOrDefault("cn") ?? value.Values.FirstOrDefault() ?? string.Empty;
 	}
 }

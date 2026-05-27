@@ -4,6 +4,8 @@ import AppSectionCard from '../layout/AppSectionCard'
 import AccessTypeBadge from './AccessTypeBadge'
 import type { GroupSummaryDto } from '../../types/group'
 import { useUiText } from '../../i18n/uiText'
+import { useAuthStore } from '../../stores/auth'
+import { localizeText } from '../../utils/localizedText'
 
 type Props = {
   items: GroupSummaryDto[]
@@ -15,6 +17,7 @@ type Props = {
 
 const SubgroupList = ({ items, canManage, onOpen, onEdit, onDelete }: Props) => {
   const t = useUiText()
+  const { language } = useAuthStore()
 
   return (
   <AppSectionCard title={t('subgroups')} subtitle={t('browseSubgroupsSubtitle')}>
@@ -29,7 +32,10 @@ const SubgroupList = ({ items, canManage, onOpen, onEdit, onDelete }: Props) => 
           <li key={subgroup.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h3 className="font-semibold text-slate-900">{subgroup.name}</h3>
+                <h3 className="font-semibold text-slate-900">{localizeText(subgroup.name, language)}</h3>
+                {localizeText(subgroup.description, language) ? (
+                  <p className="mt-1 text-sm text-slate-600">{localizeText(subgroup.description, language)}</p>
+                ) : null}
                 <div className="mt-1 flex items-center gap-2">
                   <AccessTypeBadge accessType={subgroup.accessType} />
                 </div>

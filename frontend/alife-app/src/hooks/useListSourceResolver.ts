@@ -11,6 +11,7 @@ import {
 import type { ListViewMetadata } from '../types/page-editor'
 import type { SermonDto } from '../services/sermonService'
 import type { GroupEventRecord } from '../types/event'
+import type { GroupSummaryDto } from '../types'
 
 interface ListSourceResult {
   data: any[] | undefined
@@ -103,8 +104,8 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
     [isSubgroups, targetGroupId],
   )
   const subgroupsData = isSubgroups
-    ? ((subgroupsLive.data ?? []) as Array<{ id: string; name: string; accessType: string; parentGroupId: string | null }>)
-    : ([] as Array<{ id: string; name: string; accessType: string; parentGroupId: string | null }>)
+    ? ((subgroupsLive.data ?? []) as GroupSummaryDto[])
+    : ([] as GroupSummaryDto[])
   const subgroupsLoading = isSubgroups ? (subgroupsLive.isLoading ?? true) : false
   const subgroupsReady = isSubgroups ? (subgroupsLive.isReady ?? false) : true
   const subgroupsError = isSubgroups ? (subgroupsLive.isError ?? false) : false
@@ -165,7 +166,7 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
       case 'sermons':
         return (sermonsData as SermonDto[]).slice(0, queryConfig.limit)
       case 'subgroups':
-        return (subgroupsData as Array<{ id: string; name: string; accessType: string; parentGroupId: string | null }>)
+        return (subgroupsData as GroupSummaryDto[])
           .filter((s) => s.parentGroupId === targetGroupId)
           .slice(0, queryConfig.limit)
       case 'members':

@@ -10,6 +10,7 @@ import type {
   PageSummaryDto,
   PageVisibility,
 } from '../types'
+import { toLocalizedText } from './localizedText'
 
 const normalizeEnum = <T extends string>(
   value: unknown,
@@ -99,6 +100,8 @@ export const normalizeMe = (me: MeDto): MeDto => ({
 
 export const normalizeGroup = <T extends GroupDto | GroupSummaryDto>(group: T): T => ({
   ...group,
+  name: toLocalizedText(group.name),
+  description: group.description ? toLocalizedText(group.description) : group.description,
   accessType: normalizeAccessType(group.accessType),
 })
 

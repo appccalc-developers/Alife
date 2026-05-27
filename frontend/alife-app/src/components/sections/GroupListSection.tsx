@@ -37,11 +37,11 @@ export function sermonToCardItem(sermon: SermonDto): UniversalCardItem {
   }
 }
 
-export function subgroupToCardItem(subgroup: GroupSummaryDto): UniversalCardItem {
+export function subgroupToCardItem(subgroup: GroupSummaryDto, language = 'en'): UniversalCardItem {
   return {
     id: subgroup.id,
-    title: subgroup.name,
-    subtitle: subgroup.accessType === 'public' ? 'Public Group' : subgroup.accessType === 'protected' ? 'Protected Group' : 'Private Group',
+    title: localizeText(subgroup.name, language),
+    subtitle: localizeText(subgroup.description, language) || (subgroup.accessType === 'public' ? 'Public Group' : subgroup.accessType === 'protected' ? 'Protected Group' : 'Private Group'),
     imageUrl: undefined,
     url: `/groups/${subgroup.id}`,
     type: 'subgroup',
@@ -189,7 +189,7 @@ export const GroupListSection: React.FC<GroupListSectionProps> = ({ metadata, gr
     }
     const adapter = adapterMap[meta.sourceType]
     if (!adapter || !data) return []
-    return data.map((item) => adapter(item)).filter(Boolean)
+    return data.map((item) => meta.sourceType === 'subgroups' ? subgroupToCardItem(item as GroupSummaryDto, language) : adapter(item)).filter(Boolean)
   }, [data, meta.sourceType, groupId, language])
 
   // Preload images for first 4 cards when data is ready

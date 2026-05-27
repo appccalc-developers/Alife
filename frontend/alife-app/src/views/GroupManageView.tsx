@@ -11,7 +11,7 @@ import GroupOverviewPanel from '../components/group/GroupOverviewPanel'
 import MembershipStatusBadge from '../components/group/MembershipStatusBadge'
 import { useGroupScreen, type GroupMemberToolRow } from '../hooks/useGroupScreen'
 import { useAuthStore } from '../stores/auth'
-import { localizeText } from '../utils/localizedText'
+import { localizeText, toLocalizedText } from '../utils/localizedText'
 import { useCurrentGroupStore } from '../stores/currentGroup'
 import { translateUi, useUiText } from '../i18n/uiText'
 import type { GroupPageDto } from '../types/group'
@@ -23,17 +23,6 @@ const formatDate = (value: string, language: string) => {
   if (!value) return translateUi(language, 'noDate')
   return new Date(value).toLocaleDateString()
 }
-
-const sectionStats = (items: Array<{ label: string; value: number }>) => (
-  <div className="grid gap-2 sm:grid-cols-4">
-    {items.map((item) => (
-      <div key={item.label} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-        <p className="text-xs text-slate-500">{item.label}</p>
-        <p className="mt-1 text-lg font-semibold text-slate-950">{item.value}</p>
-      </div>
-    ))}
-  </div>
-)
 
 type MembersPanelProps = {
   memberships: GroupMemberToolRow[]
@@ -50,17 +39,14 @@ const MembersPanel = ({ memberships, onInviteMember, onApproveMember, onRejectMe
   const approvedMembers = memberships.filter((member) => member.status === 'approved')
 
   return (
-    <AppSectionCard title={t('members')} subtitle={t('membersPanelSubtitle')}>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        {sectionStats([
-          { label: t('pending'), value: requestedMembers.length },
-          { label: t('approved'), value: approvedMembers.length },
-          { label: t('coLeaders'), value: approvedMembers.filter((member) => member.role === 'coLeader').length },
-          { label: t('totalRows'), value: memberships.length },
-        ])}
+    <AppSectionCard
+      dense
+      title={t('members')}
+      subtitle={t('membersPanelSubtitle')}
+      action={
         <AppActionButton variant="primary" onClick={onInviteMember}>{t('inviteMember')}</AppActionButton>
-      </div>
-
+      }
+    >
       {requestedMembers.length > 0 ? (
         <div className="mb-5 space-y-2">
           <h3 className="text-sm font-semibold text-slate-900">{t('requests')}</h3>
@@ -119,40 +105,35 @@ const PagesPanel = ({ groupId, language, pages, onAddPage, onDeletePage, onToggl
   const t = useUiText()
 
   return (
-  <AppSectionCard title={t('pages')} subtitle={t('pagesPanelSubtitle')}>
-    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-      {sectionStats([
-        { label: t('pages'), value: pages.length },
-        { label: t('published'), value: pages.filter((page) => page.visibility !== 'draft').length },
-        { label: t('drafts'), value: pages.filter((page) => page.visibility === 'draft').length },
-        { label: t('group'), value: 1 },
-      ])}
-      <AppActionButton variant="primary" onClick={onAddPage}>{t('addPage')}</AppActionButton>
-    </div>
-
-    {pages.length === 0 ? (
-      <p className="text-sm text-slate-500">{t('noPagesYet')}</p>
-    ) : (
-      <div className="space-y-2">
-        {pages.map((page) => (
-          <div key={page.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 p-3">
-            <div>
-              <p className="font-medium text-slate-950">{localizeText(page.title, language)}</p>
-              <p className="mt-1 text-xs text-slate-500">{page.visibility}</p>
+    <AppSectionCard
+      dense
+      title={t('pages')}
+      subtitle={t('pagesPanelSubtitle')}
+      action={<AppActionButton variant="primary" onClick={onAddPage}>{t('addPage')}</AppActionButton>}
+    >
+      {pages.length === 0 ? (
+        <p className="text-sm text-slate-500">{t('noPagesYet')}</p>
+      ) : (
+        <div className="space-y-2">
+          {pages.map((page) => (
+            <div key={page.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 p-3">
+              <div>
+                <p className="font-medium text-slate-950">{localizeText(page.title, language)}</p>
+                <p className="mt-1 text-xs text-slate-500">{page.visibility}</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Link className="inline-flex items-center justify-center rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100" to={`/groups/${groupId}?page=${encodeURIComponent(page.id)}`}>{t('open')}</Link>
+                <Link className="inline-flex items-center justify-center rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100" to={`/pages/${page.id}/edit?groupId=${groupId}`}>{t('edit')}</Link>
+                <AppActionButton size="sm" variant="secondary" onClick={() => onTogglePageVisibility(page)}>
+                  {page.visibility === 'draft' ? t('publish') : t('moveToDraft')}
+                </AppActionButton>
+                <AppActionButton size="sm" variant="danger" onClick={() => onDeletePage(page.id)}>{t('delete')}</AppActionButton>
+              </div>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Link className="inline-flex items-center justify-center rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100" to={`/groups/${groupId}?page=${encodeURIComponent(page.id)}`}>{t('open')}</Link>
-              <Link className="inline-flex items-center justify-center rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100" to={`/pages/${page.id}/edit?groupId=${groupId}`}>{t('edit')}</Link>
-              <AppActionButton size="sm" variant="secondary" onClick={() => onTogglePageVisibility(page)}>
-                {page.visibility === 'draft' ? t('publish') : t('moveToDraft')}
-              </AppActionButton>
-              <AppActionButton size="sm" variant="danger" onClick={() => onDeletePage(page.id)}>{t('delete')}</AppActionButton>
-            </div>
-          </div>
-        ))}
-      </div>
-    )}
-  </AppSectionCard>
+          ))}
+        </div>
+      )}
+    </AppSectionCard>
   )
 }
 
@@ -169,17 +150,12 @@ const EventsPanel = ({ groupId, events, onOpenEnrollDialog, onDeleteEvent }: Eve
   const { language } = useAuthStore()
 
   return (
-    <AppSectionCard title={t('events')} subtitle={t('eventsPanelSubtitle')}>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        {sectionStats([
-          { label: t('events'), value: events.length },
-          { label: t('upcoming'), value: events.filter((event) => event.startDate && new Date(event.startDate) >= new Date()).length },
-          { label: t('past'), value: events.filter((event) => event.startDate && new Date(event.startDate) < new Date()).length },
-          { label: t('group'), value: 1 },
-        ])}
-        <AppActionButton variant="primary" onClick={() => navigate(`/events/new?groupId=${groupId}`)}>{t('createEvent')}</AppActionButton>
-      </div>
-
+    <AppSectionCard
+      dense
+      title={t('events')}
+      subtitle={t('eventsPanelSubtitle')}
+      action={<AppActionButton variant="primary" onClick={() => navigate(`/events/new?groupId=${groupId}`)}>{t('createEvent')}</AppActionButton>}
+    >
       {events.length === 0 ? (
         <p className="text-sm text-slate-500">{t('noEventsYet')}</p>
       ) : (
@@ -214,6 +190,7 @@ const GroupManageView = () => {
   const { language, me } = useAuthStore()
   const { setCurrentGroup } = useCurrentGroupStore()
   const [enrollingEventId, setEnrollingEventId] = useState('')
+  const [savingGroup, setSavingGroup] = useState(false)
   const {
     group,
     subgroups,
@@ -226,6 +203,7 @@ const GroupManageView = () => {
     setStatusMessage,
     membershipStatus,
     canManageGroup,
+    updateGroup,
     addSubgroup: createSubgroup,
     inviteMember: inviteMemberByPhone,
     editSubgroup: runEditSubgroup,
@@ -260,7 +238,7 @@ const GroupManageView = () => {
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
           <Link to={`/groups/${groupId}`} className="text-sm font-medium text-slate-600 hover:text-slate-950">{t('backToGroup')}</Link>
-          <h1 className="mt-2 text-2xl font-semibold text-slate-950">{t('groupManagementTitle', { name: group?.name ?? t('group') })}</h1>
+          <h1 className="mt-2 text-2xl font-semibold text-slate-950">{t('groupManagementTitle', { name: localizeText(group?.name, language) || t('group') })}</h1>
           <p className="mt-1 text-sm text-slate-600">{t('groupManagementDescription')}</p>
         </div>
         {group ? (
@@ -292,27 +270,43 @@ const GroupManageView = () => {
           ) : null}
 
           {activeSection === 'group' ? (
-            <GroupOverviewPanel group={group} subgroupCount={subgroups.length} pageCount={pages.length} />
+            <GroupOverviewPanel
+              group={group}
+              subgroupCount={subgroups.length}
+              pageCount={pages.length}
+              saving={savingGroup}
+              onSave={async (payload) => {
+                setSavingGroup(true)
+                try {
+                  const updated = await updateGroup(payload)
+                  if (updated) {
+                    setCurrentGroup(updated)
+                    setStatusMessage(t('groupUpdated'))
+                  }
+                } catch {
+                  setStatusMessage(t('updateGroupFailed'))
+                } finally {
+                  setSavingGroup(false)
+                }
+              }}
+            />
           ) : null}
 
           {activeSection === 'subgroups' ? (
-            <AppSectionCard title={t('subgroups')} subtitle={t('subgroupsPanelSubtitle')}>
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                {sectionStats([
-                  { label: t('subgroups'), value: subgroups.length },
-                  { label: t('public'), value: subgroups.filter((subgroup) => subgroup.accessType === 'public').length },
-                  { label: t('protected'), value: subgroups.filter((subgroup) => subgroup.accessType === 'protected').length },
-                  { label: t('private'), value: subgroups.filter((subgroup) => subgroup.accessType === 'private').length },
-                ])}
+            <AppSectionCard
+              dense
+              title={t('subgroups')}
+              subtitle={t('subgroupsPanelSubtitle')}
+              action={
                 <AppActionButton variant="primary" onClick={() => {
                   const subgroupName = window.prompt(t('subgroupName'))
                   if (!subgroupName?.trim()) return
-                  createSubgroup(subgroupName.trim(), 'protected').catch(() => setStatusMessage(t('addSubgroupFailed')))
+                  createSubgroup(toLocalizedText(subgroupName.trim()), 'protected').catch(() => setStatusMessage(t('addSubgroupFailed')))
                 }}>
                   {t('addSubgroup')}
                 </AppActionButton>
-              </div>
-
+              }
+            >
               {subgroups.length === 0 ? (
                 <p className="text-sm text-slate-500">{t('noSubgroupsYet')}</p>
               ) : (
@@ -320,7 +314,7 @@ const GroupManageView = () => {
                   {subgroups.map((subgroup) => (
                     <div key={subgroup.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 p-3">
                       <div>
-                        <p className="font-medium text-slate-950">{subgroup.name}</p>
+                        <p className="font-medium text-slate-950">{localizeText(subgroup.name, language)}</p>
                         <AccessTypeBadge accessType={subgroup.accessType} />
                       </div>
                       <div className="flex flex-wrap gap-2">

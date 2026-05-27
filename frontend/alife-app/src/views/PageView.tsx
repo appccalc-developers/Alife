@@ -5,10 +5,13 @@ import { useQuery } from '@tanstack/react-query'
 import PageContentRenderer from '../components/page/PageContentRenderer'
 import { fetchPageDetail, pageDetailQueryKey } from '../db/collections/pageCollection'
 import { subgroupsCollection, groupPagesCollection } from '../db/collections/groupCollection'
+import { useAuthStore } from '../stores/auth'
+import { localizeText } from '../utils/localizedText'
 
 const PageView = () => {
   const { pageId = '' } = useParams<{ pageId: string }>()
   const navigate = useNavigate()
+  const { language } = useAuthStore()
 
   const {
     data: page = null,
@@ -27,6 +30,10 @@ const PageView = () => {
 
   const subColl = useMemo(() => (page?.ownerGroupId ? subgroupsCollection(page.ownerGroupId) : null), [page?.ownerGroupId])
   const { data: subgroupItems = [] } = useLiveQuery(subColl as NonNullable<typeof subColl>)
+  const localizedSubgroupItems = useMemo(
+    () => subgroupItems.map((subgroup) => ({ ...subgroup, name: localizeText(subgroup.name, language) })),
+    [language, subgroupItems],
+  )
 
   const gpColl = useMemo(() => (page?.ownerGroupId ? groupPagesCollection(page.ownerGroupId) : null), [page?.ownerGroupId])
   const { data: groupPageItems = [] } = useLiveQuery(gpColl as NonNullable<typeof gpColl>)
@@ -40,7 +47,7 @@ const PageView = () => {
         <PageContentRenderer
           page={page}
           sections={sections}
-          subgroupItems={subgroupItems as Array<{ id: string; name: string; accessType: string }>}
+          subgroupItems={localizedSubgroupItems as Array<{ id: string; name: string; accessType: string }>}
           groupPageItems={groupPageItems as unknown as Array<{ id: string; title: string; visibility: string }>}
           onEditPage={(id, groupId) => {
             navigate(`/pages/${id}/edit?groupId=${groupId}`)

@@ -17,24 +17,24 @@ export interface ListViewMetadata {
 
 export type GroupDto = {
   id: string
-  name: string
+  name: LocalizedText
+  description?: LocalizedText | null
   accessType: AccessType
   isChurch: boolean
   isClosed: boolean
   parentGroupId: string | null
-  description?: string | null
   createdUtc?: string
   updatedUtc?: string
 }
 
 export type GroupSummaryDto = {
   id: string
-  name: string
+  name: LocalizedText
+  description?: LocalizedText | null
   accessType: AccessType
   isChurch: boolean
   isClosed: boolean
   parentGroupId: string | null
-  description?: string | null
 }
 
 export type GroupMembershipDto = {

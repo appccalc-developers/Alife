@@ -6,6 +6,7 @@ using Alife.Domain.Entities;
 using Alife.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace Alife.Application.Groups.Commands.CreateSubgroup;
 
@@ -33,11 +34,17 @@ public sealed class CreateSubgroupCommandHandler(
             return AppResult<GroupDto>.NotFound("Parent group was not found.");
         }
 
+        if (!HasAnyText(request.Name))
+        {
+            return AppResult<GroupDto>.Validation("Group name is required.");
+        }
+
         var now = DateTime.UtcNow;
         var subgroup = new Group
         {
             Id = Guid.NewGuid(),
-            Name = request.Name,
+            NameJson = WriteTextMap(request.Name),
+            DescriptionJson = request.Description is null ? null : WriteTextMap(request.Description),
             ParentGroupId = request.GroupId,
             AccessType = request.AccessType,
             IsChurch = false,
@@ -63,7 +70,8 @@ public sealed class CreateSubgroupCommandHandler(
 
         return AppResult<GroupDto>.Success(new GroupDto(
             subgroup.Id,
-            subgroup.Name,
+            ReadTextMap(subgroup.NameJson),
+            ReadTextMap(subgroup.DescriptionJson),
             subgroup.ParentGroupId,
             subgroup.AccessType,
             subgroup.IsChurch,
@@ -71,4 +79,15 @@ public sealed class CreateSubgroupCommandHandler(
             subgroup.CreatedUtc,
             subgroup.UpdatedUtc));
     }
+
+    private static bool HasAnyText(IReadOnlyDictionary<string, string> value)
+        => value.Values.Any(x => !string.IsNullOrWhiteSpace(x));
+
+    private static string WriteTextMap(IReadOnlyDictionary<string, string> value)
+        => JsonSerializer.Serialize(value);
+
+    private static IReadOnlyDictionary<string, string> ReadTextMap(string? value)
+        => string.IsNullOrWhiteSpace(value)
+            ? new Dictionary<string, string>()
+            : JsonSerializer.Deserialize<Dictionary<string, string>>(value) ?? new Dictionary<string, string>();
 }

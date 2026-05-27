@@ -93,11 +93,14 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasColumnType("bit")
                         .HasColumnName("is_closed");
 
-                    b.Property<string>("Name")
+                    b.Property<string>("DescriptionJson")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("description_json");
+
+                    b.Property<string>("NameJson")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)")
-                        .HasColumnName("name");
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("name_json");
 
                     b.Property<Guid?>("ParentGroupId")
                         .HasColumnType("uniqueidentifier")

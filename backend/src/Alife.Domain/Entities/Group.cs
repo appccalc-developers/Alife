@@ -5,7 +5,8 @@ namespace Alife.Domain.Entities;
 public class Group
 {
 	public Guid Id { get; set; }
-	public string Name { get; set; } = string.Empty;
+	public string NameJson { get; set; } = "{}";
+	public string? DescriptionJson { get; set; }
 	public Guid? ParentGroupId { get; set; }
 	public AccessType AccessType { get; set; }
 	public bool IsChurch { get; set; }

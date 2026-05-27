@@ -26,7 +26,7 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 		modelBuilder.Entity<Group>(cfg =>
 		{
 			cfg.HasKey(x => x.Id);
-			cfg.Property(x => x.Name).HasMaxLength(200).IsRequired();
+			cfg.Property(x => x.NameJson).IsRequired();
 			cfg.HasOne(x => x.ParentGroup)
 				.WithMany(x => x.Subgroups)
 				.HasForeignKey(x => x.ParentGroupId)
