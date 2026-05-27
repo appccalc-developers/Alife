@@ -19,6 +19,7 @@ type MembershipStatusLabel = 'Not joined' | 'requested' | 'approved' | 'invited'
 type MembershipRole = 'member' | 'coLeader' | 'leader' | null
 export type GroupMemberToolRow = {
   memberId: string
+  displayName?: string
   status: 'invited' | 'requested' | 'approved' | 'rejected' | 'removed'
   role: 'member' | 'coLeader' | 'leader'
   createdUtc?: string
@@ -167,6 +168,15 @@ export const useGroupScreen = (groupId: string) => {
     [groupId, queryClient],
   )
 
+  const inviteMemberById = useCallback(
+    async (targetMemberId: string) => {
+      if (!groupId) return
+      await groupService.inviteMemberById(groupId, targetMemberId)
+      await queryClient.invalidateQueries({ queryKey: ['groupMemberships', groupId] })
+    },
+    [groupId, queryClient],
+  )
+
   const approveMember = useCallback(
     async (memberId: string) => {
       if (!groupId) return
@@ -279,6 +289,7 @@ export const useGroupScreen = (groupId: string) => {
     addSubgroup,
     updateGroup,
     inviteMember,
+    inviteMemberById,
     approveMember,
     rejectMember,
     kickMember,
