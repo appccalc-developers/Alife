@@ -14,7 +14,18 @@ export type EnrollmentPaymentFile = {
   url: string
 }
 
+export type EventEnrollmentRecord = {
+  id: string
+  groupId: string
+  eventId: string
+  memberId: string
+  enrollmentJson: string
+  createdUtc: string
+  updatedUtc: string
+}
+
 export type EnrollmentCommitResponse = {
   status: 'completed'
   message: string
+  enrollment: EventEnrollmentRecord
 }

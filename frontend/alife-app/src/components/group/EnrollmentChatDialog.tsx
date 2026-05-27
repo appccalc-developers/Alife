@@ -180,8 +180,10 @@ const EnrollmentChatDialog = ({
     setCommitError('')
 
     try {
-      const response = await enrollmentSessionService.commitEnrollment(sessionId, {
+      const response = await enrollmentSessionService.createEnrollment({
+        eventId: event.id,
         groupId,
+        draft,
         paymentFiles,
       })
       setCommitStatus('saved')
@@ -348,7 +350,7 @@ const EnrollmentChatDialog = ({
                 ref={fileInputRef}
                 type="file"
                 className="hidden"
-                accept="image/*,.pdf"
+                accept="image/*"
                 multiple
                 onChange={(event) => {
                   const files = Array.from(event.target.files ?? [])

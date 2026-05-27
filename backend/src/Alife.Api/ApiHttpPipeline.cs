@@ -12,11 +12,14 @@ internal sealed class ApiHttpPipeline
         var app = new ApplicationBuilder(serviceProvider);
 
         app.UseRouting();
-        app.UseSwagger();
+        app.UseSwagger(options =>
+        {
+            options.RouteTemplate = "api/swagger/{documentName}/swagger.json";
+        });
         app.UseSwaggerUI(options =>
         {
-            options.SwaggerEndpoint("/swagger/v1/swagger.json", "Alife API v1");
-            options.RoutePrefix = "swagger";
+            options.SwaggerEndpoint("/api/swagger/v1/swagger.json", "Alife API v1");
+            options.RoutePrefix = "api/help";
         });
         app.UseCors("Frontend");
         app.UseAuthentication();
