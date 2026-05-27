@@ -10,6 +10,7 @@ declare const self: { location: { origin: string } }
 
 export default defineConfig(() => {
   const apiProxyTarget = process.env.API_PROXY_TARGET || 'http://localhost:7071'
+  const imagesProxyTarget = process.env.IMAGES_PROXY_TARGET || 'https://images.ccalc.live'
 
   return {
     plugins: [react(), VitePWA({
@@ -99,6 +100,11 @@ export default defineConfig(() => {
         '/api': {
           target: apiProxyTarget,
           changeOrigin: true,
+        },
+        '/images': {
+          target: imagesProxyTarget,
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/images/, '') || '/',
         },
       },
     },

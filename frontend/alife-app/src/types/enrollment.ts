@@ -11,6 +11,7 @@ export type EnrollmentPaymentFile = {
   fileName: string
   contentType: string
   size: number
+  key?: string
   url: string
 }
 

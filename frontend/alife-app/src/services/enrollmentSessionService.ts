@@ -6,16 +6,36 @@ import type { MultilingualString } from '../types/event'
 
 const aiSessionService = createAiSessionService<EnrollmentDraft, MultilingualString | null>('/api/enrollments/session')
 
-const uploadPaymentFile = async (file: File): Promise<EnrollmentPaymentFile> => {
+const createEnrollmentId = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+
+  return '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, (char) => {
+    const value = Number(char)
+    return (value ^ (Math.floor(Math.random() * 16) >> (value / 4))).toString(16)
+  })
+}
+
+const getEnrollmentPaymentFolder = (groupId: string, eventId: string, enrollmentId: string) =>
+  `groups/${groupId}/events/${eventId}/enrollments/${enrollmentId}`
+
+const uploadPaymentFile = async (
+  file: File,
+  groupId: string,
+  eventId: string,
+  enrollmentId: string,
+): Promise<EnrollmentPaymentFile> => {
   if (!isImageFile(file)) {
     throw new Error('Only image payment proof files can be uploaded.')
   }
 
-  const image = await uploadImage(file)
+  const image = await uploadImage(file, getEnrollmentPaymentFolder(groupId, eventId, enrollmentId))
   return {
     fileName: file.name,
     contentType: file.type || image.contentType || 'application/octet-stream',
     size: file.size,
+    key: image.key,
     url: image.url,
   }
 }
@@ -47,8 +67,13 @@ export const enrollmentSessionService = {
     draft: EnrollmentDraft
     paymentFiles: File[]
   }): Promise<EnrollmentCommitResponse> => {
-    const paymentFiles = await Promise.all(payload.paymentFiles.map(uploadPaymentFile))
+    const enrollmentId = createEnrollmentId()
+    const paymentFiles = await Promise.all(
+      payload.paymentFiles.map((file) => uploadPaymentFile(file, payload.groupId, payload.eventId, enrollmentId)),
+    )
     const enrollmentPayload = {
+      id: enrollmentId,
+      enrollmentId,
       eventId: payload.eventId,
       groupId: payload.groupId,
       applicantName: payload.draft.applicantName,
