@@ -137,6 +137,7 @@ const text = {
   noEventsYet: { en: 'No events yet.', zh: '还没有活动。' },
   untitled: { en: 'Untitled', zh: '未命名' },
   enroll: { en: 'Enroll', zh: '报名' },
+  review: { en: 'Review', zh: '回顾' },
   subgroupsPanelSubtitle: { en: 'Create child groups and open their own workspace.', zh: '创建子小组并打开它们自己的工作区。' },
   browseSubgroupsSubtitle: { en: 'Browse connected groups in this workspace.', zh: '浏览此工作区中连接的小组。' },
   noSubgroupsYetTitle: { en: 'No subgroups yet', zh: '还没有子小组' },

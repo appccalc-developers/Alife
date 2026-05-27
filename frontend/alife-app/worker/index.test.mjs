@@ -760,6 +760,123 @@ test('POST /api/enrollments/session/:id/commit uploads files and commits backend
   assert.deepEqual(state.chatHistory, [])
 })
 
+test('POST /api/reviews/session/:id/message returns review draft and preserves app context ids', async () => {
+  const eventId = crypto.randomUUID()
+  const sessionId = `member-1-event-${eventId}-review`
+  originResponses.push(Response.json({
+    candidates: [{
+      content: {
+        parts: [{
+          text: JSON.stringify({
+            reviewId: '',
+            eventId: 'wrong-event',
+            groupId: 'wrong-group',
+            memberId: 'wrong-member',
+            reflection: {
+              zh: '這次活動讓大家有很好的連結。',
+              en: 'This event helped everyone connect well.',
+            },
+            summary: {
+              zh: '溫暖的團契時光。',
+              en: 'A warm time of fellowship.',
+            },
+            recognizedPeople: [{ name: 'Alice', confidence: 0.8 }],
+            recognizedActivities: [{ name: { zh: '分享', en: 'Sharing' }, evidence: 'User mentioned sharing.' }],
+            photoFiles: [],
+            assistantReply: {
+              zh: '回顧草稿已準備好。',
+              en: 'The review draft is ready.',
+            },
+            submittedAtUtc: '',
+            updatedAtUtc: '2026-05-27T00:00:00.000Z',
+          }),
+        }],
+      },
+    }],
+  }))
+
+  const appContextParams = new URLSearchParams({
+    memberId: 'member-1',
+    groupId: 'group-1',
+    eventId,
+    eventData: JSON.stringify({ id: eventId, titleEn: 'Family Camp' }),
+    knownFacts: JSON.stringify({
+      enrollments: [{ applicantName: 'Alice' }],
+    }),
+  })
+  const response = await dispatch(`https://ccalc.live/api/reviews/session/${sessionId}/message?${appContextParams}`, {
+    method: 'POST',
+    body: JSON.stringify({ message: 'Alice led a sharing time and everyone connected well.' }),
+    headers: { 'content-type': 'application/json' },
+    env: { GEMINI_API_KEY: 'test-key', API_PROXY_TARGET: 'https://api.ccalc.live' },
+  })
+
+  assert.equal(response.status, 200)
+  const body = await response.json()
+  assert.equal(body.responseMode, 'result')
+  assert.equal(body.result.eventId, eventId)
+  assert.equal(body.result.groupId, 'group-1')
+  assert.equal(body.result.memberId, 'member-1')
+  assert.equal(body.result.summary.en, 'A warm time of fellowship.')
+  assert.equal(body.context.en, 'The review draft is ready.')
+  const geminiBody = JSON.parse(fetchInits[0].body)
+  const prompt = JSON.parse(geminiBody.contents[0].parts[0].text)
+  assert.equal(prompt.task, 'event-review')
+  assert.equal(prompt.appContext.knownFacts.enrollments[0].applicantName, 'Alice')
+})
+
+test('POST /api/reviews/session/:id/message sends review photo as Gemini inline data', async () => {
+  const eventId = 'spring-retreat'
+  const sessionId = `member-1-event-${eventId}-review`
+  originResponses.push(Response.json({
+    candidates: [{
+      content: {
+        parts: [{
+          text: JSON.stringify({
+            reviewId: '',
+            eventId,
+            groupId: 'group-1',
+            memberId: 'member-1',
+            reflection: {
+              zh: '照片顯示大家一起用餐和分享。',
+              en: 'The photos show everyone eating and sharing together.',
+            },
+            summary: {
+              zh: '用餐與分享。',
+              en: 'Meal and sharing.',
+            },
+            recognizedPeople: [],
+            recognizedActivities: [{ name: { zh: '用餐', en: 'Meal' }, evidence: 'Photo attachment.' }],
+            photoFiles: [],
+            assistantReply: {
+              zh: '我已根據照片更新回顧。',
+              en: 'I updated the review from the photos.',
+            },
+            submittedAtUtc: '',
+            updatedAtUtc: '2026-05-27T00:00:00.000Z',
+          }),
+        }],
+      },
+    }],
+  }))
+
+  const formData = new FormData()
+  formData.set('message', 'Please analyze these event photos.')
+  formData.append('attachments', new File(['fake-image'], 'review.png', { type: 'image/png' }))
+
+  const response = await dispatch(`https://ccalc.live/api/reviews/session/${sessionId}/message?groupId=group-1&memberId=member-1`, {
+    method: 'POST',
+    body: formData,
+    env: { GEMINI_API_KEY: 'test-key', API_PROXY_TARGET: 'https://api.ccalc.live' },
+  })
+
+  assert.equal(response.status, 200)
+  const geminiBody = JSON.parse(fetchInits[0].body)
+  assert.equal(geminiBody.contents[0].parts[1].inline_data.mime_type, 'image/png')
+  const prompt = JSON.parse(geminiBody.contents[0].parts[0].text)
+  assert.equal(prompt.attachments[0].name, 'review.png')
+})
+
 test('POST /api/events/session/:id/close clears event session state', async () => {
   const sessionId = 'member-1-event-close-test'
   originResponses.push(Response.json({

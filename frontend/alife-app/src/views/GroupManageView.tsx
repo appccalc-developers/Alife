@@ -140,10 +140,11 @@ type EventsPanelProps = {
   groupId: string
   events: GroupEventRecord[]
   onOpenEnrollDialog: (eventId: string) => void
+  onOpenReviewDialog: (eventId: string) => void
   onDeleteEvent: (eventId: string) => void
 }
 
-const EventsPanel = ({ groupId, events, onOpenEnrollDialog, onDeleteEvent }: EventsPanelProps) => {
+const EventsPanel = ({ groupId, events, onOpenEnrollDialog, onOpenReviewDialog, onDeleteEvent }: EventsPanelProps) => {
   const navigate = useNavigate()
   const t = useUiText()
   const { language } = useAuthStore()
@@ -169,6 +170,7 @@ const EventsPanel = ({ groupId, events, onOpenEnrollDialog, onDeleteEvent }: Eve
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <AppActionButton size="sm" variant="primary" onClick={() => onOpenEnrollDialog(event.id)}>{t('enroll')}</AppActionButton>
+                  <AppActionButton size="sm" variant="secondary" onClick={() => onOpenReviewDialog(event.id)}>{t('review')}</AppActionButton>
                   <AppActionButton size="sm" variant="secondary" onClick={() => navigate(`/events/${event.id}/edit?groupId=${groupId}`, { state: { event } })}>{t('edit')}</AppActionButton>
                   <AppActionButton size="sm" variant="danger" onClick={() => onDeleteEvent(event.id)}>{t('delete')}</AppActionButton>
                 </div>
@@ -368,6 +370,7 @@ const GroupManageView = () => {
               groupId={groupId}
               events={events}
               onOpenEnrollDialog={(eventId) => navigate(`/groups/${groupId}/events/${eventId}/enroll`)}
+              onOpenReviewDialog={(eventId) => navigate(`/groups/${groupId}/events/${eventId}/review`)}
               onDeleteEvent={(eventId) => {
                 if (!window.confirm(t('deleteEventConfirm'))) return
                 deleteEvent(eventId).catch(() => setStatusMessage(t('deleteEventFailed')))
