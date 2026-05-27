@@ -4,8 +4,6 @@ import IconFeatureGridSection from './IconFeatureGridSection'
 import SermonSpotlightSection from './SermonSpotlightSection'
 import RichTextSection from './RichTextSection'
 import GroupListSectionBlock from './GroupListSectionBlock'
-import PageListSection from './PageListSection'
-import SermonListSection from './SermonListSection'
 import PostFeedSection from './PostFeedSection'
 import SermonSection from './SermonSection'
 import type { SectionComponentProps } from './types'
@@ -22,12 +20,8 @@ const SectionBlock = (props: SectionComponentProps) => {
       return <SermonSpotlightSection {...props} />
     case 'RichText':
       return <RichTextSection {...props} />
-    case 'GroupList':
+    case 'ListView':
       return <GroupListSectionBlock {...props} />
-    case 'PageList':
-      return <PageListSection {...props} />
-    case 'SermonList':
-      return <SermonListSection {...props} />
     case 'PostFeed':
       return <PostFeedSection {...props} />
     case 'Sermon':

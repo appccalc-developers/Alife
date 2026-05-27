@@ -62,9 +62,7 @@ export type SectionType =
   | 'RichText'
   | 'PostFeed'
   | 'Sermon'
-  | 'GroupList'
-  | 'PageList'
-  | 'SermonList'
+  | 'ListView'
 
 export type SectionEditModel = {
   id?: string

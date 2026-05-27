@@ -41,9 +41,21 @@ const sectionTypeMapByNumber: Record<number, SectionEditModel['type']> = {
   1: 'RichText',
   2: 'PostFeed',
   3: 'Sermon',
-  4: 'GroupList',
-  5: 'PageList',
-  6: 'SermonList',
+  4: 'ListView',
+  5: 'ListView',
+  6: 'ListView',
+}
+
+const legacyListSourceType = (value: number | string) => {
+  if (value === 5 || value === 'PageList' || value === 'pageList') {
+    return 'pages'
+  }
+
+  if (value === 6 || value === 'SermonList' || value === 'sermonList') {
+    return 'sermons'
+  }
+
+  return ''
 }
 
 const normalizeSectionType = (value: number | string): SectionEditModel['type'] => {
@@ -57,15 +69,16 @@ const normalizeSectionType = (value: number | string): SectionEditModel['type'] 
     richText: 'RichText',
     postFeed: 'PostFeed',
     sermon: 'Sermon',
-    groupList: 'GroupList',
-    pageList: 'PageList',
-    sermonList: 'SermonList',
+    groupList: 'ListView',
+    listView: 'ListView',
+    pageList: 'ListView',
+    sermonList: 'ListView',
   }
   if (sectionTypeMapByName[normalized]) {
     return sectionTypeMapByName[normalized]
   }
 
-  const values = ['Hero', 'MediaSpotlight', 'IconFeatureGrid', 'SermonSpotlight', 'RichText', 'PostFeed', 'Sermon', 'GroupList', 'PageList', 'SermonList'] as const
+  const values = ['Hero', 'MediaSpotlight', 'IconFeatureGrid', 'SermonSpotlight', 'RichText', 'PostFeed', 'Sermon', 'ListView'] as const
   return values.includes(normalized as (typeof values)[number]) ? (normalized as SectionEditModel['type']) : 'RichText'
 }
 
@@ -73,6 +86,11 @@ export const normalizePageSection = (section: SectionDto): SectionEditModel => {
   const contentJson = parseJsonObject(section.contentJson)
   const styleJson = parseJsonObject(section.styleJson)
   const normalizedType = normalizeSectionType(section.type)
+  const legacySourceType = legacyListSourceType(section.type)
+  if (legacySourceType && !contentJson.sourceType) {
+    contentJson.sourceType = legacySourceType
+    contentJson.sourceScope = typeof contentJson.sourceScope === 'string' ? contentJson.sourceScope : 'global'
+  }
   const layout = typeof styleJson.layout === 'string' ? styleJson.layout : ''
 
   const type =
