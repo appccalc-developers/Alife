@@ -2,6 +2,8 @@ import planner from './eventplanner'
 import { EventPlanningSession } from './eventplanner'
 import enrollment from './enrollment'
 import { EnrollmentSession } from './enrollment'
+import review from './review'
+import { ReviewSession } from './review'
 import proxy from './proxy'
 
 export type Env = {
@@ -16,6 +18,8 @@ export type Env = {
   EVENT_SESSIONS?: DurableObjectNamespace
   /** Durable Object namespace for live enrollment sessions. */
   ENROLLMENT_SESSIONS?: DurableObjectNamespace
+  /** Durable Object namespace for live event review sessions. */
+  REVIEW_SESSIONS?: DurableObjectNamespace
 }
 
 export type ExecutionContext = {
@@ -41,6 +45,7 @@ export type DurableObjectStub = {
 
 export { EventPlanningSession }
 export { EnrollmentSession }
+export { ReviewSession }
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -57,6 +62,10 @@ export default {
 
       if (url.pathname.startsWith('/api/enrollments/session/')) {
         return await enrollment.fetch(request, env)
+      }
+
+      if (url.pathname.startsWith('/api/reviews/session/')) {
+        return await review.fetch(request, env)
       }
 
       return await proxy.fetch(request, env, ctx)

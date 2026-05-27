@@ -16,6 +16,7 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 	public DbSet<Sermon> Sermons => Set<Sermon>();
 	public DbSet<GroupEvent> GroupEvents => Set<GroupEvent>();
 	public DbSet<EventEnrollment> EventEnrollments => Set<EventEnrollment>();
+	public DbSet<EventReview> EventReviews => Set<EventReview>();
 
 	protected override void OnModelCreating(ModelBuilder modelBuilder)
 	{
@@ -141,6 +142,30 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 		{
 			cfg.HasKey(x => x.Id);
 			cfg.Property(x => x.EnrollmentJson).IsRequired();
+
+			cfg.HasOne(x => x.Group)
+				.WithMany()
+				.HasForeignKey(x => x.GroupId)
+				.OnDelete(DeleteBehavior.Restrict);
+
+			cfg.HasOne(x => x.Event)
+				.WithMany()
+				.HasForeignKey(x => x.EventId)
+				.OnDelete(DeleteBehavior.Restrict);
+
+			cfg.HasOne(x => x.Member)
+				.WithMany()
+				.HasForeignKey(x => x.MemberId)
+				.OnDelete(DeleteBehavior.Restrict);
+
+			cfg.HasIndex(x => new { x.EventId, x.MemberId }).IsUnique();
+			cfg.HasIndex(x => new { x.GroupId, x.UpdatedUtc });
+		});
+
+		modelBuilder.Entity<EventReview>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.ReviewJson).IsRequired();
 
 			cfg.HasOne(x => x.Group)
 				.WithMany()

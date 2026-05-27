@@ -27,6 +27,10 @@
 			{
 				"name": "ENROLLMENT_SESSIONS",
 				"class_name": "EnrollmentSession"
+			},
+			{
+				"name": "REVIEW_SESSIONS",
+				"class_name": "ReviewSession"
 			}
 		]
 	},
@@ -41,6 +45,12 @@
 			"tag": "v2_enrollment_sessions",
 			"new_sqlite_classes": [
 				"EnrollmentSession"
+			]
+		},
+		{
+			"tag": "v3_review_sessions",
+			"new_sqlite_classes": [
+				"ReviewSession"
 			]
 		}
 	],

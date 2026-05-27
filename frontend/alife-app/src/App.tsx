@@ -18,6 +18,7 @@ import ProfileView from './views/ProfileView'
 import SermonsView from './views/SermonsView'
 import EventCreatorView from './views/EventCreatorView'
 import EventEnrollmentView from './views/EventEnrollmentView'
+import EventReviewView from './views/EventReviewView'
 import GroupManageView from './views/GroupManageView'
 import InviteMembersView from './views/InviteMembersView'
 import { localizeText } from './utils/localizedText'
@@ -419,6 +420,7 @@ const App = () => {
   const groupManageMatch = location.pathname.match(/^\/groups\/([^/]+)\/manage$/)
   const groupCreatePageMatch = location.pathname.match(/^\/groups\/([^/]+)\/pages\/new$/)
   const groupEventEnrollmentMatch = location.pathname.match(/^\/groups\/([^/]+)\/events\/[^/]+\/enroll$/)
+  const groupEventReviewMatch = location.pathname.match(/^\/groups\/([^/]+)\/events\/[^/]+\/review$/)
   const eventCreateMatch = location.pathname.match(/^\/events\/new$/)
   const eventEditMatch = location.pathname.match(/^\/events\/[^/]+\/edit$/)
   const pageEditMatch = location.pathname.match(/^\/pages\/([^/]+)\/edit$/)
@@ -426,13 +428,14 @@ const App = () => {
   const isGroupScreen = Boolean(groupScreenMatch)
   const isManagementScreen = Boolean(groupManageMatch)
   const isPageEditorScreen = Boolean(groupCreatePageMatch || pageEditMatch)
-  const isEventScreen = Boolean(eventCreateMatch || eventEditMatch || groupEventEnrollmentMatch)
+  const isEventScreen = Boolean(eventCreateMatch || eventEditMatch || groupEventEnrollmentMatch || groupEventReviewMatch)
   const contextualGroupId =
     groupScreenMatch?.[1] ||
     groupJoinMatch?.[1] ||
     groupManageMatch?.[1] ||
     groupCreatePageMatch?.[1] ||
     groupEventEnrollmentMatch?.[1] ||
+    groupEventReviewMatch?.[1] ||
     (eventCreateMatch || eventEditMatch ? searchParams.get('groupId') || CurrentGroup?.id || '' : '') ||
     (pageEditMatch ? searchParams.get('groupId') || CurrentGroup?.id || '' : '')
   const currentGroupMembership = contextualGroupId
@@ -679,6 +682,7 @@ const App = () => {
             <Route path="/events/new" element={<EventCreatorView />} />
             <Route path="/events/:eventId/edit" element={<EventCreatorView />} />
             <Route path="/groups/:groupId/events/:eventId/enroll" element={<EventEnrollmentView />} />
+            <Route path="/groups/:groupId/events/:eventId/review" element={<EventReviewView />} />
             <Route path="/groups/:groupId/pages/new" element={<PageEditorView />} />
             <Route path="/pages/:pageId/edit" element={<PageEditorView />} />
             <Route path="/pages/preview-draft" element={<PagePreviewDraftView />} />

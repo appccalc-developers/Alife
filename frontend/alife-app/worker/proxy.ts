@@ -337,6 +337,11 @@ async function getInvalidationPaths(request: Request, response: Response) {
     paths.add(path)
   }
 
+  const reviewMatch = path.match(/^\/api\/events\/([^/]+)\/reviews(?:\/[^/]+)?$/)
+  if (reviewMatch) {
+    paths.add(path)
+  }
+
   if (path === '/api/admin/sermons/sync') {
     paths.add('/api/sermons')
   }
