@@ -100,6 +100,8 @@ export function membersConfigToListViewMetadata(config: SubgroupPageMembersConfi
     sourceType: 'members' as const,
     sourceScope: 'group' as const,
     limit: config.limit,
+    sortBy: 'source' as const,
+    sortDirection: 'asc' as const,
     id: config.id,
   }
 }

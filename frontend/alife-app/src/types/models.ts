@@ -7,10 +7,15 @@ export type LocalizedText = Record<string, string>
 
 export type ListSourceType = 'sermons' | 'pages' | 'subgroups' | 'events' | 'members'
 export type ListSourceScope = 'group' | 'global'
+export type ListSortBy = 'source' | 'date' | 'title'
+export type ListSortDirection = 'asc' | 'desc'
 export interface ListViewMetadata {
   sourceType: ListSourceType
   sourceScope: ListSourceScope
   limit: number
+  sortBy: ListSortBy
+  sortDirection: ListSortDirection
+  filterText?: string
   /** 可选的资源 ID，如 subgroupId、eventId 等，用于精确查询某个资源下的数据 */
   id?: string
 }

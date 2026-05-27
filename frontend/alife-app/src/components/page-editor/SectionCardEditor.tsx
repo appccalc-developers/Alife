@@ -89,6 +89,9 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
           sourceType: (section.contentJson.sourceType as string) || 'sermons',
           sourceScope: (section.contentJson.sourceScope as string) || 'global',
           limit: typeof section.contentJson.limit === 'number' ? section.contentJson.limit : 10,
+          sortBy: (section.contentJson.sortBy as string) || 'title',
+          sortDirection: (section.contentJson.sortDirection as string) || 'desc',
+          filterText: (section.contentJson.filterText as string) || '',
         },
         styleJson: {},
       })

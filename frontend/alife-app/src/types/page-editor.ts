@@ -5,6 +5,8 @@ export type {
   SectionType,
   ListSourceType,
   ListSourceScope,
+  ListSortBy,
+  ListSortDirection,
   ListViewMetadata,
 } from './models'
 
