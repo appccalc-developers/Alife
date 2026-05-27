@@ -728,10 +728,11 @@ test('POST /api/enrollments/session/:id/commit uploads files and commits backend
   assert.equal(fetchCalls.length, 3)
   assert.equal(new URL(String(fetchCalls[0])).hostname, 'generativelanguage.googleapis.com')
   assert.equal(String(fetchCalls[1]), `https://images.ccalc.live/api/images/enrollments/${eventId}`)
-  assert.equal(String(fetchCalls[2]), `https://api.ccalc.live/api/group/${groupId}/enroll`)
+  assert.equal(String(fetchCalls[2]), `https://api.ccalc.live/api/events/${eventId}/enrollments`)
   assert.equal(fetchInits[2].method, 'POST')
   assert.deepEqual(JSON.parse(fetchInits[2].body), {
     eventId,
+    groupId,
     applicantName: 'Alice',
     consent: true,
     paymentFiles: [{

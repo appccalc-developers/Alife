@@ -202,8 +202,9 @@ export class EnrollmentSession extends AiChatSession<EnrollmentDto, Multilingual
       return Response.json({ message: error instanceof Error ? error.message : 'Payment file upload failed.' }, { status: 502 })
     }
 
-    const backendResponse = await postEnrollmentToBackend(request, this.env, groupId, {
+    const backendResponse = await postEnrollmentToBackend(request, this.env, draft.eventId, {
       eventId: draft.eventId,
+      groupId,
       applicantName: draft.applicantName,
       ...(draft.memberId ? { memberId: draft.memberId } : {}),
       consent: true,
@@ -399,9 +400,9 @@ function getForwardHeaders(request: Request) {
   return headers
 }
 
-function postEnrollmentToBackend(request: Request, env: Env, groupId: string, enrollmentJson: unknown) {
+function postEnrollmentToBackend(request: Request, env: Env, eventId: string, enrollmentJson: unknown) {
   const base = (env.API_PROXY_TARGET || DEFAULT_API_PROXY_TARGET).replace(/\/$/, '')
-  return fetch(`${base}/api/group/${encodeURIComponent(groupId)}/enroll`, {
+  return fetch(`${base}/api/events/${encodeURIComponent(eventId)}/enrollments`, {
     method: 'POST',
     headers: getForwardHeaders(request),
     body: JSON.stringify(enrollmentJson),

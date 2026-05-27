@@ -332,9 +332,9 @@ async function getInvalidationPaths(request: Request, response: Response) {
     }
   }
 
-  const enrollmentMatch = path.match(/^\/api\/group\/([^/]+)\/enroll$/)
+  const enrollmentMatch = path.match(/^\/api\/events\/([^/]+)\/enrollments(?:\/[^/]+)?$/)
   if (enrollmentMatch) {
-    paths.add(`/api/groups/${enrollmentMatch[1]}/events`)
+    paths.add(path)
   }
 
   if (path === '/api/admin/sermons/sync') {
