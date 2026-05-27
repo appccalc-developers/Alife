@@ -310,6 +310,7 @@ const text = {
   confirmJoinGroup: { en: 'Confirm and join', zh: '确认加入' },
   submitting: { en: 'Submitting...', zh: '正在提交...' },
   back: { en: 'Back', zh: '返回' },
+  backToViews: { en: 'Back to views', zh: '返回视图' },
   joinRequestSubmitted: {
     en: 'Request submitted. Please wait for leader approval.',
     zh: '申请已提交，请等待组长审批。',
