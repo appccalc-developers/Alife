@@ -20,6 +20,18 @@ const uploadPaymentFile = async (file: File): Promise<EnrollmentPaymentFile> => 
   }
 }
 
+const closeEnrollmentSession = async (sessionId?: string) => {
+  if (!sessionId) {
+    return
+  }
+
+  try {
+    await aiSessionService.close(sessionId)
+  } catch (error) {
+    console.warn('Failed to close enrollment session after API success.', error)
+  }
+}
+
 export const enrollmentSessionService = {
   ...aiSessionService,
 
@@ -31,6 +43,7 @@ export const enrollmentSessionService = {
   createEnrollment: async (payload: {
     eventId: string
     groupId: string
+    sessionId?: string
     draft: EnrollmentDraft
     paymentFiles: File[]
   }): Promise<EnrollmentCommitResponse> => {
@@ -49,6 +62,7 @@ export const enrollmentSessionService = {
       `/api/events/${payload.eventId}/enrollments`,
       enrollmentPayload,
     )
+    await closeEnrollmentSession(payload.sessionId)
 
     return {
       status: 'completed',

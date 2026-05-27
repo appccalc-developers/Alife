@@ -183,6 +183,7 @@ const EnrollmentChatDialog = ({
       const response = await enrollmentSessionService.createEnrollment({
         eventId: event.id,
         groupId,
+        sessionId,
         draft,
         paymentFiles,
       })

@@ -159,6 +159,7 @@ export default {
     const sessionId = getSessionId(request)
     const targetPath = resolveAiSessionObjectPath(url, request, {
       messageAliasPaths: ['/api/events/extract'],
+      extraRoutes: ['/close'],
     })
 
     if (env.EVENT_SESSIONS) {

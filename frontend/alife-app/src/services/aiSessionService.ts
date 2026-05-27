@@ -39,6 +39,10 @@ export const createAiSessionService = <TDraft, TContext = unknown>(basePath: str
       return data
     },
 
+    close: async (sessionId: string): Promise<void> => {
+      await sameOriginHttp.post(`${normalizedBasePath}/${encodeURIComponent(sessionId)}/close`)
+    },
+
     createStream: (sessionId: string, appContext?: AiSessionAppContext): EventSource =>
       new EventSource(withAppContextSearch(`${normalizedBasePath}/${encodeURIComponent(sessionId)}/stream`, appContext)),
   }

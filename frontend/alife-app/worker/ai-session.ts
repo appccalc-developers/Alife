@@ -59,6 +59,7 @@ export type DurableObjectStateLike = {
   storage: {
     get<T>(key: string): Promise<T | undefined>
     put<T>(key: string, value: T): Promise<void>
+    delete?(key: string): Promise<boolean>
   }
 }
 
@@ -140,6 +141,10 @@ export class AiChatSession<TDraft, TContext = unknown> {
 
     if (url.pathname.endsWith('/start') && request.method === 'POST') {
       return this.handleStart(request, sessionIdHint)
+    }
+
+    if (url.pathname.endsWith('/close') && (request.method === 'POST' || request.method === 'DELETE')) {
+      return this.handleClose()
     }
 
     return Response.json({ message: this.config.routeNotFoundMessage }, { status: 404 })
@@ -289,6 +294,31 @@ export class AiChatSession<TDraft, TContext = unknown> {
         connection: 'keep-alive',
       },
     })
+  }
+
+  private async handleClose() {
+    const closedAt = new Date().toISOString()
+    this.statePromise = Promise.resolve(createEmptySessionState<TDraft, TContext>())
+
+    if (this.durableState.storage.delete) {
+      await this.durableState.storage.delete(this.config.storageKey)
+    } else {
+      await this.durableState.storage.put(this.config.storageKey, createEmptySessionState<TDraft, TContext>())
+    }
+
+    this.broadcast({ type: 'closed', closedAt })
+
+    for (const client of Array.from(this.clients)) {
+      try {
+        client.close()
+      } catch {
+        // Ignore streams that were already closed by the client.
+      } finally {
+        this.clients.delete(client)
+      }
+    }
+
+    return Response.json({ status: 'closed', closedAt })
   }
 
   private async callGemini(
@@ -550,6 +580,9 @@ export function createMemoryDurableObjectState(): DurableObjectStateLike {
       },
       async put<T>(key: string, value: T) {
         storage.set(key, value)
+      },
+      async delete(key: string) {
+        return storage.delete(key)
       },
     },
   }

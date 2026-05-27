@@ -13,6 +13,18 @@ const invalidateGroupEventsCache = async (groupId: string) => {
   await queryClient.invalidateQueries({ queryKey })
 }
 
+const closeEventSession = async (sessionId?: string) => {
+  if (!sessionId) {
+    return
+  }
+
+  try {
+    await eventSessionService.close(sessionId)
+  } catch (error) {
+    console.warn('Failed to close event planning session after API success.', error)
+  }
+}
+
 export const eventService = {
   extractFromChat: async (
     message: string,
@@ -44,12 +56,16 @@ export const eventService = {
   createSessionStream: (sessionId: string): EventSource =>
     eventSessionService.createStream(sessionId),
 
+  closeSession: async (sessionId: string): Promise<void> => {
+    await eventSessionService.close(sessionId)
+  },
+
   getGroupEvents: async (groupId: string): Promise<GroupEventRecord[]> => {
     const { data } = await http.get<GroupEventRecord[]>(`/api/groups/${groupId}/events`)
     return data
   },
 
-  createGroupEvent: async (groupId: string, eventDto: EventDto): Promise<GroupEventRecord> => {
+  createGroupEvent: async (groupId: string, eventDto: EventDto, sessionId?: string): Promise<GroupEventRecord> => {
     const titleEn = eventDto.title.en || eventDto.title.zh || ''
     const titleZh = eventDto.title.zh || eventDto.title.en || ''
     const { data } = await http.post<GroupEventRecord>(`/api/groups/${groupId}/events`, {
@@ -59,11 +75,15 @@ export const eventService = {
       endDate: eventDto.endDate,
       eventDataJson: JSON.stringify(eventDto),
     })
-    await invalidateGroupEventsCache(groupId)
+    try {
+      await invalidateGroupEventsCache(groupId)
+    } finally {
+      await closeEventSession(sessionId)
+    }
     return data
   },
 
-  updateGroupEvent: async (eventId: string, eventDto: EventDto): Promise<GroupEventRecord> => {
+  updateGroupEvent: async (eventId: string, eventDto: EventDto, sessionId?: string): Promise<GroupEventRecord> => {
     const titleEn = eventDto.title.en || eventDto.title.zh || ''
     const titleZh = eventDto.title.zh || eventDto.title.en || ''
     const { data } = await http.put<GroupEventRecord>(`/api/events/${eventId}`, {
@@ -73,7 +93,11 @@ export const eventService = {
       endDate: eventDto.endDate,
       eventDataJson: JSON.stringify(eventDto),
     })
-    await invalidateGroupEventsCache(data.groupId)
+    try {
+      await invalidateGroupEventsCache(data.groupId)
+    } finally {
+      await closeEventSession(sessionId)
+    }
     return data
   },
 
