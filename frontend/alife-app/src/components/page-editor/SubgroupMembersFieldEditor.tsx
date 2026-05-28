@@ -57,7 +57,7 @@ export const SubgroupMembersFieldEditor: React.FC<SubgroupMembersFieldEditorProp
       <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{t('memberListConfig')}</p>
 
       <label className="block space-y-1">
-        <span className="text-xs font-medium text-slate-700">Subgroup ID</span>
+        <span className="text-xs font-medium text-slate-700">{t('subgroupId')}</span>
         <input
           type="text"
           value={subgroupId}

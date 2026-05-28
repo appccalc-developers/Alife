@@ -397,6 +397,7 @@ const text = {
   previewNoSections: { en: 'No sections yet', zh: '尚无内容区块' },
   memberListConfig: { en: 'Member list config', zh: '成员列表配置' },
   subgroupIdInputPlaceholder: { en: 'Enter subgroup ID', zh: '请输入子群组 ID' },
+  subgroupId: { en: 'Subgroup ID', zh: '子群组 ID' },
   displayCount: { en: 'Display count', zh: '显示数量' },
   memberListConfigHint: {
     en: 'Only required fields are saved; live data is fetched from the API on preview.',
