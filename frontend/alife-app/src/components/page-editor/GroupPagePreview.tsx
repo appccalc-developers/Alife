@@ -1,3 +1,4 @@
+import { useUiText } from '../../i18n/uiText'
 import { readText } from '../../utils/pageSectionContent'
 import { GroupListSection } from '../sections/GroupListSection'
 import type { SectionEditModel } from '../../types/page-editor'
@@ -25,6 +26,7 @@ const GroupPagePreview = ({
   compact,
   previewGroupId,
 }: Props) => {
+  const t = useUiText()
   const toYouTubeEmbedUrl = (rawUrl: string) => {
     const value = rawUrl.trim()
     if (!value) {
@@ -54,8 +56,8 @@ const GroupPagePreview = ({
   return (
     <article className="space-y-4 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
       <header className={`space-y-2 border-b border-slate-200 bg-white ${compact ? 'p-3 pb-2' : 'p-5 pb-3'}`}>
-        <h1 className={h1}>{title.trim() || '（尚未填写标题）'}</h1>
-        <p className={desc}>{description.trim() || '（尚未填写页面摘要）'}</p>
+        <h1 className={h1}>{title.trim() || t('previewNoTitle')}</h1>
+        <p className={desc}>{description.trim() || t('previewNoSummary')}</p>
         <div />
       </header>
 
@@ -111,7 +113,7 @@ const GroupPagePreview = ({
                           />
                         ) : (
                           <div className={`flex aspect-video items-center justify-center text-slate-500 ${compact ? 'text-[11px]' : 'text-sm'}`}>
-                            YouTube URL 未填写
+                            {t('previewYoutubeNotSet')}
                           </div>
                         )}
                       </div>
@@ -249,10 +251,10 @@ const GroupPagePreview = ({
                   <div className={`grid gap-3 ${compact ? 'p-3' : 'p-4'} md:grid-cols-2 md:items-center`}>
                     <div className={`order-2 ${imagePosition === 'left' ? 'md:order-2' : ''}`}>
                       <h2 className={compact ? 'text-lg font-semibold text-slate-800' : 'text-3xl font-semibold text-slate-800'}>
-                        {headline || '（主标题）'}
+                        {headline || t('previewNoHeadline')}
                       </h2>
                       <p className={`mt-1 whitespace-pre-wrap text-slate-700 ${compact ? 'text-xs' : 'text-sm'}`}>
-                        {centerText || sub || '（尚无正文）'}
+                        {centerText || sub || t('previewNoBody')}
                       </p>
                       {linkUrl ? (
                         <a
@@ -278,7 +280,7 @@ const GroupPagePreview = ({
                             compact ? 'h-28 text-[11px]' : 'h-64 text-sm'
                           }`}
                         >
-                          （图片待上传）
+                          {t('previewImagePending')}
                         </div>
                       )}
                     </div>
@@ -331,9 +333,9 @@ const GroupPagePreview = ({
                   ) : (
                     <div className="w-full text-left">
                       <h2 className={compact ? 'text-base font-bold' : 'text-2xl font-bold'}>
-                        {headline || '（主标题）'}
+                        {headline || t('previewNoHeadline')}
                       </h2>
-                      <p className={`mt-1 text-slate-100 ${compact ? 'text-[11px]' : 'text-sm'}`}>{sub || '（副标题）'}</p>
+                      <p className={`mt-1 text-slate-100 ${compact ? 'text-[11px]' : 'text-sm'}`}>{sub || t('previewNoSubtitle')}</p>
                       {linkUrl ? (
                         <a
                           href={linkUrl}
@@ -398,7 +400,7 @@ const GroupPagePreview = ({
                         {readText(section.contentJson, 'subtitle') || 'God loves us all'}
                       </p>
                       <p className={`${compact ? 'mt-4 text-lg' : 'mt-6 text-3xl'} whitespace-pre-wrap italic leading-relaxed text-slate-100`}>
-                        {body || '（尚无正文）'}
+                        {body || t('previewNoBody')}
                       </p>
                       <p className={compact ? 'mt-3 text-base font-medium text-yellow-300' : 'mt-4 text-2xl font-medium text-yellow-300'}>
                         {readText(section.contentJson, 'quoteAuthor')}
@@ -424,7 +426,7 @@ const GroupPagePreview = ({
                       <h3 className={`font-semibold text-slate-900 ${compact ? 'text-sm' : 'text-lg'}`}>{rtTitle}</h3>
                     ) : null}
                     <p className={`whitespace-pre-wrap text-slate-700 ${compact ? 'text-xs' : 'text-sm'}`}>
-                      {body || '（尚无正文）'}
+                      {body || t('previewNoBody')}
                     </p>
                     {linkUrl ? (
                       <a
@@ -451,7 +453,7 @@ const GroupPagePreview = ({
                 }`}
               >
                 <p className={`whitespace-pre-wrap ${compact ? 'text-xs' : 'text-sm'}`}>
-                  {body || '（尚无正文）'}
+                  {body || t('previewNoBody')}
                 </p>
               </section>
             )
@@ -471,14 +473,14 @@ const GroupPagePreview = ({
 
           return (
             <section key={key} className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-2 text-[11px] text-slate-600">
-              {section.type || '（未指定类型）'} 区块
+              {t('previewSectionLabel', { type: section.type || t('previewUnknownType') })}
             </section>
           )
         })}
 
         {sections.length === 0 ? (
           <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3 text-center text-xs text-slate-500">
-            尚无内容区块
+            {t('previewNoSections')}
           </div>
         ) : null}
       </div>
