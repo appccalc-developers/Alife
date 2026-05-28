@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { translateUi, type UiTextKey } from '../../i18n/uiText'
 import type { GroupEventRecord, MultilingualString } from '../../types/event'
 import type { EnrollmentDraft } from '../../types/enrollment'
 import type { AiSessionAppContext } from '../../types/aiSession'
@@ -24,9 +25,7 @@ type Props = {
 
 const initialMessage = (language: string): ChatMessage => ({
   role: 'assistant',
-  text: language === 'zh'
-    ? '你好！請用中文或英文告訴我你的報名姓名，以及你是否同意提交報名與付款憑證。我會幫你整理報名草稿。'
-    : 'Hi! Tell me your enrollment name and whether you consent to submit your enrollment plus payment proof. I’ll build the draft for you.',
+  text: translateUi(language, 'enrollmentAssistantIntro'),
 })
 
 const createEnrollmentSessionId = (memberId: string | undefined, eventId: string) =>
@@ -60,30 +59,24 @@ const getLocalizedText = (value: MultilingualString | null | undefined, language
 
 const getFallbackReply = (draft: EnrollmentDraft | null, language: string) => {
   if (!draft?.applicantName.trim()) {
-    return language === 'zh'
-      ? '我還需要你的報名姓名。'
-      : 'I still need the name for this enrollment.'
+    return translateUi(language, 'enrollmentNeedName')
   }
 
   if (draft.consentStatus !== 'granted') {
-    return language === 'zh'
-      ? '我已記下姓名，請明確告訴我你是否同意提交報名資料。'
-      : 'I captured the name. Please clearly confirm whether you consent to submit the enrollment.'
+    return translateUi(language, 'enrollmentNeedConsent')
   }
 
-  return language === 'zh'
-    ? '很好！現在請附上付款憑證，然後點選「Create Enrollment」。'
-    : 'Great! Please attach the payment proof, then choose “Create Enrollment”.'
+  return translateUi(language, 'enrollmentReadyToSubmit')
 }
 
 const getConsentLabel = (draft: EnrollmentDraft | null, language: string) => {
   switch (draft?.consentStatus) {
     case 'granted':
-      return language === 'zh' ? '已同意' : 'Granted'
+      return translateUi(language, 'consentGranted')
     case 'declined':
-      return language === 'zh' ? '已拒絕' : 'Declined'
+      return translateUi(language, 'consentDeclined')
     default:
-      return language === 'zh' ? '待確認' : 'Pending'
+      return translateUi(language, 'consentPending')
   }
 }
 
@@ -97,6 +90,7 @@ const EnrollmentChatDialog = ({
   onClose,
   onSuccess,
 }: Props) => {
+  const t = (key: UiTextKey) => translateUi(language, key)
   const isDialog = variant === 'dialog'
   const sessionId = useMemo(
     () => createEnrollmentSessionId(memberId, event.id),
@@ -207,10 +201,10 @@ const EnrollmentChatDialog = ({
         <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-emerald-700">
-              {language === 'zh' ? 'AI 報名助理' : 'AI Enrollment Assistant'}
+              {t('enrollmentAiAssistantTitle')}
             </p>
             <h2 className="mt-1 text-xl font-semibold text-slate-950">
-              {event.titleEn || event.titleZh || (language === 'zh' ? '活動報名' : 'Event enrollment')}
+              {event.titleEn || event.titleZh || t('eventEnrollment')}
             </h2>
           </div>
           {isDialog ? (
@@ -246,7 +240,7 @@ const EnrollmentChatDialog = ({
               ))}
               {loading && (
                 <div className="mr-auto max-w-[85%] rounded-2xl bg-white px-4 py-2.5 text-sm text-slate-400 shadow-sm">
-                  <span className="animate-pulse">{language === 'zh' ? '正在整理報名內容…' : 'Preparing your enrollment draft…'}</span>
+                  <span className="animate-pulse">{t('preparingEnrollmentDraft')}</span>
                 </div>
               )}
               <div ref={bottomRef} />
@@ -265,9 +259,7 @@ const EnrollmentChatDialog = ({
                     }
                   }}
                   disabled={loading}
-                  placeholder={language === 'zh'
-                    ? '輸入報名資訊…（Enter 送出，Shift+Enter 換行）'
-                    : 'Enter enrollment details… (Enter to send, Shift+Enter for new line)'}
+                  placeholder={t('enrollmentChatPlaceholder')}
                   className="min-h-24 flex-1 resize-none rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100 disabled:opacity-60"
                 />
                 <button
@@ -275,7 +267,7 @@ const EnrollmentChatDialog = ({
                   onClick={() => handleSend().catch(() => undefined)}
                   disabled={loading || !input.trim()}
                   className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-700 text-white shadow-sm transition hover:bg-emerald-800 disabled:opacity-50"
-                  aria-label={language === 'zh' ? '送出' : 'Send'}
+                  aria-label={t('send')}
                 >
                   <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M22 2L11 13" />
@@ -293,39 +285,39 @@ const EnrollmentChatDialog = ({
 
           <aside className="space-y-4 overflow-y-auto bg-white px-4 py-4">
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-              <span className="font-semibold">{language === 'zh' ? 'AI 回覆：' : 'AI reply: '}</span>
+              <span className="font-semibold">{t('aiReply')}</span>
               {assistantReply}
             </div>
 
             <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <div className="flex items-center justify-between gap-3">
                 <h3 className="text-sm font-semibold text-slate-900">
-                  {language === 'zh' ? '報名草稿' : 'Enrollment Draft'}
+                  {t('enrollmentDraft')}
                 </h3>
                 <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-slate-500">
-                  {language === 'zh' ? '即時更新' : 'Live'}
+                  {t('live')}
                 </span>
               </div>
 
               <div className="space-y-2 text-sm text-slate-700">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">
-                    {language === 'zh' ? '姓名' : 'Name'}
+                    {t('name')}
                   </p>
                   <p>{draft?.applicantName || '—'}</p>
                 </div>
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">
-                    {language === 'zh' ? '同意狀態' : 'Consent'}
+                    {t('consent')}
                   </p>
                   <p>{getConsentLabel(draft, language)}</p>
                 </div>
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">
-                    {language === 'zh' ? '付款憑證' : 'Payment Files'}
+                    {t('paymentFiles')}
                   </p>
                   {paymentFiles.length === 0 ? (
-                    <p className="text-slate-500">{language === 'zh' ? '尚未附加檔案' : 'No files attached yet.'}</p>
+                    <p className="text-slate-500">{t('noFilesAttached')}</p>
                   ) : (
                     <ul className="space-y-1 text-xs text-slate-600">
                       {paymentFiles.map((file) => (
@@ -345,7 +337,7 @@ const EnrollmentChatDialog = ({
                 className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
                 onClick={() => fileInputRef.current?.click()}
               >
-                {language === 'zh' ? '附加付款憑證' : 'Attach Payment Files'}
+                {t('attachPaymentFiles')}
               </button>
               <input
                 ref={fileInputRef}
@@ -365,14 +357,10 @@ const EnrollmentChatDialog = ({
                 disabled={!canCommit}
                 className="inline-flex w-full items-center justify-center rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {commitStatus === 'saving'
-                  ? (language === 'zh' ? '提交中…' : 'Submitting…')
-                  : 'Create Enrollment'}
+                {commitStatus === 'saving' ? t('submitting') : t('createEnrollment')}
               </button>
               <p className="text-xs leading-5 text-slate-500">
-                {language === 'zh'
-                  ? '需要已填姓名、同意狀態為「已同意」，並附上付款憑證後才能建立報名。'
-                  : 'Creating the enrollment requires a captured name, granted consent, and at least one payment file.'}
+                {t('enrollmentRequirementsHint')}
               </p>
             </div>
           </aside>

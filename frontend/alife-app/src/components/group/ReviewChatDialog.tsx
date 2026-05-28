@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { translateUi, type UiTextKey } from '../../i18n/uiText'
 import type { AiSessionAppContext } from '../../types/aiSession'
 import type { EventEnrollmentRecord } from '../../types/enrollment'
 import type { GroupEventRecord, MultilingualString } from '../../types/event'
@@ -27,9 +28,7 @@ const createReviewSessionId = (memberId: string | undefined, eventId: string) =>
 
 const initialMessage = (language: string): ChatMessage => ({
   role: 'assistant',
-  text: language === 'zh'
-    ? '请上传活动照片，或告诉我活动中的人物、活动和感受。我会帮你整理成活动回顾。'
-    : 'Upload event photos or tell me about the people, activities, and reflections. I will shape them into an event review.',
+  text: translateUi(language, 'reviewAssistantIntro'),
 })
 
 const buildEventData = (event: GroupEventRecord) => {
@@ -60,14 +59,10 @@ const localized = (value: MultilingualString | null | undefined, language: strin
 
 const fallbackReply = (draft: ReviewDraft | null, language: string) => {
   if (!draft?.reflection?.en?.trim() && !draft?.reflection?.zh?.trim()) {
-    return language === 'zh'
-      ? '我还需要照片、活动记忆，或你想记录的重点。'
-      : 'I still need photos, memories, or the key points you want recorded.'
+    return translateUi(language, 'reviewNeedMoreInfo')
   }
 
-  return language === 'zh'
-    ? '回顾草稿已准备好。你可以继续修正人名和活动，或提交保存。'
-    : 'The review draft is ready. You can keep correcting names and activities, or submit it.'
+  return translateUi(language, 'reviewDraftReady')
 }
 
 const ReviewChatDialog = ({
@@ -106,6 +101,7 @@ const ReviewChatDialog = ({
       }),
     },
   }), [enrollments, event, existingDraft, existingReview?.id, groupId, language, memberId])
+  const t = (key: UiTextKey) => translateUi(language, key)
   const { state, setState, loading, error, clearError, sendMessage } = useAiSession<ReviewDraft, MultilingualString | null>(
     sessionId,
     '/api/reviews/session',
@@ -167,7 +163,7 @@ const ReviewChatDialog = ({
     setCommitStatus('idle')
     setCommitError('')
     clearError()
-    const userText = message || (language === 'zh' ? '请分析这些活动照片并更新回顾。' : 'Please analyze these event photos and update the review.')
+    const userText = message || t('analyzePhotosPrompt')
     setMessages((current) => [...current, { role: 'user', text: userText }])
 
     try {
@@ -218,10 +214,10 @@ const ReviewChatDialog = ({
       <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest text-emerald-700">
-            {language === 'zh' ? 'AI 活动回顾助手' : 'AI Event Review Assistant'}
+            {t('reviewAiAssistantTitle')}
           </p>
           <h2 className="mt-1 text-xl font-semibold text-slate-950">
-            {event.titleEn || event.titleZh || (language === 'zh' ? '活动回顾' : 'Event review')}
+            {event.titleEn || event.titleZh || t('eventReview')}
           </h2>
         </div>
       </div>
@@ -244,7 +240,7 @@ const ReviewChatDialog = ({
             ))}
             {loading ? (
               <div className="mr-auto max-w-[85%] rounded-2xl bg-white px-4 py-2.5 text-sm text-slate-400 shadow-sm">
-                <span className="animate-pulse">{language === 'zh' ? '正在整理活动回顾...' : 'Preparing your review draft...'}</span>
+                <span className="animate-pulse">{t('preparingReviewDraft')}</span>
               </div>
             ) : null}
             <div ref={bottomRef} />
@@ -263,9 +259,7 @@ const ReviewChatDialog = ({
                   }
                 }}
                 disabled={loading}
-                placeholder={language === 'zh'
-                  ? '输入回顾、人物修正或活动细节...'
-                  : 'Enter reflections, name corrections, or activity details...'}
+                placeholder={t('reviewChatPlaceholder')}
                 className="min-h-24 flex-1 resize-none rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100 disabled:opacity-60"
               />
               <button
@@ -273,7 +267,7 @@ const ReviewChatDialog = ({
                 onClick={() => handleSend(false).catch(() => undefined)}
                 disabled={loading || !input.trim()}
                 className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-700 text-white shadow-sm transition hover:bg-emerald-800 disabled:opacity-50"
-                aria-label={language === 'zh' ? '发送' : 'Send'}
+                aria-label={t('send')}
               >
                 <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M22 2L11 13" />
@@ -291,35 +285,35 @@ const ReviewChatDialog = ({
 
         <aside className="space-y-4 overflow-y-auto bg-white px-4 py-4">
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-            <span className="font-semibold">{language === 'zh' ? 'AI 回复: ' : 'AI reply: '}</span>
+            <span className="font-semibold">{t('aiReply')}</span>
             {assistantReply}
           </div>
 
           <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-sm font-semibold text-slate-900">
-                {language === 'zh' ? '回顾草稿' : 'Review Draft'}
+                {t('reviewDraft')}
               </h3>
               <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-slate-500">
-                {existingReview ? (language === 'zh' ? '编辑' : 'Edit') : (language === 'zh' ? '新增' : 'New')}
+                {existingReview ? t('edit') : t('new')}
               </span>
             </div>
             <div className="space-y-3 text-sm text-slate-700">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">
-                  {language === 'zh' ? '摘要' : 'Summary'}
+                  {t('summary')}
                 </p>
                 <p>{localized(draft?.summary, language) || '-'}</p>
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">
-                  {language === 'zh' ? '回顾' : 'Reflection'}
+                  {t('reflection')}
                 </p>
                 <p className="whitespace-pre-wrap">{localized(draft?.reflection, language) || '-'}</p>
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">
-                  {language === 'zh' ? '人物' : 'People'}
+                  {t('people')}
                 </p>
                 {draft?.recognizedPeople?.length ? (
                   <ul className="mt-1 flex flex-wrap gap-1.5">
@@ -333,7 +327,7 @@ const ReviewChatDialog = ({
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">
-                  {language === 'zh' ? '活动' : 'Activities'}
+                  {t('activities')}
                 </p>
                 {draft?.recognizedActivities?.length ? (
                   <ul className="mt-1 flex flex-wrap gap-1.5">
@@ -354,7 +348,7 @@ const ReviewChatDialog = ({
               className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
               onClick={() => fileInputRef.current?.click()}
             >
-              {language === 'zh' ? '选择活动照片' : 'Choose Event Photos'}
+              {t('chooseEventPhotos')}
             </button>
             <input
               ref={fileInputRef}
@@ -377,7 +371,7 @@ const ReviewChatDialog = ({
               disabled={loading || photoFiles.length === 0}
               className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {language === 'zh' ? '分析照片' : 'Analyze Photos'}
+              {t('analyzePhotos')}
             </button>
             <button
               type="button"
@@ -386,13 +380,11 @@ const ReviewChatDialog = ({
               className="inline-flex w-full items-center justify-center rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {commitStatus === 'saving'
-                ? (language === 'zh' ? '保存中...' : 'Saving...')
-                : existingReview ? (language === 'zh' ? '更新回顾' : 'Update Review') : (language === 'zh' ? '提交回顾' : 'Create Review')}
+                ? t('saving')
+                : existingReview ? t('updateReview') : t('submitReview')}
             </button>
             <p className="text-xs leading-5 text-slate-500">
-              {language === 'zh'
-                ? '提交前请确认人物姓名、活动和回顾内容正确。'
-                : 'Before submitting, confirm the names, activities, and reflection are correct.'}
+              {t('reviewSubmitConfirmHint')}
             </p>
           </div>
         </aside>

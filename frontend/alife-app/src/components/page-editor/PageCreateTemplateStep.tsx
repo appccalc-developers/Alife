@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useUiText } from '../../i18n/uiText'
 import AppActionButton from '../layout/AppActionButton'
 import AppSectionCard from '../layout/AppSectionCard'
 import GroupPagePreview from './GroupPagePreview'
@@ -11,7 +12,7 @@ const HERO_TEMPLATE = PAGE_TEMPLATES[0]
 
 type Props = {
   model: PageEditModel
-  /** 打开向导时的页面区块，用于还原已填模版或避免误覆盖 */
+  /** Page sections at the time the wizard opens, used to restore a filled template or avoid accidental overwrite */
   initialSections: SectionEditModel[]
   canEdit: boolean
   onApplyTemplateSections: (sections: SectionEditModel[]) => void
@@ -20,6 +21,7 @@ type Props = {
 }
 
 const PageCreateTemplateStep = ({ model, canEdit, initialSections, onApplyTemplateSections, onDismiss }: Props) => {
+  const t = useUiText()
   const [draft, setDraft] = useState<Record<string, string>>(() => {
     const derived = deriveTemplateStateFromSections(initialSections)
     if (derived) {
@@ -47,8 +49,8 @@ const PageCreateTemplateStep = ({ model, canEdit, initialSections, onApplyTempla
 
   return (
     <AppSectionCard
-      title="从模版建立区块"
-      subtitle="仅提供 Hero 模版：背景图、文本、内容、底部按钮链接。页面标题与摘要请在上方「Page Metadata」填写。"
+      title={t('templateCreateSections')}
+      subtitle={t('templateCreateSectionsSubtitle')}
     >
       {HERO_TEMPLATE ? (
         <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3">
@@ -60,15 +62,15 @@ const PageCreateTemplateStep = ({ model, canEdit, initialSections, onApplyTempla
 
       {initialSections.length > 1 ? (
         <p className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-          目前有多个区块，与两种预设模版不完全对应；切换模版或修改栏位后，将仍以单一模版区块为准覆盖 Section List。
-        </p>
+            {t('templateMultipleSectionsWarning')}
+          </p>
       ) : null}
 
       <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
         <div className="space-y-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">可视化模版（所见即所得）</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{t('templateVisualEditor')}</p>
           {!HERO_TEMPLATE ? (
-            <p className="text-sm text-slate-600">此模版无预设栏位。请使用下方的「Section List」自行加入区块。</p>
+            <p className="text-sm text-slate-600">{t('templateNoFields')}</p>
           ) : (
             <div className="space-y-3">
               <section className="overflow-hidden rounded-lg border border-slate-200 bg-white">
@@ -114,7 +116,7 @@ const PageCreateTemplateStep = ({ model, canEdit, initialSections, onApplyTempla
 
               <div className="grid gap-2">
                 <label className="block space-y-1">
-                  <span className="text-sm font-medium text-slate-700">背景图 URL</span>
+                  <span className="text-sm font-medium text-slate-700">{t('backgroundImageUrl')}</span>
                   <input
                     value={draft.backgroundUrl ?? ''}
                     disabled={!canEdit}
@@ -124,7 +126,7 @@ const PageCreateTemplateStep = ({ model, canEdit, initialSections, onApplyTempla
                   />
                 </label>
                 <label className="block space-y-1">
-                  <span className="text-sm font-medium text-slate-700">按钮链接 URL</span>
+                  <span className="text-sm font-medium text-slate-700">{t('buttonLinkUrl')}</span>
                   <input
                     value={draft.linkUrl ?? ''}
                     disabled={!canEdit}
@@ -139,13 +141,13 @@ const PageCreateTemplateStep = ({ model, canEdit, initialSections, onApplyTempla
 
           <div className="flex flex-wrap gap-2 pt-2">
             <AppActionButton variant="primary" disabled={!canEdit} onClick={onDismiss}>
-              完成模版，编辑进阶选项
+              {t('finishTemplateEditAdvanced')}
             </AppActionButton>
           </div>
         </div>
 
         <div className="space-y-2 lg:sticky lg:top-4 lg:self-start">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">即时预览</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{t('livePreview')}</p>
           <div className="max-h-[min(70vh,520px)] overflow-y-auto rounded-lg border border-slate-200 bg-slate-100/80 p-2">
             <GroupPagePreview
               compact
