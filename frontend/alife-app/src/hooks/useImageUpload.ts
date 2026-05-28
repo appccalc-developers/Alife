@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react'
 import type { Area, Point } from 'react-easy-crop'
 import imageCompression from 'browser-image-compression'
+import { useUiText } from '../i18n/uiText'
 import { uploadImage } from '../services/imageWorkerApi'
 
 export type CompressionResult = {
@@ -22,6 +23,7 @@ type UseImageUploadOptions = {
 }
 
 export function useImageUpload(options: UseImageUploadOptions = {}) {
+  const t = useUiText()
   const {
     maxFileSize = 10,
     targetMaxSizeMB = 1.5,
@@ -66,11 +68,11 @@ export function useImageUpload(options: UseImageUploadOptions = {}) {
   const selectFile = useCallback(
     (file: File) => {
       if (file.size > maxFileSize * 1024 * 1024) {
-        setError(`File size must be less than ${maxFileSize}MB`)
+        setError(t('imageFileTooLarge', { size: maxFileSize }))
         return
       }
       if (!file.type.startsWith('image/')) {
-        setError('Please select an image file')
+        setError(t('selectImageFile'))
         return
       }
 
@@ -82,7 +84,7 @@ export function useImageUpload(options: UseImageUploadOptions = {}) {
       objectUrlRef.current = objectUrl
       setImageSrc(objectUrl)
     },
-    [maxFileSize, cleanupObjectUrl],
+    [cleanupObjectUrl, maxFileSize, t],
   )
 
   const onCropComplete = useCallback((_: Area, croppedAreaPixels: Area) => {
@@ -103,7 +105,7 @@ export function useImageUpload(options: UseImageUploadOptions = {}) {
       const image = await createImage(imageSrc)
       const canvas = document.createElement('canvas')
       const ctx = canvas.getContext('2d')
-      if (!ctx) throw new Error('Canvas context not available')
+      if (!ctx) throw new Error(t('canvasContextUnavailable'))
 
       canvas.width = pixelCrop.width
       canvas.height = pixelCrop.height
@@ -123,14 +125,14 @@ export function useImageUpload(options: UseImageUploadOptions = {}) {
         canvas.toBlob(
           (blob) => {
             if (blob) resolve(blob)
-            else reject(new Error('Canvas to Blob conversion failed'))
+            else reject(new Error(t('canvasBlobFailed')))
           },
           'image/jpeg',
           0.95,
         )
       })
     },
-    [createImage],
+    [createImage, t],
   )
 
   const compressBlob = useCallback(
@@ -161,7 +163,7 @@ export function useImageUpload(options: UseImageUploadOptions = {}) {
         }
         img.onerror = () => {
           URL.revokeObjectURL(url)
-          reject(new Error('Failed to decode compressed image'))
+          reject(new Error(t('imageDecodeFailed')))
         }
         img.src = url
       })
@@ -175,12 +177,12 @@ export function useImageUpload(options: UseImageUploadOptions = {}) {
         height: dims.height,
       }
     },
-    [targetMaxSizeMB, maxDimension, fileType, quality],
+    [fileType, maxDimension, quality, t, targetMaxSizeMB],
   )
 
   const process = useCallback(async (): Promise<CompressionResult> => {
     if (!imageSrc || !croppedAreaPixels) {
-      throw new Error('No image selected or crop area not defined')
+      throw new Error(t('noImageSelectedOrCrop'))
     }
 
     setIsProcessing(true)
@@ -201,13 +203,13 @@ export function useImageUpload(options: UseImageUploadOptions = {}) {
 
       return result
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Image processing failed'
+      const message = err instanceof Error ? err.message : t('imageProcessingFailed')
       setError(message)
       throw err
     } finally {
       setIsProcessing(false)
     }
-  }, [imageSrc, croppedAreaPixels, getCroppedBlob, compressBlob])
+  }, [compressBlob, croppedAreaPixels, getCroppedBlob, imageSrc, t])
 
   const uploadToWorker = useCallback(async (): Promise<{ file: File; image: import('../services/imageWorkerApi').UploadedImage }> => {
     const result = await process()

@@ -5,12 +5,14 @@ import { useQuery } from '@tanstack/react-query'
 import PageContentRenderer from '../components/page/PageContentRenderer'
 import { fetchPageDetail, pageDetailQueryKey } from '../db/collections/pageCollection'
 import { subgroupsCollection, groupPagesCollection } from '../db/collections/groupCollection'
+import { useUiText } from '../i18n/uiText'
 import { useAuthStore } from '../stores/auth'
 import { localizeText } from '../utils/localizedText'
 
 const PageView = () => {
   const { pageId = '' } = useParams<{ pageId: string }>()
   const navigate = useNavigate()
+  const t = useUiText()
   const { language } = useAuthStore()
 
   const {
@@ -40,8 +42,8 @@ const PageView = () => {
 
   return (
     <section className="mx-auto w-full max-w-5xl space-y-4 px-3 sm:px-4">
-      {pageLoading ? <p className="rounded-lg border border-slate-200 bg-white p-3 text-slate-600">Loading page...</p> : null}
-      {!pageLoading && isError ? <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-red-700">Page not found or not accessible for your membership.</p> : null}
+      {pageLoading ? <p className="rounded-lg border border-slate-200 bg-white p-3 text-slate-600">{t('loadingPage')}</p> : null}
+      {!pageLoading && isError ? <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-red-700">{t('pageAccessDenied')}</p> : null}
 
       {!pageLoading && !isError && page ? (
         <PageContentRenderer

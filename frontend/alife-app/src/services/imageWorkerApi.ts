@@ -1,7 +1,7 @@
 /**
- * 与 Cloudflare Worker 图床 API 对齐：
- * - POST /api/images — multipart/form-data，字段名 `file`
- * - 响应 201：`{ image: { key, size, uploaded, contentType, url } }`
+ * Aligns with the Cloudflare Worker image API:
+ * - POST /api/images using multipart/form-data with the `file` field
+ * - 201 response body: `{ image: { key, size, uploaded, contentType, url } }`
  */
 const getDefaultImageApiBaseUrl = () => {
   if (typeof window !== 'undefined' && window.location.hostname === 'ccalc.live') {
@@ -61,7 +61,7 @@ export function isImageObject(objectKey: string, contentType: string): boolean {
   return IMAGE_EXTENSIONS.has(getKeyExtension(objectKey))
 }
 
-/** 与 Worker `isImageObject` 一致，用于上传前校验 */
+/** Mirrors Worker `isImageObject` so uploads can be validated before submission. */
 export function isImageFile(file: File): boolean {
   const ext = getKeyExtension(file.name)
   const candidateType = file.type || TYPE_BY_EXTENSION[ext] || ''
@@ -91,7 +91,7 @@ async function readJson<T>(response: Response): Promise<T> {
 }
 
 /**
- * 上传单张图片，返回完整元数据（与 Worker `uploadImage` 响应体一致）。
+ * Upload a single image and return the complete metadata payload from the Worker.
  */
 export async function uploadImage(file: File, folderPath = ''): Promise<UploadedImage> {
   if (!(file instanceof File)) {

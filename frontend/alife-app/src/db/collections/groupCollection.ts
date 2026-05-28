@@ -6,7 +6,7 @@ import { normalizeGroup, normalizeGroupMembership, normalizePageSummary } from '
 import { conditionalGet, getCachedRecord } from '../httpCache'
 import { queryClient } from '../queryClient'
 
-// ---------- Church (单个对象，只做缓存不做 collection) ----------
+// ---------- Church (single object, cached only and not exposed as a collection) ----------
 
 export const churchQueryKey = ['church'] as const
 
@@ -15,7 +15,7 @@ export const getCachedChurch = async () => {
   return data ? normalizeGroup(data) : null
 }
 
-// ---------- Group by id (单个对象，只做缓存不做 collection) ----------
+// ---------- Group by id (single object, cached only and not exposed as a collection) ----------
 
 export const groupQueryKey = (groupId: string) => ['group', groupId] as const
 

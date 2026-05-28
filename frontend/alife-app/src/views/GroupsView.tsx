@@ -16,7 +16,7 @@ const GroupsView = () => {
   const [church, setChurch] = useState<GroupDto | null>(null)
   const [loadingChurch, setLoadingChurch] = useState(true)
 
-  // 加载 church（单个对象，直接调用 conditionalGet）
+  // Load the church group as a single object via conditionalGet.
   useEffect(() => {
     let cancelled = false
     setLoadingChurch(true)
@@ -34,7 +34,7 @@ const GroupsView = () => {
     return () => { cancelled = true }
   }, [])
 
-  // subgroups（数组，用 useLiveQuery）
+  // Load subgroups as a collection through useLiveQuery.
   const collection = useMemo(
     () => (church?.id ? subgroupsCollection(church.id) : null),
     [church?.id],
@@ -70,7 +70,7 @@ const GroupsView = () => {
             {localizeText(group.description, language) ? (
               <p className="text-sm text-slate-600">{localizeText(group.description, language)}</p>
             ) : null}
-            <p className="text-sm text-slate-600">{group.accessType}</p>
+            <p className="text-sm text-slate-600">{t(group.accessType)}</p>
             <Link className="text-blue-600" to={`/groups/${group.id}`}>
               {t('details')}
             </Link>

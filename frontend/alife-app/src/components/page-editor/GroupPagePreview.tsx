@@ -96,9 +96,9 @@ const GroupPagePreview = ({
                   <div className={compact ? 'px-3 py-5' : 'px-5 py-8'}>
                     <div className="mx-auto max-w-4xl text-center">
                       <h2 className={compact ? 'text-xl font-semibold text-slate-700' : 'text-3xl font-semibold text-slate-700'}>
-                        {headline || "Today's Sermon"}
+                        {headline || t('todaysSermon')}
                       </h2>
-                      <p className={compact ? 'mt-1 text-xs text-slate-500' : 'mt-1 text-lg text-slate-500'}>{sub || 'God loves us all'}</p>
+                      <p className={compact ? 'mt-1 text-xs text-slate-500' : 'mt-1 text-lg text-slate-500'}>{sub || t('godLovesUsAll')}</p>
                     </div>
                     <div className={`mt-5 grid gap-3 ${compact ? '' : 'md:grid-cols-[1fr_1.2fr] md:items-center'}`}>
                       <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
@@ -106,7 +106,7 @@ const GroupPagePreview = ({
                           <iframe
                             src={youtubeEmbedUrl}
                             referrerPolicy="strict-origin-when-cross-origin"
-                            title="Sermon video preview"
+                            title={t('sermonVideoPreview')}
                             className="aspect-video w-full"
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                             allowFullScreen
@@ -119,7 +119,7 @@ const GroupPagePreview = ({
                       </div>
                       <div className="space-y-3 text-center md:text-left">
                         <p className={`${compact ? 'text-sm' : 'text-2xl'} whitespace-pre-wrap font-semibold text-indigo-900`}>
-                          {body || 'Sermon title and summary'}
+                          {body || t('sermonTitleSummary')}
                         </p>
                         {linkUrl ? (
                           <a
@@ -132,7 +132,7 @@ const GroupPagePreview = ({
                                 : 'inline-flex rounded bg-red-500 px-5 py-2 text-sm font-medium text-white shadow hover:bg-red-400'
                             }
                           >
-                            View
+                            {t('view')}
                           </a>
                         ) : null}
                       </div>
@@ -148,9 +148,9 @@ const GroupPagePreview = ({
                   <div className={compact ? 'px-3 py-5' : 'px-5 py-8'}>
                     <div className="mx-auto max-w-5xl text-center">
                       <h2 className={compact ? 'text-xl font-semibold text-slate-700' : 'text-3xl font-semibold text-slate-700'}>
-                        {headline || 'Latest News'}
+                        {headline || t('latestNews')}
                       </h2>
-                      <p className={compact ? 'mt-1 text-xs text-slate-500' : 'mt-1 text-lg text-slate-500'}>{sub || 'God loves us all'}</p>
+                      <p className={compact ? 'mt-1 text-xs text-slate-500' : 'mt-1 text-lg text-slate-500'}>{sub || t('godLovesUsAll')}</p>
                       <div className={`mt-5 grid gap-3 ${compact ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3'}`}>
                         {items.map((item, idx) => (
                           <a
@@ -175,7 +175,7 @@ const GroupPagePreview = ({
                                 }
                               />
                             ) : null}
-                            <span className={compact ? 'text-[11px] text-slate-800' : 'text-sm text-slate-800'}>{item.label || '[title]'}</span>
+                            <span className={compact ? 'text-[11px] text-slate-800' : 'text-sm text-slate-800'}>{item.label || t('untitled')}</span>
                           </a>
                         ))}
                       </div>
@@ -192,8 +192,8 @@ const GroupPagePreview = ({
                   style={{ backgroundImage: `linear-gradient(rgba(2, 6, 23, 0.7), rgba(2, 6, 23, 0.7)), url(${bg || ''})` }}
                 >
                   <div className="mx-auto max-w-4xl text-center">
-                    <h2 className={compact ? 'text-xl font-semibold' : 'text-3xl font-semibold'}>{headline || 'Our Church main activities'}</h2>
-                    <p className={compact ? 'mt-1 text-xs text-slate-200' : 'mt-2 text-base text-slate-200'}>{sub || 'God loves us all'}</p>
+                    <h2 className={compact ? 'text-xl font-semibold' : 'text-3xl font-semibold'}>{headline || t('churchMainActivities')}</h2>
+                    <p className={compact ? 'mt-1 text-xs text-slate-200' : 'mt-2 text-base text-slate-200'}>{sub || t('godLovesUsAll')}</p>
                     <div className={`mt-5 grid gap-3 ${compact ? 'grid-cols-3' : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-6'}`}>
                       {items.map((item, idx) => (
                         <a
@@ -394,10 +394,10 @@ const GroupPagePreview = ({
                   >
                     <div className="mx-auto max-w-4xl text-center">
                       <h2 className={compact ? 'text-xl font-semibold' : 'text-3xl font-semibold'}>
-                        {readText(section.contentJson, 'title') || 'Quote of the day'}
+                        {readText(section.contentJson, 'title') || t('quoteOfDay')}
                       </h2>
                       <p className={compact ? 'mt-1 text-xs text-slate-200' : 'mt-1 text-lg text-slate-200'}>
-                        {readText(section.contentJson, 'subtitle') || 'God loves us all'}
+                        {readText(section.contentJson, 'subtitle') || t('godLovesUsAll')}
                       </p>
                       <p className={`${compact ? 'mt-4 text-lg' : 'mt-6 text-3xl'} whitespace-pre-wrap italic leading-relaxed text-slate-100`}>
                         {body || t('previewNoBody')}

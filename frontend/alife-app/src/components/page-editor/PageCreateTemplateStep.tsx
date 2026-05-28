@@ -88,7 +88,7 @@ const PageCreateTemplateStep = ({ model, canEdit, initialSections, onApplyTempla
                       className="rounded px-2 py-1 text-5xl font-semibold tracking-wide text-yellow-300 outline-none focus:bg-black/20"
                       onBlur={(event) => updateDraft('heroText', event.currentTarget.textContent ?? '')}
                     >
-                      {(draft.heroText || '').trim() || 'Hero Section'}
+                      {(draft.heroText || '').trim() || t('heroSectionTitle')}
                     </h2>
                     <p
                       role="textbox"
@@ -97,7 +97,7 @@ const PageCreateTemplateStep = ({ model, canEdit, initialSections, onApplyTempla
                       className="whitespace-pre-wrap rounded px-2 py-1 text-sm text-slate-100 outline-none focus:bg-black/20"
                       onBlur={(event) => updateDraft('heroContent', event.currentTarget.textContent ?? '')}
                     >
-                      {(draft.heroContent || '').trim() || 'No hero content yet.'}
+                      {(draft.heroContent || '').trim() || t('noHeroContentYet')}
                     </p>
                   </div>
                   <span className="absolute bottom-5 left-1/2 inline-flex -translate-x-1/2 rounded bg-red-500 px-5 py-2 text-sm font-medium text-white shadow">
@@ -108,7 +108,7 @@ const PageCreateTemplateStep = ({ model, canEdit, initialSections, onApplyTempla
                       className="rounded px-1 outline-none focus:bg-white/20"
                       onBlur={(event) => updateDraft('linkLabel', event.currentTarget.textContent ?? '')}
                     >
-                      {(draft.linkLabel || '').trim() || ((draft.linkUrl || '').trim() ? draft.linkUrl : 'Button text')}
+                      {(draft.linkLabel || '').trim() || ((draft.linkUrl || '').trim() ? draft.linkUrl : t('buttonText'))}
                     </span>
                   </span>
                 </div>

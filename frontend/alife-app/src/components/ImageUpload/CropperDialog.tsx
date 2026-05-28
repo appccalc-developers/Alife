@@ -1,6 +1,7 @@
 import React, { useCallback, useRef } from 'react'
 import Cropper from 'react-easy-crop'
 import type { Area, Point } from 'react-easy-crop'
+import { useUiText } from '../../i18n/uiText'
 
 type CropperDialogProps = {
   imageSrc: string
@@ -27,6 +28,7 @@ const CropperDialog: React.FC<CropperDialogProps> = ({
   onUpload,
   onCancel,
 }) => {
+  const t = useUiText()
   const containerRef = useRef<HTMLDivElement>(null)
 
   const handleKeyDown = useCallback(
@@ -110,7 +112,7 @@ const CropperDialog: React.FC<CropperDialogProps> = ({
             [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md
             [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:rounded-full
             [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:shadow-md"
-          aria-label="Zoom"
+          aria-label={t('zoom')}
         />
         <svg className="h-5 w-5 shrink-0 text-white/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
           <circle cx="11" cy="11" r="8" />
@@ -123,7 +125,7 @@ const CropperDialog: React.FC<CropperDialogProps> = ({
       {isProcessing && (
         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/60">
           <div className="h-10 w-10 animate-spin rounded-full border-4 border-white/20 border-t-white" />
-          <p className="text-sm font-medium text-white">Processing image…</p>
+          <p className="text-sm font-medium text-white">{t('processingImage')}</p>
         </div>
       )}
     </div>

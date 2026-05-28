@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useUiText } from '../../i18n/uiText'
 import AppActionButton from '../layout/AppActionButton'
 import RawJsonEditor from './RawJsonEditor'
 import SectionBlock from '../page-sections/SectionBlock'
@@ -28,20 +29,21 @@ const sectionTypeLabel = (type: SectionType) =>
 const stringifyPretty = (value: unknown) => JSON.stringify(value ?? {}, null, 2)
 const DEFAULT_HERO_IMAGE = 'https://images.unsplash.com/photo-1529070538774-1843cb3265df?w=1600&q=80'
 
-const parseJson = (value: string): { ok: true; data: JsonMap } | { ok: false; error: string } => {
+const parseJson = (value: string, messages: { jsonObjectRequired: string; invalidJsonSyntax: string }): { ok: true; data: JsonMap } | { ok: false; error: string } => {
   try {
     const parsed = JSON.parse(value) as unknown
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      return { ok: false, error: 'JSON must be an object.' }
+      return { ok: false, error: messages.jsonObjectRequired }
     }
 
     return { ok: true, data: parsed as JsonMap }
   } catch {
-    return { ok: false, error: 'Invalid JSON syntax.' }
+    return { ok: false, error: messages.invalidJsonSyntax }
   }
 }
 
 const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate, onRemove, onMoveUp, onMoveDown, contextGroupId, isActive, onSelect }: Props) => {
+  const t = useUiText()
   const [contentText, setContentText] = useState(stringifyPretty(section.contentJson))
   const [styleText, setStyleText] = useState(stringifyPretty(section.styleJson))
   const [contentError, setContentError] = useState('')
@@ -206,7 +208,7 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
 
   const onContentRawChange = (value: string) => {
     setContentText(value)
-    const parsed = parseJson(value)
+    const parsed = parseJson(value, { jsonObjectRequired: t('jsonObjectRequired'), invalidJsonSyntax: t('invalidJsonSyntax') })
     if (!parsed.ok) {
       setContentError(parsed.error)
       return
@@ -218,7 +220,7 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
 
   const onStyleRawChange = (value: string) => {
     setStyleText(value)
-    const parsed = parseJson(value)
+    const parsed = parseJson(value, { jsonObjectRequired: t('jsonObjectRequired'), invalidJsonSyntax: t('invalidJsonSyntax') })
     if (!parsed.ok) {
       setStyleError(parsed.error)
       return
@@ -248,23 +250,23 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
     >
       {isActive ? (<>
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
-        <h3 className="text-sm font-semibold text-slate-900">Section {index + 1} · {section.type || 'Select type'}</h3>
+        <h3 className="text-sm font-semibold text-slate-900">{t('sectionHeading', { number: index + 1, type: section.type || t('selectType') })}</h3>
         {isActive ? <div className="flex flex-wrap gap-2" onClick={(event) => event.stopPropagation()}>
-          <AppActionButton size="sm" disabled={index === 0 || !canEdit} onClick={onMoveUp}>Move Up</AppActionButton>
-          <AppActionButton size="sm" disabled={index === total - 1 || !canEdit} onClick={onMoveDown}>Move Down</AppActionButton>
-          <AppActionButton size="sm" variant="danger" disabled={!canEdit} onClick={onRemove}>Remove</AppActionButton>
+          <AppActionButton size="sm" disabled={index === 0 || !canEdit} onClick={onMoveUp}>{t('moveUp')}</AppActionButton>
+          <AppActionButton size="sm" disabled={index === total - 1 || !canEdit} onClick={onMoveDown}>{t('moveDown')}</AppActionButton>
+          <AppActionButton size="sm" variant="danger" disabled={!canEdit} onClick={onRemove}>{t('remove')}</AppActionButton>
         </div> : null}
       </div>
       <div className="border-t border-slate-100 px-4 py-3" onClick={(event) => event.stopPropagation()}>
         <label className="block space-y-1">
-          <span className="text-sm font-medium text-slate-700">Type</span>
+          <span className="text-sm font-medium text-slate-700">{t('sectionType')}</span>
           <select
             value={section.type}
             disabled={!canEdit}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100"
             onChange={(event) => applyTypeDefaults(event.target.value as SectionEditModel['type'])}
           >
-            <option value="">Select type</option>
+            <option value="">{t('selectType')}</option>
             {sectionTypes.map((sectionType) => (
               <option key={sectionType} value={sectionType}>{sectionTypeLabel(sectionType)}</option>
             ))}
@@ -296,14 +298,14 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
         {rawOpen ? (
           <div className="mt-3 space-y-3">
             <RawJsonEditor
-              label="contentJson"
+              label={t('contentJson')}
               value={contentText}
               parseError={contentError}
               disabled={!canEdit}
               onChange={onContentRawChange}
             />
             <RawJsonEditor
-              label="styleJson"
+              label={t('styleJson')}
               value={styleText}
               parseError={styleError}
               disabled={!canEdit}

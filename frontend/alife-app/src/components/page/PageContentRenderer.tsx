@@ -3,6 +3,7 @@ import type { GroupPageDto } from '../../types/group'
 import type { PageEditModel, PageEditorValidation, SectionEditModel } from '../../types/page-editor'
 import type { PageLinkItem } from '../page-sections/types'
 import SectionListEditor from '../page-editor/SectionListEditor'
+import { translateUi, useUiText } from '../../i18n/uiText'
 import { useAuthStore } from '../../stores/auth'
 import { languageKey, localizeText } from '../../utils/localizedText'
 import { EditableText } from '../page-sections/sectionUtils'
@@ -58,8 +59,8 @@ export const normalizePageSections = (items: SectionEditModel[]) =>
     order: index,
   }))
 
-export const validatePageContent = (model: PageEditModel): PageEditorValidation => ({
-  sectionTypeErrors: model.sections.map((section) => (section.type ? '' : 'Section type is required.')),
+export const validatePageContent = (model: PageEditModel, language = 'en'): PageEditorValidation => ({
+  sectionTypeErrors: model.sections.map((section) => (section.type ? '' : translateUi(language, 'sectionTypeRequired'))),
 })
 
 const PageContentRenderer = ({
@@ -78,6 +79,7 @@ const PageContentRenderer = ({
   onEditPage,
 }: Props) => {
   const auth = useAuthStore()
+  const t = useUiText()
   const editablePage = editing && canEdit && onPageChange && 'groupId' in page
   const activeLanguageKey = languageKey(auth.language)
   const pageTitle = localizeText(page.title, auth.language)
@@ -136,7 +138,7 @@ const PageContentRenderer = ({
           <EditableText
             as="h1"
             value={pageTitle}
-            fallback="Untitled page"
+            fallback={t('untitledPage')}
             disabled={!editablePage}
             className="text-2xl font-bold text-slate-900 sm:text-3xl"
             onChange={(value) => updateLocalizedPageField('title', value)}
@@ -145,13 +147,13 @@ const PageContentRenderer = ({
             as="p"
             multiline
             value={pageDescription}
-            fallback="No description for this page yet."
+            fallback={t('pageDescriptionEmpty')}
             disabled={!editablePage}
             className="text-sm text-slate-600"
             onChange={(value) => updateLocalizedPageField('description', value)}
           />
           <div className="flex flex-wrap gap-2 text-xs">
-            <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">Visibility: {page.visibility}</span>
+            <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">{t('visibilityLabel', { visibility: page.visibility })}</span>
           </div>
           {message ? <p className="rounded-lg border border-blue-100 bg-blue-50 p-2 text-sm text-blue-700">{message}</p> : null}
         </header>
@@ -182,7 +184,7 @@ const PageContentRenderer = ({
           ))}
 
           {sections.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">No sections yet.</div>
+            <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">{t('noSectionsYet')}</div>
           ) : null}
         </div>
       )}
@@ -194,7 +196,7 @@ const PageContentRenderer = ({
             type="button"
             onClick={() => onEditPage(page.id, page.ownerGroupId as string)}
           >
-            Edit Page
+            {t('editPage')}
           </button>
         </div>
       ) : null}

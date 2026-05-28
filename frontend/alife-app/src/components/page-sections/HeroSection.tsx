@@ -1,9 +1,11 @@
 import { useAuthStore } from '../../stores/auth'
+import { useUiText } from '../../i18n/uiText'
 import { DEFAULT_HERO_IMAGE, EditableText, PropertyPanel, SelectInput, TextInput, patchContent, patchLocalizedContent, patchStyle, readLocalizedText, readText } from './sectionUtils'
 import type { SectionComponentProps } from './types'
 
 const HeroSection = ({ section, mode, disabled, onUpdate }: SectionComponentProps) => {
   const auth = useAuthStore()
+  const t = useUiText()
   const editable = mode === 'edit' && !disabled && onUpdate
   const bg = readText(section.contentJson, 'backgroundImage', 'backgroundImageUrl') || DEFAULT_HERO_IMAGE
   const title = readLocalizedText(section.contentJson, auth.language, 'title', 'headline')
@@ -30,7 +32,7 @@ const HeroSection = ({ section, mode, disabled, onUpdate }: SectionComponentProp
             <EditableText
               as="h2"
               value={title}
-              fallback="Hero Section"
+              fallback={t('heroSectionTitle')}
               disabled={!editable}
               className="text-3xl font-semibold tracking-wide text-yellow-300 sm:text-5xl"
               onChange={(value) => updateLocalizedContent({ title: value, headline: value })}
@@ -39,7 +41,7 @@ const HeroSection = ({ section, mode, disabled, onUpdate }: SectionComponentProp
               as="p"
               multiline
               value={body || subtitle}
-              fallback="No hero content yet."
+              fallback={t('noHeroContentYet')}
               disabled={!editable}
               className="text-sm text-slate-100"
               onChange={(value) => updateLocalizedContent({ centerText: value, body: value })}
@@ -50,7 +52,7 @@ const HeroSection = ({ section, mode, disabled, onUpdate }: SectionComponentProp
             <EditableText
               as="h2"
               value={title}
-              fallback="Hero Section"
+              fallback={t('heroSectionTitle')}
               disabled={!editable}
               className="inline-block text-2xl font-bold"
               onChange={(value) => updateLocalizedContent({ title: value, headline: value })}
@@ -58,7 +60,7 @@ const HeroSection = ({ section, mode, disabled, onUpdate }: SectionComponentProp
             <EditableText
               as="p"
               value={subtitle}
-              fallback="No subtitle yet."
+              fallback={t('noSubtitleYet')}
               disabled={!editable}
               className="mt-2 block text-sm text-slate-100"
               onChange={(value) => updateLocalizedContent({ subtitle: value, subheadline: value })}
@@ -77,7 +79,7 @@ const HeroSection = ({ section, mode, disabled, onUpdate }: SectionComponentProp
           >
             <EditableText
               value={linkLabel}
-              fallback={linkUrl || 'Button text'}
+              fallback={linkUrl || t('buttonText')}
               disabled={!editable}
               className="text-sm"
               onChange={(value) => updateLocalizedContent({ linkLabel: value, linkText: value, ctaLabel: value })}
@@ -88,17 +90,17 @@ const HeroSection = ({ section, mode, disabled, onUpdate }: SectionComponentProp
       {mode === 'edit' ? (
         <PropertyPanel>
           <SelectInput
-            label="Hero Style"
+            label={t('heroStyle')}
             value={layout}
             disabled={disabled}
             options={[
-              { value: 'featured', label: 'Featured' },
-              { value: 'classic', label: 'Classic' },
+              { value: 'featured', label: t('featured') },
+              { value: 'classic', label: t('classic') },
             ]}
             onChange={(value) => updateStyle({ layout: value })}
           />
-          <TextInput label="Button Link URL" value={linkUrl} disabled={disabled} onChange={(value) => updateContent({ linkUrl: value, ctaUrl: value, href: value })} />
-          <TextInput label="Background Image URL" value={bg} disabled={disabled} onChange={(value) => updateContent({ backgroundImage: value, backgroundImageUrl: value })} />
+          <TextInput label={t('buttonLinkUrl')} value={linkUrl} disabled={disabled} onChange={(value) => updateContent({ linkUrl: value, ctaUrl: value, href: value })} />
+          <TextInput label={t('backgroundImageUrl')} value={bg} disabled={disabled} onChange={(value) => updateContent({ backgroundImage: value, backgroundImageUrl: value })} />
         </PropertyPanel>
       ) : null}
     </section>

@@ -1,4 +1,4 @@
-/** Subgroup Page Members 配置 - 保存时只需传这些 */
+/** Subgroup page members config. Persist only these fields. */
 export interface SubgroupPageMembersConfig {
   id: string
   limit: number
@@ -6,7 +6,7 @@ export interface SubgroupPageMembersConfig {
   sort?: 'latest' | 'oldest' | 'popular'
 }
 
-/** Subgroup Page Events 配置 */
+/** Subgroup page events config. */
 export interface SubgroupPageEventsConfig {
   id?: string
   limit: number
@@ -14,7 +14,7 @@ export interface SubgroupPageEventsConfig {
   sort?: 'latest' | 'oldest'
 }
 
-/** Subgroup Page Subgroups 配置 */
+/** Subgroup page subgroups config. */
 export interface SubgroupPageSubgroupsConfig {
   id: string
   limit: number
@@ -22,7 +22,7 @@ export interface SubgroupPageSubgroupsConfig {
   sort?: 'name' | 'latest'
 }
 
-/** 保存区块时的统一载荷 - 只传必要字段 */
+/** Unified payload for saving sections. Send only the required fields. */
 export type SubgroupSectionSavePayload =
   | { type: 'members'; config: SubgroupPageMembersConfig }
   | { type: 'events'; config: SubgroupPageEventsConfig }

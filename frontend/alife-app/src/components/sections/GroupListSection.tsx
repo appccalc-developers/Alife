@@ -9,7 +9,7 @@ import { useImagePreloader } from '../../hooks/useImagePreloader'
 import CoverImage from '../CoverImage'
 import { localizeText } from '../../utils/localizedText'
 import { useAuthStore } from '../../stores/auth'
-import { useUiText } from '../../i18n/uiText'
+import { translateUi, type UiTextKey, useUiText } from '../../i18n/uiText'
 
 // ---------- Universal Card Interface ----------
 
@@ -41,19 +41,25 @@ export function subgroupToCardItem(subgroup: GroupSummaryDto, language = 'en'): 
   return {
     id: subgroup.id,
     title: localizeText(subgroup.name, language),
-    subtitle: localizeText(subgroup.description, language) || (subgroup.accessType === 'public' ? 'Public Group' : subgroup.accessType === 'protected' ? 'Protected Group' : 'Private Group'),
+    subtitle:
+      localizeText(subgroup.description, language) ||
+      (subgroup.accessType === 'public'
+        ? translateUi(language, 'publicGroup')
+        : subgroup.accessType === 'protected'
+          ? translateUi(language, 'protectedGroup')
+          : translateUi(language, 'privateGroup')),
     imageUrl: undefined,
     url: `/groups/${subgroup.id}`,
     type: 'subgroup',
   }
 }
 
-export function memberToCardItem(member: { memberId: string; status: string; role: string; name?: string; displayName?: string }): UniversalCardItem {
+export function memberToCardItem(member: { memberId: string; status: string; role: string; name?: string; displayName?: string }, language = 'en'): UniversalCardItem {
   const displayName = member.name || member.displayName || `Member ${member.memberId.slice(0, 8)}`
   return {
     id: member.memberId,
     title: displayName,
-    subtitle: `Role: ${member.role || 'member'}`,
+    subtitle: translateUi(language, 'role', { role: member.role || 'member' }),
     url: `/members/${member.memberId}`,
     type: 'member',
   }
@@ -63,7 +69,7 @@ export function pageToCardItem(page: any, groupId?: string, language = 'en'): Un
   const pageId = (page as { id: string }).id
   return {
     id: pageId,
-    title: localizeText(page.title, language) || 'Untitled Page',
+    title: localizeText(page.title, language) || translateUi(language, 'untitledPage'),
     subtitle: localizeText((page as { description?: unknown }).description as never, language),
     date: (page as { updatedUtc?: string }).updatedUtc,
     url: groupId ? `/groups/${groupId}?page=${encodeURIComponent(pageId)}` : `/pages/${pageId}`,
@@ -73,8 +79,8 @@ export function pageToCardItem(page: any, groupId?: string, language = 'en'): Un
 
 export function eventToCardItem(event: GroupEventRecord, language = 'en'): UniversalCardItem {
   const title = language === 'zh'
-    ? event.titleZh || event.titleEn || 'Event'
-    : event.titleEn || event.titleZh || 'Event'
+    ? event.titleZh || event.titleEn || translateUi(language, 'untitled')
+    : event.titleEn || event.titleZh || translateUi(language, 'untitled')
   const dateStr = event.startDate || ''
   const locale = language === 'zh' ? 'zh-CN' : 'en-NZ'
   const dateDisplay = dateStr ? new Date(dateStr).toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' }) : ''
@@ -91,12 +97,12 @@ export function eventToCardItem(event: GroupEventRecord, language = 'en'): Unive
 
 // ---------- Card Component ----------
 
-const sourceTypeLabels: Record<string, string> = {
-  sermons: '讲道',
-  events: '活动',
-  pages: '页面',
-  subgroups: '子小组',
-  members: '成员',
+const sourceTypeLabels: Record<string, UiTextKey> = {
+  sermons: 'sermons',
+  events: 'events',
+  pages: 'pages',
+  subgroups: 'subgroups',
+  members: 'members',
 }
 
 export const ListCard: React.FC<{ item: UniversalCardItem; compact?: boolean; cardIndex?: number }> = ({ item, compact, cardIndex = 0 }) => {
@@ -172,6 +178,7 @@ const adapterMap: Record<string, (item: any) => UniversalCardItem> = {
 
 export const GroupListSection: React.FC<GroupListSectionProps> = ({ metadata, groupId, compact }) => {
   const { language } = useAuthStore()
+  const t = useUiText()
   const raw = metadata as Record<string, unknown>
   const meta = useMemo(
     () => normalizeListViewMetadata(raw),
@@ -189,7 +196,17 @@ export const GroupListSection: React.FC<GroupListSectionProps> = ({ metadata, gr
     }
     const adapter = adapterMap[meta.sourceType]
     if (!adapter || !data) return []
-    return data.map((item) => meta.sourceType === 'subgroups' ? subgroupToCardItem(item as GroupSummaryDto, language) : adapter(item)).filter(Boolean)
+    return data
+      .map((item) => {
+        if (meta.sourceType === 'subgroups') {
+          return subgroupToCardItem(item as GroupSummaryDto, language)
+        }
+        if (meta.sourceType === 'members') {
+          return memberToCardItem(item, language)
+        }
+        return adapter(item)
+      })
+      .filter(Boolean)
   }, [data, meta.sourceType, groupId, language])
 
   // Preload images for first 4 cards when data is ready
@@ -225,7 +242,7 @@ export const GroupListSection: React.FC<GroupListSectionProps> = ({ metadata, gr
   if (error) {
     return (
       <div className={`rounded-lg border border-red-200 bg-red-50 text-sm text-red-600 ${shellPad}`}>
-        加载失败: {error.message}
+        {t('loadFailedWithMessage', { message: error.message })}
       </div>
     )
   }
@@ -233,7 +250,7 @@ export const GroupListSection: React.FC<GroupListSectionProps> = ({ metadata, gr
   if (cardItems.length === 0) {
     return (
       <div className={`rounded-lg border border-slate-200 bg-white text-center text-sm text-slate-400 ${shellPad}`}>
-        暂无 {sourceTypeLabels[meta.sourceType] || '内容'}
+        {t('noSourceItems', { source: t(sourceTypeLabels[meta.sourceType] ?? 'content') })}
       </div>
     )
   }

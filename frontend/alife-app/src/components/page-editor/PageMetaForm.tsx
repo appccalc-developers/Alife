@@ -38,7 +38,7 @@ const PageMetaForm = ({ model, canEdit, titleError, onChange }: Props) => {
             value={model.title.cn ?? ''}
             disabled={!canEdit}
             className="w-full rounded-md border border-slate-300 px-3 py-2 disabled:bg-slate-100"
-            placeholder="页面标题"
+            placeholder={t('pageTitlePlaceholder')}
             onChange={(event) => updateTitle('cn', event.target.value)}
           />
         </label>
@@ -62,7 +62,7 @@ const PageMetaForm = ({ model, canEdit, titleError, onChange }: Props) => {
             disabled={!canEdit}
             rows={4}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100"
-            placeholder="页面摘要"
+            placeholder={t('pageSummaryPlaceholder')}
             onChange={(event) => updateDescription('cn', event.target.value)}
           />
         </label>
