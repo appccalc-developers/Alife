@@ -60,7 +60,7 @@ export const conditionalGet = async <TData>({ queryKey, path, parser }: Conditio
     'Content-Type': 'application/json',
   }
 
-  // 如果有缓存的 etag，放到 If-None-Match 请求头
+  // If a cached ETag exists, include it in the If-None-Match request header
   if (previous?.etag) {
     headers['If-None-Match'] = previous.etag
   }
@@ -71,7 +71,7 @@ export const conditionalGet = async <TData>({ queryKey, path, parser }: Conditio
     credentials: 'include',
   })
 
-  // 304 Not Modified — 返回缓存数据
+  // 304 Not Modified — return cached data
   if (response.status === 304 && previous?.data !== undefined) {
     await writeRecord<TData>(queryKey, {
       etag: previous.etag,
@@ -86,10 +86,10 @@ export const conditionalGet = async <TData>({ queryKey, path, parser }: Conditio
     throw new Error(`GET ${path} failed with status ${response.status}`)
   }
 
-  // 从响应头中获取 etag
+  // Extract ETag from response headers
   const etag = response.headers.get('ETag')
   if (!etag) {
-    // 后端没有 ETag 时，直接返回数据，不支持 304 缓存
+    // No ETag from backend — return data directly without 304 caching support
     const rawData = (await response.json()) as unknown
     return parser ? parser(rawData) : (rawData as TData)
   }
@@ -97,7 +97,7 @@ export const conditionalGet = async <TData>({ queryKey, path, parser }: Conditio
   const rawData = (await response.json()) as unknown
   const data = parser ? parser(rawData) : (rawData as TData)
 
-  // 以 etag 作为缓存 key 存入 DB
+  // Store data in DB keyed by ETag
   await writeRecord<TData>(queryKey, { etag, data, storedAt: Date.now() })
 
   return data
