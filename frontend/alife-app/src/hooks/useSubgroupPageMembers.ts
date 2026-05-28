@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import { getSubgroupMembers, saveSubgroupMembersConfig, membersQueryKey } from '../api/subgroupPagesService'
 import { getCachedRecord } from '../db/httpCache'
+import { translateUi } from '../i18n/uiText'
+import { useAuthStore } from '../stores/auth'
 import type { SubgroupPageMembersConfig } from '../types/subgroup-pages'
 
 interface UseSubgroupPageMembersOptions {
   config: SubgroupPageMembersConfig
-  /** 是否自动加载（预览时 true，编辑时 false） */
+  /** Whether to load automatically: true for preview, false for edit mode. */
   autoLoad?: boolean
 }
 
@@ -21,20 +23,21 @@ interface UseSubgroupPageMembersReturn {
   loading: boolean
   error: string | null
   fromCache: boolean
-  /** 手动刷新 - 预览时调用 */
+  /** Manually refresh data, primarily used in preview mode. */
   load: () => Promise<void>
-  /** 保存配置 - 只传必要字段 */
+  /** Save config while sending only the required fields. */
   save: (newConfig: SubgroupPageMembersConfig) => Promise<void>
 }
 
 /**
  * Subgroup Page Members Hook
  *
- * 编辑时: 调用 save() 只传必要字段 (id, limit, sort)
- * 预览时: 调用 load() 通过 conditionalGet 获取最新数据，支持 304 缓存
+ * In edit mode, call save() with only the required fields: id, limit, and sort.
+ * In preview mode, call load() to fetch the latest data through conditionalGet with 304 cache support.
  */
 export function useSubgroupPageMembers(options: UseSubgroupPageMembersOptions): UseSubgroupPageMembersReturn {
   const { config, autoLoad = true } = options
+  const { language } = useAuthStore()
 
   const [members, setMembers] = useState<MemberInfo[]>([])
   const [loading, setLoading] = useState(false)
@@ -50,18 +53,18 @@ export function useSubgroupPageMembers(options: UseSubgroupPageMembersOptions): 
       const data = await getSubgroupMembers(config)
       setMembers(data)
     } catch (err) {
-      // 网络失败时尝试读缓存
+      // Fall back to cached data when the network request fails.
       const cached = await getCachedRecord<MemberInfo[]>(membersQueryKey(config))
       if (cached?.data) {
         setMembers(cached.data)
         setFromCache(true)
         return
       }
-      setError(err instanceof Error ? err.message : '获取成员列表失败')
+      setError(err instanceof Error ? err.message : translateUi(language, 'memberListLoadFailed'))
     } finally {
       setLoading(false)
     }
-  }, [config])
+  }, [config, language])
 
   const save = useCallback(async (newConfig: SubgroupPageMembersConfig) => {
     setLoading(true)
@@ -69,11 +72,11 @@ export function useSubgroupPageMembers(options: UseSubgroupPageMembersOptions): 
     try {
       await saveSubgroupMembersConfig(newConfig)
     } catch (err) {
-      setError(err instanceof Error ? err.message : '保存配置失败')
+      setError(err instanceof Error ? err.message : translateUi(language, 'memberConfigSaveFailed'))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [language])
 
   useEffect(() => {
     if (autoLoad) {
@@ -92,8 +95,8 @@ export function useSubgroupPageMembers(options: UseSubgroupPageMembersOptions): 
 }
 
 /**
- * 将 SubgroupPageMembersConfig 转为 ListViewMetadata
- * 用于在 GroupListSection 中直接渲染
+ * Convert SubgroupPageMembersConfig into ListViewMetadata
+ * for direct rendering in GroupListSection.
  */
 export function membersConfigToListViewMetadata(config: SubgroupPageMembersConfig) {
   return {

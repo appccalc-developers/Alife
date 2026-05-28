@@ -11,6 +11,7 @@ import { groupQueryKey, getCachedSubgroups } from '../db/collections/groupCollec
 import { subgroupsCollection } from '../db/collections/groupCollection'
 import { groupPagesCollection, getCachedGroupPages } from '../db/collections/groupCollection'
 import { groupMembershipsCollection, getCachedGroupMemberships } from '../db/collections/groupCollection'
+import { useUiText } from '../i18n/uiText'
 import type { GroupDto, GroupTab, PageSummaryDto } from '../types/group'
 import type { LocalizedText } from '../types'
 import type { GroupEventRecord } from '../types/event'
@@ -28,6 +29,7 @@ export type GroupMemberToolRow = {
 
 export const useGroupScreen = (groupId: string) => {
   const auth = useAuthStore()
+  const t = useUiText()
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState<GroupTab>('overview')
   const [group, setGroup] = useState<GroupDto | null>(null)
@@ -36,7 +38,7 @@ export const useGroupScreen = (groupId: string) => {
   const [statusMessage, setStatusMessage] = useState('')
   const [events, setEvents] = useState<GroupEventRecord[]>([])
 
-  // group（单个对象，用 conditionalGet）
+  // Load the group as a single object through conditionalGet.
   useEffect(() => {
     if (!groupId) return
     let cancelled = false
@@ -49,7 +51,7 @@ export const useGroupScreen = (groupId: string) => {
         if (!cancelled) setGroup(normalizeGroup(data))
       })
       .catch((reason) => {
-        if (!cancelled) setError(reason instanceof Error ? reason.message : 'Failed to load group.')
+        if (!cancelled) setError(reason instanceof Error ? reason.message : t('groupLoadFailed'))
       })
       .finally(() => {
         if (!cancelled) setGroupLoading(false)
@@ -57,15 +59,15 @@ export const useGroupScreen = (groupId: string) => {
     return () => { cancelled = true }
   }, [groupId])
 
-  // subgroups（数组，用 useLiveQuery）
+  // Load subgroups as a live collection.
   const subCollection = useMemo(() => (groupId ? subgroupsCollection(groupId) : null), [groupId])
   const { data: subgroups = [] } = useLiveQuery(subCollection as NonNullable<typeof subCollection>)
 
-  // pages（数组，用 useLiveQuery）
+  // Load pages as a live collection.
   const pagesColl = useMemo(() => (groupId ? groupPagesCollection(groupId) : null), [groupId])
   const { data: pages = [] } = useLiveQuery(pagesColl as NonNullable<typeof pagesColl>)
 
-  // memberships（数组，用 useLiveQuery）
+  // Load memberships as a live collection.
   const membershipsColl = useMemo(() => (groupId ? groupMembershipsCollection(groupId) : null), [groupId])
   const { data: membershipsRaw = [] } = useLiveQuery(membershipsColl as NonNullable<typeof membershipsColl>)
   const memberships = useMemo(() => membershipsRaw as GroupMemberToolRow[], [membershipsRaw])
@@ -102,8 +104,12 @@ export const useGroupScreen = (groupId: string) => {
 
   const summary = useMemo(() => {
     if (!group) return ''
-    return `${subgroups.length} subgroups - ${pages.length} pages - ${group.accessType}`
-  }, [group, subgroups.length, pages.length])
+    return t('groupSummaryLine', {
+      subgroups: subgroups.length,
+      pages: pages.length,
+      access: t(group.accessType),
+    })
+  }, [group, pages.length, subgroups.length, t])
 
   const loading = groupLoading
 
@@ -128,18 +134,30 @@ export const useGroupScreen = (groupId: string) => {
   const joinOrRequest = useCallback(async () => {
     if (!groupId) return
     const result = await groupService.requestJoin(groupId)
-    setStatusMessage(`Join status: ${result.status}`)
+    const localizedStatus =
+      result.status === 'approved'
+        ? t('approved')
+        : result.status === 'requested'
+          ? t('requested')
+          : result.status === 'invited'
+            ? t('invited')
+            : result.status === 'rejected'
+              ? t('rejected')
+              : result.status === 'removed'
+                ? t('removed')
+                : result.status
+    setStatusMessage(t('joinStatus', { status: localizedStatus }))
     await auth.fetchMe()
-  }, [groupId, auth])
+  }, [auth, groupId, t])
 
   const addSubgroup = useCallback(
     async (name: LocalizedText, accessType: GroupDto['accessType'], description?: LocalizedText) => {
       if (!groupId) return
       await groupService.createSubgroup(groupId, { name, description, accessType })
       await queryClient.invalidateQueries({ queryKey: ['subgroups', groupId] })
-      setStatusMessage('Subgroup added.')
+      setStatusMessage(t('subgroupAdded'))
     },
-    [groupId, queryClient],
+    [groupId, queryClient, t],
   )
 
   const updateGroup = useCallback(
@@ -152,10 +170,10 @@ export const useGroupScreen = (groupId: string) => {
       if (updated.parentGroupId) {
         await queryClient.invalidateQueries({ queryKey: ['subgroups', updated.parentGroupId] })
       }
-      setStatusMessage('Group updated.')
+      setStatusMessage(t('groupUpdated'))
       return updated
     },
-    [groupId, queryClient],
+    [groupId, queryClient, t],
   )
 
   const inviteMember = useCallback(
@@ -163,9 +181,9 @@ export const useGroupScreen = (groupId: string) => {
       if (!groupId) return
       await groupService.inviteMember(groupId, { targetPhoneE164 })
       await queryClient.invalidateQueries({ queryKey: ['groupMemberships', groupId] })
-      setStatusMessage('Invite sent.')
+      setStatusMessage(t('inviteSent'))
     },
-    [groupId, queryClient],
+    [groupId, queryClient, t],
   )
 
   const inviteMemberById = useCallback(
@@ -182,9 +200,9 @@ export const useGroupScreen = (groupId: string) => {
       if (!groupId) return
       await groupService.approveMember(groupId, { memberId })
       await queryClient.invalidateQueries({ queryKey: ['groupMemberships', groupId] })
-      setStatusMessage('Member approved.')
+      setStatusMessage(t('memberApprovedSuccess'))
     },
-    [groupId, queryClient],
+    [groupId, queryClient, t],
   )
 
   const rejectMember = useCallback(
@@ -192,9 +210,9 @@ export const useGroupScreen = (groupId: string) => {
       if (!groupId) return
       await groupService.rejectMember(groupId, { memberId })
       await queryClient.invalidateQueries({ queryKey: ['groupMemberships', groupId] })
-      setStatusMessage('Member request rejected.')
+      setStatusMessage(t('memberRequestRejected'))
     },
-    [groupId, queryClient],
+    [groupId, queryClient, t],
   )
 
   const kickMember = useCallback(
@@ -202,9 +220,9 @@ export const useGroupScreen = (groupId: string) => {
       if (!groupId) return
       await groupService.kickMember(groupId, { memberId })
       await queryClient.invalidateQueries({ queryKey: ['groupMemberships', groupId] })
-      setStatusMessage('Member removed.')
+      setStatusMessage(t('memberRemovedSuccess'))
     },
-    [groupId, queryClient],
+    [groupId, queryClient, t],
   )
 
   const setCoLeader = useCallback(
@@ -212,9 +230,9 @@ export const useGroupScreen = (groupId: string) => {
       if (!groupId) return
       await groupService.setCoLeader(groupId, { memberId, isCoLeader })
       await queryClient.invalidateQueries({ queryKey: ['groupMemberships', groupId] })
-      setStatusMessage(isCoLeader ? 'Co-leader set.' : 'Co-leader reset.')
+      setStatusMessage(isCoLeader ? t('coLeaderSetSuccess') : t('coLeaderResetSuccess'))
     },
-    [groupId, queryClient],
+    [groupId, queryClient, t],
   )
 
   const editSubgroup = useCallback(async (subgroupId: string) => {
@@ -229,9 +247,9 @@ export const useGroupScreen = (groupId: string) => {
     async (pageId: string) => {
       await pageService.deletePage(pageId)
       await queryClient.invalidateQueries({ queryKey: ['groupPages', groupId] })
-      setStatusMessage('Page deleted.')
+      setStatusMessage(t('pageDeleted'))
     },
-    [queryClient, groupId],
+    [queryClient, groupId, t],
   )
 
   const togglePageVisibility = useCallback(
@@ -239,9 +257,9 @@ export const useGroupScreen = (groupId: string) => {
       const nextVisibility = page.visibility === 'draft' ? 'group' : 'draft'
       await pageService.publishPage(page.id, { visibility: nextVisibility })
       await queryClient.invalidateQueries({ queryKey: ['groupPages', groupId] })
-      setStatusMessage(nextVisibility === 'group' ? 'Page published.' : 'Page moved to draft.')
+      setStatusMessage(nextVisibility === 'group' ? t('pagePublished') : t('pageMovedToDraft'))
     },
-    [queryClient, groupId],
+    [queryClient, groupId, t],
   )
 
   const deleteEvent = useCallback(
@@ -249,9 +267,9 @@ export const useGroupScreen = (groupId: string) => {
       if (!groupId) return
       await eventService.deleteGroupEvent(eventId, groupId)
       setEvents((prev) => prev.filter((e) => e.id !== eventId))
-      setStatusMessage('Event deleted.')
+      setStatusMessage(t('eventDeleted'))
     },
-    [groupId],
+    [groupId, t],
   )
 
   const refreshEvents = useCallback(async () => {

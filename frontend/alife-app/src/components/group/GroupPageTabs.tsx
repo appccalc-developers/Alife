@@ -75,7 +75,7 @@ const GroupPageTabs = ({
   )
 
   const activeModel = activePage ? modelsByPageId[activePage.id] : undefined
-  const validation = activeModel ? validatePageContent(activeModel) : undefined
+  const validation = activeModel ? validatePageContent(activeModel, language) : undefined
   const hasValidationErrors = validation
     ? Boolean(validation.title) || validation.sectionTypeErrors.some((item) => item.length > 0)
     : false

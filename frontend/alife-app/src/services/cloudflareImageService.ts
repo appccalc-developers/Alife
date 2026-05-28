@@ -39,7 +39,7 @@ const uploadDataUrlToWorker = async (dataUrl: string, filenamePrefix: string, in
   const type = blob.type || mimeFromDataUrl(dataUrl)
   const file = new File([blob], filename, { type })
 
-  // 唯一入口：把编辑器里的 data URL 转成 File 后调用 imageWorkerApi.uploadImage → POST /api/images
+  // Single entry point: convert editor data URLs into Files, then upload via imageWorkerApi.uploadImage -> POST /api/images.
   const image = await uploadImage(file)
   return image.url
 }
@@ -89,8 +89,8 @@ export const cloudflareImageService = {
   sectionsHaveLocalDataImages,
 
   /**
-   * 将各模板 contentJson 内所有 `data:image/...` 逐张上传到 Worker，并替换为返回的 URL。
-   * 同一 data URL 只上传一次；按区块顺序、对象字段顺序、数组下标顺序依次处理，避免并发竞态。
+    * Upload every `data:image/...` found in section contentJson to the Worker and replace it with the returned URL.
+    * The same data URL is uploaded only once and processed sequentially to avoid concurrent write races.
    */
   async resolveSectionImages(sections: SectionEditModel[], filenamePrefix = 'page-image') {
     const cache = new Map<string, string>()

@@ -16,7 +16,7 @@ export interface ListViewMetadata {
   sortBy: ListSortBy
   sortDirection: ListSortDirection
   filterText?: string
-  /** 可选的资源 ID，如 subgroupId、eventId 等，用于精确查询某个资源下的数据 */
+  /** Optional resource ID such as subgroupId or eventId for precise scoped queries. */
   id?: string
 }
 

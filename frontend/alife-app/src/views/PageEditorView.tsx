@@ -90,7 +90,7 @@ const PageEditorView = () => {
   const canEditPage = isCreateMode ? canCreatePage : canEditAllPages || isCreatorDraft
   const canEditVisibility = canEditAllPages
 
-  const validation = useMemo(() => validatePageContent(pageModel), [pageModel])
+  const validation = useMemo(() => validatePageContent(pageModel, auth.language), [auth.language, pageModel])
   const currentModelSnapshot = useMemo(() => JSON.stringify(pageModel), [pageModel])
   const hasUnsavedChanges = Boolean(savedModelSnapshot && currentModelSnapshot !== savedModelSnapshot)
 

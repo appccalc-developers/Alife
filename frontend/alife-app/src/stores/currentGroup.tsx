@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { conditionalGet } from '../db/httpCache'
 import { churchQueryKey } from '../db/collections/groupCollection'
+import { useUiText } from '../i18n/uiText'
 import type { GroupDto } from '../types'
 import { normalizeGroup } from '../utils/apiEnums'
 
@@ -15,6 +16,7 @@ type CurrentGroupContextValue = {
 const CurrentGroupContext = createContext<CurrentGroupContextValue | null>(null)
 
 export const CurrentGroupProvider = ({ children }: { children: ReactNode }) => {
+  const t = useUiText()
   const [CurrentGroup, setCurrentGroup] = useState<GroupDto | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -32,12 +34,12 @@ export const CurrentGroupProvider = ({ children }: { children: ReactNode }) => {
       setCurrentGroup(normalized)
       return normalized
     } catch {
-      setError('Failed to load the Church group.')
+      setError(t('churchGroupLoadError'))
       return null
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     refreshChurchGroup().catch(() => undefined)

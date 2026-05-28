@@ -145,11 +145,11 @@ export type ListSourceResolverOptions = {
  * 2. Fetch: if local collection is empty, triggers an API call via conditionalGet to the .NET API
  * 3. Persist: Results stored in TanStack DB via httpCache (conditionalGet writes to idb-keyval)
  *
- * 支持 metadata.id:
- * - members 类型: id 为 subgroupId，精确查询该 subgroup 的成员
- * - subgroups 类型: id 为父 groupId
- * - events 类型: id 为 subgroupId，查询该 subgroup 的事件
- * - 不传 id 则沿用当前 groupId
+ * Supports metadata.id:
+ * - members: id is treated as subgroupId for precise subgroup member queries
+ * - subgroups: id is treated as the parent groupId
+ * - events: id is treated as subgroupId for subgroup event queries
+ * - when id is omitted, the current groupId is used
  */
 export function useListSourceResolver(metadata: ListViewMetadata, options?: ListSourceResolverOptions): ListSourceResult {
   const { groupId: routeGroupId } = useParams<{ groupId: string }>()
@@ -158,7 +158,7 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
   const sourceType = metadata.sourceType
   const sourceScope = metadata.sourceScope
   const limit = Math.min(Math.max(metadata.limit || 10, 1), 50)
-  // 如果 metadata.id 存在，用它覆盖 currentGroupId（精确查询某 subgroup 的数据）
+  // If metadata.id exists, use it instead of currentGroupId for precise subgroup queries.
   const targetGroupId = metadata.id?.trim() || currentGroupId
 
   // Determine the config for the query
@@ -207,7 +207,7 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
   const sermonsReady = isSermons ? (sermonsLive.isReady ?? false) : true
   const sermonsError = isSermons ? (sermonsLive.isError ?? false) : false
 
-  // Subgroups (group-scoped, 使用 targetGroupId 以支持 metadata.id)
+  // Subgroups (group-scoped, using targetGroupId to support metadata.id)
   const subgroupsLive = useLiveQuery(
     () => {
       if (!isSubgroups || !targetGroupId) return undefined
@@ -222,7 +222,7 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
   const subgroupsReady = isSubgroups ? (subgroupsLive.isReady ?? false) : true
   const subgroupsError = isSubgroups ? (subgroupsLive.isError ?? false) : false
 
-  // Members (group-scoped, 使用 targetGroupId 以支持 metadata.id)
+  // Members (group-scoped, using targetGroupId to support metadata.id)
   const membershipsLive = useLiveQuery(
     () => {
       if (!isMembers || !targetGroupId) return undefined
