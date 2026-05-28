@@ -1,13 +1,12 @@
 using Alife.Api.Results;
 using Alife.Application.Abstractions.Identity;
-using Alife.Application.Events.Dtos;
-using Alife.Application.Events.Services;
-using Alife.Application.Groups.Services;
-using Alife.Domain.Entities;
-using Alife.Infrastructure.Persistence;
+using Alife.Application.Events.Commands.CreateEventEnrollment;
+using Alife.Application.Events.Commands.DeleteEventEnrollment;
+using Alife.Application.Events.Commands.UpdateEventEnrollment;
+using Alife.Application.Events.Queries.ListEventEnrollments;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 
 namespace Alife.Api.Controllers;
@@ -16,10 +15,8 @@ namespace Alife.Api.Controllers;
 [Route("api/events/{eventId:guid}/enrollments")]
 [Authorize]
 public class EventEnrollmentsController(
-    AlifeDbContext dbContext,
-    ICurrentMemberAccessor currentMemberAccessor,
-    IGroupAuthorizationService groupAuthorizationService,
-    IEventCacheInvalidationService eventCacheInvalidationService) : ControllerBase
+    IMediator mediator,
+    ICurrentMemberAccessor currentMemberAccessor) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> List(Guid eventId, CancellationToken cancellationToken)
@@ -30,39 +27,11 @@ public class EventEnrollmentsController(
             return Unauthorized();
         }
 
-        var groupEvent = await GetEventAsync(eventId, cancellationToken);
-        if (groupEvent is null)
-        {
-            return NotFound(new { message = "Event not found." });
-        }
-
-        var isApprovedMember = await groupAuthorizationService.IsApprovedMemberAsync(
-            groupEvent.GroupId,
-            currentMemberId.Value,
+        var result = await mediator.Send(
+            new ListEventEnrollmentsQuery(eventId, currentMemberId.Value),
             cancellationToken);
 
-        if (!isApprovedMember)
-        {
-            return Forbid();
-        }
-
-        var query = dbContext.EventEnrollments
-            .AsNoTracking()
-            .Where(x => x.EventId == eventId);
-
-        var enrollments = await query
-            .OrderByDescending(x => x.UpdatedUtc)
-            .Select(x => new EventEnrollmentDto(
-                x.Id,
-                x.GroupId,
-                x.EventId,
-                x.MemberId,
-                x.EnrollmentJson,
-                x.CreatedUtc,
-                x.UpdatedUtc))
-            .ToListAsync(cancellationToken);
-
-        return Ok(enrollments);
+        return this.ToActionResult(result);
     }
 
     [HttpPost]
@@ -79,63 +48,21 @@ public class EventEnrollmentsController(
             return BadRequest(new { message = "Enrollment payload must be a JSON object." });
         }
 
-        var groupEvent = await GetEventAsync(eventId, cancellationToken);
-        if (groupEvent is null)
-        {
-            return NotFound(new { message = "Event not found." });
-        }
-
-        var canEnroll = await groupAuthorizationService.IsApprovedMemberAsync(
-            groupEvent.GroupId,
-            currentMemberId.Value,
-            cancellationToken);
-
-        if (!canEnroll)
-        {
-            return Forbid();
-        }
-
-        var existingEnrollment = await dbContext.EventEnrollments
-            .AsNoTracking()
-            .AnyAsync(x => x.EventId == eventId && x.MemberId == currentMemberId.Value, cancellationToken);
-        if (existingEnrollment)
-        {
-            return Conflict(new { message = "Enrollment already exists for this event and member." });
-        }
-
         if (!TryReadRequestedEnrollmentId(enrollmentJson, out var requestedEnrollmentId, out var enrollmentIdError))
         {
             return BadRequest(new { message = enrollmentIdError });
         }
 
-        if (requestedEnrollmentId.HasValue)
+        var result = await mediator.Send(
+            new CreateEventEnrollmentCommand(eventId, currentMemberId.Value, enrollmentJson.GetRawText(), requestedEnrollmentId),
+            cancellationToken);
+
+        if (!result.IsSuccess)
         {
-            var idAlreadyExists = await dbContext.EventEnrollments
-                .AsNoTracking()
-                .AnyAsync(x => x.Id == requestedEnrollmentId.Value, cancellationToken);
-            if (idAlreadyExists)
-            {
-                return Conflict(new { message = "Enrollment id already exists." });
-            }
+            return this.ToActionResult(result);
         }
 
-        var now = DateTime.UtcNow;
-        var enrollment = new EventEnrollment
-        {
-            Id = requestedEnrollmentId ?? Guid.NewGuid(),
-            GroupId = groupEvent.GroupId,
-            EventId = eventId,
-            MemberId = currentMemberId.Value,
-            EnrollmentJson = enrollmentJson.GetRawText(),
-            CreatedUtc = now,
-            UpdatedUtc = now,
-        };
-
-        dbContext.EventEnrollments.Add(enrollment);
-        await dbContext.SaveChangesAsync(cancellationToken);
-        await eventCacheInvalidationService.RemoveEventEnrollmentsAsync(eventId, cancellationToken);
-
-        return CreatedAtAction(nameof(List), new { eventId }, ToDto(enrollment));
+        return CreatedAtAction(nameof(List), new { eventId }, result.Value);
     }
 
     [HttpPut("{enrollmentId:guid}")]
@@ -152,25 +79,11 @@ public class EventEnrollmentsController(
             return BadRequest(new { message = "Enrollment payload must be a JSON object." });
         }
 
-        var enrollment = await dbContext.EventEnrollments
-            .FirstOrDefaultAsync(x => x.Id == enrollmentId && x.EventId == eventId, cancellationToken);
-        if (enrollment is null)
-        {
-            return NotFound(new { message = "Enrollment not found." });
-        }
+        var result = await mediator.Send(
+            new UpdateEventEnrollmentCommand(eventId, enrollmentId, currentMemberId.Value, enrollmentJson.GetRawText()),
+            cancellationToken);
 
-        if (!await CanMutateEnrollmentAsync(enrollment, currentMemberId.Value, cancellationToken))
-        {
-            return Forbid();
-        }
-
-        enrollment.EnrollmentJson = enrollmentJson.GetRawText();
-        enrollment.UpdatedUtc = DateTime.UtcNow;
-
-        await dbContext.SaveChangesAsync(cancellationToken);
-        await eventCacheInvalidationService.RemoveEventEnrollmentsAsync(eventId, cancellationToken);
-
-        return Ok(ToDto(enrollment));
+        return this.ToActionResult(result);
     }
 
     [HttpDelete("{enrollmentId:guid}")]
@@ -182,41 +95,16 @@ public class EventEnrollmentsController(
             return Unauthorized();
         }
 
-        var enrollment = await dbContext.EventEnrollments
-            .FirstOrDefaultAsync(x => x.Id == enrollmentId && x.EventId == eventId, cancellationToken);
-        if (enrollment is null)
-        {
-            return NotFound(new { message = "Enrollment not found." });
-        }
+        var result = await mediator.Send(
+            new DeleteEventEnrollmentCommand(eventId, enrollmentId, currentMemberId.Value),
+            cancellationToken);
 
-        if (!await CanMutateEnrollmentAsync(enrollment, currentMemberId.Value, cancellationToken))
+        if (!result.IsSuccess)
         {
-            return Forbid();
+            return this.ToActionResult(result);
         }
-
-        dbContext.EventEnrollments.Remove(enrollment);
-        await dbContext.SaveChangesAsync(cancellationToken);
-        await eventCacheInvalidationService.RemoveEventEnrollmentsAsync(eventId, cancellationToken);
 
         return NoContent();
-    }
-
-    private Task<GroupEvent?> GetEventAsync(Guid eventId, CancellationToken cancellationToken)
-        => dbContext.GroupEvents
-            .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.Id == eventId, cancellationToken);
-
-    private async Task<bool> CanMutateEnrollmentAsync(EventEnrollment enrollment, Guid currentMemberId, CancellationToken cancellationToken)
-    {
-        if (enrollment.MemberId == currentMemberId)
-        {
-            return true;
-        }
-
-        return await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
-            enrollment.GroupId,
-            currentMemberId,
-            cancellationToken);
     }
 
     private static bool IsJsonObject(JsonElement value)
@@ -256,14 +144,4 @@ public class EventEnrollmentsController(
 
         return true;
     }
-
-    private static EventEnrollmentDto ToDto(EventEnrollment enrollment) =>
-        new(
-            enrollment.Id,
-            enrollment.GroupId,
-            enrollment.EventId,
-            enrollment.MemberId,
-            enrollment.EnrollmentJson,
-            enrollment.CreatedUtc,
-            enrollment.UpdatedUtc);
 }

@@ -8,13 +8,11 @@ using Alife.Application.Members.Commands.LoginByDisplayName;
 using Alife.Application.Members.Commands.RegisterMember;
 using Alife.Application.Members.Dtos;
 using Alife.Application.Members.Queries.GetCurrentMemberProfile;
+using Alife.Application.Members.Queries.GetMembers;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Caching.Hybrid;
 using System.Security.Claims;
-using Alife.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
 
 namespace Alife.Api.Controllers;
 
@@ -24,10 +22,8 @@ namespace Alife.Api.Controllers;
 public class MembersController(
     IMediator mediator,
     ICurrentMemberAccessor currentMemberAccessor,
-    HybridCache hybridCache,
     IConfiguration configuration,
-    ILineLoginService lineLoginService,
-    AlifeDbContext dbContext) : ControllerBase
+    ILineLoginService lineLoginService) : ControllerBase
 {
     [HttpGet("me")]
     [AllowAnonymous]
@@ -38,62 +34,32 @@ public class MembersController(
         {
             this.ApplyNoStoreHeaders();
             return Ok(new CurrentMemberDto(
-                Guid.Empty,
-                DisplayName: null,
-                Sex: null,
-                Age: null,
-                Email: null,
-                PhoneE164: null,
+                Guid.Empty, null, null, null, null, null,
                 IsGuest: true,
                 IsRegistered: false,
                 IsAdmin: false,
                 Memberships: []));
         }
 
-        var memberUpdatedUtc = await dbContext.Members
-            .Where(x => x.Id == currentMemberId.Value)
-            .Select(x => (DateTime?)x.UpdatedUtc)
-            .FirstOrDefaultAsync(cancellationToken);
-        var membershipUpdatedUtc = await dbContext.GroupMemberships
-            .Where(x => x.MemberId == currentMemberId.Value)
-            .MaxAsync(x => (DateTime?)x.UpdatedUtc, cancellationToken);
-        var updatedUtc = new[] { memberUpdatedUtc, membershipUpdatedUtc }.Max();
-        var profile = await hybridCache.GetOrCreateAsync(
-            GetMemberProfileCacheKey(currentMemberId.Value, updatedUtc),
-            async cancel =>
-            {
-                var result = await mediator.Send(new GetCurrentMemberProfileQuery(currentMemberId.Value), cancel);
-                return result.Status == Application.Common.Models.AppResultStatus.Success ? result.Value : null;
-            },
-            new HybridCacheEntryOptions
-            {
-                Expiration = TimeSpan.FromMinutes(2),
-                LocalCacheExpiration = TimeSpan.FromMinutes(1)
-            },
-            cancellationToken: cancellationToken);
+        var result = await mediator.Send(
+            new GetCurrentMemberProfileQuery(currentMemberId.Value),
+            cancellationToken);
 
-        if (profile is not null)
+        if (result.IsSuccess && result.Value is not null)
         {
             this.ApplyNoStoreHeaders();
-            return Ok(profile);
+            return Ok(result.Value);
         }
 
         if (User.Identity?.IsAuthenticated == true && IsGuestPrincipal(User))
         {
-            var fallbackGuest = new CurrentMemberDto(
-                currentMemberId.Value,
-                DisplayName: null,
-                Sex: null,
-                Age: null,
-                Email: null,
-                PhoneE164: null,
+            this.ApplyNoStoreHeaders();
+            return Ok(new CurrentMemberDto(
+                currentMemberId.Value, null, null, null, null, null,
                 IsGuest: true,
                 IsRegistered: false,
                 IsAdmin: IsAdminPrincipal(User),
-                Memberships: []);
-
-            this.ApplyNoStoreHeaders();
-            return Ok(fallbackGuest);
+                Memberships: []));
         }
 
         return Unauthorized();
@@ -201,11 +167,6 @@ public class MembersController(
             return this.ToActionResult(result);
         }
 
-        if (currentMemberId is not null)
-        {
-            await hybridCache.RemoveAsync(GetMemberProfileCacheKey(currentMemberId.Value, null), cancellationToken);
-        }
-
         AuthCookie.WriteCookie(Request, Response, result.Value.Token, result.Value.ExpiresUtc);
         return Ok(new { ok = true, expiresUtc = result.Value.ExpiresUtc });
     }
@@ -250,17 +211,10 @@ public class MembersController(
             return Unauthorized();
         }
 
-        var members = await dbContext.Members
-            .AsNoTracking()
-            .Where(x => x.IsRegistered)
-            .OrderBy(x => x.DisplayName)
-            .Select(x => new MemberSummaryDto(x.Id, x.DisplayName))
-            .ToListAsync(cancellationToken);
-
-        return Ok(members);
+        var result = await mediator.Send(new GetMembersQuery(), cancellationToken);
+        return this.ToActionResult(result);
     }
 
     public record RegisterRequest(string Name, string? Sex, int? Age, string? Email);
     public record LoginByDisplayNameRequest(string DisplayName);
-    public record MemberSummaryDto(Guid Id, string? DisplayName);
 }

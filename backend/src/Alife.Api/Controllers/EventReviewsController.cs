@@ -1,12 +1,12 @@
 using Alife.Application.Abstractions.Identity;
-using Alife.Application.Events.Dtos;
-using Alife.Application.Events.Services;
-using Alife.Application.Groups.Services;
-using Alife.Domain.Entities;
-using Alife.Infrastructure.Persistence;
+using Alife.Application.Events.Commands.CreateEventReview;
+using Alife.Application.Events.Commands.DeleteEventReview;
+using Alife.Application.Events.Commands.UpdateEventReview;
+using Alife.Application.Events.Queries.ListEventReviews;
+using Alife.Api.Results;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 
 namespace Alife.Api.Controllers;
@@ -15,10 +15,8 @@ namespace Alife.Api.Controllers;
 [Route("api/events/{eventId:guid}/reviews")]
 [Authorize]
 public class EventReviewsController(
-    AlifeDbContext dbContext,
-    ICurrentMemberAccessor currentMemberAccessor,
-    IGroupAuthorizationService groupAuthorizationService,
-    IEventCacheInvalidationService eventCacheInvalidationService) : ControllerBase
+    IMediator mediator,
+    ICurrentMemberAccessor currentMemberAccessor) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> List(Guid eventId, CancellationToken cancellationToken)
@@ -29,32 +27,11 @@ public class EventReviewsController(
             return Unauthorized();
         }
 
-        var groupEvent = await GetEventAsync(eventId, cancellationToken);
-        if (groupEvent is null)
-        {
-            return NotFound(new { message = "Event not found." });
-        }
-
-        var isApprovedMember = await groupAuthorizationService.IsApprovedMemberAsync(
-            groupEvent.GroupId,
-            currentMemberId.Value,
+        var result = await mediator.Send(
+            new ListEventReviewsQuery(eventId, currentMemberId.Value),
             cancellationToken);
 
-        if (!isApprovedMember)
-        {
-            return Forbid();
-        }
-
-        var query = dbContext.EventReviews
-            .AsNoTracking()
-            .Where(x => x.EventId == eventId);
-
-        var reviews = await query
-            .OrderByDescending(x => x.UpdatedUtc)
-            .Select(x => ToDto(x))
-            .ToListAsync(cancellationToken);
-
-        return Ok(reviews);
+        return this.ToActionResult(result);
     }
 
     [HttpPost]
@@ -71,63 +48,21 @@ public class EventReviewsController(
             return BadRequest(new { message = "Review payload must be a JSON object." });
         }
 
-        var groupEvent = await GetEventAsync(eventId, cancellationToken);
-        if (groupEvent is null)
-        {
-            return NotFound(new { message = "Event not found." });
-        }
-
-        var canReview = await groupAuthorizationService.IsApprovedMemberAsync(
-            groupEvent.GroupId,
-            currentMemberId.Value,
-            cancellationToken);
-
-        if (!canReview)
-        {
-            return Forbid();
-        }
-
-        var existingReview = await dbContext.EventReviews
-            .AsNoTracking()
-            .AnyAsync(x => x.EventId == eventId && x.MemberId == currentMemberId.Value, cancellationToken);
-        if (existingReview)
-        {
-            return Conflict(new { message = "Review already exists for this event and member." });
-        }
-
         if (!TryReadRequestedReviewId(reviewJson, out var requestedReviewId, out var reviewIdError))
         {
             return BadRequest(new { message = reviewIdError });
         }
 
-        if (requestedReviewId.HasValue)
+        var result = await mediator.Send(
+            new CreateEventReviewCommand(eventId, currentMemberId.Value, reviewJson.GetRawText(), requestedReviewId),
+            cancellationToken);
+
+        if (!result.IsSuccess)
         {
-            var idAlreadyExists = await dbContext.EventReviews
-                .AsNoTracking()
-                .AnyAsync(x => x.Id == requestedReviewId.Value, cancellationToken);
-            if (idAlreadyExists)
-            {
-                return Conflict(new { message = "Review id already exists." });
-            }
+            return this.ToActionResult(result);
         }
 
-        var now = DateTime.UtcNow;
-        var review = new EventReview
-        {
-            Id = requestedReviewId ?? Guid.NewGuid(),
-            GroupId = groupEvent.GroupId,
-            EventId = eventId,
-            MemberId = currentMemberId.Value,
-            ReviewJson = reviewJson.GetRawText(),
-            CreatedUtc = now,
-            UpdatedUtc = now,
-        };
-
-        dbContext.EventReviews.Add(review);
-        await dbContext.SaveChangesAsync(cancellationToken);
-        await eventCacheInvalidationService.RemoveEventReviewsAsync(eventId, cancellationToken);
-
-        return CreatedAtAction(nameof(List), new { eventId }, ToDto(review));
+        return CreatedAtAction(nameof(List), new { eventId }, result.Value);
     }
 
     [HttpPut("{reviewId:guid}")]
@@ -144,25 +79,11 @@ public class EventReviewsController(
             return BadRequest(new { message = "Review payload must be a JSON object." });
         }
 
-        var review = await dbContext.EventReviews
-            .FirstOrDefaultAsync(x => x.Id == reviewId && x.EventId == eventId, cancellationToken);
-        if (review is null)
-        {
-            return NotFound(new { message = "Review not found." });
-        }
+        var result = await mediator.Send(
+            new UpdateEventReviewCommand(eventId, reviewId, currentMemberId.Value, reviewJson.GetRawText()),
+            cancellationToken);
 
-        if (!await CanMutateReviewAsync(review, currentMemberId.Value, cancellationToken))
-        {
-            return Forbid();
-        }
-
-        review.ReviewJson = reviewJson.GetRawText();
-        review.UpdatedUtc = DateTime.UtcNow;
-
-        await dbContext.SaveChangesAsync(cancellationToken);
-        await eventCacheInvalidationService.RemoveEventReviewsAsync(eventId, cancellationToken);
-
-        return Ok(ToDto(review));
+        return this.ToActionResult(result);
     }
 
     [HttpDelete("{reviewId:guid}")]
@@ -174,41 +95,16 @@ public class EventReviewsController(
             return Unauthorized();
         }
 
-        var review = await dbContext.EventReviews
-            .FirstOrDefaultAsync(x => x.Id == reviewId && x.EventId == eventId, cancellationToken);
-        if (review is null)
-        {
-            return NotFound(new { message = "Review not found." });
-        }
+        var result = await mediator.Send(
+            new DeleteEventReviewCommand(eventId, reviewId, currentMemberId.Value),
+            cancellationToken);
 
-        if (!await CanMutateReviewAsync(review, currentMemberId.Value, cancellationToken))
+        if (!result.IsSuccess)
         {
-            return Forbid();
+            return this.ToActionResult(result);
         }
-
-        dbContext.EventReviews.Remove(review);
-        await dbContext.SaveChangesAsync(cancellationToken);
-        await eventCacheInvalidationService.RemoveEventReviewsAsync(eventId, cancellationToken);
 
         return NoContent();
-    }
-
-    private Task<GroupEvent?> GetEventAsync(Guid eventId, CancellationToken cancellationToken)
-        => dbContext.GroupEvents
-            .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.Id == eventId, cancellationToken);
-
-    private async Task<bool> CanMutateReviewAsync(EventReview review, Guid currentMemberId, CancellationToken cancellationToken)
-    {
-        if (review.MemberId == currentMemberId)
-        {
-            return true;
-        }
-
-        return await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
-            review.GroupId,
-            currentMemberId,
-            cancellationToken);
     }
 
     private static bool IsJsonObject(JsonElement value)
@@ -248,14 +144,4 @@ public class EventReviewsController(
 
         return true;
     }
-
-    private static EventReviewDto ToDto(EventReview review) =>
-        new(
-            review.Id,
-            review.GroupId,
-            review.EventId,
-            review.MemberId,
-            review.ReviewJson,
-            review.CreatedUtc,
-            review.UpdatedUtc);
 }
