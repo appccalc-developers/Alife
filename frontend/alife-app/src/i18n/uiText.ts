@@ -421,6 +421,18 @@ const text = {
   buttonLinkUrl: { en: 'Button link URL', zh: '按钮链接 URL' },
   finishTemplateEditAdvanced: { en: 'Done — edit advanced options', zh: '完成模版，编辑进阶选项' },
   livePreview: { en: 'Live preview', zh: '即时预览' },
+  heroTemplateName: { en: 'Hero Template', zh: 'Hero 模版' },
+  heroTemplateDescription: {
+    en: 'Background image + text + content + bottom link button.',
+    zh: '一个背景图 + 文本 + 内容 + 底部超链接按钮。',
+  },
+  subgroupMembers: { en: 'Subgroup members', zh: '子群组成员' },
+  fromCacheLabel: { en: '(cached)', zh: '（缓存数据）' },
+  saveConfig: { en: 'Save config', zh: '保存配置' },
+  sortOrder: { en: 'Sort order', zh: '排序方式' },
+  joinedLatest: { en: 'Latest joined', zh: '最新加入' },
+  joinedOldest: { en: 'Earliest joined', zh: '最早加入' },
+  mostActive: { en: 'Most active', zh: '最活跃' },
 } satisfies Record<string, UiText>
 
 export type UiTextKey = keyof typeof text

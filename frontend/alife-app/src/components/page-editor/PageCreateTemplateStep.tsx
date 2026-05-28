@@ -55,8 +55,8 @@ const PageCreateTemplateStep = ({ model, canEdit, initialSections, onApplyTempla
       {HERO_TEMPLATE ? (
         <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3">
           <div className={`mb-2 h-10 rounded-md bg-gradient-to-br ${HERO_TEMPLATE.previewGradient}`} />
-          <p className="text-sm font-semibold text-slate-900">{HERO_TEMPLATE.name}</p>
-          <p className="mt-0.5 text-[11px] leading-snug text-slate-600">{HERO_TEMPLATE.description}</p>
+          <p className="text-sm font-semibold text-slate-900">{t('heroTemplateName')}</p>
+          <p className="mt-0.5 text-[11px] leading-snug text-slate-600">{t('heroTemplateDescription')}</p>
         </div>
       ) : null}
 

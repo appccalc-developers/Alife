@@ -5,8 +5,8 @@ import type { SubgroupPageMembersConfig } from '../types/subgroup-pages'
 /**
  * Subgroup Pages API
  *
- * 保存: 只传必要字段 (id, limit, sort 等)
- * 预览: 用 conditionalGet 自动处理 ETag / 304
+ * Save: only required fields are sent (id, limit, sort, etc.)
+ * Preview: conditionalGet handles ETag / 304 automatically
  */
 
 // ---- Members ----
@@ -14,7 +14,7 @@ import type { SubgroupPageMembersConfig } from '../types/subgroup-pages'
 export const membersQueryKey = (config: SubgroupPageMembersConfig) =>
   ['subgroupMembers', config.id, config.limit, config.offset ?? 0, config.sort ?? 'latest'] as const
 
-/** 保存 members 配置 - 只传必要字段 */
+/** Save members config — only required fields are sent */
 export async function saveSubgroupMembersConfig(config: SubgroupPageMembersConfig) {
   const payload = {
     id: config.id,
@@ -26,7 +26,7 @@ export async function saveSubgroupMembersConfig(config: SubgroupPageMembersConfi
   return data
 }
 
-/** 获取 members 数据 - 通过 conditionalGet 支持 ETag/304 缓存 */
+/** Fetch members data — uses conditionalGet for ETag/304 caching */
 export async function getSubgroupMembers(config: SubgroupPageMembersConfig) {
   const params = new URLSearchParams({
     id: config.id,

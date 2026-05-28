@@ -3,7 +3,7 @@ import { readText } from '../utils/pageSectionContent'
 
 export type PageTemplateId = 'heroFeatured'
 
-/** 从当前单一模版区块还原向导栏位；无法识别时返回 null（保留现有 sections，勿用默认草稿硬覆盖）。 */
+/** Restore wizard fields from the current single template section; returns null when unrecognized (preserve existing sections, do not overwrite with default draft). */
 export const deriveTemplateStateFromSections = (
   sections: SectionEditModel[],
 ): { templateId: PageTemplateId; draft: Record<string, string> } | null => {
@@ -58,24 +58,24 @@ export type PageTemplateDefinition = {
 export const PAGE_TEMPLATES: PageTemplateDefinition[] = [
   {
     id: 'heroFeatured',
-    name: 'Hero 模版',
-    description: '一个背景图 + 文本 + 内容 + 底部超链接按钮。',
+    name: 'Hero Template',
+    description: 'Background image + text + content + bottom link button.',
     previewGradient: 'from-indigo-600 to-violet-800',
     fields: [
       {
         key: 'backgroundUrl',
-        label: '背景图 URL',
+        label: 'Background image URL',
         placeholder: DEFAULT_HERO_IMAGE,
       },
-      { key: 'heroText', label: '文本', placeholder: '请输入标题文本' },
+      { key: 'heroText', label: 'Text', placeholder: 'Enter headline text' },
       {
         key: 'heroContent',
-        label: '内容',
+        label: 'Content',
         multiline: true,
-        placeholder: '请输入主要内容',
+        placeholder: 'Enter main content',
       },
-      { key: 'linkLabel', label: '按钮文字', placeholder: '了解更多' },
-      { key: 'linkUrl', label: '按钮超链接 URL', placeholder: 'https://' },
+      { key: 'linkLabel', label: 'Button label', placeholder: 'Learn more' },
+      { key: 'linkUrl', label: 'Button link URL', placeholder: 'https://' },
     ],
     defaultDraft: {
       backgroundUrl: '',

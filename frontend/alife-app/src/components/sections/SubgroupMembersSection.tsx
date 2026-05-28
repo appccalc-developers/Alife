@@ -2,30 +2,31 @@ import React, { useState } from 'react'
 import { useSubgroupPageMembers, membersConfigToListViewMetadata } from '../../hooks/useSubgroupPageMembers'
 import type { SubgroupPageMembersConfig } from '../../types/subgroup-pages'
 import { GroupListSection } from './GroupListSection'
+import { useUiText } from '../../i18n/uiText'
 
 interface SubgroupMembersSectionProps {
   /** Subgroup ID */
   subgroupId: string
-  /** 每页显示数量 */
+  /** Number of items per page */
   limit?: number
-  /** 排序方式 */
+  /** Sort order */
   sort?: 'latest' | 'oldest' | 'popular'
-  /** 是否使用精简版（编辑器内预览用） */
+  /** Use compact mode (for in-editor preview) */
   compact?: boolean
-  /** 是否自动加载数据 */
+  /** Auto-load data on mount */
   autoLoad?: boolean
-  /** 编辑模式：显示保存按钮 */
+  /** Edit mode: show save button */
   editMode?: boolean
 }
 
 /**
- * Subgroup Members Section 组件
+ * Subgroup Members Section component
  *
- * 预览模式 (editMode=false):
- *   通过 conditionalGet 获取最新数据，支持 304 缓存
+ * Preview mode (editMode=false):
+ *   Fetches latest data via conditionalGet with 304 caching support.
  *
- * 编辑模式 (editMode=true):
- *   显示配置项和保存按钮，保存时只传必要字段 (id, limit, sort)
+ * Edit mode (editMode=true):
+ *   Shows config fields and a save button; only required fields (id, limit, sort) are sent on save.
  */
 export const SubgroupMembersSection: React.FC<SubgroupMembersSectionProps> = ({
   subgroupId,
@@ -35,19 +36,20 @@ export const SubgroupMembersSection: React.FC<SubgroupMembersSectionProps> = ({
   autoLoad = true,
   editMode = false,
 }) => {
+  const t = useUiText()
   const config: SubgroupPageMembersConfig = {
     id: subgroupId,
     limit,
     sort,
   }
 
-  // 编辑模式 - 使用 hook 管理保存/加载
+  // Edit mode — use hook for save/load
   const { loading, error, fromCache, save } = useSubgroupPageMembers({
     config,
     autoLoad: !editMode && autoLoad,
   })
 
-  // 编辑模式下的本地状态
+  // Local state for edit mode
   const [editLimit, setEditLimit] = useState(limit)
   const [editSort, setEditSort] = useState<'latest' | 'oldest' | 'popular'>(sort)
 
@@ -59,15 +61,15 @@ export const SubgroupMembersSection: React.FC<SubgroupMembersSectionProps> = ({
     })
   }
 
-  // 预览模式：直接使用 GroupListSection 通过 useListSourceResolver 渲染
+  // Preview mode: render directly using GroupListSection via useListSourceResolver
   if (!editMode) {
     const meta = membersConfigToListViewMetadata(config)
     return (
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-slate-900">子群组成员</h3>
+          <h3 className="text-sm font-semibold text-slate-900">{t('subgroupMembers')}</h3>
           {fromCache && (
-            <span className="text-[10px] text-slate-400">（缓存数据）</span>
+            <span className="text-[10px] text-slate-400">{t('fromCacheLabel')}</span>
           )}
         </div>
         <GroupListSection
@@ -79,14 +81,14 @@ export const SubgroupMembersSection: React.FC<SubgroupMembersSectionProps> = ({
     )
   }
 
-  // 编辑模式：显示配置表单
+  // Edit mode: show configuration form
   return (
     <div className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
-      <h3 className="text-sm font-semibold text-slate-900">成员列表配置</h3>
+      <h3 className="text-sm font-semibold text-slate-900">{t('memberListConfig')}</h3>
 
       <div className="space-y-3">
         <label className="block space-y-1">
-          <span className="text-xs font-medium text-slate-700">每页数量</span>
+          <span className="text-xs font-medium text-slate-700">{t('displayCount')}</span>
           <input
             type="number"
             min={1}
@@ -98,15 +100,15 @@ export const SubgroupMembersSection: React.FC<SubgroupMembersSectionProps> = ({
         </label>
 
         <label className="block space-y-1">
-          <span className="text-xs font-medium text-slate-700">排序方式</span>
+          <span className="text-xs font-medium text-slate-700">{t('sortOrder')}</span>
           <select
             value={editSort}
             onChange={(e) => setEditSort(e.target.value as typeof editSort)}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
           >
-            <option value="latest">最新加入</option>
-            <option value="oldest">最早加入</option>
-            <option value="popular">最活跃</option>
+            <option value="latest">{t('joinedLatest')}</option>
+            <option value="oldest">{t('joinedOldest')}</option>
+            <option value="popular">{t('mostActive')}</option>
           </select>
         </label>
       </div>
@@ -120,16 +122,16 @@ export const SubgroupMembersSection: React.FC<SubgroupMembersSectionProps> = ({
         disabled={loading}
         className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
       >
-        {loading ? '保存中...' : '保存配置'}
+        {loading ? t('saving') : t('saveConfig')}
       </button>
 
       <p className="text-[10px] text-slate-400">
-        保存时只传必要字段 (id, limit, sort)，预览时通过 ETag/304 获取最新数据
+        {t('memberListConfigHint')}
       </p>
 
-      {/* 预览当前配置 */}
+      {/* Preview current config */}
       <div className="mt-4 border-t border-slate-100 pt-4">
-        <p className="mb-2 text-xs font-medium text-slate-500">实时预览</p>
+        <p className="mb-2 text-xs font-medium text-slate-500">{t('livePreview')}</p>
         <GroupListSection
           metadata={membersConfigToListViewMetadata({ id: subgroupId, limit: editLimit, sort: editSort })}
           groupId={subgroupId}
