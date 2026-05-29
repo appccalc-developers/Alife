@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useUiText } from '../i18n/uiText'
 import { useCurrentGroupStore } from '../stores/currentGroup'
@@ -9,6 +9,11 @@ const HomeView = () => {
   const { refreshChurchGroup } = useCurrentGroupStore()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const tRef = useRef(t)
+
+  useEffect(() => {
+    tRef.current = t
+  }, [t])
 
   useEffect(() => {
     let cancelled = false
@@ -27,13 +32,13 @@ const HomeView = () => {
         return
       }
 
-      setError(t('churchGroupLoadError'))
+      setError(tRef.current('churchGroupLoadError'))
       setLoading(false)
     }
 
     openChurchGroup().catch(() => {
       if (!cancelled) {
-        setError(t('churchGroupLoadError'))
+        setError(tRef.current('churchGroupLoadError'))
         setLoading(false)
       }
     })
@@ -41,7 +46,7 @@ const HomeView = () => {
     return () => {
       cancelled = true
     }
-  }, [navigate, refreshChurchGroup, t])
+  }, [navigate, refreshChurchGroup])
 
   return (
     <section className="space-y-5">
