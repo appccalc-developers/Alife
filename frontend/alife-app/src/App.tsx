@@ -669,7 +669,7 @@ const App = () => {
             <button
               type="button"
               className="inline-flex h-10 min-w-12 items-center justify-center rounded-full border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
-              onClick={() => auth.setLanguage(auth.language === 'en' ? 'zh' : 'en')}
+              onClick={() => void auth.updateLanguage(auth.language === 'en' ? 'zh' : 'en')}
             >
               {toggleLanguageLabel}
             </button>

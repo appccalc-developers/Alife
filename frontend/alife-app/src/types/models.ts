@@ -121,6 +121,7 @@ export type MeDto = {
   age?: number
   email?: string
   phoneE164?: string
+  language: 'en' | 'zh'
   isGuest: boolean
   isRegistered: boolean
   isAdmin: boolean

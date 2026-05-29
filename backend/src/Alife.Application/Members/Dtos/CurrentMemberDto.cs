@@ -7,6 +7,7 @@ public sealed record CurrentMemberDto(
     int? Age,
     string? Email,
     string? PhoneE164,
+    string Language,
     bool IsGuest,
     bool IsRegistered,
     bool IsAdmin,

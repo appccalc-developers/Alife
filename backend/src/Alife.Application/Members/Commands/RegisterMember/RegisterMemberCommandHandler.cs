@@ -2,6 +2,7 @@ using Alife.Application.Abstractions.Security;
 using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
 using Alife.Application.Members.Dtos;
+using Alife.Domain.Constants;
 using Alife.Domain.Entities;
 using Alife.Domain.Enums;
 using MediatR;
@@ -64,6 +65,7 @@ public sealed class RegisterMemberCommandHandler(
             {
                 Id = Guid.NewGuid(),
                 LineUID = string.IsNullOrWhiteSpace(verifiedLineUID) ? null : verifiedLineUID,
+                Language = MemberLanguage.Zh,
                 IsRegistered = false,
                 IsAdmin = false,
                 CreatedUtc = now,
@@ -84,6 +86,7 @@ public sealed class RegisterMemberCommandHandler(
         memberToRegister.Sex = request.Sex;
         memberToRegister.Age = request.Age;
         memberToRegister.Email = request.Email;
+        memberToRegister.Language = MemberLanguage.Normalize(memberToRegister.Language);
         memberToRegister.IsRegistered = true;
         memberToRegister.UpdatedUtc = now;
 
