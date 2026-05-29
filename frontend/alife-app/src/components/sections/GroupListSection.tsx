@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef } from 'react'
+import { Link } from 'react-router-dom'
 import { useListSourceResolver } from '../../hooks/useListSourceResolver'
 import type { ListViewMetadata } from '../../types/page-editor'
 import { normalizeListViewMetadata } from '../../utils/listViewMetadata'
@@ -10,6 +11,7 @@ import CoverImage from '../CoverImage'
 import { localizeText } from '../../utils/localizedText'
 import { useAuthStore } from '../../stores/auth'
 import { translateUi, type UiTextKey, useUiText } from '../../i18n/uiText'
+import { buildSermonVideoPath, extractYouTubeVideoId } from '../../utils/youtube'
 
 // ---------- Universal Card Interface ----------
 
@@ -26,13 +28,15 @@ export interface UniversalCardItem {
 // ---------- Adapter functions ----------
 
 export function sermonToCardItem(sermon: SermonDto): UniversalCardItem {
+  const videoId = extractYouTubeVideoId(sermon.videoUrl)
+
   return {
     id: sermon.id,
     title: sermon.title,
     subtitle: sermon.speakerName || 'Sermon',
     imageUrl: sermon.thumbnailUrl || undefined,
     date: sermon.preachedAt || undefined,
-    url: sermon.videoUrl || `/sermons/${sermon.id}`,
+    url: buildSermonVideoPath(sermon.id, videoId),
     type: 'sermon',
   }
 }
@@ -115,10 +119,8 @@ export const ListCard: React.FC<{ item: UniversalCardItem; compact?: boolean; ca
   const dateLocale = language === 'zh' ? 'zh-CN' : 'en-NZ'
 
   return (
-    <a
-      href={item.url}
-      target={item.type === 'sermon' ? '_blank' : undefined}
-      rel={item.type === 'sermon' ? 'noopener noreferrer' : undefined}
+    <Link
+      to={item.url}
       className="group block rounded-lg border border-slate-200 bg-white shadow-sm transition-all hover:shadow-md hover:border-slate-300"
     >
       {item.imageUrl ? (
@@ -154,7 +156,7 @@ export const ListCard: React.FC<{ item: UniversalCardItem; compact?: boolean; ca
           </svg>
         </span>
       </div>
-    </a>
+    </Link>
   )
 }
 
