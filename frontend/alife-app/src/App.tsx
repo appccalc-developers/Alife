@@ -16,6 +16,7 @@ import PagePreviewDraftView from './views/PagePreviewDraftView'
 import PageView from './views/PageView'
 import ProfileView from './views/ProfileView'
 import SermonsView from './views/SermonsView'
+import SermonVideoView from './views/SermonVideoView'
 import EventCreatorView from './views/EventCreatorView'
 import EventEnrollmentView from './views/EventEnrollmentView'
 import EventReviewView from './views/EventReviewView'
@@ -423,12 +424,16 @@ const App = () => {
   const groupEventReviewMatch = location.pathname.match(/^\/groups\/([^/]+)\/events\/[^/]+\/review$/)
   const eventCreateMatch = location.pathname.match(/^\/events\/new$/)
   const eventEditMatch = location.pathname.match(/^\/events\/[^/]+\/edit$/)
+  const sermonDetailMatch = location.pathname.match(/^\/sermons\/[^/]+$/)
   const pageEditMatch = location.pathname.match(/^\/pages\/([^/]+)\/edit$/)
+  const profileMatch = location.pathname.match(/^\/profile$/)
   const searchParams = new URLSearchParams(location.search)
   const isGroupScreen = Boolean(groupScreenMatch)
   const isManagementScreen = Boolean(groupManageMatch)
   const isPageEditorScreen = Boolean(groupCreatePageMatch || pageEditMatch)
   const isEventScreen = Boolean(eventCreateMatch || eventEditMatch || groupEventEnrollmentMatch || groupEventReviewMatch)
+  const isSermonDetailScreen = Boolean(sermonDetailMatch)
+  const isProfileScreen = Boolean(profileMatch)
   const contextualGroupId =
     groupScreenMatch?.[1] ||
     groupJoinMatch?.[1] ||
@@ -505,6 +510,24 @@ const App = () => {
             },
           ]
           : isEventScreen
+            ? [
+                {
+                  label: translateUi(auth.language, 'back'),
+                  tone: 'exit',
+                  icon: <BackIcon />,
+                  onClick: () => navigate(-1),
+                },
+              ]
+          : isSermonDetailScreen
+            ? [
+                {
+                  label: translateUi(auth.language, 'back'),
+                  tone: 'exit',
+                  icon: <BackIcon />,
+                  onClick: () => navigate(-1),
+                },
+              ]
+          : isProfileScreen
             ? [
                 {
                   label: translateUi(auth.language, 'back'),
@@ -679,6 +702,7 @@ const App = () => {
             <Route path="/pages/:pageId" element={<PageView />} />
             <Route path="/profile" element={<ProfileView />} />
             <Route path="/sermons" element={<SermonsView />} />
+            <Route path="/sermons/:sermonId" element={<SermonVideoView />} />
             <Route path="/events/new" element={<EventCreatorView />} />
             <Route path="/events/:eventId/edit" element={<EventCreatorView />} />
             <Route path="/groups/:groupId/events/:eventId/enroll" element={<EventEnrollmentView />} />

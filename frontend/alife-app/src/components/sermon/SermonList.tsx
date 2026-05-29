@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useLiveQuery } from '@tanstack/react-db'
+import { Link } from 'react-router-dom'
 import { getCachedSermons, sermonsCollection, sermonsQueryKey } from '../../db/collections/sermonsCollection'
 import SermonCardSkeleton from './SermonCardSkeleton'
 import { useImagePreloader } from '../../hooks/useImagePreloader'
 import CoverImage from '../CoverImage'
 import { useUiText } from '../../i18n/uiText'
+import { buildSermonVideoPath, extractYouTubeVideoId } from '../../utils/youtube'
 
 const SermonList = () => {
   const t = useUiText()
@@ -107,10 +109,14 @@ const SermonList = () => {
 
       {sermons.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {sermons.map((sermon, index) => (
-            <article
+          {sermons.map((sermon, index) => {
+            const sermonPath = buildSermonVideoPath(sermon.id, extractYouTubeVideoId(sermon.videoUrl))
+
+            return (
+            <Link
               key={sermon.id}
-              className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md"
+              to={sermonPath}
+              className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md focus:outline-none focus:ring-4 focus:ring-emerald-100"
             >
               <figure className="relative">
                 {sermon.thumbnailUrl ? (
@@ -135,19 +141,12 @@ const SermonList = () => {
                 <h2 className="line-clamp-2 text-base font-semibold text-slate-900">{sermon.title}</h2>
                 <p className="text-sm text-slate-600">{sermon.speakerName || t('guestSpeaker')}</p>
 
-                {sermon.videoUrl ? (
-                  <a
-                    href={sermon.videoUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex text-sm font-medium text-blue-700 hover:text-blue-600"
-                  >
-                    {t('watchSermon')}
-                  </a>
-                ) : null}
+                <span className="inline-flex text-sm font-medium text-blue-700 hover:text-blue-600">
+                  {t('watchSermon')}
+                </span>
               </div>
-            </article>
-          ))}
+            </Link>
+          )})}
         </div>
       ) : null}
     </section>

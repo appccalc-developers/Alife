@@ -192,6 +192,10 @@ const EnrollmentChatDialog = ({
     }
   }
 
+  const title = language === 'zh'
+    ? event.titleZh || event.titleEn || translateUi(language, 'untitled')
+    : event.titleEn || event.titleZh || translateUi(language, 'untitled')
+
   return (
     <div className={isDialog ? 'fixed inset-0 z-[60] flex items-end bg-slate-950/45 desktop:items-center desktop:justify-center' : 'mx-auto flex w-full max-w-6xl flex-col'}>
       {isDialog ? (
@@ -204,7 +208,7 @@ const EnrollmentChatDialog = ({
               {t('enrollmentAiAssistantTitle')}
             </p>
             <h2 className="mt-1 text-xl font-semibold text-slate-950">
-              {event.titleEn || event.titleZh || t('eventEnrollment')}
+              {title}
             </h2>
           </div>
           {isDialog ? (
