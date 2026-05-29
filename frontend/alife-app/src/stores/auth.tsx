@@ -16,7 +16,7 @@ type AuthContextValue = {
   fetchMe: () => Promise<MeDto>
   bootstrap: () => Promise<MeDto | undefined>
   logout: () => Promise<void>
-  setLanguage: (value: Language) => void
+  updateLanguage: (value: Language) => Promise<void>
   hasGroupRole: (groupId: string, role: MembershipRole) => boolean
   canManageGroup: (groupId: string) => boolean
   hasLeaderAccess: (groupId: string) => boolean
@@ -28,11 +28,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [me, setMe] = useState<MeDto | null>(null)
   const [loading, setLoading] = useState(false)
   const [initialized, setInitialized] = useState(false)
-  const [language, setLanguage] = useState<Language>('en')
+  const [language, setLanguage] = useState<Language>('zh')
 
   const fetchMe = useCallback(async () => {
     const profile = await authService.getMe()
     setMe(profile)
+    setLanguage(profile.language ?? 'zh')
     return profile
   }, [])
 
@@ -59,6 +60,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = useCallback(async () => {
     await authService.logout()
     setMe(null)
+    setLanguage('zh')
     try {
       await fetchMe()
     } catch {
@@ -81,6 +83,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     [hasGroupRole],
   )
 
+  const updateLanguage = useCallback(async (value: Language) => {
+    const previousLanguage = language
+    setLanguage(value)
+
+    if (!me || me.isGuest) {
+      return
+    }
+
+    try {
+      await authService.updateProfileLanguage(value)
+      setMe((current) => (current ? { ...current, language: value } : current))
+    } catch (error) {
+      setLanguage(previousLanguage)
+      throw error
+    }
+  }, [language, me])
+
   const value = useMemo<AuthContextValue>(
     () => ({
       me,
@@ -94,12 +113,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       fetchMe,
       bootstrap,
       logout,
-      setLanguage,
+      updateLanguage,
       hasGroupRole,
       canManageGroup,
       hasLeaderAccess: canManageGroup,
     }),
-    [bootstrap, canManageGroup, fetchMe, hasGroupRole, initialized, language, loading, logout, me, memberships],
+    [bootstrap, canManageGroup, fetchMe, hasGroupRole, initialized, language, loading, logout, me, memberships, updateLanguage],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

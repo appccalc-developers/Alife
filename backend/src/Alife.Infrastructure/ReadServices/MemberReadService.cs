@@ -1,6 +1,7 @@
 using Alife.Application.Common;
 using Alife.Application.Members.Dtos;
 using Alife.Application.Members.Services;
+using Alife.Domain.Constants;
 using Alife.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -20,6 +21,7 @@ public sealed class MemberReadService(AlifeDbContext dbContext) : IMemberReadSer
                 x.Age,
                 x.Email,
                 x.PhoneE164,
+                MemberLanguage.Normalize(x.Language),
                 !x.IsRegistered,
                 x.IsRegistered,
                 x.IsAdmin,
