@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { conditionalGet } from '../db/httpCache'
 import { churchQueryKey } from '../db/collections/groupCollection'
 import { useUiText } from '../i18n/uiText'
@@ -20,6 +20,11 @@ export const CurrentGroupProvider = ({ children }: { children: ReactNode }) => {
   const [CurrentGroup, setCurrentGroup] = useState<GroupDto | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const tRef = useRef(t)
+
+  useEffect(() => {
+    tRef.current = t
+  }, [t])
 
   const refreshChurchGroup = useCallback(async () => {
     setLoading(true)
@@ -34,12 +39,12 @@ export const CurrentGroupProvider = ({ children }: { children: ReactNode }) => {
       setCurrentGroup(normalized)
       return normalized
     } catch {
-      setError(t('churchGroupLoadError'))
+      setError(tRef.current('churchGroupLoadError'))
       return null
     } finally {
       setLoading(false)
     }
-  }, [t])
+  }, [])
 
   useEffect(() => {
     refreshChurchGroup().catch(() => undefined)
