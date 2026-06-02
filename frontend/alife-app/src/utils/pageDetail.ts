@@ -1,4 +1,5 @@
 import type { PageDetailDto, SectionEditModel, SectionHeader, SectionIconKey } from '../types'
+import { SECTION_ICON_KEYS } from '../types/models'
 import { normalizePageVisibility } from './apiEnums'
 import { toLocalizedText } from './localizedText'
 
@@ -11,10 +12,20 @@ type SectionDto = {
   styleJson: string | Record<string, unknown>
 }
 
-const sectionIconKeys: SectionIconKey[] = ['church', 'cross', 'calendar', 'bible', 'people', 'heart', 'music', 'map', 'image', 'video', 'mic', 'book', 'handshake']
+const sectionIconKeys: readonly SectionIconKey[] = SECTION_ICON_KEYS
 const sectionHeaderAlignments: Array<NonNullable<SectionHeader['align']>> = ['left', 'center']
 const sectionHeaderScales: Array<NonNullable<SectionHeader['scale']>> = ['compact', 'normal', 'feature']
 const sectionHeaderTones: Array<NonNullable<SectionHeader['tone']>> = ['default', 'primary', 'warm', 'fresh', 'rose']
+
+const pickEnumValue = <T extends string>(value: unknown, validValues: readonly T[]): T | undefined =>
+  typeof value === 'string' && validValues.includes(value as T) ? (value as T) : undefined
+
+const toLocalizedHeaderText = (value: unknown) =>
+  toLocalizedText(
+    typeof value === 'string' || (value && typeof value === 'object' && !Array.isArray(value))
+      ? (value as Record<string, string> | string)
+      : undefined,
+  )
 
 const normalizeSectionHeader = (value: unknown): SectionHeader | undefined => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -22,31 +33,12 @@ const normalizeSectionHeader = (value: unknown): SectionHeader | undefined => {
   }
 
   const header = value as Record<string, unknown>
-  const icon = typeof header.icon === 'string' && sectionIconKeys.includes(header.icon as SectionIconKey) ? (header.icon as SectionIconKey) : undefined
-  const align =
-    typeof header.align === 'string' && sectionHeaderAlignments.includes(header.align as NonNullable<SectionHeader['align']>)
-      ? (header.align as NonNullable<SectionHeader['align']>)
-      : undefined
-  const scale =
-    typeof header.scale === 'string' && sectionHeaderScales.includes(header.scale as NonNullable<SectionHeader['scale']>)
-      ? (header.scale as NonNullable<SectionHeader['scale']>)
-      : undefined
-  const tone =
-    typeof header.tone === 'string' && sectionHeaderTones.includes(header.tone as NonNullable<SectionHeader['tone']>)
-      ? (header.tone as NonNullable<SectionHeader['tone']>)
-      : undefined
-  const headerTitle = header.title
-  const headerSubtitle = header.subtitle
-  const title = toLocalizedText(
-    typeof headerTitle === 'string' || (headerTitle && typeof headerTitle === 'object' && !Array.isArray(headerTitle))
-      ? (headerTitle as Record<string, string> | string)
-      : undefined,
-  )
-  const subtitle = toLocalizedText(
-    typeof headerSubtitle === 'string' || (headerSubtitle && typeof headerSubtitle === 'object' && !Array.isArray(headerSubtitle))
-      ? (headerSubtitle as Record<string, string> | string)
-      : undefined,
-  )
+  const icon = pickEnumValue(header.icon, sectionIconKeys)
+  const align = pickEnumValue(header.align, sectionHeaderAlignments)
+  const scale = pickEnumValue(header.scale, sectionHeaderScales)
+  const tone = pickEnumValue(header.tone, sectionHeaderTones)
+  const title = toLocalizedHeaderText(header.title)
+  const subtitle = toLocalizedHeaderText(header.subtitle)
   const hasTitle = Object.values(title).some((item) => item.trim().length > 0)
   const hasSubtitle = Object.values(subtitle).some((item) => item.trim().length > 0)
 

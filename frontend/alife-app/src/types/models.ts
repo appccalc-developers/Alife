@@ -4,20 +4,8 @@ export type MembershipRole = 'member' | 'coLeader' | 'leader'
 export type PageScope = 'global' | 'group'
 export type PageVisibility = 'draft' | 'group' | 'public'
 export type LocalizedText = Record<string, string>
-export type SectionIconKey =
-  | 'church'
-  | 'cross'
-  | 'calendar'
-  | 'bible'
-  | 'people'
-  | 'heart'
-  | 'music'
-  | 'map'
-  | 'image'
-  | 'video'
-  | 'mic'
-  | 'book'
-  | 'handshake'
+export const SECTION_ICON_KEYS = ['church', 'cross', 'calendar', 'bible', 'people', 'heart', 'music', 'map', 'image', 'video', 'mic', 'book', 'handshake'] as const
+export type SectionIconKey = (typeof SECTION_ICON_KEYS)[number]
 
 export type SectionHeader = {
   icon?: SectionIconKey
