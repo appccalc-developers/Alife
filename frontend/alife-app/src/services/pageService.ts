@@ -47,16 +47,10 @@ const toSectionPayloadType = (type: SectionEditModel['type']): string => {
   switch (type) {
     case 'Hero':
       return 'hero'
-    case 'MediaSpotlight':
-      return 'hero'
-    case 'IconFeatureGrid':
-      return 'hero'
-    case 'SermonSpotlight':
+    case 'Spotlight':
       return 'hero'
     case 'RichText':
       return 'richText'
-    case 'PostFeed':
-      return 'postFeed'
     case 'Sermon':
       return 'sermon'
     case 'ListView':

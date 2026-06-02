@@ -1,23 +1,8 @@
 import { useUiText } from '../../i18n/uiText'
 import { readText } from '../../utils/pageSectionContent'
+import { readNumber } from '../page-sections/sectionUtils'
 import { GroupListSection } from '../sections/GroupListSection'
 import type { SectionEditModel } from '../../types/page-editor'
-
-const readNumber = (source: Record<string, unknown> | undefined, key: string) => {
-  const value = source?.[key]
-  if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
-    return value
-  }
-
-  if (typeof value === 'string') {
-    const parsed = Number(value)
-    if (Number.isFinite(parsed) && parsed > 0) {
-      return parsed
-    }
-  }
-
-  return undefined
-}
 
 export type GroupPagePreviewSubgroup = { id: string; name: string; accessType: string }
 export type GroupPagePreviewPageItem = { id: string; title: string; visibility: string }
@@ -35,6 +20,35 @@ type Props = {
   previewGroupId?: string
 }
 
+const toYouTubeEmbedUrl = (rawUrl: string) => {
+  const value = rawUrl.trim()
+  if (!value) {
+    return ''
+  }
+
+  try {
+    const url = new URL(value)
+    if (url.hostname.includes('youtu.be')) {
+      const id = url.pathname.replace('/', '').trim()
+      return id ? `https://www.youtube.com/embed/${id}` : ''
+    }
+    if (url.hostname.includes('youtube.com')) {
+      const id = url.searchParams.get('v')?.trim()
+      if (id) {
+        return `https://www.youtube.com/embed/${id}`
+      }
+      const shortsMatch = url.pathname.match(/\/shorts\/([^/]+)/)
+      if (shortsMatch?.[1]) {
+        return `https://www.youtube.com/embed/${shortsMatch[1]}`
+      }
+    }
+  } catch {
+    return ''
+  }
+
+  return ''
+}
+
 const GroupPagePreview = ({
   title,
   description,
@@ -43,29 +57,6 @@ const GroupPagePreview = ({
   previewGroupId,
 }: Props) => {
   const t = useUiText()
-  const toYouTubeEmbedUrl = (rawUrl: string) => {
-    const value = rawUrl.trim()
-    if (!value) {
-      return ''
-    }
-    try {
-      const url = new URL(value)
-      if (url.hostname.includes('youtu.be')) {
-        const id = url.pathname.replace('/', '').trim()
-        return id ? `https://www.youtube.com/embed/${id}` : ''
-      }
-      if (url.hostname.includes('youtube.com')) {
-        const id = url.searchParams.get('v')?.trim()
-        if (id) {
-          return `https://www.youtube.com/embed/${id}`
-        }
-      }
-    } catch {
-      return ''
-    }
-    return ''
-  }
-
   const h1 = compact ? 'text-xl font-bold text-slate-900' : 'text-3xl font-bold text-slate-900'
   const desc = compact ? 'text-xs text-slate-600' : 'text-sm text-slate-600'
 
@@ -81,238 +72,21 @@ const GroupPagePreview = ({
         {sections.map((section) => {
           const key = section.id || `${section.order}-${section.type}`
 
-          if (section.type === 'IconFeatureGrid' || section.type === 'SermonSpotlight') {
-            const bg = readText(section.contentJson, 'backgroundImage', 'backgroundImageUrl')
-            const headline = readText(section.contentJson, 'title', 'headline')
-            const sub = readText(section.contentJson, 'subtitle', 'subheadline')
-            const layout = section.type === 'SermonSpotlight' ? 'sermonSpotlight' : 'iconFeatureGrid'
-            const youtubeEmbedUrl = toYouTubeEmbedUrl(readText(section.contentJson, 'youtubeUrl'))
-            const body = readText(section.contentJson, 'centerText', 'body')
-            const linkUrl = readText(section.contentJson, 'linkUrl', 'ctaUrl', 'href')
-            const displayStyle = readText(section.styleJson, 'displayStyle') === 'newsGrid' ? 'newsGrid' : 'iconGrid'
-            const imageShape = readText(section.styleJson, 'imageShape') === 'circle' ? 'circle' : 'square'
-            const rawItems = Array.isArray(section.contentJson.iconItems) ? section.contentJson.iconItems : []
-            const items = rawItems
-              .map((item) => {
-                if (!item || typeof item !== 'object') {
-                  return { imageUrl: '', label: '', linkUrl: '' }
-                }
-                const record = item as Record<string, unknown>
-                return {
-                  imageUrl: typeof record.imageUrl === 'string' ? record.imageUrl : '',
-                  label: typeof record.label === 'string' ? record.label : '',
-                  linkUrl: typeof record.linkUrl === 'string' ? record.linkUrl : '',
-                }
-              })
-              .filter((item) => item.imageUrl || item.label || item.linkUrl)
-
-            if (layout === 'sermonSpotlight') {
-              return (
-                <section key={key} className="overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
-                  <div className={compact ? 'px-3 py-5' : 'px-5 py-8'}>
-                    <div className="mx-auto max-w-4xl text-center">
-                      <h2 className={compact ? 'text-xl font-semibold text-slate-700' : 'text-3xl font-semibold text-slate-700'}>
-                        {headline || t('todaysSermon')}
-                      </h2>
-                      <p className={compact ? 'mt-1 text-xs text-slate-500' : 'mt-1 text-lg text-slate-500'}>{sub || t('godLovesUsAll')}</p>
-                    </div>
-                    <div className={`mt-5 grid gap-3 ${compact ? '' : 'md:grid-cols-[1fr_1.2fr] md:items-center'}`}>
-                      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-                        {youtubeEmbedUrl ? (
-                          <iframe
-                            src={youtubeEmbedUrl}
-                            referrerPolicy="strict-origin-when-cross-origin"
-                            title={t('sermonVideoPreview')}
-                            className="aspect-video w-full"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                          />
-                        ) : (
-                          <div className={`flex aspect-video items-center justify-center text-slate-500 ${compact ? 'text-[11px]' : 'text-sm'}`}>
-                            {t('previewYoutubeNotSet')}
-                          </div>
-                        )}
-                      </div>
-                      <div className="space-y-3 text-center md:text-left">
-                        <p className={`${compact ? 'text-sm' : 'text-2xl'} whitespace-pre-wrap font-semibold text-indigo-900`}>
-                          {body || t('sermonTitleSummary')}
-                        </p>
-                        {linkUrl ? (
-                          <a
-                            href={linkUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={
-                              compact
-                                ? 'inline-flex rounded bg-red-500 px-3 py-1 text-[11px] font-medium text-white shadow hover:bg-red-400'
-                                : 'inline-flex rounded bg-red-500 px-5 py-2 text-sm font-medium text-white shadow hover:bg-red-400'
-                            }
-                          >
-                            {t('view')}
-                          </a>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-                </section>
-              )
-            }
-
-            if (displayStyle === 'newsGrid') {
-              return (
-                <section key={key} className="overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-                  <div className={compact ? 'px-3 py-5' : 'px-5 py-8'}>
-                    <div className="mx-auto max-w-5xl text-center">
-                      <h2 className={compact ? 'text-xl font-semibold text-slate-700' : 'text-3xl font-semibold text-slate-700'}>
-                        {headline || t('latestNews')}
-                      </h2>
-                      <p className={compact ? 'mt-1 text-xs text-slate-500' : 'mt-1 text-lg text-slate-500'}>{sub || t('godLovesUsAll')}</p>
-                      <div className={`mt-5 grid gap-3 ${compact ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3'}`}>
-                        {items.map((item, idx) => (
-                          <a
-                            key={`${key}-news-${idx}`}
-                            href={item.linkUrl || undefined}
-                            target={item.linkUrl ? '_blank' : undefined}
-                            rel={item.linkUrl ? 'noopener noreferrer' : undefined}
-                            className="flex flex-col items-center gap-2"
-                          >
-                            {item.imageUrl ? (
-                              <img
-                                src={item.imageUrl}
-                                alt=""
-                                className={
-                                  imageShape === 'circle'
-                                    ? compact
-                                      ? 'h-20 w-20 rounded-full object-cover'
-                                      : 'h-28 w-28 rounded-full object-cover'
-                                    : compact
-                                      ? 'h-20 w-full rounded-sm object-cover'
-                                      : 'h-32 w-full rounded-sm object-cover'
-                                }
-                              />
-                            ) : null}
-                            <span className={compact ? 'text-[11px] text-slate-800' : 'text-sm text-slate-800'}>{item.label || t('untitled')}</span>
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </section>
-              )
-            }
-
-            return (
-              <section key={key} className="overflow-hidden rounded-lg border border-slate-200">
-                <div
-                  className={`${compact ? 'px-3 py-5' : 'px-5 py-8'} bg-cover bg-center text-white`}
-                  style={{ backgroundImage: `linear-gradient(rgba(2, 6, 23, 0.7), rgba(2, 6, 23, 0.7)), url(${bg || ''})` }}
-                >
-                  <div className="mx-auto max-w-4xl text-center">
-                    <h2 className={compact ? 'text-xl font-semibold' : 'text-3xl font-semibold'}>{headline || t('churchMainActivities')}</h2>
-                    <p className={compact ? 'mt-1 text-xs text-slate-200' : 'mt-2 text-base text-slate-200'}>{sub || t('godLovesUsAll')}</p>
-                    <div className={`mt-5 grid gap-3 ${compact ? 'grid-cols-3' : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-6'}`}>
-                      {items.map((item, idx) => (
-                        <a
-                          key={`${key}-icon-${idx}`}
-                          href={item.linkUrl || undefined}
-                          target={item.linkUrl ? '_blank' : undefined}
-                          rel={item.linkUrl ? 'noopener noreferrer' : undefined}
-                          className="flex flex-col items-center gap-1 rounded px-1 py-1 hover:bg-white/10"
-                        >
-                          {item.imageUrl ? (
-                            <img
-                              src={item.imageUrl}
-                              alt=""
-                              className={
-                                imageShape === 'circle'
-                                  ? compact
-                                    ? 'h-7 w-7 rounded-full object-cover'
-                                    : 'h-10 w-10 rounded-full object-cover'
-                                  : compact
-                                    ? 'h-7 w-7 object-contain'
-                                    : 'h-10 w-10 object-contain'
-                              }
-                            />
-                          ) : null}
-                          <span className={compact ? 'text-[11px] text-slate-100' : 'text-sm text-slate-100'}>{item.label || 'Untitled'}</span>
-                        </a>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </section>
-            )
-          }
-
-          if (section.type === 'Hero' || section.type === 'MediaSpotlight') {
-            const img = readText(section.contentJson, 'backgroundImage', 'backgroundImageUrl')
+          if (section.type === 'Hero') {
+            const img = readText(section.contentJson, 'backgroundImage', 'backgroundImageUrl', 'imageUrl')
             const centerText = readText(section.contentJson, 'centerText', 'body')
             const linkUrl = readText(section.contentJson, 'linkUrl', 'ctaUrl', 'href')
             const linkLabel = readText(section.contentJson, 'linkLabel', 'linkText', 'ctaLabel')
             const headline = readText(section.contentJson, 'title', 'headline')
             const sub = readText(section.contentJson, 'subtitle', 'subheadline')
             const rawLayout = readText(section.styleJson, 'layout')
-            const layout =
-              section.type === 'MediaSpotlight'
-                ? 'mediaSpotlight'
-                : rawLayout === 'split'
-                  ? 'mediaSpotlight'
-                  : rawLayout === 'poster'
-                    ? 'poster'
-                    : rawLayout || 'featured'
-            const imagePosition = readText(section.styleJson, 'imagePosition') === 'left' ? 'left' : 'right'
-            const featured = layout === 'featured' || (!layout && Boolean(centerText.trim() || linkUrl.trim()))
+            const layout = rawLayout === 'poster' ? 'poster' : rawLayout === 'classic' ? 'classic' : 'featured'
+            const featured = layout === 'featured'
             const poster = layout === 'poster'
             const aspectRatio = readNumber(section.styleJson, 'aspectRatio') ?? (poster ? 3 / 4 : 16 / 9)
-
-            if (layout === 'mediaSpotlight') {
-              return (
-                <section key={key} className="overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-                  <div className={`grid gap-3 ${compact ? 'p-3' : 'p-4'} md:grid-cols-2 md:items-center`}>
-                    <div className={`order-2 ${imagePosition === 'left' ? 'md:order-2' : ''}`}>
-                      <h2 className={compact ? 'text-lg font-semibold text-slate-800' : 'text-3xl font-semibold text-slate-800'}>
-                        {headline || t('previewNoHeadline')}
-                      </h2>
-                      <p className={`mt-1 whitespace-pre-wrap text-slate-700 ${compact ? 'text-xs' : 'text-sm'}`}>
-                        {centerText || sub || t('previewNoBody')}
-                      </p>
-                      {linkUrl ? (
-                        <a
-                          href={linkUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={
-                            compact
-                              ? 'mt-2 inline-flex rounded bg-red-500 px-3 py-1 text-[11px] font-medium text-white shadow hover:bg-red-400'
-                              : 'mt-3 inline-flex rounded bg-red-500 px-5 py-2 text-sm font-medium text-white shadow hover:bg-red-400'
-                          }
-                        >
-                          {linkLabel.trim() || linkUrl}
-                        </a>
-                      ) : null}
-                    </div>
-                    <div className={`order-1 ${imagePosition === 'left' ? 'md:order-1' : ''}`}>
-                      {img ? (
-                        <img src={img} alt="" className={`w-full rounded-lg object-cover ${compact ? 'h-28' : 'h-64'}`} />
-                      ) : (
-                        <div
-                          className={`flex w-full items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white text-slate-500 ${
-                            compact ? 'h-28 text-[11px]' : 'h-64 text-sm'
-                          }`}
-                        >
-                          {t('previewImagePending')}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </section>
-              )
-            }
-
             const bgStyle = img
               ? `linear-gradient(rgba(15, 23, 42, 0.5), rgba(15, 23, 42, 0.58)), url(${img})`
               : 'linear-gradient(135deg, rgb(30 41 59), rgb(51 65 85))'
-
             const pad = compact ? 'px-4 py-8' : 'px-6 py-12'
 
             return (
@@ -353,31 +127,12 @@ const GroupPagePreview = ({
                         </div>
                       ) : featured ? (
                         <div className={`flex max-w-lg flex-col items-center gap-2 ${compact ? 'gap-2' : 'gap-3'}`}>
-                          {headline ? (
-                            <p
-                              className={
-                                compact
-                                  ? 'text-[10px] font-semibold uppercase tracking-wide text-slate-200'
-                                  : 'text-xs font-semibold uppercase tracking-wide text-slate-200'
-                              }
-                            >
-                              {headline}
-                            </p>
-                          ) : null}
-                          {centerText ? (
-                            <p
-                              className={
-                                compact
-                                  ? 'whitespace-pre-wrap text-xs leading-relaxed text-white'
-                                  : 'whitespace-pre-wrap text-sm leading-relaxed text-white sm:text-base'
-                              }
-                            >
-                              {centerText}
-                            </p>
-                          ) : null}
-                          {!centerText && !linkUrl && sub ? (
-                            <p className={compact ? 'text-[11px] text-slate-100' : 'text-sm text-slate-100'}>{sub}</p>
-                          ) : null}
+                          <h2 className={compact ? 'text-lg font-semibold' : 'text-3xl font-semibold'}>
+                            {headline || t('previewNoHeadline')}
+                          </h2>
+                          <p className={`whitespace-pre-wrap text-slate-100 ${compact ? 'text-xs' : 'text-sm'}`}>
+                            {centerText || sub || t('previewNoBody')}
+                          </p>
                         </div>
                       ) : (
                         <div className="w-full text-left">
@@ -385,20 +140,6 @@ const GroupPagePreview = ({
                             {headline || t('previewNoHeadline')}
                           </h2>
                           <p className={`mt-1 text-slate-100 ${compact ? 'text-[11px]' : 'text-sm'}`}>{sub || t('previewNoSubtitle')}</p>
-                          {linkUrl ? (
-                            <a
-                              href={linkUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className={
-                                compact
-                                  ? 'mt-2 inline-flex rounded-full bg-white px-3 py-1 text-[11px] font-medium text-slate-900 shadow hover:bg-slate-100'
-                                  : 'mt-3 inline-flex rounded-full bg-white px-4 py-2 text-sm font-medium text-slate-900 shadow hover:bg-slate-100'
-                              }
-                            >
-                              {linkLabel.trim() || linkUrl}
-                            </a>
-                          ) : null}
                         </div>
                       )}
                       {!poster && linkUrl ? (
@@ -422,96 +163,117 @@ const GroupPagePreview = ({
             )
           }
 
-          if (section.type === 'RichText') {
-            const isNotice = readText(section.styleJson, 'variant') === 'announcement'
-            const isQuoteOverlay =
-              readText(section.styleJson, 'variant') === 'quoteOverlay' ||
-              Boolean(readText(section.contentJson, 'backgroundImage', 'backgroundImageUrl'))
-            const isImageArticle =
-              readText(section.styleJson, 'variant') === 'imageArticle' || Boolean(readText(section.contentJson, 'imageUrl'))
-            const imageUrl = readText(section.contentJson, 'imageUrl')
-            const rtTitle = readText(section.contentJson, 'title')
-            const body = readText(section.contentJson, 'text')
-            const linkUrl = readText(section.contentJson, 'linkUrl', 'href')
-            const linkLabel = readText(section.contentJson, 'linkLabel', 'linkText')
+          if (section.type === 'Spotlight') {
+            const headline = readText(section.contentJson, 'title', 'headline')
+            const sub = readText(section.contentJson, 'subtitle', 'subheadline')
+            const body = readText(section.contentJson, 'centerText', 'body', 'text')
+            const imageUrl = readText(section.contentJson, 'imageUrl', 'backgroundImage', 'backgroundImageUrl')
+            const youtubeEmbedUrl = toYouTubeEmbedUrl(readText(section.contentJson, 'youtubeUrl'))
+            const linkUrl = readText(section.contentJson, 'linkUrl', 'ctaUrl', 'href')
+            const linkLabel = readText(section.contentJson, 'linkLabel', 'linkText', 'ctaLabel')
+            const mediaPosition = readText(section.styleJson, 'mediaPosition', 'imagePosition') === 'right' ? 'right' : 'left'
 
-            if (isQuoteOverlay) {
-              const bg = readText(section.contentJson, 'backgroundImage', 'backgroundImageUrl')
+            return (
+              <section key={key} className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+                <div className={`grid gap-0 ${compact ? '' : 'md:grid-cols-2 md:items-stretch'}`}>
+                  <div className={`overflow-hidden bg-slate-100 ${mediaPosition === 'right' ? 'md:order-2' : 'md:order-1'}`}>
+                    {youtubeEmbedUrl ? (
+                      <iframe
+                        src={youtubeEmbedUrl}
+                        referrerPolicy="strict-origin-when-cross-origin"
+                        title={t('sermonVideoPreview')}
+                        className="aspect-video w-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    ) : imageUrl ? (
+                      <img src={imageUrl} alt="" className={`w-full object-cover ${compact ? 'h-32' : 'h-64 md:h-full'}`} />
+                    ) : (
+                      <div className={`flex aspect-video items-center justify-center text-slate-500 ${compact ? 'text-[11px]' : 'text-sm'}`}>
+                        {t('previewImagePending')}
+                      </div>
+                    )}
+                  </div>
+                  <div className={`flex flex-col justify-center ${compact ? 'space-y-2 p-3' : 'space-y-3 p-5'} ${mediaPosition === 'right' ? 'md:order-1' : 'md:order-2'}`}>
+                    <h2 className={compact ? 'text-lg font-semibold text-slate-900' : 'text-3xl font-semibold text-slate-900'}>
+                      {headline || t('previewNoHeadline')}
+                    </h2>
+                    <p className={compact ? 'text-xs font-medium text-slate-500' : 'text-sm font-medium text-slate-500'}>{sub || t('previewNoSubtitle')}</p>
+                    <p className={`whitespace-pre-wrap text-slate-700 ${compact ? 'text-xs' : 'text-sm'}`}>{body || t('previewNoBody')}</p>
+                    {linkUrl ? (
+                      <a
+                        href={linkUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={compact ? 'w-fit rounded bg-red-500 px-3 py-1 text-[11px] font-medium text-white' : 'w-fit rounded bg-red-500 px-5 py-2 text-sm font-medium text-white'}
+                      >
+                        {linkLabel.trim() || linkUrl}
+                      </a>
+                    ) : null}
+                  </div>
+                </div>
+              </section>
+            )
+          }
+
+          if (section.type === 'RichText') {
+            const bg = readText(section.contentJson, 'backgroundImage', 'backgroundImageUrl')
+            const titleText = readText(section.contentJson, 'title')
+            const subtitle = readText(section.contentJson, 'subtitle')
+            const body = readText(section.contentJson, 'text')
+            const author = readText(section.contentJson, 'quoteAuthor')
+
+            if (bg) {
               return (
                 <section key={key} className="overflow-hidden rounded-lg border border-slate-200">
-                  <div
-                    className={`${compact ? 'px-3 py-5' : 'px-5 py-8'} bg-cover bg-center text-white`}
-                    style={{ backgroundImage: `linear-gradient(rgba(2, 6, 23, 0.7), rgba(2, 6, 23, 0.7)), url(${bg || ''})` }}
-                  >
+                  <div className={`${compact ? 'px-3 py-5' : 'px-5 py-8'} bg-cover bg-center text-white`} style={{ backgroundImage: `linear-gradient(rgba(2, 6, 23, 0.7), rgba(2, 6, 23, 0.7)), url(${bg})` }}>
                     <div className="mx-auto max-w-4xl text-center">
-                      <h2 className={compact ? 'text-xl font-semibold' : 'text-3xl font-semibold'}>
-                        {readText(section.contentJson, 'title') || t('quoteOfDay')}
-                      </h2>
-                      <p className={compact ? 'mt-1 text-xs text-slate-200' : 'mt-1 text-lg text-slate-200'}>
-                        {readText(section.contentJson, 'subtitle') || t('godLovesUsAll')}
-                      </p>
+                      <h2 className={compact ? 'text-xl font-semibold' : 'text-3xl font-semibold'}>{titleText || t('quoteOfDay')}</h2>
+                      <p className={compact ? 'mt-1 text-xs text-slate-200' : 'mt-1 text-lg text-slate-200'}>{subtitle || t('godLovesUsAll')}</p>
                       <p className={`${compact ? 'mt-4 text-lg' : 'mt-6 text-3xl'} whitespace-pre-wrap italic leading-relaxed text-slate-100`}>
                         {body || t('previewNoBody')}
                       </p>
-                      <p className={compact ? 'mt-3 text-base font-medium text-yellow-300' : 'mt-4 text-2xl font-medium text-yellow-300'}>
-                        {readText(section.contentJson, 'quoteAuthor')}
-                      </p>
+                      {author ? <p className={compact ? 'mt-3 text-base font-medium text-yellow-300' : 'mt-4 text-2xl font-medium text-yellow-300'}>{author}</p> : null}
                     </div>
                   </div>
                 </section>
               )
             }
 
-            if (isImageArticle) {
-              return (
-                <section key={key} className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-                  {imageUrl ? (
-                    <img
-                      src={imageUrl}
-                      alt=""
-                      className={`w-full object-cover ${compact ? 'max-h-32' : 'max-h-56'}`}
-                    />
-                  ) : null}
-                  <div className={compact ? 'space-y-2 p-3' : 'space-y-3 p-4'}>
-                    {rtTitle ? (
-                      <h3 className={`font-semibold text-slate-900 ${compact ? 'text-sm' : 'text-lg'}`}>{rtTitle}</h3>
-                    ) : null}
-                    <p className={`whitespace-pre-wrap text-slate-700 ${compact ? 'text-xs' : 'text-sm'}`}>
-                      {body || t('previewNoBody')}
-                    </p>
-                    {linkUrl ? (
-                      <a
-                        href={linkUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`inline-flex font-medium text-blue-700 hover:underline ${compact ? 'text-xs' : 'text-sm'}`}
-                      >
-                        {linkLabel.trim() || linkUrl}
-                      </a>
-                    ) : null}
-                  </div>
-                </section>
-              )
-            }
+            return (
+              <section key={key} className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-slate-700">
+                <p className={`whitespace-pre-wrap ${compact ? 'text-xs' : 'text-sm'}`}>{body || titleText || t('previewNoBody')}</p>
+              </section>
+            )
+          }
+
+          if (section.type === 'Sermon') {
+            const titleText = readText(section.contentJson, 'title') || t('sermons')
+            const youtubeEmbedUrl = toYouTubeEmbedUrl(readText(section.contentJson, 'youtubeUrl'))
 
             return (
-              <section
-                key={key}
-                className={`rounded-lg border text-slate-700 ${
-                  isNotice
-                    ? 'border-amber-200 bg-amber-50/80 p-3'
-                    : 'border border-slate-200 bg-slate-50 p-3'
-                }`}
-              >
-                <p className={`whitespace-pre-wrap ${compact ? 'text-xs' : 'text-sm'}`}>
-                  {body || t('previewNoBody')}
-                </p>
+              <section key={key} className="rounded-lg border border-slate-200 bg-white p-4">
+                <h3 className={compact ? 'text-sm font-semibold text-slate-900' : 'text-lg font-semibold text-slate-900'}>{titleText}</h3>
+                <div className="mt-3 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                  {youtubeEmbedUrl ? (
+                    <iframe
+                      src={youtubeEmbedUrl}
+                      title={titleText}
+                      className="aspect-video w-full"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  ) : (
+                    <div className={`flex aspect-video items-center justify-center text-slate-500 ${compact ? 'text-[11px]' : 'text-sm'}`}>
+                      {t('previewYoutubeNotSet')}
+                    </div>
+                  )}
+                </div>
               </section>
             )
           }
 
           if (section.type === 'ListView') {
-            // The smart GroupListSection resolves data via useListSourceResolver
             return (
               <GroupListSection
                 key={key}
