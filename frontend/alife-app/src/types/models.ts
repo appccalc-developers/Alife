@@ -4,6 +4,21 @@ export type MembershipRole = 'member' | 'coLeader' | 'leader'
 export type PageScope = 'global' | 'group'
 export type PageVisibility = 'draft' | 'group' | 'public'
 export type LocalizedText = Record<string, string>
+export const SECTION_ICON_KEYS = ['church', 'cross', 'calendar', 'bible', 'people', 'heart', 'music', 'map', 'image', 'video', 'mic', 'book', 'handshake'] as const
+export type SectionIconKey = (typeof SECTION_ICON_KEYS)[number]
+
+export type SectionHeader = {
+  icon?: SectionIconKey
+  title?: LocalizedText
+  subtitle?: LocalizedText
+  align?: 'left' | 'center'
+  scale?: 'compact' | 'normal' | 'feature'
+  tone?: 'default' | 'primary' | 'warm' | 'fresh' | 'rose'
+}
+
+export type SectionContentJson = Record<string, unknown> & {
+  header?: SectionHeader
+}
 
 export type ListSourceType = 'sermons' | 'pages' | 'subgroups' | 'events' | 'members'
 export type ListSourceScope = 'group' | 'global'
@@ -70,7 +85,7 @@ export type SectionEditModel = {
   id?: string
   order: number
   type: SectionType | ''
-  contentJson: Record<string, unknown>
+  contentJson: SectionContentJson
   styleJson: Record<string, unknown>
 }
 
@@ -129,4 +144,3 @@ export type PageEditorValidation = {
   title?: string
   sectionTypeErrors: string[]
 }
-

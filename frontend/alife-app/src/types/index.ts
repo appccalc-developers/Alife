@@ -14,7 +14,10 @@ export type {
   PageScope,
   PageSummaryDto,
   PageVisibility,
+  SectionContentJson,
   SectionEditModel,
+  SectionHeader,
+  SectionIconKey,
   SectionType,
 } from './models'
 
