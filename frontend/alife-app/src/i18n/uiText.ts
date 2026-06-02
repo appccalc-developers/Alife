@@ -556,11 +556,14 @@ const text = {
   warm: { en: 'Warm', zh: 'Warm' },
   fresh: { en: 'Fresh', zh: 'Fresh' },
   rose: { en: 'Rose', zh: 'Rose' },
+  spotlightMode: { en: 'Spotlight mode', zh: '聚焦模式' },
+  manual: { en: 'Manual', zh: '外接' },
+  dataBound: { en: 'Data-bound', zh: '数据绑定' },
   sectionHeading: { en: 'Section {number} - {type}', zh: '区块 {number} - {type}' },
   selectType: { en: 'Select type', zh: '选择类型' },
   filterTextPlaceholder: { en: 'Title, speaker, description...', zh: '标题、讲员、描述...' },
   sectionTypeRequired: { en: 'Section type is required.', zh: '必须选择区块类型。' },
-  imageUrl: { en: 'Image URL', zh: 'Image URL' },
+  imageUrl: { en: 'Image URL', zh: '图片 URL' },
 } satisfies Record<string, UiText>
 
 export type UiTextKey = keyof typeof text

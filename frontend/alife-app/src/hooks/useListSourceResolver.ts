@@ -148,6 +148,8 @@ interface ListSourceResult {
 export type ListSourceResolverOptions = {
   /** Overrides URL :groupId (e.g. page editor at /pages/:id/edit?groupId=...) */
   groupId?: string
+  /** Skip collection wiring entirely when the caller only needs the hook shape. */
+  enabled?: boolean
 }
 
 /**
@@ -166,8 +168,9 @@ export type ListSourceResolverOptions = {
  */
 export function useListSourceResolver(metadata: ListViewMetadata, options?: ListSourceResolverOptions): ListSourceResult {
   const { groupId: routeGroupId } = useParams<{ groupId: string }>()
+  const enabled = options?.enabled ?? true
 
-  const currentGroupId = (options?.groupId?.trim() || routeGroupId || '').trim()
+  const currentGroupId = enabled ? (options?.groupId?.trim() || routeGroupId || '').trim() : ''
   const sourceType = resolveSourceType(metadata.sourceType)
   const sourceScope = metadata.sourceScope
   const limit = Math.min(Math.max(metadata.limit || 10, 1), 50)
@@ -201,11 +204,11 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
   // Do not pass `undefined` as the direct collection overload (crashes in _getQuery).
   // Do not rely on q.from().select(({ row }) => row) here — returning the collection matches SermonList.
 
-  const isSermons = sourceType === 'sermons'
-  const isSubgroups = sourceType === 'subgroups'
-  const isMembers = sourceType === 'members'
-  const isGroupPages = sourceType === 'pages'
-  const isEvents = sourceType === 'events'
+  const isSermons = enabled && sourceType === 'sermons'
+  const isSubgroups = enabled && sourceType === 'subgroups'
+  const isMembers = enabled && sourceType === 'members'
+  const isGroupPages = enabled && sourceType === 'pages'
+  const isEvents = enabled && sourceType === 'events'
 
   // Sermons (always global, always available)
   const sermonsLive = useLiveQuery(
