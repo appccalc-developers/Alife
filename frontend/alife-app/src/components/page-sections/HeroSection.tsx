@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react'
 import { useAuthStore } from '../../stores/auth'
 import { useUiText } from '../../i18n/uiText'
-import { DEFAULT_HERO_ASPECT_RATIO, DEFAULT_HERO_IMAGE, DEFAULT_POSTER_ASPECT_RATIO, EditableText, PropertyPanel, SelectInput, TextInput, patchContent, patchLocalizedContent, patchStyle, readLocalizedText, readNumber, readText, resolveImageAspectRatio } from './sectionUtils'
+import { DEFAULT_HERO_ASPECT_RATIO, DEFAULT_HERO_IMAGE, DEFAULT_POSTER_ASPECT_RATIO, EditableText, PropertyPanel, SelectInput, TextInput, patchContent, patchLocalizedContent, patchLocalizedSectionHeader, patchStyle, readLocalizedText, readNumber, readText, resolveImageAspectRatio } from './sectionUtils'
 import type { SectionComponentProps } from './types'
+import SectionHeader from './SectionHeader'
 
 type HeroLayout = 'featured' | 'classic' | 'poster'
 
@@ -41,7 +42,6 @@ const HeroSection = ({ section, mode, disabled, onUpdate }: SectionComponentProp
   const layout = normalizeHeroLayout(readText(section.styleJson, 'layout'))
   const aspectRatio = readNumber(section.styleJson, 'aspectRatio')
   const reservedAspectRatio = aspectRatio ?? defaultAspectRatio(layout)
-  const featured = layout === 'featured'
   const poster = layout === 'poster'
   const sectionRef = useRef(section)
   const onUpdateRef = useRef(onUpdate)
@@ -53,6 +53,15 @@ const HeroSection = ({ section, mode, disabled, onUpdate }: SectionComponentProp
   const updateLocalizedContent = (patch: Record<string, string>) => onUpdate?.(patchLocalizedContent(section, auth.language, patch))
   const updateStyle = (patch: Record<string, unknown>) => onUpdate?.(patchStyle(section, patch))
   const aspectRatioLabel = formatAspectRatio(aspectRatio)
+  const header = section.contentJson.header
+  const updateHeroTitle = (value: string) => {
+    const nextSection = patchLocalizedContent(section, auth.language, { title: value, headline: value })
+    onUpdate?.(patchLocalizedSectionHeader(nextSection, auth.language, 'title', value))
+  }
+  const updateHeroSubtitle = (value: string) => {
+    const nextSection = patchLocalizedContent(section, auth.language, { centerText: value, body: value })
+    onUpdate?.(patchLocalizedSectionHeader(nextSection, auth.language, 'subtitle', value))
+  }
 
   useEffect(() => {
     const currentSection = sectionRef.current
@@ -142,79 +151,19 @@ const HeroSection = ({ section, mode, disabled, onUpdate }: SectionComponentProp
           className="absolute inset-0 bg-cover bg-center text-white"
           style={{ backgroundImage: `linear-gradient(rgba(15, 23, 42, 0.45), rgba(15, 23, 42, 0.45)), url(${bg})` }}
         >
-          <div className={`relative flex h-full px-5 py-8 sm:py-12 ${featured ? 'items-center justify-center text-center' : poster ? 'items-end' : ''}`}>
-            {poster ? (
-              <div className="w-full">
-                <div className="rounded-2xl bg-gradient-to-t from-slate-950/90 via-slate-950/70 to-transparent p-5 sm:p-8">
-                  <EditableText
-                    as="p"
-                    value={subtitle}
-                    fallback={t('noSubtitleYet')}
-                    disabled={!editable}
-                    className="block text-xs font-semibold uppercase tracking-[0.28em] text-slate-200 sm:text-sm"
-                    onChange={(value) => updateLocalizedContent({ subtitle: value, subheadline: value })}
-                  />
-                  <EditableText
-                    as="h2"
-                    value={title}
-                    fallback={t('heroSectionTitle')}
-                    disabled={!editable}
-                    className="mt-3 block text-3xl font-semibold tracking-wide text-white sm:text-5xl"
-                    onChange={(value) => updateLocalizedContent({ title: value, headline: value })}
-                  />
-                  <EditableText
-                    as="p"
-                    multiline
-                    value={body}
-                    fallback={t('noHeroContentYet')}
-                    disabled={!editable}
-                    className="mt-4 block max-w-xl whitespace-pre-wrap text-sm leading-relaxed text-slate-100 sm:text-base"
-                    onChange={(value) => updateLocalizedContent({ centerText: value, body: value })}
-                  />
-                  {renderLink('mt-5 inline-flex rounded-full bg-red-500 px-5 py-2 text-sm font-medium text-white shadow hover:bg-red-400')}
-                </div>
-              </div>
-            ) : featured ? (
-              <div className="flex h-full max-w-lg flex-col items-center justify-center gap-3 text-center">
-                <EditableText
-                  as="h2"
-                  value={title}
-                  fallback={t('heroSectionTitle')}
-                  disabled={!editable}
-                  className="text-3xl font-semibold tracking-wide text-yellow-300 sm:text-5xl"
-                  onChange={(value) => updateLocalizedContent({ title: value, headline: value })}
-                />
-                <EditableText
-                  as="p"
-                  multiline
-                  value={body || subtitle}
-                  fallback={t('noHeroContentYet')}
-                  disabled={!editable}
-                  className="text-sm text-slate-100"
-                  onChange={(value) => updateLocalizedContent({ centerText: value, body: value })}
-                />
-              </div>
-            ) : (
-              <div className="w-full text-left">
-                <EditableText
-                  as="h2"
-                  value={title}
-                  fallback={t('heroSectionTitle')}
-                  disabled={!editable}
-                  className="inline-block text-2xl font-bold"
-                  onChange={(value) => updateLocalizedContent({ title: value, headline: value })}
-                />
-                <EditableText
-                  as="p"
-                  value={subtitle}
-                  fallback={t('noSubtitleYet')}
-                  disabled={!editable}
-                  className="mt-2 block text-sm text-slate-100"
-                  onChange={(value) => updateLocalizedContent({ subtitle: value, subheadline: value })}
-                />
-              </div>
-            )}
-            {!poster ? renderLink('mt-4 inline-flex rounded bg-red-500 px-5 py-2 text-sm font-medium text-white shadow hover:bg-red-400 sm:absolute sm:bottom-5 sm:left-1/2 sm:mt-0 sm:-translate-x-1/2') : null}
+          <div className="relative flex h-full items-center justify-center px-5 py-8 text-center sm:py-12">
+            <div className="flex w-full flex-col items-center justify-center">
+              <SectionHeader
+                header={header}
+                variant="hero"
+                titleFallback={title || t('heroSectionTitle')}
+                subtitleFallback={body || subtitle || t('noHeroContentYet')}
+                disabled={!editable}
+                onTitleChange={editable ? updateHeroTitle : undefined}
+                onSubtitleChange={editable ? updateHeroSubtitle : undefined}
+              />
+              {renderLink('mt-6 inline-flex rounded-full bg-red-500 px-5 py-2 text-sm font-medium text-white shadow hover:bg-red-400')}
+            </div>
           </div>
         </div>
       </div>

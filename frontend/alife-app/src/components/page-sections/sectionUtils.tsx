@@ -127,7 +127,7 @@ export const patchContent = (section: SectionEditModel, patch: JsonMap): Section
   contentJson: { ...section.contentJson, ...patch },
 })
 
-const toLocalizedValue = (current: unknown, language: string, value: string) => {
+export const toLocalizedValue = (current: unknown, language: string, value: string) => {
   const key = languageKey(language)
   if (current && typeof current === 'object' && !Array.isArray(current)) {
     return {
@@ -142,6 +142,24 @@ const toLocalizedValue = (current: unknown, language: string, value: string) => 
     [fallbackKey]: previous,
     [key]: value,
   }
+}
+
+export const patchLocalizedSectionHeader = (
+  section: SectionEditModel,
+  language: string,
+  field: 'title' | 'subtitle',
+  value: string,
+): SectionEditModel => {
+  const currentHeader = section.contentJson.header && typeof section.contentJson.header === 'object' && !Array.isArray(section.contentJson.header)
+    ? section.contentJson.header
+    : {}
+
+  return patchContent(section, {
+    header: {
+      ...currentHeader,
+      [field]: toLocalizedValue(currentHeader[field], language, value),
+    },
+  })
 }
 
 export const patchLocalizedContent = (
@@ -209,6 +227,34 @@ export const TextInput = ({
       value={value}
       disabled={disabled}
       className="h-9 w-full rounded border border-slate-300 px-2 text-sm disabled:bg-slate-100"
+      placeholder={placeholder}
+      onChange={(event) => onChange(event.target.value)}
+    />
+  </label>
+)
+
+export const TextAreaInput = ({
+  label,
+  value,
+  disabled,
+  placeholder,
+  rows = 4,
+  onChange,
+}: {
+  label: string
+  value: string
+  disabled?: boolean
+  placeholder?: string
+  rows?: number
+  onChange: (value: string) => void
+}) => (
+  <label className="block space-y-1 md:col-span-2">
+    <span className="text-xs font-medium text-slate-600">{label}</span>
+    <textarea
+      value={value}
+      disabled={disabled}
+      rows={rows}
+      className="w-full rounded border border-slate-300 px-2 py-2 text-sm disabled:bg-slate-100"
       placeholder={placeholder}
       onChange={(event) => onChange(event.target.value)}
     />

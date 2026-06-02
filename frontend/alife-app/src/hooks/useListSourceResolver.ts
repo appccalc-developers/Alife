@@ -26,10 +26,13 @@ const localizedTextValues = (value: unknown) => {
 
 const readString = (value: unknown) => typeof value === 'string' ? value : ''
 
+const resolveSourceType = (sourceType: ListViewMetadata['sourceType']) =>
+  sourceType === 'groups' ? 'subgroups' : sourceType
+
 const searchableText = (sourceType: ListViewMetadata['sourceType'], item: unknown) => {
   if (!isRecord(item)) return ''
 
-  switch (sourceType) {
+  switch (resolveSourceType(sourceType)) {
     case 'sermons':
       return [
         readString(item.title),
@@ -71,7 +74,7 @@ const searchableText = (sourceType: ListViewMetadata['sourceType'], item: unknow
 const titleValue = (sourceType: ListViewMetadata['sourceType'], item: unknown) => {
   if (!isRecord(item)) return ''
 
-  switch (sourceType) {
+  switch (resolveSourceType(sourceType)) {
     case 'sermons':
       return readString(item.title)
     case 'subgroups':
@@ -89,10 +92,11 @@ const titleValue = (sourceType: ListViewMetadata['sourceType'], item: unknown) =
 const dateValue = (sourceType: ListViewMetadata['sourceType'], item: unknown) => {
   if (!isRecord(item)) return null
 
+  const resolvedSourceType = resolveSourceType(sourceType)
   const raw =
-    sourceType === 'sermons' ? item.preachedAt
-      : sourceType === 'events' ? item.startDate
-        : sourceType === 'pages' ? item.updatedUtc
+    resolvedSourceType === 'sermons' ? item.preachedAt
+      : resolvedSourceType === 'events' ? item.startDate
+        : resolvedSourceType === 'pages' ? item.updatedUtc
           : isRecord(item) ? item.updatedUtc ?? item.createdUtc : null
 
   if (typeof raw !== 'string' || !raw.trim()) return null
@@ -101,10 +105,19 @@ const dateValue = (sourceType: ListViewMetadata['sourceType'], item: unknown) =>
 }
 
 const applyListViewFilteringAndSorting = <T,>(items: T[], metadata: ListViewMetadata): T[] => {
+  const now = new Date()
+  now.setHours(0, 0, 0, 0)
   const filter = metadata.filterText?.trim().toLowerCase()
-  const filtered = filter
-    ? items.filter((item) => searchableText(metadata.sourceType, item).toLowerCase().includes(filter))
+  const presetFiltered = metadata.sourceType === 'events' && (metadata.preset === 'upcoming' || metadata.preset === 'recent')
+    ? items.filter((item) => {
+      const eventTime = dateValue('events', item)
+      if (eventTime === null) return false
+      return metadata.preset === 'upcoming' ? eventTime >= now.getTime() : eventTime < now.getTime()
+    })
     : items
+  const filtered = filter
+    ? presetFiltered.filter((item) => searchableText(metadata.sourceType, item).toLowerCase().includes(filter))
+    : presetFiltered
 
   if (metadata.sortBy === 'source') {
     return filtered
@@ -155,7 +168,7 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
   const { groupId: routeGroupId } = useParams<{ groupId: string }>()
 
   const currentGroupId = (options?.groupId?.trim() || routeGroupId || '').trim()
-  const sourceType = metadata.sourceType
+  const sourceType = resolveSourceType(metadata.sourceType)
   const sourceScope = metadata.sourceScope
   const limit = Math.min(Math.max(metadata.limit || 10, 1), 50)
   // If metadata.id exists, use it instead of currentGroupId for precise subgroup queries.
@@ -292,6 +305,9 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
         return applyListViewFilteringAndSorting(groupPagesData as any[], metadata).slice(0, queryConfig.limit)
       case 'events':
         return applyListViewFilteringAndSorting(eventsData as GroupEventRecord[], metadata).slice(0, queryConfig.limit)
+      case 'media':
+      case 'posts':
+        return []
       default:
         return []
     }

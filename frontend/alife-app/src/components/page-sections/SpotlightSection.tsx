@@ -7,12 +7,31 @@ import {
   TextInput,
   patchContent,
   patchLocalizedContent,
-  patchStyle,
+  patchLocalizedSectionHeader,
   readLocalizedText,
   readText,
   toYouTubeEmbedUrl,
 } from './sectionUtils'
 import type { SectionComponentProps } from './types'
+import SectionHeader from './SectionHeader'
+import { sectionSpacingClass } from './sectionPresets'
+
+const readMediaConfig = (source: Record<string, unknown>, style: Record<string, unknown>) => {
+  const media = source.media && typeof source.media === 'object' && !Array.isArray(source.media)
+    ? source.media as Record<string, unknown>
+    : {}
+  const youtubeUrl = typeof media.url === 'string' && media.type === 'youtube'
+    ? media.url
+    : readText(source, 'youtubeUrl')
+  const imageUrl = typeof media.url === 'string' && media.type === 'image'
+    ? media.url
+    : readText(source, 'imageUrl', 'backgroundImage', 'backgroundImageUrl')
+  const type = media.type === 'youtube' || youtubeUrl ? 'youtube' : 'image'
+  const url = type === 'youtube' ? youtubeUrl : imageUrl
+  const position = media.position === 'right' || readText(style, 'mediaPosition', 'imagePosition') === 'right' ? 'right' : 'left'
+
+  return { type, url, position, youtubeUrl, imageUrl }
+}
 
 const SpotlightSection = ({ section, mode, disabled, onUpdate }: SectionComponentProps) => {
   const auth = useAuthStore()
@@ -21,15 +40,35 @@ const SpotlightSection = ({ section, mode, disabled, onUpdate }: SectionComponen
   const title = readLocalizedText(section.contentJson, auth.language, 'title', 'headline')
   const subtitle = readLocalizedText(section.contentJson, auth.language, 'subtitle', 'subheadline')
   const body = readLocalizedText(section.contentJson, auth.language, 'centerText', 'body', 'text')
-  const imageUrl = readText(section.contentJson, 'imageUrl', 'backgroundImage', 'backgroundImageUrl')
-  const youtubeUrl = readText(section.contentJson, 'youtubeUrl')
+  const mediaConfig = readMediaConfig(section.contentJson, section.styleJson)
+  const imageUrl = mediaConfig.imageUrl
+  const youtubeUrl = mediaConfig.youtubeUrl
   const linkLabel = readLocalizedText(section.contentJson, auth.language, 'linkLabel', 'linkText', 'ctaLabel')
   const linkUrl = readText(section.contentJson, 'linkUrl', 'ctaUrl', 'href')
-  const mediaPosition = readText(section.styleJson, 'mediaPosition', 'imagePosition') === 'right' ? 'right' : 'left'
+  const mediaPosition = mediaConfig.position
   const embedUrl = toYouTubeEmbedUrl(youtubeUrl)
   const updateContent = (patch: Record<string, unknown>) => onUpdate?.(patchContent(section, patch))
   const updateLocalizedContent = (patch: Record<string, string>) => onUpdate?.(patchLocalizedContent(section, auth.language, patch))
-  const updateStyle = (patch: Record<string, unknown>) => onUpdate?.(patchStyle(section, patch))
+  const updateHeaderTitle = (value: string) => {
+    const nextSection = patchLocalizedContent(section, auth.language, { title: value, headline: value })
+    onUpdate?.(patchLocalizedSectionHeader(nextSection, auth.language, 'title', value))
+  }
+  const updateHeaderSubtitle = (value: string) => {
+    const nextSection = patchLocalizedContent(section, auth.language, { subtitle: value, subheadline: value })
+    onUpdate?.(patchLocalizedSectionHeader(nextSection, auth.language, 'subtitle', value))
+  }
+  const updateMedia = (patch: Record<string, unknown>) => {
+    const currentMedia = section.contentJson.media && typeof section.contentJson.media === 'object' && !Array.isArray(section.contentJson.media)
+      ? section.contentJson.media
+      : {}
+    updateContent({ media: { ...currentMedia, ...patch } })
+  }
+  const mediaWith = (patch: Record<string, unknown>) => {
+    const currentMedia = section.contentJson.media && typeof section.contentJson.media === 'object' && !Array.isArray(section.contentJson.media)
+      ? section.contentJson.media
+      : {}
+    return { ...currentMedia, ...patch }
+  }
 
   const media = embedUrl ? (
     <iframe
@@ -49,28 +88,20 @@ const SpotlightSection = ({ section, mode, disabled, onUpdate }: SectionComponen
   )
 
   return (
-    <section className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+    <section className={`${sectionSpacingClass(section)} rounded-lg border border-slate-200 bg-white px-4`}>
+      <SectionHeader
+        header={section.contentJson.header}
+        titleFallback={title}
+        subtitleFallback={subtitle}
+        disabled={!editable}
+        onTitleChange={editable ? updateHeaderTitle : undefined}
+        onSubtitleChange={editable ? updateHeaderSubtitle : undefined}
+      />
       <div className="grid gap-0 md:grid-cols-2 md:items-stretch">
         <div className={`overflow-hidden bg-slate-100 ${mediaPosition === 'right' ? 'md:order-2' : 'md:order-1'}`}>
           {media}
         </div>
         <div className={`flex flex-col justify-center p-5 sm:p-7 ${mediaPosition === 'right' ? 'md:order-1' : 'md:order-2'}`}>
-          <EditableText
-            as="h2"
-            value={title}
-            fallback={t('heroSectionTitle')}
-            disabled={!editable}
-            className="text-2xl font-semibold text-slate-900 sm:text-4xl"
-            onChange={(value) => updateLocalizedContent({ title: value, headline: value })}
-          />
-          <EditableText
-            as="p"
-            value={subtitle}
-            fallback={t('noSubtitleYet')}
-            disabled={!editable}
-            className="mt-2 block text-sm font-medium text-slate-500"
-            onChange={(value) => updateLocalizedContent({ subtitle: value, subheadline: value })}
-          />
           <EditableText
             as="p"
             multiline
@@ -102,18 +133,36 @@ const SpotlightSection = ({ section, mode, disabled, onUpdate }: SectionComponen
       {mode === 'edit' ? (
         <PropertyPanel>
           <SelectInput
-            label={t('imagePosition')}
+            label={t('mediaType')}
+            value={mediaConfig.type}
+            disabled={disabled}
+            options={[{ value: 'image', label: t('image') }, { value: 'youtube', label: t('youtube') }]}
+            onChange={(value) => updateMedia({ type: value, url: value === 'youtube' ? youtubeUrl : imageUrl, position: mediaPosition })}
+          />
+          <SelectInput
+            label={t('mediaPosition')}
             value={mediaPosition}
             disabled={disabled}
             options={[{ value: 'left', label: t('left') }, { value: 'right', label: t('right') }]}
-            onChange={(value) => updateStyle({ mediaPosition: value, imagePosition: value, layout: 'spotlight' })}
+            onChange={(value) => {
+              onUpdate?.({
+                ...section,
+                contentJson: { ...section.contentJson, media: mediaWith({ position: value }) },
+                styleJson: { ...section.styleJson, mediaPosition: value, imagePosition: value, layout: 'spotlight' },
+              })
+            }}
           />
-          <TextInput label={t('youtubeUrl')} value={youtubeUrl} disabled={disabled} onChange={(value) => updateContent({ youtubeUrl: value })} />
           <TextInput
-            label={t('imageUrl')}
-            value={imageUrl}
+            label={mediaConfig.type === 'youtube' ? t('youtubeUrl') : t('imageUrl')}
+            value={mediaConfig.url}
             disabled={disabled}
-            onChange={(value) => updateContent({ imageUrl: value, backgroundImage: value, backgroundImageUrl: value })}
+            onChange={(value) => {
+              if (mediaConfig.type === 'youtube') {
+                updateContent({ media: mediaWith({ type: mediaConfig.type, url: value, position: mediaPosition }), youtubeUrl: value })
+              } else {
+                updateContent({ media: mediaWith({ type: mediaConfig.type, url: value, position: mediaPosition }), imageUrl: value, backgroundImage: value, backgroundImageUrl: value })
+              }
+            }}
           />
           <TextInput label={t('buttonLinkUrl')} value={linkUrl} disabled={disabled} onChange={(value) => updateContent({ linkUrl: value, ctaUrl: value, href: value })} />
         </PropertyPanel>
