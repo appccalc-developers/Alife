@@ -21,6 +21,15 @@ export type SectionAction = {
   label?: LocalizedText
   url?: string
 }
+export type SpotlightMode = 'manual' | 'data'
+export type SpotlightDataSource = 'events' | 'sermons' | 'groups' | 'members'
+export type SpotlightPreset = 'latest' | 'upcoming' | 'featured' | 'recent' | 'all'
+export type SpotlightBinding = {
+  mode?: SpotlightMode
+  source?: SpotlightDataSource
+  itemId?: string
+  preset?: SpotlightPreset | string
+}
 export type SpotlightMedia = {
   type?: 'image' | 'youtube'
   url?: string
@@ -33,6 +42,7 @@ export type ListViewLayout = 'grid' | 'list' | 'cards' | 'carousel'
 export type SectionContentJson = Record<string, unknown> & {
   header?: SectionHeader
   spacing?: SectionSpacing
+  spotlight?: SpotlightBinding
   media?: SpotlightMedia
   body?: LocalizedText | string
   actions?: SectionAction[]

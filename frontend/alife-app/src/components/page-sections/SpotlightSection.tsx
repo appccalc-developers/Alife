@@ -1,5 +1,7 @@
+import { useMemo } from 'react'
 import { useAuthStore } from '../../stores/auth'
 import { useUiText } from '../../i18n/uiText'
+import { useListSourceResolver } from '../../hooks/useListSourceResolver'
 import {
   EditableText,
   PropertyPanel,
@@ -15,6 +17,18 @@ import {
 import type { SectionComponentProps } from './types'
 import SectionHeader from './SectionHeader'
 import { sectionSpacingClass } from './sectionPresets'
+import type { SpotlightDataSource } from '../../types'
+import {
+  buildSpotlightMetadata,
+  defaultSpotlightPreset,
+  readSpotlightActionLinks,
+  readSpotlightBinding,
+  resolveDataSpotlightContent,
+  resolveSpotlightSourceLabel,
+  selectSpotlightItem,
+  SPOTLIGHT_DATA_SOURCES,
+  spotlightPresetOptionsForSource,
+} from '../../utils/spotlight'
 
 const readMediaConfig = (source: Record<string, unknown>, style: Record<string, unknown>) => {
   const media = source.media && typeof source.media === 'object' && !Array.isArray(source.media)
@@ -33,19 +47,47 @@ const readMediaConfig = (source: Record<string, unknown>, style: Record<string, 
   return { type, url, position, youtubeUrl, imageUrl }
 }
 
-const SpotlightSection = ({ section, mode, disabled, onUpdate }: SectionComponentProps) => {
+const SpotlightSection = ({ section, mode, disabled, onUpdate, contextGroupId, page }: SectionComponentProps) => {
   const auth = useAuthStore()
   const t = useUiText()
   const editable = mode === 'edit' && !disabled && onUpdate
-  const title = readLocalizedText(section.contentJson, auth.language, 'title', 'headline')
-  const subtitle = readLocalizedText(section.contentJson, auth.language, 'subtitle', 'subheadline')
-  const body = readLocalizedText(section.contentJson, auth.language, 'centerText', 'body', 'text')
+  const spotlightBinding = readSpotlightBinding(section.contentJson)
+  const isDataBound = spotlightBinding.mode === 'data'
   const mediaConfig = readMediaConfig(section.contentJson, section.styleJson)
-  const imageUrl = mediaConfig.imageUrl
-  const youtubeUrl = mediaConfig.youtubeUrl
-  const linkLabel = readLocalizedText(section.contentJson, auth.language, 'linkLabel', 'linkText', 'ctaLabel')
-  const linkUrl = readText(section.contentJson, 'linkUrl', 'ctaUrl', 'href')
+  const groupId = contextGroupId || page?.ownerGroupId || undefined
+  const spotlightMetadata = useMemo(
+    () => buildSpotlightMetadata(spotlightBinding),
+    [spotlightBinding.itemId, spotlightBinding.mode, spotlightBinding.preset, spotlightBinding.source],
+  )
+  const { data: spotlightItems, isLoading: spotlightLoading, error: spotlightError } = useListSourceResolver(spotlightMetadata, {
+    groupId,
+    enabled: isDataBound,
+  })
+  const spotlightItem = useMemo(
+    () => selectSpotlightItem(spotlightItems, spotlightBinding),
+    [spotlightBinding.itemId, spotlightBinding.source, spotlightItems],
+  )
+  const boundContent = useMemo(
+    () => isDataBound && spotlightItem ? resolveDataSpotlightContent(spotlightBinding.source, spotlightItem, auth.language) : undefined,
+    [auth.language, isDataBound, spotlightBinding.source, spotlightItem],
+  )
+  const title = readLocalizedText(section.contentJson, auth.language, 'title', 'headline') || boundContent?.title || ''
+  const subtitle = readLocalizedText(section.contentJson, auth.language, 'subtitle', 'subheadline') || boundContent?.subtitle || ''
+  const body = readLocalizedText(section.contentJson, auth.language, 'centerText', 'body', 'text') || boundContent?.body || ''
+  const actionLinks = readSpotlightActionLinks(section.contentJson, auth.language)
+  const actions = actionLinks.length > 0 ? actionLinks : boundContent?.actions ?? []
   const mediaPosition = mediaConfig.position
+  const resolvedMedia = boundContent?.media?.url
+    ? {
+      type: boundContent.media.type === 'youtube' ? 'youtube' : 'image',
+      url: boundContent.media.url,
+    }
+    : {
+      type: mediaConfig.type,
+      url: mediaConfig.url,
+    }
+  const imageUrl = resolvedMedia.type === 'image' ? resolvedMedia.url : ''
+  const youtubeUrl = resolvedMedia.type === 'youtube' ? resolvedMedia.url : ''
   const embedUrl = toYouTubeEmbedUrl(youtubeUrl)
   const updateContent = (patch: Record<string, unknown>) => onUpdate?.(patchContent(section, patch))
   const updateLocalizedContent = (patch: Record<string, string>) => onUpdate?.(patchLocalizedContent(section, auth.language, patch))
@@ -69,6 +111,12 @@ const SpotlightSection = ({ section, mode, disabled, onUpdate }: SectionComponen
       : {}
     return { ...currentMedia, ...patch }
   }
+  const updateSpotlight = (patch: Record<string, unknown>) => {
+    const currentSpotlight = section.contentJson.spotlight && typeof section.contentJson.spotlight === 'object' && !Array.isArray(section.contentJson.spotlight)
+      ? section.contentJson.spotlight
+      : {}
+    updateContent({ spotlight: { ...currentSpotlight, ...patch } })
+  }
 
   const media = embedUrl ? (
     <iframe
@@ -83,9 +131,27 @@ const SpotlightSection = ({ section, mode, disabled, onUpdate }: SectionComponen
     <img src={imageUrl} alt="" className="h-48 w-full object-cover sm:h-[240px] md:h-[300px]" />
   ) : (
     <div className="flex aspect-video w-full items-center justify-center bg-slate-100 text-sm text-slate-500">
-      {t('noImageYet')}
+      {isDataBound ? t('noSourceItems', { source: resolveSpotlightSourceLabel(spotlightBinding, auth.language) }) : t('noImageYet')}
     </div>
   )
+
+  const contentBody = isDataBound && spotlightLoading
+    ? <p className="mt-4 text-sm text-slate-500">{t('loadingPageSections')}</p>
+    : isDataBound && spotlightError
+      ? <p className="mt-4 text-sm text-red-600">{t('loadFailedWithMessage', { message: spotlightError.message })}</p>
+      : isDataBound && !spotlightItem
+        ? <p className="mt-4 text-sm text-slate-500">{t('noSourceItems', { source: resolveSpotlightSourceLabel(spotlightBinding, auth.language) })}</p>
+        : (
+          <EditableText
+            as="p"
+            multiline
+            value={body}
+            fallback={t('noHeroContentYet')}
+            disabled={!editable || isDataBound}
+            className="mt-4 block whitespace-pre-wrap text-base leading-7 text-slate-700"
+            onChange={(value) => updateLocalizedContent({ centerText: value, body: value, text: value })}
+          />
+        )
 
   return (
     <section className={`${sectionSpacingClass(section)} rounded-lg border border-slate-200 bg-white px-4`}>
@@ -102,42 +168,33 @@ const SpotlightSection = ({ section, mode, disabled, onUpdate }: SectionComponen
           {media}
         </div>
         <div className={`flex flex-col justify-center p-5 sm:p-7 ${mediaPosition === 'right' ? 'md:order-1' : 'md:order-2'}`}>
-          <EditableText
-            as="p"
-            multiline
-            value={body}
-            fallback={t('noHeroContentYet')}
-            disabled={!editable}
-            className="mt-4 block whitespace-pre-wrap text-base leading-7 text-slate-700"
-            onChange={(value) => updateLocalizedContent({ centerText: value, body: value, text: value })}
-          />
-          {linkUrl || mode === 'edit' ? (
-            <a
-              href={mode === 'render' ? linkUrl : undefined}
-              target={mode === 'render' && linkUrl ? '_blank' : undefined}
-              rel={mode === 'render' && linkUrl ? 'noopener noreferrer' : undefined}
-              className="mt-5 inline-flex w-fit rounded bg-red-500 px-5 py-2 text-sm font-medium text-white shadow hover:bg-red-400"
-              onClick={(event) => mode === 'edit' && event.preventDefault()}
-            >
-              <EditableText
-                value={linkLabel}
-                fallback={linkUrl || t('readMore')}
-                disabled={!editable}
-                className="text-sm"
-                onChange={(value) => updateLocalizedContent({ linkLabel: value, linkText: value, ctaLabel: value })}
-              />
-            </a>
+          {contentBody}
+          {actions.length > 0 ? (
+            <div className="mt-5 flex flex-wrap gap-3">
+              {actions.map((action, index) => (
+                <a
+                  key={`${action.url}-${index}`}
+                  href={mode === 'render' ? action.url : undefined}
+                  target={mode === 'render' ? '_blank' : undefined}
+                  rel={mode === 'render' ? 'noopener noreferrer' : undefined}
+                  className="inline-flex w-fit rounded bg-red-500 px-5 py-2 text-sm font-medium text-white shadow hover:bg-red-400"
+                  onClick={(event) => mode === 'edit' && event.preventDefault()}
+                >
+                  {action.label || action.url || t('readMore')}
+                </a>
+              ))}
+            </div>
           ) : null}
         </div>
       </div>
       {mode === 'edit' ? (
         <PropertyPanel>
           <SelectInput
-            label={t('mediaType')}
-            value={mediaConfig.type}
+            label={t('spotlightMode')}
+            value={spotlightBinding.mode}
             disabled={disabled}
-            options={[{ value: 'image', label: t('image') }, { value: 'youtube', label: t('youtube') }]}
-            onChange={(value) => updateMedia({ type: value, url: value === 'youtube' ? youtubeUrl : imageUrl, position: mediaPosition })}
+            options={[{ value: 'manual', label: t('manual') }, { value: 'data', label: t('dataBound') }]}
+            onChange={(value) => updateSpotlight({ mode: value, source: spotlightBinding.source, preset: spotlightBinding.preset, itemId: spotlightBinding.itemId ?? '' })}
           />
           <SelectInput
             label={t('mediaPosition')}
@@ -152,6 +209,39 @@ const SpotlightSection = ({ section, mode, disabled, onUpdate }: SectionComponen
               })
             }}
           />
+          {spotlightBinding.mode === 'data' ? (
+            <>
+              <SelectInput
+                label={t('source')}
+                value={spotlightBinding.source}
+                disabled={disabled}
+                options={SPOTLIGHT_DATA_SOURCES.map((source) => ({ value: source, label: t(source) }))}
+                onChange={(value) => updateSpotlight({ source: value as SpotlightDataSource, preset: defaultSpotlightPreset(value as SpotlightDataSource), itemId: '' })}
+              />
+              <SelectInput
+                label={t('preset')}
+                value={spotlightBinding.preset}
+                disabled={disabled}
+                options={spotlightPresetOptionsForSource(spotlightBinding.source, t)}
+                onChange={(value) => updateSpotlight({ preset: value })}
+              />
+              <TextInput
+                label={t('referenceId')}
+                value={spotlightBinding.itemId ?? ''}
+                disabled={disabled}
+                placeholder={t('referenceId')}
+                onChange={(value) => updateSpotlight({ itemId: value })}
+              />
+            </>
+          ) : (
+            <>
+          <SelectInput
+            label={t('mediaType')}
+            value={mediaConfig.type}
+            disabled={disabled}
+            options={[{ value: 'image', label: t('image') }, { value: 'youtube', label: t('youtube') }]}
+            onChange={(value) => updateMedia({ type: value, url: value === 'youtube' ? youtubeUrl : imageUrl, position: mediaPosition })}
+          />
           <TextInput
             label={mediaConfig.type === 'youtube' ? t('youtubeUrl') : t('imageUrl')}
             value={mediaConfig.url}
@@ -164,7 +254,14 @@ const SpotlightSection = ({ section, mode, disabled, onUpdate }: SectionComponen
               }
             }}
           />
-          <TextInput label={t('buttonLinkUrl')} value={linkUrl} disabled={disabled} onChange={(value) => updateContent({ linkUrl: value, ctaUrl: value, href: value })} />
+          <TextInput
+            label={t('buttonLinkUrl')}
+            value={readText(section.contentJson, 'linkUrl', 'ctaUrl', 'href')}
+            disabled={disabled}
+            onChange={(value) => updateContent({ linkUrl: value, ctaUrl: value, href: value })}
+          />
+            </>
+          )}
         </PropertyPanel>
       ) : null}
     </section>

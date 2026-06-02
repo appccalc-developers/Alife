@@ -3,8 +3,9 @@ import AppActionButton from '../layout/AppActionButton'
 import SectionBlock from '../page-sections/SectionBlock'
 import { DEFAULT_HERO_ASPECT_RATIO, SelectInput, TextAreaInput, TextInput } from '../page-sections/sectionUtils'
 import type { JsonMap, SectionEditModel, SectionType } from '../../types/page-editor'
-import type { ListViewLayout, ListViewSource, SectionHeader, SectionIconKey, SectionSpacing } from '../../types'
+import type { ListViewLayout, ListViewSource, SectionHeader, SectionIconKey, SectionSpacing, SpotlightDataSource } from '../../types'
 import { SECTION_ICON_KEYS } from '../../types/models'
+import { defaultSpotlightPreset, readSpotlightBinding, SPOTLIGHT_DATA_SOURCES } from '../../utils/spotlight'
 
 type Props = {
   section: SectionEditModel
@@ -85,6 +86,16 @@ const createDefaultHeader = (contentJson: JsonMap = {}): SectionHeader => ({
 
 const createDefaultSpacing = (value: unknown): SectionSpacing =>
   value === 'compact' || value === 'large' ? value : 'normal'
+
+const readSpotlightSource = (contentJson: JsonMap): SpotlightDataSource | undefined => {
+  const spotlight = readSpotlightBinding(contentJson)
+  if (spotlight.mode === 'data') {
+    return spotlight.source
+  }
+
+  const sourceType = String(contentJson.sourceType ?? contentJson.source ?? '').trim()
+  return SPOTLIGHT_DATA_SOURCES.includes(sourceType as SpotlightDataSource) ? sourceType as SpotlightDataSource : undefined
+}
 
 const readHeader = (section: SectionEditModel): SectionHeader =>
   section.contentJson.header && typeof section.contentJson.header === 'object' && !Array.isArray(section.contentJson.header)
@@ -170,12 +181,22 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
     }
 
     if (nextType === 'Spotlight') {
+      const source = readSpotlightSource(section.contentJson)
+      const spotlight = source
+        ? {
+          mode: 'data' as const,
+          source,
+          preset: (section.contentJson.preset as string) || defaultSpotlightPreset(source),
+          ...(typeof section.contentJson.itemId === 'string' && section.contentJson.itemId.trim() ? { itemId: section.contentJson.itemId.trim() } : {}),
+        }
+        : readSpotlightBinding(section.contentJson)
       patchSection({
         type: 'Spotlight',
         contentJson: {
           ...section.contentJson,
           header: readHeader(section),
           spacing: createDefaultSpacing(section.contentJson.spacing),
+          spotlight,
           media: {
             type: (section.contentJson.youtubeUrl as string) ? 'youtube' : 'image',
             url:

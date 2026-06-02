@@ -2,6 +2,7 @@ import type { PageDetailDto, SectionEditModel, SectionHeader, SectionIconKey, Se
 import { SECTION_ICON_KEYS } from '../types/models'
 import { normalizePageVisibility } from './apiEnums'
 import { toLocalizedText } from './localizedText'
+import { readSpotlightBinding } from './spotlight'
 
 type SectionDto = {
   id?: string
@@ -212,6 +213,7 @@ export const normalizePageSection = (section: SectionDto): SectionEditModel => {
   if (type === 'Spotlight') {
     const media = normalizeSpotlightMedia(contentJson, styleJson)
     contentJson.media = media
+    contentJson.spotlight = readSpotlightBinding(contentJson)
     if (!contentJson.body) {
       contentJson.body = toLocalizedHeaderText(firstString(contentJson.body, contentJson.centerText, contentJson.text))
     }
