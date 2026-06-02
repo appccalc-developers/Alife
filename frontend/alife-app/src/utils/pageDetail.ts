@@ -1,4 +1,4 @@
-import type { PageDetailDto, SectionEditModel, SectionHeader, SectionIconKey } from '../types'
+import type { PageDetailDto, SectionEditModel, SectionHeader, SectionIconKey, SectionSpacing, SpotlightMedia } from '../types'
 import { SECTION_ICON_KEYS } from '../types/models'
 import { normalizePageVisibility } from './apiEnums'
 import { toLocalizedText } from './localizedText'
@@ -16,6 +16,7 @@ const sectionIconKeys: readonly SectionIconKey[] = SECTION_ICON_KEYS
 const sectionHeaderAlignments: Array<NonNullable<SectionHeader['align']>> = ['left', 'center']
 const sectionHeaderScales: Array<NonNullable<SectionHeader['scale']>> = ['compact', 'normal', 'feature']
 const sectionHeaderTones: Array<NonNullable<SectionHeader['tone']>> = ['default', 'primary', 'warm', 'fresh', 'rose']
+const sectionSpacings: SectionSpacing[] = ['compact', 'normal', 'large']
 
 const pickEnumValue = <T extends string>(value: unknown, validValues: readonly T[]): T | undefined =>
   typeof value === 'string' && validValues.includes(value as T) ? (value as T) : undefined
@@ -50,10 +51,59 @@ const normalizeSectionHeader = (value: unknown): SectionHeader | undefined => {
     ...(icon ? { icon } : {}),
     ...(hasTitle ? { title } : {}),
     ...(hasSubtitle ? { subtitle } : {}),
-    ...(align ? { align } : {}),
-    ...(scale ? { scale } : {}),
-    ...(tone ? { tone } : {}),
+    align: align ?? 'center',
+    scale: scale ?? 'normal',
+    tone: tone ?? 'default',
   }
+}
+
+const normalizeSectionSpacing = (value: unknown): SectionSpacing =>
+  pickEnumValue(value, sectionSpacings) ?? 'normal'
+
+const readString = (value: unknown) => typeof value === 'string' ? value : ''
+
+const firstString = (...values: unknown[]) => values.map(readString).find((item) => item.trim().length > 0) ?? ''
+
+const normalizeSpotlightMedia = (contentJson: Record<string, unknown>, styleJson: Record<string, unknown>): SpotlightMedia => {
+  const media = contentJson.media && typeof contentJson.media === 'object' && !Array.isArray(contentJson.media)
+    ? contentJson.media as Record<string, unknown>
+    : {}
+  const legacyYoutubeUrl = firstString(contentJson.youtubeUrl)
+  const legacyImageUrl = firstString(contentJson.imageUrl, contentJson.backgroundImage, contentJson.backgroundImageUrl)
+  const type = media.type === 'youtube' || legacyYoutubeUrl ? 'youtube' : 'image'
+  const url = firstString(media.url, type === 'youtube' ? legacyYoutubeUrl : legacyImageUrl)
+  const position = media.position === 'right' || styleJson.mediaPosition === 'right' || styleJson.imagePosition === 'right' ? 'right' : 'left'
+
+  return {
+    type,
+    url,
+    position,
+    ...(media.alt ? { alt: toLocalizedHeaderText(media.alt) } : {}),
+  }
+}
+
+const listSourceFromType = (value: number | string) => {
+  if (value === 5 || value === 'PageList' || value === 'pageList') {
+    return 'pages'
+  }
+
+  if (value === 6 || value === 'SermonList' || value === 'sermonList') {
+    return 'sermons'
+  }
+
+  if (value === 'GroupList' || value === 'groupList') {
+    return 'groups'
+  }
+
+  if (value === 'EventList' || value === 'eventList') {
+    return 'events'
+  }
+
+  if (value === 'Gallery' || value === 'gallery' || value === 'MediaGallery' || value === 'mediaGallery') {
+    return 'media'
+  }
+
+  return ''
 }
 
 const parseJsonObject = (value: string | Record<string, unknown> | null | undefined): Record<string, unknown> => {
@@ -91,18 +141,6 @@ const sectionTypeMapByNumber: Record<number, SectionEditModel['type']> = {
   6: 'ListView',
 }
 
-const legacyListSourceType = (value: number | string) => {
-  if (value === 5 || value === 'PageList' || value === 'pageList') {
-    return 'pages'
-  }
-
-  if (value === 6 || value === 'SermonList' || value === 'sermonList') {
-    return 'sermons'
-  }
-
-  return ''
-}
-
 const normalizeSectionType = (value: number | string): SectionEditModel['type'] => {
   if (typeof value === 'number') {
     return sectionTypeMapByNumber[value] ?? 'RichText'
@@ -119,6 +157,9 @@ const normalizeSectionType = (value: number | string): SectionEditModel['type'] 
     postFeed: 'RichText',
     sermon: 'Sermon',
     groupList: 'ListView',
+    eventList: 'ListView',
+    gallery: 'ListView',
+    mediaGallery: 'ListView',
     listView: 'ListView',
     pageList: 'ListView',
     sermonList: 'ListView',
@@ -132,6 +173,10 @@ const normalizeSectionType = (value: number | string): SectionEditModel['type'] 
     SermonSpotlight: 'Spotlight',
     IconFeatureGrid: 'Hero',
     PostFeed: 'RichText',
+    Gallery: 'ListView',
+    MediaGallery: 'ListView',
+    EventList: 'ListView',
+    GroupList: 'ListView',
   }
   if (legacySectionTypeMap[normalized]) {
     return legacySectionTypeMap[normalized]
@@ -150,8 +195,9 @@ export const normalizePageSection = (section: SectionDto): SectionEditModel => {
   } else if (Object.prototype.hasOwnProperty.call(contentJson, 'header')) {
     delete contentJson.header
   }
+  contentJson.spacing = normalizeSectionSpacing(contentJson.spacing)
   const normalizedType = normalizeSectionType(section.type)
-  const legacySourceType = legacyListSourceType(section.type)
+  const legacySourceType = listSourceFromType(section.type)
   if (legacySourceType && !contentJson.sourceType) {
     contentJson.sourceType = legacySourceType
     contentJson.sourceScope = typeof contentJson.sourceScope === 'string' ? contentJson.sourceScope : 'global'
@@ -162,6 +208,29 @@ export const normalizePageSection = (section: SectionDto): SectionEditModel => {
     normalizedType === 'Hero' && (layout === 'mediaSpotlight' || layout === 'split' || layout === 'sermonSpotlight' || layout === 'spotlight')
       ? 'Spotlight'
       : normalizedType
+
+  if (type === 'Spotlight') {
+    const media = normalizeSpotlightMedia(contentJson, styleJson)
+    contentJson.media = media
+    if (!contentJson.body) {
+      contentJson.body = toLocalizedHeaderText(firstString(contentJson.body, contentJson.centerText, contentJson.text))
+    }
+    styleJson.layout = 'spotlight'
+    styleJson.mediaPosition = media.position ?? 'left'
+    styleJson.imagePosition = media.position ?? 'left'
+  }
+
+  if (type === 'ListView') {
+    const sourceType = firstString(contentJson.sourceType, legacySourceType, contentJson.source) || 'sermons'
+    const source = firstString(contentJson.source, sourceType === 'subgroups' ? 'groups' : sourceType) || 'sermons'
+    contentJson.source = source
+    contentJson.sourceType = sourceType === 'groups' ? 'groups' : sourceType
+    contentJson.preset = firstString(contentJson.preset) || (source === 'events' ? 'upcoming' : source === 'groups' ? 'featured' : source === 'sermons' || source === 'media' ? 'latest' : 'all')
+    contentJson.layout = firstString(contentJson.layout) || 'grid'
+    contentJson.limit = typeof contentJson.limit === 'number' && Number.isFinite(contentJson.limit)
+      ? Math.min(Math.max(Math.floor(contentJson.limit), 1), 50)
+      : 10
+  }
 
   return {
     id: section.id,

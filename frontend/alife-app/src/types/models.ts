@@ -16,11 +16,32 @@ export type SectionHeader = {
   tone?: 'default' | 'primary' | 'warm' | 'fresh' | 'rose'
 }
 
+export type SectionSpacing = 'compact' | 'normal' | 'large'
+export type SectionAction = {
+  label?: LocalizedText
+  url?: string
+}
+export type SpotlightMedia = {
+  type?: 'image' | 'youtube'
+  url?: string
+  alt?: LocalizedText
+  position?: 'left' | 'right'
+}
+export type ListViewSource = 'events' | 'sermons' | 'groups' | 'media' | 'posts'
+export type ListViewLayout = 'grid' | 'list' | 'cards' | 'carousel'
+
 export type SectionContentJson = Record<string, unknown> & {
   header?: SectionHeader
+  spacing?: SectionSpacing
+  media?: SpotlightMedia
+  body?: LocalizedText | string
+  actions?: SectionAction[]
+  source?: ListViewSource
+  preset?: string
+  layout?: ListViewLayout
 }
 
-export type ListSourceType = 'sermons' | 'pages' | 'subgroups' | 'events' | 'members'
+export type ListSourceType = 'sermons' | 'pages' | 'subgroups' | 'events' | 'members' | 'groups' | 'media' | 'posts'
 export type ListSourceScope = 'group' | 'global'
 export type ListSortBy = 'source' | 'date' | 'title'
 export type ListSortDirection = 'asc' | 'desc'
@@ -30,6 +51,9 @@ export interface ListViewMetadata {
   limit: number
   sortBy: ListSortBy
   sortDirection: ListSortDirection
+  source?: ListViewSource
+  preset?: string
+  layout?: ListViewLayout
   filterText?: string
   /** Optional resource ID such as subgroupId or eventId for precise scoped queries. */
   id?: string

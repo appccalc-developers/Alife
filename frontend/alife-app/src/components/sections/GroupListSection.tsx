@@ -106,7 +106,10 @@ const sourceTypeLabels: Record<string, UiTextKey> = {
   events: 'events',
   pages: 'pages',
   subgroups: 'subgroups',
+  groups: 'groups',
   members: 'members',
+  media: 'media',
+  posts: 'posts',
 }
 
 export const ListCard: React.FC<{ item: UniversalCardItem; compact?: boolean; cardIndex?: number }> = ({ item, compact, cardIndex = 0 }) => {
@@ -173,6 +176,7 @@ interface GroupListSectionProps {
 const adapterMap: Record<string, (item: any) => UniversalCardItem> = {
   sermons: sermonToCardItem,
   subgroups: subgroupToCardItem,
+  groups: subgroupToCardItem,
   members: memberToCardItem,
   pages: pageToCardItem,
   events: eventToCardItem,
@@ -190,20 +194,21 @@ export const GroupListSection: React.FC<GroupListSectionProps> = ({ metadata, gr
   const { data, isLoading, error } = useListSourceResolver(meta, { groupId })
 
   const cardItems = useMemo(() => {
-    if (meta.sourceType === 'pages') {
+    const resolvedSourceType = meta.sourceType === 'groups' ? 'subgroups' : meta.sourceType
+    if (resolvedSourceType === 'pages') {
       return (data ?? []).map((item: any) => pageToCardItem(item, groupId, language)).filter(Boolean)
     }
-    if (meta.sourceType === 'events') {
+    if (resolvedSourceType === 'events') {
       return (data ?? []).map((item: GroupEventRecord) => eventToCardItem(item, language)).filter(Boolean)
     }
-    const adapter = adapterMap[meta.sourceType]
+    const adapter = adapterMap[resolvedSourceType]
     if (!adapter || !data) return []
     return data
       .map((item) => {
-        if (meta.sourceType === 'subgroups') {
+        if (resolvedSourceType === 'subgroups') {
           return subgroupToCardItem(item as GroupSummaryDto, language)
         }
-        if (meta.sourceType === 'members') {
+        if (resolvedSourceType === 'members') {
           return memberToCardItem(item, language)
         }
         return adapter(item)
@@ -223,7 +228,13 @@ export const GroupListSection: React.FC<GroupListSectionProps> = ({ metadata, gr
     }
   }, [cardItems, preloadImages])
 
-  const gridCls = compact ? 'grid grid-cols-1 gap-2 sm:grid-cols-2' : 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3'
+  const layout = meta.layout ?? 'grid'
+  const gridCls =
+    layout === 'list'
+      ? 'grid grid-cols-1 gap-3'
+      : layout === 'carousel'
+        ? 'flex snap-x gap-4 overflow-x-auto pb-2 [&>*]:min-w-64 [&>*]:snap-start'
+        : compact ? 'grid grid-cols-1 gap-2 sm:grid-cols-2' : 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3'
   const shellPad = compact ? 'p-2' : 'p-4'
 
   if (isLoading) {

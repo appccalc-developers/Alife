@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
 import { useUiText } from '../../i18n/uiText'
 import AppActionButton from '../layout/AppActionButton'
-import RawJsonEditor from './RawJsonEditor'
 import SectionBlock from '../page-sections/SectionBlock'
-import { DEFAULT_HERO_ASPECT_RATIO } from '../page-sections/sectionUtils'
+import { DEFAULT_HERO_ASPECT_RATIO, SelectInput, TextAreaInput, TextInput } from '../page-sections/sectionUtils'
 import type { JsonMap, SectionEditModel, SectionType } from '../../types/page-editor'
+import type { ListViewLayout, ListViewSource, SectionHeader, SectionIconKey, SectionSpacing } from '../../types'
+import { SECTION_ICON_KEYS } from '../../types/models'
 
 type Props = {
   section: SectionEditModel
@@ -21,44 +21,110 @@ type Props = {
   onSelect: () => void
 }
 
-const sectionTypes: SectionType[] = ['Hero', 'Spotlight', 'RichText', 'Sermon', 'ListView']
-const sectionTypeLabel = (type: SectionType) => type
+const sectionTypes: SectionType[] = ['Hero', 'RichText', 'Spotlight', 'ListView']
+const sectionTypeLabel = (type: SectionType) => {
+  switch (type) {
+    case 'RichText':
+      return 'Rich Text'
+    case 'ListView':
+      return 'List View'
+    default:
+      return type
+  }
+}
 
-const stringifyPretty = (value: unknown) => JSON.stringify(value ?? {}, null, 2)
 const DEFAULT_HERO_IMAGE = 'https://images.unsplash.com/photo-1529070538774-1843cb3265df?w=1600&q=80'
 
-const parseJson = (value: string, messages: { jsonObjectRequired: string; invalidJsonSyntax: string }): { ok: true; data: JsonMap } | { ok: false; error: string } => {
-  try {
-    const parsed = JSON.parse(value) as unknown
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      return { ok: false, error: messages.jsonObjectRequired }
-    }
+const isJsonMap = (value: unknown): value is JsonMap => Boolean(value && typeof value === 'object' && !Array.isArray(value))
 
-    return { ok: true, data: parsed as JsonMap }
-  } catch {
-    return { ok: false, error: messages.invalidJsonSyntax }
+const toHeaderText = (value: unknown): Record<string, string> => {
+  if (typeof value === 'string') {
+    return { en: value, cn: value }
   }
+
+  if (isJsonMap(value)) {
+    return Object.fromEntries(Object.entries(value).filter(([, item]) => typeof item === 'string')) as Record<string, string>
+  }
+
+  return { en: '', cn: '' }
+}
+
+const createHeroHeader = (contentJson: JsonMap): SectionHeader => {
+  const currentHeader = isJsonMap(contentJson.header) ? contentJson.header : {}
+  const title = contentJson.title || contentJson.headline
+  const subtitle = contentJson.body || contentJson.centerText || contentJson.subtitle || contentJson.subheadline
+  const icon = typeof currentHeader.icon === 'string' && SECTION_ICON_KEYS.includes(currentHeader.icon as SectionIconKey) ? currentHeader.icon as SectionIconKey : undefined
+  const align = currentHeader.align === 'left' || currentHeader.align === 'center' ? currentHeader.align : 'center'
+  const scale = currentHeader.scale === 'compact' || currentHeader.scale === 'normal' || currentHeader.scale === 'feature' ? currentHeader.scale : 'normal'
+  const tone =
+    currentHeader.tone === 'default' ||
+    currentHeader.tone === 'primary' ||
+    currentHeader.tone === 'warm' ||
+    currentHeader.tone === 'fresh' ||
+    currentHeader.tone === 'rose'
+      ? currentHeader.tone
+      : 'default'
+
+  return {
+    ...(icon ? { icon } : {}),
+    title: toHeaderText(currentHeader.title ?? title),
+    subtitle: toHeaderText(currentHeader.subtitle ?? subtitle),
+    align,
+    scale,
+    tone,
+  }
+}
+
+const createDefaultHeader = (contentJson: JsonMap = {}): SectionHeader => ({
+  title: toHeaderText(contentJson.title ?? contentJson.headline),
+  subtitle: toHeaderText(contentJson.subtitle ?? contentJson.subheadline ?? contentJson.body ?? contentJson.centerText),
+  align: 'center',
+  scale: 'normal',
+  tone: 'default',
+})
+
+const createDefaultSpacing = (value: unknown): SectionSpacing =>
+  value === 'compact' || value === 'large' ? value : 'normal'
+
+const readHeader = (section: SectionEditModel): SectionHeader =>
+  section.contentJson.header && typeof section.contentJson.header === 'object' && !Array.isArray(section.contentJson.header)
+    ? { ...createDefaultHeader(section.contentJson), ...section.contentJson.header }
+    : createDefaultHeader(section.contentJson)
+
+const readHeaderTextValue = (header: SectionHeader, field: 'title' | 'subtitle', key: 'en' | 'cn') =>
+  header[field]?.[key] ?? ''
+
+const readLocalizedJsonValue = (source: JsonMap, field: string, key: 'en' | 'cn') => {
+  const value = source[field]
+  if (typeof value === 'string') {
+    return key === 'en' ? value : ''
+  }
+  if (isJsonMap(value)) {
+    const item = value[key]
+    return typeof item === 'string' ? item : ''
+  }
+  return ''
 }
 
 const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate, onRemove, onMoveUp, onMoveDown, contextGroupId, isActive, onSelect }: Props) => {
   const t = useUiText()
-  const [contentText, setContentText] = useState(stringifyPretty(section.contentJson))
-  const [styleText, setStyleText] = useState(stringifyPretty(section.styleJson))
-  const [contentError, setContentError] = useState('')
-  const [styleError, setStyleError] = useState('')
-  const [rawOpen, setRawOpen] = useState(false)
-
-  useEffect(() => {
-    setContentText(stringifyPretty(section.contentJson))
-    setContentError('')
-  }, [section.contentJson])
-
-  useEffect(() => {
-    setStyleText(stringifyPretty(section.styleJson))
-    setStyleError('')
-  }, [section.styleJson])
-
   const patchSection = (patch: Partial<SectionEditModel>) => onUpdate({ ...section, ...patch })
+  const patchContentJson = (patch: JsonMap) => patchSection({ contentJson: { ...section.contentJson, ...patch } })
+  const patchHeader = (patch: Partial<SectionHeader>) => patchContentJson({ header: { ...readHeader(section), ...patch } })
+  const patchLocalizedContentField = (field: string, key: 'en' | 'cn', value: string, aliases: string[] = []) => {
+    const current = isJsonMap(section.contentJson[field]) ? section.contentJson[field] as JsonMap : {}
+    const localized = { ...current, [key]: value }
+    patchContentJson(Object.fromEntries([field, ...aliases].map((name) => [name, localized])))
+  }
+  const patchHeaderText = (field: 'title' | 'subtitle', key: 'en' | 'cn', value: string) => {
+    const header = readHeader(section)
+    patchHeader({
+      [field]: {
+        ...(header[field] ?? {}),
+        [key]: value,
+      },
+    })
+  }
 
   const applyTypeDefaults = (nextType: SectionEditModel['type']) => {
     if (nextType === '') {
@@ -71,17 +137,13 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
         type: 'RichText',
         contentJson: {
           ...section.contentJson,
-          backgroundImage: (section.contentJson.backgroundImage as string) || (section.contentJson.backgroundImageUrl as string) || DEFAULT_HERO_IMAGE,
-          backgroundImageUrl: (section.contentJson.backgroundImageUrl as string) || (section.contentJson.backgroundImage as string) || DEFAULT_HERO_IMAGE,
+          header: readHeader(section),
+          spacing: createDefaultSpacing(section.contentJson.spacing),
           title: (section.contentJson.title as string) || '',
           subtitle: (section.contentJson.subtitle as string) || '',
           text: (section.contentJson.text as string) || '',
-          quoteAuthor: (section.contentJson.quoteAuthor as string) || '',
         },
-        styleJson: {
-          ...section.styleJson,
-          variant: 'quoteOverlay',
-        },
+        styleJson: {},
       })
       return
     }
@@ -91,12 +153,16 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
         type: 'ListView',
         contentJson: {
           ...section.contentJson,
-          sourceType: (section.contentJson.sourceType as string) || 'sermons',
+          header: readHeader(section),
+          spacing: createDefaultSpacing(section.contentJson.spacing),
+          source: ((section.contentJson.source as string) || (section.contentJson.sourceType === 'subgroups' ? 'groups' : section.contentJson.sourceType as string) || 'sermons') as ListViewSource,
+          preset: (section.contentJson.preset as string) || 'latest',
+          layout: ((section.contentJson.layout as string) || 'grid') as ListViewLayout,
+          sourceType: (section.contentJson.sourceType as string) || (section.contentJson.source as string) || 'sermons',
           sourceScope: (section.contentJson.sourceScope as string) || 'global',
           limit: typeof section.contentJson.limit === 'number' ? section.contentJson.limit : 10,
-          sortBy: (section.contentJson.sortBy as string) || 'title',
+          sortBy: (section.contentJson.sortBy as string) || 'date',
           sortDirection: (section.contentJson.sortDirection as string) || 'desc',
-          filterText: (section.contentJson.filterText as string) || '',
         },
         styleJson: {},
       })
@@ -108,6 +174,18 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
         type: 'Spotlight',
         contentJson: {
           ...section.contentJson,
+          header: readHeader(section),
+          spacing: createDefaultSpacing(section.contentJson.spacing),
+          media: {
+            type: (section.contentJson.youtubeUrl as string) ? 'youtube' : 'image',
+            url:
+              (section.contentJson.youtubeUrl as string) ||
+              (section.contentJson.imageUrl as string) ||
+              (section.contentJson.backgroundImage as string) ||
+              (section.contentJson.backgroundImageUrl as string) ||
+              DEFAULT_HERO_IMAGE,
+            position: section.styleJson.mediaPosition === 'right' || section.styleJson.imagePosition === 'right' ? 'right' : 'left',
+          },
           imageUrl:
             (section.contentJson.imageUrl as string) ||
             (section.contentJson.backgroundImage as string) ||
@@ -164,6 +242,8 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
       type: 'Hero',
       contentJson: {
         ...section.contentJson,
+        header: createHeroHeader(section.contentJson),
+        spacing: createDefaultSpacing(section.contentJson.spacing),
         backgroundImage: (section.contentJson.backgroundImage as string) || (section.contentJson.backgroundImageUrl as string) || DEFAULT_HERO_IMAGE,
         backgroundImageUrl: (section.contentJson.backgroundImageUrl as string) || (section.contentJson.backgroundImage as string) || DEFAULT_HERO_IMAGE,
         title: (section.contentJson.title as string) || (section.contentJson.headline as string) || '',
@@ -212,30 +292,6 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
     })
   }
 
-  const onContentRawChange = (value: string) => {
-    setContentText(value)
-    const parsed = parseJson(value, { jsonObjectRequired: t('jsonObjectRequired'), invalidJsonSyntax: t('invalidJsonSyntax') })
-    if (!parsed.ok) {
-      setContentError(parsed.error)
-      return
-    }
-
-    setContentError('')
-    patchSection({ contentJson: parsed.data })
-  }
-
-  const onStyleRawChange = (value: string) => {
-    setStyleText(value)
-    const parsed = parseJson(value, { jsonObjectRequired: t('jsonObjectRequired'), invalidJsonSyntax: t('invalidJsonSyntax') })
-    if (!parsed.ok) {
-      setStyleError(parsed.error)
-      return
-    }
-
-    setStyleError('')
-    patchSection({ styleJson: parsed.data })
-  }
-
   return (
     <div
       role="button"
@@ -280,6 +336,83 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
           {typeError ? <p className="text-xs text-red-600">{typeError}</p> : null}
         </label>
       </div>
+      {section.type ? (
+        <div className="border-t border-slate-100 px-4 py-3" onClick={(event) => event.stopPropagation()}>
+          <div className="mb-3">
+            <p className="text-sm font-semibold text-slate-900">{t('sectionHeader')}</p>
+          </div>
+          <div className="grid gap-2 md:grid-cols-2">
+            <SelectInput
+              label={t('icon')}
+              value={readHeader(section).icon ?? ''}
+              disabled={!canEdit}
+              options={[
+                { value: '', label: t('none') },
+                ...SECTION_ICON_KEYS.map((icon) => ({ value: icon, label: icon })),
+              ]}
+              onChange={(value) => patchHeader({ icon: value ? value as SectionIconKey : undefined })}
+            />
+            <SelectInput
+              label={t('spacing')}
+              value={createDefaultSpacing(section.contentJson.spacing)}
+              disabled={!canEdit}
+              options={[
+                { value: 'compact', label: t('compact') },
+                { value: 'normal', label: t('normal') },
+                { value: 'large', label: t('large') },
+              ]}
+              onChange={(value) => patchContentJson({ spacing: value })}
+            />
+            <TextInput label={t('titleEnglish')} value={readHeaderTextValue(readHeader(section), 'title', 'en')} disabled={!canEdit} onChange={(value) => patchHeaderText('title', 'en', value)} />
+            <TextInput label={t('titleChinese')} value={readHeaderTextValue(readHeader(section), 'title', 'cn')} disabled={!canEdit} onChange={(value) => patchHeaderText('title', 'cn', value)} />
+            <TextInput label={t('subtitleEnglish')} value={readHeaderTextValue(readHeader(section), 'subtitle', 'en')} disabled={!canEdit} onChange={(value) => patchHeaderText('subtitle', 'en', value)} />
+            <TextInput label={t('subtitleChinese')} value={readHeaderTextValue(readHeader(section), 'subtitle', 'cn')} disabled={!canEdit} onChange={(value) => patchHeaderText('subtitle', 'cn', value)} />
+            <SelectInput
+              label={t('alignment')}
+              value={readHeader(section).align ?? 'center'}
+              disabled={!canEdit}
+              options={[{ value: 'left', label: t('left') }, { value: 'center', label: t('center') }]}
+              onChange={(value) => patchHeader({ align: value as SectionHeader['align'] })}
+            />
+            <SelectInput
+              label={t('scale')}
+              value={readHeader(section).scale ?? 'normal'}
+              disabled={!canEdit}
+              options={[
+                { value: 'compact', label: t('compact') },
+                { value: 'normal', label: t('normal') },
+                { value: 'feature', label: t('feature') },
+              ]}
+              onChange={(value) => patchHeader({ scale: value as SectionHeader['scale'] })}
+            />
+            <SelectInput
+              label={t('tone')}
+              value={readHeader(section).tone ?? 'default'}
+              disabled={!canEdit}
+              options={[
+                { value: 'default', label: t('defaultTone') },
+                { value: 'primary', label: t('primary') },
+                { value: 'warm', label: t('warm') },
+                { value: 'fresh', label: t('fresh') },
+                { value: 'rose', label: t('rose') },
+              ]}
+              onChange={(value) => patchHeader({ tone: value as SectionHeader['tone'] })}
+            />
+          </div>
+          {section.type === 'RichText' ? (
+            <div className="mt-3 grid gap-2 md:grid-cols-2">
+              <TextAreaInput label={t('bodyEnglish')} value={readLocalizedJsonValue(section.contentJson, 'text', 'en')} disabled={!canEdit} onChange={(value) => patchLocalizedContentField('text', 'en', value)} />
+              <TextAreaInput label={t('bodyChinese')} value={readLocalizedJsonValue(section.contentJson, 'text', 'cn')} disabled={!canEdit} onChange={(value) => patchLocalizedContentField('text', 'cn', value)} />
+            </div>
+          ) : null}
+          {section.type === 'Spotlight' ? (
+            <div className="mt-3 grid gap-2 md:grid-cols-2">
+              <TextAreaInput label={t('bodyEnglish')} value={readLocalizedJsonValue(section.contentJson, 'body', 'en')} disabled={!canEdit} onChange={(value) => patchLocalizedContentField('body', 'en', value, ['centerText', 'text'])} />
+              <TextAreaInput label={t('bodyChinese')} value={readLocalizedJsonValue(section.contentJson, 'body', 'cn')} disabled={!canEdit} onChange={(value) => patchLocalizedContentField('body', 'cn', value, ['centerText', 'text'])} />
+            </div>
+          ) : null}
+        </div>
+      ) : null}
       </>) : null}
 
       <div className="border-t border-slate-100" onClick={(event) => isActive && event.stopPropagation()}>
@@ -291,36 +424,6 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
           onUpdate={onUpdate}
         />
       </div>
-
-      {isActive ? (
-      <div className="border-t border-slate-200 bg-slate-50 px-4 py-3" onClick={(event) => event.stopPropagation()}>
-        <button
-          type="button"
-          className="text-xs font-medium uppercase tracking-wide text-slate-600"
-          onClick={() => setRawOpen((value) => !value)}
-        >
-          {rawOpen ? 'Hide Raw JSON' : 'Show Raw JSON'}
-        </button>
-        {rawOpen ? (
-          <div className="mt-3 space-y-3">
-            <RawJsonEditor
-              label={t('contentJson')}
-              value={contentText}
-              parseError={contentError}
-              disabled={!canEdit}
-              onChange={onContentRawChange}
-            />
-            <RawJsonEditor
-              label={t('styleJson')}
-              value={styleText}
-              parseError={styleError}
-              disabled={!canEdit}
-              onChange={onStyleRawChange}
-            />
-          </div>
-        ) : null}
-      </div>
-      ) : null}
     </div>
   )
 }

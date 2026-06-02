@@ -18,7 +18,12 @@ export type {
   SectionEditModel,
   SectionHeader,
   SectionIconKey,
+  SectionSpacing,
   SectionType,
+  SpotlightMedia,
+  SectionAction,
+  ListViewLayout,
+  ListViewSource,
 } from './models'
 
 // Backward compatibility for existing imports.

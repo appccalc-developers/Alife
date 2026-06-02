@@ -35,6 +35,14 @@ export const createEmptyPageSection = (): SectionEditModel => ({
   order: 0,
   type: 'Hero',
   contentJson: {
+    header: {
+      title: { en: '', cn: '' },
+      subtitle: { en: '', cn: '' },
+      align: 'center',
+      scale: 'normal',
+      tone: 'default',
+    },
+    spacing: 'normal',
     backgroundImage: 'https://images.unsplash.com/photo-1529070538774-1843cb3265df?w=1600&q=80',
     backgroundImageUrl: 'https://images.unsplash.com/photo-1529070538774-1843cb3265df?w=1600&q=80',
     title: '',

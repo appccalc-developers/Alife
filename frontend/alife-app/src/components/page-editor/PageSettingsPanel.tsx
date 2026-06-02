@@ -55,7 +55,7 @@ const PageSettingsPanel = ({
       <ul className="list-disc space-y-1 pl-5 text-xs text-slate-600">
         <li>{t('saveDraftTip')}</li>
         <li>{t('publishReadyTip')}</li>
-        <li>{t('rawJsonTip')}</li>
+        <li>{t('controlledPresetsTip')}</li>
       </ul>
       {message ? <p className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs text-slate-700">{message}</p> : null}
     </AppSectionCard>
