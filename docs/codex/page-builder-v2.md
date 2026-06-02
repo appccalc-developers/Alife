@@ -8,7 +8,7 @@ Core principles:
 - Do not create many content-specific section types.
 - Classify sections by display pattern, not by business content type.
 - Use controlled presets instead of free-form CSS values.
-- Support bilingual text using the existing { en, ch } LocalizedText format.
+- Support bilingual text using the existing { en, zh } LocalizedText format.
 - Preserve existing behavior where possible.
 
 Tasks:
