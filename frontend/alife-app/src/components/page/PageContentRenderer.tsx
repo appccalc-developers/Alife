@@ -6,7 +6,7 @@ import SectionListEditor from '../page-editor/SectionListEditor'
 import { translateUi, useUiText } from '../../i18n/uiText'
 import { useAuthStore } from '../../stores/auth'
 import { languageKey, localizeText } from '../../utils/localizedText'
-import { EditableText } from '../page-sections/sectionUtils'
+import { DEFAULT_HERO_ASPECT_RATIO, EditableText } from '../page-sections/sectionUtils'
 
 type GroupLinkItem = {
   id: string
@@ -50,7 +50,7 @@ export const createEmptyPageSection = (): SectionEditModel => ({
     ctaUrl: '',
     href: '',
   },
-  styleJson: { layout: 'featured' },
+  styleJson: { layout: 'featured', aspectRatio: DEFAULT_HERO_ASPECT_RATIO },
 })
 
 export const normalizePageSections = (items: SectionEditModel[]) =>

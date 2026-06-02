@@ -12,7 +12,6 @@ import GroupJoinView from './views/GroupJoinView'
 import HomeView from './views/HomeView'
 import OnboardingView from './views/OnboardingView'
 import PageEditorView from './views/PageEditorView'
-import PagePreviewDraftView from './views/PagePreviewDraftView'
 import PageView from './views/PageView'
 import ProfileView from './views/ProfileView'
 import SermonsView from './views/SermonsView'
@@ -709,7 +708,6 @@ const App = () => {
             <Route path="/groups/:groupId/events/:eventId/review" element={<EventReviewView />} />
             <Route path="/groups/:groupId/pages/new" element={<PageEditorView />} />
             <Route path="/pages/:pageId/edit" element={<PageEditorView />} />
-            <Route path="/pages/preview-draft" element={<PagePreviewDraftView />} />
             <Route
               path="/onboarding"
               element={

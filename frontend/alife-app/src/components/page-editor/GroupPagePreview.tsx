@@ -3,6 +3,22 @@ import { readText } from '../../utils/pageSectionContent'
 import { GroupListSection } from '../sections/GroupListSection'
 import type { SectionEditModel } from '../../types/page-editor'
 
+const readNumber = (source: Record<string, unknown> | undefined, key: string) => {
+  const value = source?.[key]
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+    return value
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number(value)
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed
+    }
+  }
+
+  return undefined
+}
+
 export type GroupPagePreviewSubgroup = { id: string; name: string; accessType: string }
 export type GroupPagePreviewPageItem = { id: string; title: string; visibility: string }
 
@@ -241,9 +257,13 @@ const GroupPagePreview = ({
                 ? 'mediaSpotlight'
                 : rawLayout === 'split'
                   ? 'mediaSpotlight'
-                  : rawLayout || 'featured'
+                  : rawLayout === 'poster'
+                    ? 'poster'
+                    : rawLayout || 'featured'
             const imagePosition = readText(section.styleJson, 'imagePosition') === 'left' ? 'left' : 'right'
             const featured = layout === 'featured' || (!layout && Boolean(centerText.trim() || linkUrl.trim()))
+            const poster = layout === 'poster'
+            const aspectRatio = readNumber(section.styleJson, 'aspectRatio') ?? (poster ? 3 / 4 : 16 / 9)
 
             if (layout === 'mediaSpotlight') {
               return (
@@ -294,78 +314,109 @@ const GroupPagePreview = ({
               : 'linear-gradient(135deg, rgb(30 41 59), rgb(51 65 85))'
 
             const pad = compact ? 'px-4 py-8' : 'px-6 py-12'
-            const minH = featured ? (compact ? 'min-h-[220px]' : 'min-h-[320px]') : ''
 
             return (
               <section key={key} className="overflow-hidden rounded-lg border border-slate-200">
                 <div
-                  className={`relative flex bg-cover bg-center ${minH} ${featured ? 'items-center justify-center text-center' : ''} text-white ${pad}`}
-                  style={{ backgroundImage: bgStyle }}
+                  className={`relative w-full ${poster ? 'mx-auto max-w-3xl' : ''}`}
+                  style={{ aspectRatio }}
                 >
-                  {featured ? (
-                    <div className={`flex max-w-lg flex-col items-center gap-2 ${compact ? 'gap-2' : 'gap-3'}`}>
-                      {headline ? (
-                        <p
-                          className={
-                            compact
-                              ? 'text-[10px] font-semibold uppercase tracking-wide text-slate-200'
-                              : 'text-xs font-semibold uppercase tracking-wide text-slate-200'
-                          }
-                        >
-                          {headline}
-                        </p>
-                      ) : null}
-                      {centerText ? (
-                        <p
-                          className={
-                            compact
-                              ? 'whitespace-pre-wrap text-xs leading-relaxed text-white'
-                              : 'whitespace-pre-wrap text-sm leading-relaxed text-white sm:text-base'
-                          }
-                        >
-                          {centerText}
-                        </p>
-                      ) : null}
-                      {!centerText && !linkUrl && sub ? (
-                        <p className={compact ? 'text-[11px] text-slate-100' : 'text-sm text-slate-100'}>{sub}</p>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <div className="w-full text-left">
-                      <h2 className={compact ? 'text-base font-bold' : 'text-2xl font-bold'}>
-                        {headline || t('previewNoHeadline')}
-                      </h2>
-                      <p className={`mt-1 text-slate-100 ${compact ? 'text-[11px]' : 'text-sm'}`}>{sub || t('previewNoSubtitle')}</p>
-                      {linkUrl ? (
+                  <div className="absolute inset-0 bg-cover bg-center text-white" style={{ backgroundImage: bgStyle }}>
+                    <div className={`relative flex h-full ${pad} ${featured ? 'items-center justify-center text-center' : poster ? 'items-end' : ''}`}>
+                      {poster ? (
+                        <div className="w-full">
+                          <div className={compact ? 'rounded-xl bg-gradient-to-t from-slate-950/90 via-slate-950/70 to-transparent p-4' : 'rounded-2xl bg-gradient-to-t from-slate-950/90 via-slate-950/70 to-transparent p-6'}>
+                            <p className={compact ? 'text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-200' : 'text-xs font-semibold uppercase tracking-[0.28em] text-slate-200'}>
+                              {sub || t('previewNoSubtitle')}
+                            </p>
+                            <h2 className={compact ? 'mt-2 text-lg font-semibold text-white' : 'mt-3 text-3xl font-semibold text-white'}>
+                              {headline || t('previewNoHeadline')}
+                            </h2>
+                            <p className={compact ? 'mt-3 whitespace-pre-wrap text-xs leading-relaxed text-slate-100' : 'mt-4 max-w-xl whitespace-pre-wrap text-sm leading-relaxed text-slate-100 sm:text-base'}>
+                              {centerText || t('previewNoBody')}
+                            </p>
+                            {linkUrl ? (
+                              <a
+                                href={linkUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={
+                                  compact
+                                    ? 'mt-3 inline-flex rounded-full bg-red-500 px-3 py-1 text-[11px] font-medium text-white shadow hover:bg-red-400'
+                                    : 'mt-4 inline-flex rounded-full bg-red-500 px-5 py-2 text-sm font-medium text-white shadow hover:bg-red-400'
+                                }
+                              >
+                                {linkLabel.trim() || linkUrl}
+                              </a>
+                            ) : null}
+                          </div>
+                        </div>
+                      ) : featured ? (
+                        <div className={`flex max-w-lg flex-col items-center gap-2 ${compact ? 'gap-2' : 'gap-3'}`}>
+                          {headline ? (
+                            <p
+                              className={
+                                compact
+                                  ? 'text-[10px] font-semibold uppercase tracking-wide text-slate-200'
+                                  : 'text-xs font-semibold uppercase tracking-wide text-slate-200'
+                              }
+                            >
+                              {headline}
+                            </p>
+                          ) : null}
+                          {centerText ? (
+                            <p
+                              className={
+                                compact
+                                  ? 'whitespace-pre-wrap text-xs leading-relaxed text-white'
+                                  : 'whitespace-pre-wrap text-sm leading-relaxed text-white sm:text-base'
+                              }
+                            >
+                              {centerText}
+                            </p>
+                          ) : null}
+                          {!centerText && !linkUrl && sub ? (
+                            <p className={compact ? 'text-[11px] text-slate-100' : 'text-sm text-slate-100'}>{sub}</p>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <div className="w-full text-left">
+                          <h2 className={compact ? 'text-base font-bold' : 'text-2xl font-bold'}>
+                            {headline || t('previewNoHeadline')}
+                          </h2>
+                          <p className={`mt-1 text-slate-100 ${compact ? 'text-[11px]' : 'text-sm'}`}>{sub || t('previewNoSubtitle')}</p>
+                          {linkUrl ? (
+                            <a
+                              href={linkUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={
+                                compact
+                                  ? 'mt-2 inline-flex rounded-full bg-white px-3 py-1 text-[11px] font-medium text-slate-900 shadow hover:bg-slate-100'
+                                  : 'mt-3 inline-flex rounded-full bg-white px-4 py-2 text-sm font-medium text-slate-900 shadow hover:bg-slate-100'
+                              }
+                            >
+                              {linkLabel.trim() || linkUrl}
+                            </a>
+                          ) : null}
+                        </div>
+                      )}
+                      {!poster && linkUrl ? (
                         <a
                           href={linkUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           className={
                             compact
-                              ? 'mt-2 inline-flex rounded-full bg-white px-3 py-1 text-[11px] font-medium text-slate-900 shadow hover:bg-slate-100'
-                              : 'mt-3 inline-flex rounded-full bg-white px-4 py-2 text-sm font-medium text-slate-900 shadow hover:bg-slate-100'
+                              ? 'mt-3 inline-flex rounded bg-red-500 px-3 py-1 text-[11px] font-medium text-white shadow hover:bg-red-400'
+                              : 'mt-4 inline-flex rounded bg-red-500 px-5 py-2 text-sm font-medium text-white shadow hover:bg-red-400 md:absolute md:bottom-5 md:left-1/2 md:mt-0 md:-translate-x-1/2'
                           }
                         >
                           {linkLabel.trim() || linkUrl}
                         </a>
                       ) : null}
                     </div>
-                  )}
-                  {linkUrl ? (
-                    <a
-                      href={linkUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={
-                        compact
-                          ? 'mt-3 inline-flex rounded bg-red-500 px-3 py-1 text-[11px] font-medium text-white shadow hover:bg-red-400'
-                          : 'mt-4 inline-flex rounded bg-red-500 px-5 py-2 text-sm font-medium text-white shadow hover:bg-red-400 md:absolute md:bottom-5 md:left-1/2 md:mt-0 md:-translate-x-1/2'
-                      }
-                    >
-                      {linkLabel.trim() || linkUrl}
-                    </a>
-                  ) : null}
+                  </div>
                 </div>
               </section>
             )
