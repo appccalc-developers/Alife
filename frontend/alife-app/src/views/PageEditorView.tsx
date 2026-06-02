@@ -1,13 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import AppActionButton from '../components/layout/AppActionButton'
-import AppSectionCard from '../components/layout/AppSectionCard'
 import PageContentRenderer, {
   normalizePageSections,
   validatePageContent,
 } from '../components/page/PageContentRenderer'
 import PageEditorShell from '../components/page-editor/PageEditorShell'
-import GroupPagePreview from '../components/page-editor/GroupPagePreview'
 import { groupService } from '../api/groupService'
 import { ensureFreshPageDetail, setPageDetailCache } from '../db/collections/pageCollection'
 import { cloudflareImageService } from '../services/cloudflareImageService'
@@ -17,7 +14,7 @@ import { useUiText } from '../i18n/uiText'
 import type { PageDetailDto } from '../types'
 import type { PageVisibility } from '../types/group'
 import type { PageEditModel } from '../types/page-editor'
-import { localizeText, toLocalizedText } from '../utils/localizedText'
+import { toLocalizedText } from '../utils/localizedText'
 
 const mapPageToEditModel = (page: PageDetailDto, groupId: string): PageEditModel => ({
   id: page.id,
@@ -40,7 +37,6 @@ const PageEditorView = () => {
 
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [previewOpen, setPreviewOpen] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [savedModelSnapshot, setSavedModelSnapshot] = useState('')
@@ -328,38 +324,19 @@ const PageEditorView = () => {
       loading={loading}
       error={error}
       main={
-        previewOpen ? (
-          <AppSectionCard title={t('pagePreview')} subtitle={t('pagePreviewSubtitle')}>
-            <div className="mb-3">
-              <AppActionButton variant="ghost" onClick={() => setPreviewOpen(false)}>
-                {t('backToEditor')}
-              </AppActionButton>
-            </div>
-            <div className="rounded-lg border border-slate-200 bg-slate-100/70 p-2">
-              <GroupPagePreview
-                title={localizeText(pageModel.title, auth.language)}
-                description={localizeText(pageModel.description, auth.language)}
-                visibility={pageModel.visibility}
-                sections={pageModel.sections}
-                previewGroupId={resolvedGroupId}
-              />
-            </div>
-          </AppSectionCard>
-        ) : (
-          <PageContentRenderer
-            page={pageModel}
-            sections={pageModel.sections}
-            subgroupItems={[]}
-            groupPageItems={[]}
-            editing
-            canEdit={canEditPage}
-            message={message}
-            validation={validation}
-            contextGroupId={resolvedGroupId}
-            onPageChange={setPageModel}
-            onSectionsChange={(sections) => setPageModel((current) => ({ ...current, sections }))}
-          />
-        )
+        <PageContentRenderer
+          page={pageModel}
+          sections={pageModel.sections}
+          subgroupItems={[]}
+          groupPageItems={[]}
+          editing
+          canEdit={canEditPage}
+          message={message}
+          validation={validation}
+          contextGroupId={resolvedGroupId}
+          onPageChange={setPageModel}
+          onSectionsChange={(sections) => setPageModel((current) => ({ ...current, sections }))}
+        />
       }
       sidebar={null}
     />

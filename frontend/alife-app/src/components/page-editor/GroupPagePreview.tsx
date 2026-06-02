@@ -1,5 +1,6 @@
 import { useUiText } from '../../i18n/uiText'
 import { readText } from '../../utils/pageSectionContent'
+import { readNumber } from '../page-sections/sectionUtils'
 import { GroupListSection } from '../sections/GroupListSection'
 import type { SectionEditModel } from '../../types/page-editor'
 
@@ -78,6 +79,11 @@ const GroupPagePreview = ({
             const linkLabel = readText(section.contentJson, 'linkLabel', 'linkText', 'ctaLabel')
             const headline = readText(section.contentJson, 'title', 'headline')
             const sub = readText(section.contentJson, 'subtitle', 'subheadline')
+            const rawLayout = readText(section.styleJson, 'layout')
+            const layout = rawLayout === 'poster' ? 'poster' : rawLayout === 'classic' ? 'classic' : 'featured'
+            const featured = layout === 'featured'
+            const poster = layout === 'poster'
+            const aspectRatio = readNumber(section.styleJson, 'aspectRatio') ?? (poster ? 3 / 4 : 16 / 9)
             const bgStyle = img
               ? `linear-gradient(rgba(15, 23, 42, 0.5), rgba(15, 23, 42, 0.58)), url(${img})`
               : 'linear-gradient(135deg, rgb(30 41 59), rgb(51 65 85))'
@@ -85,24 +91,72 @@ const GroupPagePreview = ({
 
             return (
               <section key={key} className="overflow-hidden rounded-lg border border-slate-200">
-                <div className={`relative flex min-h-[220px] items-center justify-center bg-cover bg-center text-center text-white ${pad}`} style={{ backgroundImage: bgStyle }}>
-                  <div className="flex max-w-lg flex-col items-center gap-2">
-                    <h2 className={compact ? 'text-lg font-semibold' : 'text-3xl font-semibold'}>
-                      {headline || t('previewNoHeadline')}
-                    </h2>
-                    <p className={`whitespace-pre-wrap text-slate-100 ${compact ? 'text-xs' : 'text-sm'}`}>
-                      {centerText || sub || t('previewNoBody')}
-                    </p>
-                    {linkUrl ? (
-                      <a
-                        href={linkUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={compact ? 'mt-2 rounded bg-red-500 px-3 py-1 text-[11px] font-medium text-white' : 'mt-3 rounded bg-red-500 px-5 py-2 text-sm font-medium text-white'}
-                      >
-                        {linkLabel.trim() || linkUrl}
-                      </a>
-                    ) : null}
+                <div
+                  className={`relative w-full ${poster ? 'mx-auto max-w-3xl' : ''}`}
+                  style={{ aspectRatio }}
+                >
+                  <div className="absolute inset-0 bg-cover bg-center text-white" style={{ backgroundImage: bgStyle }}>
+                    <div className={`relative flex h-full ${pad} ${featured ? 'items-center justify-center text-center' : poster ? 'items-end' : ''}`}>
+                      {poster ? (
+                        <div className="w-full">
+                          <div className={compact ? 'rounded-xl bg-gradient-to-t from-slate-950/90 via-slate-950/70 to-transparent p-4' : 'rounded-2xl bg-gradient-to-t from-slate-950/90 via-slate-950/70 to-transparent p-6'}>
+                            <p className={compact ? 'text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-200' : 'text-xs font-semibold uppercase tracking-[0.28em] text-slate-200'}>
+                              {sub || t('previewNoSubtitle')}
+                            </p>
+                            <h2 className={compact ? 'mt-2 text-lg font-semibold text-white' : 'mt-3 text-3xl font-semibold text-white'}>
+                              {headline || t('previewNoHeadline')}
+                            </h2>
+                            <p className={compact ? 'mt-3 whitespace-pre-wrap text-xs leading-relaxed text-slate-100' : 'mt-4 max-w-xl whitespace-pre-wrap text-sm leading-relaxed text-slate-100 sm:text-base'}>
+                              {centerText || t('previewNoBody')}
+                            </p>
+                            {linkUrl ? (
+                              <a
+                                href={linkUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={
+                                  compact
+                                    ? 'mt-3 inline-flex rounded-full bg-red-500 px-3 py-1 text-[11px] font-medium text-white shadow hover:bg-red-400'
+                                    : 'mt-4 inline-flex rounded-full bg-red-500 px-5 py-2 text-sm font-medium text-white shadow hover:bg-red-400'
+                                }
+                              >
+                                {linkLabel.trim() || linkUrl}
+                              </a>
+                            ) : null}
+                          </div>
+                        </div>
+                      ) : featured ? (
+                        <div className={`flex max-w-lg flex-col items-center gap-2 ${compact ? 'gap-2' : 'gap-3'}`}>
+                          <h2 className={compact ? 'text-lg font-semibold' : 'text-3xl font-semibold'}>
+                            {headline || t('previewNoHeadline')}
+                          </h2>
+                          <p className={`whitespace-pre-wrap text-slate-100 ${compact ? 'text-xs' : 'text-sm'}`}>
+                            {centerText || sub || t('previewNoBody')}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="w-full text-left">
+                          <h2 className={compact ? 'text-base font-bold' : 'text-2xl font-bold'}>
+                            {headline || t('previewNoHeadline')}
+                          </h2>
+                          <p className={`mt-1 text-slate-100 ${compact ? 'text-[11px]' : 'text-sm'}`}>{sub || t('previewNoSubtitle')}</p>
+                        </div>
+                      )}
+                      {!poster && linkUrl ? (
+                        <a
+                          href={linkUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={
+                            compact
+                              ? 'mt-3 inline-flex rounded bg-red-500 px-3 py-1 text-[11px] font-medium text-white shadow hover:bg-red-400'
+                              : 'mt-4 inline-flex rounded bg-red-500 px-5 py-2 text-sm font-medium text-white shadow hover:bg-red-400 md:absolute md:bottom-5 md:left-1/2 md:mt-0 md:-translate-x-1/2'
+                          }
+                        >
+                          {linkLabel.trim() || linkUrl}
+                        </a>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
               </section>

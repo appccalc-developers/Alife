@@ -4,6 +4,8 @@ import type { JsonMap, SectionEditModel } from '../../types/page-editor'
 import { languageKey, localizeText } from '../../utils/localizedText'
 
 export const DEFAULT_HERO_IMAGE = 'https://images.unsplash.com/photo-1529070538774-1843cb3265df?w=1600&q=80'
+export const DEFAULT_HERO_ASPECT_RATIO = 16 / 9
+export const DEFAULT_POSTER_ASPECT_RATIO = 3 / 4
 
 export const readText = (source: JsonMap | undefined, ...keys: string[]) => {
   if (!source) {
@@ -47,6 +49,44 @@ export const readLocalizedText = (source: JsonMap | undefined, language: string,
 
   return ''
 }
+
+export const readNumber = (source: JsonMap | undefined, key: string) => {
+  const value = source?.[key]
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+    return value
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number(value)
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed
+    }
+  }
+
+  return undefined
+}
+
+export const resolveImageAspectRatio = (src: string): Promise<number | null> =>
+  new Promise((resolve) => {
+    const value = src.trim()
+    if (!value || typeof Image === 'undefined') {
+      resolve(null)
+      return
+    }
+
+    const img = new Image()
+    img.decoding = 'async'
+    img.onload = () => {
+      if (!img.naturalWidth || !img.naturalHeight) {
+        resolve(null)
+        return
+      }
+
+      resolve(img.naturalWidth / img.naturalHeight)
+    }
+    img.onerror = () => resolve(null)
+    img.src = value
+  })
 
 export const parseLimit = (source: JsonMap | undefined, key = 'limit', fallback = 8) => {
   const value = source?.[key]

@@ -3,6 +3,7 @@ import { useUiText } from '../../i18n/uiText'
 import AppActionButton from '../layout/AppActionButton'
 import RawJsonEditor from './RawJsonEditor'
 import SectionBlock from '../page-sections/SectionBlock'
+import { DEFAULT_HERO_ASPECT_RATIO } from '../page-sections/sectionUtils'
 import type { JsonMap, SectionEditModel, SectionType } from '../../types/page-editor'
 
 type Props = {
@@ -205,6 +206,7 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
       styleJson: {
         ...section.styleJson,
         layout: 'featured',
+        aspectRatio: DEFAULT_HERO_ASPECT_RATIO,
         imagePosition: (section.styleJson.imagePosition as string) || 'right',
       },
     })
