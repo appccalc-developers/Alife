@@ -28,6 +28,15 @@ const sectionTypeLabel = (type: SectionType) =>
 
 const stringifyPretty = (value: unknown) => JSON.stringify(value ?? {}, null, 2)
 const DEFAULT_HERO_IMAGE = 'https://images.unsplash.com/photo-1529070538774-1843cb3265df?w=1600&q=80'
+const DEFAULT_HERO_ASPECT_RATIO = 16 / 9
+
+const isInteractiveKeyboardTarget = (target: EventTarget | null) => {
+  if (!(target instanceof HTMLElement)) {
+    return false
+  }
+
+  return target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(target.tagName)
+}
 
 const parseJson = (value: string, messages: { jsonObjectRequired: string; invalidJsonSyntax: string }): { ok: true; data: JsonMap } | { ok: false; error: string } => {
   try {
@@ -201,6 +210,7 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
       styleJson: {
         ...section.styleJson,
         layout: nextType === 'MediaSpotlight' ? 'mediaSpotlight' : 'featured',
+        aspectRatio: DEFAULT_HERO_ASPECT_RATIO,
         imagePosition: (section.styleJson.imagePosition as string) || 'right',
       },
     })
@@ -242,6 +252,10 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
         onSelect()
       }}
       onKeyDown={(event) => {
+        if (isInteractiveKeyboardTarget(event.target)) {
+          return
+        }
+
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault()
           onSelect()

@@ -1,6 +1,7 @@
+import { useEffect } from 'react'
 import { useAuthStore } from '../../stores/auth'
 import { useUiText } from '../../i18n/uiText'
-import { EditableText, PropertyPanel, SelectInput, TextInput, patchContent, patchLocalizedContent, patchStyle, readLocalizedText, readText } from './sectionUtils'
+import { DEFAULT_HERO_ASPECT_RATIO, EditableText, PropertyPanel, SelectInput, TextInput, patchContent, patchLocalizedContent, patchStyle, readLocalizedText, readNumber, readText } from './sectionUtils'
 import type { SectionComponentProps } from './types'
 
 const MediaSpotlightSection = ({ section, mode, disabled, onUpdate }: SectionComponentProps) => {
@@ -14,9 +15,22 @@ const MediaSpotlightSection = ({ section, mode, disabled, onUpdate }: SectionCom
   const linkLabel = readLocalizedText(section.contentJson, auth.language, 'linkLabel', 'linkText', 'ctaLabel')
   const linkUrl = readText(section.contentJson, 'linkUrl', 'ctaUrl', 'href')
   const imagePosition = readText(section.styleJson, 'imagePosition') === 'left' ? 'left' : 'right'
+  const aspectRatio = readNumber(section.styleJson, 'aspectRatio')
   const updateContent = (patch: Record<string, unknown>) => onUpdate?.(patchContent(section, patch))
   const updateLocalizedContent = (patch: Record<string, string>) => onUpdate?.(patchLocalizedContent(section, auth.language, patch))
   const updateStyle = (patch: Record<string, unknown>) => onUpdate?.(patchStyle(section, patch))
+
+  useEffect(() => {
+    if (mode !== 'edit') {
+      return
+    }
+
+    if (aspectRatio && Math.abs(aspectRatio - DEFAULT_HERO_ASPECT_RATIO) < 0.01) {
+      return
+    }
+
+    onUpdate?.(patchStyle(section, { aspectRatio: DEFAULT_HERO_ASPECT_RATIO }))
+  }, [aspectRatio, mode, onUpdate, section])
 
   return (
     <section className="overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
