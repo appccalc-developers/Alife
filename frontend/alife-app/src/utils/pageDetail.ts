@@ -1,4 +1,4 @@
-import type { PageDetailDto, SectionEditModel } from '../types'
+import type { PageDetailDto, SectionEditModel, SectionHeader, SectionIconKey } from '../types'
 import { normalizePageVisibility } from './apiEnums'
 import { toLocalizedText } from './localizedText'
 
@@ -9,6 +9,59 @@ type SectionDto = {
   type: number | string
   contentJson: string | Record<string, unknown>
   styleJson: string | Record<string, unknown>
+}
+
+const sectionIconKeys: SectionIconKey[] = ['church', 'cross', 'calendar', 'bible', 'people', 'heart', 'music', 'map', 'image', 'video', 'mic', 'book', 'handshake']
+const sectionHeaderAlignments: Array<NonNullable<SectionHeader['align']>> = ['left', 'center']
+const sectionHeaderScales: Array<NonNullable<SectionHeader['scale']>> = ['compact', 'normal', 'feature']
+const sectionHeaderTones: Array<NonNullable<SectionHeader['tone']>> = ['default', 'primary', 'warm', 'fresh', 'rose']
+
+const normalizeSectionHeader = (value: unknown): SectionHeader | undefined => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return undefined
+  }
+
+  const header = value as Record<string, unknown>
+  const icon = typeof header.icon === 'string' && sectionIconKeys.includes(header.icon as SectionIconKey) ? (header.icon as SectionIconKey) : undefined
+  const align =
+    typeof header.align === 'string' && sectionHeaderAlignments.includes(header.align as NonNullable<SectionHeader['align']>)
+      ? (header.align as NonNullable<SectionHeader['align']>)
+      : undefined
+  const scale =
+    typeof header.scale === 'string' && sectionHeaderScales.includes(header.scale as NonNullable<SectionHeader['scale']>)
+      ? (header.scale as NonNullable<SectionHeader['scale']>)
+      : undefined
+  const tone =
+    typeof header.tone === 'string' && sectionHeaderTones.includes(header.tone as NonNullable<SectionHeader['tone']>)
+      ? (header.tone as NonNullable<SectionHeader['tone']>)
+      : undefined
+  const headerTitle = header.title
+  const headerSubtitle = header.subtitle
+  const title = toLocalizedText(
+    typeof headerTitle === 'string' || (headerTitle && typeof headerTitle === 'object' && !Array.isArray(headerTitle))
+      ? (headerTitle as Record<string, string> | string)
+      : undefined,
+  )
+  const subtitle = toLocalizedText(
+    typeof headerSubtitle === 'string' || (headerSubtitle && typeof headerSubtitle === 'object' && !Array.isArray(headerSubtitle))
+      ? (headerSubtitle as Record<string, string> | string)
+      : undefined,
+  )
+  const hasTitle = Object.values(title).some((item) => item.trim().length > 0)
+  const hasSubtitle = Object.values(subtitle).some((item) => item.trim().length > 0)
+
+  if (!icon && !align && !scale && !tone && !hasTitle && !hasSubtitle) {
+    return undefined
+  }
+
+  return {
+    ...(icon ? { icon } : {}),
+    ...(hasTitle ? { title } : {}),
+    ...(hasSubtitle ? { subtitle } : {}),
+    ...(align ? { align } : {}),
+    ...(scale ? { scale } : {}),
+    ...(tone ? { tone } : {}),
+  }
 }
 
 const parseJsonObject = (value: string | Record<string, unknown> | null | undefined): Record<string, unknown> => {
@@ -99,6 +152,12 @@ const normalizeSectionType = (value: number | string): SectionEditModel['type'] 
 export const normalizePageSection = (section: SectionDto): SectionEditModel => {
   const contentJson = parseJsonObject(section.contentJson)
   const styleJson = parseJsonObject(section.styleJson)
+  const normalizedHeader = normalizeSectionHeader(contentJson.header)
+  if (normalizedHeader) {
+    contentJson.header = normalizedHeader
+  } else if (Object.prototype.hasOwnProperty.call(contentJson, 'header')) {
+    delete contentJson.header
+  }
   const normalizedType = normalizeSectionType(section.type)
   const legacySourceType = legacyListSourceType(section.type)
   if (legacySourceType && !contentJson.sourceType) {
