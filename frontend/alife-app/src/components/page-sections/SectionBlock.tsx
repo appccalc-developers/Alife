@@ -1,10 +1,7 @@
 import HeroSection from './HeroSection'
-import MediaSpotlightSection from './MediaSpotlightSection'
-import IconFeatureGridSection from './IconFeatureGridSection'
-import SermonSpotlightSection from './SermonSpotlightSection'
+import SpotlightSection from './SpotlightSection'
 import RichTextSection from './RichTextSection'
 import GroupListSectionBlock from './GroupListSectionBlock'
-import PostFeedSection from './PostFeedSection'
 import SermonSection from './SermonSection'
 import type { SectionComponentProps } from './types'
 
@@ -12,18 +9,12 @@ const SectionBlock = (props: SectionComponentProps) => {
   switch (props.section.type) {
     case 'Hero':
       return <HeroSection {...props} />
-    case 'MediaSpotlight':
-      return <MediaSpotlightSection {...props} />
-    case 'IconFeatureGrid':
-      return <IconFeatureGridSection {...props} />
-    case 'SermonSpotlight':
-      return <SermonSpotlightSection {...props} />
+    case 'Spotlight':
+      return <SpotlightSection {...props} />
     case 'RichText':
       return <RichTextSection {...props} />
     case 'ListView':
       return <GroupListSectionBlock {...props} />
-    case 'PostFeed':
-      return <PostFeedSection {...props} />
     case 'Sermon':
       return <SermonSection {...props} />
     default:

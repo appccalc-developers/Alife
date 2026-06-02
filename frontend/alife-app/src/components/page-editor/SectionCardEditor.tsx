@@ -20,11 +20,8 @@ type Props = {
   onSelect: () => void
 }
 
-const sectionTypes: SectionType[] = ['Hero', 'MediaSpotlight', 'IconFeatureGrid', 'SermonSpotlight', 'RichText', 'PostFeed', 'Sermon', 'ListView']
-const sectionTypeLabel = (type: SectionType) =>
-  type === 'IconFeatureGrid' ? 'Icon Feature Grid'
-    : type === 'SermonSpotlight' ? 'Sermon Spotlight'
-      : type
+const sectionTypes: SectionType[] = ['Hero', 'Spotlight', 'RichText', 'Sermon', 'ListView']
+const sectionTypeLabel = (type: SectionType) => type
 
 const stringifyPretty = (value: unknown) => JSON.stringify(value ?? {}, null, 2)
 const DEFAULT_HERO_IMAGE = 'https://images.unsplash.com/photo-1529070538774-1843cb3265df?w=1600&q=80'
@@ -63,6 +60,11 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
   const patchSection = (patch: Partial<SectionEditModel>) => onUpdate({ ...section, ...patch })
 
   const applyTypeDefaults = (nextType: SectionEditModel['type']) => {
+    if (nextType === '') {
+      patchSection({ type: '' })
+      return
+    }
+
     if (nextType === 'RichText') {
       patchSection({
         type: 'RichText',
@@ -100,39 +102,26 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
       return
     }
 
-    if (nextType !== 'Hero' && nextType !== 'MediaSpotlight' && nextType !== 'IconFeatureGrid' && nextType !== 'SermonSpotlight') {
-      patchSection({ type: nextType })
-      return
-    }
-
-    if (nextType === 'IconFeatureGrid') {
+    if (nextType === 'Spotlight') {
       patchSection({
-        type: 'IconFeatureGrid',
+        type: 'Spotlight',
         contentJson: {
           ...section.contentJson,
-          backgroundImage: (section.contentJson.backgroundImage as string) || (section.contentJson.backgroundImageUrl as string) || DEFAULT_HERO_IMAGE,
-          backgroundImageUrl: (section.contentJson.backgroundImageUrl as string) || (section.contentJson.backgroundImage as string) || DEFAULT_HERO_IMAGE,
-          title: (section.contentJson.title as string) || (section.contentJson.headline as string) || '',
-          headline: (section.contentJson.headline as string) || (section.contentJson.title as string) || '',
-          subtitle: (section.contentJson.subtitle as string) || (section.contentJson.subheadline as string) || '',
-          subheadline: (section.contentJson.subheadline as string) || (section.contentJson.subtitle as string) || '',
-          iconItems: Array.isArray(section.contentJson.iconItems) ? section.contentJson.iconItems : [],
-        },
-        styleJson: {
-          ...section.styleJson,
-          layout: 'iconFeatureGrid',
-          displayStyle: (section.styleJson.displayStyle as string) || 'iconGrid',
-          imageShape: (section.styleJson.imageShape as string) || 'square',
-        },
-      })
-      return
-    }
-
-    if (nextType === 'SermonSpotlight') {
-      patchSection({
-        type: 'SermonSpotlight',
-        contentJson: {
-          ...section.contentJson,
+          imageUrl:
+            (section.contentJson.imageUrl as string) ||
+            (section.contentJson.backgroundImage as string) ||
+            (section.contentJson.backgroundImageUrl as string) ||
+            DEFAULT_HERO_IMAGE,
+          backgroundImage:
+            (section.contentJson.backgroundImage as string) ||
+            (section.contentJson.imageUrl as string) ||
+            (section.contentJson.backgroundImageUrl as string) ||
+            DEFAULT_HERO_IMAGE,
+          backgroundImageUrl:
+            (section.contentJson.backgroundImageUrl as string) ||
+            (section.contentJson.imageUrl as string) ||
+            (section.contentJson.backgroundImage as string) ||
+            DEFAULT_HERO_IMAGE,
           title: (section.contentJson.title as string) || (section.contentJson.headline as string) || '',
           headline: (section.contentJson.headline as string) || (section.contentJson.title as string) || '',
           subtitle: (section.contentJson.subtitle as string) || (section.contentJson.subheadline as string) || '',
@@ -149,14 +138,29 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
         },
         styleJson: {
           ...section.styleJson,
-          layout: 'sermonSpotlight',
+          layout: 'spotlight',
+          mediaPosition: (section.styleJson.mediaPosition as string) || (section.styleJson.imagePosition as string) || 'left',
+          imagePosition: (section.styleJson.imagePosition as string) || (section.styleJson.mediaPosition as string) || 'left',
         },
       })
       return
     }
 
+    if (nextType === 'Sermon') {
+      patchSection({
+        type: 'Sermon',
+        contentJson: {
+          ...section.contentJson,
+          title: (section.contentJson.title as string) || '',
+          youtubeUrl: (section.contentJson.youtubeUrl as string) || '',
+        },
+        styleJson: {},
+      })
+      return
+    }
+
     patchSection({
-      type: nextType,
+      type: 'Hero',
       contentJson: {
         ...section.contentJson,
         backgroundImage: (section.contentJson.backgroundImage as string) || (section.contentJson.backgroundImageUrl as string) || DEFAULT_HERO_IMAGE,
@@ -200,7 +204,7 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
       },
       styleJson: {
         ...section.styleJson,
-        layout: nextType === 'MediaSpotlight' ? 'mediaSpotlight' : 'featured',
+        layout: 'featured',
         imagePosition: (section.styleJson.imagePosition as string) || 'right',
       },
     })

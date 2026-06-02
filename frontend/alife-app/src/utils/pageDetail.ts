@@ -39,7 +39,7 @@ const parseJsonObject = (value: string | Record<string, unknown> | null | undefi
 const sectionTypeMapByNumber: Record<number, SectionEditModel['type']> = {
   0: 'Hero',
   1: 'RichText',
-  2: 'PostFeed',
+  2: 'RichText',
   3: 'Sermon',
   4: 'ListView',
   5: 'ListView',
@@ -66,8 +66,12 @@ const normalizeSectionType = (value: number | string): SectionEditModel['type'] 
   const normalized = String(value)
   const sectionTypeMapByName: Record<string, SectionEditModel['type']> = {
     hero: 'Hero',
+    mediaSpotlight: 'Spotlight',
+    spotlight: 'Spotlight',
+    sermonSpotlight: 'Spotlight',
+    iconFeatureGrid: 'Hero',
     richText: 'RichText',
-    postFeed: 'PostFeed',
+    postFeed: 'RichText',
     sermon: 'Sermon',
     groupList: 'ListView',
     listView: 'ListView',
@@ -78,7 +82,17 @@ const normalizeSectionType = (value: number | string): SectionEditModel['type'] 
     return sectionTypeMapByName[normalized]
   }
 
-  const values = ['Hero', 'MediaSpotlight', 'IconFeatureGrid', 'SermonSpotlight', 'RichText', 'PostFeed', 'Sermon', 'ListView'] as const
+  const legacySectionTypeMap: Record<string, SectionEditModel['type']> = {
+    MediaSpotlight: 'Spotlight',
+    SermonSpotlight: 'Spotlight',
+    IconFeatureGrid: 'Hero',
+    PostFeed: 'RichText',
+  }
+  if (legacySectionTypeMap[normalized]) {
+    return legacySectionTypeMap[normalized]
+  }
+
+  const values = ['Hero', 'Spotlight', 'RichText', 'Sermon', 'ListView'] as const
   return values.includes(normalized as (typeof values)[number]) ? (normalized as SectionEditModel['type']) : 'RichText'
 }
 
@@ -94,13 +108,9 @@ export const normalizePageSection = (section: SectionDto): SectionEditModel => {
   const layout = typeof styleJson.layout === 'string' ? styleJson.layout : ''
 
   const type =
-    normalizedType === 'Hero' && (layout === 'mediaSpotlight' || layout === 'split')
-      ? 'MediaSpotlight'
-      : normalizedType === 'Hero' && layout === 'iconFeatureGrid'
-        ? 'IconFeatureGrid'
-        : normalizedType === 'Hero' && layout === 'sermonSpotlight'
-          ? 'SermonSpotlight'
-          : normalizedType
+    normalizedType === 'Hero' && (layout === 'mediaSpotlight' || layout === 'split' || layout === 'sermonSpotlight' || layout === 'spotlight')
+      ? 'Spotlight'
+      : normalizedType
 
   return {
     id: section.id,
