@@ -18,6 +18,7 @@ import type { SectionComponentProps } from './types'
 import SectionHeader from './SectionHeader'
 import { sectionSpacingClass } from './sectionPresets'
 import type { SpotlightDataSource } from '../../types'
+import type { SermonDto } from '../../services/sermonService'
 import {
   buildSpotlightMetadata,
   defaultSpotlightPreset,
@@ -77,15 +78,22 @@ const SpotlightSection = ({ section, mode, disabled, onUpdate, contextGroupId, p
   const actionLinks = readSpotlightActionLinks(section.contentJson, auth.language)
   const actions = actionLinks.length > 0 ? actionLinks : boundContent?.actions ?? []
   const mediaPosition = mediaConfig.position
-  const resolvedMedia = boundContent?.media?.url
+  const sermonItem = isDataBound && spotlightBinding.source === 'sermons' ? spotlightItem as SermonDto | undefined : undefined
+  const sermonVideoUrl = sermonItem?.videoUrl || ''
+  const resolvedMedia = sermonVideoUrl
     ? {
-      type: boundContent.media.type === 'youtube' ? 'youtube' : 'image',
-      url: boundContent.media.url,
+      type: 'youtube' as const,
+      url: sermonVideoUrl,
     }
-    : {
-      type: mediaConfig.type,
-      url: mediaConfig.url,
-    }
+    : boundContent?.media?.url
+      ? {
+        type: boundContent.media.type === 'youtube' ? 'youtube' : 'image',
+        url: boundContent.media.url,
+      }
+      : {
+        type: mediaConfig.type,
+        url: mediaConfig.url,
+      }
   const imageUrl = resolvedMedia.type === 'image' ? resolvedMedia.url : ''
   const youtubeUrl = resolvedMedia.type === 'youtube' ? resolvedMedia.url : ''
   const embedUrl = toYouTubeEmbedUrl(youtubeUrl)

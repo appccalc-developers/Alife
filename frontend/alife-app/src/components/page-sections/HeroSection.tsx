@@ -144,7 +144,7 @@ const HeroSection = ({ section, mode, disabled, onUpdate }: SectionComponentProp
   return (
     <section className="overflow-hidden rounded-lg border border-slate-200">
       <div
-        className={`relative w-full ${poster ? 'mx-auto max-w-3xl' : ''}`}
+        className={`relative w-full ${poster ? 'mx-auto' : ''}`}
         style={{ aspectRatio: reservedAspectRatio }}
       >
         <div
