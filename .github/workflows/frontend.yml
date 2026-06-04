@@ -1,0 +1,49 @@
+name: frontend
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - feature/workflow-test
+    paths:
+      - ".github/workflows/frontend.yml"
+      - "frontend/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-ccalc-worker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      API_PROXY_TARGET: https://api.ccalc.live
+      VITE_API_BASE_URL: ""
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/alife-app/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test Worker speed layer
+        run: npm run test:worker
+
+      - name: Deploy Worker
+        run: npx wrangler deploy

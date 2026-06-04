@@ -1,19 +1,20 @@
-name: Deploy Cloudflare Images API
+name: images-api
 
 on:
   workflow_dispatch:
   push:
     branches:
       - main
+      - feature/workflow-test
     paths:
-      - ".github/workflows/deploy-cloudflare-images-api.yml"
+      - ".github/workflows/images-api.yml"
       - "cloudflare/images-api/**"
 
 permissions:
   contents: read
 
 concurrency:
-  group: cloudflare-images-api-${{ github.ref }}
+  group: images-api-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

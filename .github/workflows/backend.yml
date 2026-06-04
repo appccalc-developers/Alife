@@ -1,9 +1,13 @@
-name: Alife.API Migration and Deploy
+name: backend
 
 on:
   push:
     branches:
       - main
+      - feature/workflow-test
+    paths:
+      - ".github/workflows/backend.yml"
+      - "backend/**"
 
 permissions:
   id-token: write
