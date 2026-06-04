@@ -9,6 +9,7 @@ on:
     paths:
       - ".github/workflows/speed-layer.yml"
       - "speed-layer/**"
+      - "frontend/**"
 
 permissions:
   contents: read
@@ -41,14 +42,23 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: speed-layer/package-lock.json
+          cache-dependency-path: |
+            speed-layer/package-lock.json
+            frontend/alife-app/package-lock.json
 
-      - name: Install dependencies
+      - name: Install worker dependencies
         run: npm ci
+
+      - name: Install frontend dependencies
+        working-directory: frontend/alife-app
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend/alife-app
+        run: npm run build
 
       - name: Test Worker speed layer
         run: npm test
 
-      - name: Deploy Worker
-        working-directory: speed-layer
+      - name: Deploy Worker and frontend assets
         run: npx wrangler deploy
