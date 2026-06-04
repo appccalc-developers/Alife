@@ -246,8 +246,8 @@ export const http = axios.create({
 
 - `src/services/aiSessionService.ts` provides the generic frontend client for `/message`, `/state`, `/stream`, and `/close`.
 - `src/hooks/useAiSession.ts` centralizes SSE subscription, state updates, send-message handling, and error normalization.
-- `worker/ai-session.ts` provides the generic Durable Object base.
-- `worker/eventplanner.ts`, `worker/enrollment.ts`, and `worker/review.ts` configure event, enrollment, and review-specific prompts, schemas, and draft normalization.
+- `speed-layer/src/features/ai/aiSession.ts` provides the generic Durable Object base.
+- `speed-layer/src/features/events/planner.ts`, `speed-layer/src/features/events/enrolment.ts`, and `speed-layer/src/features/events/reviewer.ts` configure event, enrollment, and review-specific prompts, schemas, and draft normalization.
 - Worker session routes are `/api/events/session/*`, `/api/enrollments/session/*`, and `/api/reviews/session/*`.
 
 ## Deployment Architecture

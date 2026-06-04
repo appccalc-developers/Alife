@@ -1,0 +1,16 @@
+{
+  "name": "speed-layer",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "wrangler deploy --dry-run --outdir dist/app_ccalc",
+    "test": "npm run build && node --test index.test.mjs",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3",
+    "wrangler": "^4.88.0"
+  }
+}
