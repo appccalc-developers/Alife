@@ -6,7 +6,7 @@
   "scripts": {
     "build": "npm run build:worker",
     "build:frontend": "cd ../frontend/alife-app && npm run build",
-    "build:worker": "mkdir -p ../frontend/alife-app/dist && wrangler deploy --dry-run --outdir dist/app_ccalc",
+    "build:worker": "node -e \"require('node:fs').mkdirSync('../frontend/alife-app/dist',{ recursive: true })\" && wrangler deploy --dry-run --outdir dist/app_ccalc",
     "test": "npm run test:worker",
     "test:worker": "npm run build:worker && node --test index.test.mjs",
     "dev": "wrangler dev",
