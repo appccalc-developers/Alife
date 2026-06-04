@@ -18,6 +18,7 @@ Full-stack church management application. Clean Architecture .NET backend on Azu
 
 ```
 backend/
+  Alife.sln               # .NET solution
   src/
     Alife.Domain/          # Entities, enums — no dependencies
     Alife.Application/     # Use cases, commands, queries, DTOs
@@ -26,11 +27,11 @@ backend/
     Alife.DbMigrator/      # Database migration + seed runner
   tests/
     Alife.Tests.Unit/
+  docker-compose.yml       # Local SQL Server and supporting services
 cloudflare/
-  images-api/              # Cloudflare Worker for image proxy/resize
-speed-layer/             # Cloudflare Worker edge proxy & compute layer
-frontend/
   alife-app/               # React 19 SPA
+  images-api/              # Cloudflare Worker for image proxy/resize
+  speed-layer/             # Cloudflare Worker edge proxy & compute layer
 docs/
   architecture.md
 global.json                # .NET SDK version pin
@@ -77,7 +78,7 @@ dotnet run --project backend/src/Alife.Api
 ### 4) Run the frontend
 
 ```bash
-cd frontend/alife-app
+cd cloudflare/alife-app
 npm install
 npm run dev         # Vite dev server  → http://localhost:5173
 ```
@@ -141,11 +142,11 @@ dotnet test   backend/tests/Alife.Tests.Unit/Alife.Tests.Unit.csproj -c Debug
 dotnet publish backend/src/Alife.Api --configuration Release
 
 # Frontend — build + deploy to Cloudflare (delegates to speed-layer under the hood)
-cd frontend/alife-app
+cd cloudflare/alife-app
 npm run deploy
 
 # Speed Layer — build + run tests
-cd speed-layer
+cd cloudflare/speed-layer
 npm test
 
 # Run API directly from backend folder
