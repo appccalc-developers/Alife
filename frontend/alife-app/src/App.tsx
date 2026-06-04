@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import logo from './assets/logo.png'
 import AccessTypeBadge from './components/group/AccessTypeBadge'
 import { groupService } from './services/groupService'
@@ -42,7 +43,16 @@ type ShellFabItem = {
 
 const RouteLoading = () => {
   const t = useUiText()
-  return <p className="rounded bg-white p-3">{t('loadingIdentity')}</p>
+  return (
+    <motion.p
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25 }}
+      className="rounded bg-white p-3"
+    >
+      {t('loadingIdentity')}
+    </motion.p>
+  )
 }
 
 const PageIcon = () => (
@@ -134,22 +144,27 @@ const CloseIcon = () => (
 )
 
 const ShellNavLink = ({ item, mobile = false }: { item: ShellNavItem; mobile?: boolean }) => (
-  <NavLink
-    to={item.to}
-    end={item.to === '/'}
-    className={({ isActive }) =>
-      [
-        'flex items-center rounded-lg font-medium transition',
-        mobile ? 'min-w-0 flex-1 flex-col justify-center gap-1 px-1 py-2 text-xs' : 'gap-3 px-3 py-2.5 text-sm',
-        isActive ? 'bg-emerald-700 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950',
-      ].join(' ')
-    }
+  <motion.div
+    whileTap={{ scale: 0.95 }}
+    transition={{ type: 'spring', stiffness: 400, damping: 17 }}
   >
-    <span className={mobile ? 'flex h-6 items-center justify-center' : 'flex h-5 w-5 items-center justify-center'}>
-      {item.icon}
-    </span>
-    <span className={mobile ? 'max-w-full truncate leading-tight' : ''}>{item.label}</span>
-  </NavLink>
+    <NavLink
+      to={item.to}
+      end={item.to === '/'}
+      className={({ isActive }) =>
+        [
+          'flex items-center rounded-lg font-medium transition',
+          mobile ? 'min-w-0 flex-1 flex-col justify-center gap-1 px-1 py-2 text-xs' : 'gap-3 px-3 py-2.5 text-sm',
+          isActive ? 'bg-emerald-700 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950',
+        ].join(' ')
+      }
+    >
+      <span className={mobile ? 'flex h-6 items-center justify-center' : 'flex h-5 w-5 items-center justify-center'}>
+        {item.icon}
+      </span>
+      <span className={mobile ? 'max-w-full truncate leading-tight' : ''}>{item.label}</span>
+    </NavLink>
+  </motion.div>
 )
 
 const ShellSearchNavLink = ({ item, mobile = false }: { item: ShellNavItem; mobile?: boolean }) => {
@@ -161,19 +176,24 @@ const ShellSearchNavLink = ({ item, mobile = false }: { item: ShellNavItem; mobi
     (Boolean(item.pageId) && pageEditMatch?.[1] === item.pageId)
 
   return (
-    <Link
-      to={item.to}
-      className={[
-        'flex items-center rounded-lg font-medium transition',
-        mobile ? 'min-w-0 flex-1 flex-col justify-center gap-1 px-1 py-2 text-xs' : 'gap-3 px-3 py-2.5 text-sm',
-        isActive ? 'bg-emerald-700 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950',
-      ].join(' ')}
+    <motion.div
+      whileTap={{ scale: 0.95 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 17 }}
     >
-      <span className={mobile ? 'flex h-6 items-center justify-center' : 'flex h-5 w-5 items-center justify-center'}>
-        {item.icon}
-      </span>
-      <span className={mobile ? 'max-w-full truncate leading-tight' : ''}>{item.label}</span>
-    </Link>
+      <Link
+        to={item.to}
+        className={[
+          'flex items-center rounded-lg font-medium transition',
+          mobile ? 'min-w-0 flex-1 flex-col justify-center gap-1 px-1 py-2 text-xs' : 'gap-3 px-3 py-2.5 text-sm',
+          isActive ? 'bg-emerald-700 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950',
+        ].join(' ')}
+      >
+        <span className={mobile ? 'flex h-6 items-center justify-center' : 'flex h-5 w-5 items-center justify-center'}>
+          {item.icon}
+        </span>
+        <span className={mobile ? 'max-w-full truncate leading-tight' : ''}>{item.label}</span>
+      </Link>
+    </motion.div>
   )
 }
 
@@ -208,30 +228,56 @@ const SideNav = ({ items }: { items: ShellNavItem[] }) => {
   const t = useUiText()
 
   return (
-  <aside className="fixed bottom-0 left-0 top-16 z-20 hidden w-72 bg-white/95 px-4 py-5 shadow-sm backdrop-blur desktop:block">
+  <motion.aside
+    initial={{ opacity: 0, x: -16 }}
+    animate={{ opacity: 1, x: 0 }}
+    transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
+    className="fixed bottom-0 left-0 top-16 z-20 hidden w-72 bg-white/95 px-4 py-5 shadow-sm backdrop-blur desktop:block"
+  >
     <nav className="space-y-1" aria-label={t('primaryNavigation')}>
-      {items.map((item) => (
-        <ShellSearchNavLink key={item.to} item={item} />
-      ))}
+      <AnimatePresence mode="wait">
+        {items.map((item, i) => (
+          <motion.div
+            key={item.to}
+            initial={{ opacity: 0, x: -12 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: i * 0.04, duration: 0.25, ease: 'easeOut' }}
+          >
+            <ShellSearchNavLink item={item} />
+          </motion.div>
+        ))}
+      </AnimatePresence>
     </nav>
-  </aside>
+  </motion.aside>
   )
 }
 
 const BottomNav = ({ items }: { items: ShellNavItem[] }) => {
   const t = useUiText()
+  const prevCount = useRef(items.length)
 
   return (
-  <nav
+  <motion.nav
+    initial={{ y: 80 }}
+    animate={{ y: 0 }}
+    transition={{ type: 'spring', stiffness: 300, damping: 28, delay: 0.1 }}
     className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-2 pb-[calc(env(safe-area-inset-bottom)+0.375rem)] pt-1.5 shadow-[0_-12px_30px_rgba(15,23,42,0.10)] backdrop-blur desktop:hidden"
     aria-label={t('primaryNavigation')}
   >
     <div className="mx-auto flex max-w-lg items-stretch gap-1">
-      {items.map((item) => (
-        <ShellSearchNavLink key={item.to} item={item} mobile />
+      {items.map((item, i) => (
+        <motion.div
+          key={item.to}
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 + i * 0.05, duration: 0.3, ease: 'easeOut' }}
+          className="flex-1"
+        >
+          <ShellSearchNavLink item={item} mobile />
+        </motion.div>
       ))}
     </div>
-  </nav>
+  </motion.nav>
   )
 }
 
@@ -244,17 +290,30 @@ const fabToneClass: Record<ShellFabItem['tone'], string> = {
 
 const FloatingActionButtons = ({ items }: { items: ShellFabItem[] }) => (
   <div className="fixed bottom-24 right-4 z-40 flex flex-col-reverse items-end gap-2.5 desktop:bottom-6 desktop:right-6">
-    {items.map((item) => (
-      <button
+    {items.map((item, i) => (
+      <motion.div
         key={item.label}
-        type="button"
-        className={`inline-flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition focus:outline-none focus:ring-4 ${fabToneClass[item.tone]}`}
-        aria-label={item.label}
-        title={item.label}
-        onClick={item.onClick}
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{
+          delay: 0.2 + i * 0.08,
+          type: 'spring',
+          stiffness: 400,
+          damping: 20,
+        }}
+        whileTap={{ scale: 0.85 }}
+        whileHover={{ scale: 1.05 }}
       >
-        {item.icon}
-      </button>
+        <button
+          type="button"
+          className={`inline-flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition focus:outline-none focus:ring-4 ${fabToneClass[item.tone]}`}
+          aria-label={item.label}
+          title={item.label}
+          onClick={item.onClick}
+        >
+          {item.icon}
+        </button>
+      </motion.div>
     ))}
   </div>
 )
@@ -277,19 +336,22 @@ const GroupDrawer = ({ currentGroup, churchGroup, items, open, onClose, onOpenGr
 
   return (
     <>
-      <div
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: open ? 1 : 0 }}
+        transition={{ duration: 0.25 }}
         className={[
-          'fixed inset-0 z-40 bg-slate-950/25 transition-opacity',
-          open ? 'opacity-100' : 'pointer-events-none opacity-0',
+          'fixed inset-0 z-40 bg-slate-950/25',
+          open ? 'pointer-events-auto' : 'pointer-events-none',
         ].join(' ')}
         aria-hidden="true"
         onClick={onClose}
       />
-      <aside
-        className={[
-          'fixed bottom-0 right-0 top-0 z-50 flex w-full max-w-sm transform flex-col border-l border-slate-200 bg-white shadow-2xl transition-transform sm:top-16',
-          open ? 'translate-x-0' : 'translate-x-full',
-        ].join(' ')}
+      <motion.aside
+        initial={{ x: '100%' }}
+        animate={{ x: open ? 0 : '100%' }}
+        transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+        className="fixed bottom-0 right-0 top-0 z-50 flex w-full max-w-sm flex-col border-l border-slate-200 bg-white shadow-2xl sm:top-16"
         aria-label={t('subgroupMenu')}
       >
         <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-4">
@@ -333,8 +395,13 @@ const GroupDrawer = ({ currentGroup, churchGroup, items, open, onClose, onOpenGr
           {items.length === 0 ? (
             <p className="rounded-lg bg-slate-50 px-3 py-3 text-sm text-slate-600">{t('noSubgroupsYet')}</p>
           ) : (
-            <ul className="space-y-2">
-              {items.map((subgroup) => {
+            <motion.ul
+              initial="hidden"
+              animate="visible"
+              variants={{ visible: { transition: { staggerChildren: 0.04 } } }}
+              className="space-y-2"
+            >
+              {items.map((subgroup, i) => {
                 const membership = auth.memberships.find((item) => item.groupId === subgroup.id)
                 const isApproved = membership?.status === 'approved'
                 const statusLabel = isApproved
@@ -346,9 +413,17 @@ const GroupDrawer = ({ currentGroup, churchGroup, items, open, onClose, onOpenGr
                       : t('notJoined')
 
                 return (
-                  <li key={subgroup.id}>
-                    <button
+                  <motion.li
+                    key={subgroup.id}
+                    variants={{
+                      hidden: { opacity: 0, x: 20 },
+                      visible: { opacity: 1, x: 0 },
+                    }}
+                    transition={{ duration: 0.25, ease: 'easeOut' }}
+                  >
+                    <motion.button
                       type="button"
+                      whileTap={{ scale: 0.97 }}
                       className="w-full rounded-lg border border-slate-200 bg-white px-3 py-3 text-left transition hover:border-emerald-200 hover:bg-emerald-50"
                       onClick={() => onOpenSubgroup(subgroup.id)}
                     >
@@ -364,14 +439,14 @@ const GroupDrawer = ({ currentGroup, churchGroup, items, open, onClose, onOpenGr
                           <span className="text-[11px] font-medium text-slate-500">{statusLabel}</span>
                         </span>
                       </span>
-                    </button>
-                  </li>
+                  </motion.button>
+                  </motion.li>
                 )
               })}
-            </ul>
+            </motion.ul>
           )}
         </div>
-      </aside>
+      </motion.aside>
     </>
   )
 }
@@ -655,7 +730,12 @@ const App = () => {
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
-      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 backdrop-blur">
+      <motion.header
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.3, ease: 'easeOut' }}
+        className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 backdrop-blur"
+      >
         <div className="flex min-h-16 items-center justify-between gap-3 px-4 py-3 sm:px-6 desktop:px-8">
           <HeaderNav items={appNavItems} currentGroupName={headerGroupName} currentGroupManageTo={headerGroupManageTo} />
 
@@ -686,47 +766,56 @@ const App = () => {
             ) : null}
           </div>
         </div>
-      </header>
+      </motion.header>
       <div className="min-h-screen desktop:pl-72">
         <SideNav items={shellNavItems} />
 
-        <main className="mx-auto max-w-6xl px-4 pb-32 pt-6 sm:px-6 desktop:px-8 desktop:pb-10">
+        <motion.main
+          key={location.pathname + location.search}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2, ease: 'easeInOut' }}
+          className="mx-auto max-w-6xl px-4 pb-32 pt-6 sm:px-6 desktop:px-8 desktop:pb-10"
+        >
           {auth.loading ? <RouteLoading /> : null}
-          <Routes>
-            <Route path="/" element={<HomeView />} />
-            <Route path="/groups/:groupId" element={<GroupDetailView />} />
-            <Route path="/groups/:groupId/join" element={<GroupJoinView />} />
-            <Route path="/groups/:groupId/manage" element={<GroupManageView />} />
-            <Route path="/groups/:groupId/manage/invite-members" element={<InviteMembersView />} />
-            <Route path="/pages/:pageId" element={<PageView />} />
-            <Route path="/profile" element={<ProfileView />} />
-            <Route path="/sermons" element={<SermonsView />} />
-            <Route path="/sermons/:sermonId" element={<SermonVideoView />} />
-            <Route path="/events/new" element={<EventCreatorView />} />
-            <Route path="/events/:eventId/edit" element={<EventCreatorView />} />
-            <Route path="/groups/:groupId/events/:eventId/enroll" element={<EventEnrollmentView />} />
-            <Route path="/groups/:groupId/events/:eventId/review" element={<EventReviewView />} />
-            <Route path="/groups/:groupId/pages/new" element={<PageEditorView />} />
-            <Route path="/pages/:pageId/edit" element={<PageEditorView />} />
-            <Route
-              path="/onboarding"
-              element={
-                <OnboardingRoute>
-                  <OnboardingView />
-                </OnboardingRoute>
-              }
-            />
-            <Route
-              path="/admin"
-              element={
-                <AdminRoute>
-                  <AdminView />
-                </AdminRoute>
-              }
-            />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </main>
+          <AnimatePresence mode="wait">
+            <Routes location={location} key={location.pathname + location.search}>
+              <Route path="/" element={<HomeView />} />
+              <Route path="/groups/:groupId" element={<GroupDetailView />} />
+              <Route path="/groups/:groupId/join" element={<GroupJoinView />} />
+              <Route path="/groups/:groupId/manage" element={<GroupManageView />} />
+              <Route path="/groups/:groupId/manage/invite-members" element={<InviteMembersView />} />
+              <Route path="/pages/:pageId" element={<PageView />} />
+              <Route path="/profile" element={<ProfileView />} />
+              <Route path="/sermons" element={<SermonsView />} />
+              <Route path="/sermons/:sermonId" element={<SermonVideoView />} />
+              <Route path="/events/new" element={<EventCreatorView />} />
+              <Route path="/events/:eventId/edit" element={<EventCreatorView />} />
+              <Route path="/groups/:groupId/events/:eventId/enroll" element={<EventEnrollmentView />} />
+              <Route path="/groups/:groupId/events/:eventId/review" element={<EventReviewView />} />
+              <Route path="/groups/:groupId/pages/new" element={<PageEditorView />} />
+              <Route path="/pages/:pageId/edit" element={<PageEditorView />} />
+              <Route
+                path="/onboarding"
+                element={
+                  <OnboardingRoute>
+                    <OnboardingView />
+                  </OnboardingRoute>
+                }
+              />
+              <Route
+                path="/admin"
+                element={
+                  <AdminRoute>
+                    <AdminView />
+                  </AdminRoute>
+                }
+              />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </AnimatePresence>
+        </motion.main>
       </div>
 
       <BottomNav items={shellNavItems} />
