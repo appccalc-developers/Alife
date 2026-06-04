@@ -39,11 +39,22 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/alife-app/package-lock.json
 
-      - name: Install dependencies
+      - name: Install frontend dependencies
+        working-directory: frontend/alife-app
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend/alife-app
+        run: npm run build
+
+      - name: Install worker dependencies
+        working-directory: speed-layer
         run: npm ci
 
       - name: Test Worker speed layer
-        run: npm run test:worker
+        working-directory: speed-layer
+        run: npm test
 
       - name: Deploy Worker
+        working-directory: speed-layer
         run: npx wrangler deploy
