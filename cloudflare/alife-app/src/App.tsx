@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import logo from './assets/logo.png'
@@ -254,7 +254,6 @@ const SideNav = ({ items }: { items: ShellNavItem[] }) => {
 
 const BottomNav = ({ items }: { items: ShellNavItem[] }) => {
   const t = useUiText()
-  const prevCount = useRef(items.length)
 
   return (
   <motion.nav
@@ -401,7 +400,7 @@ const GroupDrawer = ({ currentGroup, churchGroup, items, open, onClose, onOpenGr
               variants={{ visible: { transition: { staggerChildren: 0.04 } } }}
               className="space-y-2"
             >
-              {items.map((subgroup, i) => {
+              {items.map((subgroup) => {
                 const membership = auth.memberships.find((item) => item.groupId === subgroup.id)
                 const isApproved = membership?.status === 'approved'
                 const statusLabel = isApproved
