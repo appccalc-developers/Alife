@@ -1,4 +1,4 @@
-import type { Env } from './index'
+import type { Env } from '../../index'
 import {
   AiChatSession,
   createAiSessionObjectRequest,
@@ -8,7 +8,7 @@ import {
   resolveAiSessionObjectPath,
   type AiSessionAppContext,
   type DurableObjectStateLike,
-} from './ai-session'
+} from '../ai/aiSession'
 
 const DEFAULT_SESSION_ID = 'default'
 const SESSION_STORAGE_KEY = 'review-session-state'
@@ -39,7 +39,7 @@ type RecognizedActivity = {
   correction?: string | null
 }
 
-type ReviewDraft = {
+export type ReviewDraft = {
   reviewId: string
   eventId: string
   groupId: string

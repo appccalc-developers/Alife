@@ -1,4 +1,4 @@
-import type { Env } from './index'
+import type { Env } from '../../index'
 import {
   AiChatSession,
   createAiSessionObjectRequest,
@@ -8,7 +8,7 @@ import {
   resolveAiSessionObjectPath,
   type AiSessionAppContext,
   type DurableObjectStateLike,
-} from './ai-session'
+} from '../ai/aiSession'
 
 const DEFAULT_IMAGES_API_BASE = 'https://ccalc.live/images'
 const DEFAULT_API_PROXY_TARGET = 'https://api.ccalc.live'

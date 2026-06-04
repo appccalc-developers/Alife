@@ -1,4 +1,4 @@
-import type { Env } from './index'
+import type { Env } from '../../index'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com'
 const DEFAULT_GEMINI_MODEL = 'gemini-3.1-flash-lite'
