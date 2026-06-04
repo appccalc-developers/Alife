@@ -47,14 +47,6 @@ jobs:
         working-directory: frontend/alife-app
         run: npm run build
 
-      - name: Install worker dependencies
+      - name: Deploy frontend assets
         working-directory: speed-layer
-        run: npm ci
-
-      - name: Test Worker speed layer
-        working-directory: speed-layer
-        run: npm test
-
-      - name: Deploy Worker
-        working-directory: speed-layer
-        run: npx wrangler deploy
+        run: npx wrangler@4.88.0 deploy

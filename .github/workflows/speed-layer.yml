@@ -50,4 +50,5 @@ jobs:
         run: npm test
 
       - name: Deploy Worker
+        working-directory: speed-layer
         run: npx wrangler deploy
