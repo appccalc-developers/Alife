@@ -1,0 +1,526 @@
+import type { Env } from '../index'
+import {
+  type SharedCacheContext,
+  type MembershipAuthzRecord,
+  type PageMeta,
+  type GroupAuthzStatus,
+  createCredentialCacheKey,
+  getEdgeCache,
+  readJsonObject,
+  readJson,
+  readString,
+  getPageDetailId,
+  getEventSubresource,
+  getGroupSubresource,
+  createPageMetaMapKey,
+  createEntityGroupMapKey,
+  createLegacyEntityGroupMapRequest,
+  writePageMeta,
+  writeEntityGroup,
+  readEntityGroup,
+  createMembershipKey,
+} from './authCache'
+
+const CACHE_TTL_SECONDS = 86400 // 24 hours
+const CACHE_STALE_WHILE_REVALIDATE_SECONDS = 300
+const CACHE_STALE_IF_ERROR_SECONDS = 86400
+const AUTHZ_MIRROR_TTL_SECONDS = 7 * 24 * 60 * 60
+const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
+const PUBLIC_CACHEABLE_API_PATHS = new Set(['/api/sermons', '/api/pages/global'])
+
+export type StoredResponse = {
+  status: number
+  statusText?: string
+  headers: Record<string, string>
+  body: string
+  storedAt: string
+}
+
+const ALLOWED_ORIGINS = new Set(['https://ccalc.live', 'http://localhost:5173'])
+
+export const apiCacheMiddleware = async (
+  req: any,
+  env: Env,
+  ctx: any,
+  next: () => Promise<Response>
+) => {
+  const url = new URL(req.url)
+  const sharedContext = req.sharedContext
+  const bypassEdgeCache = req.bypassEdgeCache
+
+  if (req.method === 'GET' && !bypassEdgeCache) {
+    const cached = sharedContext
+      ? await readSharedCachedResponse(env, req, sharedContext)
+      : await getEdgeCache().match(await createCacheKey(req))
+
+    if (cached) {
+      const clientEtag = req.headers.get('if-none-match')
+      const cachedEtag = cached.headers.get('etag')
+      if (clientEtag && cachedEtag && matchesIfNoneMatch(clientEtag, cachedEtag)) {
+        return addCorsHeaders(req, withCacheHeader(withBrowserCacheControl(new Response(null, {
+          status: 304,
+          headers: cached.headers,
+        }), url.pathname, sharedContext?.authzStatus), 'REVALIDATED'))
+      }
+
+      return addCorsHeaders(req, withCacheHeader(withBrowserCacheControl(cached, url.pathname, sharedContext?.authzStatus), 'HIT'))
+    }
+  }
+
+  const response = await next()
+
+  if (response.status === 200 && req.method === 'GET' && !bypassEdgeCache) {
+    const waitUntilTasks = [
+      rememberEntityGroups(env, req, response.clone()),
+      rememberGroupAuthorization(env, sharedContext?.groupId ?? '', sharedContext?.memberId ?? '', response.clone()),
+    ]
+
+    if (sharedContext) {
+      if (sharedContext.memberId) {
+        waitUntilTasks.push(writeSharedCachedResponse(env, req, withEdgeCacheControl(response.clone())))
+      }
+    } else {
+      const responseForCache = withEdgeCacheControl(response.clone())
+      waitUntilTasks.push(createCacheKey(req).then((cacheKey) => getEdgeCache().put(cacheKey, responseForCache)))
+    }
+
+    ctx.waitUntil(Promise.all(waitUntilTasks))
+    return addCorsHeaders(req, withCacheHeader(withBrowserCacheControl(response, url.pathname, sharedContext?.authzStatus), 'MISS'))
+  }
+
+  if (response.status === 200 && req.method === 'GET' && (getEventSubresource(url.pathname) || getPageDetailId(url.pathname))) {
+    const tasks = [rememberEntityGroups(env, req, response.clone())]
+    if (getPageDetailId(url.pathname)) {
+      tasks.push(writeSharedCachedResponse(env, req, withEdgeCacheControl(response.clone())))
+    }
+    ctx.waitUntil(Promise.all(tasks))
+  }
+
+  if (response.ok && MUTATING_METHODS.has(req.method)) {
+    ctx.waitUntil(passivelyInvalidate(env, req, response.clone()))
+  }
+
+  const finalResponse = bypassEdgeCache ? withNoStore(response) : response
+  return addCorsHeaders(req, withCacheHeader(withGroupAuthzHeader(finalResponse, sharedContext?.authzStatus), 'BYPASS'))
+}
+
+export async function readSharedCachedResponse(env: Env, request: Request, context: SharedCacheContext) {
+  if (!canReadSharedCache(context) || !env.ALIFE_API_CACHE) {
+    return undefined
+  }
+
+  const record = await env.ALIFE_API_CACHE.get(createApiCacheKey(request), { type: 'json' }) as StoredResponse | null
+  if (!isStoredResponse(record)) {
+    return undefined
+  }
+
+  return new Response(record.body, {
+    status: record.status,
+    statusText: record.statusText,
+    headers: record.headers,
+  })
+}
+
+export function canReadSharedCache(context: SharedCacheContext) {
+  if (context.authzStatus !== 'hit') {
+    return false
+  }
+
+  if (!context.pageMeta || !isDraftVisibility(context.pageMeta.visibility)) {
+    return true
+  }
+
+  return isPageAuthor(context.pageMeta, context.memberId) || hasDraftPageRole(context.authzRecord)
+}
+
+function isDraftVisibility(visibility: string | undefined) {
+  return visibility?.toLowerCase() === 'draft'
+}
+
+function isPageAuthor(pageMeta: PageMeta, memberId: string) {
+  return Boolean(memberId && pageMeta.createdByMemberId && pageMeta.createdByMemberId === memberId)
+}
+
+function hasDraftPageRole(record: MembershipAuthzRecord | undefined) {
+  const role = record?.role?.toLowerCase().replace(/[^a-z]/g, '')
+  return role === 'leader' || role === 'coleader'
+}
+
+export async function writeSharedCachedResponse(env: Env, request: Request, response: Response) {
+  if (!env.ALIFE_API_CACHE) {
+    return
+  }
+
+  const headers: Record<string, string> = {}
+  response.headers.forEach((value, key) => {
+    headers[key] = value
+  })
+
+  const record: StoredResponse = {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+    body: await response.text(),
+    storedAt: new Date().toISOString(),
+  }
+
+  await env.ALIFE_API_CACHE.put(
+    createApiCacheKey(request),
+    JSON.stringify(record),
+    { expirationTtl: CACHE_TTL_SECONDS },
+  )
+}
+
+export function isStoredResponse(value: unknown): value is StoredResponse {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+
+  const record = value as Record<string, unknown>
+  return typeof record.status === 'number' &&
+    typeof record.headers === 'object' &&
+    record.headers !== null &&
+    typeof record.body === 'string'
+}
+
+export function createApiCacheKey(requestOrPath: Request | string) {
+  if (typeof requestOrPath === 'string') {
+    return `api:${requestOrPath}`
+  }
+
+  const url = new URL(requestOrPath.url)
+  url.hash = ''
+  url.searchParams.sort()
+  return `api:${url.pathname}${url.search}`
+}
+
+export async function passivelyInvalidate(env: Env, request: Request, response: Response) {
+  const paths = await getInvalidationPaths(env, request, response)
+  const keys = getInvalidationKeys(request)
+  const originalCacheKey = await createCacheKey(request)
+  await Promise.all([
+    getEdgeCache().delete(originalCacheKey),
+    deleteApiCacheKey(env, createApiCacheKey(request)),
+    ...keys.map((key) => deleteApiCacheKey(env, key)),
+    ...paths.map(async (path) => {
+      const cacheKey = await createCacheKey(request, path)
+      await getEdgeCache().delete(cacheKey)
+      await deleteApiCacheKey(env, createApiCacheKey(path))
+    }),
+  ])
+}
+
+export async function deleteApiCacheKey(env: Env, key: string) {
+  if (!env.ALIFE_API_CACHE) {
+    return
+  }
+
+  await env.ALIFE_API_CACHE.delete(key)
+}
+
+export async function getInvalidationPaths(env: Env, request: Request, response: Response) {
+  const url = new URL(request.url)
+  const path = url.pathname
+  const paths = new Set<string>()
+
+  const groupSubresourceMatch = path.match(/^\/api\/groups\/([^/]+)\/(subgroups|pages|events|memberships)$/)
+  if (groupSubresourceMatch) {
+    paths.add(`/api/groups/${groupSubresourceMatch[1]}/${groupSubresourceMatch[2]}`)
+  }
+
+  const groupActionMatch = path.match(/^\/api\/groups\/([^/]+)\/(join-request|invite|invite\/accept|approve|reject|set-coleader|kick)$/)
+  if (groupActionMatch) {
+    paths.add(`/api/groups/${groupActionMatch[1]}/memberships`)
+  }
+
+  const groupCloseMatch = path.match(/^\/api\/groups\/([^/]+)\/close$/)
+  if (groupCloseMatch) {
+    paths.add(`/api/groups/${groupCloseMatch[1]}`)
+  }
+
+  const pageId = path.match(/^\/api\/pages\/([^/]+)(?:\/publish)?$/)?.[1]
+  if (pageId) {
+    paths.add(`/api/pages/${pageId}`)
+    const body = await readJsonObject(response)
+    const ownerGroupId = readString(body?.ownerGroupId) ?? await readEntityGroup(env, 'page', pageId)
+    if (ownerGroupId) {
+      paths.add(`/api/groups/${ownerGroupId}/pages`)
+    }
+  }
+
+  const eventId = path.match(/^\/api\/events\/([^/]+)$/)?.[1]
+  if (eventId) {
+    const body = await readJsonObject(response)
+    const groupId = readString(body?.groupId) ?? await readEntityGroup(env, 'event', eventId)
+    if (groupId) {
+      paths.add(`/api/groups/${groupId}/events`)
+    }
+  }
+
+  const enrollmentMatch = path.match(/^\/api\/events\/([^/]+)\/enrollments(?:\/[^/]+)?$/)
+  if (enrollmentMatch) {
+    paths.add(`/api/events/${enrollmentMatch[1]}/enrollments`)
+  }
+
+  const reviewMatch = path.match(/^\/api\/events\/([^/]+)\/reviews(?:\/[^/]+)?$/)
+  if (reviewMatch) {
+    paths.add(`/api/events/${reviewMatch[1]}/reviews`)
+  }
+
+  if (path === '/api/admin/sermons/sync') {
+    paths.add('/api/sermons')
+  }
+
+  paths.add(path)
+  return Array.from(paths)
+}
+
+export function getInvalidationKeys(request: Request) {
+  const path = new URL(request.url).pathname
+  const pageId = path.match(/^\/api\/pages\/([^/]+)(?:\/publish)?$/)?.[1]
+  if (!pageId) {
+    return []
+  }
+
+  return [
+    createEntityGroupMapKey('page', pageId),
+    createPageMetaMapKey(pageId),
+  ]
+}
+
+export async function rememberEntityGroups(env: Env, request: Request, response: Response) {
+  const path = new URL(request.url).pathname
+  const groupListMatch = path.match(/^\/api\/groups\/([^/]+)\/(pages|events)$/)
+  const pageDetailMatch = path.match(/^\/api\/pages\/([^/]+)$/)
+  const eventSubresourceMatch = path.match(/^\/api\/events\/([^/]+)\/(enrollments|reviews)$/)
+
+  if (!groupListMatch && !pageDetailMatch && !eventSubresourceMatch) {
+    return
+  }
+
+  const body = await readJson(response)
+  if (Array.isArray(body)) {
+    await Promise.all(body.map(async (item) => {
+      const entityType = groupListMatch?.[2] === 'events' ? 'event' : 'page'
+      const id = readString(item?.id)
+      const groupId = readString(item?.groupId) ?? readString(item?.ownerGroupId) ?? groupListMatch?.[1]
+      if (id && groupId) {
+        await writeEntityGroup(env, entityType, id, groupId)
+        if (entityType === 'page') {
+          await writePageMeta(env, id, item as Record<string, unknown>, groupId)
+        }
+      }
+    }))
+    return
+  }
+
+  if (pageDetailMatch && body && typeof body === 'object') {
+    const id = readString((body as Record<string, unknown>).id) ?? pageDetailMatch[1]
+    const groupId = readString((body as Record<string, unknown>).ownerGroupId)
+    if (id && groupId) {
+      await writeEntityGroup(env, 'page', id, groupId)
+      await writePageMeta(env, id, body as Record<string, unknown>, groupId)
+    }
+  }
+
+  if (eventSubresourceMatch && Array.isArray(body)) {
+    const groupId = body.map((item) => readString(item?.groupId)).find(Boolean)
+    if (groupId) {
+      await writeEntityGroup(env, 'event', eventSubresourceMatch[1], groupId)
+    }
+  }
+}
+
+export async function rememberGroupAuthorization(
+  env: Env,
+  groupId: string,
+  memberId: string,
+  response: Response,
+) {
+  if (!groupId || !memberId || response.status !== 200 || !env.ALIFE_AUTHZ) {
+    return
+  }
+
+  await env.ALIFE_AUTHZ.put(
+    createMembershipKey(groupId, memberId),
+    JSON.stringify({
+      status: 'approved',
+      source: 'origin-validated',
+      updatedUtc: new Date().toISOString(),
+    }),
+    { expirationTtl: AUTHZ_MIRROR_TTL_SECONDS },
+  )
+}
+
+export async function createCacheKey(request: Request, pathname?: string) {
+  const url = new URL(request.url)
+  if (pathname) {
+    url.pathname = pathname
+    url.search = ''
+  }
+  url.hash = ''
+  url.searchParams.sort()
+  const credentialKey = shouldUseSharedCacheKey(url.pathname) ? '' : await createCredentialCacheKey(request)
+  if (credentialKey) {
+    url.searchParams.set('__alife_credential', credentialKey)
+  }
+
+  return new Request(url.toString(), { method: 'GET' })
+}
+
+export function shouldUseSharedCacheKey(pathname: string) {
+  return pathname === '/images' ||
+    pathname.startsWith('/images/') ||
+    PUBLIC_CACHEABLE_API_PATHS.has(pathname) ||
+    Boolean(getGroupDetailId(pathname)) ||
+    Boolean(getGroupSubresource(pathname)) ||
+    Boolean(getEventSubresource(pathname)) ||
+    Boolean(getPageDetailId(pathname))
+}
+
+export function getGroupDetailId(pathname: string) {
+  return pathname.match(/^\/api\/groups\/([^/]+)$/)?.[1] ?? ''
+}
+
+
+
+export function withCacheHeader(response: Response, value: 'HIT' | 'MISS' | 'BYPASS' | 'REVALIDATED') {
+  const headers = new Headers(response.headers)
+  headers.set('x-alife-cache', value)
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
+}
+
+export function withEdgeCacheControl(response: Response) {
+  const headers = new Headers(response.headers)
+  headers.set(
+    'cache-control',
+    `public, max-age=${CACHE_TTL_SECONDS}, s-maxage=${CACHE_TTL_SECONDS}, stale-while-revalidate=${CACHE_STALE_WHILE_REVALIDATE_SECONDS}, stale-if-error=${CACHE_STALE_IF_ERROR_SECONDS}`,
+  )
+  headers.set('vary', appendVary(headers.get('vary'), 'Accept-Encoding'))
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
+}
+
+export function withBrowserCacheControl(response: Response, pathname: string, groupAuthzStatus?: GroupAuthzStatus) {
+  const headers = new Headers(response.headers)
+
+  if (pathname === '/images' || pathname.startsWith('/images/') || PUBLIC_CACHEABLE_API_PATHS.has(pathname)) {
+    headers.set(
+      'cache-control',
+      `public, max-age=${CACHE_TTL_SECONDS}, s-maxage=${CACHE_TTL_SECONDS}, stale-while-revalidate=${CACHE_STALE_WHILE_REVALIDATE_SECONDS}, stale-if-error=${CACHE_STALE_IF_ERROR_SECONDS}`,
+    )
+    headers.set('vary', appendVary(headers.get('vary'), 'Accept-Encoding'))
+  } else {
+    headers.set('cache-control', 'private, no-cache')
+    headers.set('vary', appendVary(appendVary(appendVary(headers.get('vary'), 'Accept-Encoding'), 'Cookie'), 'Authorization'))
+  }
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: withGroupAuthzHeaders(headers, groupAuthzStatus),
+  })
+}
+
+export function withNoStore(response: Response) {
+  const headers = new Headers(response.headers)
+  headers.set('cache-control', 'no-store')
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
+}
+
+export function withGroupAuthzHeader(response: Response, status?: GroupAuthzStatus) {
+  const headers = new Headers(response.headers)
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: withGroupAuthzHeaders(headers, status),
+  })
+}
+
+export function withGroupAuthzHeaders(headers: Headers, status?: GroupAuthzStatus) {
+  if (status && status !== 'not-applicable') {
+    headers.set('x-alife-authz', status)
+  }
+
+  return headers
+}
+
+export function matchesIfNoneMatch(ifNoneMatch: string, etag: string) {
+  if (ifNoneMatch === etag) {
+    return true
+  }
+
+  if (ifNoneMatch === `W/${etag}`) {
+    return true
+  }
+
+  const values = ifNoneMatch.split(',')
+  for (let i = 0; i < values.length; i++) {
+    const trimmed = values[i].trim()
+    if (trimmed === etag || trimmed === `W/${etag}`) {
+      return true
+    }
+  }
+
+  return false
+}
+
+export function appendVary(vary: string | null, value: string) {
+  if (!vary) {
+    return value
+  }
+
+  return vary
+    .split(',')
+    .map((item) => item.trim().toLowerCase())
+    .includes(value.toLowerCase())
+    ? vary
+    : `${vary}, ${value}`
+}
+
+export function addCorsHeaders(request: Request, response: Response) {
+  const headers = new Headers(response.headers)
+  const allowedOrigin = getAllowedOrigin(request)
+
+  if (allowedOrigin) {
+    headers.set('access-control-allow-origin', allowedOrigin)
+    headers.set('access-control-allow-credentials', 'true')
+    headers.set('vary', appendVaryOrigin(headers.get('vary')))
+  }
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
+}
+
+export function getAllowedOrigin(request: Request) {
+  const origin = request.headers.get('origin')
+  return origin && ALLOWED_ORIGINS.has(origin) ? origin : undefined
+}
+
+export function appendVaryOrigin(vary: string | null) {
+  if (!vary) {
+    return 'Origin'
+  }
+
+  return vary
+    .split(',')
+    .map((value) => value.trim().toLowerCase())
+    .includes('origin')
+    ? vary
+    : `${vary}, Origin`
+}

@@ -1,4 +1,4 @@
-import type { Env } from './index'
+import type { Env } from '../../index'
 import {
   AiChatSession,
   createAiSessionObjectRequest,
@@ -7,7 +7,7 @@ import {
   multilingualSchema,
   resolveAiSessionObjectPath,
   type AiSessionAppContext,
-} from './ai-session'
+} from '../ai/aiSession'
 
 const DEFAULT_SESSION_ID = 'default'
 const SESSION_STORAGE_KEY = 'event-session-state'
@@ -30,7 +30,7 @@ type OptionalActivityDto = {
   extraFee: number
 }
 
-type EventDto = {
+export type EventDto = {
   id?: string
   organizerId?: string
   organizerDisplayName?: string
