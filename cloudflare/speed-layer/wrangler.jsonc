@@ -7,7 +7,7 @@
 	},
 	"main": "./src/index.ts",
 	"assets": {
-		"directory": "../frontend/alife-app/dist",
+		"directory": "../alife-app/dist",
 		"not_found_handling": "single-page-application",
 		"run_worker_first": [
 			"/api/*",

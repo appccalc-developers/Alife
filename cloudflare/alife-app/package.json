@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "vite --host",
     "build": "tsc -b && vite build",
-    "preview": "npm run build && npm --prefix ../../speed-layer run dev",
-    "deploy": "npm run build && npm --prefix ../../speed-layer run deploy"
+    "preview": "npm run build && npm --prefix ../speed-layer run dev",
+    "deploy": "npm run build && npm --prefix ../speed-layer run deploy"
   },
   "dependencies": {
     "@tanstack/query-db-collection": "^1.0.36",
