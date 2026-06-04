@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - main
-      - 216-move-alife-app-and-speed-layer-to-cloudflare-and-update-workflow
     paths:
       - ".github/workflows/deploy-cloudflare-worker.yml"
       - "cloudflare/alife-app/**"
