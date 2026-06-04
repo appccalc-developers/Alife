@@ -6,6 +6,7 @@
   "scripts": {
     "build:frontend": "cd ../frontend/alife-app && npm run build",
     "build:worker": "wrangler deploy --dry-run --outdir dist/app_ccalc",
+    "build": "npm run build:worker",
     "test": "npm run build && node --test index.test.mjs",
     "dev": "wrangler dev",
     "deploy": "npm run build:frontend && npx wrangler deploy"
