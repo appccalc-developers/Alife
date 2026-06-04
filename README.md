@@ -28,8 +28,9 @@ backend/
     Alife.Tests.Unit/
 cloudflare/
   images-api/              # Cloudflare Worker for image proxy/resize
+speed-layer/             # Cloudflare Worker edge proxy & compute layer
 frontend/
-  alife-app/               # React 19 SPA + Cloudflare Worker proxy
+  alife-app/               # React 19 SPA
 docs/
   architecture.md
 global.json                # .NET SDK version pin
@@ -139,9 +140,13 @@ dotnet test   backend/tests/Alife.Tests.Unit/Alife.Tests.Unit.csproj -c Debug
 # Backend — release publish (Native AOT)
 dotnet publish backend/src/Alife.Api --configuration Release
 
-# Frontend — build + deploy to Cloudflare
+# Frontend — build + deploy to Cloudflare (delegates to speed-layer under the hood)
 cd frontend/alife-app
 npm run deploy
+
+# Speed Layer — build + run tests
+cd speed-layer
+npm test
 
 # Run API directly from backend folder
 cd backend/src/Alife.Api

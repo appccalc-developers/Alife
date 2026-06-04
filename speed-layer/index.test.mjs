@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import { beforeEach, test } from 'node:test'
 
-import worker from '../dist/app_ccalc/index.js'
-import { EventPlanningSession } from '../dist/app_ccalc/index.js'
+import worker from './dist/app_ccalc/index.js'
+import { EventPlanningSession } from './dist/app_ccalc/index.js'
 
 const ORIGIN = 'https://ccalc.live'
 

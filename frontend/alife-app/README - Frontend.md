@@ -26,7 +26,7 @@ npm run build
 npm run preview
 ```
 
-`npm run preview` builds the app and starts `wrangler dev`, exercising the Cloudflare Worker entry point in `worker/index.ts`.
+`npm run preview` builds the app and starts `wrangler dev`, exercising the Cloudflare Worker entry point in `speed-layer/src/index.ts`.
 
 ## Environment
 
@@ -52,12 +52,12 @@ The Worker also supports these environment variables:
 - `src/App.tsx` owns the route tree, shell navigation, group context drawer, and floating actions.
 - `src/services/http.ts` configures Axios with `withCredentials` for the HttpOnly auth cookie.
 - `src/services/aiSessionService.ts` and `src/hooks/useAiSession.ts` provide the reusable AI session client.
-- `worker/ai-session.ts` provides the generic Durable Object base used by event planning, enrollment, and review sessions.
-- `vite.config.ts` configures `vite-plugin-pwa`, Vite dev proxies, and the Cloudflare Vite plugin.
+- `speed-layer/src/features/ai/aiSession.ts` provides the generic Durable Object base used by event planning, enrollment, and review sessions.
+- `vite.config.ts` configures `vite-plugin-pwa` and Vite dev proxies.
 
-## Test
+To run the speed-layer edge worker tests, execute them from the `speed-layer` directory:
 
 ```bash
-npm run build
-npm run test:worker
+cd ../../speed-layer
+npm test
 ```
