@@ -430,7 +430,7 @@ const text = {
   buttonLinkUrl: { en: 'Button link URL', zh: '按钮链接地址' },
   finishTemplateEditAdvanced: { en: 'Done — edit advanced options', zh: '完成模版，编辑进阶选项' },
   livePreview: { en: 'Live preview', zh: '即时预览' },
-  heroTemplateName: { en: 'Hero Template', zh: '主视觉模板' },
+  heroTemplateName: { en: 'Hero Template', zh: '主视觉模版' },
   heroTemplateDescription: {
     en: 'Background image + text + content + bottom link button.',
     zh: '一个背景图 + 文本 + 内容 + 底部超链接按钮。',
