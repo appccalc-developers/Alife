@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "npm run build:worker",
-    "build:frontend": "cd ../alife-app && npm run build",
+    "build": "npm run build:frontend && npm run build:worker",
+    "build:frontend": "npm install --prefix ../alife-app && npm run build --prefix ../alife-app",
     "build:worker": "wrangler deploy --dry-run --outdir dist/app_ccalc",
     "test": "npm run build && node --test index.test.mjs",
     "dev": "wrangler dev",
