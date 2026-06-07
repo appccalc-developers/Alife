@@ -1,12 +1,12 @@
 using Alife.Api.Controllers;
 using Alife.Application.Abstractions.Identity;
+using Alife.Application.Common.Models;
+using Alife.Application.Events.Commands.CreateEventReview;
+using Alife.Application.Events.Commands.DeleteEventReview;
 using Alife.Application.Events.Dtos;
-using Alife.Application.Events.Services;
-using Alife.Application.Groups.Services;
-using Alife.Domain.Entities;
-using Alife.Infrastructure.Persistence;
+using Alife.Application.Events.Queries.ListEventReviews;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 using System.Text.Json;
 
@@ -14,32 +14,21 @@ namespace Alife.Tests.Unit.Events;
 
 public class EventReviewsControllerTests
 {
-    private static AlifeDbContext CreateInMemoryDbContext()
-    {
-        var options = new DbContextOptionsBuilder<AlifeDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
-        return new AlifeDbContext(options);
-    }
-
     [Fact]
     public async Task Create_WhenApprovedMember_CreatesReview()
     {
-        using var dbContext = CreateInMemoryDbContext();
         var groupId = Guid.NewGuid();
         var memberId = Guid.NewGuid();
         var eventId = Guid.NewGuid();
-        await SeedEventAsync(dbContext, groupId, memberId, eventId);
-
+        var reviewId = Guid.NewGuid();
+        var mediator = Substitute.For<IMediator>();
         var currentMemberAccessor = Substitute.For<ICurrentMemberAccessor>();
         currentMemberAccessor.GetCurrentMemberId().Returns(memberId);
-        var groupAuthorizationService = Substitute.For<IGroupAuthorizationService>();
-        groupAuthorizationService
-            .IsApprovedMemberAsync(groupId, memberId, Arg.Any<CancellationToken>())
-            .Returns(true);
-        var controller = CreateController(dbContext, currentMemberAccessor, groupAuthorizationService);
-        var reviewId = Guid.NewGuid();
-        var payload = JsonDocument.Parse($"{{\"reviewId\":\"{reviewId}\",\"reflection\":{{\"en\":\"Good\",\"zh\":\"好\"}}}}").RootElement;
+        mediator
+            .Send(Arg.Any<CreateEventReviewCommand>(), Arg.Any<CancellationToken>())
+            .Returns(AppResult<EventReviewDto>.Success(CreateReview(reviewId, groupId, eventId, memberId)));
+        var controller = new EventReviewsController(mediator, currentMemberAccessor);
+        var payload = JsonDocument.Parse($"{{\"reviewId\":\"{reviewId}\",\"reflection\":{{\"en\":\"Good\",\"zh\":\"hao\"}}}}").RootElement;
 
         var result = await controller.Create(eventId, payload, CancellationToken.None);
 
@@ -49,37 +38,21 @@ public class EventReviewsControllerTests
         Assert.Equal(groupId, dto.GroupId);
         Assert.Equal(eventId, dto.EventId);
         Assert.Equal(memberId, dto.MemberId);
-        Assert.Equal(1, await dbContext.EventReviews.CountAsync());
     }
 
     [Fact]
     public async Task Create_WhenReviewAlreadyExists_ReturnsConflict()
     {
-        using var dbContext = CreateInMemoryDbContext();
-        var groupId = Guid.NewGuid();
         var memberId = Guid.NewGuid();
         var eventId = Guid.NewGuid();
-        await SeedEventAsync(dbContext, groupId, memberId, eventId);
-        dbContext.EventReviews.Add(new EventReview
-        {
-            Id = Guid.NewGuid(),
-            GroupId = groupId,
-            EventId = eventId,
-            MemberId = memberId,
-            ReviewJson = "{}",
-            CreatedUtc = DateTime.UtcNow,
-            UpdatedUtc = DateTime.UtcNow,
-        });
-        await dbContext.SaveChangesAsync();
-
+        var mediator = Substitute.For<IMediator>();
         var currentMemberAccessor = Substitute.For<ICurrentMemberAccessor>();
         currentMemberAccessor.GetCurrentMemberId().Returns(memberId);
-        var groupAuthorizationService = Substitute.For<IGroupAuthorizationService>();
-        groupAuthorizationService
-            .IsApprovedMemberAsync(groupId, memberId, Arg.Any<CancellationToken>())
-            .Returns(true);
-        var controller = CreateController(dbContext, currentMemberAccessor, groupAuthorizationService);
-        var payload = JsonDocument.Parse("""{"reflection":{"en":"Good","zh":"好"}}""").RootElement;
+        mediator
+            .Send(Arg.Any<CreateEventReviewCommand>(), Arg.Any<CancellationToken>())
+            .Returns(AppResult<EventReviewDto>.Conflict("Review already exists for this event and member."));
+        var controller = new EventReviewsController(mediator, currentMemberAccessor);
+        var payload = JsonDocument.Parse("""{"reflection":{"en":"Good","zh":"hao"}}""").RootElement;
 
         var result = await controller.Create(eventId, payload, CancellationToken.None);
 
@@ -89,25 +62,19 @@ public class EventReviewsControllerTests
     [Fact]
     public async Task List_WhenMember_ReturnsAllReviews()
     {
-        using var dbContext = CreateInMemoryDbContext();
         var groupId = Guid.NewGuid();
         var memberId = Guid.NewGuid();
-        var otherMemberId = Guid.NewGuid();
         var eventId = Guid.NewGuid();
-        await SeedEventAsync(dbContext, groupId, memberId, eventId);
-        await SeedReviewAsync(dbContext, groupId, eventId, memberId, "{\"owner\":true}");
-        await SeedReviewAsync(dbContext, groupId, eventId, otherMemberId, "{\"owner\":false}");
-
+        var mediator = Substitute.For<IMediator>();
         var currentMemberAccessor = Substitute.For<ICurrentMemberAccessor>();
         currentMemberAccessor.GetCurrentMemberId().Returns(memberId);
-        var groupAuthorizationService = Substitute.For<IGroupAuthorizationService>();
-        groupAuthorizationService
-            .IsLeaderOrCoLeaderAsync(groupId, memberId, Arg.Any<CancellationToken>())
-            .Returns(false);
-        groupAuthorizationService
-            .IsApprovedMemberAsync(groupId, memberId, Arg.Any<CancellationToken>())
-            .Returns(true);
-        var controller = CreateController(dbContext, currentMemberAccessor, groupAuthorizationService);
+        mediator
+            .Send(Arg.Any<ListEventReviewsQuery>(), Arg.Any<CancellationToken>())
+            .Returns(AppResult<IReadOnlyList<EventReviewDto>>.Success([
+                CreateReview(Guid.NewGuid(), groupId, eventId, memberId),
+                CreateReview(Guid.NewGuid(), groupId, eventId, Guid.NewGuid())
+            ]));
+        var controller = new EventReviewsController(mediator, currentMemberAccessor);
 
         var result = await controller.List(eventId, CancellationToken.None);
 
@@ -119,22 +86,19 @@ public class EventReviewsControllerTests
     [Fact]
     public async Task List_WhenLeader_ReturnsAllReviews()
     {
-        using var dbContext = CreateInMemoryDbContext();
         var groupId = Guid.NewGuid();
         var leaderId = Guid.NewGuid();
-        var otherMemberId = Guid.NewGuid();
         var eventId = Guid.NewGuid();
-        await SeedEventAsync(dbContext, groupId, leaderId, eventId);
-        await SeedReviewAsync(dbContext, groupId, eventId, leaderId, "{\"leader\":true}");
-        await SeedReviewAsync(dbContext, groupId, eventId, otherMemberId, "{\"leader\":false}");
-
+        var mediator = Substitute.For<IMediator>();
         var currentMemberAccessor = Substitute.For<ICurrentMemberAccessor>();
         currentMemberAccessor.GetCurrentMemberId().Returns(leaderId);
-        var groupAuthorizationService = Substitute.For<IGroupAuthorizationService>();
-        groupAuthorizationService
-            .IsApprovedMemberAsync(groupId, leaderId, Arg.Any<CancellationToken>())
-            .Returns(true);
-        var controller = CreateController(dbContext, currentMemberAccessor, groupAuthorizationService);
+        mediator
+            .Send(Arg.Any<ListEventReviewsQuery>(), Arg.Any<CancellationToken>())
+            .Returns(AppResult<IReadOnlyList<EventReviewDto>>.Success([
+                CreateReview(Guid.NewGuid(), groupId, eventId, leaderId),
+                CreateReview(Guid.NewGuid(), groupId, eventId, Guid.NewGuid())
+            ]));
+        var controller = new EventReviewsController(mediator, currentMemberAccessor);
 
         var result = await controller.List(eventId, CancellationToken.None);
 
@@ -146,74 +110,29 @@ public class EventReviewsControllerTests
     [Fact]
     public async Task Delete_WhenUnrelatedMember_ReturnsForbid()
     {
-        using var dbContext = CreateInMemoryDbContext();
-        var groupId = Guid.NewGuid();
-        var ownerId = Guid.NewGuid();
-        var otherMemberId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
         var eventId = Guid.NewGuid();
-        await SeedEventAsync(dbContext, groupId, ownerId, eventId);
-        var review = await SeedReviewAsync(dbContext, groupId, eventId, ownerId, "{}");
-
+        var reviewId = Guid.NewGuid();
+        var mediator = Substitute.For<IMediator>();
         var currentMemberAccessor = Substitute.For<ICurrentMemberAccessor>();
-        currentMemberAccessor.GetCurrentMemberId().Returns(otherMemberId);
-        var groupAuthorizationService = Substitute.For<IGroupAuthorizationService>();
-        groupAuthorizationService
-            .IsLeaderOrCoLeaderAsync(groupId, otherMemberId, Arg.Any<CancellationToken>())
-            .Returns(false);
-        var controller = CreateController(dbContext, currentMemberAccessor, groupAuthorizationService);
+        currentMemberAccessor.GetCurrentMemberId().Returns(memberId);
+        mediator
+            .Send(Arg.Any<DeleteEventReviewCommand>(), Arg.Any<CancellationToken>())
+            .Returns(AppResult<bool>.Forbidden("You do not have permission to delete this review."));
+        var controller = new EventReviewsController(mediator, currentMemberAccessor);
 
-        var result = await controller.Delete(eventId, review.Id, CancellationToken.None);
+        var result = await controller.Delete(eventId, reviewId, CancellationToken.None);
 
         Assert.IsType<ForbidResult>(result);
     }
 
-    private static async Task SeedEventAsync(AlifeDbContext dbContext, Guid groupId, Guid memberId, Guid eventId)
-    {
-        dbContext.GroupEvents.Add(new GroupEvent
-        {
-            Id = eventId,
-            GroupId = groupId,
-            CreatedByMemberId = memberId,
-            TitleEn = "Camp",
-            TitleZh = "营会",
-            StartDate = DateTime.UtcNow,
-            EndDate = DateTime.UtcNow.AddHours(1),
-            EventDataJson = "{}",
-            CreatedUtc = DateTime.UtcNow,
-            UpdatedUtc = DateTime.UtcNow,
-        });
-        await dbContext.SaveChangesAsync();
-    }
-
-    private static EventReviewsController CreateController(
-        AlifeDbContext dbContext,
-        ICurrentMemberAccessor currentMemberAccessor,
-        IGroupAuthorizationService groupAuthorizationService)
+    private static EventReviewDto CreateReview(Guid reviewId, Guid groupId, Guid eventId, Guid memberId)
         => new(
-            dbContext,
-            currentMemberAccessor,
-            groupAuthorizationService,
-            Substitute.For<IEventCacheInvalidationService>());
-
-    private static async Task<EventReview> SeedReviewAsync(
-        AlifeDbContext dbContext,
-        Guid groupId,
-        Guid eventId,
-        Guid memberId,
-        string reviewJson)
-    {
-        var review = new EventReview
-        {
-            Id = Guid.NewGuid(),
-            GroupId = groupId,
-            EventId = eventId,
-            MemberId = memberId,
-            ReviewJson = reviewJson,
-            CreatedUtc = DateTime.UtcNow,
-            UpdatedUtc = DateTime.UtcNow,
-        };
-        dbContext.EventReviews.Add(review);
-        await dbContext.SaveChangesAsync();
-        return review;
-    }
+            reviewId,
+            groupId,
+            eventId,
+            memberId,
+            "{}",
+            DateTime.UtcNow,
+            DateTime.UtcNow);
 }

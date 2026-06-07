@@ -670,23 +670,27 @@ const App = () => {
         }
       })
 
-    groupService
-      .getSubgroups(contextualGroupId)
-      .then((subgroups) => {
-        if (!cancelled) {
-          setCurrentSubgroups(subgroups)
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setCurrentSubgroups([])
-        }
-      })
+    if (auth.isGuest) {
+      setCurrentSubgroups([])
+    } else {
+      groupService
+        .getSubgroups(contextualGroupId)
+        .then((subgroups) => {
+          if (!cancelled) {
+            setCurrentSubgroups(subgroups)
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setCurrentSubgroups([])
+          }
+        })
+    }
 
     return () => {
       cancelled = true
     }
-  }, [contextualGroupId])
+  }, [auth.isGuest, contextualGroupId])
 
   useEffect(() => {
     if (!contextualGroup?.parentGroupId) {
@@ -739,9 +743,9 @@ const App = () => {
           <HeaderNav items={appNavItems} currentGroupName={headerGroupName} currentGroupManageTo={headerGroupManageTo} />
 
           <div className="ml-auto flex items-center gap-2">
-            {!auth.loading && auth.me ? (
+            {!auth.loading && auth.me?.displayName ? (
               <Link className="max-w-36 truncate text-sm font-medium text-slate-700 hover:text-slate-950" to="/profile">
-                {auth.me.displayName || translateUi(auth.language, 'guest')}
+                {auth.me.displayName}
               </Link>
             ) : null}
             <button

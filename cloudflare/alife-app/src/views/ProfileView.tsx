@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
 import AppEmptyState from '../components/layout/AppEmptyState'
@@ -11,6 +12,7 @@ import { useUiText } from '../i18n/uiText'
 const ProfileView = () => {
   const auth = useAuthStore()
   const t = useUiText()
+  const navigate = useNavigate()
   const me = auth.me
   const [draftLanguage, setDraftLanguage] = useState(auth.language)
   const [savingLanguage, setSavingLanguage] = useState(false)
@@ -44,6 +46,7 @@ const ProfileView = () => {
 
     try {
       await auth.logout()
+      navigate('/onboarding', { replace: true })
     } catch (error) {
       setLogoutError(normalizeApiError(error).message)
     } finally {
@@ -62,11 +65,11 @@ const ProfileView = () => {
         <p className="mt-1 text-sm text-slate-600">{t('profileSubtitle')}</p>
       </div>
 
-      <AppSectionCard dense title={me.displayName || t('guest')} subtitle={me.email || me.phoneE164 || undefined}>
+      <AppSectionCard dense title={me.displayName || t('profile')} subtitle={me.email || me.phoneE164 || undefined}>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{t('displayName')}</p>
-            <p className="mt-1 text-sm text-slate-900">{me.displayName || t('guest')}</p>
+            <p className="mt-1 text-sm text-slate-900">{me.displayName || '-'}</p>
           </div>
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{t('email')}</p>

@@ -8,17 +8,25 @@ namespace Alife.Application.Events.Queries.GetGroupEvents;
 
 public sealed class GetGroupEventsQueryHandler(
     IEventReadService eventReadService,
+    IGroupReadService groupReadService,
     IGroupAuthorizationService groupAuthorizationService)
     : IRequestHandler<GetGroupEventsQuery, AppResult<IReadOnlyList<GroupEventSummaryDto>>>
 {
     public async Task<AppResult<IReadOnlyList<GroupEventSummaryDto>>> Handle(GetGroupEventsQuery request, CancellationToken cancellationToken)
     {
-        var isApproved = await groupAuthorizationService.IsApprovedMemberAsync(
-            request.GroupId,
-            request.CurrentMemberId,
-            cancellationToken);
+        var group = await groupReadService.GetByIdAsync(request.GroupId, cancellationToken);
+        if (group is null)
+        {
+            return AppResult<IReadOnlyList<GroupEventSummaryDto>>.NotFound("Group not found.");
+        }
 
-        if (!isApproved)
+        var isApproved = request.CurrentMemberId.HasValue &&
+            await groupAuthorizationService.IsApprovedMemberAsync(
+                request.GroupId,
+                request.CurrentMemberId.Value,
+                cancellationToken);
+
+        if (!group.IsChurch && !isApproved)
         {
             return AppResult<IReadOnlyList<GroupEventSummaryDto>>.Forbidden("You must be a member to view group events.");
         }

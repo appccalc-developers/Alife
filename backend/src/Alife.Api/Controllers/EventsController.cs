@@ -19,15 +19,12 @@ public class EventsController(
     ICurrentMemberAccessor currentMemberAccessor) : ControllerBase
 {
     [HttpGet("groups/{groupId:guid}/events")]
+    [AllowAnonymous]
     public async Task<IActionResult> GroupEvents(Guid groupId, CancellationToken cancellationToken = default)
     {
         var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
-        if (currentMemberId is null)
-        {
-            return Unauthorized();
-        }
 
-        var result = await mediator.Send(new GetGroupEventsQuery(groupId, currentMemberId.Value), cancellationToken);
+        var result = await mediator.Send(new GetGroupEventsQuery(groupId, currentMemberId), cancellationToken);
         if (!result.IsSuccess)
         {
             return this.ToActionResult(result);

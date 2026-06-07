@@ -33,15 +33,12 @@ public class PagesController(
     }
 
     [HttpGet("pages/{id:guid}")]
+    [AllowAnonymous]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken = default)
     {
         var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
-        if (currentMemberId is null)
-        {
-            return Unauthorized();
-        }
 
-        var result = await mediator.Send(new GetPageByIdQuery(id, currentMemberId.Value), cancellationToken);
+        var result = await mediator.Send(new GetPageByIdQuery(id, currentMemberId), cancellationToken);
         if (!result.IsSuccess)
         {
             return this.ToActionResult(result);
@@ -52,15 +49,12 @@ public class PagesController(
     }
 
     [HttpGet("groups/{groupId:guid}/pages")]
+    [AllowAnonymous]
     public async Task<IActionResult> GroupPages(Guid groupId, CancellationToken cancellationToken = default)
     {
         var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
-        if (currentMemberId is null)
-        {
-            return Unauthorized();
-        }
 
-        var result = await mediator.Send(new GetGroupPagesQuery(groupId, currentMemberId.Value), cancellationToken);
+        var result = await mediator.Send(new GetGroupPagesQuery(groupId, currentMemberId), cancellationToken);
         if (!result.IsSuccess)
         {
             return this.ToActionResult(result);

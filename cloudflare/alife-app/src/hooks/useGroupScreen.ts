@@ -60,7 +60,8 @@ export const useGroupScreen = (groupId: string) => {
   }, [groupId])
 
   // Load subgroups as a live collection.
-  const subCollection = useMemo(() => (groupId ? subgroupsCollection(groupId) : null), [groupId])
+  const canLoadSubgroups = !auth.isGuest
+  const subCollection = useMemo(() => (groupId ? subgroupsCollection(groupId, canLoadSubgroups) : null), [canLoadSubgroups, groupId])
   const { data: subgroups = [] } = useLiveQuery(subCollection as NonNullable<typeof subCollection>)
 
   // Load pages as a live collection.
@@ -68,7 +69,8 @@ export const useGroupScreen = (groupId: string) => {
   const { data: pages = [] } = useLiveQuery(pagesColl as NonNullable<typeof pagesColl>)
 
   // Load memberships as a live collection.
-  const membershipsColl = useMemo(() => (groupId ? groupMembershipsCollection(groupId) : null), [groupId])
+  const canLoadMemberships = !auth.isGuest && auth.canManageGroup(groupId)
+  const membershipsColl = useMemo(() => (groupId ? groupMembershipsCollection(groupId, canLoadMemberships) : null), [auth, canLoadMemberships, groupId])
   const { data: membershipsRaw = [] } = useLiveQuery(membershipsColl as NonNullable<typeof membershipsColl>)
   const memberships = useMemo(() => membershipsRaw as GroupMemberToolRow[], [membershipsRaw])
 
@@ -92,15 +94,19 @@ export const useGroupScreen = (groupId: string) => {
   const canEditAllPages = canManageGroup
   const canPublishPages = canManageGroup
 
-  // Fetch events for any approved member; leaders/co-leaders are a subset and can additionally manage them.
+  // Fetch events for approved members and for public church group access.
   useEffect(() => {
-    if (!groupId || membership?.status !== 'approved') return
+    if (!groupId || (membership?.status !== 'approved' && !group?.isChurch)) {
+      setEvents([])
+      return
+    }
+
     let cancelled = false
     eventService.getGroupEvents(groupId)
       .then((data) => { if (!cancelled) setEvents(data) })
       .catch(() => { if (!cancelled) setEvents([]) })
     return () => { cancelled = true }
-  }, [groupId, membership?.status])
+  }, [group?.isChurch, groupId, membership?.status])
 
   const summary = useMemo(() => {
     if (!group) return ''

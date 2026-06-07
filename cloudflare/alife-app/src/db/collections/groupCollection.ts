@@ -26,13 +26,17 @@ export const getCachedGroup = async (groupId: string) =>
 
 export const subgroupsQueryKey = (groupId: string) => ['subgroups', groupId] as const
 
-export const subgroupsCollection = (groupId: string) =>
+export const subgroupsCollection = (groupId: string, enabled = true) =>
   createCollection(
     queryCollectionOptions({
       queryClient,
-      queryKey: subgroupsQueryKey(groupId),
+      queryKey: [...subgroupsQueryKey(groupId), enabled ? 'enabled' : 'disabled'],
       getKey: (item: GroupSummaryDto) => item.id,
       queryFn: async (): Promise<GroupSummaryDto[]> => {
+        if (!enabled) {
+          return []
+        }
+
         const items = await conditionalGet<GroupSummaryDto[]>({
           queryKey: subgroupsQueryKey(groupId),
           path: `/api/groups/${groupId}/subgroups`,
@@ -74,13 +78,17 @@ type MembershipRecord = Omit<GroupMembershipDto, 'groupId'> & { memberId: string
 
 export const groupMembershipsQueryKey = (groupId: string) => ['groupMemberships', groupId] as const
 
-export const groupMembershipsCollection = (groupId: string) =>
+export const groupMembershipsCollection = (groupId: string, enabled = true) =>
   createCollection(
     queryCollectionOptions({
       queryClient,
-      queryKey: groupMembershipsQueryKey(groupId),
+      queryKey: [...groupMembershipsQueryKey(groupId), enabled ? 'enabled' : 'disabled'],
       getKey: (item: MembershipRecord) => item.memberId,
       queryFn: async (): Promise<MembershipRecord[]> => {
+        if (!enabled) {
+          return []
+        }
+
         const items = await conditionalGet<MembershipRecord[]>({
           queryKey: groupMembershipsQueryKey(groupId),
           path: `/api/groups/${groupId}/memberships`,
