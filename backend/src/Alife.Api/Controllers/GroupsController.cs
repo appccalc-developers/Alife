@@ -45,15 +45,12 @@ public class GroupsController(
     }
 
     [HttpGet("{id:guid}")]
+    [AllowAnonymous]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
         var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
-        if (currentMemberId is null)
-        {
-            return Unauthorized();
-        }
 
-        var result = await mediator.Send(new GetGroupByIdQuery(id, currentMemberId.Value), cancellationToken);
+        var result = await mediator.Send(new GetGroupByIdQuery(id, currentMemberId), cancellationToken);
         if (!result.IsSuccess)
         {
             return this.ToActionResult(result);

@@ -6,4 +6,4 @@ namespace Alife.Application.Events.Queries.GetGroupEvents;
 
 public sealed record GetGroupEventsQuery(
     Guid GroupId,
-    Guid CurrentMemberId) : IRequest<AppResult<IReadOnlyList<GroupEventSummaryDto>>>;
+    Guid? CurrentMemberId) : IRequest<AppResult<IReadOnlyList<GroupEventSummaryDto>>>;

@@ -21,15 +21,17 @@ public sealed class GetGroupPagesQueryHandler(
             return AppResult<IReadOnlyList<PageDto>>.NotFound("Group not found.");
         }
 
-        var isLeaderOrCoLeader = await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
-            request.GroupId,
-            request.CurrentMemberId,
-            cancellationToken);
+        var isLeaderOrCoLeader = request.CurrentMemberId.HasValue &&
+            await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
+                request.GroupId,
+                request.CurrentMemberId.Value,
+                cancellationToken);
 
-        var isApproved = await groupAuthorizationService.IsApprovedMemberAsync(
-            request.GroupId,
-            request.CurrentMemberId,
-            cancellationToken);
+        var isApproved = request.CurrentMemberId.HasValue &&
+            await groupAuthorizationService.IsApprovedMemberAsync(
+                request.GroupId,
+                request.CurrentMemberId.Value,
+                cancellationToken);
 
         // Subgroup pages are members-only regardless of page visibility.
         if (!group.IsChurch && !isApproved)

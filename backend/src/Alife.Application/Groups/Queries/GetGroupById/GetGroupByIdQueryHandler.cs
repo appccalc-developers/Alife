@@ -12,15 +12,22 @@ public sealed class GetGroupByIdQueryHandler(
 {
     public async Task<AppResult<GroupDto>> Handle(GetGroupByIdQuery request, CancellationToken cancellationToken)
     {
-        var isRegistered = await groupAuthorizationService.IsRegisteredMemberAsync(request.CurrentMemberId, cancellationToken);
-        if (!isRegistered)
+        var group = await groupReadService.GetByIdAsync(request.GroupId, cancellationToken);
+        if (group is null)
         {
-            return AppResult<GroupDto>.Forbidden("Guest members cannot access groups.");
+            return AppResult<GroupDto>.NotFound("Group was not found.");
         }
 
-        var group = await groupReadService.GetByIdAsync(request.GroupId, cancellationToken);
-        return group is null
-            ? AppResult<GroupDto>.NotFound("Group was not found.")
-            : AppResult<GroupDto>.Success(group);
+        if (group.IsChurch)
+        {
+            return AppResult<GroupDto>.Success(group);
+        }
+
+        var isRegistered = request.CurrentMemberId.HasValue &&
+            await groupAuthorizationService.IsRegisteredMemberAsync(request.CurrentMemberId.Value, cancellationToken);
+
+        return isRegistered
+            ? AppResult<GroupDto>.Success(group)
+            : AppResult<GroupDto>.Forbidden("Guest members cannot access non-church groups.");
     }
 }

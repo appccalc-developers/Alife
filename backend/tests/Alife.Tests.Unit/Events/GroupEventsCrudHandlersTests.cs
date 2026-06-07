@@ -3,7 +3,9 @@ using Alife.Application.Events.Commands.DeleteGroupEvent;
 using Alife.Application.Events.Commands.UpdateGroupEvent;
 using Alife.Application.Events.Queries.GetGroupEvents;
 using Alife.Application.Events.Services;
+using Alife.Application.Groups.Dtos;
 using Alife.Application.Groups.Services;
+using Alife.Domain.Enums;
 using Alife.Domain.Entities;
 using Alife.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -125,7 +127,10 @@ public class GroupEventsCrudHandlersTests
                     e.CreatedUtc,
                     e.UpdatedUtc))
                 .ToList());
-        var handler = new GetGroupEventsQueryHandler(eventReadService, groupAuthorizationService);
+        var groupReadService = Substitute.For<IGroupReadService>();
+        groupReadService.GetByIdAsync(groupId, Arg.Any<CancellationToken>())
+            .Returns(CreateGroup(groupId, isChurch: false));
+        var handler = new GetGroupEventsQueryHandler(eventReadService, groupReadService, groupAuthorizationService);
         var result = await handler.Handle(new GetGroupEventsQuery(groupId, currentMemberId), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -133,6 +138,37 @@ public class GroupEventsCrudHandlersTests
         Assert.Equal(2, result.Value.Count);
         Assert.Equal("Sooner", result.Value[0].TitleEn);
         Assert.Equal("Later", result.Value[1].TitleEn);
+    }
+
+    [Fact]
+    public async Task GetGroupEvents_GuestCanReadChurchEvents()
+    {
+        var groupAuthorizationService = Substitute.For<IGroupAuthorizationService>();
+        var groupReadService = Substitute.For<IGroupReadService>();
+        var eventReadService = Substitute.For<IEventReadService>();
+        var groupId = Guid.NewGuid();
+        groupReadService.GetByIdAsync(groupId, Arg.Any<CancellationToken>())
+            .Returns(CreateGroup(groupId, isChurch: true));
+        eventReadService.GetGroupEventsAsync(groupId, Arg.Any<CancellationToken>())
+            .Returns([
+                new Alife.Application.Events.Dtos.GroupEventSummaryDto(
+                    Guid.NewGuid(),
+                    groupId,
+                    Guid.NewGuid(),
+                    "Guest Event",
+                    "Guest Event",
+                    DateTime.UtcNow,
+                    DateTime.UtcNow.AddHours(1),
+                    "{}",
+                    DateTime.UtcNow,
+                    DateTime.UtcNow)
+            ]);
+        var handler = new GetGroupEventsQueryHandler(eventReadService, groupReadService, groupAuthorizationService);
+
+        var result = await handler.Handle(new GetGroupEventsQuery(groupId, null), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Single(result.Value!);
     }
 
     [Fact]
@@ -223,4 +259,16 @@ public class GroupEventsCrudHandlersTests
             .SingleAsync(x => x.Id == eventId);
         Assert.True(deletedEvent.IsDeleted);
     }
+
+    private static GroupDto CreateGroup(Guid groupId, bool isChurch)
+        => new(
+            groupId,
+            new Dictionary<string, string> { ["en"] = isChurch ? "Church" : "Group" },
+            null,
+            null,
+            AccessType.Public,
+            isChurch,
+            IsClosed: false,
+            DateTime.UtcNow,
+            DateTime.UtcNow);
 }

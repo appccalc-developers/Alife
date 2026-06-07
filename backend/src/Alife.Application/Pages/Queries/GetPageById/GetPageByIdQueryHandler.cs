@@ -9,6 +9,7 @@ namespace Alife.Application.Pages.Queries.GetPageById;
 
 public sealed class GetPageByIdQueryHandler(
     IPageReadService pageReadService,
+    IGroupReadService groupReadService,
     IGroupAuthorizationService groupAuthorizationService)
     : IRequestHandler<GetPageByIdQuery, AppResult<PageDetailDto>>
 {
@@ -30,20 +31,31 @@ public sealed class GetPageByIdQueryHandler(
             return AppResult<PageDetailDto>.Validation("Group page owner missing.");
         }
 
-        var isApproved = await groupAuthorizationService.IsApprovedMemberAsync(
-            page.OwnerGroupId.Value,
-            request.CurrentMemberId,
-            cancellationToken);
+        var isApproved = request.CurrentMemberId.HasValue &&
+            await groupAuthorizationService.IsApprovedMemberAsync(
+                page.OwnerGroupId.Value,
+                request.CurrentMemberId.Value,
+                cancellationToken);
 
-        var isPrivileged = page.CreatedByMemberId == request.CurrentMemberId ||
-                           await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
-                               page.OwnerGroupId.Value,
-                               request.CurrentMemberId,
-                               cancellationToken);
+        var isPrivileged = request.CurrentMemberId.HasValue &&
+                           (page.CreatedByMemberId == request.CurrentMemberId.Value ||
+                            await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
+                                page.OwnerGroupId.Value,
+                                request.CurrentMemberId.Value,
+                                cancellationToken));
 
         var canView = (isApproved && page.Visibility != PageVisibility.Draft) || isPrivileged;
-        return canView
-            ? AppResult<PageDetailDto>.Success(page)
-            : AppResult<PageDetailDto>.Forbidden("You do not have access to this page.");
+        if (canView)
+        {
+            return AppResult<PageDetailDto>.Success(page);
+        }
+
+        var ownerGroup = await groupReadService.GetByIdAsync(page.OwnerGroupId.Value, cancellationToken);
+        if (ownerGroup?.IsChurch == true && page.Visibility == PageVisibility.Public)
+        {
+            return AppResult<PageDetailDto>.Success(page);
+        }
+
+        return AppResult<PageDetailDto>.Forbidden("You do not have access to this page.");
     }
 }

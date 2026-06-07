@@ -53,7 +53,8 @@ public class PageVisibilityQueryTests
             .Returns(false);
         pageReadService.GetByIdAsync(pageId, Arg.Any<CancellationToken>())
             .Returns(CreatePageDetail(pageId, groupId, authorId, PageVisibility.Draft));
-        var handler = new GetPageByIdQueryHandler(pageReadService, authorizationService);
+        var groupReadService = Substitute.For<IGroupReadService>();
+        var handler = new GetPageByIdQueryHandler(pageReadService, groupReadService, authorizationService);
 
         var result = await handler.Handle(new GetPageByIdQuery(pageId, memberId), CancellationToken.None);
 
@@ -76,11 +77,78 @@ public class PageVisibilityQueryTests
             .Returns(true);
         pageReadService.GetByIdAsync(pageId, Arg.Any<CancellationToken>())
             .Returns(CreatePageDetail(pageId, groupId, authorId, PageVisibility.Draft));
-        var handler = new GetPageByIdQueryHandler(pageReadService, authorizationService);
+        var groupReadService = Substitute.For<IGroupReadService>();
+        var handler = new GetPageByIdQueryHandler(pageReadService, groupReadService, authorizationService);
 
         var result = await handler.Handle(new GetPageByIdQuery(pageId, leaderId), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
+    }
+
+    [Fact]
+    public async Task GetGroupPages_GuestSeesOnlyPublicChurchPages()
+    {
+        var groupId = Guid.NewGuid();
+        var authorId = Guid.NewGuid();
+        var groupReadService = Substitute.For<IGroupReadService>();
+        var pageReadService = Substitute.For<IPageReadService>();
+        var authorizationService = Substitute.For<IGroupAuthorizationService>();
+        groupReadService.GetByIdAsync(groupId, Arg.Any<CancellationToken>())
+            .Returns(CreateChurchGroup(groupId));
+        pageReadService.GetGroupPagesAsync(groupId, Arg.Any<CancellationToken>())
+            .Returns([
+                CreatePage(groupId, authorId, PageVisibility.Public),
+                CreatePage(groupId, authorId, PageVisibility.Group),
+                CreatePage(groupId, authorId, PageVisibility.Draft)
+            ]);
+        var handler = new GetGroupPagesQueryHandler(pageReadService, groupReadService, authorizationService);
+
+        var result = await handler.Handle(new GetGroupPagesQuery(groupId, null), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Single(result.Value!);
+        Assert.Equal(PageVisibility.Public, result.Value![0].Visibility);
+    }
+
+    [Fact]
+    public async Task GetPageById_GuestCanReadPublicChurchPageDetail()
+    {
+        var groupId = Guid.NewGuid();
+        var authorId = Guid.NewGuid();
+        var pageId = Guid.NewGuid();
+        var pageReadService = Substitute.For<IPageReadService>();
+        var groupReadService = Substitute.For<IGroupReadService>();
+        var authorizationService = Substitute.For<IGroupAuthorizationService>();
+        pageReadService.GetByIdAsync(pageId, Arg.Any<CancellationToken>())
+            .Returns(CreatePageDetail(pageId, groupId, authorId, PageVisibility.Public));
+        groupReadService.GetByIdAsync(groupId, Arg.Any<CancellationToken>())
+            .Returns(CreateChurchGroup(groupId));
+        var handler = new GetPageByIdQueryHandler(pageReadService, groupReadService, authorizationService);
+
+        var result = await handler.Handle(new GetPageByIdQuery(pageId, null), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+    }
+
+    [Fact]
+    public async Task GetPageById_GuestCannotReadNonPublicChurchPageDetail()
+    {
+        var groupId = Guid.NewGuid();
+        var authorId = Guid.NewGuid();
+        var pageId = Guid.NewGuid();
+        var pageReadService = Substitute.For<IPageReadService>();
+        var groupReadService = Substitute.For<IGroupReadService>();
+        var authorizationService = Substitute.For<IGroupAuthorizationService>();
+        pageReadService.GetByIdAsync(pageId, Arg.Any<CancellationToken>())
+            .Returns(CreatePageDetail(pageId, groupId, authorId, PageVisibility.Group));
+        groupReadService.GetByIdAsync(groupId, Arg.Any<CancellationToken>())
+            .Returns(CreateChurchGroup(groupId));
+        var handler = new GetPageByIdQueryHandler(pageReadService, groupReadService, authorizationService);
+
+        var result = await handler.Handle(new GetPageByIdQuery(pageId, null), CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(Application.Common.Models.AppResultStatus.Forbidden, result.Status);
     }
 
     private static GroupDto CreateGroup(Guid groupId)
@@ -91,6 +159,18 @@ public class PageVisibilityQueryTests
             null,
             AccessType.Protected,
             IsChurch: false,
+            IsClosed: false,
+            DateTime.UtcNow,
+            DateTime.UtcNow);
+
+    private static GroupDto CreateChurchGroup(Guid groupId)
+        => new(
+            groupId,
+            new Dictionary<string, string> { ["en"] = "Church" },
+            null,
+            null,
+            AccessType.Public,
+            IsChurch: true,
             IsClosed: false,
             DateTime.UtcNow,
             DateTime.UtcNow);
