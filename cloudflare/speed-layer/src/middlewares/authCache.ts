@@ -24,7 +24,7 @@ export type SharedCacheContext = {
 
 const AUTHZ_MIRROR_TTL_SECONDS = 7 * 24 * 60 * 60
 const PUBLIC_CACHEABLE_API_PATHS = new Set(['/api/sermons', '/api/pages/global'])
-const GROUP_SHARED_SUBRESOURCES = new Set(['pages', 'events', 'memberships', 'subgroups'])
+const GROUP_SHARED_SUBRESOURCES = new Set(['pages', 'events', 'memberships', 'members', 'subgroups'])
 const EVENT_SHARED_SUBRESOURCES = new Set(['enrollments', 'reviews'])
 
 export const authMiddleware = async (
@@ -70,7 +70,7 @@ export async function getSharedCacheContext(request: Request, env: Env): Promise
   }
 
   const memberId = extractMemberIdFromRequest(request)
-  const authz = await getGroupAuthz(env, groupId, memberId)
+  const authz = await authorizeGroupMember(env, groupId, memberId)
   return { groupId, memberId, authzStatus: authz.status, authzRecord: authz.record, pageMeta }
 }
 
@@ -199,6 +199,10 @@ export async function getGroupAuthz(env: Env, groupId: string, memberId: string)
 
   const record = await env.ALIFE_AUTHZ.get(createMembershipKey(groupId, memberId), { type: 'json' })
   return isApprovedMembershipRecord(record) ? { status: 'hit', record } : { status: 'miss' }
+}
+
+export async function authorizeGroupMember(env: Env, groupId: string, memberId: string) {
+  return getGroupAuthz(env, groupId, memberId)
 }
 
 export function isApprovedMembershipRecord(record: unknown): record is MembershipAuthzRecord {
