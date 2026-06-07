@@ -16,6 +16,8 @@ const ProfileView = () => {
   const [savingLanguage, setSavingLanguage] = useState(false)
   const [languageError, setLanguageError] = useState('')
   const [languageSaved, setLanguageSaved] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
+  const [logoutError, setLogoutError] = useState('')
 
   useEffect(() => {
     setDraftLanguage(auth.language)
@@ -33,6 +35,19 @@ const ProfileView = () => {
       setLanguageError(normalizeApiError(error).message)
     } finally {
       setSavingLanguage(false)
+    }
+  }
+
+  const handleLogout = async () => {
+    setLoggingOut(true)
+    setLogoutError('')
+
+    try {
+      await auth.logout()
+    } catch (error) {
+      setLogoutError(normalizeApiError(error).message)
+    } finally {
+      setLoggingOut(false)
     }
   }
 
@@ -103,6 +118,17 @@ const ProfileView = () => {
             </select>
             {languageSaved ? <p className="text-sm text-emerald-600">{t('profileLanguageSaved')}</p> : null}
             {languageError ? <p className="text-sm text-rose-600">{languageError}</p> : null}
+          </div>
+        </AppSectionCard>
+      </div>
+
+      <div className="mt-4">
+        <AppSectionCard dense title={t('logout')}>
+          <div className="space-y-3">
+            <AppActionButton variant="danger" disabled={loggingOut} onClick={() => void handleLogout()}>
+              {loggingOut ? t('loggingOut') : t('logout')}
+            </AppActionButton>
+            {logoutError ? <p className="text-sm text-rose-600">{logoutError}</p> : null}
           </div>
         </AppSectionCard>
       </div>
