@@ -81,6 +81,8 @@ const text = {
   chinese: { en: 'Chinese', zh: '中文' },
   profile: { en: 'Profile', zh: '个人资料' },
   profileSubtitle: { en: 'Your member profile and account details.', zh: '你的会员资料和帐号信息。' },
+  logout: { en: 'Logout', zh: '退出登录' },
+  loggingOut: { en: 'Logging out...', zh: '正在退出登录...' },
   profileLanguageSubtitle: { en: 'Choose the language stored in your account and JWT.', zh: '选择存储在你的帐号和 JWT 里的语言。' },
   profileLanguageSaved: { en: 'Language updated.', zh: '语言已更新。' },
   registered: { en: 'Registered', zh: '已注册' },
