@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.RegularExpressions;
 using System.Text.Json;
 using Alife.Application.Common.Interfaces;
 using Alife.Domain.Enums;
@@ -14,6 +15,9 @@ public sealed class CloudflareKvCacheService(
     ILogger<CloudflareKvCacheService> logger) : ICloudflareKvCacheService
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly Regex GroupScopedApiPathRegex = new(
+        "^/api/groups/(?<groupId>[^/]+)/(?<kind>pages|subgroups|events|memberships|members)$",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     public Task PutApprovedMembershipAsync(
         Guid groupId,
@@ -38,7 +42,7 @@ public sealed class CloudflareKvCacheService(
         => DeleteAuthzValueAsync($"membership:{groupId}:{memberId}", cancellationToken);
 
     public Task RemoveApiCacheAsync(string path, CancellationToken cancellationToken = default)
-        => DeleteApiCacheValueAsync($"api:{path}", cancellationToken);
+        => DeleteApiCacheValueAsync(CreateApiCacheKey(path), cancellationToken);
 
     public Task RemoveApiCacheKeyAsync(string key, CancellationToken cancellationToken = default)
         => DeleteApiCacheValueAsync(key, cancellationToken);
@@ -136,6 +140,23 @@ public sealed class CloudflareKvCacheService(
             configuration["Cloudflare:AuthzNamespaceId"],
             configuration["Cloudflare:ApiCacheNamespaceId"],
             configuration["Cloudflare:ApiToken"]);
+
+    private static string CreateApiCacheKey(string path)
+    {
+        var match = GroupScopedApiPathRegex.Match(path);
+        if (match.Success)
+        {
+            var cacheKind = match.Groups["kind"].Value switch
+            {
+                "memberships" or "members" => "members",
+                _ => match.Groups["kind"].Value
+            };
+
+            return $"group:{match.Groups["groupId"].Value}:{cacheKind}";
+        }
+
+        return $"api:{path}";
+    }
 
     private sealed record CloudflareKvOptions(
         string? AccountId,

@@ -27,6 +27,19 @@ const CACHE_STALE_IF_ERROR_SECONDS = 86400
 const AUTHZ_MIRROR_TTL_SECONDS = 7 * 24 * 60 * 60
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 const PUBLIC_CACHEABLE_API_PATHS = new Set(['/api/sermons', '/api/pages/global'])
+const GROUP_SHARED_CACHE_TTLS = {
+  pages: 300,
+  subgroups: 300,
+  events: 180,
+  members: 60,
+} as const
+
+export type AuthorizedGroupCacheKind = keyof typeof GROUP_SHARED_CACHE_TTLS
+export type AuthorizedGroupCachePolicy = {
+  groupId: string
+  cacheKind: AuthorizedGroupCacheKind
+  ttlSeconds: number
+}
 
 export type StoredResponse = {
   status: number
@@ -47,6 +60,60 @@ export const apiCacheMiddleware = async (
   const url = new URL(req.url)
   const sharedContext = req.sharedContext
   const bypassEdgeCache = req.bypassEdgeCache
+  const authorizedGroupCache = getAuthorizedGroupCachePolicy(url.pathname)
+
+  if (req.method === 'GET' && authorizedGroupCache && sharedContext) {
+    if (sharedContext.authzStatus !== 'hit') {
+      return addCorsHeaders(
+        req,
+        withCacheHeader(
+          withBrowserCacheControl(createForbiddenGroupResponse(sharedContext.authzStatus), url.pathname, sharedContext.authzStatus),
+          'BYPASS',
+        ),
+      )
+    }
+
+    const cached = await getAuthorizedGroupCachedResponse(
+      env,
+      req,
+      authorizedGroupCache.groupId,
+      authorizedGroupCache.cacheKind,
+      () => next(),
+      authorizedGroupCache.ttlSeconds,
+    )
+
+    if (cached.cacheStatus === 'MISS') {
+      ctx.waitUntil(Promise.all([
+        rememberEntityGroups(env, req, cached.response.clone()),
+        rememberGroupAuthorization(env, sharedContext.groupId, sharedContext.memberId, cached.response.clone()),
+      ]))
+    }
+
+    if (cached.cacheStatus === 'HIT') {
+      const clientEtag = req.headers.get('if-none-match')
+      const cachedEtag = cached.response.headers.get('etag')
+      if (clientEtag && cachedEtag && matchesIfNoneMatch(clientEtag, cachedEtag)) {
+        return addCorsHeaders(
+          req,
+          withCacheHeader(
+            withBrowserCacheControl(new Response(null, {
+              status: 304,
+              headers: cached.response.headers,
+            }), url.pathname, sharedContext.authzStatus),
+            'REVALIDATED',
+          ),
+        )
+      }
+    }
+
+    return addCorsHeaders(
+      req,
+      withCacheHeader(
+        withBrowserCacheControl(cached.response, url.pathname, sharedContext.authzStatus),
+        cached.cacheStatus,
+      ),
+    )
+  }
 
   if (req.method === 'GET' && !bypassEdgeCache) {
     const cached = sharedContext
@@ -133,6 +200,34 @@ export function canReadSharedCache(context: SharedCacheContext) {
   return isPageAuthor(context.pageMeta, context.memberId) || hasDraftPageRole(context.authzRecord)
 }
 
+export async function getAuthorizedGroupCachedResponse(
+  env: Env,
+  request: Request,
+  groupId: string,
+  cacheKind: AuthorizedGroupCacheKind,
+  fetchFromOrigin: () => Promise<Response>,
+  ttlSeconds: number,
+): Promise<{ response: Response; cacheStatus: 'HIT' | 'MISS' | 'BYPASS' }> {
+  const cached = await readStoredResponse(env, createAuthorizedGroupCacheKey(groupId, cacheKind))
+  if (cached) {
+    return { response: cached, cacheStatus: 'HIT' }
+  }
+
+  const originResponse = await fetchFromOrigin()
+  if (!originResponse.ok) {
+    return { response: originResponse, cacheStatus: 'BYPASS' }
+  }
+
+  await writeStoredResponse(
+    env,
+    createAuthorizedGroupCacheKey(groupId, cacheKind),
+    withEdgeCacheControl(originResponse.clone()),
+    ttlSeconds,
+  )
+
+  return { response: originResponse, cacheStatus: 'MISS' }
+}
+
 function isDraftVisibility(visibility: string | undefined) {
   return visibility?.toLowerCase() === 'draft'
 }
@@ -147,6 +242,10 @@ function hasDraftPageRole(record: MembershipAuthzRecord | undefined) {
 }
 
 export async function writeSharedCachedResponse(env: Env, request: Request, response: Response) {
+  await writeStoredResponse(env, createApiCacheKey(request), response, getApiCacheTtlSeconds(request))
+}
+
+export async function writeStoredResponse(env: Env, key: string, response: Response, ttlSeconds: number) {
   if (!env.ALIFE_API_CACHE) {
     return
   }
@@ -165,10 +264,27 @@ export async function writeSharedCachedResponse(env: Env, request: Request, resp
   }
 
   await env.ALIFE_API_CACHE.put(
-    createApiCacheKey(request),
+    key,
     JSON.stringify(record),
-    { expirationTtl: CACHE_TTL_SECONDS },
+    { expirationTtl: ttlSeconds },
   )
+}
+
+export async function readStoredResponse(env: Env, key: string) {
+  if (!env.ALIFE_API_CACHE) {
+    return undefined
+  }
+
+  const record = await env.ALIFE_API_CACHE.get(key, { type: 'json' }) as StoredResponse | null
+  if (!isStoredResponse(record)) {
+    return undefined
+  }
+
+  return new Response(record.body, {
+    status: record.status,
+    statusText: record.statusText,
+    headers: record.headers,
+  })
 }
 
 export function isStoredResponse(value: unknown): value is StoredResponse {
@@ -184,14 +300,46 @@ export function isStoredResponse(value: unknown): value is StoredResponse {
 }
 
 export function createApiCacheKey(requestOrPath: Request | string) {
-  if (typeof requestOrPath === 'string') {
-    return `api:${requestOrPath}`
+  const url = typeof requestOrPath === 'string'
+    ? new URL(requestOrPath, 'https://alife.local')
+    : new URL(requestOrPath.url)
+
+  const groupPolicy = getAuthorizedGroupCachePolicy(url.pathname)
+  if (groupPolicy) {
+    return createAuthorizedGroupCacheKey(groupPolicy.groupId, groupPolicy.cacheKind)
   }
 
-  const url = new URL(requestOrPath.url)
   url.hash = ''
   url.searchParams.sort()
   return `api:${url.pathname}${url.search}`
+}
+
+export function createAuthorizedGroupCacheKey(groupId: string, cacheKind: AuthorizedGroupCacheKind) {
+  return `group:${groupId}:${cacheKind}`
+}
+
+export function getAuthorizedGroupCachePolicy(pathname: string): AuthorizedGroupCachePolicy | null {
+  const match = pathname.match(/^\/api\/groups\/([^/]+)\/(pages|subgroups|events|memberships|members)$/)
+  if (!match) {
+    return null
+  }
+
+  const cacheKind: AuthorizedGroupCacheKind = match[2] === 'memberships' || match[2] === 'members'
+    ? 'members'
+    : match[2] as Exclude<AuthorizedGroupCacheKind, 'members'>
+
+  return {
+    groupId: match[1],
+    cacheKind,
+    ttlSeconds: GROUP_SHARED_CACHE_TTLS[cacheKind],
+  }
+}
+
+export function getApiCacheTtlSeconds(requestOrPath: Request | string) {
+  const pathname = typeof requestOrPath === 'string'
+    ? new URL(requestOrPath, 'https://alife.local').pathname
+    : new URL(requestOrPath.url).pathname
+  return getAuthorizedGroupCachePolicy(pathname)?.ttlSeconds ?? CACHE_TTL_SECONDS
 }
 
 export async function passivelyInvalidate(env: Env, request: Request, response: Response) {
@@ -223,7 +371,7 @@ export async function getInvalidationPaths(env: Env, request: Request, response:
   const path = url.pathname
   const paths = new Set<string>()
 
-  const groupSubresourceMatch = path.match(/^\/api\/groups\/([^/]+)\/(subgroups|pages|events|memberships)$/)
+  const groupSubresourceMatch = path.match(/^\/api\/groups\/([^/]+)\/(subgroups|pages|events|memberships|members)$/)
   if (groupSubresourceMatch) {
     paths.add(`/api/groups/${groupSubresourceMatch[1]}/${groupSubresourceMatch[2]}`)
   }
@@ -231,6 +379,7 @@ export async function getInvalidationPaths(env: Env, request: Request, response:
   const groupActionMatch = path.match(/^\/api\/groups\/([^/]+)\/(join-request|invite|invite\/accept|approve|reject|set-coleader|kick)$/)
   if (groupActionMatch) {
     paths.add(`/api/groups/${groupActionMatch[1]}/memberships`)
+    paths.add(`/api/groups/${groupActionMatch[1]}/members`)
   }
 
   const groupCloseMatch = path.match(/^\/api\/groups\/([^/]+)\/close$/)
@@ -349,6 +498,16 @@ export async function rememberGroupAuthorization(
       updatedUtc: new Date().toISOString(),
     }),
     { expirationTtl: AUTHZ_MIRROR_TTL_SECONDS },
+  )
+}
+
+export function createForbiddenGroupResponse(status?: GroupAuthzStatus) {
+  return Response.json(
+    { message: 'Forbidden' },
+    {
+      status: 403,
+      headers: withGroupAuthzHeaders(new Headers({ 'content-type': 'application/json' }), status),
+    },
   )
 }
 
