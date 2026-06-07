@@ -31,15 +31,10 @@ public class GroupsController(
     ICurrentMemberAccessor currentMemberAccessor) : ControllerBase
 {
     [HttpGet("church")]
+    [AllowAnonymous]
     public async Task<IActionResult> GetChurch(CancellationToken cancellationToken)
     {
-        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
-        if (currentMemberId is null)
-        {
-            return Unauthorized();
-        }
-
-        var result = await mediator.Send(new GetChurchQuery(currentMemberId.Value), cancellationToken);
+        var result = await mediator.Send(new GetChurchQuery(), cancellationToken);
         if (!result.IsSuccess)
         {
             return this.ToActionResult(result);
