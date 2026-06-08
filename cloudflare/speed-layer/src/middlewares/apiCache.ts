@@ -14,7 +14,6 @@ import {
   getGroupSubresource,
   createPageMetaMapKey,
   createEntityGroupMapKey,
-  createLegacyEntityGroupMapRequest,
   writePageMeta,
   writeEntityGroup,
   readEntityGroup,
@@ -90,20 +89,29 @@ export const apiCacheMiddleware = async (
     }
 
     if (cached.cacheStatus === 'HIT') {
+      const hitResponse = cached.response.headers.has('etag') ? cached.response : await withEtag(cached.response)
       const clientEtag = req.headers.get('if-none-match')
-      const cachedEtag = cached.response.headers.get('etag')
+      const cachedEtag = hitResponse.headers.get('etag')
       if (clientEtag && cachedEtag && matchesIfNoneMatch(clientEtag, cachedEtag)) {
         return addCorsHeaders(
           req,
           withCacheHeader(
             withBrowserCacheControl(new Response(null, {
               status: 304,
-              headers: cached.response.headers,
+              headers: hitResponse.headers,
             }), url.pathname, sharedContext.authzStatus),
             'REVALIDATED',
           ),
         )
       }
+
+      return addCorsHeaders(
+        req,
+        withCacheHeader(
+          withBrowserCacheControl(hitResponse, url.pathname, sharedContext.authzStatus),
+          'HIT',
+        ),
+      )
     }
 
     return addCorsHeaders(
@@ -116,11 +124,12 @@ export const apiCacheMiddleware = async (
   }
 
   if (req.method === 'GET' && !bypassEdgeCache) {
-    const cached = sharedContext
+    const rawCached = sharedContext
       ? await readSharedCachedResponse(env, req, sharedContext)
       : await getEdgeCache().match(await createCacheKey(req))
 
-    if (cached) {
+    if (rawCached) {
+      const cached = rawCached.headers.has('etag') ? rawCached : await withEtag(rawCached)
       const clientEtag = req.headers.get('if-none-match')
       const cachedEtag = cached.headers.get('etag')
       if (clientEtag && cachedEtag && matchesIfNoneMatch(clientEtag, cachedEtag)) {
@@ -137,30 +146,36 @@ export const apiCacheMiddleware = async (
   const response = await next()
 
   if (response.status === 200 && req.method === 'GET' && !bypassEdgeCache) {
+    const taggedResponse = await withEtag(response)
+
     const waitUntilTasks = [
-      rememberEntityGroups(env, req, response.clone()),
-      rememberGroupAuthorization(env, sharedContext?.groupId ?? '', sharedContext?.memberId ?? '', response.clone()),
+      rememberEntityGroups(env, req, taggedResponse.clone()),
+      rememberGroupAuthorization(env, sharedContext?.groupId ?? '', sharedContext?.memberId ?? '', taggedResponse.clone()),
     ]
 
     if (sharedContext) {
       if (sharedContext.memberId) {
-        waitUntilTasks.push(writeSharedCachedResponse(env, req, withEdgeCacheControl(response.clone())))
+        waitUntilTasks.push(writeSharedCachedResponse(env, req, withEdgeCacheControl(taggedResponse.clone())))
       }
     } else {
-      const responseForCache = withEdgeCacheControl(response.clone())
+      const responseForCache = withEdgeCacheControl(taggedResponse.clone())
       waitUntilTasks.push(createCacheKey(req).then((cacheKey) => getEdgeCache().put(cacheKey, responseForCache)))
     }
 
     ctx.waitUntil(Promise.all(waitUntilTasks))
-    return addCorsHeaders(req, withCacheHeader(withBrowserCacheControl(response, url.pathname, sharedContext?.authzStatus), 'MISS'))
+    return addCorsHeaders(req, withCacheHeader(withBrowserCacheControl(taggedResponse, url.pathname, sharedContext?.authzStatus), 'MISS'))
   }
 
   if (response.status === 200 && req.method === 'GET' && (getEventSubresource(url.pathname) || getPageDetailId(url.pathname))) {
-    const tasks = [rememberEntityGroups(env, req, response.clone())]
+    const taggedResponse = getPageDetailId(url.pathname) ? await withEtag(response) : response
+    const tasks = [rememberEntityGroups(env, req, taggedResponse.clone())]
     if (getPageDetailId(url.pathname)) {
-      tasks.push(writeSharedCachedResponse(env, req, withEdgeCacheControl(response.clone())))
+      tasks.push(writeSharedCachedResponse(env, req, withEdgeCacheControl(taggedResponse.clone())))
     }
     ctx.waitUntil(Promise.all(tasks))
+
+    const finalResponse = bypassEdgeCache ? withNoStore(taggedResponse) : taggedResponse
+    return addCorsHeaders(req, withCacheHeader(withGroupAuthzHeader(finalResponse, sharedContext?.authzStatus), 'BYPASS'))
   }
 
   if (response.ok && MUTATING_METHODS.has(req.method)) {
@@ -218,14 +233,16 @@ export async function getAuthorizedGroupCachedResponse(
     return { response: originResponse, cacheStatus: 'BYPASS' }
   }
 
+  const taggedResponse = await withEtag(originResponse)
+
   await writeStoredResponse(
     env,
     createAuthorizedGroupCacheKey(groupId, cacheKind),
-    withEdgeCacheControl(originResponse.clone()),
+    withEdgeCacheControl(taggedResponse.clone()),
     ttlSeconds,
   )
 
-  return { response: originResponse, cacheStatus: 'MISS' }
+  return { response: taggedResponse, cacheStatus: 'MISS' }
 }
 
 function isDraftVisibility(visibility: string | undefined) {
@@ -255,11 +272,17 @@ export async function writeStoredResponse(env: Env, key: string, response: Respo
     headers[key] = value
   })
 
+  const body = await response.text()
+
+  if (!headers['etag']) {
+    headers['etag'] = await generateEtag(body)
+  }
+
   const record: StoredResponse = {
     status: response.status,
     statusText: response.statusText,
     headers,
-    body: await response.text(),
+    body,
     storedAt: new Date().toISOString(),
   }
 
@@ -568,10 +591,33 @@ export function withEdgeCacheControl(response: Response) {
   })
 }
 
+export async function withEtag(response: Response) {
+  const body = await response.text()
+  const headers = new Headers(response.headers)
+  if (!headers.has('etag')) {
+    headers.set('etag', await generateEtag(body))
+  }
+
+  return new Response(body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
+}
+
+export async function generateEtag(body: string) {
+  const data = new TextEncoder().encode(body)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  const hashHex = Array.from(new Uint8Array(hashBuffer).slice(0, 8))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+  return `W/"${hashHex}"`
+}
+
 export function withBrowserCacheControl(response: Response, pathname: string, groupAuthzStatus?: GroupAuthzStatus) {
   const headers = new Headers(response.headers)
 
-  if (pathname === '/images' || pathname.startsWith('/images/') || PUBLIC_CACHEABLE_API_PATHS.has(pathname)) {
+  if (pathname === '/images' || pathname.startsWith('/images/')) {
     headers.set(
       'cache-control',
       `public, max-age=${CACHE_TTL_SECONDS}, s-maxage=${CACHE_TTL_SECONDS}, stale-while-revalidate=${CACHE_STALE_WHILE_REVALIDATE_SECONDS}, stale-if-error=${CACHE_STALE_IF_ERROR_SECONDS}`,

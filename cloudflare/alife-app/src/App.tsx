@@ -2,6 +2,7 @@ import type { ReactElement } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+import { TerminalSquare } from 'lucide-react'
 import logo from './assets/logo.png'
 import AccessTypeBadge from './components/group/AccessTypeBadge'
 import { groupService } from './services/groupService'
@@ -201,26 +202,26 @@ const HeaderNav = ({ items, currentGroupName, currentGroupManageTo }: { items: S
   const t = useUiText()
 
   return (
-  <nav className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto" aria-label={t('appNavigation')}>
-    <Link to="/" className="mr-1 flex shrink-0 items-center rounded-lg text-slate-950" aria-label={t('home')}>
-      <span className="flex items-center justify-center rounded-xl bg-emerald-50 p-1.5">
-        <img src={logo} alt={t('appName')} className="h-8 w-auto drop-shadow-sm" />
-      </span>
-    </Link>
-    {currentGroupName && currentGroupManageTo ? (
-      <Link
-        to={currentGroupManageTo}
-        className="max-w-72 shrink-0 truncate text-sm font-semibold text-slate-700 hover:text-emerald-700 sm:max-w-xs"
-      >
-        {currentGroupName}
+    <nav className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto" aria-label={t('appNavigation')}>
+      <Link to="/" className="mr-1 flex shrink-0 items-center rounded-lg text-slate-950" aria-label={t('home')}>
+        <span className="flex items-center justify-center rounded-xl bg-emerald-50 p-1.5">
+          <img src={logo} alt={t('appName')} className="h-8 w-auto drop-shadow-sm" />
+        </span>
       </Link>
-    ) : currentGroupName ? (
-      <span className="max-w-72 shrink-0 truncate text-sm font-semibold text-slate-700 sm:max-w-xs">{currentGroupName}</span>
-    ) : null}
-    {items.map((item) => (
-      <ShellNavLink key={item.to} item={item} />
-    ))}
-  </nav>
+      {currentGroupName && currentGroupManageTo ? (
+        <Link
+          to={currentGroupManageTo}
+          className="max-w-72 shrink-0 truncate text-sm font-semibold text-slate-700 hover:text-emerald-700 sm:max-w-xs"
+        >
+          {currentGroupName}
+        </Link>
+      ) : currentGroupName ? (
+        <span className="max-w-72 shrink-0 truncate text-sm font-semibold text-slate-700 sm:max-w-xs">{currentGroupName}</span>
+      ) : null}
+      {items.map((item) => (
+        <ShellNavLink key={item.to} item={item} />
+      ))}
+    </nav>
   )
 }
 
@@ -228,27 +229,27 @@ const SideNav = ({ items }: { items: ShellNavItem[] }) => {
   const t = useUiText()
 
   return (
-  <motion.aside
-    initial={{ opacity: 0, x: -16 }}
-    animate={{ opacity: 1, x: 0 }}
-    transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
-    className="fixed bottom-0 left-0 top-16 z-20 hidden w-72 bg-white/95 px-4 py-5 shadow-sm backdrop-blur desktop:block"
-  >
-    <nav className="space-y-1" aria-label={t('primaryNavigation')}>
-      <AnimatePresence mode="wait">
-        {items.map((item, i) => (
-          <motion.div
-            key={item.to}
-            initial={{ opacity: 0, x: -12 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: i * 0.04, duration: 0.25, ease: 'easeOut' }}
-          >
-            <ShellSearchNavLink item={item} />
-          </motion.div>
-        ))}
-      </AnimatePresence>
-    </nav>
-  </motion.aside>
+    <motion.aside
+      initial={{ opacity: 0, x: -16 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
+      className="fixed bottom-0 left-0 top-16 z-20 hidden w-72 bg-white/95 px-4 py-5 shadow-sm backdrop-blur desktop:block"
+    >
+      <nav className="space-y-1" aria-label={t('primaryNavigation')}>
+        <AnimatePresence mode="wait">
+          {items.map((item, i) => (
+            <motion.div
+              key={item.to}
+              initial={{ opacity: 0, x: -12 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.04, duration: 0.25, ease: 'easeOut' }}
+            >
+              <ShellSearchNavLink item={item} />
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </nav>
+    </motion.aside>
   )
 }
 
@@ -256,27 +257,27 @@ const BottomNav = ({ items }: { items: ShellNavItem[] }) => {
   const t = useUiText()
 
   return (
-  <motion.nav
-    initial={{ y: 80 }}
-    animate={{ y: 0 }}
-    transition={{ type: 'spring', stiffness: 300, damping: 28, delay: 0.1 }}
-    className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-2 pb-[calc(env(safe-area-inset-bottom)+0.375rem)] pt-1.5 shadow-[0_-12px_30px_rgba(15,23,42,0.10)] backdrop-blur desktop:hidden"
-    aria-label={t('primaryNavigation')}
-  >
-    <div className="mx-auto flex max-w-lg items-stretch gap-1">
-      {items.map((item, i) => (
-        <motion.div
-          key={item.to}
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 + i * 0.05, duration: 0.3, ease: 'easeOut' }}
-          className="flex-1"
-        >
-          <ShellSearchNavLink item={item} mobile />
-        </motion.div>
-      ))}
-    </div>
-  </motion.nav>
+    <motion.nav
+      initial={{ y: 80 }}
+      animate={{ y: 0 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 28, delay: 0.1 }}
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-2 pb-[calc(env(safe-area-inset-bottom)+0.375rem)] pt-1.5 shadow-[0_-12px_30px_rgba(15,23,42,0.10)] backdrop-blur desktop:hidden"
+      aria-label={t('primaryNavigation')}
+    >
+      <div className="mx-auto flex max-w-lg items-stretch gap-1">
+        {items.map((item, i) => (
+          <motion.div
+            key={item.to}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 + i * 0.05, duration: 0.3, ease: 'easeOut' }}
+            className="flex-1"
+          >
+            <ShellSearchNavLink item={item} mobile />
+          </motion.div>
+        ))}
+      </div>
+    </motion.nav>
   )
 }
 
@@ -438,7 +439,7 @@ const GroupDrawer = ({ currentGroup, churchGroup, items, open, onClose, onOpenGr
                           <span className="text-[11px] font-medium text-slate-500">{statusLabel}</span>
                         </span>
                       </span>
-                  </motion.button>
+                    </motion.button>
                   </motion.li>
                 )
               })}
@@ -489,6 +490,7 @@ const App = () => {
   const [contextualGroup, setContextualGroup] = useState<GroupSummaryDto | null>(null)
   const [churchGroup, setChurchGroup] = useState<GroupSummaryDto | null>(null)
   const [groupDrawerOpen, setGroupDrawerOpen] = useState(false)
+  const [debugGroupApiLoading, setDebugGroupApiLoading] = useState(false)
   const groupScreenMatch = location.pathname.match(/^\/groups\/([^/]+)$/)
   const groupJoinMatch = location.pathname.match(/^\/groups\/([^/]+)\/join$/)
   const groupManageMatch = location.pathname.match(/^\/groups\/([^/]+)\/manage$/)
@@ -537,62 +539,71 @@ const App = () => {
   const selectedPageId = searchParams.get('page') || currentGroupPageNavItems[0]?.pageId || ''
   const managementNavItems: ShellNavItem[] = contextualGroupId
     ? [
-        { label: translateUi(auth.language, 'group'), to: `/groups/${contextualGroupId}/manage?section=group`, matchSearch: '?section=group', icon: <GroupIcon /> },
-        { label: translateUi(auth.language, 'subgroups'), to: `/groups/${contextualGroupId}/manage?section=subgroups`, matchSearch: '?section=subgroups', icon: <SubgroupsIcon /> },
-        { label: translateUi(auth.language, 'members'), to: `/groups/${contextualGroupId}/manage?section=members`, matchSearch: '?section=members', icon: <MembersIcon /> },
-        { label: translateUi(auth.language, 'pages'), to: `/groups/${contextualGroupId}/manage?section=pages`, matchSearch: '?section=pages', icon: <PageIcon /> },
-        { label: translateUi(auth.language, 'events'), to: `/groups/${contextualGroupId}/manage?section=events`, matchSearch: '?section=events', icon: <EventsIcon /> },
-      ]
+      { label: translateUi(auth.language, 'group'), to: `/groups/${contextualGroupId}/manage?section=group`, matchSearch: '?section=group', icon: <GroupIcon /> },
+      { label: translateUi(auth.language, 'subgroups'), to: `/groups/${contextualGroupId}/manage?section=subgroups`, matchSearch: '?section=subgroups', icon: <SubgroupsIcon /> },
+      { label: translateUi(auth.language, 'members'), to: `/groups/${contextualGroupId}/manage?section=members`, matchSearch: '?section=members', icon: <MembersIcon /> },
+      { label: translateUi(auth.language, 'pages'), to: `/groups/${contextualGroupId}/manage?section=pages`, matchSearch: '?section=pages', icon: <PageIcon /> },
+      { label: translateUi(auth.language, 'events'), to: `/groups/${contextualGroupId}/manage?section=events`, matchSearch: '?section=events', icon: <EventsIcon /> },
+    ]
     : []
   const shellNavItems = isManagementScreen ? managementNavItems : isGroupScreen || isPageEditorScreen ? currentGroupPageNavItems : []
   const fabItems: ShellFabItem[] = isGroupScreen && canManageCurrentGroup
     ? [
-        ...(selectedPageId
-          ? [
-              {
-                label: translateUi(auth.language, 'editCurrentPage'),
-                tone: 'edit' as const,
-                icon: <EditIcon />,
-                onClick: () => navigate(`/pages/${selectedPageId}/edit?groupId=${contextualGroupId}`),
-              },
-            ]
-          : []),
-      ]
+      ...(selectedPageId
+        ? [
+          {
+            label: translateUi(auth.language, 'editCurrentPage'),
+            tone: 'edit' as const,
+            icon: <EditIcon />,
+            onClick: () => navigate(`/pages/${selectedPageId}/edit?groupId=${contextualGroupId}`),
+          },
+        ]
+        : []),
+    ]
     : isPageEditorScreen
       ? [
+        {
+          label: translateUi(auth.language, 'savePage'),
+          tone: 'save',
+          icon: <SaveIcon />,
+          onClick: () => window.dispatchEvent(new Event('alife-page-editor-save')),
+        },
+        {
+          label: translateUi(auth.language, 'exitEditor'),
+          tone: 'exit',
+          icon: <BackIcon />,
+          onClick: () => window.dispatchEvent(new Event('alife-page-editor-exit')),
+        },
+      ]
+      : isManagementScreen
+        ? [
           {
-            label: translateUi(auth.language, 'savePage'),
-            tone: 'save',
-            icon: <SaveIcon />,
-            onClick: () => window.dispatchEvent(new Event('alife-page-editor-save')),
-          },
-          {
-            label: translateUi(auth.language, 'exitEditor'),
+            label: translateUi(auth.language, 'backToViews'),
             tone: 'exit',
             icon: <BackIcon />,
-            onClick: () => window.dispatchEvent(new Event('alife-page-editor-exit')),
-            },
-          ]
-        : isManagementScreen
+            onClick: () => navigate(`/groups/${contextualGroupId}`),
+          },
+        ]
+        : isEventScreen
           ? [
-              {
-              label: translateUi(auth.language, 'backToViews'),
+            {
+              label: translateUi(auth.language, 'back'),
               tone: 'exit',
               icon: <BackIcon />,
-              onClick: () => navigate(`/groups/${contextualGroupId}`),
+              onClick: () => navigate(-1),
             },
           ]
-          : isEventScreen
-            ? [
-                {
-                  label: translateUi(auth.language, 'back'),
-                  tone: 'exit',
-                  icon: <BackIcon />,
-                  onClick: () => navigate(-1),
-                },
-              ]
           : isSermonDetailScreen
             ? [
+              {
+                label: translateUi(auth.language, 'back'),
+                tone: 'exit',
+                icon: <BackIcon />,
+                onClick: () => navigate(-1),
+              },
+            ]
+            : isProfileScreen
+              ? [
                 {
                   label: translateUi(auth.language, 'back'),
                   tone: 'exit',
@@ -600,16 +611,7 @@ const App = () => {
                   onClick: () => navigate(-1),
                 },
               ]
-          : isProfileScreen
-            ? [
-                {
-                  label: translateUi(auth.language, 'back'),
-                  tone: 'exit',
-                  icon: <BackIcon />,
-                  onClick: () => navigate(-1),
-                },
-              ]
-        : []
+              : []
 
   const toggleLanguageLabel = auth.language === 'zh' ? '漢' : auth.language.toUpperCase()
   const appNavItems: ShellNavItem[] = [
@@ -618,6 +620,9 @@ const App = () => {
   const headerGroup = CurrentGroup?.id === contextualGroupId ? CurrentGroup : contextualGroup
   const headerGroupName = contextualGroupId ? localizeText(headerGroup?.name, auth.language) : ''
   const headerGroupManageTo = contextualGroupId && canManageCurrentGroup ? `/groups/${contextualGroupId}/manage?section=group` : undefined
+  const showDebugGroupApiButton = import.meta.env.DEV && Boolean(contextualGroupId)
+  // const debugGroupApiPath = contextualGroupId ? `/api/groups/${contextualGroupId}` : ''
+  const debugGroupApiPath = '/api/sermons'
 
   useEffect(() => {
     if (!contextualGroupId || isManagementScreen) {
@@ -731,6 +736,22 @@ const App = () => {
     navigate(`/groups/${groupId}`)
   }
 
+  const sendDebugGroupApiCall = async () => {
+    if (!contextualGroupId || debugGroupApiLoading) {
+      return
+    }
+
+    setDebugGroupApiLoading(true)
+    try {
+      const group = await groupService.getGroup(contextualGroupId)
+      console.info(`[debug] GET ${debugGroupApiPath}`, group)
+    } catch (error) {
+      console.error(`[debug] GET ${debugGroupApiPath} failed`, error)
+    } finally {
+      setDebugGroupApiLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
       <motion.header
@@ -755,6 +776,18 @@ const App = () => {
             >
               {toggleLanguageLabel}
             </button>
+            {showDebugGroupApiButton ? (
+              <button
+                type="button"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-amber-300 bg-amber-50 text-amber-800 shadow-sm hover:bg-amber-100 disabled:cursor-wait disabled:opacity-60"
+                aria-label={`Debug GET ${debugGroupApiPath}`}
+                title={`Debug GET ${debugGroupApiPath}`}
+                disabled={debugGroupApiLoading}
+                onClick={() => void sendDebugGroupApiCall()}
+              >
+                <TerminalSquare aria-hidden="true" className="h-5 w-5" />
+              </button>
+            ) : null}
             {contextualGroupId ? (
               <button
                 type="button"

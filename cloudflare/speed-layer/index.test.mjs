@@ -227,7 +227,10 @@ test('page detail missing metadata falls back to origin and records metadata and
   }))
 
   const first = await dispatch(url, {
-    headers: { cookie: `alife_auth=${createJwtWithSub('member-1')}` },
+    headers: {
+      cookie: `alife_auth=${createJwtWithSub('member-1')}`,
+      'if-none-match': 'W/"stale-browser-etag"',
+    },
   })
   await flushWaitUntil()
   const second = await dispatch(url, {
@@ -243,6 +246,7 @@ test('page detail missing metadata falls back to origin and records metadata and
   })
   assert.equal(second.headers.get('x-alife-cache'), 'HIT')
   assert.equal(fetchCalls.length, 1)
+  assert.equal(fetchCalls[0].headers.get('if-none-match'), null)
 })
 
 test('missing membership returns 403 before shared group cache is read', async () => {
@@ -306,7 +310,7 @@ test('GET requests are served from cache on the second hit', async () => {
   assert.equal(second.status, 200)
   assert.equal(second.headers.get('x-alife-cache'), 'HIT')
   assert.deepEqual(await second.json(), { title: 'Fresh page' })
-  assert.match(first.headers.get('cache-control') ?? '', /s-maxage=86400/)
+  assert.equal(first.headers.get('cache-control'), 'private, no-cache')
   assert.equal(fetchCalls.length, 1)
 })
 
@@ -344,6 +348,28 @@ test('matching If-None-Match is answered from edge cache with 304', async () => 
   assert.equal(response.headers.get('x-alife-cache'), 'REVALIDATED')
   assert.equal(await response.text(), '')
   assert.equal(fetchCalls.length, 0)
+})
+
+test('GET /api/sermons generates ETag on MISS and returns 304 on matching If-None-Match', async () => {
+  const url = 'https://ccalc.live/api/sermons?lang=en'
+  originResponses.push(Response.json([{ title: 'Sunday Sermon' }]))
+
+  const first = await dispatch(url)
+  await flushWaitUntil()
+
+  assert.equal(first.status, 200)
+  assert.equal(first.headers.get('x-alife-cache'), 'MISS')
+  const etag = first.headers.get('etag')
+  assert.ok(etag, 'MISS response should include an ETag')
+
+  const second = await dispatch(url, {
+    headers: { 'if-none-match': etag },
+  })
+
+  assert.equal(second.status, 304)
+  assert.equal(second.headers.get('x-alife-cache'), 'REVALIDATED')
+  assert.equal(await second.text(), '')
+  assert.equal(fetchCalls.length, 1)
 })
 
 test('GET /api/me bypasses edge cache', async () => {
