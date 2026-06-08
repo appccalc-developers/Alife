@@ -1244,6 +1244,7 @@ test('POST /api/reviews/session/:id/message returns review draft and preserves a
   assert.equal(body.result.eventId, eventId)
   assert.equal(body.result.groupId, 'group-1')
   assert.equal(body.result.memberId, 'member-1')
+  assert.match(body.result.reviewId, /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)
   assert.equal(body.result.summary.en, 'A warm time of fellowship.')
   assert.equal(body.context.en, 'The review draft is ready.')
   const geminiBody = JSON.parse(fetchInits[0].body)

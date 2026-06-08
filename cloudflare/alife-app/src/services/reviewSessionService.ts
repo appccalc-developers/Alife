@@ -18,6 +18,11 @@ const createReviewId = () => {
   })
 }
 
+const isValidGuid = (value: string | null | undefined): value is string => {
+  if (!value) return false
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+}
+
 const getReviewPhotoFolder = (groupId: string, eventId: string, reviewId: string) =>
   `groups/${groupId}/events/${eventId}/reviews/${reviewId}`
 
@@ -112,7 +117,7 @@ export const reviewSessionService = {
     draft: ReviewDraft
     photoFiles: File[]
   }): Promise<ReviewCommitResponse> => {
-    const reviewId = payload.existingReview?.id || payload.draft.reviewId || createReviewId()
+    const reviewId = payload.existingReview?.id || (isValidGuid(payload.draft.reviewId) ? payload.draft.reviewId : null) || createReviewId()
     const uploadedPhotos = await Promise.all(
       payload.photoFiles.map((file) => uploadReviewPhoto(file, payload.groupId, payload.eventId, reviewId)),
     )
