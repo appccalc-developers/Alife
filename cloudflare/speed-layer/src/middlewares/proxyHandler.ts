@@ -29,7 +29,7 @@ export const proxyHandler = {
     const bypassEdgeCache = request.bypassEdgeCache ?? shouldBypassEdgeCache(url.pathname, request.sharedContext)
 
     const originRequest = createOriginRequest(request, env, {
-      stripConditionalHeaders: request.method === 'GET' && !bypassEdgeCache,
+      stripConditionalHeaders: request.method === 'GET' && (!bypassEdgeCache || isPageDetailPath(url.pathname)),
     })
     console.log('Proxying request to origin:', originRequest.url)
 
@@ -90,6 +90,10 @@ function createOriginRequest(
 
 function isProxyPath(pathname: string) {
   return pathname.startsWith('/api/') || pathname === '/images' || pathname.startsWith('/images/')
+}
+
+function isPageDetailPath(pathname: string) {
+  return /^\/api\/pages\/[^/]+$/.test(pathname)
 }
 
 function getProxyTargetForPath(pathname: string, env: Env) {
