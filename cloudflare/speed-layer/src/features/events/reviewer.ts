@@ -174,13 +174,7 @@ export class ReviewSession extends AiChatSession<ReviewDraft, MultilingualString
       validateDraft: validateReviewDraft,
       getInitialDraft: (sessionId) => createInitialDraft(sessionId),
       onStart: (draft, payload) => mergeReviewDraft(draft, normalizeReviewDraft(payload.draft ?? payload.reviewDraft ?? {}), {
-        sessionId: '',
-        draft,
-        context: null,
         appContext: payload.appContext ?? {},
-        attachments: [],
-        chatHistory: [],
-        updatedAt: new Date().toISOString(),
       }),
       mergeDraft: (previousDraft, nextDraft, state) => mergeReviewDraft(previousDraft, nextDraft, state),
       getContextFromDraft: (draft) => draft.assistantReply ?? null,
@@ -214,7 +208,7 @@ export class ReviewSession extends AiChatSession<ReviewDraft, MultilingualString
 function createInitialDraft(sessionId: string): ReviewDraft {
   const now = new Date().toISOString()
   return {
-    reviewId: '',
+    reviewId: crypto.randomUUID(),
     eventId: extractEventIdFromSessionId(sessionId),
     groupId: '',
     memberId: '',
@@ -244,9 +238,11 @@ function mergeReviewDraft(
 
   return {
     ...nextDraft,
-    reviewId: state.appContext.knownFacts && typeof knownFacts.reviewId === 'string'
-      ? knownFacts.reviewId
-      : nextDraft.reviewId || previousDraft?.reviewId || existingReview.reviewId || '',
+    reviewId: stringValue(knownFacts.reviewId)
+      || nextDraft.reviewId
+      || previousDraft?.reviewId
+      || existingReview.reviewId
+      || crypto.randomUUID(),
     eventId: state.appContext.eventId || nextDraft.eventId || previousDraft?.eventId || extractEventId(eventData) || existingReview.eventId || '',
     groupId: state.appContext.groupId || nextDraft.groupId || previousDraft?.groupId || existingReview.groupId || '',
     memberId: state.appContext.memberId || nextDraft.memberId || previousDraft?.memberId || state.appContext.userId || existingReview.memberId || '',
