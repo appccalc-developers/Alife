@@ -6,6 +6,9 @@ import { TerminalSquare } from 'lucide-react'
 import logo from './assets/logo.png'
 import AccessTypeBadge from './components/group/AccessTypeBadge'
 import { groupService } from './services/groupService'
+import { conditionalGet } from './db/httpCache'
+import { groupQueryKey, groupPagesQueryKey, subgroupsQueryKey } from './db/collections/groupCollection'
+import { normalizeGroup, normalizePageSummary } from './utils/apiEnums'
 import { useAuthStore } from './stores/auth'
 import { useCurrentGroupStore } from './stores/currentGroup'
 import AdminView from './views/AdminView'
@@ -24,7 +27,7 @@ import EventReviewView from './views/EventReviewView'
 import GroupManageView from './views/GroupManageView'
 import InviteMembersView from './views/InviteMembersView'
 import { localizeText } from './utils/localizedText'
-import type { GroupSummaryDto, PageSummaryDto } from './types'
+import type { GroupDto, GroupSummaryDto, PageSummaryDto } from './types'
 import { translateUi, useUiText } from './i18n/uiText'
 
 type ShellNavItem = {
@@ -632,14 +635,14 @@ const App = () => {
 
     let cancelled = false
 
-    groupService
-      .getGroupPages(contextualGroupId)
+    conditionalGet<PageSummaryDto[]>({
+      queryKey: groupPagesQueryKey(contextualGroupId),
+      path: `/api/groups/${contextualGroupId}/pages`,
+    })
       .then((pages) => {
-        if (cancelled) {
-          return
+        if (!cancelled) {
+          setCurrentGroupPages(pages.map(normalizePageSummary))
         }
-
-        setCurrentGroupPages(pages)
       })
       .catch(() => {
         if (!cancelled) {
@@ -662,11 +665,13 @@ const App = () => {
 
     let cancelled = false
 
-    groupService
-      .getGroup(contextualGroupId)
+    conditionalGet<GroupDto>({
+      queryKey: groupQueryKey(contextualGroupId),
+      path: `/api/groups/${contextualGroupId}`,
+    })
       .then((group) => {
         if (!cancelled) {
-          setContextualGroup(group)
+          setContextualGroup(normalizeGroup(group))
         }
       })
       .catch(() => {
@@ -678,11 +683,13 @@ const App = () => {
     if (auth.isGuest) {
       setCurrentSubgroups([])
     } else {
-      groupService
-        .getSubgroups(contextualGroupId)
+      conditionalGet<GroupSummaryDto[]>({
+        queryKey: subgroupsQueryKey(contextualGroupId),
+        path: `/api/groups/${contextualGroupId}/subgroups`,
+      })
         .then((subgroups) => {
           if (!cancelled) {
-            setCurrentSubgroups(subgroups)
+            setCurrentSubgroups(subgroups.map(normalizeGroup))
           }
         })
         .catch(() => {
