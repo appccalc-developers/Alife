@@ -53,10 +53,23 @@ jobs:
         working-directory: ./cloudflare/speed-layer
         run: npm ci
 
+      - name: Prepare Worker secrets
+        working-directory: ./cloudflare/speed-layer
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -z "${GEMINI_API_KEY:-}" ]; then
+            echo "Missing GitHub secret: GEMINI_API_KEY"
+            exit 1
+          fi
+
+          printf 'GEMINI_API_KEY=%s\n' "$GEMINI_API_KEY" > .dev.vars
+
       - name: Test Worker speed layer
         working-directory: ./cloudflare/speed-layer
         run: npm test
 
       - name: Deploy Worker
         working-directory: ./cloudflare/speed-layer
-        run: npx wrangler deploy
+        run: npx wrangler deploy --secrets-file .dev.vars

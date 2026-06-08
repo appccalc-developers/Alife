@@ -98,6 +98,24 @@ To run through the Cloudflare Worker proxy locally (port 8788):
 npm run preview     # build + wrangler dev
 ```
 
+The Worker AI session routes require a Gemini key. For local Worker runs, create
+`cloudflare/speed-layer/.dev.vars` with:
+
+```env
+GEMINI_API_KEY=your-gemini-api-key
+```
+
+For production, configure the deployed Worker secret before manual deploys:
+
+```bash
+cd cloudflare/speed-layer
+npx wrangler secret put GEMINI_API_KEY
+npx wrangler deploy
+```
+
+GitHub Actions deploys read the same value from the repository secret
+`GEMINI_API_KEY` and upload it during `wrangler deploy`.
+
 ## Authentication
 
 - LINE Login OAuth flow ends at `/api/members/line/callback`.

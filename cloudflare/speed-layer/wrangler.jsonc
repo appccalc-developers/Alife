@@ -18,6 +18,11 @@
 		"API_PROXY_TARGET": "https://api.ccalc.live",
 		"GEMINI_MODEL": "gemini-3.1-flash-lite"
 	},
+	"secrets": {
+		"required": [
+			"GEMINI_API_KEY"
+		]
+	},
 	"durable_objects": {
 		"bindings": [
 			{
