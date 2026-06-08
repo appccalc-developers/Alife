@@ -18,19 +18,22 @@ import {
   writeEntityGroup,
   readEntityGroup,
   createMembershipKey,
+  createMemberProfileAuthzKey,
+  extractMemberIdFromRequest,
 } from './authCache'
 
 const CACHE_TTL_SECONDS = 86400 // 24 hours
 const CACHE_STALE_WHILE_REVALIDATE_SECONDS = 300
 const CACHE_STALE_IF_ERROR_SECONDS = 86400
 const AUTHZ_MIRROR_TTL_SECONDS = 7 * 24 * 60 * 60
+const MEMBER_PROFILE_CACHE_TTL_SECONDS = 86400
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 const PUBLIC_CACHEABLE_API_PATHS = new Set(['/api/sermons', '/api/pages/global'])
 const GROUP_SHARED_CACHE_TTLS = {
-  pages: 300,
-  subgroups: 300,
-  events: 180,
-  members: 60,
+  pages: CACHE_TTL_SECONDS,
+  subgroups: CACHE_TTL_SECONDS,
+  events: CACHE_TTL_SECONDS,
+  members: CACHE_TTL_SECONDS,
 } as const
 
 export type AuthorizedGroupCacheKind = keyof typeof GROUP_SHARED_CACHE_TTLS
@@ -60,6 +63,43 @@ export const apiCacheMiddleware = async (
   const sharedContext = req.sharedContext
   const bypassEdgeCache = req.bypassEdgeCache
   const authorizedGroupCache = getAuthorizedGroupCachePolicy(url.pathname)
+  const mutationTargetMemberId = MUTATING_METHODS.has(req.method)
+    ? await getTargetMemberIdFromMutation(req)
+    : ''
+  const memberProfileCacheKey = req.method === 'GET' && url.pathname === '/api/me'
+    ? createMemberProfileApiCacheKey(extractMemberIdFromRequest(req))
+    : ''
+
+  if (memberProfileCacheKey) {
+    const memberId = extractMemberIdFromRequest(req)
+    const rawCached = await readStoredResponse(env, memberProfileCacheKey)
+    if (rawCached) {
+      const cached = rawCached.headers.has('etag') ? rawCached : await withEtag(rawCached)
+      ctx.waitUntil(rememberMemberProfileAuthorization(env, memberId, memberProfileCacheKey, cached.clone()))
+      const clientEtag = req.headers.get('if-none-match')
+      const cachedEtag = cached.headers.get('etag')
+      if (clientEtag && cachedEtag && matchesIfNoneMatch(clientEtag, cachedEtag)) {
+        return addCorsHeaders(req, withCacheHeader(withBrowserCacheControl(new Response(null, {
+          status: 304,
+          headers: cached.headers,
+        }), url.pathname), 'REVALIDATED'))
+      }
+
+      return addCorsHeaders(req, withCacheHeader(withBrowserCacheControl(cached, url.pathname), 'HIT'))
+    }
+
+    const response = await next()
+    if (response.status === 200) {
+      const taggedResponse = await withEtag(response)
+      ctx.waitUntil(Promise.all([
+        writeStoredResponse(env, memberProfileCacheKey, withEdgeCacheControl(taggedResponse.clone()), MEMBER_PROFILE_CACHE_TTL_SECONDS),
+        rememberMemberProfileAuthorization(env, memberId, memberProfileCacheKey, taggedResponse.clone()),
+      ]))
+      return addCorsHeaders(req, withCacheHeader(withBrowserCacheControl(taggedResponse, url.pathname), 'MISS'))
+    }
+
+    return addCorsHeaders(req, withCacheHeader(withNoStore(response), 'BYPASS'))
+  }
 
   if (req.method === 'GET' && authorizedGroupCache && sharedContext) {
     if (sharedContext.authzStatus !== 'hit') {
@@ -179,7 +219,7 @@ export const apiCacheMiddleware = async (
   }
 
   if (response.ok && MUTATING_METHODS.has(req.method)) {
-    ctx.waitUntil(passivelyInvalidate(env, req, response.clone()))
+    ctx.waitUntil(passivelyInvalidate(env, req, response.clone(), mutationTargetMemberId))
   }
 
   const finalResponse = bypassEdgeCache ? withNoStore(response) : response
@@ -191,7 +231,7 @@ export async function readSharedCachedResponse(env: Env, request: Request, conte
     return undefined
   }
 
-  const record = await env.ALIFE_API_CACHE.get(createApiCacheKey(request), { type: 'json' }) as StoredResponse | null
+  const record = context.cachedResponse ?? await env.ALIFE_API_CACHE.get(createApiCacheKey(request), { type: 'json' }) as StoredResponse | null
   if (!isStoredResponse(record)) {
     return undefined
   }
@@ -337,6 +377,10 @@ export function createApiCacheKey(requestOrPath: Request | string) {
   return `api:${url.pathname}${url.search}`
 }
 
+export function createMemberProfileApiCacheKey(memberId: string) {
+  return memberId ? `member:${memberId}:me` : ''
+}
+
 export function createAuthorizedGroupCacheKey(groupId: string, cacheKind: AuthorizedGroupCacheKind) {
   return `group:${groupId}:${cacheKind}`
 }
@@ -365,14 +409,15 @@ export function getApiCacheTtlSeconds(requestOrPath: Request | string) {
   return getAuthorizedGroupCachePolicy(pathname)?.ttlSeconds ?? CACHE_TTL_SECONDS
 }
 
-export async function passivelyInvalidate(env: Env, request: Request, response: Response) {
+export async function passivelyInvalidate(env: Env, request: Request, response: Response, targetMemberId = '') {
   const paths = await getInvalidationPaths(env, request, response)
-  const keys = getInvalidationKeys(request)
+  const keys = getInvalidationKeys(request, targetMemberId)
   const originalCacheKey = await createCacheKey(request)
   await Promise.all([
     getEdgeCache().delete(originalCacheKey),
     deleteApiCacheKey(env, createApiCacheKey(request)),
-    ...keys.map((key) => deleteApiCacheKey(env, key)),
+    ...keys.api.map((key) => deleteApiCacheKey(env, key)),
+    ...keys.authz.map((key) => deleteAuthzKey(env, key)),
     ...paths.map(async (path) => {
       const cacheKey = await createCacheKey(request, path)
       await getEdgeCache().delete(cacheKey)
@@ -387,6 +432,14 @@ export async function deleteApiCacheKey(env: Env, key: string) {
   }
 
   await env.ALIFE_API_CACHE.delete(key)
+}
+
+export async function deleteAuthzKey(env: Env, key: string) {
+  if (!env.ALIFE_AUTHZ) {
+    return
+  }
+
+  await env.ALIFE_AUTHZ.delete(key)
 }
 
 export async function getInvalidationPaths(env: Env, request: Request, response: Response) {
@@ -447,17 +500,38 @@ export async function getInvalidationPaths(env: Env, request: Request, response:
   return Array.from(paths)
 }
 
-export function getInvalidationKeys(request: Request) {
+export function getInvalidationKeys(request: Request, targetMemberId = '') {
   const path = new URL(request.url).pathname
+  const keys = {
+    api: new Set<string>(),
+    authz: new Set<string>(),
+  }
   const pageId = path.match(/^\/api\/pages\/([^/]+)(?:\/publish)?$/)?.[1]
-  if (!pageId) {
-    return []
+  if (pageId) {
+    keys.api.add(createEntityGroupMapKey('page', pageId))
+    keys.api.add(createPageMetaMapKey(pageId))
   }
 
-  return [
-    createEntityGroupMapKey('page', pageId),
-    createPageMetaMapKey(pageId),
-  ]
+  const currentMemberId = extractMemberIdFromRequest(request)
+  if (path === '/api/me/profile' && currentMemberId) {
+    keys.api.add(createMemberProfileApiCacheKey(currentMemberId))
+    keys.authz.add(createMemberProfileAuthzKey(currentMemberId))
+  }
+
+  const groupActionMatch = path.match(/^\/api\/groups\/([^/]+)\/(join-request|invite\/accept|approve|reject|set-coleader|kick)$/)
+  if (groupActionMatch) {
+    const affectedMemberId = targetMemberId || currentMemberId
+    if (affectedMemberId) {
+      keys.api.add(createMemberProfileApiCacheKey(affectedMemberId))
+      keys.authz.add(createMemberProfileAuthzKey(affectedMemberId))
+      keys.authz.add(createMembershipKey(groupActionMatch[1], affectedMemberId))
+    }
+  }
+
+  return {
+    api: Array.from(keys.api),
+    authz: Array.from(keys.authz),
+  }
 }
 
 export async function rememberEntityGroups(env: Env, request: Request, response: Response) {
@@ -522,6 +596,53 @@ export async function rememberGroupAuthorization(
     }),
     { expirationTtl: AUTHZ_MIRROR_TTL_SECONDS },
   )
+}
+
+export async function rememberMemberProfileAuthorization(
+  env: Env,
+  memberId: string,
+  cacheKey: string,
+  response: Response,
+) {
+  if (!memberId || !cacheKey || response.status !== 200 || !env.ALIFE_AUTHZ) {
+    return
+  }
+
+  const body = await readJsonObject(response)
+  if (!body) {
+    return
+  }
+
+  const now = new Date().toISOString()
+  const memberships = readMemberships(body.memberships)
+  await Promise.all([
+    env.ALIFE_AUTHZ.put(
+      createMemberProfileAuthzKey(memberId),
+      JSON.stringify({
+        status: 'cached',
+        memberId: readString(body.id) ?? readString(body.memberId) ?? memberId,
+        cacheKey,
+        isGuest: readBoolean(body.isGuest),
+        isRegistered: readBoolean(body.isRegistered),
+        isAdmin: readBoolean(body.isAdmin),
+        language: readString(body.language) ?? undefined,
+        memberships,
+        source: 'api-me',
+        updatedUtc: now,
+      }),
+      { expirationTtl: MEMBER_PROFILE_CACHE_TTL_SECONDS },
+    ),
+    ...memberships.map((membership) => env.ALIFE_AUTHZ!.put(
+      createMembershipKey(membership.groupId, memberId),
+      JSON.stringify({
+        status: membership.status,
+        role: membership.role,
+        source: 'api-me',
+        updatedUtc: now,
+      }),
+      { expirationTtl: AUTHZ_MIRROR_TTL_SECONDS },
+    )),
+  ])
 }
 
 export function createForbiddenGroupResponse(status?: GroupAuthzStatus) {
@@ -728,4 +849,60 @@ export function appendVaryOrigin(vary: string | null) {
     .includes('origin')
     ? vary
     : `${vary}, Origin`
+}
+
+function readBoolean(value: unknown) {
+  return typeof value === 'boolean' ? value : undefined
+}
+
+type MemberProfileMembership = {
+  groupId: string
+  status: string
+  role: string | undefined
+}
+
+function readMemberships(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [] as MemberProfileMembership[]
+  }
+
+  return value
+    .map((membership) => {
+      if (!membership || typeof membership !== 'object') {
+        return null
+      }
+
+      const record = membership as Record<string, unknown>
+      const groupId = readString(record.groupId)
+      const status = readString(record.status)
+      if (!groupId || !status) {
+        return null
+      }
+
+      return {
+        groupId,
+        status,
+        role: readString(record.role) ?? undefined,
+      }
+    })
+    .filter((membership): membership is MemberProfileMembership => membership !== null)
+}
+
+async function getTargetMemberIdFromMutation(request: Request) {
+  const contentType = request.headers.get('content-type') ?? ''
+  if (contentType && !contentType.includes('application/json')) {
+    return ''
+  }
+
+  try {
+    const rawBody = await request.clone().text()
+    if (!rawBody) {
+      return ''
+    }
+
+    const body = JSON.parse(rawBody) as Record<string, unknown>
+    return readString(body.memberId) ?? readString(body.targetMemberId) ?? ''
+  } catch {
+    return ''
+  }
 }

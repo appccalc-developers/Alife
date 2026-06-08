@@ -7,11 +7,32 @@ export type MembershipAuthzRecord = {
   role?: string
 }
 
+export type MemberProfileAuthzRecord = {
+  status: string
+  memberId: string
+  cacheKey: string
+  isGuest?: boolean
+  isRegistered?: boolean
+  isAdmin?: boolean
+  language?: string
+  memberships?: MembershipAuthzRecord[]
+  source?: string
+  updatedUtc?: string
+}
+
 export type PageMeta = {
   groupId: string
   ownerGroupId?: string
   visibility?: string
   createdByMemberId?: string
+}
+
+export type SharedCachedResponseRecord = {
+  status: number
+  statusText?: string
+  headers: Record<string, string>
+  body: string
+  storedAt?: string
 }
 
 export type SharedCacheContext = {
@@ -20,6 +41,7 @@ export type SharedCacheContext = {
   authzStatus: GroupAuthzStatus
   authzRecord?: MembershipAuthzRecord
   pageMeta?: PageMeta
+  cachedResponse?: SharedCachedResponseRecord
 }
 
 const AUTHZ_MIRROR_TTL_SECONDS = 7 * 24 * 60 * 60
@@ -63,7 +85,10 @@ export async function getSharedCacheContext(request: Request, env: Env): Promise
 
   const url = new URL(request.url)
   const pageDetailId = getPageDetailId(url.pathname)
-  const pageMeta = pageDetailId ? await readPageMeta(env, pageDetailId) : undefined
+  const cachedResponse = pageDetailId ? await readSharedCachedResponseRecord(env, request) : undefined
+  const pageMeta = pageDetailId
+    ? readPageMetaFromCachedResponse(cachedResponse, pageDetailId) ?? await readPageMeta(env, pageDetailId)
+    : undefined
   const groupId = await getSharedCacheGroupId(url.pathname, env, pageMeta)
   if (!groupId) {
     return null
@@ -71,7 +96,7 @@ export async function getSharedCacheContext(request: Request, env: Env): Promise
 
   const memberId = extractMemberIdFromRequest(request)
   const authz = await authorizeGroupMember(env, groupId, memberId)
-  return { groupId, memberId, authzStatus: authz.status, authzRecord: authz.record, pageMeta }
+  return { groupId, memberId, authzStatus: authz.status, authzRecord: authz.record, pageMeta, cachedResponse }
 }
 
 export async function getSharedCacheGroupId(pathname: string, env: Env, pageMeta?: PageMeta) {
@@ -119,6 +144,60 @@ export async function readPageMeta(env: Env, pageId: string) {
     visibility: readString((record as Record<string, unknown>).visibility) ?? undefined,
     createdByMemberId: readString((record as Record<string, unknown>).createdByMemberId) ?? undefined,
   }
+}
+
+export async function readSharedCachedResponseRecord(env: Env, request: Request) {
+  if (!env.ALIFE_API_CACHE) {
+    return undefined
+  }
+
+  const record = await env.ALIFE_API_CACHE.get(createApiCacheKey(request), { type: 'json' })
+  return isSharedCachedResponseRecord(record) ? record : undefined
+}
+
+export function readPageMetaFromCachedResponse(record: SharedCachedResponseRecord | undefined, pageId: string) {
+  if (!record || record.status !== 200) {
+    return undefined
+  }
+
+  let body: Record<string, unknown> | null = null
+  try {
+    const parsed = JSON.parse(record.body)
+    body = parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : null
+  } catch {
+    return undefined
+  }
+
+  const groupId = readString(body?.ownerGroupId) ?? readString(body?.groupId)
+  const visibility = readString(body?.visibility)
+  if (!groupId) {
+    return undefined
+  }
+
+  if (!visibility) {
+    return undefined
+  }
+
+  return {
+    groupId,
+    ownerGroupId: groupId,
+    visibility,
+    createdByMemberId: readString(body?.createdByMemberId) ?? undefined,
+  }
+}
+
+export function isSharedCachedResponseRecord(value: unknown): value is SharedCachedResponseRecord {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+
+  const record = value as Record<string, unknown>
+  return typeof record.status === 'number' &&
+    typeof record.headers === 'object' &&
+    record.headers !== null &&
+    typeof record.body === 'string'
 }
 
 export async function writePageMeta(env: Env, pageId: string, item: Record<string, unknown>, fallbackGroupId: string) {
@@ -216,6 +295,20 @@ export function isApprovedMembershipRecord(record: unknown): record is Membershi
 
 export function createMembershipKey(groupId: string, memberId: string) {
   return `membership:${groupId}:${memberId}`
+}
+
+export function createMemberProfileAuthzKey(memberId: string) {
+  return `member:${memberId}:profile`
+}
+
+export function createApiCacheKey(requestOrPath: Request | string) {
+  const url = typeof requestOrPath === 'string'
+    ? new URL(requestOrPath, 'https://alife.local')
+    : new URL(requestOrPath.url)
+
+  url.hash = ''
+  url.searchParams.sort()
+  return `api:${url.pathname}${url.search}`
 }
 
 export function getPageDetailId(pathname: string) {
