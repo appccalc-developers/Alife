@@ -8,8 +8,10 @@ type CacheRecord<TData> = {
 
 const STORAGE_PREFIX = 'alife:db:cache:etag:'
 const idbStore = createStore('alife-cache-db', 'http-cache')
+const inFlightGets = new Map<string, Promise<unknown>>()
 
 const getStorageKey = (queryKey: readonly unknown[]) => `${STORAGE_PREFIX}${JSON.stringify(queryKey)}`
+const getInFlightKey = (queryKey: readonly unknown[], path: string) => `${JSON.stringify(queryKey)}:${path}`
 
 const readRecord = async <TData>(queryKey: readonly unknown[]): Promise<CacheRecord<TData> | null> => {
   if (typeof window === 'undefined') {
@@ -54,6 +56,23 @@ const toAbsoluteUrl = (path: string) => {
 }
 
 export const conditionalGet = async <TData>({ queryKey, path, parser }: ConditionalGetOptions<TData>): Promise<TData> => {
+  const inFlightKey = getInFlightKey(queryKey, path)
+  const existing = inFlightGets.get(inFlightKey)
+  if (existing) {
+    return existing as Promise<TData>
+  }
+
+  const request = executeConditionalGet<TData>({ queryKey, path, parser })
+  inFlightGets.set(inFlightKey, request)
+
+  try {
+    return await request
+  } finally {
+    inFlightGets.delete(inFlightKey)
+  }
+}
+
+const executeConditionalGet = async <TData>({ queryKey, path, parser }: ConditionalGetOptions<TData>): Promise<TData> => {
   const previous = await readRecord<TData>(queryKey)
 
   const headers: Record<string, string> = {

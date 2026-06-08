@@ -27,10 +27,15 @@ export type GroupMemberToolRow = {
   updatedUtc?: string
 }
 
-export const useGroupScreen = (groupId: string) => {
+type GroupScreenOptions = {
+  loadEvents?: boolean
+}
+
+export const useGroupScreen = (groupId: string, options: GroupScreenOptions = {}) => {
   const auth = useAuthStore()
   const t = useUiText()
   const queryClient = useQueryClient()
+  const shouldLoadEvents = options.loadEvents === true
   const [activeTab, setActiveTab] = useState<GroupTab>('overview')
   const [group, setGroup] = useState<GroupDto | null>(null)
   const [groupLoading, setGroupLoading] = useState(true)
@@ -96,7 +101,7 @@ export const useGroupScreen = (groupId: string) => {
 
   // Fetch events for approved members and for public church group access.
   useEffect(() => {
-    if (!groupId || (membership?.status !== 'approved' && !group?.isChurch)) {
+    if (!shouldLoadEvents || !groupId || (membership?.status !== 'approved' && !group?.isChurch)) {
       setEvents([])
       return
     }
@@ -106,7 +111,7 @@ export const useGroupScreen = (groupId: string) => {
       .then((data) => { if (!cancelled) setEvents(data) })
       .catch(() => { if (!cancelled) setEvents([]) })
     return () => { cancelled = true }
-  }, [group?.isChurch, groupId, membership?.status])
+  }, [group?.isChurch, groupId, membership?.status, shouldLoadEvents])
 
   const summary = useMemo(() => {
     if (!group) return ''

@@ -214,7 +214,7 @@ const GroupManageView = () => {
     kickMember,
     setCoLeader,
     deleteEvent,
-  } = useGroupScreen(groupId)
+  } = useGroupScreen(groupId, { loadEvents: true })
 
   const activeSection = searchParams.get('section') ?? 'group'
 
