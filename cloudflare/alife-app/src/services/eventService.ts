@@ -1,6 +1,6 @@
 import type { ExtractEventFromChatResponse, EventSessionState, EventDto, GroupEventRecord } from '../types/event'
 import { groupEventsQueryKey } from '../db/collections/groupCollection'
-import { removeCachedRecord } from '../db/httpCache'
+import { conditionalGet, removeCachedRecord } from '../db/httpCache'
 import { queryClient } from '../db/queryClient'
 import { http } from './http'
 import { createAiSessionService } from './aiSessionService'
@@ -61,8 +61,10 @@ export const eventService = {
   },
 
   getGroupEvents: async (groupId: string): Promise<GroupEventRecord[]> => {
-    const { data } = await http.get<GroupEventRecord[]>(`/api/groups/${groupId}/events`)
-    return data
+    return conditionalGet<GroupEventRecord[]>({
+      queryKey: groupEventsQueryKey(groupId),
+      path: `/api/groups/${groupId}/events`,
+    })
   },
 
   createGroupEvent: async (groupId: string, eventDto: EventDto, sessionId?: string): Promise<GroupEventRecord> => {
