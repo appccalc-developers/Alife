@@ -208,7 +208,9 @@ const EventNoticePanel = ({ event, eventDto, language }: { event: GroupEventReco
   const title = localized(eventDto.title, language) || event.titleEn || event.titleZh
   const description = localized(eventDto.description, language)
   const location = localized(eventDto.locationName, language)
-  const posterUrl = eventDto.posterImageUrl || undefined
+  const posterUrl = typeof eventDto.posterImageUrl === 'string' && eventDto.posterImageUrl.trim()
+    ? eventDto.posterImageUrl.trim()
+    : undefined
   const galleryUrls = eventDto.galleryUrls.filter(Boolean)
   const feeParts = [
     eventDto.baseFeePerAdult != null ? `${eventDto.currency} ${eventDto.baseFeePerAdult} / adult` : '',
