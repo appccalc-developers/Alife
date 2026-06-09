@@ -8,10 +8,13 @@ const getDefaultImageApiBaseUrl = () => {
     return `${window.location.origin}/images`
   }
 
-  return 'https://images.ccalc.live'
+  return 'https://ccalc.live/images'
 }
 
 const IMAGE_API_BASE_URL = (import.meta.env.VITE_IMAGE_API_BASE_URL ?? getDefaultImageApiBaseUrl()).trim().replace(/\/$/, '')
+
+const LEGACY_IMAGE_HOST = 'images.ccalc.live'
+const APP_IMAGE_BASE_URL = 'https://ccalc.live/images'
 
 const IMAGE_EXTENSIONS = new Set([
   'jpg',
@@ -47,6 +50,23 @@ export type UploadedImage = {
   uploaded: string
   contentType: string
   url: string
+}
+
+export function normalizeImageUrl(value: string): string {
+  if (!value) {
+    return value
+  }
+
+  try {
+    const url = new URL(value)
+    if (url.protocol === 'https:' && url.hostname === LEGACY_IMAGE_HOST) {
+      return `${APP_IMAGE_BASE_URL}${url.pathname}${url.search}${url.hash}`
+    }
+  } catch {
+    return value
+  }
+
+  return value
 }
 
 export function getKeyExtension(fileName: string): string {
@@ -123,5 +143,8 @@ export async function uploadImage(file: File, folderPath = ''): Promise<Uploaded
     throw new Error('Invalid upload response: missing image.url')
   }
 
-  return image
+  return {
+    ...image,
+    url: normalizeImageUrl(image.url),
+  }
 }

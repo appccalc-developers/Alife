@@ -7,6 +7,8 @@ import type { EventReviewRecord, ReviewDraft } from '../../types/review'
 import { useAiSession } from '../../hooks/useAiSession'
 import { createReviewId, fileToAiAttachment, parseReviewDraft, reviewSessionService } from '../../services/reviewSessionService'
 import { normalizeApiError } from '../../services/http'
+import { normalizeImageUrl } from '../../services/imageWorkerApi'
+import CoverImage from '../CoverImage'
 
 type ChatMessage = {
   role: 'user' | 'assistant'
@@ -123,11 +125,14 @@ const ReviewChatDialog = ({
   const existingPhotoPreviews = useMemo(
     () => (draft?.photoFiles ?? [])
       .filter((photo) => Boolean(photo.url))
-      .map((photo, index) => ({
-        key: `${photo.url}-${index}`,
-        url: photo.url,
-        alt: photo.fileName || `Review photo ${index + 1}`,
-      })),
+      .map((photo, index) => {
+        const url = normalizeImageUrl(photo.url)
+        return {
+          key: `${url}-${index}`,
+          url,
+          alt: photo.fileName || `Review photo ${index + 1}`,
+        }
+      }),
     [draft?.photoFiles],
   )
 
@@ -379,10 +384,24 @@ const ReviewChatDialog = ({
             {existingPhotoPreviews.length || uploadedPhotoPreviews.length ? (
               <div className="grid grid-cols-3 gap-2">
                 {existingPhotoPreviews.map((photo) => (
-                  <img key={photo.key} src={photo.url} alt={photo.alt} className="aspect-square rounded-lg object-cover" />
+                  <CoverImage
+                    key={photo.key}
+                    src={photo.url}
+                    alt={photo.alt}
+                    aspectRatio={1}
+                    className="rounded-lg"
+                    openOnLongPressOrDoubleClick
+                  />
                 ))}
                 {uploadedPhotoPreviews.map((url, index) => (
-                  <img key={url} src={url} alt={`Review upload ${index + 1}`} className="aspect-square rounded-lg object-cover" />
+                  <CoverImage
+                    key={url}
+                    src={url}
+                    alt={`Review upload ${index + 1}`}
+                    aspectRatio={1}
+                    className="rounded-lg"
+                    openOnLongPressOrDoubleClick
+                  />
                 ))}
               </div>
             ) : null}

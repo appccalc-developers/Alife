@@ -17,7 +17,14 @@ interface CoverImageProps {
   onLoad?: () => void
   /** Container style overrides */
   style?: React.CSSProperties
+  /** Navigate to the image URL on double click or long press. */
+  openOnLongPressOrDoubleClick?: boolean
+  /** Optional URL to navigate to when opening differs from `src`. */
+  navigationUrl?: string
 }
+
+const LONG_PRESS_MS = 650
+const LONG_PRESS_MOVE_TOLERANCE_PX = 8
 
 /**
  * Optimized CoverImage component:
@@ -38,13 +45,18 @@ const CoverImage: React.FC<CoverImageProps> = ({
   fixedHeight = false,
   onLoad,
   style,
+  openOnLongPressOrDoubleClick = false,
+  navigationUrl,
 }) => {
   const [loaded, setLoaded] = useState(false)
   const [error, setError] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const imgRef = useRef<HTMLImageElement>(null)
   const observerRef = useRef<IntersectionObserver | null>(null)
+  const longPressTimerRef = useRef<number | null>(null)
+  const pointerStartRef = useRef<{ x: number; y: number } | null>(null)
   const [shouldLoad, setShouldLoad] = useState(fetchPriority === 'high')
+  const imageNavigationUrl = openOnLongPressOrDoubleClick ? (navigationUrl || src) : ''
 
   // Determine priority: first 2 images get 'high'
   const effectivePriority = index < 2 ? 'high' : fetchPriority
@@ -92,6 +104,48 @@ const CoverImage: React.FC<CoverImageProps> = ({
     setLoaded(true) // Mark as loaded so placeholder disappears
   }, [])
 
+  const clearLongPressTimer = useCallback(() => {
+    if (longPressTimerRef.current !== null) {
+      window.clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
+  }, [])
+
+  const openImageUrl = useCallback(() => {
+    if (!imageNavigationUrl) {
+      return
+    }
+
+    window.location.assign(imageNavigationUrl)
+  }, [imageNavigationUrl])
+
+  const handlePointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (!imageNavigationUrl) {
+      return
+    }
+
+    pointerStartRef.current = { x: event.clientX, y: event.clientY }
+    clearLongPressTimer()
+    longPressTimerRef.current = window.setTimeout(() => {
+      longPressTimerRef.current = null
+      openImageUrl()
+    }, LONG_PRESS_MS)
+  }, [clearLongPressTimer, imageNavigationUrl, openImageUrl])
+
+  const handlePointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (!pointerStartRef.current) {
+      return
+    }
+
+    const deltaX = Math.abs(event.clientX - pointerStartRef.current.x)
+    const deltaY = Math.abs(event.clientY - pointerStartRef.current.y)
+    if (deltaX > LONG_PRESS_MOVE_TOLERANCE_PX || deltaY > LONG_PRESS_MOVE_TOLERANCE_PX) {
+      clearLongPressTimer()
+    }
+  }, [clearLongPressTimer])
+
+  useEffect(() => clearLongPressTimer, [clearLongPressTimer])
+
   // Calculate container padding for aspect ratio
   const paddingBottom = fixedHeight ? undefined : `${(1 / aspectRatio) * 100}%`
   const minHeight = fixedHeight ? undefined : '48px'
@@ -99,7 +153,7 @@ const CoverImage: React.FC<CoverImageProps> = ({
   return (
     <div
       ref={containerRef}
-      className={`relative overflow-hidden bg-slate-100 ${className}`}
+      className={`relative overflow-hidden bg-slate-100 ${imageNavigationUrl ? 'cursor-zoom-in' : ''} ${className}`}
       style={{
         minHeight,
         paddingBottom,
@@ -107,6 +161,14 @@ const CoverImage: React.FC<CoverImageProps> = ({
       }}
       role="img"
       aria-label={alt}
+      title={imageNavigationUrl || undefined}
+      onDoubleClick={imageNavigationUrl ? openImageUrl : undefined}
+      onPointerDown={imageNavigationUrl ? handlePointerDown : undefined}
+      onPointerMove={imageNavigationUrl ? handlePointerMove : undefined}
+      onPointerUp={imageNavigationUrl ? clearLongPressTimer : undefined}
+      onPointerCancel={imageNavigationUrl ? clearLongPressTimer : undefined}
+      onPointerLeave={imageNavigationUrl ? clearLongPressTimer : undefined}
+      onContextMenu={imageNavigationUrl ? (event) => event.preventDefault() : undefined}
     >
       {/* Image - only render when shouldLoad is true */}
       {shouldLoad && (
@@ -119,6 +181,7 @@ const CoverImage: React.FC<CoverImageProps> = ({
           fetchPriority={effectivePriority}
           onLoad={handleLoad}
           onError={handleError}
+          draggable={false}
           className={`
             absolute inset-0 w-full h-full
             transition-opacity duration-300 ease-in-out
