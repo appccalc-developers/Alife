@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, Navigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
 import ReviewChatDialog from '../components/group/ReviewChatDialog'
 import AppEmptyState from '../components/layout/AppEmptyState'
 import AppPageShell from '../components/layout/AppPageShell'
@@ -7,7 +7,7 @@ import AppSectionCard from '../components/layout/AppSectionCard'
 import { useUiText } from '../i18n/uiText'
 import { enrollmentSessionService } from '../services/enrollmentSessionService'
 import { eventService } from '../services/eventService'
-import { reviewSessionService } from '../services/reviewSessionService'
+import { createReviewId, reviewSessionService } from '../services/reviewSessionService'
 import { useAuthStore } from '../stores/auth'
 import type { EventEnrollmentRecord } from '../types/enrollment'
 import type { GroupEventRecord } from '../types/event'
@@ -16,7 +16,10 @@ import type { EventReviewRecord } from '../types/review'
 const EventReviewView = () => {
   const t = useUiText()
   const { groupId = '', eventId = '' } = useParams<{ groupId: string; eventId: string }>()
+  const [searchParams] = useSearchParams()
+  const reviewId = searchParams.get('reviewId') || ''
   const { language, me } = useAuthStore()
+  const [newReviewId, setNewReviewId] = useState(() => createReviewId())
   const [event, setEvent] = useState<GroupEventRecord | null>(null)
   const [existingReview, setExistingReview] = useState<EventReviewRecord | null>(null)
   const [enrollments, setEnrollments] = useState<EventEnrollmentRecord[]>([])
@@ -38,7 +41,7 @@ const EventReviewView = () => {
       .then(([events, reviews, enrollmentRecords]) => {
         if (cancelled) return
         setEvent(events.find((item) => item.id === eventId) ?? null)
-        setExistingReview(reviews.find((item) => !me?.id || item.memberId === me.id) ?? reviews[0] ?? null)
+        setExistingReview(reviewId ? reviews.find((item) => item.id === reviewId) ?? null : null)
         setEnrollments(enrollmentRecords)
       })
       .catch(() => {
@@ -55,7 +58,13 @@ const EventReviewView = () => {
     return () => {
       cancelled = true
     }
-  }, [eventId, groupId, me?.id, t])
+  }, [eventId, groupId, reviewId, t])
+
+  useEffect(() => {
+    if (!reviewId) {
+      setNewReviewId(createReviewId())
+    }
+  }, [eventId, reviewId])
 
   if (!groupId || !eventId) {
     return <Navigate to="/" replace />
@@ -92,15 +101,20 @@ const EventReviewView = () => {
               <p className="text-sm text-emerald-700">{successMessage}</p>
             </AppSectionCard>
           ) : null}
-          <ReviewChatDialog
-            groupId={groupId}
-            event={event}
-            memberId={me?.id}
-            language={language}
-            existingReview={existingReview}
-            enrollments={enrollments}
-            onSuccess={setSuccessMessage}
-          />
+          {reviewId && !existingReview ? (
+            <AppEmptyState title={t('eventNotFound')} description={t('eventLoadFailed')} />
+          ) : (
+            <ReviewChatDialog
+              groupId={groupId}
+              event={event}
+              memberId={me?.id}
+              language={language}
+              reviewId={reviewId || newReviewId}
+              existingReview={existingReview}
+              enrollments={enrollments}
+              onSuccess={setSuccessMessage}
+            />
+          )}
         </div>
       ) : null}
     </AppPageShell>

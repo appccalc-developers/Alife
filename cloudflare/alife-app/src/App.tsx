@@ -22,6 +22,7 @@ import ProfileView from './views/ProfileView'
 import SermonsView from './views/SermonsView'
 import SermonVideoView from './views/SermonVideoView'
 import EventCreatorView from './views/EventCreatorView'
+import EventDetailView from './views/EventDetailView'
 import EventEnrollmentView from './views/EventEnrollmentView'
 import EventReviewView from './views/EventReviewView'
 import GroupManageView from './views/GroupManageView'
@@ -110,6 +111,23 @@ const EventsIcon = () => (
   </svg>
 )
 
+const EnrollmentIcon = () => (
+  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M8 7h8" />
+    <path d="M8 12h8" />
+    <path d="M8 17h5" />
+    <rect x="4" y="3" width="16" height="18" rx="2" />
+  </svg>
+)
+
+const MemoriesIcon = () => (
+  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+    <rect x="3" y="5" width="18" height="16" rx="2" />
+    <path d="m3 16 5-5 4 4 2-2 5 5" />
+    <circle cx="16" cy="9" r="1.5" />
+  </svg>
+)
+
 const EditIcon = () => (
   <svg aria-hidden="true" viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M12 20h9" />
@@ -176,7 +194,7 @@ const ShellSearchNavLink = ({ item, mobile = false }: { item: ShellNavItem; mobi
   const target = new URL(item.to, window.location.origin)
   const pageEditMatch = location.pathname.match(/^\/pages\/([^/]+)\/edit$/)
   const isActive =
-    (location.pathname === target.pathname && (!item.matchSearch || location.search === item.matchSearch)) ||
+    (location.pathname === target.pathname && (item.matchSearch ? location.search === item.matchSearch : location.search === target.search)) ||
     (Boolean(item.pageId) && pageEditMatch?.[1] === item.pageId)
 
   return (
@@ -498,6 +516,7 @@ const App = () => {
   const groupJoinMatch = location.pathname.match(/^\/groups\/([^/]+)\/join$/)
   const groupManageMatch = location.pathname.match(/^\/groups\/([^/]+)\/manage$/)
   const groupCreatePageMatch = location.pathname.match(/^\/groups\/([^/]+)\/pages\/new$/)
+  const groupEventDetailMatch = location.pathname.match(/^\/groups\/([^/]+)\/events\/([^/]+)$/)
   const groupEventEnrollmentMatch = location.pathname.match(/^\/groups\/([^/]+)\/events\/[^/]+\/enroll$/)
   const groupEventReviewMatch = location.pathname.match(/^\/groups\/([^/]+)\/events\/[^/]+\/review$/)
   const eventCreateMatch = location.pathname.match(/^\/events\/new$/)
@@ -509,7 +528,7 @@ const App = () => {
   const isGroupScreen = Boolean(groupScreenMatch)
   const isManagementScreen = Boolean(groupManageMatch)
   const isPageEditorScreen = Boolean(groupCreatePageMatch || pageEditMatch)
-  const isEventScreen = Boolean(eventCreateMatch || eventEditMatch || groupEventEnrollmentMatch || groupEventReviewMatch)
+  const isEventScreen = Boolean(eventCreateMatch || eventEditMatch || groupEventDetailMatch || groupEventEnrollmentMatch || groupEventReviewMatch)
   const isSermonDetailScreen = Boolean(sermonDetailMatch)
   const isProfileScreen = Boolean(profileMatch)
   const contextualGroupId =
@@ -517,6 +536,7 @@ const App = () => {
     groupJoinMatch?.[1] ||
     groupManageMatch?.[1] ||
     groupCreatePageMatch?.[1] ||
+    groupEventDetailMatch?.[1] ||
     groupEventEnrollmentMatch?.[1] ||
     groupEventReviewMatch?.[1] ||
     (eventCreateMatch || eventEditMatch ? searchParams.get('groupId') || CurrentGroup?.id || '' : '') ||
@@ -549,7 +569,14 @@ const App = () => {
       { label: translateUi(auth.language, 'events'), to: `/groups/${contextualGroupId}/manage?section=events`, matchSearch: '?section=events', icon: <EventsIcon /> },
     ]
     : []
-  const shellNavItems = isManagementScreen ? managementNavItems : isGroupScreen || isPageEditorScreen ? currentGroupPageNavItems : []
+  const eventDetailNavItems: ShellNavItem[] = contextualGroupId && groupEventDetailMatch?.[2]
+    ? [
+      { label: auth.language === 'zh' ? '活动通知' : 'Notice', to: `/groups/${contextualGroupId}/events/${groupEventDetailMatch[2]}`, icon: <EventsIcon /> },
+      { label: auth.language === 'zh' ? '报名' : 'Enrollment', to: `/groups/${contextualGroupId}/events/${groupEventDetailMatch[2]}?section=enrollments`, matchSearch: '?section=enrollments', icon: <EnrollmentIcon /> },
+      { label: auth.language === 'zh' ? '图文回忆' : 'Memories', to: `/groups/${contextualGroupId}/events/${groupEventDetailMatch[2]}?section=memories`, matchSearch: '?section=memories', icon: <MemoriesIcon /> },
+    ]
+    : []
+  const shellNavItems = isManagementScreen ? managementNavItems : groupEventDetailMatch ? eventDetailNavItems : isGroupScreen || isPageEditorScreen ? currentGroupPageNavItems : []
   const fabItems: ShellFabItem[] = isGroupScreen && canManageCurrentGroup
     ? [
       ...(selectedPageId
@@ -835,6 +862,7 @@ const App = () => {
               <Route path="/sermons/:sermonId" element={<SermonVideoView />} />
               <Route path="/events/new" element={<EventCreatorView />} />
               <Route path="/events/:eventId/edit" element={<EventCreatorView />} />
+              <Route path="/groups/:groupId/events/:eventId" element={<EventDetailView />} />
               <Route path="/groups/:groupId/events/:eventId/enroll" element={<EventEnrollmentView />} />
               <Route path="/groups/:groupId/events/:eventId/review" element={<EventReviewView />} />
               <Route path="/groups/:groupId/pages/new" element={<PageEditorView />} />

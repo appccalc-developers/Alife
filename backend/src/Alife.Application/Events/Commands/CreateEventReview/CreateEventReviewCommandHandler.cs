@@ -38,15 +38,6 @@ public sealed class CreateEventReviewCommandHandler(
             return AppResult<EventReviewDto>.Forbidden("You must be an approved member to review.");
         }
 
-        var existingReview = await dbContext.EventReviews
-            .AsNoTracking()
-            .AnyAsync(x => x.EventId == request.EventId && x.MemberId == request.CurrentMemberId, cancellationToken);
-
-        if (existingReview)
-        {
-            return AppResult<EventReviewDto>.Conflict("Review already exists for this event and member.");
-        }
-
         if (request.RequestedId.HasValue)
         {
             var idAlreadyExists = await dbContext.EventReviews

@@ -5,7 +5,7 @@ import type { EventEnrollmentRecord } from '../../types/enrollment'
 import type { GroupEventRecord, MultilingualString } from '../../types/event'
 import type { EventReviewRecord, ReviewDraft } from '../../types/review'
 import { useAiSession } from '../../hooks/useAiSession'
-import { fileToAiAttachment, parseReviewDraft, reviewSessionService } from '../../services/reviewSessionService'
+import { createReviewId, fileToAiAttachment, parseReviewDraft, reviewSessionService } from '../../services/reviewSessionService'
 import { normalizeApiError } from '../../services/http'
 
 type ChatMessage = {
@@ -18,13 +18,14 @@ type Props = {
   event: GroupEventRecord
   memberId?: string
   language: string
+  reviewId?: string
   existingReview?: EventReviewRecord | null
   enrollments?: EventEnrollmentRecord[]
   onSuccess: (message: string) => void
 }
 
-const createReviewSessionId = (memberId: string | undefined, eventId: string) =>
-  `member-${memberId ?? 'anonymous'}-event-${eventId}-review`
+const createReviewSessionId = (memberId: string | undefined, eventId: string, reviewId: string) =>
+  `member-${memberId ?? 'anonymous'}-event-${eventId}-review-${reviewId}`
 
 const initialMessage = (language: string): ChatMessage => ({
   role: 'assistant',
@@ -70,13 +71,16 @@ const ReviewChatDialog = ({
   event,
   memberId,
   language,
+  reviewId,
   existingReview = null,
   enrollments = [],
   onSuccess,
 }: Props) => {
+  const generatedReviewId = useMemo(() => createReviewId(), [event.id, memberId])
+  const targetReviewId = existingReview?.id || reviewId || generatedReviewId
   const sessionId = useMemo(
-    () => createReviewSessionId(memberId, event.id),
-    [event.id, memberId],
+    () => createReviewSessionId(memberId, event.id, targetReviewId),
+    [event.id, memberId, targetReviewId],
   )
   const existingDraft = useMemo(() => parseReviewDraft(existingReview), [existingReview])
   const appContext = useMemo<AiSessionAppContext>(() => ({
@@ -86,7 +90,7 @@ const ReviewChatDialog = ({
     eventId: event.id,
     eventData: buildEventData(event),
     knownFacts: {
-      reviewId: existingReview?.id,
+      reviewId: targetReviewId,
       existingReview: existingDraft,
       enrollments: enrollments.map((item) => {
         try {
@@ -100,7 +104,7 @@ const ReviewChatDialog = ({
         }
       }),
     },
-  }), [enrollments, event, existingDraft, existingReview?.id, groupId, language, memberId])
+  }), [enrollments, event, existingDraft, groupId, language, memberId, targetReviewId])
   const t = (key: UiTextKey) => translateUi(language, key)
   const { state, setState, loading, error, clearError, sendMessage } = useAiSession<ReviewDraft, MultilingualString | null>(
     sessionId,
@@ -123,7 +127,7 @@ const ReviewChatDialog = ({
     setCommitStatus('idle')
     setCommitError('')
     clearError()
-  }, [clearError, event.id, language])
+  }, [clearError, event.id, language, targetReviewId])
 
   useEffect(() => {
     if (!existingDraft) {

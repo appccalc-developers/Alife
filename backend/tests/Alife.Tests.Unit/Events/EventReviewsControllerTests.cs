@@ -41,7 +41,7 @@ public class EventReviewsControllerTests
     }
 
     [Fact]
-    public async Task Create_WhenReviewAlreadyExists_ReturnsConflict()
+    public async Task Create_WhenCommandReturnsConflict_ReturnsConflict()
     {
         var memberId = Guid.NewGuid();
         var eventId = Guid.NewGuid();
@@ -50,7 +50,7 @@ public class EventReviewsControllerTests
         currentMemberAccessor.GetCurrentMemberId().Returns(memberId);
         mediator
             .Send(Arg.Any<CreateEventReviewCommand>(), Arg.Any<CancellationToken>())
-            .Returns(AppResult<EventReviewDto>.Conflict("Review already exists for this event and member."));
+            .Returns(AppResult<EventReviewDto>.Conflict("Review id already exists."));
         var controller = new EventReviewsController(mediator, currentMemberAccessor);
         var payload = JsonDocument.Parse("""{"reflection":{"en":"Good","zh":"hao"}}""").RootElement;
 

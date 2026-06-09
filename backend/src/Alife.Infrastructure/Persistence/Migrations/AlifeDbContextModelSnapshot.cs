@@ -109,7 +109,6 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_event_reviews_member_id");
 
                     b.HasIndex("EventId", "MemberId")
-                        .IsUnique()
                         .HasDatabaseName("ix_event_reviews_event_id_member_id");
 
                     b.HasIndex("GroupId", "UpdatedUtc")
