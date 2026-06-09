@@ -225,3 +225,11 @@ At the end of each task, respond with:
 5. Suggested next step
 
 Keep the summary practical and concise.
+
+## Alife project workflow
+
+For Alife, every meaningful code change should be traceable through:
+GitHub issue → feature branch → local implementation → commit → push → PR against main.
+Use small, reviewable PRs. Prefer one issue per coherent feature, bug fix, or refactor.
+
+Start it when user type /shipit.
