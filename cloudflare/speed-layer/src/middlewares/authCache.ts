@@ -48,6 +48,7 @@ const AUTHZ_MIRROR_TTL_SECONDS = 7 * 24 * 60 * 60
 const PUBLIC_CACHEABLE_API_PATHS = new Set(['/api/sermons', '/api/pages/global'])
 const GROUP_SHARED_SUBRESOURCES = new Set(['pages', 'events', 'memberships', 'members', 'subgroups'])
 const EVENT_SHARED_SUBRESOURCES = new Set(['enrollments', 'reviews'])
+const LOGICAL_CACHE_RECORD_URL = 'https://alife.local/__alife-cache-record'
 
 export const authMiddleware = async (
   req: any,
@@ -124,11 +125,7 @@ export async function getSharedCacheGroupId(pathname: string, env: Env, pageMeta
 }
 
 export async function readPageMeta(env: Env, pageId: string) {
-  if (!env.ALIFE_API_CACHE) {
-    return undefined
-  }
-
-  const record = await env.ALIFE_API_CACHE.get(createPageMetaMapKey(pageId), { type: 'json' })
+  const record = await readLogicalCacheRecord(createPageMetaMapKey(pageId))
   if (!record || typeof record !== 'object') {
     return undefined
   }
@@ -147,11 +144,7 @@ export async function readPageMeta(env: Env, pageId: string) {
 }
 
 export async function readSharedCachedResponseRecord(env: Env, request: Request) {
-  if (!env.ALIFE_API_CACHE) {
-    return undefined
-  }
-
-  const record = await env.ALIFE_API_CACHE.get(createApiCacheKey(request), { type: 'json' })
+  const record = await readLogicalCacheRecord(createApiCacheKey(request))
   return isSharedCachedResponseRecord(record) ? record : undefined
 }
 
@@ -201,10 +194,6 @@ export function isSharedCachedResponseRecord(value: unknown): value is SharedCac
 }
 
 export async function writePageMeta(env: Env, pageId: string, item: Record<string, unknown>, fallbackGroupId: string) {
-  if (!env.ALIFE_API_CACHE) {
-    return
-  }
-
   const groupId = readString(item.ownerGroupId) ?? readString(item.groupId) ?? fallbackGroupId
   if (!groupId) {
     return
@@ -217,22 +206,19 @@ export async function writePageMeta(env: Env, pageId: string, item: Record<strin
     createdByMemberId: readString(item.createdByMemberId) ?? undefined,
   }
 
-  await env.ALIFE_API_CACHE.put(
-    createPageMetaMapKey(pageId),
-    JSON.stringify(meta),
-    { expirationTtl: AUTHZ_MIRROR_TTL_SECONDS },
-  )
+  await writeLogicalCacheRecord(createPageMetaMapKey(pageId), meta, AUTHZ_MIRROR_TTL_SECONDS)
 }
 
 export async function readEntityGroup(env: Env, entityType: string, entityId: string) {
-  if (env.ALIFE_API_CACHE) {
-    const record = await env.ALIFE_API_CACHE.get(createEntityGroupMapKey(entityType, entityId), { type: 'json' })
-    const groupId = readString((record as Record<string, unknown> | null)?.groupId)
-    if (groupId || entityType !== 'page') {
-      return groupId
-    }
+  const record = await readLogicalCacheRecord(createEntityGroupMapKey(entityType, entityId))
+  const groupId = readString((record as Record<string, unknown> | null)?.groupId)
+  if (groupId || entityType !== 'page') {
+    return groupId
+  }
 
-    return (await readPageMeta(env, entityId))?.groupId ?? null
+  const pageMetaGroupId = (await readPageMeta(env, entityId))?.groupId
+  if (pageMetaGroupId) {
+    return pageMetaGroupId
   }
 
   const response = await getEdgeCache().match(createLegacyEntityGroupMapRequest(entityType, entityId))
@@ -245,18 +231,10 @@ export async function readEntityGroup(env: Env, entityType: string, entityId: st
 }
 
 export async function writeEntityGroup(env: Env, entityType: string, entityId: string, groupId: string) {
-  if (env.ALIFE_API_CACHE) {
-    await env.ALIFE_API_CACHE.put(
-      createEntityGroupMapKey(entityType, entityId),
-      JSON.stringify({ groupId }),
-      { expirationTtl: AUTHZ_MIRROR_TTL_SECONDS },
-    )
-    return
-  }
-
-  await getEdgeCache().put(
-    createLegacyEntityGroupMapRequest(entityType, entityId),
-    Response.json({ groupId }),
+  await writeLogicalCacheRecord(
+    createEntityGroupMapKey(entityType, entityId),
+    { groupId },
+    AUTHZ_MIRROR_TTL_SECONDS,
   )
 }
 
@@ -347,6 +325,37 @@ export function createEntityGroupMapKey(entityType: string, entityId: string) {
 
 export function createLegacyEntityGroupMapRequest(entityType: string, entityId: string) {
   return new Request(`https://alife.local/__cache-map/${entityType}/${entityId}`, { method: 'GET' })
+}
+
+export function createLogicalCacheRecordRequest(key: string) {
+  const url = new URL(LOGICAL_CACHE_RECORD_URL)
+  url.searchParams.set('key', key)
+  return new Request(url.toString(), { method: 'GET' })
+}
+
+export async function readLogicalCacheRecord(key: string) {
+  const response = await getEdgeCache().match(createLogicalCacheRecordRequest(key))
+  if (!response) {
+    return undefined
+  }
+
+  return readJson(response)
+}
+
+export async function writeLogicalCacheRecord(key: string, value: unknown, ttlSeconds: number) {
+  await getEdgeCache().put(
+    createLogicalCacheRecordRequest(key),
+    Response.json(value, {
+      headers: {
+        'content-type': 'application/json',
+        'cache-control': `public, max-age=${ttlSeconds}`,
+      },
+    }),
+  )
+}
+
+export async function deleteLogicalCacheRecord(key: string) {
+  await getEdgeCache().delete(createLogicalCacheRecordRequest(key))
 }
 
 export function parseCookies(cookieHeader: string) {

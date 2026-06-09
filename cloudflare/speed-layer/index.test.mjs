@@ -12,6 +12,7 @@ let originResponses
 let cacheStore
 let authzStore
 let apiCacheStore
+let apiCacheRawStore
 let apiCacheGetKeys
 let apiCachePutOptions
 let deletedCacheKeys
@@ -23,7 +24,8 @@ beforeEach(() => {
   originResponses = []
   cacheStore = new Map()
   authzStore = new Map()
-  apiCacheStore = new Map()
+  apiCacheRawStore = new Map()
+  apiCacheStore = createApiCacheStore()
   apiCacheGetKeys = []
   apiCachePutOptions = new Map()
   deletedCacheKeys = []
@@ -38,12 +40,29 @@ beforeEach(() => {
   globalThis.caches = {
     default: {
       async match(request) {
+        const logicalKey = readLogicalCacheKey(request)
+        if (logicalKey) {
+          apiCacheGetKeys.push(logicalKey)
+        }
+
         return cacheStore.get(cacheKey(request))?.clone()
       },
       async put(request, response) {
+        const logicalKey = readLogicalCacheKey(request)
+        if (logicalKey) {
+          const body = await response.clone().text()
+          apiCacheRawStore.set(logicalKey, body)
+          apiCachePutOptions.set(logicalKey, readCachePutOptions(response))
+        }
+
         cacheStore.set(cacheKey(request), response.clone())
       },
       async delete(request) {
+        const logicalKey = readLogicalCacheKey(request)
+        if (logicalKey) {
+          apiCacheRawStore.delete(logicalKey)
+        }
+
         deletedCacheKeys.push(cacheKey(request))
         return cacheStore.delete(cacheKey(request))
       },
@@ -110,7 +129,7 @@ test('approved members share group detail edge cache entry', async () => {
   assert.equal(fetchCalls.length, 1)
 })
 
-test('approved group member reads shared group pages and memberships from KV cache', async () => {
+test('approved group member reads shared group pages and memberships from Cache API', async () => {
   const groupId = 'group-1'
   authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved' }))
   apiCacheStore.set(
@@ -131,7 +150,7 @@ test('approved group member reads shared group pages and memberships from KV cac
   assert.equal(fetchCalls.length, 0)
 })
 
-test('approved group member reads shared group subgroups from KV cache', async () => {
+test('approved group member reads shared group subgroups from Cache API', async () => {
   const groupId = 'group-1'
   const url = `https://ccalc.live/api/groups/${groupId}/subgroups`
   authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved' }))
@@ -146,7 +165,7 @@ test('approved group member reads shared group subgroups from KV cache', async (
   assert.equal(fetchCalls.length, 0)
 })
 
-test('approved group member reads non-draft page detail from shared KV cache', async () => {
+test('approved group member reads non-draft page detail from shared Cache API', async () => {
   const groupId = 'group-1'
   const pageId = 'page-1'
   const url = `https://ccalc.live/api/pages/${pageId}`
@@ -603,7 +622,7 @@ test('successful event update evicts the group events list cache', async () => {
   assert.equal(cacheStore.has(cacheKey(new Request(listUrl))), false)
 })
 
-test('approved group event reads use shared KV cache', async () => {
+test('approved group event reads use shared Cache API', async () => {
   const groupId = 'group-1'
   const listUrl = `https://ccalc.live/api/groups/${groupId}/events`
   authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved' }))
@@ -649,7 +668,7 @@ test('approved members in the same group share the same group pages cache key', 
   assert.equal(fetchCalls.length, 1)
 })
 
-test('matching If-None-Match for group pages is answered from shared KV cache with 304', async () => {
+test('matching If-None-Match for group pages is answered from shared Cache API with 304', async () => {
   const groupId = 'group-1'
   const url = `https://ccalc.live/api/groups/${groupId}/pages`
   authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved' }))
@@ -1383,24 +1402,6 @@ function createEnv() {
         authzStore.delete(key)
       },
     },
-    ALIFE_API_CACHE: {
-      async get(key, options) {
-        apiCacheGetKeys.push(key)
-        const value = apiCacheStore.get(key)
-        if (value === undefined) {
-          return null
-        }
-
-        return options?.type === 'json' ? JSON.parse(value) : value
-      },
-      async put(key, value, options) {
-        apiCacheStore.set(key, value)
-        apiCachePutOptions.set(key, options ?? {})
-      },
-      async delete(key) {
-        apiCacheStore.delete(key)
-      },
-    },
   }
 }
 
@@ -1437,6 +1438,54 @@ function cacheKey(request) {
   url.hash = ''
   url.searchParams.sort()
   return url.toString()
+}
+
+function createApiCacheStore() {
+  return {
+    set(key, value) {
+      apiCacheRawStore.set(key, value)
+      cacheStore.set(logicalCacheStorageKey(key), new Response(value, {
+        headers: {
+          'content-type': 'application/json',
+          'cache-control': 'public, max-age=86400',
+        },
+      }))
+      return this
+    },
+    get(key) {
+      return apiCacheRawStore.get(key)
+    },
+    has(key) {
+      return apiCacheRawStore.has(key)
+    },
+    delete(key) {
+      cacheStore.delete(logicalCacheStorageKey(key))
+      return apiCacheRawStore.delete(key)
+    },
+    get size() {
+      return apiCacheRawStore.size
+    },
+  }
+}
+
+function logicalCacheStorageKey(key) {
+  const url = new URL('https://alife.local/__alife-cache-record')
+  url.searchParams.set('key', key)
+  url.searchParams.sort()
+  return url.toString()
+}
+
+function readLogicalCacheKey(request) {
+  const url = new URL(request.url)
+  return url.origin === 'https://alife.local' && url.pathname === '/__alife-cache-record'
+    ? url.searchParams.get('key')
+    : ''
+}
+
+function readCachePutOptions(response) {
+  const cacheControl = response.headers.get('cache-control') ?? ''
+  const maxAge = cacheControl.match(/(?:^|,\s*)max-age=(\d+)/)?.[1]
+  return maxAge ? { expirationTtl: Number(maxAge) } : {}
 }
 
 function createApiCacheKey(url) {

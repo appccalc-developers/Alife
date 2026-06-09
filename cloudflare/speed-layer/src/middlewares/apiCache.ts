@@ -17,6 +17,9 @@ import {
   writePageMeta,
   writeEntityGroup,
   readEntityGroup,
+  readLogicalCacheRecord,
+  writeLogicalCacheRecord,
+  deleteLogicalCacheRecord,
   createMembershipKey,
   createMemberProfileAuthzKey,
   extractMemberIdFromRequest,
@@ -227,11 +230,11 @@ export const apiCacheMiddleware = async (
 }
 
 export async function readSharedCachedResponse(env: Env, request: Request, context: SharedCacheContext) {
-  if (!canReadSharedCache(context) || !env.ALIFE_API_CACHE) {
+  if (!canReadSharedCache(context)) {
     return undefined
   }
 
-  const record = context.cachedResponse ?? await env.ALIFE_API_CACHE.get(createApiCacheKey(request), { type: 'json' }) as StoredResponse | null
+  const record = context.cachedResponse ?? await readLogicalCacheRecord(createApiCacheKey(request))
   if (!isStoredResponse(record)) {
     return undefined
   }
@@ -303,10 +306,6 @@ export async function writeSharedCachedResponse(env: Env, request: Request, resp
 }
 
 export async function writeStoredResponse(env: Env, key: string, response: Response, ttlSeconds: number) {
-  if (!env.ALIFE_API_CACHE) {
-    return
-  }
-
   const headers: Record<string, string> = {}
   response.headers.forEach((value, key) => {
     headers[key] = value
@@ -326,19 +325,11 @@ export async function writeStoredResponse(env: Env, key: string, response: Respo
     storedAt: new Date().toISOString(),
   }
 
-  await env.ALIFE_API_CACHE.put(
-    key,
-    JSON.stringify(record),
-    { expirationTtl: ttlSeconds },
-  )
+  await writeLogicalCacheRecord(key, record, ttlSeconds)
 }
 
 export async function readStoredResponse(env: Env, key: string) {
-  if (!env.ALIFE_API_CACHE) {
-    return undefined
-  }
-
-  const record = await env.ALIFE_API_CACHE.get(key, { type: 'json' }) as StoredResponse | null
+  const record = await readLogicalCacheRecord(key)
   if (!isStoredResponse(record)) {
     return undefined
   }
@@ -427,11 +418,7 @@ export async function passivelyInvalidate(env: Env, request: Request, response: 
 }
 
 export async function deleteApiCacheKey(env: Env, key: string) {
-  if (!env.ALIFE_API_CACHE) {
-    return
-  }
-
-  await env.ALIFE_API_CACHE.delete(key)
+  await deleteLogicalCacheRecord(key)
 }
 
 export async function deleteAuthzKey(env: Env, key: string) {
