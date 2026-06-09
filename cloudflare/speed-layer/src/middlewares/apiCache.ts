@@ -17,7 +17,6 @@ import {
   writePageMeta,
   writeEntityGroup,
   readEntityGroup,
-  readLogicalCacheRecord,
   writeLogicalCacheRecord,
   deleteLogicalCacheRecord,
   createMembershipKey,
@@ -38,20 +37,13 @@ const GROUP_SHARED_CACHE_TTLS = {
   events: CACHE_TTL_SECONDS,
   members: CACHE_TTL_SECONDS,
 } as const
+const STORED_RESPONSE_CACHE_URL_PREFIX = 'https://alife.local/cache-v2/'
 
 export type AuthorizedGroupCacheKind = keyof typeof GROUP_SHARED_CACHE_TTLS
 export type AuthorizedGroupCachePolicy = {
   groupId: string
   cacheKind: AuthorizedGroupCacheKind
   ttlSeconds: number
-}
-
-export type StoredResponse = {
-  status: number
-  statusText?: string
-  headers: Record<string, string>
-  body: string
-  storedAt: string
 }
 
 const ALLOWED_ORIGINS = new Set(['https://ccalc.live', 'http://localhost:5173'])
@@ -75,9 +67,8 @@ export const apiCacheMiddleware = async (
 
   if (memberProfileCacheKey) {
     const memberId = extractMemberIdFromRequest(req)
-    const rawCached = await readStoredResponse(env, memberProfileCacheKey)
-    if (rawCached) {
-      const cached = rawCached.headers.has('etag') ? rawCached : await withEtag(rawCached)
+    const cached = await readStoredResponse(env, memberProfileCacheKey)
+    if (cached) {
       ctx.waitUntil(rememberMemberProfileAuthorization(env, memberId, memberProfileCacheKey, cached.clone()))
       const clientEtag = req.headers.get('if-none-match')
       const cachedEtag = cached.headers.get('etag')
@@ -132,7 +123,7 @@ export const apiCacheMiddleware = async (
     }
 
     if (cached.cacheStatus === 'HIT') {
-      const hitResponse = cached.response.headers.has('etag') ? cached.response : await withEtag(cached.response)
+      const hitResponse = cached.response
       const clientEtag = req.headers.get('if-none-match')
       const cachedEtag = hitResponse.headers.get('etag')
       if (clientEtag && cachedEtag && matchesIfNoneMatch(clientEtag, cachedEtag)) {
@@ -167,12 +158,11 @@ export const apiCacheMiddleware = async (
   }
 
   if (req.method === 'GET' && !bypassEdgeCache) {
-    const rawCached = sharedContext
+    const cached = sharedContext
       ? await readSharedCachedResponse(env, req, sharedContext)
       : await getEdgeCache().match(await createCacheKey(req))
 
-    if (rawCached) {
-      const cached = rawCached.headers.has('etag') ? rawCached : await withEtag(rawCached)
+    if (cached) {
       const clientEtag = req.headers.get('if-none-match')
       const cachedEtag = cached.headers.get('etag')
       if (clientEtag && cachedEtag && matchesIfNoneMatch(clientEtag, cachedEtag)) {
@@ -234,16 +224,7 @@ export async function readSharedCachedResponse(env: Env, request: Request, conte
     return undefined
   }
 
-  const record = context.cachedResponse ?? await readLogicalCacheRecord(createApiCacheKey(request))
-  if (!isStoredResponse(record)) {
-    return undefined
-  }
-
-  return new Response(record.body, {
-    status: record.status,
-    statusText: record.statusText,
-    headers: record.headers,
-  })
+  return readStoredResponse(env, createApiCacheKey(request))
 }
 
 export function canReadSharedCache(context: SharedCacheContext) {
@@ -306,51 +287,29 @@ export async function writeSharedCachedResponse(env: Env, request: Request, resp
 }
 
 export async function writeStoredResponse(env: Env, key: string, response: Response, ttlSeconds: number) {
-  const headers: Record<string, string> = {}
-  response.headers.forEach((value, key) => {
-    headers[key] = value
-  })
-
   const body = await response.text()
+  const headers = new Headers(response.headers)
+  const etag = headers.get('etag') ?? await generateEtag(body)
 
-  if (!headers['etag']) {
-    headers['etag'] = await generateEtag(body)
-  }
+  headers.set('etag', etag)
+  headers.set('cache-control', `public, max-age=${ttlSeconds}`)
 
-  const record: StoredResponse = {
-    status: response.status,
-    statusText: response.statusText,
-    headers,
-    body,
-    storedAt: new Date().toISOString(),
-  }
-
-  await writeLogicalCacheRecord(key, record, ttlSeconds)
+  await getEdgeCache().put(
+    createStoredResponseCacheRequest(key),
+    new Response(body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    }),
+  )
 }
 
 export async function readStoredResponse(env: Env, key: string) {
-  const record = await readLogicalCacheRecord(key)
-  if (!isStoredResponse(record)) {
-    return undefined
-  }
-
-  return new Response(record.body, {
-    status: record.status,
-    statusText: record.statusText,
-    headers: record.headers,
-  })
+  return getEdgeCache().match(createStoredResponseCacheRequest(key))
 }
 
-export function isStoredResponse(value: unknown): value is StoredResponse {
-  if (!value || typeof value !== 'object') {
-    return false
-  }
-
-  const record = value as Record<string, unknown>
-  return typeof record.status === 'number' &&
-    typeof record.headers === 'object' &&
-    record.headers !== null &&
-    typeof record.body === 'string'
+export function createStoredResponseCacheRequest(key: string) {
+  return new Request(`${STORED_RESPONSE_CACHE_URL_PREFIX}${encodeURIComponent(key)}`, { method: 'GET' })
 }
 
 export function createApiCacheKey(requestOrPath: Request | string) {
@@ -418,15 +377,11 @@ export async function passivelyInvalidate(env: Env, request: Request, response: 
 }
 
 export async function deleteApiCacheKey(env: Env, key: string) {
-  await deleteLogicalCacheRecord(key)
+  await getEdgeCache().delete(createStoredResponseCacheRequest(key))
 }
 
 export async function deleteAuthzKey(env: Env, key: string) {
-  if (!env.ALIFE_AUTHZ) {
-    return
-  }
-
-  await env.ALIFE_AUTHZ.delete(key)
+  await deleteLogicalCacheRecord(key)
 }
 
 export async function getInvalidationPaths(env: Env, request: Request, response: Response) {
@@ -570,18 +525,18 @@ export async function rememberGroupAuthorization(
   memberId: string,
   response: Response,
 ) {
-  if (!groupId || !memberId || response.status !== 200 || !env.ALIFE_AUTHZ) {
+  if (!groupId || !memberId || response.status !== 200) {
     return
   }
 
-  await env.ALIFE_AUTHZ.put(
+  await writeLogicalCacheRecord(
     createMembershipKey(groupId, memberId),
-    JSON.stringify({
+    {
       status: 'approved',
       source: 'origin-validated',
       updatedUtc: new Date().toISOString(),
-    }),
-    { expirationTtl: AUTHZ_MIRROR_TTL_SECONDS },
+    },
+    AUTHZ_MIRROR_TTL_SECONDS,
   )
 }
 
@@ -591,7 +546,7 @@ export async function rememberMemberProfileAuthorization(
   cacheKey: string,
   response: Response,
 ) {
-  if (!memberId || !cacheKey || response.status !== 200 || !env.ALIFE_AUTHZ) {
+  if (!memberId || !cacheKey || response.status !== 200) {
     return
   }
 
@@ -603,9 +558,9 @@ export async function rememberMemberProfileAuthorization(
   const now = new Date().toISOString()
   const memberships = readMemberships(body.memberships)
   await Promise.all([
-    env.ALIFE_AUTHZ.put(
+    writeLogicalCacheRecord(
       createMemberProfileAuthzKey(memberId),
-      JSON.stringify({
+      {
         status: 'cached',
         memberId: readString(body.id) ?? readString(body.memberId) ?? memberId,
         cacheKey,
@@ -616,18 +571,18 @@ export async function rememberMemberProfileAuthorization(
         memberships,
         source: 'api-me',
         updatedUtc: now,
-      }),
-      { expirationTtl: MEMBER_PROFILE_CACHE_TTL_SECONDS },
+      },
+      MEMBER_PROFILE_CACHE_TTL_SECONDS,
     ),
-    ...memberships.map((membership) => env.ALIFE_AUTHZ!.put(
+    ...memberships.map((membership) => writeLogicalCacheRecord(
       createMembershipKey(membership.groupId, memberId),
-      JSON.stringify({
+      {
         status: membership.status,
         role: membership.role,
         source: 'api-me',
         updatedUtc: now,
-      }),
-      { expirationTtl: AUTHZ_MIRROR_TTL_SECONDS },
+      },
+      AUTHZ_MIRROR_TTL_SECONDS,
     )),
   ])
 }

@@ -11,10 +11,12 @@ let fetchInits
 let originResponses
 let cacheStore
 let authzStore
+let authzRawStore
 let apiCacheStore
 let apiCacheRawStore
 let apiCacheGetKeys
 let apiCachePutOptions
+let storedResponseBodyReadCallbacks
 let deletedCacheKeys
 let waitUntilPromises
 
@@ -23,11 +25,13 @@ beforeEach(() => {
   fetchInits = []
   originResponses = []
   cacheStore = new Map()
-  authzStore = new Map()
+  authzRawStore = new Map()
+  authzStore = createLogicalRecordStore(authzRawStore)
   apiCacheRawStore = new Map()
-  apiCacheStore = createApiCacheStore()
+  apiCacheStore = createApiCacheStore(apiCacheRawStore)
   apiCacheGetKeys = []
   apiCachePutOptions = new Map()
+  storedResponseBodyReadCallbacks = new Map()
   deletedCacheKeys = []
   waitUntilPromises = []
 
@@ -40,27 +44,56 @@ beforeEach(() => {
   globalThis.caches = {
     default: {
       async match(request) {
-        const logicalKey = readLogicalCacheKey(request)
-        if (logicalKey) {
-          apiCacheGetKeys.push(logicalKey)
+        const storedResponseKey = readStoredResponseCacheKey(request)
+        if (storedResponseKey) {
+          apiCacheGetKeys.push(storedResponseKey)
         }
 
-        return cacheStore.get(cacheKey(request))?.clone()
+        const response = cacheStore.get(cacheKey(request))?.clone()
+        const bodyReadCallback = storedResponseBodyReadCallbacks.get(storedResponseKey)
+        if (response && bodyReadCallback) {
+          instrumentBodyReaders(response, bodyReadCallback)
+        }
+
+        return response
       },
       async put(request, response) {
+        const storedResponseKey = readStoredResponseCacheKey(request)
+        if (storedResponseKey) {
+          apiCacheRawStore.set(storedResponseKey, await serializeStoredResponse(response.clone()))
+          apiCachePutOptions.set(storedResponseKey, readCachePutOptions(response))
+        }
+
         const logicalKey = readLogicalCacheKey(request)
         if (logicalKey) {
           const body = await response.clone().text()
-          apiCacheRawStore.set(logicalKey, body)
-          apiCachePutOptions.set(logicalKey, readCachePutOptions(response))
+          if (isAuthzKey(logicalKey)) {
+            authzRawStore.set(logicalKey, body)
+          }
+
+          if (isLogicalApiCacheKey(logicalKey)) {
+            apiCacheRawStore.set(logicalKey, body)
+            apiCachePutOptions.set(logicalKey, readCachePutOptions(response))
+          }
         }
 
         cacheStore.set(cacheKey(request), response.clone())
       },
       async delete(request) {
+        const storedResponseKey = readStoredResponseCacheKey(request)
+        if (storedResponseKey) {
+          apiCacheRawStore.delete(storedResponseKey)
+        }
+
         const logicalKey = readLogicalCacheKey(request)
         if (logicalKey) {
-          apiCacheRawStore.delete(logicalKey)
+          if (isAuthzKey(logicalKey)) {
+            authzRawStore.delete(logicalKey)
+          }
+
+          if (isLogicalApiCacheKey(logicalKey)) {
+            apiCacheRawStore.delete(logicalKey)
+          }
         }
 
         deletedCacheKeys.push(cacheKey(request))
@@ -87,7 +120,7 @@ test('approved group member can read shared group detail cache', async () => {
   assert.equal(fetchCalls.length, 0)
 })
 
-test('group detail cache is gated by KV authorization mirror before cache hit', async () => {
+test('group detail cache is gated by Cache API authorization mirror before cache hit', async () => {
   const groupId = 'group-1'
   const url = `https://ccalc.live/api/groups/${groupId}`
   cacheStore.set(cacheKey(new Request(url)), Response.json({ id: groupId, name: 'Cached group' }))
@@ -201,13 +234,22 @@ test('matching If-None-Match for page detail reuses preloaded shared cache with 
   const groupId = 'group-1'
   const pageId = 'page-1'
   const url = `https://ccalc.live/api/pages/${pageId}`
+  let cachedBodyReads = 0
   authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved', role: 'Member' }))
-  apiCacheStore.set(
+  apiCacheStore.set(`map:page:${pageId}:meta`, JSON.stringify({
+    groupId,
+    visibility: 'Published',
+    createdByMemberId: 'member-2',
+  }))
+  seedNativeStoredResponse(
     createApiCacheKey(url),
-    createStoredResponse(
-      { id: pageId, ownerGroupId: groupId, visibility: 'Published', sections: [{ id: 'section-1' }] },
-      { etag: '"page-detail-v1"' },
-    ),
+    Response.json({ id: pageId, ownerGroupId: groupId, visibility: 'Published', sections: [{ id: 'section-1' }] }, {
+      headers: {
+        etag: '"page-detail-v1"',
+        'cache-control': 'public, max-age=86400',
+      },
+    }),
+    () => { cachedBodyReads += 1 },
   )
 
   const response = await dispatch(url, {
@@ -222,6 +264,7 @@ test('matching If-None-Match for page detail reuses preloaded shared cache with 
   assert.equal(await response.text(), '')
   assert.equal(fetchCalls.length, 0)
   assert.deepEqual(apiCacheGetKeys, [createApiCacheKey(url)])
+  assert.equal(cachedBodyReads, 0)
 })
 
 test('draft page detail shared cache is available to leader and author only', async () => {
@@ -1386,22 +1429,6 @@ async function dispatch(url, init = {}) {
 function createEnv() {
   return {
     API_PROXY_TARGET: 'https://api.ccalc.live',
-    ALIFE_AUTHZ: {
-      async get(key, options) {
-        const value = authzStore.get(key)
-        if (value === undefined) {
-          return null
-        }
-
-        return options?.type === 'json' ? JSON.parse(value) : value
-      },
-      async put(key, value) {
-        authzStore.set(key, value)
-      },
-      async delete(key) {
-        authzStore.delete(key)
-      },
-    },
   }
 }
 
@@ -1440,10 +1467,10 @@ function cacheKey(request) {
   return url.toString()
 }
 
-function createApiCacheStore() {
+function createLogicalRecordStore(rawStore) {
   return {
     set(key, value) {
-      apiCacheRawStore.set(key, value)
+      rawStore.set(key, value)
       cacheStore.set(logicalCacheStorageKey(key), new Response(value, {
         headers: {
           'content-type': 'application/json',
@@ -1453,17 +1480,55 @@ function createApiCacheStore() {
       return this
     },
     get(key) {
-      return apiCacheRawStore.get(key)
+      return rawStore.get(key)
     },
     has(key) {
-      return apiCacheRawStore.has(key)
+      return rawStore.has(key)
     },
     delete(key) {
       cacheStore.delete(logicalCacheStorageKey(key))
-      return apiCacheRawStore.delete(key)
+      return rawStore.delete(key)
     },
     get size() {
-      return apiCacheRawStore.size
+      return rawStore.size
+    },
+  }
+}
+
+function createApiCacheStore(rawStore) {
+  return {
+    set(key, value) {
+      rawStore.set(key, value)
+      if (isStoredResponseKey(key)) {
+        const record = JSON.parse(value)
+        cacheStore.set(storedResponseCacheStorageKey(key), new Response(record.body, {
+          status: record.status,
+          statusText: record.statusText,
+          headers: record.headers,
+        }))
+        return this
+      }
+
+      cacheStore.set(logicalCacheStorageKey(key), new Response(value, {
+        headers: {
+          'content-type': 'application/json',
+          'cache-control': 'public, max-age=86400',
+        },
+      }))
+      return this
+    },
+    get(key) {
+      return rawStore.get(key)
+    },
+    has(key) {
+      return rawStore.has(key)
+    },
+    delete(key) {
+      cacheStore.delete(isStoredResponseKey(key) ? storedResponseCacheStorageKey(key) : logicalCacheStorageKey(key))
+      return rawStore.delete(key)
+    },
+    get size() {
+      return rawStore.size
     },
   }
 }
@@ -1482,10 +1547,92 @@ function readLogicalCacheKey(request) {
     : ''
 }
 
+function storedResponseCacheStorageKey(key) {
+  return `https://alife.local/cache-v2/${encodeURIComponent(key)}`
+}
+
+function readStoredResponseCacheKey(request) {
+  const url = new URL(request.url)
+  if (url.origin !== 'https://alife.local' || !url.pathname.startsWith('/cache-v2/')) {
+    return ''
+  }
+
+  return decodeURIComponent(url.pathname.slice('/cache-v2/'.length))
+}
+
+function seedNativeStoredResponse(key, response, onBodyRead) {
+  apiCacheRawStore.set(key, null)
+  cacheStore.set(storedResponseCacheStorageKey(key), response.clone())
+  if (onBodyRead) {
+    storedResponseBodyReadCallbacks.set(key, onBodyRead)
+  }
+}
+
+function isAuthzKey(key) {
+  return key.startsWith('membership:') || /^member:[^:]+:profile$/.test(key)
+}
+
+function isStoredResponseKey(key) {
+  return key.startsWith('api:') ||
+    key.startsWith('group:') ||
+    /^member:[^:]+:me$/.test(key)
+}
+
+function isLogicalApiCacheKey(key) {
+  return key.startsWith('map:')
+}
+
 function readCachePutOptions(response) {
   const cacheControl = response.headers.get('cache-control') ?? ''
   const maxAge = cacheControl.match(/(?:^|,\s*)max-age=(\d+)/)?.[1]
   return maxAge ? { expirationTtl: Number(maxAge) } : {}
+}
+
+async function serializeStoredResponse(response) {
+  const headers = {}
+  response.headers.forEach((value, key) => {
+    headers[key] = value
+  })
+
+  return JSON.stringify({
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+    body: await response.text(),
+    storedAt: new Date().toISOString(),
+  })
+}
+
+function instrumentBodyReaders(response, onBodyRead) {
+  const text = response.text.bind(response)
+  response.text = async () => {
+    onBodyRead()
+    return text()
+  }
+
+  const json = response.json.bind(response)
+  response.json = async () => {
+    onBodyRead()
+    return json()
+  }
+
+  const arrayBuffer = response.arrayBuffer.bind(response)
+  response.arrayBuffer = async () => {
+    onBodyRead()
+    return arrayBuffer()
+  }
+
+  const blob = response.blob.bind(response)
+  response.blob = async () => {
+    onBodyRead()
+    return blob()
+  }
+
+  const formData = response.formData.bind(response)
+  response.formData = async () => {
+    onBodyRead()
+    return formData()
+  }
 }
 
 function createApiCacheKey(url) {
@@ -1515,6 +1662,7 @@ function createStoredResponse(body, headers = {}) {
     storedAt: new Date().toISOString(),
   })
 }
+
 
 function createJwtWithSub(sub) {
   const header = toBase64Url(JSON.stringify({ alg: 'none', typ: 'JWT' }))
