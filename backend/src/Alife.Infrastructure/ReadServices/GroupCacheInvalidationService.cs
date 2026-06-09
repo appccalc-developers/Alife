@@ -14,7 +14,9 @@ public sealed class GroupCacheInvalidationService(
             cloudflareKvCacheService.RemoveApiCacheAsync($"/api/groups/{groupId}", cancellationToken));
 
     public Task RemoveChurchAsync(CancellationToken cancellationToken = default)
-        => hybridCache.RemoveAsync(GroupCacheKeys.Church(), cancellationToken).AsTask();
+        => Task.WhenAll(
+            hybridCache.RemoveAsync(GroupCacheKeys.Church(), cancellationToken).AsTask(),
+            cloudflareKvCacheService.RemoveApiCacheAsync("/api/groups/church", cancellationToken));
 
     public Task RemoveSubgroupsAsync(Guid groupId, CancellationToken cancellationToken = default)
         => Task.WhenAll(

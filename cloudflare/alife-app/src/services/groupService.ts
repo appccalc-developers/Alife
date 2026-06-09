@@ -128,4 +128,9 @@ export const groupService = {
     const { data } = await http.post<{ message?: string }>('/api/admin/sermons/sync')
     return data
   },
+
+  async refreshCloudflareCache(groupId: string) {
+    const { data } = await http.post<{ message?: string }>(`/api/admin/groups/${groupId}/cloudflare-cache/refresh`)
+    return data
+  },
 }

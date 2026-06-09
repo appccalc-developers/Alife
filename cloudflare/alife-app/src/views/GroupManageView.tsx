@@ -15,6 +15,7 @@ import { useCurrentGroupStore } from '../stores/currentGroup'
 import { translateUi, useUiText } from '../i18n/uiText'
 import type { GroupPageDto } from '../types/group'
 import type { GroupEventRecord } from '../types/event'
+import { groupService } from '../api/groupService'
 
 const shortId = (value: string) => (value.length > 8 ? value.slice(0, 8) : value)
 
@@ -183,6 +184,66 @@ const EventsPanel = ({ groupId, events, onOpenEnrollDialog, onOpenReviewDialog, 
   )
 }
 
+type ChurchOperationsPanelProps = {
+  groupId: string
+  onStatusMessage: (message: string) => void
+}
+
+const ChurchOperationsPanel = ({ groupId, onStatusMessage }: ChurchOperationsPanelProps) => {
+  const t = useUiText()
+  const [refreshingCache, setRefreshingCache] = useState(false)
+  const [syncingSermons, setSyncingSermons] = useState(false)
+
+  const refreshCloudflareCache = async () => {
+    setRefreshingCache(true)
+    try {
+      const response = await groupService.refreshCloudflareCache(groupId)
+      onStatusMessage(response.message || t('cloudflareCacheRefreshTriggered'))
+    } catch {
+      onStatusMessage(t('cloudflareCacheRefreshFailed'))
+    } finally {
+      setRefreshingCache(false)
+    }
+  }
+
+  const syncSermons = async () => {
+    setSyncingSermons(true)
+    try {
+      const response = await groupService.syncSermons()
+      onStatusMessage(response.message || t('sermonSyncTriggered'))
+    } catch {
+      onStatusMessage(t('sermonSyncFailed'))
+    } finally {
+      setSyncingSermons(false)
+    }
+  }
+
+  return (
+    <AppSectionCard dense title={t('churchOperations')} subtitle={t('churchOperationsSubtitle')}>
+      <div className="flex flex-wrap gap-3">
+        <AppActionButton
+          variant="secondary"
+          disabled={refreshingCache}
+          onClick={() => {
+            refreshCloudflareCache().catch(() => undefined)
+          }}
+        >
+          {refreshingCache ? t('refreshing') : t('refreshCloudflareCache')}
+        </AppActionButton>
+        <AppActionButton
+          variant="primary"
+          disabled={syncingSermons}
+          onClick={() => {
+            syncSermons().catch(() => undefined)
+          }}
+        >
+          {syncingSermons ? t('syncing') : t('syncAzureSermonList')}
+        </AppActionButton>
+      </div>
+    </AppSectionCard>
+  )
+}
+
 const GroupManageView = () => {
   const t = useUiText()
   const { groupId = '' } = useParams<{ groupId: string }>()
@@ -232,9 +293,11 @@ const GroupManageView = () => {
     <AppPageShell>
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <Link to={`/groups/${groupId}`} className="text-sm font-medium text-slate-600 hover:text-slate-950">{t('backToViews')}</Link>
-          <h1 className="mt-2 text-2xl font-semibold text-slate-950">{t('groupManagementTitle', { name: localizeText(group?.name, language) || t('group') })}</h1>
-          <p className="mt-1 text-sm text-slate-600">{t('groupManagementDescription')}</p>
+          <Link to={`/groups/${groupId}`} className="text-sm font-medium text-slate-600 hover:text-slate-950">{t(group?.isChurch ? 'backToChurch' : 'backToViews')}</Link>
+          <h1 className="mt-2 text-2xl font-semibold text-slate-950">
+            {t(group?.isChurch ? 'churchManagementTitle' : 'groupManagementTitle', { name: localizeText(group?.name, language) || t(group?.isChurch ? 'church' : 'group') })}
+          </h1>
+          <p className="mt-1 text-sm text-slate-600">{t(group?.isChurch ? 'churchManagementDescription' : 'groupManagementDescription')}</p>
         </div>
         {group ? (
           <div className="flex flex-wrap gap-2">
@@ -267,8 +330,6 @@ const GroupManageView = () => {
           {activeSection === 'group' ? (
             <GroupOverviewPanel
               group={group}
-              subgroupCount={subgroups.length}
-              pageCount={pages.length}
               saving={savingGroup}
               onSave={async (payload) => {
                 setSavingGroup(true)
@@ -276,15 +337,19 @@ const GroupManageView = () => {
                   const updated = await updateGroup(payload)
                   if (updated) {
                     setCurrentGroup(updated)
-                    setStatusMessage(t('groupUpdated'))
+                    setStatusMessage(t(group.isChurch ? 'churchUpdated' : 'groupUpdated'))
                   }
                 } catch {
-                  setStatusMessage(t('updateGroupFailed'))
+                  setStatusMessage(t(group.isChurch ? 'updateChurchFailed' : 'updateGroupFailed'))
                 } finally {
                   setSavingGroup(false)
                 }
               }}
             />
+          ) : null}
+
+          {activeSection === 'group' && group.isChurch ? (
+            <ChurchOperationsPanel groupId={groupId} onStatusMessage={setStatusMessage} />
           ) : null}
 
           {activeSection === 'subgroups' ? (
