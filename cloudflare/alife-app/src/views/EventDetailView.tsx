@@ -10,6 +10,7 @@ import CoverImage from '../components/CoverImage'
 import { enrollmentSessionService } from '../services/enrollmentSessionService'
 import { eventService } from '../services/eventService'
 import { normalizeApiError } from '../services/http'
+import { normalizeImageUrl } from '../services/imageWorkerApi'
 import { parseReviewDraft, reviewSessionService } from '../services/reviewSessionService'
 import { useAuthStore } from '../stores/auth'
 import type { EventEnrollmentRecord } from '../types/enrollment'
@@ -158,7 +159,7 @@ const parseEventDto = (record: GroupEventRecord): EventDto => {
   try {
     const parsed = JSON.parse(record.eventDataJson) as Partial<EventDto>
     if (parsed && typeof parsed === 'object') {
-      return {
+      const dto = {
         ...fallbackEventDto(record),
         ...parsed,
         id: record.id,
@@ -169,12 +170,22 @@ const parseEventDto = (record: GroupEventRecord): EventDto => {
         optionalActivities: Array.isArray(parsed.optionalActivities) ? parsed.optionalActivities : [],
         galleryUrls: Array.isArray(parsed.galleryUrls) ? parsed.galleryUrls : [],
       }
+      return {
+        ...dto,
+        posterImageUrl: dto.posterImageUrl ? normalizeImageUrl(dto.posterImageUrl) : dto.posterImageUrl,
+        galleryUrls: dto.galleryUrls.map(normalizeImageUrl),
+      }
     }
   } catch {
     // Fall back to the summary fields stored on the event row.
   }
 
-  return fallbackEventDto(record)
+  const fallback = fallbackEventDto(record)
+  return {
+    ...fallback,
+    posterImageUrl: fallback.posterImageUrl ? normalizeImageUrl(fallback.posterImageUrl) : fallback.posterImageUrl,
+    galleryUrls: fallback.galleryUrls.map(normalizeImageUrl),
+  }
 }
 
 const parseEnrollmentPayload = (record: EventEnrollmentRecord): EnrollmentPayload => {
@@ -208,7 +219,13 @@ const EventNoticePanel = ({ event, eventDto, language }: { event: GroupEventReco
     <div className="space-y-6">
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         {posterUrl ? (
-          <CoverImage src={posterUrl} alt={title || text.poster} aspectRatio={16 / 9} className="w-full" />
+          <CoverImage
+            src={posterUrl}
+            alt={title || text.poster}
+            aspectRatio={16 / 9}
+            className="w-full"
+            openOnLongPressOrDoubleClick
+          />
         ) : (
           <div className="flex min-h-64 items-center justify-center bg-slate-100 text-sm text-slate-500">
             {text.noPoster}
@@ -284,7 +301,14 @@ const EventNoticePanel = ({ event, eventDto, language }: { event: GroupEventReco
         <AppSectionCard dense title={text.gallery}>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {galleryUrls.map((url, index) => (
-              <CoverImage key={`${url}-${index}`} src={url} alt={`${text.gallery} ${index + 1}`} aspectRatio={1} className="rounded-lg" />
+              <CoverImage
+                key={`${url}-${index}`}
+                src={url}
+                alt={`${text.gallery} ${index + 1}`}
+                aspectRatio={1}
+                className="rounded-lg"
+                openOnLongPressOrDoubleClick
+              />
             ))}
           </div>
         </AppSectionCard>
@@ -514,6 +538,7 @@ const MemoriesPanel = ({
                     alt={photo.fileName || `${text.photos} ${index + 1}`}
                     aspectRatio={1}
                     className="rounded-lg"
+                    openOnLongPressOrDoubleClick
                   />
                 ))}
               </div>

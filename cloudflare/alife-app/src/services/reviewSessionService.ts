@@ -1,6 +1,6 @@
 import { http } from './http'
 import { createAiSessionService } from './aiSessionService'
-import { isImageFile, uploadImage } from './imageWorkerApi'
+import { isImageFile, normalizeImageUrl, uploadImage } from './imageWorkerApi'
 import type { AiSessionAttachment } from '../types/aiSession'
 import type { MultilingualString } from '../types/event'
 import type { EventReviewRecord, ReviewCommitResponse, ReviewDraft, ReviewPhotoFile } from '../types/review'
@@ -58,6 +58,22 @@ const closeReviewSession = async (sessionId?: string) => {
   }
 }
 
+const normalizeReviewPhotoFiles = (photoFiles: unknown): ReviewPhotoFile[] => {
+  if (!Array.isArray(photoFiles)) {
+    return []
+  }
+
+  return photoFiles
+    .filter((photo): photo is Partial<ReviewPhotoFile> & Record<string, unknown> => Boolean(photo && typeof photo === 'object'))
+    .map((photo) => ({
+      ...photo,
+      fileName: typeof photo.fileName === 'string' ? photo.fileName : '',
+      contentType: typeof photo.contentType === 'string' ? photo.contentType : '',
+      size: typeof photo.size === 'number' ? photo.size : 0,
+      url: typeof photo.url === 'string' ? normalizeImageUrl(photo.url) : '',
+    }))
+}
+
 export const fileToAiAttachment = async (file: File): Promise<AiSessionAttachment> => {
   const bytes = new Uint8Array(await file.arrayBuffer())
   let binary = ''
@@ -93,7 +109,7 @@ export const parseReviewDraft = (record: EventReviewRecord | null | undefined): 
       memberId: parsed.memberId || record.memberId,
       recognizedPeople: Array.isArray(parsed.recognizedPeople) ? parsed.recognizedPeople : [],
       recognizedActivities: Array.isArray(parsed.recognizedActivities) ? parsed.recognizedActivities : [],
-      photoFiles: Array.isArray(parsed.photoFiles) ? parsed.photoFiles : [],
+      photoFiles: normalizeReviewPhotoFiles(parsed.photoFiles),
     }
   } catch {
     return null
@@ -125,7 +141,7 @@ export const reviewSessionService = {
     const uploadedPhotos = await Promise.all(
       payload.photoFiles.map((file) => uploadReviewPhoto(file, payload.groupId, payload.eventId, reviewId)),
     )
-    const existingPhotos = Array.isArray(payload.draft.photoFiles) ? payload.draft.photoFiles : []
+    const existingPhotos = normalizeReviewPhotoFiles(payload.draft.photoFiles)
     const now = new Date().toISOString()
     const reviewPayload: ReviewDraft & { id: string } = {
       ...payload.draft,
