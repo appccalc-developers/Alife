@@ -34,4 +34,5 @@ export const groupService = {
   deletePage: pageService.deletePage,
   getPageById: (pageId: string) => pageService.getPageById(pageId),
   syncSermons: groups.syncSermons,
+  refreshCloudflareCache: groups.refreshCloudflareCache,
 }

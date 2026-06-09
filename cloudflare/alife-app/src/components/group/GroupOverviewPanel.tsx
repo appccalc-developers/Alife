@@ -8,13 +8,11 @@ import { toLocalizedText } from '../../utils/localizedText'
 
 type Props = {
   group: GroupDto
-  subgroupCount: number
-  pageCount: number
   saving?: boolean
   onSave?: (payload: { name: LocalizedText; description?: LocalizedText; accessType: GroupDto['accessType']; isClosed: boolean }) => Promise<void> | void
 }
 
-const GroupOverviewPanel = ({ group, subgroupCount, pageCount, saving = false, onSave }: Props) => {
+const GroupOverviewPanel = ({ group, saving = false, onSave }: Props) => {
   const t = useUiText()
   const [name, setName] = useState(() => toLocalizedText(group.name))
   const [description, setDescription] = useState(() => toLocalizedText(group.description))
@@ -36,11 +34,11 @@ const GroupOverviewPanel = ({ group, subgroupCount, pageCount, saving = false, o
   }
 
   return (
-  <AppSectionCard dense title={t('groupSettings')} subtitle={t('overviewSubtitle')}>
-    <form className="grid gap-4 lg:grid-cols-3" onSubmit={submit}>
-      <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 lg:col-span-2 sm:grid-cols-2">
+  <AppSectionCard dense title={t(group.isChurch ? 'churchSettings' : 'groupSettings')} subtitle={t(group.isChurch ? 'churchOverviewSubtitle' : 'overviewSubtitle')}>
+    <form className="grid gap-4" onSubmit={submit}>
+      <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">
         <label>
-          <span className="text-xs font-medium uppercase tracking-wide text-slate-500">{t('groupNameEnglish')}</span>
+          <span className="text-xs font-medium uppercase tracking-wide text-slate-500">{t(group.isChurch ? 'churchNameEnglish' : 'groupNameEnglish')}</span>
           <input
             value={name.en ?? ''}
             onChange={(event) => setName((current) => ({ ...current, en: event.target.value }))}
@@ -49,7 +47,7 @@ const GroupOverviewPanel = ({ group, subgroupCount, pageCount, saving = false, o
         </label>
 
         <label>
-          <span className="text-xs font-medium uppercase tracking-wide text-slate-500">{t('groupNameChinese')}</span>
+          <span className="text-xs font-medium uppercase tracking-wide text-slate-500">{t(group.isChurch ? 'churchNameChinese' : 'groupNameChinese')}</span>
           <input
             value={name.cn ?? ''}
             onChange={(event) => setName((current) => ({ ...current, cn: event.target.value }))}
@@ -58,7 +56,7 @@ const GroupOverviewPanel = ({ group, subgroupCount, pageCount, saving = false, o
         </label>
 
         <label>
-          <span className="text-xs font-medium uppercase tracking-wide text-slate-500">{t('groupDescriptionEnglish')}</span>
+          <span className="text-xs font-medium uppercase tracking-wide text-slate-500">{t(group.isChurch ? 'churchDescriptionEnglish' : 'groupDescriptionEnglish')}</span>
           <textarea
             value={description.en ?? ''}
             onChange={(event) => setDescription((current) => ({ ...current, en: event.target.value }))}
@@ -67,7 +65,7 @@ const GroupOverviewPanel = ({ group, subgroupCount, pageCount, saving = false, o
         </label>
 
         <label>
-          <span className="text-xs font-medium uppercase tracking-wide text-slate-500">{t('groupDescriptionChinese')}</span>
+          <span className="text-xs font-medium uppercase tracking-wide text-slate-500">{t(group.isChurch ? 'churchDescriptionChinese' : 'groupDescriptionChinese')}</span>
           <textarea
             value={description.cn ?? ''}
             onChange={(event) => setDescription((current) => ({ ...current, cn: event.target.value }))}
@@ -100,22 +98,10 @@ const GroupOverviewPanel = ({ group, subgroupCount, pageCount, saving = false, o
           </select>
         </label>
 
-        <div className="flex flex-wrap items-center justify-between gap-2 sm:col-span-2">
-          <p className="text-xs text-slate-500">{t('groupId')}: {group.id}</p>
+        <div className="flex justify-end sm:col-span-2">
           <AppActionButton type="submit" variant="primary" disabled={!canSave}>
             {saving ? t('saving') : t('saveChanges')}
           </AppActionButton>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-        <div>
-          <p className="text-xs uppercase tracking-wide text-slate-500">{t('subgroups')}</p>
-          <p className="text-2xl font-semibold text-slate-900">{subgroupCount}</p>
-        </div>
-        <div>
-          <p className="text-xs uppercase tracking-wide text-slate-500">{t('pages')}</p>
-          <p className="text-2xl font-semibold text-slate-900">{pageCount}</p>
         </div>
       </div>
     </form>
