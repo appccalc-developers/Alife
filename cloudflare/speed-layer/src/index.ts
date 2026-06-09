@@ -13,8 +13,6 @@ export type Env = {
   API_PROXY_TARGET?: string
   /** KV namespace for edge authorization mirrors. */
   ALIFE_AUTHZ?: KVNamespace
-  /** KV namespace for shared API response cache. */
-  ALIFE_API_CACHE?: KVNamespace
   /** Gemini API key stored as a Cloudflare Worker secret. */
   GEMINI_API_KEY?: string
   /** Optional Gemini model override. Defaults to Gemini 3 Pro. */

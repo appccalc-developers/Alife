@@ -72,10 +72,6 @@
 		{
 			"binding": "ALIFE_AUTHZ",
 			"id": "bc088e5f6e524a46be427ae3ef68268d"
-		},
-		{
-			"binding": "ALIFE_API_CACHE",
-			"id": "d6460d7aae2648cb9b8d1f4dc5b9e326"
 		}
 	]
 }
