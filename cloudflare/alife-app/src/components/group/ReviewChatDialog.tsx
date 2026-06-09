@@ -114,11 +114,22 @@ const ReviewChatDialog = ({
   const [messages, setMessages] = useState<ChatMessage[]>([initialMessage(language)])
   const [input, setInput] = useState('')
   const [photoFiles, setPhotoFiles] = useState<File[]>([])
-  const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
+  const [uploadedPhotoPreviews, setUploadedPhotoPreviews] = useState<string[]>([])
   const [commitStatus, setCommitStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [commitError, setCommitError] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const draft = state?.draft ?? existingDraft ?? null
+  const existingPhotoPreviews = useMemo(
+    () => (draft?.photoFiles ?? [])
+      .filter((photo) => Boolean(photo.url))
+      .map((photo, index) => ({
+        key: `${photo.url}-${index}`,
+        url: photo.url,
+        alt: photo.fileName || `Review photo ${index + 1}`,
+      })),
+    [draft?.photoFiles],
+  )
 
   useEffect(() => {
     setMessages([initialMessage(language)])
@@ -142,7 +153,7 @@ const ReviewChatDialog = ({
 
   useEffect(() => {
     const urls = photoFiles.map((file) => URL.createObjectURL(file))
-    setPhotoPreviews(urls)
+    setUploadedPhotoPreviews(urls)
     return () => {
       urls.forEach((url) => URL.revokeObjectURL(url))
     }
@@ -152,7 +163,6 @@ const ReviewChatDialog = ({
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
   }, [messages, loading])
 
-  const draft = state?.draft ?? existingDraft ?? null
   const assistantReply = localized(state?.context ?? draft?.assistantReply, language) || fallbackReply(draft, language)
   const canCommit = Boolean(draft?.reflection?.zh?.trim() && draft?.reflection?.en?.trim())
     && commitStatus !== 'saving'
@@ -366,9 +376,12 @@ const ReviewChatDialog = ({
               multiple
               onChange={(event) => setPhotoFiles(Array.from(event.target.files ?? []))}
             />
-            {photoPreviews.length ? (
+            {existingPhotoPreviews.length || uploadedPhotoPreviews.length ? (
               <div className="grid grid-cols-3 gap-2">
-                {photoPreviews.map((url, index) => (
+                {existingPhotoPreviews.map((photo) => (
+                  <img key={photo.key} src={photo.url} alt={photo.alt} className="aspect-square rounded-lg object-cover" />
+                ))}
+                {uploadedPhotoPreviews.map((url, index) => (
                   <img key={url} src={url} alt={`Review upload ${index + 1}`} className="aspect-square rounded-lg object-cover" />
                 ))}
               </div>
