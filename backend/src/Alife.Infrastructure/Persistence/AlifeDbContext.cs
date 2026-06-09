@@ -184,7 +184,7 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 				.HasForeignKey(x => x.MemberId)
 				.OnDelete(DeleteBehavior.Restrict);
 
-			cfg.HasIndex(x => new { x.EventId, x.MemberId }).IsUnique();
+			cfg.HasIndex(x => new { x.EventId, x.MemberId });
 			cfg.HasIndex(x => new { x.GroupId, x.UpdatedUtc });
 		});
 	}

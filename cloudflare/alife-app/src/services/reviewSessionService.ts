@@ -7,7 +7,7 @@ import type { EventReviewRecord, ReviewCommitResponse, ReviewDraft, ReviewPhotoF
 
 const aiSessionService = createAiSessionService<ReviewDraft, MultilingualString | null>('/api/reviews/session')
 
-const createReviewId = () => {
+export const createReviewId = () => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID()
   }
@@ -106,6 +106,10 @@ export const reviewSessionService = {
   listEventReviews: async (eventId: string): Promise<EventReviewRecord[]> => {
     const { data } = await http.get<EventReviewRecord[]>(`/api/events/${eventId}/reviews`)
     return data
+  },
+
+  deleteReview: async (eventId: string, reviewId: string): Promise<void> => {
+    await http.delete(`/api/events/${eventId}/reviews/${reviewId}`)
   },
 
   saveReview: async (payload: {

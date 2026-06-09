@@ -272,7 +272,7 @@ function getFallbackState(sessionId: string) {
 }
 
 function extractEventIdFromSessionId(sessionId: string) {
-  const match = sessionId.match(/-event-(.+)-review$/i)
+  const match = sessionId.match(/-event-(.+)-review(?:-.+)?$/i)
   return match?.[1] ?? ''
 }
 

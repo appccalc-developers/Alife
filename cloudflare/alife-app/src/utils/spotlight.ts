@@ -280,6 +280,6 @@ export const resolveDataSpotlightContent = (source: SpotlightDataSource, item: u
     subtitle: formatDate(event.startDate, language),
     body: description || location,
     media: posterImageUrl ? { type: 'image', url: posterImageUrl } : undefined,
-    actions: [{ label: translateUi(language, 'viewDetails'), url: `/groups/${event.groupId}/events/${event.id}/enroll` }],
+    actions: [{ label: translateUi(language, 'viewDetails'), url: `/groups/${event.groupId}/events/${event.id}` }],
   }
 }

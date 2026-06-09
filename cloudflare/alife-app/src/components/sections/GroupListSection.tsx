@@ -82,6 +82,15 @@ export function pageToCardItem(page: any, groupId?: string, language = 'en'): Un
 }
 
 export function eventToCardItem(event: GroupEventRecord, language = 'en'): UniversalCardItem {
+  let posterImageUrl: string | undefined
+  try {
+    const eventData = JSON.parse(event.eventDataJson) as { posterImageUrl?: unknown }
+    posterImageUrl = typeof eventData.posterImageUrl === 'string' && eventData.posterImageUrl.trim()
+      ? eventData.posterImageUrl
+      : undefined
+  } catch {
+    posterImageUrl = undefined
+  }
   const title = language === 'zh'
     ? event.titleZh || event.titleEn || translateUi(language, 'untitled')
     : event.titleEn || event.titleZh || translateUi(language, 'untitled')
@@ -92,9 +101,9 @@ export function eventToCardItem(event: GroupEventRecord, language = 'en'): Unive
     id: event.id,
     title,
     subtitle: dateDisplay,
-    imageUrl: undefined,
+    imageUrl: posterImageUrl,
     date: dateStr,
-    url: `/groups/${event.groupId}/events/${event.id}/enroll`,
+    url: `/groups/${event.groupId}/events/${event.id}`,
     type: 'event',
   }
 }
