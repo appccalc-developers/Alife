@@ -11,8 +11,6 @@ import { ReviewSession } from './features/events/reviewer'
 
 export type Env = {
   API_PROXY_TARGET?: string
-  /** KV namespace for edge authorization mirrors. */
-  ALIFE_AUTHZ?: KVNamespace
   /** Gemini API key stored as a Cloudflare Worker secret. */
   GEMINI_API_KEY?: string
   /** Optional Gemini model override. Defaults to Gemini 3 Pro. */
@@ -27,12 +25,6 @@ export type Env = {
 
 export type ExecutionContext = {
   waitUntil(promise: Promise<unknown>): void
-}
-
-export type KVNamespace = {
-  get(key: string, options?: { type?: 'json' | 'text' }): Promise<unknown>
-  put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>
-  delete(key: string): Promise<void>
 }
 
 export type DurableObjectNamespace = {
