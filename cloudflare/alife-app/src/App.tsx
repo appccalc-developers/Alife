@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { TerminalSquare } from 'lucide-react'
 import logo from './assets/logo.png'
 import AccessTypeBadge from './components/group/AccessTypeBadge'
+import NotificationToastHost from './components/notifications/NotificationToastHost'
 import { groupService } from './services/groupService'
 import { conditionalGet } from './db/httpCache'
 import { groupQueryKey, groupPagesQueryKey, subgroupsQueryKey } from './db/collections/groupCollection'
@@ -842,6 +843,7 @@ const App = () => {
           </div>
         </div>
       </motion.header>
+      <NotificationToastHost />
       <div className="min-h-screen desktop:pl-72">
         <SideNav items={shellNavItems} />
 
