@@ -15,6 +15,7 @@ public interface IAlifeDbContext
     DbSet<GroupEvent> GroupEvents { get; }
     DbSet<EventEnrollment> EventEnrollments { get; }
     DbSet<EventReview> EventReviews { get; }
+    DbSet<NotificationMessage> NotificationMessages { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

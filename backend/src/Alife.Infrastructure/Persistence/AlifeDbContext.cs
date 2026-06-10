@@ -18,6 +18,7 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 	public DbSet<GroupEvent> GroupEvents => Set<GroupEvent>();
 	public DbSet<EventEnrollment> EventEnrollments => Set<EventEnrollment>();
 	public DbSet<EventReview> EventReviews => Set<EventReview>();
+	public DbSet<NotificationMessage> NotificationMessages => Set<NotificationMessage>();
 
 	protected override void OnModelCreating(ModelBuilder modelBuilder)
 	{
@@ -186,6 +187,38 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 
 			cfg.HasIndex(x => new { x.EventId, x.MemberId });
 			cfg.HasIndex(x => new { x.GroupId, x.UpdatedUtc });
+		});
+
+		modelBuilder.Entity<NotificationMessage>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.ActionType).HasMaxLength(100).IsRequired();
+			cfg.Property(x => x.ActionDataJson).IsRequired();
+
+			cfg.HasOne(x => x.RecipientMember)
+				.WithMany()
+				.HasForeignKey(x => x.RecipientMemberId)
+				.OnDelete(DeleteBehavior.Restrict);
+
+			cfg.HasOne(x => x.CreatedByMember)
+				.WithMany()
+				.HasForeignKey(x => x.CreatedByMemberId)
+				.OnDelete(DeleteBehavior.Restrict);
+
+			cfg.HasOne(x => x.Group)
+				.WithMany()
+				.HasForeignKey(x => x.GroupId)
+				.OnDelete(DeleteBehavior.Restrict);
+
+			cfg.HasOne(x => x.Event)
+				.WithMany()
+				.HasForeignKey(x => x.EventId)
+				.OnDelete(DeleteBehavior.Restrict);
+
+			cfg.HasIndex(x => new { x.RecipientMemberId, x.RepliedUtc, x.OccurredUtc });
+			cfg.HasIndex(x => new { x.GroupId, x.UpdatedUtc });
+			cfg.HasIndex(x => x.EventId);
+			cfg.HasIndex(x => x.CreatedByMemberId);
 		});
 	}
 }

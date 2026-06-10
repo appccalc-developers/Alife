@@ -4,6 +4,7 @@ using Alife.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Alife.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AlifeDbContext))]
-    partial class AlifeDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260610063942_AddNotificationMessages")]
+    partial class AddNotificationMessages
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -449,10 +452,6 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("OccurredUtc")
                         .HasColumnType("datetime2")
                         .HasColumnName("occurred_utc");
-
-                    b.Property<DateTime?>("ReadUtc")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("read_utc");
 
                     b.Property<Guid>("RecipientMemberId")
                         .HasColumnType("uniqueidentifier")
