@@ -147,6 +147,11 @@ const ProfileView = () => {
                 )
               })}
               {inviteError ? <p className="text-sm text-rose-600">{inviteError}</p> : null}
+            </div>
+          </AppSectionCard>
+        </div>
+      ) : null}
+
       {hasLeaderUiOptions ? (
         <div className="mt-4">
           <AppSectionCard dense title={t('profileLeaderUiTitle')} subtitle={t('profileLeaderUiSubtitle')}>
