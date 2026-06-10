@@ -5,9 +5,11 @@ import AppBadge from '../components/layout/AppBadge'
 import AppEmptyState from '../components/layout/AppEmptyState'
 import AppPageShell from '../components/layout/AppPageShell'
 import AppSectionCard from '../components/layout/AppSectionCard'
+import { groupService } from '../services/groupService'
 import { normalizeApiError } from '../services/http'
 import { useAuthStore } from '../stores/auth'
 import { useUiText } from '../i18n/uiText'
+import { localizeText } from '../utils/localizedText'
 
 const ProfileView = () => {
   const auth = useAuthStore()
@@ -20,6 +22,10 @@ const ProfileView = () => {
   const [languageSaved, setLanguageSaved] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
   const [logoutError, setLogoutError] = useState('')
+  const [inviteActionGroupId, setInviteActionGroupId] = useState('')
+  const [inviteError, setInviteError] = useState('')
+
+  const invitations = me?.memberships.filter((membership) => membership.status === 'invited') ?? []
 
   useEffect(() => {
     setDraftLanguage(auth.language)
@@ -51,6 +57,24 @@ const ProfileView = () => {
       setLogoutError(normalizeApiError(error).message)
     } finally {
       setLoggingOut(false)
+    }
+  }
+
+  const respondToInvite = async (groupId: string, accept: boolean) => {
+    setInviteActionGroupId(groupId)
+    setInviteError('')
+
+    try {
+      if (accept) {
+        await groupService.acceptInvite(groupId)
+      } else {
+        await groupService.declineInvite(groupId)
+      }
+      await auth.fetchMe()
+    } catch (error) {
+      setInviteError(normalizeApiError(error).message)
+    } finally {
+      setInviteActionGroupId('')
     }
   }
 
@@ -89,6 +113,36 @@ const ProfileView = () => {
           </div>
         </div>
       </AppSectionCard>
+
+      {invitations.length > 0 ? (
+        <div className="mt-4">
+          <AppSectionCard dense title={t('groupInvitations')} subtitle={t('groupInvitationsSubtitle')}>
+            <div className="space-y-2">
+              {invitations.map((membership) => {
+                const groupName = localizeText(membership.groupName, auth.language) || t('group')
+                const isBusy = inviteActionGroupId === membership.groupId
+                return (
+                  <div key={membership.groupId} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 p-3">
+                    <div>
+                      <p className="font-medium text-slate-950">{groupName}</p>
+                      <p className="mt-1 text-xs text-slate-500">{t('invited')}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <AppActionButton size="sm" variant="primary" disabled={isBusy} onClick={() => void respondToInvite(membership.groupId, true)}>
+                        {isBusy ? t('saving') : t('acceptInvite')}
+                      </AppActionButton>
+                      <AppActionButton size="sm" variant="danger" disabled={isBusy} onClick={() => void respondToInvite(membership.groupId, false)}>
+                        {t('declineInvite')}
+                      </AppActionButton>
+                    </div>
+                  </div>
+                )
+              })}
+              {inviteError ? <p className="text-sm text-rose-600">{inviteError}</p> : null}
+            </div>
+          </AppSectionCard>
+        </div>
+      ) : null}
 
       <div className="mt-4">
         <AppSectionCard

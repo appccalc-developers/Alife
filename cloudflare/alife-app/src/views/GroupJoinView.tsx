@@ -33,7 +33,14 @@ const GroupJoinView = () => {
   const isApproved = membership?.status === 'approved'
   const isRequested = membership?.status === 'requested'
   const isInvited = membership?.status === 'invited'
-  const canSubmit = Boolean(group && group.accessType !== 'private' && !isApproved && !submitting && auth.isRegistered)
+  const isRejected = membership?.status === 'rejected'
+  const canSubmit = Boolean(
+    group &&
+    !isApproved &&
+    !submitting &&
+    auth.isRegistered &&
+    (group.accessType !== 'private' || Boolean(group.parentGroupId)),
+  )
 
   useEffect(() => {
     if (!groupId) return
@@ -79,7 +86,15 @@ const GroupJoinView = () => {
         return
       }
 
-      setStatusMessage(t('joinRequestSubmitted'))
+      const localizedStatus =
+        result.status === 'requested'
+          ? t('requested')
+          : result.status === 'rejected'
+            ? t('rejected')
+            : result.status === 'invited'
+              ? t('invited')
+              : result.status
+      setStatusMessage(t('joinStatus', { status: localizedStatus }))
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : t('joinRequestFailed'))
     } finally {
@@ -105,6 +120,8 @@ const GroupJoinView = () => {
     <AppBadge variant="warning">{t('requested')}</AppBadge>
   ) : isInvited ? (
     <AppBadge variant="info">{t('invited')}</AppBadge>
+  ) : isRejected ? (
+    <AppBadge variant="danger">{t('rejected')}</AppBadge>
   ) : (
     <AppBadge>{t('notJoined')}</AppBadge>
   )

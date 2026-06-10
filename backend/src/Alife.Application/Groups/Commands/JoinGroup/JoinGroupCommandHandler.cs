@@ -31,16 +31,35 @@ public sealed class JoinGroupCommandHandler(
             return AppResult<GroupStatusResultDto>.NotFound("Group was not found.");
         }
 
-        if (group.AccessType == AccessType.Private)
+        if (group.ParentGroupId is Guid parentGroupId)
+        {
+            var isApprovedParentMember = await groupAuthorizationService.IsApprovedMemberAsync(
+                parentGroupId,
+                request.CurrentMemberId,
+                cancellationToken);
+
+            if (!isApprovedParentMember)
+            {
+                return AppResult<GroupStatusResultDto>.Forbidden("You must be an approved member of the parent group before joining this subgroup.");
+            }
+        }
+        else if (group.AccessType == AccessType.Private)
         {
             return AppResult<GroupStatusResultDto>.Forbidden("Private group is invite only.");
         }
 
-        var membership = await dbContext.GroupMemberships.FirstOrDefaultAsync(
-            x => x.GroupId == request.GroupId && x.MemberId == request.CurrentMemberId,
-            cancellationToken);
+        var membership = await dbContext.GroupMemberships
+            .Where(x => x.GroupId == request.GroupId && x.MemberId == request.CurrentMemberId)
+            .OrderByDescending(x => x.UpdatedUtc)
+            .FirstOrDefaultAsync(cancellationToken);
 
-        var status = group.AccessType == AccessType.Public ? MembershipStatus.Approved : MembershipStatus.Requested;
+        var status = group.AccessType switch
+        {
+            AccessType.Public => MembershipStatus.Approved,
+            AccessType.Protected => MembershipStatus.Requested,
+            AccessType.Private => MembershipStatus.Rejected,
+            _ => MembershipStatus.Requested
+        };
         DateTime updatedUtc;
         if (membership is null)
         {

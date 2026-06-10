@@ -31,7 +31,7 @@ public sealed class InviteGroupMemberByIdCommandHandler(
         }
 
         var targetExists = await dbContext.Members.AnyAsync(
-            x => x.Id == request.TargetMemberId,
+            x => x.Id == request.TargetMemberId && x.IsRegistered,
             cancellationToken);
 
         if (!targetExists)
@@ -39,9 +39,37 @@ public sealed class InviteGroupMemberByIdCommandHandler(
             return AppResult<GroupActionResultDto>.NotFound("Member not found.");
         }
 
-        var membership = await dbContext.GroupMemberships.FirstOrDefaultAsync(
-            x => x.GroupId == request.GroupId && x.MemberId == request.TargetMemberId,
-            cancellationToken);
+        var group = await dbContext.Groups
+            .AsNoTracking()
+            .Where(x => x.Id == request.GroupId)
+            .Select(x => new { x.ParentGroupId })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (group is null)
+        {
+            return AppResult<GroupActionResultDto>.NotFound("Group was not found.");
+        }
+
+        if (group.ParentGroupId is Guid parentGroupId)
+        {
+            var isParentMember = await dbContext.GroupMemberships
+                .AsNoTracking()
+                .AnyAsync(
+                    x => x.GroupId == parentGroupId &&
+                         x.MemberId == request.TargetMemberId &&
+                         x.Status == MembershipStatus.Approved,
+                    cancellationToken);
+
+            if (!isParentMember)
+            {
+                return AppResult<GroupActionResultDto>.Forbidden("Only approved members of the parent group can be invited to this subgroup.");
+            }
+        }
+
+        var membership = await dbContext.GroupMemberships
+            .Where(x => x.GroupId == request.GroupId && x.MemberId == request.TargetMemberId)
+            .OrderByDescending(x => x.UpdatedUtc)
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (membership is null)
         {
@@ -56,6 +84,10 @@ public sealed class InviteGroupMemberByIdCommandHandler(
                 CreatedUtc = now,
                 UpdatedUtc = now
             });
+        }
+        else if (membership.Status == MembershipStatus.Approved)
+        {
+            return AppResult<GroupActionResultDto>.Success(new GroupActionResultDto(true));
         }
         else
         {

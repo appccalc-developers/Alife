@@ -19,6 +19,9 @@ export const groupService = {
   closeGroup: groups.closeGroup,
   inviteMember: (groupId: string, payload: string | { targetPhoneE164: string }) =>
     groups.inviteMember(groupId, typeof payload === 'string' ? { targetPhoneE164: payload } : payload),
+  getInviteCandidates: groups.getInviteCandidates,
+  acceptInvite: groups.acceptInvite,
+  declineInvite: groups.declineInvite,
   approve: groups.approveMember,
   approveMember: groups.approveMember,
   reject: groups.rejectMember,

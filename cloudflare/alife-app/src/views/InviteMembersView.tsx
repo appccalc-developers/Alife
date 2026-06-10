@@ -23,7 +23,7 @@ const InviteMembersView = () => {
   useEffect(() => {
     let cancelled = false
     setLoadingMembers(true)
-    groupService.getMembers()
+    groupService.getInviteCandidates(groupId)
       .then((members) => {
         if (!cancelled) setAllMembers(members)
       })
@@ -34,7 +34,7 @@ const InviteMembersView = () => {
         if (!cancelled) setLoadingMembers(false)
       })
     return () => { cancelled = true }
-  }, [t])
+  }, [groupId, t])
 
   const existingMemberIds = new Set(memberships.map((m) => m.memberId))
 

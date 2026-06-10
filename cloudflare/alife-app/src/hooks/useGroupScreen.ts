@@ -75,7 +75,11 @@ export const useGroupScreen = (groupId: string, options: GroupScreenOptions = {}
 
   // Load memberships as a live collection.
   const canLoadMemberships = !auth.isGuest && auth.canManageGroup(groupId)
-  const membershipsColl = useMemo(() => (groupId ? groupMembershipsCollection(groupId, canLoadMemberships) : null), [auth, canLoadMemberships, groupId])
+  const includeLineCandidates = canLoadMemberships && group?.isChurch === true
+  const membershipsColl = useMemo(
+    () => (groupId ? groupMembershipsCollection(groupId, canLoadMemberships, includeLineCandidates) : null),
+    [canLoadMemberships, groupId, includeLineCandidates],
+  )
   const { data: membershipsRaw = [] } = useLiveQuery(membershipsColl as NonNullable<typeof membershipsColl>)
   const memberships = useMemo(() => membershipsRaw as GroupMemberToolRow[], [membershipsRaw])
 

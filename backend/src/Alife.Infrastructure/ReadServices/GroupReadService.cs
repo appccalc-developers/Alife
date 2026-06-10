@@ -52,36 +52,82 @@ public sealed class GroupReadService(AlifeDbContext dbContext, HybridCache hybri
             },
             cancellationToken);
 
-    public Task<IReadOnlyList<GroupMembershipDto>> GetMembershipsAsync(Guid groupId, CancellationToken cancellationToken)
-        => GetOrCreateAsync(
-            GroupCacheKeys.Memberships(groupId),
-            async token =>
-            {
-                var rows = await dbContext.GroupMemberships
-                    .AsNoTracking()
-                    .Where(x => x.GroupId == groupId)
-                    .Select(x => new
-                    {
-                        x.MemberId,
-                        x.Member.DisplayName,
-                        x.Status,
-                        x.Role,
-                        x.CreatedUtc,
-                        x.UpdatedUtc
-                    })
-                    .ToListAsync(token);
+    public Task<IReadOnlyList<GroupMembershipDto>> GetMembershipsAsync(
+        Guid groupId,
+        bool includeChurchLineCandidates,
+        CancellationToken cancellationToken)
+    {
+        if (includeChurchLineCandidates)
+        {
+            return GetMembershipsDirectAsync(groupId, includeChurchLineCandidates, cancellationToken);
+        }
 
-                return (IReadOnlyList<GroupMembershipDto>)rows
-                    .Select(x => new GroupMembershipDto(
-                        x.MemberId,
-                        x.DisplayName,
-                        EnumName.CamelCase(x.Status),
-                        EnumName.CamelCase(x.Role),
-                        x.CreatedUtc,
-                        x.UpdatedUtc))
-                    .ToList();
-            },
+        return GetOrCreateAsync(
+            GroupCacheKeys.Memberships(groupId),
+            token => GetMembershipsDirectAsync(groupId, includeChurchLineCandidates: false, token),
             cancellationToken);
+    }
+
+    private async Task<IReadOnlyList<GroupMembershipDto>> GetMembershipsDirectAsync(
+        Guid groupId,
+        bool includeChurchLineCandidates,
+        CancellationToken cancellationToken)
+    {
+        var rows = await dbContext.GroupMemberships
+            .AsNoTracking()
+            .Where(x => x.GroupId == groupId)
+            .Select(x => new
+            {
+                x.MemberId,
+                x.Member.DisplayName,
+                x.Status,
+                x.Role,
+                x.CreatedUtc,
+                x.UpdatedUtc
+            })
+            .ToListAsync(cancellationToken);
+
+        var memberships = rows
+            .Select(x => new GroupMembershipDto(
+                x.MemberId,
+                x.DisplayName,
+                EnumName.CamelCase(x.Status),
+                EnumName.CamelCase(x.Role),
+                x.CreatedUtc,
+                x.UpdatedUtc))
+            .ToList();
+
+        if (!includeChurchLineCandidates)
+        {
+            return memberships;
+        }
+
+        var isChurch = await dbContext.Groups
+            .AsNoTracking()
+            .AnyAsync(x => x.Id == groupId && x.IsChurch, cancellationToken);
+
+        if (!isChurch)
+        {
+            return memberships;
+        }
+
+        var existingMemberIds = rows.Select(x => x.MemberId).ToHashSet();
+        var candidates = await dbContext.Members
+            .AsNoTracking()
+            .Where(x => x.IsRegistered && x.LineUID != null && !existingMemberIds.Contains(x.Id))
+            .OrderBy(x => x.DisplayName)
+            .Select(x => new GroupMembershipDto(
+                x.Id,
+                x.DisplayName,
+                EnumName.CamelCase(Domain.Enums.MembershipStatus.Requested),
+                EnumName.CamelCase(Domain.Enums.MembershipRole.Member),
+                x.CreatedUtc,
+                x.UpdatedUtc))
+            .ToListAsync(cancellationToken);
+
+        memberships.AddRange(candidates);
+        return memberships;
+    }
 
     private Task<T> GetOrCreateAsync<T>(
         string cacheKey,
