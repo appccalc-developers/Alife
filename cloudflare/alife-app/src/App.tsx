@@ -11,6 +11,7 @@ import { groupQueryKey, groupPagesQueryKey, subgroupsQueryKey } from './db/colle
 import { normalizeGroup, normalizePageSummary } from './utils/apiEnums'
 import { useAuthStore } from './stores/auth'
 import { useCurrentGroupStore } from './stores/currentGroup'
+import { useLeaderUiPreferences } from './stores/leaderUiPreferences'
 import AdminView from './views/AdminView'
 import GroupDetailView from './views/GroupDetailView'
 import GroupJoinView from './views/GroupJoinView'
@@ -502,6 +503,7 @@ const OnboardingRoute = ({ children }: { children: ReactElement }) => {
 
 const App = () => {
   const auth = useAuthStore()
+  const { preferences: leaderUiPreferences } = useLeaderUiPreferences(auth.me?.id)
   const t = useUiText()
   const { CurrentGroup } = useCurrentGroupStore()
   const location = useLocation()
@@ -547,6 +549,8 @@ const App = () => {
   const canManageCurrentGroup =
     currentGroupMembership?.status === 'approved' &&
     (currentGroupMembership.role === 'leader' || currentGroupMembership.role === 'coLeader')
+  const canOpenCurrentGroupManagement = canManageCurrentGroup && leaderUiPreferences.exerciseGroupManagement
+  const canShowCurrentPageEdit = canManageCurrentGroup && leaderUiPreferences.exercisePageEditing
   const canUseSubgroupMenu = currentGroupMembership?.status === 'approved'
   const currentGroupPageNavItems = useMemo<ShellNavItem[]>(
     () =>
@@ -577,7 +581,7 @@ const App = () => {
     ]
     : []
   const shellNavItems = isManagementScreen ? managementNavItems : groupEventDetailMatch ? eventDetailNavItems : isGroupScreen || isPageEditorScreen ? currentGroupPageNavItems : []
-  const fabItems: ShellFabItem[] = isGroupScreen && canManageCurrentGroup
+  const fabItems: ShellFabItem[] = isGroupScreen && canShowCurrentPageEdit
     ? [
       ...(selectedPageId
         ? [
@@ -649,7 +653,7 @@ const App = () => {
   ]
   const headerGroup = CurrentGroup?.id === contextualGroupId ? CurrentGroup : contextualGroup
   const headerGroupName = contextualGroupId ? localizeText(headerGroup?.name, auth.language) : ''
-  const headerGroupManageTo = contextualGroupId && canManageCurrentGroup ? `/groups/${contextualGroupId}/manage?section=group` : undefined
+  const headerGroupManageTo = contextualGroupId && canOpenCurrentGroupManagement ? `/groups/${contextualGroupId}/manage?section=group` : undefined
   const showDebugGroupApiButton = import.meta.env.DEV && Boolean(contextualGroupId)
   // const debugGroupApiPath = contextualGroupId ? `/api/groups/${contextualGroupId}` : ''
   const debugGroupApiPath = '/api/sermons'
