@@ -7,6 +7,7 @@ import AppPageShell from '../components/layout/AppPageShell'
 import AppSectionCard from '../components/layout/AppSectionCard'
 import { normalizeApiError } from '../services/http'
 import { useAuthStore } from '../stores/auth'
+import { useLeaderUiPreferences } from '../stores/leaderUiPreferences'
 import { useUiText } from '../i18n/uiText'
 
 const ProfileView = () => {
@@ -14,6 +15,7 @@ const ProfileView = () => {
   const t = useUiText()
   const navigate = useNavigate()
   const me = auth.me
+  const { preferences: leaderUiPreferences, setPreferences: setLeaderUiPreferences } = useLeaderUiPreferences(me?.id)
   const [draftLanguage, setDraftLanguage] = useState(auth.language)
   const [savingLanguage, setSavingLanguage] = useState(false)
   const [languageError, setLanguageError] = useState('')
@@ -58,6 +60,12 @@ const ProfileView = () => {
     return <AppEmptyState title={t('profile')} description={t('loadingIdentity')} />
   }
 
+  const hasLeaderUiOptions = me.memberships.some(
+    (membership) =>
+      membership.status === 'approved' &&
+      (membership.role === 'leader' || membership.role === 'coLeader'),
+  )
+
   return (
     <AppPageShell>
       <div className="mb-5">
@@ -89,6 +97,50 @@ const ProfileView = () => {
           </div>
         </div>
       </AppSectionCard>
+
+      {hasLeaderUiOptions ? (
+        <div className="mt-4">
+          <AppSectionCard dense title={t('profileLeaderUiTitle')} subtitle={t('profileLeaderUiSubtitle')}>
+            <div className="space-y-3">
+              <label className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-500"
+                  checked={leaderUiPreferences.exerciseGroupManagement}
+                  onChange={(event) =>
+                    setLeaderUiPreferences((current) => ({
+                      ...current,
+                      exerciseGroupManagement: event.target.checked,
+                    }))
+                  }
+                />
+                <span>
+                  <span className="block text-sm font-medium text-slate-900">{t('exerciseGroupManagement')}</span>
+                  <span className="mt-1 block text-xs leading-5 text-slate-600">{t('exerciseGroupManagementHelp')}</span>
+                </span>
+              </label>
+
+              <label className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-500"
+                  checked={leaderUiPreferences.exercisePageEditing}
+                  onChange={(event) =>
+                    setLeaderUiPreferences((current) => ({
+                      ...current,
+                      exercisePageEditing: event.target.checked,
+                    }))
+                  }
+                />
+                <span>
+                  <span className="block text-sm font-medium text-slate-900">{t('exercisePageEditing')}</span>
+                  <span className="mt-1 block text-xs leading-5 text-slate-600">{t('exercisePageEditingHelp')}</span>
+                </span>
+              </label>
+            </div>
+          </AppSectionCard>
+        </div>
+      ) : null}
 
       <div className="mt-4">
         <AppSectionCard
