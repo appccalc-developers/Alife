@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { UserMinus } from 'lucide-react'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
 import AppEmptyState from '../components/layout/AppEmptyState'
@@ -33,10 +34,25 @@ type MembersPanelProps = {
   onSetCoLeader: (memberId: string, isCoLeader: boolean) => void
 }
 
+const iconButtonClass = 'h-8 w-8 p-0'
+
 const MembersPanel = ({ memberships, onInviteMember, onApproveMember, onRejectMember, onKickMember, onSetCoLeader }: MembersPanelProps) => {
   const t = useUiText()
+  const [roleTarget, setRoleTarget] = useState<GroupMemberToolRow | null>(null)
   const requestedMembers = memberships.filter((member) => member.status === 'requested')
   const approvedMembers = memberships.filter((member) => member.status === 'approved')
+  const inactiveMembers = memberships.filter((member) => member.status !== 'requested' && member.status !== 'approved')
+
+  const getDisplayName = (member: GroupMemberToolRow) => member.displayName || t('memberShort', { id: shortId(member.memberId) })
+  const getRoleLabel = (member: GroupMemberToolRow) => member.role === 'coLeader' ? t('coLeaderRole') : t('groupMemberRole')
+
+  const handleRoleChoice = (isCoLeader: boolean) => {
+    if (!roleTarget) return
+    if ((roleTarget.role === 'coLeader') !== isCoLeader) {
+      onSetCoLeader(roleTarget.memberId, isCoLeader)
+    }
+    setRoleTarget(null)
+  }
 
   return (
     <AppSectionCard
@@ -73,17 +89,71 @@ const MembersPanel = ({ memberships, onInviteMember, onApproveMember, onRejectMe
           approvedMembers.map((member) => (
             <div key={member.memberId} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 p-3">
               <div>
-                <p className="font-medium text-slate-950">{member.displayName || t('memberShort', { id: shortId(member.memberId) })}</p>
-                <AppBadge variant="info">{member.role}</AppBadge>
+                <p className="font-medium text-slate-950">{getDisplayName(member)}</p>
+                {member.role === 'leader' ? (
+                  <AppBadge variant="info">{member.role}</AppBadge>
+                ) : (
+                  <button
+                    type="button"
+                    className="mt-1 inline-flex rounded-full focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
+                    onClick={() => setRoleTarget(member)}
+                  >
+                    <AppBadge variant="info">{getRoleLabel(member)}</AppBadge>
+                  </button>
+                )}
               </div>
               {member.role !== 'leader' ? (
                 <div className="flex gap-2">
-                  <AppActionButton size="sm" variant="secondary" onClick={() => onSetCoLeader(member.memberId, member.role !== 'coLeader')}>
-                    {member.role === 'coLeader' ? t('resetCoLeader') : t('setCoLeader')}
+                  <AppActionButton
+                    size="sm"
+                    variant="danger"
+                    className={iconButtonClass}
+                    aria-label={t('kickOffMember')}
+                    title={t('kickOffMember')}
+                    onClick={() => onKickMember(member.memberId)}
+                  >
+                    <UserMinus size={16} aria-hidden="true" />
                   </AppActionButton>
-                  <AppActionButton size="sm" variant="danger" onClick={() => onKickMember(member.memberId)}>{t('remove')}</AppActionButton>
                 </div>
               ) : null}
+            </div>
+          ))
+        )}
+      </div>
+
+      {roleTarget ? (
+        <div className="fixed inset-0 z-[60] flex items-end bg-slate-950/45 px-4 py-6 desktop:items-center desktop:justify-center">
+          <button type="button" className="absolute inset-0" aria-label={t('cancel')} onClick={() => setRoleTarget(null)} />
+          <section className="relative z-10 w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
+            <h3 className="text-base font-semibold text-slate-950">{t('setCoLeader')}</h3>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              {t('coLeaderRolePrompt', {
+                name: getDisplayName(roleTarget),
+                role: getRoleLabel(roleTarget),
+              })}
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <AppActionButton variant="secondary" onClick={() => handleRoleChoice(false)}>{t('no')}</AppActionButton>
+              <AppActionButton variant="primary" onClick={() => handleRoleChoice(true)}>{t('yes')}</AppActionButton>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      <div className="mt-5 space-y-2">
+        <h3 className="text-sm font-semibold text-slate-900">{t('inactiveMembers')}</h3>
+        {inactiveMembers.length === 0 ? (
+          <p className="text-sm text-slate-500">{t('noInactiveMembers')}</p>
+        ) : (
+          inactiveMembers.map((member) => (
+            <div key={member.memberId} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50/60 p-3">
+              <div>
+                <p className="font-medium text-slate-950">{member.displayName || t('memberShort', { id: shortId(member.memberId) })}</p>
+                <div className="mt-1 flex flex-wrap gap-2">
+                  <MembershipStatusBadge status={member.status} />
+                  <AppBadge variant="neutral">{member.role}</AppBadge>
+                </div>
+              </div>
             </div>
           ))
         )}
@@ -140,12 +210,10 @@ const PagesPanel = ({ groupId, language, pages, onAddPage, onDeletePage, onToggl
 type EventsPanelProps = {
   groupId: string
   events: GroupEventRecord[]
-  onOpenEnrollDialog: (eventId: string) => void
-  onOpenReviewDialog: (eventId: string) => void
   onDeleteEvent: (eventId: string) => void
 }
 
-const EventsPanel = ({ groupId, events, onOpenEnrollDialog, onOpenReviewDialog, onDeleteEvent }: EventsPanelProps) => {
+const EventsPanel = ({ groupId, events, onDeleteEvent }: EventsPanelProps) => {
   const navigate = useNavigate()
   const t = useUiText()
   const { language } = useAuthStore()
@@ -170,8 +238,6 @@ const EventsPanel = ({ groupId, events, onOpenEnrollDialog, onOpenReviewDialog, 
                   <p className="mt-1 text-xs text-slate-500">{formatDate(event.startDate, language)}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <AppActionButton size="sm" variant="primary" onClick={() => onOpenEnrollDialog(event.id)}>{t('enroll')}</AppActionButton>
-                  <AppActionButton size="sm" variant="secondary" onClick={() => onOpenReviewDialog(event.id)}>{t('review')}</AppActionButton>
                   <AppActionButton size="sm" variant="secondary" onClick={() => navigate(`/events/${event.id}/edit?groupId=${groupId}`, { state: { event } })}>{t('edit')}</AppActionButton>
                   <AppActionButton size="sm" variant="danger" onClick={() => onDeleteEvent(event.id)}>{t('delete')}</AppActionButton>
                 </div>
@@ -249,7 +315,8 @@ const GroupManageView = () => {
   const { groupId = '' } = useParams<{ groupId: string }>()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { language } = useAuthStore()
+  const auth = useAuthStore()
+  const { language } = auth
   const { setCurrentGroup } = useCurrentGroupStore()
   const [savingGroup, setSavingGroup] = useState(false)
   const {
@@ -266,7 +333,6 @@ const GroupManageView = () => {
     canManageGroup,
     updateGroup,
     addSubgroup: createSubgroup,
-    editSubgroup: runEditSubgroup,
     deleteSubgroup: runDeleteSubgroup,
     deletePage,
     togglePageVisibility,
@@ -278,6 +344,13 @@ const GroupManageView = () => {
   } = useGroupScreen(groupId, { loadEvents: true })
 
   const activeSection = searchParams.get('section') ?? 'group'
+  const canManageSubgroup = (subgroupId: string) =>
+    auth.memberships.some(
+      (membership) =>
+        membership.groupId === subgroupId &&
+        membership.status === 'approved' &&
+        (membership.role === 'leader' || membership.role === 'coLeader'),
+    )
 
   useEffect(() => {
     if (group) {
@@ -377,24 +450,19 @@ const GroupManageView = () => {
                         <p className="font-medium text-slate-950">{localizeText(subgroup.name, language)}</p>
                         <AccessTypeBadge accessType={subgroup.accessType} />
                       </div>
-                      <div className="flex flex-wrap gap-2">
-                        <AppActionButton size="sm" variant="secondary" onClick={() => navigate(`/groups/${subgroup.id}`)}>{t('open')}</AppActionButton>
-                        <AppActionButton size="sm" variant="secondary" onClick={() => {
-                          runEditSubgroup(subgroup.id).catch((reason) => {
-                            setStatusMessage(reason instanceof Error ? reason.message : t('subgroupEditUnavailable'))
-                          })
-                        }}>
-                          {t('edit')}
-                        </AppActionButton>
-                        <AppActionButton size="sm" variant="danger" onClick={() => {
-                          if (!window.confirm(t('removeSubgroupConfirm'))) return
-                          runDeleteSubgroup(subgroup.id).catch((reason) => {
-                            setStatusMessage(reason instanceof Error ? reason.message : t('subgroupDeleteUnavailable'))
-                          })
-                        }}>
-                          {t('delete')}
-                        </AppActionButton>
-                      </div>
+                      {canManageSubgroup(subgroup.id) ? (
+                        <div className="flex flex-wrap gap-2">
+                          <AppActionButton size="sm" variant="secondary" onClick={() => navigate(`/groups/${subgroup.id}`)}>{t('open')}</AppActionButton>
+                          <AppActionButton size="sm" variant="danger" onClick={() => {
+                            if (!window.confirm(t('removeSubgroupConfirm'))) return
+                            runDeleteSubgroup(subgroup.id).catch((reason) => {
+                              setStatusMessage(reason instanceof Error ? reason.message : t('subgroupDeleteUnavailable'))
+                            })
+                          }}>
+                            {t('delete')}
+                          </AppActionButton>
+                        </div>
+                      ) : null}
                     </div>
                   ))}
                 </div>
@@ -434,8 +502,6 @@ const GroupManageView = () => {
             <EventsPanel
               groupId={groupId}
               events={events}
-              onOpenEnrollDialog={(eventId) => navigate(`/groups/${groupId}/events/${eventId}/enroll`)}
-              onOpenReviewDialog={(eventId) => navigate(`/groups/${groupId}/events/${eventId}/review`)}
               onDeleteEvent={(eventId) => {
                 if (!window.confirm(t('deleteEventConfirm'))) return
                 deleteEvent(eventId).catch(() => setStatusMessage(t('deleteEventFailed')))

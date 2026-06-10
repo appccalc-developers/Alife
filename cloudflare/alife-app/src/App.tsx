@@ -564,9 +564,10 @@ const App = () => {
     [auth.language, contextualGroupId, currentGroupPages],
   )
   const selectedPageId = searchParams.get('page') || currentGroupPageNavItems[0]?.pageId || ''
+  const managementGroup = CurrentGroup?.id === contextualGroupId ? CurrentGroup : contextualGroup
   const managementNavItems: ShellNavItem[] = contextualGroupId
     ? [
-      { label: translateUi(auth.language, 'group'), to: `/groups/${contextualGroupId}/manage?section=group`, matchSearch: '?section=group', icon: <GroupIcon /> },
+      { label: translateUi(auth.language, managementGroup?.isChurch ? 'church' : 'group'), to: `/groups/${contextualGroupId}/manage?section=group`, matchSearch: '?section=group', icon: <GroupIcon /> },
       { label: translateUi(auth.language, 'subgroups'), to: `/groups/${contextualGroupId}/manage?section=subgroups`, matchSearch: '?section=subgroups', icon: <SubgroupsIcon /> },
       { label: translateUi(auth.language, 'members'), to: `/groups/${contextualGroupId}/manage?section=members`, matchSearch: '?section=members', icon: <MembersIcon /> },
       { label: translateUi(auth.language, 'pages'), to: `/groups/${contextualGroupId}/manage?section=pages`, matchSearch: '?section=pages', icon: <PageIcon /> },
@@ -651,7 +652,7 @@ const App = () => {
   const appNavItems: ShellNavItem[] = [
     ...(!auth.loading && auth.isGuest ? [{ label: translateUi(auth.language, 'onboarding'), to: '/onboarding', icon: <OnboardingIcon /> }] : []),
   ]
-  const headerGroup = CurrentGroup?.id === contextualGroupId ? CurrentGroup : contextualGroup
+  const headerGroup = managementGroup
   const headerGroupName = contextualGroupId ? localizeText(headerGroup?.name, auth.language) : ''
   const headerGroupManageTo = contextualGroupId && canOpenCurrentGroupManagement ? `/groups/${contextualGroupId}/manage?section=group` : undefined
   const showDebugGroupApiButton = import.meta.env.DEV && Boolean(contextualGroupId)

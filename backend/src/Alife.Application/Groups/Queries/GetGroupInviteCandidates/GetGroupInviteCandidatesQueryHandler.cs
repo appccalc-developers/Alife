@@ -1,3 +1,4 @@
+using Alife.Application.Common;
 using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
 using Alife.Application.Groups.Services;
@@ -51,10 +52,29 @@ public sealed class GetGroupInviteCandidatesQueryHandler(
                 select member;
         }
 
-        var members = await query
+        var memberRows = await query
             .OrderBy(x => x.DisplayName)
-            .Select(x => new MemberSummaryDto(x.Id, x.DisplayName))
+            .Select(x => new { x.Id, x.DisplayName })
             .ToListAsync(cancellationToken);
+
+        var memberIds = memberRows.Select(x => x.Id).ToHashSet();
+        var membershipRows = await dbContext.GroupMemberships
+            .AsNoTracking()
+            .Where(x => x.GroupId == request.GroupId && memberIds.Contains(x.MemberId))
+            .OrderByDescending(x => x.UpdatedUtc)
+            .Select(x => new { x.MemberId, x.Status })
+            .ToListAsync(cancellationToken);
+
+        var membershipStatuses = membershipRows
+            .GroupBy(x => x.MemberId)
+            .ToDictionary(x => x.Key, x => EnumName.CamelCase(x.First().Status));
+
+        var members = memberRows
+            .Select(x => new MemberSummaryDto(
+                x.Id,
+                x.DisplayName,
+                membershipStatuses.GetValueOrDefault(x.Id)))
+            .ToList();
 
         return AppResult<IReadOnlyList<MemberSummaryDto>>.Success(members);
     }

@@ -1,17 +1,21 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import AppActionButton from '../components/layout/AppActionButton'
+import AppBadge from '../components/layout/AppBadge'
 import AppPageShell from '../components/layout/AppPageShell'
 import AppSectionCard from '../components/layout/AppSectionCard'
 import { useGroupScreen } from '../hooks/useGroupScreen'
 import { groupService, type MemberSummaryDto } from '../services/groupService'
 import { useUiText } from '../i18n/uiText'
+import type { MembershipStatus } from '../types'
+
+const canInviteWithStatus = (status?: MembershipStatus | null) => !status || status === 'rejected' || status === 'removed'
 
 const InviteMembersView = () => {
   const t = useUiText()
   const { groupId = '' } = useParams<{ groupId: string }>()
   const navigate = useNavigate()
-  const { memberships, inviteMemberById } = useGroupScreen(groupId)
+  const { inviteMemberById } = useGroupScreen(groupId)
 
   const [allMembers, setAllMembers] = useState<MemberSummaryDto[]>([])
   const [loadingMembers, setLoadingMembers] = useState(true)
@@ -23,6 +27,7 @@ const InviteMembersView = () => {
   useEffect(() => {
     let cancelled = false
     setLoadingMembers(true)
+    setLoadError('')
     groupService.getInviteCandidates(groupId)
       .then((members) => {
         if (!cancelled) setAllMembers(members)
@@ -36,23 +41,39 @@ const InviteMembersView = () => {
     return () => { cancelled = true }
   }, [groupId, t])
 
-  const existingMemberIds = new Set(memberships.map((m) => m.memberId))
+  const getInviteStatusLabel = (status?: MembershipStatus | null) => {
+    if (status === 'invited') return t('waitingResponse')
+    if (status === 'requested') return t('waitingApproval')
+    if (status === 'approved') return t('alreadyInGroup')
+    if (status === 'rejected') return t('rejected')
+    if (status === 'removed') return t('removed')
+    return t('canInvite')
+  }
 
-  const handleToggle = (memberId: string) => {
-    if (existingMemberIds.has(memberId)) return
+  const getInviteStatusVariant = (status?: MembershipStatus | null) => {
+    if (status === 'approved') return 'success'
+    if (status === 'requested') return 'warning'
+    if (status === 'invited') return 'info'
+    if (status === 'rejected' || status === 'removed') return 'danger'
+    return 'neutral'
+  }
+
+  const handleToggle = (member: MemberSummaryDto) => {
+    if (!canInviteWithStatus(member.membershipStatus)) return
     setSelected((prev) => {
       const next = new Set(prev)
-      if (next.has(memberId)) {
-        next.delete(memberId)
+      if (next.has(member.id)) {
+        next.delete(member.id)
       } else {
-        next.add(memberId)
+        next.add(member.id)
       }
       return next
     })
   }
 
   const handleSubmit = async () => {
-    const toInvite = [...selected].filter((id) => !existingMemberIds.has(id))
+    const inviteableMemberIds = new Set(allMembers.filter((member) => canInviteWithStatus(member.membershipStatus)).map((member) => member.id))
+    const toInvite = [...selected].filter((id) => inviteableMemberIds.has(id))
     if (toInvite.length === 0) {
       navigate(`/groups/${groupId}/manage?section=members`, { replace: true })
       return
@@ -93,14 +114,14 @@ const InviteMembersView = () => {
         ) : (
           <div className="space-y-1">
             {allMembers.map((member) => {
-              const isExisting = existingMemberIds.has(member.id)
-              const isChecked = isExisting || selected.has(member.id)
+              const canInvite = canInviteWithStatus(member.membershipStatus)
+              const isChecked = selected.has(member.id)
               const label = member.displayName || t('unknownMember')
               return (
                 <label
                   key={member.id}
                   className={`flex items-center gap-3 rounded-lg border p-3 ${
-                    isExisting
+                    !canInvite
                       ? 'cursor-not-allowed border-slate-100 bg-slate-50 opacity-60'
                       : 'cursor-pointer border-slate-200 hover:bg-slate-50'
                   }`}
@@ -108,14 +129,14 @@ const InviteMembersView = () => {
                   <input
                     type="checkbox"
                     checked={isChecked}
-                    disabled={isExisting}
-                    onChange={() => handleToggle(member.id)}
+                    disabled={!canInvite}
+                    onChange={() => handleToggle(member)}
                     className="h-4 w-4 rounded border-slate-300 text-blue-600 accent-blue-600 disabled:cursor-not-allowed"
                   />
                   <span className="flex-1 text-sm font-medium text-slate-900">{label}</span>
-                  {isExisting && (
-                    <span className="text-xs text-slate-400">{t('alreadyInGroup')}</span>
-                  )}
+                  <AppBadge variant={getInviteStatusVariant(member.membershipStatus)}>
+                    {getInviteStatusLabel(member.membershipStatus)}
+                  </AppBadge>
                 </label>
               )
             })}
