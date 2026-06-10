@@ -21,6 +21,23 @@ const toNotificationText = (value: unknown): NotificationText | undefined => {
 
 const firstString = (...values: unknown[]) => values.find((value): value is string => typeof value === 'string' && value.trim().length > 0)
 
+const parseJsonObject = (value: unknown): Record<string, unknown> | undefined => {
+  if (isRecord(value)) {
+    return value
+  }
+
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return undefined
+  }
+
+  try {
+    const parsed = JSON.parse(value) as unknown
+    return isRecord(parsed) ? parsed : undefined
+  } catch {
+    return undefined
+  }
+}
+
 const readNotificationItems = (payload: unknown): unknown[] => {
   if (Array.isArray(payload)) {
     return payload
@@ -60,43 +77,47 @@ const normalizeNotification = (value: unknown): AppNotification | null => {
     return null
   }
 
-  const title = toNotificationText(value.title) ?? toNotificationText(value.subject) ?? toNotificationText(value.message) ?? ''
-  const body = toNotificationText(value.body) ?? toNotificationText(value.description) ?? toNotificationText(value.content)
+  const actionData = parseJsonObject(value.actionDataJson ?? value.actionData)
+  const actionType = firstString(value.actionType, value.type)
+  const groupId = firstString(value.groupId, actionData?.groupId)
+  const eventId = firstString(value.eventId, actionData?.eventId)
+  const eventActionUrl = actionType === 'event.created' && groupId && eventId
+    ? `/groups/${encodeURIComponent(groupId)}/events/${encodeURIComponent(eventId)}`
+    : undefined
+
+  const title =
+    toNotificationText(value.title) ??
+    toNotificationText(actionData?.title) ??
+    toNotificationText(value.subject) ??
+    toNotificationText(value.message) ??
+    ''
+  const body =
+    toNotificationText(value.body) ??
+    toNotificationText(actionData?.body) ??
+    toNotificationText(value.description) ??
+    toNotificationText(value.content)
 
   return {
     id,
     title,
     body,
-    actionUrl: firstString(value.actionUrl, value.actionURL, value.actionUri, value.url) ?? null,
+    actionUrl: firstString(value.actionUrl, value.actionURL, value.actionUri, value.url, actionData?.actionUrl) ?? eventActionUrl ?? null,
     status: firstString(value.status, value.state),
     createdUtc: firstString(value.createdUtc, value.createdAt, value.createdOn, value.updatedUtc),
+    readUtc: firstString(value.readUtc, value.readAt, value.openedUtc, value.openedAt),
   }
 }
 
 const normalizeNotifications = (payload: unknown): AppNotification[] =>
   readNotificationItems(payload).map(normalizeNotification).filter((item): item is AppNotification => Boolean(item))
 
-const shouldFallbackToActiveList = (error: unknown) => {
-  const status = (error as { status?: number } | undefined)?.status
-  return status === 404 || status === 405
-}
-
 export const notificationService = {
   getOpenNotifications: async (): Promise<AppNotification[]> => {
-    try {
-      const { data } = await http.get<unknown>('/api/notifications/unopened')
-      return normalizeNotifications(data)
-    } catch (error) {
-      if (!shouldFallbackToActiveList(error)) {
-        throw error
-      }
-
-      const { data } = await http.get<unknown>('/api/notifications', { params: { status: 'active' } })
-      return normalizeNotifications(data)
-    }
+    const { data } = await http.get<unknown>('/api/notifications')
+    return normalizeNotifications(data).filter((notification) => !notification.readUtc)
   },
 
   openNotification: async (id: string): Promise<void> => {
-    await http.post(`/api/notifications/${encodeURIComponent(id)}/open`)
+    await http.post(`/api/notifications/${encodeURIComponent(id)}/read`)
   },
 }
