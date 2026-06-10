@@ -82,6 +82,17 @@ Default local URL: `http://localhost:7071`
 - `PUT /api/events/{eventId}/reviews/{reviewId}`
 - `DELETE /api/events/{eventId}/reviews/{reviewId}`
 
+### Notifications API
+
+All notification endpoints require an authenticated member and return private, no-cache responses.
+
+- `GET /api/notifications` - list the current member's notifications, ordered with unread items first. Clients should treat `readUtc == null` as unread/open.
+- `POST /api/notifications` - create a notification. Group notifications require leader or co-leader permission.
+- `POST /api/notifications/{id}/read` - mark the current member's notification as read.
+- `POST /api/notifications/{id}/reply` - store a JSON object response and mark the notification as read.
+
+There is no `/api/notifications/{id}/open` endpoint; opening a notification in the UI should call `/read`.
+
 ## Configuration
 
 ### Development settings

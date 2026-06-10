@@ -9,4 +9,5 @@ export type AppNotification = {
   actionUrl?: string | null
   status?: string
   createdUtc?: string
+  readUtc?: string
 }
