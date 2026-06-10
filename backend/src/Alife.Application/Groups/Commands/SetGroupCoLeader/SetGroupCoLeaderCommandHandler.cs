@@ -19,12 +19,12 @@ public sealed class SetGroupCoLeaderCommandHandler(
         SetGroupCoLeaderCommand request,
         CancellationToken cancellationToken)
     {
-        var isLeader = await groupAuthorizationService.IsLeaderAsync(
+        var canManage = await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
             request.GroupId,
             request.CurrentMemberId,
             cancellationToken);
 
-        if (!isLeader)
+        if (!canManage)
         {
             return AppResult<GroupActionResultDto>.Forbidden("You do not have permission to manage co-leaders.");
         }
@@ -38,6 +38,11 @@ public sealed class SetGroupCoLeaderCommandHandler(
         if (membership is null)
         {
             return AppResult<GroupActionResultDto>.NotFound("Approved membership was not found.");
+        }
+
+        if (membership.Role == MembershipRole.Leader)
+        {
+            return AppResult<GroupActionResultDto>.Forbidden("The primary leader role cannot be changed with this action.");
         }
 
         membership.Role = request.IsCoLeader ? MembershipRole.CoLeader : MembershipRole.Member;

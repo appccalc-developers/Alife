@@ -10,7 +10,14 @@ public sealed class GroupAuthorizationService(AlifeDbContext dbContext) : IGroup
     public Task<bool> IsAdminAsync(Guid memberId, CancellationToken cancellationToken)
         => dbContext.Members
             .AsNoTracking()
-            .AnyAsync(x => x.Id == memberId && x.IsAdmin, cancellationToken);
+            .AnyAsync(
+                x => x.Id == memberId &&
+                     (x.IsAdmin ||
+                      x.Memberships.Any(m =>
+                          m.Group.IsChurch &&
+                          m.Status == MembershipStatus.Approved &&
+                          (m.Role == MembershipRole.Leader || m.Role == MembershipRole.CoLeader))),
+                cancellationToken);
 
     public Task<bool> IsApprovedMemberAsync(Guid groupId, Guid memberId, CancellationToken cancellationToken)
         => dbContext.GroupMemberships
