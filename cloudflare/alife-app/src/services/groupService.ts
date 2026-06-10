@@ -1,5 +1,5 @@
 import { http } from './http'
-import type { GroupDto, GroupMembershipDto, GroupSummaryDto, LocalizedText, PageSummaryDto } from '../types'
+import type { GroupDto, GroupMembershipDto, GroupSummaryDto, LocalizedText, MembershipStatus, PageSummaryDto } from '../types'
 import { normalizeGroup, normalizeGroupMembership, normalizeMembershipStatus, normalizePageSummary } from '../utils/apiEnums'
 
 export type CreateSubgroupPayload = {
@@ -26,6 +26,7 @@ export type InviteMemberPayload = {
 export type MemberSummaryDto = {
   id: string
   displayName: string | null
+  membershipStatus?: MembershipStatus | null
 }
 
 export type SetCoLeaderPayload = {
@@ -106,7 +107,10 @@ export const groupService = {
 
   async getInviteCandidates(groupId: string): Promise<MemberSummaryDto[]> {
     const { data } = await http.get<MemberSummaryDto[]>(`/api/groups/${groupId}/invite-candidates`)
-    return data
+    return data.map((member) => ({
+      ...member,
+      membershipStatus: member.membershipStatus ? normalizeMembershipStatus(member.membershipStatus) : null,
+    }))
   },
 
   async getMembers(): Promise<MemberSummaryDto[]> {
