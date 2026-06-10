@@ -84,6 +84,21 @@ const text = {
   profileSubtitle: { en: 'Your member profile and account details.', zh: '你的会员资料和帐号信息。' },
   logout: { en: 'Logout', zh: '退出登录' },
   loggingOut: { en: 'Logging out...', zh: '正在退出登录...' },
+  profileLeaderUiTitle: { en: 'Leader display options', zh: '带领人界面选项' },
+  profileLeaderUiSubtitle: {
+    en: 'Stored on this device. These options only change visible shortcuts, not your real permissions.',
+    zh: '仅保存在本设备。这些选项只改变界面入口，不改变真实权限。',
+  },
+  exerciseGroupManagement: { en: 'Exercise group management role', zh: '行使组管理职能' },
+  exerciseGroupManagementHelp: {
+    en: 'When enabled, selecting the group name in the header opens group management.',
+    zh: '开启后，点击标题栏的组名会进入组管理界面。',
+  },
+  exercisePageEditing: { en: 'Exercise page editing role', zh: '行使页面编辑职能' },
+  exercisePageEditingHelp: {
+    en: 'When enabled, group pages show the edit page floating action button.',
+    zh: '开启后，显示组页面时会出现编辑页面的悬浮按钮。',
+  },
   profileLanguageSubtitle: { en: 'Choose the language stored in your account and JWT.', zh: '选择存储在你的帐号和 JWT 里的语言。' },
   profileLanguageSaved: { en: 'Language updated.', zh: '语言已更新。' },
   registered: { en: 'Registered', zh: '已注册' },
