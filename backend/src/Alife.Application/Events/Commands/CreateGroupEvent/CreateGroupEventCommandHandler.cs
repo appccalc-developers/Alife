@@ -1,10 +1,13 @@
+using System.Text.Json;
 using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
 using Alife.Application.Events.Dtos;
 using Alife.Application.Events.Services;
 using Alife.Application.Groups.Services;
 using Alife.Domain.Entities;
+using Alife.Domain.Enums;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 namespace Alife.Application.Events.Commands.CreateGroupEvent;
 
@@ -14,6 +17,9 @@ public sealed class CreateGroupEventCommandHandler(
     IEventCacheInvalidationService eventCacheInvalidationService)
     : IRequestHandler<CreateGroupEventCommand, AppResult<GroupEventSummaryDto>>
 {
+    private const string EventCreatedActionType = "event.created";
+    private static readonly JsonSerializerOptions NotificationJsonOptions = new(JsonSerializerDefaults.Web);
+
     public async Task<AppResult<GroupEventSummaryDto>> Handle(CreateGroupEventCommand request, CancellationToken cancellationToken)
     {
         var canManage = await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
@@ -42,6 +48,42 @@ public sealed class CreateGroupEventCommandHandler(
         };
 
         dbContext.GroupEvents.Add(groupEvent);
+        var recipientMemberIds = await dbContext.GroupMemberships
+            .AsNoTracking()
+            .Where(x => x.GroupId == request.GroupId && x.Status == MembershipStatus.Approved)
+            .Select(x => x.MemberId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        var actionDataJson = JsonSerializer.Serialize(
+            new
+            {
+                eventId = groupEvent.Id,
+                groupId = groupEvent.GroupId,
+                title = new
+                {
+                    en = groupEvent.TitleEn,
+                    zh = groupEvent.TitleZh
+                },
+                startDate = groupEvent.StartDate,
+                endDate = groupEvent.EndDate
+            },
+            NotificationJsonOptions);
+
+        dbContext.NotificationMessages.AddRange(recipientMemberIds.Select(memberId => new NotificationMessage
+        {
+            Id = Guid.NewGuid(),
+            RecipientMemberId = memberId,
+            CreatedByMemberId = request.CurrentMemberId,
+            GroupId = request.GroupId,
+            EventId = groupEvent.Id,
+            OccurredUtc = now,
+            ActionType = EventCreatedActionType,
+            ActionDataJson = actionDataJson,
+            CreatedUtc = now,
+            UpdatedUtc = now
+        }));
+
         await dbContext.SaveChangesAsync(cancellationToken);
         await eventCacheInvalidationService.RemoveGroupEventsAsync(request.GroupId, cancellationToken);
 

@@ -56,6 +56,59 @@ public class GroupEventsCrudHandlersTests
     }
 
     [Fact]
+    public async Task CreateGroupEvent_WhenAuthorized_CreatesNotificationsForApprovedGroupMembers()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var groupAuthorizationService = Substitute.For<IGroupAuthorizationService>();
+        var groupId = Guid.NewGuid();
+        var leaderId = Guid.NewGuid();
+        var approvedMemberId = Guid.NewGuid();
+        var requestedMemberId = Guid.NewGuid();
+        dbContext.GroupMemberships.AddRange(
+            CreateMembership(groupId, leaderId, MembershipStatus.Approved, MembershipRole.Leader),
+            CreateMembership(groupId, approvedMemberId, MembershipStatus.Approved, MembershipRole.Member),
+            CreateMembership(groupId, requestedMemberId, MembershipStatus.Requested, MembershipRole.Member));
+        await dbContext.SaveChangesAsync();
+
+        groupAuthorizationService
+            .IsLeaderOrCoLeaderAsync(groupId, leaderId, Arg.Any<CancellationToken>())
+            .Returns(true);
+
+        var eventCacheInvalidationService = Substitute.For<IEventCacheInvalidationService>();
+        var handler = new CreateGroupEventCommandHandler(dbContext, groupAuthorizationService, eventCacheInvalidationService);
+
+        var result = await handler.Handle(
+            new CreateGroupEventCommand(
+                groupId,
+                leaderId,
+                "English Title",
+                "中文標題",
+                new DateTime(2026, 1, 10, 10, 0, 0, DateTimeKind.Utc),
+                new DateTime(2026, 1, 10, 12, 0, 0, DateTimeKind.Utc),
+                "{\"description\":\"test\"}"),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Value);
+        var notifications = await dbContext.NotificationMessages
+            .OrderBy(x => x.RecipientMemberId)
+            .ToListAsync();
+        Assert.Equal(2, notifications.Count);
+        Assert.All(notifications, notification =>
+        {
+            Assert.NotEqual(Guid.Empty, notification.RecipientMemberId);
+            Assert.Equal(groupId, notification.GroupId);
+            Assert.Equal(result.Value.Id, notification.EventId);
+            Assert.Equal(leaderId, notification.CreatedByMemberId);
+            Assert.Equal("event.created", notification.ActionType);
+            Assert.Contains(result.Value.Id.ToString(), notification.ActionDataJson);
+        });
+        Assert.Equal(
+            new[] { approvedMemberId, leaderId }.OrderBy(x => x),
+            notifications.Select(x => x.RecipientMemberId));
+    }
+
+    [Fact]
     public async Task GetGroupEvents_WhenAuthorized_ReturnsNonDeletedEventsInStartDateOrder()
     {
         using var dbContext = CreateInMemoryDbContext();
@@ -271,4 +324,20 @@ public class GroupEventsCrudHandlersTests
             IsClosed: false,
             DateTime.UtcNow,
             DateTime.UtcNow);
+
+    private static GroupMembership CreateMembership(
+        Guid groupId,
+        Guid memberId,
+        MembershipStatus status,
+        MembershipRole role)
+        => new()
+        {
+            Id = Guid.NewGuid(),
+            GroupId = groupId,
+            MemberId = memberId,
+            Status = status,
+            Role = role,
+            CreatedUtc = DateTime.UtcNow,
+            UpdatedUtc = DateTime.UtcNow
+        };
 }
