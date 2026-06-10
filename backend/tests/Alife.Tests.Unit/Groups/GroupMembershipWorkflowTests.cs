@@ -1,6 +1,7 @@
 using Alife.Application.Common.Interfaces;
 using Alife.Application.Groups.Commands.ApproveGroupMember;
 using Alife.Application.Groups.Commands.JoinGroup;
+using Alife.Application.Groups.Commands.SetGroupCoLeader;
 using Alife.Application.Groups.Services;
 using Alife.Domain.Entities;
 using Alife.Domain.Enums;
@@ -101,6 +102,96 @@ public class GroupMembershipWorkflowTests
         Assert.Equal(churchId, membership.GroupId);
         Assert.Equal(memberId, membership.MemberId);
         Assert.Equal(MembershipStatus.Approved, membership.Status);
+    }
+
+    [Fact]
+    public async Task SetGroupCoLeader_AllowsCoLeaderToPromoteApprovedMember()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var groupId = Guid.NewGuid();
+        var coLeaderId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+        dbContext.Groups.Add(CreateGroup(groupId, AccessType.Protected));
+        dbContext.GroupMemberships.Add(new GroupMembership
+        {
+            Id = Guid.NewGuid(),
+            GroupId = groupId,
+            MemberId = memberId,
+            Status = MembershipStatus.Approved,
+            Role = MembershipRole.Member,
+            CreatedUtc = DateTime.UtcNow,
+            UpdatedUtc = DateTime.UtcNow
+        });
+        await dbContext.SaveChangesAsync();
+
+        var authorizationService = Substitute.For<IGroupAuthorizationService>();
+        authorizationService.IsLeaderOrCoLeaderAsync(groupId, coLeaderId, Arg.Any<CancellationToken>()).Returns(true);
+        var cloudflareKvCacheService = Substitute.For<ICloudflareKvCacheService>();
+        var invalidationService = Substitute.For<IGroupCacheInvalidationService>();
+        var handler = new SetGroupCoLeaderCommandHandler(
+            dbContext,
+            authorizationService,
+            invalidationService,
+            cloudflareKvCacheService);
+
+        var result = await handler.Handle(
+            new SetGroupCoLeaderCommand(groupId, coLeaderId, memberId, true),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(MembershipRole.CoLeader, dbContext.GroupMemberships.Single().Role);
+        await cloudflareKvCacheService.Received(1).PutApprovedMembershipAsync(
+            groupId,
+            memberId,
+            MembershipRole.CoLeader,
+            Arg.Any<DateTime>(),
+            Arg.Any<CancellationToken>());
+        await invalidationService.Received(1).RemoveMembershipsAsync(groupId, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SetGroupCoLeader_DoesNotChangePrimaryLeaderRole()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var groupId = Guid.NewGuid();
+        var coLeaderId = Guid.NewGuid();
+        var leaderId = Guid.NewGuid();
+        dbContext.Groups.Add(CreateGroup(groupId, AccessType.Protected));
+        dbContext.GroupMemberships.Add(new GroupMembership
+        {
+            Id = Guid.NewGuid(),
+            GroupId = groupId,
+            MemberId = leaderId,
+            Status = MembershipStatus.Approved,
+            Role = MembershipRole.Leader,
+            CreatedUtc = DateTime.UtcNow,
+            UpdatedUtc = DateTime.UtcNow
+        });
+        await dbContext.SaveChangesAsync();
+
+        var authorizationService = Substitute.For<IGroupAuthorizationService>();
+        authorizationService.IsLeaderOrCoLeaderAsync(groupId, coLeaderId, Arg.Any<CancellationToken>()).Returns(true);
+        var cloudflareKvCacheService = Substitute.For<ICloudflareKvCacheService>();
+        var invalidationService = Substitute.For<IGroupCacheInvalidationService>();
+        var handler = new SetGroupCoLeaderCommandHandler(
+            dbContext,
+            authorizationService,
+            invalidationService,
+            cloudflareKvCacheService);
+
+        var result = await handler.Handle(
+            new SetGroupCoLeaderCommand(groupId, coLeaderId, leaderId, false),
+            CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(MembershipRole.Leader, dbContext.GroupMemberships.Single().Role);
+        await cloudflareKvCacheService.DidNotReceiveWithAnyArgs().PutApprovedMembershipAsync(
+            default,
+            default,
+            default,
+            default,
+            default);
+        await invalidationService.DidNotReceiveWithAnyArgs().RemoveMembershipsAsync(default, default);
     }
 
     private static Group CreateGroup(

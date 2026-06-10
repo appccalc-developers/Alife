@@ -2,6 +2,7 @@ using Alife.Application.Common;
 using Alife.Application.Members.Dtos;
 using Alife.Application.Members.Services;
 using Alife.Domain.Constants;
+using Alife.Domain.Enums;
 using Alife.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
@@ -33,7 +34,8 @@ public sealed class MemberReadService(AlifeDbContext dbContext) : IMemberReadSer
                         m.Status,
                         m.Role,
                         GroupNameJson = m.Group.NameJson,
-                        m.Group.ParentGroupId
+                        m.Group.ParentGroupId,
+                        m.Group.IsChurch
                     })
                     .ToList()
             })
@@ -51,7 +53,11 @@ public sealed class MemberReadService(AlifeDbContext dbContext) : IMemberReadSer
                 MemberLanguage.Normalize(member.Language),
                 !member.IsRegistered,
                 member.IsRegistered,
-                member.IsAdmin,
+                member.IsAdmin ||
+                member.Memberships.Any(m =>
+                    m.IsChurch &&
+                    m.Status == MembershipStatus.Approved &&
+                    (m.Role == MembershipRole.Leader || m.Role == MembershipRole.CoLeader)),
                 member.Memberships
                     .Select(m => new MemberMembershipDto(
                         m.GroupId,
