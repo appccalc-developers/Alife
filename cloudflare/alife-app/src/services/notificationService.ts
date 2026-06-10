@@ -99,6 +99,7 @@ const normalizeNotification = (value: unknown): AppNotification | null => {
 
   return {
     id,
+    actionType,
     title,
     body,
     actionUrl: firstString(value.actionUrl, value.actionURL, value.actionUri, value.url, actionData?.actionUrl) ?? eventActionUrl ?? null,

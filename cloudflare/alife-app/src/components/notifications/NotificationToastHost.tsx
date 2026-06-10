@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Bell, ChevronDown, ChevronUp, Loader2 } from 'lucide-react'
+import { ArrowRight, Bell, Check, ChevronDown, ChevronUp, Loader2 } from 'lucide-react'
 import { notificationService } from '../../services/notificationService'
 import { useAuthStore } from '../../stores/auth'
 import type { AppNotification, NotificationText } from '../../types/notification'
-import { useUiText } from '../../i18n/uiText'
+import { useUiText, type UiTextKey } from '../../i18n/uiText'
 
 const localizeNotificationText = (value: NotificationText | undefined, language: string) => {
   if (!value) {
@@ -50,6 +50,19 @@ const normalizeActionUrl = (actionUrl: string) => {
   }
 
   return trimmed.startsWith('/') ? trimmed : `/${trimmed.replace(/^\/+/, '')}`
+}
+
+const getNotificationActionLabelKey = (notification: AppNotification): UiTextKey => {
+  switch (notification.actionType) {
+    case 'group.invitation.received':
+      return 'notificationActionReviewInvitation'
+    case 'group.join-request.received':
+      return 'notificationActionReviewRequest'
+    case 'church.line-member.waiting':
+      return 'notificationActionReviewMember'
+    default:
+      return notification.actionUrl ? 'notificationActionOpen' : 'notificationActionMarkRead'
+  }
 }
 
 const NotificationToastHost = () => {
@@ -183,7 +196,9 @@ const NotificationToastHost = () => {
                       const title = localizeNotificationText(notification.title, auth.language) || t('notification')
                       const body = localizeNotificationText(notification.body, auth.language)
                       const dateLabel = formatNotificationDate(notification.createdUtc, auth.language)
+                      const actionLabel = t(getNotificationActionLabelKey(notification))
                       const isPending = pendingId === notification.id
+                      const ActionIcon = notification.actionUrl ? ArrowRight : Check
 
                       return (
                         <li key={notification.id}>
@@ -198,6 +213,10 @@ const NotificationToastHost = () => {
                                 <span className="block text-sm font-semibold text-slate-950">{title}</span>
                                 {body ? <span className="mt-1 block text-sm text-slate-600">{body}</span> : null}
                                 {dateLabel ? <span className="mt-2 block text-xs text-slate-500">{dateLabel}</span> : null}
+                                <span className="mt-3 inline-flex max-w-full items-center gap-1.5 rounded-md bg-emerald-700 px-2.5 py-1.5 text-xs font-semibold text-white">
+                                  <span className="truncate">{actionLabel}</span>
+                                  <ActionIcon aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+                                </span>
                               </span>
                               {isPending ? (
                                 <Loader2 aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-emerald-700" />

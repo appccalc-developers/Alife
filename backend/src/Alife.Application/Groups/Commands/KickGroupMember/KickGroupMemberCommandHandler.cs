@@ -2,6 +2,7 @@ using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
 using Alife.Application.Groups.Dtos;
 using Alife.Application.Groups.Services;
+using Alife.Application.Notifications.Services;
 using Alife.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -41,6 +42,16 @@ public sealed class KickGroupMemberCommandHandler(
             membership.Status = MembershipStatus.Removed;
             membership.Role = MembershipRole.Member;
             membership.UpdatedUtc = DateTime.UtcNow;
+        }
+
+        if (memberships.Count > 0)
+        {
+            await MembershipNotificationWriter.NotifyMemberOfGroupRemovalAsync(
+                dbContext,
+                request.GroupId,
+                request.MemberId,
+                request.CurrentMemberId,
+                cancellationToken);
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);

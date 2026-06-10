@@ -3,6 +3,7 @@ using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
 using Alife.Application.Groups.Dtos;
 using Alife.Application.Groups.Services;
+using Alife.Application.Notifications.Services;
 using Alife.Domain.Entities;
 using Alife.Domain.Enums;
 using MediatR;
@@ -82,6 +83,15 @@ public sealed class JoinGroupCommandHandler(
             membership.Role = MembershipRole.Member;
             membership.UpdatedUtc = DateTime.UtcNow;
             updatedUtc = membership.UpdatedUtc;
+        }
+
+        if (status == MembershipStatus.Requested)
+        {
+            await MembershipNotificationWriter.NotifyGroupLeadersOfJoinRequestAsync(
+                dbContext,
+                request.GroupId,
+                request.CurrentMemberId,
+                cancellationToken);
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);

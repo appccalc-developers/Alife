@@ -4,6 +4,7 @@ export type NotificationText = LocalizedText | string
 
 export type AppNotification = {
   id: string
+  actionType?: string
   title: NotificationText
   body?: NotificationText
   actionUrl?: string | null

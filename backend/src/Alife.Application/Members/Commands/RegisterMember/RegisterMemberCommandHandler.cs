@@ -2,6 +2,7 @@ using Alife.Application.Abstractions.Security;
 using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
 using Alife.Application.Members.Dtos;
+using Alife.Application.Notifications.Services;
 using Alife.Domain.Constants;
 using Alife.Domain.Entities;
 using Alife.Domain.Enums;
@@ -82,6 +83,8 @@ public sealed class RegisterMemberCommandHandler(
             }
         }
 
+        var wasRegistered = memberToRegister.IsRegistered;
+
         memberToRegister.DisplayName = request.Name.Trim();
         memberToRegister.Sex = request.Sex;
         memberToRegister.Age = request.Age;
@@ -112,6 +115,15 @@ public sealed class RegisterMemberCommandHandler(
                     UpdatedUtc = now
                 });
             }
+        }
+
+        if (!wasRegistered && !string.IsNullOrWhiteSpace(memberToRegister.LineUID))
+        {
+            await MembershipNotificationWriter.NotifyChurchLeadersOfLineRegistrationAsync(
+                dbContext,
+                memberToRegister.Id,
+                memberToRegister.DisplayName,
+                cancellationToken);
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
