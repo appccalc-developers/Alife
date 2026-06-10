@@ -3,6 +3,7 @@ using Alife.Application.Groups.Commands.ApproveGroupMember;
 using Alife.Application.Groups.Commands.CreateSubgroup;
 using Alife.Application.Groups.Commands.InviteGroupMemberById;
 using Alife.Application.Groups.Commands.JoinGroup;
+using Alife.Application.Groups.Commands.KickGroupMember;
 using Alife.Application.Groups.Commands.SetGroupCoLeader;
 using Alife.Application.Groups.Queries.GetGroupInviteCandidates;
 using Alife.Application.Groups.Services;
@@ -69,6 +70,37 @@ public class GroupMembershipWorkflowTests
         Assert.True(result.IsSuccess);
         Assert.Equal("rejected", result.Value!.Status);
         Assert.Equal(MembershipStatus.Rejected, dbContext.GroupMemberships.Single().Status);
+    }
+
+    [Fact]
+    public async Task JoinGroup_ProtectedGroupNotifiesGroupLeadersOfRequest()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var groupId = Guid.NewGuid();
+        var leaderId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+        dbContext.Groups.Add(CreateGroup(groupId, AccessType.Protected));
+        dbContext.Members.AddRange(CreateMember(leaderId, "Leader"), CreateMember(memberId, "Applicant"));
+        dbContext.GroupMemberships.Add(CreateMembership(groupId, leaderId, MembershipStatus.Approved, DateTime.UtcNow, MembershipRole.CoLeader));
+        await dbContext.SaveChangesAsync();
+
+        var authorizationService = Substitute.For<IGroupAuthorizationService>();
+        authorizationService.IsRegisteredMemberAsync(memberId, Arg.Any<CancellationToken>()).Returns(true);
+        var handler = new JoinGroupCommandHandler(
+            dbContext,
+            authorizationService,
+            Substitute.For<IGroupCacheInvalidationService>(),
+            Substitute.For<ICloudflareKvCacheService>());
+
+        var result = await handler.Handle(new JoinGroupCommand(groupId, memberId), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var notification = await dbContext.NotificationMessages.SingleAsync();
+        Assert.Equal(leaderId, notification.RecipientMemberId);
+        Assert.Equal(memberId, notification.CreatedByMemberId);
+        Assert.Equal(groupId, notification.GroupId);
+        Assert.Equal("group.join-request.received", notification.ActionType);
+        Assert.Contains($"/groups/{groupId}/manage", notification.ActionDataJson);
     }
 
     [Fact]
@@ -221,6 +253,36 @@ public class GroupMembershipWorkflowTests
     }
 
     [Fact]
+    public async Task InviteGroupMemberById_NotifiesInvitedMember()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var groupId = Guid.NewGuid();
+        var leaderId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+        dbContext.Groups.Add(CreateGroup(groupId, AccessType.Protected));
+        dbContext.Members.AddRange(CreateMember(leaderId, "Leader"), CreateMember(memberId, "Invitee"));
+        await dbContext.SaveChangesAsync();
+
+        var authorizationService = Substitute.For<IGroupAuthorizationService>();
+        authorizationService.IsLeaderOrCoLeaderAsync(groupId, leaderId, Arg.Any<CancellationToken>()).Returns(true);
+        var handler = new InviteGroupMemberByIdCommandHandler(
+            dbContext,
+            authorizationService,
+            Substitute.For<IGroupCacheInvalidationService>(),
+            Substitute.For<ICloudflareKvCacheService>());
+
+        var result = await handler.Handle(new InviteGroupMemberByIdCommand(groupId, leaderId, memberId), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var notification = await dbContext.NotificationMessages.SingleAsync();
+        Assert.Equal(memberId, notification.RecipientMemberId);
+        Assert.Equal(leaderId, notification.CreatedByMemberId);
+        Assert.Equal(groupId, notification.GroupId);
+        Assert.Equal("group.invitation.received", notification.ActionType);
+        Assert.Contains("/profile", notification.ActionDataJson);
+    }
+
+    [Fact]
     public async Task SetGroupCoLeader_AllowsCoLeaderToPromoteApprovedMember()
     {
         using var dbContext = CreateInMemoryDbContext();
@@ -263,6 +325,69 @@ public class GroupMembershipWorkflowTests
             Arg.Any<DateTime>(),
             Arg.Any<CancellationToken>());
         await invalidationService.Received(1).RemoveMembershipsAsync(groupId, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SetGroupCoLeader_NotifiesMemberWhenRoleChanges()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var groupId = Guid.NewGuid();
+        var coLeaderId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+        dbContext.Groups.Add(CreateGroup(groupId, AccessType.Protected));
+        dbContext.Members.AddRange(CreateMember(coLeaderId, "Co Leader"), CreateMember(memberId, "Member"));
+        dbContext.GroupMemberships.Add(CreateMembership(groupId, memberId, MembershipStatus.Approved, DateTime.UtcNow));
+        await dbContext.SaveChangesAsync();
+
+        var authorizationService = Substitute.For<IGroupAuthorizationService>();
+        authorizationService.IsLeaderOrCoLeaderAsync(groupId, coLeaderId, Arg.Any<CancellationToken>()).Returns(true);
+        var handler = new SetGroupCoLeaderCommandHandler(
+            dbContext,
+            authorizationService,
+            Substitute.For<IGroupCacheInvalidationService>(),
+            Substitute.For<ICloudflareKvCacheService>());
+
+        var result = await handler.Handle(
+            new SetGroupCoLeaderCommand(groupId, coLeaderId, memberId, true),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var notification = await dbContext.NotificationMessages.SingleAsync();
+        Assert.Equal(memberId, notification.RecipientMemberId);
+        Assert.Equal(coLeaderId, notification.CreatedByMemberId);
+        Assert.Equal(groupId, notification.GroupId);
+        Assert.Equal("group.member.promoted-to-coleader", notification.ActionType);
+        Assert.Contains("coLeader", notification.ActionDataJson);
+    }
+
+    [Fact]
+    public async Task KickGroupMember_NotifiesRemovedMember()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var groupId = Guid.NewGuid();
+        var leaderId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+        dbContext.Groups.Add(CreateGroup(groupId, AccessType.Protected));
+        dbContext.Members.AddRange(CreateMember(leaderId, "Leader"), CreateMember(memberId, "Member"));
+        dbContext.GroupMemberships.Add(CreateMembership(groupId, memberId, MembershipStatus.Approved, DateTime.UtcNow));
+        await dbContext.SaveChangesAsync();
+
+        var authorizationService = Substitute.For<IGroupAuthorizationService>();
+        authorizationService.IsLeaderOrCoLeaderAsync(groupId, leaderId, Arg.Any<CancellationToken>()).Returns(true);
+        var handler = new KickGroupMemberCommandHandler(
+            dbContext,
+            authorizationService,
+            Substitute.For<IGroupCacheInvalidationService>(),
+            Substitute.For<ICloudflareKvCacheService>());
+
+        var result = await handler.Handle(new KickGroupMemberCommand(groupId, leaderId, memberId), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var notification = await dbContext.NotificationMessages.SingleAsync();
+        Assert.Equal(memberId, notification.RecipientMemberId);
+        Assert.Equal(leaderId, notification.CreatedByMemberId);
+        Assert.Equal(groupId, notification.GroupId);
+        Assert.Equal("group.member.removed", notification.ActionType);
     }
 
     [Fact]
@@ -340,14 +465,15 @@ public class GroupMembershipWorkflowTests
         Guid groupId,
         Guid memberId,
         MembershipStatus status,
-        DateTime updatedUtc)
+        DateTime updatedUtc,
+        MembershipRole role = MembershipRole.Member)
         => new()
         {
             Id = Guid.NewGuid(),
             GroupId = groupId,
             MemberId = memberId,
             Status = status,
-            Role = MembershipRole.Member,
+            Role = role,
             CreatedUtc = updatedUtc,
             UpdatedUtc = updatedUtc
         };

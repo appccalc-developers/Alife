@@ -2,6 +2,7 @@ using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
 using Alife.Application.Groups.Dtos;
 using Alife.Application.Groups.Services;
+using Alife.Application.Notifications.Services;
 using Alife.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -45,8 +46,21 @@ public sealed class SetGroupCoLeaderCommandHandler(
             return AppResult<GroupActionResultDto>.Forbidden("The primary leader role cannot be changed with this action.");
         }
 
-        membership.Role = request.IsCoLeader ? MembershipRole.CoLeader : MembershipRole.Member;
+        var nextRole = request.IsCoLeader ? MembershipRole.CoLeader : MembershipRole.Member;
+        var roleChanged = membership.Role != nextRole;
+        membership.Role = nextRole;
         membership.UpdatedUtc = DateTime.UtcNow;
+
+        if (roleChanged)
+        {
+            await MembershipNotificationWriter.NotifyMemberOfGroupRoleChangedAsync(
+                dbContext,
+                request.GroupId,
+                request.MemberId,
+                request.CurrentMemberId,
+                request.IsCoLeader,
+                cancellationToken);
+        }
 
         await dbContext.SaveChangesAsync(cancellationToken);
         await cloudflareKvCacheService.PutApprovedMembershipAsync(

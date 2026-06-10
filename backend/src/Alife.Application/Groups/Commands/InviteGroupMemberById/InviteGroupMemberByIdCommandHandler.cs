@@ -2,6 +2,7 @@ using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
 using Alife.Application.Groups.Dtos;
 using Alife.Application.Groups.Services;
+using Alife.Application.Notifications.Services;
 using Alife.Domain.Entities;
 using Alife.Domain.Enums;
 using MediatR;
@@ -95,6 +96,13 @@ public sealed class InviteGroupMemberByIdCommandHandler(
             membership.Role = MembershipRole.Member;
             membership.UpdatedUtc = DateTime.UtcNow;
         }
+
+        await MembershipNotificationWriter.NotifyMemberOfGroupInvitationAsync(
+            dbContext,
+            request.GroupId,
+            request.TargetMemberId,
+            request.CurrentMemberId,
+            cancellationToken);
 
         await dbContext.SaveChangesAsync(cancellationToken);
         await cloudflareKvCacheService.RemoveMembershipAsync(request.GroupId, request.TargetMemberId, cancellationToken);
