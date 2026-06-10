@@ -91,6 +91,9 @@ export const normalizeMembership = <T extends { status: unknown; role: unknown }
   ...membership,
   status: normalizeMembershipStatus(membership.status),
   role: normalizeMembershipRole(membership.role),
+  groupName: 'groupName' in membership && (membership as { groupName?: unknown }).groupName
+    ? toLocalizedText((membership as { groupName: Record<string, string> }).groupName)
+    : (membership as { groupName?: unknown }).groupName,
 })
 
 export const normalizeMe = (me: MeDto): MeDto => ({

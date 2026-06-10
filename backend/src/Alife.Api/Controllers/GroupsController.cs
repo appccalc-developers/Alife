@@ -5,6 +5,7 @@ using Alife.Application.Groups.Commands.AcceptGroupInvite;
 using Alife.Application.Groups.Commands.ApproveGroupMember;
 using Alife.Application.Groups.Commands.CloseGroup;
 using Alife.Application.Groups.Commands.CreateSubgroup;
+using Alife.Application.Groups.Commands.DeclineGroupInvite;
 using Alife.Application.Groups.Commands.InviteGroupMember;
 using Alife.Application.Groups.Commands.InviteGroupMemberById;
 using Alife.Application.Groups.Commands.JoinGroup;
@@ -14,6 +15,7 @@ using Alife.Application.Groups.Commands.SetGroupCoLeader;
 using Alife.Application.Groups.Commands.UpdateGroup;
 using Alife.Application.Groups.Queries.GetChurch;
 using Alife.Application.Groups.Queries.GetGroupById;
+using Alife.Application.Groups.Queries.GetGroupInviteCandidates;
 using Alife.Application.Groups.Queries.GetGroupMemberships;
 using Alife.Application.Groups.Queries.GetSubgroups;
 using Alife.Domain.Enums;
@@ -125,7 +127,10 @@ public class GroupsController(
     }
 
     [HttpGet("{id:guid}/memberships")]
-    public async Task<IActionResult> GetMemberships(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> GetMemberships(
+        Guid id,
+        [FromQuery] bool includeLineCandidates,
+        CancellationToken cancellationToken)
     {
         var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
         if (currentMemberId is null)
@@ -133,7 +138,30 @@ public class GroupsController(
             return Unauthorized();
         }
 
-        var result = await mediator.Send(new GetGroupMembershipsQuery(id, currentMemberId.Value), cancellationToken);
+        var result = await mediator.Send(
+            new GetGroupMembershipsQuery(id, currentMemberId.Value, includeLineCandidates),
+            cancellationToken);
+        if (!result.IsSuccess)
+        {
+            return this.ToActionResult(result);
+        }
+
+        this.ApplyPrivateNoCacheHeaders();
+        return this.ToActionResult(result);
+    }
+
+    [HttpGet("{id:guid}/invite-candidates")]
+    public async Task<IActionResult> GetInviteCandidates(Guid id, CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null)
+        {
+            return Unauthorized();
+        }
+
+        var result = await mediator.Send(
+            new GetGroupInviteCandidatesQuery(id, currentMemberId.Value),
+            cancellationToken);
         if (!result.IsSuccess)
         {
             return this.ToActionResult(result);
@@ -198,6 +226,19 @@ public class GroupsController(
         }
 
         var result = await mediator.Send(new AcceptGroupInviteCommand(id, currentMemberId.Value), cancellationToken);
+        return this.ToActionResult(result);
+    }
+
+    [HttpPost("{id:guid}/invite/decline")]
+    public async Task<IActionResult> DeclineInvite(Guid id, CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null)
+        {
+            return Unauthorized();
+        }
+
+        var result = await mediator.Send(new DeclineGroupInviteCommand(id, currentMemberId.Value), cancellationToken);
         return this.ToActionResult(result);
     }
 

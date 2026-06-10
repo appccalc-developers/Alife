@@ -24,7 +24,19 @@ public sealed class GetGroupMembershipsQueryHandler(
             return AppResult<IReadOnlyList<GroupMembershipDto>>.Forbidden("You do not have access to group memberships.");
         }
 
-        var memberships = await groupReadService.GetMembershipsAsync(request.GroupId, cancellationToken);
+        var includeChurchLineCandidates = false;
+        if (request.IncludeChurchLineCandidates)
+        {
+            includeChurchLineCandidates = await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
+                request.GroupId,
+                request.CurrentMemberId,
+                cancellationToken);
+        }
+
+        var memberships = await groupReadService.GetMembershipsAsync(
+            request.GroupId,
+            includeChurchLineCandidates,
+            cancellationToken);
         return AppResult<IReadOnlyList<GroupMembershipDto>>.Success(memberships);
     }
 }

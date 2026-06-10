@@ -6,17 +6,17 @@ using Alife.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
-namespace Alife.Application.Groups.Commands.AcceptGroupInvite;
+namespace Alife.Application.Groups.Commands.DeclineGroupInvite;
 
-public sealed class AcceptGroupInviteCommandHandler(
+public sealed class DeclineGroupInviteCommandHandler(
     IAlifeDbContext dbContext,
     IGroupAuthorizationService groupAuthorizationService,
     IGroupCacheInvalidationService groupCacheInvalidationService,
     ICloudflareKvCacheService cloudflareKvCacheService)
-    : IRequestHandler<AcceptGroupInviteCommand, AppResult<GroupActionResultDto>>
+    : IRequestHandler<DeclineGroupInviteCommand, AppResult<GroupActionResultDto>>
 {
     public async Task<AppResult<GroupActionResultDto>> Handle(
-        AcceptGroupInviteCommand request,
+        DeclineGroupInviteCommand request,
         CancellationToken cancellationToken)
     {
         var isRegistered = await groupAuthorizationService.IsRegisteredMemberAsync(request.CurrentMemberId, cancellationToken);
@@ -35,15 +35,14 @@ public sealed class AcceptGroupInviteCommandHandler(
             return AppResult<GroupActionResultDto>.NotFound("No invitation found.");
         }
 
-        membership.Status = MembershipStatus.Approved;
+        membership.Status = MembershipStatus.Rejected;
+        membership.Role = MembershipRole.Member;
         membership.UpdatedUtc = DateTime.UtcNow;
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        await cloudflareKvCacheService.PutApprovedMembershipAsync(
+        await cloudflareKvCacheService.RemoveMembershipAsync(
             request.GroupId,
             request.CurrentMemberId,
-            membership.Role,
-            membership.UpdatedUtc,
             cancellationToken);
         await groupCacheInvalidationService.RemoveMembershipsAsync(request.GroupId, cancellationToken);
 

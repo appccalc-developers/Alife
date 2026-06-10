@@ -59,9 +59,10 @@ export const groupService = {
     return data.map(normalizePageSummary)
   },
 
-  async getGroupMemberships(groupId: string) {
+  async getGroupMemberships(groupId: string, options?: { includeLineCandidates?: boolean }) {
+    const query = options?.includeLineCandidates ? '?includeLineCandidates=true' : ''
     const { data } = await http.get<Array<Omit<GroupMembershipDto, 'groupId'> & { memberId: string }>>(
-      `/api/groups/${groupId}/memberships`,
+      `/api/groups/${groupId}/memberships${query}`,
     )
     return data.map(normalizeGroupMembership)
   },
@@ -103,9 +104,22 @@ export const groupService = {
     await http.post(`/api/groups/${groupId}/invite-by-id`, { targetMemberId })
   },
 
+  async getInviteCandidates(groupId: string): Promise<MemberSummaryDto[]> {
+    const { data } = await http.get<MemberSummaryDto[]>(`/api/groups/${groupId}/invite-candidates`)
+    return data
+  },
+
   async getMembers(): Promise<MemberSummaryDto[]> {
     const { data } = await http.get<MemberSummaryDto[]>('/api/members')
     return data
+  },
+
+  async acceptInvite(groupId: string) {
+    await http.post(`/api/groups/${groupId}/invite/accept`)
+  },
+
+  async declineInvite(groupId: string) {
+    await http.post(`/api/groups/${groupId}/invite/decline`)
   },
 
   async approveMember(groupId: string, payload: MemberTargetPayload) {

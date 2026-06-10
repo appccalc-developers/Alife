@@ -93,8 +93,14 @@ export type GroupSummaryDto = {
 
 export type GroupMembershipDto = {
   groupId: string
+  memberId?: string
+  displayName?: string | null
   status: MembershipStatus
   role: MembershipRole
+  groupName?: LocalizedText | null
+  parentGroupId?: string | null
+  createdUtc?: string
+  updatedUtc?: string
 }
 
 export type LinkDto = {

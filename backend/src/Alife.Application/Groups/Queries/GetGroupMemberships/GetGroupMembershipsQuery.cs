@@ -4,5 +4,5 @@ using MediatR;
 
 namespace Alife.Application.Groups.Queries.GetGroupMemberships;
 
-public sealed record GetGroupMembershipsQuery(Guid GroupId, Guid CurrentMemberId)
+public sealed record GetGroupMembershipsQuery(Guid GroupId, Guid CurrentMemberId, bool IncludeChurchLineCandidates = false)
     : IRequest<AppResult<IReadOnlyList<GroupMembershipDto>>>;
