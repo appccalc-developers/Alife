@@ -29,11 +29,6 @@ type Props = {
 const createReviewSessionId = (memberId: string | undefined, eventId: string, reviewId: string) =>
   `member-${memberId ?? 'anonymous'}-event-${eventId}-review-${reviewId}`
 
-const initialMessage = (language: string): ChatMessage => ({
-  role: 'assistant',
-  text: translateUi(language, 'reviewAssistantIntro'),
-})
-
 const buildEventData = (event: GroupEventRecord) => {
   const fallback = {
     id: event.id,
@@ -113,7 +108,7 @@ const ReviewChatDialog = ({
     '/api/reviews/session',
     appContext,
   )
-  const [messages, setMessages] = useState<ChatMessage[]>([initialMessage(language)])
+  const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [photoFiles, setPhotoFiles] = useState<File[]>([])
   const [uploadedPhotoPreviews, setUploadedPhotoPreviews] = useState<string[]>([])
@@ -121,6 +116,7 @@ const ReviewChatDialog = ({
   const [commitError, setCommitError] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const initializedReplyRef = useRef('')
   const draft = state?.draft ?? existingDraft ?? null
   const existingPhotoPreviews = useMemo(
     () => (draft?.photoFiles ?? [])
@@ -137,11 +133,12 @@ const ReviewChatDialog = ({
   )
 
   useEffect(() => {
-    setMessages([initialMessage(language)])
+    setMessages([])
     setInput('')
     setPhotoFiles([])
     setCommitStatus('idle')
     setCommitError('')
+    initializedReplyRef.current = ''
     clearError()
   }, [clearError, event.id, language, targetReviewId])
 
@@ -168,9 +165,37 @@ const ReviewChatDialog = ({
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
   }, [messages, loading])
 
-  const assistantReply = localized(state?.context ?? draft?.assistantReply, language) || fallbackReply(draft, language)
+  const assistantReplySource = state?.context ?? draft?.assistantReply ?? null
+  const assistantReply = localized(assistantReplySource, language) || fallbackReply(draft, language)
+  const hasDraftContent = Boolean(
+    draft?.summary?.zh?.trim()
+    || draft?.summary?.en?.trim()
+    || draft?.reflection?.zh?.trim()
+    || draft?.reflection?.en?.trim(),
+  )
   const canCommit = Boolean(draft?.reflection?.zh?.trim() && draft?.reflection?.en?.trim())
     && commitStatus !== 'saving'
+
+  useEffect(() => {
+    const replyText = assistantReply.trim()
+    if (!replyText || !hasDraftContent) {
+      return
+    }
+
+    const replyKey = `${sessionId}:${language}:${replyText}`
+    if (initializedReplyRef.current === replyKey) {
+      return
+    }
+
+    setMessages((current) => {
+      if (current.length > 0) {
+        return current
+      }
+
+      initializedReplyRef.current = replyKey
+      return [{ role: 'assistant', text: replyText }]
+    })
+  }, [assistantReply, hasDraftContent, language, sessionId])
 
   const handleSend = async (includePhotos = false) => {
     const message = input.trim()
@@ -245,7 +270,7 @@ const ReviewChatDialog = ({
         </div>
       </div>
 
-      <div className="grid min-h-0 flex-1 gap-0 desktop:grid-cols-[minmax(0,1fr)_22rem]">
+      <div className="grid min-h-0 flex-1 gap-0 desktop:grid-cols-2">
         <div className="flex min-h-0 flex-col border-b border-slate-200 desktop:border-b-0 desktop:border-r">
           <div className="flex-1 space-y-3 overflow-y-auto bg-slate-50 px-4 py-4">
             {messages.map((message, index) => (
@@ -307,9 +332,54 @@ const ReviewChatDialog = ({
         </div>
 
         <aside className="space-y-4 overflow-y-auto bg-white px-4 py-4">
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-            <span className="font-semibold">{t('aiReply')}</span>
-            {assistantReply}
+          <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4">
+            <button
+              type="button"
+              className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {t('chooseEventPhotos')}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              accept="image/*"
+              multiple
+              onChange={(event) => setPhotoFiles(Array.from(event.target.files ?? []))}
+            />
+            {existingPhotoPreviews.length || uploadedPhotoPreviews.length ? (
+              <div className="grid grid-cols-3 gap-2">
+                {existingPhotoPreviews.map((photo) => (
+                  <CoverImage
+                    key={photo.key}
+                    src={photo.url}
+                    alt={photo.alt}
+                    aspectRatio={1}
+                    className="rounded-lg"
+                    openOnLongPressOrDoubleClick
+                  />
+                ))}
+                {uploadedPhotoPreviews.map((url, index) => (
+                  <CoverImage
+                    key={url}
+                    src={url}
+                    alt={`Review upload ${index + 1}`}
+                    aspectRatio={1}
+                    className="rounded-lg"
+                    openOnLongPressOrDoubleClick
+                  />
+                ))}
+              </div>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => handleSend(true).catch(() => undefined)}
+              disabled={loading || photoFiles.length === 0}
+              className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {t('analyzePhotos')}
+            </button>
           </div>
 
           <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -366,53 +436,6 @@ const ReviewChatDialog = ({
           </div>
 
           <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4">
-            <button
-              type="button"
-              className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              {t('chooseEventPhotos')}
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              className="hidden"
-              accept="image/*"
-              multiple
-              onChange={(event) => setPhotoFiles(Array.from(event.target.files ?? []))}
-            />
-            {existingPhotoPreviews.length || uploadedPhotoPreviews.length ? (
-              <div className="grid grid-cols-3 gap-2">
-                {existingPhotoPreviews.map((photo) => (
-                  <CoverImage
-                    key={photo.key}
-                    src={photo.url}
-                    alt={photo.alt}
-                    aspectRatio={1}
-                    className="rounded-lg"
-                    openOnLongPressOrDoubleClick
-                  />
-                ))}
-                {uploadedPhotoPreviews.map((url, index) => (
-                  <CoverImage
-                    key={url}
-                    src={url}
-                    alt={`Review upload ${index + 1}`}
-                    aspectRatio={1}
-                    className="rounded-lg"
-                    openOnLongPressOrDoubleClick
-                  />
-                ))}
-              </div>
-            ) : null}
-            <button
-              type="button"
-              onClick={() => handleSend(true).catch(() => undefined)}
-              disabled={loading || photoFiles.length === 0}
-              className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {t('analyzePhotos')}
-            </button>
             <button
               type="button"
               onClick={() => handleCommit().catch(() => undefined)}

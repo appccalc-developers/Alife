@@ -414,10 +414,6 @@ const text = {
     en: 'Before submitting, confirm the names, activities, and reflection are correct.',
     zh: '提交前请确认人物姓名、活动和回顾内容正确。',
   },
-  reviewAssistantIntro: {
-    en: 'Upload event photos or tell me about the people, activities, and reflections. I will shape them into an event review.',
-    zh: '请上传活动照片，或告诉我活动中的人物、活动和感受。我会帮你整理成活动回顾。',
-  },
   reviewNeedMoreInfo: {
     en: 'I still need photos, memories, or the key points you want recorded.',
     zh: '我还需要照片、活动记忆，或你想记录的重点。',
