@@ -733,6 +733,25 @@ test('matching If-None-Match for group pages is answered from shared Cache API w
   assert.equal(fetchCalls.length, 0)
 })
 
+test('closing a subgroup invalidates the parent subgroup list cache', async () => {
+  const parentId = 'parent-group-1'
+  const childId = 'child-group-1'
+  apiCacheStore.set(
+    `group:${parentId}:subgroups`,
+    createStoredResponse([{ id: childId, parentGroupId: parentId }], { etag: '"subgroups-v1"' }),
+  )
+  originResponses.push(Response.json({ ok: true, groupId: childId, parentGroupId: parentId }))
+
+  const response = await dispatch(`https://ccalc.live/api/groups/${childId}/close`, {
+    method: 'POST',
+    headers: { cookie: `alife_auth=${createJwtWithSub('member-1')}` },
+  })
+  await flushWaitUntil()
+
+  assert.equal(response.status, 200)
+  assert.equal(apiCacheStore.has(`group:${parentId}:subgroups`), false)
+})
+
 test('shared group subresource caches use 24 hour TTLs', async () => {
   const groupId = 'group-1'
   authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved' }))

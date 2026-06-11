@@ -42,6 +42,6 @@ public sealed class CloseGroupCommandHandler(
             await groupCacheInvalidationService.RemoveSubgroupsAsync(group.ParentGroupId.Value, cancellationToken);
         }
 
-        return AppResult<GroupActionResultDto>.Success(new GroupActionResultDto(true));
+        return AppResult<GroupActionResultDto>.Success(new GroupActionResultDto(true, group.Id, group.ParentGroupId));
     }
 }

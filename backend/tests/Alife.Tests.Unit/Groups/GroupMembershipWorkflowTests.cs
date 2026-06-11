@@ -1,5 +1,6 @@
 using Alife.Application.Common.Interfaces;
 using Alife.Application.Groups.Commands.ApproveGroupMember;
+using Alife.Application.Groups.Commands.CloseGroup;
 using Alife.Application.Groups.Commands.CreateSubgroup;
 using Alife.Application.Groups.Commands.InviteGroupMemberById;
 using Alife.Application.Groups.Commands.JoinGroup;
@@ -171,6 +172,36 @@ public class GroupMembershipWorkflowTests
         Assert.Equal(leaderId, membership.MemberId);
         Assert.Equal(MembershipStatus.Approved, membership.Status);
         Assert.Equal(MembershipRole.Leader, membership.Role);
+        await invalidationService.Received(1).RemoveSubgroupsAsync(parentId, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CloseGroup_ReturnsParentGroupIdAndInvalidatesParentSubgroups()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var parentId = Guid.NewGuid();
+        var childId = Guid.NewGuid();
+        var leaderId = Guid.NewGuid();
+        dbContext.Groups.AddRange(
+            CreateGroup(parentId, AccessType.Protected),
+            CreateGroup(childId, AccessType.Protected, parentId));
+        await dbContext.SaveChangesAsync();
+
+        var authorizationService = Substitute.For<IGroupAuthorizationService>();
+        authorizationService.IsLeaderOrCoLeaderAsync(childId, leaderId, Arg.Any<CancellationToken>()).Returns(true);
+        var invalidationService = Substitute.For<IGroupCacheInvalidationService>();
+        var handler = new CloseGroupCommandHandler(
+            dbContext,
+            authorizationService,
+            invalidationService);
+
+        var result = await handler.Handle(new CloseGroupCommand(childId, leaderId), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(childId, result.Value!.GroupId);
+        Assert.Equal(parentId, result.Value.ParentGroupId);
+        Assert.True(await dbContext.Groups.Where(x => x.Id == childId).Select(x => x.IsClosed).SingleAsync());
+        await invalidationService.Received(1).RemoveGroupAsync(childId, Arg.Any<CancellationToken>());
         await invalidationService.Received(1).RemoveSubgroupsAsync(parentId, Arg.Any<CancellationToken>());
     }
 
