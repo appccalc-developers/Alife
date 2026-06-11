@@ -63,6 +63,95 @@ const fallbackReply = (draft: ReviewDraft | null, language: string) => {
   return translateUi(language, 'reviewDraftReady')
 }
 
+const hasMultilingualContent = (value: MultilingualString | null | undefined) =>
+  Boolean(value?.zh?.trim() || value?.en?.trim())
+
+const hasReviewDraftContent = (draft: ReviewDraft | null | undefined) =>
+  Boolean(
+    hasMultilingualContent(draft?.summary)
+    || hasMultilingualContent(draft?.reflection)
+    || draft?.recognizedPeople?.length
+    || draft?.recognizedActivities?.length
+    || draft?.photoFiles?.length,
+  )
+
+const timestampValue = (value: string | null | undefined) => {
+  if (!value) return 0
+  const time = new Date(value).getTime()
+  return Number.isFinite(time) ? time : 0
+}
+
+const shouldPreferExistingDraft = (
+  existingDraft: ReviewDraft | null,
+  candidateDraft: ReviewDraft | null,
+  targetReviewId: string,
+) => {
+  if (!existingDraft) {
+    return false
+  }
+
+  if (!candidateDraft) {
+    return true
+  }
+
+  if (candidateDraft.reviewId && candidateDraft.reviewId !== targetReviewId) {
+    return true
+  }
+
+  if (!hasReviewDraftContent(candidateDraft)) {
+    return true
+  }
+
+  return timestampValue(existingDraft.updatedAtUtc) > timestampValue(candidateDraft.updatedAtUtc)
+}
+
+const mergeMultilingualContent = (
+  existingValue: MultilingualString,
+  candidateValue: MultilingualString,
+): MultilingualString => ({
+  zh: candidateValue.zh?.trim() ? candidateValue.zh : existingValue.zh,
+  en: candidateValue.en?.trim() ? candidateValue.en : existingValue.en,
+})
+
+const mergeExistingReviewDraft = (
+  existingDraft: ReviewDraft | null,
+  candidateDraft: ReviewDraft | null,
+  targetReviewId: string,
+): ReviewDraft | null => {
+  if (!existingDraft) {
+    return candidateDraft
+  }
+
+  if (shouldPreferExistingDraft(existingDraft, candidateDraft, targetReviewId)) {
+    return existingDraft
+  }
+
+  if (!candidateDraft) {
+    return existingDraft
+  }
+
+  return {
+    ...existingDraft,
+    ...candidateDraft,
+    reviewId: targetReviewId,
+    eventId: candidateDraft.eventId || existingDraft.eventId,
+    groupId: candidateDraft.groupId || existingDraft.groupId,
+    memberId: candidateDraft.memberId || existingDraft.memberId,
+    summary: mergeMultilingualContent(existingDraft.summary, candidateDraft.summary),
+    reflection: mergeMultilingualContent(existingDraft.reflection, candidateDraft.reflection),
+    recognizedPeople: candidateDraft.recognizedPeople.length
+      ? candidateDraft.recognizedPeople
+      : existingDraft.recognizedPeople,
+    recognizedActivities: candidateDraft.recognizedActivities.length
+      ? candidateDraft.recognizedActivities
+      : existingDraft.recognizedActivities,
+    photoFiles: candidateDraft.photoFiles.length ? candidateDraft.photoFiles : existingDraft.photoFiles,
+    assistantReply: candidateDraft.assistantReply ?? existingDraft.assistantReply,
+    submittedAtUtc: candidateDraft.submittedAtUtc || existingDraft.submittedAtUtc,
+    updatedAtUtc: candidateDraft.updatedAtUtc || existingDraft.updatedAtUtc,
+  }
+}
+
 const ReviewChatDialog = ({
   groupId,
   event,
@@ -117,7 +206,11 @@ const ReviewChatDialog = ({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const initializedReplyRef = useRef('')
-  const draft = state?.draft ?? existingDraft ?? null
+  const stateDraft = state?.draft ?? null
+  const draft = useMemo(
+    () => mergeExistingReviewDraft(existingDraft, stateDraft, targetReviewId),
+    [existingDraft, stateDraft, targetReviewId],
+  )
   const existingPhotoPreviews = useMemo(
     () => (draft?.photoFiles ?? [])
       .filter((photo) => Boolean(photo.url))
@@ -147,11 +240,66 @@ const ReviewChatDialog = ({
       return
     }
 
-    reviewSessionService.start(sessionId, { appContext, draft: existingDraft }).catch(() => undefined)
+    setState((current) => {
+      const currentDraft = current?.draft ?? null
+      if (current && !shouldPreferExistingDraft(existingDraft, currentDraft, targetReviewId)) {
+        return current
+      }
+
+      return current
+        ? { ...current, draft: existingDraft, context: current.context ?? existingDraft.assistantReply ?? null }
+        : {
+          sessionId,
+          draft: existingDraft,
+          context: existingDraft.assistantReply ?? null,
+          appContext,
+          attachments: [],
+          chatHistory: [],
+          updatedAt: new Date().toISOString(),
+        }
+    })
+
+    let cancelled = false
+    reviewSessionService.start(sessionId, { appContext, draft: existingDraft })
+      .then((nextState) => {
+        if (cancelled) {
+          return
+        }
+
+        setState((current) => {
+          const currentDraft = current?.draft ?? null
+          if (current && !shouldPreferExistingDraft(existingDraft, currentDraft, targetReviewId)) {
+            return current
+          }
+
+          const nextDraft = mergeExistingReviewDraft(existingDraft, nextState.draft ?? null, targetReviewId)
+          return {
+            ...nextState,
+            draft: nextDraft,
+            context: nextState.context ?? nextDraft?.assistantReply ?? null,
+          }
+        })
+      })
+      .catch(() => undefined)
+
+    return () => {
+      cancelled = true
+    }
+  }, [appContext, existingDraft, sessionId, setState, targetReviewId])
+
+  useEffect(() => {
+    if (!existingDraft) {
+      return
+    }
+
     setState((current) => current
-      ? { ...current, draft: current.draft ?? existingDraft, context: current.context ?? existingDraft.assistantReply ?? null }
+      ? {
+        ...current,
+        draft: mergeExistingReviewDraft(existingDraft, current.draft ?? null, targetReviewId),
+        context: current.context ?? existingDraft.assistantReply ?? null,
+      }
       : current)
-  }, [appContext, existingDraft, sessionId, setState])
+  }, [existingDraft, setState, targetReviewId])
 
   useEffect(() => {
     const urls = photoFiles.map((file) => URL.createObjectURL(file))
