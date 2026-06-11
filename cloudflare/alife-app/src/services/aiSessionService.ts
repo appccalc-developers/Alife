@@ -14,8 +14,13 @@ export const createAiSessionService = <TDraft, TContext = unknown>(basePath: str
         ? { inputMode: inputModeOrOptions }
         : inputModeOrOptions
       const { data } = await sameOriginHttp.post<AiSessionResponse<TDraft, TContext>>(
-        withAppContextSearch(`${normalizedBasePath}/${encodeURIComponent(sessionId)}/message`, options.appContext),
-        { message, inputMode: options.inputMode ?? 'text', attachments: options.attachments },
+        `${normalizedBasePath}/${encodeURIComponent(sessionId)}/message`,
+        {
+          message,
+          inputMode: options.inputMode ?? 'text',
+          ...(options.appContext ? { appContext: options.appContext } : {}),
+          ...(options.attachments ? { attachments: options.attachments } : {}),
+        },
       )
       return data
     },
@@ -24,18 +29,18 @@ export const createAiSessionService = <TDraft, TContext = unknown>(basePath: str
       sessionId: string,
       payload: { appContext?: AiSessionAppContext; [key: string]: unknown } = {},
     ): Promise<AiSessionState<TDraft, TContext>> => {
-      const { appContext, ...body } = payload
       const { data } = await sameOriginHttp.post<AiSessionState<TDraft, TContext>>(
-        withAppContextSearch(`${normalizedBasePath}/${encodeURIComponent(sessionId)}/start`, appContext),
-        body,
+        `${normalizedBasePath}/${encodeURIComponent(sessionId)}/start`,
+        payload,
       )
       return data
     },
 
     getState: async (sessionId: string, appContext?: AiSessionAppContext): Promise<AiSessionState<TDraft, TContext>> => {
-      const { data } = await sameOriginHttp.get<AiSessionState<TDraft, TContext>>(
-        withAppContextSearch(`${normalizedBasePath}/${encodeURIComponent(sessionId)}/state`, appContext),
-      )
+      const path = `${normalizedBasePath}/${encodeURIComponent(sessionId)}/state`
+      const { data } = appContext
+        ? await sameOriginHttp.post<AiSessionState<TDraft, TContext>>(path, { appContext })
+        : await sameOriginHttp.get<AiSessionState<TDraft, TContext>>(path)
       return data
     },
 

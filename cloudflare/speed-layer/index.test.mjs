@@ -1249,6 +1249,66 @@ test('POST /api/enrollments/session/:id/commit uploads files and commits backend
   assert.deepEqual(state.chatHistory, [])
 })
 
+test('GET /api/reviews/session/:id/state keeps query-string app context compatibility', async () => {
+  const eventId = crypto.randomUUID()
+  const sessionId = `member-1-event-${eventId}-review`
+  const appContextParams = new URLSearchParams({
+    language: 'en',
+    memberId: 'member-1',
+    groupId: 'group-1',
+    eventId,
+    eventData: JSON.stringify({ id: eventId, titleEn: 'Family Camp' }),
+    knownFacts: JSON.stringify({
+      enrollments: [{ applicantName: 'Alice' }],
+    }),
+  })
+
+  const response = await dispatch(`https://ccalc.live/api/reviews/session/${sessionId}/state?${appContextParams}`, {
+    env: { GEMINI_API_KEY: 'test-key', API_PROXY_TARGET: 'https://api.ccalc.live' },
+  })
+
+  assert.equal(response.status, 200)
+  const state = await response.json()
+  assert.equal(state.appContext.language, 'en')
+  assert.equal(state.appContext.memberId, 'member-1')
+  assert.equal(state.appContext.groupId, 'group-1')
+  assert.equal(state.appContext.eventId, eventId)
+  assert.equal(state.appContext.eventData.titleEn, 'Family Camp')
+  assert.equal(state.appContext.knownFacts.enrollments[0].applicantName, 'Alice')
+})
+
+test('POST /api/reviews/session/:id/state accepts app context JSON body', async () => {
+  const eventId = crypto.randomUUID()
+  const sessionId = `member-1-event-${eventId}-review`
+
+  const response = await dispatch(`https://ccalc.live/api/reviews/session/${sessionId}/state`, {
+    method: 'POST',
+    body: JSON.stringify({
+      language: 'en',
+      memberId: 'member-1',
+      groupId: 'group-1',
+      eventId,
+      eventData: { id: eventId, titleEn: 'Family Camp' },
+      knownFacts: {
+        enrollments: [{ applicantName: 'Alice' }],
+      },
+    }),
+    headers: { 'content-type': 'application/json' },
+    env: { GEMINI_API_KEY: 'test-key', API_PROXY_TARGET: 'https://api.ccalc.live' },
+  })
+
+  assert.equal(response.status, 200)
+  const state = await response.json()
+  assert.equal(state.sessionId, sessionId)
+  assert.equal(state.appContext.language, 'en')
+  assert.equal(state.appContext.memberId, 'member-1')
+  assert.equal(state.appContext.groupId, 'group-1')
+  assert.equal(state.appContext.eventId, eventId)
+  assert.equal(state.appContext.eventData.titleEn, 'Family Camp')
+  assert.equal(state.appContext.knownFacts.enrollments[0].applicantName, 'Alice')
+  assert.equal(state.draft.eventId, eventId)
+})
+
 test('POST /api/reviews/session/:id/message returns review draft and preserves app context ids', async () => {
   const eventId = crypto.randomUUID()
   const sessionId = `member-1-event-${eventId}-review`

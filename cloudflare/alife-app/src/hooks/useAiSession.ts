@@ -21,7 +21,7 @@ export const useAiSession = <TDraft, TContext = unknown>(
     }
 
     let isMounted = true
-    const source = service.createStream(sessionId, appContext)
+    const source = service.createStream(sessionId)
 
     const applyState = (nextState: AiSessionState<TDraft, TContext>) => {
       if (isMounted) {
