@@ -49,7 +49,7 @@ const GroupOverviewPanel = ({ group, saving = false, onSave }: Props) => {
         <label>
           <span className="text-xs font-medium uppercase tracking-wide text-slate-500">{t(group.isChurch ? 'churchNameChinese' : 'groupNameChinese')}</span>
           <input
-            value={name.zh ?? name.cn ?? ''}
+            value={name.zh ?? ''}
             onChange={(event) => setName((current) => ({ en: current.en ?? '', zh: event.target.value }))}
             className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
           />
@@ -67,7 +67,7 @@ const GroupOverviewPanel = ({ group, saving = false, onSave }: Props) => {
         <label>
           <span className="text-xs font-medium uppercase tracking-wide text-slate-500">{t(group.isChurch ? 'churchDescriptionChinese' : 'groupDescriptionChinese')}</span>
           <textarea
-            value={description.zh ?? description.cn ?? ''}
+            value={description.zh ?? ''}
             onChange={(event) => setDescription((current) => ({ en: current.en ?? '', zh: event.target.value }))}
             className="mt-1 min-h-20 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
           />

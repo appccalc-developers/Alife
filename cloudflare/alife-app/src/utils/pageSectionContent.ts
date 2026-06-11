@@ -8,7 +8,7 @@ export const readText = (source: SourceMap, ...keys: string[]) => {
     }
     if (value && typeof value === 'object' && !Array.isArray(value)) {
       const map = value as Record<string, unknown>
-      const text = map.en || map.zh || map.cn || Object.values(map)[0]
+      const text = map.en || map.zh || Object.values(map)[0]
       if (typeof text === 'string' && text.trim()) {
         return text
       }

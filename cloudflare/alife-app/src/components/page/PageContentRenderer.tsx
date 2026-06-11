@@ -98,7 +98,7 @@ const PageContentRenderer = ({
       return ''
     }
 
-    return key === 'zh' ? page[field].zh ?? page[field].cn ?? '' : page[field][key] ?? ''
+    return page[field][key] ?? ''
   }
   const updatePageLocalizedField = (field: 'title' | 'description', key: 'en' | 'zh', value: string) => {
     if (!editablePage) {
@@ -106,9 +106,9 @@ const PageContentRenderer = ({
     }
 
     const editPage = page as PageEditModel
-    const nextField = { ...editPage[field], [key]: value }
-    if (key === 'zh') {
-      delete nextField.cn
+    const nextField = {
+      en: key === 'en' ? value : editPage[field].en ?? '',
+      zh: key === 'zh' ? value : editPage[field].zh ?? '',
     }
 
     onPageChange({
@@ -122,9 +122,9 @@ const PageContentRenderer = ({
     }
 
     const editPage = page as PageEditModel
-    const nextField = { ...editPage[field], [activeLanguageKey]: value }
-    if (activeLanguageKey === 'zh') {
-      delete nextField.cn
+    const nextField = {
+      en: activeLanguageKey === 'en' ? value : editPage[field].en ?? '',
+      zh: activeLanguageKey === 'zh' ? value : editPage[field].zh ?? '',
     }
 
     onPageChange({

@@ -15,9 +15,10 @@ const PageMetaForm = ({ model, canEdit, titleError, onChange }: Props) => {
     onChange({ ...model, [key]: value })
   }
   const updateLocalizedField = (field: 'title' | 'description', key: 'en' | 'zh', value: string) => {
-    const next = { ...model[field], [key]: value }
-    if (key === 'zh') {
-      delete next.cn
+    const current = model[field]
+    const next = {
+      en: key === 'en' ? value : current.en ?? '',
+      zh: key === 'zh' ? value : current.zh ?? '',
     }
     updateField(field, next)
   }
@@ -42,7 +43,7 @@ const PageMetaForm = ({ model, canEdit, titleError, onChange }: Props) => {
         <label className="block space-y-1">
           <span className="text-sm font-medium text-slate-700">{t('titleChinese')}</span>
           <input
-            value={model.title.zh ?? model.title.cn ?? ''}
+            value={model.title.zh ?? ''}
             disabled={!canEdit}
             className="w-full rounded-md border border-slate-300 px-3 py-2 disabled:bg-slate-100"
             placeholder={t('pageTitlePlaceholder')}
@@ -65,7 +66,7 @@ const PageMetaForm = ({ model, canEdit, titleError, onChange }: Props) => {
         <label className="block space-y-1">
           <span className="text-sm font-medium text-slate-700">{t('descriptionChinese')}</span>
           <textarea
-            value={model.description.zh ?? model.description.cn ?? ''}
+            value={model.description.zh ?? ''}
             disabled={!canEdit}
             rows={4}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100"

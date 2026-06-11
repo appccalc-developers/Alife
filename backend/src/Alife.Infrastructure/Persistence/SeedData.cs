@@ -182,6 +182,6 @@ public static class SeedData
 	private static string ReadText(string json)
 	{
 		var value = JsonSerializer.Deserialize<Dictionary<string, string>>(json) ?? [];
-		return value.GetValueOrDefault("en") ?? value.GetValueOrDefault("zh") ?? value.GetValueOrDefault("cn") ?? value.Values.FirstOrDefault() ?? string.Empty;
+		return value.GetValueOrDefault("en") ?? value.GetValueOrDefault("zh") ?? value.Values.FirstOrDefault() ?? string.Empty;
 	}
 }

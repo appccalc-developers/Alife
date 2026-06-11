@@ -17,8 +17,8 @@ const localizeNotificationText = (value: NotificationText | undefined, language:
   }
 
   return language === 'zh'
-    ? value.zh || value.cn || value.en || Object.values(value)[0] || ''
-    : value.en || value.zh || value.cn || Object.values(value)[0] || ''
+    ? value.zh || value.en || Object.values(value)[0] || ''
+    : value.en || value.zh || Object.values(value)[0] || ''
 }
 
 const formatNotificationDate = (value: string | undefined, language: string) => {

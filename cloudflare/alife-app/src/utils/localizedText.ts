@@ -13,10 +13,10 @@ export const localizeText = (value: LocalizedText | string | null | undefined, l
 
   const key = languageKey(language)
   if (key === 'zh') {
-    return value.zh || value.cn || value.en || Object.values(value)[0] || ''
+    return value.zh || value.en || Object.values(value)[0] || ''
   }
 
-  return value[key] || value.en || value.zh || value.cn || Object.values(value)[0] || ''
+  return value[key] || value.en || value.zh || Object.values(value)[0] || ''
 }
 
 export const toLocalizedText = (value: LocalizedText | string | null | undefined): LocalizedText => {
@@ -28,5 +28,5 @@ export const toLocalizedText = (value: LocalizedText | string | null | undefined
     return { en: value, zh: value }
   }
 
-  return { en: value.en ?? '', zh: value.zh ?? value.cn ?? '' }
+  return { en: value.en ?? '', zh: value.zh ?? '' }
 }
