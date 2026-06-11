@@ -282,8 +282,8 @@ public static class MembershipNotificationWriter
         try
         {
             var value = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
-            var en = ReadText(value, "en") ?? ReadText(value, "zh") ?? ReadText(value, "cn") ?? fallbackEn;
-            var zh = ReadText(value, "zh") ?? ReadText(value, "cn") ?? ReadText(value, "en") ?? fallbackZh;
+            var en = ReadText(value, "en") ?? ReadText(value, "zh") ?? fallbackEn;
+            var zh = ReadText(value, "zh") ?? ReadText(value, "en") ?? fallbackZh;
             return new LocalizedText(en, zh);
         }
         catch (JsonException)

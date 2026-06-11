@@ -19,7 +19,7 @@ export const readText = (source: JsonMap | undefined, ...keys: string[]) => {
     }
     if (value && typeof value === 'object' && !Array.isArray(value)) {
       const map = value as Record<string, unknown>
-      const text = map.en || map.zh || map.cn || Object.values(map)[0]
+      const text = map.en || map.zh || Object.values(map)[0]
       if (typeof text === 'string') {
         return text
       }
@@ -130,11 +130,11 @@ export const patchContent = (section: SectionEditModel, patch: JsonMap): Section
 export const toLocalizedValue = (current: unknown, language: string, value: string) => {
   const key = languageKey(language)
   if (current && typeof current === 'object' && !Array.isArray(current)) {
-    const next = { ...(current as Record<string, string>), [key]: value }
-    if (key === 'zh') {
-      delete next.cn
+    const map = current as Record<string, string>
+    return {
+      en: key === 'en' ? value : map.en ?? '',
+      zh: key === 'zh' ? value : map.zh ?? '',
     }
-    return next
   }
 
   const previous = typeof current === 'string' ? current : ''

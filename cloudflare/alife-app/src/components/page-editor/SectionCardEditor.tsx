@@ -46,7 +46,7 @@ const toHeaderText = (value: unknown): Record<string, string> => {
   if (isJsonMap(value)) {
     return {
       en: typeof value.en === 'string' ? value.en : '',
-      zh: typeof value.zh === 'string' ? value.zh : typeof value.cn === 'string' ? value.cn : '',
+      zh: typeof value.zh === 'string' ? value.zh : '',
     }
   }
 
@@ -106,7 +106,7 @@ const readHeader = (section: SectionEditModel): SectionHeader =>
     : createDefaultHeader(section.contentJson)
 
 const readHeaderTextValue = (header: SectionHeader, field: 'title' | 'subtitle', key: 'en' | 'zh') =>
-  key === 'zh' ? header[field]?.zh ?? header[field]?.cn ?? '' : header[field]?.[key] ?? ''
+  header[field]?.[key] ?? ''
 
 const readLocalizedJsonValue = (source: JsonMap, field: string, key: 'en' | 'zh') => {
   const value = source[field]
@@ -114,11 +114,6 @@ const readLocalizedJsonValue = (source: JsonMap, field: string, key: 'en' | 'zh'
     return key === 'en' ? value : ''
   }
   if (isJsonMap(value)) {
-    if (key === 'zh') {
-      const item = value.zh ?? value.cn
-      return typeof item === 'string' ? item : ''
-    }
-
     const item = value[key]
     return typeof item === 'string' ? item : ''
   }
@@ -132,17 +127,18 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
   const patchHeader = (patch: Partial<SectionHeader>) => patchContentJson({ header: { ...readHeader(section), ...patch } })
   const patchLocalizedContentField = (field: string, key: 'en' | 'zh', value: string, aliases: string[] = []) => {
     const current = isJsonMap(section.contentJson[field]) ? section.contentJson[field] as JsonMap : {}
-    const localized = { ...current, [key]: value }
-    if (key === 'zh') {
-      delete localized.cn
+    const localized = {
+      en: key === 'en' ? value : typeof current.en === 'string' ? current.en : '',
+      zh: key === 'zh' ? value : typeof current.zh === 'string' ? current.zh : '',
     }
     patchContentJson(Object.fromEntries([field, ...aliases].map((name) => [name, localized])))
   }
   const patchHeaderText = (field: 'title' | 'subtitle', key: 'en' | 'zh', value: string) => {
     const header = readHeader(section)
-    const localized = { ...(header[field] ?? {}), [key]: value }
-    if (key === 'zh') {
-      delete localized.cn
+    const current = header[field] ?? {}
+    const localized = {
+      en: key === 'en' ? value : current.en ?? '',
+      zh: key === 'zh' ? value : current.zh ?? '',
     }
     patchHeader({
       [field]: localized,
