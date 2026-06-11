@@ -74,6 +74,33 @@ const normalizeReviewPhotoFiles = (photoFiles: unknown): ReviewPhotoFile[] => {
     }))
 }
 
+const photoUploadSignature = (photo: Pick<ReviewPhotoFile, 'fileName' | 'contentType' | 'size'>) =>
+  `${photo.fileName.trim().toLowerCase()}:${photo.contentType.trim().toLowerCase()}:${photo.size}`
+
+const mergeReviewPhotoFiles = (existingPhotos: ReviewPhotoFile[], uploadedPhotos: ReviewPhotoFile[]) => {
+  const uploadedSignatures = new Set(uploadedPhotos.map(photoUploadSignature))
+  const merged = [
+    ...existingPhotos.filter((photo) => photo.key || !uploadedSignatures.has(photoUploadSignature(photo))),
+    ...uploadedPhotos,
+  ]
+  const seen = new Set<string>()
+
+  return merged.filter((photo) => {
+    const stableKey = photo.key?.trim()
+      ? `key:${photo.key.trim()}`
+      : photo.url?.trim()
+        ? `url:${photo.url.trim()}`
+        : `upload:${photoUploadSignature(photo)}`
+
+    if (seen.has(stableKey)) {
+      return false
+    }
+
+    seen.add(stableKey)
+    return true
+  })
+}
+
 export const fileToAiAttachment = async (file: File): Promise<AiSessionAttachment> => {
   const bytes = new Uint8Array(await file.arrayBuffer())
   let binary = ''
@@ -150,7 +177,7 @@ export const reviewSessionService = {
       eventId: payload.eventId,
       groupId: payload.groupId,
       memberId: payload.memberId || payload.draft.memberId,
-      photoFiles: [...existingPhotos, ...uploadedPhotos],
+      photoFiles: mergeReviewPhotoFiles(existingPhotos, uploadedPhotos),
       submittedAtUtc: payload.draft.submittedAtUtc || now,
       updatedAtUtc: now,
     }

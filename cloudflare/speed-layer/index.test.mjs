@@ -1331,7 +1331,12 @@ test('POST /api/reviews/session/:id/message returns review draft and preserves a
             },
             recognizedPeople: [{ name: 'Alice', confidence: 0.8 }],
             recognizedActivities: [{ name: { zh: '分享', en: 'Sharing' }, evidence: 'User mentioned sharing.' }],
-            photoFiles: [],
+            photoFiles: [{
+              fileName: 'review.png',
+              contentType: 'image/png',
+              size: 10,
+              url: 'https://example.invalid/ai-invented-review.png',
+            }],
             assistantReply: {
               zh: '回顧草稿已準備好。',
               en: 'The review draft is ready.',
@@ -1368,6 +1373,7 @@ test('POST /api/reviews/session/:id/message returns review draft and preserves a
   assert.equal(body.result.memberId, 'member-1')
   assert.match(body.result.reviewId, /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)
   assert.equal(body.result.summary.en, 'A warm time of fellowship.')
+  assert.equal(body.result.photoFiles.length, 0)
   assert.equal(body.context.en, 'The review draft is ready.')
   const geminiBody = JSON.parse(fetchInits[0].body)
   const prompt = JSON.parse(geminiBody.contents[0].parts[0].text)
@@ -1397,7 +1403,12 @@ test('POST /api/reviews/session/:id/message sends review photo as Gemini inline 
             },
             recognizedPeople: [],
             recognizedActivities: [{ name: { zh: '用餐', en: 'Meal' }, evidence: 'Photo attachment.' }],
-            photoFiles: [],
+            photoFiles: [{
+              fileName: 'review.png',
+              contentType: 'image/png',
+              size: 10,
+              url: 'https://example.invalid/inline-review.png',
+            }],
             assistantReply: {
               zh: '我已根據照片更新回顧。',
               en: 'I updated the review from the photos.',
@@ -1421,6 +1432,8 @@ test('POST /api/reviews/session/:id/message sends review photo as Gemini inline 
   })
 
   assert.equal(response.status, 200)
+  const body = await response.json()
+  assert.equal(body.result.photoFiles.length, 0)
   const geminiBody = JSON.parse(fetchInits[0].body)
   assert.equal(geminiBody.contents[0].parts[1].inline_data.mime_type, 'image/png')
   const prompt = JSON.parse(geminiBody.contents[0].parts[0].text)

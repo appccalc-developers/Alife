@@ -175,6 +175,7 @@ export class ReviewSession extends AiChatSession<ReviewDraft, MultilingualString
       getInitialDraft: (sessionId) => createInitialDraft(sessionId),
       onStart: (draft, payload) => mergeReviewDraft(draft, normalizeReviewDraft(payload.draft ?? payload.reviewDraft ?? {}), {
         appContext: payload.appContext ?? {},
+        preserveNextPhotoFiles: true,
       }),
       mergeDraft: (previousDraft, nextDraft, state) => mergeReviewDraft(previousDraft, nextDraft, state),
       getContextFromDraft: (draft) => draft.assistantReply ?? null,
@@ -229,12 +230,19 @@ function createInitialDraft(sessionId: string): ReviewDraft {
 function mergeReviewDraft(
   previousDraft: ReviewDraft | null,
   nextDraft: ReviewDraft,
-  state: { appContext: AiSessionAppContext },
+  state: { appContext: AiSessionAppContext; preserveNextPhotoFiles?: boolean },
 ): ReviewDraft {
   const knownFacts = isRecord(state.appContext.knownFacts) ? state.appContext.knownFacts : {}
   const existingReview = normalizeReviewDraft(knownFacts.existingReview)
   const eventData = state.appContext.eventData
   const now = new Date().toISOString()
+  const knownPhotoFiles = dedupeReviewPhotoFiles([
+    ...(previousDraft?.photoFiles ?? []),
+    ...existingReview.photoFiles,
+  ])
+  const photoFiles = state.preserveNextPhotoFiles
+    ? dedupeReviewPhotoFiles([...knownPhotoFiles, ...nextDraft.photoFiles])
+    : knownPhotoFiles
 
   return {
     ...nextDraft,
@@ -246,10 +254,26 @@ function mergeReviewDraft(
     eventId: state.appContext.eventId || nextDraft.eventId || previousDraft?.eventId || extractEventId(eventData) || existingReview.eventId || '',
     groupId: state.appContext.groupId || nextDraft.groupId || previousDraft?.groupId || existingReview.groupId || '',
     memberId: state.appContext.memberId || nextDraft.memberId || previousDraft?.memberId || state.appContext.userId || existingReview.memberId || '',
-    photoFiles: nextDraft.photoFiles.length ? nextDraft.photoFiles : previousDraft?.photoFiles ?? existingReview.photoFiles,
+    photoFiles,
     submittedAtUtc: nextDraft.submittedAtUtc || previousDraft?.submittedAtUtc || existingReview.submittedAtUtc || '',
     updatedAtUtc: now,
   }
+}
+
+function dedupeReviewPhotoFiles(photoFiles: ReviewPhotoFile[]) {
+  const seen = new Set<string>()
+  return photoFiles.filter((file) => {
+    const key = file.key?.trim()
+      ? `key:${file.key.trim()}`
+      : `url:${file.url.trim()}`
+
+    if (seen.has(key)) {
+      return false
+    }
+
+    seen.add(key)
+    return true
+  })
 }
 
 function extractEventId(eventData: unknown) {
