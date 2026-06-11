@@ -77,6 +77,7 @@ type ExtractRequest = {
   groupProfiles?: unknown
   eventId?: unknown
   eventData?: unknown
+  knownFacts?: unknown
   attachments?: unknown
 }
 
@@ -125,14 +126,19 @@ export class AiChatSession<TDraft, TContext = unknown> {
 
   protected async handleRequest(request: Request, sessionIdHint: string): Promise<Response> {
     const url = new URL(request.url)
-    const state = await this.applyRequestContext(request, await this.ensureState(sessionIdHint))
 
     if (url.pathname.endsWith('/stream') && request.method === 'GET') {
+      const state = await this.applyRequestContext(request, await this.ensureState(sessionIdHint))
       return this.openEventStream(state)
     }
 
     if (url.pathname.endsWith('/state') && request.method === 'GET') {
+      const state = await this.applyRequestContext(request, await this.ensureState(sessionIdHint))
       return Response.json(this.formatState(state))
+    }
+
+    if (url.pathname.endsWith('/state') && request.method === 'POST') {
+      return this.handleState(request, sessionIdHint)
     }
 
     if (url.pathname.endsWith('/message') && request.method === 'POST') {
@@ -192,6 +198,30 @@ export class AiChatSession<TDraft, TContext = unknown> {
 
   protected formatSsePayload(state: AiSessionState<TDraft, TContext>) {
     return this.config.formatSsePayload?.(state) ?? { type: 'draft', state: this.formatState(state) }
+  }
+
+  private async handleState(request: Request, sessionIdHint: string) {
+    let state = await this.applyRequestContext(request, await this.ensureState(sessionIdHint))
+    let body: ExtractRequest
+
+    try {
+      body = await parseJsonObjectRequest(request)
+    } catch {
+      return Response.json({ message: 'Invalid state request body.' }, { status: 400 })
+    }
+
+    const bodyContext = extractAppContextFromBody(body)
+    if (bodyContext) {
+      state = {
+        ...state,
+        appContext: mergeAppContext(state.appContext, bodyContext),
+        updatedAt: new Date().toISOString(),
+      }
+      this.statePromise = Promise.resolve(state)
+      await this.durableState.storage.put(this.config.storageKey, state)
+    }
+
+    return Response.json(this.formatState(state))
   }
 
   private async handleMessage(request: Request, sessionIdHint: string) {
@@ -617,9 +647,47 @@ async function parseMessageRequest(request: Request) {
   return { body: await request.json() as ExtractRequest, attachments: [] }
 }
 
+async function parseJsonObjectRequest(request: Request): Promise<ExtractRequest> {
+  const text = await request.text()
+  if (!text.trim()) {
+    return {}
+  }
+
+  const parsed = JSON.parse(text)
+  return isRecord(parsed) ? parsed as ExtractRequest : {}
+}
+
 function extractAppContext(body: ExtractRequest): AiSessionAppContext {
   const explicit = normalizeAppContext(body.appContext)
   return mergeAppContext(explicit, normalizeAppContext(body))
+}
+
+function extractAppContextFromBody(body: ExtractRequest): AiSessionAppContext | undefined {
+  if (!hasAppContextInput(body)) {
+    return undefined
+  }
+
+  return extractAppContext(body)
+}
+
+function hasAppContextInput(body: ExtractRequest) {
+  if (body.appContext !== undefined) {
+    return true
+  }
+
+  return [
+    'language',
+    'userId',
+    'userProfile',
+    'memberId',
+    'memberProfile',
+    'groupId',
+    'groupProfile',
+    'groupProfiles',
+    'eventId',
+    'eventData',
+    'knownFacts',
+  ].some((key) => key in body)
 }
 
 function extractAppContextFromUrl(url: URL): AiSessionAppContext | undefined {
