@@ -6,7 +6,7 @@ import SectionListEditor from '../page-editor/SectionListEditor'
 import { translateUi, useUiText } from '../../i18n/uiText'
 import { useAuthStore } from '../../stores/auth'
 import { languageKey, localizeText } from '../../utils/localizedText'
-import { DEFAULT_HERO_ASPECT_RATIO, EditableText } from '../page-sections/sectionUtils'
+import { DEFAULT_HERO_ASPECT_RATIO, EditableText, TextInput } from '../page-sections/sectionUtils'
 
 type GroupLinkItem = {
   id: string
@@ -92,6 +92,23 @@ const PageContentRenderer = ({
   const activeLanguageKey = languageKey(auth.language)
   const pageTitle = localizeText(page.title, auth.language)
   const pageDescription = localizeText(page.description, auth.language)
+  const showPageTitleEditor = editing && 'groupId' in page
+  const readPageLocalizedField = (field: 'title' | 'description', key: 'en' | 'cn') =>
+    'groupId' in page ? page[field][key] ?? '' : ''
+  const updatePageLocalizedField = (field: 'title' | 'description', key: 'en' | 'cn', value: string) => {
+    if (!editablePage) {
+      return
+    }
+
+    const editPage = page as PageEditModel
+    onPageChange({
+      ...editPage,
+      [field]: {
+        ...editPage[field],
+        [key]: value,
+      },
+    })
+  }
   const updateLocalizedPageField = (field: 'title' | 'description', value: string) => {
     if (!editablePage) {
       return
@@ -143,14 +160,38 @@ const PageContentRenderer = ({
     <article className={framed ? 'space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5' : 'space-y-4'}>
       {showHeader ? (
         <header className="space-y-2 border-b border-slate-200 pb-3">
-          <EditableText
-            as="h1"
-            value={pageTitle}
-            fallback={t('untitledPage')}
-            disabled={!editablePage}
-            className="text-2xl font-bold text-slate-900 sm:text-3xl"
-            onChange={(value) => updateLocalizedPageField('title', value)}
-          />
+          {showPageTitleEditor ? (
+            <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-3">
+              <div className="mb-3">
+                <p className="text-sm font-semibold text-slate-900">{t('pageMetadata')}</p>
+              </div>
+              <div className="grid gap-2 md:grid-cols-2">
+                <TextInput
+                  label={t('titleEnglish')}
+                  value={readPageLocalizedField('title', 'en')}
+                  disabled={!editablePage}
+                  placeholder={t('pageTitlePlaceholder')}
+                  onChange={(value) => updatePageLocalizedField('title', 'en', value)}
+                />
+                <TextInput
+                  label={t('titleChinese')}
+                  value={readPageLocalizedField('title', 'cn')}
+                  disabled={!editablePage}
+                  placeholder={t('pageTitlePlaceholder')}
+                  onChange={(value) => updatePageLocalizedField('title', 'cn', value)}
+                />
+              </div>
+            </div>
+          ) : (
+            <EditableText
+              as="h1"
+              value={pageTitle}
+              fallback={t('untitledPage')}
+              disabled={!editablePage}
+              className="text-2xl font-bold text-slate-900 sm:text-3xl"
+              onChange={(value) => updateLocalizedPageField('title', value)}
+            />
+          )}
           <EditableText
             as="p"
             multiline
