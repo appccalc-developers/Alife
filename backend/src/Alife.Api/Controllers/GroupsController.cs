@@ -3,6 +3,7 @@ using Alife.Api.Results;
 using Alife.Application.Abstractions.Identity;
 using Alife.Application.Groups.Commands.AcceptGroupInvite;
 using Alife.Application.Groups.Commands.ApproveGroupMember;
+using Alife.Application.Groups.Commands.ClaimSubgroupCoLeader;
 using Alife.Application.Groups.Commands.CloseGroup;
 using Alife.Application.Groups.Commands.CreateSubgroup;
 using Alife.Application.Groups.Commands.DeclineGroupInvite;
@@ -92,6 +93,22 @@ public class GroupsController(
 
         var result = await mediator.Send(
             new CreateSubgroupCommand(id, currentMemberId.Value, request.Name, request.Description, request.AccessType),
+            cancellationToken);
+
+        return this.ToActionResult(result);
+    }
+
+    [HttpPost("{id:guid}/subgroups/{subgroupId:guid}/claim-coleader")]
+    public async Task<IActionResult> ClaimSubgroupCoLeader(Guid id, Guid subgroupId, CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null)
+        {
+            return Unauthorized();
+        }
+
+        var result = await mediator.Send(
+            new ClaimSubgroupCoLeaderCommand(id, subgroupId, currentMemberId.Value),
             cancellationToken);
 
         return this.ToActionResult(result);

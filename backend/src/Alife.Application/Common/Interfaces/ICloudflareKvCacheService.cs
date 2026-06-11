@@ -16,6 +16,10 @@ public interface ICloudflareKvCacheService
         Guid memberId,
         CancellationToken cancellationToken = default);
 
+    Task RemoveMemberProfileAsync(
+        Guid memberId,
+        CancellationToken cancellationToken = default);
+
     Task RemoveApiCacheAsync(
         string path,
         CancellationToken cancellationToken = default);

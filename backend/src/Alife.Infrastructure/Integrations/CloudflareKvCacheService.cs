@@ -41,6 +41,11 @@ public sealed class CloudflareKvCacheService(
         CancellationToken cancellationToken = default)
         => DeleteAuthzValueAsync($"membership:{groupId}:{memberId}", cancellationToken);
 
+    public Task RemoveMemberProfileAsync(
+        Guid memberId,
+        CancellationToken cancellationToken = default)
+        => DeleteAuthzValueAsync($"member:{memberId}:profile", cancellationToken);
+
     public Task RemoveApiCacheAsync(string path, CancellationToken cancellationToken = default)
         => DeleteApiCacheValueAsync(CreateApiCacheKey(path), cancellationToken);
 
