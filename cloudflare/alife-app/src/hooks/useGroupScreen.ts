@@ -264,6 +264,18 @@ export const useGroupScreen = (groupId: string, options: GroupScreenOptions = {}
     setStatusMessage(t('subgroupDeleted'))
   }, [groupId, queryClient, t])
 
+  const closeGroup = useCallback(async () => {
+    if (!groupId) return
+    await groupService.closeGroup(groupId)
+    await removeCachedRecord(groupQueryKey(groupId))
+    await queryClient.invalidateQueries({ queryKey: groupQueryKey(groupId) })
+    if (group?.parentGroupId) {
+      await removeCachedRecord(subgroupsQueryKey(group.parentGroupId))
+      await queryClient.invalidateQueries({ queryKey: ['subgroups', group.parentGroupId] })
+    }
+    setStatusMessage(t('groupDeleted'))
+  }, [group?.parentGroupId, groupId, queryClient, t])
+
   const deletePage = useCallback(
     async (pageId: string) => {
       await pageService.deletePage(pageId)
@@ -335,6 +347,7 @@ export const useGroupScreen = (groupId: string, options: GroupScreenOptions = {}
     setCoLeader,
     editSubgroup,
     deleteSubgroup,
+    closeGroup,
     deletePage,
     togglePageVisibility,
     deleteEvent,
