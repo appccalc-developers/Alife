@@ -1,6 +1,6 @@
 import type { LocalizedText } from '../types'
 
-export const languageKey = (language: string) => (language === 'zh' ? 'cn' : language)
+export const languageKey = (language: string) => (language === 'zh' ? 'zh' : language)
 
 export const localizeText = (value: LocalizedText | string | null | undefined, language = 'en') => {
   if (!value) {
@@ -12,17 +12,21 @@ export const localizeText = (value: LocalizedText | string | null | undefined, l
   }
 
   const key = languageKey(language)
-  return value[key] || value.en || value.cn || Object.values(value)[0] || ''
+  if (key === 'zh') {
+    return value.zh || value.cn || value.en || Object.values(value)[0] || ''
+  }
+
+  return value[key] || value.en || value.zh || value.cn || Object.values(value)[0] || ''
 }
 
 export const toLocalizedText = (value: LocalizedText | string | null | undefined): LocalizedText => {
   if (!value) {
-    return { en: '', cn: '' }
+    return { en: '', zh: '' }
   }
 
   if (typeof value === 'string') {
-    return { en: value, cn: value }
+    return { en: value, zh: value }
   }
 
-  return { en: value.en ?? '', cn: value.cn ?? '', ...value }
+  return { en: value.en ?? '', zh: value.zh ?? value.cn ?? '' }
 }

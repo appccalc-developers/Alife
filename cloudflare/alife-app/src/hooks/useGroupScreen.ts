@@ -253,7 +253,7 @@ export const useGroupScreen = (groupId: string, options: GroupScreenOptions = {}
   )
 
   const editSubgroup = useCallback(async (subgroupId: string) => {
-    await groupService.updateSubgroup(subgroupId, { name: { en: 'TODO', cn: 'TODO' }, accessType: 'protected' })
+    await groupService.updateSubgroup(subgroupId, { name: { en: 'TODO', zh: 'TODO' }, accessType: 'protected' })
   }, [])
 
   const deleteSubgroup = useCallback(async (subgroupId: string) => {

@@ -105,8 +105,8 @@ public static class SeedData
 				Scope = PageScope.Group,
 				OwnerGroupId = group.Id,
 				CreatedByMemberId = adminId,
-				TitleJson = JsonSerializer.Serialize(new Dictionary<string, string> { ["en"] = "Home", ["cn"] = "主页" }),
-				DescriptionJson = JsonSerializer.Serialize(new Dictionary<string, string> { ["en"] = $"{groupName} home page", ["cn"] = $"{groupName} 主页" }),
+				TitleJson = JsonSerializer.Serialize(new Dictionary<string, string> { ["en"] = "Home", ["zh"] = "主页" }),
+				DescriptionJson = JsonSerializer.Serialize(new Dictionary<string, string> { ["en"] = $"{groupName} home page", ["zh"] = $"{groupName} 主页" }),
 				TagsJson = "[\"home\"]",
 				TitleDisplayStyle = "Default",
 				Visibility = PageVisibility.Group,
@@ -119,8 +119,8 @@ public static class SeedData
 				Scope = PageScope.Group,
 				OwnerGroupId = group.Id,
 				CreatedByMemberId = adminId,
-				TitleJson = JsonSerializer.Serialize(new Dictionary<string, string> { ["en"] = "Events", ["cn"] = "活动" }),
-				DescriptionJson = JsonSerializer.Serialize(new Dictionary<string, string> { ["en"] = $"{groupName} events page", ["cn"] = $"{groupName} 活动页" }),
+				TitleJson = JsonSerializer.Serialize(new Dictionary<string, string> { ["en"] = "Events", ["zh"] = "活动" }),
+				DescriptionJson = JsonSerializer.Serialize(new Dictionary<string, string> { ["en"] = $"{groupName} events page", ["zh"] = $"{groupName} 活动页" }),
 				TagsJson = "[\"events\"]",
 				TitleDisplayStyle = "Default",
 				Visibility = PageVisibility.Group,
@@ -138,8 +138,8 @@ public static class SeedData
 				Type = SectionType.Hero,
 				ContentJson = JsonSerializer.Serialize(new
 				{
-					title = new { en = $"{groupName} Home", cn = $"{groupName} 主页" },
-					subtitle = new { en = $"Welcome to the {groupName} page.", cn = $"欢迎来到 {groupName} 页面。" },
+					title = new { en = $"{groupName} Home", zh = $"{groupName} 主页" },
+					subtitle = new { en = $"Welcome to the {groupName} page.", zh = $"欢迎来到 {groupName} 页面。" },
 					backgroundImage = heroImageUrl
 				}),
 				StyleJson = JsonSerializer.Serialize(new { height = "420px" })
@@ -153,8 +153,8 @@ public static class SeedData
 				Type = SectionType.Hero,
 				ContentJson = JsonSerializer.Serialize(new
 				{
-					title = new { en = $"{groupName} Events", cn = $"{groupName} 活动" },
-					subtitle = new { en = $"See upcoming events for {groupName}.", cn = $"查看 {groupName} 的近期活动。" },
+					title = new { en = $"{groupName} Events", zh = $"{groupName} 活动" },
+					subtitle = new { en = $"See upcoming events for {groupName}.", zh = $"查看 {groupName} 的近期活动。" },
 					backgroundImage = heroImageUrl
 				}),
 				StyleJson = JsonSerializer.Serialize(new { height = "420px" })
@@ -176,12 +176,12 @@ public static class SeedData
 			SectionsInserted: sections.Count);
 	}
 
-	private static string TextJson(string en, string cn)
-		=> JsonSerializer.Serialize(new Dictionary<string, string> { ["en"] = en, ["cn"] = cn });
+	private static string TextJson(string en, string zh)
+		=> JsonSerializer.Serialize(new Dictionary<string, string> { ["en"] = en, ["zh"] = zh });
 
 	private static string ReadText(string json)
 	{
 		var value = JsonSerializer.Deserialize<Dictionary<string, string>>(json) ?? [];
-		return value.GetValueOrDefault("en") ?? value.GetValueOrDefault("cn") ?? value.Values.FirstOrDefault() ?? string.Empty;
+		return value.GetValueOrDefault("en") ?? value.GetValueOrDefault("zh") ?? value.GetValueOrDefault("cn") ?? value.Values.FirstOrDefault() ?? string.Empty;
 	}
 }
