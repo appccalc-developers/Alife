@@ -7,6 +7,7 @@ import AppSectionCard from '../components/layout/AppSectionCard'
 import { useUiText } from '../i18n/uiText'
 import { enrollmentSessionService } from '../services/enrollmentSessionService'
 import { eventService } from '../services/eventService'
+import { normalizeApiError } from '../services/http'
 import { createReviewId, reviewSessionService } from '../services/reviewSessionService'
 import { useAuthStore } from '../stores/auth'
 import type { EventEnrollmentRecord } from '../types/enrollment'
@@ -35,7 +36,9 @@ const EventReviewView = () => {
 
     Promise.all([
       eventService.getGroupEvents(groupId),
-      reviewSessionService.listEventReviews(eventId).catch(() => [] as EventReviewRecord[]),
+      reviewId
+        ? reviewSessionService.listEventReviews(eventId)
+        : Promise.resolve([] as EventReviewRecord[]),
       enrollmentSessionService.listEventEnrollments(eventId).catch(() => [] as EventEnrollmentRecord[]),
     ])
       .then(([events, reviews, enrollmentRecords]) => {
@@ -44,9 +47,9 @@ const EventReviewView = () => {
         setExistingReview(reviewId ? reviews.find((item) => item.id === reviewId) ?? null : null)
         setEnrollments(enrollmentRecords)
       })
-      .catch(() => {
+      .catch((reason) => {
         if (!cancelled) {
-          setError(t('eventLoadFailed'))
+          setError(normalizeApiError(reason).message || t('eventLoadFailed'))
         }
       })
       .finally(() => {
