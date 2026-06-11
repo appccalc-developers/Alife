@@ -36,8 +36,8 @@ export const createEmptyPageSection = (): SectionEditModel => ({
   type: 'Hero',
   contentJson: {
     header: {
-      title: { en: '', cn: '' },
-      subtitle: { en: '', cn: '' },
+      title: { en: '', zh: '' },
+      subtitle: { en: '', zh: '' },
       align: 'center',
       scale: 'normal',
       tone: 'default',
@@ -93,20 +93,27 @@ const PageContentRenderer = ({
   const pageTitle = localizeText(page.title, auth.language)
   const pageDescription = localizeText(page.description, auth.language)
   const showPageTitleEditor = editing && 'groupId' in page
-  const readPageLocalizedField = (field: 'title' | 'description', key: 'en' | 'cn') =>
-    'groupId' in page ? page[field][key] ?? '' : ''
-  const updatePageLocalizedField = (field: 'title' | 'description', key: 'en' | 'cn', value: string) => {
+  const readPageLocalizedField = (field: 'title' | 'description', key: 'en' | 'zh') => {
+    if (!('groupId' in page)) {
+      return ''
+    }
+
+    return key === 'zh' ? page[field].zh ?? page[field].cn ?? '' : page[field][key] ?? ''
+  }
+  const updatePageLocalizedField = (field: 'title' | 'description', key: 'en' | 'zh', value: string) => {
     if (!editablePage) {
       return
     }
 
     const editPage = page as PageEditModel
+    const nextField = { ...editPage[field], [key]: value }
+    if (key === 'zh') {
+      delete nextField.cn
+    }
+
     onPageChange({
       ...editPage,
-      [field]: {
-        ...editPage[field],
-        [key]: value,
-      },
+      [field]: nextField,
     })
   }
   const updateLocalizedPageField = (field: 'title' | 'description', value: string) => {
@@ -115,12 +122,14 @@ const PageContentRenderer = ({
     }
 
     const editPage = page as PageEditModel
+    const nextField = { ...editPage[field], [activeLanguageKey]: value }
+    if (activeLanguageKey === 'zh') {
+      delete nextField.cn
+    }
+
     onPageChange({
       ...editPage,
-      [field]: {
-        ...editPage[field],
-        [activeLanguageKey]: value,
-      },
+      [field]: nextField,
     })
   }
 
@@ -175,10 +184,10 @@ const PageContentRenderer = ({
                 />
                 <TextInput
                   label={t('titleChinese')}
-                  value={readPageLocalizedField('title', 'cn')}
+                  value={readPageLocalizedField('title', 'zh')}
                   disabled={!editablePage}
                   placeholder={t('pageTitlePlaceholder')}
-                  onChange={(value) => updatePageLocalizedField('title', 'cn', value)}
+                  onChange={(value) => updatePageLocalizedField('title', 'zh', value)}
                 />
               </div>
             </div>

@@ -5,6 +5,7 @@ import { removeCachedRecord } from '../db/httpCache'
 import { queryClient } from '../db/queryClient'
 import type { LocalizedText, PageDetailDto, PageEditModel, PageSummaryDto, PageVisibility, SectionEditModel } from '../types'
 import { normalizePageDetail } from '../utils/pageDetail'
+import { toLocalizedText } from '../utils/localizedText'
 
 export type CreateGroupPagePayload = {
   title: LocalizedText
@@ -154,8 +155,8 @@ export const toPageEditModel = (page: PageDetailDto, groupId: string): PageEditM
   id: page.id,
   groupId,
   createdByMemberId: page.createdByMemberId,
-  title: page.title,
-  description: page.description ?? { en: '', cn: '' },
+  title: toLocalizedText(page.title),
+  description: toLocalizedText(page.description),
   tags: page.tags,
   titleDisplayStyle: page.titleDisplayStyle,
   visibility: page.visibility,

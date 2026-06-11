@@ -40,14 +40,17 @@ const isJsonMap = (value: unknown): value is JsonMap => Boolean(value && typeof 
 
 const toHeaderText = (value: unknown): Record<string, string> => {
   if (typeof value === 'string') {
-    return { en: value, cn: value }
+    return { en: value, zh: value }
   }
 
   if (isJsonMap(value)) {
-    return Object.fromEntries(Object.entries(value).filter(([, item]) => typeof item === 'string')) as Record<string, string>
+    return {
+      en: typeof value.en === 'string' ? value.en : '',
+      zh: typeof value.zh === 'string' ? value.zh : typeof value.cn === 'string' ? value.cn : '',
+    }
   }
 
-  return { en: '', cn: '' }
+  return { en: '', zh: '' }
 }
 
 const createHeroHeader = (contentJson: JsonMap): SectionHeader => {
@@ -102,15 +105,20 @@ const readHeader = (section: SectionEditModel): SectionHeader =>
     ? { ...createDefaultHeader(section.contentJson), ...section.contentJson.header }
     : createDefaultHeader(section.contentJson)
 
-const readHeaderTextValue = (header: SectionHeader, field: 'title' | 'subtitle', key: 'en' | 'cn') =>
-  header[field]?.[key] ?? ''
+const readHeaderTextValue = (header: SectionHeader, field: 'title' | 'subtitle', key: 'en' | 'zh') =>
+  key === 'zh' ? header[field]?.zh ?? header[field]?.cn ?? '' : header[field]?.[key] ?? ''
 
-const readLocalizedJsonValue = (source: JsonMap, field: string, key: 'en' | 'cn') => {
+const readLocalizedJsonValue = (source: JsonMap, field: string, key: 'en' | 'zh') => {
   const value = source[field]
   if (typeof value === 'string') {
     return key === 'en' ? value : ''
   }
   if (isJsonMap(value)) {
+    if (key === 'zh') {
+      const item = value.zh ?? value.cn
+      return typeof item === 'string' ? item : ''
+    }
+
     const item = value[key]
     return typeof item === 'string' ? item : ''
   }
@@ -122,18 +130,22 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
   const patchSection = (patch: Partial<SectionEditModel>) => onUpdate({ ...section, ...patch })
   const patchContentJson = (patch: JsonMap) => patchSection({ contentJson: { ...section.contentJson, ...patch } })
   const patchHeader = (patch: Partial<SectionHeader>) => patchContentJson({ header: { ...readHeader(section), ...patch } })
-  const patchLocalizedContentField = (field: string, key: 'en' | 'cn', value: string, aliases: string[] = []) => {
+  const patchLocalizedContentField = (field: string, key: 'en' | 'zh', value: string, aliases: string[] = []) => {
     const current = isJsonMap(section.contentJson[field]) ? section.contentJson[field] as JsonMap : {}
     const localized = { ...current, [key]: value }
+    if (key === 'zh') {
+      delete localized.cn
+    }
     patchContentJson(Object.fromEntries([field, ...aliases].map((name) => [name, localized])))
   }
-  const patchHeaderText = (field: 'title' | 'subtitle', key: 'en' | 'cn', value: string) => {
+  const patchHeaderText = (field: 'title' | 'subtitle', key: 'en' | 'zh', value: string) => {
     const header = readHeader(section)
+    const localized = { ...(header[field] ?? {}), [key]: value }
+    if (key === 'zh') {
+      delete localized.cn
+    }
     patchHeader({
-      [field]: {
-        ...(header[field] ?? {}),
-        [key]: value,
-      },
+      [field]: localized,
     })
   }
 
@@ -385,9 +397,9 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
               onChange={(value) => patchContentJson({ spacing: value })}
             />
             <TextInput label={t('titleEnglish')} value={readHeaderTextValue(readHeader(section), 'title', 'en')} disabled={!canEdit} onChange={(value) => patchHeaderText('title', 'en', value)} />
-            <TextInput label={t('titleChinese')} value={readHeaderTextValue(readHeader(section), 'title', 'cn')} disabled={!canEdit} onChange={(value) => patchHeaderText('title', 'cn', value)} />
+            <TextInput label={t('titleChinese')} value={readHeaderTextValue(readHeader(section), 'title', 'zh')} disabled={!canEdit} onChange={(value) => patchHeaderText('title', 'zh', value)} />
             <TextInput label={t('subtitleEnglish')} value={readHeaderTextValue(readHeader(section), 'subtitle', 'en')} disabled={!canEdit} onChange={(value) => patchHeaderText('subtitle', 'en', value)} />
-            <TextInput label={t('subtitleChinese')} value={readHeaderTextValue(readHeader(section), 'subtitle', 'cn')} disabled={!canEdit} onChange={(value) => patchHeaderText('subtitle', 'cn', value)} />
+            <TextInput label={t('subtitleChinese')} value={readHeaderTextValue(readHeader(section), 'subtitle', 'zh')} disabled={!canEdit} onChange={(value) => patchHeaderText('subtitle', 'zh', value)} />
             <SelectInput
               label={t('alignment')}
               value={readHeader(section).align ?? 'center'}
@@ -423,13 +435,13 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
           {section.type === 'RichText' ? (
             <div className="mt-3 grid gap-2 md:grid-cols-2">
               <TextAreaInput label={t('bodyEnglish')} value={readLocalizedJsonValue(section.contentJson, 'text', 'en')} disabled={!canEdit} onChange={(value) => patchLocalizedContentField('text', 'en', value)} />
-              <TextAreaInput label={t('bodyChinese')} value={readLocalizedJsonValue(section.contentJson, 'text', 'cn')} disabled={!canEdit} onChange={(value) => patchLocalizedContentField('text', 'cn', value)} />
+              <TextAreaInput label={t('bodyChinese')} value={readLocalizedJsonValue(section.contentJson, 'text', 'zh')} disabled={!canEdit} onChange={(value) => patchLocalizedContentField('text', 'zh', value)} />
             </div>
           ) : null}
           {section.type === 'Spotlight' ? (
             <div className="mt-3 grid gap-2 md:grid-cols-2">
               <TextAreaInput label={t('bodyEnglish')} value={readLocalizedJsonValue(section.contentJson, 'body', 'en')} disabled={!canEdit} onChange={(value) => patchLocalizedContentField('body', 'en', value, ['centerText', 'text'])} />
-              <TextAreaInput label={t('bodyChinese')} value={readLocalizedJsonValue(section.contentJson, 'body', 'cn')} disabled={!canEdit} onChange={(value) => patchLocalizedContentField('body', 'cn', value, ['centerText', 'text'])} />
+              <TextAreaInput label={t('bodyChinese')} value={readLocalizedJsonValue(section.contentJson, 'body', 'zh')} disabled={!canEdit} onChange={(value) => patchLocalizedContentField('body', 'zh', value, ['centerText', 'text'])} />
             </div>
           ) : null}
         </div>

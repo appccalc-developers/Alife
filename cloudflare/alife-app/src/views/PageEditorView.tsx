@@ -49,8 +49,8 @@ const PageEditorView = () => {
 
   const createInitialModel = (groupId: string): PageEditModel => ({
     groupId,
-    title: { en: '', cn: '' },
-    description: { en: '', cn: '' },
+    title: { en: '', zh: '' },
+    description: { en: '', zh: '' },
     tags: [],
     titleDisplayStyle: 'Default',
     visibility: 'draft',
