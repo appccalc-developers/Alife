@@ -402,7 +402,14 @@ export async function getInvalidationPaths(env: Env, request: Request, response:
 
   const groupCloseMatch = path.match(/^\/api\/groups\/([^/]+)\/close$/)
   if (groupCloseMatch) {
-    paths.add(`/api/groups/${groupCloseMatch[1]}`)
+    const closedGroupId = groupCloseMatch[1]
+    paths.add(`/api/groups/${closedGroupId}`)
+
+    const body = await readJsonObject(response)
+    const parentGroupId = readString(body?.parentGroupId)
+    if (parentGroupId) {
+      paths.add(`/api/groups/${parentGroupId}/subgroups`)
+    }
   }
 
   const pageId = path.match(/^\/api\/pages\/([^/]+)(?:\/publish)?$/)?.[1]

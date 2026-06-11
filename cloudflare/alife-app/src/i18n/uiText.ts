@@ -511,6 +511,7 @@ const text = {
   groupLoadFailed: { en: 'Failed to load group.', zh: '加载小组失败。' },
   joinStatus: { en: 'Join status: {status}', zh: '加入状态：{status}' },
   subgroupAdded: { en: 'Subgroup added.', zh: '子小组已添加。' },
+  subgroupDeleted: { en: 'Subgroup deleted.', zh: '子小组已删除。' },
   inviteSent: { en: 'Invite sent.', zh: '邀请已发送。' },
   memberApprovedSuccess: { en: 'Member approved.', zh: '成员已批准。' },
   memberRequestRejected: { en: 'Member request rejected.', zh: '成员申请已拒绝。' },

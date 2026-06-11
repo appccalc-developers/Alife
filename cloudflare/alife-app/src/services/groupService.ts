@@ -88,9 +88,8 @@ export const groupService = {
     throw new Error('Subgroup update endpoint is not implemented on the backend.')
   },
 
-  async deleteSubgroup(_subgroupId: string) {
-    // TODO: backend endpoint is not available yet for subgroup deletion.
-    throw new Error('Subgroup delete endpoint is not implemented on the backend.')
+  async deleteSubgroup(subgroupId: string) {
+    await http.post(`/api/groups/${subgroupId}/close`)
   },
 
   async closeGroup(groupId: string) {

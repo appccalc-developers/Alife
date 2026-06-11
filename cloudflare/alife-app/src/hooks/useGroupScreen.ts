@@ -7,7 +7,7 @@ import { eventService } from '../services/eventService'
 import { useAuthStore } from '../stores/auth'
 import { conditionalGet, removeCachedRecord } from '../db/httpCache'
 import { normalizeGroup } from '../utils/apiEnums'
-import { groupQueryKey, getCachedSubgroups } from '../db/collections/groupCollection'
+import { groupQueryKey, getCachedSubgroups, subgroupsQueryKey } from '../db/collections/groupCollection'
 import { subgroupsCollection } from '../db/collections/groupCollection'
 import { groupPagesCollection, getCachedGroupPages } from '../db/collections/groupCollection'
 import { groupMembershipsCollection, getCachedGroupMemberships } from '../db/collections/groupCollection'
@@ -256,8 +256,12 @@ export const useGroupScreen = (groupId: string, options: GroupScreenOptions = {}
   }, [])
 
   const deleteSubgroup = useCallback(async (subgroupId: string) => {
+    if (!groupId) return
     await groupService.deleteSubgroup(subgroupId)
-  }, [])
+    await removeCachedRecord(subgroupsQueryKey(groupId))
+    await queryClient.invalidateQueries({ queryKey: ['subgroups', groupId] })
+    setStatusMessage(t('subgroupDeleted'))
+  }, [groupId, queryClient, t])
 
   const deletePage = useCallback(
     async (pageId: string) => {
