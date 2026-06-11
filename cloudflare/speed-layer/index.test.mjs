@@ -648,6 +648,68 @@ test('successful member action evicts only that group membership list cache', as
   assert.equal(authzStore.has(`membership:${groupId}:member-1`), false)
 })
 
+test('successful subgroup creation refreshes creator membership authorization mirror', async () => {
+  const parentGroupId = 'group-1'
+  const subgroupId = 'subgroup-1'
+  const parentSubgroupsUrl = `https://ccalc.live/api/groups/${parentGroupId}/subgroups`
+  const subgroupMembersUrl = `https://ccalc.live/api/groups/${subgroupId}/memberships`
+
+  apiCacheStore.set(createApiCacheKey(parentSubgroupsUrl), createStoredResponse([{ id: 'old-subgroup' }]))
+  apiCacheStore.set(createApiCacheKey(subgroupMembersUrl), createStoredResponse([{ memberId: 'old-member' }]))
+  apiCacheStore.set('member:member-1:me', createStoredResponse({ id: 'member-1', memberships: [] }))
+  authzStore.set('member:member-1:profile', JSON.stringify({ status: 'cached', memberId: 'member-1' }))
+  originResponses.push(Response.json({ id: subgroupId, parentGroupId }))
+
+  const response = await dispatch(parentSubgroupsUrl, {
+    method: 'POST',
+    body: JSON.stringify({ name: { en: 'New subgroup' }, accessType: 'protected' }),
+    headers: {
+      'content-type': 'application/json',
+      cookie: `alife_auth=${createJwtWithSub('member-1')}`,
+    },
+  })
+  await flushWaitUntil()
+
+  assert.equal(response.status, 200)
+  assert.equal(apiCacheStore.has(createApiCacheKey(parentSubgroupsUrl)), false)
+  assert.equal(apiCacheStore.has(createApiCacheKey(subgroupMembersUrl)), false)
+  assert.equal(apiCacheStore.has('member:member-1:me'), false)
+  assert.equal(authzStore.has('member:member-1:profile'), false)
+
+  const membership = JSON.parse(authzStore.get(`membership:${subgroupId}:member-1`))
+  assert.equal(membership.status, 'approved')
+  assert.equal(membership.role, 'Leader')
+})
+
+test('successful subgroup co-leader claim refreshes requester membership authorization mirror', async () => {
+  const parentGroupId = 'group-1'
+  const subgroupId = 'subgroup-1'
+  const parentSubgroupsUrl = `https://ccalc.live/api/groups/${parentGroupId}/subgroups`
+  const subgroupMembersUrl = `https://ccalc.live/api/groups/${subgroupId}/memberships`
+
+  apiCacheStore.set(createApiCacheKey(parentSubgroupsUrl), createStoredResponse([{ id: subgroupId }]))
+  apiCacheStore.set(createApiCacheKey(subgroupMembersUrl), createStoredResponse([{ memberId: 'old-member' }]))
+  apiCacheStore.set('member:member-1:me', createStoredResponse({ id: 'member-1', memberships: [] }))
+  authzStore.set('member:member-1:profile', JSON.stringify({ status: 'cached', memberId: 'member-1' }))
+  originResponses.push(Response.json({ ok: true }))
+
+  const response = await dispatch(`https://ccalc.live/api/groups/${parentGroupId}/subgroups/${subgroupId}/claim-coleader`, {
+    method: 'POST',
+    headers: { cookie: `alife_auth=${createJwtWithSub('member-1')}` },
+  })
+  await flushWaitUntil()
+
+  assert.equal(response.status, 200)
+  assert.equal(apiCacheStore.has(createApiCacheKey(parentSubgroupsUrl)), false)
+  assert.equal(apiCacheStore.has(createApiCacheKey(subgroupMembersUrl)), false)
+  assert.equal(apiCacheStore.has('member:member-1:me'), false)
+  assert.equal(authzStore.has('member:member-1:profile'), false)
+
+  const membership = JSON.parse(authzStore.get(`membership:${subgroupId}:member-1`))
+  assert.equal(membership.status, 'approved')
+  assert.equal(membership.role, 'CoLeader')
+})
+
 test('successful event update evicts the group events list cache', async () => {
   const groupId = 'group-1'
   const eventId = 'event-1'

@@ -360,14 +360,17 @@ export function getApiCacheTtlSeconds(requestOrPath: Request | string) {
 }
 
 export async function passivelyInvalidate(env: Env, request: Request, response: Response, targetMemberId = '') {
+  const responseForMutationCacheSync = response.clone()
   const paths = await getInvalidationPaths(env, request, response)
   const keys = getInvalidationKeys(request, targetMemberId)
+  const mutationCacheTasks = await getMutationCacheSyncTasks(env, request, responseForMutationCacheSync)
   const originalCacheKey = await createCacheKey(request)
   await Promise.all([
     getEdgeCache().delete(originalCacheKey),
     deleteApiCacheKey(env, createApiCacheKey(request)),
     ...keys.api.map((key) => deleteApiCacheKey(env, key)),
     ...keys.authz.map((key) => deleteAuthzKey(env, key)),
+    ...mutationCacheTasks,
     ...paths.map(async (path) => {
       const cacheKey = await createCacheKey(request, path)
       await getEdgeCache().delete(cacheKey)
@@ -392,6 +395,14 @@ export async function getInvalidationPaths(env: Env, request: Request, response:
   const groupSubresourceMatch = path.match(/^\/api\/groups\/([^/]+)\/(subgroups|pages|events|memberships|members)$/)
   if (groupSubresourceMatch) {
     paths.add(`/api/groups/${groupSubresourceMatch[1]}/${groupSubresourceMatch[2]}`)
+  }
+
+  const claimSubgroupCoLeaderMatch = path.match(/^\/api\/groups\/([^/]+)\/subgroups\/([^/]+)\/claim-coleader$/)
+  if (claimSubgroupCoLeaderMatch) {
+    paths.add(`/api/groups/${claimSubgroupCoLeaderMatch[1]}/subgroups`)
+    paths.add(`/api/groups/${claimSubgroupCoLeaderMatch[2]}/memberships`)
+    paths.add(`/api/groups/${claimSubgroupCoLeaderMatch[2]}/members`)
+    paths.add(`/api/groups/${claimSubgroupCoLeaderMatch[2]}`)
   }
 
   const groupActionMatch = path.match(/^\/api\/groups\/([^/]+)\/(join-request|invite|invite\/accept|approve|reject|set-coleader|kick)$/)
@@ -449,6 +460,42 @@ export async function getInvalidationPaths(env: Env, request: Request, response:
   return Array.from(paths)
 }
 
+async function getMutationCacheSyncTasks(env: Env, request: Request, response: Response) {
+  const path = new URL(request.url).pathname
+  const createSubgroupMatch = path.match(/^\/api\/groups\/([^/]+)\/subgroups$/)
+  const claimSubgroupCoLeaderMatch = path.match(/^\/api\/groups\/([^/]+)\/subgroups\/([^/]+)\/claim-coleader$/)
+  const currentMemberId = extractMemberIdFromRequest(request)
+  if (request.method !== 'POST' || !currentMemberId || (!createSubgroupMatch && !claimSubgroupCoLeaderMatch)) {
+    return [] as Promise<unknown>[]
+  }
+
+  const body = createSubgroupMatch ? await readJsonObject(response) : null
+  const subgroupId = createSubgroupMatch
+    ? readString(body?.id)
+    : claimSubgroupCoLeaderMatch?.[2]
+  if (!subgroupId) {
+    return [] as Promise<unknown>[]
+  }
+
+  const now = new Date().toISOString()
+  return [
+    deleteApiCacheKey(env, createMemberProfileApiCacheKey(currentMemberId)),
+    deleteAuthzKey(env, createMemberProfileAuthzKey(currentMemberId)),
+    writeLogicalCacheRecord(
+      createMembershipKey(subgroupId, currentMemberId),
+      {
+        status: 'approved',
+        role: createSubgroupMatch ? 'Leader' : 'CoLeader',
+        source: createSubgroupMatch ? 'subgroup-created' : 'subgroup-coleader-claimed',
+        updatedUtc: now,
+      },
+      AUTHZ_MIRROR_TTL_SECONDS,
+    ),
+    deleteApiCacheKey(env, createApiCacheKey(`/api/groups/${subgroupId}`)),
+    deleteApiCacheKey(env, createAuthorizedGroupCacheKey(subgroupId, 'members')),
+  ]
+}
+
 export function getInvalidationKeys(request: Request, targetMemberId = '') {
   const path = new URL(request.url).pathname
   const keys = {
@@ -475,6 +522,12 @@ export function getInvalidationKeys(request: Request, targetMemberId = '') {
       keys.authz.add(createMemberProfileAuthzKey(affectedMemberId))
       keys.authz.add(createMembershipKey(groupActionMatch[1], affectedMemberId))
     }
+  }
+
+  const claimSubgroupCoLeaderMatch = path.match(/^\/api\/groups\/([^/]+)\/subgroups\/([^/]+)\/claim-coleader$/)
+  if (claimSubgroupCoLeaderMatch && currentMemberId) {
+    keys.api.add(createMemberProfileApiCacheKey(currentMemberId))
+    keys.authz.add(createMemberProfileAuthzKey(currentMemberId))
   }
 
   return {

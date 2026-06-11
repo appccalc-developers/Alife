@@ -215,6 +215,8 @@ const text = {
   noSubgroupsYet: { en: 'No subgroups yet.', zh: '还没有子小组。' },
   subgroupName: { en: 'Subgroup name', zh: '子小组名称' },
   addSubgroupFailed: { en: 'Failed to add subgroup.', zh: '添加子小组失败。' },
+  claimSubgroupCoLeaderConfirm: { en: 'Do you want to serve as a co-leader for this subgroup and open its management workspace?', zh: '你愿意担任这个子小组的副组长，并打开它的管理界面吗？' },
+  claimSubgroupCoLeaderFailed: { en: 'Failed to become co-leader for this subgroup.', zh: '无法成为这个子小组的副组长。' },
   subgroupEditUnavailable: { en: 'Subgroup edit is not available yet.', zh: '子小组编辑功能尚不可用。' },
   removeSubgroupConfirm: { en: 'Remove this subgroup?', zh: '要移除此子小组吗？' },
   subgroupDeleteUnavailable: { en: 'Subgroup delete is not available yet.', zh: '子小组删除功能尚不可用。' },

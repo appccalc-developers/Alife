@@ -14,6 +14,7 @@ export const groupService = {
   joinGroup: groups.requestJoin,
   requestJoin: groups.requestJoin,
   createSubgroup: groups.createSubgroup,
+  claimSubgroupCoLeader: groups.claimSubgroupCoLeader,
   updateSubgroup: groups.updateSubgroup,
   deleteSubgroup: groups.deleteSubgroup,
   closeGroup: groups.closeGroup,

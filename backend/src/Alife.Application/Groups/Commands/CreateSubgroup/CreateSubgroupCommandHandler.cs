@@ -13,7 +13,8 @@ namespace Alife.Application.Groups.Commands.CreateSubgroup;
 public sealed class CreateSubgroupCommandHandler(
     IAlifeDbContext dbContext,
     IGroupAuthorizationService groupAuthorizationService,
-    IGroupCacheInvalidationService groupCacheInvalidationService)
+    IGroupCacheInvalidationService groupCacheInvalidationService,
+    ICloudflareKvCacheService cloudflareKvCacheService)
     : IRequestHandler<CreateSubgroupCommand, AppResult<GroupDto>>
 {
     public async Task<AppResult<GroupDto>> Handle(CreateSubgroupCommand request, CancellationToken cancellationToken)
@@ -67,6 +68,15 @@ public sealed class CreateSubgroupCommandHandler(
 
         await dbContext.SaveChangesAsync(cancellationToken);
         await groupCacheInvalidationService.RemoveSubgroupsAsync(request.GroupId, cancellationToken);
+        await cloudflareKvCacheService.PutApprovedMembershipAsync(
+            subgroup.Id,
+            request.CurrentMemberId,
+            MembershipRole.Leader,
+            now,
+            cancellationToken);
+        await cloudflareKvCacheService.RemoveApiCacheKeyAsync($"member:{request.CurrentMemberId}:me", cancellationToken);
+        await cloudflareKvCacheService.RemoveMemberProfileAsync(request.CurrentMemberId, cancellationToken);
+        await groupCacheInvalidationService.RemoveMembershipsAsync(subgroup.Id, cancellationToken);
 
         return AppResult<GroupDto>.Success(new GroupDto(
             subgroup.Id,

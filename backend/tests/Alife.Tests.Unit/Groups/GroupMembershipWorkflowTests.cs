@@ -1,5 +1,6 @@
 using Alife.Application.Common.Interfaces;
 using Alife.Application.Groups.Commands.ApproveGroupMember;
+using Alife.Application.Groups.Commands.ClaimSubgroupCoLeader;
 using Alife.Application.Groups.Commands.CloseGroup;
 using Alife.Application.Groups.Commands.CreateSubgroup;
 using Alife.Application.Groups.Commands.InviteGroupMemberById;
@@ -152,10 +153,12 @@ public class GroupMembershipWorkflowTests
         var authorizationService = Substitute.For<IGroupAuthorizationService>();
         authorizationService.IsLeaderOrCoLeaderAsync(parentId, leaderId, Arg.Any<CancellationToken>()).Returns(true);
         var invalidationService = Substitute.For<IGroupCacheInvalidationService>();
+        var cloudflareKvCacheService = Substitute.For<ICloudflareKvCacheService>();
         var handler = new CreateSubgroupCommandHandler(
             dbContext,
             authorizationService,
-            invalidationService);
+            invalidationService,
+            cloudflareKvCacheService);
 
         var result = await handler.Handle(
             new CreateSubgroupCommand(
@@ -173,6 +176,17 @@ public class GroupMembershipWorkflowTests
         Assert.Equal(MembershipStatus.Approved, membership.Status);
         Assert.Equal(MembershipRole.Leader, membership.Role);
         await invalidationService.Received(1).RemoveSubgroupsAsync(parentId, Arg.Any<CancellationToken>());
+        await invalidationService.Received(1).RemoveMembershipsAsync(result.Value!.Id, Arg.Any<CancellationToken>());
+        await cloudflareKvCacheService.Received(1).PutApprovedMembershipAsync(
+            result.Value!.Id,
+            leaderId,
+            MembershipRole.Leader,
+            Arg.Any<DateTime>(),
+            Arg.Any<CancellationToken>());
+        await cloudflareKvCacheService.Received(1).RemoveApiCacheKeyAsync(
+            $"member:{leaderId}:me",
+            Arg.Any<CancellationToken>());
+        await cloudflareKvCacheService.Received(1).RemoveMemberProfileAsync(leaderId, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -203,6 +217,84 @@ public class GroupMembershipWorkflowTests
         Assert.True(await dbContext.Groups.Where(x => x.Id == childId).Select(x => x.IsClosed).SingleAsync());
         await invalidationService.Received(1).RemoveGroupAsync(childId, Arg.Any<CancellationToken>());
         await invalidationService.Received(1).RemoveSubgroupsAsync(parentId, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ClaimSubgroupCoLeader_ParentManagerBecomesApprovedCoLeader()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var parentId = Guid.NewGuid();
+        var childId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+        dbContext.Groups.AddRange(
+            CreateGroup(parentId, AccessType.Protected),
+            CreateGroup(childId, AccessType.Protected, parentId));
+        await dbContext.SaveChangesAsync();
+
+        var authorizationService = Substitute.For<IGroupAuthorizationService>();
+        authorizationService.IsLeaderOrCoLeaderAsync(parentId, memberId, Arg.Any<CancellationToken>()).Returns(true);
+        var invalidationService = Substitute.For<IGroupCacheInvalidationService>();
+        var cloudflareKvCacheService = Substitute.For<ICloudflareKvCacheService>();
+        var handler = new ClaimSubgroupCoLeaderCommandHandler(
+            dbContext,
+            authorizationService,
+            invalidationService,
+            cloudflareKvCacheService);
+
+        var result = await handler.Handle(new ClaimSubgroupCoLeaderCommand(parentId, childId, memberId), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var membership = dbContext.GroupMemberships.Single();
+        Assert.Equal(childId, membership.GroupId);
+        Assert.Equal(memberId, membership.MemberId);
+        Assert.Equal(MembershipStatus.Approved, membership.Status);
+        Assert.Equal(MembershipRole.CoLeader, membership.Role);
+        await cloudflareKvCacheService.Received(1).PutApprovedMembershipAsync(
+            childId,
+            memberId,
+            MembershipRole.CoLeader,
+            Arg.Any<DateTime>(),
+            Arg.Any<CancellationToken>());
+        await cloudflareKvCacheService.Received(1).RemoveApiCacheKeyAsync(
+            $"member:{memberId}:me",
+            Arg.Any<CancellationToken>());
+        await cloudflareKvCacheService.Received(1).RemoveMemberProfileAsync(memberId, Arg.Any<CancellationToken>());
+        await invalidationService.Received(1).RemoveMembershipsAsync(childId, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ClaimSubgroupCoLeader_RequiresParentManager()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var parentId = Guid.NewGuid();
+        var childId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+        dbContext.Groups.AddRange(
+            CreateGroup(parentId, AccessType.Protected),
+            CreateGroup(childId, AccessType.Protected, parentId));
+        await dbContext.SaveChangesAsync();
+
+        var authorizationService = Substitute.For<IGroupAuthorizationService>();
+        authorizationService.IsLeaderOrCoLeaderAsync(parentId, memberId, Arg.Any<CancellationToken>()).Returns(false);
+        var invalidationService = Substitute.For<IGroupCacheInvalidationService>();
+        var cloudflareKvCacheService = Substitute.For<ICloudflareKvCacheService>();
+        var handler = new ClaimSubgroupCoLeaderCommandHandler(
+            dbContext,
+            authorizationService,
+            invalidationService,
+            cloudflareKvCacheService);
+
+        var result = await handler.Handle(new ClaimSubgroupCoLeaderCommand(parentId, childId, memberId), CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Empty(dbContext.GroupMemberships);
+        await cloudflareKvCacheService.DidNotReceiveWithAnyArgs().PutApprovedMembershipAsync(
+            default,
+            default,
+            default,
+            default,
+            default);
+        await invalidationService.DidNotReceiveWithAnyArgs().RemoveMembershipsAsync(default, default);
     }
 
     [Fact]

@@ -352,11 +352,42 @@ const GroupManageView = () => {
         (membership.role === 'leader' || membership.role === 'coLeader'),
     )
 
+  const handleOpenSubgroup = async (subgroupId: string) => {
+    if (canManageSubgroup(subgroupId)) {
+      navigate(`/groups/${subgroupId}/manage?section=group`)
+      return
+    }
+
+    if (!window.confirm(t('claimSubgroupCoLeaderConfirm'))) return
+
+    try {
+      await groupService.claimSubgroupCoLeader(groupId, subgroupId)
+      await auth.fetchMe()
+      navigate(`/groups/${subgroupId}/manage?section=group`)
+    } catch {
+      setStatusMessage(t('claimSubgroupCoLeaderFailed'))
+    }
+  }
+
   useEffect(() => {
     if (group) {
       setCurrentGroup(group)
     }
   }, [group, setCurrentGroup])
+
+  const handleCreateSubgroup = async () => {
+    const subgroupName = window.prompt(t('subgroupName'))
+    if (!subgroupName?.trim()) return
+
+    try {
+      const subgroup = await createSubgroup(toLocalizedText(subgroupName.trim()), 'protected')
+      if (subgroup) {
+        navigate(`/groups/${subgroup.id}/manage?section=group`)
+      }
+    } catch {
+      setStatusMessage(t('addSubgroupFailed'))
+    }
+  }
 
   if (!loading && !canManageGroup) {
     return <Navigate to={`/groups/${groupId}`} replace />
@@ -432,9 +463,7 @@ const GroupManageView = () => {
               subtitle={t('subgroupsPanelSubtitle')}
               action={
                 <AppActionButton variant="primary" onClick={() => {
-                  const subgroupName = window.prompt(t('subgroupName'))
-                  if (!subgroupName?.trim()) return
-                  createSubgroup(toLocalizedText(subgroupName.trim()), 'protected').catch(() => setStatusMessage(t('addSubgroupFailed')))
+                  handleCreateSubgroup().catch(() => setStatusMessage(t('addSubgroupFailed')))
                 }}>
                   {t('addSubgroup')}
                 </AppActionButton>
@@ -450,9 +479,11 @@ const GroupManageView = () => {
                         <p className="font-medium text-slate-950">{localizeText(subgroup.name, language)}</p>
                         <AccessTypeBadge accessType={subgroup.accessType} />
                       </div>
-                      {canManageSubgroup(subgroup.id) ? (
-                        <div className="flex flex-wrap gap-2">
-                          <AppActionButton size="sm" variant="secondary" onClick={() => navigate(`/groups/${subgroup.id}`)}>{t('open')}</AppActionButton>
+                      <div className="flex flex-wrap gap-2">
+                        <AppActionButton size="sm" variant="secondary" onClick={() => {
+                          handleOpenSubgroup(subgroup.id).catch(() => setStatusMessage(t('claimSubgroupCoLeaderFailed')))
+                        }}>{t('open')}</AppActionButton>
+                        {canManageSubgroup(subgroup.id) ? (
                           <AppActionButton size="sm" variant="danger" onClick={() => {
                             if (!window.confirm(t('removeSubgroupConfirm'))) return
                             runDeleteSubgroup(subgroup.id).catch((reason) => {
@@ -461,8 +492,8 @@ const GroupManageView = () => {
                           }}>
                             {t('delete')}
                           </AppActionButton>
-                        </div>
-                      ) : null}
+                        ) : null}
+                      </div>
                     </div>
                   ))}
                 </div>
