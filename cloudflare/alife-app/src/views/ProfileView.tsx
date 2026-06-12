@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
@@ -18,35 +18,12 @@ const ProfileView = () => {
   const navigate = useNavigate()
   const me = auth.me
   const { preferences: leaderUiPreferences, setPreferences: setLeaderUiPreferences } = useLeaderUiPreferences(me?.id)
-  const [draftLanguage, setDraftLanguage] = useState(auth.language)
-  const [savingLanguage, setSavingLanguage] = useState(false)
-  const [languageError, setLanguageError] = useState('')
-  const [languageSaved, setLanguageSaved] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
   const [logoutError, setLogoutError] = useState('')
   const [inviteActionGroupId, setInviteActionGroupId] = useState('')
   const [inviteError, setInviteError] = useState('')
 
   const invitations = me?.memberships.filter((membership) => membership.status === 'invited') ?? []
-
-  useEffect(() => {
-    setDraftLanguage(auth.language)
-  }, [auth.language])
-
-  const saveLanguage = async () => {
-    setSavingLanguage(true)
-    setLanguageError('')
-    setLanguageSaved(false)
-
-    try {
-      await auth.updateLanguage(draftLanguage)
-      setLanguageSaved(true)
-    } catch (error) {
-      setLanguageError(normalizeApiError(error).message)
-    } finally {
-      setSavingLanguage(false)
-    }
-  }
 
   const handleLogout = async () => {
     setLoggingOut(true)
@@ -195,41 +172,6 @@ const ProfileView = () => {
           </AppSectionCard>
         </div>
       ) : null}
-
-      <div className="mt-4">
-        <AppSectionCard
-          dense
-          title={t('language')}
-          subtitle={t('profileLanguageSubtitle')}
-          action={
-            <AppActionButton variant="primary" disabled={savingLanguage || draftLanguage === auth.language} onClick={() => void saveLanguage()}>
-              {savingLanguage ? t('saving') : t('saveChanges')}
-            </AppActionButton>
-          }
-        >
-          <div className="space-y-3">
-            <label className="block text-sm font-medium text-slate-700" htmlFor="profile-language">
-              {t('language')}
-            </label>
-            <select
-              id="profile-language"
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
-              value={draftLanguage}
-              disabled={savingLanguage}
-              onChange={(event) => {
-                setDraftLanguage(event.target.value === 'en' ? 'en' : 'zh')
-                setLanguageError('')
-                setLanguageSaved(false)
-              }}
-            >
-              <option value="zh">{t('chinese')}</option>
-              <option value="en">{t('english')}</option>
-            </select>
-            {languageSaved ? <p className="text-sm text-emerald-600">{t('profileLanguageSaved')}</p> : null}
-            {languageError ? <p className="text-sm text-rose-600">{languageError}</p> : null}
-          </div>
-        </AppSectionCard>
-      </div>
 
       <div className="mt-4">
         <AppSectionCard dense title={t('logout')}>
