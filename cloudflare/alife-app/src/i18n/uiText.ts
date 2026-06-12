@@ -659,6 +659,25 @@ const text = {
   filterTextPlaceholder: { en: 'Title, speaker, description...', zh: '标题、讲员、描述...' },
   sectionTypeRequired: { en: 'Section type is required.', zh: '必须选择区块类型。' },
   imageUrl: { en: 'Image URL', zh: '图片 URL' },
+  dangerZone: { en: 'Danger zone', zh: '危险操作区' },
+  deleteGroup: { en: 'Delete group', zh: '删除小组' },
+  deletingGroup: { en: 'Deleting group...', zh: '正在删除小组...' },
+  deleteGroupDangerSubtitle: {
+    en: 'Permanent-looking operations that remove this group from active use.',
+    zh: '会让此小组退出当前可用状态的高风险操作。',
+  },
+  deleteGroupDangerDescription: {
+    en: 'This closes the group using the current delete behavior. Type the English and Chinese group names exactly, then confirm once more.',
+    zh: '此操作会按当前删除逻辑关闭小组。请正确输入英文和中文小组名称，然后再次确认。',
+  },
+  confirmGroupNameEnglish: { en: 'Confirm English group name', zh: '确认英文小组名称' },
+  confirmGroupNameChinese: { en: 'Confirm Chinese group name', zh: '确认中文小组名称' },
+  deleteGroupFinalConfirm: {
+    en: 'This will delete this group from active use. Continue?',
+    zh: '这会将此小组从当前可用状态中删除。确定继续吗？',
+  },
+  deleteGroupFailed: { en: 'Failed to delete group.', zh: '删除小组失败。' },
+  groupDeleted: { en: 'Group deleted.', zh: '小组已删除。' },
 } satisfies Record<string, UiText>
 
 export type UiTextKey = keyof typeof text

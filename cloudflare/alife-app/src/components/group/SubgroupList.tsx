@@ -12,10 +12,9 @@ type Props = {
   canManage?: boolean
   onOpen: (subgroupId: string) => void
   onEdit: (subgroupId: string) => void
-  onDelete: (subgroupId: string) => void
 }
 
-const SubgroupList = ({ items, canManage, onOpen, onEdit, onDelete }: Props) => {
+const SubgroupList = ({ items, canManage, onOpen, onEdit }: Props) => {
   const t = useUiText()
   const { language } = useAuthStore()
 
@@ -46,7 +45,6 @@ const SubgroupList = ({ items, canManage, onOpen, onEdit, onDelete }: Props) => 
                 {canManage ? (
                   <>
                     <AppActionButton size="sm" variant="ghost" onClick={() => onEdit(subgroup.id)}>{t('edit')}</AppActionButton>
-                    <AppActionButton size="sm" variant="danger" onClick={() => onDelete(subgroup.id)}>{t('delete')}</AppActionButton>
                   </>
                 ) : null}
               </div>
