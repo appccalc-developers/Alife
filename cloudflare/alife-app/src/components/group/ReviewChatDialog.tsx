@@ -498,7 +498,7 @@ const ReviewChatDialog = ({
               ref={fileInputRef}
               type="file"
               className="hidden"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp"
               multiple
               onChange={(event) => setPhotoFiles(Array.from(event.target.files ?? []))}
             />
