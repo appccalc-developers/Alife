@@ -960,6 +960,85 @@ test('POST /api/ai/translate-text-fields returns deterministic translated fields
   assert.equal(prompt.fields.length, 2)
 })
 
+test('POST /api/ai/translate-text-fields accepts page editor field paths', async () => {
+  const groupId = 'group-1'
+  authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved', role: 'CoLeader' }))
+  originResponses.push(Response.json({
+    candidates: [{
+      content: {
+        parts: [{
+          text: JSON.stringify({
+            fields: [
+              { field: 'page.title', language: 'zh', text: 'Youth page' },
+              { field: 'sections.0.header.title', language: 'zh', text: 'Welcome' },
+              { field: 'sections.0.body', language: 'zh', text: 'Body copy' },
+              { field: 'sections.0.actions.1.label', language: 'zh', text: 'Learn more' },
+            ],
+          }),
+        }],
+      },
+    }],
+  }))
+
+  const response = await dispatch('https://ccalc.live/api/ai/translate-text-fields', {
+    method: 'POST',
+    body: JSON.stringify({
+      scope: 'page',
+      groupId,
+      fields: [
+        {
+          field: 'page.title',
+          sourceLanguage: 'en',
+          targetLanguage: 'zh',
+          sourceText: 'Youth page',
+          textType: 'pageTitle',
+        },
+        {
+          field: 'sections.0.header.title',
+          sourceLanguage: 'en',
+          targetLanguage: 'zh',
+          sourceText: 'Welcome',
+          textType: 'sectionHeaderTitle',
+        },
+        {
+          field: 'sections.0.body',
+          sourceLanguage: 'en',
+          targetLanguage: 'zh',
+          sourceText: 'Body copy',
+          textType: 'sectionBody',
+        },
+        {
+          field: 'sections.0.actions.1.label',
+          sourceLanguage: 'en',
+          targetLanguage: 'zh',
+          sourceText: 'Learn more',
+          textType: 'sectionActionLabel',
+        },
+      ],
+    }),
+    headers: {
+      'content-type': 'application/json',
+      cookie: `alife_auth=${createJwtWithSub('member-1')}`,
+    },
+    env: { GEMINI_API_KEY: 'test-key' },
+  })
+
+  assert.equal(response.status, 200)
+  assert.deepEqual(await response.json(), {
+    fields: [
+      { field: 'page.title', language: 'zh', text: 'Youth page' },
+      { field: 'sections.0.header.title', language: 'zh', text: 'Welcome' },
+      { field: 'sections.0.body', language: 'zh', text: 'Body copy' },
+      { field: 'sections.0.actions.1.label', language: 'zh', text: 'Learn more' },
+    ],
+  })
+  assert.equal(fetchCalls.length, 1)
+  const geminiBody = JSON.parse(fetchInits[0].body)
+  const prompt = JSON.parse(geminiBody.contents[0].parts[0].text)
+  assert.equal(prompt.fields[0].field, 'page.title')
+  assert.equal(prompt.fields[3].field, 'sections.0.actions.1.label')
+})
+
 test('POST /api/events/extract calls Gemini at the edge and returns EventDto', async () => {
   const eventDto = {
     id: '',

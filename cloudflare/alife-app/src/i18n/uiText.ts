@@ -150,6 +150,14 @@ const text = {
     en: 'AI is temporarily unable to fill content. Please try again later, or fill it manually before saving.',
     zh: 'AI 助手暂时无法填写内容，请稍后再试，或手动填写后保存。',
   },
+  pageAiBilingualAutofillConfirm: {
+    en: '{count} page text field(s) are missing English or Chinese. Ask AI to fill the missing language before saving?',
+    zh: '页面中有 {count} 个文字字段缺少英文或中文。是否请 AI 在保存前补齐缺失语言？',
+  },
+  pageAiBilingualAutofillComplete: {
+    en: 'AI filled {count} missing page text field(s). Please review the page, then save again.',
+    zh: 'AI 已补齐 {count} 个页面文字字段。请先检查页面内容，然后再次保存。',
+  },
   metadata: { en: 'Metadata', zh: '元数据' },
   groupId: { en: 'Group ID', zh: '小组 ID' },
   access: { en: 'Access', zh: '访问权限' },

@@ -8,6 +8,7 @@ import PageEditorShell from '../components/page-editor/PageEditorShell'
 import { groupService } from '../api/groupService'
 import { ensureFreshPageDetail, setPageDetailCache } from '../db/collections/pageCollection'
 import { cloudflareImageService } from '../services/cloudflareImageService'
+import { aiTranslationService } from '../services/aiTranslationService'
 import { pageService } from '../services/pageService'
 import { useAuthStore } from '../stores/auth'
 import { useUiText } from '../i18n/uiText'
@@ -15,6 +16,17 @@ import type { PageDetailDto } from '../types'
 import type { PageVisibility } from '../types/group'
 import type { PageEditModel } from '../types/page-editor'
 import { toLocalizedText } from '../utils/localizedText'
+import { applyPageTranslations, collectMissingPageTranslations } from '../utils/pageBilingualCompletion'
+
+const TRANSLATION_BATCH_SIZE = 12
+
+const chunkFields = <T,>(fields: T[], size: number) => {
+  const chunks: T[][] = []
+  for (let index = 0; index < fields.length; index += size) {
+    chunks.push(fields.slice(index, index + size))
+  }
+  return chunks
+}
 
 const mapPageToEditModel = (page: PageDetailDto, groupId: string): PageEditModel => ({
   id: page.id,
@@ -161,6 +173,30 @@ const PageEditorView = () => {
     setError('')
 
     try {
+      const missingTranslationFields = collectMissingPageTranslations(pageModel)
+      if (missingTranslationFields.length > 0) {
+        if (!window.confirm(t('pageAiBilingualAutofillConfirm', { count: missingTranslationFields.length }))) {
+          setMessage(t('bilingualContentIncompleteBlock'))
+          return
+        }
+
+        setMessage(t('aiAutofilling'))
+        const translatedFields = []
+        for (const fields of chunkFields(missingTranslationFields, TRANSLATION_BATCH_SIZE)) {
+          const translatedBatch = await aiTranslationService.translateTextFields({
+            scope: 'group',
+            groupId: resolvedGroupId,
+            fields,
+          })
+          translatedFields.push(...translatedBatch)
+        }
+
+        const completedModel = applyPageTranslations(pageModel, translatedFields, missingTranslationFields)
+        setPageModel(completedModel)
+        setMessage(t('pageAiBilingualAutofillComplete', { count: translatedFields.length }))
+        return
+      }
+
       let targetPageId = editPageId
       const tagsJson = JSON.stringify(pageModel.tags)
       const title = pageModel.title

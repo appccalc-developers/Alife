@@ -4,8 +4,10 @@ import { authorizeGroupMember, extractMemberIdFromRequest } from '../../middlewa
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com'
 const DEFAULT_GEMINI_MODEL = 'gemini-3.1-flash-lite'
 const SUPPORTED_LANGUAGES = new Set(['zh', 'en'])
-const SUPPORTED_SCOPES = new Set(['group', 'church'])
+const SUPPORTED_SCOPES = new Set(['group', 'church', 'page'])
 const ALLOWED_FIELDS = new Set(['name', 'description', 'mission', 'introduction', 'intro'])
+const ALLOWED_PAGE_FIELD_PATTERN = /^page\.(title|description)$/
+const ALLOWED_SECTION_FIELD_PATTERN = /^sections\.(0|[1-9]\d*)\.(header\.(title|subtitle)|title|subtitle|body|text|quoteAuthor|linkLabel|actions\.(0|[1-9]\d*)\.label)$/
 const MAX_FIELDS = 12
 
 type LanguageCode = 'zh' | 'en'
@@ -125,7 +127,7 @@ async function validateRequest(
     const sourceText = readRequiredString(item.sourceText)
     const textType = readRequiredString(item.textType)
 
-    if (!field || !ALLOWED_FIELDS.has(field)) {
+    if (!field || !isAllowedTranslationField(field)) {
       return { ok: false, status: 400, message: `fields[${index}].field is not supported.` }
     }
 
@@ -145,6 +147,18 @@ async function validateRequest(
   }
 
   return { ok: true, fields }
+}
+
+function isAllowedTranslationField(field: string) {
+  if (field.length > 120) {
+    return false
+  }
+
+  return (
+    ALLOWED_FIELDS.has(field) ||
+    ALLOWED_PAGE_FIELD_PATTERN.test(field) ||
+    ALLOWED_SECTION_FIELD_PATTERN.test(field)
+  )
 }
 
 async function canReadGroupFromOrigin(env: Env, request: Request, groupId: string) {
