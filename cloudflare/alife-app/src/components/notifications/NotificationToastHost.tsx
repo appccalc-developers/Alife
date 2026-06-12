@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowRight, Bell, Check, ChevronDown, ChevronUp, Loader2 } from 'lucide-react'
+import { activeEntityService } from '../../services/activeEntityService'
 import { notificationService } from '../../services/notificationService'
 import { useAuthStore } from '../../stores/auth'
 import type { AppNotification, NotificationText } from '../../types/notification'
@@ -50,6 +51,46 @@ const normalizeActionUrl = (actionUrl: string) => {
   }
 
   return trimmed.startsWith('/') ? trimmed : `/${trimmed.replace(/^\/+/, '')}`
+}
+
+const activateInternalTarget = (target: string) => {
+  const eventMatch = target.match(/^\/groups\/([^/]+)\/events\/([^/?#]+)/)
+  if (eventMatch) {
+    activeEntityService.setEvent(decodeURIComponent(eventMatch[2]), decodeURIComponent(eventMatch[1]))
+    return '/events'
+  }
+
+  const groupManageMatch = target.match(/^\/groups\/([^/]+)\/manage(?:\?(.+))?/)
+  if (groupManageMatch) {
+    activeEntityService.setGroup(decodeURIComponent(groupManageMatch[1]))
+    return `/groups/manage${groupManageMatch[2] ? `?${groupManageMatch[2]}` : ''}`
+  }
+
+  const groupMatch = target.match(/^\/groups\/([^/?#]+)/)
+  if (groupMatch) {
+    activeEntityService.setGroup(decodeURIComponent(groupMatch[1]))
+    return '/groups'
+  }
+
+  const pageEditMatch = target.match(/^\/pages\/([^/]+)\/edit/)
+  if (pageEditMatch) {
+    activeEntityService.setPage(decodeURIComponent(pageEditMatch[1]))
+    return '/pages/edit'
+  }
+
+  const pageMatch = target.match(/^\/pages\/([^/?#]+)/)
+  if (pageMatch) {
+    activeEntityService.setPage(decodeURIComponent(pageMatch[1]))
+    return '/pages'
+  }
+
+  const sermonMatch = target.match(/^\/sermons\/([^/?#]+)/)
+  if (sermonMatch && sermonMatch[1] !== 'watch') {
+    activeEntityService.setSermon(decodeURIComponent(sermonMatch[1]))
+    return '/sermons/watch'
+  }
+
+  return target
 }
 
 const getNotificationActionLabelKey = (notification: AppNotification): UiTextKey => {
@@ -141,7 +182,7 @@ const NotificationToastHost = () => {
       if (/^https?:\/\//i.test(target)) {
         window.location.assign(target)
       } else {
-        navigate(target)
+        navigate(activateInternalTarget(target))
       }
     } catch (reason) {
       console.warn('Failed to open notification.', reason)

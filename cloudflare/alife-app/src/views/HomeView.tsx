@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useUiText } from '../i18n/uiText'
+import { activeEntityService } from '../services/activeEntityService'
 import { useCurrentGroupStore } from '../stores/currentGroup'
 
 const HomeView = () => {
@@ -18,9 +19,15 @@ const HomeView = () => {
   useEffect(() => {
     let cancelled = false
 
-    const openChurchGroup = async () => {
+    const openDefaultGroup = async () => {
       setLoading(true)
       setError('')
+
+      const activeGroupId = activeEntityService.getAll().groupId
+      if (activeGroupId) {
+        navigate('/groups', { replace: true })
+        return
+      }
 
       const church = await refreshChurchGroup()
       if (cancelled) {
@@ -28,7 +35,8 @@ const HomeView = () => {
       }
 
       if (church?.id) {
-        navigate(`/groups/${church.id}`, { replace: true })
+        activeEntityService.setGroup(church.id)
+        navigate('/groups', { replace: true })
         return
       }
 
@@ -36,7 +44,7 @@ const HomeView = () => {
       setLoading(false)
     }
 
-    openChurchGroup().catch(() => {
+    openDefaultGroup().catch(() => {
       if (!cancelled) {
         setError(tRef.current('churchGroupLoadError'))
         setLoading(false)

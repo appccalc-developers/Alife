@@ -1,16 +1,19 @@
 import { useMemo } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useLiveQuery } from '@tanstack/react-db'
 import { useQuery } from '@tanstack/react-query'
 import PageContentRenderer from '../components/page/PageContentRenderer'
 import { fetchPageDetail, pageDetailQueryKey } from '../db/collections/pageCollection'
 import { subgroupsCollection, groupPagesCollection } from '../db/collections/groupCollection'
+import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
 import { useUiText } from '../i18n/uiText'
+import { activeEntityService } from '../services/activeEntityService'
 import { useAuthStore } from '../stores/auth'
 import { localizeText } from '../utils/localizedText'
 
 const PageView = () => {
-  const { pageId = '' } = useParams<{ pageId: string }>()
+  const { pageId: routePageId } = useParams<{ pageId: string }>()
+  const { pageId } = useActiveEntityIds({ pageId: routePageId })
   const navigate = useNavigate()
   const t = useUiText()
   const { language } = useAuthStore()
@@ -41,6 +44,7 @@ const PageView = () => {
   const { data: groupPageItems = [] } = useLiveQuery(gpColl as NonNullable<typeof gpColl>)
 
   return (
+    !pageId ? <Navigate to="/" replace /> :
     <section className="mx-auto w-full max-w-5xl space-y-4 px-3 sm:px-4">
       {pageLoading ? <p className="rounded-lg border border-slate-200 bg-white p-3 text-slate-600">{t('loadingPage')}</p> : null}
       {!pageLoading && isError ? <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-red-700">{t('pageAccessDenied')}</p> : null}
@@ -52,7 +56,8 @@ const PageView = () => {
           subgroupItems={localizedSubgroupItems as Array<{ id: string; name: string; accessType: string }>}
           groupPageItems={groupPageItems as unknown as Array<{ id: string; title: string; visibility: string }>}
           onEditPage={(id, groupId) => {
-            navigate(`/pages/${id}/edit?groupId=${groupId}`)
+            activeEntityService.setPage(id, groupId)
+            navigate('/pages/edit')
           }}
         />
       ) : null}

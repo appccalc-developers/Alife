@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import AccessTypeBadge from '../components/group/AccessTypeBadge'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
@@ -7,6 +7,8 @@ import AppEmptyState from '../components/layout/AppEmptyState'
 import AppPageShell from '../components/layout/AppPageShell'
 import AppSectionCard from '../components/layout/AppSectionCard'
 import { useUiText } from '../i18n/uiText'
+import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
+import { activeEntityService } from '../services/activeEntityService'
 import { groupService } from '../services/groupService'
 import { useAuthStore } from '../stores/auth'
 import { useCurrentGroupStore } from '../stores/currentGroup'
@@ -14,7 +16,8 @@ import type { GroupDto } from '../types'
 import { localizeText } from '../utils/localizedText'
 
 const GroupJoinView = () => {
-  const { groupId = '' } = useParams<{ groupId: string }>()
+  const { groupId: routeGroupId } = useParams<{ groupId: string }>()
+  const { groupId } = useActiveEntityIds({ groupId: routeGroupId })
   const navigate = useNavigate()
   const t = useUiText()
   const auth = useAuthStore()
@@ -82,7 +85,8 @@ const GroupJoinView = () => {
       const result = await groupService.requestJoin(group.id)
       await auth.fetchMe()
       if (result.status === 'approved') {
-        navigate(`/groups/${group.id}`, { replace: true })
+        activeEntityService.setGroup(group.id)
+        navigate('/groups', { replace: true })
         return
       }
 
@@ -100,6 +104,10 @@ const GroupJoinView = () => {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  if (!groupId) {
+    return <Navigate to="/" replace />
   }
 
   if (loading) {
@@ -161,7 +169,13 @@ const GroupJoinView = () => {
 
           {isApproved ? (
             <div className="flex flex-wrap gap-2">
-              <AppActionButton variant="primary" onClick={() => navigate(`/groups/${group.id}`)}>
+              <AppActionButton
+                variant="primary"
+                onClick={() => {
+                  activeEntityService.setGroup(group.id)
+                  navigate('/groups')
+                }}
+              >
                 {t('openGroup')}
               </AppActionButton>
             </div>

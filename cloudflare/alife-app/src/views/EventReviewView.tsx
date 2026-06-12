@@ -4,6 +4,7 @@ import ReviewChatDialog from '../components/group/ReviewChatDialog'
 import AppEmptyState from '../components/layout/AppEmptyState'
 import AppPageShell from '../components/layout/AppPageShell'
 import AppSectionCard from '../components/layout/AppSectionCard'
+import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
 import { useUiText } from '../i18n/uiText'
 import { enrollmentSessionService } from '../services/enrollmentSessionService'
 import { eventService } from '../services/eventService'
@@ -17,7 +18,8 @@ import { loadAiContentContext, type AiContentContext } from '../utils/aiContentC
 
 const EventReviewView = () => {
   const t = useUiText()
-  const { groupId = '', eventId = '' } = useParams<{ groupId: string; eventId: string }>()
+  const { groupId: routeGroupId, eventId: routeEventId } = useParams<{ groupId: string; eventId: string }>()
+  const { groupId, eventId } = useActiveEntityIds({ groupId: routeGroupId, eventId: routeEventId })
   const [searchParams] = useSearchParams()
   const reviewId = searchParams.get('reviewId') || ''
   const { language, me } = useAuthStore()
@@ -31,6 +33,10 @@ const EventReviewView = () => {
   const [successMessage, setSuccessMessage] = useState('')
 
   useEffect(() => {
+    if (!groupId || !eventId) {
+      return
+    }
+
     let cancelled = false
     setLoading(true)
     setError('')
@@ -102,7 +108,7 @@ const EventReviewView = () => {
   return (
     <AppPageShell>
       <div className="mb-5">
-        <Link to={`/groups/${groupId}`} className="text-sm font-medium text-slate-600 hover:text-slate-950">
+        <Link to="/groups" className="text-sm font-medium text-slate-600 hover:text-slate-950">
           {t('backToGroup')}
         </Link>
       </div>

@@ -4,6 +4,7 @@ import EnrollmentChatDialog from '../components/group/EnrollmentChatDialog'
 import AppEmptyState from '../components/layout/AppEmptyState'
 import AppPageShell from '../components/layout/AppPageShell'
 import AppSectionCard from '../components/layout/AppSectionCard'
+import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
 import { useUiText } from '../i18n/uiText'
 import { eventService } from '../services/eventService'
 import { useAuthStore } from '../stores/auth'
@@ -11,7 +12,8 @@ import type { GroupEventRecord } from '../types/event'
 
 const EventEnrollmentView = () => {
   const t = useUiText()
-  const { groupId = '', eventId = '' } = useParams<{ groupId: string; eventId: string }>()
+  const { groupId: routeGroupId, eventId: routeEventId } = useParams<{ groupId: string; eventId: string }>()
+  const { groupId, eventId } = useActiveEntityIds({ groupId: routeGroupId, eventId: routeEventId })
   const { language, me } = useAuthStore()
   const [event, setEvent] = useState<GroupEventRecord | null>(null)
   const [loading, setLoading] = useState(true)
@@ -19,6 +21,10 @@ const EventEnrollmentView = () => {
   const [successMessage, setSuccessMessage] = useState('')
 
   useEffect(() => {
+    if (!groupId || !eventId) {
+      return
+    }
+
     let cancelled = false
     setLoading(true)
     setError('')
@@ -53,7 +59,7 @@ const EventEnrollmentView = () => {
   return (
     <AppPageShell>
       <div className="mb-5">
-        <Link to={`/groups/${groupId}`} className="text-sm font-medium text-slate-600 hover:text-slate-950">
+        <Link to="/groups" className="text-sm font-medium text-slate-600 hover:text-slate-950">
           {t('backToGroup')}
         </Link>
       </div>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import PageContentRenderer, {
   normalizePageSections,
   validatePageContent,
@@ -7,6 +7,8 @@ import PageContentRenderer, {
 import PageEditorShell from '../components/page-editor/PageEditorShell'
 import { groupService } from '../api/groupService'
 import { ensureFreshPageDetail, setPageDetailCache } from '../db/collections/pageCollection'
+import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
+import { activeEntityService } from '../services/activeEntityService'
 import { cloudflareImageService } from '../services/cloudflareImageService'
 import { aiTranslationService } from '../services/aiTranslationService'
 import { pageService } from '../services/pageService'
@@ -43,6 +45,7 @@ const mapPageToEditModel = (page: PageDetailDto, groupId: string): PageEditModel
 const PageEditorView = () => {
   const { groupId: createGroupIdParam, pageId: editPageIdParam } = useParams<{ groupId?: string; pageId?: string }>()
   const [searchParams] = useSearchParams()
+  const location = useLocation()
   const navigate = useNavigate()
   const auth = useAuthStore()
   const t = useUiText()
@@ -53,8 +56,12 @@ const PageEditorView = () => {
   const [message, setMessage] = useState('')
   const [savedModelSnapshot, setSavedModelSnapshot] = useState('')
 
-  const createGroupId = createGroupIdParam ?? ''
-  const editPageId = editPageIdParam ?? ''
+  const activeIds = useActiveEntityIds({
+    groupId: createGroupIdParam || searchParams.get('groupId') || undefined,
+    pageId: editPageIdParam || undefined,
+  })
+  const createGroupId = createGroupIdParam ?? (location.pathname === '/pages/new' ? activeIds.groupId : '')
+  const editPageId = editPageIdParam ?? (location.pathname === '/pages/edit' ? activeIds.pageId : '')
   const queryGroupId = searchParams.get('groupId') ?? ''
 
   const isCreateMode = Boolean(createGroupId)
@@ -71,7 +78,7 @@ const PageEditorView = () => {
 
   const [pageModel, setPageModel] = useState<PageEditModel>(() => createInitialModel(createGroupId))
 
-  const resolvedGroupId = createGroupId || queryGroupId || pageModel.groupId
+  const resolvedGroupId = createGroupId || queryGroupId || activeIds.groupId || pageModel.groupId
 
   const membership = useMemo(
     () => auth.memberships.find((item) => item.groupId === resolvedGroupId),
@@ -305,7 +312,8 @@ const PageEditorView = () => {
       }
 
       if (isCreateMode && targetPageId) {
-        navigate(`/pages/${targetPageId}/edit?groupId=${resolvedGroupId}`, { replace: true })
+        activeEntityService.setPage(targetPageId, resolvedGroupId)
+        navigate('/pages/edit', { replace: true })
       }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : t('savePageFailed'))
@@ -322,13 +330,21 @@ const PageEditorView = () => {
   const leaveEditor = useCallback(() => {
     if (resolvedGroupId) {
       const pageId = editPageId || pageModel.id
-      const pageSearch = pageId ? `?page=${encodeURIComponent(pageId)}` : ''
-      navigate(`/groups/${resolvedGroupId}${pageSearch}`)
+      if (pageId) {
+        activeEntityService.setPage(pageId, resolvedGroupId)
+      } else {
+        activeEntityService.setGroup(resolvedGroupId)
+      }
+      navigate('/groups')
       return
     }
 
     navigate('/')
   }, [editPageId, navigate, pageModel.id, resolvedGroupId])
+
+  if (!isCreateMode && !editPageId) {
+    return <Navigate to="/" replace />
+  }
 
   const cancel = useCallback(async () => {
     if (hasUnsavedChanges && !window.confirm(t('unsavedExitConfirm'))) {

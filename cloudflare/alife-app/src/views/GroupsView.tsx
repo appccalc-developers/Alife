@@ -5,6 +5,7 @@ import { churchQueryKey } from '../db/collections/groupCollection'
 import { subgroupsCollection } from '../db/collections/groupCollection'
 import { conditionalGet } from '../db/httpCache'
 import { useUiText } from '../i18n/uiText'
+import { activeEntityService } from '../services/activeEntityService'
 import { useAuthStore } from '../stores/auth'
 import type { GroupDto } from '../types'
 import { normalizeGroup } from '../utils/apiEnums'
@@ -58,7 +59,7 @@ const GroupsView = () => {
           {localizeText(church.description, language) ? (
             <p className="mt-1 text-sm text-slate-600">{localizeText(church.description, language)}</p>
           ) : null}
-          <Link className="text-blue-600" to={`/groups/${church.id}`}>
+          <Link className="text-blue-600" to="/groups" onClick={() => activeEntityService.setGroup(church.id)}>
             {t('openChurch')}
           </Link>
         </article>
@@ -71,7 +72,7 @@ const GroupsView = () => {
               <p className="text-sm text-slate-600">{localizeText(group.description, language)}</p>
             ) : null}
             <p className="text-sm text-slate-600">{t(group.accessType)}</p>
-            <Link className="text-blue-600" to={`/groups/${group.id}`}>
+            <Link className="text-blue-600" to="/groups" onClick={() => activeEntityService.setGroup(group.id)}>
               {t('details')}
             </Link>
           </article>

@@ -11,6 +11,7 @@ import CoverImage from '../CoverImage'
 import { localizeText } from '../../utils/localizedText'
 import { useAuthStore } from '../../stores/auth'
 import { translateUi, type UiTextKey, useUiText } from '../../i18n/uiText'
+import { activeEntityService } from '../../services/activeEntityService'
 import { buildSermonVideoPath, extractYouTubeVideoId } from '../../utils/youtube'
 
 // ---------- Universal Card Interface ----------
@@ -23,6 +24,7 @@ export interface UniversalCardItem {
   date?: string
   url: string
   type: 'sermon' | 'event' | 'page' | 'member' | 'subgroup'
+  groupId?: string
 }
 
 // ---------- Adapter functions ----------
@@ -53,8 +55,9 @@ export function subgroupToCardItem(subgroup: GroupSummaryDto, language = 'en'): 
           ? translateUi(language, 'protectedGroup')
           : translateUi(language, 'privateGroup')),
     imageUrl: undefined,
-    url: `/groups/${subgroup.id}`,
+    url: '/groups',
     type: 'subgroup',
+    groupId: subgroup.id,
   }
 }
 
@@ -64,7 +67,7 @@ export function memberToCardItem(member: { memberId: string; status: string; rol
     id: member.memberId,
     title: displayName,
     subtitle: translateUi(language, 'role', { role: member.role || 'member' }),
-    url: `/members/${member.memberId}`,
+    url: '/profile',
     type: 'member',
   }
 }
@@ -76,8 +79,9 @@ export function pageToCardItem(page: any, groupId?: string, language = 'en'): Un
     title: localizeText(page.title, language) || translateUi(language, 'untitledPage'),
     subtitle: localizeText((page as { description?: unknown }).description as never, language),
     date: (page as { updatedUtc?: string }).updatedUtc,
-    url: groupId ? `/groups/${groupId}?page=${encodeURIComponent(pageId)}` : `/pages/${pageId}`,
+    url: groupId ? '/groups' : '/pages',
     type: 'page',
+    groupId,
   }
 }
 
@@ -103,8 +107,9 @@ export function eventToCardItem(event: GroupEventRecord, language = 'en'): Unive
     subtitle: dateDisplay,
     imageUrl: posterImageUrl,
     date: dateStr,
-    url: `/groups/${event.groupId}/events/${event.id}`,
+    url: '/events',
     type: 'event',
+    groupId: event.groupId,
   }
 }
 
@@ -129,10 +134,22 @@ export const ListCard: React.FC<{ item: UniversalCardItem; compact?: boolean; ca
   const pad = compact ? 'p-2' : 'p-4'
   const titleCls = compact ? 'text-xs' : 'text-sm'
   const dateLocale = language === 'zh' ? 'zh-CN' : 'en-NZ'
+  const activateItem = () => {
+    if (item.type === 'sermon') {
+      activeEntityService.setSermon(item.id)
+    } else if (item.type === 'subgroup') {
+      activeEntityService.setGroup(item.groupId || item.id)
+    } else if (item.type === 'page') {
+      activeEntityService.setPage(item.id, item.groupId)
+    } else if (item.type === 'event') {
+      activeEntityService.setEvent(item.id, item.groupId)
+    }
+  }
 
   return (
     <Link
       to={item.url}
+      onClick={activateItem}
       className="group block rounded-lg border border-slate-200 bg-white shadow-sm transition-all hover:shadow-md hover:border-slate-300"
     >
       {item.imageUrl ? (

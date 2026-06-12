@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from '@tanstack/react-db'
-import { useParams, useSearchParams } from 'react-router-dom'
+import { Navigate, useParams, useSearchParams } from 'react-router-dom'
 import AppEmptyState from '../components/layout/AppEmptyState'
 import AppPageShell from '../components/layout/AppPageShell'
 import AppSectionCard from '../components/layout/AppSectionCard'
 import { getCachedSermons, sermonsCollection } from '../db/collections/sermonsCollection'
+import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
 import { useUiText } from '../i18n/uiText'
 import { extractYouTubeVideoId, toYouTubeEmbedUrl } from '../utils/youtube'
 
 const SermonVideoView = () => {
   const t = useUiText()
-  const { sermonId = '' } = useParams<{ sermonId: string }>()
+  const { sermonId: routeSermonId } = useParams<{ sermonId: string }>()
+  const { sermonId } = useActiveEntityIds({ sermonId: routeSermonId })
   const [searchParams] = useSearchParams()
   const { data, isLoading, isError } = useLiveQuery(sermonsCollection)
   const [cachedSermons, setCachedSermons] = useState<Awaited<ReturnType<typeof getCachedSermons>>>([])
@@ -44,6 +46,10 @@ const SermonVideoView = () => {
 
   const videoId = searchParams.get('videoId') || extractYouTubeVideoId(sermon?.videoUrl)
   const embedUrl = toYouTubeEmbedUrl(videoId)
+
+  if (!sermonId) {
+    return <Navigate to="/sermons" replace />
+  }
 
   if (isLoading && sermons.length === 0) {
     return (

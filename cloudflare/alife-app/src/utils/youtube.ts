@@ -34,7 +34,7 @@ export const toYouTubeEmbedUrl = (videoId?: string | null) => {
   return normalizedVideoId ? `https://www.youtube.com/embed/${encodeURIComponent(normalizedVideoId)}` : ''
 }
 
-export const buildSermonVideoPath = (sermonId: string, videoId?: string | null) => {
+export const buildSermonVideoPath = (_sermonId: string, videoId?: string | null) => {
   const searchParams = new URLSearchParams()
   const normalizedVideoId = videoId?.trim()
 
@@ -43,5 +43,5 @@ export const buildSermonVideoPath = (sermonId: string, videoId?: string | null) 
   }
 
   const search = searchParams.toString()
-  return search ? `/sermons/${sermonId}?${search}` : `/sermons/${sermonId}`
+  return search ? `/sermons/watch?${search}` : '/sermons/watch'
 }

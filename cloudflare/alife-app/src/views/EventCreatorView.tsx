@@ -3,8 +3,11 @@ import { useLocation, useParams, useSearchParams } from 'react-router-dom'
 import type { EventDto, GroupEventRecord, MultilingualString } from '../types/event'
 import type { AiSessionAppContext } from '../types/aiSession'
 import { eventService } from '../services/eventService'
+import { activeEntityService } from '../services/activeEntityService'
+import { eventPlanningSessionService } from '../services/eventPlanningSessionService'
 import { isImageFile, uploadImage } from '../services/imageWorkerApi'
 import { useAiSession } from '../hooks/useAiSession'
+import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
 import { normalizeApiError } from '../services/http'
 import { useAuthStore } from '../stores/auth'
 import { useCurrentGroupStore } from '../stores/currentGroup'
@@ -214,28 +217,12 @@ type SpeechRecognitionEventLike = {
 
 type SpeechRecognitionConstructor = new () => SpeechRecognitionLike
 
-const EVENT_SESSION_STORAGE_KEY = 'alife-event-planning-session-id'
 const eventPosterFolder = (groupId: string, eventId: string) => `groups/${groupId}/events/${eventId}/calendar`
 const createIntroMessage = (text: string): ChatMessage => ({
   role: 'assistant',
   text,
   markdown: true,
 })
-
-const createSessionId = (memberId?: string) => {
-  if (memberId) {
-    return `member-${memberId}-event-draft`
-  }
-
-  const existing = localStorage.getItem(EVENT_SESSION_STORAGE_KEY)
-  if (existing) {
-    return existing
-  }
-
-  const next = crypto.randomUUID()
-  localStorage.setItem(EVENT_SESSION_STORAGE_KEY, next)
-  return next
-}
 
 const getSpeechRecognition = (): SpeechRecognitionConstructor | null => {
   const speechWindow = window as Window & {
@@ -284,12 +271,17 @@ const EventCreatorView = () => {
   const t = useUiText()
   const { CurrentGroup } = useCurrentGroupStore()
   const location = useLocation()
-  const { eventId } = useParams<{ eventId?: string }>()
+  const { eventId: routeEventId } = useParams<{ eventId?: string }>()
+  const [searchParams] = useSearchParams()
+  const activeIds = useActiveEntityIds({
+    groupId: searchParams.get('groupId') || undefined,
+    eventId: routeEventId || undefined,
+  })
+  const isCanonicalEditMode = location.pathname === '/events/edit'
+  const eventId = routeEventId ?? (isCanonicalEditMode ? activeIds.eventId : undefined)
   const isEditMode = Boolean(eventId)
   const eventIdValue = eventId ?? ''
-  const [searchParams] = useSearchParams()
-  const groupIdFromParams = searchParams.get('groupId')
-  const effectiveGroupId = groupIdFromParams ?? CurrentGroup?.id ?? null
+  const effectiveGroupId = activeIds.groupId || CurrentGroup?.id || null
   const eventFromNavigationState = (location.state as { event?: GroupEventRecord } | null)?.event
   const eventFromNavigationStateId = eventFromNavigationState ? String(eventFromNavigationState.id) : ''
   const eventFromNavigationStateData = eventFromNavigationState?.eventDataJson ?? ''
@@ -309,7 +301,7 @@ const EventCreatorView = () => {
   const [posterUploadError, setPosterUploadError] = useState('')
   const [aiContentContext, setAiContentContext] = useState<AiContentContext>({ missionStatements: [], eventContext: null })
   const targetEventId = eventId ?? savedEventId
-  const sessionIdRef = useRef(createSessionId(me?.id))
+  const sessionIdRef = useRef(eventPlanningSessionService.getSessionId(me?.id))
   const posterInputRef = useRef<HTMLInputElement>(null)
   const posterObjectUrlRef = useRef('')
   const eventContext = useMemo(
@@ -672,6 +664,7 @@ const EventCreatorView = () => {
           },
         )
         setSavedEventId(created.id)
+        activeEntityService.setEvent(created.id, effectiveGroupId)
 
         if (pendingPosterFile) {
           const posterImageUrl = await uploadPosterFile(pendingPosterFile, effectiveGroupId, created.id)
@@ -686,6 +679,9 @@ const EventCreatorView = () => {
         }
       } else {
         throw new Error(t('missingGroupForEvent'))
+      }
+      if (targetEventId || savedEventId) {
+        activeEntityService.setEvent(targetEventId || savedEventId, effectiveGroupId || undefined)
       }
       setSaveStatus('saved')
       setMessages((prev) => [

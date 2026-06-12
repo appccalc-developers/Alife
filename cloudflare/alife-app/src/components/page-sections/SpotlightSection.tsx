@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useAuthStore } from '../../stores/auth'
 import { useUiText } from '../../i18n/uiText'
 import { useListSourceResolver } from '../../hooks/useListSourceResolver'
+import { activeEntityService } from '../../services/activeEntityService'
 import {
   EditableText,
   PropertyPanel,
@@ -125,6 +126,15 @@ const SpotlightSection = ({ section, mode, disabled, onUpdate, contextGroupId, p
       : {}
     updateContent({ spotlight: { ...currentSpotlight, ...patch } })
   }
+  const activateAction = (action: (typeof actions)[number]) => {
+    if (action.entityType === 'group' && action.entityId) {
+      activeEntityService.setGroup(action.entityId)
+    } else if (action.entityType === 'event' && action.entityId) {
+      activeEntityService.setEvent(action.entityId, action.groupId)
+    } else if (action.entityType === 'sermon' && action.entityId) {
+      activeEntityService.setSermon(action.entityId)
+    }
+  }
 
   const media = embedUrl ? (
     <iframe
@@ -183,10 +193,17 @@ const SpotlightSection = ({ section, mode, disabled, onUpdate, contextGroupId, p
                 <a
                   key={`${action.url}-${index}`}
                   href={mode === 'render' ? action.url : undefined}
-                  target={mode === 'render' ? '_blank' : undefined}
-                  rel={mode === 'render' ? 'noopener noreferrer' : undefined}
+                  target={mode === 'render' && !action.url.startsWith('/') ? '_blank' : undefined}
+                  rel={mode === 'render' && !action.url.startsWith('/') ? 'noopener noreferrer' : undefined}
                   className="inline-flex w-fit rounded bg-red-500 px-5 py-2 text-sm font-medium text-white shadow hover:bg-red-400"
-                  onClick={(event) => mode === 'edit' && event.preventDefault()}
+                  onClick={(event) => {
+                    if (mode === 'edit') {
+                      event.preventDefault()
+                      return
+                    }
+
+                    activateAction(action)
+                  }}
                 >
                   {action.label || action.url || t('readMore')}
                 </a>
