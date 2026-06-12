@@ -5,20 +5,29 @@ import type { GroupDto } from '../../types/group'
 import type { LocalizedText } from '../../types'
 import { useUiText } from '../../i18n/uiText'
 import { toLocalizedText } from '../../utils/localizedText'
+import { aiTranslationService } from '../../services/aiTranslationService'
+import { validateRequiredBilingualFields, type MissingTranslatableField } from '../../utils/bilingualValidation'
 
 type Props = {
   group: GroupDto
   saving?: boolean
   onSave?: (payload: { name: LocalizedText; description?: LocalizedText; accessType: GroupDto['accessType']; isClosed: boolean }) => Promise<void> | void
+  onStatusMessage?: (message: string) => void
 }
 
-const GroupOverviewPanel = ({ group, saving = false, onSave }: Props) => {
+const GroupOverviewPanel = ({ group, saving = false, onSave, onStatusMessage }: Props) => {
   const t = useUiText()
   const [name, setName] = useState(() => toLocalizedText(group.name))
   const [description, setDescription] = useState(() => toLocalizedText(group.description))
   const [accessType, setAccessType] = useState<GroupDto['accessType']>(group.accessType)
   const [isClosed, setIsClosed] = useState(group.isClosed)
-  const canSave = Boolean(onSave) && Object.values(name).some((value) => value.trim().length > 0) && !saving
+  const [aiFilling, setAiFilling] = useState(false)
+  const [pendingAiFields, setPendingAiFields] = useState<MissingTranslatableField[]>([])
+  const canSave = Boolean(onSave) && Object.values(name).some((value) => value.trim().length > 0) && !saving && !aiFilling
+  const requiredBilingualFields = [
+    { field: 'name', textType: group.isChurch ? 'churchName' : 'groupName' },
+    { field: 'description', textType: group.isChurch ? 'churchDescription' : 'groupDescription' },
+  ]
 
   useEffect(() => {
     setName(toLocalizedText(group.name))
@@ -30,7 +39,60 @@ const GroupOverviewPanel = ({ group, saving = false, onSave }: Props) => {
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!canSave) return
+    const validation = validateRequiredBilingualFields({ name, description }, requiredBilingualFields)
+    if (!validation.isComplete) {
+      if (validation.blockingIncompleteFields.length > 0) {
+        onStatusMessage?.(t('bilingualContentIncompleteBlock'))
+        return
+      }
+
+      if (validation.canAiAutofill) {
+        setPendingAiFields(validation.missingTranslatableFields)
+        return
+      }
+    }
+
     await onSave?.({ name, description, accessType, isClosed })
+  }
+
+  const applyAiTranslations = (fields: Array<{ field: string; language: 'zh' | 'en'; text: string }>, requestedFields: MissingTranslatableField[]) => {
+    const requestedTargets = new Set(requestedFields.map((field) => `${field.field}.${field.targetLanguage}`))
+
+    const applyToValue = (fieldName: string, current: LocalizedText) => {
+      const next = { ...current }
+      fields
+        .filter((field) => field.field === fieldName && requestedTargets.has(`${field.field}.${field.language}`))
+        .forEach((field) => {
+          if (!String(next[field.language] ?? '').trim()) {
+            next[field.language] = field.text
+          }
+        })
+      return next
+    }
+
+    setName((current) => applyToValue('name', current))
+    setDescription((current) => applyToValue('description', current))
+  }
+
+  const fillMissingWithAi = async () => {
+    if (aiFilling || pendingAiFields.length === 0) return
+
+    const requestedFields = pendingAiFields
+    setAiFilling(true)
+    try {
+      const translatedFields = await aiTranslationService.translateTextFields({
+        scope: group.isChurch ? 'church' : 'group',
+        groupId: group.id,
+        fields: requestedFields,
+      })
+      applyAiTranslations(translatedFields, requestedFields)
+      setPendingAiFields([])
+      onStatusMessage?.(t('aiBilingualAutofillComplete'))
+    } catch {
+      onStatusMessage?.(t('aiBilingualAutofillFailed'))
+    } finally {
+      setAiFilling(false)
+    }
   }
 
   return (
@@ -100,11 +162,42 @@ const GroupOverviewPanel = ({ group, saving = false, onSave }: Props) => {
 
         <div className="flex justify-end sm:col-span-2">
           <AppActionButton type="submit" variant="primary" disabled={!canSave}>
-            {saving ? t('saving') : t('saveChanges')}
+            {aiFilling ? t('aiAutofilling') : saving ? t('saving') : t('saveChanges')}
           </AppActionButton>
         </div>
       </div>
     </form>
+
+    {pendingAiFields.length > 0 ? (
+      <div className="fixed inset-0 z-[60] flex items-end bg-slate-950/45 px-4 py-6 desktop:items-center desktop:justify-center">
+        <button
+          type="button"
+          className="absolute inset-0"
+          aria-label={t('cancel')}
+          onClick={() => {
+            if (!aiFilling) setPendingAiFields([])
+          }}
+        />
+        <section className="relative z-10 w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
+          <h3 className="text-base font-semibold text-slate-950">{t('aiBilingualAutofillTitle')}</h3>
+          <p className="mt-2 text-sm leading-6 text-slate-600">{t('aiBilingualAutofillConfirm')}</p>
+          <div className="mt-5 flex flex-wrap justify-end gap-2">
+            <AppActionButton variant="secondary" disabled={aiFilling} onClick={() => setPendingAiFields([])}>
+              {t('aiBilingualAutofillDecline')}
+            </AppActionButton>
+            <AppActionButton
+              variant="primary"
+              disabled={aiFilling}
+              onClick={() => {
+                fillMissingWithAi().catch(() => undefined)
+              }}
+            >
+              {aiFilling ? t('aiAutofilling') : t('aiBilingualAutofillAccept')}
+            </AppActionButton>
+          </div>
+        </section>
+      </div>
+    ) : null}
   </AppSectionCard>
   )
 }
