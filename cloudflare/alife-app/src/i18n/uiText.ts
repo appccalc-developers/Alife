@@ -472,12 +472,12 @@ const text = {
   attachPaymentFiles: { en: 'Attach Payment Files', zh: '附加付款凭证' },
   createEnrollment: { en: 'Create Enrollment', zh: '创建报名' },
   enrollmentRequirementsHint: {
-    en: 'Creating the enrollment requires a captured name, granted consent, and at least one payment file.',
-    zh: '需要已填姓名、同意状态为「已同意」，并附上付款凭证后才能建立报名。',
+    en: 'Creating the enrollment requires a captured name and granted consent. Payment files are optional and can be attached when available.',
+    zh: '建立报名需要已填姓名，且同意状态为「已同意」。付款凭证可在有需要时附加，但不是必填。',
   },
   enrollmentAssistantIntro: {
-    en: "Hi! Tell me your enrollment name and whether you consent to submit your enrollment plus payment proof. I'll build the draft for you.",
-    zh: '你好！请用中文或英文告诉我你的报名姓名，以及你是否同意提交报名与付款凭证。我会帮你整理报名草稿。',
+    en: "Hi! Tell me your enrollment name and whether you consent to submit your enrollment. You can attach payment proof if you have it. I'll build the draft for you.",
+    zh: '你好！请用中文或英文告诉我你的报名姓名，以及你是否同意提交报名。若已有付款凭证，也可以附加。我会帮你整理报名草稿。',
   },
   enrollmentNeedName: { en: 'I still need the name for this enrollment.', zh: '我还需要你的报名姓名。' },
   enrollmentNeedConsent: {
