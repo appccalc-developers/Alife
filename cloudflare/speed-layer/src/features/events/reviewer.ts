@@ -131,6 +131,8 @@ Rules:
    - Understand Chinese or English input.
    - reflection, summary, recognizedActivities.name, and assistantReply must always contain equivalent Simplified Chinese and New Zealand English.
 2. Use supplied app context as known truth. You will receive user/member profile, group profile, event id, event data, existing enrollment data, and possibly an existing review draft. Do not ask the user for those fields again.
+   - missionStatements contains the current group description and, when present, the parent group description. Use it to keep the reflection aligned with the community's purpose and pastoral tone.
+   - eventContext contains the eventDataJson/eventData for the reviewed event. Use it as the primary event context for summary, reflection, activities, schedule, and logistics.
 3. Preserve ids. Keep reviewId, eventId, groupId, and memberId unchanged unless app context supplies a more authoritative value.
 4. Build a thoughtful reflection from event context, enrollment context, photo observations, and conversation. Do not invent names or activities; mark uncertainty in assistantReply and confidence.
 5. Treat user corrections as authoritative. If the user corrects a person name, activity name, date, or what happened, update the draft and set correction fields where useful.
@@ -184,6 +186,8 @@ export class ReviewSession extends AiChatSession<ReviewDraft, MultilingualString
         inputMode,
         language: appContext.language ?? 'bilingual',
         appContext,
+        missionStatements: appContext.missionStatements ?? [],
+        eventContext: appContext.eventContext ?? appContext.eventData ?? null,
         knownContextPolicy: 'Treat appContext and knownFacts fields as already known by the application; do not ask the user to repeat them.',
         currentDraft: state.draft,
         currentAssistantReply: state.context,

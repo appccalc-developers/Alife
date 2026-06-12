@@ -139,6 +139,8 @@ Critical extraction rules:
    - Strict facts go into first-class EventDto fields: title, dates, locationName, capacity, fees, optionalActivities, and hardConstraints.
    - Creative ideas, venue research, logistics suggestions, open questions, assumptions, missing fields, and reflective follow-up notes go into legacySummary.
 3. Use supplied app context as known truth. You will receive userId/profile, memberId/profile, groupId/profile and member profiles, and possibly an existing eventId/eventData. Do not ask for these again when present.
+   - missionStatements contains the current group description and, when present, the parent group description. Align event tone, purpose, outreach, and logistics with these statements.
+   - eventContext contains the existing eventDataJson/eventData for the event being created or edited. Treat it as authoritative event context unless the user corrects it.
 4. Preserve state. Merge new information into the existing draft instead of starting over. Keep id, organizerId, organizerDisplayName, memberId, and groupId unchanged unless app context supplies a more authoritative value.
 5. Guide the user. In legacySummary, briefly reflect what is known, what is still missing for creating/enrolling the event, and the next best question.
 6. Read attachments. If image or PDF parts are supplied, extract visible event details, dates, prices, poster text, QR/payment instructions, and relevant logistics. Mention uncertainty in legacySummary.
@@ -215,6 +217,8 @@ export class EventPlanningSession extends AiChatSession<EventDto, MultilingualSt
         inputMode,
         language: appContext.language ?? 'bilingual',
         appContext,
+        missionStatements: appContext.missionStatements ?? [],
+        eventContext: appContext.eventContext ?? appContext.eventData ?? null,
         knownContextPolicy: 'Treat appContext fields as already known by the application; do not ask the user to repeat them.',
         currentDraft: state.draft,
         currentLegacySummary: state.context,

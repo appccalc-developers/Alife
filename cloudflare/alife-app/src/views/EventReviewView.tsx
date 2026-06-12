@@ -13,6 +13,7 @@ import { useAuthStore } from '../stores/auth'
 import type { EventEnrollmentRecord } from '../types/enrollment'
 import type { GroupEventRecord } from '../types/event'
 import type { EventReviewRecord } from '../types/review'
+import { loadAiContentContext, type AiContentContext } from '../utils/aiContentContext'
 
 const EventReviewView = () => {
   const t = useUiText()
@@ -24,6 +25,7 @@ const EventReviewView = () => {
   const [event, setEvent] = useState<GroupEventRecord | null>(null)
   const [existingReview, setExistingReview] = useState<EventReviewRecord | null>(null)
   const [enrollments, setEnrollments] = useState<EventEnrollmentRecord[]>([])
+  const [aiContentContext, setAiContentContext] = useState<AiContentContext>({ missionStatements: [], eventContext: null })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
@@ -68,6 +70,30 @@ const EventReviewView = () => {
       setNewReviewId(createReviewId())
     }
   }, [eventId, reviewId])
+
+  useEffect(() => {
+    if (!groupId || !event) {
+      setAiContentContext({ missionStatements: [], eventContext: null })
+      return
+    }
+
+    let cancelled = false
+    loadAiContentContext(groupId, { event })
+      .then((context) => {
+        if (!cancelled) {
+          setAiContentContext(context)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAiContentContext({ missionStatements: [], eventContext: null })
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [event, groupId])
 
   if (!groupId || !eventId) {
     return <Navigate to="/" replace />
@@ -115,6 +141,7 @@ const EventReviewView = () => {
               reviewId={reviewId || newReviewId}
               existingReview={existingReview}
               enrollments={enrollments}
+              aiContentContext={aiContentContext}
               onSuccess={setSuccessMessage}
             />
           )}

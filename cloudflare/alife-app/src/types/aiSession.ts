@@ -25,6 +25,8 @@ export type AiSessionAppContext = {
   groupProfiles?: AiSessionProfile[]
   eventId?: string
   eventData?: Record<string, unknown> | null
+  missionStatements?: Record<string, unknown>[]
+  eventContext?: Record<string, unknown> | null
   knownFacts?: Record<string, unknown>
 }
 

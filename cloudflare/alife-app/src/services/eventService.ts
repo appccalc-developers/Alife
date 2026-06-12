@@ -1,7 +1,9 @@
 import type { ExtractEventFromChatResponse, EventSessionState, EventDto, GroupEventRecord } from '../types/event'
+import type { AiSessionAppContext } from '../types/aiSession'
 import { groupEventsQueryKey } from '../db/collections/groupCollection'
 import { conditionalGet, removeCachedRecord } from '../db/httpCache'
 import { queryClient } from '../db/queryClient'
+import type { AiContentContext } from '../utils/aiContentContext'
 import { http } from './http'
 import { createAiSessionService } from './aiSessionService'
 
@@ -30,8 +32,9 @@ export const eventService = {
     message: string,
     sessionId: string,
     inputMode: 'text' | 'voice' = 'text',
+    appContext?: AiSessionAppContext,
   ): Promise<ExtractEventFromChatResponse> => {
-    const response = await eventSessionService.sendMessage(sessionId, message, inputMode)
+    const response = await eventSessionService.sendMessage(sessionId, message, { inputMode, appContext })
     return {
       responseMode: response.responseMode,
       sessionId: response.sessionId,
@@ -67,15 +70,23 @@ export const eventService = {
     })
   },
 
-  createGroupEvent: async (groupId: string, eventDto: EventDto, sessionId?: string): Promise<GroupEventRecord> => {
+  createGroupEvent: async (
+    groupId: string,
+    eventDto: EventDto,
+    sessionId?: string,
+    aiContext?: AiContentContext,
+  ): Promise<GroupEventRecord> => {
     const titleEn = eventDto.title.en || eventDto.title.zh || ''
     const titleZh = eventDto.title.zh || eventDto.title.en || ''
+    const eventDataJson = JSON.stringify(eventDto)
     const { data } = await http.post<GroupEventRecord>(`/api/groups/${groupId}/events`, {
       titleEn,
       titleZh,
       startDate: eventDto.startDate,
       endDate: eventDto.endDate,
-      eventDataJson: JSON.stringify(eventDto),
+      eventDataJson,
+      missionStatements: aiContext?.missionStatements ?? [],
+      eventContext: aiContext?.eventContext ?? { eventDataJson, eventData: eventDto },
     })
     try {
       await invalidateGroupEventsCache(groupId)
@@ -85,15 +96,23 @@ export const eventService = {
     return data
   },
 
-  updateGroupEvent: async (eventId: string, eventDto: EventDto, sessionId?: string): Promise<GroupEventRecord> => {
+  updateGroupEvent: async (
+    eventId: string,
+    eventDto: EventDto,
+    sessionId?: string,
+    aiContext?: AiContentContext,
+  ): Promise<GroupEventRecord> => {
     const titleEn = eventDto.title.en || eventDto.title.zh || ''
     const titleZh = eventDto.title.zh || eventDto.title.en || ''
+    const eventDataJson = JSON.stringify(eventDto)
     const { data } = await http.put<GroupEventRecord>(`/api/events/${eventId}`, {
       titleEn,
       titleZh,
       startDate: eventDto.startDate,
       endDate: eventDto.endDate,
-      eventDataJson: JSON.stringify(eventDto),
+      eventDataJson,
+      missionStatements: aiContext?.missionStatements ?? [],
+      eventContext: aiContext?.eventContext ?? { eventDataJson, eventData: eventDto },
     })
     try {
       await invalidateGroupEventsCache(data.groupId)

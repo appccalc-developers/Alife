@@ -8,6 +8,7 @@ import { useAiSession } from '../../hooks/useAiSession'
 import { createReviewId, fileToAiAttachment, parseReviewDraft, reviewSessionService } from '../../services/reviewSessionService'
 import { normalizeApiError } from '../../services/http'
 import { normalizeImageUrl } from '../../services/imageWorkerApi'
+import type { AiContentContext } from '../../utils/aiContentContext'
 import CoverImage from '../CoverImage'
 
 type ChatMessage = {
@@ -23,6 +24,7 @@ type Props = {
   reviewId?: string
   existingReview?: EventReviewRecord | null
   enrollments?: EventEnrollmentRecord[]
+  aiContentContext?: AiContentContext
   onSuccess: (message: string) => void
 }
 
@@ -160,6 +162,7 @@ const ReviewChatDialog = ({
   reviewId,
   existingReview = null,
   enrollments = [],
+  aiContentContext = { missionStatements: [], eventContext: null },
   onSuccess,
 }: Props) => {
   const generatedReviewId = useMemo(() => createReviewId(), [event.id, memberId])
@@ -175,6 +178,8 @@ const ReviewChatDialog = ({
     ...(memberId ? { memberId } : {}),
     eventId: event.id,
     eventData: buildEventData(event),
+    missionStatements: aiContentContext.missionStatements,
+    eventContext: aiContentContext.eventContext,
     knownFacts: {
       reviewId: targetReviewId,
       existingReview: existingDraft,
@@ -190,7 +195,7 @@ const ReviewChatDialog = ({
         }
       }),
     },
-  }), [enrollments, event, existingDraft, groupId, language, memberId, targetReviewId])
+  }), [aiContentContext.eventContext, aiContentContext.missionStatements, enrollments, event, existingDraft, groupId, language, memberId, targetReviewId])
   const t = (key: UiTextKey) => translateUi(language, key)
   const { state, setState, loading, error, clearError, sendMessage } = useAiSession<ReviewDraft, MultilingualString | null>(
     sessionId,
@@ -389,6 +394,7 @@ const ReviewChatDialog = ({
         existingReview,
         draft,
         photoFiles,
+        aiContext: aiContentContext,
       })
       setCommitStatus('saved')
       setMessages((current) => [...current, { role: 'assistant', text: response.message }])

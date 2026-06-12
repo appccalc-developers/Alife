@@ -31,6 +31,8 @@ export type ReviewDraft = {
   recognizedActivities: RecognizedActivity[]
   photoFiles: ReviewPhotoFile[]
   assistantReply?: MultilingualString | null
+  missionStatements?: Record<string, unknown>[]
+  eventContext?: Record<string, unknown> | null
   submittedAtUtc: string
   updatedAtUtc: string
 }

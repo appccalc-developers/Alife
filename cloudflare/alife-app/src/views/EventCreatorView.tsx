@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useParams, useSearchParams } from 'react-router-dom'
 import type { EventDto, GroupEventRecord, MultilingualString } from '../types/event'
+import type { AiSessionAppContext } from '../types/aiSession'
 import { eventService } from '../services/eventService'
 import { isImageFile, uploadImage } from '../services/imageWorkerApi'
 import { useAiSession } from '../hooks/useAiSession'
@@ -9,6 +10,7 @@ import { useAuthStore } from '../stores/auth'
 import { useCurrentGroupStore } from '../stores/currentGroup'
 import { useUiText } from '../i18n/uiText'
 import CoverImage from '../components/CoverImage'
+import { createEventContextFromDto, loadAiContentContext, type AiContentContext } from '../utils/aiContentContext'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
@@ -305,9 +307,34 @@ const EventCreatorView = () => {
   const [posterPreviewUrl, setPosterPreviewUrl] = useState('')
   const [posterUploadStatus, setPosterUploadStatus] = useState<PosterUploadStatus>('idle')
   const [posterUploadError, setPosterUploadError] = useState('')
+  const [aiContentContext, setAiContentContext] = useState<AiContentContext>({ missionStatements: [], eventContext: null })
+  const targetEventId = eventId ?? savedEventId
   const sessionIdRef = useRef(createSessionId(me?.id))
   const posterInputRef = useRef<HTMLInputElement>(null)
   const posterObjectUrlRef = useRef('')
+  const eventContext = useMemo(
+    () => eventDraft ? createEventContextFromDto(eventDraft) : aiContentContext.eventContext,
+    [aiContentContext.eventContext, eventDraft],
+  )
+  const baseAiAppContext = useMemo<AiSessionAppContext>(() => ({
+    language,
+    ...(me?.id ? { userId: me.id, memberId: me.id } : {}),
+    ...(effectiveGroupId ? { groupId: effectiveGroupId } : {}),
+    missionStatements: aiContentContext.missionStatements,
+    eventContext: aiContentContext.eventContext,
+    eventData: aiContentContext.eventContext?.eventData ?? null,
+  }), [aiContentContext.eventContext, aiContentContext.missionStatements, effectiveGroupId, language, me?.id])
+  const aiAppContext = useMemo<AiSessionAppContext>(() => ({
+    language,
+    ...(me?.id ? { userId: me.id, memberId: me.id } : {}),
+    ...(effectiveGroupId ? { groupId: effectiveGroupId } : {}),
+    missionStatements: aiContentContext.missionStatements,
+    eventContext,
+    eventData: eventContext?.eventData ?? null,
+    knownFacts: {
+      ...(targetEventId ? { eventId: targetEventId } : {}),
+    },
+  }), [aiContentContext.missionStatements, effectiveGroupId, eventContext, language, me?.id, targetEventId])
   const {
     state: sessionState,
     loading: sessionLoading,
@@ -317,11 +344,11 @@ const EventCreatorView = () => {
   } = useAiSession<EventDto, MultilingualString | null>(
     isEditMode ? '' : sessionIdRef.current,
     '/api/events/session',
+    baseAiAppContext,
   )
   const speechRecognitionRef = useRef<SpeechRecognitionLike | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const targetEventId = eventId ?? savedEventId
 
   const clearPosterObjectUrl = () => {
     if (posterObjectUrlRef.current) {
@@ -355,6 +382,30 @@ const EventCreatorView = () => {
     }
     setAiInsight(sessionState?.context ?? null)
   }, [isEditMode, sessionState])
+
+  useEffect(() => {
+    if (!effectiveGroupId) {
+      setAiContentContext({ missionStatements: [], eventContext: null })
+      return
+    }
+
+    let cancelled = false
+    loadAiContentContext(effectiveGroupId, { currentGroup: CurrentGroup })
+      .then((context) => {
+        if (!cancelled) {
+          setAiContentContext(context)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAiContentContext({ missionStatements: [], eventContext: null })
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [CurrentGroup, effectiveGroupId])
 
   useEffect(() => {
     if (!isEditMode || !eventId) {
@@ -423,8 +474,8 @@ const EventCreatorView = () => {
 
     try {
       const response = isEditMode
-        ? await eventService.extractFromChat(msg, sessionIdRef.current)
-        : await sendMessage(msg)
+        ? await eventService.extractFromChat(msg, sessionIdRef.current, 'text', aiAppContext)
+        : await sendMessage(msg, { inputMode: 'text', appContext: aiAppContext })
 
       if (response.responseMode === 'result' && response.result) {
         const dto = response.result
@@ -604,12 +655,21 @@ const EventCreatorView = () => {
           draftToSave = { ...eventDraft, posterImageUrl }
           setEventDraft(draftToSave)
         }
-        await eventService.updateGroupEvent(targetEventId, draftToSave, sessionIdRef.current)
+        await eventService.updateGroupEvent(
+          targetEventId,
+          draftToSave,
+          sessionIdRef.current,
+          { ...aiContentContext, eventContext: createEventContextFromDto(draftToSave) },
+        )
       } else if (effectiveGroupId) {
         const created = await eventService.createGroupEvent(
           effectiveGroupId,
           pendingPosterFile ? { ...eventDraft, posterImageUrl: null } : eventDraft,
           pendingPosterFile ? undefined : sessionIdRef.current,
+          {
+            ...aiContentContext,
+            eventContext: createEventContextFromDto(pendingPosterFile ? { ...eventDraft, posterImageUrl: null } : eventDraft),
+          },
         )
         setSavedEventId(created.id)
 
@@ -617,7 +677,12 @@ const EventCreatorView = () => {
           const posterImageUrl = await uploadPosterFile(pendingPosterFile, effectiveGroupId, created.id)
           const draftToSave = { ...eventDraft, id: created.id, posterImageUrl }
           setEventDraft(draftToSave)
-          await eventService.updateGroupEvent(created.id, draftToSave, sessionIdRef.current)
+          await eventService.updateGroupEvent(
+            created.id,
+            draftToSave,
+            sessionIdRef.current,
+            { ...aiContentContext, eventContext: createEventContextFromDto(draftToSave) },
+          )
         }
       } else {
         throw new Error(t('missingGroupForEvent'))
