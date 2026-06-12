@@ -37,6 +37,7 @@ import type { GroupDto, GroupSummaryDto, PageSummaryDto } from './types'
 import { translateUi, useUiText } from './i18n/uiText'
 
 type ShellNavItem = {
+  key: string
   label: string
   to: string
   icon: ReactElement
@@ -250,7 +251,7 @@ const HeaderNav = ({ items, currentGroupName, currentGroupManageTo }: { items: S
         <span className="max-w-72 shrink-0 truncate text-sm font-semibold text-slate-700 sm:max-w-xs">{currentGroupName}</span>
       ) : null}
       {items.map((item) => (
-        <ShellNavLink key={item.to} item={item} />
+        <ShellNavLink key={item.key} item={item} />
       ))}
     </nav>
   )
@@ -270,7 +271,7 @@ const SideNav = ({ items }: { items: ShellNavItem[] }) => {
         <AnimatePresence mode="wait">
           {items.map((item, i) => (
             <motion.div
-              key={item.to}
+              key={item.key}
               initial={{ opacity: 0, x: -12 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.04, duration: 0.25, ease: 'easeOut' }}
@@ -298,7 +299,7 @@ const BottomNav = ({ items }: { items: ShellNavItem[] }) => {
       <div className="mx-auto flex max-w-lg items-stretch gap-1">
         {items.map((item, i) => (
           <motion.div
-            key={item.to}
+            key={item.key}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15 + i * 0.05, duration: 0.3, ease: 'easeOut' }}
@@ -602,9 +603,11 @@ const App = () => {
   const canOpenCurrentGroupManagement = canManageCurrentGroup && leaderUiPreferences.exerciseGroupManagement
   const canShowCurrentPageEdit = canManageCurrentGroup && leaderUiPreferences.exercisePageEditing
   const canUseSubgroupMenu = currentGroupMembership?.status === 'approved'
+  const shouldUseGroupPageNav = (isGroupScreen || isPageEditorScreen) && !isManagementScreen && !isEventScreen
   const currentGroupPageNavItems = useMemo<ShellNavItem[]>(
     () =>
       currentGroupPages.map((page) => ({
+        key: `page:${page.id}`,
         label: localizeText(page.title, auth.language) || translateUi(auth.language, 'untitledPage'),
         to: '/groups',
         pageId: page.id,
@@ -617,22 +620,22 @@ const App = () => {
   const managementGroup = CurrentGroup?.id === contextualGroupId ? CurrentGroup : contextualGroup
   const managementNavItems: ShellNavItem[] = contextualGroupId
     ? [
-      { label: translateUi(auth.language, managementGroup?.isChurch ? 'church' : 'group'), to: '/groups/manage?section=group', matchSearch: '?section=group', icon: <GroupIcon /> },
-      { label: translateUi(auth.language, 'subgroups'), to: '/groups/manage?section=subgroups', matchSearch: '?section=subgroups', icon: <SubgroupsIcon /> },
-      { label: translateUi(auth.language, 'members'), to: '/groups/manage?section=members', matchSearch: '?section=members', icon: <MembersIcon /> },
-      { label: translateUi(auth.language, 'pages'), to: '/groups/manage?section=pages', matchSearch: '?section=pages', icon: <PageIcon /> },
-      { label: translateUi(auth.language, 'events'), to: '/groups/manage?section=events', matchSearch: '?section=events', icon: <EventsIcon /> },
+      { key: 'manage:group', label: translateUi(auth.language, managementGroup?.isChurch ? 'church' : 'group'), to: '/groups/manage?section=group', matchSearch: '?section=group', icon: <GroupIcon /> },
+      { key: 'manage:subgroups', label: translateUi(auth.language, 'subgroups'), to: '/groups/manage?section=subgroups', matchSearch: '?section=subgroups', icon: <SubgroupsIcon /> },
+      { key: 'manage:members', label: translateUi(auth.language, 'members'), to: '/groups/manage?section=members', matchSearch: '?section=members', icon: <MembersIcon /> },
+      { key: 'manage:pages', label: translateUi(auth.language, 'pages'), to: '/groups/manage?section=pages', matchSearch: '?section=pages', icon: <PageIcon /> },
+      { key: 'manage:events', label: translateUi(auth.language, 'events'), to: '/groups/manage?section=events', matchSearch: '?section=events', icon: <EventsIcon /> },
     ]
     : []
   const contextualEventId = groupEventDetailMatch?.[2] || activeIds.eventId
   const eventDetailNavItems: ShellNavItem[] = contextualGroupId && contextualEventId
     ? [
-      { label: auth.language === 'zh' ? '活动通知' : 'Notice', to: '/events', icon: <EventsIcon /> },
-      { label: auth.language === 'zh' ? '报名' : 'Enrollment', to: '/events?section=enrollments', matchSearch: '?section=enrollments', icon: <EnrollmentIcon /> },
-      { label: auth.language === 'zh' ? '图文回忆' : 'Memories', to: '/events?section=memories', matchSearch: '?section=memories', icon: <MemoriesIcon /> },
+      { key: 'event:notice', label: auth.language === 'zh' ? '活动通知' : 'Notice', to: '/events', icon: <EventsIcon /> },
+      { key: 'event:enrollments', label: auth.language === 'zh' ? '报名' : 'Enrollment', to: '/events?section=enrollments', matchSearch: '?section=enrollments', icon: <EnrollmentIcon /> },
+      { key: 'event:memories', label: auth.language === 'zh' ? '图文回忆' : 'Memories', to: '/events?section=memories', matchSearch: '?section=memories', icon: <MemoriesIcon /> },
     ]
     : []
-  const shellNavItems = isManagementScreen ? managementNavItems : (groupEventDetailMatch || canonicalEventDetailScreen) ? eventDetailNavItems : isGroupScreen || isPageEditorScreen ? currentGroupPageNavItems : []
+  const shellNavItems = isManagementScreen ? managementNavItems : (groupEventDetailMatch || canonicalEventDetailScreen) ? eventDetailNavItems : shouldUseGroupPageNav ? currentGroupPageNavItems : []
   const fabItems: ShellFabItem[] = isGroupScreen && canShowCurrentPageEdit
     ? [
       ...(selectedPageId
@@ -704,7 +707,7 @@ const App = () => {
 
   const toggleLanguageLabel = auth.language === 'zh' ? '漢' : auth.language.toUpperCase()
   const appNavItems: ShellNavItem[] = [
-    ...(!auth.loading && auth.isGuest ? [{ label: translateUi(auth.language, 'onboarding'), to: '/onboarding', icon: <OnboardingIcon /> }] : []),
+    ...(!auth.loading && auth.isGuest ? [{ key: 'app:onboarding', label: translateUi(auth.language, 'onboarding'), to: '/onboarding', icon: <OnboardingIcon /> }] : []),
   ]
   const headerGroup = managementGroup
   const headerGroupName = contextualGroupId ? localizeText(headerGroup?.name, auth.language) : ''
@@ -714,7 +717,7 @@ const App = () => {
   const debugGroupApiPath = '/api/sermons'
 
   useEffect(() => {
-    if (!contextualGroupId || isManagementScreen) {
+    if (!contextualGroupId || !shouldUseGroupPageNav) {
       setCurrentGroupPages([])
       return
     }
@@ -739,10 +742,10 @@ const App = () => {
     return () => {
       cancelled = true
     }
-  }, [contextualGroupId, isManagementScreen])
+  }, [contextualGroupId, shouldUseGroupPageNav])
 
   useEffect(() => {
-    if (!contextualGroupId || currentGroupPages.length === 0) {
+    if (!contextualGroupId || !shouldUseGroupPageNav || currentGroupPages.length === 0) {
       return
     }
 
@@ -750,7 +753,7 @@ const App = () => {
     if (!pageBelongsToGroup) {
       activeEntityService.setPage(currentGroupPages[0].id, contextualGroupId)
     }
-  }, [activeIds.pageId, contextualGroupId, currentGroupPages])
+  }, [activeIds.pageId, contextualGroupId, currentGroupPages, shouldUseGroupPageNav])
 
   useEffect(() => {
     if (!contextualGroupId) {
