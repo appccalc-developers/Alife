@@ -108,7 +108,7 @@ const text = {
     en: 'When enabled, group pages show the edit page floating action button.',
     zh: '开启后，显示组页面时会出现编辑页面的悬浮按钮。',
   },
-  profileLanguageSubtitle: { en: 'Choose the language stored in your account and JWT.', zh: '选择存储在你的帐号和 JWT 里的语言。' },
+  profileLanguageSubtitle: { en: 'Choose the app language for this browser.', zh: '选择此浏览器使用的应用语言。' },
   profileLanguageSaved: { en: 'Language updated.', zh: '语言已更新。' },
   groupInvitations: { en: 'Group invitations', zh: '小组邀请' },
   groupInvitationsSubtitle: { en: 'Review groups that have invited you to join.', zh: '查看邀请你加入的小组。' },

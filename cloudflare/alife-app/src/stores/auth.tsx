@@ -3,6 +3,21 @@ import { authService } from '../services/authService'
 import type { MeDto, MembershipRole } from '../types'
 
 type Language = 'en' | 'zh'
+const LANGUAGE_STORAGE_KEY = 'alife.language'
+
+const readStoredLanguage = (): Language => {
+  if (typeof window === 'undefined') {
+    return 'zh'
+  }
+
+  return window.localStorage.getItem(LANGUAGE_STORAGE_KEY) === 'en' ? 'en' : 'zh'
+}
+
+const writeStoredLanguage = (language: Language) => {
+  if (typeof window !== 'undefined') {
+    window.localStorage.setItem(LANGUAGE_STORAGE_KEY, language)
+  }
+}
 
 type AuthContextValue = {
   me: MeDto | null
@@ -28,12 +43,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [me, setMe] = useState<MeDto | null>(null)
   const [loading, setLoading] = useState(false)
   const [initialized, setInitialized] = useState(false)
-  const [language, setLanguage] = useState<Language>('zh')
+  const [language, setLanguage] = useState<Language>(() => readStoredLanguage())
 
   const fetchMe = useCallback(async () => {
     const profile = await authService.getMe()
     setMe(profile)
-    setLanguage(profile.language ?? 'zh')
     return profile
   }, [])
 
@@ -60,7 +74,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = useCallback(async () => {
     await authService.logout()
     setMe(null)
-    setLanguage('zh')
     try {
       await fetchMe()
     } catch {
@@ -84,21 +97,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   )
 
   const updateLanguage = useCallback(async (value: Language) => {
-    const previousLanguage = language
     setLanguage(value)
-
-    if (!me || me.isGuest) {
-      return
-    }
-
-    try {
-      await authService.updateProfileLanguage(value)
-      setMe((current) => (current ? { ...current, language: value } : current))
-    } catch (error) {
-      setLanguage(previousLanguage)
-      throw error
-    }
-  }, [language, me])
+    writeStoredLanguage(value)
+  }, [])
 
   const value = useMemo<AuthContextValue>(
     () => ({

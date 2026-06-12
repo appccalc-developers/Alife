@@ -14,7 +14,6 @@ export type MemberProfileAuthzRecord = {
   isGuest?: boolean
   isRegistered?: boolean
   isAdmin?: boolean
-  language?: string
   memberships?: MembershipAuthzRecord[]
   source?: string
   updatedUtc?: string

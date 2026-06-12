@@ -98,7 +98,6 @@ export const normalizeMembership = <T extends { status: unknown; role: unknown }
 
 export const normalizeMe = (me: MeDto): MeDto => ({
   ...me,
-  language: me.language === 'en' ? 'en' : 'zh',
   memberships: (me.memberships ?? []).map(normalizeMembership),
 })
 

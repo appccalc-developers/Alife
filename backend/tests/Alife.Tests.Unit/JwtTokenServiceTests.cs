@@ -1,5 +1,4 @@
 using System.IdentityModel.Tokens.Jwt;
-using Alife.Domain.Constants;
 using Alife.Domain.Entities;
 using Alife.Infrastructure.Security;
 using Microsoft.Extensions.Configuration;
@@ -15,7 +14,7 @@ public class JwtTokenServiceTests
 			{
 				["Jwt:Issuer"] = "alife-tests",
 				["Jwt:Audience"] = "alife-web",
-				["Jwt:Key"] = "this-is-a-long-test-key-for-language-claims",
+				["Jwt:Key"] = "this-is-a-long-test-key-for-auth-claims",
 				["Jwt:KeyId"] = "test-key"
 			})
 			.Build();
@@ -24,29 +23,28 @@ public class JwtTokenServiceTests
 	}
 
 	[Fact]
-	public void CreateToken_IncludesMemberLanguageClaim()
+	public void CreateToken_DoesNotIncludeLanguageClaim()
 	{
 		var service = CreateService();
 		var member = new Member
 		{
 			Id = Guid.NewGuid(),
-			IsRegistered = true,
-			Language = MemberLanguage.En
+			IsRegistered = true
 		};
 
 		var (token, _) = service.CreateToken(member, isGuest: false);
 		var jwt = new JwtSecurityTokenHandler().ReadJwtToken(token);
 
-		Assert.Equal(MemberLanguage.En, jwt.Claims.First(claim => claim.Type == "language").Value);
+		Assert.DoesNotContain(jwt.Claims, claim => claim.Type == "language");
 	}
 
 	[Fact]
-	public void CreateGuestToken_UsesZhLanguageClaimByDefault()
+	public void CreateGuestToken_DoesNotIncludeLanguageClaim()
 	{
 		var service = CreateService();
 		var (token, _) = service.CreateGuestToken();
 		var jwt = new JwtSecurityTokenHandler().ReadJwtToken(token);
 
-		Assert.Equal(MemberLanguage.Zh, jwt.Claims.First(claim => claim.Type == "language").Value);
+		Assert.DoesNotContain(jwt.Claims, claim => claim.Type == "language");
 	}
 }
