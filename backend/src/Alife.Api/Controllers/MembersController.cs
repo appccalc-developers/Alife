@@ -6,11 +6,9 @@ using Alife.Application.Abstractions.Integrations;
 using Alife.Application.Members.Commands.LineLogin;
 using Alife.Application.Members.Commands.LoginByDisplayName;
 using Alife.Application.Members.Commands.RegisterMember;
-using Alife.Application.Members.Commands.UpdateCurrentMemberLanguage;
 using Alife.Application.Members.Dtos;
 using Alife.Application.Members.Queries.GetCurrentMemberProfile;
 using Alife.Application.Members.Queries.GetMembers;
-using Alife.Domain.Constants;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -36,7 +34,7 @@ public class MembersController(
         {
             this.ApplyNoStoreHeaders();
             return Ok(new CurrentMemberDto(
-                Guid.Empty, null, null, null, null, null, MemberLanguage.Zh,
+                Guid.Empty, null, null, null, null, null,
                 IsGuest: true,
                 IsRegistered: false,
                 IsAdmin: false,
@@ -57,7 +55,7 @@ public class MembersController(
         {
             this.ApplyNoStoreHeaders();
             return Ok(new CurrentMemberDto(
-                currentMemberId.Value, null, null, null, null, null, GetLanguageClaim(User),
+                currentMemberId.Value, null, null, null, null, null,
                 IsGuest: true,
                 IsRegistered: false,
                 IsAdmin: IsAdminPrincipal(User),
@@ -65,29 +63,6 @@ public class MembersController(
         }
 
         return Unauthorized();
-    }
-
-    [HttpPut("me/profile")]
-    public async Task<IActionResult> UpdateProfile([FromBody] UpdateCurrentMemberProfileRequest request, CancellationToken cancellationToken)
-    {
-        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
-        if (currentMemberId is null)
-        {
-            return Unauthorized();
-        }
-
-        var result = await mediator.Send(
-            new UpdateCurrentMemberLanguageCommand(currentMemberId.Value, request.Language),
-            cancellationToken);
-
-        if (!result.IsSuccess || result.Value is null)
-        {
-            return this.ToActionResult(result);
-        }
-
-        AuthCookie.WriteCookie(Request, Response, result.Value.Token, result.Value.ExpiresUtc);
-        this.ApplyNoStoreHeaders();
-        return Ok(new { ok = true, language = result.Value.Language, expiresUtc = result.Value.ExpiresUtc });
     }
 
     [HttpGet("members/line/login")]
@@ -224,9 +199,6 @@ public class MembersController(
     private static bool IsAdminPrincipal(ClaimsPrincipal principal)
         => GetBooleanClaim(principal, "is_admin");
 
-	private static string GetLanguageClaim(ClaimsPrincipal principal)
-		=> MemberLanguage.Normalize(principal.FindFirstValue("language"));
-
     private static bool GetBooleanClaim(ClaimsPrincipal principal, string claimName)
         => bool.TryParse(principal.FindFirstValue(claimName), out var value) && value;
 
@@ -244,6 +216,5 @@ public class MembersController(
     }
 
     public record RegisterRequest(string Name, string? Sex, int? Age, string? Email);
-    public record UpdateCurrentMemberProfileRequest(string Language);
     public record LoginByDisplayNameRequest(string DisplayName);
 }
