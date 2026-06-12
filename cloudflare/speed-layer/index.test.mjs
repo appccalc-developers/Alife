@@ -863,6 +863,103 @@ test('GET /images object paths are proxied to images.ccalc.live object paths', a
   assert.equal(fetchCalls[0].url, 'https://images.ccalc.live/folder/hero.png')
 })
 
+test('POST /api/ai/translate-text-fields validates authentication before Gemini', async () => {
+  const response = await dispatch('https://ccalc.live/api/ai/translate-text-fields', {
+    method: 'POST',
+    body: JSON.stringify({
+      fields: [{
+        field: 'name',
+        sourceLanguage: 'en',
+        targetLanguage: 'zh',
+        sourceText: 'Youth Group',
+        textType: 'groupName',
+      }],
+    }),
+    headers: { 'content-type': 'application/json' },
+    env: { GEMINI_API_KEY: 'test-key' },
+  })
+
+  assert.equal(response.status, 401)
+  assert.equal(fetchCalls.length, 0)
+})
+
+test('POST /api/ai/translate-text-fields rejects empty fields array', async () => {
+  const response = await dispatch('https://ccalc.live/api/ai/translate-text-fields', {
+    method: 'POST',
+    body: JSON.stringify({ fields: [] }),
+    headers: {
+      'content-type': 'application/json',
+      cookie: `alife_auth=${createJwtWithSub('member-1')}`,
+    },
+    env: { GEMINI_API_KEY: 'test-key' },
+  })
+
+  assert.equal(response.status, 400)
+  assert.equal(fetchCalls.length, 0)
+})
+
+test('POST /api/ai/translate-text-fields returns deterministic translated fields', async () => {
+  const groupId = 'group-1'
+  authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved', role: 'CoLeader' }))
+  originResponses.push(Response.json({
+    candidates: [{
+      content: {
+        parts: [{
+          text: JSON.stringify({
+            fields: [
+              { field: 'name', language: 'zh', text: '青年小组' },
+              { field: 'description', language: 'zh', text: '一起在基督里成长。' },
+            ],
+          }),
+        }],
+      },
+    }],
+  }))
+
+  const response = await dispatch('https://ccalc.live/api/ai/translate-text-fields', {
+    method: 'POST',
+    body: JSON.stringify({
+      scope: 'group',
+      groupId,
+      fields: [
+        {
+          field: 'name',
+          sourceLanguage: 'en',
+          targetLanguage: 'zh',
+          sourceText: 'Youth Group',
+          textType: 'groupName',
+        },
+        {
+          field: 'description',
+          sourceLanguage: 'en',
+          targetLanguage: 'zh',
+          sourceText: 'Growing together in Christ.',
+          textType: 'groupDescription',
+        },
+      ],
+    }),
+    headers: {
+      'content-type': 'application/json',
+      cookie: `alife_auth=${createJwtWithSub('member-1')}`,
+    },
+    env: { GEMINI_API_KEY: 'test-key' },
+  })
+
+  assert.equal(response.status, 200)
+  assert.deepEqual(await response.json(), {
+    fields: [
+      { field: 'name', language: 'zh', text: '青年小组' },
+      { field: 'description', language: 'zh', text: '一起在基督里成长。' },
+    ],
+  })
+  assert.equal(fetchCalls.length, 1)
+  assert.equal(new URL(String(fetchCalls[0])).hostname, 'generativelanguage.googleapis.com')
+  const geminiBody = JSON.parse(fetchInits[0].body)
+  const prompt = JSON.parse(geminiBody.contents[0].parts[0].text)
+  assert.equal(prompt.task, 'translate-text-fields')
+  assert.equal(prompt.fields.length, 2)
+})
+
 test('POST /api/events/extract calls Gemini at the edge and returns EventDto', async () => {
   const eventDto = {
     id: '',

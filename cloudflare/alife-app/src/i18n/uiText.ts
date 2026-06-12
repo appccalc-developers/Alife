@@ -130,6 +130,26 @@ const text = {
   churchDescriptionEnglish: { en: 'Church description (English)', zh: '教会描述（英文）' },
   churchDescriptionChinese: { en: 'Church description (Chinese)', zh: '教会描述（中文）' },
   saveChanges: { en: 'Save changes', zh: '保存更改' },
+  bilingualContentIncompleteBlock: {
+    en: 'Some content is still incomplete, so changes cannot be saved.',
+    zh: '现在内容还没有填全，不能保存更改。',
+  },
+  aiBilingualAutofillTitle: { en: 'Fill missing language?', zh: '是否请 AI 助手帮忙？' },
+  aiBilingualAutofillConfirm: {
+    en: 'Some content is still incomplete, so changes cannot be saved. AI can help fill the missing language. Would you like AI to help?',
+    zh: '现在内容还没有填全，不能保存更改。但是 AI 助手可以帮忙填写缺失的语言，是否请 AI 助手帮忙？',
+  },
+  aiBilingualAutofillAccept: { en: 'Yes, ask AI to help', zh: '是，请 AI 帮忙' },
+  aiBilingualAutofillDecline: { en: 'No, I will fill it myself', zh: '否，我自己填写' },
+  aiAutofilling: { en: 'AI is filling...', zh: 'AI 正在填写...' },
+  aiBilingualAutofillComplete: {
+    en: 'AI filled the missing content. Please review it and click "Save changes" again.',
+    zh: 'AI 已经填写缺失内容，请检查后再次点击“保存更改”。',
+  },
+  aiBilingualAutofillFailed: {
+    en: 'AI is temporarily unable to fill content. Please try again later, or fill it manually before saving.',
+    zh: 'AI 助手暂时无法填写内容，请稍后再试，或手动填写后保存。',
+  },
   metadata: { en: 'Metadata', zh: '元数据' },
   groupId: { en: 'Group ID', zh: '小组 ID' },
   access: { en: 'Access', zh: '访问权限' },

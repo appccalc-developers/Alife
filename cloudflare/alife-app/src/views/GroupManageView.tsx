@@ -435,6 +435,7 @@ const GroupManageView = () => {
             <GroupOverviewPanel
               group={group}
               saving={savingGroup}
+              onStatusMessage={setStatusMessage}
               onSave={async (payload) => {
                 setSavingGroup(true)
                 try {
