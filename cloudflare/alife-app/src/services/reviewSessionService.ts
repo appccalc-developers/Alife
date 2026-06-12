@@ -4,6 +4,7 @@ import { isImageFile, normalizeImageUrl, uploadImage } from './imageWorkerApi'
 import type { AiSessionAttachment } from '../types/aiSession'
 import type { MultilingualString } from '../types/event'
 import type { EventReviewRecord, ReviewCommitResponse, ReviewDraft, ReviewPhotoFile } from '../types/review'
+import type { AiContentContext } from '../utils/aiContentContext'
 
 const aiSessionService = createAiSessionService<ReviewDraft, MultilingualString | null>('/api/reviews/session')
 
@@ -163,6 +164,7 @@ export const reviewSessionService = {
     existingReview?: EventReviewRecord | null
     draft: ReviewDraft
     photoFiles: File[]
+    aiContext?: AiContentContext
   }): Promise<ReviewCommitResponse> => {
     const reviewId = payload.existingReview?.id || (isValidGuid(payload.draft.reviewId) ? payload.draft.reviewId : null) || createReviewId()
     const uploadedPhotos = await Promise.all(
@@ -178,6 +180,8 @@ export const reviewSessionService = {
       groupId: payload.groupId,
       memberId: payload.memberId || payload.draft.memberId,
       photoFiles: mergeReviewPhotoFiles(existingPhotos, uploadedPhotos),
+      missionStatements: payload.aiContext?.missionStatements ?? [],
+      eventContext: payload.aiContext?.eventContext ?? null,
       submittedAtUtc: payload.draft.submittedAtUtc || now,
       updatedAtUtc: now,
     }

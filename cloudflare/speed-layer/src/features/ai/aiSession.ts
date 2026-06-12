@@ -30,6 +30,8 @@ export type AiSessionAppContext = {
   groupProfiles?: AiSessionProfile[]
   eventId?: string
   eventData?: Record<string, unknown> | null
+  missionStatements?: Record<string, unknown>[]
+  eventContext?: Record<string, unknown> | null
   knownFacts?: Record<string, unknown>
 }
 
@@ -77,6 +79,8 @@ type ExtractRequest = {
   groupProfiles?: unknown
   eventId?: unknown
   eventData?: unknown
+  missionStatements?: unknown
+  eventContext?: unknown
   knownFacts?: unknown
   attachments?: unknown
 }
@@ -573,6 +577,10 @@ export function normalizeAppContext(value: unknown): AiSessionAppContext {
       : undefined,
     eventId: stringValue(candidate.eventId),
     eventData: recordValue(candidate.eventData),
+    missionStatements: Array.isArray(candidate.missionStatements)
+      ? candidate.missionStatements.filter(isRecord)
+      : undefined,
+    eventContext: recordValue(candidate.eventContext),
     knownFacts: recordValue(candidate.knownFacts),
   }
 }
@@ -590,11 +598,15 @@ export function mergeAppContext(
     memberProfile: mergeRecord(normalizedCurrent.memberProfile, normalizedNext.memberProfile),
     groupProfile: mergeRecord(normalizedCurrent.groupProfile, normalizedNext.groupProfile),
     eventData: mergeRecord(normalizedCurrent.eventData, normalizedNext.eventData),
+    eventContext: mergeRecord(normalizedCurrent.eventContext, normalizedNext.eventContext),
     knownFacts: mergeRecord(normalizedCurrent.knownFacts, normalizedNext.knownFacts),
   }
 
   if (normalizedNext.groupProfiles?.length) {
     merged.groupProfiles = normalizedNext.groupProfiles
+  }
+  if (normalizedNext.missionStatements?.length) {
+    merged.missionStatements = normalizedNext.missionStatements
   }
 
   return merged
@@ -686,6 +698,8 @@ function hasAppContextInput(body: ExtractRequest) {
     'groupProfiles',
     'eventId',
     'eventData',
+    'missionStatements',
+    'eventContext',
     'knownFacts',
   ].some((key) => key in body)
 }
@@ -707,6 +721,8 @@ function extractAppContextFromUrl(url: URL): AiSessionAppContext | undefined {
     'groupProfiles',
     'eventId',
     'eventData',
+    'missionStatements',
+    'eventContext',
     'knownFacts',
   ]) {
     const value = parseSearchParam(params, key)
