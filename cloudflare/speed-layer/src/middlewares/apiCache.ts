@@ -509,10 +509,6 @@ export function getInvalidationKeys(request: Request, targetMemberId = '') {
   }
 
   const currentMemberId = extractMemberIdFromRequest(request)
-  if (path === '/api/me/profile' && currentMemberId) {
-    keys.api.add(createMemberProfileApiCacheKey(currentMemberId))
-    keys.authz.add(createMemberProfileAuthzKey(currentMemberId))
-  }
 
   const groupActionMatch = path.match(/^\/api\/groups\/([^/]+)\/(join-request|invite\/accept|approve|reject|set-coleader|kick)$/)
   if (groupActionMatch) {
@@ -627,7 +623,6 @@ export async function rememberMemberProfileAuthorization(
         isGuest: readBoolean(body.isGuest),
         isRegistered: readBoolean(body.isRegistered),
         isAdmin: readBoolean(body.isAdmin),
-        language: readString(body.language) ?? undefined,
         memberships,
         source: 'api-me',
         updatedUtc: now,

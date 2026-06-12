@@ -2,7 +2,6 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Alife.Application.Abstractions.Security;
-using Alife.Domain.Constants;
 using Alife.Domain.Entities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
@@ -19,8 +18,7 @@ public class JwtTokenService(IConfiguration configuration) : IJwtTokenService
 			new(JwtRegisteredClaimNames.Sub, member.Id.ToString()),
 			new(ClaimTypes.NameIdentifier, member.Id.ToString()),
 			new("is_registered", member.IsRegistered ? "true" : "false"),
-			new("is_admin", member.IsAdmin ? "true" : "false"),
-			new("language", MemberLanguage.Normalize(member.Language))
+			new("is_admin", member.IsAdmin ? "true" : "false")
 		};
 
 		return WriteToken(claims, expiresUtc);
@@ -33,8 +31,7 @@ public class JwtTokenService(IConfiguration configuration) : IJwtTokenService
 		{
 			new("is_registered", "false"),
 			new("is_admin", "false"),
-			new("session_kind", "guest"),
-			new("language", MemberLanguage.Zh)
+			new("session_kind", "guest")
 		};
 
 		return WriteToken(claims, expiresUtc);
@@ -48,8 +45,7 @@ public class JwtTokenService(IConfiguration configuration) : IJwtTokenService
 			new("is_registered", "false"),
 			new("is_admin", "false"),
 			new("verified_line_uid", lineUID),
-			new("session_kind", "verified_line"),
-			new("language", MemberLanguage.Zh)
+			new("session_kind", "verified_line")
 		};
 
 		if (!string.IsNullOrWhiteSpace(displayName))

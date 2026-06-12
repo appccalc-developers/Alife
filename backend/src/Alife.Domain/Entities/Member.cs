@@ -1,5 +1,3 @@
-using Alife.Domain.Constants;
-
 namespace Alife.Domain.Entities;
 
 public class Member
@@ -11,7 +9,6 @@ public class Member
 	public string? Email { get; set; }
 	public string? PhoneE164 { get; set; }
 	public string? LineUID { get; set; }
-	public string Language { get; set; } = MemberLanguage.Zh;
 	public DateTime? PhoneVerifiedUtc { get; set; }
 	public bool IsRegistered { get; set; }
 	public bool IsAdmin { get; set; }

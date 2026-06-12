@@ -1,5 +1,4 @@
 ﻿using Alife.Application.Common.Interfaces;
-using Alife.Domain.Constants;
 using Alife.Domain.Entities;
 using Alife.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
@@ -42,7 +41,6 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 			cfg.HasKey(x => x.Id);
 			cfg.Property(x => x.DisplayName).HasMaxLength(150);
 			cfg.Property(x => x.Email).HasMaxLength(200);
-			cfg.Property(x => x.Language).HasMaxLength(2).IsRequired().HasDefaultValue(MemberLanguage.Zh);
 			cfg.Property(x => x.PhoneE164).HasMaxLength(30);
 			cfg.Property(x => x.LineUID).HasMaxLength(100);
 			cfg.HasIndex(x => x.UpdatedUtc);

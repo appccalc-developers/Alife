@@ -477,7 +477,6 @@ test('GET /api/me caches by member uid and mirrors profile authorization', async
   originResponses.push(Response.json({
     id: 'member-1',
     displayName: 'Alice',
-    language: 'en',
     isGuest: false,
     isRegistered: true,
     isAdmin: false,
@@ -500,7 +499,6 @@ test('GET /api/me caches by member uid and mirrors profile authorization', async
   assert.deepEqual(await second.json(), {
     id: 'member-1',
     displayName: 'Alice',
-    language: 'en',
     isGuest: false,
     isRegistered: true,
     isAdmin: false,
@@ -512,7 +510,6 @@ test('GET /api/me caches by member uid and mirrors profile authorization', async
 
   const profileAuthz = JSON.parse(authzStore.get('member:member-1:profile'))
   assert.equal(profileAuthz.cacheKey, 'member:member-1:me')
-  assert.equal(profileAuthz.language, 'en')
   assert.deepEqual(profileAuthz.memberships, [{ groupId: 'group-1', status: 'approved', role: 'CoLeader' }])
   assert.deepEqual(JSON.parse(authzStore.get('membership:group-1:member-1')), {
     status: 'approved',
@@ -561,24 +558,6 @@ test('unauthenticated GET /api/me bypasses edge cache', async () => {
   assert.equal(second.headers.get('x-alife-cache'), 'BYPASS')
   assert.equal(fetchCalls.length, 2)
   assert.equal(apiCacheStore.size, 0)
-})
-
-test('successful profile update evicts member-scoped /api/me cache and authz profile mirror', async () => {
-  apiCacheStore.set('member:member-1:me', createStoredResponse({ id: 'member-1', language: 'zh' }))
-  authzStore.set('member:member-1:profile', JSON.stringify({ status: 'cached', memberId: 'member-1' }))
-  originResponses.push(Response.json({ ok: true, language: 'en' }))
-
-  const response = await dispatch('https://ccalc.live/api/me/profile', {
-    method: 'PUT',
-    body: JSON.stringify({ language: 'en' }),
-    headers: { cookie: `alife_auth=${createJwtWithSub('member-1')}` },
-  })
-  await flushWaitUntil()
-
-  assert.equal(response.status, 200)
-  assert.equal(response.headers.get('x-alife-cache'), 'BYPASS')
-  assert.equal(apiCacheStore.has('member:member-1:me'), false)
-  assert.equal(authzStore.has('member:member-1:profile'), false)
 })
 
 test('successful PUT evicts the corresponding GET cache entry', async () => {

@@ -1,7 +1,6 @@
 using Alife.Application.Common;
 using Alife.Application.Members.Dtos;
 using Alife.Application.Members.Services;
-using Alife.Domain.Constants;
 using Alife.Domain.Enums;
 using Alife.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -24,7 +23,6 @@ public sealed class MemberReadService(AlifeDbContext dbContext) : IMemberReadSer
                 x.Age,
                 x.Email,
                 x.PhoneE164,
-                x.Language,
                 x.IsRegistered,
                 x.IsAdmin,
                 Memberships = x.Memberships
@@ -50,7 +48,6 @@ public sealed class MemberReadService(AlifeDbContext dbContext) : IMemberReadSer
                 member.Age,
                 member.Email,
                 member.PhoneE164,
-                MemberLanguage.Normalize(member.Language),
                 !member.IsRegistered,
                 member.IsRegistered,
                 member.IsAdmin ||
