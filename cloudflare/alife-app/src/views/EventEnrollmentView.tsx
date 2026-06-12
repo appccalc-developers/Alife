@@ -86,6 +86,7 @@ const EventEnrollmentView = () => {
             groupId={groupId}
             event={event}
             memberId={me?.id}
+            initialApplicantName={me?.displayName?.trim() ?? ''}
             language={language}
             onSuccess={setSuccessMessage}
           />

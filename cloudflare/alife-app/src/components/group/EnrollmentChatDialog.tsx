@@ -11,6 +11,7 @@ type Props = {
   groupId: string
   event: GroupEventRecord
   memberId?: string
+  initialApplicantName?: string
   language: string
   onClose?: () => void
   onSuccess: (message: string) => void
@@ -21,6 +22,7 @@ const EnrollmentChatDialog = ({
   variant = 'dialog',
   groupId,
   event,
+  initialApplicantName = '',
   language,
   onClose,
   onSuccess,
@@ -33,9 +35,11 @@ const EnrollmentChatDialog = ({
   const [commitStatus, setCommitStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [commitError, setCommitError] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const nameTouchedRef = useRef(false)
 
   useEffect(() => {
-    setApplicantName('')
+    nameTouchedRef.current = false
+    setApplicantName(initialApplicantName.trim())
     setConsentStatus('unknown')
     setPaymentFiles([])
     setCommitStatus('idle')
@@ -44,6 +48,15 @@ const EnrollmentChatDialog = ({
       fileInputRef.current.value = ''
     }
   }, [event.id, open])
+
+  useEffect(() => {
+    const trimmedName = initialApplicantName.trim()
+    if (!trimmedName || nameTouchedRef.current) {
+      return
+    }
+
+    setApplicantName((current) => current.trim() ? current : trimmedName)
+  }, [initialApplicantName])
 
   if (!open) {
     return null
@@ -55,7 +68,6 @@ const EnrollmentChatDialog = ({
 
   const canCommit = Boolean(applicantName.trim())
     && consentStatus === 'granted'
-    && paymentFiles.length > 0
     && commitStatus !== 'saving'
     && commitStatus !== 'saved'
 
@@ -144,6 +156,7 @@ const EnrollmentChatDialog = ({
               type="text"
               value={applicantName}
               onChange={(event) => {
+                nameTouchedRef.current = true
                 setApplicantName(event.target.value)
                 resetCommitState()
               }}

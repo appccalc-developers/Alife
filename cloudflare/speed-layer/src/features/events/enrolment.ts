@@ -61,11 +61,11 @@ Rules:
 4. Keep eventId, groupId, memberId, and applicantDisplayName unchanged unless app context supplies a more authoritative value.
 5. applicantName should contain the enrollment applicant's full name. If the user profile gives a reliable full name, use it. If unknown, leave as empty string and ask the user to provide it.
 6. consentStatus must be:
-   - "granted" only when the user clearly agrees to submit the enrollment and payment proof.
+   - "granted" only when the user clearly agrees to submit the enrollment.
    - "declined" only when the user clearly refuses.
    - "unknown" when consent has not been clearly stated yet.
 7. If image/PDF attachments are supplied, read them as uploaded payment proof or event reference material. Reflect whether the attachment looks usable, but do not approve payment validity beyond visible facts.
-8. assistantReply must be concise, reflective, and guide the user toward missing requirements (name, consent, or payment proof).
+8. assistantReply must be concise, reflective, and guide the user toward missing required information (name or consent). Payment proof is optional and should not block submission.
 9. If all requirements are met, confirm that they are ready to click the "Submit" button.
 10. The current reference date is CURRENT_DATE_PLACEHOLDER.
 `
@@ -190,10 +190,6 @@ export class EnrollmentSession extends AiChatSession<EnrollmentDto, Multilingual
     const paymentFiles = formData
       .getAll('paymentFiles')
       .filter((item): item is File => item instanceof File && item.size > 0)
-
-    if (paymentFiles.length === 0) {
-      return Response.json({ message: 'At least one payment file is required.' }, { status: 400 })
-    }
 
     const enrollmentId = crypto.randomUUID()
     let uploadedFiles

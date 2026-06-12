@@ -1506,6 +1506,66 @@ test('POST /api/enrollments/session/:id/commit uploads files and commits backend
   assert.deepEqual(state.chatHistory, [])
 })
 
+test('POST /api/enrollments/session/:id/commit allows enrollment without payment files', async () => {
+  const eventId = crypto.randomUUID()
+  const groupId = crypto.randomUUID()
+  const sessionId = `member-1-event-${eventId}-enrollment`
+  originResponses.push(Response.json({
+    candidates: [{
+      content: {
+        parts: [{
+          text: JSON.stringify({
+            eventId,
+            applicantName: 'Alice',
+            consentStatus: 'granted',
+            assistantReply: {
+              zh: '可以提交报名。',
+              en: 'You can submit the enrollment.',
+            },
+          }),
+        }],
+      },
+    }],
+  }))
+  originResponses.push(Response.json({ ok: true }, { status: 200 }))
+
+  await dispatch(`https://ccalc.live/api/enrollments/session/${sessionId}/message`, {
+    method: 'POST',
+    body: JSON.stringify({ message: 'My name is Alice and I consent to submit this enrollment.' }),
+    headers: { 'content-type': 'application/json' },
+    env: { GEMINI_API_KEY: 'test-key', API_PROXY_TARGET: 'https://api.ccalc.live' },
+  })
+
+  const formData = new FormData()
+  formData.set('groupId', groupId)
+
+  const response = await dispatch(`https://ccalc.live/api/enrollments/session/${sessionId}/commit`, {
+    method: 'POST',
+    body: formData,
+    env: { GEMINI_API_KEY: 'test-key', API_PROXY_TARGET: 'https://api.ccalc.live' },
+  })
+
+  assert.equal(response.status, 200)
+  const body = await response.json()
+  assert.equal(body.status, 'completed')
+  assert.equal(fetchCalls.length, 2)
+  assert.equal(new URL(String(fetchCalls[0])).hostname, 'generativelanguage.googleapis.com')
+  assert.equal(String(fetchCalls[1]), `https://api.ccalc.live/api/events/${eventId}/enrollments`)
+
+  const enrollmentPayload = JSON.parse(fetchInits[1].body)
+  assert.match(enrollmentPayload.enrollmentId, /^[0-9a-f-]{36}$/)
+  assert.deepEqual(enrollmentPayload, {
+    id: enrollmentPayload.enrollmentId,
+    enrollmentId: enrollmentPayload.enrollmentId,
+    eventId,
+    groupId,
+    applicantName: 'Alice',
+    consent: true,
+    paymentFiles: [],
+    submittedAtUtc: enrollmentPayload.submittedAtUtc,
+  })
+})
+
 test('GET /api/reviews/session/:id/state keeps query-string app context compatibility', async () => {
   const eventId = crypto.randomUUID()
   const sessionId = `member-1-event-${eventId}-review`
