@@ -31,6 +31,7 @@ import EventReviewView from './views/EventReviewView'
 import GroupManageView from './views/GroupManageView'
 import InviteMembersView from './views/InviteMembersView'
 import { localizeText } from './utils/localizedText'
+import { normalizeRouteGroupId } from './utils/groupRouteIds'
 import { useActiveEntityIds } from './hooks/useActiveEntityIds'
 import type { GroupDto, GroupSummaryDto, PageSummaryDto } from './types'
 import { translateUi, useUiText } from './i18n/uiText'
@@ -536,16 +537,24 @@ const App = () => {
   const pageEditMatch = location.pathname.match(/^\/pages\/([^/]+)\/edit$/)
   const profileMatch = location.pathname.match(/^\/profile$/)
   const searchParams = new URLSearchParams(location.search)
+  const routeGroupScreenId = normalizeRouteGroupId(groupScreenMatch?.[1])
+  const routeGroupJoinId = normalizeRouteGroupId(groupJoinMatch?.[1])
+  const routeGroupManageId = normalizeRouteGroupId(groupManageMatch?.[1])
+  const routeGroupCreatePageId = normalizeRouteGroupId(groupCreatePageMatch?.[1])
+  const routeGroupEventDetailId = normalizeRouteGroupId(groupEventDetailMatch?.[1])
+  const routeGroupEventEnrollmentId = normalizeRouteGroupId(groupEventEnrollmentMatch?.[1])
+  const routeGroupEventReviewId = normalizeRouteGroupId(groupEventReviewMatch?.[1])
+  const routeSearchGroupId = normalizeRouteGroupId(searchParams.get('groupId'))
   const activeIds = useActiveEntityIds({
     groupId:
-      groupScreenMatch?.[1] ||
-      groupJoinMatch?.[1] ||
-      groupManageMatch?.[1] ||
-      groupCreatePageMatch?.[1] ||
-      groupEventDetailMatch?.[1] ||
-      groupEventEnrollmentMatch?.[1] ||
-      groupEventReviewMatch?.[1] ||
-      searchParams.get('groupId') ||
+      routeGroupScreenId ||
+      routeGroupJoinId ||
+      routeGroupManageId ||
+      routeGroupCreatePageId ||
+      routeGroupEventDetailId ||
+      routeGroupEventEnrollmentId ||
+      routeGroupEventReviewId ||
+      routeSearchGroupId ||
       undefined,
     pageId:
       pageEditMatch?.[1] ||
@@ -567,20 +576,20 @@ const App = () => {
   const canonicalEventEnrollmentScreen = location.pathname === '/events/enroll'
   const canonicalEventReviewScreen = location.pathname === '/events/review'
   const canonicalEventEditScreen = location.pathname === '/events/edit'
-  const isGroupScreen = Boolean(groupScreenMatch) || canonicalGroupScreen
-  const isManagementScreen = Boolean(groupManageMatch) || canonicalGroupManageScreen
-  const isPageEditorScreen = Boolean(groupCreatePageMatch || pageEditMatch || canonicalGroupCreatePageScreen || canonicalPageEditorScreen)
-  const isEventScreen = Boolean(eventCreateMatch || eventEditMatch || groupEventDetailMatch || groupEventEnrollmentMatch || groupEventReviewMatch || canonicalEventDetailScreen || canonicalEventEnrollmentScreen || canonicalEventReviewScreen || canonicalEventEditScreen)
+  const isGroupScreen = Boolean(routeGroupScreenId) || canonicalGroupScreen
+  const isManagementScreen = Boolean(routeGroupManageId) || canonicalGroupManageScreen
+  const isPageEditorScreen = Boolean(routeGroupCreatePageId || pageEditMatch || canonicalGroupCreatePageScreen || canonicalPageEditorScreen)
+  const isEventScreen = Boolean(eventCreateMatch || eventEditMatch || routeGroupEventDetailId || routeGroupEventEnrollmentId || routeGroupEventReviewId || canonicalEventDetailScreen || canonicalEventEnrollmentScreen || canonicalEventReviewScreen || canonicalEventEditScreen)
   const isSermonDetailScreen = Boolean(sermonDetailMatch || canonicalSermonDetailMatch)
   const isProfileScreen = Boolean(profileMatch)
   const contextualGroupId =
-    groupScreenMatch?.[1] ||
-    groupJoinMatch?.[1] ||
-    groupManageMatch?.[1] ||
-    groupCreatePageMatch?.[1] ||
-    groupEventDetailMatch?.[1] ||
-    groupEventEnrollmentMatch?.[1] ||
-    groupEventReviewMatch?.[1] ||
+    routeGroupScreenId ||
+    routeGroupJoinId ||
+    routeGroupManageId ||
+    routeGroupCreatePageId ||
+    routeGroupEventDetailId ||
+    routeGroupEventEnrollmentId ||
+    routeGroupEventReviewId ||
     activeIds.groupId ||
     (eventCreateMatch || eventEditMatch ? CurrentGroup?.id || '' : '') ||
     (pageEditMatch ? CurrentGroup?.id || '' : '')

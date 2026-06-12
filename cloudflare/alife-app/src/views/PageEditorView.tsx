@@ -17,6 +17,7 @@ import { useUiText } from '../i18n/uiText'
 import type { PageDetailDto } from '../types'
 import type { PageVisibility } from '../types/group'
 import type { PageEditModel } from '../types/page-editor'
+import { normalizeRouteGroupId } from '../utils/groupRouteIds'
 import { toLocalizedText } from '../utils/localizedText'
 import { applyPageTranslations, collectMissingPageTranslations } from '../utils/pageBilingualCompletion'
 
@@ -44,6 +45,7 @@ const mapPageToEditModel = (page: PageDetailDto, groupId: string): PageEditModel
 
 const PageEditorView = () => {
   const { groupId: createGroupIdParam, pageId: editPageIdParam } = useParams<{ groupId?: string; pageId?: string }>()
+  const routeCreateGroupId = normalizeRouteGroupId(createGroupIdParam)
   const [searchParams] = useSearchParams()
   const location = useLocation()
   const navigate = useNavigate()
@@ -55,14 +57,14 @@ const PageEditorView = () => {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [savedModelSnapshot, setSavedModelSnapshot] = useState('')
+  const queryGroupId = normalizeRouteGroupId(searchParams.get('groupId'))
 
   const activeIds = useActiveEntityIds({
-    groupId: createGroupIdParam || searchParams.get('groupId') || undefined,
+    groupId: routeCreateGroupId || queryGroupId || undefined,
     pageId: editPageIdParam || undefined,
   })
-  const createGroupId = createGroupIdParam ?? (location.pathname === '/pages/new' ? activeIds.groupId : '')
+  const createGroupId = routeCreateGroupId || (location.pathname === '/pages/new' ? activeIds.groupId : '')
   const editPageId = editPageIdParam ?? (location.pathname === '/pages/edit' ? activeIds.pageId : '')
-  const queryGroupId = searchParams.get('groupId') ?? ''
 
   const isCreateMode = Boolean(createGroupId)
 

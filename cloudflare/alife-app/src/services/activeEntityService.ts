@@ -1,3 +1,5 @@
+import { normalizeRouteGroupId } from '../utils/groupRouteIds'
+
 export type ActiveEntityIds = {
   groupId: string
   pageId: string
@@ -27,12 +29,15 @@ const hasWindow = () => typeof window !== 'undefined'
 
 const normalizeId = (value: string | null | undefined) => value?.trim() ?? ''
 
+const normalizeEntityId = (key: keyof ActiveEntityIds, value: string | null | undefined) =>
+  key === 'groupId' ? normalizeRouteGroupId(value) : normalizeId(value)
+
 const readId = (key: keyof ActiveEntityIds) => {
   if (!hasWindow()) {
     return ''
   }
 
-  return normalizeId(window.localStorage.getItem(storageKeys[key]))
+  return normalizeEntityId(key, window.localStorage.getItem(storageKeys[key]))
 }
 
 const writeId = (key: keyof ActiveEntityIds, value: string) => {
@@ -40,7 +45,7 @@ const writeId = (key: keyof ActiveEntityIds, value: string) => {
     return
   }
 
-  const normalizedValue = normalizeId(value)
+  const normalizedValue = normalizeEntityId(key, value)
   if (normalizedValue) {
     window.localStorage.setItem(storageKeys[key], normalizedValue)
   } else {
@@ -89,7 +94,7 @@ export const activeEntityService = {
         continue
       }
 
-      const nextValue = normalizeId(update[key])
+      const nextValue = normalizeEntityId(key, update[key])
       normalizedUpdate[key] = nextValue
       if (readId(key) !== nextValue) {
         writeId(key, nextValue)
