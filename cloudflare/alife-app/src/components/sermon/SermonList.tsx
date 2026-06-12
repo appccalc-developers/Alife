@@ -7,6 +7,7 @@ import SermonCardSkeleton from './SermonCardSkeleton'
 import { useImagePreloader } from '../../hooks/useImagePreloader'
 import CoverImage from '../CoverImage'
 import { useUiText } from '../../i18n/uiText'
+import { activeEntityService } from '../../services/activeEntityService'
 import { buildSermonVideoPath, extractYouTubeVideoId } from '../../utils/youtube'
 
 const SermonList = () => {
@@ -116,6 +117,7 @@ const SermonList = () => {
             <Link
               key={sermon.id}
               to={sermonPath}
+              onClick={() => activeEntityService.setSermon(sermon.id)}
               className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md focus:outline-none focus:ring-4 focus:ring-emerald-100"
             >
               <figure className="relative">

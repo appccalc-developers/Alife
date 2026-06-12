@@ -1,13 +1,15 @@
 import { useEffect } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import GroupScreenShell from '../components/group/GroupScreenShell'
+import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
 import { useGroupScreen } from '../hooks/useGroupScreen'
+import { activeEntityService } from '../services/activeEntityService'
 import { useCurrentGroupStore } from '../stores/currentGroup'
 
 const GroupDetailView = () => {
-  const { groupId = '' } = useParams<{ groupId: string }>()
+  const { groupId: routeGroupId } = useParams<{ groupId: string }>()
+  const { groupId, pageId } = useActiveEntityIds({ groupId: routeGroupId })
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
   const { setCurrentGroup } = useCurrentGroupStore()
 
   const {
@@ -29,6 +31,10 @@ const GroupDetailView = () => {
     }
   }, [group, setCurrentGroup])
 
+  if (!groupId) {
+    return <Navigate to="/" replace />
+  }
+
   return (
     <GroupScreenShell
       group={group}
@@ -40,10 +46,11 @@ const GroupDetailView = () => {
       canCreatePage={Boolean(canCreatePage)}
       canEditAllPages={Boolean(canEditAllPages)}
       contentMode="pages"
-      selectedPageId={searchParams.get('page') ?? ''}
+      selectedPageId={pageId}
       statusMessage={statusMessage}
       onAddPage={() => {
-        navigate(`/groups/${groupId}/pages/new`)
+        activeEntityService.setGroup(groupId, { clearPage: true })
+        navigate('/pages/new')
       }}
       onPageSaved={() => {
         refreshPages().catch(() => undefined)

@@ -10,10 +10,12 @@ import AccessTypeBadge from '../components/group/AccessTypeBadge'
 import GroupOverviewPanel from '../components/group/GroupOverviewPanel'
 import MembershipStatusBadge from '../components/group/MembershipStatusBadge'
 import { useGroupScreen, type GroupMemberToolRow } from '../hooks/useGroupScreen'
+import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
 import { useAuthStore } from '../stores/auth'
 import { localizeText, toLocalizedText } from '../utils/localizedText'
 import { useCurrentGroupStore } from '../stores/currentGroup'
 import { translateUi, useUiText } from '../i18n/uiText'
+import { activeEntityService } from '../services/activeEntityService'
 import type { GroupPageDto } from '../types/group'
 import type { GroupEventRecord } from '../types/event'
 import { groupService } from '../api/groupService'
@@ -173,6 +175,7 @@ type PagesPanelProps = {
 
 const PagesPanel = ({ groupId, language, pages, onAddPage, onDeletePage, onTogglePageVisibility }: PagesPanelProps) => {
   const t = useUiText()
+  const navigate = useNavigate()
 
   return (
     <AppSectionCard
@@ -192,8 +195,26 @@ const PagesPanel = ({ groupId, language, pages, onAddPage, onDeletePage, onToggl
                 <p className="mt-1 text-xs text-slate-500">{page.visibility}</p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Link className="inline-flex items-center justify-center rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100" to={`/groups/${groupId}?page=${encodeURIComponent(page.id)}`}>{t('open')}</Link>
-                <Link className="inline-flex items-center justify-center rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100" to={`/pages/${page.id}/edit?groupId=${groupId}`}>{t('edit')}</Link>
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                  onClick={() => {
+                    activeEntityService.setPage(page.id, groupId)
+                    navigate('/groups')
+                  }}
+                >
+                  {t('open')}
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                  onClick={() => {
+                    activeEntityService.setPage(page.id, groupId)
+                    navigate('/pages/edit')
+                  }}
+                >
+                  {t('edit')}
+                </button>
                 <AppActionButton size="sm" variant="secondary" onClick={() => onTogglePageVisibility(page)}>
                   {page.visibility === 'draft' ? t('publish') : t('moveToDraft')}
                 </AppActionButton>
@@ -223,7 +244,10 @@ const EventsPanel = ({ groupId, events, onDeleteEvent }: EventsPanelProps) => {
       dense
       title={t('events')}
       subtitle={t('eventsPanelSubtitle')}
-      action={<AppActionButton variant="primary" onClick={() => navigate(`/events/new?groupId=${groupId}`)}>{t('createEvent')}</AppActionButton>}
+      action={<AppActionButton variant="primary" onClick={() => {
+        activeEntityService.set({ groupId, eventId: '' })
+        navigate('/events/new')
+      }}>{t('createEvent')}</AppActionButton>}
     >
       {events.length === 0 ? (
         <p className="text-sm text-slate-500">{t('noEventsYet')}</p>
@@ -238,7 +262,10 @@ const EventsPanel = ({ groupId, events, onDeleteEvent }: EventsPanelProps) => {
                   <p className="mt-1 text-xs text-slate-500">{formatDate(event.startDate, language)}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <AppActionButton size="sm" variant="secondary" onClick={() => navigate(`/events/${event.id}/edit?groupId=${groupId}`, { state: { event } })}>{t('edit')}</AppActionButton>
+                  <AppActionButton size="sm" variant="secondary" onClick={() => {
+                    activeEntityService.setEvent(event.id, groupId)
+                    navigate('/events/edit', { state: { event } })
+                  }}>{t('edit')}</AppActionButton>
                   <AppActionButton size="sm" variant="danger" onClick={() => onDeleteEvent(event.id)}>{t('delete')}</AppActionButton>
                 </div>
               </div>
@@ -382,7 +409,8 @@ const DangerZonePanel = ({ groupName, closing, onCloseGroup }: DangerZonePanelPr
 
 const GroupManageView = () => {
   const t = useUiText()
-  const { groupId = '' } = useParams<{ groupId: string }>()
+  const { groupId: routeGroupId } = useParams<{ groupId: string }>()
+  const { groupId } = useActiveEntityIds({ groupId: routeGroupId })
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const auth = useAuthStore()
@@ -425,7 +453,8 @@ const GroupManageView = () => {
 
   const handleOpenSubgroup = async (subgroupId: string) => {
     if (canManageSubgroup(subgroupId)) {
-      navigate(`/groups/${subgroupId}/manage?section=group`)
+      activeEntityService.setGroup(subgroupId)
+      navigate('/groups/manage?section=group')
       return
     }
 
@@ -434,7 +463,8 @@ const GroupManageView = () => {
     try {
       await groupService.claimSubgroupCoLeader(groupId, subgroupId)
       await auth.fetchMe()
-      navigate(`/groups/${subgroupId}/manage?section=group`)
+      activeEntityService.setGroup(subgroupId)
+      navigate('/groups/manage?section=group')
     } catch {
       setStatusMessage(t('claimSubgroupCoLeaderFailed'))
     }
@@ -453,7 +483,8 @@ const GroupManageView = () => {
     try {
       const subgroup = await createSubgroup(toLocalizedText(subgroupName.trim()), 'protected')
       if (subgroup) {
-        navigate(`/groups/${subgroup.id}/manage?section=group`)
+        activeEntityService.setGroup(subgroup.id)
+        navigate('/groups/manage?section=group')
       }
     } catch {
       setStatusMessage(t('addSubgroupFailed'))
@@ -466,7 +497,10 @@ const GroupManageView = () => {
     try {
       await closeGroup()
       await auth.fetchMe()
-      navigate(group.parentGroupId ? `/groups/${group.parentGroupId}/manage?section=subgroups` : '/groups', { replace: true })
+      if (group.parentGroupId) {
+        activeEntityService.setGroup(group.parentGroupId)
+      }
+      navigate(group.parentGroupId ? '/groups/manage?section=subgroups' : '/groups', { replace: true })
     } catch {
       setStatusMessage(t('deleteGroupFailed'))
     } finally {
@@ -474,15 +508,19 @@ const GroupManageView = () => {
     }
   }
 
+  if (!groupId) {
+    return <Navigate to="/" replace />
+  }
+
   if (!loading && !canManageGroup) {
-    return <Navigate to={`/groups/${groupId}`} replace />
+    return <Navigate to="/groups" replace />
   }
 
   return (
     <AppPageShell>
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <Link to={`/groups/${groupId}`} className="text-sm font-medium text-slate-600 hover:text-slate-950">{t(group?.isChurch ? 'backToChurch' : 'backToViews')}</Link>
+          <Link to="/groups" className="text-sm font-medium text-slate-600 hover:text-slate-950">{t(group?.isChurch ? 'backToChurch' : 'backToViews')}</Link>
           <h1 className="mt-2 text-2xl font-semibold text-slate-950">
             {t(group?.isChurch ? 'churchManagementTitle' : 'groupManagementTitle', { name: localizeText(group?.name, language) || t(group?.isChurch ? 'church' : 'group') })}
           </h1>
@@ -588,7 +626,7 @@ const GroupManageView = () => {
           {activeSection === 'members' ? (
             <MembersPanel
               memberships={memberships}
-              onInviteMember={() => navigate(`/groups/${groupId}/manage/invite-members`)}
+              onInviteMember={() => navigate('/groups/manage/invite-members')}
               onApproveMember={(memberId) => approveMember(memberId).catch(() => setStatusMessage(t('approveFailed')))}
               onRejectMember={(memberId) => rejectMember(memberId).catch(() => setStatusMessage(t('rejectFailed')))}
               onKickMember={(memberId) => {
@@ -604,7 +642,10 @@ const GroupManageView = () => {
               groupId={groupId}
               language={language}
               pages={pages}
-              onAddPage={() => navigate(`/groups/${groupId}/pages/new`)}
+              onAddPage={() => {
+                activeEntityService.setGroup(groupId, { clearPage: true })
+                navigate('/pages/new')
+              }}
               onDeletePage={(pageId) => {
                 if (!window.confirm(t('removePageConfirm'))) return
                 deletePage(pageId).catch(() => setStatusMessage(t('removePageFailed')))

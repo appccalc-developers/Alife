@@ -7,6 +7,8 @@ import AppEmptyState from '../components/layout/AppEmptyState'
 import AppPageShell from '../components/layout/AppPageShell'
 import AppSectionCard from '../components/layout/AppSectionCard'
 import CoverImage from '../components/CoverImage'
+import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
+import { activeEntityService } from '../services/activeEntityService'
 import { enrollmentSessionService } from '../services/enrollmentSessionService'
 import { eventService } from '../services/eventService'
 import { normalizeApiError } from '../services/http'
@@ -484,7 +486,8 @@ const MemoriesPanel = ({
     <div className="space-y-5">
       <div className="flex justify-end">
         <Link
-          to={`/groups/${groupId}/events/${eventId}/review`}
+          to="/events/review"
+          onClick={() => activeEntityService.setEvent(eventId, groupId)}
           className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
         >
           {text.addReview}
@@ -515,7 +518,8 @@ const MemoriesPanel = ({
             action={canMutate ? (
               <div className="flex flex-wrap gap-2">
                 <Link
-                  to={`/groups/${groupId}/events/${eventId}/review?reviewId=${encodeURIComponent(review.id)}`}
+                  to={`/events/review?reviewId=${encodeURIComponent(review.id)}`}
+                  onClick={() => activeEntityService.setEvent(eventId, groupId)}
                   className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-100"
                 >
                   {text.modifyReview}
@@ -586,7 +590,8 @@ const MemoriesPanel = ({
 }
 
 const EventDetailView = () => {
-  const { groupId = '', eventId = '' } = useParams<{ groupId: string; eventId: string }>()
+  const { groupId: routeGroupId, eventId: routeEventId } = useParams<{ groupId: string; eventId: string }>()
+  const { groupId, eventId } = useActiveEntityIds({ groupId: routeGroupId, eventId: routeEventId })
   const [searchParams] = useSearchParams()
   const { language, me, isGuest, canManageGroup } = useAuthStore()
   const canManage = canManageGroup(groupId)
@@ -658,7 +663,7 @@ const EventDetailView = () => {
   return (
     <AppPageShell>
       <div className="mb-1">
-        <Link to={`/groups/${groupId}`} className="text-sm font-medium text-slate-600 hover:text-slate-950">
+        <Link to="/groups" className="text-sm font-medium text-slate-600 hover:text-slate-950">
           {text.backToGroup}
         </Link>
       </div>

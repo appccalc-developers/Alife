@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { conditionalGet } from '../db/httpCache'
-import { churchQueryKey } from '../db/collections/groupCollection'
+import { churchQueryKey, groupQueryKey } from '../db/collections/groupCollection'
 import { useUiText } from '../i18n/uiText'
+import { activeEntityService } from '../services/activeEntityService'
 import type { GroupDto } from '../types'
 import { normalizeGroup } from '../utils/apiEnums'
 
@@ -47,7 +48,42 @@ export const CurrentGroupProvider = ({ children }: { children: ReactNode }) => {
   }, [])
 
   useEffect(() => {
-    refreshChurchGroup().catch(() => undefined)
+    const activeGroupId = activeEntityService.getAll().groupId
+    if (!activeGroupId) {
+      refreshChurchGroup().catch(() => undefined)
+      return
+    }
+
+    let cancelled = false
+
+    const loadActiveGroup = async () => {
+      setLoading(true)
+      setError('')
+
+      try {
+        const group = await conditionalGet<GroupDto>({
+          queryKey: groupQueryKey(activeGroupId),
+          path: `/api/groups/${activeGroupId}`,
+        })
+        if (!cancelled) {
+          setCurrentGroup(normalizeGroup(group))
+        }
+      } catch {
+        if (!cancelled) {
+          await refreshChurchGroup()
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
+    }
+
+    loadActiveGroup().catch(() => undefined)
+
+    return () => {
+      cancelled = true
+    }
   }, [refreshChurchGroup])
 
   const value = useMemo<CurrentGroupContextValue>(

@@ -1,5 +1,4 @@
 import { useMemo } from 'react'
-import { useParams } from 'react-router-dom'
 import { useLiveQuery } from '@tanstack/react-db'
 import { sermonsCollection } from '../db/collections/sermonsCollection'
 import {
@@ -12,6 +11,7 @@ import type { ListViewMetadata } from '../types/page-editor'
 import type { SermonDto } from '../services/sermonService'
 import type { GroupEventRecord } from '../types/event'
 import type { GroupSummaryDto } from '../types'
+import { useActiveEntityIds } from './useActiveEntityIds'
 
 type MembershipListRow = { memberId: string; status: string; role: string; name?: string; displayName?: string }
 
@@ -146,7 +146,7 @@ interface ListSourceResult {
 }
 
 export type ListSourceResolverOptions = {
-  /** Overrides URL :groupId (e.g. page editor at /pages/:id/edit?groupId=...) */
+  /** Overrides the active group id when rendering content from another group. */
   groupId?: string
   /** Skip collection wiring entirely when the caller only needs the hook shape. */
   enabled?: boolean
@@ -167,10 +167,10 @@ export type ListSourceResolverOptions = {
  * - when id is omitted, the current groupId is used
  */
 export function useListSourceResolver(metadata: ListViewMetadata, options?: ListSourceResolverOptions): ListSourceResult {
-  const { groupId: routeGroupId } = useParams<{ groupId: string }>()
+  const { groupId: activeGroupId } = useActiveEntityIds()
   const enabled = options?.enabled ?? true
 
-  const currentGroupId = enabled ? (options?.groupId?.trim() || routeGroupId || '').trim() : ''
+  const currentGroupId = enabled ? (options?.groupId?.trim() || activeGroupId || '').trim() : ''
   const sourceType = resolveSourceType(metadata.sourceType)
   const sourceScope = metadata.sourceScope
   const limit = Math.min(Math.max(metadata.limit || 10, 1), 50)

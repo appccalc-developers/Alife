@@ -26,6 +26,9 @@ export type SpotlightMemberRecord = {
 export type SpotlightActionLink = {
   label: string
   url: string
+  entityType?: 'group' | 'event' | 'sermon'
+  entityId?: string
+  groupId?: string
 }
 
 export type SpotlightResolvedContent = {
@@ -240,7 +243,7 @@ export const resolveDataSpotlightContent = (source: SpotlightDataSource, item: u
           ? { type: 'youtube', url: sermon.videoUrl }
           : undefined,
       actions: videoId
-        ? [{ label: translateUi(language, 'viewDetails'), url: buildSermonVideoPath(sermon.id, videoId) }]
+        ? [{ label: translateUi(language, 'viewDetails'), url: buildSermonVideoPath(sermon.id, videoId), entityType: 'sermon', entityId: sermon.id }]
         : [],
     }
   }
@@ -251,7 +254,7 @@ export const resolveDataSpotlightContent = (source: SpotlightDataSource, item: u
       title: localizeText(group.name, language) || translateUi(language, 'groups'),
       subtitle: accessTypeLabel(group.accessType, language),
       body: localizeText(group.description, language),
-      actions: [{ label: translateUi(language, 'viewDetails'), url: `/groups/${group.id}` }],
+      actions: [{ label: translateUi(language, 'viewDetails'), url: '/groups', entityType: 'group', entityId: group.id }],
     }
   }
 
@@ -262,7 +265,7 @@ export const resolveDataSpotlightContent = (source: SpotlightDataSource, item: u
       title: displayName,
       subtitle: translateUi(language, 'role', { role: member.role || 'member' }),
       body: member.status,
-      actions: [{ label: translateUi(language, 'viewDetails'), url: `/members/${member.memberId}` }],
+      actions: [{ label: translateUi(language, 'viewDetails'), url: '/profile' }],
     }
   }
 
@@ -280,6 +283,6 @@ export const resolveDataSpotlightContent = (source: SpotlightDataSource, item: u
     subtitle: formatDate(event.startDate, language),
     body: description || location,
     media: posterImageUrl ? { type: 'image', url: posterImageUrl } : undefined,
-    actions: [{ label: translateUi(language, 'viewDetails'), url: `/groups/${event.groupId}/events/${event.id}` }],
+    actions: [{ label: translateUi(language, 'viewDetails'), url: '/events', entityType: 'event', entityId: event.id, groupId: event.groupId }],
   }
 }

@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
 import AppPageShell from '../components/layout/AppPageShell'
 import AppSectionCard from '../components/layout/AppSectionCard'
 import { useGroupScreen } from '../hooks/useGroupScreen'
+import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
 import { groupService, type MemberSummaryDto } from '../services/groupService'
 import { useUiText } from '../i18n/uiText'
 import type { MembershipStatus } from '../types'
@@ -13,7 +14,8 @@ const canInviteWithStatus = (status?: MembershipStatus | null) => !status || sta
 
 const InviteMembersView = () => {
   const t = useUiText()
-  const { groupId = '' } = useParams<{ groupId: string }>()
+  const { groupId: routeGroupId } = useParams<{ groupId: string }>()
+  const { groupId } = useActiveEntityIds({ groupId: routeGroupId })
   const navigate = useNavigate()
   const { inviteMemberById } = useGroupScreen(groupId)
 
@@ -25,6 +27,10 @@ const InviteMembersView = () => {
   const [submitError, setSubmitError] = useState('')
 
   useEffect(() => {
+    if (!groupId) {
+      return
+    }
+
     let cancelled = false
     setLoadingMembers(true)
     setLoadError('')
@@ -75,14 +81,14 @@ const InviteMembersView = () => {
     const inviteableMemberIds = new Set(allMembers.filter((member) => canInviteWithStatus(member.membershipStatus)).map((member) => member.id))
     const toInvite = [...selected].filter((id) => inviteableMemberIds.has(id))
     if (toInvite.length === 0) {
-      navigate(`/groups/${groupId}/manage?section=members`, { replace: true })
+      navigate('/groups/manage?section=members', { replace: true })
       return
     }
     setSubmitting(true)
     setSubmitError('')
     try {
       await Promise.all(toInvite.map((id) => inviteMemberById(id)))
-      navigate(`/groups/${groupId}/manage?section=members`, { replace: true })
+      navigate('/groups/manage?section=members', { replace: true })
     } catch {
       setSubmitError(t('inviteSentFailed'))
     } finally {
@@ -91,11 +97,12 @@ const InviteMembersView = () => {
   }
 
   return (
+    !groupId ? <Navigate to="/" replace /> :
     <AppPageShell>
       <div className="mb-5">
         <button
           type="button"
-          onClick={() => navigate(`/groups/${groupId}/manage?section=members`, { replace: true })}
+          onClick={() => navigate('/groups/manage?section=members', { replace: true })}
           className="text-sm font-medium text-slate-600 hover:text-slate-950"
         >
           {t('backToGroup')}
@@ -157,7 +164,7 @@ const InviteMembersView = () => {
           </AppActionButton>
           <AppActionButton
             variant="secondary"
-            onClick={() => navigate(`/groups/${groupId}/manage?section=members`, { replace: true })}
+            onClick={() => navigate('/groups/manage?section=members', { replace: true })}
             disabled={submitting}
           >
             {t('cancel')}
