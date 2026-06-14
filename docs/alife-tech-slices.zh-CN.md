@@ -124,16 +124,16 @@ Alife.DbMigrator     迁移与 seed 工具
 
 ### Cloudflare 这一层实际上分成两块
 
-#### 1. Frontend Worker
+#### 1. Speed Layer Worker
 
-前端目录里的 `wrangler.jsonc` 表明，这个 Worker 不只是发静态档案，它还同时处理：
+`cloudflare/speed-layer` 里的 `wrangler.jsonc` 表明，这个 Worker 不只是发静态资源，它还同时处理：
 
 - SPA 静态资源托管
 - `/api/*` 的代理入口
 - `/images/*` 的边缘入口
 - AI session 路由分发
 - Durable Objects 绑定
-- KV namespace 绑定
+- 通过 Cloudflare Cache API 保存响应与授权元数据记录
 
 也就是说，浏览器眼中看到的是一个统一入口，但后面其实分流到了不同系统。
 
@@ -168,7 +168,7 @@ Alife.DbMigrator     迁移与 seed 工具
 
 #### 2. Durable Objects 用在 AI 会话流程
 
-前端 Worker 绑定了多个 Durable Object class，用来承载活动规划、报名和回顾这类会话流程。
+speed layer Worker 绑定了多个 Durable Object class，用来承载活动规划、报名和回顾这类会话流程。
 
 这代表项目已经不是纯 CRUD 网站，而是开始进入“有状态交互流程”的系统设计。
 
@@ -178,9 +178,9 @@ Alife.DbMigrator     迁移与 seed 工具
 - 为什么会话状态不一定放在前端；
 - 边缘状态与后端持久数据该怎么分工。
 
-#### 3. KV 适合轻量边缘缓存或授权镜像
+#### 3. Cache API 记录支持轻量边缘缓存和授权镜像
 
-Worker 里还有 KV namespace 绑定，表示这个系统并不把所有边缘逻辑都做成实时回源，也会利用 Cloudflare 提供的轻量存储做辅助能力。
+Worker 使用 Cloudflare Cache API 保存响应和轻量逻辑记录，支持 ETag、群组共享缓存判断和授权镜像，因此不是所有边缘判断都必须实时回源。
 
 #### 4. R2 让图片服务从主业务 API 拆开
 
@@ -197,7 +197,7 @@ Worker 里还有 KV namespace 绑定，表示这个系统并不把所有边缘�
 - Cloudflare Worker 基础
 - Wrangler 配置与部署概念
 - 路由与反向代理基本概念
-- KV、Durable Objects、R2 的用途差异
+- Cloudflare Cache API、Durable Objects、R2 的用途差异
 - CORS、cookie、origin、domain 这些浏览器网络基础
 
 ## 4. Slice C: Frontend App 这层不只是 React 页面
@@ -383,7 +383,7 @@ dotnet run --project src/Alife.Api
 #### Frontend
 
 ```powershell
-cd frontend/alife-app
+cd cloudflare/alife-app
 npm install
 npm run dev
 ```
@@ -392,7 +392,7 @@ npm run dev
 
 ```powershell
 dotnet build backend/Alife.sln -c Debug
-cd frontend/alife-app
+cd cloudflare/alife-app
 npm run build
 ```
 
@@ -400,9 +400,9 @@ npm run build
 
 以目前仓库记录来看：
 
-- backend build 可通过；
-- frontend build 可通过；
-- unit test 目前有旧测试档因为 controller constructor 已变化而阻塞，这代表项目处在一个很典型的“主系统可跑，但测试债务仍要补”的阶段。
+- backend unit test project 在当前验证中可通过；
+- frontend build 可通过，但当前 Vite 会提示 large chunk warning；
+- speed-layer Worker 测试套件在当前验证中也可通过。
 
 这一点反而很适合教学，因为它比“完美作业范例”更接近真实项目。
 
@@ -451,7 +451,7 @@ npm run build
 2. Azure Functions 如何承载相对完整的 API 系统。
 3. React App 如何和 cookie-based auth 配合。
 4. Cloudflare Worker 如何同时做静态托管、代理和边缘逻辑。
-5. R2、KV、Durable Objects 各自适合什么问题。
+5. R2、Durable Objects、Cloudflare Cache API 各自适合什么问题。
 6. 为什么真实项目一定会碰到 build、test、deployment、cache、CORS 这些工程题。
 
 ## 9. 建议给新加入开发者的第一周任务
