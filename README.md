@@ -1,40 +1,47 @@
 # Alife Church App
 
-Full-stack church management application. Clean Architecture .NET backend on Azure Functions, React 19 PWA frontend served through Cloudflare Workers.
+Alife is an alpha-stage community and church group platform for overseas Chinese Christian communities. It brings together group membership, bilingual pages, sermons, events, notifications, image handling, and AI-assisted event workflows in a mobile-friendly web app.
+
+The codebase is split into a .NET Azure Functions API, a React PWA, Cloudflare Workers for the edge layer, and SQL Server persistence.
 
 ## Stack
 
 | Layer | Technology |
 |---|---|
-| Backend | Azure Functions (.NET 10 Isolated Worker, Native AOT) |
-| Frontend | React 19 + TypeScript + Vite + Tailwind CSS (PWA) |
-| Database | SQL Server 2022 (Docker) |
-| Edge | Cloudflare Workers (frontend proxy, images API) |
-| Auth | LINE Login OAuth → JWT in HttpOnly cookie (`alife_auth`) |
-| Caching | .NET 10 HybridCache |
-| API Docs | Swagger/OpenAPI (`/api/swagger/v1/swagger.json`) |
+| Backend | Azure Functions v4, .NET 10 isolated worker, ASP.NET Core controllers |
+| Frontend | React 19, TypeScript, Vite, Tailwind CSS, PWA |
+| Frontend data | TanStack Query, TanStack React DB, IndexedDB-backed ETag cache |
+| Database | SQL Server 2022 locally, Azure SQL-compatible schema |
+| Edge | Cloudflare Workers for app hosting, API proxying, edge cache, AI sessions, and image services |
+| Auth | LINE Login OAuth or dev/admin flows -> JWT in HttpOnly cookie `alife_auth` |
+| Backend cache | .NET HybridCache read services and invalidation services |
+| API docs | Swagger/OpenAPI at `/api/swagger/v1/swagger.json` in development |
 
 ## Repository Layout
 
-```
+```text
 backend/
-  Alife.sln               # .NET solution
+  Alife.sln
   src/
-    Alife.Domain/          # Entities, enums — no dependencies
-    Alife.Application/     # Use cases, commands, queries, DTOs
-    Alife.Infrastructure/  # Data access, migrations, services, security
-    Alife.Api/             # Azure Functions host, controllers, HTTP layer
-    Alife.DbMigrator/      # Database migration + seed runner
+    Alife.Domain/          Entities and enums
+    Alife.Application/     Use cases, commands, queries, DTOs, service interfaces
+    Alife.Infrastructure/  EF Core, migrations, read services, integrations, security
+    Alife.Api/             Azure Functions host, controllers, HTTP pipeline
+    Alife.DbMigrator/      Migration and seed runner
   tests/
     Alife.Tests.Unit/
-  docker-compose.yml       # Local SQL Server and supporting services
+  docker-compose.yml       Local SQL Server
+
 cloudflare/
-  alife-app/               # React 19 SPA
-  images-api/              # Cloudflare Worker for image proxy/resize
-  speed-layer/             # Cloudflare Worker edge proxy & compute layer
+  alife-app/               React 19 PWA
+  speed-layer/             Cloudflare Worker for app assets, API proxy, edge cache, AI sessions
+  images-api/              Cloudflare Worker for R2-backed image API
+
 docs/
   architecture.md
-global.json                # .NET SDK version pin
+  alife-*.md
+
+global.json                .NET SDK version pin
 ```
 
 ## Prerequisites
@@ -42,147 +49,177 @@ global.json                # .NET SDK version pin
 - .NET SDK 10.0.x
 - Node.js 20+
 - Docker Desktop
-- Wrangler CLI (`npm install -g wrangler`) — for Cloudflare Workers
+- Wrangler CLI, or use `npx wrangler` from the relevant `cloudflare/*` package
 
 ## Local Setup
 
-### 1) Start SQL Server
+### 1. Start SQL Server
 
-```bash
+```powershell
 cd backend
 docker compose up -d sqlserver
 ```
 
-SQL Server is available at `localhost,14333`.
+SQL Server listens on `localhost,14333`. The default local password is configured in `backend/docker-compose.yml`.
 
-### 2) Apply migrations and seed
+### 2. Apply Migrations And Seed Data
 
-```bash
+```powershell
 cd backend
 dotnet run --project src/Alife.DbMigrator
 ```
 
-### 3) Run the API
+### 3. Run The API
 
-```bash
+```powershell
 dotnet run --project backend/src/Alife.Api
 ```
 
 | Endpoint | URL |
 |---|---|
 | Local base | `http://localhost:7071` |
-| Health check | `GET /health` |
-| OpenAPI (dev) | `GET /api/swagger/v1/swagger.json` |
-| Swagger UI (dev) | `GET /api/help` |
+| Health | `GET /health` |
+| Liveness | `GET /health/live` |
+| Readiness | `GET /health/ready` |
+| OpenAPI | `GET /api/swagger/v1/swagger.json` |
+| Swagger UI | `GET /api/help` |
 
-### 4) Run the frontend
+### 4. Run The Frontend
 
-```bash
+```powershell
 cd cloudflare/alife-app
 npm install
-npm run dev         # Vite dev server  → http://localhost:5173
+npm run dev
 ```
 
-For Vite local development, `/api/*` is proxied to the Functions host by `vite.config.ts`.
-Set `API_PROXY_TARGET` only when the API is not running on `http://localhost:7071`.
+The Vite dev server runs at `http://localhost:5173`. In development, `/api/*` is proxied to `http://localhost:7071` by default. Override with `API_PROXY_TARGET` when needed.
 
-For production builds, copy `.env.example` to `.env` and set `VITE_API_BASE_URL` when the frontend should call a separate API origin:
+The local Vite server also proxies `/images/*` to `https://images.ccalc.live` by default. Override with `IMAGES_PROXY_TARGET` if you run the image Worker locally.
 
-```env
-VITE_API_BASE_URL=http://localhost:7071
+### 5. Run Through The Cloudflare Speed Layer
+
+```powershell
+cd cloudflare/alife-app
+npm run preview
 ```
 
-To run through the Cloudflare Worker proxy locally (port 8788):
+`npm run preview` builds the frontend and starts `cloudflare/speed-layer` through Wrangler. The speed layer serves `cloudflare/alife-app/dist`, proxies `/api/*`, routes `/images/*`, applies edge caching, and owns AI session Durable Object routes.
 
-```bash
-npm run preview     # build + wrangler dev
-```
-
-The Worker AI session routes require a Gemini key. For local Worker runs, create
-`cloudflare/speed-layer/.dev.vars` with:
+For local AI session testing, create `cloudflare/speed-layer/.dev.vars`:
 
 ```env
 GEMINI_API_KEY=your-gemini-api-key
 ```
 
-For production, configure the deployed Worker secret before manual deploys:
+Production deploys also require the Worker secret:
 
-```bash
+```powershell
 cd cloudflare/speed-layer
 npx wrangler secret put GEMINI_API_KEY
 npx wrangler deploy
 ```
 
-GitHub Actions deploys read the same value from the repository secret
-`GEMINI_API_KEY` and upload it during `wrangler deploy`.
+## Main Features In The Current Code
 
-## Authentication
+- Member identity through LINE Login, display-name login, and dev/admin flows.
+- JWT authentication stored in the HttpOnly `alife_auth` cookie.
+- Hierarchical church/group model with public, protected, and private access types.
+- Group membership workflows: request, invite, accept, decline, approve, reject, co-leader assignment, kick, subgroup creation, and subgroup co-leader claim.
+- Bilingual group and page content using JSON-shaped localized text.
+- Page builder with global/group pages, draft/group/public visibility, structured sections, and link metadata.
+- Sermon listing and admin-triggered YouTube sermon synchronization.
+- Group events with enrollment and review APIs.
+- Notification messages with read and reply workflows.
+- AI-assisted event planning, enrollment, and review sessions through Cloudflare Durable Objects.
+- R2-backed image API for image listing, upload, deletion, and streaming.
 
-- LINE Login OAuth flow ends at `/api/members/line/callback`.
-- Backend issues a JWT stored in HttpOnly cookie `alife_auth` (XSS-immune).
-- JwtBearer reads the token from the cookie automatically.
-- JWT is minimal (`sub`, `exp`); group roles and permissions are DB-checked per request.
-- API returns `401`/`403` status codes; no auth redirects.
+## Authentication And Authorization
+
+- LINE OAuth callback lands at `/api/members/line/callback`.
+- The backend issues a JWT in the HttpOnly cookie `alife_auth`.
+- JwtBearer middleware reads the token from the cookie automatically.
+- JWT claims are intentionally minimal. Group roles and permissions are checked against current data.
+- Protected APIs return `401` or `403`; they do not redirect browser clients.
 
 ## Caching
 
-- `HybridCache` (.NET 10) with stampede protection is used in:
-  - Member profile (`/api/me`)
-  - Group, page, event, and sermon read services
-  - Group, page, event, and sermon cache invalidation services
+Alife deliberately uses multiple cache layers:
 
-## AI Session Workflows
+- Backend `HybridCache` for member, group, page, event, and sermon read services.
+- Cloudflare speed layer cache for safe public responses, authorized group-shared responses, member profile responses, ETags, and passive mutation invalidation.
+- Frontend IndexedDB ETag cache through `conditionalGet`.
+- PWA runtime caching for app assets, images, and fonts. API responses are intentionally excluded from the PWA runtime cache so auth and permission changes are not replayed incorrectly.
 
-- Cloudflare Durable Objects back the event planning, enrollment, and review chat sessions.
-- Session routes are exposed under `/api/events/session/*`, `/api/enrollments/session/*`, and `/api/reviews/session/*`.
-- Completed enrollment and review drafts are committed through backend REST endpoints under `/api/events/{eventId}/enrollments` and `/api/events/{eventId}/reviews`.
+Private user-specific data must not be stored in shared public caches.
 
-## Key Configuration
+## Key API Areas
 
-Backend settings (environment variables or `local.settings.json` for Functions):
-
-| Key | Notes |
+| Area | Representative routes |
 |---|---|
-| `ConnectionStrings__Default` | e.g. `Server=localhost,14333;...` |
-| `Jwt__Issuer`, `Jwt__Audience`, `Jwt__Key` | JWT signing |
-| `LineLogin__ClientId`, `LineLogin__ClientSecret`, `LineLogin__RedirectUri` | LINE OAuth |
-| `Frontend__BaseUrl` | CORS / redirect target |
-
-## Useful Commands
-
-```bash
-# Backend — restore / build / test
-dotnet restore backend/Alife.sln
-dotnet build  backend/Alife.sln -c Debug
-dotnet test   backend/tests/Alife.Tests.Unit/Alife.Tests.Unit.csproj -c Debug
-
-# Backend — release publish (Native AOT)
-dotnet publish backend/src/Alife.Api --configuration Release
-
-# Frontend — build + deploy to Cloudflare (delegates to speed-layer under the hood)
-cd cloudflare/alife-app
-npm run deploy
-
-# Speed Layer — build + run tests
-cd cloudflare/speed-layer
-npm test
-
-# Run API directly from backend folder
-cd backend/src/Alife.Api
-dotnet run
-```
-
-## Notes
-
-- Configure LINE login and JWT secrets with real values for non-local environments.
+| Auth/session | `POST /api/auth/login`, `POST /api/auth/logout`, `POST /api/auth/dev/admin`, `GET /api/me` |
+| LINE/member | `GET /api/members/line/login`, `GET /api/members/line/callback`, `POST /api/members/register` |
+| Groups | `GET /api/groups/church`, `GET /api/groups/{id}`, `POST /api/groups/{id}/join-request` |
+| Group management | `POST /api/groups/{id}/subgroups`, `POST /api/groups/{id}/approve`, `POST /api/groups/{id}/set-coleader` |
+| Pages | `GET /api/pages/global`, `GET /api/groups/{groupId}/pages`, `POST /api/groups/{groupId}/pages`, `PUT /api/pages/{id}` |
+| Events | `GET /api/groups/{groupId}/events`, `POST /api/groups/{groupId}/events`, `PUT /api/events/{id}` |
+| Enrollments/reviews | `GET/POST /api/events/{eventId}/enrollments`, `GET/POST /api/events/{eventId}/reviews` |
+| Notifications | `GET/POST /api/notifications`, `POST /api/notifications/{id}/reply`, `POST /api/notifications/{id}/read` |
+| Admin | `POST /api/admin/sermons/sync`, `POST /api/admin/groups/{groupId}/cloudflare-cache/refresh` |
+| AI sessions | `/api/events/session/*`, `/api/enrollments/session/*`, `/api/reviews/session/*` |
 
 ## Configuration
 
-### LINE Login
+Backend settings can be supplied through environment variables, user secrets, or `local.settings.json` for Azure Functions.
 
-| Setting | Required | Description |
+| Key | Notes |
+|---|---|
+| `ConnectionStrings__Default` | SQL Server connection string |
+| `Jwt__Issuer`, `Jwt__Audience`, `Jwt__Key`, `Jwt__KeyId` | JWT signing and validation |
+| `LineLogin__ClientId`, `LineLogin__ClientSecret`, `LineLogin__RedirectUri` | LINE OAuth |
+| `Frontend__BaseUrl` | Frontend redirect/CORS base URL |
+| `Youtube__ApiKey`, `Youtube__PlaylistId` | Sermon sync integration, where configured |
+| `Cloudflare__ApiToken`, `Cloudflare__AccountId`, `Cloudflare__NamespaceId` | Cloudflare cache refresh support, where configured |
+
+Frontend and Worker settings:
+
+| Key | Location | Notes |
 |---|---|---|
-| `LineLogin:ClientId` | Yes | LINE Login channel client ID |
-| `LineLogin:ClientSecret` | Yes | LINE Login channel secret |
-| `LineLogin:RedirectUri` | Yes | Backend callback URI for LINE OAuth |
-| `Frontend:BaseUrl` | Yes | Frontend base URL used for callback redirects |
+| `VITE_API_BASE_URL` | `cloudflare/alife-app/.env` | Production API origin when not same-origin |
+| `API_PROXY_TARGET` | Vite env or `cloudflare/speed-layer/wrangler.jsonc` | Origin API target |
+| `IMAGES_PROXY_TARGET` | Vite env | Image proxy target for local Vite |
+| `GEMINI_API_KEY` | `cloudflare/speed-layer/.dev.vars` or Worker secret | Required for AI session routes |
+| `GEMINI_MODEL` | `cloudflare/speed-layer/wrangler.jsonc` | Optional Gemini model override |
+
+## Useful Commands
+
+```powershell
+# Backend
+dotnet restore backend/Alife.sln
+dotnet build backend/Alife.sln -c Debug
+dotnet test backend/tests/Alife.Tests.Unit/Alife.Tests.Unit.csproj -c Debug
+dotnet publish backend/src/Alife.Api/Alife.Api.csproj -c Release
+
+# Frontend
+cd cloudflare/alife-app
+npm install
+npm run build
+npm run dev
+npm run preview
+
+# Speed layer
+cd cloudflare/speed-layer
+npm test
+npm run deploy
+
+# Image API Worker
+cd cloudflare/images-api
+npx wrangler deploy
+```
+
+## Notes For Maintainers
+
+- Preserve the layered backend structure and keep authorization checks server-side.
+- Keep bilingual fields as localized JSON structures where the code already uses them.
+- Treat edge, backend, and frontend caches as separate layers with different privacy rules.
+- For event enrollments, one member has one enrollment per event. For event reviews, multiple reviews per member are allowed.
+- New work should be small, traceable, and easy to explain in a portfolio or handover context.

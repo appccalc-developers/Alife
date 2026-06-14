@@ -124,16 +124,16 @@ This is one of the most interesting parts of the system from a teaching point of
 
 ### The Cloudflare side has two main parts
 
-#### 1. Frontend Worker
+#### 1. Speed Layer Worker
 
-The `wrangler.jsonc` in the frontend directory shows that this Worker does much more than serve built frontend assets. It also handles:
+The `wrangler.jsonc` in `cloudflare/speed-layer` shows that this Worker does much more than serve built frontend assets. It also handles:
 
 - SPA static asset hosting
 - the `/api/*` proxy entry point
 - the `/images/*` edge route
 - AI session route dispatch
 - Durable Object bindings
-- KV namespace bindings
+- Cloudflare Cache API response records and authorization metadata records
 
 So from the browser’s point of view, there is one main entry point, even though requests are routed to different services behind the scenes.
 
@@ -168,7 +168,7 @@ In this project, the Worker is not just a deployment extra. It is part of the ar
 
 #### 2. Durable Objects are used for AI session flows
 
-The frontend Worker binds several Durable Object classes for flows such as event planning, registration, and review.
+The speed layer Worker binds several Durable Object classes for flows such as event planning, registration, and review.
 
 That means the system has already moved beyond simple CRUD patterns into stateful workflow design.
 
@@ -178,9 +178,9 @@ This is useful for teaching questions like:
 - why session state is not always best kept in the frontend;
 - how to split responsibility between edge session state and backend persistence.
 
-#### 3. KV can support lightweight edge-side state
+#### 3. Cache API records support lightweight edge-side state
 
-The KV namespace binding suggests that not everything at the edge has to call back to the origin immediately. KV is useful for lighter supporting roles such as cache-like data or auxiliary lookups.
+The Worker uses the Cloudflare Cache API for stored responses and lightweight logical records. This is useful for ETags, cache-like data, and authorization-related metadata without calling the origin for every request.
 
 #### 4. R2 helps keep image handling separate from the main API
 
@@ -197,7 +197,7 @@ Useful background includes:
 - Cloudflare Workers
 - Wrangler config and deployment
 - routing and reverse proxy basics
-- the difference between KV, Durable Objects, and R2
+- the difference between the Cloudflare Cache API, Durable Objects, and R2
 - browser/network basics such as CORS, cookies, origin, and domain
 
 ## 4. Slice C: The Frontend is more than a set of React pages
@@ -385,7 +385,7 @@ dotnet run --project src/Alife.Api
 #### Frontend
 
 ```powershell
-cd frontend/alife-app
+cd cloudflare/alife-app
 npm install
 npm run dev
 ```
@@ -394,7 +394,7 @@ npm run dev
 
 ```powershell
 dotnet build backend/Alife.sln -c Debug
-cd frontend/alife-app
+cd cloudflare/alife-app
 npm run build
 ```
 
@@ -402,9 +402,9 @@ npm run build
 
 Based on the current repo state:
 
-- the backend build passes;
-- the frontend build passes;
-- some unit tests are currently blocked by older test files because controller constructors have changed.
+- the backend unit test project passes in the current verification run;
+- the frontend build passes, with the current Vite large-chunk warning;
+- the speed-layer Worker test suite also passes in the current verification run.
 
 That is actually useful to point out, because it reflects the state many real projects end up in: the main system runs, but test maintenance still needs work.
 
@@ -453,7 +453,7 @@ If Alife is used as a teaching case, useful entry points include:
 2. How Azure Functions can host a fairly complete API.
 3. How a React app works with cookie-based authentication.
 4. How a Cloudflare Worker can combine static hosting, proxying, and edge logic.
-5. What R2, KV, and Durable Objects are each good for.
+5. What R2, Durable Objects, and the Cloudflare Cache API are each good for.
 6. Why real projects inevitably run into build, test, deployment, caching, and CORS issues.
 
 ## 9. Good first-week tasks for a new maintainer

@@ -1,372 +1,412 @@
-# Alife MVP Architecture
+# Alife Alpha Architecture
 
 ## Overview
 
-Alife is a full-stack church operations application built with:
-- **Backend**: .NET 10 Azure Functions using Clean Architecture.
-- **Frontend**: React 19 + TypeScript PWA using Vite and Tailwind CSS.
-- **Database**: SQL Server 2022.
-- **Containerization**: Docker Compose for local infrastructure.
-- **Edge**: Cloudflare Workers for the frontend proxy and image API.
-- **API Docs**: Swagger/OpenAPI in development.
+Alife is a full-stack community and church group platform with four main runtime areas:
+
+- **Backend**: .NET 10 Azure Functions v4 isolated worker, ASP.NET Core controllers, MediatR, EF Core, SQL Server, HybridCache.
+- **Frontend**: React 19 + TypeScript + Vite PWA, Tailwind CSS, TanStack Query, TanStack React DB, Axios, IndexedDB-backed ETag cache.
+- **Edge**: Cloudflare `speed-layer` Worker for frontend assets, API proxying, edge cache, authorization mirrors, and AI session Durable Objects.
+- **Images**: separate Cloudflare `images-api` Worker backed by Cloudflare R2.
+
+The current architecture is intentionally layered. The main product goal is alpha stability for real church/group usage while keeping the system maintainable enough for handover and portfolio review.
 
 ## Product Value Model
 
-Alife's current product value goal is to reduce the operational load of church group life:
-- Members should quickly find group content, activities, sermons, and join flows.
-- Leaders and co-leaders should manage their group without hunting through unrelated navigation.
-- Ministry operators should publish pages and run recurring admin jobs with clear feedback.
-- System admins should keep authentication, permissions, content, and integrations reliable.
+Alife reduces operational friction around church community life:
+
+- Members can find groups, pages, sermons, events, notifications, and join flows from one mobile-friendly entry point.
+- Leaders and co-leaders can manage subgroups, members, pages, and events without mixing management work into normal reading screens.
+- Content volunteers can build bilingual pages from structured sections rather than editing code.
+- Admins can run operational actions such as sermon sync and Cloudflare cache refresh from protected APIs.
+- AI-assisted workflows help draft event planning, enrollment, and review content while leaving final persistence under user control.
 
 ### Primary Users
 
-- **Guest**: can enter onboarding, sign in, and request or accept group access.
-- **Member**: can view accessible groups, pages, sermons, and events, and enroll in activities.
-- **Leader / CoLeader**: can manage subgroups, members, pages, and activities for approved groups.
-- **Admin**: can access global admin operations such as sermon synchronization.
+- **Guest**: can open onboarding, sign in, and request/accept access.
+- **Member**: can view accessible groups, pages, sermons, events, notifications, and enroll in activities.
+- **Leader / CoLeader**: can manage approved groups, subgroups, memberships, pages, and events.
+- **Admin**: can access protected admin operations.
 
-### Current UX Direction
+## Runtime Topology
 
-Group pages separate day-to-day reading from management work:
-- The group page focuses on visible content and lightweight contextual tools.
-- The group tools drawer shows membership state, current page shortcuts, and a single management entry point.
-- The group management route (`/groups/:groupId/manage`) owns subgroup, member, page, and event management.
+```mermaid
+flowchart LR
+  Browser[Browser / PWA] --> Worker[Cloudflare speed-layer Worker]
+  Worker --> Assets[alife-app dist assets]
+  Worker -->|/api/* proxy| Api[Azure Functions API]
+  Worker -->|AI session routes| DO[Durable Objects]
+  Worker -->|/images/* proxy| ImageWorker[Cloudflare images-api Worker]
+  ImageWorker --> R2[Cloudflare R2]
+  Api --> Sql[SQL Server / Azure SQL]
+  Api --> Line[LINE Login]
+  Api --> Youtube[YouTube API]
+```
+
+The speed layer is the normal browser-facing entry for deployed traffic. It serves the built React app, proxies origin API requests, routes AI session requests to Durable Objects, and handles cache/authorization mirror logic before falling back to the backend API.
 
 ## Backend Architecture
 
 ### Clean Architecture Layers
 
 ```text
-Domain (Entities, Enums)
-  -> Application (Use Cases, Commands, Queries, DTOs)
-  -> Infrastructure (Data Access, Migrations, Services, Security)
-  -> Api (Azure Functions host, controllers, HTTP layer)
+Alife.Domain
+  -> Alife.Application
+  -> Alife.Infrastructure
+  -> Alife.Api
 ```
 
-**Project Dependencies:**
-- `Alife.Domain` has no project dependencies.
-- `Alife.Application` depends on Domain.
-- `Alife.Infrastructure` depends on Application and Domain.
-- `Alife.Api` depends on Application and Infrastructure.
-- `Alife.DbMigrator` depends on Infrastructure and Application.
+- `Alife.Domain`: entities and enums with no infrastructure dependency.
+- `Alife.Application`: commands, queries, DTOs, service interfaces, and use-case rules.
+- `Alife.Infrastructure`: EF Core, migrations, SQL Server access, read services, cache invalidation, JWT, LINE, YouTube, Cloudflare integration.
+- `Alife.Api`: Azure Functions host, ASP.NET Core HTTP pipeline, controllers, auth middleware, health checks, Swagger.
+- `Alife.DbMigrator`: migration and seed runner.
+
+The backend is controller-style HTTP API hosted inside Azure Functions, not a collection of isolated single-purpose scripts.
 
 ### Domain Model
 
-#### Groups
-- Hierarchical structure with Church as the root group.
-- Access types: Public, Protected, Private.
-- Roles: Owner, Leader, CoLeader, Member.
-- Membership statuses: Invited, Requested, Approved, Active, Rejected, Removed.
+Key entities:
 
-#### Members
-- Authentication via LINE Login OAuth or development/admin flows.
-- Profile includes display name, phone, email, and registration state.
-- Members relate to groups through membership records.
-- Current member identity is resolved from the JWT `sub` claim.
+- `Member`: display name, contact fields, LINE UID, registration/admin state.
+- `Group`: bilingual name/description JSON, hierarchy, access type, church/root marker, closed state.
+- `GroupMembership`: member/group relationship with role and status.
+- `Page`: global or group-scoped page with bilingual title/description JSON, tags, visibility, and soft delete.
+- `Section`: ordered page block with type, content JSON, style JSON, and links.
+- `Link`: section-owned links to groups/pages or external visual items.
+- `Sermon`: synchronized YouTube sermon metadata.
+- `GroupEvent`: group-owned event with bilingual titles and serialized rich event JSON.
+- `EventEnrollment`: one enrollment per event/member, stored as JSON.
+- `EventReview`: event review JSON; multiple reviews per event/member are allowed.
+- `NotificationMessage`: recipient, creator, optional group/event context, action JSON, response JSON, read/reply timestamps.
 
-#### Pages
-- Group-scoped and global pages.
-- Visibility supports draft and group-visible states.
-- Multilingual support through language-specific page records.
-- Sections define rendered content blocks inside pages.
+### Enums And API Shape
 
-#### Events
-- Group-owned activities with structured event data.
-- Enrollment is handled through event enrollment APIs and frontend chat UI.
-- Leaders/co-leaders can create, edit, and delete group events.
+The backend serializes enums as camelCase strings. The frontend normalizes legacy integer or string enum values where needed.
+
+Important enums include:
+
+- `AccessType`: public, protected, private.
+- `MembershipStatus`: invited, requested, approved, rejected, removed.
+- `MembershipRole`: member, coLeader, leader.
+- `PageScope`: global, group.
+- `PageVisibility`: draft, group, public.
+- `SectionType`: hero, rich text, spotlight, list view, and related section rendering types.
 
 ## Security Architecture
 
-### JWT in HttpOnly Cookies
+### Authentication
 
-**Why HttpOnly?**
-- JavaScript cannot read the cookie, reducing XSS token theft risk.
-- Cookies are automatically sent with API requests.
-- The approach follows OWASP-friendly browser auth defaults.
+Alife uses JWT authentication stored in the HttpOnly cookie `alife_auth`.
 
-**Flow:**
-1. User authenticates through LINE login, display-name login, or admin/dev login.
-2. Backend creates a JWT with minimal claims such as `sub` and `exp`.
-3. JWT is stored in the HttpOnly cookie `alife_auth`.
-4. JwtBearer middleware reads the token from the cookie.
-5. Current identity is validated from the `sub` claim.
+Flow:
 
-### Authorization Model
+1. User signs in through LINE Login, display-name login, or dev/admin flow.
+2. Backend issues a JWT with minimal claims such as `sub` and expiry.
+3. JwtBearer middleware reads the JWT from the cookie.
+4. `CurrentMemberAccessor` resolves the current member from the `sub` claim.
+5. Protected API handlers perform current membership and role checks before mutating data.
 
-**No role caching in JWT**
-- JWT claims stay minimal to reduce leakage and stale authorization.
-- Group roles and permissions are checked from the database for protected actions.
-- Permission changes take effect without forcing token refresh.
+### Authorization
 
-**Authorization Flow:**
+Group authorization is intentionally checked against current data instead of trusting stale role claims in the JWT.
+
+Typical protected flow:
 
 ```text
-Request arrives
-  -> JwtBearer middleware validates cookie JWT and extracts sub
-  -> CurrentMemberAccessor resolves the current member
-  -> Controller or application service checks group membership
-  -> Authorized requests proceed; unauthorized requests return 403
+HTTP request
+  -> Cookie JWT validation
+  -> Current member resolution
+  -> Group membership/role check in application or read service
+  -> Command/query execution
+  -> Cache invalidation where needed
 ```
 
-## API Structure
+This is important because leaders and co-leaders can change membership state, and permission changes must take effect without waiting for token refresh.
 
-**Controllers:**
-- `AdminController` - admin operations.
-- `AuthController` - authentication and session operations.
-- `MembersController` - registration, LINE login/callback, profile.
-- `GroupsController` - group and membership workflows.
-- `PagesController` - page management.
-- Page section writes are handled through `PagesController` create/update payloads.
-- `EventsController`, `EventEnrollmentsController`, and `EventReviewsController` - activity, enrollment, and review workflows.
-- `SermonsController` - sermon listing.
+## API Surface
 
-### HTTP and API Surface
+Controllers are grouped by responsibility:
 
-- Health endpoint: `GET /health`.
-- API endpoints: under `/api/*`.
-- OpenAPI document: `GET /api/swagger/v1/swagger.json` in development.
-- Swagger UI: `GET /api/help` in development.
+- `AuthController`: login, logout, dev/admin session.
+- `MembersController`: `/api/me`, LINE login/callback, registration, display-name login, member listing.
+- `GroupsController`: church root, group detail, subgroups, membership workflows, invite candidates, group update/close.
+- `PagesController`: global pages, group pages, page detail, create/update/publish/delete.
+- `EventsController`: group event list/create/update/delete.
+- `EventEnrollmentsController`: enrollment list/create/update/delete.
+- `EventReviewsController`: review list/create/update/delete.
+- `NotificationsController`: notification list/create/reply/read.
+- `SermonsController`: sermon listing.
+- `AdminController`: sermon sync and Cloudflare cache refresh.
 
-### Application Layer
+Health and diagnostics:
 
-- Commands handle write operations.
-- Queries handle read operations.
-- DTOs define API-facing payload shapes.
-- Services centralize domain rules and authorization helpers.
+- `GET /health/live`
+- `GET /health/ready`
+- `GET /health`
+- `GET /api/swagger/v1/swagger.json`
+- `GET /api/help`
 
-### Infrastructure Layer
+## Caching Architecture
 
-- EF Core DbContext and migrations.
-- Read services for optimized group, member, and page reads.
-- HybridCache-backed read paths and invalidation services.
-- Cloudflare Durable Objects for AI-assisted event planning, enrollment, and review sessions.
-- JWT, cookie, LINE Login, and YouTube integration services.
+Alife has several cache layers, each with different privacy rules.
 
-### Caching Architecture
+### Backend HybridCache
 
-- Read services and invalidation services use `HybridCache`.
-- `/api/me` is cached and invalidated on profile-changing operations.
-- Group, page, event, and sermon reads use cache keys owned by application services.
-- Source-level `IMemoryCache` usage has been removed from application wiring.
+Backend read services use `.NET HybridCache` for read-heavy data:
 
-## Database Schema
+- member profile data
+- groups and memberships
+- pages and sections
+- events
+- sermons
 
-Key tables include:
-- `Members` - user accounts.
-- `Groups` - organizational units.
-- `GroupMemberships` - member-to-group relationships.
-- `Pages` - global and group content pages.
-- `Sections` - page content sections.
-- `GroupEvents` - group activity records.
-- `EventEnrollments` - event registration records.
-- `Sermons` - synchronized sermon metadata.
+Write operations call invalidation services where applicable.
+
+### Cloudflare Speed Layer Cache
+
+The speed layer uses the Cloudflare Cache API and logical cache records to support:
+
+- public shared caching for `/api/sermons` and `/api/pages/global`;
+- authorized group-shared caching for group pages, subgroups, events, members, and memberships;
+- member profile caching for `/api/me` by member id;
+- generated ETags and `304 Not Modified`;
+- passive invalidation after mutations;
+- membership/page/entity metadata mirrors used to decide whether shared cached data can be read.
+
+Browser-facing API responses are returned with private browser cache semantics such as `private, no-cache` and `Vary: Cookie, Authorization` where appropriate. Public image responses can use public immutable-style caching.
+
+### Frontend Cache
+
+The frontend uses:
+
+- TanStack Query for query coordination and invalidation.
+- TanStack React DB collections for local list data.
+- `idb-keyval` for ETag-aware `conditionalGet` storage in IndexedDB.
+- Vite PWA runtime caching for app assets, images, fonts, and non-API runtime resources.
+
+The PWA service worker deliberately avoids replaying `/api/*` responses from runtime cache. This protects users from seeing stale private data after auth or permission changes.
 
 ## Frontend Architecture
 
 ### Technology Stack
 
-- **Framework**: React 19.
-- **Language**: TypeScript.
-- **Build Tool**: Vite.
-- **Styling**: Tailwind CSS.
-- **Routing**: React Router.
-- **Server State**: TanStack Query and TanStack DB live queries.
-- **Local App State**: React context providers such as `AuthProvider` and `CurrentGroupProvider`.
-- **HTTP Client**: Axios with `withCredentials` enabled.
-- **PWA**: Vite PWA service worker registration.
+- React 19
+- TypeScript
+- Vite
+- Tailwind CSS
+- React Router 7
+- Framer Motion
+- Axios with `withCredentials`
+- TanStack Query and TanStack React DB
+- IndexedDB via `idb-keyval`
+- Vite PWA
 
-### Application Structure
+### Directory Structure
 
 ```text
-frontend/alife-app/src/
-  App.tsx                 Route tree, app shell, navigation
-  main.tsx                React root, providers, router, service worker
-  stores/                 React context stores for auth and current group
+cloudflare/alife-app/src/
+  App.tsx                 App shell, route tree, navigation
+  main.tsx                React root and providers
+  stores/                 Auth, current group, leader UI preferences
   views/                  Route-level screens
   components/             Reusable UI and domain components
-  services/               Axios-backed API clients
+  services/               Axios-backed API clients and workflow clients
   api/                    Additional API helpers
-  db/                     TanStack Query/DB collections and HTTP cache
-  hooks/                  Screen and data composition hooks
+  db/                     TanStack collections and ETag HTTP cache
+  hooks/                  Screen/data composition hooks
   types/                  TypeScript DTO and model types
-  assets/                 Static frontend assets
+  i18n/                   UI text translation table
+  utils/                  localization, enum normalization, page content helpers
 ```
 
-### Authentication and Bootstrap Flow
+### Key Frontend Flows
 
-1. `main.tsx` creates the React root and mounts providers.
-2. `AuthProvider` bootstraps identity by calling `GET /api/me` through `authService`.
-3. If the user is a guest or unauthenticated, onboarding routes can guide LINE login or registration.
-4. After registration or login, the backend issues the `alife_auth` cookie.
-5. The app reads membership and role data from `/api/me` and uses it for route-aware UI.
+- `AuthProvider` bootstraps identity through `GET /api/me`.
+- `CurrentGroupProvider` and `activeEntityService` keep the active group/page/event context stable across canonical and parameterized routes.
+- `GroupDetailView` focuses on reading visible group content.
+- `GroupManageView` owns group, subgroup, member, page, and event management.
+- `PageEditorView` edits bilingual page metadata and structured sections.
+- `EventCreatorView`, `EventEnrollmentView`, and `EventReviewView` cover event planning, enrollment, and review workflows.
+- `NotificationToastHost` and notification services support action-oriented message flows.
 
-### Cookie Handling
+## Page Builder And Bilingual Content
 
-**Axios Configuration:**
+Pages use localized JSON fields for title and description. Sections use JSON payloads and explicit section types rather than storing raw whole-page HTML.
 
-```ts
-export const http = axios.create({
-  baseURL,
-  withCredentials: true,
-})
-```
+This supports:
 
-**Environment behavior:**
-- In development, Vite proxies same-origin `/api/*` requests where configured.
-- In production, `VITE_API_BASE_URL` supplies the API base URL.
-- Backend CORS must allow credentials for cross-origin deployments.
-- Secure production cookies should use the correct `SameSite` and `Secure` settings for the deployment topology.
+- bilingual English/Chinese display;
+- migration-friendly section evolution;
+- content blocks such as hero, rich text, spotlight, and list-driven sections;
+- list sections whose metadata can resolve sermons, groups, members, pages, or events through shared frontend data collections.
 
-### Frontend Information Architecture
+Visibility is explicit:
 
-**Global shell:**
-- Home, sermons, global events entry, onboarding, admin.
-- Current group pages appear in the side/bottom navigation when a group is active.
-- Group leaders and co-leaders also see a `Manage` entry for the current group.
+- `draft`: not broadly visible; privileged users or the creator can work on it.
+- `group`: visible to approved members of the owner group.
+- `public`: intended for public/global or church-visible usage, subject to scope rules.
 
-**Group detail screen:**
-- `GroupDetailView` composes `useGroupScreen` data.
-- `GroupScreenShell` renders selected group page content.
-- The app shell owns current-group page navigation, subgroup navigation, language switching, and manager-only floating actions.
+## AI Session Architecture
 
-**Group management screen:**
-- `GroupManageView` owns management workflows for leaders and co-leaders.
-- It groups operations into Subgroups, Members, Pages, and Events sections.
-- Direct access is guarded in the UI by group role and redirects non-managers back to the group page.
+AI-assisted workflows run through the Cloudflare speed layer:
 
-### Component Architecture
+- generic AI router under `/api/ai`;
+- event planning sessions under `/api/events/session/*`;
+- enrollment sessions under `/api/enrollments/session/*`;
+- review sessions under `/api/reviews/session/*`.
 
-**Key components:**
-- Layout primitives: `AppPageShell`, `AppSectionCard`, `AppActionButton`, `AppBadge`, `AppEmptyState`.
-- Group screens: `GroupScreenShell`, `GroupPageTabs`, `GroupHeaderCard`, `GroupOverviewPanel`, `EnrollmentChatDialog`, `ReviewChatDialog`.
-- Content screens: `PageView`, `PageEditorView`, `PageContentRenderer`, page editor components.
-- Admin and operations screens: `AdminView`, `SermonsView`, `EventCreatorView`, `GroupManageView`.
+Durable Object classes:
 
-### AI Session Frontend / Edge Architecture
+- `EventPlanningSession`
+- `EnrollmentSession`
+- `ReviewSession`
 
-- `src/services/aiSessionService.ts` provides the generic frontend client for `/message`, `/state`, `/stream`, and `/close`.
-- `src/hooks/useAiSession.ts` centralizes SSE subscription, state updates, send-message handling, and error normalization.
-- `speed-layer/src/features/ai/aiSession.ts` provides the generic Durable Object base.
-- `speed-layer/src/features/events/planner.ts`, `speed-layer/src/features/events/enrolment.ts`, and `speed-layer/src/features/events/reviewer.ts` configure event, enrollment, and review-specific prompts, schemas, and draft normalization.
-- Worker session routes are `/api/events/session/*`, `/api/enrollments/session/*`, and `/api/reviews/session/*`.
+The Durable Objects keep session state and call Gemini. Completed drafts are committed to backend REST APIs by the frontend, preserving the separation between temporary AI conversation state and durable business records.
+
+## Image Architecture
+
+`cloudflare/images-api` is a separate Worker that uses the `IMAGE_BUCKET` R2 binding.
+
+It supports:
+
+- `GET /api/images/config`
+- `GET /api/images/list/{path}`
+- `GET /api/images/{path}`
+- `POST /api/images/{path}`
+- `DELETE /api/images/{path}`
+- `/help` and `/help/raw` for OpenAPI documentation
+
+The Vite dev server proxies `/images/*` to the configured image origin. The deployed speed layer routes `/images/*` through the Worker pipeline and proxy handler.
 
 ## Deployment Architecture
 
-### Docker Compose (Development)
+### Local Development
 
-**Services:**
-- `sqlserver` - SQL Server 2022 on port 14333.
-- `alife-api` - API container where applicable.
+- SQL Server runs through `backend/docker-compose.yml` on port `14333`.
+- The API runs locally through `dotnet run --project backend/src/Alife.Api`.
+- The frontend runs through Vite on `http://localhost:5173`.
+- The speed layer can be tested through `npm run preview` from `cloudflare/alife-app`.
 
-### Container Images
+### Container Build
 
-- Build stage: `.NET SDK 10`.
-- Runtime stage: ASP.NET 10 Ubuntu chiseled runtime image for the API container.
+The backend `Dockerfile`:
 
-**Environment Variables:**
+- builds with `mcr.microsoft.com/dotnet/sdk:10.0`;
+- publishes both `Alife.Api` and `Alife.DbMigrator`;
+- runs on `mcr.microsoft.com/dotnet/aspnet:10.0-noble`;
+- installs ICU for SQL Server globalization support;
+- starts `dotnet Alife.Api.dll`.
 
-```text
-ASPNETCORE_ENVIRONMENT=Development
-ConnectionStrings__Default=...
-Jwt__Issuer=...
-Jwt__Audience=...
-Jwt__Key=...
-Frontend__BaseUrl=http://localhost:5173
-```
+It is a standard .NET publish/container flow, not Native AOT in the current project file.
 
-### Production Considerations
+### Cloudflare Deployment
 
-- Use environment-specific JWT keys.
-- Enable HTTPS.
-- Configure health checks for platform routing and monitoring.
-- Run migrations through a controlled migrator step.
-- Keep database backup and restore expectations documented.
-- Store LINE, YouTube, and deployment secrets outside source control.
+`cloudflare/speed-layer/wrangler.jsonc`:
 
-## Runtime Configuration Notes
+- serves built assets from `../alife-app/dist`;
+- runs Worker code first for `/api/*` and `/images/*`;
+- routes `ccalc.live`;
+- configures Durable Object bindings and migrations;
+- sets `API_PROXY_TARGET`;
+- requires `GEMINI_API_KEY`.
 
-- .NET SDK is pinned by `global.json`.
-- LINE login and JWT secrets should be supplied through environment variables or secure secret storage.
-- Frontend local development uses `frontend/alife-app/.env` and Vite dev server configuration.
+`cloudflare/images-api/wrangler.toml`:
+
+- routes `images.ccalc.live`;
+- binds R2 buckets for image objects and help docs.
 
 ## Data Flow Examples
 
-### User Registration Flow
+### User Opens The App
 
 ```text
-Guest opens app
-  -> Frontend calls GET /api/me
-  -> Guest enters onboarding
-  -> Frontend requests LINE login redirect or development login
-  -> User completes authentication and profile registration
-  -> Frontend posts registration data
-  -> Backend upgrades member and issues permanent JWT cookie
+Browser loads deployed domain
+  -> speed-layer returns React assets
+  -> app calls GET /api/me
+  -> speed-layer may serve member cache or proxy to API
+  -> API validates alife_auth cookie and resolves member
+  -> frontend builds navigation from memberships and active group/page state
 ```
 
-### Group Approval Flow
+### Leader Publishes A Group Page
 
 ```text
-Member requests to join group
-  -> Frontend posts to /api/groups/{groupId}/join-request
-  -> Backend creates or updates pending membership
-  -> Leader opens /groups/{groupId}/manage
-  -> Leader approves or rejects pending members
-  -> Backend updates membership status after authorization check
+Leader opens group management
+  -> frontend loads group pages through conditionalGet
+  -> leader edits page/sections
+  -> API validates leader/co-leader permission
+  -> page and section records are updated
+  -> backend and speed-layer caches are invalidated for affected page/group paths
+  -> frontend query/IndexedDB caches refresh on the next read
 ```
 
-### Group Management Flow
-
-```text
-Leader opens group page
-  -> Group shell shows page content and compact tools drawer
-  -> Leader opens Manage
-  -> Management page presents subgroups, members, pages, and events
-  -> Each action calls the existing group/page/event API client
-  -> Query caches are invalidated and status feedback is shown
-```
-
-### AI Enrollment Flow
+### Event Enrollment
 
 ```text
 Member opens event enrollment route
-  -> Frontend creates or restores an enrollment session through /api/enrollments/session/*
-  -> EnrollmentSession Durable Object calls Gemini and stores chat/draft state
-  -> User attaches payment proof images when required
-  -> Frontend commits completed draft to POST /api/events/{eventId}/enrollments
-  -> Backend stores the enrollment JSON and enforces member/group authorization
+  -> frontend restores or creates AI enrollment session
+  -> Durable Object keeps chat/draft state
+  -> user reviews and commits the draft
+  -> frontend posts JSON to /api/events/{eventId}/enrollments
+  -> backend enforces member/group access and stores the enrollment JSON
+```
+
+### Notification Reply
+
+```text
+Leader or workflow creates notification
+  -> recipient sees notification through protected /api/notifications
+  -> recipient posts reply JSON
+  -> backend records ResponseDataJson and RepliedUtc
+  -> response remains private and no-store/no-cache at API controller level
 ```
 
 ## Key Design Decisions
 
-### 1. JWT in HttpOnly Cookie
-**Rationale**: Secure browser default posture; JavaScript cannot read auth token.
-**Trade-off**: Non-browser clients need a separate auth strategy later.
+### 1. Minimal JWT In HttpOnly Cookie
 
-### 2. Fresh Permission Checks
-**Rationale**: Real-time authorization without JWT refresh.
-**Trade-off**: Protected actions require database-backed permission checks.
-**Mitigation**: Read paths use cache where appropriate.
+This reduces frontend token exposure and avoids stale role claims. The trade-off is that group authorization requires current backend data or edge authorization mirrors.
 
-### 3. Minimal JWT Claims
-**Rationale**: Reduce token leakage impact and stale role risk.
-**Trade-off**: UI and backend must request current role data from the API.
+### 2. Route-Level Management Workflows
 
-### 4. Management Workflows Are Route-Level
-**Rationale**: Leaders need task-focused screens, not overloaded sidebars.
-**Trade-off**: Some actions require one extra navigation step.
-**Mitigation**: The group tools drawer provides a single clear management entry point.
+Group reading and group management are separated. This keeps member browsing simpler and gives leaders a task-focused management route.
+
+### 3. Structured Page Content
+
+Pages are section-based and bilingual. This is more maintainable than storing raw HTML and supports future schema evolution.
+
+### 4. Separate AI Session State From Durable Data
+
+Durable Objects hold temporary conversation state. Backend APIs persist reviewed event/enrollment/review records.
+
+### 5. Multi-Layer Cache With Privacy Boundaries
+
+Public, group-shared, member-specific, and local browser caches are treated differently. Shared cache reads require explicit authorization context or public-safe routes.
 
 ## Testing Strategy
 
-### Unit Tests
-- Located in `backend/tests/Alife.Tests.Unit`.
-- Cover domain and application behavior without database dependencies.
+### Current Test Locations
 
-### Frontend Verification
-- `npm run build` runs TypeScript project checks and Vite production build.
-- Future component tests should use a React testing stack such as Testing Library.
-- Future end-to-end tests should cover onboarding, group joining, management, page editing, event creation, and enrollment.
+- Backend unit tests: `backend/tests/Alife.Tests.Unit`
+- Speed layer tests: `cloudflare/speed-layer/index.test.mjs`
+- Images API tests: `cloudflare/images-api/worker/index.test.mjs`
 
-### Integration Tests (Future)
-- API endpoints with a test database or isolated integration fixture.
-- Full auth and authorization flow validation.
+### Useful Verification Commands
+
+```powershell
+dotnet build backend/Alife.sln -c Debug
+dotnet test backend/tests/Alife.Tests.Unit/Alife.Tests.Unit.csproj -c Debug
+
+cd cloudflare/alife-app
+npm run build
+
+cd ../speed-layer
+npm test
+```
+
+### Future Gaps
+
+- Broader API integration tests with a test database.
+- Browser-level tests for onboarding, group management, page editing, and event enrollment/review.
+- Explicit cache header regression tests for protected group/member data.

@@ -8,7 +8,7 @@ This guide is written for:
 - website maintenance and content volunteers, to understand how to prepare, organize, and publish website content;
 - ministry leaders, group leaders, and administrators, to understand the intended use of the main features.
 
-Alife is not only an information website. It is a church operations platform that brings together member access, group management, page publishing, event workflows, sermon presentation, and routine ministry coordination in one system that works on both desktop and mobile devices.
+Alife is not only an information website. It is a church operations platform that brings together member access, group management, page publishing, event workflows, notifications, sermon presentation, and routine ministry coordination in one system that works on both desktop and mobile devices.
 
 ## 2. What The Platform Is For
 
@@ -17,7 +17,7 @@ Alife is designed to bring scattered church processes into one consistent platfo
 1. members and newcomers can access church information more easily;
 2. leaders can manage groups and approvals with less manual coordination;
 3. ministry content can be published in a structured and maintainable way;
-4. events, enrollments, and sermon-related information can be handled more clearly;
+4. events, enrollments, reviews, notifications, and sermon-related information can be handled more clearly;
 5. website maintenance volunteers can support the church without needing to manage raw code or many disconnected tools.
 
 ## 3. Main Functions
@@ -56,17 +56,26 @@ This allows the system to serve both as an internal ministry information space a
 
 - Groups can create and manage event information.
 - Members can submit event enrollments.
-- The system also supports conversation-based workflows for enrollment and review steps.
+- The system supports conversation-based AI assistance for event planning, enrollment, and review drafts.
+- Final enrollments and reviews are still submitted through normal backend APIs, which keeps human review and correction in the workflow.
 
 This gives the church room to support retreats, courses, workshops, service signups, and other ministry events with a more structured process.
 
-### 3.5 Sermons And Teaching Content
+### 3.5 Notifications And Replies
+
+- The platform includes notification messages for member-facing actions and follow-up.
+- Members can mark notifications as read.
+- Some workflows can collect structured replies instead of relying only on scattered chat messages.
+
+This is useful for approval, follow-up, and light administrative coordination where the church needs a clearer record of what happened.
+
+### 3.6 Sermons And Teaching Content
 
 - The platform can display a sermon list.
 - Administrators can synchronize sermon data.
 - This is useful for Sunday messages, teaching series, and discipleship resources.
 
-### 3.6 Mobile-Friendly Access
+### 3.7 Mobile-Friendly Access
 
 - The frontend is designed to work well on mobile devices.
 - Members can browse pages, read updates, and interact with church content from phones or desktops.

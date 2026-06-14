@@ -124,16 +124,16 @@ This is one of the most instructive parts of the project for ICT students and le
 
 ### The Cloudflare layer consists of two main parts
 
-#### 1. Frontend Worker
+#### 1. Speed Layer Worker
 
-The `wrangler.jsonc` in the frontend directory indicates that this Worker does considerably more than serve static files. It is responsible for:
+The `wrangler.jsonc` in `cloudflare/speed-layer` indicates that this Worker does considerably more than serve static files. It is responsible for:
 
 - hosting SPA static assets
 - providing the `/api/*` proxy entry point
 - exposing the `/images/*` edge route
 - dispatching AI session routes
 - binding Durable Objects
-- binding a KV namespace
+- storing response and authorization metadata records through the Cloudflare Cache API
 
 Thus, from the browser’s perspective, the system presents a single entry point, while internally routing requests to multiple services.
 
@@ -166,7 +166,7 @@ In this system, the Worker is not a minor deployment convenience. It is part of 
 
 #### 2. Durable Objects support AI session flows
 
-The frontend Worker binds several Durable Object classes to support workflows such as event planning, registration, and review.
+The speed layer Worker binds several Durable Object classes to support workflows such as event planning, registration, and review.
 
 This is significant because it moves the system beyond simple CRUD patterns into the design of stateful interaction flows.
 
@@ -176,9 +176,9 @@ This provides a basis for discussing:
 - why some session state belongs at the edge rather than in the client;
 - how transient session state and persistent backend data should be separated.
 
-#### 3. KV can support lightweight edge-state scenarios
+#### 3. Cache API records support lightweight edge-state scenarios
 
-The KV namespace binding suggests that not all edge decisions require immediate origin access. Cloudflare KV can support lightweight caching or auxiliary authorization-related lookups.
+The Worker uses the Cloudflare Cache API for stored responses and lightweight logical records. This supports ETags, shared group cache decisions, and authorization-related metadata without requiring immediate origin access on every request.
 
 #### 4. R2 helps decouple image delivery from the main API
 
@@ -195,7 +195,7 @@ A maintainer of this layer should ideally understand:
 - Cloudflare Worker fundamentals
 - Wrangler configuration and deployment
 - routing and reverse proxy concepts
-- the differences among KV, Durable Objects, and R2
+- the differences among the Cloudflare Cache API, Durable Objects, and R2
 - browser networking concepts such as CORS, cookies, origin, and domain
 
 ## 4. Slice C: The Frontend App as an application layer, not only a set of pages
@@ -381,7 +381,7 @@ dotnet run --project src/Alife.Api
 #### Frontend
 
 ```powershell
-cd frontend/alife-app
+cd cloudflare/alife-app
 npm install
 npm run dev
 ```
@@ -390,7 +390,7 @@ npm run dev
 
 ```powershell
 dotnet build backend/Alife.sln -c Debug
-cd frontend/alife-app
+cd cloudflare/alife-app
 npm run build
 ```
 
@@ -398,9 +398,9 @@ npm run build
 
 Based on the current repository state:
 
-- the backend build passes;
-- the frontend build passes;
-- some unit tests are currently blocked by older test files because controller constructors have changed.
+- the backend unit test project passes in the current verification run;
+- the frontend build passes, with the current Vite large-chunk warning;
+- the speed-layer Worker test suite also passes in the current verification run.
 
 This is, in fact, representative of real software projects: the system can be operational while test maintenance debt remains unresolved.
 
@@ -449,7 +449,7 @@ If Alife is used as a teaching case, the following are strong points of entry:
 2. How Azure Functions can host a relatively complete API platform.
 3. How a React application integrates with cookie-based authentication.
 4. How a Cloudflare Worker can combine static hosting, proxying, and edge logic.
-5. What kinds of problems are well suited to R2, KV, and Durable Objects respectively.
+5. What kinds of problems are well suited to R2, Durable Objects, and the Cloudflare Cache API respectively.
 6. Why real systems inevitably involve build, test, deployment, caching, and CORS concerns.
 
 ## 9. Recommended first-week tasks for a new maintainer
