@@ -130,6 +130,10 @@ const text = {
   churchDescriptionEnglish: { en: 'Church description (English)', zh: '教会描述（英文）' },
   churchDescriptionChinese: { en: 'Church description (Chinese)', zh: '教会描述（中文）' },
   saveChanges: { en: 'Save changes', zh: '保存更改' },
+  groupProfileUnsavedChangesPrompt: {
+    en: 'Please save your group name or description changes before leaving this page.',
+    zh: '请先保存小组名称或小组描述的修改，再离开此页面。',
+  },
   bilingualContentIncompleteBlock: {
     en: 'Some content is still incomplete, so changes cannot be saved.',
     zh: '现在内容还没有填全，不能保存更改。',
