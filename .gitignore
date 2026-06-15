@@ -44,6 +44,17 @@ appsettings.*.json
 !.env.example
 .dev.vars
 !.dev.vars.example
+*.tfvars
+*.tfvars.json
+**/.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
 
 # Misc generated files
 *.tmp
