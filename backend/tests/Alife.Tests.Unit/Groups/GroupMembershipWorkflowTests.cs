@@ -7,7 +7,6 @@ using Alife.Application.Groups.Commands.InviteGroupMemberById;
 using Alife.Application.Groups.Commands.JoinGroup;
 using Alife.Application.Groups.Commands.KickGroupMember;
 using Alife.Application.Groups.Commands.SetGroupCoLeader;
-using Alife.Application.Groups.Commands.SetSubgroupLeader;
 using Alife.Application.Groups.Queries.GetGroupInviteCandidates;
 using Alife.Application.Groups.Services;
 using Alife.Domain.Entities;
@@ -286,109 +285,6 @@ public class GroupMembershipWorkflowTests
             cloudflareKvCacheService);
 
         var result = await handler.Handle(new ClaimSubgroupCoLeaderCommand(parentId, childId, memberId), CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Empty(dbContext.GroupMemberships);
-        await cloudflareKvCacheService.DidNotReceiveWithAnyArgs().PutApprovedMembershipAsync(
-            default,
-            default,
-            default,
-            default,
-            default);
-        await invalidationService.DidNotReceiveWithAnyArgs().RemoveMembershipsAsync(default, default);
-    }
-
-    [Fact]
-    public async Task SetSubgroupLeader_ParentManagerAssignsApprovedParentMemberAsOnlyLeader()
-    {
-        using var dbContext = CreateInMemoryDbContext();
-        var parentId = Guid.NewGuid();
-        var childId = Guid.NewGuid();
-        var parentManagerId = Guid.NewGuid();
-        var oldLeaderId = Guid.NewGuid();
-        var newLeaderId = Guid.NewGuid();
-        var now = DateTime.UtcNow;
-        dbContext.Groups.AddRange(
-            CreateGroup(parentId, AccessType.Protected),
-            CreateGroup(childId, AccessType.Protected, parentId));
-        dbContext.GroupMemberships.AddRange(
-            CreateMembership(parentId, newLeaderId, MembershipStatus.Approved, now),
-            CreateMembership(childId, oldLeaderId, MembershipStatus.Approved, now, MembershipRole.Leader));
-        await dbContext.SaveChangesAsync();
-
-        var authorizationService = Substitute.For<IGroupAuthorizationService>();
-        authorizationService.IsLeaderOrCoLeaderAsync(parentId, parentManagerId, Arg.Any<CancellationToken>()).Returns(true);
-        var invalidationService = Substitute.For<IGroupCacheInvalidationService>();
-        var cloudflareKvCacheService = Substitute.For<ICloudflareKvCacheService>();
-        var handler = new SetSubgroupLeaderCommandHandler(
-            dbContext,
-            authorizationService,
-            invalidationService,
-            cloudflareKvCacheService);
-
-        var result = await handler.Handle(
-            new SetSubgroupLeaderCommand(parentId, childId, parentManagerId, newLeaderId),
-            CancellationToken.None);
-
-        Assert.True(result.IsSuccess);
-        var childMemberships = dbContext.GroupMemberships
-            .Where(x => x.GroupId == childId)
-            .ToDictionary(x => x.MemberId);
-        Assert.Equal(MembershipRole.Leader, childMemberships[newLeaderId].Role);
-        Assert.Equal(MembershipStatus.Approved, childMemberships[newLeaderId].Status);
-        Assert.Equal(MembershipRole.CoLeader, childMemberships[oldLeaderId].Role);
-        Assert.Equal(MembershipStatus.Approved, childMemberships[oldLeaderId].Status);
-        Assert.Single(childMemberships.Values, x => x.Role == MembershipRole.Leader);
-        await cloudflareKvCacheService.Received(1).PutApprovedMembershipAsync(
-            childId,
-            newLeaderId,
-            MembershipRole.Leader,
-            Arg.Any<DateTime>(),
-            Arg.Any<CancellationToken>());
-        await cloudflareKvCacheService.Received(1).PutApprovedMembershipAsync(
-            childId,
-            oldLeaderId,
-            MembershipRole.CoLeader,
-            Arg.Any<DateTime>(),
-            Arg.Any<CancellationToken>());
-        await cloudflareKvCacheService.Received(1).RemoveApiCacheKeyAsync(
-            $"member:{newLeaderId}:me",
-            Arg.Any<CancellationToken>());
-        await cloudflareKvCacheService.Received(1).RemoveApiCacheKeyAsync(
-            $"member:{oldLeaderId}:me",
-            Arg.Any<CancellationToken>());
-        await cloudflareKvCacheService.Received(1).RemoveMemberProfileAsync(newLeaderId, Arg.Any<CancellationToken>());
-        await cloudflareKvCacheService.Received(1).RemoveMemberProfileAsync(oldLeaderId, Arg.Any<CancellationToken>());
-        await invalidationService.Received(1).RemoveSubgroupsAsync(parentId, Arg.Any<CancellationToken>());
-        await invalidationService.Received(1).RemoveMembershipsAsync(childId, Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task SetSubgroupLeader_RequiresTargetApprovedParentMembership()
-    {
-        using var dbContext = CreateInMemoryDbContext();
-        var parentId = Guid.NewGuid();
-        var childId = Guid.NewGuid();
-        var parentManagerId = Guid.NewGuid();
-        var newLeaderId = Guid.NewGuid();
-        dbContext.Groups.AddRange(
-            CreateGroup(parentId, AccessType.Protected),
-            CreateGroup(childId, AccessType.Protected, parentId));
-        await dbContext.SaveChangesAsync();
-
-        var authorizationService = Substitute.For<IGroupAuthorizationService>();
-        authorizationService.IsLeaderOrCoLeaderAsync(parentId, parentManagerId, Arg.Any<CancellationToken>()).Returns(true);
-        var invalidationService = Substitute.For<IGroupCacheInvalidationService>();
-        var cloudflareKvCacheService = Substitute.For<ICloudflareKvCacheService>();
-        var handler = new SetSubgroupLeaderCommandHandler(
-            dbContext,
-            authorizationService,
-            invalidationService,
-            cloudflareKvCacheService);
-
-        var result = await handler.Handle(
-            new SetSubgroupLeaderCommand(parentId, childId, parentManagerId, newLeaderId),
-            CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Empty(dbContext.GroupMemberships);

@@ -82,10 +82,6 @@ export const groupService = {
     await http.post(`/api/groups/${groupId}/subgroups/${subgroupId}/claim-coleader`)
   },
 
-  async setSubgroupLeader(groupId: string, subgroupId: string, memberId: string) {
-    await http.post(`/api/groups/${groupId}/subgroups/${subgroupId}/set-leader`, { memberId })
-  },
-
   async updateGroup(groupId: string, payload: UpdateGroupPayload) {
     const { data } = await http.put<GroupDto>(`/api/groups/${groupId}`, payload)
     return normalizeGroup(data)

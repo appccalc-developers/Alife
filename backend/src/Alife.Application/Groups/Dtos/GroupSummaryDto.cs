@@ -9,6 +9,4 @@ public sealed record GroupSummaryDto(
     Guid? ParentGroupId,
     AccessType AccessType,
     bool IsChurch,
-    bool IsClosed,
-    Guid? LeaderMemberId = null,
-    string? LeaderDisplayName = null);
+    bool IsClosed);

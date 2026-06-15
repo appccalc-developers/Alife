@@ -4,10 +4,8 @@ import { useUiText } from '../../i18n/uiText'
 
 const AccessTypeBadge = ({ accessType }: { accessType: AccessType }) => {
   const t = useUiText()
-  if (accessType === 'protected') return null
-
-  const variant = accessType === 'public' ? 'success' : 'neutral'
-  const label = accessType === 'public' ? t('public') : t('private')
+  const variant = accessType === 'public' ? 'success' : accessType === 'protected' ? 'warning' : 'neutral'
+  const label = accessType === 'public' ? t('public') : accessType === 'protected' ? t('protected') : t('private')
   return <AppBadge variant={variant}>{label}</AppBadge>
 }
 
