@@ -13,6 +13,7 @@ using Alife.Application.Groups.Commands.JoinGroup;
 using Alife.Application.Groups.Commands.KickGroupMember;
 using Alife.Application.Groups.Commands.RejectGroupMember;
 using Alife.Application.Groups.Commands.SetGroupCoLeader;
+using Alife.Application.Groups.Commands.TransferGroupLeadership;
 using Alife.Application.Groups.Commands.UpdateGroup;
 using Alife.Application.Groups.Queries.GetChurch;
 using Alife.Application.Groups.Queries.GetGroupById;
@@ -302,6 +303,22 @@ public class GroupsController(
 
         var result = await mediator.Send(
             new SetGroupCoLeaderCommand(id, currentMemberId.Value, request.MemberId, request.IsCoLeader),
+            cancellationToken);
+
+        return this.ToActionResult(result);
+    }
+
+    [HttpPost("{id:guid}/transfer-leadership")]
+    public async Task<IActionResult> TransferLeadership(Guid id, [FromBody] MemberTargetRequest request, CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null)
+        {
+            return Unauthorized();
+        }
+
+        var result = await mediator.Send(
+            new TransferGroupLeadershipCommand(id, currentMemberId.Value, request.MemberId),
             cancellationToken);
 
         return this.ToActionResult(result);
