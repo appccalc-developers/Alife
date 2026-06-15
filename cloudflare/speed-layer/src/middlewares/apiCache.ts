@@ -405,7 +405,7 @@ export async function getInvalidationPaths(env: Env, request: Request, response:
     paths.add(`/api/groups/${claimSubgroupCoLeaderMatch[2]}`)
   }
 
-  const groupActionMatch = path.match(/^\/api\/groups\/([^/]+)\/(join-request|invite|invite\/accept|approve|reject|set-coleader|kick)$/)
+  const groupActionMatch = path.match(/^\/api\/groups\/([^/]+)\/(join-request|invite|invite\/accept|approve|reject|set-coleader|transfer-leadership|kick)$/)
   if (groupActionMatch) {
     paths.add(`/api/groups/${groupActionMatch[1]}/memberships`)
     paths.add(`/api/groups/${groupActionMatch[1]}/members`)
@@ -510,13 +510,25 @@ export function getInvalidationKeys(request: Request, targetMemberId = '') {
 
   const currentMemberId = extractMemberIdFromRequest(request)
 
-  const groupActionMatch = path.match(/^\/api\/groups\/([^/]+)\/(join-request|invite\/accept|approve|reject|set-coleader|kick)$/)
+  const groupActionMatch = path.match(/^\/api\/groups\/([^/]+)\/(join-request|invite\/accept|approve|reject|set-coleader|transfer-leadership|kick)$/)
   if (groupActionMatch) {
-    const affectedMemberId = targetMemberId || currentMemberId
-    if (affectedMemberId) {
-      keys.api.add(createMemberProfileApiCacheKey(affectedMemberId))
-      keys.authz.add(createMemberProfileAuthzKey(affectedMemberId))
-      keys.authz.add(createMembershipKey(groupActionMatch[1], affectedMemberId))
+    const affectedMemberIds = new Set<string>()
+    if (targetMemberId) {
+      affectedMemberIds.add(targetMemberId)
+    }
+    if (currentMemberId && groupActionMatch[2] === 'transfer-leadership') {
+      affectedMemberIds.add(currentMemberId)
+    }
+    if (!targetMemberId && currentMemberId) {
+      affectedMemberIds.add(currentMemberId)
+    }
+
+    for (const affectedMemberId of affectedMemberIds) {
+      if (affectedMemberId) {
+        keys.api.add(createMemberProfileApiCacheKey(affectedMemberId))
+        keys.authz.add(createMemberProfileAuthzKey(affectedMemberId))
+        keys.authz.add(createMembershipKey(groupActionMatch[1], affectedMemberId))
+      }
     }
   }
 

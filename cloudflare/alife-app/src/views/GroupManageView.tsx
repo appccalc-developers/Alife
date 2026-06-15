@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { UserMinus } from 'lucide-react'
+import { ArrowRightLeft, Crown, UserMinus } from 'lucide-react'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
 import AppEmptyState from '../components/layout/AppEmptyState'
@@ -38,6 +38,81 @@ type MembersPanelProps = {
 }
 
 const iconButtonClass = 'h-8 w-8 p-0'
+
+type LeadershipPanelProps = {
+  memberships: GroupMemberToolRow[]
+  currentMemberId?: string
+  onTransferLeadership: (memberId: string) => void
+}
+
+const LeadershipPanel = ({ memberships, currentMemberId, onTransferLeadership }: LeadershipPanelProps) => {
+  const t = useUiText()
+  const approvedMembers = memberships.filter((member) => member.status === 'approved')
+  const leader = approvedMembers.find((member) => member.role === 'leader')
+  const coLeaderCandidates = approvedMembers.filter(
+    (member) => member.role === 'coLeader' && member.memberId !== currentMemberId,
+  )
+  const canTransferLeadership = Boolean(leader && currentMemberId && leader.memberId === currentMemberId)
+  const getDisplayName = (member: GroupMemberToolRow) => member.displayName || t('memberShort', { id: shortId(member.memberId) })
+
+  return (
+    <AppSectionCard
+      dense
+      title={t('groupLeader')}
+      subtitle={t('leadershipPanelSubtitle')}
+    >
+      {leader ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+              <Crown size={18} aria-hidden="true" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-xs font-medium uppercase text-slate-500">{t('currentLeader')}</p>
+              <p className="truncate font-medium text-slate-950">{getDisplayName(leader)}</p>
+            </div>
+          </div>
+          <AppBadge variant="info">{t('groupLeader')}</AppBadge>
+        </div>
+      ) : (
+        <p className="text-sm text-slate-500">{t('noGroupLeader')}</p>
+      )}
+
+      {canTransferLeadership ? (
+        <div className="mt-4 space-y-2">
+          {coLeaderCandidates.length > 0 ? (
+            coLeaderCandidates.map((member) => {
+              const displayName = getDisplayName(member)
+              return (
+                <div key={member.memberId} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 p-3">
+                  <div>
+                    <p className="font-medium text-slate-950">{displayName}</p>
+                    <AppBadge variant="info">{t('coLeaderRole')}</AppBadge>
+                  </div>
+                  <AppActionButton
+                    size="sm"
+                    variant="primary"
+                    onClick={() => {
+                      if (!window.confirm(t('transferLeadershipConfirm', { name: displayName }))) return
+                      onTransferLeadership(member.memberId)
+                    }}
+                  >
+                    <ArrowRightLeft size={14} aria-hidden="true" className="mr-1.5" />
+                    {t('transferLeadershipTo', { name: displayName })}
+                  </AppActionButton>
+                </div>
+              )
+            })
+          ) : (
+            <p className="text-sm text-slate-500">{t('transferLeadershipNoCandidates')}</p>
+          )}
+        </div>
+      ) : (
+        <p className="mt-3 text-sm text-slate-500">{t('transferLeadershipHelp')}</p>
+      )}
+    </AppSectionCard>
+  )
+}
 
 const MembersPanel = ({ memberships, onInviteMember, onApproveMember, onRejectMember, onKickMember, onSetCoLeader }: MembersPanelProps) => {
   const t = useUiText()
@@ -338,76 +413,6 @@ const ChurchOperationsPanel = ({ groupId, onStatusMessage }: ChurchOperationsPan
   )
 }
 
-type DangerZonePanelProps = {
-  groupName: { en?: string; cn?: string }
-  closing: boolean
-  onCloseGroup: () => Promise<void>
-}
-
-const normalizeConfirmationValue = (value: string | undefined) => (value ?? '').trim()
-
-const DangerZonePanel = ({ groupName, closing, onCloseGroup }: DangerZonePanelProps) => {
-  const t = useUiText()
-  const [englishName, setEnglishName] = useState('')
-  const [chineseName, setChineseName] = useState('')
-
-  const expectedEnglishName = normalizeConfirmationValue(groupName.en)
-  const expectedChineseName = normalizeConfirmationValue(groupName.cn)
-  const canDelete =
-    !closing &&
-    normalizeConfirmationValue(englishName) === expectedEnglishName &&
-    normalizeConfirmationValue(chineseName) === expectedChineseName
-
-  const handleDelete = async () => {
-    if (!canDelete) return
-    if (!window.confirm(t('deleteGroupFinalConfirm'))) return
-    await onCloseGroup()
-  }
-
-  return (
-    <AppSectionCard dense title={t('dangerZone')} subtitle={t('deleteGroupDangerSubtitle')}>
-      <div className="grid gap-4 rounded-xl border border-rose-200 bg-rose-50 p-4">
-        <div>
-          <p className="text-sm font-medium text-rose-950">{t('deleteGroup')}</p>
-          <p className="mt-1 text-sm leading-6 text-rose-800">{t('deleteGroupDangerDescription')}</p>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label>
-            <span className="text-xs font-medium uppercase tracking-wide text-rose-700">{t('confirmGroupNameEnglish')}</span>
-            <input
-              value={englishName}
-              onChange={(event) => setEnglishName(event.target.value)}
-              placeholder={expectedEnglishName}
-              autoComplete="off"
-              className="mt-1 w-full rounded-lg border border-rose-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-100"
-            />
-          </label>
-
-          <label>
-            <span className="text-xs font-medium uppercase tracking-wide text-rose-700">{t('confirmGroupNameChinese')}</span>
-            <input
-              value={chineseName}
-              onChange={(event) => setChineseName(event.target.value)}
-              placeholder={expectedChineseName}
-              autoComplete="off"
-              className="mt-1 w-full rounded-lg border border-rose-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-100"
-            />
-          </label>
-        </div>
-
-        <div className="flex justify-end">
-          <AppActionButton variant="danger" disabled={!canDelete} onClick={() => {
-            handleDelete().catch(() => undefined)
-          }}>
-            {closing ? t('deletingGroup') : t('deleteGroup')}
-          </AppActionButton>
-        </div>
-      </div>
-    </AppSectionCard>
-  )
-}
-
 const GroupManageView = () => {
   const t = useUiText()
   const { groupId: routeGroupId } = useParams<{ groupId: string }>()
@@ -431,17 +436,16 @@ const GroupManageView = () => {
     error,
     statusMessage,
     setStatusMessage,
-    membershipStatus,
     canManageGroup,
     updateGroup,
     addSubgroup: createSubgroup,
-    closeGroup,
     deletePage,
     togglePageVisibility,
     approveMember,
     rejectMember,
     kickMember,
     setCoLeader,
+    transferLeadership,
     deleteEvent,
   } = useGroupScreen(groupId, { loadEvents: true })
 
@@ -594,7 +598,6 @@ const GroupManageView = () => {
         {group ? (
           <div className="flex flex-wrap gap-2">
             <AccessTypeBadge accessType={group.accessType} />
-            <MembershipStatusBadge status={membershipStatus} />
           </div>
         ) : null}
       </div>
@@ -620,38 +623,38 @@ const GroupManageView = () => {
           ) : null}
 
           {activeSection === 'group' ? (
-            <GroupOverviewPanel
-              group={group}
-              saving={savingGroup}
-              onStatusMessage={setStatusMessage}
-              onDirtyChange={setHasUnsavedGroupProfileChanges}
-              onSave={async (payload) => {
-                setSavingGroup(true)
-                try {
-                  const updated = await updateGroup(payload)
-                  if (updated) {
-                    setCurrentGroup(updated)
-                    setStatusMessage(t(group.isChurch ? 'churchUpdated' : 'groupUpdated'))
+            <>
+              <LeadershipPanel
+                memberships={memberships}
+                currentMemberId={auth.me?.id}
+                onTransferLeadership={(memberId) => {
+                  transferLeadership(memberId).catch(() => setStatusMessage(t('leadershipTransferFailed')))
+                }}
+              />
+              <GroupOverviewPanel
+                group={group}
+                saving={savingGroup}
+                onStatusMessage={setStatusMessage}
+                onSave={async (payload) => {
+                  setSavingGroup(true)
+                  try {
+                    const updated = await updateGroup(payload)
+                    if (updated) {
+                      setCurrentGroup(updated)
+                      setStatusMessage(t(group.isChurch ? 'churchUpdated' : 'groupUpdated'))
+                    }
+                  } catch {
+                    setStatusMessage(t(group.isChurch ? 'updateChurchFailed' : 'updateGroupFailed'))
+                  } finally {
+                    setSavingGroup(false)
                   }
-                } catch {
-                  setStatusMessage(t(group.isChurch ? 'updateChurchFailed' : 'updateGroupFailed'))
-                } finally {
-                  setSavingGroup(false)
-                }
-              }}
-            />
+                }}
+              />
+            </>
           ) : null}
 
           {activeSection === 'group' && group.isChurch ? (
             <ChurchOperationsPanel groupId={groupId} onStatusMessage={setStatusMessage} />
-          ) : null}
-
-          {activeSection === 'group' && !group.isChurch ? (
-            <DangerZonePanel
-              groupName={toLocalizedText(group.name)}
-              closing={closingGroup}
-              onCloseGroup={handleCloseGroup}
-            />
           ) : null}
 
           {activeSection === 'subgroups' ? (
