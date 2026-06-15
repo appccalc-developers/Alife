@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import AccessTypeBadge from '../components/group/AccessTypeBadge'
 import AppActionButton from '../components/layout/AppActionButton'
-import AppBadge from '../components/layout/AppBadge'
 import AppEmptyState from '../components/layout/AppEmptyState'
 import AppPageShell from '../components/layout/AppPageShell'
 import AppSectionCard from '../components/layout/AppSectionCard'
@@ -34,9 +33,6 @@ const GroupJoinView = () => {
     [auth.memberships, groupId],
   )
   const isApproved = membership?.status === 'approved'
-  const isRequested = membership?.status === 'requested'
-  const isInvited = membership?.status === 'invited'
-  const isRejected = membership?.status === 'rejected'
   const canSubmit = Boolean(
     group &&
     !isApproved &&
@@ -122,18 +118,6 @@ const GroupJoinView = () => {
     )
   }
 
-  const statusBadge = isApproved ? (
-    <AppBadge variant="success">{t('approved')}</AppBadge>
-  ) : isRequested ? (
-    <AppBadge variant="warning">{t('requested')}</AppBadge>
-  ) : isInvited ? (
-    <AppBadge variant="info">{t('invited')}</AppBadge>
-  ) : isRejected ? (
-    <AppBadge variant="danger">{t('rejected')}</AppBadge>
-  ) : (
-    <AppBadge>{t('notJoined')}</AppBadge>
-  )
-
   const description =
     group.accessType === 'public'
       ? t('publicJoinDescription')
@@ -153,7 +137,6 @@ const GroupJoinView = () => {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <AccessTypeBadge accessType={group.accessType} />
-              {statusBadge}
             </div>
           </div>
 
