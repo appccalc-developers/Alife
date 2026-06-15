@@ -423,7 +423,6 @@ const GroupManageView = () => {
   const { language } = auth
   const { setCurrentGroup } = useCurrentGroupStore()
   const [savingGroup, setSavingGroup] = useState(false)
-  const [closingGroup, setClosingGroup] = useState(false)
   const [hasUnsavedGroupProfileChanges, setHasUnsavedGroupProfileChanges] = useState(false)
   const browserBackGuardRegistered = useRef(false)
   const {
@@ -548,25 +547,6 @@ const GroupManageView = () => {
     }
   }
 
-  const handleCloseGroup = async () => {
-    if (!group) return
-    if (!guardGroupProfileNavigation()) return
-
-    setClosingGroup(true)
-    try {
-      await closeGroup()
-      await auth.fetchMe()
-      if (group.parentGroupId) {
-        activeEntityService.setGroup(group.parentGroupId)
-      }
-      navigate(group.parentGroupId ? '/groups/manage?section=subgroups' : '/groups', { replace: true })
-    } catch {
-      setStatusMessage(t('deleteGroupFailed'))
-    } finally {
-      setClosingGroup(false)
-    }
-  }
-
   if (!groupId) {
     return <Navigate to="/" replace />
   }
@@ -635,6 +615,7 @@ const GroupManageView = () => {
                 group={group}
                 saving={savingGroup}
                 onStatusMessage={setStatusMessage}
+                onDirtyChange={setHasUnsavedGroupProfileChanges}
                 onSave={async (payload) => {
                   setSavingGroup(true)
                   try {
