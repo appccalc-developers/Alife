@@ -141,6 +141,10 @@ export const groupService = {
     await http.post(`/api/groups/${groupId}/set-coleader`, payload)
   },
 
+  async transferLeadership(groupId: string, payload: MemberTargetPayload) {
+    await http.post(`/api/groups/${groupId}/transfer-leadership`, payload)
+  },
+
   async kickMember(groupId: string, payload: MemberTargetPayload) {
     await http.post(`/api/groups/${groupId}/kick`, payload)
   },

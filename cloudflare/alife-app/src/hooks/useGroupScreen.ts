@@ -252,6 +252,17 @@ export const useGroupScreen = (groupId: string, options: GroupScreenOptions = {}
     [groupId, queryClient, t],
   )
 
+  const transferLeadership = useCallback(
+    async (memberId: string) => {
+      if (!groupId) return
+      await groupService.transferLeadership(groupId, { memberId })
+      await queryClient.invalidateQueries({ queryKey: ['groupMemberships', groupId] })
+      await auth.fetchMe()
+      setStatusMessage(t('leadershipTransferSuccess'))
+    },
+    [auth, groupId, queryClient, t],
+  )
+
   const editSubgroup = useCallback(async (subgroupId: string) => {
     await groupService.updateSubgroup(subgroupId, { name: { en: 'TODO', zh: 'TODO' }, accessType: 'protected' })
   }, [])
@@ -345,6 +356,7 @@ export const useGroupScreen = (groupId: string, options: GroupScreenOptions = {}
     rejectMember,
     kickMember,
     setCoLeader,
+    transferLeadership,
     editSubgroup,
     deleteSubgroup,
     closeGroup,

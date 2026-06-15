@@ -28,6 +28,7 @@ export const groupService = {
   reject: groups.rejectMember,
   rejectMember: groups.rejectMember,
   setCoLeader: groups.setCoLeader,
+  transferLeadership: groups.transferLeadership,
   kick: groups.kickMember,
   kickMember: groups.kickMember,
   createGroupPage: pageService.createGroupPage,
