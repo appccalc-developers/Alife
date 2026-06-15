@@ -1,0 +1,35 @@
+storage_account_name = "stccalcalifeprod"
+sql_server_name      = "sql-ccalc-alife-prod"
+sql_admin_login      = "alifeadmin"
+sql_admin_password   = "replace-with-a-strong-password"
+
+cloudflare_account_id = "replace-with-cloudflare-account-id"
+cloudflare_api_token  = "replace-with-cloudflare-api-token"
+cloudflare_zone_id    = "replace-with-ccalc-live-zone-id"
+
+# Existing workflow targets:
+resource_group_name = "ccalc"
+function_app_name   = "fapi-ccalc"
+frontend_base_url   = "https://ccalc.live"
+api_hostname        = "api.ccalc.live"
+
+# Keep false while Wrangler owns custom_domain entries in:
+# - cloudflare/speed-layer/wrangler.jsonc
+# - cloudflare/images-api/wrangler.toml
+manage_cloudflare_worker_custom_domains = false
+
+# Keep false if api.ccalc.live is already managed manually or bound in Azure.
+manage_api_dns_record = false
+
+# Optional long-lived admin IP allowlist. GitHub runner IP is still handled in the deploy workflow.
+sql_firewall_rules = {
+  # home = {
+  #   start_ip_address = "203.0.113.10"
+  #   end_ip_address   = "203.0.113.10"
+  # }
+}
+
+# Optional GitHub OIDC identity for .github/workflows/main_ccalc-api.yml.
+create_github_oidc_identity = false
+github_repository           = "replace-owner/Alife"
+github_branch               = "main"
