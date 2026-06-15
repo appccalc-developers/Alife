@@ -337,76 +337,6 @@ const ChurchOperationsPanel = ({ groupId, onStatusMessage }: ChurchOperationsPan
   )
 }
 
-type DangerZonePanelProps = {
-  groupName: { en?: string; cn?: string }
-  closing: boolean
-  onCloseGroup: () => Promise<void>
-}
-
-const normalizeConfirmationValue = (value: string | undefined) => (value ?? '').trim()
-
-const DangerZonePanel = ({ groupName, closing, onCloseGroup }: DangerZonePanelProps) => {
-  const t = useUiText()
-  const [englishName, setEnglishName] = useState('')
-  const [chineseName, setChineseName] = useState('')
-
-  const expectedEnglishName = normalizeConfirmationValue(groupName.en)
-  const expectedChineseName = normalizeConfirmationValue(groupName.cn)
-  const canDelete =
-    !closing &&
-    normalizeConfirmationValue(englishName) === expectedEnglishName &&
-    normalizeConfirmationValue(chineseName) === expectedChineseName
-
-  const handleDelete = async () => {
-    if (!canDelete) return
-    if (!window.confirm(t('deleteGroupFinalConfirm'))) return
-    await onCloseGroup()
-  }
-
-  return (
-    <AppSectionCard dense title={t('dangerZone')} subtitle={t('deleteGroupDangerSubtitle')}>
-      <div className="grid gap-4 rounded-xl border border-rose-200 bg-rose-50 p-4">
-        <div>
-          <p className="text-sm font-medium text-rose-950">{t('deleteGroup')}</p>
-          <p className="mt-1 text-sm leading-6 text-rose-800">{t('deleteGroupDangerDescription')}</p>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label>
-            <span className="text-xs font-medium uppercase tracking-wide text-rose-700">{t('confirmGroupNameEnglish')}</span>
-            <input
-              value={englishName}
-              onChange={(event) => setEnglishName(event.target.value)}
-              placeholder={expectedEnglishName}
-              autoComplete="off"
-              className="mt-1 w-full rounded-lg border border-rose-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-100"
-            />
-          </label>
-
-          <label>
-            <span className="text-xs font-medium uppercase tracking-wide text-rose-700">{t('confirmGroupNameChinese')}</span>
-            <input
-              value={chineseName}
-              onChange={(event) => setChineseName(event.target.value)}
-              placeholder={expectedChineseName}
-              autoComplete="off"
-              className="mt-1 w-full rounded-lg border border-rose-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-100"
-            />
-          </label>
-        </div>
-
-        <div className="flex justify-end">
-          <AppActionButton variant="danger" disabled={!canDelete} onClick={() => {
-            handleDelete().catch(() => undefined)
-          }}>
-            {closing ? t('deletingGroup') : t('deleteGroup')}
-          </AppActionButton>
-        </div>
-      </div>
-    </AppSectionCard>
-  )
-}
-
 const GroupManageView = () => {
   const t = useUiText()
   const { groupId: routeGroupId } = useParams<{ groupId: string }>()
@@ -417,7 +347,6 @@ const GroupManageView = () => {
   const { language } = auth
   const { setCurrentGroup } = useCurrentGroupStore()
   const [savingGroup, setSavingGroup] = useState(false)
-  const [closingGroup, setClosingGroup] = useState(false)
   const {
     group,
     subgroups,
@@ -428,11 +357,9 @@ const GroupManageView = () => {
     error,
     statusMessage,
     setStatusMessage,
-    membershipStatus,
     canManageGroup,
     updateGroup,
     addSubgroup: createSubgroup,
-    closeGroup,
     deletePage,
     togglePageVisibility,
     approveMember,
@@ -491,23 +418,6 @@ const GroupManageView = () => {
     }
   }
 
-  const handleCloseGroup = async () => {
-    if (!group) return
-    setClosingGroup(true)
-    try {
-      await closeGroup()
-      await auth.fetchMe()
-      if (group.parentGroupId) {
-        activeEntityService.setGroup(group.parentGroupId)
-      }
-      navigate(group.parentGroupId ? '/groups/manage?section=subgroups' : '/groups', { replace: true })
-    } catch {
-      setStatusMessage(t('deleteGroupFailed'))
-    } finally {
-      setClosingGroup(false)
-    }
-  }
-
   if (!groupId) {
     return <Navigate to="/" replace />
   }
@@ -529,7 +439,6 @@ const GroupManageView = () => {
         {group ? (
           <div className="flex flex-wrap gap-2">
             <AccessTypeBadge accessType={group.accessType} />
-            <MembershipStatusBadge status={membershipStatus} />
           </div>
         ) : null}
       </div>
@@ -578,14 +487,6 @@ const GroupManageView = () => {
 
           {activeSection === 'group' && group.isChurch ? (
             <ChurchOperationsPanel groupId={groupId} onStatusMessage={setStatusMessage} />
-          ) : null}
-
-          {activeSection === 'group' && !group.isChurch ? (
-            <DangerZonePanel
-              groupName={toLocalizedText(group.name)}
-              closing={closingGroup}
-              onCloseGroup={handleCloseGroup}
-            />
           ) : null}
 
           {activeSection === 'subgroups' ? (
