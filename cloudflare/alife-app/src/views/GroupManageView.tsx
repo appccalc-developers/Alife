@@ -337,6 +337,76 @@ const ChurchOperationsPanel = ({ groupId, onStatusMessage }: ChurchOperationsPan
   )
 }
 
+type DangerZonePanelProps = {
+  groupName: { en?: string; cn?: string }
+  closing: boolean
+  onCloseGroup: () => Promise<void>
+}
+
+const normalizeConfirmationValue = (value: string | undefined) => (value ?? '').trim()
+
+const DangerZonePanel = ({ groupName, closing, onCloseGroup }: DangerZonePanelProps) => {
+  const t = useUiText()
+  const [englishName, setEnglishName] = useState('')
+  const [chineseName, setChineseName] = useState('')
+
+  const expectedEnglishName = normalizeConfirmationValue(groupName.en)
+  const expectedChineseName = normalizeConfirmationValue(groupName.cn)
+  const canDelete =
+    !closing &&
+    normalizeConfirmationValue(englishName) === expectedEnglishName &&
+    normalizeConfirmationValue(chineseName) === expectedChineseName
+
+  const handleDelete = async () => {
+    if (!canDelete) return
+    if (!window.confirm(t('deleteGroupFinalConfirm'))) return
+    await onCloseGroup()
+  }
+
+  return (
+    <AppSectionCard dense title={t('dangerZone')} subtitle={t('deleteGroupDangerSubtitle')}>
+      <div className="grid gap-4 rounded-xl border border-rose-200 bg-rose-50 p-4">
+        <div>
+          <p className="text-sm font-medium text-rose-950">{t('deleteGroup')}</p>
+          <p className="mt-1 text-sm leading-6 text-rose-800">{t('deleteGroupDangerDescription')}</p>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label>
+            <span className="text-xs font-medium uppercase tracking-wide text-rose-700">{t('confirmGroupNameEnglish')}</span>
+            <input
+              value={englishName}
+              onChange={(event) => setEnglishName(event.target.value)}
+              placeholder={expectedEnglishName}
+              autoComplete="off"
+              className="mt-1 w-full rounded-lg border border-rose-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-100"
+            />
+          </label>
+
+          <label>
+            <span className="text-xs font-medium uppercase tracking-wide text-rose-700">{t('confirmGroupNameChinese')}</span>
+            <input
+              value={chineseName}
+              onChange={(event) => setChineseName(event.target.value)}
+              placeholder={expectedChineseName}
+              autoComplete="off"
+              className="mt-1 w-full rounded-lg border border-rose-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-100"
+            />
+          </label>
+        </div>
+
+        <div className="flex justify-end">
+          <AppActionButton variant="danger" disabled={!canDelete} onClick={() => {
+            handleDelete().catch(() => undefined)
+          }}>
+            {closing ? t('deletingGroup') : t('deleteGroup')}
+          </AppActionButton>
+        </div>
+      </div>
+    </AppSectionCard>
+  )
+}
+
 const GroupManageView = () => {
   const t = useUiText()
   const { groupId: routeGroupId } = useParams<{ groupId: string }>()
@@ -347,7 +417,7 @@ const GroupManageView = () => {
   const { language } = auth
   const { setCurrentGroup } = useCurrentGroupStore()
   const [savingGroup, setSavingGroup] = useState(false)
-  const [settingLeaderForSubgroupId, setSettingLeaderForSubgroupId] = useState<string | null>(null)
+  const [closingGroup, setClosingGroup] = useState(false)
   const {
     group,
     subgroups,
@@ -358,10 +428,11 @@ const GroupManageView = () => {
     error,
     statusMessage,
     setStatusMessage,
+    membershipStatus,
     canManageGroup,
     updateGroup,
     addSubgroup: createSubgroup,
-    refreshSubgroups,
+    closeGroup,
     deletePage,
     togglePageVisibility,
     approveMember,
@@ -372,7 +443,6 @@ const GroupManageView = () => {
   } = useGroupScreen(groupId, { loadEvents: true })
 
   const activeSection = searchParams.get('section') ?? 'group'
-  const approvedParentMembers = memberships.filter((member) => member.status === 'approved')
   const canManageSubgroup = (subgroupId: string) =>
     auth.memberships.some(
       (membership) =>
@@ -421,18 +491,20 @@ const GroupManageView = () => {
     }
   }
 
-  const handleSetSubgroupLeader = async (subgroupId: string, memberId: string) => {
-    if (!memberId) return
-    setSettingLeaderForSubgroupId(subgroupId)
+  const handleCloseGroup = async () => {
+    if (!group) return
+    setClosingGroup(true)
     try {
-      await groupService.setSubgroupLeader(groupId, subgroupId, memberId)
-      await refreshSubgroups()
+      await closeGroup()
       await auth.fetchMe()
-      setStatusMessage(t('subgroupLeaderUpdated'))
+      if (group.parentGroupId) {
+        activeEntityService.setGroup(group.parentGroupId)
+      }
+      navigate(group.parentGroupId ? '/groups/manage?section=subgroups' : '/groups', { replace: true })
     } catch {
-      setStatusMessage(t('updateSubgroupLeaderFailed'))
+      setStatusMessage(t('deleteGroupFailed'))
     } finally {
-      setSettingLeaderForSubgroupId(null)
+      setClosingGroup(false)
     }
   }
 
@@ -457,6 +529,7 @@ const GroupManageView = () => {
         {group ? (
           <div className="flex flex-wrap gap-2">
             <AccessTypeBadge accessType={group.accessType} />
+            <MembershipStatusBadge status={membershipStatus} />
           </div>
         ) : null}
       </div>
@@ -507,6 +580,14 @@ const GroupManageView = () => {
             <ChurchOperationsPanel groupId={groupId} onStatusMessage={setStatusMessage} />
           ) : null}
 
+          {activeSection === 'group' && !group.isChurch ? (
+            <DangerZonePanel
+              groupName={toLocalizedText(group.name)}
+              closing={closingGroup}
+              onCloseGroup={handleCloseGroup}
+            />
+          ) : null}
+
           {activeSection === 'subgroups' ? (
             <AppSectionCard
               dense
@@ -526,34 +607,9 @@ const GroupManageView = () => {
                 <div className="space-y-2">
                   {subgroups.map((subgroup) => (
                     <div key={subgroup.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 p-3">
-                      <div className="min-w-0 flex-1">
+                      <div>
                         <p className="font-medium text-slate-950">{localizeText(subgroup.name, language)}</p>
                         <AccessTypeBadge accessType={subgroup.accessType} />
-                        <div className="mt-3 max-w-sm">
-                          <label>
-                            <span className="text-xs font-medium uppercase tracking-wide text-slate-500">{t('subgroupLeaderSetting')}</span>
-                            <select
-                              value={subgroup.leaderMemberId ?? ''}
-                              disabled={approvedParentMembers.length === 0 || settingLeaderForSubgroupId === subgroup.id}
-                              onChange={(event) => {
-                                handleSetSubgroupLeader(subgroup.id, event.target.value).catch(() => setStatusMessage(t('updateSubgroupLeaderFailed')))
-                              }}
-                              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
-                            >
-                              <option value="">{t('selectSubgroupLeader')}</option>
-                              {approvedParentMembers.map((member) => (
-                                <option key={member.memberId} value={member.memberId}>
-                                  {member.displayName || t('memberShort', { id: shortId(member.memberId) })}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                          {subgroup.leaderDisplayName ? (
-                            <p className="mt-1 text-xs text-slate-500">{t('currentSubgroupLeader', { name: subgroup.leaderDisplayName })}</p>
-                          ) : approvedParentMembers.length === 0 ? (
-                            <p className="mt-1 text-xs text-amber-700">{t('noParentMembersForLeader')}</p>
-                          ) : null}
-                        </div>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <AppActionButton size="sm" variant="secondary" onClick={() => {
