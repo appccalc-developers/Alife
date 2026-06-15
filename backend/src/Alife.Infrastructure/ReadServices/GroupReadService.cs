@@ -48,7 +48,30 @@ public sealed class GroupReadService(AlifeDbContext dbContext, HybridCache hybri
                     .Where(x => x.ParentGroupId == groupId && !x.IsClosed)
                     .ToListAsync(token);
 
-                return (IReadOnlyList<GroupSummaryDto>)groups.Select(ToSummaryDto).ToList();
+                var subgroupIds = groups.Select(x => x.Id).ToArray();
+                var leaders = await dbContext.GroupMemberships
+                    .AsNoTracking()
+                    .Where(x => subgroupIds.Contains(x.GroupId) &&
+                                x.Status == Domain.Enums.MembershipStatus.Approved &&
+                                x.Role == Domain.Enums.MembershipRole.Leader)
+                    .Select(x => new
+                    {
+                        x.GroupId,
+                        x.MemberId,
+                        x.Member.DisplayName
+                    })
+                    .ToListAsync(token);
+                var leadersByGroupId = leaders
+                    .GroupBy(x => x.GroupId)
+                    .ToDictionary(x => x.Key, x => x.First());
+
+                return (IReadOnlyList<GroupSummaryDto>)groups
+                    .Select(group =>
+                    {
+                        leadersByGroupId.TryGetValue(group.Id, out var leader);
+                        return ToSummaryDto(group, leader?.MemberId, leader?.DisplayName);
+                    })
+                    .ToList();
             },
             cancellationToken);
 
@@ -158,7 +181,7 @@ public sealed class GroupReadService(AlifeDbContext dbContext, HybridCache hybri
             group.CreatedUtc,
             group.UpdatedUtc);
 
-    private static GroupSummaryDto ToSummaryDto(Domain.Entities.Group group)
+    private static GroupSummaryDto ToSummaryDto(Domain.Entities.Group group, Guid? leaderMemberId = null, string? leaderDisplayName = null)
         => new(
             group.Id,
             ReadTextMap(group.NameJson),
@@ -166,7 +189,9 @@ public sealed class GroupReadService(AlifeDbContext dbContext, HybridCache hybri
             group.ParentGroupId,
             group.AccessType,
             group.IsChurch,
-            group.IsClosed);
+            group.IsClosed,
+            leaderMemberId,
+            leaderDisplayName);
 
     private static IReadOnlyDictionary<string, string> ReadTextMap(string? value)
         => string.IsNullOrWhiteSpace(value)

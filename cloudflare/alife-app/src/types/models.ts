@@ -89,6 +89,8 @@ export type GroupSummaryDto = {
   isChurch: boolean
   isClosed: boolean
   parentGroupId: string | null
+  leaderMemberId?: string | null
+  leaderDisplayName?: string | null
 }
 
 export type GroupMembershipDto = {

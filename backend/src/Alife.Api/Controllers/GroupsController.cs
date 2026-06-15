@@ -13,6 +13,7 @@ using Alife.Application.Groups.Commands.JoinGroup;
 using Alife.Application.Groups.Commands.KickGroupMember;
 using Alife.Application.Groups.Commands.RejectGroupMember;
 using Alife.Application.Groups.Commands.SetGroupCoLeader;
+using Alife.Application.Groups.Commands.SetSubgroupLeader;
 using Alife.Application.Groups.Commands.UpdateGroup;
 using Alife.Application.Groups.Queries.GetChurch;
 using Alife.Application.Groups.Queries.GetGroupById;
@@ -109,6 +110,22 @@ public class GroupsController(
 
         var result = await mediator.Send(
             new ClaimSubgroupCoLeaderCommand(id, subgroupId, currentMemberId.Value),
+            cancellationToken);
+
+        return this.ToActionResult(result);
+    }
+
+    [HttpPost("{id:guid}/subgroups/{subgroupId:guid}/set-leader")]
+    public async Task<IActionResult> SetSubgroupLeader(Guid id, Guid subgroupId, [FromBody] SetSubgroupLeaderRequest request, CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null)
+        {
+            return Unauthorized();
+        }
+
+        var result = await mediator.Send(
+            new SetSubgroupLeaderCommand(id, subgroupId, currentMemberId.Value, request.MemberId),
             cancellationToken);
 
         return this.ToActionResult(result);
@@ -335,4 +352,5 @@ public class GroupsController(
     public record InviteByIdRequest(Guid TargetMemberId);
     public record MemberTargetRequest(Guid MemberId);
     public record SetCoLeaderRequest(Guid MemberId, bool IsCoLeader);
+    public record SetSubgroupLeaderRequest(Guid MemberId);
 }

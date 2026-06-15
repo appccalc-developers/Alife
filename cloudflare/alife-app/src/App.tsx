@@ -436,13 +436,6 @@ const GroupDrawer = ({ currentGroup, churchGroup, items, open, onClose, onOpenGr
               {items.map((subgroup) => {
                 const membership = auth.memberships.find((item) => item.groupId === subgroup.id)
                 const isApproved = membership?.status === 'approved'
-                const statusLabel = isApproved
-                  ? t('approved')
-                  : membership?.status === 'requested'
-                    ? t('requested')
-                    : membership?.status === 'invited'
-                      ? t('invited')
-                      : t('notJoined')
 
                 return (
                   <motion.li
@@ -468,7 +461,6 @@ const GroupDrawer = ({ currentGroup, churchGroup, items, open, onClose, onOpenGr
                         </span>
                         <span className="flex shrink-0 flex-col items-end gap-1">
                           <AccessTypeBadge accessType={subgroup.accessType} />
-                          <span className="text-[11px] font-medium text-slate-500">{statusLabel}</span>
                         </span>
                       </span>
                     </motion.button>
