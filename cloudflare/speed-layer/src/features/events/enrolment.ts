@@ -1,6 +1,7 @@
 import type { Env } from '../../index'
 import {
   AiChatSession,
+  createAiSessionObjectName,
   createAiSessionObjectRequest,
   createMemoryDurableObjectState,
   getSessionIdFromPath,
@@ -83,12 +84,12 @@ export default {
     })
 
     if (env.ENROLLMENT_SESSIONS) {
-      const objectId = env.ENROLLMENT_SESSIONS.idFromName(sessionId)
+      const objectId = env.ENROLLMENT_SESSIONS.idFromName(createAiSessionObjectName(request, sessionId))
       const object = env.ENROLLMENT_SESSIONS.get(objectId)
       return object.fetch(createAiSessionObjectRequest(targetPath, url, request, sessionId))
     }
 
-    const fallbackObject = new EnrollmentSession(getFallbackState(sessionId), env)
+    const fallbackObject = new EnrollmentSession(getFallbackState(createAiSessionObjectName(request, sessionId)), env)
     return fallbackObject.fetch(createAiSessionObjectRequest(targetPath, url, request, sessionId))
   },
 }
@@ -162,29 +163,32 @@ export class EnrollmentSession extends AiChatSession<EnrollmentDto, Multilingual
   }
 
   private async handleCommit(request: Request, sessionId: string) {
-    const state = await this.getSessionState(sessionId)
+    const state = await this.getSessionState(request, sessionId)
+    if (state instanceof Response) {
+      return state
+    }
     const draft = state.draft
 
     if (!draft) {
-      return Response.json({ message: 'Enrollment draft not found.' }, { status: 400 })
+      return json({ message: 'Enrollment draft not found.' }, { status: 400 })
     }
 
     if (!draft.eventId) {
-      return Response.json({ message: 'Enrollment draft is missing eventId.' }, { status: 400 })
+      return json({ message: 'Enrollment draft is missing eventId.' }, { status: 400 })
     }
 
     if (!draft.applicantName.trim()) {
-      return Response.json({ message: 'Enrollment draft is missing applicant name.' }, { status: 400 })
+      return json({ message: 'Enrollment draft is missing applicant name.' }, { status: 400 })
     }
 
     if (draft.consentStatus !== 'granted') {
-      return Response.json({ message: 'Enrollment consent must be granted before submission.' }, { status: 400 })
+      return json({ message: 'Enrollment consent must be granted before submission.' }, { status: 400 })
     }
 
     const formData = await request.formData()
     const groupId = draft.groupId || String(formData.get('groupId') ?? '').trim()
     if (!groupId) {
-      return Response.json({ message: 'groupId is required.' }, { status: 400 })
+      return json({ message: 'groupId is required.' }, { status: 400 })
     }
 
     const paymentFiles = formData
@@ -196,7 +200,7 @@ export class EnrollmentSession extends AiChatSession<EnrollmentDto, Multilingual
     try {
       uploadedFiles = await uploadPaymentFiles(groupId, draft.eventId, enrollmentId, paymentFiles)
     } catch (error) {
-      return Response.json({ message: error instanceof Error ? error.message : 'Payment file upload failed.' }, { status: 502 })
+      return json({ message: error instanceof Error ? error.message : 'Payment file upload failed.' }, { status: 502 })
     }
 
     const backendResponse = await postEnrollmentToBackend(request, this.env, draft.eventId, {
@@ -213,12 +217,15 @@ export class EnrollmentSession extends AiChatSession<EnrollmentDto, Multilingual
 
     if (!backendResponse.ok) {
       const text = await backendResponse.text()
-      return Response.json({ message: 'Failed to commit enrollment.', details: text }, { status: 502 })
+      return json({ message: 'Failed to commit enrollment.', details: text }, { status: 502 })
     }
 
-    await this.handleRequest(new Request(new URL('/close', request.url), { method: 'POST' }), sessionId)
+    await this.handleRequest(new Request(new URL('/close', request.url), {
+      method: 'POST',
+      headers: request.headers,
+    }), sessionId)
 
-    return Response.json({
+    return json({
       status: 'completed',
       message: 'Enrollment submitted successfully.',
     })
@@ -419,4 +426,24 @@ function postEnrollmentToBackend(request: Request, env: Env, eventId: string, en
     headers: getForwardHeaders(request),
     body: JSON.stringify(enrollmentJson),
   })
+}
+
+function json(body: unknown, init: ResponseInit = {}) {
+  const headers = new Headers(init.headers)
+  headers.set('cache-control', 'no-store')
+  headers.set('vary', appendVary(appendVary(headers.get('vary'), 'Cookie'), 'Authorization'))
+  return Response.json(body, { ...init, headers })
+}
+
+function appendVary(vary: string | null, value: string) {
+  if (!vary) {
+    return value
+  }
+
+  return vary
+    .split(',')
+    .map((item) => item.trim().toLowerCase())
+    .includes(value.toLowerCase())
+    ? vary
+    : `${vary}, ${value}`
 }
