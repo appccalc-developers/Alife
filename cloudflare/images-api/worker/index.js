@@ -131,6 +131,10 @@ function handleOptions(request) {
   });
 }
 
+function isPublicObjectPath(pathname) {
+  return pathname !== "/" && !pathname.startsWith("/help") && !pathname.startsWith("/api/");
+}
+
 function getKeyExtension(key) {
   const tokens = key.toLowerCase().split(".");
   return tokens.length > 1 ? tokens.at(-1) : "";
@@ -454,7 +458,7 @@ export default {
 
     try {
       // CORS preflight
-      if (method === "OPTIONS" && pathname.startsWith("/api/")) {
+      if (method === "OPTIONS" && (pathname.startsWith("/api/") || isPublicObjectPath(pathname))) {
         return handleOptions(request);
       }
 
@@ -507,8 +511,8 @@ export default {
       }
 
       // ── Public path fallback (serve image by public URL path) ──────────
-      if (method === "GET" && pathname !== "/" && !pathname.startsWith("/help") && !pathname.startsWith("/api/")) {
-        return fetchObjectByPublicPath(env, pathname);
+      if (method === "GET" && isPublicObjectPath(pathname)) {
+        return withCors(await fetchObjectByPublicPath(env, pathname), request);
       }
 
       if (pathname.startsWith("/api/")) {
