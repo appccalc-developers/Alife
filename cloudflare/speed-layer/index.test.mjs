@@ -455,6 +455,25 @@ test('matching If-None-Match is answered from edge cache with 304', async () => 
   assert.equal(fetchCalls.length, 0)
 })
 
+test('304 edge cache response includes complete CORS allow headers', async () => {
+  const url = 'https://app.ccalc.live/api/sermons?lang=en'
+  cacheStore.set(cacheKey(new Request(url)), Response.json(
+    { title: 'Fresh page' },
+    { headers: { etag: '"638507"', 'cache-control': 'public, max-age=60' } },
+  ))
+
+  const response = await dispatch(url, {
+    headers: { 'if-none-match': '"638507"' },
+  })
+
+  assert.equal(response.status, 304)
+  assert.equal(response.headers.get('access-control-allow-origin'), ORIGIN)
+  assert.equal(response.headers.get('access-control-allow-credentials'), 'true')
+  assert.equal(response.headers.get('access-control-allow-methods'), 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
+  assert.equal(response.headers.get('access-control-allow-headers'), 'Content-Type, Authorization, X-Requested-With, If-None-Match')
+  assert.equal(response.headers.get('access-control-max-age'), '86400')
+})
+
 test('GET /api/sermons generates ETag on MISS and returns 304 on matching If-None-Match', async () => {
   const url = 'https://ccalc.live/api/sermons?lang=en'
   originResponses.push(Response.json([{ title: 'Sunday Sermon' }]))
@@ -773,6 +792,35 @@ test('matching If-None-Match for group pages is answered from shared Cache API w
   })
 
   assert.equal(response.status, 304)
+  assert.equal(response.headers.get('x-alife-cache'), 'REVALIDATED')
+  assert.equal(await response.text(), '')
+  assert.equal(fetchCalls.length, 0)
+})
+
+test('same-origin group pages 304 without Origin still includes CORS allow origin', async () => {
+  const groupId = '11111111-1111-1111-1111-111111111111'
+  const memberId = '22222222-2222-2222-2222-222222222222'
+  const url = `https://ccalc.live/api/groups/${groupId}/pages`
+  authzStore.set(`membership:${groupId}:${memberId}`, JSON.stringify({ status: 'approved' }))
+  apiCacheStore.set(
+    `group:${groupId}:pages`,
+    createStoredResponse([{ id: 'page-1', ownerGroupId: groupId }], { etag: 'W/"b87e9e5f0b7c8f32"' }),
+  )
+
+  const response = await dispatch(url, {
+    origin: null,
+    headers: {
+      cookie: `alife_auth=${createJwtWithSub(memberId)}`,
+      'if-none-match': 'W/"b87e9e5f0b7c8f32"',
+    },
+  })
+
+  assert.equal(response.status, 304)
+  assert.equal(response.headers.get('access-control-allow-origin'), 'https://ccalc.live')
+  assert.equal(response.headers.get('access-control-allow-credentials'), 'true')
+  assert.equal(response.headers.get('access-control-allow-methods'), 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
+  assert.equal(response.headers.get('access-control-allow-headers'), 'Content-Type, Authorization, X-Requested-With, If-None-Match')
+  assert.equal(response.headers.get('access-control-max-age'), '86400')
   assert.equal(response.headers.get('x-alife-cache'), 'REVALIDATED')
   assert.equal(await response.text(), '')
   assert.equal(fetchCalls.length, 0)
@@ -1808,10 +1856,10 @@ test('POST /api/events/session/:id/close clears event session state', async () =
 })
 
 async function dispatch(url, init = {}) {
-  const { env: envOverride, auth = true, ...requestInit } = init
+  const { env: envOverride, auth = true, origin = ORIGIN, ...requestInit } = init
   const headers = new Headers(requestInit.headers)
-  if (!headers.has('origin')) {
-    headers.set('origin', ORIGIN)
+  if (origin && !headers.has('origin')) {
+    headers.set('origin', origin)
   }
   if (auth && isAiSessionUrl(url) && !headers.has('cookie') && !headers.has('authorization')) {
     headers.set('cookie', `alife_auth=${createJwtWithSub('member-1')}`)

@@ -38,6 +38,9 @@ const GROUP_SHARED_CACHE_TTLS = {
   members: CACHE_TTL_SECONDS,
 } as const
 const STORED_RESPONSE_CACHE_URL_PREFIX = 'https://alife.local/cache-v2/'
+export const CORS_ALLOWED_METHODS = 'GET, POST, PUT, PATCH, DELETE, OPTIONS'
+export const CORS_ALLOWED_HEADERS = 'Content-Type, Authorization, X-Requested-With, If-None-Match'
+export const CORS_PREFLIGHT_MAX_AGE_SECONDS = '86400'
 
 export type AuthorizedGroupCacheKind = keyof typeof GROUP_SHARED_CACHE_TTLS
 export type AuthorizedGroupCachePolicy = {
@@ -46,7 +49,13 @@ export type AuthorizedGroupCachePolicy = {
   ttlSeconds: number
 }
 
-const ALLOWED_ORIGINS = new Set(['https://ccalc.live', 'http://localhost:5173'])
+const DEFAULT_ALLOWED_ORIGINS = [
+  'https://ccalc.live',
+  'https://www.ccalc.live',
+  'https://app.ccalc.live',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+]
 
 export const apiCacheMiddleware = async (
   req: any,
@@ -76,10 +85,10 @@ export const apiCacheMiddleware = async (
         return addCorsHeaders(req, withCacheHeader(withBrowserCacheControl(new Response(null, {
           status: 304,
           headers: cached.headers,
-        }), url.pathname), 'REVALIDATED'))
+        }), url.pathname), 'REVALIDATED'), env)
       }
 
-      return addCorsHeaders(req, withCacheHeader(withBrowserCacheControl(cached, url.pathname), 'HIT'))
+      return addCorsHeaders(req, withCacheHeader(withBrowserCacheControl(cached, url.pathname), 'HIT'), env)
     }
 
     const response = await next()
@@ -89,10 +98,10 @@ export const apiCacheMiddleware = async (
         writeStoredResponse(env, memberProfileCacheKey, withEdgeCacheControl(taggedResponse.clone()), MEMBER_PROFILE_CACHE_TTL_SECONDS),
         rememberMemberProfileAuthorization(env, memberId, memberProfileCacheKey, taggedResponse.clone()),
       ]))
-      return addCorsHeaders(req, withCacheHeader(withBrowserCacheControl(taggedResponse, url.pathname), 'MISS'))
+      return addCorsHeaders(req, withCacheHeader(withBrowserCacheControl(taggedResponse, url.pathname), 'MISS'), env)
     }
 
-    return addCorsHeaders(req, withCacheHeader(withNoStore(response), 'BYPASS'))
+    return addCorsHeaders(req, withCacheHeader(withNoStore(response), 'BYPASS'), env)
   }
 
   if (req.method === 'GET' && authorizedGroupCache && sharedContext) {
@@ -103,6 +112,7 @@ export const apiCacheMiddleware = async (
           withBrowserCacheControl(createForbiddenGroupResponse(sharedContext.authzStatus), url.pathname, sharedContext.authzStatus),
           'BYPASS',
         ),
+        env,
       )
     }
 
@@ -136,6 +146,7 @@ export const apiCacheMiddleware = async (
             }), url.pathname, sharedContext.authzStatus),
             'REVALIDATED',
           ),
+          env,
         )
       }
 
@@ -145,6 +156,7 @@ export const apiCacheMiddleware = async (
           withBrowserCacheControl(hitResponse, url.pathname, sharedContext.authzStatus),
           'HIT',
         ),
+        env,
       )
     }
 
@@ -154,6 +166,7 @@ export const apiCacheMiddleware = async (
         withBrowserCacheControl(cached.response, url.pathname, sharedContext.authzStatus),
         cached.cacheStatus,
       ),
+      env,
     )
   }
 
@@ -169,10 +182,10 @@ export const apiCacheMiddleware = async (
         return addCorsHeaders(req, withCacheHeader(withBrowserCacheControl(new Response(null, {
           status: 304,
           headers: cached.headers,
-        }), url.pathname, sharedContext?.authzStatus), 'REVALIDATED'))
+        }), url.pathname, sharedContext?.authzStatus), 'REVALIDATED'), env)
       }
 
-      return addCorsHeaders(req, withCacheHeader(withBrowserCacheControl(cached, url.pathname, sharedContext?.authzStatus), 'HIT'))
+      return addCorsHeaders(req, withCacheHeader(withBrowserCacheControl(cached, url.pathname, sharedContext?.authzStatus), 'HIT'), env)
     }
   }
 
@@ -196,7 +209,7 @@ export const apiCacheMiddleware = async (
     }
 
     ctx.waitUntil(Promise.all(waitUntilTasks))
-    return addCorsHeaders(req, withCacheHeader(withBrowserCacheControl(taggedResponse, url.pathname, sharedContext?.authzStatus), 'MISS'))
+    return addCorsHeaders(req, withCacheHeader(withBrowserCacheControl(taggedResponse, url.pathname, sharedContext?.authzStatus), 'MISS'), env)
   }
 
   if (response.status === 200 && req.method === 'GET' && (getEventSubresource(url.pathname) || getPageDetailId(url.pathname))) {
@@ -208,7 +221,7 @@ export const apiCacheMiddleware = async (
     ctx.waitUntil(Promise.all(tasks))
 
     const finalResponse = bypassEdgeCache ? withNoStore(taggedResponse) : taggedResponse
-    return addCorsHeaders(req, withCacheHeader(withGroupAuthzHeader(finalResponse, sharedContext?.authzStatus), 'BYPASS'))
+    return addCorsHeaders(req, withCacheHeader(withGroupAuthzHeader(finalResponse, sharedContext?.authzStatus), 'BYPASS'), env)
   }
 
   if (response.ok && MUTATING_METHODS.has(req.method)) {
@@ -216,7 +229,7 @@ export const apiCacheMiddleware = async (
   }
 
   const finalResponse = bypassEdgeCache ? withNoStore(response) : response
-  return addCorsHeaders(req, withCacheHeader(withGroupAuthzHeader(finalResponse, sharedContext?.authzStatus), 'BYPASS'))
+  return addCorsHeaders(req, withCacheHeader(withGroupAuthzHeader(finalResponse, sharedContext?.authzStatus), 'BYPASS'), env)
 }
 
 export async function readSharedCachedResponse(env: Env, request: Request, context: SharedCacheContext) {
@@ -825,13 +838,24 @@ export function appendVary(vary: string | null, value: string) {
     : `${vary}, ${value}`
 }
 
-export function addCorsHeaders(request: Request, response: Response) {
+export function addCorsHeaders(request: Request, response: Response, env?: Env) {
   const headers = new Headers(response.headers)
-  const allowedOrigin = getAllowedOrigin(request)
+  const requestOrigin = request.headers.get('origin') || ''
+  const allowedOrigin = getAllowedOrigin(request, env)
+  const responseOrigin = allowedOrigin ?? (
+    response.status === 304 && !requestOrigin
+      ? getDefaultAllowedOrigin(request, env)
+      : undefined
+  )
 
-  if (allowedOrigin) {
-    headers.set('access-control-allow-origin', allowedOrigin)
+  if (responseOrigin) {
+    headers.set('access-control-allow-origin', responseOrigin)
     headers.set('access-control-allow-credentials', 'true')
+    if (response.status === 304) {
+      headers.set('access-control-allow-methods', CORS_ALLOWED_METHODS)
+      headers.set('access-control-allow-headers', CORS_ALLOWED_HEADERS)
+      headers.set('access-control-max-age', CORS_PREFLIGHT_MAX_AGE_SECONDS)
+    }
     headers.set('vary', appendVaryOrigin(headers.get('vary')))
   }
 
@@ -842,9 +866,27 @@ export function addCorsHeaders(request: Request, response: Response) {
   })
 }
 
-export function getAllowedOrigin(request: Request) {
+export function getAllowedOrigin(request: Request, env?: Env) {
   const origin = request.headers.get('origin')
-  return origin && ALLOWED_ORIGINS.has(origin) ? origin : undefined
+  return origin && getAllowedOrigins(env).has(origin) ? origin : undefined
+}
+
+export function getDefaultAllowedOrigin(request: Request, env?: Env) {
+  const requestUrlOrigin = new URL(request.url).origin
+  const allowedOrigins = getAllowedOrigins(env)
+  return allowedOrigins.has(requestUrlOrigin)
+    ? requestUrlOrigin
+    : DEFAULT_ALLOWED_ORIGINS[0]
+}
+
+export function getAllowedOrigins(env?: Env) {
+  return new Set([
+    ...DEFAULT_ALLOWED_ORIGINS,
+    ...(env?.CORS_ALLOWED_ORIGINS ?? '')
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean),
+  ])
 }
 
 export function appendVaryOrigin(vary: string | null) {
