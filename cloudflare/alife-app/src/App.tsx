@@ -656,10 +656,10 @@ const App = () => {
   const managementNavItems: ShellNavItem[] = contextualGroupId
     ? [
       { key: 'manage:group', label: translateUi(auth.language, managementGroup?.isChurch ? 'church' : 'group'), to: '/groups/manage?section=group', matchSearch: '?section=group', icon: <GroupIcon /> },
-      { key: 'manage:subgroups', label: translateUi(auth.language, 'subgroups'), to: '/groups/manage?section=subgroups', matchSearch: '?section=subgroups', icon: <SubgroupsIcon /> },
       { key: 'manage:members', label: translateUi(auth.language, 'members'), to: '/groups/manage?section=members', matchSearch: '?section=members', icon: <MembersIcon /> },
-      { key: 'manage:pages', label: translateUi(auth.language, 'pages'), to: '/groups/manage?section=pages', matchSearch: '?section=pages', icon: <PageIcon /> },
       { key: 'manage:events', label: translateUi(auth.language, 'events'), to: '/groups/manage?section=events', matchSearch: '?section=events', icon: <EventsIcon /> },
+      { key: 'manage:pages', label: translateUi(auth.language, 'pages'), to: '/groups/manage?section=pages', matchSearch: '?section=pages', icon: <PageIcon /> },
+      { key: 'manage:subgroups', label: translateUi(auth.language, 'manageSubgroups'), to: '/groups/manage?section=subgroups', matchSearch: '?section=subgroups', icon: <SubgroupsIcon /> },
     ]
     : []
   const contextualEventId = groupEventDetailMatch?.[2] || activeIds.eventId

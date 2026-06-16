@@ -475,7 +475,7 @@ const GroupManageView = () => {
       return
     }
 
-    if (!window.confirm(t('claimSubgroupCoLeaderConfirm'))) return
+    if (!window.confirm(t('manageClaimSubgroupCoLeaderConfirm'))) return
 
     try {
       await groupService.claimSubgroupCoLeader(groupId, subgroupId)
@@ -483,7 +483,7 @@ const GroupManageView = () => {
       activeEntityService.setGroup(subgroupId)
       navigate('/groups/manage?section=group')
     } catch {
-      setStatusMessage(t('claimSubgroupCoLeaderFailed'))
+      setStatusMessage(t('manageClaimSubgroupCoLeaderFailed'))
     }
   }
 
@@ -543,7 +543,7 @@ const GroupManageView = () => {
         navigate('/groups/manage?section=group')
       }
     } catch {
-      setStatusMessage(t('addSubgroupFailed'))
+      setStatusMessage(t('manageAddSubgroupFailed'))
     }
   }
 
@@ -641,18 +641,18 @@ const GroupManageView = () => {
           {activeSection === 'subgroups' ? (
             <AppSectionCard
               dense
-              title={t('subgroups')}
-              subtitle={t('subgroupsPanelSubtitle')}
+              title={t('manageSubgroups')}
+              subtitle={t('manageSubgroupsPanelSubtitle')}
               action={
                 <AppActionButton variant="primary" onClick={() => {
-                  handleCreateSubgroup().catch(() => setStatusMessage(t('addSubgroupFailed')))
+                  handleCreateSubgroup().catch(() => setStatusMessage(t('manageAddSubgroupFailed')))
                 }}>
-                  {t('addSubgroup')}
+                  {t('manageAddSubgroup')}
                 </AppActionButton>
               }
             >
               {subgroups.length === 0 ? (
-                <p className="text-sm text-slate-500">{t('noSubgroupsYet')}</p>
+                <p className="text-sm text-slate-500">{t('manageNoSubgroupsYet')}</p>
               ) : (
                 <div className="space-y-2">
                   {subgroups.map((subgroup) => (
@@ -663,7 +663,7 @@ const GroupManageView = () => {
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <AppActionButton size="sm" variant="secondary" onClick={() => {
-                          handleOpenSubgroup(subgroup.id).catch(() => setStatusMessage(t('claimSubgroupCoLeaderFailed')))
+                          handleOpenSubgroup(subgroup.id).catch(() => setStatusMessage(t('manageClaimSubgroupCoLeaderFailed')))
                         }}>{t('open')}</AppActionButton>
                       </div>
                     </div>
