@@ -104,7 +104,7 @@ function corsHeaders(request) {
   const origin = request.headers.get("origin") || "*";
   return {
     "access-control-allow-origin": origin,
-    "access-control-allow-methods": "GET,POST,DELETE,OPTIONS",
+    "access-control-allow-methods": "GET,POST,DELETE,OPTIONS,HEAD",
     "access-control-allow-headers": "content-type,authorization",
     "access-control-max-age": "86400",
     vary: "origin",
@@ -349,10 +349,10 @@ async function fetchObjectByKey(_request, env, encodedKey) {
     return json({ error: "Image key is required." }, 400);
   }
 
-  return fetchBucketObject(env, key);
+  return fetchBucketObject(env, key, _request.method === "HEAD");
 }
 
-async function fetchObjectByPublicPath(env, pathname) {
+async function fetchObjectByPublicPath(request, env, pathname) {
   const key = pathname
     .replace(/^\/+/, "")
     .split("/")
@@ -363,11 +363,11 @@ async function fetchObjectByPublicPath(env, pathname) {
     return json({ error: "Image key is required." }, 400);
   }
 
-  return fetchBucketObject(env, key);
+  return fetchBucketObject(env, key, request.method === "HEAD");
 }
 
-async function fetchBucketObject(env, key) {
-  const object = await env.IMAGE_BUCKET.get(key);
+async function fetchBucketObject(env, key, headOnly = false) {
+  const object = headOnly ? await env.IMAGE_BUCKET.head(key) : await env.IMAGE_BUCKET.get(key);
   if (!object) {
     return json({ error: "Image not found." }, 404);
   }
@@ -376,8 +376,11 @@ async function fetchBucketObject(env, key) {
   object.writeHttpMetadata(headers);
   headers.set("etag", object.httpEtag);
   headers.set("cache-control", "public, max-age=86400, immutable");
+  if (Number.isFinite(object.size)) {
+    headers.set("content-length", String(object.size));
+  }
 
-  return new Response(object.body, {
+  return new Response(headOnly ? null : object.body, {
     status: 200,
     headers,
   });
@@ -497,7 +500,7 @@ export default {
 
       // ── Stream image: GET /api/images/{path} ───────────────────────────
       // Must come after /api/images/list and /api/images/config checks above.
-      if (method === "GET" && pathname.startsWith("/api/images/")) {
+      if ((method === "GET" || method === "HEAD") && pathname.startsWith("/api/images/")) {
         const encodedKey = pathname.slice("/api/images/".length);
         return withCors(await fetchObjectByKey(request, env, encodedKey), request);
       }
@@ -511,8 +514,8 @@ export default {
       }
 
       // ── Public path fallback (serve image by public URL path) ──────────
-      if (method === "GET" && isPublicObjectPath(pathname)) {
-        return withCors(await fetchObjectByPublicPath(env, pathname), request);
+      if ((method === "GET" || method === "HEAD") && isPublicObjectPath(pathname)) {
+        return withCors(await fetchObjectByPublicPath(request, env, pathname), request);
       }
 
       if (pathname.startsWith("/api/")) {
