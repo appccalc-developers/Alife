@@ -1,7 +1,13 @@
 import type { Env } from '../../index'
+import { extractMemberIdFromRequest } from '../../middlewares/authCache'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com'
 const DEFAULT_GEMINI_MODEL = 'gemini-3.1-flash-lite'
+const DEFAULT_API_PROXY_TARGET = 'https://api.ccalc.live'
+const SESSION_TTL_MS = 6 * 60 * 60 * 1000
+const MAX_AI_ATTACHMENTS_PER_REQUEST = 4
+const MAX_AI_ATTACHMENT_BYTES = 6 * 1024 * 1024
+const MAX_INLINE_DATA_CHARS = Math.ceil(MAX_AI_ATTACHMENT_BYTES * 4 / 3) + 128
 
 export type AiChatMessage = {
   role: 'user' | 'model'
@@ -49,12 +55,14 @@ export type AiSessionAttachment = {
 
 export type AiSessionState<TDraft, TContext> = {
   sessionId: string
+  ownerMemberId?: string
   draft: TDraft | null
   context: TContext | null
   appContext: AiSessionAppContext
   attachments: AiSessionAttachment[]
   chatHistory: AiChatMessage[]
   updatedAt: string
+  expiresAt?: string
 }
 
 export type DurableObjectStateLike = {
@@ -62,6 +70,8 @@ export type DurableObjectStateLike = {
     get<T>(key: string): Promise<T | undefined>
     put<T>(key: string, value: T): Promise<void>
     delete?(key: string): Promise<boolean>
+    setAlarm?(scheduledTime: number): Promise<void>
+    deleteAlarm?(): Promise<void>
   }
 }
 
@@ -130,37 +140,59 @@ export class AiChatSession<TDraft, TContext = unknown> {
 
   protected async handleRequest(request: Request, sessionIdHint: string): Promise<Response> {
     const url = new URL(request.url)
+    const authorized = await this.authorizeSessionRequest(request, sessionIdHint)
+    if (authorized instanceof Response) {
+      return authorized
+    }
 
     if (url.pathname.endsWith('/stream') && request.method === 'GET') {
-      const state = await this.applyRequestContext(request, await this.ensureState(sessionIdHint))
+      const state = await this.applyRequestContext(request, authorized.state, authorized.memberId)
       return this.openEventStream(state)
     }
 
     if (url.pathname.endsWith('/state') && request.method === 'GET') {
-      const state = await this.applyRequestContext(request, await this.ensureState(sessionIdHint))
-      return Response.json(this.formatState(state))
+      const state = await this.applyRequestContext(request, authorized.state, authorized.memberId)
+      return noStoreJson(this.formatState(state))
     }
 
     if (url.pathname.endsWith('/state') && request.method === 'POST') {
-      return this.handleState(request, sessionIdHint)
+      return this.handleState(request, authorized.state, authorized.memberId)
     }
 
     if (url.pathname.endsWith('/message') && request.method === 'POST') {
-      return this.handleMessage(request, sessionIdHint)
+      return this.handleMessage(request, authorized.state, authorized.memberId)
     }
 
     if (url.pathname.endsWith('/start') && request.method === 'POST') {
-      return this.handleStart(request, sessionIdHint)
+      return this.handleStart(request, authorized.state, authorized.memberId)
     }
 
     if (url.pathname.endsWith('/close') && (request.method === 'POST' || request.method === 'DELETE')) {
       return this.handleClose()
     }
 
-    return Response.json({ message: this.config.routeNotFoundMessage }, { status: 404 })
+    return noStoreJson({ message: this.config.routeNotFoundMessage }, { status: 404 })
   }
 
-  protected async handleStart(request: Request, sessionIdHint: string) {
+  protected async authorizeSessionRequest(request: Request, sessionIdHint: string) {
+    const auth = await authenticateAiSessionRequest(request, this.env)
+    if (auth instanceof Response) {
+      return auth
+    }
+
+    const state = await this.ensureState(sessionIdHint, auth.memberId)
+    if (state.ownerMemberId && state.ownerMemberId !== auth.memberId) {
+      return noStoreJson({ message: 'AI session does not belong to the authenticated member.' }, { status: 403 })
+    }
+
+    return { memberId: auth.memberId, state }
+  }
+
+  protected async handleStart(
+    request: Request,
+    state: AiSessionState<TDraft, TContext>,
+    memberId: string,
+  ) {
     let payload: any
     try {
       payload = await request.json()
@@ -168,8 +200,8 @@ export class AiChatSession<TDraft, TContext = unknown> {
       payload = {}
     }
 
-    const state = await this.applyRequestContext(request, await this.ensureState(sessionIdHint))
-    const appContext = mergeAppContext(state.appContext, extractAppContext(payload))
+    state = await this.applyRequestContext(request, state, memberId)
+    const appContext = mergeAuthenticatedAppContext(state.appContext, extractAppContext(payload), memberId)
     let changed = appContext !== state.appContext
     state.appContext = appContext
 
@@ -183,17 +215,20 @@ export class AiChatSession<TDraft, TContext = unknown> {
       await this.setSessionState(state)
     }
 
-    return Response.json(this.formatState(state))
+    return noStoreJson(this.formatState(state))
   }
 
-  protected async getSessionState(sessionIdHint: string): Promise<AiSessionState<TDraft, TContext>> {
-    return this.ensureState(sessionIdHint)
+  protected async getSessionState(request: Request, sessionIdHint: string): Promise<AiSessionState<TDraft, TContext> | Response> {
+    const authorized = await this.authorizeSessionRequest(request, sessionIdHint)
+    return authorized instanceof Response ? authorized : authorized.state
   }
 
   protected async setSessionState(state: AiSessionState<TDraft, TContext>) {
-    this.statePromise = Promise.resolve(state)
-    await this.durableState.storage.put(this.config.storageKey, state)
-    this.broadcast(this.formatSsePayload(state))
+    const nextState = withFreshExpiry(state)
+    this.statePromise = Promise.resolve(nextState)
+    await this.durableState.storage.put(this.config.storageKey, nextState)
+    await this.scheduleCleanup(nextState)
+    this.broadcast(this.formatSsePayload(nextState))
   }
 
   protected formatState(state: AiSessionState<TDraft, TContext>) {
@@ -204,33 +239,40 @@ export class AiChatSession<TDraft, TContext = unknown> {
     return this.config.formatSsePayload?.(state) ?? { type: 'draft', state: this.formatState(state) }
   }
 
-  private async handleState(request: Request, sessionIdHint: string) {
-    let state = await this.applyRequestContext(request, await this.ensureState(sessionIdHint))
+  private async handleState(
+    request: Request,
+    state: AiSessionState<TDraft, TContext>,
+    memberId: string,
+  ) {
+    state = await this.applyRequestContext(request, state, memberId)
     let body: ExtractRequest
 
     try {
       body = await parseJsonObjectRequest(request)
     } catch {
-      return Response.json({ message: 'Invalid state request body.' }, { status: 400 })
+      return noStoreJson({ message: 'Invalid state request body.' }, { status: 400 })
     }
 
     const bodyContext = extractAppContextFromBody(body)
     if (bodyContext) {
       state = {
         ...state,
-        appContext: mergeAppContext(state.appContext, bodyContext),
+        appContext: mergeAuthenticatedAppContext(state.appContext, bodyContext, memberId),
         updatedAt: new Date().toISOString(),
       }
-      this.statePromise = Promise.resolve(state)
-      await this.durableState.storage.put(this.config.storageKey, state)
+      await this.setSessionState(state)
     }
 
-    return Response.json(this.formatState(state))
+    return noStoreJson(this.formatState(state))
   }
 
-  private async handleMessage(request: Request, sessionIdHint: string) {
+  private async handleMessage(
+    request: Request,
+    state: AiSessionState<TDraft, TContext>,
+    memberId: string,
+  ) {
     if (!this.env.GEMINI_API_KEY) {
-      return Response.json({ message: 'GEMINI_API_KEY is not configured.' }, { status: 503 })
+      return noStoreJson({ message: 'GEMINI_API_KEY is not configured.' }, { status: 503 })
     }
 
     let body: ExtractRequest
@@ -239,27 +281,34 @@ export class AiChatSession<TDraft, TContext = unknown> {
       const parsed = await parseMessageRequest(request)
       body = parsed.body
       uploadedAttachments = parsed.attachments
-    } catch {
-      return Response.json({ message: 'Invalid message request body.' }, { status: 400 })
+    } catch (error) {
+      return noStoreJson({ message: error instanceof Error ? error.message : 'Invalid message request body.' }, { status: 400 })
     }
 
     const userMessage = typeof body.message === 'string' ? body.message.trim() : ''
     const declaredAttachments = normalizeAttachmentList(body.attachments)
     const attachments = [...uploadedAttachments, ...declaredAttachments]
     if (!userMessage && attachments.length === 0) {
-      return Response.json({ message: 'User message or attachment is required.' }, { status: 400 })
+      return noStoreJson({ message: 'User message or attachment is required.' }, { status: 400 })
     }
 
-    const state = await this.applyRequestContext(request, await this.ensureState(sessionIdHint))
+    if (attachments.length > MAX_AI_ATTACHMENTS_PER_REQUEST) {
+      return noStoreJson({ message: `A maximum of ${MAX_AI_ATTACHMENTS_PER_REQUEST} attachments is allowed per AI message.` }, { status: 400 })
+    }
+
+    state = await this.applyRequestContext(request, state, memberId)
     const inputMode = body.inputMode === 'voice' ? 'voice' : 'text'
     let nextDraft: TDraft
     try {
-      state.appContext = mergeAppContext(state.appContext, extractAppContext(body))
-      state.attachments = dedupeAttachments([...state.attachments, ...attachments]).slice(-20)
+      state.appContext = mergeAuthenticatedAppContext(state.appContext, extractAppContext(body), memberId)
+      state.attachments = dedupeAttachments([
+        ...state.attachments.map(redactAttachmentForSessionState),
+        ...attachments.map(redactAttachmentForSessionState),
+      ]).slice(-20)
       nextDraft = await this.callGemini(userMessage, inputMode, state, attachments)
     } catch (error) {
       console.error('Gemini extraction failed', error)
-      return Response.json({ message: error instanceof Error ? error.message : 'AI extraction failed.' }, { status: 502 })
+      return noStoreJson({ message: error instanceof Error ? error.message : 'AI extraction failed.' }, { status: 502 })
     }
 
     const mergedDraft = this.config.mergeDraft
@@ -268,7 +317,7 @@ export class AiChatSession<TDraft, TContext = unknown> {
     const validationErrors = this.config.validateDraft(mergedDraft)
     if (validationErrors.length > 0) {
       console.error('Gemini draft validation failed', validationErrors)
-      return Response.json(
+      return noStoreJson(
         { message: 'AI returned data that failed validation.', validationErrors },
         { status: 502 },
       )
@@ -291,7 +340,7 @@ export class AiChatSession<TDraft, TContext = unknown> {
 
     await this.setSessionState(nextState)
 
-    return Response.json(
+    return noStoreJson(
       this.config.formatMessageResponse?.(nextState)
       ?? {
         responseMode: 'result',
@@ -324,7 +373,8 @@ export class AiChatSession<TDraft, TContext = unknown> {
       status: 200,
       headers: {
         'content-type': 'text/event-stream; charset=utf-8',
-        'cache-control': 'no-cache, no-transform',
+        'cache-control': 'no-store, no-transform',
+        vary: 'Cookie, Authorization',
         connection: 'keep-alive',
       },
     })
@@ -339,6 +389,7 @@ export class AiChatSession<TDraft, TContext = unknown> {
     } else {
       await this.durableState.storage.put(this.config.storageKey, createEmptySessionState<TDraft, TContext>())
     }
+    await this.durableState.storage.deleteAlarm?.()
 
     this.broadcast({ type: 'closed', closedAt })
 
@@ -352,7 +403,7 @@ export class AiChatSession<TDraft, TContext = unknown> {
       }
     }
 
-    return Response.json({ status: 'closed', closedAt })
+    return noStoreJson({ status: 'closed', closedAt })
   }
 
   private async callGemini(
@@ -428,6 +479,11 @@ export class AiChatSession<TDraft, TContext = unknown> {
     const stored = await this.durableState.storage.get<unknown>(this.config.storageKey)
     const normalized = normalizeSessionState<TDraft, TContext>(stored)
 
+    if (isExpiredSessionState(normalized)) {
+      await this.clearStoredState()
+      return createEmptySessionState<TDraft, TContext>()
+    }
+
     if (stored !== undefined && sessionStateNeedsRepair(stored)) {
       await this.durableState.storage.put(this.config.storageKey, normalized)
     }
@@ -435,44 +491,92 @@ export class AiChatSession<TDraft, TContext = unknown> {
     return normalized
   }
 
-  private async ensureState(sessionIdHint: string) {
+  private async ensureState(sessionIdHint: string, memberId: string) {
     const current = normalizeSessionState<TDraft, TContext>(await this.statePromise)
+    if (isExpiredSessionState(current)) {
+      await this.clearStoredState()
+      const empty = createEmptySessionState<TDraft, TContext>()
+      this.statePromise = Promise.resolve(empty)
+      return this.ensureState(sessionIdHint, memberId)
+    }
+
     const sessionId = current.sessionId || sessionIdHint || crypto.randomUUID()
     const draft = current.draft ?? this.config.getInitialDraft?.(sessionId) ?? null
     const context = draft ? (this.config.getContextFromDraft?.(draft) ?? current.context) : current.context
+    const ownerMemberId = current.ownerMemberId || memberId
+    const appContext = mergeAuthenticatedAppContext(current.appContext, undefined, memberId)
+    const expiresAt = current.expiresAt && Date.parse(current.expiresAt) > Date.now()
+      ? current.expiresAt
+      : getNewExpiry()
 
-    if (sessionId === current.sessionId && draft === current.draft && context === current.context) {
+    if (
+      sessionId === current.sessionId
+      && draft === current.draft
+      && context === current.context
+      && ownerMemberId === current.ownerMemberId
+      && appContext === current.appContext
+      && expiresAt === current.expiresAt
+    ) {
       return current
     }
 
     const nextState = {
       ...current,
       sessionId,
+      ownerMemberId,
       draft,
       context,
-      appContext: current.appContext ?? {},
+      appContext,
       attachments: current.attachments ?? [],
+      expiresAt,
     }
     this.statePromise = Promise.resolve(nextState)
     await this.durableState.storage.put(this.config.storageKey, nextState)
+    await this.scheduleCleanup(nextState)
     return nextState
   }
 
-  private async applyRequestContext(request: Request, state: AiSessionState<TDraft, TContext>) {
+  private async applyRequestContext(request: Request, state: AiSessionState<TDraft, TContext>, memberId: string) {
     const requestContext = extractAppContextFromUrl(new URL(request.url))
     if (!requestContext) {
       return state
     }
 
-    const appContext = mergeAppContext(state.appContext, requestContext)
+    const appContext = mergeAuthenticatedAppContext(state.appContext, requestContext, memberId)
     const nextState = {
       ...state,
       appContext,
       updatedAt: new Date().toISOString(),
     }
-    this.statePromise = Promise.resolve(nextState)
-    await this.durableState.storage.put(this.config.storageKey, nextState)
-    return nextState
+    await this.setSessionState(nextState)
+    return withFreshExpiry(nextState)
+  }
+
+  private async clearStoredState() {
+    if (this.durableState.storage.delete) {
+      await this.durableState.storage.delete(this.config.storageKey)
+    } else {
+      await this.durableState.storage.put(this.config.storageKey, createEmptySessionState<TDraft, TContext>())
+    }
+    await this.durableState.storage.deleteAlarm?.()
+  }
+
+  private async scheduleCleanup(state: AiSessionState<TDraft, TContext>) {
+    const expiresAt = Date.parse(state.expiresAt ?? '')
+    if (!Number.isNaN(expiresAt)) {
+      await this.durableState.storage.setAlarm?.(expiresAt)
+    }
+  }
+
+  async alarm() {
+    const state = await this.loadState()
+    if (isExpiredSessionState(state)) {
+      await this.clearStoredState()
+      this.statePromise = Promise.resolve(createEmptySessionState<TDraft, TContext>())
+      return
+    }
+
+    await this.scheduleCleanup(state)
   }
 
   private broadcast(payload: unknown) {
@@ -486,6 +590,11 @@ export class AiChatSession<TDraft, TContext = unknown> {
       }
     }
   }
+}
+
+export function createAiSessionObjectName(request: Request, sessionId: string) {
+  const memberId = extractMemberIdFromRequest(request) || 'anonymous'
+  return `${sanitizeSessionId(memberId)}:${sanitizeSessionId(sessionId)}`
 }
 
 export function sanitizeSessionId(value: string, fallback = 'default') {
@@ -745,12 +854,14 @@ function extractAppContextFromUrl(url: URL): AiSessionAppContext | undefined {
 function createEmptySessionState<TDraft, TContext>(): AiSessionState<TDraft, TContext> {
   return {
     sessionId: '',
+    ownerMemberId: undefined,
     draft: null,
     context: null,
     appContext: {},
     attachments: [],
     chatHistory: [],
     updatedAt: new Date().toISOString(),
+    expiresAt: undefined,
   }
 }
 
@@ -762,12 +873,14 @@ function normalizeSessionState<TDraft, TContext>(value: unknown): AiSessionState
 
   return {
     sessionId: stringValue(value.sessionId) ?? '',
+    ownerMemberId: stringValue(value.ownerMemberId),
     draft: ('draft' in value ? value.draft as TDraft | null | undefined : undefined) ?? null,
     context: ('context' in value ? value.context as TContext | null | undefined : undefined) ?? null,
     appContext: normalizeAppContext(value.appContext),
-    attachments: normalizeAttachmentList(value.attachments),
+    attachments: normalizeAttachmentList(value.attachments).map(redactAttachmentForSessionState),
     chatHistory: normalizeChatHistory(value.chatHistory),
     updatedAt: stringValue(value.updatedAt) ?? fallback.updatedAt,
+    expiresAt: stringValue(value.expiresAt),
   }
 }
 
@@ -798,9 +911,19 @@ function sessionStateNeedsRepair(value: unknown) {
     || !Array.isArray(value.attachments)
     || !Array.isArray(value.chatHistory)
     || typeof value.updatedAt !== 'string'
+    || (value.ownerMemberId !== undefined && typeof value.ownerMemberId !== 'string')
+    || (value.expiresAt !== undefined && typeof value.expiresAt !== 'string')
 }
 
 async function fileToAttachment(file: File): Promise<AiSessionAttachment> {
+  if (!isAllowedAttachmentContentType(file.type || 'application/octet-stream')) {
+    throw new Error('Unsupported AI attachment type.')
+  }
+
+  if (file.size > MAX_AI_ATTACHMENT_BYTES) {
+    throw new Error('AI attachments must be 6 MB or smaller.')
+  }
+
   const bytes = new Uint8Array(await file.arrayBuffer())
   return {
     name: file.name || 'attachment',
@@ -825,6 +948,8 @@ function normalizeAttachmentList(value: unknown): AiSessionAttachment[] {
       const inlineData = isRecord(attachment.inlineData)
         && typeof attachment.inlineData.mimeType === 'string'
         && typeof attachment.inlineData.data === 'string'
+        && isAllowedAttachmentContentType(attachment.inlineData.mimeType)
+        && attachment.inlineData.data.length <= MAX_INLINE_DATA_CHARS
         ? {
           mimeType: attachment.inlineData.mimeType,
           data: attachment.inlineData.data,
@@ -842,6 +967,142 @@ function normalizeAttachmentList(value: unknown): AiSessionAttachment[] {
         inlineData,
       } satisfies AiSessionAttachment
     })
+}
+
+async function authenticateAiSessionRequest(request: Request, env: Env): Promise<{ memberId: string } | Response> {
+  const memberIdFromCredential = extractMemberIdFromRequest(request)
+  const validationHeaders = getAuthValidationHeaders(request)
+  if (!validationHeaders.has('cookie') && !validationHeaders.has('authorization')) {
+    return noStoreJson({ message: 'Authentication is required.' }, { status: 401 })
+  }
+
+  const base = (env.API_PROXY_TARGET || DEFAULT_API_PROXY_TARGET).replace(/\/$/, '')
+  let response: Response
+  try {
+    response = await fetch(`${base}/api/me`, {
+      method: 'GET',
+      headers: validationHeaders,
+    })
+  } catch (error) {
+    console.error('AI session auth validation failed.', error)
+    return noStoreJson({ message: 'Authentication could not be validated.' }, { status: 503 })
+  }
+
+  if (response.status === 401 || response.status === 403) {
+    return noStoreJson({ message: 'Authentication is required.' }, { status: 401 })
+  }
+
+  if (!response.ok) {
+    return noStoreJson({ message: 'Authentication could not be validated.' }, { status: 503 })
+  }
+
+  const profile = await readJsonObject(response)
+  const memberId = stringValue(profile?.id)
+    ?? stringValue(profile?.memberId)
+    ?? stringValue(profile?.currentMemberId)
+    ?? memberIdFromCredential
+
+  if (!memberId) {
+    return noStoreJson({ message: 'Authentication is required.' }, { status: 401 })
+  }
+
+  if (memberIdFromCredential && memberIdFromCredential !== memberId) {
+    return noStoreJson({ message: 'Authentication is required.' }, { status: 401 })
+  }
+
+  return { memberId }
+}
+
+function getAuthValidationHeaders(request: Request) {
+  const headers = new Headers({
+    accept: 'application/json',
+    'cache-control': 'no-store',
+  })
+  const cookie = request.headers.get('cookie')
+  const authorization = request.headers.get('authorization')
+
+  if (cookie) {
+    headers.set('cookie', cookie)
+  }
+
+  if (authorization) {
+    headers.set('authorization', authorization)
+  }
+
+  return headers
+}
+
+async function readJsonObject(response: Response) {
+  const contentType = response.headers.get('content-type') ?? ''
+  if (!contentType.includes('application/json')) {
+    return null
+  }
+
+  try {
+    const value = await response.json()
+    return isRecord(value) ? value : null
+  } catch {
+    return null
+  }
+}
+
+function mergeAuthenticatedAppContext(
+  current: AiSessionAppContext | undefined,
+  next: AiSessionAppContext | undefined,
+  memberId: string,
+) {
+  return mergeAppContext(current, {
+    ...next,
+    memberId,
+  })
+}
+
+function redactAttachmentForSessionState(attachment: AiSessionAttachment): AiSessionAttachment {
+  const { inlineData, ...metadata } = attachment
+  return {
+    ...metadata,
+    source: attachment.source === 'inline' ? 'uploaded' : attachment.source,
+  }
+}
+
+function isAllowedAttachmentContentType(contentType: string) {
+  return contentType.startsWith('image/') || contentType === 'application/pdf'
+}
+
+function withFreshExpiry<TDraft, TContext>(state: AiSessionState<TDraft, TContext>) {
+  return {
+    ...state,
+    expiresAt: getNewExpiry(),
+  }
+}
+
+function getNewExpiry() {
+  return new Date(Date.now() + SESSION_TTL_MS).toISOString()
+}
+
+function isExpiredSessionState(state: AiSessionState<unknown, unknown>) {
+  const expiresAt = Date.parse(state.expiresAt ?? '')
+  return !Number.isNaN(expiresAt) && expiresAt <= Date.now()
+}
+
+function noStoreJson(body: unknown, init: ResponseInit = {}) {
+  const headers = new Headers(init.headers)
+  headers.set('cache-control', 'no-store')
+  headers.set('vary', appendVary(appendVary(headers.get('vary'), 'Cookie'), 'Authorization'))
+  return Response.json(body, { ...init, headers })
+}
+
+function appendVary(vary: string | null, value: string) {
+  if (!vary) {
+    return value
+  }
+
+  return vary
+    .split(',')
+    .map((item) => item.trim().toLowerCase())
+    .includes(value.toLowerCase())
+    ? vary
+    : `${vary}, ${value}`
 }
 
 function dedupeAttachments(attachments: AiSessionAttachment[]) {

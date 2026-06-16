@@ -32,6 +32,7 @@ import GroupManageView from './views/GroupManageView'
 import InviteMembersView from './views/InviteMembersView'
 import { localizeText } from './utils/localizedText'
 import { normalizeRouteGroupId } from './utils/groupRouteIds'
+import { confirmUnsavedChangesNavigation } from './utils/unsavedChangesGuard'
 import { useActiveEntityIds } from './hooks/useActiveEntityIds'
 import type { GroupDto, GroupSummaryDto, PageSummaryDto } from './types'
 import { translateUi, useUiText } from './i18n/uiText'
@@ -179,7 +180,14 @@ const ShellNavLink = ({ item, mobile = false }: { item: ShellNavItem; mobile?: b
   >
     <NavLink
       to={item.to}
-      onClick={item.onClick}
+      onClick={(event) => {
+        if (!confirmUnsavedChangesNavigation(item.to)) {
+          event.preventDefault()
+          return
+        }
+
+        item.onClick?.()
+      }}
       end={item.to === '/'}
       className={({ isActive }) =>
         [
@@ -214,7 +222,14 @@ const ShellSearchNavLink = ({ item, mobile = false }: { item: ShellNavItem; mobi
     >
       <Link
         to={item.to}
-        onClick={item.onClick}
+        onClick={(event) => {
+          if (!confirmUnsavedChangesNavigation(item.to)) {
+            event.preventDefault()
+            return
+          }
+
+          item.onClick?.()
+        }}
         className={[
           'flex items-center rounded-lg font-medium transition',
           mobile ? 'min-w-0 flex-1 flex-col justify-center gap-1 px-1 py-2 text-xs' : 'gap-3 px-3 py-2.5 text-sm',
@@ -235,7 +250,16 @@ const HeaderNav = ({ items, currentGroupName, currentGroupManageTo }: { items: S
 
   return (
     <nav className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto" aria-label={t('appNavigation')}>
-      <Link to="/" className="mr-1 flex shrink-0 items-center rounded-lg text-slate-950" aria-label={t('home')}>
+      <Link
+        to="/"
+        className="mr-1 flex shrink-0 items-center rounded-lg text-slate-950"
+        aria-label={t('home')}
+        onClick={(event) => {
+          if (!confirmUnsavedChangesNavigation('/')) {
+            event.preventDefault()
+          }
+        }}
+      >
         <span className="flex items-center justify-center rounded-xl bg-emerald-50 p-1.5">
           <img src={logo} alt={t('appName')} className="h-8 w-auto drop-shadow-sm" />
         </span>
@@ -244,6 +268,11 @@ const HeaderNav = ({ items, currentGroupName, currentGroupManageTo }: { items: S
         <Link
           to={currentGroupManageTo}
           className="max-w-72 shrink-0 truncate text-sm font-semibold text-slate-700 hover:text-emerald-700 sm:max-w-xs"
+          onClick={(event) => {
+            if (!confirmUnsavedChangesNavigation(currentGroupManageTo)) {
+              event.preventDefault()
+            }
+          }}
         >
           {currentGroupName}
         </Link>
@@ -341,7 +370,13 @@ const FloatingActionButtons = ({ items }: { items: ShellFabItem[] }) => (
           className={`inline-flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition focus:outline-none focus:ring-4 ${fabToneClass[item.tone]}`}
           aria-label={item.label}
           title={item.label}
-          onClick={item.onClick}
+          onClick={() => {
+            if (item.tone !== 'save' && !confirmUnsavedChangesNavigation()) {
+              return
+            }
+
+            item.onClick()
+          }}
         >
           {item.icon}
         </button>
@@ -836,11 +871,20 @@ const App = () => {
 
   const openSubgroup = (subgroupId: string) => {
     const membership = auth.memberships.find((item) => item.groupId === subgroupId)
+    const target = membership?.status === 'approved' ? '/groups' : '/groups/join'
+    if (!confirmUnsavedChangesNavigation(target)) {
+      return
+    }
+
     activeEntityService.setGroup(subgroupId)
-    navigate(membership?.status === 'approved' ? '/groups' : '/groups/join')
+    navigate(target)
   }
 
   const openGroup = (groupId: string) => {
+    if (!confirmUnsavedChangesNavigation('/groups')) {
+      return
+    }
+
     activeEntityService.setGroup(groupId)
     navigate('/groups')
   }
@@ -874,7 +918,15 @@ const App = () => {
 
           <div className="ml-auto flex items-center gap-2">
             {!auth.loading && auth.me?.displayName ? (
-              <Link className="max-w-36 truncate text-sm font-medium text-slate-700 hover:text-slate-950" to="/profile">
+              <Link
+                className="max-w-36 truncate text-sm font-medium text-slate-700 hover:text-slate-950"
+                to="/profile"
+                onClick={(event) => {
+                  if (!confirmUnsavedChangesNavigation('/profile')) {
+                    event.preventDefault()
+                  }
+                }}
+              >
                 {auth.me.displayName}
               </Link>
             ) : null}

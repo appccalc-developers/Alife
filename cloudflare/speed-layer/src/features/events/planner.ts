@@ -1,6 +1,7 @@
 import type { Env } from '../../index'
 import {
   AiChatSession,
+  createAiSessionObjectName,
   createAiSessionObjectRequest,
   createMemoryDurableObjectState,
   getSessionIdFromPath,
@@ -165,12 +166,12 @@ export default {
     })
 
     if (env.EVENT_SESSIONS) {
-      const objectId = env.EVENT_SESSIONS.idFromName(sessionId)
+      const objectId = env.EVENT_SESSIONS.idFromName(createAiSessionObjectName(request, sessionId))
       const object = env.EVENT_SESSIONS.get(objectId)
       return object.fetch(createAiSessionObjectRequest(targetPath, url, request, sessionId))
     }
 
-    const fallbackObject = new EventPlanningSession(getFallbackState(sessionId), env)
+    const fallbackObject = new EventPlanningSession(getFallbackState(createAiSessionObjectName(request, sessionId)), env)
     return fallbackObject.fetch(createAiSessionObjectRequest(targetPath, url, request, sessionId))
   },
 }

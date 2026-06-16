@@ -36,6 +36,10 @@ beforeEach(() => {
   waitUntilPromises = []
 
   globalThis.fetch = async (request, init) => {
+    if (isAuthValidationRequest(request, init)) {
+      return Response.json({ id: readMemberIdFromRequest(request, init) || 'member-1' })
+    }
+
     fetchCalls.push(request)
     fetchInits.push(init)
     return originResponses.shift() ?? Response.json({ ok: true })
@@ -1092,6 +1096,20 @@ test('POST /api/events/extract returns 400 for empty message', async () => {
   assert.equal(fetchCalls.length, 0)
 })
 
+test('AI session routes require authentication before Gemini', async () => {
+  const response = await dispatch('https://ccalc.live/api/events/session/member-1-event-draft/message', {
+    method: 'POST',
+    body: JSON.stringify({ message: 'Plan a family camp.' }),
+    headers: { 'content-type': 'application/json' },
+    env: { GEMINI_API_KEY: 'test-key', API_PROXY_TARGET: 'https://ccalc.live' },
+    auth: false,
+  })
+
+  assert.equal(response.status, 401)
+  assert.equal(response.headers.get('cache-control'), 'no-store')
+  assert.equal(fetchCalls.length, 0)
+})
+
 test('POST /api/events/session/:id/message persists event draft state', async () => {
   const sessionId = 'member-1-event-draft'
   originResponses.push(Response.json({
@@ -1129,10 +1147,12 @@ test('POST /api/events/session/:id/message persists event draft state', async ()
   })
 
   assert.equal(messageResponse.status, 200)
+  assert.equal(messageResponse.headers.get('cache-control'), 'no-store')
   assert.equal(stateResponse.status, 200)
   const state = await stateResponse.json()
   assert.equal(state.draft.title.en, 'Family Camp')
   assert.equal(state.context.en, 'Arrange carpooling.')
+  assert.equal(state.ownerMemberId, undefined)
 })
 
 test('POST /api/events/session/:id/message forwards known app context to Gemini', async () => {
@@ -1276,6 +1296,7 @@ test('POST /api/events/session/:id/message repairs legacy malformed attachment s
     method: 'POST',
     headers: {
       origin: ORIGIN,
+      cookie: `alife_auth=${createJwtWithSub('member-1')}`,
       'content-type': 'application/json',
     },
     body: JSON.stringify({ message: 'Plan a family camp in Hamilton.' }),
@@ -1466,6 +1487,7 @@ test('POST /api/enrollments/session/:id/commit uploads files and commits backend
     eventId,
     groupId,
     applicantName: 'Alice',
+    memberId: 'member-1',
     consent: true,
     paymentFiles: [{
       fileName: 'proof.png',
@@ -1539,6 +1561,7 @@ test('POST /api/enrollments/session/:id/commit allows enrollment without payment
     eventId,
     groupId,
     applicantName: 'Alice',
+    memberId: 'member-1',
     consent: true,
     paymentFiles: [],
     submittedAtUtc: enrollmentPayload.submittedAtUtc,
@@ -1785,14 +1808,33 @@ test('POST /api/events/session/:id/close clears event session state', async () =
 })
 
 async function dispatch(url, init = {}) {
-  const { env: envOverride, ...requestInit } = init
+  const { env: envOverride, auth = true, ...requestInit } = init
   const headers = new Headers(requestInit.headers)
   if (!headers.has('origin')) {
     headers.set('origin', ORIGIN)
   }
+  if (auth && isAiSessionUrl(url) && !headers.has('cookie') && !headers.has('authorization')) {
+    headers.set('cookie', `alife_auth=${createJwtWithSub('member-1')}`)
+  }
 
   const request = new Request(url, { ...requestInit, headers })
   return worker.fetch(request, envOverride ?? createEnv(), createCtx())
+}
+
+function isAiSessionUrl(url) {
+  const pathname = new URL(url).pathname
+  return pathname === '/api/events/extract' ||
+    /^\/api\/events\/session\//.test(pathname) ||
+    /^\/api\/enrollments\/session\//.test(pathname) ||
+    /^\/api\/reviews\/session\//.test(pathname)
+}
+
+function isAuthValidationRequest(request, init) {
+  const url = new URL(typeof request === 'string' ? request : request.url)
+  const headers = request instanceof Request ? request.headers : new Headers(init?.headers)
+  return url.pathname === '/api/me' &&
+    (url.hostname === 'api.ccalc.live' || url.hostname === 'ccalc.live') &&
+    headers.get('cache-control') === 'no-store'
 }
 
 function createEnv() {
@@ -2037,6 +2079,34 @@ function createJwtWithSub(sub) {
   const header = toBase64Url(JSON.stringify({ alg: 'none', typ: 'JWT' }))
   const payload = toBase64Url(JSON.stringify({ sub, exp: 4700000000 }))
   return `${header}.${payload}.sig`
+}
+
+function readMemberIdFromRequest(request, init) {
+  const headers = request instanceof Request ? request.headers : new Headers(init?.headers)
+  const authorization = headers.get('authorization') ?? ''
+  const bearer = authorization.match(/^bearer\s+(.+)$/i)?.[1]
+  const cookieToken = (headers.get('cookie') ?? '')
+    .split(';')
+    .map((entry) => entry.trim())
+    .find((entry) => entry.startsWith('alife_auth='))
+    ?.slice('alife_auth='.length)
+  return readSubFromJwt(bearer || cookieToken || '')
+}
+
+function readSubFromJwt(token) {
+  const payload = token.split('.')[1]
+  if (!payload) {
+    return ''
+  }
+
+  try {
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const padded = `${normalized}${'='.repeat((4 - normalized.length % 4) % 4)}`
+    const parsed = JSON.parse(Buffer.from(padded, 'base64').toString('utf8'))
+    return typeof parsed.sub === 'string' ? parsed.sub : ''
+  } catch {
+    return ''
+  }
 }
 
 function toBase64Url(value) {
