@@ -1,5 +1,10 @@
 import type { Env, ExecutionContext } from '../index'
-import { addCorsHeaders } from './apiCache'
+import {
+  addCorsHeaders,
+  CORS_ALLOWED_HEADERS,
+  CORS_ALLOWED_METHODS,
+  CORS_PREFLIGHT_MAX_AGE_SECONDS,
+} from './apiCache'
 import { shouldBypassEdgeCache } from './authCache'
 
 const DEFAULT_API_PROXY_TARGET = 'https://api.ccalc.live'
@@ -19,11 +24,11 @@ export const proxyHandler = {
     }
 
     if (!isProxyPath(url.pathname)) {
-      return addCorsHeaders(request, new Response('Not found', { status: 404 }))
+      return addCorsHeaders(request, new Response('Not found', { status: 404 }), env)
     }
 
     if (request.method === 'OPTIONS') {
-      return handleOptions(request)
+      return handleOptions(request, env)
     }
 
     const bypassEdgeCache = request.bypassEdgeCache ?? shouldBypassEdgeCache(url.pathname, request.sharedContext)
@@ -38,17 +43,18 @@ export const proxyHandler = {
   }
 }
 
-function handleOptions(request: Request) {
+function handleOptions(request: Request, env: Env) {
   return addCorsHeaders(
     request,
     new Response(null, {
       status: 204,
       headers: {
-        'access-control-allow-methods': ALLOWED_METHODS,
-        'access-control-allow-headers': ALLOWED_HEADERS,
-        'access-control-max-age': PREFLIGHT_MAX_AGE_SECONDS,
+        'access-control-allow-methods': CORS_ALLOWED_METHODS,
+        'access-control-allow-headers': CORS_ALLOWED_HEADERS,
+        'access-control-max-age': CORS_PREFLIGHT_MAX_AGE_SECONDS,
       },
     }),
+    env,
   )
 }
 

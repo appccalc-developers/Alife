@@ -11,6 +11,8 @@ import { ReviewSession } from './features/events/reviewer'
 
 export type Env = {
   API_PROXY_TARGET?: string
+  /** Comma-separated frontend origins allowed for credentialed CORS. */
+  CORS_ALLOWED_ORIGINS?: string
   /** Gemini API key stored as a Cloudflare Worker secret. */
   GEMINI_API_KEY?: string
   /** Optional Gemini model override. Defaults to Gemini 3 Pro. */
