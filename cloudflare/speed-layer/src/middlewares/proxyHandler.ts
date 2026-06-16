@@ -4,7 +4,7 @@ import { shouldBypassEdgeCache } from './authCache'
 
 const DEFAULT_API_PROXY_TARGET = 'https://api.ccalc.live'
 const DEFAULT_IMAGES_API_PROXY_TARGET = 'https://images.ccalc.live'
-const ALLOWED_METHODS = 'GET, POST, PUT, PATCH, DELETE, OPTIONS'
+const ALLOWED_METHODS = 'GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS'
 const ALLOWED_HEADERS = 'Content-Type, Authorization, X-Requested-With, If-None-Match'
 const PREFLIGHT_MAX_AGE_SECONDS = '86400'
 
