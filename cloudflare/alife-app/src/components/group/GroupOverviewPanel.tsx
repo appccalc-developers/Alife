@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import AppActionButton from '../layout/AppActionButton'
 import AppSectionCard from '../layout/AppSectionCard'
 import type { GroupDto } from '../../types/group'
@@ -13,9 +13,13 @@ type Props = {
   saving?: boolean
   onSave?: (payload: { name: LocalizedText; description?: LocalizedText; accessType: GroupDto['accessType']; isClosed: boolean }) => Promise<void> | void
   onStatusMessage?: (message: string) => void
+  onDirtyChange?: (hasUnsavedChanges: boolean) => void
 }
 
-const GroupOverviewPanel = ({ group, saving = false, onSave, onStatusMessage }: Props) => {
+const hasTextChanged = (current: LocalizedText, saved: LocalizedText) =>
+  (current.en ?? '') !== (saved.en ?? '') || (current.zh ?? '') !== (saved.zh ?? '')
+
+const GroupOverviewPanel = ({ group, saving = false, onSave, onStatusMessage, onDirtyChange }: Props) => {
   const t = useUiText()
   const [name, setName] = useState(() => toLocalizedText(group.name))
   const [description, setDescription] = useState(() => toLocalizedText(group.description))
@@ -28,6 +32,11 @@ const GroupOverviewPanel = ({ group, saving = false, onSave, onStatusMessage }: 
     { field: 'name', textType: group.isChurch ? 'churchName' : 'groupName' },
     { field: 'description', textType: group.isChurch ? 'churchDescription' : 'groupDescription' },
   ]
+  const savedName = useMemo(() => toLocalizedText(group.name), [group.name])
+  const savedDescription = useMemo(() => toLocalizedText(group.description), [group.description])
+  const hasUnsavedProfileChanges =
+    hasTextChanged(name, savedName) ||
+    hasTextChanged(description, savedDescription)
 
   useEffect(() => {
     setName(toLocalizedText(group.name))
@@ -35,6 +44,14 @@ const GroupOverviewPanel = ({ group, saving = false, onSave, onStatusMessage }: 
     setAccessType(group.accessType)
     setIsClosed(group.isClosed)
   }, [group])
+
+  useEffect(() => {
+    onDirtyChange?.(hasUnsavedProfileChanges)
+  }, [hasUnsavedProfileChanges, onDirtyChange])
+
+  useEffect(() => () => {
+    onDirtyChange?.(false)
+  }, [onDirtyChange])
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -122,7 +139,7 @@ const GroupOverviewPanel = ({ group, saving = false, onSave, onStatusMessage }: 
           <textarea
             value={description.en ?? ''}
             onChange={(event) => setDescription((current) => ({ ...current, en: event.target.value }))}
-            className="mt-1 min-h-20 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+            className="mt-1 min-h-60 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
           />
         </label>
 
@@ -131,7 +148,7 @@ const GroupOverviewPanel = ({ group, saving = false, onSave, onStatusMessage }: 
           <textarea
             value={description.zh ?? ''}
             onChange={(event) => setDescription((current) => ({ en: current.en ?? '', zh: event.target.value }))}
-            className="mt-1 min-h-20 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+            className="mt-1 min-h-60 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
           />
         </label>
 

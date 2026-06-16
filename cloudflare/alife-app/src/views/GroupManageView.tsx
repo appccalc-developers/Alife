@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowRightLeft, Crown, UserMinus } from 'lucide-react'
 import AppActionButton from '../components/layout/AppActionButton'
@@ -16,6 +16,7 @@ import { localizeText, toLocalizedText } from '../utils/localizedText'
 import { useCurrentGroupStore } from '../stores/currentGroup'
 import { translateUi, useUiText } from '../i18n/uiText'
 import { activeEntityService } from '../services/activeEntityService'
+import { setUnsavedChangesGuard } from '../utils/unsavedChangesGuard'
 import type { GroupPageDto } from '../types/group'
 import type { GroupEventRecord } from '../types/event'
 import { groupService } from '../api/groupService'
@@ -422,6 +423,8 @@ const GroupManageView = () => {
   const { language } = auth
   const { setCurrentGroup } = useCurrentGroupStore()
   const [savingGroup, setSavingGroup] = useState(false)
+  const [hasUnsavedGroupProfileChanges, setHasUnsavedGroupProfileChanges] = useState(false)
+  const browserBackGuardRegistered = useRef(false)
   const {
     group,
     subgroups,
@@ -446,6 +449,15 @@ const GroupManageView = () => {
   } = useGroupScreen(groupId, { loadEvents: true })
 
   const activeSection = searchParams.get('section') ?? 'group'
+  const unsavedGroupProfileMessage = t('groupProfileUnsavedChangesPrompt')
+  const guardGroupProfileNavigation = useCallback(() => {
+    if (!hasUnsavedGroupProfileChanges) {
+      return true
+    }
+
+    window.alert(unsavedGroupProfileMessage)
+    return false
+  }, [hasUnsavedGroupProfileChanges, unsavedGroupProfileMessage])
   const canManageSubgroup = (subgroupId: string) =>
     auth.memberships.some(
       (membership) =>
@@ -455,6 +467,8 @@ const GroupManageView = () => {
     )
 
   const handleOpenSubgroup = async (subgroupId: string) => {
+    if (!guardGroupProfileNavigation()) return
+
     if (canManageSubgroup(subgroupId)) {
       activeEntityService.setGroup(subgroupId)
       navigate('/groups/manage?section=group')
@@ -479,7 +493,46 @@ const GroupManageView = () => {
     }
   }, [group, setCurrentGroup])
 
+  useEffect(() => {
+    setUnsavedChangesGuard(hasUnsavedGroupProfileChanges, unsavedGroupProfileMessage)
+    return () => setUnsavedChangesGuard(false)
+  }, [hasUnsavedGroupProfileChanges, unsavedGroupProfileMessage])
+
+  useEffect(() => {
+    if (!hasUnsavedGroupProfileChanges) return
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [hasUnsavedGroupProfileChanges])
+
+  useEffect(() => {
+    if (!hasUnsavedGroupProfileChanges) {
+      browserBackGuardRegistered.current = false
+      return
+    }
+
+    if (!browserBackGuardRegistered.current) {
+      window.history.pushState({ alifeUnsavedGroupProfileGuard: true }, '', window.location.href)
+      browserBackGuardRegistered.current = true
+    }
+
+    const handlePopState = () => {
+      window.alert(unsavedGroupProfileMessage)
+      window.history.pushState({ alifeUnsavedGroupProfileGuard: true }, '', window.location.href)
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [hasUnsavedGroupProfileChanges, unsavedGroupProfileMessage])
+
   const handleCreateSubgroup = async () => {
+    if (!guardGroupProfileNavigation()) return
+
     const subgroupName = window.prompt(t('subgroupName'))
     if (!subgroupName?.trim()) return
 
@@ -506,7 +559,17 @@ const GroupManageView = () => {
     <AppPageShell>
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <Link to="/groups" className="text-sm font-medium text-slate-600 hover:text-slate-950">{t(group?.isChurch ? 'backToChurch' : 'backToViews')}</Link>
+          <Link
+            to="/groups"
+            className="text-sm font-medium text-slate-600 hover:text-slate-950"
+            onClick={(event) => {
+              if (!guardGroupProfileNavigation()) {
+                event.preventDefault()
+              }
+            }}
+          >
+            {t(group?.isChurch ? 'backToChurch' : 'backToViews')}
+          </Link>
           <h1 className="mt-2 text-2xl font-semibold text-slate-950">
             {t(group?.isChurch ? 'churchManagementTitle' : 'groupManagementTitle', { name: localizeText(group?.name, language) || t(group?.isChurch ? 'church' : 'group') })}
           </h1>
@@ -552,6 +615,7 @@ const GroupManageView = () => {
                 group={group}
                 saving={savingGroup}
                 onStatusMessage={setStatusMessage}
+                onDirtyChange={setHasUnsavedGroupProfileChanges}
                 onSave={async (payload) => {
                   setSavingGroup(true)
                   try {
