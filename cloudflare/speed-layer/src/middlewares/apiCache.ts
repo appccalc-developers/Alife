@@ -38,7 +38,7 @@ const GROUP_SHARED_CACHE_TTLS = {
   members: CACHE_TTL_SECONDS,
 } as const
 const STORED_RESPONSE_CACHE_URL_PREFIX = 'https://alife.local/cache-v2/'
-export const CORS_ALLOWED_METHODS = 'GET, POST, PUT, PATCH, DELETE, OPTIONS'
+export const CORS_ALLOWED_METHODS = 'GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS'
 export const CORS_ALLOWED_HEADERS = 'Content-Type, Authorization, X-Requested-With, If-None-Match'
 export const CORS_PREFLIGHT_MAX_AGE_SECONDS = '86400'
 
