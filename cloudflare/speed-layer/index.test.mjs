@@ -846,6 +846,36 @@ test('GET /images object paths are proxied to images.ccalc.live object paths', a
   assert.equal(fetchCalls[0].url, 'https://images.ccalc.live/folder/hero.png')
 })
 
+test('HEAD /images object paths are proxied to images.ccalc.live object paths', async () => {
+  originResponses.push(new Response(null, {
+    status: 200,
+    headers: { 'content-type': 'image/png' },
+  }))
+
+  const response = await dispatch('https://ccalc.live/images/folder/hero.png', {
+    method: 'HEAD',
+  })
+
+  assert.equal(response.status, 200)
+  assert.equal(fetchCalls.length, 1)
+  assert.equal(fetchCalls[0].method, 'HEAD')
+  assert.equal(fetchCalls[0].url, 'https://images.ccalc.live/folder/hero.png')
+})
+
+test('OPTIONS /images allows HEAD for image metadata checks', async () => {
+  const response = await dispatch('https://ccalc.live/images/folder/hero.png', {
+    method: 'OPTIONS',
+    headers: {
+      origin: ORIGIN,
+      'access-control-request-method': 'HEAD',
+    },
+  })
+
+  assert.equal(response.status, 204)
+  assert.match(response.headers.get('access-control-allow-methods') ?? '', /\bHEAD\b/)
+  assert.equal(fetchCalls.length, 0)
+})
+
 test('POST /api/ai/translate-text-fields validates authentication before Gemini', async () => {
   const response = await dispatch('https://ccalc.live/api/ai/translate-text-fields', {
     method: 'POST',

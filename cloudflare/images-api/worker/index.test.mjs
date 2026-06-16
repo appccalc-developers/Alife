@@ -135,6 +135,21 @@ test("GET /api/images/{path} streams image by key path", async () => {
   assert.equal(await response.text(), "imgdata");
 });
 
+test("HEAD /api/images/{path} returns image metadata without body", async () => {
+  objects.set("cats/tabby.jpg", createObject("cats/tabby.jpg", "image/jpeg", "imgdata"));
+
+  const response = await dispatch("https://images.ccalc.live/api/images/cats/tabby.jpg", {
+    method: "HEAD",
+    headers: { origin: "https://ccalc.live" },
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("access-control-allow-origin"), "https://ccalc.live");
+  assert.equal(response.headers.get("content-type"), "image/jpeg");
+  assert.equal(response.headers.get("content-length"), "7");
+  assert.equal(await response.text(), "");
+});
+
 test("GET /api/images/{path} returns 404 for missing key", async () => {
   const response = await dispatch("https://images.ccalc.live/api/images/missing.png");
 
@@ -200,6 +215,22 @@ test("GET public object path streams image object", async () => {
   assert.equal(await response.text(), "hello");
 });
 
+test("HEAD public object path returns image metadata without body", async () => {
+  objects.set("folder/hero.png", createObject("folder/hero.png", "image/png", "hello"));
+
+  const response = await dispatch("https://images.ccalc.live/folder/hero.png", {
+    method: "HEAD",
+    headers: { origin: "https://ccalc.live" },
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("access-control-allow-origin"), "https://ccalc.live");
+  assert.equal(response.headers.get("vary"), "origin");
+  assert.equal(response.headers.get("content-type"), "image/png");
+  assert.equal(response.headers.get("content-length"), "5");
+  assert.equal(await response.text(), "");
+});
+
 test("OPTIONS public object path returns CORS preflight headers", async () => {
   const response = await dispatch("https://images.ccalc.live/folder/hero.png", {
     method: "OPTIONS",
@@ -212,6 +243,7 @@ test("OPTIONS public object path returns CORS preflight headers", async () => {
   assert.equal(response.status, 204);
   assert.equal(response.headers.get("access-control-allow-origin"), "https://ccalc.live");
   assert.match(response.headers.get("access-control-allow-methods") ?? "", /\bGET\b/);
+  assert.match(response.headers.get("access-control-allow-methods") ?? "", /\bHEAD\b/);
 });
 
 function dispatch(url, init = {}) {
