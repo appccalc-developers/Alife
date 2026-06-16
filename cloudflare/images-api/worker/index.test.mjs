@@ -189,11 +189,29 @@ test("DELETE /api/images/{path} returns 404 for non-existent path", async () => 
 test("GET public object path streams image object", async () => {
   objects.set("folder/hero.png", createObject("folder/hero.png", "image/png", "hello"));
 
-  const response = await dispatch("https://images.ccalc.live/folder/hero.png");
+  const response = await dispatch("https://images.ccalc.live/folder/hero.png", {
+    headers: { origin: "https://ccalc.live" },
+  });
 
   assert.equal(response.status, 200);
+  assert.equal(response.headers.get("access-control-allow-origin"), "https://ccalc.live");
+  assert.equal(response.headers.get("vary"), "origin");
   assert.equal(response.headers.get("content-type"), "image/png");
   assert.equal(await response.text(), "hello");
+});
+
+test("OPTIONS public object path returns CORS preflight headers", async () => {
+  const response = await dispatch("https://images.ccalc.live/folder/hero.png", {
+    method: "OPTIONS",
+    headers: {
+      origin: "https://ccalc.live",
+      "access-control-request-method": "GET",
+    },
+  });
+
+  assert.equal(response.status, 204);
+  assert.equal(response.headers.get("access-control-allow-origin"), "https://ccalc.live");
+  assert.match(response.headers.get("access-control-allow-methods") ?? "", /\bGET\b/);
 });
 
 function dispatch(url, init = {}) {
