@@ -88,6 +88,84 @@ export const resolveImageAspectRatio = (src: string): Promise<number | null> =>
     img.src = value
   })
 
+export const isVideoSource = (src: string) => {
+  const value = src.trim()
+  if (!value) {
+    return false
+  }
+
+  if (/^data:video\//i.test(value)) {
+    return true
+  }
+
+  try {
+    const baseUrl = typeof window !== 'undefined' ? window.location.href : 'https://alife.local/'
+    return /\.(mp4|webm|ogv|ogg|mov|m4v)$/i.test(new URL(value, baseUrl).pathname)
+  } catch {
+    return /\.(mp4|webm|ogv|ogg|mov|m4v)(?:[?#].*)?$/i.test(value)
+  }
+}
+
+const resolveVideoAspectRatio = (src: string): Promise<number | null> =>
+  new Promise((resolve) => {
+    const value = src.trim()
+    if (!value || typeof document === 'undefined') {
+      resolve(null)
+      return
+    }
+
+    const video = document.createElement('video')
+    video.preload = 'metadata'
+    video.muted = true
+    video.onloadedmetadata = () => {
+      if (!video.videoWidth || !video.videoHeight) {
+        resolve(null)
+        return
+      }
+
+      resolve(video.videoWidth / video.videoHeight)
+    }
+    video.onerror = () => resolve(null)
+    video.src = value
+  })
+
+export const resolveMediaAspectRatio = (src: string): Promise<number | null> =>
+  isVideoSource(src) ? resolveVideoAspectRatio(src) : resolveImageAspectRatio(src)
+
+export const BackgroundMedia = ({
+  src,
+  overlayClassName,
+  className = '',
+}: {
+  src: string
+  overlayClassName: string
+  className?: string
+}) => {
+  const source = src.trim()
+
+  return (
+    <div aria-hidden="true" className={`absolute inset-0 overflow-hidden ${className}`}>
+      {source && isVideoSource(source) ? (
+        <video
+          src={source}
+          className="absolute inset-0 h-full w-full object-cover"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          tabIndex={-1}
+        />
+      ) : source ? (
+        <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${source})` }} />
+      ) : (
+        <div className="absolute inset-0 bg-slate-950" />
+      )}
+      <div className={`absolute inset-0 ${overlayClassName}`} />
+    </div>
+  )
+}
+
 export const parseLimit = (source: JsonMap | undefined, key = 'limit', fallback = 8) => {
   const value = source?.[key]
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback

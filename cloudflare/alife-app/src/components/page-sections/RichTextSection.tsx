@@ -2,7 +2,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useAuthStore } from '../../stores/auth'
 import { useUiText } from '../../i18n/uiText'
-import { EditableText, PropertyPanel, TextInput, patchContent, patchLocalizedContent, patchLocalizedSectionHeader, readLocalizedText, readText } from './sectionUtils'
+import { BackgroundMedia, EditableText, PropertyPanel, TextInput, patchContent, patchLocalizedContent, patchLocalizedSectionHeader, readLocalizedText, readText } from './sectionUtils'
 import type { SectionComponentProps } from './types'
 import SectionHeader from './SectionHeader'
 import { sectionSpacingClass } from './sectionPresets'
@@ -59,8 +59,9 @@ const RichTextSection = ({ section, mode, disabled, onUpdate }: SectionComponent
 
   return (
     <section className="overflow-hidden rounded-lg border border-slate-200">
-      <div className={`bg-cover bg-center px-5 text-white ${sectionSpacingClass(section)}`} style={{ backgroundImage: `linear-gradient(rgba(2, 6, 23, 0.7), rgba(2, 6, 23, 0.7)), url(${bg})` }}>
-        <div className="mx-auto max-w-4xl text-center">
+      <div className={`relative overflow-hidden px-5 text-white ${sectionSpacingClass(section)}`}>
+        <BackgroundMedia src={bg} overlayClassName="bg-slate-950/70" />
+        <div className="relative mx-auto max-w-4xl text-center">
           <SectionHeader
             header={section.contentJson.header}
             variant="hero"
