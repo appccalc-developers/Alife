@@ -7,10 +7,10 @@ const LANGUAGE_STORAGE_KEY = 'alife.language'
 
 const readStoredLanguage = (): Language => {
   if (typeof window === 'undefined') {
-    return 'zh'
+    return 'en'
   }
 
-  return window.localStorage.getItem(LANGUAGE_STORAGE_KEY) === 'en' ? 'en' : 'zh'
+  return window.localStorage.getItem(LANGUAGE_STORAGE_KEY) === 'zh' ? 'zh' : 'en'
 }
 
 const writeStoredLanguage = (language: Language) => {
