@@ -13,6 +13,7 @@ import {
   patchLocalizedSectionHeader,
   readLocalizedText,
   readText,
+  isVideoSource,
   toYouTubeEmbedUrl,
 } from './sectionUtils'
 import type { SectionComponentProps } from './types'
@@ -145,6 +146,18 @@ const SpotlightSection = ({ section, mode, disabled, onUpdate, contextGroupId, p
       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
       allowFullScreen
     />
+  ) : imageUrl && isVideoSource(imageUrl) ? (
+    <video
+      src={imageUrl}
+      className="h-48 w-full object-cover sm:h-[240px] md:h-[300px]"
+      autoPlay
+      muted
+      loop
+      playsInline
+      preload="metadata"
+      tabIndex={-1}
+      aria-hidden="true"
+    />
   ) : imageUrl ? (
     <img src={imageUrl} alt="" className="h-48 w-full object-cover sm:h-[240px] md:h-[300px]" />
   ) : (
@@ -268,7 +281,7 @@ const SpotlightSection = ({ section, mode, disabled, onUpdate, contextGroupId, p
             onChange={(value) => updateMedia({ type: value, url: value === 'youtube' ? youtubeUrl : imageUrl, position: mediaPosition })}
           />
           <TextInput
-            label={mediaConfig.type === 'youtube' ? t('youtubeUrl') : t('imageUrl')}
+            label={mediaConfig.type === 'youtube' ? t('youtubeUrl') : t('imageOrVideoUrl')}
             value={mediaConfig.url}
             disabled={disabled}
             onChange={(value) => {

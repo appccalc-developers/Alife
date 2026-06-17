@@ -267,14 +267,17 @@ const HeaderNav = ({ items, currentGroupName, currentGroupManageTo }: { items: S
       {currentGroupName && currentGroupManageTo ? (
         <Link
           to={currentGroupManageTo}
-          className="max-w-72 shrink-0 truncate text-sm font-semibold text-slate-700 hover:text-emerald-700 sm:max-w-xs"
+          className="inline-flex h-10 max-w-72 shrink-0 items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 text-sm font-semibold text-emerald-900 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-100 hover:text-emerald-950 focus:outline-none focus:ring-2 focus:ring-emerald-300 sm:max-w-xs"
           onClick={(event) => {
             if (!confirmUnsavedChangesNavigation(currentGroupManageTo)) {
               event.preventDefault()
             }
           }}
         >
-          {currentGroupName}
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center text-emerald-700">
+            <GroupIcon />
+          </span>
+          <span className="truncate">{currentGroupName}</span>
         </Link>
       ) : currentGroupName ? (
         <span className="max-w-72 shrink-0 truncate text-sm font-semibold text-slate-700 sm:max-w-xs">{currentGroupName}</span>

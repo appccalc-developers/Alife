@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useAuthStore } from '../../stores/auth'
 import { useUiText } from '../../i18n/uiText'
-import { DEFAULT_HERO_ASPECT_RATIO, DEFAULT_HERO_IMAGE, DEFAULT_POSTER_ASPECT_RATIO, EditableText, PropertyPanel, SelectInput, TextInput, patchContent, patchLocalizedContent, patchLocalizedSectionHeader, patchStyle, readLocalizedText, readNumber, readText, resolveImageAspectRatio } from './sectionUtils'
+import { BackgroundMedia, DEFAULT_HERO_ASPECT_RATIO, DEFAULT_HERO_IMAGE, DEFAULT_POSTER_ASPECT_RATIO, EditableText, PropertyPanel, SelectInput, TextInput, patchContent, patchLocalizedContent, patchLocalizedSectionHeader, patchStyle, readLocalizedText, readNumber, readText, resolveMediaAspectRatio } from './sectionUtils'
 import type { SectionComponentProps } from './types'
 import SectionHeader from './SectionHeader'
 
@@ -82,7 +82,7 @@ const HeroSection = ({ section, mode, disabled, onUpdate }: SectionComponentProp
     }
 
     const sourceBg = bg.trim()
-    if (!sourceBg || !/^(https?:\/\/|\/|data:image|blob:)/i.test(sourceBg)) {
+    if (!sourceBg || !/^(https?:\/\/|\/|data:(image|video)|blob:)/i.test(sourceBg)) {
       if (!currentAspectRatio || Math.abs(currentAspectRatio - fallbackAspectRatio) >= 0.01) {
         onUpdateRef.current?.(patchStyle(currentSection, { aspectRatio: fallbackAspectRatio }))
       }
@@ -91,7 +91,7 @@ const HeroSection = ({ section, mode, disabled, onUpdate }: SectionComponentProp
 
     let active = true
 
-    void resolveImageAspectRatio(sourceBg).then((nextAspectRatio) => {
+    void resolveMediaAspectRatio(sourceBg).then((nextAspectRatio) => {
       if (!active || !nextAspectRatio) {
         return
       }
@@ -147,10 +147,8 @@ const HeroSection = ({ section, mode, disabled, onUpdate }: SectionComponentProp
         className={`relative w-full ${poster ? 'mx-auto' : ''}`}
         style={{ aspectRatio: reservedAspectRatio }}
       >
-        <div
-          className="absolute inset-0 bg-cover bg-center text-white"
-          style={{ backgroundImage: `linear-gradient(rgba(15, 23, 42, 0.45), rgba(15, 23, 42, 0.45)), url(${bg})` }}
-        >
+        <div className="absolute inset-0 text-white">
+          <BackgroundMedia src={bg} overlayClassName="bg-slate-950/45" />
           <div className="relative flex h-full items-center justify-center px-5 py-8 text-center sm:py-12">
             <div className="flex w-full flex-col items-center justify-center">
               <SectionHeader
