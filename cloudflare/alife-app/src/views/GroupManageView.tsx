@@ -17,7 +17,7 @@ import { useCurrentGroupStore } from '../stores/currentGroup'
 import { translateUi, useUiText } from '../i18n/uiText'
 import { activeEntityService } from '../services/activeEntityService'
 import { setUnsavedChangesGuard } from '../utils/unsavedChangesGuard'
-import type { GroupPageDto } from '../types/group'
+import type { GroupPageDto, PageVisibility } from '../types/group'
 import type { GroupEventRecord } from '../types/event'
 import { groupService } from '../api/groupService'
 
@@ -246,10 +246,12 @@ type PagesPanelProps = {
   pages: GroupPageDto[]
   onAddPage: () => void
   onDeletePage: (pageId: string) => void
-  onTogglePageVisibility: (page: GroupPageDto) => void
+  onUpdatePageVisibility: (page: GroupPageDto, visibility: PageVisibility) => void
 }
 
-const PagesPanel = ({ groupId, language, pages, onAddPage, onDeletePage, onTogglePageVisibility }: PagesPanelProps) => {
+const pageVisibilityOptions: PageVisibility[] = ['draft', 'group', 'public']
+
+const PagesPanel = ({ groupId, language, pages, onAddPage, onDeletePage, onUpdatePageVisibility }: PagesPanelProps) => {
   const t = useUiText()
   const navigate = useNavigate()
 
@@ -291,9 +293,21 @@ const PagesPanel = ({ groupId, language, pages, onAddPage, onDeletePage, onToggl
                 >
                   {t('edit')}
                 </button>
-                <AppActionButton size="sm" variant="secondary" onClick={() => onTogglePageVisibility(page)}>
-                  {page.visibility === 'draft' ? t('publish') : t('moveToDraft')}
-                </AppActionButton>
+                <label className="sr-only" htmlFor={`page-visibility-${page.id}`}>
+                  {t('visibility')}
+                </label>
+                <select
+                  id={`page-visibility-${page.id}`}
+                  value={page.visibility}
+                  className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700"
+                  onChange={(event) => onUpdatePageVisibility(page, event.target.value as PageVisibility)}
+                >
+                  {pageVisibilityOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {t(option)}
+                    </option>
+                  ))}
+                </select>
                 <AppActionButton size="sm" variant="danger" onClick={() => onDeletePage(page.id)}>{t('delete')}</AppActionButton>
               </div>
             </div>
@@ -439,7 +453,7 @@ const GroupManageView = () => {
     updateGroup,
     addSubgroup: createSubgroup,
     deletePage,
-    togglePageVisibility,
+    updatePageVisibility,
     approveMember,
     rejectMember,
     kickMember,
@@ -700,7 +714,7 @@ const GroupManageView = () => {
                 if (!window.confirm(t('removePageConfirm'))) return
                 deletePage(pageId).catch(() => setStatusMessage(t('removePageFailed')))
               }}
-              onTogglePageVisibility={(page) => togglePageVisibility(page).catch(() => setStatusMessage(t('updatePageVisibilityFailed')))}
+              onUpdatePageVisibility={(page, visibility) => updatePageVisibility(page, visibility).catch(() => setStatusMessage(t('updatePageVisibilityFailed')))}
             />
           ) : null}
 

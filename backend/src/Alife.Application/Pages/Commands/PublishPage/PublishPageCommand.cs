@@ -6,4 +6,4 @@ using MediatR;
 namespace Alife.Application.Pages.Commands.PublishPage;
 
 public sealed record PublishPageCommand(Guid PageId, Guid CurrentMemberId, PageVisibility Visibility)
-    : IRequest<AppResult<PageActionResultDto>>;
+    : IRequest<AppResult<PageDto>>;

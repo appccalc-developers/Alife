@@ -12,7 +12,7 @@ import { subgroupsCollection } from '../db/collections/groupCollection'
 import { groupPagesCollection, getCachedGroupPages } from '../db/collections/groupCollection'
 import { groupMembershipsCollection, getCachedGroupMemberships } from '../db/collections/groupCollection'
 import { useUiText } from '../i18n/uiText'
-import type { GroupDto, GroupTab, PageSummaryDto } from '../types/group'
+import type { GroupDto, GroupTab, PageSummaryDto, PageVisibility } from '../types/group'
 import type { LocalizedText } from '../types'
 import type { GroupEventRecord } from '../types/event'
 
@@ -296,12 +296,15 @@ export const useGroupScreen = (groupId: string, options: GroupScreenOptions = {}
     [queryClient, groupId, t],
   )
 
-  const togglePageVisibility = useCallback(
-    async (page: PageSummaryDto) => {
-      const nextVisibility = page.visibility === 'draft' ? 'group' : 'draft'
+  const updatePageVisibility = useCallback(
+    async (page: PageSummaryDto, nextVisibility: PageVisibility) => {
+      if (page.visibility === nextVisibility) {
+        return
+      }
+
       await pageService.publishPage(page.id, { visibility: nextVisibility })
       await queryClient.invalidateQueries({ queryKey: ['groupPages', groupId] })
-      setStatusMessage(nextVisibility === 'group' ? t('pagePublished') : t('pageMovedToDraft'))
+      setStatusMessage(nextVisibility === 'draft' ? t('pageMovedToDraft') : t('pagePublished'))
     },
     [queryClient, groupId, t],
   )
@@ -361,7 +364,7 @@ export const useGroupScreen = (groupId: string, options: GroupScreenOptions = {}
     deleteSubgroup,
     closeGroup,
     deletePage,
-    togglePageVisibility,
+    updatePageVisibility,
     deleteEvent,
   }
 }

@@ -4,6 +4,7 @@ import { globalPagesQueryKey, pageDetailQueryKey, setPageDetailCache } from '../
 import { removeCachedRecord } from '../db/httpCache'
 import { queryClient } from '../db/queryClient'
 import type { LocalizedText, PageDetailDto, PageEditModel, PageSummaryDto, PageVisibility, SectionEditModel } from '../types'
+import { normalizePageSummary } from '../utils/apiEnums'
 import { normalizePageDetail } from '../utils/pageDetail'
 import { toLocalizedText } from '../utils/localizedText'
 
@@ -117,19 +118,20 @@ export const pageService = {
 
   async publishPage(pageId: string, payload: PublishPagePayload) {
     const { data } = await http.post<PageSummaryDto>(`/api/pages/${pageId}/publish`, payload)
+    const normalized = normalizePageSummary(data)
     const existingDetail = queryClient.getQueryData<PageDetailDto>(pageDetailQueryKey(pageId))
     if (existingDetail) {
       setPageDetailCache({
         ...existingDetail,
-        visibility: data.visibility,
-        title: data.title ?? existingDetail.title,
-        description: data.description ?? existingDetail.description,
-        titleDisplayStyle: data.titleDisplayStyle ?? existingDetail.titleDisplayStyle,
-        ownerGroupId: data.ownerGroupId ?? existingDetail.ownerGroupId,
+        visibility: normalized.visibility,
+        title: normalized.title ?? existingDetail.title,
+        description: normalized.description ?? existingDetail.description,
+        titleDisplayStyle: normalized.titleDisplayStyle ?? existingDetail.titleDisplayStyle,
+        ownerGroupId: normalized.ownerGroupId ?? existingDetail.ownerGroupId,
       })
     }
-    await invalidatePageListCache(data)
-    return data
+    await invalidatePageListCache(normalized)
+    return normalized
   },
 
   async publishPageOptimized(pageId: string, payload: PublishPageOptimizedPayload) {

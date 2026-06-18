@@ -5,17 +5,16 @@ import PageContentRenderer, {
   validatePageContent,
 } from '../components/page/PageContentRenderer'
 import PageEditorShell from '../components/page-editor/PageEditorShell'
+import PageSettingsPanel from '../components/page-editor/PageSettingsPanel'
 import { groupService } from '../api/groupService'
 import { ensureFreshPageDetail, setPageDetailCache } from '../db/collections/pageCollection'
 import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
 import { activeEntityService } from '../services/activeEntityService'
 import { cloudflareImageService } from '../services/cloudflareImageService'
 import { aiTranslationService } from '../services/aiTranslationService'
-import { pageService } from '../services/pageService'
 import { useAuthStore } from '../stores/auth'
 import { useUiText } from '../i18n/uiText'
 import type { PageDetailDto } from '../types'
-import type { PageVisibility } from '../types/group'
 import type { PageEditModel } from '../types/page-editor'
 import { normalizeRouteGroupId } from '../utils/groupRouteIds'
 import { toLocalizedText } from '../utils/localizedText'
@@ -167,7 +166,7 @@ const PageEditorView = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth.initialized, createGroupId, editPageId, queryGroupId])
 
-  const persist = async (publish: boolean) => {
+  const persist = async () => {
     if (!canSaveDraft) {
       return
     }
@@ -211,6 +210,7 @@ const PageEditorView = () => {
       const title = pageModel.title
       const description = pageModel.description
       const titleDisplayStyle = pageModel.titleDisplayStyle.trim() || 'Default'
+      const selectedVisibility = pageModel.visibility
 
       let sectionsToPersist = pageModel.sections
       let savedPage: PageDetailDto | null = null
@@ -239,7 +239,7 @@ const PageEditorView = () => {
           id: created.id,
           groupId: resolvedGroupId,
           createdByMemberId: created.createdByMemberId,
-          visibility: created.visibility,
+          visibility: selectedVisibility,
           sections: created.sections,
         }))
       } else {
@@ -254,64 +254,45 @@ const PageEditorView = () => {
         sectionsToPersist = updated.sections
       }
 
-      if (publish && canEditAllPages && targetPageId) {
-        const nextVisibility: PageVisibility = pageModel.visibility === 'public' ? 'public' : 'group'
-        const publishPayload = {
-          visibility: nextVisibility,
-          page: { title, description, tagsJson, titleDisplayStyle },
-          sections: pageService.toSectionPublishPayload(sectionsToPersist),
-        }
+      let finalVisibility = savedPage?.visibility ?? selectedVisibility
+      let visibilityChanged = false
+      if (canEditVisibility && targetPageId && selectedVisibility !== finalVisibility) {
         setMessage(t('publishing'))
-        try {
-          savedPage = await groupService.publishPageOptimized(targetPageId, publishPayload)
-        } catch {
-          await groupService.publishPage(targetPageId, nextVisibility)
-          if (savedPage) {
-            savedPage = { ...savedPage, visibility: nextVisibility }
-            setPageDetailCache(savedPage)
+        const publishedPage = await groupService.publishPage(targetPageId, selectedVisibility)
+        finalVisibility = publishedPage.visibility
+        visibilityChanged = true
+        if (savedPage) {
+          savedPage = {
+            ...savedPage,
+            visibility: finalVisibility,
+            title: publishedPage.title ?? savedPage.title,
+            description: publishedPage.description ?? savedPage.description,
+            titleDisplayStyle: publishedPage.titleDisplayStyle ?? savedPage.titleDisplayStyle,
+            ownerGroupId: publishedPage.ownerGroupId ?? savedPage.ownerGroupId,
           }
         }
-        const savedModel = {
-          ...pageModel,
-          id: targetPageId,
-          groupId: resolvedGroupId,
-          createdByMemberId: savedPage?.createdByMemberId ?? pageModel.createdByMemberId,
-          sections: normalizePageSections(savedPage?.sections ?? sectionsToPersist),
-          visibility: nextVisibility,
-        }
-        setPageModel(savedModel)
-        setSavedModelSnapshot(JSON.stringify(savedModel))
-        setMessage(t('pageSavedPublished'))
-      } else if (canEditVisibility && targetPageId && pageModel.visibility === 'draft') {
-        await groupService.publishPage(targetPageId, 'draft')
-        const savedModel = {
-          ...pageModel,
-          id: targetPageId,
-          groupId: resolvedGroupId,
-          createdByMemberId: savedPage?.createdByMemberId ?? pageModel.createdByMemberId,
-          sections: normalizePageSections(savedPage?.sections ?? sectionsToPersist),
-        }
-        if (savedPage) {
-          setPageDetailCache(savedPage)
-        }
-        setPageModel(savedModel)
-        setSavedModelSnapshot(JSON.stringify(savedModel))
-        setMessage(t('draftSaved'))
-      } else {
-        const savedModel = {
-          ...pageModel,
-          id: targetPageId,
-          groupId: resolvedGroupId,
-          createdByMemberId: savedPage?.createdByMemberId ?? pageModel.createdByMemberId,
-          sections: normalizePageSections(savedPage?.sections ?? sectionsToPersist),
-        }
-        if (savedPage) {
-          setPageDetailCache(savedPage)
-        }
-        setPageModel(savedModel)
-        setSavedModelSnapshot(JSON.stringify(savedModel))
-        setMessage(t('pageSaved'))
       }
+
+      const savedModel = {
+        ...pageModel,
+        id: targetPageId,
+        groupId: resolvedGroupId,
+        createdByMemberId: savedPage?.createdByMemberId ?? pageModel.createdByMemberId,
+        sections: normalizePageSections(savedPage?.sections ?? sectionsToPersist),
+        visibility: finalVisibility,
+      }
+      if (savedPage) {
+        setPageDetailCache(savedPage)
+      }
+      setPageModel(savedModel)
+      setSavedModelSnapshot(JSON.stringify(savedModel))
+      setMessage(
+        finalVisibility === 'draft'
+          ? t('draftSaved')
+          : visibilityChanged
+            ? t('pageSavedPublished')
+            : t('pageSaved'),
+      )
 
       if (isCreateMode && targetPageId) {
         activeEntityService.setPage(targetPageId, resolvedGroupId)
@@ -325,7 +306,7 @@ const PageEditorView = () => {
   }
 
   const saveDraft = useCallback(async () => {
-    await persist(false)
+    await persist()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canSaveDraft, pageModel, resolvedGroupId, editPageId, isCreateMode, canEditAllPages, canEditVisibility])
 
@@ -392,7 +373,14 @@ const PageEditorView = () => {
           onSectionsChange={(sections) => setPageModel((current) => ({ ...current, sections }))}
         />
       }
-      sidebar={null}
+      sidebar={
+        <PageSettingsPanel
+          model={pageModel}
+          canEditVisibility={canEditVisibility}
+          message={message}
+          onChange={setPageModel}
+        />
+      }
     />
   )
 }
