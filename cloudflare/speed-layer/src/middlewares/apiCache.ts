@@ -105,6 +105,57 @@ export const apiCacheMiddleware = async (
   }
 
   if (req.method === 'GET' && authorizedGroupCache && sharedContext) {
+    if (canReadPublicGroupPages(authorizedGroupCache, sharedContext)) {
+      const cached = await getPublicGroupPagesCachedResponse(
+        env,
+        req,
+        authorizedGroupCache.groupId,
+        () => next(),
+        authorizedGroupCache.ttlSeconds,
+      )
+
+      if (cached.cacheStatus === 'MISS') {
+        ctx.waitUntil(rememberEntityGroups(env, req, cached.response.clone()))
+      }
+
+      if (cached.cacheStatus === 'HIT') {
+        const hitResponse = cached.response
+        const clientEtag = req.headers.get('if-none-match')
+        const cachedEtag = hitResponse.headers.get('etag')
+        if (clientEtag && cachedEtag && matchesIfNoneMatch(clientEtag, cachedEtag)) {
+          return addCorsHeaders(
+            req,
+            withCacheHeader(
+              withBrowserCacheControl(new Response(null, {
+                status: 304,
+                headers: hitResponse.headers,
+              }), url.pathname, sharedContext.authzStatus),
+              'REVALIDATED',
+            ),
+            env,
+          )
+        }
+
+        return addCorsHeaders(
+          req,
+          withCacheHeader(
+            withBrowserCacheControl(hitResponse, url.pathname, sharedContext.authzStatus),
+            'HIT',
+          ),
+          env,
+        )
+      }
+
+      return addCorsHeaders(
+        req,
+        withCacheHeader(
+          withBrowserCacheControl(cached.response, url.pathname, sharedContext.authzStatus),
+          cached.cacheStatus,
+        ),
+        env,
+      )
+    }
+
     if (sharedContext.authzStatus !== 'hit') {
       return addCorsHeaders(
         req,
@@ -282,6 +333,38 @@ export async function getAuthorizedGroupCachedResponse(
   return { response: taggedResponse, cacheStatus: 'MISS' }
 }
 
+export function canReadPublicGroupPages(policy: AuthorizedGroupCachePolicy, context: SharedCacheContext) {
+  return policy.cacheKind === 'pages' && context.authzStatus === 'no-principal'
+}
+
+export async function getPublicGroupPagesCachedResponse(
+  env: Env,
+  request: Request,
+  groupId: string,
+  fetchFromOrigin: () => Promise<Response>,
+  ttlSeconds: number,
+): Promise<{ response: Response; cacheStatus: 'HIT' | 'MISS' | 'BYPASS' }> {
+  const cached = await readStoredResponse(env, createPublicGroupPagesCacheKey(groupId))
+  if (cached) {
+    return { response: cached, cacheStatus: 'HIT' }
+  }
+
+  const originResponse = await fetchFromOrigin()
+  if (!originResponse.ok) {
+    return { response: originResponse, cacheStatus: 'BYPASS' }
+  }
+
+  const taggedResponse = await withEtag(originResponse)
+  await writeStoredResponse(
+    env,
+    createPublicGroupPagesCacheKey(groupId),
+    withEdgeCacheControl(taggedResponse.clone()),
+    ttlSeconds,
+  )
+
+  return { response: taggedResponse, cacheStatus: 'MISS' }
+}
+
 function isDraftVisibility(visibility: string | undefined) {
   return visibility?.toLowerCase() === 'draft'
 }
@@ -348,6 +431,10 @@ export function createAuthorizedGroupCacheKey(groupId: string, cacheKind: Author
   return `group:${groupId}:${cacheKind}`
 }
 
+export function createPublicGroupPagesCacheKey(groupId: string) {
+  return `public:group:${groupId}:pages`
+}
+
 export function getAuthorizedGroupCachePolicy(pathname: string): AuthorizedGroupCachePolicy | null {
   const match = pathname.match(/^\/api\/groups\/([^/]+)\/(pages|subgroups|events|memberships|members)$/)
   if (!match) {
@@ -388,6 +475,10 @@ export async function passivelyInvalidate(env: Env, request: Request, response: 
       const cacheKey = await createCacheKey(request, path)
       await getEdgeCache().delete(cacheKey)
       await deleteApiCacheKey(env, createApiCacheKey(path))
+      const publicGroupPagesGroupId = getGroupPagesPathGroupId(path)
+      if (publicGroupPagesGroupId) {
+        await deleteApiCacheKey(env, createPublicGroupPagesCacheKey(publicGroupPagesGroupId))
+      }
     }),
   ])
 }
@@ -904,6 +995,10 @@ export function appendVaryOrigin(vary: string | null) {
 
 function readBoolean(value: unknown) {
   return typeof value === 'boolean' ? value : undefined
+}
+
+function getGroupPagesPathGroupId(pathname: string) {
+  return pathname.match(/^\/api\/groups\/([^/]+)\/pages$/)?.[1] ?? ''
 }
 
 type MemberProfileMembership = {

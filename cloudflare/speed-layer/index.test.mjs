@@ -354,10 +354,41 @@ test('page detail missing metadata falls back to origin and records metadata and
   assert.equal(fetchCalls[0].headers.get('if-none-match'), null)
 })
 
-test('missing membership returns 403 before shared group cache is read', async () => {
-  const groupId = 'group-1'
+test('anonymous church page list reads use separate public cache', async () => {
+  const groupId = 'church-1'
   const url = `https://ccalc.live/api/groups/${groupId}/pages`
-  apiCacheStore.set(`group:${groupId}:pages`, createStoredResponse([{ id: 'page-1', ownerGroupId: groupId }]))
+  apiCacheStore.set(`group:${groupId}:pages`, createStoredResponse([
+    { id: 'private-page', ownerGroupId: groupId, visibility: 'Draft' },
+  ]))
+  originResponses.push(Response.json([
+    { id: 'public-page', ownerGroupId: groupId, visibility: 'Public' },
+  ]))
+
+  const first = await dispatch(url)
+  await flushWaitUntil()
+  const second = await dispatch(url)
+
+  assert.equal(first.status, 200)
+  assert.equal(first.headers.get('x-alife-cache'), 'MISS')
+  assert.equal(first.headers.get('x-alife-authz'), 'no-principal')
+  assert.equal(second.headers.get('x-alife-cache'), 'HIT')
+  assert.deepEqual(await second.json(), [
+    { id: 'public-page', ownerGroupId: groupId, visibility: 'Public' },
+  ])
+  assert.equal(fetchCalls.length, 1)
+  assert.equal(apiCacheGetKeys.includes(`group:${groupId}:pages`), false)
+  assert.equal(apiCacheGetKeys.includes(`public:group:${groupId}:pages`), true)
+  assert.deepEqual(JSON.parse(apiCacheStore.get(`map:page:public-page:meta`)), {
+    groupId,
+    ownerGroupId: groupId,
+    visibility: 'Public',
+  })
+})
+
+test('missing membership returns 403 before shared subgroup cache is read', async () => {
+  const groupId = 'group-1'
+  const url = `https://ccalc.live/api/groups/${groupId}/subgroups`
+  apiCacheStore.set(`group:${groupId}:subgroups`, createStoredResponse([{ id: 'subgroup-1', parentGroupId: groupId }]))
 
   const response = await dispatch(url)
 
@@ -366,7 +397,7 @@ test('missing membership returns 403 before shared group cache is read', async (
   assert.equal(response.headers.get('x-alife-authz'), 'no-principal')
   assert.deepEqual(await response.json(), { message: 'Forbidden' })
   assert.equal(fetchCalls.length, 0)
-  assert.equal(apiCacheGetKeys.includes(`group:${groupId}:pages`), false)
+  assert.equal(apiCacheGetKeys.includes(`group:${groupId}:subgroups`), false)
 })
 
 test('non-approved membership returns 403 before shared group cache is read', async () => {
@@ -614,6 +645,8 @@ test('successful POST to group pages evicts the group pages list cache', async (
   const groupId = 'group-1'
   const listUrl = `https://ccalc.live/api/groups/${groupId}/pages`
   cacheStore.set(cacheKey(new Request(listUrl)), Response.json([{ id: 'page-1', ownerGroupId: groupId }]))
+  apiCacheStore.set(`group:${groupId}:pages`, createStoredResponse([{ id: 'page-1', ownerGroupId: groupId }]))
+  apiCacheStore.set(`public:group:${groupId}:pages`, createStoredResponse([{ id: 'page-1', ownerGroupId: groupId, visibility: 'Public' }]))
   originResponses.push(Response.json({ id: 'page-2', ownerGroupId: groupId }))
 
   const response = await dispatch(listUrl, { method: 'POST', body: JSON.stringify({ title: 'New page' }) })
@@ -621,6 +654,8 @@ test('successful POST to group pages evicts the group pages list cache', async (
 
   assert.equal(response.status, 200)
   assert.equal(cacheStore.has(cacheKey(new Request(listUrl))), false)
+  assert.equal(apiCacheStore.has(`group:${groupId}:pages`), false)
+  assert.equal(apiCacheStore.has(`public:group:${groupId}:pages`), false)
 })
 
 test('successful member action evicts only that group membership list cache', async () => {
@@ -2064,6 +2099,7 @@ function isAuthzKey(key) {
 function isStoredResponseKey(key) {
   return key.startsWith('api:') ||
     key.startsWith('group:') ||
+    key.startsWith('public:group:') ||
     /^member:[^:]+:me$/.test(key)
 }
 

@@ -6,6 +6,7 @@ using Alife.Application.Pages.Services;
 using Alife.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace Alife.Application.Pages.Commands.PublishPage;
 
@@ -13,21 +14,21 @@ public sealed class PublishPageCommandHandler(
     IAlifeDbContext dbContext,
     IGroupAuthorizationService groupAuthorizationService,
     IPageCacheInvalidationService pageCacheInvalidationService)
-    : IRequestHandler<PublishPageCommand, AppResult<PageActionResultDto>>
+    : IRequestHandler<PublishPageCommand, AppResult<PageDto>>
 {
-    public async Task<AppResult<PageActionResultDto>> Handle(PublishPageCommand request, CancellationToken cancellationToken)
+    public async Task<AppResult<PageDto>> Handle(PublishPageCommand request, CancellationToken cancellationToken)
     {
         var page = await dbContext.Pages.FirstOrDefaultAsync(x => x.Id == request.PageId, cancellationToken);
         if (page is null)
         {
-            return AppResult<PageActionResultDto>.NotFound("Page was not found.");
+            return AppResult<PageDto>.NotFound("Page was not found.");
         }
 
         if (page.Scope == PageScope.Global)
         {
             if (!await groupAuthorizationService.IsAdminAsync(request.CurrentMemberId, cancellationToken))
             {
-                return AppResult<PageActionResultDto>.Forbidden("You do not have permission to publish this page.");
+                return AppResult<PageDto>.Forbidden("You do not have permission to publish this page.");
             }
         }
         else if (page.OwnerGroupId is null ||
@@ -36,7 +37,7 @@ public sealed class PublishPageCommandHandler(
                      request.CurrentMemberId,
                      cancellationToken))
         {
-            return AppResult<PageActionResultDto>.Forbidden("You do not have permission to publish this page.");
+            return AppResult<PageDto>.Forbidden("You do not have permission to publish this page.");
         }
 
         page.Visibility = request.Visibility;
@@ -45,7 +46,7 @@ public sealed class PublishPageCommandHandler(
         await dbContext.SaveChangesAsync(cancellationToken);
         await InvalidatePageAsync(page, cancellationToken);
 
-        return AppResult<PageActionResultDto>.Success(new PageActionResultDto(true));
+        return AppResult<PageDto>.Success(ToDto(page));
     }
 
     private async Task InvalidatePageAsync(Domain.Entities.Page page, CancellationToken cancellationToken)
@@ -63,4 +64,22 @@ public sealed class PublishPageCommandHandler(
             await pageCacheInvalidationService.RemoveGroupPagesAsync(page.OwnerGroupId.Value, cancellationToken);
         }
     }
+
+    private static PageDto ToDto(Domain.Entities.Page page)
+        => new(
+            page.Id,
+            page.Scope,
+            page.OwnerGroupId,
+            page.CreatedByMemberId,
+            ReadTextMap(page.TitleJson),
+            ReadTextMap(page.DescriptionJson),
+            page.TagsJson,
+            page.TitleDisplayStyle,
+            page.Visibility,
+            page.UpdatedUtc);
+
+    private static IReadOnlyDictionary<string, string> ReadTextMap(string? value)
+        => string.IsNullOrWhiteSpace(value)
+            ? new Dictionary<string, string>()
+            : JsonSerializer.Deserialize<Dictionary<string, string>>(value) ?? new Dictionary<string, string>();
 }
