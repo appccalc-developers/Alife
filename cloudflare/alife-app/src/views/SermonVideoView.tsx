@@ -12,10 +12,12 @@ import { extractYouTubeVideoId, toYouTubeEmbedUrl } from '../utils/youtube'
 const SermonVideoView = () => {
   const t = useUiText()
   const { sermonId: routeSermonId } = useParams<{ sermonId: string }>()
-  const { sermonId } = useActiveEntityIds({ sermonId: routeSermonId })
+  const { sermonId: activeSermonId } = useActiveEntityIds({ sermonId: routeSermonId })
   const [searchParams] = useSearchParams()
   const { data, isLoading, isError } = useLiveQuery(sermonsCollection)
   const [cachedSermons, setCachedSermons] = useState<Awaited<ReturnType<typeof getCachedSermons>>>([])
+  const requestedVideoId = searchParams.get('videoId')?.trim() ?? ''
+  const sermonId = routeSermonId || (requestedVideoId ? '' : activeSermonId)
 
   useEffect(() => {
     let cancelled = false
@@ -39,19 +41,27 @@ const SermonVideoView = () => {
     return cachedSermons
   }, [cachedSermons, data])
 
-  const sermon = useMemo(
-    () => sermons.find((item) => item.id === sermonId) ?? null,
-    [sermonId, sermons],
-  )
+  const sermon = useMemo(() => {
+    if (sermonId) {
+      return sermons.find((item) => item.id === sermonId) ?? null
+    }
 
-  const videoId = searchParams.get('videoId') || extractYouTubeVideoId(sermon?.videoUrl)
+    if (requestedVideoId) {
+      return sermons.find((item) => extractYouTubeVideoId(item.videoUrl) === requestedVideoId) ?? null
+    }
+
+    return null
+  }, [requestedVideoId, sermonId, sermons])
+
+  const videoId = requestedVideoId || extractYouTubeVideoId(sermon?.videoUrl)
   const embedUrl = toYouTubeEmbedUrl(videoId)
+  const pageTitle = sermon?.title || t('watchSermon')
 
-  if (!sermonId) {
+  if (!sermonId && !requestedVideoId) {
     return <Navigate to="/sermons" replace />
   }
 
-  if (isLoading && sermons.length === 0) {
+  if (!embedUrl && isLoading && sermons.length === 0) {
     return (
       <AppPageShell>
         <AppSectionCard dense>
@@ -61,7 +71,7 @@ const SermonVideoView = () => {
     )
   }
 
-  if (isError && sermons.length === 0) {
+  if (!embedUrl && isError && sermons.length === 0) {
     return (
       <AppPageShell>
         <AppSectionCard dense>
@@ -71,7 +81,7 @@ const SermonVideoView = () => {
     )
   }
 
-  if (!sermon) {
+  if (!sermon && !embedUrl) {
     return (
       <AppPageShell>
         <AppEmptyState title={t('sermonNotFound')} description={t('sermonNotFoundDescription')} />
@@ -84,8 +94,8 @@ const SermonVideoView = () => {
       <section className="mx-auto max-w-5xl space-y-6">
         <header className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-700">{t('watchSermon')}</p>
-          <h1 className="text-3xl font-bold text-slate-950">{sermon.title}</h1>
-          <p className="text-sm text-slate-600">{sermon.speakerName || t('guestSpeaker')}</p>
+          <h1 className="text-3xl font-bold text-slate-950">{pageTitle}</h1>
+          {sermon ? <p className="text-sm text-slate-600">{sermon.speakerName || t('guestSpeaker')}</p> : null}
         </header>
 
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-950 shadow-sm">
@@ -94,7 +104,7 @@ const SermonVideoView = () => {
               <iframe
                 className="h-full w-full"
                 src={embedUrl}
-                title={sermon.title}
+                title={pageTitle}
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 allowFullScreen
               />
@@ -106,22 +116,24 @@ const SermonVideoView = () => {
           )}
         </section>
 
-        <AppSectionCard dense title={t('details')}>
-          <dl className="grid gap-4 sm:grid-cols-3">
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t('speaker')}</dt>
-              <dd className="mt-1 text-sm text-slate-900">{sermon.speakerName || t('guestSpeaker')}</dd>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t('date')}</dt>
-              <dd className="mt-1 text-sm text-slate-900">{sermon.preachedAt ? new Date(sermon.preachedAt).toLocaleDateString() : t('noDate')}</dd>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t('referenceId')}</dt>
-              <dd className="mt-1 break-all text-sm text-slate-900">{sermon.id}</dd>
-            </div>
-          </dl>
-        </AppSectionCard>
+        {sermon ? (
+          <AppSectionCard dense title={t('details')}>
+            <dl className="grid gap-4 sm:grid-cols-3">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t('speaker')}</dt>
+                <dd className="mt-1 text-sm text-slate-900">{sermon.speakerName || t('guestSpeaker')}</dd>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t('date')}</dt>
+                <dd className="mt-1 text-sm text-slate-900">{sermon.preachedAt ? new Date(sermon.preachedAt).toLocaleDateString() : t('noDate')}</dd>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t('referenceId')}</dt>
+                <dd className="mt-1 break-all text-sm text-slate-900">{sermon.id}</dd>
+              </div>
+            </dl>
+          </AppSectionCard>
+        ) : null}
       </section>
     </AppPageShell>
   )
