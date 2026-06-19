@@ -6,12 +6,12 @@ import PageContentRenderer, {
 } from '../components/page/PageContentRenderer'
 import PageEditorShell from '../components/page-editor/PageEditorShell'
 import PageSettingsPanel from '../components/page-editor/PageSettingsPanel'
-import { groupService } from '../api/groupService'
 import { ensureFreshPageDetail, setPageDetailCache } from '../db/collections/pageCollection'
 import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
 import { activeEntityService } from '../services/activeEntityService'
 import { cloudflareImageService } from '../services/cloudflareImageService'
 import { aiTranslationService } from '../services/aiTranslationService'
+import { pageService } from '../services/pageService'
 import { useAuthStore } from '../stores/auth'
 import { useUiText } from '../i18n/uiText'
 import type { PageDetailDto } from '../types'
@@ -276,7 +276,7 @@ const PageEditorView = () => {
       }
 
       if (isCreateMode) {
-        const created = await groupService.createGroupPage(resolvedGroupId, {
+        const created = await pageService.createGroupPage(resolvedGroupId, {
           title,
           description,
           tagsJson,
@@ -296,7 +296,7 @@ const PageEditorView = () => {
           sections: created.sections,
         }))
       } else {
-        const updated = await groupService.updatePage(targetPageId, {
+        const updated = await pageService.updatePage(targetPageId, {
           title,
           description,
           tagsJson,
@@ -311,7 +311,7 @@ const PageEditorView = () => {
       let visibilityChanged = false
       if (canEditVisibility && targetPageId && selectedVisibility !== finalVisibility) {
         setMessage(t('publishing'))
-        const publishedPage = await groupService.publishPage(targetPageId, selectedVisibility)
+        const publishedPage = await pageService.publishPage(targetPageId, { visibility: selectedVisibility })
         finalVisibility = publishedPage.visibility
         visibilityChanged = true
         if (savedPage) {

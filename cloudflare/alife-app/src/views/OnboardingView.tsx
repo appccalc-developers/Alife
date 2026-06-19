@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { http, type ApiError } from '../api/http'
 import { useUiText } from '../i18n/uiText'
+import { http, type ApiError } from '../services/http'
 import { useAuthStore } from '../stores/auth'
 
 const getLineLoginRedirectUrl = () => {
