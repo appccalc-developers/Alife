@@ -144,6 +144,10 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
         onSelect()
       }}
       onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) {
+          return
+        }
+
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault()
           onSelect()
