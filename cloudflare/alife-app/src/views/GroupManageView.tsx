@@ -16,10 +16,10 @@ import { localizeText, toLocalizedText } from '../utils/localizedText'
 import { useCurrentGroupStore } from '../stores/currentGroup'
 import { translateUi, useUiText } from '../i18n/uiText'
 import { activeEntityService } from '../services/activeEntityService'
+import { groupService } from '../services/groupService'
 import { setUnsavedChangesGuard } from '../utils/unsavedChangesGuard'
 import type { GroupPageDto, PageVisibility } from '../types/group'
 import type { GroupEventRecord } from '../types/event'
-import { groupService } from '../api/groupService'
 
 const shortId = (value: string) => (value.length > 8 ? value.slice(0, 8) : value)
 

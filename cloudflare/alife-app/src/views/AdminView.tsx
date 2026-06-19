@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { groupService } from '../api/groupService'
 import { useUiText } from '../i18n/uiText'
+import { groupService } from '../services/groupService'
 
 const AdminView = () => {
   const t = useUiText()
