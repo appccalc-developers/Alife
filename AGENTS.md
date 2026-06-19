@@ -232,4 +232,10 @@ For Alife, every meaningful code change should be traceable through:
 GitHub issue → feature branch → local implementation → commit → push → PR against main.
 Use small, reviewable PRs. Prefer one issue per coherent feature, bug fix, or refactor.
 
+When GitHub issue or PR creation is needed:
+
+* Prefer fixing GitHub app repository write permission first.
+* If GitHub app write permission is still unavailable, skip repeated GitHub app attempts and use the authenticated `gh` CLI directly.
+* If `gh` is missing, install it globally once instead of reinstalling it for every shipping task.
+
 Start it when user type /shipit.

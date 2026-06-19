@@ -58,6 +58,7 @@ override.tf.json
 
 # Misc generated files
 *.tmp
+.local-dev/
 .tmpbuild/
 webapp-logs/
 *.temp
@@ -70,6 +71,12 @@ VibeCoding/
 Communication/
 
 .sql*/
+__blobstorage__/*
+__queuestorage__/*
+backend/src/Alife.Api/__blobstorage__/*
+backend/src/Alife.Api/__queuestorage__/*
+!__blobstorage__/AzuriteConfig
+!backend/src/Alife.Api/__blobstorage__/AzuriteConfig
 __azurite_db_*.json
 **/__azurite_db_*.json
 *.lscache

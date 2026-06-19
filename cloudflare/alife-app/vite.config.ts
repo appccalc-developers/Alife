@@ -7,7 +7,7 @@ const THIRTY_DAYS_IN_SECONDS = 30 * 24 * 60 * 60
 declare const self: { location: { origin: string } }
 
 export default defineConfig(() => {
-  const apiProxyTarget = process.env.API_PROXY_TARGET || 'http://localhost:7071'
+  const apiProxyTarget = process.env.API_PROXY_TARGET || 'http://127.0.0.1:7071'
   const imagesProxyTarget = process.env.IMAGES_PROXY_TARGET || 'https://images.ccalc.live'
 
   return {

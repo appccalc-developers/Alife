@@ -10,12 +10,12 @@ npm install
 npm run dev
 ```
 
-The Vite dev server runs at `http://localhost:5173` and proxies same-origin `/api/*` requests to `http://localhost:7071` by default.
+The Vite dev server runs at `http://localhost:5173` and proxies same-origin `/api/*` requests to `http://127.0.0.1:7071` by default.
 
 To point local dev at another API:
 
 ```bash
-$env:API_PROXY_TARGET='http://localhost:7071'
+$env:API_PROXY_TARGET='http://127.0.0.1:7071'
 npm run dev
 ```
 
