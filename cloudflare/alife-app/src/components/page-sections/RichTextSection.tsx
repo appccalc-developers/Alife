@@ -2,12 +2,12 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useAuthStore } from '../../stores/auth'
 import { useUiText } from '../../i18n/uiText'
-import { BackgroundMedia, EditableText, PropertyPanel, TextInput, patchContent, patchLocalizedContent, patchLocalizedSectionHeader, readLocalizedText, readText } from './sectionUtils'
+import { BackgroundMedia, EditableText, PropertyPanel, TextInput, patchContent, patchLocalizedContent, patchLocalizedSectionHeader, patchSectionHeader, readLocalizedText, readText } from './sectionUtils'
 import type { SectionComponentProps } from './types'
 import SectionHeader from './SectionHeader'
 import { sectionSpacingClass } from './sectionPresets'
 
-const RichTextSection = ({ section, mode, disabled, onUpdate }: SectionComponentProps) => {
+const RichTextSection = ({ section, mode, disabled, propertiesOnly, showProperties = true, onUpdate }: SectionComponentProps) => {
   const auth = useAuthStore()
   const t = useUiText()
   const editable = mode === 'edit' && !disabled && onUpdate
@@ -28,9 +28,18 @@ const RichTextSection = ({ section, mode, disabled, onUpdate }: SectionComponent
     const nextSection = patchLocalizedContent(section, auth.language, { subtitle: value })
     onUpdate?.(patchLocalizedSectionHeader(nextSection, auth.language, 'subtitle', value))
   }
-  const headerFallbackTitle = title || (overlay ? t('quoteOfDay') : '')
-  const headerFallbackSubtitle = subtitle || (overlay ? t('godLovesUsAll') : '')
+  const headerFallbackTitle = title || (overlay ? t('quoteOfDay') : mode === 'edit' ? t('previewNoTitle') : '')
+  const headerFallbackSubtitle = subtitle || (overlay ? t('godLovesUsAll') : mode === 'edit' ? t('previewNoSubtitle') : '')
   const renderedText = text || (mode === 'edit' ? t('noRichTextContentYet') : '')
+  const renderProperties = () => (
+    <PropertyPanel>
+      <TextInput label={t('backgroundImageUrl')} value={bg} disabled={disabled} onChange={(value) => updateContent({ backgroundImage: value, backgroundImageUrl: value })} />
+    </PropertyPanel>
+  )
+
+  if (propertiesOnly) {
+    return renderProperties()
+  }
 
   if (!overlay) {
     return (
@@ -40,6 +49,7 @@ const RichTextSection = ({ section, mode, disabled, onUpdate }: SectionComponent
           titleFallback={headerFallbackTitle}
           subtitleFallback={headerFallbackSubtitle}
           disabled={!editable}
+          onIconChange={editable ? (icon) => onUpdate?.(patchSectionHeader(section, { icon })) : undefined}
           onTitleChange={editable ? updateHeaderTitle : undefined}
           onSubtitleChange={editable ? updateHeaderSubtitle : undefined}
         />
@@ -52,7 +62,7 @@ const RichTextSection = ({ section, mode, disabled, onUpdate }: SectionComponent
             <EditableText as="p" multiline value={text} fallback={t('noRichTextContentYet')} disabled={!editable} className="block whitespace-pre-wrap leading-7" onChange={(value) => updateLocalizedContent({ text: value })} />
           )}
         </div>
-        {mode === 'edit' ? <PropertyPanel><TextInput label={t('backgroundImageUrl')} value={bg} disabled={disabled} onChange={(value) => updateContent({ backgroundImage: value, backgroundImageUrl: value })} /></PropertyPanel> : null}
+        {mode === 'edit' && showProperties ? renderProperties() : null}
       </section>
     )
   }
@@ -68,6 +78,7 @@ const RichTextSection = ({ section, mode, disabled, onUpdate }: SectionComponent
             titleFallback={headerFallbackTitle}
             subtitleFallback={headerFallbackSubtitle}
             disabled={!editable}
+            onIconChange={editable ? (icon) => onUpdate?.(patchSectionHeader(section, { icon })) : undefined}
             onTitleChange={editable ? updateHeaderTitle : undefined}
             onSubtitleChange={editable ? updateHeaderSubtitle : undefined}
           />
@@ -75,7 +86,7 @@ const RichTextSection = ({ section, mode, disabled, onUpdate }: SectionComponent
           <EditableText as="p" value={author} fallback="" disabled={!editable} className="mt-4 block text-xl font-medium text-yellow-300 sm:text-3xl" onChange={(value) => updateLocalizedContent({ quoteAuthor: value })} />
         </div>
       </div>
-      {mode === 'edit' ? <PropertyPanel><TextInput label={t('backgroundImageUrl')} value={bg} disabled={disabled} onChange={(value) => updateContent({ backgroundImage: value, backgroundImageUrl: value })} /></PropertyPanel> : null}
+      {mode === 'edit' && showProperties ? renderProperties() : null}
     </section>
   )
 }

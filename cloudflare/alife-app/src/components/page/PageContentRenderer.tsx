@@ -1,12 +1,12 @@
 import SectionBlock from '../page-sections/SectionBlock'
 import type { GroupPageDto } from '../../types/group'
-import type { PageEditModel, PageEditorValidation, SectionEditModel } from '../../types/page-editor'
+import type { PageEditModel, PageEditorValidation, SectionEditModel, SectionType } from '../../types/page-editor'
 import type { PageLinkItem } from '../page-sections/types'
 import SectionListEditor from '../page-editor/SectionListEditor'
 import { translateUi, useUiText } from '../../i18n/uiText'
 import { useAuthStore } from '../../stores/auth'
-import { languageKey, localizeText } from '../../utils/localizedText'
-import { DEFAULT_HERO_ASPECT_RATIO, EditableText, TextInput } from '../page-sections/sectionUtils'
+import { localizeText } from '../../utils/localizedText'
+import { DEFAULT_HERO_ASPECT_RATIO, DEFAULT_HERO_IMAGE, EditableText } from '../page-sections/sectionUtils'
 
 type GroupLinkItem = {
   id: string
@@ -31,35 +31,117 @@ type Props = {
   onEditPage?: (pageId: string, groupId: string) => void
 }
 
-export const createEmptyPageSection = (): SectionEditModel => ({
-  order: 0,
-  type: 'Hero',
-  contentJson: {
-    header: {
-      title: { en: '', zh: '' },
-      subtitle: { en: '', zh: '' },
-      align: 'center',
-      scale: 'normal',
-      tone: 'default',
-    },
-    spacing: 'normal',
-    backgroundImage: 'https://images.unsplash.com/photo-1529070538774-1843cb3265df?w=1600&q=80',
-    backgroundImageUrl: 'https://images.unsplash.com/photo-1529070538774-1843cb3265df?w=1600&q=80',
-    title: '',
-    headline: '',
-    centerText: '',
-    body: '',
-    subtitle: '',
-    subheadline: '',
-    linkLabel: '',
-    linkText: '',
-    ctaLabel: '',
-    linkUrl: '',
-    ctaUrl: '',
-    href: '',
-  },
-  styleJson: { layout: 'featured', aspectRatio: DEFAULT_HERO_ASPECT_RATIO },
+const createDefaultSectionHeader = () => ({
+  title: { en: '', zh: '' },
+  subtitle: { en: '', zh: '' },
+  align: 'center' as const,
+  scale: 'normal' as const,
+  tone: 'default' as const,
 })
+
+export const createEmptyPageSection = (type: SectionType = 'Hero'): SectionEditModel => {
+  if (type === 'RichText') {
+    return {
+      order: 0,
+      type: 'RichText',
+      contentJson: {
+        header: createDefaultSectionHeader(),
+        spacing: 'normal',
+        title: '',
+        subtitle: '',
+        text: '',
+      },
+      styleJson: {},
+    }
+  }
+
+  if (type === 'Spotlight') {
+    return {
+      order: 0,
+      type: 'Spotlight',
+      contentJson: {
+        header: createDefaultSectionHeader(),
+        spacing: 'normal',
+        spotlight: {
+          mode: 'manual',
+          source: 'sermons',
+          preset: 'latest',
+        },
+        media: {
+          type: 'image',
+          url: DEFAULT_HERO_IMAGE,
+          position: 'left',
+        },
+        imageUrl: DEFAULT_HERO_IMAGE,
+        backgroundImage: DEFAULT_HERO_IMAGE,
+        backgroundImageUrl: DEFAULT_HERO_IMAGE,
+        title: '',
+        headline: '',
+        subtitle: '',
+        subheadline: '',
+        centerText: '',
+        body: '',
+        text: '',
+        youtubeUrl: '',
+        linkLabel: '',
+        linkText: '',
+        ctaLabel: '',
+        linkUrl: '',
+        ctaUrl: '',
+        href: '',
+      },
+      styleJson: {
+        layout: 'spotlight',
+        mediaPosition: 'left',
+        imagePosition: 'left',
+      },
+    }
+  }
+
+  if (type === 'ListView') {
+    return {
+      order: 0,
+      type: 'ListView',
+      contentJson: {
+        header: createDefaultSectionHeader(),
+        spacing: 'normal',
+        source: 'sermons',
+        preset: 'latest',
+        layout: 'grid',
+        sourceType: 'sermons',
+        sourceScope: 'global',
+        limit: 10,
+        sortBy: 'date',
+        sortDirection: 'desc',
+      },
+      styleJson: {},
+    }
+  }
+
+  return {
+    order: 0,
+    type: 'Hero',
+    contentJson: {
+      header: createDefaultSectionHeader(),
+      spacing: 'normal',
+      backgroundImage: DEFAULT_HERO_IMAGE,
+      backgroundImageUrl: DEFAULT_HERO_IMAGE,
+      title: '',
+      headline: '',
+      centerText: '',
+      body: '',
+      subtitle: '',
+      subheadline: '',
+      linkLabel: '',
+      linkText: '',
+      ctaLabel: '',
+      linkUrl: '',
+      ctaUrl: '',
+      href: '',
+    },
+    styleJson: { layout: 'featured', aspectRatio: DEFAULT_HERO_ASPECT_RATIO },
+  }
+}
 
 export const normalizePageSections = (items: SectionEditModel[]) =>
   items.map((section, index) => ({
@@ -82,60 +164,17 @@ const PageContentRenderer = ({
   showHeader = true,
   framed = true,
   message,
-  onPageChange,
   onSectionsChange,
   onEditPage,
 }: Props) => {
   const auth = useAuthStore()
   const t = useUiText()
-  const editablePage = editing && canEdit && onPageChange && 'groupId' in page
-  const activeLanguageKey = languageKey(auth.language)
   const pageTitle = localizeText(page.title, auth.language)
   const pageDescription = localizeText(page.description, auth.language)
-  const showPageTitleEditor = editing && 'groupId' in page
-  const readPageLocalizedField = (field: 'title' | 'description', key: 'en' | 'zh') => {
-    if (!('groupId' in page)) {
-      return ''
-    }
-
-    return page[field][key] ?? ''
-  }
-  const updatePageLocalizedField = (field: 'title' | 'description', key: 'en' | 'zh', value: string) => {
-    if (!editablePage) {
-      return
-    }
-
-    const editPage = page as PageEditModel
-    const nextField = {
-      en: key === 'en' ? value : editPage[field].en ?? '',
-      zh: key === 'zh' ? value : editPage[field].zh ?? '',
-    }
-
-    onPageChange({
-      ...editPage,
-      [field]: nextField,
-    })
-  }
-  const updateLocalizedPageField = (field: 'title' | 'description', value: string) => {
-    if (!editablePage) {
-      return
-    }
-
-    const editPage = page as PageEditModel
-    const nextField = {
-      en: activeLanguageKey === 'en' ? value : editPage[field].en ?? '',
-      zh: activeLanguageKey === 'zh' ? value : editPage[field].zh ?? '',
-    }
-
-    onPageChange({
-      ...editPage,
-      [field]: nextField,
-    })
-  }
 
   const updateSections = (nextSections: SectionEditModel[]) => onSectionsChange?.(normalizePageSections(nextSections))
 
-  const addSection = () => updateSections([...sections, createEmptyPageSection()])
+  const addSection = (type: SectionType) => updateSections([...sections, createEmptyPageSection(type)])
 
   const updateSection = (index: number, section: SectionEditModel) => {
     const nextSections = [...sections]
@@ -169,46 +208,18 @@ const PageContentRenderer = ({
     <article className={framed ? 'space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5' : 'space-y-4'}>
       {showHeader ? (
         <header className="space-y-2 border-b border-slate-200 pb-3">
-          {showPageTitleEditor ? (
-            <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-3">
-              <div className="mb-3">
-                <p className="text-sm font-semibold text-slate-900">{t('pageMetadata')}</p>
-              </div>
-              <div className="grid gap-2 md:grid-cols-2">
-                <TextInput
-                  label={t('titleEnglish')}
-                  value={readPageLocalizedField('title', 'en')}
-                  disabled={!editablePage}
-                  placeholder={t('pageTitlePlaceholder')}
-                  onChange={(value) => updatePageLocalizedField('title', 'en', value)}
-                />
-                <TextInput
-                  label={t('titleChinese')}
-                  value={readPageLocalizedField('title', 'zh')}
-                  disabled={!editablePage}
-                  placeholder={t('pageTitlePlaceholder')}
-                  onChange={(value) => updatePageLocalizedField('title', 'zh', value)}
-                />
-              </div>
-            </div>
-          ) : (
-            <EditableText
-              as="h1"
-              value={pageTitle}
-              fallback={t('untitledPage')}
-              disabled={!editablePage}
-              className="text-2xl font-bold text-slate-900 sm:text-3xl"
-              onChange={(value) => updateLocalizedPageField('title', value)}
-            />
-          )}
+          <EditableText
+            as="h1"
+            value={pageTitle}
+            fallback={t('untitledPage')}
+            className="text-2xl font-bold text-slate-900 sm:text-3xl"
+          />
           <EditableText
             as="p"
             multiline
             value={pageDescription}
             fallback={t('pageDescriptionEmpty')}
-            disabled={!editablePage}
             className="text-sm text-slate-600"
-            onChange={(value) => updateLocalizedPageField('description', value)}
           />
           <div className="flex flex-wrap gap-2 text-xs">
             <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">{t('visibilityLabel', { visibility: page.visibility })}</span>

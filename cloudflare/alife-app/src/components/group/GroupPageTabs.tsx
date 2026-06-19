@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import AppActionButton from '../layout/AppActionButton'
 import AppEmptyState from '../layout/AppEmptyState'
+import PageSettingsPanel from '../page-editor/PageSettingsPanel'
 import PageContentRenderer, {
   normalizePageSections,
   validatePageContent,
@@ -245,19 +246,28 @@ const GroupPageTabs = ({
 
         {activePage && mode === 'edit' && activeModel && validation && !loadingPageId ? (
           <div className="space-y-4">
-            <PageContentRenderer
-              page={activeModel}
-              sections={activeModel.sections}
-              subgroupItems={localizedSubgroups}
-              groupPageItems={pages}
-              editing
-              canEdit={canEditAllPages}
-              message={message}
-              validation={validation}
-              contextGroupId={activePage.ownerGroupId ?? activeModel.groupId}
-              onPageChange={updateActiveModel}
-              onSectionsChange={(sections) => updateActiveModel({ ...activeModel, sections })}
-            />
+            <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
+              <PageContentRenderer
+                page={activeModel}
+                sections={activeModel.sections}
+                subgroupItems={localizedSubgroups}
+                groupPageItems={pages}
+                editing
+                canEdit={canEditAllPages}
+                message={message}
+                validation={validation}
+                contextGroupId={activePage.ownerGroupId ?? activeModel.groupId}
+                onPageChange={updateActiveModel}
+                onSectionsChange={(sections) => updateActiveModel({ ...activeModel, sections })}
+              />
+              <PageSettingsPanel
+                model={activeModel}
+                canEdit={canEditAllPages}
+                canEditVisibility={canEditAllPages}
+                message={message}
+                onChange={updateActiveModel}
+              />
+            </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
               <AppActionButton
                 variant="primary"

@@ -1,5 +1,6 @@
 import type { FocusEvent } from 'react'
 import type { EditableTextProps, PropertyPanelProps } from './types'
+import type { SectionHeader } from '../../types'
 import type { JsonMap, SectionEditModel } from '../../types/page-editor'
 import { languageKey, localizeText } from '../../utils/localizedText'
 
@@ -205,6 +206,23 @@ export const patchContent = (section: SectionEditModel, patch: JsonMap): Section
   contentJson: { ...section.contentJson, ...patch },
 })
 
+const readSectionHeader = (section: SectionEditModel) =>
+  section.contentJson.header && typeof section.contentJson.header === 'object' && !Array.isArray(section.contentJson.header)
+    ? section.contentJson.header
+    : {}
+
+export const patchSectionHeader = (section: SectionEditModel, patch: Partial<SectionHeader>): SectionEditModel => {
+  const header: Record<string, unknown> = { ...readSectionHeader(section), ...patch }
+
+  for (const [key, value] of Object.entries(header)) {
+    if (value === undefined) {
+      delete header[key]
+    }
+  }
+
+  return patchContent(section, { header })
+}
+
 export const toLocalizedValue = (current: unknown, language: string, value: string) => {
   const key = languageKey(language)
   if (current && typeof current === 'object' && !Array.isArray(current)) {
@@ -229,15 +247,10 @@ export const patchLocalizedSectionHeader = (
   field: 'title' | 'subtitle',
   value: string,
 ): SectionEditModel => {
-  const currentHeader = section.contentJson.header && typeof section.contentJson.header === 'object' && !Array.isArray(section.contentJson.header)
-    ? section.contentJson.header
-    : {}
+  const currentHeader = readSectionHeader(section)
 
-  return patchContent(section, {
-    header: {
-      ...currentHeader,
-      [field]: toLocalizedValue(currentHeader[field], language, value),
-    },
+  return patchSectionHeader(section, {
+    [field]: toLocalizedValue(currentHeader[field], language, value),
   })
 }
 
