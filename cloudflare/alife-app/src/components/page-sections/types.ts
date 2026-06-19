@@ -18,6 +18,8 @@ export type SectionComponentProps = {
   groupPageItems?: PageLinkItem[]
   contextGroupId?: string
   disabled?: boolean
+  propertiesOnly?: boolean
+  showProperties?: boolean
   onUpdate?: (section: SectionEditModel) => void
 }
 

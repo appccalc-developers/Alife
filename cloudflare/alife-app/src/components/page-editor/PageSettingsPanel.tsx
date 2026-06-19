@@ -6,6 +6,7 @@ import type { PageEditModel } from '../../types/page-editor'
 
 type Props = {
   model: PageEditModel
+  canEdit: boolean
   canEditVisibility: boolean
   message?: string
   onChange: (value: PageEditModel) => void
@@ -15,16 +16,75 @@ const visibilityOptions: PageVisibility[] = ['draft', 'group', 'public']
 
 const PageSettingsPanel = ({
   model,
+  canEdit,
   canEditVisibility,
   message,
   onChange,
 }: Props) => {
   const t = useUiText()
+  const updateLocalizedField = (field: 'title' | 'description', key: 'en' | 'zh', value: string) => {
+    const current = model[field]
+    onChange({
+      ...model,
+      [field]: {
+        en: key === 'en' ? value : current.en ?? '',
+        zh: key === 'zh' ? value : current.zh ?? '',
+      },
+    })
+  }
 
   return (
-  <div className="grid gap-4 lg:grid-cols-2">
+  <div className="space-y-4">
     <AppSectionCard title={t('pageSettings')} subtitle={t('pageSettingsSubtitle')}>
-      <div className="space-y-3">
+      <div className="space-y-4">
+        <div className="grid gap-3 md:grid-cols-2">
+          <label className="block space-y-1">
+            <span className="text-sm font-medium text-slate-700">{t('titleEnglish')}</span>
+            <input
+              value={model.title.en ?? ''}
+              disabled={!canEdit}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100"
+              placeholder={t('pageTitlePlaceholder')}
+              onChange={(event) => updateLocalizedField('title', 'en', event.target.value)}
+            />
+          </label>
+          <label className="block space-y-1">
+            <span className="text-sm font-medium text-slate-700">{t('titleChinese')}</span>
+            <input
+              value={model.title.zh ?? ''}
+              disabled={!canEdit}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100"
+              placeholder={t('pageTitlePlaceholder')}
+              onChange={(event) => updateLocalizedField('title', 'zh', event.target.value)}
+            />
+          </label>
+        </div>
+
+        <div className="grid gap-3">
+          <label className="block space-y-1">
+            <span className="text-sm font-medium text-slate-700">{t('descriptionEnglish')}</span>
+            <textarea
+              value={model.description.en ?? ''}
+              disabled={!canEdit}
+              rows={3}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100"
+              placeholder={t('pageSummaryPlaceholder')}
+              onChange={(event) => updateLocalizedField('description', 'en', event.target.value)}
+            />
+          </label>
+          <label className="block space-y-1">
+            <span className="text-sm font-medium text-slate-700">{t('descriptionChinese')}</span>
+            <textarea
+              value={model.description.zh ?? ''}
+              disabled={!canEdit}
+              rows={3}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100"
+              placeholder={t('pageSummaryPlaceholder')}
+              onChange={(event) => updateLocalizedField('description', 'zh', event.target.value)}
+            />
+          </label>
+        </div>
+
         <label className="block space-y-1">
           <span className="text-sm font-medium text-slate-700">{t('visibility')}</span>
           <select

@@ -11,6 +11,7 @@ import {
   patchContent,
   patchLocalizedContent,
   patchLocalizedSectionHeader,
+  patchSectionHeader,
   readLocalizedText,
   readText,
   isVideoSource,
@@ -50,7 +51,7 @@ const readMediaConfig = (source: Record<string, unknown>, style: Record<string, 
   return { type, url, position, youtubeUrl, imageUrl }
 }
 
-const SpotlightSection = ({ section, mode, disabled, onUpdate, contextGroupId, page }: SectionComponentProps) => {
+const SpotlightSection = ({ section, mode, disabled, propertiesOnly, showProperties = true, onUpdate, contextGroupId, page }: SectionComponentProps) => {
   const auth = useAuthStore()
   const t = useUiText()
   const editable = mode === 'edit' && !disabled && onUpdate
@@ -137,6 +138,88 @@ const SpotlightSection = ({ section, mode, disabled, onUpdate, contextGroupId, p
     }
   }
 
+  const renderProperties = () => (
+    <PropertyPanel>
+      <SelectInput
+        label={t('spotlightMode')}
+        value={spotlightBinding.mode}
+        disabled={disabled}
+        options={[{ value: 'manual', label: t('manual') }, { value: 'data', label: t('dataBound') }]}
+        onChange={(value) => updateSpotlight({ mode: value, source: spotlightBinding.source, preset: spotlightBinding.preset, itemId: spotlightBinding.itemId ?? '' })}
+      />
+      <SelectInput
+        label={t('mediaPosition')}
+        value={mediaPosition}
+        disabled={disabled}
+        options={[{ value: 'left', label: t('left') }, { value: 'right', label: t('right') }]}
+        onChange={(value) => {
+          onUpdate?.({
+            ...section,
+            contentJson: { ...section.contentJson, media: mediaWith({ position: value }) },
+            styleJson: { ...section.styleJson, mediaPosition: value, imagePosition: value, layout: 'spotlight' },
+          })
+        }}
+      />
+      {spotlightBinding.mode === 'data' ? (
+        <>
+          <SelectInput
+            label={t('source')}
+            value={spotlightBinding.source}
+            disabled={disabled}
+            options={SPOTLIGHT_DATA_SOURCES.map((source) => ({ value: source, label: t(source) }))}
+            onChange={(value) => updateSpotlight({ source: value as SpotlightDataSource, preset: defaultSpotlightPreset(value as SpotlightDataSource), itemId: '' })}
+          />
+          <SelectInput
+            label={t('preset')}
+            value={spotlightBinding.preset}
+            disabled={disabled}
+            options={spotlightPresetOptionsForSource(spotlightBinding.source, t)}
+            onChange={(value) => updateSpotlight({ preset: value })}
+          />
+          <TextInput
+            label={t('referenceId')}
+            value={spotlightBinding.itemId ?? ''}
+            disabled={disabled}
+            placeholder={t('referenceId')}
+            onChange={(value) => updateSpotlight({ itemId: value })}
+          />
+        </>
+      ) : (
+        <>
+          <SelectInput
+            label={t('mediaType')}
+            value={mediaConfig.type}
+            disabled={disabled}
+            options={[{ value: 'image', label: t('image') }, { value: 'youtube', label: t('youtube') }]}
+            onChange={(value) => updateMedia({ type: value, url: value === 'youtube' ? youtubeUrl : imageUrl, position: mediaPosition })}
+          />
+          <TextInput
+            label={mediaConfig.type === 'youtube' ? t('youtubeUrl') : t('imageOrVideoUrl')}
+            value={mediaConfig.url}
+            disabled={disabled}
+            onChange={(value) => {
+              if (mediaConfig.type === 'youtube') {
+                updateContent({ media: mediaWith({ type: mediaConfig.type, url: value, position: mediaPosition }), youtubeUrl: value })
+              } else {
+                updateContent({ media: mediaWith({ type: mediaConfig.type, url: value, position: mediaPosition }), imageUrl: value, backgroundImage: value, backgroundImageUrl: value })
+              }
+            }}
+          />
+          <TextInput
+            label={t('buttonLinkUrl')}
+            value={readText(section.contentJson, 'linkUrl', 'ctaUrl', 'href')}
+            disabled={disabled}
+            onChange={(value) => updateContent({ linkUrl: value, ctaUrl: value, href: value })}
+          />
+        </>
+      )}
+    </PropertyPanel>
+  )
+
+  if (propertiesOnly) {
+    return renderProperties()
+  }
+
   const media = embedUrl ? (
     <iframe
       src={embedUrl}
@@ -188,9 +271,10 @@ const SpotlightSection = ({ section, mode, disabled, onUpdate, contextGroupId, p
     <section className={`${sectionSpacingClass(section)} rounded-lg border border-slate-200 bg-white px-4`}>
       <SectionHeader
         header={section.contentJson.header}
-        titleFallback={title}
-        subtitleFallback={subtitle}
+        titleFallback={title || (mode === 'edit' ? t('previewNoTitle') : '')}
+        subtitleFallback={subtitle || (mode === 'edit' ? t('previewNoSubtitle') : '')}
         disabled={!editable}
+        onIconChange={editable ? (icon) => onUpdate?.(patchSectionHeader(section, { icon })) : undefined}
         onTitleChange={editable ? updateHeaderTitle : undefined}
         onSubtitleChange={editable ? updateHeaderSubtitle : undefined}
       />
@@ -225,83 +309,7 @@ const SpotlightSection = ({ section, mode, disabled, onUpdate, contextGroupId, p
           ) : null}
         </div>
       </div>
-      {mode === 'edit' ? (
-        <PropertyPanel>
-          <SelectInput
-            label={t('spotlightMode')}
-            value={spotlightBinding.mode}
-            disabled={disabled}
-            options={[{ value: 'manual', label: t('manual') }, { value: 'data', label: t('dataBound') }]}
-            onChange={(value) => updateSpotlight({ mode: value, source: spotlightBinding.source, preset: spotlightBinding.preset, itemId: spotlightBinding.itemId ?? '' })}
-          />
-          <SelectInput
-            label={t('mediaPosition')}
-            value={mediaPosition}
-            disabled={disabled}
-            options={[{ value: 'left', label: t('left') }, { value: 'right', label: t('right') }]}
-            onChange={(value) => {
-              onUpdate?.({
-                ...section,
-                contentJson: { ...section.contentJson, media: mediaWith({ position: value }) },
-                styleJson: { ...section.styleJson, mediaPosition: value, imagePosition: value, layout: 'spotlight' },
-              })
-            }}
-          />
-          {spotlightBinding.mode === 'data' ? (
-            <>
-              <SelectInput
-                label={t('source')}
-                value={spotlightBinding.source}
-                disabled={disabled}
-                options={SPOTLIGHT_DATA_SOURCES.map((source) => ({ value: source, label: t(source) }))}
-                onChange={(value) => updateSpotlight({ source: value as SpotlightDataSource, preset: defaultSpotlightPreset(value as SpotlightDataSource), itemId: '' })}
-              />
-              <SelectInput
-                label={t('preset')}
-                value={spotlightBinding.preset}
-                disabled={disabled}
-                options={spotlightPresetOptionsForSource(spotlightBinding.source, t)}
-                onChange={(value) => updateSpotlight({ preset: value })}
-              />
-              <TextInput
-                label={t('referenceId')}
-                value={spotlightBinding.itemId ?? ''}
-                disabled={disabled}
-                placeholder={t('referenceId')}
-                onChange={(value) => updateSpotlight({ itemId: value })}
-              />
-            </>
-          ) : (
-            <>
-          <SelectInput
-            label={t('mediaType')}
-            value={mediaConfig.type}
-            disabled={disabled}
-            options={[{ value: 'image', label: t('image') }, { value: 'youtube', label: t('youtube') }]}
-            onChange={(value) => updateMedia({ type: value, url: value === 'youtube' ? youtubeUrl : imageUrl, position: mediaPosition })}
-          />
-          <TextInput
-            label={mediaConfig.type === 'youtube' ? t('youtubeUrl') : t('imageOrVideoUrl')}
-            value={mediaConfig.url}
-            disabled={disabled}
-            onChange={(value) => {
-              if (mediaConfig.type === 'youtube') {
-                updateContent({ media: mediaWith({ type: mediaConfig.type, url: value, position: mediaPosition }), youtubeUrl: value })
-              } else {
-                updateContent({ media: mediaWith({ type: mediaConfig.type, url: value, position: mediaPosition }), imageUrl: value, backgroundImage: value, backgroundImageUrl: value })
-              }
-            }}
-          />
-          <TextInput
-            label={t('buttonLinkUrl')}
-            value={readText(section.contentJson, 'linkUrl', 'ctaUrl', 'href')}
-            disabled={disabled}
-            onChange={(value) => updateContent({ linkUrl: value, ctaUrl: value, href: value })}
-          />
-            </>
-          )}
-        </PropertyPanel>
-      ) : null}
+      {mode === 'edit' && showProperties ? renderProperties() : null}
     </section>
   )
 }

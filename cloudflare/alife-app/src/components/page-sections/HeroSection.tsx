@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useAuthStore } from '../../stores/auth'
 import { useUiText } from '../../i18n/uiText'
-import { BackgroundMedia, DEFAULT_HERO_ASPECT_RATIO, DEFAULT_HERO_IMAGE, DEFAULT_POSTER_ASPECT_RATIO, EditableText, PropertyPanel, SelectInput, TextInput, patchContent, patchLocalizedContent, patchLocalizedSectionHeader, patchStyle, readLocalizedText, readNumber, readText, resolveMediaAspectRatio } from './sectionUtils'
+import { BackgroundMedia, DEFAULT_HERO_ASPECT_RATIO, DEFAULT_HERO_IMAGE, DEFAULT_POSTER_ASPECT_RATIO, EditableText, PropertyPanel, SelectInput, TextInput, patchContent, patchLocalizedContent, patchLocalizedSectionHeader, patchSectionHeader, patchStyle, readLocalizedText, readNumber, readText, resolveMediaAspectRatio } from './sectionUtils'
 import type { SectionComponentProps } from './types'
 import SectionHeader from './SectionHeader'
 
@@ -29,7 +29,7 @@ const formatAspectRatio = (value: number | undefined) => {
   return value.toFixed(3).replace(/0+$/, '').replace(/\.$/, '')
 }
 
-const HeroSection = ({ section, mode, disabled, onUpdate }: SectionComponentProps) => {
+const HeroSection = ({ section, mode, disabled, propertiesOnly, showProperties = true, onUpdate }: SectionComponentProps) => {
   const auth = useAuthStore()
   const t = useUiText()
   const editable = mode === 'edit' && !disabled && onUpdate
@@ -141,6 +141,34 @@ const HeroSection = ({ section, mode, disabled, onUpdate }: SectionComponentProp
     )
   }
 
+  const renderProperties = () => (
+    <PropertyPanel>
+      <SelectInput
+        label={t('heroStyle')}
+        value={layout}
+        disabled={disabled}
+        options={[
+          { value: 'featured', label: t('featured') },
+          { value: 'classic', label: t('classic') },
+          { value: 'poster', label: t('poster') },
+        ]}
+        onChange={(value) => updateStyle({ layout: value, aspectRatio: defaultAspectRatio(normalizeHeroLayout(value)) })}
+      />
+      <div className="block space-y-1">
+        <span className="text-xs font-medium text-slate-600">{t('aspectRatio')}</span>
+        <div className="flex h-9 items-center rounded border border-slate-300 bg-slate-50 px-2 text-sm text-slate-600">
+          {aspectRatioLabel || t('aspectRatioPending')}
+        </div>
+      </div>
+      <TextInput label={t('buttonLinkUrl')} value={linkUrl} disabled={disabled} onChange={(value) => updateContent({ linkUrl: value, ctaUrl: value, href: value })} />
+      <TextInput label={t('backgroundImageUrl')} value={bg} disabled={disabled} onChange={(value) => updateContent({ backgroundImage: value, backgroundImageUrl: value })} />
+    </PropertyPanel>
+  )
+
+  if (propertiesOnly) {
+    return renderProperties()
+  }
+
   return (
     <section className="overflow-hidden rounded-lg border border-slate-200">
       <div
@@ -157,6 +185,7 @@ const HeroSection = ({ section, mode, disabled, onUpdate }: SectionComponentProp
                 titleFallback={title || t('heroSectionTitle')}
                 subtitleFallback={body || subtitle || t('noHeroContentYet')}
                 disabled={!editable}
+                onIconChange={editable ? (icon) => onUpdate?.(patchSectionHeader(section, { icon })) : undefined}
                 onTitleChange={editable ? updateHeroTitle : undefined}
                 onSubtitleChange={editable ? updateHeroSubtitle : undefined}
               />
@@ -165,29 +194,7 @@ const HeroSection = ({ section, mode, disabled, onUpdate }: SectionComponentProp
           </div>
         </div>
       </div>
-      {mode === 'edit' ? (
-        <PropertyPanel>
-          <SelectInput
-            label={t('heroStyle')}
-            value={layout}
-            disabled={disabled}
-            options={[
-              { value: 'featured', label: t('featured') },
-              { value: 'classic', label: t('classic') },
-              { value: 'poster', label: t('poster') },
-            ]}
-            onChange={(value) => updateStyle({ layout: value, aspectRatio: defaultAspectRatio(normalizeHeroLayout(value)) })}
-          />
-          <div className="block space-y-1">
-            <span className="text-xs font-medium text-slate-600">{t('aspectRatio')}</span>
-            <div className="flex h-9 items-center rounded border border-slate-300 bg-slate-50 px-2 text-sm text-slate-600">
-              {aspectRatioLabel || t('aspectRatioPending')}
-            </div>
-          </div>
-          <TextInput label={t('buttonLinkUrl')} value={linkUrl} disabled={disabled} onChange={(value) => updateContent({ linkUrl: value, ctaUrl: value, href: value })} />
-          <TextInput label={t('backgroundImageUrl')} value={bg} disabled={disabled} onChange={(value) => updateContent({ backgroundImage: value, backgroundImageUrl: value })} />
-        </PropertyPanel>
-      ) : null}
+      {mode === 'edit' && showProperties ? renderProperties() : null}
     </section>
   )
 }

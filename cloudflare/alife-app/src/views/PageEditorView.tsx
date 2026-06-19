@@ -42,6 +42,57 @@ const mapPageToEditModel = (page: PageDetailDto, groupId: string): PageEditModel
   sections: normalizePageSections(page.sections ?? []),
 })
 
+type EditorLanguage = 'en' | 'zh'
+type LanguageReviewPrompt = {
+  reason: 'autofill' | 'save'
+  targetLanguage: EditorLanguage
+}
+
+const otherLanguage = (language: string): EditorLanguage => language === 'zh' ? 'en' : 'zh'
+
+const PageLanguageReviewModal = ({
+  prompt,
+  onStay,
+  onSwitch,
+}: {
+  prompt: LanguageReviewPrompt
+  onStay: () => void
+  onSwitch: (language: EditorLanguage) => void
+}) => {
+  const t = useUiText()
+  const targetLanguageLabel = t(prompt.targetLanguage === 'zh' ? 'chinese' : 'english')
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-end bg-slate-950/45 px-4 py-5 sm:items-center sm:justify-center">
+      <button type="button" className="absolute inset-0" aria-label={t('cancel')} onClick={onStay} />
+      <section className="relative z-10 w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
+        <h2 className="text-lg font-semibold text-slate-950">{t('reviewOtherLanguageTitle')}</h2>
+        <p className="mt-3 text-sm leading-6 text-slate-600">
+          {t(prompt.reason === 'autofill' ? 'reviewOtherLanguageAfterAutofill' : 'reviewOtherLanguageAfterSave', {
+            language: targetLanguageLabel,
+          })}
+        </p>
+        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button
+            type="button"
+            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            onClick={onStay}
+          >
+            {t('stayInCurrentLanguage')}
+          </button>
+          <button
+            type="button"
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-500"
+            onClick={() => onSwitch(prompt.targetLanguage)}
+          >
+            {t('switchToLanguage', { language: targetLanguageLabel })}
+          </button>
+        </div>
+      </section>
+    </div>
+  )
+}
+
 const PageEditorView = () => {
   const { groupId: createGroupIdParam, pageId: editPageIdParam } = useParams<{ groupId?: string; pageId?: string }>()
   const routeCreateGroupId = normalizeRouteGroupId(createGroupIdParam)
@@ -55,6 +106,7 @@ const PageEditorView = () => {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const [languageReviewPrompt, setLanguageReviewPrompt] = useState<LanguageReviewPrompt | null>(null)
   const [savedModelSnapshot, setSavedModelSnapshot] = useState('')
   const queryGroupId = normalizeRouteGroupId(searchParams.get('groupId'))
 
@@ -202,6 +254,7 @@ const PageEditorView = () => {
         const completedModel = applyPageTranslations(pageModel, translatedFields, missingTranslationFields)
         setPageModel(completedModel)
         setMessage(t('pageAiBilingualAutofillComplete', { count: translatedFields.length }))
+        setLanguageReviewPrompt({ reason: 'autofill', targetLanguage: otherLanguage(auth.language) })
         return
       }
 
@@ -293,6 +346,7 @@ const PageEditorView = () => {
             ? t('pageSavedPublished')
             : t('pageSaved'),
       )
+      setLanguageReviewPrompt({ reason: 'save', targetLanguage: otherLanguage(auth.language) })
 
       if (isCreateMode && targetPageId) {
         activeEntityService.setPage(targetPageId, resolvedGroupId)
@@ -325,10 +379,6 @@ const PageEditorView = () => {
     navigate('/')
   }, [editPageId, navigate, pageModel.id, resolvedGroupId])
 
-  if (!isCreateMode && !editPageId) {
-    return <Navigate to="/" replace />
-  }
-
   const cancel = useCallback(async () => {
     if (hasUnsavedChanges && !window.confirm(t('unsavedExitConfirm'))) {
       return
@@ -336,6 +386,15 @@ const PageEditorView = () => {
 
     leaveEditor()
   }, [hasUnsavedChanges, leaveEditor, t])
+
+  const closeLanguageReviewPrompt = useCallback(() => {
+    setLanguageReviewPrompt(null)
+  }, [])
+
+  const switchLanguageForReview = useCallback(async (language: EditorLanguage) => {
+    setLanguageReviewPrompt(null)
+    await auth.updateLanguage(language)
+  }, [auth])
 
   useEffect(() => {
     const saveHandler = () => {
@@ -354,34 +413,50 @@ const PageEditorView = () => {
     }
   }, [cancel, saveDraft])
 
+  if (!isCreateMode && !editPageId) {
+    return <Navigate to="/" replace />
+  }
+
   return (
-    <PageEditorShell
-      loading={loading}
-      error={error}
-      main={
-        <PageContentRenderer
-          page={pageModel}
-          sections={pageModel.sections}
-          subgroupItems={[]}
-          groupPageItems={[]}
-          editing
-          canEdit={canEditPage}
-          message={message}
-          validation={validation}
-          contextGroupId={resolvedGroupId}
-          onPageChange={setPageModel}
-          onSectionsChange={(sections) => setPageModel((current) => ({ ...current, sections }))}
+    <>
+      <PageEditorShell
+        loading={loading}
+        error={error}
+        main={
+          <PageContentRenderer
+            page={pageModel}
+            sections={pageModel.sections}
+            subgroupItems={[]}
+            groupPageItems={[]}
+            editing
+            canEdit={canEditPage}
+            message={message}
+            validation={validation}
+            contextGroupId={resolvedGroupId}
+            onPageChange={setPageModel}
+            onSectionsChange={(sections) => setPageModel((current) => ({ ...current, sections }))}
+          />
+        }
+        sidebar={
+          <PageSettingsPanel
+            model={pageModel}
+            canEdit={canEditPage}
+            canEditVisibility={canEditVisibility}
+            message={message}
+            onChange={setPageModel}
+          />
+        }
+      />
+      {languageReviewPrompt ? (
+        <PageLanguageReviewModal
+          prompt={languageReviewPrompt}
+          onStay={closeLanguageReviewPrompt}
+          onSwitch={(language) => {
+            switchLanguageForReview(language).catch(() => undefined)
+          }}
         />
-      }
-      sidebar={
-        <PageSettingsPanel
-          model={pageModel}
-          canEditVisibility={canEditVisibility}
-          message={message}
-          onChange={setPageModel}
-        />
-      }
-    />
+      ) : null}
+    </>
   )
 }
 
