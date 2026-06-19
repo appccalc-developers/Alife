@@ -92,7 +92,7 @@ npm install
 npm run dev
 ```
 
-The Vite dev server runs at `http://localhost:5173`. In development, `/api/*` is proxied to `http://localhost:7071` by default. Override with `API_PROXY_TARGET` when needed.
+The Vite dev server runs at `http://localhost:5173`. In development, `/api/*` is proxied to `http://127.0.0.1:7071` by default. Override with `API_PROXY_TARGET` when needed.
 
 The local Vite server also proxies `/images/*` to `https://images.ccalc.live` by default. Override with `IMAGES_PROXY_TARGET` if you run the image Worker locally.
 
