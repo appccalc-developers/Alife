@@ -55,6 +55,7 @@ const PageView = () => {
           sections={sections}
           subgroupItems={localizedSubgroupItems as Array<{ id: string; name: string; accessType: string }>}
           groupPageItems={groupPageItems as unknown as Array<{ id: string; title: string; visibility: string }>}
+          showHeader={false}
           onEditPage={(id, groupId) => {
             activeEntityService.setPage(id, groupId)
             navigate('/pages/edit')
