@@ -239,7 +239,7 @@ const GroupPageTabs = ({
             sections={sectionsByPageId[activePage.id] ?? []}
             subgroupItems={localizedSubgroups}
             groupPageItems={pages}
-            showHeader
+            showHeader={false}
             framed={false}
           />
         ) : null}
