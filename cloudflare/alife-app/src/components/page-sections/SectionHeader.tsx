@@ -24,17 +24,17 @@ type SectionHeaderProps = {
 const normalScaleClasses: Record<NonNullable<SectionHeaderModel['scale']>, { icon: string; title: string; subtitle: string }> = {
   compact: {
     icon: 'h-8 w-8',
-    title: 'text-2xl md:text-3xl',
+    title: 'text-xl md:text-3xl',
     subtitle: 'text-sm md:text-base',
   },
   normal: {
     icon: 'h-10 w-10',
-    title: 'text-3xl md:text-4xl',
+    title: 'text-2xl md:text-4xl',
     subtitle: 'text-base md:text-lg',
   },
   feature: {
     icon: 'h-12 w-12',
-    title: 'text-4xl md:text-5xl',
+    title: 'text-3xl md:text-5xl',
     subtitle: 'text-lg md:text-xl',
   },
 }
@@ -42,18 +42,18 @@ const normalScaleClasses: Record<NonNullable<SectionHeaderModel['scale']>, { ico
 const heroScaleClasses: Record<NonNullable<SectionHeaderModel['scale']>, { icon: string; title: string; subtitle: string }> = {
   compact: {
     icon: 'h-10 w-10',
-    title: 'text-3xl md:text-5xl',
+    title: 'text-2xl md:text-5xl',
     subtitle: 'text-base md:text-lg',
   },
   normal: {
     icon: 'h-12 w-12',
-    title: 'text-4xl md:text-6xl',
-    subtitle: 'text-lg md:text-xl',
+    title: 'text-3xl md:text-6xl',
+    subtitle: 'text-base md:text-xl',
   },
   feature: {
     icon: 'h-14 w-14 md:h-16 md:w-16',
-    title: 'text-5xl md:text-7xl',
-    subtitle: 'text-xl md:text-2xl',
+    title: 'text-4xl md:text-7xl',
+    subtitle: 'text-lg md:text-2xl',
   },
 }
 
@@ -148,8 +148,8 @@ const SectionHeader = ({
   const alignmentClasses = align === 'left' ? 'items-start text-left' : 'items-center text-center'
   const containerClasses =
     variant === 'hero'
-      ? `mx-auto flex max-w-4xl flex-col gap-4 px-5 ${alignmentClasses}`
-      : `mx-auto mb-8 flex max-w-3xl flex-col gap-3 px-4 ${alignmentClasses}`
+      ? `mx-auto flex max-w-4xl flex-col gap-3 px-4 md:gap-4 md:px-5 ${alignmentClasses}`
+      : `mx-auto mb-5 flex max-w-3xl flex-col gap-2 px-3 md:mb-8 md:gap-3 md:px-4 ${alignmentClasses}`
   const selectedIconLabel = header?.icon ? getSectionIconLabel(header.icon, auth.language) : t('none')
   const renderIcon = () => {
     if (!canEditIcon) {
@@ -231,7 +231,7 @@ const SectionHeader = ({
           value={title}
           fallback={titleFallback}
           disabled={disabled}
-          className={`block font-semibold leading-tight tracking-normal ${scaleClasses.title} ${toneClasses.title}`}
+          className={`block max-w-full break-words font-semibold leading-tight tracking-normal ${scaleClasses.title} ${toneClasses.title}`}
           onChange={onTitleChange}
         />
       ) : null}
@@ -242,7 +242,7 @@ const SectionHeader = ({
           value={subtitle}
           fallback={subtitleFallback}
           disabled={disabled}
-          className={`block max-w-2xl leading-relaxed ${scaleClasses.subtitle} ${toneClasses.subtitle}`}
+          className={`block max-w-2xl break-words leading-relaxed ${scaleClasses.subtitle} ${toneClasses.subtitle}`}
           onChange={onSubtitleChange}
         />
       ) : null}
