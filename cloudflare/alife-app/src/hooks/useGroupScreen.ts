@@ -67,11 +67,17 @@ export const useGroupScreen = (groupId: string, options: GroupScreenOptions = {}
   // Load subgroups as a live collection.
   const canLoadSubgroups = !auth.isGuest
   const subCollection = useMemo(() => (groupId ? subgroupsCollection(groupId, canLoadSubgroups) : null), [canLoadSubgroups, groupId])
-  const { data: subgroups = [] } = useLiveQuery(subCollection as NonNullable<typeof subCollection>)
+  const { data: subgroups = [] } = useLiveQuery(
+    () => subCollection ?? undefined,
+    [subCollection],
+  )
 
   // Load pages as a live collection.
   const pagesColl = useMemo(() => (groupId ? groupPagesCollection(groupId) : null), [groupId])
-  const { data: pages = [] } = useLiveQuery(pagesColl as NonNullable<typeof pagesColl>)
+  const { data: pages = [] } = useLiveQuery(
+    () => pagesColl ?? undefined,
+    [pagesColl],
+  )
 
   // Load memberships as a live collection.
   const canLoadMemberships = !auth.isGuest && auth.canManageGroup(groupId)
@@ -80,7 +86,10 @@ export const useGroupScreen = (groupId: string, options: GroupScreenOptions = {}
     () => (groupId ? groupMembershipsCollection(groupId, canLoadMemberships, includeLineCandidates) : null),
     [canLoadMemberships, groupId, includeLineCandidates],
   )
-  const { data: membershipsRaw = [] } = useLiveQuery(membershipsColl as NonNullable<typeof membershipsColl>)
+  const { data: membershipsRaw = [] } = useLiveQuery(
+    () => membershipsColl ?? undefined,
+    [membershipsColl],
+  )
   const memberships = useMemo(() => membershipsRaw as GroupMemberToolRow[], [membershipsRaw])
 
   const membership = useMemo(

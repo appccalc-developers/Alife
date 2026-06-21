@@ -192,7 +192,7 @@ const ShellNavLink = ({ item, mobile = false }: { item: ShellNavItem; mobile?: b
       className={({ isActive }) =>
         [
           'flex items-center rounded-lg font-medium transition',
-          mobile ? 'min-w-0 flex-1 flex-col justify-center gap-1 px-1 py-2 text-xs' : 'gap-3 px-3 py-2.5 text-sm',
+          mobile ? 'h-full w-full min-w-0 flex-1 flex-col justify-center gap-1 overflow-hidden px-1 py-2 text-xs' : 'gap-3 px-3 py-2.5 text-sm',
           isActive ? 'bg-emerald-700 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950',
         ].join(' ')
       }
@@ -232,7 +232,7 @@ const ShellSearchNavLink = ({ item, mobile = false }: { item: ShellNavItem; mobi
         }}
         className={[
           'flex items-center rounded-lg font-medium transition',
-          mobile ? 'min-w-0 flex-1 flex-col justify-center gap-1 px-1 py-2 text-xs' : 'gap-3 px-3 py-2.5 text-sm',
+          mobile ? 'h-full w-full min-w-0 flex-1 flex-col justify-center gap-1 overflow-hidden px-1 py-2 text-xs' : 'gap-3 px-3 py-2.5 text-sm',
           isActive ? 'bg-emerald-700 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950',
         ].join(' ')}
       >
@@ -319,6 +319,7 @@ const SideNav = ({ items }: { items: ShellNavItem[] }) => {
 
 const BottomNav = ({ items }: { items: ShellNavItem[] }) => {
   const t = useUiText()
+  const compactGrid = items.length > 4
 
   return (
     <motion.nav
@@ -328,14 +329,17 @@ const BottomNav = ({ items }: { items: ShellNavItem[] }) => {
       className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-2 pb-[calc(env(safe-area-inset-bottom)+0.375rem)] pt-1.5 shadow-[0_-12px_30px_rgba(15,23,42,0.10)] backdrop-blur desktop:hidden"
       aria-label={t('primaryNavigation')}
     >
-      <div className="mx-auto flex max-w-lg items-stretch gap-1">
+      <div className={[
+        'mx-auto w-full max-w-lg min-w-0 items-stretch gap-1',
+        compactGrid ? 'grid grid-cols-5' : 'flex',
+      ].join(' ')}>
         {items.map((item, i) => (
           <motion.div
             key={item.key}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15 + i * 0.05, duration: 0.3, ease: 'easeOut' }}
-            className="flex-1"
+            className="min-w-0 flex-1"
           >
             <ShellSearchNavLink item={item} mobile />
           </motion.div>
@@ -412,7 +416,7 @@ const GroupDrawer = ({ currentGroup, churchGroup, items, open, onClose, onOpenGr
         transition={{ duration: 0.25 }}
         className={[
           'fixed inset-0 z-40 bg-slate-950/25',
-          open ? 'pointer-events-auto' : 'pointer-events-none',
+          open ? 'pointer-events-auto' : 'pointer-events-none hidden',
         ].join(' ')}
         aria-hidden="true"
         onClick={onClose}
@@ -421,7 +425,10 @@ const GroupDrawer = ({ currentGroup, churchGroup, items, open, onClose, onOpenGr
         initial={{ x: '100%' }}
         animate={{ x: open ? 0 : '100%' }}
         transition={{ type: 'spring', stiffness: 350, damping: 30 }}
-        className="fixed bottom-0 right-0 top-0 z-50 flex w-full max-w-sm flex-col border-l border-slate-200 bg-white shadow-2xl sm:top-16"
+        className={[
+          'fixed bottom-0 right-0 top-0 z-50 flex w-full max-w-sm flex-col border-l border-slate-200 bg-white shadow-2xl sm:top-16',
+          open ? '' : 'hidden',
+        ].join(' ')}
         aria-label={t('subgroupMenu')}
       >
         <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-4">
