@@ -6,7 +6,6 @@
     <AzureFunctionsVersion>v4</AzureFunctionsVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <UserSecretsId>4d56cee1-9d0c-48c9-b60e-ed74a4275534</UserSecretsId>
     <InvariantGlobalization>false</InvariantGlobalization>
   </PropertyGroup>
 
