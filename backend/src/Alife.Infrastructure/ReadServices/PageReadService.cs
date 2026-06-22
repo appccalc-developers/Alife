@@ -17,7 +17,7 @@ public sealed class PageReadService(AlifeDbContext dbContext, HybridCache hybrid
             {
                 var pages = await dbContext.Pages
                     .AsNoTracking()
-                    .Where(x => x.Scope == PageScope.Global)
+                    .Where(x => x.Scope == PageScope.Global && x.Visibility == PageVisibility.Public)
                     .OrderBy(x => x.UpdatedUtc)
                     .ToListAsync(token);
 
