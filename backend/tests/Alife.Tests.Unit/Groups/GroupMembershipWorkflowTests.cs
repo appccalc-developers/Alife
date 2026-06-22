@@ -345,6 +345,38 @@ public class GroupMembershipWorkflowTests
     }
 
     [Fact]
+    public async Task GetGroupInviteCandidates_IncludesUnregisteredMemberRecordsAndExcludesCurrentMember()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var groupId = Guid.NewGuid();
+        var leaderId = Guid.NewGuid();
+        var guestId = Guid.NewGuid();
+
+        dbContext.Groups.Add(CreateGroup(groupId, AccessType.Protected));
+        dbContext.Members.AddRange(
+            CreateMember(leaderId, "Leader"),
+            new Member
+            {
+                Id = guestId,
+                DisplayName = "Known Guest",
+                IsRegistered = false,
+                CreatedUtc = DateTime.UtcNow,
+                UpdatedUtc = DateTime.UtcNow
+            });
+        await dbContext.SaveChangesAsync();
+
+        var authorizationService = Substitute.For<IGroupAuthorizationService>();
+        authorizationService.IsLeaderOrCoLeaderAsync(groupId, leaderId, Arg.Any<CancellationToken>()).Returns(true);
+        var handler = new GetGroupInviteCandidatesQueryHandler(dbContext, authorizationService);
+
+        var result = await handler.Handle(new GetGroupInviteCandidatesQuery(groupId, leaderId), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Contains(result.Value!, member => member.Id == guestId);
+        Assert.DoesNotContain(result.Value!, member => member.Id == leaderId);
+    }
+
+    [Fact]
     public async Task InviteGroupMemberById_ReinvitesRemovedMember()
     {
         using var dbContext = CreateInMemoryDbContext();
@@ -407,11 +439,46 @@ public class GroupMembershipWorkflowTests
     }
 
     [Fact]
-    public async Task SetGroupCoLeader_AllowsCoLeaderToPromoteApprovedMember()
+    public async Task InviteGroupMemberById_AllowsInvitingMemberOutsideParentGroup()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var parentGroupId = Guid.NewGuid();
+        var subgroupId = Guid.NewGuid();
+        var leaderId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+        dbContext.Groups.AddRange(
+            CreateGroup(parentGroupId, AccessType.Protected),
+            CreateGroup(subgroupId, AccessType.Protected, parentGroupId));
+        dbContext.Members.AddRange(CreateMember(leaderId, "Leader"), CreateMember(memberId, "Invitee"));
+        await dbContext.SaveChangesAsync();
+
+        var authorizationService = Substitute.For<IGroupAuthorizationService>();
+        authorizationService.IsLeaderOrCoLeaderAsync(subgroupId, leaderId, Arg.Any<CancellationToken>()).Returns(true);
+        var invalidationService = Substitute.For<IGroupCacheInvalidationService>();
+        var cloudflareKvCacheService = Substitute.For<ICloudflareKvCacheService>();
+        var handler = new InviteGroupMemberByIdCommandHandler(
+            dbContext,
+            authorizationService,
+            invalidationService,
+            cloudflareKvCacheService);
+
+        var result = await handler.Handle(new InviteGroupMemberByIdCommand(subgroupId, leaderId, memberId), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var membership = dbContext.GroupMemberships.Single();
+        Assert.Equal(subgroupId, membership.GroupId);
+        Assert.Equal(memberId, membership.MemberId);
+        Assert.Equal(MembershipStatus.Invited, membership.Status);
+        await cloudflareKvCacheService.Received(1).RemoveMembershipAsync(subgroupId, memberId, Arg.Any<CancellationToken>());
+        await invalidationService.Received(1).RemoveMembershipsAsync(subgroupId, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SetGroupCoLeader_AllowsLeaderToPromoteApprovedMember()
     {
         using var dbContext = CreateInMemoryDbContext();
         var groupId = Guid.NewGuid();
-        var coLeaderId = Guid.NewGuid();
+        var leaderId = Guid.NewGuid();
         var memberId = Guid.NewGuid();
         dbContext.Groups.Add(CreateGroup(groupId, AccessType.Protected));
         dbContext.GroupMemberships.Add(new GroupMembership
@@ -427,7 +494,7 @@ public class GroupMembershipWorkflowTests
         await dbContext.SaveChangesAsync();
 
         var authorizationService = Substitute.For<IGroupAuthorizationService>();
-        authorizationService.IsLeaderOrCoLeaderAsync(groupId, coLeaderId, Arg.Any<CancellationToken>()).Returns(true);
+        authorizationService.IsLeaderAsync(groupId, leaderId, Arg.Any<CancellationToken>()).Returns(true);
         var cloudflareKvCacheService = Substitute.For<ICloudflareKvCacheService>();
         var invalidationService = Substitute.For<IGroupCacheInvalidationService>();
         var handler = new SetGroupCoLeaderCommandHandler(
@@ -437,7 +504,7 @@ public class GroupMembershipWorkflowTests
             cloudflareKvCacheService);
 
         var result = await handler.Handle(
-            new SetGroupCoLeaderCommand(groupId, coLeaderId, memberId, true),
+            new SetGroupCoLeaderCommand(groupId, leaderId, memberId, true),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -456,15 +523,15 @@ public class GroupMembershipWorkflowTests
     {
         using var dbContext = CreateInMemoryDbContext();
         var groupId = Guid.NewGuid();
-        var coLeaderId = Guid.NewGuid();
+        var leaderId = Guid.NewGuid();
         var memberId = Guid.NewGuid();
         dbContext.Groups.Add(CreateGroup(groupId, AccessType.Protected));
-        dbContext.Members.AddRange(CreateMember(coLeaderId, "Co Leader"), CreateMember(memberId, "Member"));
+        dbContext.Members.AddRange(CreateMember(leaderId, "Leader"), CreateMember(memberId, "Member"));
         dbContext.GroupMemberships.Add(CreateMembership(groupId, memberId, MembershipStatus.Approved, DateTime.UtcNow));
         await dbContext.SaveChangesAsync();
 
         var authorizationService = Substitute.For<IGroupAuthorizationService>();
-        authorizationService.IsLeaderOrCoLeaderAsync(groupId, coLeaderId, Arg.Any<CancellationToken>()).Returns(true);
+        authorizationService.IsLeaderAsync(groupId, leaderId, Arg.Any<CancellationToken>()).Returns(true);
         var handler = new SetGroupCoLeaderCommandHandler(
             dbContext,
             authorizationService,
@@ -472,16 +539,56 @@ public class GroupMembershipWorkflowTests
             Substitute.For<ICloudflareKvCacheService>());
 
         var result = await handler.Handle(
-            new SetGroupCoLeaderCommand(groupId, coLeaderId, memberId, true),
+            new SetGroupCoLeaderCommand(groupId, leaderId, memberId, true),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         var notification = await dbContext.NotificationMessages.SingleAsync();
         Assert.Equal(memberId, notification.RecipientMemberId);
-        Assert.Equal(coLeaderId, notification.CreatedByMemberId);
+        Assert.Equal(leaderId, notification.CreatedByMemberId);
         Assert.Equal(groupId, notification.GroupId);
         Assert.Equal("group.member.promoted-to-coleader", notification.ActionType);
         Assert.Contains("coLeader", notification.ActionDataJson);
+    }
+
+    [Fact]
+    public async Task SetGroupCoLeader_RequiresCurrentLeader()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var groupId = Guid.NewGuid();
+        var coLeaderId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+        dbContext.Groups.Add(CreateGroup(groupId, AccessType.Protected));
+        dbContext.GroupMemberships.AddRange(
+            CreateMembership(groupId, coLeaderId, MembershipStatus.Approved, DateTime.UtcNow, MembershipRole.CoLeader),
+            CreateMembership(groupId, memberId, MembershipStatus.Approved, DateTime.UtcNow));
+        await dbContext.SaveChangesAsync();
+
+        var authorizationService = Substitute.For<IGroupAuthorizationService>();
+        authorizationService.IsLeaderAsync(groupId, coLeaderId, Arg.Any<CancellationToken>()).Returns(false);
+        var cloudflareKvCacheService = Substitute.For<ICloudflareKvCacheService>();
+        var invalidationService = Substitute.For<IGroupCacheInvalidationService>();
+        var handler = new SetGroupCoLeaderCommandHandler(
+            dbContext,
+            authorizationService,
+            invalidationService,
+            cloudflareKvCacheService);
+
+        var result = await handler.Handle(
+            new SetGroupCoLeaderCommand(groupId, coLeaderId, memberId, true),
+            CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(
+            MembershipRole.Member,
+            dbContext.GroupMemberships.Single(x => x.MemberId == memberId).Role);
+        await cloudflareKvCacheService.DidNotReceiveWithAnyArgs().PutApprovedMembershipAsync(
+            default,
+            default,
+            default,
+            default,
+            default);
+        await invalidationService.DidNotReceiveWithAnyArgs().RemoveMembershipsAsync(default, default);
     }
 
     [Fact]
@@ -619,7 +726,9 @@ public class GroupMembershipWorkflowTests
         var memberId = Guid.NewGuid();
         dbContext.Groups.Add(CreateGroup(groupId, AccessType.Protected));
         dbContext.Members.AddRange(CreateMember(leaderId, "Leader"), CreateMember(memberId, "Member"));
-        dbContext.GroupMemberships.Add(CreateMembership(groupId, memberId, MembershipStatus.Approved, DateTime.UtcNow));
+        dbContext.GroupMemberships.AddRange(
+            CreateMembership(groupId, leaderId, MembershipStatus.Approved, DateTime.UtcNow, MembershipRole.Leader),
+            CreateMembership(groupId, memberId, MembershipStatus.Approved, DateTime.UtcNow));
         await dbContext.SaveChangesAsync();
 
         var authorizationService = Substitute.For<IGroupAuthorizationService>();
@@ -638,6 +747,70 @@ public class GroupMembershipWorkflowTests
         Assert.Equal(leaderId, notification.CreatedByMemberId);
         Assert.Equal(groupId, notification.GroupId);
         Assert.Equal("group.member.removed", notification.ActionType);
+    }
+
+    [Fact]
+    public async Task KickGroupMember_PreventsCoLeaderRemovingCoLeader()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var groupId = Guid.NewGuid();
+        var currentCoLeaderId = Guid.NewGuid();
+        var targetCoLeaderId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+        dbContext.Groups.Add(CreateGroup(groupId, AccessType.Protected));
+        dbContext.GroupMemberships.AddRange(
+            CreateMembership(groupId, currentCoLeaderId, MembershipStatus.Approved, now, MembershipRole.CoLeader),
+            CreateMembership(groupId, targetCoLeaderId, MembershipStatus.Approved, now, MembershipRole.CoLeader));
+        await dbContext.SaveChangesAsync();
+
+        var authorizationService = Substitute.For<IGroupAuthorizationService>();
+        authorizationService.IsLeaderOrCoLeaderAsync(groupId, currentCoLeaderId, Arg.Any<CancellationToken>()).Returns(true);
+        var cloudflareKvCacheService = Substitute.For<ICloudflareKvCacheService>();
+        var invalidationService = Substitute.For<IGroupCacheInvalidationService>();
+        var handler = new KickGroupMemberCommandHandler(
+            dbContext,
+            authorizationService,
+            invalidationService,
+            cloudflareKvCacheService);
+
+        var result = await handler.Handle(new KickGroupMemberCommand(groupId, currentCoLeaderId, targetCoLeaderId), CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.All(dbContext.GroupMemberships, membership => Assert.Equal(MembershipStatus.Approved, membership.Status));
+        await cloudflareKvCacheService.DidNotReceiveWithAnyArgs().RemoveMembershipAsync(default, default, default);
+        await invalidationService.DidNotReceiveWithAnyArgs().RemoveMembershipsAsync(default, default);
+    }
+
+    [Fact]
+    public async Task KickGroupMember_PreventsRemovingLeader()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var groupId = Guid.NewGuid();
+        var currentCoLeaderId = Guid.NewGuid();
+        var leaderId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+        dbContext.Groups.Add(CreateGroup(groupId, AccessType.Protected));
+        dbContext.GroupMemberships.AddRange(
+            CreateMembership(groupId, currentCoLeaderId, MembershipStatus.Approved, now, MembershipRole.CoLeader),
+            CreateMembership(groupId, leaderId, MembershipStatus.Approved, now, MembershipRole.Leader));
+        await dbContext.SaveChangesAsync();
+
+        var authorizationService = Substitute.For<IGroupAuthorizationService>();
+        authorizationService.IsLeaderOrCoLeaderAsync(groupId, currentCoLeaderId, Arg.Any<CancellationToken>()).Returns(true);
+        var cloudflareKvCacheService = Substitute.For<ICloudflareKvCacheService>();
+        var invalidationService = Substitute.For<IGroupCacheInvalidationService>();
+        var handler = new KickGroupMemberCommandHandler(
+            dbContext,
+            authorizationService,
+            invalidationService,
+            cloudflareKvCacheService);
+
+        var result = await handler.Handle(new KickGroupMemberCommand(groupId, currentCoLeaderId, leaderId), CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(MembershipStatus.Approved, dbContext.GroupMemberships.Single(x => x.MemberId == leaderId).Status);
+        await cloudflareKvCacheService.DidNotReceiveWithAnyArgs().RemoveMembershipAsync(default, default, default);
+        await invalidationService.DidNotReceiveWithAnyArgs().RemoveMembershipsAsync(default, default);
     }
 
     [Fact]
@@ -661,7 +834,7 @@ public class GroupMembershipWorkflowTests
         await dbContext.SaveChangesAsync();
 
         var authorizationService = Substitute.For<IGroupAuthorizationService>();
-        authorizationService.IsLeaderOrCoLeaderAsync(groupId, coLeaderId, Arg.Any<CancellationToken>()).Returns(true);
+        authorizationService.IsLeaderAsync(groupId, coLeaderId, Arg.Any<CancellationToken>()).Returns(true);
         var cloudflareKvCacheService = Substitute.For<ICloudflareKvCacheService>();
         var invalidationService = Substitute.For<IGroupCacheInvalidationService>();
         var handler = new SetGroupCoLeaderCommandHandler(
@@ -736,3 +909,4 @@ public class GroupMembershipWorkflowTests
         return new AlifeDbContext(options);
     }
 }
+
