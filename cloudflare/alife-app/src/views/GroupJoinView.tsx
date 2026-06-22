@@ -17,7 +17,8 @@ import { localizeText } from '../utils/localizedText'
 
 const GroupJoinView = () => {
   const { groupId: routeGroupId } = useParams<{ groupId: string }>()
-  const { groupId } = useActiveEntityIds({ groupId: routeGroupId })
+  const { groupId: activeGroupId } = useActiveEntityIds({ groupId: routeGroupId })
+  const groupId = activeGroupId || ''
   const navigate = useNavigate()
   const t = useUiText()
   const auth = useAuthStore()

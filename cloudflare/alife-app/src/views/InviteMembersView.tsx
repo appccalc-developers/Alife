@@ -15,7 +15,8 @@ const canInviteWithStatus = (status?: MembershipStatus | null) => !status || sta
 const InviteMembersView = () => {
   const t = useUiText()
   const { groupId: routeGroupId } = useParams<{ groupId: string }>()
-  const { groupId } = useActiveEntityIds({ groupId: routeGroupId })
+  const { groupId: activeGroupId } = useActiveEntityIds({ groupId: routeGroupId })
+  const groupId = activeGroupId || ''
   const navigate = useNavigate()
   const { inviteMemberById } = useGroupScreen(groupId)
 
@@ -97,7 +98,7 @@ const InviteMembersView = () => {
   }
 
   return (
-    !groupId ? <Navigate to="/" replace /> :
+    !groupId ? <Navigate to="/groups/select" replace /> :
     <AppPageShell>
       <div className="mb-5">
         <button

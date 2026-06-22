@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowRightLeft, Crown, UserMinus } from 'lucide-react'
+import { ArrowRightLeft, CalendarDays, Crown, FileText, Network, Settings, ShieldCheck, UserPlus, UserMinus, UsersRound } from 'lucide-react'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
 import AppEmptyState from '../components/layout/AppEmptyState'
@@ -28,8 +28,149 @@ const formatDate = (value: string, language: string) => {
   return new Date(value).toLocaleDateString()
 }
 
+const isPlatformAdminRole = (role?: string | null) => role === 'admin' || role === 'superadmin'
+
+const formatPlatformRole = (role: string | undefined | null, language: string) => {
+  if (role === 'superadmin') return language === 'zh' ? '系统管理员' : 'System Admin'
+  if (role === 'admin') return language === 'zh' ? '管理员' : 'Admin'
+  return ''
+}
+
+type ManageSection = 'members' | 'events' | 'pages' | 'subgroups' | 'group'
+
+const manageSectionKeys: ManageSection[] = ['members', 'events', 'pages', 'subgroups', 'group']
+
+const normalizeManageSection = (value: string | null): ManageSection =>
+  manageSectionKeys.includes(value as ManageSection) ? value as ManageSection : 'members'
+
+const managementCopy = (language: string, isChurch?: boolean) => {
+  const workspace = isChurch ? (language === 'zh' ? '教会' : 'Church') : (language === 'zh' ? '小组' : 'Group')
+  return language === 'zh'
+    ? {
+      title: `${workspace}运营中心`,
+      subtitle: '把成员、活动、内容和设置放在一个清晰的工作台里处理。',
+      back: `返回${workspace}`,
+      members: '成员',
+      membersHint: '审批、邀请、角色和成员状态',
+      events: '活动',
+      eventsHint: '创建活动、维护报名和后续回顾',
+      pages: '内容',
+      pagesHint: '发布页面和小组资料',
+      subgroups: '下属小组',
+      subgroupsHint: '管理小组结构和负责人',
+      settings: '设置',
+      settingsHint: `${workspace}资料、访问规则和高级操作`,
+      pending: '待审批',
+      approved: '活跃成员',
+      inactive: '非活跃',
+      totalMembers: '成员总数',
+      upcomingEvents: '近期活动',
+      totalEvents: '全部活动',
+      pastEvents: '已结束',
+      publishedPages: '页面',
+      quickActions: '常用操作',
+      inviteMember: '邀请成员',
+      createEvent: '创建活动',
+      addPage: '新建页面',
+      emptyMembersTitle: '还没有成员记录',
+      emptyMembersBody: '可以先邀请成员，或等待成员提交加入申请。',
+      emptyEventsTitle: '还没有活动',
+      emptyEventsBody: '用 AI 活动助理创建第一场活动，之后可在这里维护报名和回顾。',
+      openEvent: '查看',
+      editEvent: '编辑',
+    }
+    : {
+      title: `${workspace} Operations`,
+      subtitle: 'A focused workspace for people, events, content, and settings.',
+      back: `Back to ${workspace.toLowerCase()}`,
+      members: 'People',
+      membersHint: 'Approvals, invitations, roles, and member status',
+      events: 'Events',
+      eventsHint: 'Create events, manage enrollment, and capture memories',
+      pages: 'Content',
+      pagesHint: 'Published pages and group resources',
+      subgroups: 'Subgroups',
+      subgroupsHint: 'Team structure and leaders',
+      settings: 'Settings',
+      settingsHint: `${workspace} profile, access rules, and advanced operations`,
+      pending: 'Pending',
+      approved: 'Active',
+      inactive: 'Inactive',
+      totalMembers: 'Total people',
+      upcomingEvents: 'Upcoming events',
+      totalEvents: 'Total events',
+      pastEvents: 'Past events',
+      publishedPages: 'Pages',
+      quickActions: 'Quick actions',
+      inviteMember: 'Invite people',
+      createEvent: 'Create event',
+      addPage: 'Add page',
+      emptyMembersTitle: 'No member records yet',
+      emptyMembersBody: 'Invite people or wait for join requests to appear here.',
+      emptyEventsTitle: 'No events yet',
+      emptyEventsBody: 'Create the first event with the AI event assistant, then manage enrollment and memories here.',
+      openEvent: 'Open',
+      editEvent: 'Edit',
+    }
+}
+
+const StatCard = ({ label, value, icon }: { label: string; value: number | string; icon: ReactNode }) => (
+  <div className="rounded-2xl border border-[#2f4b42]/10 bg-white/75 p-4 shadow-sm">
+    <div className="flex items-center justify-between gap-3">
+      <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#e3f0eb] text-[#176b5a]">{icon}</span>
+      <span className="text-2xl font-black text-[#18332d]">{value}</span>
+    </div>
+    <p className="mt-3 text-xs font-bold uppercase tracking-[0.16em] text-[#6e7c76]">{label}</p>
+  </div>
+)
+
+const ManagementTabs = ({
+  activeSection,
+  basePath,
+  copy,
+}: {
+  activeSection: ManageSection
+  basePath: string
+  copy: ReturnType<typeof managementCopy>
+}) => {
+  const items = [
+    { key: 'members' as ManageSection, label: copy.members, hint: copy.membersHint, icon: <UsersRound className="h-5 w-5" /> },
+    { key: 'events' as ManageSection, label: copy.events, hint: copy.eventsHint, icon: <CalendarDays className="h-5 w-5" /> },
+    { key: 'pages' as ManageSection, label: copy.pages, hint: copy.pagesHint, icon: <FileText className="h-5 w-5" /> },
+    { key: 'subgroups' as ManageSection, label: copy.subgroups, hint: copy.subgroupsHint, icon: <Network className="h-5 w-5" /> },
+    { key: 'group' as ManageSection, label: copy.settings, hint: copy.settingsHint, icon: <Settings className="h-5 w-5" /> },
+  ]
+
+  return (
+    <nav className="grid gap-3 md:grid-cols-2 xl:grid-cols-5" aria-label="Management sections">
+      {items.map((item) => {
+        const active = activeSection === item.key
+        return (
+          <Link
+            key={item.key}
+            to={`${basePath}?section=${item.key}`}
+            className={[
+              'rounded-2xl border p-4 transition hover:-translate-y-0.5 hover:shadow-md',
+              active
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-950 shadow-[0_14px_34px_rgba(23,107,90,0.1)]'
+                : 'border-[#2f4b42]/10 bg-white/75 text-[#18332d] hover:bg-white',
+            ].join(' ')}
+          >
+            <span className={['flex h-10 w-10 items-center justify-center rounded-2xl', active ? 'bg-white text-emerald-700 shadow-sm' : 'bg-[#e3f0eb] text-[#176b5a]'].join(' ')}>
+              {item.icon}
+            </span>
+            <span className="mt-3 block text-sm font-black">{item.label}</span>
+            <span className={['mt-1 block text-xs leading-5', active ? 'text-emerald-700' : 'text-[#6e7c76]'].join(' ')}>{item.hint}</span>
+          </Link>
+        )
+      })}
+    </nav>
+  )
+}
+
 type MembersPanelProps = {
   memberships: GroupMemberToolRow[]
+  copy: ReturnType<typeof managementCopy>
   onInviteMember: () => void
   onApproveMember: (memberId: string) => void
   onRejectMember: (memberId: string) => void
@@ -47,6 +188,9 @@ type LeadershipPanelProps = {
 
 const LeadershipPanel = ({ memberships, currentMemberId, onTransferLeadership }: LeadershipPanelProps) => {
   const t = useUiText()
+  const { language } = useAuthStore()
+  const groupLeadLabel = language === 'zh' ? '组长' : 'Group lead'
+  const assistantLeadLabel = language === 'zh' ? '副组长' : 'Assistant lead'
   const approvedMembers = memberships.filter((member) => member.status === 'approved')
   const leader = approvedMembers.find((member) => member.role === 'leader')
   const coLeaderCandidates = approvedMembers.filter(
@@ -58,7 +202,7 @@ const LeadershipPanel = ({ memberships, currentMemberId, onTransferLeadership }:
   return (
     <AppSectionCard
       dense
-      title={t('groupLeader')}
+      title={groupLeadLabel}
       subtitle={t('leadershipPanelSubtitle')}
     >
       {leader ? (
@@ -68,11 +212,11 @@ const LeadershipPanel = ({ memberships, currentMemberId, onTransferLeadership }:
               <Crown size={18} aria-hidden="true" />
             </span>
             <div className="min-w-0">
-              <p className="text-xs font-medium uppercase text-slate-500">{t('currentLeader')}</p>
+              <p className="text-xs font-medium uppercase text-slate-500">{language === 'zh' ? '当前组长' : 'Current group lead'}</p>
               <p className="truncate font-medium text-slate-950">{getDisplayName(leader)}</p>
             </div>
           </div>
-          <AppBadge variant="info">{t('groupLeader')}</AppBadge>
+          <AppBadge variant="info">{groupLeadLabel}</AppBadge>
         </div>
       ) : (
         <p className="text-sm text-slate-500">{t('noGroupLeader')}</p>
@@ -87,7 +231,7 @@ const LeadershipPanel = ({ memberships, currentMemberId, onTransferLeadership }:
                 <div key={member.memberId} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 p-3">
                   <div>
                     <p className="font-medium text-slate-950">{displayName}</p>
-                    <AppBadge variant="info">{t('coLeaderRole')}</AppBadge>
+                    <AppBadge variant="info">{assistantLeadLabel}</AppBadge>
                   </div>
                   <AppActionButton
                     size="sm"
@@ -114,15 +258,36 @@ const LeadershipPanel = ({ memberships, currentMemberId, onTransferLeadership }:
   )
 }
 
-const MembersPanel = ({ memberships, onInviteMember, onApproveMember, onRejectMember, onKickMember, onSetCoLeader }: MembersPanelProps) => {
+const MembersPanel = ({ memberships, copy, onInviteMember, onApproveMember, onRejectMember, onKickMember, onSetCoLeader }: MembersPanelProps) => {
   const t = useUiText()
+  const auth = useAuthStore()
   const [roleTarget, setRoleTarget] = useState<GroupMemberToolRow | null>(null)
   const requestedMembers = memberships.filter((member) => member.status === 'requested')
   const approvedMembers = memberships.filter((member) => member.status === 'approved')
   const inactiveMembers = memberships.filter((member) => member.status !== 'requested' && member.status !== 'approved')
 
   const getDisplayName = (member: GroupMemberToolRow) => member.displayName || t('memberShort', { id: shortId(member.memberId) })
-  const getRoleLabel = (member: GroupMemberToolRow) => member.role === 'coLeader' ? t('coLeaderRole') : t('groupMemberRole')
+  const getRoleLabel = (member: GroupMemberToolRow) =>
+    member.role === 'coLeader'
+      ? auth.language === 'zh' ? '副组长' : 'Assistant lead'
+      : t('groupMemberRole')
+  const groupLeadLabel = auth.language === 'zh' ? '组长' : 'Group lead'
+  const renderPlatformRoleBadge = (member: GroupMemberToolRow) => {
+    if (!isPlatformAdminRole(member.platformRole)) return null
+    return (
+      <AppBadge variant={member.platformRole === 'superadmin' ? 'warning' : 'info'}>
+        <ShieldCheck size={12} aria-hidden="true" className="mr-1" />
+        {formatPlatformRole(member.platformRole, auth.language)}
+      </AppBadge>
+    )
+  }
+  const currentRole = memberships.find((member) => member.memberId === auth.me?.id)?.role
+  const canManageRoles = currentRole === 'leader' || auth.isAdmin || isPlatformAdminRole(auth.me?.platformRole)
+  const canRemoveMember = (member: GroupMemberToolRow) => {
+    if (member.memberId === auth.me?.id || member.role === 'leader') return false
+    if (auth.isAdmin || isPlatformAdminRole(auth.me?.platformRole)) return true
+    return currentRole === 'leader' || (currentRole === 'coLeader' && member.role === 'member')
+  }
 
   const handleRoleChoice = (isCoLeader: boolean) => {
     if (!roleTarget) return
@@ -135,20 +300,36 @@ const MembersPanel = ({ memberships, onInviteMember, onApproveMember, onRejectMe
   return (
     <AppSectionCard
       dense
-      title={t('members')}
-      subtitle={t('membersPanelSubtitle')}
+      title={copy.members}
+      subtitle={copy.membersHint}
       action={
-        <AppActionButton variant="primary" onClick={onInviteMember}>{t('inviteMember')}</AppActionButton>
+        <AppActionButton variant="primary" onClick={onInviteMember}>
+          <UserPlus size={16} aria-hidden="true" className="mr-1.5" />
+          {copy.inviteMember}
+        </AppActionButton>
       }
     >
+      <div className="mb-5 grid gap-3 sm:grid-cols-3">
+        <StatCard label={copy.pending} value={requestedMembers.length} icon={<UserPlus className="h-5 w-5" />} />
+        <StatCard label={copy.approved} value={approvedMembers.length} icon={<UsersRound className="h-5 w-5" />} />
+        <StatCard label={copy.inactive} value={inactiveMembers.length} icon={<UserMinus className="h-5 w-5" />} />
+      </div>
+
+      {memberships.length === 0 ? (
+        <AppEmptyState title={copy.emptyMembersTitle} description={copy.emptyMembersBody} actionLabel={copy.inviteMember} onAction={onInviteMember} />
+      ) : null}
+
       {requestedMembers.length > 0 ? (
         <div className="mb-5 space-y-2">
-          <h3 className="text-sm font-semibold text-slate-900">{t('requests')}</h3>
+          <h3 className="text-sm font-semibold text-slate-900">{copy.pending}</h3>
           {requestedMembers.map((member) => (
             <div key={member.memberId} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50/60 p-3">
               <div>
                 <p className="font-medium text-slate-950">{member.displayName || t('memberShort', { id: shortId(member.memberId) })}</p>
-                <MembershipStatusBadge status="requested" />
+                <div className="mt-1 flex flex-wrap gap-2">
+                  <MembershipStatusBadge status="requested" />
+                  {renderPlatformRoleBadge(member)}
+                </div>
               </div>
               <div className="flex gap-2">
                 <AppActionButton size="sm" variant="primary" onClick={() => onApproveMember(member.memberId)}>{t('approve')}</AppActionButton>
@@ -168,19 +349,22 @@ const MembersPanel = ({ memberships, onInviteMember, onApproveMember, onRejectMe
             <div key={member.memberId} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 p-3">
               <div>
                 <p className="font-medium text-slate-950">{getDisplayName(member)}</p>
-                {member.role === 'leader' ? (
-                  <AppBadge variant="info">{member.role}</AppBadge>
-                ) : (
-                  <button
-                    type="button"
-                    className="mt-1 inline-flex rounded-full focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
-                    onClick={() => setRoleTarget(member)}
-                  >
-                    <AppBadge variant="info">{getRoleLabel(member)}</AppBadge>
-                  </button>
-                )}
+                <div className="mt-1 flex flex-wrap gap-2">
+                  {member.role === 'leader' || !canManageRoles ? (
+                    <AppBadge variant="info">{member.role === 'leader' ? groupLeadLabel : getRoleLabel(member)}</AppBadge>
+                  ) : (
+                    <button
+                      type="button"
+                      className="inline-flex rounded-full focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
+                      onClick={() => setRoleTarget(member)}
+                    >
+                      <AppBadge variant="info">{getRoleLabel(member)}</AppBadge>
+                    </button>
+                  )}
+                  {renderPlatformRoleBadge(member)}
+                </div>
               </div>
-              {member.role !== 'leader' ? (
+              {canRemoveMember(member) ? (
                 <div className="flex gap-2">
                   <AppActionButton
                     size="sm"
@@ -230,6 +414,7 @@ const MembersPanel = ({ memberships, onInviteMember, onApproveMember, onRejectMe
                 <div className="mt-1 flex flex-wrap gap-2">
                   <MembershipStatusBadge status={member.status} />
                   <AppBadge variant="neutral">{member.role}</AppBadge>
+                  {renderPlatformRoleBadge(member)}
                 </div>
               </div>
             </div>
@@ -321,32 +506,47 @@ const PagesPanel = ({ groupId, language, pages, onAddPage, onDeletePage, onUpdat
 type EventsPanelProps = {
   groupId: string
   events: GroupEventRecord[]
+  copy: ReturnType<typeof managementCopy>
   onDeleteEvent: (eventId: string) => void
 }
 
-const EventsPanel = ({ groupId, events, onDeleteEvent }: EventsPanelProps) => {
+const EventsPanel = ({ groupId, events, copy, onDeleteEvent }: EventsPanelProps) => {
   const navigate = useNavigate()
   const t = useUiText()
   const { language } = useAuthStore()
+  const upcomingEvents = events.filter((event) => !event.endDate || new Date(event.endDate).getTime() >= Date.now())
+  const pastEvents = events.filter((event) => event.endDate && new Date(event.endDate).getTime() < Date.now())
 
   return (
     <AppSectionCard
       dense
-      title={t('events')}
-      subtitle={t('eventsPanelSubtitle')}
+      title={copy.events}
+      subtitle={copy.eventsHint}
       action={<AppActionButton variant="primary" onClick={() => {
         activeEntityService.set({ groupId, eventId: '' })
         navigate('/events/new')
-      }}>{t('createEvent')}</AppActionButton>}
+      }}>
+        <CalendarDays size={16} aria-hidden="true" className="mr-1.5" />
+        {copy.createEvent}
+      </AppActionButton>}
     >
+      <div className="mb-5 grid gap-3 sm:grid-cols-3">
+        <StatCard label={copy.totalEvents} value={events.length} icon={<CalendarDays className="h-5 w-5" />} />
+        <StatCard label={copy.upcomingEvents} value={upcomingEvents.length} icon={<CalendarDays className="h-5 w-5" />} />
+        <StatCard label={copy.pastEvents} value={pastEvents.length} icon={<CalendarDays className="h-5 w-5" />} />
+      </div>
+
       {events.length === 0 ? (
-        <p className="text-sm text-slate-500">{t('noEventsYet')}</p>
+        <AppEmptyState title={copy.emptyEventsTitle} description={copy.emptyEventsBody} actionLabel={copy.createEvent} onAction={() => {
+          activeEntityService.set({ groupId, eventId: '' })
+          navigate('/events/new')
+        }} />
       ) : (
         <div className="space-y-2">
           {events.map((event) => {
             const title = (language === 'zh' ? event.titleZh : event.titleEn) || event.titleEn || event.titleZh || t('untitled')
             return (
-              <div key={event.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 p-3">
+              <div key={event.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/80 p-4">
                 <div>
                   <p className="font-medium text-slate-950">{title}</p>
                   <p className="mt-1 text-xs text-slate-500">{formatDate(event.startDate, language)}</p>
@@ -354,8 +554,12 @@ const EventsPanel = ({ groupId, events, onDeleteEvent }: EventsPanelProps) => {
                 <div className="flex flex-wrap gap-2">
                   <AppActionButton size="sm" variant="secondary" onClick={() => {
                     activeEntityService.setEvent(event.id, groupId)
+                    navigate('/events')
+                  }}>{copy.openEvent}</AppActionButton>
+                  <AppActionButton size="sm" variant="secondary" onClick={() => {
+                    activeEntityService.setEvent(event.id, groupId)
                     navigate('/events/edit', { state: { event } })
-                  }}>{t('edit')}</AppActionButton>
+                  }}>{copy.editEvent}</AppActionButton>
                   <AppActionButton size="sm" variant="danger" onClick={() => onDeleteEvent(event.id)}>{t('delete')}</AppActionButton>
                 </div>
               </div>
@@ -427,10 +631,15 @@ const ChurchOperationsPanel = ({ groupId, onStatusMessage }: ChurchOperationsPan
   )
 }
 
-const GroupManageView = () => {
+type GroupManageViewProps = {
+  embeddedWorkspace?: boolean
+}
+
+const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) => {
   const t = useUiText()
   const { groupId: routeGroupId } = useParams<{ groupId: string }>()
-  const { groupId } = useActiveEntityIds({ groupId: routeGroupId })
+  const { groupId: activeGroupId } = useActiveEntityIds({ groupId: routeGroupId })
+  const groupId = activeGroupId || ''
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const auth = useAuthStore()
@@ -462,7 +671,15 @@ const GroupManageView = () => {
     deleteEvent,
   } = useGroupScreen(groupId, { loadEvents: true })
 
-  const activeSection = searchParams.get('section') ?? 'group'
+  const activeSection = normalizeManageSection(searchParams.get('section'))
+  const copy = managementCopy(language, group?.isChurch)
+  const workspacePath = '/groups'
+  const sectionBasePath = embeddedWorkspace ? workspacePath : `${workspacePath}/manage`
+  const requestedCount = memberships.filter((member) => member.status === 'requested').length
+  const approvedCount = memberships.filter((member) => member.status === 'approved').length
+  const upcomingEventCount = events.filter((event) => !event.endDate || new Date(event.endDate).getTime() >= Date.now()).length
+  const groupWorkspaceTarget = (_targetGroupId: string) =>
+    embeddedWorkspace ? '/groups?section=group' : '/groups/manage?section=group'
   const unsavedGroupProfileMessage = t('groupProfileUnsavedChangesPrompt')
   const guardGroupProfileNavigation = useCallback(() => {
     if (!hasUnsavedGroupProfileChanges) {
@@ -473,6 +690,8 @@ const GroupManageView = () => {
     return false
   }, [hasUnsavedGroupProfileChanges, unsavedGroupProfileMessage])
   const canManageSubgroup = (subgroupId: string) =>
+    auth.isAdmin ||
+    isPlatformAdminRole(auth.me?.platformRole) ||
     auth.memberships.some(
       (membership) =>
         membership.groupId === subgroupId &&
@@ -485,7 +704,7 @@ const GroupManageView = () => {
 
     if (canManageSubgroup(subgroupId)) {
       activeEntityService.setGroup(subgroupId)
-      navigate('/groups/manage?section=group')
+      navigate(groupWorkspaceTarget(subgroupId))
       return
     }
 
@@ -495,7 +714,7 @@ const GroupManageView = () => {
       await groupService.claimSubgroupCoLeader(groupId, subgroupId)
       await auth.fetchMe()
       activeEntityService.setGroup(subgroupId)
-      navigate('/groups/manage?section=group')
+      navigate(groupWorkspaceTarget(subgroupId))
     } catch {
       setStatusMessage(t('manageClaimSubgroupCoLeaderFailed'))
     }
@@ -554,7 +773,7 @@ const GroupManageView = () => {
       const subgroup = await createSubgroup(toLocalizedText(subgroupName.trim()), 'protected')
       if (subgroup) {
         activeEntityService.setGroup(subgroup.id)
-        navigate('/groups/manage?section=group')
+        navigate(groupWorkspaceTarget(subgroup.id))
       }
     } catch {
       setStatusMessage(t('manageAddSubgroupFailed'))
@@ -562,7 +781,7 @@ const GroupManageView = () => {
   }
 
   if (!groupId) {
-    return <Navigate to="/" replace />
+    return <Navigate to="/groups/select" replace />
   }
 
   if (!loading && !canManageGroup) {
@@ -571,29 +790,66 @@ const GroupManageView = () => {
 
   return (
     <AppPageShell>
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <Link
-            to="/groups"
-            className="text-sm font-medium text-slate-600 hover:text-slate-950"
-            onClick={(event) => {
-              if (!guardGroupProfileNavigation()) {
-                event.preventDefault()
-              }
-            }}
-          >
-            {t(group?.isChurch ? 'backToChurch' : 'backToViews')}
-          </Link>
-          <h1 className="mt-2 text-2xl font-semibold text-slate-950">
-            {t(group?.isChurch ? 'churchManagementTitle' : 'groupManagementTitle', { name: localizeText(group?.name, language) || t(group?.isChurch ? 'church' : 'group') })}
-          </h1>
-          <p className="mt-1 text-sm text-slate-600">{t(group?.isChurch ? 'churchManagementDescription' : 'groupManagementDescription')}</p>
-        </div>
-        {group ? (
-          <div className="flex flex-wrap gap-2">
-            <AccessTypeBadge accessType={group.accessType} />
+      <div className="space-y-5">
+        <section className="overflow-hidden rounded-[2rem] border border-emerald-100 bg-gradient-to-br from-white via-emerald-50 to-[#fff4ea] px-6 py-7 text-[#18332d] shadow-[0_20px_55px_rgba(23,107,90,0.08)] sm:px-8">
+          <div className="flex flex-wrap items-start justify-between gap-5">
+            <div className="max-w-3xl">
+              {!embeddedWorkspace ? (
+                <Link
+                  to={workspacePath}
+                  className="text-sm font-bold text-emerald-700 transition hover:text-emerald-900"
+                  onClick={(event) => {
+                    if (!guardGroupProfileNavigation()) {
+                      event.preventDefault()
+                    }
+                  }}
+                >
+                  {copy.back}
+                </Link>
+              ) : null}
+              <p className="mt-4 text-xs font-black uppercase tracking-[0.22em] text-emerald-700">{localizeText(group?.name, language) || copy.title}</p>
+              <h1 className="mt-2 text-3xl font-black tracking-[-0.04em] sm:text-4xl">{embeddedWorkspace ? (language === 'zh' ? '小组工作台' : 'Group Workspace') : copy.title}</h1>
+              <p className="mt-3 text-sm leading-6 text-[#5f716a]">{embeddedWorkspace ? (language === 'zh' ? '成员、活动、内容和设置都在这里处理。' : 'People, events, content, and settings in one place.') : copy.subtitle}</p>
+            </div>
+            {group ? (
+              <div className="flex flex-wrap gap-2">
+                <AccessTypeBadge accessType={group.accessType} />
+              </div>
+            ) : null}
           </div>
-        ) : null}
+        </section>
+
+        <div className="grid gap-3 md:grid-cols-4">
+          <StatCard label={copy.pending} value={requestedCount} icon={<UserPlus className="h-5 w-5" />} />
+          <StatCard label={copy.approved} value={approvedCount} icon={<UsersRound className="h-5 w-5" />} />
+          <StatCard label={copy.upcomingEvents} value={upcomingEventCount} icon={<CalendarDays className="h-5 w-5" />} />
+          <StatCard label={copy.publishedPages} value={pages.length} icon={<FileText className="h-5 w-5" />} />
+        </div>
+
+        <AppSectionCard dense title={copy.quickActions}>
+          <div className="flex flex-wrap gap-2">
+            <AppActionButton variant="primary" onClick={() => navigate('/groups/manage/invite-members')}>
+              <UserPlus size={16} aria-hidden="true" className="mr-1.5" />
+              {copy.inviteMember}
+            </AppActionButton>
+            <AppActionButton variant="secondary" onClick={() => {
+              activeEntityService.set({ groupId, eventId: '' })
+              navigate('/events/new')
+            }}>
+              <CalendarDays size={16} aria-hidden="true" className="mr-1.5" />
+              {copy.createEvent}
+            </AppActionButton>
+            <AppActionButton variant="secondary" onClick={() => {
+              activeEntityService.setGroup(groupId, { clearPage: true })
+              navigate('/pages/new')
+            }}>
+              <FileText size={16} aria-hidden="true" className="mr-1.5" />
+              {copy.addPage}
+            </AppActionButton>
+          </div>
+        </AppSectionCard>
+
+        <ManagementTabs activeSection={activeSection} basePath={sectionBasePath} copy={copy} />
       </div>
 
       {loading ? (
@@ -690,6 +946,7 @@ const GroupManageView = () => {
           {activeSection === 'members' ? (
             <MembersPanel
               memberships={memberships}
+              copy={copy}
               onInviteMember={() => navigate('/groups/manage/invite-members')}
               onApproveMember={(memberId) => approveMember(memberId).catch(() => setStatusMessage(t('approveFailed')))}
               onRejectMember={(memberId) => rejectMember(memberId).catch(() => setStatusMessage(t('rejectFailed')))}
@@ -722,6 +979,7 @@ const GroupManageView = () => {
             <EventsPanel
               groupId={groupId}
               events={events}
+              copy={copy}
               onDeleteEvent={(eventId) => {
                 if (!window.confirm(t('deleteEventConfirm'))) return
                 deleteEvent(eventId).catch(() => setStatusMessage(t('deleteEventFailed')))
