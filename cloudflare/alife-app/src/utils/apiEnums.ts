@@ -91,6 +91,12 @@ export const normalizeMembership = <T extends { status: unknown; role: unknown }
   ...membership,
   status: normalizeMembershipStatus(membership.status),
   role: normalizeMembershipRole(membership.role),
+  platformRole: 'platformRole' in membership && typeof (membership as { platformRole?: unknown }).platformRole === 'string'
+    ? (membership as { platformRole: string }).platformRole
+    : 'user',
+  platformRoles: 'platformRoles' in membership && Array.isArray((membership as { platformRoles?: unknown }).platformRoles)
+    ? (membership as { platformRoles: string[] }).platformRoles
+    : [],
   groupName: 'groupName' in membership && (membership as { groupName?: unknown }).groupName
     ? toLocalizedText((membership as { groupName: Record<string, string> }).groupName)
     : (membership as { groupName?: unknown }).groupName,

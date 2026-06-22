@@ -6,14 +6,14 @@ type Props = {
 }
 
 const AppEmptyState = ({ title, description, actionLabel, onAction }: Props) => (
-  <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
-    <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-400">*</div>
-    <p className="text-sm font-semibold text-slate-900">{title}</p>
-    <p className="mt-1 text-sm text-slate-600">{description}</p>
+  <div className="rounded-[1.75rem] border border-dashed border-[#176b5a]/25 bg-[#e3f0eb]/50 p-7 text-center">
+    <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-white text-xl text-[#176b5a] shadow-sm">+</div>
+    <p className="text-base font-semibold text-[#18332d]">{title}</p>
+    <p className="mx-auto mt-1.5 max-w-lg text-sm leading-relaxed text-[#66766f]">{description}</p>
     {actionLabel ? (
       <button
         type="button"
-        className="mt-4 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+        className="mt-5 rounded-full border border-[#176b5a]/20 bg-white px-4 py-2 text-sm font-semibold text-[#176b5a] shadow-sm transition hover:-translate-y-0.5 hover:border-[#176b5a]/35"
         onClick={onAction}
       >
         {actionLabel}

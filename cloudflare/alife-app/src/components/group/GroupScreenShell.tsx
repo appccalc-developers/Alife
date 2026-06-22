@@ -1,6 +1,7 @@
 import AppEmptyState from '../layout/AppEmptyState'
 import AppPageShell from '../layout/AppPageShell'
 import AppSectionCard from '../layout/AppSectionCard'
+import type { ReactNode } from 'react'
 import type { GroupDto, GroupPageDto, GroupSummaryDto, GroupTab } from '../../types/group'
 import { useUiText } from '../../i18n/uiText'
 import GroupPageTabs from './GroupPageTabs'
@@ -14,7 +15,8 @@ type Props = {
   activeTab: GroupTab
   canCreatePage: boolean
   canEditAllPages: boolean
-  contentMode?: 'pages' | 'tabs'
+  contentMode?: 'dashboard' | 'pages' | 'tabs'
+  dashboard?: ReactNode
   selectedPageId?: string
   statusMessage?: string
   onAddPage: () => void
@@ -31,6 +33,7 @@ const GroupScreenShell = ({
   canCreatePage,
   canEditAllPages,
   contentMode = 'tabs',
+  dashboard,
   selectedPageId = '',
   statusMessage,
   onAddPage,
@@ -55,6 +58,8 @@ const GroupScreenShell = ({
 
       {!loading && !error && group ? (
         <div className="space-y-6">
+            {contentMode === 'dashboard' ? dashboard : null}
+
             {(contentMode === 'pages' || activeTab === 'pages') ? (
               <GroupPageTabs
                 pages={pages}

@@ -23,6 +23,8 @@ export type GroupMemberToolRow = {
   displayName?: string
   status: 'invited' | 'requested' | 'approved' | 'rejected' | 'removed'
   role: 'member' | 'coLeader' | 'leader'
+  platformRole?: 'user' | 'admin' | 'superadmin' | string
+  platformRoles?: string[]
   createdUtc?: string
   updatedUtc?: string
 }
@@ -98,8 +100,9 @@ export const useGroupScreen = (groupId: string, options: GroupScreenOptions = {}
 
   const membershipRole = useMemo<MembershipRole>(() => membership?.role ?? null, [membership?.role])
 
-  const canManageGroup = membership?.status === 'approved' && (membership.role === 'leader' || membership.role === 'coLeader')
-  const canCreatePage = membership?.status === 'approved'
+  const isPlatformAdmin = auth.isAdmin || auth.me?.platformRole === 'admin' || auth.me?.platformRole === 'superadmin'
+  const canManageGroup = isPlatformAdmin || (membership?.status === 'approved' && (membership.role === 'leader' || membership.role === 'coLeader'))
+  const canCreatePage = isPlatformAdmin || membership?.status === 'approved'
   const canEditAllPages = canManageGroup
   const canPublishPages = canManageGroup
 

@@ -15,17 +15,29 @@ type ErrorPayload = {
   errors?: Record<string, string[]>
 }
 
+const isApiError = (error: unknown): error is ApiError =>
+  typeof error === 'object' &&
+  error !== null &&
+  'message' in error &&
+  typeof (error as { message?: unknown }).message === 'string'
+
 export const normalizeApiError = (error: unknown): ApiError => {
+  if (isApiError(error)) {
+    return error
+  }
+
   if (axios.isAxiosError(error)) {
-    const axiosError = error as AxiosError<ErrorPayload>
+    const axiosError = error as AxiosError<ErrorPayload | string>
     const payload = axiosError.response?.data
-    const details = payload?.errors ?? payload
+    const textPayload = typeof payload === 'string' ? payload.trim() : ''
+    const details = typeof payload === 'object' ? payload?.errors ?? payload : textPayload || payload
 
     return {
       message:
-        payload?.message ||
-        payload?.title ||
-        payload?.detail ||
+        textPayload ||
+        (typeof payload === 'object' ? payload?.message : undefined) ||
+        (typeof payload === 'object' ? payload?.title : undefined) ||
+        (typeof payload === 'object' ? payload?.detail : undefined) ||
         axiosError.message ||
         'Request failed.',
       status: axiosError.response?.status,
