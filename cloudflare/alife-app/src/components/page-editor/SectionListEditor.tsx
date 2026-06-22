@@ -9,7 +9,7 @@ type Props = {
   sections: SectionEditModel[]
   canEdit: boolean
   sectionTypeErrors: string[]
-  onAdd: (type: SectionType) => void
+  onAdd: (type: SectionType, preset?: string) => void
   onUpdate: (payload: { index: number; section: SectionEditModel }) => void
   onRemove: (index: number) => void
   onMoveUp: (index: number) => void
@@ -17,17 +17,22 @@ type Props = {
   contextGroupId?: string
 }
 
-const sectionTypes: SectionType[] = ['Hero', 'RichText', 'Spotlight', 'ListView']
-const sectionTypeLabel = (type: SectionType) => {
-  switch (type) {
-    case 'RichText':
-      return 'Rich Text'
-    case 'ListView':
-      return 'List View'
-    default:
-      return type
-  }
-}
+const sectionPresets: Array<{ type: SectionType; preset?: string; label: string; description: string }> = [
+  { type: 'Hero', preset: 'hero-home', label: 'Home hero', description: 'Large first screen with image, headline, copy, and CTA.' },
+  { type: 'Hero', preset: 'hero-event', label: 'Event hero', description: 'Poster-style hero for a gathering or announcement.' },
+  { type: 'RichText', preset: 'rich-welcome', label: 'Welcome text', description: 'Simple bilingual intro copy for a page.' },
+  { type: 'RichText', preset: 'rich-faq', label: 'FAQ block', description: 'Questions about visit, language, children, and parking.' },
+  { type: 'RichText', preset: 'rich-steps', label: 'What to expect', description: 'Step-by-step guidance for visitors or members.' },
+  { type: 'Spotlight', preset: 'spotlight-visit', label: 'Visit spotlight', description: 'Image plus text for location or first visit info.' },
+  { type: 'Spotlight', preset: 'spotlight-groups', label: 'Groups spotlight', description: 'Feature small groups and belonging.' },
+  { type: 'Spotlight', preset: 'spotlight-sermons', label: 'Sermon spotlight', description: 'Feature a message, series, or teaching theme.' },
+  { type: 'ListView', preset: 'list-events', label: 'Upcoming events', description: 'Dynamic list of upcoming events.' },
+  { type: 'ListView', preset: 'list-groups', label: 'Group cards', description: 'Dynamic list of groups.' },
+  { type: 'ListView', preset: 'list-sermons', label: 'Latest sermons', description: 'Dynamic latest sermon cards.' },
+  { type: 'ListView', preset: 'list-pages', label: 'Page links', description: 'Dynamic list of pages.' },
+  { type: 'ListView', preset: 'list-carousel', label: 'Carousel list', description: 'Horizontally scrolling card list.' },
+  { type: 'Sermon', preset: 'sermon-embed', label: 'Embedded sermon', description: 'YouTube sermon embed with title.' },
+]
 
 const SectionListEditor = ({ sections, canEdit, sectionTypeErrors, onAdd, onUpdate, onRemove, onMoveUp, onMoveDown, contextGroupId }: Props) => {
   const t = useUiText()
@@ -44,8 +49,8 @@ const SectionListEditor = ({ sections, canEdit, sectionTypeErrors, onAdd, onUpda
     }
   }, [activeIndex, sections.length])
 
-  const addAndSelect = (type: SectionType) => {
-    onAdd(type)
+  const addAndSelect = (type: SectionType, preset?: string) => {
+    onAdd(type, preset)
     setActiveIndex(sections.length)
     setCreateOpen(false)
   }
@@ -117,16 +122,17 @@ const SectionListEditor = ({ sections, canEdit, sectionTypeErrors, onAdd, onUpda
                 {t('close')}
               </button>
             </div>
-            <div className="mt-5 grid gap-2 sm:grid-cols-2">
-              {sectionTypes.map((sectionType) => (
+            <div className="mt-5 grid max-h-[60vh] gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
+              {sectionPresets.map((item) => (
                 <button
-                  key={sectionType}
+                  key={item.preset || item.type}
                   type="button"
                   disabled={!canEdit}
-                  className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-left text-sm font-medium text-slate-800 shadow-sm hover:border-blue-300 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-50"
-                  onClick={() => addAndSelect(sectionType)}
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-800 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => addAndSelect(item.type, item.preset)}
                 >
-                  {sectionTypeLabel(sectionType)}
+                  <span className="block font-bold text-slate-950">{item.label}</span>
+                  <span className="mt-1 block text-xs leading-5 text-slate-500">{item.description}</span>
                 </button>
               ))}
             </div>

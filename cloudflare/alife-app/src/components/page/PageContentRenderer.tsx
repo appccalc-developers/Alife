@@ -143,6 +143,153 @@ export const createEmptyPageSection = (type: SectionType = 'Hero'): SectionEditM
   }
 }
 
+const localized = (en: string, zh: string) => ({ en, zh })
+const HOME_HERO_VIDEO = '/media/homepage-hero.mp4'
+
+export const createPresetPageSection = (preset: string): SectionEditModel => {
+  const section = createEmptyPageSection(
+    preset.startsWith('rich-') ? 'RichText' :
+      preset.startsWith('spotlight-') ? 'Spotlight' :
+        preset.startsWith('list-') ? 'ListView' :
+          preset === 'sermon-embed' ? 'Sermon' :
+            'Hero',
+  )
+
+  if (preset === 'hero-home') {
+    return {
+      ...section,
+      contentJson: {
+        ...section.contentJson,
+        title: localized('Meet Christ here. Grow through real community.', '在基督里相遇，在真实关系中成长。'),
+        headline: localized('Meet Christ here. Grow through real community.', '在基督里相遇，在真实关系中成长。'),
+        centerText: localized('A welcoming first screen for visitors, seekers, and members.', '为访客、慕道朋友和成员准备的首页主视觉。'),
+        body: localized('A welcoming first screen for visitors, seekers, and members.', '为访客、慕道朋友和成员准备的首页主视觉。'),
+        linkLabel: localized('Plan your visit', '计划来访'),
+        linkText: localized('Plan your visit', '计划来访'),
+        ctaLabel: localized('Plan your visit', '计划来访'),
+        backgroundImage: HOME_HERO_VIDEO,
+        backgroundImageUrl: HOME_HERO_VIDEO,
+        linkUrl: '#visit',
+        ctaUrl: '#visit',
+        href: '#visit',
+      },
+    }
+  }
+
+  if (preset === 'hero-event') {
+    return {
+      ...section,
+      contentJson: {
+        ...section.contentJson,
+        title: localized('Upcoming gathering', '近期聚会'),
+        headline: localized('Upcoming gathering', '近期聚会'),
+        centerText: localized('Invite people into the next church-wide moment.', '邀请大家参与下一次全教会活动。'),
+        body: localized('Invite people into the next church-wide moment.', '邀请大家参与下一次全教会活动。'),
+        linkLabel: localized('See details', '查看详情'),
+        linkText: localized('See details', '查看详情'),
+        ctaLabel: localized('See details', '查看详情'),
+      },
+      styleJson: { ...section.styleJson, layout: 'poster' },
+    }
+  }
+
+  if (preset === 'rich-welcome' || preset === 'rich-faq' || preset === 'rich-steps') {
+    const title = preset === 'rich-faq'
+      ? localized('Common questions', '常见问题')
+      : preset === 'rich-steps'
+        ? localized('What to expect', '你可以期待什么')
+        : localized('Welcome', '欢迎你')
+    const text = preset === 'rich-faq'
+      ? localized('Add answers about language, children, parking, service time, and how to connect.', '可以补充语言、儿童、停车、聚会时间和如何连接等问题。')
+      : preset === 'rich-steps'
+        ? localized('Share the simple path: arrive, worship, meet people, and find a group.', '说明简单路径：抵达、敬拜、认识朋友、加入小组。')
+        : localized('Write a warm introduction for people visiting this page for the first time.', '为第一次来到这个页面的人写一段温暖介绍。')
+    return {
+      ...section,
+      contentJson: {
+        ...section.contentJson,
+        header: { title, subtitle: localized('', ''), align: 'left', scale: 'normal', tone: 'default' },
+        title,
+        text,
+      },
+    }
+  }
+
+  if (preset.startsWith('spotlight-')) {
+    const visit = preset === 'spotlight-visit'
+    const groups = preset === 'spotlight-groups'
+    const sermons = preset === 'spotlight-sermons'
+    const title = visit
+      ? localized('Make your first visit simple.', '让第一次来访更简单。')
+      : groups
+        ? localized('Faith grows in groups.', '信仰在小组里成长。')
+        : sermons
+          ? localized('Keep reflecting through sermons.', '透过讲道继续思想。')
+          : localized('Ministry spotlight', '事工重点')
+    const body = visit
+      ? localized('Add location, welcome details, and what people can expect.', '加入地点、欢迎信息和现场流程。')
+      : groups
+        ? localized('Highlight how people can find belonging and care.', '强调人如何找到归属与关怀。')
+        : sermons
+          ? localized('Feature a message, series, or teaching theme.', '展示一篇讲道、系列或教导主题。')
+          : localized('Tell one focused story with text, media, and a clear action.', '用文字、媒体和行动按钮讲述一个重点故事。')
+    return {
+      ...section,
+      contentJson: {
+        ...section.contentJson,
+        header: { title, subtitle: localized('', ''), align: 'left', scale: 'normal', tone: 'default' },
+        title,
+        headline: title,
+        centerText: body,
+        body,
+        text: body,
+        linkLabel: localized('Learn more', '了解更多'),
+        linkText: localized('Learn more', '了解更多'),
+        ctaLabel: localized('Learn more', '了解更多'),
+      },
+      styleJson: { ...section.styleJson, mediaPosition: visit ? 'right' : 'left', imagePosition: visit ? 'right' : 'left' },
+    }
+  }
+
+  if (preset.startsWith('list-')) {
+    const source = preset === 'list-events' ? 'events' : preset === 'list-groups' ? 'groups' : preset === 'list-pages' ? 'pages' : 'sermons'
+    const title = source === 'events'
+      ? localized('Upcoming events', '近期活动')
+      : source === 'groups'
+        ? localized('Find a group', '寻找小组')
+        : source === 'pages'
+          ? localized('Explore pages', '浏览页面')
+          : localized('Latest sermons', '最新讲道')
+    return {
+      ...section,
+      contentJson: {
+        ...section.contentJson,
+        header: { title, subtitle: localized('', ''), align: 'left', scale: 'normal', tone: 'default' },
+        ...(source === 'pages' ? {} : { source }),
+        sourceType: source,
+        sourceScope: source === 'events' || source === 'groups' ? 'group' : 'global',
+        preset: source === 'events' ? 'upcoming' : source === 'groups' ? 'featured' : 'latest',
+        layout: preset === 'list-carousel' ? 'carousel' : 'grid',
+        limit: source === 'groups' ? 6 : 4,
+      },
+    }
+  }
+
+  if (preset === 'sermon-embed') {
+    return {
+      ...section,
+      type: 'Sermon',
+      contentJson: {
+        title: localized('Featured message', '精选讲道'),
+        youtubeUrl: '',
+      },
+      styleJson: {},
+    }
+  }
+
+  return section
+}
+
 export const normalizePageSections = (items: SectionEditModel[]) =>
   items.map((section, index) => ({
     ...section,
@@ -174,7 +321,7 @@ const PageContentRenderer = ({
 
   const updateSections = (nextSections: SectionEditModel[]) => onSectionsChange?.(normalizePageSections(nextSections))
 
-  const addSection = (type: SectionType) => updateSections([...sections, createEmptyPageSection(type)])
+  const addSection = (type: SectionType, preset?: string) => updateSections([...sections, preset ? createPresetPageSection(preset) : createEmptyPageSection(type)])
 
   const updateSection = (index: number, section: SectionEditModel) => {
     const nextSections = [...sections]

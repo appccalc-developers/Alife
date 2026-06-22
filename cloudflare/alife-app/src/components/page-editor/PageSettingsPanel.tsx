@@ -10,6 +10,7 @@ type Props = {
   canEditVisibility: boolean
   message?: string
   onChange: (value: PageEditModel) => void
+  onResetDefaultHome?: () => void
 }
 
 const visibilityOptions: PageVisibility[] = ['draft', 'group', 'public']
@@ -20,6 +21,7 @@ const PageSettingsPanel = ({
   canEditVisibility,
   message,
   onChange,
+  onResetDefaultHome,
 }: Props) => {
   const t = useUiText()
   const updateLocalizedField = (field: 'title' | 'description', key: 'en' | 'zh', value: string) => {
@@ -107,6 +109,25 @@ const PageSettingsPanel = ({
           <AppBadge variant="info">{t('groupBadge')}</AppBadge>
           <AppBadge variant="success">{t('publicBadge')}</AppBadge>
         </div>
+
+        {onResetDefaultHome ? (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+            <p className="text-sm font-bold text-amber-950">{t('defaultHomeTemplate')}</p>
+            <p className="mt-1 text-xs leading-5 text-amber-800">{t('defaultHomeTemplateHelp')}</p>
+            <button
+              type="button"
+              className="mt-3 inline-flex items-center justify-center rounded-xl bg-amber-500 px-4 py-2 text-sm font-black text-slate-950 transition hover:bg-amber-400 disabled:opacity-60"
+              disabled={!canEdit}
+              onClick={() => {
+                if (window.confirm(t('restoreDefaultHomeConfirm'))) {
+                  onResetDefaultHome()
+                }
+              }}
+            >
+              {t('restoreDefaultHome')}
+            </button>
+          </div>
+        ) : null}
 
       </div>
     </AppSectionCard>

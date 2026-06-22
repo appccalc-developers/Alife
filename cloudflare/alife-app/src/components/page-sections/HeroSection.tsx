@@ -116,15 +116,18 @@ const HeroSection = ({ section, mode, disabled, propertiesOnly, showProperties =
   }, [bg, layout, mode, poster])
 
   const renderLink = (className: string) => {
-    if (!linkUrl && mode !== 'edit') {
+    const safeLinkUrl = typeof linkUrl === 'string' ? linkUrl.trim() : ''
+    const isExternalLink = Boolean(safeLinkUrl && !safeLinkUrl.startsWith('/') && !safeLinkUrl.startsWith('#'))
+
+    if (!safeLinkUrl && mode !== 'edit') {
       return null
     }
 
     return (
       <a
-        href={mode === 'render' ? linkUrl : undefined}
-        target={mode === 'render' && linkUrl ? '_blank' : undefined}
-        rel={mode === 'render' && linkUrl ? 'noopener noreferrer' : undefined}
+        href={mode === 'render' && safeLinkUrl ? safeLinkUrl : undefined}
+        target={mode === 'render' && isExternalLink ? '_blank' : undefined}
+        rel={mode === 'render' && isExternalLink ? 'noopener noreferrer' : undefined}
         className={className}
         onClick={(event) => {
           if (mode === 'edit') event.preventDefault()
@@ -132,7 +135,7 @@ const HeroSection = ({ section, mode, disabled, propertiesOnly, showProperties =
       >
         <EditableText
           value={linkLabel}
-          fallback={linkUrl || t('buttonText')}
+          fallback={safeLinkUrl || t('buttonText')}
           disabled={!editable}
           className="text-sm"
           onChange={(value) => updateLocalizedContent({ linkLabel: value, linkText: value, ctaLabel: value })}
