@@ -10,6 +10,9 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 	public DbSet<Group> Groups => Set<Group>();
 	public DbSet<Member> Members => Set<Member>();
 	public DbSet<GroupMembership> GroupMemberships => Set<GroupMembership>();
+	public DbSet<PlatformRole> PlatformRoles => Set<PlatformRole>();
+	public DbSet<MemberPlatformRole> MemberPlatformRoles => Set<MemberPlatformRole>();
+	public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 	public DbSet<Page> Pages => Set<Page>();
 	public DbSet<Section> Sections => Set<Section>();
 	public DbSet<Link> Links => Set<Link>();
@@ -67,6 +70,70 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 			cfg.HasIndex(x => new { x.GroupId, x.Role })
 				.IsUnique()
 				.HasFilter(leaderMembershipFilter);
+		});
+
+		modelBuilder.Entity<PlatformRole>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.Id).ValueGeneratedNever();
+			cfg.Property(x => x.Code).HasMaxLength(50).IsRequired();
+			cfg.Property(x => x.NameJson).IsRequired();
+			cfg.HasIndex(x => x.Code).IsUnique();
+			cfg.HasIndex(x => x.Level);
+		});
+
+		modelBuilder.Entity<MemberPlatformRole>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.HasOne(x => x.Member)
+				.WithMany(x => x.PlatformRoles)
+				.HasForeignKey(x => x.MemberId)
+				.OnDelete(DeleteBehavior.Cascade);
+			cfg.HasOne(x => x.Role)
+				.WithMany(x => x.MemberRoles)
+				.HasForeignKey(x => x.RoleId)
+				.OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.AssignedByMember)
+				.WithMany(x => x.AssignedPlatformRoles)
+				.HasForeignKey(x => x.AssignedByMemberId)
+				.OnDelete(DeleteBehavior.Restrict);
+
+			cfg.HasIndex(x => new { x.MemberId, x.RoleId })
+				.IsUnique()
+				.HasFilter("[revoked_utc] IS NULL");
+			cfg.HasIndex(x => new { x.RoleId, x.RevokedUtc });
+		});
+
+		modelBuilder.Entity<AuditLog>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.Action).HasMaxLength(120).IsRequired();
+			cfg.Property(x => x.EntityType).HasMaxLength(80).IsRequired();
+			cfg.Property(x => x.IpAddress).HasMaxLength(64);
+			cfg.Property(x => x.UserAgent).HasMaxLength(500);
+
+			cfg.HasOne(x => x.ActorMember)
+				.WithMany()
+				.HasForeignKey(x => x.ActorMemberId)
+				.OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.TargetMember)
+				.WithMany()
+				.HasForeignKey(x => x.TargetMemberId)
+				.OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.Group)
+				.WithMany()
+				.HasForeignKey(x => x.GroupId)
+				.OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.Event)
+				.WithMany()
+				.HasForeignKey(x => x.EventId)
+				.OnDelete(DeleteBehavior.Restrict);
+
+			cfg.HasIndex(x => new { x.ActorMemberId, x.OccurredUtc });
+			cfg.HasIndex(x => new { x.GroupId, x.OccurredUtc });
+			cfg.HasIndex(x => new { x.EventId, x.OccurredUtc });
+			cfg.HasIndex(x => new { x.TargetMemberId, x.OccurredUtc });
+			cfg.HasIndex(x => new { x.Action, x.OccurredUtc });
 		});
 
 		modelBuilder.Entity<Page>(cfg =>

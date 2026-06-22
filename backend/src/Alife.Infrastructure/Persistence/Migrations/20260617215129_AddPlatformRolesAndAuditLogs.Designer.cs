@@ -4,6 +4,7 @@ using Alife.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Alife.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AlifeDbContext))]
-    partial class AlifeDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260617215129_AddPlatformRolesAndAuditLogs")]
+    partial class AddPlatformRolesAndAuditLogs
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -440,6 +443,10 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)")
                         .HasColumnName("email");
+
+                    b.Property<bool>("IsAdmin")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_admin");
 
                     b.Property<bool>("IsRegistered")
                         .HasColumnType("bit")
