@@ -24,7 +24,14 @@ public sealed class MemberReadService(AlifeDbContext dbContext) : IMemberReadSer
                 x.Email,
                 x.PhoneE164,
                 x.IsRegistered,
-                x.IsAdmin,
+                PlatformRoles = x.PlatformRoles
+                    .Where(role => role.RevokedUtc == null)
+                    .Select(role => new
+                    {
+                        role.Role.Code,
+                        role.Role.Level
+                    })
+                    .ToList(),
                 Memberships = x.Memberships
                     .Select(m => new
                     {
@@ -50,11 +57,8 @@ public sealed class MemberReadService(AlifeDbContext dbContext) : IMemberReadSer
                 member.PhoneE164,
                 !member.IsRegistered,
                 member.IsRegistered,
-                member.IsAdmin ||
-                member.Memberships.Any(m =>
-                    m.IsChurch &&
-                    m.Status == MembershipStatus.Approved &&
-                    (m.Role == MembershipRole.Leader || m.Role == MembershipRole.CoLeader)),
+                member.PlatformRoles.Any(role => role.Code == "admin" || role.Code == "superadmin"),
+                member.PlatformRoles.OrderByDescending(role => role.Level).FirstOrDefault()?.Code ?? "user",
                 member.Memberships
                     .Select(m => new MemberMembershipDto(
                         m.GroupId,

@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Text;
 using Alife.Application.Abstractions.Security;
 using Alife.Domain.Entities;
+using Alife.Domain.Enums;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 
@@ -18,7 +19,8 @@ public class JwtTokenService(IConfiguration configuration) : IJwtTokenService
 			new(JwtRegisteredClaimNames.Sub, member.Id.ToString()),
 			new(ClaimTypes.NameIdentifier, member.Id.ToString()),
 			new("is_registered", member.IsRegistered ? "true" : "false"),
-			new("is_admin", member.IsAdmin ? "true" : "false")
+			new("is_admin", IsPlatformAdmin(member) ? "true" : "false"),
+			new("platform_role", GetPlatformRoleCode(member))
 		};
 
 		return WriteToken(claims, expiresUtc);
@@ -79,5 +81,25 @@ public class JwtTokenService(IConfiguration configuration) : IJwtTokenService
 
 		var token = new JwtSecurityToken(issuer, audience, claims, expires: expiresUtc, signingCredentials: creds);
 		return (new JwtSecurityTokenHandler().WriteToken(token), expiresUtc);
+	}
+
+	private static bool IsPlatformAdmin(Member member)
+		=> member.PlatformRoles.Any(role =>
+			   role.RevokedUtc is null &&
+			   (role.RoleId == (int)PlatformRoleId.Admin || role.RoleId == (int)PlatformRoleId.SuperAdmin));
+
+	private static string GetPlatformRoleCode(Member member)
+	{
+		var role = member.PlatformRoles
+			.Where(role => role.RevokedUtc is null)
+			.OrderByDescending(role => role.Role?.Level ?? role.RoleId)
+			.FirstOrDefault();
+
+		return role?.Role?.Code ?? role?.RoleId switch
+		{
+			(int)PlatformRoleId.SuperAdmin => "superadmin",
+			(int)PlatformRoleId.Admin => "admin",
+			_ => "user"
+		};
 	}
 }
