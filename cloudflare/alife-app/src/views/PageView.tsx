@@ -34,14 +34,20 @@ const PageView = () => {
   )
 
   const subColl = useMemo(() => (page?.ownerGroupId ? subgroupsCollection(page.ownerGroupId) : null), [page?.ownerGroupId])
-  const { data: subgroupItems = [] } = useLiveQuery(subColl as NonNullable<typeof subColl>)
+  const { data: subgroupItems = [] } = useLiveQuery(
+    () => subColl ?? undefined,
+    [subColl],
+  )
   const localizedSubgroupItems = useMemo(
     () => subgroupItems.map((subgroup) => ({ ...subgroup, name: localizeText(subgroup.name, language) })),
     [language, subgroupItems],
   )
 
   const gpColl = useMemo(() => (page?.ownerGroupId ? groupPagesCollection(page.ownerGroupId) : null), [page?.ownerGroupId])
-  const { data: groupPageItems = [] } = useLiveQuery(gpColl as NonNullable<typeof gpColl>)
+  const { data: groupPageItems = [] } = useLiveQuery(
+    () => gpColl ?? undefined,
+    [gpColl],
+  )
 
   return (
     !pageId ? <Navigate to="/" replace /> :

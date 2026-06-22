@@ -30,6 +30,48 @@ public sealed class KickGroupMemberCommandHandler(
             return AppResult<GroupKickResultDto>.Forbidden("You do not have permission to remove this member.");
         }
 
+        if (request.CurrentMemberId == request.MemberId)
+        {
+            return AppResult<GroupKickResultDto>.Forbidden("You cannot remove yourself from the group.");
+        }
+
+        var isPlatformAdmin = await groupAuthorizationService.IsAdminAsync(request.CurrentMemberId, cancellationToken);
+        var currentMembership = await dbContext.GroupMemberships
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                x => x.GroupId == request.GroupId &&
+                     x.MemberId == request.CurrentMemberId &&
+                     x.Status == MembershipStatus.Approved,
+                cancellationToken);
+
+        if (!isPlatformAdmin &&
+            (currentMembership is null ||
+            currentMembership.Role is not (MembershipRole.Leader or MembershipRole.CoLeader))
+        )
+        {
+            return AppResult<GroupKickResultDto>.Forbidden("You do not have permission to remove this member.");
+        }
+
+        var targetMembership = await dbContext.GroupMemberships
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                x => x.GroupId == request.GroupId &&
+                     x.MemberId == request.MemberId &&
+                     x.Status == MembershipStatus.Approved,
+                cancellationToken);
+
+        if (targetMembership?.Role == MembershipRole.Leader)
+        {
+            return AppResult<GroupKickResultDto>.Forbidden("The group leader cannot be removed.");
+        }
+
+        if (!isPlatformAdmin &&
+            currentMembership?.Role == MembershipRole.CoLeader &&
+            targetMembership?.Role == MembershipRole.CoLeader)
+        {
+            return AppResult<GroupKickResultDto>.Forbidden("Co-leaders cannot remove other co-leaders.");
+        }
+
         var targetGroupIds = await GetDescendantGroupIdsAsync(request.GroupId, cancellationToken);
         targetGroupIds.Add(request.GroupId);
 

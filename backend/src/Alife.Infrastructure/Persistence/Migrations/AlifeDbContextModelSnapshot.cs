@@ -22,6 +22,92 @@ namespace Alife.Infrastructure.Persistence.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("Alife.Domain.Entities.AuditLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)")
+                        .HasColumnName("action");
+
+                    b.Property<Guid?>("ActorMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("actor_member_id");
+
+                    b.Property<string>("AfterJson")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("after_json");
+
+                    b.Property<string>("BeforeJson")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("before_json");
+
+                    b.Property<Guid?>("EntityId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("entity_id");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)")
+                        .HasColumnName("entity_type");
+
+                    b.Property<Guid?>("EventId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("event_id");
+
+                    b.Property<Guid?>("GroupId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("group_id");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("ip_address");
+
+                    b.Property<string>("MetadataJson")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("metadata_json");
+
+                    b.Property<DateTime>("OccurredUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("occurred_utc");
+
+                    b.Property<Guid?>("TargetMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("target_member_id");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("user_agent");
+
+                    b.HasKey("Id")
+                        .HasName("pk_audit_logs");
+
+                    b.HasIndex("Action", "OccurredUtc")
+                        .HasDatabaseName("ix_audit_logs_action_occurred_utc");
+
+                    b.HasIndex("ActorMemberId", "OccurredUtc")
+                        .HasDatabaseName("ix_audit_logs_actor_member_id_occurred_utc");
+
+                    b.HasIndex("EventId", "OccurredUtc")
+                        .HasDatabaseName("ix_audit_logs_event_id_occurred_utc");
+
+                    b.HasIndex("GroupId", "OccurredUtc")
+                        .HasDatabaseName("ix_audit_logs_group_id_occurred_utc");
+
+                    b.HasIndex("TargetMemberId", "OccurredUtc")
+                        .HasDatabaseName("ix_audit_logs_target_member_id_occurred_utc");
+
+                    b.ToTable("audit_logs", (string)null);
+                });
+
             modelBuilder.Entity("Alife.Domain.Entities.EventEnrollment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -355,10 +441,6 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(200)")
                         .HasColumnName("email");
 
-                    b.Property<bool>("IsAdmin")
-                        .HasColumnType("bit")
-                        .HasColumnName("is_admin");
-
                     b.Property<bool>("IsRegistered")
                         .HasColumnType("bit")
                         .HasColumnName("is_registered");
@@ -402,6 +484,50 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_members_updated_utc");
 
                     b.ToTable("members", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.MemberPlatformRole", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("AssignedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("assigned_by_member_id");
+
+                    b.Property<DateTime>("AssignedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("assigned_utc");
+
+                    b.Property<Guid>("MemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("member_id");
+
+                    b.Property<DateTime?>("RevokedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("revoked_utc");
+
+                    b.Property<int>("RoleId")
+                        .HasColumnType("int")
+                        .HasColumnName("role_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_member_platform_roles");
+
+                    b.HasIndex("AssignedByMemberId")
+                        .HasDatabaseName("ix_member_platform_roles_assigned_by_member_id");
+
+                    b.HasIndex("MemberId", "RoleId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_member_platform_roles_member_id_role_id")
+                        .HasFilter("[revoked_utc] IS NULL");
+
+                    b.HasIndex("RoleId", "RevokedUtc")
+                        .HasDatabaseName("ix_member_platform_roles_role_id_revoked_utc");
+
+                    b.ToTable("member_platform_roles", (string)null);
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.NotificationMessage", b =>
@@ -546,6 +672,40 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.ToTable("pages", (string)null);
                 });
 
+            modelBuilder.Entity("Alife.Domain.Entities.PlatformRole", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("code");
+
+                    b.Property<int>("Level")
+                        .HasColumnType("int")
+                        .HasColumnName("level");
+
+                    b.Property<string>("NameJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("name_json");
+
+                    b.HasKey("Id")
+                        .HasName("pk_platform_roles");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("ix_platform_roles_code");
+
+                    b.HasIndex("Level")
+                        .HasDatabaseName("ix_platform_roles_level");
+
+                    b.ToTable("platform_roles", (string)null);
+                });
+
             modelBuilder.Entity("Alife.Domain.Entities.Section", b =>
                 {
                     b.Property<Guid>("Id")
@@ -657,6 +817,41 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_sermons_youtube_video_id");
 
                     b.ToTable("sermons", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.AuditLog", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.Member", "ActorMember")
+                        .WithMany()
+                        .HasForeignKey("ActorMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_audit_logs_members_actor_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.GroupEvent", "Event")
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_audit_logs_group_events_event_id");
+
+                    b.HasOne("Alife.Domain.Entities.Group", "Group")
+                        .WithMany()
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_audit_logs_groups_group_id");
+
+                    b.HasOne("Alife.Domain.Entities.Member", "TargetMember")
+                        .WithMany()
+                        .HasForeignKey("TargetMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_audit_logs_members_target_member_id");
+
+                    b.Navigation("ActorMember");
+
+                    b.Navigation("Event");
+
+                    b.Navigation("Group");
+
+                    b.Navigation("TargetMember");
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.EventEnrollment", b =>
@@ -784,6 +979,35 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.Navigation("OwnerSection");
                 });
 
+            modelBuilder.Entity("Alife.Domain.Entities.MemberPlatformRole", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.Member", "AssignedByMember")
+                        .WithMany("AssignedPlatformRoles")
+                        .HasForeignKey("AssignedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_member_platform_roles_members_assigned_by_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.Member", "Member")
+                        .WithMany("PlatformRoles")
+                        .HasForeignKey("MemberId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_member_platform_roles_members_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.PlatformRole", "Role")
+                        .WithMany("MemberRoles")
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_member_platform_roles_platform_roles_role_id");
+
+                    b.Navigation("AssignedByMember");
+
+                    b.Navigation("Member");
+
+                    b.Navigation("Role");
+                });
+
             modelBuilder.Entity("Alife.Domain.Entities.NotificationMessage", b =>
                 {
                     b.HasOne("Alife.Domain.Entities.Member", "CreatedByMember")
@@ -862,12 +1086,21 @@ namespace Alife.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Alife.Domain.Entities.Member", b =>
                 {
+                    b.Navigation("AssignedPlatformRoles");
+
                     b.Navigation("Memberships");
+
+                    b.Navigation("PlatformRoles");
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.Page", b =>
                 {
                     b.Navigation("Sections");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.PlatformRole", b =>
+                {
+                    b.Navigation("MemberRoles");
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.Section", b =>

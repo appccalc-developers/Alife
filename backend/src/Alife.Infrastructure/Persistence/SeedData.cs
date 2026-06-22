@@ -1,4 +1,4 @@
-using Alife.Domain.Entities;
+﻿using Alife.Domain.Entities;
 using Alife.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
@@ -7,6 +7,8 @@ namespace Alife.Infrastructure.Persistence;
 
 public static class SeedData
 {
+	private const string TargetPhoneE164 = "+642102591292";
+
 	public sealed record SeedSummary(
 		bool BaselineSeeded,
 		string TargetPhoneE164,
@@ -16,17 +18,32 @@ public static class SeedData
 
 	public static async Task<SeedSummary> EnsureSeededAsync(AlifeDbContext dbContext, CancellationToken cancellationToken = default)
 	{
-		var hasAnyGroup = await dbContext.Groups.AnyAsync(cancellationToken);
-		if (hasAnyGroup)
+		var baselineSeeded = false;
+		var sectionsInserted = 0;
+
+		if (!await dbContext.Groups.AnyAsync(cancellationToken))
 		{
-			return new SeedSummary(
-				BaselineSeeded: false,
-				TargetPhoneE164: "+642102591292",
-				TargetMemberFound: await dbContext.Members.AnyAsync(x => x.PhoneE164 == "+642102591292", cancellationToken),
-				TargetMemberPagesFound: 0,
-				SectionsInserted: 0);
+			sectionsInserted += await SeedBaselineAsync(dbContext, cancellationToken);
+			baselineSeeded = true;
 		}
 
+		sectionsInserted += await EnsureDemoDataAsync(dbContext, cancellationToken);
+
+		var targetMember = await dbContext.Members.FirstOrDefaultAsync(x => x.PhoneE164 == TargetPhoneE164, cancellationToken);
+		var targetMemberPagesFound = targetMember is null
+			? 0
+			: await dbContext.Pages.CountAsync(x => x.CreatedByMemberId == targetMember.Id, cancellationToken);
+
+		return new SeedSummary(
+			BaselineSeeded: baselineSeeded,
+			TargetPhoneE164: TargetPhoneE164,
+			TargetMemberFound: targetMember is not null,
+			TargetMemberPagesFound: targetMemberPagesFound,
+			SectionsInserted: sectionsInserted);
+	}
+
+	private static async Task<int> SeedBaselineAsync(AlifeDbContext dbContext, CancellationToken cancellationToken)
+	{
 		var now = DateTime.UtcNow;
 		var adminId = Guid.Parse("22222222-2222-2222-2222-222222222222");
 
@@ -70,10 +87,9 @@ public static class SeedData
 			Sex = "Male",
 			Age = 45,
 			Email = "admin@alife.church",
-			PhoneE164 = "+642102591292",
+			PhoneE164 = TargetPhoneE164,
 			PhoneVerifiedUtc = now,
 			IsRegistered = true,
-			IsAdmin = true,
 			CreatedUtc = now,
 			UpdatedUtc = now
 		};
@@ -99,36 +115,33 @@ public static class SeedData
 			var homePageId = Guid.NewGuid();
 			var eventsPageId = Guid.NewGuid();
 
-			var homePage = new Page
+			pages.Add(new Page
 			{
 				Id = homePageId,
 				Scope = PageScope.Group,
 				OwnerGroupId = group.Id,
 				CreatedByMemberId = adminId,
-				TitleJson = JsonSerializer.Serialize(new Dictionary<string, string> { ["en"] = "Home", ["zh"] = "主页" }),
-				DescriptionJson = JsonSerializer.Serialize(new Dictionary<string, string> { ["en"] = $"{groupName} home page", ["zh"] = $"{groupName} 主页" }),
+				TitleJson = TextJson("Home", "主页"),
+				DescriptionJson = TextJson($"{groupName} home page", $"{groupName} 主页"),
 				TagsJson = "[\"home\"]",
 				TitleDisplayStyle = "Default",
 				Visibility = PageVisibility.Group,
 				UpdatedUtc = now
-			};
+			});
 
-			var eventsPage = new Page
+			pages.Add(new Page
 			{
 				Id = eventsPageId,
 				Scope = PageScope.Group,
 				OwnerGroupId = group.Id,
 				CreatedByMemberId = adminId,
-				TitleJson = JsonSerializer.Serialize(new Dictionary<string, string> { ["en"] = "Events", ["zh"] = "活动" }),
-				DescriptionJson = JsonSerializer.Serialize(new Dictionary<string, string> { ["en"] = $"{groupName} events page", ["zh"] = $"{groupName} 活动页" }),
+				TitleJson = TextJson("Events", "活动"),
+				DescriptionJson = TextJson($"{groupName} events page", $"{groupName} 活动页"),
 				TagsJson = "[\"events\"]",
 				TitleDisplayStyle = "Default",
 				Visibility = PageVisibility.Group,
 				UpdatedUtc = now
-			};
-
-			pages.Add(homePage);
-			pages.Add(eventsPage);
+			});
 
 			sections.Add(new Section
 			{
@@ -168,12 +181,423 @@ public static class SeedData
 		await dbContext.Sections.AddRangeAsync(sections, cancellationToken);
 		await dbContext.SaveChangesAsync(cancellationToken);
 
-		return new SeedSummary(
-			BaselineSeeded: true,
-			TargetPhoneE164: "+642102591292",
-			TargetMemberFound: true,
-			TargetMemberPagesFound: pages.Count,
-			SectionsInserted: sections.Count);
+		return sections.Count;
+	}
+
+	private static async Task<int> EnsureDemoDataAsync(AlifeDbContext dbContext, CancellationToken cancellationToken)
+	{
+		var now = DateTime.UtcNow;
+		var sectionsInserted = 0;
+
+		await EnsurePlatformRolesAsync(dbContext, cancellationToken);
+
+		var admin = await EnsureMemberAsync(
+			dbContext,
+			Guid.Parse("22222222-2222-2222-2222-222222222222"),
+			"Alife Admin",
+			"admin@alife.church",
+			TargetPhoneE164,
+			isAdmin: true,
+			now,
+			cancellationToken);
+		var platformAdmin = await EnsureMemberAsync(
+			dbContext,
+			Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeee0"),
+			"Demo Platform Admin",
+			"platform-admin@alife.local",
+			"+640000000000",
+			isAdmin: true,
+			now,
+			cancellationToken);
+
+		await EnsurePlatformRoleAssignmentAsync(dbContext, admin.Id, PlatformRoleId.SuperAdmin, admin.Id, now, cancellationToken);
+		await EnsurePlatformRoleAssignmentAsync(dbContext, platformAdmin.Id, PlatformRoleId.Admin, admin.Id, now, cancellationToken);
+
+		var church = await dbContext.Groups.FirstOrDefaultAsync(x => x.IsChurch, cancellationToken)
+			?? await EnsureGroupAsync(
+				dbContext,
+				Guid.Parse("11111111-1111-1111-1111-111111111111"),
+				"Alife Church",
+				"丰盛生命教会",
+				null,
+				isChurch: true,
+				now,
+				cancellationToken);
+
+		var fellowship = await EnsureGroupAsync(
+			dbContext,
+			Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc"),
+			"Alpha Fellowship",
+			"启发团契",
+			church.Id,
+			isChurch: false,
+			now,
+			cancellationToken);
+
+		var serviceTeam = await EnsureGroupAsync(
+			dbContext,
+			Guid.Parse("dddddddd-dddd-dddd-dddd-dddddddddddd"),
+			"Sunday Service Team",
+			"主日服事团队",
+			church.Id,
+			isChurch: false,
+			now,
+			cancellationToken);
+
+		var leader = await EnsureMemberAsync(dbContext, Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeee1"), "Demo Leader", "leader@alife.local", "+640000000001", false, now, cancellationToken);
+		var coLeader = await EnsureMemberAsync(dbContext, Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeee2"), "Demo Co-Leader", "coleader@alife.local", "+640000000002", false, now, cancellationToken);
+		var member = await EnsureMemberAsync(dbContext, Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeee3"), "Demo Member", "member@alife.local", "+640000000003", false, now, cancellationToken);
+		var pending = await EnsureMemberAsync(dbContext, Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeee4"), "Demo Pending", "pending@alife.local", "+640000000004", false, now, cancellationToken);
+
+		await EnsureMembershipAsync(dbContext, fellowship.Id, admin.Id, MembershipStatus.Approved, MembershipRole.CoLeader, now, cancellationToken);
+		await EnsureMembershipAsync(dbContext, fellowship.Id, platformAdmin.Id, MembershipStatus.Approved, MembershipRole.CoLeader, now, cancellationToken);
+		await EnsureMembershipAsync(dbContext, fellowship.Id, leader.Id, MembershipStatus.Approved, MembershipRole.Leader, now, cancellationToken);
+		await EnsureMembershipAsync(dbContext, fellowship.Id, coLeader.Id, MembershipStatus.Approved, MembershipRole.CoLeader, now, cancellationToken);
+		await EnsureMembershipAsync(dbContext, fellowship.Id, member.Id, MembershipStatus.Approved, MembershipRole.Member, now, cancellationToken);
+		await EnsureMembershipAsync(dbContext, fellowship.Id, pending.Id, MembershipStatus.Requested, MembershipRole.Member, now, cancellationToken);
+		await EnsureMembershipAsync(dbContext, serviceTeam.Id, admin.Id, MembershipStatus.Approved, MembershipRole.CoLeader, now, cancellationToken);
+		await EnsureMembershipAsync(dbContext, serviceTeam.Id, platformAdmin.Id, MembershipStatus.Approved, MembershipRole.CoLeader, now, cancellationToken);
+		await EnsureMembershipAsync(dbContext, serviceTeam.Id, leader.Id, MembershipStatus.Approved, MembershipRole.Leader, now, cancellationToken);
+
+		sectionsInserted += await EnsureDemoHomePageAsync(dbContext, fellowship.Id, admin.Id, now, cancellationToken);
+		sectionsInserted += await EnsureDemoHomePageAsync(dbContext, serviceTeam.Id, admin.Id, now, cancellationToken);
+
+		var picnic = await EnsureEventAsync(
+			dbContext,
+			Guid.Parse("ffffffff-ffff-ffff-ffff-fffffffffff1"),
+			fellowship.Id,
+			leader.Id,
+			"Community Picnic",
+			"社区野餐",
+			now.Date.AddDays(7).AddHours(11),
+			now.Date.AddDays(7).AddHours(14),
+			now,
+			cancellationToken);
+
+		var training = await EnsureEventAsync(
+			dbContext,
+			Guid.Parse("ffffffff-ffff-ffff-ffff-fffffffffff2"),
+			serviceTeam.Id,
+			leader.Id,
+			"Volunteer Training",
+			"义工培训",
+			now.Date.AddDays(14).AddHours(19),
+			now.Date.AddDays(14).AddHours(21),
+			now,
+			cancellationToken);
+
+		await EnsureEnrollmentAsync(dbContext, fellowship.Id, picnic.Id, member.Id, now, cancellationToken);
+		await EnsureEnrollmentAsync(dbContext, serviceTeam.Id, training.Id, coLeader.Id, now, cancellationToken);
+		await EnsureNotificationAsync(dbContext, member.Id, leader.Id, fellowship.Id, picnic.Id, "event.invitation", now, cancellationToken);
+		await EnsureNotificationAsync(dbContext, leader.Id, pending.Id, fellowship.Id, null, "group.join.requested", now, cancellationToken);
+
+		await dbContext.SaveChangesAsync(cancellationToken);
+		return sectionsInserted;
+	}
+
+	private static async Task<Member> EnsureMemberAsync(
+		AlifeDbContext dbContext,
+		Guid id,
+		string displayName,
+		string email,
+		string phoneE164,
+		bool isAdmin,
+		DateTime now,
+		CancellationToken cancellationToken)
+	{
+		var member = await dbContext.Members.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
+			?? await dbContext.Members.FirstOrDefaultAsync(x => x.PhoneE164 == phoneE164, cancellationToken);
+
+		if (member is not null)
+		{
+			return member;
+		}
+
+		member = new Member
+		{
+			Id = id,
+			DisplayName = displayName,
+			Email = email,
+			PhoneE164 = phoneE164,
+			PhoneVerifiedUtc = now,
+			IsRegistered = true,
+			CreatedUtc = now,
+			UpdatedUtc = now
+		};
+
+		await dbContext.Members.AddAsync(member, cancellationToken);
+		return member;
+	}
+
+	private static async Task EnsurePlatformRolesAsync(AlifeDbContext dbContext, CancellationToken cancellationToken)
+	{
+		var roles = new[]
+		{
+			new PlatformRole { Id = (int)PlatformRoleId.User, Code = "user", NameJson = TextJson("User", "普通用户"), Level = 0 },
+			new PlatformRole { Id = (int)PlatformRoleId.Admin, Code = "admin", NameJson = TextJson("Admin", "联合管理员"), Level = 10 },
+			new PlatformRole { Id = (int)PlatformRoleId.SuperAdmin, Code = "superadmin", NameJson = TextJson("System Admin", "系统管理员"), Level = 100 }
+		};
+
+		foreach (var role in roles)
+		{
+			var existing = await dbContext.PlatformRoles.FirstOrDefaultAsync(x => x.Id == role.Id, cancellationToken);
+			if (existing is not null)
+			{
+				existing.Code = role.Code;
+				existing.NameJson = role.NameJson;
+				existing.Level = role.Level;
+				continue;
+			}
+
+			await dbContext.PlatformRoles.AddAsync(role, cancellationToken);
+		}
+	}
+
+	private static async Task EnsurePlatformRoleAssignmentAsync(
+		AlifeDbContext dbContext,
+		Guid memberId,
+		PlatformRoleId roleId,
+		Guid? assignedByMemberId,
+		DateTime now,
+		CancellationToken cancellationToken)
+	{
+		if (await dbContext.MemberPlatformRoles.AnyAsync(
+			    x => x.MemberId == memberId && x.RoleId == (int)roleId && x.RevokedUtc == null,
+			    cancellationToken))
+		{
+			return;
+		}
+
+		await dbContext.MemberPlatformRoles.AddAsync(new MemberPlatformRole
+		{
+			Id = Guid.NewGuid(),
+			MemberId = memberId,
+			RoleId = (int)roleId,
+			AssignedByMemberId = assignedByMemberId,
+			AssignedUtc = now
+		}, cancellationToken);
+	}
+
+	private static async Task<Group> EnsureGroupAsync(
+		AlifeDbContext dbContext,
+		Guid id,
+		string nameEn,
+		string nameZh,
+		Guid? parentGroupId,
+		bool isChurch,
+		DateTime now,
+		CancellationToken cancellationToken)
+	{
+		var group = await dbContext.Groups.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+		if (group is not null)
+		{
+			return group;
+		}
+
+		group = new Group
+		{
+			Id = id,
+			NameJson = TextJson(nameEn, nameZh),
+			DescriptionJson = TextJson($"{nameEn} demo workspace.", $"{nameZh} 演示工作区。"),
+			ParentGroupId = parentGroupId,
+			AccessType = AccessType.Protected,
+			IsChurch = isChurch,
+			IsClosed = false,
+			CreatedUtc = now,
+			UpdatedUtc = now
+		};
+
+		await dbContext.Groups.AddAsync(group, cancellationToken);
+		return group;
+	}
+
+	private static async Task EnsureMembershipAsync(
+		AlifeDbContext dbContext,
+		Guid groupId,
+		Guid memberId,
+		MembershipStatus status,
+		MembershipRole role,
+		DateTime now,
+		CancellationToken cancellationToken)
+	{
+		var membership = await dbContext.GroupMemberships.FirstOrDefaultAsync(
+			x => x.GroupId == groupId && x.MemberId == memberId && x.Status == status,
+			cancellationToken);
+
+		if (membership is not null)
+		{
+			return;
+		}
+
+		await dbContext.GroupMemberships.AddAsync(new GroupMembership
+		{
+			Id = Guid.NewGuid(),
+			GroupId = groupId,
+			MemberId = memberId,
+			Status = status,
+			Role = role,
+			CreatedUtc = now,
+			UpdatedUtc = now
+		}, cancellationToken);
+	}
+
+	private static async Task<int> EnsureDemoHomePageAsync(
+		AlifeDbContext dbContext,
+		Guid groupId,
+		Guid adminId,
+		DateTime now,
+		CancellationToken cancellationToken)
+	{
+		var pageId = DeterministicGuid(groupId, "demo-home-page");
+		if (await dbContext.Pages.AnyAsync(x => x.Id == pageId, cancellationToken))
+		{
+			return 0;
+		}
+
+		await dbContext.Pages.AddAsync(new Page
+		{
+			Id = pageId,
+			Scope = PageScope.Group,
+			OwnerGroupId = groupId,
+			CreatedByMemberId = adminId,
+			TitleJson = TextJson("Demo Home", "演示主页"),
+			DescriptionJson = TextJson("Seeded demo page for local testing.", "用于本地测试的演示页面。"),
+			TagsJson = "[\"demo\",\"home\"]",
+			TitleDisplayStyle = "Default",
+			Visibility = PageVisibility.Group,
+			UpdatedUtc = now
+		}, cancellationToken);
+
+		await dbContext.Sections.AddRangeAsync(new[]
+		{
+			new Section
+			{
+				Id = DeterministicGuid(pageId, "hero"),
+				PageId = pageId,
+				Order = 1,
+				Type = SectionType.Hero,
+				ContentJson = JsonSerializer.Serialize(new
+				{
+					title = new { en = "Welcome to this demo group", zh = "欢迎来到演示小组" },
+					subtitle = new { en = "This content is inserted by DbMigrator for local testing.", zh = "这些内容由 DbMigrator 插入，用于本地测试。" },
+					backgroundImage = "https://images.unsplash.com/photo-1528605248644-14dd04022da1?auto=format&fit=crop&w=1600&q=80"
+				}),
+				StyleJson = JsonSerializer.Serialize(new { layout = "featured", aspectRatio = 1.777 })
+			},
+			new Section
+			{
+				Id = DeterministicGuid(pageId, "text"),
+				PageId = pageId,
+				Order = 2,
+				Type = SectionType.RichText,
+				ContentJson = JsonSerializer.Serialize(new
+				{
+					title = new { en = "Leader notes", zh = "组长备注" },
+					text = new { en = "Use this group to test members, events, pages, and notifications.", zh = "你可以用这个小组测试成员、活动、页面和通知。" }
+				}),
+				StyleJson = "{}"
+			}
+		}, cancellationToken);
+
+		return 2;
+	}
+
+	private static async Task<GroupEvent> EnsureEventAsync(
+		AlifeDbContext dbContext,
+		Guid id,
+		Guid groupId,
+		Guid createdByMemberId,
+		string titleEn,
+		string titleZh,
+		DateTime startDate,
+		DateTime endDate,
+		DateTime now,
+		CancellationToken cancellationToken)
+	{
+		var groupEvent = await dbContext.GroupEvents.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+		if (groupEvent is not null)
+		{
+			return groupEvent;
+		}
+
+		groupEvent = new GroupEvent
+		{
+			Id = id,
+			GroupId = groupId,
+			CreatedByMemberId = createdByMemberId,
+			TitleEn = titleEn,
+			TitleZh = titleZh,
+			StartDate = startDate,
+			EndDate = endDate,
+			EventDataJson = JsonSerializer.Serialize(new
+			{
+				title = new { en = titleEn, zh = titleZh },
+				location = new { en = "Church Hall", zh = "教会大厅" },
+				description = new { en = "Seeded local demo event.", zh = "本地演示活动。" }
+			}),
+			CreatedUtc = now,
+			UpdatedUtc = now,
+			IsDeleted = false
+		};
+
+		await dbContext.GroupEvents.AddAsync(groupEvent, cancellationToken);
+		return groupEvent;
+	}
+
+	private static async Task EnsureEnrollmentAsync(
+		AlifeDbContext dbContext,
+		Guid groupId,
+		Guid eventId,
+		Guid memberId,
+		DateTime now,
+		CancellationToken cancellationToken)
+	{
+		if (await dbContext.EventEnrollments.AnyAsync(x => x.EventId == eventId && x.MemberId == memberId, cancellationToken))
+		{
+			return;
+		}
+
+		await dbContext.EventEnrollments.AddAsync(new EventEnrollment
+		{
+			Id = Guid.NewGuid(),
+			GroupId = groupId,
+			EventId = eventId,
+			MemberId = memberId,
+			EnrollmentJson = JsonSerializer.Serialize(new { status = "confirmed", note = "Seeded demo enrollment" }),
+			CreatedUtc = now,
+			UpdatedUtc = now
+		}, cancellationToken);
+	}
+
+	private static async Task EnsureNotificationAsync(
+		AlifeDbContext dbContext,
+		Guid recipientMemberId,
+		Guid createdByMemberId,
+		Guid? groupId,
+		Guid? eventId,
+		string actionType,
+		DateTime now,
+		CancellationToken cancellationToken)
+	{
+		var notificationId = DeterministicGuid(recipientMemberId, $"{actionType}:{groupId}:{eventId}");
+		if (await dbContext.NotificationMessages.AnyAsync(x => x.Id == notificationId, cancellationToken))
+		{
+			return;
+		}
+
+		await dbContext.NotificationMessages.AddAsync(new NotificationMessage
+		{
+			Id = notificationId,
+			RecipientMemberId = recipientMemberId,
+			CreatedByMemberId = createdByMemberId,
+			GroupId = groupId,
+			EventId = eventId,
+			OccurredUtc = now,
+			ActionType = actionType,
+			ActionDataJson = JsonSerializer.Serialize(new { seeded = true, source = "DbMigrator" }),
+			CreatedUtc = now,
+			UpdatedUtc = now
+		}, cancellationToken);
 	}
 
 	private static string TextJson(string en, string zh)
@@ -183,5 +607,11 @@ public static class SeedData
 	{
 		var value = JsonSerializer.Deserialize<Dictionary<string, string>>(json) ?? [];
 		return value.GetValueOrDefault("en") ?? value.GetValueOrDefault("zh") ?? value.Values.FirstOrDefault() ?? string.Empty;
+	}
+
+	private static Guid DeterministicGuid(Guid id, string salt)
+	{
+		var bytes = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes($"{id:N}:{salt}"));
+		return new Guid(bytes[..16]);
 	}
 }

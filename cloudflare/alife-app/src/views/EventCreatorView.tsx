@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useLocation, useParams, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import type { EventDto, GroupEventRecord, MultilingualString } from '../types/event'
 import type { AiSessionAppContext } from '../types/aiSession'
 import { eventService } from '../services/eventService'
@@ -271,6 +271,7 @@ const EventCreatorView = () => {
   const t = useUiText()
   const { CurrentGroup } = useCurrentGroupStore()
   const location = useLocation()
+  const navigate = useNavigate()
   const { eventId: routeEventId } = useParams<{ eventId?: string }>()
   const [searchParams] = useSearchParams()
   const activeIds = useActiveEntityIds({
@@ -637,6 +638,8 @@ const EventCreatorView = () => {
 
     setSaveStatus('saving')
     try {
+      let persistedEventId = targetEventId
+
       if (targetEventId) {
         let draftToSave = eventDraft
         if (pendingPosterFile) {
@@ -664,6 +667,7 @@ const EventCreatorView = () => {
           },
         )
         setSavedEventId(created.id)
+        persistedEventId = created.id
         activeEntityService.setEvent(created.id, effectiveGroupId)
 
         if (pendingPosterFile) {
@@ -680,8 +684,8 @@ const EventCreatorView = () => {
       } else {
         throw new Error(t('missingGroupForEvent'))
       }
-      if (targetEventId || savedEventId) {
-        activeEntityService.setEvent(targetEventId || savedEventId, effectiveGroupId || undefined)
+      if (persistedEventId) {
+        activeEntityService.setEvent(persistedEventId, effectiveGroupId || undefined)
       }
       setSaveStatus('saved')
       setMessages((prev) => [
@@ -693,6 +697,9 @@ const EventCreatorView = () => {
             : t('eventSavedToGroup', { name: eventName }),
         },
       ])
+      if (!isEditMode && persistedEventId && effectiveGroupId) {
+        navigate('/events/edit', { replace: true })
+      }
     } catch (err) {
       setSaveStatus('error')
       const apiError = normalizeApiError(err)
