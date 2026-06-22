@@ -64,7 +64,7 @@ const SectionListEditor = ({ sections, canEdit, sectionTypeErrors, onAdd, onUpda
   }
 
   return (
-    <section className="space-y-3">
+    <section className="w-full min-w-0 space-y-3">
       {sections.length === 0 ? (
         <AppEmptyState
           title={t('noSectionsYet')}
@@ -73,7 +73,7 @@ const SectionListEditor = ({ sections, canEdit, sectionTypeErrors, onAdd, onUpda
           onAction={() => setCreateOpen(true)}
         />
       ) : (
-        <div className="space-y-3">
+        <div className="w-full min-w-0 space-y-3">
           {sections.map((section, index) => (
             <SectionCardEditor
               key={`${section.id ?? 'new'}-${index}`}

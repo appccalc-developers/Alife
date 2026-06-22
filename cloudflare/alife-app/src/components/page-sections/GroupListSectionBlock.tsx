@@ -40,7 +40,7 @@ const presetOptionsForSource = (source: string, t: ReturnType<typeof useUiText>)
   return [{ value: 'all', label: t('all') }]
 }
 
-const GroupListSectionBlock = ({ section, mode, disabled, propertiesOnly, showProperties = true, contextGroupId, page, onUpdate }: SectionComponentProps) => {
+const GroupListSectionBlock = ({ section, mode, disabled, editorPreview, propertiesOnly, showProperties = true, contextGroupId, page, onUpdate }: SectionComponentProps) => {
   const auth = useAuthStore()
   const t = useUiText()
   const source = sourceFromContent(section.contentJson)
@@ -81,6 +81,8 @@ const GroupListSectionBlock = ({ section, mode, disabled, propertiesOnly, showPr
     return renderProperties()
   }
 
+  const compactPreview = editorPreview ?? mode === 'edit'
+
   return (
     <section className={`${sectionSpacingClass(section)} rounded-lg border border-slate-200 bg-white px-4`}>
       <SectionHeader
@@ -92,7 +94,7 @@ const GroupListSectionBlock = ({ section, mode, disabled, propertiesOnly, showPr
         onTitleChange={editable ? updateHeaderTitle : undefined}
         onSubtitleChange={editable ? updateHeaderSubtitle : undefined}
       />
-      <SmartGroupListSection metadata={section.contentJson} groupId={groupId} compact={mode === 'edit'} />
+      <SmartGroupListSection metadata={section.contentJson} groupId={groupId} compact={compactPreview} />
       {mode === 'edit' && showProperties ? renderProperties() : null}
     </section>
   )

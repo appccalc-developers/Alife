@@ -205,7 +205,7 @@ const PageContentRenderer = ({
   }
 
   return (
-    <article className={framed ? 'space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5' : 'space-y-4'}>
+    <article className={framed ? 'w-full min-w-0 space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5' : 'w-full min-w-0 space-y-4'}>
       {showHeader ? (
         <header className="space-y-2 border-b border-slate-200 pb-3">
           <EditableText
