@@ -38,6 +38,7 @@ public class MembersController(
                 IsGuest: true,
                 IsRegistered: false,
                 IsAdmin: false,
+                PlatformRole: "user",
                 Memberships: []));
         }
 
@@ -59,6 +60,7 @@ public class MembersController(
                 IsGuest: true,
                 IsRegistered: false,
                 IsAdmin: IsAdminPrincipal(User),
+                PlatformRole: ReadPlatformRolePrincipal(User),
                 Memberships: []));
         }
 
@@ -175,7 +177,8 @@ public class MembersController(
     [AllowAnonymous]
     public async Task<IActionResult> LoginByDisplayName([FromBody] LoginByDisplayNameRequest request, CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(new LoginByDisplayNameCommand(request.DisplayName), cancellationToken);
+        var account = request.Account ?? request.DisplayName ?? string.Empty;
+        var result = await mediator.Send(new LoginByDisplayNameCommand(account, request.Password), cancellationToken);
 
         if (!result.IsSuccess || result.Value is null)
         {
@@ -199,6 +202,9 @@ public class MembersController(
     private static bool IsAdminPrincipal(ClaimsPrincipal principal)
         => GetBooleanClaim(principal, "is_admin");
 
+    private static string ReadPlatformRolePrincipal(ClaimsPrincipal principal)
+        => principal.FindFirstValue("platform_role") ?? (IsAdminPrincipal(principal) ? "admin" : "user");
+
     private static bool GetBooleanClaim(ClaimsPrincipal principal, string claimName)
         => bool.TryParse(principal.FindFirstValue(claimName), out var value) && value;
 
@@ -216,5 +222,5 @@ public class MembersController(
     }
 
     public record RegisterRequest(string Name, string? Sex, int? Age, string? Email);
-    public record LoginByDisplayNameRequest(string DisplayName);
+    public record LoginByDisplayNameRequest(string? Account, string? Password, string? DisplayName);
 }
