@@ -76,7 +76,7 @@ public class LoginByDisplayNameCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WithExactlyOneMatch_ReturnsTokenAndMemberDetails()
+    public async Task Handle_WithExactlyOneMatchAndEmptyPassword_ReturnsTokenAndMemberDetails()
     {
         using var dbContext = CreateInMemoryDbContext();
         var memberId = Guid.NewGuid();
@@ -95,7 +95,7 @@ public class LoginByDisplayNameCommandHandlerTests
         var jwtService = CreateJwtService();
         var handler = new LoginByDisplayNameCommandHandler(dbContext, jwtService);
 
-        var result = await handler.Handle(new LoginByDisplayNameCommand("John Doe"), CancellationToken.None);
+        var result = await handler.Handle(new LoginByDisplayNameCommand("John Doe", string.Empty), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.NotNull(result.Value);
