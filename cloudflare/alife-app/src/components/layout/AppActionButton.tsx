@@ -17,19 +17,19 @@ const AppActionButton = ({
 }: Props) => {
   const variantClass =
     variant === 'primary'
-      ? 'border border-slate-900 bg-slate-900 text-white hover:bg-slate-800'
+      ? 'border border-[#176b5a] bg-[#176b5a] text-white shadow-[0_9px_22px_rgba(23,107,90,0.22)] hover:border-[#0d4f43] hover:bg-[#0d4f43]'
       : variant === 'danger'
-        ? 'border border-rose-300 bg-white text-rose-700 hover:bg-rose-50'
+        ? 'border border-rose-200 bg-white/80 text-rose-700 hover:bg-rose-50'
         : variant === 'ghost'
-          ? 'border border-transparent bg-transparent text-slate-700 hover:bg-slate-100'
-          : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
+          ? 'border border-transparent bg-transparent text-[#40554e] hover:bg-[#e3f0eb]'
+          : 'border border-[#2f4b42]/15 bg-white/80 text-[#40554e] shadow-sm hover:border-[#176b5a]/25 hover:bg-white hover:text-[#0d4f43]'
 
-  const sizeClass = size === 'sm' ? 'px-2.5 py-1.5 text-xs' : 'px-3.5 py-2 text-sm'
+  const sizeClass = size === 'sm' ? 'px-3 py-1.5 text-xs' : 'min-h-10 px-4 py-2 text-sm'
 
   return (
     <button
       type="button"
-      className={`inline-flex items-center justify-center rounded-lg font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${variantClass} ${sizeClass} ${block ? 'w-full' : ''} ${className}`.trim()}
+      className={`inline-flex items-center justify-center rounded-full font-semibold transition duration-200 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 ${variantClass} ${sizeClass} ${block ? 'w-full' : ''} ${className}`.trim()}
       {...props}
     >
       {children}

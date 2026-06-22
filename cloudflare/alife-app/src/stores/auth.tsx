@@ -91,9 +91,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     [memberships],
   )
 
+  const isPlatformAdmin = Boolean(me?.isAdmin || me?.platformRole === 'admin' || me?.platformRole === 'superadmin')
+
   const canManageGroup = useCallback(
-    (groupId: string) => hasGroupRole(groupId, 'leader') || hasGroupRole(groupId, 'coLeader'),
-    [hasGroupRole],
+    (groupId: string) => isPlatformAdmin || hasGroupRole(groupId, 'leader') || hasGroupRole(groupId, 'coLeader'),
+    [hasGroupRole, isPlatformAdmin],
   )
 
   const updateLanguage = useCallback(async (value: Language) => {
@@ -109,7 +111,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       language,
       isGuest: !me || me.isGuest,
       isRegistered: Boolean(me?.isRegistered),
-      isAdmin: Boolean(me?.isAdmin),
+      isAdmin: isPlatformAdmin,
       memberships,
       fetchMe,
       bootstrap,
@@ -119,7 +121,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       canManageGroup,
       hasLeaderAccess: canManageGroup,
     }),
-    [bootstrap, canManageGroup, fetchMe, hasGroupRole, initialized, language, loading, logout, me, memberships, updateLanguage],
+    [bootstrap, canManageGroup, fetchMe, hasGroupRole, initialized, isPlatformAdmin, language, loading, logout, me, memberships, updateLanguage],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

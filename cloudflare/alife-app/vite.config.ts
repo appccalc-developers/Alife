@@ -8,6 +8,7 @@ declare const self: { location: { origin: string } }
 
 export default defineConfig(() => {
   const apiProxyTarget = process.env.API_PROXY_TARGET || 'http://127.0.0.1:7071'
+  const aiProxyTarget = process.env.AI_PROXY_TARGET || process.env.SPEED_LAYER_PROXY_TARGET || 'http://127.0.0.1:8787'
   const imagesProxyTarget = process.env.IMAGES_PROXY_TARGET || 'https://images.ccalc.live'
 
   return {
@@ -95,6 +96,26 @@ export default defineConfig(() => {
     })],
     server: {
       proxy: {
+        '/api/ai': {
+          target: aiProxyTarget,
+          changeOrigin: true,
+        },
+        '/api/events/extract': {
+          target: aiProxyTarget,
+          changeOrigin: true,
+        },
+        '/api/events/session': {
+          target: aiProxyTarget,
+          changeOrigin: true,
+        },
+        '/api/enrollments/session': {
+          target: aiProxyTarget,
+          changeOrigin: true,
+        },
+        '/api/reviews/session': {
+          target: aiProxyTarget,
+          changeOrigin: true,
+        },
         '/api': {
           target: apiProxyTarget,
           changeOrigin: true,
@@ -103,6 +124,39 @@ export default defineConfig(() => {
           target: imagesProxyTarget,
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/images/, '') || '/',
+        },
+      },
+    },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (!id.includes('node_modules')) {
+              return undefined
+            }
+            if (
+              id.includes('/node_modules/react/') ||
+              id.includes('/node_modules/react-dom/') ||
+              id.includes('/node_modules/react-router/') ||
+              id.includes('/node_modules/react-router-dom/')
+            ) {
+              return 'vendor-react'
+            }
+            if (id.includes('/node_modules/@tanstack/')) {
+              return 'vendor-tanstack'
+            }
+            if (id.includes('/node_modules/framer-motion/') || id.includes('/node_modules/lucide-react/')) {
+              return 'vendor-ui'
+            }
+            if (
+              id.includes('/node_modules/react-markdown/') ||
+              id.includes('/node_modules/remark-') ||
+              id.includes('/node_modules/react-easy-crop/')
+            ) {
+              return 'vendor-content'
+            }
+            return undefined
+          },
         },
       },
     },

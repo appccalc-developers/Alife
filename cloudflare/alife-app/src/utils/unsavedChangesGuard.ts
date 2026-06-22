@@ -12,14 +12,18 @@ export const confirmUnsavedChangesNavigation = (target?: string) => {
   }
 
   if (target) {
-    const nextUrl = new URL(target, window.location.href)
-    const currentUrl = new URL(window.location.href)
-    if (
-      nextUrl.pathname === currentUrl.pathname &&
-      nextUrl.search === currentUrl.search &&
-      nextUrl.hash === currentUrl.hash
-    ) {
-      return true
+    try {
+      const nextUrl = new URL(target, window.location.href)
+      const currentUrl = new URL(window.location.href)
+      if (
+        nextUrl.pathname === currentUrl.pathname &&
+        nextUrl.search === currentUrl.search &&
+        nextUrl.hash === currentUrl.hash
+      ) {
+        return true
+      }
+    } catch {
+      // Invalid navigation targets should still fall through to the confirmation.
     }
   }
 

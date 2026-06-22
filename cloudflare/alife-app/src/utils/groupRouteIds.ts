@@ -1,4 +1,4 @@
-const RESERVED_GROUP_ROUTE_SEGMENTS = new Set(['join', 'manage'])
+const RESERVED_GROUP_ROUTE_SEGMENTS = new Set(['join', 'manage', 'select'])
 
 export const normalizeRouteGroupId = (value: string | null | undefined) => {
   const groupId = value?.trim() ?? ''

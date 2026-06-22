@@ -97,6 +97,8 @@ export type GroupMembershipDto = {
   displayName?: string | null
   status: MembershipStatus
   role: MembershipRole
+  platformRole?: 'user' | 'admin' | 'superadmin' | string
+  platformRoles?: string[]
   groupName?: LocalizedText | null
   parentGroupId?: string | null
   createdUtc?: string
@@ -176,6 +178,7 @@ export type MeDto = {
   isGuest: boolean
   isRegistered: boolean
   isAdmin: boolean
+  platformRole?: 'user' | 'admin' | 'superadmin' | string
   memberships: GroupMembershipDto[]
 }
 

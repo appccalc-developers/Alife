@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowRight, Bell, Check, ChevronDown, ChevronUp, Loader2 } from 'lucide-react'
+import { ArrowRight, Bell, Check, Loader2, X } from 'lucide-react'
 import { activeEntityService } from '../../services/activeEntityService'
 import { notificationService } from '../../services/notificationService'
 import { useAuthStore } from '../../stores/auth'
@@ -56,19 +56,23 @@ const normalizeActionUrl = (actionUrl: string) => {
 const activateInternalTarget = (target: string) => {
   const eventMatch = target.match(/^\/groups\/([^/]+)\/events\/([^/?#]+)/)
   if (eventMatch) {
-    activeEntityService.setEvent(decodeURIComponent(eventMatch[2]), decodeURIComponent(eventMatch[1]))
+    const groupId = decodeURIComponent(eventMatch[1])
+    const eventId = decodeURIComponent(eventMatch[2])
+    activeEntityService.setEvent(eventId, groupId)
     return '/events'
   }
 
   const groupManageMatch = target.match(/^\/groups\/([^/]+)\/manage(?:\?(.+))?/)
   if (groupManageMatch) {
-    activeEntityService.setGroup(decodeURIComponent(groupManageMatch[1]))
+    const groupId = decodeURIComponent(groupManageMatch[1])
+    activeEntityService.setGroup(groupId)
     return `/groups/manage${groupManageMatch[2] ? `?${groupManageMatch[2]}` : ''}`
   }
 
   const groupMatch = target.match(/^\/groups\/([^/?#]+)/)
   if (groupMatch) {
-    activeEntityService.setGroup(decodeURIComponent(groupMatch[1]))
+    const groupId = decodeURIComponent(groupMatch[1])
+    activeEntityService.setGroup(groupId)
     return '/groups'
   }
 
@@ -111,7 +115,7 @@ const NotificationToastHost = () => {
   const t = useUiText()
   const navigate = useNavigate()
   const [notifications, setNotifications] = useState<AppNotification[]>([])
-  const [expanded, setExpanded] = useState(false)
+  const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [pendingId, setPendingId] = useState('')
   const [error, setError] = useState('')
@@ -119,7 +123,7 @@ const NotificationToastHost = () => {
   useEffect(() => {
     if (!auth.initialized || auth.loading || auth.isGuest) {
       setNotifications([])
-      setExpanded(false)
+      setOpen(false)
       return
     }
 
@@ -132,13 +136,11 @@ const NotificationToastHost = () => {
       .then((items) => {
         if (!cancelled) {
           setNotifications(items)
-          setExpanded(false)
         }
       })
       .catch(() => {
         if (!cancelled) {
           setNotifications([])
-          setExpanded(false)
         }
       })
       .finally(() => {
@@ -152,13 +154,7 @@ const NotificationToastHost = () => {
     }
   }, [auth.initialized, auth.isGuest, auth.loading, auth.me?.id])
 
-  useEffect(() => {
-    if (notifications.length === 0) {
-      setExpanded(false)
-    }
-  }, [notifications.length])
-
-  if (notifications.length === 0) {
+  if (!auth.initialized || auth.loading || auth.isGuest) {
     return null
   }
 
@@ -173,6 +169,7 @@ const NotificationToastHost = () => {
     try {
       await notificationService.openNotification(notification.id)
       setNotifications((current) => current.filter((item) => item.id !== notification.id))
+      setOpen(false)
 
       const target = notification.actionUrl ? normalizeActionUrl(notification.actionUrl) : ''
       if (!target) {
@@ -193,88 +190,102 @@ const NotificationToastHost = () => {
   }
 
   return (
-    <section className="sticky top-16 z-10 border-b border-emerald-200 bg-emerald-50/95 shadow-sm backdrop-blur">
-      <div className="desktop:pl-72">
-        <div className="px-4 py-2 sm:px-6 desktop:px-8">
-          <button
-            type="button"
-            className="flex w-full items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-white px-3 py-2 text-left shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50"
-            aria-expanded={expanded}
-            onClick={() => setExpanded((current) => !current)}
+    <div className="relative">
+      <button
+        type="button"
+        className="alife-icon-button relative"
+        aria-label={t('notificationCenter')}
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <Bell aria-hidden="true" className="h-5 w-5" />
+        {loading ? (
+          <span className="absolute -right-1 -top-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-white text-emerald-700">
+            <Loader2 aria-hidden="true" className="h-3 w-3 animate-spin" />
+          </span>
+        ) : notifications.length > 0 ? (
+          <span className="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-rose-600 px-1.5 text-[11px] font-bold leading-5 text-white">
+            {notifications.length > 99 ? '99+' : notifications.length}
+          </span>
+        ) : null}
+      </button>
+
+      <AnimatePresence initial={false}>
+        {open ? (
+          <motion.div
+            initial={{ y: -6, opacity: 0, scale: 0.98 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: -6, opacity: 0, scale: 0.98 }}
+            transition={{ duration: 0.16, ease: 'easeOut' }}
+            className="absolute right-0 top-12 z-50 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl"
           >
-            <span className="flex min-w-0 items-center gap-3">
-              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-                <Bell aria-hidden="true" className="h-5 w-5" />
-              </span>
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold text-slate-950">{t('notificationCenter')}</span>
-                <span className="block truncate text-xs text-slate-600">
-                  {t('notificationActiveCount', { count: notifications.length })}
-                </span>
-              </span>
-            </span>
-            <span className="flex shrink-0 items-center gap-2 text-emerald-700">
-              {loading ? <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" /> : null}
-              {expanded ? <ChevronUp aria-hidden="true" className="h-5 w-5" /> : <ChevronDown aria-hidden="true" className="h-5 w-5" />}
-            </span>
-          </button>
-
-          <AnimatePresence initial={false}>
-            {expanded ? (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2, ease: 'easeOut' }}
-                className="overflow-hidden"
+            <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-slate-950">{t('notificationCenter')}</p>
+                <p className="truncate text-xs text-slate-600">{t('notificationActiveCount', { count: notifications.length })}</p>
+              </div>
+              <button
+                type="button"
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                aria-label={auth.language === 'zh' ? '关闭消息' : 'Close notifications'}
+                onClick={() => setOpen(false)}
               >
-                <div className="mt-2 space-y-2">
-                  {error ? (
-                    <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
-                  ) : null}
-                  <ul className="max-h-80 space-y-2 overflow-y-auto pr-1">
-                    {notifications.map((notification) => {
-                      const title = localizeNotificationText(notification.title, auth.language) || t('notification')
-                      const body = localizeNotificationText(notification.body, auth.language)
-                      const dateLabel = formatNotificationDate(notification.createdUtc, auth.language)
-                      const actionLabel = t(getNotificationActionLabelKey(notification))
-                      const isPending = pendingId === notification.id
-                      const ActionIcon = notification.actionUrl ? ArrowRight : Check
+                <X aria-hidden="true" className="h-4 w-4" />
+              </button>
+            </div>
 
-                      return (
-                        <li key={notification.id}>
-                          <button
-                            type="button"
-                            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-3 text-left shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50 disabled:cursor-wait disabled:opacity-70"
-                            disabled={Boolean(pendingId)}
-                            onClick={() => void openNotification(notification)}
-                          >
-                            <span className="flex items-start justify-between gap-3">
-                              <span className="min-w-0">
-                                <span className="block text-sm font-semibold text-slate-950">{title}</span>
-                                {body ? <span className="mt-1 block text-sm text-slate-600">{body}</span> : null}
-                                {dateLabel ? <span className="mt-2 block text-xs text-slate-500">{dateLabel}</span> : null}
-                                <span className="mt-3 inline-flex max-w-full items-center gap-1.5 rounded-md bg-emerald-700 px-2.5 py-1.5 text-xs font-semibold text-white">
-                                  <span className="truncate">{actionLabel}</span>
-                                  <ActionIcon aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
-                                </span>
+            <div className="max-h-[26rem] overflow-y-auto p-3">
+              {error ? (
+                <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+              ) : null}
+
+              {notifications.length === 0 ? (
+                <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-600">
+                  {auth.language === 'zh' ? '目前没有未读消息。' : 'No unread messages right now.'}
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {notifications.map((notification) => {
+                    const title = localizeNotificationText(notification.title, auth.language) || t('notification')
+                    const body = localizeNotificationText(notification.body, auth.language)
+                    const dateLabel = formatNotificationDate(notification.createdUtc, auth.language)
+                    const actionLabel = t(getNotificationActionLabelKey(notification))
+                    const isPending = pendingId === notification.id
+                    const ActionIcon = notification.actionUrl ? ArrowRight : Check
+
+                    return (
+                      <li key={notification.id}>
+                        <button
+                          type="button"
+                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-3 text-left transition hover:border-emerald-300 hover:bg-emerald-50 disabled:cursor-wait disabled:opacity-70"
+                          disabled={Boolean(pendingId)}
+                          onClick={() => void openNotification(notification)}
+                        >
+                          <span className="flex items-start justify-between gap-3">
+                            <span className="min-w-0">
+                              <span className="block text-sm font-semibold text-slate-950">{title}</span>
+                              {body ? <span className="mt-1 block text-sm text-slate-600">{body}</span> : null}
+                              {dateLabel ? <span className="mt-2 block text-xs text-slate-500">{dateLabel}</span> : null}
+                              <span className="mt-3 inline-flex max-w-full items-center gap-1.5 rounded-md bg-emerald-700 px-2.5 py-1.5 text-xs font-semibold text-white">
+                                <span className="truncate">{actionLabel}</span>
+                                <ActionIcon aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
                               </span>
-                              {isPending ? (
-                                <Loader2 aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-emerald-700" />
-                              ) : null}
                             </span>
-                          </button>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                </div>
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
-        </div>
-      </div>
-    </section>
+                            {isPending ? (
+                              <Loader2 aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-emerald-700" />
+                            ) : null}
+                          </span>
+                        </button>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </div>
   )
 }
 

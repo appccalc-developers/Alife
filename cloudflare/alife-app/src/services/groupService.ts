@@ -34,6 +34,134 @@ export type SetCoLeaderPayload = {
   isCoLeader: boolean
 }
 
+export type AdminMemberDto = {
+  id: string
+  displayName: string | null
+  email: string | null
+  phoneE164: string | null
+  isRegistered: boolean
+  legacyIsAdmin: boolean
+  platformRole: 'user' | 'admin' | 'superadmin' | string
+  platformRoles: string[]
+  approvedGroupCount: number
+  pendingGroupCount: number
+}
+
+export type AdminPlatformRoleDto = {
+  id: number
+  code: 'user' | 'admin' | 'superadmin' | string
+  name: LocalizedText
+  level: number
+}
+
+export type AuditLogDto = {
+  id: string
+  actorMemberId: string | null
+  actorDisplayName: string | null
+  action: string
+  entityType: string
+  entityId: string | null
+  groupId: string | null
+  eventId: string | null
+  targetMemberId: string | null
+  targetDisplayName: string | null
+  beforeJson: string | null
+  afterJson: string | null
+  metadataJson: string | null
+  occurredUtc: string
+}
+
+export type AdminNotificationDto = {
+  id: string
+  recipientMemberId: string
+  recipientDisplayName: string | null
+  createdByMemberId: string
+  createdByDisplayName: string | null
+  groupId: string | null
+  groupNameJson: string | null
+  eventId: string | null
+  eventTitleEn: string | null
+  eventTitleZh: string | null
+  occurredUtc: string
+  actionType: string
+  actionDataJson: string
+  responseDataJson: string | null
+  readUtc: string | null
+  repliedUtc: string | null
+  createdUtc: string
+  updatedUtc: string
+}
+
+export type AdminGroupOptionDto = {
+  id: string
+  nameJson: string
+  isChurch: boolean
+  isClosed: boolean
+  parentGroupId: string | null
+}
+
+export type AdminPagedResultDto<T> = {
+  items: T[]
+  totalCount: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
+export type AdminSendMessagePayload = {
+  scope: 'platform' | 'group' | 'member'
+  recipientMemberId?: string | null
+  groupId?: string | null
+  actionType: string
+  titleEn: string
+  titleZh: string
+  bodyEn: string
+  bodyZh: string
+}
+
+export type AdminSelfDiagnosticDto = {
+  currentMemberId: string
+  displayName: string | null
+  isRegistered: boolean
+  legacyIsAdmin: boolean
+  platformRole: 'user' | 'admin' | 'superadmin' | string
+  platformRoles: string[]
+  platformRoleLevel: number
+  canAccessAdmin: boolean
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+
+const readNumber = (value: unknown, fallback: number) =>
+  typeof value === 'number' && Number.isFinite(value) ? value : fallback
+
+const normalizeAdminPagedResult = <T>(payload: unknown): AdminPagedResultDto<T> => {
+  const source = isRecord(payload) && isRecord(payload.data) ? payload.data : payload
+  if (!isRecord(source)) {
+    return { items: [], totalCount: 0, page: 1, pageSize: 25, totalPages: 0 }
+  }
+
+  return {
+    items: (Array.isArray(source.items) ? source.items : Array.isArray(source.Items) ? source.Items : []) as T[],
+    totalCount: readNumber(source.totalCount ?? source.TotalCount, 0),
+    page: readNumber(source.page ?? source.Page, 1),
+    pageSize: readNumber(source.pageSize ?? source.PageSize, 25),
+    totalPages: readNumber(source.totalPages ?? source.TotalPages, 0),
+  }
+}
+
+const toQuery = (params: Record<string, string | number | boolean | null | undefined>) => {
+  const query = new URLSearchParams()
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      query.set(key, String(value))
+    }
+  })
+  const text = query.toString()
+  return text ? `?${text}` : ''
+}
+
 export const groupService = {
   async getGlobalPages() {
     const { data } = await http.get<PageSummaryDto[]>('/api/pages/global')
@@ -48,6 +176,11 @@ export const groupService = {
   async getGroup(groupId: string) {
     const { data } = await http.get<GroupDto>(`/api/groups/${groupId}`)
     return normalizeGroup(data)
+  },
+
+  async getVisibleGroups() {
+    const { data } = await http.get<GroupSummaryDto[]>('/api/groups/visible')
+    return data.map(normalizeGroup)
   },
 
   async getSubgroups(groupId: string) {
@@ -151,6 +284,46 @@ export const groupService = {
 
   async syncSermons() {
     const { data } = await http.post<{ message?: string }>('/api/admin/sermons/sync')
+    return data
+  },
+
+  async getAdminPlatformRoles() {
+    const { data } = await http.get<AdminPlatformRoleDto[]>('/api/admin/platform-roles')
+    return data
+  },
+
+  async getAdminSelfDiagnostic() {
+    const { data } = await http.get<AdminSelfDiagnosticDto>('/api/admin/self-diagnostic')
+    return data
+  },
+
+  async getAdminGroups(params: { search?: string; page?: number; pageSize?: number } = {}) {
+    const { data } = await http.get<unknown>(`/api/admin/groups${toQuery(params)}`)
+    return normalizeAdminPagedResult<AdminGroupOptionDto>(data)
+  },
+
+  async getAdminMembers(params: { search?: string; role?: string; isRegistered?: boolean | null; page?: number; pageSize?: number } = {}) {
+    const { data } = await http.get<unknown>(`/api/admin/members${toQuery(params)}`)
+    return normalizeAdminPagedResult<AdminMemberDto>(data)
+  },
+
+  async setMemberPlatformRole(memberId: string, roleCode: string) {
+    const { data } = await http.put<AdminMemberDto>(`/api/admin/members/${memberId}/platform-role`, { roleCode })
+    return data
+  },
+
+  async getAuditLogs(params: { search?: string; action?: string; entityType?: string; fromUtc?: string; toUtc?: string; page?: number; pageSize?: number } = {}) {
+    const { data } = await http.get<unknown>(`/api/admin/audit-logs${toQuery(params)}`)
+    return normalizeAdminPagedResult<AuditLogDto>(data)
+  },
+
+  async getAdminMessages(params: { search?: string; actionType?: string; status?: string; page?: number; pageSize?: number } = {}) {
+    const { data } = await http.get<unknown>(`/api/admin/messages${toQuery(params)}`)
+    return normalizeAdminPagedResult<AdminNotificationDto>(data)
+  },
+
+  async sendAdminMessage(payload: AdminSendMessagePayload) {
+    const { data } = await http.post<{ createdCount: number }>('/api/admin/messages', payload)
     return data
   },
 
