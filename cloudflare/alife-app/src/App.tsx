@@ -245,19 +245,33 @@ const ShellSearchNavLink = ({ item, mobile = false }: { item: ShellNavItem; mobi
   )
 }
 
-const HeaderNav = ({ items, currentGroupName, currentGroupManageTo }: { items: ShellNavItem[]; currentGroupName?: string; currentGroupManageTo?: string }) => {
+const HeaderNav = ({
+  items,
+  currentGroupName,
+  currentGroupManageTo,
+  onOpenChurch,
+}: {
+  items: ShellNavItem[]
+  currentGroupName?: string
+  currentGroupManageTo?: string
+  onOpenChurch: () => void
+}) => {
   const t = useUiText()
 
   return (
     <nav className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto" aria-label={t('appNavigation')}>
       <Link
-        to="/"
+        to="/groups"
         className="mr-1 flex shrink-0 items-center rounded-lg text-slate-950"
         aria-label={t('home')}
         onClick={(event) => {
-          if (!confirmUnsavedChangesNavigation('/')) {
+          if (!confirmUnsavedChangesNavigation('/groups')) {
             event.preventDefault()
+            return
           }
+
+          event.preventDefault()
+          onOpenChurch()
         }}
       >
         <span className="flex items-center justify-center rounded-xl bg-emerald-50 p-1.5">
@@ -560,7 +574,7 @@ const App = () => {
   const auth = useAuthStore()
   const { preferences: leaderUiPreferences } = useLeaderUiPreferences(auth.me?.id)
   const t = useUiText()
-  const { CurrentGroup } = useCurrentGroupStore()
+  const { CurrentGroup, refreshChurchGroup } = useCurrentGroupStore()
   const location = useLocation()
   const navigate = useNavigate()
   const [currentGroupPages, setCurrentGroupPages] = useState<PageSummaryDto[]>([])
@@ -881,12 +895,18 @@ const App = () => {
 
   const openSubgroup = (subgroupId: string) => {
     const membership = auth.memberships.find((item) => item.groupId === subgroupId)
-    const target = membership?.status === 'approved' ? '/groups' : '/groups/join'
+    const returnGroupId = contextualGroupId && contextualGroupId !== subgroupId ? contextualGroupId : ''
+    const target = membership?.status === 'approved'
+      ? '/groups'
+      : returnGroupId
+        ? `/groups/join?returnGroupId=${encodeURIComponent(returnGroupId)}`
+        : '/groups/join'
     if (!confirmUnsavedChangesNavigation(target)) {
       return
     }
 
     activeEntityService.setGroup(subgroupId)
+    setGroupDrawerOpen(false)
     navigate(target)
   }
 
@@ -896,6 +916,18 @@ const App = () => {
     }
 
     activeEntityService.setGroup(groupId)
+    setGroupDrawerOpen(false)
+    navigate('/groups')
+  }
+
+  const openChurchGroup = async () => {
+    const church = await refreshChurchGroup()
+    if (!church?.id) {
+      return
+    }
+
+    activeEntityService.setGroup(church.id)
+    setGroupDrawerOpen(false)
     navigate('/groups')
   }
 
@@ -924,7 +956,12 @@ const App = () => {
         className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 backdrop-blur"
       >
         <div className="flex min-h-16 items-center justify-between gap-3 px-4 py-3 sm:px-6 desktop:px-8">
-          <HeaderNav items={appNavItems} currentGroupName={headerGroupName} currentGroupManageTo={headerGroupManageTo} />
+          <HeaderNav
+            items={appNavItems}
+            currentGroupName={headerGroupName}
+            currentGroupManageTo={headerGroupManageTo}
+            onOpenChurch={() => void openChurchGroup()}
+          />
 
           <div className="ml-auto flex items-center gap-2">
             {!auth.loading && auth.me?.displayName ? (
