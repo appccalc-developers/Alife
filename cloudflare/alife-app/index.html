@@ -1,16 +1,32 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-NZ">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="light" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
     <title>Alife Church</title>
-    <meta name="description" content="Alife Church app for sermons, groups, and pages." />
+    <meta
+      name="description"
+      content="A bilingual community platform for Alife Church groups, members, events, sermons, and shared pages."
+    />
+    <meta name="application-name" content="Alife" />
+    <meta name="author" content="Alife Church" />
+    <meta name="robots" content="index,follow" />
 
-    <!-- PWA manifest -->
+    <!-- Social and link previews -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Alife" />
+    <meta property="og:title" content="Alife Church" />
+    <meta
+      property="og:description"
+      content="Groups, events, sermons, pages, and shared community life in one bilingual platform."
+    />
+    <meta property="og:image" content="/icons/icon-512x512.png" />
+
+    <!-- PWA identity -->
     <link rel="manifest" href="/manifest.json" />
-
-    <!-- Theme color for browser chrome -->
-    <meta name="theme-color" content="#003366" />
+    <meta name="theme-color" content="#18332d" />
 
     <!-- Favicons -->
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png" />
@@ -18,7 +34,7 @@
 
     <!-- iOS PWA meta tags -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="mobile-web-app-capable" content="yes">    
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Alife" />
 
@@ -80,11 +96,12 @@
           media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)" />
 
     <!-- Windows tile -->
-    <meta name="msapplication-TileColor" content="#003366" />
+    <meta name="msapplication-TileColor" content="#18332d" />
     <meta name="msapplication-TileImage" content="/icons/icon-144x144.png" />
   </head>
   <body>
-    <div id="root"></div>
+    <noscript>Alife requires JavaScript to provide authenticated group and member features.</noscript>
+    <div id="root" data-app="alife"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
