@@ -7,29 +7,41 @@ namespace Alife.Infrastructure.Services;
 
 public sealed class GroupAuthorizationService(AlifeDbContext dbContext) : IGroupAuthorizationService
 {
-    public Task<bool> IsAdminAsync(Guid memberId, CancellationToken cancellationToken)
-        => dbContext.Members
+    public async Task<bool> IsAdminAsync(Guid memberId, CancellationToken cancellationToken)
+    {
+        return await dbContext.MemberPlatformRoles
             .AsNoTracking()
             .AnyAsync(
-                x => x.Id == memberId &&
-                     (x.IsAdmin ||
-                      x.Memberships.Any(m =>
-                          m.Group.IsChurch &&
-                          m.Status == MembershipStatus.Approved &&
-                          (m.Role == MembershipRole.Leader || m.Role == MembershipRole.CoLeader))),
+                x => x.MemberId == memberId &&
+                     x.RevokedUtc == null &&
+                     (x.RoleId == (int)PlatformRoleId.Admin || x.RoleId == (int)PlatformRoleId.SuperAdmin),
                 cancellationToken);
+    }
 
-    public Task<bool> IsApprovedMemberAsync(Guid groupId, Guid memberId, CancellationToken cancellationToken)
-        => dbContext.GroupMemberships
+    public async Task<bool> IsApprovedMemberAsync(Guid groupId, Guid memberId, CancellationToken cancellationToken)
+    {
+        if (await IsAdminAsync(memberId, cancellationToken))
+        {
+            return true;
+        }
+
+        return await dbContext.GroupMemberships
             .AsNoTracking()
             .AnyAsync(
                 x => x.GroupId == groupId &&
                      x.MemberId == memberId &&
                      x.Status == MembershipStatus.Approved,
                 cancellationToken);
+    }
 
-    public Task<bool> IsLeaderOrCoLeaderAsync(Guid groupId, Guid memberId, CancellationToken cancellationToken)
-        => dbContext.GroupMemberships
+    public async Task<bool> IsLeaderOrCoLeaderAsync(Guid groupId, Guid memberId, CancellationToken cancellationToken)
+    {
+        if (await IsAdminAsync(memberId, cancellationToken))
+        {
+            return true;
+        }
+
+        return await dbContext.GroupMemberships
             .AsNoTracking()
             .AnyAsync(
                 x => x.GroupId == groupId &&
@@ -37,9 +49,16 @@ public sealed class GroupAuthorizationService(AlifeDbContext dbContext) : IGroup
                      x.Status == MembershipStatus.Approved &&
                      (x.Role == MembershipRole.Leader || x.Role == MembershipRole.CoLeader),
                 cancellationToken);
+    }
 
-    public Task<bool> IsLeaderAsync(Guid groupId, Guid memberId, CancellationToken cancellationToken)
-        => dbContext.GroupMemberships
+    public async Task<bool> IsLeaderAsync(Guid groupId, Guid memberId, CancellationToken cancellationToken)
+    {
+        if (await IsAdminAsync(memberId, cancellationToken))
+        {
+            return true;
+        }
+
+        return await dbContext.GroupMemberships
             .AsNoTracking()
             .AnyAsync(
                 x => x.GroupId == groupId &&
@@ -47,6 +66,7 @@ public sealed class GroupAuthorizationService(AlifeDbContext dbContext) : IGroup
                      x.Status == MembershipStatus.Approved &&
                      x.Role == MembershipRole.Leader,
                 cancellationToken);
+    }
 
     public Task<bool> IsRegisteredMemberAsync(Guid memberId, CancellationToken cancellationToken)
         => dbContext.Members
