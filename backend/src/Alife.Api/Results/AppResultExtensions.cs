@@ -13,7 +13,9 @@ public static class AppResultExtensions
             {
                 AppResultStatus.Success => controller.Ok(result.Value),
                 AppResultStatus.NotFound => controller.NotFound(new { message = result.Message }),
-                AppResultStatus.Forbidden => controller.Forbid(),
+                AppResultStatus.Forbidden => controller.StatusCode(
+                    StatusCodes.Status403Forbidden,
+                    new { message = result.Message }),
                 AppResultStatus.ValidationError => controller.BadRequest(new { message = result.Message }),
                 AppResultStatus.Conflict => controller.Conflict(new { message = result.Message }),
                 _ => controller.StatusCode(StatusCodes.Status500InternalServerError)

@@ -20,6 +20,7 @@ using Alife.Application.Groups.Queries.GetGroupById;
 using Alife.Application.Groups.Queries.GetGroupInviteCandidates;
 using Alife.Application.Groups.Queries.GetGroupMemberships;
 using Alife.Application.Groups.Queries.GetSubgroups;
+using Alife.Application.Groups.Queries.GetVisibleGroups;
 using Alife.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -55,6 +56,27 @@ public class GroupsController(
         var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
 
         var result = await mediator.Send(new GetGroupByIdQuery(id, currentMemberId), cancellationToken);
+        if (!result.IsSuccess)
+        {
+            return this.ToActionResult(result);
+        }
+
+        this.ApplyPrivateNoCacheHeaders();
+        return this.ToActionResult(result);
+    }
+
+    [HttpGet("visible")]
+    public async Task<IActionResult> GetVisible(CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null)
+        {
+            return Unauthorized();
+        }
+
+        var result = await mediator.Send(
+            new GetVisibleGroupsQuery(currentMemberId.Value),
+            cancellationToken);
         if (!result.IsSuccess)
         {
             return this.ToActionResult(result);

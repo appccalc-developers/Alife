@@ -28,29 +28,18 @@ public sealed class GetGroupInviteCandidatesQueryHandler(
             return AppResult<IReadOnlyList<MemberSummaryDto>>.Forbidden("You do not have permission to invite members.");
         }
 
-        var group = await dbContext.Groups
+        var groupExists = await dbContext.Groups
             .AsNoTracking()
-            .Where(x => x.Id == request.GroupId)
-            .Select(x => new { x.ParentGroupId })
-            .FirstOrDefaultAsync(cancellationToken);
+            .AnyAsync(x => x.Id == request.GroupId, cancellationToken);
 
-        if (group is null)
+        if (!groupExists)
         {
             return AppResult<IReadOnlyList<MemberSummaryDto>>.NotFound("Group was not found.");
         }
 
-        var query = dbContext.Members.AsNoTracking().Where(x => x.IsRegistered);
-
-        if (group.ParentGroupId is Guid parentGroupId)
-        {
-            query =
-                from member in query
-                join membership in dbContext.GroupMemberships.AsNoTracking()
-                    on member.Id equals membership.MemberId
-                where membership.GroupId == parentGroupId &&
-                      membership.Status == MembershipStatus.Approved
-                select member;
-        }
+        var query = dbContext.Members
+            .AsNoTracking()
+            .Where(x => x.Id != request.CurrentMemberId);
 
         var memberRows = await query
             .OrderBy(x => x.DisplayName)

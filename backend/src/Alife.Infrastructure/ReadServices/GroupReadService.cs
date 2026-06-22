@@ -38,6 +38,24 @@ public sealed class GroupReadService(AlifeDbContext dbContext, HybridCache hybri
             },
             cancellationToken);
 
+    public async Task<IReadOnlyList<GroupSummaryDto>> GetVisibleGroupsAsync(
+        Guid memberId,
+        CancellationToken cancellationToken)
+    {
+        var groups = await dbContext.Groups
+            .AsNoTracking()
+            .Where(group =>
+                !group.IsClosed &&
+                (group.IsChurch ||
+                 group.AccessType != Domain.Enums.AccessType.Private ||
+                 group.Memberships.Any(membership => membership.MemberId == memberId)))
+            .OrderByDescending(group => group.IsChurch)
+            .ThenBy(group => group.CreatedUtc)
+            .ToListAsync(cancellationToken);
+
+        return groups.Select(ToSummaryDto).ToList();
+    }
+
     public Task<IReadOnlyList<GroupSummaryDto>> GetSubgroupsAsync(Guid groupId, CancellationToken cancellationToken)
         => GetOrCreateAsync(
             GroupCacheKeys.Subgroups(groupId),
@@ -82,6 +100,11 @@ public sealed class GroupReadService(AlifeDbContext dbContext, HybridCache hybri
                 x.Member.DisplayName,
                 x.Status,
                 x.Role,
+                PlatformRoles = x.Member.PlatformRoles
+                    .Where(role => role.RevokedUtc == null)
+                    .OrderByDescending(role => role.Role.Level)
+                    .Select(role => role.Role.Code)
+                    .ToList(),
                 x.CreatedUtc,
                 x.UpdatedUtc
             })
@@ -93,6 +116,8 @@ public sealed class GroupReadService(AlifeDbContext dbContext, HybridCache hybri
                 x.DisplayName,
                 EnumName.CamelCase(x.Status),
                 EnumName.CamelCase(x.Role),
+                GetPlatformRole(x.PlatformRoles),
+                GetPlatformRoles(x.PlatformRoles),
                 x.CreatedUtc,
                 x.UpdatedUtc))
             .ToList();
@@ -112,18 +137,35 @@ public sealed class GroupReadService(AlifeDbContext dbContext, HybridCache hybri
         }
 
         var existingMemberIds = rows.Select(x => x.MemberId).ToHashSet();
-        var candidates = await dbContext.Members
+        var candidateRows = await dbContext.Members
             .AsNoTracking()
             .Where(x => x.IsRegistered && x.LineUID != null && !existingMemberIds.Contains(x.Id))
             .OrderBy(x => x.DisplayName)
+            .Select(x => new
+            {
+                x.Id,
+                x.DisplayName,
+                PlatformRoles = x.PlatformRoles
+                    .Where(role => role.RevokedUtc == null)
+                    .OrderByDescending(role => role.Role.Level)
+                    .Select(role => role.Role.Code)
+                    .ToList(),
+                x.CreatedUtc,
+                x.UpdatedUtc
+            })
+            .ToListAsync(cancellationToken);
+
+        var candidates = candidateRows
             .Select(x => new GroupMembershipDto(
                 x.Id,
                 x.DisplayName,
                 EnumName.CamelCase(Domain.Enums.MembershipStatus.Requested),
                 EnumName.CamelCase(Domain.Enums.MembershipRole.Member),
+                GetPlatformRole(x.PlatformRoles),
+                GetPlatformRoles(x.PlatformRoles),
                 x.CreatedUtc,
                 x.UpdatedUtc))
-            .ToListAsync(cancellationToken);
+            .ToList();
 
         memberships.AddRange(candidates);
         return memberships;
@@ -172,4 +214,10 @@ public sealed class GroupReadService(AlifeDbContext dbContext, HybridCache hybri
         => string.IsNullOrWhiteSpace(value)
             ? new Dictionary<string, string>()
             : JsonSerializer.Deserialize<Dictionary<string, string>>(value) ?? new Dictionary<string, string>();
+
+    private static string GetPlatformRole(IReadOnlyList<string> platformRoles)
+        => platformRoles.FirstOrDefault() ?? "user";
+
+    private static IReadOnlyList<string> GetPlatformRoles(IReadOnlyList<string> platformRoles)
+        => platformRoles.Count > 0 ? platformRoles : Array.Empty<string>();
 }

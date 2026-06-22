@@ -14,13 +14,19 @@ public sealed class LoginCommandHandler(
 {
     public async Task<AppResult<AuthSessionDto>> Handle(LoginCommand request, CancellationToken cancellationToken)
     {
-        var member = await dbContext.Members.FirstOrDefaultAsync(x => x.Id == request.CurrentMemberId, cancellationToken);
+        var member = await dbContext.Members
+            .Include(x => x.PlatformRoles)
+            .ThenInclude(x => x.Role)
+            .FirstOrDefaultAsync(x => x.Id == request.CurrentMemberId, cancellationToken);
         if (member is null || !member.IsRegistered)
         {
             return AppResult<AuthSessionDto>.Validation("Member must complete registration first.");
         }
 
         var (token, expiresUtc) = jwtTokenService.CreateToken(member, isGuest: false);
-        return AppResult<AuthSessionDto>.Success(new AuthSessionDto(token, expiresUtc, false, member.IsAdmin));
+        var isAdmin = member.PlatformRoles.Any(role =>
+            role.RevokedUtc is null &&
+            (role.RoleId == 10 || role.RoleId == 100));
+        return AppResult<AuthSessionDto>.Success(new AuthSessionDto(token, expiresUtc, false, isAdmin));
     }
 }

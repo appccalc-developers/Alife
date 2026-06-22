@@ -25,6 +25,8 @@ public sealed class LoginByDisplayNameCommandHandler(
 
         var matches = await dbContext.Members
             .AsNoTracking()
+            .Include(x => x.PlatformRoles)
+            .ThenInclude(x => x.Role)
             .Where(x => x.IsRegistered && x.DisplayName == displayName)
             .Take(2)
             .ToListAsync(cancellationToken);

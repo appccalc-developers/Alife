@@ -5,5 +5,7 @@ public sealed record GroupMembershipDto(
     string? DisplayName,
     string Status,
     string Role,
+    string PlatformRole,
+    IReadOnlyList<string> PlatformRoles,
     DateTime CreatedUtc,
     DateTime UpdatedUtc);

@@ -30,7 +30,10 @@ public sealed class RegisterMemberCommandHandler(
 
         if (request.CurrentMemberId is Guid currentMemberId)
         {
-            currentMember = await dbContext.Members.FirstOrDefaultAsync(x => x.Id == currentMemberId, cancellationToken);
+            currentMember = await dbContext.Members
+                .Include(x => x.PlatformRoles)
+                .ThenInclude(x => x.Role)
+                .FirstOrDefaultAsync(x => x.Id == currentMemberId, cancellationToken);
             if (currentMember is not null)
             {
                 verifiedLineUID ??= currentMember.LineUID;
@@ -50,7 +53,10 @@ public sealed class RegisterMemberCommandHandler(
 
         if (!string.IsNullOrWhiteSpace(verifiedLineUID))
         {
-            alreadyRegisteredMember = await dbContext.Members.FirstOrDefaultAsync(
+            alreadyRegisteredMember = await dbContext.Members
+                .Include(x => x.PlatformRoles)
+                .ThenInclude(x => x.Role)
+                .FirstOrDefaultAsync(
                 x => x.IsRegistered && x.LineUID == verifiedLineUID && (!memberToRegisterId.HasValue || x.Id != memberToRegisterId.Value),
                 cancellationToken);
         }
@@ -66,7 +72,6 @@ public sealed class RegisterMemberCommandHandler(
                 Id = Guid.NewGuid(),
                 LineUID = string.IsNullOrWhiteSpace(verifiedLineUID) ? null : verifiedLineUID,
                 IsRegistered = false,
-                IsAdmin = false,
                 CreatedUtc = now,
                 UpdatedUtc = now
             };

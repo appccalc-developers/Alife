@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef } from 'react'
 import { Link } from 'react-router-dom'
+import { CalendarDays, ChevronRight, FileText, MicVocal, UserRound, Users } from 'lucide-react'
 import { useListSourceResolver } from '../../hooks/useListSourceResolver'
 import type { ListViewMetadata } from '../../types/page-editor'
 import { normalizeListViewMetadata } from '../../utils/listViewMetadata'
@@ -126,14 +127,23 @@ const sourceTypeLabels: Record<string, UiTextKey> = {
   posts: 'posts',
 }
 
+const fallbackIcons = {
+  event: CalendarDays,
+  member: UserRound,
+  page: FileText,
+  sermon: MicVocal,
+  subgroup: Users,
+} satisfies Record<UniversalCardItem['type'], typeof FileText>
+
 export const ListCard: React.FC<{ item: UniversalCardItem; compact?: boolean; cardIndex?: number }> = ({ item, compact, cardIndex = 0 }) => {
   const { language } = useAuthStore()
   const t = useUiText()
-  const imgH = compact ? 'h-24' : 'h-40'
-  const iconH = compact ? 'h-14' : 'h-20'
-  const pad = compact ? 'p-2' : 'p-4'
-  const titleCls = compact ? 'text-xs' : 'text-sm'
+  const imgH = compact ? 'h-24' : 'h-36 sm:h-40'
+  const iconH = compact ? 'h-16' : 'h-28 sm:h-32'
+  const pad = compact ? 'p-2.5' : 'p-3 sm:p-4'
+  const titleCls = compact ? 'text-xs' : 'text-sm sm:text-base'
   const dateLocale = language === 'zh' ? 'zh-CN' : 'en-NZ'
+  const FallbackIcon = fallbackIcons[item.type]
   const activateItem = () => {
     if (item.type === 'sermon') {
       activeEntityService.setSermon(item.id)
@@ -150,10 +160,10 @@ export const ListCard: React.FC<{ item: UniversalCardItem; compact?: boolean; ca
     <Link
       to={item.url}
       onClick={activateItem}
-      className="group block rounded-lg border border-slate-200 bg-white shadow-sm transition-all hover:shadow-md hover:border-slate-300"
+      className="group block h-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition-all hover:border-slate-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-300"
     >
       {item.imageUrl ? (
-        <div className={`${imgH} overflow-hidden rounded-t-lg`}>
+        <div className={`${imgH} overflow-hidden`}>
           <CoverImage
             src={item.imageUrl}
             alt={item.title}
@@ -164,14 +174,14 @@ export const ListCard: React.FC<{ item: UniversalCardItem; compact?: boolean; ca
           />
         </div>
       ) : (
-        <div className={`flex ${iconH} items-center justify-center rounded-t-lg bg-gradient-to-br from-slate-100 to-slate-200`}>
-          <span className={compact ? 'text-2xl text-slate-400' : 'text-3xl text-slate-400'}>
-            {item.type === 'sermon' ? '🎙️' : item.type === 'subgroup' ? '👥' : item.type === 'member' ? '👤' : '📄'}
+        <div className={`flex ${iconH} items-center justify-center bg-slate-50`}>
+          <span className={`flex items-center justify-center rounded-full bg-white text-slate-500 shadow-sm ring-1 ring-slate-200 ${compact ? 'h-10 w-10' : 'h-12 w-12'}`}>
+            <FallbackIcon aria-hidden="true" className={compact ? 'h-5 w-5' : 'h-6 w-6'} strokeWidth={1.8} />
           </span>
         </div>
       )}
       <div className={pad}>
-        <h3 className={`font-semibold text-slate-900 line-clamp-2 ${titleCls}`}>{item.title}</h3>
+        <h3 className={`break-words font-semibold text-slate-900 line-clamp-2 ${titleCls}`}>{item.title}</h3>
         <p className={`mt-1 text-slate-500 line-clamp-1 ${compact ? 'text-[10px]' : 'text-xs'}`}>{item.subtitle}</p>
         {item.date && (
           <p className={`mt-1 text-slate-400 ${compact ? 'text-[10px]' : 'text-xs'}`}>
@@ -180,9 +190,7 @@ export const ListCard: React.FC<{ item: UniversalCardItem; compact?: boolean; ca
         )}
         <span className={`mt-2 inline-flex items-center font-medium text-blue-600 hover:text-blue-800 ${compact ? 'text-[10px]' : 'text-xs'}`}>
           {t('viewDetails')}
-          <svg className="ml-1 h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
+          <ChevronRight aria-hidden="true" className="ml-1 h-3 w-3" strokeWidth={2} />
         </span>
       </div>
     </Link>
@@ -257,20 +265,23 @@ export const GroupListSection: React.FC<GroupListSectionProps> = ({ metadata, gr
   const layout = meta.layout ?? 'grid'
   const gridCls =
     layout === 'list'
-      ? 'grid grid-cols-1 gap-3'
+      ? 'grid grid-cols-1 gap-3 sm:gap-4'
       : layout === 'carousel'
-        ? 'flex snap-x gap-4 overflow-x-auto pb-2 [&>*]:min-w-64 [&>*]:snap-start'
-        : compact ? 'grid grid-cols-1 gap-2 sm:grid-cols-2' : 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3'
-  const shellPad = compact ? 'p-2' : 'p-4'
+        ? 'flex snap-x gap-3 overflow-x-auto pb-2 sm:gap-4 [&>*]:min-w-64 [&>*]:snap-start'
+        : compact ? 'grid grid-cols-1 gap-2 sm:grid-cols-2' : 'grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3'
+  const shellPad = compact ? 'p-2' : 'p-3 sm:p-4'
 
   if (isLoading) {
     return (
       <div className={`rounded-lg border border-slate-200 bg-white ${shellPad}`}>
         <div className={gridCls}>
           {[...Array(compact ? 2 : 3)].map((_, i) => (
-            <div key={i} className="animate-pulse rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <div className="h-3 w-3/4 rounded bg-slate-200" />
-              <div className="mt-2 h-2 w-1/2 rounded bg-slate-200" />
+            <div key={i} className="animate-pulse overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+              <div className={`${compact ? 'h-16' : 'h-28 sm:h-32'} bg-slate-100`} />
+              <div className={compact ? 'p-2.5' : 'p-3 sm:p-4'}>
+                <div className="h-3 w-3/4 rounded bg-slate-200" />
+                <div className="mt-2 h-2 w-1/2 rounded bg-slate-200" />
+              </div>
             </div>
           ))}
         </div>
@@ -280,7 +291,7 @@ export const GroupListSection: React.FC<GroupListSectionProps> = ({ metadata, gr
 
   if (error) {
     return (
-      <div className={`rounded-lg border border-red-200 bg-red-50 text-sm text-red-600 ${shellPad}`}>
+      <div className={`rounded-lg border border-red-200 bg-red-50 text-sm text-red-700 ${shellPad}`}>
         {t('loadFailedWithMessage', { message: error.message })}
       </div>
     )
@@ -288,7 +299,7 @@ export const GroupListSection: React.FC<GroupListSectionProps> = ({ metadata, gr
 
   if (cardItems.length === 0) {
     return (
-      <div className={`rounded-lg border border-slate-200 bg-white text-center text-sm text-slate-400 ${shellPad}`}>
+      <div className={`rounded-lg border border-dashed border-slate-300 bg-slate-50 text-center text-sm text-slate-500 ${shellPad}`}>
         {t('noSourceItems', { source: t(sourceTypeLabels[meta.sourceType] ?? 'content') })}
       </div>
     )
