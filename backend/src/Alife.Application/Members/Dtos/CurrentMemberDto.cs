@@ -10,4 +10,5 @@ public sealed record CurrentMemberDto(
     bool IsGuest,
     bool IsRegistered,
     bool IsAdmin,
+    string PlatformRole,
     IReadOnlyList<MemberMembershipDto> Memberships);

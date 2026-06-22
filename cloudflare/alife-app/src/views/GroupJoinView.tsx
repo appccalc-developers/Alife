@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Navigate, useNavigate, useParams } from 'react-router-dom'
+import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import AccessTypeBadge from '../components/group/AccessTypeBadge'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
@@ -13,11 +13,13 @@ import { groupService } from '../services/groupService'
 import { useAuthStore } from '../stores/auth'
 import { useCurrentGroupStore } from '../stores/currentGroup'
 import type { GroupDto } from '../types'
+import { normalizeRouteGroupId } from '../utils/groupRouteIds'
 import { localizeText } from '../utils/localizedText'
 
 const GroupJoinView = () => {
   const { groupId: routeGroupId } = useParams<{ groupId: string }>()
   const { groupId } = useActiveEntityIds({ groupId: routeGroupId })
+  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const t = useUiText()
   const auth = useAuthStore()
@@ -37,6 +39,7 @@ const GroupJoinView = () => {
   const isRequested = membership?.status === 'requested'
   const isInvited = membership?.status === 'invited'
   const isRejected = membership?.status === 'rejected'
+  const returnGroupId = normalizeRouteGroupId(searchParams.get('returnGroupId'))
   const canSubmit = Boolean(
     group &&
     !isApproved &&
@@ -104,6 +107,16 @@ const GroupJoinView = () => {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  const returnToPreviousGroup = () => {
+    if (returnGroupId) {
+      activeEntityService.setGroup(returnGroupId)
+      navigate('/groups')
+      return
+    }
+
+    navigate(-1)
   }
 
   if (!groupId) {
@@ -188,7 +201,7 @@ const GroupJoinView = () => {
                     ? t('submitJoinRequest')
                     : t('confirmJoinGroup')}
               </AppActionButton>
-              <AppActionButton variant="ghost" onClick={() => navigate(-1)}>
+              <AppActionButton variant="ghost" onClick={returnToPreviousGroup}>
                 {t('back')}
               </AppActionButton>
             </div>

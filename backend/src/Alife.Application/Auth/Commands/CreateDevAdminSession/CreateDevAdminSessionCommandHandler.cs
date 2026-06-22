@@ -19,7 +19,14 @@ public sealed class CreateDevAdminSessionCommandHandler(
             return AppResult<AuthSessionDto>.NotFound("Endpoint is only available in development.");
         }
 
-        var admin = await dbContext.Members.FirstOrDefaultAsync(x => x.IsAdmin, cancellationToken);
+        var admin = await dbContext.Members
+            .Include(x => x.PlatformRoles)
+            .ThenInclude(x => x.Role)
+            .Where(x => x.PlatformRoles.Any(role =>
+                    role.RevokedUtc == null &&
+                    (role.RoleId == 10 || role.RoleId == 100)))
+            .OrderByDescending(x => x.PlatformRoles.Max(role => (int?)role.Role.Level) ?? 0)
+            .FirstOrDefaultAsync(cancellationToken);
         if (admin is null)
         {
             return AppResult<AuthSessionDto>.NotFound("No admin member seeded.");

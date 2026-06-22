@@ -175,12 +175,12 @@ const HeroSection = ({ section, mode, disabled, propertiesOnly, showProperties =
   return (
     <section className="overflow-hidden rounded-lg border border-slate-200">
       <div
-        className={`relative w-full ${poster ? 'mx-auto' : ''}`}
+        className={`relative w-full ${poster ? 'mx-auto' : mode === 'render' ? 'min-h-[20rem] sm:min-h-0' : ''}`}
         style={{ aspectRatio: reservedAspectRatio }}
       >
         <div className="absolute inset-0 text-white">
           <BackgroundMedia src={bg} overlayClassName="bg-slate-950/45" />
-          <div className="relative flex h-full items-center justify-center px-5 py-8 text-center sm:py-12">
+          <div className="relative flex h-full items-center justify-center px-4 py-7 text-center sm:px-5 sm:py-12">
             <div className="flex w-full flex-col items-center justify-center">
               <SectionHeader
                 header={header}

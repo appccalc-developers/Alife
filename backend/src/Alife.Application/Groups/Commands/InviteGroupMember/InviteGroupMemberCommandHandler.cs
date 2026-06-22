@@ -40,31 +40,13 @@ public sealed class InviteGroupMemberCommandHandler(
             return AppResult<GroupActionResultDto>.NotFound("Member not found by phone.");
         }
 
-        var group = await dbContext.Groups
+        var groupExists = await dbContext.Groups
             .AsNoTracking()
-            .Where(x => x.Id == request.GroupId)
-            .Select(x => new { x.ParentGroupId })
-            .FirstOrDefaultAsync(cancellationToken);
+            .AnyAsync(x => x.Id == request.GroupId, cancellationToken);
 
-        if (group is null)
+        if (!groupExists)
         {
             return AppResult<GroupActionResultDto>.NotFound("Group was not found.");
-        }
-
-        if (group.ParentGroupId is Guid parentGroupId)
-        {
-            var isParentMember = await dbContext.GroupMemberships
-                .AsNoTracking()
-                .AnyAsync(
-                    x => x.GroupId == parentGroupId &&
-                         x.MemberId == target.Id &&
-                         x.Status == MembershipStatus.Approved,
-                    cancellationToken);
-
-            if (!isParentMember)
-            {
-                return AppResult<GroupActionResultDto>.Forbidden("Only approved members of the parent group can be invited to this subgroup.");
-            }
         }
 
         var membership = await dbContext.GroupMemberships

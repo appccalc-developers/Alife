@@ -136,7 +136,7 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
     <div
       role="button"
       tabIndex={0}
-      className={`overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm outline-none transition ${isActive ? 'ring-2 ring-blue-500 ring-offset-2' : 'cursor-pointer hover:ring-2 hover:ring-blue-200 hover:ring-offset-2'}`}
+      className={`w-full min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm outline-none transition ${isActive ? 'ring-2 ring-blue-500 ring-offset-2' : 'cursor-pointer hover:ring-2 hover:ring-blue-200 hover:ring-offset-2'}`}
       onClick={(event) => {
         if (!isActive && (event.target as HTMLElement).closest('a')) {
           event.preventDefault()
@@ -169,11 +169,12 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
       </div>
       </>) : null}
 
-      <div className="border-t border-slate-100" onClick={(event) => isActive && event.stopPropagation()}>
+      <div className="min-w-0 border-t border-slate-100" onClick={(event) => isActive && event.stopPropagation()}>
         <SectionBlock
           section={section}
           mode={isActive ? 'edit' : 'render'}
           disabled={!canEdit}
+          editorPreview
           contextGroupId={contextGroupId}
           onUpdate={onUpdate}
           showProperties={false}

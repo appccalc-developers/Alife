@@ -20,14 +20,14 @@ public sealed class SetGroupCoLeaderCommandHandler(
         SetGroupCoLeaderCommand request,
         CancellationToken cancellationToken)
     {
-        var canManage = await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
+        var canManageRoles = await groupAuthorizationService.IsLeaderAsync(
             request.GroupId,
             request.CurrentMemberId,
             cancellationToken);
 
-        if (!canManage)
+        if (!canManageRoles)
         {
-            return AppResult<GroupActionResultDto>.Forbidden("You do not have permission to manage co-leaders.");
+            return AppResult<GroupActionResultDto>.Forbidden("Only the group leader or platform admins can manage co-leaders.");
         }
 
         var membership = await dbContext.GroupMemberships.FirstOrDefaultAsync(
