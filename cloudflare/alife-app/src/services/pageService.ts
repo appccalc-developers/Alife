@@ -106,6 +106,16 @@ export const pageService = {
     return normalized
   },
 
+  async createGlobalPage(payload: CreateGroupPagePayload) {
+    const { data } = await http.post<PageDetailDto>('/api/pages/global', {
+      ...payload,
+      sections: toSectionPublishPayload(payload.sections),
+    })
+    const normalized = cachePageDetail(data as PageDetailDto & { tagsJson?: string })
+    await invalidateQueryCache(globalPagesQueryKey())
+    return normalized
+  },
+
   async updatePage(pageId: string, payload: UpdatePagePayload) {
     const { data } = await http.put<PageDetailDto>(`/api/pages/${pageId}`, {
       ...payload,

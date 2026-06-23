@@ -286,25 +286,30 @@ const SpotlightSection = ({ section, mode, disabled, propertiesOnly, showPropert
           {contentBody}
           {actions.length > 0 ? (
             <div className="mt-5 flex flex-wrap gap-3">
-              {actions.map((action, index) => (
-                <a
-                  key={`${action.url}-${index}`}
-                  href={mode === 'render' ? action.url : undefined}
-                  target={mode === 'render' && !action.url.startsWith('/') ? '_blank' : undefined}
-                  rel={mode === 'render' && !action.url.startsWith('/') ? 'noopener noreferrer' : undefined}
-                  className="inline-flex w-fit rounded bg-red-500 px-5 py-2 text-sm font-medium text-white shadow hover:bg-red-400"
-                  onClick={(event) => {
-                    if (mode === 'edit') {
-                      event.preventDefault()
-                      return
-                    }
+              {actions.map((action, index) => {
+                const actionUrl = typeof action.url === 'string' ? action.url.trim() : ''
+                const isExternalLink = Boolean(actionUrl && !actionUrl.startsWith('/') && !actionUrl.startsWith('#'))
 
-                    activateAction(action)
-                  }}
-                >
-                  {action.label || action.url || t('readMore')}
-                </a>
-              ))}
+                return (
+                  <a
+                    key={`${actionUrl || action.label || 'action'}-${index}`}
+                    href={mode === 'render' && actionUrl ? actionUrl : undefined}
+                    target={mode === 'render' && isExternalLink ? '_blank' : undefined}
+                    rel={mode === 'render' && isExternalLink ? 'noopener noreferrer' : undefined}
+                    className="inline-flex w-fit rounded bg-red-500 px-5 py-2 text-sm font-medium text-white shadow hover:bg-red-400"
+                    onClick={(event) => {
+                      if (mode === 'edit') {
+                        event.preventDefault()
+                        return
+                      }
+
+                      activateAction(action)
+                    }}
+                  >
+                    {action.label || actionUrl || t('readMore')}
+                  </a>
+                )
+              })}
             </div>
           ) : null}
         </div>
