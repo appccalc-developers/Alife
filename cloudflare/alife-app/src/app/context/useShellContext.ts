@@ -83,10 +83,12 @@ export const useShellContext = () => {
   const isSermonDetailScreen = Boolean(sermonDetailMatch || path === '/sermons/watch')
   const isProfileScreen = path === '/profile'
   const isOnboardingScreen = path === '/onboarding'
-  const contextualGroupId =
-    routeGroupIds.find(Boolean) ||
-    activeIds.groupId ||
-    ((eventCreateMatch || eventEditMatch || pageEditMatch) && !isGlobalPageEditor ? CurrentGroup?.id || '' : '')
+  const isGroupSelectScreen = path === '/groups/select'
+  const contextualGroupId = isGroupSelectScreen
+    ? ''
+    : routeGroupIds.find(Boolean) ||
+      activeIds.groupId ||
+      ((eventCreateMatch || eventEditMatch || pageEditMatch) && !isGlobalPageEditor ? CurrentGroup?.id || '' : '')
 
   const membership = contextualGroupId ? auth.memberships.find((item) => item.groupId === contextualGroupId) : null
   const isPlatformAdmin = auth.isAdmin || auth.me?.platformRole === 'admin' || auth.me?.platformRole === 'superadmin'

@@ -13,23 +13,32 @@ public sealed class GetSubgroupsQueryHandler(
 {
     public async Task<AppResult<IReadOnlyList<GroupSummaryDto>>> Handle(GetSubgroupsQuery request, CancellationToken cancellationToken)
     {
-        var isRegistered = await groupAuthorizationService.IsRegisteredMemberAsync(request.CurrentMemberId, cancellationToken);
-        if (!isRegistered)
-        {
-            return AppResult<IReadOnlyList<GroupSummaryDto>>.Forbidden("Guest members cannot access subgroups.");
-        }
-
         var group = await groupReadService.GetByIdAsync(request.GroupId, cancellationToken);
         if (group is null)
         {
             return AppResult<IReadOnlyList<GroupSummaryDto>>.NotFound("Group was not found.");
         }
 
+        var isAnonymous = request.CurrentMemberId is null;
+        var isRegistered = !isAnonymous
+            && await groupAuthorizationService.IsRegisteredMemberAsync(request.CurrentMemberId!.Value, cancellationToken);
+
+        if (isAnonymous || !isRegistered)
+        {
+            if (group.AccessType != AccessType.Public && !group.IsChurch)
+            {
+                return AppResult<IReadOnlyList<GroupSummaryDto>>.Forbidden("You do not have access to this group's subgroups.");
+            }
+
+            var allSubgroups = await groupReadService.GetSubgroupsAsync(request.GroupId, cancellationToken);
+            return AppResult<IReadOnlyList<GroupSummaryDto>>.Success(allSubgroups);
+        }
+
         if (group.AccessType != AccessType.Public && !group.IsChurch)
         {
             var approved = await groupAuthorizationService.IsApprovedMemberAsync(
                 request.GroupId,
-                request.CurrentMemberId,
+                request.CurrentMemberId!.Value,
                 cancellationToken);
 
             if (!approved)
