@@ -87,21 +87,26 @@ public class GroupsController(
     }
 
     [HttpGet("{id:guid}/subgroups")]
+    [AllowAnonymous]
     public async Task<IActionResult> GetSubgroups(Guid id, CancellationToken cancellationToken)
     {
         var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
-        if (currentMemberId is null)
-        {
-            return Unauthorized();
-        }
 
-        var result = await mediator.Send(new GetSubgroupsQuery(id, currentMemberId.Value), cancellationToken);
+        var result = await mediator.Send(new GetSubgroupsQuery(id, currentMemberId), cancellationToken);
         if (!result.IsSuccess)
         {
             return this.ToActionResult(result);
         }
 
-        this.ApplyPrivateNoCacheHeaders();
+        if (currentMemberId is null)
+        {
+            Response.Headers.CacheControl = "public, max-age=2700";
+        }
+        else
+        {
+            this.ApplyPrivateNoCacheHeaders();
+        }
+
         return this.ToActionResult(result);
     }
 

@@ -3,6 +3,7 @@ import { conditionalGet } from '../db/httpCache'
 import { churchQueryKey, groupQueryKey } from '../db/collections/groupCollection'
 import { useUiText } from '../i18n/uiText'
 import { activeEntityService } from '../services/activeEntityService'
+import { useAuthStore } from './auth'
 import type { GroupDto } from '../types'
 import { normalizeGroup } from '../utils/apiEnums'
 
@@ -18,6 +19,7 @@ const CurrentGroupContext = createContext<CurrentGroupContextValue | null>(null)
 
 export const CurrentGroupProvider = ({ children }: { children: ReactNode }) => {
   const t = useUiText()
+  const auth = useAuthStore()
   const [CurrentGroup, setCurrentGroup] = useState<GroupDto | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -49,7 +51,10 @@ export const CurrentGroupProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const activeGroupId = activeEntityService.getAll().groupId
-    if (!activeGroupId) {
+
+    // Guest users should not attempt to fetch a cached group — it will 403.
+    // Just load the church (public endpoint) instead.
+    if (!activeGroupId || auth.isGuest) {
       refreshChurchGroup().catch(() => undefined)
       return
     }
@@ -84,7 +89,7 @@ export const CurrentGroupProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       cancelled = true
     }
-  }, [refreshChurchGroup])
+  }, [auth.isGuest, refreshChurchGroup])
 
   const value = useMemo<CurrentGroupContextValue>(
     () => ({

@@ -54,8 +54,11 @@ const GroupsView = () => {
     setError('')
     groupService.getVisibleGroups()
       .then((data) => {
-        if (!cancelled) setGroups(data)
-        return Promise.all(data.slice(0, 12).map(async (group, index) => {
+        if (cancelled) return
+        setGroups(data)
+        setLoading(false)
+        // Load images in background — cards already visible with fallback images
+        Promise.all(data.slice(0, 12).map(async (group, index) => {
           let imageUrl = fallbackGroupImages[index % fallbackGroupImages.length]
           try {
             const pages = await groupService.getGroupPages(group.id)
@@ -68,16 +71,15 @@ const GroupsView = () => {
             imageUrl = fallbackGroupImages[index % fallbackGroupImages.length]
           }
           return [group.id, imageUrl] as const
-        }))
-      })
-      .then((entries) => {
-        if (!cancelled && entries) setGroupImages(Object.fromEntries(entries))
+        })).then((entries) => {
+          if (!cancelled) setGroupImages(Object.fromEntries(entries))
+        }).catch(() => {})
       })
       .catch(() => {
-        if (!cancelled) setError(language === 'zh' ? '无法加载小组列表。' : 'Unable to load groups.')
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) {
+          setError(language === 'zh' ? '无法加载小组列表。' : 'Unable to load groups.')
+          setLoading(false)
+        }
       })
     return () => { cancelled = true }
   }, [language])
@@ -108,7 +110,14 @@ const GroupsView = () => {
 
       {!error && loading ? (
         <div className="grid gap-4 md:grid-cols-2">
-          {[0, 1, 2].map((item) => <div key={item} className="h-44 animate-pulse rounded-[1.75rem] bg-white/70" />)}
+          {[0, 1, 2, 3].map((item) => (
+            <div key={item} className="overflow-hidden rounded-[1.75rem] border border-emerald-100 bg-white p-5">
+              <div className="-m-2 mb-4 h-36 animate-pulse rounded-[1.35rem] bg-emerald-100/60" />
+              <div className="h-5 w-3/5 animate-pulse rounded-lg bg-emerald-100/50" />
+              <div className="mt-3 h-4 w-4/5 animate-pulse rounded-lg bg-emerald-50/80" />
+              <div className="mt-5 h-4 w-2/5 animate-pulse rounded-lg bg-emerald-50/60" />
+            </div>
+          ))}
         </div>
       ) : null}
 

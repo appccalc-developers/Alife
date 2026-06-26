@@ -1,4 +1,6 @@
 import { http } from './http'
+import { conditionalGet } from '../db/httpCache'
+import { subgroupsQueryKey } from '../db/collections/groupCollection'
 import type { GroupDto, GroupMembershipDto, GroupSummaryDto, LocalizedText, MembershipStatus, PageSummaryDto } from '../types'
 import { normalizeGroup, normalizeGroupMembership, normalizeMembershipStatus, normalizePageSummary } from '../utils/apiEnums'
 
@@ -184,7 +186,10 @@ export const groupService = {
   },
 
   async getSubgroups(groupId: string) {
-    const { data } = await http.get<GroupSummaryDto[]>(`/api/groups/${groupId}/subgroups`)
+    const data = await conditionalGet<GroupSummaryDto[]>({
+      queryKey: subgroupsQueryKey(groupId),
+      path: `/api/groups/${groupId}/subgroups`,
+    })
     return data.map(normalizeGroup)
   },
 

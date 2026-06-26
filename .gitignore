@@ -80,3 +80,5 @@ backend/src/Alife.Api/__queuestorage__/*
 __azurite_db_*.json
 **/__azurite_db_*.json
 *.lscache
+
+local.settings.json
