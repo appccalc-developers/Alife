@@ -17,7 +17,7 @@ const AppBadge = ({ variant = 'neutral', children }: Props) => {
             ? 'bg-rose-50 text-rose-700 ring-rose-200'
             : 'bg-slate-100 text-slate-700 ring-slate-200'
 
-  return <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${variantClass}`}>{children}</span>
+  return <span className={`inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-bold ring-1 ring-inset ${variantClass}`}>{children}</span>
 }
 
 export default AppBadge

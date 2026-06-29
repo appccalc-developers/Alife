@@ -13,13 +13,31 @@ import { useShellActions } from './actions/useShellActions'
 import FloatingActionButtons from './actions/FloatingActionButtons'
 import GroupDrawer from './shell/GroupDrawer'
 import ShellHeader from './shell/ShellHeader'
+import HomeNavHeader from '../views/home/HomeNavHeader'
+import { getCopy } from '../views/home/homeCopy'
+
+const readSidebarCollapsedPreference = () => {
+  try {
+    return window.localStorage.getItem('alife:sidebar-collapsed') === 'true'
+  } catch {
+    return false
+  }
+}
+
+const writeSidebarCollapsedPreference = (collapsed: boolean) => {
+  try {
+    window.localStorage.setItem('alife:sidebar-collapsed', String(collapsed))
+  } catch {
+    // Storage can be unavailable in restricted browser contexts; the shell should still render.
+  }
+}
 
 const WorkspaceShell = () => {
   const auth = useAuthStore()
   const context = useShellContext()
   const [groupDrawerOpen, setGroupDrawerOpen] = useState(false)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => window.localStorage.getItem('alife:sidebar-collapsed') === 'true')
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsedPreference)
   const [debugLoading, setDebugLoading] = useState(false)
 
   const navigation = useShellNavigation({
@@ -55,7 +73,7 @@ const WorkspaceShell = () => {
   }, [context.location.pathname, context.location.search])
 
   useEffect(() => {
-    window.localStorage.setItem('alife:sidebar-collapsed', String(sidebarCollapsed))
+    writeSidebarCollapsedPreference(sidebarCollapsed)
   }, [sidebarCollapsed])
 
   const sendDebugCall = async () => {
@@ -72,7 +90,7 @@ const WorkspaceShell = () => {
   }
 
   return (
-    <div className="min-h-screen text-[#18332d]">
+    <div className="alife-workspace relative min-h-screen text-[#18332d]">
       <ShellHeader
         appNavItems={navigation.headerItems}
         groupName={headerGroupName}
@@ -84,7 +102,7 @@ const WorkspaceShell = () => {
         onOpenGroupDrawer={() => setGroupDrawerOpen(true)}
       />
 
-      <div className={['min-h-screen transition-[padding] duration-300', sidebarCollapsed ? 'desktop:pl-24' : 'desktop:pl-80'].join(' ')}>
+      <div className={['relative z-10 min-h-screen transition-[padding] duration-300', sidebarCollapsed ? 'desktop:pl-24' : 'desktop:pl-80'].join(' ')}>
         <DesktopNavigation
           primaryItems={navigation.primaryItems}
           workspaceItems={navigation.workspaceItems}
@@ -103,7 +121,7 @@ const WorkspaceShell = () => {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2, ease: 'easeInOut' }}
-          className="mx-auto max-w-[90rem] px-4 pb-36 pt-5 sm:px-6 sm:pt-7 desktop:px-8 desktop:pb-12"
+          className="mx-auto max-w-[94rem] px-4 pb-36 pt-5 sm:px-6 sm:pt-7 desktop:px-8 desktop:pb-14"
         >
           {auth.loading ? <AppRouteLoading /> : null}
           <AppRoutes />
@@ -137,15 +155,33 @@ const WorkspaceShell = () => {
   )
 }
 
-const PublicHomeShell = () => (
-  <div className="min-h-screen bg-[#f7f3ea] text-[#18332d]">
-    <AppRoutes />
-  </div>
-)
+const isPublicBrowsePath = (pathname: string) =>
+  pathname === '/' ||
+  pathname === '/pages' ||
+  /^\/pages\/[^/]+$/.test(pathname) ||
+  pathname === '/sermons' ||
+  pathname === '/sermons/watch' ||
+  /^\/sermons\/[^/]+$/.test(pathname)
+
+const PublicHomeShell = () => {
+  const auth = useAuthStore()
+  const location = useLocation()
+  const isHome = location.pathname === '/'
+  const copy = getCopy(auth.language, '')
+
+  return (
+    <div className="min-h-screen bg-[#f7f3ea] text-[#18332d]">
+      {isHome ? null : <HomeNavHeader copy={copy} language={auth.language} solid />}
+      <div className={isHome ? '' : 'px-4 pb-16 pt-24 sm:px-6 lg:px-8'}>
+        <AppRoutes />
+      </div>
+    </div>
+  )
+}
 
 const AppShell = () => {
   const location = useLocation()
-  return location.pathname === '/' ? <PublicHomeShell /> : <WorkspaceShell />
+  return isPublicBrowsePath(location.pathname) ? <PublicHomeShell /> : <WorkspaceShell />
 }
 
 export default AppShell

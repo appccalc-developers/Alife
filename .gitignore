@@ -59,6 +59,8 @@ override.tf.json
 # Misc generated files
 *.tmp
 .local-dev/
+.codex-build/
+artifacts/
 .tmpbuild/
 webapp-logs/
 *.temp

@@ -33,7 +33,7 @@ const SearchNavLink = ({ item, mobile = false }: { item: ShellNavItem; mobile?: 
   const className = [
     'group flex w-full items-center font-semibold transition duration-200',
     mobile ? 'min-w-0 flex-1 flex-col justify-center gap-1 rounded-2xl px-1 py-2 text-[11px]' : 'gap-3 rounded-xl px-3.5 py-3 text-sm',
-    active ? 'bg-[#176b5a] text-white shadow-[0_9px_22px_rgba(23,107,90,0.22)]' : 'text-[#60716a] hover:bg-[#e3f0eb] hover:text-[#0d4f43]',
+    active ? 'bg-[#176b5a] text-white shadow-[0_9px_22px_rgba(23,107,90,0.18)]' : 'text-[#60716a] hover:bg-[#e3f0eb] hover:text-[#0d4f43]',
   ].join(' ')
   const content = (
     <>
@@ -61,17 +61,17 @@ const SidebarLink = ({ item, collapsed = false }: { item: ShellNavItem; collapse
   const location = useLocation()
   const active = isItemActive(item, location.pathname, location.search)
   const className = [
-    'group relative flex min-h-11 w-full items-center rounded-2xl font-semibold transition duration-200',
+    'group relative flex min-h-11 w-full items-center rounded-xl font-bold transition duration-200',
     collapsed ? 'justify-center px-2' : 'gap-3 px-3.5',
-    active ? 'border border-emerald-200 bg-emerald-50 text-emerald-900 shadow-[0_10px_24px_rgba(23,107,90,0.08)]' : 'text-[#60716a] hover:bg-white/80 hover:text-[#0d4f43]',
+    active ? 'border border-emerald-200 bg-emerald-50 text-emerald-950 shadow-[0_8px_22px_rgba(23,107,90,0.08)]' : 'text-[#60716a] hover:bg-white/82 hover:text-[#0d4f43]',
   ].join(' ')
   const content = (
     <>
-      <span className={['flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition', active ? 'bg-white text-emerald-700 shadow-sm' : 'bg-[#e7eee9] group-hover:bg-[#dcebe5]'].join(' ')}>
+      <span className={['flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition', active ? 'bg-white text-emerald-700 shadow-sm' : 'bg-[#e7eee9] group-hover:bg-[#dcebe5]'].join(' ')}>
         {item.icon}
       </span>
       {!collapsed ? <span className="min-w-0 flex-1 truncate text-left text-sm">{item.label}</span> : null}
-      {active && !collapsed ? <span className="h-1.5 w-1.5 rounded-full bg-[#e8664b]" /> : null}
+      {active && !collapsed ? <span className="h-6 w-1 rounded-full bg-[#e8664b]" /> : null}
     </>
   )
 
@@ -133,8 +133,8 @@ export const HeaderNavigation = ({
             onClick={item.onClick}
             end={item.to === '/'}
             className={({ isActive }) => [
-              'group flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-semibold transition duration-200',
-              isActive ? 'bg-[#176b5a] text-white shadow-[0_9px_22px_rgba(23,107,90,0.22)]' : 'text-[#60716a] hover:bg-[#e3f0eb] hover:text-[#0d4f43]',
+              'group flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-bold transition duration-200',
+              isActive ? 'bg-[#176b5a] text-white shadow-[0_9px_22px_rgba(23,107,90,0.18)]' : 'text-[#60716a] hover:bg-[#e3f0eb] hover:text-[#0d4f43]',
             ].join(' ')}
           >
             {item.icon}
@@ -171,17 +171,17 @@ export const DesktopNavigation = ({
       transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
       className={['fixed bottom-0 left-0 top-[4.5rem] z-20 hidden py-4 pl-4 transition-[width] duration-300 desktop:block', collapsed ? 'w-24 pr-3' : 'w-80 pr-4'].join(' ')}
     >
-      <aside className="alife-panel flex h-full flex-col overflow-hidden rounded-[2rem]" aria-label={t('primaryNavigation')}>
+      <aside className="alife-panel flex h-full flex-col overflow-hidden rounded-2xl" aria-label={t('primaryNavigation')}>
         <div className={['border-b border-[#2f4b42]/10', collapsed ? 'p-3' : 'p-4'].join(' ')}>
           <Link
             to={props.workspaceTo || '/groups/select'}
             title={collapsed ? props.workspaceLabel : undefined}
             className={[
-              'flex rounded-2xl transition hover:bg-white/70',
+              'flex rounded-xl transition hover:bg-white/70',
               collapsed ? 'justify-center p-1' : 'items-center gap-3 p-2',
             ].join(' ')}
           >
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200">
               <LayoutGrid className="h-5 w-5" aria-hidden="true" />
             </div>
             {!collapsed ? (
@@ -208,7 +208,7 @@ export const DesktopNavigation = ({
         </nav>
         <div className="border-t border-[#2f4b42]/10 p-3">
           {props.userName && !collapsed ? (
-            <Link to="/profile" className="mb-2 flex items-center gap-3 rounded-2xl bg-white/55 px-3 py-2.5 transition hover:bg-white">
+            <Link to="/profile" className="mb-2 flex items-center gap-3 rounded-xl bg-white/64 px-3 py-2.5 transition hover:bg-white">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#e3f0eb] text-sm font-bold text-[#176b5a]">{props.userName.slice(0, 1).toUpperCase()}</span>
               <div className="min-w-0">
                 <p className="truncate text-sm font-bold text-[#18332d]">{props.userName}</p>

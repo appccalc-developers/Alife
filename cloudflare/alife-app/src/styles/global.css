@@ -13,9 +13,13 @@
   --alife-brand-deep: #0d4f43;
   --alife-brand-soft: #e3f0eb;
   --alife-coral: #e37b63;
-  --alife-surface: rgba(255, 253, 248, 0.92);
-  --alife-line: rgba(47, 75, 66, 0.14);
-  --alife-shadow: 0 20px 55px rgba(31, 56, 48, 0.1);
+  --alife-workspace-bg: #f5f2eb;
+  --alife-surface: rgba(255, 255, 255, 0.9);
+  --alife-surface-strong: #ffffff;
+  --alife-line: rgba(47, 75, 66, 0.12);
+  --alife-line-strong: rgba(47, 75, 66, 0.2);
+  --alife-shadow: 0 14px 42px rgba(31, 56, 48, 0.08);
+  --alife-shadow-soft: 0 8px 24px rgba(31, 56, 48, 0.06);
 }
 
 html {
@@ -77,19 +81,40 @@ select {
 }
 
 @layer components {
+  .alife-workspace {
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.68), transparent 28rem),
+      radial-gradient(circle at 8% 10%, rgba(227, 123, 99, 0.1), transparent 24rem),
+      radial-gradient(circle at 92% 0%, rgba(23, 107, 90, 0.13), transparent 28rem),
+      linear-gradient(180deg, #f8f6f0 0%, var(--alife-workspace-bg) 44%, #eee8dc 100%);
+  }
+
+  .alife-workspace::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background-image:
+      linear-gradient(rgba(47, 75, 66, 0.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(47, 75, 66, 0.045) 1px, transparent 1px);
+    background-size: 40px 40px;
+    mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.62), transparent 72%);
+  }
+
   .alife-panel {
     border: 1px solid var(--alife-line);
     background: var(--alife-surface);
     box-shadow: var(--alife-shadow);
-    backdrop-filter: blur(18px);
+    backdrop-filter: blur(14px);
   }
 
   .alife-icon-button {
-    @apply inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition duration-200;
+    @apply inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition duration-200;
     border: 1px solid var(--alife-line);
     color: #40554e;
-    background: rgba(255, 253, 248, 0.82);
-    box-shadow: 0 6px 18px rgba(31, 56, 48, 0.07);
+    background: rgba(255, 255, 255, 0.82);
+    box-shadow: var(--alife-shadow-soft);
   }
 
   .alife-icon-button:hover {
@@ -100,11 +125,11 @@ select {
   }
 
   .alife-input {
-    @apply min-h-12 w-full rounded-2xl px-4 py-3 text-sm transition duration-200;
+    @apply min-h-11 w-full rounded-xl px-3.5 py-2.5 text-sm transition duration-200;
     border: 1px solid rgba(47, 75, 66, 0.17);
     color: var(--alife-ink);
-    background: rgba(255, 255, 255, 0.82);
-    box-shadow: 0 4px 14px rgba(31, 56, 48, 0.04);
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: var(--alife-shadow-soft);
   }
 
   .alife-input::placeholder {
