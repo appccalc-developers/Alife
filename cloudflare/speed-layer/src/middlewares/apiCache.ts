@@ -531,6 +531,10 @@ export async function getInvalidationPaths(env: Env, request: Request, response:
   if (pageId) {
     paths.add(`/api/pages/${pageId}`)
     const body = await readJsonObject(response)
+    if (isGlobalPageScope(body?.scope)) {
+      paths.add('/api/pages/global')
+    }
+
     const ownerGroupId = readString(body?.ownerGroupId) ?? await readEntityGroup(env, 'page', pageId)
     if (ownerGroupId) {
       paths.add(`/api/groups/${ownerGroupId}/pages`)
@@ -999,6 +1003,14 @@ function readBoolean(value: unknown) {
 
 function getGroupPagesPathGroupId(pathname: string) {
   return pathname.match(/^\/api\/groups\/([^/]+)\/pages$/)?.[1] ?? ''
+}
+
+function isGlobalPageScope(value: unknown) {
+  if (typeof value === 'string') {
+    return value.toLowerCase() === 'global'
+  }
+
+  return value === 0
 }
 
 type MemberProfileMembership = {
