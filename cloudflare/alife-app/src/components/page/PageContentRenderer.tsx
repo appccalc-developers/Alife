@@ -146,6 +146,15 @@ export const createEmptyPageSection = (type: SectionType = 'Hero'): SectionEditM
 const localized = (en: string, zh: string) => ({ en, zh })
 const HOME_HERO_VIDEO = '/media/homepage-hero.mp4'
 
+const listPresetTitle = (source: string) => {
+  if (source === 'events') return localized('Upcoming events', '近期活动')
+  if (source === 'groups') return localized('Find a group', '寻找小组')
+  if (source === 'pages') return localized('Explore pages', '浏览页面')
+  if (source === 'members') return localized('Meet members', '认识成员')
+  if (source === 'posts') return localized('Latest posts', '最新文章')
+  return localized('Latest sermons', '最新讲道')
+}
+
 export const createPresetPageSection = (preset: string): SectionEditModel => {
   const section = createEmptyPageSection(
     preset.startsWith('rich-') ? 'RichText' :
@@ -252,7 +261,13 @@ export const createPresetPageSection = (preset: string): SectionEditModel => {
   }
 
   if (preset.startsWith('list-')) {
-    const source = preset === 'list-events' ? 'events' : preset === 'list-groups' ? 'groups' : preset === 'list-pages' ? 'pages' : 'sermons'
+    const source =
+      preset === 'list-events' || preset === 'list-event-coverflow' ? 'events'
+        : preset === 'list-groups' ? 'groups'
+          : preset === 'list-pages' ? 'pages'
+            : preset === 'list-members' ? 'members'
+              : preset === 'list-posts' ? 'posts'
+                : 'sermons'
     const title = source === 'events'
       ? localized('Upcoming events', '近期活动')
       : source === 'groups'
@@ -264,12 +279,12 @@ export const createPresetPageSection = (preset: string): SectionEditModel => {
       ...section,
       contentJson: {
         ...section.contentJson,
-        header: { title, subtitle: localized('', ''), align: 'left', scale: 'normal', tone: 'default' },
-        ...(source === 'pages' ? {} : { source }),
+        header: { title: listPresetTitle(source) || title, subtitle: localized('', ''), align: 'left', scale: 'normal', tone: 'default' },
+        source,
         sourceType: source,
-        sourceScope: source === 'events' || source === 'groups' ? 'group' : 'global',
+        sourceScope: source === 'events' || source === 'groups' || source === 'pages' || source === 'members' ? 'group' : 'global',
         preset: source === 'events' ? 'upcoming' : source === 'groups' ? 'featured' : 'latest',
-        layout: preset === 'list-carousel' ? 'carousel' : 'grid',
+        layout: preset === 'list-carousel' ? 'carousel' : preset === 'list-event-coverflow' ? 'coverflow' : 'grid',
         limit: source === 'groups' ? 6 : 4,
       },
     }
@@ -295,6 +310,19 @@ export const normalizePageSections = (items: SectionEditModel[]) =>
     ...section,
     order: index,
   }))
+
+export const getPageSectionDomId = (section: SectionEditModel, index: number) => {
+  const rawId = typeof section.contentJson.anchorId === 'string' && section.contentJson.anchorId.trim()
+    ? section.contentJson.anchorId.trim()
+    : typeof section.contentJson.navId === 'string' && section.contentJson.navId.trim()
+      ? section.contentJson.navId.trim()
+      : ''
+  const normalized = rawId
+    .toLowerCase()
+    .replace(/[^a-z0-9\-_]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  return normalized || `home-section-${index + 1}`
+}
 
 export const validatePageContent = (model: PageEditModel, language = 'en'): PageEditorValidation => ({
   sectionTypeErrors: model.sections.map((section) => (section.type ? '' : translateUi(language, 'sectionTypeRequired'))),
@@ -389,14 +417,16 @@ const PageContentRenderer = ({
         />
       ) : (
         <div className="space-y-4">
-          {sections.map((section) => (
-            <SectionBlock
-              key={section.id || `${section.order}-${section.type}`}
-              section={section}
-              mode="render"
-              page={page as GroupPageDto}
-              groupPageItems={groupPageItems}
-            />
+          {sections.map((section, index) => (
+            <div key={section.id || `${section.order}-${section.type}`} id={getPageSectionDomId(section, index)} className="scroll-mt-24">
+              <SectionBlock
+                section={section}
+                mode="render"
+                page={page as GroupPageDto}
+                groupPageItems={groupPageItems}
+                contextGroupId={contextGroupId}
+              />
+            </div>
           ))}
 
           {sections.length === 0 ? (

@@ -141,6 +141,7 @@ const SpotlightSection = ({ section, mode, disabled, propertiesOnly, showPropert
   const renderProperties = () => (
     <PropertyPanel>
       <SelectInput
+        focusKey="spotlight-mode"
         label={t('spotlightMode')}
         value={spotlightBinding.mode}
         disabled={disabled}
@@ -148,6 +149,7 @@ const SpotlightSection = ({ section, mode, disabled, propertiesOnly, showPropert
         onChange={(value) => updateSpotlight({ mode: value, source: spotlightBinding.source, preset: spotlightBinding.preset, itemId: spotlightBinding.itemId ?? '' })}
       />
       <SelectInput
+        focusKey="spotlight-media-position"
         label={t('mediaPosition')}
         value={mediaPosition}
         disabled={disabled}
@@ -163,6 +165,7 @@ const SpotlightSection = ({ section, mode, disabled, propertiesOnly, showPropert
       {spotlightBinding.mode === 'data' ? (
         <>
           <SelectInput
+            focusKey="spotlight-source"
             label={t('source')}
             value={spotlightBinding.source}
             disabled={disabled}
@@ -170,6 +173,7 @@ const SpotlightSection = ({ section, mode, disabled, propertiesOnly, showPropert
             onChange={(value) => updateSpotlight({ source: value as SpotlightDataSource, preset: defaultSpotlightPreset(value as SpotlightDataSource), itemId: '' })}
           />
           <SelectInput
+            focusKey="spotlight-preset"
             label={t('preset')}
             value={spotlightBinding.preset}
             disabled={disabled}
@@ -177,6 +181,7 @@ const SpotlightSection = ({ section, mode, disabled, propertiesOnly, showPropert
             onChange={(value) => updateSpotlight({ preset: value })}
           />
           <TextInput
+            focusKey="spotlight-reference-id"
             label={t('referenceId')}
             value={spotlightBinding.itemId ?? ''}
             disabled={disabled}
@@ -187,6 +192,7 @@ const SpotlightSection = ({ section, mode, disabled, propertiesOnly, showPropert
       ) : (
         <>
           <SelectInput
+            focusKey="spotlight-media-type"
             label={t('mediaType')}
             value={mediaConfig.type}
             disabled={disabled}
@@ -194,6 +200,7 @@ const SpotlightSection = ({ section, mode, disabled, propertiesOnly, showPropert
             onChange={(value) => updateMedia({ type: value, url: value === 'youtube' ? youtubeUrl : imageUrl, position: mediaPosition })}
           />
           <TextInput
+            focusKey="spotlight-media-url"
             label={mediaConfig.type === 'youtube' ? t('youtubeUrl') : t('imageOrVideoUrl')}
             value={mediaConfig.url}
             disabled={disabled}
@@ -206,6 +213,7 @@ const SpotlightSection = ({ section, mode, disabled, propertiesOnly, showPropert
             }}
           />
           <TextInput
+            focusKey="spotlight-action-url"
             label={t('buttonLinkUrl')}
             value={readText(section.contentJson, 'linkUrl', 'ctaUrl', 'href')}
             disabled={disabled}

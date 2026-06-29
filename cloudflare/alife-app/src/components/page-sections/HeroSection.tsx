@@ -163,8 +163,8 @@ const HeroSection = ({ section, mode, disabled, propertiesOnly, showProperties =
           {aspectRatioLabel || t('aspectRatioPending')}
         </div>
       </div>
-      <TextInput label={t('buttonLinkUrl')} value={linkUrl} disabled={disabled} onChange={(value) => updateContent({ linkUrl: value, ctaUrl: value, href: value })} />
-      <TextInput label={t('backgroundImageUrl')} value={bg} disabled={disabled} onChange={(value) => updateContent({ backgroundImage: value, backgroundImageUrl: value })} />
+      <TextInput focusKey="hero-cta-url" label={t('buttonLinkUrl')} value={linkUrl} disabled={disabled} onChange={(value) => updateContent({ linkUrl: value, ctaUrl: value, href: value })} />
+      <TextInput focusKey="hero-media" label={t('backgroundImageUrl')} value={bg} disabled={disabled} onChange={(value) => updateContent({ backgroundImage: value, backgroundImageUrl: value })} />
     </PropertyPanel>
   )
 
