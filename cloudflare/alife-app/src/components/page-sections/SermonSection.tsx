@@ -13,8 +13,8 @@ const SermonSection = ({ section, mode, disabled, propertiesOnly, showProperties
   const updateLocalizedContent = (patch: Record<string, string>) => onUpdate?.(patchLocalizedContent(section, auth.language, patch))
   const renderProperties = () => (
     <PropertyPanel>
-      <TextInput label={t('title')} value={title} disabled={disabled} onChange={(value) => updateLocalizedContent({ title: value })} />
-      <TextInput label={t('youtubeUrl')} value={youtubeUrl} disabled={disabled} onChange={(value) => updateContent({ youtubeUrl: value })} />
+      <TextInput focusKey="sermon-title" label={t('title')} value={title} disabled={disabled} onChange={(value) => updateLocalizedContent({ title: value })} />
+      <TextInput focusKey="sermon-youtube-url" label={t('youtubeUrl')} value={youtubeUrl} disabled={disabled} onChange={(value) => updateContent({ youtubeUrl: value })} />
     </PropertyPanel>
   )
 

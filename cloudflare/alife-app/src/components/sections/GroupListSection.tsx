@@ -222,7 +222,7 @@ export const GroupListSection: React.FC<GroupListSectionProps> = ({ metadata, gr
   const raw = metadata as Record<string, unknown>
   const meta = useMemo(
     () => normalizeListViewMetadata(raw),
-    [raw.sourceType, raw.sourceScope, raw.limit, raw.sortBy, raw.sortDirection, raw.filterText],
+    [raw.source, raw.sourceType, raw.sourceScope, raw.preset, raw.layout, raw.limit, raw.sortBy, raw.sortDirection, raw.filterText, raw.id],
   )
 
   const { data, isLoading, error } = useListSourceResolver(meta, { groupId })
@@ -301,6 +301,41 @@ export const GroupListSection: React.FC<GroupListSectionProps> = ({ metadata, gr
     return (
       <div className={`rounded-lg border border-dashed border-slate-300 bg-slate-50 text-center text-sm text-slate-500 ${shellPad}`}>
         {t('noSourceItems', { source: t(sourceTypeLabels[meta.sourceType] ?? 'content') })}
+      </div>
+    )
+  }
+
+  if (layout === 'coverflow') {
+    const primary = cardItems[0]
+    const previous = cardItems.length > 1 ? cardItems[cardItems.length - 1] : undefined
+    const next = cardItems.length > 1 ? cardItems[1] : undefined
+
+    return (
+      <div className={`overflow-hidden rounded-xl border border-slate-200 bg-[linear-gradient(135deg,#f8fafc,#ecfdf5)] ${compact ? 'p-3' : 'p-4 sm:p-5'}`}>
+        <div className="grid items-center gap-3 lg:grid-cols-[0.76fr_1fr_0.76fr]">
+          <div className="hidden opacity-55 blur-[0.2px] transition duration-300 lg:block">
+            {previous ? <ListCard item={previous} compact={compact} cardIndex={cardItems.length - 1} /> : (
+              <div className="min-h-64 rounded-lg border border-dashed border-slate-200 bg-white/55" />
+            )}
+          </div>
+          <div className="relative z-10 lg:scale-105">
+            <ListCard item={primary} compact={compact} cardIndex={0} />
+          </div>
+          <div className="hidden opacity-55 blur-[0.2px] transition duration-300 lg:block">
+            {next ? <ListCard item={next} compact={compact} cardIndex={1} /> : (
+              <div className="min-h-64 rounded-lg border border-dashed border-slate-200 bg-white/55" />
+            )}
+          </div>
+        </div>
+        {cardItems.length > 3 ? (
+          <div className="mt-4 flex snap-x gap-3 overflow-x-auto pb-1 lg:hidden">
+            {cardItems.slice(1).map((item, index) => (
+              <div key={item.id} className="min-w-64 snap-start">
+                <ListCard item={item} compact cardIndex={index + 1} />
+              </div>
+            ))}
+          </div>
+        ) : null}
       </div>
     )
   }

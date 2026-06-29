@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { CheckCircle2, FileText, Globe2, Languages, Layers3, Save, ShieldCheck } from 'lucide-react'
 import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import PageContentRenderer, {
   createPresetPageSection,
@@ -16,7 +17,7 @@ import { pageService } from '../services/pageService'
 import { useAuthStore } from '../stores/auth'
 import { useUiText } from '../i18n/uiText'
 import type { PageDetailDto } from '../types'
-import type { PageEditModel } from '../types/page-editor'
+import type { PageEditorValidation, PageEditModel } from '../types/page-editor'
 import { normalizeRouteGroupId } from '../utils/groupRouteIds'
 import { toLocalizedText } from '../utils/localizedText'
 import { applyPageTranslations, collectMissingPageTranslations } from '../utils/pageBilingualCompletion'
@@ -116,6 +117,149 @@ const PageLanguageReviewModal = ({
   )
 }
 
+const visibilityLabel = (visibility: PageEditModel['visibility'], isZh: boolean) => {
+  if (visibility === 'public') {
+    return isZh ? '公开页面' : 'Public page'
+  }
+
+  if (visibility === 'group') {
+    return isZh ? '小组可见' : 'Group visible'
+  }
+
+  return isZh ? '草稿' : 'Draft'
+}
+
+const PagePublicationWorkflow = ({
+  model,
+  validation,
+  missingTranslationCount,
+  hasUnsavedChanges,
+  canEditVisibility,
+  language,
+}: {
+  model: PageEditModel
+  validation: PageEditorValidation
+  missingTranslationCount: number
+  hasUnsavedChanges: boolean
+  canEditVisibility: boolean
+  language: string
+}) => {
+  const isZh = language === 'zh'
+  const titleReady = Boolean((isZh ? model.title.zh : model.title.en) || model.title.en || model.title.zh)
+  const sectionsReady = model.sections.length > 0 && validation.sectionTypeErrors.every((item) => !item)
+  const translationsReady = missingTranslationCount === 0
+  const visibilityReady = model.visibility !== 'draft'
+  const savedReady = Boolean(model.id) && !hasUnsavedChanges
+  const items = [
+    {
+      label: isZh ? '1. 页面基础' : '1. Page basics',
+      hint: isZh ? '标题与简介让访客先明白这页服事谁、邀请谁。' : 'Title and summary clarify who this page serves and invites.',
+      ready: titleReady && !validation.title,
+      icon: <FileText className="h-4 w-4" />,
+    },
+    {
+      label: isZh ? '2. 内容区块' : '2. Content sections',
+      hint: isZh ? `当前 ${model.sections.length} 个区块，保持信息清楚、行动明确。` : `${model.sections.length} sections in place; keep the message clear and actionable.`,
+      ready: sectionsReady,
+      icon: <Layers3 className="h-4 w-4" />,
+    },
+    {
+      label: isZh ? '3. 双语复核' : '3. Bilingual review',
+      hint: translationsReady
+        ? (isZh ? '中英文内容已补齐，可以交给更多会友阅读。' : 'Chinese and English content is complete for wider reading.')
+        : (isZh ? `还有 ${missingTranslationCount} 处可由 AI 辅助补齐。` : `${missingTranslationCount} fields can still be completed with AI assistance.`),
+      ready: translationsReady,
+      icon: <Languages className="h-4 w-4" />,
+    },
+    {
+      label: isZh ? '4. 发布范围' : '4. Visibility',
+      hint: canEditVisibility
+        ? (isZh ? `当前为：${visibilityLabel(model.visibility, true)}。` : `Current setting: ${visibilityLabel(model.visibility, false)}.`)
+        : (isZh ? '发布范围由小组领袖或管理员确认。' : 'Visibility is confirmed by group leaders or admins.'),
+      ready: visibilityReady || !canEditVisibility,
+      icon: <ShieldCheck className="h-4 w-4" />,
+    },
+    {
+      label: isZh ? '5. 保存交付' : '5. Save handoff',
+      hint: savedReady
+        ? (isZh ? '页面已保存，可以回到管理页继续下一步。' : 'Page is saved and ready for the next management step.')
+        : (isZh ? '保存会先处理本地图片、双语补全与发布状态。' : 'Saving handles local images, bilingual completion, and visibility state.'),
+      ready: savedReady,
+      icon: <Save className="h-4 w-4" />,
+    },
+  ]
+  const readyCount = items.filter((item) => item.ready).length
+  const firstPendingIndex = items.findIndex((item) => !item.ready)
+
+  return (
+    <section className="overflow-hidden rounded-2xl border border-[#2f4b42]/10 bg-white/82 shadow-[0_14px_36px_rgba(31,56,48,0.08)]">
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200/70 bg-[#f7f3e9] px-5 py-4">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-[#176b5a]">
+            {isZh ? '内容发布工作流' : 'Publishing workflow'}
+          </p>
+          <h2 className="mt-1 text-xl font-black tracking-[-0.02em] text-[#18332d]">
+            {isZh ? '让页面从草稿走向可服事的人群' : 'Move the page from draft to ministry-ready'}
+          </h2>
+        </div>
+        <div className="inline-flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm font-black text-[#176b5a] shadow-sm">
+          <Globe2 className="h-4 w-4" />
+          {readyCount}/{items.length}
+        </div>
+      </div>
+      <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-5">
+        {items.map((item, index) => {
+          const isCurrent = index === firstPendingIndex
+          return (
+            <div
+              key={item.label}
+              className={[
+                'flex min-h-[128px] flex-col gap-3 rounded-xl border p-3 transition',
+                item.ready
+                  ? 'border-emerald-200 bg-emerald-50/80'
+                  : isCurrent
+                    ? 'border-amber-200 bg-amber-50/70'
+                    : 'border-slate-200 bg-white',
+              ].join(' ')}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <span
+                  className={[
+                    'flex h-9 w-9 items-center justify-center rounded-lg',
+                    item.ready
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : isCurrent
+                        ? 'bg-amber-100 text-amber-700'
+                        : 'bg-slate-100 text-slate-500',
+                  ].join(' ')}
+                >
+                  {item.ready ? <CheckCircle2 className="h-4 w-4" /> : item.icon}
+                </span>
+                <span
+                  className={[
+                    'rounded-full px-2 py-1 text-[11px] font-black',
+                    item.ready
+                      ? 'bg-white/80 text-emerald-700'
+                      : isCurrent
+                        ? 'bg-white text-amber-700'
+                        : 'bg-slate-100 text-slate-500',
+                  ].join(' ')}
+                >
+                  {item.ready ? (isZh ? '已完成' : 'Done') : isCurrent ? (isZh ? '下一步' : 'Next') : (isZh ? '待处理' : 'Pending')}
+                </span>
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-slate-950">{item.label}</h3>
+                <p className="mt-1 text-xs leading-5 text-slate-500">{item.hint}</p>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
 const PageEditorView = () => {
   const { groupId: createGroupIdParam, pageId: editPageIdParam } = useParams<{ groupId?: string; pageId?: string }>()
   const routeCreateGroupId = normalizeRouteGroupId(createGroupIdParam)
@@ -187,6 +331,8 @@ const PageEditorView = () => {
   const canEditVisibility = canEditAllPages
 
   const validation = useMemo(() => validatePageContent(pageModel, auth.language), [auth.language, pageModel])
+  const missingTranslationCount = useMemo(() => collectMissingPageTranslations(pageModel).length, [pageModel])
+  const hasLocalImages = useMemo(() => cloudflareImageService.sectionsHaveLocalDataImages(pageModel.sections), [pageModel.sections])
   const currentModelSnapshot = useMemo(() => JSON.stringify(pageModel), [pageModel])
   const hasUnsavedChanges = Boolean(savedModelSnapshot && currentModelSnapshot !== savedModelSnapshot)
 
@@ -471,20 +617,30 @@ const PageEditorView = () => {
         loading={loading}
         error={error}
         main={
-          <PageContentRenderer
-            page={pageModel}
-            sections={pageModel.sections}
-            subgroupItems={[]}
-            groupPageItems={[]}
-            editing
-            canEdit={canEditPage}
-            message={message}
-            validation={validation}
-            contextGroupId={resolvedGroupId}
-            showHeader={false}
-            onPageChange={setPageModel}
-            onSectionsChange={(sections) => setPageModel((current) => ({ ...current, sections }))}
-          />
+          <>
+            <PagePublicationWorkflow
+              model={pageModel}
+              validation={validation}
+              missingTranslationCount={missingTranslationCount}
+              hasUnsavedChanges={hasUnsavedChanges}
+              canEditVisibility={canEditVisibility}
+              language={auth.language}
+            />
+            <PageContentRenderer
+              page={pageModel}
+              sections={pageModel.sections}
+              subgroupItems={[]}
+              groupPageItems={[]}
+              editing
+              canEdit={canEditPage}
+              message={message}
+              validation={validation}
+              contextGroupId={resolvedGroupId}
+              showHeader={false}
+              onPageChange={setPageModel}
+              onSectionsChange={(sections) => setPageModel((current) => ({ ...current, sections }))}
+            />
+          </>
         }
         sidebar={
           <PageSettingsPanel
@@ -492,6 +648,20 @@ const PageEditorView = () => {
             canEdit={canEditPage}
             canEditVisibility={canEditVisibility}
             message={message}
+            publishReadiness={{
+              missingTranslationCount,
+              hasLocalImages,
+              hasUnsavedChanges,
+              hasValidationErrors,
+              canSave: canSaveDraft,
+              saving,
+            }}
+            onSave={() => {
+              saveDraft().catch(() => undefined)
+            }}
+            onExit={() => {
+              cancel().catch(() => undefined)
+            }}
             onChange={setPageModel}
             onResetDefaultHome={isGlobalEditorMode && canEditPage ? resetDefaultHome : undefined}
           />

@@ -305,15 +305,17 @@ export const TextInput = ({
   value,
   disabled,
   placeholder,
+  focusKey,
   onChange,
 }: {
   label: string
   value: string
   disabled?: boolean
   placeholder?: string
+  focusKey?: string
   onChange: (value: string) => void
 }) => (
-  <label className="block space-y-1">
+  <label className="block space-y-1" data-field-key={focusKey}>
     <span className="text-xs font-medium text-slate-600">{label}</span>
     <input
       value={value}
@@ -331,6 +333,7 @@ export const TextAreaInput = ({
   disabled,
   placeholder,
   rows = 4,
+  focusKey,
   onChange,
 }: {
   label: string
@@ -338,9 +341,10 @@ export const TextAreaInput = ({
   disabled?: boolean
   placeholder?: string
   rows?: number
+  focusKey?: string
   onChange: (value: string) => void
 }) => (
-  <label className="block space-y-1 md:col-span-2">
+  <label className="block space-y-1 md:col-span-2" data-field-key={focusKey}>
     <span className="text-xs font-medium text-slate-600">{label}</span>
     <textarea
       value={value}
@@ -358,15 +362,17 @@ export const SelectInput = ({
   value,
   disabled,
   options,
+  focusKey,
   onChange,
 }: {
   label: string
   value: string
   disabled?: boolean
   options: Array<{ value: string; label: string }>
+  focusKey?: string
   onChange: (value: string) => void
 }) => (
-  <label className="block space-y-1">
+  <label className="block space-y-1" data-field-key={focusKey}>
     <span className="text-xs font-medium text-slate-600">{label}</span>
     <select
       value={value}

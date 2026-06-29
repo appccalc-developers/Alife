@@ -37,14 +37,30 @@ const presetOptionsForSource = (source: string, t: ReturnType<typeof useUiText>)
     ]
   }
 
+  if (source === 'pages' || source === 'members' || source === 'posts') {
+    return [
+      { value: 'latest', label: t('latest') },
+      { value: 'all', label: t('all') },
+    ]
+  }
+
   return [{ value: 'all', label: t('all') }]
 }
+
+const sourceScopeFor = (source: string) =>
+  source === 'events' || source === 'groups' || source === 'pages' || source === 'members' ? 'group' : 'global'
+
+const defaultPresetFor = (source: string) =>
+  source === 'events' ? 'upcoming'
+    : source === 'groups' ? 'featured'
+      : source === 'pages' || source === 'members' || source === 'posts' ? 'latest'
+        : 'latest'
 
 const GroupListSectionBlock = ({ section, mode, disabled, editorPreview, propertiesOnly, showProperties = true, contextGroupId, page, onUpdate }: SectionComponentProps) => {
   const auth = useAuthStore()
   const t = useUiText()
   const source = sourceFromContent(section.contentJson)
-  const preset = readText(section.contentJson, 'preset') || (source === 'events' ? 'upcoming' : source === 'groups' ? 'featured' : source === 'sermons' || source === 'media' ? 'latest' : 'all')
+  const preset = readText(section.contentJson, 'preset') || defaultPresetFor(source)
   const layout = readText(section.contentJson, 'layout') || 'grid'
   const limit = typeof section.contentJson.limit === 'number' ? section.contentJson.limit : 10
   const editable = mode === 'edit' && !disabled && onUpdate
@@ -55,6 +71,7 @@ const GroupListSectionBlock = ({ section, mode, disabled, editorPreview, propert
   const renderProperties = () => (
     <PropertyPanel>
       <SelectInput
+        focusKey="list-source"
         label={t('source')}
         value={source}
         disabled={disabled}
@@ -62,18 +79,21 @@ const GroupListSectionBlock = ({ section, mode, disabled, editorPreview, propert
           { value: 'events', label: t('events') },
           { value: 'sermons', label: t('sermons') },
           { value: 'groups', label: t('groups') },
+          { value: 'pages', label: t('pages') },
+          { value: 'members', label: t('members') },
           { value: 'media', label: t('media') },
+          { value: 'posts', label: t('posts') },
         ]}
         onChange={(value) => updateContent({
           source: value,
           sourceType: value,
-          sourceScope: value === 'events' || value === 'groups' ? 'group' : 'global',
-          preset: value === 'events' ? 'upcoming' : value === 'groups' ? 'featured' : 'latest',
+          sourceScope: sourceScopeFor(value),
+          preset: defaultPresetFor(value),
         })}
       />
-      <SelectInput label={t('preset')} value={preset} disabled={disabled} options={presetOptionsForSource(source, t)} onChange={(value) => updateContent({ preset: value })} />
-      <SelectInput label={t('layout')} value={layout} disabled={disabled} options={[{ value: 'grid', label: t('grid') }, { value: 'list', label: t('list') }, { value: 'cards', label: t('cards') }, { value: 'carousel', label: t('carousel') }]} onChange={(value) => updateContent({ layout: value })} />
-      <TextInput label={t('limit')} value={String(limit)} disabled={disabled} onChange={(value) => updateContent({ limit: Math.min(Math.max(parseInt(value) || 10, 1), 50) })} />
+      <SelectInput focusKey="list-preset" label={t('preset')} value={preset} disabled={disabled} options={presetOptionsForSource(source, t)} onChange={(value) => updateContent({ preset: value })} />
+      <SelectInput focusKey="list-layout" label={t('layout')} value={layout} disabled={disabled} options={[{ value: 'grid', label: t('grid') }, { value: 'list', label: t('list') }, { value: 'cards', label: t('cards') }, { value: 'carousel', label: t('carousel') }, { value: 'coverflow', label: t('coverflow') }]} onChange={(value) => updateContent({ layout: value })} />
+      <TextInput focusKey="list-limit" label={t('limit')} value={String(limit)} disabled={disabled} onChange={(value) => updateContent({ limit: Math.min(Math.max(parseInt(value) || 10, 1), 50) })} />
     </PropertyPanel>
   )
 
