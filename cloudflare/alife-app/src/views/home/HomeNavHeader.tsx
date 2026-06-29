@@ -6,12 +6,16 @@ import { useAuthStore } from '../../stores/auth'
 import type { HomeCopy, Language } from './homeCopy'
 import { createSectionHandler } from './homeUtils'
 
+type HomeNavItem = { href: string; label: string }
+
 type Props = {
   copy: HomeCopy
   language: Language
+  solid?: boolean
+  navItems?: HomeNavItem[]
 }
 
-const HomeNavHeader = ({ copy, language }: Props) => {
+const HomeNavHeader = ({ copy, language, solid = false, navItems: providedNavItems }: Props) => {
   const auth = useAuthStore()
   const [menuOpen, setMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
@@ -24,18 +28,25 @@ const HomeNavHeader = ({ copy, language }: Props) => {
 
   const accountTo = auth.isGuest ? '/onboarding' : '/groups/select'
   const accountLabel = auth.isGuest ? copy.account : copy.enterAlife
+  const eventsNavLabel = language === 'zh' ? '近期活动' : 'Events'
+  const nextLanguageLabel = language === 'zh' ? 'EN' : '中文'
 
-  const navItems = [
+  const fallbackNavItems: HomeNavItem[] = [
     { href: '#about', label: copy.nav.about },
     { href: '#visit', label: copy.nav.visit },
     { href: '#groups', label: copy.nav.groups },
-    { href: '#events', label: language === 'zh' ? '近期活动' : 'Events' },
+    { href: '#events', label: eventsNavLabel },
+    { href: '#sermons', label: copy.nav.sermons },
     { href: '#location', label: copy.nav.location },
   ]
+
+  const navItems = providedNavItems?.length
+    ? providedNavItems.map((item) => item.href === '#events' ? { ...item, label: eventsNavLabel } : item)
+    : fallbackNavItems
   const scrollToSection = createSectionHandler(() => setMenuOpen(false))
 
   return (
-    <header className={`fixed inset-x-0 top-0 z-50 transition-[background-color,box-shadow] duration-500 ${scrolled ? 'bg-home-dark/80 shadow-[0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-xl' : ''}`}>
+    <header className={`fixed inset-x-0 top-0 z-50 transition-[background-color,box-shadow] duration-500 ${solid || scrolled ? 'bg-home-dark/80 shadow-[0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-xl' : ''}`}>
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 text-white sm:px-8 lg:px-10">
         <Link className="flex shrink-0 items-center gap-3" to="/">
           <img src={logo} alt="" className="h-8 w-8 rounded-full bg-white/90 object-contain p-1" />
@@ -57,7 +68,7 @@ const HomeNavHeader = ({ copy, language }: Props) => {
             onClick={() => void auth.updateLanguage(language === 'zh' ? 'en' : 'zh')}
             aria-label="Switch language"
           >
-            {language === 'zh' ? 'EN' : '中文'}
+            {nextLanguageLabel}
           </button>
           <Link className="hidden whitespace-nowrap rounded-lg border border-white/15 px-4 py-1.5 text-[0.84rem] font-semibold text-white/90 transition hover:border-white/25 hover:bg-white/[0.06] sm:inline-flex" to={accountTo}>
             {accountLabel}

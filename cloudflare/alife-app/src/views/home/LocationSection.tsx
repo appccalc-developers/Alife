@@ -7,6 +7,8 @@ type Props = {
   copy: HomeCopy
 }
 
+const churchStreetAddress = '182 The Runway, Wigram, Christchurch 8042'
+
 const LocationSection = ({ copy }: Props) => {
   const prefersReducedMotion = useReducedMotion()
   const entrance = entranceAnimation(prefersReducedMotion)
@@ -18,7 +20,8 @@ const LocationSection = ({ copy }: Props) => {
           <div>
             <MapPin className="h-7 w-7 text-home-gold" />
             <h3 className="mt-5 text-2xl font-bold leading-tight tracking-tight">{copy.locationName}</h3>
-            <p className="mt-3 max-w-sm text-[0.94rem] leading-7 text-white/55">{copy.locationAddress}</p>
+            <p className="mt-3 max-w-sm text-[0.94rem] leading-7 text-white/55">{churchStreetAddress}</p>
+            <p className="mt-2 max-w-sm text-sm leading-6 text-white/40">{copy.locationAddress}</p>
             <a className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-white/60 transition hover:text-white" href={churchMapUrl} target="_blank" rel="noreferrer">
               {copy.openMap} <ExternalLink className="h-3.5 w-3.5" />
             </a>
