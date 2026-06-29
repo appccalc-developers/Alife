@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { groupService } from '../../services/groupService'
 import { eventService } from '../../services/eventService'
 import { pageService } from '../../services/pageService'
+import { sermonService, type SermonDto } from '../../services/sermonService'
 import type { GroupDto, PageDetailDto, PageSummaryDto } from '../../types'
 import type { GroupEventRecord } from '../../types/event'
 import { fallbackGroupImages, readSectionImage } from './homeUtils'
@@ -13,20 +14,23 @@ export const useHomeData = () => {
   const [homePage, setHomePage] = useState<PageDetailDto | null>(null)
   const [events, setEvents] = useState<GroupEventRecord[]>([])
   const [groupCards, setGroupCards] = useState<HomeGroupCard[]>([])
+  const [sermons, setSermons] = useState<SermonDto[]>([])
 
   // --- Phase 1: Load church + pages in parallel ---
   useEffect(() => {
     let cancelled = false
 
     const load = async () => {
-      const [churchResult, pagesResult] = await Promise.allSettled([
+      const [churchResult, pagesResult, sermonsResult] = await Promise.allSettled([
         groupService.getChurch(),
         groupService.getGlobalPages(),
+        sermonService.getLatest(),
       ])
 
       if (cancelled) return
 
       if (pagesResult.status === 'fulfilled') setPages(pagesResult.value)
+      if (sermonsResult.status === 'fulfilled') setSermons(sermonsResult.value)
 
       if (churchResult.status !== 'fulfilled') return
       const churchData = churchResult.value
@@ -120,5 +124,16 @@ export const useHomeData = () => {
     [events],
   )
 
-  return { church, pages, homePage, events, groupCards, upcomingEvents }
+  const recentSermons = useMemo(
+    () => [...sermons]
+      .sort((left, right) => {
+        const leftDate = left.preachedAt ? new Date(left.preachedAt).getTime() : 0
+        const rightDate = right.preachedAt ? new Date(right.preachedAt).getTime() : 0
+        return rightDate - leftDate
+      })
+      .slice(0, 3),
+    [sermons],
+  )
+
+  return { church, pages, homePage, events, groupCards, upcomingEvents, recentSermons }
 }

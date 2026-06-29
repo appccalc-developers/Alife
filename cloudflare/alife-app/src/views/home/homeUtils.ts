@@ -92,7 +92,12 @@ export const createSectionHandler = (closeMenu?: () => void) => (event: MouseEve
   if (!href.startsWith('#')) return
   event.preventDefault()
   closeMenu?.()
-  document.querySelector(href)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  const target = document.querySelector(href)
+  if (target) {
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    return
+  }
+  window.location.href = `/${href}`
 }
 
 export const entranceAnimation = (prefersReducedMotion: boolean | null) =>
