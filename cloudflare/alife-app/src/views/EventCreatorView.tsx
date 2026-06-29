@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { CalendarDays, CheckCircle2, ImageIcon, MessageSquareText, Mic, MicOff, Save } from 'lucide-react'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import type { EventDto, GroupEventRecord, MultilingualString } from '../types/event'
 import type { AiSessionAppContext } from '../types/aiSession'
@@ -264,6 +265,76 @@ const getDraftFromRecord = (record: GroupEventRecord): EventDto => {
   }
 
   return fallbackDraftFromRecord(record)
+}
+
+const EventWorkflowPanel = ({
+  eventDraft,
+  hasPoster,
+  targetEventId,
+  language,
+}: {
+  eventDraft: EventDto | null
+  hasPoster: boolean
+  targetEventId: string
+  language: string
+}) => {
+  const isZh = language === 'zh'
+  const titleReady = Boolean(eventDraft && ((isZh ? eventDraft.title.zh : eventDraft.title.en) || eventDraft.title.en || eventDraft.title.zh))
+  const timeReady = Boolean(eventDraft?.startDate && eventDraft?.endDate)
+  const registrationReady = Boolean(eventDraft && eventDraft.maxCapacity > 0 && eventDraft.registrationDeadline)
+  const savedReady = Boolean(targetEventId)
+  const items = [
+    {
+      label: isZh ? '1. 用 AI 梳理活动' : '1. Shape the event with AI',
+      hint: isZh ? '先把活动目的、对象、时间和限制说清楚。' : 'Clarify purpose, audience, timing, and constraints first.',
+      ready: titleReady,
+      icon: <MessageSquareText className="h-4 w-4" />,
+    },
+    {
+      label: isZh ? '2. 确认时间与报名' : '2. Confirm timing and registration',
+      hint: isZh ? '检查开始/结束时间、报名截止和容量。' : 'Check dates, registration deadline, and capacity.',
+      ready: timeReady && registrationReady,
+      icon: <CalendarDays className="h-4 w-4" />,
+    },
+    {
+      label: isZh ? '3. 补齐活动海报' : '3. Add the event poster',
+      hint: isZh ? '海报会帮助成员快速理解活动。' : 'A poster helps members understand the event quickly.',
+      ready: hasPoster,
+      icon: <ImageIcon className="h-4 w-4" />,
+    },
+    {
+      label: isZh ? '4. 保存到小组' : '4. Save to group',
+      hint: isZh ? '保存后可继续管理报名和后续回顾。' : 'After saving, manage enrollment and follow-up reflection.',
+      ready: savedReady,
+      icon: <Save className="h-4 w-4" />,
+    },
+  ]
+  const readyCount = items.filter((item) => item.ready).length
+
+  return (
+    <section className="rounded-2xl border border-[#2f4b42]/10 bg-white/78 p-4 shadow-[0_10px_30px_rgba(31,56,48,0.06)]">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-[#176b5a]">{isZh ? '活动工作流' : 'Event workflow'}</p>
+          <h2 className="mt-1 text-lg font-black text-[#18332d]">{isZh ? '从想法到可报名活动' : 'From idea to enrollable event'}</h2>
+        </div>
+        <span className="rounded-lg bg-[#e3f0eb] px-3 py-1 text-sm font-black text-[#176b5a]">{readyCount}/{items.length}</span>
+      </div>
+      <div className="mt-4 grid gap-3 md:grid-cols-2">
+        {items.map((item) => (
+          <div key={item.label} className={['flex gap-3 rounded-xl border p-3', item.ready ? 'border-emerald-200 bg-emerald-50/70' : 'border-slate-200 bg-white'].join(' ')}>
+            <span className={['flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', item.ready ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'].join(' ')}>
+              {item.ready ? <CheckCircle2 className="h-4 w-4" /> : item.icon}
+            </span>
+            <span>
+              <span className="block text-sm font-black text-slate-950">{item.label}</span>
+              <span className="mt-1 block text-xs leading-5 text-slate-500">{item.hint}</span>
+            </span>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
 }
 
 const EventCreatorView = () => {
@@ -732,15 +803,23 @@ const EventCreatorView = () => {
     : t('eventPosterChoose')
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">{isEditMode ? t('editEventWithAi') : t('createEventWithAi')}</h1>
-        <p className="mt-1 text-sm text-slate-500">
+    <div className="mx-auto flex max-w-5xl flex-col gap-6">
+      <div className="rounded-2xl border border-[#2f4b42]/10 bg-white/78 px-5 py-5 shadow-[0_10px_30px_rgba(31,56,48,0.06)]">
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-[#176b5a]">{isEditMode ? t('edit') : t('createEvent')}</p>
+        <h1 className="mt-2 text-2xl font-black tracking-[-0.03em] text-slate-950">{isEditMode ? t('editEventWithAi') : t('createEventWithAi')}</h1>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
           {isEditMode
             ? t('editEventAiDescription')
             : t('createEventAiDescription')}
         </p>
       </div>
+
+      <EventWorkflowPanel
+        eventDraft={eventDraft}
+        hasPoster={Boolean(eventDraft?.posterImageUrl || posterPreviewUrl)}
+        targetEventId={targetEventId}
+        language={language}
+      />
 
       {/* Chat window */}
       <div className="flex max-h-[50vh] flex-col gap-3 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -808,11 +887,7 @@ const EventCreatorView = () => {
           ].join(' ')}
           aria-label={listening ? t('stopVoiceInput') : t('startVoiceInput')}
         >
-          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-            <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-            <path d="M12 19v3" />
-          </svg>
+          {listening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
         </button>
         <button
           type="button"
