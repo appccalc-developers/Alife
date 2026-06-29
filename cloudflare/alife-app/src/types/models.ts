@@ -36,8 +36,8 @@ export type SpotlightMedia = {
   alt?: LocalizedText
   position?: 'left' | 'right'
 }
-export type ListViewSource = 'events' | 'sermons' | 'groups' | 'media' | 'posts'
-export type ListViewLayout = 'grid' | 'list' | 'cards' | 'carousel'
+export type ListViewSource = 'events' | 'sermons' | 'groups' | 'pages' | 'members' | 'media' | 'posts'
+export type ListViewLayout = 'grid' | 'list' | 'cards' | 'carousel' | 'coverflow'
 
 export type SectionContentJson = Record<string, unknown> & {
   header?: SectionHeader

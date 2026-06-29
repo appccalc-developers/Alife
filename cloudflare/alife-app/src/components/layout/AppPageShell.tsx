@@ -7,8 +7,17 @@ type Props = {
   actions?: ReactNode
 }
 
-const AppPageShell = ({ children }: Props) => (
-  <section className="mx-auto w-full max-w-6xl space-y-6">
+const AppPageShell = ({ title, subtitle, actions, children }: Props) => (
+  <section className="mx-auto w-full max-w-6xl space-y-5 desktop:space-y-6">
+    {title || subtitle || actions ? (
+      <header className="flex flex-col gap-4 rounded-2xl border border-[#2f4b42]/10 bg-white/70 px-5 py-5 shadow-[0_10px_30px_rgba(31,56,48,0.06)] backdrop-blur sm:flex-row sm:items-end sm:justify-between sm:px-6">
+        <div className="min-w-0">
+          {title ? <h1 className="text-2xl font-black leading-tight tracking-[-0.03em] text-[#18332d] sm:text-3xl">{title}</h1> : null}
+          {subtitle ? <p className="mt-2 max-w-3xl text-sm leading-6 text-[#66766f]">{subtitle}</p> : null}
+        </div>
+        {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
+      </header>
+    ) : null}
     {children}
   </section>
 )

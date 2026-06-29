@@ -3,12 +3,12 @@ import type { ListSortBy, ListSortDirection, ListSourceScope, ListSourceType, Li
 const SOURCE_TYPES: ListSourceType[] = ['sermons', 'pages', 'subgroups', 'events', 'members', 'groups', 'media', 'posts']
 const SORT_FIELDS: ListSortBy[] = ['source', 'date', 'title']
 const SORT_DIRECTIONS: ListSortDirection[] = ['asc', 'desc']
-const CORE_SOURCES: ListViewSource[] = ['events', 'sermons', 'groups', 'media', 'posts']
-const LAYOUTS: ListViewLayout[] = ['grid', 'list', 'cards', 'carousel']
+const CORE_SOURCES: ListViewSource[] = ['events', 'sermons', 'groups', 'pages', 'members', 'media', 'posts']
+const LAYOUTS: ListViewLayout[] = ['grid', 'list', 'cards', 'carousel', 'coverflow']
 
 const sourceTypeToSource = (sourceType: ListSourceType): ListViewSource =>
   sourceType === 'subgroups' ? 'groups'
-    : sourceType === 'pages' || sourceType === 'members' ? 'groups'
+    : sourceType === 'pages' || sourceType === 'members' ? sourceType
       : CORE_SOURCES.includes(sourceType as ListViewSource) ? (sourceType as ListViewSource)
         : 'sermons'
 
