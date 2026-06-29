@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { Dispatch, InputHTMLAttributes, ReactNode, SelectHTMLAttributes, SetStateAction } from 'react'
+import type { Dispatch, InputHTMLAttributes, ReactNode, SelectHTMLAttributes, SetStateAction, TextareaHTMLAttributes } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
-import { Activity, Bell, ChevronRight, Globe2, Loader2, RefreshCw, Search, Send, ShieldCheck, UsersRound } from 'lucide-react'
+import { Activity, Bell, CheckCircle2, ChevronRight, Globe2, Loader2, MessageSquareWarning, RefreshCw, Search, Send, ShieldCheck, UserCheck, UsersRound } from 'lucide-react'
 import {
   groupService,
   type AdminGroupOptionDto,
@@ -13,12 +13,15 @@ import {
   type AuditLogDto,
 } from '../services/groupService'
 import { normalizeApiError } from '../services/http'
+import { aiTranslationService } from '../services/aiTranslationService'
 import { useUiText } from '../i18n/uiText'
 import { useAuthStore } from '../stores/auth'
 import { activeEntityService } from '../services/activeEntityService'
 import type { PageSummaryDto } from '../types'
+import type { MissingTranslatableField } from '../utils/bilingualValidation'
 
 type AdminSection = 'overview' | 'users' | 'logs' | 'messages'
+type MessageTranslationDirection = 'zh-en' | 'en-zh'
 type LocalText = { en: string; zh: string }
 type LabelFn = (key: keyof typeof labels, values?: Record<string, string | number>) => string
 
@@ -26,10 +29,10 @@ const labels = {
   overview: { en: 'Platform workspace', zh: '平台工作台' },
   users: { en: 'Platform users', zh: '全平台用户' },
   logs: { en: 'Operation logs', zh: '操作日志' },
-  messages: { en: 'Messages', zh: '消息管理' },
+  messages: { en: 'Notices', zh: '通知管理' },
   usersDescription: { en: 'Manage accounts, registration state, and platform roles.', zh: '管理账号、注册状态和平台角色。' },
   logsDescription: { en: 'Review platform-level administrative actions.', zh: '查看平台级管理操作记录。' },
-  messagesDescription: { en: 'Send and review notification messages.', zh: '发送并查看通知消息。' },
+  messagesDescription: { en: 'Send notices to members and check whether they were read or replied to.', zh: '向成员发送通知，并查看是否已读或已回复。' },
   sermonsDescription: { en: 'Run a manual sync from connected sermon sources.', zh: '从已连接来源手动同步讲道。' },
   homeDescription: { en: 'Keep the public home page fresh for visitors, seekers, and members.', zh: '维护面向访客、慕道朋友和成员的公共首页。' },
   editHome: { en: 'Edit public home', zh: '编辑公共首页' },
@@ -67,9 +70,18 @@ const labels = {
   approved: { en: 'approved', zh: '已批准' },
   pending: { en: 'pending', zh: '待审核' },
   action: { en: 'Action', zh: '操作' },
+  summary: { en: 'Summary', zh: '摘要' },
+  context: { en: 'Context', zh: '上下文' },
+  details: { en: 'Details', zh: '详情' },
+  before: { en: 'Before', zh: '变更前' },
+  after: { en: 'After', zh: '变更后' },
+  metadata: { en: 'Metadata', zh: '元数据' },
+  technicalIds: { en: 'Technical IDs', zh: '技术 ID' },
   actor: { en: 'Actor', zh: '操作者' },
   target: { en: 'Target', zh: '对象' },
   entityType: { en: 'Entity type', zh: '对象类型' },
+  fromDate: { en: 'From date', zh: '开始日期' },
+  toDate: { en: 'To date', zh: '结束日期' },
   time: { en: 'Time', zh: '时间' },
   recipient: { en: 'Recipient', zh: '接收人' },
   sender: { en: 'Sender', zh: '发送人' },
@@ -80,23 +92,64 @@ const labels = {
   noMembers: { en: 'No members found.', zh: '没有找到成员。' },
   noLogs: { en: 'No operation logs found.', zh: '没有找到操作日志。' },
   noMessages: { en: 'No messages found.', zh: '没有找到消息。' },
+  messageComposer: { en: 'New notice', zh: '新建通知' },
+  messageAudience: { en: 'Who should receive it?', zh: '发给谁？' },
+  messageScope: { en: 'Send to', zh: '发送范围' },
+  messageContent: { en: 'What should they see?', zh: '通知内容' },
+  chooseGroup: { en: 'Choose group', zh: '选择小组' },
+  chooseRecipient: { en: 'Choose recipient', zh: '选择成员' },
+  chineseNotice: { en: 'Chinese notice', zh: '中文通知' },
+  englishNotice: { en: 'English translation', zh: '英文翻译' },
+  englishNoticeHint: { en: 'Optional, but useful for bilingual members.', zh: '可选；建议给双语成员保留英文版本。' },
+  aiTranslate: { en: 'AI translate', zh: 'AI 翻译' },
+  translateZhToEn: { en: 'Chinese to English', zh: '中译英' },
+  translateEnToZh: { en: 'English to Chinese', zh: '英译中' },
+  translating: { en: 'Translating...', zh: '翻译中...' },
+  aiTranslationReviewHint: { en: 'AI will fill the other language as a draft. Please review before sending.', zh: 'AI 会把另一种语言补成草稿，发送前请人工确认。' },
+  aiTranslationNeedsSource: { en: 'Please write a title or body in the source language first.', zh: '请先填写来源语言的标题或正文。' },
+  aiTranslationComplete: { en: 'AI translation added. Please review it before sending.', zh: 'AI 翻译已填入，请确认后再发送。' },
+  aiTranslationFailed: { en: 'AI translation failed. Please try again or fill it manually.', zh: 'AI 翻译失败，请重试或手动填写。' },
+  messageHistory: { en: 'Sent notification records', zh: '已发送通知记录' },
+  messagePreview: { en: 'Preview', zh: '预览' },
+  actionType: { en: 'System tag', zh: '系统标签' },
+  actionTypeHint: { en: 'For system routing and audit records. Leave as platform.message for a normal notice.', zh: '用于系统路由和审计记录。普通通知保持 platform.message 即可。' },
+  advancedFields: { en: 'System options', zh: '系统选项' },
+  relatedContext: { en: 'Related group/event', zh: '关联小组/活动' },
+  sentAt: { en: 'Sent', zh: '发送时间' },
+  readAt: { en: 'Read at', zh: '读取时间' },
+  repliedAt: { en: 'Replied at', zh: '回复时间' },
+  notReadYet: { en: 'Not read yet', zh: '尚未读取' },
+  noReplyYet: { en: 'No reply yet', zh: '尚未回复' },
+  messagePayload: { en: 'Message payload', zh: '消息数据' },
+  responsePayload: { en: 'Response payload', zh: '回复数据' },
   previous: { en: 'Previous', zh: '上一页' },
   next: { en: 'Next', zh: '下一页' },
   page: { en: 'Page', zh: '页' },
   total: { en: 'Total', zh: '总数' },
-  sendMessage: { en: 'Send message', zh: '发送消息' },
+  sendMessage: { en: 'Send notice', zh: '发送通知' },
   platform: { en: 'Whole platform', zh: '全平台' },
   group: { en: 'Group', zh: '小组' },
   singleMember: { en: 'Single user', zh: '单个用户' },
-  titleEn: { en: 'Title EN', zh: '英文标题' },
-  titleZh: { en: 'Title ZH', zh: '中文标题' },
-  bodyEn: { en: 'Body EN', zh: '英文内容' },
-  bodyZh: { en: 'Body ZH', zh: '中文内容' },
+  titleEn: { en: 'English title', zh: '英文标题' },
+  titleZh: { en: 'Chinese title', zh: '中文标题' },
+  bodyEn: { en: 'English body', zh: '英文正文' },
+  bodyZh: { en: 'Chinese body', zh: '中文正文' },
   unknown: { en: 'Unknown', zh: '未知' },
   registeredUsers: { en: 'Registered users', zh: '已注册用户' },
   guestUsers: { en: 'Guest records', zh: '访客记录' },
   latestActivity: { en: 'Latest activity', zh: '最近动态' },
   quickOps: { en: 'Workspace actions', zh: '工作区操作' },
+  platformQueue: { en: 'Platform task queue', zh: '平台待办队列' },
+  platformQueueDescription: { en: 'Start with actions that affect access, communication, and public content.', zh: '优先处理影响访问、沟通和公共内容的事项。' },
+  guestReviewTask: { en: 'Review guest records', zh: '查看访客记录' },
+  guestReviewHint: { en: 'Confirm whether guest records should become registered accounts.', zh: '确认访客记录是否需要转为注册账号。' },
+  unreadMessagesTask: { en: 'Follow up unread messages', zh: '跟进未读消息' },
+  unreadMessagesHint: { en: 'Messages may need pastoral or admin response.', zh: '消息可能需要牧养或管理回应。' },
+  auditReviewTask: { en: 'Review operation log', zh: '查看操作日志' },
+  auditReviewHint: { en: 'Keep sensitive platform actions auditable.', zh: '保持敏感平台操作可追溯。' },
+  homeWorkflowTask: { en: 'Public home workflow', zh: '公共首页工作流' },
+  homeWorkflowHint: { en: 'Keep visitor-facing content current.', zh: '保持面向访客的内容及时更新。' },
+  noPlatformTasks: { en: 'No urgent platform tasks right now.', zh: '当前没有紧急平台待办。' },
 } satisfies Record<string, LocalText>
 
 const emptyPage = <T,>(pageSize = 25): AdminPagedResultDto<T> => ({ items: [], totalCount: 0, page: 1, pageSize, totalPages: 0 })
@@ -122,6 +175,90 @@ const parseLocalizedJson = (json: string | null, language: string) => {
   } catch {
     return ''
   }
+}
+type JsonRecord = Record<string, unknown>
+const parseJsonRecord = (json: string | null | undefined): JsonRecord | null => {
+  if (!json) return null
+  try {
+    const parsed = JSON.parse(json) as unknown
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as JsonRecord : null
+  } catch {
+    return null
+  }
+}
+const readJsonString = (record: JsonRecord | null, key: string) => {
+  const value = record?.[key]
+  return typeof value === 'string' ? value : ''
+}
+const readJsonNumber = (record: JsonRecord | null, key: string) => {
+  const value = record?.[key]
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+const readNestedLocalized = (record: JsonRecord | null, key: string, language: string) => {
+  const value = record?.[key]
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? readLocalized(value as Record<string, string>, language)
+    : ''
+}
+const prettyJson = (json: string | null | undefined) => {
+  const parsed = parseJsonRecord(json)
+  return parsed ? JSON.stringify(parsed, null, 2) : json || ''
+}
+const compactId = (value: string | null | undefined) => value ? `${value.slice(0, 8)}...${value.slice(-4)}` : ''
+const logActionLabel = (action: string, language: string) => {
+  if (action === 'member.platform-role.set') return language === 'zh' ? '平台角色变更' : 'Platform role changed'
+  if (action === 'notification.admin.send') return language === 'zh' ? '管理员发送通知' : 'Admin notification sent'
+  return action
+}
+const describeAuditLog = (log: AuditLogDto, language: string) => {
+  const before = parseJsonRecord(log.beforeJson)
+  const after = parseJsonRecord(log.afterJson)
+  const target = log.targetDisplayName || compactId(log.targetMemberId) || compactId(log.entityId) || log.entityType
+
+  if (log.action === 'member.platform-role.set') {
+    const beforeRoles = Array.isArray(before?.roles)
+      ? before.roles.filter((role): role is string => typeof role === 'string')
+      : []
+    const afterRole = readJsonString(after, 'role') || 'user'
+    return language === 'zh'
+      ? `将 ${target} 的平台角色从 ${beforeRoles.map(formatRole).join(', ') || 'User'} 改为 ${formatRole(afterRole)}`
+      : `Changed ${target}'s platform role from ${beforeRoles.map(formatRole).join(', ') || 'User'} to ${formatRole(afterRole)}`
+  }
+
+  if (log.action === 'notification.admin.send') {
+    const scope = readJsonString(after, 'scope') || 'platform'
+    const count = readJsonNumber(after, 'recipientCount')
+    const title = readNestedLocalized(after, 'title', language)
+    const scopeLabel = language === 'zh'
+      ? scope === 'group' ? '小组' : scope === 'member' ? '单个成员' : '全平台'
+      : scope === 'group' ? 'a group' : scope === 'member' ? 'one member' : 'the whole platform'
+    return language === 'zh'
+      ? `向${scopeLabel}发送通知${count === null ? '' : `，共 ${count} 位收件人`}${title ? `：「${title}」` : ''}`
+      : `Sent a notification to ${scopeLabel}${count === null ? '' : ` (${count} recipient${count === 1 ? '' : 's'})`}${title ? `: "${title}"` : ''}`
+  }
+
+  return logActionLabel(log.action, language)
+}
+const getNotificationStatus = (item: AdminNotificationDto) =>
+  item.repliedUtc ? 'replied' : item.readUtc ? 'read' : 'unread'
+const messageStatusTone = (status: string) =>
+  status === 'replied'
+    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+    : status === 'read'
+      ? 'border-sky-200 bg-sky-50 text-sky-700'
+      : 'border-amber-200 bg-amber-50 text-amber-700'
+const readNotificationContent = (item: AdminNotificationDto, language: string) => {
+  const payload = parseJsonRecord(item.actionDataJson)
+  return {
+    title: readNestedLocalized(payload, 'title', language) || item.actionType,
+    body: readNestedLocalized(payload, 'body', language),
+    scope: readJsonString(payload, 'scope'),
+  }
+}
+const notificationContextLabel = (item: AdminNotificationDto, language: string) => {
+  const groupName = parseLocalizedJson(item.groupNameJson, language)
+  const eventTitle = (language === 'zh' ? item.eventTitleZh : item.eventTitleEn) || item.eventTitleEn || item.eventTitleZh || ''
+  return [groupName, eventTitle].filter(Boolean).join(' / ') || '-'
 }
 const sectionFromPath = (pathname: string): AdminSection => pathname.endsWith('/users') ? 'users' : pathname.endsWith('/logs') ? 'logs' : pathname.endsWith('/messages') ? 'messages' : 'overview'
 
@@ -152,6 +289,7 @@ const AdminView = () => {
   const [error, setError] = useState('')
   const [syncing, setSyncing] = useState(false)
   const [updatingMemberId, setUpdatingMemberId] = useState<string | null>(null)
+  const [messageAiDirection, setMessageAiDirection] = useState<MessageTranslationDirection | null>(null)
   const [userFilters, setUserFilters] = useState({ search: '', role: '', isRegistered: '' })
   const [logFilters, setLogFilters] = useState({ search: '', action: '', entityType: '', fromUtc: '', toUtc: '' })
   const [messageFilters, setMessageFilters] = useState({ search: '', actionType: '', status: '' })
@@ -311,6 +449,61 @@ const AdminView = () => {
     }
   }
 
+  const translateMessage = async (direction: MessageTranslationDirection) => {
+    if (messageAiDirection) return
+    const sourceLanguage = direction === 'zh-en' ? 'zh' : 'en'
+    const targetLanguage = direction === 'zh-en' ? 'en' : 'zh'
+    const sourceTitle = (direction === 'zh-en' ? sendForm.titleZh : sendForm.titleEn).trim()
+    const sourceBody = (direction === 'zh-en' ? sendForm.bodyZh : sendForm.bodyEn).trim()
+    const fields: MissingTranslatableField[] = []
+
+    if (sourceTitle) {
+      fields.push({
+        field: 'title',
+        sourceLanguage,
+        targetLanguage,
+        sourceText: sourceTitle,
+        textType: direction === 'zh-en' ? 'Chinese notification title' : 'English notification title',
+      })
+    }
+    if (sourceBody) {
+      fields.push({
+        field: 'body',
+        sourceLanguage,
+        targetLanguage,
+        sourceText: sourceBody,
+        textType: direction === 'zh-en' ? 'Chinese notification body' : 'English notification body',
+      })
+    }
+
+    if (!fields.length) {
+      setError(l('aiTranslationNeedsSource'))
+      return
+    }
+
+    setError('')
+    setMessage('')
+    setMessageAiDirection(direction)
+    try {
+      const translatedFields = await aiTranslationService.translateTextFields({ scope: 'church', fields })
+      setSendForm((current) => {
+        const next = { ...current }
+        translatedFields.forEach((field) => {
+          if (field.field === 'title' && field.language === 'en') next.titleEn = field.text
+          if (field.field === 'body' && field.language === 'en') next.bodyEn = field.text
+          if (field.field === 'title' && field.language === 'zh') next.titleZh = field.text
+          if (field.field === 'body' && field.language === 'zh') next.bodyZh = field.text
+        })
+        return next
+      })
+      setMessage(l('aiTranslationComplete'))
+    } catch {
+      setError(l('aiTranslationFailed'))
+    } finally {
+      setMessageAiDirection(null)
+    }
+  }
+
   return (
     <section className="mx-auto w-full max-w-7xl space-y-5 px-2 py-3 sm:px-4">
       <header className="overflow-hidden rounded-3xl border border-emerald-100 bg-white shadow-sm">
@@ -346,8 +539,8 @@ const AdminView = () => {
 
       {section === 'overview' ? <Overview l={l} users={members} logs={logs} messages={messages} homePage={homePage} syncing={syncing} syncSermons={syncSermons} /> : null}
       {section === 'users' ? <UsersSection l={l} loading={loading} page={members} filters={userFilters} setFilters={setUserFilters} roles={roleOptions} isSuperAdmin={isSuperAdmin} updatingMemberId={updatingMemberId} apply={() => loadUsers(1)} reset={() => { setUserFilters({ search: '', role: '', isRegistered: '' }); setTimeout(() => loadUsers(1).catch(() => undefined), 0) }} goToPage={loadUsers} updateRole={updateRole} language={language} currentMemberId={me?.id || ''} /> : null}
-      {section === 'logs' ? <LogsSection l={l} loading={loading} page={logs} filters={logFilters} setFilters={setLogFilters} apply={() => loadLogs(1)} goToPage={loadLogs} /> : null}
-      {section === 'messages' ? <MessagesSection l={l} loading={loading} page={messages} filters={messageFilters} setFilters={setMessageFilters} apply={() => loadMessages(1)} goToPage={loadMessages} groups={groups} members={members.items} sendForm={sendForm} setSendForm={setSendForm} sendMessage={sendMessage} language={language} /> : null}
+      {section === 'logs' ? <LogsSection l={l} loading={loading} page={logs} filters={logFilters} setFilters={setLogFilters} apply={() => loadLogs(1)} goToPage={loadLogs} language={language} /> : null}
+      {section === 'messages' ? <MessagesSection l={l} loading={loading} page={messages} filters={messageFilters} setFilters={setMessageFilters} apply={() => loadMessages(1)} goToPage={loadMessages} groups={groups} members={members.items} sendForm={sendForm} setSendForm={setSendForm} sendMessage={sendMessage} translateMessage={translateMessage} aiTranslating={messageAiDirection} language={language} /> : null}
     </section>
   )
 }
@@ -363,6 +556,8 @@ const Overview = ({ l, users, logs, messages, homePage, syncing, syncSermons }: 
 }) => {
   const registeredCount = users.items.filter((member) => member.isRegistered).length
   const guestCount = users.items.filter((member) => !member.isRegistered).length
+  const unreadCount = messages.items.filter((message) => !message.readUtc).length
+  const recentLogCount = logs.items.length
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
       <div className="space-y-4">
@@ -372,6 +567,13 @@ const Overview = ({ l, users, logs, messages, homePage, syncing, syncSermons }: 
           <MetricCard to="/admin/users" icon={UsersRound} title={l('guestUsers')} value={guestCount} detail={l('guest')} />
           <MetricCard to="/admin/messages" icon={Bell} title={l('messages')} value={messages.totalCount} detail={l('unread')} />
         </div>
+        <PlatformTaskQueue
+          l={l}
+          guestCount={guestCount}
+          unreadCount={unreadCount}
+          recentLogCount={recentLogCount}
+          hasHomePage={Boolean(homePage)}
+        />
         <Panel title={l('latestActivity')} description={l('logsDescription')} count={logs.totalCount}>
           <div className="divide-y divide-slate-100">
             {logs.items.slice(0, 5).map((log) => (
@@ -414,6 +616,87 @@ const Overview = ({ l, users, logs, messages, homePage, syncing, syncSermons }: 
         </section>
       </aside>
     </div>
+  )
+}
+
+const PlatformTaskQueue = ({ l, guestCount, unreadCount, recentLogCount, hasHomePage }: {
+  l: LabelFn
+  guestCount: number
+  unreadCount: number
+  recentLogCount: number
+  hasHomePage: boolean
+}) => {
+  const tasks = [
+    {
+      to: '/admin/users',
+      icon: <UserCheck className="h-4 w-4" />,
+      label: l('guestReviewTask'),
+      hint: l('guestReviewHint'),
+      count: guestCount,
+      urgent: guestCount > 0,
+    },
+    {
+      to: '/admin/messages',
+      icon: <MessageSquareWarning className="h-4 w-4" />,
+      label: l('unreadMessagesTask'),
+      hint: l('unreadMessagesHint'),
+      count: unreadCount,
+      urgent: unreadCount > 0,
+    },
+    {
+      to: '/admin/logs',
+      icon: <Activity className="h-4 w-4" />,
+      label: l('auditReviewTask'),
+      hint: l('auditReviewHint'),
+      count: recentLogCount,
+      urgent: false,
+    },
+    {
+      to: hasHomePage ? '/pages/edit?scope=home' : '/pages/new?scope=home',
+      icon: <Globe2 className="h-4 w-4" />,
+      label: l('homeWorkflowTask'),
+      hint: l('homeWorkflowHint'),
+      count: hasHomePage ? 1 : 0,
+      urgent: !hasHomePage,
+    },
+  ]
+  const urgentCount = tasks.filter((task) => task.urgent).length
+
+  return (
+    <Panel title={l('platformQueue')} description={l('platformQueueDescription')} count={urgentCount}>
+      <div className="grid gap-3 p-4 md:grid-cols-2">
+        {tasks.map((task) => (
+          <Link
+            key={task.label}
+            to={task.to}
+            className={[
+              'flex min-h-[7rem] items-start gap-3 rounded-2xl border p-4 transition hover:-translate-y-0.5 hover:shadow-md',
+              task.urgent ? 'border-amber-200 bg-amber-50/70' : 'border-slate-200 bg-white hover:border-emerald-200',
+            ].join(' ')}
+          >
+            <span className={[
+              'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
+              task.urgent ? 'bg-amber-100 text-amber-700' : 'bg-emerald-50 text-emerald-700',
+            ].join(' ')}>
+              {task.icon}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="flex items-center justify-between gap-3">
+                <span className="font-black text-slate-950">{task.label}</span>
+                <span className="rounded-lg bg-white px-2 py-1 text-xs font-black text-slate-700 shadow-sm">{task.count}</span>
+              </span>
+              <span className="mt-1 block text-sm leading-6 text-slate-500">{task.hint}</span>
+            </span>
+          </Link>
+        ))}
+      </div>
+      {urgentCount === 0 ? (
+        <div className="border-t border-slate-200 px-5 py-3 text-sm font-semibold text-emerald-700">
+          <CheckCircle2 className="mr-2 inline h-4 w-4 align-text-bottom" />
+          {l('noPlatformTasks')}
+        </div>
+      ) : null}
+    </Panel>
   )
 }
 
@@ -480,7 +763,7 @@ const UsersSection = ({ l, loading, page, filters, setFilters, roles, isSuperAdm
   </Panel>
 )
 
-const LogsSection = ({ l, loading, page, filters, setFilters, apply, goToPage }: {
+const LogsSection = ({ l, loading, page, filters, setFilters, apply, goToPage, language }: {
   l: LabelFn
   loading: boolean
   page: AdminPagedResultDto<AuditLogDto>
@@ -488,19 +771,67 @@ const LogsSection = ({ l, loading, page, filters, setFilters, apply, goToPage }:
   setFilters: Dispatch<SetStateAction<{ search: string; action: string; entityType: string; fromUtc: string; toUtc: string }>>
   apply: () => Promise<void>
   goToPage: (page: number) => Promise<void>
+  language: string
 }) => (
   <Panel title={l('logs')} description={l('logsDescription')} count={page.totalCount}>
     <FilterBar>
       <SearchInput placeholder={l('search')} value={filters.search} onChange={(e) => setFilters((x) => ({ ...x, search: e.target.value }))} />
       <TextInput placeholder={l('action')} value={filters.action} onChange={(e) => setFilters((x) => ({ ...x, action: e.target.value }))} />
       <TextInput placeholder={l('entityType')} value={filters.entityType} onChange={(e) => setFilters((x) => ({ ...x, entityType: e.target.value }))} />
+      <TextInput type="date" aria-label={l('fromDate')} value={filters.fromUtc} onChange={(e) => setFilters((x) => ({ ...x, fromUtc: e.target.value }))} />
+      <TextInput type="date" aria-label={l('toDate')} value={filters.toUtc} onChange={(e) => setFilters((x) => ({ ...x, toUtc: e.target.value }))} />
       <FilterActions l={l} apply={apply} reset={() => setFilters({ search: '', action: '', entityType: '', fromUtc: '', toUtc: '' })} />
     </FilterBar>
-    {loading ? <Loading text={l('loading')} /> : page.items.length ? <><DataTable headers={[l('action'), l('actor'), l('target'), l('time')]}>{page.items.map((log) => <tr key={log.id}><td className="px-5 py-4 font-bold text-slate-950">{log.action}</td><td className="px-5 py-4 text-slate-600">{log.actorDisplayName || l('unknown')}</td><td className="px-5 py-4 text-slate-600">{log.targetDisplayName || log.entityType}</td><td className="px-5 py-4 text-slate-600">{formatDate(log.occurredUtc)}</td></tr>)}</DataTable><Pager l={l} page={page} goToPage={goToPage} /></> : <Empty text={l('noLogs')} />}
+    {loading ? <Loading text={l('loading')} /> : page.items.length ? (
+      <>
+        <DataTable headers={[l('summary'), l('context'), l('time')]}>
+          {page.items.map((log) => {
+            const ids = [
+              log.entityId ? `entity: ${compactId(log.entityId)}` : '',
+              log.groupId ? `group: ${compactId(log.groupId)}` : '',
+              log.eventId ? `event: ${compactId(log.eventId)}` : '',
+              log.actorMemberId ? `actor: ${compactId(log.actorMemberId)}` : '',
+              log.targetMemberId ? `target: ${compactId(log.targetMemberId)}` : '',
+            ].filter(Boolean)
+            return (
+              <tr key={log.id} className="align-top transition hover:bg-slate-50">
+                <td className="min-w-[320px] px-5 py-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-700">
+                      {logActionLabel(log.action, language)}
+                    </span>
+                    <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-slate-500">
+                      {log.entityType}
+                    </span>
+                  </div>
+                  <p className="mt-2 font-bold leading-6 text-slate-950">{describeAuditLog(log, language)}</p>
+                  <details className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                    <summary className="cursor-pointer font-bold text-slate-700">{l('details')}</summary>
+                    <div className="mt-3 grid gap-3">
+                      {log.beforeJson ? <JsonBlock title={l('before')} value={prettyJson(log.beforeJson)} /> : null}
+                      {log.afterJson ? <JsonBlock title={l('after')} value={prettyJson(log.afterJson)} /> : null}
+                      {log.metadataJson ? <JsonBlock title={l('metadata')} value={prettyJson(log.metadataJson)} /> : null}
+                      {ids.length ? <p className="break-all font-mono text-[11px] leading-5 text-slate-500"><span className="font-sans font-bold text-slate-700">{l('technicalIds')}: </span>{ids.join(' · ')}</p> : null}
+                    </div>
+                  </details>
+                </td>
+                <td className="min-w-[220px] px-5 py-4 text-slate-600">
+                  <div><span className="font-bold text-slate-700">{l('actor')}:</span> {log.actorDisplayName || compactId(log.actorMemberId) || l('unknown')}</div>
+                  <div className="mt-1"><span className="font-bold text-slate-700">{l('target')}:</span> {log.targetDisplayName || compactId(log.targetMemberId) || compactId(log.entityId) || log.entityType}</div>
+                  <div className="mt-1 text-xs text-slate-400">{log.action}</div>
+                </td>
+                <td className="min-w-[160px] px-5 py-4 text-slate-600">{formatDate(log.occurredUtc)}</td>
+              </tr>
+            )
+          })}
+        </DataTable>
+        <Pager l={l} page={page} goToPage={goToPage} />
+      </>
+    ) : <Empty text={l('noLogs')} />}
   </Panel>
 )
 
-const MessagesSection = ({ l, loading, page, filters, setFilters, apply, goToPage, groups, members, sendForm, setSendForm, sendMessage, language }: {
+const MessagesSection = ({ l, loading, page, filters, setFilters, apply, goToPage, groups, members, sendForm, setSendForm, sendMessage, translateMessage, aiTranslating, language }: {
   l: LabelFn
   loading: boolean
   page: AdminPagedResultDto<AdminNotificationDto>
@@ -513,27 +844,249 @@ const MessagesSection = ({ l, loading, page, filters, setFilters, apply, goToPag
   sendForm: { scope: 'platform' | 'group' | 'member'; groupId: string; recipientMemberId: string; actionType: string; titleEn: string; titleZh: string; bodyEn: string; bodyZh: string }
   setSendForm: Dispatch<SetStateAction<{ scope: 'platform' | 'group' | 'member'; groupId: string; recipientMemberId: string; actionType: string; titleEn: string; titleZh: string; bodyEn: string; bodyZh: string }>>
   sendMessage: () => Promise<void>
+  translateMessage: (direction: MessageTranslationDirection) => Promise<void>
+  aiTranslating: MessageTranslationDirection | null
   language: string
-}) => (
-  <div className="grid gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
-    <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-      <h2 className="text-lg font-black text-slate-950">{l('sendMessage')}</h2>
-      <div className="mt-4 grid gap-3">
-        <SelectInput value={sendForm.scope} onChange={(e) => setSendForm((x) => ({ ...x, scope: e.target.value as 'platform' | 'group' | 'member' }))}><option value="platform">{l('platform')}</option><option value="group">{l('group')}</option><option value="member">{l('singleMember')}</option></SelectInput>
-        {sendForm.scope === 'group' ? <SelectInput value={sendForm.groupId} onChange={(e) => setSendForm((x) => ({ ...x, groupId: e.target.value }))}><option value="">{l('group')}</option>{groups.map((group) => <option key={group.id} value={group.id}>{parseLocalizedJson(group.nameJson, language) || group.id}</option>)}</SelectInput> : null}
-        {sendForm.scope === 'member' ? <SelectInput value={sendForm.recipientMemberId} onChange={(e) => setSendForm((x) => ({ ...x, recipientMemberId: e.target.value }))}><option value="">{l('recipient')}</option>{members.map((member) => <option key={member.id} value={member.id}>{member.displayName || member.email || member.id}</option>)}</SelectInput> : null}
-        <TextInput placeholder={l('action')} value={sendForm.actionType} onChange={(e) => setSendForm((x) => ({ ...x, actionType: e.target.value }))} />
-        <TextInput placeholder={l('titleEn')} value={sendForm.titleEn} onChange={(e) => setSendForm((x) => ({ ...x, titleEn: e.target.value }))} />
-        <TextInput placeholder={l('titleZh')} value={sendForm.titleZh} onChange={(e) => setSendForm((x) => ({ ...x, titleZh: e.target.value }))} />
-        <textarea className="min-h-24 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100" placeholder={l('bodyEn')} value={sendForm.bodyEn} onChange={(e) => setSendForm((x) => ({ ...x, bodyEn: e.target.value }))} />
-        <textarea className="min-h-24 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100" placeholder={l('bodyZh')} value={sendForm.bodyZh} onChange={(e) => setSendForm((x) => ({ ...x, bodyZh: e.target.value }))} />
-        <button className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-800" type="button" onClick={() => sendMessage().catch(() => undefined)}><Send className="h-4 w-4" />{l('sendMessage')}</button>
+}) => {
+  const canTranslateZh = Boolean(sendForm.titleZh.trim() || sendForm.bodyZh.trim())
+  const canTranslateEn = Boolean(sendForm.titleEn.trim() || sendForm.bodyEn.trim())
+
+  return (
+  <div className="grid gap-4 xl:grid-cols-[minmax(24rem,28rem)_minmax(0,1fr)]">
+    <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+      <div className="border-b border-slate-100 p-5">
+        <span className="mb-4 flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
+          <Send className="h-4 w-4" />
+        </span>
+        <h2 className="text-xl font-black leading-tight text-slate-950">{l('messageComposer')}</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-500">{l('messagesDescription')}</p>
+      </div>
+
+      <div className="grid gap-4 p-5">
+        <section className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+          <h3 className="text-base font-black text-slate-950">{l('messageAudience')}</h3>
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            {([
+              ['platform', l('platform')],
+              ['group', l('group')],
+              ['member', l('singleMember')],
+            ] as const).map(([scope, label]) => (
+              <button
+                key={scope}
+                type="button"
+                className={[
+                  'min-h-11 rounded-xl border px-2 py-2 text-sm font-bold transition',
+                  sendForm.scope === scope
+                    ? 'border-emerald-600 bg-emerald-700 text-white shadow-sm'
+                    : 'border-slate-200 bg-white text-slate-600 hover:border-emerald-200 hover:text-emerald-800',
+                ].join(' ')}
+                onClick={() => setSendForm((x) => ({ ...x, scope }))}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {sendForm.scope === 'group' ? (
+            <div className="mt-3">
+              <LabeledField label={l('chooseGroup')}>
+              <SelectInput value={sendForm.groupId} onChange={(e) => setSendForm((x) => ({ ...x, groupId: e.target.value }))}>
+                <option value="">{l('group')}</option>
+                {groups.map((group) => <option key={group.id} value={group.id}>{parseLocalizedJson(group.nameJson, language) || group.id}</option>)}
+              </SelectInput>
+              </LabeledField>
+            </div>
+          ) : null}
+          {sendForm.scope === 'member' ? (
+            <div className="mt-3">
+              <LabeledField label={l('chooseRecipient')}>
+              <SelectInput value={sendForm.recipientMemberId} onChange={(e) => setSendForm((x) => ({ ...x, recipientMemberId: e.target.value }))}>
+                <option value="">{l('recipient')}</option>
+                {members.map((member) => <option key={member.id} value={member.id}>{member.displayName || member.email || member.id}</option>)}
+              </SelectInput>
+              </LabeledField>
+            </div>
+          ) : null}
+        </section>
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-4">
+          <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h3 className="text-base font-black text-slate-950">{l('chineseNotice')}</h3>
+              <p className="mt-1 text-xs leading-5 text-slate-500">{l('messageContent')}</p>
+            </div>
+            <AiTranslateButton
+              label={l('translateZhToEn')}
+              loading={aiTranslating === 'zh-en'}
+              disabled={Boolean(aiTranslating) || !canTranslateZh}
+              onClick={() => translateMessage('zh-en')}
+            />
+          </div>
+          <LabeledField label={l('titleZh')}><TextInput value={sendForm.titleZh} onChange={(e) => setSendForm((x) => ({ ...x, titleZh: e.target.value }))} /></LabeledField>
+          <div className="mt-3">
+            <LabeledField label={l('bodyZh')}><TextAreaInput value={sendForm.bodyZh} onChange={(e) => setSendForm((x) => ({ ...x, bodyZh: e.target.value }))} /></LabeledField>
+          </div>
+          <p className="mt-3 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs leading-5 text-emerald-800">{l('aiTranslationReviewHint')}</p>
+        </section>
+
+        <details className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+          <summary className="cursor-pointer text-sm font-black text-slate-800">{l('englishNotice')}</summary>
+          <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <p className="text-xs leading-5 text-slate-500">{l('englishNoticeHint')}</p>
+            <AiTranslateButton
+              label={l('translateEnToZh')}
+              loading={aiTranslating === 'en-zh'}
+              disabled={Boolean(aiTranslating) || !canTranslateEn}
+              onClick={() => translateMessage('en-zh')}
+            />
+          </div>
+          <div className="mt-3 grid gap-3">
+            <LabeledField label={l('titleEn')}><TextInput value={sendForm.titleEn} onChange={(e) => setSendForm((x) => ({ ...x, titleEn: e.target.value }))} /></LabeledField>
+            <LabeledField label={l('bodyEn')}><TextAreaInput value={sendForm.bodyEn} onChange={(e) => setSendForm((x) => ({ ...x, bodyEn: e.target.value }))} /></LabeledField>
+          </div>
+        </details>
+
+        <details className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+          <summary className="cursor-pointer text-sm font-black text-slate-800">{l('advancedFields')}</summary>
+          <div className="mt-3 grid gap-2">
+            <LabeledField label={l('actionType')} hint={l('actionTypeHint')}>
+              <TextInput value={sendForm.actionType} onChange={(e) => setSendForm((x) => ({ ...x, actionType: e.target.value }))} />
+            </LabeledField>
+          </div>
+        </details>
+
+        <section className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
+          <p className="text-xs font-black uppercase tracking-wide text-emerald-700">{l('messagePreview')}</p>
+          <h3 className="mt-2 font-black text-slate-950">{(language === 'zh' ? sendForm.titleZh : sendForm.titleEn) || sendForm.titleEn || sendForm.titleZh || l('titleEn')}</h3>
+          <p className="mt-1 line-clamp-4 text-sm leading-6 text-slate-600">{(language === 'zh' ? sendForm.bodyZh : sendForm.bodyEn) || sendForm.bodyEn || sendForm.bodyZh || l('bodyEn')}</p>
+        </section>
+
+        <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-800" type="button" onClick={() => sendMessage().catch(() => undefined)}>
+          <Send className="h-4 w-4" />
+          {l('sendMessage')}
+        </button>
       </div>
     </section>
-    <Panel title={l('messages')} description={l('messagesDescription')} count={page.totalCount}>
-      <FilterBar><SearchInput placeholder={l('search')} value={filters.search} onChange={(e) => setFilters((x) => ({ ...x, search: e.target.value }))} /><TextInput placeholder={l('action')} value={filters.actionType} onChange={(e) => setFilters((x) => ({ ...x, actionType: e.target.value }))} /><SelectInput value={filters.status} onChange={(e) => setFilters((x) => ({ ...x, status: e.target.value }))}><option value="">{l('allStatus')}</option><option value="unread">{l('unread')}</option><option value="read">{l('read')}</option><option value="replied">{l('replied')}</option></SelectInput><FilterActions l={l} apply={apply} reset={() => setFilters({ search: '', actionType: '', status: '' })} /></FilterBar>
-      {loading ? <Loading text={l('loading')} /> : page.items.length ? <><DataTable headers={[l('action'), l('recipient'), l('sender'), 'Group/Event', l('status'), l('time')]}>{page.items.map((item) => { const status = item.repliedUtc ? l('replied') : item.readUtc ? l('read') : l('unread'); return <tr key={item.id} className="align-top"><td className="px-5 py-4 font-bold text-slate-950">{item.actionType}</td><td className="px-5 py-4 text-slate-600">{item.recipientDisplayName || l('unknown')}</td><td className="px-5 py-4 text-slate-600">{item.createdByDisplayName || l('unknown')}</td><td className="px-5 py-4 text-slate-600">{parseLocalizedJson(item.groupNameJson, language) || '-'}<div className="text-xs text-slate-400">{(language === 'zh' ? item.eventTitleZh : item.eventTitleEn) || '-'}</div></td><td className="px-5 py-4 text-slate-600">{status}</td><td className="px-5 py-4 text-slate-600">{formatDate(item.occurredUtc)}</td></tr> })}</DataTable><Pager l={l} page={page} goToPage={goToPage} /></> : <Empty text={l('noMessages')} />}
+    <Panel title={l('messageHistory')} description={l('messagesDescription')} count={page.totalCount}>
+      <FilterBar>
+        <SearchInput placeholder={l('search')} value={filters.search} onChange={(e) => setFilters((x) => ({ ...x, search: e.target.value }))} />
+        <TextInput placeholder={l('actionType')} value={filters.actionType} onChange={(e) => setFilters((x) => ({ ...x, actionType: e.target.value }))} />
+        <SelectInput value={filters.status} onChange={(e) => setFilters((x) => ({ ...x, status: e.target.value }))}>
+          <option value="">{l('allStatus')}</option>
+          <option value="unread">{l('unread')}</option>
+          <option value="read">{l('read')}</option>
+          <option value="replied">{l('replied')}</option>
+        </SelectInput>
+        <FilterActions l={l} apply={apply} reset={() => setFilters({ search: '', actionType: '', status: '' })} />
+      </FilterBar>
+      {loading ? <Loading text={l('loading')} /> : page.items.length ? (
+        <>
+          <div className="grid gap-3 p-4">
+            {page.items.map((item) => <MessageRecordCard key={item.id} item={item} l={l} language={language} />)}
+          </div>
+          <Pager l={l} page={page} goToPage={goToPage} />
+        </>
+      ) : <Empty text={l('noMessages')} />}
     </Panel>
+  </div>
+  )
+}
+
+const AiTranslateButton = ({ label, loading, disabled, onClick }: { label: string; loading: boolean; disabled: boolean; onClick: () => Promise<void> }) => (
+  <button
+    className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-sm font-bold text-emerald-800 shadow-sm transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
+    type="button"
+    disabled={disabled}
+    onClick={() => onClick().catch(() => undefined)}
+  >
+    {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Globe2 className="h-4 w-4" aria-hidden="true" />}
+    {label}
+  </button>
+)
+
+const MessageRecordCard = ({ item, l, language }: { item: AdminNotificationDto; l: LabelFn; language: string }) => {
+  const status = getNotificationStatus(item)
+  const content = readNotificationContent(item, language)
+  const context = notificationContextLabel(item, language)
+
+  return (
+    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-emerald-200 hover:shadow-md">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`rounded-full border px-2.5 py-1 text-xs font-black ${messageStatusTone(status)}`}>
+              {status === 'replied' ? l('replied') : status === 'read' ? l('read') : l('unread')}
+            </span>
+            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-bold text-slate-500">
+              {item.actionType}
+            </span>
+          </div>
+          <h3 className="mt-3 text-base font-black leading-6 text-slate-950">{content.title}</h3>
+          {content.body ? <p className="mt-1 line-clamp-3 text-sm leading-6 text-slate-600">{content.body}</p> : null}
+        </div>
+        <div className="shrink-0 text-sm text-slate-500 md:text-right">
+          <div className="font-semibold text-slate-700">{l('sentAt')}</div>
+          <div>{formatDate(item.occurredUtc)}</div>
+        </div>
+      </div>
+
+      <dl className="mt-4 grid gap-3 border-t border-slate-100 pt-4 text-sm sm:grid-cols-2 xl:grid-cols-4">
+        <div>
+          <dt className="font-bold text-slate-700">{l('recipient')}</dt>
+          <dd className="mt-1 break-words text-slate-600">{item.recipientDisplayName || compactId(item.recipientMemberId) || l('unknown')}</dd>
+        </div>
+        <div>
+          <dt className="font-bold text-slate-700">{l('sender')}</dt>
+          <dd className="mt-1 break-words text-slate-600">{item.createdByDisplayName || compactId(item.createdByMemberId) || l('unknown')}</dd>
+        </div>
+        <div>
+          <dt className="font-bold text-slate-700">{l('relatedContext')}</dt>
+          <dd className="mt-1 break-words text-slate-600">{context}</dd>
+        </div>
+        <div>
+          <dt className="font-bold text-slate-700">{l('status')}</dt>
+          <dd className="mt-1 text-slate-600">
+            <div>{item.readUtc ? `${l('readAt')}: ${formatDate(item.readUtc)}` : l('notReadYet')}</div>
+            <div>{item.repliedUtc ? `${l('repliedAt')}: ${formatDate(item.repliedUtc)}` : l('noReplyYet')}</div>
+          </dd>
+        </div>
+      </dl>
+
+      <details className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+        <summary className="cursor-pointer font-bold text-slate-700">{l('details')}</summary>
+        <div className="mt-3 grid gap-3">
+          <JsonBlock title={l('messagePayload')} value={prettyJson(item.actionDataJson)} />
+          {item.responseDataJson ? <JsonBlock title={l('responsePayload')} value={prettyJson(item.responseDataJson)} /> : null}
+          <p className="break-all font-mono text-[11px] leading-5 text-slate-500">
+            <span className="font-sans font-bold text-slate-700">{l('technicalIds')}: </span>
+            notification: {compactId(item.id)} · recipient: {compactId(item.recipientMemberId)} · sender: {compactId(item.createdByMemberId)}
+          </p>
+        </div>
+      </details>
+    </article>
+  )
+}
+
+const LabeledField = ({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) => (
+  <label className="grid gap-1.5">
+    <span className="text-xs font-semibold text-slate-600">{label}</span>
+    {children}
+    {hint ? <span className="text-xs font-normal leading-5 text-slate-500">{hint}</span> : null}
+  </label>
+)
+
+const TextAreaInput = (props: TextareaHTMLAttributes<HTMLTextAreaElement>) => (
+  <textarea
+    {...props}
+    className={`min-h-28 rounded-xl border border-slate-200 px-3 py-2 text-sm font-normal leading-6 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 ${props.className || ''}`}
+  />
+)
+
+const JsonBlock = ({ title, value }: { title: string; value: string }) => (
+  <div>
+    <div className="mb-1 font-bold text-slate-700">{title}</div>
+    <pre className="max-h-52 overflow-auto rounded-xl border border-slate-200 bg-white p-3 font-mono text-[11px] leading-5 text-slate-600">
+      {value}
+    </pre>
   </div>
 )
 
@@ -544,9 +1097,9 @@ const Panel = ({ title, description, count, children }: { title: string; descrip
   </section>
 )
 const FilterBar = ({ children }: { children: ReactNode }) => <div className="grid gap-3 border-b border-slate-200 bg-slate-50 p-4 sm:grid-cols-2 lg:grid-cols-4">{children}</div>
-const TextInput = (props: InputHTMLAttributes<HTMLInputElement>) => <input {...props} className={`min-h-10 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 ${props.className || ''}`} />
+const TextInput = (props: InputHTMLAttributes<HTMLInputElement>) => <input {...props} className={`min-h-11 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-normal text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 ${props.className || ''}`} />
 const SearchInput = (props: InputHTMLAttributes<HTMLInputElement>) => <div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><TextInput {...props} className="w-full pl-9" /></div>
-const SelectInput = (props: SelectHTMLAttributes<HTMLSelectElement>) => <select {...props} className="min-h-10 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 disabled:bg-slate-100 disabled:text-slate-400" />
+const SelectInput = (props: SelectHTMLAttributes<HTMLSelectElement>) => <select {...props} className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-normal text-slate-950 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 disabled:bg-slate-100 disabled:text-slate-400" />
 const FilterActions = ({ l, apply, reset }: { l: LabelFn; apply: () => Promise<void>; reset: () => void }) => <div className="flex gap-2"><button className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-800" type="button" onClick={() => apply().catch(() => undefined)}>{l('apply')}</button><button className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-white" type="button" onClick={reset}>{l('reset')}</button></div>
 const DataTable = ({ headers, children }: { headers: string[]; children: ReactNode }) => <div className="overflow-x-auto"><table className="min-w-full divide-y divide-slate-200 text-sm"><thead className="bg-white text-left text-xs font-black uppercase tracking-wide text-slate-500"><tr>{headers.map((header) => <th key={header} className="px-5 py-3">{header}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{children}</tbody></table></div>
 const Loading = ({ text }: { text: string }) => <div className="flex items-center gap-2 p-5 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />{text}</div>

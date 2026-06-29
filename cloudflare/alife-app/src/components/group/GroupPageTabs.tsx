@@ -12,6 +12,7 @@ import { pageService } from '../../services/pageService'
 import type { GroupPageDto, GroupSummaryDto } from '../../types/group'
 import type { PageEditModel, SectionEditModel } from '../../types/page-editor'
 import { localizeText, toLocalizedText } from '../../utils/localizedText'
+import { collectMissingPageTranslations } from '../../utils/pageBilingualCompletion'
 import { useUiText } from '../../i18n/uiText'
 import { useAuthStore } from '../../stores/auth'
 
@@ -80,6 +81,15 @@ const GroupPageTabs = ({
   const hasValidationErrors = validation
     ? Boolean(validation.title) || validation.sectionTypeErrors.some((item) => item.length > 0)
     : false
+  const missingTranslationCount = activeModel ? collectMissingPageTranslations(activeModel).length : 0
+  const hasLocalImages = activeModel ? cloudflareImageService.sectionsHaveLocalDataImages(activeModel.sections) : false
+  const baselineActiveModel = activePage
+    ? {
+        ...toEditModel(activePage),
+        sections: sectionsByPageId[activePage.id] ?? [],
+      }
+    : null
+  const hasUnsavedChanges = Boolean(activeModel && baselineActiveModel && JSON.stringify(activeModel) !== JSON.stringify(baselineActiveModel))
   const localizedSubgroups = useMemo(
     () => subgroups.map((subgroup) => ({ ...subgroup, name: localizeText(subgroup.name, language) })),
     [language, subgroups],
@@ -265,17 +275,19 @@ const GroupPageTabs = ({
                 canEdit={canEditAllPages}
                 canEditVisibility={canEditAllPages}
                 message={message}
+                publishReadiness={{
+                  missingTranslationCount,
+                  hasLocalImages,
+                  hasUnsavedChanges,
+                  hasValidationErrors,
+                  canSave: canEditAllPages && !saving && !hasValidationErrors,
+                  saving,
+                }}
+                onSave={() => {
+                  saveActivePage().catch(() => undefined)
+                }}
                 onChange={updateActiveModel}
               />
-            </div>
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <AppActionButton
-                variant="primary"
-                disabled={!canEditAllPages || saving || hasValidationErrors}
-                onClick={() => saveActivePage().catch(() => undefined)}
-              >
-                {saving ? t('saving') : t('savePageButton')}
-              </AppActionButton>
             </div>
           </div>
         ) : null}

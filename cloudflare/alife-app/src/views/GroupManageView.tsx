@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowRightLeft, CalendarDays, Crown, FileText, Network, Settings, ShieldCheck, UserPlus, UserMinus, UsersRound } from 'lucide-react'
+import { ArrowRightLeft, CalendarDays, CheckCircle2, Clock3, Crown, FileText, ListChecks, Network, Settings, ShieldCheck, UserPlus, UserMinus, UsersRound } from 'lucide-react'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
 import AppEmptyState from '../components/layout/AppEmptyState'
@@ -68,6 +68,19 @@ const managementCopy = (language: string, isChurch?: boolean) => {
       totalEvents: '全部活动',
       pastEvents: '已结束',
       publishedPages: '页面',
+      commandCenter: '今日运营重点',
+      commandCenterHint: '先处理会影响成员体验和公开呈现的事项。',
+      taskQueue: '待办队列',
+      workflowHealth: '工作流状态',
+      pendingApprovalsTask: '处理加入申请',
+      pendingApprovalsHint: '有人正在等待进入小组生活。',
+      draftPagesTask: '检查草稿页面',
+      draftPagesHint: '草稿内容可继续编辑或安排发布。',
+      upcomingEventsTask: '维护近期活动',
+      upcomingEventsHint: '确认报名、时间和后续回顾安排。',
+      settingsTask: '检查小组资料',
+      profileReviewHint: '保持名称、简介、权限和带领人信息准确。',
+      allClear: '当前没有紧急待办。',
       quickActions: '常用操作',
       inviteMember: '邀请成员',
       createEvent: '创建活动',
@@ -101,6 +114,19 @@ const managementCopy = (language: string, isChurch?: boolean) => {
       totalEvents: 'Total events',
       pastEvents: 'Past events',
       publishedPages: 'Pages',
+      commandCenter: 'Today\'s operations focus',
+      commandCenterHint: 'Start with the items that affect member experience and public-facing content.',
+      taskQueue: 'Task queue',
+      workflowHealth: 'Workflow health',
+      pendingApprovalsTask: 'Review join requests',
+      pendingApprovalsHint: 'People are waiting to enter group life.',
+      draftPagesTask: 'Check draft pages',
+      draftPagesHint: 'Draft content can be edited or prepared for publishing.',
+      upcomingEventsTask: 'Maintain upcoming events',
+      upcomingEventsHint: 'Confirm enrollment, timing, and follow-up reflection.',
+      settingsTask: 'Review group profile',
+      profileReviewHint: 'Keep name, description, access rules, and leadership details accurate.',
+      allClear: 'No urgent tasks right now.',
       quickActions: 'Quick actions',
       inviteMember: 'Invite people',
       createEvent: 'Create event',
@@ -165,6 +191,107 @@ const ManagementTabs = ({
         )
       })}
     </nav>
+  )
+}
+
+const ManagementCommandCenter = ({
+  basePath,
+  requestedCount,
+  draftPageCount,
+  upcomingEventCount,
+  copy,
+}: {
+  basePath: string
+  requestedCount: number
+  draftPageCount: number
+  upcomingEventCount: number
+  copy: ReturnType<typeof managementCopy>
+}) => {
+  const tasks = [
+    {
+      key: 'members' as ManageSection,
+      label: copy.pendingApprovalsTask,
+      hint: copy.pendingApprovalsHint,
+      count: requestedCount,
+      icon: <UserPlus className="h-4 w-4" />,
+      urgent: requestedCount > 0,
+    },
+    {
+      key: 'pages' as ManageSection,
+      label: copy.draftPagesTask,
+      hint: copy.draftPagesHint,
+      count: draftPageCount,
+      icon: <FileText className="h-4 w-4" />,
+      urgent: draftPageCount > 0,
+    },
+    {
+      key: 'events' as ManageSection,
+      label: copy.upcomingEventsTask,
+      hint: copy.upcomingEventsHint,
+      count: upcomingEventCount,
+      icon: <CalendarDays className="h-4 w-4" />,
+      urgent: upcomingEventCount > 0,
+    },
+    {
+      key: 'group' as ManageSection,
+      label: copy.settingsTask,
+      hint: copy.profileReviewHint,
+      count: 1,
+      icon: <Settings className="h-4 w-4" />,
+      urgent: false,
+    },
+  ]
+  const activeTaskCount = requestedCount + draftPageCount + upcomingEventCount
+
+  return (
+    <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      <AppSectionCard dense title={copy.commandCenter} subtitle={copy.commandCenterHint}>
+        <div className="grid gap-3 md:grid-cols-2">
+          {tasks.map((task) => (
+            <Link
+              key={task.key}
+              to={`${basePath}?section=${task.key}`}
+              className={[
+                'group flex min-h-[7.5rem] items-start gap-3 rounded-2xl border p-4 transition hover:-translate-y-0.5 hover:shadow-md',
+                task.urgent
+                  ? 'border-amber-200 bg-amber-50/70 text-amber-950'
+                  : 'border-[#2f4b42]/10 bg-white/72 text-[#18332d] hover:bg-white',
+              ].join(' ')}
+            >
+              <span className={[
+                'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
+                task.urgent ? 'bg-amber-100 text-amber-700' : 'bg-[#e3f0eb] text-[#176b5a]',
+              ].join(' ')}>
+                {task.icon}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center justify-between gap-3">
+                  <span className="font-black">{task.label}</span>
+                  <span className="rounded-lg bg-white/78 px-2 py-1 text-xs font-black shadow-sm">{task.count}</span>
+                </span>
+                <span className="mt-1 block text-sm leading-6 text-[#66766f]">{task.hint}</span>
+              </span>
+            </Link>
+          ))}
+        </div>
+      </AppSectionCard>
+      <AppSectionCard dense title={copy.workflowHealth}>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between rounded-2xl border border-[#2f4b42]/10 bg-white/72 p-4">
+            <div className="flex items-center gap-3">
+              <span className={['flex h-10 w-10 items-center justify-center rounded-xl', activeTaskCount > 0 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'].join(' ')}>
+                {activeTaskCount > 0 ? <Clock3 className="h-5 w-5" /> : <CheckCircle2 className="h-5 w-5" />}
+              </span>
+              <div>
+                <p className="text-sm font-black text-[#18332d]">{activeTaskCount > 0 ? copy.taskQueue : copy.allClear}</p>
+                <p className="text-xs font-semibold text-[#66766f]">{copy.pending}: {requestedCount} · {copy.publishedPages}: {draftPageCount} · {copy.upcomingEvents}: {upcomingEventCount}</p>
+              </div>
+            </div>
+            <ListChecks className="h-5 w-5 text-[#176b5a]" />
+          </div>
+        </div>
+      </AppSectionCard>
+    </section>
   )
 }
 
@@ -678,6 +805,7 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
   const requestedCount = memberships.filter((member) => member.status === 'requested').length
   const approvedCount = memberships.filter((member) => member.status === 'approved').length
   const upcomingEventCount = events.filter((event) => !event.endDate || new Date(event.endDate).getTime() >= Date.now()).length
+  const draftPageCount = pages.filter((page) => page.visibility === 'draft').length
   const groupWorkspaceTarget = (_targetGroupId: string) =>
     embeddedWorkspace ? '/groups?section=group' : '/groups/manage?section=group'
   const unsavedGroupProfileMessage = t('groupProfileUnsavedChangesPrompt')
@@ -848,6 +976,14 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
             </AppActionButton>
           </div>
         </AppSectionCard>
+
+        <ManagementCommandCenter
+          basePath={sectionBasePath}
+          requestedCount={requestedCount}
+          draftPageCount={draftPageCount}
+          upcomingEventCount={upcomingEventCount}
+          copy={copy}
+        />
 
         <ManagementTabs activeSection={activeSection} basePath={sectionBasePath} copy={copy} />
       </div>
