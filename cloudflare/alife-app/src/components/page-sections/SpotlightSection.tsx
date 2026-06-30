@@ -20,6 +20,7 @@ import {
 import type { SectionComponentProps } from './types'
 import SectionHeader from './SectionHeader'
 import { sectionSpacingClass } from './sectionPresets'
+import { spotlightHeaderForSource } from '../../utils/sectionSourcePresets'
 import type { SpotlightDataSource } from '../../types'
 import type { SermonDto } from '../../services/sermonService'
 import {
@@ -128,6 +129,20 @@ const SpotlightSection = ({ section, mode, disabled, propertiesOnly, showPropert
       : {}
     updateContent({ spotlight: { ...currentSpotlight, ...patch } })
   }
+  const updateSpotlightSource = (source: SpotlightDataSource) => {
+    const currentSpotlight = section.contentJson.spotlight && typeof section.contentJson.spotlight === 'object' && !Array.isArray(section.contentJson.spotlight)
+      ? section.contentJson.spotlight
+      : {}
+    updateContent({
+      spotlight: {
+        ...currentSpotlight,
+        source,
+        preset: defaultSpotlightPreset(source),
+        itemId: '',
+      },
+      header: spotlightHeaderForSource(source, section.contentJson.header),
+    })
+  }
   const activateAction = (action: (typeof actions)[number]) => {
     if (action.entityType === 'group' && action.entityId) {
       activeEntityService.setGroup(action.entityId)
@@ -166,11 +181,11 @@ const SpotlightSection = ({ section, mode, disabled, propertiesOnly, showPropert
         <>
           <SelectInput
             focusKey="spotlight-source"
-            label={t('source')}
+            label={t('contentSource')}
             value={spotlightBinding.source}
             disabled={disabled}
             options={SPOTLIGHT_DATA_SOURCES.map((source) => ({ value: source, label: t(source) }))}
-            onChange={(value) => updateSpotlight({ source: value as SpotlightDataSource, preset: defaultSpotlightPreset(value as SpotlightDataSource), itemId: '' })}
+            onChange={(value) => updateSpotlightSource(value as SpotlightDataSource)}
           />
           <SelectInput
             focusKey="spotlight-preset"

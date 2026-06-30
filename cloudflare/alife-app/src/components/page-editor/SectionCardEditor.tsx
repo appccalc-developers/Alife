@@ -36,11 +36,11 @@ type Props = {
 }
 
 const sectionTypeLabel = (type: SectionType, isZh: boolean) => {
-  if (type === 'Hero') return isZh ? '开场横幅' : 'Opening banner'
-  if (type === 'RichText') return isZh ? '文字说明' : 'Text block'
-  if (type === 'Spotlight') return isZh ? '重点推荐' : 'Highlight'
-  if (type === 'ListView') return isZh ? '自动列表' : 'Auto list'
-  if (type === 'Sermon') return isZh ? '讲道视频' : 'Sermon video'
+  if (type === 'Hero') return isZh ? '主视觉' : 'Hero'
+  if (type === 'RichText') return isZh ? '图文说明' : 'Rich Text'
+  if (type === 'Spotlight') return isZh ? '重点推荐' : 'Spotlight'
+  if (type === 'ListView') return isZh ? '列表视图' : 'List View'
+  if (type === 'Sermon') return isZh ? '讲道视频' : 'Sermon Video'
   return type
 }
 
