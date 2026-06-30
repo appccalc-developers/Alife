@@ -122,8 +122,8 @@ const pushSectionCandidates = (
     }
   }
 
-  if (section.type === 'Hero' || section.type === 'Spotlight') {
-    const body = findFirstTextValue(section.contentJson, ['body', 'centerText', 'text'])
+  if (section.type === 'Hero' || section.type === 'LandingHeroSection' || section.type === 'Spotlight') {
+    const body = findFirstTextValue(section.contentJson, ['body', 'centerText', 'subtitle', 'subheadline', 'text'])
     if (body !== undefined) {
       candidates.push({
         field: `sections.${index}.body`,
@@ -132,13 +132,24 @@ const pushSectionCandidates = (
       })
     }
 
-    const linkLabel = findFirstTextValue(section.contentJson, ['linkLabel', 'linkText', 'ctaLabel'])
+    const linkLabel = findFirstTextValue(section.contentJson, ['primaryLabel', 'linkLabel', 'linkText', 'ctaLabel'])
     if (linkLabel !== undefined) {
       candidates.push({
         field: `sections.${index}.linkLabel`,
         textType: 'sectionActionLabel',
         value: linkLabel,
       })
+    }
+
+    if (section.type === 'LandingHeroSection') {
+      const secondaryLabel = findFirstTextValue(section.contentJson, ['secondaryLabel', 'secondaryLinkText'])
+      if (secondaryLabel !== undefined) {
+        candidates.push({
+          field: `sections.${index}.secondaryLabel`,
+          textType: 'sectionActionLabel',
+          value: secondaryLabel,
+        })
+      }
     }
   }
 
@@ -237,13 +248,25 @@ const contentAliasesForField = (section: SectionEditModel, field: string) => {
   }
 
   if (field === 'body') {
+    if (section.type === 'LandingHeroSection') {
+      return ['body', 'centerText', 'subtitle', 'subheadline']
+    }
+
     return section.type === 'Spotlight'
       ? ['body', 'centerText', 'text']
       : ['body', 'centerText']
   }
 
   if (field === 'linkLabel') {
+    if (section.type === 'LandingHeroSection') {
+      return ['primaryLabel', 'linkLabel', 'linkText', 'ctaLabel']
+    }
+
     return ['linkLabel', 'linkText', 'ctaLabel']
+  }
+
+  if (field === 'secondaryLabel') {
+    return ['secondaryLabel', 'secondaryLinkText']
   }
 
   return [field]

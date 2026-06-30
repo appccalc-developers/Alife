@@ -39,7 +39,48 @@ const createDefaultSectionHeader = () => ({
   tone: 'default' as const,
 })
 
+const HOME_HERO_VIDEO = '/media/homepage-hero.mp4'
+const HOME_HERO_POSTER = '/media/alife-church-community-hero.jpg'
+
 export const createEmptyPageSection = (type: SectionType = 'Hero'): SectionEditModel => {
+  if (type === 'LandingHeroSection') {
+    return {
+      order: 0,
+      type: 'LandingHeroSection',
+      contentJson: {
+        header: createDefaultSectionHeader(),
+        spacing: 'normal',
+        sectionKind: 'LandingHeroSection',
+        backgroundVideo: HOME_HERO_VIDEO,
+        backgroundImage: HOME_HERO_VIDEO,
+        backgroundImageUrl: HOME_HERO_VIDEO,
+        imageUrl: HOME_HERO_VIDEO,
+        posterImage: HOME_HERO_POSTER,
+        posterImageUrl: HOME_HERO_POSTER,
+        poster: HOME_HERO_POSTER,
+        title: '',
+        headline: '',
+        centerText: '',
+        body: '',
+        subtitle: '',
+        subheadline: '',
+        primaryLabel: '',
+        linkLabel: '',
+        linkText: '',
+        ctaLabel: '',
+        primaryUrl: '',
+        linkUrl: '',
+        ctaUrl: '',
+        href: '',
+        secondaryLabel: '',
+        secondaryLinkText: '',
+        secondaryUrl: '',
+        secondaryLinkUrl: '',
+      },
+      styleJson: { layout: 'landingHero' },
+    }
+  }
+
   if (type === 'RichText') {
     return {
       order: 0,
@@ -144,7 +185,6 @@ export const createEmptyPageSection = (type: SectionType = 'Hero'): SectionEditM
 }
 
 const localized = (en: string, zh: string) => ({ en, zh })
-const HOME_HERO_VIDEO = '/media/homepage-hero.mp4'
 
 const listPresetTitle = (source: string) => {
   if (source === 'events') return localized('Upcoming events', '近期活动')
@@ -157,12 +197,50 @@ const listPresetTitle = (source: string) => {
 
 export const createPresetPageSection = (preset: string): SectionEditModel => {
   const section = createEmptyPageSection(
-    preset.startsWith('rich-') ? 'RichText' :
+    preset === 'landing-hero' ? 'LandingHeroSection' :
+      preset.startsWith('rich-') ? 'RichText' :
       preset.startsWith('spotlight-') ? 'Spotlight' :
         preset.startsWith('list-') ? 'ListView' :
           preset === 'sermon-embed' ? 'Sermon' :
             'Hero',
   )
+
+  if (preset === 'landing-hero') {
+    const title = localized('A spiritual home\nin the light of the South Island.', '在南岛的光里，\n找到一个属灵的家。')
+    const body = localized(
+      'We are a Chinese Christian community in Christchurch, welcoming students, families, new migrants, and seekers to worship, know Jesus, and grow in real fellowship.',
+      '我们是一群在基督城同行的华人基督徒，欢迎留学生、年轻家庭、新移民和正在寻找信仰答案的朋友，一起敬拜、认识耶稣、进入真实的团契生活。',
+    )
+    const primaryLabel = localized('Plan a Visit', '计划首次来访')
+    const secondaryLabel = localized('Watch Sermon', '观看主日信息')
+
+    return {
+      ...section,
+      contentJson: {
+        ...section.contentJson,
+        header: { title, subtitle: body, align: 'left', scale: 'feature', tone: 'default' },
+        title,
+        headline: title,
+        centerText: body,
+        body,
+        subtitle: body,
+        subheadline: body,
+        primaryLabel,
+        linkLabel: primaryLabel,
+        linkText: primaryLabel,
+        ctaLabel: primaryLabel,
+        primaryUrl: '#visit',
+        linkUrl: '#visit',
+        ctaUrl: '#visit',
+        href: '#visit',
+        secondaryLabel,
+        secondaryLinkText: secondaryLabel,
+        secondaryUrl: '/sermons',
+        secondaryLinkUrl: '/sermons',
+      },
+      styleJson: { ...section.styleJson, layout: 'landingHero' },
+    }
+  }
 
   if (preset === 'hero-home') {
     return {

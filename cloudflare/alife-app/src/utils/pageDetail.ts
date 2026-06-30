@@ -150,6 +150,8 @@ const normalizeSectionType = (value: number | string): SectionEditModel['type'] 
   const normalized = String(value)
   const sectionTypeMapByName: Record<string, SectionEditModel['type']> = {
     hero: 'Hero',
+    landingHero: 'LandingHeroSection',
+    landingHeroSection: 'LandingHeroSection',
     mediaSpotlight: 'Spotlight',
     spotlight: 'Spotlight',
     sermonSpotlight: 'Spotlight',
@@ -183,7 +185,7 @@ const normalizeSectionType = (value: number | string): SectionEditModel['type'] 
     return legacySectionTypeMap[normalized]
   }
 
-  const values = ['Hero', 'Spotlight', 'RichText', 'Sermon', 'ListView'] as const
+  const values = ['Hero', 'LandingHeroSection', 'Spotlight', 'RichText', 'Sermon', 'ListView'] as const
   return values.includes(normalized as (typeof values)[number]) ? (normalized as SectionEditModel['type']) : 'RichText'
 }
 
@@ -205,8 +207,11 @@ export const normalizePageSection = (section: SectionDto): SectionEditModel => {
   }
   const layout = typeof styleJson.layout === 'string' ? styleJson.layout : ''
 
+  const sectionKind = firstString(contentJson.sectionKind, contentJson.sectionType)
   const type =
-    normalizedType === 'Hero' && (layout === 'mediaSpotlight' || layout === 'split' || layout === 'sermonSpotlight' || layout === 'spotlight')
+    normalizedType === 'Hero' && (layout === 'landingHero' || sectionKind === 'LandingHeroSection' || sectionKind === 'landingHeroSection' || sectionKind === 'landingHero')
+      ? 'LandingHeroSection'
+      : normalizedType === 'Hero' && (layout === 'mediaSpotlight' || layout === 'split' || layout === 'sermonSpotlight' || layout === 'spotlight')
       ? 'Spotlight'
       : normalizedType
 

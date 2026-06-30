@@ -15,6 +15,7 @@ import LocationSection from './home/LocationSection'
 import HomeFooter from './home/HomeFooter'
 
 const sectionTypeFallback = (section: SectionEditModel, language: string) => {
+  if (section.type === 'LandingHeroSection') return language === 'zh' ? '主视觉' : 'Hero'
   if (section.type === 'Hero') return language === 'zh' ? '首页介绍' : 'Intro'
   if (section.type === 'Spotlight') return language === 'zh' ? '重点内容' : 'Highlight'
   if (section.type === 'RichText') return language === 'zh' ? '说明' : 'Info'
@@ -31,6 +32,7 @@ const sectionTypeFallback = (section: SectionEditModel, language: string) => {
 }
 
 const cleanSectionTypeFallback = (section: SectionEditModel, language: string) => {
+  if (section.type === 'LandingHeroSection') return language === 'zh' ? '主视觉' : 'Hero'
   if (section.type === 'Hero') return language === 'zh' ? '首页介绍' : 'Intro'
   if (section.type === 'Spotlight') return language === 'zh' ? '重点内容' : 'Highlight'
   if (section.type === 'RichText') return language === 'zh' ? '说明' : 'Info'

@@ -118,6 +118,7 @@ export type LinkDto = {
 
 export type SectionType =
   | 'Hero'
+  | 'LandingHeroSection'
   | 'Spotlight'
   | 'RichText'
   | 'Sermon'

@@ -1,4 +1,5 @@
 import HeroSection from './HeroSection'
+import LandingHeroSection from './LandingHeroSection'
 import SpotlightSection from './SpotlightSection'
 import RichTextSection from './RichTextSection'
 import GroupListSectionBlock from './GroupListSectionBlock'
@@ -9,6 +10,8 @@ const SectionBlock = (props: SectionComponentProps) => {
   switch (props.section.type) {
     case 'Hero':
       return <HeroSection {...props} />
+    case 'LandingHeroSection':
+      return <LandingHeroSection {...props} />
     case 'Spotlight':
       return <SpotlightSection {...props} />
     case 'RichText':

@@ -36,6 +36,7 @@ type Props = {
 }
 
 const sectionTypeLabel = (type: SectionType, isZh: boolean) => {
+  if (type === 'LandingHeroSection') return isZh ? '落地页主视觉' : 'Landing hero'
   if (type === 'Hero') return isZh ? '开场横幅' : 'Opening banner'
   if (type === 'RichText') return isZh ? '文字说明' : 'Text block'
   if (type === 'Spotlight') return isZh ? '重点推荐' : 'Highlight'
@@ -168,9 +169,11 @@ const getSectionGuide = (section: SectionEditModel, language: string) => {
   const isZh = language === 'zh'
   const title = readHeaderText(section, language, 'title') || readContentText(section, language, 'title', 'headline')
   const subtitle = readHeaderText(section, language, 'subtitle') || readContentText(section, language, 'subtitle', 'subheadline', 'centerText', 'body')
-  const media = readContentText(section, language, 'backgroundImage', 'backgroundImageUrl', 'imageUrl')
-  const linkLabel = readContentText(section, language, 'linkLabel', 'linkText', 'ctaLabel')
-  const linkUrl = readContentText(section, language, 'linkUrl', 'ctaUrl', 'href')
+  const media = readContentText(section, language, 'backgroundVideo', 'backgroundImage', 'backgroundImageUrl', 'imageUrl')
+  const linkLabel = readContentText(section, language, 'primaryLabel', 'linkLabel', 'linkText', 'ctaLabel')
+  const linkUrl = readContentText(section, language, 'primaryUrl', 'linkUrl', 'ctaUrl', 'href')
+  const secondaryLabel = readContentText(section, language, 'secondaryLabel', 'secondaryLinkText')
+  const secondaryUrl = readContentText(section, language, 'secondaryUrl', 'secondaryLinkUrl')
   const source = readContentText(section, language, 'source', 'sourceType')
   const layout = readContentText(section, language, 'layout')
   const spotlight = section.contentJson.spotlight && typeof section.contentJson.spotlight === 'object' && !Array.isArray(section.contentJson.spotlight)
@@ -195,6 +198,21 @@ const getSectionGuide = (section: SectionEditModel, language: string) => {
         { label: isZh ? '行动按钮' : 'Call to action', ready: Boolean(linkLabel && linkUrl), detail: linkUrl ? summarizeValue(linkUrl, isZh) : summarizeValue(linkLabel, isZh), icon: <Link2 className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'hero-cta-url' } },
       ] satisfies GuideItem[],
       advice: isZh ? '发布前请确认手机上文字不会遮挡人物或重要画面。' : 'Before publishing, check that mobile text does not cover important faces or visuals.',
+    }
+  }
+
+  if (section.type === 'LandingHeroSection') {
+    return {
+      title: isZh ? '落地页主视觉引导' : 'Landing hero guidance',
+      description: isZh ? '适合做页面最强的第一屏邀请，使用首页的视频主视觉语气。' : 'Use this as a strong first-screen invitation with the homepage video hero style.',
+      items: [
+        { label: isZh ? '主标题' : 'Main headline', ready: Boolean(title), detail: summarizeValue(title, isZh), icon: <Type className="h-4 w-4" />, target: { type: 'preview', index: 0 } },
+        { label: isZh ? '说明文案' : 'Supporting copy', ready: Boolean(subtitle), detail: summarizeValue(subtitle, isZh), icon: <FileText className="h-4 w-4" />, target: { type: 'preview', index: 1 } },
+        { label: isZh ? '背景图片/视频' : 'Background media', ready: isMediaValue(media), detail: summarizeValue(media, isZh), icon: <ImageUp className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'landing-hero-media' } },
+        { label: isZh ? '主要按钮' : 'Primary action', ready: Boolean(linkLabel && linkUrl), detail: linkUrl ? summarizeValue(linkUrl, isZh) : summarizeValue(linkLabel, isZh), icon: <Link2 className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'landing-hero-primary-url' } },
+        { label: isZh ? '次要按钮' : 'Secondary action', ready: Boolean(secondaryLabel && secondaryUrl), detail: secondaryUrl ? summarizeValue(secondaryUrl, isZh) : summarizeValue(secondaryLabel, isZh), icon: <Link2 className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'landing-hero-secondary-url' } },
+      ] satisfies GuideItem[],
+      advice: isZh ? '建议只用于页面顶部，并确认视频封面在手机上仍能衬托文字。' : 'Use it near the top of a page and confirm the video poster still supports readable mobile text.',
     }
   }
 

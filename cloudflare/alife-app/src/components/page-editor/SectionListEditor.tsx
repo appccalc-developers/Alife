@@ -22,6 +22,7 @@ type Props = {
 }
 
 const sectionPresets: Array<{ type: SectionType; preset?: string; label: LocalText; description: LocalText }> = [
+  { type: 'LandingHeroSection', preset: 'landing-hero', label: { en: 'Landing hero', zh: '落地页主视觉' }, description: { en: 'Homepage-style video hero with headline, copy, and two calls to action.', zh: '使用首页视频主视觉样式，包含标题、说明和两个行动按钮。' } },
   { type: 'Hero', preset: 'hero-home', label: { en: 'Homepage opening', zh: '首页开场' }, description: { en: 'Large first screen with image, headline, copy, and a button.', zh: '用图片、标题、说明和按钮做页面第一屏。' } },
   { type: 'Hero', preset: 'hero-event', label: { en: 'Event opening', zh: '活动开场' }, description: { en: 'Poster-style opening for a gathering or announcement.', zh: '适合聚会、活动或公告的海报式开场。' } },
   { type: 'RichText', preset: 'rich-welcome', label: { en: 'Welcome message', zh: '欢迎文字' }, description: { en: 'Simple bilingual intro copy for a page.', zh: '用于页面简介、欢迎语或说明文字。' } },
@@ -42,6 +43,7 @@ const sectionPresets: Array<{ type: SectionType; preset?: string; label: LocalTe
 ]
 
 const sectionTypeLabel = (type: SectionType | '', isZh: boolean) => {
+  if (type === 'LandingHeroSection') return isZh ? '落地页主视觉' : 'Landing hero'
   if (type === 'Hero') return isZh ? '开场横幅' : 'Opening banner'
   if (type === 'RichText') return isZh ? '文字说明' : 'Text block'
   if (type === 'Spotlight') return isZh ? '重点推荐' : 'Highlight'
