@@ -31,6 +31,7 @@ type Props = {
   onMoveUp: () => void
   onMoveDown: () => void
   contextGroupId?: string
+  pageId?: string
   isActive: boolean
   onSelect: () => void
 }
@@ -274,7 +275,7 @@ const getSectionGuide = (section: SectionEditModel, language: string) => {
   }
 }
 
-const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate, onRemove, onMoveUp, onMoveDown, contextGroupId, isActive, onSelect }: Props) => {
+const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate, onRemove, onMoveUp, onMoveDown, contextGroupId, pageId, isActive, onSelect }: Props) => {
   const t = useUiText()
   const { language } = useAuthStore()
   const [propertiesOpen, setPropertiesOpen] = useState(false)
@@ -293,7 +294,7 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
   const isZh = language === 'zh'
   const focusInlineEditable = (index: number) => {
     window.setTimeout(() => {
-      const editables = Array.from(cardRef.current?.querySelectorAll<HTMLElement>('[contenteditable="true"]') ?? [])
+      const editables = Array.from(cardRef.current?.querySelectorAll<HTMLElement>('[contenteditable="true"], [data-editor-focus-target="true"]') ?? [])
       const target = editables[Math.min(index, Math.max(0, editables.length - 1))]
       target?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       target?.focus()
@@ -484,6 +485,7 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
           disabled={!canEdit}
           editorPreview
           contextGroupId={contextGroupId}
+          pageId={pageId}
           onUpdate={onUpdate}
           showProperties={false}
         />
@@ -537,6 +539,7 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
                     mode="edit"
                     disabled={!canEdit}
                     contextGroupId={contextGroupId}
+                    pageId={pageId}
                     onUpdate={onUpdate}
                     propertiesOnly
                   />

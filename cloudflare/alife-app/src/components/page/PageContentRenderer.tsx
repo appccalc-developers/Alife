@@ -342,6 +342,7 @@ const PageContentRenderer = ({
   const t = useUiText()
   const pageTitle = localizeText(page.title, auth.language)
   const pageDescription = localizeText(page.description, auth.language)
+  const pageId = page.id || undefined
 
   const updateSections = (nextSections: SectionEditModel[]) => onSectionsChange?.(normalizePageSections(nextSections))
 
@@ -405,6 +406,7 @@ const PageContentRenderer = ({
           canEdit={canEdit}
           sectionTypeErrors={validation.sectionTypeErrors}
           contextGroupId={contextGroupId}
+          pageId={pageId}
           onAdd={addSection}
           onUpdate={({ index, section }) => updateSection(index, section)}
           onRemove={removeSection}
@@ -421,6 +423,7 @@ const PageContentRenderer = ({
                 page={page as GroupPageDto}
                 groupPageItems={groupPageItems}
                 contextGroupId={contextGroupId}
+                pageId={pageId}
               />
             </div>
           ))}

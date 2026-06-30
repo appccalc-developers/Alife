@@ -15,6 +15,7 @@ export type SectionComponentProps = {
   section: SectionEditModel
   mode: SectionMode
   page?: GroupPageDto
+  pageId?: string
   groupPageItems?: PageLinkItem[]
   contextGroupId?: string
   disabled?: boolean

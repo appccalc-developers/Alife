@@ -30,6 +30,7 @@ type Props = {
   onMoveUp: (index: number) => void
   onMoveDown: (index: number) => void
   contextGroupId?: string
+  pageId?: string
 }
 
 const sectionTypeOptions: Array<{ type: SectionType; label: LocalText; description: LocalText; Icon: LucideIcon }> = [
@@ -49,7 +50,7 @@ const sectionTypeLabel = (type: SectionType | '', isZh: boolean) => {
   return isZh ? '未选择类型' : 'No type selected'
 }
 
-const SectionListEditor = ({ sections, canEdit, sectionTypeErrors, onAdd, onUpdate, onRemove, onMoveUp, onMoveDown, contextGroupId }: Props) => {
+const SectionListEditor = ({ sections, canEdit, sectionTypeErrors, onAdd, onUpdate, onRemove, onMoveUp, onMoveDown, contextGroupId, pageId }: Props) => {
   const t = useUiText()
   const { language } = useAuthStore()
   const [activeIndex, setActiveIndex] = useState(0)
@@ -147,6 +148,7 @@ const SectionListEditor = ({ sections, canEdit, sectionTypeErrors, onAdd, onUpda
               canEdit={canEdit}
               typeError={sectionTypeErrors[index]}
               contextGroupId={contextGroupId}
+              pageId={pageId}
               isActive={activeIndex === index}
               onSelect={() => setActiveIndex(index)}
               onUpdate={(nextSection) => onUpdate({ index, section: nextSection })}
