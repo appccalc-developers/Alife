@@ -419,6 +419,8 @@ const PageEditorView = () => {
     setError('')
 
     try {
+      let modelToPersist = pageModel
+      let translationSaveNotice = ''
       const missingTranslationFields = collectMissingPageTranslations(pageModel)
       if (missingTranslationFields.length > 0) {
         if (!window.confirm(t('pageAiBilingualAutofillConfirm', { count: missingTranslationFields.length }))) {
@@ -428,36 +430,46 @@ const PageEditorView = () => {
 
         setMessage(t('aiAutofilling'))
         const translatedFields = []
-        for (const fields of chunkFields(missingTranslationFields, TRANSLATION_BATCH_SIZE)) {
-          const translatedBatch = await aiTranslationService.translateTextFields({
-            scope: resolvedGroupId ? 'group' : 'church',
-            groupId: resolvedGroupId || undefined,
-            fields,
-          })
-          translatedFields.push(...translatedBatch)
-        }
+        try {
+          for (const fields of chunkFields(missingTranslationFields, TRANSLATION_BATCH_SIZE)) {
+            const translatedBatch = await aiTranslationService.translateTextFields({
+              scope: resolvedGroupId ? 'group' : 'church',
+              groupId: resolvedGroupId || undefined,
+              fields,
+            })
+            translatedFields.push(...translatedBatch)
+          }
 
-        const completedModel = applyPageTranslations(pageModel, translatedFields, missingTranslationFields)
-        setPageModel(completedModel)
-        setMessage(t('pageAiBilingualAutofillComplete', { count: translatedFields.length }))
-        setLanguageReviewPrompt({ reason: 'autofill', targetLanguage: otherLanguage(auth.language) })
-        return
+          const completedModel = applyPageTranslations(pageModel, translatedFields, missingTranslationFields)
+          setPageModel(completedModel)
+          setMessage(t('pageAiBilingualAutofillComplete', { count: translatedFields.length }))
+          setLanguageReviewPrompt({ reason: 'autofill', targetLanguage: otherLanguage(auth.language) })
+          return
+        } catch (reason) {
+          console.warn('AI page translation failed; continuing page save.', reason)
+          modelToPersist = translatedFields.length > 0
+            ? applyPageTranslations(pageModel, translatedFields, missingTranslationFields)
+            : pageModel
+          setPageModel(modelToPersist)
+          translationSaveNotice = t('pageAiBilingualAutofillFailedSaving')
+          setMessage(translationSaveNotice)
+        }
       }
 
       let targetPageId = editPageId
-      const tagsJson = JSON.stringify(pageModel.tags)
-      const title = pageModel.title
-      const description = pageModel.description
-      const titleDisplayStyle = pageModel.titleDisplayStyle.trim() || 'Default'
-      const selectedVisibility = pageModel.visibility
+      const tagsJson = JSON.stringify(modelToPersist.tags)
+      const title = modelToPersist.title
+      const description = modelToPersist.description
+      const titleDisplayStyle = modelToPersist.titleDisplayStyle.trim() || 'Default'
+      const selectedVisibility = modelToPersist.visibility
 
-      let sectionsToPersist = pageModel.sections
+      let sectionsToPersist = modelToPersist.sections
       let savedPage: PageDetailDto | null = null
 
       const imagePrefix = `${resolvedGroupId ? `g-${resolvedGroupId}` : 'global'}-${editPageId || 'new'}`
-      if (cloudflareImageService.sectionsHaveLocalDataImages(pageModel.sections)) {
+      if (cloudflareImageService.sectionsHaveLocalDataImages(modelToPersist.sections)) {
         setMessage(t('uploadingLocalImages'))
-        sectionsToPersist = await cloudflareImageService.resolveSectionImages(pageModel.sections, imagePrefix)
+        sectionsToPersist = await cloudflareImageService.resolveSectionImages(modelToPersist.sections, imagePrefix)
         setPageModel((current) => ({ ...current, sections: normalizePageSections(sectionsToPersist) }))
       }
 
@@ -471,12 +483,12 @@ const PageEditorView = () => {
               sections: sectionsToPersist,
             })
           : await pageService.createGroupPage(resolvedGroupId, {
-          title,
-          description,
-          tagsJson,
-          titleDisplayStyle,
-          sections: sectionsToPersist,
-        })
+              title,
+              description,
+              tagsJson,
+              titleDisplayStyle,
+              sections: sectionsToPersist,
+            })
 
         targetPageId = created.id
         savedPage = created
@@ -521,10 +533,10 @@ const PageEditorView = () => {
       }
 
       const savedModel = {
-        ...pageModel,
+        ...modelToPersist,
         id: targetPageId,
         groupId: resolvedGroupId,
-        createdByMemberId: savedPage?.createdByMemberId ?? pageModel.createdByMemberId,
+        createdByMemberId: savedPage?.createdByMemberId ?? modelToPersist.createdByMemberId,
         sections: normalizePageSections(savedPage?.sections ?? sectionsToPersist),
         visibility: finalVisibility,
       }
@@ -533,13 +545,13 @@ const PageEditorView = () => {
       }
       setPageModel(savedModel)
       setSavedModelSnapshot(JSON.stringify(savedModel))
-      setMessage(
+      const savedMessage =
         finalVisibility === 'draft'
           ? t('draftSaved')
           : visibilityChanged
             ? t('pageSavedPublished')
-            : t('pageSaved'),
-      )
+            : t('pageSaved')
+      setMessage(translationSaveNotice ? `${translationSaveNotice} ${savedMessage}` : savedMessage)
       setLanguageReviewPrompt({ reason: 'save', targetLanguage: otherLanguage(auth.language) })
 
       if (isCreateMode && targetPageId) {
