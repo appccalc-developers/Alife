@@ -69,6 +69,41 @@ export function normalizeImageUrl(value: string): string {
   return value
 }
 
+export function imageKeyToAppPath(key: string): string {
+  const normalizedKey = key
+    .split('/')
+    .map((segment) => segment.trim())
+    .filter(Boolean)
+    .map(encodeURIComponent)
+    .join('/')
+
+  return normalizedKey ? `/images/${normalizedKey}` : '/images'
+}
+
+export function imageUrlToAppPath(value: string): string {
+  if (!value) {
+    return value
+  }
+
+  try {
+    const url = new URL(value, typeof window !== 'undefined' ? window.location.origin : 'https://ccalc.live')
+    if (url.hostname === LEGACY_IMAGE_HOST) {
+      return `/images${url.pathname}${url.search}${url.hash}`
+    }
+    if (url.hostname === 'ccalc.live' && url.pathname.startsWith('/images/')) {
+      return `${url.pathname}${url.search}${url.hash}`
+    }
+  } catch {
+    return value
+  }
+
+  return value
+}
+
+export function uploadedImageToAppPath(image: UploadedImage): string {
+  return image.key ? imageKeyToAppPath(image.key) : imageUrlToAppPath(normalizeImageUrl(image.url))
+}
+
 export function getKeyExtension(fileName: string): string {
   const tokens = fileName.toLowerCase().split('.')
   return tokens.length > 1 ? (tokens.at(-1) ?? '') : ''
