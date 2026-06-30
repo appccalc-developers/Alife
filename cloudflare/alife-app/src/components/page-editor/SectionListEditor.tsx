@@ -1,5 +1,16 @@
 import { useEffect, useState } from 'react'
-import { AlertTriangle, CheckCircle2, Layers3, PlusCircle } from 'lucide-react'
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Clapperboard,
+  FileText,
+  Layers3,
+  LayoutList,
+  Megaphone,
+  PlusCircle,
+  Type,
+  type LucideIcon,
+} from 'lucide-react'
 import AppActionButton from '../layout/AppActionButton'
 import AppEmptyState from '../layout/AppEmptyState'
 import SectionCardEditor from './SectionCardEditor'
@@ -13,7 +24,7 @@ type Props = {
   sections: SectionEditModel[]
   canEdit: boolean
   sectionTypeErrors: string[]
-  onAdd: (type: SectionType, preset?: string) => void
+  onAdd: (type: SectionType) => void
   onUpdate: (payload: { index: number; section: SectionEditModel }) => void
   onRemove: (index: number) => void
   onMoveUp: (index: number) => void
@@ -21,33 +32,21 @@ type Props = {
   contextGroupId?: string
 }
 
-const sectionPresets: Array<{ type: SectionType; preset?: string; label: LocalText; description: LocalText }> = [
-  { type: 'Hero', preset: 'hero-home', label: { en: 'Homepage opening', zh: '首页开场' }, description: { en: 'Large first screen with image, headline, copy, and a button.', zh: '用图片、标题、说明和按钮做页面第一屏。' } },
-  { type: 'Hero', preset: 'hero-event', label: { en: 'Event opening', zh: '活动开场' }, description: { en: 'Poster-style opening for a gathering or announcement.', zh: '适合聚会、活动或公告的海报式开场。' } },
-  { type: 'RichText', preset: 'rich-welcome', label: { en: 'Welcome message', zh: '欢迎文字' }, description: { en: 'Simple bilingual intro copy for a page.', zh: '用于页面简介、欢迎语或说明文字。' } },
-  { type: 'RichText', preset: 'rich-faq', label: { en: 'Common questions', zh: '常见问题' }, description: { en: 'Questions about visit, language, children, and parking.', zh: '整理访问、语言、儿童、停车等常见问题。' } },
-  { type: 'RichText', preset: 'rich-steps', label: { en: 'What to expect', zh: '流程说明' }, description: { en: 'Step-by-step guidance for visitors or members.', zh: '给访客或成员看的分步骤说明。' } },
-  { type: 'Spotlight', preset: 'spotlight-visit', label: { en: 'Visit highlight', zh: '来访重点' }, description: { en: 'Image plus text for location or first visit info.', zh: '用图片和文字说明地点或首次来访信息。' } },
-  { type: 'Spotlight', preset: 'spotlight-groups', label: { en: 'Group highlight', zh: '小组重点' }, description: { en: 'Feature small groups and belonging.', zh: '突出小组生活和归属感。' } },
-  { type: 'Spotlight', preset: 'spotlight-sermons', label: { en: 'Sermon highlight', zh: '讲道重点' }, description: { en: 'Feature a message, series, or teaching theme.', zh: '突出一篇信息、系列或教导主题。' } },
-  { type: 'ListView', preset: 'list-events', label: { en: 'Upcoming events', zh: '近期活动' }, description: { en: 'Automatically show upcoming events.', zh: '自动显示即将开始的活动。' } },
-  { type: 'ListView', preset: 'list-event-coverflow', label: { en: 'Event coverflow', zh: '活动封面轮播' }, description: { en: 'Show events as a featured center card with side previews.', zh: '用主卡和左右预览展示近期活动。' } },
-  { type: 'ListView', preset: 'list-groups', label: { en: 'Group cards', zh: '小组卡片' }, description: { en: 'Automatically show group cards.', zh: '自动显示小组卡片。' } },
-  { type: 'ListView', preset: 'list-sermons', label: { en: 'Latest sermons', zh: '最新讲道' }, description: { en: 'Automatically show latest sermon cards.', zh: '自动显示最新讲道卡片。' } },
-  { type: 'ListView', preset: 'list-pages', label: { en: 'Page links', zh: '页面链接' }, description: { en: 'Automatically show related pages.', zh: '自动显示相关页面入口。' } },
-  { type: 'ListView', preset: 'list-members', label: { en: 'Member list', zh: '成员列表' }, description: { en: 'Show approved group members when the viewer has access.', zh: '在有权限时展示已批准的小组成员。' } },
-  { type: 'ListView', preset: 'list-posts', label: { en: 'Post list', zh: '文章列表' }, description: { en: 'Reserve a list block for future post-style content.', zh: '为文章类内容预留自动列表区块。' } },
-  { type: 'ListView', preset: 'list-carousel', label: { en: 'Scrolling cards', zh: '横向卡片' }, description: { en: 'Horizontally scrolling card list.', zh: '可横向滑动的一组卡片。' } },
-  { type: 'Sermon', preset: 'sermon-embed', label: { en: 'Sermon video', zh: '讲道视频' }, description: { en: 'YouTube sermon embed with title.', zh: '嵌入 YouTube 讲道视频和标题。' } },
+const sectionTypeOptions: Array<{ type: SectionType; label: LocalText; description: LocalText; Icon: LucideIcon }> = [
+  { type: 'Hero', label: { en: 'Hero', zh: '主视觉' }, description: { en: 'A page opening with background media, headline, and action.', zh: '页面开场，可放背景媒体、主标题和行动按钮。' }, Icon: Megaphone },
+  { type: 'RichText', label: { en: 'Rich Text', zh: '图文说明' }, description: { en: 'Longer bilingual copy for welcome text, FAQ, or steps.', zh: '适合欢迎语、常见问题、流程说明等较长双语文字。' }, Icon: FileText },
+  { type: 'Spotlight', label: { en: 'Spotlight', zh: '重点推荐' }, description: { en: 'Feature one story with media, body copy, and an action.', zh: '用媒体、说明和行动按钮突出一个重点内容。' }, Icon: Type },
+  { type: 'ListView', label: { en: 'List View', zh: '列表视图' }, description: { en: 'Show content from events, sermons, groups, pages, or members.', zh: '展示活动、讲道、小组、页面或成员等内容来源。' }, Icon: LayoutList },
+  { type: 'Sermon', label: { en: 'Sermon Video', zh: '讲道视频' }, description: { en: 'Embed one YouTube sermon video with a title.', zh: '嵌入一段 YouTube 讲道视频和标题。' }, Icon: Clapperboard },
 ]
 
 const sectionTypeLabel = (type: SectionType | '', isZh: boolean) => {
-  if (type === 'Hero') return isZh ? '开场横幅' : 'Opening banner'
-  if (type === 'RichText') return isZh ? '文字说明' : 'Text block'
-  if (type === 'Spotlight') return isZh ? '重点推荐' : 'Highlight'
-  if (type === 'ListView') return isZh ? '自动列表' : 'Auto list'
-  if (type === 'Sermon') return isZh ? '讲道视频' : 'Sermon video'
-  return isZh ? '未选择样式' : 'No layout selected'
+  if (type === 'Hero') return isZh ? '主视觉' : 'Hero'
+  if (type === 'RichText') return isZh ? '图文说明' : 'Rich Text'
+  if (type === 'Spotlight') return isZh ? '重点推荐' : 'Spotlight'
+  if (type === 'ListView') return isZh ? '列表视图' : 'List View'
+  if (type === 'Sermon') return isZh ? '讲道视频' : 'Sermon Video'
+  return isZh ? '未选择类型' : 'No type selected'
 }
 
 const SectionListEditor = ({ sections, canEdit, sectionTypeErrors, onAdd, onUpdate, onRemove, onMoveUp, onMoveDown, contextGroupId }: Props) => {
@@ -70,8 +69,8 @@ const SectionListEditor = ({ sections, canEdit, sectionTypeErrors, onAdd, onUpda
     }
   }, [activeIndex, sections.length])
 
-  const addAndSelect = (type: SectionType, preset?: string) => {
-    onAdd(type, preset)
+  const addAndSelect = (type: SectionType) => {
+    onAdd(type)
     setActiveIndex(sections.length)
     setCreateOpen(false)
   }
@@ -184,18 +183,27 @@ const SectionListEditor = ({ sections, canEdit, sectionTypeErrors, onAdd, onUpda
               </button>
             </div>
             <div className="mt-5 grid max-h-[60vh] gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
-              {sectionPresets.map((item) => (
-                <button
-                  key={item.preset || item.type}
-                  type="button"
-                  disabled={!canEdit}
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-800 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
-                  onClick={() => addAndSelect(item.type, item.preset)}
-                >
-                  <span className="block font-bold text-slate-950">{isZh ? item.label.zh : item.label.en}</span>
-                  <span className="mt-1 block text-xs leading-5 text-slate-500">{isZh ? item.description.zh : item.description.en}</span>
-                </button>
-              ))}
+              {sectionTypeOptions.map((item) => {
+                const Icon = item.Icon
+
+                return (
+                  <button
+                    key={item.type}
+                    type="button"
+                    disabled={!canEdit}
+                    className="flex min-h-32 gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-800 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={() => addAndSelect(item.type)}
+                  >
+                    <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#e3f0eb] text-[#176b5a]">
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block font-bold text-slate-950">{isZh ? item.label.zh : item.label.en}</span>
+                      <span className="mt-1 block text-xs leading-5 text-slate-500">{isZh ? item.description.zh : item.description.en}</span>
+                    </span>
+                  </button>
+                )
+              })}
             </div>
           </section>
         </div>

@@ -6,6 +6,7 @@ import SectionListEditor from '../page-editor/SectionListEditor'
 import { translateUi, useUiText } from '../../i18n/uiText'
 import { useAuthStore } from '../../stores/auth'
 import { localizeText } from '../../utils/localizedText'
+import { listViewContentDefaultsForSource, normalizeListViewSource } from '../../utils/sectionSourcePresets'
 import { DEFAULT_HERO_ASPECT_RATIO, DEFAULT_HERO_IMAGE, EditableText } from '../page-sections/sectionUtils'
 
 type GroupLinkItem = {
@@ -38,6 +39,9 @@ const createDefaultSectionHeader = () => ({
   scale: 'normal' as const,
   tone: 'default' as const,
 })
+
+const localized = (en: string, zh: string) => ({ en, zh })
+const HOME_HERO_VIDEO = '/media/homepage-hero.mp4'
 
 export const createEmptyPageSection = (type: SectionType = 'Hero'): SectionEditModel => {
   if (type === 'RichText') {
@@ -103,16 +107,30 @@ export const createEmptyPageSection = (type: SectionType = 'Hero'): SectionEditM
       order: 0,
       type: 'ListView',
       contentJson: {
-        header: createDefaultSectionHeader(),
         spacing: 'normal',
-        source: 'sermons',
-        preset: 'latest',
         layout: 'grid',
-        sourceType: 'sermons',
-        sourceScope: 'global',
-        limit: 10,
-        sortBy: 'date',
-        sortDirection: 'desc',
+        ...listViewContentDefaultsForSource('sermons'),
+      },
+      styleJson: {},
+    }
+  }
+
+  if (type === 'Sermon') {
+    return {
+      order: 0,
+      type: 'Sermon',
+      contentJson: {
+        header: {
+          icon: 'mic',
+          title: localized('Featured message', '精选讲道'),
+          subtitle: localized('Embed one sermon video from YouTube.', '嵌入一段 YouTube 讲道视频。'),
+          align: 'left',
+          scale: 'normal',
+          tone: 'primary',
+        },
+        spacing: 'normal',
+        title: localized('Featured message', '精选讲道'),
+        youtubeUrl: '',
       },
       styleJson: {},
     }
@@ -141,18 +159,6 @@ export const createEmptyPageSection = (type: SectionType = 'Hero'): SectionEditM
     },
     styleJson: { layout: 'featured', aspectRatio: DEFAULT_HERO_ASPECT_RATIO },
   }
-}
-
-const localized = (en: string, zh: string) => ({ en, zh })
-const HOME_HERO_VIDEO = '/media/homepage-hero.mp4'
-
-const listPresetTitle = (source: string) => {
-  if (source === 'events') return localized('Upcoming events', '近期活动')
-  if (source === 'groups') return localized('Find a group', '寻找小组')
-  if (source === 'pages') return localized('Explore pages', '浏览页面')
-  if (source === 'members') return localized('Meet members', '认识成员')
-  if (source === 'posts') return localized('Latest posts', '最新文章')
-  return localized('Latest sermons', '最新讲道')
 }
 
 export const createPresetPageSection = (preset: string): SectionEditModel => {
@@ -268,24 +274,13 @@ export const createPresetPageSection = (preset: string): SectionEditModel => {
             : preset === 'list-members' ? 'members'
               : preset === 'list-posts' ? 'posts'
                 : 'sermons'
-    const title = source === 'events'
-      ? localized('Upcoming events', '近期活动')
-      : source === 'groups'
-        ? localized('Find a group', '寻找小组')
-        : source === 'pages'
-          ? localized('Explore pages', '浏览页面')
-          : localized('Latest sermons', '最新讲道')
+    const listSource = normalizeListViewSource(source)
     return {
       ...section,
       contentJson: {
         ...section.contentJson,
-        header: { title: listPresetTitle(source) || title, subtitle: localized('', ''), align: 'left', scale: 'normal', tone: 'default' },
-        source,
-        sourceType: source,
-        sourceScope: source === 'events' || source === 'groups' || source === 'pages' || source === 'members' ? 'group' : 'global',
-        preset: source === 'events' ? 'upcoming' : source === 'groups' ? 'featured' : 'latest',
+        ...listViewContentDefaultsForSource(listSource, section.contentJson.header),
         layout: preset === 'list-carousel' ? 'carousel' : preset === 'list-event-coverflow' ? 'coverflow' : 'grid',
-        limit: source === 'groups' ? 6 : 4,
       },
     }
   }
@@ -295,6 +290,7 @@ export const createPresetPageSection = (preset: string): SectionEditModel => {
       ...section,
       type: 'Sermon',
       contentJson: {
+        ...section.contentJson,
         title: localized('Featured message', '精选讲道'),
         youtubeUrl: '',
       },
@@ -349,7 +345,7 @@ const PageContentRenderer = ({
 
   const updateSections = (nextSections: SectionEditModel[]) => onSectionsChange?.(normalizePageSections(nextSections))
 
-  const addSection = (type: SectionType, preset?: string) => updateSections([...sections, preset ? createPresetPageSection(preset) : createEmptyPageSection(type)])
+  const addSection = (type: SectionType) => updateSections([...sections, createEmptyPageSection(type)])
 
   const updateSection = (index: number, section: SectionEditModel) => {
     const nextSections = [...sections]

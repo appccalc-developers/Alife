@@ -5,16 +5,23 @@ import { PropertyPanel, SelectInput, TextInput, patchContent, patchLocalizedSect
 import type { SectionComponentProps } from './types'
 import SectionHeader from './SectionHeader'
 import { sectionSpacingClass } from './sectionPresets'
+import {
+  LIST_VIEW_SOURCES,
+  listViewContentDefaultsForSource,
+  listViewPresetForSource,
+  normalizeListViewSource,
+} from '../../utils/sectionSourcePresets'
+import type { ListViewSource } from '../../types/page-editor'
 
 const sourceFromContent = (content: Record<string, unknown>) => {
   const source = readText(content, 'source')
-  if (source) return source
+  if (source) return normalizeListViewSource(source)
 
   const sourceType = readText(content, 'sourceType') || 'sermons'
-  return sourceType === 'subgroups' ? 'groups' : sourceType === 'pages' || sourceType === 'members' ? sourceType : sourceType
+  return normalizeListViewSource(sourceType === 'subgroups' ? 'groups' : sourceType)
 }
 
-const presetOptionsForSource = (source: string, t: ReturnType<typeof useUiText>) => {
+const presetOptionsForSource = (source: ListViewSource, t: ReturnType<typeof useUiText>) => {
   if (source === 'events') {
     return [
       { value: 'upcoming', label: t('upcoming') },
@@ -47,20 +54,11 @@ const presetOptionsForSource = (source: string, t: ReturnType<typeof useUiText>)
   return [{ value: 'all', label: t('all') }]
 }
 
-const sourceScopeFor = (source: string) =>
-  source === 'events' || source === 'groups' || source === 'pages' || source === 'members' ? 'group' : 'global'
-
-const defaultPresetFor = (source: string) =>
-  source === 'events' ? 'upcoming'
-    : source === 'groups' ? 'featured'
-      : source === 'pages' || source === 'members' || source === 'posts' ? 'latest'
-        : 'latest'
-
 const GroupListSectionBlock = ({ section, mode, disabled, editorPreview, propertiesOnly, showProperties = true, contextGroupId, page, onUpdate }: SectionComponentProps) => {
   const auth = useAuthStore()
   const t = useUiText()
   const source = sourceFromContent(section.contentJson)
-  const preset = readText(section.contentJson, 'preset') || defaultPresetFor(source)
+  const preset = readText(section.contentJson, 'preset') || listViewPresetForSource(source)
   const layout = readText(section.contentJson, 'layout') || 'grid'
   const limit = typeof section.contentJson.limit === 'number' ? section.contentJson.limit : 10
   const editable = mode === 'edit' && !disabled && onUpdate
@@ -72,24 +70,14 @@ const GroupListSectionBlock = ({ section, mode, disabled, editorPreview, propert
     <PropertyPanel>
       <SelectInput
         focusKey="list-source"
-        label={t('source')}
+        label={t('contentSource')}
         value={source}
         disabled={disabled}
-        options={[
-          { value: 'events', label: t('events') },
-          { value: 'sermons', label: t('sermons') },
-          { value: 'groups', label: t('groups') },
-          { value: 'pages', label: t('pages') },
-          { value: 'members', label: t('members') },
-          { value: 'media', label: t('media') },
-          { value: 'posts', label: t('posts') },
-        ]}
-        onChange={(value) => updateContent({
-          source: value,
-          sourceType: value,
-          sourceScope: sourceScopeFor(value),
-          preset: defaultPresetFor(value),
-        })}
+        options={LIST_VIEW_SOURCES.map((sourceOption) => ({ value: sourceOption, label: t(sourceOption) }))}
+        onChange={(value) => {
+          const nextSource = normalizeListViewSource(value)
+          updateContent(listViewContentDefaultsForSource(nextSource, section.contentJson.header))
+        }}
       />
       <SelectInput focusKey="list-preset" label={t('preset')} value={preset} disabled={disabled} options={presetOptionsForSource(source, t)} onChange={(value) => updateContent({ preset: value })} />
       <SelectInput focusKey="list-layout" label={t('layout')} value={layout} disabled={disabled} options={[{ value: 'grid', label: t('grid') }, { value: 'list', label: t('list') }, { value: 'cards', label: t('cards') }, { value: 'carousel', label: t('carousel') }, { value: 'coverflow', label: t('coverflow') }]} onChange={(value) => updateContent({ layout: value })} />
