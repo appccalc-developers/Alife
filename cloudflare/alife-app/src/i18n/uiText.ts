@@ -201,6 +201,10 @@ const text = {
     en: 'AI filled {count} missing page text field(s). Please review the page, then save again.',
     zh: 'AI 已补齐 {count} 个页面文字字段。请先检查页面内容，然后再次保存。',
   },
+  pageAiBilingualAutofillFailedSaving: {
+    en: 'AI translation failed, so the page was saved with the text currently in the editor.',
+    zh: 'AI 翻译失败，页面已使用编辑器当前文字保存。',
+  },
   reviewOtherLanguageTitle: { en: 'Review the other language?', zh: '检查另一种语言？' },
   reviewOtherLanguageAfterAutofill: {
     en: 'AI filled the missing text. Please review how this page looks in {language}. Switch now?',
