@@ -4,7 +4,7 @@ import { useUiText } from '../../i18n/uiText'
 import { BackgroundMedia, EditableText, PropertyPanel, patchContent, patchLocalizedContent, patchLocalizedSectionHeader, patchSectionHeader, readLocalizedText, readText } from './sectionUtils'
 import type { SectionComponentProps } from './types'
 import SectionHeader from './SectionHeader'
-import { sectionSpacingClass } from './sectionPresets'
+import { pageSectionShellClass, sectionSpacingClass } from './sectionPresets'
 import { richTextBodyClass, sanitizeRichTextHtml } from './richTextHtml'
 
 const TinyMceRichTextEditor = lazy(() => import('./TinyMceRichTextEditor'))
@@ -54,7 +54,7 @@ const pageImageUploadFolder = (groupId: string | undefined, pageId: string | und
   return `${groupFolder}/${pageFolder}/rich-text`
 }
 
-const RichTextSection = ({ section, mode, disabled, propertiesOnly, showProperties = true, contextGroupId, page, pageId, onUpdate }: SectionComponentProps) => {
+const RichTextSection = ({ section, mode, domId, disabled, propertiesOnly, showProperties = true, contextGroupId, page, pageId, onUpdate }: SectionComponentProps) => {
   const auth = useAuthStore()
   const t = useUiText()
   const editable = mode === 'edit' && !disabled && onUpdate
@@ -104,36 +104,10 @@ const RichTextSection = ({ section, mode, disabled, propertiesOnly, showProperti
 
   if (!overlay) {
     return (
-      <section className={`${sectionSpacingClass(section)} rounded-lg border border-slate-200 bg-slate-50 px-4 text-slate-700`}>
-        <SectionHeader
-          header={section.contentJson.header}
-          titleFallback={headerFallbackTitle}
-          subtitleFallback={headerFallbackSubtitle}
-          disabled={!editable}
-          onIconChange={editable ? (icon) => onUpdate?.(patchSectionHeader(section, { icon })) : undefined}
-          onTitleChange={editable ? updateHeaderTitle : undefined}
-          onSubtitleChange={editable ? updateHeaderSubtitle : undefined}
-        />
-        <div className="mx-auto max-w-3xl">
-          {mode === 'render' ? (
-            <RichTextHtml value={renderedText} fallback={t('noRichTextContentYet')} className="leading-7 text-slate-700 [&_a]:text-emerald-700 [&_blockquote]:text-slate-600" />
-          ) : (
-            renderTextEditor()
-          )}
-        </div>
-        {mode === 'edit' && showProperties ? renderProperties() : null}
-      </section>
-    )
-  }
-
-  return (
-    <section className="overflow-hidden rounded-lg border border-slate-200">
-      <div className={`relative overflow-hidden px-5 text-white ${sectionSpacingClass(section)}`}>
-        <BackgroundMedia src={bg} overlayClassName="bg-slate-950/70" />
-        <div className="relative mx-auto max-w-4xl text-center">
+      <section id={domId} className={pageSectionShellClass}>
+        <div className={`${sectionSpacingClass(section)} rounded-lg border border-slate-200 bg-slate-50 px-4 text-slate-700`}>
           <SectionHeader
             header={section.contentJson.header}
-            variant="hero"
             titleFallback={headerFallbackTitle}
             subtitleFallback={headerFallbackSubtitle}
             disabled={!editable}
@@ -141,17 +115,47 @@ const RichTextSection = ({ section, mode, disabled, propertiesOnly, showProperti
             onTitleChange={editable ? updateHeaderTitle : undefined}
             onSubtitleChange={editable ? updateHeaderSubtitle : undefined}
           />
-          {mode === 'edit' ? (
-            <div className="mt-6 text-left sm:mt-8">
-              {renderTextEditor(true)}
-            </div>
-          ) : (
-            <RichTextHtml value={text} fallback={t('noQuoteContentYet')} className="mx-auto mt-6 max-w-3xl text-2xl italic leading-relaxed text-slate-100 sm:mt-8 sm:text-4xl [&_a]:text-yellow-200 [&_blockquote]:border-yellow-300 [&_blockquote]:text-slate-100" />
-          )}
-          <EditableText as="p" value={author} fallback="" disabled={!editable} className="mt-4 block text-xl font-medium text-yellow-300 sm:text-3xl" onChange={(value) => updateLocalizedContent({ quoteAuthor: value })} />
+          <div className="mx-auto max-w-3xl">
+            {mode === 'render' ? (
+              <RichTextHtml value={renderedText} fallback={t('noRichTextContentYet')} className="leading-7 text-slate-700 [&_a]:text-emerald-700 [&_blockquote]:text-slate-600" />
+            ) : (
+              renderTextEditor()
+            )}
+          </div>
+          {mode === 'edit' && showProperties ? renderProperties() : null}
         </div>
+      </section>
+    )
+  }
+
+  return (
+    <section id={domId} className={pageSectionShellClass}>
+      <div className="overflow-hidden rounded-lg border border-slate-200">
+        <div className={`relative overflow-hidden px-5 text-white ${sectionSpacingClass(section)}`}>
+          <BackgroundMedia src={bg} overlayClassName="bg-slate-950/70" />
+          <div className="relative mx-auto max-w-4xl text-center">
+            <SectionHeader
+              header={section.contentJson.header}
+              variant="hero"
+              titleFallback={headerFallbackTitle}
+              subtitleFallback={headerFallbackSubtitle}
+              disabled={!editable}
+              onIconChange={editable ? (icon) => onUpdate?.(patchSectionHeader(section, { icon })) : undefined}
+              onTitleChange={editable ? updateHeaderTitle : undefined}
+              onSubtitleChange={editable ? updateHeaderSubtitle : undefined}
+            />
+            {mode === 'edit' ? (
+              <div className="mt-6 text-left sm:mt-8">
+                {renderTextEditor(true)}
+              </div>
+            ) : (
+              <RichTextHtml value={text} fallback={t('noQuoteContentYet')} className="mx-auto mt-6 max-w-3xl text-2xl italic leading-relaxed text-slate-100 sm:mt-8 sm:text-4xl [&_a]:text-yellow-200 [&_blockquote]:border-yellow-300 [&_blockquote]:text-slate-100" />
+            )}
+            <EditableText as="p" value={author} fallback="" disabled={!editable} className="mt-4 block text-xl font-medium text-yellow-300 sm:text-3xl" onChange={(value) => updateLocalizedContent({ quoteAuthor: value })} />
+          </div>
+        </div>
+        {mode === 'edit' && showProperties ? renderProperties() : null}
       </div>
-      {mode === 'edit' && showProperties ? renderProperties() : null}
     </section>
   )
 }

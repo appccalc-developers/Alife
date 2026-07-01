@@ -442,11 +442,14 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
   return (
     <div
       ref={cardRef}
-      role="button"
-      tabIndex={0}
-      className={`w-full min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm outline-none transition ${isActive ? 'ring-2 ring-blue-500 ring-offset-2' : 'cursor-pointer hover:ring-2 hover:ring-blue-200 hover:ring-offset-2'}`}
+      role={isActive ? undefined : 'button'}
+      tabIndex={isActive ? undefined : 0}
+      className={`relative w-full min-w-0 outline-none transition ${isActive ? '' : 'cursor-pointer hover:ring-2 hover:ring-blue-200 focus-visible:ring-2 focus-visible:ring-blue-500'}`}
       onClick={(event) => {
-        if (!isActive && (event.target as HTMLElement).closest('a')) {
+        if (isActive) {
+          return
+        }
+        if ((event.target as HTMLElement).closest('a')) {
           event.preventDefault()
         }
         onSelect()
@@ -462,34 +465,34 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
         }
       }}
     >
-      {isActive ? (<>
-      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
-        <div>
-          <h3 className="text-sm font-semibold text-slate-900">{t('sectionHeading', { number: index + 1, type: section.type ? sectionTypeLabel(section.type, isZh) : t('selectType') })}</h3>
-          {typeError ? <p className="mt-1 text-xs text-red-600">{typeError}</p> : null}
-        </div>
-        {isActive ? <div className="flex flex-wrap gap-2" onClick={(event) => event.stopPropagation()}>
-          <AppActionButton size="sm" disabled={!section.type} onClick={openProperties}>{t('properties')}</AppActionButton>
-          <AppActionButton size="sm" disabled={index === 0 || !canEdit} onClick={onMoveUp}>{t('moveUp')}</AppActionButton>
-          <AppActionButton size="sm" disabled={index === total - 1 || !canEdit} onClick={onMoveDown}>{t('moveDown')}</AppActionButton>
-          <AppActionButton size="sm" variant="danger" disabled={!canEdit} onClick={onRemove}>{t('remove')}</AppActionButton>
-        </div> : null}
-      </div>
-      {renderGuide()}
-      </>) : null}
+      {isActive ? (
+        <section className="rounded-2xl border border-[#2f4b42]/10 bg-white/90 shadow-[0_10px_26px_rgba(31,56,48,0.06)]">
+          <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900">{t('sectionHeading', { number: index + 1, type: section.type ? sectionTypeLabel(section.type, isZh) : t('selectType') })}</h3>
+              {typeError ? <p className="mt-1 text-xs text-red-600">{typeError}</p> : null}
+            </div>
+            <div className="flex flex-wrap gap-2" onClick={(event) => event.stopPropagation()}>
+              <AppActionButton size="sm" disabled={!section.type} onClick={openProperties}>{t('properties')}</AppActionButton>
+              <AppActionButton size="sm" disabled={index === 0 || !canEdit} onClick={onMoveUp}>{t('moveUp')}</AppActionButton>
+              <AppActionButton size="sm" disabled={index === total - 1 || !canEdit} onClick={onMoveDown}>{t('moveDown')}</AppActionButton>
+              <AppActionButton size="sm" variant="danger" disabled={!canEdit} onClick={onRemove}>{t('remove')}</AppActionButton>
+            </div>
+          </div>
+          {renderGuide()}
+        </section>
+      ) : null}
 
-      <div className="min-w-0 border-t border-slate-100" onClick={(event) => isActive && event.stopPropagation()}>
-        <SectionBlock
-          section={section}
-          mode={isActive ? 'edit' : 'render'}
-          disabled={!canEdit}
-          editorPreview
-          contextGroupId={contextGroupId}
-          pageId={pageId}
-          onUpdate={onUpdate}
-          showProperties={false}
-        />
-      </div>
+      <SectionBlock
+        section={section}
+        mode={isActive ? 'edit' : 'render'}
+        disabled={!canEdit}
+        editorPreview={isActive ? true : undefined}
+        contextGroupId={contextGroupId}
+        pageId={pageId}
+        onUpdate={onUpdate}
+        showProperties={false}
+      />
       {propertiesOpen ? (
         <div className="fixed inset-0 z-[70] flex items-end bg-slate-950/45 px-4 py-5 sm:items-center sm:justify-center" onClick={(event) => event.stopPropagation()}>
           <button type="button" className="absolute inset-0" aria-label={t('close')} onClick={() => setPropertiesOpen(false)} />

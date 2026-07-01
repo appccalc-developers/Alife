@@ -3,6 +3,7 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useLiveQuery } from '@tanstack/react-db'
 import { useQuery } from '@tanstack/react-query'
 import PageContentRenderer from '../components/page/PageContentRenderer'
+import { pageSectionShellClass } from '../components/page-sections/sectionPresets'
 import { fetchPageDetail, pageDetailQueryKey } from '../db/collections/pageCollection'
 import { subgroupsCollection, groupPagesCollection } from '../db/collections/groupCollection'
 import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
@@ -51,9 +52,17 @@ const PageView = () => {
 
   return (
     !pageId ? <Navigate to="/" replace /> :
-    <section className="mx-auto w-full max-w-5xl space-y-4 px-3 sm:px-4">
-      {pageLoading ? <p className="rounded-lg border border-slate-200 bg-white p-3 text-slate-600">{t('loadingPage')}</p> : null}
-      {!pageLoading && isError ? <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-red-700">{t('pageAccessDenied')}</p> : null}
+    <>
+      {pageLoading ? (
+        <section className={pageSectionShellClass}>
+          <p className="rounded-lg border border-slate-200 bg-white p-3 text-slate-600">{t('loadingPage')}</p>
+        </section>
+      ) : null}
+      {!pageLoading && isError ? (
+        <section className={pageSectionShellClass}>
+          <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-red-700">{t('pageAccessDenied')}</p>
+        </section>
+      ) : null}
 
       {!pageLoading && !isError && page ? (
         <PageContentRenderer
@@ -62,13 +71,14 @@ const PageView = () => {
           subgroupItems={localizedSubgroupItems as Array<{ id: string; name: string; accessType: string }>}
           groupPageItems={groupPageItems as unknown as Array<{ id: string; title: string; visibility: string }>}
           showHeader={false}
+          framed={false}
           onEditPage={(id, groupId) => {
             activeEntityService.setPage(id, groupId)
             navigate('/pages/edit')
           }}
         />
       ) : null}
-    </section>
+    </>
   )
 }
 

@@ -25,6 +25,7 @@ type Props = {
   onSaved?: () => void
   onCreate: () => void
   showCreateAction?: boolean
+  flatSections?: boolean
 }
 
 const parseTags = (tagsJson?: string): string[] => {
@@ -61,6 +62,7 @@ const GroupPageTabs = ({
   onSaved,
   onCreate,
   showCreateAction = false,
+  flatSections = false,
 }: Props) => {
   const t = useUiText()
   const { language } = useAuthStore()
@@ -217,13 +219,46 @@ const GroupPageTabs = ({
   }
 
   if (pages.length === 0) {
+    const emptyState = (
+      <AppEmptyState
+        title={t('noPagesYetTitle')}
+        description={t('noPagesYetDescription')}
+        actionLabel={showCreateAction ? t('createPage') : undefined}
+        onAction={showCreateAction ? onCreate : undefined}
+      />
+    )
+
+    return flatSections ? <section className="mx-auto w-full max-w-6xl">{emptyState}</section> : emptyState
+  }
+
+  if (flatSections && mode === 'view') {
     return (
-        <AppEmptyState
-          title={t('noPagesYetTitle')}
-          description={t('noPagesYetDescription')}
-          actionLabel={showCreateAction ? t('createPage') : undefined}
-          onAction={showCreateAction ? onCreate : undefined}
-        />
+      <>
+        {showCreateAction ? (
+          <section className="flex justify-end">
+            <AppActionButton variant="primary" onClick={onCreate}>
+              {t('createPage')}
+            </AppActionButton>
+          </section>
+        ) : null}
+
+        {loadingPageId && activePage?.id === loadingPageId ? (
+          <section className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">{t('loadingPageSections')}</section>
+        ) : null}
+
+        {error ? <section className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</section> : null}
+
+        {activePage && !error && (!loadingPageId || activePage.id !== loadingPageId) ? (
+          <PageContentRenderer
+            page={activePage}
+            sections={sectionsByPageId[activePage.id] ?? []}
+            subgroupItems={localizedSubgroups}
+            groupPageItems={pages}
+            showHeader={false}
+            framed={false}
+          />
+        ) : null}
+      </>
     )
   }
 

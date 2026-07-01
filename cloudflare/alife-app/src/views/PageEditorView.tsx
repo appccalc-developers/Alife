@@ -649,6 +649,7 @@ const PageEditorView = () => {
               validation={validation}
               contextGroupId={resolvedGroupId}
               showHeader={false}
+              framed={false}
               onPageChange={setPageModel}
               onSectionsChange={(sections) => setPageModel((current) => ({ ...current, sections }))}
             />

@@ -4,7 +4,7 @@ import { useAuthStore } from '../../stores/auth'
 import { PropertyPanel, SelectInput, TextInput, patchContent, patchLocalizedSectionHeader, patchSectionHeader, readText } from './sectionUtils'
 import type { SectionComponentProps } from './types'
 import SectionHeader from './SectionHeader'
-import { sectionSpacingClass } from './sectionPresets'
+import { pageSectionShellClass, sectionSpacingClass } from './sectionPresets'
 import {
   LIST_VIEW_SOURCES,
   listViewContentDefaultsForSource,
@@ -54,7 +54,7 @@ const presetOptionsForSource = (source: ListViewSource, t: ReturnType<typeof use
   return [{ value: 'all', label: t('all') }]
 }
 
-const GroupListSectionBlock = ({ section, mode, disabled, editorPreview, propertiesOnly, showProperties = true, contextGroupId, page, onUpdate }: SectionComponentProps) => {
+const GroupListSectionBlock = ({ section, mode, domId, disabled, editorPreview, propertiesOnly, showProperties = true, contextGroupId, page, onUpdate }: SectionComponentProps) => {
   const auth = useAuthStore()
   const t = useUiText()
   const source = sourceFromContent(section.contentJson)
@@ -92,18 +92,20 @@ const GroupListSectionBlock = ({ section, mode, disabled, editorPreview, propert
   const compactPreview = editorPreview ?? mode === 'edit'
 
   return (
-    <section className={`${sectionSpacingClass(section)} rounded-lg border border-slate-200 bg-white px-4`}>
-      <SectionHeader
-        header={section.contentJson.header}
-        titleFallback={mode === 'edit' ? t('previewNoTitle') : ''}
-        subtitleFallback={mode === 'edit' ? t('previewNoSubtitle') : ''}
-        disabled={!editable}
-        onIconChange={editable ? (icon) => onUpdate?.(patchSectionHeader(section, { icon })) : undefined}
-        onTitleChange={editable ? updateHeaderTitle : undefined}
-        onSubtitleChange={editable ? updateHeaderSubtitle : undefined}
-      />
-      <SmartGroupListSection metadata={section.contentJson} groupId={groupId} compact={compactPreview} />
-      {mode === 'edit' && showProperties ? renderProperties() : null}
+    <section id={domId} className={pageSectionShellClass}>
+      <div className={`${sectionSpacingClass(section)} rounded-lg border border-slate-200 bg-white px-4`}>
+        <SectionHeader
+          header={section.contentJson.header}
+          titleFallback={mode === 'edit' ? t('previewNoTitle') : ''}
+          subtitleFallback={mode === 'edit' ? t('previewNoSubtitle') : ''}
+          disabled={!editable}
+          onIconChange={editable ? (icon) => onUpdate?.(patchSectionHeader(section, { icon })) : undefined}
+          onTitleChange={editable ? updateHeaderTitle : undefined}
+          onSubtitleChange={editable ? updateHeaderSubtitle : undefined}
+        />
+        <SmartGroupListSection metadata={section.contentJson} groupId={groupId} compact={compactPreview} />
+        {mode === 'edit' && showProperties ? renderProperties() : null}
+      </div>
     </section>
   )
 }
