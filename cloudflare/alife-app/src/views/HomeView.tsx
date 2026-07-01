@@ -100,19 +100,16 @@ const HomeView = () => {
         <HeroSection copy={copy} language={language} />
         {hasPublishedHomePage ? (
           <>
-            <section className="px-5 py-20 sm:px-8 lg:px-12 lg:py-28">
-              <div className="mx-auto max-w-[88rem]">
-                <PageContentRenderer
-                  page={homePage}
-                  sections={normalizedHomeSections}
-                  subgroupItems={[]}
-                  groupPageItems={[]}
-                  contextGroupId={church?.id}
-                  showHeader={false}
-                  framed={false}
-                />
-              </div>
-            </section>
+            <PageContentRenderer
+              page={homePage}
+              sections={normalizedHomeSections}
+              subgroupItems={[]}
+              groupPageItems={[]}
+              contextGroupId={church?.id}
+              showHeader={false}
+              framed={false}
+              sectionChrome="home"
+            />
             <hr className="mx-auto max-w-6xl border-t border-home-border/40" />
           </>
         ) : (
