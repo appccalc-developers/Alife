@@ -55,6 +55,19 @@ export type AdminPlatformRoleDto = {
   code: 'user' | 'admin' | 'superadmin' | string
   name: LocalizedText
   level: number
+  permissions: string[]
+  availablePermissions: Array<{ code: string; name: LocalizedText }>
+  canEditPermissions: boolean
+  isSystem: boolean
+  canDelete: boolean
+  assignedMemberCount: number
+}
+
+export type CreatePlatformRolePayload = {
+  code: string
+  nameEn: string
+  nameZh: string
+  permissionCodes: string[]
 }
 
 export type AdminPageReviewDto = {
@@ -117,6 +130,25 @@ export type AdminNotificationDto = {
   updatedUtc: string
 }
 
+export type VisitContactRequestStatus = 'new' | 'followUp' | 'contacted'
+
+export type VisitContactRequestDto = {
+  id: string
+  displayName: string
+  email: string | null
+  phone: string | null
+  preferredLanguage: string | null
+  message: string | null
+  sourcePage: string | null
+  status: VisitContactRequestStatus | string
+  submittedUtc: string
+  handledUtc: string | null
+  handledByMemberId: string | null
+  handledByDisplayName: string | null
+  createdUtc: string
+  updatedUtc: string
+}
+
 export type AdminGroupOptionDto = {
   id: string
   nameJson: string
@@ -134,9 +166,10 @@ export type AdminPagedResultDto<T> = {
 }
 
 export type AdminSendMessagePayload = {
-  scope: 'platform' | 'group' | 'member'
+  scope: 'platform' | 'group' | 'member' | 'role'
   recipientMemberId?: string | null
   groupId?: string | null
+  roleCodes?: string[] | null
   actionType: string
   titleEn: string
   titleZh: string
@@ -151,6 +184,7 @@ export type AdminSelfDiagnosticDto = {
   legacyIsAdmin: boolean
   platformRole: 'user' | 'admin' | 'superadmin' | string
   platformRoles: string[]
+  permissions: string[]
   platformRoleLevel: number
   canAccessAdmin: boolean
 }
@@ -327,6 +361,11 @@ export const groupService = {
     return data
   },
 
+  async createPlatformRole(payload: CreatePlatformRolePayload) {
+    const { data } = await http.post<AdminPlatformRoleDto>('/api/admin/platform-roles', payload)
+    return data
+  },
+
   async getAdminSelfDiagnostic() {
     const { data } = await http.get<AdminSelfDiagnosticDto>('/api/admin/self-diagnostic')
     return data
@@ -357,9 +396,18 @@ export const groupService = {
     return normalizeAdminPagedResult<AdminMemberDto>(data)
   },
 
-  async setMemberPlatformRole(memberId: string, roleCode: string) {
-    const { data } = await http.put<AdminMemberDto>(`/api/admin/members/${memberId}/platform-role`, { roleCode })
+  async setMemberPlatformRoles(memberId: string, roleCodes: string[]) {
+    const { data } = await http.put<AdminMemberDto>(`/api/admin/members/${memberId}/platform-role`, { roleCodes })
     return data
+  },
+
+  async updatePlatformRolePermissions(roleId: number, permissionCodes: string[]) {
+    const { data } = await http.put<AdminPlatformRoleDto>(`/api/admin/platform-roles/${roleId}/permissions`, { permissionCodes })
+    return data
+  },
+
+  async deletePlatformRole(roleId: number) {
+    await http.delete(`/api/admin/platform-roles/${roleId}`)
   },
 
   async getAuditLogs(params: { search?: string; action?: string; entityType?: string; fromUtc?: string; toUtc?: string; page?: number; pageSize?: number } = {}) {
@@ -370,6 +418,16 @@ export const groupService = {
   async getAdminMessages(params: { search?: string; actionType?: string; status?: string; page?: number; pageSize?: number } = {}) {
     const { data } = await http.get<unknown>(`/api/admin/messages${toQuery(params)}`)
     return normalizeAdminPagedResult<AdminNotificationDto>(data)
+  },
+
+  async getVisitContactRequests(params: { search?: string; status?: string; page?: number; pageSize?: number } = {}) {
+    const { data } = await http.get<unknown>(`/api/admin/visit-contact-requests${toQuery(params)}`)
+    return normalizeAdminPagedResult<VisitContactRequestDto>(data)
+  },
+
+  async updateVisitContactRequestStatus(requestId: string, status: VisitContactRequestStatus) {
+    const { data } = await http.put<VisitContactRequestDto>(`/api/admin/visit-contact-requests/${requestId}/status`, { status })
+    return data
   },
 
   async sendAdminMessage(payload: AdminSendMessagePayload) {

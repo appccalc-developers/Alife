@@ -50,7 +50,12 @@ public sealed class GetAdminSelfDiagnosticQueryHandler(IAlifeDbContext dbContext
             false,
             platformRole,
             member.Roles.Select(role => role.Code).ToList(),
+            await AdminPlatformRoleHelpers.GetMemberPermissionsAsync(dbContext, member.Id, cancellationToken),
             platformRoleLevel,
-            platformRoleLevel >= (int)PlatformRoleId.Admin));
+            await AdminPlatformRoleHelpers.HasPermissionAsync(
+                dbContext,
+                member.Id,
+                AdminPermissionCatalog.AccessAdmin,
+                cancellationToken)));
     }
 }

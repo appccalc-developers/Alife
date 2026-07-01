@@ -3,6 +3,7 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useLiveQuery } from '@tanstack/react-db'
 import { useQuery } from '@tanstack/react-query'
 import PageContentRenderer from '../components/page/PageContentRenderer'
+import AppBackButton from '../components/layout/AppBackButton'
 import { pageSectionShellClass } from '../components/page-sections/sectionPresets'
 import { fetchPageDetail, pageDetailQueryKey } from '../db/collections/pageCollection'
 import { subgroupsCollection, groupPagesCollection } from '../db/collections/groupCollection'
@@ -52,7 +53,8 @@ const PageView = () => {
 
   return (
     !pageId ? <Navigate to="/" replace /> :
-    <>
+    <section className="mx-auto w-full max-w-5xl space-y-4 px-3 sm:px-4">
+      <AppBackButton fallbackTo={page?.ownerGroupId ? '/groups' : '/'} />
       {pageLoading ? (
         <section className={pageSectionShellClass}>
           <p className="rounded-lg border border-slate-200 bg-white p-3 text-slate-600">{t('loadingPage')}</p>
@@ -63,7 +65,6 @@ const PageView = () => {
           <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-red-700">{t('pageAccessDenied')}</p>
         </section>
       ) : null}
-
       {!pageLoading && !isError && page ? (
         <PageContentRenderer
           page={page}

@@ -106,6 +106,8 @@ const WorkspaceShell = () => {
         <DesktopNavigation
           primaryItems={navigation.primaryItems}
           workspaceItems={navigation.workspaceItems}
+          platformSections={navigation.platformSections}
+          workspaceSections={navigation.workspaceSections}
           workspaceVisible={navigation.workspaceVisible}
           workspaceName={headerGroupName}
           workspaceLabel={navigation.workspaceLabel}
@@ -134,6 +136,8 @@ const WorkspaceShell = () => {
         onClose={() => setMobileNavOpen(false)}
         primaryItems={navigation.primaryItems}
         workspaceItems={navigation.workspaceItems}
+        platformSections={navigation.platformSections}
+        workspaceSections={navigation.workspaceSections}
         workspaceVisible={navigation.workspaceVisible}
         workspaceName={headerGroupName}
         workspaceLabel={navigation.workspaceLabel}

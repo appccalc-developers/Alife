@@ -179,6 +179,7 @@ export type MeDto = {
   isRegistered: boolean
   isAdmin: boolean
   platformRole?: 'user' | 'admin' | 'superadmin' | string
+  permissions?: string[]
   memberships: GroupMembershipDto[]
 }
 

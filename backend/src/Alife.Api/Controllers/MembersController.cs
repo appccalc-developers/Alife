@@ -39,6 +39,7 @@ public class MembersController(
                 IsRegistered: false,
                 IsAdmin: false,
                 PlatformRole: "user",
+                Permissions: [],
                 Memberships: []));
         }
 
@@ -61,6 +62,7 @@ public class MembersController(
                 IsRegistered: false,
                 IsAdmin: IsAdminPrincipal(User),
                 PlatformRole: ReadPlatformRolePrincipal(User),
+                Permissions: [],
                 Memberships: []));
         }
 

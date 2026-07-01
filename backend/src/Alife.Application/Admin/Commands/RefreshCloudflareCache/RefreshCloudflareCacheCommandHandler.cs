@@ -1,4 +1,5 @@
 using Alife.Application.Admin.Dtos;
+using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
 using Alife.Application.Events.Services;
 using Alife.Application.Groups.Services;
@@ -9,7 +10,7 @@ using MediatR;
 namespace Alife.Application.Admin.Commands.RefreshCloudflareCache;
 
 public sealed class RefreshCloudflareCacheCommandHandler(
-    IGroupAuthorizationService groupAuthorizationService,
+    IAlifeDbContext dbContext,
     IGroupReadService groupReadService,
     IGroupCacheInvalidationService groupCacheInvalidationService,
     IPageCacheInvalidationService pageCacheInvalidationService,
@@ -21,8 +22,11 @@ public sealed class RefreshCloudflareCacheCommandHandler(
         RefreshCloudflareCacheCommand request,
         CancellationToken cancellationToken)
     {
-        var isAdmin = await groupAuthorizationService.IsAdminAsync(request.CurrentMemberId, cancellationToken);
-        if (!isAdmin)
+        if (!await AdminPlatformRoleHelpers.HasPermissionAsync(
+                dbContext,
+                request.CurrentMemberId,
+                AdminPermissionCatalog.RefreshCloudflareCache,
+                cancellationToken))
         {
             return AppResult<AdminActionResultDto>.Forbidden("You do not have permission to refresh Cloudflare cache.");
         }

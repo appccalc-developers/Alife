@@ -13,9 +13,13 @@ public sealed class ListAdminNotificationsQueryHandler(IAlifeDbContext dbContext
         ListAdminNotificationsQuery request,
         CancellationToken cancellationToken)
     {
-        if (!await AdminPlatformRoleHelpers.IsPlatformAdminAsync(dbContext, request.CurrentMemberId, cancellationToken))
+        if (!await AdminPlatformRoleHelpers.HasPermissionAsync(
+                dbContext,
+                request.CurrentMemberId,
+                AdminPermissionCatalog.ManageMessages,
+                cancellationToken))
         {
-            return AppResult<AdminPagedResultDto<AdminNotificationDto>>.Forbidden("Platform admin access is required.");
+            return AppResult<AdminPagedResultDto<AdminNotificationDto>>.Forbidden("You do not have permission to manage admin messages.");
         }
 
         var query = dbContext.NotificationMessages

@@ -16,26 +16,21 @@ public sealed class SetMemberPlatformRoleCommandHandler(IAlifeDbContext dbContex
         SetMemberPlatformRoleCommand request,
         CancellationToken cancellationToken)
     {
-        if (!await AdminPlatformRoleHelpers.IsSuperAdminAsync(dbContext, request.CurrentMemberId, cancellationToken))
+        if (!await AdminPlatformRoleHelpers.HasPermissionAsync(
+                dbContext,
+                request.CurrentMemberId,
+                AdminPermissionCatalog.AssignPlatformRoles,
+                cancellationToken))
         {
             return AppResult<AdminMemberDto>.Forbidden("Only super admins can change platform roles.");
         }
 
-        var roleCode = AdminPlatformRoleHelpers.NormalizeRoleCode(request.RoleCode);
-        if (string.IsNullOrWhiteSpace(roleCode))
-        {
-            return AppResult<AdminMemberDto>.Validation("Unknown platform role.");
-        }
-
-        if (request.CurrentMemberId == request.TargetMemberId && roleCode != "superadmin")
-        {
-            return AppResult<AdminMemberDto>.Validation("A super admin cannot demote their own platform role.");
-        }
-
-        if (request.CurrentMemberId != request.TargetMemberId && roleCode == "superadmin")
-        {
-            return AppResult<AdminMemberDto>.Forbidden("System admins can assign admin, but cannot promote another member to system admin from this screen.");
-        }
+        var roleCodes = request.RoleCodes
+            .Select(AdminPlatformRoleHelpers.NormalizeRoleCode)
+            .Where(code => !string.IsNullOrWhiteSpace(code) && code != "user")
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(code => code, StringComparer.Ordinal)
+            .ToArray();
 
         var target = await dbContext.Members
             .Include(x => x.PlatformRoles)
@@ -48,30 +43,69 @@ public sealed class SetMemberPlatformRoleCommandHandler(IAlifeDbContext dbContex
         }
 
         var now = DateTime.UtcNow;
-        var beforeRoles = target.PlatformRoles
+        var activeRoles = target.PlatformRoles
             .Where(x => x.RevokedUtc is null)
+            .ToList();
+        var beforeRoles = activeRoles
             .OrderByDescending(x => x.Role.Level)
             .Select(x => x.Role.Code)
             .ToArray();
 
-        foreach (var activeRole in target.PlatformRoles.Where(x => x.RevokedUtc is null))
+        var currentUserIsSuperAdmin = await AdminPlatformRoleHelpers.IsSuperAdminAsync(
+            dbContext,
+            request.CurrentMemberId,
+            cancellationToken);
+        var targetHadSuperAdmin = beforeRoles.Contains("superadmin", StringComparer.Ordinal);
+        var requestIncludesSuperAdmin = roleCodes.Contains("superadmin", StringComparer.Ordinal);
+        var protectedRoleCodes = new[] { "admin", "superadmin" };
+        var protectedRolesChanged = protectedRoleCodes.Any(code =>
+            beforeRoles.Contains(code, StringComparer.Ordinal) != roleCodes.Contains(code, StringComparer.Ordinal));
+
+        if (!currentUserIsSuperAdmin && protectedRolesChanged)
+        {
+            return AppResult<AdminMemberDto>.Forbidden("Only system admins can assign or remove Admin roles.");
+        }
+
+        if (!currentUserIsSuperAdmin && request.CurrentMemberId != request.TargetMemberId && requestIncludesSuperAdmin && !targetHadSuperAdmin)
+        {
+            return AppResult<AdminMemberDto>.Forbidden("System admins can assign admin, but cannot promote another member to system admin from this screen.");
+        }
+
+        if (!currentUserIsSuperAdmin && request.CurrentMemberId != request.TargetMemberId && targetHadSuperAdmin && !requestIncludesSuperAdmin)
+        {
+            return AppResult<AdminMemberDto>.Forbidden("System admin status cannot be removed from another member on this screen.");
+        }
+
+        if (request.CurrentMemberId == request.TargetMemberId &&
+            targetHadSuperAdmin &&
+            !requestIncludesSuperAdmin)
+        {
+            return AppResult<AdminMemberDto>.Validation("A super admin cannot remove their own system admin role.");
+        }
+
+        var rolesByCode = await dbContext.PlatformRoles
+            .Where(role => roleCodes.Contains(role.Code))
+            .ToDictionaryAsync(role => role.Code, StringComparer.Ordinal, cancellationToken);
+        var unknownRoles = roleCodes.Where(code => !rolesByCode.ContainsKey(code)).ToArray();
+        if (unknownRoles.Length > 0)
+        {
+            return AppResult<AdminMemberDto>.Validation("One or more platform roles are not seeded.");
+        }
+
+        foreach (var activeRole in activeRoles.Where(activeRole => !roleCodes.Contains(activeRole.Role.Code, StringComparer.Ordinal)))
         {
             activeRole.RevokedUtc = now;
         }
 
-        if (roleCode != "user")
+        var beforeRoleSet = beforeRoles.ToHashSet(StringComparer.Ordinal);
+        foreach (var roleCode in roleCodes.Where(code => !beforeRoleSet.Contains(code)))
         {
-            var role = await dbContext.PlatformRoles.FirstOrDefaultAsync(x => x.Code == roleCode, cancellationToken);
-            if (role is null)
-            {
-                return AppResult<AdminMemberDto>.Validation("Platform role is not seeded.");
-            }
-
+            var role = rolesByCode[roleCode];
             await dbContext.MemberPlatformRoles.AddAsync(new MemberPlatformRole
             {
                 Id = Guid.NewGuid(),
                 MemberId = target.Id,
-                RoleId = role.Id,
+                RoleId = role!.Id,
                 AssignedByMemberId = request.CurrentMemberId,
                 AssignedUtc = now
             }, cancellationToken);
@@ -88,8 +122,8 @@ public sealed class SetMemberPlatformRoleCommandHandler(IAlifeDbContext dbContex
             EntityId = target.Id,
             TargetMemberId = target.Id,
             BeforeJson = JsonSerializer.Serialize(new { roles = beforeRoles }),
-            AfterJson = JsonSerializer.Serialize(new { role = roleCode }),
-            MetadataJson = AdminPlatformRoleHelpers.RoleChangedMetadata(roleCode),
+            AfterJson = JsonSerializer.Serialize(new { roles = roleCodes }),
+            MetadataJson = AdminPlatformRoleHelpers.RoleChangedMetadata(string.Join(",", roleCodes)),
             OccurredUtc = now
         }, cancellationToken);
 

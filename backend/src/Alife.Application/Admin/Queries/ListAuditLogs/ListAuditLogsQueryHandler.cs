@@ -13,9 +13,13 @@ public sealed class ListAuditLogsQueryHandler(IAlifeDbContext dbContext)
         ListAuditLogsQuery request,
         CancellationToken cancellationToken)
     {
-        if (!await AdminPlatformRoleHelpers.IsPlatformAdminAsync(dbContext, request.CurrentMemberId, cancellationToken))
+        if (!await AdminPlatformRoleHelpers.HasPermissionAsync(
+                dbContext,
+                request.CurrentMemberId,
+                AdminPermissionCatalog.ViewAuditLogs,
+                cancellationToken))
         {
-            return AppResult<AdminPagedResultDto<AuditLogDto>>.Forbidden("Platform admin access is required.");
+            return AppResult<AdminPagedResultDto<AuditLogDto>>.Forbidden("You do not have permission to view audit logs.");
         }
 
         var query = dbContext.AuditLogs

@@ -1,4 +1,5 @@
 using Alife.Application.Abstractions.Security;
+using Alife.Application.Admin;
 using Alife.Application.Auth.Dtos;
 using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
@@ -26,7 +27,9 @@ public sealed class LoginCommandHandler(
         var (token, expiresUtc) = jwtTokenService.CreateToken(member, isGuest: false);
         var isAdmin = member.PlatformRoles.Any(role =>
             role.RevokedUtc is null &&
-            (role.RoleId == 10 || role.RoleId == 100));
+            (role.Role.Code == "superadmin" ||
+             AdminPermissionCatalog.ReadPermissions(role.Role.Code, role.Role.PermissionsJson)
+                 .Contains(AdminPermissionCatalog.AccessAdmin)));
         return AppResult<AuthSessionDto>.Success(new AuthSessionDto(token, expiresUtc, false, isAdmin));
     }
 }
