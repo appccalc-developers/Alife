@@ -35,7 +35,7 @@ const RecentSermonsSection = ({ copy, language, sermons }: Props) => {
       <div className="mx-auto max-w-6xl">
         <motion.div {...entrance} className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-home-green">{language === 'zh' ? '近期讲道' : 'Recent Sermons'}</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-home-green">{copy.recentSermonsEyebrow}</p>
             <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{copy.sermonsTitle}</h2>
             <p className="mt-3 max-w-[56ch] text-[0.94rem] leading-7 text-home-muted">{copy.sermonsBody}</p>
           </div>
@@ -61,10 +61,10 @@ const RecentSermonsSection = ({ copy, language, sermons }: Props) => {
 
             <div className="flex flex-col justify-between p-6 sm:p-8 lg:p-10">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-home-gold">{language === 'zh' ? '最新信息' : 'Latest Message'}</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-home-gold">{copy.recentSermonsLatestBadge}</p>
                 <h3 className="mt-4 text-2xl font-bold leading-tight sm:text-3xl">{featured.title}</h3>
                 <p className="mt-3 text-sm leading-6 text-white/60">
-                  {[featured.speakerName, formatDate(featured.preachedAt, language)].filter(Boolean).join(' · ') || (language === 'zh' ? '主日讲道' : 'Sunday sermon')}
+                  {[featured.speakerName, formatDate(featured.preachedAt, language)].filter(Boolean).join(' · ') || copy.recentSermonsFallbackMeta}
                 </p>
               </div>
 
@@ -83,7 +83,7 @@ const RecentSermonsSection = ({ copy, language, sermons }: Props) => {
                       </div>
                       <div className="min-w-0">
                         <p className="line-clamp-1 text-sm font-semibold text-white">{sermon.title}</p>
-                        <p className="mt-1 text-xs text-white/50">{formatDate(sermon.preachedAt, language) || sermon.speakerName || (language === 'zh' ? '讲道' : 'Sermon')}</p>
+                        <p className="mt-1 text-xs text-white/50">{formatDate(sermon.preachedAt, language) || sermon.speakerName || copy.recentSermonsItemFallback}</p>
                       </div>
                     </GuardedLink>
                   ))}
@@ -95,7 +95,7 @@ const RecentSermonsSection = ({ copy, language, sermons }: Props) => {
           <motion.div {...entrance} className="mt-10 rounded-2xl border border-home-border/60 bg-white/70 p-8">
             <MicVocal className="h-7 w-7 text-home-green" />
             <p className="mt-4 max-w-[55ch] text-[0.94rem] leading-7 text-home-muted">
-              {language === 'zh' ? '近期讲道同步后，会在这里自动展示最新信息。' : 'Recent sermons will appear here automatically after the sermon list is synced.'}
+              {copy.recentSermonsEmpty}
             </p>
           </motion.div>
         )}
