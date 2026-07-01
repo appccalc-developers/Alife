@@ -52,7 +52,7 @@ const GroupsSection = ({ copy, language, groupCards }: Props) => {
         <div className="mx-auto max-w-6xl">
           <motion.div {...entrance} className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-home-green">{language === 'zh' ? '小组生活' : 'Group Life'}</p>
+              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-home-green">{copy.groupsEyebrow}</p>
               <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{copy.groupsTitle}</h2>
               <p className="mt-3 max-w-[56ch] text-[0.94rem] leading-7 text-home-muted">{copy.groupsBody}</p>
             </div>
@@ -63,7 +63,7 @@ const GroupsSection = ({ copy, language, groupCards }: Props) => {
           <motion.div {...entrance} className="mt-10 rounded-2xl border border-home-border/60 bg-white/70 p-8">
             <UsersRound className="h-7 w-7 text-home-green" />
             <p className="mt-4 max-w-[55ch] text-[0.94rem] leading-7 text-home-muted">
-              {language === 'zh' ? '公开小组同步后，会在这里自动展示适合了解和加入的小组。' : 'Public groups will appear here automatically once they are available.'}
+              {copy.groupsEmptyState}
             </p>
           </motion.div>
         </div>
@@ -76,7 +76,7 @@ const GroupsSection = ({ copy, language, groupCards }: Props) => {
       <div className="mx-auto max-w-6xl">
         <motion.div {...entrance} className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-home-green">{language === 'zh' ? '小组生活' : 'Group Life'}</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-home-green">{copy.groupsEyebrow}</p>
             <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{copy.groupsTitle}</h2>
             <p className="mt-3 max-w-[56ch] text-[0.94rem] leading-7 text-home-muted">{copy.groupsBody}</p>
           </div>
@@ -109,7 +109,7 @@ const GroupsSection = ({ copy, language, groupCards }: Props) => {
                     <div className="max-w-2xl">
                       <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold backdrop-blur">
                         <Sparkles className="h-3.5 w-3.5" />
-                        {activeCard.group.accessType === 'public' ? (language === 'zh' ? '公开可了解' : 'Open to explore') : (language === 'zh' ? '小组空间' : 'Group space')}
+                        {activeCard.group.accessType === 'public' ? copy.groupsBadgePublic : copy.groupsBadgePrivate}
                       </span>
                       <h3 className="mt-4 text-3xl font-bold leading-tight sm:text-4xl lg:text-5xl">{localizeText(activeCard.group.name, language)}</h3>
                       <p className="mt-4 line-clamp-3 max-w-xl text-sm leading-7 text-white/66">{localizeText(activeCard.group.description, language) || copy.groupsBody}</p>

@@ -7,7 +7,20 @@ export type HomeCopy = {
     visit: string
     sermons: string
     groups: string
+    events: string
     location: string
+  }
+  sectionFallback: {
+    intro: string
+    highlight: string
+    info: string
+    events: string
+    groups: string
+    pages: string
+    members: string
+    list: string
+    sermon: string
+    section: string
   }
   account: string
   enterAlife: string
@@ -56,7 +69,12 @@ export type HomeCopy = {
   liveNowLabel: string
   liveChannelLabel: string
   liveOpen: string
+  liveWatchLatestVideos: string
   liveUnavailable: string
+  liveCountdownDayShort: string
+  liveCountdownHourShort: string
+  liveCountdownMinuteShort: string
+  liveCountdownSecondShort: string
   visitTitle: string
   visitBody: string
   visitAction: string
@@ -66,9 +84,34 @@ export type HomeCopy = {
   groupsTitle: string
   groupsBody: string
   groupsAction: string
+  groupsEyebrow: string
+  groupsEmptyState: string
+  groupsBadgePublic: string
+  groupsBadgePrivate: string
   eventsTitle: string
+  eventsEyebrow: string
+  eventsLead: string
   eventsEmpty: string
+  eventsViewAll: string
+  eventsTimeTbd: string
+  eventsFeaturedCurrent: string
+  eventsFeaturedSingle: string
+  eventsDetailsFallback: string
+  eventsLocationFallback: string
+  eventsOpen: string
+  eventsPreparingTitle: string
   eventAction: string
+  recentSermonsEyebrow: string
+  recentSermonsLatestBadge: string
+  recentSermonsFallbackMeta: string
+  recentSermonsItemFallback: string
+  recentSermonsEmpty: string
+  nextLanguageLabel: string
+  loginPromptTitle: string
+  loginPromptBody: string
+  loginPromptLogin: string
+  loginPromptCancel: string
+  loginPromptCloseAria: string
   locationTitle: string
   locationName: string
   locationAddress: string
@@ -86,7 +129,20 @@ export const getCopy = (language: Language, churchDescription: string): HomeCopy
         visit: '首次来访',
         sermons: '主日信息',
         groups: '小组生活',
+        events: '近期活动',
         location: '地点',
+      },
+      sectionFallback: {
+        intro: '首页介绍',
+        highlight: '重点内容',
+        info: '说明',
+        events: '近期活动',
+        groups: '小组生活',
+        pages: '页面',
+        members: '成员',
+        list: '列表',
+        sermon: '主日信息',
+        section: '内容',
       },
       account: '登录',
       enterAlife: '进入 Alife',
@@ -135,7 +191,12 @@ export const getCopy = (language: Language, churchDescription: string): HomeCopy
       liveNowLabel: '主日崇拜正在进行或即将开始',
       liveChannelLabel: '官方频道',
       liveOpen: '打开 YouTube 直播',
+      liveWatchLatestVideos: '观看最新视频',
       liveUnavailable: '未直播时，这里会带你前往官方频道查看最新视频；主日崇拜时会切换到直播入口。',
+      liveCountdownDayShort: '天',
+      liveCountdownHourShort: '时',
+      liveCountdownMinuteShort: '分',
+      liveCountdownSecondShort: '秒',
       visitTitle: '第一次来，也可以很自然。',
       visitBody: '你可以先了解聚会地点、语言环境、现场流程和小组入口。无需先准备好所有答案，只要愿意靠近，我们就在这里欢迎你。',
       visitAction: '查看地点',
@@ -145,9 +206,34 @@ export const getCopy = (language: Language, churchDescription: string): HomeCopy
       groupsTitle: '信仰不是只在周日发生。',
       groupsBody: '小组让人可以坐下来分享生活、彼此代祷、一起读经，也在需要时得到真实支持。',
       groupsAction: '寻找小组',
+      groupsEyebrow: '小组生活',
+      groupsEmptyState: '公开小组同步后，会在这里自动展示适合了解和加入的小组。',
+      groupsBadgePublic: '公开可了解',
+      groupsBadgePrivate: '小组空间',
       eventsTitle: '正在发生的事',
+      eventsEyebrow: '近期活动',
+      eventsLead: '选一个时间，走进真实发生的相聚。',
       eventsEmpty: '新的公开活动即将发布。你也可以先加入一个小组，认识更多同行的人。',
+      eventsViewAll: '查看全部活动',
+      eventsTimeTbd: '时间待确认',
+      eventsFeaturedCurrent: '当前活动',
+      eventsFeaturedSingle: '精选活动',
+      eventsDetailsFallback: '活动详情即将补充。你可以先查看全部活动，找到适合加入的时间。',
+      eventsLocationFallback: '教会与小组空间',
+      eventsOpen: '打开活动',
+      eventsPreparingTitle: '公开活动正在预备中',
       eventAction: '查看活动',
+      recentSermonsEyebrow: '近期讲道',
+      recentSermonsLatestBadge: '最新信息',
+      recentSermonsFallbackMeta: '主日讲道',
+      recentSermonsItemFallback: '讲道',
+      recentSermonsEmpty: '近期讲道同步后，会在这里自动展示最新信息。',
+      nextLanguageLabel: 'EN',
+      loginPromptTitle: '需要登录',
+      loginPromptBody: '请先登录或注册后再继续操作。',
+      loginPromptLogin: '前往登录',
+      loginPromptCancel: '取消',
+      loginPromptCloseAria: '关闭',
       locationTitle: '教会地点',
       locationName: '基督城华人丰盛生命教会',
       locationAddress: 'Christchurch, New Zealand',
@@ -164,7 +250,20 @@ export const getCopy = (language: Language, churchDescription: string): HomeCopy
       visit: 'Visit',
       sermons: 'Sermons',
       groups: 'Groups',
+      events: 'Events',
       location: 'Location',
+    },
+    sectionFallback: {
+      intro: 'Intro',
+      highlight: 'Highlight',
+      info: 'Info',
+      events: 'Events',
+      groups: 'Groups',
+      pages: 'Pages',
+      members: 'Members',
+      list: 'List',
+      sermon: 'Sermon',
+      section: 'Section',
     },
     account: 'Log in',
     enterAlife: 'Enter Alife',
@@ -213,7 +312,12 @@ export const getCopy = (language: Language, churchDescription: string): HomeCopy
     liveNowLabel: 'Sunday worship is live or starting soon',
     liveChannelLabel: 'Official channel',
     liveOpen: 'Open YouTube Live',
+    liveWatchLatestVideos: 'Watch Latest Videos',
     liveUnavailable: 'When the church is not live, this opens the latest videos on the official channel; during Sunday worship it points to the live page.',
+    liveCountdownDayShort: 'D',
+    liveCountdownHourShort: 'H',
+    liveCountdownMinuteShort: 'M',
+    liveCountdownSecondShort: 'S',
     visitTitle: 'Your first visit can feel natural.',
     visitBody: 'Start with the gathering location, language environment, what to expect, and how to find a group. You do not need to have every answer ready to be welcomed.',
     visitAction: 'View Location',
@@ -223,9 +327,34 @@ export const getCopy = (language: Language, churchDescription: string): HomeCopy
     groupsTitle: 'Faith does not only happen on Sundays.',
     groupsBody: 'Small groups create a table for sharing life, praying together, reading Scripture, and receiving practical support.',
     groupsAction: 'Find a Group',
+    groupsEyebrow: 'Group Life',
+    groupsEmptyState: 'Public groups will appear here automatically once they are available.',
+    groupsBadgePublic: 'Open to explore',
+    groupsBadgePrivate: 'Group space',
     eventsTitle: 'What is happening',
+    eventsEyebrow: 'Upcoming Events',
+    eventsLead: 'Choose a time, see the story, and step into the next gathering.',
     eventsEmpty: 'New public events will be published soon. You can also begin with a group and meet people walking the same road.',
+    eventsViewAll: 'View all events',
+    eventsTimeTbd: 'Time to be confirmed',
+    eventsFeaturedCurrent: 'Featured event',
+    eventsFeaturedSingle: 'Featured gathering',
+    eventsDetailsFallback: 'Details are being prepared. View all events to find the next gathering you can join.',
+    eventsLocationFallback: 'Church and group space',
+    eventsOpen: 'Open event',
+    eventsPreparingTitle: 'Public events are being prepared',
     eventAction: 'View Event',
+    recentSermonsEyebrow: 'Recent Sermons',
+    recentSermonsLatestBadge: 'Latest Message',
+    recentSermonsFallbackMeta: 'Sunday sermon',
+    recentSermonsItemFallback: 'Sermon',
+    recentSermonsEmpty: 'Recent sermons will appear here automatically after the sermon list is synced.',
+    nextLanguageLabel: '中文',
+    loginPromptTitle: 'Login Required',
+    loginPromptBody: 'Please log in or sign up to continue.',
+    loginPromptLogin: 'Go to Login',
+    loginPromptCancel: 'Cancel',
+    loginPromptCloseAria: 'Close',
     locationTitle: 'Church Location',
     locationName: 'Chinese Abundant Life Church',
     locationAddress: 'Christchurch, New Zealand',

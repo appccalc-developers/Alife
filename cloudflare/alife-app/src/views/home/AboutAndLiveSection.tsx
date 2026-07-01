@@ -2,14 +2,13 @@ import { useEffect, useState } from 'react'
 import { ExternalLink, PlayCircle } from 'lucide-react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { entranceAnimation, getServiceCountdown, media, youtubeLiveUrl, youtubeVideosUrl } from './homeUtils'
-import type { HomeCopy, Language } from './homeCopy'
+import type { HomeCopy } from './homeCopy'
 
 type Props = {
   copy: HomeCopy
-  language: Language
 }
 
-const AboutAndLiveSection = ({ copy, language }: Props) => {
+const AboutAndLiveSection = ({ copy }: Props) => {
   const prefersReducedMotion = useReducedMotion()
   const entrance = entranceAnimation(prefersReducedMotion)
   const [countdown, setCountdown] = useState(() => getServiceCountdown())
@@ -67,10 +66,10 @@ const AboutAndLiveSection = ({ copy, language }: Props) => {
                   </p>
                   <div className="mt-4 grid grid-cols-4 gap-2 text-center">
                     {[
-                      { label: language === 'zh' ? '天' : 'D', value: countdown.days },
-                      { label: language === 'zh' ? '时' : 'H', value: countdown.hours },
-                      { label: language === 'zh' ? '分' : 'M', value: countdown.minutes },
-                      { label: language === 'zh' ? '秒' : 'S', value: countdown.seconds },
+                      { label: copy.liveCountdownDayShort, value: countdown.days },
+                      { label: copy.liveCountdownHourShort, value: countdown.hours },
+                      { label: copy.liveCountdownMinuteShort, value: countdown.minutes },
+                      { label: copy.liveCountdownSecondShort, value: countdown.seconds },
                     ].map((item) => (
                       <div key={item.label} className="rounded-xl bg-white/[0.06] px-2 py-3">
                         <span className="block text-2xl font-bold tabular-nums">{String(item.value).padStart(2, '0')}</span>
@@ -85,7 +84,7 @@ const AboutAndLiveSection = ({ copy, language }: Props) => {
                   <p className="mt-2 text-sm font-semibold text-white">@ChineseAbundantLifeChurch</p>
                   <p className="mt-3 text-xs font-semibold leading-5 text-white/52">{copy.liveUnavailable}</p>
                   <a className="mt-5 inline-flex items-center gap-2 rounded-lg bg-home-gold px-4 py-2.5 text-sm font-semibold text-home-gold-text transition hover:-translate-y-0.5" href={countdown.isLive ? youtubeLiveUrl : youtubeVideosUrl} target="_blank" rel="noreferrer">
-                    {countdown.isLive ? copy.liveOpen : (language === 'zh' ? '观看最新视频' : 'Watch Latest Videos')} <ExternalLink className="h-4 w-4" />
+                    {countdown.isLive ? copy.liveOpen : copy.liveWatchLatestVideos} <ExternalLink className="h-4 w-4" />
                   </a>
                 </div>
               </div>

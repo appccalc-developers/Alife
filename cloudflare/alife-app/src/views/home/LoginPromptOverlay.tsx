@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { LogIn, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useAuthStore } from '../../stores/auth'
-import type { Language } from './homeCopy'
+import { getCopy, type Language } from './homeCopy'
 
 type GuardedLinkProps = {
   language: Language
@@ -13,26 +13,11 @@ type GuardedLinkProps = {
   onBeforeNavigate?: () => void
 }
 
-const i18n = {
-  zh: {
-    title: '需要登录',
-    body: '请先登录或注册后再继续操作。',
-    login: '前往登录',
-    cancel: '取消',
-  },
-  en: {
-    title: 'Login Required',
-    body: 'Please log in or sign up to continue.',
-    login: 'Go to Login',
-    cancel: 'Cancel',
-  },
-}
-
 const GuardedLink = ({ language, to, className, children, onBeforeNavigate }: GuardedLinkProps) => {
   const auth = useAuthStore()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
-  const t = i18n[language]
+  const copy = getCopy(language, '')
 
   const handleClick = useCallback(() => {
     if (auth.isGuest) {
@@ -74,13 +59,13 @@ const GuardedLink = ({ language, to, className, children, onBeforeNavigate }: Gu
                   type="button"
                   className="grid h-8 w-8 place-items-center rounded-lg text-home-muted transition hover:bg-home-border/40"
                   onClick={() => setOpen(false)}
-                  aria-label="Close"
+                  aria-label={copy.loginPromptCloseAria}
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
-              <h3 className="mt-4 text-lg font-bold text-home-dark">{t.title}</h3>
-              <p className="mt-2 text-sm leading-6 text-home-muted">{t.body}</p>
+              <h3 className="mt-4 text-lg font-bold text-home-dark">{copy.loginPromptTitle}</h3>
+              <p className="mt-2 text-sm leading-6 text-home-muted">{copy.loginPromptBody}</p>
               <div className="mt-6 flex gap-3">
                 <button
                   type="button"
@@ -90,14 +75,14 @@ const GuardedLink = ({ language, to, className, children, onBeforeNavigate }: Gu
                     navigate('/onboarding')
                   }}
                 >
-                  {t.login}
+                  {copy.loginPromptLogin}
                 </button>
                 <button
                   type="button"
                   className="flex-1 rounded-lg border border-home-border px-4 py-2.5 text-sm font-semibold text-home-muted transition hover:bg-home-border/30"
                   onClick={() => setOpen(false)}
                 >
-                  {t.cancel}
+                  {copy.loginPromptCancel}
                 </button>
               </div>
             </motion.div>

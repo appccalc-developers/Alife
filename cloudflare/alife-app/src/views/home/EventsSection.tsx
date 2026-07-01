@@ -270,7 +270,7 @@ const EventsSection = ({ copy, language, upcomingEvents }: Props) => {
             {readEventTitle(event, language)}
           </p>
           <p className="mt-2 truncate text-sm text-white/72">
-            {details.location || (language === 'zh' ? '教会与小组空间' : 'Church and group space')}
+            {details.location || copy.eventsLocationFallback}
           </p>
         </div>
       </motion.button>
@@ -284,20 +284,18 @@ const EventsSection = ({ copy, language, upcomingEvents }: Props) => {
         <motion.div {...entrance} className="flex flex-col gap-7 text-left sm:flex-row sm:items-end sm:justify-between">
           <div className="max-w-[46rem]">
             <p className="text-left text-sm font-semibold uppercase tracking-[0.22em] text-home-green">
-              {language === 'zh' ? '近期活动' : 'Upcoming Events'}
+              {copy.eventsEyebrow}
             </p>
             <h2 className="mt-4 max-w-[11ch] text-left text-4xl font-black leading-[0.96] text-home-gold-text sm:text-5xl lg:text-6xl">
               {copy.eventsTitle}
             </h2>
             <p className="mt-5 max-w-[42rem] text-left text-base leading-8 text-home-muted">
-              {language === 'zh'
-                ? '选一个时间，走进真实发生的相聚。'
-                : 'Choose a time, see the story, and step into the next gathering.'}
+              {copy.eventsLead}
             </p>
           </div>
 
           <GuardedLink language={language} to="/events" className="inline-flex min-h-12 w-fit shrink-0 items-center justify-center gap-2 self-start rounded-full bg-home-gold px-5 text-sm font-black text-[#173f37] shadow-[0_16px_42px_rgba(245,215,152,0.32)] transition hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_20px_54px_rgba(47,111,98,0.16)] focus:outline-none focus:ring-2 focus:ring-home-green/[0.35] sm:self-end">
-            {language === 'zh' ? '查看全部活动' : 'View all events'}
+            {copy.eventsViewAll}
             <ArrowRight className="h-4 w-4" />
           </GuardedLink>
         </motion.div>
@@ -343,7 +341,7 @@ const EventsSection = ({ copy, language, upcomingEvents }: Props) => {
                             {formatEventMonth(activeEvent.startDate, language)} {formatEventDay(activeEvent.startDate, language)}
                           </span>
                           <span className="rounded-full bg-home-gold px-3 py-1.5 text-xs font-black text-[#173f37] shadow-sm">
-                            {formatEventTime(activeEvent.startDate, language) || (language === 'zh' ? '时间待确认' : 'Time to be confirmed')}
+                            {formatEventTime(activeEvent.startDate, language) || copy.eventsTimeTbd}
                           </span>
                         </div>
                       </div>
@@ -351,21 +349,19 @@ const EventsSection = ({ copy, language, upcomingEvents }: Props) => {
                       <span className="inline-flex min-h-10 items-center gap-2 rounded-full bg-home-green px-4 text-xs font-black uppercase tracking-[0.16em] text-white">
                         <CalendarDays className="h-4 w-4 text-home-gold" />
                         {hasMultipleEvents
-                          ? (language === 'zh' ? '当前活动' : 'Featured event')
-                          : (language === 'zh' ? '精选活动' : 'Featured gathering')}
+                          ? copy.eventsFeaturedCurrent
+                          : copy.eventsFeaturedSingle}
                       </span>
                       <h3 className="mt-6 line-clamp-2 text-left text-4xl font-black leading-[0.94] text-home-gold-text sm:text-5xl">
                         {readEventTitle(activeEvent, language)}
                       </h3>
                       <p className="mt-5 line-clamp-3 max-w-[62ch] text-left text-base leading-8 text-home-muted">
-                        {activeDetails.description || (language === 'zh'
-                          ? '活动详情即将补充。你可以先查看全部活动，找到适合加入的时间。'
-                          : 'Details are being prepared. View all events to find the next gathering you can join.')}
+                        {activeDetails.description || copy.eventsDetailsFallback}
                       </p>
                       <div className="mt-7 flex flex-wrap items-center gap-3 text-left">
                         <span className="inline-flex min-h-11 max-w-full items-center gap-2 overflow-hidden text-ellipsis whitespace-nowrap rounded-full border border-home-border bg-[#fffaf0] px-4 text-sm font-bold text-home-gold-text">
                           <MapPin className="h-4 w-4 shrink-0 text-home-green" />
-                          {activeDetails.location || (language === 'zh' ? '教会与小组空间' : 'Church and group space')}
+                          {activeDetails.location || copy.eventsLocationFallback}
                         </span>
                         <GuardedLink
                           language={language}
@@ -373,7 +369,7 @@ const EventsSection = ({ copy, language, upcomingEvents }: Props) => {
                           className="inline-flex min-h-11 items-center gap-2 rounded-full bg-home-gold px-5 text-sm font-black text-[#173f37] shadow-[0_18px_52px_rgba(245,215,152,0.24)] transition hover:-translate-y-0.5 hover:bg-white focus:outline-none focus:ring-2 focus:ring-home-green/35"
                           onBeforeNavigate={() => activeEntityService.setEvent(activeEvent.id, activeEvent.groupId)}
                         >
-                          {language === 'zh' ? '打开活动' : 'Open event'}
+                          {copy.eventsOpen}
                           <ChevronRight className="h-4 w-4" />
                         </GuardedLink>
                       </div>
@@ -396,7 +392,7 @@ const EventsSection = ({ copy, language, upcomingEvents }: Props) => {
               <CalendarDays className="h-8 w-8 text-home-green" />
             </div>
             <h3 className="mt-5 text-2xl font-black text-home-gold-text">
-              {language === 'zh' ? '公开活动正在预备中' : 'Public events are being prepared'}
+              {copy.eventsPreparingTitle}
             </h3>
             <p className="mx-auto mt-3 max-w-[55ch] text-[0.94rem] leading-7 text-home-muted">{copy.eventsEmpty}</p>
           </motion.div>

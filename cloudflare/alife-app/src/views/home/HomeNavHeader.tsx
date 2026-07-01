@@ -28,8 +28,8 @@ const HomeNavHeader = ({ copy, language, solid = false, navItems: providedNavIte
 
   const accountTo = auth.isGuest ? '/onboarding' : '/groups/select'
   const accountLabel = auth.isGuest ? copy.account : copy.enterAlife
-  const eventsNavLabel = language === 'zh' ? '近期活动' : 'Events'
-  const nextLanguageLabel = language === 'zh' ? 'EN' : '中文'
+  const eventsNavLabel = copy.nav.events
+  const nextLanguageLabel = copy.nextLanguageLabel
 
   const fallbackNavItems: HomeNavItem[] = [
     { href: '#about', label: copy.nav.about },

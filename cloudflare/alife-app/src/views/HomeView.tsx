@@ -14,39 +14,23 @@ import RecentSermonsSection from './home/RecentSermonsSection'
 import LocationSection from './home/LocationSection'
 import HomeFooter from './home/HomeFooter'
 
-const sectionTypeFallback = (section: SectionEditModel, language: string) => {
-  if (section.type === 'Hero') return language === 'zh' ? '首页介绍' : 'Intro'
-  if (section.type === 'Spotlight') return language === 'zh' ? '重点内容' : 'Highlight'
-  if (section.type === 'RichText') return language === 'zh' ? '说明' : 'Info'
+const sectionTypeFallback = (section: SectionEditModel, copy: ReturnType<typeof getCopy>) => {
+  if (section.type === 'Hero') return copy.sectionFallback.intro
+  if (section.type === 'Spotlight') return copy.sectionFallback.highlight
+  if (section.type === 'RichText') return copy.sectionFallback.info
   if (section.type === 'ListView') {
     const source = String(section.contentJson.source ?? section.contentJson.sourceType ?? '')
-    if (source === 'events') return language === 'zh' ? '近期活动' : 'Events'
-    if (source === 'groups') return language === 'zh' ? '小组生活' : 'Groups'
-    if (source === 'pages') return language === 'zh' ? '页面' : 'Pages'
-    if (source === 'members') return language === 'zh' ? '成员' : 'Members'
-    return language === 'zh' ? '列表' : 'List'
+    if (source === 'events') return copy.sectionFallback.events
+    if (source === 'groups') return copy.sectionFallback.groups
+    if (source === 'pages') return copy.sectionFallback.pages
+    if (source === 'members') return copy.sectionFallback.members
+    return copy.sectionFallback.list
   }
-  if (section.type === 'Sermon') return language === 'zh' ? '主日信息' : 'Sermon'
-  return language === 'zh' ? '内容' : 'Section'
+  if (section.type === 'Sermon') return copy.sectionFallback.sermon
+  return copy.sectionFallback.section
 }
 
-const cleanSectionTypeFallback = (section: SectionEditModel, language: string) => {
-  if (section.type === 'Hero') return language === 'zh' ? '首页介绍' : 'Intro'
-  if (section.type === 'Spotlight') return language === 'zh' ? '重点内容' : 'Highlight'
-  if (section.type === 'RichText') return language === 'zh' ? '说明' : 'Info'
-  if (section.type === 'ListView') {
-    const source = String(section.contentJson.source ?? section.contentJson.sourceType ?? '')
-    if (source === 'events') return language === 'zh' ? '近期活动' : 'Events'
-    if (source === 'groups') return language === 'zh' ? '小组生活' : 'Groups'
-    if (source === 'pages') return language === 'zh' ? '页面' : 'Pages'
-    if (source === 'members') return language === 'zh' ? '成员' : 'Members'
-    return language === 'zh' ? '列表' : 'List'
-  }
-  if (section.type === 'Sermon') return language === 'zh' ? '主日信息' : 'Sermon'
-  return language === 'zh' ? '内容' : 'Section'
-}
-
-const readSectionNavLabel = (section: SectionEditModel, language: string) => {
+const readSectionNavLabel = (section: SectionEditModel, language: string, copy: ReturnType<typeof getCopy>) => {
   const header = section.contentJson.header
   if (header && typeof header === 'object' && !Array.isArray(header)) {
     const title = (header as { title?: unknown }).title
@@ -55,7 +39,7 @@ const readSectionNavLabel = (section: SectionEditModel, language: string) => {
   }
 
   const direct = localizeText((section.contentJson.title ?? section.contentJson.headline) as never, language)
-  return direct || cleanSectionTypeFallback(section, language) || sectionTypeFallback(section, language)
+  return direct || sectionTypeFallback(section, copy)
 }
 
 const HomeView = () => {
@@ -65,13 +49,13 @@ const HomeView = () => {
 
   const churchDescription = localizeText(church?.description, language)
   const copy = getCopy(language, churchDescription)
-  const eventsNavLabel = language === 'zh' ? '近期活动' : 'Events'
+  const eventsNavLabel = copy.nav.events
 
   const rawDefaultNavItems = [
     { href: '#about', label: copy.nav.about },
     { href: '#visit', label: copy.nav.visit },
     { href: '#groups', label: copy.nav.groups },
-    { href: '#events', label: language === 'zh' ? '近期活动' : 'Events' },
+    { href: '#events', label: copy.nav.events },
     { href: '#sermons', label: copy.nav.sermons },
     { href: '#location', label: copy.nav.location },
   ]
@@ -82,10 +66,10 @@ const HomeView = () => {
     ? [
       ...normalizedHomeSections.slice(0, 4).map((section, index) => ({
         href: `#${getPageSectionDomId(section, index)}`,
-        label: readSectionNavLabel(section, language),
+        label: readSectionNavLabel(section, language, copy),
       })),
       { href: '#groups', label: copy.nav.groups },
-      { href: '#events', label: language === 'zh' ? '近期活动' : 'Events' },
+      { href: '#events', label: copy.nav.events },
       { href: '#location', label: copy.nav.location },
     ]
     : rawDefaultNavItems
@@ -113,7 +97,7 @@ const HomeView = () => {
           </>
         ) : (
           <>
-            <AboutAndLiveSection copy={copy} language={language} />
+            <AboutAndLiveSection copy={copy} />
             <hr className="mx-auto max-w-6xl border-t border-home-border/40" />
             <VisitSection copy={copy} language={language} />
             <hr className="mx-auto max-w-6xl border-t border-home-border/40" />
