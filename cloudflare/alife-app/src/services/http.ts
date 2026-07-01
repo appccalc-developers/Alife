@@ -6,6 +6,8 @@ export type ApiError = {
   status?: number
   code?: string
   details?: unknown
+  method?: string
+  url?: string
 }
 
 type ErrorPayload = {
@@ -31,18 +33,24 @@ export const normalizeApiError = (error: unknown): ApiError => {
     const payload = axiosError.response?.data
     const textPayload = typeof payload === 'string' ? payload.trim() : ''
     const details = typeof payload === 'object' ? payload?.errors ?? payload : textPayload || payload
+    const method = axiosError.config?.method?.toUpperCase()
+    const url = axiosError.config?.url ?? axiosError.response?.config.url
+    const requestHint = import.meta.env.DEV && url ? ` (${method ?? 'GET'} ${url})` : ''
+    const message =
+      textPayload ||
+      (typeof payload === 'object' ? payload?.message : undefined) ||
+      (typeof payload === 'object' ? payload?.title : undefined) ||
+      (typeof payload === 'object' ? payload?.detail : undefined) ||
+      axiosError.message ||
+      'Request failed.'
 
     return {
-      message:
-        textPayload ||
-        (typeof payload === 'object' ? payload?.message : undefined) ||
-        (typeof payload === 'object' ? payload?.title : undefined) ||
-        (typeof payload === 'object' ? payload?.detail : undefined) ||
-        axiosError.message ||
-        'Request failed.',
+      message: `${message}${requestHint}`,
       status: axiosError.response?.status,
       code: axiosError.code,
       details,
+      method,
+      url,
     }
   }
 

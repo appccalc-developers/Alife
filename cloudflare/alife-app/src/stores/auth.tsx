@@ -29,6 +29,7 @@ type AuthContextValue = {
   isAdmin: boolean
   canReviewPages: boolean
   memberships: MeDto['memberships']
+  hasAdminPermission: (permissionCode: string) => boolean
   fetchMe: () => Promise<MeDto>
   bootstrap: () => Promise<MeDto | undefined>
   logout: () => Promise<void>
@@ -93,7 +94,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   )
 
   const isPlatformAdmin = Boolean(me?.isAdmin || me?.platformRole === 'admin' || me?.platformRole === 'superadmin')
-  const canReviewPages = Boolean(isPlatformAdmin || me?.platformRole === 'page_reviewer')
+  const permissions = useMemo(() => new Set(me?.permissions ?? []), [me?.permissions])
+  const hasAdminPermission = useCallback(
+    (permissionCode: string) => Boolean(me?.platformRole === 'superadmin' || permissions.has(permissionCode)),
+    [me?.platformRole, permissions],
+  )
+  const canReviewPages = Boolean(isPlatformAdmin || me?.platformRole === 'page_reviewer' || hasAdminPermission('admin.pages.review'))
 
   const canManageGroup = useCallback(
     (groupId: string) => isPlatformAdmin || hasGroupRole(groupId, 'leader') || hasGroupRole(groupId, 'coLeader'),
@@ -116,6 +122,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       isAdmin: isPlatformAdmin,
       canReviewPages,
       memberships,
+      hasAdminPermission,
       fetchMe,
       bootstrap,
       logout,
@@ -124,7 +131,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       canManageGroup,
       hasLeaderAccess: canManageGroup,
     }),
-    [bootstrap, canManageGroup, canReviewPages, fetchMe, hasGroupRole, initialized, isPlatformAdmin, language, loading, logout, me, memberships, updateLanguage],
+    [bootstrap, canManageGroup, canReviewPages, fetchMe, hasAdminPermission, hasGroupRole, initialized, isPlatformAdmin, language, loading, logout, me, memberships, updateLanguage],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

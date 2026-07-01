@@ -1,12 +1,12 @@
 import { useMemo } from 'react'
-import { BookOpenText, Home, LayoutDashboard, ShieldCheck } from 'lucide-react'
+import { Activity, Bell, BookOpenText, ClipboardCheck, FileImage, Handshake, Home, LayoutDashboard, ShieldCheck, UserCog, UsersRound } from 'lucide-react'
 import type { PageSummaryDto } from '../../types'
 import { activeEntityService } from '../../services/activeEntityService'
 import { useAuthStore } from '../../stores/auth'
 import { localizeText } from '../../utils/localizedText'
 import { translateUi } from '../../i18n/uiText'
 import { EnrollmentIcon, EventsIcon, MemoriesIcon, OnboardingIcon, PageIcon } from './icons'
-import type { NavigationCopy, ShellNavItem } from './types'
+import type { NavigationCopy, ShellNavItem, ShellNavSection } from './types'
 
 type Args = {
   contextualGroupId: string
@@ -15,6 +15,20 @@ type Args = {
   contextualEventId?: string
   workspaceEnabled: boolean
 }
+
+const isPresent = <T,>(value: T | null | undefined): value is T => Boolean(value)
+
+const adminPermissions = {
+  access: 'admin.access',
+  overview: 'admin.overview.view',
+  members: 'admin.members.view',
+  roles: 'admin.roles.managePermissions',
+  messages: 'admin.messages.manage',
+  visitRequests: 'admin.visitRequests.receive',
+  files: 'admin.files.view',
+  logs: 'admin.auditLogs.view',
+  pageReview: 'admin.pages.review',
+} as const
 
 export const useShellNavigation = ({
   contextualGroupId,
@@ -30,18 +44,20 @@ export const useShellNavigation = ({
     () => currentGroupPages.map((page) => ({
       key: `page:${page.id}`,
       label: localizeText(page.title, auth.language) || translateUi(auth.language, 'untitledPage'),
+      description: isChinese ? '小组页面' : 'Group page',
       to: '/groups',
       pageId: page.id,
       icon: <PageIcon />,
       onClick: () => activeEntityService.setPage(page.id, contextualGroupId),
     })),
-    [auth.language, contextualGroupId, currentGroupPages],
+    [auth.language, contextualGroupId, currentGroupPages, isChinese],
   )
 
   const workspaceHome: ShellNavItem[] = contextualGroupId ? [
     {
       key: 'workspace:home',
-      label: isChinese ? '小组工作台' : 'Group workspace',
+      label: isChinese ? '小组总览' : 'Group overview',
+      description: isChinese ? '成员、页面和小组动态' : 'Members, pages, and group activity',
       to: '/groups',
       icon: <LayoutDashboard className="h-5 w-5" />,
       requireNoActivePage: true,
@@ -53,6 +69,7 @@ export const useShellNavigation = ({
     {
       key: 'event:notice',
       label: isChinese ? '活动通知' : 'Notice',
+      description: isChinese ? '活动详情与发布内容' : 'Event details and published content',
       to: '/events',
       icon: <EventsIcon />,
       onClick: () => activeEntityService.setEvent(contextualEventId, contextualGroupId),
@@ -60,6 +77,7 @@ export const useShellNavigation = ({
     {
       key: 'event:enrollments',
       label: isChinese ? '报名管理' : 'Enrollment',
+      description: isChinese ? '报名名单和参与状态' : 'Registrations and attendance status',
       to: '/events?section=enrollments',
       matchSearch: '?section=enrollments',
       icon: <EnrollmentIcon />,
@@ -67,7 +85,8 @@ export const useShellNavigation = ({
     },
     {
       key: 'event:memories',
-      label: isChinese ? '图文回忆' : 'Memories',
+      label: isChinese ? '图文回顾' : 'Memories',
+      description: isChinese ? '照片、回顾和活动沉淀' : 'Photos, recaps, and event memory',
       to: '/events?section=memories',
       matchSearch: '?section=memories',
       icon: <MemoriesIcon />,
@@ -78,27 +97,149 @@ export const useShellNavigation = ({
   const contextualItems = eventDetailScreen ? eventItems : []
   const workspaceItems = [...workspaceHome, ...pageItems, ...contextualItems]
   const workspaceVisible = Boolean(contextualGroupId) && workspaceEnabled
-  const adminItem: ShellNavItem | null = !auth.loading && auth.me?.isAdmin
-    ? { key: 'app:admin', label: isChinese ? '平台工作台' : 'Platform workspace', to: '/admin', icon: <ShieldCheck className="h-5 w-5" /> }
-    : !auth.loading && auth.canReviewPages
-      ? { key: 'app:page-review', label: isChinese ? '发布审核' : 'Page review', to: '/admin/page-review', icon: <ShieldCheck className="h-5 w-5" /> }
-    : null
+
+  const adminPlatformItems: ShellNavItem[] = !auth.loading && (auth.isAdmin || auth.hasAdminPermission(adminPermissions.access))
+    ? [
+      auth.hasAdminPermission(adminPermissions.overview)
+        ? {
+        key: 'app:admin',
+        label: isChinese ? '平台总览' : 'Platform overview',
+        description: isChinese ? '平台状态和待办入口' : 'Status, queue, and quick actions',
+        to: '/admin',
+        icon: <ShieldCheck className="h-5 w-5" />,
+        }
+        : null,
+      auth.hasAdminPermission(adminPermissions.members)
+        ? {
+        key: 'app:admin-users',
+        label: isChinese ? '成员管理' : 'Members',
+        description: isChinese ? '账号、注册状态和角色分配' : 'Accounts, registration, and role assignment',
+        to: '/admin/users',
+        icon: <UsersRound className="h-5 w-5" />,
+        }
+        : null,
+      auth.hasAdminPermission(adminPermissions.roles)
+        ? {
+        key: 'app:admin-roles',
+        label: isChinese ? '角色管理' : 'Roles',
+        description: isChinese ? '角色、权限和自定义后台能力' : 'Roles, permissions, and custom access',
+        to: '/admin/roles',
+        icon: <UserCog className="h-5 w-5" />,
+        }
+        : null,
+      auth.hasAdminPermission(adminPermissions.messages)
+        ? {
+        key: 'app:admin-messages',
+        label: isChinese ? '通知管理' : 'Notices',
+        description: isChinese ? '发送通知并查看阅读状态' : 'Send notices and review delivery state',
+        to: '/admin/messages',
+        icon: <Bell className="h-5 w-5" />,
+        }
+        : null,
+      auth.hasAdminPermission(adminPermissions.visitRequests)
+        ? {
+        key: 'app:admin-visit-requests',
+        label: isChinese ? '访客接待' : 'Visitor care',
+        description: isChinese ? '查看参观联系请求并标记跟进状态' : 'Review visit requests and follow-up state',
+        to: '/admin/visit-requests',
+        icon: <Handshake className="h-5 w-5" />,
+        }
+        : null,
+      auth.hasAdminPermission(adminPermissions.files)
+        ? {
+        key: 'app:admin-files',
+        label: isChinese ? '文件管理' : 'Files',
+        description: isChinese ? '上传文件、可见范围和归属' : 'Uploads, visibility, and ownership',
+        to: '/admin/files',
+        icon: <FileImage className="h-5 w-5" />,
+        }
+        : null,
+      auth.hasAdminPermission(adminPermissions.logs)
+        ? {
+        key: 'app:admin-logs',
+        label: isChinese ? '操作日志' : 'Audit logs',
+        description: isChinese ? '查看敏感平台操作记录' : 'Review sensitive platform actions',
+        to: '/admin/logs',
+        icon: <Activity className="h-5 w-5" />,
+        }
+        : null,
+    ].filter(isPresent)
+    : []
+
+  const reviewItems: ShellNavItem[] = !auth.loading && (auth.canReviewPages || auth.hasAdminPermission(adminPermissions.pageReview))
+    ? [
+      {
+        key: 'app:page-review',
+        label: isChinese ? '发布审核' : 'Page review',
+        description: isChinese ? '审核全局页面发布请求' : 'Review global publishing requests',
+        to: '/admin/page-review',
+        icon: <ClipboardCheck className="h-5 w-5" />,
+      },
+    ]
+    : []
+
   const guestItem: ShellNavItem | null = !auth.loading && auth.isGuest
-    ? { key: 'app:onboarding', label: translateUi(auth.language, 'onboarding'), to: '/onboarding', icon: <OnboardingIcon /> }
+    ? {
+      key: 'app:onboarding',
+      label: translateUi(auth.language, 'onboarding'),
+      description: isChinese ? '完成成员资料' : 'Complete your member profile',
+      to: '/onboarding',
+      icon: <OnboardingIcon />,
+    }
     : null
-  const primaryItems: ShellNavItem[] = [
-    adminItem,
-    { key: 'app:home', label: translateUi(auth.language, 'home'), to: '/', icon: <Home className="h-5 w-5" /> },
-    { key: 'app:sermons', label: translateUi(auth.language, 'sermons'), to: '/sermons', icon: <BookOpenText className="h-5 w-5" /> },
+
+  const contentItems: ShellNavItem[] = [
+    {
+      key: 'app:home',
+      label: translateUi(auth.language, 'home'),
+      description: isChinese ? '公开首页和访客入口' : 'Public home and visitor entry',
+      to: '/',
+      icon: <Home className="h-5 w-5" />,
+    },
+    {
+      key: 'app:sermons',
+      label: translateUi(auth.language, 'sermons'),
+      description: isChinese ? '讲道视频和信息库' : 'Sermons and teaching library',
+      to: '/sermons',
+      icon: <BookOpenText className="h-5 w-5" />,
+    },
     guestItem,
-  ].filter((item): item is ShellNavItem => Boolean(item))
+  ].filter(isPresent)
+
+  const platformItems = [...adminPlatformItems, ...reviewItems]
+  const primaryItems = [...platformItems, ...contentItems]
   const headerItems = guestItem ? [{ ...guestItem, key: 'app:onboarding-header' }] : []
+  const adminManagementItems = adminPlatformItems.filter((item) => item.key !== 'app:admin-logs')
+  const reviewAndAuditItems = [...reviewItems, ...adminPlatformItems.filter((item) => item.key === 'app:admin-logs')]
   const mobileItems = [
-    adminItem || primaryItems.find((item) => item.key === 'app:home'),
+    adminPlatformItems[0] || reviewItems[0] || contentItems.find((item) => item.key === 'app:home'),
     workspaceItems[0],
-    primaryItems.find((item) => item.key === 'app:sermons'),
-  ].filter((item): item is ShellNavItem => Boolean(item))
+    contentItems.find((item) => item.key === 'app:sermons'),
+  ].filter(isPresent)
+
   const workspaceLabel = isChinese ? '小组工作区' : 'Group workspace'
+  const groupContentItems = [...workspaceHome, ...pageItems]
+  const workspaceSections: ShellNavSection[] = [
+    groupContentItems.length
+      ? { key: 'workspace-group', label: isChinese ? '当前小组' : 'Current group', description: isChinese ? '小组总览和页面内容' : 'Group overview and pages', items: groupContentItems }
+      : null,
+    contextualItems.length
+      ? { key: 'workspace-event', label: isChinese ? '当前活动' : 'Current event', description: isChinese ? '活动通知、报名和回顾' : 'Notice, enrollment, and memories', items: contextualItems }
+      : null,
+  ].filter(isPresent)
+
+  const platformSections: ShellNavSection[] = [
+    adminManagementItems.length
+      ? { key: 'platform-management', label: isChinese ? '平台管理' : 'Platform management', description: isChinese ? '总览、成员、角色、通知和文件' : 'Overview, members, roles, notices, and files', items: adminManagementItems }
+      : null,
+    reviewAndAuditItems.length
+      ? { key: 'platform-governance', label: isChinese ? '审核与记录' : 'Review and records', description: isChinese ? '发布审核和操作日志' : 'Publishing review and audit logs', items: reviewAndAuditItems }
+      : null,
+    contentItems.length
+      ? { key: 'platform-content', label: isChinese ? '公开内容' : 'Public content', description: isChinese ? '面向访客和成员的入口' : 'Visitor and member-facing entry points', items: contentItems }
+      : null,
+  ].filter(isPresent)
+
   const copy: NavigationCopy = isChinese
     ? {
       alife: '平台入口',
@@ -110,6 +251,11 @@ export const useShellNavigation = ({
       closeMenu: '关闭导航菜单',
       communityWorkspace: '小组工作台',
       platformWorkspace: '平台工作区',
+      contentWorkspace: '内容入口',
+      currentSpace: '当前空间',
+      pagesSection: '页面',
+      eventsSection: '活动',
+      accountSection: '账号',
     }
     : {
       alife: 'Platform',
@@ -121,6 +267,11 @@ export const useShellNavigation = ({
       closeMenu: 'Close navigation menu',
       communityWorkspace: 'Group workspace',
       platformWorkspace: 'Platform workspace',
+      contentWorkspace: 'Content',
+      currentSpace: 'Current space',
+      pagesSection: 'Pages',
+      eventsSection: 'Events',
+      accountSection: 'Account',
     }
 
   return {
@@ -128,9 +279,11 @@ export const useShellNavigation = ({
     headerItems,
     mobileItems,
     pageItems,
+    platformSections,
     primaryItems,
     workspaceItems,
     workspaceLabel,
+    workspaceSections,
     workspaceVisible,
   }
 }
