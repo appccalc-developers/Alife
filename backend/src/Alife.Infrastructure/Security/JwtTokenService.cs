@@ -99,6 +99,7 @@ public class JwtTokenService(IConfiguration configuration) : IJwtTokenService
 		{
 			(int)PlatformRoleId.SuperAdmin => "superadmin",
 			(int)PlatformRoleId.Admin => "admin",
+			(int)PlatformRoleId.PageReviewer => "page_reviewer",
 			_ => "user"
 		};
 	}

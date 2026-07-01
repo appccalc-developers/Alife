@@ -334,6 +334,7 @@ public static class SeedData
 		var roles = new[]
 		{
 			new PlatformRole { Id = (int)PlatformRoleId.User, Code = "user", NameJson = TextJson("User", "普通用户"), Level = 0 },
+			new PlatformRole { Id = (int)PlatformRoleId.PageReviewer, Code = "page_reviewer", NameJson = TextJson("Page Reviewer", "发布审核者"), Level = 5 },
 			new PlatformRole { Id = (int)PlatformRoleId.Admin, Code = "admin", NameJson = TextJson("Admin", "联合管理员"), Level = 10 },
 			new PlatformRole { Id = (int)PlatformRoleId.SuperAdmin, Code = "superadmin", NameJson = TextJson("System Admin", "系统管理员"), Level = 100 }
 		};

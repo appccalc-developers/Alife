@@ -43,8 +43,10 @@ public sealed class ListAdminMembersQueryHandler(IAlifeDbContext dbContext)
                     role.RevokedUtc == null && role.Role.Code == "superadmin")),
                 "admin" => membersQuery.Where(x =>
                     x.PlatformRoles.Any(role => role.RevokedUtc == null && role.Role.Code == "admin")),
+                AdminPlatformRoleHelpers.PageReviewerRoleCode => membersQuery.Where(x =>
+                    x.PlatformRoles.Any(role => role.RevokedUtc == null && role.Role.Code == AdminPlatformRoleHelpers.PageReviewerRoleCode)),
                 "user" => membersQuery.Where(x =>
-                    !x.PlatformRoles.Any(role => role.RevokedUtc == null && (role.Role.Code == "admin" || role.Role.Code == "superadmin"))),
+                    !x.PlatformRoles.Any(role => role.RevokedUtc == null && role.Role.Code != "user")),
                 _ => membersQuery
             };
         }

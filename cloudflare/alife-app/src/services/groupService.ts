@@ -3,6 +3,7 @@ import { conditionalGet } from '../db/httpCache'
 import { subgroupsQueryKey } from '../db/collections/groupCollection'
 import type { GroupDto, GroupMembershipDto, GroupSummaryDto, LocalizedText, MembershipStatus, PageSummaryDto } from '../types'
 import { normalizeGroup, normalizeGroupMembership, normalizeMembershipStatus, normalizePageSummary } from '../utils/apiEnums'
+import { toLocalizedText } from '../utils/localizedText'
 
 export type CreateSubgroupPayload = {
   name: LocalizedText
@@ -54,6 +55,28 @@ export type AdminPlatformRoleDto = {
   code: 'user' | 'admin' | 'superadmin' | string
   name: LocalizedText
   level: number
+}
+
+export type AdminPageReviewDto = {
+  id: string
+  scope: 'group' | 'global' | string
+  ownerGroupId: string
+  ownerGroupName: LocalizedText
+  createdByMemberId: string
+  creatorDisplayName: string | null
+  title: LocalizedText
+  description: LocalizedText | null
+  tagsJson: string
+  titleDisplayStyle: string
+  visibility: 'draft' | 'group' | 'public' | string
+  updatedUtc: string
+}
+
+export type PageGlobalReviewActionDto = {
+  ok: boolean
+  pageId: string
+  previousOwnerGroupId: string | null
+  page?: PageSummaryDto | null
 }
 
 export type AuditLogDto = {
@@ -152,6 +175,13 @@ const normalizeAdminPagedResult = <T>(payload: unknown): AdminPagedResultDto<T> 
     totalPages: readNumber(source.totalPages ?? source.TotalPages, 0),
   }
 }
+
+const normalizeAdminPageReview = (page: AdminPageReviewDto): AdminPageReviewDto => ({
+  ...page,
+  title: toLocalizedText(page.title),
+  description: page.description ? toLocalizedText(page.description) : page.description,
+  ownerGroupName: toLocalizedText(page.ownerGroupName),
+})
 
 const toQuery = (params: Record<string, string | number | boolean | null | undefined>) => {
   const query = new URLSearchParams()
@@ -305,6 +335,21 @@ export const groupService = {
   async getAdminGroups(params: { search?: string; page?: number; pageSize?: number } = {}) {
     const { data } = await http.get<unknown>(`/api/admin/groups${toQuery(params)}`)
     return normalizeAdminPagedResult<AdminGroupOptionDto>(data)
+  },
+
+  async getPageReviewCandidates() {
+    const { data } = await http.get<AdminPageReviewDto[]>('/api/admin/pages/review-candidates')
+    return data.map(normalizeAdminPageReview)
+  },
+
+  async promotePageToGlobal(pageId: string) {
+    const { data } = await http.post<PageGlobalReviewActionDto>(`/api/admin/pages/${pageId}/promote-global`)
+    return data
+  },
+
+  async ignorePageGlobalReview(pageId: string) {
+    const { data } = await http.post<PageGlobalReviewActionDto>(`/api/admin/pages/${pageId}/ignore-global-review`)
+    return data
   },
 
   async getAdminMembers(params: { search?: string; role?: string; isRegistered?: boolean | null; page?: number; pageSize?: number } = {}) {

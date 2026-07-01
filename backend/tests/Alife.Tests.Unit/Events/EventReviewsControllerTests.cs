@@ -123,7 +123,8 @@ public class EventReviewsControllerTests
 
         var result = await controller.Delete(eventId, reviewId, CancellationToken.None);
 
-        Assert.IsType<ForbidResult>(result);
+        var forbidden = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(403, forbidden.StatusCode);
     }
 
     private static EventReviewDto CreateReview(Guid reviewId, Guid groupId, Guid eventId, Guid memberId)

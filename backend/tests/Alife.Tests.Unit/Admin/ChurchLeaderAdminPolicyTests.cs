@@ -12,7 +12,7 @@ public class ChurchLeaderAdminPolicyTests
     [Theory]
     [InlineData(MembershipRole.Leader)]
     [InlineData(MembershipRole.CoLeader)]
-    public async Task IsAdminAsync_ReturnsTrue_ForApprovedChurchLeaderOrCoLeader(MembershipRole role)
+    public async Task IsAdminAsync_ReturnsFalse_ForApprovedChurchLeaderOrCoLeader(MembershipRole role)
     {
         using var dbContext = CreateInMemoryDbContext();
         var memberId = Guid.NewGuid();
@@ -21,7 +21,7 @@ public class ChurchLeaderAdminPolicyTests
 
         var isAdmin = await service.IsAdminAsync(memberId, CancellationToken.None);
 
-        Assert.True(isAdmin);
+        Assert.False(isAdmin);
     }
 
     [Fact]
@@ -43,7 +43,7 @@ public class ChurchLeaderAdminPolicyTests
     }
 
     [Fact]
-    public async Task GetCurrentMemberAsync_ReportsEffectiveAdmin_ForApprovedChurchCoLeader()
+    public async Task GetCurrentMemberAsync_ReportsNonAdmin_ForApprovedChurchCoLeader()
     {
         using var dbContext = CreateInMemoryDbContext();
         var memberId = Guid.NewGuid();
@@ -58,7 +58,7 @@ public class ChurchLeaderAdminPolicyTests
         var member = await service.GetCurrentMemberAsync(memberId, CancellationToken.None);
 
         Assert.NotNull(member);
-        Assert.True(member.IsAdmin);
+        Assert.False(member.IsAdmin);
     }
 
     private static async Task SeedMemberWithMembershipAsync(
@@ -84,7 +84,6 @@ public class ChurchLeaderAdminPolicyTests
             Id = memberId,
             DisplayName = "Church Leader",
             IsRegistered = true,
-            IsAdmin = false,
             CreatedUtc = now,
             UpdatedUtc = now
         });

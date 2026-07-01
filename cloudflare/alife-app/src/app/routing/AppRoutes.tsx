@@ -16,6 +16,7 @@ const GroupsView = lazy(() => import('../../views/GroupsView'))
 const HomeView = lazy(() => import('../../views/HomeView'))
 const InviteMembersView = lazy(() => import('../../views/InviteMembersView'))
 const OnboardingView = lazy(() => import('../../views/OnboardingView'))
+const PageReviewView = lazy(() => import('../../views/PageReviewView'))
 const PageEditorView = lazy(() => import('../../views/PageEditorView'))
 const PageView = lazy(() => import('../../views/PageView'))
 const ProfileView = lazy(() => import('../../views/ProfileView'))
@@ -30,6 +31,16 @@ const AdminRoute = ({ children }: { children: ReactElement }) => {
   }
 
   return auth.me?.isAdmin ? children : <Navigate to="/" replace />
+}
+
+const PageReviewRoute = ({ children }: { children: ReactElement }) => {
+  const auth = useAuthStore()
+
+  if (!auth.initialized) {
+    return <AppRouteLoading />
+  }
+
+  return auth.canReviewPages ? children : <Navigate to="/" replace />
 }
 
 const OnboardingRoute = ({ children }: { children: ReactElement }) => {
@@ -116,6 +127,14 @@ const AppRoutes = () => {
               <AdminRoute>
                 <AdminView />
               </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/page-review"
+            element={
+              <PageReviewRoute>
+                <PageReviewView />
+              </PageReviewRoute>
             }
           />
           <Route path="*" element={<Navigate to="/" replace />} />
