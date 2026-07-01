@@ -115,7 +115,7 @@ const HomeView = () => {
           <>
             <AboutAndLiveSection copy={copy} language={language} />
             <hr className="mx-auto max-w-6xl border-t border-home-border/40" />
-            <VisitSection copy={copy} />
+            <VisitSection copy={copy} language={language} />
             <hr className="mx-auto max-w-6xl border-t border-home-border/40" />
           </>
         )}

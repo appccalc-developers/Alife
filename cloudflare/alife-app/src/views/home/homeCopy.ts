@@ -28,6 +28,27 @@ export type HomeCopy = {
   contemplationOne: string
   contemplationTwo: string
   contemplationThree: string
+  visitContactAction: string
+  visitContactTitle: string
+  visitContactBody: string
+  visitContactName: string
+  visitContactEmail: string
+  visitContactPhone: string
+  visitContactPhonePlaceholder: string
+  visitContactPhoneHint: string
+  visitContactCountryCode: string
+  visitContactLanguage: string
+  visitContactMessage: string
+  visitContactSubmit: string
+  visitContactSuccess: string
+  visitContactSuccessTitle: string
+  visitContactConfirm: string
+  visitContactError: string
+  visitContactClose: string
+  visitContactHint: string
+  visitContactNameRequired: string
+  visitContactEmailInvalid: string
+  visitContactPhoneInvalid: string
   liveTitle: string
   liveBody: string
   liveEyebrow: string
@@ -86,6 +107,27 @@ export const getCopy = (language: Language, churchDescription: string): HomeCopy
       contemplationOne: '敬拜：在诗歌、祷告和圣经信息中，把心重新转向神。',
       contemplationTwo: '团契：主日之后留下来认识朋友，也可以进入适合的小组生活。',
       contemplationThree: '关怀：我们欢迎留学生、家庭、新移民和正在探索信仰的朋友。',
+      visitContactAction: '我想来看看',
+      visitContactTitle: '留下联系方式',
+      visitContactBody: '如果你想参观、参加主日崇拜，或只是先感受一下教会，我们会安排同工与你联系。',
+      visitContactName: '您希望我们称呼您',
+      visitContactEmail: '邮箱',
+      visitContactPhone: '电话号码',
+      visitContactPhonePlaceholder: '手机号码',
+      visitContactPhoneHint: '请至少留下邮箱或电话其中一种',
+      visitContactCountryCode: '区号',
+      visitContactLanguage: '偏好语言',
+      visitContactMessage: '想了解什么',
+      visitContactSubmit: '提交联系方式',
+      visitContactSuccess: '已经收到，我们会尽快联系你。',
+      visitContactSuccessTitle: '提交成功',
+      visitContactConfirm: '我知道了',
+      visitContactError: '提交失败，请稍后再试。',
+      visitContactClose: '关闭',
+      visitContactHint: '请至少留下邮箱或电话其中一种',
+      visitContactNameRequired: '请输入姓名',
+      visitContactEmailInvalid: '请输入有效的邮箱地址',
+      visitContactPhoneInvalid: '请输入有效的电话号码',
       liveTitle: '主日崇拜直播',
       liveBody: '如果你暂时不能来到现场，可以透过丰盛生命教会的 YouTube 频道一起参与主日崇拜。直播只指向官方账号 @ChineseAbundantLifeChurch。',
       liveEyebrow: 'Sunday Live',
@@ -143,6 +185,27 @@ export const getCopy = (language: Language, churchDescription: string): HomeCopy
     contemplationOne: 'Worship: songs, prayer, and Scripture help us turn our hearts back to God.',
     contemplationTwo: 'Fellowship: stay after service to meet people and find a small group.',
     contemplationThree: 'Care: students, families, new migrants, and seekers are warmly welcomed.',
+    visitContactAction: 'I would like to visit',
+    visitContactTitle: 'Leave your contact details',
+    visitContactBody: 'If you would like to visit, join Sunday worship, or simply get a feel for the church, our welcome team can contact you.',
+    visitContactName: 'What should we call you?',
+    visitContactEmail: 'Email',
+    visitContactPhone: 'Phone number',
+    visitContactPhonePlaceholder: 'Phone number',
+    visitContactPhoneHint: 'Please leave at least email or phone',
+    visitContactCountryCode: 'Country code',
+    visitContactLanguage: 'Preferred language',
+    visitContactMessage: 'What would you like to know?',
+    visitContactSubmit: 'Submit contact details',
+    visitContactSuccess: 'Thanks, we received your request and will contact you soon.',
+    visitContactSuccessTitle: 'Submitted successfully',
+    visitContactConfirm: 'Got it',
+    visitContactError: 'Unable to submit right now. Please try again later.',
+    visitContactClose: 'Close',
+    visitContactHint: 'Please leave at least email or phone',
+    visitContactNameRequired: 'Please enter your name',
+    visitContactEmailInvalid: 'Please enter a valid email address',
+    visitContactPhoneInvalid: 'Please enter a valid phone number',
     liveTitle: 'Sunday Worship Livestream',
     liveBody: 'If you cannot join in person yet, worship with us through the official Chinese Abundant Life Church YouTube channel. The livestream points only to @ChineseAbundantLifeChurch.',
     liveEyebrow: 'Sunday Live',
