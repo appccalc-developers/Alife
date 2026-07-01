@@ -9,6 +9,8 @@ namespace Alife.Application.Admin;
 
 internal static class AdminPlatformRoleHelpers
 {
+    public const string PageReviewerRoleCode = "page_reviewer";
+
     public static async Task<int> GetPlatformRoleLevelAsync(
         IAlifeDbContext dbContext,
         Guid memberId,
@@ -34,6 +36,20 @@ internal static class AdminPlatformRoleHelpers
         Guid memberId,
         CancellationToken cancellationToken)
         => await GetPlatformRoleLevelAsync(dbContext, memberId, cancellationToken) >= (int)PlatformRoleId.Admin;
+
+    public static async Task<bool> CanReviewPagesAsync(
+        IAlifeDbContext dbContext,
+        Guid memberId,
+        CancellationToken cancellationToken)
+        => await dbContext.MemberPlatformRoles
+            .AsNoTracking()
+            .AnyAsync(
+                x => x.MemberId == memberId &&
+                     x.RevokedUtc == null &&
+                     (x.RoleId == (int)PlatformRoleId.PageReviewer ||
+                      x.RoleId == (int)PlatformRoleId.Admin ||
+                      x.RoleId == (int)PlatformRoleId.SuperAdmin),
+                cancellationToken);
 
     public static async Task<bool> IsSuperAdminAsync(
         IAlifeDbContext dbContext,
@@ -87,6 +103,7 @@ internal static class AdminPlatformRoleHelpers
         {
             "superadmin" or "super_admin" or "super-admin" => "superadmin",
             "admin" => "admin",
+            "page_reviewer" or "page-reviewer" or "pagereviewer" or "publisher" or "publish_reviewer" or "publish-reviewer" => PageReviewerRoleCode,
             "user" or "member" => "user",
             _ => string.Empty
         };

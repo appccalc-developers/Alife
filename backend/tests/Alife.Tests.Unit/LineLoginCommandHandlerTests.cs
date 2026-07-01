@@ -49,7 +49,6 @@ public class LineLoginCommandHandlerTests
         {
             Id = existingMemberId,
             IsRegistered = true,
-            IsAdmin = false,
             LineUID = "line-uid-123",
             DisplayName = "Existing Member",
             Sex = "Female",
@@ -89,7 +88,6 @@ public class LineLoginCommandHandlerTests
             {
                 Id = currentMemberId,
                 IsRegistered = true,
-                IsAdmin = false,
                 LineUID = "current-line-uid",
                 DisplayName = "Current",
                 CreatedUtc = DateTime.UtcNow
@@ -98,7 +96,6 @@ public class LineLoginCommandHandlerTests
             {
                 Id = Guid.NewGuid(),
                 IsRegistered = true,
-                IsAdmin = false,
                 LineUID = "line-uid-123",
                 DisplayName = "Existing Member",
                 CreatedUtc = DateTime.UtcNow

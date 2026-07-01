@@ -44,7 +44,15 @@ public sealed class GetPageByIdQueryHandler(
                                 request.CurrentMemberId.Value,
                                 cancellationToken));
 
-        var canView = (isApproved && page.Visibility != PageVisibility.Draft) || isPrivileged;
+        var canReviewPublicCandidate = request.CurrentMemberId.HasValue &&
+                                       page.Visibility == PageVisibility.Public &&
+                                       await groupAuthorizationService.CanReviewPagesAsync(
+                                           request.CurrentMemberId.Value,
+                                           cancellationToken);
+
+        var canView = (isApproved && page.Visibility != PageVisibility.Draft) ||
+                      isPrivileged ||
+                      canReviewPublicCandidate;
         if (canView)
         {
             return AppResult<PageDetailDto>.Success(page);

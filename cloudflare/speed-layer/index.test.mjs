@@ -488,6 +488,42 @@ test('global pages cache is invalidated after global page visibility publish', a
   assert.equal(fetchCalls[1].headers.get('if-none-match'), null)
 })
 
+test('global page promotion evicts global pages and old group pages caches', async () => {
+  const pageId = 'group-page-1'
+  const groupId = 'group-1'
+  const globalUrl = 'https://ccalc.live/api/pages/global'
+  const groupPagesUrl = `https://ccalc.live/api/groups/${groupId}/pages`
+  cacheStore.set(cacheKey(new Request(globalUrl)), Response.json([{ id: 'old-global-page', scope: 'global' }]))
+  cacheStore.set(cacheKey(new Request(groupPagesUrl)), Response.json([{ id: pageId, scope: 'group', ownerGroupId: groupId }]))
+  apiCacheStore.set(`group:${groupId}:pages`, createStoredResponse([{ id: pageId, scope: 'group', ownerGroupId: groupId }]))
+  apiCacheStore.set(`public:group:${groupId}:pages`, createStoredResponse([{ id: pageId, scope: 'group', ownerGroupId: groupId, visibility: 'Public' }]))
+  originResponses.push(Response.json({
+    ok: true,
+    pageId,
+    previousOwnerGroupId: groupId,
+    page: {
+      id: pageId,
+      scope: 'global',
+      ownerGroupId: null,
+      visibility: 'public',
+    },
+  }))
+
+  const promote = await dispatch(`https://ccalc.live/api/admin/pages/${pageId}/promote-global`, {
+    method: 'POST',
+    headers: {
+      cookie: `alife_auth=${createJwtWithSub('reviewer-1')}`,
+    },
+  })
+  await flushWaitUntil()
+
+  assert.equal(promote.status, 200)
+  assert.equal(cacheStore.has(cacheKey(new Request(globalUrl))), false)
+  assert.equal(cacheStore.has(cacheKey(new Request(groupPagesUrl))), false)
+  assert.equal(apiCacheStore.has(`group:${groupId}:pages`), false)
+  assert.equal(apiCacheStore.has(`public:group:${groupId}:pages`), false)
+})
+
 test('non-auth cookie churn does not fragment GET cache key', async () => {
   originResponses.push(Response.json([{ title: 'Public sermon' }]))
 

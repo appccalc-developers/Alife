@@ -27,6 +27,7 @@ type AuthContextValue = {
   isGuest: boolean
   isRegistered: boolean
   isAdmin: boolean
+  canReviewPages: boolean
   memberships: MeDto['memberships']
   fetchMe: () => Promise<MeDto>
   bootstrap: () => Promise<MeDto | undefined>
@@ -92,6 +93,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   )
 
   const isPlatformAdmin = Boolean(me?.isAdmin || me?.platformRole === 'admin' || me?.platformRole === 'superadmin')
+  const canReviewPages = Boolean(isPlatformAdmin || me?.platformRole === 'page_reviewer')
 
   const canManageGroup = useCallback(
     (groupId: string) => isPlatformAdmin || hasGroupRole(groupId, 'leader') || hasGroupRole(groupId, 'coLeader'),
@@ -112,6 +114,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       isGuest: !me || me.isGuest,
       isRegistered: Boolean(me?.isRegistered),
       isAdmin: isPlatformAdmin,
+      canReviewPages,
       memberships,
       fetchMe,
       bootstrap,
@@ -121,7 +124,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       canManageGroup,
       hasLeaderAccess: canManageGroup,
     }),
-    [bootstrap, canManageGroup, fetchMe, hasGroupRole, initialized, isPlatformAdmin, language, loading, logout, me, memberships, updateLanguage],
+    [bootstrap, canManageGroup, canReviewPages, fetchMe, hasGroupRole, initialized, isPlatformAdmin, language, loading, logout, me, memberships, updateLanguage],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

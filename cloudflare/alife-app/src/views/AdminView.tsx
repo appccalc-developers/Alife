@@ -149,6 +149,8 @@ const labels = {
   auditReviewHint: { en: 'Keep sensitive platform actions auditable.', zh: '保持敏感平台操作可追溯。' },
   homeWorkflowTask: { en: 'Public home workflow', zh: '公共首页工作流' },
   homeWorkflowHint: { en: 'Keep visitor-facing content current.', zh: '保持面向访客的内容及时更新。' },
+  pageReviewWorkflow: { en: 'Page publication review', zh: '页面发布审核' },
+  pageReviewHint: { en: 'Promote approved group pages into global public pages.', zh: '把通过审核的小组页面提升为全站公共页面。' },
   noPlatformTasks: { en: 'No urgent platform tasks right now.', zh: '当前没有紧急平台待办。' },
 } satisfies Record<string, LocalText>
 
@@ -162,10 +164,11 @@ const tabs: Array<{ section: AdminSection; path: string; icon: LucideIcon }> = [
 const roleTone: Record<string, string> = {
   superadmin: 'border-rose-200 bg-rose-50 text-rose-700',
   admin: 'border-amber-200 bg-amber-50 text-amber-700',
+  page_reviewer: 'border-emerald-200 bg-emerald-50 text-emerald-700',
   user: 'border-slate-200 bg-slate-50 text-slate-600',
 }
 
-const formatRole = (role: string) => role === 'superadmin' ? 'System Admin' : role === 'admin' ? 'Admin' : role === 'user' ? 'User' : role
+const formatRole = (role: string) => role === 'superadmin' ? 'System Admin' : role === 'admin' ? 'Admin' : role === 'page_reviewer' ? 'Page Reviewer' : role === 'user' ? 'User' : role
 const formatDate = (value: string) => new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 const readLocalized = (text: Record<string, string> | null | undefined, language: string) => !text ? '' : (language === 'zh' ? text.zh : text.en) || text.en || text.zh || ''
 const parseLocalizedJson = (json: string | null, language: string) => {
@@ -308,6 +311,7 @@ const AdminView = () => {
   const roleOptions = useMemo(() => {
     const seeded = roles.length ? roles : [
       { id: 0, code: 'user', name: { en: 'User', zh: '普通用户' }, level: 0 },
+      { id: 5, code: 'page_reviewer', name: { en: 'Page Reviewer', zh: '发布审核者' }, level: 5 },
       { id: 10, code: 'admin', name: { en: 'Admin', zh: '管理员' }, level: 10 },
       { id: 100, code: 'superadmin', name: { en: 'System Admin', zh: '超级管理员' }, level: 100 },
     ]
@@ -604,6 +608,12 @@ const Overview = ({ l, users, logs, messages, homePage, syncing, syncSermons }: 
             }}
           >
             {homePage ? l('editHome') : l('createDefaultHome')} <ChevronRight className="h-4 w-4" />
+          </Link>
+          <Link
+            to="/admin/page-review"
+            className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 py-2.5 text-sm font-black text-emerald-800 transition hover:bg-emerald-50"
+          >
+            {l('pageReviewWorkflow')} <ChevronRight className="h-4 w-4" />
           </Link>
         </section>
         <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">

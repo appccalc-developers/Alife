@@ -31,9 +31,11 @@ type Props = {
 
 const visibilityOptions: PageVisibility[] = ['draft', 'group', 'public']
 
-const formatVisibilityLabel = (visibility: PageVisibility, isZh: boolean) => {
+const formatVisibilityLabel = (visibility: PageVisibility, isZh: boolean, isGlobalPage = false) => {
   if (visibility === 'public') {
-    return isZh ? '公开访问' : 'Public access'
+    return isGlobalPage
+      ? (isZh ? '公开访问' : 'Public access')
+      : (isZh ? '公开小组页面' : 'Public group page')
   }
 
   if (visibility === 'group') {
@@ -85,6 +87,7 @@ const PageSettingsPanel = ({
   const { language } = useAuthStore()
   const isZh = language === 'zh'
   const canUsePublishDock = Boolean(publishReadiness && onSave)
+  const isGlobalPage = !model.groupId
   const visibilityReady = model.visibility !== 'draft'
   const translationsReady = !publishReadiness || publishReadiness.missingTranslationCount === 0
   const imagesReady = !publishReadiness || !publishReadiness.hasLocalImages
@@ -98,7 +101,9 @@ const PageSettingsPanel = ({
     savedReady,
   ].filter(Boolean).length
   const saveActionLabel = model.visibility === 'public'
-    ? (isZh ? '保存并发布' : 'Save and publish')
+    ? isGlobalPage
+      ? (isZh ? '保存并发布' : 'Save and publish')
+      : (isZh ? '保存为公开小组页面' : 'Save as public group page')
     : model.visibility === 'group'
       ? (isZh ? '保存并对小组可见' : 'Save for group')
       : (isZh ? '保存草稿' : 'Save draft')
@@ -247,7 +252,7 @@ const PageSettingsPanel = ({
             icon={<ShieldCheck className="h-4 w-4" />}
             label={isZh ? '发布范围' : 'Visibility'}
             detail={canEditVisibility
-              ? (isZh ? `当前设置为：${formatVisibilityLabel(model.visibility, true)}。` : `Current setting: ${formatVisibilityLabel(model.visibility, false)}.`)
+              ? (isZh ? `当前设置为：${formatVisibilityLabel(model.visibility, true, isGlobalPage)}。` : `Current setting: ${formatVisibilityLabel(model.visibility, false, isGlobalPage)}.`)
               : (isZh ? '只有领袖或管理员可以调整发布范围。' : 'Only leaders or admins can change visibility.')}
           />
           <ReadinessRow
@@ -323,7 +328,7 @@ const PageSettingsPanel = ({
           >
             {visibilityOptions.map((option) => (
               <option key={option} value={option}>
-                {formatVisibilityLabel(option, isZh)}
+                {formatVisibilityLabel(option, isZh, isGlobalPage)}
               </option>
             ))}
           </select>
@@ -331,9 +336,9 @@ const PageSettingsPanel = ({
         </label>
 
         <div className="flex flex-wrap items-center gap-2">
-          <AppBadge variant="warning">{formatVisibilityLabel('draft', isZh)}</AppBadge>
-          <AppBadge variant="info">{formatVisibilityLabel('group', isZh)}</AppBadge>
-          <AppBadge variant="success">{formatVisibilityLabel('public', isZh)}</AppBadge>
+        <AppBadge variant="warning">{formatVisibilityLabel('draft', isZh, isGlobalPage)}</AppBadge>
+        <AppBadge variant="info">{formatVisibilityLabel('group', isZh, isGlobalPage)}</AppBadge>
+        <AppBadge variant="success">{formatVisibilityLabel('public', isZh, isGlobalPage)}</AppBadge>
         </div>
 
         {onResetDefaultHome ? (

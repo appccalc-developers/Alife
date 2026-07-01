@@ -541,6 +541,19 @@ export async function getInvalidationPaths(env: Env, request: Request, response:
     }
   }
 
+  const pagePromoteMatch = path.match(/^\/api\/admin\/pages\/([^/]+)\/promote-global$/)
+  if (pagePromoteMatch) {
+    const promotedPageId = pagePromoteMatch[1]
+    const body = await readJsonObject(response)
+    paths.add(`/api/pages/${promotedPageId}`)
+    paths.add('/api/pages/global')
+
+    const previousOwnerGroupId = readString(body?.previousOwnerGroupId) ?? await readEntityGroup(env, 'page', promotedPageId)
+    if (previousOwnerGroupId) {
+      paths.add(`/api/groups/${previousOwnerGroupId}/pages`)
+    }
+  }
+
   const eventId = path.match(/^\/api\/events\/([^/]+)$/)?.[1]
   if (eventId) {
     const body = await readJsonObject(response)
@@ -610,7 +623,8 @@ export function getInvalidationKeys(request: Request, targetMemberId = '') {
     api: new Set<string>(),
     authz: new Set<string>(),
   }
-  const pageId = path.match(/^\/api\/pages\/([^/]+)(?:\/publish)?$/)?.[1]
+  const pageId = path.match(/^\/api\/pages\/([^/]+)(?:\/publish)?$/)?.[1] ??
+    path.match(/^\/api\/admin\/pages\/([^/]+)\/promote-global$/)?.[1]
   if (pageId) {
     keys.api.add(createEntityGroupMapKey('page', pageId))
     keys.api.add(createPageMetaMapKey(pageId))

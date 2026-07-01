@@ -18,6 +18,19 @@ public sealed class GroupAuthorizationService(AlifeDbContext dbContext) : IGroup
                 cancellationToken);
     }
 
+    public async Task<bool> CanReviewPagesAsync(Guid memberId, CancellationToken cancellationToken)
+    {
+        return await dbContext.MemberPlatformRoles
+            .AsNoTracking()
+            .AnyAsync(
+                x => x.MemberId == memberId &&
+                     x.RevokedUtc == null &&
+                     (x.RoleId == (int)PlatformRoleId.PageReviewer ||
+                      x.RoleId == (int)PlatformRoleId.Admin ||
+                      x.RoleId == (int)PlatformRoleId.SuperAdmin),
+                cancellationToken);
+    }
+
     public async Task<bool> IsApprovedMemberAsync(Guid groupId, Guid memberId, CancellationToken cancellationToken)
     {
         if (await IsAdminAsync(memberId, cancellationToken))

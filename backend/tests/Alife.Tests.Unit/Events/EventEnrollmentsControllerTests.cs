@@ -49,7 +49,8 @@ public class EventEnrollmentsControllerTests
 
         var result = await controller.List(eventId, CancellationToken.None);
 
-        Assert.IsType<ForbidResult>(result);
+        var forbidden = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(403, forbidden.StatusCode);
     }
 
     private static EventEnrollmentDto CreateEnrollment(Guid eventId, Guid memberId)

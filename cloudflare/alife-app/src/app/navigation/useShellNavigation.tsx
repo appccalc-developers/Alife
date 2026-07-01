@@ -80,6 +80,8 @@ export const useShellNavigation = ({
   const workspaceVisible = Boolean(contextualGroupId) && workspaceEnabled
   const adminItem: ShellNavItem | null = !auth.loading && auth.me?.isAdmin
     ? { key: 'app:admin', label: isChinese ? '平台工作台' : 'Platform workspace', to: '/admin', icon: <ShieldCheck className="h-5 w-5" /> }
+    : !auth.loading && auth.canReviewPages
+      ? { key: 'app:page-review', label: isChinese ? '发布审核' : 'Page review', to: '/admin/page-review', icon: <ShieldCheck className="h-5 w-5" /> }
     : null
   const guestItem: ShellNavItem | null = !auth.loading && auth.isGuest
     ? { key: 'app:onboarding', label: translateUi(auth.language, 'onboarding'), to: '/onboarding', icon: <OnboardingIcon /> }

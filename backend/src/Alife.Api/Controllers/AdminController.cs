@@ -1,6 +1,8 @@
 using Alife.Api.Http;
 using Alife.Api.Results;
 using Alife.Application.Abstractions.Identity;
+using Alife.Application.Admin.Commands.IgnorePageGlobalReview;
+using Alife.Application.Admin.Commands.PromotePageToGlobal;
 using Alife.Application.Admin.Commands.RefreshCloudflareCache;
 using Alife.Application.Admin.Commands.SendAdminMessage;
 using Alife.Application.Admin.Commands.SetMemberPlatformRole;
@@ -9,6 +11,7 @@ using Alife.Application.Admin.Queries.GetAdminSelfDiagnostic;
 using Alife.Application.Admin.Queries.ListAdminGroups;
 using Alife.Application.Admin.Queries.ListAdminMembers;
 using Alife.Application.Admin.Queries.ListAdminNotifications;
+using Alife.Application.Admin.Queries.ListPageReviewCandidates;
 using Alife.Application.Admin.Queries.ListAuditLogs;
 using Alife.Application.Admin.Queries.ListPlatformRoles;
 using MediatR;
@@ -98,6 +101,48 @@ public class AdminController(IMediator mediator, ICurrentMemberAccessor currentM
         var result = await mediator.Send(
             new ListAdminGroupsQuery(currentMemberId.Value, search, page <= 0 ? 1 : page, pageSize <= 0 ? 50 : pageSize),
             cancellationToken);
+        this.ApplyPrivateNoCacheHeaders();
+        return this.ToActionResult(result);
+    }
+
+    [HttpGet("pages/review-candidates")]
+    public async Task<IActionResult> ListPageReviewCandidates(CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null)
+        {
+            return Unauthorized();
+        }
+
+        var result = await mediator.Send(new ListPageReviewCandidatesQuery(currentMemberId.Value), cancellationToken);
+        this.ApplyPrivateNoCacheHeaders();
+        return this.ToActionResult(result);
+    }
+
+    [HttpPost("pages/{pageId:guid}/promote-global")]
+    public async Task<IActionResult> PromotePageToGlobal(Guid pageId, CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null)
+        {
+            return Unauthorized();
+        }
+
+        var result = await mediator.Send(new PromotePageToGlobalCommand(currentMemberId.Value, pageId), cancellationToken);
+        this.ApplyPrivateNoCacheHeaders();
+        return this.ToActionResult(result);
+    }
+
+    [HttpPost("pages/{pageId:guid}/ignore-global-review")]
+    public async Task<IActionResult> IgnorePageGlobalReview(Guid pageId, CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null)
+        {
+            return Unauthorized();
+        }
+
+        var result = await mediator.Send(new IgnorePageGlobalReviewCommand(currentMemberId.Value, pageId), cancellationToken);
         this.ApplyPrivateNoCacheHeaders();
         return this.ToActionResult(result);
     }
