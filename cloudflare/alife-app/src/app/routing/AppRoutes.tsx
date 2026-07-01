@@ -30,7 +30,7 @@ const AdminRoute = ({ children }: { children: ReactElement }) => {
     return <AppRouteLoading />
   }
 
-  return auth.me?.isAdmin ? children : <Navigate to="/" replace />
+  return auth.me?.isAdmin || auth.hasAdminPermission('admin.access') ? children : <Navigate to="/" replace />
 }
 
 const PageReviewRoute = ({ children }: { children: ReactElement }) => {
@@ -114,6 +114,14 @@ const AppRoutes = () => {
             }
           />
           <Route
+            path="/admin/roles"
+            element={
+              <AdminRoute>
+                <AdminView />
+              </AdminRoute>
+            }
+          />
+          <Route
             path="/admin/logs"
             element={
               <AdminRoute>
@@ -130,11 +138,27 @@ const AppRoutes = () => {
             }
           />
           <Route
+            path="/admin/visit-requests"
+            element={
+              <AdminRoute>
+                <AdminView />
+              </AdminRoute>
+            }
+          />
+          <Route
             path="/admin/page-review"
             element={
               <PageReviewRoute>
                 <PageReviewView />
               </PageReviewRoute>
+            }
+          />
+          <Route
+            path="/admin/files"
+            element={
+              <AdminRoute>
+                <AdminView />
+              </AdminRoute>
             }
           />
           <Route path="*" element={<Navigate to="/" replace />} />
