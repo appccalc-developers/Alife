@@ -52,7 +52,7 @@ const readMediaConfig = (source: Record<string, unknown>, style: Record<string, 
   return { type, url, position, youtubeUrl, imageUrl }
 }
 
-const SpotlightSection = ({ section, mode, disabled, propertiesOnly, showProperties = true, onUpdate, contextGroupId, page }: SectionComponentProps) => {
+const SpotlightSection = ({ section, mode, disabled, propertiesOnly, showProperties = true, sectionDomId, sectionRootClassName, onUpdate, contextGroupId, page }: SectionComponentProps) => {
   const auth = useAuthStore()
   const t = useUiText()
   const editable = mode === 'edit' && !disabled && onUpdate
@@ -291,7 +291,7 @@ const SpotlightSection = ({ section, mode, disabled, propertiesOnly, showPropert
         )
 
   return (
-    <section className={`${sectionSpacingClass(section)} rounded-lg border border-slate-200 bg-white px-4`}>
+    <section id={sectionDomId} className={`${sectionRootClassName ? `${sectionRootClassName} ` : ''}${sectionSpacingClass(section)} rounded-lg border border-slate-200 bg-white px-4`}>
       <SectionHeader
         header={section.contentJson.header}
         titleFallback={title || (mode === 'edit' ? t('previewNoTitle') : '')}
