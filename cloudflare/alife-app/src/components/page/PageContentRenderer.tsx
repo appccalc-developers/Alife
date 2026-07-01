@@ -1,5 +1,4 @@
 import SectionBlock from '../page-sections/SectionBlock'
-import type { ReactNode } from 'react'
 import type { GroupPageDto } from '../../types/group'
 import type { PageEditModel, PageEditorValidation, SectionEditModel, SectionType } from '../../types/page-editor'
 import type { PageLinkItem } from '../page-sections/types'
@@ -330,28 +329,18 @@ export const validatePageContent = (model: PageEditModel, language = 'en'): Page
 
 const PageSectionChrome = ({
   children,
-  domId,
   variant = 'default',
   separatorAfter = false,
 }: {
-  children: ReactNode
-  domId: string
+  children: React.ReactNode
   variant?: PageSectionChromeVariant
   separatorAfter?: boolean
 }) => {
-  if (variant === 'home') {
-    return (
-      <>
-        {children}
-        {separatorAfter ? <hr className="mx-auto max-w-6xl border-t border-home-border/40" /> : null}
-      </>
-    )
-  }
-
   return (
-    <div id={domId} className="scroll-mt-24">
+    <>
       {children}
-    </div>
+      {variant === 'home' && separatorAfter ? <hr className="mx-auto max-w-6xl border-t border-home-border/40" /> : null}
+    </>
   )
 }
 
@@ -411,10 +400,7 @@ const PageContentRenderer = ({
   const useHomeSectionChrome = sectionChrome === 'home' && !editing
   const articleClassName = framed
     ? 'w-full min-w-0 space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5'
-    : useHomeSectionChrome
-      ? 'w-full min-w-0'
-      : 'w-full min-w-0 space-y-4'
-  const sectionsClassName = useHomeSectionChrome ? undefined : 'space-y-4'
+    : 'w-full min-w-0 space-y-4'
   const editPageAction = 'ownerGroupId' in page && page.ownerGroupId && onEditPage ? (
     <div className="flex flex-wrap gap-2">
       <button
@@ -434,7 +420,6 @@ const PageContentRenderer = ({
         return (
           <PageSectionChrome
             key={section.id || `${section.order}-${section.type}`}
-            domId={domId}
             variant={useHomeSectionChrome ? 'home' : 'default'}
             separatorAfter={useHomeSectionChrome && index < sections.length - 1}
           >
@@ -445,8 +430,8 @@ const PageContentRenderer = ({
               groupPageItems={groupPageItems}
               contextGroupId={contextGroupId}
               pageId={pageId}
-              sectionDomId={useHomeSectionChrome ? domId : undefined}
-              sectionRootClassName={useHomeSectionChrome ? 'scroll-mt-24' : undefined}
+              sectionDomId={domId}
+              sectionRootClassName="scroll-mt-24"
             />
           </PageSectionChrome>
         )
@@ -458,7 +443,7 @@ const PageContentRenderer = ({
     </>
   )
 
-  if (useHomeSectionChrome && !showHeader) {
+  if (!editing && !showHeader && !framed) {
     return (
       <>
         {renderedSections}
@@ -505,9 +490,7 @@ const PageContentRenderer = ({
           onMoveDown={(index) => moveSection(index, 1)}
         />
       ) : (
-        <div className={sectionsClassName}>
-          {renderedSections}
-        </div>
+        renderedSections
       )}
 
       {editPageAction}
