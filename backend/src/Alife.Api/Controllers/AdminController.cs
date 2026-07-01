@@ -1,12 +1,16 @@
 using Alife.Api.Http;
 using Alife.Api.Results;
 using Alife.Application.Abstractions.Identity;
+using Alife.Application.Admin.Commands.BackfillMemberPrivateFiles;
+using Alife.Application.Admin.Commands.CreatePlatformRole;
+using Alife.Application.Admin.Commands.DeletePlatformRole;
 using Alife.Application.Admin.Commands.IgnorePageGlobalReview;
 using Alife.Application.Admin.Commands.PromotePageToGlobal;
 using Alife.Application.Admin.Commands.RefreshCloudflareCache;
 using Alife.Application.Admin.Commands.SendAdminMessage;
 using Alife.Application.Admin.Commands.SetMemberPlatformRole;
 using Alife.Application.Admin.Commands.SyncSermons;
+using Alife.Application.Admin.Commands.UpdatePlatformRolePermissions;
 using Alife.Application.Admin.Queries.GetAdminSelfDiagnostic;
 using Alife.Application.Admin.Queries.ListAdminGroups;
 using Alife.Application.Admin.Queries.ListAdminMembers;
@@ -14,6 +18,8 @@ using Alife.Application.Admin.Queries.ListAdminNotifications;
 using Alife.Application.Admin.Queries.ListPageReviewCandidates;
 using Alife.Application.Admin.Queries.ListAuditLogs;
 using Alife.Application.Admin.Queries.ListPlatformRoles;
+using Alife.Application.VisitContactRequests.Commands.UpdateVisitContactRequestStatus;
+using Alife.Application.VisitContactRequests.Queries.ListVisitContactRequests;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -159,9 +165,76 @@ public class AdminController(IMediator mediator, ICurrentMemberAccessor currentM
             return Unauthorized();
         }
 
+        try
+        {
+            var result = await mediator.Send(
+                new SetMemberPlatformRoleCommand(
+                    currentMemberId.Value,
+                    memberId,
+                    request.RoleCodes is { Count: > 0 } ? request.RoleCodes : [request.RoleCode ?? "user"]),
+                cancellationToken);
+            this.ApplyPrivateNoCacheHeaders();
+            return this.ToActionResult(result);
+        }
+        catch (Exception ex)
+        {
+            this.ApplyPrivateNoCacheHeaders();
+            return StatusCode(
+                StatusCodes.Status500InternalServerError,
+                new { message = $"Platform role update failed: {ex.GetBaseException().Message}" });
+        }
+    }
+
+    [HttpPost("platform-roles")]
+    public async Task<IActionResult> CreatePlatformRole(CreatePlatformRoleRequest request, CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null)
+        {
+            return Unauthorized();
+        }
+
         var result = await mediator.Send(
-            new SetMemberPlatformRoleCommand(currentMemberId.Value, memberId, request.RoleCode),
+            new CreatePlatformRoleCommand(
+                currentMemberId.Value,
+                request.Code,
+                request.NameEn,
+                request.NameZh,
+                request.PermissionCodes),
             cancellationToken);
+        this.ApplyPrivateNoCacheHeaders();
+        return this.ToActionResult(result);
+    }
+
+    [HttpPut("platform-roles/{roleId:int}/permissions")]
+    public async Task<IActionResult> UpdatePlatformRolePermissions(
+        int roleId,
+        UpdatePlatformRolePermissionsRequest request,
+        CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null)
+        {
+            return Unauthorized();
+        }
+
+        var result = await mediator.Send(
+            new UpdatePlatformRolePermissionsCommand(currentMemberId.Value, roleId, request.PermissionCodes),
+            cancellationToken);
+        this.ApplyPrivateNoCacheHeaders();
+        return this.ToActionResult(result);
+    }
+
+    [HttpDelete("platform-roles/{roleId:int}")]
+    public async Task<IActionResult> DeletePlatformRole(int roleId, CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null)
+        {
+            return Unauthorized();
+        }
+
+        var result = await mediator.Send(new DeletePlatformRoleCommand(currentMemberId.Value, roleId), cancellationToken);
         this.ApplyPrivateNoCacheHeaders();
         return this.ToActionResult(result);
     }
@@ -222,6 +295,46 @@ public class AdminController(IMediator mediator, ICurrentMemberAccessor currentM
         return this.ToActionResult(result);
     }
 
+    [HttpGet("visit-contact-requests")]
+    public async Task<IActionResult> ListVisitContactRequests(
+        [FromQuery] string? search,
+        [FromQuery] string? status,
+        [FromQuery] int page,
+        [FromQuery] int pageSize,
+        CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null)
+        {
+            return Unauthorized();
+        }
+
+        var result = await mediator.Send(
+            new ListVisitContactRequestsQuery(currentMemberId.Value, search, status, page <= 0 ? 1 : page, pageSize <= 0 ? 25 : pageSize),
+            cancellationToken);
+        this.ApplyPrivateNoCacheHeaders();
+        return this.ToActionResult(result);
+    }
+
+    [HttpPut("visit-contact-requests/{requestId:guid}/status")]
+    public async Task<IActionResult> UpdateVisitContactRequestStatus(
+        Guid requestId,
+        UpdateVisitContactRequestStatusRequest request,
+        CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null)
+        {
+            return Unauthorized();
+        }
+
+        var result = await mediator.Send(
+            new UpdateVisitContactRequestStatusCommand(currentMemberId.Value, requestId, request.Status),
+            cancellationToken);
+        this.ApplyPrivateNoCacheHeaders();
+        return this.ToActionResult(result);
+    }
+
     [HttpPost("messages")]
     public async Task<IActionResult> SendMessage(SendAdminMessageRequest request, CancellationToken cancellationToken)
     {
@@ -237,6 +350,7 @@ public class AdminController(IMediator mediator, ICurrentMemberAccessor currentM
                 request.Scope,
                 request.RecipientMemberId,
                 request.GroupId,
+                request.RoleCodes ?? [],
                 request.ActionType,
                 request.TitleEn,
                 request.TitleZh,
@@ -275,15 +389,48 @@ public class AdminController(IMediator mediator, ICurrentMemberAccessor currentM
         return this.ToActionResult(result);
     }
 
-    public sealed record SetMemberPlatformRoleRequest(string RoleCode);
+    [HttpPost("file-assets/member-private/backfill")]
+    public async Task<IActionResult> BackfillMemberPrivateFiles(
+        BackfillMemberPrivateFilesRequest request,
+        CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null)
+        {
+            return Unauthorized();
+        }
+
+        var result = await mediator.Send(
+            new BackfillMemberPrivateFilesCommand(
+                currentMemberId.Value,
+                request.DryRun ?? true,
+                request.MaxItems ?? 50),
+            cancellationToken);
+        this.ApplyPrivateNoCacheHeaders();
+        return this.ToActionResult(result);
+    }
+
+    public sealed record SetMemberPlatformRoleRequest(string? RoleCode, IReadOnlyList<string>? RoleCodes);
+
+    public sealed record CreatePlatformRoleRequest(
+        string Code,
+        string NameEn,
+        string NameZh,
+        IReadOnlyList<string> PermissionCodes);
+
+    public sealed record UpdatePlatformRolePermissionsRequest(IReadOnlyList<string> PermissionCodes);
+    public sealed record UpdateVisitContactRequestStatusRequest(string Status);
 
     public sealed record SendAdminMessageRequest(
         string Scope,
         Guid? RecipientMemberId,
         Guid? GroupId,
+        IReadOnlyList<string>? RoleCodes,
         string ActionType,
         string TitleEn,
         string TitleZh,
         string BodyEn,
         string BodyZh);
+
+    public sealed record BackfillMemberPrivateFilesRequest(bool? DryRun, int? MaxItems);
 }

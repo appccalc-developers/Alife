@@ -4,12 +4,14 @@ using Alife.Domain.Entities;
 using Alife.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace Alife.Application.Admin;
 
 internal static class AdminPlatformRoleHelpers
 {
     public const string PageReviewerRoleCode = "page_reviewer";
+    public const string VisitorContactReceiverRoleCode = "visitor_contact_receiver";
 
     public static async Task<int> GetPlatformRoleLevelAsync(
         IAlifeDbContext dbContext,
@@ -41,15 +43,24 @@ internal static class AdminPlatformRoleHelpers
         IAlifeDbContext dbContext,
         Guid memberId,
         CancellationToken cancellationToken)
-        => await dbContext.MemberPlatformRoles
+    {
+        var roles = await dbContext.MemberPlatformRoles
             .AsNoTracking()
-            .AnyAsync(
-                x => x.MemberId == memberId &&
-                     x.RevokedUtc == null &&
-                     (x.RoleId == (int)PlatformRoleId.PageReviewer ||
-                      x.RoleId == (int)PlatformRoleId.Admin ||
-                      x.RoleId == (int)PlatformRoleId.SuperAdmin),
-                cancellationToken);
+            .Where(x => x.MemberId == memberId && x.RevokedUtc == null)
+            .Select(x => new
+            {
+                x.RoleId,
+                x.Role.Code,
+                x.Role.PermissionsJson
+            })
+            .ToListAsync(cancellationToken);
+
+        return roles.Any(role =>
+            role.RoleId == (int)PlatformRoleId.PageReviewer ||
+            role.RoleId == (int)PlatformRoleId.SuperAdmin ||
+            AdminPermissionCatalog.ReadPermissions(role.Code, role.PermissionsJson)
+                .Contains(AdminPermissionCatalog.ReviewPages));
+    }
 
     public static async Task<bool> IsSuperAdminAsync(
         IAlifeDbContext dbContext,
@@ -62,8 +73,7 @@ internal static class AdminPlatformRoleHelpers
         Guid memberId,
         CancellationToken cancellationToken)
     {
-        var rows = await QueryAdminMembers(dbContext)
-            .Where(x => x.Id == memberId)
+        var rows = await ProjectAdminMembers(dbContext.Members.AsNoTracking().Where(x => x.Id == memberId))
             .ToListAsync(cancellationToken);
 
         return rows.FirstOrDefault();
@@ -93,20 +103,92 @@ internal static class AdminPlatformRoleHelpers
                 member.Memberships.Count(m => m.Status == MembershipStatus.Approved),
                 member.Memberships.Count(m => m.Status == MembershipStatus.Requested)));
 
+    public static async Task<bool> HasPermissionAsync(
+        IAlifeDbContext dbContext,
+        Guid memberId,
+        string permissionCode,
+        CancellationToken cancellationToken)
+    {
+        var roles = await dbContext.MemberPlatformRoles
+            .AsNoTracking()
+            .Where(x => x.MemberId == memberId && x.RevokedUtc == null)
+            .OrderByDescending(x => x.Role.Level)
+            .Select(x => new
+            {
+                x.Role.Code,
+                x.Role.PermissionsJson
+            })
+            .ToListAsync(cancellationToken);
+
+        if (roles.Any(x => x.Code == "superadmin"))
+        {
+            return true;
+        }
+
+        return roles.Any(role =>
+            AdminPermissionCatalog.ReadPermissions(role.Code, role.PermissionsJson).Contains(permissionCode));
+    }
+
+    public static async Task<IReadOnlyList<string>> GetMemberPermissionsAsync(
+        IAlifeDbContext dbContext,
+        Guid memberId,
+        CancellationToken cancellationToken)
+    {
+        var roles = await dbContext.MemberPlatformRoles
+            .AsNoTracking()
+            .Where(x => x.MemberId == memberId && x.RevokedUtc == null)
+            .OrderByDescending(x => x.Role.Level)
+            .Select(x => new
+            {
+                x.Role.Code,
+                x.Role.PermissionsJson
+            })
+            .ToListAsync(cancellationToken);
+
+        if (roles.Any(x => x.Code == "superadmin"))
+        {
+            return AdminPermissionCatalog.GetDefaultPermissions("superadmin");
+        }
+
+        return roles
+            .SelectMany(role => AdminPermissionCatalog.ReadPermissions(role.Code, role.PermissionsJson))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(x => x, StringComparer.Ordinal)
+            .ToArray();
+    }
+
     public static IReadOnlyDictionary<string, string> ReadTextMap(string json)
         => string.IsNullOrWhiteSpace(json)
             ? new Dictionary<string, string>()
             : JsonSerializer.Deserialize<Dictionary<string, string>>(json) ?? new Dictionary<string, string>();
 
     public static string NormalizeRoleCode(string roleCode)
-        => roleCode.Trim().ToLowerInvariant() switch
+    {
+        var normalized = roleCode.Trim().ToLowerInvariant() switch
         {
             "superadmin" or "super_admin" or "super-admin" => "superadmin",
             "admin" => "admin",
             "page_reviewer" or "page-reviewer" or "pagereviewer" or "publisher" or "publish_reviewer" or "publish-reviewer" => PageReviewerRoleCode,
+            "visitor_contact_receiver" or "visitor-contact-receiver" or "visitorreceiver" or "visitor_contact" or "visitor-contact" => VisitorContactReceiverRoleCode,
             "user" or "member" => "user",
-            _ => string.Empty
+            _ => roleCode.Trim().ToLowerInvariant()
         };
+
+        return Regex.IsMatch(normalized, "^[a-z][a-z0-9._-]{1,49}$") ? normalized : string.Empty;
+    }
+
+    public static bool IsSystemRole(string roleCode)
+        => roleCode is "user" or PageReviewerRoleCode or VisitorContactReceiverRoleCode or "admin" or "superadmin";
+
+    public static IReadOnlyDictionary<string, string> TextMap(string en, string zh)
+        => new Dictionary<string, string>
+        {
+            ["en"] = en,
+            ["zh"] = zh
+        };
+
+    public static string WriteTextMap(string en, string zh)
+        => JsonSerializer.Serialize(TextMap(en, zh));
 
     public static string RoleChangedMetadata(string roleCode)
         => JsonSerializer.Serialize(new { role = roleCode });

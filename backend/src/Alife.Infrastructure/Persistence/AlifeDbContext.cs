@@ -16,11 +16,14 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 	public DbSet<Page> Pages => Set<Page>();
 	public DbSet<Section> Sections => Set<Section>();
 	public DbSet<Link> Links => Set<Link>();
+	public DbSet<FileStorageProvider> FileStorageProviders => Set<FileStorageProvider>();
+	public DbSet<FileAsset> FileAssets => Set<FileAsset>();
 	public DbSet<Sermon> Sermons => Set<Sermon>();
 	public DbSet<GroupEvent> GroupEvents => Set<GroupEvent>();
 	public DbSet<EventEnrollment> EventEnrollments => Set<EventEnrollment>();
 	public DbSet<EventReview> EventReviews => Set<EventReview>();
 	public DbSet<NotificationMessage> NotificationMessages => Set<NotificationMessage>();
+	public DbSet<VisitContactRequest> VisitContactRequests => Set<VisitContactRequest>();
 
 	protected override void OnModelCreating(ModelBuilder modelBuilder)
 	{
@@ -78,6 +81,7 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 			cfg.Property(x => x.Id).ValueGeneratedNever();
 			cfg.Property(x => x.Code).HasMaxLength(50).IsRequired();
 			cfg.Property(x => x.NameJson).IsRequired();
+			cfg.Property(x => x.PermissionsJson).IsRequired();
 			cfg.HasIndex(x => x.Code).IsUnique();
 			cfg.HasIndex(x => x.Level);
 		});
@@ -169,6 +173,61 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 			cfg.HasOne(x => x.OwnerSection).WithMany(x => x.Links).HasForeignKey(x => x.OwnerSectionId);
 			cfg.Property(x => x.Title).HasMaxLength(200).IsRequired();
 			cfg.Property(x => x.ImageUrl).HasMaxLength(500);
+		});
+
+		modelBuilder.Entity<FileStorageProvider>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.Code).HasMaxLength(80).IsRequired();
+			cfg.Property(x => x.DisplayNameJson).IsRequired();
+			cfg.Property(x => x.BucketName).HasMaxLength(120).IsRequired();
+			cfg.Property(x => x.Region).HasMaxLength(80);
+			cfg.Property(x => x.Endpoint).HasMaxLength(500);
+			cfg.Property(x => x.PublicBaseUrl).HasMaxLength(500);
+			cfg.Property(x => x.PrivateBaseUrl).HasMaxLength(500);
+			cfg.Property(x => x.UploadApiBaseUrl).HasMaxLength(500);
+			cfg.Property(x => x.PublicPathPrefix).HasMaxLength(200).IsRequired();
+			cfg.Property(x => x.PrivatePathPrefix).HasMaxLength(200).IsRequired();
+			cfg.HasIndex(x => x.Code).IsUnique();
+			cfg.HasIndex(x => new { x.IsActive, x.IsDefault });
+		});
+
+		modelBuilder.Entity<FileAsset>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.StorageProvider).HasMaxLength(80).IsRequired();
+			cfg.Property(x => x.BucketName).HasMaxLength(120).IsRequired();
+			cfg.Property(x => x.ObjectKey).HasMaxLength(1024).IsRequired();
+			cfg.Property(x => x.PublicUrl).HasMaxLength(1200);
+			cfg.Property(x => x.OriginalFileName).HasMaxLength(260).IsRequired();
+			cfg.Property(x => x.StoredFileName).HasMaxLength(260).IsRequired();
+			cfg.Property(x => x.ContentType).HasMaxLength(160).IsRequired();
+			cfg.Property(x => x.ETag).HasMaxLength(200);
+			cfg.Property(x => x.RelatedEntityType).HasMaxLength(80);
+
+			cfg.HasOne(x => x.Group)
+				.WithMany()
+				.HasForeignKey(x => x.GroupId)
+				.OnDelete(DeleteBehavior.Restrict);
+
+			cfg.HasOne(x => x.OwnerMember)
+				.WithMany()
+				.HasForeignKey(x => x.OwnerMemberId)
+				.OnDelete(DeleteBehavior.Restrict);
+
+			cfg.HasOne(x => x.StorageProviderProfile)
+				.WithMany()
+				.HasForeignKey(x => x.StorageProviderId)
+				.OnDelete(DeleteBehavior.Restrict);
+
+			cfg.HasIndex(x => x.StorageProviderId);
+			cfg.HasIndex(x => new { x.StorageProvider, x.BucketName, x.ObjectKey })
+				.IsUnique()
+				.HasFilter("[is_deleted] = 0");
+			cfg.HasIndex(x => new { x.GroupId, x.Visibility, x.UploadedUtc });
+			cfg.HasIndex(x => new { x.OwnerMemberId, x.UploadedUtc });
+			cfg.HasIndex(x => new { x.RelatedEntityType, x.RelatedEntityId });
+			cfg.HasQueryFilter(x => !x.IsDeleted);
 		});
 
 		modelBuilder.Entity<Sermon>(cfg =>
@@ -284,6 +343,29 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 			cfg.HasIndex(x => new { x.GroupId, x.UpdatedUtc });
 			cfg.HasIndex(x => x.EventId);
 			cfg.HasIndex(x => x.CreatedByMemberId);
+		});
+
+		modelBuilder.Entity<VisitContactRequest>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.DisplayName).HasMaxLength(150).IsRequired();
+			cfg.Property(x => x.Email).HasMaxLength(200);
+			cfg.Property(x => x.Phone).HasMaxLength(60);
+			cfg.Property(x => x.PreferredLanguage).HasMaxLength(20);
+			cfg.Property(x => x.Message).HasMaxLength(2000);
+			cfg.Property(x => x.SourcePage).HasMaxLength(500);
+			cfg.Property(x => x.Status).HasMaxLength(40).IsRequired();
+			cfg.Property(x => x.IpAddress).HasMaxLength(64);
+			cfg.Property(x => x.UserAgent).HasMaxLength(500);
+
+			cfg.HasOne(x => x.HandledByMember)
+				.WithMany()
+				.HasForeignKey(x => x.HandledByMemberId)
+				.OnDelete(DeleteBehavior.Restrict);
+
+			cfg.HasIndex(x => new { x.Status, x.SubmittedUtc });
+			cfg.HasIndex(x => x.HandledByMemberId);
+			cfg.HasIndex(x => x.SubmittedUtc);
 		});
 	}
 }

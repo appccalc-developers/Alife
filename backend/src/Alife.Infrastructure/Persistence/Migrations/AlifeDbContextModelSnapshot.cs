@@ -203,6 +203,241 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.ToTable("event_reviews", (string)null);
                 });
 
+            modelBuilder.Entity("Alife.Domain.Entities.FileAsset", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<string>("BucketName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)")
+                        .HasColumnName("bucket_name");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)")
+                        .HasColumnName("content_type");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<DateTime?>("DeletedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("deleted_utc");
+
+                    b.Property<string>("ETag")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("e_tag");
+
+                    b.Property<Guid?>("GroupId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("group_id");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<string>("ObjectKey")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("nvarchar(1024)")
+                        .HasColumnName("object_key");
+
+                    b.Property<string>("OriginalFileName")
+                        .IsRequired()
+                        .HasMaxLength(260)
+                        .HasColumnType("nvarchar(260)")
+                        .HasColumnName("original_file_name");
+
+                    b.Property<Guid?>("OwnerMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("owner_member_id");
+
+                    b.Property<string>("PublicUrl")
+                        .HasMaxLength(1200)
+                        .HasColumnType("nvarchar(1200)")
+                        .HasColumnName("public_url");
+
+                    b.Property<int>("Purpose")
+                        .HasColumnType("int")
+                        .HasColumnName("purpose");
+
+                    b.Property<Guid?>("RelatedEntityId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("related_entity_id");
+
+                    b.Property<string>("RelatedEntityType")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)")
+                        .HasColumnName("related_entity_type");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("size_bytes");
+
+                    b.Property<string>("StorageProvider")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)")
+                        .HasColumnName("storage_provider");
+
+                    b.Property<Guid?>("StorageProviderId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("storage_provider_id");
+
+                    b.Property<string>("StoredFileName")
+                        .IsRequired()
+                        .HasMaxLength(260)
+                        .HasColumnType("nvarchar(260)")
+                        .HasColumnName("stored_file_name");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_utc");
+
+                    b.Property<DateTime>("UploadedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("uploaded_utc");
+
+                    b.Property<int>("Visibility")
+                        .HasColumnType("int")
+                        .HasColumnName("visibility");
+
+                    b.HasKey("Id")
+                        .HasName("pk_file_assets");
+
+                    b.HasIndex("StorageProviderId")
+                        .HasDatabaseName("ix_file_assets_storage_provider_id");
+
+                    b.HasIndex("OwnerMemberId", "UploadedUtc")
+                        .HasDatabaseName("ix_file_assets_owner_member_id_uploaded_utc");
+
+                    b.HasIndex("RelatedEntityType", "RelatedEntityId")
+                        .HasDatabaseName("ix_file_assets_related_entity_type_related_entity_id");
+
+                    b.HasIndex("GroupId", "Visibility", "UploadedUtc")
+                        .HasDatabaseName("ix_file_assets_group_id_visibility_uploaded_utc");
+
+                    b.HasIndex("StorageProvider", "BucketName", "ObjectKey")
+                        .IsUnique()
+                        .HasDatabaseName("ix_file_assets_storage_provider_bucket_name_object_key")
+                        .HasFilter("[is_deleted] = 0");
+
+                    b.ToTable("file_assets", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.FileStorageProvider", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<string>("BucketName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)")
+                        .HasColumnName("bucket_name");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<string>("DisplayNameJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("display_name_json");
+
+                    b.Property<string>("Endpoint")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("endpoint");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_default");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("int")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("PrivateBaseUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("private_base_url");
+
+                    b.Property<string>("PrivatePathPrefix")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("private_path_prefix");
+
+                    b.Property<string>("PublicBaseUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("public_base_url");
+
+                    b.Property<string>("PublicPathPrefix")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("public_path_prefix");
+
+                    b.Property<string>("Region")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)")
+                        .HasColumnName("region");
+
+                    b.Property<bool>("SupportsPublicUrl")
+                        .HasColumnType("bit")
+                        .HasColumnName("supports_public_url");
+
+                    b.Property<bool>("SupportsServerSideMove")
+                        .HasColumnType("bit")
+                        .HasColumnName("supports_server_side_move");
+
+                    b.Property<bool>("SupportsSignedRead")
+                        .HasColumnType("bit")
+                        .HasColumnName("supports_signed_read");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_utc");
+
+                    b.Property<string>("UploadApiBaseUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("upload_api_base_url");
+
+                    b.HasKey("Id")
+                        .HasName("pk_file_storage_providers");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("ix_file_storage_providers_code");
+
+                    b.HasIndex("IsActive", "IsDefault")
+                        .HasDatabaseName("ix_file_storage_providers_is_active_is_default");
+
+                    b.ToTable("file_storage_providers", (string)null);
+                });
+
             modelBuilder.Entity("Alife.Domain.Entities.Group", b =>
                 {
                     b.Property<Guid>("Id")
@@ -606,6 +841,95 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.ToTable("notification_messages", (string)null);
                 });
 
+            modelBuilder.Entity("Alife.Domain.Entities.VisitContactRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)")
+                        .HasColumnName("display_name");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("email");
+
+                    b.Property<Guid?>("HandledByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("handled_by_member_id");
+
+                    b.Property<DateTime?>("HandledUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("handled_utc");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("ip_address");
+
+                    b.Property<string>("Message")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasColumnName("message");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)")
+                        .HasColumnName("phone");
+
+                    b.Property<string>("PreferredLanguage")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("preferred_language");
+
+                    b.Property<string>("SourcePage")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("source_page");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("SubmittedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("submitted_utc");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_utc");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("user_agent");
+
+                    b.HasKey("Id")
+                        .HasName("pk_visit_contact_requests");
+
+                    b.HasIndex("HandledByMemberId")
+                        .HasDatabaseName("ix_visit_contact_requests_handled_by_member_id");
+
+                    b.HasIndex("Status", "SubmittedUtc")
+                        .HasDatabaseName("ix_visit_contact_requests_status_submitted_utc");
+
+                    b.HasIndex("SubmittedUtc")
+                        .HasDatabaseName("ix_visit_contact_requests_submitted_utc");
+
+                    b.ToTable("visit_contact_requests", (string)null);
+                });
+
             modelBuilder.Entity("Alife.Domain.Entities.Page", b =>
                 {
                     b.Property<Guid>("Id")
@@ -692,6 +1016,11 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("name_json");
+
+                    b.Property<string>("PermissionsJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("permissions_json");
 
                     b.HasKey("Id")
                         .HasName("pk_platform_roles");
@@ -914,6 +1243,33 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.Navigation("Member");
                 });
 
+            modelBuilder.Entity("Alife.Domain.Entities.FileAsset", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.Group", "Group")
+                        .WithMany()
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_file_assets_groups_group_id");
+
+                    b.HasOne("Alife.Domain.Entities.Member", "OwnerMember")
+                        .WithMany()
+                        .HasForeignKey("OwnerMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_file_assets_members_owner_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.FileStorageProvider", "StorageProviderProfile")
+                        .WithMany()
+                        .HasForeignKey("StorageProviderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_file_assets_file_storage_providers_storage_provider_id");
+
+                    b.Navigation("Group");
+
+                    b.Navigation("OwnerMember");
+
+                    b.Navigation("StorageProviderProfile");
+                });
+
             modelBuilder.Entity("Alife.Domain.Entities.Group", b =>
                 {
                     b.HasOne("Alife.Domain.Entities.Group", "ParentGroup")
@@ -1043,6 +1399,17 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.Navigation("Group");
 
                     b.Navigation("RecipientMember");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.VisitContactRequest", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.Member", "HandledByMember")
+                        .WithMany()
+                        .HasForeignKey("HandledByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_visit_contact_requests_members_handled_by_member_id");
+
+                    b.Navigation("HandledByMember");
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.Page", b =>
