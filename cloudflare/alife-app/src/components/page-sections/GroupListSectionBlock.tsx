@@ -54,7 +54,7 @@ const presetOptionsForSource = (source: ListViewSource, t: ReturnType<typeof use
   return [{ value: 'all', label: t('all') }]
 }
 
-const GroupListSectionBlock = ({ section, mode, disabled, editorPreview, propertiesOnly, showProperties = true, contextGroupId, page, onUpdate }: SectionComponentProps) => {
+const GroupListSectionBlock = ({ section, mode, disabled, editorPreview, propertiesOnly, showProperties = true, contextGroupId, page, sectionDomId, sectionRootClassName, onUpdate }: SectionComponentProps) => {
   const auth = useAuthStore()
   const t = useUiText()
   const source = sourceFromContent(section.contentJson)
@@ -92,7 +92,7 @@ const GroupListSectionBlock = ({ section, mode, disabled, editorPreview, propert
   const compactPreview = editorPreview ?? mode === 'edit'
 
   return (
-    <section className={`${sectionSpacingClass(section)} rounded-lg border border-slate-200 bg-white px-4`}>
+    <section id={sectionDomId} className={`${sectionRootClassName ? `${sectionRootClassName} ` : ''}${sectionSpacingClass(section)} rounded-lg border border-slate-200 bg-white px-4`}>
       <SectionHeader
         header={section.contentJson.header}
         titleFallback={mode === 'edit' ? t('previewNoTitle') : ''}

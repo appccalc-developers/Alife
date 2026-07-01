@@ -54,7 +54,7 @@ const pageImageUploadFolder = (groupId: string | undefined, pageId: string | und
   return `${groupFolder}/${pageFolder}/rich-text`
 }
 
-const RichTextSection = ({ section, mode, disabled, propertiesOnly, showProperties = true, contextGroupId, page, pageId, onUpdate }: SectionComponentProps) => {
+const RichTextSection = ({ section, mode, disabled, propertiesOnly, showProperties = true, contextGroupId, page, pageId, sectionDomId, sectionRootClassName, onUpdate }: SectionComponentProps) => {
   const auth = useAuthStore()
   const t = useUiText()
   const editable = mode === 'edit' && !disabled && onUpdate
@@ -104,7 +104,7 @@ const RichTextSection = ({ section, mode, disabled, propertiesOnly, showProperti
 
   if (!overlay) {
     return (
-      <section className={`${sectionSpacingClass(section)} rounded-lg border border-slate-200 bg-slate-50 px-4 text-slate-700`}>
+      <section id={sectionDomId} className={`${sectionRootClassName ? `${sectionRootClassName} ` : ''}${sectionSpacingClass(section)} rounded-lg border border-slate-200 bg-slate-50 px-4 text-slate-700`}>
         <SectionHeader
           header={section.contentJson.header}
           titleFallback={headerFallbackTitle}
@@ -127,7 +127,7 @@ const RichTextSection = ({ section, mode, disabled, propertiesOnly, showProperti
   }
 
   return (
-    <section className="overflow-hidden rounded-lg border border-slate-200">
+    <section id={sectionDomId} className={`${sectionRootClassName ? `${sectionRootClassName} ` : ''}overflow-hidden rounded-lg border border-slate-200`}>
       <div className={`relative overflow-hidden px-5 text-white ${sectionSpacingClass(section)}`}>
         <BackgroundMedia src={bg} overlayClassName="bg-slate-950/70" />
         <div className="relative mx-auto max-w-4xl text-center">

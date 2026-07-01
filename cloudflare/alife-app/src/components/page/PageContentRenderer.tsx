@@ -342,11 +342,7 @@ const PageSectionChrome = ({
   if (variant === 'home') {
     return (
       <>
-        <section id={domId} className="scroll-mt-24 px-5 py-20 sm:px-8 lg:px-12 lg:py-28">
-          <div className="mx-auto max-w-[88rem]">
-            {children}
-          </div>
-        </section>
+        {children}
         {separatorAfter ? <hr className="mx-auto max-w-6xl border-t border-home-border/40" /> : null}
       </>
     )
@@ -419,6 +415,57 @@ const PageContentRenderer = ({
       ? 'w-full min-w-0'
       : 'w-full min-w-0 space-y-4'
   const sectionsClassName = useHomeSectionChrome ? undefined : 'space-y-4'
+  const editPageAction = 'ownerGroupId' in page && page.ownerGroupId && onEditPage ? (
+    <div className="flex flex-wrap gap-2">
+      <button
+        className="rounded border border-blue-300 px-3 py-2 text-sm text-blue-700 hover:bg-blue-50"
+        type="button"
+        onClick={() => onEditPage(page.id, page.ownerGroupId as string)}
+      >
+        {t('editPage')}
+      </button>
+    </div>
+  ) : null
+  const renderedSections = (
+    <>
+      {sections.map((section, index) => {
+        const domId = getPageSectionDomId(section, index)
+
+        return (
+          <PageSectionChrome
+            key={section.id || `${section.order}-${section.type}`}
+            domId={domId}
+            variant={useHomeSectionChrome ? 'home' : 'default'}
+            separatorAfter={useHomeSectionChrome && index < sections.length - 1}
+          >
+            <SectionBlock
+              section={section}
+              mode="render"
+              page={page as GroupPageDto}
+              groupPageItems={groupPageItems}
+              contextGroupId={contextGroupId}
+              pageId={pageId}
+              sectionDomId={useHomeSectionChrome ? domId : undefined}
+              sectionRootClassName={useHomeSectionChrome ? 'scroll-mt-24' : undefined}
+            />
+          </PageSectionChrome>
+        )
+      })}
+
+      {sections.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">{t('noSectionsYet')}</div>
+      ) : null}
+    </>
+  )
+
+  if (useHomeSectionChrome && !showHeader) {
+    return (
+      <>
+        {renderedSections}
+        {editPageAction}
+      </>
+    )
+  }
 
   return (
     <article className={articleClassName}>
@@ -459,41 +506,11 @@ const PageContentRenderer = ({
         />
       ) : (
         <div className={sectionsClassName}>
-          {sections.map((section, index) => (
-            <PageSectionChrome
-              key={section.id || `${section.order}-${section.type}`}
-              domId={getPageSectionDomId(section, index)}
-              variant={useHomeSectionChrome ? 'home' : 'default'}
-              separatorAfter={useHomeSectionChrome && index < sections.length - 1}
-            >
-              <SectionBlock
-                section={section}
-                mode="render"
-                page={page as GroupPageDto}
-                groupPageItems={groupPageItems}
-                contextGroupId={contextGroupId}
-                pageId={pageId}
-              />
-            </PageSectionChrome>
-          ))}
-
-          {sections.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">{t('noSectionsYet')}</div>
-          ) : null}
+          {renderedSections}
         </div>
       )}
 
-      {'ownerGroupId' in page && page.ownerGroupId && onEditPage ? (
-        <div className="flex flex-wrap gap-2">
-          <button
-            className="rounded border border-blue-300 px-3 py-2 text-sm text-blue-700 hover:bg-blue-50"
-            type="button"
-            onClick={() => onEditPage(page.id, page.ownerGroupId as string)}
-          >
-            {t('editPage')}
-          </button>
-        </div>
-      ) : null}
+      {editPageAction}
     </article>
   )
 }

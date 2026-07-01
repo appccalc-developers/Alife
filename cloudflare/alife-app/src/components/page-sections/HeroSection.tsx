@@ -29,7 +29,7 @@ const formatAspectRatio = (value: number | undefined) => {
   return value.toFixed(3).replace(/0+$/, '').replace(/\.$/, '')
 }
 
-const HeroSection = ({ section, mode, disabled, propertiesOnly, showProperties = true, onUpdate }: SectionComponentProps) => {
+const HeroSection = ({ section, mode, disabled, propertiesOnly, showProperties = true, sectionDomId, sectionRootClassName, onUpdate }: SectionComponentProps) => {
   const auth = useAuthStore()
   const t = useUiText()
   const editable = mode === 'edit' && !disabled && onUpdate
@@ -173,7 +173,7 @@ const HeroSection = ({ section, mode, disabled, propertiesOnly, showProperties =
   }
 
   return (
-    <section className="overflow-hidden rounded-lg border border-slate-200">
+    <section id={sectionDomId} className={`${sectionRootClassName ? `${sectionRootClassName} ` : ''}overflow-hidden rounded-lg border border-slate-200`}>
       <div
         className={`relative w-full ${poster ? 'mx-auto' : mode === 'render' ? 'min-h-[20rem] sm:min-h-0' : ''}`}
         style={{ aspectRatio: reservedAspectRatio }}
