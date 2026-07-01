@@ -79,7 +79,7 @@ const PageView = () => {
           }}
         />
       ) : null}
-    </>
+    </section>
   )
 }
 

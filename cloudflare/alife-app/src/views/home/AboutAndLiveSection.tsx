@@ -2,14 +2,13 @@ import { useEffect, useState } from 'react'
 import { ExternalLink, PlayCircle } from 'lucide-react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { entranceAnimation, getServiceCountdown, media, youtubeLiveUrl, youtubeVideosUrl } from './homeUtils'
-import type { HomeCopy, Language } from './homeCopy'
+import type { HomeCopy } from './homeCopy'
 
 type Props = {
   copy: HomeCopy
-  language: Language
 }
 
-const AboutAndLiveSection = ({ copy, language }: Props) => {
+const AboutAndLiveSection = ({ copy }: Props) => {
   const prefersReducedMotion = useReducedMotion()
   const entrance = entranceAnimation(prefersReducedMotion)
   const [countdown, setCountdown] = useState(() => getServiceCountdown())
