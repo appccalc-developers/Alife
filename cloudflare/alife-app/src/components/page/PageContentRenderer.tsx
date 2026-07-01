@@ -498,17 +498,7 @@ const PageContentRenderer = ({
         </div>
       )}
 
-      {'ownerGroupId' in page && page.ownerGroupId && onEditPage ? (
-        <div className="flex flex-wrap gap-2">
-          <button
-            className="rounded border border-blue-300 px-3 py-2 text-sm text-blue-700 hover:bg-blue-50"
-            type="button"
-            onClick={() => onEditPage(page.id, page.ownerGroupId as string)}
-          >
-            {t('editPage')}
-          </button>
-        </div>
-      ) : null}
+      {editPageAction}
     </article>
   )
 }

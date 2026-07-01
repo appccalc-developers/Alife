@@ -19,6 +19,8 @@ export type SectionComponentProps = {
   pageId?: string
   groupPageItems?: PageLinkItem[]
   contextGroupId?: string
+  sectionDomId?: string
+  sectionRootClassName?: string
   disabled?: boolean
   editorPreview?: boolean
   propertiesOnly?: boolean

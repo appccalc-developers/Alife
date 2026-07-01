@@ -7,6 +7,8 @@ import type { SectionComponentProps } from './types'
 import { pageSectionShellClass } from './sectionPresets'
 
 const SectionBlock = (props: SectionComponentProps) => {
+  const fallbackClassName = `${props.sectionRootClassName ? `${props.sectionRootClassName} ` : ''}rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600`
+
   switch (props.section.type) {
     case 'Hero':
       return <HeroSection {...props} />
