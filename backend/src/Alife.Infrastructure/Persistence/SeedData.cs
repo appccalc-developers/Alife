@@ -1,6 +1,7 @@
 ﻿using Alife.Domain.Entities;
 using Alife.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using System.Text.Json;
 
 namespace Alife.Infrastructure.Persistence;
@@ -16,7 +17,10 @@ public static class SeedData
 		int TargetMemberPagesFound,
 		int SectionsInserted);
 
-	public static async Task<SeedSummary> EnsureSeededAsync(AlifeDbContext dbContext, CancellationToken cancellationToken = default)
+	public static async Task<SeedSummary> EnsureSeededAsync(
+		AlifeDbContext dbContext,
+		IConfiguration? configuration = null,
+		CancellationToken cancellationToken = default)
 	{
 		var baselineSeeded = false;
 		var sectionsInserted = 0;
@@ -27,7 +31,7 @@ public static class SeedData
 			baselineSeeded = true;
 		}
 
-		sectionsInserted += await EnsureDemoDataAsync(dbContext, cancellationToken);
+		sectionsInserted += await EnsureDemoDataAsync(dbContext, configuration, cancellationToken);
 
 		var targetMember = await dbContext.Members.FirstOrDefaultAsync(x => x.PhoneE164 == TargetPhoneE164, cancellationToken);
 		var targetMemberPagesFound = targetMember is null
@@ -184,11 +188,15 @@ public static class SeedData
 		return sections.Count;
 	}
 
-	private static async Task<int> EnsureDemoDataAsync(AlifeDbContext dbContext, CancellationToken cancellationToken)
+	private static async Task<int> EnsureDemoDataAsync(
+		AlifeDbContext dbContext,
+		IConfiguration? configuration,
+		CancellationToken cancellationToken)
 	{
 		var now = DateTime.UtcNow;
 		var sectionsInserted = 0;
 
+		await EnsureFileStorageProvidersAsync(dbContext, configuration, now, cancellationToken);
 		await EnsurePlatformRolesAsync(dbContext, cancellationToken);
 
 		var admin = await EnsureMemberAsync(
@@ -212,6 +220,7 @@ public static class SeedData
 
 		await EnsurePlatformRoleAssignmentAsync(dbContext, admin.Id, PlatformRoleId.SuperAdmin, admin.Id, now, cancellationToken);
 		await EnsurePlatformRoleAssignmentAsync(dbContext, platformAdmin.Id, PlatformRoleId.Admin, admin.Id, now, cancellationToken);
+		await EnsurePlatformRoleAssignmentAsync(dbContext, platformAdmin.Id, PlatformRoleId.VisitorContactReceiver, admin.Id, now, cancellationToken);
 
 		var church = await dbContext.Groups.FirstOrDefaultAsync(x => x.IsChurch, cancellationToken)
 			?? await EnsureGroupAsync(
@@ -333,25 +342,125 @@ public static class SeedData
 	{
 		var roles = new[]
 		{
-			new PlatformRole { Id = (int)PlatformRoleId.User, Code = "user", NameJson = TextJson("User", "普通用户"), Level = 0 },
-			new PlatformRole { Id = (int)PlatformRoleId.PageReviewer, Code = "page_reviewer", NameJson = TextJson("Page Reviewer", "发布审核者"), Level = 5 },
-			new PlatformRole { Id = (int)PlatformRoleId.Admin, Code = "admin", NameJson = TextJson("Admin", "联合管理员"), Level = 10 },
-			new PlatformRole { Id = (int)PlatformRoleId.SuperAdmin, Code = "superadmin", NameJson = TextJson("System Admin", "系统管理员"), Level = 100 }
+			new PlatformRole { Id = (int)PlatformRoleId.User, Code = "user", NameJson = TextJson("User", "普通用户"), PermissionsJson = PermissionsJson("user"), Level = 0 },
+			new PlatformRole { Id = (int)PlatformRoleId.PageReviewer, Code = "page_reviewer", NameJson = TextJson("Page Reviewer", "发布审核者"), PermissionsJson = PermissionsJson("page_reviewer"), Level = 5 },
+			new PlatformRole { Id = (int)PlatformRoleId.VisitorContactReceiver, Code = "visitor_contact_receiver", NameJson = TextJson("Visitor Contact Receiver", "访客联系接待"), PermissionsJson = PermissionsJson("visitor_contact_receiver"), Level = 6 },
+			new PlatformRole { Id = (int)PlatformRoleId.Admin, Code = "admin", NameJson = TextJson("Admin", "联合管理员"), PermissionsJson = PermissionsJson("admin"), Level = 10 },
+			new PlatformRole { Id = (int)PlatformRoleId.SuperAdmin, Code = "superadmin", NameJson = TextJson("System Admin", "系统管理员"), PermissionsJson = PermissionsJson("superadmin"), Level = 100 }
 		};
 
 		foreach (var role in roles)
 		{
-			var existing = await dbContext.PlatformRoles.FirstOrDefaultAsync(x => x.Id == role.Id, cancellationToken);
+			var existing = await dbContext.PlatformRoles.FirstOrDefaultAsync(
+				x => x.Id == role.Id || x.Code == role.Code,
+				cancellationToken);
 			if (existing is not null)
 			{
 				existing.Code = role.Code;
 				existing.NameJson = role.NameJson;
+				if (string.IsNullOrWhiteSpace(existing.PermissionsJson))
+				{
+					existing.PermissionsJson = role.PermissionsJson;
+				}
+				else if (role.Code is "admin" or "superadmin" or "page_reviewer" or "visitor_contact_receiver")
+				{
+					existing.PermissionsJson = MergePermissionsJson(existing.Code, existing.PermissionsJson, role.PermissionsJson);
+				}
 				existing.Level = role.Level;
 				continue;
 			}
 
 			await dbContext.PlatformRoles.AddAsync(role, cancellationToken);
 		}
+	}
+
+	private static string PermissionsJson(string roleCode)
+		=> System.Text.Json.JsonSerializer.Serialize(Alife.Application.Admin.AdminPermissionCatalog.GetDefaultPermissions(roleCode));
+
+	private static string MergePermissionsJson(string roleCode, string currentJson, string defaultJson)
+	{
+		IEnumerable<string> current;
+		IEnumerable<string> defaults;
+		try
+		{
+			current = System.Text.Json.JsonSerializer.Deserialize<string[]>(currentJson) ?? [];
+			defaults = System.Text.Json.JsonSerializer.Deserialize<string[]>(defaultJson) ?? [];
+		}
+		catch (System.Text.Json.JsonException)
+		{
+			return PermissionsJson(roleCode);
+		}
+
+		return Alife.Application.Admin.AdminPermissionCatalog.WritePermissions(current.Concat(defaults));
+	}
+
+	private static async Task EnsureFileStorageProvidersAsync(
+		AlifeDbContext dbContext,
+		IConfiguration? configuration,
+		DateTime now,
+		CancellationToken cancellationToken)
+	{
+		var providerCode = ReadConfig(configuration, "FileAssets:ProviderCode", "local-dev");
+		var isCloudflareR2 = providerCode.Equals("cloudflare-r2", StringComparison.OrdinalIgnoreCase);
+		var providerId = isCloudflareR2
+			? Guid.Parse("f1111111-1111-4111-8111-111111111111")
+			: Guid.Parse("f2222222-2222-4222-8222-222222222222");
+		var kind = isCloudflareR2 ? FileStorageProviderKind.CloudflareR2 : FileStorageProviderKind.LocalDev;
+		var bucketName = ReadConfig(configuration, "FileAssets:BucketName", isCloudflareR2 ? "ccalc" : "local-dev");
+		var baseUrl = ReadConfig(
+			configuration,
+			"FileAssets:ImageApiBaseUrl",
+			isCloudflareR2 ? "https://images.ccalc.live" : "http://localhost:8787");
+		var privateBaseUrl = ReadConfig(configuration, "FileAssets:PrivateFileBaseUrl", baseUrl);
+		var uploadApiBaseUrl = ReadConfig(configuration, "FileAssets:UploadApiBaseUrl", baseUrl);
+		var privatePathPrefix = ReadConfig(configuration, "FileAssets:PrivatePathPrefix", "private");
+		var provider = await dbContext.FileStorageProviders.FirstOrDefaultAsync(x => x.Code == providerCode, cancellationToken);
+		if (provider is null)
+		{
+			provider = new FileStorageProvider
+			{
+				Id = providerId,
+				Code = providerCode,
+				CreatedUtc = now,
+			};
+			await dbContext.FileStorageProviders.AddAsync(provider, cancellationToken);
+		}
+
+		provider.Kind = kind;
+		provider.DisplayNameJson = isCloudflareR2
+			? TextJson("Cloudflare R2 image storage", "Cloudflare R2 图片存储")
+			: TextJson("Local development file storage", "本地开发文件存储");
+		provider.IsActive = true;
+		provider.IsDefault = true;
+		provider.BucketName = bucketName;
+		provider.PublicBaseUrl = baseUrl;
+		provider.PrivateBaseUrl = privateBaseUrl;
+		provider.UploadApiBaseUrl = uploadApiBaseUrl;
+		provider.PublicPathPrefix = string.Empty;
+		provider.PrivatePathPrefix = privatePathPrefix;
+		provider.SupportsPublicUrl = true;
+		provider.SupportsSignedRead = true;
+		provider.SupportsServerSideMove = isCloudflareR2;
+		provider.UpdatedUtc = now;
+
+		var otherProviders = await dbContext.FileStorageProviders
+			.Where(x => x.Code != providerCode)
+			.ToListAsync(cancellationToken);
+		foreach (var otherProvider in otherProviders)
+		{
+			otherProvider.IsDefault = false;
+			if (!isCloudflareR2 && otherProvider.Code == "cloudflare-r2")
+			{
+				otherProvider.IsActive = false;
+			}
+			otherProvider.UpdatedUtc = now;
+		}
+	}
+
+	private static string ReadConfig(IConfiguration? configuration, string key, string fallback)
+	{
+		var value = configuration?[key];
+		return string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
 	}
 
 	private static async Task EnsurePlatformRoleAssignmentAsync(

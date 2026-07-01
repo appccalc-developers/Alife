@@ -2,6 +2,7 @@
 using Alife.Application.Abstractions.Integrations;
 using Alife.Application.Abstractions.Security;
 using Alife.Application.Events.Services;
+using Alife.Application.FileAssets.Services;
 using Alife.Application.Groups.Services;
 using Alife.Application.Members.Services;
 using Alife.Application.Pages.Services;
@@ -53,6 +54,13 @@ public static class DependencyInjection
 			}
 		});
 		services.AddScoped<IGroupReadService, GroupReadService>();
+		services.AddScoped<IFileStorageProviderResolver, FileStorageProviderResolver>();
+		services.AddScoped<IFileAssetAccessUrlSigner, FileAssetAccessUrlSigner>();
+		services.AddHttpClient<IFileAssetObjectMover, FileAssetObjectMover>(client =>
+		{
+			client.BaseAddress = new Uri((configuration["FileAssets:ImageApiBaseUrl"] ?? "https://images.ccalc.live").TrimEnd('/'));
+			client.Timeout = TimeSpan.FromSeconds(30);
+		});
 		services.AddScoped<IGroupCacheInvalidationService, GroupCacheInvalidationService>();
 		services.AddScoped<IGroupAuthorizationService, GroupAuthorizationService>();
 		services.AddScoped<IMemberReadService, MemberReadService>();

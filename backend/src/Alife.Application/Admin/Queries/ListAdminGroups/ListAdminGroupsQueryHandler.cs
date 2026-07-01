@@ -13,9 +13,13 @@ public sealed class ListAdminGroupsQueryHandler(IAlifeDbContext dbContext)
         ListAdminGroupsQuery request,
         CancellationToken cancellationToken)
     {
-        if (!await AdminPlatformRoleHelpers.IsPlatformAdminAsync(dbContext, request.CurrentMemberId, cancellationToken))
+        if (!await AdminPlatformRoleHelpers.HasPermissionAsync(
+                dbContext,
+                request.CurrentMemberId,
+                AdminPermissionCatalog.ViewGroups,
+                cancellationToken))
         {
-            return AppResult<AdminPagedResultDto<AdminGroupOptionDto>>.Forbidden("Platform admin access is required.");
+            return AppResult<AdminPagedResultDto<AdminGroupOptionDto>>.Forbidden("You do not have permission to view platform groups.");
         }
 
         var query = dbContext.Groups.AsNoTracking().AsQueryable();

@@ -86,7 +86,11 @@ public class JwtTokenService(IConfiguration configuration) : IJwtTokenService
 	private static bool IsPlatformAdmin(Member member)
 		=> member.PlatformRoles.Any(role =>
 			   role.RevokedUtc is null &&
-			   (role.RoleId == (int)PlatformRoleId.Admin || role.RoleId == (int)PlatformRoleId.SuperAdmin));
+			   (role.RoleId == (int)PlatformRoleId.SuperAdmin ||
+			    Alife.Application.Admin.AdminPermissionCatalog.ReadPermissions(
+				    role.Role?.Code ?? string.Empty,
+				    role.Role?.PermissionsJson)
+				    .Contains(Alife.Application.Admin.AdminPermissionCatalog.AccessAdmin)));
 
 	private static string GetPlatformRoleCode(Member member)
 	{

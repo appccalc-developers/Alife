@@ -14,9 +14,13 @@ public sealed class ListAdminMembersQueryHandler(IAlifeDbContext dbContext)
         ListAdminMembersQuery request,
         CancellationToken cancellationToken)
     {
-        if (!await AdminPlatformRoleHelpers.IsPlatformAdminAsync(dbContext, request.CurrentMemberId, cancellationToken))
+        if (!await AdminPlatformRoleHelpers.HasPermissionAsync(
+                dbContext,
+                request.CurrentMemberId,
+                AdminPermissionCatalog.ViewMembers,
+                cancellationToken))
         {
-            return AppResult<AdminPagedResultDto<AdminMemberDto>>.Forbidden("Platform admin access is required.");
+            return AppResult<AdminPagedResultDto<AdminMemberDto>>.Forbidden("You do not have permission to view platform members.");
         }
 
         var membersQuery = dbContext.Members.AsNoTracking();

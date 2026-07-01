@@ -1,3 +1,4 @@
+using Alife.Application.Admin;
 using Alife.Application.Common;
 using Alife.Application.Members.Dtos;
 using Alife.Application.Members.Services;
@@ -29,7 +30,8 @@ public sealed class MemberReadService(AlifeDbContext dbContext) : IMemberReadSer
                     .Select(role => new
                     {
                         role.Role.Code,
-                        role.Role.Level
+                        role.Role.Level,
+                        role.Role.PermissionsJson
                     })
                     .ToList(),
                 Memberships = x.Memberships
@@ -46,9 +48,20 @@ public sealed class MemberReadService(AlifeDbContext dbContext) : IMemberReadSer
             })
             .FirstOrDefaultAsync(cancellationToken);
 
-        return member is null
-            ? null
-            : new CurrentMemberDto(
+        if (member is null)
+        {
+            return null;
+        }
+
+        var permissions = member.PlatformRoles.Any(role => role.Code == "superadmin")
+            ? AdminPermissionCatalog.GetDefaultPermissions("superadmin")
+            : member.PlatformRoles
+                .SelectMany(role => AdminPermissionCatalog.ReadPermissions(role.Code, role.PermissionsJson))
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(code => code, StringComparer.Ordinal)
+                .ToArray();
+
+        return new CurrentMemberDto(
                 member.Id,
                 member.DisplayName,
                 member.Sex,
@@ -57,8 +70,12 @@ public sealed class MemberReadService(AlifeDbContext dbContext) : IMemberReadSer
                 member.PhoneE164,
                 !member.IsRegistered,
                 member.IsRegistered,
-                member.PlatformRoles.Any(role => role.Code == "admin" || role.Code == "superadmin"),
+                member.PlatformRoles.Any(role =>
+                    role.Code == "superadmin" ||
+                    AdminPermissionCatalog.ReadPermissions(role.Code, role.PermissionsJson)
+                        .Contains(AdminPermissionCatalog.AccessAdmin)),
                 member.PlatformRoles.OrderByDescending(role => role.Level).FirstOrDefault()?.Code ?? "user",
+                permissions,
                 member.Memberships
                     .Select(m => new MemberMembershipDto(
                         m.GroupId,

@@ -1,4 +1,5 @@
 using Alife.Application.Groups.Services;
+using Alife.Application.Admin;
 using Alife.Domain.Enums;
 using Alife.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -9,26 +10,40 @@ public sealed class GroupAuthorizationService(AlifeDbContext dbContext) : IGroup
 {
     public async Task<bool> IsAdminAsync(Guid memberId, CancellationToken cancellationToken)
     {
-        return await dbContext.MemberPlatformRoles
+        var roles = await dbContext.MemberPlatformRoles
             .AsNoTracking()
-            .AnyAsync(
-                x => x.MemberId == memberId &&
-                     x.RevokedUtc == null &&
-                     (x.RoleId == (int)PlatformRoleId.Admin || x.RoleId == (int)PlatformRoleId.SuperAdmin),
-                cancellationToken);
+            .Where(x => x.MemberId == memberId && x.RevokedUtc == null)
+            .Select(x => new
+            {
+                x.Role.Code,
+                x.Role.PermissionsJson
+            })
+            .ToListAsync(cancellationToken);
+
+        return roles.Any(role =>
+            role.Code == "superadmin" ||
+            Alife.Application.Admin.AdminPermissionCatalog.ReadPermissions(role.Code, role.PermissionsJson)
+                .Contains(Alife.Application.Admin.AdminPermissionCatalog.AccessAdmin));
     }
 
     public async Task<bool> CanReviewPagesAsync(Guid memberId, CancellationToken cancellationToken)
     {
-        return await dbContext.MemberPlatformRoles
+        var roles = await dbContext.MemberPlatformRoles
             .AsNoTracking()
-            .AnyAsync(
-                x => x.MemberId == memberId &&
-                     x.RevokedUtc == null &&
-                     (x.RoleId == (int)PlatformRoleId.PageReviewer ||
-                      x.RoleId == (int)PlatformRoleId.Admin ||
-                      x.RoleId == (int)PlatformRoleId.SuperAdmin),
-                cancellationToken);
+            .Where(x => x.MemberId == memberId && x.RevokedUtc == null)
+            .Select(x => new
+            {
+                x.RoleId,
+                x.Role.Code,
+                x.Role.PermissionsJson
+            })
+            .ToListAsync(cancellationToken);
+
+        return roles.Any(role =>
+            role.RoleId == (int)PlatformRoleId.PageReviewer ||
+            role.RoleId == (int)PlatformRoleId.SuperAdmin ||
+            AdminPermissionCatalog.ReadPermissions(role.Code, role.PermissionsJson)
+                .Contains(AdminPermissionCatalog.ReviewPages));
     }
 
     public async Task<bool> IsApprovedMemberAsync(Guid groupId, Guid memberId, CancellationToken cancellationToken)

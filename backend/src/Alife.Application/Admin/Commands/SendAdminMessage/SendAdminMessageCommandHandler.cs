@@ -16,9 +16,13 @@ public sealed class SendAdminMessageCommandHandler(IAlifeDbContext dbContext)
         SendAdminMessageCommand request,
         CancellationToken cancellationToken)
     {
-        if (!await AdminPlatformRoleHelpers.IsPlatformAdminAsync(dbContext, request.CurrentMemberId, cancellationToken))
+        if (!await AdminPlatformRoleHelpers.HasPermissionAsync(
+                dbContext,
+                request.CurrentMemberId,
+                AdminPermissionCatalog.ManageMessages,
+                cancellationToken))
         {
-            return AppResult<AdminSendMessageResultDto>.Forbidden("Platform admin access is required.");
+            return AppResult<AdminSendMessageResultDto>.Forbidden("You do not have permission to send admin messages.");
         }
 
         var actionType = string.IsNullOrWhiteSpace(request.ActionType)
@@ -40,9 +44,9 @@ public sealed class SendAdminMessageCommandHandler(IAlifeDbContext dbContext)
         }
 
         var scope = request.Scope.Trim().ToLowerInvariant();
-        if (scope is not ("platform" or "group" or "member"))
+        if (scope is not ("platform" or "group" or "member" or "role"))
         {
-            return AppResult<AdminSendMessageResultDto>.Validation("Message scope must be platform, group, or member.");
+            return AppResult<AdminSendMessageResultDto>.Validation("Message scope must be platform, group, member, or role.");
         }
 
         if (scope == "group" && request.GroupId is null)
@@ -55,6 +59,16 @@ public sealed class SendAdminMessageCommandHandler(IAlifeDbContext dbContext)
             return AppResult<AdminSendMessageResultDto>.Validation("Recipient member is required.");
         }
 
+        var roleCodes = request.RoleCodes
+            .Select(AdminPlatformRoleHelpers.NormalizeRoleCode)
+            .Where(code => !string.IsNullOrWhiteSpace(code) && code != "user")
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        if (scope == "role" && roleCodes.Length == 0)
+        {
+            return AppResult<AdminSendMessageResultDto>.Validation("At least one platform role is required.");
+        }
+
         var recipientIdsQuery = scope switch
         {
             "platform" => dbContext.Members
@@ -64,6 +78,10 @@ public sealed class SendAdminMessageCommandHandler(IAlifeDbContext dbContext)
             "group" => dbContext.GroupMemberships
                 .AsNoTracking()
                 .Where(x => x.GroupId == request.GroupId!.Value && x.Status == MembershipStatus.Approved && x.Member.IsRegistered)
+                .Select(x => x.MemberId),
+            "role" => dbContext.MemberPlatformRoles
+                .AsNoTracking()
+                .Where(x => x.RevokedUtc == null && roleCodes.Contains(x.Role.Code) && x.Member.IsRegistered)
                 .Select(x => x.MemberId),
             _ => dbContext.Members
                 .AsNoTracking()
@@ -82,7 +100,8 @@ public sealed class SendAdminMessageCommandHandler(IAlifeDbContext dbContext)
         {
             title = new { en = request.TitleEn.Trim(), zh = request.TitleZh.Trim() },
             body = new { en = request.BodyEn.Trim(), zh = request.BodyZh.Trim() },
-            scope
+            scope,
+            roleCodes = scope == "role" ? roleCodes : []
         });
 
         foreach (var recipientId in recipientIds)
@@ -112,6 +131,7 @@ public sealed class SendAdminMessageCommandHandler(IAlifeDbContext dbContext)
             AfterJson = JsonSerializer.Serialize(new
             {
                 scope,
+                roleCodes = scope == "role" ? roleCodes : [],
                 actionType,
                 recipientCount = recipientIds.Count,
                 title = new { en = request.TitleEn.Trim(), zh = request.TitleZh.Trim() }

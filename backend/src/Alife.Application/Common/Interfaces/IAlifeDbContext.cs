@@ -14,11 +14,14 @@ public interface IAlifeDbContext
     DbSet<Page> Pages { get; }
     DbSet<Section> Sections { get; }
     DbSet<Link> Links { get; }
+    DbSet<FileStorageProvider> FileStorageProviders { get; }
+    DbSet<FileAsset> FileAssets { get; }
     DbSet<Sermon> Sermons { get; }
     DbSet<GroupEvent> GroupEvents { get; }
     DbSet<EventEnrollment> EventEnrollments { get; }
     DbSet<EventReview> EventReviews { get; }
     DbSet<NotificationMessage> NotificationMessages { get; }
+    DbSet<VisitContactRequest> VisitContactRequests { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

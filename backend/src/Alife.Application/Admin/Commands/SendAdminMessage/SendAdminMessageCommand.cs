@@ -9,6 +9,7 @@ public sealed record SendAdminMessageCommand(
     string Scope,
     Guid? RecipientMemberId,
     Guid? GroupId,
+    IReadOnlyList<string> RoleCodes,
     string ActionType,
     string TitleEn,
     string TitleZh,

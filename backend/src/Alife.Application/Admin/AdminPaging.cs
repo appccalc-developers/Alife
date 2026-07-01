@@ -7,7 +7,7 @@ internal static class AdminPaging
 {
     public static int NormalizePage(int page) => Math.Max(page, 1);
 
-    public static int NormalizePageSize(int pageSize) => Math.Clamp(pageSize, 10, 100);
+    public static int NormalizePageSize(int pageSize) => Math.Clamp(pageSize, 5, 100);
 
     public static async Task<AdminPagedResultDto<T>> ToPagedResultAsync<T>(
         IQueryable<T> query,

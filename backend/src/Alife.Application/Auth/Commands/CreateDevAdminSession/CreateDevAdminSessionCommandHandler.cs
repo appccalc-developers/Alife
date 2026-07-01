@@ -1,4 +1,5 @@
 using Alife.Application.Abstractions.Security;
+using Alife.Application.Admin;
 using Alife.Application.Auth.Dtos;
 using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
@@ -24,7 +25,8 @@ public sealed class CreateDevAdminSessionCommandHandler(
             .ThenInclude(x => x.Role)
             .Where(x => x.PlatformRoles.Any(role =>
                     role.RevokedUtc == null &&
-                    (role.RoleId == 10 || role.RoleId == 100)))
+                    (role.Role.Code == "superadmin" ||
+                     role.Role.PermissionsJson.Contains(AdminPermissionCatalog.AccessAdmin))))
             .OrderByDescending(x => x.PlatformRoles.Max(role => (int?)role.Role.Level) ?? 0)
             .FirstOrDefaultAsync(cancellationToken);
         if (admin is null)

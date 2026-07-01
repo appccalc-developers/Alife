@@ -7,5 +7,6 @@ public sealed record AdminSelfDiagnosticDto(
     bool LegacyIsAdmin,
     string PlatformRole,
     IReadOnlyList<string> PlatformRoles,
+    IReadOnlyList<string> Permissions,
     int PlatformRoleLevel,
     bool CanAccessAdmin);

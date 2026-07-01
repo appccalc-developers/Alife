@@ -32,7 +32,7 @@ await EnsureSqlServerDatabaseExistsAsync(connectionString);
 
 var dbContext = scope.ServiceProvider.GetRequiredService<AlifeDbContext>();
 await dbContext.Database.MigrateAsync();
-var seedSummary = await SeedData.EnsureSeededAsync(dbContext);
+var seedSummary = await SeedData.EnsureSeededAsync(dbContext, builder.Configuration);
 
 Console.WriteLine(
     $"Seed summary: baselineSeeded={seedSummary.BaselineSeeded}; " +

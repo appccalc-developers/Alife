@@ -1,10 +1,14 @@
 using Alife.Application.Admin.Commands.RefreshCloudflareCache;
+using Alife.Application.Admin;
 using Alife.Application.Events.Services;
 using Alife.Application.Groups.Dtos;
 using Alife.Application.Groups.Services;
 using Alife.Application.Pages.Services;
 using Alife.Application.Sermons.Services;
+using Alife.Domain.Entities;
 using Alife.Domain.Enums;
+using Alife.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 
 namespace Alife.Tests.Unit.Admin;
@@ -16,16 +20,15 @@ public class RefreshCloudflareCacheCommandHandlerTests
     {
         var currentMemberId = Guid.NewGuid();
         var groupId = Guid.NewGuid();
-        var authorizationService = Substitute.For<IGroupAuthorizationService>();
+        using var dbContext = CreateDbContext();
         var groupReadService = Substitute.For<IGroupReadService>();
         var groupCache = Substitute.For<IGroupCacheInvalidationService>();
         var pageCache = Substitute.For<IPageCacheInvalidationService>();
         var eventCache = Substitute.For<IEventCacheInvalidationService>();
         var sermonCache = Substitute.For<ISermonCacheInvalidationService>();
 
-        authorizationService.IsAdminAsync(currentMemberId, Arg.Any<CancellationToken>()).Returns(false);
         var handler = new RefreshCloudflareCacheCommandHandler(
-            authorizationService,
+            dbContext,
             groupReadService,
             groupCache,
             pageCache,
@@ -46,17 +49,17 @@ public class RefreshCloudflareCacheCommandHandlerTests
     {
         var currentMemberId = Guid.NewGuid();
         var groupId = Guid.NewGuid();
-        var authorizationService = Substitute.For<IGroupAuthorizationService>();
+        using var dbContext = CreateDbContext();
+        await SeedRoleAsync(dbContext, currentMemberId, PlatformRoleId.Admin);
         var groupReadService = Substitute.For<IGroupReadService>();
         var groupCache = Substitute.For<IGroupCacheInvalidationService>();
         var pageCache = Substitute.For<IPageCacheInvalidationService>();
         var eventCache = Substitute.For<IEventCacheInvalidationService>();
         var sermonCache = Substitute.For<ISermonCacheInvalidationService>();
 
-        authorizationService.IsAdminAsync(currentMemberId, Arg.Any<CancellationToken>()).Returns(true);
         groupReadService.GetByIdAsync(groupId, Arg.Any<CancellationToken>()).Returns(CreateGroup(groupId, isChurch: true));
         var handler = new RefreshCloudflareCacheCommandHandler(
-            authorizationService,
+            dbContext,
             groupReadService,
             groupCache,
             pageCache,
@@ -83,17 +86,17 @@ public class RefreshCloudflareCacheCommandHandlerTests
     {
         var currentMemberId = Guid.NewGuid();
         var groupId = Guid.NewGuid();
-        var authorizationService = Substitute.For<IGroupAuthorizationService>();
+        using var dbContext = CreateDbContext();
+        await SeedRoleAsync(dbContext, currentMemberId, PlatformRoleId.Admin);
         var groupReadService = Substitute.For<IGroupReadService>();
         var groupCache = Substitute.For<IGroupCacheInvalidationService>();
         var pageCache = Substitute.For<IPageCacheInvalidationService>();
         var eventCache = Substitute.For<IEventCacheInvalidationService>();
         var sermonCache = Substitute.For<ISermonCacheInvalidationService>();
 
-        authorizationService.IsAdminAsync(currentMemberId, Arg.Any<CancellationToken>()).Returns(true);
         groupReadService.GetByIdAsync(groupId, Arg.Any<CancellationToken>()).Returns(CreateGroup(groupId, isChurch: false));
         var handler = new RefreshCloudflareCacheCommandHandler(
-            authorizationService,
+            dbContext,
             groupReadService,
             groupCache,
             pageCache,
@@ -120,4 +123,42 @@ public class RefreshCloudflareCacheCommandHandlerTests
             false,
             DateTime.UtcNow,
             DateTime.UtcNow);
+
+    private static async Task SeedRoleAsync(AlifeDbContext dbContext, Guid memberId, PlatformRoleId roleId)
+    {
+        var roleCode = roleId == PlatformRoleId.SuperAdmin ? "superadmin" : roleId == PlatformRoleId.Admin ? "admin" : "user";
+        dbContext.Members.Add(new Member
+        {
+            Id = memberId,
+            DisplayName = "Admin",
+            IsRegistered = true,
+            CreatedUtc = DateTime.UtcNow,
+            UpdatedUtc = DateTime.UtcNow
+        });
+        dbContext.PlatformRoles.Add(new PlatformRole
+        {
+            Id = (int)roleId,
+            Code = roleCode,
+            NameJson = "{}",
+            PermissionsJson = AdminPermissionCatalog.WritePermissions(AdminPermissionCatalog.GetDefaultPermissions(roleCode)),
+            Level = (int)roleId
+        });
+        dbContext.MemberPlatformRoles.Add(new MemberPlatformRole
+        {
+            Id = Guid.NewGuid(),
+            MemberId = memberId,
+            RoleId = (int)roleId,
+            AssignedByMemberId = memberId,
+            AssignedUtc = DateTime.UtcNow
+        });
+        await dbContext.SaveChangesAsync();
+    }
+
+    private static AlifeDbContext CreateDbContext()
+    {
+        var options = new DbContextOptionsBuilder<AlifeDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        return new AlifeDbContext(options);
+    }
 }
