@@ -47,6 +47,8 @@ export type PublishPageOptimizedPayload = {
 
 const toSectionPayloadType = (type: SectionEditModel['type']): string => {
   switch (type) {
+    case 'LandingHero':
+      return 'hero'
     case 'Hero':
       return 'hero'
     case 'Spotlight':
@@ -62,10 +64,24 @@ const toSectionPayloadType = (type: SectionEditModel['type']): string => {
   }
 }
 
+const contentJsonForWrite = (section: SectionEditModel) => {
+  const contentJson = section.contentJson ?? {}
+  return section.type === 'LandingHero'
+    ? { ...contentJson, sectionKind: 'landingHero' }
+    : contentJson
+}
+
+const styleJsonForWrite = (section: SectionEditModel) => {
+  const styleJson = section.styleJson ?? {}
+  return section.type === 'LandingHero'
+    ? { ...styleJson, layout: 'landingHero', frontendType: 'LandingHero' }
+    : styleJson
+}
+
 const buildSectionWritePayload = (section: SectionEditModel, order: number) => ({
   type: toSectionPayloadType(section.type === '' ? 'RichText' : section.type),
-  contentJson: JSON.stringify(section.contentJson ?? {}),
-  styleJson: JSON.stringify(section.styleJson ?? {}),
+  contentJson: JSON.stringify(contentJsonForWrite(section)),
+  styleJson: JSON.stringify(styleJsonForWrite(section)),
   order,
 })
 

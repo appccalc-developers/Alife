@@ -37,6 +37,7 @@ type Props = {
 }
 
 const sectionTypeLabel = (type: SectionType, isZh: boolean) => {
+  if (type === 'LandingHero') return isZh ? '首页视频主视觉' : 'Landing Hero'
   if (type === 'Hero') return isZh ? '主视觉' : 'Hero'
   if (type === 'RichText') return isZh ? '图文说明' : 'Rich Text'
   if (type === 'Spotlight') return isZh ? '重点推荐' : 'Spotlight'
@@ -169,9 +170,11 @@ const getSectionGuide = (section: SectionEditModel, language: string) => {
   const isZh = language === 'zh'
   const title = readHeaderText(section, language, 'title') || readContentText(section, language, 'title', 'headline')
   const subtitle = readHeaderText(section, language, 'subtitle') || readContentText(section, language, 'subtitle', 'subheadline', 'centerText', 'body')
-  const media = readContentText(section, language, 'backgroundImage', 'backgroundImageUrl', 'imageUrl')
+  const media = readContentText(section, language, 'backgroundVideo', 'videoUrl', 'backgroundImage', 'backgroundImageUrl', 'imageUrl')
   const linkLabel = readContentText(section, language, 'linkLabel', 'linkText', 'ctaLabel')
   const linkUrl = readContentText(section, language, 'linkUrl', 'ctaUrl', 'href')
+  const secondaryLinkLabel = readContentText(section, language, 'secondaryLinkLabel', 'secondaryLabel', 'secondaryCtaLabel')
+  const secondaryLinkUrl = readContentText(section, language, 'secondaryLinkUrl', 'secondaryUrl', 'secondaryCtaUrl')
   const source = readContentText(section, language, 'source', 'sourceType')
   const layout = readContentText(section, language, 'layout')
   const spotlight = section.contentJson.spotlight && typeof section.contentJson.spotlight === 'object' && !Array.isArray(section.contentJson.spotlight)
@@ -184,6 +187,21 @@ const getSectionGuide = (section: SectionEditModel, language: string) => {
   const limit = typeof section.contentJson.limit === 'number' ? section.contentJson.limit : 0
   const youtubeUrl = readContentText(section, language, 'youtubeUrl')
   const richText = readContentText(section, language, 'text')
+
+  if (section.type === 'LandingHero') {
+    return {
+      title: isZh ? '首页式视频主视觉引导' : 'Landing hero guidance',
+      description: isZh ? '适合页面第一屏，用视频、短文案和两个行动入口承载最重要邀请。' : 'Use this as a first-screen video invitation with concise copy and two clear actions.',
+      items: [
+        { label: isZh ? '主标题' : 'Main headline', ready: Boolean(title), detail: summarizeValue(title, isZh), icon: <Type className="h-4 w-4" />, target: { type: 'preview', index: 0 } },
+        { label: isZh ? '说明文案' : 'Supporting copy', ready: Boolean(subtitle), detail: summarizeValue(subtitle, isZh), icon: <FileText className="h-4 w-4" />, target: { type: 'preview', index: 1 } },
+        { label: isZh ? '背景视频/图片' : 'Background video/image', ready: isMediaValue(media), detail: summarizeValue(media, isZh), icon: <ImageUp className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'landing-hero-media' } },
+        { label: isZh ? '主要行动' : 'Primary action', ready: Boolean(linkLabel && linkUrl), detail: linkUrl ? summarizeValue(linkUrl, isZh) : summarizeValue(linkLabel, isZh), icon: <Link2 className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'landing-hero-primary-url' } },
+        { label: isZh ? '次要行动' : 'Secondary action', ready: Boolean(secondaryLinkLabel && secondaryLinkUrl), detail: secondaryLinkUrl ? summarizeValue(secondaryLinkUrl, isZh) : summarizeValue(secondaryLinkLabel, isZh), icon: <Clapperboard className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'landing-hero-secondary-url' } },
+      ] satisfies GuideItem[],
+      advice: isZh ? '建议只用于页面顶部；视频要有海报图，避免慢网络下出现空白。' : 'Use near the top of the page and keep a poster image set so slow networks do not show a blank hero.',
+    }
+  }
 
   if (section.type === 'Hero') {
     return {
