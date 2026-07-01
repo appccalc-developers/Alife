@@ -14,6 +14,7 @@ export type SectionMode = 'render' | 'edit'
 export type SectionComponentProps = {
   section: SectionEditModel
   mode: SectionMode
+  domId?: string
   page?: GroupPageDto
   pageId?: string
   groupPageItems?: PageLinkItem[]

@@ -1,6 +1,4 @@
 import AppEmptyState from '../layout/AppEmptyState'
-import AppPageShell from '../layout/AppPageShell'
-import AppSectionCard from '../layout/AppSectionCard'
 import type { ReactNode } from 'react'
 import type { GroupDto, GroupPageDto, GroupSummaryDto, GroupTab } from '../../types/group'
 import { useUiText } from '../../i18n/uiText'
@@ -42,52 +40,54 @@ const GroupScreenShell = ({
   const t = useUiText()
 
   return (
-    <AppPageShell
-    >
+    <>
       {loading ? (
-        <AppSectionCard dense>
+        <section className="mx-auto w-full max-w-6xl rounded-lg border border-slate-200 bg-slate-50 p-4 sm:p-5">
           <p className="text-sm text-slate-600">{t('loadingGroup')}</p>
-        </AppSectionCard>
+        </section>
       ) : null}
 
       {!loading && error ? (
-        <AppSectionCard dense>
+        <section className="mx-auto w-full max-w-6xl rounded-lg border border-rose-200 bg-rose-50 p-4 sm:p-5">
           <p className="text-sm text-rose-700">{error}</p>
-        </AppSectionCard>
+        </section>
       ) : null}
 
       {!loading && !error && group ? (
-        <div className="space-y-6">
-            {contentMode === 'dashboard' ? dashboard : null}
+        <>
+          {contentMode === 'dashboard' ? dashboard : null}
 
-            {(contentMode === 'pages' || activeTab === 'pages') ? (
-              <GroupPageTabs
-                pages={pages}
-                subgroups={subgroups}
-                selectedPageId={selectedPageId}
-                mode="view"
-                canEditAllPages={canEditAllPages}
-                onSaved={onPageSaved}
-                showCreateAction={contentMode === 'tabs' && canCreatePage}
-                onCreate={onAddPage}
-              />
-            ) : null}
+          {(contentMode === 'pages' || activeTab === 'pages') ? (
+            <GroupPageTabs
+              pages={pages}
+              subgroups={subgroups}
+              selectedPageId={selectedPageId}
+              mode="view"
+              canEditAllPages={canEditAllPages}
+              onSaved={onPageSaved}
+              showCreateAction={contentMode === 'tabs' && canCreatePage}
+              flatSections={contentMode === 'pages'}
+              onCreate={onAddPage}
+            />
+          ) : null}
 
-            {statusMessage ? (
-              <AppSectionCard dense>
-                <p className="text-sm text-slate-600">{statusMessage}</p>
-              </AppSectionCard>
-            ) : null}
-        </div>
+          {statusMessage ? (
+            <section className="mx-auto w-full max-w-6xl rounded-lg border border-slate-200 bg-slate-50 p-4 sm:p-5">
+              <p className="text-sm text-slate-600">{statusMessage}</p>
+            </section>
+          ) : null}
+        </>
       ) : null}
 
       {!loading && !error && !group ? (
-        <AppEmptyState
-          title={t('groupNotFound')}
-          description={t('groupNotFoundDescription')}
-        />
+        <section className="mx-auto w-full max-w-6xl">
+          <AppEmptyState
+            title={t('groupNotFound')}
+            description={t('groupNotFoundDescription')}
+          />
+        </section>
       ) : null}
-    </AppPageShell>
+    </>
   )
 }
 

@@ -1,10 +1,7 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import {
-  AlertTriangle,
-  CheckCircle2,
   Clapperboard,
   FileText,
-  Layers3,
   LayoutList,
   Megaphone,
   PlusCircle,
@@ -41,24 +38,12 @@ const sectionTypeOptions: Array<{ type: SectionType; label: LocalText; descripti
   { type: 'Sermon', label: { en: 'Sermon Video', zh: '讲道视频' }, description: { en: 'Embed one YouTube sermon video with a title.', zh: '嵌入一段 YouTube 讲道视频和标题。' }, Icon: Clapperboard },
 ]
 
-const sectionTypeLabel = (type: SectionType | '', isZh: boolean) => {
-  if (type === 'Hero') return isZh ? '主视觉' : 'Hero'
-  if (type === 'RichText') return isZh ? '图文说明' : 'Rich Text'
-  if (type === 'Spotlight') return isZh ? '重点推荐' : 'Spotlight'
-  if (type === 'ListView') return isZh ? '列表视图' : 'List View'
-  if (type === 'Sermon') return isZh ? '讲道视频' : 'Sermon Video'
-  return isZh ? '未选择类型' : 'No type selected'
-}
-
 const SectionListEditor = ({ sections, canEdit, sectionTypeErrors, onAdd, onUpdate, onRemove, onMoveUp, onMoveDown, contextGroupId, pageId }: Props) => {
   const t = useUiText()
   const { language } = useAuthStore()
   const [activeIndex, setActiveIndex] = useState(0)
   const [createOpen, setCreateOpen] = useState(false)
   const isZh = language === 'zh'
-  const errorCount = sectionTypeErrors.filter(Boolean).length
-  const hasSections = sections.length > 0
-  const activeSection = hasSections ? sections[Math.min(activeIndex, sections.length - 1)] : null
 
   useEffect(() => {
     if (sections.length === 0) {
@@ -90,46 +75,7 @@ const SectionListEditor = ({ sections, canEdit, sectionTypeErrors, onAdd, onUpda
   }
 
   return (
-    <section className="w-full min-w-0 space-y-3">
-      <div className="rounded-2xl border border-[#2f4b42]/10 bg-white/80 p-4 shadow-[0_10px_26px_rgba(31,56,48,0.06)]">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-[#176b5a]">
-              {isZh ? '区块编辑' : 'Section editor'}
-            </p>
-            <h2 className="mt-1 text-lg font-black text-[#18332d]">
-              {isZh ? '按发布顺序整理页面内容' : 'Arrange page content in publishing order'}
-            </h2>
-            <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
-              {isZh
-                ? '每个区块都应回答一个清楚问题：访客需要知道什么，下一步可以做什么。'
-                : 'Each section should answer one clear question: what visitors need to know and what they can do next.'}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <span className="inline-flex items-center gap-2 rounded-xl bg-[#e3f0eb] px-3 py-2 text-xs font-black text-[#176b5a]">
-              <Layers3 className="h-4 w-4" />
-              {sections.length} {isZh ? '个区块' : 'sections'}
-            </span>
-            <span
-              className={[
-                'inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-black',
-                errorCount ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-700',
-              ].join(' ')}
-            >
-              {errorCount ? <AlertTriangle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
-              {errorCount ? (isZh ? `${errorCount} 个需处理` : `${errorCount} to fix`) : (isZh ? '结构正常' : 'Structure ready')}
-            </span>
-          </div>
-        </div>
-        {activeSection ? (
-          <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-600">
-            <span className="font-black text-slate-800">{isZh ? '当前区块' : 'Active section'}:</span>{' '}
-            {activeIndex + 1}/{sections.length} · {sectionTypeLabel(activeSection.type, isZh)}
-          </div>
-        ) : null}
-      </div>
-
+    <>
       {sections.length === 0 ? (
         <AppEmptyState
           title={t('noSectionsYet')}
@@ -138,35 +84,36 @@ const SectionListEditor = ({ sections, canEdit, sectionTypeErrors, onAdd, onUpda
           onAction={() => setCreateOpen(true)}
         />
       ) : (
-        <div className="w-full min-w-0 space-y-3">
+        <>
           {sections.map((section, index) => (
-            <SectionCardEditor
-              key={`${section.id ?? 'new'}-${index}`}
-              section={section}
-              index={index}
-              total={sections.length}
-              canEdit={canEdit}
-              typeError={sectionTypeErrors[index]}
-              contextGroupId={contextGroupId}
-              pageId={pageId}
-              isActive={activeIndex === index}
-              onSelect={() => setActiveIndex(index)}
-              onUpdate={(nextSection) => onUpdate({ index, section: nextSection })}
-              onRemove={() => removeAndSelect(index)}
-              onMoveUp={() => moveAndSelect(index, -1)}
-              onMoveDown={() => moveAndSelect(index, 1)}
-            />
+            <Fragment key={`${section.id ?? 'new'}-${index}`}>
+              <SectionCardEditor
+                section={section}
+                index={index}
+                total={sections.length}
+                canEdit={canEdit}
+                typeError={sectionTypeErrors[index]}
+                contextGroupId={contextGroupId}
+                pageId={pageId}
+                isActive={activeIndex === index}
+                onSelect={() => setActiveIndex(index)}
+                onUpdate={(nextSection) => onUpdate({ index, section: nextSection })}
+                onRemove={() => removeAndSelect(index)}
+                onMoveUp={() => moveAndSelect(index, -1)}
+                onMoveDown={() => moveAndSelect(index, 1)}
+              />
+              {index < sections.length - 1 ? <hr className="mx-auto max-w-6xl border-t border-home-border/40" /> : null}
+            </Fragment>
           ))}
-        </div>
+        </>
       )}
-      <br />
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+      <section className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-slate-600">{t('selectedSectionOnly')}</p>
         <AppActionButton variant="primary" disabled={!canEdit} onClick={() => setCreateOpen(true)}>
           <PlusCircle className="mr-2 h-4 w-4" />
           {t('addSection')}
         </AppActionButton>
-      </div>
+      </section>
       {createOpen ? (
         <div className="fixed inset-0 z-[70] flex items-end bg-slate-950/45 px-4 py-5 sm:items-center sm:justify-center">
           <button type="button" className="absolute inset-0" aria-label={t('close')} onClick={() => setCreateOpen(false)} />
@@ -210,7 +157,7 @@ const SectionListEditor = ({ sections, canEdit, sectionTypeErrors, onAdd, onUpda
           </section>
         </div>
       ) : null}
-    </section>
+    </>
   )
 }
 

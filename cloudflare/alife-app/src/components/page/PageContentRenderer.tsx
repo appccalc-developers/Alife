@@ -1,4 +1,5 @@
 import SectionBlock from '../page-sections/SectionBlock'
+import { Fragment } from 'react'
 import type { GroupPageDto } from '../../types/group'
 import type { PageEditModel, PageEditorValidation, SectionEditModel, SectionType } from '../../types/page-editor'
 import type { PageLinkItem } from '../page-sections/types'
@@ -8,14 +9,13 @@ import { useAuthStore } from '../../stores/auth'
 import { localizeText } from '../../utils/localizedText'
 import { listViewContentDefaultsForSource, normalizeListViewSource } from '../../utils/sectionSourcePresets'
 import { DEFAULT_HERO_ASPECT_RATIO, DEFAULT_HERO_IMAGE, EditableText } from '../page-sections/sectionUtils'
+import { pageSectionShellClass } from '../page-sections/sectionPresets'
 
 type GroupLinkItem = {
   id: string
   name: string
   accessType: string
 }
-
-type PageSectionChromeVariant = 'default' | 'home'
 
 type Props = {
   page: GroupPageDto | PageEditModel
@@ -28,7 +28,6 @@ type Props = {
   contextGroupId?: string
   showHeader?: boolean
   framed?: boolean
-  sectionChrome?: PageSectionChromeVariant
   message?: string
   onPageChange?: (page: PageEditModel) => void
   onSectionsChange?: (sections: SectionEditModel[]) => void
@@ -327,23 +326,6 @@ export const validatePageContent = (model: PageEditModel, language = 'en'): Page
   sectionTypeErrors: model.sections.map((section) => (section.type ? '' : translateUi(language, 'sectionTypeRequired'))),
 })
 
-const PageSectionChrome = ({
-  children,
-  variant = 'default',
-  separatorAfter = false,
-}: {
-  children: React.ReactNode
-  variant?: PageSectionChromeVariant
-  separatorAfter?: boolean
-}) => {
-  return (
-    <>
-      {children}
-      {variant === 'home' && separatorAfter ? <hr className="mx-auto max-w-6xl border-t border-home-border/40" /> : null}
-    </>
-  )
-}
-
 const PageContentRenderer = ({
   page,
   sections,
@@ -354,7 +336,6 @@ const PageContentRenderer = ({
   contextGroupId,
   showHeader = true,
   framed = true,
-  sectionChrome = 'default',
   message,
   onSectionsChange,
   onEditPage,
@@ -397,7 +378,8 @@ const PageContentRenderer = ({
     updateSections(nextSections)
   }
 
-  const useHomeSectionChrome = sectionChrome === 'home' && !editing
+  const useFlatSectionRender = !editing && !showHeader && !framed
+  const useFlatEditingChrome = editing && !showHeader && !framed
   const articleClassName = framed
     ? 'w-full min-w-0 space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5'
     : 'w-full min-w-0 space-y-4'
@@ -412,17 +394,12 @@ const PageContentRenderer = ({
       </button>
     </div>
   ) : null
-  const renderedSections = (
-    <>
-      {sections.map((section, index) => {
-        const domId = getPageSectionDomId(section, index)
 
-        return (
-          <PageSectionChrome
-            key={section.id || `${section.order}-${section.type}`}
-            variant={useHomeSectionChrome ? 'home' : 'default'}
-            separatorAfter={useHomeSectionChrome && index < sections.length - 1}
-          >
+  if (useFlatSectionRender) {
+    return (
+      <>
+        {sections.map((section, index) => (
+          <Fragment key={section.id || `${section.order}-${section.type}`}>
             <SectionBlock
               section={section}
               mode="render"
@@ -430,25 +407,47 @@ const PageContentRenderer = ({
               groupPageItems={groupPageItems}
               contextGroupId={contextGroupId}
               pageId={pageId}
-              sectionDomId={domId}
-              sectionRootClassName="scroll-mt-24"
+              domId={getPageSectionDomId(section, index)}
             />
-          </PageSectionChrome>
-        )
-      })}
+            {index < sections.length - 1 ? <hr className="mx-auto max-w-6xl border-t border-home-border/40" /> : null}
+          </Fragment>
+        ))}
 
-      {sections.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">{t('noSectionsYet')}</div>
-      ) : null}
-    </>
-  )
+        {sections.length === 0 ? (
+          <section className={pageSectionShellClass}>
+            <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">{t('noSectionsYet')}</div>
+          </section>
+        ) : null}
 
-  if (!editing && !showHeader && !framed) {
-    return (
-      <>
-        {renderedSections}
-        {editPageAction}
+        {'ownerGroupId' in page && page.ownerGroupId && onEditPage ? (
+          <section className={pageSectionShellClass}>
+            <button
+              className="rounded border border-blue-300 px-3 py-2 text-sm text-blue-700 hover:bg-blue-50"
+              type="button"
+              onClick={() => onEditPage(page.id, page.ownerGroupId as string)}
+            >
+              {t('editPage')}
+            </button>
+          </section>
+        ) : null}
       </>
+    )
+  }
+
+  if (useFlatEditingChrome) {
+    return (
+      <SectionListEditor
+        sections={sections}
+        canEdit={canEdit}
+        sectionTypeErrors={validation.sectionTypeErrors}
+        contextGroupId={contextGroupId}
+        pageId={pageId}
+        onAdd={addSection}
+        onUpdate={({ index, section }) => updateSection(index, section)}
+        onRemove={removeSection}
+        onMoveUp={(index) => moveSection(index, -1)}
+        onMoveDown={(index) => moveSection(index, 1)}
+      />
     )
   }
 
@@ -490,7 +489,24 @@ const PageContentRenderer = ({
           onMoveDown={(index) => moveSection(index, 1)}
         />
       ) : (
-        renderedSections
+        <div className="space-y-4">
+          {sections.map((section, index) => (
+            <SectionBlock
+              key={section.id || `${section.order}-${section.type}`}
+              section={section}
+              mode="render"
+              page={page as GroupPageDto}
+              groupPageItems={groupPageItems}
+              contextGroupId={contextGroupId}
+              pageId={pageId}
+              domId={getPageSectionDomId(section, index)}
+            />
+          ))}
+
+          {sections.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">{t('noSectionsYet')}</div>
+          ) : null}
+        </div>
       )}
 
       {editPageAction}

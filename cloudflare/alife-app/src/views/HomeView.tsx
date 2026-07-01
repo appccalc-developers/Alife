@@ -108,7 +108,6 @@ const HomeView = () => {
               contextGroupId={church?.id}
               showHeader={false}
               framed={false}
-              sectionChrome="home"
             />
             <hr className="mx-auto max-w-6xl border-t border-home-border/40" />
           </>

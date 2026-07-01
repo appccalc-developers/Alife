@@ -26,7 +26,7 @@ const GroupDashboard = ({ group, pages, subgroups, events, canManage }: Props) =
     .slice(0, 3)
 
   return (
-    <div className="space-y-6">
+    <>
       <section className="overflow-hidden rounded-[2rem] border border-emerald-100 bg-gradient-to-br from-white via-emerald-50 to-[#fff4ea] px-6 py-8 text-[#18332d] shadow-[0_20px_55px_rgba(23,107,90,0.08)] sm:px-8">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -61,7 +61,7 @@ const GroupDashboard = ({ group, pages, subgroups, events, canManage }: Props) =
         })}
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-2">
+      <section className="grid gap-6 xl:grid-cols-2">
         <AppSectionCard title={language === 'zh' ? '小组页面' : 'Group pages'} subtitle={language === 'zh' ? '打开已发布的小组页面，小组长仍可通过右下角按钮编辑当前页面。' : 'Open published group pages. Leaders can still edit the current page from the floating action button.'}>
           <div className="space-y-2">
             {pages.slice(0, 5).map((page) => (
@@ -95,14 +95,16 @@ const GroupDashboard = ({ group, pages, subgroups, events, canManage }: Props) =
             {upcomingEvents.length === 0 ? <p className="text-sm text-[#66766f]">{language === 'zh' ? '暂时没有近期活动。' : 'There are no upcoming events yet.'}</p> : null}
           </div>
         </AppSectionCard>
-      </div>
+      </section>
 
       {canManage ? (
-        <Link className="inline-flex items-center gap-2 rounded-full bg-[#176b5a] px-5 py-3 text-sm font-bold text-white" to="/groups/manage?section=group">
-          <Settings className="h-4 w-4" /> {language === 'zh' ? '管理小组' : 'Manage group'}
-        </Link>
+        <section>
+          <Link className="inline-flex items-center gap-2 rounded-full bg-[#176b5a] px-5 py-3 text-sm font-bold text-white" to="/groups/manage?section=group">
+            <Settings className="h-4 w-4" /> {language === 'zh' ? '管理小组' : 'Manage group'}
+          </Link>
+        </section>
       ) : null}
-    </div>
+    </>
   )
 }
 

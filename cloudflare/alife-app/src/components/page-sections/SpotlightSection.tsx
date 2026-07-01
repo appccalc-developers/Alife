@@ -19,7 +19,7 @@ import {
 } from './sectionUtils'
 import type { SectionComponentProps } from './types'
 import SectionHeader from './SectionHeader'
-import { sectionSpacingClass } from './sectionPresets'
+import { pageSectionShellClass, sectionSpacingClass } from './sectionPresets'
 import { spotlightHeaderForSource } from '../../utils/sectionSourcePresets'
 import type { SpotlightDataSource } from '../../types'
 import type { SermonDto } from '../../services/sermonService'
@@ -52,7 +52,7 @@ const readMediaConfig = (source: Record<string, unknown>, style: Record<string, 
   return { type, url, position, youtubeUrl, imageUrl }
 }
 
-const SpotlightSection = ({ section, mode, disabled, propertiesOnly, showProperties = true, sectionDomId, sectionRootClassName, onUpdate, contextGroupId, page }: SectionComponentProps) => {
+const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, showProperties = true, onUpdate, contextGroupId, page }: SectionComponentProps) => {
   const auth = useAuthStore()
   const t = useUiText()
   const editable = mode === 'edit' && !disabled && onUpdate
@@ -291,53 +291,55 @@ const SpotlightSection = ({ section, mode, disabled, propertiesOnly, showPropert
         )
 
   return (
-    <section id={sectionDomId} className={`${sectionRootClassName ? `${sectionRootClassName} ` : ''}${sectionSpacingClass(section)} rounded-lg border border-slate-200 bg-white px-4`}>
-      <SectionHeader
-        header={section.contentJson.header}
-        titleFallback={title || (mode === 'edit' ? t('previewNoTitle') : '')}
-        subtitleFallback={subtitle || (mode === 'edit' ? t('previewNoSubtitle') : '')}
-        disabled={!editable}
-        onIconChange={editable ? (icon) => onUpdate?.(patchSectionHeader(section, { icon })) : undefined}
-        onTitleChange={editable ? updateHeaderTitle : undefined}
-        onSubtitleChange={editable ? updateHeaderSubtitle : undefined}
-      />
-      <div className="grid gap-0 md:grid-cols-2 md:items-stretch">
-        <div className={`overflow-hidden bg-slate-100 ${mediaPosition === 'right' ? 'md:order-2' : 'md:order-1'}`}>
-          {media}
-        </div>
-        <div className={`flex flex-col justify-center p-5 sm:p-7 ${mediaPosition === 'right' ? 'md:order-1' : 'md:order-2'}`}>
-          {contentBody}
-          {actions.length > 0 ? (
-            <div className="mt-5 flex flex-wrap gap-3">
-              {actions.map((action, index) => {
-                const actionUrl = typeof action.url === 'string' ? action.url.trim() : ''
-                const isExternalLink = Boolean(actionUrl && !actionUrl.startsWith('/') && !actionUrl.startsWith('#'))
+    <section id={domId} className={pageSectionShellClass}>
+      <div className={`${sectionSpacingClass(section)} rounded-lg border border-slate-200 bg-white px-4`}>
+        <SectionHeader
+          header={section.contentJson.header}
+          titleFallback={title || (mode === 'edit' ? t('previewNoTitle') : '')}
+          subtitleFallback={subtitle || (mode === 'edit' ? t('previewNoSubtitle') : '')}
+          disabled={!editable}
+          onIconChange={editable ? (icon) => onUpdate?.(patchSectionHeader(section, { icon })) : undefined}
+          onTitleChange={editable ? updateHeaderTitle : undefined}
+          onSubtitleChange={editable ? updateHeaderSubtitle : undefined}
+        />
+        <div className="grid gap-0 md:grid-cols-2 md:items-stretch">
+          <div className={`overflow-hidden bg-slate-100 ${mediaPosition === 'right' ? 'md:order-2' : 'md:order-1'}`}>
+            {media}
+          </div>
+          <div className={`flex flex-col justify-center p-5 sm:p-7 ${mediaPosition === 'right' ? 'md:order-1' : 'md:order-2'}`}>
+            {contentBody}
+            {actions.length > 0 ? (
+              <div className="mt-5 flex flex-wrap gap-3">
+                {actions.map((action, index) => {
+                  const actionUrl = typeof action.url === 'string' ? action.url.trim() : ''
+                  const isExternalLink = Boolean(actionUrl && !actionUrl.startsWith('/') && !actionUrl.startsWith('#'))
 
-                return (
-                  <a
-                    key={`${actionUrl || action.label || 'action'}-${index}`}
-                    href={mode === 'render' && actionUrl ? actionUrl : undefined}
-                    target={mode === 'render' && isExternalLink ? '_blank' : undefined}
-                    rel={mode === 'render' && isExternalLink ? 'noopener noreferrer' : undefined}
-                    className="inline-flex w-fit rounded bg-red-500 px-5 py-2 text-sm font-medium text-white shadow hover:bg-red-400"
-                    onClick={(event) => {
-                      if (mode === 'edit') {
-                        event.preventDefault()
-                        return
-                      }
+                  return (
+                    <a
+                      key={`${actionUrl || action.label || 'action'}-${index}`}
+                      href={mode === 'render' && actionUrl ? actionUrl : undefined}
+                      target={mode === 'render' && isExternalLink ? '_blank' : undefined}
+                      rel={mode === 'render' && isExternalLink ? 'noopener noreferrer' : undefined}
+                      className="inline-flex w-fit rounded bg-red-500 px-5 py-2 text-sm font-medium text-white shadow hover:bg-red-400"
+                      onClick={(event) => {
+                        if (mode === 'edit') {
+                          event.preventDefault()
+                          return
+                        }
 
-                      activateAction(action)
-                    }}
-                  >
-                    {action.label || actionUrl || t('readMore')}
-                  </a>
-                )
-              })}
-            </div>
-          ) : null}
+                        activateAction(action)
+                      }}
+                    >
+                      {action.label || actionUrl || t('readMore')}
+                    </a>
+                  )
+                })}
+              </div>
+            ) : null}
+          </div>
         </div>
+        {mode === 'edit' && showProperties ? renderProperties() : null}
       </div>
-      {mode === 'edit' && showProperties ? renderProperties() : null}
     </section>
   )
 }

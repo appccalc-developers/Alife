@@ -4,6 +4,7 @@ import { useUiText } from '../../i18n/uiText'
 import { BackgroundMedia, DEFAULT_HERO_ASPECT_RATIO, DEFAULT_HERO_IMAGE, DEFAULT_POSTER_ASPECT_RATIO, EditableText, PropertyPanel, SelectInput, TextInput, patchContent, patchLocalizedContent, patchLocalizedSectionHeader, patchSectionHeader, patchStyle, readLocalizedText, readNumber, readText, resolveMediaAspectRatio } from './sectionUtils'
 import type { SectionComponentProps } from './types'
 import SectionHeader from './SectionHeader'
+import { pageSectionShellClass } from './sectionPresets'
 
 type HeroLayout = 'featured' | 'classic' | 'poster'
 
@@ -29,7 +30,7 @@ const formatAspectRatio = (value: number | undefined) => {
   return value.toFixed(3).replace(/0+$/, '').replace(/\.$/, '')
 }
 
-const HeroSection = ({ section, mode, disabled, propertiesOnly, showProperties = true, sectionDomId, sectionRootClassName, onUpdate }: SectionComponentProps) => {
+const HeroSection = ({ section, mode, domId, disabled, propertiesOnly, showProperties = true, onUpdate }: SectionComponentProps) => {
   const auth = useAuthStore()
   const t = useUiText()
   const editable = mode === 'edit' && !disabled && onUpdate
@@ -173,31 +174,33 @@ const HeroSection = ({ section, mode, disabled, propertiesOnly, showProperties =
   }
 
   return (
-    <section id={sectionDomId} className={`${sectionRootClassName ? `${sectionRootClassName} ` : ''}overflow-hidden rounded-lg border border-slate-200`}>
-      <div
-        className={`relative w-full ${poster ? 'mx-auto' : mode === 'render' ? 'min-h-[20rem] sm:min-h-0' : ''}`}
-        style={{ aspectRatio: reservedAspectRatio }}
-      >
-        <div className="absolute inset-0 text-white">
-          <BackgroundMedia src={bg} overlayClassName="bg-slate-950/45" />
-          <div className="relative flex h-full items-center justify-center px-4 py-7 text-center sm:px-5 sm:py-12">
-            <div className="flex w-full flex-col items-center justify-center">
-              <SectionHeader
-                header={header}
-                variant="hero"
-                titleFallback={title || t('heroSectionTitle')}
-                subtitleFallback={body || subtitle || t('noHeroContentYet')}
-                disabled={!editable}
-                onIconChange={editable ? (icon) => onUpdate?.(patchSectionHeader(section, { icon })) : undefined}
-                onTitleChange={editable ? updateHeroTitle : undefined}
-                onSubtitleChange={editable ? updateHeroSubtitle : undefined}
-              />
-              {renderLink('mt-6 inline-flex rounded-full bg-red-500 px-5 py-2 text-sm font-medium text-white shadow hover:bg-red-400')}
+    <section id={domId} className={pageSectionShellClass}>
+      <div className="overflow-hidden rounded-lg border border-slate-200">
+        <div
+          className={`relative w-full ${poster ? 'mx-auto' : mode === 'render' ? 'min-h-[20rem] sm:min-h-0' : ''}`}
+          style={{ aspectRatio: reservedAspectRatio }}
+        >
+          <div className="absolute inset-0 text-white">
+            <BackgroundMedia src={bg} overlayClassName="bg-slate-950/45" />
+            <div className="relative flex h-full items-center justify-center px-4 py-7 text-center sm:px-5 sm:py-12">
+              <div className="flex w-full flex-col items-center justify-center">
+                <SectionHeader
+                  header={header}
+                  variant="hero"
+                  titleFallback={title || t('heroSectionTitle')}
+                  subtitleFallback={body || subtitle || t('noHeroContentYet')}
+                  disabled={!editable}
+                  onIconChange={editable ? (icon) => onUpdate?.(patchSectionHeader(section, { icon })) : undefined}
+                  onTitleChange={editable ? updateHeroTitle : undefined}
+                  onSubtitleChange={editable ? updateHeroSubtitle : undefined}
+                />
+                {renderLink('mt-6 inline-flex rounded-full bg-red-500 px-5 py-2 text-sm font-medium text-white shadow hover:bg-red-400')}
+              </div>
             </div>
           </div>
         </div>
+        {mode === 'edit' && showProperties ? renderProperties() : null}
       </div>
-      {mode === 'edit' && showProperties ? renderProperties() : null}
     </section>
   )
 }
