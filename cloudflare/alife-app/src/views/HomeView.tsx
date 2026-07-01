@@ -15,6 +15,7 @@ import LocationSection from './home/LocationSection'
 import HomeFooter from './home/HomeFooter'
 
 const sectionTypeFallback = (section: SectionEditModel, copy: ReturnType<typeof getCopy>) => {
+  if (section.type === 'LandingHero') return copy.sectionFallback.intro
   if (section.type === 'Hero') return copy.sectionFallback.intro
   if (section.type === 'Spotlight') return copy.sectionFallback.highlight
   if (section.type === 'RichText') return copy.sectionFallback.info

@@ -122,7 +122,7 @@ const pushSectionCandidates = (
     }
   }
 
-  if (section.type === 'Hero' || section.type === 'Spotlight') {
+  if (section.type === 'Hero' || section.type === 'LandingHero' || section.type === 'Spotlight') {
     const body = findFirstTextValue(section.contentJson, ['body', 'centerText', 'text'])
     if (body !== undefined) {
       candidates.push({
@@ -139,6 +139,17 @@ const pushSectionCandidates = (
         textType: 'sectionActionLabel',
         value: linkLabel,
       })
+    }
+
+    if (section.type === 'LandingHero') {
+      const secondaryLinkLabel = findFirstTextValue(section.contentJson, ['secondaryLinkLabel', 'secondaryLabel', 'secondaryCtaLabel'])
+      if (secondaryLinkLabel !== undefined) {
+        candidates.push({
+          field: `sections.${index}.secondaryLinkLabel`,
+          textType: 'sectionActionLabel',
+          value: secondaryLinkLabel,
+        })
+      }
     }
   }
 
@@ -244,6 +255,10 @@ const contentAliasesForField = (section: SectionEditModel, field: string) => {
 
   if (field === 'linkLabel') {
     return ['linkLabel', 'linkText', 'ctaLabel']
+  }
+
+  if (field === 'secondaryLinkLabel') {
+    return ['secondaryLinkLabel', 'secondaryLabel', 'secondaryCtaLabel']
   }
 
   return [field]

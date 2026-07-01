@@ -44,8 +44,63 @@ const createDefaultSectionHeader = () => ({
 
 const localized = (en: string, zh: string) => ({ en, zh })
 const HOME_HERO_VIDEO = '/media/homepage-hero.mp4'
+const HOME_HERO_POSTER = '/media/alife-church-community-hero.jpg'
 
 export const createEmptyPageSection = (type: SectionType = 'Hero'): SectionEditModel => {
+  if (type === 'LandingHero') {
+    const title = localized('A spiritual home in the light of the South Island.', '在南岛的光里，找到一个属灵的家。')
+    const body = localized(
+      'Welcome visitors, seekers, and members with a warm video opening and clear next steps.',
+      '用温暖的视频开场欢迎访客、慕道朋友和成员，并提供清楚的下一步。',
+    )
+
+    return {
+      order: 0,
+      type: 'LandingHero',
+      contentJson: {
+        sectionKind: 'landingHero',
+        header: {
+          ...createDefaultSectionHeader(),
+          title,
+          subtitle: body,
+          align: 'left',
+          scale: 'feature',
+          tone: 'primary',
+        },
+        spacing: 'large',
+        backgroundVideo: HOME_HERO_VIDEO,
+        videoUrl: HOME_HERO_VIDEO,
+        backgroundImage: HOME_HERO_VIDEO,
+        backgroundImageUrl: HOME_HERO_VIDEO,
+        posterImage: HOME_HERO_POSTER,
+        posterImageUrl: HOME_HERO_POSTER,
+        imageUrl: HOME_HERO_POSTER,
+        title,
+        headline: title,
+        centerText: body,
+        body,
+        subtitle: body,
+        subheadline: body,
+        linkLabel: localized('Plan a Visit', '计划来访'),
+        linkText: localized('Plan a Visit', '计划来访'),
+        ctaLabel: localized('Plan a Visit', '计划来访'),
+        linkUrl: '#visit',
+        ctaUrl: '#visit',
+        href: '#visit',
+        secondaryLinkLabel: localized('Watch Sermon', '观看主日信息'),
+        secondaryLabel: localized('Watch Sermon', '观看主日信息'),
+        secondaryCtaLabel: localized('Watch Sermon', '观看主日信息'),
+        secondaryLinkUrl: '/sermons',
+        secondaryUrl: '/sermons',
+        secondaryCtaUrl: '/sermons',
+      },
+      styleJson: {
+        layout: 'landingHero',
+        frontendType: 'LandingHero',
+      },
+    }
+  }
+
   if (type === 'RichText') {
     return {
       order: 0,
@@ -165,7 +220,8 @@ export const createEmptyPageSection = (type: SectionType = 'Hero'): SectionEditM
 
 export const createPresetPageSection = (preset: string): SectionEditModel => {
   const section = createEmptyPageSection(
-    preset.startsWith('rich-') ? 'RichText' :
+    preset === 'hero-home' ? 'LandingHero' :
+      preset.startsWith('rich-') ? 'RichText' :
       preset.startsWith('spotlight-') ? 'Spotlight' :
         preset.startsWith('list-') ? 'ListView' :
           preset === 'sermon-embed' ? 'Sermon' :
@@ -186,6 +242,11 @@ export const createPresetPageSection = (preset: string): SectionEditModel => {
         ctaLabel: localized('Plan your visit', '计划来访'),
         backgroundImage: HOME_HERO_VIDEO,
         backgroundImageUrl: HOME_HERO_VIDEO,
+        backgroundVideo: HOME_HERO_VIDEO,
+        videoUrl: HOME_HERO_VIDEO,
+        posterImage: HOME_HERO_POSTER,
+        posterImageUrl: HOME_HERO_POSTER,
+        imageUrl: HOME_HERO_POSTER,
         linkUrl: '#visit',
         ctaUrl: '#visit',
         href: '#visit',
