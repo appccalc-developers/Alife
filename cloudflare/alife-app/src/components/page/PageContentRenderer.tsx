@@ -45,6 +45,7 @@ const createDefaultSectionHeader = () => ({
 const localized = (en: string, zh: string) => ({ en, zh })
 const HOME_HERO_VIDEO = '/media/homepage-hero.mp4'
 const HOME_HERO_POSTER = '/media/alife-church-community-hero.jpg'
+const HOME_VISIT_IMAGE = '/media/alife-visit.jpg'
 
 export const createEmptyPageSection = (type: SectionType = 'Hero'): SectionEditModel => {
   if (type === 'LandingHero') {
@@ -123,19 +124,20 @@ export const createEmptyPageSection = (type: SectionType = 'Hero'): SectionEditM
       contentJson: {
         header: createDefaultSectionHeader(),
         spacing: 'normal',
+        presentation: 'visit',
         spotlight: {
           mode: 'manual',
-          source: 'sermons',
-          preset: 'latest',
+          source: 'events',
+          preset: 'upcoming',
         },
         media: {
           type: 'image',
-          url: DEFAULT_HERO_IMAGE,
+          url: HOME_VISIT_IMAGE,
           position: 'left',
         },
-        imageUrl: DEFAULT_HERO_IMAGE,
-        backgroundImage: DEFAULT_HERO_IMAGE,
-        backgroundImageUrl: DEFAULT_HERO_IMAGE,
+        imageUrl: HOME_VISIT_IMAGE,
+        backgroundImage: HOME_VISIT_IMAGE,
+        backgroundImageUrl: HOME_VISIT_IMAGE,
         title: '',
         headline: '',
         subtitle: '',
@@ -152,7 +154,8 @@ export const createEmptyPageSection = (type: SectionType = 'Hero'): SectionEditM
         href: '',
       },
       styleJson: {
-        layout: 'spotlight',
+        layout: 'visitHighlight',
+        presentation: 'visit',
         mediaPosition: 'left',
         imagePosition: 'left',
       },
@@ -311,10 +314,27 @@ export const createPresetPageSection = (preset: string): SectionEditModel => {
         : sermons
           ? localized('Feature a message, series, or teaching theme.', '展示一篇讲道、系列或教导主题。')
           : localized('Tell one focused story with text, media, and a clear action.', '用文字、媒体和行动按钮讲述一个重点故事。')
+    const spotlightSource = groups ? 'groups' : sermons ? 'sermons' : 'events'
+    const spotlightPreset = groups ? 'featured' : sermons ? 'latest' : 'upcoming'
     return {
       ...section,
       contentJson: {
         ...section.contentJson,
+        presentation: visit ? 'visit' : 'spotlight',
+        anchorId: visit ? 'visit' : section.contentJson.anchorId,
+        spotlight: {
+          mode: 'manual',
+          source: spotlightSource,
+          preset: spotlightPreset,
+        },
+        media: {
+          type: 'image',
+          url: visit ? HOME_VISIT_IMAGE : DEFAULT_HERO_IMAGE,
+          position: visit ? 'right' : 'left',
+        },
+        imageUrl: visit ? HOME_VISIT_IMAGE : DEFAULT_HERO_IMAGE,
+        backgroundImage: visit ? HOME_VISIT_IMAGE : DEFAULT_HERO_IMAGE,
+        backgroundImageUrl: visit ? HOME_VISIT_IMAGE : DEFAULT_HERO_IMAGE,
         header: { title, subtitle: localized('', ''), align: 'left', scale: 'normal', tone: 'default' },
         title,
         headline: title,
@@ -325,7 +345,13 @@ export const createPresetPageSection = (preset: string): SectionEditModel => {
         linkText: localized('Learn more', '了解更多'),
         ctaLabel: localized('Learn more', '了解更多'),
       },
-      styleJson: { ...section.styleJson, mediaPosition: visit ? 'right' : 'left', imagePosition: visit ? 'right' : 'left' },
+      styleJson: {
+        ...section.styleJson,
+        layout: visit ? 'visitHighlight' : 'spotlight',
+        presentation: visit ? 'visit' : 'spotlight',
+        mediaPosition: visit ? 'right' : 'left',
+        imagePosition: visit ? 'right' : 'left',
+      },
     }
   }
 

@@ -77,6 +77,30 @@ const isLandingHeroMetadata = (contentJson: Record<string, unknown>, styleJson: 
   return normalized === 'landinghero' || normalized === 'landingherosection'
 }
 
+const isSpotlightLayout = (layout: string) => {
+  const normalized = layout.replace(/[-_\s]+/g, '').toLowerCase()
+  return normalized === 'mediaspotlight'
+    || normalized === 'split'
+    || normalized === 'sermonspotlight'
+    || normalized === 'spotlight'
+    || normalized === 'visithighlight'
+    || normalized === 'homevisit'
+    || normalized === 'highlight'
+}
+
+const isVisitHighlightPresentation = (contentJson: Record<string, unknown>, styleJson: Record<string, unknown>) => {
+  const marker = firstString(
+    contentJson.presentation,
+    contentJson.variant,
+    contentJson.template,
+    styleJson.presentation,
+    styleJson.variant,
+    styleJson.layout,
+  )
+  const normalized = marker.replace(/[-_\s]+/g, '').toLowerCase()
+  return normalized === 'visit' || normalized === 'highlight' || normalized === 'visithighlight' || normalized === 'homevisit'
+}
+
 const normalizeSpotlightMedia = (contentJson: Record<string, unknown>, styleJson: Record<string, unknown>): SpotlightMedia => {
   const media = contentJson.media && typeof contentJson.media === 'object' && !Array.isArray(contentJson.media)
     ? contentJson.media as Record<string, unknown>
@@ -222,7 +246,7 @@ export const normalizePageSection = (section: SectionDto): SectionEditModel => {
   const type =
     normalizedType === 'Hero' && isLandingHeroMetadata(contentJson, styleJson)
       ? 'LandingHero'
-      : normalizedType === 'Hero' && (layout === 'mediaSpotlight' || layout === 'split' || layout === 'sermonSpotlight' || layout === 'spotlight')
+      : normalizedType === 'Hero' && isSpotlightLayout(layout)
       ? 'Spotlight'
       : normalizedType
 
@@ -234,12 +258,19 @@ export const normalizePageSection = (section: SectionDto): SectionEditModel => {
 
   if (type === 'Spotlight') {
     const media = normalizeSpotlightMedia(contentJson, styleJson)
+    const isVisitHighlight = isVisitHighlightPresentation(contentJson, styleJson)
+    const hasSpotlightConfig = Boolean(contentJson.spotlight && typeof contentJson.spotlight === 'object' && !Array.isArray(contentJson.spotlight))
+    const binding = readSpotlightBinding(contentJson)
     contentJson.media = media
-    contentJson.spotlight = readSpotlightBinding(contentJson)
+    contentJson.presentation = isVisitHighlight ? 'visit' : 'spotlight'
+    contentJson.spotlight = isVisitHighlight && !hasSpotlightConfig
+      ? { ...binding, source: 'events', preset: 'upcoming' }
+      : binding
     if (!contentJson.body) {
       contentJson.body = toLocalizedHeaderText(firstString(contentJson.body, contentJson.centerText, contentJson.text))
     }
-    styleJson.layout = 'spotlight'
+    styleJson.layout = isVisitHighlight ? 'visitHighlight' : 'spotlight'
+    styleJson.presentation = isVisitHighlight ? 'visit' : 'spotlight'
     styleJson.mediaPosition = media.position ?? 'left'
     styleJson.imagePosition = media.position ?? 'left'
   }

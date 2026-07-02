@@ -35,7 +35,7 @@ const sectionTypeOptions: Array<{ type: SectionType; label: LocalText; descripti
   { type: 'LandingHero', label: { en: 'Landing Hero', zh: '首页视频主视觉' }, description: { en: 'Homepage-style video opening with headline and two actions.', zh: '首页风格的视频开场，包含主标题和两个行动按钮。' }, Icon: Video },
   { type: 'Hero', label: { en: 'Hero', zh: '主视觉' }, description: { en: 'A page opening with background media, headline, and action.', zh: '页面开场，可放背景媒体、主标题和行动按钮。' }, Icon: Megaphone },
   { type: 'RichText', label: { en: 'Rich Text', zh: '图文说明' }, description: { en: 'Longer bilingual copy for welcome text, FAQ, or steps.', zh: '适合欢迎语、常见问题、流程说明等较长双语文字。' }, Icon: FileText },
-  { type: 'Spotlight', label: { en: 'Spotlight', zh: '重点推荐' }, description: { en: 'Feature one story with media, body copy, and an action.', zh: '用媒体、说明和行动按钮突出一个重点内容。' }, Icon: Type },
+  { type: 'Spotlight', label: { en: 'Highlight', zh: '重点推荐' }, description: { en: 'Homepage-style feature block using custom content or one event.', zh: '首页风格的重点内容，可手动填写或带入一个活动。' }, Icon: Type },
   { type: 'ListView', label: { en: 'List View', zh: '列表视图' }, description: { en: 'Show content from events, sermons, groups, pages, or members.', zh: '展示活动、讲道、小组、页面或成员等内容来源。' }, Icon: LayoutList },
   { type: 'Sermon', label: { en: 'Sermon Video', zh: '讲道视频' }, description: { en: 'Embed one YouTube sermon video with a title.', zh: '嵌入一段 YouTube 讲道视频和标题。' }, Icon: Clapperboard },
 ]
