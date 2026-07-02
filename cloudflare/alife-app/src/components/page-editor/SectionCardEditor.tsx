@@ -39,6 +39,7 @@ type Props = {
 const sectionTypeLabel = (type: SectionType, isZh: boolean) => {
   if (type === 'LandingHero') return isZh ? '首页视频主视觉' : 'Landing Hero'
   if (type === 'Hero') return isZh ? '主视觉' : 'Hero'
+  if (type === 'Countdown') return isZh ? '倒数计时' : 'Countdown'
   if (type === 'RichText') return isZh ? '图文说明' : 'Rich Text'
   if (type === 'Spotlight') return isZh ? '重点推荐' : 'Spotlight'
   if (type === 'ListView') return isZh ? '列表视图' : 'List View'
@@ -170,7 +171,7 @@ const getSectionGuide = (section: SectionEditModel, language: string) => {
   const isZh = language === 'zh'
   const title = readHeaderText(section, language, 'title') || readContentText(section, language, 'title', 'headline')
   const subtitle = readHeaderText(section, language, 'subtitle') || readContentText(section, language, 'subtitle', 'subheadline', 'centerText', 'body')
-  const media = readContentText(section, language, 'backgroundVideo', 'videoUrl', 'backgroundImage', 'backgroundImageUrl', 'imageUrl')
+  const media = readContentText(section, language, 'backgroundVideo', 'videoUrl', 'backgroundImage', 'backgroundImageUrl', 'imageUrl', 'imageOverrideUrl')
   const linkLabel = readContentText(section, language, 'linkLabel', 'linkText', 'ctaLabel')
   const linkUrl = readContentText(section, language, 'linkUrl', 'ctaUrl', 'href')
   const secondaryLinkLabel = readContentText(section, language, 'secondaryLinkLabel', 'secondaryLabel', 'secondaryCtaLabel')
@@ -184,6 +185,13 @@ const getSectionGuide = (section: SectionEditModel, language: string) => {
   const spotlightSource = textValue(spotlight.source, language)
   const spotlightPreset = textValue(spotlight.preset, language)
   const spotlightItemId = textValue(spotlight.itemId, language)
+  const countdown = section.contentJson.countdown && typeof section.contentJson.countdown === 'object' && !Array.isArray(section.contentJson.countdown)
+    ? section.contentJson.countdown as Record<string, unknown>
+    : {}
+  const countdownMode = textValue(countdown.mode, language) || 'custom'
+  const countdownEventId = textValue(countdown.eventId, language) || textValue(countdown.itemId, language)
+  const countdownPreset = textValue(countdown.preset, language) || 'upcoming'
+  const countdownTarget = readContentText(section, language, 'targetDateTime', 'countdownTarget', 'endDateTime')
   const limit = typeof section.contentJson.limit === 'number' ? section.contentJson.limit : 0
   const youtubeUrl = readContentText(section, language, 'youtubeUrl')
   const richText = readContentText(section, language, 'text')
@@ -200,6 +208,47 @@ const getSectionGuide = (section: SectionEditModel, language: string) => {
         { label: isZh ? '次要行动' : 'Secondary action', ready: Boolean(secondaryLinkLabel && secondaryLinkUrl), detail: secondaryLinkUrl ? summarizeValue(secondaryLinkUrl, isZh) : summarizeValue(secondaryLinkLabel, isZh), icon: <Clapperboard className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'landing-hero-secondary-url' } },
       ] satisfies GuideItem[],
       advice: isZh ? '建议只用于页面顶部；视频要有海报图，避免慢网络下出现空白。' : 'Use near the top of the page and keep a poster image set so slow networks do not show a blank hero.',
+    }
+  }
+
+  if (section.type === 'Countdown') {
+    return {
+      title: isZh ? '倒数区块引导' : 'Countdown guidance',
+      description: isZh ? '适合活动报名、聚会开始、截止日期或其他需要提醒回应的时间点。' : 'Use this for event registration, gathering starts, deadlines, or any time-sensitive invitation.',
+      items: [
+        {
+          label: isZh ? '数据来源' : 'Datasource',
+          ready: countdownMode === 'custom' || countdownMode === 'event',
+          detail: countdownMode === 'event' ? (isZh ? '绑定活动' : 'Event-bound') : (isZh ? '自定义' : 'Customized'),
+          icon: <LayoutList className="h-4 w-4" />,
+          target: { type: 'properties', tab: 'section', focusKey: 'countdown-source-mode' },
+        },
+        {
+          label: isZh ? '目标时间' : 'Target time',
+          ready: countdownMode === 'event' || Boolean(countdownTarget),
+          detail: countdownMode === 'event'
+            ? (countdownEventId ? (isZh ? `活动 ID: ${summarizeValue(countdownEventId, true)}` : `Event ID: ${summarizeValue(countdownEventId, false)}`) : (isZh ? `下一个活动 · ${formatPreset(countdownPreset, true)}` : `Next event · ${formatPreset(countdownPreset, false)}`))
+            : summarizeValue(countdownTarget, isZh),
+          icon: <Settings2 className="h-4 w-4" />,
+          target: { type: 'properties', tab: 'section', focusKey: countdownMode === 'event' ? 'countdown-event-id' : 'countdown-target-date' },
+        },
+        { label: isZh ? '说明文案' : 'Intro copy', ready: Boolean(title || subtitle || richText), detail: summarizeValue(title || subtitle || richText, isZh), icon: <FileText className="h-4 w-4" />, target: { type: 'preview', index: 1 } },
+        {
+          label: isZh ? '图片/媒体' : 'Media',
+          ready: countdownMode === 'event' || isMediaValue(media),
+          detail: countdownMode === 'event' ? (isZh ? '来自活动海报或覆盖链接' : 'From event poster or override') : summarizeValue(media, isZh),
+          icon: <ImageUp className="h-4 w-4" />,
+          target: { type: 'properties', tab: 'section', focusKey: countdownMode === 'event' ? 'countdown-image-override' : 'countdown-image' },
+        },
+        {
+          label: isZh ? '行动链接' : 'Action link',
+          ready: countdownMode === 'event' || Boolean(linkLabel || linkUrl),
+          detail: countdownMode === 'event' ? (isZh ? '默认打开活动详情' : 'Defaults to event details') : summarizeValue(linkUrl || linkLabel, isZh),
+          icon: <Link2 className="h-4 w-4" />,
+          target: { type: 'properties', tab: 'section', focusKey: 'countdown-action-url' },
+        },
+      ] satisfies GuideItem[],
+      advice: isZh ? '绑定活动时会自动带入标题、说明、地点、海报与倒数目标；发布前请确认活动时间正确。' : 'When event-bound, title, copy, location, poster, and target time are auto-filled; confirm the event time before publishing.',
     }
   }
 

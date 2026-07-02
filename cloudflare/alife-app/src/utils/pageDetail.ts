@@ -188,6 +188,7 @@ const normalizeSectionType = (value: number | string): SectionEditModel['type'] 
   const sectionTypeMapByName: Record<string, SectionEditModel['type']> = {
     hero: 'Hero',
     landingHero: 'LandingHero',
+    countdown: 'Countdown',
     mediaSpotlight: 'Spotlight',
     spotlight: 'Spotlight',
     sermonSpotlight: 'Spotlight',
@@ -209,6 +210,7 @@ const normalizeSectionType = (value: number | string): SectionEditModel['type'] 
 
   const legacySectionTypeMap: Record<string, SectionEditModel['type']> = {
     LandingHero: 'LandingHero',
+    Countdown: 'Countdown',
     MediaSpotlight: 'Spotlight',
     SermonSpotlight: 'Spotlight',
     IconFeatureGrid: 'Hero',
@@ -222,7 +224,7 @@ const normalizeSectionType = (value: number | string): SectionEditModel['type'] 
     return legacySectionTypeMap[normalized]
   }
 
-  const values = ['Hero', 'LandingHero', 'Spotlight', 'RichText', 'Sermon', 'ListView'] as const
+  const values = ['Hero', 'LandingHero', 'Countdown', 'Spotlight', 'RichText', 'Sermon', 'ListView'] as const
   return values.includes(normalized as (typeof values)[number]) ? (normalized as SectionEditModel['type']) : 'RichText'
 }
 
@@ -255,6 +257,12 @@ export const normalizePageSection = (section: SectionDto): SectionEditModel => {
     contentJson.sectionKind = 'landingHero'
     styleJson.layout = 'landingHero'
     styleJson.frontendType = 'LandingHero'
+  }
+
+  if (type === 'Countdown') {
+    contentJson.sectionKind = 'countdown'
+    styleJson.layout = 'countdown'
+    styleJson.frontendType = 'Countdown'
   }
 
   if (type === 'Spotlight') {
