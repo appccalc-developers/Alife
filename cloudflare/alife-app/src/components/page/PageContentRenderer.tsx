@@ -9,7 +9,7 @@ import { useAuthStore } from '../../stores/auth'
 import { localizeText } from '../../utils/localizedText'
 import { listViewContentDefaultsForSource, normalizeListViewSource } from '../../utils/sectionSourcePresets'
 import { defaultContactLocationMapEmbedUrl, defaultContactLocationMapUrl, defaultContactLocationStreetAddress } from '../../utils/contactLocation'
-import { DEFAULT_HERO_ASPECT_RATIO, DEFAULT_HERO_IMAGE, EditableText } from '../page-sections/sectionUtils'
+import { DEFAULT_HERO_IMAGE, EditableText } from '../page-sections/sectionUtils'
 import { pageSectionShellClass } from '../page-sections/sectionPresets'
 
 type GroupLinkItem = {

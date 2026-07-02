@@ -15,8 +15,6 @@ const SectionBlock = (props: SectionComponentProps) => {
       return <CountdownSection {...props} />
     case 'ContactLocation':
       return <ContactLocationSection {...props} />
-    case 'Hero':
-      return <HeroSection {...props} />
     case 'Spotlight':
       return <SpotlightSection {...props} />
     case 'RichText':

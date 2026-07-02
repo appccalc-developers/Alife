@@ -278,20 +278,6 @@ const getSectionGuide = (section: SectionEditModel, language: string) => {
     }
   }
 
-  if (section.type === 'Hero') {
-    return {
-      title: isZh ? '开场横幅引导' : 'Opening banner guidance',
-      description: isZh ? '适合承载页面最重要的邀请，文案要短，行动要明确。' : 'Use this for the page’s primary invitation: short copy and a clear action.',
-      items: [
-        { label: isZh ? '主标题' : 'Main headline', ready: Boolean(title), detail: summarizeValue(title, isZh), icon: <Type className="h-4 w-4" />, target: { type: 'preview', index: 0 } },
-        { label: isZh ? '说明文案' : 'Supporting copy', ready: Boolean(subtitle), detail: summarizeValue(subtitle, isZh), icon: <FileText className="h-4 w-4" />, target: { type: 'preview', index: 1 } },
-        { label: isZh ? '背景图片/视频' : 'Background media', ready: isMediaValue(media), detail: summarizeValue(media, isZh), icon: <ImageUp className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'hero-media' } },
-        { label: isZh ? '行动按钮' : 'Call to action', ready: Boolean(linkLabel && linkUrl), detail: linkUrl ? summarizeValue(linkUrl, isZh) : summarizeValue(linkLabel, isZh), icon: <Link2 className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'hero-cta-url' } },
-      ] satisfies GuideItem[],
-      advice: isZh ? '发布前请确认手机上文字不会遮挡人物或重要画面。' : 'Before publishing, check that mobile text does not cover important faces or visuals.',
-    }
-  }
-
   if (section.type === 'RichText') {
     return {
       title: isZh ? '文字内容引导' : 'Rich text guidance',

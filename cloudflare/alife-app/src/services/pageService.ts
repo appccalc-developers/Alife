@@ -53,8 +53,6 @@ const toSectionPayloadType = (type: SectionEditModel['type']): string => {
       return 'hero'
     case 'ContactLocation':
       return 'hero'
-    case 'Hero':
-      return 'hero'
     case 'Spotlight':
       return 'hero'
     case 'RichText':

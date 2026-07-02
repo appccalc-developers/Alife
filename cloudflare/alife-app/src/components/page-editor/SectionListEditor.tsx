@@ -4,7 +4,6 @@ import {
   FileText,
   LayoutList,
   MapPin,
-  Megaphone,
   PlusCircle,
   Type,
   Video,
