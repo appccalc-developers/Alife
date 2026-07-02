@@ -11,7 +11,13 @@ public sealed class PageCacheInvalidationService(
     public Task RemoveGlobalAsync(CancellationToken cancellationToken = default)
         => Task.WhenAll(
             hybridCache.RemoveAsync(PageCacheKeys.Global(), cancellationToken).AsTask(),
-            cloudflareKvCacheService.RemoveApiCacheAsync("/api/pages/global", cancellationToken));
+            cloudflareKvCacheService.RemoveApiCacheAsync("/api/pages/global", cancellationToken),
+            RemovePublicAsync(cancellationToken));
+
+    public Task RemovePublicAsync(CancellationToken cancellationToken = default)
+        => Task.WhenAll(
+            hybridCache.RemoveAsync(PageCacheKeys.Public(), cancellationToken).AsTask(),
+            cloudflareKvCacheService.RemoveApiCacheAsync("/api/pages/public", cancellationToken));
 
     public Task RemoveDetailAsync(Guid pageId, CancellationToken cancellationToken = default)
         => Task.WhenAll(
@@ -23,5 +29,6 @@ public sealed class PageCacheInvalidationService(
     public Task RemoveGroupPagesAsync(Guid groupId, CancellationToken cancellationToken = default)
         => Task.WhenAll(
             hybridCache.RemoveAsync(PageCacheKeys.GroupPages(groupId), cancellationToken).AsTask(),
-            cloudflareKvCacheService.RemoveApiCacheAsync($"/api/groups/{groupId}/pages", cancellationToken));
+            cloudflareKvCacheService.RemoveApiCacheAsync($"/api/groups/{groupId}/pages", cancellationToken),
+            RemovePublicAsync(cancellationToken));
 }

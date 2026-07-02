@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useLocation } from 'react-router-dom'
 import { localizeText } from '../utils/localizedText'
@@ -14,7 +14,11 @@ import FloatingActionButtons from './actions/FloatingActionButtons'
 import GroupDrawer from './shell/GroupDrawer'
 import ShellHeader from './shell/ShellHeader'
 import HomeNavHeader from '../views/home/HomeNavHeader'
+import HomeFooter from '../views/home/HomeFooter'
 import { getCopy } from '../views/home/homeCopy'
+import { buildMinistriesNavItem, insertMinistriesNavItem } from '../views/home/homeUtils'
+import { pageService } from '../services/pageService'
+import type { PageSummaryDto } from '../types'
 
 const readSidebarCollapsedPreference = () => {
   try {
@@ -172,16 +176,47 @@ const isPublicBrowsePath = (pathname: string) =>
 const PublicHomeShell = () => {
   const auth = useAuthStore()
   const location = useLocation()
+  const [publicPages, setPublicPages] = useState<PageSummaryDto[]>([])
   const isHome = location.pathname === '/'
   const isPublicPage = location.pathname === '/pages' || /^\/pages\/[^/]+$/.test(location.pathname)
   const copy = getCopy(auth.language, '')
+  const footerNavItems = useMemo(() => [
+    { href: '/#about', label: copy.nav.about },
+    { href: '/#visit', label: copy.nav.visit },
+    { href: '/#groups', label: copy.nav.groups },
+    { href: '/#events', label: copy.nav.events },
+    { href: '/#sermons', label: copy.nav.sermons },
+    { href: '/#location', label: copy.nav.location },
+  ], [copy.nav.about, copy.nav.events, copy.nav.groups, copy.nav.location, copy.nav.sermons, copy.nav.visit])
+  const ministriesNavItem = useMemo(
+    () => buildMinistriesNavItem(publicPages, auth.language, copy.nav.ministries),
+    [auth.language, copy.nav.ministries, publicPages],
+  )
+  const headerNavItems = useMemo(
+    () => insertMinistriesNavItem(footerNavItems, ministriesNavItem),
+    [footerNavItems, ministriesNavItem],
+  )
+
+  useEffect(() => {
+    let cancelled = false
+    pageService.getPublicPages()
+      .then((pages) => {
+        if (!cancelled) {
+          setPublicPages(pages)
+        }
+      })
+      .catch((error) => console.error('[PublicHomeShell] public pages load failed:', error))
+
+    return () => { cancelled = true }
+  }, [])
 
   return (
     <div className="min-h-screen bg-[#f7f3ea] text-[#18332d]">
-      {isHome ? null : <HomeNavHeader copy={copy} language={auth.language} solid />}
+      {isHome ? null : <HomeNavHeader copy={copy} language={auth.language} navItems={headerNavItems} solid />}
       <div className={isHome ? '' : isPublicPage ? 'pb-16' : 'px-4 pb-16 pt-24 sm:px-6 lg:px-8'}>
         <AppRoutes />
       </div>
+      {isPublicPage ? <HomeFooter copy={copy} navItems={footerNavItems} /> : null}
     </div>
   )
 }

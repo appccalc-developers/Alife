@@ -30,7 +30,7 @@ const CACHE_STALE_IF_ERROR_SECONDS = 86400
 const AUTHZ_MIRROR_TTL_SECONDS = 7 * 24 * 60 * 60
 const MEMBER_PROFILE_CACHE_TTL_SECONDS = 86400
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
-const PUBLIC_CACHEABLE_API_PATHS = new Set(['/api/sermons', '/api/pages/global'])
+const PUBLIC_CACHEABLE_API_PATHS = new Set(['/api/sermons', '/api/pages/global', '/api/pages/public'])
 const GROUP_SHARED_CACHE_TTLS = {
   pages: CACHE_TTL_SECONDS,
   subgroups: CACHE_TTL_SECONDS,
@@ -530,6 +530,7 @@ export async function getInvalidationPaths(env: Env, request: Request, response:
   const pageId = path.match(/^\/api\/pages\/([^/]+)(?:\/publish)?$/)?.[1]
   if (pageId) {
     paths.add(`/api/pages/${pageId}`)
+    paths.add('/api/pages/public')
     const body = await readJsonObject(response)
     if (isGlobalPageScope(body?.scope)) {
       paths.add('/api/pages/global')
@@ -546,6 +547,7 @@ export async function getInvalidationPaths(env: Env, request: Request, response:
     const promotedPageId = pagePromoteMatch[1]
     const body = await readJsonObject(response)
     paths.add(`/api/pages/${promotedPageId}`)
+    paths.add('/api/pages/public')
     paths.add('/api/pages/global')
 
     const previousOwnerGroupId = readString(body?.previousOwnerGroupId) ?? await readEntityGroup(env, 'page', promotedPageId)

@@ -9,6 +9,7 @@ using Alife.Application.Pages.Commands.UpdatePage;
 using Alife.Application.Pages.Queries.GetGlobalPages;
 using Alife.Application.Pages.Queries.GetGroupPages;
 using Alife.Application.Pages.Queries.GetPageById;
+using Alife.Application.Pages.Queries.GetPublicPages;
 using Alife.Application.Pages.Dtos;
 using Alife.Domain.Enums;
 using MediatR;
@@ -29,6 +30,15 @@ public class PagesController(
     public async Task<IActionResult> GlobalPages(CancellationToken cancellationToken = default)
     {
         var result = await mediator.Send(new GetGlobalPagesQuery(), cancellationToken);
+        this.ApplyPublicCacheHeaders();
+        return this.ToActionResult(result);
+    }
+
+    [HttpGet("pages/public")]
+    [AllowAnonymous]
+    public async Task<IActionResult> PublicPages(CancellationToken cancellationToken = default)
+    {
+        var result = await mediator.Send(new GetPublicPagesQuery(), cancellationToken);
         this.ApplyPublicCacheHeaders();
         return this.ToActionResult(result);
     }
