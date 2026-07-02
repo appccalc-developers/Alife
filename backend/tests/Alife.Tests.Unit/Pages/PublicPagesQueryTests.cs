@@ -1,0 +1,110 @@
+using Alife.Domain.Entities;
+using Alife.Domain.Enums;
+using Alife.Infrastructure.Persistence;
+using Alife.Infrastructure.ReadServices;
+using Microsoft.Extensions.Caching.Hybrid;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace Alife.Tests.Unit.Pages;
+
+public class PublicPagesQueryTests
+{
+    [Fact]
+    public async Task GetPublicPages_ReturnsOnlyAnonymousReadableCmsPages()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        using var services = CreateServiceProvider();
+        var authorId = Guid.NewGuid();
+        var churchGroupId = Guid.NewGuid();
+        var subgroupId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+        var church = CreateGroup(churchGroupId, isChurch: true, parentGroupId: null);
+        var subgroup = CreateGroup(subgroupId, isChurch: false, parentGroupId: churchGroupId);
+
+        dbContext.Members.Add(new Member
+        {
+            Id = authorId,
+            DisplayName = "Author",
+            IsRegistered = true,
+            CreatedUtc = now,
+            UpdatedUtc = now
+        });
+        dbContext.Groups.AddRange(church, subgroup);
+
+        var publicGlobalPage = CreatePage(authorId, PageScope.Global, null, PageVisibility.Public, "Global Public");
+        var draftGlobalPage = CreatePage(authorId, PageScope.Global, null, PageVisibility.Draft, "Global Draft");
+        var publicChurchPage = CreatePage(authorId, PageScope.Group, churchGroupId, PageVisibility.Public, "Church Public");
+        var groupVisibleChurchPage = CreatePage(authorId, PageScope.Group, churchGroupId, PageVisibility.Group, "Church Group");
+        var publicSubgroupPage = CreatePage(authorId, PageScope.Group, subgroupId, PageVisibility.Public, "Subgroup Public");
+        publicChurchPage.OwnerGroup = church;
+        groupVisibleChurchPage.OwnerGroup = church;
+        publicSubgroupPage.OwnerGroup = subgroup;
+        dbContext.Pages.AddRange(
+            publicGlobalPage,
+            draftGlobalPage,
+            publicChurchPage,
+            groupVisibleChurchPage,
+            publicSubgroupPage);
+        await dbContext.SaveChangesAsync();
+
+        var service = new PageReadService(dbContext, services.GetRequiredService<HybridCache>());
+
+        var result = await service.GetPublicPagesAsync(CancellationToken.None);
+
+        Assert.Equal(2, result.Count);
+        Assert.Contains(result, page => page.Id == publicGlobalPage.Id);
+        Assert.Contains(result, page => page.Id == publicChurchPage.Id);
+        Assert.DoesNotContain(result, page => page.Id == draftGlobalPage.Id);
+        Assert.DoesNotContain(result, page => page.Id == groupVisibleChurchPage.Id);
+        Assert.DoesNotContain(result, page => page.Id == publicSubgroupPage.Id);
+    }
+
+    private static AlifeDbContext CreateInMemoryDbContext()
+    {
+        var options = new DbContextOptionsBuilder<AlifeDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        return new AlifeDbContext(options);
+    }
+
+    private static ServiceProvider CreateServiceProvider()
+    {
+        var services = new ServiceCollection();
+        services.AddHybridCache();
+        return services.BuildServiceProvider();
+    }
+
+    private static Group CreateGroup(Guid groupId, bool isChurch, Guid? parentGroupId)
+        => new()
+        {
+            Id = groupId,
+            NameJson = "{\"en\":\"Group\",\"zh\":\"小组\"}",
+            ParentGroupId = parentGroupId,
+            AccessType = AccessType.Public,
+            IsChurch = isChurch,
+            IsClosed = false,
+            CreatedUtc = DateTime.UtcNow,
+            UpdatedUtc = DateTime.UtcNow
+        };
+
+    private static Page CreatePage(
+        Guid authorId,
+        PageScope scope,
+        Guid? ownerGroupId,
+        PageVisibility visibility,
+        string title)
+        => new()
+        {
+            Id = Guid.NewGuid(),
+            Scope = scope,
+            OwnerGroupId = ownerGroupId,
+            CreatedByMemberId = authorId,
+            TitleJson = $$"""{"en":"{{title}}","zh":"{{title}}"}""",
+            DescriptionJson = null,
+            TagsJson = "[]",
+            TitleDisplayStyle = "Default",
+            Visibility = visibility,
+            UpdatedUtc = DateTime.UtcNow
+        };
+}

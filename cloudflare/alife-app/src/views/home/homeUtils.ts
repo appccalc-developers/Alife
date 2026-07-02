@@ -1,6 +1,7 @@
 import type { MouseEvent } from 'react'
-import type { GroupSummaryDto, PageDetailDto } from '../../types'
+import type { GroupSummaryDto, PageDetailDto, PageSummaryDto } from '../../types'
 import { defaultContactLocationMapEmbedUrl, defaultContactLocationMapUrl } from '../../utils/contactLocation'
+import { localizeText } from '../../utils/localizedText'
 
 export const media = {
   hero: '/media/alife-church-community-hero.jpg',
@@ -21,6 +22,14 @@ export type HomeGroupCard = {
   group: GroupSummaryDto
   imageUrl: string
 }
+
+export type HomeNavLinkItem = { href: string; label: string }
+export type HomeNavDropdownChild = { to: string; label: string }
+export type HomeNavDropdownItem = { key: string; label: string; items: HomeNavDropdownChild[] }
+export type HomeNavItem = HomeNavLinkItem | HomeNavDropdownItem
+
+export const isDropdownNavItem = (item: HomeNavItem): item is HomeNavDropdownItem =>
+  'items' in item
 
 export type ServiceCountdown = {
   totalMs: number
@@ -50,6 +59,57 @@ export const readSectionImage = (page: PageDetailDto) => {
     if (candidate) return candidate
   }
   return ''
+}
+
+const localizedPageTitle = (page: PageSummaryDto, language: string) =>
+  localizeText(page.title, language) || page.title?.en || page.title?.zh || page.id
+
+export const buildMinistriesNavItem = (
+  pages: PageSummaryDto[],
+  language: string,
+  label: string,
+): HomeNavDropdownItem | null => {
+  const byId = new Map<string, PageSummaryDto>()
+  pages.forEach((page) => {
+    if (page.visibility === 'public' && !byId.has(page.id)) {
+      byId.set(page.id, page)
+    }
+  })
+
+  const locale = language === 'zh' ? 'zh-Hans' : 'en'
+  const items = Array.from(byId.values())
+    .sort((left, right) => {
+      const leftLabel = localizedPageTitle(left, language)
+      const rightLabel = localizedPageTitle(right, language)
+      return leftLabel.localeCompare(rightLabel, locale, { sensitivity: 'base' }) ||
+        left.id.localeCompare(right.id)
+    })
+    .map((page) => ({
+      to: `/pages/${page.id}`,
+      label: localizedPageTitle(page, language),
+    }))
+
+  return items.length > 0 ? { key: 'ministries', label, items } : null
+}
+
+export const insertMinistriesNavItem = (
+  navItems: HomeNavLinkItem[],
+  ministriesItem: HomeNavDropdownItem | null,
+): HomeNavItem[] => {
+  if (!ministriesItem) {
+    return navItems
+  }
+
+  const groupIndex = navItems.findIndex((item) => item.href === '#groups' || item.href === '/#groups')
+  const insertAt = groupIndex >= 0
+    ? groupIndex + 1
+    : Math.max(0, navItems.findIndex((item) => item.href === '#events' || item.href === '/#events'))
+
+  return [
+    ...navItems.slice(0, insertAt),
+    ministriesItem,
+    ...navItems.slice(insertAt),
+  ]
 }
 
 export const getNextSundayServiceTime = (now = new Date()) => {

@@ -3,33 +3,32 @@ import { groupService } from '../../services/groupService'
 import { eventService } from '../../services/eventService'
 import { pageService } from '../../services/pageService'
 import { sermonService, type SermonDto } from '../../services/sermonService'
-import type { GroupDto, PageDetailDto, PageSummaryDto } from '../../types'
+import type { GroupDto, PageSummaryDto } from '../../types'
 import type { GroupEventRecord } from '../../types/event'
 import { fallbackGroupImages, readSectionImage } from './homeUtils'
 import type { HomeGroupCard } from './homeUtils'
 
 export const useHomeData = () => {
   const [church, setChurch] = useState<GroupDto | null>(null)
-  const [pages, setPages] = useState<PageSummaryDto[]>([])
-  const [homePage, setHomePage] = useState<PageDetailDto | null>(null)
+  const [publicPages, setPublicPages] = useState<PageSummaryDto[]>([])
   const [events, setEvents] = useState<GroupEventRecord[]>([])
   const [groupCards, setGroupCards] = useState<HomeGroupCard[]>([])
   const [sermons, setSermons] = useState<SermonDto[]>([])
 
-  // --- Phase 1: Load church + pages in parallel ---
+  // --- Phase 1: Load church + public website data in parallel ---
   useEffect(() => {
     let cancelled = false
 
     const load = async () => {
-      const [churchResult, pagesResult, sermonsResult] = await Promise.allSettled([
+      const [churchResult, publicPagesResult, sermonsResult] = await Promise.allSettled([
         groupService.getChurch(),
-        groupService.getGlobalPages(),
+        pageService.getPublicPages(),
         sermonService.getLatest(),
       ])
 
       if (cancelled) return
 
-      if (pagesResult.status === 'fulfilled') setPages(pagesResult.value)
+      if (publicPagesResult.status === 'fulfilled') setPublicPages(publicPagesResult.value)
       if (sermonsResult.status === 'fulfilled') setSermons(sermonsResult.value)
 
       if (churchResult.status !== 'fulfilled') return
@@ -86,35 +85,6 @@ export const useHomeData = () => {
     return () => { cancelled = true }
   }, [])
 
-  // --- Home page detail (depends on pages list) ---
-  const homePageSummary = useMemo(() => {
-    const readTags = (page: PageSummaryDto) => {
-      try {
-        return JSON.parse(page.tagsJson || '[]') as string[]
-      } catch {
-        return []
-      }
-    }
-    return pages.find((page) => readTags(page).includes('home')) ??
-      pages.find((page) => {
-        const title = `${page.title?.en || ''} ${page.title?.zh || ''}`.toLowerCase()
-        return title.includes('home') || title.includes('homepage') || title.includes('首页') || title.includes('主页')
-      }) ??
-      null
-  }, [pages])
-
-  useEffect(() => {
-    if (!homePageSummary?.id) {
-      setHomePage(null)
-      return
-    }
-    let cancelled = false
-    pageService.getPageById(homePageSummary.id)
-      .then((page) => { if (!cancelled) setHomePage(page) })
-      .catch(() => { if (!cancelled) setHomePage(null) })
-    return () => { cancelled = true }
-  }, [homePageSummary?.id])
-
   // --- Upcoming events (derived) ---
   const upcomingEvents = useMemo(
     () => [...events]
@@ -135,5 +105,5 @@ export const useHomeData = () => {
     [sermons],
   )
 
-  return { church, pages, homePage, events, groupCards, upcomingEvents, recentSermons }
+  return { church, publicPages, events, groupCards, upcomingEvents, recentSermons }
 }

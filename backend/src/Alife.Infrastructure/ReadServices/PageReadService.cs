@@ -25,6 +25,25 @@ public sealed class PageReadService(AlifeDbContext dbContext, HybridCache hybrid
             },
             cancellationToken);
 
+    public Task<IReadOnlyList<PageDto>> GetPublicPagesAsync(CancellationToken cancellationToken)
+        => GetOrCreateAsync(
+            PageCacheKeys.Public(),
+            async token =>
+            {
+                var pages = await dbContext.Pages
+                    .AsNoTracking()
+                    .Where(x =>
+                        x.Visibility == PageVisibility.Public &&
+                        (x.Scope == PageScope.Global ||
+                         (x.Scope == PageScope.Group && x.OwnerGroup != null && x.OwnerGroup.IsChurch)))
+                    .OrderBy(x => x.UpdatedUtc)
+                    .ThenBy(x => x.Id)
+                    .ToListAsync(token);
+
+                return (IReadOnlyList<PageDto>)pages.Select(ToDto).ToList();
+            },
+            cancellationToken);
+
     public Task<PageDetailDto?> GetByIdAsync(Guid pageId, CancellationToken cancellationToken)
         => GetOrCreateAsync(
             PageCacheKeys.Detail(pageId),

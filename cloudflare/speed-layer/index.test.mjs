@@ -450,6 +450,25 @@ test('GET requests are served from cache on the second hit', async () => {
   assert.equal(fetchCalls.length, 1)
 })
 
+test('public pages GET requests are served from shared public cache', async () => {
+  originResponses.push(Response.json([{ id: 'page-1', visibility: 'public' }]))
+
+  const first = await dispatch('https://ccalc.live/api/pages/public?lang=en', {
+    headers: { cookie: `alife_auth=${createJwtWithSub('member-1')}` },
+  })
+  await flushWaitUntil()
+  const second = await dispatch('https://ccalc.live/api/pages/public?lang=en', {
+    headers: { cookie: `alife_auth=${createJwtWithSub('member-2')}` },
+  })
+
+  assert.equal(first.status, 200)
+  assert.equal(first.headers.get('x-alife-cache'), 'MISS')
+  assert.equal(second.status, 200)
+  assert.equal(second.headers.get('x-alife-cache'), 'HIT')
+  assert.deepEqual(await second.json(), [{ id: 'page-1', visibility: 'public' }])
+  assert.equal(fetchCalls.length, 1)
+})
+
 test('global pages cache is invalidated after global page visibility publish', async () => {
   const pageId = 'global-page-1'
   const url = 'https://ccalc.live/api/pages/global'
@@ -484,6 +503,44 @@ test('global pages cache is invalidated after global page visibility publish', a
   assert.equal(globalPages.status, 200)
   assert.equal(globalPages.headers.get('x-alife-cache'), 'MISS')
   assert.deepEqual(await globalPages.json(), [{ id: pageId, scope: 'global', visibility: 'public' }])
+  assert.equal(fetchCalls.length, 2)
+  assert.equal(fetchCalls[1].headers.get('if-none-match'), null)
+})
+
+test('public pages cache is invalidated after page visibility publish', async () => {
+  const pageId = 'church-page-1'
+  const url = 'https://ccalc.live/api/pages/public'
+  cacheStore.set(cacheKey(new Request(url)), Response.json(
+    [{ id: pageId, scope: 'group', visibility: 'draft' }],
+    { headers: { etag: '"public-pages-v1"', 'cache-control': 'public, max-age=86400' } },
+  ))
+  originResponses.push(Response.json({
+    id: pageId,
+    scope: 'group',
+    ownerGroupId: 'church-group-1',
+    visibility: 'public',
+  }))
+  originResponses.push(Response.json([{ id: pageId, scope: 'group', visibility: 'public' }]))
+
+  const publish = await dispatch(`https://ccalc.live/api/pages/${pageId}/publish`, {
+    method: 'POST',
+    body: JSON.stringify({ visibility: 'public' }),
+    headers: {
+      'content-type': 'application/json',
+      cookie: `alife_auth=${createJwtWithSub('leader-1')}`,
+    },
+  })
+  await flushWaitUntil()
+
+  const publicPages = await dispatch(url, {
+    headers: { 'if-none-match': '"public-pages-v1"' },
+  })
+  await flushWaitUntil()
+
+  assert.equal(publish.status, 200)
+  assert.equal(publicPages.status, 200)
+  assert.equal(publicPages.headers.get('x-alife-cache'), 'MISS')
+  assert.deepEqual(await publicPages.json(), [{ id: pageId, scope: 'group', visibility: 'public' }])
   assert.equal(fetchCalls.length, 2)
   assert.equal(fetchCalls[1].headers.get('if-none-match'), null)
 })

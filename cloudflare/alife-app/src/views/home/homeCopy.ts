@@ -7,6 +7,7 @@ export type HomeCopy = {
     visit: string
     sermons: string
     groups: string
+    ministries: string
     events: string
     location: string
   }
@@ -129,6 +130,7 @@ export const getCopy = (language: Language, churchDescription: string): HomeCopy
         visit: '首次来访',
         sermons: '主日信息',
         groups: '小组生活',
+        ministries: '事工',
         events: '近期活动',
         location: '地点',
       },
@@ -250,6 +252,7 @@ export const getCopy = (language: Language, churchDescription: string): HomeCopy
       visit: 'Visit',
       sermons: 'Sermons',
       groups: 'Groups',
+      ministries: 'Ministries',
       events: 'Events',
       location: 'Location',
     },

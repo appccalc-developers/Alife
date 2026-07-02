@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Menu, X } from 'lucide-react'
+import { ChevronDown, Menu, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import logo from '../../assets/logo.png'
 import { useAuthStore } from '../../stores/auth'
 import type { HomeCopy, Language } from './homeCopy'
-import { createSectionHandler } from './homeUtils'
-
-type HomeNavItem = { href: string; label: string }
+import { createSectionHandler, isDropdownNavItem } from './homeUtils'
+import type { HomeNavDropdownItem, HomeNavItem } from './homeUtils'
 
 type Props = {
   copy: HomeCopy
@@ -18,6 +17,7 @@ type Props = {
 const HomeNavHeader = ({ copy, language, solid = false, navItems: providedNavItems }: Props) => {
   const auth = useAuthStore()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [mobileExpandedKey, setMobileExpandedKey] = useState<string | null>(null)
   const [scrolled, setScrolled] = useState(false)
 
   useEffect(() => {
@@ -25,6 +25,12 @@ const HomeNavHeader = ({ copy, language, solid = false, navItems: providedNavIte
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
+
+  useEffect(() => {
+    if (!menuOpen) {
+      setMobileExpandedKey(null)
+    }
+  }, [menuOpen])
 
   const accountTo = auth.isGuest ? '/onboarding' : '/groups/select'
   const accountLabel = auth.isGuest ? copy.account : copy.enterAlife
@@ -41,9 +47,67 @@ const HomeNavHeader = ({ copy, language, solid = false, navItems: providedNavIte
   ]
 
   const navItems = providedNavItems?.length
-    ? providedNavItems.map((item) => item.href === '#events' ? { ...item, label: eventsNavLabel } : item)
+    ? providedNavItems.map((item) => !isDropdownNavItem(item) && item.href === '#events' ? { ...item, label: eventsNavLabel } : item)
     : fallbackNavItems
   const scrollToSection = createSectionHandler(() => setMenuOpen(false))
+
+  const renderDesktopNavItem = (item: HomeNavItem) => {
+    if (isDropdownNavItem(item)) {
+      return (
+        <div key={item.key} className="group relative">
+          <button
+            className="inline-flex items-center gap-1 whitespace-nowrap px-3.5 py-1.5 text-[0.84rem] font-medium text-white/60 transition hover:text-white focus:text-white focus:outline-none"
+            type="button"
+            aria-haspopup="true"
+          >
+            {item.label}
+            <ChevronDown className="h-3.5 w-3.5 transition group-hover:rotate-180 group-focus-within:rotate-180" />
+          </button>
+          <div className="invisible absolute left-1/2 top-full mt-2 min-w-56 -translate-x-1/2 rounded-xl border border-white/10 bg-home-dark/95 p-2 opacity-0 shadow-[0_22px_70px_rgba(0,0,0,0.28)] backdrop-blur-xl transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+            <div className="grid gap-1">
+              {item.items.map((child) => (
+                <Link key={child.to} className="rounded-lg px-3 py-2 text-[0.86rem] font-medium text-white/70 transition hover:bg-white/[0.07] hover:text-white focus:bg-white/[0.07] focus:text-white focus:outline-none" to={child.to}>
+                  {child.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    return (
+      <a key={item.href} className="whitespace-nowrap px-3.5 py-1.5 text-[0.84rem] font-medium text-white/60 transition hover:text-white" href={item.href} onClick={(event) => scrollToSection(event, item.href)}>
+        {item.label}
+      </a>
+    )
+  }
+
+  const renderMobileDropdown = (item: HomeNavDropdownItem) => {
+    const expanded = mobileExpandedKey === item.key
+    return (
+      <div key={item.key}>
+        <button
+          className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-[0.92rem] font-medium text-white/70 transition hover:bg-white/[0.06] hover:text-white"
+          type="button"
+          aria-expanded={expanded}
+          onClick={() => setMobileExpandedKey(expanded ? null : item.key)}
+        >
+          <span>{item.label}</span>
+          <ChevronDown className={`h-4 w-4 transition ${expanded ? 'rotate-180' : ''}`} />
+        </button>
+        {expanded ? (
+          <div className="ml-3 mt-1 grid gap-0.5 border-l border-white/10 pl-2">
+            {item.items.map((child) => (
+              <Link key={child.to} className="rounded-lg px-3 py-2 text-[0.9rem] font-medium text-white/62 transition hover:bg-white/[0.06] hover:text-white" to={child.to} onClick={() => setMenuOpen(false)}>
+                {child.label}
+              </Link>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    )
+  }
 
   return (
     <header className={`fixed inset-x-0 top-0 z-50 transition-[background-color,box-shadow] duration-500 ${solid || scrolled ? 'bg-home-dark/80 shadow-[0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-xl' : ''}`}>
@@ -54,11 +118,7 @@ const HomeNavHeader = ({ copy, language, solid = false, navItems: providedNavIte
         </Link>
 
         <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-0.5 lg:flex">
-          {navItems.map((item) => (
-            <a key={item.href} className="whitespace-nowrap px-3.5 py-1.5 text-[0.84rem] font-medium text-white/60 transition hover:text-white" href={item.href} onClick={(event) => scrollToSection(event, item.href)}>
-              {item.label}
-            </a>
-          ))}
+          {navItems.map(renderDesktopNavItem)}
         </nav>
 
         <div className="flex items-center gap-3">
@@ -87,7 +147,7 @@ const HomeNavHeader = ({ copy, language, solid = false, navItems: providedNavIte
       {menuOpen ? (
         <div className="border-t border-white/[0.06] bg-home-dark/90 px-5 pb-5 pt-3 backdrop-blur-xl sm:px-8 lg:hidden">
           <nav className="grid gap-0.5">
-            {navItems.map((item) => (
+            {navItems.map((item) => isDropdownNavItem(item) ? renderMobileDropdown(item) : (
               <a key={item.href} className="rounded-lg px-3 py-2.5 text-[0.92rem] font-medium text-white/70 transition hover:bg-white/[0.06] hover:text-white" href={item.href} onClick={(event) => scrollToSection(event, item.href)}>
                 {item.label}
               </a>
