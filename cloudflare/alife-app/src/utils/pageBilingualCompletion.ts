@@ -122,7 +122,7 @@ const pushSectionCandidates = (
     }
   }
 
-  if (section.type === 'Hero' || section.type === 'LandingHero' || section.type === 'Spotlight') {
+  if (section.type === 'Hero' || section.type === 'LandingHero' || section.type === 'Countdown' || section.type === 'Spotlight') {
     const body = findFirstTextValue(section.contentJson, ['body', 'centerText', 'text'])
     if (body !== undefined) {
       candidates.push({

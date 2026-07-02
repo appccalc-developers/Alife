@@ -116,6 +116,76 @@ export const createEmptyPageSection = (type: SectionType = 'Hero'): SectionEditM
     }
   }
 
+  if (type === 'Countdown') {
+    const headerTitle = localized('Prepare for the next gathering.', '为下一次相聚预备。')
+    const headerSubtitle = localized(
+      'Use a focused countdown to help people remember the date and take the next step.',
+      '用清楚的倒数提醒大家记得时间，并回应下一步。',
+    )
+    const cardTitle = localized('Next gathering', '下一次相聚')
+    const cardBody = localized(
+      'Add event details, registration timing, or a ministry invitation here.',
+      '在这里加入活动详情、报名时间或服事邀请。',
+    )
+
+    return {
+      order: 0,
+      type: 'Countdown',
+      contentJson: {
+        sectionKind: 'countdown',
+        header: {
+          ...createDefaultSectionHeader(),
+          title: headerTitle,
+          subtitle: headerSubtitle,
+          align: 'left',
+          scale: 'normal',
+          tone: 'warm',
+        },
+        spacing: 'large',
+        countdown: {
+          mode: 'custom',
+          preset: 'upcoming',
+          targetField: 'startDate',
+          eventId: '',
+        },
+        eyebrow: localized('Countdown', '倒数计时'),
+        title: cardTitle,
+        headline: cardTitle,
+        body: cardBody,
+        centerText: cardBody,
+        text: cardBody,
+        cardEyebrow: localized('Save the date', '请预留时间'),
+        countdownLabel: localized('Until it begins', '距离开始'),
+        currentLabel: localized('Happening now', '正在进行'),
+        completeLabel: localized('Countdown complete', '倒数已结束'),
+        metaLabel: localized('Target time', '目标时间'),
+        metaValue: localized('To be confirmed', '时间待确认'),
+        footerText: localized('Confirm details before publishing.', '发布前请确认详情。'),
+        items: [
+          { text: localized('Clarify who should respond and what the next step is.', '说明谁需要回应，以及下一步是什么。') },
+          { text: localized('Keep the message short enough for mobile readers.', '让信息足够简短，方便手机阅读。') },
+          { text: localized('Use the button to send people to details, enrollment, or contact.', '用按钮带大家前往详情、报名或联系入口。') },
+        ],
+        targetDateTime: '',
+        countdownTarget: '',
+        endDateTime: '',
+        imageUrl: '/media/alife-message-poster.jpg',
+        backgroundImage: '/media/alife-message-poster.jpg',
+        backgroundImageUrl: '/media/alife-message-poster.jpg',
+        linkLabel: localized('Learn more', '了解更多'),
+        linkText: localized('Learn more', '了解更多'),
+        ctaLabel: localized('Learn more', '了解更多'),
+        linkUrl: '',
+        ctaUrl: '',
+        href: '',
+      },
+      styleJson: {
+        layout: 'countdown',
+        frontendType: 'Countdown',
+      },
+    }
+  }
+
   if (type === 'Spotlight') {
     return {
       order: 0,
