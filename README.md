@@ -53,6 +53,46 @@ global.json                .NET SDK version pin
 
 ## Local Setup
 
+### One-command local dev
+
+From the repository root, use the Windows wrapper when you want the normal local test stack:
+
+```powershell
+.\alife-dev.cmd -SkipSql
+```
+
+That starts `backend/src/Alife.Api`, `cloudflare/speed-layer`, and `cloudflare/alife-app`. Azurite and scheduled Functions are skipped for the normal UI/API workflow. Use `-SkipSql` when Docker Desktop has already started the SQL Server container. When the database schema or seed data needs refreshing, run:
+
+```powershell
+.\alife-dev.cmd -SkipSql -ApplyMigrations
+```
+
+With `-ApplyMigrations -SkipSql`, the script still waits for the existing SQL Server container to become healthy before running `Alife.DbMigrator`.
+
+Useful options:
+
+```powershell
+.\alife-dev.cmd                         # also starts the SQL Server container
+.\alife-dev.cmd -SkipSql -UseAzurite     # also start local Azure Storage emulator
+.\alife-dev.cmd -SkipSpeedLayer          # API + Vite only
+.\alife-dev.cmd -RebuildFrontendAssets   # rebuild dist before starting speed-layer
+```
+
+Azurite is skipped by default because the regular UI/API local workflow does not need local Azure Storage. The backend has a `SermonSync` TimerTrigger, so scheduled Functions are disabled by default. To test scheduled jobs locally, install Azurite once and run:
+
+```powershell
+npm install -g azurite
+.\alife-dev.cmd -SkipSql -UseAzurite -EnableScheduledJobs
+```
+
+The script writes service logs under `.local-dev/logs`. The local URLs are:
+
+| Service | URL |
+|---|---|
+| Frontend Vite app | `http://localhost:5173` |
+| Cloudflare speed layer | `http://localhost:8787` |
+| Azure Functions API | `http://127.0.0.1:7071` |
+
 ### 1. Start SQL Server
 
 ```powershell
