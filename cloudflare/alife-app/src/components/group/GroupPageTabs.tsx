@@ -41,6 +41,17 @@ const parseTags = (tagsJson?: string): string[] => {
   }
 }
 
+const formatReviewDate = (value: string, language: string) => {
+  if (!value) {
+    return ''
+  }
+
+  return new Intl.DateTimeFormat(language === 'zh' ? 'zh-CN' : undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(value))
+}
+
 const toEditModel = (page: GroupPageDto): PageEditModel => ({
   id: page.id,
   groupId: page.ownerGroupId ?? '',
@@ -96,6 +107,19 @@ const GroupPageTabs = ({
     () => subgroups.map((subgroup) => ({ ...subgroup, name: localizeText(subgroup.name, language) })),
     [language, subgroups],
   )
+  const activeRefusal = activePage?.reviewRefusal ?? null
+  const refusalNotice = activeRefusal ? (
+    <section className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+      <p className="font-black text-rose-900">{t('pageGlobalReviewRefused')}</p>
+      <p className="mt-1 font-semibold">
+        {t('pageGlobalReviewRefusalMeta', {
+          reviewer: activeRefusal.reviewerDisplayName || t('unknownReviewer'),
+          time: formatReviewDate(activeRefusal.refusedUtc, language),
+        })}
+      </p>
+      <p className="mt-2 leading-6">{t('pageGlobalReviewRefusalReason', { reason: activeRefusal.reason })}</p>
+    </section>
+  ) : null
 
   useEffect(() => {
     if (!activePage) {
@@ -248,6 +272,8 @@ const GroupPageTabs = ({
 
         {error ? <section className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</section> : null}
 
+        {refusalNotice}
+
         {activePage && !error && (!loadingPageId || activePage.id !== loadingPageId) ? (
           <PageContentRenderer
             page={activePage}
@@ -277,6 +303,8 @@ const GroupPageTabs = ({
         ) : null}
 
         {error ? <p className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p> : null}
+
+        {refusalNotice}
 
         {activePage && mode === 'view' && !error && (!loadingPageId || activePage.id !== loadingPageId) ? (
           <PageContentRenderer

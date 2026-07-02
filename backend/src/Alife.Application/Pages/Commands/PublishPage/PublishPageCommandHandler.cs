@@ -24,18 +24,21 @@ public sealed class PublishPageCommandHandler(
             return AppResult<PageDto>.NotFound("Page was not found.");
         }
 
+        var canReviewPages = await groupAuthorizationService.CanReviewPagesAsync(request.CurrentMemberId, cancellationToken);
+
         if (page.Scope == PageScope.Global)
         {
-            if (!await groupAuthorizationService.IsAdminAsync(request.CurrentMemberId, cancellationToken))
+            if (!canReviewPages && !await groupAuthorizationService.IsAdminAsync(request.CurrentMemberId, cancellationToken))
             {
                 return AppResult<PageDto>.Forbidden("You do not have permission to publish this page.");
             }
         }
         else if (page.OwnerGroupId is null ||
-                 !await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
+                 (!canReviewPages &&
+                  !await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
                      page.OwnerGroupId.Value,
                      request.CurrentMemberId,
-                     cancellationToken))
+                     cancellationToken)))
         {
             return AppResult<PageDto>.Forbidden("You do not have permission to publish this page.");
         }
@@ -62,6 +65,7 @@ public sealed class PublishPageCommandHandler(
         if (page.OwnerGroupId.HasValue)
         {
             await pageCacheInvalidationService.RemoveGroupPagesAsync(page.OwnerGroupId.Value, cancellationToken);
+            await pageCacheInvalidationService.RemoveGlobalAsync(cancellationToken);
         }
     }
 

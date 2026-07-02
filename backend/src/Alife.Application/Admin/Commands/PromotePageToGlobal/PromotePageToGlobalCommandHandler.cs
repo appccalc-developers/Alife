@@ -42,13 +42,10 @@ public sealed class PromotePageToGlobalCommandHandler(
         {
             scope = page.Scope.ToString(),
             ownerGroupId = page.OwnerGroupId,
-            visibility = page.Visibility.ToString()
+            visibility = page.Visibility.ToString(),
+            globalPublicationStatus = "Pending",
+            pageUpdatedUtc = page.UpdatedUtc
         };
-
-        page.Scope = PageScope.Global;
-        page.OwnerGroupId = null;
-        page.Visibility = PageVisibility.Public;
-        page.UpdatedUtc = now;
 
         await dbContext.AuditLogs.AddAsync(new AuditLog
         {
@@ -63,9 +60,11 @@ public sealed class PromotePageToGlobalCommandHandler(
             {
                 scope = page.Scope.ToString(),
                 ownerGroupId = page.OwnerGroupId,
-                visibility = page.Visibility.ToString()
+                visibility = page.Visibility.ToString(),
+                globalPublicationStatus = "Approved",
+                pageUpdatedUtc = page.UpdatedUtc
             }),
-            MetadataJson = JsonSerializer.Serialize(new { previousOwnerGroupId }),
+            MetadataJson = JsonSerializer.Serialize(new { previousOwnerGroupId, pageUpdatedUtc = page.UpdatedUtc }),
             OccurredUtc = now
         }, cancellationToken);
 

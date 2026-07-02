@@ -32,7 +32,6 @@ type Props = {
   message?: string
   onPageChange?: (page: PageEditModel) => void
   onSectionsChange?: (sections: SectionEditModel[]) => void
-  onEditPage?: (pageId: string, groupId: string) => void
 }
 
 const createDefaultSectionHeader = () => ({
@@ -479,7 +478,6 @@ const PageContentRenderer = ({
   framed = true,
   message,
   onSectionsChange,
-  onEditPage,
 }: Props) => {
   const auth = useAuthStore()
   const t = useUiText()
@@ -524,18 +522,6 @@ const PageContentRenderer = ({
   const articleClassName = framed
     ? 'w-full min-w-0 space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5'
     : 'w-full min-w-0 space-y-4'
-  const editPageAction = 'ownerGroupId' in page && page.ownerGroupId && onEditPage ? (
-    <div className="flex flex-wrap gap-2">
-      <button
-        className="rounded border border-blue-300 px-3 py-2 text-sm text-blue-700 hover:bg-blue-50"
-        type="button"
-        onClick={() => onEditPage(page.id, page.ownerGroupId as string)}
-      >
-        {t('editPage')}
-      </button>
-    </div>
-  ) : null
-
   if (useFlatSectionRender) {
     return (
       <>
@@ -557,18 +543,6 @@ const PageContentRenderer = ({
         {sections.length === 0 ? (
           <section className={pageSectionShellClass}>
             <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">{t('noSectionsYet')}</div>
-          </section>
-        ) : null}
-
-        {'ownerGroupId' in page && page.ownerGroupId && onEditPage ? (
-          <section className={pageSectionShellClass}>
-            <button
-              className="rounded border border-blue-300 px-3 py-2 text-sm text-blue-700 hover:bg-blue-50"
-              type="button"
-              onClick={() => onEditPage(page.id, page.ownerGroupId as string)}
-            >
-              {t('editPage')}
-            </button>
           </section>
         ) : null}
       </>
@@ -650,7 +624,6 @@ const PageContentRenderer = ({
         </div>
       )}
 
-      {editPageAction}
     </article>
   )
 }

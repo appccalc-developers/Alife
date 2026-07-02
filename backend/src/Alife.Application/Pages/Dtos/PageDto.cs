@@ -12,7 +12,14 @@ public sealed record PageDto(
     string TagsJson,
     string TitleDisplayStyle,
     PageVisibility Visibility,
-    DateTime UpdatedUtc);
+    DateTime UpdatedUtc,
+    PageReviewRefusalDto? ReviewRefusal = null);
+
+public sealed record PageReviewRefusalDto(
+    Guid ReviewerMemberId,
+    string? ReviewerDisplayName,
+    DateTime RefusedUtc,
+    string Reason);
 
 public sealed record PageSectionDto(
     Guid? Id,

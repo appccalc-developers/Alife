@@ -1,3 +1,4 @@
+using Alife.Application.Admin;
 using Alife.Application.Pages.Dtos;
 using Alife.Application.Pages.Services;
 using Alife.Domain.Enums;
@@ -17,7 +18,21 @@ public sealed class PageReadService(AlifeDbContext dbContext, HybridCache hybrid
             {
                 var pages = await dbContext.Pages
                     .AsNoTracking()
-                    .Where(x => x.Scope == PageScope.Global && x.Visibility == PageVisibility.Public)
+                    .Where(page =>
+                        page.Visibility == PageVisibility.Public &&
+                        (page.Scope == PageScope.Global ||
+                         (page.Scope == PageScope.Group &&
+                          page.OwnerGroupId != null &&
+                          dbContext.AuditLogs.Any(promote =>
+                              promote.Action == PageGlobalReviewActions.Promote &&
+                              promote.EntityType == "page" &&
+                              promote.EntityId == page.Id &&
+                              promote.OccurredUtc >= page.UpdatedUtc &&
+                              !dbContext.AuditLogs.Any(refusal =>
+                                  refusal.Action == PageGlobalReviewActions.Refuse &&
+                                  refusal.EntityType == "page" &&
+                                  refusal.EntityId == page.Id &&
+                                  refusal.OccurredUtc >= promote.OccurredUtc)))))
                     .OrderBy(x => x.UpdatedUtc)
                     .ToListAsync(token);
 
@@ -32,10 +47,22 @@ public sealed class PageReadService(AlifeDbContext dbContext, HybridCache hybrid
             {
                 var pages = await dbContext.Pages
                     .AsNoTracking()
-                    .Where(x =>
-                        x.Visibility == PageVisibility.Public &&
-                        (x.Scope == PageScope.Global ||
-                         (x.Scope == PageScope.Group && x.OwnerGroup != null && x.OwnerGroup.IsChurch)))
+                    .Where(page =>
+                        page.Visibility == PageVisibility.Public &&
+                        (page.Scope == PageScope.Global ||
+                         (page.Scope == PageScope.Group && page.OwnerGroup != null && page.OwnerGroup.IsChurch) ||
+                         (page.Scope == PageScope.Group &&
+                          page.OwnerGroupId != null &&
+                          dbContext.AuditLogs.Any(promote =>
+                              promote.Action == PageGlobalReviewActions.Promote &&
+                              promote.EntityType == "page" &&
+                              promote.EntityId == page.Id &&
+                              promote.OccurredUtc >= page.UpdatedUtc &&
+                              !dbContext.AuditLogs.Any(refusal =>
+                                  refusal.Action == PageGlobalReviewActions.Refuse &&
+                                  refusal.EntityType == "page" &&
+                                  refusal.EntityId == page.Id &&
+                                  refusal.OccurredUtc >= promote.OccurredUtc)))))
                     .OrderBy(x => x.UpdatedUtc)
                     .ThenBy(x => x.Id)
                     .ToListAsync(token);

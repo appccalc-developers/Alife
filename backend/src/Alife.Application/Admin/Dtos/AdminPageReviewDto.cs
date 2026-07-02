@@ -6,7 +6,7 @@ namespace Alife.Application.Admin.Dtos;
 public sealed record AdminPageReviewDto(
     Guid Id,
     PageScope Scope,
-    Guid OwnerGroupId,
+    Guid? OwnerGroupId,
     IReadOnlyDictionary<string, string> OwnerGroupName,
     Guid CreatedByMemberId,
     string? CreatorDisplayName,

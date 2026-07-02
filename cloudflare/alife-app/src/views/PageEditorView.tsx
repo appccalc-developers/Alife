@@ -183,8 +183,9 @@ const PageEditorView = () => {
   }, [auth.me?.id, pageModel.createdByMemberId, pageModel.visibility])
 
   const canCreatePage = isGlobalCreateMode ? auth.isAdmin : Boolean(membership?.status === 'approved' || canEditAllPages)
-  const canEditPage = isCreateMode ? canCreatePage : canEditAllPages || isCreatorDraft
-  const canEditVisibility = canEditAllPages
+  const canReviewExistingPage = !isCreateMode && auth.canReviewPages
+  const canEditPage = isCreateMode ? canCreatePage : canEditAllPages || canReviewExistingPage || isCreatorDraft
+  const canEditVisibility = canEditAllPages || canReviewExistingPage
 
   const validation = useMemo(() => validatePageContent(pageModel, auth.language), [auth.language, pageModel])
   const missingTranslationCount = useMemo(() => collectMissingPageTranslations(pageModel).length, [pageModel])
