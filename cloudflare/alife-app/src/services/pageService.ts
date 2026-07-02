@@ -49,6 +49,8 @@ const toSectionPayloadType = (type: SectionEditModel['type']): string => {
   switch (type) {
     case 'LandingHero':
       return 'hero'
+    case 'Countdown':
+      return 'hero'
     case 'Hero':
       return 'hero'
     case 'Spotlight':
@@ -66,16 +68,28 @@ const toSectionPayloadType = (type: SectionEditModel['type']): string => {
 
 const contentJsonForWrite = (section: SectionEditModel) => {
   const contentJson = section.contentJson ?? {}
-  return section.type === 'LandingHero'
-    ? { ...contentJson, sectionKind: 'landingHero' }
-    : contentJson
+  if (section.type === 'LandingHero') {
+    return { ...contentJson, sectionKind: 'landingHero' }
+  }
+
+  if (section.type === 'Countdown') {
+    return { ...contentJson, sectionKind: 'countdown' }
+  }
+
+  return contentJson
 }
 
 const styleJsonForWrite = (section: SectionEditModel) => {
   const styleJson = section.styleJson ?? {}
-  return section.type === 'LandingHero'
-    ? { ...styleJson, layout: 'landingHero', frontendType: 'LandingHero' }
-    : styleJson
+  if (section.type === 'LandingHero') {
+    return { ...styleJson, layout: 'landingHero', frontendType: 'LandingHero' }
+  }
+
+  if (section.type === 'Countdown') {
+    return { ...styleJson, layout: 'countdown', frontendType: 'Countdown' }
+  }
+
+  return styleJson
 }
 
 const buildSectionWritePayload = (section: SectionEditModel, order: number) => ({
