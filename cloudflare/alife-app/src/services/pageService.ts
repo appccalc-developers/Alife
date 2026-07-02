@@ -48,11 +48,13 @@ export type PublishPageOptimizedPayload = {
 const toSectionPayloadType = (type: SectionEditModel['type']): string => {
   switch (type) {
     case 'LandingHero':
-      return 'hero'
+      return 'landingHero'
     case 'Countdown':
-      return 'hero'
+      return 'countdown'
+    case 'ContactLocation':
+      return 'contactLocation'
     case 'Spotlight':
-      return 'hero'
+      return 'spotlight'
     case 'RichText':
       return 'richText'
     case 'ListView':
@@ -72,6 +74,10 @@ const contentJsonForWrite = (section: SectionEditModel) => {
     return { ...contentJson, sectionKind: 'countdown' }
   }
 
+  if (section.type === 'ContactLocation') {
+    return { ...contentJson, sectionKind: 'contactLocation', datasource: 'custom' }
+  }
+
   return contentJson
 }
 
@@ -83,6 +89,10 @@ const styleJsonForWrite = (section: SectionEditModel) => {
 
   if (section.type === 'Countdown') {
     return { ...styleJson, layout: 'countdown', frontendType: 'Countdown' }
+  }
+
+  if (section.type === 'ContactLocation') {
+    return { ...styleJson, layout: 'contactLocation', frontendType: 'ContactLocation' }
   }
 
   return styleJson

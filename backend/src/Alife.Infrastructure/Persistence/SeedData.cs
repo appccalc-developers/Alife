@@ -152,7 +152,7 @@ public static class SeedData
 				Id = Guid.NewGuid(),
 				PageId = homePageId,
 				Order = 1,
-				Type = SectionType.Hero,
+				Type = SectionType.LandingHero,
 				ContentJson = JsonSerializer.Serialize(new
 				{
 					title = new { en = $"{groupName} Home", zh = $"{groupName} 主页" },
@@ -167,7 +167,7 @@ public static class SeedData
 				Id = Guid.NewGuid(),
 				PageId = eventsPageId,
 				Order = 1,
-				Type = SectionType.Hero,
+				Type = SectionType.LandingHero,
 				ContentJson = JsonSerializer.Serialize(new
 				{
 					title = new { en = $"{groupName} Events", zh = $"{groupName} 活动" },
@@ -585,7 +585,7 @@ public static class SeedData
 				Id = DeterministicGuid(pageId, "hero"),
 				PageId = pageId,
 				Order = 1,
-				Type = SectionType.Hero,
+				Type = SectionType.LandingHero,
 				ContentJson = JsonSerializer.Serialize(new
 				{
 					title = new { en = "Welcome to this demo group", zh = "欢迎来到演示小组" },

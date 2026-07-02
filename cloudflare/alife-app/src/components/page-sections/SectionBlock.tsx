@@ -1,5 +1,6 @@
 import LandingHeroSection from './LandingHeroSection'
 import CountdownSection from './CountdownSection'
+import ContactLocationSection from './ContactLocationSection'
 import SpotlightSection from './SpotlightSection'
 import RichTextSection from './RichTextSection'
 import GroupListSectionBlock from './GroupListSectionBlock'
@@ -12,6 +13,8 @@ const SectionBlock = (props: SectionComponentProps) => {
       return <LandingHeroSection {...props} />
     case 'Countdown':
       return <CountdownSection {...props} />
+    case 'ContactLocation':
+      return <ContactLocationSection {...props} />
     case 'Spotlight':
       return <SpotlightSection {...props} />
     case 'RichText':

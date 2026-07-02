@@ -6,6 +6,7 @@ import {
   ImageUp,
   LayoutList,
   Link2,
+  MapPin,
   Megaphone,
   MoveVertical,
   Settings2,
@@ -39,6 +40,7 @@ type Props = {
 const sectionTypeLabel = (type: SectionType, isZh: boolean) => {
   if (type === 'LandingHero') return isZh ? '首页视频主视觉' : 'Landing Hero'
   if (type === 'Countdown') return isZh ? '倒数计时' : 'Countdown'
+  if (type === 'ContactLocation') return isZh ? '联系地点' : 'Contact Location'
   if (type === 'RichText') return isZh ? '图文说明' : 'Rich Text'
   if (type === 'Spotlight') return isZh ? '重点推荐' : 'Spotlight'
   if (type === 'ListView') return isZh ? '列表视图' : 'List View'
@@ -192,6 +194,11 @@ const getSectionGuide = (section: SectionEditModel, language: string) => {
   const countdownTarget = readContentText(section, language, 'targetDateTime', 'countdownTarget', 'endDateTime')
   const limit = typeof section.contentJson.limit === 'number' ? section.contentJson.limit : 0
   const richText = readContentText(section, language, 'text')
+  const locationName = readContentText(section, language, 'locationName', 'title')
+  const streetAddress = readContentText(section, language, 'streetAddress', 'address')
+  const locationAddress = readContentText(section, language, 'locationAddress', 'addressNote', 'body')
+  const mapUrl = readContentText(section, language, 'mapUrl', 'linkUrl', 'ctaUrl', 'href')
+  const mapEmbedUrl = readContentText(section, language, 'mapEmbedUrl', 'embedUrl')
 
   if (section.type === 'LandingHero') {
     return {
@@ -246,6 +253,28 @@ const getSectionGuide = (section: SectionEditModel, language: string) => {
         },
       ] satisfies GuideItem[],
       advice: isZh ? '绑定活动时会自动带入标题、说明、地点、海报与倒数目标；发布前请确认活动时间正确。' : 'When event-bound, title, copy, location, poster, and target time are auto-filled; confirm the event time before publishing.',
+    }
+  }
+
+  if (section.type === 'ContactLocation') {
+    return {
+      title: isZh ? '联系地点引导' : 'Contact location guidance',
+      description: isZh ? '适合在自定义页面展示首页风格的地点、地图和打开地图入口。' : 'Use this to show a homepage-style location, map, and map-opening action on custom pages.',
+      items: [
+        {
+          label: isZh ? '数据来源' : 'Datasource',
+          ready: true,
+          detail: isZh ? '自定义' : 'Customized',
+          icon: <LayoutList className="h-4 w-4" />,
+          target: { type: 'properties', tab: 'section', focusKey: 'contact-location-source-mode' },
+        },
+        { label: isZh ? '地点名称' : 'Location name', ready: Boolean(locationName), detail: summarizeValue(locationName, isZh), icon: <MapPin className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'contact-location-name' } },
+        { label: isZh ? '街道地址' : 'Street address', ready: Boolean(streetAddress), detail: summarizeValue(streetAddress, isZh), icon: <FileText className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'contact-location-street-address' } },
+        { label: isZh ? '地址补充' : 'Address note', ready: Boolean(locationAddress), detail: summarizeValue(locationAddress, isZh), icon: <FileText className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'contact-location-address-note' } },
+        { label: isZh ? '地图链接' : 'Map link', ready: Boolean(mapUrl), detail: summarizeValue(mapUrl, isZh), icon: <Link2 className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'contact-location-map-url' } },
+        { label: isZh ? '嵌入地图' : 'Embedded map', ready: Boolean(mapEmbedUrl), detail: summarizeValue(mapEmbedUrl, isZh), icon: <ImageUp className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'contact-location-map-embed-url' } },
+      ] satisfies GuideItem[],
+      advice: isZh ? '目前只支持自定义地点；发布前请确认嵌入地图可正常显示。' : 'This section currently supports customized location content only; confirm the embedded map renders before publishing.',
     }
   }
 

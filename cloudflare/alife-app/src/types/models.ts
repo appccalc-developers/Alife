@@ -119,6 +119,7 @@ export type LinkDto = {
 export type SectionType =
   | 'LandingHero'
   | 'Countdown'
+  | 'ContactLocation'
   | 'Spotlight'
   | 'RichText'
   | 'ListView'

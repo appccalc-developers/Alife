@@ -70,7 +70,7 @@ public class SectionCommandAuthorizationTests
             Id = sectionId,
             PageId = pageId,
             Order = 1,
-            Type = SectionType.Hero,
+            Type = SectionType.LandingHero,
             ContentJson = "{}",
             StyleJson = "{}"
         });
@@ -114,7 +114,7 @@ public class SectionCommandAuthorizationTests
             Id = sectionId,
             PageId = pageId,
             Order = 1,
-            Type = SectionType.Hero,
+            Type = SectionType.LandingHero,
             ContentJson = "{}",
             StyleJson = "{}"
         });

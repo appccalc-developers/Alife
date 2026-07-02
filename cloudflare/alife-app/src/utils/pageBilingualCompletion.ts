@@ -153,6 +153,53 @@ const pushSectionCandidates = (
     }
   }
 
+  if (section.type === 'ContactLocation') {
+    const locationTitle = findFirstTextValue(section.contentJson, ['locationTitle'])
+    if (locationTitle !== undefined) {
+      candidates.push({
+        field: `sections.${index}.locationTitle`,
+        textType: 'sectionHeaderTitle',
+        value: locationTitle,
+      })
+    }
+
+    const locationName = findFirstTextValue(section.contentJson, ['locationName', 'title'])
+    if (locationName !== undefined) {
+      candidates.push({
+        field: `sections.${index}.locationName`,
+        textType: 'sectionTitle',
+        value: locationName,
+      })
+    }
+
+    const streetAddress = findFirstTextValue(section.contentJson, ['streetAddress', 'address'])
+    if (streetAddress !== undefined) {
+      candidates.push({
+        field: `sections.${index}.streetAddress`,
+        textType: 'sectionBody',
+        value: streetAddress,
+      })
+    }
+
+    const locationAddress = findFirstTextValue(section.contentJson, ['locationAddress', 'addressNote', 'body'])
+    if (locationAddress !== undefined) {
+      candidates.push({
+        field: `sections.${index}.locationAddress`,
+        textType: 'sectionBody',
+        value: locationAddress,
+      })
+    }
+
+    const openMapLabel = findFirstTextValue(section.contentJson, ['openMapLabel', 'linkLabel', 'linkText', 'ctaLabel'])
+    if (openMapLabel !== undefined) {
+      candidates.push({
+        field: `sections.${index}.openMapLabel`,
+        textType: 'sectionActionLabel',
+        value: openMapLabel,
+      })
+    }
+  }
+
   if (section.type === 'RichText') {
     const text = findFirstTextValue(section.contentJson, ['text'])
     if (text !== undefined) {
@@ -259,6 +306,22 @@ const contentAliasesForField = (section: SectionEditModel, field: string) => {
 
   if (field === 'secondaryLinkLabel') {
     return ['secondaryLinkLabel', 'secondaryLabel', 'secondaryCtaLabel']
+  }
+
+  if (field === 'locationName') {
+    return ['locationName', 'title']
+  }
+
+  if (field === 'streetAddress') {
+    return ['streetAddress', 'address']
+  }
+
+  if (field === 'locationAddress') {
+    return ['locationAddress', 'addressNote', 'body']
+  }
+
+  if (field === 'openMapLabel') {
+    return ['openMapLabel', 'linkLabel', 'linkText', 'ctaLabel']
   }
 
   return [field]
