@@ -38,12 +38,10 @@ type Props = {
 
 const sectionTypeLabel = (type: SectionType, isZh: boolean) => {
   if (type === 'LandingHero') return isZh ? '首页视频主视觉' : 'Landing Hero'
-  if (type === 'Hero') return isZh ? '主视觉' : 'Hero'
   if (type === 'Countdown') return isZh ? '倒数计时' : 'Countdown'
   if (type === 'RichText') return isZh ? '图文说明' : 'Rich Text'
   if (type === 'Spotlight') return isZh ? '重点推荐' : 'Spotlight'
   if (type === 'ListView') return isZh ? '列表视图' : 'List View'
-  if (type === 'Sermon') return isZh ? '讲道视频' : 'Sermon Video'
   return type
 }
 
@@ -193,7 +191,6 @@ const getSectionGuide = (section: SectionEditModel, language: string) => {
   const countdownPreset = textValue(countdown.preset, language) || 'upcoming'
   const countdownTarget = readContentText(section, language, 'targetDateTime', 'countdownTarget', 'endDateTime')
   const limit = typeof section.contentJson.limit === 'number' ? section.contentJson.limit : 0
-  const youtubeUrl = readContentText(section, language, 'youtubeUrl')
   const richText = readContentText(section, language, 'text')
 
   if (section.type === 'LandingHero') {
@@ -252,20 +249,6 @@ const getSectionGuide = (section: SectionEditModel, language: string) => {
     }
   }
 
-  if (section.type === 'Hero') {
-    return {
-      title: isZh ? '开场横幅引导' : 'Opening banner guidance',
-      description: isZh ? '适合承载页面最重要的邀请，文案要短，行动要明确。' : 'Use this for the page’s primary invitation: short copy and a clear action.',
-      items: [
-        { label: isZh ? '主标题' : 'Main headline', ready: Boolean(title), detail: summarizeValue(title, isZh), icon: <Type className="h-4 w-4" />, target: { type: 'preview', index: 0 } },
-        { label: isZh ? '说明文案' : 'Supporting copy', ready: Boolean(subtitle), detail: summarizeValue(subtitle, isZh), icon: <FileText className="h-4 w-4" />, target: { type: 'preview', index: 1 } },
-        { label: isZh ? '背景图片/视频' : 'Background media', ready: isMediaValue(media), detail: summarizeValue(media, isZh), icon: <ImageUp className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'hero-media' } },
-        { label: isZh ? '行动按钮' : 'Call to action', ready: Boolean(linkLabel && linkUrl), detail: linkUrl ? summarizeValue(linkUrl, isZh) : summarizeValue(linkLabel, isZh), icon: <Link2 className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'hero-cta-url' } },
-      ] satisfies GuideItem[],
-      advice: isZh ? '发布前请确认手机上文字不会遮挡人物或重要画面。' : 'Before publishing, check that mobile text does not cover important faces or visuals.',
-    }
-  }
-
   if (section.type === 'RichText') {
     return {
       title: isZh ? '文字内容引导' : 'Rich text guidance',
@@ -289,18 +272,6 @@ const getSectionGuide = (section: SectionEditModel, language: string) => {
         { label: isZh ? '数量限制' : 'Item limit', ready: limit > 0 && limit <= 50, detail: limit ? (isZh ? `${limit} 项` : `${limit} items`) : fallbackText(isZh), icon: <Settings2 className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'list-limit' } },
       ] satisfies GuideItem[],
       advice: isZh ? '首页建议显示 3 到 6 项，管理页或列表页可以更多。' : 'For home pages, 3 to 6 items usually scans best; directory pages can show more.',
-    }
-  }
-
-  if (section.type === 'Sermon') {
-    return {
-      title: isZh ? '讲道嵌入引导' : 'Sermon embed guidance',
-      description: isZh ? '适合突出一篇信息、系列或主日讲道。' : 'Use this to feature one message, series, or Sunday sermon.',
-      items: [
-        { label: isZh ? '讲道标题' : 'Sermon title', ready: Boolean(title || readContentText(section, language, 'title')), detail: summarizeValue(title || readContentText(section, language, 'title'), isZh), icon: <Type className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'sermon-title' } },
-        { label: isZh ? 'YouTube 链接' : 'YouTube URL', ready: Boolean(youtubeUrl), detail: summarizeValue(youtubeUrl, isZh), icon: <Clapperboard className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'sermon-youtube-url' } },
-      ] satisfies GuideItem[],
-      advice: isZh ? '建议使用官方频道视频链接，并在发布后确认播放器可正常打开。' : 'Use the official channel URL and confirm the player opens after publishing.',
     }
   }
 

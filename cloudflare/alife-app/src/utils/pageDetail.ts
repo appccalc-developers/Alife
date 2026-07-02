@@ -77,6 +77,18 @@ const isLandingHeroMetadata = (contentJson: Record<string, unknown>, styleJson: 
   return normalized === 'landinghero' || normalized === 'landingherosection'
 }
 
+const isCountdownMetadata = (contentJson: Record<string, unknown>, styleJson: Record<string, unknown>) => {
+  const marker = firstString(
+    contentJson.sectionKind,
+    contentJson.frontendType,
+    styleJson.sectionKind,
+    styleJson.frontendType,
+    styleJson.layout,
+  )
+  const normalized = marker.replace(/[-_\s]+/g, '').toLowerCase()
+  return normalized === 'countdown' || normalized === 'countdownsection'
+}
+
 const isSpotlightLayout = (layout: string) => {
   const normalized = layout.replace(/[-_\s]+/g, '').toLowerCase()
   return normalized === 'mediaspotlight'
@@ -170,10 +182,8 @@ const parseJsonObject = (value: string | Record<string, unknown> | null | undefi
 }
 
 const sectionTypeMapByNumber: Record<number, SectionEditModel['type']> = {
-  0: 'Hero',
   1: 'RichText',
   2: 'RichText',
-  3: 'Sermon',
   4: 'ListView',
   5: 'ListView',
   6: 'ListView',
@@ -186,16 +196,13 @@ const normalizeSectionType = (value: number | string): SectionEditModel['type'] 
 
   const normalized = String(value)
   const sectionTypeMapByName: Record<string, SectionEditModel['type']> = {
-    hero: 'Hero',
     landingHero: 'LandingHero',
     countdown: 'Countdown',
     mediaSpotlight: 'Spotlight',
     spotlight: 'Spotlight',
     sermonSpotlight: 'Spotlight',
-    iconFeatureGrid: 'Hero',
     richText: 'RichText',
     postFeed: 'RichText',
-    sermon: 'Sermon',
     groupList: 'ListView',
     eventList: 'ListView',
     gallery: 'ListView',
@@ -213,7 +220,6 @@ const normalizeSectionType = (value: number | string): SectionEditModel['type'] 
     Countdown: 'Countdown',
     MediaSpotlight: 'Spotlight',
     SermonSpotlight: 'Spotlight',
-    IconFeatureGrid: 'Hero',
     PostFeed: 'RichText',
     Gallery: 'ListView',
     MediaGallery: 'ListView',
@@ -224,8 +230,17 @@ const normalizeSectionType = (value: number | string): SectionEditModel['type'] 
     return legacySectionTypeMap[normalized]
   }
 
-  const values = ['Hero', 'LandingHero', 'Countdown', 'Spotlight', 'RichText', 'Sermon', 'ListView'] as const
+  const values = ['LandingHero', 'Countdown', 'Spotlight', 'RichText', 'ListView'] as const
   return values.includes(normalized as (typeof values)[number]) ? (normalized as SectionEditModel['type']) : 'RichText'
+}
+
+const isHeroStorageType = (value: number | string) => {
+  if (value === 0) {
+    return true
+  }
+
+  const normalized = String(value).replace(/[-_\s]+/g, '').toLowerCase()
+  return normalized === 'hero' || normalized === 'iconfeaturegrid'
 }
 
 export const normalizePageSection = (section: SectionDto): SectionEditModel => {
@@ -246,10 +261,13 @@ export const normalizePageSection = (section: SectionDto): SectionEditModel => {
   }
   const layout = typeof styleJson.layout === 'string' ? styleJson.layout : ''
 
+  const isStoredAsHero = isHeroStorageType(section.type)
   const type =
-    normalizedType === 'Hero' && isLandingHeroMetadata(contentJson, styleJson)
+    isStoredAsHero && isLandingHeroMetadata(contentJson, styleJson)
       ? 'LandingHero'
-      : normalizedType === 'Hero' && isSpotlightLayout(layout)
+      : isStoredAsHero && isCountdownMetadata(contentJson, styleJson)
+      ? 'Countdown'
+      : isStoredAsHero && isSpotlightLayout(layout)
       ? 'Spotlight'
       : normalizedType
 
