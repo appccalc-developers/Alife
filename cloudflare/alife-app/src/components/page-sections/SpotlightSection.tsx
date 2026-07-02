@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { ArrowRight } from 'lucide-react'
 import { useAuthStore } from '../../stores/auth'
 import { useUiText } from '../../i18n/uiText'
 import { useListSourceResolver } from '../../hooks/useListSourceResolver'
@@ -21,7 +22,7 @@ import type { SectionComponentProps } from './types'
 import SectionHeader from './SectionHeader'
 import { pageSectionShellClass, sectionSpacingClass } from './sectionPresets'
 import { spotlightHeaderForSource } from '../../utils/sectionSourcePresets'
-import type { SpotlightDataSource } from '../../types'
+import type { SpotlightBinding, SpotlightDataSource } from '../../types'
 import type { SermonDto } from '../../services/sermonService'
 import {
   buildSpotlightMetadata,
@@ -52,13 +53,41 @@ const readMediaConfig = (source: Record<string, unknown>, style: Record<string, 
   return { type, url, position, youtubeUrl, imageUrl }
 }
 
+type SpotlightPresentation = 'spotlight' | 'visit'
+
+const readStringValue = (source: Record<string, unknown>, ...keys: string[]) => {
+  for (const key of keys) {
+    const value = source[key]
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim()
+    }
+  }
+
+  return ''
+}
+
+const readSpotlightPresentation = (content: Record<string, unknown>, style: Record<string, unknown>): SpotlightPresentation => {
+  const raw = readStringValue(content, 'presentation', 'variant', 'template')
+    || readStringValue(style, 'presentation', 'variant', 'layout')
+  const normalized = raw.replace(/[-_\s]+/g, '').toLowerCase()
+
+  return normalized === 'visit' || normalized === 'visitspotlight' || normalized === 'highlight' || normalized === 'visithighlight' || normalized === 'homevisit'
+    ? 'visit'
+    : 'spotlight'
+}
+
 const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, showProperties = true, onUpdate, contextGroupId, page }: SectionComponentProps) => {
   const auth = useAuthStore()
   const t = useUiText()
   const editable = mode === 'edit' && !disabled && onUpdate
-  const spotlightBinding = readSpotlightBinding(section.contentJson)
-  const isDataBound = spotlightBinding.mode === 'data'
   const mediaConfig = readMediaConfig(section.contentJson, section.styleJson)
+  const presentation = readSpotlightPresentation(section.contentJson, section.styleJson)
+  const isVisitPresentation = presentation === 'visit'
+  const rawSpotlightBinding = readSpotlightBinding(section.contentJson)
+  const spotlightBinding = isVisitPresentation && rawSpotlightBinding.mode === 'data' && rawSpotlightBinding.source !== 'events'
+    ? { ...rawSpotlightBinding, source: 'events' as SpotlightDataSource, preset: defaultSpotlightPreset('events') }
+    : rawSpotlightBinding
+  const isDataBound = spotlightBinding.mode === 'data'
   const groupId = contextGroupId || page?.ownerGroupId || undefined
   const spotlightMetadata = useMemo(
     () => buildSpotlightMetadata(spotlightBinding),
@@ -129,6 +158,35 @@ const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, show
       : {}
     updateContent({ spotlight: { ...currentSpotlight, ...patch } })
   }
+  const updatePresentation = (value: string) => {
+    const nextPresentation: SpotlightPresentation = value === 'visit' ? 'visit' : 'spotlight'
+    const currentSpotlight = section.contentJson.spotlight && typeof section.contentJson.spotlight === 'object' && !Array.isArray(section.contentJson.spotlight)
+      ? section.contentJson.spotlight
+      : {}
+    const nextSpotlight: SpotlightBinding = nextPresentation === 'visit' && spotlightBinding.mode === 'data'
+      ? {
+        ...currentSpotlight,
+        mode: 'data' as const,
+        source: 'events' as const,
+        preset: defaultSpotlightPreset('events'),
+        itemId: spotlightBinding.itemId ?? '',
+      }
+      : currentSpotlight as SpotlightBinding
+
+    onUpdate?.({
+      ...section,
+      contentJson: {
+        ...section.contentJson,
+        presentation: nextPresentation,
+        spotlight: nextSpotlight,
+      },
+      styleJson: {
+        ...section.styleJson,
+        presentation: nextPresentation,
+        layout: nextPresentation === 'visit' ? 'visitSpotlight' : 'spotlight',
+      },
+    })
+  }
   const updateSpotlightSource = (source: SpotlightDataSource) => {
     const currentSpotlight = section.contentJson.spotlight && typeof section.contentJson.spotlight === 'object' && !Array.isArray(section.contentJson.spotlight)
       ? section.contentJson.spotlight
@@ -143,6 +201,7 @@ const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, show
       header: spotlightHeaderForSource(source, section.contentJson.header),
     })
   }
+  const spotlightSourceOptions: SpotlightDataSource[] = isVisitPresentation ? ['events'] : SPOTLIGHT_DATA_SOURCES
   const activateAction = (action: (typeof actions)[number]) => {
     if (action.entityType === 'group' && action.entityId) {
       activeEntityService.setGroup(action.entityId)
@@ -156,12 +215,28 @@ const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, show
   const renderProperties = () => (
     <PropertyPanel>
       <SelectInput
+        focusKey="spotlight-presentation"
+        label={t('presentation')}
+        value={presentation}
+        disabled={disabled}
+        options={[
+          { value: 'spotlight', label: t('standardSpotlight') },
+          { value: 'visit', label: t('visitSpotlight') },
+        ]}
+        onChange={updatePresentation}
+      />
+      <SelectInput
         focusKey="spotlight-mode"
         label={t('spotlightMode')}
         value={spotlightBinding.mode}
         disabled={disabled}
         options={[{ value: 'manual', label: t('manual') }, { value: 'data', label: t('dataBound') }]}
-        onChange={(value) => updateSpotlight({ mode: value, source: spotlightBinding.source, preset: spotlightBinding.preset, itemId: spotlightBinding.itemId ?? '' })}
+        onChange={(value) => updateSpotlight({
+          mode: value,
+          source: isVisitPresentation && value === 'data' ? 'events' : spotlightBinding.source,
+          preset: isVisitPresentation && value === 'data' ? defaultSpotlightPreset('events') : spotlightBinding.preset,
+          itemId: spotlightBinding.itemId ?? '',
+        })}
       />
       <SelectInput
         focusKey="spotlight-media-position"
@@ -184,7 +259,7 @@ const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, show
             label={t('contentSource')}
             value={spotlightBinding.source}
             disabled={disabled}
-            options={SPOTLIGHT_DATA_SOURCES.map((source) => ({ value: source, label: t(source) }))}
+            options={spotlightSourceOptions.map((source) => ({ value: source, label: t(source) }))}
             onChange={(value) => updateSpotlightSource(value as SpotlightDataSource)}
           />
           <SelectInput
@@ -243,34 +318,54 @@ const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, show
     return renderProperties()
   }
 
-  const media = embedUrl ? (
-    <iframe
-      src={embedUrl}
-      referrerPolicy="strict-origin-when-cross-origin"
-      title={title || t('sermonVideoPreview')}
-      className="aspect-video w-full"
-      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-      allowFullScreen
-    />
-  ) : imageUrl && isVideoSource(imageUrl) ? (
-    <video
-      src={imageUrl}
-      className="h-48 w-full object-cover sm:h-[240px] md:h-[300px]"
-      autoPlay
-      muted
-      loop
-      playsInline
-      preload="metadata"
-      tabIndex={-1}
-      aria-hidden="true"
-    />
-  ) : imageUrl ? (
-    <img src={imageUrl} alt="" className="h-48 w-full object-cover sm:h-[240px] md:h-[300px]" />
-  ) : (
-    <div className="flex aspect-video w-full items-center justify-center bg-slate-100 text-sm text-slate-500">
-      {isDataBound ? t('noSourceItems', { source: resolveSpotlightSourceLabel(spotlightBinding, auth.language) }) : t('noImageYet')}
-    </div>
-  )
+  const mediaPlaceholder = isDataBound
+    ? t('noSourceItems', { source: resolveSpotlightSourceLabel(spotlightBinding, auth.language) })
+    : t('noImageYet')
+  const renderMedia = (variant: SpotlightPresentation) => {
+    const mediaClassName = variant === 'visit'
+      ? 'absolute inset-0 h-full w-full object-cover'
+      : 'h-48 w-full object-cover sm:h-[240px] md:h-[300px]'
+    const placeholderClassName = variant === 'visit'
+      ? 'absolute inset-0 flex items-center justify-center bg-slate-100 px-6 text-center text-sm text-slate-500'
+      : 'flex aspect-video w-full items-center justify-center bg-slate-100 text-sm text-slate-500'
+
+    if (embedUrl) {
+      return (
+        <iframe
+          src={embedUrl}
+          referrerPolicy="strict-origin-when-cross-origin"
+          title={title || t('sermonVideoPreview')}
+          className={variant === 'visit' ? 'absolute inset-0 h-full w-full' : 'aspect-video w-full'}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        />
+      )
+    }
+
+    if (imageUrl && isVideoSource(imageUrl)) {
+      return (
+        <video
+          src={imageUrl}
+          className={mediaClassName}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          tabIndex={-1}
+          aria-hidden="true"
+        />
+      )
+    }
+
+    return imageUrl ? (
+      <img src={imageUrl} alt="" className={mediaClassName} />
+    ) : (
+      <div className={placeholderClassName}>
+        {mediaPlaceholder}
+      </div>
+    )
+  }
 
   const contentBody = isDataBound && spotlightLoading
     ? <p className="mt-4 text-sm text-slate-500">{t('loadingPageSections')}</p>
@@ -289,6 +384,103 @@ const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, show
             onChange={(value) => updateLocalizedContent({ centerText: value, body: value, text: value })}
           />
         )
+  const renderActionLink = (
+    action: (typeof actions)[number],
+    index: number,
+    className: string,
+    showArrow = false,
+  ) => {
+    const actionUrl = typeof action.url === 'string' ? action.url.trim() : ''
+    const isExternalLink = Boolean(actionUrl && !actionUrl.startsWith('/') && !actionUrl.startsWith('#'))
+
+    return (
+      <a
+        key={`${actionUrl || action.label || 'action'}-${index}`}
+        href={mode === 'render' && actionUrl ? actionUrl : undefined}
+        target={mode === 'render' && isExternalLink ? '_blank' : undefined}
+        rel={mode === 'render' && isExternalLink ? 'noopener noreferrer' : undefined}
+        className={className}
+        onClick={(event) => {
+          if (mode === 'edit') {
+            event.preventDefault()
+            return
+          }
+
+          activateAction(action)
+        }}
+      >
+        {action.label || actionUrl || t('readMore')}
+        {showArrow ? <ArrowRight className="h-3.5 w-3.5" /> : null}
+      </a>
+    )
+  }
+
+  if (isVisitPresentation) {
+    const visitBody = isDataBound && spotlightLoading
+      ? <p className="mt-4 text-sm text-home-muted">{t('loadingPageSections')}</p>
+      : isDataBound && spotlightError
+        ? <p className="mt-4 text-sm text-red-600">{t('loadFailedWithMessage', { message: spotlightError.message })}</p>
+        : isDataBound && !spotlightItem
+          ? <p className="mt-4 text-sm text-home-muted">{mediaPlaceholder}</p>
+          : (
+            <EditableText
+              as="p"
+              multiline
+              value={body}
+              fallback={t('noHeroContentYet')}
+              disabled={!editable || isDataBound}
+              className="mt-4 block max-w-[45ch] whitespace-pre-wrap text-[0.94rem] leading-7 text-home-muted"
+              onChange={(value) => updateLocalizedContent({ centerText: value, body: value, text: value })}
+            />
+          )
+
+    return (
+      <section id={domId} className={`scroll-mt-24 px-5 sm:px-8 lg:px-10 ${sectionSpacingClass(section)}`}>
+        <div className="mx-auto grid max-w-6xl overflow-hidden rounded-2xl bg-white shadow-[0_12px_40px_rgba(30,18,10,0.08)] lg:grid-cols-[0.46fr_0.54fr]">
+          <div className={`relative min-h-[22rem] bg-slate-100 ${mediaPosition === 'right' ? 'lg:order-2' : 'lg:order-1'}`}>
+            {renderMedia('visit')}
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-home-dark/50 to-transparent" />
+          </div>
+          <div className={`flex items-center p-7 sm:p-10 lg:p-14 ${mediaPosition === 'right' ? 'lg:order-1' : 'lg:order-2'}`}>
+            <div>
+              {subtitle || mode === 'edit' ? (
+                <EditableText
+                  as="p"
+                  value={subtitle}
+                  fallback={mode === 'edit' ? t('previewNoSubtitle') : ''}
+                  disabled={!editable || isDataBound}
+                  className="mb-3 block text-sm font-semibold uppercase text-home-green"
+                  onChange={updateHeaderSubtitle}
+                />
+              ) : null}
+              <EditableText
+                as="h2"
+                value={title}
+                fallback={mode === 'edit' ? t('previewNoTitle') : ''}
+                disabled={!editable || isDataBound}
+                className="block text-3xl font-bold leading-tight text-home-gold-text sm:text-4xl"
+                onChange={updateHeaderTitle}
+              />
+              {visitBody}
+              {actions.length > 0 ? (
+                <div className="mt-6 flex flex-wrap gap-3">
+                  {actions.map((action, index) => renderActionLink(
+                    action,
+                    index,
+                    index === 0
+                      ? 'inline-flex min-h-11 items-center gap-2 rounded-lg bg-home-green px-5 text-sm font-semibold text-white transition hover:bg-home-green-hover'
+                      : 'inline-flex min-h-11 items-center gap-2 rounded-lg border border-home-border bg-white px-5 text-sm font-semibold text-home-gold-text transition hover:-translate-y-0.5 hover:border-home-green/35 hover:bg-[#fffaf0] focus:outline-none focus:ring-2 focus:ring-home-green/30',
+                    index === 0,
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+        {mode === 'edit' && showProperties ? renderProperties() : null}
+      </section>
+    )
+  }
 
   return (
     <section id={domId} className={pageSectionShellClass}>
@@ -304,36 +496,17 @@ const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, show
         />
         <div className="grid gap-0 md:grid-cols-2 md:items-stretch">
           <div className={`overflow-hidden bg-slate-100 ${mediaPosition === 'right' ? 'md:order-2' : 'md:order-1'}`}>
-            {media}
+            {renderMedia('spotlight')}
           </div>
           <div className={`flex flex-col justify-center p-5 sm:p-7 ${mediaPosition === 'right' ? 'md:order-1' : 'md:order-2'}`}>
             {contentBody}
             {actions.length > 0 ? (
               <div className="mt-5 flex flex-wrap gap-3">
-                {actions.map((action, index) => {
-                  const actionUrl = typeof action.url === 'string' ? action.url.trim() : ''
-                  const isExternalLink = Boolean(actionUrl && !actionUrl.startsWith('/') && !actionUrl.startsWith('#'))
-
-                  return (
-                    <a
-                      key={`${actionUrl || action.label || 'action'}-${index}`}
-                      href={mode === 'render' && actionUrl ? actionUrl : undefined}
-                      target={mode === 'render' && isExternalLink ? '_blank' : undefined}
-                      rel={mode === 'render' && isExternalLink ? 'noopener noreferrer' : undefined}
-                      className="inline-flex w-fit rounded bg-red-500 px-5 py-2 text-sm font-medium text-white shadow hover:bg-red-400"
-                      onClick={(event) => {
-                        if (mode === 'edit') {
-                          event.preventDefault()
-                          return
-                        }
-
-                        activateAction(action)
-                      }}
-                    >
-                      {action.label || actionUrl || t('readMore')}
-                    </a>
-                  )
-                })}
+                {actions.map((action, index) => renderActionLink(
+                  action,
+                  index,
+                  'inline-flex w-fit rounded bg-red-500 px-5 py-2 text-sm font-medium text-white shadow hover:bg-red-400',
+                ))}
               </div>
             ) : null}
           </div>

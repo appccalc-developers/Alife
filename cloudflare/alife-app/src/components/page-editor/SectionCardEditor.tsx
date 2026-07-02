@@ -306,7 +306,7 @@ const getSectionGuide = (section: SectionEditModel, language: string) => {
 
   return {
     title: isZh ? '重点内容引导' : 'Spotlight guidance',
-    description: isZh ? '适合用图片、短文和按钮讲一个服事重点。' : 'Use image, concise copy, and one action to tell a focused ministry story.',
+    description: isZh ? '适合用首页风格的图片、短文和按钮讲一个服事重点。' : 'Use a homepage-style image, concise copy, and one action to tell a focused ministry story.',
     items: [
       { label: isZh ? '标题' : 'Title', ready: Boolean(title), detail: summarizeValue(title, isZh), icon: <Type className="h-4 w-4" />, target: { type: 'preview', index: 0 } },
       { label: isZh ? '说明文案' : 'Supporting copy', ready: Boolean(subtitle || richText), detail: summarizeValue(subtitle || richText, isZh), icon: <FileText className="h-4 w-4" />, target: { type: 'preview', index: 1 } },

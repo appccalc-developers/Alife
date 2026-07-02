@@ -77,16 +77,29 @@ const isLandingHeroMetadata = (contentJson: Record<string, unknown>, styleJson: 
   return normalized === 'landinghero' || normalized === 'landingherosection'
 }
 
-const isCountdownMetadata = (contentJson: Record<string, unknown>, styleJson: Record<string, unknown>) => {
+const isSpotlightLayout = (layout: string) => {
+  const normalized = layout.replace(/[-_\s]+/g, '').toLowerCase()
+  return normalized === 'mediaspotlight'
+    || normalized === 'split'
+    || normalized === 'sermonspotlight'
+    || normalized === 'spotlight'
+    || normalized === 'visitspotlight'
+    || normalized === 'visithighlight'
+    || normalized === 'homevisit'
+    || normalized === 'highlight'
+}
+
+const isVisitSpotlightPresentation = (contentJson: Record<string, unknown>, styleJson: Record<string, unknown>) => {
   const marker = firstString(
-    contentJson.sectionKind,
-    contentJson.frontendType,
-    styleJson.sectionKind,
-    styleJson.frontendType,
+    contentJson.presentation,
+    contentJson.variant,
+    contentJson.template,
+    styleJson.presentation,
+    styleJson.variant,
     styleJson.layout,
   )
   const normalized = marker.replace(/[-_\s]+/g, '').toLowerCase()
-  return normalized === 'countdown' || normalized === 'countdownsection'
+  return normalized === 'visit' || normalized === 'visitspotlight' || normalized === 'highlight' || normalized === 'visithighlight' || normalized === 'homevisit'
 }
 
 const normalizeSpotlightMedia = (contentJson: Record<string, unknown>, styleJson: Record<string, unknown>): SpotlightMedia => {
@@ -236,9 +249,7 @@ export const normalizePageSection = (section: SectionDto): SectionEditModel => {
   const type =
     normalizedType === 'Hero' && isLandingHeroMetadata(contentJson, styleJson)
       ? 'LandingHero'
-      : normalizedType === 'Hero' && isCountdownMetadata(contentJson, styleJson)
-      ? 'Countdown'
-      : normalizedType === 'Hero' && (layout === 'mediaSpotlight' || layout === 'split' || layout === 'sermonSpotlight' || layout === 'spotlight')
+      : normalizedType === 'Hero' && isSpotlightLayout(layout)
       ? 'Spotlight'
       : normalizedType
 
@@ -256,12 +267,19 @@ export const normalizePageSection = (section: SectionDto): SectionEditModel => {
 
   if (type === 'Spotlight') {
     const media = normalizeSpotlightMedia(contentJson, styleJson)
+    const isVisitSpotlight = isVisitSpotlightPresentation(contentJson, styleJson)
+    const hasSpotlightConfig = Boolean(contentJson.spotlight && typeof contentJson.spotlight === 'object' && !Array.isArray(contentJson.spotlight))
+    const binding = readSpotlightBinding(contentJson)
     contentJson.media = media
-    contentJson.spotlight = readSpotlightBinding(contentJson)
+    contentJson.presentation = isVisitSpotlight ? 'visit' : 'spotlight'
+    contentJson.spotlight = isVisitSpotlight && !hasSpotlightConfig
+      ? { ...binding, source: 'events', preset: 'upcoming' }
+      : binding
     if (!contentJson.body) {
       contentJson.body = toLocalizedHeaderText(firstString(contentJson.body, contentJson.centerText, contentJson.text))
     }
-    styleJson.layout = 'spotlight'
+    styleJson.layout = isVisitSpotlight ? 'visitSpotlight' : 'spotlight'
+    styleJson.presentation = isVisitSpotlight ? 'visit' : 'spotlight'
     styleJson.mediaPosition = media.position ?? 'left'
     styleJson.imagePosition = media.position ?? 'left'
   }
