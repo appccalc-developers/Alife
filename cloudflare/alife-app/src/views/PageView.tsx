@@ -4,7 +4,7 @@ import { useLiveQuery } from '@tanstack/react-db'
 import { useQuery } from '@tanstack/react-query'
 import PageContentRenderer from '../components/page/PageContentRenderer'
 import AppBackButton from '../components/layout/AppBackButton'
-import { pageSectionShellClass } from '../components/page-sections/sectionPresets'
+import { pageSectionsCanvasClass, pageSectionsChromeClass } from '../components/page-sections/sectionPresets'
 import { fetchPageDetail, pageDetailQueryKey } from '../db/collections/pageCollection'
 import { subgroupsCollection, groupPagesCollection } from '../db/collections/groupCollection'
 import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
@@ -53,18 +53,16 @@ const PageView = () => {
 
   return (
     !pageId ? <Navigate to="/" replace /> :
-    <section className="mx-auto w-full max-w-5xl space-y-4 px-3 sm:px-4">
-      <AppBackButton fallbackTo={page?.ownerGroupId ? '/groups' : '/'} />
-      {pageLoading ? (
-        <section className={pageSectionShellClass}>
+    <main className={pageSectionsCanvasClass}>
+      <div className={`${pageSectionsChromeClass} space-y-4 pt-20 sm:pt-24`}>
+        <AppBackButton fallbackTo={page?.ownerGroupId ? '/groups' : '/'} />
+        {pageLoading ? (
           <p className="rounded-lg border border-slate-200 bg-white p-3 text-slate-600">{t('loadingPage')}</p>
-        </section>
-      ) : null}
-      {!pageLoading && isError ? (
-        <section className={pageSectionShellClass}>
+        ) : null}
+        {!pageLoading && isError ? (
           <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-red-700">{t('pageAccessDenied')}</p>
-        </section>
-      ) : null}
+        ) : null}
+      </div>
       {!pageLoading && !isError && page ? (
         <PageContentRenderer
           page={page}
@@ -79,7 +77,7 @@ const PageView = () => {
           }}
         />
       ) : null}
-    </section>
+    </main>
   )
 }
 

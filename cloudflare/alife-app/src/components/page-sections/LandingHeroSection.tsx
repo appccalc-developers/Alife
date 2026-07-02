@@ -45,7 +45,7 @@ const LandingHeroMedia = ({ src, poster }: { src: string; poster: string }) => {
   )
 }
 
-const LandingHeroSection = ({ section, mode, domId, disabled, editorPreview, propertiesOnly, showProperties = true, onUpdate }: SectionComponentProps) => {
+const LandingHeroSection = ({ section, mode, domId, disabled, editorPreview, previewDensity = 'full', propertiesOnly, showProperties = true, onUpdate }: SectionComponentProps) => {
   const auth = useAuthStore()
   const t = useUiText()
   const editable = mode === 'edit' && !disabled && onUpdate
@@ -150,7 +150,7 @@ const LandingHeroSection = ({ section, mode, domId, disabled, editorPreview, pro
     return renderProperties()
   }
 
-  const compactPreview = mode === 'edit' || editorPreview || disabled !== undefined
+  const compactPreview = previewDensity === 'compact' || editorPreview === true
 
   return (
     <section

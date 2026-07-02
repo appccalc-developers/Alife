@@ -123,7 +123,9 @@ const WorkspaceShell = () => {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2, ease: 'easeInOut' }}
-          className="mx-auto max-w-[94rem] px-4 pb-36 pt-5 sm:px-6 sm:pt-7 desktop:px-8 desktop:pb-14"
+          className={context.isPageEditorScreen
+            ? 'mx-auto max-w-none px-0 pb-36 pt-5 sm:pt-7 desktop:pb-14'
+            : 'mx-auto max-w-[94rem] px-4 pb-36 pt-5 sm:px-6 sm:pt-7 desktop:px-8 desktop:pb-14'}
         >
           {auth.loading ? <AppRouteLoading /> : null}
           <AppRoutes />
@@ -171,12 +173,13 @@ const PublicHomeShell = () => {
   const auth = useAuthStore()
   const location = useLocation()
   const isHome = location.pathname === '/'
+  const isPublicPage = location.pathname === '/pages' || /^\/pages\/[^/]+$/.test(location.pathname)
   const copy = getCopy(auth.language, '')
 
   return (
     <div className="min-h-screen bg-[#f7f3ea] text-[#18332d]">
       {isHome ? null : <HomeNavHeader copy={copy} language={auth.language} solid />}
-      <div className={isHome ? '' : 'px-4 pb-16 pt-24 sm:px-6 lg:px-8'}>
+      <div className={isHome ? '' : isPublicPage ? 'pb-16' : 'px-4 pb-16 pt-24 sm:px-6 lg:px-8'}>
         <AppRoutes />
       </div>
     </div>
