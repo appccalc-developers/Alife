@@ -154,7 +154,7 @@ export const createEmptyPageSection = (type: SectionType = 'Hero'): SectionEditM
         href: '',
       },
       styleJson: {
-        layout: 'visitHighlight',
+        layout: 'visitSpotlight',
         presentation: 'visit',
         mediaPosition: 'left',
         imagePosition: 'left',
@@ -347,7 +347,7 @@ export const createPresetPageSection = (preset: string): SectionEditModel => {
       },
       styleJson: {
         ...section.styleJson,
-        layout: visit ? 'visitHighlight' : 'spotlight',
+        layout: visit ? 'visitSpotlight' : 'spotlight',
         presentation: visit ? 'visit' : 'spotlight',
         mediaPosition: visit ? 'right' : 'left',
         imagePosition: visit ? 'right' : 'left',

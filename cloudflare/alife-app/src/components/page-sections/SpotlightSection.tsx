@@ -71,7 +71,7 @@ const readSpotlightPresentation = (content: Record<string, unknown>, style: Reco
     || readStringValue(style, 'presentation', 'variant', 'layout')
   const normalized = raw.replace(/[-_\s]+/g, '').toLowerCase()
 
-  return normalized === 'visit' || normalized === 'highlight' || normalized === 'visithighlight' || normalized === 'homevisit'
+  return normalized === 'visit' || normalized === 'visitspotlight' || normalized === 'highlight' || normalized === 'visithighlight' || normalized === 'homevisit'
     ? 'visit'
     : 'spotlight'
 }
@@ -183,7 +183,7 @@ const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, show
       styleJson: {
         ...section.styleJson,
         presentation: nextPresentation,
-        layout: nextPresentation === 'visit' ? 'visitHighlight' : 'spotlight',
+        layout: nextPresentation === 'visit' ? 'visitSpotlight' : 'spotlight',
       },
     })
   }
@@ -221,7 +221,7 @@ const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, show
         disabled={disabled}
         options={[
           { value: 'spotlight', label: t('standardSpotlight') },
-          { value: 'visit', label: t('visitHighlight') },
+          { value: 'visit', label: t('visitSpotlight') },
         ]}
         onChange={updatePresentation}
       />

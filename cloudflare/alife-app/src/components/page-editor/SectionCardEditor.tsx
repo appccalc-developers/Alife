@@ -40,7 +40,7 @@ const sectionTypeLabel = (type: SectionType, isZh: boolean) => {
   if (type === 'LandingHero') return isZh ? '首页视频主视觉' : 'Landing Hero'
   if (type === 'Hero') return isZh ? '主视觉' : 'Hero'
   if (type === 'RichText') return isZh ? '图文说明' : 'Rich Text'
-  if (type === 'Spotlight') return isZh ? '重点推荐' : 'Highlight'
+  if (type === 'Spotlight') return isZh ? '重点推荐' : 'Spotlight'
   if (type === 'ListView') return isZh ? '列表视图' : 'List View'
   if (type === 'Sermon') return isZh ? '讲道视频' : 'Sermon Video'
   return type
@@ -256,7 +256,7 @@ const getSectionGuide = (section: SectionEditModel, language: string) => {
   }
 
   return {
-    title: isZh ? '重点内容引导' : 'Highlight guidance',
+    title: isZh ? '重点内容引导' : 'Spotlight guidance',
     description: isZh ? '适合用首页风格的图片、短文和按钮讲一个服事重点。' : 'Use a homepage-style image, concise copy, and one action to tell a focused ministry story.',
     items: [
       { label: isZh ? '标题' : 'Title', ready: Boolean(title), detail: summarizeValue(title, isZh), icon: <Type className="h-4 w-4" />, target: { type: 'preview', index: 0 } },

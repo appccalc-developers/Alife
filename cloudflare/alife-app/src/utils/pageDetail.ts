@@ -83,12 +83,13 @@ const isSpotlightLayout = (layout: string) => {
     || normalized === 'split'
     || normalized === 'sermonspotlight'
     || normalized === 'spotlight'
+    || normalized === 'visitspotlight'
     || normalized === 'visithighlight'
     || normalized === 'homevisit'
     || normalized === 'highlight'
 }
 
-const isVisitHighlightPresentation = (contentJson: Record<string, unknown>, styleJson: Record<string, unknown>) => {
+const isVisitSpotlightPresentation = (contentJson: Record<string, unknown>, styleJson: Record<string, unknown>) => {
   const marker = firstString(
     contentJson.presentation,
     contentJson.variant,
@@ -98,7 +99,7 @@ const isVisitHighlightPresentation = (contentJson: Record<string, unknown>, styl
     styleJson.layout,
   )
   const normalized = marker.replace(/[-_\s]+/g, '').toLowerCase()
-  return normalized === 'visit' || normalized === 'highlight' || normalized === 'visithighlight' || normalized === 'homevisit'
+  return normalized === 'visit' || normalized === 'visitspotlight' || normalized === 'highlight' || normalized === 'visithighlight' || normalized === 'homevisit'
 }
 
 const normalizeSpotlightMedia = (contentJson: Record<string, unknown>, styleJson: Record<string, unknown>): SpotlightMedia => {
@@ -258,19 +259,19 @@ export const normalizePageSection = (section: SectionDto): SectionEditModel => {
 
   if (type === 'Spotlight') {
     const media = normalizeSpotlightMedia(contentJson, styleJson)
-    const isVisitHighlight = isVisitHighlightPresentation(contentJson, styleJson)
+    const isVisitSpotlight = isVisitSpotlightPresentation(contentJson, styleJson)
     const hasSpotlightConfig = Boolean(contentJson.spotlight && typeof contentJson.spotlight === 'object' && !Array.isArray(contentJson.spotlight))
     const binding = readSpotlightBinding(contentJson)
     contentJson.media = media
-    contentJson.presentation = isVisitHighlight ? 'visit' : 'spotlight'
-    contentJson.spotlight = isVisitHighlight && !hasSpotlightConfig
+    contentJson.presentation = isVisitSpotlight ? 'visit' : 'spotlight'
+    contentJson.spotlight = isVisitSpotlight && !hasSpotlightConfig
       ? { ...binding, source: 'events', preset: 'upcoming' }
       : binding
     if (!contentJson.body) {
       contentJson.body = toLocalizedHeaderText(firstString(contentJson.body, contentJson.centerText, contentJson.text))
     }
-    styleJson.layout = isVisitHighlight ? 'visitHighlight' : 'spotlight'
-    styleJson.presentation = isVisitHighlight ? 'visit' : 'spotlight'
+    styleJson.layout = isVisitSpotlight ? 'visitSpotlight' : 'spotlight'
+    styleJson.presentation = isVisitSpotlight ? 'visit' : 'spotlight'
     styleJson.mediaPosition = media.position ?? 'left'
     styleJson.imagePosition = media.position ?? 'left'
   }

@@ -746,7 +746,7 @@ const text = {
   rose: { en: 'Rose', zh: '玫瑰' },
   presentation: { en: 'Presentation', zh: '呈现样式' },
   standardSpotlight: { en: 'Standard spotlight', zh: '标准重点推荐' },
-  visitHighlight: { en: 'Homepage visit highlight', zh: '首页来访重点样式' },
+  visitSpotlight: { en: 'Homepage visit spotlight', zh: '首页来访重点样式' },
   spotlightMode: { en: 'Spotlight mode', zh: '聚焦模式' },
   manual: { en: 'Written manually', zh: '手动填写' },
   dataBound: { en: 'Filled from existing content', zh: '从已有内容带入' },
