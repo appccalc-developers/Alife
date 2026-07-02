@@ -16,7 +16,6 @@ import HomeFooter from './home/HomeFooter'
 
 const sectionTypeFallback = (section: SectionEditModel, copy: ReturnType<typeof getCopy>) => {
   if (section.type === 'LandingHero') return copy.sectionFallback.intro
-  if (section.type === 'Hero') return copy.sectionFallback.intro
   if (section.type === 'Countdown') return copy.sectionFallback.events
   if (section.type === 'ContactLocation') return copy.nav.location
   if (section.type === 'Spotlight') return copy.sectionFallback.highlight
@@ -29,7 +28,6 @@ const sectionTypeFallback = (section: SectionEditModel, copy: ReturnType<typeof 
     if (source === 'members') return copy.sectionFallback.members
     return copy.sectionFallback.list
   }
-  if (section.type === 'Sermon') return copy.sectionFallback.sermon
   return copy.sectionFallback.section
 }
 

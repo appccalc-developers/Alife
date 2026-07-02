@@ -117,13 +117,11 @@ export type LinkDto = {
 }
 
 export type SectionType =
-  | 'Hero'
   | 'LandingHero'
   | 'Countdown'
   | 'ContactLocation'
   | 'Spotlight'
   | 'RichText'
-  | 'Sermon'
   | 'ListView'
 
 export type SectionEditModel = {

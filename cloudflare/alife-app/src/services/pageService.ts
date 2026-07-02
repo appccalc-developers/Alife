@@ -59,8 +59,6 @@ const toSectionPayloadType = (type: SectionEditModel['type']): string => {
       return 'hero'
     case 'RichText':
       return 'richText'
-    case 'Sermon':
-      return 'sermon'
     case 'ListView':
       return 'listView'
     default:

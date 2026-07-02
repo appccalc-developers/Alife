@@ -39,13 +39,11 @@ type Props = {
 
 const sectionTypeLabel = (type: SectionType, isZh: boolean) => {
   if (type === 'LandingHero') return isZh ? '首页视频主视觉' : 'Landing Hero'
-  if (type === 'Hero') return isZh ? '主视觉' : 'Hero'
   if (type === 'Countdown') return isZh ? '倒数计时' : 'Countdown'
   if (type === 'ContactLocation') return isZh ? '联系地点' : 'Contact Location'
   if (type === 'RichText') return isZh ? '图文说明' : 'Rich Text'
   if (type === 'Spotlight') return isZh ? '重点推荐' : 'Spotlight'
   if (type === 'ListView') return isZh ? '列表视图' : 'List View'
-  if (type === 'Sermon') return isZh ? '讲道视频' : 'Sermon Video'
   return type
 }
 
@@ -195,7 +193,6 @@ const getSectionGuide = (section: SectionEditModel, language: string) => {
   const countdownPreset = textValue(countdown.preset, language) || 'upcoming'
   const countdownTarget = readContentText(section, language, 'targetDateTime', 'countdownTarget', 'endDateTime')
   const limit = typeof section.contentJson.limit === 'number' ? section.contentJson.limit : 0
-  const youtubeUrl = readContentText(section, language, 'youtubeUrl')
   const richText = readContentText(section, language, 'text')
   const locationName = readContentText(section, language, 'locationName', 'title')
   const streetAddress = readContentText(section, language, 'streetAddress', 'address')
@@ -318,18 +315,6 @@ const getSectionGuide = (section: SectionEditModel, language: string) => {
         { label: isZh ? '数量限制' : 'Item limit', ready: limit > 0 && limit <= 50, detail: limit ? (isZh ? `${limit} 项` : `${limit} items`) : fallbackText(isZh), icon: <Settings2 className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'list-limit' } },
       ] satisfies GuideItem[],
       advice: isZh ? '首页建议显示 3 到 6 项，管理页或列表页可以更多。' : 'For home pages, 3 to 6 items usually scans best; directory pages can show more.',
-    }
-  }
-
-  if (section.type === 'Sermon') {
-    return {
-      title: isZh ? '讲道嵌入引导' : 'Sermon embed guidance',
-      description: isZh ? '适合突出一篇信息、系列或主日讲道。' : 'Use this to feature one message, series, or Sunday sermon.',
-      items: [
-        { label: isZh ? '讲道标题' : 'Sermon title', ready: Boolean(title || readContentText(section, language, 'title')), detail: summarizeValue(title || readContentText(section, language, 'title'), isZh), icon: <Type className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'sermon-title' } },
-        { label: isZh ? 'YouTube 链接' : 'YouTube URL', ready: Boolean(youtubeUrl), detail: summarizeValue(youtubeUrl, isZh), icon: <Clapperboard className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'sermon-youtube-url' } },
-      ] satisfies GuideItem[],
-      advice: isZh ? '建议使用官方频道视频链接，并在发布后确认播放器可正常打开。' : 'Use the official channel URL and confirm the player opens after publishing.',
     }
   }
 

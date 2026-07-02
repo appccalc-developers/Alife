@@ -48,7 +48,20 @@ const HOME_HERO_VIDEO = '/media/homepage-hero.mp4'
 const HOME_HERO_POSTER = '/media/alife-church-community-hero.jpg'
 const HOME_VISIT_IMAGE = '/media/alife-visit.jpg'
 
-export const createEmptyPageSection = (type: SectionType = 'Hero'): SectionEditModel => {
+const createEmptyRichTextSection = (): SectionEditModel => ({
+  order: 0,
+  type: 'RichText',
+  contentJson: {
+    header: createDefaultSectionHeader(),
+    spacing: 'normal',
+    title: '',
+    subtitle: '',
+    text: '',
+  },
+  styleJson: {},
+})
+
+export const createEmptyPageSection = (type: SectionType = 'RichText'): SectionEditModel => {
   if (type === 'LandingHero') {
     const title = localized('A spiritual home in the light of the South Island.', '在南岛的光里，找到一个属灵的家。')
     const body = localized(
@@ -104,18 +117,7 @@ export const createEmptyPageSection = (type: SectionType = 'Hero'): SectionEditM
   }
 
   if (type === 'RichText') {
-    return {
-      order: 0,
-      type: 'RichText',
-      contentJson: {
-        header: createDefaultSectionHeader(),
-        spacing: 'normal',
-        title: '',
-        subtitle: '',
-        text: '',
-      },
-      styleJson: {},
-    }
+    return createEmptyRichTextSection()
   }
 
   if (type === 'Countdown') {
@@ -296,50 +298,7 @@ export const createEmptyPageSection = (type: SectionType = 'Hero'): SectionEditM
     }
   }
 
-  if (type === 'Sermon') {
-    return {
-      order: 0,
-      type: 'Sermon',
-      contentJson: {
-        header: {
-          icon: 'mic',
-          title: localized('Featured message', '精选讲道'),
-          subtitle: localized('Embed one sermon video from YouTube.', '嵌入一段 YouTube 讲道视频。'),
-          align: 'left',
-          scale: 'normal',
-          tone: 'primary',
-        },
-        spacing: 'normal',
-        title: localized('Featured message', '精选讲道'),
-        youtubeUrl: '',
-      },
-      styleJson: {},
-    }
-  }
-
-  return {
-    order: 0,
-    type: 'Hero',
-    contentJson: {
-      header: createDefaultSectionHeader(),
-      spacing: 'normal',
-      backgroundImage: DEFAULT_HERO_IMAGE,
-      backgroundImageUrl: DEFAULT_HERO_IMAGE,
-      title: '',
-      headline: '',
-      centerText: '',
-      body: '',
-      subtitle: '',
-      subheadline: '',
-      linkLabel: '',
-      linkText: '',
-      ctaLabel: '',
-      linkUrl: '',
-      ctaUrl: '',
-      href: '',
-    },
-    styleJson: { layout: 'featured', aspectRatio: DEFAULT_HERO_ASPECT_RATIO },
-  }
+  return createEmptyRichTextSection()
 }
 
 export const createPresetPageSection = (preset: string): SectionEditModel => {
@@ -349,8 +308,7 @@ export const createPresetPageSection = (preset: string): SectionEditModel => {
         preset === 'contact-location' ? 'ContactLocation' :
       preset.startsWith('spotlight-') ? 'Spotlight' :
         preset.startsWith('list-') ? 'ListView' :
-          preset === 'sermon-embed' ? 'Sermon' :
-            'Hero',
+          'RichText',
   )
 
   if (preset === 'hero-home') {
@@ -376,23 +334,6 @@ export const createPresetPageSection = (preset: string): SectionEditModel => {
         ctaUrl: '#visit',
         href: '#visit',
       },
-    }
-  }
-
-  if (preset === 'hero-event') {
-    return {
-      ...section,
-      contentJson: {
-        ...section.contentJson,
-        title: localized('Upcoming gathering', '近期聚会'),
-        headline: localized('Upcoming gathering', '近期聚会'),
-        centerText: localized('Invite people into the next church-wide moment.', '邀请大家参与下一次全教会活动。'),
-        body: localized('Invite people into the next church-wide moment.', '邀请大家参与下一次全教会活动。'),
-        linkLabel: localized('See details', '查看详情'),
-        linkText: localized('See details', '查看详情'),
-        ctaLabel: localized('See details', '查看详情'),
-      },
-      styleJson: { ...section.styleJson, layout: 'poster' },
     }
   }
 
@@ -497,19 +438,6 @@ export const createPresetPageSection = (preset: string): SectionEditModel => {
         ...listViewContentDefaultsForSource(listSource, section.contentJson.header),
         layout: preset === 'list-carousel' ? 'carousel' : preset === 'list-event-coverflow' ? 'coverflow' : 'grid',
       },
-    }
-  }
-
-  if (preset === 'sermon-embed') {
-    return {
-      ...section,
-      type: 'Sermon',
-      contentJson: {
-        ...section.contentJson,
-        title: localized('Featured message', '精选讲道'),
-        youtubeUrl: '',
-      },
-      styleJson: {},
     }
   }
 
