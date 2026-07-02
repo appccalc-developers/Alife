@@ -120,6 +120,7 @@ export type SectionType =
   | 'Hero'
   | 'LandingHero'
   | 'Countdown'
+  | 'ContactLocation'
   | 'Spotlight'
   | 'RichText'
   | 'Sermon'

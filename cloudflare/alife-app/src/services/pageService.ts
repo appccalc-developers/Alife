@@ -51,6 +51,8 @@ const toSectionPayloadType = (type: SectionEditModel['type']): string => {
       return 'hero'
     case 'Countdown':
       return 'hero'
+    case 'ContactLocation':
+      return 'hero'
     case 'Hero':
       return 'hero'
     case 'Spotlight':
@@ -76,6 +78,10 @@ const contentJsonForWrite = (section: SectionEditModel) => {
     return { ...contentJson, sectionKind: 'countdown' }
   }
 
+  if (section.type === 'ContactLocation') {
+    return { ...contentJson, sectionKind: 'contactLocation', datasource: 'custom' }
+  }
+
   return contentJson
 }
 
@@ -87,6 +93,10 @@ const styleJsonForWrite = (section: SectionEditModel) => {
 
   if (section.type === 'Countdown') {
     return { ...styleJson, layout: 'countdown', frontendType: 'Countdown' }
+  }
+
+  if (section.type === 'ContactLocation') {
+    return { ...styleJson, layout: 'contactLocation', frontendType: 'ContactLocation' }
   }
 
   return styleJson

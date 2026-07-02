@@ -1,5 +1,6 @@
 import type { MouseEvent } from 'react'
 import type { GroupSummaryDto, PageDetailDto } from '../../types'
+import { defaultContactLocationMapEmbedUrl, defaultContactLocationMapUrl } from '../../utils/contactLocation'
 
 export const media = {
   hero: '/media/alife-church-community-hero.jpg',
@@ -9,8 +10,8 @@ export const media = {
 }
 
 export const homepageHeroVideo = '/media/homepage-hero.mp4'
-export const churchMapUrl = 'https://maps.app.goo.gl/VUdzffqEkKiq2Jy29'
-export const churchMapEmbedUrl = 'https://maps.google.com/maps?q=-43.5498482,172.5624243&z=16&output=embed'
+export const churchMapUrl = defaultContactLocationMapUrl
+export const churchMapEmbedUrl = defaultContactLocationMapEmbedUrl
 export const youtubeLiveUrl = 'https://www.youtube.com/@ChineseAbundantLifeChurch/live'
 export const youtubeVideosUrl = 'https://www.youtube.com/@ChineseAbundantLifeChurch/videos'
 

@@ -8,6 +8,7 @@ import { translateUi, useUiText } from '../../i18n/uiText'
 import { useAuthStore } from '../../stores/auth'
 import { localizeText } from '../../utils/localizedText'
 import { listViewContentDefaultsForSource, normalizeListViewSource } from '../../utils/sectionSourcePresets'
+import { defaultContactLocationMapEmbedUrl, defaultContactLocationMapUrl, defaultContactLocationStreetAddress } from '../../utils/contactLocation'
 import { DEFAULT_HERO_ASPECT_RATIO, DEFAULT_HERO_IMAGE, EditableText } from '../page-sections/sectionUtils'
 import { pageSectionShellClass } from '../page-sections/sectionPresets'
 
@@ -187,6 +188,56 @@ export const createEmptyPageSection = (type: SectionType = 'Hero'): SectionEditM
     }
   }
 
+  if (type === 'ContactLocation') {
+    const locationName = localized('Chinese Abundant Life Church', '基督城华人丰盛生命教会')
+    const address = localized(defaultContactLocationStreetAddress, defaultContactLocationStreetAddress)
+    const addressNote = localized('Christchurch, New Zealand', 'Christchurch, New Zealand')
+    const openMapLabel = localized('Open in Google Maps', '在 Google Maps 打开')
+
+    return {
+      order: 0,
+      type: 'ContactLocation',
+      contentJson: {
+        sectionKind: 'contactLocation',
+        header: {
+          ...createDefaultSectionHeader(),
+          title: locationName,
+          subtitle: address,
+          align: 'left',
+          scale: 'normal',
+          tone: 'primary',
+        },
+        datasource: 'custom',
+        location: {
+          mode: 'custom',
+        },
+        spacing: 'large',
+        locationTitle: localized('Church Location', '教会地点'),
+        locationName,
+        title: locationName,
+        streetAddress: address,
+        address,
+        locationAddress: addressNote,
+        addressNote,
+        body: addressNote,
+        openMapLabel,
+        linkLabel: openMapLabel,
+        linkText: openMapLabel,
+        ctaLabel: openMapLabel,
+        mapUrl: defaultContactLocationMapUrl,
+        linkUrl: defaultContactLocationMapUrl,
+        ctaUrl: defaultContactLocationMapUrl,
+        href: defaultContactLocationMapUrl,
+        mapEmbedUrl: defaultContactLocationMapEmbedUrl,
+        embedUrl: defaultContactLocationMapEmbedUrl,
+      },
+      styleJson: {
+        layout: 'contactLocation',
+        frontendType: 'ContactLocation',
+      },
+    }
+  }
+
   if (type === 'Spotlight') {
     return {
       order: 0,
@@ -295,6 +346,7 @@ export const createPresetPageSection = (preset: string): SectionEditModel => {
   const section = createEmptyPageSection(
     preset === 'hero-home' ? 'LandingHero' :
       preset.startsWith('rich-') ? 'RichText' :
+        preset === 'contact-location' ? 'ContactLocation' :
       preset.startsWith('spotlight-') ? 'Spotlight' :
         preset.startsWith('list-') ? 'ListView' :
           preset === 'sermon-embed' ? 'Sermon' :
@@ -423,6 +475,10 @@ export const createPresetPageSection = (preset: string): SectionEditModel => {
         imagePosition: visit ? 'right' : 'left',
       },
     }
+  }
+
+  if (preset === 'contact-location') {
+    return section
   }
 
   if (preset.startsWith('list-')) {
