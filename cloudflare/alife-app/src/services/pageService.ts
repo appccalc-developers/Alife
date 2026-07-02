@@ -48,13 +48,13 @@ export type PublishPageOptimizedPayload = {
 const toSectionPayloadType = (type: SectionEditModel['type']): string => {
   switch (type) {
     case 'LandingHero':
-      return 'hero'
+      return 'landingHero'
     case 'Countdown':
-      return 'hero'
+      return 'countdown'
     case 'ContactLocation':
-      return 'hero'
+      return 'contactLocation'
     case 'Spotlight':
-      return 'hero'
+      return 'spotlight'
     case 'RichText':
       return 'richText'
     case 'ListView':

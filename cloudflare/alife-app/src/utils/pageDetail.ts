@@ -197,8 +197,10 @@ const sectionTypeMapByNumber: Record<number, SectionEditModel['type']> = {
   1: 'RichText',
   2: 'RichText',
   4: 'ListView',
-  5: 'ListView',
-  6: 'ListView',
+  20: 'LandingHero',
+  21: 'Countdown',
+  22: 'ContactLocation',
+  23: 'Spotlight',
 }
 
 const normalizeSectionType = (value: number | string): SectionEditModel['type'] => {
