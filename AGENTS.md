@@ -239,3 +239,15 @@ When GitHub issue or PR creation is needed:
 * If `gh` is missing, install it globally once instead of reinstalling it for every shipping task.
 
 Start it when user type /shipit.
+
+## Local dev shortcut
+
+When the user types `/localdev` or `/dev`, start the local development stack from the repository root with:
+
+```powershell
+.\alife-dev.cmd -SkipSql
+```
+
+If the user mentions migrations, database refresh, seed data, or DbMigrator, include `-ApplyMigrations`.
+If the user explicitly wants Codex to start the Docker SQL Server container too, omit `-SkipSql`.
+Azurite and scheduled Functions are not part of the default shortcut; use `-UseAzurite -EnableScheduledJobs` only when the user asks to test TimerTrigger/scheduled behavior.

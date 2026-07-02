@@ -1,9 +1,13 @@
 param(
     [switch]$SkipSql,
     [switch]$SkipAzurite,
+    [switch]$UseAzurite,
     [switch]$SkipApi,
+    [switch]$SkipSpeedLayer,
     [switch]$SkipFrontend,
-    [switch]$ApplyMigrations
+    [switch]$ApplyMigrations,
+    [switch]$RebuildFrontendAssets,
+    [switch]$EnableScheduledJobs
 )
 
 $ErrorActionPreference = "Stop"
@@ -13,11 +17,14 @@ $repoRoot = Resolve-Path (Join-Path $scriptPath "..")
 $backendRoot = Join-Path $repoRoot "backend"
 $apiRoot = Join-Path $backendRoot "src\Alife.Api"
 $frontendRoot = Join-Path $repoRoot "cloudflare\alife-app"
+$speedLayerRoot = Join-Path $repoRoot "cloudflare\speed-layer"
 $runtimeRoot = Join-Path $repoRoot ".local-dev"
 $logRoot = Join-Path $runtimeRoot "logs"
 $azuriteRoot = Join-Path $runtimeRoot "azurite"
+$wranglerStateRoot = Join-Path $runtimeRoot "wrangler"
+$frontendDistRoot = Join-Path $frontendRoot "dist"
 
-New-Item -ItemType Directory -Force -Path $logRoot, $azuriteRoot | Out-Null
+New-Item -ItemType Directory -Force -Path $logRoot, $azuriteRoot, $wranglerStateRoot | Out-Null
 
 function Test-PortListening {
     param([int]$Port)
@@ -68,6 +75,24 @@ function Wait-DockerHealthy {
     throw "$ContainerName did not become healthy within $TimeoutSeconds seconds."
 }
 
+function Wait-ExistingSqlServer {
+    param([int]$TimeoutSeconds = 120)
+
+    Push-Location $backendRoot
+    try {
+        $sqlContainer = docker compose ps -q sqlserver 2>$null
+        if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($sqlContainer)) {
+            Wait-DockerHealthy -ContainerName $sqlContainer -TimeoutSeconds $TimeoutSeconds
+            return
+        }
+    }
+    finally {
+        Pop-Location
+    }
+
+    Wait-Port -Port 14333 -Name "SQL Server" -TimeoutSeconds $TimeoutSeconds
+}
+
 function Start-LoggedProcess {
     param(
         [string]$Name,
@@ -93,11 +118,54 @@ function Start-LoggedProcess {
     Write-Host "  $ErrLog"
 }
 
+function Invoke-NativeCommand {
+    param(
+        [string]$Name,
+        [string]$FilePath,
+        [string[]]$ArgumentList,
+        [string]$WorkingDirectory
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($WorkingDirectory)) {
+        Push-Location $WorkingDirectory
+    }
+
+    try {
+        & $FilePath @ArgumentList
+        if ($LASTEXITCODE -ne 0) {
+            throw "$Name failed with exit code $LASTEXITCODE."
+        }
+    }
+    finally {
+        if (-not [string]::IsNullOrWhiteSpace($WorkingDirectory)) {
+            Pop-Location
+        }
+    }
+}
+
+function Get-NpmCommand {
+    $npmCommand = Get-Command npm.cmd -ErrorAction SilentlyContinue
+    if ($null -eq $npmCommand) {
+        $npmCommand = Get-Command npm -ErrorAction SilentlyContinue
+    }
+
+    if ($null -eq $npmCommand) {
+        throw "npm was not found. Install Node.js before starting the frontend or speed layer."
+    }
+
+    return $npmCommand
+}
+
 if (-not $SkipSql) {
     Write-Host "Starting SQL Server container..."
     Push-Location $backendRoot
     try {
-        docker compose up -d sqlserver
+        Invoke-NativeCommand `
+            -Name "docker compose up sqlserver" `
+            -FilePath "docker" `
+            -ArgumentList @("compose", "up", "-d", "sqlserver") `
+            -WorkingDirectory $null
+
         $sqlContainer = docker compose ps -q sqlserver
         if ([string]::IsNullOrWhiteSpace($sqlContainer)) {
             throw "Could not find the SQL Server container created by docker compose."
@@ -110,7 +178,7 @@ if (-not $SkipSql) {
     }
 }
 
-if (-not $SkipAzurite) {
+if ($UseAzurite -and -not $SkipAzurite) {
     if ((Test-PortListening -Port 10000) -and (Test-PortListening -Port 10001) -and (Test-PortListening -Port 10002)) {
         Write-Host "Azurite is already listening on ports 10000, 10001, and 10002."
     }
@@ -136,16 +204,22 @@ if (-not $SkipAzurite) {
         Wait-Port -Port 10002 -Name "Azurite table service"
     }
 }
+else {
+    Write-Host "Skipping Azurite. Scheduled Functions are disabled by default for local UI/API testing."
+}
 
 if ($ApplyMigrations) {
+    if ($SkipSql) {
+        Write-Host "Waiting for existing SQL Server before applying migrations..."
+        Wait-ExistingSqlServer
+    }
+
     Write-Host "Applying database migrations and seed data..."
-    Push-Location $backendRoot
-    try {
-        dotnet run --project src/Alife.DbMigrator
-    }
-    finally {
-        Pop-Location
-    }
+    Invoke-NativeCommand `
+        -Name "Alife.DbMigrator" `
+        -FilePath "dotnet" `
+        -ArgumentList @("run", "--project", "src/Alife.DbMigrator") `
+        -WorkingDirectory $backendRoot
 }
 
 if (-not $SkipApi) {
@@ -158,15 +232,67 @@ if (-not $SkipApi) {
             throw "Azure Functions Core Tools was not found. Install it before starting the API."
         }
 
-        Start-LoggedProcess `
-            -Name "Alife API" `
-            -FilePath $funcCommand.Source `
-            -ArgumentList @("start", "--port", "7071") `
-            -WorkingDirectory $apiRoot `
-            -OutLog (Join-Path $logRoot "api.log") `
-            -ErrLog (Join-Path $logRoot "api.err.log")
+        $scheduledFunctionSetting = "AzureWebJobs.SermonSync.Disabled"
+        $previousScheduledFunctionSetting = [Environment]::GetEnvironmentVariable($scheduledFunctionSetting, "Process")
+        if (-not $EnableScheduledJobs) {
+            [Environment]::SetEnvironmentVariable($scheduledFunctionSetting, "true", "Process")
+        }
+
+        try {
+            Start-LoggedProcess `
+                -Name "Alife API" `
+                -FilePath $funcCommand.Source `
+                -ArgumentList @("start", "--port", "7071") `
+                -WorkingDirectory $apiRoot `
+                -OutLog (Join-Path $logRoot "api.log") `
+                -ErrLog (Join-Path $logRoot "api.err.log")
+        }
+        finally {
+            [Environment]::SetEnvironmentVariable($scheduledFunctionSetting, $previousScheduledFunctionSetting, "Process")
+        }
 
         Wait-Port -Port 7071 -Name "Alife API" -TimeoutSeconds 120
+    }
+}
+
+if (-not $SkipSpeedLayer) {
+    $frontendIndex = Join-Path $frontendDistRoot "index.html"
+    if ($RebuildFrontendAssets -or -not (Test-Path $frontendIndex)) {
+        Write-Host "Building frontend assets for the Cloudflare speed layer..."
+        $npmCommand = Get-NpmCommand
+        Invoke-NativeCommand `
+            -Name "frontend build" `
+            -FilePath $npmCommand.Source `
+            -ArgumentList @("run", "build") `
+            -WorkingDirectory $frontendRoot
+    }
+
+    if (Test-PortListening -Port 8787) {
+        Write-Host "Alife speed layer is already listening on port 8787."
+    }
+    else {
+        $npmCommand = Get-NpmCommand
+        $devVarsPath = Join-Path $speedLayerRoot ".dev.vars"
+        if (-not (Test-Path $devVarsPath)) {
+            Write-Warning "cloudflare/speed-layer/.dev.vars was not found. AI routes that require GEMINI_API_KEY may fail. Copy .dev.vars.example to .dev.vars and fill it in when needed."
+        }
+
+        Start-LoggedProcess `
+            -Name "Alife speed layer" `
+            -FilePath $npmCommand.Source `
+            -ArgumentList @(
+                "run", "dev", "--",
+                "--port", "8787",
+                "--persist-to", $wranglerStateRoot,
+                "--show-interactive-dev-session=false",
+                "--var", "API_PROXY_TARGET:http://127.0.0.1:7071",
+                "--var", "CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173,http://localhost:8787,http://127.0.0.1:8787"
+            ) `
+            -WorkingDirectory $speedLayerRoot `
+            -OutLog (Join-Path $logRoot "speed-layer.log") `
+            -ErrLog (Join-Path $logRoot "speed-layer.err.log")
+
+        Wait-Port -Port 8787 -Name "Alife speed layer" -TimeoutSeconds 120
     }
 }
 
@@ -175,17 +301,12 @@ if (-not $SkipFrontend) {
         Write-Host "Alife frontend is already listening on port 5173."
     }
     else {
-        $npmCommand = Get-Command npm.cmd -ErrorAction SilentlyContinue
-        if ($null -eq $npmCommand) {
-            $npmCommand = Get-Command npm -ErrorAction SilentlyContinue
-        }
-
-        if ($null -eq $npmCommand) {
-            throw "npm was not found. Install Node.js before starting the frontend."
-        }
+        $npmCommand = Get-NpmCommand
 
         $previousApiProxyTarget = $env:API_PROXY_TARGET
+        $previousAiProxyTarget = $env:AI_PROXY_TARGET
         $env:API_PROXY_TARGET = "http://127.0.0.1:7071"
+        $env:AI_PROXY_TARGET = "http://127.0.0.1:8787"
         try {
             Start-LoggedProcess `
                 -Name "Alife frontend" `
@@ -197,6 +318,7 @@ if (-not $SkipFrontend) {
         }
         finally {
             $env:API_PROXY_TARGET = $previousApiProxyTarget
+            $env:AI_PROXY_TARGET = $previousAiProxyTarget
         }
 
         Wait-Port -Port 5173 -Name "Alife frontend"
@@ -205,6 +327,7 @@ if (-not $SkipFrontend) {
 
 Write-Host ""
 Write-Host "Alife local dev stack is ready."
-Write-Host "Frontend: http://localhost:5173"
-Write-Host "API:      http://127.0.0.1:7071"
-Write-Host "Logs:     $logRoot"
+Write-Host "Frontend:    http://localhost:5173"
+Write-Host "Speed layer: http://localhost:8787"
+Write-Host "API:         http://127.0.0.1:7071"
+Write-Host "Logs:        $logRoot"
