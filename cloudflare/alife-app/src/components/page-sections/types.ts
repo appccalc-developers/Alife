@@ -10,6 +10,7 @@ export type PageLinkItem = {
 }
 
 export type SectionMode = 'render' | 'edit'
+export type SectionPreviewDensity = 'full' | 'compact'
 
 export type SectionComponentProps = {
   section: SectionEditModel
@@ -23,6 +24,7 @@ export type SectionComponentProps = {
   sectionRootClassName?: string
   disabled?: boolean
   editorPreview?: boolean
+  previewDensity?: SectionPreviewDensity
   propertiesOnly?: boolean
   showProperties?: boolean
   onUpdate?: (section: SectionEditModel) => void

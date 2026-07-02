@@ -54,7 +54,7 @@ const presetOptionsForSource = (source: ListViewSource, t: ReturnType<typeof use
   return [{ value: 'all', label: t('all') }]
 }
 
-const GroupListSectionBlock = ({ section, mode, domId, disabled, editorPreview, propertiesOnly, showProperties = true, contextGroupId, page, onUpdate }: SectionComponentProps) => {
+const GroupListSectionBlock = ({ section, mode, domId, disabled, editorPreview, previewDensity = 'full', propertiesOnly, showProperties = true, contextGroupId, page, onUpdate }: SectionComponentProps) => {
   const auth = useAuthStore()
   const t = useUiText()
   const source = sourceFromContent(section.contentJson)
@@ -89,7 +89,7 @@ const GroupListSectionBlock = ({ section, mode, domId, disabled, editorPreview, 
     return renderProperties()
   }
 
-  const compactPreview = editorPreview ?? mode === 'edit'
+  const compactPreview = previewDensity === 'compact' || editorPreview === true
 
   return (
     <section id={domId} className={pageSectionShellClass}>

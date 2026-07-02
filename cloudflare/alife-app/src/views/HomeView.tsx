@@ -1,5 +1,6 @@
 import { useAuthStore } from '../stores/auth'
 import { localizeText } from '../utils/localizedText'
+import { pageSectionsCanvasClass } from '../components/page-sections/sectionPresets'
 import PageContentRenderer, { getPageSectionDomId, normalizePageSections } from '../components/page/PageContentRenderer'
 import type { SectionEditModel } from '../types/page-editor'
 import { getCopy } from './home/homeCopy'
@@ -82,7 +83,7 @@ const HomeView = () => {
   return (
     <div className="min-h-screen overflow-hidden bg-home-surface text-home-gold-text">
       <HomeNavHeader copy={copy} language={language} navItems={sanitizedNavItems} />
-      <main>
+      <main className={pageSectionsCanvasClass}>
         <HeroSection copy={copy} language={language} />
         {hasPublishedHomePage ? (
           <>

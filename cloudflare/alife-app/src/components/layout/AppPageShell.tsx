@@ -5,10 +5,11 @@ type Props = {
   subtitle?: string
   children: ReactNode
   actions?: ReactNode
+  fullBleed?: boolean
 }
 
-const AppPageShell = ({ title, subtitle, actions, children }: Props) => (
-  <section className="mx-auto w-full max-w-6xl space-y-5 desktop:space-y-6">
+const AppPageShell = ({ title, subtitle, actions, children, fullBleed = false }: Props) => (
+  <section className={fullBleed ? 'mx-auto w-full max-w-none space-y-5 desktop:space-y-6' : 'mx-auto w-full max-w-6xl space-y-5 desktop:space-y-6'}>
     {title || subtitle || actions ? (
       <header className="flex flex-col gap-4 rounded-2xl border border-[#2f4b42]/10 bg-white/70 px-5 py-5 shadow-[0_10px_30px_rgba(31,56,48,0.06)] backdrop-blur sm:flex-row sm:items-end sm:justify-between sm:px-6">
         <div className="min-w-0">

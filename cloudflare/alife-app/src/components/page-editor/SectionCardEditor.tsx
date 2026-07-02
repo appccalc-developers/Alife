@@ -533,7 +533,7 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
       }}
     >
       {isActive ? (
-        <section className="rounded-2xl border border-[#2f4b42]/10 bg-white/90 shadow-[0_10px_26px_rgba(31,56,48,0.06)]">
+        <div className="rounded-2xl border border-[#2f4b42]/10 bg-white/90 shadow-[0_10px_26px_rgba(31,56,48,0.06)]">
           <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
             <div>
               <h3 className="text-sm font-semibold text-slate-900">{t('sectionHeading', { number: index + 1, type: section.type ? sectionTypeLabel(section.type, isZh) : t('selectType') })}</h3>
@@ -546,15 +546,14 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
               <AppActionButton size="sm" variant="danger" disabled={!canEdit} onClick={onRemove}>{t('remove')}</AppActionButton>
             </div>
           </div>
-          {renderGuide()}
-        </section>
+        </div>
       ) : null}
 
       <SectionBlock
         section={section}
         mode={isActive ? 'edit' : 'render'}
         disabled={!canEdit}
-        editorPreview={isActive ? true : undefined}
+        previewDensity="full"
         contextGroupId={contextGroupId}
         pageId={pageId}
         onUpdate={onUpdate}

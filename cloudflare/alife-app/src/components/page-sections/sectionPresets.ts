@@ -8,6 +8,8 @@ const spacingClasses: Record<SectionSpacing, string> = {
 }
 
 export const pageSectionShellClass = 'scroll-mt-24 px-5 py-20 sm:px-8 lg:px-10 lg:py-28'
+export const pageSectionsCanvasClass = 'w-full min-w-0'
+export const pageSectionsChromeClass = 'mx-auto w-full max-w-6xl px-5 sm:px-8 lg:px-10'
 
 export const normalizeSectionSpacing = (value: unknown): SectionSpacing =>
   value === 'compact' || value === 'large' ? value : 'normal'

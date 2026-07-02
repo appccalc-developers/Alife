@@ -167,7 +167,7 @@ const PageSettingsPanel = ({
   }
 
   return (
-  <div className="space-y-4 lg:sticky lg:top-4">
+  <div className="space-y-4">
     {canUsePublishDock && publishReadiness ? (
       <section className="overflow-hidden rounded-2xl border border-[#2f4b42]/10 bg-white shadow-[0_14px_36px_rgba(31,56,48,0.1)]">
         <div className="border-b border-slate-200 bg-[#f7f3e9] px-4 py-4">
