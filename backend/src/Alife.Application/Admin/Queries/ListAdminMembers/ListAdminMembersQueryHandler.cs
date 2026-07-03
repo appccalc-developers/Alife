@@ -61,7 +61,15 @@ public sealed class ListAdminMembersQueryHandler(IAlifeDbContext dbContext)
         var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)normalizedPageSize);
 
         var pageRows = await membersQuery
-            .OrderBy(member => member.DisplayName)
+            .OrderByDescending(member => member.PlatformRoles
+                .Where(role => role.RevokedUtc == null)
+                .Select(role => (int?)role.Role.Level)
+                .Max() ?? 0)
+            .ThenByDescending(member => member.IsRegistered)
+            .ThenByDescending(member => member.Memberships.Count(m => m.Status == MembershipStatus.Requested))
+            .ThenByDescending(member => member.Memberships.Count(m => m.Status == MembershipStatus.Approved))
+            .ThenBy(member => member.DisplayName)
+            .ThenBy(member => member.Id)
             .Skip((normalizedPage - 1) * normalizedPageSize)
             .Take(normalizedPageSize)
             .Select(member => new
@@ -71,6 +79,8 @@ public sealed class ListAdminMembersQueryHandler(IAlifeDbContext dbContext)
                 member.Email,
                 member.PhoneE164,
                 member.IsRegistered,
+                member.CreatedUtc,
+                member.UpdatedUtc,
                 ApprovedGroupCount = member.Memberships.Count(m => m.Status == MembershipStatus.Approved),
                 PendingGroupCount = member.Memberships.Count(m => m.Status == MembershipStatus.Requested)
             })
@@ -106,6 +116,8 @@ public sealed class ListAdminMembersQueryHandler(IAlifeDbContext dbContext)
                 member.PhoneE164,
                 member.IsRegistered,
                 false,
+                member.CreatedUtc,
+                member.UpdatedUtc,
                 highestRoleByMember.TryGetValue(member.Id, out var platformRole) && !string.IsNullOrWhiteSpace(platformRole)
                     ? platformRole
                     : "user",

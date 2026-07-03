@@ -54,6 +54,11 @@ public sealed class UpdatePlatformRolePermissionsCommandHandler(IAlifeDbContext 
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
+        var assignedMemberCount = role.Code == "user"
+            ? await dbContext.Members.CountAsync(x => x.IsRegistered, cancellationToken)
+            : await dbContext.MemberPlatformRoles.CountAsync(x => x.RoleId == role.Id && x.RevokedUtc == null, cancellationToken);
+        var hasAnyAssignment = await dbContext.MemberPlatformRoles.AnyAsync(x => x.RoleId == role.Id, cancellationToken);
+
         return AppResult<AdminPlatformRoleDto>.Success(new AdminPlatformRoleDto(
             role.Id,
             role.Code,
@@ -64,7 +69,7 @@ public sealed class UpdatePlatformRolePermissionsCommandHandler(IAlifeDbContext 
             true,
             AdminPlatformRoleHelpers.IsSystemRole(role.Code),
             !AdminPlatformRoleHelpers.IsSystemRole(role.Code) &&
-                !await dbContext.MemberPlatformRoles.AnyAsync(x => x.RoleId == role.Id, cancellationToken),
-            await dbContext.MemberPlatformRoles.CountAsync(x => x.RoleId == role.Id, cancellationToken)));
+                !hasAnyAssignment,
+            assignedMemberCount));
     }
 }

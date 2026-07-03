@@ -187,9 +187,9 @@ export const RolesSection = ({ l, roles, roleForm, setRoleForm, creatingRole, de
       </div>
 
       {createOpen ? (
-        <div className="fixed inset-0 z-[100] flex items-end bg-slate-950/45 px-3 py-[calc(env(safe-area-inset-top)+1rem)] backdrop-blur-sm sm:items-center sm:justify-center">
+        <div className="fixed inset-0 z-[1000] flex items-start justify-center overflow-y-auto bg-slate-950/45 px-3 pb-[calc(env(safe-area-inset-bottom)_+_1rem)] pt-[calc(env(safe-area-inset-top)_+_7rem)] backdrop-blur-sm sm:px-4 sm:pb-6 desktop:pt-[calc(env(safe-area-inset-top)_+_6rem)]">
           <button type="button" className="absolute inset-0" aria-label={l('closeDialog')} onClick={() => setCreateOpen(false)} />
-          <section className="relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl">
+          <section className="relative z-10 flex max-h-[calc(100dvh_-_env(safe-area-inset-top)_-_env(safe-area-inset-bottom)_-_8.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl desktop:max-h-[calc(100dvh_-_env(safe-area-inset-top)_-_7.5rem)]">
             <div className="flex items-start justify-between gap-4 border-b border-slate-100 p-5">
               <div>
                 <h2 className="text-lg font-black text-slate-950">{l('newRole')}</h2>
