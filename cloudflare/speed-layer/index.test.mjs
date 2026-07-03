@@ -560,8 +560,8 @@ test('global page promotion evicts global pages and old group pages caches', asy
     previousOwnerGroupId: groupId,
     page: {
       id: pageId,
-      scope: 'global',
-      ownerGroupId: null,
+      scope: 'group',
+      ownerGroupId: groupId,
       visibility: 'public',
     },
   }))
@@ -577,6 +577,46 @@ test('global page promotion evicts global pages and old group pages caches', asy
   assert.equal(promote.status, 200)
   assert.equal(cacheStore.has(cacheKey(new Request(globalUrl))), false)
   assert.equal(cacheStore.has(cacheKey(new Request(groupPagesUrl))), false)
+  assert.equal(apiCacheStore.has(`group:${groupId}:pages`), false)
+  assert.equal(apiCacheStore.has(`public:group:${groupId}:pages`), false)
+})
+
+test('page refusal evicts original group pages and global publication caches', async () => {
+  const pageId = 'group-page-1'
+  const groupId = 'group-1'
+  const globalUrl = 'https://ccalc.live/api/pages/global'
+  const publicUrl = 'https://ccalc.live/api/pages/public'
+  const groupPagesUrl = `https://ccalc.live/api/groups/${groupId}/pages`
+  cacheStore.set(cacheKey(new Request(globalUrl)), Response.json([{ id: pageId, scope: 'group', ownerGroupId: groupId }]))
+  cacheStore.set(cacheKey(new Request(publicUrl)), Response.json([{ id: pageId, scope: 'group', ownerGroupId: groupId, visibility: 'public' }]))
+  cacheStore.set(cacheKey(new Request(groupPagesUrl)), Response.json([{ id: pageId, scope: 'group', ownerGroupId: groupId }]))
+  apiCacheStore.set(createApiCacheKey(publicUrl), createStoredResponse([{ id: pageId, scope: 'group', ownerGroupId: groupId, visibility: 'Public' }]))
+  apiCacheStore.set(createApiCacheKey(globalUrl), createStoredResponse([{ id: pageId, scope: 'group', ownerGroupId: groupId, visibility: 'Public' }]))
+  apiCacheStore.set(`group:${groupId}:pages`, createStoredResponse([{ id: pageId, scope: 'group', ownerGroupId: groupId }]))
+  apiCacheStore.set(`public:group:${groupId}:pages`, createStoredResponse([{ id: pageId, scope: 'group', ownerGroupId: groupId, visibility: 'Public' }]))
+  originResponses.push(Response.json({
+    ok: true,
+    pageId,
+    previousOwnerGroupId: groupId,
+    page: null,
+  }))
+
+  const refusal = await dispatch(`https://ccalc.live/api/admin/pages/${pageId}/refuse-global-review`, {
+    method: 'POST',
+    body: JSON.stringify({ reason: 'Needs bilingual content.' }),
+    headers: {
+      'content-type': 'application/json',
+      cookie: `alife_auth=${createJwtWithSub('reviewer-1')}`,
+    },
+  })
+  await flushWaitUntil()
+
+  assert.equal(refusal.status, 200)
+  assert.equal(cacheStore.has(cacheKey(new Request(globalUrl))), false)
+  assert.equal(cacheStore.has(cacheKey(new Request(publicUrl))), false)
+  assert.equal(cacheStore.has(cacheKey(new Request(groupPagesUrl))), false)
+  assert.equal(apiCacheStore.has(createApiCacheKey(publicUrl)), false)
+  assert.equal(apiCacheStore.has(createApiCacheKey(globalUrl)), false)
   assert.equal(apiCacheStore.has(`group:${groupId}:pages`), false)
   assert.equal(apiCacheStore.has(`public:group:${groupId}:pages`), false)
 })

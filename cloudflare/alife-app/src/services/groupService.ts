@@ -2,7 +2,7 @@ import { http } from './http'
 import { conditionalGet } from '../db/httpCache'
 import { subgroupsQueryKey } from '../db/collections/groupCollection'
 import type { GroupDto, GroupMembershipDto, GroupSummaryDto, LocalizedText, MembershipStatus, PageSummaryDto } from '../types'
-import { normalizeGroup, normalizeGroupMembership, normalizeMembershipStatus, normalizePageSummary } from '../utils/apiEnums'
+import { normalizeGroup, normalizeGroupMembership, normalizeMembershipStatus, normalizePageScope, normalizePageSummary, normalizePageVisibility } from '../utils/apiEnums'
 import { toLocalizedText } from '../utils/localizedText'
 
 export type CreateSubgroupPayload = {
@@ -75,8 +75,8 @@ export type CreatePlatformRolePayload = {
 export type AdminPageReviewDto = {
   id: string
   scope: 'group' | 'global' | string
-  ownerGroupId: string
-  ownerGroupName: LocalizedText
+  ownerGroupId: string | null
+  ownerGroupName: LocalizedText | null
   createdByMemberId: string
   creatorDisplayName: string | null
   title: LocalizedText
@@ -92,6 +92,10 @@ export type PageGlobalReviewActionDto = {
   pageId: string
   previousOwnerGroupId: string | null
   page?: PageSummaryDto | null
+}
+
+export type RefusePageGlobalReviewPayload = {
+  reason: string
 }
 
 export type AuditLogDto = {
@@ -214,9 +218,11 @@ const normalizeAdminPagedResult = <T>(payload: unknown): AdminPagedResultDto<T> 
 
 const normalizeAdminPageReview = (page: AdminPageReviewDto): AdminPageReviewDto => ({
   ...page,
+  scope: normalizePageScope(page.scope),
+  visibility: normalizePageVisibility(page.visibility),
   title: toLocalizedText(page.title),
   description: page.description ? toLocalizedText(page.description) : page.description,
-  ownerGroupName: toLocalizedText(page.ownerGroupName),
+  ownerGroupName: page.ownerGroupName ? toLocalizedText(page.ownerGroupName) : null,
 })
 
 const toQuery = (params: Record<string, string | number | boolean | null | undefined>) => {
@@ -388,8 +394,8 @@ export const groupService = {
     return data
   },
 
-  async ignorePageGlobalReview(pageId: string) {
-    const { data } = await http.post<PageGlobalReviewActionDto>(`/api/admin/pages/${pageId}/ignore-global-review`)
+  async refusePageGlobalReview(pageId: string, payload: RefusePageGlobalReviewPayload) {
+    const { data } = await http.post<PageGlobalReviewActionDto>(`/api/admin/pages/${pageId}/refuse-global-review`, payload)
     return data
   },
 

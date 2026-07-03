@@ -4,9 +4,9 @@ using Alife.Application.Abstractions.Identity;
 using Alife.Application.Admin.Commands.BackfillMemberPrivateFiles;
 using Alife.Application.Admin.Commands.CreatePlatformRole;
 using Alife.Application.Admin.Commands.DeletePlatformRole;
-using Alife.Application.Admin.Commands.IgnorePageGlobalReview;
 using Alife.Application.Admin.Commands.PromotePageToGlobal;
 using Alife.Application.Admin.Commands.RefreshCloudflareCache;
+using Alife.Application.Admin.Commands.RefusePageGlobalReview;
 using Alife.Application.Admin.Commands.SendAdminMessage;
 using Alife.Application.Admin.Commands.SetMemberPlatformRole;
 using Alife.Application.Admin.Commands.SyncSermons;
@@ -139,8 +139,11 @@ public class AdminController(IMediator mediator, ICurrentMemberAccessor currentM
         return this.ToActionResult(result);
     }
 
-    [HttpPost("pages/{pageId:guid}/ignore-global-review")]
-    public async Task<IActionResult> IgnorePageGlobalReview(Guid pageId, CancellationToken cancellationToken)
+    [HttpPost("pages/{pageId:guid}/refuse-global-review")]
+    public async Task<IActionResult> RefusePageGlobalReview(
+        Guid pageId,
+        RefusePageGlobalReviewRequest request,
+        CancellationToken cancellationToken)
     {
         var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
         if (currentMemberId is null)
@@ -148,7 +151,7 @@ public class AdminController(IMediator mediator, ICurrentMemberAccessor currentM
             return Unauthorized();
         }
 
-        var result = await mediator.Send(new IgnorePageGlobalReviewCommand(currentMemberId.Value, pageId), cancellationToken);
+        var result = await mediator.Send(new RefusePageGlobalReviewCommand(currentMemberId.Value, pageId, request.Reason), cancellationToken);
         this.ApplyPrivateNoCacheHeaders();
         return this.ToActionResult(result);
     }
@@ -420,6 +423,7 @@ public class AdminController(IMediator mediator, ICurrentMemberAccessor currentM
 
     public sealed record UpdatePlatformRolePermissionsRequest(IReadOnlyList<string> PermissionCodes);
     public sealed record UpdateVisitContactRequestStatusRequest(string Status);
+    public sealed record RefusePageGlobalReviewRequest(string Reason);
 
     public sealed record SendAdminMessageRequest(
         string Scope,

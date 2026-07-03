@@ -22,22 +22,15 @@ public sealed class ListPageReviewCandidatesQueryHandler(IAlifeDbContext dbConte
 
         var rows = await dbContext.Pages
             .AsNoTracking()
-            .Where(page =>
-                page.Scope == PageScope.Group &&
-                page.Visibility == PageVisibility.Public &&
-                page.OwnerGroupId != null)
-            .Where(page => !dbContext.AuditLogs.Any(log =>
-                log.Action == PageGlobalReviewActions.Ignore &&
-                log.EntityType == "page" &&
-                log.EntityId == page.Id &&
-                log.OccurredUtc >= page.UpdatedUtc))
+            .Where(page => page.Scope == PageScope.Global ||
+                           (page.Scope == PageScope.Group && page.OwnerGroupId != null))
             .OrderByDescending(page => page.UpdatedUtc)
             .Select(page => new
             {
                 page.Id,
                 page.Scope,
-                OwnerGroupId = page.OwnerGroupId!.Value,
-                OwnerGroupNameJson = page.OwnerGroup!.NameJson,
+                page.OwnerGroupId,
+                OwnerGroupNameJson = page.OwnerGroup == null ? null : page.OwnerGroup.NameJson,
                 page.CreatedByMemberId,
                 CreatorDisplayName = page.CreatedByMember.DisplayName,
                 page.TitleJson,

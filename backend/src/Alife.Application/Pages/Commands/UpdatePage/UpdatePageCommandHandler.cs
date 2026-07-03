@@ -83,6 +83,11 @@ public sealed class UpdatePageCommandHandler(
 
     private async Task<bool> CanEditPageAsync(Page page, Guid currentMemberId, CancellationToken cancellationToken)
     {
+        if (await groupAuthorizationService.CanReviewPagesAsync(currentMemberId, cancellationToken))
+        {
+            return true;
+        }
+
         if (page.Scope == PageScope.Global)
         {
             return await groupAuthorizationService.IsAdminAsync(currentMemberId, cancellationToken);
@@ -114,6 +119,7 @@ public sealed class UpdatePageCommandHandler(
         if (page.OwnerGroupId.HasValue)
         {
             await pageCacheInvalidationService.RemoveGroupPagesAsync(page.OwnerGroupId.Value, cancellationToken);
+            await pageCacheInvalidationService.RemoveGlobalAsync(cancellationToken);
         }
     }
 

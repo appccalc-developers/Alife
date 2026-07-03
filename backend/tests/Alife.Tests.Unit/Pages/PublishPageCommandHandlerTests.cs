@@ -54,6 +54,49 @@ public class PublishPageCommandHandlerTests
         Assert.Equal("Welcome", result.Value.Title["en"]);
         await pageCacheInvalidationService.Received(1).RemoveDetailAsync(pageId, Arg.Any<CancellationToken>());
         await pageCacheInvalidationService.Received(1).RemoveGroupPagesAsync(groupId, Arg.Any<CancellationToken>());
+        await pageCacheInvalidationService.Received(1).RemoveGlobalAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_WhenPageReviewerPublishesGroupPage_ReturnsUpdatedPageSummary()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var groupAuthorizationService = Substitute.For<IGroupAuthorizationService>();
+        var pageCacheInvalidationService = Substitute.For<IPageCacheInvalidationService>();
+        var groupId = Guid.NewGuid();
+        var reviewerId = Guid.NewGuid();
+        var pageId = Guid.NewGuid();
+        dbContext.Pages.Add(new Page
+        {
+            Id = pageId,
+            Scope = PageScope.Group,
+            OwnerGroupId = groupId,
+            CreatedByMemberId = Guid.NewGuid(),
+            TitleJson = "{\"en\":\"Welcome\",\"zh\":\"欢迎\"}",
+            DescriptionJson = "{\"en\":\"Internal draft\",\"zh\":\"内部草稿\"}",
+            TagsJson = "[\"church\"]",
+            TitleDisplayStyle = "Default",
+            Visibility = PageVisibility.Draft,
+            UpdatedUtc = DateTime.UtcNow.AddDays(-1)
+        });
+        await dbContext.SaveChangesAsync();
+        groupAuthorizationService
+            .CanReviewPagesAsync(reviewerId, Arg.Any<CancellationToken>())
+            .Returns(true);
+        var handler = new PublishPageCommandHandler(
+            dbContext,
+            groupAuthorizationService,
+            pageCacheInvalidationService);
+
+        var result = await handler.Handle(
+            new PublishPageCommand(pageId, reviewerId, PageVisibility.Public),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(PageVisibility.Public, result.Value!.Visibility);
+        await pageCacheInvalidationService.Received(1).RemoveDetailAsync(pageId, Arg.Any<CancellationToken>());
+        await pageCacheInvalidationService.Received(1).RemoveGroupPagesAsync(groupId, Arg.Any<CancellationToken>());
+        await pageCacheInvalidationService.Received(1).RemoveGlobalAsync(Arg.Any<CancellationToken>());
     }
 
     private static AlifeDbContext CreateInMemoryDbContext()

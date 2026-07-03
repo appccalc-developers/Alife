@@ -1,7 +1,9 @@
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useLiveQuery } from '@tanstack/react-db'
 import { useQuery } from '@tanstack/react-query'
+import { Pencil } from 'lucide-react'
+import FloatingActionButtons from '../app/actions/FloatingActionButtons'
 import PageContentRenderer from '../components/page/PageContentRenderer'
 import AppBackButton from '../components/layout/AppBackButton'
 import { pageSectionsCanvasClass, pageSectionsChromeClass } from '../components/page-sections/sectionPresets'
@@ -18,7 +20,8 @@ const PageView = () => {
   const { pageId } = useActiveEntityIds({ pageId: routePageId })
   const navigate = useNavigate()
   const t = useUiText()
-  const { language } = useAuthStore()
+  const auth = useAuthStore()
+  const { language } = auth
 
   const {
     data: page = null,
@@ -51,6 +54,56 @@ const PageView = () => {
     [gpColl],
   )
 
+  const canEditPage = useMemo(() => {
+    if (!page || !auth.initialized) {
+      return false
+    }
+
+    if (auth.canReviewPages) {
+      return true
+    }
+
+    if (auth.me?.id === page.createdByMemberId && page.visibility === 'draft') {
+      return true
+    }
+
+    if (page.ownerGroupId) {
+      return auth.hasLeaderAccess(page.ownerGroupId)
+    }
+
+    return auth.isAdmin
+  }, [auth, page])
+
+  const editPage = useCallback(() => {
+    if (!page?.id) {
+      return
+    }
+
+    if (
+      page.ownerGroupId &&
+      page.visibility === 'public' &&
+      auth.hasLeaderAccess(page.ownerGroupId) &&
+      !window.confirm(t('editPublishedGroupPageConfirm'))
+    ) {
+      return
+    }
+
+    activeEntityService.setPage(page.id, page.ownerGroupId || undefined)
+    navigate(page.ownerGroupId ? '/pages/edit' : '/pages/edit?scope=global')
+  }, [auth, navigate, page, t])
+
+  const editActions = useMemo(
+    () => canEditPage
+      ? [{
+          label: t('editPage'),
+          tone: 'edit' as const,
+          icon: <Pencil className="h-6 w-6" aria-hidden="true" />,
+          onClick: editPage,
+        }]
+      : [],
+    [canEditPage, editPage, t],
+  )
+
   return (
     !pageId ? <Navigate to="/" replace /> :
     <main className={pageSectionsCanvasClass}>
@@ -71,12 +124,9 @@ const PageView = () => {
           groupPageItems={groupPageItems as unknown as Array<{ id: string; title: string; visibility: string }>}
           showHeader={false}
           framed={false}
-          onEditPage={(id, groupId) => {
-            activeEntityService.setPage(id, groupId)
-            navigate('/pages/edit')
-          }}
         />
       ) : null}
+      <FloatingActionButtons items={editActions} />
     </main>
   )
 }

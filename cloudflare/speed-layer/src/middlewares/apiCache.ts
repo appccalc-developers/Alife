@@ -531,10 +531,8 @@ export async function getInvalidationPaths(env: Env, request: Request, response:
   if (pageId) {
     paths.add(`/api/pages/${pageId}`)
     paths.add('/api/pages/public')
+    paths.add('/api/pages/global')
     const body = await readJsonObject(response)
-    if (isGlobalPageScope(body?.scope)) {
-      paths.add('/api/pages/global')
-    }
 
     const ownerGroupId = readString(body?.ownerGroupId) ?? await readEntityGroup(env, 'page', pageId)
     if (ownerGroupId) {
@@ -553,6 +551,20 @@ export async function getInvalidationPaths(env: Env, request: Request, response:
     const previousOwnerGroupId = readString(body?.previousOwnerGroupId) ?? await readEntityGroup(env, 'page', promotedPageId)
     if (previousOwnerGroupId) {
       paths.add(`/api/groups/${previousOwnerGroupId}/pages`)
+    }
+  }
+
+  const pageRefuseMatch = path.match(/^\/api\/admin\/pages\/([^/]+)\/refuse-global-review$/)
+  if (pageRefuseMatch) {
+    const refusedPageId = pageRefuseMatch[1]
+    const body = await readJsonObject(response)
+    paths.add(`/api/pages/${refusedPageId}`)
+    paths.add('/api/pages/public')
+    paths.add('/api/pages/global')
+
+    const ownerGroupId = readString(body?.previousOwnerGroupId) ?? await readEntityGroup(env, 'page', refusedPageId)
+    if (ownerGroupId) {
+      paths.add(`/api/groups/${ownerGroupId}/pages`)
     }
   }
 
@@ -626,7 +638,8 @@ export function getInvalidationKeys(request: Request, targetMemberId = '') {
     authz: new Set<string>(),
   }
   const pageId = path.match(/^\/api\/pages\/([^/]+)(?:\/publish)?$/)?.[1] ??
-    path.match(/^\/api\/admin\/pages\/([^/]+)\/promote-global$/)?.[1]
+    path.match(/^\/api\/admin\/pages\/([^/]+)\/promote-global$/)?.[1] ??
+    path.match(/^\/api\/admin\/pages\/([^/]+)\/refuse-global-review$/)?.[1]
   if (pageId) {
     keys.api.add(createEntityGroupMapKey('page', pageId))
     keys.api.add(createPageMetaMapKey(pageId))
@@ -1019,14 +1032,6 @@ function readBoolean(value: unknown) {
 
 function getGroupPagesPathGroupId(pathname: string) {
   return pathname.match(/^\/api\/groups\/([^/]+)\/pages$/)?.[1] ?? ''
-}
-
-function isGlobalPageScope(value: unknown) {
-  if (typeof value === 'string') {
-    return value.toLowerCase() === 'global'
-  }
-
-  return value === 0
 }
 
 type MemberProfileMembership = {

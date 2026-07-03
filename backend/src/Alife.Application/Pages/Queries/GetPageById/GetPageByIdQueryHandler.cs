@@ -1,16 +1,20 @@
+using Alife.Application.Admin;
+using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
 using Alife.Application.Groups.Services;
 using Alife.Application.Pages.Dtos;
 using Alife.Application.Pages.Services;
 using Alife.Domain.Enums;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 namespace Alife.Application.Pages.Queries.GetPageById;
 
 public sealed class GetPageByIdQueryHandler(
     IPageReadService pageReadService,
     IGroupReadService groupReadService,
-    IGroupAuthorizationService groupAuthorizationService)
+    IGroupAuthorizationService groupAuthorizationService,
+    IAlifeDbContext dbContext)
     : IRequestHandler<GetPageByIdQuery, AppResult<PageDetailDto>>
 {
     public async Task<AppResult<PageDetailDto>> Handle(GetPageByIdQuery request, CancellationToken cancellationToken)
@@ -44,16 +48,21 @@ public sealed class GetPageByIdQueryHandler(
                                 request.CurrentMemberId.Value,
                                 cancellationToken));
 
-        var canReviewPublicCandidate = request.CurrentMemberId.HasValue &&
-                                       page.Visibility == PageVisibility.Public &&
-                                       await groupAuthorizationService.CanReviewPagesAsync(
-                                           request.CurrentMemberId.Value,
-                                           cancellationToken);
+        var canReviewPage = request.CurrentMemberId.HasValue &&
+                            await groupAuthorizationService.CanReviewPagesAsync(
+                                request.CurrentMemberId.Value,
+                                cancellationToken);
 
         var canView = (isApproved && page.Visibility != PageVisibility.Draft) ||
                       isPrivileged ||
-                      canReviewPublicCandidate;
+                      canReviewPage;
         if (canView)
+        {
+            return AppResult<PageDetailDto>.Success(page);
+        }
+
+        if (page.Visibility == PageVisibility.Public &&
+            await HasCurrentGlobalApprovalAsync(page, cancellationToken))
         {
             return AppResult<PageDetailDto>.Success(page);
         }
@@ -65,5 +74,22 @@ public sealed class GetPageByIdQueryHandler(
         }
 
         return AppResult<PageDetailDto>.Forbidden("You do not have access to this page.");
+    }
+
+    private Task<bool> HasCurrentGlobalApprovalAsync(PageDetailDto page, CancellationToken cancellationToken)
+    {
+        return dbContext.AuditLogs
+            .AsNoTracking()
+            .AnyAsync(promote =>
+                promote.Action == PageGlobalReviewActions.Promote &&
+                promote.EntityType == "page" &&
+                promote.EntityId == page.Id &&
+                promote.OccurredUtc >= page.UpdatedUtc &&
+                !dbContext.AuditLogs.Any(refusal =>
+                    refusal.Action == PageGlobalReviewActions.Refuse &&
+                    refusal.EntityType == "page" &&
+                    refusal.EntityId == page.Id &&
+                    refusal.OccurredUtc >= promote.OccurredUtc),
+                cancellationToken);
     }
 }

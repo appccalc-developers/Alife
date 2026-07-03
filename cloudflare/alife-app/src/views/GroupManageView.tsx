@@ -563,6 +563,14 @@ type PagesPanelProps = {
 
 const pageVisibilityOptions: PageVisibility[] = ['draft', 'group', 'public']
 
+const formatReviewDate = (value: string, language: string) => {
+  if (!value) return ''
+  return new Intl.DateTimeFormat(language === 'zh' ? 'zh-CN' : undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(value))
+}
+
 const PagesPanel = ({ groupId, language, pages, onAddPage, onDeletePage, onUpdatePageVisibility }: PagesPanelProps) => {
   const t = useUiText()
   const navigate = useNavigate()
@@ -583,6 +591,18 @@ const PagesPanel = ({ groupId, language, pages, onAddPage, onDeletePage, onUpdat
               <div>
                 <p className="font-medium text-slate-950">{localizeText(page.title, language)}</p>
                 <p className="mt-1 text-xs text-slate-500">{page.visibility}</p>
+                {page.reviewRefusal ? (
+                  <div className="mt-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs leading-5 text-rose-800">
+                    <p className="font-black text-rose-900">{t('pageGlobalReviewRefused')}</p>
+                    <p className="mt-0.5 font-semibold">
+                      {t('pageGlobalReviewRefusalMeta', {
+                        reviewer: page.reviewRefusal.reviewerDisplayName || t('unknownReviewer'),
+                        time: formatReviewDate(page.reviewRefusal.refusedUtc, language),
+                      })}
+                    </p>
+                    <p className="mt-1">{t('pageGlobalReviewRefusalReason', { reason: page.reviewRefusal.reason })}</p>
+                  </div>
+                ) : null}
               </div>
               <div className="flex flex-wrap gap-2">
                 <button

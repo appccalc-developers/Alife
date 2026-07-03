@@ -37,27 +37,84 @@ public class PublicPagesQueryTests
         var publicChurchPage = CreatePage(authorId, PageScope.Group, churchGroupId, PageVisibility.Public, "Church Public");
         var groupVisibleChurchPage = CreatePage(authorId, PageScope.Group, churchGroupId, PageVisibility.Group, "Church Group");
         var publicSubgroupPage = CreatePage(authorId, PageScope.Group, subgroupId, PageVisibility.Public, "Subgroup Public");
+        var approvedSubgroupPage = CreatePage(authorId, PageScope.Group, subgroupId, PageVisibility.Public, "Subgroup Approved");
         publicChurchPage.OwnerGroup = church;
         groupVisibleChurchPage.OwnerGroup = church;
         publicSubgroupPage.OwnerGroup = subgroup;
+        approvedSubgroupPage.OwnerGroup = subgroup;
         dbContext.Pages.AddRange(
             publicGlobalPage,
             draftGlobalPage,
             publicChurchPage,
             groupVisibleChurchPage,
-            publicSubgroupPage);
+            publicSubgroupPage,
+            approvedSubgroupPage);
+        dbContext.AuditLogs.Add(new AuditLog
+        {
+            Id = Guid.NewGuid(),
+            Action = "page.global-review.promote",
+            EntityType = "page",
+            EntityId = approvedSubgroupPage.Id,
+            GroupId = subgroupId,
+            OccurredUtc = approvedSubgroupPage.UpdatedUtc.AddMinutes(1)
+        });
         await dbContext.SaveChangesAsync();
 
         var service = new PageReadService(dbContext, services.GetRequiredService<HybridCache>());
 
         var result = await service.GetPublicPagesAsync(CancellationToken.None);
 
-        Assert.Equal(2, result.Count);
+        Assert.Equal(3, result.Count);
         Assert.Contains(result, page => page.Id == publicGlobalPage.Id);
         Assert.Contains(result, page => page.Id == publicChurchPage.Id);
+        Assert.Contains(result, page => page.Id == approvedSubgroupPage.Id);
         Assert.DoesNotContain(result, page => page.Id == draftGlobalPage.Id);
         Assert.DoesNotContain(result, page => page.Id == groupVisibleChurchPage.Id);
         Assert.DoesNotContain(result, page => page.Id == publicSubgroupPage.Id);
+    }
+
+    [Fact]
+    public async Task GetGlobalPages_ReturnsGlobalPagesAndCurrentApprovedGroupPages()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        using var services = CreateServiceProvider();
+        var authorId = Guid.NewGuid();
+        var groupId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+
+        dbContext.Members.Add(new Member
+        {
+            Id = authorId,
+            DisplayName = "Author",
+            IsRegistered = true,
+            CreatedUtc = now,
+            UpdatedUtc = now
+        });
+        dbContext.Groups.Add(CreateGroup(groupId, isChurch: false, parentGroupId: null));
+
+        var publicGlobalPage = CreatePage(authorId, PageScope.Global, null, PageVisibility.Public, "Global Public");
+        var approvedGroupPage = CreatePage(authorId, PageScope.Group, groupId, PageVisibility.Public, "Approved Group Public");
+        var unapprovedGroupPage = CreatePage(authorId, PageScope.Group, groupId, PageVisibility.Public, "Unapproved Group Public");
+        dbContext.Pages.AddRange(publicGlobalPage, approvedGroupPage, unapprovedGroupPage);
+        dbContext.AuditLogs.Add(new AuditLog
+        {
+            Id = Guid.NewGuid(),
+            Action = "page.global-review.promote",
+            EntityType = "page",
+            EntityId = approvedGroupPage.Id,
+            GroupId = groupId,
+            OccurredUtc = approvedGroupPage.UpdatedUtc.AddMinutes(1)
+        });
+        await dbContext.SaveChangesAsync();
+
+        var service = new PageReadService(dbContext, services.GetRequiredService<HybridCache>());
+
+        var result = await service.GetGlobalPagesAsync(CancellationToken.None);
+
+        Assert.Equal(2, result.Count);
+        Assert.Contains(result, page => page.Id == publicGlobalPage.Id && page.Scope == PageScope.Global);
+        Assert.Contains(result, page => page.Id == approvedGroupPage.Id && page.Scope == PageScope.Group && page.OwnerGroupId == groupId);
+        Assert.DoesNotContain(result, page => page.Id == unapprovedGroupPage.Id);
     }
 
     private static AlifeDbContext CreateInMemoryDbContext()

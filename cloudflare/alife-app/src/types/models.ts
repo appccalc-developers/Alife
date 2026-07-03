@@ -143,6 +143,14 @@ export type PageSummaryDto = {
   description?: LocalizedText | null
   tagsJson?: string
   titleDisplayStyle?: string
+  reviewRefusal?: PageReviewRefusalDto | null
+}
+
+export type PageReviewRefusalDto = {
+  reviewerMemberId: string
+  reviewerDisplayName?: string | null
+  refusedUtc: string
+  reason: string
 }
 
 export type PageDetailDto = {

@@ -11,6 +11,7 @@ export type {
   PageDetailDto,
   PageEditModel,
   PageEditorValidation,
+  PageReviewRefusalDto,
   PageScope,
   PageSummaryDto,
   PageVisibility,
