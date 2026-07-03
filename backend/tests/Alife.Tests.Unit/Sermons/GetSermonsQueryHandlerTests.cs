@@ -63,13 +63,14 @@ public class GetSermonsQueryHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ReturnsSermons_OrderedByTitleDescending()
+    public async Task Handle_ReturnsSermons_OrderedByPreachedDateDescending()
     {
         // Arrange
         using var dbContext = CreateInMemoryDbContext();
         dbContext.Sermons.AddRange(
-            new Sermon { Id = Guid.NewGuid(), YoutubeVideoId = "id1", Title = "2026 05 24 Latest", SpeakerName = "S", SortOrder = 2, SyncedUtc = DateTime.UtcNow },
-            new Sermon { Id = Guid.NewGuid(), YoutubeVideoId = "id2", Title = "2026 05 03 Older", SpeakerName = "S", SortOrder = 1, SyncedUtc = DateTime.UtcNow }
+            new Sermon { Id = Guid.NewGuid(), YoutubeVideoId = "id1", Title = "2026 05 03 Older", SpeakerName = "S", SortOrder = 1, PreachedAtUtc = new DateTime(2026, 5, 3, 0, 0, 0, DateTimeKind.Utc), SyncedUtc = DateTime.UtcNow },
+            new Sermon { Id = Guid.NewGuid(), YoutubeVideoId = "id2", Title = "2026 05 24 Latest", SpeakerName = "S", SortOrder = 2, PreachedAtUtc = new DateTime(2026, 5, 24, 0, 0, 0, DateTimeKind.Utc), SyncedUtc = DateTime.UtcNow },
+            new Sermon { Id = Guid.NewGuid(), YoutubeVideoId = "id3", Title = "No Date", SpeakerName = "S", SortOrder = 0, SyncedUtc = DateTime.UtcNow }
         );
         await dbContext.SaveChangesAsync();
         var sermonReadService = CreateSermonReadService(dbContext);
@@ -80,9 +81,10 @@ public class GetSermonsQueryHandlerTests
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Equal(2, result.Value!.Count);
+        Assert.Equal(3, result.Value!.Count);
         Assert.Equal("2026 05 24 Latest", result.Value![0].Title);
         Assert.Equal("2026 05 03 Older", result.Value![1].Title);
+        Assert.Equal("No Date", result.Value![2].Title);
     }
 
     private static ISermonReadService CreateSermonReadService(AlifeDbContext dbContext)
@@ -91,7 +93,8 @@ public class GetSermonsQueryHandlerTests
         sermonReadService.GetSermonsAsync(Arg.Any<CancellationToken>()).Returns(_ =>
             dbContext.Sermons
                 .AsNoTracking()
-                .OrderByDescending(x => x.Title)
+                .OrderBy(x => x.PreachedAtUtc == null)
+                .ThenByDescending(x => x.PreachedAtUtc)
                 .ThenBy(x => x.SortOrder)
                 .Select(x => new SermonDto(
                     x.Id,

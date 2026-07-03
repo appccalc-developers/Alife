@@ -2,13 +2,23 @@ import { useEffect, useMemo, useState, useRef, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useLiveQuery } from '@tanstack/react-db'
 import { Link } from 'react-router-dom'
+import { CalendarDays, MicVocal, PlayCircle, RefreshCw, Video } from 'lucide-react'
 import { getCachedSermons, sermonsCollection, sermonsQueryKey } from '../../db/collections/sermonsCollection'
 import SermonCardSkeleton from './SermonCardSkeleton'
 import { useImagePreloader } from '../../hooks/useImagePreloader'
 import CoverImage from '../CoverImage'
 import { useUiText } from '../../i18n/uiText'
 import { activeEntityService } from '../../services/activeEntityService'
+import type { SermonDto } from '../../services/sermonService'
 import { buildSermonVideoPath, extractYouTubeVideoId } from '../../utils/youtube'
+
+const formatSermonDate = (value: string | null | undefined, fallback: string) => {
+  if (!value) return fallback
+
+  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(value))
+}
+
+const getSermonTime = (sermon: SermonDto) => sermon.preachedAt ? new Date(sermon.preachedAt).getTime() : 0
 
 const SermonList = () => {
   const t = useUiText()
@@ -33,10 +43,8 @@ const SermonList = () => {
   }, [])
 
   const sermons = useMemo(() => {
-    if (data && data.length > 0) {
-      return data
-    }
-    return cachedSermons
+    const source = data && data.length > 0 ? data : cachedSermons
+    return [...source].sort((left, right) => getSermonTime(right) - getSermonTime(left))
   }, [cachedSermons, data])
 
   // Preload first 4 sermon images after initial data load
@@ -59,13 +67,45 @@ const SermonList = () => {
 
   const errorMessage = isError ? t('sermonsLoadFailed') : ''
   const initialLoading = isLoading && sermons.length === 0
+  const featuredSermon = sermons[0]
+  const remainingSermons = sermons.slice(1)
+
+  const renderSermonImage = (sermon: SermonDto, index: number, className: string) => (
+    sermon.thumbnailUrl ? (
+      <CoverImage
+        src={sermon.thumbnailUrl}
+        alt={sermon.title}
+        index={index}
+        aspectRatio={16 / 9}
+        className={className}
+        fixedHeight
+      />
+    ) : (
+      <div className={`${className} flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-amber-50 text-emerald-700`}>
+        <Video className="h-12 w-12" strokeWidth={1.5} />
+      </div>
+    )
+  )
+
+  const renderMeta = (sermon: SermonDto, compact = false) => (
+    <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 ${compact ? 'text-xs' : 'text-sm'} text-slate-600`}>
+      <span className="inline-flex items-center gap-1.5">
+        <MicVocal className="h-3.5 w-3.5 text-emerald-700" />
+        {sermon.speakerName || t('guestSpeaker')}
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <CalendarDays className="h-3.5 w-3.5 text-emerald-700" />
+        {formatSermonDate(sermon.preachedAt, t('noDate'))}
+      </span>
+    </div>
+  )
 
   if (initialLoading) {
     return (
-      <section className="space-y-4">
-        <header className="space-y-2">
+      <section className="mx-auto max-w-6xl space-y-5">
+        <header className="rounded-3xl border border-slate-200 bg-white/80 p-5 shadow-sm">
           <div className="h-8 w-56 animate-pulse rounded bg-slate-200" />
-          <div className="h-4 w-80 max-w-full animate-pulse rounded bg-slate-200" />
+          <div className="mt-3 h-4 w-80 max-w-full animate-pulse rounded bg-slate-200" />
         </header>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -78,77 +118,89 @@ const SermonList = () => {
   }
 
   return (
-    <section className="space-y-4">
-      <header className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">{t('latestSermons')}</h1>
-          <p className="text-sm text-slate-600">{t('latestSermonsDescription')}</p>
+    <section className="mx-auto max-w-6xl space-y-5">
+      <header className="flex flex-col gap-4 rounded-3xl border border-emerald-100 bg-white/85 p-5 shadow-[0_18px_45px_rgba(31,56,48,0.08)] sm:flex-row sm:items-end sm:justify-between sm:p-6">
+        <div className="min-w-0">
+          <p className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-black uppercase text-emerald-800">{t('sermons')}</p>
+          <h1 className="mt-3 text-3xl font-black leading-tight text-slate-950 sm:text-4xl">{t('latestSermons')}</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">{t('latestSermonsDescription')}</p>
         </div>
         <button
           type="button"
-          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-800 transition hover:border-emerald-300 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
           disabled={isRefreshing || isLoading}
           onClick={() => {
             loadSermons().catch(() => undefined)
           }}
         >
+          <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
           {isRefreshing ? t('refreshing') : t('refresh')}
         </button>
       </header>
 
       {errorMessage && sermons.length === 0 ? (
-        <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{errorMessage}</p>
+        <p className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">{errorMessage}</p>
       ) : null}
 
       {!errorMessage && sermons.length === 0 ? (
-        <p className="rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-600">{t('noSermons')}</p>
+        <p className="rounded-2xl border border-slate-200 bg-white p-5 text-sm font-semibold text-slate-600">{t('noSermons')}</p>
       ) : null}
 
       {errorMessage && sermons.length > 0 ? (
-        <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">{errorMessage}</p>
+        <p className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-700">{errorMessage}</p>
       ) : null}
 
-      {sermons.length > 0 ? (
+      {featuredSermon ? (
+        <Link
+          to={buildSermonVideoPath(featuredSermon.id, extractYouTubeVideoId(featuredSermon.videoUrl))}
+          onClick={() => activeEntityService.setSermon(featuredSermon.id)}
+          className="group grid overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-emerald-100 lg:grid-cols-[minmax(0,1.15fr)_minmax(20rem,0.85fr)]"
+        >
+          <figure className="relative overflow-hidden bg-slate-100">
+            {renderSermonImage(featuredSermon, 0, 'h-64 w-full sm:h-80 lg:h-full')}
+            <span className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full bg-slate-950/80 px-3 py-1 text-xs font-black text-white backdrop-blur">
+              <PlayCircle className="h-3.5 w-3.5" />
+              {t('watchSermon')}
+            </span>
+          </figure>
+          <div className="flex flex-col justify-center p-5 sm:p-7">
+            {renderMeta(featuredSermon)}
+            <h2 className="mt-4 text-2xl font-black leading-tight text-slate-950 sm:text-3xl">{featuredSermon.title}</h2>
+            <span className="mt-6 inline-flex w-fit items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-black text-white transition group-hover:bg-emerald-800">
+              <PlayCircle className="h-4 w-4" />
+              {t('watchSermon')}
+            </span>
+          </div>
+        </Link>
+      ) : null}
+
+      {remainingSermons.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {sermons.map((sermon, index) => {
+          {remainingSermons.map((sermon, index) => {
             const sermonPath = buildSermonVideoPath(sermon.id, extractYouTubeVideoId(sermon.videoUrl))
+            const imageIndex = index + 1
 
             return (
-            <Link
-              key={sermon.id}
-              to={sermonPath}
-              onClick={() => activeEntityService.setSermon(sermon.id)}
-              className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md focus:outline-none focus:ring-4 focus:ring-emerald-100"
-            >
-              <figure className="relative">
-                {sermon.thumbnailUrl ? (
-                  <CoverImage
-                    src={sermon.thumbnailUrl}
-                    alt={sermon.title}
-                    index={index}
-                    aspectRatio={16 / 9}
-                    className="h-44 w-full"
-                    fixedHeight
-                  />
-                ) : (
-                  <div className="h-44 w-full bg-slate-100 flex items-center justify-center">
-                    <svg className="w-12 h-12 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
-                    </svg>
-                  </div>
-                )}
-              </figure>
+              <Link
+                key={sermon.id}
+                to={sermonPath}
+                onClick={() => activeEntityService.setSermon(sermon.id)}
+                className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-emerald-100"
+              >
+                <figure className="relative overflow-hidden">
+                  {renderSermonImage(sermon, imageIndex, 'h-44 w-full transition duration-300 group-hover:scale-[1.03]')}
+                  <span className="absolute bottom-3 right-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-emerald-800 shadow-sm backdrop-blur">
+                    <PlayCircle className="h-5 w-5" />
+                  </span>
+                </figure>
 
-              <div className="space-y-2 p-4">
-                <h2 className="line-clamp-2 text-base font-semibold text-slate-900">{sermon.title}</h2>
-                <p className="text-sm text-slate-600">{sermon.speakerName || t('guestSpeaker')}</p>
-
-                <span className="inline-flex text-sm font-medium text-blue-700 hover:text-blue-600">
-                  {t('watchSermon')}
-                </span>
-              </div>
-            </Link>
-          )})}
+                <div className="space-y-3 p-4">
+                  <h2 className="line-clamp-2 min-h-[3rem] text-base font-black leading-6 text-slate-950">{sermon.title}</h2>
+                  {renderMeta(sermon, true)}
+                </div>
+              </Link>
+            )
+          })}
         </div>
       ) : null}
     </section>

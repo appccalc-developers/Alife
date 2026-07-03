@@ -124,7 +124,7 @@ public sealed class GroupReadService(AlifeDbContext dbContext, HybridCache hybri
 
         if (!includeChurchLineCandidates)
         {
-            return memberships;
+            return SortMemberships(memberships);
         }
 
         var isChurch = await dbContext.Groups
@@ -133,7 +133,7 @@ public sealed class GroupReadService(AlifeDbContext dbContext, HybridCache hybri
 
         if (!isChurch)
         {
-            return memberships;
+            return SortMemberships(memberships);
         }
 
         var existingMemberIds = rows.Select(x => x.MemberId).ToHashSet();
@@ -168,8 +168,44 @@ public sealed class GroupReadService(AlifeDbContext dbContext, HybridCache hybri
             .ToList();
 
         memberships.AddRange(candidates);
-        return memberships;
+        return SortMemberships(memberships);
     }
+
+    private static IReadOnlyList<GroupMembershipDto> SortMemberships(IEnumerable<GroupMembershipDto> memberships)
+        => memberships
+            .OrderBy(x => StatusRank(x.Status))
+            .ThenByDescending(x => RoleRank(x.Role))
+            .ThenByDescending(x => PlatformRoleRank(x.PlatformRole))
+            .ThenBy(x => x.DisplayName ?? string.Empty)
+            .ThenBy(x => x.MemberId)
+            .ToList();
+
+    private static int StatusRank(string status)
+        => status switch
+        {
+            "requested" => 0,
+            "approved" => 1,
+            "invited" => 2,
+            "rejected" => 3,
+            "removed" => 4,
+            _ => 5
+        };
+
+    private static int RoleRank(string role)
+        => role switch
+        {
+            "leader" => 2,
+            "coLeader" => 1,
+            _ => 0
+        };
+
+    private static int PlatformRoleRank(string role)
+        => role switch
+        {
+            "superadmin" => 100,
+            "admin" => 10,
+            _ => 0
+        };
 
     private Task<T> GetOrCreateAsync<T>(
         string cacheKey,

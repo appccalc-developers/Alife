@@ -90,6 +90,8 @@ internal static class AdminPlatformRoleHelpers
                 member.PhoneE164,
                 member.IsRegistered,
                 false,
+                member.CreatedUtc,
+                member.UpdatedUtc,
                 member.PlatformRoles
                     .Where(role => role.RevokedUtc == null)
                     .OrderByDescending(role => role.Role.Level)

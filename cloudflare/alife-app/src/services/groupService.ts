@@ -44,6 +44,8 @@ export type AdminMemberDto = {
   phoneE164: string | null
   isRegistered: boolean
   legacyIsAdmin: boolean
+  createdUtc: string
+  updatedUtc: string
   platformRole: 'user' | 'admin' | 'superadmin' | string
   platformRoles: string[]
   approvedGroupCount: number

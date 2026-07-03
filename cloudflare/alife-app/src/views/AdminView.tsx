@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
-import { Activity, Bell, ChevronRight, Globe2, Loader2, MessageSquareWarning, RefreshCw, ShieldCheck, UserCheck, UsersRound } from 'lucide-react'
+import { Bell, ChevronRight, Globe2, Loader2, MessageSquareWarning, RefreshCw, ShieldCheck, UserCheck, UsersRound } from 'lucide-react'
 import {
   groupService,
   type AdminGroupOptionDto,
@@ -48,6 +48,7 @@ const labels: Record<string, LocalText> = {
   messagesDescription: { en: 'Send notices to members and check whether they were read or replied to.', zh: '向成员发送通知，并查看是否已读或已回复。' },
   visitRequestsDescription: { en: 'Review visit interest from the public home page and track follow-up status.', zh: '查看首页收集的参观联系请求，并跟踪接待跟进状态。' },
   filesDescription: { en: 'Review registered uploads across the platform by visibility, purpose, and related record.', zh: '按可见范围、用途和关联对象查看全平台已登记上传文件。' },
+  memberVisitorCareLink: { en: 'Open visitor care records', zh: '查看访客接待记录' },
   sermonsDescription: { en: 'Run a manual sync from connected sermon sources.', zh: '从已连接来源手动同步讲道。' },
   homeDescription: { en: 'Keep the public home page fresh for visitors, seekers, and members.', zh: '维护面向访客、慕道朋友和成员的公共首页。' },
   editHome: { en: 'Edit public home', zh: '编辑公共首页' },
@@ -117,6 +118,8 @@ const labels: Record<string, LocalText> = {
   builtInRole: { en: 'Built-in role', zh: '内置角色' },
   member: { en: 'Member', zh: '成员' },
   accountDetails: { en: 'Account details', zh: '账号详情' },
+  createdAt: { en: 'Created at', zh: '创建时间' },
+  updatedAt: { en: 'Last updated', zh: '最后更新' },
   roleAssignment: { en: 'Role assignment', zh: '角色分配' },
   selectMemberHint: { en: 'Select a member from the directory to manage roles.', zh: '从成员目录中选择一位成员来管理角色。' },
   contact: { en: 'Contact', zh: '联系方式' },
@@ -210,8 +213,6 @@ const labels: Record<string, LocalText> = {
   guestReviewHint: { en: 'Confirm whether guest records should become registered accounts.', zh: '确认访客记录是否需要转为注册账号。' },
   unreadMessagesTask: { en: 'Follow up unread messages', zh: '跟进未读消息' },
   unreadMessagesHint: { en: 'Messages may need pastoral or admin response.', zh: '消息可能需要牧养或管理回应。' },
-  auditReviewTask: { en: 'Review operation log', zh: '查看操作日志' },
-  auditReviewHint: { en: 'Keep sensitive platform actions auditable.', zh: '保持敏感平台操作可追溯。' },
   homeWorkflowTask: { en: 'Public home workflow', zh: '公共首页工作流' },
   homeWorkflowHint: { en: 'Keep visitor-facing content current.', zh: '保持面向访客的内容及时更新。' },
   noPlatformTasks: { en: 'No urgent platform tasks right now.', zh: '当前没有紧急平台待办。' },
@@ -702,7 +703,6 @@ const Overview = ({ l, users, logs, messages, homePage, syncing, syncSermons, go
   const registeredCount = users.items.filter((member) => member.isRegistered).length
   const guestCount = users.items.filter((member) => !member.isRegistered).length
   const unreadCount = messages.items.filter((message) => !message.readUtc).length
-  const recentLogCount = logs.items.length
   return (
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-4">
@@ -730,7 +730,6 @@ const Overview = ({ l, users, logs, messages, homePage, syncing, syncSermons, go
               l={l}
               guestCount={guestCount}
               unreadCount={unreadCount}
-              recentLogCount={recentLogCount}
             />
             <div className="grid gap-3 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.9fr)]">
               <Link
@@ -793,15 +792,14 @@ const Overview = ({ l, users, logs, messages, homePage, syncing, syncSermons, go
   )
 }
 
-const PlatformTaskQueue = ({ l, guestCount, unreadCount, recentLogCount }: {
+const PlatformTaskQueue = ({ l, guestCount, unreadCount }: {
   l: LabelFn
   guestCount: number
   unreadCount: number
-  recentLogCount: number
 }) => {
   const tasks = [
     {
-      to: '/admin/users',
+      to: '/admin/visit-requests',
       icon: <UserCheck className="h-4 w-4" />,
       label: l('guestReviewTask'),
       hint: l('guestReviewHint'),
@@ -815,14 +813,6 @@ const PlatformTaskQueue = ({ l, guestCount, unreadCount, recentLogCount }: {
       hint: l('unreadMessagesHint'),
       count: unreadCount,
       urgent: unreadCount > 0,
-    },
-    {
-      to: '/admin/logs',
-      icon: <Activity className="h-4 w-4" />,
-      label: l('auditReviewTask'),
-      hint: l('auditReviewHint'),
-      count: recentLogCount,
-      urgent: false,
     },
   ]
   const urgentCount = tasks.filter((task) => task.urgent).length
@@ -838,7 +828,7 @@ const PlatformTaskQueue = ({ l, guestCount, unreadCount, recentLogCount }: {
           {urgentCount}
         </span>
       </div>
-      <div className="mt-2 grid gap-2 lg:grid-cols-3">
+      <div className="mt-2 grid gap-2 lg:grid-cols-2">
         {tasks.map((task) => (
           <Link
             key={task.label}
@@ -915,6 +905,12 @@ const UsersSection = ({ l, loading, page, filters, setFilters, roles, isSuperAdm
     })
   }
 
+  const getCompactRoleText = (member: AdminMemberDto) => {
+    const activeRoleCodes = member.platformRoles.filter((role) => role !== 'user')
+    const displayRoleCodes = activeRoleCodes.length ? activeRoleCodes : ['user']
+    return displayRoleCodes.map((roleCode) => readLocalized(roles.find((role) => role.code === roleCode)?.name, language) || formatRole(roleCode)).join(' / ')
+  }
+
   return (
     <Panel title={l('users')} description={l('usersDescription')} count={page.totalCount}>
       <FilterBar>
@@ -930,6 +926,15 @@ const UsersSection = ({ l, loading, page, filters, setFilters, roles, isSuperAdm
         </SelectInput>
         <FilterActions l={l} apply={apply} reset={reset} />
       </FilterBar>
+      <div className="flex flex-col gap-3 border-b border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm font-medium leading-6 text-slate-600">{l('guestReviewHint')}</p>
+        <Link
+          to="/admin/visit-requests"
+          className="inline-flex min-h-10 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-800 transition hover:border-emerald-300 hover:bg-emerald-100"
+        >
+          {l('memberVisitorCareLink')}
+        </Link>
+      </div>
       {!isSuperAdmin ? <p className="m-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{l('superAdminOnly')}</p> : null}
       {loading ? <Loading text={l('loading')} /> : page.items.length ? (
         <>
@@ -948,17 +953,17 @@ const UsersSection = ({ l, loading, page, filters, setFilters, roles, isSuperAdm
                     <button
                       key={member.id}
                       type="button"
-                      className={`flex w-full gap-3 rounded-2xl border px-3 py-3 text-left transition ${selected ? 'border-emerald-200 bg-emerald-50/80 shadow-sm' : 'border-transparent bg-white hover:border-slate-200 hover:bg-slate-50'}`}
+                      className={`flex w-full gap-2.5 rounded-xl border px-3 py-2.5 text-left transition ${selected ? 'border-emerald-200 bg-emerald-50/80 shadow-sm' : 'border-transparent bg-white hover:border-slate-200 hover:bg-slate-50'}`}
                       onClick={() => setSelectedMemberId(member.id)}
                     >
-                      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-xs font-black ${selected ? 'bg-emerald-700 text-white' : 'bg-slate-100 text-slate-600'}`}>{initials}</span>
+                      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-black ${selected ? 'bg-emerald-700 text-white' : 'bg-slate-100 text-slate-600'}`}>{initials}</span>
                       <span className="min-w-0 flex-1">
                         <span className="flex min-w-0 flex-wrap items-center gap-2">
                           <span className="truncate text-sm font-black text-slate-950">{displayName}</span>
                           {member.id === currentMemberId ? <Pill tone="sky">{l('you')}</Pill> : null}
                         </span>
                         <span className="mt-1 block truncate text-xs font-semibold text-slate-500">{member.email || member.phoneE164 || '-'}</span>
-                        <span className="mt-2 flex flex-wrap gap-1.5">{renderRolePills(member)}</span>
+                        <span className="mt-1 block truncate text-[11px] font-bold text-emerald-700">{getCompactRoleText(member)}</span>
                       </span>
                     </button>
                   )
@@ -1011,10 +1016,14 @@ const UsersSection = ({ l, loading, page, filters, setFilters, roles, isSuperAdm
                   <div className="grid gap-4 p-5 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)]">
                     <section className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
                       <h4 className="text-sm font-black text-slate-950">{l('accountDetails')}</h4>
-                      <dl className="mt-4 grid gap-4">
-                        <div>
-                          <dt className="text-xs font-black uppercase text-slate-400">ID</dt>
-                          <dd className="mt-1 break-all font-mono text-[11px] text-slate-500">{selectedMember.id}</dd>
+                      <dl className="mt-4 grid gap-3">
+                        <div className="rounded-xl border border-slate-200 bg-white p-3">
+                          <dt className="text-xs font-black uppercase text-slate-400">{l('createdAt')}</dt>
+                          <dd className="mt-1 text-sm font-bold text-slate-800">{formatDate(selectedMember.createdUtc)}</dd>
+                        </div>
+                        <div className="rounded-xl border border-slate-200 bg-white p-3">
+                          <dt className="text-xs font-black uppercase text-slate-400">{l('updatedAt')}</dt>
+                          <dd className="mt-1 text-sm font-bold text-slate-800">{formatDate(selectedMember.updatedUtc)}</dd>
                         </div>
                       </dl>
                     </section>
