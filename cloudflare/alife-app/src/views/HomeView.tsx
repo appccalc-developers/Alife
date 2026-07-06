@@ -42,7 +42,7 @@ const HomeView = () => {
     <div className="min-h-screen overflow-hidden bg-home-surface text-home-gold-text">
       <HomeNavHeader copy={copy} language={language} navItems={headerNavItems} />
       <main className={pageSectionsCanvasClass}>
-        <HeroSection copy={copy} language={language} />
+        <HeroSection copy={copy} />
         <AboutAndLiveSection copy={copy} />
         <hr className="mx-auto max-w-6xl border-t border-home-border/40" />
         <VisitSection copy={copy} language={language} />

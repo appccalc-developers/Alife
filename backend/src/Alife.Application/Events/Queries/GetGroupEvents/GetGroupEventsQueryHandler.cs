@@ -2,6 +2,7 @@ using Alife.Application.Common.Models;
 using Alife.Application.Events.Dtos;
 using Alife.Application.Events.Services;
 using Alife.Application.Groups.Services;
+using Alife.Domain.Enums;
 using MediatR;
 
 namespace Alife.Application.Events.Queries.GetGroupEvents;
@@ -26,7 +27,7 @@ public sealed class GetGroupEventsQueryHandler(
                 request.CurrentMemberId.Value,
                 cancellationToken);
 
-        if (!group.IsChurch && !isApproved)
+        if (!group.IsChurch && group.AccessType != AccessType.Public && !isApproved)
         {
             return AppResult<IReadOnlyList<GroupEventSummaryDto>>.Forbidden("You must be a member to view group events.");
         }

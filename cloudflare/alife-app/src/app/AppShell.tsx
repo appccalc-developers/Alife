@@ -167,6 +167,13 @@ const WorkspaceShell = () => {
 
 const isPublicBrowsePath = (pathname: string) =>
   pathname === '/' ||
+  pathname === '/groups' ||
+  pathname === '/groups/select' ||
+  /^\/groups\/[^/]+$/.test(pathname) ||
+  /^\/groups\/[^/]+\/events\/[^/]+$/.test(pathname) ||
+  pathname === '/events' ||
+  pathname === '/forum' ||
+  /^\/forum\/posts\/[^/]+$/.test(pathname) ||
   pathname === '/pages' ||
   /^\/pages\/[^/]+$/.test(pathname) ||
   pathname === '/sermons' ||
@@ -184,10 +191,11 @@ const PublicHomeShell = () => {
     { href: '/#about', label: copy.nav.about },
     { href: '/#visit', label: copy.nav.visit },
     { href: '/#groups', label: copy.nav.groups },
+    { href: '/forum', label: auth.language === 'zh' ? '论坛' : 'Forum' },
     { href: '/#events', label: copy.nav.events },
     { href: '/#sermons', label: copy.nav.sermons },
     { href: '/#location', label: copy.nav.location },
-  ], [copy.nav.about, copy.nav.events, copy.nav.groups, copy.nav.location, copy.nav.sermons, copy.nav.visit])
+  ], [auth.language, copy.nav.about, copy.nav.events, copy.nav.groups, copy.nav.location, copy.nav.sermons, copy.nav.visit])
   const ministriesNavItem = useMemo(
     () => buildMinistriesNavItem(publicPages, auth.language, copy.nav.ministries),
     [auth.language, copy.nav.ministries, publicPages],
@@ -222,8 +230,14 @@ const PublicHomeShell = () => {
 }
 
 const AppShell = () => {
+  const auth = useAuthStore()
   const location = useLocation()
-  return isPublicBrowsePath(location.pathname) ? <PublicHomeShell /> : <WorkspaceShell />
+
+  if (location.pathname === '/') {
+    return <PublicHomeShell />
+  }
+
+  return auth.isGuest && isPublicBrowsePath(location.pathname) ? <PublicHomeShell /> : <WorkspaceShell />
 }
 
 export default AppShell

@@ -17,4 +17,6 @@ public class Member
 	public ICollection<GroupMembership> Memberships { get; set; } = [];
 	public ICollection<MemberPlatformRole> PlatformRoles { get; set; } = [];
 	public ICollection<MemberPlatformRole> AssignedPlatformRoles { get; set; } = [];
+	public ICollection<ForumPost> ForumPosts { get; set; } = [];
+	public ICollection<ForumComment> ForumComments { get; set; } = [];
 }

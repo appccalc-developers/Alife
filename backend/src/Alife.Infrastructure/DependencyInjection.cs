@@ -3,6 +3,7 @@ using Alife.Application.Abstractions.Integrations;
 using Alife.Application.Abstractions.Security;
 using Alife.Application.Events.Services;
 using Alife.Application.FileAssets.Services;
+using Alife.Application.Forum.Services;
 using Alife.Application.Groups.Services;
 using Alife.Application.Members.Services;
 using Alife.Application.Pages.Services;
@@ -63,6 +64,7 @@ public static class DependencyInjection
 		});
 		services.AddScoped<IGroupCacheInvalidationService, GroupCacheInvalidationService>();
 		services.AddScoped<IGroupAuthorizationService, GroupAuthorizationService>();
+		services.AddScoped<IForumAuthorizationService, ForumAuthorizationService>();
 		services.AddScoped<IMemberReadService, MemberReadService>();
 		services.AddScoped<IPageReadService, PageReadService>();
 		services.AddScoped<IPageCacheInvalidationService, PageCacheInvalidationService>();

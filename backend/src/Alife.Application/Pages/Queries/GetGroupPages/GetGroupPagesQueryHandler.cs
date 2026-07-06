@@ -38,8 +38,7 @@ public sealed class GetGroupPagesQueryHandler(
                 request.CurrentMemberId.Value,
                 cancellationToken);
 
-        // Subgroup pages are members-only regardless of page visibility.
-        if (!group.IsChurch && !isApproved)
+        if (!group.IsChurch && group.AccessType != AccessType.Public && !isApproved)
         {
             return AppResult<IReadOnlyList<PageDto>>.Forbidden("You do not have access to this group's pages.");
         }
@@ -56,7 +55,7 @@ public sealed class GetGroupPagesQueryHandler(
             return AppResult<IReadOnlyList<PageDto>>.Success(await AddCurrentRefusalsAsync(pages, cancellationToken));
         }
 
-        if (group.IsChurch)
+        if (group.IsChurch || group.AccessType == AccessType.Public)
         {
             pages = pages
                 .Where(x => x.Visibility == PageVisibility.Public)

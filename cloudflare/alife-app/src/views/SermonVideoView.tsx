@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from '@tanstack/react-db'
-import { Navigate, useParams, useSearchParams } from 'react-router-dom'
-import { CalendarDays, MicVocal, PlayCircle } from 'lucide-react'
+import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
+import { ArrowLeft, CalendarDays, MicVocal, PlayCircle } from 'lucide-react'
 import AppEmptyState from '../components/layout/AppEmptyState'
 import AppPageShell from '../components/layout/AppPageShell'
 import AppSectionCard from '../components/layout/AppSectionCard'
@@ -99,6 +99,14 @@ const SermonVideoView = () => {
   return (
     <AppPageShell>
       <section className="mx-auto max-w-5xl space-y-6">
+        <Link
+          to="/sermons"
+          className="inline-flex min-h-10 items-center rounded-full border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-800"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
+          {t('back')} {t('sermons')}
+        </Link>
+
         <header className="rounded-3xl border border-emerald-100 bg-white/85 p-5 shadow-[0_18px_45px_rgba(31,56,48,0.08)] sm:p-6">
           <p className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-black uppercase text-emerald-800">
             <PlayCircle className="h-3.5 w-3.5" />

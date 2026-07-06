@@ -22,6 +22,9 @@ public interface IAlifeDbContext
     DbSet<EventReview> EventReviews { get; }
     DbSet<NotificationMessage> NotificationMessages { get; }
     DbSet<VisitContactRequest> VisitContactRequests { get; }
+    DbSet<ForumCategory> ForumCategories { get; }
+    DbSet<ForumPost> ForumPosts { get; }
+    DbSet<ForumComment> ForumComments { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

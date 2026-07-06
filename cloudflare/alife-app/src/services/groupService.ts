@@ -1,6 +1,8 @@
 import { http } from './http'
-import { conditionalGet } from '../db/httpCache'
+import { conditionalGet, removeCachedRecord } from '../db/httpCache'
 import { subgroupsQueryKey } from '../db/collections/groupCollection'
+import { sermonsQueryKey } from '../db/collections/sermonsCollection'
+import { queryClient } from '../db/queryClient'
 import type { GroupDto, GroupMembershipDto, GroupSummaryDto, LocalizedText, MembershipStatus, PageSummaryDto } from '../types'
 import { normalizeGroup, normalizeGroupMembership, normalizeMembershipStatus, normalizePageScope, normalizePageSummary, normalizePageVisibility } from '../utils/apiEnums'
 import { toLocalizedText } from '../utils/localizedText'
@@ -361,6 +363,8 @@ export const groupService = {
 
   async syncSermons() {
     const { data } = await http.post<{ message?: string }>('/api/admin/sermons/sync')
+    await removeCachedRecord(sermonsQueryKey)
+    await queryClient.invalidateQueries({ queryKey: sermonsQueryKey })
     return data
   },
 

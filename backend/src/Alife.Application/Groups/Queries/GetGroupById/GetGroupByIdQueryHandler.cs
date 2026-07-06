@@ -1,6 +1,7 @@
 using Alife.Application.Common.Models;
 using Alife.Application.Groups.Dtos;
 using Alife.Application.Groups.Services;
+using Alife.Domain.Enums;
 using MediatR;
 
 namespace Alife.Application.Groups.Queries.GetGroupById;
@@ -18,7 +19,7 @@ public sealed class GetGroupByIdQueryHandler(
             return AppResult<GroupDto>.NotFound("Group was not found.");
         }
 
-        if (group.IsChurch)
+        if (group.IsChurch || group.AccessType == AccessType.Public)
         {
             return AppResult<GroupDto>.Success(group);
         }

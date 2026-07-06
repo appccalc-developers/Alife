@@ -44,12 +44,27 @@ const TYPE_BY_EXTENSION: Record<string, string> = {
   webp: 'image/webp',
 }
 
+const VIDEO_EXTENSIONS = new Set(['mp4', 'webm', 'mov', 'm4v', 'ogg', 'ogv'])
+
+const VIDEO_TYPE_BY_EXTENSION: Record<string, string> = {
+  m4v: 'video/mp4',
+  mov: 'video/quicktime',
+  mp4: 'video/mp4',
+  ogg: 'video/ogg',
+  ogv: 'video/ogg',
+  webm: 'video/webm',
+}
+
 export type UploadedImage = {
   key: string
   size: number
   uploaded: string
   contentType: string
   url: string
+}
+
+export type UploadedMedia = UploadedImage & {
+  kind: 'image' | 'video'
 }
 
 export function normalizeImageUrl(value: string): string {
@@ -123,6 +138,16 @@ export function isImageFile(file: File): boolean {
   return isImageObject(file.name, candidateType)
 }
 
+export function isVideoFile(file: File): boolean {
+  const ext = getKeyExtension(file.name)
+  const candidateType = file.type || VIDEO_TYPE_BY_EXTENSION[ext] || ''
+  return candidateType.toLowerCase().startsWith('video/') || VIDEO_EXTENSIONS.has(ext)
+}
+
+export function isMediaFile(file: File): boolean {
+  return isImageFile(file) || isVideoFile(file)
+}
+
 function apiUrl(path: string): string {
   const p = path.startsWith('/') ? path : `/${path}`
   return `${IMAGE_API_BASE_URL}${p}`
@@ -180,6 +205,44 @@ export async function uploadImage(file: File, folderPath = ''): Promise<Uploaded
 
   return {
     ...image,
+    url: normalizeImageUrl(image.url),
+  }
+}
+
+export async function uploadForumMedia(file: File, folderPath = ''): Promise<UploadedMedia> {
+  if (!(file instanceof File)) {
+    throw new Error('Missing file.')
+  }
+  if (!isMediaFile(file)) {
+    throw new Error('Only image and video files can be uploaded.')
+  }
+
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const normalizedFolderPath = pathSegments(folderPath)
+  const endpoint = normalizedFolderPath ? `/api/images/${normalizedFolderPath}` : '/api/images'
+
+  const response = await fetch(apiUrl(endpoint), {
+    method: 'POST',
+    body: formData,
+  })
+
+  const data = await readJson<{ error?: string; image?: UploadedImage }>(response)
+
+  if (!response.ok) {
+    throw new Error(data.error || `Upload failed (${response.status})`)
+  }
+
+  const image = data.image
+  if (!image?.url) {
+    throw new Error('Invalid upload response: missing image.url')
+  }
+
+  return {
+    ...image,
+    kind: isVideoFile(file) ? 'video' : 'image',
+    contentType: file.type || image.contentType || (isVideoFile(file) ? 'video/mp4' : 'image/jpeg'),
     url: normalizeImageUrl(image.url),
   }
 }
