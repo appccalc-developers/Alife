@@ -165,6 +165,9 @@ const WorkspaceShell = () => {
   )
 }
 
+const isPublicPagePath = (pathname: string) =>
+  /^\/public\/pages\/[^/]+$/.test(pathname)
+
 const isPublicBrowsePath = (pathname: string) =>
   pathname === '/' ||
   pathname === '/groups' ||
@@ -174,8 +177,7 @@ const isPublicBrowsePath = (pathname: string) =>
   pathname === '/events' ||
   pathname === '/forum' ||
   /^\/forum\/posts\/[^/]+$/.test(pathname) ||
-  pathname === '/pages' ||
-  /^\/pages\/[^/]+$/.test(pathname) ||
+  isPublicPagePath(pathname) ||
   pathname === '/sermons' ||
   pathname === '/sermons/watch' ||
   /^\/sermons\/[^/]+$/.test(pathname)
@@ -185,7 +187,7 @@ const PublicHomeShell = () => {
   const location = useLocation()
   const [publicPages, setPublicPages] = useState<PageSummaryDto[]>([])
   const isHome = location.pathname === '/'
-  const isPublicPage = location.pathname === '/pages' || /^\/pages\/[^/]+$/.test(location.pathname)
+  const isPublicPage = isPublicPagePath(location.pathname)
   const copy = getCopy(auth.language, '')
   const footerNavItems = useMemo(() => [
     { href: '/#about', label: copy.nav.about },
@@ -237,7 +239,7 @@ const AppShell = () => {
     return <PublicHomeShell />
   }
 
-  return auth.isGuest && isPublicBrowsePath(location.pathname) ? <PublicHomeShell /> : <WorkspaceShell />
+  return isPublicPagePath(location.pathname) || (auth.isGuest && isPublicBrowsePath(location.pathname)) ? <PublicHomeShell /> : <WorkspaceShell />
 }
 
 export default AppShell

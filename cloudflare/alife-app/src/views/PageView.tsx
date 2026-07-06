@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react'
-import { Navigate, useNavigate, useParams } from 'react-router-dom'
+import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useLiveQuery } from '@tanstack/react-db'
 import { useQuery } from '@tanstack/react-query'
 import { Pencil } from 'lucide-react'
@@ -18,6 +18,7 @@ import { localizeText } from '../utils/localizedText'
 const PageView = () => {
   const { pageId: routePageId } = useParams<{ pageId: string }>()
   const { pageId } = useActiveEntityIds({ pageId: routePageId })
+  const location = useLocation()
   const navigate = useNavigate()
   const t = useUiText()
   const auth = useAuthStore()
@@ -103,12 +104,15 @@ const PageView = () => {
       : [],
     [canEditPage, editPage, t],
   )
+  const backFallbackTo = location.pathname.startsWith('/public/pages/')
+    ? '/'
+    : page?.ownerGroupId ? '/groups' : '/'
 
   return (
     !pageId ? <Navigate to="/" replace /> :
     <main className={pageSectionsCanvasClass}>
       <div className={`${pageSectionsChromeClass} space-y-4 pt-20 sm:pt-24`}>
-        <AppBackButton fallbackTo={page?.ownerGroupId ? '/groups' : '/'} />
+        <AppBackButton fallbackTo={backFallbackTo} />
         {pageLoading ? (
           <p className="rounded-lg border border-slate-200 bg-white p-3 text-slate-600">{t('loadingPage')}</p>
         ) : null}

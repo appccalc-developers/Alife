@@ -85,7 +85,7 @@ export const buildMinistriesNavItem = (
         left.id.localeCompare(right.id)
     })
     .map((page) => ({
-      to: `/pages/${page.id}`,
+      to: `/public/pages/${page.id}`,
       label: localizedPageTitle(page, language),
     }))
 
