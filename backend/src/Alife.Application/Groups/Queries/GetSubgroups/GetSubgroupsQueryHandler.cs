@@ -30,8 +30,10 @@ public sealed class GetSubgroupsQueryHandler(
                 return AppResult<IReadOnlyList<GroupSummaryDto>>.Forbidden("You do not have access to this group's subgroups.");
             }
 
-            var allSubgroups = await groupReadService.GetSubgroupsAsync(request.GroupId, cancellationToken);
-            return AppResult<IReadOnlyList<GroupSummaryDto>>.Success(allSubgroups);
+            var publicSubgroups = (await groupReadService.GetSubgroupsAsync(request.GroupId, cancellationToken))
+                .Where(x => x.AccessType == AccessType.Public)
+                .ToList();
+            return AppResult<IReadOnlyList<GroupSummaryDto>>.Success(publicSubgroups);
         }
 
         if (group.AccessType != AccessType.Public && !group.IsChurch)

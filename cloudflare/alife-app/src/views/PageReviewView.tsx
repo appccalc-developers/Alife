@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { CircleX, Eye, Globe2, Loader2, RefreshCw, ShieldCheck } from 'lucide-react'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppEmptyState from '../components/layout/AppEmptyState'
@@ -287,12 +287,6 @@ const PageReviewView = () => {
           </div>
         )}
       </AppSectionCard>
-
-      {auth.isAdmin ? (
-        <Link className="text-sm font-bold text-emerald-700 transition hover:text-emerald-900" to="/admin">
-          {language === 'zh' ? '返回平台工作台' : 'Back to platform workspace'}
-        </Link>
-      ) : null}
 
       {refusingPage ? (
         <div className="fixed inset-0 z-[70] flex items-end bg-slate-950/45 px-4 py-5 sm:items-center sm:justify-center">

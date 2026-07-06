@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { ArrowRight, ChevronLeft, ChevronRight, Sparkles, UsersRound } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { useAuthStore } from '../../stores/auth'
@@ -7,7 +8,6 @@ import { localizeText } from '../../utils/localizedText'
 import { entranceAnimation } from './homeUtils'
 import type { HomeGroupCard } from './homeUtils'
 import type { HomeCopy, Language } from './homeCopy'
-import GuardedLink from './LoginPromptOverlay'
 
 type Props = {
   copy: HomeCopy
@@ -28,7 +28,9 @@ const GroupsSection = ({ copy, language, groupCards }: Props) => {
 
   const groupPath = useCallback((card: HomeGroupCard) => {
     const membership = auth.memberships.find((item) => item.groupId === card.group.id)
-    return membership?.status === 'approved' || card.group.isChurch ? `/groups/${card.group.id}` : `/groups/${card.group.id}/join`
+    return membership?.status === 'approved' || card.group.isChurch || card.group.accessType === 'public'
+      ? `/groups/${card.group.id}`
+      : `/groups/${card.group.id}/join`
   }, [auth.memberships])
 
   const goTo = useCallback((nextIndex: number) => {
@@ -56,9 +58,9 @@ const GroupsSection = ({ copy, language, groupCards }: Props) => {
               <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{copy.groupsTitle}</h2>
               <p className="mt-3 max-w-[56ch] text-[0.94rem] leading-7 text-home-muted">{copy.groupsBody}</p>
             </div>
-            <GuardedLink language={language} to="/groups/select" className="inline-flex items-center gap-2 self-start rounded-lg bg-home-green px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-home-green-hover">
+            <Link to="/groups/select" className="inline-flex items-center gap-2 self-start rounded-lg bg-home-green px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-home-green-hover">
               {copy.groupsAction} <ArrowRight className="h-3.5 w-3.5" />
-            </GuardedLink>
+            </Link>
           </motion.div>
           <motion.div {...entrance} className="mt-10 rounded-2xl border border-home-border/60 bg-white/70 p-8">
             <UsersRound className="h-7 w-7 text-home-green" />
@@ -80,9 +82,9 @@ const GroupsSection = ({ copy, language, groupCards }: Props) => {
             <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{copy.groupsTitle}</h2>
             <p className="mt-3 max-w-[56ch] text-[0.94rem] leading-7 text-home-muted">{copy.groupsBody}</p>
           </div>
-          <GuardedLink language={language} to="/groups/select" className="inline-flex items-center gap-2 self-start rounded-lg bg-home-green px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-home-green-hover">
+          <Link to="/groups/select" className="inline-flex items-center gap-2 self-start rounded-lg bg-home-green px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-home-green-hover">
             {copy.groupsAction} <ArrowRight className="h-3.5 w-3.5" />
-          </GuardedLink>
+          </Link>
         </motion.div>
 
         <motion.div {...entrance} className="mt-10 overflow-hidden rounded-2xl bg-home-dark text-white shadow-[0_28px_80px_rgba(34,25,17,0.18)]">
@@ -97,11 +99,10 @@ const GroupsSection = ({ copy, language, groupCards }: Props) => {
                 transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
                 className="absolute inset-0"
               >
-                <GuardedLink
-                  language={language}
+                <Link
                   to={groupPath(activeCard)}
                   className="group block h-full"
-                  onBeforeNavigate={() => activeEntityService.setGroup(activeCard.group.id, { clearPage: true })}
+                  onClick={() => activeEntityService.setGroup(activeCard.group.id, { clearPage: true })}
                 >
                   <img src={activeCard.imageUrl} alt="" className="absolute inset-0 h-full w-full object-cover opacity-80 transition duration-700 group-hover:scale-[1.03] group-hover:opacity-90" loading="lazy" />
                   <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(24,21,16,0.92)_0%,rgba(24,21,16,0.62)_42%,rgba(24,21,16,0.12)_100%)]" />
@@ -115,7 +116,7 @@ const GroupsSection = ({ copy, language, groupCards }: Props) => {
                       <p className="mt-4 line-clamp-3 max-w-xl text-sm leading-7 text-white/66">{localizeText(activeCard.group.description, language) || copy.groupsBody}</p>
                     </div>
                   </div>
-                </GuardedLink>
+                </Link>
               </motion.div>
             </AnimatePresence>
 

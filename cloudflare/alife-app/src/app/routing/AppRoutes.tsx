@@ -13,6 +13,8 @@ const GroupDetailView = lazy(() => import('../../views/GroupDetailView'))
 const GroupJoinView = lazy(() => import('../../views/GroupJoinView'))
 const GroupManageView = lazy(() => import('../../views/GroupManageView'))
 const GroupsView = lazy(() => import('../../views/GroupsView'))
+const ForumView = lazy(() => import('../../views/ForumView'))
+const ForumPostView = lazy(() => import('../../views/ForumPostView'))
 const HomeView = lazy(() => import('../../views/HomeView'))
 const InviteMembersView = lazy(() => import('../../views/InviteMembersView'))
 const OnboardingView = lazy(() => import('../../views/OnboardingView'))
@@ -70,6 +72,8 @@ const AppRoutes = () => {
           <Route path="/groups/:groupId/join" element={<GroupJoinView />} />
           <Route path="/groups/:groupId/manage" element={<GroupManageView />} />
           <Route path="/groups/:groupId/manage/invite-members" element={<InviteMembersView />} />
+          <Route path="/forum" element={<ForumView />} />
+          <Route path="/forum/posts/:postId" element={<ForumPostView />} />
           <Route path="/pages/:pageId" element={<PageView />} />
           <Route path="/pages" element={<PageView />} />
           <Route path="/profile" element={<ProfileView />} />

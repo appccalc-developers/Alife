@@ -1,16 +1,15 @@
 import { useRef } from 'react'
+import { Link } from 'react-router-dom'
 import { ArrowRight, PlayCircle } from 'lucide-react'
 import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion'
 import { createSectionHandler, homepageHeroVideo, media } from './homeUtils'
-import type { HomeCopy, Language } from './homeCopy'
-import GuardedLink from './LoginPromptOverlay'
+import type { HomeCopy } from './homeCopy'
 
 type Props = {
   copy: HomeCopy
-  language: Language
 }
 
-const HeroSection = ({ copy, language }: Props) => {
+const HeroSection = ({ copy }: Props) => {
   const prefersReducedMotion = useReducedMotion()
   const heroRef = useRef<HTMLElement | null>(null)
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] })
@@ -61,9 +60,9 @@ const HeroSection = ({ copy, language }: Props) => {
             <a className="inline-flex items-center gap-2 rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-home-dark transition hover:bg-white/90" href="#visit" onClick={(event) => scrollToSection(event, '#visit')}>
               {copy.heroPrimary} <ArrowRight className="h-3.5 w-3.5" />
             </a>
-            <GuardedLink language={language} to="/sermons" className="inline-flex items-center gap-2 text-sm font-medium text-white/60 transition hover:text-white">
+            <Link to="/sermons" className="inline-flex items-center gap-2 text-sm font-medium text-white/60 transition hover:text-white">
               <PlayCircle className="h-4 w-4" /> {copy.heroSecondary}
-            </GuardedLink>
+            </Link>
           </motion.div>
         </motion.div>
       </div>

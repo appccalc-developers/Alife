@@ -198,6 +198,7 @@ public static class SeedData
 
 		await EnsureFileStorageProvidersAsync(dbContext, configuration, now, cancellationToken);
 		await EnsurePlatformRolesAsync(dbContext, cancellationToken);
+		await EnsureForumCategoriesAsync(dbContext, now, cancellationToken);
 
 		var admin = await EnsureMemberAsync(
 			dbContext,
@@ -371,6 +372,41 @@ public static class SeedData
 			}
 
 			await dbContext.PlatformRoles.AddAsync(role, cancellationToken);
+		}
+	}
+
+	private static async Task EnsureForumCategoriesAsync(
+		AlifeDbContext dbContext,
+		DateTime now,
+		CancellationToken cancellationToken)
+	{
+		var categories = new[]
+		{
+			new ForumCategory { Id = Guid.Parse("f0f00000-0000-4000-8000-000000000001"), NameJson = TextJson("Announcements", "公告"), DescriptionJson = TextJson("Official community updates.", "社区官方更新。"), SortOrder = 10 },
+			new ForumCategory { Id = Guid.Parse("f0f00000-0000-4000-8000-000000000002"), NameJson = TextJson("Testimonies", "见证"), DescriptionJson = TextJson("Share stories of faith and life.", "分享信仰与生活见证。"), SortOrder = 20 },
+			new ForumCategory { Id = Guid.Parse("f0f00000-0000-4000-8000-000000000003"), NameJson = TextJson("Q&A", "问答"), DescriptionJson = TextJson("Ask questions and help each other.", "提问并彼此帮助。"), SortOrder = 30 },
+			new ForumCategory { Id = Guid.Parse("f0f00000-0000-4000-8000-000000000005"), NameJson = TextJson("Event Sharing", "活动分享"), DescriptionJson = TextJson("Reflections and photos from community events.", "分享活动心得与照片。"), SortOrder = 40 },
+			new ForumCategory { Id = Guid.Parse("f0f00000-0000-4000-8000-000000000006"), NameJson = TextJson("Resources", "资源"), DescriptionJson = TextJson("Books, links, sermons, and learning resources.", "书籍、链接、讲道与学习资源。"), SortOrder = 50 },
+			new ForumCategory { Id = Guid.Parse("f0f00000-0000-4000-8000-000000000007"), NameJson = TextJson("General", "综合"), DescriptionJson = TextJson("General community discussion.", "综合社区讨论。"), SortOrder = 60 }
+		};
+
+		foreach (var category in categories)
+		{
+			var existing = await dbContext.ForumCategories.FirstOrDefaultAsync(x => x.Id == category.Id, cancellationToken);
+			if (existing is null)
+			{
+				category.IsEnabled = true;
+				category.CreatedUtc = now;
+				category.UpdatedUtc = now;
+				await dbContext.ForumCategories.AddAsync(category, cancellationToken);
+				continue;
+			}
+
+			existing.NameJson = category.NameJson;
+			existing.DescriptionJson = category.DescriptionJson;
+			existing.SortOrder = category.SortOrder;
+			existing.IsEnabled = true;
+			existing.UpdatedUtc = now;
 		}
 	}
 

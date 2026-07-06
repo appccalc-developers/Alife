@@ -52,7 +52,11 @@ const GroupsView = () => {
     let cancelled = false
     setLoading(true)
     setError('')
-    groupService.getVisibleGroups()
+    const groupsPromise = auth.isGuest
+      ? groupService.getChurch().then((church) => groupService.getSubgroups(church.id))
+      : groupService.getVisibleGroups()
+
+    groupsPromise
       .then((data) => {
         if (cancelled) return
         setGroups(data)
@@ -82,12 +86,12 @@ const GroupsView = () => {
         }
       })
     return () => { cancelled = true }
-  }, [language])
+  }, [auth.isGuest, language])
 
   const openGroup = (group: GroupSummaryDto) => {
     const membership = auth.memberships.find((item) => item.groupId === group.id)
     activeEntityService.setGroup(group.id, { clearPage: true })
-    navigate(membership?.status === 'approved' || group.isChurch ? '/groups' : '/groups/join')
+    navigate(membership?.status === 'approved' || group.isChurch || group.accessType === 'public' ? '/groups' : '/groups/join')
   }
 
   return (

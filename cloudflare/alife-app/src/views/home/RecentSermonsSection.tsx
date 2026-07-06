@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { ArrowRight, MicVocal, PlayCircle } from 'lucide-react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { activeEntityService } from '../../services/activeEntityService'
@@ -5,7 +6,6 @@ import type { SermonDto } from '../../services/sermonService'
 import { buildSermonVideoPath, extractYouTubeVideoId } from '../../utils/youtube'
 import { entranceAnimation, media } from './homeUtils'
 import type { HomeCopy, Language } from './homeCopy'
-import GuardedLink from './LoginPromptOverlay'
 
 type Props = {
   copy: HomeCopy
@@ -39,17 +39,16 @@ const RecentSermonsSection = ({ copy, language, sermons }: Props) => {
             <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{copy.sermonsTitle}</h2>
             <p className="mt-3 max-w-[56ch] text-[0.94rem] leading-7 text-home-muted">{copy.sermonsBody}</p>
           </div>
-          <GuardedLink language={language} to="/sermons" className="inline-flex items-center gap-2 self-start rounded-lg bg-home-green px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-home-green-hover">
+          <Link to="/sermons" className="inline-flex items-center gap-2 self-start rounded-lg bg-home-green px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-home-green-hover">
             {copy.sermonsAction} <ArrowRight className="h-3.5 w-3.5" />
-          </GuardedLink>
+          </Link>
         </motion.div>
 
         {featured ? (
           <motion.div {...entrance} className="mt-10 grid overflow-hidden rounded-2xl bg-home-dark text-white shadow-[0_24px_70px_rgba(34,25,17,0.18)] lg:grid-cols-[1.15fr_0.85fr]">
-            <GuardedLink
-              language={language}
+            <Link
               to={buildSermonVideoPath(featured.id, extractYouTubeVideoId(featured.videoUrl))}
-              onBeforeNavigate={() => activeEntityService.setSermon(featured.id)}
+              onClick={() => activeEntityService.setSermon(featured.id)}
               className="group relative block min-h-[19rem] overflow-hidden"
             >
               <img src={featured.thumbnailUrl || media.message} alt="" className="absolute inset-0 h-full w-full object-cover opacity-80 transition duration-700 group-hover:scale-[1.03] group-hover:opacity-90" loading="lazy" />
@@ -57,7 +56,7 @@ const RecentSermonsSection = ({ copy, language, sermons }: Props) => {
               <div className="absolute left-6 top-6 inline-flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-home-green shadow-lg">
                 <PlayCircle className="h-6 w-6" />
               </div>
-            </GuardedLink>
+            </Link>
 
             <div className="flex flex-col justify-between p-6 sm:p-8 lg:p-10">
               <div>
@@ -71,11 +70,10 @@ const RecentSermonsSection = ({ copy, language, sermons }: Props) => {
               {rest.length > 0 ? (
                 <div className="mt-8 grid gap-3">
                   {rest.map((sermon) => (
-                    <GuardedLink
+                    <Link
                       key={sermon.id}
-                      language={language}
                       to={buildSermonVideoPath(sermon.id, extractYouTubeVideoId(sermon.videoUrl))}
-                      onBeforeNavigate={() => activeEntityService.setSermon(sermon.id)}
+                      onClick={() => activeEntityService.setSermon(sermon.id)}
                       className="group flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] p-3 transition hover:bg-white/[0.08]"
                     >
                       <div className="h-14 w-20 shrink-0 overflow-hidden rounded-lg bg-white/10">
@@ -85,7 +83,7 @@ const RecentSermonsSection = ({ copy, language, sermons }: Props) => {
                         <p className="line-clamp-1 text-sm font-semibold text-white">{sermon.title}</p>
                         <p className="mt-1 text-xs text-white/50">{formatDate(sermon.preachedAt, language) || sermon.speakerName || copy.recentSermonsItemFallback}</p>
                       </div>
-                    </GuardedLink>
+                    </Link>
                   ))}
                 </div>
               ) : null}

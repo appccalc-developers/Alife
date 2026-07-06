@@ -24,6 +24,9 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 	public DbSet<EventReview> EventReviews => Set<EventReview>();
 	public DbSet<NotificationMessage> NotificationMessages => Set<NotificationMessage>();
 	public DbSet<VisitContactRequest> VisitContactRequests => Set<VisitContactRequest>();
+	public DbSet<ForumCategory> ForumCategories => Set<ForumCategory>();
+	public DbSet<ForumPost> ForumPosts => Set<ForumPost>();
+	public DbSet<ForumComment> ForumComments => Set<ForumComment>();
 
 	protected override void OnModelCreating(ModelBuilder modelBuilder)
 	{
@@ -366,6 +369,74 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 			cfg.HasIndex(x => new { x.Status, x.SubmittedUtc });
 			cfg.HasIndex(x => x.HandledByMemberId);
 			cfg.HasIndex(x => x.SubmittedUtc);
+		});
+
+		modelBuilder.Entity<ForumCategory>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.NameJson).IsRequired();
+			cfg.HasIndex(x => new { x.IsEnabled, x.SortOrder });
+		});
+
+		modelBuilder.Entity<ForumPost>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.TitleJson).IsRequired();
+			cfg.Property(x => x.BodyJson).IsRequired();
+			cfg.Property(x => x.MediaJson).IsRequired();
+
+			cfg.HasOne(x => x.Category)
+				.WithMany(x => x.Posts)
+				.HasForeignKey(x => x.CategoryId)
+				.OnDelete(DeleteBehavior.Restrict);
+
+			cfg.HasOne(x => x.Group)
+				.WithMany()
+				.HasForeignKey(x => x.GroupId)
+				.OnDelete(DeleteBehavior.Restrict);
+
+			cfg.HasOne(x => x.AuthorMember)
+				.WithMany(x => x.ForumPosts)
+				.HasForeignKey(x => x.AuthorMemberId)
+				.OnDelete(DeleteBehavior.Restrict);
+
+			cfg.HasOne(x => x.LastCommentMember)
+				.WithMany()
+				.HasForeignKey(x => x.LastCommentMemberId)
+				.OnDelete(DeleteBehavior.Restrict);
+
+			cfg.HasIndex(x => new { x.Visibility, x.IsHidden, x.IsPinned, x.UpdatedUtc });
+			cfg.HasIndex(x => new { x.CategoryId, x.Visibility, x.UpdatedUtc });
+			cfg.HasIndex(x => new { x.GroupId, x.UpdatedUtc });
+			cfg.HasIndex(x => x.AuthorMemberId);
+			cfg.HasQueryFilter(x => x.DeletedUtc == null);
+		});
+
+		modelBuilder.Entity<ForumComment>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.BodyJson).IsRequired();
+			cfg.Property(x => x.MediaJson).IsRequired();
+
+			cfg.HasOne(x => x.Post)
+				.WithMany(x => x.Comments)
+				.HasForeignKey(x => x.PostId)
+				.OnDelete(DeleteBehavior.Restrict);
+
+			cfg.HasOne(x => x.AuthorMember)
+				.WithMany(x => x.ForumComments)
+				.HasForeignKey(x => x.AuthorMemberId)
+				.OnDelete(DeleteBehavior.Restrict);
+
+			cfg.HasOne(x => x.ParentComment)
+				.WithMany(x => x.Replies)
+				.HasForeignKey(x => x.ParentCommentId)
+				.OnDelete(DeleteBehavior.Restrict);
+
+			cfg.HasIndex(x => new { x.PostId, x.CreatedUtc });
+			cfg.HasIndex(x => new { x.PostId, x.ParentCommentId, x.CreatedUtc });
+			cfg.HasIndex(x => x.AuthorMemberId);
+			cfg.HasQueryFilter(x => x.DeletedUtc == null);
 		});
 	}
 }

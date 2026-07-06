@@ -26,6 +26,16 @@ const TYPE_BY_EXTENSION = {
   webp: "image/webp",
 };
 
+const VIDEO_EXTENSIONS = new Set(["mp4", "webm", "mov", "m4v", "ogg", "ogv"]);
+const VIDEO_TYPE_BY_EXTENSION = {
+  m4v: "video/mp4",
+  mov: "video/quicktime",
+  mp4: "video/mp4",
+  ogg: "video/ogg",
+  ogv: "video/ogg",
+  webm: "video/webm",
+};
+
 const EMPTY = "";
 
 const OPENAPI_FALLBACK_YAML = `openapi: 3.1.0
@@ -148,6 +158,18 @@ function isImageObject(objectKey, contentType) {
   return IMAGE_EXTENSIONS.has(getKeyExtension(objectKey));
 }
 
+function isVideoObject(objectKey, contentType) {
+  if (typeof contentType === "string" && contentType.startsWith("video/")) {
+    return true;
+  }
+
+  return VIDEO_EXTENSIONS.has(getKeyExtension(objectKey));
+}
+
+function isMediaObject(objectKey, contentType) {
+  return isImageObject(objectKey, contentType) || isVideoObject(objectKey, contentType);
+}
+
 function keyToUrlPath(key) {
   return key.split("/").map((segment) => encodeURIComponent(segment)).join("/");
 }
@@ -203,7 +225,7 @@ async function listFolder(request, env, folderPath) {
   });
 
   const images = listing.objects
-    .filter((obj) => isImageObject(obj.key, obj.httpMetadata?.contentType))
+    .filter((obj) => isMediaObject(obj.key, obj.httpMetadata?.contentType))
     .map((obj) => ({
       type: "image",
       key: obj.key,
@@ -211,7 +233,7 @@ async function listFolder(request, env, folderPath) {
       size: obj.size,
       uploaded: obj.uploaded,
       etag: obj.httpEtag,
-      contentType: obj.httpMetadata?.contentType || TYPE_BY_EXTENSION[getKeyExtension(obj.key)] || EMPTY,
+      contentType: obj.httpMetadata?.contentType || TYPE_BY_EXTENSION[getKeyExtension(obj.key)] || VIDEO_TYPE_BY_EXTENSION[getKeyExtension(obj.key)] || EMPTY,
       url: toImageUrl(request, env, obj.key),
     }))
     .sort((a, b) => String(b.uploaded).localeCompare(String(a.uploaded)));
@@ -237,9 +259,9 @@ async function uploadToPath(request, env, folderPath) {
   }
 
   const extension = getKeyExtension(file.name);
-  const candidateType = file.type || TYPE_BY_EXTENSION[extension] || "";
-  if (!isImageObject(file.name, candidateType)) {
-    return json({ error: "Only image files can be uploaded." }, 400);
+  const candidateType = file.type || TYPE_BY_EXTENSION[extension] || VIDEO_TYPE_BY_EXTENSION[extension] || "";
+  if (!isMediaObject(file.name, candidateType)) {
+    return json({ error: "Only image and video files can be uploaded." }, 400);
   }
 
   const fileName = sanitizeFileName(file.name);

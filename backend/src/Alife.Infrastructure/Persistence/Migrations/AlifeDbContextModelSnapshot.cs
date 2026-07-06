@@ -438,6 +438,205 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.ToTable("file_storage_providers", (string)null);
                 });
 
+            modelBuilder.Entity("Alife.Domain.Entities.ForumCategory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<string>("DescriptionJson")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("description_json");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_enabled");
+
+                    b.Property<string>("NameJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("name_json");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int")
+                        .HasColumnName("sort_order");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_forum_categories");
+
+                    b.HasIndex("IsEnabled", "SortOrder")
+                        .HasDatabaseName("ix_forum_categories_is_enabled_sort_order");
+
+                    b.ToTable("forum_categories", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.ForumComment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AuthorMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("author_member_id");
+
+                    b.Property<string>("BodyJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("body_json");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<DateTime?>("DeletedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("deleted_utc");
+
+                    b.Property<bool>("IsHidden")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_hidden");
+
+                    b.Property<string>("MediaJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("media_json");
+
+                    b.Property<Guid?>("ParentCommentId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("parent_comment_id");
+
+                    b.Property<Guid>("PostId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("post_id");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_forum_comments");
+
+                    b.HasIndex("AuthorMemberId")
+                        .HasDatabaseName("ix_forum_comments_author_member_id");
+
+                    b.HasIndex("ParentCommentId")
+                        .HasDatabaseName("ix_forum_comments_parent_comment_id");
+
+                    b.HasIndex("PostId", "CreatedUtc")
+                        .HasDatabaseName("ix_forum_comments_post_id_created_utc");
+
+                    b.HasIndex("PostId", "ParentCommentId", "CreatedUtc")
+                        .HasDatabaseName("ix_forum_comments_post_id_parent_comment_id_created_utc");
+
+                    b.ToTable("forum_comments", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.ForumPost", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AuthorMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("author_member_id");
+
+                    b.Property<string>("BodyJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("body_json");
+
+                    b.Property<Guid>("CategoryId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("category_id");
+
+                    b.Property<int>("CommentCount")
+                        .HasColumnType("int")
+                        .HasColumnName("comment_count");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<DateTime?>("DeletedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("deleted_utc");
+
+                    b.Property<Guid?>("GroupId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("group_id");
+
+                    b.Property<bool>("IsHidden")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_hidden");
+
+                    b.Property<bool>("IsLocked")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_locked");
+
+                    b.Property<bool>("IsPinned")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_pinned");
+
+                    b.Property<Guid?>("LastCommentMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("last_comment_member_id");
+
+                    b.Property<DateTime?>("LastCommentUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("last_comment_utc");
+
+                    b.Property<string>("MediaJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("media_json");
+
+                    b.Property<string>("TitleJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("title_json");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_utc");
+
+                    b.Property<int>("Visibility")
+                        .HasColumnType("int")
+                        .HasColumnName("visibility");
+
+                    b.HasKey("Id")
+                        .HasName("pk_forum_posts");
+
+                    b.HasIndex("AuthorMemberId")
+                        .HasDatabaseName("ix_forum_posts_author_member_id");
+
+                    b.HasIndex("LastCommentMemberId")
+                        .HasDatabaseName("ix_forum_posts_last_comment_member_id");
+
+                    b.HasIndex("GroupId", "UpdatedUtc")
+                        .HasDatabaseName("ix_forum_posts_group_id_updated_utc");
+
+                    b.HasIndex("CategoryId", "Visibility", "UpdatedUtc")
+                        .HasDatabaseName("ix_forum_posts_category_id_visibility_updated_utc");
+
+                    b.HasIndex("Visibility", "IsHidden", "IsPinned", "UpdatedUtc")
+                        .HasDatabaseName("ix_forum_posts_visibility_is_hidden_is_pinned_updated_utc");
+
+                    b.ToTable("forum_posts", (string)null);
+                });
+
             modelBuilder.Entity("Alife.Domain.Entities.Group", b =>
                 {
                     b.Property<Guid>("Id")
@@ -841,95 +1040,6 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.ToTable("notification_messages", (string)null);
                 });
 
-            modelBuilder.Entity("Alife.Domain.Entities.VisitContactRequest", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("id");
-
-                    b.Property<DateTime>("CreatedUtc")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("created_utc");
-
-                    b.Property<string>("DisplayName")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)")
-                        .HasColumnName("display_name");
-
-                    b.Property<string>("Email")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)")
-                        .HasColumnName("email");
-
-                    b.Property<Guid?>("HandledByMemberId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("handled_by_member_id");
-
-                    b.Property<DateTime?>("HandledUtc")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("handled_utc");
-
-                    b.Property<string>("IpAddress")
-                        .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)")
-                        .HasColumnName("ip_address");
-
-                    b.Property<string>("Message")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)")
-                        .HasColumnName("message");
-
-                    b.Property<string>("Phone")
-                        .HasMaxLength(60)
-                        .HasColumnType("nvarchar(60)")
-                        .HasColumnName("phone");
-
-                    b.Property<string>("PreferredLanguage")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
-                        .HasColumnName("preferred_language");
-
-                    b.Property<string>("SourcePage")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)")
-                        .HasColumnName("source_page");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)")
-                        .HasColumnName("status");
-
-                    b.Property<DateTime>("SubmittedUtc")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("submitted_utc");
-
-                    b.Property<DateTime>("UpdatedUtc")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("updated_utc");
-
-                    b.Property<string>("UserAgent")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)")
-                        .HasColumnName("user_agent");
-
-                    b.HasKey("Id")
-                        .HasName("pk_visit_contact_requests");
-
-                    b.HasIndex("HandledByMemberId")
-                        .HasDatabaseName("ix_visit_contact_requests_handled_by_member_id");
-
-                    b.HasIndex("Status", "SubmittedUtc")
-                        .HasDatabaseName("ix_visit_contact_requests_status_submitted_utc");
-
-                    b.HasIndex("SubmittedUtc")
-                        .HasDatabaseName("ix_visit_contact_requests_submitted_utc");
-
-                    b.ToTable("visit_contact_requests", (string)null);
-                });
-
             modelBuilder.Entity("Alife.Domain.Entities.Page", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1148,6 +1258,95 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.ToTable("sermons", (string)null);
                 });
 
+            modelBuilder.Entity("Alife.Domain.Entities.VisitContactRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)")
+                        .HasColumnName("display_name");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("email");
+
+                    b.Property<Guid?>("HandledByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("handled_by_member_id");
+
+                    b.Property<DateTime?>("HandledUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("handled_utc");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("ip_address");
+
+                    b.Property<string>("Message")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasColumnName("message");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)")
+                        .HasColumnName("phone");
+
+                    b.Property<string>("PreferredLanguage")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("preferred_language");
+
+                    b.Property<string>("SourcePage")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("source_page");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("SubmittedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("submitted_utc");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_utc");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("user_agent");
+
+                    b.HasKey("Id")
+                        .HasName("pk_visit_contact_requests");
+
+                    b.HasIndex("HandledByMemberId")
+                        .HasDatabaseName("ix_visit_contact_requests_handled_by_member_id");
+
+                    b.HasIndex("SubmittedUtc")
+                        .HasDatabaseName("ix_visit_contact_requests_submitted_utc");
+
+                    b.HasIndex("Status", "SubmittedUtc")
+                        .HasDatabaseName("ix_visit_contact_requests_status_submitted_utc");
+
+                    b.ToTable("visit_contact_requests", (string)null);
+                });
+
             modelBuilder.Entity("Alife.Domain.Entities.AuditLog", b =>
                 {
                     b.HasOne("Alife.Domain.Entities.Member", "ActorMember")
@@ -1268,6 +1467,72 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.Navigation("OwnerMember");
 
                     b.Navigation("StorageProviderProfile");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.ForumComment", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.Member", "AuthorMember")
+                        .WithMany("ForumComments")
+                        .HasForeignKey("AuthorMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_forum_comments_members_author_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.ForumPost", "Post")
+                        .WithMany("Comments")
+                        .HasForeignKey("PostId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_forum_comments_forum_posts_post_id");
+
+                    b.HasOne("Alife.Domain.Entities.ForumComment", "ParentComment")
+                        .WithMany("Replies")
+                        .HasForeignKey("ParentCommentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_forum_comments_forum_comments_parent_comment_id");
+
+                    b.Navigation("AuthorMember");
+
+                    b.Navigation("ParentComment");
+
+                    b.Navigation("Post");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.ForumPost", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.Member", "AuthorMember")
+                        .WithMany("ForumPosts")
+                        .HasForeignKey("AuthorMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_forum_posts_members_author_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.ForumCategory", "Category")
+                        .WithMany("Posts")
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_forum_posts_forum_categories_category_id");
+
+                    b.HasOne("Alife.Domain.Entities.Group", "Group")
+                        .WithMany()
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_forum_posts_groups_group_id");
+
+                    b.HasOne("Alife.Domain.Entities.Member", "LastCommentMember")
+                        .WithMany()
+                        .HasForeignKey("LastCommentMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_forum_posts_members_last_comment_member_id");
+
+                    b.Navigation("AuthorMember");
+
+                    b.Navigation("Category");
+
+                    b.Navigation("Group");
+
+                    b.Navigation("LastCommentMember");
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.Group", b =>
@@ -1401,17 +1666,6 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.Navigation("RecipientMember");
                 });
 
-            modelBuilder.Entity("Alife.Domain.Entities.VisitContactRequest", b =>
-                {
-                    b.HasOne("Alife.Domain.Entities.Member", "HandledByMember")
-                        .WithMany()
-                        .HasForeignKey("HandledByMemberId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("fk_visit_contact_requests_members_handled_by_member_id");
-
-                    b.Navigation("HandledByMember");
-                });
-
             modelBuilder.Entity("Alife.Domain.Entities.Page", b =>
                 {
                     b.HasOne("Alife.Domain.Entities.Member", "CreatedByMember")
@@ -1444,6 +1698,27 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.Navigation("Page");
                 });
 
+            modelBuilder.Entity("Alife.Domain.Entities.VisitContactRequest", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.Member", "HandledByMember")
+                        .WithMany()
+                        .HasForeignKey("HandledByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_visit_contact_requests_members_handled_by_member_id");
+
+                    b.Navigation("HandledByMember");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.ForumCategory", b =>
+                {
+                    b.Navigation("Posts");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.ForumPost", b =>
+                {
+                    b.Navigation("Comments");
+                });
+
             modelBuilder.Entity("Alife.Domain.Entities.Group", b =>
                 {
                     b.Navigation("Memberships");
@@ -1454,6 +1729,10 @@ namespace Alife.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("Alife.Domain.Entities.Member", b =>
                 {
                     b.Navigation("AssignedPlatformRoles");
+
+                    b.Navigation("ForumComments");
+
+                    b.Navigation("ForumPosts");
 
                     b.Navigation("Memberships");
 

@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { ArrowRight, CalendarDays, ChevronLeft, ChevronRight, MapPin } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { activeEntityService } from '../../services/activeEntityService'
 import { entranceAnimation, media } from './homeUtils'
 import type { HomeCopy, Language } from './homeCopy'
 import type { GroupEventRecord } from '../../types/event'
-import GuardedLink from './LoginPromptOverlay'
 
 type Props = {
   copy: HomeCopy
@@ -294,10 +294,10 @@ const EventsSection = ({ copy, language, upcomingEvents }: Props) => {
             </p>
           </div>
 
-          <GuardedLink language={language} to="/events" className="inline-flex min-h-12 w-fit shrink-0 items-center justify-center gap-2 self-start rounded-full bg-home-gold px-5 text-sm font-black text-[#173f37] shadow-[0_16px_42px_rgba(245,215,152,0.32)] transition hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_20px_54px_rgba(47,111,98,0.16)] focus:outline-none focus:ring-2 focus:ring-home-green/[0.35] sm:self-end">
+          <Link to="/events" className="inline-flex min-h-12 w-fit shrink-0 items-center justify-center gap-2 self-start rounded-full bg-home-gold px-5 text-sm font-black text-[#173f37] shadow-[0_16px_42px_rgba(245,215,152,0.32)] transition hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_20px_54px_rgba(47,111,98,0.16)] focus:outline-none focus:ring-2 focus:ring-home-green/[0.35] sm:self-end">
             {copy.eventsViewAll}
             <ArrowRight className="h-4 w-4" />
-          </GuardedLink>
+          </Link>
         </motion.div>
 
         {activeEvent && activeDetails ? (
@@ -363,15 +363,14 @@ const EventsSection = ({ copy, language, upcomingEvents }: Props) => {
                           <MapPin className="h-4 w-4 shrink-0 text-home-green" />
                           {activeDetails.location || copy.eventsLocationFallback}
                         </span>
-                        <GuardedLink
-                          language={language}
+                        <Link
                           to="/events"
                           className="inline-flex min-h-11 items-center gap-2 rounded-full bg-home-gold px-5 text-sm font-black text-[#173f37] shadow-[0_18px_52px_rgba(245,215,152,0.24)] transition hover:-translate-y-0.5 hover:bg-white focus:outline-none focus:ring-2 focus:ring-home-green/35"
-                          onBeforeNavigate={() => activeEntityService.setEvent(activeEvent.id, activeEvent.groupId)}
+                          onClick={() => activeEntityService.setEvent(activeEvent.id, activeEvent.groupId)}
                         >
                           {copy.eventsOpen}
                           <ChevronRight className="h-4 w-4" />
-                        </GuardedLink>
+                        </Link>
                       </div>
                     </motion.div>
                   </AnimatePresence>

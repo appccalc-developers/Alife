@@ -66,8 +66,10 @@ export const useGroupScreen = (groupId: string, options: GroupScreenOptions = {}
     return () => { cancelled = true }
   }, [groupId])
 
+  const canPubliclyBrowseGroup = group?.isChurch || group?.accessType === 'public'
+
   // Load subgroups as a live collection.
-  const canLoadSubgroups = !auth.isGuest
+  const canLoadSubgroups = !auth.isGuest || Boolean(canPubliclyBrowseGroup)
   const subCollection = useMemo(() => (groupId ? subgroupsCollection(groupId, canLoadSubgroups) : null), [canLoadSubgroups, groupId])
   const { data: subgroups = [] } = useLiveQuery(
     () => subCollection ?? undefined,
@@ -115,9 +117,9 @@ export const useGroupScreen = (groupId: string, options: GroupScreenOptions = {}
   const canEditAllPages = canManageGroup
   const canPublishPages = canManageGroup
 
-  // Fetch events for approved members and for public church group access.
+  // Fetch events for approved members and for public group access.
   useEffect(() => {
-    if (!shouldLoadEvents || !groupId || (membership?.status !== 'approved' && !group?.isChurch)) {
+    if (!shouldLoadEvents || !groupId || (membership?.status !== 'approved' && !canPubliclyBrowseGroup)) {
       setEvents([])
       return
     }
@@ -127,7 +129,7 @@ export const useGroupScreen = (groupId: string, options: GroupScreenOptions = {}
       .then((data) => { if (!cancelled) setEvents(data) })
       .catch(() => { if (!cancelled) setEvents([]) })
     return () => { cancelled = true }
-  }, [group?.isChurch, groupId, membership?.status, shouldLoadEvents])
+  }, [canPubliclyBrowseGroup, groupId, membership?.status, shouldLoadEvents])
 
   const summary = useMemo(() => {
     if (!group) return ''
