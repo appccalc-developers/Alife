@@ -74,6 +74,7 @@ const AppRoutes = () => {
           <Route path="/groups/:groupId/manage/invite-members" element={<InviteMembersView />} />
           <Route path="/forum" element={<ForumView />} />
           <Route path="/forum/posts/:postId" element={<ForumPostView />} />
+          <Route path="/public/pages/:pageId" element={<PageView />} />
           <Route path="/pages/:pageId" element={<PageView />} />
           <Route path="/pages" element={<PageView />} />
           <Route path="/profile" element={<ProfileView />} />
