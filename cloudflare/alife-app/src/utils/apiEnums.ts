@@ -6,7 +6,6 @@ import type {
   MeDto,
   MembershipRole,
   MembershipStatus,
-  PageScope,
   PageSummaryDto,
   PageVisibility,
 } from '../types'
@@ -64,14 +63,6 @@ export const normalizeMembershipRole = (value: unknown): MembershipRole =>
     'member',
   )
 
-export const normalizePageScope = (value: unknown): PageScope =>
-  normalizeEnum<PageScope>(
-    value,
-    { 0: 'global', 1: 'group' },
-    { global: 'global', group: 'group' },
-    'group',
-  )
-
 export const normalizePageVisibility = (value: unknown): PageVisibility =>
   normalizeEnum<PageVisibility>(
     value,
@@ -117,7 +108,6 @@ export const normalizeGroup = <T extends GroupDto | GroupSummaryDto>(group: T): 
 export const normalizePageSummary = (page: PageSummaryDto): PageSummaryDto => ({
   ...page,
   visibility: normalizePageVisibility(page.visibility),
-  scope: page.scope === undefined ? page.scope : normalizePageScope(page.scope),
   accessName: page.accessName ? toLocalizedText(page.accessName) : page.accessName,
 })
 

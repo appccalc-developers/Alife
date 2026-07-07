@@ -38,14 +38,9 @@ public sealed class GetPageSectionsQueryHandler(
 
 	private async Task<bool> CanViewPageAsync(Domain.Entities.Page page, Guid currentMemberId, CancellationToken cancellationToken)
 	{
-		if (page.Scope == PageScope.Global)
-		{
-			return true;
-		}
-
 		if (page.OwnerGroupId is null)
 		{
-			return false;
+			return true;
 		}
 
 		var isApproved = await groupAuthorizationService.IsApprovedMemberAsync(page.OwnerGroupId.Value, currentMemberId, cancellationToken);

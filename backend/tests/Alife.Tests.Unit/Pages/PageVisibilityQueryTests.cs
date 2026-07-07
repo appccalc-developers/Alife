@@ -289,7 +289,6 @@ public class PageVisibilityQueryTests
     private static PageDto CreatePage(Guid groupId, Guid authorId, PageVisibility visibility)
         => new(
             Guid.NewGuid(),
-            PageScope.Group,
             groupId,
             authorId,
             new Dictionary<string, string> { ["en"] = "Page" },
@@ -302,7 +301,6 @@ public class PageVisibilityQueryTests
     private static PageDto CreatePage(Guid pageId, Guid groupId, Guid authorId, PageVisibility visibility, DateTime updatedUtc)
         => new(
             pageId,
-            PageScope.Group,
             groupId,
             authorId,
             new Dictionary<string, string> { ["en"] = "Page" },
@@ -318,7 +316,6 @@ public class PageVisibilityQueryTests
     private static PageDetailDto CreatePageDetail(Guid pageId, Guid groupId, Guid authorId, PageVisibility visibility, DateTime updatedUtc)
         => new(
             pageId,
-            PageScope.Group,
             groupId,
             authorId,
             new Dictionary<string, string> { ["en"] = "Page" },

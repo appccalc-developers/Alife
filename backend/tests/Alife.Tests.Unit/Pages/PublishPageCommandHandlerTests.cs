@@ -23,7 +23,6 @@ public class PublishPageCommandHandlerTests
         dbContext.Pages.Add(new Page
         {
             Id = pageId,
-            Scope = PageScope.Group,
             OwnerGroupId = groupId,
             CreatedByMemberId = Guid.NewGuid(),
             TitleJson = "{\"en\":\"Welcome\",\"zh\":\"欢迎\"}",
@@ -69,7 +68,6 @@ public class PublishPageCommandHandlerTests
         dbContext.Pages.Add(new Page
         {
             Id = pageId,
-            Scope = PageScope.Group,
             OwnerGroupId = groupId,
             CreatedByMemberId = Guid.NewGuid(),
             TitleJson = "{\"en\":\"Welcome\",\"zh\":\"欢迎\"}",

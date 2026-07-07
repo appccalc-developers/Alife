@@ -29,7 +29,6 @@ public class PageGlobalReviewTests
             new Page
             {
                 Id = Guid.NewGuid(),
-                Scope = PageScope.Group,
                 OwnerGroupId = groupId,
                 CreatedByMemberId = authorId,
                 TitleJson = "{\"en\":\"Draft review\",\"zh\":\"草稿审核\"}",
@@ -42,7 +41,6 @@ public class PageGlobalReviewTests
             new Page
             {
                 Id = Guid.NewGuid(),
-                Scope = PageScope.Group,
                 OwnerGroupId = groupId,
                 CreatedByMemberId = authorId,
                 TitleJson = "{\"en\":\"Group review\",\"zh\":\"组内审核\"}",
@@ -55,7 +53,6 @@ public class PageGlobalReviewTests
             new Page
             {
                 Id = Guid.NewGuid(),
-                Scope = PageScope.Global,
                 OwnerGroupId = null,
                 CreatedByMemberId = authorId,
                 TitleJson = "{\"en\":\"Global page\",\"zh\":\"全站页面\"}",
@@ -68,7 +65,6 @@ public class PageGlobalReviewTests
             new Page
             {
                 Id = approvedPageId,
-                Scope = PageScope.Group,
                 OwnerGroupId = groupId,
                 CreatedByMemberId = authorId,
                 TitleJson = "{\"en\":\"Approved review\",\"zh\":\"已批准审核\"}",
@@ -81,7 +77,6 @@ public class PageGlobalReviewTests
             new Page
             {
                 Id = returnedPageId,
-                Scope = PageScope.Group,
                 OwnerGroupId = groupId,
                 CreatedByMemberId = authorId,
                 TitleJson = "{\"en\":\"Returned review\",\"zh\":\"已退回审核\"}",
@@ -122,7 +117,7 @@ public class PageGlobalReviewTests
         Assert.True(result.IsSuccess);
         Assert.Equal(3, result.Value!.Count);
         Assert.All(result.Value, page => Assert.Equal(PageVisibility.Public, page.Visibility));
-        Assert.All(result.Value, page => Assert.Equal(PageScope.Group, page.Scope));
+        Assert.All(result.Value, page => Assert.Equal(groupId, page.OwnerGroupId));
         Assert.Contains(result.Value, page => page.Id == pageId && page.ReviewStatus == AdminPageReviewStatus.Pending);
         Assert.Contains(result.Value, page =>
             page.Id == approvedPageId &&
@@ -196,11 +191,9 @@ public class PageGlobalReviewTests
         Assert.True(result.IsSuccess);
         Assert.Equal(groupId, result.Value!.PreviousOwnerGroupId);
         Assert.NotNull(result.Value.Page);
-        Assert.Equal(PageScope.Group, result.Value.Page!.Scope);
-        Assert.Equal(groupId, result.Value.Page.OwnerGroupId);
+        Assert.Equal(groupId, result.Value.Page!.OwnerGroupId);
 
         var storedPage = await dbContext.Pages.FirstAsync(x => x.Id == pageId);
-        Assert.Equal(PageScope.Group, storedPage.Scope);
         Assert.Equal(groupId, storedPage.OwnerGroupId);
         Assert.Equal(PageVisibility.Public, storedPage.Visibility);
         Assert.Contains(dbContext.PagePublicationReviews, review =>
@@ -286,7 +279,6 @@ public class PageGlobalReviewTests
         dbContext.Pages.Add(new Page
         {
             Id = pageId,
-            Scope = PageScope.Group,
             OwnerGroupId = groupId,
             CreatedByMemberId = authorId,
             TitleJson = "{\"en\":\"Review me\",\"zh\":\"请审核\"}",

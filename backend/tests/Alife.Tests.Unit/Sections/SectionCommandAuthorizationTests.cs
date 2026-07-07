@@ -142,7 +142,6 @@ public class SectionCommandAuthorizationTests
         => new()
         {
             Id = pageId,
-            Scope = PageScope.Group,
             OwnerGroupId = groupId,
             CreatedByMemberId = authorId,
             TitleJson = "{\"en\":\"Group page\",\"zh\":\"Group page\"}",

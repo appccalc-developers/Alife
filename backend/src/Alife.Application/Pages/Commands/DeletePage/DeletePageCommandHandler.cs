@@ -25,8 +25,7 @@ public sealed class DeletePageCommandHandler(
 
         var isCreatorDraft = page.CreatedByMemberId == request.CurrentMemberId &&
                              page.Visibility == PageVisibility.Draft;
-        var canDelete = page.Scope == PageScope.Group &&
-                        page.OwnerGroupId.HasValue &&
+        var canDelete = page.OwnerGroupId.HasValue &&
                         await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
                             page.OwnerGroupId.Value,
                             request.CurrentMemberId,
@@ -42,7 +41,7 @@ public sealed class DeletePageCommandHandler(
         await dbContext.SaveChangesAsync(cancellationToken);
 
         await pageCacheInvalidationService.RemoveDetailAsync(page.Id, cancellationToken);
-        if (page.Scope == PageScope.Global)
+        if (page.OwnerGroupId is null)
         {
             await pageCacheInvalidationService.RemoveGlobalAsync(cancellationToken);
         }

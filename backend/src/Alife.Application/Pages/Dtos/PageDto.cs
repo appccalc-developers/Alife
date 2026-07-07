@@ -4,7 +4,6 @@ namespace Alife.Application.Pages.Dtos;
 
 public sealed record PageDto(
     Guid Id,
-    PageScope Scope,
     Guid? OwnerGroupId,
     Guid CreatedByMemberId,
     IReadOnlyDictionary<string, string> Title,
@@ -31,7 +30,6 @@ public sealed record PageSectionDto(
 
 public sealed record PageDetailDto(
     Guid Id,
-    PageScope Scope,
     Guid? OwnerGroupId,
     Guid CreatedByMemberId,
     IReadOnlyDictionary<string, string> Title,

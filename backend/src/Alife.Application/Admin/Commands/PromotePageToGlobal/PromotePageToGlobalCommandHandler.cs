@@ -31,7 +31,7 @@ public sealed class PromotePageToGlobalCommandHandler(
             return AppResult<PageGlobalReviewActionDto>.NotFound("Page was not found.");
         }
 
-        if (page.Scope != PageScope.Group || page.OwnerGroupId is null || page.Visibility != PageVisibility.Public)
+        if (page.OwnerGroupId is null || page.Visibility != PageVisibility.Public)
         {
             return AppResult<PageGlobalReviewActionDto>.Conflict("Only public group pages can be approved for publication.");
         }
@@ -63,7 +63,6 @@ public sealed class PromotePageToGlobalCommandHandler(
 
         var before = new
         {
-            scope = page.Scope.ToString(),
             ownerGroupId = page.OwnerGroupId,
             visibility = page.Visibility.ToString(),
             globalPublicationStatus = previousStatus,
@@ -81,7 +80,6 @@ public sealed class PromotePageToGlobalCommandHandler(
             BeforeJson = JsonSerializer.Serialize(before),
             AfterJson = JsonSerializer.Serialize(new
             {
-                scope = page.Scope.ToString(),
                 ownerGroupId = page.OwnerGroupId,
                 visibility = page.Visibility.ToString(),
                 globalPublicationStatus = "Approved",
@@ -107,7 +105,6 @@ public sealed class PromotePageToGlobalCommandHandler(
     private static PageDto ToDto(Page page, IReadOnlyDictionary<string, string> accessName)
         => new(
             page.Id,
-            page.Scope,
             page.OwnerGroupId,
             page.CreatedByMemberId,
             ReadTextMap(page.TitleJson),

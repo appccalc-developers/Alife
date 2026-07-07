@@ -26,19 +26,18 @@ public sealed class PublishPageCommandHandler(
 
         var canReviewPages = await groupAuthorizationService.CanReviewPagesAsync(request.CurrentMemberId, cancellationToken);
 
-        if (page.Scope == PageScope.Global)
+        if (page.OwnerGroupId is null)
         {
             if (!canReviewPages && !await groupAuthorizationService.IsAdminAsync(request.CurrentMemberId, cancellationToken))
             {
                 return AppResult<PageDto>.Forbidden("You do not have permission to publish this page.");
             }
         }
-        else if (page.OwnerGroupId is null ||
-                 (!canReviewPages &&
+        else if (!canReviewPages &&
                   !await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
                      page.OwnerGroupId.Value,
                      request.CurrentMemberId,
-                     cancellationToken)))
+                     cancellationToken))
         {
             return AppResult<PageDto>.Forbidden("You do not have permission to publish this page.");
         }
@@ -56,7 +55,7 @@ public sealed class PublishPageCommandHandler(
     {
         await pageCacheInvalidationService.RemoveDetailAsync(page.Id, cancellationToken);
 
-        if (page.Scope == PageScope.Global)
+        if (page.OwnerGroupId is null)
         {
             await pageCacheInvalidationService.RemoveGlobalAsync(cancellationToken);
             return;
@@ -72,7 +71,6 @@ public sealed class PublishPageCommandHandler(
     private static PageDto ToDto(Domain.Entities.Page page)
         => new(
             page.Id,
-            page.Scope,
             page.OwnerGroupId,
             page.CreatedByMemberId,
             ReadTextMap(page.TitleJson),

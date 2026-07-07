@@ -24,7 +24,6 @@ public class UpdatePageCommandHandlerTests
         dbContext.Pages.Add(new Page
         {
             Id = pageId,
-            Scope = PageScope.Group,
             OwnerGroupId = groupId,
             CreatedByMemberId = Guid.NewGuid(),
             TitleJson = "{\"en\":\"Old title\",\"zh\":\"旧标题\"}",

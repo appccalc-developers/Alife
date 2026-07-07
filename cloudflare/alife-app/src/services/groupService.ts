@@ -4,7 +4,7 @@ import { subgroupsQueryKey } from '../db/collections/groupCollection'
 import { sermonsQueryKey } from '../db/collections/sermonsCollection'
 import { queryClient } from '../db/queryClient'
 import type { GroupDto, GroupMembershipDto, GroupSummaryDto, LocalizedText, MembershipStatus, PageSummaryDto } from '../types'
-import { normalizeGroup, normalizeGroupMembership, normalizeMembershipStatus, normalizePageScope, normalizePageSummary, normalizePageVisibility } from '../utils/apiEnums'
+import { normalizeGroup, normalizeGroupMembership, normalizeMembershipStatus, normalizePageSummary, normalizePageVisibility } from '../utils/apiEnums'
 import { toLocalizedText } from '../utils/localizedText'
 
 export type CreateSubgroupPayload = {
@@ -76,7 +76,6 @@ export type CreatePlatformRolePayload = {
 
 export type AdminPageReviewDto = {
   id: string
-  scope: 'group' | 'global' | string
   ownerGroupId: string | null
   ownerGroupName: LocalizedText | null
   createdByMemberId: string
@@ -228,7 +227,6 @@ const normalizeAdminPagedResult = <T>(payload: unknown): AdminPagedResultDto<T> 
 
 const normalizeAdminPageReview = (page: AdminPageReviewDto): AdminPageReviewDto => ({
   ...page,
-  scope: normalizePageScope(page.scope),
   visibility: normalizePageVisibility(page.visibility),
   reviewStatus: normalizeAdminPageReviewStatus(page.reviewStatus),
   accessName: page.accessName ? toLocalizedText(page.accessName) : null,

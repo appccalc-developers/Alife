@@ -24,14 +24,9 @@ public sealed class GetPageByIdQueryHandler(
             return AppResult<PageDetailDto>.NotFound("Page was not found.");
         }
 
-        if (page.Scope == PageScope.Global)
-        {
-            return AppResult<PageDetailDto>.Success(page);
-        }
-
         if (page.OwnerGroupId is null)
         {
-            return AppResult<PageDetailDto>.Validation("Group page owner missing.");
+            return AppResult<PageDetailDto>.Success(page);
         }
 
         var isApproved = request.CurrentMemberId.HasValue &&

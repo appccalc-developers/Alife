@@ -88,14 +88,9 @@ public sealed class UpdatePageCommandHandler(
             return true;
         }
 
-        if (page.Scope == PageScope.Global)
-        {
-            return await groupAuthorizationService.IsAdminAsync(currentMemberId, cancellationToken);
-        }
-
         if (page.OwnerGroupId is null)
         {
-            return false;
+            return await groupAuthorizationService.IsAdminAsync(currentMemberId, cancellationToken);
         }
 
         if (page.CreatedByMemberId == currentMemberId && page.Visibility == PageVisibility.Draft)
@@ -110,7 +105,7 @@ public sealed class UpdatePageCommandHandler(
     {
         await pageCacheInvalidationService.RemoveDetailAsync(page.Id, cancellationToken);
 
-        if (page.Scope == PageScope.Global)
+        if (page.OwnerGroupId is null)
         {
             await pageCacheInvalidationService.RemoveGlobalAsync(cancellationToken);
             return;
@@ -126,7 +121,6 @@ public sealed class UpdatePageCommandHandler(
     private static PageDetailDto ToDetailDto(Page page, IReadOnlyList<Section> sections)
         => new(
             page.Id,
-            page.Scope,
             page.OwnerGroupId,
             page.CreatedByMemberId,
             ReadTextMap(page.TitleJson),

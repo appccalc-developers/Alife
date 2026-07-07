@@ -28,7 +28,7 @@ public sealed class ReplaceSectionLinksCommandHandler(
         }
 
         var allowed = false;
-        if (section.Page.Scope == PageScope.Global)
+        if (section.Page.OwnerGroupId is null)
         {
             allowed = await groupAuthorizationService.IsAdminAsync(request.CurrentMemberId, cancellationToken);
         }

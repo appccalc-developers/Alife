@@ -21,8 +21,8 @@ public sealed class PageReadService(AlifeDbContext dbContext, HybridCache hybrid
                         on page.Id equals review.PageId into reviews
                     from review in reviews.DefaultIfEmpty()
                     where page.Visibility == PageVisibility.Public &&
-                          (page.Scope == PageScope.Global ||
-                           (page.Scope == PageScope.Group &&
+                          (page.OwnerGroupId == null ||
+                           (page.OwnerGroupId != null &&
                             review != null &&
                             review.Status == PagePublicationReviewStatus.Approved))
                     orderby page.UpdatedUtc
@@ -46,8 +46,8 @@ public sealed class PageReadService(AlifeDbContext dbContext, HybridCache hybrid
                         on page.Id equals review.PageId into reviews
                     from review in reviews.DefaultIfEmpty()
                     where page.Visibility == PageVisibility.Public &&
-                          (page.Scope == PageScope.Global ||
-                           (page.Scope == PageScope.Group &&
+                          (page.OwnerGroupId == null ||
+                           (page.OwnerGroupId != null &&
                             review != null &&
                             review.Status == PagePublicationReviewStatus.Approved))
                     orderby page.UpdatedUtc, page.Id
@@ -83,7 +83,6 @@ public sealed class PageReadService(AlifeDbContext dbContext, HybridCache hybrid
 
                 return new PageDetailDto(
                     page.Id,
-                    page.Scope,
                     page.OwnerGroupId,
                     page.CreatedByMemberId,
                     ReadTextMap(page.TitleJson),
@@ -103,7 +102,7 @@ public sealed class PageReadService(AlifeDbContext dbContext, HybridCache hybrid
             {
                 var pages = await dbContext.Pages
                     .AsNoTracking()
-                    .Where(x => x.Scope == PageScope.Group && x.OwnerGroupId == groupId)
+                    .Where(x => x.OwnerGroupId == groupId)
                     .OrderByDescending(x => x.UpdatedUtc)
                     .ToListAsync(token);
 
@@ -117,7 +116,6 @@ public sealed class PageReadService(AlifeDbContext dbContext, HybridCache hybrid
     private static PageDto ToDto(Domain.Entities.Page page, IReadOnlyDictionary<string, string>? accessName)
         => new(
             page.Id,
-            page.Scope,
             page.OwnerGroupId,
             page.CreatedByMemberId,
             ReadTextMap(page.TitleJson),

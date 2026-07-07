@@ -32,12 +32,12 @@ public class PublicPagesQueryTests
         });
         dbContext.Groups.AddRange(church, subgroup);
 
-        var publicGlobalPage = CreatePage(authorId, PageScope.Global, null, PageVisibility.Public, "Global Public");
-        var draftGlobalPage = CreatePage(authorId, PageScope.Global, null, PageVisibility.Draft, "Global Draft");
-        var publicChurchPage = CreatePage(authorId, PageScope.Group, churchGroupId, PageVisibility.Public, "Church Public");
-        var groupVisibleChurchPage = CreatePage(authorId, PageScope.Group, churchGroupId, PageVisibility.Group, "Church Group");
-        var publicSubgroupPage = CreatePage(authorId, PageScope.Group, subgroupId, PageVisibility.Public, "Subgroup Public");
-        var approvedSubgroupPage = CreatePage(authorId, PageScope.Group, subgroupId, PageVisibility.Public, "Subgroup Approved");
+        var publicGlobalPage = CreatePage(authorId, null, PageVisibility.Public, "Global Public");
+        var draftGlobalPage = CreatePage(authorId, null, PageVisibility.Draft, "Global Draft");
+        var publicChurchPage = CreatePage(authorId, churchGroupId, PageVisibility.Public, "Church Public");
+        var groupVisibleChurchPage = CreatePage(authorId, churchGroupId, PageVisibility.Group, "Church Group");
+        var publicSubgroupPage = CreatePage(authorId, subgroupId, PageVisibility.Public, "Subgroup Public");
+        var approvedSubgroupPage = CreatePage(authorId, subgroupId, PageVisibility.Public, "Subgroup Approved");
         publicChurchPage.OwnerGroup = church;
         groupVisibleChurchPage.OwnerGroup = church;
         publicSubgroupPage.OwnerGroup = subgroup;
@@ -84,9 +84,9 @@ public class PublicPagesQueryTests
         });
         dbContext.Groups.Add(CreateGroup(groupId, isChurch: false, parentGroupId: null));
 
-        var publicGlobalPage = CreatePage(authorId, PageScope.Global, null, PageVisibility.Public, "Global Public");
-        var approvedGroupPage = CreatePage(authorId, PageScope.Group, groupId, PageVisibility.Public, "Approved Group Public");
-        var unapprovedGroupPage = CreatePage(authorId, PageScope.Group, groupId, PageVisibility.Public, "Unapproved Group Public");
+        var publicGlobalPage = CreatePage(authorId, null, PageVisibility.Public, "Global Public");
+        var approvedGroupPage = CreatePage(authorId, groupId, PageVisibility.Public, "Approved Group Public");
+        var unapprovedGroupPage = CreatePage(authorId, groupId, PageVisibility.Public, "Unapproved Group Public");
         dbContext.Pages.AddRange(publicGlobalPage, approvedGroupPage, unapprovedGroupPage);
         dbContext.PagePublicationReviews.Add(CreateApprovedReview(approvedGroupPage.Id, "Approved menu"));
         await dbContext.SaveChangesAsync();
@@ -96,10 +96,9 @@ public class PublicPagesQueryTests
         var result = await service.GetGlobalPagesAsync(CancellationToken.None);
 
         Assert.Equal(2, result.Count);
-        Assert.Contains(result, page => page.Id == publicGlobalPage.Id && page.Scope == PageScope.Global);
+        Assert.Contains(result, page => page.Id == publicGlobalPage.Id && page.OwnerGroupId is null);
         Assert.Contains(result, page =>
             page.Id == approvedGroupPage.Id &&
-            page.Scope == PageScope.Group &&
             page.OwnerGroupId == groupId &&
             page.AccessName != null &&
             page.AccessName["en"] == "Approved menu");
@@ -136,14 +135,12 @@ public class PublicPagesQueryTests
 
     private static Page CreatePage(
         Guid authorId,
-        PageScope scope,
         Guid? ownerGroupId,
         PageVisibility visibility,
         string title)
         => new()
         {
             Id = Guid.NewGuid(),
-            Scope = scope,
             OwnerGroupId = ownerGroupId,
             CreatedByMemberId = authorId,
             TitleJson = $$"""{"en":"{{title}}","zh":"{{title}}"}""",

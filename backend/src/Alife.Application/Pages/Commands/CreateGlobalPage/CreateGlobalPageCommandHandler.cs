@@ -27,7 +27,6 @@ public sealed class CreateGlobalPageCommandHandler(
         var page = new Page
         {
             Id = pageId,
-            Scope = PageScope.Global,
             OwnerGroupId = null,
             CreatedByMemberId = request.CurrentMemberId,
             TitleJson = JsonSerializer.Serialize(request.Title),
@@ -60,7 +59,6 @@ public sealed class CreateGlobalPageCommandHandler(
 
         return AppResult<PageDetailDto>.Success(new PageDetailDto(
             page.Id,
-            page.Scope,
             page.OwnerGroupId,
             page.CreatedByMemberId,
             ReadTextMap(page.TitleJson),

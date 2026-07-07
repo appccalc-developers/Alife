@@ -372,7 +372,7 @@ const PageReviewView = () => {
                 ? localizeText(page.ownerGroupName, language) || page.ownerGroupId
                 : text(language, 'globalPage')
               const disabled = actingPageId === page.id
-              const canReviewGlobalPromotion = page.scope === 'group' && page.visibility === 'public'
+              const canReviewGlobalPromotion = Boolean(page.ownerGroupId) && page.visibility === 'public'
               const canApprove = canReviewGlobalPromotion && page.reviewStatus !== 'approved'
               const canReturn = canReviewGlobalPromotion && page.reviewStatus !== 'returned'
               const accessLabel = localizeText(page.accessName, language)
@@ -391,7 +391,7 @@ const PageReviewView = () => {
                           {visibilityText(language, page.visibility)}
                         </span>
                         <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-bold text-slate-500">
-                          {page.scope === 'global' ? text(language, 'globalPage') : text(language, 'groupPage')}
+                          {page.ownerGroupId ? text(language, 'groupPage') : text(language, 'globalPage')}
                         </span>
                         <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-bold text-slate-500">
                           {text(language, 'updated')}: {formatDate(page.updatedUtc, language)}

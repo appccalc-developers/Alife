@@ -47,14 +47,9 @@ public sealed class UpdateSectionCommandHandler(
 
 	private async Task<bool> CanEditPageAsync(Page page, Guid currentMemberId, CancellationToken cancellationToken)
 	{
-		if (page.Scope == PageScope.Global)
-		{
-			return await groupAuthorizationService.IsAdminAsync(currentMemberId, cancellationToken);
-		}
-
 		if (page.OwnerGroupId is null)
 		{
-			return false;
+			return await groupAuthorizationService.IsAdminAsync(currentMemberId, cancellationToken);
 		}
 
 		if (page.CreatedByMemberId == currentMemberId && page.Visibility == PageVisibility.Draft)
@@ -68,7 +63,7 @@ public sealed class UpdateSectionCommandHandler(
 	private async Task InvalidatePageAsync(Page page, CancellationToken cancellationToken)
 	{
 		await pageCacheInvalidationService.RemoveDetailAsync(page.Id, cancellationToken);
-		if (page.Scope == Domain.Enums.PageScope.Global)
+		if (page.OwnerGroupId is null)
 		{
 			await pageCacheInvalidationService.RemoveGlobalAsync(cancellationToken);
 			return;

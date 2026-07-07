@@ -1063,10 +1063,6 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("owner_group_id");
 
-                    b.Property<int>("Scope")
-                        .HasColumnType("int")
-                        .HasColumnName("scope");
-
                     b.Property<string>("TagsJson")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)")
@@ -1097,11 +1093,8 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.HasIndex("CreatedByMemberId")
                         .HasDatabaseName("ix_pages_created_by_member_id");
 
-                    b.HasIndex("OwnerGroupId")
-                        .HasDatabaseName("ix_pages_owner_group_id");
-
-                    b.HasIndex("Scope", "OwnerGroupId", "UpdatedUtc")
-                        .HasDatabaseName("ix_pages_scope_owner_group_id_updated_utc");
+                    b.HasIndex("OwnerGroupId", "UpdatedUtc")
+                        .HasDatabaseName("ix_pages_owner_group_id_updated_utc");
 
                     b.ToTable("pages", (string)null);
                 });

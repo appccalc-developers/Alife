@@ -38,7 +38,6 @@ public sealed class CreateGroupPageCommandHandler(
         var page = new Page
         {
             Id = pageId,
-            Scope = PageScope.Group,
             OwnerGroupId = request.GroupId,
             CreatedByMemberId = request.CurrentMemberId,
             TitleJson = WriteTextMap(request.Title),
@@ -75,7 +74,6 @@ public sealed class CreateGroupPageCommandHandler(
     private static PageDetailDto ToDetailDto(Page page, IReadOnlyList<Section> sections)
         => new(
             page.Id,
-            page.Scope,
             page.OwnerGroupId,
             page.CreatedByMemberId,
             ReadTextMap(page.TitleJson),

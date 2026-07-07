@@ -24,13 +24,11 @@ public sealed class ListPageReviewCandidatesQueryHandler(IAlifeDbContext dbConte
             .AsNoTracking()
             .Where(page =>
                 page.Visibility == PageVisibility.Public &&
-                page.Scope == PageScope.Group &&
                 page.OwnerGroupId != null)
             .OrderByDescending(page => page.UpdatedUtc)
             .Select(page => new
             {
                 page.Id,
-                page.Scope,
                 page.OwnerGroupId,
                 OwnerGroupNameJson = page.OwnerGroup == null ? null : page.OwnerGroup.NameJson,
                 page.CreatedByMemberId,
@@ -70,7 +68,6 @@ public sealed class ListPageReviewCandidatesQueryHandler(IAlifeDbContext dbConte
                 reviewsByPageId.TryGetValue(row.Id, out var review);
                 return new AdminPageReviewDto(
                     row.Id,
-                    row.Scope,
                     row.OwnerGroupId,
                     ReadTextMap(row.OwnerGroupNameJson),
                     row.CreatedByMemberId,

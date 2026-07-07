@@ -1,7 +1,6 @@
 export type AccessType = 'public' | 'protected' | 'private'
 export type MembershipStatus = 'invited' | 'requested' | 'approved' | 'rejected' | 'removed'
 export type MembershipRole = 'member' | 'coLeader' | 'leader'
-export type PageScope = 'global' | 'group'
 export type PageVisibility = 'draft' | 'group' | 'public'
 export type LocalizedText = Record<string, string>
 export const SECTION_ICON_KEYS = ['church', 'cross', 'calendar', 'bible', 'people', 'heart', 'music', 'map', 'image', 'video', 'mic', 'book', 'handshake'] as const
@@ -138,7 +137,6 @@ export type PageSummaryDto = {
   visibility: PageVisibility
   createdByMemberId: string
   updatedUtc?: string
-  scope?: PageScope
   ownerGroupId?: string | null
   description?: LocalizedText | null
   tagsJson?: string

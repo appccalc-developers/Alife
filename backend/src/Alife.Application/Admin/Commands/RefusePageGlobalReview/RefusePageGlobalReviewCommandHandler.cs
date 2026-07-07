@@ -38,7 +38,7 @@ public sealed class RefusePageGlobalReviewCommandHandler(
             return AppResult<PageGlobalReviewActionDto>.NotFound("Page was not found.");
         }
 
-        if (page.Scope != PageScope.Group || page.OwnerGroupId is null || page.Visibility != PageVisibility.Public)
+        if (page.OwnerGroupId is null || page.Visibility != PageVisibility.Public)
         {
             return AppResult<PageGlobalReviewActionDto>.Conflict("Only public group pages can be returned from publication review.");
         }
