@@ -9,35 +9,35 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 
-namespace Alife.Application.Admin.Commands.PromotePageToGlobal;
+namespace Alife.Application.Admin.Commands.ApprovePagePublication;
 
-public sealed class PromotePageToGlobalCommandHandler(
+public sealed class ApprovePagePublicationCommandHandler(
     IAlifeDbContext dbContext,
     IPageCacheInvalidationService pageCacheInvalidationService)
-    : IRequestHandler<PromotePageToGlobalCommand, AppResult<PageGlobalReviewActionDto>>
+    : IRequestHandler<ApprovePagePublicationCommand, AppResult<PagePublicationReviewActionDto>>
 {
-    public async Task<AppResult<PageGlobalReviewActionDto>> Handle(
-        PromotePageToGlobalCommand request,
+    public async Task<AppResult<PagePublicationReviewActionDto>> Handle(
+        ApprovePagePublicationCommand request,
         CancellationToken cancellationToken)
     {
         if (!await AdminPlatformRoleHelpers.CanReviewPagesAsync(dbContext, request.CurrentMemberId, cancellationToken))
         {
-            return AppResult<PageGlobalReviewActionDto>.Forbidden("Page reviewer access is required.");
+            return AppResult<PagePublicationReviewActionDto>.Forbidden("Page reviewer access is required.");
         }
 
         var page = await dbContext.Pages.FirstOrDefaultAsync(x => x.Id == request.PageId, cancellationToken);
         if (page is null)
         {
-            return AppResult<PageGlobalReviewActionDto>.NotFound("Page was not found.");
+            return AppResult<PagePublicationReviewActionDto>.NotFound("Page was not found.");
         }
 
-        if (page.Scope != PageScope.Group || page.OwnerGroupId is null || page.Visibility != PageVisibility.Public)
+        if (page.Visibility != PageVisibility.Public)
         {
-            return AppResult<PageGlobalReviewActionDto>.Conflict("Only public group pages can be approved for publication.");
+            return AppResult<PagePublicationReviewActionDto>.Conflict("Only public pages can be approved for publication.");
         }
 
         var now = DateTime.UtcNow;
-        var previousOwnerGroupId = page.OwnerGroupId.Value;
+        var ownerGroupId = page.OwnerGroupId;
         var accessName = NormalizeAccessName(request.AccessName, ReadTextMap(page.TitleJson));
         var review = await dbContext.PagePublicationReviews
             .FirstOrDefaultAsync(x => x.PageId == page.Id, cancellationToken);
@@ -61,53 +61,47 @@ public sealed class PromotePageToGlobalCommandHandler(
         review.ReviewedUtc = now;
         review.UpdatedUtc = now;
 
-        var before = new
-        {
-            scope = page.Scope.ToString(),
-            ownerGroupId = page.OwnerGroupId,
-            visibility = page.Visibility.ToString(),
-            globalPublicationStatus = previousStatus,
-            pageUpdatedUtc = page.UpdatedUtc
-        };
-
         await dbContext.AuditLogs.AddAsync(new AuditLog
         {
             Id = Guid.NewGuid(),
             ActorMemberId = request.CurrentMemberId,
-            Action = PageGlobalReviewActions.Approve,
+            Action = PagePublicationReviewActions.Approve,
             EntityType = "page",
             EntityId = page.Id,
-            GroupId = previousOwnerGroupId,
-            BeforeJson = JsonSerializer.Serialize(before),
+            GroupId = ownerGroupId,
+            BeforeJson = JsonSerializer.Serialize(new
+            {
+                ownerGroupId,
+                visibility = page.Visibility.ToString(),
+                publicationReviewStatus = previousStatus,
+                pageUpdatedUtc = page.UpdatedUtc
+            }),
             AfterJson = JsonSerializer.Serialize(new
             {
-                scope = page.Scope.ToString(),
-                ownerGroupId = page.OwnerGroupId,
+                ownerGroupId,
                 visibility = page.Visibility.ToString(),
-                globalPublicationStatus = "Approved",
+                publicationReviewStatus = "Approved",
                 accessName,
                 pageUpdatedUtc = page.UpdatedUtc
             }),
-            MetadataJson = JsonSerializer.Serialize(new { previousOwnerGroupId, pageUpdatedUtc = page.UpdatedUtc, accessName }),
+            MetadataJson = JsonSerializer.Serialize(new { ownerGroupId, pageUpdatedUtc = page.UpdatedUtc, accessName }),
             OccurredUtc = now
         }, cancellationToken);
 
         await dbContext.SaveChangesAsync(cancellationToken);
         await pageCacheInvalidationService.RemoveDetailAsync(page.Id, cancellationToken);
-        await pageCacheInvalidationService.RemoveGroupPagesAsync(previousOwnerGroupId, cancellationToken);
-        await pageCacheInvalidationService.RemoveGlobalAsync(cancellationToken);
+        await pageCacheInvalidationService.RemoveGroupPagesAsync(ownerGroupId, cancellationToken);
 
-        return AppResult<PageGlobalReviewActionDto>.Success(new PageGlobalReviewActionDto(
+        return AppResult<PagePublicationReviewActionDto>.Success(new PagePublicationReviewActionDto(
             true,
             page.Id,
-            previousOwnerGroupId,
+            ownerGroupId,
             ToDto(page, accessName)));
     }
 
     private static PageDto ToDto(Page page, IReadOnlyDictionary<string, string> accessName)
         => new(
             page.Id,
-            page.Scope,
             page.OwnerGroupId,
             page.CreatedByMemberId,
             ReadTextMap(page.TitleJson),

@@ -37,7 +37,9 @@ public sealed class UpdateSectionCommandHandler(
 		section.Order = request.Order;
 		section.ContentJson = string.IsNullOrWhiteSpace(request.ContentJson) ? "{}" : request.ContentJson;
 		section.StyleJson = string.IsNullOrWhiteSpace(request.StyleJson) ? "{}" : request.StyleJson;
-		section.Page.UpdatedUtc = DateTime.UtcNow;
+		var now = DateTime.UtcNow;
+		section.Page.UpdatedUtc = now;
+		await PagePublicationReviewState.MarkPendingIfPublicAsync(dbContext, section.Page, now, cancellationToken);
 
 		await dbContext.SaveChangesAsync(cancellationToken);
 		await InvalidatePageAsync(section.Page, cancellationToken);
@@ -47,37 +49,18 @@ public sealed class UpdateSectionCommandHandler(
 
 	private async Task<bool> CanEditPageAsync(Page page, Guid currentMemberId, CancellationToken cancellationToken)
 	{
-		if (page.Scope == PageScope.Global)
-		{
-			return await groupAuthorizationService.IsAdminAsync(currentMemberId, cancellationToken);
-		}
-
-		if (page.OwnerGroupId is null)
-		{
-			return false;
-		}
-
 		if (page.CreatedByMemberId == currentMemberId && page.Visibility == PageVisibility.Draft)
 		{
 			return true;
 		}
 
-		return await groupAuthorizationService.IsLeaderOrCoLeaderAsync(page.OwnerGroupId.Value, currentMemberId, cancellationToken);
+		return await groupAuthorizationService.IsLeaderOrCoLeaderAsync(page.OwnerGroupId, currentMemberId, cancellationToken);
 	}
 
 	private async Task InvalidatePageAsync(Page page, CancellationToken cancellationToken)
 	{
 		await pageCacheInvalidationService.RemoveDetailAsync(page.Id, cancellationToken);
-		if (page.Scope == Domain.Enums.PageScope.Global)
-		{
-			await pageCacheInvalidationService.RemoveGlobalAsync(cancellationToken);
-			return;
-		}
-
-		if (page.OwnerGroupId.HasValue)
-		{
-			await pageCacheInvalidationService.RemoveGroupPagesAsync(page.OwnerGroupId.Value, cancellationToken);
-		}
+		await pageCacheInvalidationService.RemoveGroupPagesAsync(page.OwnerGroupId, cancellationToken);
 	}
 
 	private static SectionDto ToDto(Section section)

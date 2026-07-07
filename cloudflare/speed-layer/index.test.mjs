@@ -434,12 +434,12 @@ test('event enrollments cache is gated by event group mapping and membership mir
   assert.equal(fetchCalls.length, 0)
 })
 
-test('GET requests are served from cache on the second hit', async () => {
+test('public GET requests are served from cache on the second hit', async () => {
   originResponses.push(Response.json({ title: 'Fresh page' }))
 
-  const first = await dispatch('https://ccalc.live/api/pages/global?lang=en')
+  const first = await dispatch('https://ccalc.live/api/sermons?lang=en')
   await flushWaitUntil()
-  const second = await dispatch('https://ccalc.live/api/pages/global?lang=en')
+  const second = await dispatch('https://ccalc.live/api/sermons?lang=en')
 
   assert.equal(first.status, 200)
   assert.equal(first.headers.get('x-alife-cache'), 'MISS')
@@ -467,44 +467,6 @@ test('public pages GET requests are served from shared public cache', async () =
   assert.equal(second.headers.get('x-alife-cache'), 'HIT')
   assert.deepEqual(await second.json(), [{ id: 'page-1', visibility: 'public' }])
   assert.equal(fetchCalls.length, 1)
-})
-
-test('global pages cache is invalidated after global page visibility publish', async () => {
-  const pageId = 'global-page-1'
-  const url = 'https://ccalc.live/api/pages/global'
-  cacheStore.set(cacheKey(new Request(url)), Response.json(
-    [{ id: pageId, scope: 'global', visibility: 'draft' }],
-    { headers: { etag: '"global-pages-v1"', 'cache-control': 'public, max-age=86400' } },
-  ))
-  originResponses.push(Response.json({
-    id: pageId,
-    scope: 'global',
-    ownerGroupId: null,
-    visibility: 'public',
-  }))
-  originResponses.push(Response.json([{ id: pageId, scope: 'global', visibility: 'public' }]))
-
-  const publish = await dispatch(`https://ccalc.live/api/pages/${pageId}/publish`, {
-    method: 'POST',
-    body: JSON.stringify({ visibility: 'public' }),
-    headers: {
-      'content-type': 'application/json',
-      cookie: `alife_auth=${createJwtWithSub('admin-1')}`,
-    },
-  })
-  await flushWaitUntil()
-
-  const globalPages = await dispatch(url, {
-    headers: { 'if-none-match': '"global-pages-v1"' },
-  })
-  await flushWaitUntil()
-
-  assert.equal(publish.status, 200)
-  assert.equal(globalPages.status, 200)
-  assert.equal(globalPages.headers.get('x-alife-cache'), 'MISS')
-  assert.deepEqual(await globalPages.json(), [{ id: pageId, scope: 'global', visibility: 'public' }])
-  assert.equal(fetchCalls.length, 2)
-  assert.equal(fetchCalls[1].headers.get('if-none-match'), null)
 })
 
 test('public pages cache is invalidated after page visibility publish', async () => {
@@ -545,28 +507,28 @@ test('public pages cache is invalidated after page visibility publish', async ()
   assert.equal(fetchCalls[1].headers.get('if-none-match'), null)
 })
 
-test('global page promotion evicts global pages and old group pages caches', async () => {
+test('page publication approval evicts public and group pages caches', async () => {
   const pageId = 'group-page-1'
   const groupId = 'group-1'
-  const globalUrl = 'https://ccalc.live/api/pages/global'
+  const publicUrl = 'https://ccalc.live/api/pages/public'
   const groupPagesUrl = `https://ccalc.live/api/groups/${groupId}/pages`
-  cacheStore.set(cacheKey(new Request(globalUrl)), Response.json([{ id: 'old-global-page', scope: 'global' }]))
-  cacheStore.set(cacheKey(new Request(groupPagesUrl)), Response.json([{ id: pageId, scope: 'group', ownerGroupId: groupId }]))
-  apiCacheStore.set(`group:${groupId}:pages`, createStoredResponse([{ id: pageId, scope: 'group', ownerGroupId: groupId }]))
-  apiCacheStore.set(`public:group:${groupId}:pages`, createStoredResponse([{ id: pageId, scope: 'group', ownerGroupId: groupId, visibility: 'Public' }]))
+  cacheStore.set(cacheKey(new Request(publicUrl)), Response.json([{ id: pageId, ownerGroupId: groupId, visibility: 'public' }]))
+  cacheStore.set(cacheKey(new Request(groupPagesUrl)), Response.json([{ id: pageId, ownerGroupId: groupId }]))
+  apiCacheStore.set(createApiCacheKey(publicUrl), createStoredResponse([{ id: pageId, ownerGroupId: groupId, visibility: 'Public' }]))
+  apiCacheStore.set(`group:${groupId}:pages`, createStoredResponse([{ id: pageId, ownerGroupId: groupId }]))
+  apiCacheStore.set(`public:group:${groupId}:pages`, createStoredResponse([{ id: pageId, ownerGroupId: groupId, visibility: 'Public' }]))
   originResponses.push(Response.json({
     ok: true,
     pageId,
-    previousOwnerGroupId: groupId,
+    ownerGroupId: groupId,
     page: {
       id: pageId,
-      scope: 'group',
       ownerGroupId: groupId,
       visibility: 'public',
     },
   }))
 
-  const approve = await dispatch(`https://ccalc.live/api/admin/pages/${pageId}/approve-global-review`, {
+  const approve = await dispatch(`https://ccalc.live/api/admin/pages/${pageId}/publication-review/approve`, {
     method: 'POST',
     body: JSON.stringify({ accessName: { en: 'Menu name', zh: '菜单名' } }),
     headers: {
@@ -577,33 +539,31 @@ test('global page promotion evicts global pages and old group pages caches', asy
   await flushWaitUntil()
 
   assert.equal(approve.status, 200)
-  assert.equal(cacheStore.has(cacheKey(new Request(globalUrl))), false)
+  assert.equal(cacheStore.has(cacheKey(new Request(publicUrl))), false)
   assert.equal(cacheStore.has(cacheKey(new Request(groupPagesUrl))), false)
+  assert.equal(apiCacheStore.has(createApiCacheKey(publicUrl)), false)
   assert.equal(apiCacheStore.has(`group:${groupId}:pages`), false)
   assert.equal(apiCacheStore.has(`public:group:${groupId}:pages`), false)
 })
 
-test('page return evicts original group pages and global publication caches', async () => {
+test('page publication return evicts public and group pages caches', async () => {
   const pageId = 'group-page-1'
   const groupId = 'group-1'
-  const globalUrl = 'https://ccalc.live/api/pages/global'
   const publicUrl = 'https://ccalc.live/api/pages/public'
   const groupPagesUrl = `https://ccalc.live/api/groups/${groupId}/pages`
-  cacheStore.set(cacheKey(new Request(globalUrl)), Response.json([{ id: pageId, scope: 'group', ownerGroupId: groupId }]))
-  cacheStore.set(cacheKey(new Request(publicUrl)), Response.json([{ id: pageId, scope: 'group', ownerGroupId: groupId, visibility: 'public' }]))
-  cacheStore.set(cacheKey(new Request(groupPagesUrl)), Response.json([{ id: pageId, scope: 'group', ownerGroupId: groupId }]))
-  apiCacheStore.set(createApiCacheKey(publicUrl), createStoredResponse([{ id: pageId, scope: 'group', ownerGroupId: groupId, visibility: 'Public' }]))
-  apiCacheStore.set(createApiCacheKey(globalUrl), createStoredResponse([{ id: pageId, scope: 'group', ownerGroupId: groupId, visibility: 'Public' }]))
-  apiCacheStore.set(`group:${groupId}:pages`, createStoredResponse([{ id: pageId, scope: 'group', ownerGroupId: groupId }]))
-  apiCacheStore.set(`public:group:${groupId}:pages`, createStoredResponse([{ id: pageId, scope: 'group', ownerGroupId: groupId, visibility: 'Public' }]))
+  cacheStore.set(cacheKey(new Request(publicUrl)), Response.json([{ id: pageId, ownerGroupId: groupId, visibility: 'public' }]))
+  cacheStore.set(cacheKey(new Request(groupPagesUrl)), Response.json([{ id: pageId, ownerGroupId: groupId }]))
+  apiCacheStore.set(createApiCacheKey(publicUrl), createStoredResponse([{ id: pageId, ownerGroupId: groupId, visibility: 'Public' }]))
+  apiCacheStore.set(`group:${groupId}:pages`, createStoredResponse([{ id: pageId, ownerGroupId: groupId }]))
+  apiCacheStore.set(`public:group:${groupId}:pages`, createStoredResponse([{ id: pageId, ownerGroupId: groupId, visibility: 'Public' }]))
   originResponses.push(Response.json({
     ok: true,
     pageId,
-    previousOwnerGroupId: groupId,
+    ownerGroupId: groupId,
     page: null,
   }))
 
-  const returned = await dispatch(`https://ccalc.live/api/admin/pages/${pageId}/return-global-review`, {
+  const returned = await dispatch(`https://ccalc.live/api/admin/pages/${pageId}/publication-review/return`, {
     method: 'POST',
     body: JSON.stringify({ reason: 'Needs bilingual content.' }),
     headers: {
@@ -614,11 +574,9 @@ test('page return evicts original group pages and global publication caches', as
   await flushWaitUntil()
 
   assert.equal(returned.status, 200)
-  assert.equal(cacheStore.has(cacheKey(new Request(globalUrl))), false)
   assert.equal(cacheStore.has(cacheKey(new Request(publicUrl))), false)
   assert.equal(cacheStore.has(cacheKey(new Request(groupPagesUrl))), false)
   assert.equal(apiCacheStore.has(createApiCacheKey(publicUrl)), false)
-  assert.equal(apiCacheStore.has(createApiCacheKey(globalUrl)), false)
   assert.equal(apiCacheStore.has(`group:${groupId}:pages`), false)
   assert.equal(apiCacheStore.has(`public:group:${groupId}:pages`), false)
 })

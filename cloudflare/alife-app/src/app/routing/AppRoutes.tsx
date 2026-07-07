@@ -91,7 +91,6 @@ const AppRoutes = () => {
           <Route path="/groups/:groupId/events/:eventId/enroll" element={<EventEnrollmentView />} />
           <Route path="/groups/:groupId/events/:eventId/review" element={<EventReviewView />} />
           <Route path="/groups/:groupId/pages/new" element={<PageEditorView />} />
-          <Route path="/pages/new" element={<PageEditorView />} />
           <Route path="/pages/:pageId/edit" element={<PageEditorView />} />
           <Route path="/pages/edit" element={<PageEditorView />} />
           <Route

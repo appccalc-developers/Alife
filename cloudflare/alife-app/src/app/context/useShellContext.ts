@@ -41,9 +41,6 @@ export const useShellContext = () => {
   const eventEditMatch = path.match(/^\/events\/[^/]+\/edit$/)
   const sermonDetailMatch = path.match(/^\/sermons\/[^/]+$/)
   const pageEditMatch = path.match(/^\/pages\/([^/]+)\/edit$/)
-  const isGlobalPageEditor =
-    (path === '/pages/new' || path === '/pages/edit') &&
-    ['home', 'global'].includes((searchParams.get('scope') || '').toLowerCase())
 
   const routeGroupIds = [
     groupScreenMatch?.[1],
@@ -71,7 +68,7 @@ export const useShellContext = () => {
 
   const isGroupScreen = Boolean(routeGroupScreenId) || path === '/groups'
   const isManagementScreen = Boolean(routeGroupManageId) || path === '/groups/manage'
-  const isPageEditorScreen = Boolean(routeGroupCreatePageId || pageEditMatch || path === '/pages/new' || path === '/pages/edit')
+  const isPageEditorScreen = Boolean(routeGroupCreatePageId || pageEditMatch || path === '/pages/edit')
   const isEventScreen = Boolean(
     eventCreateMatch ||
     eventEditMatch ||
@@ -88,13 +85,13 @@ export const useShellContext = () => {
     ? ''
     : routeGroupIds.find(Boolean) ||
       activeIds.groupId ||
-      ((eventCreateMatch || eventEditMatch || pageEditMatch) && !isGlobalPageEditor ? CurrentGroup?.id || '' : '')
+      ((eventCreateMatch || eventEditMatch || pageEditMatch) ? CurrentGroup?.id || '' : '')
 
   const membership = contextualGroupId ? auth.memberships.find((item) => item.groupId === contextualGroupId) : null
   const isPlatformAdmin = auth.isAdmin || auth.me?.platformRole === 'admin' || auth.me?.platformRole === 'superadmin'
   const canManageCurrentGroup = isPlatformAdmin || (membership?.status === 'approved' && (membership.role === 'leader' || membership.role === 'coLeader'))
   const canOpenCurrentGroupManagement = canManageCurrentGroup && preferences.exerciseGroupManagement
-  const shouldUseGroupPageNav = (isGroupScreen || isPageEditorScreen) && !isGlobalPageEditor && !isManagementScreen && !isEventScreen
+  const shouldUseGroupPageNav = (isGroupScreen || isPageEditorScreen) && !isManagementScreen && !isEventScreen
   const managementGroup = CurrentGroup?.id === contextualGroupId ? CurrentGroup : contextualGroup
 
   useEffect(() => {

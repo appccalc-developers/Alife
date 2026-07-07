@@ -1,12 +1,10 @@
 using Alife.Api.Http;
 using Alife.Api.Results;
 using Alife.Application.Abstractions.Identity;
-using Alife.Application.Pages.Commands.CreateGlobalPage;
 using Alife.Application.Pages.Commands.CreateGroupPage;
 using Alife.Application.Pages.Commands.DeletePage;
 using Alife.Application.Pages.Commands.PublishPage;
 using Alife.Application.Pages.Commands.UpdatePage;
-using Alife.Application.Pages.Queries.GetGlobalPages;
 using Alife.Application.Pages.Queries.GetGroupPages;
 using Alife.Application.Pages.Queries.GetPageById;
 using Alife.Application.Pages.Queries.GetPublicPages;
@@ -25,15 +23,6 @@ public class PagesController(
     IMediator mediator,
     ICurrentMemberAccessor currentMemberAccessor) : ControllerBase
 {
-    [HttpGet("pages/global")]
-    [AllowAnonymous]
-    public async Task<IActionResult> GlobalPages(CancellationToken cancellationToken = default)
-    {
-        var result = await mediator.Send(new GetGlobalPagesQuery(), cancellationToken);
-        this.ApplyPublicCacheHeaders();
-        return this.ToActionResult(result);
-    }
-
     [HttpGet("pages/public")]
     [AllowAnonymous]
     public async Task<IActionResult> PublicPages(CancellationToken cancellationToken = default)
@@ -87,28 +76,6 @@ public class PagesController(
         var result = await mediator.Send(
             new CreateGroupPageCommand(
                 groupId,
-                currentMemberId.Value,
-                request.Title,
-                request.Description,
-                request.TagsJson,
-                request.TitleDisplayStyle,
-                request.Sections),
-            cancellationToken);
-
-        return this.ToActionResult(result);
-    }
-
-    [HttpPost("pages/global")]
-    public async Task<IActionResult> CreateGlobalPage([FromBody] CreatePageRequest request, CancellationToken cancellationToken)
-    {
-        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
-        if (currentMemberId is null)
-        {
-            return Unauthorized();
-        }
-
-        var result = await mediator.Send(
-            new CreateGlobalPageCommand(
                 currentMemberId.Value,
                 request.Title,
                 request.Description,

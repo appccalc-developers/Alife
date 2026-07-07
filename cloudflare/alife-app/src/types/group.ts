@@ -3,7 +3,6 @@ export type {
   GroupDto,
   GroupSummaryDto,
   GroupMembershipDto,
-  PageScope,
   PageVisibility,
   PageSummaryDto,
 } from './models'

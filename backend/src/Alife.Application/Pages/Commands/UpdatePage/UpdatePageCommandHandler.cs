@@ -37,7 +37,8 @@ public sealed class UpdatePageCommandHandler(
         page.DescriptionJson = request.Description is null ? null : WriteTextMap(request.Description);
         page.TagsJson = request.TagsJson ?? page.TagsJson;
         page.TitleDisplayStyle = request.TitleDisplayStyle ?? page.TitleDisplayStyle;
-        page.UpdatedUtc = DateTime.UtcNow;
+        var now = DateTime.UtcNow;
+        page.UpdatedUtc = now;
 
         var existingById = page.Sections.ToDictionary(x => x.Id);
         var incomingIds = request.Sections.Where(x => x.Id.HasValue).Select(x => x.Id!.Value).ToHashSet();
@@ -70,6 +71,7 @@ public sealed class UpdatePageCommandHandler(
             });
         }
 
+        await PagePublicationReviewState.MarkPendingIfPublicAsync(dbContext, page, now, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         await InvalidatePageAsync(page, cancellationToken);
 
@@ -83,50 +85,23 @@ public sealed class UpdatePageCommandHandler(
 
     private async Task<bool> CanEditPageAsync(Page page, Guid currentMemberId, CancellationToken cancellationToken)
     {
-        if (await groupAuthorizationService.CanReviewPagesAsync(currentMemberId, cancellationToken))
-        {
-            return true;
-        }
-
-        if (page.Scope == PageScope.Global)
-        {
-            return await groupAuthorizationService.IsAdminAsync(currentMemberId, cancellationToken);
-        }
-
-        if (page.OwnerGroupId is null)
-        {
-            return false;
-        }
-
         if (page.CreatedByMemberId == currentMemberId && page.Visibility == PageVisibility.Draft)
         {
             return true;
         }
 
-        return await groupAuthorizationService.IsLeaderOrCoLeaderAsync(page.OwnerGroupId.Value, currentMemberId, cancellationToken);
+        return await groupAuthorizationService.IsLeaderOrCoLeaderAsync(page.OwnerGroupId, currentMemberId, cancellationToken);
     }
 
     private async Task InvalidatePageAsync(Page page, CancellationToken cancellationToken)
     {
         await pageCacheInvalidationService.RemoveDetailAsync(page.Id, cancellationToken);
-
-        if (page.Scope == PageScope.Global)
-        {
-            await pageCacheInvalidationService.RemoveGlobalAsync(cancellationToken);
-            return;
-        }
-
-        if (page.OwnerGroupId.HasValue)
-        {
-            await pageCacheInvalidationService.RemoveGroupPagesAsync(page.OwnerGroupId.Value, cancellationToken);
-            await pageCacheInvalidationService.RemoveGlobalAsync(cancellationToken);
-        }
+        await pageCacheInvalidationService.RemoveGroupPagesAsync(page.OwnerGroupId, cancellationToken);
     }
 
     private static PageDetailDto ToDetailDto(Page page, IReadOnlyList<Section> sections)
         => new(
             page.Id,
-            page.Scope,
             page.OwnerGroupId,
             page.CreatedByMemberId,
             ReadTextMap(page.TitleJson),

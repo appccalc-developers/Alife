@@ -19,7 +19,7 @@ import { aiTranslationService } from '../services/aiTranslationService'
 import { useUiText } from '../i18n/uiText'
 import { useAuthStore } from '../stores/auth'
 import { activeEntityService } from '../services/activeEntityService'
-import type { PageSummaryDto } from '../types'
+import type { GroupDto, PageSummaryDto } from '../types'
 import type { MissingTranslatableField } from '../utils/bilingualValidation'
 import { Panel, FilterBar, SearchInput, SelectInput, FilterActions, Loading, Empty, Pill, Pager } from './admin/AdminUi'
 import { VisitRequestsSection } from './admin/VisitRequestsSection'
@@ -277,7 +277,8 @@ const AdminView = () => {
 
   const [roles, setRoles] = useState<AdminPlatformRoleDto[]>([])
   const [groups, setGroups] = useState<AdminGroupOptionDto[]>([])
-  const [globalPages, setGlobalPages] = useState<PageSummaryDto[]>([])
+  const [churchGroup, setChurchGroup] = useState<GroupDto | null>(null)
+  const [churchPages, setChurchPages] = useState<PageSummaryDto[]>([])
   const [members, setMembers] = useState(emptyPage<AdminMemberDto>())
   const [logs, setLogs] = useState(emptyPage<AuditLogDto>())
   const [messages, setMessages] = useState(emptyPage<AdminNotificationDto>())
@@ -345,23 +346,30 @@ const AdminView = () => {
       }
     }
 
-    return globalPages.find((page) => readTags(page).includes('home')) ??
-      globalPages.find((page) => {
+    return churchPages.find((page) => readTags(page).includes('home')) ??
+      churchPages.find((page) => {
         const title = `${page.title?.en || ''} ${page.title?.zh || ''}`.toLowerCase()
         return title.includes('home') || title.includes('homepage') || title.includes('首页') || title.includes('主页')
       }) ??
       null
-  }, [globalPages])
+  }, [churchPages])
 
   const loadRolesAndGroups = useCallback(async () => {
-    const [nextRoles, nextGroups, nextGlobalPages] = await Promise.all([
+    const [nextRoles, nextGroups, nextChurchGroup] = await Promise.all([
       groupService.getAdminPlatformRoles(),
       groupService.getAdminGroups({ pageSize: 100 }),
-      groupService.getGlobalPages(),
+      groupService.getChurch(),
     ])
+    let nextChurchPages: PageSummaryDto[] = []
+    try {
+      nextChurchPages = await groupService.getGroupPages(nextChurchGroup.id)
+    } catch {
+      nextChurchPages = []
+    }
     setRoles(nextRoles)
     setGroups(nextGroups.items)
-    setGlobalPages(nextGlobalPages)
+    setChurchGroup(nextChurchGroup)
+    setChurchPages(nextChurchPages)
   }, [])
 
   const loadUsers = useCallback(async (page = members.page) => {
@@ -678,7 +686,7 @@ const AdminView = () => {
         </div>
       ) : null}
 
-      {section === 'overview' ? <Overview l={l} users={members} logs={logs} messages={messages} homePage={homePage} syncing={syncing} syncSermons={syncSermons} goToLogsPage={(page) => loadLogs(page, overviewActivityPageSize)} language={language} /> : null}
+      {section === 'overview' ? <Overview l={l} users={members} logs={logs} messages={messages} homePage={homePage} churchGroup={churchGroup} syncing={syncing} syncSermons={syncSermons} goToLogsPage={(page) => loadLogs(page, overviewActivityPageSize)} language={language} /> : null}
       {section === 'users' ? <UsersSection l={l} loading={loading} page={members} filters={userFilters} setFilters={setUserFilters} roles={roleOptions} isSuperAdmin={isSuperAdmin} updatingMemberId={updatingMemberId} apply={() => loadUsers(1)} reset={() => { setUserFilters({ search: '', role: '', isRegistered: '' }); setTimeout(() => loadUsers(1).catch(() => undefined), 0) }} goToPage={loadUsers} updateMemberRoles={updateMemberRoles} language={language} currentMemberId={me?.id || ''} /> : null}
       {section === 'roles' ? <RolesSection l={l} roles={roleOptions} roleForm={roleForm} setRoleForm={setRoleForm} creatingRole={creatingRole} deletingRoleId={deletingRoleId} updatingRolePermissionId={updatingRolePermissionId} roleCodeValidation={roleCodeValidation} roleCodeFeedback={roleCodeFeedback} canSubmitCreateRole={canSubmitCreateRole} createRole={createRole} deleteRole={deleteRole} updateRolePermissions={updateRolePermissions} language={language} /> : null}
       {section === 'logs' ? <LogsSection l={l} loading={loading} page={logs} filters={logFilters} setFilters={setLogFilters} apply={() => loadLogs(1, 25)} goToPage={(page) => loadLogs(page, 25)} language={language} /> : null}
@@ -689,12 +697,13 @@ const AdminView = () => {
   )
 }
 
-const Overview = ({ l, users, logs, messages, homePage, syncing, syncSermons, goToLogsPage, language }: {
+const Overview = ({ l, users, logs, messages, homePage, churchGroup, syncing, syncSermons, goToLogsPage, language }: {
   l: LabelFn
   users: AdminPagedResultDto<AdminMemberDto>
   logs: AdminPagedResultDto<AuditLogDto>
   messages: AdminPagedResultDto<AdminNotificationDto>
   homePage: PageSummaryDto | null
+  churchGroup: GroupDto | null
   syncing: boolean
   syncSermons: () => Promise<void>
   goToLogsPage: (page: number) => Promise<void>
@@ -733,11 +742,13 @@ const Overview = ({ l, users, logs, messages, homePage, syncing, syncSermons, go
             />
             <div className="grid gap-3 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.9fr)]">
               <Link
-                to={homePage ? '/pages/edit?scope=home' : '/pages/new?scope=home'}
+                to={homePage ? '/pages/edit' : churchGroup ? `/groups/${churchGroup.id}/pages/new?template=home` : '/admin'}
                 className="flex min-h-[7rem] items-start justify-between gap-4 rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-4 transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md"
                 onClick={() => {
                   if (homePage) {
-                    activeEntityService.setPage(homePage.id)
+                    activeEntityService.setPage(homePage.id, homePage.ownerGroupId)
+                  } else if (churchGroup) {
+                    activeEntityService.setGroup(churchGroup.id, { clearPage: true })
                   }
                 }}
               >

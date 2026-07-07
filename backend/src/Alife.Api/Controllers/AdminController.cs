@@ -1,12 +1,12 @@
 using Alife.Api.Http;
 using Alife.Api.Results;
 using Alife.Application.Abstractions.Identity;
+using Alife.Application.Admin.Commands.ApprovePagePublication;
 using Alife.Application.Admin.Commands.BackfillMemberPrivateFiles;
 using Alife.Application.Admin.Commands.CreatePlatformRole;
 using Alife.Application.Admin.Commands.DeletePlatformRole;
-using Alife.Application.Admin.Commands.PromotePageToGlobal;
 using Alife.Application.Admin.Commands.RefreshCloudflareCache;
-using Alife.Application.Admin.Commands.RefusePageGlobalReview;
+using Alife.Application.Admin.Commands.ReturnPagePublication;
 using Alife.Application.Admin.Commands.SendAdminMessage;
 using Alife.Application.Admin.Commands.SetMemberPlatformRole;
 using Alife.Application.Admin.Commands.SyncSermons;
@@ -125,11 +125,10 @@ public class AdminController(IMediator mediator, ICurrentMemberAccessor currentM
         return this.ToActionResult(result);
     }
 
-    [HttpPost("pages/{pageId:guid}/approve-global-review")]
-    [HttpPost("pages/{pageId:guid}/promote-global")]
-    public async Task<IActionResult> ApprovePageGlobalReview(
+    [HttpPost("pages/{pageId:guid}/publication-review/approve")]
+    public async Task<IActionResult> ApprovePagePublicationReview(
         Guid pageId,
-        [FromBody] ApprovePageGlobalReviewRequest? request,
+        [FromBody] ApprovePagePublicationReviewRequest? request,
         CancellationToken cancellationToken)
     {
         var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
@@ -139,17 +138,16 @@ public class AdminController(IMediator mediator, ICurrentMemberAccessor currentM
         }
 
         var result = await mediator.Send(
-            new PromotePageToGlobalCommand(currentMemberId.Value, pageId, request?.AccessName),
+            new ApprovePagePublicationCommand(currentMemberId.Value, pageId, request?.AccessName),
             cancellationToken);
         this.ApplyPrivateNoCacheHeaders();
         return this.ToActionResult(result);
     }
 
-    [HttpPost("pages/{pageId:guid}/return-global-review")]
-    [HttpPost("pages/{pageId:guid}/refuse-global-review")]
-    public async Task<IActionResult> ReturnPageGlobalReview(
+    [HttpPost("pages/{pageId:guid}/publication-review/return")]
+    public async Task<IActionResult> ReturnPagePublicationReview(
         Guid pageId,
-        ReturnPageGlobalReviewRequest request,
+        ReturnPagePublicationReviewRequest request,
         CancellationToken cancellationToken)
     {
         var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
@@ -158,7 +156,7 @@ public class AdminController(IMediator mediator, ICurrentMemberAccessor currentM
             return Unauthorized();
         }
 
-        var result = await mediator.Send(new RefusePageGlobalReviewCommand(currentMemberId.Value, pageId, request.Reason), cancellationToken);
+        var result = await mediator.Send(new ReturnPagePublicationCommand(currentMemberId.Value, pageId, request.Reason), cancellationToken);
         this.ApplyPrivateNoCacheHeaders();
         return this.ToActionResult(result);
     }
@@ -430,8 +428,8 @@ public class AdminController(IMediator mediator, ICurrentMemberAccessor currentM
 
     public sealed record UpdatePlatformRolePermissionsRequest(IReadOnlyList<string> PermissionCodes);
     public sealed record UpdateVisitContactRequestStatusRequest(string Status);
-    public sealed record ApprovePageGlobalReviewRequest(IReadOnlyDictionary<string, string>? AccessName);
-    public sealed record ReturnPageGlobalReviewRequest(string Reason);
+    public sealed record ApprovePagePublicationReviewRequest(IReadOnlyDictionary<string, string>? AccessName);
+    public sealed record ReturnPagePublicationReviewRequest(string Reason);
 
     public sealed record SendAdminMessageRequest(
         string Scope,

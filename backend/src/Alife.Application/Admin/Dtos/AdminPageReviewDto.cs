@@ -12,8 +12,7 @@ public enum AdminPageReviewStatus
 
 public sealed record AdminPageReviewDto(
     Guid Id,
-    PageScope Scope,
-    Guid? OwnerGroupId,
+    Guid OwnerGroupId,
     IReadOnlyDictionary<string, string> OwnerGroupName,
     Guid CreatedByMemberId,
     string? CreatorDisplayName,
@@ -28,8 +27,8 @@ public sealed record AdminPageReviewDto(
     DateTime? ReviewedUtc,
     DateTime UpdatedUtc);
 
-public sealed record PageGlobalReviewActionDto(
+public sealed record PagePublicationReviewActionDto(
     bool Ok,
     Guid PageId,
-    Guid? PreviousOwnerGroupId,
+    Guid OwnerGroupId,
     PageDto? Page);

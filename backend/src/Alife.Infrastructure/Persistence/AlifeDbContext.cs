@@ -160,7 +160,7 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 				.HasForeignKey(x => x.CreatedByMemberId)
 				.OnDelete(DeleteBehavior.Restrict);
 
-			cfg.HasIndex(x => new { x.Scope, x.OwnerGroupId, x.UpdatedUtc });
+			cfg.HasIndex(x => new { x.OwnerGroupId, x.UpdatedUtc });
 			cfg.HasQueryFilter(x => !x.IsDeleted);
 		});
 
