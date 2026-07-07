@@ -29,7 +29,7 @@ public sealed class RefusePageGlobalReviewCommandHandler(
         var reason = NormalizeReason(request.Reason);
         if (string.IsNullOrWhiteSpace(reason))
         {
-            return AppResult<PageGlobalReviewActionDto>.Validation("A refusal reason is required.");
+            return AppResult<PageGlobalReviewActionDto>.Validation("A return reason is required.");
         }
 
         var page = await dbContext.Pages.FirstOrDefaultAsync(x => x.Id == request.PageId, cancellationToken);
@@ -40,21 +40,43 @@ public sealed class RefusePageGlobalReviewCommandHandler(
 
         if (page.Scope != PageScope.Group || page.OwnerGroupId is null || page.Visibility != PageVisibility.Public)
         {
-            return AppResult<PageGlobalReviewActionDto>.Conflict("Only public group pages can be refused from global review.");
+            return AppResult<PageGlobalReviewActionDto>.Conflict("Only public group pages can be returned from publication review.");
         }
 
         var now = DateTime.UtcNow;
+        var review = await dbContext.PagePublicationReviews
+            .FirstOrDefaultAsync(x => x.PageId == page.Id, cancellationToken);
+        var previousStatus = review?.Status.ToString() ?? "Pending";
+
+        if (review is null)
+        {
+            review = new PagePublicationReview
+            {
+                Id = Guid.NewGuid(),
+                PageId = page.Id,
+                CreatedUtc = now
+            };
+            dbContext.PagePublicationReviews.Add(review);
+        }
+
+        review.Status = PagePublicationReviewStatus.Returned;
+        review.ReturnReason = reason;
+        review.ReviewedByMemberId = request.CurrentMemberId;
+        review.ReviewedUtc = now;
+        review.UpdatedUtc = now;
+
         await dbContext.AuditLogs.AddAsync(new AuditLog
         {
             Id = Guid.NewGuid(),
             ActorMemberId = request.CurrentMemberId,
-            Action = PageGlobalReviewActions.Refuse,
+            Action = PageGlobalReviewActions.Return,
             EntityType = "page",
             EntityId = page.Id,
             GroupId = page.OwnerGroupId,
             MetadataJson = JsonSerializer.Serialize(new
             {
                 pageUpdatedUtc = page.UpdatedUtc,
+                previousStatus,
                 reason
             }),
             OccurredUtc = now

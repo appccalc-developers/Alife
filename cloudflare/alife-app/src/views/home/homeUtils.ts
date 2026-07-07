@@ -62,7 +62,13 @@ export const readSectionImage = (page: PageDetailDto) => {
 }
 
 const localizedPageTitle = (page: PageSummaryDto, language: string) =>
-  localizeText(page.title, language) || page.title?.en || page.title?.zh || page.id
+  localizeText(page.accessName, language) ||
+  page.accessName?.en ||
+  page.accessName?.zh ||
+  localizeText(page.title, language) ||
+  page.title?.en ||
+  page.title?.zh ||
+  page.id
 
 export const buildMinistriesNavItem = (
   pages: PageSummaryDto[],

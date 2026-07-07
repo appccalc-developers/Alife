@@ -86,6 +86,10 @@ export type AdminPageReviewDto = {
   tagsJson: string
   titleDisplayStyle: string
   visibility: 'draft' | 'group' | 'public' | string
+  reviewStatus: 'pending' | 'approved' | 'returned'
+  accessName: LocalizedText | null
+  returnReason: string | null
+  reviewedUtc: string | null
   updatedUtc: string
 }
 
@@ -96,7 +100,11 @@ export type PageGlobalReviewActionDto = {
   page?: PageSummaryDto | null
 }
 
-export type RefusePageGlobalReviewPayload = {
+export type ApprovePageGlobalReviewPayload = {
+  accessName: LocalizedText
+}
+
+export type ReturnPageGlobalReviewPayload = {
   reason: string
 }
 
@@ -222,10 +230,28 @@ const normalizeAdminPageReview = (page: AdminPageReviewDto): AdminPageReviewDto 
   ...page,
   scope: normalizePageScope(page.scope),
   visibility: normalizePageVisibility(page.visibility),
+  reviewStatus: normalizeAdminPageReviewStatus(page.reviewStatus),
+  accessName: page.accessName ? toLocalizedText(page.accessName) : null,
   title: toLocalizedText(page.title),
   description: page.description ? toLocalizedText(page.description) : page.description,
   ownerGroupName: page.ownerGroupName ? toLocalizedText(page.ownerGroupName) : null,
 })
+
+const normalizeAdminPageReviewStatus = (value: unknown): AdminPageReviewDto['reviewStatus'] => {
+  if (typeof value === 'number') {
+    return value === 1 ? 'approved' : value === 2 ? 'returned' : 'pending'
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value.toLowerCase()
+    if (normalized === 'approved' || normalized === 'returned') {
+      return normalized
+    }
+    if (normalized === 'rejected') return 'returned'
+  }
+
+  return 'pending'
+}
 
 const toQuery = (params: Record<string, string | number | boolean | null | undefined>) => {
   const query = new URLSearchParams()
@@ -393,13 +419,13 @@ export const groupService = {
     return data.map(normalizeAdminPageReview)
   },
 
-  async promotePageToGlobal(pageId: string) {
-    const { data } = await http.post<PageGlobalReviewActionDto>(`/api/admin/pages/${pageId}/promote-global`)
+  async approvePageGlobalReview(pageId: string, payload: ApprovePageGlobalReviewPayload) {
+    const { data } = await http.post<PageGlobalReviewActionDto>(`/api/admin/pages/${pageId}/approve-global-review`, payload)
     return data
   },
 
-  async refusePageGlobalReview(pageId: string, payload: RefusePageGlobalReviewPayload) {
-    const { data } = await http.post<PageGlobalReviewActionDto>(`/api/admin/pages/${pageId}/refuse-global-review`, payload)
+  async returnPageGlobalReview(pageId: string, payload: ReturnPageGlobalReviewPayload) {
+    const { data } = await http.post<PageGlobalReviewActionDto>(`/api/admin/pages/${pageId}/return-global-review`, payload)
     return data
   },
 

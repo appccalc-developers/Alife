@@ -49,26 +49,18 @@ public class PublicPagesQueryTests
             groupVisibleChurchPage,
             publicSubgroupPage,
             approvedSubgroupPage);
-        dbContext.AuditLogs.Add(new AuditLog
-        {
-            Id = Guid.NewGuid(),
-            Action = "page.global-review.promote",
-            EntityType = "page",
-            EntityId = approvedSubgroupPage.Id,
-            GroupId = subgroupId,
-            OccurredUtc = approvedSubgroupPage.UpdatedUtc.AddMinutes(1)
-        });
+        dbContext.PagePublicationReviews.Add(CreateApprovedReview(approvedSubgroupPage.Id));
         await dbContext.SaveChangesAsync();
 
         var service = new PageReadService(dbContext, services.GetRequiredService<HybridCache>());
 
         var result = await service.GetPublicPagesAsync(CancellationToken.None);
 
-        Assert.Equal(3, result.Count);
+        Assert.Equal(2, result.Count);
         Assert.Contains(result, page => page.Id == publicGlobalPage.Id);
-        Assert.Contains(result, page => page.Id == publicChurchPage.Id);
         Assert.Contains(result, page => page.Id == approvedSubgroupPage.Id);
         Assert.DoesNotContain(result, page => page.Id == draftGlobalPage.Id);
+        Assert.DoesNotContain(result, page => page.Id == publicChurchPage.Id);
         Assert.DoesNotContain(result, page => page.Id == groupVisibleChurchPage.Id);
         Assert.DoesNotContain(result, page => page.Id == publicSubgroupPage.Id);
     }
@@ -96,15 +88,7 @@ public class PublicPagesQueryTests
         var approvedGroupPage = CreatePage(authorId, PageScope.Group, groupId, PageVisibility.Public, "Approved Group Public");
         var unapprovedGroupPage = CreatePage(authorId, PageScope.Group, groupId, PageVisibility.Public, "Unapproved Group Public");
         dbContext.Pages.AddRange(publicGlobalPage, approvedGroupPage, unapprovedGroupPage);
-        dbContext.AuditLogs.Add(new AuditLog
-        {
-            Id = Guid.NewGuid(),
-            Action = "page.global-review.promote",
-            EntityType = "page",
-            EntityId = approvedGroupPage.Id,
-            GroupId = groupId,
-            OccurredUtc = approvedGroupPage.UpdatedUtc.AddMinutes(1)
-        });
+        dbContext.PagePublicationReviews.Add(CreateApprovedReview(approvedGroupPage.Id, "Approved menu"));
         await dbContext.SaveChangesAsync();
 
         var service = new PageReadService(dbContext, services.GetRequiredService<HybridCache>());
@@ -113,7 +97,12 @@ public class PublicPagesQueryTests
 
         Assert.Equal(2, result.Count);
         Assert.Contains(result, page => page.Id == publicGlobalPage.Id && page.Scope == PageScope.Global);
-        Assert.Contains(result, page => page.Id == approvedGroupPage.Id && page.Scope == PageScope.Group && page.OwnerGroupId == groupId);
+        Assert.Contains(result, page =>
+            page.Id == approvedGroupPage.Id &&
+            page.Scope == PageScope.Group &&
+            page.OwnerGroupId == groupId &&
+            page.AccessName != null &&
+            page.AccessName["en"] == "Approved menu");
         Assert.DoesNotContain(result, page => page.Id == unapprovedGroupPage.Id);
     }
 
@@ -162,6 +151,17 @@ public class PublicPagesQueryTests
             TagsJson = "[]",
             TitleDisplayStyle = "Default",
             Visibility = visibility,
+            UpdatedUtc = DateTime.UtcNow
+        };
+
+    private static PagePublicationReview CreateApprovedReview(Guid pageId, string accessName = "Menu")
+        => new()
+        {
+            Id = Guid.NewGuid(),
+            PageId = pageId,
+            Status = PagePublicationReviewStatus.Approved,
+            AccessNameJson = $$"""{"en":"{{accessName}}","zh":"{{accessName}}"}""",
+            CreatedUtc = DateTime.UtcNow,
             UpdatedUtc = DateTime.UtcNow
         };
 }

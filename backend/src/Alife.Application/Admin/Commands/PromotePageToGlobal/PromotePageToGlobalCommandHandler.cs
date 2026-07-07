@@ -33,17 +33,40 @@ public sealed class PromotePageToGlobalCommandHandler(
 
         if (page.Scope != PageScope.Group || page.OwnerGroupId is null || page.Visibility != PageVisibility.Public)
         {
-            return AppResult<PageGlobalReviewActionDto>.Conflict("Only public group pages can be promoted to global.");
+            return AppResult<PageGlobalReviewActionDto>.Conflict("Only public group pages can be approved for publication.");
         }
 
         var now = DateTime.UtcNow;
         var previousOwnerGroupId = page.OwnerGroupId.Value;
+        var accessName = NormalizeAccessName(request.AccessName, ReadTextMap(page.TitleJson));
+        var review = await dbContext.PagePublicationReviews
+            .FirstOrDefaultAsync(x => x.PageId == page.Id, cancellationToken);
+        var previousStatus = review?.Status.ToString() ?? "Pending";
+
+        if (review is null)
+        {
+            review = new PagePublicationReview
+            {
+                Id = Guid.NewGuid(),
+                PageId = page.Id,
+                CreatedUtc = now
+            };
+            dbContext.PagePublicationReviews.Add(review);
+        }
+
+        review.Status = PagePublicationReviewStatus.Approved;
+        review.AccessNameJson = WriteTextMap(accessName);
+        review.ReturnReason = null;
+        review.ReviewedByMemberId = request.CurrentMemberId;
+        review.ReviewedUtc = now;
+        review.UpdatedUtc = now;
+
         var before = new
         {
             scope = page.Scope.ToString(),
             ownerGroupId = page.OwnerGroupId,
             visibility = page.Visibility.ToString(),
-            globalPublicationStatus = "Pending",
+            globalPublicationStatus = previousStatus,
             pageUpdatedUtc = page.UpdatedUtc
         };
 
@@ -51,7 +74,7 @@ public sealed class PromotePageToGlobalCommandHandler(
         {
             Id = Guid.NewGuid(),
             ActorMemberId = request.CurrentMemberId,
-            Action = PageGlobalReviewActions.Promote,
+            Action = PageGlobalReviewActions.Approve,
             EntityType = "page",
             EntityId = page.Id,
             GroupId = previousOwnerGroupId,
@@ -62,9 +85,10 @@ public sealed class PromotePageToGlobalCommandHandler(
                 ownerGroupId = page.OwnerGroupId,
                 visibility = page.Visibility.ToString(),
                 globalPublicationStatus = "Approved",
+                accessName,
                 pageUpdatedUtc = page.UpdatedUtc
             }),
-            MetadataJson = JsonSerializer.Serialize(new { previousOwnerGroupId, pageUpdatedUtc = page.UpdatedUtc }),
+            MetadataJson = JsonSerializer.Serialize(new { previousOwnerGroupId, pageUpdatedUtc = page.UpdatedUtc, accessName }),
             OccurredUtc = now
         }, cancellationToken);
 
@@ -77,10 +101,10 @@ public sealed class PromotePageToGlobalCommandHandler(
             true,
             page.Id,
             previousOwnerGroupId,
-            ToDto(page)));
+            ToDto(page, accessName)));
     }
 
-    private static PageDto ToDto(Page page)
+    private static PageDto ToDto(Page page, IReadOnlyDictionary<string, string> accessName)
         => new(
             page.Id,
             page.Scope,
@@ -91,7 +115,31 @@ public sealed class PromotePageToGlobalCommandHandler(
             page.TagsJson,
             page.TitleDisplayStyle,
             page.Visibility,
-            page.UpdatedUtc);
+            page.UpdatedUtc,
+            accessName);
+
+    private static IReadOnlyDictionary<string, string> NormalizeAccessName(
+        IReadOnlyDictionary<string, string>? value,
+        IReadOnlyDictionary<string, string> title)
+    {
+        var fallbackEn = ReadTextValue(title, "en") ?? ReadTextValue(title, "zh") ?? "Untitled page";
+        var fallbackZh = ReadTextValue(title, "zh") ?? ReadTextValue(title, "en") ?? fallbackEn;
+        return new Dictionary<string, string>
+        {
+            ["en"] = ReadTextValue(value, "en") ?? fallbackEn,
+            ["zh"] = ReadTextValue(value, "zh") ?? fallbackZh
+        };
+    }
+
+    private static string? ReadTextValue(IReadOnlyDictionary<string, string>? value, string key)
+        => value is not null &&
+           value.TryGetValue(key, out var text) &&
+           !string.IsNullOrWhiteSpace(text)
+            ? text.Trim()
+            : null;
+
+    private static string WriteTextMap(IReadOnlyDictionary<string, string> value)
+        => JsonSerializer.Serialize(value);
 
     private static IReadOnlyDictionary<string, string> ReadTextMap(string? value)
         => string.IsNullOrWhiteSpace(value)

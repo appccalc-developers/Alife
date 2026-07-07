@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { CircleX, Eye, Globe2, Loader2, RefreshCw, ShieldCheck } from 'lucide-react'
+import { CheckCircle2, CircleX, Clock3, Eye, Globe2, Loader2, RefreshCw, ShieldCheck } from 'lucide-react'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppEmptyState from '../components/layout/AppEmptyState'
 import AppPageShell from '../components/layout/AppPageShell'
@@ -14,52 +14,82 @@ import { localizeText } from '../utils/localizedText'
 const copy = {
   title: { en: 'Page Publication Review', zh: '页面发布审核' },
   subtitle: {
-    en: 'Review pages across draft, group, and public visibility before publication decisions.',
-    zh: '查看草稿、组内可见、公开等所有状态的页面，再做发布审核决定。',
+    en: 'Review public pages by their current publication approval status.',
+    zh: '只审核公开状态的页面，并按当前发布审核状态查看。',
   },
   refresh: { en: 'Refresh', zh: '刷新' },
   loading: { en: 'Loading pages for review...', zh: '正在加载审核页面...' },
   emptyTitle: { en: 'No pages available for review', zh: '没有可审核页面' },
   emptyBody: {
-    en: 'Group and global pages will appear here whether they are draft, group-visible, or public.',
-    zh: '小组页面和全站页面无论是草稿、组内可见或公开，都会显示在这里。',
+    en: 'Only public pages appear in the publication review queue.',
+    zh: '发布审核队列只显示公开状态的页面。',
+  },
+  tabEmptyTitle: { en: 'No pages in this status', zh: '此状态下没有页面' },
+  tabEmptyBody: {
+    en: 'Choose another review status or refresh the queue.',
+    zh: '可以切换其他审核状态，或刷新审核队列。',
   },
   queue: { en: 'Pages for review', zh: '审核页面' },
   queueHint: {
-    en: 'Open any page status to preview it. Global promotion and refusal actions are available only for public group pages.',
-    zh: '可打开任何状态的页面预览。设为 global 和拒绝仅适用于公开小组页面。',
+    en: 'Pending public group pages can be approved with a bilingual menu name or returned for revision.',
+    zh: '待审核的公开小组页面可以填写双语菜单名后批准，或退回修改。',
   },
   groupPage: { en: 'group page', zh: '小组页面' },
   draftStatus: { en: 'Draft', zh: '草稿' },
   groupStatus: { en: 'Group visible', zh: '组内可见' },
   publicStatus: { en: 'Public', zh: '公开' },
+  pendingTab: { en: 'Pending', zh: '待审核' },
+  approvedTab: { en: 'Approved', zh: '已批准' },
+  returnedTab: { en: 'Returned', zh: '已退回' },
+  pendingStatus: { en: 'Pending review', zh: '待审核' },
+  approvedStatus: { en: 'Approved', zh: '已批准' },
+  returnedStatus: { en: 'Returned', zh: '已退回' },
   globalPage: { en: 'global page', zh: '全站页面' },
-  promote: { en: 'Set global', zh: '设为 global' },
-  refuse: { en: 'Refuse', zh: '拒绝' },
-  refuseTitle: { en: 'Refuse global publication', zh: '拒绝全站发布' },
-  refusalReason: { en: 'Reason', zh: '拒绝原因' },
-  refusalReasonPlaceholder: {
+  approve: { en: 'Approve', zh: '批准' },
+  approveTitle: { en: 'Approve publication', zh: '批准发布' },
+  accessNameEn: { en: 'English menu name', zh: '英文菜单名' },
+  accessNameZh: { en: 'Chinese menu name', zh: '中文菜单名' },
+  accessNameRequired: { en: 'Please enter both English and Chinese menu names.', zh: '请填写英文和中文菜单名。' },
+  submitApprove: { en: 'Approve publication', zh: '批准发布' },
+  menuName: { en: 'Menu name', zh: '菜单名' },
+  return: { en: 'Return', zh: '退回' },
+  returnTitle: { en: 'Return publication request', zh: '退回发布申请' },
+  returnReason: { en: 'Reason', zh: '退回原因' },
+  returnReasonPlaceholder: {
     en: 'Explain what the group should revise before submitting again.',
     zh: '说明小组需要修改或补充的内容。',
   },
-  refusalReasonRequired: { en: 'Please enter a refusal reason.', zh: '请填写拒绝原因。' },
-  submitRefuse: { en: 'Submit refusal', zh: '提交拒绝' },
+  returnReasonRequired: { en: 'Please enter a return reason.', zh: '请填写退回原因。' },
+  submitReturn: { en: 'Submit return', zh: '提交退回' },
+  returnedReason: { en: 'Return reason', zh: '退回原因' },
   cancel: { en: 'Cancel', zh: '取消' },
   open: { en: 'Open', zh: '查看' },
   group: { en: 'Group', zh: '小组' },
   author: { en: 'Author', zh: '作者' },
   updated: { en: 'Updated', zh: '更新' },
-  promoted: { en: 'Page promoted to global.', zh: '页面已设为 global。' },
-  refused: { en: 'Page refused for global publication.', zh: '已拒绝此页面的全站发布申请。' },
-  promoteConfirm: {
-    en: 'Promote this group page to a global public page?',
-    zh: '确定把这个小组页面提升为全站公共页面吗？',
-  },
+  promoted: { en: 'Page publication approved.', zh: '已批准此页面的发布申请。' },
+  returned: { en: 'Page returned for revision.', zh: '已退回此页面的发布申请。' },
   actionFailed: { en: 'Review action failed.', zh: '审核操作失败。' },
   loadFailed: { en: 'Unable to load page review queue.', zh: '无法加载页面审核队列。' },
 }
 
 const text = (language: string, key: keyof typeof copy) => copy[key][language === 'zh' ? 'zh' : 'en']
+
+type ReviewTab = AdminPageReviewDto['reviewStatus']
+
+const reviewTabs: ReviewTab[] = ['pending', 'approved', 'returned']
+
+const tabCopyKey: Record<ReviewTab, keyof typeof copy> = {
+  pending: 'pendingTab',
+  approved: 'approvedTab',
+  returned: 'returnedTab',
+}
+
+const reviewStatusCopyKey: Record<ReviewTab, keyof typeof copy> = {
+  pending: 'pendingStatus',
+  approved: 'approvedStatus',
+  returned: 'returnedStatus',
+}
 
 const formatDate = (value: string, language: string) => {
   if (!value) return ''
@@ -87,17 +117,66 @@ const visibilityTone = (visibility: string) => {
   return 'border-amber-200 bg-amber-50 text-amber-700'
 }
 
+const reviewStatusTone = (status: ReviewTab) => {
+  if (status === 'approved') {
+    return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+  }
+
+  if (status === 'returned') {
+    return 'border-rose-200 bg-rose-50 text-rose-700'
+  }
+
+  return 'border-amber-200 bg-amber-50 text-amber-700'
+}
+
+const ReviewStatusIcon = ({ status }: { status: ReviewTab }) => {
+  if (status === 'approved') {
+    return <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
+  }
+
+  if (status === 'returned') {
+    return <CircleX className="mr-1 h-3.5 w-3.5" />
+  }
+
+  return <Clock3 className="mr-1 h-3.5 w-3.5" />
+}
+
+const initialAccessName = (page: AdminPageReviewDto) => ({
+  en: page.accessName?.en || page.title?.en || page.title?.zh || '',
+  zh: page.accessName?.zh || page.title?.zh || page.title?.en || '',
+})
+
 const PageReviewView = () => {
   const auth = useAuthStore()
   const navigate = useNavigate()
   const language = auth.language
   const [items, setItems] = useState<AdminPageReviewDto[]>([])
+  const [activeTab, setActiveTab] = useState<ReviewTab>('pending')
   const [loading, setLoading] = useState(false)
   const [actingPageId, setActingPageId] = useState<string | null>(null)
-  const [refusingPage, setRefusingPage] = useState<AdminPageReviewDto | null>(null)
-  const [refusalReason, setRefusalReason] = useState('')
+  const [approvingPage, setApprovingPage] = useState<AdminPageReviewDto | null>(null)
+  const [accessName, setAccessName] = useState({ en: '', zh: '' })
+  const [returningPage, setReturningPage] = useState<AdminPageReviewDto | null>(null)
+  const [returnReason, setReturnReason] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+
+  const publicItems = useMemo(() => items.filter((page) => page.visibility === 'public'), [items])
+  const reviewCounts = useMemo(
+    () =>
+      reviewTabs.reduce<Record<ReviewTab, number>>(
+        (counts, tab) => ({
+          ...counts,
+          [tab]: publicItems.filter((page) => page.reviewStatus === tab).length,
+        }),
+        { pending: 0, approved: 0, returned: 0 },
+      ),
+    [publicItems],
+  )
+  const visibleItems = useMemo(
+    () => publicItems.filter((page) => page.reviewStatus === activeTab),
+    [activeTab, publicItems],
+  )
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -120,15 +199,46 @@ const PageReviewView = () => {
     return <Navigate to="/" replace />
   }
 
-  const promote = async (pageId: string) => {
-    if (!window.confirm(text(language, 'promoteConfirm'))) return
-    setActingPageId(pageId)
+  const openApproveDialog = (page: AdminPageReviewDto) => {
+    setApprovingPage(page)
+    setAccessName(initialAccessName(page))
+    setError('')
+    setMessage('')
+  }
+
+  const closeApproveDialog = () => {
+    if (actingPageId) {
+      return
+    }
+
+    setApprovingPage(null)
+    setAccessName({ en: '', zh: '' })
+  }
+
+  const submitApproval = async () => {
+    if (!approvingPage) {
+      return
+    }
+
+    const nextAccessName = {
+      en: accessName.en.trim(),
+      zh: accessName.zh.trim(),
+    }
+    if (!nextAccessName.en || !nextAccessName.zh) {
+      setError(text(language, 'accessNameRequired'))
+      return
+    }
+
+    setActingPageId(approvingPage.id)
     setError('')
     setMessage('')
     try {
-      await groupService.promotePageToGlobal(pageId)
+      await groupService.approvePageGlobalReview(approvingPage.id, { accessName: nextAccessName })
       await load()
       setMessage(text(language, 'promoted'))
+      setApprovingPage(null)
+      setAccessName({ en: '', zh: '' })
+      setActiveTab('approved')
     } catch (reason) {
       const apiError = normalizeApiError(reason)
       setError(`${text(language, 'actionFailed')} ${apiError.message}`)
@@ -137,42 +247,43 @@ const PageReviewView = () => {
     }
   }
 
-  const openRefuseDialog = (page: AdminPageReviewDto) => {
-    setRefusingPage(page)
-    setRefusalReason('')
+  const openReturnDialog = (page: AdminPageReviewDto) => {
+    setReturningPage(page)
+    setReturnReason('')
     setError('')
     setMessage('')
   }
 
-  const closeRefuseDialog = () => {
+  const closeReturnDialog = () => {
     if (actingPageId) {
       return
     }
 
-    setRefusingPage(null)
-    setRefusalReason('')
+    setReturningPage(null)
+    setReturnReason('')
   }
 
-  const submitRefusal = async () => {
-    if (!refusingPage) {
+  const submitReturn = async () => {
+    if (!returningPage) {
       return
     }
 
-    const reason = refusalReason.trim()
+    const reason = returnReason.trim()
     if (!reason) {
-      setError(text(language, 'refusalReasonRequired'))
+      setError(text(language, 'returnReasonRequired'))
       return
     }
 
-    setActingPageId(refusingPage.id)
+    setActingPageId(returningPage.id)
     setError('')
     setMessage('')
     try {
-      await groupService.refusePageGlobalReview(refusingPage.id, { reason })
+      await groupService.returnPageGlobalReview(returningPage.id, { reason })
       await load()
-      setMessage(text(language, 'refused'))
-      setRefusingPage(null)
-      setRefusalReason('')
+      setMessage(text(language, 'returned'))
+      setReturningPage(null)
+      setReturnReason('')
+      setActiveTab('returned')
     } catch (reason) {
       const apiError = normalizeApiError(reason)
       setError(`${text(language, 'actionFailed')} ${apiError.message}`)
@@ -214,28 +325,67 @@ const PageReviewView = () => {
       ) : null}
 
       <AppSectionCard dense title={text(language, 'queue')} subtitle={text(language, 'queueHint')}>
+        {!loading && publicItems.length > 0 ? (
+          <div className="mb-4 flex flex-wrap gap-2" role="tablist" aria-label={text(language, 'queue')}>
+            {reviewTabs.map((tab) => {
+              const selected = activeTab === tab
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  role="tab"
+                  aria-selected={selected}
+                  className={`inline-flex min-h-10 items-center rounded-xl border px-3 py-2 text-sm font-black transition ${
+                    selected
+                      ? 'border-emerald-600 bg-emerald-600 text-white shadow-sm'
+                      : 'border-slate-200 bg-white text-slate-600 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700'
+                  }`}
+                  onClick={() => setActiveTab(tab)}
+                >
+                  {text(language, tabCopyKey[tab])}
+                  <span
+                    className={`ml-2 inline-flex min-w-6 justify-center rounded-full px-2 py-0.5 text-xs ${
+                      selected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
+                    }`}
+                  >
+                    {reviewCounts[tab]}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        ) : null}
         {loading ? (
           <div className="flex items-center gap-2 p-2 text-sm text-slate-500">
             <Loader2 className="h-4 w-4 animate-spin" />
             {text(language, 'loading')}
           </div>
-        ) : items.length === 0 ? (
+        ) : publicItems.length === 0 ? (
           <AppEmptyState title={text(language, 'emptyTitle')} description={text(language, 'emptyBody')} />
+        ) : visibleItems.length === 0 ? (
+          <AppEmptyState title={text(language, 'tabEmptyTitle')} description={text(language, 'tabEmptyBody')} />
         ) : (
           <div className="grid gap-3">
-            {items.map((page) => {
+            {visibleItems.map((page) => {
               const title = localizeText(page.title, language) || page.id
               const groupName = page.ownerGroupId
                 ? localizeText(page.ownerGroupName, language) || page.ownerGroupId
                 : text(language, 'globalPage')
               const disabled = actingPageId === page.id
               const canReviewGlobalPromotion = page.scope === 'group' && page.visibility === 'public'
+              const canApprove = canReviewGlobalPromotion && page.reviewStatus !== 'approved'
+              const canReturn = canReviewGlobalPromotion && page.reviewStatus !== 'returned'
+              const accessLabel = localizeText(page.accessName, language)
 
               return (
                 <article key={page.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
+                        <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-black ${reviewStatusTone(page.reviewStatus)}`}>
+                          <ReviewStatusIcon status={page.reviewStatus} />
+                          {text(language, reviewStatusCopyKey[page.reviewStatus])}
+                        </span>
                         <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-black ${visibilityTone(page.visibility)}`}>
                           <ShieldCheck className="mr-1 h-3.5 w-3.5" />
                           {visibilityText(language, page.visibility)}
@@ -260,6 +410,18 @@ const PageReviewView = () => {
                           <dt className="font-bold text-slate-700">{text(language, 'author')}</dt>
                           <dd className="mt-0.5 break-words">{page.creatorDisplayName || page.createdByMemberId}</dd>
                         </div>
+                        {accessLabel ? (
+                          <div>
+                            <dt className="font-bold text-slate-700">{text(language, 'menuName')}</dt>
+                            <dd className="mt-0.5 break-words">{accessLabel}</dd>
+                          </div>
+                        ) : null}
+                        {page.returnReason ? (
+                          <div>
+                            <dt className="font-bold text-slate-700">{text(language, 'returnedReason')}</dt>
+                            <dd className="mt-0.5 break-words">{page.returnReason}</dd>
+                          </div>
+                        ) : null}
                       </dl>
                     </div>
                     <div className="flex shrink-0 flex-wrap gap-2">
@@ -267,17 +429,17 @@ const PageReviewView = () => {
                         <Eye className="mr-1.5 h-4 w-4" />
                         {text(language, 'open')}
                       </AppActionButton>
-                      {canReviewGlobalPromotion ? (
-                        <>
-                          <AppActionButton size="sm" variant="primary" disabled={disabled} onClick={() => promote(page.id).catch(() => undefined)}>
-                            {disabled ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Globe2 className="mr-1.5 h-4 w-4" />}
-                            {text(language, 'promote')}
-                          </AppActionButton>
-                          <AppActionButton size="sm" variant="secondary" disabled={disabled} onClick={() => openRefuseDialog(page)}>
-                            <CircleX className="mr-1.5 h-4 w-4" />
-                            {text(language, 'refuse')}
-                          </AppActionButton>
-                        </>
+                      {canApprove ? (
+                        <AppActionButton size="sm" variant="primary" disabled={disabled} onClick={() => openApproveDialog(page)}>
+                          {disabled ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Globe2 className="mr-1.5 h-4 w-4" />}
+                          {text(language, 'approve')}
+                        </AppActionButton>
+                      ) : null}
+                      {canReturn ? (
+                        <AppActionButton size="sm" variant="secondary" disabled={disabled} onClick={() => openReturnDialog(page)}>
+                          <CircleX className="mr-1.5 h-4 w-4" />
+                          {text(language, 'return')}
+                        </AppActionButton>
                       ) : null}
                     </div>
                   </div>
@@ -288,38 +450,90 @@ const PageReviewView = () => {
         )}
       </AppSectionCard>
 
-      {refusingPage ? (
+      {approvingPage ? (
         <div className="fixed inset-0 z-[70] flex items-end bg-slate-950/45 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+4.5rem)] sm:items-center sm:justify-center sm:pb-4">
-          <button type="button" className="absolute inset-0" aria-label={text(language, 'cancel')} onClick={closeRefuseDialog} />
+          <button type="button" className="absolute inset-0" aria-label={text(language, 'cancel')} onClick={closeApproveDialog} />
           <section className="relative z-10 w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl">
-            <h2 className="text-lg font-black text-slate-950">{text(language, 'refuseTitle')}</h2>
+            <h2 className="text-lg font-black text-slate-950">{text(language, 'approveTitle')}</h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              {localizeText(refusingPage.title, language) || refusingPage.id}
+              {localizeText(approvingPage.title, language) || approvingPage.id}
             </p>
-            <label className="mt-5 block text-sm font-bold text-slate-700" htmlFor="page-refusal-reason">
-              {text(language, 'refusalReason')}
+            <label className="mt-5 block text-sm font-bold text-slate-700" htmlFor="page-access-name-en">
+              {text(language, 'accessNameEn')}
             </label>
-            <textarea
-              id="page-refusal-reason"
-              className="mt-2 min-h-32 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm leading-6 text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
-              value={refusalReason}
-              maxLength={1000}
-              placeholder={text(language, 'refusalReasonPlaceholder')}
+            <input
+              id="page-access-name-en"
+              className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm leading-6 text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+              value={accessName.en}
+              maxLength={120}
               onChange={(event) => {
-                setRefusalReason(event.target.value)
-                if (error === text(language, 'refusalReasonRequired')) {
+                setAccessName((current) => ({ ...current, en: event.target.value }))
+                if (error === text(language, 'accessNameRequired')) {
+                  setError('')
+                }
+              }}
+            />
+            <label className="mt-4 block text-sm font-bold text-slate-700" htmlFor="page-access-name-zh">
+              {text(language, 'accessNameZh')}
+            </label>
+            <input
+              id="page-access-name-zh"
+              className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm leading-6 text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+              value={accessName.zh}
+              maxLength={120}
+              onChange={(event) => {
+                setAccessName((current) => ({ ...current, zh: event.target.value }))
+                if (error === text(language, 'accessNameRequired')) {
                   setError('')
                 }
               }}
             />
             {error ? <p className="mt-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p> : null}
             <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <AppActionButton variant="secondary" disabled={Boolean(actingPageId)} onClick={closeRefuseDialog}>
+              <AppActionButton variant="secondary" disabled={Boolean(actingPageId)} onClick={closeApproveDialog}>
                 {text(language, 'cancel')}
               </AppActionButton>
-              <AppActionButton variant="primary" disabled={Boolean(actingPageId)} onClick={() => submitRefusal().catch(() => undefined)}>
+              <AppActionButton variant="primary" disabled={Boolean(actingPageId)} onClick={() => submitApproval().catch(() => undefined)}>
+                {actingPageId ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Globe2 className="mr-2 h-4 w-4" />}
+                {text(language, 'submitApprove')}
+              </AppActionButton>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {returningPage ? (
+        <div className="fixed inset-0 z-[70] flex items-end bg-slate-950/45 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+4.5rem)] sm:items-center sm:justify-center sm:pb-4">
+          <button type="button" className="absolute inset-0" aria-label={text(language, 'cancel')} onClick={closeReturnDialog} />
+          <section className="relative z-10 w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl">
+            <h2 className="text-lg font-black text-slate-950">{text(language, 'returnTitle')}</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              {localizeText(returningPage.title, language) || returningPage.id}
+            </p>
+            <label className="mt-5 block text-sm font-bold text-slate-700" htmlFor="page-return-reason">
+              {text(language, 'returnReason')}
+            </label>
+            <textarea
+              id="page-return-reason"
+              className="mt-2 min-h-32 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm leading-6 text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+              value={returnReason}
+              maxLength={1000}
+              placeholder={text(language, 'returnReasonPlaceholder')}
+              onChange={(event) => {
+                setReturnReason(event.target.value)
+                if (error === text(language, 'returnReasonRequired')) {
+                  setError('')
+                }
+              }}
+            />
+            {error ? <p className="mt-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p> : null}
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <AppActionButton variant="secondary" disabled={Boolean(actingPageId)} onClick={closeReturnDialog}>
+                {text(language, 'cancel')}
+              </AppActionButton>
+              <AppActionButton variant="primary" disabled={Boolean(actingPageId)} onClick={() => submitReturn().catch(() => undefined)}>
                 {actingPageId ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CircleX className="mr-2 h-4 w-4" />}
-                {text(language, 'submitRefuse')}
+                {text(language, 'submitReturn')}
               </AppActionButton>
             </div>
           </section>

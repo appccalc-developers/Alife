@@ -137,16 +137,16 @@ public class PageVisibilityQueryTests
             .Returns([CreatePage(pageId, groupId, authorId, PageVisibility.Public, updatedUtc)]);
         using var dbContext = CreateInMemoryDbContext();
         dbContext.Members.Add(new Member { Id = reviewerId, DisplayName = "Reviewer", IsRegistered = true });
-        dbContext.AuditLogs.Add(new AuditLog
+        dbContext.PagePublicationReviews.Add(new PagePublicationReview
         {
             Id = Guid.NewGuid(),
-            ActorMemberId = reviewerId,
-            Action = "page.global-review.refuse",
-            EntityType = "page",
-            EntityId = pageId,
-            GroupId = groupId,
-            MetadataJson = "{\"reason\":\"Please add bilingual contact details.\"}",
-            OccurredUtc = updatedUtc.AddMinutes(1)
+            PageId = pageId,
+            Status = PagePublicationReviewStatus.Returned,
+            ReturnReason = "Please add bilingual contact details.",
+            ReviewedByMemberId = reviewerId,
+            ReviewedUtc = updatedUtc.AddMinutes(1),
+            CreatedUtc = updatedUtc.AddMinutes(1),
+            UpdatedUtc = updatedUtc.AddMinutes(1)
         });
         await dbContext.SaveChangesAsync();
         var handler = new GetGroupPagesQueryHandler(pageReadService, groupReadService, authorizationService, dbContext);
@@ -222,14 +222,14 @@ public class PageVisibilityQueryTests
         pageReadService.GetByIdAsync(pageId, Arg.Any<CancellationToken>())
             .Returns(CreatePageDetail(pageId, groupId, authorId, PageVisibility.Public, updatedUtc));
         using var dbContext = CreateInMemoryDbContext();
-        dbContext.AuditLogs.Add(new AuditLog
+        dbContext.PagePublicationReviews.Add(new PagePublicationReview
         {
             Id = Guid.NewGuid(),
-            Action = "page.global-review.promote",
-            EntityType = "page",
-            EntityId = pageId,
-            GroupId = groupId,
-            OccurredUtc = updatedUtc.AddMinutes(1)
+            PageId = pageId,
+            Status = PagePublicationReviewStatus.Approved,
+            AccessNameJson = "{\"en\":\"Approved\",\"zh\":\"已批准\"}",
+            CreatedUtc = updatedUtc.AddMinutes(1),
+            UpdatedUtc = updatedUtc.AddMinutes(1)
         });
         await dbContext.SaveChangesAsync();
         var handler = new GetPageByIdQueryHandler(pageReadService, groupReadService, authorizationService, dbContext);

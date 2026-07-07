@@ -1,3 +1,4 @@
+using Alife.Application.Admin.Dtos;
 using Alife.Application.Admin.Commands.PromotePageToGlobal;
 using Alife.Application.Admin.Commands.RefusePageGlobalReview;
 using Alife.Application.Admin.Queries.ListPageReviewCandidates;
@@ -13,14 +14,17 @@ namespace Alife.Tests.Unit.Pages;
 public class PageGlobalReviewTests
 {
     [Fact]
-    public async Task ListCandidates_ReturnsAllPageScopesAndVisibilityStatusesForPageReviewer()
+    public async Task ListCandidates_ReturnsPublicPagesGroupedByCurrentReviewStatus()
     {
         using var dbContext = CreateInMemoryDbContext();
         var reviewerId = Guid.NewGuid();
         var authorId = Guid.NewGuid();
         var groupId = Guid.NewGuid();
         var pageId = Guid.NewGuid();
+        var approvedPageId = Guid.NewGuid();
+        var returnedPageId = Guid.NewGuid();
         await SeedReviewerScenarioAsync(dbContext, reviewerId, authorId, groupId, pageId);
+        var now = DateTime.UtcNow;
         dbContext.Pages.AddRange(
             new Page
             {
@@ -33,7 +37,7 @@ public class PageGlobalReviewTests
                 TagsJson = "[]",
                 TitleDisplayStyle = "Default",
                 Visibility = PageVisibility.Draft,
-                UpdatedUtc = DateTime.UtcNow.AddMinutes(1)
+                UpdatedUtc = now.AddMinutes(1)
             },
             new Page
             {
@@ -46,7 +50,7 @@ public class PageGlobalReviewTests
                 TagsJson = "[]",
                 TitleDisplayStyle = "Default",
                 Visibility = PageVisibility.Group,
-                UpdatedUtc = DateTime.UtcNow.AddMinutes(2)
+                UpdatedUtc = now.AddMinutes(2)
             },
             new Page
             {
@@ -54,12 +58,61 @@ public class PageGlobalReviewTests
                 Scope = PageScope.Global,
                 OwnerGroupId = null,
                 CreatedByMemberId = authorId,
-                TitleJson = "{\"en\":\"Global review\",\"zh\":\"全站审核\"}",
-                DescriptionJson = "{\"en\":\"Global page\",\"zh\":\"全站页面\"}",
+                TitleJson = "{\"en\":\"Global page\",\"zh\":\"全站页面\"}",
+                DescriptionJson = "{\"en\":\"Not part of group page review\",\"zh\":\"不是小组页面审核\"}",
                 TagsJson = "[]",
                 TitleDisplayStyle = "Default",
                 Visibility = PageVisibility.Public,
-                UpdatedUtc = DateTime.UtcNow.AddMinutes(3)
+                UpdatedUtc = now.AddMinutes(3)
+            },
+            new Page
+            {
+                Id = approvedPageId,
+                Scope = PageScope.Group,
+                OwnerGroupId = groupId,
+                CreatedByMemberId = authorId,
+                TitleJson = "{\"en\":\"Approved review\",\"zh\":\"已批准审核\"}",
+                DescriptionJson = "{\"en\":\"Approved page\",\"zh\":\"已批准页面\"}",
+                TagsJson = "[]",
+                TitleDisplayStyle = "Default",
+                Visibility = PageVisibility.Public,
+                UpdatedUtc = now.AddMinutes(4)
+            },
+            new Page
+            {
+                Id = returnedPageId,
+                Scope = PageScope.Group,
+                OwnerGroupId = groupId,
+                CreatedByMemberId = authorId,
+                TitleJson = "{\"en\":\"Returned review\",\"zh\":\"已退回审核\"}",
+                DescriptionJson = "{\"en\":\"Returned page\",\"zh\":\"已退回页面\"}",
+                TagsJson = "[]",
+                TitleDisplayStyle = "Default",
+                Visibility = PageVisibility.Public,
+                UpdatedUtc = now.AddMinutes(5)
+            });
+        dbContext.PagePublicationReviews.AddRange(
+            new PagePublicationReview
+            {
+                Id = Guid.NewGuid(),
+                PageId = approvedPageId,
+                Status = PagePublicationReviewStatus.Approved,
+                AccessNameJson = "{\"en\":\"Approved menu\",\"zh\":\"已批准菜单\"}",
+                ReviewedByMemberId = reviewerId,
+                ReviewedUtc = now.AddMinutes(6),
+                CreatedUtc = now.AddMinutes(6),
+                UpdatedUtc = now.AddMinutes(6)
+            },
+            new PagePublicationReview
+            {
+                Id = Guid.NewGuid(),
+                PageId = returnedPageId,
+                Status = PagePublicationReviewStatus.Returned,
+                ReturnReason = "Needs revision",
+                ReviewedByMemberId = reviewerId,
+                ReviewedUtc = now.AddMinutes(7),
+                CreatedUtc = now.AddMinutes(7),
+                UpdatedUtc = now.AddMinutes(7)
             });
         await dbContext.SaveChangesAsync();
         var handler = new ListPageReviewCandidatesQueryHandler(dbContext);
@@ -67,15 +120,23 @@ public class PageGlobalReviewTests
         var result = await handler.Handle(new ListPageReviewCandidatesQuery(reviewerId), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(4, result.Value!.Count);
-        Assert.Contains(result.Value, page => page.Id == pageId && page.Visibility == PageVisibility.Public);
-        Assert.Contains(result.Value, page => page.Visibility == PageVisibility.Draft);
-        Assert.Contains(result.Value, page => page.Visibility == PageVisibility.Group);
-        Assert.Contains(result.Value, page => page.Scope == PageScope.Global && page.OwnerGroupId is null);
+        Assert.Equal(3, result.Value!.Count);
+        Assert.All(result.Value, page => Assert.Equal(PageVisibility.Public, page.Visibility));
+        Assert.All(result.Value, page => Assert.Equal(PageScope.Group, page.Scope));
+        Assert.Contains(result.Value, page => page.Id == pageId && page.ReviewStatus == AdminPageReviewStatus.Pending);
+        Assert.Contains(result.Value, page =>
+            page.Id == approvedPageId &&
+            page.ReviewStatus == AdminPageReviewStatus.Approved &&
+            page.AccessName != null &&
+            page.AccessName["en"] == "Approved menu");
+        Assert.Contains(result.Value, page =>
+            page.Id == returnedPageId &&
+            page.ReviewStatus == AdminPageReviewStatus.Returned &&
+            page.ReturnReason == "Needs revision");
     }
 
     [Fact]
-    public async Task RefuseCandidate_RecordsReasonAndInvalidatesGroupPageCaches()
+    public async Task ReturnCandidate_RecordsReasonAndInvalidatesGroupPageCaches()
     {
         using var dbContext = CreateInMemoryDbContext();
         var reviewerId = Guid.NewGuid();
@@ -84,19 +145,27 @@ public class PageGlobalReviewTests
         var pageId = Guid.NewGuid();
         await SeedReviewerScenarioAsync(dbContext, reviewerId, authorId, groupId, pageId);
         var cacheInvalidation = Substitute.For<IPageCacheInvalidationService>();
-        var refuseHandler = new RefusePageGlobalReviewCommandHandler(dbContext, cacheInvalidation);
+        var returnHandler = new RefusePageGlobalReviewCommandHandler(dbContext, cacheInvalidation);
         var listHandler = new ListPageReviewCandidatesQueryHandler(dbContext);
 
-        var refuseResult = await refuseHandler.Handle(
+        var returnResult = await returnHandler.Handle(
             new RefusePageGlobalReviewCommand(reviewerId, pageId, "Please add bilingual contact details."),
             CancellationToken.None);
         var visibleResult = await listHandler.Handle(new ListPageReviewCandidatesQuery(reviewerId), CancellationToken.None);
 
-        Assert.True(refuseResult.IsSuccess);
+        Assert.True(returnResult.IsSuccess);
         Assert.True(visibleResult.IsSuccess);
-        Assert.Contains(visibleResult.Value!, page => page.Id == pageId);
+        Assert.Contains(visibleResult.Value!, page =>
+            page.Id == pageId &&
+            page.Visibility == PageVisibility.Public &&
+            page.ReviewStatus == AdminPageReviewStatus.Returned &&
+            page.ReturnReason == "Please add bilingual contact details.");
+        Assert.Contains(dbContext.PagePublicationReviews, review =>
+            review.PageId == pageId &&
+            review.Status == PagePublicationReviewStatus.Returned &&
+            review.ReturnReason == "Please add bilingual contact details.");
         Assert.Contains(dbContext.AuditLogs, log =>
-            log.Action == "page.global-review.refuse" &&
+            log.Action == "page.global-review.return" &&
             log.EntityId == pageId &&
             log.MetadataJson != null &&
             log.MetadataJson.Contains("Please add bilingual contact details."));
@@ -106,7 +175,7 @@ public class PageGlobalReviewTests
     }
 
     [Fact]
-    public async Task PromoteCandidate_ApprovesGlobalPublicationWithoutMovingGroupPage()
+    public async Task ApproveCandidate_WritesAccessNameWithoutMovingGroupPage()
     {
         using var dbContext = CreateInMemoryDbContext();
         var reviewerId = Guid.NewGuid();
@@ -117,7 +186,12 @@ public class PageGlobalReviewTests
         var cacheInvalidation = Substitute.For<IPageCacheInvalidationService>();
         var handler = new PromotePageToGlobalCommandHandler(dbContext, cacheInvalidation);
 
-        var result = await handler.Handle(new PromotePageToGlobalCommand(reviewerId, pageId), CancellationToken.None);
+        var result = await handler.Handle(
+            new PromotePageToGlobalCommand(
+                reviewerId,
+                pageId,
+                new Dictionary<string, string> { ["en"] = "Menu name", ["zh"] = "菜单名" }),
+            CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(groupId, result.Value!.PreviousOwnerGroupId);
@@ -129,7 +203,12 @@ public class PageGlobalReviewTests
         Assert.Equal(PageScope.Group, storedPage.Scope);
         Assert.Equal(groupId, storedPage.OwnerGroupId);
         Assert.Equal(PageVisibility.Public, storedPage.Visibility);
-        Assert.Contains(dbContext.AuditLogs, log => log.Action == "page.global-review.promote" && log.EntityId == pageId);
+        Assert.Contains(dbContext.PagePublicationReviews, review =>
+            review.PageId == pageId &&
+            review.Status == PagePublicationReviewStatus.Approved &&
+            review.AccessNameJson != null &&
+            review.AccessNameJson.Contains("Menu name"));
+        Assert.Contains(dbContext.AuditLogs, log => log.Action == "page.global-review.approve" && log.EntityId == pageId);
 
         await cacheInvalidation.Received(1).RemoveDetailAsync(pageId, Arg.Any<CancellationToken>());
         await cacheInvalidation.Received(1).RemoveGroupPagesAsync(groupId, Arg.Any<CancellationToken>());
@@ -137,7 +216,7 @@ public class PageGlobalReviewTests
     }
 
     [Fact]
-    public async Task PromoteCandidate_RejectsMemberWithoutPageReviewerRole()
+    public async Task ApproveCandidate_RejectsMemberWithoutPageReviewerRole()
     {
         using var dbContext = CreateInMemoryDbContext();
         var reviewerId = Guid.NewGuid();
@@ -151,7 +230,12 @@ public class PageGlobalReviewTests
         var cacheInvalidation = Substitute.For<IPageCacheInvalidationService>();
         var handler = new PromotePageToGlobalCommandHandler(dbContext, cacheInvalidation);
 
-        var result = await handler.Handle(new PromotePageToGlobalCommand(ordinaryMemberId, pageId), CancellationToken.None);
+        var result = await handler.Handle(
+            new PromotePageToGlobalCommand(
+                ordinaryMemberId,
+                pageId,
+                new Dictionary<string, string> { ["en"] = "Menu name", ["zh"] = "菜单名" }),
+            CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(Application.Common.Models.AppResultStatus.Forbidden, result.Status);

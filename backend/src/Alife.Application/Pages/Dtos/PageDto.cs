@@ -13,6 +13,7 @@ public sealed record PageDto(
     string TitleDisplayStyle,
     PageVisibility Visibility,
     DateTime UpdatedUtc,
+    IReadOnlyDictionary<string, string>? AccessName = null,
     PageReviewRefusalDto? ReviewRefusal = null);
 
 public sealed record PageReviewRefusalDto(

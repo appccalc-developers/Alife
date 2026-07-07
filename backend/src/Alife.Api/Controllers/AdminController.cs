@@ -125,8 +125,12 @@ public class AdminController(IMediator mediator, ICurrentMemberAccessor currentM
         return this.ToActionResult(result);
     }
 
+    [HttpPost("pages/{pageId:guid}/approve-global-review")]
     [HttpPost("pages/{pageId:guid}/promote-global")]
-    public async Task<IActionResult> PromotePageToGlobal(Guid pageId, CancellationToken cancellationToken)
+    public async Task<IActionResult> ApprovePageGlobalReview(
+        Guid pageId,
+        [FromBody] ApprovePageGlobalReviewRequest? request,
+        CancellationToken cancellationToken)
     {
         var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
         if (currentMemberId is null)
@@ -134,15 +138,18 @@ public class AdminController(IMediator mediator, ICurrentMemberAccessor currentM
             return Unauthorized();
         }
 
-        var result = await mediator.Send(new PromotePageToGlobalCommand(currentMemberId.Value, pageId), cancellationToken);
+        var result = await mediator.Send(
+            new PromotePageToGlobalCommand(currentMemberId.Value, pageId, request?.AccessName),
+            cancellationToken);
         this.ApplyPrivateNoCacheHeaders();
         return this.ToActionResult(result);
     }
 
+    [HttpPost("pages/{pageId:guid}/return-global-review")]
     [HttpPost("pages/{pageId:guid}/refuse-global-review")]
-    public async Task<IActionResult> RefusePageGlobalReview(
+    public async Task<IActionResult> ReturnPageGlobalReview(
         Guid pageId,
-        RefusePageGlobalReviewRequest request,
+        ReturnPageGlobalReviewRequest request,
         CancellationToken cancellationToken)
     {
         var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
@@ -423,7 +430,8 @@ public class AdminController(IMediator mediator, ICurrentMemberAccessor currentM
 
     public sealed record UpdatePlatformRolePermissionsRequest(IReadOnlyList<string> PermissionCodes);
     public sealed record UpdateVisitContactRequestStatusRequest(string Status);
-    public sealed record RefusePageGlobalReviewRequest(string Reason);
+    public sealed record ApprovePageGlobalReviewRequest(IReadOnlyDictionary<string, string>? AccessName);
+    public sealed record ReturnPageGlobalReviewRequest(string Reason);
 
     public sealed record SendAdminMessageRequest(
         string Scope,

@@ -22,8 +22,10 @@ public sealed class ListPageReviewCandidatesQueryHandler(IAlifeDbContext dbConte
 
         var rows = await dbContext.Pages
             .AsNoTracking()
-            .Where(page => page.Scope == PageScope.Global ||
-                           (page.Scope == PageScope.Group && page.OwnerGroupId != null))
+            .Where(page =>
+                page.Visibility == PageVisibility.Public &&
+                page.Scope == PageScope.Group &&
+                page.OwnerGroupId != null)
             .OrderByDescending(page => page.UpdatedUtc)
             .Select(page => new
             {
@@ -42,24 +44,67 @@ public sealed class ListPageReviewCandidatesQueryHandler(IAlifeDbContext dbConte
             })
             .ToListAsync(cancellationToken);
 
+        var pageIds = rows.Select(row => row.Id).ToList();
+        var reviewsByPageId = new Dictionary<Guid, ReviewRow>();
+
+        if (pageIds.Count > 0)
+        {
+            reviewsByPageId = await dbContext.PagePublicationReviews
+                .AsNoTracking()
+                .Where(review => pageIds.Contains(review.PageId))
+                .Select(review => new ReviewRow(
+                    review.PageId,
+                    review.Status,
+                    review.AccessNameJson,
+                    review.ReturnReason,
+                    review.ReviewedUtc))
+                .ToDictionaryAsync(
+                    review => review.PageId,
+                    review => review,
+                    cancellationToken);
+        }
+
         var candidates = rows
-            .Select(row => new AdminPageReviewDto(
-                row.Id,
-                row.Scope,
-                row.OwnerGroupId,
-                ReadTextMap(row.OwnerGroupNameJson),
-                row.CreatedByMemberId,
-                row.CreatorDisplayName,
-                ReadTextMap(row.TitleJson),
-                ReadNullableTextMap(row.DescriptionJson),
-                row.TagsJson,
-                row.TitleDisplayStyle,
-                row.Visibility,
-                row.UpdatedUtc))
+            .Select(row =>
+            {
+                reviewsByPageId.TryGetValue(row.Id, out var review);
+                return new AdminPageReviewDto(
+                    row.Id,
+                    row.Scope,
+                    row.OwnerGroupId,
+                    ReadTextMap(row.OwnerGroupNameJson),
+                    row.CreatedByMemberId,
+                    row.CreatorDisplayName,
+                    ReadTextMap(row.TitleJson),
+                    ReadNullableTextMap(row.DescriptionJson),
+                    row.TagsJson,
+                    row.TitleDisplayStyle,
+                    row.Visibility,
+                    ToReviewStatus(review?.Status),
+                    ReadNullableTextMap(review?.AccessNameJson),
+                    review?.ReturnReason,
+                    review?.ReviewedUtc,
+                    row.UpdatedUtc);
+            })
             .ToList();
 
         return AppResult<IReadOnlyList<AdminPageReviewDto>>.Success(candidates);
     }
+
+    private static AdminPageReviewStatus ToReviewStatus(PagePublicationReviewStatus? status)
+        => status switch
+        {
+            PagePublicationReviewStatus.Approved => AdminPageReviewStatus.Approved,
+            PagePublicationReviewStatus.Returned => AdminPageReviewStatus.Returned,
+            _ => AdminPageReviewStatus.Pending
+        };
+
+    private sealed record ReviewRow(
+        Guid PageId,
+        PagePublicationReviewStatus Status,
+        string? AccessNameJson,
+        string? ReturnReason,
+        DateTime? ReviewedUtc);
 
     private static IReadOnlyDictionary<string, string> ReadTextMap(string? value)
         => ReadNullableTextMap(value) ?? new Dictionary<string, string>();
