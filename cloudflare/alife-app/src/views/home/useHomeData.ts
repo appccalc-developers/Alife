@@ -20,10 +20,11 @@ export const useHomeData = () => {
     let cancelled = false
 
     const load = async () => {
-      const [churchResult, publicPagesResult, sermonsResult] = await Promise.allSettled([
+      const [churchResult, publicPagesResult, sermonsResult, groupsResult] = await Promise.allSettled([
         groupService.getChurch(),
         pageService.getPublicPages(),
-        sermonService.getLatest(),
+        sermonService.getLatest(3),
+        groupService.getVisibleGroups(),
       ])
 
       if (cancelled) return
@@ -31,25 +32,9 @@ export const useHomeData = () => {
       if (publicPagesResult.status === 'fulfilled') setPublicPages(publicPagesResult.value)
       if (sermonsResult.status === 'fulfilled') setSermons(sermonsResult.value)
 
-      if (churchResult.status !== 'fulfilled') return
-      const churchData = churchResult.value
-      setChurch(churchData)
-
-      // --- Phase 2: Load events + subgroups in parallel (both depend on church id) ---
-      const [eventsResult, subgroupsResult] = await Promise.allSettled([
-        eventService.getGroupEvents(churchData.id),
-        groupService.getSubgroups(churchData.id),
-      ])
-
-      if (cancelled) return
-
-      if (eventsResult.status === 'fulfilled') {
-        setEvents(eventsResult.value)
-      }
-
-      // --- Build group cards from subgroups (now works for anonymous users too) ---
-      const groups = (subgroupsResult.status === 'fulfilled'
-        ? subgroupsResult.value.filter((group) => group.id !== churchData.id)
+      // --- Build group cards from visible child groups (works for anonymous users too) ---
+      const groups = (groupsResult.status === 'fulfilled'
+        ? groupsResult.value.filter((group) => !group.isChurch && group.accessType !== 'private')
         : []
       ).slice(0, 6)
 
@@ -59,6 +44,20 @@ export const useHomeData = () => {
         imageUrl: fallbackGroupImages[index % fallbackGroupImages.length],
       }))
       if (!cancelled) setGroupCards(initialCards)
+
+      if (churchResult.status === 'fulfilled') {
+        const churchData = churchResult.value
+        setChurch(churchData)
+
+        const eventsResult = await eventService.getGroupEvents(churchData.id)
+          .then((value) => ({ status: 'fulfilled' as const, value }))
+          .catch((reason) => ({ status: 'rejected' as const, reason }))
+
+        if (cancelled) return
+        if (eventsResult.status === 'fulfilled') {
+          setEvents(eventsResult.value)
+        }
+      }
 
       // --- Phase 3: Load real group card images in background ---
       Promise.all(

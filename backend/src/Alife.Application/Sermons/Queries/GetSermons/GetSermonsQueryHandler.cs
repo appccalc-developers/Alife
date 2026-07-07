@@ -6,12 +6,12 @@ using MediatR;
 namespace Alife.Application.Sermons.Queries.GetSermons;
 
 public sealed class GetSermonsQueryHandler(ISermonReadService sermonReadService)
-    : IRequestHandler<GetSermonsQuery, AppResult<IReadOnlyList<SermonDto>>>
+    : IRequestHandler<GetSermonsQuery, AppResult<PagedResult<SermonDto>>>
 {
-    public async Task<AppResult<IReadOnlyList<SermonDto>>> Handle(GetSermonsQuery request, CancellationToken cancellationToken)
+    public async Task<AppResult<PagedResult<SermonDto>>> Handle(GetSermonsQuery request, CancellationToken cancellationToken)
     {
-        var sermons = await sermonReadService.GetSermonsAsync(cancellationToken);
+        var sermons = await sermonReadService.GetSermonsAsync(request.Page, request.PageSize, cancellationToken);
 
-        return AppResult<IReadOnlyList<SermonDto>>.Success(sermons);
+        return AppResult<PagedResult<SermonDto>>.Success(sermons);
     }
 }

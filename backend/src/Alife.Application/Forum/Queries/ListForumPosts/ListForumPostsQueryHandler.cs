@@ -33,6 +33,7 @@ public sealed class ListForumPostsQueryHandler(
 		var query = dbContext.ForumPosts
 			.AsNoTracking()
 			.Include(x => x.AuthorMember)
+			.Include(x => x.Sermon)
 			.Where(x => !x.IsHidden);
 
 		if (request.CategoryId.HasValue)
@@ -78,6 +79,20 @@ public sealed class ListForumPostsQueryHandler(
 				x.Id,
 				x.CategoryId,
 				x.GroupId,
+				x.SermonId,
+				x.Sermon == null
+					? null
+					: new ForumSermonDto(
+						x.Sermon.Id,
+						x.Sermon.Title,
+						x.Sermon.SpeakerName,
+						x.Sermon.ThumbnailUrl,
+						!string.IsNullOrWhiteSpace(x.Sermon.VideoUrl)
+							? x.Sermon.VideoUrl
+							: !string.IsNullOrWhiteSpace(x.Sermon.YoutubeVideoId)
+								? "https://www.youtube.com/watch?v=" + x.Sermon.YoutubeVideoId
+								: null,
+						x.Sermon.PreachedAtUtc),
 				x.TitleJson,
 				x.BodyJson,
 				x.MediaJson,

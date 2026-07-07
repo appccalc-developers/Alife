@@ -14,6 +14,7 @@ import type { ForumCommentDto } from '../types/forum'
 import { ForumMediaGrid, ForumMediaPicker, selectForumMedia, type PendingForumMedia, uploadPendingForumMedia } from './forum/ForumMediaControls'
 import { forumCopy, visibilityLabel } from './forum/forumCopy'
 import { categoryName, formatForumDate, localizedJsonText, oneLanguagePayload, parseForumMedia } from './forum/forumUtils'
+import ForumSermonEmbed from './forum/ForumSermonEmbed'
 
 const avatarLetter = (value?: string | null) => (value || 'A').slice(0, 1).toUpperCase()
 
@@ -262,6 +263,7 @@ const ForumPostView = () => {
                   <div className="whitespace-pre-wrap text-base leading-8 text-slate-700 sm:text-lg sm:leading-9">
                     {localizedJsonText(post.bodyJson, language)}
                   </div>
+                  {post.sermon ? <ForumSermonEmbed sermon={post.sermon} /> : null}
                   <ForumMediaGrid media={parseForumMedia(post.mediaJson)} />
                   <div className="mt-6 inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-black text-slate-600">
                     <MessageCircle className="h-4 w-4" aria-hidden="true" />

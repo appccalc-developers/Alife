@@ -1,15 +1,14 @@
-import { useEffect, useMemo, useState, useRef, useCallback } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
-import { useLiveQuery } from '@tanstack/react-db'
+import { useEffect, useMemo, useState, useRef } from 'react'
+import { useInfiniteQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { CalendarDays, MicVocal, PlayCircle, RefreshCw, Video } from 'lucide-react'
-import { getCachedSermons, sermonsCollection, sermonsQueryKey } from '../../db/collections/sermonsCollection'
+import { getCachedSermons } from '../../db/collections/sermonsCollection'
 import SermonCardSkeleton from './SermonCardSkeleton'
 import { useImagePreloader } from '../../hooks/useImagePreloader'
 import CoverImage from '../CoverImage'
 import { useUiText } from '../../i18n/uiText'
 import { activeEntityService } from '../../services/activeEntityService'
-import type { SermonDto } from '../../services/sermonService'
+import { sermonService, type SermonDto } from '../../services/sermonService'
 import { buildSermonVideoPath, extractYouTubeVideoId } from '../../utils/youtube'
 
 const formatSermonDate = (value: string | null | undefined, fallback: string) => {
@@ -19,15 +18,22 @@ const formatSermonDate = (value: string | null | undefined, fallback: string) =>
 }
 
 const getSermonTime = (sermon: SermonDto) => sermon.preachedAt ? new Date(sermon.preachedAt).getTime() : 0
+const pageSize = 12
 
 const SermonList = () => {
   const t = useUiText()
-  const queryClient = useQueryClient()
-  const { data, isLoading, isError } = useLiveQuery(sermonsCollection)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [cachedSermons, setCachedSermons] = useState<Awaited<ReturnType<typeof getCachedSermons>>>([])
   const { preloadImages } = useImagePreloader()
   const initialLoadDone = useRef(false)
+  const loadMoreRef = useRef<HTMLDivElement | null>(null)
+  const sermonsQuery = useInfiniteQuery({
+    queryKey: ['sermons', 'paged', pageSize],
+    queryFn: ({ pageParam }) => sermonService.list({ page: pageParam, pageSize }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => lastPage.hasNextPage ? lastPage.page + 1 : undefined,
+    staleTime: 5 * 60_000,
+  })
 
   useEffect(() => {
     let cancelled = false
@@ -43,9 +49,10 @@ const SermonList = () => {
   }, [])
 
   const sermons = useMemo(() => {
-    const source = data && data.length > 0 ? data : cachedSermons
+    const loaded = sermonsQuery.data?.pages.flatMap((page) => Array.isArray(page.items) ? page.items : []) ?? []
+    const source = loaded.length > 0 ? loaded : cachedSermons
     return [...source].sort((left, right) => getSermonTime(right) - getSermonTime(left))
-  }, [cachedSermons, data])
+  }, [cachedSermons, sermonsQuery.data])
 
   // Preload first 4 sermon images after initial data load
   useEffect(() => {
@@ -56,19 +63,40 @@ const SermonList = () => {
     }
   }, [sermons, preloadImages])
 
-  const loadSermons = useCallback(async () => {
+  const loadSermons = async () => {
     setIsRefreshing(true)
     try {
-      await queryClient.invalidateQueries({ queryKey: sermonsQueryKey })
+      await sermonsQuery.refetch()
     } finally {
       setIsRefreshing(false)
     }
-  }, [queryClient])
+  }
 
-  const errorMessage = isError ? t('sermonsLoadFailed') : ''
-  const initialLoading = isLoading && sermons.length === 0
+  const errorMessage = sermonsQuery.isError ? t('sermonsLoadFailed') : ''
+  const initialLoading = sermonsQuery.isLoading && sermons.length === 0
+  const hasNextPage = sermonsQuery.hasNextPage ?? false
+  const totalCount = sermonsQuery.data?.pages[0]?.totalCount ?? sermons.length
+  const fetchNextPage = sermonsQuery.fetchNextPage
+  const isFetchingNextPage = sermonsQuery.isFetchingNextPage
   const featuredSermon = sermons[0]
   const remainingSermons = sermons.slice(1)
+
+  useEffect(() => {
+    const node = loadMoreRef.current
+    if (!node || !hasNextPage) return undefined
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting) && !isFetchingNextPage) {
+          fetchNextPage().catch(() => undefined)
+        }
+      },
+      { rootMargin: '360px 0px' },
+    )
+
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage])
 
   const renderSermonImage = (sermon: SermonDto, index: number, className: string) => (
     sermon.thumbnailUrl ? (
@@ -128,7 +156,7 @@ const SermonList = () => {
         <button
           type="button"
           className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-800 transition hover:border-emerald-300 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={isRefreshing || isLoading}
+          disabled={isRefreshing || sermonsQuery.isLoading || sermonsQuery.isFetching}
           onClick={() => {
             loadSermons().catch(() => undefined)
           }}
@@ -202,6 +230,25 @@ const SermonList = () => {
             )
           })}
         </div>
+      ) : null}
+
+      {hasNextPage ? (
+        <div ref={loadMoreRef} className="flex justify-center pt-2">
+          <button
+            type="button"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isFetchingNextPage}
+            onClick={() => {
+              fetchNextPage().catch(() => undefined)
+            }}
+          >
+            {isFetchingNextPage ? t('loadingMore') : t('loadMore')}
+          </button>
+        </div>
+      ) : sermons.length > 0 ? (
+        <p className="text-center text-xs font-bold text-slate-400">
+          {t('showingAllSermons', { count: totalCount })}
+        </p>
       ) : null}
     </section>
   )

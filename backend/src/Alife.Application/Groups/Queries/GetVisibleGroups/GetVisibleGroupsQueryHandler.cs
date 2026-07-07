@@ -14,11 +14,10 @@ public sealed class GetVisibleGroupsQueryHandler(
         GetVisibleGroupsQuery request,
         CancellationToken cancellationToken)
     {
-        var isRegistered = await groupAuthorizationService.IsRegisteredMemberAsync(
-            request.CurrentMemberId,
-            cancellationToken);
-
-        if (!isRegistered)
+        if (request.CurrentMemberId.HasValue &&
+            !await groupAuthorizationService.IsRegisteredMemberAsync(
+                request.CurrentMemberId.Value,
+                cancellationToken))
         {
             return AppResult<IReadOnlyList<GroupSummaryDto>>.Forbidden(
                 "Guest members cannot browse groups.");

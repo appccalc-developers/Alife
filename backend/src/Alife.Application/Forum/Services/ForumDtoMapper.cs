@@ -10,6 +10,8 @@ internal static class ForumDtoMapper
 			post.Id,
 			post.CategoryId,
 			post.GroupId,
+			post.SermonId,
+			ToSermonDto(post),
 			post.TitleJson,
 			post.BodyJson,
 			post.MediaJson,
@@ -28,6 +30,8 @@ internal static class ForumDtoMapper
 			post.Id,
 			post.CategoryId,
 			post.GroupId,
+			post.SermonId,
+			ToSermonDto(post),
 			post.TitleJson,
 			post.BodyJson,
 			post.MediaJson,
@@ -53,4 +57,27 @@ internal static class ForumDtoMapper
 			comment.CreatedUtc,
 			comment.UpdatedUtc,
 			new ForumAuthorDto(comment.AuthorMember.Id, comment.AuthorMember.DisplayName));
+
+	private static ForumSermonDto? ToSermonDto(ForumPost post) =>
+		post.Sermon is null
+			? null
+			: new ForumSermonDto(
+				post.Sermon.Id,
+				post.Sermon.Title,
+				post.Sermon.SpeakerName,
+				post.Sermon.ThumbnailUrl,
+				BuildSermonVideoUrl(post.Sermon.VideoUrl, post.Sermon.YoutubeVideoId),
+				post.Sermon.PreachedAtUtc);
+
+	private static string? BuildSermonVideoUrl(string? videoUrl, string youtubeVideoId)
+	{
+		if (!string.IsNullOrWhiteSpace(videoUrl))
+		{
+			return videoUrl;
+		}
+
+		return string.IsNullOrWhiteSpace(youtubeVideoId)
+			? null
+			: $"https://www.youtube.com/watch?v={youtubeVideoId}";
+	}
 }

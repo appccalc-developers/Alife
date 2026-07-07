@@ -13,4 +13,5 @@ public class Sermon
     public DateTime SyncedUtc { get; set; }
     public DateTime UpdatedUtc { get; set; }
     public bool IsDeleted { get; set; }
+    public ForumPost? ForumPost { get; set; }
 }

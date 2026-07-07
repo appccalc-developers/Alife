@@ -343,7 +343,7 @@ if (-not $SkipFrontend) {
         Start-LoggedProcess `
             -Name "Alife frontend" `
             -FilePath $npmCommand.Source `
-            -ArgumentList @("run", "dev", "--", "--host", "127.0.0.1", "--port", "5173") `
+            -ArgumentList @("run", "dev", "--", "--host", "localhost", "--port", "5173") `
             -WorkingDirectory $frontendRoot `
             -OutLog (Join-Path $logRoot "frontend.log") `
             -ErrLog (Join-Path $logRoot "frontend.err.log")

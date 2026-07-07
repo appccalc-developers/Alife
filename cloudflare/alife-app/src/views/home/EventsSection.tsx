@@ -4,6 +4,7 @@ import { ArrowRight, CalendarDays, ChevronLeft, ChevronRight, MapPin } from 'luc
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { activeEntityService } from '../../services/activeEntityService'
 import { entranceAnimation, media } from './homeUtils'
+import GuardedLink from './LoginPromptOverlay'
 import type { HomeCopy, Language } from './homeCopy'
 import type { GroupEventRecord } from '../../types/event'
 
@@ -294,10 +295,10 @@ const EventsSection = ({ copy, language, upcomingEvents }: Props) => {
             </p>
           </div>
 
-          <Link to="/events" className="inline-flex min-h-12 w-fit shrink-0 items-center justify-center gap-2 self-start rounded-full bg-home-gold px-5 text-sm font-black text-[#173f37] shadow-[0_16px_42px_rgba(245,215,152,0.32)] transition hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_20px_54px_rgba(47,111,98,0.16)] focus:outline-none focus:ring-2 focus:ring-home-green/[0.35] sm:self-end">
+          <GuardedLink language={language} to="/events" className="inline-flex min-h-12 w-fit shrink-0 items-center justify-center gap-2 self-start rounded-full bg-home-gold px-5 text-sm font-black text-[#173f37] shadow-[0_16px_42px_rgba(245,215,152,0.32)] transition hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_20px_54px_rgba(47,111,98,0.16)] focus:outline-none focus:ring-2 focus:ring-home-green/[0.35] sm:self-end">
             {copy.eventsViewAll}
             <ArrowRight className="h-4 w-4" />
-          </Link>
+          </GuardedLink>
         </motion.div>
 
         {activeEvent && activeDetails ? (

@@ -6,6 +6,8 @@ public sealed record ForumPostSummaryDto(
 	Guid Id,
 	Guid CategoryId,
 	Guid? GroupId,
+	Guid? SermonId,
+	ForumSermonDto? Sermon,
 	string TitleJson,
 	string BodyJson,
 	string MediaJson,

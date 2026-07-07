@@ -1,7 +1,11 @@
 using Alife.Application.Groups.Dtos;
 using Alife.Application.Groups.Queries.GetVisibleGroups;
 using Alife.Application.Groups.Services;
+using Alife.Domain.Entities;
 using Alife.Domain.Enums;
+using Alife.Infrastructure.Persistence;
+using Alife.Infrastructure.ReadServices;
+using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 
 namespace Alife.Tests.Unit.Groups;
@@ -53,4 +57,85 @@ public class GetVisibleGroupsTests
         await readService.DidNotReceive()
             .GetVisibleGroupsAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task Handle_Anonymous_ReturnsPublicVisibleGroups()
+    {
+        var groups = new[]
+        {
+            new GroupSummaryDto(
+                Guid.NewGuid(),
+                new Dictionary<string, string> { ["en"] = "Public group" },
+                null,
+                null,
+                AccessType.Public,
+                IsChurch: false,
+                IsClosed: false)
+        };
+        var readService = Substitute.For<IGroupReadService>();
+        var authorizationService = Substitute.For<IGroupAuthorizationService>();
+        readService.GetVisibleGroupsAsync(null, Arg.Any<CancellationToken>())
+            .Returns(groups);
+        var handler = new GetVisibleGroupsQueryHandler(readService, authorizationService);
+
+        var result = await handler.Handle(new GetVisibleGroupsQuery(null), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(groups, result.Value);
+        await authorizationService.DidNotReceive()
+            .IsRegisteredMemberAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ReadService_Anonymous_IncludesRootChurchAndExcludesPrivateAndClosedGroups()
+    {
+        var churchId = Guid.NewGuid();
+        var publicId = Guid.NewGuid();
+        var protectedId = Guid.NewGuid();
+        var privateId = Guid.NewGuid();
+        var closedId = Guid.NewGuid();
+        await using var dbContext = CreateDbContext();
+        dbContext.Groups.AddRange(
+            CreateGroup(churchId, "Root church", AccessType.Protected, isChurch: true),
+            CreateGroup(publicId, "Public child", AccessType.Public, parentGroupId: churchId),
+            CreateGroup(protectedId, "Protected child", AccessType.Protected, parentGroupId: churchId),
+            CreateGroup(privateId, "Private child", AccessType.Private, parentGroupId: churchId),
+            CreateGroup(closedId, "Closed child", AccessType.Public, parentGroupId: churchId, isClosed: true));
+        await dbContext.SaveChangesAsync();
+        var readService = new GroupReadService(dbContext, hybridCache: null!);
+
+        var groups = await readService.GetVisibleGroupsAsync(null, CancellationToken.None);
+
+        Assert.Equal(
+            new[] { churchId, publicId, protectedId }.OrderBy(id => id),
+            groups.Select(group => group.Id).OrderBy(id => id));
+    }
+
+    private static AlifeDbContext CreateDbContext()
+    {
+        var options = new DbContextOptionsBuilder<AlifeDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        return new AlifeDbContext(options);
+    }
+
+    private static Group CreateGroup(
+        Guid id,
+        string name,
+        AccessType accessType,
+        Guid? parentGroupId = null,
+        bool isChurch = false,
+        bool isClosed = false) =>
+        new()
+        {
+            Id = id,
+            NameJson = $"{{\"en\":\"{name}\"}}",
+            DescriptionJson = "{}",
+            ParentGroupId = parentGroupId,
+            AccessType = accessType,
+            IsChurch = isChurch,
+            IsClosed = isClosed,
+            CreatedUtc = DateTime.UtcNow,
+            UpdatedUtc = DateTime.UtcNow
+        };
 }

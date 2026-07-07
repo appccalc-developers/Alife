@@ -4,4 +4,4 @@ using MediatR;
 
 namespace Alife.Application.Sermons.Queries.GetSermons;
 
-public sealed record GetSermonsQuery : IRequest<AppResult<IReadOnlyList<SermonDto>>>;
+public sealed record GetSermonsQuery(int Page, int PageSize) : IRequest<AppResult<PagedResult<SermonDto>>>;

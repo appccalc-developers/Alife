@@ -39,21 +39,22 @@ export const useShellNavigation = ({
 }: Args) => {
   const auth = useAuthStore()
   const isChinese = auth.language === 'zh'
+  const workspaceGroupId = contextualGroupId
 
   const pageItems = useMemo<ShellNavItem[]>(
-    () => currentGroupPages.map((page) => ({
+    () => workspaceGroupId ? currentGroupPages.map((page) => ({
       key: `page:${page.id}`,
       label: localizeText(page.title, auth.language) || translateUi(auth.language, 'untitledPage'),
       description: isChinese ? '小组页面' : 'Group page',
       to: '/groups',
       pageId: page.id,
       icon: <PageIcon />,
-      onClick: () => activeEntityService.setPage(page.id, contextualGroupId),
-    })),
-    [auth.language, contextualGroupId, currentGroupPages, isChinese],
+      onClick: () => activeEntityService.setPage(page.id, workspaceGroupId),
+    })) : [],
+    [auth.language, currentGroupPages, isChinese, workspaceGroupId],
   )
 
-  const workspaceHome: ShellNavItem[] = contextualGroupId ? [
+  const workspaceHome: ShellNavItem[] = workspaceGroupId ? [
     {
       key: 'workspace:home',
       label: isChinese ? '小组总览' : 'Group overview',
@@ -61,18 +62,18 @@ export const useShellNavigation = ({
       to: '/groups',
       icon: <LayoutDashboard className="h-5 w-5" />,
       requireNoActivePage: true,
-      onClick: () => activeEntityService.setGroup(contextualGroupId, { clearPage: true }),
+      onClick: () => activeEntityService.setGroup(workspaceGroupId, { clearPage: true }),
     },
   ] : []
 
-  const eventItems: ShellNavItem[] = contextualGroupId && contextualEventId ? [
+  const eventItems: ShellNavItem[] = workspaceGroupId && contextualEventId ? [
     {
       key: 'event:notice',
       label: isChinese ? '活动通知' : 'Notice',
       description: isChinese ? '活动详情与发布内容' : 'Event details and published content',
       to: '/events',
       icon: <EventsIcon />,
-      onClick: () => activeEntityService.setEvent(contextualEventId, contextualGroupId),
+      onClick: () => activeEntityService.setEvent(contextualEventId, workspaceGroupId),
     },
     {
       key: 'event:enrollments',
@@ -81,7 +82,7 @@ export const useShellNavigation = ({
       to: '/events?section=enrollments',
       matchSearch: '?section=enrollments',
       icon: <EnrollmentIcon />,
-      onClick: () => activeEntityService.setEvent(contextualEventId, contextualGroupId),
+      onClick: () => activeEntityService.setEvent(contextualEventId, workspaceGroupId),
     },
     {
       key: 'event:memories',
@@ -90,13 +91,13 @@ export const useShellNavigation = ({
       to: '/events?section=memories',
       matchSearch: '?section=memories',
       icon: <MemoriesIcon />,
-      onClick: () => activeEntityService.setEvent(contextualEventId, contextualGroupId),
+      onClick: () => activeEntityService.setEvent(contextualEventId, workspaceGroupId),
     },
   ] : []
 
   const contextualItems = eventDetailScreen ? eventItems : []
   const workspaceItems = [...workspaceHome, ...pageItems, ...contextualItems]
-  const workspaceVisible = Boolean(contextualGroupId) && workspaceEnabled
+  const workspaceVisible = Boolean(workspaceGroupId) && workspaceEnabled
 
   const adminPlatformItems: ShellNavItem[] = !auth.loading && (auth.isAdmin || auth.hasAdminPermission(adminPermissions.access))
     ? [

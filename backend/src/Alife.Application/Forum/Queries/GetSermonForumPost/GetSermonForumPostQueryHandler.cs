@@ -5,15 +5,15 @@ using Alife.Application.Forum.Services;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
-namespace Alife.Application.Forum.Queries.GetForumPost;
+namespace Alife.Application.Forum.Queries.GetSermonForumPost;
 
-public sealed class GetForumPostQueryHandler(
+public sealed class GetSermonForumPostQueryHandler(
 	IAlifeDbContext dbContext,
 	IForumAuthorizationService forumAuthorizationService)
-	: IRequestHandler<GetForumPostQuery, AppResult<ForumPostDetailDto>>
+	: IRequestHandler<GetSermonForumPostQuery, AppResult<ForumPostDetailDto>>
 {
 	public async Task<AppResult<ForumPostDetailDto>> Handle(
-		GetForumPostQuery request,
+		GetSermonForumPostQuery request,
 		CancellationToken cancellationToken)
 	{
 		var post = await dbContext.ForumPosts
@@ -21,27 +21,25 @@ public sealed class GetForumPostQueryHandler(
 			.IgnoreQueryFilters()
 			.Include(x => x.AuthorMember)
 			.Include(x => x.Sermon)
-			.FirstOrDefaultAsync(x => x.Id == request.PostId && x.DeletedUtc == null, cancellationToken);
+			.FirstOrDefaultAsync(x => x.SermonId == request.SermonId && x.DeletedUtc == null, cancellationToken);
 
 		if (post is null)
 		{
-			return AppResult<ForumPostDetailDto>.NotFound("Forum post not found.");
+			return AppResult<ForumPostDetailDto>.NotFound("Sermon forum post not found.");
 		}
 
 		if (!await forumAuthorizationService.CanReadPostAsync(post, request.CurrentMemberId, cancellationToken))
 		{
-			return AppResult<ForumPostDetailDto>.Forbidden("You do not have permission to view this forum post.");
+			return AppResult<ForumPostDetailDto>.Forbidden("You do not have permission to view this sermon discussion.");
 		}
 
 		var canModerate = request.CurrentMemberId.HasValue &&
-			(post.GroupId.HasValue
-				? await forumAuthorizationService.CanModerateGroupForumAsync(post.GroupId.Value, request.CurrentMemberId.Value, cancellationToken)
-				: await forumAuthorizationService.CanModerateSiteForumAsync(request.CurrentMemberId.Value, cancellationToken));
+			await forumAuthorizationService.CanModerateSiteForumAsync(request.CurrentMemberId.Value, cancellationToken);
 
 		var commentsQuery = dbContext.ForumComments
 			.AsNoTracking()
 			.Include(x => x.AuthorMember)
-			.Where(x => x.PostId == request.PostId);
+			.Where(x => x.PostId == post.Id);
 
 		if (!canModerate)
 		{

@@ -66,23 +66,28 @@ public class GroupsController(
     }
 
     [HttpGet("visible")]
+    [AllowAnonymous]
     public async Task<IActionResult> GetVisible(CancellationToken cancellationToken)
     {
         var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
-        if (currentMemberId is null)
-        {
-            return Unauthorized();
-        }
 
         var result = await mediator.Send(
-            new GetVisibleGroupsQuery(currentMemberId.Value),
+            new GetVisibleGroupsQuery(currentMemberId),
             cancellationToken);
         if (!result.IsSuccess)
         {
             return this.ToActionResult(result);
         }
 
-        this.ApplyPrivateNoCacheHeaders();
+        if (currentMemberId is null)
+        {
+            this.ApplyPrivateNoCacheHeaders();
+        }
+        else
+        {
+            this.ApplyPrivateNoCacheHeaders();
+        }
+
         return this.ToActionResult(result);
     }
 
