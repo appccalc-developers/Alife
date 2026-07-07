@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowRightLeft, CalendarDays, CheckCircle2, Clock3, Crown, FileText, ListChecks, Network, Settings, ShieldCheck, UserPlus, UserMinus, UsersRound } from 'lucide-react'
+import { ArrowRightLeft, CalendarDays, Crown, FileText, Network, Settings, ShieldCheck, UserPlus, UserMinus, UsersRound } from 'lucide-react'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
 import AppEmptyState from '../components/layout/AppEmptyState'
@@ -38,10 +38,10 @@ const formatPlatformRole = (role: string | undefined | null, language: string) =
 
 type ManageSection = 'members' | 'events' | 'pages' | 'subgroups' | 'group'
 
-const manageSectionKeys: ManageSection[] = ['members', 'events', 'pages', 'subgroups', 'group']
+const manageSectionKeys: ManageSection[] = ['pages', 'members', 'events', 'subgroups', 'group']
 
 const normalizeManageSection = (value: string | null): ManageSection =>
-  manageSectionKeys.includes(value as ManageSection) ? value as ManageSection : 'members'
+  manageSectionKeys.includes(value as ManageSection) ? value as ManageSection : 'pages'
 
 const managementCopy = (language: string, isChurch?: boolean) => {
   const workspace = isChurch ? (language === 'zh' ? '教会' : 'Church') : (language === 'zh' ? '小组' : 'Group')
@@ -54,7 +54,7 @@ const managementCopy = (language: string, isChurch?: boolean) => {
       membersHint: '审批、邀请、角色和成员状态',
       events: '活动',
       eventsHint: '创建活动、维护报名和后续回顾',
-      pages: '内容',
+      pages: '页面',
       pagesHint: '发布页面和小组资料',
       subgroups: '下属小组',
       subgroupsHint: '管理小组结构和负责人',
@@ -68,20 +68,7 @@ const managementCopy = (language: string, isChurch?: boolean) => {
       totalEvents: '全部活动',
       pastEvents: '已结束',
       publishedPages: '页面',
-      commandCenter: '今日运营重点',
-      commandCenterHint: '先处理会影响成员体验和公开呈现的事项。',
-      taskQueue: '待办队列',
-      workflowHealth: '工作流状态',
-      pendingApprovalsTask: '处理加入申请',
-      pendingApprovalsHint: '有人正在等待进入小组生活。',
-      draftPagesTask: '检查草稿页面',
-      draftPagesHint: '草稿内容可继续编辑或安排发布。',
-      upcomingEventsTask: '维护近期活动',
-      upcomingEventsHint: '确认报名、时间和后续回顾安排。',
-      settingsTask: '检查小组资料',
-      profileReviewHint: '保持名称、简介、权限和带领人信息准确。',
-      allClear: '当前没有紧急待办。',
-      quickActions: '常用操作',
+      overview: '运营概览',
       inviteMember: '邀请成员',
       createEvent: '创建活动',
       addPage: '新建页面',
@@ -96,11 +83,11 @@ const managementCopy = (language: string, isChurch?: boolean) => {
       title: `${workspace} Operations`,
       subtitle: 'A focused workspace for people, events, content, and settings.',
       back: `Back to ${workspace.toLowerCase()}`,
-      members: 'People',
+      members: 'Members',
       membersHint: 'Approvals, invitations, roles, and member status',
       events: 'Events',
       eventsHint: 'Create events, manage enrollment, and capture memories',
-      pages: 'Content',
+      pages: 'Pages',
       pagesHint: 'Published pages and group resources',
       subgroups: 'Subgroups',
       subgroupsHint: 'Team structure and leaders',
@@ -114,20 +101,7 @@ const managementCopy = (language: string, isChurch?: boolean) => {
       totalEvents: 'Total events',
       pastEvents: 'Past events',
       publishedPages: 'Pages',
-      commandCenter: 'Today\'s operations focus',
-      commandCenterHint: 'Start with the items that affect member experience and public-facing content.',
-      taskQueue: 'Task queue',
-      workflowHealth: 'Workflow health',
-      pendingApprovalsTask: 'Review join requests',
-      pendingApprovalsHint: 'People are waiting to enter group life.',
-      draftPagesTask: 'Check draft pages',
-      draftPagesHint: 'Draft content can be edited or prepared for publishing.',
-      upcomingEventsTask: 'Maintain upcoming events',
-      upcomingEventsHint: 'Confirm enrollment, timing, and follow-up reflection.',
-      settingsTask: 'Review group profile',
-      profileReviewHint: 'Keep name, description, access rules, and leadership details accurate.',
-      allClear: 'No urgent tasks right now.',
-      quickActions: 'Quick actions',
+      overview: 'Operations overview',
       inviteMember: 'Invite people',
       createEvent: 'Create event',
       addPage: 'Add page',
@@ -140,160 +114,142 @@ const managementCopy = (language: string, isChurch?: boolean) => {
     }
 }
 
-const StatCard = ({ label, value, icon }: { label: string; value: number | string; icon: ReactNode }) => (
-  <div className="rounded-2xl border border-[#2f4b42]/10 bg-white/75 p-4 shadow-sm">
-    <div className="flex items-center justify-between gap-3">
-      <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#e3f0eb] text-[#176b5a]">{icon}</span>
-      <span className="text-2xl font-black text-[#18332d]">{value}</span>
-    </div>
-    <p className="mt-3 text-xs font-bold uppercase tracking-[0.16em] text-[#6e7c76]">{label}</p>
+type MetricListItem = {
+  label: string
+  value: number | string
+  icon: ReactNode
+}
+
+const MetricList = ({ items, ariaLabel }: { items: MetricListItem[]; ariaLabel: string }) => (
+  <div
+    className="overflow-hidden rounded-lg border border-[#2f4b42]/10 bg-white/75 shadow-sm"
+    role="list"
+    aria-label={ariaLabel}
+  >
+    {items.map((item, index) => (
+      <div
+        key={`${item.label}-${index}`}
+        className={[
+          'flex min-h-12 items-center justify-between gap-3 px-3 py-2.5',
+          index > 0 ? 'border-t border-[#2f4b42]/10' : '',
+        ].join(' ')}
+        role="listitem"
+      >
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#e3f0eb] text-[#176b5a]">
+            {item.icon}
+          </span>
+          <span className="truncate text-xs font-bold uppercase tracking-wide text-[#6e7c76]">{item.label}</span>
+        </div>
+        <span className="shrink-0 text-lg font-black tabular-nums text-[#18332d]">{item.value}</span>
+      </div>
+    ))}
   </div>
 )
 
-const ManagementTabs = ({
-  activeSection,
-  basePath,
-  copy,
-}: {
-  activeSection: ManageSection
-  basePath: string
-  copy: ReturnType<typeof managementCopy>
-}) => {
-  const items = [
-    { key: 'members' as ManageSection, label: copy.members, hint: copy.membersHint, icon: <UsersRound className="h-5 w-5" /> },
-    { key: 'events' as ManageSection, label: copy.events, hint: copy.eventsHint, icon: <CalendarDays className="h-5 w-5" /> },
-    { key: 'pages' as ManageSection, label: copy.pages, hint: copy.pagesHint, icon: <FileText className="h-5 w-5" /> },
-    { key: 'subgroups' as ManageSection, label: copy.subgroups, hint: copy.subgroupsHint, icon: <Network className="h-5 w-5" /> },
-    { key: 'group' as ManageSection, label: copy.settings, hint: copy.settingsHint, icon: <Settings className="h-5 w-5" /> },
-  ]
-
-  return (
-    <nav className="grid gap-3 md:grid-cols-2 xl:grid-cols-5" aria-label="Management sections">
-      {items.map((item) => {
-        const active = activeSection === item.key
-        return (
-          <Link
-            key={item.key}
-            to={`${basePath}?section=${item.key}`}
-            className={[
-              'rounded-2xl border p-4 transition hover:-translate-y-0.5 hover:shadow-md',
-              active
-                ? 'border-emerald-200 bg-emerald-50 text-emerald-950 shadow-[0_14px_34px_rgba(23,107,90,0.1)]'
-                : 'border-[#2f4b42]/10 bg-white/75 text-[#18332d] hover:bg-white',
-            ].join(' ')}
-          >
-            <span className={['flex h-10 w-10 items-center justify-center rounded-2xl', active ? 'bg-white text-emerald-700 shadow-sm' : 'bg-[#e3f0eb] text-[#176b5a]'].join(' ')}>
-              {item.icon}
-            </span>
-            <span className="mt-3 block text-sm font-black">{item.label}</span>
-            <span className={['mt-1 block text-xs leading-5', active ? 'text-emerald-700' : 'text-[#6e7c76]'].join(' ')}>{item.hint}</span>
-          </Link>
-        )
-      })}
-    </nav>
-  )
+type ManagementPanelShellProps = {
+  title?: string
+  subtitle?: string
+  action?: ReactNode
+  framed?: boolean
+  children: ReactNode
 }
 
-const ManagementCommandCenter = ({
-  basePath,
-  requestedCount,
-  draftPageCount,
-  upcomingEventCount,
-  copy,
-}: {
-  basePath: string
-  requestedCount: number
-  draftPageCount: number
-  upcomingEventCount: number
-  copy: ReturnType<typeof managementCopy>
-}) => {
-  const tasks = [
-    {
-      key: 'members' as ManageSection,
-      label: copy.pendingApprovalsTask,
-      hint: copy.pendingApprovalsHint,
-      count: requestedCount,
-      icon: <UserPlus className="h-4 w-4" />,
-      urgent: requestedCount > 0,
-    },
-    {
-      key: 'pages' as ManageSection,
-      label: copy.draftPagesTask,
-      hint: copy.draftPagesHint,
-      count: draftPageCount,
-      icon: <FileText className="h-4 w-4" />,
-      urgent: draftPageCount > 0,
-    },
-    {
-      key: 'events' as ManageSection,
-      label: copy.upcomingEventsTask,
-      hint: copy.upcomingEventsHint,
-      count: upcomingEventCount,
-      icon: <CalendarDays className="h-4 w-4" />,
-      urgent: upcomingEventCount > 0,
-    },
-    {
-      key: 'group' as ManageSection,
-      label: copy.settingsTask,
-      hint: copy.profileReviewHint,
-      count: 1,
-      icon: <Settings className="h-4 w-4" />,
-      urgent: false,
-    },
-  ]
-  const activeTaskCount = requestedCount + draftPageCount + upcomingEventCount
+const ManagementPanelHeader = ({ title, subtitle, action }: Pick<ManagementPanelShellProps, 'title' | 'subtitle' | 'action'>) => (
+  title || subtitle || action ? (
+    <header className="mb-4 flex flex-wrap items-start justify-between gap-3 border-b border-[#2f4b42]/10 pb-4">
+      <div className="min-w-0">
+        {title ? <h2 className="text-base font-black leading-tight text-[#18332d] sm:text-lg">{title}</h2> : null}
+        {subtitle ? <p className="mt-1 max-w-3xl text-sm leading-6 text-[#66766f]">{subtitle}</p> : null}
+      </div>
+      {action ? <div className="shrink-0">{action}</div> : null}
+    </header>
+  ) : null
+)
+
+const ManagementPanelShell = ({ title, subtitle, action, framed = true, children }: ManagementPanelShellProps) => {
+  if (framed) {
+    return (
+      <AppSectionCard dense title={title} subtitle={subtitle} action={action}>
+        {children}
+      </AppSectionCard>
+    )
+  }
 
   return (
-    <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
-      <AppSectionCard dense title={copy.commandCenter} subtitle={copy.commandCenterHint}>
-        <div className="grid gap-3 md:grid-cols-2">
-          {tasks.map((task) => (
-            <Link
-              key={task.key}
-              to={`${basePath}?section=${task.key}`}
-              className={[
-                'group flex min-h-[7.5rem] items-start gap-3 rounded-2xl border p-4 transition hover:-translate-y-0.5 hover:shadow-md',
-                task.urgent
-                  ? 'border-amber-200 bg-amber-50/70 text-amber-950'
-                  : 'border-[#2f4b42]/10 bg-white/72 text-[#18332d] hover:bg-white',
-              ].join(' ')}
-            >
-              <span className={[
-                'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
-                task.urgent ? 'bg-amber-100 text-amber-700' : 'bg-[#e3f0eb] text-[#176b5a]',
-              ].join(' ')}>
-                {task.icon}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="flex items-center justify-between gap-3">
-                  <span className="font-black">{task.label}</span>
-                  <span className="rounded-lg bg-white/78 px-2 py-1 text-xs font-black shadow-sm">{task.count}</span>
-                </span>
-                <span className="mt-1 block text-sm leading-6 text-[#66766f]">{task.hint}</span>
-              </span>
-            </Link>
-          ))}
-        </div>
-      </AppSectionCard>
-      <AppSectionCard dense title={copy.workflowHealth}>
-        <div className="space-y-3">
-          <div className="flex items-center justify-between rounded-2xl border border-[#2f4b42]/10 bg-white/72 p-4">
-            <div className="flex items-center gap-3">
-              <span className={['flex h-10 w-10 items-center justify-center rounded-xl', activeTaskCount > 0 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'].join(' ')}>
-                {activeTaskCount > 0 ? <Clock3 className="h-5 w-5" /> : <CheckCircle2 className="h-5 w-5" />}
-              </span>
-              <div>
-                <p className="text-sm font-black text-[#18332d]">{activeTaskCount > 0 ? copy.taskQueue : copy.allClear}</p>
-                <p className="text-xs font-semibold text-[#66766f]">{copy.pending}: {requestedCount} · {copy.publishedPages}: {draftPageCount} · {copy.upcomingEvents}: {upcomingEventCount}</p>
-              </div>
-            </div>
-            <ListChecks className="h-5 w-5 text-[#176b5a]" />
-          </div>
-        </div>
-      </AppSectionCard>
+    <section className="min-w-0">
+      <ManagementPanelHeader title={title} subtitle={subtitle} action={action} />
+      {children}
     </section>
   )
 }
+
+const ManagementTabs = ({
+  activeSection,
+  onSectionChange,
+  copy,
+}: {
+  activeSection: ManageSection
+  onSectionChange: (section: ManageSection) => void
+  copy: ReturnType<typeof managementCopy>
+}) => {
+  const items = [
+    { key: 'pages' as ManageSection, label: copy.pages, icon: <FileText className="h-4 w-4" /> },
+    { key: 'members' as ManageSection, label: copy.members, icon: <UsersRound className="h-4 w-4" /> },
+    { key: 'events' as ManageSection, label: copy.events, icon: <CalendarDays className="h-4 w-4" /> },
+    { key: 'subgroups' as ManageSection, label: copy.subgroups, icon: <Network className="h-4 w-4" /> },
+    { key: 'group' as ManageSection, label: copy.settings, icon: <Settings className="h-4 w-4" /> },
+  ]
+
+  return (
+    <div className="overflow-x-auto">
+      <nav className="flex min-w-max gap-1" aria-label="Management sections" role="tablist">
+        {items.map((item) => {
+          const active = activeSection === item.key
+          return (
+            <button
+              key={item.key}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => onSectionChange(item.key)}
+              className={[
+                'inline-flex min-h-10 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-black transition',
+                active
+                  ? 'bg-[#176b5a] text-white shadow-sm'
+                  : 'text-[#40554e] hover:bg-[#e3f0eb] hover:text-[#0d4f43]',
+              ].join(' ')}
+            >
+              {item.icon}
+              <span>{item.label}</span>
+            </button>
+          )
+        })}
+      </nav>
+    </div>
+  )
+}
+
+const ManagementTabCard = ({
+  activeSection,
+  onSectionChange,
+  copy,
+  children,
+}: {
+  activeSection: ManageSection
+  onSectionChange: (section: ManageSection) => void
+  copy: ReturnType<typeof managementCopy>
+  children: ReactNode
+}) => (
+  <section className="alife-panel overflow-hidden rounded-2xl p-0">
+    <div className="border-b border-[#2f4b42]/10 bg-white/50 px-3 py-2 sm:px-4">
+      <ManagementTabs activeSection={activeSection} onSectionChange={onSectionChange} copy={copy} />
+    </div>
+    <div className="p-4 sm:p-5">
+      {children}
+    </div>
+  </section>
+)
 
 type MembersPanelProps = {
   memberships: GroupMemberToolRow[]
@@ -303,6 +259,7 @@ type MembersPanelProps = {
   onRejectMember: (memberId: string) => void
   onKickMember: (memberId: string) => void
   onSetCoLeader: (memberId: string, isCoLeader: boolean) => void
+  framed?: boolean
 }
 
 const iconButtonClass = 'h-8 w-8 p-0'
@@ -311,9 +268,10 @@ type LeadershipPanelProps = {
   memberships: GroupMemberToolRow[]
   currentMemberId?: string
   onTransferLeadership: (memberId: string) => void
+  framed?: boolean
 }
 
-const LeadershipPanel = ({ memberships, currentMemberId, onTransferLeadership }: LeadershipPanelProps) => {
+const LeadershipPanel = ({ memberships, currentMemberId, onTransferLeadership, framed = true }: LeadershipPanelProps) => {
   const t = useUiText()
   const { language } = useAuthStore()
   const groupLeadLabel = language === 'zh' ? '组长' : 'Group lead'
@@ -327,8 +285,8 @@ const LeadershipPanel = ({ memberships, currentMemberId, onTransferLeadership }:
   const getDisplayName = (member: GroupMemberToolRow) => member.displayName || t('memberShort', { id: shortId(member.memberId) })
 
   return (
-    <AppSectionCard
-      dense
+    <ManagementPanelShell
+      framed={framed}
       title={groupLeadLabel}
       subtitle={t('leadershipPanelSubtitle')}
     >
@@ -381,11 +339,11 @@ const LeadershipPanel = ({ memberships, currentMemberId, onTransferLeadership }:
       ) : (
         <p className="mt-3 text-sm text-slate-500">{t('transferLeadershipHelp')}</p>
       )}
-    </AppSectionCard>
+    </ManagementPanelShell>
   )
 }
 
-const MembersPanel = ({ memberships, copy, onInviteMember, onApproveMember, onRejectMember, onKickMember, onSetCoLeader }: MembersPanelProps) => {
+const MembersPanel = ({ memberships, copy, onInviteMember, onApproveMember, onRejectMember, onKickMember, onSetCoLeader, framed = true }: MembersPanelProps) => {
   const t = useUiText()
   const auth = useAuthStore()
   const [roleTarget, setRoleTarget] = useState<GroupMemberToolRow | null>(null)
@@ -425,8 +383,8 @@ const MembersPanel = ({ memberships, copy, onInviteMember, onApproveMember, onRe
   }
 
   return (
-    <AppSectionCard
-      dense
+    <ManagementPanelShell
+      framed={framed}
       title={copy.members}
       subtitle={copy.membersHint}
       action={
@@ -436,10 +394,15 @@ const MembersPanel = ({ memberships, copy, onInviteMember, onApproveMember, onRe
         </AppActionButton>
       }
     >
-      <div className="mb-5 grid gap-3 sm:grid-cols-3">
-        <StatCard label={copy.pending} value={requestedMembers.length} icon={<UserPlus className="h-5 w-5" />} />
-        <StatCard label={copy.approved} value={approvedMembers.length} icon={<UsersRound className="h-5 w-5" />} />
-        <StatCard label={copy.inactive} value={inactiveMembers.length} icon={<UserMinus className="h-5 w-5" />} />
+      <div className="mb-5">
+        <MetricList
+          ariaLabel={copy.members}
+          items={[
+            { label: copy.pending, value: requestedMembers.length, icon: <UserPlus className="h-4 w-4" /> },
+            { label: copy.approved, value: approvedMembers.length, icon: <UsersRound className="h-4 w-4" /> },
+            { label: copy.inactive, value: inactiveMembers.length, icon: <UserMinus className="h-4 w-4" /> },
+          ]}
+        />
       </div>
 
       {memberships.length === 0 ? (
@@ -548,7 +511,7 @@ const MembersPanel = ({ memberships, copy, onInviteMember, onApproveMember, onRe
           ))
         )}
       </div>
-    </AppSectionCard>
+    </ManagementPanelShell>
   )
 }
 
@@ -559,6 +522,7 @@ type PagesPanelProps = {
   onAddPage: () => void
   onDeletePage: (pageId: string) => void
   onUpdatePageVisibility: (page: GroupPageDto, visibility: PageVisibility) => void
+  framed?: boolean
 }
 
 const pageVisibilityOptions: PageVisibility[] = ['draft', 'group', 'public']
@@ -571,13 +535,13 @@ const formatReviewDate = (value: string, language: string) => {
   }).format(new Date(value))
 }
 
-const PagesPanel = ({ groupId, language, pages, onAddPage, onDeletePage, onUpdatePageVisibility }: PagesPanelProps) => {
+const PagesPanel = ({ groupId, language, pages, onAddPage, onDeletePage, onUpdatePageVisibility, framed = true }: PagesPanelProps) => {
   const t = useUiText()
   const navigate = useNavigate()
 
   return (
-    <AppSectionCard
-      dense
+    <ManagementPanelShell
+      framed={framed}
       title={t('pages')}
       subtitle={t('pagesPanelSubtitle')}
       action={<AppActionButton variant="primary" onClick={onAddPage}>{t('addPage')}</AppActionButton>}
@@ -646,7 +610,7 @@ const PagesPanel = ({ groupId, language, pages, onAddPage, onDeletePage, onUpdat
           ))}
         </div>
       )}
-    </AppSectionCard>
+    </ManagementPanelShell>
   )
 }
 
@@ -655,9 +619,10 @@ type EventsPanelProps = {
   events: GroupEventRecord[]
   copy: ReturnType<typeof managementCopy>
   onDeleteEvent: (eventId: string) => void
+  framed?: boolean
 }
 
-const EventsPanel = ({ groupId, events, copy, onDeleteEvent }: EventsPanelProps) => {
+const EventsPanel = ({ groupId, events, copy, onDeleteEvent, framed = true }: EventsPanelProps) => {
   const navigate = useNavigate()
   const t = useUiText()
   const { language } = useAuthStore()
@@ -665,8 +630,8 @@ const EventsPanel = ({ groupId, events, copy, onDeleteEvent }: EventsPanelProps)
   const pastEvents = events.filter((event) => event.endDate && new Date(event.endDate).getTime() < Date.now())
 
   return (
-    <AppSectionCard
-      dense
+    <ManagementPanelShell
+      framed={framed}
       title={copy.events}
       subtitle={copy.eventsHint}
       action={<AppActionButton variant="primary" onClick={() => {
@@ -677,10 +642,15 @@ const EventsPanel = ({ groupId, events, copy, onDeleteEvent }: EventsPanelProps)
         {copy.createEvent}
       </AppActionButton>}
     >
-      <div className="mb-5 grid gap-3 sm:grid-cols-3">
-        <StatCard label={copy.totalEvents} value={events.length} icon={<CalendarDays className="h-5 w-5" />} />
-        <StatCard label={copy.upcomingEvents} value={upcomingEvents.length} icon={<CalendarDays className="h-5 w-5" />} />
-        <StatCard label={copy.pastEvents} value={pastEvents.length} icon={<CalendarDays className="h-5 w-5" />} />
+      <div className="mb-5">
+        <MetricList
+          ariaLabel={copy.events}
+          items={[
+            { label: copy.totalEvents, value: events.length, icon: <CalendarDays className="h-4 w-4" /> },
+            { label: copy.upcomingEvents, value: upcomingEvents.length, icon: <CalendarDays className="h-4 w-4" /> },
+            { label: copy.pastEvents, value: pastEvents.length, icon: <CalendarDays className="h-4 w-4" /> },
+          ]}
+        />
       </div>
 
       {events.length === 0 ? (
@@ -714,16 +684,17 @@ const EventsPanel = ({ groupId, events, copy, onDeleteEvent }: EventsPanelProps)
           })}
         </div>
       )}
-    </AppSectionCard>
+    </ManagementPanelShell>
   )
 }
 
 type ChurchOperationsPanelProps = {
   groupId: string
   onStatusMessage: (message: string) => void
+  framed?: boolean
 }
 
-const ChurchOperationsPanel = ({ groupId, onStatusMessage }: ChurchOperationsPanelProps) => {
+const ChurchOperationsPanel = ({ groupId, onStatusMessage, framed = true }: ChurchOperationsPanelProps) => {
   const t = useUiText()
   const [refreshingCache, setRefreshingCache] = useState(false)
   const [syncingSermons, setSyncingSermons] = useState(false)
@@ -753,7 +724,7 @@ const ChurchOperationsPanel = ({ groupId, onStatusMessage }: ChurchOperationsPan
   }
 
   return (
-    <AppSectionCard dense title={t('churchOperations')} subtitle={t('churchOperationsSubtitle')}>
+    <ManagementPanelShell framed={framed} title={t('churchOperations')} subtitle={t('churchOperationsSubtitle')}>
       <div className="flex flex-wrap gap-3">
         <AppActionButton
           variant="secondary"
@@ -774,7 +745,7 @@ const ChurchOperationsPanel = ({ groupId, onStatusMessage }: ChurchOperationsPan
           {syncingSermons ? t('syncing') : t('syncAzureSermonList')}
         </AppActionButton>
       </div>
-    </AppSectionCard>
+    </ManagementPanelShell>
   )
 }
 
@@ -818,14 +789,12 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
     deleteEvent,
   } = useGroupScreen(groupId, { loadEvents: true })
 
-  const activeSection = normalizeManageSection(searchParams.get('section'))
+  const [activeSection, setActiveSection] = useState<ManageSection>(() => normalizeManageSection(searchParams.get('section')))
   const copy = managementCopy(language, group?.isChurch)
   const workspacePath = '/groups'
-  const sectionBasePath = embeddedWorkspace ? workspacePath : `${workspacePath}/manage`
   const requestedCount = memberships.filter((member) => member.status === 'requested').length
   const approvedCount = memberships.filter((member) => member.status === 'approved').length
   const upcomingEventCount = events.filter((event) => !event.endDate || new Date(event.endDate).getTime() >= Date.now()).length
-  const draftPageCount = pages.filter((page) => page.visibility === 'draft').length
   const groupWorkspaceTarget = (_targetGroupId: string) =>
     embeddedWorkspace ? '/groups?section=group' : '/groups/manage?section=group'
   const unsavedGroupProfileMessage = t('groupProfileUnsavedChangesPrompt')
@@ -939,9 +908,9 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
   return (
     <AppPageShell>
       <div className="space-y-5">
-        <section className="overflow-hidden rounded-[2rem] border border-emerald-100 bg-gradient-to-br from-white via-emerald-50 to-[#fff4ea] px-6 py-7 text-[#18332d] shadow-[0_20px_55px_rgba(23,107,90,0.08)] sm:px-8">
-          <div className="flex flex-wrap items-start justify-between gap-5">
-            <div className="max-w-3xl">
+        <section className="overflow-hidden rounded-[2rem] border border-emerald-100 bg-gradient-to-br from-white via-emerald-50 to-[#fff4ea] px-6 py-6 text-[#18332d] shadow-[0_20px_55px_rgba(23,107,90,0.08)] sm:px-8">
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+            <div className="min-w-0">
               {!embeddedWorkspace ? (
                 <Link
                   to={workspacePath}
@@ -959,195 +928,168 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
               <h1 className="mt-2 text-3xl font-black tracking-[-0.04em] sm:text-4xl">{embeddedWorkspace ? (language === 'zh' ? '小组工作台' : 'Group Workspace') : copy.title}</h1>
               <p className="mt-3 text-sm leading-6 text-[#5f716a]">{embeddedWorkspace ? (language === 'zh' ? '成员、活动、内容和设置都在这里处理。' : 'People, events, content, and settings in one place.') : copy.subtitle}</p>
             </div>
-            {group ? (
-              <div className="flex flex-wrap gap-2">
-                <AccessTypeBadge accessType={group.accessType} />
-              </div>
-            ) : null}
+            <div className="space-y-3">
+              {group ? (
+                <div className="flex flex-wrap justify-start gap-2 lg:justify-end">
+                  <AccessTypeBadge accessType={group.accessType} />
+                </div>
+              ) : null}
+              <MetricList
+                ariaLabel={copy.overview}
+                items={[
+                  { label: copy.pending, value: requestedCount, icon: <UserPlus className="h-4 w-4" /> },
+                  { label: copy.approved, value: approvedCount, icon: <UsersRound className="h-4 w-4" /> },
+                  { label: copy.upcomingEvents, value: upcomingEventCount, icon: <CalendarDays className="h-4 w-4" /> },
+                  { label: copy.publishedPages, value: pages.length, icon: <FileText className="h-4 w-4" /> },
+                ]}
+              />
+            </div>
           </div>
         </section>
 
-        <div className="grid gap-3 md:grid-cols-4">
-          <StatCard label={copy.pending} value={requestedCount} icon={<UserPlus className="h-5 w-5" />} />
-          <StatCard label={copy.approved} value={approvedCount} icon={<UsersRound className="h-5 w-5" />} />
-          <StatCard label={copy.upcomingEvents} value={upcomingEventCount} icon={<CalendarDays className="h-5 w-5" />} />
-          <StatCard label={copy.publishedPages} value={pages.length} icon={<FileText className="h-5 w-5" />} />
-        </div>
-
-        <AppSectionCard dense title={copy.quickActions}>
-          <div className="flex flex-wrap gap-2">
-            <AppActionButton variant="primary" onClick={() => navigate('/groups/manage/invite-members')}>
-              <UserPlus size={16} aria-hidden="true" className="mr-1.5" />
-              {copy.inviteMember}
-            </AppActionButton>
-            <AppActionButton variant="secondary" onClick={() => {
-              activeEntityService.set({ groupId, eventId: '' })
-              navigate('/events/new')
-            }}>
-              <CalendarDays size={16} aria-hidden="true" className="mr-1.5" />
-              {copy.createEvent}
-            </AppActionButton>
-            <AppActionButton variant="secondary" onClick={() => {
-              activeEntityService.setGroup(groupId, { clearPage: true })
-              navigate('/pages/new')
-            }}>
-              <FileText size={16} aria-hidden="true" className="mr-1.5" />
-              {copy.addPage}
-            </AppActionButton>
-          </div>
-        </AppSectionCard>
-
-        <ManagementCommandCenter
-          basePath={sectionBasePath}
-          requestedCount={requestedCount}
-          draftPageCount={draftPageCount}
-          upcomingEventCount={upcomingEventCount}
-          copy={copy}
-        />
-
-        <ManagementTabs activeSection={activeSection} basePath={sectionBasePath} copy={copy} />
-      </div>
-
-      {loading ? (
-        <AppSectionCard dense>
-          <p className="text-sm text-slate-600">{t('loadingManagementWorkspace')}</p>
-        </AppSectionCard>
-      ) : null}
-
-      {!loading && error ? (
-        <AppSectionCard dense>
-          <p className="text-sm text-rose-700">{error}</p>
-        </AppSectionCard>
-      ) : null}
-
-      {!loading && !error && group ? (
-        <div className="space-y-6">
-          {statusMessage ? (
-            <AppSectionCard dense>
-              <p className="text-sm text-slate-600">{statusMessage}</p>
-            </AppSectionCard>
+        <ManagementTabCard activeSection={activeSection} onSectionChange={setActiveSection} copy={copy}>
+          {loading ? (
+            <p className="text-sm text-slate-600">{t('loadingManagementWorkspace')}</p>
           ) : null}
 
-          {activeSection === 'group' ? (
-            <>
-              <LeadershipPanel
-                memberships={memberships}
-                currentMemberId={auth.me?.id}
-                onTransferLeadership={(memberId) => {
-                  transferLeadership(memberId).catch(() => setStatusMessage(t('leadershipTransferFailed')))
-                }}
-              />
-              <GroupOverviewPanel
-                group={group}
-                saving={savingGroup}
-                onStatusMessage={setStatusMessage}
-                onDirtyChange={setHasUnsavedGroupProfileChanges}
-                onSave={async (payload) => {
-                  setSavingGroup(true)
-                  try {
-                    const updated = await updateGroup(payload)
-                    if (updated) {
-                      setCurrentGroup(updated)
-                      setStatusMessage(t(group.isChurch ? 'churchUpdated' : 'groupUpdated'))
-                    }
-                  } catch {
-                    setStatusMessage(t(group.isChurch ? 'updateChurchFailed' : 'updateGroupFailed'))
-                  } finally {
-                    setSavingGroup(false)
-                  }
-                }}
-              />
-            </>
+          {!loading && error ? (
+            <p className="text-sm text-rose-700">{error}</p>
           ) : null}
 
-          {activeSection === 'group' && group.isChurch ? (
-            <ChurchOperationsPanel groupId={groupId} onStatusMessage={setStatusMessage} />
-          ) : null}
-
-          {activeSection === 'subgroups' ? (
-            <AppSectionCard
-              dense
-              title={t('manageSubgroups')}
-              subtitle={t('manageSubgroupsPanelSubtitle')}
-              action={
-                <AppActionButton variant="primary" onClick={() => {
-                  handleCreateSubgroup().catch(() => setStatusMessage(t('manageAddSubgroupFailed')))
-                }}>
-                  {t('manageAddSubgroup')}
-                </AppActionButton>
-              }
-            >
-              {subgroups.length === 0 ? (
-                <p className="text-sm text-slate-500">{t('manageNoSubgroupsYet')}</p>
-              ) : (
-                <div className="space-y-2">
-                  {subgroups.map((subgroup) => (
-                    <div key={subgroup.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 p-3">
-                      <div>
-                        <p className="font-medium text-slate-950">{localizeText(subgroup.name, language)}</p>
-                        <AccessTypeBadge accessType={subgroup.accessType} />
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <AppActionButton size="sm" variant="secondary" onClick={() => {
-                          handleOpenSubgroup(subgroup.id).catch(() => setStatusMessage(t('manageClaimSubgroupCoLeaderFailed')))
-                        }}>{t('open')}</AppActionButton>
-                      </div>
-                    </div>
-                  ))}
+          {!loading && !error && group ? (
+            <div className="space-y-5">
+              {statusMessage ? (
+                <div className="rounded-lg border border-[#2f4b42]/10 bg-white/70 px-3 py-2 text-sm text-slate-600">
+                  {statusMessage}
                 </div>
-              )}
-            </AppSectionCard>
+              ) : null}
+
+              {activeSection === 'group' ? (
+                <div className="space-y-5">
+                  <LeadershipPanel
+                    framed={false}
+                    memberships={memberships}
+                    currentMemberId={auth.me?.id}
+                    onTransferLeadership={(memberId) => {
+                      transferLeadership(memberId).catch(() => setStatusMessage(t('leadershipTransferFailed')))
+                    }}
+                  />
+                  <GroupOverviewPanel
+                    framed={false}
+                    group={group}
+                    saving={savingGroup}
+                    onStatusMessage={setStatusMessage}
+                    onDirtyChange={setHasUnsavedGroupProfileChanges}
+                    onSave={async (payload) => {
+                      setSavingGroup(true)
+                      try {
+                        const updated = await updateGroup(payload)
+                        if (updated) {
+                          setCurrentGroup(updated)
+                          setStatusMessage(t(group.isChurch ? 'churchUpdated' : 'groupUpdated'))
+                        }
+                      } catch {
+                        setStatusMessage(t(group.isChurch ? 'updateChurchFailed' : 'updateGroupFailed'))
+                      } finally {
+                        setSavingGroup(false)
+                      }
+                    }}
+                  />
+                  {group.isChurch ? (
+                    <ChurchOperationsPanel framed={false} groupId={groupId} onStatusMessage={setStatusMessage} />
+                  ) : null}
+                </div>
+              ) : null}
+
+              {activeSection === 'subgroups' ? (
+                <ManagementPanelShell
+                  framed={false}
+                  title={t('manageSubgroups')}
+                  subtitle={t('manageSubgroupsPanelSubtitle')}
+                  action={
+                    <AppActionButton variant="primary" onClick={() => {
+                      handleCreateSubgroup().catch(() => setStatusMessage(t('manageAddSubgroupFailed')))
+                    }}>
+                      {t('manageAddSubgroup')}
+                    </AppActionButton>
+                  }
+                >
+                  {subgroups.length === 0 ? (
+                    <p className="text-sm text-slate-500">{t('manageNoSubgroupsYet')}</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {subgroups.map((subgroup) => (
+                        <div key={subgroup.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 p-3">
+                          <div>
+                            <p className="font-medium text-slate-950">{localizeText(subgroup.name, language)}</p>
+                            <AccessTypeBadge accessType={subgroup.accessType} />
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <AppActionButton size="sm" variant="secondary" onClick={() => {
+                              handleOpenSubgroup(subgroup.id).catch(() => setStatusMessage(t('manageClaimSubgroupCoLeaderFailed')))
+                            }}>{t('open')}</AppActionButton>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </ManagementPanelShell>
+              ) : null}
+
+              {activeSection === 'members' ? (
+                <MembersPanel
+                  framed={false}
+                  memberships={memberships}
+                  copy={copy}
+                  onInviteMember={() => navigate('/groups/manage/invite-members')}
+                  onApproveMember={(memberId) => approveMember(memberId).catch(() => setStatusMessage(t('approveFailed')))}
+                  onRejectMember={(memberId) => rejectMember(memberId).catch(() => setStatusMessage(t('rejectFailed')))}
+                  onKickMember={(memberId) => {
+                    if (!window.confirm(t('removeMemberConfirm'))) return
+                    kickMember(memberId).catch(() => setStatusMessage(t('removeMemberFailed')))
+                  }}
+                  onSetCoLeader={(memberId, isCoLeader) => setCoLeader(memberId, isCoLeader).catch(() => setStatusMessage(t('updateCoLeaderFailed')))}
+                />
+              ) : null}
+
+              {activeSection === 'pages' ? (
+                <PagesPanel
+                  framed={false}
+                  groupId={groupId}
+                  language={language}
+                  pages={pages}
+                  onAddPage={() => {
+                    activeEntityService.setGroup(groupId, { clearPage: true })
+                    navigate('/pages/new')
+                  }}
+                  onDeletePage={(pageId) => {
+                    if (!window.confirm(t('removePageConfirm'))) return
+                    deletePage(pageId).catch(() => setStatusMessage(t('removePageFailed')))
+                  }}
+                  onUpdatePageVisibility={(page, visibility) => updatePageVisibility(page, visibility).catch(() => setStatusMessage(t('updatePageVisibilityFailed')))}
+                />
+              ) : null}
+
+              {activeSection === 'events' ? (
+                <EventsPanel
+                  framed={false}
+                  groupId={groupId}
+                  events={events}
+                  copy={copy}
+                  onDeleteEvent={(eventId) => {
+                    if (!window.confirm(t('deleteEventConfirm'))) return
+                    deleteEvent(eventId).catch(() => setStatusMessage(t('deleteEventFailed')))
+                  }}
+                />
+              ) : null}
+            </div>
           ) : null}
 
-          {activeSection === 'members' ? (
-            <MembersPanel
-              memberships={memberships}
-              copy={copy}
-              onInviteMember={() => navigate('/groups/manage/invite-members')}
-              onApproveMember={(memberId) => approveMember(memberId).catch(() => setStatusMessage(t('approveFailed')))}
-              onRejectMember={(memberId) => rejectMember(memberId).catch(() => setStatusMessage(t('rejectFailed')))}
-              onKickMember={(memberId) => {
-                if (!window.confirm(t('removeMemberConfirm'))) return
-                kickMember(memberId).catch(() => setStatusMessage(t('removeMemberFailed')))
-              }}
-              onSetCoLeader={(memberId, isCoLeader) => setCoLeader(memberId, isCoLeader).catch(() => setStatusMessage(t('updateCoLeaderFailed')))}
-            />
+          {!loading && !error && !group ? (
+            <AppEmptyState title={t('groupNotFound')} description={t('groupNotFoundDescription')} />
           ) : null}
-
-          {activeSection === 'pages' ? (
-            <PagesPanel
-              groupId={groupId}
-              language={language}
-              pages={pages}
-              onAddPage={() => {
-                activeEntityService.setGroup(groupId, { clearPage: true })
-                navigate('/pages/new')
-              }}
-              onDeletePage={(pageId) => {
-                if (!window.confirm(t('removePageConfirm'))) return
-                deletePage(pageId).catch(() => setStatusMessage(t('removePageFailed')))
-              }}
-              onUpdatePageVisibility={(page, visibility) => updatePageVisibility(page, visibility).catch(() => setStatusMessage(t('updatePageVisibilityFailed')))}
-            />
-          ) : null}
-
-          {activeSection === 'events' ? (
-            <EventsPanel
-              groupId={groupId}
-              events={events}
-              copy={copy}
-              onDeleteEvent={(eventId) => {
-                if (!window.confirm(t('deleteEventConfirm'))) return
-                deleteEvent(eventId).catch(() => setStatusMessage(t('deleteEventFailed')))
-              }}
-            />
-          ) : null}
-        </div>
-      ) : null}
-
-      {!loading && !error && !group ? (
-        <AppEmptyState title={t('groupNotFound')} description={t('groupNotFoundDescription')} />
-      ) : null}
+        </ManagementTabCard>
+      </div>
     </AppPageShell>
   )
 }
