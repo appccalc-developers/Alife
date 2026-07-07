@@ -159,11 +159,28 @@ const WorkspaceShell = () => {
   )
 }
 
+type RouteLocation = {
+  pathname: string
+  search: string
+}
+
+const hasPublicPageMenuName = (search: string) =>
+  Boolean(new URLSearchParams(search).get('page')?.trim())
+
 const isPublicPagePath = (pathname: string) =>
   /^\/public\/pages\/[^/]+$/.test(pathname)
 
+const isPublicPageLocation = (location: RouteLocation) =>
+  isPublicPagePath(location.pathname) ||
+  (location.pathname === '/home' && hasPublicPageMenuName(location.search))
+
+const isHomeLocation = (location: RouteLocation) =>
+  location.pathname === '/' ||
+  (location.pathname === '/home' && !hasPublicPageMenuName(location.search))
+
 const isPublicBrowsePath = (pathname: string) =>
   pathname === '/' ||
+  pathname === '/home' ||
   pathname === '/groups' ||
   pathname === '/groups/select' ||
   /^\/groups\/[^/]+$/.test(pathname) ||
@@ -180,8 +197,8 @@ const PublicHomeShell = () => {
   const auth = useAuthStore()
   const location = useLocation()
   const [publicPages, setPublicPages] = useState<PageSummaryDto[]>([])
-  const isHome = location.pathname === '/'
-  const isPublicPage = isPublicPagePath(location.pathname)
+  const isPublicPage = isPublicPageLocation(location)
+  const isHome = isHomeLocation(location)
   const copy = getCopy(auth.language, '')
   const footerNavItems = useMemo(() => [
     { href: '/#about', label: copy.nav.about },
@@ -229,11 +246,11 @@ const AppShell = () => {
   const auth = useAuthStore()
   const location = useLocation()
 
-  if (location.pathname === '/') {
+  if (isHomeLocation(location)) {
     return <PublicHomeShell />
   }
 
-  return isPublicPagePath(location.pathname) || (auth.isGuest && isPublicBrowsePath(location.pathname)) ? <PublicHomeShell /> : <WorkspaceShell />
+  return isPublicPageLocation(location) || (auth.isGuest && isPublicBrowsePath(location.pathname)) ? <PublicHomeShell /> : <WorkspaceShell />
 }
 
 export default AppShell
