@@ -12,6 +12,7 @@ public interface IAlifeDbContext
     DbSet<MemberPlatformRole> MemberPlatformRoles { get; }
     DbSet<AuditLog> AuditLogs { get; }
     DbSet<Page> Pages { get; }
+    DbSet<PagePublicationReview> PagePublicationReviews { get; }
     DbSet<Section> Sections { get; }
     DbSet<Link> Links { get; }
     DbSet<FileStorageProvider> FileStorageProviders { get; }

@@ -566,22 +566,24 @@ test('global page promotion evicts global pages and old group pages caches', asy
     },
   }))
 
-  const promote = await dispatch(`https://ccalc.live/api/admin/pages/${pageId}/promote-global`, {
+  const approve = await dispatch(`https://ccalc.live/api/admin/pages/${pageId}/approve-global-review`, {
     method: 'POST',
+    body: JSON.stringify({ accessName: { en: 'Menu name', zh: '菜单名' } }),
     headers: {
+      'content-type': 'application/json',
       cookie: `alife_auth=${createJwtWithSub('reviewer-1')}`,
     },
   })
   await flushWaitUntil()
 
-  assert.equal(promote.status, 200)
+  assert.equal(approve.status, 200)
   assert.equal(cacheStore.has(cacheKey(new Request(globalUrl))), false)
   assert.equal(cacheStore.has(cacheKey(new Request(groupPagesUrl))), false)
   assert.equal(apiCacheStore.has(`group:${groupId}:pages`), false)
   assert.equal(apiCacheStore.has(`public:group:${groupId}:pages`), false)
 })
 
-test('page refusal evicts original group pages and global publication caches', async () => {
+test('page return evicts original group pages and global publication caches', async () => {
   const pageId = 'group-page-1'
   const groupId = 'group-1'
   const globalUrl = 'https://ccalc.live/api/pages/global'
@@ -601,7 +603,7 @@ test('page refusal evicts original group pages and global publication caches', a
     page: null,
   }))
 
-  const refusal = await dispatch(`https://ccalc.live/api/admin/pages/${pageId}/refuse-global-review`, {
+  const returned = await dispatch(`https://ccalc.live/api/admin/pages/${pageId}/return-global-review`, {
     method: 'POST',
     body: JSON.stringify({ reason: 'Needs bilingual content.' }),
     headers: {
@@ -611,7 +613,7 @@ test('page refusal evicts original group pages and global publication caches', a
   })
   await flushWaitUntil()
 
-  assert.equal(refusal.status, 200)
+  assert.equal(returned.status, 200)
   assert.equal(cacheStore.has(cacheKey(new Request(globalUrl))), false)
   assert.equal(cacheStore.has(cacheKey(new Request(publicUrl))), false)
   assert.equal(cacheStore.has(cacheKey(new Request(groupPagesUrl))), false)

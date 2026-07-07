@@ -1,4 +1,3 @@
-using Alife.Application.Admin;
 using Alife.Application.Pages.Dtos;
 using Alife.Application.Pages.Services;
 using Alife.Domain.Enums;
@@ -16,27 +15,23 @@ public sealed class PageReadService(AlifeDbContext dbContext, HybridCache hybrid
             PageCacheKeys.Global(),
             async token =>
             {
-                var pages = await dbContext.Pages
-                    .AsNoTracking()
-                    .Where(page =>
-                        page.Visibility == PageVisibility.Public &&
-                        (page.Scope == PageScope.Global ||
-                         (page.Scope == PageScope.Group &&
-                          page.OwnerGroupId != null &&
-                          dbContext.AuditLogs.Any(promote =>
-                              promote.Action == PageGlobalReviewActions.Promote &&
-                              promote.EntityType == "page" &&
-                              promote.EntityId == page.Id &&
-                              promote.OccurredUtc >= page.UpdatedUtc &&
-                              !dbContext.AuditLogs.Any(refusal =>
-                                  refusal.Action == PageGlobalReviewActions.Refuse &&
-                                  refusal.EntityType == "page" &&
-                                  refusal.EntityId == page.Id &&
-                                  refusal.OccurredUtc >= promote.OccurredUtc)))))
-                    .OrderBy(x => x.UpdatedUtc)
+                var pages = await (
+                    from page in dbContext.Pages.AsNoTracking()
+                    join review in dbContext.PagePublicationReviews.AsNoTracking()
+                        on page.Id equals review.PageId into reviews
+                    from review in reviews.DefaultIfEmpty()
+                    where page.Visibility == PageVisibility.Public &&
+                          (page.Scope == PageScope.Global ||
+                           (page.Scope == PageScope.Group &&
+                            review != null &&
+                            review.Status == PagePublicationReviewStatus.Approved))
+                    orderby page.UpdatedUtc
+                    select new { Page = page, Review = review })
                     .ToListAsync(token);
 
-                return (IReadOnlyList<PageDto>)pages.Select(ToDto).ToList();
+                return (IReadOnlyList<PageDto>)pages
+                    .Select(row => ToDto(row.Page, ReadNullableTextMap(row.Review?.AccessNameJson)))
+                    .ToList();
             },
             cancellationToken);
 
@@ -45,29 +40,23 @@ public sealed class PageReadService(AlifeDbContext dbContext, HybridCache hybrid
             PageCacheKeys.Public(),
             async token =>
             {
-                var pages = await dbContext.Pages
-                    .AsNoTracking()
-                    .Where(page =>
-                        page.Visibility == PageVisibility.Public &&
-                        (page.Scope == PageScope.Global ||
-                         (page.Scope == PageScope.Group && page.OwnerGroup != null && page.OwnerGroup.IsChurch) ||
-                         (page.Scope == PageScope.Group &&
-                          page.OwnerGroupId != null &&
-                          dbContext.AuditLogs.Any(promote =>
-                              promote.Action == PageGlobalReviewActions.Promote &&
-                              promote.EntityType == "page" &&
-                              promote.EntityId == page.Id &&
-                              promote.OccurredUtc >= page.UpdatedUtc &&
-                              !dbContext.AuditLogs.Any(refusal =>
-                                  refusal.Action == PageGlobalReviewActions.Refuse &&
-                                  refusal.EntityType == "page" &&
-                                  refusal.EntityId == page.Id &&
-                                  refusal.OccurredUtc >= promote.OccurredUtc)))))
-                    .OrderBy(x => x.UpdatedUtc)
-                    .ThenBy(x => x.Id)
+                var pages = await (
+                    from page in dbContext.Pages.AsNoTracking()
+                    join review in dbContext.PagePublicationReviews.AsNoTracking()
+                        on page.Id equals review.PageId into reviews
+                    from review in reviews.DefaultIfEmpty()
+                    where page.Visibility == PageVisibility.Public &&
+                          (page.Scope == PageScope.Global ||
+                           (page.Scope == PageScope.Group &&
+                            review != null &&
+                            review.Status == PagePublicationReviewStatus.Approved))
+                    orderby page.UpdatedUtc, page.Id
+                    select new { Page = page, Review = review })
                     .ToListAsync(token);
 
-                return (IReadOnlyList<PageDto>)pages.Select(ToDto).ToList();
+                return (IReadOnlyList<PageDto>)pages
+                    .Select(row => ToDto(row.Page, ReadNullableTextMap(row.Review?.AccessNameJson)))
+                    .ToList();
             },
             cancellationToken);
 
@@ -123,6 +112,9 @@ public sealed class PageReadService(AlifeDbContext dbContext, HybridCache hybrid
             cancellationToken);
 
     private static PageDto ToDto(Domain.Entities.Page page)
+        => ToDto(page, null);
+
+    private static PageDto ToDto(Domain.Entities.Page page, IReadOnlyDictionary<string, string>? accessName)
         => new(
             page.Id,
             page.Scope,
@@ -133,7 +125,25 @@ public sealed class PageReadService(AlifeDbContext dbContext, HybridCache hybrid
             page.TagsJson,
             page.TitleDisplayStyle,
             page.Visibility,
-            page.UpdatedUtc);
+            page.UpdatedUtc,
+            accessName);
+
+    private static IReadOnlyDictionary<string, string>? ReadNullableTextMap(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<Dictionary<string, string>>(value);
+        }
+        catch
+        {
+            return new Dictionary<string, string> { ["en"] = value };
+        }
+    }
 
     private static IReadOnlyDictionary<string, string> ReadTextMap(string? value)
     {

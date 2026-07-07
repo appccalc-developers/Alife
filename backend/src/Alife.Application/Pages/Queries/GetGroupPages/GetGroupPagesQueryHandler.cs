@@ -3,11 +3,9 @@ using Alife.Application.Common.Interfaces;
 using Alife.Application.Groups.Services;
 using Alife.Application.Pages.Dtos;
 using Alife.Application.Pages.Services;
-using Alife.Application.Admin;
 using Alife.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using System.Text.Json;
 
 namespace Alife.Application.Pages.Queries.GetGroupPages;
 
@@ -76,32 +74,28 @@ public sealed class GetGroupPagesQueryHandler(
             return pages;
         }
 
-        var updatedByPageId = pages.ToDictionary(page => page.Id, page => page.UpdatedUtc);
-        var pageIds = updatedByPageId.Keys.ToList();
+        var pageIds = pages.Select(page => page.Id).ToList();
 
         var refusalRows = await (
-            from log in dbContext.AuditLogs.AsNoTracking()
+            from review in dbContext.PagePublicationReviews.AsNoTracking()
             join actor in dbContext.Members.AsNoTracking()
-                on log.ActorMemberId equals actor.Id into actors
+                on review.ReviewedByMemberId equals actor.Id into actors
             from actor in actors.DefaultIfEmpty()
             where
-                log.Action == PageGlobalReviewActions.Refuse &&
-                log.EntityType == "page" &&
-                log.EntityId.HasValue &&
-                pageIds.Contains(log.EntityId.Value)
-            orderby log.OccurredUtc descending
+                review.Status == PagePublicationReviewStatus.Returned &&
+                pageIds.Contains(review.PageId)
+            orderby review.UpdatedUtc descending
             select new
             {
-                PageId = log.EntityId!.Value,
-                log.ActorMemberId,
+                review.PageId,
+                ActorMemberId = review.ReviewedByMemberId,
                 ReviewerDisplayName = actor == null ? null : actor.DisplayName,
-                log.OccurredUtc,
-                log.MetadataJson
+                RefusedUtc = review.ReviewedUtc ?? review.UpdatedUtc,
+                Reason = review.ReturnReason ?? string.Empty
             })
             .ToListAsync(cancellationToken);
 
         var refusalsByPageId = refusalRows
-            .Where(row => row.OccurredUtc >= updatedByPageId[row.PageId])
             .GroupBy(row => row.PageId)
             .ToDictionary(
                 group => group.Key,
@@ -111,8 +105,8 @@ public sealed class GetGroupPagesQueryHandler(
                     return new PageReviewRefusalDto(
                         refusal.ActorMemberId ?? Guid.Empty,
                         refusal.ReviewerDisplayName,
-                        refusal.OccurredUtc,
-                        ReadRefusalReason(refusal.MetadataJson));
+                        refusal.RefusedUtc,
+                        refusal.Reason);
                 });
 
         return pages
@@ -122,23 +116,4 @@ public sealed class GetGroupPagesQueryHandler(
             .ToList();
     }
 
-    private static string ReadRefusalReason(string? metadataJson)
-    {
-        if (string.IsNullOrWhiteSpace(metadataJson))
-        {
-            return string.Empty;
-        }
-
-        try
-        {
-            using var document = JsonDocument.Parse(metadataJson);
-            return document.RootElement.TryGetProperty("reason", out var reasonElement)
-                ? reasonElement.GetString() ?? string.Empty
-                : string.Empty;
-        }
-        catch (JsonException)
-        {
-            return string.Empty;
-        }
-    }
 }

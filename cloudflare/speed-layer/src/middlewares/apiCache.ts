@@ -540,7 +540,7 @@ export async function getInvalidationPaths(env: Env, request: Request, response:
     }
   }
 
-  const pagePromoteMatch = path.match(/^\/api\/admin\/pages\/([^/]+)\/promote-global$/)
+  const pagePromoteMatch = path.match(/^\/api\/admin\/pages\/([^/]+)\/(?:approve-global-review|promote-global)$/)
   if (pagePromoteMatch) {
     const promotedPageId = pagePromoteMatch[1]
     const body = await readJsonObject(response)
@@ -554,7 +554,7 @@ export async function getInvalidationPaths(env: Env, request: Request, response:
     }
   }
 
-  const pageRefuseMatch = path.match(/^\/api\/admin\/pages\/([^/]+)\/refuse-global-review$/)
+  const pageRefuseMatch = path.match(/^\/api\/admin\/pages\/([^/]+)\/(?:return-global-review|refuse-global-review)$/)
   if (pageRefuseMatch) {
     const refusedPageId = pageRefuseMatch[1]
     const body = await readJsonObject(response)
@@ -638,8 +638,8 @@ export function getInvalidationKeys(request: Request, targetMemberId = '') {
     authz: new Set<string>(),
   }
   const pageId = path.match(/^\/api\/pages\/([^/]+)(?:\/publish)?$/)?.[1] ??
-    path.match(/^\/api\/admin\/pages\/([^/]+)\/promote-global$/)?.[1] ??
-    path.match(/^\/api\/admin\/pages\/([^/]+)\/refuse-global-review$/)?.[1]
+    path.match(/^\/api\/admin\/pages\/([^/]+)\/(?:approve-global-review|promote-global)$/)?.[1] ??
+    path.match(/^\/api\/admin\/pages\/([^/]+)\/(?:return-global-review|refuse-global-review)$/)?.[1]
   if (pageId) {
     keys.api.add(createEntityGroupMapKey('page', pageId))
     keys.api.add(createPageMetaMapKey(pageId))

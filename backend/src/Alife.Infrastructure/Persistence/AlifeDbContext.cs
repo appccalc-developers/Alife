@@ -14,6 +14,7 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 	public DbSet<MemberPlatformRole> MemberPlatformRoles => Set<MemberPlatformRole>();
 	public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 	public DbSet<Page> Pages => Set<Page>();
+	public DbSet<PagePublicationReview> PagePublicationReviews => Set<PagePublicationReview>();
 	public DbSet<Section> Sections => Set<Section>();
 	public DbSet<Link> Links => Set<Link>();
 	public DbSet<FileStorageProvider> FileStorageProviders => Set<FileStorageProvider>();
@@ -161,6 +162,27 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 
 			cfg.HasIndex(x => new { x.Scope, x.OwnerGroupId, x.UpdatedUtc });
 			cfg.HasQueryFilter(x => !x.IsDeleted);
+		});
+
+		modelBuilder.Entity<PagePublicationReview>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.AccessNameJson).HasColumnType("nvarchar(max)");
+			cfg.Property(x => x.ReturnReason).HasMaxLength(1000);
+
+			cfg.HasOne(x => x.Page)
+				.WithMany()
+				.HasForeignKey(x => x.PageId)
+				.OnDelete(DeleteBehavior.Restrict);
+
+			cfg.HasOne(x => x.ReviewedByMember)
+				.WithMany()
+				.HasForeignKey(x => x.ReviewedByMemberId)
+				.OnDelete(DeleteBehavior.Restrict);
+
+			cfg.HasIndex(x => x.PageId).IsUnique();
+			cfg.HasIndex(x => new { x.Status, x.UpdatedUtc });
+			cfg.HasIndex(x => new { x.ReviewedByMemberId, x.ReviewedUtc });
 		});
 
 		modelBuilder.Entity<Section>(cfg =>

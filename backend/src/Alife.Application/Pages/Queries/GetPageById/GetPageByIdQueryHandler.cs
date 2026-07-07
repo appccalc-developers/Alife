@@ -1,4 +1,3 @@
-using Alife.Application.Admin;
 using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
 using Alife.Application.Groups.Services;
@@ -78,18 +77,11 @@ public sealed class GetPageByIdQueryHandler(
 
     private Task<bool> HasCurrentGlobalApprovalAsync(PageDetailDto page, CancellationToken cancellationToken)
     {
-        return dbContext.AuditLogs
+        return dbContext.PagePublicationReviews
             .AsNoTracking()
-            .AnyAsync(promote =>
-                promote.Action == PageGlobalReviewActions.Promote &&
-                promote.EntityType == "page" &&
-                promote.EntityId == page.Id &&
-                promote.OccurredUtc >= page.UpdatedUtc &&
-                !dbContext.AuditLogs.Any(refusal =>
-                    refusal.Action == PageGlobalReviewActions.Refuse &&
-                    refusal.EntityType == "page" &&
-                    refusal.EntityId == page.Id &&
-                    refusal.OccurredUtc >= promote.OccurredUtc),
+            .AnyAsync(review =>
+                review.PageId == page.Id &&
+                review.Status == PagePublicationReviewStatus.Approved,
                 cancellationToken);
     }
 }

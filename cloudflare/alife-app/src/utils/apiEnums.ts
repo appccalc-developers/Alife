@@ -118,6 +118,7 @@ export const normalizePageSummary = (page: PageSummaryDto): PageSummaryDto => ({
   ...page,
   visibility: normalizePageVisibility(page.visibility),
   scope: page.scope === undefined ? page.scope : normalizePageScope(page.scope),
+  accessName: page.accessName ? toLocalizedText(page.accessName) : page.accessName,
 })
 
 export const normalizeGroupMembership = (
