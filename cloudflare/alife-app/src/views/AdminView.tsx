@@ -49,7 +49,6 @@ const labels: Record<string, LocalText> = {
   memberVisitorCareLink: { en: 'Open visitor care records', zh: '查看访客接待记录' },
   sermonsDescription: { en: 'Run a manual sync from connected sermon sources.', zh: '从已连接来源手动同步讲道。' },
   homeDescription: { en: 'Keep the public home page fresh for visitors, seekers, and members.', zh: '维护面向访客、慕道朋友和成员的公共首页。' },
-  editHome: { en: 'Edit public home', zh: '编辑公共首页' },
   createDefaultHome: { en: 'Review submitted pages', zh: '审核提交页面' },
   refresh: { en: 'Refresh', zh: '刷新' },
   apply: { en: 'Apply', zh: '筛选' },
