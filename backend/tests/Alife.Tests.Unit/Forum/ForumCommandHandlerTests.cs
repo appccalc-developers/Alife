@@ -40,7 +40,8 @@ public class ForumCommandHandlerTests
 				GroupId: null,
 				new Dictionary<string, string> { ["zh"] = "代祷事项" },
 				new Dictionary<string, string> { ["zh"] = "请大家为周五团契祷告。" },
-				ForumPostVisibility.MembersOnly),
+				Media: null,
+				Visibility: ForumPostVisibility.MembersOnly),
 			CancellationToken.None);
 
 		Assert.True(result.IsSuccess);
@@ -65,7 +66,8 @@ public class ForumCommandHandlerTests
 				GroupId: null,
 				new Dictionary<string, string> { ["zh"] = " " },
 				new Dictionary<string, string> { ["en"] = "Body" },
-				ForumPostVisibility.MembersOnly),
+				Media: null,
+				Visibility: ForumPostVisibility.MembersOnly),
 			CancellationToken.None);
 
 		Assert.False(result.IsSuccess);
@@ -88,7 +90,8 @@ public class ForumCommandHandlerTests
 				GroupId: null,
 				new Dictionary<string, string> { ["en"] = "Title" },
 				new Dictionary<string, string> { ["en"] = "Body" },
-				ForumPostVisibility.MembersOnly),
+				Media: null,
+				Visibility: ForumPostVisibility.MembersOnly),
 			CancellationToken.None);
 
 		Assert.False(result.IsSuccess);
@@ -125,7 +128,9 @@ public class ForumCommandHandlerTests
 			new CreateForumCommentCommand(
 				postId,
 				memberId,
-				new Dictionary<string, string> { ["zh"] = "收到" }),
+				ParentCommentId: null,
+				Body: new Dictionary<string, string> { ["zh"] = "收到" },
+				Media: null),
 			CancellationToken.None);
 
 		Assert.False(result.IsSuccess);
