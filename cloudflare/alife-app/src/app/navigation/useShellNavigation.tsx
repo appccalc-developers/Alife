@@ -171,7 +171,7 @@ export const useShellNavigation = ({
       {
         key: 'app:page-review',
         label: isChinese ? '发布审核' : 'Page review',
-        description: isChinese ? '审核全局页面发布请求' : 'Review global publishing requests',
+        description: isChinese ? '审核公开页面发布请求' : 'Review public page publishing requests',
         to: '/admin/page-review',
         icon: <ClipboardCheck className="h-5 w-5" />,
       },

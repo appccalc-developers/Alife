@@ -68,7 +68,7 @@ const GroupDetailView = () => {
       statusMessage={statusMessage}
       onAddPage={() => {
         activeEntityService.setGroup(groupId, { clearPage: true })
-        navigate('/pages/new')
+        navigate(`/groups/${groupId}/pages/new`)
       }}
       onPageSaved={() => {
         refreshPages().catch(() => undefined)

@@ -55,11 +55,28 @@ public sealed class GetGroupPagesQueryHandler(
 
         if (group.IsChurch || group.AccessType == AccessType.Public)
         {
-            pages = pages
+            var publicPageIds = pages
                 .Where(x => x.Visibility == PageVisibility.Public)
+                .Select(x => x.Id)
                 .ToList();
 
-            return AppResult<IReadOnlyList<PageDto>>.Success(pages);
+            if (publicPageIds.Count == 0)
+            {
+                return AppResult<IReadOnlyList<PageDto>>.Success([]);
+            }
+
+            var approvedPageIds = await dbContext.PagePublicationReviews
+                .AsNoTracking()
+                .Where(x =>
+                    publicPageIds.Contains(x.PageId) &&
+                    x.Status == PagePublicationReviewStatus.Approved)
+                .Select(x => x.PageId)
+                .ToListAsync(cancellationToken);
+            var approved = approvedPageIds.ToHashSet();
+
+            return AppResult<IReadOnlyList<PageDto>>.Success(pages
+                .Where(x => approved.Contains(x.Id))
+                .ToList());
         }
 
         return AppResult<IReadOnlyList<PageDto>>.Forbidden("You do not have access to this group's pages.");

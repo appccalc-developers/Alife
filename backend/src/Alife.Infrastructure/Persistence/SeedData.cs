@@ -122,7 +122,6 @@ public static class SeedData
 			pages.Add(new Page
 			{
 				Id = homePageId,
-				Scope = PageScope.Group,
 				OwnerGroupId = group.Id,
 				CreatedByMemberId = adminId,
 				TitleJson = TextJson("Home", "主页"),
@@ -136,7 +135,6 @@ public static class SeedData
 			pages.Add(new Page
 			{
 				Id = eventsPageId,
-				Scope = PageScope.Group,
 				OwnerGroupId = group.Id,
 				CreatedByMemberId = adminId,
 				TitleJson = TextJson("Events", "活动"),
@@ -603,7 +601,6 @@ public static class SeedData
 		await dbContext.Pages.AddAsync(new Page
 		{
 			Id = pageId,
-			Scope = PageScope.Group,
 			OwnerGroupId = groupId,
 			CreatedByMemberId = adminId,
 			TitleJson = TextJson("Demo Home", "演示主页"),

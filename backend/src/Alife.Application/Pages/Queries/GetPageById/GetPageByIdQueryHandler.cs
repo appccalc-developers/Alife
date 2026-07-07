@@ -11,7 +11,6 @@ namespace Alife.Application.Pages.Queries.GetPageById;
 
 public sealed class GetPageByIdQueryHandler(
     IPageReadService pageReadService,
-    IGroupReadService groupReadService,
     IGroupAuthorizationService groupAuthorizationService,
     IAlifeDbContext dbContext)
     : IRequestHandler<GetPageByIdQuery, AppResult<PageDetailDto>>
@@ -24,28 +23,20 @@ public sealed class GetPageByIdQueryHandler(
             return AppResult<PageDetailDto>.NotFound("Page was not found.");
         }
 
-        if (page.Scope == PageScope.Global)
-        {
-            return AppResult<PageDetailDto>.Success(page);
-        }
-
-        if (page.OwnerGroupId is null)
-        {
-            return AppResult<PageDetailDto>.Validation("Group page owner missing.");
-        }
-
         var isApproved = request.CurrentMemberId.HasValue &&
             await groupAuthorizationService.IsApprovedMemberAsync(
-                page.OwnerGroupId.Value,
+                page.OwnerGroupId,
                 request.CurrentMemberId.Value,
                 cancellationToken);
 
+        var isCreator = request.CurrentMemberId.HasValue &&
+                        page.CreatedByMemberId == request.CurrentMemberId.Value;
+
         var isPrivileged = request.CurrentMemberId.HasValue &&
-                           (page.CreatedByMemberId == request.CurrentMemberId.Value ||
-                            await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
-                                page.OwnerGroupId.Value,
-                                request.CurrentMemberId.Value,
-                                cancellationToken));
+                           await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
+                               page.OwnerGroupId,
+                               request.CurrentMemberId.Value,
+                               cancellationToken);
 
         var canReviewPage = request.CurrentMemberId.HasValue &&
                             await groupAuthorizationService.CanReviewPagesAsync(
@@ -53,21 +44,16 @@ public sealed class GetPageByIdQueryHandler(
                                 cancellationToken);
 
         var canView = (isApproved && page.Visibility != PageVisibility.Draft) ||
+                      isCreator ||
                       isPrivileged ||
-                      canReviewPage;
+                      (canReviewPage && page.Visibility == PageVisibility.Public);
         if (canView)
         {
             return AppResult<PageDetailDto>.Success(page);
         }
 
         if (page.Visibility == PageVisibility.Public &&
-            await HasCurrentGlobalApprovalAsync(page, cancellationToken))
-        {
-            return AppResult<PageDetailDto>.Success(page);
-        }
-
-        var ownerGroup = await groupReadService.GetByIdAsync(page.OwnerGroupId.Value, cancellationToken);
-        if (ownerGroup?.IsChurch == true && page.Visibility == PageVisibility.Public)
+            await HasCurrentPublicationApprovalAsync(page, cancellationToken))
         {
             return AppResult<PageDetailDto>.Success(page);
         }
@@ -75,7 +61,7 @@ public sealed class GetPageByIdQueryHandler(
         return AppResult<PageDetailDto>.Forbidden("You do not have access to this page.");
     }
 
-    private Task<bool> HasCurrentGlobalApprovalAsync(PageDetailDto page, CancellationToken cancellationToken)
+    private Task<bool> HasCurrentPublicationApprovalAsync(PageDetailDto page, CancellationToken cancellationToken)
     {
         return dbContext.PagePublicationReviews
             .AsNoTracking()

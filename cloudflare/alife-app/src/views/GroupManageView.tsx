@@ -989,7 +989,7 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
             </AppActionButton>
             <AppActionButton variant="secondary" onClick={() => {
               activeEntityService.setGroup(groupId, { clearPage: true })
-              navigate('/pages/new')
+              navigate(`/groups/${groupId}/pages/new`)
             }}>
               <FileText size={16} aria-hidden="true" className="mr-1.5" />
               {copy.addPage}
@@ -1121,7 +1121,7 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
               pages={pages}
               onAddPage={() => {
                 activeEntityService.setGroup(groupId, { clearPage: true })
-                navigate('/pages/new')
+                navigate(`/groups/${groupId}/pages/new`)
               }}
               onDeletePage={(pageId) => {
                 if (!window.confirm(t('removePageConfirm'))) return

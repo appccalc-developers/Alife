@@ -30,7 +30,7 @@ const CACHE_STALE_IF_ERROR_SECONDS = 86400
 const AUTHZ_MIRROR_TTL_SECONDS = 7 * 24 * 60 * 60
 const MEMBER_PROFILE_CACHE_TTL_SECONDS = 86400
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
-const PUBLIC_CACHEABLE_API_PATHS = new Set(['/api/sermons', '/api/pages/global', '/api/pages/public'])
+const PUBLIC_CACHEABLE_API_PATHS = new Set(['/api/sermons', '/api/pages/public'])
 const GROUP_SHARED_CACHE_TTLS = {
   pages: CACHE_TTL_SECONDS,
   subgroups: CACHE_TTL_SECONDS,
@@ -531,7 +531,6 @@ export async function getInvalidationPaths(env: Env, request: Request, response:
   if (pageId) {
     paths.add(`/api/pages/${pageId}`)
     paths.add('/api/pages/public')
-    paths.add('/api/pages/global')
     const body = await readJsonObject(response)
 
     const ownerGroupId = readString(body?.ownerGroupId) ?? await readEntityGroup(env, 'page', pageId)
@@ -540,29 +539,27 @@ export async function getInvalidationPaths(env: Env, request: Request, response:
     }
   }
 
-  const pagePromoteMatch = path.match(/^\/api\/admin\/pages\/([^/]+)\/(?:approve-global-review|promote-global)$/)
-  if (pagePromoteMatch) {
-    const promotedPageId = pagePromoteMatch[1]
+  const pageApproveMatch = path.match(/^\/api\/admin\/pages\/([^/]+)\/publication-review\/approve$/)
+  if (pageApproveMatch) {
+    const approvedPageId = pageApproveMatch[1]
     const body = await readJsonObject(response)
-    paths.add(`/api/pages/${promotedPageId}`)
+    paths.add(`/api/pages/${approvedPageId}`)
     paths.add('/api/pages/public')
-    paths.add('/api/pages/global')
 
-    const previousOwnerGroupId = readString(body?.previousOwnerGroupId) ?? await readEntityGroup(env, 'page', promotedPageId)
-    if (previousOwnerGroupId) {
-      paths.add(`/api/groups/${previousOwnerGroupId}/pages`)
+    const ownerGroupId = readString(body?.ownerGroupId) ?? await readEntityGroup(env, 'page', approvedPageId)
+    if (ownerGroupId) {
+      paths.add(`/api/groups/${ownerGroupId}/pages`)
     }
   }
 
-  const pageRefuseMatch = path.match(/^\/api\/admin\/pages\/([^/]+)\/(?:return-global-review|refuse-global-review)$/)
-  if (pageRefuseMatch) {
-    const refusedPageId = pageRefuseMatch[1]
+  const pageReturnMatch = path.match(/^\/api\/admin\/pages\/([^/]+)\/publication-review\/return$/)
+  if (pageReturnMatch) {
+    const returnedPageId = pageReturnMatch[1]
     const body = await readJsonObject(response)
-    paths.add(`/api/pages/${refusedPageId}`)
+    paths.add(`/api/pages/${returnedPageId}`)
     paths.add('/api/pages/public')
-    paths.add('/api/pages/global')
 
-    const ownerGroupId = readString(body?.previousOwnerGroupId) ?? await readEntityGroup(env, 'page', refusedPageId)
+    const ownerGroupId = readString(body?.ownerGroupId) ?? await readEntityGroup(env, 'page', returnedPageId)
     if (ownerGroupId) {
       paths.add(`/api/groups/${ownerGroupId}/pages`)
     }
@@ -638,8 +635,8 @@ export function getInvalidationKeys(request: Request, targetMemberId = '') {
     authz: new Set<string>(),
   }
   const pageId = path.match(/^\/api\/pages\/([^/]+)(?:\/publish)?$/)?.[1] ??
-    path.match(/^\/api\/admin\/pages\/([^/]+)\/(?:approve-global-review|promote-global)$/)?.[1] ??
-    path.match(/^\/api\/admin\/pages\/([^/]+)\/(?:return-global-review|refuse-global-review)$/)?.[1]
+    path.match(/^\/api\/admin\/pages\/([^/]+)\/publication-review\/approve$/)?.[1] ??
+    path.match(/^\/api\/admin\/pages\/([^/]+)\/publication-review\/return$/)?.[1]
   if (pageId) {
     keys.api.add(createEntityGroupMapKey('page', pageId))
     keys.api.add(createPageMetaMapKey(pageId))

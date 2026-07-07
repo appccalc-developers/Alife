@@ -75,7 +75,7 @@ public class RefreshCloudflareCacheCommandHandlerTests
         await groupCache.Received(1).RemoveGroupAsync(groupId, Arg.Any<CancellationToken>());
         await groupCache.Received(1).RemoveSubgroupsAsync(groupId, Arg.Any<CancellationToken>());
         await groupCache.Received(1).RemoveMembershipsAsync(groupId, Arg.Any<CancellationToken>());
-        await pageCache.Received(1).RemoveGlobalAsync(Arg.Any<CancellationToken>());
+        await pageCache.Received(1).RemovePublicAsync(Arg.Any<CancellationToken>());
         await pageCache.Received(1).RemoveGroupPagesAsync(groupId, Arg.Any<CancellationToken>());
         await eventCache.Received(1).RemoveGroupEventsAsync(groupId, Arg.Any<CancellationToken>());
         await sermonCache.Received(1).RemoveAllAsync(Arg.Any<CancellationToken>());

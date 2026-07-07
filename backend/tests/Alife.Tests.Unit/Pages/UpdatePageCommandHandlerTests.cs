@@ -13,7 +13,7 @@ namespace Alife.Tests.Unit.Pages;
 public class UpdatePageCommandHandlerTests
 {
     [Fact]
-    public async Task Handle_WhenPageReviewerUpdatesGroupPage_ReturnsUpdatedPageDetail()
+    public async Task Handle_WhenPageReviewerUpdatesGroupPage_ReturnsForbidden()
     {
         using var dbContext = CreateInMemoryDbContext();
         var groupAuthorizationService = Substitute.For<IGroupAuthorizationService>();
@@ -24,7 +24,6 @@ public class UpdatePageCommandHandlerTests
         dbContext.Pages.Add(new Page
         {
             Id = pageId,
-            Scope = PageScope.Group,
             OwnerGroupId = groupId,
             CreatedByMemberId = Guid.NewGuid(),
             TitleJson = "{\"en\":\"Old title\",\"zh\":\"旧标题\"}",
@@ -35,9 +34,6 @@ public class UpdatePageCommandHandlerTests
             UpdatedUtc = DateTime.UtcNow.AddDays(-1)
         });
         await dbContext.SaveChangesAsync();
-        groupAuthorizationService
-            .CanReviewPagesAsync(reviewerId, Arg.Any<CancellationToken>())
-            .Returns(true);
         var handler = new UpdatePageCommandHandler(
             dbContext,
             groupAuthorizationService,
@@ -54,12 +50,71 @@ public class UpdatePageCommandHandlerTests
                 Array.Empty<PageSectionDto>()),
             CancellationToken.None);
 
+        Assert.False(result.IsSuccess);
+        Assert.Equal(Application.Common.Models.AppResultStatus.Forbidden, result.Status);
+        await pageCacheInvalidationService.DidNotReceive().RemoveDetailAsync(pageId, Arg.Any<CancellationToken>());
+        await pageCacheInvalidationService.DidNotReceive().RemoveGroupPagesAsync(groupId, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_WhenLeaderUpdatesPublicPage_ResetsPublicationReviewToPending()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var groupAuthorizationService = Substitute.For<IGroupAuthorizationService>();
+        var pageCacheInvalidationService = Substitute.For<IPageCacheInvalidationService>();
+        var leaderId = Guid.NewGuid();
+        var groupId = Guid.NewGuid();
+        var pageId = Guid.NewGuid();
+        dbContext.Pages.Add(new Page
+        {
+            Id = pageId,
+            OwnerGroupId = groupId,
+            CreatedByMemberId = Guid.NewGuid(),
+            TitleJson = "{\"en\":\"Old title\",\"zh\":\"旧标题\"}",
+            DescriptionJson = "{\"en\":\"Old description\",\"zh\":\"旧描述\"}",
+            TagsJson = "[]",
+            TitleDisplayStyle = "Default",
+            Visibility = PageVisibility.Public,
+            UpdatedUtc = DateTime.UtcNow.AddDays(-1)
+        });
+        dbContext.PagePublicationReviews.Add(new PagePublicationReview
+        {
+            Id = Guid.NewGuid(),
+            PageId = pageId,
+            Status = PagePublicationReviewStatus.Approved,
+            AccessNameJson = "{\"en\":\"Menu\",\"zh\":\"菜单\"}",
+            ReviewedByMemberId = Guid.NewGuid(),
+            ReviewedUtc = DateTime.UtcNow.AddDays(-1),
+            CreatedUtc = DateTime.UtcNow.AddDays(-1),
+            UpdatedUtc = DateTime.UtcNow.AddDays(-1)
+        });
+        await dbContext.SaveChangesAsync();
+        groupAuthorizationService
+            .IsLeaderOrCoLeaderAsync(groupId, leaderId, Arg.Any<CancellationToken>())
+            .Returns(true);
+        var handler = new UpdatePageCommandHandler(
+            dbContext,
+            groupAuthorizationService,
+            pageCacheInvalidationService);
+
+        var result = await handler.Handle(
+            new UpdatePageCommand(
+                pageId,
+                leaderId,
+                new Dictionary<string, string> { ["en"] = "Updated title", ["zh"] = "新标题" },
+                null,
+                "[]",
+                "Default",
+                Array.Empty<PageSectionDto>()),
+            CancellationToken.None);
+
         Assert.True(result.IsSuccess);
-        Assert.Equal("Reviewed title", result.Value!.Title["en"]);
-        Assert.Equal(PageVisibility.Draft, result.Value.Visibility);
+        var review = await dbContext.PagePublicationReviews.SingleAsync(x => x.PageId == pageId);
+        Assert.Equal(PagePublicationReviewStatus.Pending, review.Status);
+        Assert.Null(review.AccessNameJson);
+        Assert.Null(review.ReviewedByMemberId);
         await pageCacheInvalidationService.Received(1).RemoveDetailAsync(pageId, Arg.Any<CancellationToken>());
         await pageCacheInvalidationService.Received(1).RemoveGroupPagesAsync(groupId, Arg.Any<CancellationToken>());
-        await pageCacheInvalidationService.Received(1).RemoveGlobalAsync(Arg.Any<CancellationToken>());
     }
 
     private static AlifeDbContext CreateInMemoryDbContext()
