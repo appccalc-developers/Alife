@@ -14,12 +14,13 @@ type Props = {
   onSave?: (payload: { name: LocalizedText; description?: LocalizedText; accessType: GroupDto['accessType']; isClosed: boolean }) => Promise<void> | void
   onStatusMessage?: (message: string) => void
   onDirtyChange?: (hasUnsavedChanges: boolean) => void
+  framed?: boolean
 }
 
 const hasTextChanged = (current: LocalizedText, saved: LocalizedText) =>
   (current.en ?? '') !== (saved.en ?? '') || (current.zh ?? '') !== (saved.zh ?? '')
 
-const GroupOverviewPanel = ({ group, saving = false, onSave, onStatusMessage, onDirtyChange }: Props) => {
+const GroupOverviewPanel = ({ group, saving = false, onSave, onStatusMessage, onDirtyChange, framed = true }: Props) => {
   const t = useUiText()
   const [name, setName] = useState(() => toLocalizedText(group.name))
   const [description, setDescription] = useState(() => toLocalizedText(group.description))
@@ -112,8 +113,10 @@ const GroupOverviewPanel = ({ group, saving = false, onSave, onStatusMessage, on
     }
   }
 
-  return (
-  <AppSectionCard dense title={t(group.isChurch ? 'churchSettings' : 'groupSettings')} subtitle={t(group.isChurch ? 'churchOverviewSubtitle' : 'overviewSubtitle')}>
+  const title = t(group.isChurch ? 'churchSettings' : 'groupSettings')
+  const subtitle = t(group.isChurch ? 'churchOverviewSubtitle' : 'overviewSubtitle')
+  const content = (
+  <>
     <form className="grid gap-4" onSubmit={submit}>
       <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">
         <label>
@@ -215,7 +218,27 @@ const GroupOverviewPanel = ({ group, saving = false, onSave, onStatusMessage, on
         </section>
       </div>
     ) : null}
-  </AppSectionCard>
+  </>
+  )
+
+  if (!framed) {
+    return (
+      <section className="min-w-0">
+        <header className="mb-4 flex flex-wrap items-start justify-between gap-3 border-b border-[#2f4b42]/10 pb-4">
+          <div className="min-w-0">
+            <h2 className="text-base font-black leading-tight text-[#18332d] sm:text-lg">{title}</h2>
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-[#66766f]">{subtitle}</p>
+          </div>
+        </header>
+        {content}
+      </section>
+    )
+  }
+
+  return (
+    <AppSectionCard dense title={title} subtitle={subtitle}>
+      {content}
+    </AppSectionCard>
   )
 }
 

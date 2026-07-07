@@ -18,8 +18,6 @@ import { normalizeApiError } from '../services/http'
 import { aiTranslationService } from '../services/aiTranslationService'
 import { useUiText } from '../i18n/uiText'
 import { useAuthStore } from '../stores/auth'
-import { activeEntityService } from '../services/activeEntityService'
-import type { GroupDto, PageSummaryDto } from '../types'
 import type { MissingTranslatableField } from '../utils/bilingualValidation'
 import { Panel, FilterBar, SearchInput, SelectInput, FilterActions, Loading, Empty, Pill, Pager } from './admin/AdminUi'
 import { VisitRequestsSection } from './admin/VisitRequestsSection'
@@ -50,9 +48,8 @@ const labels: Record<string, LocalText> = {
   filesDescription: { en: 'Review registered uploads across the platform by visibility, purpose, and related record.', zh: '按可见范围、用途和关联对象查看全平台已登记上传文件。' },
   memberVisitorCareLink: { en: 'Open visitor care records', zh: '查看访客接待记录' },
   sermonsDescription: { en: 'Run a manual sync from connected sermon sources.', zh: '从已连接来源手动同步讲道。' },
-  homeDescription: { en: 'Keep the public home page fresh for visitors, seekers, and members.', zh: '维护面向访客、慕道朋友和成员的公共首页。' },
-  editHome: { en: 'Edit public home', zh: '编辑公共首页' },
-  createDefaultHome: { en: 'Create default home', zh: '新建默认首页' },
+  homeDescription: { en: 'Review group page submissions before they become public.', zh: '审核小组提交的页面，确认后再对外发布。' },
+  createDefaultHome: { en: 'Review submitted pages', zh: '审核提交页面' },
   refresh: { en: 'Refresh', zh: '刷新' },
   apply: { en: 'Apply', zh: '筛选' },
   reset: { en: 'Reset', zh: '重置' },
@@ -213,8 +210,6 @@ const labels: Record<string, LocalText> = {
   guestReviewHint: { en: 'Confirm whether guest records should become registered accounts.', zh: '确认访客记录是否需要转为注册账号。' },
   unreadMessagesTask: { en: 'Follow up unread messages', zh: '跟进未读消息' },
   unreadMessagesHint: { en: 'Messages may need pastoral or admin response.', zh: '消息可能需要牧养或管理回应。' },
-  homeWorkflowTask: { en: 'Public home workflow', zh: '公共首页工作流' },
-  homeWorkflowHint: { en: 'Keep visitor-facing content current.', zh: '保持面向访客的内容及时更新。' },
   noPlatformTasks: { en: 'No urgent platform tasks right now.', zh: '当前没有紧急平台待办。' },
   visitorName: { en: 'Visitor', zh: '访客' },
   submittedAt: { en: 'Submitted', zh: '提交时间' },
@@ -277,8 +272,6 @@ const AdminView = () => {
 
   const [roles, setRoles] = useState<AdminPlatformRoleDto[]>([])
   const [groups, setGroups] = useState<AdminGroupOptionDto[]>([])
-  const [churchGroup, setChurchGroup] = useState<GroupDto | null>(null)
-  const [churchPages, setChurchPages] = useState<PageSummaryDto[]>([])
   const [members, setMembers] = useState(emptyPage<AdminMemberDto>())
   const [logs, setLogs] = useState(emptyPage<AuditLogDto>())
   const [messages, setMessages] = useState(emptyPage<AdminNotificationDto>())
@@ -337,39 +330,13 @@ const AdminView = () => {
   const roleNamesValidation = roleForm.nameEn.trim() && roleForm.nameZh.trim() ? '' : l('roleNamesRequired')
   const canSubmitCreateRole = !creatingRole && !roleCodeValidation && !roleNamesValidation
 
-  const homePage = useMemo(() => {
-    const readTags = (page: PageSummaryDto) => {
-      try {
-        return JSON.parse(page.tagsJson || '[]') as string[]
-      } catch {
-        return []
-      }
-    }
-
-    return churchPages.find((page) => readTags(page).includes('home')) ??
-      churchPages.find((page) => {
-        const title = `${page.title?.en || ''} ${page.title?.zh || ''}`.toLowerCase()
-        return title.includes('home') || title.includes('homepage') || title.includes('首页') || title.includes('主页')
-      }) ??
-      null
-  }, [churchPages])
-
   const loadRolesAndGroups = useCallback(async () => {
-    const [nextRoles, nextGroups, nextChurchGroup] = await Promise.all([
+    const [nextRoles, nextGroups] = await Promise.all([
       groupService.getAdminPlatformRoles(),
       groupService.getAdminGroups({ pageSize: 100 }),
-      groupService.getChurch(),
     ])
-    let nextChurchPages: PageSummaryDto[] = []
-    try {
-      nextChurchPages = await groupService.getGroupPages(nextChurchGroup.id)
-    } catch {
-      nextChurchPages = []
-    }
     setRoles(nextRoles)
     setGroups(nextGroups.items)
-    setChurchGroup(nextChurchGroup)
-    setChurchPages(nextChurchPages)
   }, [])
 
   const loadUsers = useCallback(async (page = members.page) => {
@@ -686,7 +653,7 @@ const AdminView = () => {
         </div>
       ) : null}
 
-      {section === 'overview' ? <Overview l={l} users={members} logs={logs} messages={messages} homePage={homePage} churchGroup={churchGroup} syncing={syncing} syncSermons={syncSermons} goToLogsPage={(page) => loadLogs(page, overviewActivityPageSize)} language={language} /> : null}
+      {section === 'overview' ? <Overview l={l} users={members} logs={logs} messages={messages} syncing={syncing} syncSermons={syncSermons} goToLogsPage={(page) => loadLogs(page, overviewActivityPageSize)} language={language} /> : null}
       {section === 'users' ? <UsersSection l={l} loading={loading} page={members} filters={userFilters} setFilters={setUserFilters} roles={roleOptions} isSuperAdmin={isSuperAdmin} updatingMemberId={updatingMemberId} apply={() => loadUsers(1)} reset={() => { setUserFilters({ search: '', role: '', isRegistered: '' }); setTimeout(() => loadUsers(1).catch(() => undefined), 0) }} goToPage={loadUsers} updateMemberRoles={updateMemberRoles} language={language} currentMemberId={me?.id || ''} /> : null}
       {section === 'roles' ? <RolesSection l={l} roles={roleOptions} roleForm={roleForm} setRoleForm={setRoleForm} creatingRole={creatingRole} deletingRoleId={deletingRoleId} updatingRolePermissionId={updatingRolePermissionId} roleCodeValidation={roleCodeValidation} roleCodeFeedback={roleCodeFeedback} canSubmitCreateRole={canSubmitCreateRole} createRole={createRole} deleteRole={deleteRole} updateRolePermissions={updateRolePermissions} language={language} /> : null}
       {section === 'logs' ? <LogsSection l={l} loading={loading} page={logs} filters={logFilters} setFilters={setLogFilters} apply={() => loadLogs(1, 25)} goToPage={(page) => loadLogs(page, 25)} language={language} /> : null}
@@ -697,13 +664,11 @@ const AdminView = () => {
   )
 }
 
-const Overview = ({ l, users, logs, messages, homePage, churchGroup, syncing, syncSermons, goToLogsPage, language }: {
+const Overview = ({ l, users, logs, messages, syncing, syncSermons, goToLogsPage, language }: {
   l: LabelFn
   users: AdminPagedResultDto<AdminMemberDto>
   logs: AdminPagedResultDto<AuditLogDto>
   messages: AdminPagedResultDto<AdminNotificationDto>
-  homePage: PageSummaryDto | null
-  churchGroup: GroupDto | null
   syncing: boolean
   syncSermons: () => Promise<void>
   goToLogsPage: (page: number) => Promise<void>
@@ -742,21 +707,14 @@ const Overview = ({ l, users, logs, messages, homePage, churchGroup, syncing, sy
             />
             <div className="grid gap-3 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.9fr)]">
               <Link
-                to={homePage ? '/pages/edit' : churchGroup ? `/groups/${churchGroup.id}/pages/new?template=home` : '/admin'}
+                to="/admin/page-review"
                 className="flex min-h-[7rem] items-start justify-between gap-4 rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-4 transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md"
-                onClick={() => {
-                  if (homePage) {
-                    activeEntityService.setPage(homePage.id, homePage.ownerGroupId)
-                  } else if (churchGroup) {
-                    activeEntityService.setGroup(churchGroup.id, { clearPage: true })
-                  }
-                }}
               >
                 <span className="min-w-0">
                   <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-emerald-700 shadow-sm">
                     <Globe2 className="h-5 w-5" aria-hidden="true" />
                   </span>
-                  <span className="mt-4 block text-base font-black text-slate-950">{homePage ? l('editHome') : l('createDefaultHome')}</span>
+                  <span className="mt-4 block text-base font-black text-slate-950">{l('createDefaultHome')}</span>
                   <span className="mt-1 block text-sm leading-6 text-slate-600">{l('homeDescription')}</span>
                 </span>
                 <ChevronRight className="mt-1 h-5 w-5 shrink-0 text-emerald-700" aria-hidden="true" />
