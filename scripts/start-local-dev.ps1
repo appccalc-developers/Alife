@@ -55,6 +55,46 @@ function Wait-Port {
     throw "$Name did not start listening on port $Port within $TimeoutSeconds seconds."
 }
 
+function Stop-ProcessesListeningOnPort {
+    param(
+        [int]$Port,
+        [string]$Name,
+        [int]$TimeoutSeconds = 30
+    )
+
+    $processIds = @(
+        Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
+            Where-Object { $_.OwningProcess -gt 0 } |
+            Select-Object -ExpandProperty OwningProcess -Unique
+    )
+
+    if ($processIds.Count -eq 0) {
+        return
+    }
+
+    foreach ($processId in $processIds) {
+        $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
+        if ($null -eq $process) {
+            continue
+        }
+
+        Write-Host "Stopping existing $Name on port $Port. PID $processId ($($process.ProcessName))."
+        Stop-Process -Id $processId -Force -ErrorAction Stop
+    }
+
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    while ((Get-Date) -lt $deadline) {
+        if (-not (Test-PortListening -Port $Port)) {
+            Write-Host "$Name stopped on port $Port."
+            return
+        }
+
+        Start-Sleep -Seconds 1
+    }
+
+    throw "$Name did not stop listening on port $Port within $TimeoutSeconds seconds."
+}
+
 function Wait-DockerHealthy {
     param(
         [string]$ContainerName,
@@ -223,36 +263,33 @@ if ($ApplyMigrations) {
 }
 
 if (-not $SkipApi) {
-    if (Test-PortListening -Port 7071) {
-        Write-Host "Alife API is already listening on port 7071."
+    Stop-ProcessesListeningOnPort -Port 7071 -Name "Alife API"
+
+    $funcCommand = Get-Command func -ErrorAction SilentlyContinue
+    if ($null -eq $funcCommand) {
+        throw "Azure Functions Core Tools was not found. Install it before starting the API."
     }
-    else {
-        $funcCommand = Get-Command func -ErrorAction SilentlyContinue
-        if ($null -eq $funcCommand) {
-            throw "Azure Functions Core Tools was not found. Install it before starting the API."
-        }
 
-        $scheduledFunctionSetting = "AzureWebJobs.SermonSync.Disabled"
-        $previousScheduledFunctionSetting = [Environment]::GetEnvironmentVariable($scheduledFunctionSetting, "Process")
-        if (-not $EnableScheduledJobs) {
-            [Environment]::SetEnvironmentVariable($scheduledFunctionSetting, "true", "Process")
-        }
-
-        try {
-            Start-LoggedProcess `
-                -Name "Alife API" `
-                -FilePath $funcCommand.Source `
-                -ArgumentList @("start", "--port", "7071") `
-                -WorkingDirectory $apiRoot `
-                -OutLog (Join-Path $logRoot "api.log") `
-                -ErrLog (Join-Path $logRoot "api.err.log")
-        }
-        finally {
-            [Environment]::SetEnvironmentVariable($scheduledFunctionSetting, $previousScheduledFunctionSetting, "Process")
-        }
-
-        Wait-Port -Port 7071 -Name "Alife API" -TimeoutSeconds 120
+    $scheduledFunctionSetting = "AzureWebJobs.SermonSync.Disabled"
+    $previousScheduledFunctionSetting = [Environment]::GetEnvironmentVariable($scheduledFunctionSetting, "Process")
+    if (-not $EnableScheduledJobs) {
+        [Environment]::SetEnvironmentVariable($scheduledFunctionSetting, "true", "Process")
     }
+
+    try {
+        Start-LoggedProcess `
+            -Name "Alife API" `
+            -FilePath $funcCommand.Source `
+            -ArgumentList @("start", "--port", "7071") `
+            -WorkingDirectory $apiRoot `
+            -OutLog (Join-Path $logRoot "api.log") `
+            -ErrLog (Join-Path $logRoot "api.err.log")
+    }
+    finally {
+        [Environment]::SetEnvironmentVariable($scheduledFunctionSetting, $previousScheduledFunctionSetting, "Process")
+    }
+
+    Wait-Port -Port 7071 -Name "Alife API" -TimeoutSeconds 120
 }
 
 if (-not $SkipSpeedLayer) {
@@ -267,62 +304,56 @@ if (-not $SkipSpeedLayer) {
             -WorkingDirectory $frontendRoot
     }
 
-    if (Test-PortListening -Port 8787) {
-        Write-Host "Alife speed layer is already listening on port 8787."
-    }
-    else {
-        $npmCommand = Get-NpmCommand
-        $devVarsPath = Join-Path $speedLayerRoot ".dev.vars"
-        if (-not (Test-Path $devVarsPath)) {
-            Write-Warning "cloudflare/speed-layer/.dev.vars was not found. AI routes that require GEMINI_API_KEY may fail. Copy .dev.vars.example to .dev.vars and fill it in when needed."
-        }
+    Stop-ProcessesListeningOnPort -Port 8787 -Name "Alife speed layer"
 
-        Start-LoggedProcess `
-            -Name "Alife speed layer" `
-            -FilePath $npmCommand.Source `
-            -ArgumentList @(
-                "run", "dev", "--",
-                "--port", "8787",
-                "--persist-to", $wranglerStateRoot,
-                "--show-interactive-dev-session=false",
-                "--var", "API_PROXY_TARGET:http://127.0.0.1:7071",
-                "--var", "CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173,http://localhost:8787,http://127.0.0.1:8787"
-            ) `
-            -WorkingDirectory $speedLayerRoot `
-            -OutLog (Join-Path $logRoot "speed-layer.log") `
-            -ErrLog (Join-Path $logRoot "speed-layer.err.log")
-
-        Wait-Port -Port 8787 -Name "Alife speed layer" -TimeoutSeconds 120
+    $npmCommand = Get-NpmCommand
+    $devVarsPath = Join-Path $speedLayerRoot ".dev.vars"
+    if (-not (Test-Path $devVarsPath)) {
+        Write-Warning "cloudflare/speed-layer/.dev.vars was not found. AI routes that require GEMINI_API_KEY may fail. Copy .dev.vars.example to .dev.vars and fill it in when needed."
     }
+
+    Start-LoggedProcess `
+        -Name "Alife speed layer" `
+        -FilePath $npmCommand.Source `
+        -ArgumentList @(
+            "run", "dev", "--",
+            "--port", "8787",
+            "--persist-to", $wranglerStateRoot,
+            "--show-interactive-dev-session=false",
+            "--var", "API_PROXY_TARGET:http://127.0.0.1:7071",
+            "--var", "CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173,http://localhost:8787,http://127.0.0.1:8787"
+        ) `
+        -WorkingDirectory $speedLayerRoot `
+        -OutLog (Join-Path $logRoot "speed-layer.log") `
+        -ErrLog (Join-Path $logRoot "speed-layer.err.log")
+
+    Wait-Port -Port 8787 -Name "Alife speed layer" -TimeoutSeconds 120
 }
 
 if (-not $SkipFrontend) {
-    if (Test-PortListening -Port 5173) {
-        Write-Host "Alife frontend is already listening on port 5173."
-    }
-    else {
-        $npmCommand = Get-NpmCommand
+    Stop-ProcessesListeningOnPort -Port 5173 -Name "Alife frontend"
 
-        $previousApiProxyTarget = $env:API_PROXY_TARGET
-        $previousAiProxyTarget = $env:AI_PROXY_TARGET
-        $env:API_PROXY_TARGET = "http://127.0.0.1:7071"
-        $env:AI_PROXY_TARGET = "http://127.0.0.1:8787"
-        try {
-            Start-LoggedProcess `
-                -Name "Alife frontend" `
-                -FilePath $npmCommand.Source `
-                -ArgumentList @("run", "dev", "--", "--host", "127.0.0.1", "--port", "5173") `
-                -WorkingDirectory $frontendRoot `
-                -OutLog (Join-Path $logRoot "frontend.log") `
-                -ErrLog (Join-Path $logRoot "frontend.err.log")
-        }
-        finally {
-            $env:API_PROXY_TARGET = $previousApiProxyTarget
-            $env:AI_PROXY_TARGET = $previousAiProxyTarget
-        }
+    $npmCommand = Get-NpmCommand
 
-        Wait-Port -Port 5173 -Name "Alife frontend"
+    $previousApiProxyTarget = $env:API_PROXY_TARGET
+    $previousAiProxyTarget = $env:AI_PROXY_TARGET
+    $env:API_PROXY_TARGET = "http://127.0.0.1:7071"
+    $env:AI_PROXY_TARGET = "http://127.0.0.1:8787"
+    try {
+        Start-LoggedProcess `
+            -Name "Alife frontend" `
+            -FilePath $npmCommand.Source `
+            -ArgumentList @("run", "dev", "--", "--host", "127.0.0.1", "--port", "5173") `
+            -WorkingDirectory $frontendRoot `
+            -OutLog (Join-Path $logRoot "frontend.log") `
+            -ErrLog (Join-Path $logRoot "frontend.err.log")
     }
+    finally {
+        $env:API_PROXY_TARGET = $previousApiProxyTarget
+        $env:AI_PROXY_TARGET = $previousAiProxyTarget
+    }
+
+    Wait-Port -Port 5173 -Name "Alife frontend"
 }
 
 Write-Host ""
