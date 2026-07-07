@@ -10,7 +10,7 @@ import { localizeText } from '../../utils/localizedText'
 import { listViewContentDefaultsForSource, normalizeListViewSource } from '../../utils/sectionSourcePresets'
 import { defaultContactLocationMapEmbedUrl, defaultContactLocationMapUrl, defaultContactLocationStreetAddress } from '../../utils/contactLocation'
 import { DEFAULT_HERO_IMAGE, EditableText } from '../page-sections/sectionUtils'
-import { pageSectionShellClass } from '../page-sections/sectionPresets'
+import { pageSectionDividerClass, pageSectionShellClass } from '../page-sections/sectionPresets'
 
 type GroupLinkItem = {
   id: string
@@ -489,6 +489,13 @@ const PageContentRenderer = ({
 
   const addSection = (type: SectionType) => updateSections([...sections, createEmptyPageSection(type)])
 
+  const insertSection = (index: number, type: SectionType) => {
+    const nextSections = [...sections]
+    const targetIndex = Math.max(0, Math.min(index, nextSections.length))
+    nextSections.splice(targetIndex, 0, createEmptyPageSection(type))
+    updateSections(nextSections)
+  }
+
   const updateSection = (index: number, section: SectionEditModel) => {
     const nextSections = [...sections]
     nextSections[index] = section
@@ -520,8 +527,8 @@ const PageContentRenderer = ({
   const useFlatSectionRender = !editing && !showHeader && !framed
   const useFlatEditingChrome = editing && !showHeader && !framed
   const articleClassName = framed
-    ? 'w-full min-w-0 space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5'
-    : 'w-full min-w-0 space-y-4'
+    ? 'w-full min-w-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5'
+    : 'w-full min-w-0'
   if (useFlatSectionRender) {
     return (
       <>
@@ -536,7 +543,7 @@ const PageContentRenderer = ({
               pageId={pageId}
               domId={getPageSectionDomId(section, index)}
             />
-            {index < sections.length - 1 ? <hr className="mx-auto max-w-6xl border-t border-home-border/40" /> : null}
+            {index < sections.length - 1 ? <hr className={pageSectionDividerClass} /> : null}
           </Fragment>
         ))}
 
@@ -558,6 +565,7 @@ const PageContentRenderer = ({
         contextGroupId={contextGroupId}
         pageId={pageId}
         onAdd={addSection}
+        onInsert={insertSection}
         onUpdate={({ index, section }) => updateSection(index, section)}
         onRemove={removeSection}
         onMoveUp={(index) => moveSection(index, -1)}
@@ -598,30 +606,33 @@ const PageContentRenderer = ({
           contextGroupId={contextGroupId}
           pageId={pageId}
           onAdd={addSection}
+          onInsert={insertSection}
           onUpdate={({ index, section }) => updateSection(index, section)}
           onRemove={removeSection}
           onMoveUp={(index) => moveSection(index, -1)}
           onMoveDown={(index) => moveSection(index, 1)}
         />
       ) : (
-        <div className="space-y-4">
+        <>
           {sections.map((section, index) => (
-            <SectionBlock
-              key={section.id || `${section.order}-${section.type}`}
-              section={section}
-              mode="render"
-              page={page as GroupPageDto}
-              groupPageItems={groupPageItems}
-              contextGroupId={contextGroupId}
-              pageId={pageId}
-              domId={getPageSectionDomId(section, index)}
-            />
+            <Fragment key={section.id || `${section.order}-${section.type}`}>
+              <SectionBlock
+                section={section}
+                mode="render"
+                page={page as GroupPageDto}
+                groupPageItems={groupPageItems}
+                contextGroupId={contextGroupId}
+                pageId={pageId}
+                domId={getPageSectionDomId(section, index)}
+              />
+              {index < sections.length - 1 ? <hr className={pageSectionDividerClass} /> : null}
+            </Fragment>
           ))}
 
           {sections.length === 0 ? (
             <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">{t('noSectionsYet')}</div>
           ) : null}
-        </div>
+        </>
       )}
 
     </article>

@@ -13,7 +13,7 @@ type Props = {
 
 const PageEditorShell = ({ loading, error, main, sidebar }: Props) => {
   const t = useUiText()
-  const [inspectorOpen, setInspectorOpen] = useState(true)
+  const [inspectorOpen, setInspectorOpen] = useState(false)
 
   return (
   <AppPageShell fullBleed>
@@ -52,7 +52,7 @@ const PageEditorShell = ({ loading, error, main, sidebar }: Props) => {
                 aria-label={t('close')}
                 onClick={() => setInspectorOpen(false)}
               />
-              <aside className="pointer-events-auto fixed inset-x-0 bottom-0 flex max-h-[88vh] flex-col rounded-t-3xl border border-slate-200 bg-[#f8faf7] shadow-2xl desktop:inset-x-auto desktop:bottom-5 desktop:right-5 desktop:top-5 desktop:w-[27rem] desktop:rounded-3xl">
+              <aside className="pointer-events-auto fixed inset-x-0 bottom-0 flex max-h-[88vh] flex-col rounded-t-3xl border border-slate-200 bg-[#f8faf7] shadow-2xl desktop:inset-x-auto desktop:bottom-5 desktop:right-5 desktop:top-24 desktop:w-[27rem] desktop:rounded-3xl">
                 <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur">
                   <div className="min-w-0">
                     <p className="text-xs font-black uppercase tracking-[0.16em] text-[#176b5a]">

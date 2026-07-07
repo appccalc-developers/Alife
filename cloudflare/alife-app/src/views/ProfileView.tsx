@@ -151,23 +151,6 @@ const ProfileView = () => {
                 </span>
               </label>
 
-              <label className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <input
-                  type="checkbox"
-                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-500"
-                  checked={leaderUiPreferences.exercisePageEditing}
-                  onChange={(event) =>
-                    setLeaderUiPreferences((current) => ({
-                      ...current,
-                      exercisePageEditing: event.target.checked,
-                    }))
-                  }
-                />
-                <span>
-                  <span className="block text-sm font-medium text-slate-900">{t('exercisePageEditing')}</span>
-                  <span className="mt-1 block text-xs leading-5 text-slate-600">{t('exercisePageEditingHelp')}</span>
-                </span>
-              </label>
             </div>
           </AppSectionCard>
         </div>

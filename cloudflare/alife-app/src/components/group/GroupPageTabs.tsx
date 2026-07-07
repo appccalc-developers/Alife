@@ -330,6 +330,8 @@ const GroupPageTabs = ({
                 message={message}
                 validation={validation}
                 contextGroupId={activePage.ownerGroupId ?? activeModel.groupId}
+                showHeader={false}
+                framed={false}
                 onPageChange={updateActiveModel}
                 onSectionsChange={(sections) => updateActiveModel({ ...activeModel, sections })}
               />

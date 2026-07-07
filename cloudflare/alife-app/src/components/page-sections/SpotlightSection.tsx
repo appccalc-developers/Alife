@@ -20,7 +20,7 @@ import {
 } from './sectionUtils'
 import type { SectionComponentProps } from './types'
 import SectionHeader from './SectionHeader'
-import { pageSectionShellClass, sectionSpacingClass } from './sectionPresets'
+import { sectionSpacingClass } from './sectionPresets'
 import { spotlightHeaderForSource } from '../../utils/sectionSourcePresets'
 import type { SpotlightBinding, SpotlightDataSource } from '../../types'
 import type { SermonDto } from '../../services/sermonService'
@@ -321,21 +321,14 @@ const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, show
   const mediaPlaceholder = isDataBound
     ? t('noSourceItems', { source: resolveSpotlightSourceLabel(spotlightBinding, auth.language) })
     : t('noImageYet')
-  const renderMedia = (variant: SpotlightPresentation) => {
-    const mediaClassName = variant === 'visit'
-      ? 'absolute inset-0 h-full w-full object-cover'
-      : 'h-48 w-full object-cover sm:h-[240px] md:h-[300px]'
-    const placeholderClassName = variant === 'visit'
-      ? 'absolute inset-0 flex items-center justify-center bg-slate-100 px-6 text-center text-sm text-slate-500'
-      : 'flex aspect-video w-full items-center justify-center bg-slate-100 text-sm text-slate-500'
-
+  const renderMedia = () => {
     if (embedUrl) {
       return (
         <iframe
           src={embedUrl}
           referrerPolicy="strict-origin-when-cross-origin"
           title={title || t('sermonVideoPreview')}
-          className={variant === 'visit' ? 'absolute inset-0 h-full w-full' : 'aspect-video w-full'}
+          className="absolute inset-0 h-full w-full"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
         />
@@ -346,7 +339,7 @@ const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, show
       return (
         <video
           src={imageUrl}
-          className={mediaClassName}
+          className="absolute inset-0 h-full w-full object-cover"
           autoPlay
           muted
           loop
@@ -359,20 +352,20 @@ const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, show
     }
 
     return imageUrl ? (
-      <img src={imageUrl} alt="" className={mediaClassName} />
+      <img src={imageUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
     ) : (
-      <div className={placeholderClassName}>
+      <div className="absolute inset-0 flex items-center justify-center bg-slate-100 px-6 text-center text-sm text-slate-500">
         {mediaPlaceholder}
       </div>
     )
   }
 
-  const contentBody = isDataBound && spotlightLoading
-    ? <p className="mt-4 text-sm text-slate-500">{t('loadingPageSections')}</p>
+  const spotlightBody = isDataBound && spotlightLoading
+    ? <p className="mt-4 text-sm text-home-muted">{t('loadingPageSections')}</p>
     : isDataBound && spotlightError
       ? <p className="mt-4 text-sm text-red-600">{t('loadFailedWithMessage', { message: spotlightError.message })}</p>
       : isDataBound && !spotlightItem
-        ? <p className="mt-4 text-sm text-slate-500">{t('noSourceItems', { source: resolveSpotlightSourceLabel(spotlightBinding, auth.language) })}</p>
+        ? <p className="mt-4 text-sm text-home-muted">{mediaPlaceholder}</p>
         : (
           <EditableText
             as="p"
@@ -380,7 +373,7 @@ const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, show
             value={body}
             fallback={t('noHeroContentYet')}
             disabled={!editable || isDataBound}
-            className="mt-4 block whitespace-pre-wrap text-base leading-7 text-slate-700"
+            className="mt-4 block max-w-[45ch] whitespace-pre-wrap text-[0.94rem] leading-7 text-home-muted"
             onChange={(value) => updateLocalizedContent({ centerText: value, body: value, text: value })}
           />
         )
@@ -414,77 +407,11 @@ const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, show
       </a>
     )
   }
-
-  if (isVisitPresentation) {
-    const visitBody = isDataBound && spotlightLoading
-      ? <p className="mt-4 text-sm text-home-muted">{t('loadingPageSections')}</p>
-      : isDataBound && spotlightError
-        ? <p className="mt-4 text-sm text-red-600">{t('loadFailedWithMessage', { message: spotlightError.message })}</p>
-        : isDataBound && !spotlightItem
-          ? <p className="mt-4 text-sm text-home-muted">{mediaPlaceholder}</p>
-          : (
-            <EditableText
-              as="p"
-              multiline
-              value={body}
-              fallback={t('noHeroContentYet')}
-              disabled={!editable || isDataBound}
-              className="mt-4 block max-w-[45ch] whitespace-pre-wrap text-[0.94rem] leading-7 text-home-muted"
-              onChange={(value) => updateLocalizedContent({ centerText: value, body: value, text: value })}
-            />
-          )
-
-    return (
-      <section id={domId} className={`scroll-mt-24 px-5 sm:px-8 lg:px-10 ${sectionSpacingClass(section)}`}>
-        <div className="mx-auto grid max-w-6xl overflow-hidden rounded-2xl bg-white shadow-[0_12px_40px_rgba(30,18,10,0.08)] lg:grid-cols-[0.46fr_0.54fr]">
-          <div className={`relative min-h-[22rem] bg-slate-100 ${mediaPosition === 'right' ? 'lg:order-2' : 'lg:order-1'}`}>
-            {renderMedia('visit')}
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-home-dark/50 to-transparent" />
-          </div>
-          <div className={`flex items-center p-7 sm:p-10 lg:p-14 ${mediaPosition === 'right' ? 'lg:order-1' : 'lg:order-2'}`}>
-            <div>
-              {subtitle || mode === 'edit' ? (
-                <EditableText
-                  as="p"
-                  value={subtitle}
-                  fallback={mode === 'edit' ? t('previewNoSubtitle') : ''}
-                  disabled={!editable || isDataBound}
-                  className="mb-3 block text-sm font-semibold uppercase text-home-green"
-                  onChange={updateHeaderSubtitle}
-                />
-              ) : null}
-              <EditableText
-                as="h2"
-                value={title}
-                fallback={mode === 'edit' ? t('previewNoTitle') : ''}
-                disabled={!editable || isDataBound}
-                className="block text-3xl font-bold leading-tight text-home-gold-text sm:text-4xl"
-                onChange={updateHeaderTitle}
-              />
-              {visitBody}
-              {actions.length > 0 ? (
-                <div className="mt-6 flex flex-wrap gap-3">
-                  {actions.map((action, index) => renderActionLink(
-                    action,
-                    index,
-                    index === 0
-                      ? 'inline-flex min-h-11 items-center gap-2 rounded-lg bg-home-green px-5 text-sm font-semibold text-white transition hover:bg-home-green-hover'
-                      : 'inline-flex min-h-11 items-center gap-2 rounded-lg border border-home-border bg-white px-5 text-sm font-semibold text-home-gold-text transition hover:-translate-y-0.5 hover:border-home-green/35 hover:bg-[#fffaf0] focus:outline-none focus:ring-2 focus:ring-home-green/30',
-                    index === 0,
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </div>
-        {mode === 'edit' && showProperties ? renderProperties() : null}
-      </section>
-    )
-  }
+  const hasSectionHeader = Boolean(section.contentJson.header && typeof section.contentJson.header === 'object' && !Array.isArray(section.contentJson.header))
 
   return (
-    <section id={domId} className={pageSectionShellClass}>
-      <div className={`${sectionSpacingClass(section)} rounded-lg border border-slate-200 bg-white px-4`}>
+    <section id={domId} className={`scroll-mt-24 px-5 sm:px-8 lg:px-10 ${sectionSpacingClass(section)}`}>
+      {hasSectionHeader ? (
         <SectionHeader
           header={section.contentJson.header}
           titleFallback={title || (mode === 'edit' ? t('previewNoTitle') : '')}
@@ -494,25 +421,31 @@ const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, show
           onTitleChange={editable ? updateHeaderTitle : undefined}
           onSubtitleChange={editable ? updateHeaderSubtitle : undefined}
         />
-        <div className="grid gap-0 md:grid-cols-2 md:items-stretch">
-          <div className={`overflow-hidden bg-slate-100 ${mediaPosition === 'right' ? 'md:order-2' : 'md:order-1'}`}>
-            {renderMedia('spotlight')}
-          </div>
-          <div className={`flex flex-col justify-center p-5 sm:p-7 ${mediaPosition === 'right' ? 'md:order-1' : 'md:order-2'}`}>
-            {contentBody}
+      ) : null}
+      <div className="mx-auto grid max-w-6xl overflow-hidden rounded-2xl bg-white shadow-[0_12px_40px_rgba(30,18,10,0.08)] lg:grid-cols-[0.46fr_0.54fr]">
+        <div className={`relative min-h-[22rem] bg-slate-100 ${mediaPosition === 'right' ? 'lg:order-2' : 'lg:order-1'}`}>
+          {renderMedia()}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-home-dark/50 to-transparent" />
+        </div>
+        <div className={`flex items-center p-7 sm:p-10 lg:p-14 ${mediaPosition === 'right' ? 'lg:order-1' : 'lg:order-2'}`}>
+          <div>
+            {spotlightBody}
             {actions.length > 0 ? (
-              <div className="mt-5 flex flex-wrap gap-3">
+              <div className="mt-6 flex flex-wrap gap-3">
                 {actions.map((action, index) => renderActionLink(
                   action,
                   index,
-                  'inline-flex w-fit rounded bg-red-500 px-5 py-2 text-sm font-medium text-white shadow hover:bg-red-400',
+                  index === 0
+                    ? 'inline-flex min-h-11 items-center gap-2 rounded-lg bg-home-green px-5 text-sm font-semibold text-white transition hover:bg-home-green-hover'
+                    : 'inline-flex min-h-11 items-center gap-2 rounded-lg border border-home-border bg-white px-5 text-sm font-semibold text-home-gold-text transition hover:-translate-y-0.5 hover:border-home-green/35 hover:bg-[#fffaf0] focus:outline-none focus:ring-2 focus:ring-home-green/30',
+                  index === 0,
                 ))}
               </div>
             ) : null}
           </div>
         </div>
-        {mode === 'edit' && showProperties ? renderProperties() : null}
       </div>
+      {mode === 'edit' && showProperties ? renderProperties() : null}
     </section>
   )
 }

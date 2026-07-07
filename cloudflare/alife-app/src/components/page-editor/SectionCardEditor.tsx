@@ -9,6 +9,7 @@ import {
   MapPin,
   Megaphone,
   MoveVertical,
+  PlusCircle,
   Settings2,
   Sparkles,
   Type,
@@ -35,6 +36,7 @@ type Props = {
   pageId?: string
   isActive: boolean
   onSelect: () => void
+  onInsertBefore: () => void
 }
 
 const sectionTypeLabel = (type: SectionType, isZh: boolean) => {
@@ -104,7 +106,10 @@ type GuideItem = {
   icon: ReactNode
   target: GuideTarget
   detail?: string
+  requiresSectionHeader?: boolean
 }
+
+type PropertyTab = 'guidance' | 'common' | 'section'
 
 const readContentText = (section: SectionEditModel, language: string, ...keys: string[]) => {
   for (const key of keys) {
@@ -283,7 +288,7 @@ const getSectionGuide = (section: SectionEditModel, language: string) => {
       title: isZh ? '文字内容引导' : 'Rich text guidance',
       description: isZh ? '适合欢迎词、说明、FAQ 或流程介绍。每段只讲一个重点。' : 'Best for welcome copy, explanations, FAQ, or steps. Keep each paragraph focused.',
       items: [
-        { label: isZh ? '区块标题' : 'Section title', ready: Boolean(title), detail: summarizeValue(title, isZh), icon: <Type className="h-4 w-4" />, target: { type: 'preview', index: 0 } },
+        { label: isZh ? '区块标题' : 'Section title', ready: Boolean(title), detail: summarizeValue(title, isZh), icon: <Type className="h-4 w-4" />, target: { type: 'preview', index: 0 }, requiresSectionHeader: true },
         { label: isZh ? '正文内容' : 'Body content', ready: Boolean(richText), detail: summarizeValue(richText, isZh), icon: <FileText className="h-4 w-4" />, target: { type: 'preview', index: 2 } },
         { label: isZh ? '阅读长度' : 'Readable length', ready: !richText || richText.length <= 900, detail: isZh ? `${richText.length} 字符` : `${richText.length} chars`, icon: <Sparkles className="h-4 w-4" />, target: { type: 'preview', index: 2 } },
       ] satisfies GuideItem[],
@@ -308,7 +313,7 @@ const getSectionGuide = (section: SectionEditModel, language: string) => {
     title: isZh ? '重点内容引导' : 'Spotlight guidance',
     description: isZh ? '适合用首页风格的图片、短文和按钮讲一个服事重点。' : 'Use a homepage-style image, concise copy, and one action to tell a focused ministry story.',
     items: [
-      { label: isZh ? '标题' : 'Title', ready: Boolean(title), detail: summarizeValue(title, isZh), icon: <Type className="h-4 w-4" />, target: { type: 'preview', index: 0 } },
+      { label: isZh ? '标题' : 'Title', ready: Boolean(title), detail: summarizeValue(title, isZh), icon: <Type className="h-4 w-4" />, target: { type: 'preview', index: 0 }, requiresSectionHeader: true },
       { label: isZh ? '说明文案' : 'Supporting copy', ready: Boolean(subtitle || richText), detail: summarizeValue(subtitle || richText, isZh), icon: <FileText className="h-4 w-4" />, target: { type: 'preview', index: 1 } },
       {
         label: isZh ? '自动带入' : 'Auto-filled content',
@@ -342,13 +347,14 @@ const getSectionGuide = (section: SectionEditModel, language: string) => {
   }
 }
 
-const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate, onRemove, onMoveUp, onMoveDown, contextGroupId, pageId, isActive, onSelect }: Props) => {
+const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate, onRemove, onMoveUp, onMoveDown, contextGroupId, pageId, isActive, onSelect, onInsertBefore }: Props) => {
   const t = useUiText()
   const { language } = useAuthStore()
   const [propertiesOpen, setPropertiesOpen] = useState(false)
-  const [propertyTab, setPropertyTab] = useState<'common' | 'section'>('common')
+  const [propertyTab, setPropertyTab] = useState<PropertyTab>('guidance')
   const [pendingFocusKey, setPendingFocusKey] = useState('')
   const [activeGuideLabel, setActiveGuideLabel] = useState('')
+  const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false)
   const cardRef = useRef<HTMLDivElement | null>(null)
   const modalContentRef = useRef<HTMLDivElement | null>(null)
   const patchSection = (patch: Partial<SectionEditModel>) => onUpdate({ ...section, ...patch })
@@ -356,8 +362,11 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
   const patchHeader = (patch: Partial<SectionHeader>) => patchContentJson({ header: { ...readHeader(section), ...patch } })
   const header = readHeader(section)
   const guide = getSectionGuide(section, language)
-  const readyCount = guide.items.filter((item) => item.ready).length
-  const guideComplete = readyCount === guide.items.length
+  const supportsSectionHeader = section.type === 'RichText' || section.type === 'Spotlight' || section.type === 'ListView'
+  const hasSectionHeader = supportsSectionHeader && isJsonMap(section.contentJson.header)
+  const guideItems = hasSectionHeader ? guide.items : guide.items.filter((item) => !item.requiresSectionHeader)
+  const readyCount = guideItems.filter((item) => item.ready).length
+  const guideComplete = readyCount === guideItems.length
   const isZh = language === 'zh'
   const focusInlineEditable = (index: number) => {
     window.setTimeout(() => {
@@ -394,11 +403,11 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
           </div>
         </div>
         <span className="rounded-lg bg-white px-2.5 py-1 text-xs font-black text-[#176b5a] shadow-sm">
-          {readyCount}/{guide.items.length}
+          {readyCount}/{guideItems.length}
         </span>
       </div>
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
-        {guide.items.map((item: GuideItem) => (
+        {guideItems.map((item: GuideItem) => (
           <button
             key={item.label}
             type="button"
@@ -426,16 +435,17 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
       </p>
     </div>
   )
+  const setSectionHeaderEnabled = (enabled: boolean) => {
+    if (enabled) {
+      patchContentJson({ header: readHeader(section) })
+      return
+    }
+
+    const { header: _header, ...contentJson } = section.contentJson
+    patchSection({ contentJson })
+  }
   const renderCommonProperties = () => (
     <div className="grid gap-3 md:grid-cols-2">
-      <div className="block space-y-1">
-        <span className="text-xs font-medium text-slate-600">{t('sectionType')}</span>
-        <div className="flex h-9 items-center rounded border border-slate-300 bg-slate-50 px-2 text-sm text-slate-700">
-          {section.type ? sectionTypeLabel(section.type, isZh) : t('selectType')}
-        </div>
-        <p className="text-xs text-slate-500">{t('sectionTypeLocked')}</p>
-        {typeError ? <p className="text-xs text-red-600">{typeError}</p> : null}
-      </div>
       <SelectInput
         label={t('spacing')}
         value={createDefaultSpacing(section.contentJson.spacing)}
@@ -447,44 +457,64 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
         ]}
         onChange={(value) => patchContentJson({ spacing: value })}
       />
-      <SelectInput
-        label={t('alignment')}
-        value={header.align ?? 'center'}
-        disabled={!canEdit}
-        options={[{ value: 'left', label: t('left') }, { value: 'center', label: t('center') }]}
-        onChange={(value) => patchHeader({ align: value as SectionHeader['align'] })}
-      />
-      <SelectInput
-        label={t('scale')}
-        value={header.scale ?? 'normal'}
-        disabled={!canEdit}
-        options={[
-          { value: 'compact', label: t('compact') },
-          { value: 'normal', label: t('normal') },
-          { value: 'feature', label: t('feature') },
-        ]}
-        onChange={(value) => patchHeader({ scale: value as SectionHeader['scale'] })}
-      />
-      <SelectInput
-        label={t('tone')}
-        value={header.tone ?? 'default'}
-        disabled={!canEdit}
-        options={[
-          { value: 'default', label: t('defaultTone') },
-          { value: 'primary', label: t('primary') },
-          { value: 'warm', label: t('warm') },
-          { value: 'fresh', label: t('fresh') },
-          { value: 'rose', label: t('rose') },
-        ]}
-        onChange={(value) => patchHeader({ tone: value as SectionHeader['tone'] })}
-      />
+      {supportsSectionHeader ? (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 md:col-span-2">
+          <label className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border-slate-300 text-[#176b5a] focus:ring-[#176b5a]"
+              checked={hasSectionHeader}
+              disabled={!canEdit}
+              onChange={(event) => setSectionHeaderEnabled(event.target.checked)}
+            />
+            <span className="text-sm font-bold text-slate-900">{t('showSectionHeader')}</span>
+          </label>
+          <div className="mt-3 grid gap-3 md:grid-cols-3">
+            <SelectInput
+              label={t('alignment')}
+              value={header.align ?? 'center'}
+              disabled={!canEdit || !hasSectionHeader}
+              options={[{ value: 'left', label: t('left') }, { value: 'center', label: t('center') }]}
+              onChange={(value) => patchHeader({ align: value as SectionHeader['align'] })}
+            />
+            <SelectInput
+              label={t('scale')}
+              value={header.scale ?? 'normal'}
+              disabled={!canEdit || !hasSectionHeader}
+              options={[
+                { value: 'compact', label: t('compact') },
+                { value: 'normal', label: t('normal') },
+                { value: 'feature', label: t('feature') },
+              ]}
+              onChange={(value) => patchHeader({ scale: value as SectionHeader['scale'] })}
+            />
+            <SelectInput
+              label={t('tone')}
+              value={header.tone ?? 'default'}
+              disabled={!canEdit || !hasSectionHeader}
+              options={[
+                { value: 'default', label: t('defaultTone') },
+                { value: 'primary', label: t('primary') },
+                { value: 'warm', label: t('warm') },
+                { value: 'fresh', label: t('fresh') },
+                { value: 'rose', label: t('rose') },
+              ]}
+              onChange={(value) => patchHeader({ tone: value as SectionHeader['tone'] })}
+            />
+          </div>
+        </div>
+      ) : null}
     </div>
   )
   const openProperties = () => {
     setPendingFocusKey('')
     setActiveGuideLabel('')
-    setPropertyTab('common')
+    setPropertyTab('guidance')
     setPropertiesOpen(true)
+  }
+  const confirmRemove = () => {
+    setRemoveConfirmOpen(false)
+    onRemove()
   }
 
   useEffect(() => {
@@ -535,15 +565,21 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
       {isActive ? (
         <div className="rounded-2xl border border-[#2f4b42]/10 bg-white/90 shadow-[0_10px_26px_rgba(31,56,48,0.06)]">
           <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
-            <div>
-              <h3 className="text-sm font-semibold text-slate-900">{t('sectionHeading', { number: index + 1, type: section.type ? sectionTypeLabel(section.type, isZh) : t('selectType') })}</h3>
-              {typeError ? <p className="mt-1 text-xs text-red-600">{typeError}</p> : null}
+            <div className="flex min-w-0 flex-wrap items-center gap-3">
+              <AppActionButton size="sm" disabled={!canEdit} onClick={onInsertBefore}>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                {t('insertSection')}
+              </AppActionButton>
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold text-slate-900">{t('sectionHeading', { number: index + 1, type: section.type ? sectionTypeLabel(section.type, isZh) : t('selectType') })}</h3>
+                {typeError ? <p className="mt-1 text-xs text-red-600">{typeError}</p> : null}
+              </div>
             </div>
             <div className="flex flex-wrap gap-2" onClick={(event) => event.stopPropagation()}>
               <AppActionButton size="sm" disabled={!section.type} onClick={openProperties}>{t('properties')}</AppActionButton>
               <AppActionButton size="sm" disabled={index === 0 || !canEdit} onClick={onMoveUp}>{t('moveUp')}</AppActionButton>
               <AppActionButton size="sm" disabled={index === total - 1 || !canEdit} onClick={onMoveDown}>{t('moveDown')}</AppActionButton>
-              <AppActionButton size="sm" variant="danger" disabled={!canEdit} onClick={onRemove}>{t('remove')}</AppActionButton>
+              <AppActionButton size="sm" variant="danger" disabled={!canEdit} onClick={() => setRemoveConfirmOpen(true)}>{t('remove')}</AppActionButton>
             </div>
           </div>
         </div>
@@ -560,10 +596,10 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
         showProperties={false}
       />
       {propertiesOpen ? (
-        <div className="fixed inset-0 z-[70] flex items-end bg-slate-950/45 px-4 py-5 sm:items-center sm:justify-center" onClick={(event) => event.stopPropagation()}>
+        <div className="fixed inset-0 z-[70] flex items-end bg-slate-950/45 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+4.5rem)] sm:items-center sm:justify-center sm:pb-4" onClick={(event) => event.stopPropagation()}>
           <button type="button" className="absolute inset-0" aria-label={t('close')} onClick={() => setPropertiesOpen(false)} />
-          <section className="relative z-10 flex max-h-[85vh] w-full max-w-3xl flex-col rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
+          <section className="relative z-10 flex h-[85vh] max-h-[85vh] w-full max-w-3xl flex-col rounded-2xl bg-white shadow-2xl sm:h-[min(74vh,640px)] sm:max-h-[74vh]">
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
               <div>
                 <h2 className="text-base font-semibold text-slate-950">{t('properties')}</h2>
                 <p className="text-sm text-slate-500">{section.type ? sectionTypeLabel(section.type, isZh) : t('selectType')}</p>
@@ -576,8 +612,15 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
                 {t('close')}
               </button>
             </div>
-            <div className="border-b border-slate-200 px-5 pt-3">
+            <div className="shrink-0 border-b border-slate-200 px-5 pt-3">
               <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className={`rounded-t-lg px-3 py-2 text-sm font-medium ${propertyTab === 'guidance' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                  onClick={() => setPropertyTab('guidance')}
+                >
+                  {t('sectionGuidance')}
+                </button>
                 <button
                   type="button"
                   className={`rounded-t-lg px-3 py-2 text-sm font-medium ${propertyTab === 'common' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
@@ -594,15 +637,16 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
                 </button>
               </div>
             </div>
-            <div ref={modalContentRef} className="overflow-y-auto px-5 py-4">
+            <div ref={modalContentRef} className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
               <div className="space-y-4">
-                {activeGuideLabel ? (
+                {activeGuideLabel && propertyTab !== 'guidance' ? (
                   <div className="rounded-xl border border-[#176b5a]/20 bg-[#e3f0eb] px-3 py-2 text-xs font-bold text-[#176b5a]">
                     {isZh ? '正在配置：' : 'Configuring: '}{activeGuideLabel}
                   </div>
                 ) : null}
-                {renderGuide(true)}
-                {propertyTab === 'common' ? renderCommonProperties() : (
+                {propertyTab === 'guidance' ? renderGuide(true) : null}
+                {propertyTab === 'common' ? renderCommonProperties() : null}
+                {propertyTab === 'section' ? (
                   <SectionBlock
                     section={section}
                     mode="edit"
@@ -612,8 +656,30 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
                     onUpdate={onUpdate}
                     propertiesOnly
                   />
-                )}
+                ) : null}
               </div>
+            </div>
+          </section>
+        </div>
+      ) : null}
+      {removeConfirmOpen ? (
+        <div className="fixed inset-0 z-[80] flex items-end bg-slate-950/45 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+4.5rem)] sm:items-center sm:justify-center sm:pb-4" onClick={(event) => event.stopPropagation()}>
+          <button type="button" className="absolute inset-0" aria-label={t('cancel')} onClick={() => setRemoveConfirmOpen(false)} />
+          <section
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby={`remove-section-title-${index}`}
+            className="relative z-10 w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl"
+          >
+            <h2 id={`remove-section-title-${index}`} className="text-lg font-semibold text-slate-950">{t('removeSectionConfirm')}</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">{t('sectionHeading', { number: index + 1, type: section.type ? sectionTypeLabel(section.type, isZh) : t('selectType') })}</p>
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <AppActionButton variant="secondary" onClick={() => setRemoveConfirmOpen(false)}>
+                {t('cancel')}
+              </AppActionButton>
+              <AppActionButton variant="danger" onClick={confirmRemove}>
+                {t('remove')}
+              </AppActionButton>
             </div>
           </section>
         </div>

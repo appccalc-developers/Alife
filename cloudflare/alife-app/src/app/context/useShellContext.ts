@@ -94,7 +94,6 @@ export const useShellContext = () => {
   const isPlatformAdmin = auth.isAdmin || auth.me?.platformRole === 'admin' || auth.me?.platformRole === 'superadmin'
   const canManageCurrentGroup = isPlatformAdmin || (membership?.status === 'approved' && (membership.role === 'leader' || membership.role === 'coLeader'))
   const canOpenCurrentGroupManagement = canManageCurrentGroup && preferences.exerciseGroupManagement
-  const canShowCurrentPageEdit = canManageCurrentGroup && preferences.exercisePageEditing
   const shouldUseGroupPageNav = (isGroupScreen || isPageEditorScreen) && !isGlobalPageEditor && !isManagementScreen && !isEventScreen
   const managementGroup = CurrentGroup?.id === contextualGroupId ? CurrentGroup : contextualGroup
 
@@ -186,7 +185,6 @@ export const useShellContext = () => {
   return {
     activeIds,
     canOpenCurrentGroupManagement,
-    canShowCurrentPageEdit,
     churchGroup,
     contextualGroup,
     contextualGroupId,

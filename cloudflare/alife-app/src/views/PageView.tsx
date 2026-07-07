@@ -1,9 +1,7 @@
-import { useCallback, useMemo } from 'react'
-import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useMemo } from 'react'
+import { Navigate, useLocation, useParams } from 'react-router-dom'
 import { useLiveQuery } from '@tanstack/react-db'
 import { useQuery } from '@tanstack/react-query'
-import { Pencil } from 'lucide-react'
-import FloatingActionButtons from '../app/actions/FloatingActionButtons'
 import PageContentRenderer from '../components/page/PageContentRenderer'
 import AppBackButton from '../components/layout/AppBackButton'
 import { pageSectionsCanvasClass, pageSectionsChromeClass } from '../components/page-sections/sectionPresets'
@@ -11,7 +9,6 @@ import { fetchPageDetail, pageDetailQueryKey } from '../db/collections/pageColle
 import { subgroupsCollection, groupPagesCollection } from '../db/collections/groupCollection'
 import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
 import { useUiText } from '../i18n/uiText'
-import { activeEntityService } from '../services/activeEntityService'
 import { useAuthStore } from '../stores/auth'
 import { localizeText } from '../utils/localizedText'
 
@@ -19,7 +16,6 @@ const PageView = () => {
   const { pageId: routePageId } = useParams<{ pageId: string }>()
   const { pageId } = useActiveEntityIds({ pageId: routePageId })
   const location = useLocation()
-  const navigate = useNavigate()
   const t = useUiText()
   const auth = useAuthStore()
   const { language } = auth
@@ -55,71 +51,26 @@ const PageView = () => {
     [gpColl],
   )
 
-  const canEditPage = useMemo(() => {
-    if (!page || !auth.initialized) {
-      return false
-    }
-
-    if (auth.canReviewPages) {
-      return true
-    }
-
-    if (auth.me?.id === page.createdByMemberId && page.visibility === 'draft') {
-      return true
-    }
-
-    if (page.ownerGroupId) {
-      return auth.hasLeaderAccess(page.ownerGroupId)
-    }
-
-    return auth.isAdmin
-  }, [auth, page])
-
-  const editPage = useCallback(() => {
-    if (!page?.id) {
-      return
-    }
-
-    if (
-      page.ownerGroupId &&
-      page.visibility === 'public' &&
-      auth.hasLeaderAccess(page.ownerGroupId) &&
-      !window.confirm(t('editPublishedGroupPageConfirm'))
-    ) {
-      return
-    }
-
-    activeEntityService.setPage(page.id, page.ownerGroupId || undefined)
-    navigate(page.ownerGroupId ? '/pages/edit' : '/pages/edit?scope=global')
-  }, [auth, navigate, page, t])
-
-  const editActions = useMemo(
-    () => canEditPage
-      ? [{
-          label: t('editPage'),
-          tone: 'edit' as const,
-          icon: <Pencil className="h-6 w-6" aria-hidden="true" />,
-          onClick: editPage,
-        }]
-      : [],
-    [canEditPage, editPage, t],
-  )
-  const backFallbackTo = location.pathname.startsWith('/public/pages/')
-    ? '/'
-    : page?.ownerGroupId ? '/groups' : '/'
+  const isPublicPage = location.pathname.startsWith('/public/pages/')
+  const backFallbackTo = page?.ownerGroupId ? '/groups' : '/'
+  const showBackButton = !isPublicPage
+  const showPageStatus = pageLoading || isError
+  const showPageChrome = showBackButton || showPageStatus
 
   return (
     !pageId ? <Navigate to="/" replace /> :
     <main className={pageSectionsCanvasClass}>
-      <div className={`${pageSectionsChromeClass} space-y-4 pt-20 sm:pt-24`}>
-        <AppBackButton fallbackTo={backFallbackTo} />
-        {pageLoading ? (
-          <p className="rounded-lg border border-slate-200 bg-white p-3 text-slate-600">{t('loadingPage')}</p>
-        ) : null}
-        {!pageLoading && isError ? (
-          <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-red-700">{t('pageAccessDenied')}</p>
-        ) : null}
-      </div>
+      {showPageChrome ? (
+        <div className={`${pageSectionsChromeClass} space-y-4 pt-20 sm:pt-24`}>
+          {showBackButton ? <AppBackButton fallbackTo={backFallbackTo} /> : null}
+          {pageLoading ? (
+            <p className="rounded-lg border border-slate-200 bg-white p-3 text-slate-600">{t('loadingPage')}</p>
+          ) : null}
+          {!pageLoading && isError ? (
+            <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-red-700">{t('pageAccessDenied')}</p>
+          ) : null}
+        </div>
+      ) : null}
       {!pageLoading && !isError && page ? (
         <PageContentRenderer
           page={page}
@@ -130,7 +81,6 @@ const PageView = () => {
           framed={false}
         />
       ) : null}
-      <FloatingActionButtons items={editActions} />
     </main>
   )
 }

@@ -51,17 +51,11 @@ const WorkspaceShell = () => {
     contextualEventId: context.groupEventDetailMatch?.[2] || context.activeIds.eventId,
     workspaceEnabled: !context.isOnboardingScreen,
   })
-  const selectedPageId = context.activeIds.pageId || navigation.pageItems[0]?.pageId || ''
   const actions = useShellActions({
-    contextualGroupId: context.contextualGroupId,
-    selectedPageId,
-    isGroupScreen: context.isGroupScreen,
-    isPageEditorScreen: context.isPageEditorScreen,
     isManagementScreen: context.isManagementScreen,
     isEventScreen: context.isEventScreen,
     isSermonDetailScreen: context.isSermonDetailScreen,
     isProfileScreen: context.isProfileScreen,
-    canShowCurrentPageEdit: context.canShowCurrentPageEdit,
   })
 
   const headerGroupName = !context.isOnboardingScreen && context.contextualGroupId
@@ -222,7 +216,7 @@ const PublicHomeShell = () => {
 
   return (
     <div className="min-h-screen bg-[#f7f3ea] text-[#18332d]">
-      {isHome ? null : <HomeNavHeader copy={copy} language={auth.language} navItems={headerNavItems} solid />}
+      {isHome ? null : <HomeNavHeader copy={copy} language={auth.language} navItems={headerNavItems} solid={!isPublicPage} />}
       <div className={isHome ? '' : isPublicPage ? 'pb-16' : 'px-4 pb-16 pt-24 sm:px-6 lg:px-8'}>
         <AppRoutes />
       </div>

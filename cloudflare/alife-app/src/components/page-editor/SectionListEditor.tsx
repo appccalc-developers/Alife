@@ -15,6 +15,7 @@ import SectionCardEditor from './SectionCardEditor'
 import type { SectionEditModel, SectionType } from '../../types/page-editor'
 import { useUiText } from '../../i18n/uiText'
 import { useAuthStore } from '../../stores/auth'
+import { pageSectionDividerClass } from '../page-sections/sectionPresets'
 
 type LocalText = { en: string; zh: string }
 
@@ -23,6 +24,7 @@ type Props = {
   canEdit: boolean
   sectionTypeErrors: string[]
   onAdd: (type: SectionType) => void
+  onInsert: (index: number, type: SectionType) => void
   onUpdate: (payload: { index: number; section: SectionEditModel }) => void
   onRemove: (index: number) => void
   onMoveUp: (index: number) => void
@@ -40,12 +42,17 @@ const sectionTypeOptions: Array<{ type: SectionType; label: LocalText; descripti
   { type: 'ListView', label: { en: 'List View', zh: '列表视图' }, description: { en: 'Show content from events, sermons, groups, pages, or members.', zh: '展示活动、讲道、小组、页面或成员等内容来源。' }, Icon: LayoutList },
 ]
 
-const SectionListEditor = ({ sections, canEdit, sectionTypeErrors, onAdd, onUpdate, onRemove, onMoveUp, onMoveDown, contextGroupId, pageId }: Props) => {
+const SectionListEditor = ({ sections, canEdit, sectionTypeErrors, onAdd, onInsert, onUpdate, onRemove, onMoveUp, onMoveDown, contextGroupId, pageId }: Props) => {
   const t = useUiText()
   const { language } = useAuthStore()
   const [activeIndex, setActiveIndex] = useState(0)
-  const [createOpen, setCreateOpen] = useState(false)
+  const [createInsertIndex, setCreateInsertIndex] = useState<number | null>(null)
   const isZh = language === 'zh'
+  const createOpen = createInsertIndex !== null
+
+  const openCreateAt = (index: number) => {
+    setCreateInsertIndex(Math.max(0, Math.min(index, sections.length)))
+  }
 
   useEffect(() => {
     if (sections.length === 0) {
@@ -58,9 +65,14 @@ const SectionListEditor = ({ sections, canEdit, sectionTypeErrors, onAdd, onUpda
   }, [activeIndex, sections.length])
 
   const addAndSelect = (type: SectionType) => {
-    onAdd(type)
-    setActiveIndex(sections.length)
-    setCreateOpen(false)
+    const insertIndex = createInsertIndex ?? sections.length
+    if (insertIndex >= sections.length) {
+      onAdd(type)
+    } else {
+      onInsert(insertIndex, type)
+    }
+    setActiveIndex(insertIndex)
+    setCreateInsertIndex(null)
   }
 
   const removeAndSelect = (index: number) => {
@@ -83,7 +95,7 @@ const SectionListEditor = ({ sections, canEdit, sectionTypeErrors, onAdd, onUpda
           title={t('noSectionsYet')}
           description={t('noSectionsDescription')}
           actionLabel={t('addSection')}
-          onAction={() => setCreateOpen(true)}
+          onAction={() => openCreateAt(sections.length)}
         />
       ) : (
         <>
@@ -99,26 +111,27 @@ const SectionListEditor = ({ sections, canEdit, sectionTypeErrors, onAdd, onUpda
                 pageId={pageId}
                 isActive={activeIndex === index}
                 onSelect={() => setActiveIndex(index)}
+                onInsertBefore={() => openCreateAt(index)}
                 onUpdate={(nextSection) => onUpdate({ index, section: nextSection })}
                 onRemove={() => removeAndSelect(index)}
                 onMoveUp={() => moveAndSelect(index, -1)}
                 onMoveDown={() => moveAndSelect(index, 1)}
               />
-              {index < sections.length - 1 ? <hr className="mx-auto max-w-6xl border-t border-home-border/40" /> : null}
+              {index < sections.length - 1 ? <hr className={pageSectionDividerClass} /> : null}
             </Fragment>
           ))}
         </>
       )}
       <section className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-slate-600">{t('selectedSectionOnly')}</p>
-        <AppActionButton variant="primary" disabled={!canEdit} onClick={() => setCreateOpen(true)}>
+        <AppActionButton variant="primary" disabled={!canEdit} onClick={() => openCreateAt(sections.length)}>
           <PlusCircle className="mr-2 h-4 w-4" />
           {t('addSection')}
         </AppActionButton>
       </section>
       {createOpen ? (
-        <div className="fixed inset-0 z-[70] flex items-end bg-slate-950/45 px-4 py-5 sm:items-center sm:justify-center">
-          <button type="button" className="absolute inset-0" aria-label={t('close')} onClick={() => setCreateOpen(false)} />
+        <div className="fixed inset-0 z-[70] flex items-end bg-slate-950/45 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+4.5rem)] sm:items-center sm:justify-center sm:pb-4">
+          <button type="button" className="absolute inset-0" aria-label={t('close')} onClick={() => setCreateInsertIndex(null)} />
           <section className="relative z-10 w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -128,7 +141,7 @@ const SectionListEditor = ({ sections, canEdit, sectionTypeErrors, onAdd, onUpda
               <button
                 type="button"
                 className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                onClick={() => setCreateOpen(false)}
+                onClick={() => setCreateInsertIndex(null)}
               >
                 {t('close')}
               </button>
