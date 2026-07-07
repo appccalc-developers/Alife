@@ -55,6 +55,13 @@ const OnboardingRoute = ({ children }: { children: ReactElement }) => {
   return !auth.loading && !auth.isGuest ? <Navigate to="/" replace /> : children
 }
 
+const HomeRoute = () => {
+  const location = useLocation()
+  const pageMenuName = new URLSearchParams(location.search).get('page')?.trim()
+
+  return pageMenuName ? <PageView /> : <HomeView />
+}
+
 const AppRoutes = () => {
   const location = useLocation()
 
@@ -63,6 +70,7 @@ const AppRoutes = () => {
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname + location.search}>
           <Route path="/" element={<HomeView />} />
+          <Route path="/home" element={<HomeRoute />} />
           <Route path="/groups" element={<GroupDetailView />} />
           <Route path="/groups/select" element={<GroupsView />} />
           <Route path="/groups/join" element={<GroupJoinView />} />

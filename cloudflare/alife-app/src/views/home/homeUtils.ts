@@ -61,7 +61,7 @@ export const readSectionImage = (page: PageDetailDto) => {
   return ''
 }
 
-const localizedPageTitle = (page: PageSummaryDto, language: string) =>
+export const publicPageMenuName = (page: PageSummaryDto, language: string) =>
   localizeText(page.accessName, language) ||
   page.accessName?.en ||
   page.accessName?.zh ||
@@ -69,6 +69,40 @@ const localizedPageTitle = (page: PageSummaryDto, language: string) =>
   page.title?.en ||
   page.title?.zh ||
   page.id
+
+const publicPageLookupKey = (value: string | null | undefined) =>
+  value?.trim().replace(/\s+/g, ' ').toLocaleLowerCase() ?? ''
+
+export const publicPageHomePath = (page: PageSummaryDto, language: string) => {
+  const params = new URLSearchParams({ page: publicPageMenuName(page, language) })
+  return `/home?${params.toString()}`
+}
+
+export const findPublicPageByMenuName = (
+  pages: PageSummaryDto[],
+  menuName: string | null | undefined,
+  language: string,
+) => {
+  const target = publicPageLookupKey(menuName)
+  if (!target) {
+    return null
+  }
+
+  const preferredMatch = pages.find((page) =>
+    publicPageLookupKey(publicPageMenuName(page, language)) === target,
+  )
+  if (preferredMatch) {
+    return preferredMatch
+  }
+
+  return pages.find((page) => [
+    page.accessName?.en,
+    page.accessName?.zh,
+    page.title?.en,
+    page.title?.zh,
+    page.id,
+  ].some((candidate) => publicPageLookupKey(candidate) === target)) ?? null
+}
 
 export const buildMinistriesNavItem = (
   pages: PageSummaryDto[],
@@ -85,14 +119,14 @@ export const buildMinistriesNavItem = (
   const locale = language === 'zh' ? 'zh-Hans' : 'en'
   const items = Array.from(byId.values())
     .sort((left, right) => {
-      const leftLabel = localizedPageTitle(left, language)
-      const rightLabel = localizedPageTitle(right, language)
+      const leftLabel = publicPageMenuName(left, language)
+      const rightLabel = publicPageMenuName(right, language)
       return leftLabel.localeCompare(rightLabel, locale, { sensitivity: 'base' }) ||
         left.id.localeCompare(right.id)
     })
     .map((page) => ({
-      to: `/public/pages/${page.id}`,
-      label: localizedPageTitle(page, language),
+      to: publicPageHomePath(page, language),
+      label: publicPageMenuName(page, language),
     }))
 
   return items.length > 0 ? { key: 'ministries', label, items } : null
