@@ -89,6 +89,12 @@ export type HomeCopy = {
   groupsEmptyState: string
   groupsBadgePublic: string
   groupsBadgePrivate: string
+  ministriesTitle: string
+  ministriesBody: string
+  ministriesAction: string
+  ministriesEyebrow: string
+  ministriesEmptyState: string
+  ministriesBadge: string
   eventsTitle: string
   eventsEyebrow: string
   eventsLead: string
@@ -212,6 +218,12 @@ export const getCopy = (language: Language, churchDescription: string): HomeCopy
       groupsEmptyState: '公开小组同步后，会在这里自动展示适合了解和加入的小组。',
       groupsBadgePublic: '公开可了解',
       groupsBadgePrivate: '小组空间',
+      ministriesTitle: '一同参与教会事工。',
+      ministriesBody: '已审核的事工页面会在这里展示异象、服事内容和联系入口，帮助你更快找到可以参与的地方。',
+      ministriesAction: '打开事工',
+      ministriesEyebrow: '事工',
+      ministriesEmptyState: '事工页面通过发布审核后，会在这里自动展示图片和简介。',
+      ministriesBadge: '已审核事工',
       eventsTitle: '正在发生的事',
       eventsEyebrow: '近期活动',
       eventsLead: '选一个时间，走进真实发生的相聚。',
@@ -334,6 +346,12 @@ export const getCopy = (language: Language, churchDescription: string): HomeCopy
     groupsEmptyState: 'Public groups will appear here automatically once they are available.',
     groupsBadgePublic: 'Open to explore',
     groupsBadgePrivate: 'Group space',
+    ministriesTitle: 'Serve with the life of the church.',
+    ministriesBody: 'Approved ministry pages introduce each team’s vision, service rhythm, and next step so people can find where to participate.',
+    ministriesAction: 'Open Ministry',
+    ministriesEyebrow: 'Ministries',
+    ministriesEmptyState: 'Approved ministry pages will appear here automatically with their card image and summary.',
+    ministriesBadge: 'Approved ministry',
     eventsTitle: 'What is happening',
     eventsEyebrow: 'Upcoming Events',
     eventsLead: 'Choose a time, see the story, and step into the next gathering.',

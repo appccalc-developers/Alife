@@ -138,7 +138,12 @@ public class AdminController(IMediator mediator, ICurrentMemberAccessor currentM
         }
 
         var result = await mediator.Send(
-            new ApprovePagePublicationCommand(currentMemberId.Value, pageId, request?.AccessName),
+            new ApprovePagePublicationCommand(
+                currentMemberId.Value,
+                pageId,
+                request?.AccessName,
+                request?.CardImageUrl,
+                request?.CardText),
             cancellationToken);
         this.ApplyPrivateNoCacheHeaders();
         return this.ToActionResult(result);
@@ -428,7 +433,10 @@ public class AdminController(IMediator mediator, ICurrentMemberAccessor currentM
 
     public sealed record UpdatePlatformRolePermissionsRequest(IReadOnlyList<string> PermissionCodes);
     public sealed record UpdateVisitContactRequestStatusRequest(string Status);
-    public sealed record ApprovePagePublicationReviewRequest(IReadOnlyDictionary<string, string>? AccessName);
+    public sealed record ApprovePagePublicationReviewRequest(
+        IReadOnlyDictionary<string, string>? AccessName,
+        string? CardImageUrl,
+        IReadOnlyDictionary<string, string>? CardText);
     public sealed record ReturnPagePublicationReviewRequest(string Reason);
 
     public sealed record SendAdminMessageRequest(

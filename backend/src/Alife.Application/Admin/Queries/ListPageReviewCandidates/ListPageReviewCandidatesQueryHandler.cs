@@ -53,6 +53,8 @@ public sealed class ListPageReviewCandidatesQueryHandler(IAlifeDbContext dbConte
                     review.PageId,
                     review.Status,
                     review.AccessNameJson,
+                    review.CardImageUrl,
+                    review.CardTextJson,
                     review.ReturnReason,
                     review.ReviewedUtc))
                 .ToDictionaryAsync(
@@ -78,6 +80,8 @@ public sealed class ListPageReviewCandidatesQueryHandler(IAlifeDbContext dbConte
                     row.Visibility,
                     ToReviewStatus(review?.Status),
                     ReadNullableTextMap(review?.AccessNameJson),
+                    review?.CardImageUrl,
+                    ReadNullableTextMap(review?.CardTextJson),
                     review?.ReturnReason,
                     review?.ReviewedUtc,
                     row.UpdatedUtc);
@@ -99,6 +103,8 @@ public sealed class ListPageReviewCandidatesQueryHandler(IAlifeDbContext dbConte
         Guid PageId,
         PagePublicationReviewStatus Status,
         string? AccessNameJson,
+        string? CardImageUrl,
+        string? CardTextJson,
         string? ReturnReason,
         DateTime? ReviewedUtc);
 

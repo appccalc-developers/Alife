@@ -13,7 +13,9 @@ public sealed record PageDto(
     PageVisibility Visibility,
     DateTime UpdatedUtc,
     IReadOnlyDictionary<string, string>? AccessName = null,
-    PageReviewRefusalDto? ReviewRefusal = null);
+    PageReviewRefusalDto? ReviewRefusal = null,
+    string? CardImageUrl = null,
+    IReadOnlyDictionary<string, string>? CardText = null);
 
 public sealed record PageReviewRefusalDto(
     Guid ReviewerMemberId,

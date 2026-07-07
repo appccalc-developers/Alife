@@ -62,6 +62,8 @@ public sealed class ReturnPagePublicationCommandHandler(
 
         review.Status = PagePublicationReviewStatus.Returned;
         review.AccessNameJson = null;
+        review.CardImageUrl = null;
+        review.CardTextJson = null;
         review.ReturnReason = reason;
         review.ReviewedByMemberId = request.CurrentMemberId;
         review.ReviewedUtc = now;

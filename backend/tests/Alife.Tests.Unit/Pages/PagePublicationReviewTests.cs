@@ -81,6 +81,8 @@ public class PagePublicationReviewTests
                 PageId = approvedPageId,
                 Status = PagePublicationReviewStatus.Approved,
                 AccessNameJson = "{\"en\":\"Approved menu\",\"zh\":\"已批准菜单\"}",
+                CardImageUrl = "https://example.test/approved.jpg",
+                CardTextJson = "{\"en\":\"Approved card\",\"zh\":\"已批准卡片\"}",
                 ReviewedByMemberId = reviewerId,
                 ReviewedUtc = now.AddMinutes(6),
                 CreatedUtc = now.AddMinutes(6),
@@ -110,7 +112,10 @@ public class PagePublicationReviewTests
             page.Id == approvedPageId &&
             page.ReviewStatus == AdminPageReviewStatus.Approved &&
             page.AccessName != null &&
-            page.AccessName["en"] == "Approved menu");
+            page.AccessName["en"] == "Approved menu" &&
+            page.CardImageUrl == "https://example.test/approved.jpg" &&
+            page.CardText != null &&
+            page.CardText["en"] == "Approved card");
         Assert.Contains(result.Value, page =>
             page.Id == returnedPageId &&
             page.ReviewStatus == AdminPageReviewStatus.Returned &&
@@ -171,7 +176,9 @@ public class PagePublicationReviewTests
             new ApprovePagePublicationCommand(
                 reviewerId,
                 pageId,
-                new Dictionary<string, string> { ["en"] = "Menu name", ["zh"] = "菜单名" }),
+                new Dictionary<string, string> { ["en"] = "Menu name", ["zh"] = "菜单名" },
+                "https://example.test/ministry.jpg",
+                new Dictionary<string, string> { ["en"] = "Card text", ["zh"] = "卡片文字" }),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -186,7 +193,10 @@ public class PagePublicationReviewTests
             review.PageId == pageId &&
             review.Status == PagePublicationReviewStatus.Approved &&
             review.AccessNameJson != null &&
-            review.AccessNameJson.Contains("Menu name"));
+            review.AccessNameJson.Contains("Menu name") &&
+            review.CardImageUrl == "https://example.test/ministry.jpg" &&
+            review.CardTextJson != null &&
+            review.CardTextJson.Contains("Card text"));
         Assert.Contains(dbContext.AuditLogs, log => log.Action == "page.publication-review.approve" && log.EntityId == pageId);
 
         await cacheInvalidation.Received(1).RemoveDetailAsync(pageId, Arg.Any<CancellationToken>());
@@ -212,7 +222,9 @@ public class PagePublicationReviewTests
             new ApprovePagePublicationCommand(
                 ordinaryMemberId,
                 pageId,
-                new Dictionary<string, string> { ["en"] = "Menu name", ["zh"] = "菜单名" }),
+                new Dictionary<string, string> { ["en"] = "Menu name", ["zh"] = "菜单名" },
+                "https://example.test/ministry.jpg",
+                new Dictionary<string, string> { ["en"] = "Card text", ["zh"] = "卡片文字" }),
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
