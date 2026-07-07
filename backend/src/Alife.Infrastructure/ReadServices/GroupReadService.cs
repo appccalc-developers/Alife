@@ -39,16 +39,16 @@ public sealed class GroupReadService(AlifeDbContext dbContext, HybridCache hybri
             cancellationToken);
 
     public async Task<IReadOnlyList<GroupSummaryDto>> GetVisibleGroupsAsync(
-        Guid memberId,
+        Guid? memberId,
         CancellationToken cancellationToken)
     {
         var groups = await dbContext.Groups
             .AsNoTracking()
             .Where(group =>
                 !group.IsClosed &&
-                (group.IsChurch ||
-                 group.AccessType != Domain.Enums.AccessType.Private ||
-                 group.Memberships.Any(membership => membership.MemberId == memberId)))
+                (group.AccessType != Domain.Enums.AccessType.Private ||
+                 (memberId.HasValue &&
+                  group.Memberships.Any(membership => membership.MemberId == memberId.Value))))
             .OrderByDescending(group => group.IsChurch)
             .ThenBy(group => group.CreatedUtc)
             .ToListAsync(cancellationToken);

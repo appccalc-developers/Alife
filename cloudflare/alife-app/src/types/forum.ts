@@ -25,10 +25,21 @@ export type ForumCategoryDto = {
   isEnabled: boolean
 }
 
+export type ForumSermonDto = {
+  id: string
+  title: string
+  speakerName: string
+  thumbnailUrl?: string | null
+  videoUrl?: string | null
+  preachedAt?: string | null
+}
+
 export type ForumPostSummaryDto = {
   id: string
   categoryId: string
   groupId?: string | null
+  sermonId?: string | null
+  sermon?: ForumSermonDto | null
   titleJson: string
   bodyJson: string
   mediaJson: string

@@ -52,17 +52,14 @@ const GroupsView = () => {
     let cancelled = false
     setLoading(true)
     setError('')
-    const groupsPromise = auth.isGuest
-      ? groupService.getChurch().then((church) => groupService.getSubgroups(church.id))
-      : groupService.getVisibleGroups()
 
-    groupsPromise
+    groupService.getVisibleGroups()
       .then((data) => {
         if (cancelled) return
         setGroups(data)
         setLoading(false)
-        // Load images in background — cards already visible with fallback images
-        Promise.all(data.slice(0, 12).map(async (group, index) => {
+
+        Promise.all(data.filter((group) => !group.isChurch).slice(0, 12).map(async (group, index) => {
           let imageUrl = fallbackGroupImages[index % fallbackGroupImages.length]
           try {
             const pages = await groupService.getGroupPages(group.id)
@@ -85,29 +82,78 @@ const GroupsView = () => {
           setLoading(false)
         }
       })
+
     return () => { cancelled = true }
   }, [auth.isGuest, language])
 
   const openGroup = (group: GroupSummaryDto) => {
     const membership = auth.memberships.find((item) => item.groupId === group.id)
     activeEntityService.setGroup(group.id, { clearPage: true })
-    navigate(membership?.status === 'approved' || group.isChurch || group.accessType === 'public' ? '/groups' : '/groups/join')
+    navigate(membership?.status === 'approved' || group.accessType === 'public' ? '/groups' : '/groups/join')
   }
+
+  const openChurchGroup = (group: GroupSummaryDto) => {
+    activeEntityService.setGroup(group.id, { clearPage: true })
+    navigate('/groups')
+  }
+
+  const churchGroup = groups.find((group) => group.isChurch) ?? null
+  const childGroups = groups.filter((group) => !group.isChurch)
+  const churchActive = Boolean(churchGroup && activeGroupId === churchGroup.id)
 
   return (
     <AppPageShell>
       <section className="overflow-hidden rounded-[2rem] border border-emerald-100 bg-gradient-to-br from-white via-emerald-50 to-[#fff4ea] px-6 py-7 text-[#18332d] shadow-[0_20px_55px_rgba(23,107,90,0.08)] sm:px-8">
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-700">
-          {language === 'zh' ? '工作区选择' : 'Workspace selection'}
-        </p>
-        <h1 className="mt-2 text-3xl font-black tracking-[-0.04em]">
-          {language === 'zh' ? '选择或切换小组' : 'Select or switch group'}
-        </h1>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-[#5f716a]">
-          {language === 'zh'
-            ? '已加入的小组可以直接打开；其他小组会进入申请加入流程。'
-            : 'Open joined groups immediately. Other groups continue through the existing join workflow.'}
-        </p>
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,26rem)] lg:items-end">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-700">
+              {language === 'zh' ? '小组选择' : 'Workspace selection'}
+            </p>
+            <h1 className="mt-2 text-3xl font-black tracking-[-0.04em]">
+              {language === 'zh' ? '选择或切换小组' : 'Select or switch group'}
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-[#5f716a]">
+              {language === 'zh'
+                ? '默认范围是全站教会；已加入的小组可以直接打开，其他小组会进入申请加入流程。'
+                : 'The church is the default scope. Open joined groups immediately; other groups continue through the join workflow.'}
+            </p>
+          </div>
+          {churchGroup ? (
+            <button
+              type="button"
+              className={[
+                'group rounded-[1.35rem] border bg-white/80 p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:bg-white hover:shadow-md',
+                churchActive ? 'border-[#176b5a]/35 ring-2 ring-[#176b5a]/15' : 'border-[#176b5a]/15',
+              ].join(' ')}
+              onClick={() => openChurchGroup(churchGroup)}
+            >
+              <div className="flex items-start gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#e3f0eb] text-[#176b5a]">
+                  <Church className="h-5 w-5" />
+                </span>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <AppBadge variant="success">{language === 'zh' ? '默认教会' : 'Default church'}</AppBadge>
+                    {churchActive ? <AppBadge variant="neutral">{language === 'zh' ? '当前空间' : 'Current space'}</AppBadge> : null}
+                  </div>
+                  <h2 className="mt-2 truncate text-lg font-black text-[#18332d]">{localizeText(churchGroup.name, language)}</h2>
+                  <p className="mt-1 text-xs leading-5 text-[#66766f]">
+                    {language === 'zh'
+                      ? '可进入教会空间，查看全站页面与内容。'
+                      : 'Open the church workspace to view church-wide pages and content.'}
+                  </p>
+                  <span className="mt-3 inline-flex items-center gap-2 text-xs font-black text-[#176b5a]">
+                    {churchActive ? <Check className="h-3.5 w-3.5" /> : null}
+                    {churchActive
+                      ? (language === 'zh' ? '当前教会空间' : 'Current church workspace')
+                      : (language === 'zh' ? '进入教会空间' : 'Open church workspace')}
+                    <ChevronRight className="h-3.5 w-3.5 transition group-hover:translate-x-1" />
+                  </span>
+                </div>
+              </div>
+            </button>
+          ) : null}
+        </div>
       </section>
 
       {error ? <AppEmptyState title={language === 'zh' ? '加载失败' : 'Unable to load'} description={error} /> : null}
@@ -125,23 +171,24 @@ const GroupsView = () => {
         </div>
       ) : null}
 
-      {!error && !loading && groups.length === 0 ? (
+      {!error && !loading && !churchGroup && childGroups.length === 0 ? (
         <AppEmptyState
           title={language === 'zh' ? '暂时没有可用小组' : 'No groups available'}
           description={language === 'zh' ? '小组创建后会显示在这里。' : 'Groups will appear here when available.'}
         />
       ) : null}
 
-      {!error && !loading && groups.length > 0 ? (
-        <div className="grid gap-4 md:grid-cols-2">
-          {groups.map((group) => {
+      {!error && !loading && (churchGroup || childGroups.length > 0) ? (
+        <div className="space-y-4">
+          {childGroups.length > 0 ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              {childGroups.map((group) => {
             const membership = auth.memberships.find((item) => item.groupId === group.id)
             const approved = membership?.status === 'approved'
             const active = activeGroupId === group.id
-            const Icon = group.isChurch ? Church : UsersRound
             const action = active
-              ? (language === 'zh' ? '当前工作区' : 'Current workspace')
-              : approved || group.isChurch
+              ? (language === 'zh' ? '当前小组' : 'Current group')
+              : approved
                 ? (language === 'zh' ? '切换到此小组' : 'Switch to this group')
                 : membership?.status === 'requested'
                   ? (language === 'zh' ? '查看申请状态' : 'View request status')
@@ -163,7 +210,7 @@ const GroupsView = () => {
                   <img src={groupImages[group.id] || fallbackGroupImages[0]} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" loading="lazy" />
                   <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/58 via-emerald-950/8 to-transparent" />
                   <span className="absolute left-4 top-4 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/88 text-[#176b5a] shadow-sm">
-                    <Icon className="h-5 w-5" />
+                    <UsersRound className="h-5 w-5" />
                   </span>
                   <span className="absolute right-4 top-4 flex flex-wrap justify-end gap-2">
                     <AccessTypeBadge accessType={group.accessType} />
@@ -184,7 +231,9 @@ const GroupsView = () => {
                 </span>
               </button>
             )
-          })}
+              })}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </AppPageShell>

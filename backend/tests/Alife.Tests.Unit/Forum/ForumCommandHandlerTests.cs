@@ -38,8 +38,8 @@ public class ForumCommandHandlerTests
 				memberId,
 				categoryId,
 				GroupId: null,
-				new Dictionary<string, string> { ["zh"] = "代祷事项" },
-				new Dictionary<string, string> { ["zh"] = "请大家为周五团契祷告。" },
+				new Dictionary<string, string> { ["zh"] = "Chinese title" },
+				new Dictionary<string, string> { ["zh"] = "Chinese body" },
 				Media: null,
 				Visibility: ForumPostVisibility.MembersOnly),
 			CancellationToken.None);
@@ -47,7 +47,7 @@ public class ForumCommandHandlerTests
 		Assert.True(result.IsSuccess);
 		Assert.NotNull(result.Value);
 		var title = JsonSerializer.Deserialize<Dictionary<string, string>>(result.Value.TitleJson);
-		Assert.Equal("代祷事项", title?["zh"]);
+		Assert.Equal("Chinese title", title?["zh"]);
 		Assert.False(title!.ContainsKey("en"));
 		Assert.Equal(1, await dbContext.ForumPosts.CountAsync());
 	}
@@ -116,6 +116,7 @@ public class ForumCommandHandlerTests
 			AuthorMemberId = authorId,
 			TitleJson = "{\"en\":\"Title\"}",
 			BodyJson = "{\"en\":\"Body\"}",
+			MediaJson = "[]",
 			Visibility = ForumPostVisibility.MembersOnly,
 			IsLocked = true,
 			CreatedUtc = DateTime.UtcNow,
@@ -129,7 +130,7 @@ public class ForumCommandHandlerTests
 				postId,
 				memberId,
 				ParentCommentId: null,
-				Body: new Dictionary<string, string> { ["zh"] = "收到" },
+				Body: new Dictionary<string, string> { ["zh"] = "Received" },
 				Media: null),
 			CancellationToken.None);
 
@@ -152,7 +153,7 @@ public class ForumCommandHandlerTests
 		new()
 		{
 			Id = id,
-			NameJson = "{\"en\":\"General\",\"zh\":\"综合\"}",
+			NameJson = "{\"en\":\"General\",\"zh\":\"General\"}",
 			IsEnabled = true,
 			CreatedUtc = DateTime.UtcNow,
 			UpdatedUtc = DateTime.UtcNow

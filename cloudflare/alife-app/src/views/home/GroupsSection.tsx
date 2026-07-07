@@ -6,6 +6,7 @@ import { useAuthStore } from '../../stores/auth'
 import { activeEntityService } from '../../services/activeEntityService'
 import { localizeText } from '../../utils/localizedText'
 import { entranceAnimation } from './homeUtils'
+import GuardedLink from './LoginPromptOverlay'
 import type { HomeGroupCard } from './homeUtils'
 import type { HomeCopy, Language } from './homeCopy'
 
@@ -58,9 +59,9 @@ const GroupsSection = ({ copy, language, groupCards }: Props) => {
               <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{copy.groupsTitle}</h2>
               <p className="mt-3 max-w-[56ch] text-[0.94rem] leading-7 text-home-muted">{copy.groupsBody}</p>
             </div>
-            <Link to="/groups/select" className="inline-flex items-center gap-2 self-start rounded-lg bg-home-green px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-home-green-hover">
+            <GuardedLink language={language} to="/groups/select" className="inline-flex items-center gap-2 self-start rounded-lg bg-home-green px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-home-green-hover">
               {copy.groupsAction} <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
+            </GuardedLink>
           </motion.div>
           <motion.div {...entrance} className="mt-10 rounded-2xl border border-home-border/60 bg-white/70 p-8">
             <UsersRound className="h-7 w-7 text-home-green" />
@@ -82,9 +83,9 @@ const GroupsSection = ({ copy, language, groupCards }: Props) => {
             <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{copy.groupsTitle}</h2>
             <p className="mt-3 max-w-[56ch] text-[0.94rem] leading-7 text-home-muted">{copy.groupsBody}</p>
           </div>
-          <Link to="/groups/select" className="inline-flex items-center gap-2 self-start rounded-lg bg-home-green px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-home-green-hover">
+          <GuardedLink language={language} to="/groups/select" className="inline-flex items-center gap-2 self-start rounded-lg bg-home-green px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-home-green-hover">
             {copy.groupsAction} <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
+          </GuardedLink>
         </motion.div>
 
         <motion.div {...entrance} className="mt-10 overflow-hidden rounded-2xl bg-home-dark text-white shadow-[0_28px_80px_rgba(34,25,17,0.18)]">
@@ -110,7 +111,7 @@ const GroupsSection = ({ copy, language, groupCards }: Props) => {
                     <div className="max-w-2xl">
                       <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold backdrop-blur">
                         <Sparkles className="h-3.5 w-3.5" />
-                        {activeCard.group.accessType === 'public' ? copy.groupsBadgePublic : copy.groupsBadgePrivate}
+                        {activeCard.group.accessType !== 'private' ? copy.groupsBadgePublic : copy.groupsBadgePrivate}
                       </span>
                       <h3 className="mt-4 text-3xl font-bold leading-tight sm:text-4xl lg:text-5xl">{localizeText(activeCard.group.name, language)}</h3>
                       <p className="mt-4 line-clamp-3 max-w-xl text-sm leading-7 text-white/66">{localizeText(activeCard.group.description, language) || copy.groupsBody}</p>

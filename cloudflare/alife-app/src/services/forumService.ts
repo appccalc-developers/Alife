@@ -7,12 +7,13 @@ import type {
   ForumPostRequest,
   ForumPostSummaryDto,
 } from '../types/forum'
-import { http } from './http'
+import { http, normalizeApiError } from './http'
 
 export const forumQueryKeys = {
   categories: ['forum', 'categories'] as const,
   posts: (categoryId?: string) => ['forum', 'posts', categoryId || 'all'] as const,
   post: (postId: string) => ['forum', 'post', postId] as const,
+  sermonPost: (sermonId: string) => ['forum', 'sermon-post', sermonId] as const,
 }
 
 export const forumService = {
@@ -44,6 +45,24 @@ export const forumService = {
 
   createComment: async (postId: string, payload: ForumCommentRequest): Promise<ForumCommentDto> => {
     const { data } = await http.post<ForumCommentDto>(`/api/forum/posts/${postId}/comments`, payload)
+    return data
+  },
+
+  getSermonPost: async (sermonId: string): Promise<ForumPostDetailDto | null> => {
+    try {
+      const { data } = await http.get<ForumPostDetailDto>(`/api/sermons/${sermonId}/forum-post`)
+      return data
+    } catch (error) {
+      if (normalizeApiError(error).status === 404) {
+        return null
+      }
+
+      throw error
+    }
+  },
+
+  createSermonComment: async (sermonId: string, payload: ForumCommentRequest): Promise<ForumPostDetailDto> => {
+    const { data } = await http.post<ForumPostDetailDto>(`/api/sermons/${sermonId}/comments`, payload)
     return data
   },
 }

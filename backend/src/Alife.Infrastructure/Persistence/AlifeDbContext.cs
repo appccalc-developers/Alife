@@ -419,6 +419,11 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 				.HasForeignKey(x => x.GroupId)
 				.OnDelete(DeleteBehavior.Restrict);
 
+			cfg.HasOne(x => x.Sermon)
+				.WithOne(x => x.ForumPost)
+				.HasForeignKey<ForumPost>(x => x.SermonId)
+				.OnDelete(DeleteBehavior.Restrict);
+
 			cfg.HasOne(x => x.AuthorMember)
 				.WithMany(x => x.ForumPosts)
 				.HasForeignKey(x => x.AuthorMemberId)
@@ -433,6 +438,9 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 			cfg.HasIndex(x => new { x.CategoryId, x.Visibility, x.UpdatedUtc });
 			cfg.HasIndex(x => new { x.GroupId, x.UpdatedUtc });
 			cfg.HasIndex(x => x.AuthorMemberId);
+			cfg.HasIndex(x => x.SermonId)
+				.IsUnique()
+				.HasFilter("[sermon_id] IS NOT NULL AND [deleted_utc] IS NULL");
 			cfg.HasQueryFilter(x => x.DeletedUtc == null);
 		});
 

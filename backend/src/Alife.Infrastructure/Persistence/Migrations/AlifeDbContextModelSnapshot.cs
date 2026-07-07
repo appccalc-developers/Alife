@@ -603,6 +603,10 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("media_json");
 
+                    b.Property<Guid?>("SermonId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("sermon_id");
+
                     b.Property<string>("TitleJson")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)")
@@ -624,6 +628,11 @@ namespace Alife.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("LastCommentMemberId")
                         .HasDatabaseName("ix_forum_posts_last_comment_member_id");
+
+                    b.HasIndex("SermonId")
+                        .IsUnique()
+                        .HasFilter("[sermon_id] IS NOT NULL AND [deleted_utc] IS NULL")
+                        .HasDatabaseName("ix_forum_posts_sermon_id");
 
                     b.HasIndex("GroupId", "UpdatedUtc")
                         .HasDatabaseName("ix_forum_posts_group_id_updated_utc");
@@ -1584,6 +1593,12 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_forum_posts_members_last_comment_member_id");
 
+                    b.HasOne("Alife.Domain.Entities.Sermon", "Sermon")
+                        .WithOne("ForumPost")
+                        .HasForeignKey("Alife.Domain.Entities.ForumPost", "SermonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_forum_posts_sermons_sermon_id");
+
                     b.Navigation("AuthorMember");
 
                     b.Navigation("Category");
@@ -1591,6 +1606,8 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.Navigation("Group");
 
                     b.Navigation("LastCommentMember");
+
+                    b.Navigation("Sermon");
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.Group", b =>
@@ -1836,6 +1853,11 @@ namespace Alife.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("Alife.Domain.Entities.Section", b =>
                 {
                     b.Navigation("Links");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.Sermon", b =>
+                {
+                    b.Navigation("ForumPost");
                 });
 #pragma warning restore 612, 618
         }

@@ -7,6 +7,7 @@ public class ForumPost
 	public Guid Id { get; set; }
 	public Guid CategoryId { get; set; }
 	public Guid? GroupId { get; set; }
+	public Guid? SermonId { get; set; }
 	public Guid AuthorMemberId { get; set; }
 	public string TitleJson { get; set; } = "{}";
 	public string BodyJson { get; set; } = "{}";
@@ -24,6 +25,7 @@ public class ForumPost
 
 	public ForumCategory Category { get; set; } = null!;
 	public Group? Group { get; set; }
+	public Sermon? Sermon { get; set; }
 	public Member AuthorMember { get; set; } = null!;
 	public Member? LastCommentMember { get; set; }
 	public ICollection<ForumComment> Comments { get; set; } = [];

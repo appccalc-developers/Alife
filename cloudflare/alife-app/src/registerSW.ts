@@ -19,6 +19,18 @@ export function registerServiceWorker(): void {
     return
   }
 
+  if (import.meta.env.DEV) {
+    navigator.serviceWorker.getRegistrations()
+      .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
+      .then(() => caches.keys())
+      .then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
+      .catch((err: unknown) => {
+        // eslint-disable-next-line no-console
+        console.warn('Failed to clear development service worker cache:', err)
+      })
+    return
+  }
+
   registerSW({
     onRegisterError(err: unknown) {
       // eslint-disable-next-line no-console

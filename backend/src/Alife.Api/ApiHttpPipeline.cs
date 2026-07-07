@@ -27,7 +27,6 @@ internal sealed class ApiHttpPipeline
 
         app.UseEndpoints(endpoints =>
         {
-            ApiHealthCheckSetup.MapEndpoints(endpoints);
             endpoints.MapControllers();
         });
 

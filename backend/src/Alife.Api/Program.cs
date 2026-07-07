@@ -33,7 +33,6 @@ builder.Services
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddProblemDetails();
-ApiHealthCheckSetup.ConfigureServices(builder.Services);
 
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "replace-me-in-production-with-long-random-key";
 var jwtKeyId = builder.Configuration["Jwt:KeyId"] ?? "alife-local-hs256";

@@ -4,5 +4,5 @@ using MediatR;
 
 namespace Alife.Application.Groups.Queries.GetVisibleGroups;
 
-public sealed record GetVisibleGroupsQuery(Guid CurrentMemberId)
+public sealed record GetVisibleGroupsQuery(Guid? CurrentMemberId)
     : IRequest<AppResult<IReadOnlyList<GroupSummaryDto>>>;

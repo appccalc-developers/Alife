@@ -14,6 +14,7 @@ import type { ForumPostVisibilityRequest } from '../types/forum'
 import { ForumMediaGrid, ForumMediaPicker, selectForumMedia, type PendingForumMedia, uploadPendingForumMedia } from './forum/ForumMediaControls'
 import { forumCopy, visibilityLabel } from './forum/forumCopy'
 import { categoryName, formatForumDate, localizedJsonExcerpt, localizedJsonText, oneLanguagePayload, parseForumMedia } from './forum/forumUtils'
+import ForumSermonEmbed from './forum/ForumSermonEmbed'
 
 const avatarLetter = (value?: string | null) => (value || 'A').slice(0, 1).toUpperCase()
 
@@ -327,6 +328,7 @@ const ForumView = () => {
                           </div>
                           <h2 className="mt-2 text-lg font-black leading-snug text-slate-950 transition group-hover:text-[#176b5a] sm:text-xl">{title}</h2>
                           {excerpt ? <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">{excerpt}</p> : null}
+                          {post.sermon ? <ForumSermonEmbed sermon={post.sermon} mode="compact" /> : null}
                           <ForumMediaGrid media={media.slice(0, 3)} />
                           <div className="mt-4 flex flex-wrap items-center gap-2">
                             <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">{categoryName(categories, post.categoryId, language)}</span>
