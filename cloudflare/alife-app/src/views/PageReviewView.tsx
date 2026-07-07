@@ -289,7 +289,7 @@ const PageReviewView = () => {
       </AppSectionCard>
 
       {refusingPage ? (
-        <div className="fixed inset-0 z-[70] flex items-end bg-slate-950/45 px-4 py-5 sm:items-center sm:justify-center">
+        <div className="fixed inset-0 z-[70] flex items-end bg-slate-950/45 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+4.5rem)] sm:items-center sm:justify-center sm:pb-4">
           <button type="button" className="absolute inset-0" aria-label={text(language, 'cancel')} onClick={closeRefuseDialog} />
           <section className="relative z-10 w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl">
             <h2 className="text-lg font-black text-slate-950">{text(language, 'refuseTitle')}</h2>

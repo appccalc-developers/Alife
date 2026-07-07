@@ -1,6 +1,6 @@
 import { useAuthStore } from '../stores/auth'
 import { localizeText } from '../utils/localizedText'
-import { pageSectionsCanvasClass } from '../components/page-sections/sectionPresets'
+import { pageSectionDividerClass, pageSectionsCanvasClass } from '../components/page-sections/sectionPresets'
 import { getCopy } from './home/homeCopy'
 import { useHomeData } from './home/useHomeData'
 import { buildMinistriesNavItem, insertMinistriesNavItem } from './home/homeUtils'
@@ -44,15 +44,15 @@ const HomeView = () => {
       <main className={pageSectionsCanvasClass}>
         <HeroSection copy={copy} />
         <AboutAndLiveSection copy={copy} />
-        <hr className="mx-auto max-w-6xl border-t border-home-border/40" />
+        <hr className={pageSectionDividerClass} />
         <VisitSection copy={copy} language={language} />
-        <hr className="mx-auto max-w-6xl border-t border-home-border/40" />
+        <hr className={pageSectionDividerClass} />
         <GroupsSection copy={copy} language={language} groupCards={groupCards} />
-        <hr className="mx-auto max-w-6xl border-t border-home-border/40" />
+        <hr className={pageSectionDividerClass} />
         <EventsSection copy={copy} language={language} upcomingEvents={upcomingEvents} />
-        <hr className="mx-auto max-w-6xl border-t border-home-border/40" />
+        <hr className={pageSectionDividerClass} />
         <RecentSermonsSection copy={copy} language={language} sermons={recentSermons} />
-        <hr className="mx-auto max-w-6xl border-t border-home-border/40" />
+        <hr className={pageSectionDividerClass} />
         <LocationSection copy={copy} />
       </main>
       <HomeFooter copy={copy} navItems={sanitizedNavItems} />

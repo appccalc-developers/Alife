@@ -50,6 +50,11 @@ const HomeNavHeader = ({ copy, language, solid = false, navItems: providedNavIte
     ? providedNavItems.map((item) => !isDropdownNavItem(item) && item.href === '#events' ? { ...item, label: eventsNavLabel } : item)
     : fallbackNavItems
   const scrollToSection = createSectionHandler(() => setMenuOpen(false))
+  const closeDropdownNavigation = (target?: HTMLElement) => {
+    setMenuOpen(false)
+    setMobileExpandedKey(null)
+    target?.blur()
+  }
 
   const renderDesktopNavItem = (item: HomeNavItem) => {
     if (isDropdownNavItem(item)) {
@@ -66,7 +71,12 @@ const HomeNavHeader = ({ copy, language, solid = false, navItems: providedNavIte
           <div className="invisible absolute left-1/2 top-full mt-2 min-w-56 -translate-x-1/2 rounded-xl border border-white/10 bg-home-dark/95 p-2 opacity-0 shadow-[0_22px_70px_rgba(0,0,0,0.28)] backdrop-blur-xl transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
             <div className="grid gap-1">
               {item.items.map((child) => (
-                <Link key={child.to} className="rounded-lg px-3 py-2 text-[0.86rem] font-medium text-white/70 transition hover:bg-white/[0.07] hover:text-white focus:bg-white/[0.07] focus:text-white focus:outline-none" to={child.to}>
+                <Link
+                  key={child.to}
+                  className="rounded-lg px-3 py-2 text-[0.86rem] font-medium text-white/70 transition hover:bg-white/[0.07] hover:text-white focus:bg-white/[0.07] focus:text-white focus:outline-none"
+                  to={child.to}
+                  onClick={(event) => closeDropdownNavigation(event.currentTarget)}
+                >
                   {child.label}
                 </Link>
               ))}
@@ -99,7 +109,12 @@ const HomeNavHeader = ({ copy, language, solid = false, navItems: providedNavIte
         {expanded ? (
           <div className="ml-3 mt-1 grid gap-0.5 border-l border-white/10 pl-2">
             {item.items.map((child) => (
-              <Link key={child.to} className="rounded-lg px-3 py-2 text-[0.9rem] font-medium text-white/62 transition hover:bg-white/[0.06] hover:text-white" to={child.to} onClick={() => setMenuOpen(false)}>
+              <Link
+                key={child.to}
+                className="rounded-lg px-3 py-2 text-[0.9rem] font-medium text-white/62 transition hover:bg-white/[0.06] hover:text-white"
+                to={child.to}
+                onClick={(event) => closeDropdownNavigation(event.currentTarget)}
+              >
                 {child.label}
               </Link>
             ))}

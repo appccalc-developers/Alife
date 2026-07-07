@@ -24,7 +24,7 @@ const SectionBlock = (props: SectionComponentProps) => {
     default:
       return (
         <section id={props.domId} className={pageSectionShellClass}>
-          <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+          <div className="mx-auto max-w-6xl rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
             {props.section.type || 'Unknown'} section configured.
           </div>
         </section>

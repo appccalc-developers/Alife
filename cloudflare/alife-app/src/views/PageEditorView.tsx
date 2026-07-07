@@ -86,7 +86,7 @@ const PageLanguageReviewModal = ({
   const targetLanguageLabel = t(prompt.targetLanguage === 'zh' ? 'chinese' : 'english')
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end bg-slate-950/45 px-4 py-5 sm:items-center sm:justify-center">
+    <div className="fixed inset-0 z-[70] flex items-end bg-slate-950/45 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+4.5rem)] sm:items-center sm:justify-center sm:pb-4">
       <button type="button" className="absolute inset-0" aria-label={t('cancel')} onClick={onStay} />
       <section className="relative z-10 w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
         <h2 className="text-lg font-semibold text-slate-950">{t('reviewOtherLanguageTitle')}</h2>
@@ -458,23 +458,6 @@ const PageEditorView = () => {
     setLanguageReviewPrompt(null)
     await auth.updateLanguage(language)
   }, [auth])
-
-  useEffect(() => {
-    const saveHandler = () => {
-      saveDraft().catch(() => undefined)
-    }
-    const exitHandler = () => {
-      cancel().catch(() => undefined)
-    }
-
-    window.addEventListener('alife-page-editor-save', saveHandler)
-    window.addEventListener('alife-page-editor-exit', exitHandler)
-
-    return () => {
-      window.removeEventListener('alife-page-editor-save', saveHandler)
-      window.removeEventListener('alife-page-editor-exit', exitHandler)
-    }
-  }, [cancel, saveDraft])
 
   if (!isCreateMode && !editPageId) {
     return <Navigate to="/" replace />

@@ -102,19 +102,23 @@ const RichTextSection = ({ section, mode, domId, disabled, propertiesOnly, showP
     return renderProperties()
   }
 
+  const hasSectionHeader = Boolean(section.contentJson.header && typeof section.contentJson.header === 'object' && !Array.isArray(section.contentJson.header))
+
   if (!overlay) {
     return (
       <section id={domId} className={pageSectionShellClass}>
-        <div className={`${sectionSpacingClass(section)} rounded-lg border border-slate-200 bg-slate-50 px-4 text-slate-700`}>
-          <SectionHeader
-            header={section.contentJson.header}
-            titleFallback={headerFallbackTitle}
-            subtitleFallback={headerFallbackSubtitle}
-            disabled={!editable}
-            onIconChange={editable ? (icon) => onUpdate?.(patchSectionHeader(section, { icon })) : undefined}
-            onTitleChange={editable ? updateHeaderTitle : undefined}
-            onSubtitleChange={editable ? updateHeaderSubtitle : undefined}
-          />
+        <div className={`mx-auto max-w-6xl ${sectionSpacingClass(section)} rounded-lg border border-slate-200 bg-slate-50 px-4 text-slate-700`}>
+          {hasSectionHeader ? (
+            <SectionHeader
+              header={section.contentJson.header}
+              titleFallback={headerFallbackTitle}
+              subtitleFallback={headerFallbackSubtitle}
+              disabled={!editable}
+              onIconChange={editable ? (icon) => onUpdate?.(patchSectionHeader(section, { icon })) : undefined}
+              onTitleChange={editable ? updateHeaderTitle : undefined}
+              onSubtitleChange={editable ? updateHeaderSubtitle : undefined}
+            />
+          ) : null}
           <div className="mx-auto max-w-3xl">
             {mode === 'render' ? (
               <RichTextHtml value={renderedText} fallback={t('noRichTextContentYet')} className="leading-7 text-slate-700 [&_a]:text-emerald-700 [&_blockquote]:text-slate-600" />
@@ -130,20 +134,22 @@ const RichTextSection = ({ section, mode, domId, disabled, propertiesOnly, showP
 
   return (
     <section id={domId} className={pageSectionShellClass}>
-      <div className="overflow-hidden rounded-lg border border-slate-200">
+      <div className="mx-auto max-w-6xl overflow-hidden rounded-lg border border-slate-200">
         <div className={`relative overflow-hidden px-5 text-white ${sectionSpacingClass(section)}`}>
           <BackgroundMedia src={bg} overlayClassName="bg-slate-950/70" />
           <div className="relative mx-auto max-w-4xl text-center">
-            <SectionHeader
-              header={section.contentJson.header}
-              variant="hero"
-              titleFallback={headerFallbackTitle}
-              subtitleFallback={headerFallbackSubtitle}
-              disabled={!editable}
-              onIconChange={editable ? (icon) => onUpdate?.(patchSectionHeader(section, { icon })) : undefined}
-              onTitleChange={editable ? updateHeaderTitle : undefined}
-              onSubtitleChange={editable ? updateHeaderSubtitle : undefined}
-            />
+            {hasSectionHeader ? (
+              <SectionHeader
+                header={section.contentJson.header}
+                variant="hero"
+                titleFallback={headerFallbackTitle}
+                subtitleFallback={headerFallbackSubtitle}
+                disabled={!editable}
+                onIconChange={editable ? (icon) => onUpdate?.(patchSectionHeader(section, { icon })) : undefined}
+                onTitleChange={editable ? updateHeaderTitle : undefined}
+                onSubtitleChange={editable ? updateHeaderSubtitle : undefined}
+              />
+            ) : null}
             {mode === 'edit' ? (
               <div className="mt-6 text-left sm:mt-8">
                 {renderTextEditor(true)}

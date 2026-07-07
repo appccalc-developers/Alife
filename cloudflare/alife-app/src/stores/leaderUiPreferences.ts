@@ -2,12 +2,10 @@ import { useCallback, useEffect, useState } from 'react'
 
 export type LeaderUiPreferences = {
   exerciseGroupManagement: boolean
-  exercisePageEditing: boolean
 }
 
 const DEFAULT_PREFERENCES: LeaderUiPreferences = {
   exerciseGroupManagement: true,
-  exercisePageEditing: true,
 }
 
 const STORAGE_KEY_PREFIX = 'alife:leader-ui-preferences:'
@@ -32,9 +30,6 @@ const readPreferences = (memberId?: string | null): LeaderUiPreferences => {
       exerciseGroupManagement: typeof parsed.exerciseGroupManagement === 'boolean'
         ? parsed.exerciseGroupManagement
         : DEFAULT_PREFERENCES.exerciseGroupManagement,
-      exercisePageEditing: typeof parsed.exercisePageEditing === 'boolean'
-        ? parsed.exercisePageEditing
-        : DEFAULT_PREFERENCES.exercisePageEditing,
     }
   } catch {
     return DEFAULT_PREFERENCES

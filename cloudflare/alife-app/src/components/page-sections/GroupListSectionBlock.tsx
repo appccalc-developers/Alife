@@ -90,19 +90,22 @@ const GroupListSectionBlock = ({ section, mode, domId, disabled, editorPreview, 
   }
 
   const compactPreview = previewDensity === 'compact' || editorPreview === true
+  const hasSectionHeader = Boolean(section.contentJson.header && typeof section.contentJson.header === 'object' && !Array.isArray(section.contentJson.header))
 
   return (
     <section id={domId} className={pageSectionShellClass}>
-      <div className={`${sectionSpacingClass(section)} rounded-lg border border-slate-200 bg-white px-4`}>
-        <SectionHeader
-          header={section.contentJson.header}
-          titleFallback={mode === 'edit' ? t('previewNoTitle') : ''}
-          subtitleFallback={mode === 'edit' ? t('previewNoSubtitle') : ''}
-          disabled={!editable}
-          onIconChange={editable ? (icon) => onUpdate?.(patchSectionHeader(section, { icon })) : undefined}
-          onTitleChange={editable ? updateHeaderTitle : undefined}
-          onSubtitleChange={editable ? updateHeaderSubtitle : undefined}
-        />
+      <div className={`mx-auto max-w-6xl ${sectionSpacingClass(section)} rounded-lg border border-slate-200 bg-white px-4`}>
+        {hasSectionHeader ? (
+          <SectionHeader
+            header={section.contentJson.header}
+            titleFallback={mode === 'edit' ? t('previewNoTitle') : ''}
+            subtitleFallback={mode === 'edit' ? t('previewNoSubtitle') : ''}
+            disabled={!editable}
+            onIconChange={editable ? (icon) => onUpdate?.(patchSectionHeader(section, { icon })) : undefined}
+            onTitleChange={editable ? updateHeaderTitle : undefined}
+            onSubtitleChange={editable ? updateHeaderSubtitle : undefined}
+          />
+        ) : null}
         <SmartGroupListSection metadata={section.contentJson} groupId={groupId} compact={compactPreview} />
         {mode === 'edit' && showProperties ? renderProperties() : null}
       </div>
