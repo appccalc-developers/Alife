@@ -21,10 +21,9 @@ public sealed class PageReadService(AlifeDbContext dbContext, HybridCache hybrid
                         on page.Id equals review.PageId into reviews
                     from review in reviews.DefaultIfEmpty()
                     where page.Visibility == PageVisibility.Public &&
-                          (page.OwnerGroupId == null ||
-                           (page.OwnerGroupId != null &&
-                            review != null &&
-                            review.Status == PagePublicationReviewStatus.Approved))
+                          page.OwnerGroupId != null &&
+                          review != null &&
+                          review.Status == PagePublicationReviewStatus.Approved
                     orderby page.UpdatedUtc
                     select new { Page = page, Review = review })
                     .ToListAsync(token);
@@ -46,10 +45,9 @@ public sealed class PageReadService(AlifeDbContext dbContext, HybridCache hybrid
                         on page.Id equals review.PageId into reviews
                     from review in reviews.DefaultIfEmpty()
                     where page.Visibility == PageVisibility.Public &&
-                          (page.OwnerGroupId == null ||
-                           (page.OwnerGroupId != null &&
-                            review != null &&
-                            review.Status == PagePublicationReviewStatus.Approved))
+                          page.OwnerGroupId != null &&
+                          review != null &&
+                          review.Status == PagePublicationReviewStatus.Approved
                     orderby page.UpdatedUtc, page.Id
                     select new { Page = page, Review = review })
                     .ToListAsync(token);

@@ -61,6 +61,65 @@ public class UpdatePageCommandHandlerTests
         await pageCacheInvalidationService.Received(1).RemoveGlobalAsync(Arg.Any<CancellationToken>());
     }
 
+    [Fact]
+    public async Task Handle_WhenApprovedPublicGroupPageChangesContent_ResetsReviewToPending()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var groupAuthorizationService = Substitute.For<IGroupAuthorizationService>();
+        var pageCacheInvalidationService = Substitute.For<IPageCacheInvalidationService>();
+        var reviewerId = Guid.NewGuid();
+        var groupId = Guid.NewGuid();
+        var pageId = Guid.NewGuid();
+        dbContext.Pages.Add(new Page
+        {
+            Id = pageId,
+            OwnerGroupId = groupId,
+            CreatedByMemberId = Guid.NewGuid(),
+            TitleJson = "{\"en\":\"Approved title\",\"zh\":\"已批准标题\"}",
+            DescriptionJson = "{\"en\":\"Approved description\",\"zh\":\"已批准描述\"}",
+            TagsJson = "[]",
+            TitleDisplayStyle = "Default",
+            Visibility = PageVisibility.Public,
+            UpdatedUtc = DateTime.UtcNow.AddDays(-1)
+        });
+        dbContext.PagePublicationReviews.Add(new PagePublicationReview
+        {
+            Id = Guid.NewGuid(),
+            PageId = pageId,
+            Status = PagePublicationReviewStatus.Approved,
+            AccessNameJson = "{\"en\":\"Approved\",\"zh\":\"已批准\"}",
+            ReviewedByMemberId = reviewerId,
+            ReviewedUtc = DateTime.UtcNow.AddDays(-1),
+            CreatedUtc = DateTime.UtcNow.AddDays(-2),
+            UpdatedUtc = DateTime.UtcNow.AddDays(-1)
+        });
+        await dbContext.SaveChangesAsync();
+        groupAuthorizationService
+            .CanReviewPagesAsync(reviewerId, Arg.Any<CancellationToken>())
+            .Returns(true);
+        var handler = new UpdatePageCommandHandler(
+            dbContext,
+            groupAuthorizationService,
+            pageCacheInvalidationService);
+
+        var result = await handler.Handle(
+            new UpdatePageCommand(
+                pageId,
+                reviewerId,
+                new Dictionary<string, string> { ["en"] = "Changed title", ["zh"] = "已修改标题" },
+                new Dictionary<string, string> { ["en"] = "Changed description", ["zh"] = "已修改描述" },
+                "[]",
+                "Default",
+                Array.Empty<PageSectionDto>()),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var review = await dbContext.PagePublicationReviews.SingleAsync(x => x.PageId == pageId);
+        Assert.Equal(PagePublicationReviewStatus.Pending, review.Status);
+        Assert.Null(review.ReviewedByMemberId);
+        Assert.Null(review.ReviewedUtc);
+    }
+
     private static AlifeDbContext CreateInMemoryDbContext()
     {
         var options = new DbContextOptionsBuilder<AlifeDbContext>()

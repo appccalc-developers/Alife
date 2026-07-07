@@ -56,9 +56,9 @@ public class PublicPagesQueryTests
 
         var result = await service.GetPublicPagesAsync(CancellationToken.None);
 
-        Assert.Equal(2, result.Count);
-        Assert.Contains(result, page => page.Id == publicGlobalPage.Id);
+        Assert.Single(result);
         Assert.Contains(result, page => page.Id == approvedSubgroupPage.Id);
+        Assert.DoesNotContain(result, page => page.Id == publicGlobalPage.Id);
         Assert.DoesNotContain(result, page => page.Id == draftGlobalPage.Id);
         Assert.DoesNotContain(result, page => page.Id == publicChurchPage.Id);
         Assert.DoesNotContain(result, page => page.Id == groupVisibleChurchPage.Id);
@@ -66,7 +66,7 @@ public class PublicPagesQueryTests
     }
 
     [Fact]
-    public async Task GetGlobalPages_ReturnsGlobalPagesAndCurrentApprovedGroupPages()
+    public async Task GetGlobalPages_ReturnsCurrentApprovedGroupPages()
     {
         using var dbContext = CreateInMemoryDbContext();
         using var services = CreateServiceProvider();
@@ -95,8 +95,8 @@ public class PublicPagesQueryTests
 
         var result = await service.GetGlobalPagesAsync(CancellationToken.None);
 
-        Assert.Equal(2, result.Count);
-        Assert.Contains(result, page => page.Id == publicGlobalPage.Id && page.OwnerGroupId is null);
+        Assert.Single(result);
+        Assert.DoesNotContain(result, page => page.Id == publicGlobalPage.Id);
         Assert.Contains(result, page =>
             page.Id == approvedGroupPage.Id &&
             page.OwnerGroupId == groupId &&

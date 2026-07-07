@@ -1,7 +1,6 @@
 using Alife.Api.Http;
 using Alife.Api.Results;
 using Alife.Application.Abstractions.Identity;
-using Alife.Application.Pages.Commands.CreateGlobalPage;
 using Alife.Application.Pages.Commands.CreateGroupPage;
 using Alife.Application.Pages.Commands.DeletePage;
 using Alife.Application.Pages.Commands.PublishPage;
@@ -87,28 +86,6 @@ public class PagesController(
         var result = await mediator.Send(
             new CreateGroupPageCommand(
                 groupId,
-                currentMemberId.Value,
-                request.Title,
-                request.Description,
-                request.TagsJson,
-                request.TitleDisplayStyle,
-                request.Sections),
-            cancellationToken);
-
-        return this.ToActionResult(result);
-    }
-
-    [HttpPost("pages/global")]
-    public async Task<IActionResult> CreateGlobalPage([FromBody] CreatePageRequest request, CancellationToken cancellationToken)
-    {
-        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
-        if (currentMemberId is null)
-        {
-            return Unauthorized();
-        }
-
-        var result = await mediator.Send(
-            new CreateGlobalPageCommand(
                 currentMemberId.Value,
                 request.Title,
                 request.Description,

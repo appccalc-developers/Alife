@@ -70,6 +70,11 @@ public sealed class UpdatePageCommandHandler(
             });
         }
 
+        if (page.OwnerGroupId.HasValue && page.Visibility == PageVisibility.Public)
+        {
+            await ResetReviewToPendingAsync(page.Id, cancellationToken);
+        }
+
         await dbContext.SaveChangesAsync(cancellationToken);
         await InvalidatePageAsync(page, cancellationToken);
 
@@ -79,6 +84,32 @@ public sealed class UpdatePageCommandHandler(
             .ToListAsync(cancellationToken);
 
         return AppResult<PageDetailDto>.Success(ToDetailDto(page, activeSections));
+    }
+
+    private async Task ResetReviewToPendingAsync(Guid pageId, CancellationToken cancellationToken)
+    {
+        var review = await dbContext.PagePublicationReviews
+            .FirstOrDefaultAsync(x => x.PageId == pageId, cancellationToken);
+        var now = DateTime.UtcNow;
+
+        if (review is null)
+        {
+            dbContext.PagePublicationReviews.Add(new PagePublicationReview
+            {
+                Id = Guid.NewGuid(),
+                PageId = pageId,
+                Status = PagePublicationReviewStatus.Pending,
+                CreatedUtc = now,
+                UpdatedUtc = now
+            });
+            return;
+        }
+
+        review.Status = PagePublicationReviewStatus.Pending;
+        review.ReturnReason = null;
+        review.ReviewedByMemberId = null;
+        review.ReviewedUtc = null;
+        review.UpdatedUtc = now;
     }
 
     private async Task<bool> CanEditPageAsync(Page page, Guid currentMemberId, CancellationToken cancellationToken)

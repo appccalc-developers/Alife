@@ -52,7 +52,7 @@ const labels: Record<string, LocalText> = {
   sermonsDescription: { en: 'Run a manual sync from connected sermon sources.', zh: '从已连接来源手动同步讲道。' },
   homeDescription: { en: 'Keep the public home page fresh for visitors, seekers, and members.', zh: '维护面向访客、慕道朋友和成员的公共首页。' },
   editHome: { en: 'Edit public home', zh: '编辑公共首页' },
-  createDefaultHome: { en: 'Create default home', zh: '新建默认首页' },
+  createDefaultHome: { en: 'Review submitted pages', zh: '审核提交页面' },
   refresh: { en: 'Refresh', zh: '刷新' },
   apply: { en: 'Apply', zh: '筛选' },
   reset: { en: 'Reset', zh: '重置' },
@@ -733,11 +733,11 @@ const Overview = ({ l, users, logs, messages, homePage, syncing, syncSermons, go
             />
             <div className="grid gap-3 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.9fr)]">
               <Link
-                to={homePage ? '/pages/edit?scope=home' : '/pages/new?scope=home'}
+                to={homePage?.ownerGroupId ? `/pages/edit?groupId=${encodeURIComponent(homePage.ownerGroupId)}` : '/admin/page-review'}
                 className="flex min-h-[7rem] items-start justify-between gap-4 rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-4 transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md"
                 onClick={() => {
-                  if (homePage) {
-                    activeEntityService.setPage(homePage.id)
+                  if (homePage?.ownerGroupId) {
+                    activeEntityService.setPage(homePage.id, homePage.ownerGroupId)
                   }
                 }}
               >

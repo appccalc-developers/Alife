@@ -51,6 +51,9 @@ public class PublishPageCommandHandlerTests
         Assert.Equal(groupId, result.Value.OwnerGroupId);
         Assert.Equal(PageVisibility.Public, result.Value.Visibility);
         Assert.Equal("Welcome", result.Value.Title["en"]);
+        Assert.Contains(dbContext.PagePublicationReviews, review =>
+            review.PageId == pageId &&
+            review.Status == PagePublicationReviewStatus.Pending);
         await pageCacheInvalidationService.Received(1).RemoveDetailAsync(pageId, Arg.Any<CancellationToken>());
         await pageCacheInvalidationService.Received(1).RemoveGroupPagesAsync(groupId, Arg.Any<CancellationToken>());
         await pageCacheInvalidationService.Received(1).RemoveGlobalAsync(Arg.Any<CancellationToken>());
@@ -92,6 +95,9 @@ public class PublishPageCommandHandlerTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal(PageVisibility.Public, result.Value!.Visibility);
+        Assert.Contains(dbContext.PagePublicationReviews, review =>
+            review.PageId == pageId &&
+            review.Status == PagePublicationReviewStatus.Pending);
         await pageCacheInvalidationService.Received(1).RemoveDetailAsync(pageId, Arg.Any<CancellationToken>());
         await pageCacheInvalidationService.Received(1).RemoveGroupPagesAsync(groupId, Arg.Any<CancellationToken>());
         await pageCacheInvalidationService.Received(1).RemoveGlobalAsync(Arg.Any<CancellationToken>());

@@ -11,7 +11,6 @@ namespace Alife.Application.Pages.Queries.GetPageById;
 
 public sealed class GetPageByIdQueryHandler(
     IPageReadService pageReadService,
-    IGroupReadService groupReadService,
     IGroupAuthorizationService groupAuthorizationService,
     IAlifeDbContext dbContext)
     : IRequestHandler<GetPageByIdQuery, AppResult<PageDetailDto>>
@@ -24,9 +23,20 @@ public sealed class GetPageByIdQueryHandler(
             return AppResult<PageDetailDto>.NotFound("Page was not found.");
         }
 
+        var canReviewPage = request.CurrentMemberId.HasValue &&
+                            await groupAuthorizationService.CanReviewPagesAsync(
+                                request.CurrentMemberId.Value,
+                                cancellationToken);
+
         if (page.OwnerGroupId is null)
         {
-            return AppResult<PageDetailDto>.Success(page);
+            if (request.CurrentMemberId.HasValue &&
+                (canReviewPage || await groupAuthorizationService.IsAdminAsync(request.CurrentMemberId.Value, cancellationToken)))
+            {
+                return AppResult<PageDetailDto>.Success(page);
+            }
+
+            return AppResult<PageDetailDto>.Forbidden("This page is not available for public access.");
         }
 
         var isApproved = request.CurrentMemberId.HasValue &&
@@ -42,11 +52,6 @@ public sealed class GetPageByIdQueryHandler(
                                 request.CurrentMemberId.Value,
                                 cancellationToken));
 
-        var canReviewPage = request.CurrentMemberId.HasValue &&
-                            await groupAuthorizationService.CanReviewPagesAsync(
-                                request.CurrentMemberId.Value,
-                                cancellationToken);
-
         var canView = (isApproved && page.Visibility != PageVisibility.Draft) ||
                       isPrivileged ||
                       canReviewPage;
@@ -57,12 +62,6 @@ public sealed class GetPageByIdQueryHandler(
 
         if (page.Visibility == PageVisibility.Public &&
             await HasCurrentGlobalApprovalAsync(page, cancellationToken))
-        {
-            return AppResult<PageDetailDto>.Success(page);
-        }
-
-        var ownerGroup = await groupReadService.GetByIdAsync(page.OwnerGroupId.Value, cancellationToken);
-        if (ownerGroup?.IsChurch == true && page.Visibility == PageVisibility.Public)
         {
             return AppResult<PageDetailDto>.Success(page);
         }

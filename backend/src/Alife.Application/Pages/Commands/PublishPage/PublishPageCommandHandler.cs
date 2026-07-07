@@ -28,10 +28,7 @@ public sealed class PublishPageCommandHandler(
 
         if (page.OwnerGroupId is null)
         {
-            if (!canReviewPages && !await groupAuthorizationService.IsAdminAsync(request.CurrentMemberId, cancellationToken))
-            {
-                return AppResult<PageDto>.Forbidden("You do not have permission to publish this page.");
-            }
+            return AppResult<PageDto>.Forbidden("Pages must belong to a group before they can be published.");
         }
         else if (!canReviewPages &&
                   !await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
@@ -45,10 +42,45 @@ public sealed class PublishPageCommandHandler(
         page.Visibility = request.Visibility;
         page.UpdatedUtc = DateTime.UtcNow;
 
+        if (page.Visibility == PageVisibility.Public)
+        {
+            await EnsurePendingReviewAsync(page.Id, cancellationToken);
+        }
+
         await dbContext.SaveChangesAsync(cancellationToken);
         await InvalidatePageAsync(page, cancellationToken);
 
         return AppResult<PageDto>.Success(ToDto(page));
+    }
+
+    private async Task EnsurePendingReviewAsync(Guid pageId, CancellationToken cancellationToken)
+    {
+        var review = await dbContext.PagePublicationReviews
+            .FirstOrDefaultAsync(x => x.PageId == pageId, cancellationToken);
+        if (review?.Status == PagePublicationReviewStatus.Approved)
+        {
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+        if (review is null)
+        {
+            dbContext.PagePublicationReviews.Add(new Domain.Entities.PagePublicationReview
+            {
+                Id = Guid.NewGuid(),
+                PageId = pageId,
+                Status = PagePublicationReviewStatus.Pending,
+                CreatedUtc = now,
+                UpdatedUtc = now
+            });
+            return;
+        }
+
+        review.Status = PagePublicationReviewStatus.Pending;
+        review.ReturnReason = null;
+        review.ReviewedByMemberId = null;
+        review.ReviewedUtc = null;
+        review.UpdatedUtc = now;
     }
 
     private async Task InvalidatePageAsync(Domain.Entities.Page page, CancellationToken cancellationToken)
