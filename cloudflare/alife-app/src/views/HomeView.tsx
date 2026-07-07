@@ -23,11 +23,14 @@ const HomeView = () => {
   const churchDescription = localizeText(church?.description, language)
   const copy = getCopy(language, churchDescription)
   const eventsNavLabel = copy.nav.events
+  const showGuestNav = auth.isGuest
+  const showMemberNav = !auth.isGuest
 
   const rawDefaultNavItems = [
     { href: '#about', label: copy.nav.about },
     { href: '#visit', label: copy.nav.visit },
-    { href: '#groups', label: copy.nav.groups },
+    ...(showGuestNav ? [{ href: '#ministries', label: copy.nav.life }] : []),
+    ...(showMemberNav ? [{ href: '#groups', label: copy.nav.groups }] : []),
     { href: '#events', label: copy.nav.events },
     { href: '#sermons', label: copy.nav.sermons },
     { href: '#location', label: copy.nav.location },
@@ -36,7 +39,9 @@ const HomeView = () => {
   const sanitizedNavItems = rawDefaultNavItems.map((item) =>
     item.href === '#events' ? { ...item, label: eventsNavLabel } : item,
   )
-  const ministriesNavItem = buildMinistriesNavItem(publicPages, language, copy.nav.ministries)
+  const ministriesNavItem = showMemberNav
+    ? buildMinistriesNavItem(publicPages, language, copy.nav.ministries)
+    : null
   const headerNavItems = insertMinistriesNavItem(sanitizedNavItems, ministriesNavItem)
 
   return (
@@ -48,8 +53,12 @@ const HomeView = () => {
         <hr className={pageSectionDividerClass} />
         <VisitSection copy={copy} language={language} />
         <hr className={pageSectionDividerClass} />
-        <GroupsSection copy={copy} language={language} groupCards={groupCards} />
-        <hr className={pageSectionDividerClass} />
+        {showMemberNav ? (
+          <>
+            <GroupsSection copy={copy} language={language} groupCards={groupCards} />
+            <hr className={pageSectionDividerClass} />
+          </>
+        ) : null}
         <MinistrySection copy={copy} language={language} pages={publicPages} />
         <hr className={pageSectionDividerClass} />
         <EventsSection copy={copy} language={language} upcomingEvents={upcomingEvents} />

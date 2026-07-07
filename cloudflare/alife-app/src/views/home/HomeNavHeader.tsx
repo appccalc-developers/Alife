@@ -36,11 +36,14 @@ const HomeNavHeader = ({ copy, language, solid = false, navItems: providedNavIte
   const accountLabel = auth.isGuest ? copy.account : copy.enterAlife
   const eventsNavLabel = copy.nav.events
   const nextLanguageLabel = copy.nextLanguageLabel
+  const showGuestNav = auth.isGuest
+  const showMemberNav = !auth.isGuest
 
   const fallbackNavItems: HomeNavItem[] = [
     { href: '#about', label: copy.nav.about },
     { href: '#visit', label: copy.nav.visit },
-    { href: '#groups', label: copy.nav.groups },
+    ...(showGuestNav ? [{ href: '#ministries', label: copy.nav.life }] : []),
+    ...(showMemberNav ? [{ href: '#groups', label: copy.nav.groups }] : []),
     { href: '#events', label: eventsNavLabel },
     { href: '#sermons', label: copy.nav.sermons },
     { href: '#location', label: copy.nav.location },
