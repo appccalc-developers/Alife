@@ -3,6 +3,7 @@ import { conditionalGet, removeCachedRecord } from '../db/httpCache'
 import { subgroupsQueryKey } from '../db/collections/groupCollection'
 import { sermonsQueryKey } from '../db/collections/sermonsCollection'
 import { queryClient } from '../db/queryClient'
+import { publicPagesQueryKey } from './pageService'
 import type { GroupDto, GroupMembershipDto, GroupSummaryDto, LocalizedText, MembershipStatus, PageSummaryDto } from '../types'
 import { normalizeGroup, normalizeGroupMembership, normalizeMembershipStatus, normalizePageSummary, normalizePageVisibility } from '../utils/apiEnums'
 import { toLocalizedText } from '../utils/localizedText'
@@ -87,6 +88,8 @@ export type AdminPageReviewDto = {
   visibility: 'draft' | 'group' | 'public' | string
   reviewStatus: 'pending' | 'approved' | 'returned'
   accessName: LocalizedText | null
+  cardImageUrl: string | null
+  cardText: LocalizedText | null
   returnReason: string | null
   reviewedUtc: string | null
   updatedUtc: string
@@ -101,6 +104,8 @@ export type PagePublicationReviewActionDto = {
 
 export type ApprovePagePublicationReviewPayload = {
   accessName: LocalizedText
+  cardImageUrl?: string | null
+  cardText?: LocalizedText | null
 }
 
 export type ReturnPagePublicationReviewPayload = {
@@ -230,6 +235,7 @@ const normalizeAdminPageReview = (page: AdminPageReviewDto): AdminPageReviewDto 
   visibility: normalizePageVisibility(page.visibility),
   reviewStatus: normalizeAdminPageReviewStatus(page.reviewStatus),
   accessName: page.accessName ? toLocalizedText(page.accessName) : null,
+  cardText: page.cardText ? toLocalizedText(page.cardText) : null,
   title: toLocalizedText(page.title),
   description: page.description ? toLocalizedText(page.description) : page.description,
   ownerGroupName: page.ownerGroupName ? toLocalizedText(page.ownerGroupName) : null,
@@ -249,6 +255,11 @@ const normalizeAdminPageReviewStatus = (value: unknown): AdminPageReviewDto['rev
   }
 
   return 'pending'
+}
+
+const invalidatePublicPagesCache = async () => {
+  await removeCachedRecord(publicPagesQueryKey())
+  await queryClient.invalidateQueries({ queryKey: publicPagesQueryKey() })
 }
 
 const toQuery = (params: Record<string, string | number | boolean | null | undefined>) => {
@@ -414,11 +425,13 @@ export const groupService = {
 
   async approvePagePublicationReview(pageId: string, payload: ApprovePagePublicationReviewPayload) {
     const { data } = await http.post<PagePublicationReviewActionDto>(`/api/admin/pages/${pageId}/publication-review/approve`, payload)
+    await invalidatePublicPagesCache()
     return data
   },
 
   async returnPagePublicationReview(pageId: string, payload: ReturnPagePublicationReviewPayload) {
     const { data } = await http.post<PagePublicationReviewActionDto>(`/api/admin/pages/${pageId}/publication-review/return`, payload)
+    await invalidatePublicPagesCache()
     return data
   },
 

@@ -23,6 +23,8 @@ public sealed record AdminPageReviewDto(
     PageVisibility Visibility,
     AdminPageReviewStatus ReviewStatus,
     IReadOnlyDictionary<string, string>? AccessName,
+    string? CardImageUrl,
+    IReadOnlyDictionary<string, string>? CardText,
     string? ReturnReason,
     DateTime? ReviewedUtc,
     DateTime UpdatedUtc);

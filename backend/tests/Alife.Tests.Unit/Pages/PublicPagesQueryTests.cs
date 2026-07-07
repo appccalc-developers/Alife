@@ -96,7 +96,10 @@ public class PublicPagesQueryTests
             page.Id == approvedGroupPage.Id &&
             page.OwnerGroupId == groupId &&
             page.AccessName != null &&
-            page.AccessName["en"] == "Approved menu");
+            page.AccessName["en"] == "Approved menu" &&
+            page.CardImageUrl == "https://example.test/ministry.jpg" &&
+            page.CardText != null &&
+            page.CardText["en"] == "Approved ministry card");
         Assert.DoesNotContain(result, page => page.Id == unapprovedGroupPage.Id);
     }
 
@@ -153,6 +156,8 @@ public class PublicPagesQueryTests
             PageId = pageId,
             Status = PagePublicationReviewStatus.Approved,
             AccessNameJson = $$"""{"en":"{{accessName}}","zh":"{{accessName}}"}""",
+            CardImageUrl = "https://example.test/ministry.jpg",
+            CardTextJson = """{"en":"Approved ministry card","zh":"已批准事工卡片"}""",
             CreatedUtc = DateTime.UtcNow,
             UpdatedUtc = DateTime.UtcNow
         };

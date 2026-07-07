@@ -142,6 +142,8 @@ export type PageSummaryDto = {
   tagsJson?: string
   titleDisplayStyle?: string
   accessName?: LocalizedText | null
+  cardImageUrl?: string | null
+  cardText?: LocalizedText | null
   reviewRefusal?: PageReviewRefusalDto | null
 }
 

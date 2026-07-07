@@ -9,6 +9,7 @@ import HeroSection from './home/HeroSection'
 import AboutAndLiveSection from './home/AboutAndLiveSection'
 import VisitSection from './home/VisitSection'
 import GroupsSection from './home/GroupsSection'
+import MinistrySection from './home/MinistrySection'
 import EventsSection from './home/EventsSection'
 import RecentSermonsSection from './home/RecentSermonsSection'
 import LocationSection from './home/LocationSection'
@@ -48,6 +49,8 @@ const HomeView = () => {
         <VisitSection copy={copy} language={language} />
         <hr className={pageSectionDividerClass} />
         <GroupsSection copy={copy} language={language} groupCards={groupCards} />
+        <hr className={pageSectionDividerClass} />
+        <MinistrySection copy={copy} language={language} pages={publicPages} />
         <hr className={pageSectionDividerClass} />
         <EventsSection copy={copy} language={language} upcomingEvents={upcomingEvents} />
         <hr className={pageSectionDividerClass} />

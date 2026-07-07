@@ -109,6 +109,16 @@ export const buildMinistriesNavItem = (
   language: string,
   label: string,
 ): HomeNavDropdownItem | null => {
+  const items = sortPublicPagesForMinistries(pages, language)
+    .map((page) => ({
+      to: publicPageHomePath(page, language),
+      label: publicPageMenuName(page, language),
+    }))
+
+  return items.length > 0 ? { key: 'ministries', label, items } : null
+}
+
+export const getPublicMinistryPages = (pages: PageSummaryDto[]) => {
   const byId = new Map<string, PageSummaryDto>()
   pages.forEach((page) => {
     if (page.visibility === 'public' && !byId.has(page.id)) {
@@ -116,20 +126,18 @@ export const buildMinistriesNavItem = (
     }
   })
 
+  return Array.from(byId.values())
+}
+
+export const sortPublicPagesForMinistries = (pages: PageSummaryDto[], language: string) => {
   const locale = language === 'zh' ? 'zh-Hans' : 'en'
-  const items = Array.from(byId.values())
+  return getPublicMinistryPages(pages)
     .sort((left, right) => {
       const leftLabel = publicPageMenuName(left, language)
       const rightLabel = publicPageMenuName(right, language)
       return leftLabel.localeCompare(rightLabel, locale, { sensitivity: 'base' }) ||
         left.id.localeCompare(right.id)
     })
-    .map((page) => ({
-      to: publicPageHomePath(page, language),
-      label: publicPageMenuName(page, language),
-    }))
-
-  return items.length > 0 ? { key: 'ministries', label, items } : null
 }
 
 export const insertMinistriesNavItem = (

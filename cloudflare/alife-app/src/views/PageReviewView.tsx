@@ -31,8 +31,8 @@ const copy = {
   },
   queue: { en: 'Pages for review', zh: '审核页面' },
   queueHint: {
-    en: 'Pending public pages submitted by groups can be approved with a bilingual menu name or returned for revision.',
-    zh: '小组提交的待审核公开页面可以填写双语菜单名后批准，或退回修改。',
+    en: 'Pending public pages submitted by groups can be approved with a bilingual menu name, ministry card image, and ministry card text, or returned for revision.',
+    zh: '小组提交的待审核公开页面可以填写双语菜单名、事工卡片图片和事工卡片文字后批准，或退回修改。',
   },
   groupPage: { en: 'group page', zh: '小组页面' },
   draftStatus: { en: 'Draft', zh: '草稿' },
@@ -49,6 +49,17 @@ const copy = {
   accessNameEn: { en: 'English menu name', zh: '英文菜单名' },
   accessNameZh: { en: 'Chinese menu name', zh: '中文菜单名' },
   accessNameRequired: { en: 'Please enter both English and Chinese menu names.', zh: '请填写英文和中文菜单名。' },
+  cardImageUrl: { en: 'Card image URL', zh: '卡片图片 URL' },
+  cardImageUrlPlaceholder: { en: 'https://...', zh: 'https://...' },
+  cardTextEn: { en: 'English card text', zh: '英文卡片文字' },
+  cardTextZh: { en: 'Chinese card text', zh: '中文卡片文字' },
+  cardDetailsRequired: {
+    en: 'Please enter a card image URL and both English and Chinese card text.',
+    zh: '请填写卡片图片 URL，以及英文和中文卡片文字。',
+  },
+  cardPreview: { en: 'Ministry card preview', zh: '事工卡片预览' },
+  cardText: { en: 'Card text', zh: '卡片文字' },
+  cardImage: { en: 'Card image', zh: '卡片图片' },
   submitApprove: { en: 'Approve publication', zh: '批准发布' },
   menuName: { en: 'Menu name', zh: '菜单名' },
   return: { en: 'Return', zh: '退回' },
@@ -145,6 +156,11 @@ const initialAccessName = (page: AdminPageReviewDto) => ({
   zh: page.accessName?.zh || page.title?.zh || page.title?.en || '',
 })
 
+const initialCardText = (page: AdminPageReviewDto) => ({
+  en: page.cardText?.en || page.description?.en || page.description?.zh || page.title?.en || page.title?.zh || '',
+  zh: page.cardText?.zh || page.description?.zh || page.description?.en || page.title?.zh || page.title?.en || '',
+})
+
 const PageReviewView = () => {
   const auth = useAuthStore()
   const navigate = useNavigate()
@@ -155,6 +171,8 @@ const PageReviewView = () => {
   const [actingPageId, setActingPageId] = useState<string | null>(null)
   const [approvingPage, setApprovingPage] = useState<AdminPageReviewDto | null>(null)
   const [accessName, setAccessName] = useState({ en: '', zh: '' })
+  const [cardImageUrl, setCardImageUrl] = useState('')
+  const [cardText, setCardText] = useState({ en: '', zh: '' })
   const [returningPage, setReturningPage] = useState<AdminPageReviewDto | null>(null)
   const [returnReason, setReturnReason] = useState('')
   const [message, setMessage] = useState('')
@@ -201,6 +219,8 @@ const PageReviewView = () => {
   const openApproveDialog = (page: AdminPageReviewDto) => {
     setApprovingPage(page)
     setAccessName(initialAccessName(page))
+    setCardImageUrl(page.cardImageUrl || '')
+    setCardText(initialCardText(page))
     setError('')
     setMessage('')
   }
@@ -212,6 +232,8 @@ const PageReviewView = () => {
 
     setApprovingPage(null)
     setAccessName({ en: '', zh: '' })
+    setCardImageUrl('')
+    setCardText({ en: '', zh: '' })
   }
 
   const submitApproval = async () => {
@@ -223,8 +245,17 @@ const PageReviewView = () => {
       en: accessName.en.trim(),
       zh: accessName.zh.trim(),
     }
+    const nextCardText = {
+      en: cardText.en.trim(),
+      zh: cardText.zh.trim(),
+    }
+    const nextCardImageUrl = cardImageUrl.trim()
     if (!nextAccessName.en || !nextAccessName.zh) {
       setError(text(language, 'accessNameRequired'))
+      return
+    }
+    if (!nextCardImageUrl || !nextCardText.en || !nextCardText.zh) {
+      setError(text(language, 'cardDetailsRequired'))
       return
     }
 
@@ -232,11 +263,17 @@ const PageReviewView = () => {
     setError('')
     setMessage('')
     try {
-      await groupService.approvePagePublicationReview(approvingPage.id, { accessName: nextAccessName })
+      await groupService.approvePagePublicationReview(approvingPage.id, {
+        accessName: nextAccessName,
+        cardImageUrl: nextCardImageUrl,
+        cardText: nextCardText,
+      })
       await load()
       setMessage(text(language, 'promoted'))
       setApprovingPage(null)
       setAccessName({ en: '', zh: '' })
+      setCardImageUrl('')
+      setCardText({ en: '', zh: '' })
       setActiveTab('approved')
     } catch (reason) {
       const apiError = normalizeApiError(reason)
@@ -373,6 +410,7 @@ const PageReviewView = () => {
               const canApprove = canReviewPublication && page.reviewStatus !== 'approved'
               const canReturn = canReviewPublication && page.reviewStatus !== 'returned'
               const accessLabel = localizeText(page.accessName, language)
+              const cardLabel = localizeText(page.cardText, language)
 
               return (
                 <article key={page.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -398,6 +436,24 @@ const PageReviewView = () => {
                       {page.description ? (
                         <p className="mt-1 line-clamp-2 text-sm leading-6 text-slate-600">{localizeText(page.description, language)}</p>
                       ) : null}
+                      {(page.cardImageUrl || cardLabel) ? (
+                        <div className="mt-3 flex gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                          {page.cardImageUrl ? (
+                            <img
+                              src={page.cardImageUrl}
+                              alt=""
+                              className="h-16 w-24 shrink-0 rounded-xl object-cover"
+                              loading="lazy"
+                            />
+                          ) : null}
+                          <div className="min-w-0">
+                            <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+                              {text(language, 'cardPreview')}
+                            </p>
+                            {cardLabel ? <p className="mt-1 line-clamp-2 text-sm leading-6 text-slate-600">{cardLabel}</p> : null}
+                          </div>
+                        </div>
+                      ) : null}
                       <dl className="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
                         <div>
                           <dt className="font-bold text-slate-700">{text(language, 'group')}</dt>
@@ -411,6 +467,18 @@ const PageReviewView = () => {
                           <div>
                             <dt className="font-bold text-slate-700">{text(language, 'menuName')}</dt>
                             <dd className="mt-0.5 break-words">{accessLabel}</dd>
+                          </div>
+                        ) : null}
+                        {page.cardImageUrl ? (
+                          <div>
+                            <dt className="font-bold text-slate-700">{text(language, 'cardImage')}</dt>
+                            <dd className="mt-0.5 break-all">{page.cardImageUrl}</dd>
+                          </div>
+                        ) : null}
+                        {cardLabel ? (
+                          <div>
+                            <dt className="font-bold text-slate-700">{text(language, 'cardText')}</dt>
+                            <dd className="mt-0.5 break-words">{cardLabel}</dd>
                           </div>
                         ) : null}
                         {page.returnReason ? (
@@ -450,7 +518,7 @@ const PageReviewView = () => {
       {approvingPage ? (
         <div className="fixed inset-0 z-[70] flex items-end bg-slate-950/45 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+4.5rem)] sm:items-center sm:justify-center sm:pb-4">
           <button type="button" className="absolute inset-0" aria-label={text(language, 'cancel')} onClick={closeApproveDialog} />
-          <section className="relative z-10 w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl">
+          <section className="relative z-10 max-h-[calc(100vh-7rem)] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl">
             <h2 className="text-lg font-black text-slate-950">{text(language, 'approveTitle')}</h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">
               {localizeText(approvingPage.title, language) || approvingPage.id}
@@ -485,6 +553,64 @@ const PageReviewView = () => {
                 }
               }}
             />
+            <label className="mt-4 block text-sm font-bold text-slate-700" htmlFor="page-card-image-url">
+              {text(language, 'cardImageUrl')}
+            </label>
+            <input
+              id="page-card-image-url"
+              className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm leading-6 text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+              value={cardImageUrl}
+              maxLength={1200}
+              placeholder={text(language, 'cardImageUrlPlaceholder')}
+              onChange={(event) => {
+                setCardImageUrl(event.target.value)
+                if (error === text(language, 'cardDetailsRequired')) {
+                  setError('')
+                }
+              }}
+            />
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <label className="block text-sm font-bold text-slate-700" htmlFor="page-card-text-en">
+                {text(language, 'cardTextEn')}
+                <textarea
+                  id="page-card-text-en"
+                  className="mt-2 min-h-24 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-normal leading-6 text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+                  value={cardText.en}
+                  maxLength={280}
+                  onChange={(event) => {
+                    setCardText((current) => ({ ...current, en: event.target.value }))
+                    if (error === text(language, 'cardDetailsRequired')) {
+                      setError('')
+                    }
+                  }}
+                />
+              </label>
+              <label className="block text-sm font-bold text-slate-700" htmlFor="page-card-text-zh">
+                {text(language, 'cardTextZh')}
+                <textarea
+                  id="page-card-text-zh"
+                  className="mt-2 min-h-24 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-normal leading-6 text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+                  value={cardText.zh}
+                  maxLength={280}
+                  onChange={(event) => {
+                    setCardText((current) => ({ ...current, zh: event.target.value }))
+                    if (error === text(language, 'cardDetailsRequired')) {
+                      setError('')
+                    }
+                  }}
+                />
+              </label>
+            </div>
+            <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+              {cardImageUrl.trim() ? (
+                <img src={cardImageUrl.trim()} alt="" className="h-40 w-full object-cover" />
+              ) : null}
+              <div className="p-4">
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">{text(language, 'cardPreview')}</p>
+                <p className="mt-1 text-base font-black text-slate-950">{localizeText(accessName, language) || localizeText(approvingPage.title, language)}</p>
+                <p className="mt-1 line-clamp-3 text-sm leading-6 text-slate-600">{localizeText(cardText, language)}</p>
+              </div>
+            </div>
             {error ? <p className="mt-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p> : null}
             <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <AppActionButton variant="secondary" disabled={Boolean(actingPageId)} onClick={closeApproveDialog}>

@@ -16,6 +16,8 @@ public sealed class ApprovePagePublicationCommandHandler(
     IPageCacheInvalidationService pageCacheInvalidationService)
     : IRequestHandler<ApprovePagePublicationCommand, AppResult<PagePublicationReviewActionDto>>
 {
+    private const int MaxCardImageUrlLength = 1200;
+
     public async Task<AppResult<PagePublicationReviewActionDto>> Handle(
         ApprovePagePublicationCommand request,
         CancellationToken cancellationToken)
@@ -38,7 +40,11 @@ public sealed class ApprovePagePublicationCommandHandler(
 
         var now = DateTime.UtcNow;
         var ownerGroupId = page.OwnerGroupId;
-        var accessName = NormalizeAccessName(request.AccessName, ReadTextMap(page.TitleJson));
+        var title = ReadTextMap(page.TitleJson);
+        var description = ReadTextMap(page.DescriptionJson);
+        var accessName = NormalizeAccessName(request.AccessName, title);
+        var cardText = NormalizeCardText(request.CardText, description, title);
+        var cardImageUrl = NormalizeCardImageUrl(request.CardImageUrl);
         var review = await dbContext.PagePublicationReviews
             .FirstOrDefaultAsync(x => x.PageId == page.Id, cancellationToken);
         var previousStatus = review?.Status.ToString() ?? "Pending";
@@ -56,6 +62,8 @@ public sealed class ApprovePagePublicationCommandHandler(
 
         review.Status = PagePublicationReviewStatus.Approved;
         review.AccessNameJson = WriteTextMap(accessName);
+        review.CardImageUrl = cardImageUrl;
+        review.CardTextJson = WriteTextMap(cardText);
         review.ReturnReason = null;
         review.ReviewedByMemberId = request.CurrentMemberId;
         review.ReviewedUtc = now;
@@ -82,9 +90,11 @@ public sealed class ApprovePagePublicationCommandHandler(
                 visibility = page.Visibility.ToString(),
                 publicationReviewStatus = "Approved",
                 accessName,
+                cardImageUrl,
+                cardText,
                 pageUpdatedUtc = page.UpdatedUtc
             }),
-            MetadataJson = JsonSerializer.Serialize(new { ownerGroupId, pageUpdatedUtc = page.UpdatedUtc, accessName }),
+            MetadataJson = JsonSerializer.Serialize(new { ownerGroupId, pageUpdatedUtc = page.UpdatedUtc, accessName, cardImageUrl, cardText }),
             OccurredUtc = now
         }, cancellationToken);
 
@@ -96,10 +106,14 @@ public sealed class ApprovePagePublicationCommandHandler(
             true,
             page.Id,
             ownerGroupId,
-            ToDto(page, accessName)));
+            ToDto(page, accessName, cardImageUrl, cardText)));
     }
 
-    private static PageDto ToDto(Page page, IReadOnlyDictionary<string, string> accessName)
+    private static PageDto ToDto(
+        Page page,
+        IReadOnlyDictionary<string, string> accessName,
+        string? cardImageUrl,
+        IReadOnlyDictionary<string, string> cardText)
         => new(
             page.Id,
             page.OwnerGroupId,
@@ -110,7 +124,9 @@ public sealed class ApprovePagePublicationCommandHandler(
             page.TitleDisplayStyle,
             page.Visibility,
             page.UpdatedUtc,
-            accessName);
+            accessName,
+            CardImageUrl: cardImageUrl,
+            CardText: cardText);
 
     private static IReadOnlyDictionary<string, string> NormalizeAccessName(
         IReadOnlyDictionary<string, string>? value,
@@ -123,6 +139,39 @@ public sealed class ApprovePagePublicationCommandHandler(
             ["en"] = ReadTextValue(value, "en") ?? fallbackEn,
             ["zh"] = ReadTextValue(value, "zh") ?? fallbackZh
         };
+    }
+
+    private static IReadOnlyDictionary<string, string> NormalizeCardText(
+        IReadOnlyDictionary<string, string>? value,
+        IReadOnlyDictionary<string, string> description,
+        IReadOnlyDictionary<string, string> title)
+    {
+        var fallbackEn = ReadTextValue(description, "en") ??
+                         ReadTextValue(description, "zh") ??
+                         ReadTextValue(title, "en") ??
+                         ReadTextValue(title, "zh") ??
+                         "Learn more about this ministry.";
+        var fallbackZh = ReadTextValue(description, "zh") ??
+                         ReadTextValue(description, "en") ??
+                         ReadTextValue(title, "zh") ??
+                         ReadTextValue(title, "en") ??
+                         fallbackEn;
+        return new Dictionary<string, string>
+        {
+            ["en"] = ReadTextValue(value, "en") ?? fallbackEn,
+            ["zh"] = ReadTextValue(value, "zh") ?? fallbackZh
+        };
+    }
+
+    private static string? NormalizeCardImageUrl(string? value)
+    {
+        var text = value?.Trim();
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return null;
+        }
+
+        return text.Length <= MaxCardImageUrlLength ? text : text[..MaxCardImageUrlLength];
     }
 
     private static string? ReadTextValue(IReadOnlyDictionary<string, string>? value, string key)

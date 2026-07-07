@@ -168,6 +168,8 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 		{
 			cfg.HasKey(x => x.Id);
 			cfg.Property(x => x.AccessNameJson).HasColumnType("nvarchar(max)");
+			cfg.Property(x => x.CardImageUrl).HasMaxLength(1200);
+			cfg.Property(x => x.CardTextJson).HasColumnType("nvarchar(max)");
 			cfg.Property(x => x.ReturnReason).HasMaxLength(1000);
 
 			cfg.HasOne(x => x.Page)
