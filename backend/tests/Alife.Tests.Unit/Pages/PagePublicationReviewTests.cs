@@ -1,6 +1,6 @@
 using Alife.Application.Admin.Dtos;
-using Alife.Application.Admin.Commands.PromotePageToGlobal;
-using Alife.Application.Admin.Commands.RefusePageGlobalReview;
+using Alife.Application.Admin.Commands.ApprovePagePublication;
+using Alife.Application.Admin.Commands.ReturnPagePublication;
 using Alife.Application.Admin.Queries.ListPageReviewCandidates;
 using Alife.Application.Pages.Services;
 using Alife.Domain.Entities;
@@ -11,7 +11,7 @@ using NSubstitute;
 
 namespace Alife.Tests.Unit.Pages;
 
-public class PageGlobalReviewTests
+public class PagePublicationReviewTests
 {
     [Fact]
     public async Task ListCandidates_ReturnsPublicPagesGroupedByCurrentReviewStatus()
@@ -49,18 +49,6 @@ public class PageGlobalReviewTests
                 TitleDisplayStyle = "Default",
                 Visibility = PageVisibility.Group,
                 UpdatedUtc = now.AddMinutes(2)
-            },
-            new Page
-            {
-                Id = Guid.NewGuid(),
-                OwnerGroupId = null,
-                CreatedByMemberId = authorId,
-                TitleJson = "{\"en\":\"Global page\",\"zh\":\"全站页面\"}",
-                DescriptionJson = "{\"en\":\"Not part of group page review\",\"zh\":\"不是小组页面审核\"}",
-                TagsJson = "[]",
-                TitleDisplayStyle = "Default",
-                Visibility = PageVisibility.Public,
-                UpdatedUtc = now.AddMinutes(3)
             },
             new Page
             {
@@ -117,7 +105,6 @@ public class PageGlobalReviewTests
         Assert.True(result.IsSuccess);
         Assert.Equal(3, result.Value!.Count);
         Assert.All(result.Value, page => Assert.Equal(PageVisibility.Public, page.Visibility));
-        Assert.All(result.Value, page => Assert.Equal(groupId, page.OwnerGroupId));
         Assert.Contains(result.Value, page => page.Id == pageId && page.ReviewStatus == AdminPageReviewStatus.Pending);
         Assert.Contains(result.Value, page =>
             page.Id == approvedPageId &&
@@ -140,11 +127,11 @@ public class PageGlobalReviewTests
         var pageId = Guid.NewGuid();
         await SeedReviewerScenarioAsync(dbContext, reviewerId, authorId, groupId, pageId);
         var cacheInvalidation = Substitute.For<IPageCacheInvalidationService>();
-        var returnHandler = new RefusePageGlobalReviewCommandHandler(dbContext, cacheInvalidation);
+        var returnHandler = new ReturnPagePublicationCommandHandler(dbContext, cacheInvalidation);
         var listHandler = new ListPageReviewCandidatesQueryHandler(dbContext);
 
         var returnResult = await returnHandler.Handle(
-            new RefusePageGlobalReviewCommand(reviewerId, pageId, "Please add bilingual contact details."),
+            new ReturnPagePublicationCommand(reviewerId, pageId, "Please add bilingual contact details."),
             CancellationToken.None);
         var visibleResult = await listHandler.Handle(new ListPageReviewCandidatesQuery(reviewerId), CancellationToken.None);
 
@@ -160,13 +147,12 @@ public class PageGlobalReviewTests
             review.Status == PagePublicationReviewStatus.Returned &&
             review.ReturnReason == "Please add bilingual contact details.");
         Assert.Contains(dbContext.AuditLogs, log =>
-            log.Action == "page.global-review.return" &&
+            log.Action == "page.publication-review.return" &&
             log.EntityId == pageId &&
             log.MetadataJson != null &&
             log.MetadataJson.Contains("Please add bilingual contact details."));
         await cacheInvalidation.Received(1).RemoveDetailAsync(pageId, Arg.Any<CancellationToken>());
         await cacheInvalidation.Received(1).RemoveGroupPagesAsync(groupId, Arg.Any<CancellationToken>());
-        await cacheInvalidation.Received(1).RemoveGlobalAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -179,19 +165,19 @@ public class PageGlobalReviewTests
         var pageId = Guid.NewGuid();
         await SeedReviewerScenarioAsync(dbContext, reviewerId, authorId, groupId, pageId);
         var cacheInvalidation = Substitute.For<IPageCacheInvalidationService>();
-        var handler = new PromotePageToGlobalCommandHandler(dbContext, cacheInvalidation);
+        var handler = new ApprovePagePublicationCommandHandler(dbContext, cacheInvalidation);
 
         var result = await handler.Handle(
-            new PromotePageToGlobalCommand(
+            new ApprovePagePublicationCommand(
                 reviewerId,
                 pageId,
                 new Dictionary<string, string> { ["en"] = "Menu name", ["zh"] = "菜单名" }),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(groupId, result.Value!.PreviousOwnerGroupId);
+        Assert.Equal(groupId, result.Value!.OwnerGroupId);
         Assert.NotNull(result.Value.Page);
-        Assert.Equal(groupId, result.Value.Page!.OwnerGroupId);
+        Assert.Equal(groupId, result.Value.Page.OwnerGroupId);
 
         var storedPage = await dbContext.Pages.FirstAsync(x => x.Id == pageId);
         Assert.Equal(groupId, storedPage.OwnerGroupId);
@@ -201,11 +187,10 @@ public class PageGlobalReviewTests
             review.Status == PagePublicationReviewStatus.Approved &&
             review.AccessNameJson != null &&
             review.AccessNameJson.Contains("Menu name"));
-        Assert.Contains(dbContext.AuditLogs, log => log.Action == "page.global-review.approve" && log.EntityId == pageId);
+        Assert.Contains(dbContext.AuditLogs, log => log.Action == "page.publication-review.approve" && log.EntityId == pageId);
 
         await cacheInvalidation.Received(1).RemoveDetailAsync(pageId, Arg.Any<CancellationToken>());
         await cacheInvalidation.Received(1).RemoveGroupPagesAsync(groupId, Arg.Any<CancellationToken>());
-        await cacheInvalidation.Received(1).RemoveGlobalAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -221,10 +206,10 @@ public class PageGlobalReviewTests
         dbContext.Members.Add(new Member { Id = ordinaryMemberId, DisplayName = "Member", IsRegistered = true });
         await dbContext.SaveChangesAsync();
         var cacheInvalidation = Substitute.For<IPageCacheInvalidationService>();
-        var handler = new PromotePageToGlobalCommandHandler(dbContext, cacheInvalidation);
+        var handler = new ApprovePagePublicationCommandHandler(dbContext, cacheInvalidation);
 
         var result = await handler.Handle(
-            new PromotePageToGlobalCommand(
+            new ApprovePagePublicationCommand(
                 ordinaryMemberId,
                 pageId,
                 new Dictionary<string, string> { ["en"] = "Menu name", ["zh"] = "菜单名" }),

@@ -8,12 +8,6 @@ public sealed class PageCacheInvalidationService(
     HybridCache hybridCache,
     ICloudflareKvCacheService cloudflareKvCacheService) : IPageCacheInvalidationService
 {
-    public Task RemoveGlobalAsync(CancellationToken cancellationToken = default)
-        => Task.WhenAll(
-            hybridCache.RemoveAsync(PageCacheKeys.Global(), cancellationToken).AsTask(),
-            cloudflareKvCacheService.RemoveApiCacheAsync("/api/pages/global", cancellationToken),
-            RemovePublicAsync(cancellationToken));
-
     public Task RemovePublicAsync(CancellationToken cancellationToken = default)
         => Task.WhenAll(
             hybridCache.RemoveAsync(PageCacheKeys.Public(), cancellationToken).AsTask(),

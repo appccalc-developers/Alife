@@ -31,8 +31,8 @@ const copy = {
   },
   queue: { en: 'Pages for review', zh: '审核页面' },
   queueHint: {
-    en: 'Pending public group pages can be approved with a bilingual menu name or returned for revision.',
-    zh: '待审核的公开小组页面可以填写双语菜单名后批准，或退回修改。',
+    en: 'Pending public pages submitted by groups can be approved with a bilingual menu name or returned for revision.',
+    zh: '小组提交的待审核公开页面可以填写双语菜单名后批准，或退回修改。',
   },
   groupPage: { en: 'group page', zh: '小组页面' },
   draftStatus: { en: 'Draft', zh: '草稿' },
@@ -44,7 +44,6 @@ const copy = {
   pendingStatus: { en: 'Pending review', zh: '待审核' },
   approvedStatus: { en: 'Approved', zh: '已批准' },
   returnedStatus: { en: 'Returned', zh: '已退回' },
-  globalPage: { en: 'global page', zh: '全站页面' },
   approve: { en: 'Approve', zh: '批准' },
   approveTitle: { en: 'Approve publication', zh: '批准发布' },
   accessNameEn: { en: 'English menu name', zh: '英文菜单名' },
@@ -233,7 +232,7 @@ const PageReviewView = () => {
     setError('')
     setMessage('')
     try {
-      await groupService.approvePageGlobalReview(approvingPage.id, { accessName: nextAccessName })
+      await groupService.approvePagePublicationReview(approvingPage.id, { accessName: nextAccessName })
       await load()
       setMessage(text(language, 'promoted'))
       setApprovingPage(null)
@@ -278,7 +277,7 @@ const PageReviewView = () => {
     setError('')
     setMessage('')
     try {
-      await groupService.returnPageGlobalReview(returningPage.id, { reason })
+      await groupService.returnPagePublicationReview(returningPage.id, { reason })
       await load()
       setMessage(text(language, 'returned'))
       setReturningPage(null)
@@ -368,13 +367,11 @@ const PageReviewView = () => {
           <div className="grid gap-3">
             {visibleItems.map((page) => {
               const title = localizeText(page.title, language) || page.id
-              const groupName = page.ownerGroupId
-                ? localizeText(page.ownerGroupName, language) || page.ownerGroupId
-                : text(language, 'globalPage')
+              const groupName = localizeText(page.ownerGroupName, language) || page.ownerGroupId
               const disabled = actingPageId === page.id
-              const canReviewGlobalPromotion = Boolean(page.ownerGroupId) && page.visibility === 'public'
-              const canApprove = canReviewGlobalPromotion && page.reviewStatus !== 'approved'
-              const canReturn = canReviewGlobalPromotion && page.reviewStatus !== 'returned'
+              const canReviewPublication = page.visibility === 'public'
+              const canApprove = canReviewPublication && page.reviewStatus !== 'approved'
+              const canReturn = canReviewPublication && page.reviewStatus !== 'returned'
               const accessLabel = localizeText(page.accessName, language)
 
               return (
@@ -391,7 +388,7 @@ const PageReviewView = () => {
                           {visibilityText(language, page.visibility)}
                         </span>
                         <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-bold text-slate-500">
-                          {page.ownerGroupId ? text(language, 'groupPage') : text(language, 'globalPage')}
+                          {text(language, 'groupPage')}
                         </span>
                         <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-bold text-slate-500">
                           {text(language, 'updated')}: {formatDate(page.updatedUtc, language)}

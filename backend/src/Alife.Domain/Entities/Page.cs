@@ -5,7 +5,7 @@ namespace Alife.Domain.Entities;
 public class Page
 {
 	public Guid Id { get; set; }
-	public Guid? OwnerGroupId { get; set; }
+	public Guid OwnerGroupId { get; set; }
 	public Guid CreatedByMemberId { get; set; }
 	public string TitleJson { get; set; } = "{}";
 	public string? DescriptionJson { get; set; }

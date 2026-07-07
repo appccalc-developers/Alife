@@ -57,7 +57,6 @@ public class PageVisibilityQueryTests
             .Returns(false);
         pageReadService.GetByIdAsync(pageId, Arg.Any<CancellationToken>())
             .Returns(CreatePageDetail(pageId, groupId, authorId, PageVisibility.Draft));
-        var groupReadService = Substitute.For<IGroupReadService>();
         using var dbContext = CreateInMemoryDbContext();
         var handler = new GetPageByIdQueryHandler(pageReadService, authorizationService, dbContext);
 
@@ -82,7 +81,6 @@ public class PageVisibilityQueryTests
             .Returns(true);
         pageReadService.GetByIdAsync(pageId, Arg.Any<CancellationToken>())
             .Returns(CreatePageDetail(pageId, groupId, authorId, PageVisibility.Draft));
-        var groupReadService = Substitute.For<IGroupReadService>();
         using var dbContext = CreateInMemoryDbContext();
         var handler = new GetPageByIdQueryHandler(pageReadService, authorizationService, dbContext);
 
@@ -92,7 +90,7 @@ public class PageVisibilityQueryTests
     }
 
     [Fact]
-    public async Task GetPageById_PageReviewerCanReadDraftDetail()
+    public async Task GetPageById_PageReviewerCannotReadDraftDetail()
     {
         var groupId = Guid.NewGuid();
         var reviewerId = Guid.NewGuid();
@@ -108,17 +106,17 @@ public class PageVisibilityQueryTests
             .Returns(true);
         pageReadService.GetByIdAsync(pageId, Arg.Any<CancellationToken>())
             .Returns(CreatePageDetail(pageId, groupId, authorId, PageVisibility.Draft));
-        var groupReadService = Substitute.For<IGroupReadService>();
         using var dbContext = CreateInMemoryDbContext();
         var handler = new GetPageByIdQueryHandler(pageReadService, authorizationService, dbContext);
 
         var result = await handler.Handle(new GetPageByIdQuery(pageId, reviewerId), CancellationToken.None);
 
-        Assert.True(result.IsSuccess);
+        Assert.False(result.IsSuccess);
+        Assert.Equal(Application.Common.Models.AppResultStatus.Forbidden, result.Status);
     }
 
     [Fact]
-    public async Task GetGroupPages_ApprovedMemberSeesCurrentGlobalReviewRefusal()
+    public async Task GetGroupPages_ApprovedMemberSeesCurrentPublicationReviewRefusal()
     {
         var groupId = Guid.NewGuid();
         var memberId = Guid.NewGuid();
@@ -166,15 +164,15 @@ public class PageVisibilityQueryTests
     {
         var groupId = Guid.NewGuid();
         var authorId = Guid.NewGuid();
+        var publicPageId = Guid.NewGuid();
         var groupReadService = Substitute.For<IGroupReadService>();
         var pageReadService = Substitute.For<IPageReadService>();
         var authorizationService = Substitute.For<IGroupAuthorizationService>();
         groupReadService.GetByIdAsync(groupId, Arg.Any<CancellationToken>())
             .Returns(CreateChurchGroup(groupId));
-        var publicPage = CreatePage(groupId, authorId, PageVisibility.Public);
         pageReadService.GetGroupPagesAsync(groupId, Arg.Any<CancellationToken>())
             .Returns([
-                publicPage,
+                CreatePage(publicPageId, groupId, authorId, PageVisibility.Public, DateTime.UtcNow),
                 CreatePage(groupId, authorId, PageVisibility.Group),
                 CreatePage(groupId, authorId, PageVisibility.Draft)
             ]);
@@ -182,7 +180,7 @@ public class PageVisibilityQueryTests
         dbContext.PagePublicationReviews.Add(new PagePublicationReview
         {
             Id = Guid.NewGuid(),
-            PageId = publicPage.Id,
+            PageId = publicPageId,
             Status = PagePublicationReviewStatus.Approved,
             CreatedUtc = DateTime.UtcNow,
             UpdatedUtc = DateTime.UtcNow
@@ -205,7 +203,6 @@ public class PageVisibilityQueryTests
         var authorId = Guid.NewGuid();
         var pageId = Guid.NewGuid();
         var pageReadService = Substitute.For<IPageReadService>();
-        var groupReadService = Substitute.For<IGroupReadService>();
         var authorizationService = Substitute.For<IGroupAuthorizationService>();
         pageReadService.GetByIdAsync(pageId, Arg.Any<CancellationToken>())
             .Returns(CreatePageDetail(pageId, groupId, authorId, PageVisibility.Public));
@@ -226,7 +223,6 @@ public class PageVisibilityQueryTests
         var pageId = Guid.NewGuid();
         var updatedUtc = DateTime.UtcNow.AddMinutes(-5);
         var pageReadService = Substitute.For<IPageReadService>();
-        var groupReadService = Substitute.For<IGroupReadService>();
         var authorizationService = Substitute.For<IGroupAuthorizationService>();
         pageReadService.GetByIdAsync(pageId, Arg.Any<CancellationToken>())
             .Returns(CreatePageDetail(pageId, groupId, authorId, PageVisibility.Public, updatedUtc));
@@ -246,7 +242,6 @@ public class PageVisibilityQueryTests
         var result = await handler.Handle(new GetPageByIdQuery(pageId, null), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        await groupReadService.DidNotReceive().GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -256,12 +251,9 @@ public class PageVisibilityQueryTests
         var authorId = Guid.NewGuid();
         var pageId = Guid.NewGuid();
         var pageReadService = Substitute.For<IPageReadService>();
-        var groupReadService = Substitute.For<IGroupReadService>();
         var authorizationService = Substitute.For<IGroupAuthorizationService>();
         pageReadService.GetByIdAsync(pageId, Arg.Any<CancellationToken>())
             .Returns(CreatePageDetail(pageId, groupId, authorId, PageVisibility.Group));
-        groupReadService.GetByIdAsync(groupId, Arg.Any<CancellationToken>())
-            .Returns(CreateChurchGroup(groupId));
         using var dbContext = CreateInMemoryDbContext();
         var handler = new GetPageByIdQueryHandler(pageReadService, authorizationService, dbContext);
 

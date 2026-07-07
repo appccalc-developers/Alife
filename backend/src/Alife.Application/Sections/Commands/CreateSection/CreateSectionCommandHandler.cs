@@ -45,7 +45,9 @@ public sealed class CreateSectionCommandHandler(
 		};
 
 		dbContext.Sections.Add(section);
-		page.UpdatedUtc = DateTime.UtcNow;
+		var now = DateTime.UtcNow;
+		page.UpdatedUtc = now;
+		await PagePublicationReviewState.MarkPendingIfPublicAsync(dbContext, page, now, cancellationToken);
 		await dbContext.SaveChangesAsync(cancellationToken);
 		await InvalidatePageAsync(page, cancellationToken);
 
@@ -54,32 +56,18 @@ public sealed class CreateSectionCommandHandler(
 
 	private async Task<bool> CanEditPageAsync(Page page, Guid currentMemberId, CancellationToken cancellationToken)
 	{
-		if (page.OwnerGroupId is null)
-		{
-			return await groupAuthorizationService.IsAdminAsync(currentMemberId, cancellationToken);
-		}
-
 		if (page.CreatedByMemberId == currentMemberId && page.Visibility == PageVisibility.Draft)
 		{
 			return true;
 		}
 
-		return await groupAuthorizationService.IsLeaderOrCoLeaderAsync(page.OwnerGroupId.Value, currentMemberId, cancellationToken);
+		return await groupAuthorizationService.IsLeaderOrCoLeaderAsync(page.OwnerGroupId, currentMemberId, cancellationToken);
 	}
 
 	private async Task InvalidatePageAsync(Domain.Entities.Page page, CancellationToken cancellationToken)
 	{
 		await pageCacheInvalidationService.RemoveDetailAsync(page.Id, cancellationToken);
-		if (page.OwnerGroupId is null)
-		{
-			await pageCacheInvalidationService.RemoveGlobalAsync(cancellationToken);
-			return;
-		}
-
-		if (page.OwnerGroupId.HasValue)
-		{
-			await pageCacheInvalidationService.RemoveGroupPagesAsync(page.OwnerGroupId.Value, cancellationToken);
-		}
+		await pageCacheInvalidationService.RemoveGroupPagesAsync(page.OwnerGroupId, cancellationToken);
 	}
 
 	private static SectionDto ToDto(Section section)

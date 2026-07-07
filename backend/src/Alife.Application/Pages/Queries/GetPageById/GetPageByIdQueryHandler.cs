@@ -23,45 +23,37 @@ public sealed class GetPageByIdQueryHandler(
             return AppResult<PageDetailDto>.NotFound("Page was not found.");
         }
 
+        var isApproved = request.CurrentMemberId.HasValue &&
+            await groupAuthorizationService.IsApprovedMemberAsync(
+                page.OwnerGroupId,
+                request.CurrentMemberId.Value,
+                cancellationToken);
+
+        var isCreator = request.CurrentMemberId.HasValue &&
+                        page.CreatedByMemberId == request.CurrentMemberId.Value;
+
+        var isPrivileged = request.CurrentMemberId.HasValue &&
+                           await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
+                               page.OwnerGroupId,
+                               request.CurrentMemberId.Value,
+                               cancellationToken);
+
         var canReviewPage = request.CurrentMemberId.HasValue &&
                             await groupAuthorizationService.CanReviewPagesAsync(
                                 request.CurrentMemberId.Value,
                                 cancellationToken);
 
-        if (page.OwnerGroupId is null)
-        {
-            if (request.CurrentMemberId.HasValue &&
-                (canReviewPage || await groupAuthorizationService.IsAdminAsync(request.CurrentMemberId.Value, cancellationToken)))
-            {
-                return AppResult<PageDetailDto>.Success(page);
-            }
-
-            return AppResult<PageDetailDto>.Forbidden("This page is not available for public access.");
-        }
-
-        var isApproved = request.CurrentMemberId.HasValue &&
-            await groupAuthorizationService.IsApprovedMemberAsync(
-                page.OwnerGroupId.Value,
-                request.CurrentMemberId.Value,
-                cancellationToken);
-
-        var isPrivileged = request.CurrentMemberId.HasValue &&
-                           (page.CreatedByMemberId == request.CurrentMemberId.Value ||
-                            await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
-                                page.OwnerGroupId.Value,
-                                request.CurrentMemberId.Value,
-                                cancellationToken));
-
         var canView = (isApproved && page.Visibility != PageVisibility.Draft) ||
+                      isCreator ||
                       isPrivileged ||
-                      canReviewPage;
+                      (canReviewPage && page.Visibility == PageVisibility.Public);
         if (canView)
         {
             return AppResult<PageDetailDto>.Success(page);
         }
 
         if (page.Visibility == PageVisibility.Public &&
-            await HasCurrentGlobalApprovalAsync(page, cancellationToken))
+            await HasCurrentPublicationApprovalAsync(page, cancellationToken))
         {
             return AppResult<PageDetailDto>.Success(page);
         }
@@ -69,7 +61,7 @@ public sealed class GetPageByIdQueryHandler(
         return AppResult<PageDetailDto>.Forbidden("You do not have access to this page.");
     }
 
-    private Task<bool> HasCurrentGlobalApprovalAsync(PageDetailDto page, CancellationToken cancellationToken)
+    private Task<bool> HasCurrentPublicationApprovalAsync(PageDetailDto page, CancellationToken cancellationToken)
     {
         return dbContext.PagePublicationReviews
             .AsNoTracking()

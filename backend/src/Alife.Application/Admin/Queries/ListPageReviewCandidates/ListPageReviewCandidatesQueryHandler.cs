@@ -23,8 +23,7 @@ public sealed class ListPageReviewCandidatesQueryHandler(IAlifeDbContext dbConte
         var rows = await dbContext.Pages
             .AsNoTracking()
             .Where(page =>
-                page.Visibility == PageVisibility.Public &&
-                page.OwnerGroupId != null)
+                page.Visibility == PageVisibility.Public)
             .OrderByDescending(page => page.UpdatedUtc)
             .Select(page => new
             {

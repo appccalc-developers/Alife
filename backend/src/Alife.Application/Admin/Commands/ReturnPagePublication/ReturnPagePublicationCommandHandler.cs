@@ -8,42 +8,43 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 
-namespace Alife.Application.Admin.Commands.RefusePageGlobalReview;
+namespace Alife.Application.Admin.Commands.ReturnPagePublication;
 
-public sealed class RefusePageGlobalReviewCommandHandler(
+public sealed class ReturnPagePublicationCommandHandler(
     IAlifeDbContext dbContext,
     IPageCacheInvalidationService pageCacheInvalidationService)
-    : IRequestHandler<RefusePageGlobalReviewCommand, AppResult<PageGlobalReviewActionDto>>
+    : IRequestHandler<ReturnPagePublicationCommand, AppResult<PagePublicationReviewActionDto>>
 {
     private const int MaxReasonLength = 1000;
 
-    public async Task<AppResult<PageGlobalReviewActionDto>> Handle(
-        RefusePageGlobalReviewCommand request,
+    public async Task<AppResult<PagePublicationReviewActionDto>> Handle(
+        ReturnPagePublicationCommand request,
         CancellationToken cancellationToken)
     {
         if (!await AdminPlatformRoleHelpers.CanReviewPagesAsync(dbContext, request.CurrentMemberId, cancellationToken))
         {
-            return AppResult<PageGlobalReviewActionDto>.Forbidden("Page reviewer access is required.");
+            return AppResult<PagePublicationReviewActionDto>.Forbidden("Page reviewer access is required.");
         }
 
         var reason = NormalizeReason(request.Reason);
         if (string.IsNullOrWhiteSpace(reason))
         {
-            return AppResult<PageGlobalReviewActionDto>.Validation("A return reason is required.");
+            return AppResult<PagePublicationReviewActionDto>.Validation("A return reason is required.");
         }
 
         var page = await dbContext.Pages.FirstOrDefaultAsync(x => x.Id == request.PageId, cancellationToken);
         if (page is null)
         {
-            return AppResult<PageGlobalReviewActionDto>.NotFound("Page was not found.");
+            return AppResult<PagePublicationReviewActionDto>.NotFound("Page was not found.");
         }
 
-        if (page.OwnerGroupId is null || page.Visibility != PageVisibility.Public)
+        if (page.Visibility != PageVisibility.Public)
         {
-            return AppResult<PageGlobalReviewActionDto>.Conflict("Only public group pages can be returned from publication review.");
+            return AppResult<PagePublicationReviewActionDto>.Conflict("Only public pages can be returned from publication review.");
         }
 
         var now = DateTime.UtcNow;
+        var ownerGroupId = page.OwnerGroupId;
         var review = await dbContext.PagePublicationReviews
             .FirstOrDefaultAsync(x => x.PageId == page.Id, cancellationToken);
         var previousStatus = review?.Status.ToString() ?? "Pending";
@@ -60,6 +61,7 @@ public sealed class RefusePageGlobalReviewCommandHandler(
         }
 
         review.Status = PagePublicationReviewStatus.Returned;
+        review.AccessNameJson = null;
         review.ReturnReason = reason;
         review.ReviewedByMemberId = request.CurrentMemberId;
         review.ReviewedUtc = now;
@@ -69,10 +71,10 @@ public sealed class RefusePageGlobalReviewCommandHandler(
         {
             Id = Guid.NewGuid(),
             ActorMemberId = request.CurrentMemberId,
-            Action = PageGlobalReviewActions.Return,
+            Action = PagePublicationReviewActions.Return,
             EntityType = "page",
             EntityId = page.Id,
-            GroupId = page.OwnerGroupId,
+            GroupId = ownerGroupId,
             MetadataJson = JsonSerializer.Serialize(new
             {
                 pageUpdatedUtc = page.UpdatedUtc,
@@ -84,13 +86,12 @@ public sealed class RefusePageGlobalReviewCommandHandler(
 
         await dbContext.SaveChangesAsync(cancellationToken);
         await pageCacheInvalidationService.RemoveDetailAsync(page.Id, cancellationToken);
-        await pageCacheInvalidationService.RemoveGroupPagesAsync(page.OwnerGroupId.Value, cancellationToken);
-        await pageCacheInvalidationService.RemoveGlobalAsync(cancellationToken);
+        await pageCacheInvalidationService.RemoveGroupPagesAsync(ownerGroupId, cancellationToken);
 
-        return AppResult<PageGlobalReviewActionDto>.Success(new PageGlobalReviewActionDto(
+        return AppResult<PagePublicationReviewActionDto>.Success(new PagePublicationReviewActionDto(
             true,
             page.Id,
-            page.OwnerGroupId,
+            ownerGroupId,
             null));
     }
 

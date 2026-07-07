@@ -56,11 +56,10 @@ public class PublishPageCommandHandlerTests
             review.Status == PagePublicationReviewStatus.Pending);
         await pageCacheInvalidationService.Received(1).RemoveDetailAsync(pageId, Arg.Any<CancellationToken>());
         await pageCacheInvalidationService.Received(1).RemoveGroupPagesAsync(groupId, Arg.Any<CancellationToken>());
-        await pageCacheInvalidationService.Received(1).RemoveGlobalAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Handle_WhenPageReviewerPublishesGroupPage_ReturnsUpdatedPageSummary()
+    public async Task Handle_WhenPageReviewerPublishesGroupPage_ReturnsForbidden()
     {
         using var dbContext = CreateInMemoryDbContext();
         var groupAuthorizationService = Substitute.For<IGroupAuthorizationService>();
@@ -81,9 +80,6 @@ public class PublishPageCommandHandlerTests
             UpdatedUtc = DateTime.UtcNow.AddDays(-1)
         });
         await dbContext.SaveChangesAsync();
-        groupAuthorizationService
-            .CanReviewPagesAsync(reviewerId, Arg.Any<CancellationToken>())
-            .Returns(true);
         var handler = new PublishPageCommandHandler(
             dbContext,
             groupAuthorizationService,
@@ -93,14 +89,10 @@ public class PublishPageCommandHandlerTests
             new PublishPageCommand(pageId, reviewerId, PageVisibility.Public),
             CancellationToken.None);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(PageVisibility.Public, result.Value!.Visibility);
-        Assert.Contains(dbContext.PagePublicationReviews, review =>
-            review.PageId == pageId &&
-            review.Status == PagePublicationReviewStatus.Pending);
-        await pageCacheInvalidationService.Received(1).RemoveDetailAsync(pageId, Arg.Any<CancellationToken>());
-        await pageCacheInvalidationService.Received(1).RemoveGroupPagesAsync(groupId, Arg.Any<CancellationToken>());
-        await pageCacheInvalidationService.Received(1).RemoveGlobalAsync(Arg.Any<CancellationToken>());
+        Assert.False(result.IsSuccess);
+        Assert.Equal(Application.Common.Models.AppResultStatus.Forbidden, result.Status);
+        await pageCacheInvalidationService.DidNotReceive().RemoveDetailAsync(pageId, Arg.Any<CancellationToken>());
+        await pageCacheInvalidationService.DidNotReceive().RemoveGroupPagesAsync(groupId, Arg.Any<CancellationToken>());
     }
 
     private static AlifeDbContext CreateInMemoryDbContext()

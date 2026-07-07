@@ -68,7 +68,7 @@ export const useShellContext = () => {
 
   const isGroupScreen = Boolean(routeGroupScreenId) || path === '/groups'
   const isManagementScreen = Boolean(routeGroupManageId) || path === '/groups/manage'
-  const isPageEditorScreen = Boolean(routeGroupCreatePageId || pageEditMatch || path === '/pages/new' || path === '/pages/edit')
+  const isPageEditorScreen = Boolean(routeGroupCreatePageId || pageEditMatch || path === '/pages/edit')
   const isEventScreen = Boolean(
     eventCreateMatch ||
     eventEditMatch ||

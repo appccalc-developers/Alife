@@ -76,7 +76,7 @@ export type CreatePlatformRolePayload = {
 
 export type AdminPageReviewDto = {
   id: string
-  ownerGroupId: string | null
+  ownerGroupId: string
   ownerGroupName: LocalizedText | null
   createdByMemberId: string
   creatorDisplayName: string | null
@@ -92,18 +92,18 @@ export type AdminPageReviewDto = {
   updatedUtc: string
 }
 
-export type PageGlobalReviewActionDto = {
+export type PagePublicationReviewActionDto = {
   ok: boolean
   pageId: string
-  previousOwnerGroupId: string | null
+  ownerGroupId: string
   page?: PageSummaryDto | null
 }
 
-export type ApprovePageGlobalReviewPayload = {
+export type ApprovePagePublicationReviewPayload = {
   accessName: LocalizedText
 }
 
-export type ReturnPageGlobalReviewPayload = {
+export type ReturnPagePublicationReviewPayload = {
   reason: string
 }
 
@@ -263,11 +263,6 @@ const toQuery = (params: Record<string, string | number | boolean | null | undef
 }
 
 export const groupService = {
-  async getGlobalPages() {
-    const { data } = await http.get<PageSummaryDto[]>('/api/pages/global')
-    return data.map(normalizePageSummary)
-  },
-
   async getChurch() {
     const { data } = await http.get<GroupDto>('/api/groups/church')
     return normalizeGroup(data)
@@ -417,13 +412,13 @@ export const groupService = {
     return data.map(normalizeAdminPageReview)
   },
 
-  async approvePageGlobalReview(pageId: string, payload: ApprovePageGlobalReviewPayload) {
-    const { data } = await http.post<PageGlobalReviewActionDto>(`/api/admin/pages/${pageId}/approve-global-review`, payload)
+  async approvePagePublicationReview(pageId: string, payload: ApprovePagePublicationReviewPayload) {
+    const { data } = await http.post<PagePublicationReviewActionDto>(`/api/admin/pages/${pageId}/publication-review/approve`, payload)
     return data
   },
 
-  async returnPageGlobalReview(pageId: string, payload: ReturnPageGlobalReviewPayload) {
-    const { data } = await http.post<PageGlobalReviewActionDto>(`/api/admin/pages/${pageId}/return-global-review`, payload)
+  async returnPagePublicationReview(pageId: string, payload: ReturnPagePublicationReviewPayload) {
+    const { data } = await http.post<PagePublicationReviewActionDto>(`/api/admin/pages/${pageId}/publication-review/return`, payload)
     return data
   },
 

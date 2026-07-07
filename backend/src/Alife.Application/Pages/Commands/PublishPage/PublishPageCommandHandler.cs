@@ -24,28 +24,18 @@ public sealed class PublishPageCommandHandler(
             return AppResult<PageDto>.NotFound("Page was not found.");
         }
 
-        var canReviewPages = await groupAuthorizationService.CanReviewPagesAsync(request.CurrentMemberId, cancellationToken);
-
-        if (page.OwnerGroupId is null)
+        if (!await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
+            page.OwnerGroupId,
+            request.CurrentMemberId,
+            cancellationToken))
         {
-            return AppResult<PageDto>.Forbidden("Pages must belong to a group before they can be published.");
-        }
-        else if (!canReviewPages &&
-                  !await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
-                     page.OwnerGroupId.Value,
-                     request.CurrentMemberId,
-                     cancellationToken))
-        {
-            return AppResult<PageDto>.Forbidden("You do not have permission to publish this page.");
+            return AppResult<PageDto>.Forbidden("You do not have permission to publish this page. Only group leaders and co-leaders can publish pages.");
         }
 
+        var now = DateTime.UtcNow;
         page.Visibility = request.Visibility;
-        page.UpdatedUtc = DateTime.UtcNow;
-
-        if (page.Visibility == PageVisibility.Public)
-        {
-            await EnsurePendingReviewAsync(page.Id, cancellationToken);
-        }
+        page.UpdatedUtc = now;
+        await PagePublicationReviewState.MarkPendingIfPublicAsync(dbContext, page, now, cancellationToken);
 
         await dbContext.SaveChangesAsync(cancellationToken);
         await InvalidatePageAsync(page, cancellationToken);
@@ -53,51 +43,11 @@ public sealed class PublishPageCommandHandler(
         return AppResult<PageDto>.Success(ToDto(page));
     }
 
-    private async Task EnsurePendingReviewAsync(Guid pageId, CancellationToken cancellationToken)
-    {
-        var review = await dbContext.PagePublicationReviews
-            .FirstOrDefaultAsync(x => x.PageId == pageId, cancellationToken);
-        if (review?.Status == PagePublicationReviewStatus.Approved)
-        {
-            return;
-        }
-
-        var now = DateTime.UtcNow;
-        if (review is null)
-        {
-            dbContext.PagePublicationReviews.Add(new Domain.Entities.PagePublicationReview
-            {
-                Id = Guid.NewGuid(),
-                PageId = pageId,
-                Status = PagePublicationReviewStatus.Pending,
-                CreatedUtc = now,
-                UpdatedUtc = now
-            });
-            return;
-        }
-
-        review.Status = PagePublicationReviewStatus.Pending;
-        review.ReturnReason = null;
-        review.ReviewedByMemberId = null;
-        review.ReviewedUtc = null;
-        review.UpdatedUtc = now;
-    }
-
     private async Task InvalidatePageAsync(Domain.Entities.Page page, CancellationToken cancellationToken)
     {
         await pageCacheInvalidationService.RemoveDetailAsync(page.Id, cancellationToken);
 
-        if (page.OwnerGroupId is null)
-        {
-            await pageCacheInvalidationService.RemoveGlobalAsync(cancellationToken);
-            return;
-        }
-
-        if (page.OwnerGroupId.HasValue)
-        {
-            await pageCacheInvalidationService.RemoveGroupPagesAsync(page.OwnerGroupId.Value, cancellationToken);
-            await pageCacheInvalidationService.RemoveGlobalAsync(cancellationToken);
-        }
+        await pageCacheInvalidationService.RemoveGroupPagesAsync(page.OwnerGroupId, cancellationToken);
     }
 
     private static PageDto ToDto(Domain.Entities.Page page)

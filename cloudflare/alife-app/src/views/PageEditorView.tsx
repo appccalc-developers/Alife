@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import PageContentRenderer, {
+  createPresetPageSection,
   normalizePageSections,
   validatePageContent,
 } from '../components/page/PageContentRenderer'
@@ -49,6 +50,28 @@ type LanguageReviewPrompt = {
 }
 
 const otherLanguage = (language: string): EditorLanguage => language === 'zh' ? 'en' : 'zh'
+
+const createDefaultHomeModel = (base?: Partial<PageEditModel>): PageEditModel => ({
+  groupId: '',
+  title: { en: 'Home', zh: '首页' },
+  description: {
+    en: 'Public home page for visitors, seekers, and members.',
+    zh: '面向访客、慕道朋友和成员的公共首页。',
+  },
+  tags: ['home'],
+  titleDisplayStyle: 'Default',
+  visibility: 'public',
+  sections: normalizePageSections([
+    createPresetPageSection('hero-home'),
+    createPresetPageSection('rich-welcome'),
+    createPresetPageSection('spotlight-visit'),
+    createPresetPageSection('spotlight-groups'),
+    createPresetPageSection('list-events'),
+    createPresetPageSection('list-groups'),
+    createPresetPageSection('spotlight-sermons'),
+  ]),
+  ...base,
+})
 
 const PageLanguageReviewModal = ({
   prompt,
@@ -109,25 +132,29 @@ const PageEditorView = () => {
   const [languageReviewPrompt, setLanguageReviewPrompt] = useState<LanguageReviewPrompt | null>(null)
   const [savedModelSnapshot, setSavedModelSnapshot] = useState('')
   const queryGroupId = normalizeRouteGroupId(searchParams.get('groupId'))
+  const isHomeTemplate = (searchParams.get('template') || '').toLowerCase() === 'home'
+
   const activeIds = useActiveEntityIds({
     groupId: routeCreateGroupId || queryGroupId || undefined,
     pageId: editPageIdParam || undefined,
   })
-  const createGroupId = routeCreateGroupId || activeIds.groupId
+  const createGroupId = routeCreateGroupId
   const editPageId = editPageIdParam ?? (location.pathname === '/pages/edit' ? activeIds.pageId : '')
 
-  const isCreateMode = Boolean(createGroupId) && !editPageId
+  const isCreateMode = Boolean(createGroupId)
 
   const createInitialModel = (groupId: string): PageEditModel =>
-    ({
-      groupId,
-      title: { en: '', zh: '' },
-      description: { en: '', zh: '' },
-      tags: [],
-      titleDisplayStyle: 'Default',
-      visibility: 'draft',
-      sections: [],
-    })
+    isHomeTemplate
+      ? createDefaultHomeModel({ groupId })
+      : {
+          groupId,
+          title: { en: '', zh: '' },
+          description: { en: '', zh: '' },
+          tags: [],
+          titleDisplayStyle: 'Default',
+          visibility: 'draft',
+          sections: [],
+        }
 
   const [pageModel, setPageModel] = useState<PageEditModel>(() => createInitialModel(createGroupId))
 
@@ -155,9 +182,8 @@ const PageEditorView = () => {
   }, [auth.me?.id, pageModel.createdByMemberId, pageModel.visibility])
 
   const canCreatePage = Boolean(membership?.status === 'approved' || canEditAllPages)
-  const canReviewExistingPage = !isCreateMode && auth.canReviewPages
-  const canEditPage = isCreateMode ? canCreatePage : canEditAllPages || canReviewExistingPage || isCreatorDraft
-  const canEditVisibility = canEditAllPages || canReviewExistingPage
+  const canEditPage = isCreateMode ? canCreatePage : canEditAllPages || isCreatorDraft
+  const canEditVisibility = canEditAllPages
 
   const validation = useMemo(() => validatePageContent(pageModel, auth.language), [auth.language, pageModel])
   const missingTranslationCount = useMemo(() => collectMissingPageTranslations(pageModel).length, [pageModel])
@@ -169,6 +195,19 @@ const PageEditorView = () => {
 
   const canSaveDraft = canEditPage && !saving && !hasValidationErrors
 
+  const resetDefaultHome = useCallback(() => {
+    if (!isHomeTemplate) {
+      return
+    }
+
+    setPageModel((current) => createDefaultHomeModel({
+      id: current.id,
+      groupId: resolvedGroupId,
+      createdByMemberId: current.createdByMemberId,
+    }))
+    setMessage(t('defaultHomeRestored'))
+  }, [isHomeTemplate, resolvedGroupId, t])
+
   const loadExistingPage = async () => {
     const targetPageId = editPageId
     if (!targetPageId) {
@@ -176,7 +215,7 @@ const PageEditorView = () => {
     }
 
     const pageData = await ensureFreshPageDetail(targetPageId)
-    const targetGroupId = pageData.ownerGroupId ?? ''
+    const targetGroupId = pageData.ownerGroupId
 
     if (!pageData) {
       throw new Error(t('loadEditorFailed'))
@@ -250,8 +289,8 @@ const PageEditorView = () => {
         try {
           for (const fields of chunkFields(missingTranslationFields, TRANSLATION_BATCH_SIZE)) {
             const translatedBatch = await aiTranslationService.translateTextFields({
-              scope: resolvedGroupId ? 'group' : 'church',
-              groupId: resolvedGroupId || undefined,
+              scope: 'group',
+              groupId: resolvedGroupId,
               fields,
             })
             translatedFields.push(...translatedBatch)
@@ -336,7 +375,7 @@ const PageEditorView = () => {
             title: publishedPage.title ?? savedPage.title,
             description: publishedPage.description ?? savedPage.description,
             titleDisplayStyle: publishedPage.titleDisplayStyle ?? savedPage.titleDisplayStyle,
-            ownerGroupId: publishedPage.ownerGroupId ?? savedPage.ownerGroupId,
+            ownerGroupId: publishedPage.ownerGroupId,
           }
         }
       }
@@ -364,7 +403,7 @@ const PageEditorView = () => {
       setLanguageReviewPrompt({ reason: 'save', targetLanguage: otherLanguage(auth.language) })
 
       if (isCreateMode && targetPageId) {
-        activeEntityService.setPage(targetPageId, resolvedGroupId || undefined)
+        activeEntityService.setPage(targetPageId, resolvedGroupId)
         navigate('/pages/edit', { replace: true })
       }
     } catch (reason) {
@@ -383,7 +422,7 @@ const PageEditorView = () => {
     if (resolvedGroupId) {
       const pageId = editPageId || pageModel.id
       if (pageId) {
-        activeEntityService.setPage(pageId, resolvedGroupId || undefined)
+        activeEntityService.setPage(pageId, resolvedGroupId)
       } else {
         activeEntityService.setGroup(resolvedGroupId)
       }
@@ -458,6 +497,7 @@ const PageEditorView = () => {
               cancel().catch(() => undefined)
             }}
             onChange={setPageModel}
+            onResetDefaultHome={isHomeTemplate && canEditPage ? resetDefaultHome : undefined}
           />
         }
       />

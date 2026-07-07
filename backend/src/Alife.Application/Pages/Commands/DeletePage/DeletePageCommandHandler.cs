@@ -25,11 +25,10 @@ public sealed class DeletePageCommandHandler(
 
         var isCreatorDraft = page.CreatedByMemberId == request.CurrentMemberId &&
                              page.Visibility == PageVisibility.Draft;
-        var canDelete = page.OwnerGroupId.HasValue &&
-                        await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
-                            page.OwnerGroupId.Value,
-                            request.CurrentMemberId,
-                            cancellationToken);
+        var canDelete = await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
+            page.OwnerGroupId,
+            request.CurrentMemberId,
+            cancellationToken);
 
         if (!isCreatorDraft && !canDelete)
         {
@@ -41,14 +40,7 @@ public sealed class DeletePageCommandHandler(
         await dbContext.SaveChangesAsync(cancellationToken);
 
         await pageCacheInvalidationService.RemoveDetailAsync(page.Id, cancellationToken);
-        if (page.OwnerGroupId is null)
-        {
-            await pageCacheInvalidationService.RemoveGlobalAsync(cancellationToken);
-        }
-        else if (page.OwnerGroupId.HasValue)
-        {
-            await pageCacheInvalidationService.RemoveGroupPagesAsync(page.OwnerGroupId.Value, cancellationToken);
-        }
+        await pageCacheInvalidationService.RemoveGroupPagesAsync(page.OwnerGroupId, cancellationToken);
 
         return AppResult<PageActionResultDto>.Success(new PageActionResultDto(true));
     }

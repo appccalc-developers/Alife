@@ -1,6 +1,6 @@
 import { http } from './http'
 import { groupPagesQueryKey } from '../db/collections/groupCollection'
-import { globalPagesQueryKey, pageDetailQueryKey, setPageDetailCache } from '../db/collections/pageCollection'
+import { pageDetailQueryKey, setPageDetailCache } from '../db/collections/pageCollection'
 import { conditionalGet, removeCachedRecord } from '../db/httpCache'
 import { queryClient } from '../db/queryClient'
 import type { LocalizedText, PageDetailDto, PageEditModel, PageSummaryDto, PageVisibility, SectionEditModel } from '../types'
@@ -123,7 +123,7 @@ const invalidatePublicPagesCache = async () => {
 }
 
 const invalidatePageListCache = async (page: PageSummaryDto | PageDetailDto) => {
-  await invalidateQueryCache(page.ownerGroupId ? groupPagesQueryKey(page.ownerGroupId) : globalPagesQueryKey())
+  await invalidateQueryCache(groupPagesQueryKey(page.ownerGroupId))
 }
 
 const cachePageDetail = (page: PageDetailDto & { tagsJson?: string }) => {
@@ -179,7 +179,7 @@ export const pageService = {
         title: normalized.title ?? existingDetail.title,
         description: normalized.description ?? existingDetail.description,
         titleDisplayStyle: normalized.titleDisplayStyle ?? existingDetail.titleDisplayStyle,
-        ownerGroupId: normalized.ownerGroupId ?? existingDetail.ownerGroupId,
+        ownerGroupId: normalized.ownerGroupId,
       })
     }
     await invalidatePageListCache(normalized)

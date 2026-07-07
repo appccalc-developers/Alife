@@ -18,8 +18,6 @@ import { normalizeApiError } from '../services/http'
 import { aiTranslationService } from '../services/aiTranslationService'
 import { useUiText } from '../i18n/uiText'
 import { useAuthStore } from '../stores/auth'
-import { activeEntityService } from '../services/activeEntityService'
-import type { PageSummaryDto } from '../types'
 import type { MissingTranslatableField } from '../utils/bilingualValidation'
 import { Panel, FilterBar, SearchInput, SelectInput, FilterActions, Loading, Empty, Pill, Pager } from './admin/AdminUi'
 import { VisitRequestsSection } from './admin/VisitRequestsSection'
@@ -277,7 +275,6 @@ const AdminView = () => {
 
   const [roles, setRoles] = useState<AdminPlatformRoleDto[]>([])
   const [groups, setGroups] = useState<AdminGroupOptionDto[]>([])
-  const [globalPages, setGlobalPages] = useState<PageSummaryDto[]>([])
   const [members, setMembers] = useState(emptyPage<AdminMemberDto>())
   const [logs, setLogs] = useState(emptyPage<AuditLogDto>())
   const [messages, setMessages] = useState(emptyPage<AdminNotificationDto>())
@@ -336,32 +333,13 @@ const AdminView = () => {
   const roleNamesValidation = roleForm.nameEn.trim() && roleForm.nameZh.trim() ? '' : l('roleNamesRequired')
   const canSubmitCreateRole = !creatingRole && !roleCodeValidation && !roleNamesValidation
 
-  const homePage = useMemo(() => {
-    const readTags = (page: PageSummaryDto) => {
-      try {
-        return JSON.parse(page.tagsJson || '[]') as string[]
-      } catch {
-        return []
-      }
-    }
-
-    return globalPages.find((page) => readTags(page).includes('home')) ??
-      globalPages.find((page) => {
-        const title = `${page.title?.en || ''} ${page.title?.zh || ''}`.toLowerCase()
-        return title.includes('home') || title.includes('homepage') || title.includes('首页') || title.includes('主页')
-      }) ??
-      null
-  }, [globalPages])
-
   const loadRolesAndGroups = useCallback(async () => {
-    const [nextRoles, nextGroups, nextGlobalPages] = await Promise.all([
+    const [nextRoles, nextGroups] = await Promise.all([
       groupService.getAdminPlatformRoles(),
       groupService.getAdminGroups({ pageSize: 100 }),
-      groupService.getGlobalPages(),
     ])
     setRoles(nextRoles)
     setGroups(nextGroups.items)
-    setGlobalPages(nextGlobalPages)
   }, [])
 
   const loadUsers = useCallback(async (page = members.page) => {
@@ -678,7 +656,7 @@ const AdminView = () => {
         </div>
       ) : null}
 
-      {section === 'overview' ? <Overview l={l} users={members} logs={logs} messages={messages} homePage={homePage} syncing={syncing} syncSermons={syncSermons} goToLogsPage={(page) => loadLogs(page, overviewActivityPageSize)} language={language} /> : null}
+      {section === 'overview' ? <Overview l={l} users={members} logs={logs} messages={messages} syncing={syncing} syncSermons={syncSermons} goToLogsPage={(page) => loadLogs(page, overviewActivityPageSize)} language={language} /> : null}
       {section === 'users' ? <UsersSection l={l} loading={loading} page={members} filters={userFilters} setFilters={setUserFilters} roles={roleOptions} isSuperAdmin={isSuperAdmin} updatingMemberId={updatingMemberId} apply={() => loadUsers(1)} reset={() => { setUserFilters({ search: '', role: '', isRegistered: '' }); setTimeout(() => loadUsers(1).catch(() => undefined), 0) }} goToPage={loadUsers} updateMemberRoles={updateMemberRoles} language={language} currentMemberId={me?.id || ''} /> : null}
       {section === 'roles' ? <RolesSection l={l} roles={roleOptions} roleForm={roleForm} setRoleForm={setRoleForm} creatingRole={creatingRole} deletingRoleId={deletingRoleId} updatingRolePermissionId={updatingRolePermissionId} roleCodeValidation={roleCodeValidation} roleCodeFeedback={roleCodeFeedback} canSubmitCreateRole={canSubmitCreateRole} createRole={createRole} deleteRole={deleteRole} updateRolePermissions={updateRolePermissions} language={language} /> : null}
       {section === 'logs' ? <LogsSection l={l} loading={loading} page={logs} filters={logFilters} setFilters={setLogFilters} apply={() => loadLogs(1, 25)} goToPage={(page) => loadLogs(page, 25)} language={language} /> : null}
@@ -689,12 +667,11 @@ const AdminView = () => {
   )
 }
 
-const Overview = ({ l, users, logs, messages, homePage, syncing, syncSermons, goToLogsPage, language }: {
+const Overview = ({ l, users, logs, messages, syncing, syncSermons, goToLogsPage, language }: {
   l: LabelFn
   users: AdminPagedResultDto<AdminMemberDto>
   logs: AdminPagedResultDto<AuditLogDto>
   messages: AdminPagedResultDto<AdminNotificationDto>
-  homePage: PageSummaryDto | null
   syncing: boolean
   syncSermons: () => Promise<void>
   goToLogsPage: (page: number) => Promise<void>
@@ -733,19 +710,14 @@ const Overview = ({ l, users, logs, messages, homePage, syncing, syncSermons, go
             />
             <div className="grid gap-3 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.9fr)]">
               <Link
-                to={homePage?.ownerGroupId ? `/pages/edit?groupId=${encodeURIComponent(homePage.ownerGroupId)}` : '/admin/page-review'}
+                to="/admin/page-review"
                 className="flex min-h-[7rem] items-start justify-between gap-4 rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-4 transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md"
-                onClick={() => {
-                  if (homePage?.ownerGroupId) {
-                    activeEntityService.setPage(homePage.id, homePage.ownerGroupId)
-                  }
-                }}
               >
                 <span className="min-w-0">
                   <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-emerald-700 shadow-sm">
                     <Globe2 className="h-5 w-5" aria-hidden="true" />
                   </span>
-                  <span className="mt-4 block text-base font-black text-slate-950">{homePage ? l('editHome') : l('createDefaultHome')}</span>
+                  <span className="mt-4 block text-base font-black text-slate-950">{l('createDefaultHome')}</span>
                   <span className="mt-1 block text-sm leading-6 text-slate-600">{l('homeDescription')}</span>
                 </span>
                 <ChevronRight className="mt-1 h-5 w-5 shrink-0 text-emerald-700" aria-hidden="true" />

@@ -10,30 +10,6 @@ namespace Alife.Infrastructure.ReadServices;
 
 public sealed class PageReadService(AlifeDbContext dbContext, HybridCache hybridCache) : IPageReadService
 {
-    public Task<IReadOnlyList<PageDto>> GetGlobalPagesAsync(CancellationToken cancellationToken)
-        => GetOrCreateAsync(
-            PageCacheKeys.Global(),
-            async token =>
-            {
-                var pages = await (
-                    from page in dbContext.Pages.AsNoTracking()
-                    join review in dbContext.PagePublicationReviews.AsNoTracking()
-                        on page.Id equals review.PageId into reviews
-                    from review in reviews.DefaultIfEmpty()
-                    where page.Visibility == PageVisibility.Public &&
-                          page.OwnerGroupId != null &&
-                          review != null &&
-                          review.Status == PagePublicationReviewStatus.Approved
-                    orderby page.UpdatedUtc
-                    select new { Page = page, Review = review })
-                    .ToListAsync(token);
-
-                return (IReadOnlyList<PageDto>)pages
-                    .Select(row => ToDto(row.Page, ReadNullableTextMap(row.Review?.AccessNameJson)))
-                    .ToList();
-            },
-            cancellationToken);
-
     public Task<IReadOnlyList<PageDto>> GetPublicPagesAsync(CancellationToken cancellationToken)
         => GetOrCreateAsync(
             PageCacheKeys.Public(),
@@ -45,7 +21,6 @@ public sealed class PageReadService(AlifeDbContext dbContext, HybridCache hybrid
                         on page.Id equals review.PageId into reviews
                     from review in reviews.DefaultIfEmpty()
                     where page.Visibility == PageVisibility.Public &&
-                          page.OwnerGroupId != null &&
                           review != null &&
                           review.Status == PagePublicationReviewStatus.Approved
                     orderby page.UpdatedUtc, page.Id

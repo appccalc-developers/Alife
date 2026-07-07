@@ -1,31 +1,7 @@
-import { createCollection } from '@tanstack/react-db'
-import { queryCollectionOptions } from '@tanstack/query-db-collection'
-import type { PageDetailDto, PageSummaryDto } from '../../types'
-import { normalizePageSummary } from '../../utils/apiEnums'
+import type { PageDetailDto } from '../../types'
 import { normalizePageDetail } from '../../utils/pageDetail'
 import { conditionalGet, getCachedRecord } from '../httpCache'
 import { QUERY_STALE_TIME_MS, queryClient } from '../queryClient'
-
-export const globalPagesQueryKey = () => ['globalPages'] as const
-
-export const globalPagesCollection = () =>
-  createCollection(
-    queryCollectionOptions({
-      queryClient,
-      queryKey: globalPagesQueryKey(),
-      getKey: (item: PageSummaryDto) => item.id,
-      queryFn: async (): Promise<PageSummaryDto[]> => {
-        const items = await conditionalGet<PageSummaryDto[]>({
-          queryKey: globalPagesQueryKey(),
-          path: '/api/pages/global',
-        })
-        return items.map(normalizePageSummary)
-      },
-    }),
-  )
-
-export const getCachedGlobalPages = async () =>
-  ((await getCachedRecord<PageSummaryDto[]>(globalPagesQueryKey()))?.data ?? []).map(normalizePageSummary)
 
 export const pageDetailQueryKey = (pageId: string) => ['pageDetail', pageId] as const
 

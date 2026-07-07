@@ -47,7 +47,7 @@ public sealed class RefreshCloudflareCacheCommandHandler(
             groupCacheInvalidationService.RemoveGroupAsync(request.GroupId, cancellationToken),
             groupCacheInvalidationService.RemoveSubgroupsAsync(request.GroupId, cancellationToken),
             groupCacheInvalidationService.RemoveMembershipsAsync(request.GroupId, cancellationToken),
-            pageCacheInvalidationService.RemoveGlobalAsync(cancellationToken),
+            pageCacheInvalidationService.RemovePublicAsync(cancellationToken),
             pageCacheInvalidationService.RemoveGroupPagesAsync(request.GroupId, cancellationToken),
             eventCacheInvalidationService.RemoveGroupEventsAsync(request.GroupId, cancellationToken),
             sermonCacheInvalidationService.RemoveAllAsync(cancellationToken));

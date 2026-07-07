@@ -38,14 +38,9 @@ public sealed class GetPageSectionsQueryHandler(
 
 	private async Task<bool> CanViewPageAsync(Domain.Entities.Page page, Guid currentMemberId, CancellationToken cancellationToken)
 	{
-		if (page.OwnerGroupId is null)
-		{
-			return true;
-		}
-
-		var isApproved = await groupAuthorizationService.IsApprovedMemberAsync(page.OwnerGroupId.Value, currentMemberId, cancellationToken);
+		var isApproved = await groupAuthorizationService.IsApprovedMemberAsync(page.OwnerGroupId, currentMemberId, cancellationToken);
 		var isPrivileged = page.CreatedByMemberId == currentMemberId ||
-			await groupAuthorizationService.IsLeaderOrCoLeaderAsync(page.OwnerGroupId.Value, currentMemberId, cancellationToken);
+			await groupAuthorizationService.IsLeaderOrCoLeaderAsync(page.OwnerGroupId, currentMemberId, cancellationToken);
 
 		return (isApproved && page.Visibility != PageVisibility.Draft) || isPrivileged;
 	}

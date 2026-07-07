@@ -1,6 +1,7 @@
 using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
 using Alife.Application.Groups.Services;
+using Alife.Application.Pages.Services;
 using Alife.Application.Sections.Dtos;
 using Alife.Domain.Entities;
 using Alife.Domain.Enums;
@@ -11,7 +12,8 @@ namespace Alife.Application.Sections.Commands.ReplaceSectionLinks;
 
 public sealed class ReplaceSectionLinksCommandHandler(
     IAlifeDbContext dbContext,
-    IGroupAuthorizationService groupAuthorizationService)
+    IGroupAuthorizationService groupAuthorizationService,
+    IPageCacheInvalidationService pageCacheInvalidationService)
     : IRequestHandler<ReplaceSectionLinksCommand, AppResult<IReadOnlyList<LinkDto>>>
 {
     public async Task<AppResult<IReadOnlyList<LinkDto>>> Handle(
@@ -27,15 +29,13 @@ public sealed class ReplaceSectionLinksCommandHandler(
             return AppResult<IReadOnlyList<LinkDto>>.NotFound("Section was not found.");
         }
 
-        var allowed = false;
-        if (section.Page.OwnerGroupId is null)
-        {
-            allowed = await groupAuthorizationService.IsAdminAsync(request.CurrentMemberId, cancellationToken);
-        }
-        else if (section.Page.OwnerGroupId.HasValue)
+        var allowed = section.Page.CreatedByMemberId == request.CurrentMemberId &&
+                      section.Page.Visibility == PageVisibility.Draft;
+
+        if (!allowed)
         {
             allowed = await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
-                section.Page.OwnerGroupId.Value,
+                section.Page.OwnerGroupId,
                 request.CurrentMemberId,
                 cancellationToken);
         }
@@ -61,7 +61,12 @@ public sealed class ReplaceSectionLinksCommandHandler(
         }).ToList();
 
         await dbContext.Links.AddRangeAsync(links, cancellationToken);
+        var now = DateTime.UtcNow;
+        section.Page.UpdatedUtc = now;
+        await PagePublicationReviewState.MarkPendingIfPublicAsync(dbContext, section.Page, now, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
+        await pageCacheInvalidationService.RemoveDetailAsync(section.Page.Id, cancellationToken);
+        await pageCacheInvalidationService.RemoveGroupPagesAsync(section.Page.OwnerGroupId, cancellationToken);
 
         return AppResult<IReadOnlyList<LinkDto>>.Success(links
             .Select(x => new LinkDto(

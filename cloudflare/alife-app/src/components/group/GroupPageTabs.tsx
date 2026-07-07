@@ -54,7 +54,7 @@ const formatReviewDate = (value: string, language: string) => {
 
 const toEditModel = (page: GroupPageDto): PageEditModel => ({
   id: page.id,
-  groupId: page.ownerGroupId ?? '',
+  groupId: page.ownerGroupId,
   createdByMemberId: page.createdByMemberId,
   title: toLocalizedText(page.title),
   description: toLocalizedText(page.description),
@@ -329,7 +329,7 @@ const GroupPageTabs = ({
                 canEdit={canEditAllPages}
                 message={message}
                 validation={validation}
-                contextGroupId={activePage.ownerGroupId ?? activeModel.groupId}
+                contextGroupId={activePage.ownerGroupId}
                 showHeader={false}
                 framed={false}
                 onPageChange={updateActiveModel}

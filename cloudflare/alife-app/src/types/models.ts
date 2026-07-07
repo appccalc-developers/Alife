@@ -137,7 +137,7 @@ export type PageSummaryDto = {
   visibility: PageVisibility
   createdByMemberId: string
   updatedUtc?: string
-  ownerGroupId?: string | null
+  ownerGroupId: string
   description?: LocalizedText | null
   tagsJson?: string
   titleDisplayStyle?: string
@@ -161,7 +161,7 @@ export type PageDetailDto = {
   visibility: PageVisibility
   sections: SectionEditModel[]
   createdByMemberId: string
-  ownerGroupId?: string | null
+  ownerGroupId: string
 }
 
 export type PageEditModel = {

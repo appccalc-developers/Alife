@@ -32,8 +32,7 @@ public class PublicPagesQueryTests
         });
         dbContext.Groups.AddRange(church, subgroup);
 
-        var publicGlobalPage = CreatePage(authorId, null, PageVisibility.Public, "Global Public");
-        var draftGlobalPage = CreatePage(authorId, null, PageVisibility.Draft, "Global Draft");
+        var draftChurchPage = CreatePage(authorId, churchGroupId, PageVisibility.Draft, "Church Draft");
         var publicChurchPage = CreatePage(authorId, churchGroupId, PageVisibility.Public, "Church Public");
         var groupVisibleChurchPage = CreatePage(authorId, churchGroupId, PageVisibility.Group, "Church Group");
         var publicSubgroupPage = CreatePage(authorId, subgroupId, PageVisibility.Public, "Subgroup Public");
@@ -43,8 +42,7 @@ public class PublicPagesQueryTests
         publicSubgroupPage.OwnerGroup = subgroup;
         approvedSubgroupPage.OwnerGroup = subgroup;
         dbContext.Pages.AddRange(
-            publicGlobalPage,
-            draftGlobalPage,
+            draftChurchPage,
             publicChurchPage,
             groupVisibleChurchPage,
             publicSubgroupPage,
@@ -58,15 +56,14 @@ public class PublicPagesQueryTests
 
         Assert.Single(result);
         Assert.Contains(result, page => page.Id == approvedSubgroupPage.Id);
-        Assert.DoesNotContain(result, page => page.Id == publicGlobalPage.Id);
-        Assert.DoesNotContain(result, page => page.Id == draftGlobalPage.Id);
+        Assert.DoesNotContain(result, page => page.Id == draftChurchPage.Id);
         Assert.DoesNotContain(result, page => page.Id == publicChurchPage.Id);
         Assert.DoesNotContain(result, page => page.Id == groupVisibleChurchPage.Id);
         Assert.DoesNotContain(result, page => page.Id == publicSubgroupPage.Id);
     }
 
     [Fact]
-    public async Task GetGlobalPages_ReturnsCurrentApprovedGroupPages()
+    public async Task GetPublicPages_ReturnsApprovedPagesWithAccessName()
     {
         using var dbContext = CreateInMemoryDbContext();
         using var services = CreateServiceProvider();
@@ -84,19 +81,17 @@ public class PublicPagesQueryTests
         });
         dbContext.Groups.Add(CreateGroup(groupId, isChurch: false, parentGroupId: null));
 
-        var publicGlobalPage = CreatePage(authorId, null, PageVisibility.Public, "Global Public");
         var approvedGroupPage = CreatePage(authorId, groupId, PageVisibility.Public, "Approved Group Public");
         var unapprovedGroupPage = CreatePage(authorId, groupId, PageVisibility.Public, "Unapproved Group Public");
-        dbContext.Pages.AddRange(publicGlobalPage, approvedGroupPage, unapprovedGroupPage);
+        dbContext.Pages.AddRange(approvedGroupPage, unapprovedGroupPage);
         dbContext.PagePublicationReviews.Add(CreateApprovedReview(approvedGroupPage.Id, "Approved menu"));
         await dbContext.SaveChangesAsync();
 
         var service = new PageReadService(dbContext, services.GetRequiredService<HybridCache>());
 
-        var result = await service.GetGlobalPagesAsync(CancellationToken.None);
+        var result = await service.GetPublicPagesAsync(CancellationToken.None);
 
         Assert.Single(result);
-        Assert.DoesNotContain(result, page => page.Id == publicGlobalPage.Id);
         Assert.Contains(result, page =>
             page.Id == approvedGroupPage.Id &&
             page.OwnerGroupId == groupId &&
@@ -135,7 +130,7 @@ public class PublicPagesQueryTests
 
     private static Page CreatePage(
         Guid authorId,
-        Guid? ownerGroupId,
+        Guid ownerGroupId,
         PageVisibility visibility,
         string title)
         => new()
