@@ -157,13 +157,13 @@ const LandingHeroSection = ({ section, mode, domId, disabled, editorPreview, pre
       id={domId}
       className={[
         'relative isolate overflow-hidden bg-home-dark text-white',
-        compactPreview ? 'min-h-[30rem] rounded-2xl shadow-[0_14px_36px_rgba(31,56,48,0.12)]' : 'min-h-[72svh]',
+        compactPreview ? 'min-h-[30rem] rounded-2xl shadow-[0_14px_36px_rgba(31,56,48,0.12)]' : 'min-h-dvh',
       ].join(' ')}
     >
       <LandingHeroMedia src={mediaUrl} poster={posterUrl} />
       {!compactPreview ? <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] h-48 bg-gradient-to-t from-home-surface to-transparent" /> : null}
 
-      <div className={['relative z-10 mx-auto flex max-w-6xl items-end px-5 sm:px-8 lg:px-10', compactPreview ? 'min-h-[30rem] pb-12 pt-20' : 'min-h-[72svh] pb-24 pt-24'].join(' ')}>
+      <div className={['relative z-10 mx-auto flex max-w-6xl items-end px-5 sm:px-8 lg:px-10', compactPreview ? 'min-h-[30rem] pb-12 pt-20' : 'min-h-dvh pb-24 pt-24'].join(' ')}>
         <div className="max-w-xl">
           <EditableText
             as="h1"
