@@ -48,6 +48,7 @@ public class YoutubeService(
             .ToDictionaryAsync(x => x.YoutubeVideoId, StringComparer.OrdinalIgnoreCase, cancellationToken);
 
         var now = DateTime.UtcNow;
+        var hasPublicPayloadChanges = false;
 
         for (var index = 0; index < latestSermons.Count; index++)
         {
@@ -72,11 +73,13 @@ public class YoutubeService(
                 existing.IsDeleted = false;
                 if (changed)
                 {
+                    hasPublicPayloadChanges = true;
                     existing.UpdatedUtc = now;
                 }
                 continue;
             }
 
+            hasPublicPayloadChanges = true;
             dbContext.Sermons.Add(new Sermon
             {
                 Id = Guid.NewGuid(),
@@ -97,20 +100,27 @@ public class YoutubeService(
             .Where(x => !videoIds.Contains(x.YoutubeVideoId))
             .ToListAsync(cancellationToken);
 
+        var removedCount = 0;
         foreach (var staleSermon in staleSermons.Where(x => !x.IsDeleted))
         {
+            hasPublicPayloadChanges = true;
+            removedCount++;
             staleSermon.IsDeleted = true;
             staleSermon.UpdatedUtc = now;
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        await sermonCacheInvalidationService.RemoveAllAsync(cancellationToken);
+        if (hasPublicPayloadChanges)
+        {
+            await sermonCacheInvalidationService.RemoveAllAsync(cancellationToken);
+        }
 
         logger.LogInformation(
-            "Synced {Count} sermons from YouTube playlist {PlaylistId}. Removed {RemovedCount} stale rows.",
+            "Synced {Count} sermons from YouTube playlist {PlaylistId}. Removed {RemovedCount} stale rows. Public payload changed: {HasPublicPayloadChanges}.",
             latestSermons.Count,
             playlistId,
-            staleSermons.Count);
+            removedCount,
+            hasPublicPayloadChanges);
     }
 
     private async Task<List<PlaylistSermonItem>> FetchLatestPlaylistSermonsAsync(

@@ -31,6 +31,7 @@ const AUTHZ_MIRROR_TTL_SECONDS = 7 * 24 * 60 * 60
 const MEMBER_PROFILE_CACHE_TTL_SECONDS = 86400
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 const PUBLIC_CACHEABLE_API_PATHS = new Set(['/api/sermons', '/api/pages/public'])
+const QUERYLESS_API_CACHE_PATHS = new Set(['/api/sermons'])
 const GROUP_SHARED_CACHE_TTLS = {
   pages: CACHE_TTL_SECONDS,
   subgroups: CACHE_TTL_SECONDS,
@@ -419,7 +420,11 @@ export function createApiCacheKey(requestOrPath: Request | string) {
   }
 
   url.hash = ''
-  url.searchParams.sort()
+  if (shouldIgnoreApiCacheQuery(url.pathname)) {
+    url.search = ''
+  } else {
+    url.searchParams.sort()
+  }
   return `api:${url.pathname}${url.search}`
 }
 
@@ -472,14 +477,20 @@ export async function passivelyInvalidate(env: Env, request: Request, response: 
     ...keys.authz.map((key) => deleteAuthzKey(env, key)),
     ...mutationCacheTasks,
     ...paths.map(async (path) => {
-      const cacheKey = await createCacheKey(request, path)
-      await getEdgeCache().delete(cacheKey)
-      await deleteApiCacheKey(env, createApiCacheKey(path))
+      await purgeApiPathCache(env, request, path)
       const publicGroupPagesGroupId = getGroupPagesPathGroupId(path)
       if (publicGroupPagesGroupId) {
         await deleteApiCacheKey(env, createPublicGroupPagesCacheKey(publicGroupPagesGroupId))
       }
     }),
+  ])
+}
+
+export async function purgeApiPathCache(env: Env, request: Request, path: string) {
+  const cacheKey = await createCacheKey(request, path)
+  await Promise.all([
+    getEdgeCache().delete(cacheKey),
+    deleteApiCacheKey(env, createApiCacheKey(path)),
   ])
 }
 
@@ -805,7 +816,11 @@ export async function createCacheKey(request: Request, pathname?: string) {
     url.search = ''
   }
   url.hash = ''
-  url.searchParams.sort()
+  if (shouldIgnoreApiCacheQuery(url.pathname)) {
+    url.search = ''
+  } else {
+    url.searchParams.sort()
+  }
   const credentialKey = shouldUseSharedCacheKey(url.pathname) ? '' : await createCredentialCacheKey(request)
   if (credentialKey) {
     url.searchParams.set('__alife_credential', credentialKey)
@@ -822,6 +837,10 @@ export function shouldUseSharedCacheKey(pathname: string) {
     Boolean(getGroupSubresource(pathname)) ||
     Boolean(getEventSubresource(pathname)) ||
     Boolean(getPageDetailId(pathname))
+}
+
+export function shouldIgnoreApiCacheQuery(pathname: string) {
+  return QUERYLESS_API_CACHE_PATHS.has(pathname)
 }
 
 export function getGroupDetailId(pathname: string) {

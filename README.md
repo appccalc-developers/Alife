@@ -149,6 +149,7 @@ For local AI session testing, create `cloudflare/speed-layer/.dev.vars`:
 
 ```env
 GEMINI_API_KEY=your-gemini-api-key
+CACHE_SYNC_API_TOKEN=your-high-entropy-cache-sync-token
 ```
 
 Production deploys also require the Worker secret:
@@ -156,6 +157,7 @@ Production deploys also require the Worker secret:
 ```powershell
 cd cloudflare/speed-layer
 npx wrangler secret put GEMINI_API_KEY
+npx wrangler secret put CACHE_SYNC_API_TOKEN
 npx wrangler deploy
 ```
 
@@ -187,6 +189,7 @@ Alife deliberately uses multiple cache layers:
 
 - Backend `HybridCache` for member, group, page, event, and sermon read services.
 - Cloudflare speed layer cache for safe public responses, authorized group-shared responses, member profile responses, ETags, and passive mutation invalidation.
+- Sermon sync invalidates the canonical `/api/sermons` speed-layer cache through the internal Worker endpoint; `/api/sermons` query variants share one cache key.
 - Frontend IndexedDB ETag cache through `conditionalGet`.
 - PWA runtime caching for app assets, images, and fonts. API responses are intentionally excluded from the PWA runtime cache so auth and permission changes are not replayed incorrectly.
 
@@ -217,8 +220,9 @@ Backend settings can be supplied through environment variables, user secrets, or
 | `Jwt__Issuer`, `Jwt__Audience`, `Jwt__Key`, `Jwt__KeyId` | JWT signing and validation |
 | `LineLogin__ClientId`, `LineLogin__ClientSecret`, `LineLogin__RedirectUri` | LINE OAuth |
 | `Frontend__BaseUrl` | Frontend redirect/CORS base URL |
-| `Youtube__ApiKey`, `Youtube__PlaylistId` | Sermon sync integration, where configured |
-| `Cloudflare__ApiToken`, `Cloudflare__AccountId`, `Cloudflare__NamespaceId` | Cloudflare cache refresh support, where configured |
+| `YOUTUBE_API_KEY`, `YOUTUBE_PLAYLIST_ID` | Sermon sync integration, where configured |
+| `Cloudflare__ApiToken`, `Cloudflare__AccountId`, `Cloudflare__AuthzNamespaceId`, `Cloudflare__ApiCacheNamespaceId` | Cloudflare KV mirror/cache refresh support, where configured |
+| `Cloudflare__SyncWorkerBaseUrl`, `Cloudflare__SyncApiToken` | Speed-layer cache purge endpoint, where configured. Production base URL is `https://ccalc.live`; token must match Worker `CACHE_SYNC_API_TOKEN`. |
 
 Frontend and Worker settings:
 
@@ -229,6 +233,7 @@ Frontend and Worker settings:
 | `IMAGES_PROXY_TARGET` | Vite env | Image proxy target for local Vite |
 | `GEMINI_API_KEY` | `cloudflare/speed-layer/.dev.vars` or Worker secret | Required for AI session routes |
 | `GEMINI_MODEL` | `cloudflare/speed-layer/wrangler.jsonc` | Optional Gemini model override |
+| `CACHE_SYNC_API_TOKEN` | `cloudflare/speed-layer/.dev.vars` or Worker secret | Required for backend-triggered cache purge |
 
 ## Useful Commands
 

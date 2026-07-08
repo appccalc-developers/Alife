@@ -450,6 +450,109 @@ test('public GET requests are served from cache on the second hit', async () => 
   assert.equal(fetchCalls.length, 1)
 })
 
+test('/api/sermons query variants share the canonical edge cache key', async () => {
+  originResponses.push(Response.json([{ title: 'Canonical sermon' }]))
+
+  const first = await dispatch('https://ccalc.live/api/sermons?page=1&pageSize=12')
+  await flushWaitUntil()
+  const second = await dispatch('https://ccalc.live/api/sermons?lang=en')
+
+  assert.equal(first.status, 200)
+  assert.equal(first.headers.get('x-alife-cache'), 'MISS')
+  assert.equal(second.status, 200)
+  assert.equal(second.headers.get('x-alife-cache'), 'HIT')
+  assert.deepEqual(await second.json(), [{ title: 'Canonical sermon' }])
+  assert.equal(fetchCalls.length, 1)
+  assert.equal(cacheStore.has('https://ccalc.live/api/sermons'), true)
+  assert.equal(cacheStore.has('https://ccalc.live/api/sermons?page=1&pageSize=12'), false)
+  assert.equal(createApiCacheKey('https://ccalc.live/api/sermons?page=1&pageSize=12'), 'api:/api/sermons')
+  assert.equal(createApiCacheKey('https://ccalc.live/api/sermons?lang=en'), 'api:/api/sermons')
+})
+
+test('authorized internal cache invalidate purges canonical sermons cache before old ETag revalidation', async () => {
+  const url = 'https://ccalc.live/api/sermons?page=1&pageSize=12'
+  originResponses.push(Response.json([{ title: 'Old sermon' }]))
+
+  const first = await dispatch(url)
+  await flushWaitUntil()
+  const etag = first.headers.get('etag')
+  assert.ok(etag, 'MISS response should include an ETag')
+
+  const revalidated = await dispatch(url, {
+    headers: { 'if-none-match': etag },
+  })
+  assert.equal(revalidated.status, 304)
+
+  apiCacheStore.set(createApiCacheKey(url), createStoredResponse([{ title: 'Old stored sermon' }], { etag: '"stored-sermons-v1"' }))
+
+  const purge = await dispatch('https://ccalc.live/api/internal/cache/invalidate', {
+    method: 'POST',
+    auth: false,
+    headers: {
+      authorization: 'Bearer test-cache-token',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ paths: ['/api/sermons'] }),
+  })
+  await flushWaitUntil()
+
+  assert.equal(purge.status, 200)
+  assert.deepEqual(await purge.json(), { ok: true, purged: ['/api/sermons'] })
+  assert.equal(purge.headers.get('cache-control'), 'no-store')
+  assert.equal(cacheStore.has('https://ccalc.live/api/sermons'), false)
+  assert.equal(apiCacheStore.has('api:/api/sermons'), false)
+
+  originResponses.push(Response.json([{ title: 'New sermon' }]))
+  const afterPurge = await dispatch(url, {
+    headers: { 'if-none-match': etag },
+  })
+  await flushWaitUntil()
+
+  assert.equal(afterPurge.status, 200)
+  assert.equal(afterPurge.headers.get('x-alife-cache'), 'MISS')
+  assert.deepEqual(await afterPurge.json(), [{ title: 'New sermon' }])
+  assert.equal(fetchCalls.length, 2)
+})
+
+test('unauthorized internal cache invalidate does not purge sermons cache', async () => {
+  cacheStore.set('https://ccalc.live/api/sermons', Response.json([{ title: 'Cached sermon' }]))
+  apiCacheStore.set('api:/api/sermons', createStoredResponse([{ title: 'Stored sermon' }]))
+
+  const response = await dispatch('https://ccalc.live/api/internal/cache/invalidate', {
+    method: 'POST',
+    auth: false,
+    headers: {
+      authorization: 'Bearer wrong-token',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ paths: ['/api/sermons'] }),
+  })
+
+  assert.equal(response.status, 401)
+  assert.equal(response.headers.get('cache-control'), 'no-store')
+  assert.equal(cacheStore.has('https://ccalc.live/api/sermons'), true)
+  assert.equal(apiCacheStore.has('api:/api/sermons'), true)
+  assert.equal(fetchCalls.length, 0)
+})
+
+test('admin sermon sync passively invalidates canonical sermons cache', async () => {
+  const publicUrl = 'https://ccalc.live/api/sermons?page=1&pageSize=12'
+  cacheStore.set(cacheKey(new Request(publicUrl)), Response.json([{ title: 'Stale sermon' }]))
+  apiCacheStore.set(createApiCacheKey(publicUrl), createStoredResponse([{ title: 'Stored stale sermon' }]))
+  originResponses.push(Response.json({ ok: true }))
+
+  const response = await dispatch('https://ccalc.live/api/admin/sermons/sync', {
+    method: 'POST',
+    body: JSON.stringify({}),
+  })
+  await flushWaitUntil()
+
+  assert.equal(response.status, 200)
+  assert.equal(cacheStore.has('https://ccalc.live/api/sermons'), false)
+  assert.equal(apiCacheStore.has('api:/api/sermons'), false)
+  assert.equal(deletedCacheKeys.includes('https://ccalc.live/api/sermons'), true)
+})
+
 test('public pages GET requests are served from shared public cache', async () => {
   originResponses.push(Response.json([{ id: 'page-1', visibility: 'public' }]))
 
@@ -2084,6 +2187,7 @@ function isAuthValidationRequest(request, init) {
 function createEnv() {
   return {
     API_PROXY_TARGET: 'https://api.ccalc.live',
+    CACHE_SYNC_API_TOKEN: 'test-cache-token',
   }
 }
 
@@ -2118,7 +2222,11 @@ async function flushWaitUntil() {
 function cacheKey(request) {
   const url = new URL(request.url)
   url.hash = ''
-  url.searchParams.sort()
+  if (url.pathname === '/api/sermons') {
+    url.search = ''
+  } else {
+    url.searchParams.sort()
+  }
   return url.toString()
 }
 
@@ -2302,7 +2410,11 @@ function createApiCacheKey(url) {
   }
 
   parsed.hash = ''
-  parsed.searchParams.sort()
+  if (parsed.pathname === '/api/sermons') {
+    parsed.search = ''
+  } else {
+    parsed.searchParams.sort()
+  }
   return `api:${parsed.pathname}${parsed.search}`
 }
 
