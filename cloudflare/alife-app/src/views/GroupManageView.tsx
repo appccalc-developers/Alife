@@ -688,67 +688,6 @@ const EventsPanel = ({ groupId, events, copy, onDeleteEvent, framed = true }: Ev
   )
 }
 
-type ChurchOperationsPanelProps = {
-  groupId: string
-  onStatusMessage: (message: string) => void
-  framed?: boolean
-}
-
-const ChurchOperationsPanel = ({ groupId, onStatusMessage, framed = true }: ChurchOperationsPanelProps) => {
-  const t = useUiText()
-  const [refreshingCache, setRefreshingCache] = useState(false)
-  const [syncingSermons, setSyncingSermons] = useState(false)
-
-  const refreshCloudflareCache = async () => {
-    setRefreshingCache(true)
-    try {
-      const response = await groupService.refreshCloudflareCache(groupId)
-      onStatusMessage(response.message || t('cloudflareCacheRefreshTriggered'))
-    } catch {
-      onStatusMessage(t('cloudflareCacheRefreshFailed'))
-    } finally {
-      setRefreshingCache(false)
-    }
-  }
-
-  const syncSermons = async () => {
-    setSyncingSermons(true)
-    try {
-      const response = await groupService.syncSermons()
-      onStatusMessage(response.message || t('sermonSyncTriggered'))
-    } catch {
-      onStatusMessage(t('sermonSyncFailed'))
-    } finally {
-      setSyncingSermons(false)
-    }
-  }
-
-  return (
-    <ManagementPanelShell framed={framed} title={t('churchOperations')} subtitle={t('churchOperationsSubtitle')}>
-      <div className="flex flex-wrap gap-3">
-        <AppActionButton
-          variant="secondary"
-          disabled={refreshingCache}
-          onClick={() => {
-            refreshCloudflareCache().catch(() => undefined)
-          }}
-        >
-          {refreshingCache ? t('refreshing') : t('refreshCloudflareCache')}
-        </AppActionButton>
-        <AppActionButton
-          variant="primary"
-          disabled={syncingSermons}
-          onClick={() => {
-            syncSermons().catch(() => undefined)
-          }}
-        >
-          {syncingSermons ? t('syncing') : t('syncAzureSermonList')}
-        </AppActionButton>
-      </div>
-    </ManagementPanelShell>
-  )
-}
-
 type GroupManageViewProps = {
   embeddedWorkspace?: boolean
 }
@@ -995,9 +934,6 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
                       }
                     }}
                   />
-                  {group.isChurch ? (
-                    <ChurchOperationsPanel framed={false} groupId={groupId} onStatusMessage={setStatusMessage} />
-                  ) : null}
                 </div>
               ) : null}
 
