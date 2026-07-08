@@ -3,6 +3,7 @@ import { authMiddleware } from './middlewares/authCache'
 import { apiCacheMiddleware } from './middlewares/apiCache'
 import { proxyHandler } from './middlewares/proxyHandler'
 import aiRouter from './features/ai/aiRouter'
+import { handleInternalCacheInvalidate } from './features/cache/cacheInvalidation'
 import eventRouter from './features/events/eventRouter'
 
 import { EventPlanningSession } from './features/events/planner'
@@ -17,6 +18,8 @@ export type Env = {
   GEMINI_API_KEY?: string
   /** Optional Gemini model override. Defaults to Gemini 3 Pro. */
   GEMINI_MODEL?: string
+  /** Bearer token for backend-triggered speed-layer cache invalidation. */
+  CACHE_SYNC_API_TOKEN?: string
   /** Durable Object namespace for live event-planning sessions. */
   EVENT_SESSIONS?: DurableObjectNamespace
   /** Durable Object namespace for live enrollment sessions. */
@@ -48,6 +51,7 @@ const app = new Router()
 app.all('/images', async (req, env, ctx) => proxyHandler.handle(req, env, ctx))
 app.all('/images/*', async (req, env, ctx) => proxyHandler.handle(req, env, ctx))
 app.all('/proxy/*', async (req, env, ctx) => proxyHandler.handle(req, env, ctx))
+app.post('/api/internal/cache/invalidate', async (req, env) => handleInternalCacheInvalidate(req, env))
 
 // Setup pipeline middleware
 const apiPipeline = new Router()

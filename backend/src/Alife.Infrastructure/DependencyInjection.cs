@@ -54,6 +54,10 @@ public static class DependencyInjection
 					new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiToken);
 			}
 		});
+		services.AddHttpClient<ICloudflareSpeedLayerCacheService, CloudflareSpeedLayerCacheService>(client =>
+		{
+			client.Timeout = TimeSpan.FromSeconds(10);
+		});
 		services.AddScoped<IGroupReadService, GroupReadService>();
 		services.AddScoped<IFileStorageProviderResolver, FileStorageProviderResolver>();
 		services.AddScoped<IFileAssetAccessUrlSigner, FileAssetAccessUrlSigner>();

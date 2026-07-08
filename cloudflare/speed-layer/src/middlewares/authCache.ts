@@ -38,6 +38,7 @@ const AUTHZ_MIRROR_TTL_SECONDS = 7 * 24 * 60 * 60
 const PUBLIC_CACHEABLE_API_PATHS = new Set(['/api/sermons', '/api/pages/public'])
 const GROUP_SHARED_SUBRESOURCES = new Set(['pages', 'events', 'memberships', 'members', 'subgroups'])
 const EVENT_SHARED_SUBRESOURCES = new Set(['enrollments', 'reviews'])
+const QUERYLESS_API_CACHE_PATHS = new Set(['/api/sermons'])
 const LOGICAL_CACHE_RECORD_URL = 'https://alife.local/__alife-cache-record'
 
 export const authMiddleware = async (
@@ -220,7 +221,11 @@ export function createApiCacheKey(requestOrPath: Request | string) {
     : new URL(requestOrPath.url)
 
   url.hash = ''
-  url.searchParams.sort()
+  if (QUERYLESS_API_CACHE_PATHS.has(url.pathname)) {
+    url.search = ''
+  } else {
+    url.searchParams.sort()
+  }
   return `api:${url.pathname}${url.search}`
 }
 

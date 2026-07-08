@@ -6,10 +6,12 @@ namespace Alife.Infrastructure.ReadServices;
 
 public sealed class SermonCacheInvalidationService(
     HybridCache hybridCache,
-    ICloudflareKvCacheService cloudflareKvCacheService) : ISermonCacheInvalidationService
+    ICloudflareKvCacheService cloudflareKvCacheService,
+    ICloudflareSpeedLayerCacheService cloudflareSpeedLayerCacheService) : ISermonCacheInvalidationService
 {
     public Task RemoveAllAsync(CancellationToken cancellationToken = default)
         => Task.WhenAll(
             hybridCache.RemoveAsync(SermonCacheKeys.All(), cancellationToken).AsTask(),
-            cloudflareKvCacheService.RemoveApiCacheAsync("/api/sermons", cancellationToken));
+            cloudflareKvCacheService.RemoveApiCacheAsync("/api/sermons", cancellationToken),
+            cloudflareSpeedLayerCacheService.PurgeApiPathsAsync(new[] { "/api/sermons" }, cancellationToken));
 }
