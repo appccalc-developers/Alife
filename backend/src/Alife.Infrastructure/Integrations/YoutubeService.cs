@@ -1,4 +1,5 @@
 ﻿using System.Net.Http.Json;
+using System.Globalization;
 using Alife.Application.Abstractions.Integrations;
 using Alife.Application.Sermons.Services;
 using Alife.Domain.Entities;
@@ -183,11 +184,7 @@ public class YoutubeService(
                     item.Snippet?.Thumbnails?.Medium?.Url ??
                     item.Snippet?.Thumbnails?.Default?.Url;
 
-                DateTime? preachedAtUtc = null;
-                if (DateTimeOffset.TryParse(item.Snippet?.PublishedAt, out var publishedAt))
-                {
-                    preachedAtUtc = publishedAt.UtcDateTime;
-                }
+                var preachedAtUtc = ResolvePreachedAtUtc(title, item.Snippet?.PublishedAt);
 
                 sermons.Add(new PlaylistSermonItem(
                     videoId,
@@ -223,6 +220,31 @@ public class YoutubeService(
         }
 
         return query;
+    }
+
+    private static DateTime? ResolvePreachedAtUtc(string title, string? publishedAt)
+    {
+        if (title.Length >= 10)
+        {
+            var titleDateText = title[..10].Trim().Replace(' ', '-');
+            if (DateOnly.TryParseExact(
+                    titleDateText,
+                    "yyyy-MM-dd",
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.None,
+                    out var preachedAtDate))
+            {
+                return preachedAtDate.ToDateTime(new TimeOnly(22, 0), DateTimeKind.Utc);
+            }
+        }
+
+        return DateTimeOffset.TryParse(
+            publishedAt,
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.AssumeUniversal,
+            out var publishedAtOffset)
+            ? publishedAtOffset.UtcDateTime
+            : null;
     }
 
     private sealed record PlaylistSermonItem(

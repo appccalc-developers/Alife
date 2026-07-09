@@ -68,6 +68,42 @@ public class YoutubeServiceSyncTests
         Assert.Equal("video-1", sermon.YoutubeVideoId);
     }
 
+    [Fact]
+    public async Task SyncSermonsAsync_WhenTitleStartsWithDate_UsesTitleDateAtTwentyTwoUtc()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var cacheInvalidationService = CreateCacheInvalidationService();
+        var service = CreateService(dbContext, cacheInvalidationService, CreatePlaylistJson(
+            "video-1",
+            "2026-07-01 Sunday Sermon",
+            "Speaker One",
+            "https://img.example/video-1.jpg",
+            "2026-07-03T00:00:00Z"));
+
+        await service.SyncSermonsAsync();
+
+        var sermon = await dbContext.Sermons.SingleAsync();
+        Assert.Equal(new DateTime(2026, 7, 1, 22, 0, 0, DateTimeKind.Utc), sermon.PreachedAtUtc);
+    }
+
+    [Fact]
+    public async Task SyncSermonsAsync_WhenTitleIsShort_UsesPublishedAt()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var cacheInvalidationService = CreateCacheInvalidationService();
+        var service = CreateService(dbContext, cacheInvalidationService, CreatePlaylistJson(
+            "video-1",
+            "Short",
+            "Speaker One",
+            "https://img.example/video-1.jpg",
+            "2026-07-01T00:00:00Z"));
+
+        await service.SyncSermonsAsync();
+
+        var sermon = await dbContext.Sermons.SingleAsync();
+        Assert.Equal(new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc), sermon.PreachedAtUtc);
+    }
+
     private static YoutubeService CreateService(
         AlifeDbContext dbContext,
         ISermonCacheInvalidationService cacheInvalidationService,
