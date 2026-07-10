@@ -29,7 +29,13 @@ type Props = {
   contextGroupId?: string
   showHeader?: boolean
   framed?: boolean
+  activeSectionIndex?: number
+  activeSectionFocusToken?: number
+  sectionLanguageIssueCounts?: Record<number, number>
+  languageFixingSectionIndex?: number | null
   message?: string
+  onActiveSectionIndexChange?: (index: number) => void
+  onFixSectionLanguageIssues?: (index: number) => void
   onPageChange?: (page: PageEditModel) => void
   onSectionsChange?: (sections: SectionEditModel[]) => void
 }
@@ -476,7 +482,13 @@ const PageContentRenderer = ({
   contextGroupId,
   showHeader = true,
   framed = true,
+  activeSectionIndex,
+  activeSectionFocusToken,
+  sectionLanguageIssueCounts,
+  languageFixingSectionIndex,
   message,
+  onActiveSectionIndexChange,
+  onFixSectionLanguageIssues,
   onSectionsChange,
 }: Props) => {
   const auth = useAuthStore()
@@ -564,6 +576,12 @@ const PageContentRenderer = ({
         sectionTypeErrors={validation.sectionTypeErrors}
         contextGroupId={contextGroupId}
         pageId={pageId}
+        activeIndex={activeSectionIndex}
+        activeFocusToken={activeSectionFocusToken}
+        languageIssueCounts={sectionLanguageIssueCounts}
+        languageFixingSectionIndex={languageFixingSectionIndex}
+        onActiveIndexChange={onActiveSectionIndexChange}
+        onFixLanguageIssues={onFixSectionLanguageIssues}
         onAdd={addSection}
         onInsert={insertSection}
         onUpdate={({ index, section }) => updateSection(index, section)}
@@ -605,6 +623,12 @@ const PageContentRenderer = ({
           sectionTypeErrors={validation.sectionTypeErrors}
           contextGroupId={contextGroupId}
           pageId={pageId}
+          activeIndex={activeSectionIndex}
+          activeFocusToken={activeSectionFocusToken}
+          languageIssueCounts={sectionLanguageIssueCounts}
+          languageFixingSectionIndex={languageFixingSectionIndex}
+          onActiveIndexChange={onActiveSectionIndexChange}
+          onFixLanguageIssues={onFixSectionLanguageIssues}
           onAdd={addSection}
           onInsert={insertSection}
           onUpdate={({ index, section }) => updateSection(index, section)}
