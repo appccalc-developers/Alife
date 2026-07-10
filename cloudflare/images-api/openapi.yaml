@@ -1,9 +1,9 @@
 openapi: 3.1.0
 info:
-  title: Cloudflare R2 Image Manager API
+  title: Cloudflare R2 Media Manager API
   version: 2.0.0
   summary: >
-    API for hierarchical image management in an R2 bucket. Supports folder
+    API for hierarchical image and video management in an R2 bucket. Supports folder
     organization, recursive folder deletion, automatic empty-folder cleanup,
     and path-based upload/streaming.
 servers:
@@ -35,9 +35,9 @@ paths:
           description: Configuration payload
   /api/images/list/{path}:
     get:
-      summary: List images and subfolders at a folder path
+      summary: List media files and subfolders at a folder path
       description: >
-        Returns the direct images and immediate subfolders at the given path.
+        Returns the direct image/video files and immediate subfolders at the given path.
         Use an empty path (or omit it) to list the root. Folder paths are
         virtual (R2 key prefixes); they appear as long as they contain objects.
       parameters:
@@ -66,12 +66,28 @@ paths:
                         type: { type: string, enum: [folder] }
                         path: { type: string, description: Folder prefix including trailing slash }
                         name: { type: string, description: Folder display name }
-                  images:
+                  media:
                     type: array
                     items:
                       type: object
                       properties:
-                        type: { type: string, enum: [image] }
+                        type: { type: string, enum: [image, video] }
+                        kind: { type: string, enum: [image, video] }
+                        key: { type: string }
+                        name: { type: string }
+                        size: { type: integer }
+                        uploaded: { type: string, format: date-time }
+                        etag: { type: string }
+                        contentType: { type: string }
+                        url: { type: string, format: uri }
+                  images:
+                    type: array
+                    description: Backwards-compatible alias of media.
+                    items:
+                      type: object
+                      properties:
+                        type: { type: string, enum: [image, video] }
+                        kind: { type: string, enum: [image, video] }
                         key: { type: string }
                         name: { type: string }
                         size: { type: integer }
@@ -86,7 +102,7 @@ paths:
         "200":
           description: Root folder contents
     post:
-      summary: Upload image to root
+      summary: Upload image/video to root
       description: Alias of POST /api/images/ for uploading to the root folder.
       requestBody:
         required: true
@@ -100,12 +116,12 @@ paths:
                   format: binary
       responses:
         "201":
-          description: Image uploaded to root
+          description: Media uploaded to root
   /api/images/{path}:
     get:
-      summary: Stream image object by path
+      summary: Stream media object by path
       description: >
-        Fetches and streams the image stored at the given key path. Returns
+        Fetches and streams the image/video stored at the given key path. Returns
         404 if the key does not exist.
       parameters:
         - in: path
@@ -116,18 +132,22 @@ paths:
             type: string
       responses:
         "200":
-          description: Image binary stream
+          description: Image or video binary stream
           content:
             image/*:
+              schema:
+                type: string
+                format: binary
+            video/*:
               schema:
                 type: string
                 format: binary
         "404":
           description: Image not found
     post:
-      summary: Upload image into a folder path
+      summary: Upload image/video into a folder path
       description: >
-        Uploads an image into the folder at {path}. The uploaded filename is
+        Uploads an image/video into the folder at {path}. The uploaded filename is
         taken from the multipart "file" field and sanitized. The resulting R2
         key is {path}/{filename}.
       parameters:
@@ -150,15 +170,30 @@ paths:
                   format: binary
       responses:
         "201":
-          description: Image uploaded successfully
+          description: Media uploaded successfully
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  image:
+                  media:
                     type: object
                     properties:
+                      type: { type: string, enum: [image, video] }
+                      kind: { type: string, enum: [image, video] }
+                      key: { type: string }
+                      name: { type: string }
+                      folder: { type: string }
+                      size: { type: integer }
+                      uploaded: { type: string, format: date-time }
+                      contentType: { type: string }
+                      url: { type: string, format: uri }
+                  image:
+                    description: Backwards-compatible alias of media.
+                    type: object
+                    properties:
+                      type: { type: string, enum: [image, video] }
+                      kind: { type: string, enum: [image, video] }
                       key: { type: string }
                       name: { type: string }
                       folder: { type: string }
@@ -167,7 +202,7 @@ paths:
                       contentType: { type: string }
                       url: { type: string, format: uri }
         "400":
-          description: Bad request (not multipart, missing file, or non-image type)
+          description: Bad request (not multipart, missing file, or non-media type)
     delete:
       summary: Delete image or folder (and all contents) at path
       description: >

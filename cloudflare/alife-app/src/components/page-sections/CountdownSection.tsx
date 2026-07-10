@@ -20,6 +20,7 @@ import {
   toLocalizedValue,
 } from './sectionUtils'
 import type { SectionComponentProps } from './types'
+import MediaPickerInput from '../media/MediaPickerInput'
 
 type CountdownMode = 'custom' | 'event'
 type CountdownTargetField = 'startDate' | 'registrationDeadline' | 'endDate'
@@ -469,11 +470,13 @@ const CountdownSection = ({ section, mode, domId, disabled, propertiesOnly, show
             ]}
             onChange={(value) => updateCountdown({ targetField: value as CountdownTargetField })}
           />
-          <TextInput
+          <MediaPickerInput
             focusKey="countdown-image-override"
             label={label(language, 'Image/video override URL', '图片/视频覆盖链接')}
             value={readText(section.contentJson, 'imageOverrideUrl')}
             disabled={disabled}
+            groupId={groupId}
+            accept="media"
             onChange={(value) => updateContent({ imageOverrideUrl: value })}
           />
         </>
@@ -487,11 +490,13 @@ const CountdownSection = ({ section, mode, domId, disabled, propertiesOnly, show
             placeholder="2026-12-25T10:00:00"
             onChange={(value) => updateContent({ targetDateTime: value, countdownTarget: value, endDateTime: value })}
           />
-          <TextInput
+          <MediaPickerInput
             focusKey="countdown-image"
             label={label(language, 'Image/video URL', '图片/视频链接')}
             value={readText(section.contentJson, 'imageUrl', 'backgroundImage', 'backgroundImageUrl')}
             disabled={disabled}
+            groupId={groupId}
+            accept="media"
             onChange={(value) => updateContent({ imageUrl: value, backgroundImage: value, backgroundImageUrl: value })}
           />
         </>
