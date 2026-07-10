@@ -40,7 +40,7 @@ const EMPTY = "";
 
 const OPENAPI_FALLBACK_YAML = `openapi: 3.1.0
 info:
-  title: CCalc Image API
+  title: CCalc Media API
   version: 2.0.0
 servers:
   - url: https://images.ccalc.live
@@ -53,7 +53,7 @@ paths:
           description: OK
   /api/images/list/{path}:
     get:
-      summary: List images and subfolders at path
+      summary: List image/video files and subfolders at path
       parameters:
         - in: path
           name: path
@@ -65,7 +65,7 @@ paths:
           description: OK
   /api/images/{path}:
     get:
-      summary: Stream image object by path
+      summary: Stream image/video object by path
       parameters:
         - in: path
           name: path
@@ -76,7 +76,7 @@ paths:
         '200':
           description: OK
     post:
-      summary: Upload image into folder at path
+      summary: Upload image/video into folder at path
       parameters:
         - in: path
           name: path
@@ -89,7 +89,7 @@ paths:
         '201':
           description: Created
     delete:
-      summary: Delete image or folder (and all contents) at path
+      summary: Delete image/video file or folder (and all contents) at path
       parameters:
         - in: path
           name: path
@@ -170,6 +170,10 @@ function isMediaObject(objectKey, contentType) {
   return isImageObject(objectKey, contentType) || isVideoObject(objectKey, contentType);
 }
 
+function getMediaKind(objectKey, contentType) {
+  return isVideoObject(objectKey, contentType) ? "video" : "image";
+}
+
 function keyToUrlPath(key) {
   return key.split("/").map((segment) => encodeURIComponent(segment)).join("/");
 }
@@ -224,21 +228,27 @@ async function listFolder(request, env, folderPath) {
     return { type: "folder", path: p, name };
   });
 
-  const images = listing.objects
+  const media = listing.objects
     .filter((obj) => isMediaObject(obj.key, obj.httpMetadata?.contentType))
-    .map((obj) => ({
-      type: "image",
-      key: obj.key,
-      name: obj.key.split("/").pop(),
-      size: obj.size,
-      uploaded: obj.uploaded,
-      etag: obj.httpEtag,
-      contentType: obj.httpMetadata?.contentType || TYPE_BY_EXTENSION[getKeyExtension(obj.key)] || VIDEO_TYPE_BY_EXTENSION[getKeyExtension(obj.key)] || EMPTY,
-      url: toImageUrl(request, env, obj.key),
-    }))
+    .map((obj) => {
+      const contentType = obj.httpMetadata?.contentType || TYPE_BY_EXTENSION[getKeyExtension(obj.key)] || VIDEO_TYPE_BY_EXTENSION[getKeyExtension(obj.key)] || EMPTY;
+      const kind = getMediaKind(obj.key, contentType);
+
+      return {
+        type: kind,
+        kind,
+        key: obj.key,
+        name: obj.key.split("/").pop(),
+        size: obj.size,
+        uploaded: obj.uploaded,
+        etag: obj.httpEtag,
+        contentType,
+        url: toImageUrl(request, env, obj.key),
+      };
+    })
     .sort((a, b) => String(b.uploaded).localeCompare(String(a.uploaded)));
 
-  return json({ path: folderPath || "/", folders, images });
+  return json({ path: folderPath || "/", folders, media, images: media });
 }
 
 /**
@@ -275,17 +285,24 @@ async function uploadToPath(request, env, folderPath) {
   });
 
   const uploadedObject = await env.IMAGE_BUCKET.head(key);
+  const uploadedContentType = uploadedObject?.httpMetadata?.contentType || candidateType || EMPTY;
+  const kind = getMediaKind(key, uploadedContentType);
+  const media = {
+    type: kind,
+    kind,
+    key,
+    name: fileName,
+    folder: folderPath || "/",
+    size: uploadedObject?.size ?? file.size,
+    uploaded: uploadedObject?.uploaded ?? new Date().toISOString(),
+    contentType: uploadedContentType,
+    url: toImageUrl(request, env, key),
+  };
+
   return json(
     {
-      image: {
-        key,
-        name: fileName,
-        folder: folderPath || "/",
-        size: uploadedObject?.size ?? file.size,
-        uploaded: uploadedObject?.uploaded ?? new Date().toISOString(),
-        contentType: uploadedObject?.httpMetadata?.contentType || candidateType || EMPTY,
-        url: toImageUrl(request, env, key),
-      },
+      media,
+      image: media,
     },
     201,
   );

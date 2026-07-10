@@ -6,6 +6,7 @@ import type { SectionComponentProps } from './types'
 import SectionHeader from './SectionHeader'
 import { pageSectionShellClass, sectionSpacingClass } from './sectionPresets'
 import { richTextBodyClass, sanitizeRichTextHtml } from './richTextHtml'
+import MediaPickerInput from '../media/MediaPickerInput'
 
 const TinyMceRichTextEditor = lazy(() => import('./TinyMceRichTextEditor'))
 
@@ -26,28 +27,6 @@ const TinyMceLoading = () => (
   />
 )
 
-const UrlInput = ({
-  label,
-  value,
-  disabled,
-  onChange,
-}: {
-  label: string
-  value: string
-  disabled?: boolean
-  onChange: (value: string) => void
-}) => (
-  <label className="block space-y-1">
-    <span className="text-xs font-medium text-slate-600">{label}</span>
-    <input
-      value={value}
-      disabled={disabled}
-      className="h-9 w-full rounded border border-slate-300 px-2 text-sm disabled:bg-slate-100"
-      onChange={(event) => onChange(event.target.value)}
-    />
-  </label>
-)
-
 const pageImageUploadFolder = (groupId: string | undefined, pageId: string | undefined) => {
   const groupFolder = groupId ? `groups/${groupId}` : 'global'
   const pageFolder = pageId ? `pages/${pageId}` : 'pages/draft'
@@ -66,6 +45,7 @@ const RichTextSection = ({ section, mode, domId, disabled, propertiesOnly, showP
   const variant = readText(section.styleJson, 'variant')
   const overlay = variant === 'quoteOverlay' || Boolean(bg)
   const uploadFolder = pageImageUploadFolder(contextGroupId || page?.ownerGroupId || undefined, pageId || page?.id)
+  const mediaGroupId = contextGroupId || page?.ownerGroupId || undefined
   const updateContent = (patch: Record<string, unknown>) => onUpdate?.(patchContent(section, patch))
   const updateLocalizedContent = (patch: Record<string, string>) => onUpdate?.(patchLocalizedContent(section, auth.language, patch))
   const updateHeaderTitle = (value: string) => {
@@ -94,7 +74,15 @@ const RichTextSection = ({ section, mode, domId, disabled, propertiesOnly, showP
   )
   const renderProperties = () => (
     <PropertyPanel>
-      <UrlInput label={t('backgroundImageUrl')} value={bg} disabled={disabled} onChange={(value) => updateContent({ backgroundImage: value, backgroundImageUrl: value })} />
+      <MediaPickerInput
+        focusKey="rich-text-background-media"
+        label={t('backgroundImageUrl')}
+        value={bg}
+        disabled={disabled}
+        groupId={mediaGroupId}
+        accept="media"
+        onChange={(value) => updateContent({ backgroundImage: value, backgroundImageUrl: value })}
+      />
     </PropertyPanel>
   )
 

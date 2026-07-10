@@ -35,6 +35,7 @@ import {
   SPOTLIGHT_DATA_SOURCES,
   spotlightPresetOptionsForSource,
 } from '../../utils/spotlight'
+import MediaPickerInput from '../media/MediaPickerInput'
 
 const readMediaConfig = (source: Record<string, unknown>, style: Record<string, unknown>) => {
   const media = source.media && typeof source.media === 'object' && !Array.isArray(source.media)
@@ -289,19 +290,25 @@ const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, show
             options={[{ value: 'image', label: t('image') }, { value: 'youtube', label: t('youtube') }]}
             onChange={(value) => updateMedia({ type: value, url: value === 'youtube' ? youtubeUrl : imageUrl, position: mediaPosition })}
           />
-          <TextInput
-            focusKey="spotlight-media-url"
-            label={mediaConfig.type === 'youtube' ? t('youtubeUrl') : t('imageOrVideoUrl')}
-            value={mediaConfig.url}
-            disabled={disabled}
-            onChange={(value) => {
-              if (mediaConfig.type === 'youtube') {
-                updateContent({ media: mediaWith({ type: mediaConfig.type, url: value, position: mediaPosition }), youtubeUrl: value })
-              } else {
-                updateContent({ media: mediaWith({ type: mediaConfig.type, url: value, position: mediaPosition }), imageUrl: value, backgroundImage: value, backgroundImageUrl: value })
-              }
-            }}
-          />
+          {mediaConfig.type === 'youtube' ? (
+            <TextInput
+              focusKey="spotlight-media-url"
+              label={t('youtubeUrl')}
+              value={mediaConfig.url}
+              disabled={disabled}
+              onChange={(value) => updateContent({ media: mediaWith({ type: mediaConfig.type, url: value, position: mediaPosition }), youtubeUrl: value })}
+            />
+          ) : (
+            <MediaPickerInput
+              focusKey="spotlight-media-url"
+              label={t('imageOrVideoUrl')}
+              value={mediaConfig.url}
+              disabled={disabled}
+              groupId={groupId}
+              accept="media"
+              onChange={(value) => updateContent({ media: mediaWith({ type: mediaConfig.type, url: value, position: mediaPosition }), imageUrl: value, backgroundImage: value, backgroundImageUrl: value })}
+            />
+          )}
           <TextInput
             focusKey="spotlight-action-url"
             label={t('buttonLinkUrl')}

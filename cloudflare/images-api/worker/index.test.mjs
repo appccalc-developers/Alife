@@ -41,8 +41,9 @@ test("GET /api/images/config is the canonical config path with CORS", async () =
   assert.equal(body.bucketName, "ccalc");
 });
 
-test("GET /api/images lists only image objects", async () => {
+test("GET /api/images lists media objects only", async () => {
   objects.set("hero.png", createObject("hero.png", "image/png"));
+  objects.set("intro.mp4", createObject("intro.mp4", "video/mp4"));
   objects.set("notes.txt", createObject("notes.txt", "text/plain"));
 
   const response = await dispatch("https://images.ccalc.live/api/images");
@@ -51,9 +52,12 @@ test("GET /api/images lists only image objects", async () => {
   assert.equal(response.status, 200);
   assert.deepEqual(
     body.images.map((image) => image.key),
-    ["hero.png"],
+    ["hero.png", "intro.mp4"],
   );
+  assert.deepEqual(body.media, body.images);
   assert.equal(body.images[0].url, "https://images.ccalc.live/hero.png");
+  assert.equal(body.images[1].kind, "video");
+  assert.equal(body.images[1].type, "video");
   assert.ok(Array.isArray(body.folders), "response should include folders array");
 });
 
@@ -123,6 +127,23 @@ test("POST /api/images/{path} uploads image into a subfolder", async () => {
   assert.equal(body.image.name, "tabby.jpg");
   assert.equal(body.image.folder, "cats");
   assert.equal(objects.has("cats/tabby.jpg"), true);
+});
+
+test("POST /api/images/{path} uploads video into a subfolder", async () => {
+  const data = new FormData();
+  data.set("file", new File(["video"], "intro clip.mp4", { type: "video/mp4" }));
+
+  const response = await dispatch("https://images.ccalc.live/api/images/groups/group-1/pages/page-1", {
+    method: "POST",
+    body: data,
+  });
+  const body = await response.json();
+
+  assert.equal(response.status, 201);
+  assert.equal(body.media.key, "groups/group-1/pages/page-1/intro-clip.mp4");
+  assert.equal(body.media.kind, "video");
+  assert.equal(body.image.kind, "video");
+  assert.equal(objects.has("groups/group-1/pages/page-1/intro-clip.mp4"), true);
 });
 
 test("GET /api/images/{path} streams image by key path", async () => {

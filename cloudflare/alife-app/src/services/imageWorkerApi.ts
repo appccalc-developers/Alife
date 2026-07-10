@@ -56,7 +56,11 @@ const VIDEO_TYPE_BY_EXTENSION: Record<string, string> = {
 }
 
 export type UploadedImage = {
+  type?: 'image' | 'video'
+  kind?: 'image' | 'video'
   key: string
+  name?: string
+  folder?: string
   size: number
   uploaded: string
   contentType: string
@@ -65,6 +69,25 @@ export type UploadedImage = {
 
 export type UploadedMedia = UploadedImage & {
   kind: 'image' | 'video'
+}
+
+export type MediaFolder = {
+  type: 'folder'
+  path: string
+  name: string
+}
+
+export type ListedMedia = UploadedMedia & {
+  type: 'image' | 'video'
+  name: string
+  etag?: string
+}
+
+export type MediaFolderListing = {
+  path: string
+  folders: MediaFolder[]
+  media: ListedMedia[]
+  images: ListedMedia[]
 }
 
 export function normalizeImageUrl(value: string): string {
@@ -148,6 +171,17 @@ export function isMediaFile(file: File): boolean {
   return isImageFile(file) || isVideoFile(file)
 }
 
+export function mediaKindFromMetadata(objectKey: string, contentType: string): UploadedMedia['kind'] {
+  return isVideoObject(objectKey, contentType) ? 'video' : 'image'
+}
+
+function isVideoObject(objectKey: string, contentType: string): boolean {
+  if (typeof contentType === 'string' && contentType.toLowerCase().startsWith('video/')) {
+    return true
+  }
+  return VIDEO_EXTENSIONS.has(getKeyExtension(objectKey))
+}
+
 function apiUrl(path: string): string {
   const p = path.startsWith('/') ? path : `/${path}`
   return `${IMAGE_API_BASE_URL}${p}`
@@ -167,6 +201,54 @@ async function readJson<T>(response: Response): Promise<T> {
     return (await response.json()) as T
   } catch {
     return {} as T
+  }
+}
+
+const normalizeListedMedia = (item: Partial<ListedMedia>): ListedMedia => {
+  const key = item.key || ''
+  const contentType = item.contentType || ''
+  const kind = item.kind === 'video' || item.type === 'video'
+    ? 'video'
+    : mediaKindFromMetadata(key, contentType)
+
+  return {
+    type: kind,
+    kind,
+    key,
+    name: item.name || storedFileNameFromKey(key),
+    size: typeof item.size === 'number' ? item.size : 0,
+    uploaded: item.uploaded || '',
+    etag: item.etag,
+    contentType,
+    url: normalizeImageUrl(item.url || imageKeyToAppPath(key)),
+  }
+}
+
+const storedFileNameFromKey = (key: string) => key.split('/').filter(Boolean).at(-1) || key
+
+export async function listMediaFolder(folderPath = ''): Promise<MediaFolderListing> {
+  const normalizedFolderPath = pathSegments(folderPath)
+  const endpoint = normalizedFolderPath ? `/api/images/list/${normalizedFolderPath}` : '/api/images/list'
+  const response = await fetch(apiUrl(endpoint))
+  const data = await readJson<{
+    error?: string
+    path?: string
+    folders?: MediaFolder[]
+    media?: Array<Partial<ListedMedia>>
+    images?: Array<Partial<ListedMedia>>
+  }>(response)
+
+  if (!response.ok) {
+    throw new Error(data.error || `Media list failed (${response.status})`)
+  }
+
+  const mediaItems = Array.isArray(data.media) ? data.media : Array.isArray(data.images) ? data.images : []
+
+  return {
+    path: data.path || (normalizedFolderPath || '/'),
+    folders: Array.isArray(data.folders) ? data.folders : [],
+    media: mediaItems.map(normalizeListedMedia),
+    images: mediaItems.map(normalizeListedMedia),
   }
 }
 
@@ -209,7 +291,7 @@ export async function uploadImage(file: File, folderPath = ''): Promise<Uploaded
   }
 }
 
-export async function uploadForumMedia(file: File, folderPath = ''): Promise<UploadedMedia> {
+export async function uploadMedia(file: File, folderPath = ''): Promise<UploadedMedia> {
   if (!(file instanceof File)) {
     throw new Error('Missing file.')
   }
@@ -228,21 +310,25 @@ export async function uploadForumMedia(file: File, folderPath = ''): Promise<Upl
     body: formData,
   })
 
-  const data = await readJson<{ error?: string; image?: UploadedImage }>(response)
+  const data = await readJson<{ error?: string; media?: UploadedImage; image?: UploadedImage }>(response)
 
   if (!response.ok) {
     throw new Error(data.error || `Upload failed (${response.status})`)
   }
 
-  const image = data.image
+  const image = data.media || data.image
   if (!image?.url) {
-    throw new Error('Invalid upload response: missing image.url')
+    throw new Error('Invalid upload response: missing media.url')
   }
 
   return {
     ...image,
-    kind: isVideoFile(file) ? 'video' : 'image',
+    kind: image.kind === 'video' || isVideoFile(file) ? 'video' : 'image',
     contentType: file.type || image.contentType || (isVideoFile(file) ? 'video/mp4' : 'image/jpeg'),
     url: normalizeImageUrl(image.url),
   }
+}
+
+export async function uploadForumMedia(file: File, folderPath = ''): Promise<UploadedMedia> {
+  return uploadMedia(file, folderPath)
 }

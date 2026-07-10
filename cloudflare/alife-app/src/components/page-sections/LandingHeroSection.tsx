@@ -13,6 +13,7 @@ import {
   readText,
 } from './sectionUtils'
 import type { SectionComponentProps } from './types'
+import MediaPickerInput from '../media/MediaPickerInput'
 
 const DEFAULT_LANDING_HERO_VIDEO = '/media/homepage-hero.mp4'
 const DEFAULT_LANDING_HERO_POSTER = '/media/alife-church-community-hero.jpg'
@@ -45,7 +46,7 @@ const LandingHeroMedia = ({ src, poster }: { src: string; poster: string }) => {
   )
 }
 
-const LandingHeroSection = ({ section, mode, domId, disabled, editorPreview, previewDensity = 'full', propertiesOnly, showProperties = true, onUpdate }: SectionComponentProps) => {
+const LandingHeroSection = ({ section, mode, domId, disabled, editorPreview, previewDensity = 'full', propertiesOnly, showProperties = true, contextGroupId, page, onUpdate }: SectionComponentProps) => {
   const auth = useAuthStore()
   const t = useUiText()
   const editable = mode === 'edit' && !disabled && onUpdate
@@ -57,6 +58,7 @@ const LandingHeroSection = ({ section, mode, domId, disabled, editorPreview, pre
   const primaryUrl = readText(section.contentJson, 'linkUrl', 'ctaUrl', 'href')
   const secondaryLabel = readLocalizedText(section.contentJson, auth.language, 'secondaryLinkLabel', 'secondaryLabel', 'secondaryCtaLabel')
   const secondaryUrl = readText(section.contentJson, 'secondaryLinkUrl', 'secondaryUrl', 'secondaryCtaUrl')
+  const mediaGroupId = contextGroupId || page?.ownerGroupId || undefined
 
   const updateContent = (patch: Record<string, unknown>) => onUpdate?.(patchContent(section, patch))
   const updateLocalizedContent = (patch: Record<string, string>) => onUpdate?.(patchLocalizedContent(section, auth.language, patch))
@@ -115,18 +117,22 @@ const LandingHeroSection = ({ section, mode, domId, disabled, editorPreview, pre
 
   const renderProperties = () => (
     <PropertyPanel>
-      <TextInput
+      <MediaPickerInput
         focusKey="landing-hero-media"
         label={t('backgroundImageUrl')}
         value={mediaUrl}
         disabled={disabled}
+        groupId={mediaGroupId}
+        accept="media"
         onChange={(value) => updateContent({ backgroundVideo: value, videoUrl: value, backgroundImage: value, backgroundImageUrl: value })}
       />
-      <TextInput
+      <MediaPickerInput
         focusKey="landing-hero-poster"
         label={auth.language === 'zh' ? '海报图片链接' : 'Poster image URL'}
         value={posterUrl}
         disabled={disabled}
+        groupId={mediaGroupId}
+        accept="image"
         onChange={(value) => updateContent({ posterImage: value, posterImageUrl: value, imageUrl: value })}
       />
       <TextInput
