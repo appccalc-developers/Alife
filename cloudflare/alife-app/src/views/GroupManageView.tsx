@@ -17,7 +17,7 @@ import { useCurrentGroupStore } from '../stores/currentGroup'
 import { translateUi, useUiText } from '../i18n/uiText'
 import { activeEntityService } from '../services/activeEntityService'
 import { groupService } from '../services/groupService'
-import { setUnsavedChangesGuard } from '../utils/unsavedChangesGuard'
+import { confirmUnsavedChangesNavigation, setUnsavedChangesGuard } from '../utils/unsavedChangesGuard'
 import type { GroupPageDto, PageVisibility } from '../types/group'
 import type { GroupEventRecord } from '../types/event'
 
@@ -742,7 +742,7 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
       return true
     }
 
-    window.alert(unsavedGroupProfileMessage)
+    confirmUnsavedChangesNavigation()
     return false
   }, [hasUnsavedGroupProfileChanges, unsavedGroupProfileMessage])
   const canManageSubgroup = (subgroupId: string) =>
@@ -811,7 +811,7 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
     }
 
     const handlePopState = () => {
-      window.alert(unsavedGroupProfileMessage)
+      confirmUnsavedChangesNavigation()
       window.history.pushState({ alifeUnsavedGroupProfileGuard: true }, '', window.location.href)
     }
 

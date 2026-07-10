@@ -7,6 +7,7 @@ import { notificationService } from '../../services/notificationService'
 import { useAuthStore } from '../../stores/auth'
 import type { AppNotification, NotificationText } from '../../types/notification'
 import { useUiText, type UiTextKey } from '../../i18n/uiText'
+import { confirmUnsavedChangesNavigation } from '../../utils/unsavedChangesGuard'
 
 const localizeNotificationText = (value: NotificationText | undefined, language: string) => {
   if (!value) {
@@ -163,30 +164,40 @@ const NotificationToastHost = () => {
       return
     }
 
-    setPendingId(notification.id)
-    setError('')
+    const target = notification.actionUrl ? normalizeActionUrl(notification.actionUrl) : ''
+    const continueOpening = async () => {
+      setPendingId(notification.id)
+      setError('')
 
-    try {
-      await notificationService.openNotification(notification.id)
-      setNotifications((current) => current.filter((item) => item.id !== notification.id))
-      setOpen(false)
+      try {
+        await notificationService.openNotification(notification.id)
+        setNotifications((current) => current.filter((item) => item.id !== notification.id))
+        setOpen(false)
 
-      const target = notification.actionUrl ? normalizeActionUrl(notification.actionUrl) : ''
-      if (!target) {
-        return
+        if (!target) {
+          return
+        }
+
+        if (/^https?:\/\//i.test(target)) {
+          window.location.assign(target)
+        } else {
+          navigate(activateInternalTarget(target))
+        }
+      } catch (reason) {
+        console.warn('Failed to open notification.', reason)
+        setError(t('notificationOpenFailed'))
+      } finally {
+        setPendingId('')
       }
-
-      if (/^https?:\/\//i.test(target)) {
-        window.location.assign(target)
-      } else {
-        navigate(activateInternalTarget(target))
-      }
-    } catch (reason) {
-      console.warn('Failed to open notification.', reason)
-      setError(t('notificationOpenFailed'))
-    } finally {
-      setPendingId('')
     }
+
+    if (target && !confirmUnsavedChangesNavigation(target, () => {
+      continueOpening().catch(() => undefined)
+    })) {
+      return
+    }
+
+    await continueOpening()
   }
 
   return (

@@ -1,10 +1,12 @@
 import { motion } from 'framer-motion'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import type { MouseEvent } from 'react'
 import type { GroupSummaryDto } from '../../types'
 import AccessTypeBadge from '../../components/group/AccessTypeBadge'
 import { useAuthStore } from '../../stores/auth'
 import { useUiText } from '../../i18n/uiText'
 import { localizeText } from '../../utils/localizedText'
+import { confirmUnsavedChangesNavigation } from '../../utils/unsavedChangesGuard'
 import { CloseIcon } from '../navigation/icons'
 
 type Props = {
@@ -19,8 +21,20 @@ type Props = {
 
 const GroupDrawer = ({ currentGroup, churchGroup, items, open, onClose, onOpenGroup, onOpenSubgroup }: Props) => {
   const auth = useAuthStore()
+  const navigate = useNavigate()
   const t = useUiText()
   const currentGroupName = localizeText(currentGroup?.name, auth.language) || t('group')
+  const guardLinkNavigation = (event: MouseEvent<HTMLAnchorElement>, target: string) => {
+    if (!confirmUnsavedChangesNavigation(target, () => {
+      onClose()
+      navigate(target)
+    })) {
+      event.preventDefault()
+      return false
+    }
+
+    return true
+  }
 
   return (
     <>
@@ -53,7 +67,11 @@ const GroupDrawer = ({ currentGroup, churchGroup, items, open, onClose, onOpenGr
           <Link
             to="/groups/select"
             className="mb-3 flex w-full items-center justify-between rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3.5 text-sm font-bold text-emerald-900 shadow-[0_10px_24px_rgba(23,107,90,0.08)] transition hover:bg-emerald-100"
-            onClick={onClose}
+            onClick={(event) => {
+              if (guardLinkNavigation(event, '/groups/select')) {
+                onClose()
+              }
+            }}
           >
             <span>{auth.language === 'zh' ? '选择或切换小组' : 'Select or switch group'}</span>
             <span aria-hidden="true">→</span>
