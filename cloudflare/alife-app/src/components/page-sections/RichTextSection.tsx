@@ -5,10 +5,10 @@ import { BackgroundMedia, EditableText, PropertyPanel, patchContent, patchLocali
 import type { SectionComponentProps } from './types'
 import SectionHeader from './SectionHeader'
 import { pageSectionShellClass, sectionSpacingClass } from './sectionPresets'
-import { richTextBodyClass, sanitizeRichTextHtml } from './richTextHtml'
+import { richTextBodyClass, sanitizeRichTextHtml } from '../rich-text/richTextHtml'
 import MediaPickerInput from '../media/MediaPickerInput'
 
-const TinyMceRichTextEditor = lazy(() => import('./TinyMceRichTextEditor'))
+const TinyMceRichTextEditor = lazy(() => import('../rich-text/TinyMceRichTextEditor'))
 
 const RichTextHtml = ({ value, fallback, className }: { value: string; fallback: string; className: string }) => {
   const html = useMemo(() => sanitizeRichTextHtml(value || fallback), [fallback, value])
@@ -67,6 +67,7 @@ const RichTextSection = ({ section, mode, domId, disabled, propertiesOnly, showP
         placeholder={compact ? t('noQuoteContentYet') : t('noRichTextContentYet')}
         disabled={!editable}
         compact={compact}
+        appearance={compact ? 'quoteOverlay' : 'body'}
         imageUploadFolder={uploadFolder}
         onChange={(value) => updateLocalizedContent({ text: sanitizeRichTextHtml(value) })}
       />
