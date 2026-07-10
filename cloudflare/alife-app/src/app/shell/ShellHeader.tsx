@@ -1,8 +1,10 @@
 import { motion } from 'framer-motion'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { TerminalSquare } from 'lucide-react'
+import type { MouseEvent } from 'react'
 import { useAuthStore } from '../../stores/auth'
 import NotificationToastHost from '../../components/notifications/NotificationToastHost'
+import { confirmUnsavedChangesNavigation } from '../../utils/unsavedChangesGuard'
 import { HeaderNavigation } from '../navigation/AppNavigation'
 import { MenuIcon } from '../navigation/icons'
 import type { ShellNavItem } from '../navigation/types'
@@ -20,14 +22,20 @@ type Props = {
 
 const ShellHeader = ({ appNavItems, groupName, groupManageTo, contextualGroupId, onboarding, debugLoading, onDebug, onOpenGroupDrawer }: Props) => {
   const auth = useAuthStore()
+  const navigate = useNavigate()
   const showDebug = import.meta.env.DEV && !onboarding && Boolean(contextualGroupId)
+  const guardProfileNavigation = (event: MouseEvent<HTMLAnchorElement>) => {
+    if (!confirmUnsavedChangesNavigation('/profile', () => navigate('/profile'))) {
+      event.preventDefault()
+    }
+  }
 
   return (
     <motion.header initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.3 }} className="sticky top-0 z-30 border-b border-[#2f4b42]/10 bg-white/82 shadow-[0_6px_24px_rgba(31,56,48,0.06)] backdrop-blur-xl">
       <div className="flex min-h-[4.5rem] items-center justify-between gap-3 px-4 py-3 sm:px-6 desktop:px-7">
         <HeaderNavigation items={appNavItems} currentGroupName={groupName} currentGroupManageTo={groupManageTo} />
         <div className="ml-auto flex items-center gap-2">
-          {!auth.loading && auth.me?.displayName ? <Link className="hidden max-w-40 truncate rounded-xl px-2 py-1.5 text-sm font-bold text-[#40554e] hover:bg-[#e3f0eb] hover:text-[#176b5a] sm:block" to="/profile">{auth.me.displayName}</Link> : null}
+          {!auth.loading && auth.me?.displayName ? <Link className="hidden max-w-40 truncate rounded-xl px-2 py-1.5 text-sm font-bold text-[#40554e] hover:bg-[#e3f0eb] hover:text-[#176b5a] sm:block" to="/profile" onClick={guardProfileNavigation}>{auth.me.displayName}</Link> : null}
           <NotificationToastHost />
           <button type="button" className="alife-icon-button min-w-12 px-3 text-sm font-bold" onClick={() => void auth.updateLanguage(auth.language === 'en' ? 'zh' : 'en')}>
             {auth.language === 'zh' ? '漢' : auth.language.toUpperCase()}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import PageContentRenderer, {
   createPresetPageSection,
@@ -20,6 +20,7 @@ import type { PageEditModel } from '../types/page-editor'
 import { normalizeRouteGroupId } from '../utils/groupRouteIds'
 import { toLocalizedText } from '../utils/localizedText'
 import { applyPageTranslations, collectMissingPageTranslations } from '../utils/pageBilingualCompletion'
+import { confirmUnsavedChangesNavigation, setUnsavedChangesGuard } from '../utils/unsavedChangesGuard'
 
 const TRANSLATION_BATCH_SIZE = 12
 
@@ -124,6 +125,8 @@ const PageEditorView = () => {
   const navigate = useNavigate()
   const auth = useAuthStore()
   const t = useUiText()
+  const browserBackGuardRegistered = useRef(false)
+  const browserBackAllowed = useRef(false)
 
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -265,6 +268,59 @@ const PageEditorView = () => {
     initialize().catch(() => undefined)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth.initialized, createGroupId, editPageId, queryGroupId])
+
+  useEffect(() => {
+    setUnsavedChangesGuard(hasUnsavedChanges, t('unsavedExitConfirm'), 'confirm')
+    return () => setUnsavedChangesGuard(false)
+  }, [hasUnsavedChanges, t])
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [hasUnsavedChanges])
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) {
+      browserBackGuardRegistered.current = false
+      browserBackAllowed.current = false
+      return
+    }
+
+    if (!browserBackGuardRegistered.current) {
+      window.history.pushState({ alifeUnsavedPageEditorGuard: true }, '', window.location.href)
+      browserBackGuardRegistered.current = true
+    }
+
+    const handlePopState = () => {
+      if (browserBackAllowed.current) {
+        browserBackAllowed.current = false
+        return
+      }
+
+      const continueNavigation = () => {
+        browserBackAllowed.current = true
+        setUnsavedChangesGuard(false)
+        window.history.back()
+      }
+
+      if (confirmUnsavedChangesNavigation(undefined, continueNavigation)) {
+        continueNavigation()
+        return
+      }
+
+      window.history.pushState({ alifeUnsavedPageEditorGuard: true }, '', window.location.href)
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [hasUnsavedChanges, t])
 
   const persist = async () => {
     if (!canSaveDraft) {
@@ -450,12 +506,15 @@ const PageEditorView = () => {
   }, [editPageId, fromPageReview, navigate, pageModel.id, resolvedGroupId, reviewReturnPath])
 
   const cancel = useCallback(async () => {
-    if (hasUnsavedChanges && !window.confirm(t('unsavedExitConfirm'))) {
+    if (!hasUnsavedChanges) {
+      leaveEditor()
       return
     }
 
-    leaveEditor()
-  }, [hasUnsavedChanges, leaveEditor, t])
+    if (confirmUnsavedChangesNavigation(undefined, leaveEditor)) {
+      leaveEditor()
+    }
+  }, [hasUnsavedChanges, leaveEditor])
 
   const closeLanguageReviewPrompt = useCallback(() => {
     setLanguageReviewPrompt(null)

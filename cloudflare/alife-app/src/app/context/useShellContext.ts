@@ -11,6 +11,7 @@ import { useLeaderUiPreferences } from '../../stores/leaderUiPreferences'
 import type { GroupDto, GroupSummaryDto, PageSummaryDto } from '../../types'
 import { normalizeGroup, normalizePageSummary } from '../../utils/apiEnums'
 import { normalizeRouteGroupId } from '../../utils/groupRouteIds'
+import { confirmUnsavedChangesNavigation } from '../../utils/unsavedChangesGuard'
 
 export const useShellContext = () => {
   const auth = useAuthStore()
@@ -169,14 +170,27 @@ export const useShellContext = () => {
   }, [contextualGroup?.parentGroupId])
 
   const openGroup = (groupId: string) => {
-    activeEntityService.setGroup(groupId, { clearPage: true })
-    navigate('/groups')
+    const continueNavigation = () => {
+      activeEntityService.setGroup(groupId, { clearPage: true })
+      navigate('/groups')
+    }
+
+    if (confirmUnsavedChangesNavigation('/groups', continueNavigation)) {
+      continueNavigation()
+    }
   }
 
   const openSubgroup = (groupId: string) => {
     const subgroupMembership = auth.memberships.find((item) => item.groupId === groupId)
-    activeEntityService.setGroup(groupId, { clearPage: true })
-    navigate(subgroupMembership?.status === 'approved' ? '/groups' : '/groups/join')
+    const target = subgroupMembership?.status === 'approved' ? '/groups' : '/groups/join'
+    const continueNavigation = () => {
+      activeEntityService.setGroup(groupId, { clearPage: true })
+      navigate(target)
+    }
+
+    if (confirmUnsavedChangesNavigation(target, continueNavigation)) {
+      continueNavigation()
+    }
   }
 
   return {

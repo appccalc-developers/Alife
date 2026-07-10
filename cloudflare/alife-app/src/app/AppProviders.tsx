@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { queryClient } from '../db/queryClient'
 import { AuthProvider } from '../stores/auth'
 import { CurrentGroupProvider } from '../stores/currentGroup'
+import UnsavedChangesModalHost from '../components/layout/UnsavedChangesModalHost'
 
 const LocalDevHostRedirect = () => {
   useEffect(() => {
@@ -26,6 +27,7 @@ const AppProviders = ({ children }: PropsWithChildren) => (
         <BrowserRouter>
           <LocalDevHostRedirect />
           {children}
+          <UnsavedChangesModalHost />
         </BrowserRouter>
       </CurrentGroupProvider>
     </AuthProvider>

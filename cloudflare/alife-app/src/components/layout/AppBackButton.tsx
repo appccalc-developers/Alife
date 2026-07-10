@@ -1,6 +1,7 @@
 import { ArrowLeft } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useUiText } from '../../i18n/uiText'
+import { confirmUnsavedChangesNavigation } from '../../utils/unsavedChangesGuard'
 import AppActionButton from './AppActionButton'
 
 type Props = {
@@ -20,12 +21,18 @@ const AppBackButton = ({ label, fallbackTo = '/', onClick, className = '' }: Pro
       return
     }
 
-    if (window.history.length > 1) {
-      navigate(-1)
-      return
+    const continueNavigation = () => {
+      if (window.history.length > 1) {
+        navigate(-1)
+        return
+      }
+
+      navigate(fallbackTo, { replace: true })
     }
 
-    navigate(fallbackTo, { replace: true })
+    if (confirmUnsavedChangesNavigation(undefined, continueNavigation)) {
+      continueNavigation()
+    }
   }
 
   return (
