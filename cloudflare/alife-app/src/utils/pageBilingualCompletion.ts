@@ -692,6 +692,29 @@ const contentAliasesForField = (section: SectionEditModel, field: string) => {
   return [field]
 }
 
+const contentAliasesForHeaderField = (
+  section: SectionEditModel,
+  field: 'title' | 'subtitle',
+) => {
+  if (section.type === 'LandingHero') {
+    return field === 'title'
+      ? ['title', 'headline']
+      : ['centerText', 'body', 'subtitle', 'subheadline']
+  }
+
+  if (section.type === 'Spotlight') {
+    return field === 'title'
+      ? ['title', 'headline']
+      : ['subtitle', 'subheadline']
+  }
+
+  if (section.type === 'RichText') {
+    return [field]
+  }
+
+  return []
+}
+
 const applySectionTranslation = (
   section: SectionEditModel,
   path: string[],
@@ -700,7 +723,7 @@ const applySectionTranslation = (
 ) => {
   if (path[0] === 'header' && (path[1] === 'title' || path[1] === 'subtitle')) {
     const header = readHeader(section)
-    return {
+    const nextSection = {
       ...section,
       contentJson: {
         ...section.contentJson,
@@ -710,6 +733,8 @@ const applySectionTranslation = (
         },
       },
     }
+    const aliases = contentAliasesForHeaderField(section, path[1])
+    return aliases.length > 0 ? patchContentAliases(nextSection, aliases, language, text) : nextSection
   }
 
   if (path[0] === 'actions') {
@@ -784,7 +809,7 @@ const prepareSectionForLanguageIssue = (
 ) => {
   if (path[0] === 'header' && (path[1] === 'title' || path[1] === 'subtitle')) {
     const header = readHeader(section)
-    return {
+    const nextSection = {
       ...section,
       contentJson: {
         ...section.contentJson,
@@ -794,6 +819,8 @@ const prepareSectionForLanguageIssue = (
         },
       },
     }
+    const aliases = contentAliasesForHeaderField(section, path[1])
+    return aliases.length > 0 ? prepareContentAliasesForLanguageIssue(nextSection, aliases, issue) : nextSection
   }
 
   if (path[0] === 'actions') {
