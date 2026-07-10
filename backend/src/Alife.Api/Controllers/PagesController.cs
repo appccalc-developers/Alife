@@ -97,7 +97,15 @@ public class PagesController(
         }
 
         var result = await mediator.Send(
-            new UpdatePageCommand(id, currentMemberId.Value, request.Title, request.Description, request.TagsJson, request.TitleDisplayStyle, request.Sections),
+            new UpdatePageCommand(
+                id,
+                currentMemberId.Value,
+                request.Title,
+                request.Description,
+                request.TagsJson,
+                request.TitleDisplayStyle,
+                request.Sections,
+                request.PreservePublicationReviewStatus == true),
             cancellationToken);
 
         return this.ToActionResult(result);
@@ -141,6 +149,7 @@ public class PagesController(
         IReadOnlyDictionary<string, string>? Description,
         string? TagsJson,
         string? TitleDisplayStyle,
-        IReadOnlyList<PageSectionDto> Sections);
+        IReadOnlyList<PageSectionDto> Sections,
+        bool? PreservePublicationReviewStatus);
     public record PublishRequest(PageVisibility Visibility);
 }

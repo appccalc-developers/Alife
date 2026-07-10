@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
-import { CheckCircle2, CircleX, Clock3, Eye, Globe2, Loader2, RefreshCw, ShieldCheck } from 'lucide-react'
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
+import { CheckCircle2, CircleX, Clock3, Eye, Globe2, Loader2, PencilLine, RefreshCw, ShieldCheck } from 'lucide-react'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppEmptyState from '../components/layout/AppEmptyState'
 import AppPageShell from '../components/layout/AppPageShell'
@@ -74,6 +74,7 @@ const copy = {
   returnedReason: { en: 'Return reason', zh: '退回原因' },
   cancel: { en: 'Cancel', zh: '取消' },
   open: { en: 'Open', zh: '查看' },
+  edit: { en: 'Edit', zh: '编辑' },
   group: { en: 'Group', zh: '小组' },
   author: { en: 'Author', zh: '作者' },
   updated: { en: 'Updated', zh: '更新' },
@@ -88,6 +89,9 @@ const text = (language: string, key: keyof typeof copy) => copy[key][language ==
 type ReviewTab = AdminPageReviewDto['reviewStatus']
 
 const reviewTabs: ReviewTab[] = ['pending', 'approved', 'returned']
+
+const parseReviewTab = (value: string | null): ReviewTab | null =>
+  value === 'pending' || value === 'approved' || value === 'returned' ? value : null
 
 const tabCopyKey: Record<ReviewTab, keyof typeof copy> = {
   pending: 'pendingTab',
@@ -164,9 +168,10 @@ const initialCardText = (page: AdminPageReviewDto) => ({
 const PageReviewView = () => {
   const auth = useAuthStore()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const language = auth.language
   const [items, setItems] = useState<AdminPageReviewDto[]>([])
-  const [activeTab, setActiveTab] = useState<ReviewTab>('pending')
+  const [activeTab, setActiveTab] = useState<ReviewTab>(() => parseReviewTab(searchParams.get('status')) ?? 'pending')
   const [loading, setLoading] = useState(false)
   const [actingPageId, setActingPageId] = useState<string | null>(null)
   const [approvingPage, setApprovingPage] = useState<AdminPageReviewDto | null>(null)
@@ -211,6 +216,13 @@ const PageReviewView = () => {
   useEffect(() => {
     load().catch(() => undefined)
   }, [load])
+
+  useEffect(() => {
+    const status = parseReviewTab(searchParams.get('status'))
+    if (status && status !== activeTab) {
+      setActiveTab(status)
+    }
+  }, [activeTab, searchParams])
 
   if (!auth.canReviewPages) {
     return <Navigate to="/" replace />
@@ -274,7 +286,7 @@ const PageReviewView = () => {
       setAccessName({ en: '', zh: '' })
       setCardImageUrl('')
       setCardText({ en: '', zh: '' })
-      setActiveTab('approved')
+      selectReviewTab('approved')
     } catch (reason) {
       const apiError = normalizeApiError(reason)
       setError(`${text(language, 'actionFailed')} ${apiError.message}`)
@@ -319,7 +331,7 @@ const PageReviewView = () => {
       setMessage(text(language, 'returned'))
       setReturningPage(null)
       setReturnReason('')
-      setActiveTab('returned')
+      selectReviewTab('returned')
     } catch (reason) {
       const apiError = normalizeApiError(reason)
       setError(`${text(language, 'actionFailed')} ${apiError.message}`)
@@ -328,9 +340,28 @@ const PageReviewView = () => {
     }
   }
 
+  const selectReviewTab = (tab: ReviewTab) => {
+    setActiveTab(tab)
+    setSearchParams({ status: tab }, { replace: true })
+  }
+
+  const canEditReviewPage = (page: AdminPageReviewDto) =>
+    auth.canReviewPages &&
+    page.visibility === 'public' &&
+    auth.hasLeaderAccess(page.ownerGroupId)
+
+  const reviewEditorPath = (page: AdminPageReviewDto) => {
+    const params = new URLSearchParams({
+      preservePublicationReviewStatus: 'true',
+      fromReview: 'true',
+      reviewStatus: page.reviewStatus,
+    })
+    return `/pages/${page.id}/edit?${params.toString()}`
+  }
+
   const openPage = (page: AdminPageReviewDto) => {
     activeEntityService.setPage(page.id, page.ownerGroupId || undefined)
-    navigate(`/pages/${page.id}`)
+    navigate(canEditReviewPage(page) ? reviewEditorPath(page) : `/pages/${page.id}`)
   }
 
   return (
@@ -376,7 +407,7 @@ const PageReviewView = () => {
                       ? 'border-emerald-600 bg-emerald-600 text-white shadow-sm'
                       : 'border-slate-200 bg-white text-slate-600 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700'
                   }`}
-                  onClick={() => setActiveTab(tab)}
+                  onClick={() => selectReviewTab(tab)}
                 >
                   {text(language, tabCopyKey[tab])}
                   <span
@@ -409,6 +440,7 @@ const PageReviewView = () => {
               const canReviewPublication = page.visibility === 'public'
               const canApprove = canReviewPublication && page.reviewStatus !== 'approved'
               const canReturn = canReviewPublication && page.reviewStatus !== 'returned'
+              const canEditPage = canEditReviewPage(page)
               const accessLabel = localizeText(page.accessName, language)
               const cardLabel = localizeText(page.cardText, language)
 
@@ -491,8 +523,8 @@ const PageReviewView = () => {
                     </div>
                     <div className="flex shrink-0 flex-wrap gap-2">
                       <AppActionButton size="sm" variant="secondary" onClick={() => openPage(page)}>
-                        <Eye className="mr-1.5 h-4 w-4" />
-                        {text(language, 'open')}
+                        {canEditPage ? <PencilLine className="mr-1.5 h-4 w-4" /> : <Eye className="mr-1.5 h-4 w-4" />}
+                        {text(language, canEditPage ? 'edit' : 'open')}
                       </AppActionButton>
                       {canApprove ? (
                         <AppActionButton size="sm" variant="primary" disabled={disabled} onClick={() => openApproveDialog(page)}>
