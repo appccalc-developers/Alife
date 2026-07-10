@@ -40,18 +40,25 @@ export const useShellNavigation = ({
   const auth = useAuthStore()
   const isChinese = auth.language === 'zh'
   const workspaceGroupId = contextualGroupId
+  const canEditReviewedGroupPages = Boolean(
+    workspaceGroupId &&
+    auth.canReviewPages &&
+    auth.hasLeaderAccess(workspaceGroupId),
+  )
 
   const pageItems = useMemo<ShellNavItem[]>(
     () => workspaceGroupId ? currentGroupPages.map((page) => ({
       key: `page:${page.id}`,
       label: localizeText(page.title, auth.language) || translateUi(auth.language, 'untitledPage'),
       description: isChinese ? '小组页面' : 'Group page',
-      to: '/groups',
+      to: canEditReviewedGroupPages && page.visibility === 'public'
+        ? `/pages/${page.id}/edit?preservePublicationReviewStatus=true&fromReview=true`
+        : '/groups',
       pageId: page.id,
       icon: <PageIcon />,
       onClick: () => activeEntityService.setPage(page.id, workspaceGroupId),
     })) : [],
-    [auth.language, currentGroupPages, isChinese, workspaceGroupId],
+    [auth.language, canEditReviewedGroupPages, currentGroupPages, isChinese, workspaceGroupId],
   )
 
   const workspaceHome: ShellNavItem[] = workspaceGroupId ? [

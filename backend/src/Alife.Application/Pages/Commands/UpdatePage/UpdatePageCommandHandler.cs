@@ -71,7 +71,10 @@ public sealed class UpdatePageCommandHandler(
             });
         }
 
-        await PagePublicationReviewState.MarkPendingIfPublicAsync(dbContext, page, now, cancellationToken);
+        if (!await ShouldPreservePublicationReviewStatusAsync(page, request, cancellationToken))
+        {
+            await PagePublicationReviewState.MarkPendingIfPublicAsync(dbContext, page, now, cancellationToken);
+        }
         await dbContext.SaveChangesAsync(cancellationToken);
         await InvalidatePageAsync(page, cancellationToken);
 
@@ -91,6 +94,19 @@ public sealed class UpdatePageCommandHandler(
         }
 
         return await groupAuthorizationService.IsLeaderOrCoLeaderAsync(page.OwnerGroupId, currentMemberId, cancellationToken);
+    }
+
+    private async Task<bool> ShouldPreservePublicationReviewStatusAsync(
+        Page page,
+        UpdatePageCommand request,
+        CancellationToken cancellationToken)
+    {
+        if (!request.PreservePublicationReviewStatus || page.Visibility != PageVisibility.Public)
+        {
+            return false;
+        }
+
+        return await groupAuthorizationService.CanReviewPagesAsync(request.CurrentMemberId, cancellationToken);
     }
 
     private async Task InvalidatePageAsync(Page page, CancellationToken cancellationToken)

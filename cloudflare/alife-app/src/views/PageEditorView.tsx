@@ -133,6 +133,13 @@ const PageEditorView = () => {
   const [savedModelSnapshot, setSavedModelSnapshot] = useState('')
   const queryGroupId = normalizeRouteGroupId(searchParams.get('groupId'))
   const isHomeTemplate = (searchParams.get('template') || '').toLowerCase() === 'home'
+  const preservePublicationReviewStatus = searchParams.get('preservePublicationReviewStatus') === 'true'
+  const fromPageReview = searchParams.get('fromReview') === 'true'
+  const reviewStatusParam = searchParams.get('reviewStatus')
+  const reviewReturnPath =
+    reviewStatusParam === 'pending' || reviewStatusParam === 'approved' || reviewStatusParam === 'returned'
+      ? `/admin/page-review?status=${reviewStatusParam}`
+      : '/admin/page-review'
 
   const activeIds = useActiveEntityIds({
     groupId: routeCreateGroupId || queryGroupId || undefined,
@@ -180,7 +187,6 @@ const PageEditorView = () => {
 
     return auth.me.id === pageModel.createdByMemberId && pageModel.visibility === 'draft'
   }, [auth.me?.id, pageModel.createdByMemberId, pageModel.visibility])
-
   const canCreatePage = Boolean(membership?.status === 'approved' || canEditAllPages)
   const canEditPage = isCreateMode ? canCreatePage : canEditAllPages || isCreatorDraft
   const canEditVisibility = canEditAllPages
@@ -356,6 +362,7 @@ const PageEditorView = () => {
           tagsJson,
           titleDisplayStyle,
           sections: sectionsToPersist,
+          preservePublicationReviewStatus,
         })
         savedPage = updated
         sectionsToPersist = updated.sections
@@ -416,9 +423,18 @@ const PageEditorView = () => {
   const saveDraft = useCallback(async () => {
     await persist()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canSaveDraft, pageModel, resolvedGroupId, editPageId, isCreateMode, canEditAllPages, canEditVisibility])
+  }, [canSaveDraft, pageModel, resolvedGroupId, editPageId, isCreateMode, canEditAllPages, canEditVisibility, preservePublicationReviewStatus])
 
   const leaveEditor = useCallback(() => {
+    if (fromPageReview) {
+      const pageId = editPageId || pageModel.id
+      if (pageId) {
+        activeEntityService.setPage(pageId, resolvedGroupId)
+      }
+      navigate(reviewReturnPath)
+      return
+    }
+
     if (resolvedGroupId) {
       const pageId = editPageId || pageModel.id
       if (pageId) {
@@ -431,7 +447,7 @@ const PageEditorView = () => {
     }
 
     navigate('/')
-  }, [editPageId, navigate, pageModel.id, resolvedGroupId])
+  }, [editPageId, fromPageReview, navigate, pageModel.id, resolvedGroupId, reviewReturnPath])
 
   const cancel = useCallback(async () => {
     if (hasUnsavedChanges && !window.confirm(t('unsavedExitConfirm'))) {

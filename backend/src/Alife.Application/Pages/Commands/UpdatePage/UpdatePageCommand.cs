@@ -11,4 +11,5 @@ public sealed record UpdatePageCommand(
     IReadOnlyDictionary<string, string>? Description,
     string? TagsJson,
     string? TitleDisplayStyle,
-    IReadOnlyList<PageSectionDto> Sections) : IRequest<AppResult<PageDetailDto>>;
+    IReadOnlyList<PageSectionDto> Sections,
+    bool PreservePublicationReviewStatus = false) : IRequest<AppResult<PageDetailDto>>;

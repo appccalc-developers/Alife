@@ -22,6 +22,7 @@ export type UpdatePagePayload = {
   tagsJson?: string
   titleDisplayStyle?: string
   sections: SectionEditModel[]
+  preservePublicationReviewStatus?: boolean
 }
 
 export type PublishPagePayload = {
