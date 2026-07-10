@@ -23,6 +23,12 @@ type Props = {
   sections: SectionEditModel[]
   canEdit: boolean
   sectionTypeErrors: string[]
+  activeIndex?: number
+  activeFocusToken?: number
+  languageIssueCounts?: Record<number, number>
+  languageFixingSectionIndex?: number | null
+  onActiveIndexChange?: (index: number) => void
+  onFixLanguageIssues?: (index: number) => void
   onAdd: (type: SectionType) => void
   onInsert: (index: number, type: SectionType) => void
   onUpdate: (payload: { index: number; section: SectionEditModel }) => void
@@ -42,13 +48,39 @@ const sectionTypeOptions: Array<{ type: SectionType; label: LocalText; descripti
   { type: 'ListView', label: { en: 'List View', zh: '列表视图' }, description: { en: 'Show content from events, sermons, groups, pages, or members.', zh: '展示活动、讲道、小组、页面或成员等内容来源。' }, Icon: LayoutList },
 ]
 
-const SectionListEditor = ({ sections, canEdit, sectionTypeErrors, onAdd, onInsert, onUpdate, onRemove, onMoveUp, onMoveDown, contextGroupId, pageId }: Props) => {
+const SectionListEditor = ({
+  sections,
+  canEdit,
+  sectionTypeErrors,
+  activeIndex: controlledActiveIndex,
+  activeFocusToken,
+  languageIssueCounts,
+  languageFixingSectionIndex,
+  onActiveIndexChange,
+  onFixLanguageIssues,
+  onAdd,
+  onInsert,
+  onUpdate,
+  onRemove,
+  onMoveUp,
+  onMoveDown,
+  contextGroupId,
+  pageId,
+}: Props) => {
   const t = useUiText()
   const { language } = useAuthStore()
-  const [activeIndex, setActiveIndex] = useState(0)
+  const [internalActiveIndex, setInternalActiveIndex] = useState(0)
   const [createInsertIndex, setCreateInsertIndex] = useState<number | null>(null)
   const isZh = language === 'zh'
   const createOpen = createInsertIndex !== null
+  const activeIndex = controlledActiveIndex ?? internalActiveIndex
+  const setActiveIndex = (index: number) => {
+    const nextIndex = Math.max(0, Math.min(index, Math.max(0, sections.length - 1)))
+    if (controlledActiveIndex === undefined) {
+      setInternalActiveIndex(nextIndex)
+    }
+    onActiveIndexChange?.(nextIndex)
+  }
 
   const openCreateAt = (index: number) => {
     setCreateInsertIndex(Math.max(0, Math.min(index, sections.length)))
@@ -110,8 +142,12 @@ const SectionListEditor = ({ sections, canEdit, sectionTypeErrors, onAdd, onInse
                 contextGroupId={contextGroupId}
                 pageId={pageId}
                 isActive={activeIndex === index}
+                focusToken={activeIndex === index ? activeFocusToken : undefined}
+                languageIssueCount={languageIssueCounts?.[index] ?? 0}
+                languageFixing={languageFixingSectionIndex === index}
                 onSelect={() => setActiveIndex(index)}
                 onInsertBefore={() => openCreateAt(index)}
+                onFixLanguageIssues={onFixLanguageIssues ? () => onFixLanguageIssues(index) : undefined}
                 onUpdate={(nextSection) => onUpdate({ index, section: nextSection })}
                 onRemove={() => removeAndSelect(index)}
                 onMoveUp={() => moveAndSelect(index, -1)}

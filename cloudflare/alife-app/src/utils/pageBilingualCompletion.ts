@@ -13,12 +13,97 @@ type FieldCandidate = {
   value: unknown
 }
 
+export type PageI18nStructureIssue = {
+  field: string
+  sectionIndex?: number
+}
+
+export type PageI18nLanguageIssue = MissingTranslatableField & {
+  sectionIndex?: number
+  issue: 'englishLooksChinese' | 'chineseLooksEnglish'
+}
+
 const cjkPattern = /[\u3400-\u9fff]/
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
 const trimText = (value: unknown) => (typeof value === 'string' ? value.trim() : '')
+
+const stripHtmlForLanguageGuess = (value: string) =>
+  value
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;|&#160;/gi, ' ')
+    .replace(/&[a-z]+;/gi, ' ')
+    .replace(/https?:\/\/\S+|\/\S+/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+const countMatches = (value: string, pattern: RegExp) => value.match(pattern)?.length ?? 0
+
+const looksChinese = (value: string) => {
+  const text = stripHtmlForLanguageGuess(value)
+  if (!text) {
+    return false
+  }
+
+  const cjkCount = countMatches(text, /[\u3400-\u9fff]/g)
+  const latinCount = countMatches(text, /[A-Za-z]/g)
+  const meaningfulCount = cjkCount + latinCount
+  return cjkCount >= 2 || (meaningfulCount > 0 && cjkCount / meaningfulCount >= 0.18)
+}
+
+const looksEnglish = (value: string) => {
+  const text = stripHtmlForLanguageGuess(value)
+  if (!text || cjkPattern.test(text)) {
+    return false
+  }
+
+  const latinCount = countMatches(text, /[A-Za-z]/g)
+  const wordCount = countMatches(text, /\b[A-Za-z]{3,}\b/g)
+  return latinCount >= 24 || wordCount >= 4
+}
+
+const fieldAllowsEnglishInChinese = (field: string, textType: string) =>
+  textType === 'quoteAuthor'
+  || /\.streetAddress$|\.locationAddress$|\.locationName$|\.address$|\.addressNote$/.test(field)
+
+const isLocalizedTextShape = (value: unknown) =>
+  isRecord(value) && typeof value.en === 'string' && typeof value.zh === 'string'
+
+const localizedFromUnknown = (value: unknown): LocalizedText => {
+  if (typeof value === 'string') {
+    if (!value.trim()) {
+      return { en: '', zh: '' }
+    }
+
+    return cjkPattern.test(value) ? { en: '', zh: value } : { en: value, zh: '' }
+  }
+
+  if (!isRecord(value)) {
+    return { en: '', zh: '' }
+  }
+
+  return {
+    en: typeof value.en === 'string' ? value.en : '',
+    zh: typeof value.zh === 'string' ? value.zh : '',
+  }
+}
+
+const collectStructureIssue = (
+  issues: PageI18nStructureIssue[],
+  field: string,
+  value: unknown,
+  sectionIndex?: number,
+) => {
+  if (value === undefined) {
+    return
+  }
+
+  if (!isLocalizedTextShape(value)) {
+    issues.push({ field, sectionIndex })
+  }
+}
 
 const readBilingualText = (value: unknown): LocalizedText => {
   if (typeof value === 'string') {
@@ -57,6 +142,215 @@ const findFirstTextValue = (source: Record<string, unknown>, keys: string[]) => 
 
 const readHeader = (section: SectionEditModel) =>
   isRecord(section.contentJson.header) ? section.contentJson.header : {}
+
+const normalizeExistingContentField = (
+  content: Record<string, unknown>,
+  key: string,
+) => {
+  if (!Object.prototype.hasOwnProperty.call(content, key)) {
+    return
+  }
+
+  content[key] = localizedFromUnknown(content[key])
+}
+
+const landingHeroTextKeys = [
+  'title',
+  'headline',
+  'centerText',
+  'body',
+  'subtitle',
+  'subheadline',
+  'linkLabel',
+  'linkText',
+  'ctaLabel',
+  'secondaryLinkLabel',
+  'secondaryLabel',
+  'secondaryCtaLabel',
+]
+
+const countdownTextKeys = [
+  'eyebrow',
+  'title',
+  'headline',
+  'body',
+  'centerText',
+  'text',
+  'cardEyebrow',
+  'countdownLabel',
+  'currentLabel',
+  'completeLabel',
+  'metaLabel',
+  'metaValue',
+  'footerText',
+  'linkLabel',
+  'linkText',
+  'ctaLabel',
+]
+
+const contactLocationTextKeys = [
+  'locationTitle',
+  'locationName',
+  'title',
+  'streetAddress',
+  'address',
+  'locationAddress',
+  'addressNote',
+  'body',
+  'openMapLabel',
+  'linkLabel',
+  'linkText',
+  'ctaLabel',
+]
+
+const spotlightTextKeys = [
+  'title',
+  'headline',
+  'subtitle',
+  'subheadline',
+  'centerText',
+  'body',
+  'text',
+  'linkLabel',
+  'linkText',
+  'ctaLabel',
+]
+
+const richTextKeys = [
+  'title',
+  'subtitle',
+  'text',
+  'quoteAuthor',
+]
+
+const translatableContentKeysForSection = (section: SectionEditModel) => {
+  if (section.type === 'LandingHero') {
+    return landingHeroTextKeys
+  }
+
+  if (section.type === 'Countdown') {
+    return countdownTextKeys
+  }
+
+  if (section.type === 'ContactLocation') {
+    return contactLocationTextKeys
+  }
+
+  if (section.type === 'Spotlight') {
+    return spotlightTextKeys
+  }
+
+  if (section.type === 'RichText') {
+    return richTextKeys
+  }
+
+  return [] as string[]
+}
+
+const visitTranslatableSectionFields = (
+  section: SectionEditModel,
+  sectionIndex: number,
+  issues?: PageI18nStructureIssue[],
+) => {
+  const content = section.contentJson as Record<string, unknown>
+  const header = isRecord(content.header) ? content.header : undefined
+
+  if (header) {
+    if (issues) {
+      collectStructureIssue(issues, `sections.${sectionIndex}.header.title`, header.title, sectionIndex)
+      collectStructureIssue(issues, `sections.${sectionIndex}.header.subtitle`, header.subtitle, sectionIndex)
+    } else {
+      normalizeExistingContentField(header, 'title')
+      normalizeExistingContentField(header, 'subtitle')
+    }
+  }
+
+  translatableContentKeysForSection(section).forEach((key) => {
+    if (issues) {
+      collectStructureIssue(issues, `sections.${sectionIndex}.${key}`, content[key], sectionIndex)
+      return
+    }
+
+    normalizeExistingContentField(content, key)
+  })
+
+  if (section.type === 'Countdown' && Array.isArray(content.items)) {
+    if (issues) {
+      content.items.forEach((item, itemIndex) => {
+        if (isRecord(item) && Object.prototype.hasOwnProperty.call(item, 'text')) {
+          collectStructureIssue(issues, `sections.${sectionIndex}.items.${itemIndex}.text`, item.text, sectionIndex)
+        }
+      })
+    } else {
+      content.items = content.items.map((item) => {
+        if (!isRecord(item) || !Object.prototype.hasOwnProperty.call(item, 'text')) {
+          return item
+        }
+
+        return {
+          ...item,
+          text: localizedFromUnknown(item.text),
+        }
+      })
+    }
+  }
+
+  if (Array.isArray(content.actions)) {
+    if (issues) {
+      content.actions.forEach((action, actionIndex) => {
+        if (isRecord(action) && Object.prototype.hasOwnProperty.call(action, 'label')) {
+          collectStructureIssue(issues, `sections.${sectionIndex}.actions.${actionIndex}.label`, action.label, sectionIndex)
+        }
+      })
+    } else {
+      content.actions = content.actions.map((action) => {
+        if (!isRecord(action) || !Object.prototype.hasOwnProperty.call(action, 'label')) {
+          return action
+        }
+
+        return {
+          ...action,
+          label: localizedFromUnknown(action.label),
+        }
+      })
+    }
+  }
+}
+
+export const collectPageI18nStructureIssues = (model: PageEditModel): PageI18nStructureIssue[] => {
+  const issues: PageI18nStructureIssue[] = []
+
+  collectStructureIssue(issues, 'page.title', model.title)
+  collectStructureIssue(issues, 'page.description', model.description)
+
+  model.sections.forEach((section, sectionIndex) => {
+    visitTranslatableSectionFields(section, sectionIndex, issues)
+  })
+
+  return issues
+}
+
+export const normalizePageI18nStructure = (model: PageEditModel): PageEditModel => ({
+  ...model,
+  title: localizedFromUnknown(model.title),
+  description: localizedFromUnknown(model.description),
+  sections: model.sections.map((section, sectionIndex) => {
+    const nextSection: SectionEditModel = {
+      ...section,
+      contentJson: { ...section.contentJson },
+      styleJson: { ...section.styleJson },
+    }
+
+    const content = nextSection.contentJson as Record<string, unknown>
+    if (isRecord(content.header)) {
+      content.header = { ...content.header }
+    }
+
+    visitTranslatableSectionFields(nextSection, sectionIndex)
+
+    return nextSection
+  }),
+})
 
 const collectCandidate = (
   fields: MissingTranslatableField[],
@@ -249,6 +543,77 @@ export const collectMissingPageTranslations = (model: PageEditModel): MissingTra
   return fields
 }
 
+const sectionIndexFromField = (field: string) => {
+  const match = /^sections\.(\d+)\./.exec(field)
+  if (!match) {
+    return undefined
+  }
+
+  const index = Number.parseInt(match[1], 10)
+  return Number.isInteger(index) ? index : undefined
+}
+
+const collectLanguageIssue = (
+  issues: PageI18nLanguageIssue[],
+  candidate: FieldCandidate,
+) => {
+  const value = readBilingualText(candidate.value)
+  const en = value.en.trim()
+  const zh = value.zh.trim()
+  const sectionIndex = sectionIndexFromField(candidate.field)
+
+  if (en && looksChinese(en)) {
+    issues.push({
+      field: candidate.field,
+      sectionIndex,
+      sourceLanguage: 'zh',
+      targetLanguage: 'en',
+      sourceText: looksChinese(zh) ? zh : en,
+      textType: candidate.textType,
+      issue: 'englishLooksChinese',
+    })
+  }
+
+  if (zh && !fieldAllowsEnglishInChinese(candidate.field, candidate.textType) && looksEnglish(zh)) {
+    issues.push({
+      field: candidate.field,
+      sectionIndex,
+      sourceLanguage: 'en',
+      targetLanguage: 'zh',
+      sourceText: looksEnglish(en) ? en : zh,
+      textType: candidate.textType,
+      issue: 'chineseLooksEnglish',
+    })
+  }
+}
+
+export const collectSectionLanguageQualityIssues = (
+  section: SectionEditModel,
+  index: number,
+): PageI18nLanguageIssue[] => {
+  const candidates: FieldCandidate[] = []
+  pushSectionCandidates(candidates, section, index)
+
+  const issues: PageI18nLanguageIssue[] = []
+  candidates.forEach((candidate) => collectLanguageIssue(issues, candidate))
+  return issues
+}
+
+export const collectPageLanguageQualityIssues = (model: PageEditModel): PageI18nLanguageIssue[] => {
+  const candidates: FieldCandidate[] = [
+    { field: 'page.title', textType: 'pageTitle', value: model.title },
+    { field: 'page.description', textType: 'pageDescription', value: model.description },
+  ]
+
+  model.sections.forEach((section, index) => {
+    pushSectionCandidates(candidates, section, index)
+  })
+
+  const issues: PageI18nLanguageIssue[] = []
+  candidates.forEach((candidate) => collectLanguageIssue(issues, candidate))
+  return issues
+}
+
 const mergeTranslation = (
   current: unknown,
   language: LanguageCode,
@@ -375,6 +740,127 @@ const applySectionTranslation = (
 
   return patchContentAliases(section, contentAliasesForField(section, path[0]), language, text)
 }
+
+const prepareLocalizedForLanguageIssue = (
+  current: unknown,
+  issue: PageI18nLanguageIssue,
+): LocalizedText => {
+  const value = readBilingualText(current)
+  const next: LocalizedText = {
+    en: value.en ?? '',
+    zh: value.zh ?? '',
+  }
+
+  if (!next[issue.sourceLanguage]?.trim()) {
+    next[issue.sourceLanguage] = issue.sourceText
+  }
+  next[issue.targetLanguage] = ''
+
+  return next
+}
+
+const prepareContentAliasesForLanguageIssue = (
+  section: SectionEditModel,
+  keys: string[],
+  issue: PageI18nLanguageIssue,
+) => {
+  const baseValue = findFirstTextValue(section.contentJson, keys) ?? section.contentJson[keys[0]]
+  const nextValue = prepareLocalizedForLanguageIssue(baseValue, issue)
+  const contentPatch = Object.fromEntries(keys.map((key) => [key, nextValue]))
+
+  return {
+    ...section,
+    contentJson: {
+      ...section.contentJson,
+      ...contentPatch,
+    },
+  }
+}
+
+const prepareSectionForLanguageIssue = (
+  section: SectionEditModel,
+  path: string[],
+  issue: PageI18nLanguageIssue,
+) => {
+  if (path[0] === 'header' && (path[1] === 'title' || path[1] === 'subtitle')) {
+    const header = readHeader(section)
+    return {
+      ...section,
+      contentJson: {
+        ...section.contentJson,
+        header: {
+          ...header,
+          [path[1]]: prepareLocalizedForLanguageIssue(header[path[1]], issue),
+        },
+      },
+    }
+  }
+
+  if (path[0] === 'actions') {
+    const actionIndex = Number.parseInt(path[1] ?? '', 10)
+    if (!Number.isInteger(actionIndex)) {
+      return section
+    }
+
+    const actions = Array.isArray(section.contentJson.actions) ? [...section.contentJson.actions] : []
+    const currentAction = isRecord(actions[actionIndex]) ? actions[actionIndex] : {}
+    actions[actionIndex] = {
+      ...currentAction,
+      label: prepareLocalizedForLanguageIssue(currentAction.label, issue),
+    }
+
+    return {
+      ...section,
+      contentJson: {
+        ...section.contentJson,
+        actions,
+      },
+    }
+  }
+
+  if (!path[0]) {
+    return section
+  }
+
+  return prepareContentAliasesForLanguageIssue(section, contentAliasesForField(section, path[0]), issue)
+}
+
+export const preparePageForLanguageQualityTranslations = (
+  model: PageEditModel,
+  issues: PageI18nLanguageIssue[],
+): PageEditModel =>
+  issues.reduce<PageEditModel>((currentModel, issue) => {
+    if (issue.field === 'page.title' || issue.field === 'page.description') {
+      const field = issue.field === 'page.title' ? 'title' : 'description'
+      return {
+        ...currentModel,
+        [field]: prepareLocalizedForLanguageIssue(currentModel[field], issue),
+      }
+    }
+
+    const match = /^sections\.(\d+)\.(.+)$/.exec(issue.field)
+    if (!match) {
+      return currentModel
+    }
+
+    const sectionIndex = Number.parseInt(match[1], 10)
+    const section = currentModel.sections[sectionIndex]
+    if (!section) {
+      return currentModel
+    }
+
+    const nextSections = [...currentModel.sections]
+    nextSections[sectionIndex] = prepareSectionForLanguageIssue(
+      section,
+      match[2].split('.'),
+      issue,
+    )
+
+    return {
+      ...currentModel,
+      sections: nextSections,
+    }
+  }, model)
 
 export const applyPageTranslations = (
   model: PageEditModel,

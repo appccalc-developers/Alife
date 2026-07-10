@@ -4,6 +4,7 @@ import {
   Clapperboard,
   FileText,
   ImageUp,
+  Languages,
   LayoutList,
   Link2,
   MapPin,
@@ -35,8 +36,12 @@ type Props = {
   contextGroupId?: string
   pageId?: string
   isActive: boolean
+  focusToken?: number
+  languageIssueCount?: number
+  languageFixing?: boolean
   onSelect: () => void
   onInsertBefore: () => void
+  onFixLanguageIssues?: () => void
 }
 
 const sectionTypeLabel = (type: SectionType, isZh: boolean) => {
@@ -347,7 +352,26 @@ const getSectionGuide = (section: SectionEditModel, language: string) => {
   }
 }
 
-const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate, onRemove, onMoveUp, onMoveDown, contextGroupId, pageId, isActive, onSelect, onInsertBefore }: Props) => {
+const SectionCardEditor = ({
+  section,
+  index,
+  total,
+  canEdit,
+  typeError,
+  onUpdate,
+  onRemove,
+  onMoveUp,
+  onMoveDown,
+  contextGroupId,
+  pageId,
+  isActive,
+  focusToken,
+  languageIssueCount = 0,
+  languageFixing,
+  onSelect,
+  onInsertBefore,
+  onFixLanguageIssues,
+}: Props) => {
   const t = useUiText()
   const { language } = useAuthStore()
   const [propertiesOpen, setPropertiesOpen] = useState(false)
@@ -536,6 +560,16 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
     return () => window.clearTimeout(timer)
   }, [pendingFocusKey, propertiesOpen, propertyTab])
 
+  useEffect(() => {
+    if (!isActive || !focusToken) {
+      return
+    }
+
+    window.setTimeout(() => {
+      cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 100)
+  }, [focusToken, isActive])
+
   return (
     <div
       ref={cardRef}
@@ -582,6 +616,28 @@ const SectionCardEditor = ({ section, index, total, canEdit, typeError, onUpdate
               <AppActionButton size="sm" variant="danger" disabled={!canEdit} onClick={() => setRemoveConfirmOpen(true)}>{t('remove')}</AppActionButton>
             </div>
           </div>
+          {languageIssueCount > 0 ? (
+            <div className="mx-4 mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900" onClick={(event) => event.stopPropagation()}>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex min-w-0 items-start gap-2">
+                  <Languages className="mt-0.5 h-4 w-4 shrink-0" />
+                  <p className="text-xs font-bold leading-5">
+                    {t('sectionLanguageIssueWarning', { count: languageIssueCount })}
+                  </p>
+                </div>
+                {onFixLanguageIssues ? (
+                  <AppActionButton
+                    size="sm"
+                    variant="secondary"
+                    disabled={!canEdit || languageFixing}
+                    onClick={onFixLanguageIssues}
+                  >
+                    {languageFixing ? t('aiFixingSectionLanguageIssues') : t('aiFixSectionLanguageIssues')}
+                  </AppActionButton>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
 

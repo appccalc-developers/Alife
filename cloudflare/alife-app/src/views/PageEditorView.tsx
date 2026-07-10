@@ -19,7 +19,14 @@ import type { PageDetailDto } from '../types'
 import type { PageEditModel } from '../types/page-editor'
 import { normalizeRouteGroupId } from '../utils/groupRouteIds'
 import { toLocalizedText } from '../utils/localizedText'
-import { applyPageTranslations, collectMissingPageTranslations } from '../utils/pageBilingualCompletion'
+import {
+  applyPageTranslations,
+  collectMissingPageTranslations,
+  collectPageLanguageQualityIssues,
+  collectPageI18nStructureIssues,
+  normalizePageI18nStructure,
+  preparePageForLanguageQualityTranslations,
+} from '../utils/pageBilingualCompletion'
 import { confirmUnsavedChangesNavigation, setUnsavedChangesGuard } from '../utils/unsavedChangesGuard'
 
 const TRANSLATION_BATCH_SIZE = 12
@@ -134,6 +141,9 @@ const PageEditorView = () => {
   const [message, setMessage] = useState('')
   const [languageReviewPrompt, setLanguageReviewPrompt] = useState<LanguageReviewPrompt | null>(null)
   const [savedModelSnapshot, setSavedModelSnapshot] = useState('')
+  const [activeSectionIndex, setActiveSectionIndex] = useState(0)
+  const [activeSectionFocusToken, setActiveSectionFocusToken] = useState(0)
+  const [languageFixingSectionIndex, setLanguageFixingSectionIndex] = useState<number | null>(null)
   const queryGroupId = normalizeRouteGroupId(searchParams.get('groupId'))
   const isHomeTemplate = (searchParams.get('template') || '').toLowerCase() === 'home'
   const preservePublicationReviewStatus = searchParams.get('preservePublicationReviewStatus') === 'true'
@@ -166,7 +176,7 @@ const PageEditorView = () => {
           sections: [],
         }
 
-  const [pageModel, setPageModel] = useState<PageEditModel>(() => createInitialModel(createGroupId))
+  const [pageModel, setPageModel] = useState<PageEditModel>(() => normalizePageI18nStructure(createInitialModel(createGroupId)))
 
   const resolvedGroupId = createGroupId || queryGroupId || activeIds.groupId || pageModel.groupId
 
@@ -196,6 +206,18 @@ const PageEditorView = () => {
 
   const validation = useMemo(() => validatePageContent(pageModel, auth.language), [auth.language, pageModel])
   const missingTranslationCount = useMemo(() => collectMissingPageTranslations(pageModel).length, [pageModel])
+  const languageQualityIssues = useMemo(() => collectPageLanguageQualityIssues(pageModel), [pageModel])
+  const sectionLanguageIssueCounts = useMemo(
+    () => languageQualityIssues.reduce<Record<number, number>>((counts, issue) => {
+      if (issue.sectionIndex === undefined) {
+        return counts
+      }
+
+      counts[issue.sectionIndex] = (counts[issue.sectionIndex] ?? 0) + 1
+      return counts
+    }, {}),
+    [languageQualityIssues],
+  )
   const hasLocalImages = useMemo(() => cloudflareImageService.sectionsHaveLocalDataImages(pageModel.sections), [pageModel.sections])
   const currentModelSnapshot = useMemo(() => JSON.stringify(pageModel), [pageModel])
   const hasUnsavedChanges = Boolean(savedModelSnapshot && currentModelSnapshot !== savedModelSnapshot)
@@ -209,13 +231,33 @@ const PageEditorView = () => {
       return
     }
 
-    setPageModel((current) => createDefaultHomeModel({
+    setPageModel((current) => normalizePageI18nStructure(createDefaultHomeModel({
       id: current.id,
       groupId: resolvedGroupId,
       createdByMemberId: current.createdByMemberId,
-    }))
+    })))
     setMessage(t('defaultHomeRestored'))
   }, [isHomeTemplate, resolvedGroupId, t])
+
+  const focusFirstI18nStructureIssue = useCallback((model: PageEditModel) => {
+    const issues = collectPageI18nStructureIssues(model)
+    if (issues.length === 0) {
+      return
+    }
+
+    const sectionIssue = issues.find((issue) => issue.sectionIndex !== undefined)
+    if (sectionIssue?.sectionIndex !== undefined) {
+      setActiveSectionIndex(sectionIssue.sectionIndex)
+      setActiveSectionFocusToken((current) => current + 1)
+      setMessage(t('pageI18nStructureIssueLocated', {
+        count: issues.length,
+        section: sectionIssue.sectionIndex + 1,
+      }))
+      return
+    }
+
+    setMessage(t('pageI18nStructurePageIssue', { count: issues.length }))
+  }, [t])
 
   const loadExistingPage = async () => {
     const targetPageId = editPageId
@@ -234,6 +276,7 @@ const PageEditorView = () => {
 
     setPageModel(editModel)
     setSavedModelSnapshot(JSON.stringify(editModel))
+    focusFirstI18nStructureIssue(editModel)
   }
 
   const initialize = async () => {
@@ -247,7 +290,7 @@ const PageEditorView = () => {
 
     try {
       if (isCreateMode) {
-        const initialModel = createInitialModel(createGroupId)
+        const initialModel = normalizePageI18nStructure(createInitialModel(createGroupId))
         setPageModel(initialModel)
         setSavedModelSnapshot(JSON.stringify(initialModel))
         if (!canCreatePage) {
@@ -337,9 +380,16 @@ const PageEditorView = () => {
     setError('')
 
     try {
-      let modelToPersist = pageModel
+      const structureIssueCount = collectPageI18nStructureIssues(pageModel).length
+      let modelToPersist = normalizePageI18nStructure(pageModel)
       let translationSaveNotice = ''
-      const missingTranslationFields = collectMissingPageTranslations(pageModel)
+
+      if (structureIssueCount > 0) {
+        setPageModel(modelToPersist)
+        translationSaveNotice = t('pageI18nStructureNormalizedOnSave', { count: structureIssueCount })
+      }
+
+      const missingTranslationFields = collectMissingPageTranslations(modelToPersist)
       if (missingTranslationFields.length > 0) {
         if (!window.confirm(t('pageAiBilingualAutofillConfirm', { count: missingTranslationFields.length }))) {
           setMessage(t('bilingualContentIncompleteBlock'))
@@ -358,7 +408,7 @@ const PageEditorView = () => {
             translatedFields.push(...translatedBatch)
           }
 
-          const completedModel = applyPageTranslations(pageModel, translatedFields, missingTranslationFields)
+          const completedModel = normalizePageI18nStructure(applyPageTranslations(modelToPersist, translatedFields, missingTranslationFields))
           setPageModel(completedModel)
           setMessage(t('pageAiBilingualAutofillComplete', { count: translatedFields.length }))
           setLanguageReviewPrompt({ reason: 'autofill', targetLanguage: otherLanguage(auth.language) })
@@ -366,10 +416,10 @@ const PageEditorView = () => {
         } catch (reason) {
           console.warn('AI page translation failed; continuing page save.', reason)
           modelToPersist = translatedFields.length > 0
-            ? applyPageTranslations(pageModel, translatedFields, missingTranslationFields)
-            : pageModel
+            ? normalizePageI18nStructure(applyPageTranslations(modelToPersist, translatedFields, missingTranslationFields))
+            : modelToPersist
           setPageModel(modelToPersist)
-          translationSaveNotice = t('pageAiBilingualAutofillFailedSaving')
+          translationSaveNotice = `${translationSaveNotice} ${t('pageAiBilingualAutofillFailedSaving')}`.trim()
           setMessage(translationSaveNotice)
         }
       }
@@ -481,6 +531,49 @@ const PageEditorView = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canSaveDraft, pageModel, resolvedGroupId, editPageId, isCreateMode, canEditAllPages, canEditVisibility, preservePublicationReviewStatus])
 
+  const fixSectionLanguageIssues = useCallback(async (sectionIndex: number) => {
+    const normalizedModel = normalizePageI18nStructure(pageModel)
+    const issues = collectPageLanguageQualityIssues(normalizedModel)
+      .filter((issue) => issue.sectionIndex === sectionIndex)
+
+    if (issues.length === 0) {
+      setMessage(t('sectionLanguageIssuesAlreadyClear'))
+      return
+    }
+
+    if (!window.confirm(t('aiFixSectionLanguageIssuesConfirm', { count: issues.length }))) {
+      return
+    }
+
+    setLanguageFixingSectionIndex(sectionIndex)
+    setMessage(t('aiFixingSectionLanguageIssues'))
+    setError('')
+
+    try {
+      const preparedModel = preparePageForLanguageQualityTranslations(normalizedModel, issues)
+      setPageModel(preparedModel)
+
+      const translatedFields: Array<{ field: string; language: EditorLanguage; text: string }> = []
+      for (const fields of chunkFields(issues, TRANSLATION_BATCH_SIZE)) {
+        const translatedBatch = await aiTranslationService.translateTextFields({
+          scope: 'group',
+          groupId: resolvedGroupId,
+          fields,
+        })
+        translatedFields.push(...translatedBatch)
+      }
+
+      const completedModel = normalizePageI18nStructure(applyPageTranslations(preparedModel, translatedFields, issues))
+      setPageModel(completedModel)
+      setMessage(t('aiFixSectionLanguageIssuesComplete', { count: translatedFields.length }))
+    } catch (reason) {
+      console.warn('AI section language fix failed.', reason)
+      setError(t('aiFixSectionLanguageIssuesFailed'))
+    } finally {
+      setLanguageFixingSectionIndex(null)
+    }
+  }, [pageModel, resolvedGroupId, t])
+
   const leaveEditor = useCallback(() => {
     if (fromPageReview) {
       const pageId = editPageId || pageModel.id
@@ -547,7 +640,15 @@ const PageEditorView = () => {
             contextGroupId={resolvedGroupId}
             showHeader={false}
             framed={false}
+            activeSectionIndex={activeSectionIndex}
+            activeSectionFocusToken={activeSectionFocusToken}
+            sectionLanguageIssueCounts={sectionLanguageIssueCounts}
+            languageFixingSectionIndex={languageFixingSectionIndex}
             onPageChange={setPageModel}
+            onActiveSectionIndexChange={setActiveSectionIndex}
+            onFixSectionLanguageIssues={(index) => {
+              fixSectionLanguageIssues(index).catch(() => undefined)
+            }}
             onSectionsChange={(sections) => setPageModel((current) => ({ ...current, sections }))}
           />
         }

@@ -201,6 +201,40 @@ const text = {
     en: 'AI translation failed, so the page was saved with the text currently in the editor.',
     zh: 'AI 翻译失败，页面已使用编辑器当前文字保存。',
   },
+  pageI18nStructureIssueLocated: {
+    en: '{count} page text field(s) need bilingual JSON structure. Section {section} is selected first.',
+    zh: '页面中有 {count} 个文字字段需要整理为双语 JSON 结构，已先定位到第 {section} 个区块。',
+  },
+  pageI18nStructurePageIssue: {
+    en: '{count} page settings field(s) need bilingual JSON structure. Review page settings before saving.',
+    zh: '页面设置中有 {count} 个字段需要整理为双语 JSON 结构，请在保存前检查页面设置。',
+  },
+  pageI18nStructureNormalizedOnSave: {
+    en: 'Normalized {count} page text field(s) to bilingual JSON structure before saving.',
+    zh: '保存前已将 {count} 个页面文字字段整理为双语 JSON 结构。',
+  },
+  sectionLanguageIssueWarning: {
+    en: '{count} field(s) in this section may be in the wrong language. Please review before publishing.',
+    zh: '此区块有 {count} 个字段可能放错语言，请在发布前检查。',
+  },
+  aiFixSectionLanguageIssues: { en: 'AI translate', zh: 'AI 翻译' },
+  aiFixingSectionLanguageIssues: { en: 'AI translating...', zh: 'AI 正在翻译...' },
+  aiFixSectionLanguageIssuesConfirm: {
+    en: 'AI will translate {count} suspected misplaced field(s) in this section. Review the result before saving. Continue?',
+    zh: 'AI 将翻译此区块中 {count} 个疑似放错语言的字段。保存前仍需人工检查。是否继续？',
+  },
+  aiFixSectionLanguageIssuesComplete: {
+    en: 'AI translated {count} field(s) in this section. Please review before saving.',
+    zh: 'AI 已翻译此区块中的 {count} 个字段。请检查后再保存。',
+  },
+  aiFixSectionLanguageIssuesFailed: {
+    en: 'AI could not translate this section. Please try again or fix it manually.',
+    zh: 'AI 暂时无法翻译此区块，请稍后重试或手动修正。',
+  },
+  sectionLanguageIssuesAlreadyClear: {
+    en: 'No misplaced language fields were found in this section.',
+    zh: '此区块没有发现疑似放错语言的字段。',
+  },
   reviewOtherLanguageTitle: { en: 'Review the other language?', zh: '检查另一种语言？' },
   reviewOtherLanguageAfterAutofill: {
     en: 'AI filled the missing text. Please review how this page looks in {language}. Switch now?',
