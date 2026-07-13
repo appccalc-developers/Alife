@@ -24,7 +24,7 @@ const isItemActive = (item: ShellNavItem, pathname: string, search: string) => {
     (!item.pageId &&
       (!item.requireNoActivePage || !activePageId) &&
       pathname === target.pathname &&
-      (item.matchSearch ? search === item.matchSearch : search === target.search)) ||
+      (item.matchPathOnly || (item.matchSearch ? search === item.matchSearch : search === target.search))) ||
     (Boolean(item.pageId) && pageEditMatch?.[1] === item.pageId)
   )
 }

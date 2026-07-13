@@ -9,6 +9,7 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 {
 	public DbSet<Group> Groups => Set<Group>();
 	public DbSet<Member> Members => Set<Member>();
+	public DbSet<BibleReadingProgress> BibleReadingProgresses => Set<BibleReadingProgress>();
 	public DbSet<GroupMembership> GroupMemberships => Set<GroupMembership>();
 	public DbSet<PlatformRole> PlatformRoles => Set<PlatformRole>();
 	public DbSet<MemberPlatformRole> MemberPlatformRoles => Set<MemberPlatformRole>();
@@ -60,6 +61,19 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 			cfg.HasIndex(x => x.LineUID)
 				.IsUnique()
 				.HasFilter("[line_uid] IS NOT NULL AND [is_registered] = 1");
+		});
+
+		modelBuilder.Entity<BibleReadingProgress>(cfg =>
+		{
+			cfg.HasKey(x => x.MemberId);
+			cfg.Property(x => x.Book).HasMaxLength(10).IsRequired();
+			cfg.Property(x => x.Language).HasMaxLength(2).IsRequired();
+			cfg.Property(x => x.ZhVersion).HasMaxLength(50);
+			cfg.Property(x => x.EnVersion).HasMaxLength(50);
+			cfg.HasOne(x => x.Member)
+				.WithOne(x => x.BibleReadingProgress)
+				.HasForeignKey<BibleReadingProgress>(x => x.MemberId)
+				.OnDelete(DeleteBehavior.Cascade);
 		});
 
 		modelBuilder.Entity<GroupMembership>(cfg =>

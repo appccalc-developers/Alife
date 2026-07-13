@@ -19,4 +19,5 @@ public class Member
 	public ICollection<MemberPlatformRole> AssignedPlatformRoles { get; set; } = [];
 	public ICollection<ForumPost> ForumPosts { get; set; } = [];
 	public ICollection<ForumComment> ForumComments { get; set; } = [];
+	public BibleReadingProgress? BibleReadingProgress { get; set; }
 }

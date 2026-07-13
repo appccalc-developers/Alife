@@ -7,6 +7,7 @@ public interface IAlifeDbContext
 {
     DbSet<Group> Groups { get; }
     DbSet<Member> Members { get; }
+    DbSet<BibleReadingProgress> BibleReadingProgresses { get; }
     DbSet<GroupMembership> GroupMemberships { get; }
     DbSet<PlatformRole> PlatformRoles { get; }
     DbSet<MemberPlatformRole> MemberPlatformRoles { get; }
