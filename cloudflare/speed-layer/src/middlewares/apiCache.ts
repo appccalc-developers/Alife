@@ -106,6 +106,27 @@ export const apiCacheMiddleware = async (
   }
 
   if (req.method === 'GET' && authorizedGroupCache && sharedContext) {
+    // The backend deliberately allows anonymous event reads and applies the
+    // event visibility rules itself. Never serve the member-scoped events
+    // cache to visitors, but do let the anonymous request reach the origin.
+    if (authorizedGroupCache.cacheKind === 'events' && sharedContext.authzStatus === 'no-principal') {
+      const originResponse = await next()
+      const response = originResponse.status === 200 ? await withEtag(originResponse) : originResponse
+
+      if (response.status === 200) {
+        ctx.waitUntil(rememberEntityGroups(env, req, response.clone()))
+      }
+
+      return addCorsHeaders(
+        req,
+        withCacheHeader(
+          withBrowserCacheControl(response, url.pathname, sharedContext.authzStatus),
+          'BYPASS',
+        ),
+        env,
+      )
+    }
+
     if (canReadPublicGroupPages(authorizedGroupCache, sharedContext)) {
       const cached = await getPublicGroupPagesCachedResponse(
         env,

@@ -1,6 +1,6 @@
 import { http } from './http'
 import { conditionalGet, removeCachedRecord } from '../db/httpCache'
-import { subgroupsQueryKey } from '../db/collections/groupCollection'
+import { churchQueryKey, subgroupsQueryKey, visibleGroupsQueryKey } from '../db/collections/groupCollection'
 import { sermonsQueryKey } from '../db/collections/sermonsCollection'
 import { queryClient } from '../db/queryClient'
 import { publicPagesQueryKey } from './pageService'
@@ -275,7 +275,10 @@ const toQuery = (params: Record<string, string | number | boolean | null | undef
 
 export const groupService = {
   async getChurch() {
-    const { data } = await http.get<GroupDto>('/api/groups/church')
+    const data = await conditionalGet<GroupDto>({
+      queryKey: churchQueryKey,
+      path: '/api/groups/church',
+    })
     return normalizeGroup(data)
   },
 
@@ -285,7 +288,10 @@ export const groupService = {
   },
 
   async getVisibleGroups() {
-    const { data } = await http.get<GroupSummaryDto[]>('/api/groups/visible')
+    const data = await conditionalGet<GroupSummaryDto[]>({
+      queryKey: visibleGroupsQueryKey,
+      path: '/api/groups/visible',
+    })
     return data.map(normalizeGroup)
   },
 

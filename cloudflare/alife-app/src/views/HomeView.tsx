@@ -18,7 +18,7 @@ import HomeFooter from './home/HomeFooter'
 const HomeView = () => {
   const auth = useAuthStore()
   const language = auth.language
-  const { church, publicPages, groupCards, upcomingEvents, recentSermons } = useHomeData()
+  const { church, publicPages, groupCards, upcomingEvents, recentSermons, eventsLoading, sermonsLoading } = useHomeData()
 
   const churchDescription = localizeText(church?.description, language)
   const copy = getCopy(language, churchDescription)
@@ -61,9 +61,9 @@ const HomeView = () => {
         ) : null}
         <MinistrySection copy={copy} language={language} pages={publicPages} />
         <hr className={pageSectionDividerClass} />
-        <EventsSection copy={copy} language={language} upcomingEvents={upcomingEvents} />
+        <EventsSection copy={copy} language={language} upcomingEvents={upcomingEvents} loading={eventsLoading} />
         <hr className={pageSectionDividerClass} />
-        <RecentSermonsSection copy={copy} language={language} sermons={recentSermons} />
+        <RecentSermonsSection copy={copy} language={language} sermons={recentSermons} loading={sermonsLoading} />
         <hr className={pageSectionDividerClass} />
         <LocationSection copy={copy} />
       </main>

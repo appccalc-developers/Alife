@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, PlayCircle } from 'lucide-react'
 import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion'
@@ -12,14 +12,43 @@ type Props = {
 const HeroSection = ({ copy }: Props) => {
   const prefersReducedMotion = useReducedMotion()
   const heroRef = useRef<HTMLElement | null>(null)
+  const videoRef = useRef<HTMLVideoElement | null>(null)
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] })
   const heroTextY = useTransform(scrollYProgress, [0, 1], [0, prefersReducedMotion ? 0 : 80])
   const heroGlow = useTransform(scrollYProgress, [0, 1], [1, 0.4])
   const scrollToSection = createSectionHandler()
 
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+
+    const ensurePlayback = () => {
+      if (document.visibilityState !== 'visible') return
+      video.muted = true
+      if (video.paused) {
+        void video.play().catch(() => {
+          // The poster remains visible if the browser still declines autoplay.
+        })
+      }
+    }
+    const handleVisibilityChange = () => ensurePlayback()
+
+    video.addEventListener('canplay', ensurePlayback)
+    window.addEventListener('pageshow', ensurePlayback)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    ensurePlayback()
+
+    return () => {
+      video.removeEventListener('canplay', ensurePlayback)
+      window.removeEventListener('pageshow', ensurePlayback)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [])
+
   return (
     <section ref={heroRef} className="relative isolate min-h-dvh overflow-hidden bg-home-dark text-white">
       <video
+        ref={videoRef}
         className="absolute inset-0 z-0 h-full w-full scale-105 object-cover opacity-60"
         src={homepageHeroVideo}
         poster={media.hero}
@@ -27,7 +56,7 @@ const HeroSection = ({ copy }: Props) => {
         muted
         loop
         playsInline
-        preload="metadata"
+        preload="auto"
         aria-hidden="true"
       />
       <motion.div style={{ opacity: heroGlow }} className="pointer-events-none absolute inset-0 z-[1] bg-[linear-gradient(0deg,rgba(30,18,10,0.78)_0%,rgba(30,18,10,0.2)_50%,rgba(30,18,10,0.12)_100%)]" />

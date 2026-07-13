@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type SyntheticEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, CalendarDays, ChevronLeft, ChevronRight, MapPin } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
@@ -12,6 +12,7 @@ type Props = {
   copy: HomeCopy
   language: Language
   upcomingEvents: GroupEventRecord[]
+  loading?: boolean
 }
 
 type EventDetails = {
@@ -23,6 +24,11 @@ type EventDetails = {
 
 const AUTO_INTERVAL = 5600
 const fallbackImages = [media.visit, media.groups, media.message, media.hero]
+
+const handleImageError = (event: SyntheticEvent<HTMLImageElement>) => {
+  event.currentTarget.onerror = null
+  event.currentTarget.src = fallbackImages[0]
+}
 
 const canShowPreviewEvents = () => {
   if (import.meta.env.DEV) return true
@@ -184,7 +190,7 @@ const buildPreviewEvents = (): GroupEventRecord[] => {
   ]
 }
 
-const EventsSection = ({ copy, language, upcomingEvents }: Props) => {
+const EventsSection = ({ copy, language, upcomingEvents, loading = false }: Props) => {
   const prefersReducedMotion = useReducedMotion()
   const entrance = entranceAnimation(prefersReducedMotion)
   const events = useMemo(() => {
@@ -235,7 +241,7 @@ const EventsSection = ({ copy, language, upcomingEvents }: Props) => {
       animate={{ opacity: 0.3, x: 0, scale: 0.92 }}
       transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
     >
-      <img src={activeImage} alt="" className="absolute inset-0 h-full w-full object-cover blur-[1px]" loading="lazy" />
+      <img src={activeImage} alt="" className="absolute inset-0 h-full w-full object-cover blur-[1px]" loading="lazy" onError={handleImageError} />
       <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(23,63,55,0.08),rgba(23,63,55,0.78))]" />
       <div className="absolute inset-x-6 bottom-6 h-24 rounded-[1.2rem] bg-white/10 backdrop-blur-sm" />
     </motion.div>
@@ -258,7 +264,7 @@ const EventsSection = ({ copy, language, upcomingEvents }: Props) => {
         transition={{ duration: 0.46, ease: [0.22, 1, 0.36, 1] }}
         aria-label={`${side === 'previous' ? 'Previous' : 'Next'} ${readEventTitle(event, language)}`}
       >
-        <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105" loading="lazy" />
+        <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105" loading="lazy" onError={handleImageError} />
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(23,63,55,0.12),rgba(23,63,55,0.82))]" />
         <div className="absolute inset-x-4 bottom-4 text-white">
           <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/16 text-home-gold backdrop-blur">
@@ -301,7 +307,14 @@ const EventsSection = ({ copy, language, upcomingEvents }: Props) => {
           </GuardedLink>
         </motion.div>
 
-        {activeEvent && activeDetails ? (
+        {loading ? (
+          <div className="mt-12 animate-pulse rounded-[2rem] border border-home-border/60 bg-white/70 p-6 shadow-[0_18px_52px_rgba(34,25,17,0.06)]">
+            <div className="h-64 rounded-[1.5rem] bg-home-green/10" />
+            <div className="mt-6 h-5 w-28 rounded-full bg-home-green/10" />
+            <div className="mt-4 h-9 w-2/3 rounded-lg bg-home-green/10" />
+            <div className="mt-4 h-4 w-full rounded bg-home-green/10" />
+          </div>
+        ) : activeEvent && activeDetails ? (
           <motion.div {...entrance} className="relative left-1/2 right-1/2 mt-12 -ml-[50vw] -mr-[50vw] w-screen">
             <div className="relative mx-auto min-h-[42rem] w-full overflow-hidden lg:min-h-[44rem]">
               <div className="pointer-events-none absolute inset-y-0 left-0 z-20 w-24 bg-[linear-gradient(90deg,#f6efe3,rgba(246,239,227,0))]" />
@@ -333,6 +346,7 @@ const EventsSection = ({ copy, language, upcomingEvents }: Props) => {
                           alt=""
                           className="h-full w-full object-cover"
                           loading="lazy"
+                          onError={handleImageError}
                           animate={prefersReducedMotion ? {} : { scale: [1, 1.055, 1], x: [0, -8, 0] }}
                           transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
                         />

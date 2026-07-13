@@ -15,6 +15,13 @@ export const getCachedChurch = async () => {
   return data ? normalizeGroup(data) : null
 }
 
+// ---------- Publicly visible groups ----------
+
+export const visibleGroupsQueryKey = ['visibleGroups'] as const
+
+export const getCachedVisibleGroups = async () =>
+  ((await getCachedRecord<GroupSummaryDto[]>(visibleGroupsQueryKey))?.data ?? []).map(normalizeGroup)
+
 // ---------- Group by id (single object, cached only and not exposed as a collection) ----------
 
 export const groupQueryKey = (groupId: string) => ['group', groupId] as const
