@@ -6,8 +6,10 @@ using Alife.Application.Abstractions.Integrations;
 using Alife.Application.Members.Commands.LineLogin;
 using Alife.Application.Members.Commands.LoginByDisplayName;
 using Alife.Application.Members.Commands.RegisterMember;
+using Alife.Application.Members.Commands.SaveBibleReadingProgress;
 using Alife.Application.Members.Dtos;
 using Alife.Application.Members.Queries.GetCurrentMemberProfile;
+using Alife.Application.Members.Queries.GetBibleReadingProgress;
 using Alife.Application.Members.Queries.GetMembers;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -223,6 +225,44 @@ public class MembersController(
         return this.ToActionResult(result);
     }
 
+    [HttpGet("me/bible-reading-progress")]
+    public async Task<IActionResult> GetBibleReadingProgress(CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null) return Unauthorized();
+
+        var result = await mediator.Send(
+            new GetBibleReadingProgressQuery(currentMemberId.Value),
+            cancellationToken);
+        this.ApplyNoStoreHeaders();
+        return this.ToActionResult(result);
+    }
+
+    [HttpPut("me/bible-reading-progress")]
+    public async Task<IActionResult> SaveBibleReadingProgress(
+        [FromBody] SaveBibleReadingProgressRequest request,
+        CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null) return Unauthorized();
+
+        var result = await mediator.Send(new SaveBibleReadingProgressCommand(
+            currentMemberId.Value,
+            request.Book,
+            request.Chapter,
+            request.Language,
+            request.ZhVersion,
+            request.EnVersion), cancellationToken);
+        this.ApplyNoStoreHeaders();
+        return this.ToActionResult(result);
+    }
+
     public record RegisterRequest(string Name, string? Sex, int? Age, string? Email);
     public record LoginByDisplayNameRequest(string? Account, string? Password, string? DisplayName);
+    public record SaveBibleReadingProgressRequest(
+        string Book,
+        int Chapter,
+        string Language,
+        string? ZhVersion,
+        string? EnVersion);
 }

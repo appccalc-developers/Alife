@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Activity, Bell, BookOpenText, ClipboardCheck, FileImage, Handshake, Home, LayoutDashboard, MessageSquareText, ShieldCheck, UserCog, UsersRound } from 'lucide-react'
+import { Activity, Bell, BookMarked, BookOpenText, ClipboardCheck, FileImage, Handshake, Home, LayoutDashboard, MessageSquareText, ShieldCheck, UserCog, UsersRound } from 'lucide-react'
 import type { PageSummaryDto } from '../../types'
 import { activeEntityService } from '../../services/activeEntityService'
 import { useAuthStore } from '../../stores/auth'
@@ -211,6 +211,14 @@ export const useShellNavigation = ({
       to: '/sermons',
       icon: <BookOpenText className="h-5 w-5" />,
     },
+    ...(!auth.isGuest ? [{
+      key: 'app:study',
+      label: isChinese ? '查经' : 'Bible study',
+      description: isChinese ? '中英文经文阅读与小组查经' : 'Bilingual Scripture reading and group study',
+      to: '/study',
+      matchPathOnly: true,
+      icon: <BookMarked className="h-5 w-5" />,
+    }] : []),
     {
       key: 'app:forum',
       label: isChinese ? '论坛' : 'Forum',

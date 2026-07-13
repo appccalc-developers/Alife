@@ -5,6 +5,7 @@ import { useAuthStore } from '../../stores/auth'
 import AppRouteLoading from '../components/AppRouteLoading'
 
 const AdminView = lazy(() => import('../../views/AdminView'))
+const BibleStudyView = lazy(() => import('../../views/BibleStudyView'))
 const EventCreatorView = lazy(() => import('../../views/EventCreatorView'))
 const EventDetailView = lazy(() => import('../../views/EventDetailView'))
 const EventEnrollmentView = lazy(() => import('../../views/EventEnrollmentView'))
@@ -55,6 +56,16 @@ const OnboardingRoute = ({ children }: { children: ReactElement }) => {
   return !auth.loading && !auth.isGuest ? <Navigate to="/" replace /> : children
 }
 
+const MemberRoute = ({ children }: { children: ReactElement }) => {
+  const auth = useAuthStore()
+
+  if (!auth.initialized) {
+    return <AppRouteLoading />
+  }
+
+  return !auth.loading && !auth.isGuest ? children : <Navigate to="/" replace />
+}
+
 const HomeRoute = () => {
   const location = useLocation()
   const pageMenuName = new URLSearchParams(location.search).get('page')?.trim()
@@ -89,6 +100,14 @@ const AppRoutes = () => {
           <Route path="/sermons" element={<SermonsView />} />
           <Route path="/sermons/:sermonId" element={<SermonVideoView />} />
           <Route path="/sermons/watch" element={<SermonVideoView />} />
+          <Route
+            path="/study"
+            element={
+              <MemberRoute>
+                <BibleStudyView />
+              </MemberRoute>
+            }
+          />
           <Route path="/events/new" element={<EventCreatorView />} />
           <Route path="/events/edit" element={<EventCreatorView />} />
           <Route path="/events/:eventId/edit" element={<EventCreatorView />} />

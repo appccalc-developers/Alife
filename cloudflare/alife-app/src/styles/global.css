@@ -168,6 +168,85 @@ select {
   animation: shimmer 1.5s ease-in-out infinite;
 }
 
+/* YouVersion passage HTML uses USFM classes for headings, paragraphs, poetry, and verse markers. */
+.alife-bible-reader {
+  --yv-reader-font-family: Georgia, "Noto Serif SC", "Songti SC", serif;
+  --yv-reader-font-size: 1.1rem;
+  --yv-reader-line-height: 1.9;
+  --yv-foreground: #243c34;
+  --yv-muted-foreground: #75837d;
+  --yv-border: #dfe9e4;
+  --yv-background: transparent;
+  --yv-card: #f7faf8;
+  --yv-primary-foreground: #ffffff;
+  --yv-red: #b65447;
+  --yv-reader-max-width: 50rem;
+}
+
+/* The official reader resets its own layout; this selector keeps the reading column centred on wide screens. */
+.alife-bible-reader[data-slot='yv-bible-renderer'] {
+  margin-inline: auto;
+}
+
+/* Keep the breathing room inside the Scripture body, not around the reader controls or card. */
+.alife-bible-reader[data-slot='yv-bible-renderer']::before {
+  content: '';
+  display: block;
+  height: 2.5rem;
+}
+
+[data-reader-theme='paper'] .alife-bible-reader {
+  --yv-foreground: #493f31;
+  --yv-muted-foreground: #897b66;
+  --yv-border: #dfd1b7;
+  --yv-card: #efe5d2;
+  --yv-red: #a44d43;
+  --yv-reader-heading: #795f35;
+  --yv-reader-verse-number: #9a7240;
+}
+
+[data-reader-theme='dark'] .alife-bible-reader {
+  --yv-foreground: #e2ebe6;
+  --yv-muted-foreground: #9eb0a8;
+  --yv-border: #3b4d46;
+  --yv-card: #202e29;
+  --yv-red: #e08b7e;
+  --yv-reader-heading: #79c5ae;
+  --yv-reader-verse-number: #6fc2aa;
+}
+
+.alife-bible-reader,
+.alife-bible-reader * {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.alife-bible-reader .p,
+.alife-bible-reader p {
+  margin-bottom: 1.15em;
+  text-indent: 0;
+}
+
+.alife-bible-reader .s,
+.alife-bible-reader .s1,
+.alife-bible-reader .s2,
+.alife-bible-reader .s3,
+.alife-bible-reader .ms,
+.alife-bible-reader .ms1 {
+  color: var(--yv-reader-heading, #1b5c4d);
+  font-family: var(--yv-reader-font-family);
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  margin-top: 2.25em;
+  margin-bottom: 0.8em;
+}
+
+.alife-bible-reader .yv-vlbl,
+.alife-bible-reader .verse > .label {
+  color: var(--yv-reader-verse-number, #27806b);
+  font-weight: 800;
+}
+
 @keyframes alife-home-groups {
   from {
     transform: translateX(0);

@@ -7,6 +7,7 @@ export type ShellNavItem = {
   to: string
   icon: ReactElement
   matchSearch?: string
+  matchPathOnly?: boolean
   pageId?: string
   requireNoActivePage?: boolean
   actionOnly?: boolean
