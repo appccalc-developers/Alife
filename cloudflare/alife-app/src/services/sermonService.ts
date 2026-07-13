@@ -1,4 +1,5 @@
 import { http } from './http'
+import { conditionalGet, getCachedRecord } from '../db/httpCache'
 
 export type SermonDto = {
   id: string
@@ -43,6 +44,8 @@ const normalizeSermonPage = (payload: SermonPagedResult | SermonDto[], fallbackP
   }
 }
 
+const sermonPageQueryKey = (page: number, pageSize: number) => ['sermons', 'page', page, pageSize] as const
+
 export const sermonService = {
   async getById(sermonId: string) {
     const { data } = await http.get<SermonDto>(`/api/sermons/${sermonId}`)
@@ -52,17 +55,20 @@ export const sermonService = {
   async list(params: { page?: number; pageSize?: number } = {}) {
     const page = params.page ?? 1
     const pageSize = params.pageSize ?? 12
-    const { data } = await http.get<SermonPagedResult | SermonDto[]>('/api/sermons', {
-      params: {
-        page,
-        pageSize,
-      },
+    const payload = await conditionalGet<SermonPagedResult | SermonDto[]>({
+      queryKey: sermonPageQueryKey(page, pageSize),
+      path: `/api/sermons?page=${page}&pageSize=${pageSize}`,
     })
-    return normalizeSermonPage(data, page, pageSize)
+    return normalizeSermonPage(payload, page, pageSize)
   },
 
   async getLatest(limit = 3) {
     const data = await this.list({ page: 1, pageSize: limit })
     return data.items
+  },
+
+  async getCachedLatest(limit = 3) {
+    const payload = (await getCachedRecord<SermonPagedResult | SermonDto[]>(sermonPageQueryKey(1, limit)))?.data
+    return normalizeSermonPage(payload ?? [], 1, limit).items
   },
 }

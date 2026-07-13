@@ -400,6 +400,27 @@ test('missing membership returns 403 before shared subgroup cache is read', asyn
   assert.equal(apiCacheGetKeys.includes(`group:${groupId}:subgroups`), false)
 })
 
+test('anonymous group events reach the origin without reading the member cache', async () => {
+  const groupId = 'group-1'
+  const url = `https://ccalc.live/api/groups/${groupId}/events`
+  apiCacheStore.set(`group:${groupId}:events`, createStoredResponse([
+    { id: 'member-only-event', groupId },
+  ]))
+  originResponses.push(Response.json([
+    { id: 'public-event', groupId },
+  ]))
+
+  const response = await dispatch(url)
+  await flushWaitUntil()
+
+  assert.equal(response.status, 200)
+  assert.equal(response.headers.get('x-alife-cache'), 'BYPASS')
+  assert.equal(response.headers.get('x-alife-authz'), 'no-principal')
+  assert.deepEqual(await response.json(), [{ id: 'public-event', groupId }])
+  assert.equal(fetchCalls.length, 1)
+  assert.equal(apiCacheGetKeys.includes(`group:${groupId}:events`), false)
+})
+
 test('non-approved membership returns 403 before shared group cache is read', async () => {
   const groupId = 'group-1'
   const url = `https://ccalc.live/api/groups/${groupId}/events`

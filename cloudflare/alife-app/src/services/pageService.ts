@@ -1,7 +1,7 @@
 import { http } from './http'
 import { groupPagesQueryKey } from '../db/collections/groupCollection'
 import { pageDetailQueryKey, setPageDetailCache } from '../db/collections/pageCollection'
-import { conditionalGet, removeCachedRecord } from '../db/httpCache'
+import { conditionalGet, getCachedRecord, removeCachedRecord } from '../db/httpCache'
 import { queryClient } from '../db/queryClient'
 import type { LocalizedText, PageDetailDto, PageEditModel, PageSummaryDto, PageVisibility, SectionEditModel } from '../types'
 import { normalizePageSummary } from '../utils/apiEnums'
@@ -118,6 +118,9 @@ const invalidateQueryCache = async (queryKey: readonly unknown[]) => {
 }
 
 export const publicPagesQueryKey = () => ['publicPages'] as const
+
+export const getCachedPublicPages = async () =>
+  ((await getCachedRecord<PageSummaryDto[]>(publicPagesQueryKey()))?.data ?? []).map(normalizePageSummary)
 
 const invalidatePublicPagesCache = async () => {
   await invalidateQueryCache(publicPagesQueryKey())

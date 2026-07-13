@@ -24,6 +24,25 @@ export default defineConfig(() => {
         globPatterns: ['**/*.{js,css,html,json,png,svg,ico,webp,woff2}'],
         runtimeCaching: [
           {
+            // The hero MP4 is served as a full response by Workers Static Assets.
+            // Cache that response once and synthesize byte-range responses for
+            // reliable repeat playback, including after auth-state navigation.
+            urlPattern: ({ request, url }) =>
+              url.origin === self.location.origin && request.destination === 'video',
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'alife-video-cache',
+              rangeRequests: true,
+              expiration: {
+                maxEntries: 6,
+                maxAgeSeconds: THIRTY_DAYS_IN_SECONDS,
+              },
+              cacheableResponse: {
+                statuses: [200],
+              },
+            },
+          },
+          {
             urlPattern: ({ request, url }) =>
               url.origin === self.location.origin &&
               (request.mode === 'navigate' ||

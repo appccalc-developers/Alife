@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import type { SyntheticEvent } from 'react'
 import { ArrowRight, MicVocal, PlayCircle } from 'lucide-react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { activeEntityService } from '../../services/activeEntityService'
@@ -11,6 +12,12 @@ type Props = {
   copy: HomeCopy
   language: Language
   sermons: SermonDto[]
+  loading?: boolean
+}
+
+const handleImageError = (event: SyntheticEvent<HTMLImageElement>) => {
+  event.currentTarget.onerror = null
+  event.currentTarget.src = media.message
 }
 
 const formatDate = (value: string | null | undefined, language: Language) => {
@@ -24,7 +31,7 @@ const formatDate = (value: string | null | undefined, language: Language) => {
   }).format(date)
 }
 
-const RecentSermonsSection = ({ copy, language, sermons }: Props) => {
+const RecentSermonsSection = ({ copy, language, sermons, loading = false }: Props) => {
   const prefersReducedMotion = useReducedMotion()
   const entrance = entranceAnimation(prefersReducedMotion)
   const featured = sermons[0]
@@ -44,14 +51,23 @@ const RecentSermonsSection = ({ copy, language, sermons }: Props) => {
           </Link>
         </motion.div>
 
-        {featured ? (
+        {loading ? (
+          <div className="mt-10 grid animate-pulse overflow-hidden rounded-2xl border border-home-border/50 bg-white/70 lg:grid-cols-[1.15fr_0.85fr]">
+            <div className="min-h-[19rem] bg-home-green/10" />
+            <div className="p-8">
+              <div className="h-4 w-28 rounded bg-home-green/10" />
+              <div className="mt-5 h-8 w-full rounded bg-home-green/10" />
+              <div className="mt-4 h-4 w-2/3 rounded bg-home-green/10" />
+            </div>
+          </div>
+        ) : featured ? (
           <motion.div {...entrance} className="mt-10 grid overflow-hidden rounded-2xl bg-home-dark text-white shadow-[0_24px_70px_rgba(34,25,17,0.18)] lg:grid-cols-[1.15fr_0.85fr]">
             <Link
               to={buildSermonVideoPath(featured.id, extractYouTubeVideoId(featured.videoUrl))}
               onClick={() => activeEntityService.setSermon(featured.id)}
               className="group relative block min-h-[19rem] overflow-hidden"
             >
-              <img src={featured.thumbnailUrl || media.message} alt="" className="absolute inset-0 h-full w-full object-cover opacity-80 transition duration-700 group-hover:scale-[1.03] group-hover:opacity-90" loading="lazy" />
+              <img src={featured.thumbnailUrl || media.message} alt="" className="absolute inset-0 h-full w-full object-cover opacity-80 transition duration-700 group-hover:scale-[1.03] group-hover:opacity-90" loading="lazy" onError={handleImageError} />
               <div className="absolute inset-0 bg-gradient-to-t from-home-dark/90 via-home-dark/20 to-transparent" />
               <div className="absolute left-6 top-6 inline-flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-home-green shadow-lg">
                 <PlayCircle className="h-6 w-6" />
@@ -77,7 +93,7 @@ const RecentSermonsSection = ({ copy, language, sermons }: Props) => {
                       className="group flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] p-3 transition hover:bg-white/[0.08]"
                     >
                       <div className="h-14 w-20 shrink-0 overflow-hidden rounded-lg bg-white/10">
-                        <img src={sermon.thumbnailUrl || media.message} alt="" className="h-full w-full object-cover opacity-85 transition group-hover:scale-[1.04]" loading="lazy" />
+                        <img src={sermon.thumbnailUrl || media.message} alt="" className="h-full w-full object-cover opacity-85 transition group-hover:scale-[1.04]" loading="lazy" onError={handleImageError} />
                       </div>
                       <div className="min-w-0">
                         <p className="line-clamp-1 text-sm font-semibold text-white">{sermon.title}</p>
