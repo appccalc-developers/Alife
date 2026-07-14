@@ -121,7 +121,7 @@ export type SectionType =
   | 'ContactLocation'
   | 'Spotlight'
   | 'RichText'
-  | 'ListView'
+  | 'CollectionShowcase'
   | 'Album'
 
 export type SectionEditModel = {

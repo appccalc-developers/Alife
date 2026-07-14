@@ -196,7 +196,7 @@ const parseJsonObject = (value: string | Record<string, unknown> | null | undefi
 const sectionTypeMapByNumber: Record<number, SectionEditModel['type']> = {
   1: 'RichText',
   2: 'RichText',
-  4: 'ListView',
+  4: 'CollectionShowcase',
   20: 'LandingHero',
   21: 'Countdown',
   22: 'ContactLocation',
@@ -220,14 +220,15 @@ const normalizeSectionType = (value: number | string): SectionEditModel['type'] 
     sermonSpotlight: 'Spotlight',
     richText: 'RichText',
     postFeed: 'RichText',
-    groupList: 'ListView',
-    eventList: 'ListView',
-    gallery: 'ListView',
-    mediaGallery: 'ListView',
-    listView: 'ListView',
+    groupList: 'CollectionShowcase',
+    eventList: 'CollectionShowcase',
+    gallery: 'CollectionShowcase',
+    mediaGallery: 'CollectionShowcase',
+    listView: 'CollectionShowcase',
+    collectionShowcase: 'CollectionShowcase',
     album: 'Album',
-    pageList: 'ListView',
-    sermonList: 'ListView',
+    pageList: 'CollectionShowcase',
+    sermonList: 'CollectionShowcase',
   }
   if (sectionTypeMapByName[normalized]) {
     return sectionTypeMapByName[normalized]
@@ -241,17 +242,18 @@ const normalizeSectionType = (value: number | string): SectionEditModel['type'] 
     MediaSpotlight: 'Spotlight',
     SermonSpotlight: 'Spotlight',
     PostFeed: 'RichText',
-    Gallery: 'ListView',
-    MediaGallery: 'ListView',
-    EventList: 'ListView',
-    GroupList: 'ListView',
+    Gallery: 'CollectionShowcase',
+    MediaGallery: 'CollectionShowcase',
+    EventList: 'CollectionShowcase',
+    GroupList: 'CollectionShowcase',
+    ListView: 'CollectionShowcase',
     Album: 'Album',
   }
   if (legacySectionTypeMap[normalized]) {
     return legacySectionTypeMap[normalized]
   }
 
-  const values = ['LandingHero', 'Countdown', 'ContactLocation', 'Spotlight', 'RichText', 'ListView', 'Album'] as const
+  const values = ['LandingHero', 'Countdown', 'ContactLocation', 'Spotlight', 'RichText', 'CollectionShowcase', 'Album'] as const
   return values.includes(normalized as (typeof values)[number]) ? (normalized as SectionEditModel['type']) : 'RichText'
 }
 
@@ -332,7 +334,7 @@ export const normalizePageSection = (section: SectionDto): SectionEditModel => {
     styleJson.imagePosition = media.position ?? 'left'
   }
 
-  if (type === 'ListView') {
+  if (type === 'CollectionShowcase') {
     const sourceType = firstString(contentJson.sourceType, legacySourceType, contentJson.source) || 'sermons'
     const source = firstString(contentJson.source, sourceType === 'subgroups' ? 'groups' : sourceType) || 'sermons'
     contentJson.source = source
