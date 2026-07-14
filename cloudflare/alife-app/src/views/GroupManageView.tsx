@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowRightLeft, ArrowUpRight, Bell, CalendarDays, Crown, FileText, Loader2, Network, Pencil, Settings, ShieldCheck, UserPlus, UserMinus, UsersRound, X } from 'lucide-react'
+import { ArrowRightLeft, ArrowUpRight, Bell, CalendarDays, Images, Crown, FileText, Loader2, Network, Pencil, Settings, ShieldCheck, UserPlus, UserMinus, UsersRound, X } from 'lucide-react'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
 import AppEmptyState from '../components/layout/AppEmptyState'
