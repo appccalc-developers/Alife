@@ -1,6 +1,6 @@
 import type { ListSortBy, ListSortDirection, ListSourceScope, ListSourceType, ListViewLayout, ListViewMetadata, ListViewSource } from '../types/page-editor'
 
-const SOURCE_TYPES: ListSourceType[] = ['sermons', 'pages', 'subgroups', 'events', 'members', 'groups', 'media', 'posts']
+const SOURCE_TYPES: ListSourceType[] = ['announcements', 'sermons', 'pages', 'subgroups', 'events', 'members', 'groups', 'media', 'posts']
 const SORT_FIELDS: ListSortBy[] = ['source', 'date', 'title']
 const SORT_DIRECTIONS: ListSortDirection[] = ['asc', 'desc']
 const CORE_SOURCES: ListViewSource[] = ['events', 'sermons', 'groups', 'pages', 'members', 'media', 'posts']
@@ -31,6 +31,10 @@ const presetSort = (sourceType: ListSourceType, preset: string) => {
     return preset === 'recent'
       ? { sortBy: 'date' as const, sortDirection: 'desc' as const }
       : { sortBy: 'date' as const, sortDirection: 'asc' as const }
+  }
+
+  if (sourceType === 'announcements') {
+    return { sortBy: 'date' as const, sortDirection: 'desc' as const }
   }
 
   if (sourceType === 'sermons') {

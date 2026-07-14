@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from '@tanstack/react-db'
 import { sermonsCollection } from '../db/collections/sermonsCollection'
 import {
@@ -11,6 +11,8 @@ import type { ListViewMetadata } from '../types/page-editor'
 import type { SermonDto } from '../services/sermonService'
 import type { GroupEventRecord } from '../types/event'
 import type { GroupSummaryDto } from '../types'
+import type { AnnouncementDto } from '../types/announcement'
+import { announcementService } from '../services/announcementService'
 import { useActiveEntityIds } from './useActiveEntityIds'
 
 type MembershipListRow = { memberId: string; status: string; role: string; name?: string; displayName?: string }
@@ -38,6 +40,13 @@ const searchableText = (sourceType: ListViewMetadata['sourceType'], item: unknow
         readString(item.title),
         readString(item.speakerName),
         readString(item.preachedAt),
+      ].join(' ')
+    case 'announcements':
+      return [
+        ...localizedTextValues(item.title),
+        ...localizedTextValues(item.summary),
+        ...localizedTextValues(item.content),
+        readString(item.publishUtc),
       ].join(' ')
     case 'subgroups':
       return [
@@ -77,6 +86,8 @@ const titleValue = (sourceType: ListViewMetadata['sourceType'], item: unknown) =
   switch (resolveSourceType(sourceType)) {
     case 'sermons':
       return readString(item.title)
+    case 'announcements':
+      return localizedTextValues(item.title)[0] ?? ''
     case 'subgroups':
     case 'pages':
       return localizedTextValues(item.name ?? item.title)[0] ?? ''
@@ -94,6 +105,8 @@ const dateValue = (sourceType: ListViewMetadata['sourceType'], item: unknown) =>
 
   const resolvedSourceType = resolveSourceType(sourceType)
   const raw =
+    resolvedSourceType === 'announcements' ? item.publishUtc
+      :
     resolvedSourceType === 'sermons' ? item.preachedAt
       : resolvedSourceType === 'events' ? item.startDate
         : resolvedSourceType === 'pages' ? item.updatedUtc
@@ -205,10 +218,32 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
   // Do not rely on q.from().select(({ row }) => row) here — returning the collection matches SermonList.
 
   const isSermons = enabled && sourceType === 'sermons'
+  const isAnnouncements = enabled && sourceType === 'announcements'
   const isSubgroups = enabled && sourceType === 'subgroups'
   const isMembers = enabled && sourceType === 'members'
   const isGroupPages = enabled && sourceType === 'pages'
   const isEvents = enabled && sourceType === 'events'
+  const [announcementsData, setAnnouncementsData] = useState<AnnouncementDto[]>([])
+  const [announcementsLoading, setAnnouncementsLoading] = useState(false)
+  const [announcementsError, setAnnouncementsError] = useState(false)
+
+  useEffect(() => {
+    if (!isAnnouncements || !targetGroupId) {
+      setAnnouncementsData([])
+      setAnnouncementsLoading(false)
+      setAnnouncementsError(false)
+      return
+    }
+
+    let cancelled = false
+    setAnnouncementsLoading(true)
+    setAnnouncementsError(false)
+    announcementService.listActive(targetGroupId)
+      .then((items) => { if (!cancelled) setAnnouncementsData(items) })
+      .catch(() => { if (!cancelled) setAnnouncementsError(true) })
+      .finally(() => { if (!cancelled) setAnnouncementsLoading(false) })
+    return () => { cancelled = true }
+  }, [isAnnouncements, targetGroupId])
 
   // Sermons (always global, always available)
   const sermonsLive = useLiveQuery(
@@ -291,6 +326,8 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
   // Build the result data based on source type
   const result = useMemo(() => {
     switch (sourceType) {
+      case 'announcements':
+        return applyListViewFilteringAndSorting(announcementsData, metadata).slice(0, queryConfig.limit)
       case 'sermons': {
         return applyListViewFilteringAndSorting(sermonsData as SermonDto[], metadata).slice(0, queryConfig.limit)
       }
@@ -314,10 +351,11 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
       default:
         return []
     }
-  }, [sourceType, sermonsData, subgroupsData, membershipsData, groupPagesData, eventsData, metadata, queryConfig.limit, targetGroupId])
+  }, [sourceType, announcementsData, sermonsData, subgroupsData, membershipsData, groupPagesData, eventsData, metadata, queryConfig.limit, targetGroupId])
 
   // Determine loading/ready/error state from the active source
   const { isLoading: isCollectionLoading, isReady, isError: hasError } = useMemo(() => {
+    if (isAnnouncements) return { isLoading: announcementsLoading, isReady: !announcementsLoading, isError: announcementsError }
     if (isSermons) return { isLoading: sermonsLoading, isReady: sermonsReady, isError: sermonsError }
     if (isSubgroups) return { isLoading: subgroupsLoading, isReady: subgroupsReady, isError: subgroupsError }
     if (isMembers) return { isLoading: membershipsLoading, isReady: membershipsReady, isError: membershipsError }
@@ -325,6 +363,7 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
     if (isEvents) return { isLoading: eventsLoading, isReady: eventsReady, isError: eventsError }
     return { isLoading: false, isReady: true, isError: false }
   }, [
+    isAnnouncements, announcementsLoading, announcementsError,
     isSermons, isSubgroups, isMembers, isGroupPages, isEvents,
     sermonsLoading, sermonsReady, sermonsError,
     subgroupsLoading, subgroupsReady, subgroupsError,
@@ -342,13 +381,14 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
   // Build the error (only if collection has failed)
   const error = useMemo(() => {
     if (!hasError) return null
+    if (isAnnouncements) return new Error('Failed to load announcements')
     if (isSermons) return new Error('Failed to load sermons')
     if (isSubgroups) return new Error('Failed to load subgroups')
     if (isMembers) return new Error('Failed to load members')
     if (isGroupPages) return new Error('Failed to load pages')
     if (isEvents) return new Error('Failed to load events')
     return null
-  }, [hasError, isSermons, isSubgroups, isMembers, isGroupPages, isEvents])
+  }, [hasError, isAnnouncements, isSermons, isSubgroups, isMembers, isGroupPages, isEvents])
 
   return {
     data: result,

@@ -13,4 +13,5 @@ public sealed record NotificationMessageDto(
     DateTime? ReadUtc,
     DateTime? RepliedUtc,
     DateTime CreatedUtc,
-    DateTime UpdatedUtc);
+    DateTime UpdatedUtc,
+    Guid? AnnouncementId = null);

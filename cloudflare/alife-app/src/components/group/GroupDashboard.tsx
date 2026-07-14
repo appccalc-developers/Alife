@@ -1,4 +1,5 @@
-import { BookOpenText, CalendarDays, Repeat2, Settings, UsersRound } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Bell, BookOpenText, CalendarDays, Repeat2, Settings, UsersRound } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import AppSectionCard from '../layout/AppSectionCard'
 import type { GroupDto, GroupPageDto, GroupSummaryDto } from '../../types/group'
@@ -6,6 +7,8 @@ import type { GroupEventRecord } from '../../types/event'
 import { useAuthStore } from '../../stores/auth'
 import { activeEntityService } from '../../services/activeEntityService'
 import { localizeText } from '../../utils/localizedText'
+import { announcementService } from '../../services/announcementService'
+import type { AnnouncementDto } from '../../types/announcement'
 
 type Props = {
   group: GroupDto
@@ -24,6 +27,15 @@ const GroupDashboard = ({ group, pages, subgroups, events, canManage }: Props) =
     .filter((event) => !event.endDate || new Date(event.endDate).getTime() >= Date.now())
     .sort((left, right) => new Date(left.startDate).getTime() - new Date(right.startDate).getTime())
     .slice(0, 3)
+  const [announcements, setAnnouncements] = useState<AnnouncementDto[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    announcementService.listActive(group.id)
+      .then((items) => { if (!cancelled) setAnnouncements(items) })
+      .catch(() => { if (!cancelled) setAnnouncements([]) })
+    return () => { cancelled = true }
+  }, [group.id, auth.me?.id])
 
   return (
     <>
@@ -43,6 +55,33 @@ const GroupDashboard = ({ group, pages, subgroups, events, canManage }: Props) =
           </Link>
         </div>
       </section>
+
+      {announcements.length > 0 ? (
+        <section aria-label={language === 'zh' ? '当前公告' : 'Active announcements'} className="space-y-3">
+          {announcements.map((announcement) => (
+            <article
+              key={announcement.id}
+              className={[
+                'rounded-2xl border px-5 py-4 shadow-sm',
+                announcement.priority === 'urgent' ? 'border-rose-200 bg-rose-50 text-rose-950'
+                  : announcement.priority === 'important' ? 'border-amber-200 bg-amber-50 text-amber-950'
+                    : 'border-emerald-100 bg-white/85 text-[#18332d]',
+              ].join(' ')}
+            >
+              <div className="flex items-start gap-3">
+                <Bell className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="font-black">{localizeText(announcement.title, language)}</h2>
+                    {announcement.isPinned ? <span className="rounded-full bg-white/70 px-2 py-0.5 text-[0.65rem] font-bold uppercase">{language === 'zh' ? '置顶' : 'Pinned'}</span> : null}
+                  </div>
+                  <p className="mt-1 text-sm leading-6 opacity-80">{localizeText(announcement.summary, language)}</p>
+                </div>
+              </div>
+            </article>
+          ))}
+        </section>
+      ) : null}
 
       <section className="grid gap-4 sm:grid-cols-3">
         {[

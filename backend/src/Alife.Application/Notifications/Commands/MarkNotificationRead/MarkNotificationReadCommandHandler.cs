@@ -52,5 +52,6 @@ public sealed class MarkNotificationReadCommandHandler(IAlifeDbContext dbContext
             notification.ReadUtc,
             notification.RepliedUtc,
             notification.CreatedUtc,
-            notification.UpdatedUtc);
+            notification.UpdatedUtc,
+            notification.AnnouncementId);
 }

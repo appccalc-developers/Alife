@@ -23,6 +23,7 @@ public interface IAlifeDbContext
     DbSet<EventEnrollment> EventEnrollments { get; }
     DbSet<EventReview> EventReviews { get; }
     DbSet<NotificationMessage> NotificationMessages { get; }
+    DbSet<Announcement> Announcements { get; }
     DbSet<VisitContactRequest> VisitContactRequests { get; }
     DbSet<ForumCategory> ForumCategories { get; }
     DbSet<ForumPost> ForumPosts { get; }

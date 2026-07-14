@@ -7,6 +7,7 @@ public class NotificationMessage
     public Guid CreatedByMemberId { get; set; }
     public Guid? GroupId { get; set; }
     public Guid? EventId { get; set; }
+    public Guid? AnnouncementId { get; set; }
     public DateTime OccurredUtc { get; set; }
     public string ActionType { get; set; } = "";
     public string ActionDataJson { get; set; } = "{}";
@@ -20,4 +21,5 @@ public class NotificationMessage
     public Member CreatedByMember { get; set; } = null!;
     public Group? Group { get; set; }
     public GroupEvent? Event { get; set; }
+    public Announcement? Announcement { get; set; }
 }
