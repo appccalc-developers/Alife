@@ -39,7 +39,7 @@ const formatPlatformRole = (role: string | undefined | null, language: string) =
 
 type ManageSection = 'announcements' | 'members' | 'events' | 'pages' | 'subgroups' | 'group'
 
-const manageSectionKeys: ManageSection[] = ['pages', 'announcements', 'members', 'events', 'subgroups', 'group']
+const manageSectionKeys: ManageSection[] = ['members', 'subgroups', 'events', 'announcements', 'pages', 'group']
 
 const normalizeManageSection = (value: string | null): ManageSection =>
   manageSectionKeys.includes(value as ManageSection) ? value as ManageSection : 'pages'
@@ -197,11 +197,11 @@ const ManagementTabs = ({
   copy: ReturnType<typeof managementCopy>
 }) => {
   const items = [
-    { key: 'pages' as ManageSection, label: copy.pages, icon: <FileText className="h-4 w-4" /> },
-    { key: 'announcements' as ManageSection, label: copy.announcements, icon: <Bell className="h-4 w-4" /> },
     { key: 'members' as ManageSection, label: copy.members, icon: <UsersRound className="h-4 w-4" /> },
-    { key: 'events' as ManageSection, label: copy.events, icon: <CalendarDays className="h-4 w-4" /> },
     { key: 'subgroups' as ManageSection, label: copy.subgroups, icon: <Network className="h-4 w-4" /> },
+    { key: 'events' as ManageSection, label: copy.events, icon: <CalendarDays className="h-4 w-4" /> },
+    { key: 'announcements' as ManageSection, label: copy.announcements, icon: <Bell className="h-4 w-4" /> },
+    { key: 'pages' as ManageSection, label: copy.pages, icon: <FileText className="h-4 w-4" /> },
     { key: 'group' as ManageSection, label: copy.settings, icon: <Settings className="h-4 w-4" /> },
   ]
 
