@@ -293,10 +293,10 @@ export const createEmptyPageSection = (type: SectionType = 'RichText'): SectionE
     }
   }
 
-  if (type === 'ListView') {
+  if (type === 'CollectionShowcase') {
     return {
       order: 0,
-      type: 'ListView',
+      type: 'CollectionShowcase',
       contentJson: {
         spacing: 'normal',
         layout: 'grid',
@@ -315,7 +315,7 @@ export const createPresetPageSection = (preset: string): SectionEditModel => {
       preset.startsWith('rich-') ? 'RichText' :
         preset === 'contact-location' ? 'ContactLocation' :
       preset.startsWith('spotlight-') ? 'Spotlight' :
-        preset.startsWith('list-') ? 'ListView' :
+        preset.startsWith('list-') ? 'CollectionShowcase' :
           'RichText',
   )
 

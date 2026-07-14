@@ -6,7 +6,9 @@ public enum SectionType
 	RichText = 1,
 	PostFeed = 2,
 	Sermon = 3,
-	ListView = 4,
+	CollectionShowcase = 4,
+	[Obsolete("Use CollectionShowcase. Retained for backwards-compatible API deserialization.")]
+	ListView = CollectionShowcase,
 	LandingHero = 20,
 	Countdown = 21,
 	ContactLocation = 22,

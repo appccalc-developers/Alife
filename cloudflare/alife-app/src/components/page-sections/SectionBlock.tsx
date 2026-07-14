@@ -20,7 +20,7 @@ const SectionBlock = (props: SectionComponentProps) => {
       return <SpotlightSection {...props} />
     case 'RichText':
       return <RichTextSection {...props} />
-    case 'ListView':
+    case 'CollectionShowcase':
       return <GroupListSectionBlock {...props} />
     case 'Album':
       return <AlbumSection {...props} />

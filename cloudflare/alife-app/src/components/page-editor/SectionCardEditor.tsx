@@ -50,7 +50,7 @@ const sectionTypeLabel = (type: SectionType, isZh: boolean) => {
   if (type === 'ContactLocation') return isZh ? '联系地点' : 'Contact Location'
   if (type === 'RichText') return isZh ? '图文说明' : 'Rich Text'
   if (type === 'Spotlight') return isZh ? '重点推荐' : 'Spotlight'
-  if (type === 'ListView') return isZh ? '列表视图' : 'List View'
+  if (type === 'CollectionShowcase') return isZh ? '列表视图' : 'List View'
   if (type === 'Album') return isZh ? '相册' : 'Album'
   return type
 }
@@ -302,7 +302,7 @@ const getSectionGuide = (section: SectionEditModel, language: string) => {
     }
   }
 
-  if (section.type === 'ListView') {
+  if (section.type === 'CollectionShowcase') {
     return {
       title: isZh ? '自动列表引导' : 'Auto list guidance',
       description: isZh ? '适合展示最新讲道、活动或小组，让内容自动保持新鲜。' : 'Use this for latest sermons, events, or groups so the page stays fresh.',
@@ -387,7 +387,7 @@ const SectionCardEditor = ({
   const patchHeader = (patch: Partial<SectionHeader>) => patchContentJson({ header: { ...readHeader(section), ...patch } })
   const header = readHeader(section)
   const guide = getSectionGuide(section, language)
-  const supportsSectionHeader = section.type === 'RichText' || section.type === 'Spotlight' || section.type === 'ListView'
+  const supportsSectionHeader = section.type === 'RichText' || section.type === 'Spotlight' || section.type === 'CollectionShowcase'
   const hasSectionHeader = supportsSectionHeader && isJsonMap(section.contentJson.header)
   const guideItems = hasSectionHeader ? guide.items : guide.items.filter((item) => !item.requiresSectionHeader)
   const readyCount = guideItems.filter((item) => item.ready).length
