@@ -119,5 +119,6 @@ public sealed class CreateNotificationCommandHandler(
             notification.ReadUtc,
             notification.RepliedUtc,
             notification.CreatedUtc,
-            notification.UpdatedUtc);
+            notification.UpdatedUtc,
+            notification.AnnouncementId);
 }

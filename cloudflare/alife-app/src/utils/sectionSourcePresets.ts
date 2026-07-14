@@ -133,6 +133,12 @@ export const listViewContentDefaultsForSource = (source: ListViewSource, current
 export const listViewPresetForSource = (source: ListViewSource) => listSourcePresets[source].preset
 
 const spotlightSourcePresets: Record<SpotlightDataSource, HeaderPreset> = {
+  announcements: {
+    icon: 'church',
+    title: localized('Latest announcement', '最新公告'),
+    subtitle: localized('Highlight timely information for the right audience.', '向合适的对象突出显示及时信息。'),
+    tone: 'primary',
+  },
   events: {
     icon: 'calendar',
     title: localized('Featured event', '精选活动'),

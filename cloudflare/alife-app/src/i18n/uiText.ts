@@ -25,6 +25,7 @@ const text = {
   members: { en: 'Members', zh: '成员' },
   pages: { en: 'Pages', zh: '页面' },
   events: { en: 'Events', zh: '活动' },
+  announcements: { en: 'Announcements', zh: '公告' },
   manageGroup: { en: 'Manage group', zh: '管理小组' },
   exitEditor: { en: 'Exit editor', zh: '退出编辑器' },
   backToGroup: { en: 'Back to group', zh: '返回小组' },

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowRightLeft, CalendarDays, Crown, FileText, Network, Settings, ShieldCheck, UserPlus, UserMinus, UsersRound } from 'lucide-react'
+import { ArrowRightLeft, Bell, CalendarDays, Crown, FileText, Network, Settings, ShieldCheck, UserPlus, UserMinus, UsersRound } from 'lucide-react'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
 import AppEmptyState from '../components/layout/AppEmptyState'
@@ -20,6 +20,7 @@ import { groupService } from '../services/groupService'
 import { confirmUnsavedChangesNavigation, setUnsavedChangesGuard } from '../utils/unsavedChangesGuard'
 import type { GroupPageDto, PageVisibility } from '../types/group'
 import type { GroupEventRecord } from '../types/event'
+import AnnouncementManagementPanel from '../components/group/AnnouncementManagementPanel'
 
 const shortId = (value: string) => (value.length > 8 ? value.slice(0, 8) : value)
 
@@ -36,9 +37,9 @@ const formatPlatformRole = (role: string | undefined | null, language: string) =
   return ''
 }
 
-type ManageSection = 'members' | 'events' | 'pages' | 'subgroups' | 'group'
+type ManageSection = 'announcements' | 'members' | 'events' | 'pages' | 'subgroups' | 'group'
 
-const manageSectionKeys: ManageSection[] = ['pages', 'members', 'events', 'subgroups', 'group']
+const manageSectionKeys: ManageSection[] = ['pages', 'announcements', 'members', 'events', 'subgroups', 'group']
 
 const normalizeManageSection = (value: string | null): ManageSection =>
   manageSectionKeys.includes(value as ManageSection) ? value as ManageSection : 'pages'
@@ -56,6 +57,7 @@ const managementCopy = (language: string, isChurch?: boolean) => {
       eventsHint: '创建活动、维护报名和后续回顾',
       pages: '页面',
       pagesHint: '发布页面和小组资料',
+      announcements: '公告',
       subgroups: '下属小组',
       subgroupsHint: '管理小组结构和负责人',
       settings: '设置',
@@ -89,6 +91,7 @@ const managementCopy = (language: string, isChurch?: boolean) => {
       eventsHint: 'Create events, manage enrollment, and capture memories',
       pages: 'Pages',
       pagesHint: 'Published pages and group resources',
+      announcements: 'Announcements',
       subgroups: 'Subgroups',
       subgroupsHint: 'Team structure and leaders',
       settings: 'Settings',
@@ -195,6 +198,7 @@ const ManagementTabs = ({
 }) => {
   const items = [
     { key: 'pages' as ManageSection, label: copy.pages, icon: <FileText className="h-4 w-4" /> },
+    { key: 'announcements' as ManageSection, label: copy.announcements, icon: <Bell className="h-4 w-4" /> },
     { key: 'members' as ManageSection, label: copy.members, icon: <UsersRound className="h-4 w-4" /> },
     { key: 'events' as ManageSection, label: copy.events, icon: <CalendarDays className="h-4 w-4" /> },
     { key: 'subgroups' as ManageSection, label: copy.subgroups, icon: <Network className="h-4 w-4" /> },
@@ -1017,6 +1021,10 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
                     deleteEvent(eventId).catch(() => setStatusMessage(t('deleteEventFailed')))
                   }}
                 />
+              ) : null}
+
+              {activeSection === 'announcements' ? (
+                <AnnouncementManagementPanel group={group} onMessage={setStatusMessage} />
               ) : null}
             </div>
           ) : null}

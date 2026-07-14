@@ -32,7 +32,8 @@ public sealed class ListNotificationsQueryHandler(IAlifeDbContext dbContext)
                 x.ReadUtc,
                 x.RepliedUtc,
                 x.CreatedUtc,
-                x.UpdatedUtc))
+                x.UpdatedUtc,
+                x.AnnouncementId))
             .ToListAsync(cancellationToken);
 
         return AppResult<IReadOnlyList<NotificationMessageDto>>.Success(notifications);

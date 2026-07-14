@@ -25,6 +25,7 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 	public DbSet<EventEnrollment> EventEnrollments => Set<EventEnrollment>();
 	public DbSet<EventReview> EventReviews => Set<EventReview>();
 	public DbSet<NotificationMessage> NotificationMessages => Set<NotificationMessage>();
+	public DbSet<Announcement> Announcements => Set<Announcement>();
 	public DbSet<VisitContactRequest> VisitContactRequests => Set<VisitContactRequest>();
 	public DbSet<ForumCategory> ForumCategories => Set<ForumCategory>();
 	public DbSet<ForumPost> ForumPosts => Set<ForumPost>();
@@ -380,9 +381,37 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 				.HasForeignKey(x => x.EventId)
 				.OnDelete(DeleteBehavior.Restrict);
 
+			cfg.HasOne(x => x.Announcement)
+				.WithMany(x => x.Notifications)
+				.HasForeignKey(x => x.AnnouncementId)
+				.OnDelete(DeleteBehavior.Restrict);
+
 			cfg.HasIndex(x => new { x.RecipientMemberId, x.RepliedUtc, x.OccurredUtc });
 			cfg.HasIndex(x => new { x.GroupId, x.UpdatedUtc });
 			cfg.HasIndex(x => x.EventId);
+			cfg.HasIndex(x => x.AnnouncementId);
+			cfg.HasIndex(x => x.CreatedByMemberId);
+		});
+
+		modelBuilder.Entity<Announcement>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.TitleJson).IsRequired();
+			cfg.Property(x => x.SummaryJson).IsRequired();
+			cfg.Property(x => x.ContentJson).HasColumnType("nvarchar(max)");
+
+			cfg.HasOne(x => x.Group)
+				.WithMany()
+				.HasForeignKey(x => x.GroupId)
+				.OnDelete(DeleteBehavior.Restrict);
+
+			cfg.HasOne(x => x.CreatedByMember)
+				.WithMany()
+				.HasForeignKey(x => x.CreatedByMemberId)
+				.OnDelete(DeleteBehavior.Restrict);
+
+			cfg.HasIndex(x => new { x.GroupId, x.Status, x.PublishUtc, x.ExpireUtc });
+			cfg.HasIndex(x => new { x.IsPinned, x.Priority, x.PublishUtc });
 			cfg.HasIndex(x => x.CreatedByMemberId);
 		});
 

@@ -8,6 +8,7 @@ import type {
 } from '../types'
 import type { ListViewMetadata } from '../types/page-editor'
 import type { GroupSummaryDto } from '../types'
+import type { AnnouncementDto } from '../types/announcement'
 import type { GroupEventRecord } from '../types/event'
 import type { SermonDto } from '../services/sermonService'
 import { translateUi, type UiTextKey } from '../i18n/uiText'
@@ -39,7 +40,7 @@ export type SpotlightResolvedContent = {
   actions: SpotlightActionLink[]
 }
 
-export const SPOTLIGHT_DATA_SOURCES: SpotlightDataSource[] = ['events', 'sermons', 'groups', 'members']
+export const SPOTLIGHT_DATA_SOURCES: SpotlightDataSource[] = ['announcements', 'events', 'sermons', 'groups', 'members']
 
 const trimString = (value: unknown) => typeof value === 'string' ? value.trim() : ''
 
@@ -89,6 +90,8 @@ const accessTypeLabel = (accessType: unknown, language: string) => {
 
 const spotlightSourceLabelKey = (source: SpotlightDataSource): UiTextKey => {
   switch (source) {
+    case 'announcements':
+      return 'announcements'
     case 'groups':
       return 'groups'
     case 'members':
@@ -103,6 +106,8 @@ const spotlightSourceLabelKey = (source: SpotlightDataSource): UiTextKey => {
 
 export const defaultSpotlightPreset = (source: SpotlightDataSource): SpotlightPreset => {
   switch (source) {
+    case 'announcements':
+      return 'latest'
     case 'events':
       return 'upcoming'
     case 'groups':
@@ -167,7 +172,7 @@ export const buildSpotlightMetadata = (binding: SpotlightBinding): ListViewMetad
   const normalized = readSpotlightBinding({ spotlight: binding })
   return normalizeListViewMetadata({
     sourceType: normalized.source,
-    source: normalized.source === 'members' ? 'groups' : normalized.source,
+    source: normalized.source === 'members' ? 'groups' : normalized.source === 'announcements' ? undefined : normalized.source,
     sourceScope: normalized.source === 'sermons' ? 'global' : 'group',
     preset: normalized.preset,
     limit: normalized.itemId ? 50 : 1,
@@ -230,6 +235,16 @@ export const resolveSpotlightSourceLabel = (binding: SpotlightBinding, language:
 }
 
 export const resolveDataSpotlightContent = (source: SpotlightDataSource, item: unknown, language: string): SpotlightResolvedContent => {
+  if (source === 'announcements') {
+    const announcement = item as AnnouncementDto
+    return {
+      title: localizeText(announcement.title, language),
+      subtitle: localizeText(announcement.summary, language),
+      body: localizeText(announcement.content, language),
+      actions: [],
+    }
+  }
+
   if (source === 'sermons') {
     const sermon = item as SermonDto
     const videoId = extractYouTubeVideoId(sermon.videoUrl)
