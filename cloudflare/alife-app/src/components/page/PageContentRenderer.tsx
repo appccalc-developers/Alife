@@ -67,6 +67,9 @@ const createEmptyRichTextSection = (): SectionEditModel => ({
 })
 
 export const createEmptyPageSection = (type: SectionType = 'RichText'): SectionEditModel => {
+  if (type === 'Album') {
+    return { order: 0, type: 'Album', contentJson: { spacing: 'normal', albumId: '' }, styleJson: { layout: 'grid' } }
+  }
   if (type === 'LandingHero') {
     const title = localized('A spiritual home in the light of the South Island.', '在南岛的光里，找到一个属灵的家。')
     const body = localized(

@@ -201,6 +201,7 @@ const sectionTypeMapByNumber: Record<number, SectionEditModel['type']> = {
   21: 'Countdown',
   22: 'ContactLocation',
   23: 'Spotlight',
+  24: 'Album',
 }
 
 const normalizeSectionType = (value: number | string): SectionEditModel['type'] => {
@@ -224,6 +225,7 @@ const normalizeSectionType = (value: number | string): SectionEditModel['type'] 
     gallery: 'ListView',
     mediaGallery: 'ListView',
     listView: 'ListView',
+    album: 'Album',
     pageList: 'ListView',
     sermonList: 'ListView',
   }
@@ -243,12 +245,13 @@ const normalizeSectionType = (value: number | string): SectionEditModel['type'] 
     MediaGallery: 'ListView',
     EventList: 'ListView',
     GroupList: 'ListView',
+    Album: 'Album',
   }
   if (legacySectionTypeMap[normalized]) {
     return legacySectionTypeMap[normalized]
   }
 
-  const values = ['LandingHero', 'Countdown', 'ContactLocation', 'Spotlight', 'RichText', 'ListView'] as const
+  const values = ['LandingHero', 'Countdown', 'ContactLocation', 'Spotlight', 'RichText', 'ListView', 'Album'] as const
   return values.includes(normalized as (typeof values)[number]) ? (normalized as SectionEditModel['type']) : 'RichText'
 }
 

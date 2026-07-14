@@ -5,6 +5,7 @@ import { useAuthStore } from '../../stores/auth'
 import AppRouteLoading from '../components/AppRouteLoading'
 
 const AdminView = lazy(() => import('../../views/AdminView'))
+const AlbumView = lazy(() => import('../../views/AlbumView'))
 const BibleStudyView = lazy(() => import('../../views/BibleStudyView'))
 const EventCreatorView = lazy(() => import('../../views/EventCreatorView'))
 const EventDetailView = lazy(() => import('../../views/EventDetailView'))
@@ -91,6 +92,8 @@ const AppRoutes = () => {
           <Route path="/groups/:groupId/join" element={<GroupJoinView />} />
           <Route path="/groups/:groupId/manage" element={<GroupManageView />} />
           <Route path="/groups/:groupId/manage/invite-members" element={<InviteMembersView />} />
+          <Route path="/groups/:groupId/albums" element={<AlbumView />} />
+          <Route path="/groups/:groupId/albums/:albumId" element={<AlbumView />} />
           <Route path="/forum" element={<ForumView />} />
           <Route path="/forum/posts/:postId" element={<ForumPostView />} />
           <Route path="/public/pages/:pageId" element={<PageView />} />
