@@ -85,6 +85,7 @@ export const eventService = {
       startDate: eventDto.startDate,
       endDate: eventDto.endDate,
       eventDataJson,
+      contactProfileIds: eventDto.contactProfileIds ?? [],
       missionStatements: aiContext?.missionStatements ?? [],
       eventContext: aiContext?.eventContext ?? { eventDataJson, eventData: eventDto },
     })
@@ -111,6 +112,7 @@ export const eventService = {
       startDate: eventDto.startDate,
       endDate: eventDto.endDate,
       eventDataJson,
+      contactProfileIds: eventDto.contactProfileIds ?? [],
       missionStatements: aiContext?.missionStatements ?? [],
       eventContext: aiContext?.eventContext ?? { eventDataJson, eventData: eventDto },
     })

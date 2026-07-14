@@ -27,6 +27,9 @@ public interface IAlifeDbContext
     DbSet<NotificationMessage> NotificationMessages { get; }
     DbSet<Announcement> Announcements { get; }
     DbSet<VisitContactRequest> VisitContactRequests { get; }
+    DbSet<ContactProfile> ContactProfiles { get; }
+    DbSet<EventContactProfile> EventContactProfiles { get; }
+    DbSet<ContactInquiry> ContactInquiries { get; }
     DbSet<ForumCategory> ForumCategories { get; }
     DbSet<ForumPost> ForumPosts { get; }
     DbSet<ForumComment> ForumComments { get; }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowRightLeft, ArrowUpRight, Bell, CalendarDays, Images, Crown, FileText, Loader2, Network, Pencil, Settings, ShieldCheck, UserPlus, UserMinus, UsersRound, X } from 'lucide-react'
+import { ArrowRightLeft, ArrowUpRight, Bell, CalendarDays, ContactRound, Images, Crown, FileText, Loader2, Network, Pencil, Settings, ShieldCheck, UserPlus, UserMinus, UsersRound, X } from 'lucide-react'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
 import AppEmptyState from '../components/layout/AppEmptyState'
@@ -21,6 +21,7 @@ import { confirmUnsavedChangesNavigation, setUnsavedChangesGuard } from '../util
 import type { GroupPageDto, PageVisibility } from '../types/group'
 import type { GroupEventRecord } from '../types/event'
 import AnnouncementManagementPanel from '../components/group/AnnouncementManagementPanel'
+import ContactManagementPanel from '../components/group/ContactManagementPanel'
 import RegionalPhoneInput from '../components/forms/RegionalPhoneInput'
 import { isValidPhoneNumber } from '../utils/phoneNumber'
 
@@ -39,9 +40,9 @@ const formatPlatformRole = (role: string | undefined | null, language: string) =
   return ''
 }
 
-type ManageSection = 'announcements' | 'members' | 'events' | 'albums' | 'pages' | 'subgroups' | 'group'
+type ManageSection = 'announcements' | 'contacts' | 'members' | 'events' | 'albums' | 'pages' | 'subgroups' | 'group'
 
-const manageSectionKeys: ManageSection[] = ['members', 'subgroups', 'events', 'announcements', 'albums', 'pages', 'group']
+const manageSectionKeys: ManageSection[] = ['members', 'contacts', 'subgroups', 'events', 'announcements', 'albums', 'pages', 'group']
 
 const normalizeManageSection = (value: string | null): ManageSection =>
   manageSectionKeys.includes(value as ManageSection) ? value as ManageSection : 'pages'
@@ -55,6 +56,8 @@ const managementCopy = (language: string, isChurch?: boolean) => {
       back: `返回${workspace}`,
       members: '成员',
       membersHint: '审批、邀请、角色和成员状态',
+      contacts: '联系人',
+      contactsHint: '联系人资料、公开范围和留言入口',
       events: '活动',
       eventsHint: '创建活动、维护报名和后续回顾',
       pages: '页面',
@@ -91,6 +94,8 @@ const managementCopy = (language: string, isChurch?: boolean) => {
       back: `Back to ${workspace.toLowerCase()}`,
       members: 'Members',
       membersHint: 'Approvals, invitations, roles, and member status',
+      contacts: 'Contacts',
+      contactsHint: 'Profiles, visibility, and inquiry entry points',
       events: 'Events',
       eventsHint: 'Create events, manage enrollment, and capture memories',
       pages: 'Pages',
@@ -241,6 +246,7 @@ const ManagementTabs = ({
 }) => {
   const items = [
     { key: 'members' as ManageSection, label: copy.members, icon: <UsersRound className="h-4 w-4" /> },
+    { key: 'contacts' as ManageSection, label: copy.contacts, icon: <ContactRound className="h-4 w-4" /> },
     { key: 'subgroups' as ManageSection, label: copy.subgroups, icon: <Network className="h-4 w-4" /> },
     { key: 'events' as ManageSection, label: copy.events, icon: <CalendarDays className="h-4 w-4" /> },
     { key: 'announcements' as ManageSection, label: copy.announcements, icon: <Bell className="h-4 w-4" /> },
@@ -1161,6 +1167,10 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
                   onSetCoLeader={(memberId, isCoLeader) => setCoLeader(memberId, isCoLeader).catch(() => setStatusMessage(t('updateCoLeaderFailed')))}
                   onProfileUpdated={() => refreshMemberships().then(() => undefined)}
                 />
+              ) : null}
+
+              {activeSection === 'contacts' ? (
+                <ContactManagementPanel groupId={groupId} memberships={memberships} />
               ) : null}
 
               {activeSection === 'pages' ? (

@@ -7,6 +7,7 @@ import AppRouteLoading from '../components/AppRouteLoading'
 const AdminView = lazy(() => import('../../views/AdminView'))
 const AlbumView = lazy(() => import('../../views/AlbumView'))
 const BibleStudyView = lazy(() => import('../../views/BibleStudyView'))
+const ContactDetailView = lazy(() => import('../../views/ContactDetailView'))
 const EventCreatorView = lazy(() => import('../../views/EventCreatorView'))
 const EventDetailView = lazy(() => import('../../views/EventDetailView'))
 const EventEnrollmentView = lazy(() => import('../../views/EventEnrollmentView'))
@@ -94,6 +95,7 @@ const AppRoutes = () => {
           <Route path="/groups/:groupId/manage/invite-members" element={<InviteMembersView />} />
           <Route path="/groups/:groupId/albums" element={<AlbumView />} />
           <Route path="/groups/:groupId/albums/:albumId" element={<AlbumView />} />
+          <Route path="/groups/:groupId/contacts/:contactId" element={<ContactDetailView />} />
           <Route path="/forum" element={<ForumView />} />
           <Route path="/forum/posts/:postId" element={<ForumPostView />} />
           <Route path="/public/pages/:pageId" element={<PageView />} />

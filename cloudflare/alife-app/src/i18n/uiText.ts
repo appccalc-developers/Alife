@@ -23,6 +23,7 @@ const text = {
   churchGroup: { en: 'Church Group', zh: '教会小组' },
   subgroups: { en: 'Subgroups', zh: '子小组' },
   members: { en: 'Members', zh: '成员' },
+  contacts: { en: 'Contacts', zh: '联系人' },
   pages: { en: 'Pages', zh: '页面' },
   events: { en: 'Events', zh: '活动' },
   announcements: { en: 'Announcements', zh: '公告' },

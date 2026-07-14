@@ -18,6 +18,8 @@ import { useAuthStore } from '../stores/auth'
 import type { EventEnrollmentRecord } from '../types/enrollment'
 import type { EventDto, GroupEventRecord, MultilingualString } from '../types/event'
 import type { EventReviewRecord } from '../types/review'
+import { contactService } from '../services/contactService'
+import type { ContactProfileDto } from '../types/contact'
 
 type EventDetailSection = 'notice' | 'enrollments' | 'memories'
 
@@ -205,7 +207,7 @@ const isBeforeDeadline = (deadline: string | null | undefined) => {
   return Number.isFinite(time) ? Date.now() <= time : true
 }
 
-const EventNoticePanel = ({ event, eventDto, language }: { event: GroupEventRecord; eventDto: EventDto; language: string }) => {
+const EventNoticePanel = ({ event, eventDto, language, contacts }: { event: GroupEventRecord; eventDto: EventDto; language: string; contacts: ContactProfileDto[] }) => {
   const text = getLabels(language)
   const title = localized(eventDto.title, language) || event.titleEn || event.titleZh
   const description = localized(eventDto.description, language)
@@ -298,6 +300,19 @@ const EventNoticePanel = ({ event, eventDto, language }: { event: GroupEventReco
               </li>
             ))}
           </ul>
+        </AppSectionCard>
+      ) : null}
+
+      {contacts.length ? (
+        <AppSectionCard dense title={language === 'zh' ? '活动联系人' : 'Event contacts'}>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {contacts.map((contact) => (
+              <Link key={contact.id} to={`/groups/${contact.ownerGroupId}/contacts/${contact.id}`} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3 transition hover:border-emerald-300 hover:bg-emerald-50/50">
+                {contact.photoUrl ? <img src={contact.photoUrl} alt="" className="h-12 w-12 rounded-lg object-cover" /> : null}
+                <span><span className="block font-bold text-slate-950">{localized(contact.name as MultilingualString, language)}</span><span className="block text-sm text-slate-500">{localized(contact.role as MultilingualString, language)}</span></span>
+              </Link>
+            ))}
+          </div>
         </AppSectionCard>
       ) : null}
 
@@ -599,6 +614,7 @@ const EventDetailView = () => {
   const [event, setEvent] = useState<GroupEventRecord | null>(null)
   const [enrollments, setEnrollments] = useState<EventEnrollmentRecord[]>([])
   const [reviews, setReviews] = useState<EventReviewRecord[]>([])
+  const [contacts, setContacts] = useState<ContactProfileDto[]>([])
   const [loading, setLoading] = useState(true)
   const [relatedLoading, setRelatedLoading] = useState(false)
   const [error, setError] = useState('')
@@ -631,12 +647,16 @@ const EventDetailView = () => {
       eventService.getGroupEvents(groupId),
       enrollmentSessionService.listEventEnrollments(eventId).catch(() => [] as EventEnrollmentRecord[]),
       reviewSessionService.listEventReviews(eventId).catch(() => [] as EventReviewRecord[]),
+      contactService.list(groupId).catch(() => [] as ContactProfileDto[]),
     ])
-      .then(([events, nextEnrollments, nextReviews]) => {
+      .then(([events, nextEnrollments, nextReviews, groupContacts]) => {
         if (cancelled) return
-        setEvent(events.find((item) => item.id === eventId) ?? null)
+        const nextEvent = events.find((item) => item.id === eventId) ?? null
+        setEvent(nextEvent)
         setEnrollments(nextEnrollments)
         setReviews(nextReviews)
+        const ids = new Set(nextEvent?.contactProfileIds ?? [])
+        setContacts(groupContacts.filter((contact) => ids.has(contact.id)))
       })
       .catch(() => {
         if (!cancelled) {
@@ -708,7 +728,7 @@ const EventDetailView = () => {
               onRefresh={refreshRelated}
             />
           ) : (
-            <EventNoticePanel event={event} eventDto={eventDto} language={language} />
+            <EventNoticePanel event={event} eventDto={eventDto} language={language} contacts={contacts} />
           )}
         </>
       ) : null}

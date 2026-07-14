@@ -11,4 +11,5 @@ public sealed record UpdateGroupEventCommand(
     string TitleZh,
     DateTime StartDate,
     DateTime EndDate,
-    string EventDataJson) : IRequest<AppResult<GroupEventSummaryDto>>;
+    string EventDataJson,
+    IReadOnlyList<Guid>? ContactProfileIds = null) : IRequest<AppResult<GroupEventSummaryDto>>;

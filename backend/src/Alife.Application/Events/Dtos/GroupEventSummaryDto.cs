@@ -11,4 +11,5 @@ public record GroupEventSummaryDto(
     DateTime EndDate,
     string EventDataJson,
     DateTime CreatedUtc,
-    DateTime UpdatedUtc);
+    DateTime UpdatedUtc,
+    IReadOnlyList<Guid>? ContactProfileIds = null);

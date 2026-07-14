@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { CalendarDays, ChevronRight, FileText, MicVocal, UserRound, Users } from 'lucide-react'
+import { CalendarDays, ChevronRight, ContactRound, FileText, MicVocal, UserRound, Users } from 'lucide-react'
 import { useListSourceResolver } from '../../hooks/useListSourceResolver'
 import type { ListViewMetadata } from '../../types/page-editor'
 import { normalizeListViewMetadata } from '../../utils/listViewMetadata'
@@ -14,6 +14,7 @@ import { useAuthStore } from '../../stores/auth'
 import { translateUi, type UiTextKey, useUiText } from '../../i18n/uiText'
 import { activeEntityService } from '../../services/activeEntityService'
 import { buildSermonVideoPath, extractYouTubeVideoId } from '../../utils/youtube'
+import type { ContactProfileDto } from '../../types/contact'
 
 // ---------- Universal Card Interface ----------
 
@@ -24,7 +25,7 @@ export interface UniversalCardItem {
   imageUrl?: string
   date?: string
   url: string
-  type: 'sermon' | 'event' | 'page' | 'member' | 'subgroup'
+  type: 'sermon' | 'event' | 'page' | 'member' | 'contact' | 'subgroup'
   groupId?: string
 }
 
@@ -114,6 +115,18 @@ export function eventToCardItem(event: GroupEventRecord, language = 'en'): Unive
   }
 }
 
+export function contactToCardItem(contact: ContactProfileDto, language = 'en'): UniversalCardItem {
+  return {
+    id: contact.id,
+    title: localizeText(contact.name, language),
+    subtitle: localizeText(contact.role, language),
+    imageUrl: contact.photoUrl || undefined,
+    url: `/groups/${contact.ownerGroupId}/contacts/${contact.id}`,
+    type: 'contact',
+    groupId: contact.ownerGroupId,
+  }
+}
+
 // ---------- Card Component ----------
 
 const sourceTypeLabels: Record<string, UiTextKey> = {
@@ -123,6 +136,7 @@ const sourceTypeLabels: Record<string, UiTextKey> = {
   subgroups: 'subgroups',
   groups: 'groups',
   members: 'members',
+  contacts: 'contacts',
   media: 'media',
   posts: 'posts',
 }
@@ -130,6 +144,7 @@ const sourceTypeLabels: Record<string, UiTextKey> = {
 const fallbackIcons = {
   event: CalendarDays,
   member: UserRound,
+  contact: ContactRound,
   page: FileText,
   sermon: MicVocal,
   subgroup: Users,
@@ -214,6 +229,7 @@ const adapterMap: Record<string, (item: any) => UniversalCardItem> = {
   members: memberToCardItem,
   pages: pageToCardItem,
   events: eventToCardItem,
+  contacts: contactToCardItem,
 }
 
 export const GroupListSection: React.FC<GroupListSectionProps> = ({ metadata, groupId, compact }) => {
@@ -234,6 +250,9 @@ export const GroupListSection: React.FC<GroupListSectionProps> = ({ metadata, gr
     }
     if (resolvedSourceType === 'events') {
       return (data ?? []).map((item: GroupEventRecord) => eventToCardItem(item, language)).filter(Boolean)
+    }
+    if (resolvedSourceType === 'contacts') {
+      return (data ?? []).map((item: ContactProfileDto) => contactToCardItem(item, language)).filter(Boolean)
     }
     const adapter = adapterMap[resolvedSourceType]
     if (!adapter || !data) return []

@@ -51,7 +51,8 @@ public class EventsController(
                 request.TitleZh,
                 request.StartDate,
                 request.EndDate,
-                request.EventDataJson),
+                request.EventDataJson,
+                request.ContactProfileIds ?? []),
             cancellationToken);
 
         return this.ToActionResult(result);
@@ -74,7 +75,8 @@ public class EventsController(
                 request.TitleZh,
                 request.StartDate,
                 request.EndDate,
-                request.EventDataJson),
+                request.EventDataJson,
+                request.ContactProfileIds ?? []),
             cancellationToken);
 
         return this.ToActionResult(result);
@@ -98,12 +100,14 @@ public class EventsController(
         string TitleZh,
         DateTime StartDate,
         DateTime EndDate,
-        string EventDataJson);
+        string EventDataJson,
+        IReadOnlyList<Guid>? ContactProfileIds);
 
     public record UpdateGroupEventRequest(
         string TitleEn,
         string TitleZh,
         DateTime StartDate,
         DateTime EndDate,
-        string EventDataJson);
+        string EventDataJson,
+        IReadOnlyList<Guid>? ContactProfileIds);
 }

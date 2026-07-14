@@ -32,6 +32,14 @@ public sealed class CreateGroupEventCommandHandler(
             return AppResult<GroupEventSummaryDto>.Forbidden("Only group leaders and co-leaders can create events.");
         }
 
+        var contactProfileIds = (request.ContactProfileIds ?? []).Distinct().ToArray();
+        var validContactCount = await dbContext.ContactProfiles.AsNoTracking().CountAsync(
+            x => x.OwnerGroupId == request.GroupId && contactProfileIds.Contains(x.Id), cancellationToken);
+        if (validContactCount != contactProfileIds.Length)
+        {
+            return AppResult<GroupEventSummaryDto>.Validation("Every event contact must belong to the event group.");
+        }
+
         var now = DateTime.UtcNow;
         var groupEvent = new GroupEvent
         {
@@ -48,6 +56,11 @@ public sealed class CreateGroupEventCommandHandler(
         };
 
         dbContext.GroupEvents.Add(groupEvent);
+        dbContext.EventContactProfiles.AddRange(contactProfileIds.Select(contactProfileId => new EventContactProfile
+        {
+            EventId = groupEvent.Id,
+            ContactProfileId = contactProfileId
+        }));
         var recipientMemberIds = await dbContext.GroupMemberships
             .AsNoTracking()
             .Where(x => x.GroupId == request.GroupId && x.Status == MembershipStatus.Approved)
@@ -87,10 +100,10 @@ public sealed class CreateGroupEventCommandHandler(
         await dbContext.SaveChangesAsync(cancellationToken);
         await eventCacheInvalidationService.RemoveGroupEventsAsync(request.GroupId, cancellationToken);
 
-        return AppResult<GroupEventSummaryDto>.Success(ToDto(groupEvent));
+        return AppResult<GroupEventSummaryDto>.Success(ToDto(groupEvent, contactProfileIds));
     }
 
-    private static GroupEventSummaryDto ToDto(GroupEvent e) =>
+    private static GroupEventSummaryDto ToDto(GroupEvent e, IReadOnlyList<Guid> contactProfileIds) =>
         new(e.Id, e.GroupId, e.CreatedByMemberId, e.TitleEn, e.TitleZh,
-            e.StartDate, e.EndDate, e.EventDataJson, e.CreatedUtc, e.UpdatedUtc);
+            e.StartDate, e.EndDate, e.EventDataJson, e.CreatedUtc, e.UpdatedUtc, contactProfileIds);
 }

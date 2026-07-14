@@ -27,7 +27,8 @@ public sealed class EventReadService(AlifeDbContext dbContext, HybridCache hybri
                             e.EndDate,
                             e.EventDataJson,
                             e.CreatedUtc,
-                            e.UpdatedUtc))
+                            e.UpdatedUtc,
+                            e.ContactProfiles.Select(x => x.ContactProfileId).ToList()))
                         .ToListAsync(token);
 
                     return (IReadOnlyList<GroupEventSummaryDto>)events;

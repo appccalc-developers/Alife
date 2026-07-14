@@ -29,6 +29,9 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 	public DbSet<NotificationMessage> NotificationMessages => Set<NotificationMessage>();
 	public DbSet<Announcement> Announcements => Set<Announcement>();
 	public DbSet<VisitContactRequest> VisitContactRequests => Set<VisitContactRequest>();
+	public DbSet<ContactProfile> ContactProfiles => Set<ContactProfile>();
+	public DbSet<EventContactProfile> EventContactProfiles => Set<EventContactProfile>();
+	public DbSet<ContactInquiry> ContactInquiries => Set<ContactInquiry>();
 	public DbSet<ForumCategory> ForumCategories => Set<ForumCategory>();
 	public DbSet<ForumPost> ForumPosts => Set<ForumPost>();
 	public DbSet<ForumComment> ForumComments => Set<ForumComment>();
@@ -457,6 +460,47 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 			cfg.HasIndex(x => new { x.Status, x.SubmittedUtc });
 			cfg.HasIndex(x => x.HandledByMemberId);
 			cfg.HasIndex(x => x.SubmittedUtc);
+		});
+
+		modelBuilder.Entity<ContactProfile>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.NameJson).IsRequired();
+			cfg.Property(x => x.RoleJson).IsRequired();
+			cfg.Property(x => x.PhotoUrl).HasMaxLength(1200);
+			cfg.Property(x => x.Phone).HasMaxLength(60);
+			cfg.Property(x => x.Email).HasMaxLength(200);
+			cfg.HasOne(x => x.Member).WithMany(x => x.ContactProfiles).HasForeignKey(x => x.MemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.OwnerGroup).WithMany(x => x.ContactProfiles).HasForeignKey(x => x.OwnerGroupId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => new { x.OwnerGroupId, x.MemberId }).IsUnique().HasFilter("[is_deleted] = 0");
+			cfg.HasIndex(x => new { x.OwnerGroupId, x.Visibility, x.UpdatedUtc });
+			cfg.HasQueryFilter(x => !x.IsDeleted);
+		});
+
+		modelBuilder.Entity<EventContactProfile>(cfg =>
+		{
+			cfg.HasKey(x => new { x.EventId, x.ContactProfileId });
+			cfg.HasOne(x => x.Event).WithMany(x => x.ContactProfiles).HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Cascade);
+			cfg.HasOne(x => x.ContactProfile).WithMany(x => x.Events).HasForeignKey(x => x.ContactProfileId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => x.ContactProfileId);
+		});
+
+		modelBuilder.Entity<ContactInquiry>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.DisplayName).HasMaxLength(150).IsRequired();
+			cfg.Property(x => x.Email).HasMaxLength(200);
+			cfg.Property(x => x.Phone).HasMaxLength(60);
+			cfg.Property(x => x.Message).HasMaxLength(2000).IsRequired();
+			cfg.Property(x => x.PreferredLanguage).HasMaxLength(20);
+			cfg.Property(x => x.SourcePage).HasMaxLength(500);
+			cfg.Property(x => x.IpAddress).HasMaxLength(64);
+			cfg.Property(x => x.UserAgent).HasMaxLength(500);
+			cfg.HasOne(x => x.ContactProfile).WithMany(x => x.Inquiries).HasForeignKey(x => x.ContactProfileId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.OwnerGroup).WithMany().HasForeignKey(x => x.OwnerGroupId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.SubmittedByMember).WithMany().HasForeignKey(x => x.SubmittedByMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => new { x.ContactProfileId, x.SubmittedUtc });
+			cfg.HasIndex(x => new { x.OwnerGroupId, x.SubmittedUtc });
 		});
 
 		modelBuilder.Entity<ForumCategory>(cfg =>

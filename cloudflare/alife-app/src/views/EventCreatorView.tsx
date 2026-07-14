@@ -17,6 +17,9 @@ import CoverImage from '../components/CoverImage'
 import { createEventContextFromDto, loadAiContentContext, type AiContentContext } from '../utils/aiContentContext'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { contactService } from '../services/contactService'
+import type { ContactProfileDto } from '../types/contact'
+import { localizeText } from '../utils/localizedText'
 
 // ────────────────────────────────────────────────────────────────────────────
 // Helper sub-components
@@ -252,13 +255,14 @@ const fallbackDraftFromRecord = (record: GroupEventRecord): EventDto => ({
   posterImageUrl: null,
   galleryUrls: [],
   legacySummary: null,
+  contactProfileIds: record.contactProfileIds ?? [],
 })
 
 const getDraftFromRecord = (record: GroupEventRecord): EventDto => {
   try {
     const parsed = JSON.parse(record.eventDataJson) as EventDto
     if (parsed && parsed.title && parsed.description && parsed.locationName) {
-      return { ...parsed, id: record.id }
+      return { ...parsed, id: record.id, contactProfileIds: record.contactProfileIds ?? parsed.contactProfileIds ?? [] }
     }
   } catch {
     // no-op
@@ -363,6 +367,7 @@ const EventCreatorView = () => {
   const [loading, setLoading] = useState(false)
   const [listening, setListening] = useState(false)
   const [eventDraft, setEventDraft] = useState<EventDto | null>(null)
+  const [availableContacts, setAvailableContacts] = useState<ContactProfileDto[]>([])
   const [aiInsight, setAiInsight] = useState<MultilingualString | null>(null)
   const [error, setError] = useState('')
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
@@ -472,6 +477,18 @@ const EventCreatorView = () => {
   }, [CurrentGroup, effectiveGroupId])
 
   useEffect(() => {
+    if (!effectiveGroupId) {
+      setAvailableContacts([])
+      return
+    }
+    let cancelled = false
+    contactService.list(effectiveGroupId)
+      .then((items) => { if (!cancelled) setAvailableContacts(items) })
+      .catch(() => { if (!cancelled) setAvailableContacts([]) })
+    return () => { cancelled = true }
+  }, [effectiveGroupId])
+
+  useEffect(() => {
     if (!isEditMode || !eventId) {
       return
     }
@@ -549,7 +566,10 @@ const EventCreatorView = () => {
         } else {
           nextInsight = response.context ?? nextInsight
         }
-        setEventDraft(dto)
+        setEventDraft((current) => ({
+          ...dto,
+          contactProfileIds: current?.contactProfileIds ?? dto.contactProfileIds ?? [],
+        }))
         setSaveStatus('idle')
         setAiInsight(nextInsight)
         const lang = language === 'zh' ? dto.title.zh : dto.title.en
@@ -820,6 +840,33 @@ const EventCreatorView = () => {
         targetEventId={targetEventId}
         language={language}
       />
+
+      {eventDraft && availableContacts.length > 0 ? (
+        <section className="rounded-2xl border border-[#2f4b42]/10 bg-white/78 p-4 shadow-[0_10px_30px_rgba(31,56,48,0.06)]">
+          <h2 className="text-lg font-black text-[#18332d]">{language === 'zh' ? '活动联系人' : 'Event contacts'}</h2>
+          <p className="mt-1 text-sm text-slate-500">{language === 'zh' ? '可选择一位或多位联系人，他们会显示在活动详情中。' : 'Choose one or more contacts to show with the event.'}</p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {availableContacts.map((contact) => {
+              const selected = (eventDraft.contactProfileIds ?? []).includes(contact.id)
+              return (
+                <label key={contact.id} className={['flex cursor-pointer items-center gap-3 rounded-xl border p-3', selected ? 'border-emerald-300 bg-emerald-50' : 'border-slate-200 bg-white'].join(' ')}>
+                  <input
+                    type="checkbox"
+                    checked={selected}
+                    onChange={() => setEventDraft((current) => {
+                      if (!current) return current
+                      const ids = current.contactProfileIds ?? []
+                      return { ...current, contactProfileIds: selected ? ids.filter((id) => id !== contact.id) : [...ids, contact.id] }
+                    })}
+                  />
+                  {contact.photoUrl ? <img src={contact.photoUrl} alt="" className="h-10 w-10 rounded-lg object-cover" /> : null}
+                  <span><span className="block text-sm font-bold text-slate-950">{localizeText(contact.name, language)}</span><span className="block text-xs text-slate-500">{localizeText(contact.role, language)}</span></span>
+                </label>
+              )
+            })}
+          </div>
+        </section>
+      ) : null}
 
       {/* Chat window */}
       <div className="flex max-h-[50vh] flex-col gap-3 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50 p-4">

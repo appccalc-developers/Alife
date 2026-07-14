@@ -34,6 +34,24 @@ public sealed class UpdateGroupEventCommandHandler(
             return AppResult<GroupEventSummaryDto>.Forbidden("Only group leaders and co-leaders can update events.");
         }
 
+        var contactProfileIds = (request.ContactProfileIds ?? []).Distinct().ToArray();
+        var validContactCount = await dbContext.ContactProfiles.AsNoTracking().CountAsync(
+            x => x.OwnerGroupId == groupEvent.GroupId && contactProfileIds.Contains(x.Id), cancellationToken);
+        if (validContactCount != contactProfileIds.Length)
+        {
+            return AppResult<GroupEventSummaryDto>.Validation("Every event contact must belong to the event group.");
+        }
+
+        var existingContacts = await dbContext.EventContactProfiles
+            .Where(x => x.EventId == groupEvent.Id)
+            .ToListAsync(cancellationToken);
+        dbContext.EventContactProfiles.RemoveRange(existingContacts);
+        dbContext.EventContactProfiles.AddRange(contactProfileIds.Select(contactProfileId => new Alife.Domain.Entities.EventContactProfile
+        {
+            EventId = groupEvent.Id,
+            ContactProfileId = contactProfileId
+        }));
+
         groupEvent.TitleEn = request.TitleEn;
         groupEvent.TitleZh = request.TitleZh;
         groupEvent.StartDate = request.StartDate;
@@ -55,6 +73,7 @@ public sealed class UpdateGroupEventCommandHandler(
             groupEvent.EndDate,
             groupEvent.EventDataJson,
             groupEvent.CreatedUtc,
-            groupEvent.UpdatedUtc));
+            groupEvent.UpdatedUtc,
+            contactProfileIds));
     }
 }

@@ -14,6 +14,8 @@ import type { GroupSummaryDto } from '../types'
 import type { AnnouncementDto } from '../types/announcement'
 import { announcementService } from '../services/announcementService'
 import { useActiveEntityIds } from './useActiveEntityIds'
+import { contactService } from '../services/contactService'
+import type { ContactProfileDto } from '../types/contact'
 
 type MembershipListRow = { memberId: string; status: string; role: string; name?: string; displayName?: string }
 
@@ -62,6 +64,14 @@ const searchableText = (sourceType: ListViewMetadata['sourceType'], item: unknow
         readString(item.status),
         readString(item.role),
       ].join(' ')
+    case 'contacts':
+      return [
+        ...localizedTextValues(item.name),
+        ...localizedTextValues(item.role),
+        ...localizedTextValues(item.notes),
+        readString(item.phone),
+        readString(item.email),
+      ].join(' ')
     case 'pages':
       return [
         ...localizedTextValues(item.title),
@@ -93,6 +103,8 @@ const titleValue = (sourceType: ListViewMetadata['sourceType'], item: unknown) =
       return localizedTextValues(item.name ?? item.title)[0] ?? ''
     case 'members':
       return readString(item.name) || readString(item.displayName) || readString(item.memberId)
+    case 'contacts':
+      return localizedTextValues(item.name)[0] ?? ''
     case 'events':
       return readString(item.titleEn) || readString(item.titleZh)
     default:
@@ -199,6 +211,7 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
         isGlobal = true
         break
       case 'members':
+      case 'contacts':
       case 'subgroups':
       case 'pages':
         isGlobal = false
@@ -221,11 +234,15 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
   const isAnnouncements = enabled && sourceType === 'announcements'
   const isSubgroups = enabled && sourceType === 'subgroups'
   const isMembers = enabled && sourceType === 'members'
+  const isContacts = enabled && sourceType === 'contacts'
   const isGroupPages = enabled && sourceType === 'pages'
   const isEvents = enabled && sourceType === 'events'
   const [announcementsData, setAnnouncementsData] = useState<AnnouncementDto[]>([])
   const [announcementsLoading, setAnnouncementsLoading] = useState(false)
   const [announcementsError, setAnnouncementsError] = useState(false)
+  const [contactsData, setContactsData] = useState<ContactProfileDto[]>([])
+  const [contactsLoading, setContactsLoading] = useState(false)
+  const [contactsError, setContactsError] = useState(false)
 
   useEffect(() => {
     if (!isAnnouncements || !targetGroupId) {
@@ -244,6 +261,23 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
       .finally(() => { if (!cancelled) setAnnouncementsLoading(false) })
     return () => { cancelled = true }
   }, [isAnnouncements, targetGroupId])
+
+  useEffect(() => {
+    if (!isContacts || !targetGroupId) {
+      setContactsData([])
+      setContactsLoading(false)
+      setContactsError(false)
+      return
+    }
+    let cancelled = false
+    setContactsLoading(true)
+    setContactsError(false)
+    contactService.list(targetGroupId)
+      .then((items) => { if (!cancelled) setContactsData(items) })
+      .catch(() => { if (!cancelled) setContactsError(true) })
+      .finally(() => { if (!cancelled) setContactsLoading(false) })
+    return () => { cancelled = true }
+  }, [isContacts, targetGroupId])
 
   // Sermons (always global, always available)
   const sermonsLive = useLiveQuery(
@@ -341,6 +375,8 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
           .filter((m) => m.status === 'approved')
         return applyListViewFilteringAndSorting(items, metadata).slice(0, queryConfig.limit)
       }
+      case 'contacts':
+        return applyListViewFilteringAndSorting(contactsData, metadata).slice(0, queryConfig.limit)
       case 'pages':
         return applyListViewFilteringAndSorting(groupPagesData as any[], metadata).slice(0, queryConfig.limit)
       case 'events':
@@ -351,7 +387,7 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
       default:
         return []
     }
-  }, [sourceType, announcementsData, sermonsData, subgroupsData, membershipsData, groupPagesData, eventsData, metadata, queryConfig.limit, targetGroupId])
+  }, [sourceType, announcementsData, contactsData, sermonsData, subgroupsData, membershipsData, groupPagesData, eventsData, metadata, queryConfig.limit, targetGroupId])
 
   // Determine loading/ready/error state from the active source
   const { isLoading: isCollectionLoading, isReady, isError: hasError } = useMemo(() => {
@@ -359,15 +395,17 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
     if (isSermons) return { isLoading: sermonsLoading, isReady: sermonsReady, isError: sermonsError }
     if (isSubgroups) return { isLoading: subgroupsLoading, isReady: subgroupsReady, isError: subgroupsError }
     if (isMembers) return { isLoading: membershipsLoading, isReady: membershipsReady, isError: membershipsError }
+    if (isContacts) return { isLoading: contactsLoading, isReady: !contactsLoading, isError: contactsError }
     if (isGroupPages) return { isLoading: groupPagesLoading, isReady: groupPagesReady, isError: groupPagesError }
     if (isEvents) return { isLoading: eventsLoading, isReady: eventsReady, isError: eventsError }
     return { isLoading: false, isReady: true, isError: false }
   }, [
     isAnnouncements, announcementsLoading, announcementsError,
-    isSermons, isSubgroups, isMembers, isGroupPages, isEvents,
+    isSermons, isSubgroups, isMembers, isContacts, isGroupPages, isEvents,
     sermonsLoading, sermonsReady, sermonsError,
     subgroupsLoading, subgroupsReady, subgroupsError,
     membershipsLoading, membershipsReady, membershipsError,
+    contactsLoading, contactsError,
     groupPagesLoading, groupPagesReady, groupPagesError,
     eventsLoading, eventsReady, eventsError,
   ])
@@ -385,10 +423,11 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
     if (isSermons) return new Error('Failed to load sermons')
     if (isSubgroups) return new Error('Failed to load subgroups')
     if (isMembers) return new Error('Failed to load members')
+    if (isContacts) return new Error('Failed to load contacts')
     if (isGroupPages) return new Error('Failed to load pages')
     if (isEvents) return new Error('Failed to load events')
     return null
-  }, [hasError, isAnnouncements, isSermons, isSubgroups, isMembers, isGroupPages, isEvents])
+  }, [hasError, isAnnouncements, isSermons, isSubgroups, isMembers, isContacts, isGroupPages, isEvents])
 
   return {
     data: result,
