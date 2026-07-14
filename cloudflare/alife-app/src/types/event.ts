@@ -34,6 +34,7 @@ export type EventDto = {
   posterImageUrl?: string | null
   galleryUrls: string[]
   legacySummary?: MultilingualString | null
+  contactProfileIds?: string[]
 }
 
 export type ExtractEventFromChatResponse = {
@@ -69,4 +70,5 @@ export type GroupEventRecord = {
   eventDataJson: string
   createdUtc: string
   updatedUtc: string
+  contactProfileIds?: string[]
 }

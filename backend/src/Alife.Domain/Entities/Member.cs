@@ -20,4 +20,5 @@ public class Member
 	public ICollection<ForumPost> ForumPosts { get; set; } = [];
 	public ICollection<ForumComment> ForumComments { get; set; } = [];
 	public BibleReadingProgress? BibleReadingProgress { get; set; }
+	public ICollection<ContactProfile> ContactProfiles { get; set; } = [];
 }

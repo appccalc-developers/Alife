@@ -37,7 +37,7 @@ const applyHeaderPreset = (currentHeader: unknown, preset: HeaderPreset): Sectio
   }
 }
 
-export const LIST_VIEW_SOURCES: ListViewSource[] = ['events', 'sermons', 'groups', 'pages', 'members', 'media', 'posts']
+export const LIST_VIEW_SOURCES: ListViewSource[] = ['events', 'sermons', 'groups', 'pages', 'members', 'contacts', 'media', 'posts']
 
 const listSourcePresets: Record<ListViewSource, ListSourcePreset> = {
   events: {
@@ -88,6 +88,16 @@ const listSourcePresets: Record<ListViewSource, ListSourcePreset> = {
     preset: 'latest',
     limit: 8,
     tone: 'rose',
+  },
+  contacts: {
+    icon: 'handshake',
+    title: localized('Contact our team', '联系我们的团队'),
+    subtitle: localized('Show the right people for questions, care, and next steps.', '展示可回应问题、关怀与下一步的联系人。'),
+    sourceType: 'contacts',
+    sourceScope: 'group',
+    preset: 'latest',
+    limit: 8,
+    tone: 'fresh',
   },
   media: {
     icon: 'image',
@@ -162,6 +172,12 @@ const spotlightSourcePresets: Record<SpotlightDataSource, HeaderPreset> = {
     title: localized('Featured member', '精选成员'),
     subtitle: localized('Introduce a member story or ministry connection.', '介绍成员故事或服事连接。'),
     tone: 'rose',
+  },
+  contacts: {
+    icon: 'handshake',
+    title: localized('Featured contact', '推荐联系人'),
+    subtitle: localized('Connect people with the right ministry contact.', '帮助大家联系合适的服事联系人。'),
+    tone: 'fresh',
   },
 }
 

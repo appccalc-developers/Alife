@@ -17,4 +17,5 @@ public class Group
 	public Group? ParentGroup { get; set; }
 	public ICollection<Group> Subgroups { get; set; } = [];
 	public ICollection<GroupMembership> Memberships { get; set; } = [];
+	public ICollection<ContactProfile> ContactProfiles { get; set; } = [];
 }

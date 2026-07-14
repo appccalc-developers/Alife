@@ -21,7 +21,7 @@ export type SectionAction = {
   url?: string
 }
 export type SpotlightMode = 'manual' | 'data'
-export type SpotlightDataSource = 'announcements' | 'events' | 'sermons' | 'groups' | 'members'
+export type SpotlightDataSource = 'announcements' | 'events' | 'sermons' | 'groups' | 'members' | 'contacts'
 export type SpotlightPreset = 'latest' | 'upcoming' | 'featured' | 'recent' | 'all'
 export type SpotlightBinding = {
   mode?: SpotlightMode
@@ -35,7 +35,7 @@ export type SpotlightMedia = {
   alt?: LocalizedText
   position?: 'left' | 'right'
 }
-export type ListViewSource = 'events' | 'sermons' | 'groups' | 'pages' | 'members' | 'media' | 'posts'
+export type ListViewSource = 'events' | 'sermons' | 'groups' | 'pages' | 'members' | 'contacts' | 'media' | 'posts'
 export type ListViewLayout = 'grid' | 'list' | 'cards' | 'carousel' | 'coverflow'
 
 export type SectionContentJson = Record<string, unknown> & {
@@ -50,7 +50,7 @@ export type SectionContentJson = Record<string, unknown> & {
   layout?: ListViewLayout
 }
 
-export type ListSourceType = 'announcements' | 'sermons' | 'pages' | 'subgroups' | 'events' | 'members' | 'groups' | 'media' | 'posts'
+export type ListSourceType = 'announcements' | 'sermons' | 'pages' | 'subgroups' | 'events' | 'members' | 'contacts' | 'groups' | 'media' | 'posts'
 export type ListSourceScope = 'group' | 'global'
 export type ListSortBy = 'source' | 'date' | 'title'
 export type ListSortDirection = 'asc' | 'desc'

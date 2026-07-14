@@ -11,6 +11,7 @@ import type { GroupSummaryDto } from '../types'
 import type { AnnouncementDto } from '../types/announcement'
 import type { GroupEventRecord } from '../types/event'
 import type { SermonDto } from '../services/sermonService'
+import type { ContactProfileDto } from '../types/contact'
 import { translateUi, type UiTextKey } from '../i18n/uiText'
 import { normalizeListViewMetadata } from './listViewMetadata'
 import { localizeText } from './localizedText'
@@ -27,7 +28,7 @@ export type SpotlightMemberRecord = {
 export type SpotlightActionLink = {
   label: string
   url: string
-  entityType?: 'group' | 'event' | 'sermon'
+  entityType?: 'group' | 'event' | 'sermon' | 'contact'
   entityId?: string
   groupId?: string
 }
@@ -40,7 +41,7 @@ export type SpotlightResolvedContent = {
   actions: SpotlightActionLink[]
 }
 
-export const SPOTLIGHT_DATA_SOURCES: SpotlightDataSource[] = ['announcements', 'events', 'sermons', 'groups', 'members']
+export const SPOTLIGHT_DATA_SOURCES: SpotlightDataSource[] = ['announcements', 'events', 'sermons', 'groups', 'members', 'contacts']
 
 const trimString = (value: unknown) => typeof value === 'string' ? value.trim() : ''
 
@@ -96,6 +97,8 @@ const spotlightSourceLabelKey = (source: SpotlightDataSource): UiTextKey => {
       return 'groups'
     case 'members':
       return 'members'
+    case 'contacts':
+      return 'contacts'
     case 'events':
       return 'events'
     case 'sermons':
@@ -113,6 +116,8 @@ export const defaultSpotlightPreset = (source: SpotlightDataSource): SpotlightPr
     case 'groups':
       return 'featured'
     case 'members':
+      return 'latest'
+    case 'contacts':
       return 'latest'
     case 'sermons':
     default:
@@ -281,6 +286,23 @@ export const resolveDataSpotlightContent = (source: SpotlightDataSource, item: u
       subtitle: translateUi(language, 'role', { role: member.role || 'member' }),
       body: member.status,
       actions: [{ label: translateUi(language, 'viewDetails'), url: '/profile' }],
+    }
+  }
+
+  if (source === 'contacts') {
+    const contact = item as ContactProfileDto
+    return {
+      title: localizeText(contact.name, language),
+      subtitle: localizeText(contact.role, language),
+      body: localizeText(contact.notes ?? undefined, language),
+      media: contact.photoUrl ? { type: 'image', url: contact.photoUrl } : undefined,
+      actions: [{
+        label: translateUi(language, 'viewDetails'),
+        url: `/groups/${contact.ownerGroupId}/contacts/${contact.id}`,
+        entityType: 'contact',
+        entityId: contact.id,
+        groupId: contact.ownerGroupId,
+      }],
     }
   }
 

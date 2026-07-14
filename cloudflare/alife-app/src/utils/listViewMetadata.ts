@@ -1,14 +1,14 @@
 import type { ListSortBy, ListSortDirection, ListSourceScope, ListSourceType, ListViewLayout, ListViewMetadata, ListViewSource } from '../types/page-editor'
 
-const SOURCE_TYPES: ListSourceType[] = ['announcements', 'sermons', 'pages', 'subgroups', 'events', 'members', 'groups', 'media', 'posts']
+const SOURCE_TYPES: ListSourceType[] = ['announcements', 'sermons', 'pages', 'subgroups', 'events', 'members', 'contacts', 'groups', 'media', 'posts']
 const SORT_FIELDS: ListSortBy[] = ['source', 'date', 'title']
 const SORT_DIRECTIONS: ListSortDirection[] = ['asc', 'desc']
-const CORE_SOURCES: ListViewSource[] = ['events', 'sermons', 'groups', 'pages', 'members', 'media', 'posts']
+const CORE_SOURCES: ListViewSource[] = ['events', 'sermons', 'groups', 'pages', 'members', 'contacts', 'media', 'posts']
 const LAYOUTS: ListViewLayout[] = ['grid', 'list', 'cards', 'carousel', 'coverflow']
 
 const sourceTypeToSource = (sourceType: ListSourceType): ListViewSource =>
   sourceType === 'subgroups' ? 'groups'
-    : sourceType === 'pages' || sourceType === 'members' ? sourceType
+    : sourceType === 'pages' || sourceType === 'members' || sourceType === 'contacts' ? sourceType
       : CORE_SOURCES.includes(sourceType as ListViewSource) ? (sourceType as ListViewSource)
         : 'sermons'
 

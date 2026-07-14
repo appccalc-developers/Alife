@@ -44,7 +44,7 @@ const presetOptionsForSource = (source: ListViewSource, t: ReturnType<typeof use
     ]
   }
 
-  if (source === 'pages' || source === 'members' || source === 'posts') {
+  if (source === 'pages' || source === 'members' || source === 'contacts' || source === 'posts') {
     return [
       { value: 'latest', label: t('latest') },
       { value: 'all', label: t('all') },
