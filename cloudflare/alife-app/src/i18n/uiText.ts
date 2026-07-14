@@ -428,6 +428,13 @@ const text = {
   noPagesYetTitle: { en: 'No pages yet', zh: '还没有页面' },
   noPagesYetDescription: { en: 'Create a page to share updates, events, and resources.', zh: '创建页面来分享更新、活动和资源。' },
   createPage: { en: 'Create Page', zh: '创建页面' },
+  choosePagePreset: { en: 'Choose a page starting point', zh: '选择页面起点' },
+  choosePagePresetDescription: {
+    en: 'A preset adds an initial section structure only. After creation, this remains a regular, fully editable CMS page.',
+    zh: '预设只添加初始区块结构。创建后，它仍是一张普通、完全可编辑的 CMS 页面。',
+  },
+  noPresetSections: { en: 'No sections — start from scratch', zh: '不含区块——从头开始' },
+  usePagePreset: { en: 'Use this starting point', zh: '使用这个起点' },
   loadingPageSections: { en: 'Loading page sections...', zh: '正在加载页面区块...' },
   loadPageSectionsFailed: { en: 'Unable to load page sections.', zh: '无法加载页面区块。' },
   saving: { en: 'Saving...', zh: '正在保存...' },

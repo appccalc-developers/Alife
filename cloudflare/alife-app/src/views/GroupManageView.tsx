@@ -1005,7 +1005,7 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
                   pages={pages}
                   onAddPage={() => {
                     activeEntityService.setGroup(groupId, { clearPage: true })
-                    navigate('/pages/new')
+                    navigate(`/groups/${groupId}/pages/new`)
                   }}
                   onDeletePage={(pageId) => {
                     if (!window.confirm(t('removePageConfirm'))) return
