@@ -235,22 +235,22 @@ export const HeaderNavigation = ({
   const navigate = useNavigate()
 
   return (
-    <nav className="flex min-w-0 flex-1 items-center gap-3 overflow-x-auto" aria-label={t('appNavigation')}>
+    <nav className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden sm:gap-3" aria-label={t('appNavigation')}>
       <Link to="/" onClick={(event) => guardNavigationClick(event, '/', undefined, () => navigate('/'))} className="flex shrink-0 items-center gap-2.5 rounded-xl text-[#18332d]" aria-label={t('home')}>
-        <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#e3f0eb] ring-1 ring-[#176b5a]/10">
-          <img src={logo} alt={t('appName')} className="h-8 w-auto drop-shadow-sm" />
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#e3f0eb] ring-1 ring-[#176b5a]/10 sm:h-10 sm:w-10 sm:rounded-2xl">
+          <img src={logo} alt={t('appName')} className="h-7 w-auto drop-shadow-sm sm:h-8" />
         </span>
-        <span className="hidden text-lg font-bold tracking-[-0.04em] sm:block">Alife</span>
+        <span className="hidden text-lg font-bold tracking-[-0.04em] desktop:block">Alife</span>
       </Link>
       {currentGroupName && currentGroupManageTo ? (
-        <Link to={currentGroupManageTo} onClick={(event) => guardNavigationClick(event, currentGroupManageTo, undefined, () => navigate(currentGroupManageTo))} className="inline-flex h-10 max-w-72 shrink-0 items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 text-sm font-semibold text-emerald-900 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-100 hover:text-emerald-950 focus:outline-none focus:ring-2 focus:ring-emerald-300 sm:max-w-xs">
+        <Link to={currentGroupManageTo} onClick={(event) => guardNavigationClick(event, currentGroupManageTo, undefined, () => navigate(currentGroupManageTo))} className="inline-flex h-9 min-w-0 max-w-72 flex-1 items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 text-xs font-semibold text-emerald-900 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-100 hover:text-emerald-950 focus:outline-none focus:ring-2 focus:ring-emerald-300 sm:h-10 sm:max-w-xs sm:flex-none sm:gap-2 sm:px-3 sm:text-sm">
           <span className="flex h-5 w-5 shrink-0 items-center justify-center text-emerald-700">
             <Home className="h-4 w-4" aria-hidden="true" />
           </span>
           <span className="truncate">{currentGroupName}</span>
         </Link>
       ) : currentGroupName ? (
-        <span className="max-w-72 shrink-0 truncate border-l border-[#2f4b42]/15 pl-3 text-sm font-semibold text-[#40554e] sm:max-w-xs">{currentGroupName}</span>
+        <span className="min-w-0 max-w-72 flex-1 truncate border-l border-[#2f4b42]/15 pl-2 text-xs font-semibold text-[#40554e] sm:max-w-xs sm:pl-3 sm:text-sm">{currentGroupName}</span>
       ) : null}
       {items.map((item) => (
         <motion.div key={item.key} whileTap={{ scale: 0.95 }}>

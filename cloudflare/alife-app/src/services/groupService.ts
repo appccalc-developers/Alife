@@ -55,6 +55,16 @@ export type AdminMemberDto = {
   pendingGroupCount: number
 }
 
+export type UpdateAdminMemberProfilePayload = {
+  displayName: string
+  email: string | null
+  phoneE164: string | null
+}
+
+export type GroupMemberProfileDto = UpdateAdminMemberProfilePayload & {
+  memberId: string
+}
+
 export type AdminPlatformRoleDto = {
   id: number
   code: 'user' | 'admin' | 'superadmin' | string
@@ -397,6 +407,16 @@ export const groupService = {
     await http.post(`/api/groups/${groupId}/kick`, payload)
   },
 
+  async getGroupMemberProfile(groupId: string, memberId: string) {
+    const { data } = await http.get<GroupMemberProfileDto>(`/api/groups/${groupId}/members/${memberId}/profile`)
+    return data
+  },
+
+  async updateGroupMemberProfile(groupId: string, memberId: string, payload: UpdateAdminMemberProfilePayload) {
+    const { data } = await http.put<GroupMemberProfileDto>(`/api/groups/${groupId}/members/${memberId}/profile`, payload)
+    return data
+  },
+
   async syncSermons() {
     const { data } = await http.post<{ message?: string }>('/api/admin/sermons/sync')
     await removeCachedRecord(sermonsQueryKey)
@@ -448,6 +468,11 @@ export const groupService = {
 
   async setMemberPlatformRoles(memberId: string, roleCodes: string[]) {
     const { data } = await http.put<AdminMemberDto>(`/api/admin/members/${memberId}/platform-role`, { roleCodes })
+    return data
+  },
+
+  async updateAdminMemberProfile(memberId: string, payload: UpdateAdminMemberProfilePayload) {
+    const { data } = await http.put<AdminMemberDto>(`/api/admin/members/${memberId}/profile`, payload)
     return data
   },
 

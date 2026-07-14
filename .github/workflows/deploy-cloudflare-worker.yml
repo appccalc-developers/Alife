@@ -83,3 +83,36 @@ jobs:
       - name: Deploy Worker
         working-directory: ./cloudflare/speed-layer
         run: npx wrangler deploy --secrets-file .dev.vars
+
+      - name: Verify deployed frontend entry
+        working-directory: ./cloudflare/speed-layer
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          expected_entry="$(grep -oE '/assets/index-[A-Za-z0-9_-]+\.js' ../alife-app/dist/index.html | head -n 1 || true)"
+          if [ -z "$expected_entry" ]; then
+            echo "Could not identify the built frontend entry asset."
+            exit 1
+          fi
+
+          for attempt in {1..12}; do
+            if ! deployed_html="$(curl --fail --silent --show-error \
+              --header 'Cache-Control: no-cache' \
+              "https://ccalc.live/?deployment-check=${GITHUB_RUN_ID}-${attempt}")"; then
+              echo "Attempt ${attempt}/12 could not read the deployed frontend; retrying in 10 seconds."
+              sleep 10
+              continue
+            fi
+
+            if grep -Fq "$expected_entry" <<< "$deployed_html"; then
+              echo "Verified deployed frontend entry: $expected_entry"
+              exit 0
+            fi
+
+            echo "Attempt ${attempt}/12 still returned an older frontend entry; retrying in 10 seconds."
+            sleep 10
+          done
+
+          echo "Deployment did not expose the expected frontend entry: $expected_entry"
+          exit 1

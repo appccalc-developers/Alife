@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ExternalLink, PlayCircle } from 'lucide-react'
 import { motion, useReducedMotion } from 'framer-motion'
-import { entranceAnimation, getServiceCountdown, media, youtubeLiveUrl, youtubeVideosUrl } from './homeUtils'
+import { entranceAnimation, getServiceCountdown, media, youtubeLiveEmbedUrl, youtubeLiveUrl, youtubeVideosUrl } from './homeUtils'
 import type { HomeCopy } from './homeCopy'
 
 type Props = {
@@ -38,21 +38,42 @@ const AboutAndLiveSection = ({ copy }: Props) => {
         <motion.div {...entrance} id="live" className="grid gap-5">
           <article className="overflow-hidden rounded-2xl border border-home-border bg-home-dark text-white shadow-[0_16px_48px_rgba(30,18,10,0.18)]">
             <div className="grid lg:grid-cols-[0.58fr_0.42fr]">
-              <a className="group relative min-h-[18rem] overflow-hidden bg-black" href={countdown.isLive ? youtubeLiveUrl : youtubeVideosUrl} target="_blank" rel="noreferrer">
-                <img src={media.message} alt="" className="absolute inset-0 h-full w-full object-cover opacity-82 transition duration-500 group-hover:scale-105" loading="lazy" />
-                <div className="absolute inset-0 bg-gradient-to-t from-home-dark/84 via-home-dark/18 to-transparent" />
-                <span className="absolute left-5 top-5 rounded-lg bg-home-gold px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-home-gold-text">
-                  {countdown.isLive ? copy.liveNowLabel : copy.liveEyebrow}
-                </span>
-                <span className="absolute inset-0 grid place-items-center">
-                  <span className="grid h-16 w-16 place-items-center rounded-2xl bg-white/90 text-home-dark shadow-[0_8px_24px_rgba(0,0,0,0.2)] transition group-hover:scale-105">
-                    <PlayCircle className="h-9 w-9" />
+              {countdown.isLive ? (
+                <div className="relative min-h-[18rem] overflow-hidden bg-black">
+                  <iframe
+                    title={copy.liveTitle}
+                    src={youtubeLiveEmbedUrl}
+                    className="absolute inset-0 h-full w-full border-0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    referrerPolicy="strict-origin-when-cross-origin"
+                    allowFullScreen
+                  />
+                  <a
+                    className="absolute right-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-lg bg-black/72 px-3 py-2 text-xs font-semibold text-white shadow-lg backdrop-blur transition hover:bg-black/90"
+                    href={youtubeLiveUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {copy.liveOpen} <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                </div>
+              ) : (
+                <a className="group relative min-h-[18rem] overflow-hidden bg-black" href={youtubeVideosUrl} target="_blank" rel="noreferrer">
+                  <img src={media.message} alt="" className="absolute inset-0 h-full w-full object-cover opacity-82 transition duration-500 group-hover:scale-105" loading="lazy" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-home-dark/84 via-home-dark/18 to-transparent" />
+                  <span className="absolute left-5 top-5 rounded-lg bg-home-gold px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-home-gold-text">
+                    {copy.liveEyebrow}
                   </span>
-                </span>
-                <span className="absolute inset-x-5 bottom-5 text-sm font-bold leading-6 text-white/82">
-                  {countdown.isLive ? copy.liveOpen : copy.liveUnavailable}
-                </span>
-              </a>
+                  <span className="absolute inset-0 grid place-items-center">
+                    <span className="grid h-16 w-16 place-items-center rounded-2xl bg-white/90 text-home-dark shadow-[0_8px_24px_rgba(0,0,0,0.2)] transition group-hover:scale-105">
+                      <PlayCircle className="h-9 w-9" />
+                    </span>
+                  </span>
+                  <span className="absolute inset-x-5 bottom-5 text-sm font-bold leading-6 text-white/82">
+                    {copy.liveUnavailable}
+                  </span>
+                </a>
+              )}
               <div className="flex flex-col justify-between gap-6 p-6 sm:p-8">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-home-gold">{copy.liveEyebrow}</p>

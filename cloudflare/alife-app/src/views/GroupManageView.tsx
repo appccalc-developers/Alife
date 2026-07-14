@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowRightLeft, Bell, CalendarDays, Crown, FileText, Network, Settings, ShieldCheck, UserPlus, UserMinus, UsersRound } from 'lucide-react'
+import { ArrowRightLeft, ArrowUpRight, Bell, CalendarDays, Crown, FileText, Loader2, Network, Pencil, Settings, ShieldCheck, UserPlus, UserMinus, UsersRound, X } from 'lucide-react'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
 import AppEmptyState from '../components/layout/AppEmptyState'
@@ -21,6 +21,8 @@ import { confirmUnsavedChangesNavigation, setUnsavedChangesGuard } from '../util
 import type { GroupPageDto, PageVisibility } from '../types/group'
 import type { GroupEventRecord } from '../types/event'
 import AnnouncementManagementPanel from '../components/group/AnnouncementManagementPanel'
+import RegionalPhoneInput from '../components/forms/RegionalPhoneInput'
+import { isValidPhoneNumber } from '../utils/phoneNumber'
 
 const shortId = (value: string) => (value.length > 8 ? value.slice(0, 8) : value)
 
@@ -121,34 +123,71 @@ type MetricListItem = {
   label: string
   value: number | string
   icon: ReactNode
+  onSelect?: () => void
 }
 
-const MetricList = ({ items, ariaLabel }: { items: MetricListItem[]; ariaLabel: string }) => (
-  <div
-    className="overflow-hidden rounded-lg border border-[#2f4b42]/10 bg-white/75 shadow-sm"
-    role="list"
-    aria-label={ariaLabel}
-  >
-    {items.map((item, index) => (
-      <div
-        key={`${item.label}-${index}`}
-        className={[
-          'flex min-h-12 items-center justify-between gap-3 px-3 py-2.5',
-          index > 0 ? 'border-t border-[#2f4b42]/10' : '',
-        ].join(' ')}
-        role="listitem"
-      >
-        <div className="flex min-w-0 items-center gap-2.5">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#e3f0eb] text-[#176b5a]">
-            {item.icon}
-          </span>
-          <span className="truncate text-xs font-bold uppercase tracking-wide text-[#6e7c76]">{item.label}</span>
-        </div>
-        <span className="shrink-0 text-lg font-black tabular-nums text-[#18332d]">{item.value}</span>
+const MetricList = ({ items, ariaLabel, variant = 'list' }: { items: MetricListItem[]; ariaLabel: string; variant?: 'list' | 'grid' }) => {
+  if (variant === 'grid') {
+    return (
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4" role="list" aria-label={ariaLabel}>
+        {items.map((item, index) => {
+          const content = (
+            <>
+              <div className="flex items-center justify-between gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#e3f0eb] text-[#176b5a] transition group-hover:bg-[#176b5a] group-hover:text-white">
+                  {item.icon}
+                </span>
+                <span className="text-2xl font-black tabular-nums tracking-[-0.04em] text-[#18332d] sm:text-3xl">{item.value}</span>
+              </div>
+              <span className="mt-3 flex items-center justify-between gap-2 text-xs font-bold leading-5 text-[#66766f]">
+                <span>{item.label}</span>
+                {item.onSelect ? <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-[#176b5a] transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5" /> : null}
+              </span>
+            </>
+          )
+          const className = 'group rounded-2xl border border-[#176b5a]/10 bg-white/80 p-3.5 text-left shadow-[0_8px_22px_rgba(24,51,45,0.05)] backdrop-blur transition duration-200 sm:p-4'
+
+          return item.onSelect ? (
+            <div key={`${item.label}-${index}`} role="listitem">
+              <button type="button" className={`${className} h-full w-full hover:-translate-y-0.5 hover:border-[#176b5a]/25 hover:bg-white hover:shadow-[0_12px_28px_rgba(24,51,45,0.10)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#176b5a]/35`} onClick={item.onSelect}>
+                {content}
+              </button>
+            </div>
+          ) : (
+            <div key={`${item.label}-${index}`} className={className} role="listitem">{content}</div>
+          )
+        })}
       </div>
-    ))}
-  </div>
-)
+    )
+  }
+
+  return (
+    <div
+      className="overflow-hidden rounded-lg border border-[#2f4b42]/10 bg-white/75 shadow-sm"
+      role="list"
+      aria-label={ariaLabel}
+    >
+      {items.map((item, index) => (
+        <div
+          key={`${item.label}-${index}`}
+          className={[
+            'flex min-h-12 items-center justify-between gap-3 px-3 py-2.5',
+            index > 0 ? 'border-t border-[#2f4b42]/10' : '',
+          ].join(' ')}
+          role="listitem"
+        >
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#e3f0eb] text-[#176b5a]">
+              {item.icon}
+            </span>
+            <span className="truncate text-xs font-bold uppercase tracking-wide text-[#6e7c76]">{item.label}</span>
+          </div>
+          <span className="shrink-0 text-lg font-black tabular-nums text-[#18332d]">{item.value}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
 
 type ManagementPanelShellProps = {
   title?: string
@@ -256,6 +295,7 @@ const ManagementTabCard = ({
 )
 
 type MembersPanelProps = {
+  groupId: string
   memberships: GroupMemberToolRow[]
   copy: ReturnType<typeof managementCopy>
   onInviteMember: () => void
@@ -263,6 +303,7 @@ type MembersPanelProps = {
   onRejectMember: (memberId: string) => void
   onKickMember: (memberId: string) => void
   onSetCoLeader: (memberId: string, isCoLeader: boolean) => void
+  onProfileUpdated: () => Promise<void>
   framed?: boolean
 }
 
@@ -347,10 +388,15 @@ const LeadershipPanel = ({ memberships, currentMemberId, onTransferLeadership, f
   )
 }
 
-const MembersPanel = ({ memberships, copy, onInviteMember, onApproveMember, onRejectMember, onKickMember, onSetCoLeader, framed = true }: MembersPanelProps) => {
+const MembersPanel = ({ groupId, memberships, copy, onInviteMember, onApproveMember, onRejectMember, onKickMember, onSetCoLeader, onProfileUpdated, framed = true }: MembersPanelProps) => {
   const t = useUiText()
   const auth = useAuthStore()
   const [roleTarget, setRoleTarget] = useState<GroupMemberToolRow | null>(null)
+  const [profileTarget, setProfileTarget] = useState<GroupMemberToolRow | null>(null)
+  const [profileForm, setProfileForm] = useState({ displayName: '', email: '', phoneE164: '' })
+  const [profileLoading, setProfileLoading] = useState(false)
+  const [profileSaving, setProfileSaving] = useState(false)
+  const [profileError, setProfileError] = useState('')
   const requestedMembers = memberships.filter((member) => member.status === 'requested')
   const approvedMembers = memberships.filter((member) => member.status === 'approved')
   const inactiveMembers = memberships.filter((member) => member.status !== 'requested' && member.status !== 'approved')
@@ -372,6 +418,7 @@ const MembersPanel = ({ memberships, copy, onInviteMember, onApproveMember, onRe
   }
   const currentRole = memberships.find((member) => member.memberId === auth.me?.id)?.role
   const canManageRoles = currentRole === 'leader' || auth.isAdmin || isPlatformAdminRole(auth.me?.platformRole)
+  const canEditProfiles = currentRole === 'leader' || currentRole === 'coLeader' || auth.isAdmin || isPlatformAdminRole(auth.me?.platformRole)
   const canRemoveMember = (member: GroupMemberToolRow) => {
     if (member.memberId === auth.me?.id || member.role === 'leader') return false
     if (auth.isAdmin || isPlatformAdminRole(auth.me?.platformRole)) return true
@@ -384,6 +431,56 @@ const MembersPanel = ({ memberships, copy, onInviteMember, onApproveMember, onRe
       onSetCoLeader(roleTarget.memberId, isCoLeader)
     }
     setRoleTarget(null)
+  }
+
+  const profileCopy = auth.language === 'zh'
+    ? { edit: '修改资料', description: '修改该成员的基本账号资料。', displayName: '显示名称', email: '邮箱', phone: '手机号', phoneHint: '选择地区后输入本地号码，可以保留开头的 0。', phoneInvalid: '请检查电话号码和所选地区。', cancel: '取消', save: '保存修改', saving: '保存中…', loading: '正在读取资料…', required: '显示名称为必填项。', failed: '无法更新成员资料。', close: '关闭弹窗' }
+    : { edit: 'Edit member', description: 'Update this member’s basic account information.', displayName: 'Display name', email: 'Email', phone: 'Phone', phoneHint: 'Choose a region and enter the local number. A leading zero is accepted.', phoneInvalid: 'Check the phone number and selected region.', cancel: 'Cancel', save: 'Save changes', saving: 'Saving…', loading: 'Loading profile…', required: 'Display name is required.', failed: 'Unable to update this member.', close: 'Close dialog' }
+
+  const openProfileDialog = async (member: GroupMemberToolRow) => {
+    setProfileTarget(member)
+    setProfileForm({ displayName: member.displayName || '', email: '', phoneE164: '' })
+    setProfileLoading(true)
+    setProfileError('')
+    try {
+      const profile = await groupService.getGroupMemberProfile(groupId, member.memberId)
+      setProfileForm({ displayName: profile.displayName || '', email: profile.email || '', phoneE164: profile.phoneE164 || '' })
+    } catch {
+      setProfileError(profileCopy.failed)
+    } finally {
+      setProfileLoading(false)
+    }
+  }
+
+  const saveProfile = async () => {
+    if (!profileTarget || profileSaving) return
+    const displayName = profileForm.displayName.trim()
+    if (!displayName) {
+      setProfileError(profileCopy.required)
+      return
+    }
+    if (!isValidPhoneNumber(profileForm.phoneE164)) {
+      setProfileError(profileCopy.phoneInvalid)
+      return
+    }
+    setProfileSaving(true)
+    setProfileError('')
+    try {
+      await groupService.updateGroupMemberProfile(groupId, profileTarget.memberId, {
+        displayName,
+        email: profileForm.email.trim() || null,
+        phoneE164: profileForm.phoneE164.trim() || null,
+      })
+      await onProfileUpdated()
+      setProfileTarget(null)
+    } catch (reason) {
+      const message = typeof reason === 'object' && reason && 'response' in reason
+        ? (reason as { response?: { data?: { message?: string } } }).response?.data?.message
+        : null
+      setProfileError(message || profileCopy.failed)
+    } finally {
+      setProfileSaving(false)
+    }
   }
 
   return (
@@ -458,8 +555,21 @@ const MembersPanel = ({ memberships, copy, onInviteMember, onApproveMember, onRe
                   {renderPlatformRoleBadge(member)}
                 </div>
               </div>
-              {canRemoveMember(member) ? (
+              {canEditProfiles || canRemoveMember(member) ? (
                 <div className="flex gap-2">
+                  {canEditProfiles ? (
+                    <AppActionButton
+                      size="sm"
+                      variant="secondary"
+                      className={iconButtonClass}
+                      aria-label={`${profileCopy.edit}: ${getDisplayName(member)}`}
+                      title={profileCopy.edit}
+                      onClick={() => { openProfileDialog(member).catch(() => undefined) }}
+                    >
+                      <Pencil size={16} aria-hidden="true" />
+                    </AppActionButton>
+                  ) : null}
+                  {canRemoveMember(member) ? (
                   <AppActionButton
                     size="sm"
                     variant="danger"
@@ -470,6 +580,7 @@ const MembersPanel = ({ memberships, copy, onInviteMember, onApproveMember, onRe
                   >
                     <UserMinus size={16} aria-hidden="true" />
                   </AppActionButton>
+                  ) : null}
                 </div>
               ) : null}
             </div>
@@ -492,6 +603,55 @@ const MembersPanel = ({ memberships, copy, onInviteMember, onApproveMember, onRe
               <AppActionButton variant="secondary" onClick={() => handleRoleChoice(false)}>{t('no')}</AppActionButton>
               <AppActionButton variant="primary" onClick={() => handleRoleChoice(true)}>{t('yes')}</AppActionButton>
             </div>
+          </section>
+        </div>
+      ) : null}
+
+      {profileTarget ? (
+        <div className="fixed inset-0 z-[70] flex items-end bg-slate-950/50 px-4 pb-24 pt-6 backdrop-blur-sm sm:items-center sm:justify-center sm:py-6">
+          <button type="button" className="absolute inset-0" aria-label={profileCopy.close} disabled={profileSaving} onClick={() => setProfileTarget(null)} />
+          <section className="relative z-10 flex max-h-[calc(100dvh-7.5rem)] w-full max-w-lg flex-col overflow-hidden rounded-3xl bg-white shadow-2xl sm:max-h-[calc(100dvh-3rem)]" role="dialog" aria-modal="true" aria-labelledby="group-member-profile-title">
+            <header className="flex items-start justify-between gap-4 border-b border-slate-100 bg-gradient-to-r from-emerald-50 to-white px-5 py-4 sm:px-6">
+              <div>
+                <h2 id="group-member-profile-title" className="text-lg font-black text-slate-950">{profileCopy.edit}</h2>
+                <p className="mt-1 text-sm leading-6 text-slate-600">{profileCopy.description}</p>
+              </div>
+              <button type="button" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-500 hover:bg-white hover:text-slate-900" aria-label={profileCopy.close} disabled={profileSaving} onClick={() => setProfileTarget(null)}>
+                <X className="h-5 w-5" aria-hidden="true" />
+              </button>
+            </header>
+            {profileLoading ? (
+              <div className="flex min-h-52 items-center justify-center gap-2 p-6 text-sm font-semibold text-slate-600">
+                <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+                {profileCopy.loading}
+              </div>
+            ) : (
+              <form className="space-y-4 overflow-y-auto p-5 sm:p-6" onSubmit={(event) => { event.preventDefault(); saveProfile().catch(() => undefined) }}>
+                <label className="block">
+                  <span className="text-xs font-black uppercase tracking-wide text-slate-500">{profileCopy.displayName}</span>
+                  <input autoFocus required maxLength={150} value={profileForm.displayName} onChange={(event) => setProfileForm((current) => ({ ...current, displayName: event.target.value }))} className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-950 shadow-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" />
+                </label>
+                <label className="block">
+                  <span className="text-xs font-black uppercase tracking-wide text-slate-500">{profileCopy.email}</span>
+                  <input type="email" maxLength={200} value={profileForm.email} onChange={(event) => setProfileForm((current) => ({ ...current, email: event.target.value }))} className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-950 shadow-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" />
+                </label>
+                <RegionalPhoneInput
+                  value={profileForm.phoneE164}
+                  onChange={(phoneE164) => setProfileForm((current) => ({ ...current, phoneE164 }))}
+                  language={auth.language}
+                  label={profileCopy.phone}
+                  hint={profileCopy.phoneHint}
+                />
+                {profileError ? <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700" role="alert">{profileError}</p> : null}
+                <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+                  <AppActionButton variant="secondary" disabled={profileSaving} onClick={() => setProfileTarget(null)}>{profileCopy.cancel}</AppActionButton>
+                  <AppActionButton variant="primary" disabled={profileSaving || !profileForm.displayName.trim()} type="submit">
+                    {profileSaving ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden="true" /> : null}
+                    {profileSaving ? profileCopy.saving : profileCopy.save}
+                  </AppActionButton>
+                </div>
+              </form>
+            )}
           </section>
         </div>
       ) : null}
@@ -729,6 +889,7 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
     kickMember,
     setCoLeader,
     transferLeadership,
+    refreshMemberships,
     deleteEvent,
   } = useGroupScreen(groupId, { loadEvents: true })
 
@@ -852,7 +1013,7 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
     <AppPageShell>
       <div className="space-y-5">
         <section className="overflow-hidden rounded-[2rem] border border-emerald-100 bg-gradient-to-br from-white via-emerald-50 to-[#fff4ea] px-6 py-6 text-[#18332d] shadow-[0_20px_55px_rgba(23,107,90,0.08)] sm:px-8">
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               {!embeddedWorkspace ? (
                 <Link
@@ -867,26 +1028,29 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
                   {copy.back}
                 </Link>
               ) : null}
-              <p className="mt-4 text-xs font-black uppercase tracking-[0.22em] text-emerald-700">{localizeText(group?.name, language) || copy.title}</p>
-              <h1 className="mt-2 text-3xl font-black tracking-[-0.04em] sm:text-4xl">{embeddedWorkspace ? (language === 'zh' ? '小组工作台' : 'Group Workspace') : copy.title}</h1>
+              <p className={[!embeddedWorkspace ? 'mt-4' : '', 'text-xs font-black uppercase tracking-[0.22em] text-emerald-700'].join(' ')}>
+                {embeddedWorkspace
+                  ? (group?.isChurch ? (language === 'zh' ? '教会总览' : 'Church overview') : (language === 'zh' ? '小组总览' : 'Group overview'))
+                  : localizeText(group?.name, language) || copy.title}
+              </p>
+              <h1 className="mt-2 text-3xl font-black tracking-[-0.04em] sm:text-4xl">
+                {embeddedWorkspace ? localizeText(group?.name, language) || copy.title : copy.title}
+              </h1>
               <p className="mt-3 text-sm leading-6 text-[#5f716a]">{embeddedWorkspace ? (language === 'zh' ? '成员、活动、内容和设置都在这里处理。' : 'People, events, content, and settings in one place.') : copy.subtitle}</p>
             </div>
-            <div className="space-y-3">
-              {group ? (
-                <div className="flex flex-wrap justify-start gap-2 lg:justify-end">
-                  <AccessTypeBadge accessType={group.accessType} />
-                </div>
-              ) : null}
-              <MetricList
-                ariaLabel={copy.overview}
-                items={[
-                  { label: copy.pending, value: requestedCount, icon: <UserPlus className="h-4 w-4" /> },
-                  { label: copy.approved, value: approvedCount, icon: <UsersRound className="h-4 w-4" /> },
-                  { label: copy.upcomingEvents, value: upcomingEventCount, icon: <CalendarDays className="h-4 w-4" /> },
-                  { label: copy.publishedPages, value: pages.length, icon: <FileText className="h-4 w-4" /> },
-                ]}
-              />
-            </div>
+            {group ? <div className="shrink-0"><AccessTypeBadge accessType={group.accessType} /></div> : null}
+          </div>
+          <div className="mt-6 border-t border-[#176b5a]/10 pt-5">
+            <MetricList
+              variant="grid"
+              ariaLabel={copy.overview}
+              items={[
+                { label: copy.pending, value: requestedCount, icon: <UserPlus className="h-4 w-4" />, onSelect: () => setActiveSection('members') },
+                { label: copy.approved, value: approvedCount, icon: <UsersRound className="h-4 w-4" />, onSelect: () => setActiveSection('members') },
+                { label: copy.upcomingEvents, value: upcomingEventCount, icon: <CalendarDays className="h-4 w-4" />, onSelect: () => setActiveSection('events') },
+                { label: copy.publishedPages, value: pages.length, icon: <FileText className="h-4 w-4" />, onSelect: () => setActiveSection('pages') },
+              ]}
+            />
           </div>
         </section>
 
@@ -979,6 +1143,7 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
               {activeSection === 'members' ? (
                 <MembersPanel
                   framed={false}
+                  groupId={groupId}
                   memberships={memberships}
                   copy={copy}
                   onInviteMember={() => navigate('/groups/manage/invite-members')}
@@ -989,6 +1154,7 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
                     kickMember(memberId).catch(() => setStatusMessage(t('removeMemberFailed')))
                   }}
                   onSetCoLeader={(memberId, isCoLeader) => setCoLeader(memberId, isCoLeader).catch(() => setStatusMessage(t('updateCoLeaderFailed')))}
+                  onProfileUpdated={() => refreshMemberships().then(() => undefined)}
                 />
               ) : null}
 

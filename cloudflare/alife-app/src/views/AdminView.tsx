@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
-import { Bell, ChevronRight, Globe2, Loader2, MessageSquareWarning, RefreshCw, ShieldCheck, UserCheck, UsersRound } from 'lucide-react'
+import { Bell, ChevronRight, Globe2, Loader2, MessageSquareWarning, Pencil, RefreshCw, ShieldCheck, UserCheck, UsersRound, X } from 'lucide-react'
 import {
   groupService,
   type AdminGroupOptionDto,
@@ -26,6 +26,8 @@ import { RolesSection } from './admin/RolesSection'
 import { LogsSection } from './admin/LogsSection'
 import { PlatformFilesSection } from './admin/FilesSection'
 import { formatDate, formatRole, readLocalized } from './admin/adminUtils'
+import RegionalPhoneInput from '../components/forms/RegionalPhoneInput'
+import { isValidPhoneNumber } from '../utils/phoneNumber'
 
 type AdminSection = 'overview' | 'users' | 'roles' | 'logs' | 'messages' | 'visitRequests' | 'files'
 type MessageTranslationDirection = 'zh-en' | 'en-zh'
@@ -64,6 +66,7 @@ const labels: Record<string, LocalText> = {
   loading: { en: 'Loading...', zh: '加载中...' },
   refreshed: { en: 'Admin data refreshed.', zh: '管理数据已刷新。' },
   roleUpdated: { en: 'Platform role updated.', zh: '平台角色已更新。' },
+  memberUpdated: { en: 'Member profile updated.', zh: '成员资料已更新。' },
   rolePermissionsUpdated: { en: 'Role permissions updated.', zh: '角色权限已更新。' },
   roleCreated: { en: 'Role created.', zh: '角色已创建。' },
   roleDeleted: { en: 'Role deleted.', zh: '角色已删除。' },
@@ -74,6 +77,7 @@ const labels: Record<string, LocalText> = {
   loadFailed: { en: 'Unable to load admin data.', zh: '无法加载管理数据。' },
   networkHint: { en: 'The API did not respond. Check that the backend host and Vite proxy are running.', zh: 'API 没有响应，请确认后端服务和 Vite 代理正在运行。' },
   roleUpdateFailed: { en: 'Unable to update this role.', zh: '无法更新这个角色。' },
+  memberUpdateFailed: { en: 'Unable to update this member.', zh: '无法更新该成员资料。' },
   rolePermissionsUpdateFailed: { en: 'Unable to update role permissions.', zh: '无法更新角色权限。' },
   roleCreateFailed: { en: 'Unable to create this role.', zh: '无法创建这个角色。' },
   roleDeleteFailed: { en: 'Unable to delete this role.', zh: '无法删除这个角色。' },
@@ -115,6 +119,14 @@ const labels: Record<string, LocalText> = {
   builtInRole: { en: 'Built-in role', zh: '内置角色' },
   member: { en: 'Member', zh: '成员' },
   accountDetails: { en: 'Account details', zh: '账号详情' },
+  editMember: { en: 'Edit member', zh: '修改资料' },
+  editMemberDescription: { en: 'Update this member’s basic account information.', zh: '修改该成员的基本账号资料。' },
+  displayName: { en: 'Display name', zh: '显示名称' },
+  email: { en: 'Email', zh: '邮箱' },
+  phone: { en: 'Phone', zh: '手机号' },
+  phoneE164Hint: { en: 'Choose a region and enter the local number. A leading zero is accepted.', zh: '选择地区后输入本地号码，可以保留开头的 0。' },
+  saveChanges: { en: 'Save changes', zh: '保存修改' },
+  saving: { en: 'Saving...', zh: '保存中...' },
   createdAt: { en: 'Created at', zh: '创建时间' },
   updatedAt: { en: 'Last updated', zh: '最后更新' },
   roleAssignment: { en: 'Role assignment', zh: '角色分配' },
@@ -250,7 +262,7 @@ const sectionFromPath = (pathname: string): AdminSection => pathname.endsWith('/
 
 const AdminView = () => {
   const t = useUiText()
-  const { language, me } = useAuthStore()
+  const { language, me, hasAdminPermission } = useAuthStore()
   const section = sectionFromPath(useLocation().pathname)
   const l = useCallback<LabelFn>((key, values) => {
     const template = labels[key][language] || labels[key].en
@@ -281,6 +293,7 @@ const AdminView = () => {
   const [error, setError] = useState('')
   const [syncing, setSyncing] = useState(false)
   const [updatingMemberId, setUpdatingMemberId] = useState<string | null>(null)
+  const [updatingMemberProfileId, setUpdatingMemberProfileId] = useState<string | null>(null)
   const [updatingRolePermissionId, setUpdatingRolePermissionId] = useState<number | null>(null)
   const [deletingRoleId, setDeletingRoleId] = useState<number | null>(null)
   const [creatingRole, setCreatingRole] = useState(false)
@@ -446,6 +459,27 @@ const AdminView = () => {
       setError(formatActionError(reason, l('roleUpdateFailed')))
     } finally {
       setUpdatingMemberId(null)
+    }
+  }
+
+  const updateMemberProfile = async (memberId: string, payload: { displayName: string; email: string | null; phoneE164: string | null }) => {
+    setUpdatingMemberProfileId(memberId)
+    setError('')
+    setMessage('')
+    try {
+      const updated = await groupService.updateAdminMemberProfile(memberId, payload)
+      setMembers((current) => ({
+        ...current,
+        items: current.items.map((member) => member.id === updated.id ? updated : member),
+      }))
+      setMessage(l('memberUpdated'))
+      await runQuietly(loadLogs(1, section === 'overview' ? overviewActivityPageSize : 25))
+      return updated
+    } catch (reason) {
+      setError(formatActionError(reason, l('memberUpdateFailed')))
+      throw reason
+    } finally {
+      setUpdatingMemberProfileId(null)
     }
   }
 
@@ -654,7 +688,7 @@ const AdminView = () => {
       ) : null}
 
       {section === 'overview' ? <Overview l={l} users={members} logs={logs} messages={messages} syncing={syncing} syncSermons={syncSermons} goToLogsPage={(page) => loadLogs(page, overviewActivityPageSize)} language={language} /> : null}
-      {section === 'users' ? <UsersSection l={l} loading={loading} page={members} filters={userFilters} setFilters={setUserFilters} roles={roleOptions} isSuperAdmin={isSuperAdmin} updatingMemberId={updatingMemberId} apply={() => loadUsers(1)} reset={() => { setUserFilters({ search: '', role: '', isRegistered: '' }); setTimeout(() => loadUsers(1).catch(() => undefined), 0) }} goToPage={loadUsers} updateMemberRoles={updateMemberRoles} language={language} currentMemberId={me?.id || ''} /> : null}
+      {section === 'users' ? <UsersSection l={l} loading={loading} page={members} filters={userFilters} setFilters={setUserFilters} roles={roleOptions} isSuperAdmin={isSuperAdmin} canManageMemberProfiles={hasAdminPermission('admin.members.manageProfiles')} updatingMemberId={updatingMemberId} updatingMemberProfileId={updatingMemberProfileId} apply={() => loadUsers(1)} reset={() => { setUserFilters({ search: '', role: '', isRegistered: '' }); setTimeout(() => loadUsers(1).catch(() => undefined), 0) }} goToPage={loadUsers} updateMemberRoles={updateMemberRoles} updateMemberProfile={updateMemberProfile} language={language} currentMemberId={me?.id || ''} /> : null}
       {section === 'roles' ? <RolesSection l={l} roles={roleOptions} roleForm={roleForm} setRoleForm={setRoleForm} creatingRole={creatingRole} deletingRoleId={deletingRoleId} updatingRolePermissionId={updatingRolePermissionId} roleCodeValidation={roleCodeValidation} roleCodeFeedback={roleCodeFeedback} canSubmitCreateRole={canSubmitCreateRole} createRole={createRole} deleteRole={deleteRole} updateRolePermissions={updateRolePermissions} language={language} /> : null}
       {section === 'logs' ? <LogsSection l={l} loading={loading} page={logs} filters={logFilters} setFilters={setLogFilters} apply={() => loadLogs(1, 25)} goToPage={(page) => loadLogs(page, 25)} language={language} /> : null}
       {section === 'messages' ? <MessagesSection l={l} loading={loading} page={messages} filters={messageFilters} setFilters={setMessageFilters} apply={() => loadMessages(1)} goToPage={loadMessages} groups={groups} roles={roleOptions} members={members.items} sendForm={sendForm} setSendForm={setSendForm} sendMessage={sendMessage} translateMessage={translateMessage} aiTranslating={messageAiDirection} language={language} /> : null}
@@ -835,7 +869,7 @@ const MetricCard = ({ to, icon: Icon, title, value, detail }: { to: string; icon
   </Link>
 )
 
-const UsersSection = ({ l, loading, page, filters, setFilters, roles, isSuperAdmin, updatingMemberId, apply, reset, goToPage, updateMemberRoles, language, currentMemberId }: {
+const UsersSection = ({ l, loading, page, filters, setFilters, roles, isSuperAdmin, canManageMemberProfiles, updatingMemberId, updatingMemberProfileId, apply, reset, goToPage, updateMemberRoles, updateMemberProfile, language, currentMemberId }: {
   l: LabelFn
   loading: boolean
   page: AdminPagedResultDto<AdminMemberDto>
@@ -843,16 +877,64 @@ const UsersSection = ({ l, loading, page, filters, setFilters, roles, isSuperAdm
   setFilters: Dispatch<SetStateAction<{ search: string; role: string; isRegistered: string }>>
   roles: AdminPlatformRoleDto[]
   isSuperAdmin: boolean
+  canManageMemberProfiles: boolean
   updatingMemberId: string | null
+  updatingMemberProfileId: string | null
   apply: () => Promise<void>
   reset: () => void
   goToPage: (page: number) => Promise<void>
   updateMemberRoles: (member: AdminMemberDto, roleCode: string, enabled: boolean) => Promise<void>
+  updateMemberProfile: (memberId: string, payload: { displayName: string; email: string | null; phoneE164: string | null }) => Promise<AdminMemberDto>
   language: string
   currentMemberId: string
 }) => {
   const [selectedMemberId, setSelectedMemberId] = useState('')
+  const [editTarget, setEditTarget] = useState<AdminMemberDto | null>(null)
+  const [editForm, setEditForm] = useState({ displayName: '', email: '', phoneE164: '' })
+  const [editError, setEditError] = useState('')
   const selectedMember = page.items.find((member) => member.id === selectedMemberId) ?? page.items[0] ?? null
+  const editing = Boolean(editTarget && updatingMemberProfileId === editTarget.id)
+
+  const openEditDialog = (member: AdminMemberDto) => {
+    setEditTarget(member)
+    setEditForm({
+      displayName: member.displayName || '',
+      email: member.email || '',
+      phoneE164: member.phoneE164 || '',
+    })
+    setEditError('')
+  }
+
+  const closeEditDialog = () => {
+    if (editing) return
+    setEditTarget(null)
+    setEditError('')
+  }
+
+  const submitMemberProfile = async () => {
+    if (!editTarget || editing) return
+    const displayName = editForm.displayName.trim()
+    if (!displayName) {
+      setEditError(`${l('displayName')}: ${language === 'zh' ? '必填' : 'Required'}`)
+      return
+    }
+    if (!isValidPhoneNumber(editForm.phoneE164)) {
+      setEditError(language === 'zh' ? '请检查电话号码和所选地区。' : 'Check the phone number and selected region.')
+      return
+    }
+
+    setEditError('')
+    try {
+      await updateMemberProfile(editTarget.id, {
+        displayName,
+        email: editForm.email.trim() || null,
+        phoneE164: editForm.phoneE164.trim() || null,
+      })
+      setEditTarget(null)
+    } catch (reason) {
+      setEditError(normalizeApiError(reason).message)
+    }
+  }
 
   useEffect(() => {
     if (page.items.length && !selectedMember) {
@@ -881,6 +963,7 @@ const UsersSection = ({ l, loading, page, filters, setFilters, roles, isSuperAdm
   }
 
   return (
+    <>
     <Panel title={l('users')} description={l('usersDescription')} count={page.totalCount}>
       <FilterBar>
         <SearchInput placeholder={l('search')} value={filters.search} onChange={(e) => setFilters((x) => ({ ...x, search: e.target.value }))} />
@@ -958,7 +1041,19 @@ const UsersSection = ({ l, loading, page, filters, setFilters, roles, isSuperAdm
                             </div>
                           </div>
                         </div>
-                        <Pill tone={selectedMember.isRegistered ? 'green' : 'slate'}>{selectedMember.isRegistered ? l('registered') : l('guest')}</Pill>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {canManageMemberProfiles ? (
+                            <button
+                              type="button"
+                              className="inline-flex min-h-9 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-sm font-black text-emerald-800 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+                              onClick={() => openEditDialog(selectedMember)}
+                            >
+                              <Pencil className="h-4 w-4" aria-hidden="true" />
+                              {l('editMember')}
+                            </button>
+                          ) : null}
+                          <Pill tone={selectedMember.isRegistered ? 'green' : 'slate'}>{selectedMember.isRegistered ? l('registered') : l('guest')}</Pill>
+                        </div>
                       </div>
                       <div className="grid gap-3 md:grid-cols-3">
                         <div className="rounded-2xl border border-white bg-white/80 p-3 shadow-sm">
@@ -1032,6 +1127,67 @@ const UsersSection = ({ l, loading, page, filters, setFilters, roles, isSuperAdm
         </>
       ) : <Empty text={l('noMembers')} />}
     </Panel>
+
+    {editTarget ? (
+      <div className="fixed inset-0 z-[70] flex items-end bg-slate-950/50 px-4 pb-24 pt-6 backdrop-blur-sm sm:items-center sm:justify-center sm:py-6" role="presentation">
+        <button type="button" className="absolute inset-0" aria-label={l('closeDialog')} disabled={editing} onClick={closeEditDialog} />
+        <section className="relative z-10 flex max-h-[calc(100dvh-7.5rem)] w-full max-w-lg flex-col overflow-hidden rounded-3xl bg-white shadow-2xl sm:max-h-[calc(100dvh-3rem)]" role="dialog" aria-modal="true" aria-labelledby="edit-member-title">
+          <header className="flex items-start justify-between gap-4 border-b border-slate-100 bg-gradient-to-r from-emerald-50 to-white px-5 py-4 sm:px-6">
+            <div>
+              <h2 id="edit-member-title" className="text-lg font-black text-slate-950">{l('editMember')}</h2>
+              <p className="mt-1 text-sm leading-6 text-slate-600">{l('editMemberDescription')}</p>
+            </div>
+            <button type="button" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:bg-white hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300" aria-label={l('closeDialog')} disabled={editing} onClick={closeEditDialog}>
+              <X className="h-5 w-5" aria-hidden="true" />
+            </button>
+          </header>
+
+          <form className="space-y-4 overflow-y-auto p-5 sm:p-6" onSubmit={(event) => { event.preventDefault(); submitMemberProfile().catch(() => undefined) }}>
+            <label className="block">
+              <span className="text-xs font-black uppercase tracking-wide text-slate-500">{l('displayName')}</span>
+              <input
+                autoFocus
+                required
+                maxLength={150}
+                value={editForm.displayName}
+                onChange={(event) => setEditForm((current) => ({ ...current, displayName: event.target.value }))}
+                className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              />
+            </label>
+
+            <label className="block">
+              <span className="text-xs font-black uppercase tracking-wide text-slate-500">{l('email')}</span>
+              <input
+                type="email"
+                maxLength={200}
+                value={editForm.email}
+                onChange={(event) => setEditForm((current) => ({ ...current, email: event.target.value }))}
+                className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              />
+            </label>
+
+            <RegionalPhoneInput
+              value={editForm.phoneE164}
+              onChange={(phoneE164) => setEditForm((current) => ({ ...current, phoneE164 }))}
+              language={language === 'zh' ? 'zh' : 'en'}
+              label={l('phone')}
+              hint={l('phoneE164Hint')}
+            />
+
+            {editError ? <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700" role="alert">{editError}</p> : null}
+
+            <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4">
+              <button type="button" className="inline-flex min-h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:opacity-60" disabled={editing} onClick={closeEditDialog}>{l('cancel')}</button>
+              <button type="submit" className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-black text-white transition hover:bg-emerald-800 disabled:cursor-wait disabled:opacity-60" disabled={editing || !editForm.displayName.trim()}>
+                {editing ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
+                {editing ? l('saving') : l('saveChanges')}
+              </button>
+            </div>
+          </form>
+        </section>
+      </div>
+    ) : null}
+    </>
   )
 }
 

@@ -1,10 +1,32 @@
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
 import { beforeEach, test } from 'node:test'
 
 import worker from './dist/app_ccalc/index.js'
 import { EventPlanningSession } from './dist/app_ccalc/index.js'
 
 const ORIGIN = 'https://ccalc.live'
+
+test('frontend build applies short-lived SPA shell and immutable hashed asset caching', async () => {
+  const headers = await readFile(new URL('../alife-app/dist/_headers', import.meta.url), 'utf8')
+
+  assert.match(
+    headers,
+    /\/\*\s+Cache-Control: public, max-age=60, must-revalidate\s+Cloudflare-CDN-Cache-Control: public, max-age=60, must-revalidate/,
+  )
+  assert.match(
+    headers,
+    /\/assets\/\*\s+! Cache-Control\s+! Cloudflare-CDN-Cache-Control\s+Cache-Control: public, max-age=31536000, immutable\s+Cloudflare-CDN-Cache-Control: public, max-age=31536000/,
+  )
+  assert.match(
+    headers,
+    /\/index\.html\s+! Cache-Control\s+! Cloudflare-CDN-Cache-Control\s+Cache-Control: public, max-age=0, must-revalidate\s+Cloudflare-CDN-Cache-Control: public, max-age=0, must-revalidate/,
+  )
+  assert.match(
+    headers,
+    /\/sw\.js\s+! Cache-Control\s+! Cloudflare-CDN-Cache-Control\s+Cache-Control: public, max-age=0, must-revalidate\s+Cloudflare-CDN-Cache-Control: public, max-age=0, must-revalidate/,
+  )
+})
 
 let fetchCalls
 let fetchInits

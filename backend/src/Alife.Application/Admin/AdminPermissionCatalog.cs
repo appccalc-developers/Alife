@@ -8,6 +8,7 @@ public static class AdminPermissionCatalog
     public const string AccessAdmin = "admin.access";
     public const string ViewPlatformOverview = "admin.overview.view";
     public const string ViewMembers = "admin.members.view";
+    public const string ManageMemberProfiles = "admin.members.manageProfiles";
     public const string AssignPlatformRoles = "admin.members.assignPlatformRoles";
     public const string ViewGroups = "admin.groups.view";
     public const string ManageRolePermissions = "admin.roles.managePermissions";
@@ -25,6 +26,7 @@ public static class AdminPermissionCatalog
         new(AccessAdmin, new Dictionary<string, string> { ["en"] = "Open admin workspace", ["zh"] = "进入管理后台" }),
         new(ViewPlatformOverview, new Dictionary<string, string> { ["en"] = "View platform overview", ["zh"] = "查看平台总览" }),
         new(ViewMembers, new Dictionary<string, string> { ["en"] = "Open member management", ["zh"] = "打开成员管理" }),
+        new(ManageMemberProfiles, new Dictionary<string, string> { ["en"] = "Edit member profiles", ["zh"] = "修改成员资料" }),
         new(AssignPlatformRoles, new Dictionary<string, string> { ["en"] = "Assign member roles", ["zh"] = "分配成员角色" }),
         new(ViewGroups, new Dictionary<string, string> { ["en"] = "View group directory", ["zh"] = "查看小组目录" }),
         new(ManageRolePermissions, new Dictionary<string, string> { ["en"] = "Open role management", ["zh"] = "打开角色管理" }),
