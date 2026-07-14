@@ -251,18 +251,3 @@ When the user types `/localdev` or `/dev`, start the local development stack fro
 If the user mentions migrations, database refresh, seed data, or DbMigrator, include `-ApplyMigrations`.
 If the user explicitly wants Codex to start the Docker SQL Server container too, omit `-SkipSql`.
 Azurite and scheduled Functions are not part of the default shortcut; use `-UseAzurite -EnableScheduledJobs` only when the user asks to test TimerTrigger/scheduled behavior.
-
-## Database preference
-
-Stephen uses the remote Azure SQL database for Alife local development and verification, not a local Docker SQL Server by default.
-
-Default database assumption:
-
-* Azure SQL server: `alifeaust.database.windows.net`
-* Database name: `alife`
-* Location: Australia East
-* Server admin shown in Azure portal: `wuch`
-
-Do not start, download, install, or otherwise provision a local SQL Server / Docker SQL Server unless Stephen explicitly asks for it.
-
-When migrations or seed data are needed, prefer running DbMigrator directly against the configured remote Azure SQL connection string instead of using the local dev script path that probes Docker SQL Server. If the connection string is missing or unclear, ask before running migrations.
