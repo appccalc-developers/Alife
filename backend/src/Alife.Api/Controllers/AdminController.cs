@@ -9,6 +9,7 @@ using Alife.Application.Admin.Commands.RefreshCloudflareCache;
 using Alife.Application.Admin.Commands.ReturnPagePublication;
 using Alife.Application.Admin.Commands.SendAdminMessage;
 using Alife.Application.Admin.Commands.SetMemberPlatformRole;
+using Alife.Application.Admin.Commands.UpdateMemberProfile;
 using Alife.Application.Admin.Commands.SyncSermons;
 using Alife.Application.Admin.Commands.UpdatePlatformRolePermissions;
 using Alife.Application.Admin.Queries.GetAdminSelfDiagnostic;
@@ -196,6 +197,30 @@ public class AdminController(IMediator mediator, ICurrentMemberAccessor currentM
                 StatusCodes.Status500InternalServerError,
                 new { message = $"Platform role update failed: {ex.GetBaseException().Message}" });
         }
+    }
+
+    [HttpPut("members/{memberId:guid}/profile")]
+    public async Task<IActionResult> UpdateMemberProfile(
+        Guid memberId,
+        UpdateMemberProfileRequest request,
+        CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null)
+        {
+            return Unauthorized();
+        }
+
+        var result = await mediator.Send(
+            new UpdateMemberProfileCommand(
+                currentMemberId.Value,
+                memberId,
+                request.DisplayName,
+                request.Email,
+                request.PhoneE164),
+            cancellationToken);
+        this.ApplyPrivateNoCacheHeaders();
+        return this.ToActionResult(result);
     }
 
     [HttpPost("platform-roles")]
@@ -424,6 +449,7 @@ public class AdminController(IMediator mediator, ICurrentMemberAccessor currentM
     }
 
     public sealed record SetMemberPlatformRoleRequest(string? RoleCode, IReadOnlyList<string>? RoleCodes);
+    public sealed record UpdateMemberProfileRequest(string? DisplayName, string? Email, string? PhoneE164);
 
     public sealed record CreatePlatformRoleRequest(
         string Code,

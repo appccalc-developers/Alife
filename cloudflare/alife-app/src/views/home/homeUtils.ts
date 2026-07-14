@@ -13,8 +13,10 @@ export const media = {
 export const homepageHeroVideo = '/media/homepage-hero.mp4'
 export const churchMapUrl = defaultContactLocationMapUrl
 export const churchMapEmbedUrl = defaultContactLocationMapEmbedUrl
+export const youtubeChannelId = 'UCtcwkfeJL45qwR4MEJSHhYw'
 export const youtubeLiveUrl = 'https://www.youtube.com/@ChineseAbundantLifeChurch/live'
 export const youtubeVideosUrl = 'https://www.youtube.com/@ChineseAbundantLifeChurch/videos'
+export const youtubeLiveEmbedUrl = `https://www.youtube.com/embed/live_stream?channel=${youtubeChannelId}&rel=0&playsinline=1`
 
 export const fallbackGroupImages = [media.groups, media.visit, media.hero, media.message]
 
@@ -38,6 +40,86 @@ export type ServiceCountdown = {
   hours: number
   minutes: number
   seconds: number
+}
+
+const SERVICE_TIME_ZONE = 'Pacific/Auckland'
+const SUNDAY_INDEX = 0
+const SERVICE_START_MINUTES = 9 * 60 + 45
+const SERVICE_END_MINUTES = 12 * 60
+const COUNTDOWN_TARGET_MINUTES = 10 * 60
+const weekdayIndexes: Record<string, number> = {
+  Sun: 0,
+  Mon: 1,
+  Tue: 2,
+  Wed: 3,
+  Thu: 4,
+  Fri: 5,
+  Sat: 6,
+}
+const serviceTimeFormatter = new Intl.DateTimeFormat('en-NZ', {
+  timeZone: SERVICE_TIME_ZONE,
+  weekday: 'short',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hourCycle: 'h23',
+})
+
+type ServiceTimeParts = {
+  weekday: number
+  year: number
+  month: number
+  day: number
+  hour: number
+  minute: number
+  second: number
+}
+
+const getServiceTimeParts = (date: Date): ServiceTimeParts => {
+  const parts = Object.fromEntries(
+    serviceTimeFormatter
+      .formatToParts(date)
+      .filter((part) => part.type !== 'literal')
+      .map((part) => [part.type, part.value]),
+  )
+
+  return {
+    weekday: weekdayIndexes[parts.weekday] ?? SUNDAY_INDEX,
+    year: Number(parts.year),
+    month: Number(parts.month),
+    day: Number(parts.day),
+    hour: Number(parts.hour),
+    minute: Number(parts.minute),
+    second: Number(parts.second),
+  }
+}
+
+const getServiceTimeZoneOffsetMs = (date: Date) => {
+  const parts = getServiceTimeParts(date)
+  const zonedClockAsUtc = Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hour,
+    parts.minute,
+    parts.second,
+  )
+  return zonedClockAsUtc - date.getTime()
+}
+
+const createServiceDate = (year: number, month: number, day: number, hour: number, minute: number) => {
+  const targetClockAsUtc = Date.UTC(year, month - 1, day, hour, minute, 0)
+  let timestamp = targetClockAsUtc
+
+  // A second pass handles a DST offset change between the initial estimate and target date.
+  for (let pass = 0; pass < 2; pass += 1) {
+    timestamp = targetClockAsUtc - getServiceTimeZoneOffsetMs(new Date(timestamp))
+  }
+
+  return new Date(timestamp)
 }
 
 export const readContentMedia = (content: Record<string, unknown> | undefined) => {
@@ -161,25 +243,38 @@ export const insertMinistriesNavItem = (
 }
 
 export const getNextSundayServiceTime = (now = new Date()) => {
-  const next = new Date(now)
-  const daysUntilSunday = (7 - next.getDay()) % 7
-  next.setDate(next.getDate() + daysUntilSunday)
-  next.setHours(10, 0, 0, 0)
+  const parts = getServiceTimeParts(now)
+  const localCalendarDate = new Date(Date.UTC(parts.year, parts.month - 1, parts.day))
+  const daysUntilSunday = (7 - parts.weekday) % 7
+  localCalendarDate.setUTCDate(localCalendarDate.getUTCDate() + daysUntilSunday)
+
+  let next = createServiceDate(
+    localCalendarDate.getUTCFullYear(),
+    localCalendarDate.getUTCMonth() + 1,
+    localCalendarDate.getUTCDate(),
+    Math.floor(COUNTDOWN_TARGET_MINUTES / 60),
+    COUNTDOWN_TARGET_MINUTES % 60,
+  )
 
   if (next.getTime() <= now.getTime()) {
-    next.setDate(next.getDate() + 7)
+    localCalendarDate.setUTCDate(localCalendarDate.getUTCDate() + 7)
+    next = createServiceDate(
+      localCalendarDate.getUTCFullYear(),
+      localCalendarDate.getUTCMonth() + 1,
+      localCalendarDate.getUTCDate(),
+      Math.floor(COUNTDOWN_TARGET_MINUTES / 60),
+      COUNTDOWN_TARGET_MINUTES % 60,
+    )
   }
 
   return next
 }
 
 export const isSundayServiceLive = (now = new Date()) => {
-  if (now.getDay() !== 0) return false
-  const start = new Date(now)
-  start.setHours(9, 45, 0, 0)
-  const end = new Date(now)
-  end.setHours(12, 0, 0, 0)
-  return now.getTime() >= start.getTime() && now.getTime() <= end.getTime()
+  const parts = getServiceTimeParts(now)
+  if (parts.weekday !== SUNDAY_INDEX) return false
+  const minutes = parts.hour * 60 + parts.minute
+  return minutes >= SERVICE_START_MINUTES && minutes <= SERVICE_END_MINUTES
 }
 
 export const getServiceCountdown = (now = new Date()): ServiceCountdown => {

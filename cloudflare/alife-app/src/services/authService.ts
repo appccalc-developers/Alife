@@ -8,6 +8,10 @@ export const authService = {
     return normalizeMe(data)
   },
 
+  async updateProfile(payload: { displayName: string; email: string | null; phoneE164: string | null }) {
+    await http.put('/api/me/profile', payload)
+  },
+
   async logout() {
     await http.post('/api/auth/logout')
   },

@@ -180,7 +180,7 @@ const YouVersionBibleReader = ({ reference, versionId, providerUrl, language, ca
         <summary className="flex cursor-pointer list-none items-center gap-2 font-bold"><Info className="h-4 w-4" />{isZh ? '译本与版权说明' : 'Translation and copyright'}</summary>
         <p className="mt-3 leading-5">{state.copyright}</p>
       </details>
-      {isFocusMode ? <nav className={['sticky bottom-3 z-20 mx-auto mt-8 flex w-full max-w-xl items-center justify-between gap-3 rounded-2xl border p-2 shadow-[0_12px_36px_rgba(0,0,0,0.18)] backdrop-blur', toolbarClass].join(' ')} aria-label={isZh ? '章节切换' : 'Chapter navigation'}>
+      {isFocusMode ? <nav className={['fixed inset-x-4 bottom-4 z-20 mx-auto flex max-w-xl items-center justify-between gap-3 rounded-2xl border p-2 shadow-[0_12px_36px_rgba(0,0,0,0.18)] backdrop-blur sm:inset-x-8', toolbarClass].join(' ')} aria-label={isZh ? '章节切换' : 'Chapter navigation'}>
         <button type="button" onClick={onPrevious} disabled={!canGoPrevious} className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl px-3 text-sm font-black transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-35" aria-label={isZh ? '上一章' : 'Previous chapter'}><ChevronLeft className="h-5 w-5" />{isZh ? '上一章' : 'Previous'}</button>
         <span className={['shrink-0 text-center text-xs font-bold', mutedTextClass].join(' ')}>{state.reference}</span>
         <button type="button" onClick={onNext} disabled={!canGoNext} className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl px-3 text-sm font-black transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-35" aria-label={isZh ? '下一章' : 'Next chapter'}>{isZh ? '下一章' : 'Next'}<ChevronRight className="h-5 w-5" /></button>

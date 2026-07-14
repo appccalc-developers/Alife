@@ -1,0 +1,24 @@
+# Keep the SPA shell fresh so a deployment can switch clients to new hashed assets quickly.
+/*
+  Cache-Control: public, max-age=60, must-revalidate
+  Cloudflare-CDN-Cache-Control: public, max-age=60, must-revalidate
+
+# Fingerprinted Vite assets are safe to cache permanently because their URLs change with content.
+/assets/*
+  ! Cache-Control
+  ! Cloudflare-CDN-Cache-Control
+  Cache-Control: public, max-age=31536000, immutable
+  Cloudflare-CDN-Cache-Control: public, max-age=31536000
+
+# These stable URLs must be revalidated so they can announce a new application version immediately.
+/index.html
+  ! Cache-Control
+  ! Cloudflare-CDN-Cache-Control
+  Cache-Control: public, max-age=0, must-revalidate
+  Cloudflare-CDN-Cache-Control: public, max-age=0, must-revalidate
+
+/sw.js
+  ! Cache-Control
+  ! Cloudflare-CDN-Cache-Control
+  Cache-Control: public, max-age=0, must-revalidate
+  Cloudflare-CDN-Cache-Control: public, max-age=0, must-revalidate

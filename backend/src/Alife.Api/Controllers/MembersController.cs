@@ -7,6 +7,7 @@ using Alife.Application.Members.Commands.LineLogin;
 using Alife.Application.Members.Commands.LoginByDisplayName;
 using Alife.Application.Members.Commands.RegisterMember;
 using Alife.Application.Members.Commands.SaveBibleReadingProgress;
+using Alife.Application.Members.Commands.UpdateCurrentMemberProfile;
 using Alife.Application.Members.Dtos;
 using Alife.Application.Members.Queries.GetCurrentMemberProfile;
 using Alife.Application.Members.Queries.GetBibleReadingProgress;
@@ -225,6 +226,26 @@ public class MembersController(
         return this.ToActionResult(result);
     }
 
+    [HttpPut("me/profile")]
+    public async Task<IActionResult> UpdateCurrentMemberProfile(
+        [FromBody] UpdateCurrentMemberProfileRequest request,
+        CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null)
+        {
+            return Unauthorized();
+        }
+
+        var result = await mediator.Send(new UpdateCurrentMemberProfileCommand(
+            currentMemberId.Value,
+            request.DisplayName,
+            request.Email,
+            request.PhoneE164), cancellationToken);
+        this.ApplyNoStoreHeaders();
+        return this.ToActionResult(result);
+    }
+
     [HttpGet("me/bible-reading-progress")]
     public async Task<IActionResult> GetBibleReadingProgress(CancellationToken cancellationToken)
     {
@@ -259,6 +280,7 @@ public class MembersController(
 
     public record RegisterRequest(string Name, string? Sex, int? Age, string? Email);
     public record LoginByDisplayNameRequest(string? Account, string? Password, string? DisplayName);
+    public record UpdateCurrentMemberProfileRequest(string? DisplayName, string? Email, string? PhoneE164);
     public record SaveBibleReadingProgressRequest(
         string Book,
         int Chapter,

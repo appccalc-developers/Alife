@@ -15,9 +15,11 @@ using Alife.Application.Groups.Commands.RejectGroupMember;
 using Alife.Application.Groups.Commands.SetGroupCoLeader;
 using Alife.Application.Groups.Commands.TransferGroupLeadership;
 using Alife.Application.Groups.Commands.UpdateGroup;
+using Alife.Application.Groups.Commands.UpdateGroupMemberProfile;
 using Alife.Application.Groups.Queries.GetChurch;
 using Alife.Application.Groups.Queries.GetGroupById;
 using Alife.Application.Groups.Queries.GetGroupInviteCandidates;
+using Alife.Application.Groups.Queries.GetGroupMemberProfile;
 using Alife.Application.Groups.Queries.GetGroupMemberships;
 using Alife.Application.Groups.Queries.GetSubgroups;
 using Alife.Application.Groups.Queries.GetVisibleGroups;
@@ -196,6 +198,48 @@ public class GroupsController(
             return this.ToActionResult(result);
         }
 
+        this.ApplyPrivateNoCacheHeaders();
+        return this.ToActionResult(result);
+    }
+
+    [HttpGet("{id:guid}/members/{memberId:guid}/profile")]
+    public async Task<IActionResult> GetMemberProfile(Guid id, Guid memberId, CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null)
+        {
+            return Unauthorized();
+        }
+
+        var result = await mediator.Send(
+            new GetGroupMemberProfileQuery(id, currentMemberId.Value, memberId),
+            cancellationToken);
+        this.ApplyPrivateNoCacheHeaders();
+        return this.ToActionResult(result);
+    }
+
+    [HttpPut("{id:guid}/members/{memberId:guid}/profile")]
+    public async Task<IActionResult> UpdateMemberProfile(
+        Guid id,
+        Guid memberId,
+        UpdateGroupMemberProfileRequest request,
+        CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null)
+        {
+            return Unauthorized();
+        }
+
+        var result = await mediator.Send(
+            new UpdateGroupMemberProfileCommand(
+                id,
+                currentMemberId.Value,
+                memberId,
+                request.DisplayName,
+                request.Email,
+                request.PhoneE164),
+            cancellationToken);
         this.ApplyPrivateNoCacheHeaders();
         return this.ToActionResult(result);
     }
@@ -384,4 +428,5 @@ public class GroupsController(
     public record InviteByIdRequest(Guid TargetMemberId);
     public record MemberTargetRequest(Guid MemberId);
     public record SetCoLeaderRequest(Guid MemberId, bool IsCoLeader);
+    public record UpdateGroupMemberProfileRequest(string? DisplayName, string? Email, string? PhoneE164);
 }
