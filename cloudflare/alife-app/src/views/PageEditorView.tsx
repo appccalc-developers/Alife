@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import PageContentRenderer, {
-  createPresetPageSection,
   normalizePageSections,
   validatePageContent,
 } from '../components/page/PageContentRenderer'
 import PageEditorShell from '../components/page-editor/PageEditorShell'
+import PagePresetPicker from '../components/page-editor/PagePresetPicker'
 import PageSettingsPanel from '../components/page-editor/PageSettingsPanel'
+import { createPagePresetModel, isPagePresetId, type PagePresetId } from '../components/page/pagePresets'
 import { ensureFreshPageDetail, setPageDetailCache } from '../db/collections/pageCollection'
 import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
 import { activeEntityService } from '../services/activeEntityService'
@@ -58,28 +59,6 @@ type LanguageReviewPrompt = {
 }
 
 const otherLanguage = (language: string): EditorLanguage => language === 'zh' ? 'en' : 'zh'
-
-const createDefaultHomeModel = (base?: Partial<PageEditModel>): PageEditModel => ({
-  groupId: '',
-  title: { en: 'Home', zh: '首页' },
-  description: {
-    en: 'Public home page for visitors, seekers, and members.',
-    zh: '面向访客、慕道朋友和成员的公共首页。',
-  },
-  tags: ['home'],
-  titleDisplayStyle: 'Default',
-  visibility: 'public',
-  sections: normalizePageSections([
-    createPresetPageSection('hero-home'),
-    createPresetPageSection('rich-welcome'),
-    createPresetPageSection('spotlight-visit'),
-    createPresetPageSection('spotlight-groups'),
-    createPresetPageSection('list-events'),
-    createPresetPageSection('list-groups'),
-    createPresetPageSection('spotlight-sermons'),
-  ]),
-  ...base,
-})
 
 const PageLanguageReviewModal = ({
   prompt,
@@ -145,7 +124,9 @@ const PageEditorView = () => {
   const [activeSectionFocusToken, setActiveSectionFocusToken] = useState(0)
   const [languageFixingSectionIndex, setLanguageFixingSectionIndex] = useState<number | null>(null)
   const queryGroupId = normalizeRouteGroupId(searchParams.get('groupId'))
-  const isHomeTemplate = (searchParams.get('template') || '').toLowerCase() === 'home'
+  const requestedPreset = searchParams.get('preset') ?? ((searchParams.get('template') || '').toLowerCase() === 'home' ? 'home' : null)
+  const selectedPreset: PagePresetId | null = isPagePresetId(requestedPreset) ? requestedPreset : null
+  const isHomeTemplate = selectedPreset === 'home'
   const preservePublicationReviewStatus = searchParams.get('preservePublicationReviewStatus') === 'true'
   const fromPageReview = searchParams.get('fromReview') === 'true'
   const reviewStatusParam = searchParams.get('reviewStatus')
@@ -164,17 +145,7 @@ const PageEditorView = () => {
   const isCreateMode = Boolean(createGroupId)
 
   const createInitialModel = (groupId: string): PageEditModel =>
-    isHomeTemplate
-      ? createDefaultHomeModel({ groupId })
-      : {
-          groupId,
-          title: { en: '', zh: '' },
-          description: { en: '', zh: '' },
-          tags: [],
-          titleDisplayStyle: 'Default',
-          visibility: 'draft',
-          sections: [],
-        }
+    createPagePresetModel(selectedPreset ?? 'blank', groupId)
 
   const [pageModel, setPageModel] = useState<PageEditModel>(() => normalizePageI18nStructure(createInitialModel(createGroupId)))
 
@@ -231,11 +202,11 @@ const PageEditorView = () => {
       return
     }
 
-    setPageModel((current) => normalizePageI18nStructure(createDefaultHomeModel({
+    setPageModel((current) => normalizePageI18nStructure({
+      ...createPagePresetModel('home', resolvedGroupId),
       id: current.id,
-      groupId: resolvedGroupId,
       createdByMemberId: current.createdByMemberId,
-    })))
+    }))
     setMessage(t('defaultHomeRestored'))
   }, [isHomeTemplate, resolvedGroupId, t])
 
@@ -310,7 +281,7 @@ const PageEditorView = () => {
   useEffect(() => {
     initialize().catch(() => undefined)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auth.initialized, createGroupId, editPageId, queryGroupId])
+  }, [auth.initialized, createGroupId, editPageId, queryGroupId, selectedPreset])
 
   useEffect(() => {
     setUnsavedChangesGuard(hasUnsavedChanges, t('unsavedExitConfirm'), 'confirm')
@@ -620,6 +591,19 @@ const PageEditorView = () => {
 
   if (!isCreateMode && !editPageId) {
     return <Navigate to="/" replace />
+  }
+
+  if (isCreateMode && auth.initialized && !selectedPreset) {
+    return (
+      <PagePresetPicker
+        onSelect={(preset) => {
+          const nextSearchParams = new URLSearchParams(searchParams)
+          nextSearchParams.delete('template')
+          nextSearchParams.set('preset', preset)
+          navigate({ pathname: location.pathname, search: nextSearchParams.toString() }, { replace: true })
+        }}
+      />
+    )
   }
 
   return (

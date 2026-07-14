@@ -20,6 +20,8 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 	public DbSet<Link> Links => Set<Link>();
 	public DbSet<FileStorageProvider> FileStorageProviders => Set<FileStorageProvider>();
 	public DbSet<FileAsset> FileAssets => Set<FileAsset>();
+	public DbSet<Album> Albums => Set<Album>();
+	public DbSet<AlbumPhoto> AlbumPhotos => Set<AlbumPhoto>();
 	public DbSet<Sermon> Sermons => Set<Sermon>();
 	public DbSet<GroupEvent> GroupEvents => Set<GroupEvent>();
 	public DbSet<EventEnrollment> EventEnrollments => Set<EventEnrollment>();
@@ -270,6 +272,25 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 			cfg.HasIndex(x => new { x.OwnerMemberId, x.UploadedUtc });
 			cfg.HasIndex(x => new { x.RelatedEntityType, x.RelatedEntityId });
 			cfg.HasQueryFilter(x => !x.IsDeleted);
+		});
+
+		modelBuilder.Entity<Album>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.NameJson).IsRequired();
+			cfg.HasOne(x => x.Group).WithMany().HasForeignKey(x => x.GroupId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.ParentAlbum).WithMany(x => x.Children).HasForeignKey(x => x.ParentAlbumId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => new { x.GroupId, x.ParentAlbumId, x.SortOrder });
+			cfg.HasQueryFilter(x => !x.IsDeleted);
+		});
+
+		modelBuilder.Entity<AlbumPhoto>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.HasOne(x => x.Album).WithMany(x => x.Photos).HasForeignKey(x => x.AlbumId).OnDelete(DeleteBehavior.Cascade);
+			cfg.HasOne(x => x.FileAsset).WithMany().HasForeignKey(x => x.FileAssetId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => new { x.AlbumId, x.FileAssetId }).IsUnique();
+			cfg.HasIndex(x => new { x.AlbumId, x.SortOrder });
 		});
 
 		modelBuilder.Entity<Sermon>(cfg =>

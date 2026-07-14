@@ -24,7 +24,8 @@ public sealed class RegisterFileAssetCommandHandler(
         "page",
         "section",
         "group",
-        "member"
+        "member",
+        "album"
     };
 
     public async Task<AppResult<FileAssetDto>> Handle(
@@ -121,7 +122,7 @@ public sealed class RegisterFileAssetCommandHandler(
 
         if (request.GroupId is null &&
             (request.Visibility == FileAssetVisibility.GroupVisible ||
-             request.Purpose is FileAssetPurpose.EventPoster or FileAssetPurpose.EnrollmentPaymentProof or FileAssetPurpose.ReviewPhoto))
+             request.Purpose is FileAssetPurpose.EventPoster or FileAssetPurpose.EnrollmentPaymentProof or FileAssetPurpose.ReviewPhoto or FileAssetPurpose.AlbumPhoto))
         {
             return "Group id is required for this file.";
         }
@@ -203,6 +204,18 @@ public sealed class RegisterFileAssetCommandHandler(
                 }
             }
 
+            return AppResult<FileAssetDto>.Success(null!);
+        }
+
+        if (request.Purpose == FileAssetPurpose.AlbumPhoto)
+        {
+            var canManage = await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
+                request.GroupId.Value, request.CurrentMemberId, cancellationToken);
+            if (!canManage)
+                return AppResult<FileAssetDto>.Forbidden("Only group leaders and co-leaders can register album photos.");
+            if (!request.RelatedEntityId.HasValue || !await dbContext.Albums.AsNoTracking().AnyAsync(
+                    x => x.Id == request.RelatedEntityId.Value && x.GroupId == request.GroupId.Value, cancellationToken))
+                return AppResult<FileAssetDto>.NotFound("Related album not found.");
             return AppResult<FileAssetDto>.Success(null!);
         }
 

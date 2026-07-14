@@ -39,9 +39,9 @@ const formatPlatformRole = (role: string | undefined | null, language: string) =
   return ''
 }
 
-type ManageSection = 'announcements' | 'members' | 'events' | 'pages' | 'subgroups' | 'group'
+type ManageSection = 'announcements' | 'members' | 'events' | 'albums' | 'pages' | 'subgroups' | 'group'
 
-const manageSectionKeys: ManageSection[] = ['members', 'subgroups', 'events', 'announcements', 'pages', 'group']
+const manageSectionKeys: ManageSection[] = ['members', 'subgroups', 'events', 'announcements', 'albums', 'pages', 'group']
 
 const normalizeManageSection = (value: string | null): ManageSection =>
   manageSectionKeys.includes(value as ManageSection) ? value as ManageSection : 'pages'
@@ -59,6 +59,8 @@ const managementCopy = (language: string, isChurch?: boolean) => {
       eventsHint: '创建活动、维护报名和后续回顾',
       pages: '页面',
       pagesHint: '发布页面和小组资料',
+      albums: '相册',
+      albumsHint: '整理图片、子相册和页面展示',
       announcements: '公告',
       subgroups: '下属小组',
       subgroupsHint: '管理小组结构和负责人',
@@ -93,6 +95,8 @@ const managementCopy = (language: string, isChurch?: boolean) => {
       eventsHint: 'Create events, manage enrollment, and capture memories',
       pages: 'Pages',
       pagesHint: 'Published pages and group resources',
+      albums: 'Albums',
+      albumsHint: 'Organize photos, subalbums, and page galleries',
       announcements: 'Announcements',
       subgroups: 'Subgroups',
       subgroupsHint: 'Team structure and leaders',
@@ -240,6 +244,7 @@ const ManagementTabs = ({
     { key: 'subgroups' as ManageSection, label: copy.subgroups, icon: <Network className="h-4 w-4" /> },
     { key: 'events' as ManageSection, label: copy.events, icon: <CalendarDays className="h-4 w-4" /> },
     { key: 'announcements' as ManageSection, label: copy.announcements, icon: <Bell className="h-4 w-4" /> },
+    { key: 'albums' as ManageSection, label: copy.albums, icon: <Images className="h-4 w-4" /> },
     { key: 'pages' as ManageSection, label: copy.pages, icon: <FileText className="h-4 w-4" /> },
     { key: 'group' as ManageSection, label: copy.settings, icon: <Settings className="h-4 w-4" /> },
   ]
@@ -1166,7 +1171,7 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
                   pages={pages}
                   onAddPage={() => {
                     activeEntityService.setGroup(groupId, { clearPage: true })
-                    navigate('/pages/new')
+                    navigate(`/groups/${groupId}/pages/new`)
                   }}
                   onDeletePage={(pageId) => {
                     if (!window.confirm(t('removePageConfirm'))) return
@@ -1174,6 +1179,17 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
                   }}
                   onUpdatePageVisibility={(page, visibility) => updatePageVisibility(page, visibility).catch(() => setStatusMessage(t('updatePageVisibilityFailed')))}
                 />
+              ) : null}
+
+              {activeSection === 'albums' ? (
+                <ManagementPanelShell
+                  framed={false}
+                  title={copy.albums}
+                  subtitle={copy.albumsHint}
+                  action={<AppActionButton variant="primary" onClick={() => navigate(`/groups/${groupId}/albums`)}>{copy.albums}</AppActionButton>}
+                >
+                  <p className="text-sm leading-6 text-slate-600">{copy.albumsHint}</p>
+                </ManagementPanelShell>
               ) : null}
 
               {activeSection === 'events' ? (

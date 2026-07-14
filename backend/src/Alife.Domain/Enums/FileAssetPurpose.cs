@@ -9,5 +9,6 @@ public enum FileAssetPurpose
     EnrollmentPaymentProof = 5,
     ReviewPhoto = 6,
     GroupCover = 7,
-    MemberAvatar = 8
+    MemberAvatar = 8,
+    AlbumPhoto = 9
 }

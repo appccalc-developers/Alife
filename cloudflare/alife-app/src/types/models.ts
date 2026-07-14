@@ -122,6 +122,7 @@ export type SectionType =
   | 'Spotlight'
   | 'RichText'
   | 'ListView'
+  | 'Album'
 
 export type SectionEditModel = {
   id?: string

@@ -4,6 +4,7 @@ import ContactLocationSection from './ContactLocationSection'
 import SpotlightSection from './SpotlightSection'
 import RichTextSection from './RichTextSection'
 import GroupListSectionBlock from './GroupListSectionBlock'
+import AlbumSection from './AlbumSection'
 import type { SectionComponentProps } from './types'
 import { pageSectionShellClass } from './sectionPresets'
 
@@ -21,6 +22,8 @@ const SectionBlock = (props: SectionComponentProps) => {
       return <RichTextSection {...props} />
     case 'ListView':
       return <GroupListSectionBlock {...props} />
+    case 'Album':
+      return <AlbumSection {...props} />
     default:
       return (
         <section id={props.domId} className={pageSectionShellClass}>
