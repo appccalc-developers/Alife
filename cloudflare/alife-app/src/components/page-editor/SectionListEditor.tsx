@@ -41,11 +41,11 @@ type Props = {
 
 const sectionTypeOptions: Array<{ type: SectionType; label: LocalText; description: LocalText; Icon: LucideIcon }> = [
   { type: 'LandingHero', label: { en: 'Landing Hero', zh: '首页视频主视觉' }, description: { en: 'Homepage-style video opening with headline and two actions.', zh: '首页风格的视频开场，包含主标题和两个行动按钮。' }, Icon: Video },
+  { type: 'Spotlight', label: { en: 'Spotlight', zh: '重点推荐' }, description: { en: 'Homepage-style spotlight block using custom content or one event.', zh: '首页风格的重点内容，可手动填写或带入一个活动。' }, Icon: Type },
+  { type: 'RichText', label: { en: 'Rich Text', zh: '图文说明' }, description: { en: 'Longer bilingual copy for welcome text, FAQ, or steps.', zh: '适合欢迎语、常见问题、流程说明等较长双语文字。' }, Icon: FileText },
+  { type: 'ListView', label: { en: 'List View', zh: '列表视图' }, description: { en: 'Show content from events, sermons, groups, pages, or members.', zh: '展示活动、讲道、小组、页面或成员等内容来源。' }, Icon: LayoutList },
   { type: 'Countdown', label: { en: 'Countdown', zh: '倒数计时' }, description: { en: 'Homepage-style countdown for an event or custom target time.', zh: '首页风格的倒数区块，可绑定活动或自定义目标时间。' }, Icon: CalendarDays },
   { type: 'ContactLocation', label: { en: 'Contact Location', zh: '联系地点' }, description: { en: 'Homepage-style map section with customized location and contact details.', zh: '首页风格的地图区块，可自定义地点与联系信息。' }, Icon: MapPin },
-  { type: 'RichText', label: { en: 'Rich Text', zh: '图文说明' }, description: { en: 'Longer bilingual copy for welcome text, FAQ, or steps.', zh: '适合欢迎语、常见问题、流程说明等较长双语文字。' }, Icon: FileText },
-  { type: 'Spotlight', label: { en: 'Spotlight', zh: '重点推荐' }, description: { en: 'Homepage-style spotlight block using custom content or one event.', zh: '首页风格的重点内容，可手动填写或带入一个活动。' }, Icon: Type },
-  { type: 'ListView', label: { en: 'List View', zh: '列表视图' }, description: { en: 'Show content from events, sermons, groups, pages, or members.', zh: '展示活动、讲道、小组、页面或成员等内容来源。' }, Icon: LayoutList },
 ]
 
 const SectionListEditor = ({
