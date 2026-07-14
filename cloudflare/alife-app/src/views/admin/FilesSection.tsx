@@ -34,6 +34,7 @@ const filePurposeLabel = (purpose: FileAssetPurpose | '', language: string) => {
     reviewPhoto: { en: 'Review photo', zh: '回顾照片' },
     groupCover: { en: 'Group cover', zh: '小组封面' },
     memberAvatar: { en: 'Member avatar', zh: '成员头像' },
+    albumPhoto: { en: 'Album photo', zh: '相册图片' },
   }
   return labels[purpose][language === 'zh' ? 'zh' : 'en']
 }

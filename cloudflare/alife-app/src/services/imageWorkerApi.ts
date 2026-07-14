@@ -332,3 +332,11 @@ export async function uploadMedia(file: File, folderPath = ''): Promise<Uploaded
 export async function uploadForumMedia(file: File, folderPath = ''): Promise<UploadedMedia> {
   return uploadMedia(file, folderPath)
 }
+
+export async function deleteImageObject(objectKey: string): Promise<void> {
+  const response = await fetch(apiUrl(`/api/images/${pathSegments(objectKey)}`), { method: 'DELETE' })
+  if (!response.ok && response.status !== 404) {
+    const data = await readJson<{ error?: string }>(response)
+    throw new Error(data.error || 'Unable to delete the stored image.')
+  }
+}

@@ -10,5 +10,6 @@ public enum SectionType
 	LandingHero = 20,
 	Countdown = 21,
 	ContactLocation = 22,
-	Spotlight = 23
+	Spotlight = 23,
+	Album = 24
 }

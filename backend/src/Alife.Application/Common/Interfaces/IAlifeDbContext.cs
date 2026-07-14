@@ -18,6 +18,8 @@ public interface IAlifeDbContext
     DbSet<Link> Links { get; }
     DbSet<FileStorageProvider> FileStorageProviders { get; }
     DbSet<FileAsset> FileAssets { get; }
+    DbSet<Album> Albums { get; }
+    DbSet<AlbumPhoto> AlbumPhotos { get; }
     DbSet<Sermon> Sermons { get; }
     DbSet<GroupEvent> GroupEvents { get; }
     DbSet<EventEnrollment> EventEnrollments { get; }
