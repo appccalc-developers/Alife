@@ -43,7 +43,8 @@ const RichTextSection = ({ section, mode, domId, disabled, propertiesOnly, showP
   const text = readLocalizedText(section.contentJson, auth.language, 'text')
   const author = readLocalizedText(section.contentJson, auth.language, 'quoteAuthor')
   const variant = readText(section.styleJson, 'variant')
-  const overlay = variant === 'quoteOverlay' || Boolean(bg)
+  const quoteOverlay = variant === 'quoteOverlay'
+  const overlay = quoteOverlay || Boolean(bg)
   const uploadFolder = pageImageUploadFolder(contextGroupId || page?.ownerGroupId || undefined, pageId || page?.id)
   const mediaGroupId = contextGroupId || page?.ownerGroupId || undefined
   const updateContent = (patch: Record<string, unknown>) => onUpdate?.(patchContent(section, patch))
@@ -59,16 +60,17 @@ const RichTextSection = ({ section, mode, domId, disabled, propertiesOnly, showP
   const headerFallbackTitle = title || (overlay ? t('quoteOfDay') : mode === 'edit' ? t('previewNoTitle') : '')
   const headerFallbackSubtitle = subtitle || (overlay ? t('godLovesUsAll') : mode === 'edit' ? t('previewNoSubtitle') : '')
   const renderedText = text || (mode === 'edit' ? t('noRichTextContentYet') : '')
-  const renderTextEditor = (compact = false) => (
+  const renderTextEditor = (appearance: 'body' | 'bodyOverlay' | 'quoteOverlay' = 'body') => (
     <Suspense fallback={<TinyMceLoading />}>
       <TinyMceRichTextEditor
         value={text}
-        label={t('content')}
-        placeholder={compact ? t('noQuoteContentYet') : t('noRichTextContentYet')}
+        placeholder={appearance === 'quoteOverlay' ? t('noQuoteContentYet') : t('noRichTextContentYet')}
         disabled={!editable}
-        compact={compact}
-        appearance={compact ? 'quoteOverlay' : 'body'}
+        compact={appearance === 'quoteOverlay'}
+        appearance={appearance}
         imageUploadFolder={uploadFolder}
+        imagePickerLabel={t('image')}
+        groupId={mediaGroupId}
         onChange={(value) => updateLocalizedContent({ text: sanitizeRichTextHtml(value) })}
       />
     </Suspense>
@@ -126,7 +128,7 @@ const RichTextSection = ({ section, mode, domId, disabled, propertiesOnly, showP
       <div className="mx-auto max-w-6xl overflow-hidden rounded-lg border border-slate-200">
         <div className={`relative overflow-hidden px-5 text-white ${sectionSpacingClass(section)}`}>
           <BackgroundMedia src={bg} overlayClassName="bg-slate-950/70" />
-          <div className="relative mx-auto max-w-4xl text-center">
+          <div className={`relative mx-auto max-w-4xl ${quoteOverlay ? 'text-center' : 'text-left'}`}>
             {hasSectionHeader ? (
               <SectionHeader
                 header={section.contentJson.header}
@@ -141,10 +143,16 @@ const RichTextSection = ({ section, mode, domId, disabled, propertiesOnly, showP
             ) : null}
             {mode === 'edit' ? (
               <div className="mt-6 text-left sm:mt-8">
-                {renderTextEditor(true)}
+                {renderTextEditor(quoteOverlay ? 'quoteOverlay' : 'bodyOverlay')}
               </div>
             ) : (
-              <RichTextHtml value={text} fallback={t('noQuoteContentYet')} className="mx-auto mt-6 max-w-3xl text-2xl italic leading-relaxed text-slate-100 sm:mt-8 sm:text-4xl [&_a]:text-yellow-200 [&_blockquote]:border-yellow-300 [&_blockquote]:text-slate-100" />
+              <RichTextHtml
+                value={text}
+                fallback={quoteOverlay ? t('noQuoteContentYet') : t('noRichTextContentYet')}
+                className={quoteOverlay
+                  ? 'mx-auto mt-6 max-w-3xl text-2xl italic leading-relaxed text-slate-100 sm:mt-8 sm:text-4xl [&_a]:text-yellow-200 [&_blockquote]:border-yellow-300 [&_blockquote]:text-slate-100'
+                  : 'mx-auto mt-6 max-w-3xl text-left text-base font-normal not-italic leading-7 text-slate-100 sm:mt-8 [&_a]:text-yellow-200 [&_blockquote]:border-yellow-300 [&_blockquote]:text-slate-200'}
+              />
             )}
             <EditableText as="p" value={author} fallback="" disabled={!editable} className="mt-4 block text-xl font-medium text-yellow-300 sm:text-3xl" onChange={(value) => updateLocalizedContent({ quoteAuthor: value })} />
           </div>
