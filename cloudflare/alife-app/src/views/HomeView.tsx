@@ -3,7 +3,7 @@ import { localizeText } from '../utils/localizedText'
 import { pageSectionDividerClass, pageSectionsCanvasClass } from '../components/page-sections/sectionPresets'
 import { getCopy } from './home/homeCopy'
 import { useHomeData } from './home/useHomeData'
-import { buildMinistriesNavItem, insertMinistriesNavItem } from './home/homeUtils'
+import { buildPageMenuNavItems } from './home/homeUtils'
 import HomeNavHeader from './home/HomeNavHeader'
 import HeroSection from './home/HeroSection'
 import AboutAndLiveSection from './home/AboutAndLiveSection'
@@ -22,27 +22,12 @@ const HomeView = () => {
 
   const churchDescription = localizeText(church?.description, language)
   const copy = getCopy(language, churchDescription)
-  const eventsNavLabel = copy.nav.events
-  const showGuestNav = auth.isGuest
   const showMemberNav = !auth.isGuest
-
-  const rawDefaultNavItems = [
-    { href: '#about', label: copy.nav.about },
-    { href: '#visit', label: copy.nav.visit },
-    ...(showGuestNav ? [{ href: '#ministries', label: copy.nav.life }] : []),
-    ...(showMemberNav ? [{ href: '#groups', label: copy.nav.groups }] : []),
-    { href: '#events', label: copy.nav.events },
-    { href: '#sermons', label: copy.nav.sermons },
-    { href: '#location', label: copy.nav.location },
+  const welcomeNavItem = { href: '#welcome', label: copy.nav.welcome }
+  const headerNavItems = [
+    welcomeNavItem,
+    ...buildPageMenuNavItems(publicPages, language, copy.nav.ministries),
   ]
-
-  const sanitizedNavItems = rawDefaultNavItems.map((item) =>
-    item.href === '#events' ? { ...item, label: eventsNavLabel } : item,
-  )
-  const ministriesNavItem = showMemberNav
-    ? buildMinistriesNavItem(publicPages, language, copy.nav.ministries)
-    : null
-  const headerNavItems = insertMinistriesNavItem(sanitizedNavItems, ministriesNavItem)
 
   return (
     <div className="min-h-screen overflow-hidden bg-home-surface text-home-gold-text">
@@ -67,7 +52,7 @@ const HomeView = () => {
         <hr className={pageSectionDividerClass} />
         <LocationSection copy={copy} />
       </main>
-      <HomeFooter copy={copy} navItems={sanitizedNavItems} />
+      <HomeFooter copy={copy} navItems={[welcomeNavItem]} />
     </div>
   )
 }

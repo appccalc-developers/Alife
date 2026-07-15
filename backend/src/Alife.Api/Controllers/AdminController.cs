@@ -142,6 +142,7 @@ public class AdminController(IMediator mediator, ICurrentMemberAccessor currentM
             new ApprovePagePublicationCommand(
                 currentMemberId.Value,
                 pageId,
+                request?.PrimaryMenuName,
                 request?.AccessName,
                 request?.CardImageUrl,
                 request?.CardText),
@@ -460,6 +461,7 @@ public class AdminController(IMediator mediator, ICurrentMemberAccessor currentM
     public sealed record UpdatePlatformRolePermissionsRequest(IReadOnlyList<string> PermissionCodes);
     public sealed record UpdateVisitContactRequestStatusRequest(string Status);
     public sealed record ApprovePagePublicationReviewRequest(
+        IReadOnlyDictionary<string, string>? PrimaryMenuName,
         IReadOnlyDictionary<string, string>? AccessName,
         string? CardImageUrl,
         IReadOnlyDictionary<string, string>? CardText);

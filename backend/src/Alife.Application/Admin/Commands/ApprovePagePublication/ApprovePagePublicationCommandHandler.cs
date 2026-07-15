@@ -42,6 +42,11 @@ public sealed class ApprovePagePublicationCommandHandler(
         var ownerGroupId = page.OwnerGroupId;
         var title = ReadTextMap(page.TitleJson);
         var description = ReadTextMap(page.DescriptionJson);
+        var primaryMenuName = NormalizePrimaryMenuName(request.PrimaryMenuName);
+        if (primaryMenuName is null)
+        {
+            return AppResult<PagePublicationReviewActionDto>.Validation("English and Chinese primary menu names are required.");
+        }
         var accessName = NormalizeAccessName(request.AccessName, title);
         var cardText = NormalizeCardText(request.CardText, description, title);
         var cardImageUrl = NormalizeCardImageUrl(request.CardImageUrl);
@@ -61,6 +66,7 @@ public sealed class ApprovePagePublicationCommandHandler(
         }
 
         review.Status = PagePublicationReviewStatus.Approved;
+        review.PrimaryMenuNameJson = WriteTextMap(primaryMenuName);
         review.AccessNameJson = WriteTextMap(accessName);
         review.CardImageUrl = cardImageUrl;
         review.CardTextJson = WriteTextMap(cardText);
@@ -89,12 +95,13 @@ public sealed class ApprovePagePublicationCommandHandler(
                 ownerGroupId,
                 visibility = page.Visibility.ToString(),
                 publicationReviewStatus = "Approved",
+                primaryMenuName,
                 accessName,
                 cardImageUrl,
                 cardText,
                 pageUpdatedUtc = page.UpdatedUtc
             }),
-            MetadataJson = JsonSerializer.Serialize(new { ownerGroupId, pageUpdatedUtc = page.UpdatedUtc, accessName, cardImageUrl, cardText }),
+            MetadataJson = JsonSerializer.Serialize(new { ownerGroupId, pageUpdatedUtc = page.UpdatedUtc, primaryMenuName, accessName, cardImageUrl, cardText }),
             OccurredUtc = now
         }, cancellationToken);
 
@@ -106,11 +113,12 @@ public sealed class ApprovePagePublicationCommandHandler(
             true,
             page.Id,
             ownerGroupId,
-            ToDto(page, accessName, cardImageUrl, cardText)));
+            ToDto(page, primaryMenuName, accessName, cardImageUrl, cardText)));
     }
 
     private static PageDto ToDto(
         Page page,
+        IReadOnlyDictionary<string, string> primaryMenuName,
         IReadOnlyDictionary<string, string> accessName,
         string? cardImageUrl,
         IReadOnlyDictionary<string, string> cardText)
@@ -126,7 +134,34 @@ public sealed class ApprovePagePublicationCommandHandler(
             page.UpdatedUtc,
             accessName,
             CardImageUrl: cardImageUrl,
-            CardText: cardText);
+            CardText: cardText,
+            PrimaryMenuName: primaryMenuName);
+
+    private static IReadOnlyDictionary<string, string>? NormalizePrimaryMenuName(
+        IReadOnlyDictionary<string, string>? value)
+    {
+        if (value is null || value.Count == 0)
+        {
+            return new Dictionary<string, string>
+            {
+                ["en"] = "Ministries",
+                ["zh"] = "事工"
+            };
+        }
+
+        var en = ReadTextValue(value, "en");
+        var zh = ReadTextValue(value, "zh");
+        if (en is null || zh is null)
+        {
+            return null;
+        }
+
+        return new Dictionary<string, string>
+        {
+            ["en"] = en.Length <= 120 ? en : en[..120],
+            ["zh"] = zh.Length <= 120 ? zh : zh[..120]
+        };
+    }
 
     private static IReadOnlyDictionary<string, string> NormalizeAccessName(
         IReadOnlyDictionary<string, string>? value,

@@ -32,7 +32,8 @@ public sealed class PageReadService(AlifeDbContext dbContext, HybridCache hybrid
                         row.Page,
                         ReadNullableTextMap(row.Review?.AccessNameJson),
                         row.Review?.CardImageUrl,
-                        ReadNullableTextMap(row.Review?.CardTextJson)))
+                        ReadNullableTextMap(row.Review?.CardTextJson),
+                        ReadNullableTextMap(row.Review?.PrimaryMenuNameJson)))
                     .ToList();
             },
             cancellationToken);
@@ -88,13 +89,14 @@ public sealed class PageReadService(AlifeDbContext dbContext, HybridCache hybrid
             cancellationToken);
 
     private static PageDto ToDto(Domain.Entities.Page page)
-        => ToDto(page, null, null, null);
+        => ToDto(page, null, null, null, null);
 
     private static PageDto ToDto(
         Domain.Entities.Page page,
         IReadOnlyDictionary<string, string>? accessName,
         string? cardImageUrl,
-        IReadOnlyDictionary<string, string>? cardText)
+        IReadOnlyDictionary<string, string>? cardText,
+        IReadOnlyDictionary<string, string>? primaryMenuName)
         => new(
             page.Id,
             page.OwnerGroupId,
@@ -107,7 +109,8 @@ public sealed class PageReadService(AlifeDbContext dbContext, HybridCache hybrid
             page.UpdatedUtc,
             accessName,
             CardImageUrl: cardImageUrl,
-            CardText: cardText);
+            CardText: cardText,
+            PrimaryMenuName: primaryMenuName);
 
     private static IReadOnlyDictionary<string, string>? ReadNullableTextMap(string? value)
     {

@@ -16,7 +16,7 @@ import ShellHeader from './shell/ShellHeader'
 import HomeNavHeader from '../views/home/HomeNavHeader'
 import HomeFooter from '../views/home/HomeFooter'
 import { getCopy } from '../views/home/homeCopy'
-import { buildMinistriesNavItem, insertMinistriesNavItem } from '../views/home/homeUtils'
+import { buildPageMenuNavItems } from '../views/home/homeUtils'
 import { pageService } from '../services/pageService'
 import type { PageSummaryDto } from '../types'
 
@@ -200,25 +200,14 @@ const PublicHomeShell = () => {
   const isPublicPage = isPublicPageLocation(location)
   const isHome = isHomeLocation(location)
   const copy = getCopy(auth.language, '')
-  const showGuestNav = auth.isGuest
-  const showMemberNav = !auth.isGuest
-  const footerNavItems = useMemo(() => [
-    { href: '/#about', label: copy.nav.about },
-    { href: '/#visit', label: copy.nav.visit },
-    ...(showGuestNav ? [{ href: '/#ministries', label: copy.nav.life }] : []),
-    ...(showMemberNav ? [{ href: '/#groups', label: copy.nav.groups }] : []),
-    { href: '/forum', label: auth.language === 'zh' ? '论坛' : 'Forum' },
-    { href: '/#events', label: copy.nav.events },
-    { href: '/#sermons', label: copy.nav.sermons },
-    { href: '/#location', label: copy.nav.location },
-  ], [auth.language, copy.nav.about, copy.nav.events, copy.nav.groups, copy.nav.life, copy.nav.location, copy.nav.sermons, copy.nav.visit, showGuestNav, showMemberNav])
-  const ministriesNavItem = useMemo(
-    () => showMemberNav ? buildMinistriesNavItem(publicPages, auth.language, copy.nav.ministries) : null,
-    [auth.language, copy.nav.ministries, publicPages, showMemberNav],
+  const welcomeNavItem = useMemo(
+    () => ({ href: '/#welcome', label: copy.nav.welcome }),
+    [copy.nav.welcome],
   )
+  const footerNavItems = useMemo(() => [welcomeNavItem], [welcomeNavItem])
   const headerNavItems = useMemo(
-    () => insertMinistriesNavItem(footerNavItems, ministriesNavItem),
-    [footerNavItems, ministriesNavItem],
+    () => [welcomeNavItem, ...buildPageMenuNavItems(publicPages, auth.language, copy.nav.ministries)],
+    [auth.language, copy.nav.ministries, publicPages, welcomeNavItem],
   )
 
   useEffect(() => {

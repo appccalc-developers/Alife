@@ -46,7 +46,7 @@ const HeroSection = ({ copy }: Props) => {
   }, [])
 
   return (
-    <section ref={heroRef} className="relative isolate min-h-dvh overflow-hidden bg-home-dark text-white">
+    <section id="welcome" ref={heroRef} className="relative isolate min-h-dvh scroll-mt-16 overflow-hidden bg-home-dark text-white">
       <video
         ref={videoRef}
         className="absolute inset-0 z-0 h-full w-full scale-105 object-cover opacity-60"

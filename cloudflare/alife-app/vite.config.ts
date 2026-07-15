@@ -12,7 +12,27 @@ export default defineConfig(() => {
   const imagesProxyTarget = process.env.IMAGES_PROXY_TARGET || 'https://images.ccalc.live'
 
   return {
-    plugins: [react(), VitePWA({
+    plugins: [
+      {
+        name: 'alife-dev-no-store',
+        configureServer(server) {
+          server.middlewares.use((request, response, next) => {
+            if (!request.url?.startsWith('/api/') && !request.url?.startsWith('/images/')) {
+              const setHeader = response.setHeader.bind(response)
+              response.setHeader = ((name, value) =>
+                setHeader(
+                  name,
+                  name.toLowerCase() === 'cache-control' ? 'no-store, max-age=0' : value,
+                )) as typeof response.setHeader
+              response.setHeader('Cache-Control', 'no-store, max-age=0')
+              response.setHeader('Pragma', 'no-cache')
+              response.setHeader('Expires', '0')
+            }
+            next()
+          })
+        },
+      },
+      react(), VitePWA({
       filename: 'sw.js',
       injectRegister: false,
       manifest: false,
@@ -112,7 +132,8 @@ export default defineConfig(() => {
           },
         ],
       },
-    })],
+      }),
+    ],
     server: {
       proxy: {
         '/api/ai': {

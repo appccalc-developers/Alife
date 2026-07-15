@@ -152,6 +152,38 @@ export const publicPageMenuName = (page: PageSummaryDto, language: string) =>
   page.title?.zh ||
   page.id
 
+const primaryMenuLookupKey = (page: PageSummaryDto, fallbackLabel: string) => {
+  const en = page.primaryMenuName?.en?.trim() || fallbackLabel
+  const zh = page.primaryMenuName?.zh?.trim() || fallbackLabel
+  return JSON.stringify([publicPageLookupKey(en), publicPageLookupKey(zh)])
+}
+
+export const buildPageMenuNavItems = (
+  pages: PageSummaryDto[],
+  language: string,
+  fallbackLabel: string,
+): HomeNavItem[] => {
+  const groups = new Map<string, { label: string; items: HomeNavDropdownChild[] }>()
+
+  sortPublicPagesForMinistries(pages, language).forEach((page) => {
+    const key = primaryMenuLookupKey(page, fallbackLabel)
+    const label = localizeText(page.primaryMenuName, language) || fallbackLabel
+    const group = groups.get(key) ?? { label, items: [] }
+    group.items.push({
+      to: publicPageHomePath(page, language),
+      label: publicPageMenuName(page, language),
+    })
+    groups.set(key, group)
+  })
+
+  const locale = language === 'zh' ? 'zh-Hans' : 'en'
+  return Array.from(groups.entries())
+    .sort(([, left], [, right]) => left.label.localeCompare(right.label, locale, { sensitivity: 'base' }))
+    .map(([key, group]) => group.items.length === 1
+      ? { href: group.items[0].to, label: group.label }
+      : { key: `pages:${key}`, label: group.label, items: group.items })
+}
+
 const publicPageLookupKey = (value: string | null | undefined) =>
   value?.trim().replace(/\s+/g, ' ').toLocaleLowerCase() ?? ''
 
@@ -186,20 +218,6 @@ export const findPublicPageByMenuName = (
   ].some((candidate) => publicPageLookupKey(candidate) === target)) ?? null
 }
 
-export const buildMinistriesNavItem = (
-  pages: PageSummaryDto[],
-  language: string,
-  label: string,
-): HomeNavDropdownItem | null => {
-  const items = sortPublicPagesForMinistries(pages, language)
-    .map((page) => ({
-      to: publicPageHomePath(page, language),
-      label: publicPageMenuName(page, language),
-    }))
-
-  return items.length > 0 ? { key: 'ministries', label, items } : null
-}
-
 export const getPublicMinistryPages = (pages: PageSummaryDto[]) => {
   const byId = new Map<string, PageSummaryDto>()
   pages.forEach((page) => {
@@ -220,26 +238,6 @@ export const sortPublicPagesForMinistries = (pages: PageSummaryDto[], language: 
       return leftLabel.localeCompare(rightLabel, locale, { sensitivity: 'base' }) ||
         left.id.localeCompare(right.id)
     })
-}
-
-export const insertMinistriesNavItem = (
-  navItems: HomeNavLinkItem[],
-  ministriesItem: HomeNavDropdownItem | null,
-): HomeNavItem[] => {
-  if (!ministriesItem) {
-    return navItems
-  }
-
-  const groupIndex = navItems.findIndex((item) => item.href === '#groups' || item.href === '/#groups')
-  const insertAt = groupIndex >= 0
-    ? groupIndex + 1
-    : Math.max(0, navItems.findIndex((item) => item.href === '#events' || item.href === '/#events'))
-
-  return [
-    ...navItems.slice(0, insertAt),
-    ministriesItem,
-    ...navItems.slice(insertAt),
-  ]
 }
 
 export const getNextSundayServiceTime = (now = new Date()) => {
