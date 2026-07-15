@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState, type ChangeEvent, type ReactNode } from 'react'
-import { Check, Folder, FolderOpen, Image as ImageIcon, RefreshCw, Upload, Video, X } from 'lucide-react'
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useState, type ChangeEvent, type ReactNode } from 'react'
+import { Folder, FolderOpen, Image as ImageIcon, RefreshCw, Upload, Video, X } from 'lucide-react'
 import { useAuthStore } from '../../stores/auth'
 import {
   imageKeyToAppPath,
@@ -24,8 +24,13 @@ type Props = {
   groupId?: string
   accept?: MediaAccept
   trigger?: ReactNode
+  pickerOnly?: boolean
   onOpen?: () => void
   onChange: (value: string) => void
+}
+
+export type MediaPickerInputHandle = {
+  open: () => void
 }
 
 const emptyListing: MediaFolderListing = {
@@ -90,7 +95,7 @@ const mediaUrlToAppPath = (item: ListedMedia) => {
   return path || imageKeyToAppPath(item.key)
 }
 
-const MediaPickerInput = ({
+const MediaPickerInput = forwardRef<MediaPickerInputHandle, Props>(({
   label: inputLabel,
   value,
   disabled,
@@ -98,9 +103,10 @@ const MediaPickerInput = ({
   groupId,
   accept = 'media',
   trigger,
+  pickerOnly,
   onOpen,
   onChange,
-}: Props) => {
+}, ref) => {
   const { language } = useAuthStore()
   const [open, setOpen] = useState(false)
   const [scope, setScope] = useState<MediaScope>(groupId ? 'group' : 'public')
@@ -191,6 +197,8 @@ const MediaPickerInput = ({
     setOpen(true)
   }
 
+  useImperativeHandle(ref, () => ({ open: openPicker }))
+
   const switchScope = (nextScope: MediaScope) => {
     setScope(nextScope)
     setFolderPath(nextScope === 'group' && groupRoot ? groupRoot : publicRoot)
@@ -233,8 +241,8 @@ const MediaPickerInput = ({
   }
 
   return (
-    <div className={trigger ? 'shrink-0' : 'block space-y-1 md:col-span-2'} data-field-key={focusKey}>
-      {trigger ? (
+    <div className={pickerOnly ? 'contents' : trigger ? 'shrink-0' : 'block space-y-1 md:col-span-2'} data-field-key={focusKey}>
+      {pickerOnly ? null : trigger ? (
         <button
           type="button"
           disabled={disabled}
@@ -268,7 +276,7 @@ const MediaPickerInput = ({
       )}
 
       {open ? (
-        <div className="fixed inset-0 z-[85] flex items-end bg-slate-950/45 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+4.5rem)] sm:items-center sm:justify-center sm:pb-4">
+        <div className={`fixed inset-0 flex items-end bg-slate-950/45 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+4.5rem)] sm:items-center sm:justify-center sm:pb-4 ${pickerOnly ? 'z-[1400]' : 'z-[85]'}`}>
           <button type="button" className="absolute inset-0" aria-label={copy.close} onClick={() => setOpen(false)} />
           <section className="relative z-10 flex h-[86vh] max-h-[86vh] w-full max-w-5xl flex-col rounded-2xl bg-white shadow-2xl sm:h-[min(78vh,720px)] sm:max-h-[78vh]">
             <header className="flex shrink-0 flex-col gap-3 border-b border-slate-200 px-4 py-3 sm:px-5">
@@ -363,7 +371,12 @@ const MediaPickerInput = ({
                       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         {allowedMedia.map((item) => (
                           <article key={item.key} className="overflow-hidden rounded border border-slate-200 bg-white shadow-sm">
-                            <div className="relative aspect-video bg-slate-100">
+                            <button
+                              type="button"
+                              className="relative block aspect-video w-full overflow-hidden bg-slate-100 text-left transition hover:opacity-90 focus:outline-none focus:ring-4 focus:ring-inset focus:ring-emerald-200"
+                              aria-label={`${copy.select}: ${item.name}`}
+                              onClick={() => selectMedia(item)}
+                            >
                               {item.kind === 'video' ? (
                                 <video src={item.url} className="h-full w-full object-cover" muted playsInline preload="metadata" />
                               ) : (
@@ -372,18 +385,10 @@ const MediaPickerInput = ({
                               <span className="absolute left-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded bg-white/90 text-slate-700 shadow-sm">
                                 {item.kind === 'video' ? <Video className="h-4 w-4" /> : <ImageIcon className="h-4 w-4" />}
                               </span>
-                            </div>
-                            <div className="space-y-2 p-3">
+                            </button>
+                            <div className="p-3">
                               <p className="truncate text-sm font-bold text-slate-900" title={item.name}>{item.name}</p>
                               <p className="truncate text-xs text-slate-500">{formatBytes(item.size)} {formatDate(item.uploaded) ? `/ ${formatDate(item.uploaded)}` : ''}</p>
-                              <button
-                                type="button"
-                                className="inline-flex h-9 w-full items-center justify-center gap-2 rounded bg-slate-900 px-3 text-sm font-semibold text-white transition hover:bg-slate-700"
-                                onClick={() => selectMedia(item)}
-                              >
-                                <Check className="h-4 w-4" />
-                                {copy.select}
-                              </button>
                             </div>
                           </article>
                         ))}
@@ -398,6 +403,8 @@ const MediaPickerInput = ({
       ) : null}
     </div>
   )
-}
+})
+
+MediaPickerInput.displayName = 'MediaPickerInput'
 
 export default MediaPickerInput

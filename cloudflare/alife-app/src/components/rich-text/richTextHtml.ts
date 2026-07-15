@@ -38,7 +38,7 @@ const blockedRichTextTags = new Set([
 ])
 
 export const richTextBodyClass = [
-  'min-w-0 break-words',
+  'flow-root min-w-0 break-words',
   '[&_a]:font-semibold [&_a]:underline [&_a]:underline-offset-2',
   '[&_blockquote]:my-5 [&_blockquote]:border-l-4 [&_blockquote]:border-emerald-500 [&_blockquote]:pl-4',
   '[&_h2]:mb-3 [&_h2]:mt-6 [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:leading-tight',
@@ -127,6 +127,53 @@ const sanitizeDimension = (value: string | null) => {
   return /^\d{1,4}$/.test(trimmed) ? trimmed : ''
 }
 
+const sanitizeImageCssSize = (value: string, allowAuto = false) => {
+  const normalized = value.trim().toLowerCase()
+  if (allowAuto && normalized === 'auto') {
+    return normalized
+  }
+
+  const match = /^(\d{1,4}(?:\.\d{1,2})?)(px|%)$/.exec(normalized)
+  if (!match) {
+    return ''
+  }
+
+  const amount = Number(match[1])
+  if (!Number.isFinite(amount) || amount <= 0 || (match[2] === '%' ? amount > 100 : amount > 4000)) {
+    return ''
+  }
+
+  return `${amount}${match[2]}`
+}
+
+const sanitizeImageStyle = (sourceElement: Element, cleanElement: HTMLElement) => {
+  const sourceStyle = (sourceElement as HTMLElement).style
+  const width = sanitizeImageCssSize(sourceStyle.width)
+  const height = sanitizeImageCssSize(sourceStyle.height, true)
+
+  if (width) {
+    cleanElement.style.width = width
+  }
+  if (height) {
+    cleanElement.style.height = height
+  }
+
+  if (sourceStyle.float === 'left' || sourceStyle.float === 'right') {
+    cleanElement.style.float = sourceStyle.float
+    cleanElement.style.marginTop = '4px'
+    cleanElement.style.marginBottom = '12px'
+    cleanElement.style.marginLeft = sourceStyle.float === 'left' ? '0px' : '20px'
+    cleanElement.style.marginRight = sourceStyle.float === 'left' ? '20px' : '0px'
+    return
+  }
+
+  if (sourceStyle.display === 'block' && sourceStyle.marginLeft === 'auto' && sourceStyle.marginRight === 'auto') {
+    cleanElement.style.display = 'block'
+    cleanElement.style.marginLeft = 'auto'
+    cleanElement.style.marginRight = 'auto'
+  }
+}
+
 const sanitizeRichTextNode = (node: Node, doc: Document): Node | null => {
   if (node.nodeType === TEXT_NODE) {
     return doc.createTextNode(node.textContent ?? '')
@@ -203,6 +250,7 @@ const sanitizeRichTextNode = (node: Node, doc: Document): Node | null => {
     if (height) {
       cleanElement.setAttribute('height', height)
     }
+    sanitizeImageStyle(sourceElement, cleanElement)
 
     return cleanElement
   }
