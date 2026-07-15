@@ -5,6 +5,7 @@ import AppActionButton from '../components/layout/AppActionButton'
 import AppEmptyState from '../components/layout/AppEmptyState'
 import AppPageShell from '../components/layout/AppPageShell'
 import AppSectionCard from '../components/layout/AppSectionCard'
+import MediaPickerInput from '../components/media/MediaPickerInput'
 import { activeEntityService } from '../services/activeEntityService'
 import { groupService, type AdminPageReviewDto } from '../services/groupService'
 import { normalizeApiError } from '../services/http'
@@ -585,22 +586,21 @@ const PageReviewView = () => {
                 }
               }}
             />
-            <label className="mt-4 block text-sm font-bold text-slate-700" htmlFor="page-card-image-url">
-              {text(language, 'cardImageUrl')}
-            </label>
-            <input
-              id="page-card-image-url"
-              className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm leading-6 text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
-              value={cardImageUrl}
-              maxLength={1200}
-              placeholder={text(language, 'cardImageUrlPlaceholder')}
-              onChange={(event) => {
-                setCardImageUrl(event.target.value)
-                if (error === text(language, 'cardDetailsRequired')) {
-                  setError('')
-                }
-              }}
-            />
+            <div className="mt-4">
+              <MediaPickerInput
+                label={text(language, 'cardImageUrl')}
+                value={cardImageUrl}
+                disabled={Boolean(actingPageId)}
+                accept="image"
+                onChange={(value) => {
+                  setCardImageUrl(value.slice(0, 1200))
+                  if (error === text(language, 'cardDetailsRequired')) {
+                    setError('')
+                  }
+                }}
+              />
+              <p className="mt-1 text-xs text-slate-500">{text(language, 'cardImageUrlPlaceholder')}</p>
+            </div>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <label className="block text-sm font-bold text-slate-700" htmlFor="page-card-text-en">
                 {text(language, 'cardTextEn')}
