@@ -77,11 +77,14 @@ const HomeRoute = () => {
 
 const AppRoutes = () => {
   const location = useLocation()
+  const routeTransitionKey = location.pathname === '/study'
+    ? location.pathname
+    : location.pathname + location.search
 
   return (
     <Suspense fallback={<AppRouteLoading />}>
       <AnimatePresence mode="wait">
-        <Routes location={location} key={location.pathname + location.search}>
+        <Routes location={location} key={routeTransitionKey}>
           <Route path="/" element={<HomeView />} />
           <Route path="/home" element={<HomeRoute />} />
           <Route path="/groups" element={<GroupDetailView />} />

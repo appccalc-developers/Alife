@@ -134,23 +134,28 @@ const YouVersionBibleReader = ({ reference, versionId, providerUrl, language, ca
     : preferences.theme === 'paper'
       ? 'border-[#dfd1b7] bg-[#fbf6ec]/95'
       : 'border-[#dfe8e3] bg-white/95'
+  const focusToolbarClass = preferences.theme === 'dark'
+    ? 'border-[#53665e]/70 bg-[#202d29]/90'
+    : preferences.theme === 'paper'
+      ? 'border-[#d4c3a5]/75 bg-[#fbf6ec]/92'
+      : 'border-white/75 bg-white/90'
   const dividerClass = preferences.theme === 'dark' ? 'border-[#34463f]' : preferences.theme === 'paper' ? 'border-[#dfd1b7]' : 'border-[#e3ebe6]'
   const setFontSize = (fontSize: number) => setPreferences((current) => ({ ...current, fontSize: Math.min(4, Math.max(0, fontSize)) }))
 
   const reader = (
     <article
       data-reader-theme={preferences.theme}
-      className={['border shadow-[0_16px_38px_rgba(30,54,48,0.07)] transition-colors', themeClass, isFocusMode ? 'fixed inset-0 z-[9999] overflow-y-auto rounded-none px-4 pb-24 pt-3 sm:px-8' : 'rounded-[1.5rem] p-5 sm:p-7'].join(' ')}
+      className={['border shadow-[0_16px_38px_rgba(30,54,48,0.07)] transition-colors', themeClass, isFocusMode ? 'fixed inset-0 z-[9999] overflow-y-auto rounded-none px-4 pb-24 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-8' : 'rounded-[1.5rem] p-5 sm:p-7'].join(' ')}
     >
-      <div className={['sticky top-0 z-20 -mx-2 mb-5 flex flex-wrap items-center justify-between gap-2 rounded-2xl border p-2 shadow-sm backdrop-blur', toolbarClass].join(' ')} aria-label={isZh ? '阅读设置' : 'Reading settings'}>
-        <div className="flex items-center gap-1">
-          <button type="button" onClick={() => setFontSize(preferences.fontSize - 1)} disabled={preferences.fontSize === 0} className="inline-flex h-9 w-9 items-center justify-center rounded-lg transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-35" aria-label={isZh ? '缩小字号' : 'Decrease text size'}><Minus className="h-4 w-4" /></button>
-          <span className="inline-flex min-w-12 items-center justify-center gap-1 text-xs font-black" aria-live="polite"><Type className="h-4 w-4" />{preferences.fontSize + 1}/5</span>
-          <button type="button" onClick={() => setFontSize(preferences.fontSize + 1)} disabled={preferences.fontSize === 4} className="inline-flex h-9 w-9 items-center justify-center rounded-lg transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-35" aria-label={isZh ? '增大字号' : 'Increase text size'}><Plus className="h-4 w-4" /></button>
+      <div className={['sticky z-20 -mx-2 flex items-center rounded-2xl border transition-[background-color,border-color,box-shadow] duration-200', isFocusMode ? 'top-0 mb-3 flex-nowrap justify-between gap-1 p-1.5 shadow-[0_8px_30px_rgba(18,38,32,0.13)] backdrop-blur-xl backdrop-saturate-150 sm:mb-5 sm:flex-wrap sm:gap-2 sm:p-2' : 'top-[4.75rem] mb-5 flex-wrap justify-between gap-2 p-2 shadow-sm backdrop-blur sm:top-[5rem]', isFocusMode ? focusToolbarClass : toolbarClass].join(' ')} aria-label={isZh ? '阅读设置' : 'Reading settings'}>
+        <div className={['flex items-center', isFocusMode ? 'gap-0 sm:gap-1' : 'gap-1'].join(' ')}>
+          <button type="button" onClick={() => setFontSize(preferences.fontSize - 1)} disabled={preferences.fontSize === 0} className={['inline-flex items-center justify-center rounded-lg transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-35', isFocusMode ? 'h-8 w-8 sm:h-9 sm:w-9' : 'h-9 w-9'].join(' ')} aria-label={isZh ? '缩小字号' : 'Decrease text size'}><Minus className="h-4 w-4" /></button>
+          <span className={['inline-flex items-center justify-center gap-1 text-xs font-black', isFocusMode ? 'min-w-10 sm:min-w-12' : 'min-w-12'].join(' ')} aria-live="polite"><Type className="h-4 w-4" />{preferences.fontSize + 1}<span className={isFocusMode ? 'hidden sm:inline' : ''}>/5</span></span>
+          <button type="button" onClick={() => setFontSize(preferences.fontSize + 1)} disabled={preferences.fontSize === 4} className={['inline-flex items-center justify-center rounded-lg transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-35', isFocusMode ? 'h-8 w-8 sm:h-9 sm:w-9' : 'h-9 w-9'].join(' ')} aria-label={isZh ? '增大字号' : 'Increase text size'}><Plus className="h-4 w-4" /></button>
         </div>
 
-        <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
-          <label className="inline-flex h-9 items-center rounded-lg border border-current/15 px-2 text-xs font-bold">
+        <div className={['flex min-w-0 items-center justify-end', isFocusMode ? 'flex-nowrap gap-0.5 sm:flex-wrap sm:gap-1.5' : 'flex-wrap gap-1.5'].join(' ')}>
+          <label className={['h-9 items-center rounded-lg border border-current/15 px-2 text-xs font-bold', isFocusMode ? 'hidden sm:inline-flex' : 'inline-flex'].join(' ')}>
             <span className="sr-only">{isZh ? '经文字体' : 'Scripture font'}</span>
             <select value={preferences.font} onChange={(event) => setPreferences((current) => ({ ...current, font: event.target.value as ReaderFont }))} className="max-w-[7.5rem] bg-transparent outline-none" aria-label={isZh ? '选择经文字体' : 'Choose Scripture font'}>
               <option value="serif">{isZh ? '宋体阅读' : 'Serif'}</option>
@@ -164,10 +169,10 @@ const YouVersionBibleReader = ({ reference, versionId, providerUrl, language, ca
               ['light', Sun, isZh ? '明亮' : 'Light'],
               ['paper', Type, isZh ? '护眼' : 'Paper'],
               ['dark', Moon, isZh ? '夜间' : 'Dark'],
-            ] as const).map(([theme, Icon, label]) => <button key={theme} type="button" onClick={() => setPreferences((current) => ({ ...current, theme }))} aria-pressed={preferences.theme === theme} className={['inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs font-bold transition', preferences.theme === theme ? 'bg-[#176b5a] text-white shadow-sm' : 'hover:bg-black/5'].join(' ')} title={label}><Icon className="h-3.5 w-3.5" /><span className="hidden sm:inline">{label}</span></button>)}
+            ] as const).map(([theme, Icon, label]) => <button key={theme} type="button" onClick={() => setPreferences((current) => ({ ...current, theme }))} aria-pressed={preferences.theme === theme} className={['inline-flex h-8 items-center gap-1 rounded-md text-xs font-bold transition', isFocusMode ? 'px-1.5 sm:px-2' : 'px-2', preferences.theme === theme ? 'bg-[#176b5a] text-white shadow-sm' : 'hover:bg-black/5'].join(' ')} title={label}><Icon className="h-3.5 w-3.5" /><span className="hidden sm:inline">{label}</span></button>)}
           </div>
 
-          <button type="button" onClick={() => setIsFocusMode((current) => !current)} aria-pressed={isFocusMode} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-current/15 px-2.5 text-xs font-black transition hover:bg-black/5" title={isFocusMode ? (isZh ? '退出专注阅读' : 'Exit focus mode') : (isZh ? '专注阅读' : 'Focus mode')}>
+          <button type="button" onClick={() => setIsFocusMode((current) => !current)} aria-pressed={isFocusMode} className={['inline-flex items-center gap-1.5 rounded-lg border border-current/15 text-xs font-black transition hover:bg-black/5', isFocusMode ? 'h-8 px-2 sm:h-9 sm:px-2.5' : 'h-9 px-2.5'].join(' ')} title={isFocusMode ? (isZh ? '退出专注阅读' : 'Exit focus mode') : (isZh ? '专注阅读' : 'Focus mode')}>
             {isFocusMode ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
             <span className="hidden sm:inline">{isFocusMode ? (isZh ? '退出' : 'Exit') : (isZh ? '专注' : 'Focus')}</span>
           </button>
@@ -180,10 +185,10 @@ const YouVersionBibleReader = ({ reference, versionId, providerUrl, language, ca
         <summary className="flex cursor-pointer list-none items-center gap-2 font-bold"><Info className="h-4 w-4" />{isZh ? '译本与版权说明' : 'Translation and copyright'}</summary>
         <p className="mt-3 leading-5">{state.copyright}</p>
       </details>
-      {isFocusMode ? <nav className={['fixed inset-x-4 bottom-4 z-20 mx-auto flex max-w-xl items-center justify-between gap-3 rounded-2xl border p-2 shadow-[0_12px_36px_rgba(0,0,0,0.18)] backdrop-blur sm:inset-x-8', toolbarClass].join(' ')} aria-label={isZh ? '章节切换' : 'Chapter navigation'}>
-        <button type="button" onClick={onPrevious} disabled={!canGoPrevious} className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl px-3 text-sm font-black transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-35" aria-label={isZh ? '上一章' : 'Previous chapter'}><ChevronLeft className="h-5 w-5" />{isZh ? '上一章' : 'Previous'}</button>
-        <span className={['shrink-0 text-center text-xs font-bold', mutedTextClass].join(' ')}>{state.reference}</span>
-        <button type="button" onClick={onNext} disabled={!canGoNext} className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl px-3 text-sm font-black transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-35" aria-label={isZh ? '下一章' : 'Next chapter'}>{isZh ? '下一章' : 'Next'}<ChevronRight className="h-5 w-5" /></button>
+      {isFocusMode ? <nav className={['fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-20 mx-auto flex max-w-xl items-center justify-between gap-1 rounded-2xl border p-1.5 shadow-[0_12px_36px_rgba(0,0,0,0.16)] backdrop-blur-xl backdrop-saturate-150 sm:inset-x-8 sm:gap-3 sm:p-2', focusToolbarClass].join(' ')} aria-label={isZh ? '章节切换' : 'Chapter navigation'}>
+        <button type="button" onClick={onPrevious} disabled={!canGoPrevious} className="inline-flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-xl text-sm font-black transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-35 sm:h-11 sm:w-auto sm:flex-1 sm:px-3" aria-label={isZh ? '上一章' : 'Previous chapter'}><ChevronLeft className="h-5 w-5" /><span className="hidden sm:inline">{isZh ? '上一章' : 'Previous'}</span></button>
+        <span className={['min-w-0 flex-1 truncate text-center text-xs font-bold sm:flex-none', mutedTextClass].join(' ')}>{state.reference}</span>
+        <button type="button" onClick={onNext} disabled={!canGoNext} className="inline-flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-xl text-sm font-black transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-35 sm:h-11 sm:w-auto sm:flex-1 sm:px-3" aria-label={isZh ? '下一章' : 'Next chapter'}><span className="hidden sm:inline">{isZh ? '下一章' : 'Next'}</span><ChevronRight className="h-5 w-5" /></button>
       </nav> : null}
     </article>
   )
