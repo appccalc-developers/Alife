@@ -35,6 +35,9 @@ public static class PagePublicationReviewState
         }
 
         review.Status = PagePublicationReviewStatus.Pending;
+        review.PrimaryMenuId = null;
+        review.PrimaryMenuNameJson = null;
+        review.MenuSortOrder = 0;
         review.AccessNameJson = null;
         review.ReturnReason = null;
         review.ReviewedByMemberId = null;

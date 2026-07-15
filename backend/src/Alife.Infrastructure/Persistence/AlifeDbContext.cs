@@ -15,6 +15,7 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 	public DbSet<MemberPlatformRole> MemberPlatformRoles => Set<MemberPlatformRole>();
 	public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 	public DbSet<Page> Pages => Set<Page>();
+	public DbSet<PagePrimaryMenu> PagePrimaryMenus => Set<PagePrimaryMenu>();
 	public DbSet<PagePublicationReview> PagePublicationReviews => Set<PagePublicationReview>();
 	public DbSet<Section> Sections => Set<Section>();
 	public DbSet<Link> Links => Set<Link>();
@@ -184,6 +185,13 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 			cfg.HasQueryFilter(x => !x.IsDeleted);
 		});
 
+		modelBuilder.Entity<PagePrimaryMenu>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.NameJson).HasColumnType("nvarchar(max)").IsRequired();
+			cfg.HasIndex(x => x.SortOrder);
+		});
+
 		modelBuilder.Entity<PagePublicationReview>(cfg =>
 		{
 			cfg.HasKey(x => x.Id);
@@ -198,12 +206,18 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 				.HasForeignKey(x => x.PageId)
 				.OnDelete(DeleteBehavior.Restrict);
 
+			cfg.HasOne(x => x.PrimaryMenu)
+				.WithMany(x => x.PublicationReviews)
+				.HasForeignKey(x => x.PrimaryMenuId)
+				.OnDelete(DeleteBehavior.Restrict);
+
 			cfg.HasOne(x => x.ReviewedByMember)
 				.WithMany()
 				.HasForeignKey(x => x.ReviewedByMemberId)
 				.OnDelete(DeleteBehavior.Restrict);
 
 			cfg.HasIndex(x => x.PageId).IsUnique();
+			cfg.HasIndex(x => new { x.PrimaryMenuId, x.MenuSortOrder });
 			cfg.HasIndex(x => new { x.Status, x.UpdatedUtc });
 			cfg.HasIndex(x => new { x.ReviewedByMemberId, x.ReviewedUtc });
 		});

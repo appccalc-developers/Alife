@@ -61,7 +61,9 @@ public sealed class ReturnPagePublicationCommandHandler(
         }
 
         review.Status = PagePublicationReviewStatus.Returned;
+        review.PrimaryMenuId = null;
         review.PrimaryMenuNameJson = null;
+        review.MenuSortOrder = 0;
         review.AccessNameJson = null;
         review.CardImageUrl = null;
         review.CardTextJson = null;

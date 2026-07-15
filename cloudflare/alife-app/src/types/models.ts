@@ -143,6 +143,9 @@ export type PageSummaryDto = {
   tagsJson?: string
   titleDisplayStyle?: string
   primaryMenuName?: LocalizedText | null
+  primaryMenuId?: string | null
+  primaryMenuSortOrder?: number
+  menuSortOrder?: number
   accessName?: LocalizedText | null
   cardImageUrl?: string | null
   cardText?: LocalizedText | null

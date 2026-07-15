@@ -153,6 +153,7 @@ export const publicPageMenuName = (page: PageSummaryDto, language: string) =>
   page.id
 
 const primaryMenuLookupKey = (page: PageSummaryDto, fallbackLabel: string) => {
+  if (page.primaryMenuId) return page.primaryMenuId
   const en = page.primaryMenuName?.en?.trim() || fallbackLabel
   const zh = page.primaryMenuName?.zh?.trim() || fallbackLabel
   return JSON.stringify([publicPageLookupKey(en), publicPageLookupKey(zh)])
@@ -163,12 +164,12 @@ export const buildPageMenuNavItems = (
   language: string,
   fallbackLabel: string,
 ): HomeNavItem[] => {
-  const groups = new Map<string, { label: string; items: HomeNavDropdownChild[] }>()
+  const groups = new Map<string, { label: string; sortOrder: number; items: HomeNavDropdownChild[] }>()
 
   sortPublicPagesForMinistries(pages, language).forEach((page) => {
     const key = primaryMenuLookupKey(page, fallbackLabel)
     const label = localizeText(page.primaryMenuName, language) || fallbackLabel
-    const group = groups.get(key) ?? { label, items: [] }
+    const group = groups.get(key) ?? { label, sortOrder: page.primaryMenuSortOrder ?? Number.MAX_SAFE_INTEGER, items: [] }
     group.items.push({
       to: publicPageHomePath(page, language),
       label: publicPageMenuName(page, language),
@@ -178,7 +179,7 @@ export const buildPageMenuNavItems = (
 
   const locale = language === 'zh' ? 'zh-Hans' : 'en'
   return Array.from(groups.entries())
-    .sort(([, left], [, right]) => left.label.localeCompare(right.label, locale, { sensitivity: 'base' }))
+    .sort(([, left], [, right]) => left.sortOrder - right.sortOrder || left.label.localeCompare(right.label, locale, { sensitivity: 'base' }))
     .map(([key, group]) => group.items.length === 1
       ? { href: group.items[0].to, label: group.label }
       : { key: `pages:${key}`, label: group.label, items: group.items })
@@ -233,6 +234,12 @@ export const sortPublicPagesForMinistries = (pages: PageSummaryDto[], language: 
   const locale = language === 'zh' ? 'zh-Hans' : 'en'
   return getPublicMinistryPages(pages)
     .sort((left, right) => {
+      const primaryMenuOrder = (left.primaryMenuSortOrder ?? Number.MAX_SAFE_INTEGER) -
+        (right.primaryMenuSortOrder ?? Number.MAX_SAFE_INTEGER)
+      if (primaryMenuOrder) return primaryMenuOrder
+      const menuOrder = (left.menuSortOrder ?? Number.MAX_SAFE_INTEGER) -
+        (right.menuSortOrder ?? Number.MAX_SAFE_INTEGER)
+      if (menuOrder) return menuOrder
       const leftLabel = publicPageMenuName(left, language)
       const rightLabel = publicPageMenuName(right, language)
       return leftLabel.localeCompare(rightLabel, locale, { sensitivity: 'base' }) ||
