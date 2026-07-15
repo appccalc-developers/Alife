@@ -64,6 +64,9 @@ const WorkspaceShell = () => {
   const headerGroupManageTo = !context.isOnboardingScreen && context.contextualGroupId && context.canOpenCurrentGroupManagement
     ? '/groups?section=group'
     : undefined
+  const contentTransitionKey = context.location.pathname === '/study'
+    ? context.location.pathname
+    : context.location.pathname + context.location.search
 
   useEffect(() => {
     setGroupDrawerOpen(false)
@@ -116,7 +119,7 @@ const WorkspaceShell = () => {
           onToggle={() => setSidebarCollapsed((current) => !current)}
         />
         <motion.main
-          key={context.location.pathname + context.location.search}
+          key={contentTransitionKey}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
