@@ -720,8 +720,8 @@ const Overview = ({ l, users, logs, messages, syncing, syncSermons, goToLogsPage
         <MetricCard to="/admin/messages" icon={Bell} title={l('messages')} value={messages.totalCount} detail={l('unread')} />
       </div>
 
-      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(24rem,28rem)]">
-        <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+      <div className="grid items-stretch gap-4 xl:grid-cols-2">
+        <section className="flex min-w-0 flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm xl:h-[30rem]">
           <div className="border-b border-slate-100 bg-slate-50/80 p-5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
@@ -733,7 +733,7 @@ const Overview = ({ l, users, logs, messages, syncing, syncSermons, goToLogsPage
               </span>
             </div>
           </div>
-          <div className="space-y-3 p-4">
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
             <PlatformTaskQueue
               l={l}
               guestCount={guestCount}
@@ -772,7 +772,7 @@ const Overview = ({ l, users, logs, messages, syncing, syncSermons, goToLogsPage
           </div>
         </section>
 
-        <Panel title={l('latestActivity')} description={l('logsDescription')} count={logs.totalCount} className="flex max-h-[30rem] min-h-[22rem] flex-col">
+        <Panel title={l('latestActivity')} description={l('logsDescription')} count={logs.totalCount} className="flex min-h-[22rem] min-w-0 max-h-[30rem] flex-col xl:h-[30rem] xl:min-h-0 xl:max-h-none">
           <div className="min-h-0 flex-1 divide-y divide-slate-100 overflow-y-auto">
             {logs.items.map((log) => (
               <div key={log.id} className="px-5 py-4">
