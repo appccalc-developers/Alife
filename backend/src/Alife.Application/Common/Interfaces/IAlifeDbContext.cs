@@ -13,6 +13,7 @@ public interface IAlifeDbContext
     DbSet<MemberPlatformRole> MemberPlatformRoles { get; }
     DbSet<AuditLog> AuditLogs { get; }
     DbSet<Page> Pages { get; }
+    DbSet<PagePrimaryMenu> PagePrimaryMenus { get; }
     DbSet<PagePublicationReview> PagePublicationReviews { get; }
     DbSet<Section> Sections { get; }
     DbSet<Link> Links { get; }

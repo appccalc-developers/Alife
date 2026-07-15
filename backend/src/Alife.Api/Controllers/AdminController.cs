@@ -4,12 +4,16 @@ using Alife.Application.Abstractions.Identity;
 using Alife.Application.Admin.Commands.ApprovePagePublication;
 using Alife.Application.Admin.Commands.BackfillMemberPrivateFiles;
 using Alife.Application.Admin.Commands.CreatePlatformRole;
+using Alife.Application.Admin.Commands.CreatePagePrimaryMenu;
 using Alife.Application.Admin.Commands.DeletePlatformRole;
+using Alife.Application.Admin.Commands.DeletePagePrimaryMenu;
 using Alife.Application.Admin.Commands.RefreshCloudflareCache;
 using Alife.Application.Admin.Commands.ReturnPagePublication;
 using Alife.Application.Admin.Commands.SendAdminMessage;
+using Alife.Application.Admin.Commands.SavePageMenuLayout;
 using Alife.Application.Admin.Commands.SetMemberPlatformRole;
 using Alife.Application.Admin.Commands.UpdateMemberProfile;
+using Alife.Application.Admin.Commands.UpdatePagePrimaryMenu;
 using Alife.Application.Admin.Commands.SyncSermons;
 using Alife.Application.Admin.Commands.UpdatePlatformRolePermissions;
 using Alife.Application.Admin.Queries.GetAdminSelfDiagnostic;
@@ -17,6 +21,8 @@ using Alife.Application.Admin.Queries.ListAdminGroups;
 using Alife.Application.Admin.Queries.ListAdminMembers;
 using Alife.Application.Admin.Queries.ListAdminNotifications;
 using Alife.Application.Admin.Queries.ListPageReviewCandidates;
+using Alife.Application.Admin.Queries.ListPagePrimaryMenus;
+using Alife.Application.Admin.Dtos;
 using Alife.Application.Admin.Queries.ListAuditLogs;
 using Alife.Application.Admin.Queries.ListPlatformRoles;
 using Alife.Application.VisitContactRequests.Commands.UpdateVisitContactRequestStatus;
@@ -146,6 +152,91 @@ public class AdminController(IMediator mediator, ICurrentMemberAccessor currentM
                 request?.AccessName,
                 request?.CardImageUrl,
                 request?.CardText),
+            cancellationToken);
+        this.ApplyPrivateNoCacheHeaders();
+        return this.ToActionResult(result);
+    }
+
+    [HttpGet("page-primary-menus")]
+    public async Task<IActionResult> ListPagePrimaryMenus(CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null)
+        {
+            return Unauthorized();
+        }
+
+        var result = await mediator.Send(new ListPagePrimaryMenusQuery(currentMemberId.Value), cancellationToken);
+        this.ApplyPrivateNoCacheHeaders();
+        return this.ToActionResult(result);
+    }
+
+    [HttpPost("page-primary-menus")]
+    public async Task<IActionResult> CreatePagePrimaryMenu(
+        CreatePagePrimaryMenuRequest request,
+        CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null)
+        {
+            return Unauthorized();
+        }
+
+        var result = await mediator.Send(
+            new CreatePagePrimaryMenuCommand(currentMemberId.Value, request.Name),
+            cancellationToken);
+        this.ApplyPrivateNoCacheHeaders();
+        return this.ToActionResult(result);
+    }
+
+    [HttpPut("page-primary-menus/{primaryMenuId:guid}")]
+    public async Task<IActionResult> UpdatePagePrimaryMenu(
+        Guid primaryMenuId,
+        UpdatePagePrimaryMenuRequest request,
+        CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null)
+        {
+            return Unauthorized();
+        }
+
+        var result = await mediator.Send(
+            new UpdatePagePrimaryMenuCommand(currentMemberId.Value, primaryMenuId, request.Name),
+            cancellationToken);
+        this.ApplyPrivateNoCacheHeaders();
+        return this.ToActionResult(result);
+    }
+
+    [HttpDelete("page-primary-menus/{primaryMenuId:guid}")]
+    public async Task<IActionResult> DeletePagePrimaryMenu(Guid primaryMenuId, CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null)
+        {
+            return Unauthorized();
+        }
+
+        var result = await mediator.Send(
+            new DeletePagePrimaryMenuCommand(currentMemberId.Value, primaryMenuId),
+            cancellationToken);
+        this.ApplyPrivateNoCacheHeaders();
+        return this.ToActionResult(result);
+    }
+
+    [HttpPut("page-primary-menus/layout")]
+    public async Task<IActionResult> SavePageMenuLayout(
+        SavePageMenuLayoutRequest request,
+        CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null)
+        {
+            return Unauthorized();
+        }
+
+        var result = await mediator.Send(
+            new SavePageMenuLayoutCommand(currentMemberId.Value, request.Menus ?? []),
             cancellationToken);
         this.ApplyPrivateNoCacheHeaders();
         return this.ToActionResult(result);
@@ -465,6 +556,9 @@ public class AdminController(IMediator mediator, ICurrentMemberAccessor currentM
         IReadOnlyDictionary<string, string>? AccessName,
         string? CardImageUrl,
         IReadOnlyDictionary<string, string>? CardText);
+    public sealed record UpdatePagePrimaryMenuRequest(IReadOnlyDictionary<string, string>? Name);
+    public sealed record CreatePagePrimaryMenuRequest(IReadOnlyDictionary<string, string>? Name);
+    public sealed record SavePageMenuLayoutRequest(IReadOnlyList<PagePrimaryMenuLayoutItemDto>? Menus);
     public sealed record ReturnPagePublicationReviewRequest(string Reason);
 
     public sealed record SendAdminMessageRequest(

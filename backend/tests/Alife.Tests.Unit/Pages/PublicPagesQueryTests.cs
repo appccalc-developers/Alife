@@ -105,6 +105,47 @@ public class PublicPagesQueryTests
         Assert.DoesNotContain(result, page => page.Id == unapprovedGroupPage.Id);
     }
 
+    [Fact]
+    public async Task GetPublicPages_UsesConfiguredPrimaryAndSecondaryMenuOrder()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        using var services = CreateServiceProvider();
+        var authorId = Guid.NewGuid();
+        var groupId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+        dbContext.Members.Add(new Member { Id = authorId, DisplayName = "Author", IsRegistered = true, CreatedUtc = now, UpdatedUtc = now });
+        dbContext.Groups.Add(CreateGroup(groupId, isChurch: false, parentGroupId: null));
+        var firstPage = CreatePage(authorId, groupId, PageVisibility.Public, "First");
+        var secondPage = CreatePage(authorId, groupId, PageVisibility.Public, "Second");
+        var thirdPage = CreatePage(authorId, groupId, PageVisibility.Public, "Third");
+        dbContext.Pages.AddRange(firstPage, secondPage, thirdPage);
+        var firstMenu = new PagePrimaryMenu { Id = Guid.NewGuid(), NameJson = "{\"en\":\"First\",\"zh\":\"第一\"}", SortOrder = 0, CreatedUtc = now, UpdatedUtc = now };
+        var secondMenu = new PagePrimaryMenu { Id = Guid.NewGuid(), NameJson = "{\"en\":\"Second\",\"zh\":\"第二\"}", SortOrder = 1, CreatedUtc = now, UpdatedUtc = now };
+        dbContext.PagePrimaryMenus.AddRange(firstMenu, secondMenu);
+        var firstReview = CreateApprovedReview(firstPage.Id, "First page");
+        firstReview.PrimaryMenu = firstMenu;
+        firstReview.PrimaryMenuId = firstMenu.Id;
+        firstReview.MenuSortOrder = 1;
+        var secondReview = CreateApprovedReview(secondPage.Id, "Second page");
+        secondReview.PrimaryMenu = firstMenu;
+        secondReview.PrimaryMenuId = firstMenu.Id;
+        secondReview.MenuSortOrder = 0;
+        var thirdReview = CreateApprovedReview(thirdPage.Id, "Third page");
+        thirdReview.PrimaryMenu = secondMenu;
+        thirdReview.PrimaryMenuId = secondMenu.Id;
+        thirdReview.MenuSortOrder = 0;
+        dbContext.PagePublicationReviews.AddRange(firstReview, secondReview, thirdReview);
+        await dbContext.SaveChangesAsync();
+        var service = new PageReadService(dbContext, services.GetRequiredService<HybridCache>());
+
+        var result = await service.GetPublicPagesAsync(CancellationToken.None);
+
+        Assert.Equal([secondPage.Id, firstPage.Id, thirdPage.Id], result.Select(page => page.Id));
+        Assert.Equal(firstMenu.Id, result[0].PrimaryMenuId);
+        Assert.Equal(0, result[0].PrimaryMenuSortOrder);
+        Assert.Equal(0, result[0].MenuSortOrder);
+    }
+
     private static AlifeDbContext CreateInMemoryDbContext()
     {
         var options = new DbContextOptionsBuilder<AlifeDbContext>()

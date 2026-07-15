@@ -1,6 +1,10 @@
 using Alife.Application.Admin.Dtos;
 using Alife.Application.Admin.Commands.ApprovePagePublication;
+using Alife.Application.Admin.Commands.CreatePagePrimaryMenu;
+using Alife.Application.Admin.Commands.DeletePagePrimaryMenu;
 using Alife.Application.Admin.Commands.ReturnPagePublication;
+using Alife.Application.Admin.Commands.SavePageMenuLayout;
+using Alife.Application.Admin.Commands.UpdatePagePrimaryMenu;
 using Alife.Application.Admin.Queries.ListPageReviewCandidates;
 using Alife.Application.Pages.Services;
 using Alife.Domain.Entities;
@@ -282,6 +286,165 @@ public class PagePublicationReviewTests
         Assert.Equal(Application.Common.Models.AppResultStatus.Forbidden, result.Status);
     }
 
+    [Fact]
+    public async Task SaveMenuLayout_ReordersMenusAndMovesApprovedPagesBetweenThem()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var reviewerId = Guid.NewGuid();
+        var authorId = Guid.NewGuid();
+        var groupId = Guid.NewGuid();
+        var firstPageId = Guid.NewGuid();
+        var secondPageId = Guid.NewGuid();
+        var thirdPageId = Guid.NewGuid();
+        await SeedReviewerScenarioAsync(dbContext, reviewerId, authorId, groupId, firstPageId);
+        var now = DateTime.UtcNow;
+        dbContext.Pages.AddRange(
+            CreatePublicPage(secondPageId, groupId, authorId, "Second", now),
+            CreatePublicPage(thirdPageId, groupId, authorId, "Third", now));
+        var firstMenu = new PagePrimaryMenu
+        {
+            Id = Guid.NewGuid(),
+            NameJson = "{\"en\":\"Ministries\",\"zh\":\"事工\"}",
+            SortOrder = 0,
+            CreatedUtc = now,
+            UpdatedUtc = now
+        };
+        var secondMenu = new PagePrimaryMenu
+        {
+            Id = Guid.NewGuid(),
+            NameJson = "{\"en\":\"Community\",\"zh\":\"社区\"}",
+            SortOrder = 1,
+            CreatedUtc = now,
+            UpdatedUtc = now
+        };
+        dbContext.PagePrimaryMenus.AddRange(firstMenu, secondMenu);
+        dbContext.PagePublicationReviews.AddRange(
+            CreateApprovedReview(firstPageId, firstMenu, 0, now),
+            CreateApprovedReview(secondPageId, firstMenu, 1, now),
+            CreateApprovedReview(thirdPageId, secondMenu, 0, now));
+        await dbContext.SaveChangesAsync();
+        var cacheInvalidation = Substitute.For<IPageCacheInvalidationService>();
+        var handler = new SavePageMenuLayoutCommandHandler(dbContext, cacheInvalidation);
+
+        var result = await handler.Handle(
+            new SavePageMenuLayoutCommand(
+                reviewerId,
+                [
+                    new PagePrimaryMenuLayoutItemDto(secondMenu.Id, [thirdPageId, firstPageId]),
+                    new PagePrimaryMenuLayoutItemDto(firstMenu.Id, [secondPageId])
+                ]),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(0, secondMenu.SortOrder);
+        Assert.Equal(1, firstMenu.SortOrder);
+        var firstReview = await dbContext.PagePublicationReviews.SingleAsync(x => x.PageId == firstPageId);
+        Assert.Equal(secondMenu.Id, firstReview.PrimaryMenuId);
+        Assert.Equal(1, firstReview.MenuSortOrder);
+        Assert.Contains("Community", firstReview.PrimaryMenuNameJson);
+        Assert.Equal(0, (await dbContext.PagePublicationReviews.SingleAsync(x => x.PageId == thirdPageId)).MenuSortOrder);
+        Assert.Equal(0, (await dbContext.PagePublicationReviews.SingleAsync(x => x.PageId == secondPageId)).MenuSortOrder);
+        Assert.Contains(dbContext.AuditLogs, log => log.Action == "page.menu-layout.update");
+        await cacheInvalidation.Received(1).RemovePublicAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CreatePrimaryMenu_CreatesEmptyMenuAtEndOfTabOrder()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var reviewerId = Guid.NewGuid();
+        var authorId = Guid.NewGuid();
+        var groupId = Guid.NewGuid();
+        var pageId = Guid.NewGuid();
+        await SeedReviewerScenarioAsync(dbContext, reviewerId, authorId, groupId, pageId);
+        var now = DateTime.UtcNow;
+        dbContext.PagePrimaryMenus.Add(new PagePrimaryMenu
+        {
+            Id = Guid.NewGuid(),
+            NameJson = "{\"en\":\"Existing\",\"zh\":\"现有\"}",
+            SortOrder = 0,
+            CreatedUtc = now,
+            UpdatedUtc = now
+        });
+        await dbContext.SaveChangesAsync();
+        var cacheInvalidation = Substitute.For<IPageCacheInvalidationService>();
+        var handler = new CreatePagePrimaryMenuCommandHandler(dbContext, cacheInvalidation);
+
+        var result = await handler.Handle(
+            new CreatePagePrimaryMenuCommand(
+                reviewerId,
+                new Dictionary<string, string> { ["en"] = "New menu", ["zh"] = "新菜单" }),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(1, result.Value!.SortOrder);
+        Assert.Equal(0, result.Value.ApprovedPageCount);
+        Assert.Contains(dbContext.PagePrimaryMenus, menu => menu.Id == result.Value.Id && menu.NameJson.Contains("New menu"));
+        Assert.Contains(dbContext.AuditLogs, log => log.Action == "page.primary-menu.create" && log.EntityId == result.Value.Id);
+        await cacheInvalidation.Received(1).RemovePublicAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PrimaryMenu_CanBeRenamedAndDeletedAfterItsLastApprovedPageMovesAway()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var reviewerId = Guid.NewGuid();
+        var authorId = Guid.NewGuid();
+        var groupId = Guid.NewGuid();
+        var pageId = Guid.NewGuid();
+        await SeedReviewerScenarioAsync(dbContext, reviewerId, authorId, groupId, pageId);
+        var now = DateTime.UtcNow;
+        var sourceMenu = new PagePrimaryMenu
+        {
+            Id = Guid.NewGuid(),
+            NameJson = "{\"en\":\"Ministries\",\"zh\":\"事工\"}",
+            SortOrder = 0,
+            CreatedUtc = now,
+            UpdatedUtc = now
+        };
+        var targetMenu = new PagePrimaryMenu
+        {
+            Id = Guid.NewGuid(),
+            NameJson = "{\"en\":\"Community\",\"zh\":\"社区\"}",
+            SortOrder = 1,
+            CreatedUtc = now,
+            UpdatedUtc = now
+        };
+        dbContext.PagePrimaryMenus.AddRange(sourceMenu, targetMenu);
+        dbContext.PagePublicationReviews.Add(CreateApprovedReview(pageId, sourceMenu, 0, now));
+        await dbContext.SaveChangesAsync();
+        var cacheInvalidation = Substitute.For<IPageCacheInvalidationService>();
+        var updateHandler = new UpdatePagePrimaryMenuCommandHandler(dbContext, cacheInvalidation);
+        var layoutHandler = new SavePageMenuLayoutCommandHandler(dbContext, cacheInvalidation);
+        var deleteHandler = new DeletePagePrimaryMenuCommandHandler(dbContext, cacheInvalidation);
+
+        var updateResult = await updateHandler.Handle(
+            new UpdatePagePrimaryMenuCommand(
+                reviewerId,
+                sourceMenu.Id,
+                new Dictionary<string, string> { ["en"] = "Serving", ["zh"] = "服事" }),
+            CancellationToken.None);
+        var moveResult = await layoutHandler.Handle(
+            new SavePageMenuLayoutCommand(
+                reviewerId,
+                [
+                    new PagePrimaryMenuLayoutItemDto(sourceMenu.Id, []),
+                    new PagePrimaryMenuLayoutItemDto(targetMenu.Id, [pageId])
+                ]),
+            CancellationToken.None);
+        var deleteResult = await deleteHandler.Handle(
+            new DeletePagePrimaryMenuCommand(reviewerId, sourceMenu.Id),
+            CancellationToken.None);
+
+        Assert.True(updateResult.IsSuccess);
+        Assert.True(moveResult.IsSuccess);
+        Assert.True(deleteResult.IsSuccess);
+        Assert.DoesNotContain(dbContext.PagePrimaryMenus, menu => menu.Id == sourceMenu.Id);
+        Assert.Equal(targetMenu.Id, (await dbContext.PagePublicationReviews.SingleAsync()).PrimaryMenuId);
+        Assert.Contains(dbContext.AuditLogs, log => log.Action == "page.primary-menu.update");
+        Assert.Contains(dbContext.AuditLogs, log => log.Action == "page.primary-menu.delete");
+    }
+
     private static async Task SeedReviewerScenarioAsync(
         AlifeDbContext dbContext,
         Guid reviewerId,
@@ -338,6 +501,40 @@ public class PagePublicationReviewTests
         });
         await dbContext.SaveChangesAsync();
     }
+
+    private static Page CreatePublicPage(Guid pageId, Guid groupId, Guid authorId, string title, DateTime now)
+        => new()
+        {
+            Id = pageId,
+            OwnerGroupId = groupId,
+            CreatedByMemberId = authorId,
+            TitleJson = $"{{\"en\":\"{title}\",\"zh\":\"{title}\"}}",
+            DescriptionJson = "{}",
+            TagsJson = "[]",
+            TitleDisplayStyle = "Default",
+            Visibility = PageVisibility.Public,
+            UpdatedUtc = now
+        };
+
+    private static PagePublicationReview CreateApprovedReview(
+        Guid pageId,
+        PagePrimaryMenu primaryMenu,
+        int menuSortOrder,
+        DateTime now)
+        => new()
+        {
+            Id = Guid.NewGuid(),
+            PageId = pageId,
+            Status = PagePublicationReviewStatus.Approved,
+            PrimaryMenuId = primaryMenu.Id,
+            PrimaryMenuNameJson = primaryMenu.NameJson,
+            MenuSortOrder = menuSortOrder,
+            AccessNameJson = "{\"en\":\"Menu\",\"zh\":\"菜单\"}",
+            CardTextJson = "{\"en\":\"Card\",\"zh\":\"卡片\"}",
+            ReviewedUtc = now,
+            CreatedUtc = now,
+            UpdatedUtc = now
+        };
 
     private static AlifeDbContext CreateInMemoryDbContext()
     {

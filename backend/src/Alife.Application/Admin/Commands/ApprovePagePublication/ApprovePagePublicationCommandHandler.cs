@@ -42,17 +42,46 @@ public sealed class ApprovePagePublicationCommandHandler(
         var ownerGroupId = page.OwnerGroupId;
         var title = ReadTextMap(page.TitleJson);
         var description = ReadTextMap(page.DescriptionJson);
-        var primaryMenuName = NormalizePrimaryMenuName(request.PrimaryMenuName);
-        if (primaryMenuName is null)
-        {
-            return AppResult<PagePublicationReviewActionDto>.Validation("English and Chinese primary menu names are required.");
-        }
         var accessName = NormalizeAccessName(request.AccessName, title);
         var cardText = NormalizeCardText(request.CardText, description, title);
         var cardImageUrl = NormalizeCardImageUrl(request.CardImageUrl);
         var review = await dbContext.PagePublicationReviews
             .FirstOrDefaultAsync(x => x.PageId == page.Id, cancellationToken);
         var previousStatus = review?.Status.ToString() ?? "Pending";
+        var requestedPrimaryMenuName = request.PrimaryMenuName;
+        if (requestedPrimaryMenuName is null && review?.Status == PagePublicationReviewStatus.Approved)
+        {
+            requestedPrimaryMenuName = ReadTextMap(review.PrimaryMenuNameJson);
+        }
+
+        var primaryMenuName = NormalizePrimaryMenuName(requestedPrimaryMenuName);
+        if (primaryMenuName is null)
+        {
+            return AppResult<PagePublicationReviewActionDto>.Validation("English and Chinese primary menu names are required.");
+        }
+
+        var primaryMenuNameJson = WriteTextMap(primaryMenuName);
+        var primaryMenu = review?.PrimaryMenuId is Guid existingPrimaryMenuId && request.PrimaryMenuName is null
+            ? await dbContext.PagePrimaryMenus.FirstOrDefaultAsync(x => x.Id == existingPrimaryMenuId, cancellationToken)
+            : await dbContext.PagePrimaryMenus
+                .OrderBy(x => x.SortOrder)
+                .FirstOrDefaultAsync(x => x.NameJson == primaryMenuNameJson, cancellationToken);
+
+        if (primaryMenu is null)
+        {
+            var nextPrimaryMenuSortOrder = (await dbContext.PagePrimaryMenus
+                .Select(x => (int?)x.SortOrder)
+                .MaxAsync(cancellationToken) ?? -1) + 1;
+            primaryMenu = new PagePrimaryMenu
+            {
+                Id = Guid.NewGuid(),
+                NameJson = primaryMenuNameJson,
+                SortOrder = nextPrimaryMenuSortOrder,
+                CreatedUtc = now,
+                UpdatedUtc = now
+            };
+            await dbContext.PagePrimaryMenus.AddAsync(primaryMenu, cancellationToken);
+        }
 
         if (review is null)
         {
@@ -65,8 +94,17 @@ public sealed class ApprovePagePublicationCommandHandler(
             dbContext.PagePublicationReviews.Add(review);
         }
 
+        if (review.PrimaryMenuId != primaryMenu.Id)
+        {
+            review.MenuSortOrder = (await dbContext.PagePublicationReviews
+                .Where(x => x.PrimaryMenuId == primaryMenu.Id && x.Status == PagePublicationReviewStatus.Approved)
+                .Select(x => (int?)x.MenuSortOrder)
+                .MaxAsync(cancellationToken) ?? -1) + 1;
+        }
+
         review.Status = PagePublicationReviewStatus.Approved;
-        review.PrimaryMenuNameJson = WriteTextMap(primaryMenuName);
+        review.PrimaryMenuId = primaryMenu.Id;
+        review.PrimaryMenuNameJson = primaryMenu.NameJson;
         review.AccessNameJson = WriteTextMap(accessName);
         review.CardImageUrl = cardImageUrl;
         review.CardTextJson = WriteTextMap(cardText);
@@ -95,13 +133,14 @@ public sealed class ApprovePagePublicationCommandHandler(
                 ownerGroupId,
                 visibility = page.Visibility.ToString(),
                 publicationReviewStatus = "Approved",
+                primaryMenuId = primaryMenu.Id,
                 primaryMenuName,
                 accessName,
                 cardImageUrl,
                 cardText,
                 pageUpdatedUtc = page.UpdatedUtc
             }),
-            MetadataJson = JsonSerializer.Serialize(new { ownerGroupId, pageUpdatedUtc = page.UpdatedUtc, primaryMenuName, accessName, cardImageUrl, cardText }),
+            MetadataJson = JsonSerializer.Serialize(new { ownerGroupId, pageUpdatedUtc = page.UpdatedUtc, primaryMenuId = primaryMenu.Id, primaryMenuName, accessName, cardImageUrl, cardText }),
             OccurredUtc = now
         }, cancellationToken);
 
@@ -113,11 +152,13 @@ public sealed class ApprovePagePublicationCommandHandler(
             true,
             page.Id,
             ownerGroupId,
-            ToDto(page, primaryMenuName, accessName, cardImageUrl, cardText)));
+            ToDto(page, primaryMenu, review.MenuSortOrder, primaryMenuName, accessName, cardImageUrl, cardText)));
     }
 
     private static PageDto ToDto(
         Page page,
+        PagePrimaryMenu primaryMenu,
+        int menuSortOrder,
         IReadOnlyDictionary<string, string> primaryMenuName,
         IReadOnlyDictionary<string, string> accessName,
         string? cardImageUrl,
@@ -135,7 +176,10 @@ public sealed class ApprovePagePublicationCommandHandler(
             accessName,
             CardImageUrl: cardImageUrl,
             CardText: cardText,
-            PrimaryMenuName: primaryMenuName);
+            PrimaryMenuName: primaryMenuName,
+            PrimaryMenuId: primaryMenu.Id,
+            PrimaryMenuSortOrder: primaryMenu.SortOrder,
+            MenuSortOrder: menuSortOrder);
 
     private static IReadOnlyDictionary<string, string>? NormalizePrimaryMenuName(
         IReadOnlyDictionary<string, string>? value)

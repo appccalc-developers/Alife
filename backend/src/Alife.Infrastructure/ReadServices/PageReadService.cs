@@ -23,17 +23,32 @@ public sealed class PageReadService(AlifeDbContext dbContext, HybridCache hybrid
                     where page.Visibility == PageVisibility.Public &&
                           review != null &&
                           review.Status == PagePublicationReviewStatus.Approved
-                    orderby page.UpdatedUtc, page.Id
-                    select new { Page = page, Review = review })
+                    orderby (review.PrimaryMenu != null ? review.PrimaryMenu.SortOrder : int.MaxValue),
+                        review.MenuSortOrder,
+                        page.Id
+                    select new
+                    {
+                        Page = page,
+                        review.AccessNameJson,
+                        review.CardImageUrl,
+                        review.CardTextJson,
+                        PrimaryMenuNameJson = review.PrimaryMenu != null ? review.PrimaryMenu.NameJson : review.PrimaryMenuNameJson,
+                        review.PrimaryMenuId,
+                        PrimaryMenuSortOrder = review.PrimaryMenu != null ? review.PrimaryMenu.SortOrder : 0,
+                        review.MenuSortOrder
+                    })
                     .ToListAsync(token);
 
                 return (IReadOnlyList<PageDto>)pages
                     .Select(row => ToDto(
                         row.Page,
-                        ReadNullableTextMap(row.Review?.AccessNameJson),
-                        row.Review?.CardImageUrl,
-                        ReadNullableTextMap(row.Review?.CardTextJson),
-                        ReadNullableTextMap(row.Review?.PrimaryMenuNameJson)))
+                        ReadNullableTextMap(row.AccessNameJson),
+                        row.CardImageUrl,
+                        ReadNullableTextMap(row.CardTextJson),
+                        ReadNullableTextMap(row.PrimaryMenuNameJson),
+                        row.PrimaryMenuId,
+                        row.PrimaryMenuSortOrder,
+                        row.MenuSortOrder))
                     .ToList();
             },
             cancellationToken);
@@ -89,14 +104,17 @@ public sealed class PageReadService(AlifeDbContext dbContext, HybridCache hybrid
             cancellationToken);
 
     private static PageDto ToDto(Domain.Entities.Page page)
-        => ToDto(page, null, null, null, null);
+        => ToDto(page, null, null, null, null, null, 0, 0);
 
     private static PageDto ToDto(
         Domain.Entities.Page page,
         IReadOnlyDictionary<string, string>? accessName,
         string? cardImageUrl,
         IReadOnlyDictionary<string, string>? cardText,
-        IReadOnlyDictionary<string, string>? primaryMenuName)
+        IReadOnlyDictionary<string, string>? primaryMenuName,
+        Guid? primaryMenuId,
+        int primaryMenuSortOrder,
+        int menuSortOrder)
         => new(
             page.Id,
             page.OwnerGroupId,
@@ -110,7 +128,10 @@ public sealed class PageReadService(AlifeDbContext dbContext, HybridCache hybrid
             accessName,
             CardImageUrl: cardImageUrl,
             CardText: cardText,
-            PrimaryMenuName: primaryMenuName);
+            PrimaryMenuName: primaryMenuName,
+            PrimaryMenuId: primaryMenuId,
+            PrimaryMenuSortOrder: primaryMenuSortOrder,
+            MenuSortOrder: menuSortOrder);
 
     private static IReadOnlyDictionary<string, string>? ReadNullableTextMap(string? value)
     {

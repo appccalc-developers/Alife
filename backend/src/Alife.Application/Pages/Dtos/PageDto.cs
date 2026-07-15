@@ -16,7 +16,10 @@ public sealed record PageDto(
     PageReviewRefusalDto? ReviewRefusal = null,
     string? CardImageUrl = null,
     IReadOnlyDictionary<string, string>? CardText = null,
-    IReadOnlyDictionary<string, string>? PrimaryMenuName = null);
+    IReadOnlyDictionary<string, string>? PrimaryMenuName = null,
+    Guid? PrimaryMenuId = null,
+    int PrimaryMenuSortOrder = 0,
+    int MenuSortOrder = 0);
 
 public sealed record PageReviewRefusalDto(
     Guid ReviewerMemberId,

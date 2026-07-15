@@ -22,13 +22,25 @@ public sealed record AdminPageReviewDto(
     string TitleDisplayStyle,
     PageVisibility Visibility,
     AdminPageReviewStatus ReviewStatus,
+    Guid? PrimaryMenuId,
     IReadOnlyDictionary<string, string>? PrimaryMenuName,
+    int MenuSortOrder,
     IReadOnlyDictionary<string, string>? AccessName,
     string? CardImageUrl,
     IReadOnlyDictionary<string, string>? CardText,
     string? ReturnReason,
     DateTime? ReviewedUtc,
     DateTime UpdatedUtc);
+
+public sealed record AdminPagePrimaryMenuDto(
+    Guid Id,
+    IReadOnlyDictionary<string, string> Name,
+    int SortOrder,
+    int ApprovedPageCount);
+
+public sealed record PagePrimaryMenuLayoutItemDto(
+    Guid PrimaryMenuId,
+    IReadOnlyList<Guid> PageIds);
 
 public sealed record PagePublicationReviewActionDto(
     bool Ok,

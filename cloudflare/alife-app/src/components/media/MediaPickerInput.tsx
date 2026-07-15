@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
+import { useEffect, useMemo, useState, type ChangeEvent, type ReactNode } from 'react'
 import { Check, Folder, FolderOpen, Image as ImageIcon, RefreshCw, Upload, Video, X } from 'lucide-react'
 import { useAuthStore } from '../../stores/auth'
 import {
@@ -23,6 +23,8 @@ type Props = {
   focusKey?: string
   groupId?: string
   accept?: MediaAccept
+  trigger?: ReactNode
+  onOpen?: () => void
   onChange: (value: string) => void
 }
 
@@ -95,6 +97,8 @@ const MediaPickerInput = ({
   focusKey,
   groupId,
   accept = 'media',
+  trigger,
+  onOpen,
   onChange,
 }: Props) => {
   const { language } = useAuthStore()
@@ -180,6 +184,7 @@ const MediaPickerInput = ({
   }, [copy.loadFailed, folderPath, open, refreshToken])
 
   const openPicker = () => {
+    onOpen?.()
     const nextScope: MediaScope = groupRoot ? 'group' : 'public'
     setScope(nextScope)
     setFolderPath(nextScope === 'group' && groupRoot ? groupRoot : publicRoot)
@@ -228,25 +233,39 @@ const MediaPickerInput = ({
   }
 
   return (
-    <div className="block space-y-1 md:col-span-2" data-field-key={focusKey}>
-      <span className="text-xs font-medium text-slate-600">{inputLabel}</span>
-      <div className="flex flex-col gap-2 sm:flex-row">
-        <input
-          value={value}
-          disabled={disabled}
-          className="h-9 min-w-0 flex-1 rounded border border-slate-300 px-2 text-sm disabled:bg-slate-100"
-          onChange={(event) => onChange(event.target.value)}
-        />
+    <div className={trigger ? 'shrink-0' : 'block space-y-1 md:col-span-2'} data-field-key={focusKey}>
+      {trigger ? (
         <button
           type="button"
           disabled={disabled}
-          className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          className="block overflow-hidden rounded-xl text-left transition focus:outline-none focus:ring-4 focus:ring-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+          aria-label={inputLabel}
           onClick={openPicker}
         >
-          <FolderOpen className="h-4 w-4" />
-          {copy.browse}
+          {trigger}
         </button>
-      </div>
+      ) : (
+        <>
+          <span className="text-xs font-medium text-slate-600">{inputLabel}</span>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <input
+              value={value}
+              disabled={disabled}
+              className="h-9 min-w-0 flex-1 rounded border border-slate-300 px-2 text-sm disabled:bg-slate-100"
+              onChange={(event) => onChange(event.target.value)}
+            />
+            <button
+              type="button"
+              disabled={disabled}
+              className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={openPicker}
+            >
+              <FolderOpen className="h-4 w-4" />
+              {copy.browse}
+            </button>
+          </div>
+        </>
+      )}
 
       {open ? (
         <div className="fixed inset-0 z-[85] flex items-end bg-slate-950/45 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+4.5rem)] sm:items-center sm:justify-center sm:pb-4">

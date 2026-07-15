@@ -97,7 +97,9 @@ export type AdminPageReviewDto = {
   titleDisplayStyle: string
   visibility: 'draft' | 'group' | 'public' | string
   reviewStatus: 'pending' | 'approved' | 'returned'
+  primaryMenuId: string | null
   primaryMenuName: LocalizedText | null
+  menuSortOrder: number
   accessName: LocalizedText | null
   cardImageUrl: string | null
   cardText: LocalizedText | null
@@ -114,10 +116,22 @@ export type PagePublicationReviewActionDto = {
 }
 
 export type ApprovePagePublicationReviewPayload = {
-  primaryMenuName: LocalizedText
+  primaryMenuName?: LocalizedText | null
   accessName: LocalizedText
   cardImageUrl?: string | null
   cardText?: LocalizedText | null
+}
+
+export type AdminPagePrimaryMenuDto = {
+  id: string
+  name: LocalizedText
+  sortOrder: number
+  approvedPageCount: number
+}
+
+export type PagePrimaryMenuLayoutItem = {
+  primaryMenuId: string
+  pageIds: string[]
 }
 
 export type ReturnPagePublicationReviewPayload = {
@@ -252,6 +266,11 @@ const normalizeAdminPageReview = (page: AdminPageReviewDto): AdminPageReviewDto 
   title: toLocalizedText(page.title),
   description: page.description ? toLocalizedText(page.description) : page.description,
   ownerGroupName: page.ownerGroupName ? toLocalizedText(page.ownerGroupName) : null,
+})
+
+const normalizeAdminPagePrimaryMenu = (menu: AdminPagePrimaryMenuDto): AdminPagePrimaryMenuDto => ({
+  ...menu,
+  name: toLocalizedText(menu.name),
 })
 
 const normalizeAdminPageReviewStatus = (value: unknown): AdminPageReviewDto['reviewStatus'] => {
@@ -450,6 +469,33 @@ export const groupService = {
   async getPageReviewCandidates() {
     const { data } = await http.get<AdminPageReviewDto[]>('/api/admin/pages/review-candidates')
     return data.map(normalizeAdminPageReview)
+  },
+
+  async getPagePrimaryMenus() {
+    const { data } = await http.get<AdminPagePrimaryMenuDto[]>('/api/admin/page-primary-menus')
+    return data.map(normalizeAdminPagePrimaryMenu)
+  },
+
+  async createPagePrimaryMenu(name: LocalizedText) {
+    const { data } = await http.post<AdminPagePrimaryMenuDto>('/api/admin/page-primary-menus', { name })
+    await invalidatePublicPagesCache()
+    return normalizeAdminPagePrimaryMenu(data)
+  },
+
+  async updatePagePrimaryMenu(primaryMenuId: string, name: LocalizedText) {
+    const { data } = await http.put<AdminPagePrimaryMenuDto>(`/api/admin/page-primary-menus/${primaryMenuId}`, { name })
+    await invalidatePublicPagesCache()
+    return normalizeAdminPagePrimaryMenu(data)
+  },
+
+  async deletePagePrimaryMenu(primaryMenuId: string) {
+    await http.delete(`/api/admin/page-primary-menus/${primaryMenuId}`)
+    await invalidatePublicPagesCache()
+  },
+
+  async savePageMenuLayout(menus: PagePrimaryMenuLayoutItem[]) {
+    await http.put('/api/admin/page-primary-menus/layout', { menus })
+    await invalidatePublicPagesCache()
   },
 
   async approvePagePublicationReview(pageId: string, payload: ApprovePagePublicationReviewPayload) {
