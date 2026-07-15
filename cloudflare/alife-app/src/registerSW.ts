@@ -20,10 +20,21 @@ export function registerServiceWorker(): void {
   }
 
   if (import.meta.env.DEV) {
+    const cleanupReloadKey = 'alife:dev-service-worker-cleanup-reload'
+    const wasControlled = Boolean(navigator.serviceWorker.controller)
     navigator.serviceWorker.getRegistrations()
       .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
       .then(() => caches.keys())
       .then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
+      .then(() => {
+        if (wasControlled && sessionStorage.getItem(cleanupReloadKey) !== 'done') {
+          sessionStorage.setItem(cleanupReloadKey, 'done')
+          window.location.reload()
+          return
+        }
+
+        sessionStorage.removeItem(cleanupReloadKey)
+      })
       .catch((err: unknown) => {
         // eslint-disable-next-line no-console
         console.warn('Failed to clear development service worker cache:', err)

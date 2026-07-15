@@ -61,6 +61,7 @@ public sealed class ReturnPagePublicationCommandHandler(
         }
 
         review.Status = PagePublicationReviewStatus.Returned;
+        review.PrimaryMenuNameJson = null;
         review.AccessNameJson = null;
         review.CardImageUrl = null;
         review.CardTextJson = null;

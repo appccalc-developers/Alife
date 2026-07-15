@@ -97,6 +97,7 @@ export type AdminPageReviewDto = {
   titleDisplayStyle: string
   visibility: 'draft' | 'group' | 'public' | string
   reviewStatus: 'pending' | 'approved' | 'returned'
+  primaryMenuName: LocalizedText | null
   accessName: LocalizedText | null
   cardImageUrl: string | null
   cardText: LocalizedText | null
@@ -113,6 +114,7 @@ export type PagePublicationReviewActionDto = {
 }
 
 export type ApprovePagePublicationReviewPayload = {
+  primaryMenuName: LocalizedText
   accessName: LocalizedText
   cardImageUrl?: string | null
   cardText?: LocalizedText | null
@@ -244,6 +246,7 @@ const normalizeAdminPageReview = (page: AdminPageReviewDto): AdminPageReviewDto 
   ...page,
   visibility: normalizePageVisibility(page.visibility),
   reviewStatus: normalizeAdminPageReviewStatus(page.reviewStatus),
+  primaryMenuName: page.primaryMenuName ? toLocalizedText(page.primaryMenuName) : null,
   accessName: page.accessName ? toLocalizedText(page.accessName) : null,
   cardText: page.cardText ? toLocalizedText(page.cardText) : null,
   title: toLocalizedText(page.title),

@@ -187,6 +187,7 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 		modelBuilder.Entity<PagePublicationReview>(cfg =>
 		{
 			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.PrimaryMenuNameJson).HasColumnType("nvarchar(max)");
 			cfg.Property(x => x.AccessNameJson).HasColumnType("nvarchar(max)");
 			cfg.Property(x => x.CardImageUrl).HasMaxLength(1200);
 			cfg.Property(x => x.CardTextJson).HasColumnType("nvarchar(max)");

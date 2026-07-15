@@ -2,6 +2,7 @@ export type Language = 'en' | 'zh'
 
 export type HomeCopy = {
   nav: {
+    welcome: string
     about: string
     live: string
     visit: string
@@ -132,6 +133,7 @@ export const getCopy = (language: Language, churchDescription: string): HomeCopy
   if (language === 'zh') {
     return {
       nav: {
+        welcome: '欢迎',
         about: '关于我们',
         live: '主日直播',
         visit: '首次来访',
@@ -261,6 +263,7 @@ export const getCopy = (language: Language, churchDescription: string): HomeCopy
 
   return {
     nav: {
+      welcome: 'Welcome',
       about: 'About',
       live: 'Live',
       visit: 'Visit',

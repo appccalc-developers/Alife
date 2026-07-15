@@ -7,6 +7,7 @@ public class PagePublicationReview
 	public Guid Id { get; set; }
 	public Guid PageId { get; set; }
 	public PagePublicationReviewStatus Status { get; set; }
+	public string? PrimaryMenuNameJson { get; set; }
 	public string? AccessNameJson { get; set; }
 	public string? CardImageUrl { get; set; }
 	public string? CardTextJson { get; set; }

@@ -95,6 +95,8 @@ public class PublicPagesQueryTests
         Assert.Contains(result, page =>
             page.Id == approvedGroupPage.Id &&
             page.OwnerGroupId == groupId &&
+            page.PrimaryMenuName != null &&
+            page.PrimaryMenuName["en"] == "Ministries" &&
             page.AccessName != null &&
             page.AccessName["en"] == "Approved menu" &&
             page.CardImageUrl == "https://example.test/ministry.jpg" &&
@@ -155,6 +157,7 @@ public class PublicPagesQueryTests
             Id = Guid.NewGuid(),
             PageId = pageId,
             Status = PagePublicationReviewStatus.Approved,
+            PrimaryMenuNameJson = """{"en":"Ministries","zh":"事工"}""",
             AccessNameJson = $$"""{"en":"{{accessName}}","zh":"{{accessName}}"}""",
             CardImageUrl = "https://example.test/ministry.jpg",
             CardTextJson = """{"en":"Approved ministry card","zh":"已批准事工卡片"}""",

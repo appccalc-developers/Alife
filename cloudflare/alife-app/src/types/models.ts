@@ -142,6 +142,7 @@ export type PageSummaryDto = {
   description?: LocalizedText | null
   tagsJson?: string
   titleDisplayStyle?: string
+  primaryMenuName?: LocalizedText | null
   accessName?: LocalizedText | null
   cardImageUrl?: string | null
   cardText?: LocalizedText | null

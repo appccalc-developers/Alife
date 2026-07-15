@@ -52,6 +52,7 @@ public sealed class ListPageReviewCandidatesQueryHandler(IAlifeDbContext dbConte
                 .Select(review => new ReviewRow(
                     review.PageId,
                     review.Status,
+                    review.PrimaryMenuNameJson,
                     review.AccessNameJson,
                     review.CardImageUrl,
                     review.CardTextJson,
@@ -79,6 +80,7 @@ public sealed class ListPageReviewCandidatesQueryHandler(IAlifeDbContext dbConte
                     row.TitleDisplayStyle,
                     row.Visibility,
                     ToReviewStatus(review?.Status),
+                    ReadNullableTextMap(review?.PrimaryMenuNameJson),
                     ReadNullableTextMap(review?.AccessNameJson),
                     review?.CardImageUrl,
                     ReadNullableTextMap(review?.CardTextJson),
@@ -102,6 +104,7 @@ public sealed class ListPageReviewCandidatesQueryHandler(IAlifeDbContext dbConte
     private sealed record ReviewRow(
         Guid PageId,
         PagePublicationReviewStatus Status,
+        string? PrimaryMenuNameJson,
         string? AccessNameJson,
         string? CardImageUrl,
         string? CardTextJson,

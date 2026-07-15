@@ -32,8 +32,8 @@ const copy = {
   },
   queue: { en: 'Pages for review', zh: '审核页面' },
   queueHint: {
-    en: 'Pending public pages submitted by groups can be approved with a bilingual menu name, ministry card image, and ministry card text, or returned for revision.',
-    zh: '小组提交的待审核公开页面可以填写双语菜单名、事工卡片图片和事工卡片文字后批准，或退回修改。',
+    en: 'Configure each public page under a bilingual primary menu, with its own menu name, card image, and card text. Approved menu settings can be edited later.',
+    zh: '为每个公开页面选择双语一级菜单，并配置页面菜单名、卡片图片和卡片文字；批准后仍可继续修改。',
   },
   groupPage: { en: 'group page', zh: '小组页面' },
   draftStatus: { en: 'Draft', zh: '草稿' },
@@ -46,7 +46,15 @@ const copy = {
   approvedStatus: { en: 'Approved', zh: '已批准' },
   returnedStatus: { en: 'Returned', zh: '已退回' },
   approve: { en: 'Approve', zh: '批准' },
+  editMenu: { en: 'Edit menu', zh: '编辑菜单' },
   approveTitle: { en: 'Approve publication', zh: '批准发布' },
+  editMenuTitle: { en: 'Edit menu configuration', zh: '编辑菜单配置' },
+  primaryMenu: { en: 'Primary menu', zh: '一级菜单' },
+  selectPrimaryMenu: { en: 'Select a primary menu', zh: '请选择一级菜单' },
+  newPrimaryMenu: { en: 'Create a new primary menu', zh: '新建一级菜单' },
+  primaryMenuEn: { en: 'English primary menu name', zh: '一级菜单英文名' },
+  primaryMenuZh: { en: 'Chinese primary menu name', zh: '一级菜单中文名' },
+  primaryMenuRequired: { en: 'Please select or enter both primary menu names.', zh: '请选择一级菜单，或填写一级菜单的中英文名称。' },
   accessNameEn: { en: 'English menu name', zh: '英文菜单名' },
   accessNameZh: { en: 'Chinese menu name', zh: '中文菜单名' },
   accessNameRequired: { en: 'Please enter both English and Chinese menu names.', zh: '请填写英文和中文菜单名。' },
@@ -80,6 +88,7 @@ const copy = {
   author: { en: 'Author', zh: '作者' },
   updated: { en: 'Updated', zh: '更新' },
   promoted: { en: 'Page publication approved.', zh: '已批准此页面的发布申请。' },
+  menuUpdated: { en: 'Menu configuration updated.', zh: '菜单配置已更新。' },
   returned: { en: 'Page returned for revision.', zh: '已退回此页面的发布申请。' },
   actionFailed: { en: 'Review action failed.', zh: '审核操作失败。' },
   loadFailed: { en: 'Unable to load page review queue.', zh: '无法加载页面审核队列。' },
@@ -161,6 +170,12 @@ const initialAccessName = (page: AdminPageReviewDto) => ({
   zh: page.accessName?.zh || page.title?.zh || page.title?.en || '',
 })
 
+const primaryMenuKey = (value: AdminPageReviewDto['primaryMenuName']) => {
+  const en = value?.en?.trim().replace(/\s+/g, ' ').toLocaleLowerCase() || ''
+  const zh = value?.zh?.trim().replace(/\s+/g, ' ').toLocaleLowerCase() || ''
+  return en && zh ? JSON.stringify([en, zh]) : ''
+}
+
 const initialCardText = (page: AdminPageReviewDto) => ({
   en: page.cardText?.en || page.description?.en || page.description?.zh || page.title?.en || page.title?.zh || '',
   zh: page.cardText?.zh || page.description?.zh || page.description?.en || page.title?.zh || page.title?.en || '',
@@ -176,6 +191,8 @@ const PageReviewView = () => {
   const [loading, setLoading] = useState(false)
   const [actingPageId, setActingPageId] = useState<string | null>(null)
   const [approvingPage, setApprovingPage] = useState<AdminPageReviewDto | null>(null)
+  const [primaryMenuSelection, setPrimaryMenuSelection] = useState('')
+  const [primaryMenuName, setPrimaryMenuName] = useState({ en: '', zh: '' })
   const [accessName, setAccessName] = useState({ en: '', zh: '' })
   const [cardImageUrl, setCardImageUrl] = useState('')
   const [cardText, setCardText] = useState({ en: '', zh: '' })
@@ -200,6 +217,25 @@ const PageReviewView = () => {
     () => publicItems.filter((page) => page.reviewStatus === activeTab),
     [activeTab, publicItems],
   )
+  const primaryMenuOptions = useMemo(() => {
+    const byKey = new Map<string, { key: string; name: { en: string; zh: string } }>()
+    items.forEach((page) => {
+      const key = primaryMenuKey(page.primaryMenuName)
+      if (key && page.primaryMenuName && !byKey.has(key)) {
+        byKey.set(key, {
+          key,
+          name: { en: page.primaryMenuName.en.trim(), zh: page.primaryMenuName.zh.trim() },
+        })
+      }
+    })
+    return Array.from(byKey.values()).sort((left, right) =>
+      localizeText(left.name, language).localeCompare(
+        localizeText(right.name, language),
+        language === 'zh' ? 'zh-Hans' : 'en',
+        { sensitivity: 'base' },
+      ),
+    )
+  }, [items, language])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -231,6 +267,17 @@ const PageReviewView = () => {
 
   const openApproveDialog = (page: AdminPageReviewDto) => {
     setApprovingPage(page)
+    const nextPrimaryMenuName = {
+      en: page.primaryMenuName?.en || '',
+      zh: page.primaryMenuName?.zh || '',
+    }
+    const nextPrimaryMenuKey = primaryMenuKey(nextPrimaryMenuName)
+    setPrimaryMenuSelection(
+      primaryMenuOptions.some((option) => option.key === nextPrimaryMenuKey)
+        ? nextPrimaryMenuKey
+        : nextPrimaryMenuKey ? '__new__' : '',
+    )
+    setPrimaryMenuName(nextPrimaryMenuName)
     setAccessName(initialAccessName(page))
     setCardImageUrl(page.cardImageUrl || '')
     setCardText(initialCardText(page))
@@ -244,6 +291,8 @@ const PageReviewView = () => {
     }
 
     setApprovingPage(null)
+    setPrimaryMenuSelection('')
+    setPrimaryMenuName({ en: '', zh: '' })
     setAccessName({ en: '', zh: '' })
     setCardImageUrl('')
     setCardText({ en: '', zh: '' })
@@ -258,11 +307,19 @@ const PageReviewView = () => {
       en: accessName.en.trim(),
       zh: accessName.zh.trim(),
     }
+    const nextPrimaryMenuName = {
+      en: primaryMenuName.en.trim(),
+      zh: primaryMenuName.zh.trim(),
+    }
     const nextCardText = {
       en: cardText.en.trim(),
       zh: cardText.zh.trim(),
     }
     const nextCardImageUrl = cardImageUrl.trim()
+    if (!nextPrimaryMenuName.en || !nextPrimaryMenuName.zh) {
+      setError(text(language, 'primaryMenuRequired'))
+      return
+    }
     if (!nextAccessName.en || !nextAccessName.zh) {
       setError(text(language, 'accessNameRequired'))
       return
@@ -277,13 +334,16 @@ const PageReviewView = () => {
     setMessage('')
     try {
       await groupService.approvePagePublicationReview(approvingPage.id, {
+        primaryMenuName: nextPrimaryMenuName,
         accessName: nextAccessName,
         cardImageUrl: nextCardImageUrl,
         cardText: nextCardText,
       })
       await load()
-      setMessage(text(language, 'promoted'))
+      setMessage(text(language, approvingPage.reviewStatus === 'approved' ? 'menuUpdated' : 'promoted'))
       setApprovingPage(null)
+      setPrimaryMenuSelection('')
+      setPrimaryMenuName({ en: '', zh: '' })
       setAccessName({ en: '', zh: '' })
       setCardImageUrl('')
       setCardText({ en: '', zh: '' })
@@ -439,9 +499,10 @@ const PageReviewView = () => {
               const groupName = localizeText(page.ownerGroupName, language) || page.ownerGroupId
               const disabled = actingPageId === page.id
               const canReviewPublication = page.visibility === 'public'
-              const canApprove = canReviewPublication && page.reviewStatus !== 'approved'
+              const canApprove = canReviewPublication
               const canReturn = canReviewPublication && page.reviewStatus !== 'returned'
               const canEditPage = canEditReviewPage(page)
+              const primaryMenuLabel = localizeText(page.primaryMenuName, language)
               const accessLabel = localizeText(page.accessName, language)
               const cardLabel = localizeText(page.cardText, language)
 
@@ -502,6 +563,12 @@ const PageReviewView = () => {
                             <dd className="mt-0.5 break-words">{accessLabel}</dd>
                           </div>
                         ) : null}
+                        {primaryMenuLabel ? (
+                          <div>
+                            <dt className="font-bold text-slate-700">{text(language, 'primaryMenu')}</dt>
+                            <dd className="mt-0.5 break-words">{primaryMenuLabel}</dd>
+                          </div>
+                        ) : null}
                         {page.cardImageUrl ? (
                           <div>
                             <dt className="font-bold text-slate-700">{text(language, 'cardImage')}</dt>
@@ -530,7 +597,7 @@ const PageReviewView = () => {
                       {canApprove ? (
                         <AppActionButton size="sm" variant="primary" disabled={disabled} onClick={() => openApproveDialog(page)}>
                           {disabled ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Globe2 className="mr-1.5 h-4 w-4" />}
-                          {text(language, 'approve')}
+                          {text(language, page.reviewStatus === 'approved' ? 'editMenu' : 'approve')}
                         </AppActionButton>
                       ) : null}
                       {canReturn ? (
@@ -552,10 +619,69 @@ const PageReviewView = () => {
         <div className="fixed inset-0 z-[70] flex items-end bg-slate-950/45 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+4.5rem)] sm:items-center sm:justify-center sm:pb-4">
           <button type="button" className="absolute inset-0" aria-label={text(language, 'cancel')} onClick={closeApproveDialog} />
           <section className="relative z-10 max-h-[calc(100vh-7rem)] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl">
-            <h2 className="text-lg font-black text-slate-950">{text(language, 'approveTitle')}</h2>
+            <h2 className="text-lg font-black text-slate-950">
+              {text(language, approvingPage.reviewStatus === 'approved' ? 'editMenuTitle' : 'approveTitle')}
+            </h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">
               {localizeText(approvingPage.title, language) || approvingPage.id}
             </p>
+            <label className="mt-5 block text-sm font-bold text-slate-700" htmlFor="page-primary-menu">
+              {text(language, 'primaryMenu')}
+            </label>
+            <select
+              id="page-primary-menu"
+              className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm leading-6 text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+              value={primaryMenuSelection}
+              onChange={(event) => {
+                const key = event.target.value
+                setPrimaryMenuSelection(key)
+                const option = primaryMenuOptions.find((candidate) => candidate.key === key)
+                if (option) {
+                  setPrimaryMenuName(option.name)
+                } else {
+                  setPrimaryMenuName({ en: '', zh: '' })
+                }
+                if (error === text(language, 'primaryMenuRequired')) {
+                  setError('')
+                }
+              }}
+            >
+              <option value="">{text(language, 'selectPrimaryMenu')}</option>
+              {primaryMenuOptions.map((option) => (
+                <option key={option.key} value={option.key}>{localizeText(option.name, language)}</option>
+              ))}
+              <option value="__new__">{text(language, 'newPrimaryMenu')}</option>
+            </select>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <label className="block text-sm font-bold text-slate-700" htmlFor="page-primary-menu-en">
+                {text(language, 'primaryMenuEn')}
+                <input
+                  id="page-primary-menu-en"
+                  className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-normal leading-6 text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+                  value={primaryMenuName.en}
+                  maxLength={120}
+                  onChange={(event) => {
+                    setPrimaryMenuSelection('__new__')
+                    setPrimaryMenuName((current) => ({ ...current, en: event.target.value }))
+                    if (error === text(language, 'primaryMenuRequired')) setError('')
+                  }}
+                />
+              </label>
+              <label className="block text-sm font-bold text-slate-700" htmlFor="page-primary-menu-zh">
+                {text(language, 'primaryMenuZh')}
+                <input
+                  id="page-primary-menu-zh"
+                  className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-normal leading-6 text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+                  value={primaryMenuName.zh}
+                  maxLength={120}
+                  onChange={(event) => {
+                    setPrimaryMenuSelection('__new__')
+                    setPrimaryMenuName((current) => ({ ...current, zh: event.target.value }))
+                    if (error === text(language, 'primaryMenuRequired')) setError('')
+                  }}
+                />
+              </label>
+            </div>
             <label className="mt-5 block text-sm font-bold text-slate-700" htmlFor="page-access-name-en">
               {text(language, 'accessNameEn')}
             </label>

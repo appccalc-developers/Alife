@@ -7,6 +7,7 @@ namespace Alife.Application.Admin.Commands.ApprovePagePublication;
 public sealed record ApprovePagePublicationCommand(
     Guid CurrentMemberId,
     Guid PageId,
+    IReadOnlyDictionary<string, string>? PrimaryMenuName,
     IReadOnlyDictionary<string, string>? AccessName,
     string? CardImageUrl,
     IReadOnlyDictionary<string, string>? CardText)

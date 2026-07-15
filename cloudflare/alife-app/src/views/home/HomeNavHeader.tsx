@@ -34,23 +34,14 @@ const HomeNavHeader = ({ copy, language, solid = false, navItems: providedNavIte
 
   const accountTo = auth.isGuest ? '/onboarding' : '/groups/select'
   const accountLabel = auth.isGuest ? copy.account : copy.enterAlife
-  const eventsNavLabel = copy.nav.events
   const nextLanguageLabel = copy.nextLanguageLabel
-  const showGuestNav = auth.isGuest
-  const showMemberNav = !auth.isGuest
 
   const fallbackNavItems: HomeNavItem[] = [
-    { href: '#about', label: copy.nav.about },
-    { href: '#visit', label: copy.nav.visit },
-    ...(showGuestNav ? [{ href: '#ministries', label: copy.nav.life }] : []),
-    ...(showMemberNav ? [{ href: '#groups', label: copy.nav.groups }] : []),
-    { href: '#events', label: eventsNavLabel },
-    { href: '#sermons', label: copy.nav.sermons },
-    { href: '#location', label: copy.nav.location },
+    { href: '#welcome', label: copy.nav.welcome },
   ]
 
   const navItems = providedNavItems?.length
-    ? providedNavItems.map((item) => !isDropdownNavItem(item) && item.href === '#events' ? { ...item, label: eventsNavLabel } : item)
+    ? providedNavItems
     : fallbackNavItems
   const scrollToSection = createSectionHandler(() => setMenuOpen(false))
   const closeDropdownNavigation = (target?: HTMLElement) => {

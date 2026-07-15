@@ -22,6 +22,7 @@ public sealed record AdminPageReviewDto(
     string TitleDisplayStyle,
     PageVisibility Visibility,
     AdminPageReviewStatus ReviewStatus,
+    IReadOnlyDictionary<string, string>? PrimaryMenuName,
     IReadOnlyDictionary<string, string>? AccessName,
     string? CardImageUrl,
     IReadOnlyDictionary<string, string>? CardText,
