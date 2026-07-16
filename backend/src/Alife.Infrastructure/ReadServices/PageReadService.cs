@@ -35,6 +35,7 @@ public sealed class PageReadService(AlifeDbContext dbContext, HybridCache hybrid
                         PrimaryMenuNameJson = review.PrimaryMenu != null ? review.PrimaryMenu.NameJson : review.PrimaryMenuNameJson,
                         review.PrimaryMenuId,
                         PrimaryMenuSortOrder = review.PrimaryMenu != null ? review.PrimaryMenu.SortOrder : 0,
+                        PrimaryMenuHomePlacement = review.PrimaryMenu != null ? review.PrimaryMenu.HomePlacement : null,
                         review.MenuSortOrder
                     })
                     .ToListAsync(token);
@@ -48,7 +49,8 @@ public sealed class PageReadService(AlifeDbContext dbContext, HybridCache hybrid
                         ReadNullableTextMap(row.PrimaryMenuNameJson),
                         row.PrimaryMenuId,
                         row.PrimaryMenuSortOrder,
-                        row.MenuSortOrder))
+                        row.MenuSortOrder,
+                        row.PrimaryMenuHomePlacement))
                     .ToList();
             },
             cancellationToken);
@@ -104,7 +106,7 @@ public sealed class PageReadService(AlifeDbContext dbContext, HybridCache hybrid
             cancellationToken);
 
     private static PageDto ToDto(Domain.Entities.Page page)
-        => ToDto(page, null, null, null, null, null, 0, 0);
+        => ToDto(page, null, null, null, null, null, 0, 0, null);
 
     private static PageDto ToDto(
         Domain.Entities.Page page,
@@ -114,7 +116,8 @@ public sealed class PageReadService(AlifeDbContext dbContext, HybridCache hybrid
         IReadOnlyDictionary<string, string>? primaryMenuName,
         Guid? primaryMenuId,
         int primaryMenuSortOrder,
-        int menuSortOrder)
+        int menuSortOrder,
+        PagePrimaryMenuHomePlacement? primaryMenuHomePlacement)
         => new(
             page.Id,
             page.OwnerGroupId,
@@ -131,7 +134,8 @@ public sealed class PageReadService(AlifeDbContext dbContext, HybridCache hybrid
             PrimaryMenuName: primaryMenuName,
             PrimaryMenuId: primaryMenuId,
             PrimaryMenuSortOrder: primaryMenuSortOrder,
-            MenuSortOrder: menuSortOrder);
+            MenuSortOrder: menuSortOrder,
+            PrimaryMenuHomePlacement: primaryMenuHomePlacement);
 
     private static IReadOnlyDictionary<string, string>? ReadNullableTextMap(string? value)
     {

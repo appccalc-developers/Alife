@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
 import { authService } from '../services/authService'
 import type { MeDto, MembershipRole } from '../types'
 
@@ -67,11 +67,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setInitialized(true)
     }
   }, [fetchMe, me])
-
-  useEffect(() => {
-    bootstrap().catch(() => setInitialized(true))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   const logout = useCallback(async () => {
     await authService.logout()

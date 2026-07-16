@@ -119,7 +119,15 @@ public class PublicPagesQueryTests
         var secondPage = CreatePage(authorId, groupId, PageVisibility.Public, "Second");
         var thirdPage = CreatePage(authorId, groupId, PageVisibility.Public, "Third");
         dbContext.Pages.AddRange(firstPage, secondPage, thirdPage);
-        var firstMenu = new PagePrimaryMenu { Id = Guid.NewGuid(), NameJson = "{\"en\":\"First\",\"zh\":\"第一\"}", SortOrder = 0, CreatedUtc = now, UpdatedUtc = now };
+        var firstMenu = new PagePrimaryMenu
+        {
+            Id = Guid.NewGuid(),
+            NameJson = "{\"en\":\"First\",\"zh\":\"第一\"}",
+            SortOrder = 0,
+            HomePlacement = PagePrimaryMenuHomePlacement.ChurchOrganization,
+            CreatedUtc = now,
+            UpdatedUtc = now
+        };
         var secondMenu = new PagePrimaryMenu { Id = Guid.NewGuid(), NameJson = "{\"en\":\"Second\",\"zh\":\"第二\"}", SortOrder = 1, CreatedUtc = now, UpdatedUtc = now };
         dbContext.PagePrimaryMenus.AddRange(firstMenu, secondMenu);
         var firstReview = CreateApprovedReview(firstPage.Id, "First page");
@@ -144,6 +152,7 @@ public class PublicPagesQueryTests
         Assert.Equal(firstMenu.Id, result[0].PrimaryMenuId);
         Assert.Equal(0, result[0].PrimaryMenuSortOrder);
         Assert.Equal(0, result[0].MenuSortOrder);
+        Assert.Equal(PagePrimaryMenuHomePlacement.ChurchOrganization, result[0].PrimaryMenuHomePlacement);
     }
 
     private static AlifeDbContext CreateInMemoryDbContext()

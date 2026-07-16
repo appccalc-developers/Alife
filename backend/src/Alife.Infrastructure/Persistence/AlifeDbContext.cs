@@ -190,6 +190,9 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 			cfg.HasKey(x => x.Id);
 			cfg.Property(x => x.NameJson).HasColumnType("nvarchar(max)").IsRequired();
 			cfg.HasIndex(x => x.SortOrder);
+			cfg.HasIndex(x => x.HomePlacement)
+				.IsUnique()
+				.HasFilter("[home_placement] IS NOT NULL");
 		});
 
 		modelBuilder.Entity<PagePublicationReview>(cfg =>

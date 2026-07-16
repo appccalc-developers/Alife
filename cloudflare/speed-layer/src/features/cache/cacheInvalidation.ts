@@ -1,7 +1,7 @@
 import type { Env } from '../../index'
 import { purgeApiPathCache } from '../../middlewares/apiCache'
 
-const ALLOWED_PURGE_PATHS = new Set(['/api/sermons'])
+const ALLOWED_PURGE_PATHS = new Set(['/api/sermons', '/api/pages/public'])
 
 export async function handleInternalCacheInvalidate(request: Request, env: Env): Promise<Response> {
   if (!env.CACHE_SYNC_API_TOKEN) {

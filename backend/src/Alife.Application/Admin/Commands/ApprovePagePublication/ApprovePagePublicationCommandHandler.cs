@@ -179,7 +179,8 @@ public sealed class ApprovePagePublicationCommandHandler(
             PrimaryMenuName: primaryMenuName,
             PrimaryMenuId: primaryMenu.Id,
             PrimaryMenuSortOrder: primaryMenu.SortOrder,
-            MenuSortOrder: menuSortOrder);
+            MenuSortOrder: menuSortOrder,
+            PrimaryMenuHomePlacement: primaryMenu.HomePlacement);
 
     private static IReadOnlyDictionary<string, string>? NormalizePrimaryMenuName(
         IReadOnlyDictionary<string, string>? value)

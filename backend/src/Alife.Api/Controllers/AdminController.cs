@@ -22,6 +22,7 @@ using Alife.Application.Admin.Queries.ListAdminMembers;
 using Alife.Application.Admin.Queries.ListAdminNotifications;
 using Alife.Application.Admin.Queries.ListPageReviewCandidates;
 using Alife.Application.Admin.Queries.ListPagePrimaryMenus;
+using Alife.Domain.Enums;
 using Alife.Application.Admin.Dtos;
 using Alife.Application.Admin.Queries.ListAuditLogs;
 using Alife.Application.Admin.Queries.ListPlatformRoles;
@@ -183,7 +184,7 @@ public class AdminController(IMediator mediator, ICurrentMemberAccessor currentM
         }
 
         var result = await mediator.Send(
-            new CreatePagePrimaryMenuCommand(currentMemberId.Value, request.Name),
+            new CreatePagePrimaryMenuCommand(currentMemberId.Value, request.Name, request.HomePlacement),
             cancellationToken);
         this.ApplyPrivateNoCacheHeaders();
         return this.ToActionResult(result);
@@ -202,7 +203,7 @@ public class AdminController(IMediator mediator, ICurrentMemberAccessor currentM
         }
 
         var result = await mediator.Send(
-            new UpdatePagePrimaryMenuCommand(currentMemberId.Value, primaryMenuId, request.Name),
+            new UpdatePagePrimaryMenuCommand(currentMemberId.Value, primaryMenuId, request.Name, request.HomePlacement),
             cancellationToken);
         this.ApplyPrivateNoCacheHeaders();
         return this.ToActionResult(result);
@@ -556,8 +557,12 @@ public class AdminController(IMediator mediator, ICurrentMemberAccessor currentM
         IReadOnlyDictionary<string, string>? AccessName,
         string? CardImageUrl,
         IReadOnlyDictionary<string, string>? CardText);
-    public sealed record UpdatePagePrimaryMenuRequest(IReadOnlyDictionary<string, string>? Name);
-    public sealed record CreatePagePrimaryMenuRequest(IReadOnlyDictionary<string, string>? Name);
+    public sealed record UpdatePagePrimaryMenuRequest(
+        IReadOnlyDictionary<string, string>? Name,
+        PagePrimaryMenuHomePlacement? HomePlacement);
+    public sealed record CreatePagePrimaryMenuRequest(
+        IReadOnlyDictionary<string, string>? Name,
+        PagePrimaryMenuHomePlacement? HomePlacement);
     public sealed record SavePageMenuLayoutRequest(IReadOnlyList<PagePrimaryMenuLayoutItemDto>? Menus);
     public sealed record ReturnPagePublicationReviewRequest(string Reason);
 

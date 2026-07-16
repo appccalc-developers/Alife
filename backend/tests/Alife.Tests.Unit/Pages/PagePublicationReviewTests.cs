@@ -385,6 +385,39 @@ public class PagePublicationReviewTests
     }
 
     [Fact]
+    public async Task PrimaryMenu_HomePlacementCanOnlyBeAssignedOnce()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var reviewerId = Guid.NewGuid();
+        var authorId = Guid.NewGuid();
+        var groupId = Guid.NewGuid();
+        var pageId = Guid.NewGuid();
+        await SeedReviewerScenarioAsync(dbContext, reviewerId, authorId, groupId, pageId);
+        var cacheInvalidation = Substitute.For<IPageCacheInvalidationService>();
+        var handler = new CreatePagePrimaryMenuCommandHandler(dbContext, cacheInvalidation);
+
+        var first = await handler.Handle(
+            new CreatePagePrimaryMenuCommand(
+                reviewerId,
+                new Dictionary<string, string> { ["en"] = "Organization", ["zh"] = "教会组成" },
+                PagePrimaryMenuHomePlacement.ChurchOrganization),
+            CancellationToken.None);
+        var duplicate = await handler.Handle(
+            new CreatePagePrimaryMenuCommand(
+                reviewerId,
+                new Dictionary<string, string> { ["en"] = "Another", ["zh"] = "另一个" },
+                PagePrimaryMenuHomePlacement.ChurchOrganization),
+            CancellationToken.None);
+
+        Assert.True(first.IsSuccess);
+        Assert.Equal(PagePrimaryMenuHomePlacement.ChurchOrganization, first.Value!.HomePlacement);
+        Assert.False(duplicate.IsSuccess);
+        Assert.Equal(Application.Common.Models.AppResultStatus.Conflict, duplicate.Status);
+        Assert.Single(dbContext.PagePrimaryMenus);
+        await cacheInvalidation.Received(1).RemovePublicAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task PrimaryMenu_CanBeRenamedAndDeletedAfterItsLastApprovedPageMovesAway()
     {
         using var dbContext = CreateInMemoryDbContext();

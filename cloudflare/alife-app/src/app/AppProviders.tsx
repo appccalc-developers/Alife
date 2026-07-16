@@ -5,6 +5,7 @@ import { queryClient } from '../db/queryClient'
 import { AuthProvider } from '../stores/auth'
 import { CurrentGroupProvider } from '../stores/currentGroup'
 import UnsavedChangesModalHost from '../components/layout/UnsavedChangesModalHost'
+import AuthBootstrapGate from './components/AuthBootstrapGate'
 
 const LocalDevHostRedirect = () => {
   useEffect(() => {
@@ -22,15 +23,17 @@ const LocalDevHostRedirect = () => {
 
 const AppProviders = ({ children }: PropsWithChildren) => (
   <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <CurrentGroupProvider>
-        <BrowserRouter>
-          <LocalDevHostRedirect />
-          {children}
-          <UnsavedChangesModalHost />
-        </BrowserRouter>
-      </CurrentGroupProvider>
-    </AuthProvider>
+    <BrowserRouter>
+      <AuthProvider>
+        <AuthBootstrapGate>
+          <CurrentGroupProvider>
+            <LocalDevHostRedirect />
+            {children}
+            <UnsavedChangesModalHost />
+          </CurrentGroupProvider>
+        </AuthBootstrapGate>
+      </AuthProvider>
+    </BrowserRouter>
   </QueryClientProvider>
 )
 

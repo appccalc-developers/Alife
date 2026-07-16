@@ -91,6 +91,12 @@ export type HomeCopy = {
   groupsEmptyState: string
   groupsBadgePublic: string
   groupsBadgePrivate: string
+  organizationTitle: string
+  organizationBody: string
+  organizationAction: string
+  organizationEyebrow: string
+  organizationEmptyState: string
+  organizationBadge: string
   ministriesTitle: string
   ministriesBody: string
   ministriesAction: string
@@ -222,6 +228,12 @@ export const getCopy = (language: Language, churchDescription: string): HomeCopy
       groupsEmptyState: '公开小组同步后，会在这里自动展示适合了解和加入的小组。',
       groupsBadgePublic: '公开可了解',
       groupsBadgePrivate: '小组空间',
+      organizationTitle: '认识构成这个属灵家的群体。',
+      organizationBody: '这些经过审核的页面介绍教会的组成、群体和服事关系，帮助你在来访前先认识我们。',
+      organizationAction: '打开页面',
+      organizationEyebrow: '教会组成',
+      organizationEmptyState: '审核员指定“教会组成”一级菜单后，这里会展示其中的公开页面。',
+      organizationBadge: '已审核页面',
       ministriesTitle: '一同参与教会事工。',
       ministriesBody: '已审核的事工页面会在这里展示异象、服事内容和联系入口，帮助你更快找到可以参与的地方。',
       ministriesAction: '打开事工',
@@ -352,6 +364,12 @@ export const getCopy = (language: Language, churchDescription: string): HomeCopy
     groupsEmptyState: 'Public groups will appear here automatically once they are available.',
     groupsBadgePublic: 'Open to explore',
     groupsBadgePrivate: 'Group space',
+    organizationTitle: 'Meet the communities that form this spiritual home.',
+    organizationBody: 'These reviewed pages introduce the church’s communities, teams, and relationships before your first visit.',
+    organizationAction: 'Open Page',
+    organizationEyebrow: 'Church Organization',
+    organizationEmptyState: 'Reviewed public pages will appear here after a primary menu is assigned to Church Organization.',
+    organizationBadge: 'Reviewed page',
     ministriesTitle: 'Serve with the life of the church.',
     ministriesBody: 'Approved ministry pages introduce each team’s vision, service rhythm, and next step so people can find where to participate.',
     ministriesAction: 'Open Ministry',

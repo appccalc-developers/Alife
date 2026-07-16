@@ -19,6 +19,7 @@ import { getCopy } from '../views/home/homeCopy'
 import { buildPageMenuNavItems } from '../views/home/homeUtils'
 import { pageService } from '../services/pageService'
 import type { PageSummaryDto } from '../types'
+import { isHomeLocation, isPublicPageLocation, isPublicPagePath } from './routing/publicRoutePolicy'
 
 const readSidebarCollapsedPreference = () => {
   try {
@@ -162,25 +163,6 @@ const WorkspaceShell = () => {
   )
 }
 
-type RouteLocation = {
-  pathname: string
-  search: string
-}
-
-const hasPublicPageMenuName = (search: string) =>
-  Boolean(new URLSearchParams(search).get('page')?.trim())
-
-const isPublicPagePath = (pathname: string) =>
-  /^\/public\/pages\/[^/]+$/.test(pathname)
-
-const isPublicPageLocation = (location: RouteLocation) =>
-  isPublicPagePath(location.pathname) ||
-  (location.pathname === '/home' && hasPublicPageMenuName(location.search))
-
-const isHomeLocation = (location: RouteLocation) =>
-  location.pathname === '/' ||
-  (location.pathname === '/home' && !hasPublicPageMenuName(location.search))
-
 const isPublicBrowsePath = (pathname: string) =>
   pathname === '/' ||
   pathname === '/home' ||
@@ -214,6 +196,10 @@ const PublicHomeShell = () => {
   )
 
   useEffect(() => {
+    if (isHome) {
+      return undefined
+    }
+
     let cancelled = false
     pageService.getPublicPages()
       .then((pages) => {
@@ -224,7 +210,7 @@ const PublicHomeShell = () => {
       .catch((error) => console.error('[PublicHomeShell] public pages load failed:', error))
 
     return () => { cancelled = true }
-  }, [])
+  }, [isHome])
 
   return (
     <div className="min-h-screen bg-[#f7f3ea] text-[#18332d]">

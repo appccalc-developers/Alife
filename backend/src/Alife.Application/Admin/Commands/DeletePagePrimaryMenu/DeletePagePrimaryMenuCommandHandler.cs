@@ -64,7 +64,7 @@ public sealed class DeletePagePrimaryMenuCommandHandler(
             Action = PagePublicationReviewActions.PrimaryMenuDelete,
             EntityType = "page_primary_menu",
             EntityId = menu.Id,
-            BeforeJson = JsonSerializer.Serialize(new { name = PagePrimaryMenuText.Read(menu.NameJson), menu.SortOrder }),
+            BeforeJson = JsonSerializer.Serialize(new { name = PagePrimaryMenuText.Read(menu.NameJson), menu.SortOrder, menu.HomePlacement }),
             OccurredUtc = now
         }, cancellationToken);
 

@@ -337,7 +337,12 @@ if (-not $SkipFrontend) {
 
     $previousApiProxyTarget = $env:API_PROXY_TARGET
     $previousAiProxyTarget = $env:AI_PROXY_TARGET
-    $env:API_PROXY_TARGET = "http://127.0.0.1:7071"
+    $env:API_PROXY_TARGET = if ($SkipSpeedLayer) {
+        "http://127.0.0.1:7071"
+    }
+    else {
+        "http://127.0.0.1:8787"
+    }
     $env:AI_PROXY_TARGET = "http://127.0.0.1:8787"
     try {
         Start-LoggedProcess `

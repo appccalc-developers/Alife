@@ -8,23 +8,29 @@ import {
   fallbackGroupImages,
   publicPageHomePath,
   publicPageMenuName,
-  sortPublicPagesForMinistries,
+  sortPublicReviewedPages,
 } from './homeUtils'
-import type { HomeCopy, Language } from './homeCopy'
+import type { Language } from './homeCopy'
 import type { PageSummaryDto } from '../../types'
 
 type Props = {
-  copy: HomeCopy
   language: Language
   pages: PageSummaryDto[]
+  sectionId: string
+  eyebrow: string
+  title: string
+  body: string
+  action: string
+  emptyState: string
+  badge: string
 }
 
 const AUTO_INTERVAL = 5600
 
-const MinistrySection = ({ copy, language, pages }: Props) => {
+const ReviewedPageCarouselSection = ({ language, pages, sectionId, eyebrow, title, body, action, emptyState, badge }: Props) => {
   const prefersReducedMotion = useReducedMotion()
   const entrance = entranceAnimation(prefersReducedMotion)
-  const cards = sortPublicPagesForMinistries(pages, language).slice(0, 6)
+  const cards = sortPublicReviewedPages(pages, language).slice(0, 6)
   const [activeIndex, setActiveIndex] = useState(0)
   const [direction, setDirection] = useState(1)
   const activeCard = cards[activeIndex]
@@ -37,8 +43,8 @@ const MinistrySection = ({ copy, language, pages }: Props) => {
   const cardText = useCallback((page: PageSummaryDto) =>
     localizeText(page.cardText, language) ||
     localizeText(page.description, language) ||
-    copy.ministriesBody,
-  [copy.ministriesBody, language])
+    body,
+  [body, language])
 
   const goTo = useCallback((nextIndex: number) => {
     if (cards.length === 0) return
@@ -62,19 +68,19 @@ const MinistrySection = ({ copy, language, pages }: Props) => {
 
   if (!activeCard) {
     return (
-      <section id="ministries" className="px-5 py-20 sm:px-8 lg:px-10 lg:py-28">
+      <section id={sectionId} className="px-5 py-20 sm:px-8 lg:px-10 lg:py-28">
         <div className="mx-auto max-w-6xl">
           <motion.div {...entrance} className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-home-green">{copy.ministriesEyebrow}</p>
-              <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{copy.ministriesTitle}</h2>
-              <p className="mt-3 max-w-[56ch] text-[0.94rem] leading-7 text-home-muted">{copy.ministriesBody}</p>
+              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-home-green">{eyebrow}</p>
+              <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{title}</h2>
+              <p className="mt-3 max-w-[56ch] text-[0.94rem] leading-7 text-home-muted">{body}</p>
             </div>
           </motion.div>
           <motion.div {...entrance} className="mt-10 rounded-2xl border border-home-border/60 bg-white/70 p-8">
             <Sparkles className="h-7 w-7 text-home-green" />
             <p className="mt-4 max-w-[55ch] text-[0.94rem] leading-7 text-home-muted">
-              {copy.ministriesEmptyState}
+              {emptyState}
             </p>
           </motion.div>
         </div>
@@ -83,16 +89,16 @@ const MinistrySection = ({ copy, language, pages }: Props) => {
   }
 
   return (
-    <section id="ministries" className="px-5 py-20 sm:px-8 lg:px-10 lg:py-28">
+    <section id={sectionId} className="px-5 py-20 sm:px-8 lg:px-10 lg:py-28">
       <div className="mx-auto max-w-6xl">
         <motion.div {...entrance} className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-home-green">{copy.ministriesEyebrow}</p>
-            <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{copy.ministriesTitle}</h2>
-            <p className="mt-3 max-w-[56ch] text-[0.94rem] leading-7 text-home-muted">{copy.ministriesBody}</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-home-green">{eyebrow}</p>
+            <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{title}</h2>
+            <p className="mt-3 max-w-[56ch] text-[0.94rem] leading-7 text-home-muted">{body}</p>
           </div>
           <Link to={activePath} className="inline-flex items-center gap-2 self-start rounded-lg bg-home-green px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-home-green-hover">
-            {copy.ministriesAction} <ArrowRight className="h-3.5 w-3.5" />
+            {action} <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </motion.div>
 
@@ -120,7 +126,7 @@ const MinistrySection = ({ copy, language, pages }: Props) => {
                     <div className="max-w-2xl">
                       <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold backdrop-blur">
                         <Sparkles className="h-3.5 w-3.5" />
-                        {copy.ministriesBadge}
+                        {badge}
                       </span>
                       <h3 className="mt-4 text-3xl font-bold leading-tight sm:text-4xl lg:text-5xl">{publicPageMenuName(activeCard, language)}</h3>
                       <p className="mt-4 line-clamp-3 max-w-xl text-sm leading-7 text-white/66">{cardText(activeCard)}</p>
@@ -132,10 +138,10 @@ const MinistrySection = ({ copy, language, pages }: Props) => {
 
             {cards.length > 1 ? (
               <>
-                <button type="button" aria-label="Previous ministry" onClick={() => goTo(activeIndex - 1)} className="absolute left-4 top-1/2 z-10 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full border border-white/15 bg-black/25 text-white/75 backdrop-blur transition hover:bg-black/45 hover:text-white">
+                <button type="button" aria-label={`Previous ${eyebrow}`} onClick={() => goTo(activeIndex - 1)} className="absolute left-4 top-1/2 z-10 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full border border-white/15 bg-black/25 text-white/75 backdrop-blur transition hover:bg-black/45 hover:text-white">
                   <ChevronLeft className="h-5 w-5" />
                 </button>
-                <button type="button" aria-label="Next ministry" onClick={() => goTo(activeIndex + 1)} className="absolute right-4 top-1/2 z-10 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full border border-white/15 bg-black/25 text-white/75 backdrop-blur transition hover:bg-black/45 hover:text-white">
+                <button type="button" aria-label={`Next ${eyebrow}`} onClick={() => goTo(activeIndex + 1)} className="absolute right-4 top-1/2 z-10 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full border border-white/15 bg-black/25 text-white/75 backdrop-blur transition hover:bg-black/45 hover:text-white">
                   <ChevronRight className="h-5 w-5" />
                 </button>
               </>
@@ -171,4 +177,4 @@ const MinistrySection = ({ copy, language, pages }: Props) => {
   )
 }
 
-export default MinistrySection
+export default ReviewedPageCarouselSection

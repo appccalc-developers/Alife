@@ -88,6 +88,10 @@ const executeConditionalGet = async <TData>({ queryKey, path, parser }: Conditio
     method: 'GET',
     headers,
     credentials: 'include',
+    // IndexedDB + ETag is the application's HTTP cache. Do not let an older
+    // browser disk-cache entry bypass revalidation before the request reaches
+    // the API/speed layer.
+    cache: 'no-store',
   })
 
   // 304 Not Modified — return cached data

@@ -19,7 +19,8 @@ public sealed record PageDto(
     IReadOnlyDictionary<string, string>? PrimaryMenuName = null,
     Guid? PrimaryMenuId = null,
     int PrimaryMenuSortOrder = 0,
-    int MenuSortOrder = 0);
+    int MenuSortOrder = 0,
+    PagePrimaryMenuHomePlacement? PrimaryMenuHomePlacement = null);
 
 public sealed record PageReviewRefusalDto(
     Guid ReviewerMemberId,

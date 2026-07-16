@@ -54,7 +54,7 @@ const presetOptionsForSource = (source: ListViewSource, t: ReturnType<typeof use
   return [{ value: 'all', label: t('all') }]
 }
 
-const GroupListSectionBlock = ({ section, mode, domId, disabled, editorPreview, previewDensity = 'full', propertiesOnly, showProperties = true, contextGroupId, page, onUpdate }: SectionComponentProps) => {
+const GroupListSectionBlock = ({ section, mode, domId, disabled, editorPreview, previewDensity = 'full', propertiesOnly, showProperties = true, contextGroupId, page, onUpdate, allowGroupDataSources = true }: SectionComponentProps) => {
   const auth = useAuthStore()
   const t = useUiText()
   const source = sourceFromContent(section.contentJson)
@@ -106,7 +106,12 @@ const GroupListSectionBlock = ({ section, mode, domId, disabled, editorPreview, 
             onSubtitleChange={editable ? updateHeaderSubtitle : undefined}
           />
         ) : null}
-        <SmartGroupListSection metadata={section.contentJson} groupId={groupId} compact={compactPreview} />
+        <SmartGroupListSection
+          metadata={section.contentJson}
+          groupId={groupId}
+          compact={compactPreview}
+          enabled={allowGroupDataSources || source === 'sermons'}
+        />
         {mode === 'edit' && showProperties ? renderProperties() : null}
       </div>
     </section>
