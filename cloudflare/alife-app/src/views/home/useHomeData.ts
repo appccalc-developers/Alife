@@ -1,13 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { groupService } from '../../services/groupService'
-import { eventService } from '../../services/eventService'
-import { getCachedPublicPages, pageService } from '../../services/pageService'
+import { useQuery } from '@tanstack/react-query'
+import { getCachedPublicPages, pageService, publicPagesQueryKey } from '../../services/pageService'
 import { sermonService, type SermonDto } from '../../services/sermonService'
-import { getCachedChurch, getCachedVisibleGroups } from '../../db/collections/groupCollection'
-import type { GroupDto, PageSummaryDto } from '../../types'
-import type { GroupEventRecord } from '../../types/event'
-import { fallbackGroupImages, readSectionImage } from './homeUtils'
-import type { HomeGroupCard } from './homeUtils'
+import type { PageSummaryDto } from '../../types'
 
 const retryDelaysMs = [250, 750]
 
@@ -43,93 +38,34 @@ const withPublicCacheFallback = async <T>(request: () => Promise<T>, readCached:
 }
 
 export const useHomeData = () => {
-  const [church, setChurch] = useState<GroupDto | null>(null)
-  const [publicPages, setPublicPages] = useState<PageSummaryDto[]>([])
-  const [events, setEvents] = useState<GroupEventRecord[]>([])
-  const [groupCards, setGroupCards] = useState<HomeGroupCard[]>([])
   const [sermons, setSermons] = useState<SermonDto[]>([])
-  const [eventsLoading, setEventsLoading] = useState(true)
   const [sermonsLoading, setSermonsLoading] = useState(true)
+  const { data: publicPages = [] } = useQuery<PageSummaryDto[]>({
+    queryKey: publicPagesQueryKey(),
+    queryFn: () => withPublicCacheFallback(() => pageService.getPublicPages(), getCachedPublicPages),
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: 'always',
+  })
 
-  // --- Phase 1: Load church + public website data in parallel ---
   useEffect(() => {
     let cancelled = false
 
     const load = async () => {
-      const [churchResult, publicPagesResult, sermonsResult, groupsResult] = await Promise.allSettled([
-        withPublicCacheFallback(() => groupService.getChurch(), getCachedChurch),
-        withPublicCacheFallback(() => pageService.getPublicPages(), getCachedPublicPages),
-        withPublicCacheFallback(() => sermonService.getLatest(3), () => sermonService.getCachedLatest(3)),
-        withPublicCacheFallback(() => groupService.getVisibleGroups(), getCachedVisibleGroups),
-      ])
-
-      if (cancelled) return
-
-      if (publicPagesResult.status === 'fulfilled') setPublicPages(publicPagesResult.value)
-      if (sermonsResult.status === 'fulfilled') setSermons(sermonsResult.value)
-      setSermonsLoading(false)
-
-      // --- Build group cards from visible child groups (works for anonymous users too) ---
-      const groups = (groupsResult.status === 'fulfilled'
-        ? groupsResult.value.filter((group) => !group.isChurch && group.accessType !== 'private')
-        : []
-      ).slice(0, 6)
-
-      // Show cards immediately with fallback images
-      const initialCards = groups.map((group, index) => ({
-        group,
-        imageUrl: fallbackGroupImages[index % fallbackGroupImages.length],
-      }))
-      if (!cancelled) setGroupCards(initialCards)
-
-      if (churchResult.status === 'fulfilled') {
-        const churchData = churchResult.value
-        setChurch(churchData)
-
-        const eventsResult = await withRetry(() => eventService.getGroupEvents(churchData.id))
-          .then((value) => ({ status: 'fulfilled' as const, value }))
-          .catch((reason) => ({ status: 'rejected' as const, reason }))
-
-        if (cancelled) return
-        if (eventsResult.status === 'fulfilled') {
-          setEvents(eventsResult.value)
-        }
+      try {
+        const result = await withPublicCacheFallback(
+          () => sermonService.getLatest(3),
+          () => sermonService.getCachedLatest(3),
+        )
+        if (!cancelled) setSermons(result)
+      } finally {
+        if (!cancelled) setSermonsLoading(false)
       }
-      setEventsLoading(false)
-
-      // --- Phase 3: Load real group card images in background ---
-      Promise.all(
-        groups.map(async (group, index) => {
-          let imageUrl = fallbackGroupImages[index % fallbackGroupImages.length]
-          try {
-            const groupPages = await groupService.getGroupPages(group.id)
-            const firstPage = groupPages[0]
-            if (firstPage?.id) {
-              const page = await pageService.getPageById(firstPage.id)
-              imageUrl = readSectionImage(page) || imageUrl
-            }
-          } catch {
-            // keep fallback
-          }
-          return { group, imageUrl }
-        }),
-      ).then((cards) => {
-        if (!cancelled) setGroupCards(cards)
-      }).catch(() => {})
     }
 
     load().catch((err) => console.error('[useHomeData] load failed:', err))
     return () => { cancelled = true }
   }, [])
-
-  // --- Upcoming events (derived) ---
-  const upcomingEvents = useMemo(
-    () => [...events]
-      .filter((event) => !event.endDate || new Date(event.endDate).getTime() >= Date.now())
-      .sort((left, right) => new Date(left.startDate).getTime() - new Date(right.startDate).getTime())
-      .slice(0, 3),
-    [events],
-  )
 
   const recentSermons = useMemo(
     () => [...sermons]
@@ -142,5 +78,5 @@ export const useHomeData = () => {
     [sermons],
   )
 
-  return { church, publicPages, events, groupCards, upcomingEvents, recentSermons, eventsLoading, sermonsLoading }
+  return { publicPages, recentSermons, sermonsLoading }
 }

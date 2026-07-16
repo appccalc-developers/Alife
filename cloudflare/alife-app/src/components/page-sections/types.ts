@@ -20,6 +20,7 @@ export type SectionComponentProps = {
   pageId?: string
   groupPageItems?: PageLinkItem[]
   contextGroupId?: string
+  allowGroupDataSources?: boolean
   sectionDomId?: string
   sectionRootClassName?: string
   disabled?: boolean

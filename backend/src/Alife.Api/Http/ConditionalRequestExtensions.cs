@@ -10,7 +10,10 @@ public static class ConditionalRequestExtensions
     {
         public void ApplyPublicCacheHeaders()
         {
-            controller.Response.Headers.CacheControl = $"public, max-age={CacheTtlSeconds}";
+            // Browsers must revalidate public API data. Shared caches may keep
+            // it for the full TTL and are actively invalidated after writes.
+            controller.Response.Headers.CacheControl =
+                $"public, max-age=0, s-maxage={CacheTtlSeconds}, must-revalidate";
             AppendVary(controller.Response.Headers, "Accept-Encoding");
         }
 

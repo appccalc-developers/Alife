@@ -557,6 +557,28 @@ test('authorized internal cache invalidate purges canonical sermons cache before
   assert.equal(fetchCalls.length, 2)
 })
 
+test('authorized internal cache invalidate purges public pages from every shared cache', async () => {
+  const url = 'https://ccalc.live/api/pages/public'
+  cacheStore.set(cacheKey(new Request(url)), Response.json([{ id: 'stale-page' }]))
+  apiCacheStore.set(createApiCacheKey(url), createStoredResponse([{ id: 'stale-page' }]))
+
+  const purge = await dispatch('https://ccalc.live/api/internal/cache/invalidate', {
+    method: 'POST',
+    auth: false,
+    headers: {
+      authorization: 'Bearer test-cache-token',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ paths: ['/api/pages/public'] }),
+  })
+  await flushWaitUntil()
+
+  assert.equal(purge.status, 200)
+  assert.deepEqual(await purge.json(), { ok: true, purged: ['/api/pages/public'] })
+  assert.equal(cacheStore.has(url), false)
+  assert.equal(apiCacheStore.has(createApiCacheKey(url)), false)
+})
+
 test('unauthorized internal cache invalidate does not purge sermons cache', async () => {
   cacheStore.set('https://ccalc.live/api/sermons', Response.json([{ title: 'Cached sermon' }]))
   apiCacheStore.set('api:/api/sermons', createStoredResponse([{ title: 'Stored sermon' }]))
@@ -725,6 +747,36 @@ test('page publication return evicts public and group pages caches', async () =>
   assert.equal(apiCacheStore.has(createApiCacheKey(publicUrl)), false)
   assert.equal(apiCacheStore.has(`group:${groupId}:pages`), false)
   assert.equal(apiCacheStore.has(`public:group:${groupId}:pages`), false)
+})
+
+test('page primary menu mutations evict the public pages projection cache', async () => {
+  const publicUrl = 'https://ccalc.live/api/pages/public'
+  const mutations = [
+    { method: 'POST', path: '/api/admin/page-primary-menus' },
+    { method: 'PUT', path: '/api/admin/page-primary-menus/menu-1' },
+    { method: 'DELETE', path: '/api/admin/page-primary-menus/menu-1' },
+    { method: 'PUT', path: '/api/admin/page-primary-menus/layout' },
+  ]
+
+  for (const mutation of mutations) {
+    cacheStore.set(cacheKey(new Request(publicUrl)), Response.json([{ id: 'stale-page' }]))
+    apiCacheStore.set(createApiCacheKey(publicUrl), createStoredResponse([{ id: 'stale-page' }]))
+    originResponses.push(Response.json({ ok: true }))
+
+    const response = await dispatch(`https://ccalc.live${mutation.path}`, {
+      method: mutation.method,
+      body: JSON.stringify({}),
+      headers: {
+        'content-type': 'application/json',
+        cookie: `alife_auth=${createJwtWithSub('reviewer-1')}`,
+      },
+    })
+    await flushWaitUntil()
+
+    assert.equal(response.status, 200, `${mutation.method} ${mutation.path}`)
+    assert.equal(cacheStore.has(publicUrl), false, `${mutation.method} ${mutation.path}`)
+    assert.equal(apiCacheStore.has(createApiCacheKey(publicUrl)), false, `${mutation.method} ${mutation.path}`)
+  }
 })
 
 test('non-auth cookie churn does not fragment GET cache key', async () => {

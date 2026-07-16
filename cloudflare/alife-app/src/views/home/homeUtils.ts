@@ -166,7 +166,7 @@ export const buildPageMenuNavItems = (
 ): HomeNavItem[] => {
   const groups = new Map<string, { label: string; sortOrder: number; items: HomeNavDropdownChild[] }>()
 
-  sortPublicPagesForMinistries(pages, language).forEach((page) => {
+  sortPublicReviewedPages(pages, language).forEach((page) => {
     const key = primaryMenuLookupKey(page, fallbackLabel)
     const label = localizeText(page.primaryMenuName, language) || fallbackLabel
     const group = groups.get(key) ?? { label, sortOrder: page.primaryMenuSortOrder ?? Number.MAX_SAFE_INTEGER, items: [] }
@@ -219,7 +219,7 @@ export const findPublicPageByMenuName = (
   ].some((candidate) => publicPageLookupKey(candidate) === target)) ?? null
 }
 
-export const getPublicMinistryPages = (pages: PageSummaryDto[]) => {
+export const getPublicReviewedPages = (pages: PageSummaryDto[]) => {
   const byId = new Map<string, PageSummaryDto>()
   pages.forEach((page) => {
     if (page.visibility === 'public' && !byId.has(page.id)) {
@@ -230,9 +230,9 @@ export const getPublicMinistryPages = (pages: PageSummaryDto[]) => {
   return Array.from(byId.values())
 }
 
-export const sortPublicPagesForMinistries = (pages: PageSummaryDto[], language: string) => {
+export const sortPublicReviewedPages = (pages: PageSummaryDto[], language: string) => {
   const locale = language === 'zh' ? 'zh-Hans' : 'en'
-  return getPublicMinistryPages(pages)
+  return getPublicReviewedPages(pages)
     .sort((left, right) => {
       const primaryMenuOrder = (left.primaryMenuSortOrder ?? Number.MAX_SAFE_INTEGER) -
         (right.primaryMenuSortOrder ?? Number.MAX_SAFE_INTEGER)

@@ -22,6 +22,8 @@ const PageView = () => {
   const { language } = auth
   const menuName = new URLSearchParams(location.search).get('page')
   const isPublicMenuPage = location.pathname === '/home' && Boolean(menuName?.trim())
+  const isLegacyPublicPage = location.pathname.startsWith('/public/pages/')
+  const isPublicPage = isLegacyPublicPage || isPublicMenuPage
   const { pageId: activePageId } = useActiveEntityIds({ pageId: routePageId })
 
   const {
@@ -55,7 +57,10 @@ const PageView = () => {
     [page?.sections],
   )
 
-  const subColl = useMemo(() => (page?.ownerGroupId ? subgroupsCollection(page.ownerGroupId) : null), [page?.ownerGroupId])
+  const subColl = useMemo(
+    () => (!isPublicPage && page?.ownerGroupId ? subgroupsCollection(page.ownerGroupId) : null),
+    [isPublicPage, page?.ownerGroupId],
+  )
   const { data: subgroupItems = [] } = useLiveQuery(
     () => subColl ?? undefined,
     [subColl],
@@ -65,14 +70,15 @@ const PageView = () => {
     [language, subgroupItems],
   )
 
-  const gpColl = useMemo(() => (page?.ownerGroupId ? groupPagesCollection(page.ownerGroupId) : null), [page?.ownerGroupId])
+  const gpColl = useMemo(
+    () => (!isPublicPage && page?.ownerGroupId ? groupPagesCollection(page.ownerGroupId) : null),
+    [isPublicPage, page?.ownerGroupId],
+  )
   const { data: groupPageItems = [] } = useLiveQuery(
     () => gpColl ?? undefined,
     [gpColl],
   )
 
-  const isLegacyPublicPage = location.pathname.startsWith('/public/pages/')
-  const isPublicPage = isLegacyPublicPage || isPublicMenuPage
   const publicPageNotFound = isPublicMenuPage && !publicPagesLoading && !publicPagesError && !publicPage
   const backFallbackTo = page?.ownerGroupId ? '/groups' : '/'
   const showBackButton = !isPublicPage
@@ -99,6 +105,7 @@ const PageView = () => {
           sections={sections}
           subgroupItems={localizedSubgroupItems as Array<{ id: string; name: string; accessType: string }>}
           groupPageItems={groupPageItems as unknown as Array<{ id: string; title: string; visibility: string }>}
+          allowGroupDataSources={!isPublicPage}
           showHeader={false}
           framed={false}
         />

@@ -32,8 +32,8 @@ const HomeNavHeader = ({ copy, language, solid = false, navItems: providedNavIte
     }
   }, [menuOpen])
 
-  const accountTo = auth.isGuest ? '/onboarding' : '/groups/select'
-  const accountLabel = auth.isGuest ? copy.account : copy.enterAlife
+  const accountTo = '/enter'
+  const accountLabel = copy.enterAlife
   const nextLanguageLabel = copy.nextLanguageLabel
 
   const fallbackNavItems: HomeNavItem[] = [

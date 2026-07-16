@@ -597,6 +597,10 @@ export async function getInvalidationPaths(env: Env, request: Request, response:
     }
   }
 
+  if (/^\/api\/admin\/page-primary-menus(?:\/[^/]+)?$/.test(path)) {
+    paths.add('/api/pages/public')
+  }
+
   const eventId = path.match(/^\/api\/events\/([^/]+)$/)?.[1]
   if (eventId) {
     const body = await readJsonObject(response)

@@ -220,6 +220,7 @@ interface GroupListSectionProps {
   groupId?: string
   /** Smaller cards for editor inline preview */
   compact?: boolean
+  enabled?: boolean
 }
 
 const adapterMap: Record<string, (item: any) => UniversalCardItem> = {
@@ -232,7 +233,7 @@ const adapterMap: Record<string, (item: any) => UniversalCardItem> = {
   contacts: contactToCardItem,
 }
 
-export const GroupListSection: React.FC<GroupListSectionProps> = ({ metadata, groupId, compact }) => {
+export const GroupListSection: React.FC<GroupListSectionProps> = ({ metadata, groupId, compact, enabled = true }) => {
   const { language } = useAuthStore()
   const t = useUiText()
   const raw = metadata as Record<string, unknown>
@@ -241,7 +242,7 @@ export const GroupListSection: React.FC<GroupListSectionProps> = ({ metadata, gr
     [raw.source, raw.sourceType, raw.sourceScope, raw.preset, raw.layout, raw.limit, raw.sortBy, raw.sortDirection, raw.filterText, raw.id],
   )
 
-  const { data, isLoading, error } = useListSourceResolver(meta, { groupId })
+  const { data, isLoading, error } = useListSourceResolver(meta, { groupId, enabled })
 
   const cardItems = useMemo(() => {
     const resolvedSourceType = meta.sourceType === 'groups' ? 'subgroups' : meta.sourceType

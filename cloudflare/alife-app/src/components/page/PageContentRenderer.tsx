@@ -27,6 +27,7 @@ type Props = {
   canEdit?: boolean
   validation?: PageEditorValidation
   contextGroupId?: string
+  allowGroupDataSources?: boolean
   showHeader?: boolean
   framed?: boolean
   activeSectionIndex?: number
@@ -483,6 +484,7 @@ const PageContentRenderer = ({
   canEdit = false,
   validation = { sectionTypeErrors: [] },
   contextGroupId,
+  allowGroupDataSources = true,
   showHeader = true,
   framed = true,
   activeSectionIndex,
@@ -555,6 +557,7 @@ const PageContentRenderer = ({
               page={page as GroupPageDto}
               groupPageItems={groupPageItems}
               contextGroupId={contextGroupId}
+              allowGroupDataSources={allowGroupDataSources}
               pageId={pageId}
               domId={getPageSectionDomId(section, index)}
             />
@@ -649,6 +652,7 @@ const PageContentRenderer = ({
                 page={page as GroupPageDto}
                 groupPageItems={groupPageItems}
                 contextGroupId={contextGroupId}
+                allowGroupDataSources={allowGroupDataSources}
                 pageId={pageId}
                 domId={getPageSectionDomId(section, index)}
               />

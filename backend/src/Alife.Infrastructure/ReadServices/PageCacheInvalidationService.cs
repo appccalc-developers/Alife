@@ -6,12 +6,14 @@ namespace Alife.Infrastructure.ReadServices;
 
 public sealed class PageCacheInvalidationService(
     HybridCache hybridCache,
-    ICloudflareKvCacheService cloudflareKvCacheService) : IPageCacheInvalidationService
+    ICloudflareKvCacheService cloudflareKvCacheService,
+    ICloudflareSpeedLayerCacheService cloudflareSpeedLayerCacheService) : IPageCacheInvalidationService
 {
     public Task RemovePublicAsync(CancellationToken cancellationToken = default)
         => Task.WhenAll(
             hybridCache.RemoveAsync(PageCacheKeys.Public(), cancellationToken).AsTask(),
-            cloudflareKvCacheService.RemoveApiCacheAsync("/api/pages/public", cancellationToken));
+            cloudflareKvCacheService.RemoveApiCacheAsync("/api/pages/public", cancellationToken),
+            cloudflareSpeedLayerCacheService.PurgeApiPathsAsync(new[] { "/api/pages/public" }, cancellationToken));
 
     public Task RemoveDetailAsync(Guid pageId, CancellationToken cancellationToken = default)
         => Task.WhenAll(

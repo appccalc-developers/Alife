@@ -10,6 +10,7 @@ import { activeEntityService } from '../services/activeEntityService'
 import { groupService, type AdminPagePrimaryMenuDto, type AdminPageReviewDto } from '../services/groupService'
 import { normalizeApiError } from '../services/http'
 import { useAuthStore } from '../stores/auth'
+import type { PagePrimaryMenuHomePlacement } from '../types'
 import { localizeText } from '../utils/localizedText'
 
 const copy = {
@@ -114,9 +115,22 @@ const copy = {
   primaryMenuDeleted: { en: 'Empty primary menu deleted.', zh: '空的一级菜单已删除。' },
   menuLayoutUpdated: { en: 'Menu order updated.', zh: '菜单顺序已更新。' },
   menuActionFailed: { en: 'Unable to update the menu layout.', zh: '无法更新菜单布局。' },
+  homePlacement: { en: 'Home page carousel', zh: '首页轮播用途' },
+  homePlacementNone: { en: 'Not shown in a home carousel', zh: '不用于首页轮播' },
+  homePlacementChurchOrganization: { en: 'Church organization', zh: '教会组成' },
+  homePlacementRecentEvents: { en: 'Recent events', zh: '最近活动' },
+  homePlacementHint: {
+    en: 'Each home carousel can be assigned to only one primary menu.',
+    zh: '每个首页轮播用途只能指定给一个一级菜单。',
+  },
 }
 
 const text = (language: string, key: keyof typeof copy) => copy[key][language === 'zh' ? 'zh' : 'en']
+
+const homePlacementCopyKey = (placement: PagePrimaryMenuHomePlacement) =>
+  placement === 'churchOrganization'
+    ? 'homePlacementChurchOrganization' as const
+    : 'homePlacementRecentEvents' as const
 
 type ReviewTab = AdminPageReviewDto['reviewStatus']
 type DraggedReviewItem =
@@ -220,6 +234,7 @@ const PageReviewView = () => {
   const [editingPrimaryMenuId, setEditingPrimaryMenuId] = useState<string | null>(null)
   const [creatingPrimaryMenu, setCreatingPrimaryMenu] = useState(false)
   const [editingPrimaryMenuName, setEditingPrimaryMenuName] = useState({ en: '', zh: '' })
+  const [editingPrimaryMenuHomePlacement, setEditingPrimaryMenuHomePlacement] = useState<PagePrimaryMenuHomePlacement | ''>('')
   const [confirmingPrimaryMenuDeleteId, setConfirmingPrimaryMenuDeleteId] = useState<string | null>(null)
   const [confirmingPageModificationId, setConfirmingPageModificationId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -639,6 +654,7 @@ const PageReviewView = () => {
     setCreatingPrimaryMenu(false)
     setEditingPrimaryMenuId((current) => current === menu.id ? null : menu.id)
     setEditingPrimaryMenuName({ en: menu.name.en || '', zh: menu.name.zh || '' })
+    setEditingPrimaryMenuHomePlacement(menu.homePlacement || '')
     setConfirmingPrimaryMenuDeleteId(null)
     setError('')
     setMessage('')
@@ -649,6 +665,7 @@ const PageReviewView = () => {
     setEditingPrimaryMenuId(null)
     setCreatingPrimaryMenu(true)
     setEditingPrimaryMenuName({ en: '', zh: '' })
+    setEditingPrimaryMenuHomePlacement('')
     setConfirmingPrimaryMenuDeleteId(null)
     setError('')
     setMessage('')
@@ -666,7 +683,7 @@ const PageReviewView = () => {
     setError('')
     try {
       if (creatingPrimaryMenu) {
-        const created = await groupService.createPagePrimaryMenu(name)
+        const created = await groupService.createPagePrimaryMenu(name, editingPrimaryMenuHomePlacement || null)
         setPrimaryMenus((current) => [...current, created])
         setActiveApprovedMenuKey(created.id)
         setCreatingPrimaryMenu(false)
@@ -675,7 +692,7 @@ const PageReviewView = () => {
       }
 
       if (!editingPrimaryMenuId) return
-      const updated = await groupService.updatePagePrimaryMenu(editingPrimaryMenuId, name)
+      const updated = await groupService.updatePagePrimaryMenu(editingPrimaryMenuId, name, editingPrimaryMenuHomePlacement || null)
       setPrimaryMenus((current) => current.map((menu) => menu.id === updated.id ? updated : menu))
       setItems((current) => current.map((page) => page.primaryMenuId === updated.id ? { ...page, primaryMenuName: updated.name } : page))
       setEditingPrimaryMenuId(null)
@@ -1009,6 +1026,11 @@ const PageReviewView = () => {
                       }}
                     >
                       {localizeText(group.name, language)}
+                      {menu.homePlacement ? (
+                        <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
+                          {text(language, homePlacementCopyKey(menu.homePlacement))}
+                        </span>
+                      ) : null}
                       <span className={`ml-2 rounded-full px-2 py-0.5 text-xs ${selected ? 'bg-emerald-100' : 'bg-slate-100'}`}>
                         {group.pages.length}
                       </span>
@@ -1067,6 +1089,31 @@ const PageReviewView = () => {
                     />
                   </label>
                 </div>
+                <label className="mt-3 block text-sm font-bold text-slate-700" htmlFor="primary-menu-home-placement">
+                  {text(language, 'homePlacement')}
+                  <select
+                    id="primary-menu-home-placement"
+                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 font-normal outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+                    value={editingPrimaryMenuHomePlacement}
+                    disabled={layoutSaving}
+                    onChange={(event) => setEditingPrimaryMenuHomePlacement(event.target.value as PagePrimaryMenuHomePlacement | '')}
+                  >
+                    <option value="">{text(language, 'homePlacementNone')}</option>
+                    <option
+                      value="churchOrganization"
+                      disabled={primaryMenus.some((menu) => menu.id !== editingPrimaryMenuId && menu.homePlacement === 'churchOrganization')}
+                    >
+                      {text(language, 'homePlacementChurchOrganization')}
+                    </option>
+                    <option
+                      value="recentEvents"
+                      disabled={primaryMenus.some((menu) => menu.id !== editingPrimaryMenuId && menu.homePlacement === 'recentEvents')}
+                    >
+                      {text(language, 'homePlacementRecentEvents')}
+                    </option>
+                  </select>
+                  <span className="mt-1 block text-xs font-normal leading-5 text-slate-500">{text(language, 'homePlacementHint')}</span>
+                </label>
                 <div className="mt-4 flex flex-wrap justify-end gap-2">
                   {editingPrimaryMenu && editingPrimaryMenuPageCount === 0 ? (
                     <AppActionButton

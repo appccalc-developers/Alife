@@ -108,6 +108,10 @@ export const normalizeGroup = <T extends GroupDto | GroupSummaryDto>(group: T): 
 export const normalizePageSummary = (page: PageSummaryDto): PageSummaryDto => ({
   ...page,
   visibility: normalizePageVisibility(page.visibility),
+  primaryMenuHomePlacement:
+    page.primaryMenuHomePlacement === 'churchOrganization' || page.primaryMenuHomePlacement === 'recentEvents'
+      ? page.primaryMenuHomePlacement
+      : null,
   primaryMenuName: page.primaryMenuName ? toLocalizedText(page.primaryMenuName) : page.primaryMenuName,
   accessName: page.accessName ? toLocalizedText(page.accessName) : page.accessName,
   cardText: page.cardText ? toLocalizedText(page.cardText) : page.cardText,

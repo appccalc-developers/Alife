@@ -68,6 +68,16 @@ const MemberRoute = ({ children }: { children: ReactElement }) => {
   return !auth.loading && !auth.isGuest ? children : <Navigate to="/" replace />
 }
 
+const EntryRoute = () => {
+  const auth = useAuthStore()
+
+  if (!auth.initialized) {
+    return <AppRouteLoading />
+  }
+
+  return <Navigate to={auth.isGuest ? '/onboarding' : '/groups/select'} replace />
+}
+
 const HomeRoute = () => {
   const location = useLocation()
   const pageMenuName = new URLSearchParams(location.search).get('page')?.trim()
@@ -86,6 +96,7 @@ const AppRoutes = () => {
       <AnimatePresence mode="wait">
         <Routes location={location} key={routeTransitionKey}>
           <Route path="/" element={<HomeView />} />
+          <Route path="/enter" element={<EntryRoute />} />
           <Route path="/home" element={<HomeRoute />} />
           <Route path="/groups" element={<GroupDetailView />} />
           <Route path="/groups/select" element={<GroupsView />} />

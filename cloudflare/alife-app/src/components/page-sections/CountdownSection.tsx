@@ -286,7 +286,7 @@ const CountdownMedia = ({ src, title }: { src: string; title: string }) => {
   )
 }
 
-const CountdownSection = ({ section, mode, domId, disabled, propertiesOnly, showProperties = true, onUpdate, contextGroupId, page }: SectionComponentProps) => {
+const CountdownSection = ({ section, mode, domId, disabled, propertiesOnly, showProperties = true, onUpdate, contextGroupId, page, allowGroupDataSources = true }: SectionComponentProps) => {
   const auth = useAuthStore()
   const language = auth.language
   const editable = mode === 'edit' && !disabled && onUpdate
@@ -305,7 +305,7 @@ const CountdownSection = ({ section, mode, domId, disabled, propertiesOnly, show
   }), [binding.eventId, binding.preset])
   const { data: events, isLoading: eventsLoading, error: eventsError } = useListSourceResolver(metadata, {
     groupId,
-    enabled: isEventBound,
+    enabled: isEventBound && allowGroupDataSources,
   })
   const eventRecords = (events ?? []) as GroupEventRecord[]
   const selectedEvent = isEventBound

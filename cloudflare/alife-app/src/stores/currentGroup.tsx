@@ -1,4 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useLocation } from 'react-router-dom'
+import { isAuthOptionalLocation } from '../app/routing/publicRoutePolicy'
 import { conditionalGet } from '../db/httpCache'
 import { churchQueryKey, groupQueryKey } from '../db/collections/groupCollection'
 import { useUiText } from '../i18n/uiText'
@@ -20,6 +22,8 @@ const CurrentGroupContext = createContext<CurrentGroupContextValue | null>(null)
 export const CurrentGroupProvider = ({ children }: { children: ReactNode }) => {
   const t = useUiText()
   const auth = useAuthStore()
+  const location = useLocation()
+  const groupContextEnabled = !isAuthOptionalLocation(location)
   const [CurrentGroup, setCurrentGroup] = useState<GroupDto | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -50,6 +54,13 @@ export const CurrentGroupProvider = ({ children }: { children: ReactNode }) => {
   }, [])
 
   useEffect(() => {
+    if (!groupContextEnabled) {
+      setCurrentGroup(null)
+      setLoading(false)
+      setError('')
+      return
+    }
+
     const activeGroupId = activeEntityService.getAll().groupId
 
     // Guest users should not attempt to fetch a cached group — it will 403.
@@ -89,7 +100,7 @@ export const CurrentGroupProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       cancelled = true
     }
-  }, [auth.isGuest, refreshChurchGroup])
+  }, [auth.isGuest, groupContextEnabled, refreshChurchGroup])
 
   const value = useMemo<CurrentGroupContextValue>(
     () => ({

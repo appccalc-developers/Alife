@@ -28,12 +28,13 @@ public sealed class ListPagePrimaryMenusQueryHandler(IAlifeDbContext dbContext)
                 x.Id,
                 x.NameJson,
                 x.SortOrder,
+                x.HomePlacement,
                 ApprovedPageCount = x.PublicationReviews.Count(review => review.Status == PagePublicationReviewStatus.Approved)
             })
             .ToListAsync(cancellationToken);
 
         return AppResult<IReadOnlyList<AdminPagePrimaryMenuDto>>.Success(rows
-            .Select(x => new AdminPagePrimaryMenuDto(x.Id, PagePrimaryMenuText.Read(x.NameJson), x.SortOrder, x.ApprovedPageCount))
+            .Select(x => new AdminPagePrimaryMenuDto(x.Id, PagePrimaryMenuText.Read(x.NameJson), x.SortOrder, x.ApprovedPageCount, x.HomePlacement))
             .ToList());
     }
 }

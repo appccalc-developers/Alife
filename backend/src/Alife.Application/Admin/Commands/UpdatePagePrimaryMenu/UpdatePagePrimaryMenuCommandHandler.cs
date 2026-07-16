@@ -42,9 +42,19 @@ public sealed class UpdatePagePrimaryMenuCommandHandler(
             return AppResult<AdminPagePrimaryMenuDto>.Validation("A primary menu with these names already exists.");
         }
 
+        if (request.HomePlacement is not null &&
+            await dbContext.PagePrimaryMenus.AnyAsync(
+                x => x.Id != menu.Id && x.HomePlacement == request.HomePlacement,
+                cancellationToken))
+        {
+            return AppResult<AdminPagePrimaryMenuDto>.Conflict("This home page placement is already assigned to another primary menu.");
+        }
+
         var beforeNameJson = menu.NameJson;
+        var beforeHomePlacement = menu.HomePlacement;
         var now = DateTime.UtcNow;
         menu.NameJson = nameJson;
+        menu.HomePlacement = request.HomePlacement;
         menu.UpdatedUtc = now;
         var reviews = await dbContext.PagePublicationReviews
             .Where(x => x.PrimaryMenuId == menu.Id)
@@ -62,8 +72,8 @@ public sealed class UpdatePagePrimaryMenuCommandHandler(
             Action = PagePublicationReviewActions.PrimaryMenuUpdate,
             EntityType = "page_primary_menu",
             EntityId = menu.Id,
-            BeforeJson = JsonSerializer.Serialize(new { name = PagePrimaryMenuText.Read(beforeNameJson), menu.SortOrder }),
-            AfterJson = JsonSerializer.Serialize(new { name, menu.SortOrder }),
+            BeforeJson = JsonSerializer.Serialize(new { name = PagePrimaryMenuText.Read(beforeNameJson), menu.SortOrder, homePlacement = beforeHomePlacement }),
+            AfterJson = JsonSerializer.Serialize(new { name, menu.SortOrder, menu.HomePlacement }),
             OccurredUtc = now
         }, cancellationToken);
 
@@ -71,6 +81,6 @@ public sealed class UpdatePagePrimaryMenuCommandHandler(
         await pageCacheInvalidationService.RemovePublicAsync(cancellationToken);
 
         var approvedPageCount = reviews.Count(x => x.Status == PagePublicationReviewStatus.Approved);
-        return AppResult<AdminPagePrimaryMenuDto>.Success(new AdminPagePrimaryMenuDto(menu.Id, name, menu.SortOrder, approvedPageCount));
+        return AppResult<AdminPagePrimaryMenuDto>.Success(new AdminPagePrimaryMenuDto(menu.Id, name, menu.SortOrder, approvedPageCount, menu.HomePlacement));
     }
 }

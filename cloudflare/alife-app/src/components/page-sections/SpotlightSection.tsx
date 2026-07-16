@@ -77,7 +77,7 @@ const readSpotlightPresentation = (content: Record<string, unknown>, style: Reco
     : 'spotlight'
 }
 
-const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, showProperties = true, onUpdate, contextGroupId, page }: SectionComponentProps) => {
+const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, showProperties = true, onUpdate, contextGroupId, page, allowGroupDataSources = true }: SectionComponentProps) => {
   const auth = useAuthStore()
   const t = useUiText()
   const editable = mode === 'edit' && !disabled && onUpdate
@@ -96,7 +96,7 @@ const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, show
   )
   const { data: spotlightItems, isLoading: spotlightLoading, error: spotlightError } = useListSourceResolver(spotlightMetadata, {
     groupId,
-    enabled: isDataBound,
+    enabled: isDataBound && (allowGroupDataSources || spotlightBinding.source === 'sermons'),
   })
   const spotlightItem = useMemo(
     () => selectSpotlightItem(spotlightItems, spotlightBinding),

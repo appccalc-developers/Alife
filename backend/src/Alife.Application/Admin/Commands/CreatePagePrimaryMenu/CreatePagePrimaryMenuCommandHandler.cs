@@ -35,6 +35,12 @@ public sealed class CreatePagePrimaryMenuCommandHandler(
             return AppResult<AdminPagePrimaryMenuDto>.Validation("A primary menu with these names already exists.");
         }
 
+        if (request.HomePlacement is not null &&
+            await dbContext.PagePrimaryMenus.AnyAsync(x => x.HomePlacement == request.HomePlacement, cancellationToken))
+        {
+            return AppResult<AdminPagePrimaryMenuDto>.Conflict("This home page placement is already assigned to another primary menu.");
+        }
+
         var now = DateTime.UtcNow;
         var sortOrder = (await dbContext.PagePrimaryMenus
             .Select(x => (int?)x.SortOrder)
@@ -44,6 +50,7 @@ public sealed class CreatePagePrimaryMenuCommandHandler(
             Id = Guid.NewGuid(),
             NameJson = nameJson,
             SortOrder = sortOrder,
+            HomePlacement = request.HomePlacement,
             CreatedUtc = now,
             UpdatedUtc = now
         };
@@ -56,12 +63,12 @@ public sealed class CreatePagePrimaryMenuCommandHandler(
             Action = PagePublicationReviewActions.PrimaryMenuCreate,
             EntityType = "page_primary_menu",
             EntityId = menu.Id,
-            AfterJson = JsonSerializer.Serialize(new { name, menu.SortOrder }),
+            AfterJson = JsonSerializer.Serialize(new { name, menu.SortOrder, menu.HomePlacement }),
             OccurredUtc = now
         }, cancellationToken);
 
         await dbContext.SaveChangesAsync(cancellationToken);
         await pageCacheInvalidationService.RemovePublicAsync(cancellationToken);
-        return AppResult<AdminPagePrimaryMenuDto>.Success(new AdminPagePrimaryMenuDto(menu.Id, name, menu.SortOrder, 0));
+        return AppResult<AdminPagePrimaryMenuDto>.Success(new AdminPagePrimaryMenuDto(menu.Id, name, menu.SortOrder, 0, menu.HomePlacement));
     }
 }

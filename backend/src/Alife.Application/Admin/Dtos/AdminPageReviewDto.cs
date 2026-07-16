@@ -36,7 +36,8 @@ public sealed record AdminPagePrimaryMenuDto(
     Guid Id,
     IReadOnlyDictionary<string, string> Name,
     int SortOrder,
-    int ApprovedPageCount);
+    int ApprovedPageCount,
+    PagePrimaryMenuHomePlacement? HomePlacement = null);
 
 public sealed record PagePrimaryMenuLayoutItemDto(
     Guid PrimaryMenuId,

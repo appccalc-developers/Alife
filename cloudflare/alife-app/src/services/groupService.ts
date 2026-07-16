@@ -4,7 +4,7 @@ import { churchQueryKey, subgroupsQueryKey, visibleGroupsQueryKey } from '../db/
 import { sermonsQueryKey } from '../db/collections/sermonsCollection'
 import { queryClient } from '../db/queryClient'
 import { publicPagesQueryKey } from './pageService'
-import type { GroupDto, GroupMembershipDto, GroupSummaryDto, LocalizedText, MembershipStatus, PageSummaryDto } from '../types'
+import type { GroupDto, GroupMembershipDto, GroupSummaryDto, LocalizedText, MembershipStatus, PagePrimaryMenuHomePlacement, PageSummaryDto } from '../types'
 import { normalizeGroup, normalizeGroupMembership, normalizeMembershipStatus, normalizePageSummary, normalizePageVisibility } from '../utils/apiEnums'
 import { toLocalizedText } from '../utils/localizedText'
 
@@ -127,6 +127,7 @@ export type AdminPagePrimaryMenuDto = {
   name: LocalizedText
   sortOrder: number
   approvedPageCount: number
+  homePlacement: PagePrimaryMenuHomePlacement | null
 }
 
 export type PagePrimaryMenuLayoutItem = {
@@ -271,6 +272,10 @@ const normalizeAdminPageReview = (page: AdminPageReviewDto): AdminPageReviewDto 
 const normalizeAdminPagePrimaryMenu = (menu: AdminPagePrimaryMenuDto): AdminPagePrimaryMenuDto => ({
   ...menu,
   name: toLocalizedText(menu.name),
+  homePlacement:
+    menu.homePlacement === 'churchOrganization' || menu.homePlacement === 'recentEvents'
+      ? menu.homePlacement
+      : null,
 })
 
 const normalizeAdminPageReviewStatus = (value: unknown): AdminPageReviewDto['reviewStatus'] => {
@@ -476,14 +481,14 @@ export const groupService = {
     return data.map(normalizeAdminPagePrimaryMenu)
   },
 
-  async createPagePrimaryMenu(name: LocalizedText) {
-    const { data } = await http.post<AdminPagePrimaryMenuDto>('/api/admin/page-primary-menus', { name })
+  async createPagePrimaryMenu(name: LocalizedText, homePlacement: PagePrimaryMenuHomePlacement | null) {
+    const { data } = await http.post<AdminPagePrimaryMenuDto>('/api/admin/page-primary-menus', { name, homePlacement })
     await invalidatePublicPagesCache()
     return normalizeAdminPagePrimaryMenu(data)
   },
 
-  async updatePagePrimaryMenu(primaryMenuId: string, name: LocalizedText) {
-    const { data } = await http.put<AdminPagePrimaryMenuDto>(`/api/admin/page-primary-menus/${primaryMenuId}`, { name })
+  async updatePagePrimaryMenu(primaryMenuId: string, name: LocalizedText, homePlacement: PagePrimaryMenuHomePlacement | null) {
+    const { data } = await http.put<AdminPagePrimaryMenuDto>(`/api/admin/page-primary-menus/${primaryMenuId}`, { name, homePlacement })
     await invalidatePublicPagesCache()
     return normalizeAdminPagePrimaryMenu(data)
   },

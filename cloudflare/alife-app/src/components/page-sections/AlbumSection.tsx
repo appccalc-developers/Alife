@@ -7,7 +7,7 @@ import { localizeText } from '../../utils/localizedText'
 import type { SectionComponentProps } from './types'
 import { pageSectionShellClass } from './sectionPresets'
 
-const AlbumSection = ({ section, contextGroupId, page, mode, propertiesOnly, disabled, onUpdate, domId }: SectionComponentProps) => {
+const AlbumSection = ({ section, contextGroupId, page, mode, propertiesOnly, disabled, onUpdate, domId, allowGroupDataSources = true }: SectionComponentProps) => {
   const auth = useAuthStore()
   const groupId = contextGroupId || page?.ownerGroupId || ''
   const albumId = typeof section.contentJson.albumId === 'string' ? section.contentJson.albumId : ''
@@ -17,14 +17,15 @@ const AlbumSection = ({ section, contextGroupId, page, mode, propertiesOnly, dis
   const isZh = auth.language === 'zh'
 
   useEffect(() => {
-    if (mode !== 'edit' || !groupId) return
+    if (!allowGroupDataSources || mode !== 'edit' || !groupId) return
     albumService.list(groupId, true).then(setAlbums).catch(() => setAlbums([]))
-  }, [groupId, mode])
+  }, [allowGroupDataSources, groupId, mode])
   useEffect(() => {
     setError('')
+    if (!allowGroupDataSources) { setDetail(null); return }
     if (!albumId) { setDetail(null); return }
     albumService.get(albumId).then(setDetail).catch(() => { setDetail(null); setError(isZh ? '此相册不可用或你没有查看权限。' : 'This album is unavailable or you do not have access.') })
-  }, [albumId, isZh])
+  }, [albumId, allowGroupDataSources, isZh])
 
   if (propertiesOnly) {
     return (
