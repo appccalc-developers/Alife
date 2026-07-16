@@ -37,6 +37,7 @@ public class PublicPagesQueryTests
         var groupVisibleChurchPage = CreatePage(authorId, churchGroupId, PageVisibility.Group, "Church Group");
         var publicSubgroupPage = CreatePage(authorId, subgroupId, PageVisibility.Public, "Subgroup Public");
         var approvedSubgroupPage = CreatePage(authorId, subgroupId, PageVisibility.Public, "Subgroup Approved");
+        var primaryMenu = CreatePrimaryMenu("Ministries", 0);
         publicChurchPage.OwnerGroup = church;
         groupVisibleChurchPage.OwnerGroup = church;
         publicSubgroupPage.OwnerGroup = subgroup;
@@ -47,7 +48,8 @@ public class PublicPagesQueryTests
             groupVisibleChurchPage,
             publicSubgroupPage,
             approvedSubgroupPage);
-        dbContext.PagePublicationReviews.Add(CreateApprovedReview(approvedSubgroupPage.Id));
+        dbContext.PagePrimaryMenus.Add(primaryMenu);
+        dbContext.PagePublicationReviews.Add(CreateApprovedReview(approvedSubgroupPage.Id, primaryMenu: primaryMenu));
         await dbContext.SaveChangesAsync();
 
         var service = new PageReadService(dbContext, services.GetRequiredService<HybridCache>());
@@ -83,8 +85,10 @@ public class PublicPagesQueryTests
 
         var approvedGroupPage = CreatePage(authorId, groupId, PageVisibility.Public, "Approved Group Public");
         var unapprovedGroupPage = CreatePage(authorId, groupId, PageVisibility.Public, "Unapproved Group Public");
+        var primaryMenu = CreatePrimaryMenu("Ministries", 0);
         dbContext.Pages.AddRange(approvedGroupPage, unapprovedGroupPage);
-        dbContext.PagePublicationReviews.Add(CreateApprovedReview(approvedGroupPage.Id, "Approved menu"));
+        dbContext.PagePrimaryMenus.Add(primaryMenu);
+        dbContext.PagePublicationReviews.Add(CreateApprovedReview(approvedGroupPage.Id, "Approved menu", primaryMenu));
         await dbContext.SaveChangesAsync();
 
         var service = new PageReadService(dbContext, services.GetRequiredService<HybridCache>());
@@ -106,6 +110,43 @@ public class PublicPagesQueryTests
     }
 
     [Fact]
+    public async Task GetPublicPages_ExcludesApprovedPagesWithoutPrimaryMenuConfiguration()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        using var services = CreateServiceProvider();
+        var authorId = Guid.NewGuid();
+        var groupId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+
+        dbContext.Members.Add(new Member
+        {
+            Id = authorId,
+            DisplayName = "Author",
+            IsRegistered = true,
+            CreatedUtc = now,
+            UpdatedUtc = now
+        });
+        dbContext.Groups.Add(CreateGroup(groupId, isChurch: false, parentGroupId: null));
+
+        var configuredPage = CreatePage(authorId, groupId, PageVisibility.Public, "Configured");
+        var orphanedPage = CreatePage(authorId, groupId, PageVisibility.Public, "Orphaned");
+        var primaryMenu = CreatePrimaryMenu("Ministries", 0);
+        dbContext.Pages.AddRange(configuredPage, orphanedPage);
+        dbContext.PagePrimaryMenus.Add(primaryMenu);
+        dbContext.PagePublicationReviews.AddRange(
+            CreateApprovedReview(configuredPage.Id, primaryMenu: primaryMenu),
+            CreateApprovedReview(orphanedPage.Id));
+        await dbContext.SaveChangesAsync();
+
+        var service = new PageReadService(dbContext, services.GetRequiredService<HybridCache>());
+
+        var result = await service.GetPublicPagesAsync(CancellationToken.None);
+
+        Assert.Single(result);
+        Assert.Equal(configuredPage.Id, result[0].Id);
+    }
+
+    [Fact]
     public async Task GetPublicPages_UsesConfiguredPrimaryAndSecondaryMenuOrder()
     {
         using var dbContext = CreateInMemoryDbContext();
@@ -119,16 +160,8 @@ public class PublicPagesQueryTests
         var secondPage = CreatePage(authorId, groupId, PageVisibility.Public, "Second");
         var thirdPage = CreatePage(authorId, groupId, PageVisibility.Public, "Third");
         dbContext.Pages.AddRange(firstPage, secondPage, thirdPage);
-        var firstMenu = new PagePrimaryMenu
-        {
-            Id = Guid.NewGuid(),
-            NameJson = "{\"en\":\"First\",\"zh\":\"第一\"}",
-            SortOrder = 0,
-            HomePlacement = PagePrimaryMenuHomePlacement.ChurchOrganization,
-            CreatedUtc = now,
-            UpdatedUtc = now
-        };
-        var secondMenu = new PagePrimaryMenu { Id = Guid.NewGuid(), NameJson = "{\"en\":\"Second\",\"zh\":\"第二\"}", SortOrder = 1, CreatedUtc = now, UpdatedUtc = now };
+        var firstMenu = CreatePrimaryMenu("First", 0, "第一", PagePrimaryMenuHomePlacement.ChurchOrganization);
+        var secondMenu = CreatePrimaryMenu("Second", 1, "第二");
         dbContext.PagePrimaryMenus.AddRange(firstMenu, secondMenu);
         var firstReview = CreateApprovedReview(firstPage.Id, "First page");
         firstReview.PrimaryMenu = firstMenu;
@@ -201,13 +234,33 @@ public class PublicPagesQueryTests
             UpdatedUtc = DateTime.UtcNow
         };
 
-    private static PagePublicationReview CreateApprovedReview(Guid pageId, string accessName = "Menu")
+    private static PagePrimaryMenu CreatePrimaryMenu(
+        string nameEn,
+        int sortOrder,
+        string nameZh = "事工",
+        PagePrimaryMenuHomePlacement? homePlacement = null)
+        => new()
+        {
+            Id = Guid.NewGuid(),
+            NameJson = $$"""{"en":"{{nameEn}}","zh":"{{nameZh}}"}""",
+            SortOrder = sortOrder,
+            HomePlacement = homePlacement,
+            CreatedUtc = DateTime.UtcNow,
+            UpdatedUtc = DateTime.UtcNow
+        };
+
+    private static PagePublicationReview CreateApprovedReview(
+        Guid pageId,
+        string accessName = "Menu",
+        PagePrimaryMenu? primaryMenu = null)
         => new()
         {
             Id = Guid.NewGuid(),
             PageId = pageId,
             Status = PagePublicationReviewStatus.Approved,
-            PrimaryMenuNameJson = """{"en":"Ministries","zh":"事工"}""",
+            PrimaryMenuId = primaryMenu?.Id,
+            PrimaryMenu = primaryMenu,
+            PrimaryMenuNameJson = primaryMenu?.NameJson ?? """{"en":"Ministries","zh":"事工"}""",
             AccessNameJson = $$"""{"en":"{{accessName}}","zh":"{{accessName}}"}""",
             CardImageUrl = "https://example.test/ministry.jpg",
             CardTextJson = """{"en":"Approved ministry card","zh":"已批准事工卡片"}""",

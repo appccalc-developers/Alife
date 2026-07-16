@@ -166,16 +166,18 @@ export const buildPageMenuNavItems = (
 ): HomeNavItem[] => {
   const groups = new Map<string, { label: string; sortOrder: number; items: HomeNavDropdownChild[] }>()
 
-  sortPublicReviewedPages(pages, language).forEach((page) => {
-    const key = primaryMenuLookupKey(page, fallbackLabel)
-    const label = localizeText(page.primaryMenuName, language) || fallbackLabel
-    const group = groups.get(key) ?? { label, sortOrder: page.primaryMenuSortOrder ?? Number.MAX_SAFE_INTEGER, items: [] }
-    group.items.push({
-      to: publicPageHomePath(page, language),
-      label: publicPageMenuName(page, language),
+  sortPublicReviewedPages(pages, language)
+    .filter((page) => page.primaryMenuId && localizeText(page.primaryMenuName, language))
+    .forEach((page) => {
+      const key = primaryMenuLookupKey(page, fallbackLabel)
+      const label = localizeText(page.primaryMenuName, language) || fallbackLabel
+      const group = groups.get(key) ?? { label, sortOrder: page.primaryMenuSortOrder ?? Number.MAX_SAFE_INTEGER, items: [] }
+      group.items.push({
+        to: publicPageHomePath(page, language),
+        label: publicPageMenuName(page, language),
+      })
+      groups.set(key, group)
     })
-    groups.set(key, group)
-  })
 
   const locale = language === 'zh' ? 'zh-Hans' : 'en'
   return Array.from(groups.entries())
