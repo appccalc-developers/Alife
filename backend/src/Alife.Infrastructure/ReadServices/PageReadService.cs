@@ -22,7 +22,8 @@ public sealed class PageReadService(AlifeDbContext dbContext, HybridCache hybrid
                     from review in reviews.DefaultIfEmpty()
                     where page.Visibility == PageVisibility.Public &&
                           review != null &&
-                          review.Status == PagePublicationReviewStatus.Approved
+                          review.Status == PagePublicationReviewStatus.Approved &&
+                          review.PrimaryMenuId != null
                     orderby (review.PrimaryMenu != null ? review.PrimaryMenu.SortOrder : int.MaxValue),
                         review.MenuSortOrder,
                         page.Id
