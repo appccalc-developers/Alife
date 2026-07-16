@@ -36,11 +36,6 @@ public sealed class GetGroupPagesQueryHandler(
                 request.CurrentMemberId.Value,
                 cancellationToken);
 
-        if (!group.IsChurch && group.AccessType != AccessType.Public && !isApproved)
-        {
-            return AppResult<IReadOnlyList<PageDto>>.Forbidden("You do not have access to this group's pages.");
-        }
-
         var pages = await pageReadService.GetGroupPagesAsync(request.GroupId, cancellationToken);
 
         if (isLeaderOrCoLeader)
@@ -53,33 +48,28 @@ public sealed class GetGroupPagesQueryHandler(
             return AppResult<IReadOnlyList<PageDto>>.Success(await AddCurrentRefusalsAsync(pages, cancellationToken));
         }
 
-        if (group.IsChurch || group.AccessType == AccessType.Public)
+        var publicPageIds = pages
+            .Where(x => x.Visibility == PageVisibility.Public)
+            .Select(x => x.Id)
+            .ToList();
+
+        if (publicPageIds.Count == 0)
         {
-            var publicPageIds = pages
-                .Where(x => x.Visibility == PageVisibility.Public)
-                .Select(x => x.Id)
-                .ToList();
-
-            if (publicPageIds.Count == 0)
-            {
-                return AppResult<IReadOnlyList<PageDto>>.Success([]);
-            }
-
-            var approvedPageIds = await dbContext.PagePublicationReviews
-                .AsNoTracking()
-                .Where(x =>
-                    publicPageIds.Contains(x.PageId) &&
-                    x.Status == PagePublicationReviewStatus.Approved)
-                .Select(x => x.PageId)
-                .ToListAsync(cancellationToken);
-            var approved = approvedPageIds.ToHashSet();
-
-            return AppResult<IReadOnlyList<PageDto>>.Success(pages
-                .Where(x => approved.Contains(x.Id))
-                .ToList());
+            return AppResult<IReadOnlyList<PageDto>>.Success([]);
         }
 
-        return AppResult<IReadOnlyList<PageDto>>.Forbidden("You do not have access to this group's pages.");
+        var approvedPageIds = await dbContext.PagePublicationReviews
+            .AsNoTracking()
+            .Where(x =>
+                publicPageIds.Contains(x.PageId) &&
+                x.Status == PagePublicationReviewStatus.Approved)
+            .Select(x => x.PageId)
+            .ToListAsync(cancellationToken);
+        var approved = approvedPageIds.ToHashSet();
+
+        return AppResult<IReadOnlyList<PageDto>>.Success(pages
+            .Where(x => approved.Contains(x.Id))
+            .ToList());
     }
 
     private async Task<IReadOnlyList<PageDto>> AddCurrentRefusalsAsync(

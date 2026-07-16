@@ -197,6 +197,45 @@ public class PageVisibilityQueryTests
     }
 
     [Fact]
+    public async Task GetGroupPages_GuestSeesOnlyApprovedPublicPagesFromProtectedGroup()
+    {
+        var groupId = Guid.NewGuid();
+        var authorId = Guid.NewGuid();
+        var approvedPublicPageId = Guid.NewGuid();
+        var pendingPublicPageId = Guid.NewGuid();
+        var groupReadService = Substitute.For<IGroupReadService>();
+        var pageReadService = Substitute.For<IPageReadService>();
+        var authorizationService = Substitute.For<IGroupAuthorizationService>();
+        groupReadService.GetByIdAsync(groupId, Arg.Any<CancellationToken>())
+            .Returns(CreateGroup(groupId));
+        pageReadService.GetGroupPagesAsync(groupId, Arg.Any<CancellationToken>())
+            .Returns([
+                CreatePage(approvedPublicPageId, groupId, authorId, PageVisibility.Public, DateTime.UtcNow),
+                CreatePage(pendingPublicPageId, groupId, authorId, PageVisibility.Public, DateTime.UtcNow),
+                CreatePage(groupId, authorId, PageVisibility.Group),
+                CreatePage(groupId, authorId, PageVisibility.Draft)
+            ]);
+        using var dbContext = CreateInMemoryDbContext();
+        dbContext.PagePublicationReviews.Add(new PagePublicationReview
+        {
+            Id = Guid.NewGuid(),
+            PageId = approvedPublicPageId,
+            Status = PagePublicationReviewStatus.Approved,
+            CreatedUtc = DateTime.UtcNow,
+            UpdatedUtc = DateTime.UtcNow
+        });
+        await dbContext.SaveChangesAsync();
+        var handler = new GetGroupPagesQueryHandler(pageReadService, groupReadService, authorizationService, dbContext);
+
+        var result = await handler.Handle(new GetGroupPagesQuery(groupId, null), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var page = Assert.Single(result.Value!);
+        Assert.Equal(approvedPublicPageId, page.Id);
+        Assert.Equal(PageVisibility.Public, page.Visibility);
+    }
+
+    [Fact]
     public async Task GetPageById_GuestCannotReadUnapprovedPublicChurchPageDetail()
     {
         var groupId = Guid.NewGuid();
