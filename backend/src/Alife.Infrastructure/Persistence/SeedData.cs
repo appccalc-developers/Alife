@@ -9,6 +9,14 @@ namespace Alife.Infrastructure.Persistence;
 public static class SeedData
 {
 	private const string TargetPhoneE164 = "+642102591292";
+	private sealed record DemoMemberSeed(
+		Guid Id,
+		string DisplayName,
+		string Sex,
+		int Age,
+		string Email,
+		string PhoneE164,
+		bool JoinsServiceTeam);
 
 	public sealed record SeedSummary(
 		bool BaselineSeeded,
@@ -256,6 +264,40 @@ public static class SeedData
 		var coLeader = await EnsureMemberAsync(dbContext, Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeee2"), "Demo Co-Leader", "coleader@alife.local", "+640000000002", false, now, cancellationToken);
 		var member = await EnsureMemberAsync(dbContext, Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeee3"), "Demo Member", "member@alife.local", "+640000000003", false, now, cancellationToken);
 		var pending = await EnsureMemberAsync(dbContext, Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeee4"), "Demo Pending", "pending@alife.local", "+640000000004", false, now, cancellationToken);
+		var demoMembers = new[]
+		{
+			new DemoMemberSeed(Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeee10"), "陈以诺 Evan Chen", "Male", 26, "evan.chen@alife.local", "+640000000010", true),
+			new DemoMemberSeed(Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeee11"), "刘子谦 Daniel Liu", "Male", 34, "daniel.liu@alife.local", "+640000000011", false),
+			new DemoMemberSeed(Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeee12"), "张伟恩 Nathan Zhang", "Male", 39, "nathan.zhang@alife.local", "+640000000012", true),
+			new DemoMemberSeed(Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeee13"), "黄嘉诚 Caleb Huang", "Male", 48, "caleb.huang@alife.local", "+640000000013", false),
+			new DemoMemberSeed(Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeee14"), "吴德安 Andrew Wu", "Male", 57, "andrew.wu@alife.local", "+640000000014", true),
+			new DemoMemberSeed(Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeee15"), "李恩慈 Grace Li", "Female", 28, "grace.li@alife.local", "+640000000015", false),
+			new DemoMemberSeed(Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeee16"), "王思宁 Sophia Wang", "Female", 35, "sophia.wang@alife.local", "+640000000016", true),
+			new DemoMemberSeed(Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeee17"), "周明洁 Joy Zhou", "Female", 42, "joy.zhou@alife.local", "+640000000017", false),
+			new DemoMemberSeed(Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeee18"), "林悦诗 Esther Lin", "Female", 51, "esther.lin@alife.local", "+640000000018", true),
+			new DemoMemberSeed(Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeee19"), "赵雅文 Vivian Zhao", "Female", 63, "vivian.zhao@alife.local", "+640000000019", false)
+		};
+
+		foreach (var demoMember in demoMembers)
+		{
+			var seededMember = await EnsureMemberAsync(
+				dbContext,
+				demoMember.Id,
+				demoMember.DisplayName,
+				demoMember.Email,
+				demoMember.PhoneE164,
+				isAdmin: false,
+				now,
+				cancellationToken,
+				demoMember.Sex,
+				demoMember.Age);
+
+			await EnsureMembershipAsync(dbContext, fellowship.Id, seededMember.Id, MembershipStatus.Approved, MembershipRole.Member, now, cancellationToken);
+			if (demoMember.JoinsServiceTeam)
+			{
+				await EnsureMembershipAsync(dbContext, serviceTeam.Id, seededMember.Id, MembershipStatus.Approved, MembershipRole.Member, now, cancellationToken);
+			}
+		}
 
 		await EnsureMembershipAsync(dbContext, fellowship.Id, admin.Id, MembershipStatus.Approved, MembershipRole.CoLeader, now, cancellationToken);
 		await EnsureMembershipAsync(dbContext, fellowship.Id, platformAdmin.Id, MembershipStatus.Approved, MembershipRole.CoLeader, now, cancellationToken);
@@ -311,7 +353,9 @@ public static class SeedData
 		string phoneE164,
 		bool isAdmin,
 		DateTime now,
-		CancellationToken cancellationToken)
+		CancellationToken cancellationToken,
+		string? sex = null,
+		int? age = null)
 	{
 		var member = await dbContext.Members.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
 			?? await dbContext.Members.FirstOrDefaultAsync(x => x.PhoneE164 == phoneE164, cancellationToken);
@@ -325,6 +369,8 @@ public static class SeedData
 		{
 			Id = id,
 			DisplayName = displayName,
+			Sex = sex,
+			Age = age,
 			Email = email,
 			PhoneE164 = phoneE164,
 			PhoneVerifiedUtc = now,
