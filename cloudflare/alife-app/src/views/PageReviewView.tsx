@@ -14,10 +14,10 @@ import type { PagePrimaryMenuHomePlacement } from '../types'
 import { localizeText } from '../utils/localizedText'
 
 const copy = {
-  title: { en: 'Page Publication Review', zh: '页面发布审核' },
+  title: { en: 'Build website', zh: '构建网站' },
   subtitle: {
-    en: 'Review public pages by their current publication approval status.',
-    zh: '只审核公开状态的页面，并按当前发布审核状态查看。',
+    en: 'Organize public pages, navigation, and home content while managing publication approval.',
+    zh: '组织公开页面、网站导航和首页展示，并管理页面发布审核。',
   },
   refresh: { en: 'Refresh', zh: '刷新' },
   loading: { en: 'Loading pages for review...', zh: '正在加载审核页面...' },

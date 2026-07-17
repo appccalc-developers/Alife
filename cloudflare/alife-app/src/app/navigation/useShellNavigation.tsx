@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Activity, Bell, BookMarked, BookOpenText, ClipboardCheck, FileImage, Handshake, Home, LayoutDashboard, MessageSquareText, ShieldCheck, UserCog, UsersRound } from 'lucide-react'
+import { Activity, Bell, BookMarked, BookOpenText, FileImage, Globe2, Handshake, Home, LayoutDashboard, MessageSquareText, ShieldCheck, UserCog, UsersRound } from 'lucide-react'
 import type { PageSummaryDto } from '../../types'
 import { activeEntityService } from '../../services/activeEntityService'
 import { useAuthStore } from '../../stores/auth'
@@ -174,14 +174,14 @@ export const useShellNavigation = ({
     ].filter(isPresent)
     : []
 
-  const reviewItems: ShellNavItem[] = !auth.loading && (auth.canReviewPages || auth.hasAdminPermission(adminPermissions.pageReview))
+  const siteBuilderItems: ShellNavItem[] = !auth.loading && (auth.canReviewPages || auth.hasAdminPermission(adminPermissions.pageReview))
     ? [
       {
         key: 'app:page-review',
-        label: isChinese ? '发布审核' : 'Page review',
-        description: isChinese ? '审核公开页面发布请求' : 'Review public page publishing requests',
+        label: isChinese ? '构建网站' : 'Build website',
+        description: isChinese ? '组织公开页面、导航和首页展示' : 'Organize public pages, navigation, and home content',
         to: '/admin/page-review',
-        icon: <ClipboardCheck className="h-5 w-5" />,
+        icon: <Globe2 className="h-5 w-5" />,
       },
     ]
     : []
@@ -197,6 +197,7 @@ export const useShellNavigation = ({
     : null
 
   const contentItems: ShellNavItem[] = [
+    ...siteBuilderItems,
     {
       key: 'app:home',
       label: translateUi(auth.language, 'home'),
@@ -229,13 +230,10 @@ export const useShellNavigation = ({
     guestItem,
   ].filter(isPresent)
 
-  const platformItems = [...adminPlatformItems, ...reviewItems]
-  const primaryItems = [...platformItems, ...contentItems]
+  const primaryItems = [...adminPlatformItems, ...contentItems]
   const headerItems = guestItem ? [{ ...guestItem, key: 'app:onboarding-header' }] : []
-  const adminManagementItems = adminPlatformItems.filter((item) => item.key !== 'app:admin-logs')
-  const reviewAndAuditItems = [...reviewItems, ...adminPlatformItems.filter((item) => item.key === 'app:admin-logs')]
   const mobileItems = [
-    adminPlatformItems[0] || reviewItems[0] || contentItems.find((item) => item.key === 'app:home'),
+    adminPlatformItems[0] || siteBuilderItems[0] || contentItems.find((item) => item.key === 'app:home'),
     workspaceItems[0],
     contentItems.find((item) => item.key === 'app:sermons'),
   ].filter(isPresent)
@@ -252,11 +250,8 @@ export const useShellNavigation = ({
   ].filter(isPresent)
 
   const platformSections: ShellNavSection[] = [
-    adminManagementItems.length
-      ? { key: 'platform-management', label: isChinese ? '平台管理' : 'Platform management', description: isChinese ? '总览、成员、角色、通知和文件' : 'Overview, members, roles, notices, and files', items: adminManagementItems }
-      : null,
-    reviewAndAuditItems.length
-      ? { key: 'platform-governance', label: isChinese ? '审核与记录' : 'Review and records', description: isChinese ? '发布审核和操作日志' : 'Publishing review and audit logs', items: reviewAndAuditItems }
+    adminPlatformItems.length
+      ? { key: 'platform-management', label: isChinese ? '平台管理' : 'Platform management', description: isChinese ? '总览、成员、角色、通知、文件和记录' : 'Overview, members, roles, notices, files, and records', items: adminPlatformItems }
       : null,
     contentItems.length
       ? { key: 'platform-content', label: isChinese ? '公开内容' : 'Public content', description: isChinese ? '面向访客和成员的入口' : 'Visitor and member-facing entry points', items: contentItems }
