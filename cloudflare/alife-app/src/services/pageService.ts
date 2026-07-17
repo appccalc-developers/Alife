@@ -60,6 +60,8 @@ const toSectionPayloadType = (type: SectionEditModel['type']): string => {
       return 'richText'
     case 'CollectionShowcase':
       return 'collectionShowcase'
+    case 'Album':
+      return 'album'
     default:
       return 'richText'
   }
