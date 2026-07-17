@@ -31,6 +31,7 @@ import {
 import { confirmUnsavedChangesNavigation, setUnsavedChangesGuard } from '../utils/unsavedChangesGuard'
 
 const TRANSLATION_BATCH_SIZE = 12
+const SECTION_AUTO_SAVE_DELAY_MS = 1200
 
 const chunkFields = <T,>(fields: T[], size: number) => {
   const chunks: T[][] = []
@@ -57,6 +58,7 @@ type LanguageReviewPrompt = {
   reason: 'autofill' | 'save'
   targetLanguage: EditorLanguage
 }
+type SaveTrigger = 'manual' | 'section-auto-save'
 
 const otherLanguage = (language: string): EditorLanguage => language === 'zh' ? 'en' : 'zh'
 
@@ -113,6 +115,9 @@ const PageEditorView = () => {
   const t = useUiText()
   const browserBackGuardRegistered = useRef(false)
   const browserBackAllowed = useRef(false)
+  const persistInFlight = useRef(false)
+  const sectionAutoSaveTimer = useRef<number | null>(null)
+  const lastSectionAutoSaveAttempt = useRef('')
 
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -148,6 +153,11 @@ const PageEditorView = () => {
     createPagePresetModel(selectedPreset ?? 'blank', groupId)
 
   const [pageModel, setPageModel] = useState<PageEditModel>(() => normalizePageI18nStructure(createInitialModel(createGroupId)))
+  const pageModelRef = useRef(pageModel)
+
+  useEffect(() => {
+    pageModelRef.current = pageModel
+  }, [pageModel])
 
   const resolvedGroupId = createGroupId || queryGroupId || activeIds.groupId || pageModel.groupId
 
@@ -192,6 +202,18 @@ const PageEditorView = () => {
   const hasLocalImages = useMemo(() => cloudflareImageService.sectionsHaveLocalDataImages(pageModel.sections), [pageModel.sections])
   const currentModelSnapshot = useMemo(() => JSON.stringify(pageModel), [pageModel])
   const hasUnsavedChanges = Boolean(savedModelSnapshot && currentModelSnapshot !== savedModelSnapshot)
+  const currentSectionsSnapshot = useMemo(() => JSON.stringify(pageModel.sections), [pageModel.sections])
+  const savedSectionsSnapshot = useMemo(() => {
+    if (!savedModelSnapshot) {
+      return ''
+    }
+
+    try {
+      return JSON.stringify((JSON.parse(savedModelSnapshot) as PageEditModel).sections)
+    } catch {
+      return ''
+    }
+  }, [savedModelSnapshot])
 
   const hasValidationErrors = Boolean(validation.title) || validation.sectionTypeErrors.some((item) => item.length > 0)
 
@@ -336,8 +358,15 @@ const PageEditorView = () => {
     return () => window.removeEventListener('popstate', handlePopState)
   }, [hasUnsavedChanges, t])
 
-  const persist = async () => {
-    if (!canSaveDraft) {
+  const persist = async (trigger: SaveTrigger) => {
+    const isManualSave = trigger === 'manual'
+    const canPersist = canEditPage && !hasValidationErrors
+
+    if ((isManualSave && !canSaveDraft) || (!isManualSave && (!canPersist || isCreateMode || !editPageId))) {
+      return
+    }
+
+    if (persistInFlight.current) {
       return
     }
 
@@ -346,13 +375,16 @@ const PageEditorView = () => {
       return
     }
 
+    const requestedModel = pageModelRef.current
+    const requestedModelSnapshot = JSON.stringify(requestedModel)
+    persistInFlight.current = true
     setSaving(true)
     setMessage('')
     setError('')
 
     try {
-      const structureIssueCount = collectPageI18nStructureIssues(pageModel).length
-      let modelToPersist = normalizePageI18nStructure(pageModel)
+      const structureIssueCount = collectPageI18nStructureIssues(requestedModel).length
+      let modelToPersist = normalizePageI18nStructure(requestedModel)
       let translationSaveNotice = ''
 
       if (structureIssueCount > 0) {
@@ -361,7 +393,7 @@ const PageEditorView = () => {
       }
 
       const missingTranslationFields = collectMissingPageTranslations(modelToPersist)
-      if (missingTranslationFields.length > 0) {
+      if (isManualSave && missingTranslationFields.length > 0) {
         if (!window.confirm(t('pageAiBilingualAutofillConfirm', { count: missingTranslationFields.length }))) {
           setMessage(t('bilingualContentIncompleteBlock'))
           return
@@ -447,7 +479,7 @@ const PageEditorView = () => {
 
       let finalVisibility = savedPage?.visibility ?? selectedVisibility
       let visibilityChanged = false
-      if (canEditVisibility && targetPageId && selectedVisibility !== finalVisibility) {
+      if (isManualSave && canEditVisibility && targetPageId && selectedVisibility !== finalVisibility) {
         setMessage(t('publishing'))
         const publishedPage = await pageService.publishPage(targetPageId, { visibility: selectedVisibility })
         finalVisibility = publishedPage.visibility
@@ -475,7 +507,27 @@ const PageEditorView = () => {
       if (savedPage) {
         setPageDetailCache(savedPage)
       }
-      setPageModel(savedModel)
+      setPageModel((current) => {
+        if (JSON.stringify(current) === requestedModelSnapshot) {
+          return isManualSave
+            ? savedModel
+            : { ...savedModel, visibility: requestedModel.visibility }
+        }
+
+        return {
+          ...current,
+          id: savedModel.id,
+          groupId: savedModel.groupId,
+          createdByMemberId: savedModel.createdByMemberId,
+          sections: current.sections.map((section, index) => {
+            if (section.id || !savedModel.sections[index]?.id) {
+              return section
+            }
+
+            return { ...section, id: savedModel.sections[index].id }
+          }),
+        }
+      })
       setSavedModelSnapshot(JSON.stringify(savedModel))
       const savedMessage =
         finalVisibility === 'draft'
@@ -483,24 +535,82 @@ const PageEditorView = () => {
           : visibilityChanged
             ? t('pageSavedPublished')
             : t('pageSaved')
-      setMessage(translationSaveNotice ? `${translationSaveNotice} ${savedMessage}` : savedMessage)
-      setLanguageReviewPrompt({ reason: 'save', targetLanguage: otherLanguage(auth.language) })
+      setMessage(
+        isManualSave
+          ? (translationSaveNotice ? `${translationSaveNotice} ${savedMessage}` : savedMessage)
+          : t('pageAutoSaved'),
+      )
+      if (isManualSave) {
+        setLanguageReviewPrompt({ reason: 'save', targetLanguage: otherLanguage(auth.language) })
+      }
 
       if (isCreateMode && targetPageId) {
         activeEntityService.setPage(targetPageId, resolvedGroupId)
         navigate('/pages/edit', { replace: true })
       }
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : t('savePageFailed'))
+      if (isManualSave) {
+        setError(reason instanceof Error ? reason.message : t('savePageFailed'))
+      } else {
+        console.warn('Automatic page section save failed.', reason)
+        setMessage(t('pageAutoSaveFailed'))
+      }
     } finally {
+      persistInFlight.current = false
       setSaving(false)
     }
   }
 
   const saveDraft = useCallback(async () => {
-    await persist()
+    await persist('manual')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canSaveDraft, pageModel, resolvedGroupId, editPageId, isCreateMode, canEditAllPages, canEditVisibility, preservePublicationReviewStatus])
+
+  useEffect(() => {
+    const autoSaveAttemptKey = `${editPageId}:${currentSectionsSnapshot}`
+
+    if (sectionAutoSaveTimer.current !== null) {
+      window.clearTimeout(sectionAutoSaveTimer.current)
+      sectionAutoSaveTimer.current = null
+    }
+
+    if (
+      loading ||
+      saving ||
+      isCreateMode ||
+      !editPageId ||
+      !canEditPage ||
+      hasValidationErrors ||
+      !savedSectionsSnapshot ||
+      currentSectionsSnapshot === savedSectionsSnapshot ||
+      autoSaveAttemptKey === lastSectionAutoSaveAttempt.current
+    ) {
+      return
+    }
+
+    sectionAutoSaveTimer.current = window.setTimeout(() => {
+      sectionAutoSaveTimer.current = null
+      lastSectionAutoSaveAttempt.current = autoSaveAttemptKey
+      persist('section-auto-save').catch(() => undefined)
+    }, SECTION_AUTO_SAVE_DELAY_MS)
+
+    return () => {
+      if (sectionAutoSaveTimer.current !== null) {
+        window.clearTimeout(sectionAutoSaveTimer.current)
+        sectionAutoSaveTimer.current = null
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    canEditPage,
+    currentSectionsSnapshot,
+    editPageId,
+    hasValidationErrors,
+    isCreateMode,
+    loading,
+    savedSectionsSnapshot,
+    saving,
+  ])
 
   const fixSectionLanguageIssues = useCallback(async (sectionIndex: number) => {
     const normalizedModel = normalizePageI18nStructure(pageModel)

@@ -93,6 +93,7 @@ const PageSettingsPanel = ({
   const imagesReady = !publishReadiness || !publishReadiness.hasLocalImages
   const validationReady = !publishReadiness || !publishReadiness.hasValidationErrors
   const savedReady = !publishReadiness || (!publishReadiness.hasUnsavedChanges && Boolean(model.id))
+  const manualSaveNeeded = !savedReady || !translationsReady || !imagesReady
   const readinessCount = [
     validationReady,
     translationsReady,
@@ -201,11 +202,34 @@ const PageSettingsPanel = ({
                 {readinessCount}/5
               </span>
             </div>
+            <div className="mt-3 rounded-xl border border-white/80 bg-white/85 p-3 shadow-sm">
+              <label className="block space-y-1.5">
+                <span className="text-sm font-black text-slate-800">{t('visibility')}</span>
+                <select
+                  value={model.visibility}
+                  disabled={!canEditVisibility}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm disabled:bg-slate-100"
+                  onChange={(event) => onChange({ ...model, visibility: event.target.value as PageVisibility })}
+                >
+                  {visibilityOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {formatVisibilityLabel(option, isZh, isGlobalPage)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {!canEditVisibility ? <p className="mt-1.5 text-xs text-slate-500">{t('leaderVisibilityOnly')}</p> : null}
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <AppBadge variant="warning">{formatVisibilityLabel('draft', isZh, isGlobalPage)}</AppBadge>
+                <AppBadge variant="info">{formatVisibilityLabel('group', isZh, isGlobalPage)}</AppBadge>
+                <AppBadge variant="success">{formatVisibilityLabel('public', isZh, isGlobalPage)}</AppBadge>
+              </div>
+            </div>
             <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
               <AppActionButton
                 variant="primary"
                 block
-                disabled={savedReady || !publishReadiness.canSave || publishReadiness.saving}
+                disabled={!manualSaveNeeded || !publishReadiness.canSave || publishReadiness.saving}
                 onClick={onSave}
               >
                 <Save className="mr-2 h-4 w-4" />
@@ -316,29 +340,6 @@ const PageSettingsPanel = ({
               onChange={(event) => updateLocalizedField('description', 'zh', event.target.value)}
             />
           </label>
-        </div>
-
-        <label className="block space-y-1">
-          <span className="text-sm font-medium text-slate-700">{t('visibility')}</span>
-          <select
-            value={model.visibility}
-            disabled={!canEditVisibility}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100"
-            onChange={(event) => onChange({ ...model, visibility: event.target.value as PageVisibility })}
-          >
-            {visibilityOptions.map((option) => (
-              <option key={option} value={option}>
-                {formatVisibilityLabel(option, isZh, isGlobalPage)}
-              </option>
-            ))}
-          </select>
-          {!canEditVisibility ? <p className="text-xs text-slate-500">{t('leaderVisibilityOnly')}</p> : null}
-        </label>
-
-        <div className="flex flex-wrap items-center gap-2">
-        <AppBadge variant="warning">{formatVisibilityLabel('draft', isZh, isGlobalPage)}</AppBadge>
-        <AppBadge variant="info">{formatVisibilityLabel('group', isZh, isGlobalPage)}</AppBadge>
-        <AppBadge variant="success">{formatVisibilityLabel('public', isZh, isGlobalPage)}</AppBadge>
         </div>
 
         {onResetDefaultHome ? (

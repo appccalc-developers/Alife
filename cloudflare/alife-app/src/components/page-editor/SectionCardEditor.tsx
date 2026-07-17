@@ -37,9 +37,11 @@ type Props = {
   pageId?: string
   isActive: boolean
   focusToken?: number
+  editContentRequestToken?: number
   languageIssueCount?: number
   languageFixing?: boolean
   onSelect: () => void
+  onEditContentRequestHandled?: () => void
   onInsertBefore: () => void
   onFixLanguageIssues?: () => void
 }
@@ -367,9 +369,11 @@ const SectionCardEditor = ({
   pageId,
   isActive,
   focusToken,
+  editContentRequestToken,
   languageIssueCount = 0,
   languageFixing,
   onSelect,
+  onEditContentRequestHandled,
   onInsertBefore,
   onFixLanguageIssues,
 }: Props) => {
@@ -570,6 +574,18 @@ const SectionCardEditor = ({
       cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }, 100)
   }, [focusToken, isActive])
+
+  useEffect(() => {
+    if (!isActive || !editContentRequestToken) {
+      return
+    }
+
+    setPendingFocusKey('')
+    setActiveGuideLabel('')
+    setPropertyTab('guidance')
+    setPropertiesOpen(true)
+    onEditContentRequestHandled?.()
+  }, [editContentRequestToken, isActive, onEditContentRequestHandled])
 
   return (
     <div
