@@ -11,21 +11,24 @@ const AlbumSection = ({ section, contextGroupId, page, mode, propertiesOnly, dis
   const auth = useAuthStore()
   const groupId = contextGroupId || page?.ownerGroupId || ''
   const albumId = typeof section.contentJson.albumId === 'string' ? section.contentJson.albumId : ''
+  // Public page rendering may request the configured album because the API
+  // independently filters anonymous access to public albums and assets.
+  const canLoadAlbum = allowGroupDataSources || page?.visibility === 'public'
   const [albums, setAlbums] = useState<AlbumSummary[]>([])
   const [detail, setDetail] = useState<AlbumDetail | null>(null)
   const [error, setError] = useState('')
   const isZh = auth.language === 'zh'
 
   useEffect(() => {
-    if (!allowGroupDataSources || mode !== 'edit' || !groupId) return
+    if (!canLoadAlbum || mode !== 'edit' || !groupId) return
     albumService.list(groupId, true).then(setAlbums).catch(() => setAlbums([]))
-  }, [allowGroupDataSources, groupId, mode])
+  }, [canLoadAlbum, groupId, mode])
   useEffect(() => {
     setError('')
-    if (!allowGroupDataSources) { setDetail(null); return }
+    if (!canLoadAlbum) { setDetail(null); return }
     if (!albumId) { setDetail(null); return }
     albumService.get(albumId).then(setDetail).catch(() => { setDetail(null); setError(isZh ? '此相册不可用或你没有查看权限。' : 'This album is unavailable or you do not have access.') })
-  }, [albumId, allowGroupDataSources, isZh])
+  }, [albumId, canLoadAlbum, isZh])
 
   if (propertiesOnly) {
     return (
