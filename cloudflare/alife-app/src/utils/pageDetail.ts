@@ -294,6 +294,9 @@ export const normalizePageSection = (section: SectionDto): SectionEditModel => {
       ? 'Countdown'
       : isStoredAsHero && isSpotlightLayout(layout)
       ? 'Spotlight'
+      // Recover album sections saved through the former RichText fallback.
+      : normalizedType === 'RichText' && typeof contentJson.albumId === 'string'
+      ? 'Album'
       : normalizedType
 
   if (type === 'LandingHero') {
