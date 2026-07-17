@@ -73,11 +73,12 @@ const SectionListEditor = ({
   const { language } = useAuthStore()
   const [internalActiveIndex, setInternalActiveIndex] = useState(0)
   const [createInsertIndex, setCreateInsertIndex] = useState<number | null>(null)
+  const [editContentRequest, setEditContentRequest] = useState<{ index: number; token: number } | null>(null)
   const isZh = language === 'zh'
   const createOpen = createInsertIndex !== null
   const activeIndex = controlledActiveIndex ?? internalActiveIndex
-  const setActiveIndex = (index: number) => {
-    const nextIndex = Math.max(0, Math.min(index, Math.max(0, sections.length - 1)))
+  const setActiveIndex = (index: number, sectionCount = sections.length) => {
+    const nextIndex = Math.max(0, Math.min(index, Math.max(0, sectionCount - 1)))
     if (controlledActiveIndex === undefined) {
       setInternalActiveIndex(nextIndex)
     }
@@ -105,7 +106,11 @@ const SectionListEditor = ({
     } else {
       onInsert(insertIndex, type)
     }
-    setActiveIndex(insertIndex)
+    setActiveIndex(insertIndex, sections.length + 1)
+    setEditContentRequest((current) => ({
+      index: insertIndex,
+      token: (current?.token ?? 0) + 1,
+    }))
     setCreateInsertIndex(null)
   }
 
@@ -145,9 +150,13 @@ const SectionListEditor = ({
                 pageId={pageId}
                 isActive={activeIndex === index}
                 focusToken={activeIndex === index ? activeFocusToken : undefined}
+                editContentRequestToken={editContentRequest?.index === index ? editContentRequest.token : undefined}
                 languageIssueCount={languageIssueCounts?.[index] ?? 0}
                 languageFixing={languageFixingSectionIndex === index}
                 onSelect={() => setActiveIndex(index)}
+                onEditContentRequestHandled={() => {
+                  setEditContentRequest((current) => current?.index === index ? null : current)
+                }}
                 onInsertBefore={() => openCreateAt(index)}
                 onFixLanguageIssues={onFixLanguageIssues ? () => onFixLanguageIssues(index) : undefined}
                 onUpdate={(nextSection) => onUpdate({ index, section: nextSection })}

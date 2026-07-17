@@ -421,6 +421,8 @@ const text = {
   pageSavedPublished: { en: 'Page saved and published.', zh: '页面已保存并发布。' },
   draftSaved: { en: 'Draft saved.', zh: '草稿已保存。' },
   pageSaved: { en: 'Page saved.', zh: '页面已保存。' },
+  pageAutoSaved: { en: 'Section changes saved automatically.', zh: '区块更改已自动保存。' },
+  pageAutoSaveFailed: { en: 'Automatic save failed. Your changes are still here; use Save to try again.', zh: '自动保存失败。更改仍保留在编辑器中，请点击“保存”重试。' },
   savePageFailed: { en: 'Failed to save page.', zh: '保存页面失败。' },
   unsavedExitConfirm: { en: 'You have unsaved changes. Exit without saving?', zh: '你有未保存的更改。要不保存并退出吗？' },
   unsavedChangesTitle: { en: 'Unsaved changes', zh: '未保存的更改' },
