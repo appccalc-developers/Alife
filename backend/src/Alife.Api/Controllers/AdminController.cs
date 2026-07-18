@@ -8,6 +8,7 @@ using Alife.Application.Admin.Commands.CreatePagePrimaryMenu;
 using Alife.Application.Admin.Commands.DeletePlatformRole;
 using Alife.Application.Admin.Commands.DeletePagePrimaryMenu;
 using Alife.Application.Admin.Commands.RefreshCloudflareCache;
+using Alife.Application.Admin.Commands.RefreshPublicPagesCache;
 using Alife.Application.Admin.Commands.ReturnPagePublication;
 using Alife.Application.Admin.Commands.SendAdminMessage;
 using Alife.Application.Admin.Commands.SavePageMenuLayout;
@@ -129,6 +130,22 @@ public class AdminController(IMediator mediator, ICurrentMemberAccessor currentM
         }
 
         var result = await mediator.Send(new ListPageReviewCandidatesQuery(currentMemberId.Value), cancellationToken);
+        this.ApplyPrivateNoCacheHeaders();
+        return this.ToActionResult(result);
+    }
+
+    [HttpPost("pages/public-cache/refresh")]
+    public async Task<IActionResult> RefreshPublicPagesCache(CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null)
+        {
+            return Unauthorized();
+        }
+
+        var result = await mediator.Send(
+            new RefreshPublicPagesCacheCommand(currentMemberId.Value),
+            cancellationToken);
         this.ApplyPrivateNoCacheHeaders();
         return this.ToActionResult(result);
     }

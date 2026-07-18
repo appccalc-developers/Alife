@@ -481,6 +481,11 @@ export const groupService = {
     return data.map(normalizeAdminPagePrimaryMenu)
   },
 
+  async refreshPublicPagesCache() {
+    await http.post('/api/admin/pages/public-cache/refresh')
+    await invalidatePublicPagesCache()
+  },
+
   async createPagePrimaryMenu(name: LocalizedText, homePlacement: PagePrimaryMenuHomePlacement | null) {
     const { data } = await http.post<AdminPagePrimaryMenuDto>('/api/admin/page-primary-menus', { name, homePlacement })
     await invalidatePublicPagesCache()

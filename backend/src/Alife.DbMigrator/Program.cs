@@ -1,3 +1,4 @@
+using Alife.Application.Pages.Services;
 using Alife.Infrastructure;
 using Alife.Infrastructure.Persistence;
 using Microsoft.Data.SqlClient;
@@ -34,6 +35,11 @@ var dbContext = scope.ServiceProvider.GetRequiredService<AlifeDbContext>();
 await dbContext.Database.MigrateAsync();
 var seedSummary = await SeedData.EnsureSeededAsync(dbContext, builder.Configuration);
 
+// Seeders write directly through the DbContext, so they bypass the application
+// commands that normally invalidate the public website's page caches.
+var pageCacheInvalidationService = scope.ServiceProvider.GetRequiredService<IPageCacheInvalidationService>();
+await pageCacheInvalidationService.RemovePublicAsync();
+
 Console.WriteLine(
     $"Seed summary: baselineSeeded={seedSummary.BaselineSeeded}; " +
     $"targetPhone={seedSummary.TargetPhoneE164}; " +
@@ -41,6 +47,7 @@ Console.WriteLine(
     $"pagesFound={seedSummary.TargetMemberPagesFound}; " +
     $"sectionsInserted={seedSummary.SectionsInserted}");
 
+Console.WriteLine("Public page caches invalidated.");
 Console.WriteLine("Migration and seed completed.");
 
 static async Task EnsureSqlServerDatabaseExistsAsync(string connectionString)
