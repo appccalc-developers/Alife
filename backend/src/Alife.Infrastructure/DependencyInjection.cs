@@ -1,6 +1,7 @@
 ﻿using Alife.Application.Common.Interfaces;
 using Alife.Application.Abstractions.Integrations;
 using Alife.Application.Abstractions.Security;
+using Alife.Application.ContentPosts.Services;
 using Alife.Application.Events.Services;
 using Alife.Application.FileAssets.Services;
 using Alife.Application.Forum.Services;
@@ -72,6 +73,8 @@ public static class DependencyInjection
 		services.AddScoped<IMemberReadService, MemberReadService>();
 		services.AddScoped<IPageReadService, PageReadService>();
 		services.AddScoped<IPageCacheInvalidationService, PageCacheInvalidationService>();
+		services.AddScoped<IContentPostReadService, ContentPostReadService>();
+		services.AddScoped<IContentPostCacheInvalidationService, ContentPostCacheInvalidationService>();
 		services.AddScoped<IEventReadService, EventReadService>();
 		services.AddScoped<IEventCacheInvalidationService, EventCacheInvalidationService>();
 		services.AddScoped<ISermonReadService, SermonReadService>();
