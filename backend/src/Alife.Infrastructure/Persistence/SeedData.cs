@@ -260,6 +260,13 @@ public static class SeedData
 			now,
 			cancellationToken);
 
+		sectionsInserted += await NzalcAboutPagesSeed.EnsureSeededAsync(
+			dbContext,
+			church.Id,
+			admin.Id,
+			now,
+			cancellationToken);
+
 		var leader = await EnsureMemberAsync(dbContext, Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeee1"), "Demo Leader", "leader@alife.local", "+640000000001", false, now, cancellationToken);
 		var coLeader = await EnsureMemberAsync(dbContext, Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeee2"), "Demo Co-Leader", "coleader@alife.local", "+640000000002", false, now, cancellationToken);
 		var member = await EnsureMemberAsync(dbContext, Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeee3"), "Demo Member", "member@alife.local", "+640000000003", false, now, cancellationToken);
