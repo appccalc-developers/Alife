@@ -391,7 +391,7 @@ export const BottomNavigation = ({
 }) => {
   const t = useUiText()
   return (
-    <motion.nav initial={{ y: 80 }} animate={{ y: 0 }} transition={{ type: 'spring', stiffness: 300, damping: 28, delay: 0.1 }} className="alife-panel fixed inset-x-3 bottom-3 z-30 rounded-[1.6rem] px-2 pb-[calc(env(safe-area-inset-bottom)+0.25rem)] pt-1.5 desktop:hidden" aria-label={t('primaryNavigation')}>
+    <motion.nav initial={{ y: 80 }} animate={{ y: 0 }} transition={{ type: 'spring', stiffness: 300, damping: 28, delay: 0.1 }} className="alife-panel fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-[calc(0.75rem+env(safe-area-inset-left))] right-[calc(0.75rem+env(safe-area-inset-right))] z-30 rounded-[1.6rem] px-2 pb-1 pt-1.5 desktop:hidden" aria-label={t('primaryNavigation')}>
       <div className="mx-auto flex max-w-lg items-stretch gap-1">
         {items.map((item) => <div key={item.key} className="flex-1"><SearchNavLink item={item} mobile /></div>)}
         <button type="button" className="flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 text-[11px] font-semibold text-[#60716a] transition hover:bg-[#e3f0eb] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/45" onClick={onOpenMenu} aria-label={copy.openMenu}>
@@ -416,7 +416,7 @@ export const MobileNavigationDrawer = ({
       {open ? (
         <>
           <motion.button type="button" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-40 bg-emerald-950/35 backdrop-blur-sm desktop:hidden" aria-label={props.copy.closeMenu} onClick={onClose} />
-          <motion.aside initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }} transition={{ type: 'spring', stiffness: 340, damping: 32 }} className="fixed bottom-0 left-0 top-0 z-50 flex w-[min(90vw,24rem)] flex-col bg-[#f4f0e8] p-4 shadow-2xl desktop:hidden">
+          <motion.aside initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }} transition={{ type: 'spring', stiffness: 340, damping: 32 }} className="fixed bottom-[env(safe-area-inset-bottom)] left-[env(safe-area-inset-left)] top-[env(safe-area-inset-top)] z-50 flex w-[min(90vw,24rem)] flex-col bg-[#f4f0e8] p-4 shadow-2xl desktop:hidden">
             <div className="mb-4 flex items-center justify-between">
               <Link to={accountTarget} onClick={(event) => guardNavigationClick(event, accountTarget, onClose, () => navigate(accountTarget))} className="flex items-center gap-3">
                 <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#e3f0eb]"><img src={logo} alt="Alife" className="h-8 w-auto" /></span>

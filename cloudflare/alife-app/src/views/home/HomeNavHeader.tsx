@@ -131,7 +131,7 @@ const HomeNavHeader = ({ copy, language, solid = false, navItems: providedNavIte
   }
 
   return (
-    <header className={`fixed inset-x-0 top-0 z-50 transition-[background-color,box-shadow] duration-500 ${solid || scrolled ? 'bg-home-dark/80 shadow-[0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-xl' : ''}`}>
+    <header className={`fixed inset-x-0 top-[env(safe-area-inset-top)] z-50 transition-[background-color,box-shadow] duration-500 ${solid || scrolled ? 'bg-home-dark/80 shadow-[0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-xl' : ''}`}>
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 text-white sm:px-8 lg:px-10">
         <Link className="flex shrink-0 items-center gap-3" to="/">
           <img src={logo} alt="" className="h-8 w-8 rounded-full bg-white/90 object-contain p-1" />

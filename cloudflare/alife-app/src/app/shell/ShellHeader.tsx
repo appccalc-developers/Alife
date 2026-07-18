@@ -31,7 +31,7 @@ const ShellHeader = ({ appNavItems, groupName, groupManageTo, contextualGroupId,
   }
 
   return (
-    <motion.header initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.3 }} className="sticky top-0 z-30 border-b border-[#2f4b42]/10 bg-white/82 shadow-[0_6px_24px_rgba(31,56,48,0.06)] backdrop-blur-xl">
+    <motion.header initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.3 }} className="sticky top-[env(safe-area-inset-top)] z-30 border-b border-[#2f4b42]/10 bg-white/82 shadow-[0_6px_24px_rgba(31,56,48,0.06)] backdrop-blur-xl">
       <div className="flex min-h-[4.25rem] items-center justify-between gap-2 px-3 py-3 sm:min-h-[4.5rem] sm:gap-3 sm:px-6 desktop:px-7">
         <HeaderNavigation items={appNavItems} currentGroupName={groupName} currentGroupManageTo={groupManageTo} />
         <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
