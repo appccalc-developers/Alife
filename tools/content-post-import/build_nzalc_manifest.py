@@ -17,6 +17,41 @@ from urllib.parse import unquote, urljoin, urlparse
 
 PUBLIC_ORIGIN = "https://nzalc.org/"
 ASSET_ORIGIN = "https://pages.nzalc.org/"
+ASSET_PATH_PREFIXES = ("/images/", "/media/", "/templates/")
+ASSET_EXTENSIONS = {
+    ".7z",
+    ".avi",
+    ".css",
+    ".doc",
+    ".docx",
+    ".eot",
+    ".gif",
+    ".ico",
+    ".jpeg",
+    ".jpg",
+    ".js",
+    ".m4a",
+    ".mov",
+    ".mp3",
+    ".mp4",
+    ".ogg",
+    ".ogv",
+    ".pdf",
+    ".png",
+    ".ppt",
+    ".pptx",
+    ".rar",
+    ".svg",
+    ".ttf",
+    ".wav",
+    ".webm",
+    ".webp",
+    ".woff",
+    ".woff2",
+    ".xls",
+    ".xlsx",
+    ".zip",
+}
 SLUG_OVERRIDES = {
     "2014-11-06-22-14-38/2014-02-09-21-26-28/28-4.html":
         "sermon-serving-like-jesus-4",
@@ -248,7 +283,20 @@ def normalize_link(source_url: str, value: str) -> str | None:
     stripped = html.unescape(value).strip()
     if not stripped or stripped.startswith(("#", "data:", "javascript:", "mailto:", "tel:")):
         return None
-    return urljoin(source_url, stripped)
+    absolute = urljoin(source_url, stripped)
+    parsed = urlparse(absolute)
+    if (
+        parsed.hostname
+        and parsed.hostname.lower() in {"nzalc.org", "www.nzalc.org"}
+        and is_asset_reference(parsed.path)
+    ):
+        return parsed._replace(scheme="https", netloc=urlparse(ASSET_ORIGIN).netloc).geturl()
+    return absolute
+
+
+def is_asset_reference(path: str) -> bool:
+    normalized = unquote(path).lower()
+    return normalized.startswith(ASSET_PATH_PREFIXES) or Path(normalized).suffix in ASSET_EXTENSIONS
 
 
 def normalize_media_link(source_url: str, value: str) -> str | None:
