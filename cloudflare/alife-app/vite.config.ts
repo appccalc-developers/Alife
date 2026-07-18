@@ -174,6 +174,21 @@ export default defineConfig(() => {
             if (!id.includes('node_modules')) {
               return undefined
             }
+            if (id.includes('/node_modules/tinymce/tinymce')) {
+              return 'vendor-tinymce-core'
+            }
+            if (id.includes('/node_modules/tinymce/themes/')) {
+              return 'vendor-tinymce-theme'
+            }
+            if (
+              id.includes('/node_modules/tinymce/icons/') ||
+              id.includes('/node_modules/tinymce/models/')
+            ) {
+              return 'vendor-tinymce-ui'
+            }
+            if (id.includes('/node_modules/tinymce/plugins/')) {
+              return 'vendor-tinymce-plugins'
+            }
             if (
               id.includes('/node_modules/react/') ||
               id.includes('/node_modules/react-dom/') ||

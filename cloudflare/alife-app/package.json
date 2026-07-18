@@ -30,7 +30,7 @@
     "remark-gfm": "^4.0.1",
     "speed-layer": "file:../speed-layer",
     "tailwindcss": "^3.4.19",
-    "tinymce": "^8.6.0"
+    "tinymce": "^8.8.0"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
