@@ -8,4 +8,9 @@ public interface IContentPostCacheInvalidationService
         Guid groupId,
         string slug,
         CancellationToken cancellationToken = default);
+
+    Task RemovePublicBatchAsync(
+        Guid groupId,
+        IReadOnlyCollection<string> slugs,
+        CancellationToken cancellationToken = default);
 }

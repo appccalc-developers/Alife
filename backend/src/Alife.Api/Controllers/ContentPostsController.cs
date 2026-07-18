@@ -1,6 +1,7 @@
 using Alife.Api.Http;
 using Alife.Api.Results;
 using Alife.Application.Abstractions.Identity;
+using Alife.Application.ContentPosts.Commands.BulkImportContentPosts;
 using Alife.Application.ContentPosts.Commands.ArchiveContentPost;
 using Alife.Application.ContentPosts.Commands.DeleteContentPost;
 using Alife.Application.ContentPosts.Commands.PublishContentPost;
@@ -8,6 +9,7 @@ using Alife.Application.ContentPosts.Commands.SaveContentPost;
 using Alife.Application.ContentPosts.Queries.GetPublicContentPostBySlug;
 using Alife.Application.ContentPosts.Queries.GetPublicContentPosts;
 using Alife.Application.ContentPosts.Queries.ListManagedContentPosts;
+using Alife.Application.ContentPosts.Dtos;
 using Alife.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -73,6 +75,32 @@ public sealed class ContentPostsController(
         [FromBody] SaveContentPostRequest request,
         CancellationToken cancellationToken)
         => Save(null, groupId, request, cancellationToken);
+
+    [HttpPost("groups/{groupId:guid}/posts/import")]
+    [RequestSizeLimit(30 * 1024 * 1024)]
+    public async Task<IActionResult> BulkImport(
+        Guid groupId,
+        [FromBody] BulkImportContentPostsRequest request,
+        CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (!currentMemberId.HasValue)
+        {
+            return Unauthorized();
+        }
+
+        var result = await mediator.Send(
+            new BulkImportContentPostsCommand(
+                groupId,
+                currentMemberId.Value,
+                request.DryRun ?? true,
+                request.Publish ?? false,
+                request.UpdateChanged ?? false,
+                request.Items ?? []),
+            cancellationToken);
+        this.ApplyPrivateNoCacheHeaders();
+        return this.ToActionResult(result);
+    }
 
     [HttpPut("posts/{id:guid}")]
     public Task<IActionResult> Update(
@@ -188,4 +216,10 @@ public sealed class ContentPostsController(
         string? SourceUrl,
         string? SourceKey,
         string? SourceChecksum);
+
+    public sealed record BulkImportContentPostsRequest(
+        bool? DryRun,
+        bool? Publish,
+        bool? UpdateChanged,
+        IReadOnlyList<ContentPostImportItemDto>? Items);
 }

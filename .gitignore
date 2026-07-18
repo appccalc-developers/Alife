@@ -68,6 +68,8 @@ launchSettings.json
 
 # Code only
 .venv/
+**/__pycache__/
+*.py[cod]
 .dotnet-cli/
 VibeCoding/
 Communication/

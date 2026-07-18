@@ -24,6 +24,10 @@ public interface ICloudflareKvCacheService
         string path,
         CancellationToken cancellationToken = default);
 
+    Task RemoveApiCachesAsync(
+        IReadOnlyCollection<string> paths,
+        CancellationToken cancellationToken = default);
+
     Task RemoveApiCacheKeyAsync(
         string key,
         CancellationToken cancellationToken = default);

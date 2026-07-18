@@ -19,7 +19,7 @@ import { getCopy } from '../views/home/homeCopy'
 import { buildPageMenuNavItems } from '../views/home/homeUtils'
 import { pageService } from '../services/pageService'
 import type { PageSummaryDto } from '../types'
-import { isHomeLocation, isPublicPageLocation, isPublicPagePath } from './routing/publicRoutePolicy'
+import { isHomeLocation, isPublicArticlePath, isPublicPageLocation, isPublicPagePath } from './routing/publicRoutePolicy'
 
 const readSidebarCollapsedPreference = () => {
   try {
@@ -173,6 +173,7 @@ const isPublicBrowsePath = (pathname: string) =>
   pathname === '/events' ||
   pathname === '/forum' ||
   /^\/forum\/posts\/[^/]+$/.test(pathname) ||
+  isPublicArticlePath(pathname) ||
   isPublicPagePath(pathname) ||
   pathname === '/sermons' ||
   pathname === '/sermons/watch' ||
@@ -183,6 +184,8 @@ const PublicHomeShell = () => {
   const location = useLocation()
   const [publicPages, setPublicPages] = useState<PageSummaryDto[]>([])
   const isPublicPage = isPublicPageLocation(location)
+  const isPublicArticle = isPublicArticlePath(location.pathname)
+  const isPublicSiteContent = isPublicPage || isPublicArticle
   const isHome = isHomeLocation(location)
   const copy = getCopy(auth.language, '')
   const welcomeNavItem = useMemo(
@@ -191,8 +194,12 @@ const PublicHomeShell = () => {
   )
   const footerNavItems = useMemo(() => [welcomeNavItem], [welcomeNavItem])
   const headerNavItems = useMemo(
-    () => [welcomeNavItem, ...buildPageMenuNavItems(publicPages, auth.language, copy.nav.ministries)],
-    [auth.language, copy.nav.ministries, publicPages, welcomeNavItem],
+    () => [
+      welcomeNavItem,
+      ...buildPageMenuNavItems(publicPages, auth.language, copy.nav.ministries),
+      { to: '/articles', label: copy.nav.articles },
+    ],
+    [auth.language, copy.nav.articles, copy.nav.ministries, publicPages, welcomeNavItem],
   )
 
   useEffect(() => {
@@ -218,7 +225,7 @@ const PublicHomeShell = () => {
       <div className={isHome ? '' : isPublicPage ? 'pb-16' : 'px-4 pb-16 pt-24 sm:px-6 lg:px-8'}>
         <AppRoutes />
       </div>
-      {isPublicPage ? <HomeFooter copy={copy} navItems={footerNavItems} /> : null}
+      {isPublicSiteContent ? <HomeFooter copy={copy} navItems={footerNavItems} /> : null}
     </div>
   )
 }
@@ -231,7 +238,9 @@ const AppShell = () => {
     return <PublicHomeShell />
   }
 
-  return isPublicPageLocation(location) || (auth.isGuest && isPublicBrowsePath(location.pathname)) ? <PublicHomeShell /> : <WorkspaceShell />
+  return isPublicPageLocation(location) || isPublicArticlePath(location.pathname) || (auth.isGuest && isPublicBrowsePath(location.pathname))
+    ? <PublicHomeShell />
+    : <WorkspaceShell />
 }
 
 export default AppShell

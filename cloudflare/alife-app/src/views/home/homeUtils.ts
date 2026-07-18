@@ -26,12 +26,16 @@ export type HomeGroupCard = {
 }
 
 export type HomeNavLinkItem = { href: string; label: string }
+export type HomeNavRouteItem = { to: string; label: string }
 export type HomeNavDropdownChild = { to: string; label: string }
 export type HomeNavDropdownItem = { key: string; label: string; items: HomeNavDropdownChild[] }
-export type HomeNavItem = HomeNavLinkItem | HomeNavDropdownItem
+export type HomeNavItem = HomeNavLinkItem | HomeNavRouteItem | HomeNavDropdownItem
 
 export const isDropdownNavItem = (item: HomeNavItem): item is HomeNavDropdownItem =>
   'items' in item
+
+export const isRouteNavItem = (item: HomeNavItem): item is HomeNavRouteItem =>
+  'to' in item && !('items' in item)
 
 export type ServiceCountdown = {
   totalMs: number

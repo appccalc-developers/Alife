@@ -107,6 +107,8 @@ public static class ContentPostMapper
         value.Slug,
         value.PublishedUtc,
         value.SourceUrl,
+        value.SourceKey,
+        value.SourceChecksum,
         value.UpdatedUtc,
         value.IsDeleted
     };
