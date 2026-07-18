@@ -49,6 +49,13 @@ public sealed class CloudflareKvCacheService(
     public Task RemoveApiCacheAsync(string path, CancellationToken cancellationToken = default)
         => DeleteApiCacheValueAsync(CreateApiCacheKey(path), cancellationToken);
 
+    public Task RemoveApiCachesAsync(
+        IReadOnlyCollection<string> paths,
+        CancellationToken cancellationToken = default)
+        => DeleteApiCacheValuesAsync(
+            paths.Select(CreateApiCacheKey).ToArray(),
+            cancellationToken);
+
     public Task RemoveApiCacheKeyAsync(string key, CancellationToken cancellationToken = default)
         => DeleteApiCacheValueAsync(key, cancellationToken);
 
@@ -86,6 +93,34 @@ public sealed class CloudflareKvCacheService(
 
         var response = await SendAsync(() => httpClient.DeleteAsync(endpoint, cancellationToken), cancellationToken);
         LogIfUnsuccessful(response, "delete", key);
+    }
+
+    private async Task DeleteApiCacheValuesAsync(
+        IReadOnlyCollection<string> keys,
+        CancellationToken cancellationToken)
+    {
+        var distinctKeys = keys
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        if (distinctKeys.Length == 0)
+        {
+            return;
+        }
+
+        var options = ReadOptions();
+        if (!options.IsConfigured || string.IsNullOrWhiteSpace(options.ApiCacheNamespaceId))
+        {
+            return;
+        }
+
+        var endpoint = new Uri(
+            $"accounts/{options.AccountId}/storage/kv/namespaces/{options.ApiCacheNamespaceId}/bulk/delete",
+            UriKind.Relative);
+        var response = await SendAsync(
+            () => httpClient.PostAsJsonAsync(endpoint, distinctKeys, JsonOptions, cancellationToken),
+            cancellationToken);
+        LogIfUnsuccessful(response, "bulk delete", $"{distinctKeys.Length} API cache keys");
     }
 
     private async Task<HttpResponseMessage?> SendAsync(

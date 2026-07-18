@@ -32,4 +32,37 @@ public sealed class ContentPostCacheInvalidationService(
             cloudflareKvCacheService.RemoveApiCacheAsync(path, cancellationToken),
             cloudflareSpeedLayerCacheService.PurgeApiPathsAsync([path], cancellationToken));
     }
+
+    public Task RemovePublicBatchAsync(
+        Guid groupId,
+        IReadOnlyCollection<string> slugs,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedSlugs = slugs
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim().ToLowerInvariant())
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        var indexPath = $"/api/public/groups/{groupId}/posts";
+        var paths = new[] { indexPath }
+            .Concat(normalizedSlugs.Select(slug => $"{indexPath}/{slug}"))
+            .ToArray();
+        var tasks = new List<Task>
+        {
+            hybridCache.RemoveAsync(
+                ContentPostCacheKeys.PublicIndex(groupId),
+                cancellationToken).AsTask(),
+            cloudflareKvCacheService.RemoveApiCachesAsync(paths, cancellationToken),
+            cloudflareSpeedLayerCacheService.PurgeApiPathsAsync(paths, cancellationToken)
+        };
+
+        foreach (var slug in normalizedSlugs)
+        {
+            tasks.Add(hybridCache.RemoveAsync(
+                ContentPostCacheKeys.PublicDetail(groupId, slug),
+                cancellationToken).AsTask());
+        }
+
+        return Task.WhenAll(tasks);
+    }
 }
