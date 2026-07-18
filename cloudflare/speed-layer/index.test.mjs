@@ -637,6 +637,69 @@ test('public pages GET requests are served from shared public cache', async () =
   assert.equal(fetchCalls.length, 1)
 })
 
+test('public content post summaries use one queryless shared cache across visitors', async () => {
+  const groupId = '11111111-1111-4111-8111-111111111111'
+  const url = `https://ccalc.live/api/public/groups/${groupId}/posts`
+  originResponses.push(Response.json([{ id: 'post-1', slug: 'church-news' }]))
+
+  const first = await dispatch(`${url}?lang=zh`, {
+    headers: { cookie: `alife_auth=${createJwtWithSub('member-1')}` },
+  })
+  await flushWaitUntil()
+  const second = await dispatch(`${url}?unused=value`, {
+    headers: { cookie: `alife_auth=${createJwtWithSub('member-2')}` },
+  })
+
+  assert.equal(first.status, 200)
+  assert.equal(first.headers.get('x-alife-cache'), 'MISS')
+  assert.equal(second.status, 200)
+  assert.equal(second.headers.get('x-alife-cache'), 'HIT')
+  assert.deepEqual(await second.json(), [{ id: 'post-1', slug: 'church-news' }])
+  assert.equal(fetchCalls.length, 1)
+  assert.equal(createApiCacheKey(`${url}?lang=zh`), `api:/api/public/groups/${groupId}/posts`)
+})
+
+test('internal cache invalidate accepts only strict public content post paths', async () => {
+  const groupId = '22222222-2222-4222-8222-222222222222'
+  const listUrl = `https://ccalc.live/api/public/groups/${groupId}/posts`
+  const detailUrl = `${listUrl}/church-news`
+  cacheStore.set(listUrl, Response.json([{ id: 'stale-post' }]))
+  cacheStore.set(detailUrl, Response.json({ id: 'stale-post' }))
+  apiCacheStore.set(createApiCacheKey(listUrl), createStoredResponse([{ id: 'stale-post' }]))
+  apiCacheStore.set(createApiCacheKey(detailUrl), createStoredResponse({ id: 'stale-post' }))
+
+  const purge = await dispatch('https://ccalc.live/api/internal/cache/invalidate', {
+    method: 'POST',
+    auth: false,
+    headers: {
+      authorization: 'Bearer test-cache-token',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      paths: [
+        `/api/public/groups/${groupId}/posts`,
+        `/api/public/groups/${groupId}/posts/church-news`,
+        '/api/public/groups/not-a-guid/posts',
+        `/api/public/groups/${groupId}/posts/../../admin`,
+      ],
+    }),
+  })
+  await flushWaitUntil()
+
+  assert.equal(purge.status, 200)
+  assert.deepEqual(await purge.json(), {
+    ok: true,
+    purged: [
+      `/api/public/groups/${groupId}/posts`,
+      `/api/public/groups/${groupId}/posts/church-news`,
+    ],
+  })
+  assert.equal(cacheStore.has(listUrl), false)
+  assert.equal(cacheStore.has(detailUrl), false)
+  assert.equal(apiCacheStore.has(createApiCacheKey(listUrl)), false)
+  assert.equal(apiCacheStore.has(createApiCacheKey(detailUrl)), false)
+})
+
 test('public pages cache is invalidated after page visibility publish', async () => {
   const pageId = 'church-page-1'
   const url = 'https://ccalc.live/api/pages/public'
@@ -2505,7 +2568,10 @@ function createApiCacheKey(url) {
   }
 
   parsed.hash = ''
-  if (parsed.pathname === '/api/sermons') {
+  if (
+    parsed.pathname === '/api/sermons' ||
+    /^\/api\/public\/groups\/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\/posts(?:\/[a-z0-9-]{1,180})?$/.test(parsed.pathname)
+  ) {
     parsed.search = ''
   } else {
     parsed.searchParams.sort()

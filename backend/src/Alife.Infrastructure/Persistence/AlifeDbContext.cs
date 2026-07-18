@@ -29,6 +29,7 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 	public DbSet<EventReview> EventReviews => Set<EventReview>();
 	public DbSet<NotificationMessage> NotificationMessages => Set<NotificationMessage>();
 	public DbSet<Announcement> Announcements => Set<Announcement>();
+	public DbSet<ContentPost> ContentPosts => Set<ContentPost>();
 	public DbSet<VisitContactRequest> VisitContactRequests => Set<VisitContactRequest>();
 	public DbSet<ContactProfile> ContactProfiles => Set<ContactProfile>();
 	public DbSet<EventContactProfile> EventContactProfiles => Set<EventContactProfile>();
@@ -455,6 +456,40 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 			cfg.HasIndex(x => new { x.GroupId, x.Status, x.PublishUtc, x.ExpireUtc });
 			cfg.HasIndex(x => new { x.IsPinned, x.Priority, x.PublishUtc });
 			cfg.HasIndex(x => x.CreatedByMemberId);
+		});
+
+		modelBuilder.Entity<ContentPost>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.TitleJson).HasColumnType("nvarchar(max)").IsRequired();
+			cfg.Property(x => x.SummaryJson).HasColumnType("nvarchar(max)").IsRequired();
+			cfg.Property(x => x.BodyJson).HasColumnType("nvarchar(max)").IsRequired();
+			cfg.Property(x => x.Slug).HasMaxLength(180).IsRequired();
+			cfg.Property(x => x.CoverImageUrl).HasMaxLength(1200);
+			cfg.Property(x => x.Byline).HasMaxLength(200);
+			cfg.Property(x => x.SourceUrl).HasMaxLength(1200);
+			cfg.Property(x => x.SourceKey).HasMaxLength(64).IsFixedLength();
+			cfg.Property(x => x.SourceChecksum).HasMaxLength(64).IsFixedLength();
+
+			cfg.HasOne(x => x.OwnerGroup)
+				.WithMany()
+				.HasForeignKey(x => x.OwnerGroupId)
+				.OnDelete(DeleteBehavior.Restrict);
+
+			cfg.HasOne(x => x.CreatedByMember)
+				.WithMany()
+				.HasForeignKey(x => x.CreatedByMemberId)
+				.OnDelete(DeleteBehavior.Restrict);
+
+			cfg.HasIndex(x => new { x.OwnerGroupId, x.Slug })
+				.IsUnique()
+				.HasFilter("[is_deleted] = 0");
+			cfg.HasIndex(x => new { x.OwnerGroupId, x.Status, x.Visibility, x.PublishedUtc });
+			cfg.HasIndex(x => new { x.OwnerGroupId, x.SourceKey })
+				.IsUnique()
+				.HasFilter("[source_key] IS NOT NULL");
+			cfg.HasIndex(x => x.CreatedByMemberId);
+			cfg.HasQueryFilter(x => !x.IsDeleted);
 		});
 
 		modelBuilder.Entity<VisitContactRequest>(cfg =>

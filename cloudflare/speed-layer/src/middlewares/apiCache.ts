@@ -858,6 +858,7 @@ export function shouldUseSharedCacheKey(pathname: string) {
   return pathname === '/images' ||
     pathname.startsWith('/images/') ||
     PUBLIC_CACHEABLE_API_PATHS.has(pathname) ||
+    isPublicContentPostPath(pathname) ||
     Boolean(getGroupDetailId(pathname)) ||
     Boolean(getGroupSubresource(pathname)) ||
     Boolean(getEventSubresource(pathname)) ||
@@ -865,7 +866,11 @@ export function shouldUseSharedCacheKey(pathname: string) {
 }
 
 export function shouldIgnoreApiCacheQuery(pathname: string) {
-  return QUERYLESS_API_CACHE_PATHS.has(pathname)
+  return QUERYLESS_API_CACHE_PATHS.has(pathname) || isPublicContentPostPath(pathname)
+}
+
+export function isPublicContentPostPath(pathname: string) {
+  return /^\/api\/public\/groups\/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\/posts(?:\/[a-z0-9-]{1,180})?$/.test(pathname)
 }
 
 export function getGroupDetailId(pathname: string) {

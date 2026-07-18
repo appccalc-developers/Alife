@@ -59,7 +59,7 @@ export function shouldBypassEdgeCache(pathname: string, sharedContext?: SharedCa
     return false
   }
 
-  if (PUBLIC_CACHEABLE_API_PATHS.has(pathname)) {
+  if (PUBLIC_CACHEABLE_API_PATHS.has(pathname) || isPublicContentPostPath(pathname)) {
     return false
   }
 
@@ -221,12 +221,16 @@ export function createApiCacheKey(requestOrPath: Request | string) {
     : new URL(requestOrPath.url)
 
   url.hash = ''
-  if (QUERYLESS_API_CACHE_PATHS.has(url.pathname)) {
+  if (QUERYLESS_API_CACHE_PATHS.has(url.pathname) || isPublicContentPostPath(url.pathname)) {
     url.search = ''
   } else {
     url.searchParams.sort()
   }
   return `api:${url.pathname}${url.search}`
+}
+
+function isPublicContentPostPath(pathname: string) {
+  return /^\/api\/public\/groups\/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\/posts(?:\/[a-z0-9-]{1,180})?$/.test(pathname)
 }
 
 export function getPageDetailId(pathname: string) {
