@@ -50,7 +50,7 @@ const GroupDrawer = ({ currentGroup, churchGroup, items, open, onClose, onOpenGr
         initial={{ x: '100%' }}
         animate={{ x: open ? 0 : '100%' }}
         transition={{ type: 'spring', stiffness: 350, damping: 30 }}
-        className="fixed bottom-0 right-0 top-0 z-50 flex w-full max-w-sm flex-col border-l border-[#2f4b42]/10 bg-[#fffdf8] shadow-2xl sm:top-[4.5rem] sm:rounded-tl-[2rem]"
+        className="fixed bottom-[env(safe-area-inset-bottom)] right-[env(safe-area-inset-right)] top-[env(safe-area-inset-top)] z-50 flex w-full max-w-sm flex-col border-l border-[#2f4b42]/10 bg-[#fffdf8] shadow-2xl sm:top-[calc(4.5rem+env(safe-area-inset-top))] sm:rounded-tl-[2rem]"
         aria-label={t('subgroupMenu')}
       >
         <div className="flex items-start justify-between gap-3 border-b border-[#2f4b42]/10 px-5 py-5">
