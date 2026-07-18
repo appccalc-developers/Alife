@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import logo from '../../assets/logo.png'
 import { useAuthStore } from '../../stores/auth'
 import type { HomeCopy, Language } from './homeCopy'
-import { createSectionHandler, isDropdownNavItem } from './homeUtils'
+import { createSectionHandler, isDropdownNavItem, isRouteNavItem } from './homeUtils'
 import type { HomeNavDropdownItem, HomeNavItem } from './homeUtils'
 
 type Props = {
@@ -77,6 +77,18 @@ const HomeNavHeader = ({ copy, language, solid = false, navItems: providedNavIte
             </div>
           </div>
         </div>
+      )
+    }
+
+    if (isRouteNavItem(item)) {
+      return (
+        <Link
+          key={item.to}
+          className="whitespace-nowrap px-3.5 py-1.5 text-[0.84rem] font-medium text-white/60 transition hover:text-white"
+          to={item.to}
+        >
+          {item.label}
+        </Link>
       )
     }
 
@@ -156,7 +168,16 @@ const HomeNavHeader = ({ copy, language, solid = false, navItems: providedNavIte
       {menuOpen ? (
         <div className="border-t border-white/[0.06] bg-home-dark/90 px-5 pb-5 pt-3 backdrop-blur-xl sm:px-8 lg:hidden">
           <nav className="grid gap-0.5">
-            {navItems.map((item) => isDropdownNavItem(item) ? renderMobileDropdown(item) : (
+            {navItems.map((item) => isDropdownNavItem(item) ? renderMobileDropdown(item) : isRouteNavItem(item) ? (
+              <Link
+                key={item.to}
+                className="rounded-lg px-3 py-2.5 text-[0.92rem] font-medium text-white/70 transition hover:bg-white/[0.06] hover:text-white"
+                to={item.to}
+                onClick={() => setMenuOpen(false)}
+              >
+                {item.label}
+              </Link>
+            ) : (
               <a key={item.href} className="rounded-lg px-3 py-2.5 text-[0.92rem] font-medium text-white/70 transition hover:bg-white/[0.06] hover:text-white" href={item.href} onClick={(event) => scrollToSection(event, item.href)}>
                 {item.label}
               </a>

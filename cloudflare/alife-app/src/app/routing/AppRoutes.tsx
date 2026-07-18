@@ -6,6 +6,8 @@ import AppRouteLoading from '../components/AppRouteLoading'
 
 const AdminView = lazy(() => import('../../views/AdminView'))
 const AlbumView = lazy(() => import('../../views/AlbumView'))
+const ArticleDetailView = lazy(() => import('../../views/ArticleDetailView'))
+const ArticlesView = lazy(() => import('../../views/ArticlesView'))
 const BibleStudyView = lazy(() => import('../../views/BibleStudyView'))
 const ContactDetailView = lazy(() => import('../../views/ContactDetailView'))
 const EventCreatorView = lazy(() => import('../../views/EventCreatorView'))
@@ -96,6 +98,8 @@ const AppRoutes = () => {
       <AnimatePresence mode="wait">
         <Routes location={location} key={routeTransitionKey}>
           <Route path="/" element={<HomeView />} />
+          <Route path="/articles" element={<ArticlesView />} />
+          <Route path="/articles/:slug" element={<ArticleDetailView />} />
           <Route path="/enter" element={<EntryRoute />} />
           <Route path="/home" element={<HomeRoute />} />
           <Route path="/groups" element={<GroupDetailView />} />

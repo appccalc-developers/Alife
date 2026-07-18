@@ -95,7 +95,8 @@ const isSafeImageSrc = (value: string) => {
     const url = new URL(trimmed, typeof window !== 'undefined' ? window.location.origin : 'https://ccalc.live')
     return (
       (url.hostname === 'ccalc.live' && url.pathname.startsWith('/images/')) ||
-      url.hostname === 'images.ccalc.live'
+      url.hostname === 'images.ccalc.live' ||
+      (url.protocol === 'https:' && url.hostname === 'pages.nzalc.org')
     )
   } catch {
     return false

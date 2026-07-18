@@ -24,6 +24,7 @@ const HomeView = () => {
   const headerNavItems = [
     welcomeNavItem,
     ...buildPageMenuNavItems(publicPages, language, copy.nav.ministries),
+    { to: '/articles', label: copy.nav.articles },
   ]
 
   return (
