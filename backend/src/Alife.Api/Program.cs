@@ -19,7 +19,6 @@ builder.Services.ConfigureFunctionsApplicationInsights();
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
-builder.Services.AddHybridCache();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentMemberAccessor, CurrentMemberAccessor>();
 builder.Services
