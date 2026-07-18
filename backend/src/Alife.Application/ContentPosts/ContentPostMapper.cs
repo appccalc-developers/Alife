@@ -30,7 +30,7 @@ public static class ContentPostMapper
         value.Slug,
         value.CoverImageUrl,
         value.Byline,
-        value.SourceUrl,
+        null,
         value.PublishedUtc ?? value.UpdatedUtc,
         value.UpdatedUtc);
 

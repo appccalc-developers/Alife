@@ -1,4 +1,5 @@
 using Alife.Application.Common.Models;
+using Alife.Application.ContentPosts;
 using Alife.Application.ContentPosts.Commands.PublishContentPost;
 using Alife.Application.ContentPosts.Commands.SaveContentPost;
 using Alife.Application.ContentPosts.Services;
@@ -227,7 +228,10 @@ public sealed class ContentPostHandlersTests
             church.Id,
             newest.Slug,
             CancellationToken.None);
-        Assert.Equal("https://nzalc.org/archive/newest", detail!.SourceUrl);
+        Assert.Null(detail!.SourceUrl);
+        Assert.Equal(
+            "https://nzalc.org/archive/newest",
+            ContentPostMapper.ToManagedDto(newest).SourceUrl);
     }
 
     [Fact]
