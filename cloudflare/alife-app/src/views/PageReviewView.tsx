@@ -20,6 +20,14 @@ const copy = {
     zh: '组织公开页面、网站导航和首页展示，并管理页面发布审核。',
   },
   refresh: { en: 'Refresh', zh: '刷新' },
+  refreshSuccess: {
+    en: 'Public page cache cleared and website data refreshed.',
+    zh: '公开页面缓存已清除，网站数据已刷新。',
+  },
+  refreshFailed: {
+    en: 'Unable to clear the public page cache.',
+    zh: '无法清除公开页面缓存。',
+  },
   loading: { en: 'Loading pages for review...', zh: '正在加载审核页面...' },
   emptyTitle: { en: 'No pages available for review', zh: '没有可审核页面' },
   emptyBody: {
@@ -319,6 +327,27 @@ const PageReviewView = () => {
     } catch (reason) {
       const apiError = normalizeApiError(reason)
       setError(`${text(language, 'loadFailed')} ${apiError.message}`)
+    } finally {
+      setLoading(false)
+    }
+  }, [language])
+
+  const refreshWebsite = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    setMessage('')
+    try {
+      await groupService.refreshPublicPagesCache()
+      const [nextItems, nextPrimaryMenus] = await Promise.all([
+        groupService.getPageReviewCandidates(),
+        groupService.getPagePrimaryMenus(),
+      ])
+      setItems(nextItems)
+      setPrimaryMenus(nextPrimaryMenus)
+      setMessage(text(language, 'refreshSuccess'))
+    } catch (reason) {
+      const apiError = normalizeApiError(reason)
+      setError(`${text(language, 'refreshFailed')} ${apiError.message}`)
     } finally {
       setLoading(false)
     }
@@ -932,7 +961,11 @@ const PageReviewView = () => {
               <h1 className="mt-2 text-2xl font-black text-slate-950 sm:text-3xl">{text(language, 'title')}</h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">{text(language, 'subtitle')}</p>
             </div>
-            <AppActionButton variant="secondary" disabled={loading} onClick={() => load().catch(() => undefined)}>
+            <AppActionButton
+              variant="secondary"
+              disabled={loading || layoutSaving || Boolean(actingPageId)}
+              onClick={() => refreshWebsite().catch(() => undefined)}
+            >
               {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
               {text(language, 'refresh')}
             </AppActionButton>

@@ -812,9 +812,10 @@ test('page publication return evicts public and group pages caches', async () =>
   assert.equal(apiCacheStore.has(`public:group:${groupId}:pages`), false)
 })
 
-test('page primary menu mutations evict the public pages projection cache', async () => {
+test('website builder cache mutations evict the public pages projection cache', async () => {
   const publicUrl = 'https://ccalc.live/api/pages/public'
   const mutations = [
+    { method: 'POST', path: '/api/admin/pages/public-cache/refresh' },
     { method: 'POST', path: '/api/admin/page-primary-menus' },
     { method: 'PUT', path: '/api/admin/page-primary-menus/menu-1' },
     { method: 'DELETE', path: '/api/admin/page-primary-menus/menu-1' },

@@ -597,7 +597,10 @@ export async function getInvalidationPaths(env: Env, request: Request, response:
     }
   }
 
-  if (/^\/api\/admin\/page-primary-menus(?:\/[^/]+)?$/.test(path)) {
+  if (
+    path === '/api/admin/pages/public-cache/refresh' ||
+    /^\/api\/admin\/page-primary-menus(?:\/[^/]+)?$/.test(path)
+  ) {
     paths.add('/api/pages/public')
   }
 
