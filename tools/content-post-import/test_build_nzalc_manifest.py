@@ -34,6 +34,7 @@ class BuildNzalcManifestTests(unittest.TestCase):
                     <p onclick="bad()"><script>alert(1)</script>
                       <img src="../../images/photo.jpg" style="float:left" />
                       <a href="../../learning.html">学习资料</a>正文内容 021 234 5678
+                      <a href="../../images/guide.pdf">下载讲义</a>
                     </p>
                     <ul class="pager"><li>noise</li></ul>
                   </div>
@@ -53,6 +54,10 @@ class BuildNzalcManifestTests(unittest.TestCase):
             )
             self.assertIn('src="https://pages.nzalc.org/images/photo.jpg"', item["body"]["zh"])
             self.assertIn('href="https://nzalc.org/learning.html"', item["body"]["zh"])
+            self.assertIn(
+                'href="https://pages.nzalc.org/images/guide.pdf"',
+                item["body"]["zh"],
+            )
             self.assertNotIn("noise", item["body"]["zh"])
             self.assertNotIn("onclick", item["body"]["zh"])
             self.assertNotIn("alert(1)", item["body"]["zh"])

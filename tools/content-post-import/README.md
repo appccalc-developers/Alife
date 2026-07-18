@@ -29,9 +29,9 @@ The extractor reads only the known historical article folders:
 - five legacy homepage activity articles → `general`
 
 It extracts the Joomla `.item-page` body, keeps relative article links under
-`https://nzalc.org/...`, rewrites legacy image/media references to
-`https://pages.nzalc.org/...`, uses the first inline image as the cover, and
-generates a plain-text summary.
+`https://nzalc.org/...`, rewrites legacy image/media and downloadable asset
+references to `https://pages.nzalc.org/...`, uses the first inline image as the
+cover, and generates a plain-text summary.
 
 ## Review warnings
 
