@@ -27,11 +27,14 @@ import {
 const CACHE_TTL_SECONDS = 86400 // 24 hours
 const CACHE_STALE_WHILE_REVALIDATE_SECONDS = 300
 const CACHE_STALE_IF_ERROR_SECONDS = 86400
+const SERMON_CACHE_TTL_SECONDS = 300
 const AUTHZ_MIRROR_TTL_SECONDS = 7 * 24 * 60 * 60
 const MEMBER_PROFILE_CACHE_TTL_SECONDS = 86400
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 const PUBLIC_CACHEABLE_API_PATHS = new Set(['/api/sermons', '/api/pages/public'])
-const QUERYLESS_API_CACHE_PATHS = new Set(['/api/sermons'])
+const CACHE_TAG_BY_API_PATH = new Map([
+  ['/api/sermons', 'alife-sermons'],
+])
 const GROUP_SHARED_CACHE_TTLS = {
   pages: CACHE_TTL_SECONDS,
   subgroups: CACHE_TTL_SECONDS,
@@ -277,7 +280,10 @@ export const apiCacheMiddleware = async (
         waitUntilTasks.push(writeSharedCachedResponse(env, req, withEdgeCacheControl(taggedResponse.clone())))
       }
     } else {
-      const responseForCache = withEdgeCacheControl(taggedResponse.clone())
+      const responseForCache = withCacheTag(
+        withEdgeCacheControl(taggedResponse.clone(), getApiCacheTtlSeconds(req)),
+        url.pathname,
+      )
       waitUntilTasks.push(createCacheKey(req).then((cacheKey) => getEdgeCache().put(cacheKey, responseForCache)))
     }
 
@@ -482,6 +488,10 @@ export function getApiCacheTtlSeconds(requestOrPath: Request | string) {
   const pathname = typeof requestOrPath === 'string'
     ? new URL(requestOrPath, 'https://alife.local').pathname
     : new URL(requestOrPath.url).pathname
+  if (pathname === '/api/sermons') {
+    return SERMON_CACHE_TTL_SECONDS
+  }
+
   return getAuthorizedGroupCachePolicy(pathname)?.ttlSeconds ?? CACHE_TTL_SECONDS
 }
 
@@ -869,7 +879,7 @@ export function shouldUseSharedCacheKey(pathname: string) {
 }
 
 export function shouldIgnoreApiCacheQuery(pathname: string) {
-  return QUERYLESS_API_CACHE_PATHS.has(pathname) || isPublicContentPostPath(pathname)
+  return isPublicContentPostPath(pathname)
 }
 
 export function isPublicContentPostPath(pathname: string) {
@@ -893,13 +903,28 @@ export function withCacheHeader(response: Response, value: 'HIT' | 'MISS' | 'BYP
   })
 }
 
-export function withEdgeCacheControl(response: Response) {
+export function withEdgeCacheControl(response: Response, ttlSeconds = CACHE_TTL_SECONDS) {
   const headers = new Headers(response.headers)
   headers.set(
     'cache-control',
-    `public, max-age=${CACHE_TTL_SECONDS}, s-maxage=${CACHE_TTL_SECONDS}, stale-while-revalidate=${CACHE_STALE_WHILE_REVALIDATE_SECONDS}, stale-if-error=${CACHE_STALE_IF_ERROR_SECONDS}`,
+    `public, max-age=${ttlSeconds}, s-maxage=${ttlSeconds}, stale-while-revalidate=${CACHE_STALE_WHILE_REVALIDATE_SECONDS}, stale-if-error=${CACHE_STALE_IF_ERROR_SECONDS}`,
   )
   headers.set('vary', appendVary(headers.get('vary'), 'Accept-Encoding'))
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
+}
+
+export function withCacheTag(response: Response, pathname: string) {
+  const cacheTag = CACHE_TAG_BY_API_PATH.get(pathname)
+  if (!cacheTag) {
+    return response
+  }
+
+  const headers = new Headers(response.headers)
+  headers.set('cache-tag', cacheTag)
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
@@ -932,6 +957,7 @@ export async function generateEtag(body: string) {
 
 export function withBrowserCacheControl(response: Response, pathname: string, groupAuthzStatus?: GroupAuthzStatus) {
   const headers = new Headers(response.headers)
+  headers.delete('cache-tag')
 
   if (pathname === '/images' || pathname.startsWith('/images/')) {
     headers.set(

@@ -196,6 +196,11 @@ This allows browser and frontend conditional validation while preventing private
 
 Edge-stored records use public edge cache semantics internally. Public image responses can use public browser cache semantics.
 
+`/api/sermons` keeps pagination parameters in its cache key, uses a five-minute
+edge TTL, and stores `Cache-Tag: alife-sermons` on cached variants. This prevents
+different page sizes from sharing a response and provides a bounded freshness
+fallback if active invalidation is unavailable.
+
 The Worker adds diagnostic headers:
 
 | Header | Meaning |
@@ -222,7 +227,10 @@ Examples:
 - Page updates invalidate page detail and owner group page lists.
 - Event updates invalidate owner group event lists.
 - Enrollment and review mutations invalidate event enrollment/review lists.
-- Sermon sync invalidates `/api/sermons`.
+- Sermon sync locally invalidates `/api/sermons` and asks the Cloudflare API to
+  globally purge the `alife-sermons` cache tag. The global purge is required
+  because Worker Cache API deletion runs only in the data center handling the
+  invalidation request.
 - Subgroup creation and co-leader claim update member profile and membership mirrors.
 
 Backend invalidation still matters. Edge invalidation is a latency and correctness aid, not the only freshness mechanism.
