@@ -134,11 +134,7 @@ const PageEditorView = () => {
   const isHomeTemplate = selectedPreset === 'home'
   const preservePublicationReviewStatus = searchParams.get('preservePublicationReviewStatus') === 'true'
   const fromPageReview = searchParams.get('fromReview') === 'true'
-  const reviewStatusParam = searchParams.get('reviewStatus')
-  const reviewReturnPath =
-    reviewStatusParam === 'pending' || reviewStatusParam === 'approved' || reviewStatusParam === 'returned'
-      ? `/admin/page-review?status=${reviewStatusParam}`
-      : '/admin/page-review'
+  const reviewReturnPath = '/admin/page-review'
 
   const activeIds = useActiveEntityIds({
     groupId: routeCreateGroupId || queryGroupId || undefined,

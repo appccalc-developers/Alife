@@ -1,5 +1,5 @@
 import { type DragEvent, useCallback, useEffect, useMemo, useState } from 'react'
-import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { CheckCircle2, ChevronDown, CircleX, Clock3, Eye, Globe2, GripVertical, ImagePlus, Loader2, PencilLine, Plus, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppEmptyState from '../components/layout/AppEmptyState'
@@ -145,10 +145,7 @@ type DraggedReviewItem =
   | { kind: 'primary-menu'; primaryMenuId: string }
   | { kind: 'page'; pageId: string; primaryMenuId: string }
 
-const reviewTabs: ReviewTab[] = ['pending', 'approved', 'returned']
-
-const parseReviewTab = (value: string | null): ReviewTab | null =>
-  value === 'pending' || value === 'approved' || value === 'returned' ? value : null
+const reviewTabs: ReviewTab[] = ['approved', 'pending', 'returned']
 
 const tabCopyKey: Record<ReviewTab, keyof typeof copy> = {
   pending: 'pendingTab',
@@ -231,11 +228,10 @@ const initialCardText = (page: AdminPageReviewDto) => ({
 const PageReviewView = () => {
   const auth = useAuthStore()
   const navigate = useNavigate()
-  const [searchParams, setSearchParams] = useSearchParams()
   const language = auth.language
   const [items, setItems] = useState<AdminPageReviewDto[]>([])
   const [primaryMenus, setPrimaryMenus] = useState<AdminPagePrimaryMenuDto[]>([])
-  const [activeTab, setActiveTab] = useState<ReviewTab>(() => parseReviewTab(searchParams.get('status')) ?? 'pending')
+  const [activeTab, setActiveTab] = useState<ReviewTab>('approved')
   const [activeApprovedMenuKey, setActiveApprovedMenuKey] = useState('')
   const [draggedReviewItem, setDraggedReviewItem] = useState<DraggedReviewItem | null>(null)
   const [layoutSaving, setLayoutSaving] = useState(false)
@@ -356,13 +352,6 @@ const PageReviewView = () => {
   useEffect(() => {
     load().catch(() => undefined)
   }, [load])
-
-  useEffect(() => {
-    const status = parseReviewTab(searchParams.get('status'))
-    if (status && status !== activeTab) {
-      setActiveTab(status)
-    }
-  }, [activeTab, searchParams])
 
   if (!auth.canReviewPages) {
     return <Navigate to="/" replace />
@@ -514,7 +503,6 @@ const PageReviewView = () => {
       closeApproveDialog()
     }
     setActiveTab(tab)
-    setSearchParams({ status: tab }, { replace: true })
   }
 
   const canEditReviewPage = (page: AdminPageReviewDto) =>
@@ -526,7 +514,6 @@ const PageReviewView = () => {
     const params = new URLSearchParams({
       preservePublicationReviewStatus: 'true',
       fromReview: 'true',
-      reviewStatus: page.reviewStatus,
     })
     return `/pages/${page.id}/edit?${params.toString()}`
   }
