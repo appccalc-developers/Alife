@@ -32,6 +32,36 @@ public class CloudflareSpeedLayerCacheServiceTests
     }
 
     [Fact]
+    public async Task PurgeApiPathsAsync_WhenGlobalPurgeConfigured_PurgesSermonCacheTag()
+    {
+        var handler = new RecordingHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var service = CreateService(handler, new Dictionary<string, string?>
+        {
+            ["Cloudflare:SyncWorkerBaseUrl"] = "https://ccalc.live",
+            ["Cloudflare:SyncApiToken"] = "sync-secret",
+            ["Cloudflare:ZoneId"] = "zone-id",
+            ["Cloudflare:ApiToken"] = "api-secret",
+        });
+
+        await service.PurgeApiPathsAsync(new[] { "/api/sermons" });
+
+        Assert.Equal(2, handler.Requests.Count);
+        var globalRequest = Assert.Single(
+            handler.Requests,
+            request => request.RequestUri?.Host == "api.cloudflare.com");
+        Assert.Equal(HttpMethod.Post, globalRequest.Method);
+        Assert.Equal(
+            "https://api.cloudflare.com/client/v4/zones/zone-id/purge_cache",
+            globalRequest.RequestUri?.ToString());
+        Assert.Equal("Bearer", globalRequest.AuthorizationScheme);
+        Assert.Equal("api-secret", globalRequest.AuthorizationParameter);
+
+        using var body = JsonDocument.Parse(globalRequest.Body);
+        var tags = body.RootElement.GetProperty("tags");
+        Assert.Equal("alife-sermons", tags[0].GetString());
+    }
+
+    [Fact]
     public async Task PurgeApiPathsAsync_WhenConfigurationMissing_DoesNotSendRequestOrThrow()
     {
         var handler = new RecordingHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));

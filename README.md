@@ -189,7 +189,8 @@ Alife deliberately uses multiple cache layers:
 
 - Backend `HybridCache` for member, group, page, event, and sermon read services.
 - Cloudflare speed layer cache for safe public responses, authorized group-shared responses, member profile responses, ETags, and passive mutation invalidation.
-- Sermon sync invalidates the canonical `/api/sermons` speed-layer cache through the internal Worker endpoint; `/api/sermons` query variants share one cache key.
+- `/api/sermons` cache keys include the sorted query string so pagination variants cannot reuse incompatible payloads. Sermon entries use a five-minute edge TTL and the `alife-sermons` cache tag.
+- Sermon sync performs the existing local Worker purge and, when `Cloudflare__ZoneId` and a Cache Purge-capable API token are configured, globally purges the `alife-sermons` tag across Cloudflare data centers.
 - Frontend IndexedDB ETag cache through `conditionalGet`.
 - PWA runtime caching for app assets, images, and fonts. API responses are intentionally excluded from the PWA runtime cache so auth and permission changes are not replayed incorrectly.
 
@@ -221,7 +222,7 @@ Backend settings can be supplied through environment variables, user secrets, or
 | `LineLogin__ClientId`, `LineLogin__ClientSecret`, `LineLogin__RedirectUri` | LINE OAuth |
 | `Frontend__BaseUrl` | Frontend redirect/CORS base URL |
 | `YOUTUBE_API_KEY`, `YOUTUBE_PLAYLIST_ID` | Sermon sync integration, where configured |
-| `Cloudflare__ApiToken`, `Cloudflare__AccountId`, `Cloudflare__AuthzNamespaceId`, `Cloudflare__ApiCacheNamespaceId` | Cloudflare KV mirror/cache refresh support, where configured |
+| `Cloudflare__ApiToken`, `Cloudflare__AccountId`, `Cloudflare__ZoneId`, `Cloudflare__AuthzNamespaceId`, `Cloudflare__ApiCacheNamespaceId` | Cloudflare KV mirror/cache refresh support, where configured. Global sermon invalidation requires the token's `Cache Purge` permission and the zone id. |
 | `Cloudflare__SyncWorkerBaseUrl`, `Cloudflare__SyncApiToken` | Speed-layer cache purge endpoint, where configured. Production base URL is `https://ccalc.live`; token must match Worker `CACHE_SYNC_API_TOKEN`. |
 
 Frontend and Worker settings:

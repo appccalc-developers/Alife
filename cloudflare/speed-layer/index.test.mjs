@@ -493,27 +493,45 @@ test('public GET requests are served from cache on the second hit', async () => 
   assert.equal(fetchCalls.length, 1)
 })
 
-test('/api/sermons query variants share the canonical edge cache key', async () => {
-  originResponses.push(Response.json([{ title: 'Canonical sermon' }]))
+test('/api/sermons query variants use separate edge cache keys', async () => {
+  originResponses.push(
+    Response.json({ items: Array.from({ length: 12 }, (_, index) => ({ title: `Sermon ${index + 1}` })), page: 1, pageSize: 12 }),
+    Response.json({ items: Array.from({ length: 3 }, (_, index) => ({ title: `Sermon ${index + 1}` })), page: 1, pageSize: 3 }),
+  )
 
   const first = await dispatch('https://ccalc.live/api/sermons?page=1&pageSize=12')
   await flushWaitUntil()
-  const second = await dispatch('https://ccalc.live/api/sermons?lang=en')
+  const second = await dispatch('https://ccalc.live/api/sermons?page=1&pageSize=3')
+  await flushWaitUntil()
+  const repeated = await dispatch('https://ccalc.live/api/sermons?pageSize=12&page=1')
 
   assert.equal(first.status, 200)
   assert.equal(first.headers.get('x-alife-cache'), 'MISS')
-  assert.equal(second.status, 200)
-  assert.equal(second.headers.get('x-alife-cache'), 'HIT')
-  assert.deepEqual(await second.json(), [{ title: 'Canonical sermon' }])
-  assert.equal(fetchCalls.length, 1)
-  assert.equal(cacheStore.has('https://ccalc.live/api/sermons'), true)
-  assert.equal(cacheStore.has('https://ccalc.live/api/sermons?page=1&pageSize=12'), false)
-  assert.equal(createApiCacheKey('https://ccalc.live/api/sermons?page=1&pageSize=12'), 'api:/api/sermons')
-  assert.equal(createApiCacheKey('https://ccalc.live/api/sermons?lang=en'), 'api:/api/sermons')
+  assert.equal(second.headers.get('x-alife-cache'), 'MISS')
+  assert.equal(repeated.headers.get('x-alife-cache'), 'HIT')
+  assert.equal(repeated.headers.get('cache-tag'), null)
+  assert.equal((await second.json()).pageSize, 3)
+  assert.equal((await repeated.json()).pageSize, 12)
+  assert.equal(fetchCalls.length, 2)
+  assert.equal(cacheStore.has('https://ccalc.live/api/sermons?page=1&pageSize=12'), true)
+  assert.equal(cacheStore.has('https://ccalc.live/api/sermons?page=1&pageSize=3'), true)
+  assert.equal(cacheStore.get('https://ccalc.live/api/sermons?page=1&pageSize=12').headers.get('cache-tag'), 'alife-sermons')
+  assert.match(
+    cacheStore.get('https://ccalc.live/api/sermons?page=1&pageSize=12').headers.get('cache-control'),
+    /max-age=300/,
+  )
+  assert.equal(
+    createApiCacheKey('https://ccalc.live/api/sermons?page=1&pageSize=12'),
+    'api:/api/sermons?page=1&pageSize=12',
+  )
+  assert.equal(
+    createApiCacheKey('https://ccalc.live/api/sermons?pageSize=12&page=1'),
+    'api:/api/sermons?page=1&pageSize=12',
+  )
 })
 
-test('authorized internal cache invalidate purges canonical sermons cache before old ETag revalidation', async () => {
-  const url = 'https://ccalc.live/api/sermons?page=1&pageSize=12'
+test('authorized internal cache invalidate purges the queryless sermons cache before old ETag revalidation', async () => {
+  const url = 'https://ccalc.live/api/sermons'
   originResponses.push(Response.json([{ title: 'Old sermon' }]))
 
   const first = await dispatch(url)
@@ -600,8 +618,8 @@ test('unauthorized internal cache invalidate does not purge sermons cache', asyn
   assert.equal(fetchCalls.length, 0)
 })
 
-test('admin sermon sync passively invalidates canonical sermons cache', async () => {
-  const publicUrl = 'https://ccalc.live/api/sermons?page=1&pageSize=12'
+test('admin sermon sync passively invalidates the local queryless sermons cache', async () => {
+  const publicUrl = 'https://ccalc.live/api/sermons'
   cacheStore.set(cacheKey(new Request(publicUrl)), Response.json([{ title: 'Stale sermon' }]))
   apiCacheStore.set(createApiCacheKey(publicUrl), createStoredResponse([{ title: 'Stored stale sermon' }]))
   originResponses.push(Response.json({ ok: true }))
@@ -2381,7 +2399,7 @@ async function flushWaitUntil() {
 function cacheKey(request) {
   const url = new URL(request.url)
   url.hash = ''
-  if (url.pathname === '/api/sermons') {
+  if (/^\/api\/public\/groups\/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\/posts(?:\/[a-z0-9-]{1,180})?$/.test(url.pathname)) {
     url.search = ''
   } else {
     url.searchParams.sort()
@@ -2570,7 +2588,6 @@ function createApiCacheKey(url) {
 
   parsed.hash = ''
   if (
-    parsed.pathname === '/api/sermons' ||
     /^\/api\/public\/groups\/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\/posts(?:\/[a-z0-9-]{1,180})?$/.test(parsed.pathname)
   ) {
     parsed.search = ''
