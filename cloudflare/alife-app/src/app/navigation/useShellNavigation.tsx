@@ -250,11 +250,11 @@ export const useShellNavigation = ({
   ].filter(isPresent)
 
   const platformSections: ShellNavSection[] = [
-    adminPlatformItems.length
-      ? { key: 'platform-management', label: isChinese ? '平台管理' : 'Platform management', description: isChinese ? '总览、成员、角色、通知、文件和记录' : 'Overview, members, roles, notices, files, and records', items: adminPlatformItems }
-      : null,
     contentItems.length
       ? { key: 'platform-content', label: isChinese ? '公开内容' : 'Public content', description: isChinese ? '面向访客和成员的入口' : 'Visitor and member-facing entry points', items: contentItems }
+      : null,
+    adminPlatformItems.length
+      ? { key: 'platform-management', label: isChinese ? '平台管理' : 'Platform management', description: isChinese ? '总览、成员、角色、通知、文件和记录' : 'Overview, members, roles, notices, files, and records', items: adminPlatformItems }
       : null,
   ].filter(isPresent)
 
