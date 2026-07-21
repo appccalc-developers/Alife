@@ -4,11 +4,14 @@ import { useAuthStore } from '../../stores/auth'
 import { translateUi } from '../../i18n/uiText'
 import { EnrollmentIcon, EventsIcon, MemoriesIcon, OnboardingIcon } from './icons'
 import type { NavigationCopy, ShellNavItem, ShellNavSection } from './types'
+import type { GroupEventRecord } from '../../types/event'
+import { getEventLifecycle, readEventLifecycleData } from '../../utils/eventLifecycle'
 
 type Args = {
   contextualGroupId: string
   eventDetailScreen: boolean
   contextualEventId?: string
+  contextualEvent?: GroupEventRecord | null
   workspaceEnabled: boolean
 }
 
@@ -30,6 +33,7 @@ export const useShellNavigation = ({
   contextualGroupId,
   eventDetailScreen,
   contextualEventId,
+  contextualEvent,
   workspaceEnabled,
 }: Args) => {
   const auth = useAuthStore()
@@ -81,7 +85,7 @@ export const useShellNavigation = ({
     {
       key: 'workspace:events',
       label: isChinese ? '活动' : 'Events',
-      description: isChinese ? '创建活动、维护报名和后续回顾' : 'Create events, manage enrollment, and capture memories',
+      description: isChinese ? '过往、即将举行和筹备中的活动' : 'Past, upcoming, and planning events',
       to: '/groups?section=events',
       matchSearch: '?section=events',
       icon: <EventsIcon />,
@@ -116,34 +120,40 @@ export const useShellNavigation = ({
     },
   ] : []
 
-  const eventItems: ShellNavItem[] = workspaceGroupId && contextualEventId ? [
+  const activeEventId = contextualEventId || ''
+  const eventBasePath = workspaceGroupId && activeEventId
+    ? `/groups/${encodeURIComponent(workspaceGroupId)}/events/${encodeURIComponent(activeEventId)}`
+    : ''
+  const eventLifecycle = contextualEvent ? getEventLifecycle(contextualEvent) : null
+  const acceptsEnrollments = contextualEvent ? readEventLifecycleData(contextualEvent).acceptsEnrollments : false
+  const eventItems: ShellNavItem[] = eventBasePath ? [
     {
       key: 'event:notice',
       label: isChinese ? '活动通知' : 'Notice',
       description: isChinese ? '活动详情与发布内容' : 'Event details and published content',
-      to: '/events',
+      to: eventBasePath,
       icon: <EventsIcon />,
-      onClick: () => activeEntityService.setEvent(contextualEventId, workspaceGroupId),
+      onClick: () => activeEntityService.setEvent(activeEventId, workspaceGroupId),
     },
-    {
+    eventLifecycle === 'planning' && acceptsEnrollments ? {
       key: 'event:enrollments',
       label: isChinese ? '报名管理' : 'Enrollment',
       description: isChinese ? '报名名单和参与状态' : 'Registrations and attendance status',
-      to: '/events?section=enrollments',
+      to: `${eventBasePath}?section=enrollments`,
       matchSearch: '?section=enrollments',
       icon: <EnrollmentIcon />,
-      onClick: () => activeEntityService.setEvent(contextualEventId, workspaceGroupId),
-    },
-    {
+      onClick: () => activeEntityService.setEvent(activeEventId, workspaceGroupId),
+    } : null,
+    eventLifecycle === 'past' ? {
       key: 'event:memories',
       label: isChinese ? '图文回顾' : 'Memories',
       description: isChinese ? '照片、回顾和活动沉淀' : 'Photos, recaps, and event memory',
-      to: '/events?section=memories',
+      to: `${eventBasePath}?section=memories`,
       matchSearch: '?section=memories',
       icon: <MemoriesIcon />,
-      onClick: () => activeEntityService.setEvent(contextualEventId, workspaceGroupId),
-    },
-  ] : []
+      onClick: () => activeEntityService.setEvent(activeEventId, workspaceGroupId),
+    } : null,
+  ].filter(isPresent) : []
 
   const contextualItems = eventDetailScreen ? eventItems : []
   const workspaceItems = [...workspaceHome, ...workspaceManagement, ...contextualItems]

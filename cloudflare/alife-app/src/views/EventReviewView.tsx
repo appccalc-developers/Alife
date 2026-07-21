@@ -15,6 +15,7 @@ import type { EventEnrollmentRecord } from '../types/enrollment'
 import type { GroupEventRecord } from '../types/event'
 import type { EventReviewRecord } from '../types/review'
 import { loadAiContentContext, type AiContentContext } from '../utils/aiContentContext'
+import { getEventLifecycle } from '../utils/eventLifecycle'
 
 const EventReviewView = () => {
   const t = useUiText()
@@ -105,10 +106,14 @@ const EventReviewView = () => {
     return <Navigate to="/" replace />
   }
 
+  if (event && getEventLifecycle(event) !== 'past') {
+    return <Navigate to={`/groups/${encodeURIComponent(groupId)}/events/${encodeURIComponent(eventId)}`} replace />
+  }
+
   return (
     <AppPageShell>
       <div className="mb-5">
-        <Link to="/groups" className="text-sm font-medium text-slate-600 hover:text-slate-950">
+        <Link to={`/groups/${encodeURIComponent(groupId)}/events/${encodeURIComponent(eventId)}?section=memories`} className="text-sm font-medium text-slate-600 hover:text-slate-950">
           {t('backToGroup')}
         </Link>
       </div>

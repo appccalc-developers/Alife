@@ -49,6 +49,7 @@ const WorkspaceShell = () => {
     contextualGroupId: context.contextualGroupId,
     eventDetailScreen: Boolean(context.groupEventDetailMatch || context.location.pathname === '/events'),
     contextualEventId: context.groupEventDetailMatch?.[2] || context.activeIds.eventId,
+    contextualEvent: context.contextualEvent,
     workspaceEnabled: !context.isOnboardingScreen,
   })
   const actions = useShellActions({

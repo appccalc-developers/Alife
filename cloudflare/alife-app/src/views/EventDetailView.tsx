@@ -20,6 +20,7 @@ import type { EventDto, GroupEventRecord, MultilingualString } from '../types/ev
 import type { EventReviewRecord } from '../types/review'
 import { contactService } from '../services/contactService'
 import type { ContactProfileDto } from '../types/contact'
+import { getEventLifecycle, readEventLifecycleData } from '../utils/eventLifecycle'
 
 type EventDetailSection = 'notice' | 'enrollments' | 'memories'
 
@@ -33,6 +34,7 @@ type EnrollmentPayload = {
 const labels = {
   en: {
     backToGroup: 'Back to group',
+    backToEvents: 'Back to events',
     loading: 'Loading event...',
     eventLoadFailed: 'Unable to load event.',
     eventNotFound: 'Event not found.',
@@ -77,6 +79,7 @@ const labels = {
   },
   zh: {
     backToGroup: '返回小组',
+    backToEvents: '返回活动列表',
     loading: '正在加载活动...',
     eventLoadFailed: '无法加载活动。',
     eventNotFound: '未找到活动。',
@@ -499,15 +502,15 @@ const MemoriesPanel = ({
 
   return (
     <div className="space-y-5">
-      <div className="flex justify-end">
+      {memberId ? <div className="flex justify-end">
         <Link
-          to="/events/review"
+          to={`/groups/${encodeURIComponent(groupId)}/events/${encodeURIComponent(eventId)}/review`}
           onClick={() => activeEntityService.setEvent(eventId, groupId)}
           className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
         >
           {text.addReview}
         </Link>
-      </div>
+      </div> : null}
 
       {message ? (
         <AppSectionCard dense>
@@ -533,7 +536,7 @@ const MemoriesPanel = ({
             action={canMutate ? (
               <div className="flex flex-wrap gap-2">
                 <Link
-                  to={`/events/review?reviewId=${encodeURIComponent(review.id)}`}
+                  to={`/groups/${encodeURIComponent(groupId)}/events/${encodeURIComponent(eventId)}/review?reviewId=${encodeURIComponent(review.id)}`}
                   onClick={() => activeEntityService.setEvent(eventId, groupId)}
                   className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-100"
                 >
@@ -675,16 +678,26 @@ const EventDetailView = () => {
   }, [eventId, groupId, text.eventLoadFailed])
 
   const eventDto = useMemo(() => (event ? parseEventDto(event) : null), [event])
+  const lifecycle = event ? getEventLifecycle(event) : null
+  const acceptsEnrollments = event ? readEventLifecycleData(event).acceptsEnrollments : false
 
   if (!groupId || !eventId) {
     return <Navigate to="/" replace />
   }
 
+  if (
+    event &&
+    ((activeSection === 'enrollments' && (lifecycle !== 'planning' || !acceptsEnrollments)) ||
+      (activeSection === 'memories' && lifecycle !== 'past'))
+  ) {
+    return <Navigate to={`/groups/${encodeURIComponent(groupId)}/events/${encodeURIComponent(eventId)}`} replace />
+  }
+
   return (
     <AppPageShell>
       <div className="mb-1">
-        <Link to="/groups" className="text-sm font-medium text-slate-600 hover:text-slate-950">
-          {text.backToGroup}
+        <Link to="/groups?section=events" className="text-sm font-medium text-slate-600 hover:text-slate-950">
+          {text.backToEvents}
         </Link>
       </div>
 

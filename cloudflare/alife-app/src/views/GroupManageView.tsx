@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowRightLeft, ArrowUpRight, CalendarDays, Crown, FileText, Loader2, Pencil, ShieldCheck, UserPlus, UserMinus, UsersRound, X } from 'lucide-react'
 import AppActionButton from '../components/layout/AppActionButton'
@@ -24,12 +24,19 @@ import AnnouncementManagementPanel from '../components/group/AnnouncementManagem
 import ContactManagementPanel from '../components/group/ContactManagementPanel'
 import RegionalPhoneInput from '../components/forms/RegionalPhoneInput'
 import { isValidPhoneNumber } from '../utils/phoneNumber'
+import { getEventLifecycle, readEventLifecycleData, sortEventsByLatestStart, type EventLifecycle } from '../utils/eventLifecycle'
 
 const shortId = (value: string) => (value.length > 8 ? value.slice(0, 8) : value)
 
 const formatDate = (value: string, language: string) => {
   if (!value) return translateUi(language, 'noDate')
-  return new Date(value).toLocaleDateString()
+  return new Date(value).toLocaleString(language === 'zh' ? 'zh-CN' : 'en-NZ', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
 const isPlatformAdminRole = (role?: string | null) => role === 'admin' || role === 'superadmin'
@@ -74,6 +81,7 @@ const managementCopy = (language: string, isChurch?: boolean) => {
       inactive: '非活跃',
       totalMembers: '成员总数',
       upcomingEvents: '近期活动',
+      planningEvents: '筹备中活动',
       totalEvents: '全部活动',
       pastEvents: '已结束',
       publishedPages: '页面',
@@ -85,8 +93,12 @@ const managementCopy = (language: string, isChurch?: boolean) => {
       emptyMembersBody: '可以先邀请成员，或等待成员提交加入申请。',
       emptyEventsTitle: '还没有活动',
       emptyEventsBody: '用 AI 活动助理创建第一场活动，之后可在这里维护报名和回顾。',
-      openEvent: '查看',
-      editEvent: '编辑',
+      viewEventPosts: '查看发布内容',
+      addReview: '添加回顾',
+      enroll: '报名',
+      enrollmentClosed: '报名已截止',
+      noEnrollment: '无需报名',
+      noEventsInSection: '此分类中还没有活动。',
     }
     : {
       title: `${workspace} Operations`,
@@ -112,6 +124,7 @@ const managementCopy = (language: string, isChurch?: boolean) => {
       inactive: 'Inactive',
       totalMembers: 'Total people',
       upcomingEvents: 'Upcoming events',
+      planningEvents: 'Planning events',
       totalEvents: 'Total events',
       pastEvents: 'Past events',
       publishedPages: 'Pages',
@@ -123,8 +136,12 @@ const managementCopy = (language: string, isChurch?: boolean) => {
       emptyMembersBody: 'Invite people or wait for join requests to appear here.',
       emptyEventsTitle: 'No events yet',
       emptyEventsBody: 'Create the first event with the AI event assistant, then manage enrollment and memories here.',
-      openEvent: 'Open',
-      editEvent: 'Edit',
+      viewEventPosts: 'View posts',
+      addReview: 'Add review',
+      enroll: 'Enroll',
+      enrollmentClosed: 'Enrolment closed',
+      noEnrollment: 'No enrolment needed',
+      noEventsInSection: 'No events in this section.',
     }
 }
 
@@ -735,16 +752,27 @@ type EventsPanelProps = {
   groupId: string
   events: GroupEventRecord[]
   copy: ReturnType<typeof managementCopy>
-  onDeleteEvent: (eventId: string) => void
   framed?: boolean
 }
 
-const EventsPanel = ({ groupId, events, copy, onDeleteEvent, framed = true }: EventsPanelProps) => {
+const eventTabs: EventLifecycle[] = ['past', 'upcoming', 'planning']
+
+const EventsPanel = ({ groupId, events, copy, framed = true }: EventsPanelProps) => {
   const navigate = useNavigate()
   const t = useUiText()
   const { language } = useAuthStore()
-  const upcomingEvents = events.filter((event) => !event.endDate || new Date(event.endDate).getTime() >= Date.now())
-  const pastEvents = events.filter((event) => event.endDate && new Date(event.endDate).getTime() < Date.now())
+  const [activeTab, setActiveTab] = useState<EventLifecycle>('planning')
+  const eventsByTab = useMemo(() => {
+    const grouped: Record<EventLifecycle, GroupEventRecord[]> = { past: [], upcoming: [], planning: [] }
+    sortEventsByLatestStart(events).forEach((event) => grouped[getEventLifecycle(event)].push(event))
+    return grouped
+  }, [events])
+  const tabLabels: Record<EventLifecycle, string> = {
+    past: copy.pastEvents,
+    upcoming: copy.upcomingEvents,
+    planning: copy.planningEvents,
+  }
+  const displayedEvents = eventsByTab[activeTab]
 
   return (
     <ManagementPanelShell
@@ -764,8 +792,9 @@ const EventsPanel = ({ groupId, events, copy, onDeleteEvent, framed = true }: Ev
           ariaLabel={copy.events}
           items={[
             { label: copy.totalEvents, value: events.length, icon: <CalendarDays className="h-4 w-4" /> },
-            { label: copy.upcomingEvents, value: upcomingEvents.length, icon: <CalendarDays className="h-4 w-4" /> },
-            { label: copy.pastEvents, value: pastEvents.length, icon: <CalendarDays className="h-4 w-4" /> },
+            { label: copy.pastEvents, value: eventsByTab.past.length, icon: <CalendarDays className="h-4 w-4" /> },
+            { label: copy.upcomingEvents, value: eventsByTab.upcoming.length, icon: <CalendarDays className="h-4 w-4" /> },
+            { label: copy.planningEvents, value: eventsByTab.planning.length, icon: <CalendarDays className="h-4 w-4" /> },
           ]}
         />
       </div>
@@ -776,29 +805,67 @@ const EventsPanel = ({ groupId, events, copy, onDeleteEvent, framed = true }: Ev
           navigate('/events/new')
         }} />
       ) : (
-        <div className="space-y-2">
-          {events.map((event) => {
-            const title = (language === 'zh' ? event.titleZh : event.titleEn) || event.titleEn || event.titleZh || t('untitled')
-            return (
-              <div key={event.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/80 p-4">
-                <div>
-                  <p className="font-medium text-slate-950">{title}</p>
-                  <p className="mt-1 text-xs text-slate-500">{formatDate(event.startDate, language)}</p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <AppActionButton size="sm" variant="secondary" onClick={() => {
-                    activeEntityService.setEvent(event.id, groupId)
-                    navigate('/events')
-                  }}>{copy.openEvent}</AppActionButton>
-                  <AppActionButton size="sm" variant="secondary" onClick={() => {
-                    activeEntityService.setEvent(event.id, groupId)
-                    navigate('/events/edit', { state: { event } })
-                  }}>{copy.editEvent}</AppActionButton>
-                  <AppActionButton size="sm" variant="danger" onClick={() => onDeleteEvent(event.id)}>{t('delete')}</AppActionButton>
-                </div>
-              </div>
-            )
-          })}
+        <div className="space-y-4">
+          <div className="overflow-x-auto rounded-2xl border border-[#2f4b42]/10 bg-white/70 p-1.5" role="tablist" aria-label={copy.events}>
+            <div className="flex min-w-max gap-1.5">
+              {eventTabs.map((tab) => {
+                const selected = tab === activeTab
+                return (
+                  <button
+                    key={tab}
+                    type="button"
+                    role="tab"
+                    aria-selected={selected}
+                    onClick={() => setActiveTab(tab)}
+                    className={[
+                      'min-h-11 rounded-xl px-4 py-2 text-sm font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/45',
+                      selected ? 'bg-[#173f36] text-white shadow-sm' : 'text-[#53665f] hover:bg-[#edf5f1] hover:text-[#123d34]',
+                    ].join(' ')}
+                  >
+                    {tabLabels[tab]} <span className={selected ? 'text-white/70' : 'text-[#87938e]'}>({eventsByTab[tab].length})</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {displayedEvents.length === 0 ? (
+            <p className="rounded-2xl border border-dashed border-[#176b5a]/25 bg-white/64 p-6 text-center text-sm text-[#66766f]">{copy.noEventsInSection}</p>
+          ) : (
+            <div className="space-y-2">
+              {displayedEvents.map((event) => {
+                const title = (language === 'zh' ? event.titleZh : event.titleEn) || event.titleEn || event.titleZh || t('untitled')
+                const lifecycleData = readEventLifecycleData(event)
+                const detailPath = `/groups/${encodeURIComponent(groupId)}/events/${encodeURIComponent(event.id)}`
+                return (
+                  <div key={event.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/80 p-4">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-medium text-slate-950">{title}</p>
+                        {activeTab === 'upcoming' ? <AppBadge variant="neutral">{copy.enrollmentClosed}</AppBadge> : null}
+                        {activeTab === 'planning' && !lifecycleData.acceptsEnrollments ? <AppBadge variant="neutral">{copy.noEnrollment}</AppBadge> : null}
+                      </div>
+                      <p className="mt-1 text-xs text-slate-500">{formatDate(event.startDate, language)}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <AppActionButton size="sm" variant="secondary" onClick={() => {
+                        activeEntityService.setEvent(event.id, groupId)
+                        navigate(detailPath)
+                      }}>{copy.viewEventPosts}</AppActionButton>
+                      {activeTab === 'past' ? <AppActionButton size="sm" variant="primary" onClick={() => {
+                        activeEntityService.setEvent(event.id, groupId)
+                        navigate(`${detailPath}/review`)
+                      }}>{copy.addReview}</AppActionButton> : null}
+                      {activeTab === 'planning' && lifecycleData.acceptsEnrollments ? <AppActionButton size="sm" variant="primary" onClick={() => {
+                        activeEntityService.setEvent(event.id, groupId)
+                        navigate(`${detailPath}/enroll`)
+                      }}>{copy.enroll}</AppActionButton> : null}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
     </ManagementPanelShell>
@@ -843,7 +910,6 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
     setCoLeader,
     transferLeadership,
     refreshMemberships,
-    deleteEvent,
   } = useGroupScreen(groupId, { loadEvents: true })
 
   const activeSection = normalizeManageSection(searchParams.get('section'))
@@ -1155,10 +1221,6 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
                   groupId={groupId}
                   events={events}
                   copy={copy}
-                  onDeleteEvent={(eventId) => {
-                    if (!window.confirm(t('deleteEventConfirm'))) return
-                    deleteEvent(eventId).catch(() => setStatusMessage(t('deleteEventFailed')))
-                  }}
                 />
               ) : null}
 
