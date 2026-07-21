@@ -113,11 +113,11 @@ const HomeNavHeader = ({ copy, language, solid = false, navItems: providedNavIte
           <ChevronDown className={`h-4 w-4 transition ${expanded ? 'rotate-180' : ''}`} />
         </button>
         {expanded ? (
-          <div className="ml-3 mt-1 grid gap-0.5 border-l border-white/10 pl-2">
+          <div className="ml-3 mt-1 grid gap-0.5 rounded-xl border border-white/15 bg-black/20 p-1.5">
             {item.items.map((child) => (
               <Link
                 key={child.to}
-                className="rounded-lg px-3 py-2 text-[0.9rem] font-medium text-white/62 transition hover:bg-white/[0.06] hover:text-white"
+                className="rounded-lg px-3 py-2 text-[0.9rem] font-medium text-white/85 transition hover:bg-white/10 hover:text-white focus:bg-white/10 focus:text-white focus:outline-none"
                 to={child.to}
                 onClick={(event) => closeDropdownNavigation(event.currentTarget)}
               >
