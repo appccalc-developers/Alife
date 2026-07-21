@@ -14,6 +14,8 @@ public sealed class CloudflareSpeedLayerCacheService(
 {
     private const string SermonsPath = "/api/sermons";
     private const string SermonsCacheTag = "alife-sermons";
+    private const string PublicPagesPath = "/api/pages/public";
+    private const string PublicPagesCacheTag = "alife-public-pages";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     public async Task PurgeApiPathsAsync(
@@ -145,9 +147,21 @@ public sealed class CloudflareSpeedLayerCacheService(
             configuration["Cloudflare:ApiToken"]);
 
     private static string[] GetGlobalPurgeTags(IEnumerable<string> paths)
-        => paths.Contains(SermonsPath, StringComparer.Ordinal)
-            ? [SermonsCacheTag]
-            : [];
+    {
+        var pathSet = paths.ToHashSet(StringComparer.Ordinal);
+        var tags = new List<string>(2);
+        if (pathSet.Contains(SermonsPath))
+        {
+            tags.Add(SermonsCacheTag);
+        }
+
+        if (pathSet.Contains(PublicPagesPath))
+        {
+            tags.Add(PublicPagesCacheTag);
+        }
+
+        return [.. tags];
+    }
 
     private static bool TryCreateWorkerEndpoint(string? baseUrl, out Uri endpoint)
     {

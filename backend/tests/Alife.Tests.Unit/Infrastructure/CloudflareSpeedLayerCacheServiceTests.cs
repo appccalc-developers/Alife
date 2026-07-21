@@ -62,6 +62,28 @@ public class CloudflareSpeedLayerCacheServiceTests
     }
 
     [Fact]
+    public async Task PurgeApiPathsAsync_WhenGlobalPurgeConfigured_PurgesPublicPagesCacheTag()
+    {
+        var handler = new RecordingHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var service = CreateService(handler, new Dictionary<string, string?>
+        {
+            ["Cloudflare:SyncWorkerBaseUrl"] = "https://ccalc.live",
+            ["Cloudflare:SyncApiToken"] = "sync-secret",
+            ["Cloudflare:ZoneId"] = "zone-id",
+            ["Cloudflare:ApiToken"] = "api-secret",
+        });
+
+        await service.PurgeApiPathsAsync(new[] { "/api/pages/public" });
+
+        var globalRequest = Assert.Single(
+            handler.Requests,
+            request => request.RequestUri?.Host == "api.cloudflare.com");
+        using var body = JsonDocument.Parse(globalRequest.Body);
+        var tags = body.RootElement.GetProperty("tags");
+        Assert.Equal("alife-public-pages", tags[0].GetString());
+    }
+
+    [Fact]
     public async Task PurgeApiPathsAsync_WhenConfigurationMissing_DoesNotSendRequestOrThrow()
     {
         var handler = new RecordingHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));

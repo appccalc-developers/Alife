@@ -114,9 +114,15 @@ export async function getSharedCacheGroupId(pathname: string, env: Env, pageMeta
 }
 
 export async function readPageMeta(env: Env, pageId: string) {
-  const record = await readLogicalCacheRecord(createPageMetaMapKey(pageId))
+  const key = createPageMetaMapKey(pageId)
+  const localRecord = await readLogicalCacheRecord(key)
+  const record = localRecord ?? await readGlobalApiCacheJson(env, key)
   if (!record || typeof record !== 'object') {
     return undefined
+  }
+
+  if (!localRecord) {
+    await writeLogicalCacheRecord(key, record, AUTHZ_MIRROR_TTL_SECONDS)
   }
 
   const groupId = readString((record as Record<string, unknown>).groupId) ?? readString((record as Record<string, unknown>).ownerGroupId)
@@ -145,7 +151,15 @@ export async function writePageMeta(env: Env, pageId: string, item: Record<strin
     createdByMemberId: readString(item.createdByMemberId) ?? undefined,
   }
 
-  await writeLogicalCacheRecord(createPageMetaMapKey(pageId), meta, AUTHZ_MIRROR_TTL_SECONDS)
+  const key = createPageMetaMapKey(pageId)
+  const tasks: Promise<unknown>[] = [
+    writeLogicalCacheRecord(key, meta, AUTHZ_MIRROR_TTL_SECONDS),
+  ]
+  if (isPublicVisibility(meta.visibility) && env.API_CACHE) {
+    tasks.push(env.API_CACHE.put(key, JSON.stringify(meta), { expirationTtl: 30 * 24 * 60 * 60 }))
+  }
+
+  await Promise.all(tasks)
 }
 
 export async function readEntityGroup(env: Env, entityType: string, entityId: string) {
@@ -301,6 +315,18 @@ export async function deleteLogicalCacheRecord(key: string) {
   await getEdgeCache().delete(createLogicalCacheRecordRequest(key))
 }
 
+async function readGlobalApiCacheJson(env: Env, key: string) {
+  if (!env.API_CACHE) {
+    return undefined
+  }
+
+  return (await env.API_CACHE.get(key, { type: 'json', cacheTtl: 60 })) ?? undefined
+}
+
+function isPublicVisibility(visibility: string | undefined) {
+  return visibility?.toLowerCase() === 'public'
+}
+
 export function parseCookies(cookieHeader: string) {
   const pairs = cookieHeader
     .split(';')
@@ -440,15 +466,11 @@ export async function createCredentialCacheKey(request: Request) {
 }
 
 export function getEdgeCache() {
-  const cacheStorage = globalThis.caches as unknown as {
-    default?: Cache
-  } | undefined
-
-  if (!cacheStorage?.default) {
+  if (!caches?.default) {
     throw new Error('Cache storage is not available in this runtime.')
   }
 
-  return cacheStorage.default
+  return caches.default
 }
 
 export async function readJsonObject(response: Response) {

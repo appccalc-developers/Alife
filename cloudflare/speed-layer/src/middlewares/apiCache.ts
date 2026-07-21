@@ -22,9 +22,13 @@ import {
   createMembershipKey,
   createMemberProfileAuthzKey,
   extractMemberIdFromRequest,
+  createLogicalCacheRecordRequest,
 } from './authCache'
 
 const CACHE_TTL_SECONDS = 86400 // 24 hours
+const PUBLIC_CONTENT_EDGE_TTL_SECONDS = 60 * 60 // 1 hour; KV remains the durable second-level cache.
+const PUBLIC_CONTENT_KV_TTL_SECONDS = 30 * 24 * 60 * 60
+const PUBLIC_CONTENT_KV_CACHE_TTL_SECONDS = 60
 const CACHE_STALE_WHILE_REVALIDATE_SECONDS = 300
 const CACHE_STALE_IF_ERROR_SECONDS = 86400
 const SERMON_CACHE_TTL_SECONDS = 300
@@ -34,6 +38,7 @@ const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 const PUBLIC_CACHEABLE_API_PATHS = new Set(['/api/sermons', '/api/pages/public'])
 const CACHE_TAG_BY_API_PATH = new Map([
   ['/api/sermons', 'alife-sermons'],
+  ['/api/pages/public', 'alife-public-pages'],
 ])
 const GROUP_SHARED_CACHE_TTLS = {
   pages: CACHE_TTL_SECONDS,
@@ -249,7 +254,7 @@ export const apiCacheMiddleware = async (
   if (req.method === 'GET' && !bypassEdgeCache) {
     const cached = sharedContext
       ? await readSharedCachedResponse(env, req, sharedContext)
-      : await getEdgeCache().match(await createCacheKey(req))
+      : await readPublicCachedResponse(env, req)
 
     if (cached) {
       const clientEtag = req.headers.get('if-none-match')
@@ -276,15 +281,15 @@ export const apiCacheMiddleware = async (
     ]
 
     if (sharedContext) {
-      if (sharedContext.memberId) {
+      if (sharedContext.memberId || canReadAnonymousPublicPage(sharedContext)) {
         waitUntilTasks.push(writeSharedCachedResponse(env, req, withEdgeCacheControl(taggedResponse.clone())))
       }
     } else {
       const responseForCache = withCacheTag(
-        withEdgeCacheControl(taggedResponse.clone(), getApiCacheTtlSeconds(req)),
+        withEdgeCacheControl(taggedResponse.clone(), getEdgeCacheTtlSeconds(req)),
         url.pathname,
       )
-      waitUntilTasks.push(createCacheKey(req).then((cacheKey) => getEdgeCache().put(cacheKey, responseForCache)))
+      waitUntilTasks.push(writePublicCachedResponse(env, req, responseForCache))
     }
 
     ctx.waitUntil(Promise.all(waitUntilTasks))
@@ -320,6 +325,10 @@ export async function readSharedCachedResponse(env: Env, request: Request, conte
 }
 
 export function canReadSharedCache(context: SharedCacheContext) {
+  if (context.authzStatus === 'no-principal') {
+    return isPublicVisibility(context.pageMeta?.visibility)
+  }
+
   if (context.authzStatus !== 'hit') {
     return false
   }
@@ -329,6 +338,10 @@ export function canReadSharedCache(context: SharedCacheContext) {
   }
 
   return isPageAuthor(context.pageMeta, context.memberId) || hasDraftPageRole(context.authzRecord)
+}
+
+function canReadAnonymousPublicPage(context: SharedCacheContext) {
+  return context.authzStatus === 'no-principal' && isPublicVisibility(context.pageMeta?.visibility)
 }
 
 export async function getAuthorizedGroupCachedResponse(
@@ -414,22 +427,54 @@ export async function writeStoredResponse(env: Env, key: string, response: Respo
   const body = await response.text()
   const headers = new Headers(response.headers)
   const etag = headers.get('etag') ?? await generateEtag(body)
+  const isPublicPageDetail = isPublicPageDetailCacheRecord(key, body)
+  const edgeTtlSeconds = isPublicPageDetail ? PUBLIC_CONTENT_EDGE_TTL_SECONDS : ttlSeconds
 
   headers.set('etag', etag)
-  headers.set('cache-control', `public, max-age=${ttlSeconds}`)
+  headers.set('cache-control', `public, max-age=${edgeTtlSeconds}`)
+  if (isPublicPageDetail) {
+    headers.set('cache-tag', 'alife-public-pages')
+  }
 
-  await getEdgeCache().put(
-    createStoredResponseCacheRequest(key),
-    new Response(body, {
-      status: response.status,
-      statusText: response.statusText,
-      headers,
-    }),
-  )
+  const storedResponse = new Response(body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
+  const tasks: Promise<unknown>[] = [
+    getEdgeCache().put(createStoredResponseCacheRequest(key), storedResponse.clone()),
+  ]
+  if (isPublicPageDetail && env.API_CACHE) {
+    tasks.push(env.API_CACHE.put(
+      key,
+      await serializeStoredResponse(storedResponse.clone()),
+      { expirationTtl: PUBLIC_CONTENT_KV_TTL_SECONDS },
+    ))
+  }
+
+  await Promise.all(tasks)
 }
 
 export async function readStoredResponse(env: Env, key: string) {
-  return getEdgeCache().match(createStoredResponseCacheRequest(key))
+  const cacheRequest = createStoredResponseCacheRequest(key)
+  const edgeResponse = await getEdgeCache().match(cacheRequest)
+  if (edgeResponse) {
+    return edgeResponse
+  }
+
+  if (!isPublicPageDetailCacheKey(key) || !env.API_CACHE) {
+    return undefined
+  }
+
+  const record = await env.API_CACHE.get(key, { type: 'json', cacheTtl: PUBLIC_CONTENT_KV_CACHE_TTL_SECONDS })
+  const globalResponse = deserializeStoredResponse(record)
+  if (!globalResponse || !isPublicPageDetailCacheRecord(key, await globalResponse.clone().text())) {
+    return undefined
+  }
+
+  const edgeCopy = withStoredResponseCacheControl(globalResponse.clone(), PUBLIC_CONTENT_EDGE_TTL_SECONDS)
+  await getEdgeCache().put(cacheRequest, edgeCopy)
+  return globalResponse
 }
 
 export function createStoredResponseCacheRequest(key: string) {
@@ -495,6 +540,15 @@ export function getApiCacheTtlSeconds(requestOrPath: Request | string) {
   return getAuthorizedGroupCachePolicy(pathname)?.ttlSeconds ?? CACHE_TTL_SECONDS
 }
 
+export function getEdgeCacheTtlSeconds(requestOrPath: Request | string) {
+  const pathname = typeof requestOrPath === 'string'
+    ? new URL(requestOrPath, 'https://alife.local').pathname
+    : new URL(requestOrPath.url).pathname
+  return pathname === '/api/pages/public'
+    ? PUBLIC_CONTENT_EDGE_TTL_SECONDS
+    : getApiCacheTtlSeconds(requestOrPath)
+}
+
 export async function passivelyInvalidate(env: Env, request: Request, response: Response, targetMemberId = '') {
   const responseForMutationCacheSync = response.clone()
   const paths = await getInvalidationPaths(env, request, response)
@@ -515,6 +569,10 @@ export async function passivelyInvalidate(env: Env, request: Request, response: 
       }
     }),
   ])
+
+  if (paths.includes('/api/pages/public')) {
+    await warmPublicPagesCache(env, request)
+  }
 }
 
 export async function purgeApiPathCache(env: Env, request: Request, path: string) {
@@ -526,7 +584,11 @@ export async function purgeApiPathCache(env: Env, request: Request, path: string
 }
 
 export async function deleteApiCacheKey(env: Env, key: string) {
-  await getEdgeCache().delete(createStoredResponseCacheRequest(key))
+  await Promise.all([
+    getEdgeCache().delete(createStoredResponseCacheRequest(key)),
+    getEdgeCache().delete(createLogicalCacheRecordRequest(key)),
+    env.API_CACHE?.delete(key),
+  ])
 }
 
 export async function deleteAuthzKey(env: Env, key: string) {
@@ -730,10 +792,11 @@ export function getInvalidationKeys(request: Request, targetMemberId = '') {
 export async function rememberEntityGroups(env: Env, request: Request, response: Response) {
   const path = new URL(request.url).pathname
   const groupListMatch = path.match(/^\/api\/groups\/([^/]+)\/(pages|events)$/)
+  const publicPageList = path === '/api/pages/public'
   const pageDetailMatch = path.match(/^\/api\/pages\/([^/]+)$/)
   const eventSubresourceMatch = path.match(/^\/api\/events\/([^/]+)\/(enrollments|reviews)$/)
 
-  if (!groupListMatch && !pageDetailMatch && !eventSubresourceMatch) {
+  if (!groupListMatch && !publicPageList && !pageDetailMatch && !eventSubresourceMatch) {
     return
   }
 
@@ -768,6 +831,103 @@ export async function rememberEntityGroups(env: Env, request: Request, response:
       await writeEntityGroup(env, 'event', eventSubresourceMatch[1], groupId)
     }
   }
+}
+
+export async function warmPublicPagesCache(env: Env, request: Request) {
+  try {
+    return await warmPublicPagesCacheCore(env, request)
+  } catch (error) {
+    console.error(JSON.stringify({
+      message: 'Public page cache warm failed.',
+      error: error instanceof Error ? error.message : String(error),
+    }))
+    return { pages: 0 }
+  }
+}
+
+async function warmPublicPagesCacheCore(env: Env, request: Request) {
+  if (!env.API_CACHE) {
+    return { pages: 0 }
+  }
+
+  const publicRequest = createPublicCacheRequest(request, '/api/pages/public')
+  const publicPagesOriginResponse = await fetch(createPublicOriginRequest(env, '/api/pages/public'))
+  if (!publicPagesOriginResponse.ok) {
+    return { pages: 0 }
+  }
+
+  const taggedPublicPagesResponse = await withEtag(publicPagesOriginResponse)
+  const publicPages = await readJson(taggedPublicPagesResponse.clone())
+  if (!Array.isArray(publicPages)) {
+    return { pages: 0 }
+  }
+
+  await Promise.all([
+    rememberEntityGroups(env, publicRequest, taggedPublicPagesResponse.clone()),
+    writePublicCachedResponse(
+      env,
+      publicRequest,
+      withCacheTag(
+        withEdgeCacheControl(taggedPublicPagesResponse.clone(), PUBLIC_CONTENT_EDGE_TTL_SECONDS),
+        '/api/pages/public',
+      ),
+    ),
+  ])
+
+  const pageIds = publicPages
+    .map((page) => readString(page?.id))
+    .filter((pageId): pageId is string => Boolean(pageId))
+  let warmedPages = 0
+  for (let offset = 0; offset < pageIds.length; offset += 5) {
+    const batch = pageIds.slice(offset, offset + 5)
+    const results = await Promise.all(batch.map((pageId) => warmPublicPageDetail(env, request, pageId)))
+    warmedPages += results.filter(Boolean).length
+  }
+
+  return { pages: warmedPages }
+}
+
+async function warmPublicPageDetail(env: Env, request: Request, pageId: string) {
+  const path = `/api/pages/${encodeURIComponent(pageId)}`
+  const detailRequest = createPublicCacheRequest(request, path)
+  const originResponse = await fetch(createPublicOriginRequest(env, path))
+  if (!originResponse.ok) {
+    return false
+  }
+
+  const taggedResponse = await withEtag(originResponse)
+  const body = await taggedResponse.clone().text()
+  if (!isPublicPageDetailCacheRecord(createApiCacheKey(detailRequest), body)) {
+    return false
+  }
+
+  await Promise.all([
+    rememberEntityGroups(env, detailRequest, taggedResponse.clone()),
+    writeSharedCachedResponse(env, detailRequest, taggedResponse.clone()),
+  ])
+  return true
+}
+
+function createPublicCacheRequest(request: Request, pathname: string) {
+  const url = new URL(request.url)
+  url.pathname = pathname
+  url.search = ''
+  url.hash = ''
+  return new Request(url.toString(), {
+    method: 'GET',
+    headers: { accept: 'application/json' },
+  })
+}
+
+function createPublicOriginRequest(env: Env, pathname: string) {
+  const origin = new URL((env.API_PROXY_TARGET || 'https://api.ccalc.live').replace(/\/$/, ''))
+  origin.pathname = pathname
+  origin.search = ''
+  origin.hash = ''
+  return new Request(origin.toString(), {
+    method: 'GET',
+    headers: { accept: 'application/json' },
+  })
 }
 
 export async function rememberGroupAuthorization(
@@ -913,6 +1073,125 @@ export function withEdgeCacheControl(response: Response, ttlSeconds = CACHE_TTL_
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
+    headers,
+  })
+}
+
+async function readPublicCachedResponse(env: Env, request: Request) {
+  const cacheKey = await createCacheKey(request)
+  const edgeResponse = await getEdgeCache().match(cacheKey)
+  if (edgeResponse) {
+    return edgeResponse
+  }
+
+  if (!isGlobalPublicContentPath(new URL(request.url).pathname) || !env.API_CACHE) {
+    return undefined
+  }
+
+  const key = createApiCacheKey(request)
+  const record = await env.API_CACHE.get(key, { type: 'json', cacheTtl: PUBLIC_CONTENT_KV_CACHE_TTL_SECONDS })
+  const globalResponse = deserializeStoredResponse(record)
+  if (!globalResponse) {
+    return undefined
+  }
+
+  const edgeCopy = withStoredResponseCacheControl(globalResponse.clone(), getEdgeCacheTtlSeconds(request))
+  await getEdgeCache().put(cacheKey, edgeCopy)
+  return globalResponse
+}
+
+async function writePublicCachedResponse(env: Env, request: Request, response: Response) {
+  const cacheKey = await createCacheKey(request)
+  const tasks: Promise<unknown>[] = [getEdgeCache().put(cacheKey, response.clone())]
+  if (isGlobalPublicContentPath(new URL(request.url).pathname) && env.API_CACHE) {
+    tasks.push(env.API_CACHE.put(
+      createApiCacheKey(request),
+      await serializeStoredResponse(response.clone()),
+      { expirationTtl: PUBLIC_CONTENT_KV_TTL_SECONDS },
+    ))
+  }
+
+  await Promise.all(tasks)
+}
+
+function isGlobalPublicContentPath(pathname: string) {
+  return pathname === '/api/pages/public'
+}
+
+function isPublicPageDetailCacheKey(key: string) {
+  return /^api:\/api\/pages\/[^/?]+$/.test(key) && key !== 'api:/api/pages/public'
+}
+
+function isPublicPageDetailCacheRecord(key: string, body: string) {
+  if (!isPublicPageDetailCacheKey(key)) {
+    return false
+  }
+
+  try {
+    const value = JSON.parse(body) as Record<string, unknown>
+    return isPublicVisibility(readString(value.visibility) ?? undefined)
+  } catch {
+    return false
+  }
+}
+
+function isPublicVisibility(visibility: string | undefined) {
+  return visibility?.toLowerCase() === 'public'
+}
+
+function withStoredResponseCacheControl(response: Response, ttlSeconds: number) {
+  const headers = new Headers(response.headers)
+  headers.set('cache-control', `public, max-age=${ttlSeconds}`)
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
+}
+
+async function serializeStoredResponse(response: Response) {
+  const headers: Record<string, string> = {}
+  response.headers.forEach((value, key) => {
+    headers[key] = value
+  })
+
+  return JSON.stringify({
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+    body: await response.text(),
+    storedAt: new Date().toISOString(),
+  })
+}
+
+function deserializeStoredResponse(record: unknown) {
+  if (!record || typeof record !== 'object') {
+    return undefined
+  }
+
+  const value = record as Record<string, unknown>
+  if (
+    typeof value.body !== 'string' ||
+    typeof value.status !== 'number' ||
+    value.status < 200 ||
+    value.status > 599 ||
+    !value.headers ||
+    typeof value.headers !== 'object' ||
+    Array.isArray(value.headers)
+  ) {
+    return undefined
+  }
+
+  const headers = new Headers()
+  for (const [key, headerValue] of Object.entries(value.headers)) {
+    if (typeof headerValue === 'string') {
+      headers.set(key, headerValue)
+    }
+  }
+
+  return new Response(value.body, {
+    status: value.status,
+    statusText: typeof value.statusText === 'string' ? value.statusText : '',
     headers,
   })
 }

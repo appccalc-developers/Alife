@@ -1,11 +1,15 @@
-import type { Env } from '../../index'
-import { purgeApiPathCache } from '../../middlewares/apiCache'
+import type { Env, ExecutionContext } from '../../index'
+import { purgeApiPathCache, warmPublicPagesCache } from '../../middlewares/apiCache'
 
 const ALLOWED_PURGE_PATHS = new Set(['/api/sermons', '/api/pages/public'])
 const PUBLIC_CONTENT_POST_PATH =
   /^\/api\/public\/groups\/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\/posts(?:\/[a-z0-9-]{1,180})?$/
 
-export async function handleInternalCacheInvalidate(request: Request, env: Env): Promise<Response> {
+export async function handleInternalCacheInvalidate(
+  request: Request,
+  env: Env,
+  ctx?: ExecutionContext,
+): Promise<Response> {
   if (!env.CACHE_SYNC_API_TOKEN) {
     return createNoStoreJsonResponse({ ok: false, error: 'Unauthorized' }, 401)
   }
@@ -29,6 +33,9 @@ export async function handleInternalCacheInvalidate(request: Request, env: Env):
   }
 
   await Promise.all(paths.map((path) => purgeApiPathCache(env, request, path)))
+  if (paths.includes('/api/pages/public') && ctx) {
+    ctx.waitUntil(warmPublicPagesCache(env, request))
+  }
   return createNoStoreJsonResponse({ ok: true, purged: paths })
 }
 

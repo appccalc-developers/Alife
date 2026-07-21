@@ -12,6 +12,8 @@ import { ReviewSession } from './features/events/reviewer'
 
 export type Env = {
   API_PROXY_TARGET?: string
+  /** Global second-level cache for public API responses and public page metadata. */
+  API_CACHE?: KVNamespace
   /** Comma-separated frontend origins allowed for credentialed CORS. */
   CORS_ALLOWED_ORIGINS?: string
   /** Gemini API key stored as a Cloudflare Worker secret. */
@@ -51,7 +53,7 @@ const app = new Router()
 app.all('/images', async (req, env, ctx) => proxyHandler.handle(req, env, ctx))
 app.all('/images/*', async (req, env, ctx) => proxyHandler.handle(req, env, ctx))
 app.all('/proxy/*', async (req, env, ctx) => proxyHandler.handle(req, env, ctx))
-app.post('/api/internal/cache/invalidate', async (req, env) => handleInternalCacheInvalidate(req, env))
+app.post('/api/internal/cache/invalidate', async (req, env, ctx) => handleInternalCacheInvalidate(req, env, ctx))
 
 // Setup pipeline middleware
 const apiPipeline = new Router()
