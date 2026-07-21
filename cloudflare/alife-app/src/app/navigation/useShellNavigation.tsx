@@ -1,16 +1,12 @@
-import { useMemo } from 'react'
-import { Activity, Bell, BookMarked, BookOpenText, FileImage, Globe2, Handshake, Home, LayoutDashboard, MessageSquareText, ShieldCheck, UserCog, UsersRound } from 'lucide-react'
-import type { PageSummaryDto } from '../../types'
+import { Activity, Bell, BookMarked, BookOpenText, ContactRound, FileImage, FileText, Globe2, Handshake, Home, Images, LayoutDashboard, MessageSquareText, Network, ShieldCheck, UserCog, UsersRound } from 'lucide-react'
 import { activeEntityService } from '../../services/activeEntityService'
 import { useAuthStore } from '../../stores/auth'
-import { localizeText } from '../../utils/localizedText'
 import { translateUi } from '../../i18n/uiText'
-import { EnrollmentIcon, EventsIcon, MemoriesIcon, OnboardingIcon, PageIcon } from './icons'
+import { EnrollmentIcon, EventsIcon, MemoriesIcon, OnboardingIcon } from './icons'
 import type { NavigationCopy, ShellNavItem, ShellNavSection } from './types'
 
 type Args = {
   contextualGroupId: string
-  currentGroupPages: PageSummaryDto[]
   eventDetailScreen: boolean
   contextualEventId?: string
   workspaceEnabled: boolean
@@ -32,7 +28,6 @@ const adminPermissions = {
 
 export const useShellNavigation = ({
   contextualGroupId,
-  currentGroupPages,
   eventDetailScreen,
   contextualEventId,
   workspaceEnabled,
@@ -40,35 +35,83 @@ export const useShellNavigation = ({
   const auth = useAuthStore()
   const isChinese = auth.language === 'zh'
   const workspaceGroupId = contextualGroupId
-  const canEditReviewedGroupPages = Boolean(
-    workspaceGroupId &&
-    auth.canReviewPages &&
-    auth.hasLeaderAccess(workspaceGroupId),
-  )
-
-  const pageItems = useMemo<ShellNavItem[]>(
-    () => workspaceGroupId ? currentGroupPages.map((page) => ({
-      key: `page:${page.id}`,
-      label: localizeText(page.title, auth.language) || translateUi(auth.language, 'untitledPage'),
-      description: isChinese ? '小组页面' : 'Group page',
-      to: canEditReviewedGroupPages && page.visibility === 'public'
-        ? `/pages/${page.id}/edit?preservePublicationReviewStatus=true&fromReview=true`
-        : '/groups',
-      pageId: page.id,
-      icon: <PageIcon />,
-      onClick: () => activeEntityService.setPage(page.id, workspaceGroupId),
-    })) : [],
-    [auth.language, canEditReviewedGroupPages, currentGroupPages, isChinese, workspaceGroupId],
-  )
+  const canManageWorkspace = Boolean(workspaceGroupId && auth.hasLeaderAccess(workspaceGroupId))
 
   const workspaceHome: ShellNavItem[] = workspaceGroupId ? [
     {
       key: 'workspace:home',
       label: isChinese ? '小组总览' : 'Group overview',
-      description: isChinese ? '成员、页面和小组动态' : 'Members, pages, and group activity',
-      to: '/groups',
+      description: isChinese ? '小组资料、带领团队和设置' : 'Group profile, leadership, and settings',
+      to: canManageWorkspace ? '/groups?section=group' : '/groups',
+      matchSearch: canManageWorkspace ? ['', '?section=group'] : '',
       icon: <LayoutDashboard className="h-5 w-5" />,
       requireNoActivePage: true,
+      onClick: () => activeEntityService.setGroup(workspaceGroupId, { clearPage: true }),
+    },
+  ] : []
+
+  const workspaceManagement: ShellNavItem[] = canManageWorkspace ? [
+    {
+      key: 'workspace:members',
+      label: isChinese ? '成员' : 'Members',
+      description: isChinese ? '审批、邀请、角色和成员状态' : 'Approvals, invitations, roles, and member status',
+      to: '/groups?section=members',
+      matchSearch: '?section=members',
+      icon: <UsersRound className="h-5 w-5" />,
+      onClick: () => activeEntityService.setGroup(workspaceGroupId, { clearPage: true }),
+    },
+    {
+      key: 'workspace:contacts',
+      label: isChinese ? '联系人' : 'Contacts',
+      description: isChinese ? '联系人资料、公开范围和留言入口' : 'Profiles, visibility, and inquiry entry points',
+      to: '/groups?section=contacts',
+      matchSearch: '?section=contacts',
+      icon: <ContactRound className="h-5 w-5" />,
+      onClick: () => activeEntityService.setGroup(workspaceGroupId, { clearPage: true }),
+    },
+    {
+      key: 'workspace:subgroups',
+      label: isChinese ? '下属小组' : 'Subgroups',
+      description: isChinese ? '管理小组结构和负责人' : 'Team structure and leaders',
+      to: '/groups?section=subgroups',
+      matchSearch: '?section=subgroups',
+      icon: <Network className="h-5 w-5" />,
+      onClick: () => activeEntityService.setGroup(workspaceGroupId, { clearPage: true }),
+    },
+    {
+      key: 'workspace:events',
+      label: isChinese ? '活动' : 'Events',
+      description: isChinese ? '创建活动、维护报名和后续回顾' : 'Create events, manage enrollment, and capture memories',
+      to: '/groups?section=events',
+      matchSearch: '?section=events',
+      icon: <EventsIcon />,
+      onClick: () => activeEntityService.setGroup(workspaceGroupId, { clearPage: true }),
+    },
+    {
+      key: 'workspace:announcements',
+      label: isChinese ? '公告' : 'Announcements',
+      description: isChinese ? '发布和管理小组公告' : 'Publish and manage group announcements',
+      to: '/groups?section=announcements',
+      matchSearch: '?section=announcements',
+      icon: <Bell className="h-5 w-5" />,
+      onClick: () => activeEntityService.setGroup(workspaceGroupId, { clearPage: true }),
+    },
+    {
+      key: 'workspace:albums',
+      label: isChinese ? '相册' : 'Albums',
+      description: isChinese ? '整理图片、子相册和页面展示' : 'Organize photos, subalbums, and page galleries',
+      to: '/groups?section=albums',
+      matchSearch: '?section=albums',
+      icon: <Images className="h-5 w-5" />,
+      onClick: () => activeEntityService.setGroup(workspaceGroupId, { clearPage: true }),
+    },
+    {
+      key: 'workspace:pages',
+      label: isChinese ? '页面' : 'Pages',
+      description: isChinese ? '发布页面和小组资料' : 'Published pages and group resources',
+      to: '/groups?section=pages',
+      matchSearch: '?section=pages',
+      icon: <FileText className="h-5 w-5" />,
       onClick: () => activeEntityService.setGroup(workspaceGroupId, { clearPage: true }),
     },
   ] : []
@@ -103,7 +146,7 @@ export const useShellNavigation = ({
   ] : []
 
   const contextualItems = eventDetailScreen ? eventItems : []
-  const workspaceItems = [...workspaceHome, ...pageItems, ...contextualItems]
+  const workspaceItems = [...workspaceHome, ...workspaceManagement, ...contextualItems]
   const workspaceVisible = Boolean(workspaceGroupId) && workspaceEnabled
 
   const adminPlatformItems: ShellNavItem[] = !auth.loading && (auth.isAdmin || auth.hasAdminPermission(adminPermissions.access))
@@ -239,10 +282,10 @@ export const useShellNavigation = ({
   ].filter(isPresent)
 
   const workspaceLabel = isChinese ? '小组工作区' : 'Group workspace'
-  const groupContentItems = [...workspaceHome, ...pageItems]
+  const groupContentItems = [...workspaceHome, ...workspaceManagement]
   const workspaceSections: ShellNavSection[] = [
     groupContentItems.length
-      ? { key: 'workspace-group', label: isChinese ? '当前小组' : 'Current group', description: isChinese ? '小组总览和页面内容' : 'Group overview and pages', items: groupContentItems }
+      ? { key: 'workspace-group', label: isChinese ? '当前小组' : 'Current group', description: isChinese ? '小组总览和管理' : 'Group overview and management', items: groupContentItems }
       : null,
     contextualItems.length
       ? { key: 'workspace-event', label: isChinese ? '当前活动' : 'Current event', description: isChinese ? '活动通知、报名和回顾' : 'Notice, enrollment, and memories', items: contextualItems }
@@ -296,7 +339,6 @@ export const useShellNavigation = ({
     copy,
     headerItems,
     mobileItems,
-    pageItems,
     platformSections,
     primaryItems,
     workspaceItems,

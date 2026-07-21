@@ -47,7 +47,6 @@ const WorkspaceShell = () => {
 
   const navigation = useShellNavigation({
     contextualGroupId: context.contextualGroupId,
-    currentGroupPages: context.currentGroupPages,
     eventDetailScreen: Boolean(context.groupEventDetailMatch || context.location.pathname === '/events'),
     contextualEventId: context.groupEventDetailMatch?.[2] || context.activeIds.eventId,
     workspaceEnabled: !context.isOnboardingScreen,

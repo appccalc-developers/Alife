@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowRightLeft, ArrowUpRight, Bell, CalendarDays, ContactRound, Images, Crown, FileText, Loader2, Network, Pencil, Settings, ShieldCheck, UserPlus, UserMinus, UsersRound, X } from 'lucide-react'
+import { ArrowRightLeft, ArrowUpRight, CalendarDays, Crown, FileText, Loader2, Pencil, ShieldCheck, UserPlus, UserMinus, UsersRound, X } from 'lucide-react'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
 import AppEmptyState from '../components/layout/AppEmptyState'
@@ -45,7 +45,7 @@ type ManageSection = 'announcements' | 'contacts' | 'members' | 'events' | 'albu
 const manageSectionKeys: ManageSection[] = ['members', 'contacts', 'subgroups', 'events', 'announcements', 'albums', 'pages', 'group']
 
 const normalizeManageSection = (value: string | null): ManageSection =>
-  manageSectionKeys.includes(value as ManageSection) ? value as ManageSection : 'pages'
+  manageSectionKeys.includes(value as ManageSection) ? value as ManageSection : 'group'
 
 const managementCopy = (language: string, isChurch?: boolean) => {
   const workspace = isChurch ? (language === 'zh' ? '教会' : 'Church') : (language === 'zh' ? '小组' : 'Group')
@@ -235,70 +235,12 @@ const ManagementPanelShell = ({ title, subtitle, action, framed = true, children
   )
 }
 
-const ManagementTabs = ({
-  activeSection,
-  onSectionChange,
-  copy,
-}: {
-  activeSection: ManageSection
-  onSectionChange: (section: ManageSection) => void
-  copy: ReturnType<typeof managementCopy>
-}) => {
-  const items = [
-    { key: 'members' as ManageSection, label: copy.members, icon: <UsersRound className="h-4 w-4" /> },
-    { key: 'contacts' as ManageSection, label: copy.contacts, icon: <ContactRound className="h-4 w-4" /> },
-    { key: 'subgroups' as ManageSection, label: copy.subgroups, icon: <Network className="h-4 w-4" /> },
-    { key: 'events' as ManageSection, label: copy.events, icon: <CalendarDays className="h-4 w-4" /> },
-    { key: 'announcements' as ManageSection, label: copy.announcements, icon: <Bell className="h-4 w-4" /> },
-    { key: 'albums' as ManageSection, label: copy.albums, icon: <Images className="h-4 w-4" /> },
-    { key: 'pages' as ManageSection, label: copy.pages, icon: <FileText className="h-4 w-4" /> },
-    { key: 'group' as ManageSection, label: copy.settings, icon: <Settings className="h-4 w-4" /> },
-  ]
-
-  return (
-    <div className="overflow-x-auto">
-      <nav className="flex min-w-max gap-1" aria-label="Management sections" role="tablist">
-        {items.map((item) => {
-          const active = activeSection === item.key
-          return (
-            <button
-              key={item.key}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => onSectionChange(item.key)}
-              className={[
-                'inline-flex min-h-10 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-black transition',
-                active
-                  ? 'bg-[#176b5a] text-white shadow-sm'
-                  : 'text-[#40554e] hover:bg-[#e3f0eb] hover:text-[#0d4f43]',
-              ].join(' ')}
-            >
-              {item.icon}
-              <span>{item.label}</span>
-            </button>
-          )
-        })}
-      </nav>
-    </div>
-  )
-}
-
-const ManagementTabCard = ({
-  activeSection,
-  onSectionChange,
-  copy,
+const ManagementContentCard = ({
   children,
 }: {
-  activeSection: ManageSection
-  onSectionChange: (section: ManageSection) => void
-  copy: ReturnType<typeof managementCopy>
   children: ReactNode
 }) => (
   <section className="alife-panel overflow-hidden rounded-2xl p-0">
-    <div className="border-b border-[#2f4b42]/10 bg-white/50 px-3 py-2 sm:px-4">
-      <ManagementTabs activeSection={activeSection} onSectionChange={onSectionChange} copy={copy} />
-    </div>
     <div className="p-4 sm:p-5">
       {children}
     </div>
@@ -904,7 +846,7 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
     deleteEvent,
   } = useGroupScreen(groupId, { loadEvents: true })
 
-  const [activeSection, setActiveSection] = useState<ManageSection>(() => normalizeManageSection(searchParams.get('section')))
+  const activeSection = normalizeManageSection(searchParams.get('section'))
   const copy = managementCopy(language, group?.isChurch)
   const workspacePath = '/groups'
   const requestedCount = memberships.filter((member) => member.status === 'requested').length
@@ -921,6 +863,11 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
     confirmUnsavedChangesNavigation()
     return false
   }, [hasUnsavedGroupProfileChanges, unsavedGroupProfileMessage])
+  const openManageSection = (section: ManageSection) => {
+    if (!guardGroupProfileNavigation()) return
+    activeEntityService.setGroup(groupId, { clearPage: true })
+    navigate(`${embeddedWorkspace ? '/groups' : '/groups/manage'}?section=${section}`)
+  }
   const canManageSubgroup = (subgroupId: string) =>
     auth.isAdmin ||
     isPlatformAdminRole(auth.me?.platformRole) ||
@@ -1040,9 +987,9 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
                 </Link>
               ) : null}
               <p className={[!embeddedWorkspace ? 'mt-4' : '', 'text-xs font-black uppercase tracking-[0.22em] text-emerald-700'].join(' ')}>
-                {embeddedWorkspace
+                {activeSection === 'group'
                   ? (group?.isChurch ? (language === 'zh' ? '教会总览' : 'Church overview') : (language === 'zh' ? '小组总览' : 'Group overview'))
-                  : localizeText(group?.name, language) || copy.title}
+                  : copy[activeSection]}
               </p>
               <h1 className="mt-2 text-3xl font-black tracking-[-0.04em] sm:text-4xl">
                 {embeddedWorkspace ? localizeText(group?.name, language) || copy.title : copy.title}
@@ -1056,16 +1003,16 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
               variant="grid"
               ariaLabel={copy.overview}
               items={[
-                { label: copy.pending, value: requestedCount, icon: <UserPlus className="h-4 w-4" />, onSelect: () => setActiveSection('members') },
-                { label: copy.approved, value: approvedCount, icon: <UsersRound className="h-4 w-4" />, onSelect: () => setActiveSection('members') },
-                { label: copy.upcomingEvents, value: upcomingEventCount, icon: <CalendarDays className="h-4 w-4" />, onSelect: () => setActiveSection('events') },
-                { label: copy.publishedPages, value: pages.length, icon: <FileText className="h-4 w-4" />, onSelect: () => setActiveSection('pages') },
+                { label: copy.pending, value: requestedCount, icon: <UserPlus className="h-4 w-4" />, onSelect: () => openManageSection('members') },
+                { label: copy.approved, value: approvedCount, icon: <UsersRound className="h-4 w-4" />, onSelect: () => openManageSection('members') },
+                { label: copy.upcomingEvents, value: upcomingEventCount, icon: <CalendarDays className="h-4 w-4" />, onSelect: () => openManageSection('events') },
+                { label: copy.publishedPages, value: pages.length, icon: <FileText className="h-4 w-4" />, onSelect: () => openManageSection('pages') },
               ]}
             />
           </div>
         </section>
 
-        <ManagementTabCard activeSection={activeSection} onSectionChange={setActiveSection} copy={copy}>
+        <ManagementContentCard>
           {loading ? (
             <p className="text-sm text-slate-600">{t('loadingManagementWorkspace')}</p>
           ) : null}
@@ -1224,7 +1171,7 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
           {!loading && !error && !group ? (
             <AppEmptyState title={t('groupNotFound')} description={t('groupNotFoundDescription')} />
           ) : null}
-        </ManagementTabCard>
+        </ManagementContentCard>
       </div>
     </AppPageShell>
   )
