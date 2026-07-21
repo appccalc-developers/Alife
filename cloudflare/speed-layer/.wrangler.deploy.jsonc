@@ -1,0 +1,79 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "app-ccalc",
+  "compatibility_date": "2026-05-06",
+  "observability": {
+    "enabled": true
+  },
+  "main": "./src/index.ts",
+  "assets": {
+    "directory": "../alife-app/dist",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": [
+      "/api/*",
+      "/images/*"
+    ]
+  },
+  "vars": {
+    "API_PROXY_TARGET": "https://api.ccalc.live",
+    "CORS_ALLOWED_ORIGINS": "https://ccalc.live,https://www.ccalc.live,https://app.ccalc.live",
+    "GEMINI_MODEL": "gemini-3.1-flash-lite"
+  },
+  "secrets": {
+    "required": [
+      "GEMINI_API_KEY",
+      "CACHE_SYNC_API_TOKEN"
+    ]
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "EVENT_SESSIONS",
+        "class_name": "EventPlanningSession"
+      },
+      {
+        "name": "ENROLLMENT_SESSIONS",
+        "class_name": "EnrollmentSession"
+      },
+      {
+        "name": "REVIEW_SESSIONS",
+        "class_name": "ReviewSession"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1_event_planning_sessions",
+      "new_sqlite_classes": [
+        "EventPlanningSession"
+      ]
+    },
+    {
+      "tag": "v2_enrollment_sessions",
+      "new_sqlite_classes": [
+        "EnrollmentSession"
+      ]
+    },
+    {
+      "tag": "v3_review_sessions",
+      "new_sqlite_classes": [
+        "ReviewSession"
+      ]
+    }
+  ],
+  "routes": [
+    {
+      "pattern": "ccalc.live",
+      "custom_domain": true
+    }
+  ],
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "API_CACHE",
+      "id": "0123456789abcdef0123456789abcdef"
+    }
+  ]
+}
