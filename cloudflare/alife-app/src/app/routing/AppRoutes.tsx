@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ReactElement } from 'react'
-import { AnimatePresence } from 'framer-motion'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../../stores/auth'
 import AppRouteLoading from '../components/AppRouteLoading'
@@ -89,14 +89,22 @@ const HomeRoute = () => {
 
 const AppRoutes = () => {
   const location = useLocation()
+  const reduceMotion = useReducedMotion()
   const routeTransitionKey = location.pathname === '/study'
     ? location.pathname
     : location.pathname + location.search
 
   return (
-    <Suspense fallback={<AppRouteLoading />}>
-      <AnimatePresence mode="wait">
-        <Routes location={location} key={routeTransitionKey}>
+    <AnimatePresence initial={false} mode="wait">
+      <motion.div
+        key={routeTransitionKey}
+        initial={reduceMotion ? false : { opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={reduceMotion ? { opacity: 1 } : { opacity: 0 }}
+        transition={{ duration: reduceMotion ? 0 : 0.18, ease: 'easeInOut' }}
+      >
+        <Suspense fallback={<AppRouteLoading />}>
+          <Routes location={location}>
           <Route path="/" element={<HomeView />} />
           <Route path="/articles" element={<ArticlesView />} />
           <Route path="/articles/:slug" element={<ArticleDetailView />} />
@@ -216,9 +224,10 @@ const AppRoutes = () => {
             }
           />
           <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </AnimatePresence>
-    </Suspense>
+          </Routes>
+        </Suspense>
+      </motion.div>
+    </AnimatePresence>
   )
 }
 

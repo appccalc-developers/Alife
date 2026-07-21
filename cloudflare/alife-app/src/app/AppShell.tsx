@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { useLocation } from 'react-router-dom'
 import { localizeText } from '../utils/localizedText'
 import { useAuthStore } from '../stores/auth'
@@ -65,10 +65,6 @@ const WorkspaceShell = () => {
   const headerGroupManageTo = !context.isOnboardingScreen && context.contextualGroupId && context.canOpenCurrentGroupManagement
     ? '/groups?section=group'
     : undefined
-  const contentTransitionKey = context.location.pathname === '/study'
-    ? context.location.pathname
-    : context.location.pathname + context.location.search
-
   useEffect(() => {
     setGroupDrawerOpen(false)
     setMobileNavOpen(false)
@@ -119,19 +115,14 @@ const WorkspaceShell = () => {
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed((current) => !current)}
         />
-        <motion.main
-          key={contentTransitionKey}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2, ease: 'easeInOut' }}
+        <main
           className={context.isPageEditorScreen
             ? 'mx-auto max-w-none px-0 pb-36 pt-5 sm:pt-7 desktop:pb-14'
             : 'mx-auto max-w-[94rem] px-4 pb-36 pt-5 sm:px-6 sm:pt-7 desktop:px-8 desktop:pb-14'}
         >
           {auth.loading ? <AppRouteLoading /> : null}
           <AppRoutes />
-        </motion.main>
+        </main>
       </div>
 
       <BottomNavigation items={navigation.mobileItems} onOpenMenu={() => setMobileNavOpen(true)} copy={navigation.copy} />
@@ -233,14 +224,25 @@ const PublicHomeShell = () => {
 const AppShell = () => {
   const auth = useAuthStore()
   const location = useLocation()
+  const reduceMotion = useReducedMotion()
+  const showPublicShell = isHomeLocation(location) ||
+    isPublicPageLocation(location) ||
+    isPublicArticlePath(location.pathname) ||
+    (auth.isGuest && isPublicBrowsePath(location.pathname))
 
-  if (isHomeLocation(location)) {
-    return <PublicHomeShell />
-  }
-
-  return isPublicPageLocation(location) || isPublicArticlePath(location.pathname) || (auth.isGuest && isPublicBrowsePath(location.pathname))
-    ? <PublicHomeShell />
-    : <WorkspaceShell />
+  return (
+    <AnimatePresence initial={false} mode="wait">
+      <motion.div
+        key={showPublicShell ? 'public' : 'workspace'}
+        initial={reduceMotion ? false : { opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={reduceMotion ? { opacity: 1 } : { opacity: 0 }}
+        transition={{ duration: reduceMotion ? 0 : 0.18, ease: 'easeInOut' }}
+      >
+        {showPublicShell ? <PublicHomeShell /> : <WorkspaceShell />}
+      </motion.div>
+    </AnimatePresence>
+  )
 }
 
 export default AppShell
