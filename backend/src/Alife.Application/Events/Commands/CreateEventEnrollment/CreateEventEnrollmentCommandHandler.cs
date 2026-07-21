@@ -38,6 +38,12 @@ public sealed class CreateEventEnrollmentCommandHandler(
             return AppResult<EventEnrollmentDto>.Forbidden("You must be an approved member to enroll.");
         }
 
+        var now = DateTime.UtcNow;
+        if (!EventLifecyclePolicy.CanCreateEnrollment(groupEvent, now, out var enrollmentError))
+        {
+            return AppResult<EventEnrollmentDto>.Validation(enrollmentError);
+        }
+
         var existingEnrollment = await dbContext.EventEnrollments
             .AsNoTracking()
             .AnyAsync(x => x.EventId == request.EventId && x.MemberId == request.CurrentMemberId, cancellationToken);
@@ -59,7 +65,6 @@ public sealed class CreateEventEnrollmentCommandHandler(
             }
         }
 
-        var now = DateTime.UtcNow;
         var enrollment = new EventEnrollment
         {
             Id = request.RequestedId ?? Guid.NewGuid(),

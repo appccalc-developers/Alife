@@ -12,6 +12,8 @@ import type { GroupDto, GroupSummaryDto, PageSummaryDto } from '../../types'
 import { normalizeGroup, normalizePageSummary } from '../../utils/apiEnums'
 import { normalizeRouteGroupId } from '../../utils/groupRouteIds'
 import { confirmUnsavedChangesNavigation } from '../../utils/unsavedChangesGuard'
+import { eventService } from '../../services/eventService'
+import type { GroupEventRecord } from '../../types/event'
 
 export const useShellContext = () => {
   const auth = useAuthStore()
@@ -23,6 +25,7 @@ export const useShellContext = () => {
   const [currentSubgroups, setCurrentSubgroups] = useState<GroupSummaryDto[]>([])
   const [contextualGroup, setContextualGroup] = useState<GroupSummaryDto | null>(null)
   const [churchGroup, setChurchGroup] = useState<GroupSummaryDto | null>(null)
+  const [contextualEvent, setContextualEvent] = useState<GroupEventRecord | null>(null)
   const pagesGroupIdRef = useRef('')
   const groupDataIdRef = useRef('')
 
@@ -156,6 +159,25 @@ export const useShellContext = () => {
   }, [auth.isGuest, contextualGroupId])
 
   useEffect(() => {
+    const contextualEventId = groupEventDetailMatch?.[2] || (path === '/events' ? activeIds.eventId : '')
+    if (!contextualGroupId || !contextualEventId) {
+      setContextualEvent(null)
+      return
+    }
+
+    let cancelled = false
+    eventService.getGroupEvents(contextualGroupId)
+      .then((events) => {
+        if (!cancelled) setContextualEvent(events.find((event) => event.id === contextualEventId) ?? null)
+      })
+      .catch(() => {
+        if (!cancelled) setContextualEvent(null)
+      })
+
+    return () => { cancelled = true }
+  }, [activeIds.eventId, contextualGroupId, groupEventDetailMatch?.[2], path])
+
+  useEffect(() => {
     if (!contextualGroup?.parentGroupId) {
       setChurchGroup(null)
       return
@@ -199,6 +221,7 @@ export const useShellContext = () => {
     churchGroup,
     contextualGroup,
     contextualGroupId,
+    contextualEvent,
     currentGroup: CurrentGroup,
     currentGroupPages,
     currentSubgroups,

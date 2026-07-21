@@ -37,8 +37,8 @@ public class CreateEventReviewCommandHandlerTests
             CreatedByMemberId = memberId,
             TitleEn = "Event",
             TitleZh = "Event",
-            StartDate = DateTime.UtcNow,
-            EndDate = DateTime.UtcNow.AddHours(1),
+            StartDate = DateTime.UtcNow.AddHours(-2),
+            EndDate = DateTime.UtcNow.AddHours(-1),
             EventDataJson = "{}",
             CreatedUtc = DateTime.UtcNow,
             UpdatedUtc = DateTime.UtcNow,
@@ -75,5 +75,48 @@ public class CreateEventReviewCommandHandlerTests
         Assert.True(result.IsSuccess);
         Assert.Equal(requestedReviewId, result.Value?.Id);
         Assert.Equal(2, await dbContext.EventReviews.CountAsync(x => x.EventId == eventId && x.MemberId == memberId));
+    }
+
+    [Fact]
+    public async Task CreateEventReview_RejectsReviewBeforeEventEnds()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var groupAuthorizationService = Substitute.For<IGroupAuthorizationService>();
+        var eventCacheInvalidationService = Substitute.For<IEventCacheInvalidationService>();
+        var groupId = Guid.NewGuid();
+        var eventId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+
+        dbContext.GroupEvents.Add(new GroupEvent
+        {
+            Id = eventId,
+            GroupId = groupId,
+            CreatedByMemberId = memberId,
+            TitleEn = "Future event",
+            TitleZh = "Future event",
+            StartDate = DateTime.UtcNow.AddHours(1),
+            EndDate = DateTime.UtcNow.AddHours(2),
+            EventDataJson = "{}",
+            CreatedUtc = DateTime.UtcNow,
+            UpdatedUtc = DateTime.UtcNow,
+        });
+        await dbContext.SaveChangesAsync();
+
+        groupAuthorizationService
+            .IsApprovedMemberAsync(groupId, memberId, Arg.Any<CancellationToken>())
+            .Returns(true);
+
+        var handler = new CreateEventReviewCommandHandler(
+            dbContext,
+            groupAuthorizationService,
+            eventCacheInvalidationService);
+
+        var result = await handler.Handle(
+            new CreateEventReviewCommand(eventId, memberId, "{}", null),
+            CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("Reviews can only be added after the event has ended.", result.Message);
+        Assert.Empty(dbContext.EventReviews);
     }
 }

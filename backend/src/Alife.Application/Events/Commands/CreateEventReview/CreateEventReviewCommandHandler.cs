@@ -38,6 +38,12 @@ public sealed class CreateEventReviewCommandHandler(
             return AppResult<EventReviewDto>.Forbidden("You must be an approved member to review.");
         }
 
+        var now = DateTime.UtcNow;
+        if (!EventLifecyclePolicy.CanCreateReview(groupEvent, now))
+        {
+            return AppResult<EventReviewDto>.Validation("Reviews can only be added after the event has ended.");
+        }
+
         if (request.RequestedId.HasValue)
         {
             var idAlreadyExists = await dbContext.EventReviews
@@ -50,7 +56,6 @@ public sealed class CreateEventReviewCommandHandler(
             }
         }
 
-        var now = DateTime.UtcNow;
         var review = new EventReview
         {
             Id = request.RequestedId ?? Guid.NewGuid(),

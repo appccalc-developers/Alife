@@ -9,6 +9,7 @@ import { useUiText } from '../i18n/uiText'
 import { eventService } from '../services/eventService'
 import { useAuthStore } from '../stores/auth'
 import type { GroupEventRecord } from '../types/event'
+import { getEventLifecycle, readEventLifecycleData } from '../utils/eventLifecycle'
 
 const EventEnrollmentView = () => {
   const t = useUiText()
@@ -56,10 +57,14 @@ const EventEnrollmentView = () => {
     return <Navigate to="/" replace />
   }
 
+  if (event && (getEventLifecycle(event) !== 'planning' || !readEventLifecycleData(event).acceptsEnrollments)) {
+    return <Navigate to={`/groups/${encodeURIComponent(groupId)}/events/${encodeURIComponent(eventId)}`} replace />
+  }
+
   return (
     <AppPageShell>
       <div className="mb-5">
-        <Link to="/groups" className="text-sm font-medium text-slate-600 hover:text-slate-950">
+        <Link to={`/groups/${encodeURIComponent(groupId)}/events/${encodeURIComponent(eventId)}`} className="text-sm font-medium text-slate-600 hover:text-slate-950">
           {t('backToGroup')}
         </Link>
       </div>
