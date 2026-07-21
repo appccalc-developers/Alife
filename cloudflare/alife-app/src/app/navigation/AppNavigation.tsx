@@ -18,13 +18,16 @@ const isItemActive = (item: ShellNavItem, pathname: string, search: string) => {
   }
   const pageEditMatch = pathname.match(/^\/pages\/([^/]+)\/edit$/)
   const activePageId = activeEntityService.getAll().pageId
+  const matchesSearch = item.matchSearch
+    ? (Array.isArray(item.matchSearch) ? item.matchSearch.includes(search) : search === item.matchSearch)
+    : search === target.search
 
   return (
     (Boolean(item.pageId) && item.pageId === activePageId && (pathname.startsWith('/groups/') || pathname.startsWith('/pages'))) ||
     (!item.pageId &&
       (!item.requireNoActivePage || !activePageId) &&
       pathname === target.pathname &&
-      (item.matchPathOnly || (item.matchSearch ? search === item.matchSearch : search === target.search))) ||
+      (item.matchPathOnly || matchesSearch)) ||
     (Boolean(item.pageId) && pageEditMatch?.[1] === item.pageId)
   )
 }
