@@ -35,6 +35,7 @@ packages/
 **/dist/
 **/.vite/
 **/.wrangler/
+**/.wrangler.deploy.jsonc
 appsettings.*.json
 
 # Environment files

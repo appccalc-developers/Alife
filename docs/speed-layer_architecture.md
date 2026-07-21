@@ -16,7 +16,7 @@ The speed layer improves latency and availability without replacing the backend 
 | App assets | Cloudflare Workers static assets from `cloudflare/alife-app/dist` |
 | API origin | `API_PROXY_TARGET`, defaulting to `https://api.ccalc.live` |
 | Image origin | `/images/*` proxy to `https://images.ccalc.live` by default |
-| Edge cache | Cloudflare Cache API |
+| Edge cache | Cloudflare Cache API (L1) plus Workers KV (public-page L2) |
 | AI sessions | Durable Objects backed by Worker classes |
 | AI provider | Gemini through `GEMINI_API_KEY` |
 
@@ -99,14 +99,24 @@ The speed layer has two kinds of cache entries:
 1. Response cache records.
 2. Logical authorization and entity mapping records.
 
-Both are stored through the Cloudflare Cache API, but they serve different purposes.
+The local L1 copy is stored through the Cloudflare Cache API. Confirmed public
+page responses and public page metadata are also stored in the existing
+`API_CACHE` Workers KV namespace so a request arriving at a different Cloudflare
+data center can refill L1 without calling Azure Functions.
 
 ### Public Shared Cache
 
 These API paths are public shared cache candidates:
 
 - `/api/sermons`
-- `/api/pages/global`
+- `/api/pages/public`
+- confirmed-public `/api/pages/{pageId}` responses
+
+Public page L1 entries use a one-hour TTL. Their KV L2 records use a 30-day TTL
+and are actively invalidated and warmed when page content changes. A KV hit is
+reported as `x-alife-cache: HIT` because the request did not reach the origin.
+Draft and other non-public page details are never written to the global public
+response cache.
 
 Public image responses under `/images/*` can also receive public cache headers.
 
@@ -225,6 +235,9 @@ Examples:
 
 - Group membership actions invalidate member lists, membership lists, member profile cache, and authorization mirror records.
 - Page updates invalidate page detail and owner group page lists.
+- Public-page invalidation purges the `alife-public-pages` cache tag across
+  Cloudflare, deletes the KV records, and then warms `/api/pages/public` plus
+  every confirmed-public page detail in batches.
 - Event updates invalidate owner group event lists.
 - Enrollment and review mutations invalidate event enrollment/review lists.
 - Sermon sync locally invalidates `/api/sermons` and asks the Cloudflare API to
@@ -271,10 +284,16 @@ Durable Objects store temporary conversation and draft state. Final event, enrol
 | `API_PROXY_TARGET` | Backend API origin |
 | `GEMINI_MODEL` | Gemini model override |
 | `GEMINI_API_KEY` | Required Worker secret |
+| `API_CACHE` | Workers KV binding used as the global public-page L2 cache |
 | `EVENT_SESSIONS` | Durable Object namespace |
 | `ENROLLMENT_SESSIONS` | Durable Object namespace |
 | `REVIEW_SESSIONS` | Durable Object namespace |
 | `routes` | Custom domain routing |
+
+Production deployment generates `.wrangler.deploy.jsonc` from the checked-in
+base config and the `CLOUDFLARE_API_CACHE_NAMESPACE_ID` GitHub secret. This
+binds the Worker to the same Terraform-managed API cache namespace that the
+backend invalidation service deletes from.
 
 Local AI session testing needs `cloudflare/speed-layer/.dev.vars`:
 
@@ -335,7 +354,7 @@ Useful manual checks:
 
 ```powershell
 curl -i https://ccalc.live/api/sermons
-curl -i https://ccalc.live/api/pages/global
+curl -i https://ccalc.live/api/pages/public
 curl -i https://ccalc.live/api/ai/status
 ```
 

@@ -655,6 +655,84 @@ test('public pages GET requests are served from shared public cache', async () =
   assert.equal(fetchCalls.length, 1)
 })
 
+test('public pages fall back to global KV after a new edge location misses L1', async () => {
+  const url = 'https://ccalc.live/api/pages/public'
+  const env = createEnvWithGlobalApiCache()
+  originResponses.push(Response.json([{
+    id: 'public-page-1',
+    ownerGroupId: 'church-1',
+    visibility: 'Public',
+  }]))
+
+  const first = await dispatch(url, { env })
+  await flushWaitUntil()
+  cacheStore.clear()
+  const second = await dispatch(url, { env })
+
+  assert.equal(first.headers.get('x-alife-cache'), 'MISS')
+  assert.equal(second.headers.get('x-alife-cache'), 'HIT')
+  assert.equal(fetchCalls.length, 1)
+  assert.equal(apiCacheRawStore.has(createApiCacheKey(url)), true)
+  assert.equal(apiCachePutOptions.get(createApiCacheKey(url)).expirationTtl, 30 * 24 * 60 * 60)
+  assert.equal(JSON.parse(apiCacheRawStore.get(createApiCacheKey(url))).headers['cache-tag'], 'alife-public-pages')
+  assert.equal(second.headers.get('cache-tag'), null)
+})
+
+test('anonymous visitors can read confirmed public page detail from global KV', async () => {
+  const pageId = 'public-page-1'
+  const groupId = 'church-1'
+  const url = `https://ccalc.live/api/pages/${pageId}`
+  const env = createEnvWithGlobalApiCache()
+  apiCacheRawStore.set(`map:page:${pageId}:meta`, JSON.stringify({
+    groupId,
+    ownerGroupId: groupId,
+    visibility: 'Public',
+  }))
+  apiCacheRawStore.set(createApiCacheKey(url), createStoredResponse({
+    id: pageId,
+    ownerGroupId: groupId,
+    visibility: 'Public',
+    sections: [{ id: 'hero-1' }],
+  }))
+
+  const response = await dispatch(url, { env })
+
+  assert.equal(response.status, 200)
+  assert.equal(response.headers.get('x-alife-cache'), 'HIT')
+  assert.equal(response.headers.get('x-alife-authz'), 'no-principal')
+  assert.deepEqual((await response.json()).sections, [{ id: 'hero-1' }])
+  assert.equal(fetchCalls.length, 0)
+})
+
+test('internal public pages invalidation warms list and public details into global KV', async () => {
+  const pageId = 'public-page-1'
+  const groupId = 'church-1'
+  const env = createEnvWithGlobalApiCache()
+  originResponses.push(
+    Response.json([{ id: pageId, ownerGroupId: groupId, visibility: 'Public' }]),
+    Response.json({ id: pageId, ownerGroupId: groupId, visibility: 'Public', sections: [] }),
+  )
+
+  const response = await dispatch('https://ccalc.live/api/internal/cache/invalidate', {
+    method: 'POST',
+    auth: false,
+    env,
+    headers: {
+      authorization: 'Bearer test-cache-token',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ paths: ['/api/pages/public'] }),
+  })
+  await flushWaitUntil()
+
+  assert.equal(response.status, 200)
+  assert.equal(apiCacheRawStore.has('api:/api/pages/public'), true)
+  assert.equal(apiCacheRawStore.has(`api:/api/pages/${pageId}`), true)
+  assert.equal(apiCacheRawStore.has(`map:page:${pageId}:meta`), true)
+  assert.equal(JSON.parse(apiCacheRawStore.get(`api:/api/pages/${pageId}`)).headers['cache-tag'], 'alife-public-pages')
+  assert.equal(fetchCalls.length, 2)
+})
+
 test('public content post summaries use one queryless shared cache across visitors', async () => {
   const groupId = '11111111-1111-4111-8111-111111111111'
   const url = `https://ccalc.live/api/public/groups/${groupId}/posts`
@@ -2365,6 +2443,30 @@ function createEnv() {
   return {
     API_PROXY_TARGET: 'https://api.ccalc.live',
     CACHE_SYNC_API_TOKEN: 'test-cache-token',
+  }
+}
+
+function createEnvWithGlobalApiCache() {
+  return {
+    ...createEnv(),
+    API_CACHE: {
+      async get(key, options) {
+        apiCacheGetKeys.push(key)
+        const value = apiCacheRawStore.get(key)
+        if (value === undefined) {
+          return null
+        }
+
+        return options?.type === 'json' ? JSON.parse(value) : value
+      },
+      async put(key, value, options = {}) {
+        apiCacheRawStore.set(key, value)
+        apiCachePutOptions.set(key, options)
+      },
+      async delete(key) {
+        return apiCacheRawStore.delete(key)
+      },
+    },
   }
 }
 

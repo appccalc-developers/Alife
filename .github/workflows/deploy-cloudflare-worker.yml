@@ -26,6 +26,7 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       CACHE_SYNC_API_TOKEN: ${{ secrets.CACHE_SYNC_API_TOKEN }}
+      CLOUDFLARE_API_CACHE_NAMESPACE_ID: ${{ secrets.CLOUDFLARE_API_CACHE_NAMESPACE_ID }}
       API_PROXY_TARGET: ${{ secrets.API_PROXY_TARGET }}
       VITE_YOUVERSION_APP_KEY: ${{ secrets.VITE_YOUVERSION_APP_KEY }}
       VITE_API_BASE_URL: ""
@@ -71,6 +72,11 @@ jobs:
             exit 1
           fi
 
+          if [ -z "${CLOUDFLARE_API_CACHE_NAMESPACE_ID:-}" ]; then
+            echo "Missing GitHub secret: CLOUDFLARE_API_CACHE_NAMESPACE_ID"
+            exit 1
+          fi
+
           {
             printf 'GEMINI_API_KEY=%s\n' "$GEMINI_API_KEY"
             printf 'CACHE_SYNC_API_TOKEN=%s\n' "$CACHE_SYNC_API_TOKEN"
@@ -80,9 +86,34 @@ jobs:
         working-directory: ./cloudflare/speed-layer
         run: npm test
 
+      - name: Prepare Worker deployment config
+        working-directory: ./cloudflare/speed-layer
+        run: npm run prepare:deploy-config
+
       - name: Deploy Worker
         working-directory: ./cloudflare/speed-layer
-        run: npx wrangler deploy --secrets-file .dev.vars
+        run: npx wrangler deploy --config .wrangler.deploy.jsonc --secrets-file .dev.vars
+
+      - name: Warm public page cache
+        working-directory: ./cloudflare/speed-layer
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          curl --fail --silent --show-error \
+            --request POST \
+            --header "Authorization: Bearer ${CACHE_SYNC_API_TOKEN}" \
+            --header "Content-Type: application/json" \
+            --data '{"paths":["/api/pages/public"]}' \
+            "https://ccalc.live/api/internal/cache/invalidate" > /dev/null
+
+          public_pages="$(curl --fail --silent --show-error --retry 3 \
+            "https://ccalc.live/api/pages/public")"
+          while IFS= read -r page_id; do
+            [ -z "$page_id" ] && continue
+            curl --fail --silent --show-error --retry 3 \
+              "https://ccalc.live/api/pages/${page_id}" > /dev/null
+          done < <(jq -r 'if type == "array" then .[] | .id // empty else empty end' <<< "$public_pages")
 
       - name: Verify deployed frontend entry
         working-directory: ./cloudflare/speed-layer

@@ -167,7 +167,7 @@ Write operations call invalidation services where applicable.
 
 The speed layer uses the Cloudflare Cache API and logical cache records to support:
 
-- public shared caching for `/api/sermons` and `/api/pages/global`;
+- public shared caching for `/api/sermons`, `/api/pages/public`, and confirmed-public `/api/pages/{pageId}` responses;
 - authorized group-shared caching for group pages, subgroups, events, members, and memberships;
 - member profile caching for `/api/me` by member id;
 - generated ETags and `304 Not Modified`;
