@@ -61,6 +61,7 @@ override.tf.json
 *.tmp
 .local-dev/
 .codex-build/
+/tmp/
 artifacts/
 .tmpbuild/
 webapp-logs/

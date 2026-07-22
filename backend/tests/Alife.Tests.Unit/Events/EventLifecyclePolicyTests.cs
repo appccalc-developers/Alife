@@ -1,5 +1,6 @@
 using Alife.Application.Events.Services;
 using Alife.Domain.Entities;
+using Alife.Domain.Enums;
 
 namespace Alife.Tests.Unit.Events;
 
@@ -41,9 +42,23 @@ public class EventLifecyclePolicyTests
         Assert.Equal("This event is not accepting enrollments.", error);
     }
 
+    [Fact]
+    public void CanCreateEnrollment_RejectsEventWithoutApprovedRam()
+    {
+        var now = new DateTime(2026, 7, 22, 0, 0, 0, DateTimeKind.Utc);
+        var groupEvent = EventEndingAt(now.AddDays(2), "2026-07-23T00:00:00Z", 20);
+        groupEvent.RamAssessment!.Status = EventRamStatus.AwaitingReview;
+
+        var allowed = EventLifecyclePolicy.CanCreateEnrollment(groupEvent, now, out var error);
+
+        Assert.False(allowed);
+        Assert.Contains("RAM has not been approved", error);
+    }
+
     private static GroupEvent EventEndingAt(DateTime endDate, string deadline, int capacity) => new()
     {
         EndDate = endDate,
         EventDataJson = $$"""{"registrationDeadline":"{{deadline}}","maxCapacity":{{capacity}}}""",
+        RamAssessment = new EventRamAssessment { Status = EventRamStatus.Approved }
     };
 }

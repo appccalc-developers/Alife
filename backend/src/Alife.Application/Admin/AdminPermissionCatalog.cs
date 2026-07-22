@@ -18,6 +18,7 @@ public static class AdminPermissionCatalog
     public const string BackfillPrivateFiles = "admin.files.backfill";
     public const string ViewAuditLogs = "admin.auditLogs.view";
     public const string ReviewPages = "admin.pages.review";
+    public const string AuditEvents = "admin.events.audit";
     public const string SyncSermons = "admin.sermons.sync";
     public const string RefreshCloudflareCache = "admin.cloudflareCache.refresh";
 
@@ -36,6 +37,7 @@ public static class AdminPermissionCatalog
         new(BackfillPrivateFiles, new Dictionary<string, string> { ["en"] = "Backfill private files", ["zh"] = "迁移私有文件" }),
         new(ViewAuditLogs, new Dictionary<string, string> { ["en"] = "Open audit logs", ["zh"] = "打开操作日志" }),
         new(ReviewPages, new Dictionary<string, string> { ["en"] = "Open website builder", ["zh"] = "打开构建网站" }),
+        new(AuditEvents, new Dictionary<string, string> { ["en"] = "Review and approve event RAM", ["zh"] = "审核并批准活动 RAM" }),
         new(SyncSermons, new Dictionary<string, string> { ["en"] = "Run sermon sync", ["zh"] = "执行讲道同步" }),
         new(RefreshCloudflareCache, new Dictionary<string, string> { ["en"] = "Clear edge cache", ["zh"] = "清理边缘缓存" })
     ];

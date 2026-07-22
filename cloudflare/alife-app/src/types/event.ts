@@ -15,6 +15,69 @@ export type OptionalActivityDto = {
   extraFee: number
 }
 
+export type RamMissingInformation = {
+  code: string
+  fieldPath: string
+  message: MultilingualString
+}
+
+export type RamHazard = {
+  id?: string
+  hazard: MultilingualString
+  likelihood: number | null
+  impact: number | null
+  riskScore: number | null
+  controlMeasures: MultilingualString
+  personResponsible: string
+}
+
+export type RamEmergencyContact = {
+  role: MultilingualString
+  name: string
+  phone: string
+}
+
+export type RamOutingSafety = {
+  transportRequired: boolean | null
+  licensedDriverConfirmed: boolean | null
+  vehicleRegistrationConfirmed: boolean | null
+  vehicleWofConfirmed: boolean | null
+  venueRiskAssessed: boolean | null
+  firstAidKitAvailable: boolean | null
+  trainedFirstAiderName: string
+  trainedFirstAiderQualificationConfirmed: boolean | null
+  participantHealthNeedsReviewed: boolean | null
+  weatherPlanReviewed: boolean | null
+}
+
+export type EventRamDraft = {
+  activityName: MultilingualString
+  activityDescription: MultilingualString
+  participantCount: number | null
+  participantAgeRange: MultilingualString
+  isOuting: boolean | null
+  hazards: RamHazard[]
+  emergencyContacts: RamEmergencyContact[]
+  outingSafety: RamOutingSafety
+  missingInformation: RamMissingInformation[]
+  leaderConfirmed: boolean
+}
+
+export type EventRamStatus = 'draft' | 'awaitingReview' | 'approved'
+
+export type EventRamAssessmentRecord = {
+  eventId: string
+  groupId: string
+  ramDataJson: string
+  status: EventRamStatus
+  submittedByMemberId?: string | null
+  submittedUtc?: string | null
+  approvedByMemberId?: string | null
+  approvedUtc?: string | null
+  createdUtc: string
+  updatedUtc: string
+}
+
 export type EventDto = {
   id?: string
   organizerId?: string
@@ -35,6 +98,7 @@ export type EventDto = {
   galleryUrls: string[]
   legacySummary?: MultilingualString | null
   contactProfileIds?: string[]
+  ram?: EventRamDraft
 }
 
 export type ExtractEventFromChatResponse = {
@@ -71,4 +135,5 @@ export type GroupEventRecord = {
   createdUtc: string
   updatedUtc: string
   contactProfileIds?: string[]
+  ramStatus?: EventRamStatus
 }

@@ -2,6 +2,7 @@ using Alife.Application.Events.Commands.EnrollGroupEvent;
 using Alife.Application.Groups.Services;
 using Alife.Domain.Entities;
 using Alife.Infrastructure.Persistence;
+using Alife.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 
@@ -35,9 +36,16 @@ public class EnrollGroupEventCommandHandlerTests
             TitleZh = "營會",
             StartDate = DateTime.UtcNow,
             EndDate = DateTime.UtcNow.AddHours(1),
-            EventDataJson = "{}",
+            EventDataJson = $$"""{"registrationDeadline":"{{DateTime.UtcNow.AddMinutes(30):O}}","maxCapacity":20}""",
             CreatedUtc = DateTime.UtcNow,
             UpdatedUtc = DateTime.UtcNow,
+            RamAssessment = new EventRamAssessment
+            {
+                RamDataJson = "{}",
+                Status = EventRamStatus.Approved,
+                CreatedUtc = DateTime.UtcNow,
+                UpdatedUtc = DateTime.UtcNow
+            }
         });
         await dbContext.SaveChangesAsync();
 
@@ -78,9 +86,16 @@ public class EnrollGroupEventCommandHandlerTests
             TitleZh = "營會",
             StartDate = DateTime.UtcNow,
             EndDate = DateTime.UtcNow.AddHours(1),
-            EventDataJson = "{}",
+            EventDataJson = $$"""{"registrationDeadline":"{{DateTime.UtcNow.AddMinutes(30):O}}","maxCapacity":20}""",
             CreatedUtc = DateTime.UtcNow,
             UpdatedUtc = DateTime.UtcNow,
+            RamAssessment = new EventRamAssessment
+            {
+                RamDataJson = "{}",
+                Status = EventRamStatus.Approved,
+                CreatedUtc = DateTime.UtcNow,
+                UpdatedUtc = DateTime.UtcNow
+            }
         });
 
         dbContext.EventEnrollments.Add(new EventEnrollment

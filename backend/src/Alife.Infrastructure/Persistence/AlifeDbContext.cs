@@ -25,6 +25,7 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 	public DbSet<AlbumPhoto> AlbumPhotos => Set<AlbumPhoto>();
 	public DbSet<Sermon> Sermons => Set<Sermon>();
 	public DbSet<GroupEvent> GroupEvents => Set<GroupEvent>();
+	public DbSet<EventRamAssessment> EventRamAssessments => Set<EventRamAssessment>();
 	public DbSet<EventEnrollment> EventEnrollments => Set<EventEnrollment>();
 	public DbSet<EventReview> EventReviews => Set<EventReview>();
 	public DbSet<NotificationMessage> NotificationMessages => Set<NotificationMessage>();
@@ -348,6 +349,29 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 			cfg.HasIndex(x => new { x.GroupId, x.UpdatedUtc });
 			cfg.HasIndex(x => x.CreatedByMemberId);
 			cfg.HasQueryFilter(x => !x.IsDeleted);
+		});
+
+		modelBuilder.Entity<EventRamAssessment>(cfg =>
+		{
+			cfg.HasKey(x => x.EventId);
+			cfg.Property(x => x.RamDataJson).IsRequired();
+
+			cfg.HasOne(x => x.Event)
+				.WithOne(x => x.RamAssessment)
+				.HasForeignKey<EventRamAssessment>(x => x.EventId)
+				.OnDelete(DeleteBehavior.Cascade);
+
+			cfg.HasOne(x => x.SubmittedByMember)
+				.WithMany()
+				.HasForeignKey(x => x.SubmittedByMemberId)
+				.OnDelete(DeleteBehavior.Restrict);
+
+			cfg.HasOne(x => x.ApprovedByMember)
+				.WithMany()
+				.HasForeignKey(x => x.ApprovedByMemberId)
+				.OnDelete(DeleteBehavior.Restrict);
+
+			cfg.HasIndex(x => new { x.Status, x.UpdatedUtc });
 		});
 
 		modelBuilder.Entity<EventEnrollment>(cfg =>

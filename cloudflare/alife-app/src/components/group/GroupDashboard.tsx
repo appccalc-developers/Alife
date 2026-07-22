@@ -24,7 +24,7 @@ const GroupDashboard = ({ group, pages, subgroups, events, canManage }: Props) =
   const groupName = localizeText(group.name, language)
   const groupDescription = localizeText(group.description, language)
   const upcomingEvents = [...events]
-    .filter((event) => !event.endDate || new Date(event.endDate).getTime() >= Date.now())
+    .filter((event) => event.ramStatus === 'approved' && (!event.endDate || new Date(event.endDate).getTime() >= Date.now()))
     .sort((left, right) => new Date(left.startDate).getTime() - new Date(right.startDate).getTime())
     .slice(0, 3)
   const [announcements, setAnnouncements] = useState<AnnouncementDto[]>([])

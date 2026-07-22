@@ -830,8 +830,9 @@ const EventsPanel = ({ groupId, events, copy, framed = true }: EventsPanelProps)
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="font-medium text-slate-950">{title}</p>
-                        {activeTab === 'upcoming' ? <AppBadge variant="neutral">{copy.enrollmentClosed}</AppBadge> : null}
+                        {activeTab === 'upcoming' && lifecycleData.registrationDeadlineTime !== null && lifecycleData.registrationDeadlineTime < Date.now() ? <AppBadge variant="neutral">{copy.enrollmentClosed}</AppBadge> : null}
                         {activeTab === 'planning' && !lifecycleData.acceptsEnrollments ? <AppBadge variant="neutral">{copy.noEnrollment}</AppBadge> : null}
+                        {activeTab === 'planning' ? <AppBadge variant="neutral">RAM: {event.ramStatus ?? 'draft'}</AppBadge> : null}
                       </div>
                       <p className="mt-1 text-xs text-slate-500">{formatDate(event.startDate, language)}</p>
                     </div>
@@ -844,7 +845,11 @@ const EventsPanel = ({ groupId, events, copy, framed = true }: EventsPanelProps)
                         activeEntityService.setEvent(event.id, groupId)
                         navigate(`${detailPath}/review`)
                       }}>{copy.addReview}</AppActionButton> : null}
-                      {activeTab === 'planning' && lifecycleData.acceptsEnrollments ? <AppActionButton size="sm" variant="primary" onClick={() => {
+                      {activeTab === 'planning' ? <AppActionButton size="sm" variant="secondary" onClick={() => {
+                        activeEntityService.setEvent(event.id, groupId)
+                        navigate(`/events/${encodeURIComponent(event.id)}/edit?groupId=${encodeURIComponent(groupId)}`)
+                      }}>{language === 'zh' ? '编辑 / RAM' : 'Edit / RAM'}</AppActionButton> : null}
+                      {activeTab === 'upcoming' && lifecycleData.acceptsEnrollments && (lifecycleData.registrationDeadlineTime ?? 0) >= Date.now() ? <AppActionButton size="sm" variant="primary" onClick={() => {
                         activeEntityService.setEvent(event.id, groupId)
                         navigate(`${detailPath}/enroll`)
                       }}>{copy.enroll}</AppActionButton> : null}

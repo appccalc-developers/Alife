@@ -22,4 +22,5 @@ public class GroupEvent
 	public Group Group { get; set; } = null!;
 	public Member CreatedByMember { get; set; } = null!;
 	public ICollection<EventContactProfile> ContactProfiles { get; set; } = [];
+	public EventRamAssessment? RamAssessment { get; set; }
 }

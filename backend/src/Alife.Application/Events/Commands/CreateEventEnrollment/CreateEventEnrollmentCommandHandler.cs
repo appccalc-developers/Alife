@@ -21,6 +21,7 @@ public sealed class CreateEventEnrollmentCommandHandler(
     {
         var groupEvent = await dbContext.GroupEvents
             .AsNoTracking()
+            .Include(x => x.RamAssessment)
             .FirstOrDefaultAsync(x => x.Id == request.EventId, cancellationToken);
 
         if (groupEvent is null)

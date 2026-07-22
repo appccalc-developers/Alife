@@ -23,6 +23,7 @@ public interface IAlifeDbContext
     DbSet<AlbumPhoto> AlbumPhotos { get; }
     DbSet<Sermon> Sermons { get; }
     DbSet<GroupEvent> GroupEvents { get; }
+    DbSet<EventRamAssessment> EventRamAssessments { get; }
     DbSet<EventEnrollment> EventEnrollments { get; }
     DbSet<EventReview> EventReviews { get; }
     DbSet<NotificationMessage> NotificationMessages { get; }

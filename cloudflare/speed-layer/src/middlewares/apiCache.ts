@@ -685,6 +685,15 @@ export async function getInvalidationPaths(env: Env, request: Request, response:
     }
   }
 
+  const eventRamMatch = path.match(/^\/api\/events\/([^/]+)\/ram(?:\/(?:submit|approve))?$/)
+  if (eventRamMatch) {
+    const body = await readJsonObject(response)
+    const groupId = readString(body?.groupId) ?? await readEntityGroup(env, 'event', eventRamMatch[1])
+    if (groupId) {
+      paths.add(`/api/groups/${groupId}/events`)
+    }
+  }
+
   const enrollmentMatch = path.match(/^\/api\/events\/([^/]+)\/enrollments(?:\/[^/]+)?$/)
   if (enrollmentMatch) {
     paths.add(`/api/events/${enrollmentMatch[1]}/enrollments`)

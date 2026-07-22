@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
 using Alife.Application.Events.Dtos;
@@ -17,9 +16,6 @@ public sealed class CreateGroupEventCommandHandler(
     IEventCacheInvalidationService eventCacheInvalidationService)
     : IRequestHandler<CreateGroupEventCommand, AppResult<GroupEventSummaryDto>>
 {
-    private const string EventCreatedActionType = "event.created";
-    private static readonly JsonSerializerOptions NotificationJsonOptions = new(JsonSerializerDefaults.Web);
-
     public async Task<AppResult<GroupEventSummaryDto>> Handle(CreateGroupEventCommand request, CancellationToken cancellationToken)
     {
         var canManage = await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
@@ -30,6 +26,11 @@ public sealed class CreateGroupEventCommandHandler(
         if (!canManage)
         {
             return AppResult<GroupEventSummaryDto>.Forbidden("Only group leaders and co-leaders can create events.");
+        }
+
+        if (request.RamDataJson is not null && !EventRamPolicy.IsValidJson(request.RamDataJson))
+        {
+            return AppResult<GroupEventSummaryDto>.Validation("RAM data must be a JSON object.");
         }
 
         var contactProfileIds = (request.ContactProfileIds ?? []).Distinct().ToArray();
@@ -56,54 +57,27 @@ public sealed class CreateGroupEventCommandHandler(
         };
 
         dbContext.GroupEvents.Add(groupEvent);
+        var ramAssessment = new EventRamAssessment
+        {
+            EventId = groupEvent.Id,
+            RamDataJson = request.RamDataJson ?? "{}",
+            Status = EventRamStatus.Draft,
+            CreatedUtc = now,
+            UpdatedUtc = now
+        };
+        dbContext.EventRamAssessments.Add(ramAssessment);
         dbContext.EventContactProfiles.AddRange(contactProfileIds.Select(contactProfileId => new EventContactProfile
         {
             EventId = groupEvent.Id,
             ContactProfileId = contactProfileId
         }));
-        var recipientMemberIds = await dbContext.GroupMemberships
-            .AsNoTracking()
-            .Where(x => x.GroupId == request.GroupId && x.Status == MembershipStatus.Approved)
-            .Select(x => x.MemberId)
-            .Distinct()
-            .ToListAsync(cancellationToken);
-
-        var actionDataJson = JsonSerializer.Serialize(
-            new
-            {
-                eventId = groupEvent.Id,
-                groupId = groupEvent.GroupId,
-                title = new
-                {
-                    en = groupEvent.TitleEn,
-                    zh = groupEvent.TitleZh
-                },
-                startDate = groupEvent.StartDate,
-                endDate = groupEvent.EndDate
-            },
-            NotificationJsonOptions);
-
-        dbContext.NotificationMessages.AddRange(recipientMemberIds.Select(memberId => new NotificationMessage
-        {
-            Id = Guid.NewGuid(),
-            RecipientMemberId = memberId,
-            CreatedByMemberId = request.CurrentMemberId,
-            GroupId = request.GroupId,
-            EventId = groupEvent.Id,
-            OccurredUtc = now,
-            ActionType = EventCreatedActionType,
-            ActionDataJson = actionDataJson,
-            CreatedUtc = now,
-            UpdatedUtc = now
-        }));
-
         await dbContext.SaveChangesAsync(cancellationToken);
         await eventCacheInvalidationService.RemoveGroupEventsAsync(request.GroupId, cancellationToken);
 
-        return AppResult<GroupEventSummaryDto>.Success(ToDto(groupEvent, contactProfileIds));
+        return AppResult<GroupEventSummaryDto>.Success(ToDto(groupEvent, contactProfileIds, ramAssessment.Status));
     }
 
-    private static GroupEventSummaryDto ToDto(GroupEvent e, IReadOnlyList<Guid> contactProfileIds) =>
+    private static GroupEventSummaryDto ToDto(GroupEvent e, IReadOnlyList<Guid> contactProfileIds, EventRamStatus ramStatus) =>
         new(e.Id, e.GroupId, e.CreatedByMemberId, e.TitleEn, e.TitleZh,
-            e.StartDate, e.EndDate, e.EventDataJson, e.CreatedUtc, e.UpdatedUtc, contactProfileIds);
+            e.StartDate, e.EndDate, e.EventDataJson, e.CreatedUtc, e.UpdatedUtc, contactProfileIds, ramStatus);
 }

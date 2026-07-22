@@ -57,7 +57,7 @@ const EventEnrollmentView = () => {
     return <Navigate to="/" replace />
   }
 
-  if (event && (getEventLifecycle(event) !== 'planning' || !readEventLifecycleData(event).acceptsEnrollments)) {
+  if (event && (getEventLifecycle(event) !== 'upcoming' || !readEventLifecycleData(event).acceptsEnrollments)) {
     return <Navigate to={`/groups/${encodeURIComponent(groupId)}/events/${encodeURIComponent(eventId)}`} replace />
   }
 

@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using Alife.Domain.Entities;
+using Alife.Domain.Enums;
 
 namespace Alife.Application.Events.Services;
 
@@ -9,6 +10,12 @@ public static class EventLifecyclePolicy
     public static bool CanCreateEnrollment(GroupEvent groupEvent, DateTime utcNow, out string error)
     {
         error = string.Empty;
+        if (groupEvent.RamAssessment?.Status != EventRamStatus.Approved)
+        {
+            error = "This event is still in planning because its RAM has not been approved.";
+            return false;
+        }
+
         if (groupEvent.EndDate < utcNow)
         {
             error = "Enrollment is closed for this event.";

@@ -56,7 +56,7 @@ public class GroupEventsCrudHandlersTests
     }
 
     [Fact]
-    public async Task CreateGroupEvent_WhenAuthorized_CreatesNotificationsForApprovedGroupMembers()
+    public async Task CreateGroupEvent_WhenAuthorized_DoesNotNotifyMembersBeforeRamApproval()
     {
         using var dbContext = CreateInMemoryDbContext();
         var groupAuthorizationService = Substitute.For<IGroupAuthorizationService>();
@@ -93,19 +93,8 @@ public class GroupEventsCrudHandlersTests
         var notifications = await dbContext.NotificationMessages
             .OrderBy(x => x.RecipientMemberId)
             .ToListAsync();
-        Assert.Equal(2, notifications.Count);
-        Assert.All(notifications, notification =>
-        {
-            Assert.NotEqual(Guid.Empty, notification.RecipientMemberId);
-            Assert.Equal(groupId, notification.GroupId);
-            Assert.Equal(result.Value.Id, notification.EventId);
-            Assert.Equal(leaderId, notification.CreatedByMemberId);
-            Assert.Equal("event.created", notification.ActionType);
-            Assert.Contains(result.Value.Id.ToString(), notification.ActionDataJson);
-        });
-        Assert.Equal(
-            new[] { approvedMemberId, leaderId }.OrderBy(x => x),
-            notifications.Select(x => x.RecipientMemberId));
+        Assert.Empty(notifications);
+        Assert.Equal(Alife.Domain.Enums.EventRamStatus.Draft, result.Value.RamStatus);
     }
 
     [Fact]

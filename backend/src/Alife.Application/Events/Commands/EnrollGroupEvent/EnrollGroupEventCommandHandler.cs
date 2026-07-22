@@ -1,6 +1,7 @@
 using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
 using Alife.Application.Events.Dtos;
+using Alife.Application.Events.Services;
 using Alife.Application.Groups.Services;
 using Alife.Domain.Entities;
 using MediatR;
@@ -27,6 +28,7 @@ public sealed class EnrollGroupEventCommandHandler(
 
         var groupEvent = await dbContext.GroupEvents
             .AsNoTracking()
+            .Include(x => x.RamAssessment)
             .FirstOrDefaultAsync(
                 x => x.Id == request.EventId && x.GroupId == request.GroupId,
                 cancellationToken);
@@ -37,6 +39,11 @@ public sealed class EnrollGroupEventCommandHandler(
         }
 
         var now = DateTime.UtcNow;
+        if (!EventLifecyclePolicy.CanCreateEnrollment(groupEvent, now, out var enrollmentError))
+        {
+            return AppResult<EventEnrollmentDto>.Validation(enrollmentError);
+        }
+
         var enrollment = await dbContext.EventEnrollments
             .FirstOrDefaultAsync(
                 x => x.GroupId == request.GroupId &&

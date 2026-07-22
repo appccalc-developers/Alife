@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CalendarDays, CheckCircle2, ImageIcon, MessageSquareText, Mic, MicOff, Save } from 'lucide-react'
+import { CalendarDays, CheckCircle2, ImageIcon, MessageSquareText, Mic, MicOff, Save, ShieldCheck } from 'lucide-react'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import type { EventDto, GroupEventRecord, MultilingualString } from '../types/event'
+import type { EventDto, EventRamStatus, GroupEventRecord, MultilingualString } from '../types/event'
 import type { AiSessionAppContext } from '../types/aiSession'
 import { eventService } from '../services/eventService'
 import { activeEntityService } from '../services/activeEntityService'
@@ -20,6 +20,8 @@ import remarkGfm from 'remark-gfm'
 import { contactService } from '../services/contactService'
 import type { ContactProfileDto } from '../types/contact'
 import { localizeText } from '../utils/localizedText'
+import EventRamEditor from '../components/events/EventRamEditor'
+import { createEmptyEventRamDraft, parseEventRam } from '../utils/eventRam'
 
 // ────────────────────────────────────────────────────────────────────────────
 // Helper sub-components
@@ -256,13 +258,15 @@ const fallbackDraftFromRecord = (record: GroupEventRecord): EventDto => ({
   galleryUrls: [],
   legacySummary: null,
   contactProfileIds: record.contactProfileIds ?? [],
+  ram: createEmptyEventRamDraft(),
 })
 
 const getDraftFromRecord = (record: GroupEventRecord): EventDto => {
   try {
     const parsed = JSON.parse(record.eventDataJson) as EventDto
     if (parsed && parsed.title && parsed.description && parsed.locationName) {
-      return { ...parsed, id: record.id, contactProfileIds: record.contactProfileIds ?? parsed.contactProfileIds ?? [] }
+      const draft = { ...parsed, id: record.id, contactProfileIds: record.contactProfileIds ?? parsed.contactProfileIds ?? [] }
+      return { ...draft, ram: parsed.ram ?? createEmptyEventRamDraft(draft) }
     }
   } catch {
     // no-op
@@ -276,11 +280,13 @@ const EventWorkflowPanel = ({
   hasPoster,
   targetEventId,
   language,
+  ramStatus,
 }: {
   eventDraft: EventDto | null
   hasPoster: boolean
   targetEventId: string
   language: string
+  ramStatus: EventRamStatus
 }) => {
   const isZh = language === 'zh'
   const titleReady = Boolean(eventDraft && ((isZh ? eventDraft.title.zh : eventDraft.title.en) || eventDraft.title.en || eventDraft.title.zh))
@@ -307,10 +313,22 @@ const EventWorkflowPanel = ({
       icon: <ImageIcon className="h-4 w-4" />,
     },
     {
-      label: isZh ? '4. 保存到小组' : '4. Save to group',
-      hint: isZh ? '保存后可继续管理报名和后续回顾。' : 'After saving, manage enrollment and follow-up reflection.',
+      label: isZh ? '4. 人工确认 RAM' : '4. Human-check the RAM',
+      hint: isZh ? '补齐缺失资料并由组长确认，不接受 AI 猜测。' : 'Resolve missing facts and have a leader confirm them; do not accept AI guesses.',
+      ready: Boolean(eventDraft?.ram?.leaderConfirmed),
+      icon: <ShieldCheck className="h-4 w-4" />,
+    },
+    {
+      label: isZh ? '5. 保存到小组' : '5. Save to group',
+      hint: isZh ? '保存为筹备活动，再提交 RAM 审核。' : 'Save as a planning event, then submit the RAM for review.',
       ready: savedReady,
       icon: <Save className="h-4 w-4" />,
+    },
+    {
+      label: isZh ? '6. RAM 审核批准' : '6. RAM review and approval',
+      hint: isZh ? '只有批准后才进入近期活动并开放报名。' : 'Only approval moves the event to Upcoming and allows enrollment.',
+      ready: ramStatus === 'approved',
+      icon: <ShieldCheck className="h-4 w-4" />,
     },
   ]
   const readyCount = items.filter((item) => item.ready).length
@@ -342,7 +360,7 @@ const EventWorkflowPanel = ({
 }
 
 const EventCreatorView = () => {
-  const { language, me } = useAuthStore()
+  const { language, me, hasAdminPermission, canManageGroup } = useAuthStore()
   const t = useUiText()
   const { CurrentGroup } = useCurrentGroupStore()
   const location = useLocation()
@@ -376,8 +394,13 @@ const EventCreatorView = () => {
   const [posterPreviewUrl, setPosterPreviewUrl] = useState('')
   const [posterUploadStatus, setPosterUploadStatus] = useState<PosterUploadStatus>('idle')
   const [posterUploadError, setPosterUploadError] = useState('')
+  const [ramStatus, setRamStatus] = useState<EventRamStatus>('draft')
+  const [ramBusy, setRamBusy] = useState(false)
+  const [ramMessage, setRamMessage] = useState('')
   const [aiContentContext, setAiContentContext] = useState<AiContentContext>({ missionStatements: [], eventContext: null })
   const targetEventId = eventId ?? savedEventId
+  const canEditRam = Boolean(effectiveGroupId && canManageGroup(effectiveGroupId))
+  const canAuditRam = hasAdminPermission('admin.events.audit')
   const sessionIdRef = useRef(eventPlanningSessionService.getSessionId(me?.id))
   const posterInputRef = useRef<HTMLInputElement>(null)
   const posterObjectUrlRef = useRef('')
@@ -519,7 +542,15 @@ const EventCreatorView = () => {
         const draft = getDraftFromRecord(record)
         setError('')
         setEventDraft(draft)
+        setRamStatus(record.ramStatus ?? 'draft')
         setAiInsight(draft.legacySummary ?? null)
+        eventService.getEventRam(record.id)
+          .then((ramRecord) => {
+            if (cancelled) return
+            setRamStatus(ramRecord.status)
+            setEventDraft((current) => current ? { ...current, ram: parseEventRam(ramRecord) } : current)
+          })
+          .catch(() => undefined)
       })
       .catch(() => {
         if (!cancelled) {
@@ -569,6 +600,7 @@ const EventCreatorView = () => {
         setEventDraft((current) => ({
           ...dto,
           contactProfileIds: current?.contactProfileIds ?? dto.contactProfileIds ?? [],
+          ram: dto.ram ?? current?.ram ?? createEmptyEventRamDraft(dto),
         }))
         setSaveStatus('idle')
         setAiInsight(nextInsight)
@@ -713,6 +745,11 @@ const EventCreatorView = () => {
       return
     }
 
+    if (!eventDraft.ram?.leaderConfirmed) {
+      setRamMessage(language === 'zh' ? '请由组长人工核对并确认 RAM 后再保存。' : 'A group leader must review and confirm the RAM before saving.')
+      return
+    }
+
     const eventName = (language === 'zh' ? eventDraft.title.zh : eventDraft.title.en) || eventDraft.title.en || eventDraft.title.zh || t('yourEvent')
 
     if (!isEditMode && !effectiveGroupId) {
@@ -779,6 +816,7 @@ const EventCreatorView = () => {
         activeEntityService.setEvent(persistedEventId, effectiveGroupId || undefined)
       }
       setSaveStatus('saved')
+      setRamStatus('draft')
       setMessages((prev) => [
         ...prev,
         {
@@ -804,6 +842,52 @@ const EventCreatorView = () => {
       ])
     }
     scrollToBottom()
+  }
+
+  const handleSaveRam = async () => {
+    if (!targetEventId || !eventDraft?.ram || !eventDraft.ram.leaderConfirmed) return
+    setRamBusy(true)
+    setRamMessage('')
+    try {
+      const record = await eventService.saveEventRam(targetEventId, eventDraft.ram)
+      setRamStatus(record.status)
+      setRamMessage(language === 'zh' ? 'RAM 草稿已保存。' : 'RAM draft saved.')
+    } catch (reason) {
+      setRamMessage(normalizeApiError(reason).message)
+    } finally {
+      setRamBusy(false)
+    }
+  }
+
+  const handleSubmitRam = async () => {
+    if (!targetEventId || !eventDraft?.ram || !eventDraft.ram.leaderConfirmed) return
+    setRamBusy(true)
+    setRamMessage('')
+    try {
+      await eventService.saveEventRam(targetEventId, eventDraft.ram)
+      const record = await eventService.submitEventRam(targetEventId)
+      setRamStatus(record.status)
+      setRamMessage(language === 'zh' ? 'RAM 已提交审核。' : 'RAM sent for review.')
+    } catch (reason) {
+      setRamMessage(normalizeApiError(reason).message)
+    } finally {
+      setRamBusy(false)
+    }
+  }
+
+  const handleApproveRam = async () => {
+    if (!targetEventId) return
+    setRamBusy(true)
+    setRamMessage('')
+    try {
+      const record = await eventService.approveEventRam(targetEventId)
+      setRamStatus(record.status)
+      setRamMessage(language === 'zh' ? 'RAM 已批准，活动现在可以进入近期活动。' : 'RAM approved. The event can now appear as upcoming.')
+    } catch (reason) {
+      setRamMessage(normalizeApiError(reason).message)
+    } finally {
+      setRamBusy(false)
+    }
   }
 
   const isSending = isEditMode ? loading : sessionLoading
@@ -839,6 +923,7 @@ const EventCreatorView = () => {
         hasPoster={Boolean(eventDraft?.posterImageUrl || posterPreviewUrl)}
         targetEventId={targetEventId}
         language={language}
+        ramStatus={ramStatus}
       />
 
       {eventDraft && availableContacts.length > 0 ? (
@@ -1006,6 +1091,28 @@ const EventCreatorView = () => {
           posterPendingUpload={Boolean(pendingPosterFile)}
         />
       )}
+      {eventDraft?.ram && (
+        <>
+          <EventRamEditor
+            ram={eventDraft.ram}
+            status={ramStatus}
+            language={language}
+            canEdit={canEditRam}
+            canAudit={canAuditRam}
+            busy={ramBusy}
+            onChange={(ram) => {
+              setEventDraft((current) => current ? { ...current, ram } : current)
+              setRamStatus('draft')
+              setRamMessage('')
+              setSaveStatus('idle')
+            }}
+            onSave={targetEventId ? () => { void handleSaveRam() } : undefined}
+            onSubmit={targetEventId ? () => { void handleSubmitRam() } : undefined}
+            onApprove={targetEventId ? () => { void handleApproveRam() } : undefined}
+          />
+          {ramMessage ? <p className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">{ramMessage}</p> : null}
+        </>
+      )}
       {eventDraft && (
         <div className="flex items-center justify-end gap-3">
           {!effectiveGroupId && (
@@ -1017,7 +1124,7 @@ const EventCreatorView = () => {
           <button
             type="button"
             onClick={() => { void handleCommitDraft() }}
-            disabled={saveStatus === 'saving' || isPosterUploading}
+            disabled={saveStatus === 'saving' || isPosterUploading || !eventDraft.ram?.leaderConfirmed || !canEditRam}
             className="inline-flex items-center rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 disabled:opacity-60"
           >
             {saveStatus === 'saving' ? t('saving') : targetEventId ? t('updateEvent') : t('saveToGroup')}

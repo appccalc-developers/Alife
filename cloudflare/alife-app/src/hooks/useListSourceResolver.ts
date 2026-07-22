@@ -137,7 +137,11 @@ const applyListViewFilteringAndSorting = <T,>(items: T[], metadata: ListViewMeta
     ? items.filter((item) => {
       const eventTime = dateValue('events', item)
       if (eventTime === null) return false
-      return metadata.preset === 'upcoming' ? eventTime >= now.getTime() : eventTime < now.getTime()
+      if (metadata.preset === 'upcoming') {
+        const ramStatus = isRecord(item) ? readString(item.ramStatus) : ''
+        return eventTime >= now.getTime() && ramStatus === 'approved'
+      }
+      return eventTime < now.getTime()
     })
     : items
   const filtered = filter
