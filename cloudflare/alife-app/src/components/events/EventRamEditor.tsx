@@ -7,6 +7,7 @@ type Props = {
   language: 'en' | 'zh'
   canEdit: boolean
   canAudit: boolean
+  canSubmit?: boolean
   busy?: boolean
   onChange: (ram: EventRamDraft) => void
   onSave?: () => void
@@ -45,7 +46,7 @@ const riskTone = (score: number | null) => {
   return 'bg-emerald-100 text-emerald-800'
 }
 
-const EventRamEditor = ({ ram, status, language, canEdit, canAudit, busy = false, onChange, onSave, onSubmit, onApprove }: Props) => {
+const EventRamEditor = ({ ram, status, language, canEdit, canAudit, canSubmit = false, busy = false, onChange, onSave, onSubmit, onApprove }: Props) => {
   const isZh = language === 'zh'
   const l = (en: string, zh: string) => isZh ? zh : en
   const emit = (next: EventRamDraft, preserveConfirmation = false) => onChange({
@@ -174,8 +175,8 @@ const EventRamEditor = ({ ram, status, language, canEdit, canAudit, busy = false
       </fieldset>
 
       <div className="flex flex-wrap justify-end gap-2">
-        {canEdit && onSave ? <button type="button" disabled={busy || !ram.leaderConfirmed} onClick={onSave} className="inline-flex items-center gap-2 rounded-lg border border-teal-300 bg-white px-4 py-2 text-sm font-bold text-teal-800 disabled:opacity-50"><ClipboardCheck className="h-4 w-4" />{l('Save RAM draft', '保存 RAM 草稿')}</button> : null}
-        {canEdit && onSubmit && status === 'draft' ? <button type="button" disabled={busy || !ram.leaderConfirmed} onClick={onSubmit} className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"><ShieldCheck className="h-4 w-4" />{l('Send for review', '提交审核')}</button> : null}
+        {canEdit && onSave ? <button type="button" disabled={busy} onClick={onSave} className="inline-flex items-center gap-2 rounded-lg border border-teal-300 bg-white px-4 py-2 text-sm font-bold text-teal-800 disabled:opacity-50"><ClipboardCheck className="h-4 w-4" />{l('Save RAM draft', '保存 RAM 草稿')}</button> : null}
+        {canEdit && onSubmit && status === 'draft' ? <button type="button" disabled={busy || !canSubmit} onClick={onSubmit} className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"><ShieldCheck className="h-4 w-4" />{l('Send for review', '提交审核')}</button> : null}
         {canAudit && onApprove && status === 'awaitingReview' ? <button type="button" disabled={busy} onClick={onApprove} className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"><CheckCircle2 className="h-4 w-4" />{l('Approve RAM', '批准 RAM')}</button> : null}
       </div>
     </section>

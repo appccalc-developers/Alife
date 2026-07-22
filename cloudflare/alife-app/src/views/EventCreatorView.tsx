@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CalendarDays, CheckCircle2, ImageIcon, MessageSquareText, Mic, MicOff, Save, ShieldCheck } from 'lucide-react'
+import { BookOpenText, CheckCircle2, CircleAlert, FileText, ImageIcon, MessageSquareText, Mic, MicOff, Save, ShieldCheck, Sparkles, Upload } from 'lucide-react'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import type { EventDto, EventRamStatus, GroupEventRecord, MultilingualString } from '../types/event'
-import type { AiSessionAppContext } from '../types/aiSession'
+import type { AiSessionAppContext, AiSessionAttachment } from '../types/aiSession'
 import { eventService } from '../services/eventService'
 import { activeEntityService } from '../services/activeEntityService'
 import { eventPlanningSessionService } from '../services/eventPlanningSessionService'
+import { fileToInlineAiAttachment } from '../services/aiSessionService'
 import { isImageFile, uploadImage } from '../services/imageWorkerApi'
 import { useAiSession } from '../hooks/useAiSession'
 import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
@@ -21,7 +22,7 @@ import { contactService } from '../services/contactService'
 import type { ContactProfileDto } from '../types/contact'
 import { localizeText } from '../utils/localizedText'
 import EventRamEditor from '../components/events/EventRamEditor'
-import { createEmptyEventRamDraft, parseEventRam } from '../utils/eventRam'
+import { createEmptyEventRamDraft, getEventRamSubmissionIssues, parseEventRam } from '../utils/eventRam'
 
 // ────────────────────────────────────────────────────────────────────────────
 // Helper sub-components
@@ -55,11 +56,13 @@ const EventPreview = ({
   lang,
   posterPreviewUrl,
   posterPendingUpload = false,
+  submitted = false,
 }: {
   event: EventDto
   lang: string
   posterPreviewUrl?: string
   posterPendingUpload?: boolean
+  submitted?: boolean
 }) => {
   const ui = useUiText()
   const t = (ml: MultilingualString) => (lang === 'zh' ? ml.zh : ml.en) || ml.en || ml.zh || '—'
@@ -76,7 +79,7 @@ const EventPreview = ({
           <p className="mt-0.5 text-sm text-slate-500">{t(event.locationName)}</p>
         </div>
         <span className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
-          {ui('draft')}
+          {submitted ? (lang === 'zh' ? '已提交' : 'Submitted') : ui('draft')}
         </span>
       </div>
 
@@ -205,6 +208,8 @@ const EventPreview = ({
 
 type ChatMessage = { role: 'user' | 'assistant'; text: string; markdown?: boolean }
 type PosterUploadStatus = 'idle' | 'selected' | 'uploading' | 'uploaded' | 'error'
+type PosterAnalysisStatus = 'idle' | 'analyzing' | 'analyzed' | 'error'
+type EventEditorTab = 'setup' | 'assistant' | 'notice' | 'ram'
 
 type SpeechRecognitionLike = {
   continuous: boolean
@@ -230,6 +235,92 @@ const createIntroMessage = (text: string): ChatMessage => ({
   markdown: true,
 })
 
+const createInitialEventDraft = (organizerDisplayName = ''): EventDto => {
+  const draft: EventDto = {
+    organizerDisplayName,
+    personResponsible: organizerDisplayName,
+    purpose: { zh: '', en: '' },
+    title: { zh: '', en: '' },
+    description: { zh: '', en: '' },
+    locationName: { zh: '', en: '' },
+    startDate: '',
+    endDate: '',
+    registrationDeadline: '',
+    maxCapacity: 1,
+    capacityUnit: 'Families',
+    hardConstraints: [],
+    optionalActivities: [],
+    currency: 'NZD',
+    galleryUrls: [],
+    legacySummary: null,
+    contactProfileIds: [],
+  }
+  return { ...draft, ram: createEmptyEventRamDraft(draft) }
+}
+
+const hasText = (value: string | null | undefined) => Boolean(value?.trim())
+const hasBilingualText = (value: MultilingualString | null | undefined) => Boolean(value?.zh.trim() && value?.en.trim())
+
+const getNoticeSubmissionIssues = (event: EventDto) => {
+  const issues: string[] = []
+  if (!hasBilingualText(event.title)) issues.push('title')
+  if (!hasBilingualText(event.description)) issues.push('description')
+  if (!hasBilingualText(event.locationName)) issues.push('locationName')
+  if (!hasText(event.startDate) || Number.isNaN(Date.parse(event.startDate))) issues.push('startDate')
+  if (!hasText(event.endDate) || Number.isNaN(Date.parse(event.endDate))) issues.push('endDate')
+  if (!hasText(event.registrationDeadline) || Number.isNaN(Date.parse(event.registrationDeadline))) issues.push('registrationDeadline')
+  if (!issues.includes('startDate') && !issues.includes('endDate') && Date.parse(event.endDate) < Date.parse(event.startDate)) issues.push('dateOrder')
+  if (!issues.includes('startDate') && !issues.includes('registrationDeadline') && Date.parse(event.registrationDeadline) > Date.parse(event.startDate)) issues.push('registrationDeadlineOrder')
+  if (!Number.isInteger(event.maxCapacity) || event.maxCapacity < 1) issues.push('maxCapacity')
+  if (!event.currency.trim()) issues.push('currency')
+  return issues
+}
+
+const SubmissionStatusHeader = ({
+  title,
+  description,
+  canSubmit,
+  submitted,
+  submittedDetail,
+  remainingCount,
+  language,
+}: {
+  title: string
+  description: string
+  canSubmit: boolean
+  submitted: boolean
+  submittedDetail?: string
+  remainingCount: number
+  language: 'en' | 'zh'
+}) => {
+  const isZh = language === 'zh'
+  return (
+    <header className="rounded-2xl border border-[#2f4b42]/10 bg-white/90 p-5 shadow-[0_10px_30px_rgba(31,56,48,0.06)]">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-black text-slate-950">{title}</h2>
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-500">{description}</p>
+        </div>
+        <div className="flex flex-wrap gap-2" aria-label={isZh ? '提交状态' : 'Submission status'}>
+          <span className={['inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-black', canSubmit ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'].join(' ')}>
+            {canSubmit ? <CheckCircle2 className="h-3.5 w-3.5" /> : <CircleAlert className="h-3.5 w-3.5" />}
+            {canSubmit ? (isZh ? '可提交' : 'Ready to submit') : (isZh ? '尚不可提交' : 'Not ready')}
+          </span>
+          <span className={['inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-black', submitted ? 'bg-sky-100 text-sky-800' : 'bg-slate-100 text-slate-600'].join(' ')}>
+            {submitted ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
+            {submitted ? (submittedDetail || (isZh ? '已提交' : 'Submitted')) : (isZh ? '未提交' : 'Not submitted')}
+          </span>
+        </div>
+      </div>
+      {!canSubmit && remainingCount > 0 ? (
+        <p className="mt-3 text-xs font-semibold text-amber-700">
+          {isZh ? `还需补齐 ${remainingCount} 项资料，AI 会在“AI 对话与洞察”中继续引导。` : `${remainingCount} item(s) still need attention. AI will continue guiding you in AI chat and insights.`}
+        </p>
+      ) : null}
+    </header>
+  )
+}
+
 const getSpeechRecognition = (): SpeechRecognitionConstructor | null => {
   const speechWindow = window as Window & {
     SpeechRecognition?: SpeechRecognitionConstructor
@@ -241,6 +332,8 @@ const getSpeechRecognition = (): SpeechRecognitionConstructor | null => {
 
 const fallbackDraftFromRecord = (record: GroupEventRecord): EventDto => ({
   id: record.id,
+  personResponsible: '',
+  purpose: { zh: '', en: '' },
   title: { zh: record.titleZh, en: record.titleEn },
   description: { zh: '', en: '' },
   locationName: { zh: '', en: '' },
@@ -265,7 +358,13 @@ const getDraftFromRecord = (record: GroupEventRecord): EventDto => {
   try {
     const parsed = JSON.parse(record.eventDataJson) as EventDto
     if (parsed && parsed.title && parsed.description && parsed.locationName) {
-      const draft = { ...parsed, id: record.id, contactProfileIds: record.contactProfileIds ?? parsed.contactProfileIds ?? [] }
+      const draft = {
+        ...parsed,
+        id: record.id,
+        personResponsible: parsed.personResponsible || parsed.organizerDisplayName || '',
+        purpose: parsed.purpose ?? { zh: '', en: '' },
+        contactProfileIds: record.contactProfileIds ?? parsed.contactProfileIds ?? [],
+      }
       return { ...draft, ram: parsed.ram ?? createEmptyEventRamDraft(draft) }
     }
   } catch {
@@ -277,55 +376,50 @@ const getDraftFromRecord = (record: GroupEventRecord): EventDto => {
 
 const EventWorkflowPanel = ({
   eventDraft,
-  hasPoster,
   targetEventId,
   language,
   ramStatus,
+  noticeSubmitted,
 }: {
   eventDraft: EventDto | null
-  hasPoster: boolean
   targetEventId: string
   language: string
   ramStatus: EventRamStatus
+  noticeSubmitted: boolean
 }) => {
   const isZh = language === 'zh'
   const titleReady = Boolean(eventDraft && ((isZh ? eventDraft.title.zh : eventDraft.title.en) || eventDraft.title.en || eventDraft.title.zh))
   const timeReady = Boolean(eventDraft?.startDate && eventDraft?.endDate)
   const registrationReady = Boolean(eventDraft && eventDraft.maxCapacity > 0 && eventDraft.registrationDeadline)
   const savedReady = Boolean(targetEventId)
+  const setupReady = Boolean(eventDraft && hasBilingualText(eventDraft.purpose) && hasText(eventDraft.personResponsible))
   const items = [
     {
-      label: isZh ? '1. 用 AI 梳理活动' : '1. Shape the event with AI',
-      hint: isZh ? '先把活动目的、对象、时间和限制说清楚。' : 'Clarify purpose, audience, timing, and constraints first.',
-      ready: titleReady,
+      label: isZh ? '1. 填写初始化资料' : '1. Add the starting brief',
+      hint: isZh ? '先说明活动目的、负责人、联系人，并可上传海报。' : 'Add the purpose, person responsible, contacts, and an optional poster.',
+      ready: setupReady,
+      icon: <BookOpenText className="h-4 w-4" />,
+    },
+    {
+      label: isZh ? '2. 与 AI 补齐共同资料' : '2. Complete shared facts with AI',
+      hint: isZh ? 'AI 会把活动项目等资料同时用于通知和 RAM。' : 'AI reuses facts such as activities across the notice and RAM.',
+      ready: titleReady && timeReady && registrationReady,
       icon: <MessageSquareText className="h-4 w-4" />,
     },
     {
-      label: isZh ? '2. 确认时间与报名' : '2. Confirm timing and registration',
-      hint: isZh ? '检查开始/结束时间、报名截止和容量。' : 'Check dates, registration deadline, and capacity.',
-      ready: timeReady && registrationReady,
-      icon: <CalendarDays className="h-4 w-4" />,
+      label: isZh ? '3. 提交活动通知' : '3. Submit the event notice',
+      hint: isZh ? '检查双语文案、时间、地点、报名资料和海报。' : 'Check bilingual copy, timing, venue, enrollment details, and poster.',
+      ready: savedReady && noticeSubmitted,
+      icon: <FileText className="h-4 w-4" />,
     },
     {
-      label: isZh ? '3. 补齐活动海报' : '3. Add the event poster',
-      hint: isZh ? '海报会帮助成员快速理解活动。' : 'A poster helps members understand the event quickly.',
-      ready: hasPoster,
-      icon: <ImageIcon className="h-4 w-4" />,
-    },
-    {
-      label: isZh ? '4. 人工确认 RAM' : '4. Human-check the RAM',
+      label: isZh ? '4. 人工确认并提交 RAM' : '4. Human-check and submit the RAM',
       hint: isZh ? '补齐缺失资料并由组长确认，不接受 AI 猜测。' : 'Resolve missing facts and have a leader confirm them; do not accept AI guesses.',
-      ready: Boolean(eventDraft?.ram?.leaderConfirmed),
+      ready: ramStatus === 'awaitingReview' || ramStatus === 'approved',
       icon: <ShieldCheck className="h-4 w-4" />,
     },
     {
-      label: isZh ? '5. 保存到小组' : '5. Save to group',
-      hint: isZh ? '保存为筹备活动，再提交 RAM 审核。' : 'Save as a planning event, then submit the RAM for review.',
-      ready: savedReady,
-      icon: <Save className="h-4 w-4" />,
-    },
-    {
-      label: isZh ? '6. RAM 审核批准' : '6. RAM review and approval',
+      label: isZh ? '5. RAM 审核批准' : '5. RAM review and approval',
       hint: isZh ? '只有批准后才进入近期活动并开放报名。' : 'Only approval moves the event to Upcoming and allows enrollment.',
       ready: ramStatus === 'approved',
       icon: <ShieldCheck className="h-4 w-4" />,
@@ -384,7 +478,7 @@ const EventCreatorView = () => {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [listening, setListening] = useState(false)
-  const [eventDraft, setEventDraft] = useState<EventDto | null>(null)
+  const [eventDraft, setEventDraft] = useState<EventDto | null>(() => createInitialEventDraft(me?.displayName))
   const [availableContacts, setAvailableContacts] = useState<ContactProfileDto[]>([])
   const [aiInsight, setAiInsight] = useState<MultilingualString | null>(null)
   const [error, setError] = useState('')
@@ -394,6 +488,11 @@ const EventCreatorView = () => {
   const [posterPreviewUrl, setPosterPreviewUrl] = useState('')
   const [posterUploadStatus, setPosterUploadStatus] = useState<PosterUploadStatus>('idle')
   const [posterUploadError, setPosterUploadError] = useState('')
+  const [posterAnalysisStatus, setPosterAnalysisStatus] = useState<PosterAnalysisStatus>('idle')
+  const [posterAnalysisMessage, setPosterAnalysisMessage] = useState('')
+  const [activeTab, setActiveTab] = useState<EventEditorTab>('setup')
+  const [noticeSubmitted, setNoticeSubmitted] = useState(false)
+  const [ramHasLocalChanges, setRamHasLocalChanges] = useState(false)
   const [ramStatus, setRamStatus] = useState<EventRamStatus>('draft')
   const [ramBusy, setRamBusy] = useState(false)
   const [ramMessage, setRamMessage] = useState('')
@@ -403,30 +502,54 @@ const EventCreatorView = () => {
   const canAuditRam = hasAdminPermission('admin.events.audit')
   const sessionIdRef = useRef(eventPlanningSessionService.getSessionId(me?.id))
   const posterInputRef = useRef<HTMLInputElement>(null)
+  const referencePosterInputRef = useRef<HTMLInputElement>(null)
   const posterObjectUrlRef = useRef('')
   const eventContext = useMemo(
     () => eventDraft ? createEventContextFromDto(eventDraft) : aiContentContext.eventContext,
     [aiContentContext.eventContext, eventDraft],
   )
+  const selectedContactFacts = useMemo(
+    () => availableContacts
+      .filter((contact) => (eventDraft?.contactProfileIds ?? []).includes(contact.id))
+      .map((contact) => ({
+        id: contact.id,
+        name: contact.name,
+        role: contact.role,
+        phone: contact.phone ?? null,
+        email: contact.email ?? null,
+      })),
+    [availableContacts, eventDraft?.contactProfileIds],
+  )
   const baseAiAppContext = useMemo<AiSessionAppContext>(() => ({
     language,
-    ...(me?.id ? { userId: me.id, memberId: me.id } : {}),
+    ...(me?.id ? {
+      userId: me.id,
+      memberId: me.id,
+      userProfile: { id: me.id, displayName: me.displayName },
+      memberProfile: { id: me.id, displayName: me.displayName },
+    } : {}),
     ...(effectiveGroupId ? { groupId: effectiveGroupId } : {}),
     missionStatements: aiContentContext.missionStatements,
     eventContext: aiContentContext.eventContext,
     eventData: aiContentContext.eventContext?.eventData ?? null,
-  }), [aiContentContext.eventContext, aiContentContext.missionStatements, effectiveGroupId, language, me?.id])
+  }), [aiContentContext.eventContext, aiContentContext.missionStatements, effectiveGroupId, language, me?.displayName, me?.id])
   const aiAppContext = useMemo<AiSessionAppContext>(() => ({
     language,
-    ...(me?.id ? { userId: me.id, memberId: me.id } : {}),
+    ...(me?.id ? {
+      userId: me.id,
+      memberId: me.id,
+      userProfile: { id: me.id, displayName: me.displayName },
+      memberProfile: { id: me.id, displayName: me.displayName },
+    } : {}),
     ...(effectiveGroupId ? { groupId: effectiveGroupId } : {}),
     missionStatements: aiContentContext.missionStatements,
     eventContext,
     eventData: eventContext?.eventData ?? null,
     knownFacts: {
       ...(targetEventId ? { eventId: targetEventId } : {}),
+      eventContacts: selectedContactFacts,
     },
-  }), [aiContentContext.missionStatements, effectiveGroupId, eventContext, language, me?.id, targetEventId])
+  }), [aiContentContext.missionStatements, effectiveGroupId, eventContext, language, me?.displayName, me?.id, selectedContactFacts, targetEventId])
   const {
     state: sessionState,
     loading: sessionLoading,
@@ -466,11 +589,19 @@ const EventCreatorView = () => {
   }, [t])
 
   useEffect(() => {
+    if (!me?.displayName) return
+    setEventDraft((current) => current && !current.organizerDisplayName
+      ? { ...current, organizerDisplayName: me.displayName, personResponsible: current.personResponsible || me.displayName }
+      : current)
+  }, [me?.displayName])
+
+  useEffect(() => {
     if (isEditMode) {
       return
     }
     if (sessionState?.draft) {
       setEventDraft(sessionState.draft)
+      setRamHasLocalChanges(true)
     }
     setAiInsight(sessionState?.context ?? null)
   }, [isEditMode, sessionState])
@@ -516,12 +647,23 @@ const EventCreatorView = () => {
       return
     }
 
+    let cancelled = false
     if (eventFromNavigationState && eventFromNavigationStateId === eventIdValue) {
       const draft = getDraftFromRecord(eventFromNavigationState)
       setError('')
       setEventDraft(draft)
+      setNoticeSubmitted(true)
+      setRamStatus(eventFromNavigationState.ramStatus ?? 'draft')
+      setRamHasLocalChanges(false)
       setAiInsight(draft.legacySummary ?? null)
-      return
+      eventService.getEventRam(eventFromNavigationState.id)
+        .then((ramRecord) => {
+          if (cancelled) return
+          setRamStatus(ramRecord.status)
+          setEventDraft((current) => current ? { ...current, ram: parseEventRam(ramRecord) } : current)
+        })
+        .catch(() => undefined)
+      return () => { cancelled = true }
     }
 
     if (!effectiveGroupId) {
@@ -529,7 +671,6 @@ const EventCreatorView = () => {
       return
     }
 
-    let cancelled = false
     eventService.getGroupEvents(effectiveGroupId)
       .then((records) => {
         if (cancelled) return
@@ -542,7 +683,9 @@ const EventCreatorView = () => {
         const draft = getDraftFromRecord(record)
         setError('')
         setEventDraft(draft)
+        setNoticeSubmitted(true)
         setRamStatus(record.ramStatus ?? 'draft')
+        setRamHasLocalChanges(false)
         setAiInsight(draft.legacySummary ?? null)
         eventService.getEventRam(record.id)
           .then((ramRecord) => {
@@ -567,12 +710,10 @@ const EventCreatorView = () => {
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
   }
 
-  const handleSend = async () => {
-    const msg = input.trim()
+  const handleAiRequest = async (msg: string, attachments: AiSessionAttachment[] = []) => {
     const isSending = isEditMode ? loading : sessionLoading
-    if (!msg || isSending) return
+    if ((!msg && attachments.length === 0) || isSending) return false
 
-    setInput('')
     if (isEditMode) {
       setError('')
     } else {
@@ -586,8 +727,8 @@ const EventCreatorView = () => {
 
     try {
       const response = isEditMode
-        ? await eventService.extractFromChat(msg, sessionIdRef.current, 'text', aiAppContext)
-        : await sendMessage(msg, { inputMode: 'text', appContext: aiAppContext })
+        ? await eventService.extractFromChat(msg, sessionIdRef.current, 'text', aiAppContext, attachments)
+        : await sendMessage(msg, { inputMode: 'text', appContext: aiAppContext, attachments })
 
       if (response.responseMode === 'result' && response.result) {
         const dto = response.result
@@ -599,10 +740,19 @@ const EventCreatorView = () => {
         }
         setEventDraft((current) => ({
           ...dto,
+          organizerDisplayName: dto.organizerDisplayName || current?.organizerDisplayName || me?.displayName || '',
+          personResponsible: dto.personResponsible || current?.personResponsible || me?.displayName || '',
+          purpose: dto.purpose && (dto.purpose.zh.trim() || dto.purpose.en.trim())
+            ? dto.purpose
+            : current?.purpose ?? { zh: '', en: '' },
+          posterImageUrl: current?.posterImageUrl || dto.posterImageUrl || null,
           contactProfileIds: current?.contactProfileIds ?? dto.contactProfileIds ?? [],
           ram: dto.ram ?? current?.ram ?? createEmptyEventRamDraft(dto),
         }))
         setSaveStatus('idle')
+        setNoticeSubmitted(false)
+        setRamStatus('draft')
+        setRamHasLocalChanges(true)
         setAiInsight(nextInsight)
         const lang = language === 'zh' ? dto.title.zh : dto.title.en
         setMessages((prev) => [
@@ -623,6 +773,7 @@ const EventCreatorView = () => {
           },
         ])
       }
+      return true
     } catch (err) {
       const apiError = normalizeApiError(err)
       if (isEditMode) {
@@ -632,11 +783,56 @@ const EventCreatorView = () => {
         ...prev,
         { role: 'assistant', text: t('eventExtractFailed', { message: apiError.message }), markdown: true },
       ])
+      return false
     } finally {
       if (isEditMode) {
         setLoading(false)
       }
       scrollToBottom()
+    }
+  }
+
+  const handleSend = async () => {
+    const msg = input.trim()
+    if (!msg) return
+    setInput('')
+    await handleAiRequest(msg)
+  }
+
+  const analyzePosterWithAi = async (file: File, referenceOnly: boolean) => {
+    const isSupported = file.type.startsWith('image/')
+      || file.type === 'application/pdf'
+      || /\.(png|jpe?g|webp|gif|pdf)$/i.test(file.name)
+    if (!isSupported) {
+      setPosterAnalysisStatus('error')
+      setPosterAnalysisMessage(language === 'zh' ? 'AI 仅支持读取图片或 PDF 海报。' : 'AI can read image or PDF posters only.')
+      return
+    }
+    if (file.size > 6 * 1024 * 1024) {
+      setPosterAnalysisStatus('error')
+      setPosterAnalysisMessage(language === 'zh' ? '供 AI 读取的海报不能超过 6 MB。' : 'Posters sent to AI must be 6 MB or smaller.')
+      return
+    }
+
+    setPosterAnalysisStatus('analyzing')
+    setPosterAnalysisMessage(language === 'zh' ? 'AI 正在读取海报…' : 'AI is reading the poster…')
+    try {
+      const attachment = await fileToInlineAiAttachment(file, 'event-poster')
+      const prompt = referenceOnly
+        ? (language === 'zh'
+            ? '请读取这张外部制作或过期的参考海报，提取可复用的活动信息。旧日期和旧报名截止日期仅作为参考，除非我明确确认，否则不要当作当前活动日期。请同时检查活动通知和风险评估与管理报告还缺少什么。'
+            : 'Read this externally produced or expired reference poster and extract reusable event facts. Treat old dates and registration deadlines as reference only unless I explicitly confirm them. Check what is still missing for both the event notice and the RAM report.')
+        : (language === 'zh'
+            ? '请读取这张当前活动海报，提取活动通知和风险评估与管理报告可复用的信息，并指出仍需负责人确认的资料。'
+            : 'Read this current event poster, reuse its facts for the event notice and RAM report, and identify anything the person responsible must still confirm.')
+      const succeeded = await handleAiRequest(prompt, [attachment])
+      setPosterAnalysisStatus(succeeded ? 'analyzed' : 'error')
+      setPosterAnalysisMessage(succeeded
+        ? (language === 'zh' ? 'AI 已读取海报；请到“AI 对话与洞察”查看结果。' : 'AI read the poster. Review the result in AI chat and insights.')
+        : (language === 'zh' ? 'AI 未能读取海报，请稍后重试。' : 'AI could not read the poster. Please try again.'))
+    } catch (reason) {
+      setPosterAnalysisStatus('error')
+      setPosterAnalysisMessage(normalizeApiError(reason).message)
     }
   }
 
@@ -718,6 +914,11 @@ const EventCreatorView = () => {
     setPendingPosterFile(file)
     setPosterUploadError('')
     setSaveStatus('idle')
+    setNoticeSubmitted(false)
+    setRamStatus('draft')
+    setRamHasLocalChanges(true)
+    setEventDraft((current) => current?.ram ? { ...current, ram: { ...current.ram, leaderConfirmed: false } } : current)
+    void analyzePosterWithAi(file, false)
 
     if (!targetEventId) {
       setPosterUploadStatus('selected')
@@ -740,13 +941,15 @@ const EventCreatorView = () => {
     }
   }
 
+  const handleReferencePosterChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0]
+    event.currentTarget.value = ''
+    if (!file) return
+    void analyzePosterWithAi(file, true)
+  }
+
   const handleCommitDraft = async () => {
     if (!eventDraft) {
-      return
-    }
-
-    if (!eventDraft.ram?.leaderConfirmed) {
-      setRamMessage(language === 'zh' ? '请由组长人工核对并确认 RAM 后再保存。' : 'A group leader must review and confirm the RAM before saving.')
       return
     }
 
@@ -816,7 +1019,9 @@ const EventCreatorView = () => {
         activeEntityService.setEvent(persistedEventId, effectiveGroupId || undefined)
       }
       setSaveStatus('saved')
+      setNoticeSubmitted(true)
       setRamStatus('draft')
+      setRamHasLocalChanges(false)
       setMessages((prev) => [
         ...prev,
         {
@@ -845,12 +1050,13 @@ const EventCreatorView = () => {
   }
 
   const handleSaveRam = async () => {
-    if (!targetEventId || !eventDraft?.ram || !eventDraft.ram.leaderConfirmed) return
+    if (!targetEventId || !eventDraft?.ram) return
     setRamBusy(true)
     setRamMessage('')
     try {
       const record = await eventService.saveEventRam(targetEventId, eventDraft.ram)
       setRamStatus(record.status)
+      setRamHasLocalChanges(false)
       setRamMessage(language === 'zh' ? 'RAM 草稿已保存。' : 'RAM draft saved.')
     } catch (reason) {
       setRamMessage(normalizeApiError(reason).message)
@@ -860,13 +1066,14 @@ const EventCreatorView = () => {
   }
 
   const handleSubmitRam = async () => {
-    if (!targetEventId || !eventDraft?.ram || !eventDraft.ram.leaderConfirmed) return
+    if (!targetEventId || !eventDraft?.ram || getEventRamSubmissionIssues(eventDraft.ram, true).length > 0) return
     setRamBusy(true)
     setRamMessage('')
     try {
       await eventService.saveEventRam(targetEventId, eventDraft.ram)
       const record = await eventService.submitEventRam(targetEventId)
       setRamStatus(record.status)
+      setRamHasLocalChanges(false)
       setRamMessage(language === 'zh' ? 'RAM 已提交审核。' : 'RAM sent for review.')
     } catch (reason) {
       setRamMessage(normalizeApiError(reason).message)
@@ -882,6 +1089,7 @@ const EventCreatorView = () => {
     try {
       const record = await eventService.approveEventRam(targetEventId)
       setRamStatus(record.status)
+      setRamHasLocalChanges(false)
       setRamMessage(language === 'zh' ? 'RAM 已批准，活动现在可以进入近期活动。' : 'RAM approved. The event can now appear as upcoming.')
     } catch (reason) {
       setRamMessage(normalizeApiError(reason).message)
@@ -905,6 +1113,35 @@ const EventCreatorView = () => {
   const posterButtonLabel = eventDraft?.posterImageUrl || posterPreviewUrl
     ? t('eventPosterReplace')
     : t('eventPosterChoose')
+  const noticeIssues = eventDraft ? getNoticeSubmissionIssues(eventDraft) : ['eventDraft']
+  if (!effectiveGroupId) noticeIssues.push('group')
+  const noticeCanSubmit = noticeIssues.length === 0 && canEditRam
+  const ramIssues = eventDraft?.ram ? getEventRamSubmissionIssues(eventDraft.ram, Boolean(targetEventId)) : ['ram']
+  const ramCanSubmit = ramIssues.length === 0 && canEditRam
+  const ramSubmitted = !ramHasLocalChanges && (ramStatus === 'awaitingReview' || ramStatus === 'approved')
+  const ramSubmittedDetail = ramStatus === 'approved'
+    ? (language === 'zh' ? '已批准' : 'Approved')
+    : ramStatus === 'awaitingReview'
+      ? (language === 'zh' ? '已提交审核' : 'Submitted for review')
+      : undefined
+  const tabs: Array<{ id: EventEditorTab; label: string; icon: React.ReactNode; ready?: boolean; submitted?: boolean }> = [
+    { id: 'setup', label: language === 'zh' ? '1. 工作流与初始化' : '1. Workflow & setup', icon: <BookOpenText className="h-4 w-4" /> },
+    { id: 'assistant', label: language === 'zh' ? '2. AI 对话与洞察' : '2. AI chat & insights', icon: <Sparkles className="h-4 w-4" /> },
+    { id: 'notice', label: language === 'zh' ? '3. 活动通知文案' : '3. Event notice', icon: <FileText className="h-4 w-4" />, ready: noticeCanSubmit, submitted: noticeSubmitted },
+    { id: 'ram', label: language === 'zh' ? '4. 风险评估与管理' : '4. Risk assessment', icon: <ShieldCheck className="h-4 w-4" />, ready: ramCanSubmit, submitted: ramSubmitted },
+  ]
+
+  const updateSetupDraft = (patch: Partial<EventDto>) => {
+    setEventDraft((current) => current ? {
+      ...current,
+      ...patch,
+      ram: current.ram ? { ...current.ram, leaderConfirmed: false } : current.ram,
+    } : current)
+    setNoticeSubmitted(false)
+    setSaveStatus('idle')
+    setRamStatus('draft')
+    setRamHasLocalChanges(true)
+  }
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
@@ -918,219 +1155,191 @@ const EventCreatorView = () => {
         </p>
       </div>
 
-      <EventWorkflowPanel
-        eventDraft={eventDraft}
-        hasPoster={Boolean(eventDraft?.posterImageUrl || posterPreviewUrl)}
-        targetEventId={targetEventId}
-        language={language}
-        ramStatus={ramStatus}
-      />
-
-      {eventDraft && availableContacts.length > 0 ? (
-        <section className="rounded-2xl border border-[#2f4b42]/10 bg-white/78 p-4 shadow-[0_10px_30px_rgba(31,56,48,0.06)]">
-          <h2 className="text-lg font-black text-[#18332d]">{language === 'zh' ? '活动联系人' : 'Event contacts'}</h2>
-          <p className="mt-1 text-sm text-slate-500">{language === 'zh' ? '可选择一位或多位联系人，他们会显示在活动详情中。' : 'Choose one or more contacts to show with the event.'}</p>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            {availableContacts.map((contact) => {
-              const selected = (eventDraft.contactProfileIds ?? []).includes(contact.id)
-              return (
-                <label key={contact.id} className={['flex cursor-pointer items-center gap-3 rounded-xl border p-3', selected ? 'border-emerald-300 bg-emerald-50' : 'border-slate-200 bg-white'].join(' ')}>
-                  <input
-                    type="checkbox"
-                    checked={selected}
-                    onChange={() => setEventDraft((current) => {
-                      if (!current) return current
-                      const ids = current.contactProfileIds ?? []
-                      return { ...current, contactProfileIds: selected ? ids.filter((id) => id !== contact.id) : [...ids, contact.id] }
-                    })}
-                  />
-                  {contact.photoUrl ? <img src={contact.photoUrl} alt="" className="h-10 w-10 rounded-lg object-cover" /> : null}
-                  <span><span className="block text-sm font-bold text-slate-950">{localizeText(contact.name, language)}</span><span className="block text-xs text-slate-500">{localizeText(contact.role, language)}</span></span>
-                </label>
-              )
-            })}
-          </div>
-        </section>
-      ) : null}
-
-      {/* Chat window */}
-      <div className="flex max-h-[50vh] flex-col gap-3 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50 p-4">
-        {messages.map((msg, i) => (
-          <div
-            key={i}
-            className={[
-              'max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed',
-              msg.role === 'user'
-                ? 'ml-auto bg-emerald-700 text-white'
-                : 'mr-auto bg-white text-slate-800 shadow-sm',
-            ].join(' ')}
-          >
-            {msg.markdown && msg.role === 'assistant' ? (
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                  p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                  ul: ({ children }) => <ul className="mb-2 list-disc pl-5 last:mb-0">{children}</ul>,
-                  ol: ({ children }) => <ol className="mb-2 list-decimal pl-5 last:mb-0">{children}</ol>,
-                  li: ({ children }) => <li className="mb-1">{children}</li>,
-                  code: ({ children }) => <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">{children}</code>,
-                }}
-              >
-                {msg.text}
-              </ReactMarkdown>
-            ) : (
-              msg.text.split('\n').map((line, j) => (
-                <span key={j}>
-                  {line}
-                  {j < msg.text.split('\n').length - 1 && <br />}
-                </span>
-              ))
-            )}
-          </div>
-        ))}
-        {isSending && (
-          <div className="mr-auto max-w-[85%] rounded-2xl bg-white px-4 py-2.5 text-sm text-slate-400 shadow-sm">
-            <span className="animate-pulse">{t('geminiThinking')}</span>
-          </div>
-        )}
-        <div ref={bottomRef} />
-      </div>
-
-      {/* Input area */}
-      <div className="flex items-end gap-3">
-        <textarea
-          ref={textareaRef}
-          rows={3}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          disabled={isSending}
-          placeholder={t('describeEventPlaceholder')}
-          className="flex-1 resize-none rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder-slate-400 shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100 disabled:opacity-60"
-        />
-        <button
-          type="button"
-          onClick={handleVoiceToggle}
-          className={[
-            'inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border shadow-sm transition',
-            listening
-              ? 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100'
-              : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50',
-          ].join(' ')}
-          aria-label={listening ? t('stopVoiceInput') : t('startVoiceInput')}
-        >
-          {listening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-        </button>
-        <button
-          type="button"
-          onClick={handleSend}
-          disabled={isSending || !input.trim()}
-          className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-700 text-white shadow-sm transition hover:bg-emerald-800 disabled:opacity-50"
-          aria-label={t('send')}
-        >
-          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M22 2L11 13" />
-            <path d="M22 2L15 22l-4-9-9-4 20-7z" />
-          </svg>
-        </button>
+      <div className="overflow-x-auto rounded-2xl border border-[#2f4b42]/10 bg-white/85 p-2 shadow-[0_10px_30px_rgba(31,56,48,0.06)]" role="tablist" aria-label={language === 'zh' ? '活动编辑步骤' : 'Event editor steps'}>
+        <div className="flex min-w-max gap-1">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              id={`event-editor-tab-${tab.id}`}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === tab.id}
+              aria-controls={`event-editor-panel-${tab.id}`}
+              onClick={() => setActiveTab(tab.id)}
+              className={[
+                'inline-flex min-h-11 items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition',
+                activeTab === tab.id ? 'bg-[#176b5a] text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950',
+              ].join(' ')}
+            >
+              {tab.icon}
+              {tab.label}
+              {tab.submitted ? <CheckCircle2 className="h-3.5 w-3.5 text-sky-300" /> : tab.ready ? <span className="h-2 w-2 rounded-full bg-emerald-400" /> : null}
+            </button>
+          ))}
+        </div>
       </div>
 
       {(error || sessionError) && (
         <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">{error || sessionError}</p>
       )}
 
-      {/* Event Preview */}
-      {aiInsight && (
-        <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
-          <span className="font-semibold">{t('aiInsight')}</span>
-          {language === 'zh' ? aiInsight.zh : aiInsight.en}
-        </div>
-      )}
-      {eventDraft && (
-        <div className="rounded-xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+      <div id="event-editor-panel-setup" role="tabpanel" aria-labelledby="event-editor-tab-setup" hidden={activeTab !== 'setup'} className="space-y-6">
+        <EventWorkflowPanel
+          eventDraft={eventDraft}
+          targetEventId={targetEventId}
+          language={language}
+          ramStatus={ramStatus}
+          noticeSubmitted={noticeSubmitted}
+        />
+
+        {eventDraft ? (
+          <section className="space-y-5 rounded-2xl border border-[#2f4b42]/10 bg-white/90 p-5 shadow-[0_10px_30px_rgba(31,56,48,0.06)]">
             <div>
-              <h2 className="text-sm font-semibold text-slate-900">{t('poster')}</h2>
-              <p className="mt-1 text-xs leading-5 text-slate-500">{t('eventPosterUploadHelp')}</p>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#176b5a]">{language === 'zh' ? '初始化资料' : 'Starting brief'}</p>
+              <h2 className="mt-1 text-xl font-black text-slate-950">{language === 'zh' ? '先告诉 AI 这次活动为什么而办' : 'Tell AI why this event matters'}</h2>
+              <p className="mt-1 text-sm leading-6 text-slate-500">{language === 'zh' ? '这些资料会成为通知文案和 RAM 的共同事实来源；稍后仍可在 AI 对话中补充或更正。' : 'These details become shared facts for the notice and RAM. You can add to or correct them later in AI chat.'}</p>
             </div>
-            <input
-              ref={posterInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(event) => { void handlePosterChange(event) }}
-            />
-            <button
-              type="button"
-              onClick={() => posterInputRef.current?.click()}
-              disabled={isPosterUploading || saveStatus === 'saving'}
-              className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {posterButtonLabel}
+            <div className="grid gap-4 md:grid-cols-2">
+              {(['zh', 'en'] as const).map((lang) => (
+                <label key={lang} className="text-sm font-bold text-slate-700">
+                  {language === 'zh' ? '活动目的' : 'Event purpose'} ({lang})
+                  <textarea
+                    rows={3}
+                    value={eventDraft.purpose?.[lang] ?? ''}
+                    onChange={(event) => updateSetupDraft({ purpose: { ...(eventDraft.purpose ?? { zh: '', en: '' }), [lang]: event.target.value } })}
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-normal outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  />
+                </label>
+              ))}
+              <label className="text-sm font-bold text-slate-700 md:col-span-2">
+                {language === 'zh' ? '活动负责人' : 'Person responsible'}
+                <input
+                  value={eventDraft.personResponsible ?? ''}
+                  onChange={(event) => updateSetupDraft({ personResponsible: event.target.value })}
+                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-normal outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                />
+              </label>
+            </div>
+
+            <div>
+              <h3 className="font-black text-slate-950">{language === 'zh' ? '活动联系人' : 'Event contacts'}</h3>
+              <p className="mt-1 text-sm text-slate-500">{language === 'zh' ? '可选择一位或多位联系人，他们会显示在活动详情中。' : 'Choose one or more contacts to show with the event.'}</p>
+              {availableContacts.length > 0 ? (
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {availableContacts.map((contact) => {
+                    const selected = (eventDraft.contactProfileIds ?? []).includes(contact.id)
+                    return (
+                      <label key={contact.id} className={['flex cursor-pointer items-center gap-3 rounded-xl border p-3', selected ? 'border-emerald-300 bg-emerald-50' : 'border-slate-200 bg-white'].join(' ')}>
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={() => {
+                            const ids = eventDraft.contactProfileIds ?? []
+                            updateSetupDraft({ contactProfileIds: selected ? ids.filter((id) => id !== contact.id) : [...ids, contact.id] })
+                          }}
+                        />
+                        {contact.photoUrl ? <img src={contact.photoUrl} alt="" className="h-10 w-10 rounded-lg object-cover" /> : null}
+                        <span><span className="block text-sm font-bold text-slate-950">{localizeText(contact.name, language)}</span><span className="block text-xs text-slate-500">{localizeText(contact.role, language)}</span></span>
+                      </label>
+                    )
+                  })}
+                </div>
+              ) : <p className="mt-3 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-500">{language === 'zh' ? '当前小组尚无可选择的联系人资料。' : 'This group has no available contact profiles yet.'}</p>}
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h3 className="font-black text-slate-950">{language === 'zh' ? '海报与 AI 读取' : 'Poster and AI reading'}</h3>
+                  <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">{language === 'zh' ? '现用海报会保存为活动图片并自动交给 AI 读取。旧海报或 PDF 可仅供 AI 参考，不会成为当前活动海报。' : 'A current poster is saved as the event image and read by AI. An old poster or PDF can be AI reference only and will not become the current poster.'}</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <input ref={posterInputRef} type="file" accept="image/*" className="hidden" onChange={(event) => { void handlePosterChange(event) }} />
+                  <button type="button" onClick={() => posterInputRef.current?.click()} disabled={isPosterUploading || isSending || saveStatus === 'saving'} className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-3.5 py-2 text-sm font-bold text-white disabled:opacity-50">
+                    <ImageIcon className="h-4 w-4" />{posterButtonLabel}
+                  </button>
+                  <input ref={referencePosterInputRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={handleReferencePosterChange} />
+                  <button type="button" onClick={() => referencePosterInputRef.current?.click()} disabled={isSending} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-bold text-slate-700 disabled:opacity-50">
+                    <Upload className="h-4 w-4" />{language === 'zh' ? '读取旧/参考海报' : 'Read old/reference poster'}
+                  </button>
+                </div>
+              </div>
+              {posterStatusMessage ? <p className={['mt-3 rounded-lg px-3 py-2 text-xs', posterUploadStatus === 'error' ? 'border border-rose-200 bg-rose-50 text-rose-700' : posterUploadStatus === 'selected' ? 'border border-amber-200 bg-amber-50 text-amber-700' : 'border border-emerald-200 bg-emerald-50 text-emerald-700'].join(' ')}>{posterStatusMessage}</p> : null}
+              {posterAnalysisMessage ? <p className={['mt-2 rounded-lg px-3 py-2 text-xs', posterAnalysisStatus === 'error' ? 'border border-rose-200 bg-rose-50 text-rose-700' : posterAnalysisStatus === 'analyzing' ? 'border border-sky-200 bg-sky-50 text-sky-700' : 'border border-emerald-200 bg-emerald-50 text-emerald-700'].join(' ')}>{posterAnalysisMessage}</p> : null}
+            </div>
+          </section>
+        ) : null}
+      </div>
+
+      <div id="event-editor-panel-assistant" role="tabpanel" aria-labelledby="event-editor-tab-assistant" hidden={activeTab !== 'assistant'} className="space-y-4">
+        <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm leading-6 text-sky-900">
+          <strong>{language === 'zh' ? '共享资料工作区：' : 'Shared-facts workspace: '}</strong>
+          {language === 'zh' ? 'AI 会汇集初始化资料、海报和对话，复用活动名称、项目、人数、联系人等信息，同时引导完成通知文案和 RAM。所有安全事实仍须人工确认。' : 'AI combines the starting brief, posters, and chat; reuses names, activities, attendance, contacts, and other facts across the notice and RAM; and guides both deliverables. Safety facts still require human confirmation.'}
+        </div>
+        {aiInsight ? (
+          <div className="rounded-xl border border-sky-200 bg-white px-4 py-3 text-sm text-sky-950 shadow-sm">
+            <span className="font-bold">{t('aiInsight')}</span>{language === 'zh' ? aiInsight.zh : aiInsight.en}
+          </div>
+        ) : null}
+        <div className="flex max-h-[50vh] min-h-72 flex-col gap-3 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          {messages.map((msg, i) => (
+            <div key={i} className={['max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed', msg.role === 'user' ? 'ml-auto bg-emerald-700 text-white' : 'mr-auto bg-white text-slate-800 shadow-sm'].join(' ')}>
+              {msg.markdown && msg.role === 'assistant' ? (
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>, ul: ({ children }) => <ul className="mb-2 list-disc pl-5 last:mb-0">{children}</ul>, ol: ({ children }) => <ol className="mb-2 list-decimal pl-5 last:mb-0">{children}</ol>, li: ({ children }) => <li className="mb-1">{children}</li>, code: ({ children }) => <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">{children}</code> }}>{msg.text}</ReactMarkdown>
+              ) : msg.text.split('\n').map((line, j) => <span key={j}>{line}{j < msg.text.split('\n').length - 1 && <br />}</span>)}
+            </div>
+          ))}
+          {isSending ? <div className="mr-auto max-w-[85%] rounded-2xl bg-white px-4 py-2.5 text-sm text-slate-400 shadow-sm"><span className="animate-pulse">{t('geminiThinking')}</span></div> : null}
+          <div ref={bottomRef} />
+        </div>
+        <div className="flex items-end gap-3">
+          <textarea ref={textareaRef} rows={3} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={handleKeyDown} disabled={isSending} placeholder={t('describeEventPlaceholder')} className="flex-1 resize-none rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder-slate-400 shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100 disabled:opacity-60" />
+          <button type="button" onClick={handleVoiceToggle} className={['inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border shadow-sm transition', listening ? 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'].join(' ')} aria-label={listening ? t('stopVoiceInput') : t('startVoiceInput')}>{listening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}</button>
+          <button type="button" onClick={() => { void handleSend() }} disabled={isSending || !input.trim()} className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-700 text-white shadow-sm transition hover:bg-emerald-800 disabled:opacity-50" aria-label={t('send')}>
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 2L11 13" /><path d="M22 2L15 22l-4-9-9-4 20-7z" /></svg>
+          </button>
+        </div>
+      </div>
+
+      <div id="event-editor-panel-notice" role="tabpanel" aria-labelledby="event-editor-tab-notice" hidden={activeTab !== 'notice'} className="space-y-5">
+        <SubmissionStatusHeader title={language === 'zh' ? '活动通知文案' : 'Event notice copy'} description={language === 'zh' ? '这是面向成员的双语活动通知。每次 AI 整理后，可提交与已提交状态都会在这里更新。' : 'This is the bilingual member-facing event notice. Ready and submitted states update after every AI pass.'} canSubmit={noticeCanSubmit} submitted={noticeSubmitted} remainingCount={noticeIssues.length} language={language} />
+        {eventDraft ? <EventPreview event={eventDraft} lang={language} posterPreviewUrl={posterPreviewUrl} posterPendingUpload={Boolean(pendingPosterFile)} submitted={noticeSubmitted} /> : null}
+        {eventDraft ? (
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            {!effectiveGroupId ? <p className="text-xs text-amber-600">{t('noGroupContext')}</p> : null}
+            {saveStatus === 'saved' ? <p className="text-xs text-emerald-600">{t('eventSavedToGroupShort')}</p> : null}
+            <button type="button" onClick={() => { void handleCommitDraft() }} disabled={!noticeCanSubmit || saveStatus === 'saving' || isPosterUploading} className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 disabled:opacity-60">
+              <Save className="h-4 w-4" />{saveStatus === 'saving' ? t('saving') : targetEventId ? (language === 'zh' ? '重新提交活动通知' : 'Resubmit event notice') : (language === 'zh' ? '提交活动通知' : 'Submit event notice')}
             </button>
           </div>
-          {posterStatusMessage ? (
-            <p className={[
-              'mt-3 rounded-lg px-3 py-2 text-xs',
-              posterUploadStatus === 'error'
-                ? 'border border-rose-200 bg-rose-50 text-rose-700'
-                : posterUploadStatus === 'selected'
-                  ? 'border border-amber-200 bg-amber-50 text-amber-700'
-                  : 'border border-emerald-200 bg-emerald-50 text-emerald-700',
-            ].join(' ')}>
-              {posterStatusMessage}
-            </p>
-          ) : null}
-        </div>
-      )}
-      {eventDraft && (
-        <EventPreview
-          event={eventDraft}
-          lang={language}
-          posterPreviewUrl={posterPreviewUrl}
-          posterPendingUpload={Boolean(pendingPosterFile)}
-        />
-      )}
-      {eventDraft?.ram && (
-        <>
+        ) : null}
+      </div>
+
+      <div id="event-editor-panel-ram" role="tabpanel" aria-labelledby="event-editor-tab-ram" hidden={activeTab !== 'ram'} className="space-y-5">
+        <SubmissionStatusHeader title={language === 'zh' ? '风险评估与管理' : 'Risk Assessment and Management'} description={language === 'zh' ? 'AI 会复用活动资料起草 RAM，但负责人、电话、资质、车辆和安全确认不得由 AI 猜测，必须人工核对。' : 'AI reuses event facts to draft the RAM, but responsible people, phone numbers, qualifications, vehicles, and safety confirmations must be checked by a human.'} canSubmit={ramCanSubmit} submitted={ramSubmitted} submittedDetail={ramSubmittedDetail} remainingCount={ramIssues.length} language={language} />
+        {!targetEventId ? <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{language === 'zh' ? '请先在“活动通知文案”中保存活动，再保存或提交 RAM。' : 'Save the event in Event notice first, then save or submit the RAM.'}</p> : null}
+        {eventDraft?.ram ? (
           <EventRamEditor
             ram={eventDraft.ram}
             status={ramStatus}
             language={language}
             canEdit={canEditRam}
             canAudit={canAuditRam}
+            canSubmit={ramCanSubmit}
             busy={ramBusy}
             onChange={(ram) => {
               setEventDraft((current) => current ? { ...current, ram } : current)
               setRamStatus('draft')
+              setRamHasLocalChanges(true)
               setRamMessage('')
-              setSaveStatus('idle')
             }}
             onSave={targetEventId ? () => { void handleSaveRam() } : undefined}
             onSubmit={targetEventId ? () => { void handleSubmitRam() } : undefined}
             onApprove={targetEventId ? () => { void handleApproveRam() } : undefined}
           />
-          {ramMessage ? <p className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">{ramMessage}</p> : null}
-        </>
-      )}
-      {eventDraft && (
-        <div className="flex items-center justify-end gap-3">
-          {!effectiveGroupId && (
-            <p className="text-xs text-amber-600">{t('noGroupContext')}</p>
-          )}
-          {saveStatus === 'saved' && (
-            <p className="text-xs text-emerald-600">{t('eventSavedToGroupShort')}</p>
-          )}
-          <button
-            type="button"
-            onClick={() => { void handleCommitDraft() }}
-            disabled={saveStatus === 'saving' || isPosterUploading || !eventDraft.ram?.leaderConfirmed || !canEditRam}
-            className="inline-flex items-center rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 disabled:opacity-60"
-          >
-            {saveStatus === 'saving' ? t('saving') : targetEventId ? t('updateEvent') : t('saveToGroup')}
-          </button>
-        </div>
-      )}
+        ) : null}
+        {ramMessage ? <p className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">{ramMessage}</p> : null}
+      </div>
     </div>
   )
 }

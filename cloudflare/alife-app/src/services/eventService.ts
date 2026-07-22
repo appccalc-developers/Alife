@@ -1,5 +1,6 @@
 import type { ExtractEventFromChatResponse, EventSessionState, EventDto, EventRamAssessmentRecord, EventRamDraft, GroupEventRecord } from '../types/event'
 import type { AiSessionAppContext } from '../types/aiSession'
+import type { AiSessionAttachment } from '../types/aiSession'
 import { groupEventsQueryKey } from '../db/collections/groupCollection'
 import { conditionalGet, removeCachedRecord } from '../db/httpCache'
 import { queryClient } from '../db/queryClient'
@@ -41,8 +42,9 @@ export const eventService = {
     sessionId: string,
     inputMode: 'text' | 'voice' = 'text',
     appContext?: AiSessionAppContext,
+    attachments: AiSessionAttachment[] = [],
   ): Promise<ExtractEventFromChatResponse> => {
-    const response = await eventSessionService.sendMessage(sessionId, message, { inputMode, appContext })
+    const response = await eventSessionService.sendMessage(sessionId, message, { inputMode, appContext, attachments })
     return {
       responseMode: response.responseMode,
       sessionId: response.sessionId,

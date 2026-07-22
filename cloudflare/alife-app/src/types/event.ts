@@ -81,6 +81,9 @@ export type EventRamAssessmentRecord = {
 export type EventDto = {
   id?: string
   organizerId?: string
+  organizerDisplayName?: string
+  personResponsible?: string
+  purpose?: MultilingualString
   title: MultilingualString
   description: MultilingualString
   locationName: MultilingualString
