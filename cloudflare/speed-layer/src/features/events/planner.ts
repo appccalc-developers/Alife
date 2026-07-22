@@ -81,8 +81,10 @@ export type EventDto = {
   id?: string
   organizerId?: string
   organizerDisplayName?: string
+  personResponsible?: string
   memberId?: string
   groupId?: string
+  purpose?: MultilingualString
   title: MultilingualString
   description: MultilingualString
   locationName: MultilingualString
@@ -124,8 +126,10 @@ const EVENT_DTO_RESPONSE_SCHEMA = {
     id: { type: 'string' },
     organizerId: { type: 'string' },
     organizerDisplayName: { type: 'string' },
+    personResponsible: { type: 'string', description: 'Exact event lead name supplied by the user or trusted app context.' },
     memberId: { type: 'string' },
     groupId: { type: 'string' },
+    purpose: multilingualSchema('The ministry or community purpose of the event in both languages.'),
     title: multilingualSchema('Event title in Simplified Chinese and New Zealand English.'),
     description: multilingualSchema('Event description in Simplified Chinese and New Zealand English.'),
     locationName: multilingualSchema('Venue or location name in both languages.'),
@@ -259,19 +263,20 @@ Critical extraction rules:
    - missionStatements contains the current group description and, when present, the parent group description. Align event tone, purpose, outreach, and logistics with these statements.
    - eventContext contains the existing eventDataJson/eventData for the event being created or edited. Treat it as authoritative event context unless the user corrects it.
 4. Preserve state. Merge new information into the existing draft instead of starting over. Keep id, organizerId, organizerDisplayName, memberId, and groupId unchanged unless app context supplies a more authoritative value.
-5. Guide the user. In legacySummary, briefly reflect what is known, what is still missing for creating/enrolling the event, and the next best question.
-6. Read attachments. If image or PDF parts are supplied, extract visible event details, dates, prices, poster text, QR/payment instructions, and relevant logistics. Mention uncertainty in legacySummary.
+5. Guide the user across two deliverables: the public event notice and the internal RAM report. In legacySummary, briefly reflect what is known, state whether each deliverable has enough information to submit, list the highest-priority missing facts, and ask one useful next question.
+6. Read attachments. If image or PDF parts are supplied, extract visible event details, dates, prices, poster text, QR/payment instructions, and relevant logistics. Mention uncertainty in legacySummary. Treat an expired or prior-event poster as reference material unless the user explicitly says it is the current poster; do not silently reuse old dates.
 7. Treat natural voice transcripts the same as typed text. Clean up filler words, but do not erase meaningful uncertainty.
 8. Extract hard constraints from non-negotiable language such as "must", "no", "deadline", "only", "required", and "not allowed".
 9. Do not fabricate precise dates, prices, capacities, or venue facts. If the user gives only a month, set the date fields to the first day and include the ambiguity in legacySummary.
-10. The current reference date is CURRENT_DATE_PLACEHOLDER.
+10. Reuse shared facts consistently across both deliverables. In particular, keep purpose, title/activity name, description, participant count, participant age range, location, schedule, activities, people responsible, and contacts aligned between the public EventDto fields and ram fields whenever the same fact is used. Do not ask for a fact that is already present in the draft or trusted app context.
+11. The current reference date is CURRENT_DATE_PLACEHOLDER.
 
 RAM safety rules derived from the church Risk Assessment Manual:
-11. Produce a RAM draft together with every event draft. Use bilingual activity name/description, participant count and age range, hazards, controls, responsible person, emergency contacts, and outing checks.
-12. Score each hazard with likelihood 1-5 and impact 1-5. Likelihood: 1 rare (<5%), 2 unlikely (5-29%), 3 moderate (30-59%), 4 likely (60-79%), 5 almost certain (80%+). Impact: 1 insignificant, 2 minor/basic first aid, 3 moderate/medical visit, 4 major/hospitalisation, 5 catastrophic/permanent disability or death. riskScore must equal likelihood multiplied by impact.
-13. Never invent or infer a responsible person's name, phone number, first-aid qualification, driver licence, vehicle registration, WOF, or vehicle safety status. Only copy an exact fact explicitly supplied by the user or trusted app context. Otherwise leave the field blank or null and add a bilingual missingInformation item with its fieldPath.
-14. For outings, explicitly consider transport safety, venue risk, first-aid kit and a trained first aider, participant health needs, and weather. Unknown confirmations remain null and are marked missing.
-15. leaderConfirmed is always false in AI output. Human confirmation happens only in the editor.
+12. Produce a RAM draft together with every event draft. Use bilingual activity name/description, participant count and age range, hazards, controls, responsible person, emergency contacts, and outing checks.
+13. Score each hazard with likelihood 1-5 and impact 1-5. Likelihood: 1 rare (<5%), 2 unlikely (5-29%), 3 moderate (30-59%), 4 likely (60-79%), 5 almost certain (80%+). Impact: 1 insignificant, 2 minor/basic first aid, 3 moderate/medical visit, 4 major/hospitalisation, 5 catastrophic/permanent disability or death. riskScore must equal likelihood multiplied by impact.
+14. Never invent or infer a responsible person's name, phone number, first-aid qualification, driver licence, vehicle registration, WOF, or vehicle safety status. Only copy an exact fact explicitly supplied by the user or trusted app context. Otherwise leave the field blank or null and add a bilingual missingInformation item with its fieldPath.
+15. For outings, explicitly consider transport safety, venue risk, first-aid kit and a trained first aider, participant health needs, and weather. Unknown confirmations remain null and are marked missing.
+16. leaderConfirmed is always false in AI output. Human confirmation happens only in the editor.
 
 `
 
@@ -309,6 +314,8 @@ export class EventPlanningSession extends AiChatSession<EventDto, MultilingualSt
       normalizeDraft: normalizeEventDto,
       validateDraft: validateEventDto,
       getInitialDraft: () => ({
+        personResponsible: '',
+        purpose: { zh: '', en: '' },
         title: { zh: '', en: '' },
         description: { zh: '', en: '' },
         locationName: { zh: '', en: '' },
@@ -411,8 +418,15 @@ function mergeEventDraft(
       || nextDraft.organizerDisplayName
       || previousDraft?.organizerDisplayName
       || '',
+    personResponsible: nextDraft.personResponsible
+      || previousDraft?.personResponsible
+      || eventData?.personResponsible
+      || '',
     memberId: appContext.memberId || nextDraft.memberId || previousDraft?.memberId || '',
     groupId: appContext.groupId || nextDraft.groupId || previousDraft?.groupId || eventData?.groupId || '',
+    purpose: hasMultilingualContent(nextDraft.purpose)
+      ? nextDraft.purpose
+      : previousDraft?.purpose ?? eventData?.purpose ?? { zh: '', en: '' },
     ram: {
       ...(hasRamContent(nextDraft.ram) ? nextDraft.ram : previousDraft?.ram ?? createEmptyRamDraft()),
       leaderConfirmed: false,
@@ -454,8 +468,10 @@ function normalizeEventDto(value: unknown): EventDto {
     id: typeof candidate.id === 'string' ? candidate.id : '',
     organizerId: typeof candidate.organizerId === 'string' ? candidate.organizerId : '',
     organizerDisplayName: typeof candidate.organizerDisplayName === 'string' ? candidate.organizerDisplayName : '',
+    personResponsible: typeof candidate.personResponsible === 'string' ? candidate.personResponsible : '',
     memberId: typeof candidate.memberId === 'string' ? candidate.memberId : '',
     groupId: typeof candidate.groupId === 'string' ? candidate.groupId : '',
+    purpose: normalizeMultilingualString(candidate.purpose),
     title: normalizeMultilingualString(candidate.title),
     description: normalizeMultilingualString(candidate.description),
     locationName: normalizeMultilingualString(candidate.locationName),
@@ -578,6 +594,10 @@ function normalizeMultilingualString(value: unknown): MultilingualString {
     zh: typeof candidate?.zh === 'string' ? candidate.zh : '',
     en: typeof candidate?.en === 'string' ? candidate.en : '',
   }
+}
+
+function hasMultilingualContent(value: MultilingualString | null | undefined) {
+  return Boolean(value?.zh.trim() || value?.en.trim())
 }
 
 function validateEventDto(event: EventDto) {

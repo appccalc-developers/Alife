@@ -1721,6 +1721,8 @@ test('POST /api/events/session/:id/message persists event draft state', async ()
       content: {
         parts: [{
           text: JSON.stringify({
+            purpose: { zh: '建立家庭關係', en: 'Build family connections' },
+            personResponsible: 'Alice Chen',
             title: { zh: '家庭營', en: 'Family Camp' },
             description: { zh: '兩天一夜', en: 'Two-day retreat' },
             locationName: { zh: '漢密爾頓', en: 'Hamilton' },
@@ -1755,6 +1757,8 @@ test('POST /api/events/session/:id/message persists event draft state', async ()
   assert.equal(stateResponse.status, 200)
   const state = await stateResponse.json()
   assert.equal(state.draft.title.en, 'Family Camp')
+  assert.equal(state.draft.purpose.en, 'Build family connections')
+  assert.equal(state.draft.personResponsible, 'Alice Chen')
   assert.equal(state.draft.ram.leaderConfirmed, false)
   assert.deepEqual(state.draft.ram.missingInformation, [])
   assert.equal(state.context.en, 'Arrange carpooling.')

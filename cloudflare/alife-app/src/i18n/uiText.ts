@@ -466,13 +466,13 @@ const text = {
   createEventWithAi: { en: 'Create Event with AI', zh: '用 AI 创建活动' },
   editEventWithAi: { en: 'Edit Event with AI', zh: '用 AI 编辑活动' },
   createEventAiDescription: {
-    en: 'Chat with Gemini to design your event. The draft restores automatically across refreshes and devices using the session bridge.',
-    zh: '与 Gemini 对话设计活动。草稿会通过会话桥在刷新和不同设备间自动恢复。',
+    en: 'Move through setup, AI guidance, event notice, and RAM tabs. AI reuses shared facts across both deliverables, while safety facts remain subject to human confirmation.',
+    zh: '依次完成初始化、AI 引导、活动通知和 RAM。AI 会在两个文件间复用共同资料，安全事实仍须人工确认。',
   },
-  editEventAiDescription: { en: 'Refine this event using the same AI-assisted editor, then save your updates.', zh: '使用同一个 AI 辅助编辑器完善活动，然后保存更新。' },
+  editEventAiDescription: { en: 'Refine setup, AI guidance, event notice, and RAM in separate tabs, with submission readiness shown for both deliverables.', zh: '在不同标签中完善初始化、AI 引导、活动通知和 RAM，并分别查看两个文件的提交状态。' },
   eventAssistantIntro: {
-    en: 'Hi! I am your AI event assistant. Describe your event in English or Chinese (or both!) and I will extract the details for you.\n\nExample: "Plan a West Coast trip for 15 families on Dec 1-3 2026. Everyone must take the chartered bus. Optional kayaking is $30 per person. Fee: $150/adult, $80/child."',
-    zh: '你好！我是你的 AI 活动助理。请用中文、英文或中英混合描述活动，我会帮你整理细节。\n\n示例："为 15 个家庭计划 2026 年 12 月 1-3 日西海岸旅行。所有人必须乘坐包车。皮划艇自选，每人 $30。费用：成人 $150，儿童 $80。"',
+    en: 'Hi! I am your AI event assistant. I will combine your starting brief, poster, and conversation; reuse shared facts for the event notice and RAM report; then guide you to the next missing item.\n\nExample: "Plan a West Coast trip for 15 families on Dec 1-3 2026. Everyone must take the chartered bus. Optional kayaking is $30 per person. Fee: $150/adult, $80/child."',
+    zh: '你好！我是你的 AI 活动助理。我会汇集初始化资料、海报和对话，把共同信息复用于活动通知与 RAM，并引导你补齐下一项资料。\n\n示例："为 15 个家庭计划 2026 年 12 月 1-3 日西海岸旅行。所有人必须乘坐包车。皮划艇自选，每人 $30。费用：成人 $150，儿童 $80。"',
   },
   eventLoadFromGroupFailed: { en: 'Unable to load event for editing. Open this page from the group events sidebar.', zh: '无法加载要编辑的活动。请从小组活动侧栏打开此页面。' },
   eventNotFound: { en: 'Event not found for editing.', zh: '未找到要编辑的活动。' },

@@ -1,5 +1,29 @@
 import { sameOriginHttp } from './http'
-import type { AiSessionAppContext, AiSessionMessageOptions, AiSessionResponse, AiSessionState } from '../types/aiSession'
+import type { AiSessionAppContext, AiSessionAttachment, AiSessionMessageOptions, AiSessionResponse, AiSessionState } from '../types/aiSession'
+
+export const fileToInlineAiAttachment = async (
+  file: File,
+  fallbackName = 'attachment',
+): Promise<AiSessionAttachment> => {
+  const bytes = new Uint8Array(await file.arrayBuffer())
+  let binary = ''
+  const chunkSize = 0x8000
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize))
+  }
+
+  const contentType = file.type || 'application/octet-stream'
+  return {
+    name: file.name || fallbackName,
+    contentType,
+    size: file.size,
+    source: 'inline',
+    inlineData: {
+      mimeType: contentType,
+      data: btoa(binary),
+    },
+  }
+}
 
 export const createAiSessionService = <TDraft, TContext = unknown>(basePath: string) => {
   const normalizedBasePath = basePath.replace(/\/$/, '')
