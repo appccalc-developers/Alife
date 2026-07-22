@@ -28,7 +28,8 @@ public sealed class EventReadService(AlifeDbContext dbContext, HybridCache hybri
                             e.EventDataJson,
                             e.CreatedUtc,
                             e.UpdatedUtc,
-                            e.ContactProfiles.Select(x => x.ContactProfileId).ToList()))
+                            e.ContactProfiles.Select(x => x.ContactProfileId).ToList(),
+                            e.RamAssessment == null ? Alife.Domain.Enums.EventRamStatus.Draft : e.RamAssessment.Status))
                         .ToListAsync(token);
 
                     return (IReadOnlyList<GroupEventSummaryDto>)events;

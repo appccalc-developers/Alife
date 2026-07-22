@@ -135,7 +135,7 @@ export const useShellNavigation = ({
       icon: <EventsIcon />,
       onClick: () => activeEntityService.setEvent(activeEventId, workspaceGroupId),
     },
-    eventLifecycle === 'planning' && acceptsEnrollments ? {
+    eventLifecycle === 'upcoming' && acceptsEnrollments ? {
       key: 'event:enrollments',
       label: isChinese ? '报名管理' : 'Enrollment',
       description: isChinese ? '报名名单和参与状态' : 'Registrations and attendance status',

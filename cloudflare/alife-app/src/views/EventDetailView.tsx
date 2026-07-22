@@ -611,8 +611,9 @@ const EventDetailView = () => {
   const { groupId: routeGroupId, eventId: routeEventId } = useParams<{ groupId: string; eventId: string }>()
   const { groupId, eventId } = useActiveEntityIds({ groupId: routeGroupId, eventId: routeEventId })
   const [searchParams] = useSearchParams()
-  const { language, me, isGuest, canManageGroup } = useAuthStore()
+  const { language, me, isGuest, canManageGroup, hasAdminPermission } = useAuthStore()
   const canManage = canManageGroup(groupId)
+  const canAuditRam = hasAdminPermission('admin.events.audit')
   const text = getLabels(language)
   const [event, setEvent] = useState<GroupEventRecord | null>(null)
   const [enrollments, setEnrollments] = useState<EventEnrollmentRecord[]>([])
@@ -687,7 +688,7 @@ const EventDetailView = () => {
 
   if (
     event &&
-    ((activeSection === 'enrollments' && (lifecycle !== 'planning' || !acceptsEnrollments)) ||
+    ((activeSection === 'enrollments' && (lifecycle !== 'upcoming' || !acceptsEnrollments)) ||
       (activeSection === 'memories' && lifecycle !== 'past'))
   ) {
     return <Navigate to={`/groups/${encodeURIComponent(groupId)}/events/${encodeURIComponent(eventId)}`} replace />
@@ -719,6 +720,17 @@ const EventDetailView = () => {
 
       {!loading && !error && event && eventDto ? (
         <>
+          {(canManage || canAuditRam) ? (
+            <div className="mb-4 flex justify-end">
+              <Link
+                to={`/events/${encodeURIComponent(eventId)}/edit?groupId=${encodeURIComponent(groupId)}`}
+                onClick={() => activeEntityService.setEvent(eventId, groupId)}
+                className="inline-flex items-center rounded-lg border border-teal-300 bg-white px-3.5 py-2 text-sm font-bold text-teal-800 hover:bg-teal-50"
+              >
+                {language === 'zh' ? (canAuditRam ? '检查 / 批准 RAM' : '编辑活动 / RAM') : (canAuditRam ? 'Review / approve RAM' : 'Edit event / RAM')}
+              </Link>
+            </div>
+          ) : null}
           {activeSection === 'enrollments' ? (
             <EnrollmentPanel
               event={event}

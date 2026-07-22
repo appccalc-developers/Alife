@@ -12,4 +12,5 @@ public sealed record CreateGroupEventCommand(
     DateTime StartDate,
     DateTime EndDate,
     string EventDataJson,
-    IReadOnlyList<Guid>? ContactProfileIds = null) : IRequest<AppResult<GroupEventSummaryDto>>;
+    IReadOnlyList<Guid>? ContactProfileIds = null,
+    string? RamDataJson = null) : IRequest<AppResult<GroupEventSummaryDto>>;

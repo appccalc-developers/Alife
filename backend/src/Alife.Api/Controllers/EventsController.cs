@@ -4,7 +4,11 @@ using Alife.Application.Abstractions.Identity;
 using Alife.Application.Events.Commands.CreateGroupEvent;
 using Alife.Application.Events.Commands.DeleteGroupEvent;
 using Alife.Application.Events.Commands.UpdateGroupEvent;
+using Alife.Application.Events.Commands.SaveEventRam;
+using Alife.Application.Events.Commands.SubmitEventRam;
+using Alife.Application.Events.Commands.ApproveEventRam;
 using Alife.Application.Events.Queries.GetGroupEvents;
+using Alife.Application.Events.Queries.GetEventRam;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -52,7 +56,8 @@ public class EventsController(
                 request.StartDate,
                 request.EndDate,
                 request.EventDataJson,
-                request.ContactProfileIds ?? []),
+                request.ContactProfileIds ?? [],
+                request.RamDataJson),
             cancellationToken);
 
         return this.ToActionResult(result);
@@ -76,7 +81,8 @@ public class EventsController(
                 request.StartDate,
                 request.EndDate,
                 request.EventDataJson,
-                request.ContactProfileIds ?? []),
+                request.ContactProfileIds ?? [],
+                request.RamDataJson),
             cancellationToken);
 
         return this.ToActionResult(result);
@@ -95,13 +101,51 @@ public class EventsController(
         return this.ToActionResult(result);
     }
 
+    [HttpGet("events/{id:guid}/ram")]
+    public async Task<IActionResult> GetRam(Guid id, CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null) return Unauthorized();
+        var result = await mediator.Send(new GetEventRamQuery(id, currentMemberId.Value), cancellationToken);
+        this.ApplyPrivateNoCacheHeaders();
+        return this.ToActionResult(result);
+    }
+
+    [HttpPut("events/{id:guid}/ram")]
+    public async Task<IActionResult> SaveRam(Guid id, [FromBody] SaveEventRamRequest request, CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null) return Unauthorized();
+        var result = await mediator.Send(new SaveEventRamCommand(id, currentMemberId.Value, request.RamDataJson), cancellationToken);
+        return this.ToActionResult(result);
+    }
+
+    [HttpPost("events/{id:guid}/ram/submit")]
+    public async Task<IActionResult> SubmitRam(Guid id, CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null) return Unauthorized();
+        var result = await mediator.Send(new SubmitEventRamCommand(id, currentMemberId.Value), cancellationToken);
+        return this.ToActionResult(result);
+    }
+
+    [HttpPost("events/{id:guid}/ram/approve")]
+    public async Task<IActionResult> ApproveRam(Guid id, CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null) return Unauthorized();
+        var result = await mediator.Send(new ApproveEventRamCommand(id, currentMemberId.Value), cancellationToken);
+        return this.ToActionResult(result);
+    }
+
     public record CreateGroupEventRequest(
         string TitleEn,
         string TitleZh,
         DateTime StartDate,
         DateTime EndDate,
         string EventDataJson,
-        IReadOnlyList<Guid>? ContactProfileIds);
+        IReadOnlyList<Guid>? ContactProfileIds,
+        string? RamDataJson);
 
     public record UpdateGroupEventRequest(
         string TitleEn,
@@ -109,5 +153,8 @@ public class EventsController(
         DateTime StartDate,
         DateTime EndDate,
         string EventDataJson,
-        IReadOnlyList<Guid>? ContactProfileIds);
+        IReadOnlyList<Guid>? ContactProfileIds,
+        string? RamDataJson);
+
+    public record SaveEventRamRequest(string RamDataJson);
 }

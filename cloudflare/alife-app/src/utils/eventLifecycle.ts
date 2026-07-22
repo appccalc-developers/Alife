@@ -46,20 +46,13 @@ export const readEventLifecycleData = (event: GroupEventRecord) => {
 }
 
 export const getEventLifecycle = (event: GroupEventRecord, now = Date.now()): EventLifecycle => {
+  if (event.ramStatus !== 'approved') return 'planning'
+
   const startTime = validTime(event.startDate)
   const endTime = validTime(event.endDate) ?? startTime
   if (endTime !== null && endTime < now) return 'past'
 
-  const lifecycleData = readEventLifecycleData(event)
-  if (
-    lifecycleData.acceptsEnrollments &&
-    lifecycleData.registrationDeadlineTime !== null &&
-    lifecycleData.registrationDeadlineTime < now
-  ) {
-    return 'upcoming'
-  }
-
-  return 'planning'
+  return 'upcoming'
 }
 
 export const sortEventsByLatestStart = (events: GroupEventRecord[]) =>

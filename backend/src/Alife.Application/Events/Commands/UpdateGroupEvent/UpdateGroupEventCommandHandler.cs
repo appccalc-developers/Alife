@@ -17,6 +17,7 @@ public sealed class UpdateGroupEventCommandHandler(
     public async Task<AppResult<GroupEventSummaryDto>> Handle(UpdateGroupEventCommand request, CancellationToken cancellationToken)
     {
         var groupEvent = await dbContext.GroupEvents
+            .Include(e => e.RamAssessment)
             .FirstOrDefaultAsync(e => e.Id == request.EventId, cancellationToken);
 
         if (groupEvent is null)
@@ -57,7 +58,38 @@ public sealed class UpdateGroupEventCommandHandler(
         groupEvent.StartDate = request.StartDate;
         groupEvent.EndDate = request.EndDate;
         groupEvent.EventDataJson = request.EventDataJson;
-        groupEvent.UpdatedUtc = DateTime.UtcNow;
+        var now = DateTime.UtcNow;
+        groupEvent.UpdatedUtc = now;
+
+        if (request.RamDataJson is not null)
+        {
+            if (!EventRamPolicy.IsValidJson(request.RamDataJson))
+            {
+                return AppResult<GroupEventSummaryDto>.Validation("RAM data must be a JSON object.");
+            }
+
+            if (groupEvent.RamAssessment is null)
+            {
+                groupEvent.RamAssessment = new Alife.Domain.Entities.EventRamAssessment
+                {
+                    EventId = groupEvent.Id,
+                    CreatedUtc = now
+                };
+                dbContext.EventRamAssessments.Add(groupEvent.RamAssessment);
+            }
+
+            groupEvent.RamAssessment.RamDataJson = request.RamDataJson;
+        }
+
+        if (groupEvent.RamAssessment is not null)
+        {
+            groupEvent.RamAssessment.Status = Alife.Domain.Enums.EventRamStatus.Draft;
+            groupEvent.RamAssessment.SubmittedByMemberId = null;
+            groupEvent.RamAssessment.SubmittedUtc = null;
+            groupEvent.RamAssessment.ApprovedByMemberId = null;
+            groupEvent.RamAssessment.ApprovedUtc = null;
+            groupEvent.RamAssessment.UpdatedUtc = now;
+        }
         await dbContext.SaveChangesAsync(cancellationToken);
         await eventCacheInvalidationService.RemoveGroupEventsAsync(groupEvent.GroupId, cancellationToken);
         await eventCacheInvalidationService.RemoveEventEnrollmentsAsync(groupEvent.Id, cancellationToken);
@@ -74,6 +106,7 @@ public sealed class UpdateGroupEventCommandHandler(
             groupEvent.EventDataJson,
             groupEvent.CreatedUtc,
             groupEvent.UpdatedUtc,
-            contactProfileIds));
+            contactProfileIds,
+            groupEvent.RamAssessment?.Status ?? Alife.Domain.Enums.EventRamStatus.Draft));
     }
 }

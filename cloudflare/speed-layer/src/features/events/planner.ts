@@ -31,6 +31,52 @@ type OptionalActivityDto = {
   extraFee: number
 }
 
+type RamMissingInformation = {
+  code: string
+  fieldPath: string
+  message: MultilingualString
+}
+
+type RamHazard = {
+  id?: string
+  hazard: MultilingualString
+  likelihood: number | null
+  impact: number | null
+  riskScore: number | null
+  controlMeasures: MultilingualString
+  personResponsible: string
+}
+
+type RamEmergencyContact = {
+  role: MultilingualString
+  name: string
+  phone: string
+}
+
+type EventRamDraft = {
+  activityName: MultilingualString
+  activityDescription: MultilingualString
+  participantCount: number | null
+  participantAgeRange: MultilingualString
+  isOuting: boolean | null
+  hazards: RamHazard[]
+  emergencyContacts: RamEmergencyContact[]
+  outingSafety: {
+    transportRequired: boolean | null
+    licensedDriverConfirmed: boolean | null
+    vehicleRegistrationConfirmed: boolean | null
+    vehicleWofConfirmed: boolean | null
+    venueRiskAssessed: boolean | null
+    firstAidKitAvailable: boolean | null
+    trainedFirstAiderName: string
+    trainedFirstAiderQualificationConfirmed: boolean | null
+    participantHealthNeedsReviewed: boolean | null
+    weatherPlanReviewed: boolean | null
+  }
+  missingInformation: RamMissingInformation[]
+  leaderConfirmed: boolean
+}
+
 export type EventDto = {
   id?: string
   organizerId?: string
@@ -53,6 +99,7 @@ export type EventDto = {
   posterImageUrl?: string | null
   galleryUrls: string[]
   legacySummary?: MultilingualString | null
+  ram: EventRamDraft
 }
 
 const EVENT_DTO_RESPONSE_SCHEMA = {
@@ -71,6 +118,7 @@ const EVENT_DTO_RESPONSE_SCHEMA = {
     'currency',
     'galleryUrls',
     'legacySummary',
+    'ram',
   ],
   properties: {
     id: { type: 'string' },
@@ -123,6 +171,74 @@ const EVENT_DTO_RESPONSE_SCHEMA = {
         en: { type: 'string' },
       },
     },
+    ram: {
+      type: 'object',
+      required: ['activityName', 'activityDescription', 'participantCount', 'participantAgeRange', 'isOuting', 'hazards', 'emergencyContacts', 'outingSafety', 'missingInformation', 'leaderConfirmed'],
+      properties: {
+        activityName: multilingualSchema('RAM activity name in Simplified Chinese and New Zealand English.'),
+        activityDescription: multilingualSchema('RAM activity description including participant context.'),
+        participantCount: { type: 'integer', nullable: true, minimum: 1 },
+        participantAgeRange: multilingualSchema('Participant age range in both languages, blank when unknown.'),
+        isOuting: { type: 'boolean', nullable: true },
+        hazards: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['hazard', 'likelihood', 'impact', 'riskScore', 'controlMeasures', 'personResponsible'],
+            properties: {
+              id: { type: 'string' },
+              hazard: multilingualSchema('Identified hazard in both languages.'),
+              likelihood: { type: 'integer', nullable: true, minimum: 1, maximum: 5 },
+              impact: { type: 'integer', nullable: true, minimum: 1, maximum: 5 },
+              riskScore: { type: 'integer', nullable: true, minimum: 1, maximum: 25 },
+              controlMeasures: multilingualSchema('Specific control measures in both languages.'),
+              personResponsible: { type: 'string', description: 'Exact user-provided or app-context name only; otherwise blank.' },
+            },
+          },
+        },
+        emergencyContacts: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['role', 'name', 'phone'],
+            properties: {
+              role: multilingualSchema('Emergency contact role in both languages.'),
+              name: { type: 'string', description: 'Exact known name only; otherwise blank.' },
+              phone: { type: 'string', description: 'Exact known phone number only; otherwise blank.' },
+            },
+          },
+        },
+        outingSafety: {
+          type: 'object',
+          required: ['transportRequired', 'licensedDriverConfirmed', 'vehicleRegistrationConfirmed', 'vehicleWofConfirmed', 'venueRiskAssessed', 'firstAidKitAvailable', 'trainedFirstAiderName', 'trainedFirstAiderQualificationConfirmed', 'participantHealthNeedsReviewed', 'weatherPlanReviewed'],
+          properties: {
+            transportRequired: { type: 'boolean', nullable: true },
+            licensedDriverConfirmed: { type: 'boolean', nullable: true },
+            vehicleRegistrationConfirmed: { type: 'boolean', nullable: true },
+            vehicleWofConfirmed: { type: 'boolean', nullable: true },
+            venueRiskAssessed: { type: 'boolean', nullable: true },
+            firstAidKitAvailable: { type: 'boolean', nullable: true },
+            trainedFirstAiderName: { type: 'string', description: 'Exact known name only; otherwise blank.' },
+            trainedFirstAiderQualificationConfirmed: { type: 'boolean', nullable: true },
+            participantHealthNeedsReviewed: { type: 'boolean', nullable: true },
+            weatherPlanReviewed: { type: 'boolean', nullable: true },
+          },
+        },
+        missingInformation: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['code', 'fieldPath', 'message'],
+            properties: {
+              code: { type: 'string' },
+              fieldPath: { type: 'string' },
+              message: multilingualSchema('Clear description of missing information in both languages.'),
+            },
+          },
+        },
+        leaderConfirmed: { type: 'boolean', description: 'Always false for AI output. Only the human editor may set this true.' },
+      },
+    },
   },
 } as const
 
@@ -149,6 +265,13 @@ Critical extraction rules:
 8. Extract hard constraints from non-negotiable language such as "must", "no", "deadline", "only", "required", and "not allowed".
 9. Do not fabricate precise dates, prices, capacities, or venue facts. If the user gives only a month, set the date fields to the first day and include the ambiguity in legacySummary.
 10. The current reference date is CURRENT_DATE_PLACEHOLDER.
+
+RAM safety rules derived from the church Risk Assessment Manual:
+11. Produce a RAM draft together with every event draft. Use bilingual activity name/description, participant count and age range, hazards, controls, responsible person, emergency contacts, and outing checks.
+12. Score each hazard with likelihood 1-5 and impact 1-5. Likelihood: 1 rare (<5%), 2 unlikely (5-29%), 3 moderate (30-59%), 4 likely (60-79%), 5 almost certain (80%+). Impact: 1 insignificant, 2 minor/basic first aid, 3 moderate/medical visit, 4 major/hospitalisation, 5 catastrophic/permanent disability or death. riskScore must equal likelihood multiplied by impact.
+13. Never invent or infer a responsible person's name, phone number, first-aid qualification, driver licence, vehicle registration, WOF, or vehicle safety status. Only copy an exact fact explicitly supplied by the user or trusted app context. Otherwise leave the field blank or null and add a bilingual missingInformation item with its fieldPath.
+14. For outings, explicitly consider transport safety, venue risk, first-aid kit and a trained first aider, participant health needs, and weather. Unknown confirmations remain null and are marked missing.
+15. leaderConfirmed is always false in AI output. Human confirmation happens only in the editor.
 
 `
 
@@ -199,6 +322,7 @@ export class EventPlanningSession extends AiChatSession<EventDto, MultilingualSt
         currency: 'NZD',
         galleryUrls: [],
         legacySummary: null,
+        ram: createEmptyRamDraft(),
       }),
       onStart: (draft, payload) => ({
         ...draft,
@@ -289,7 +413,23 @@ function mergeEventDraft(
       || '',
     memberId: appContext.memberId || nextDraft.memberId || previousDraft?.memberId || '',
     groupId: appContext.groupId || nextDraft.groupId || previousDraft?.groupId || eventData?.groupId || '',
+    ram: {
+      ...(hasRamContent(nextDraft.ram) ? nextDraft.ram : previousDraft?.ram ?? createEmptyRamDraft()),
+      leaderConfirmed: false,
+    },
   }
+}
+
+function hasRamContent(ram: EventRamDraft) {
+  return Boolean(
+    ram.activityName.zh.trim()
+    || ram.activityName.en.trim()
+    || ram.activityDescription.zh.trim()
+    || ram.activityDescription.en.trim()
+    || ram.hazards.length
+    || ram.emergencyContacts.length
+    || ram.missingInformation.length,
+  )
 }
 
 function getSessionId(request: Request) {
@@ -344,6 +484,90 @@ function normalizeEventDto(value: unknown): EventDto {
     posterImageUrl: typeof candidate.posterImageUrl === 'string' ? candidate.posterImageUrl : null,
     galleryUrls: Array.isArray(candidate.galleryUrls) ? candidate.galleryUrls.filter((url) => typeof url === 'string') : [],
     legacySummary: candidate.legacySummary ? normalizeMultilingualString(candidate.legacySummary) : null,
+    ram: normalizeRamDraft(candidate.ram),
+  }
+}
+
+function createEmptyRamDraft(): EventRamDraft {
+  return {
+    activityName: { zh: '', en: '' },
+    activityDescription: { zh: '', en: '' },
+    participantCount: null,
+    participantAgeRange: { zh: '', en: '' },
+    isOuting: null,
+    hazards: [],
+    emergencyContacts: [],
+    outingSafety: {
+      transportRequired: null,
+      licensedDriverConfirmed: null,
+      vehicleRegistrationConfirmed: null,
+      vehicleWofConfirmed: null,
+      venueRiskAssessed: null,
+      firstAidKitAvailable: null,
+      trainedFirstAiderName: '',
+      trainedFirstAiderQualificationConfirmed: null,
+      participantHealthNeedsReviewed: null,
+      weatherPlanReviewed: null,
+    },
+    missingInformation: [],
+    leaderConfirmed: false,
+  }
+}
+
+function normalizeNullableBoolean(value: unknown): boolean | null {
+  return typeof value === 'boolean' ? value : null
+}
+
+function normalizeScore(value: unknown): number | null {
+  return Number.isInteger(value) && Number(value) >= 1 && Number(value) <= 5 ? Number(value) : null
+}
+
+function normalizeRamDraft(value: unknown): EventRamDraft {
+  const candidate = value as Partial<EventRamDraft> | null | undefined
+  const empty = createEmptyRamDraft()
+  const outingSafety = candidate?.outingSafety ?? empty.outingSafety
+  return {
+    activityName: normalizeMultilingualString(candidate?.activityName),
+    activityDescription: normalizeMultilingualString(candidate?.activityDescription),
+    participantCount: Number.isInteger(candidate?.participantCount) && Number(candidate?.participantCount) > 0 ? Number(candidate?.participantCount) : null,
+    participantAgeRange: normalizeMultilingualString(candidate?.participantAgeRange),
+    isOuting: normalizeNullableBoolean(candidate?.isOuting),
+    hazards: Array.isArray(candidate?.hazards) ? candidate.hazards.map((hazard) => {
+      const likelihood = normalizeScore(hazard?.likelihood)
+      const impact = normalizeScore(hazard?.impact)
+      return {
+        id: typeof hazard?.id === 'string' ? hazard.id : '',
+        hazard: normalizeMultilingualString(hazard?.hazard),
+        likelihood,
+        impact,
+        riskScore: likelihood !== null && impact !== null ? likelihood * impact : null,
+        controlMeasures: normalizeMultilingualString(hazard?.controlMeasures),
+        personResponsible: typeof hazard?.personResponsible === 'string' ? hazard.personResponsible : '',
+      }
+    }) : [],
+    emergencyContacts: Array.isArray(candidate?.emergencyContacts) ? candidate.emergencyContacts.map((contact) => ({
+      role: normalizeMultilingualString(contact?.role),
+      name: typeof contact?.name === 'string' ? contact.name : '',
+      phone: typeof contact?.phone === 'string' ? contact.phone : '',
+    })) : [],
+    outingSafety: {
+      transportRequired: normalizeNullableBoolean(outingSafety.transportRequired),
+      licensedDriverConfirmed: normalizeNullableBoolean(outingSafety.licensedDriverConfirmed),
+      vehicleRegistrationConfirmed: normalizeNullableBoolean(outingSafety.vehicleRegistrationConfirmed),
+      vehicleWofConfirmed: normalizeNullableBoolean(outingSafety.vehicleWofConfirmed),
+      venueRiskAssessed: normalizeNullableBoolean(outingSafety.venueRiskAssessed),
+      firstAidKitAvailable: normalizeNullableBoolean(outingSafety.firstAidKitAvailable),
+      trainedFirstAiderName: typeof outingSafety.trainedFirstAiderName === 'string' ? outingSafety.trainedFirstAiderName : '',
+      trainedFirstAiderQualificationConfirmed: normalizeNullableBoolean(outingSafety.trainedFirstAiderQualificationConfirmed),
+      participantHealthNeedsReviewed: normalizeNullableBoolean(outingSafety.participantHealthNeedsReviewed),
+      weatherPlanReviewed: normalizeNullableBoolean(outingSafety.weatherPlanReviewed),
+    },
+    missingInformation: Array.isArray(candidate?.missingInformation) ? candidate.missingInformation.map((item) => ({
+      code: typeof item?.code === 'string' ? item.code : '',
+      fieldPath: typeof item?.fieldPath === 'string' ? item.fieldPath : '',
+      message: normalizeMultilingualString(item?.message),
+    })) : [],
+    leaderConfirmed: false,
   }
 }
 
@@ -401,6 +625,10 @@ function validateEventDto(event: EventDto) {
 
   if (!event.currency.trim()) {
     errors.push('currency is required.')
+  }
+
+  if (!event.ram || !Array.isArray(event.ram.hazards) || !Array.isArray(event.ram.missingInformation)) {
+    errors.push('ram draft is required.')
   }
 
   return errors
