@@ -787,18 +787,6 @@ const EventsPanel = ({ groupId, events, copy, framed = true }: EventsPanelProps)
         {copy.createEvent}
       </AppActionButton>}
     >
-      <div className="mb-5">
-        <MetricList
-          ariaLabel={copy.events}
-          items={[
-            { label: copy.totalEvents, value: events.length, icon: <CalendarDays className="h-4 w-4" /> },
-            { label: copy.pastEvents, value: eventsByTab.past.length, icon: <CalendarDays className="h-4 w-4" /> },
-            { label: copy.upcomingEvents, value: eventsByTab.upcoming.length, icon: <CalendarDays className="h-4 w-4" /> },
-            { label: copy.planningEvents, value: eventsByTab.planning.length, icon: <CalendarDays className="h-4 w-4" /> },
-          ]}
-        />
-      </div>
-
       {events.length === 0 ? (
         <AppEmptyState title={copy.emptyEventsTitle} description={copy.emptyEventsBody} actionLabel={copy.createEvent} onAction={() => {
           activeEntityService.set({ groupId, eventId: '' })
