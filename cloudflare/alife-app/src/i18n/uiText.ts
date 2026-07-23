@@ -509,6 +509,7 @@ const text = {
   start: { en: 'Start', zh: '开始' },
   end: { en: 'End', zh: '结束' },
   registrationDeadline: { en: 'Registration deadline', zh: '报名截止' },
+  noRegistration: { en: 'No registration required', zh: '无需报名' },
   capacity: { en: 'Capacity', zh: '容量' },
   adult: { en: 'Adult', zh: '成人' },
   child: { en: 'Child', zh: '儿童' },

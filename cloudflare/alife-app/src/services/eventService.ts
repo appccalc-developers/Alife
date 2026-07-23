@@ -37,6 +37,17 @@ const createPersistencePayload = (eventDto: EventDto) => {
 }
 
 export const eventService = {
+  startSession: async (
+    sessionId: string,
+    eventDto: EventDto,
+    appContext: AiSessionAppContext,
+  ): Promise<void> => {
+    await eventSessionService.start(sessionId, {
+      appContext,
+      draft: eventDto,
+    })
+  },
+
   extractFromChat: async (
     message: string,
     sessionId: string,

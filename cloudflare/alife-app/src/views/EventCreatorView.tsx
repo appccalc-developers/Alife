@@ -69,6 +69,7 @@ const EventPreview = ({
   const [showRaw, setShowRaw] = useState(false)
   const title = t(event.title)
   const posterUrl = posterPreviewUrl || event.posterImageUrl || ''
+  const requiresRegistration = event.maxCapacity > 0
 
   return (
     <div className="space-y-5 rounded-2xl border border-emerald-200 bg-white p-5 shadow-md">
@@ -102,7 +103,7 @@ const EventPreview = ({
         {[
           { label: ui('start'), value: fmt(event.startDate) },
           { label: ui('end'), value: fmt(event.endDate) },
-          { label: ui('registrationDeadline'), value: fmt(event.registrationDeadline) },
+          { label: ui('registrationDeadline'), value: requiresRegistration ? fmt(event.registrationDeadline) : ui('noRegistration') },
         ].map(({ label, value }) => (
           <div key={label} className="rounded-lg border border-slate-100 bg-slate-50 p-2">
             <span className="block text-xs text-slate-500">{label}</span>
@@ -114,7 +115,9 @@ const EventPreview = ({
       {/* Capacity & fees */}
       <div className="flex flex-wrap gap-3 text-sm">
         <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
-          {ui('capacity')}: <strong>{event.maxCapacity} {event.capacityUnit}</strong>
+          {requiresRegistration
+            ? <>{ui('capacity')}: <strong>{event.maxCapacity} {event.capacityUnit}</strong></>
+            : <strong>{ui('noRegistration')}</strong>}
         </span>
         {event.baseFeePerAdult != null && (
           <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
@@ -268,10 +271,11 @@ const getNoticeSubmissionIssues = (event: EventDto) => {
   if (!hasBilingualText(event.locationName)) issues.push('locationName')
   if (!hasText(event.startDate) || Number.isNaN(Date.parse(event.startDate))) issues.push('startDate')
   if (!hasText(event.endDate) || Number.isNaN(Date.parse(event.endDate))) issues.push('endDate')
-  if (!hasText(event.registrationDeadline) || Number.isNaN(Date.parse(event.registrationDeadline))) issues.push('registrationDeadline')
+  const requiresRegistration = event.maxCapacity > 0
+  if (requiresRegistration && (!hasText(event.registrationDeadline) || Number.isNaN(Date.parse(event.registrationDeadline)))) issues.push('registrationDeadline')
   if (!issues.includes('startDate') && !issues.includes('endDate') && Date.parse(event.endDate) < Date.parse(event.startDate)) issues.push('dateOrder')
-  if (!issues.includes('startDate') && !issues.includes('registrationDeadline') && Date.parse(event.registrationDeadline) > Date.parse(event.startDate)) issues.push('registrationDeadlineOrder')
-  if (!Number.isInteger(event.maxCapacity) || event.maxCapacity < 1) issues.push('maxCapacity')
+  if (requiresRegistration && !issues.includes('startDate') && !issues.includes('registrationDeadline') && Date.parse(event.registrationDeadline) > Date.parse(event.startDate)) issues.push('registrationDeadlineOrder')
+  if (!Number.isInteger(event.maxCapacity) || event.maxCapacity < 0) issues.push('maxCapacity')
   if (!event.currency.trim()) issues.push('currency')
   return issues
 }
@@ -390,7 +394,7 @@ const EventWorkflowPanel = ({
   const isZh = language === 'zh'
   const titleReady = Boolean(eventDraft && ((isZh ? eventDraft.title.zh : eventDraft.title.en) || eventDraft.title.en || eventDraft.title.zh))
   const timeReady = Boolean(eventDraft?.startDate && eventDraft?.endDate)
-  const registrationReady = Boolean(eventDraft && eventDraft.maxCapacity > 0 && eventDraft.registrationDeadline)
+  const registrationReady = Boolean(eventDraft && (eventDraft.maxCapacity === 0 || (eventDraft.maxCapacity > 0 && eventDraft.registrationDeadline)))
   const savedReady = Boolean(targetEventId)
   const setupReady = Boolean(eventDraft && hasBilingualText(eventDraft.purpose) && hasText(eventDraft.personResponsible))
   const items = [
@@ -497,10 +501,17 @@ const EventCreatorView = () => {
   const [ramBusy, setRamBusy] = useState(false)
   const [ramMessage, setRamMessage] = useState('')
   const [aiContentContext, setAiContentContext] = useState<AiContentContext>({ missionStatements: [], eventContext: null })
+  const [sessionContextEventId, setSessionContextEventId] = useState('')
+  const [ramSessionContextEventId, setRamSessionContextEventId] = useState('')
+  const [sessionContextRevision, setSessionContextRevision] = useState(0)
   const targetEventId = eventId ?? savedEventId
   const canEditRam = Boolean(effectiveGroupId && canManageGroup(effectiveGroupId))
   const canAuditRam = hasAdminPermission('admin.events.audit')
-  const sessionIdRef = useRef(eventPlanningSessionService.getSessionId(me?.id))
+  const sessionId = useMemo(
+    () => eventPlanningSessionService.getSessionId(me?.id, eventId),
+    [eventId, me?.id],
+  )
+  const initializedSessionScopesRef = useRef(new Set<string>())
   const posterInputRef = useRef<HTMLInputElement>(null)
   const referencePosterInputRef = useRef<HTMLInputElement>(null)
   const posterObjectUrlRef = useRef('')
@@ -542,6 +553,7 @@ const EventCreatorView = () => {
       memberProfile: { id: me.id, displayName: me.displayName },
     } : {}),
     ...(effectiveGroupId ? { groupId: effectiveGroupId } : {}),
+    ...(targetEventId ? { eventId: targetEventId } : {}),
     missionStatements: aiContentContext.missionStatements,
     eventContext,
     eventData: eventContext?.eventData ?? null,
@@ -557,7 +569,7 @@ const EventCreatorView = () => {
     clearError: clearSessionError,
     sendMessage,
   } = useAiSession<EventDto, MultilingualString | null>(
-    isEditMode ? '' : sessionIdRef.current,
+    isEditMode ? '' : sessionId,
     '/api/events/session',
     baseAiAppContext,
   )
@@ -648,10 +660,13 @@ const EventCreatorView = () => {
     }
 
     let cancelled = false
+    setSessionContextEventId('')
+    setRamSessionContextEventId('')
     if (eventFromNavigationState && eventFromNavigationStateId === eventIdValue) {
       const draft = getDraftFromRecord(eventFromNavigationState)
       setError('')
       setEventDraft(draft)
+      setSessionContextEventId(eventIdValue)
       setNoticeSubmitted(true)
       setRamStatus(eventFromNavigationState.ramStatus ?? 'draft')
       setRamHasLocalChanges(false)
@@ -663,6 +678,9 @@ const EventCreatorView = () => {
           setEventDraft((current) => current ? { ...current, ram: parseEventRam(ramRecord) } : current)
         })
         .catch(() => undefined)
+        .finally(() => {
+          if (!cancelled) setRamSessionContextEventId(eventIdValue)
+        })
       return () => { cancelled = true }
     }
 
@@ -683,6 +701,7 @@ const EventCreatorView = () => {
         const draft = getDraftFromRecord(record)
         setError('')
         setEventDraft(draft)
+        setSessionContextEventId(eventIdValue)
         setNoticeSubmitted(true)
         setRamStatus(record.ramStatus ?? 'draft')
         setRamHasLocalChanges(false)
@@ -694,6 +713,9 @@ const EventCreatorView = () => {
             setEventDraft((current) => current ? { ...current, ram: parseEventRam(ramRecord) } : current)
           })
           .catch(() => undefined)
+          .finally(() => {
+            if (!cancelled) setRamSessionContextEventId(eventIdValue)
+          })
       })
       .catch(() => {
         if (!cancelled) {
@@ -705,6 +727,34 @@ const EventCreatorView = () => {
       cancelled = true
     }
   }, [effectiveGroupId, eventFromNavigationState, eventFromNavigationStateData, eventFromNavigationStateId, eventIdValue, isEditMode])
+
+  useEffect(() => {
+    if (!eventDraft) {
+      return
+    }
+
+    const isRamContext = isEditMode && activeTab === 'ram'
+    if (isEditMode) {
+      if (sessionContextEventId !== eventIdValue) {
+        return
+      }
+      if (isRamContext && ramSessionContextEventId !== eventIdValue) {
+        return
+      }
+    }
+
+    const scope = `${sessionId}:${isEditMode ? (isRamContext ? 'ram' : 'event') : 'create'}:${sessionContextRevision}`
+    if (initializedSessionScopesRef.current.has(scope)) {
+      return
+    }
+
+    initializedSessionScopesRef.current.add(scope)
+    void eventService.startSession(sessionId, eventDraft, aiAppContext)
+      .catch((reason) => {
+        initializedSessionScopesRef.current.delete(scope)
+        setError(normalizeApiError(reason).message)
+      })
+  }, [activeTab, aiAppContext, eventDraft, eventIdValue, isEditMode, ramSessionContextEventId, sessionContextEventId, sessionContextRevision, sessionId])
 
   const scrollToBottom = () => {
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
@@ -727,7 +777,7 @@ const EventCreatorView = () => {
 
     try {
       const response = isEditMode
-        ? await eventService.extractFromChat(msg, sessionIdRef.current, 'text', aiAppContext, attachments)
+        ? await eventService.extractFromChat(msg, sessionId, 'text', aiAppContext, attachments)
         : await sendMessage(msg, { inputMode: 'text', appContext: aiAppContext, attachments })
 
       if (response.responseMode === 'result' && response.result) {
@@ -984,14 +1034,14 @@ const EventCreatorView = () => {
         await eventService.updateGroupEvent(
           targetEventId,
           draftToSave,
-          sessionIdRef.current,
+          sessionId,
           { ...aiContentContext, eventContext: createEventContextFromDto(draftToSave) },
         )
       } else if (effectiveGroupId) {
         const created = await eventService.createGroupEvent(
           effectiveGroupId,
           pendingPosterFile ? { ...eventDraft, posterImageUrl: null } : eventDraft,
-          pendingPosterFile ? undefined : sessionIdRef.current,
+          pendingPosterFile ? undefined : sessionId,
           {
             ...aiContentContext,
             eventContext: createEventContextFromDto(pendingPosterFile ? { ...eventDraft, posterImageUrl: null } : eventDraft),
@@ -1008,7 +1058,7 @@ const EventCreatorView = () => {
           await eventService.updateGroupEvent(
             created.id,
             draftToSave,
-            sessionIdRef.current,
+            sessionId,
             { ...aiContentContext, eventContext: createEventContextFromDto(draftToSave) },
           )
         }
@@ -1022,6 +1072,7 @@ const EventCreatorView = () => {
       setNoticeSubmitted(true)
       setRamStatus('draft')
       setRamHasLocalChanges(false)
+      if (isEditMode) setSessionContextRevision((current) => current + 1)
       setMessages((prev) => [
         ...prev,
         {
@@ -1057,6 +1108,7 @@ const EventCreatorView = () => {
       const record = await eventService.saveEventRam(targetEventId, eventDraft.ram)
       setRamStatus(record.status)
       setRamHasLocalChanges(false)
+      setSessionContextRevision((current) => current + 1)
       setRamMessage(language === 'zh' ? 'RAM 草稿已保存。' : 'RAM draft saved.')
     } catch (reason) {
       setRamMessage(normalizeApiError(reason).message)

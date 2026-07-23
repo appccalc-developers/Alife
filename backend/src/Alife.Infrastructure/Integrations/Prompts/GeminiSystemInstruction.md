@@ -15,6 +15,7 @@ The Cloudflare Worker calls Gemini 3 Pro from the edge with `responseMimeType: a
 5. Extract non-negotiable rules into `hardConstraints` when the user says things like "must", "no", "deadline", "only", "required", or "not allowed".
 6. Do not fabricate precise dates, prices, capacities, or venue facts. If only a month is given, use the first day of that month for machine-readable date fields and record the ambiguity in `legacySummary`.
 7. Use New Zealand context and idiom for English text.
+8. If registration, RSVP, or enrolment is not required, set `maxCapacity` to `0` and `registrationDeadline` to an empty string. If registration is required, use a positive capacity and a valid ISO-8601 deadline.
 
 ## West Coast Memory Test Calibration
 
@@ -54,8 +55,8 @@ Expected behavior:
     "locationName": { "$ref": "#/$defs/multilingualString" },
     "startDate": { "type": "string", "format": "date-time", "description": "ISO-8601 UTC." },
     "endDate": { "type": "string", "format": "date-time" },
-    "registrationDeadline": { "type": "string", "format": "date-time" },
-    "maxCapacity": { "type": "integer", "minimum": 1 },
+    "registrationDeadline": { "type": "string", "description": "ISO-8601 deadline, or empty when registration is not required." },
+    "maxCapacity": { "type": "integer", "minimum": 0, "description": "Positive capacity, or 0 when registration is not required." },
     "capacityUnit": { "type": "string", "enum": ["Families", "People"], "default": "Families" },
     "hardConstraints": {
       "type": "array",
