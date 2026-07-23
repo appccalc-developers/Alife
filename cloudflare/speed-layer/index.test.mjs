@@ -1714,6 +1714,108 @@ test('AI session routes require authentication before Gemini', async () => {
   assert.equal(fetchCalls.length, 0)
 })
 
+test('POST /api/events/session/:id/start initializes a new event planning session', async () => {
+  const sessionId = `member-1-event-draft-${crypto.randomUUID()}`
+  const response = await dispatch(`https://ccalc.live/api/events/session/${sessionId}/start`, {
+    method: 'POST',
+    body: JSON.stringify({
+      draft: {
+        personResponsible: 'Alice Chen',
+        purpose: { zh: '建立关系', en: 'Build relationships' },
+        title: { zh: '', en: '' },
+        description: { zh: '', en: '' },
+        locationName: { zh: '', en: '' },
+        startDate: '',
+        endDate: '',
+        registrationDeadline: '',
+        maxCapacity: 1,
+        capacityUnit: 'Families',
+        hardConstraints: [],
+        optionalActivities: [],
+        currency: 'NZD',
+        galleryUrls: [],
+        legacySummary: null,
+      },
+      appContext: {
+        language: 'en',
+        userId: 'member-1',
+        groupId: 'group-1',
+      },
+    }),
+    headers: { 'content-type': 'application/json' },
+    env: { API_PROXY_TARGET: 'https://ccalc.live' },
+  })
+
+  assert.equal(response.status, 200)
+  const state = await response.json()
+  assert.equal(state.sessionId, sessionId)
+  assert.equal(state.draft.personResponsible, 'Alice Chen')
+  assert.equal(state.draft.purpose.en, 'Build relationships')
+  assert.equal(state.draft.groupId, 'group-1')
+  assert.equal(state.appContext.memberId, 'member-1')
+  assert.equal(state.appContext.groupId, 'group-1')
+})
+
+test('POST /api/events/session/:id/start binds edit and RAM context to the current event', async () => {
+  const eventId = crypto.randomUUID()
+  const sessionId = `member-1-event-${eventId}-planning`
+  const response = await dispatch(`https://ccalc.live/api/events/session/${sessionId}/start`, {
+    method: 'POST',
+    body: JSON.stringify({
+      draft: {
+        id: eventId,
+        title: { zh: '家庭营', en: 'Family Camp' },
+        description: { zh: '家庭退修会', en: 'Family retreat' },
+        locationName: { zh: '汉密尔顿', en: 'Hamilton' },
+        startDate: '2026-08-01T08:00:00Z',
+        endDate: '2026-08-02T17:00:00Z',
+        registrationDeadline: '2026-07-20T00:00:00Z',
+        maxCapacity: 20,
+        capacityUnit: 'Families',
+        hardConstraints: [],
+        optionalActivities: [],
+        currency: 'NZD',
+        galleryUrls: [],
+        legacySummary: null,
+        ram: {
+          activityName: { zh: '家庭营', en: 'Family Camp' },
+          activityDescription: { zh: '家庭退修会', en: 'Family retreat' },
+          participantCount: 20,
+          participantAgeRange: { zh: '全年龄', en: 'All ages' },
+          isOuting: true,
+          hazards: [],
+          emergencyContacts: [],
+          outingSafety: {},
+          missingInformation: [],
+          leaderConfirmed: true,
+        },
+      },
+      appContext: {
+        language: 'en',
+        groupId: 'group-1',
+        eventId,
+        eventData: { id: eventId, title: { zh: '家庭营', en: 'Family Camp' } },
+        eventContext: {
+          eventDataJson: JSON.stringify({ id: eventId, title: { zh: '家庭营', en: 'Family Camp' } }),
+          eventData: { id: eventId, title: { zh: '家庭营', en: 'Family Camp' } },
+        },
+      },
+    }),
+    headers: { 'content-type': 'application/json' },
+    env: { API_PROXY_TARGET: 'https://ccalc.live' },
+  })
+
+  assert.equal(response.status, 200)
+  const state = await response.json()
+  assert.equal(state.draft.id, eventId)
+  assert.equal(state.draft.title.en, 'Family Camp')
+  assert.equal(state.draft.ram.activityName.en, 'Family Camp')
+  assert.equal(state.draft.ram.leaderConfirmed, false)
+  assert.equal(state.appContext.eventId, eventId)
+  assert.equal(state.appContext.eventData.id, eventId)
+  assert.equal(state.appContext.eventContext.eventData.id, eventId)
+})
+
 test('POST /api/events/session/:id/message persists event draft state', async () => {
   const sessionId = 'member-1-event-draft'
   originResponses.push(Response.json({
@@ -1763,6 +1865,54 @@ test('POST /api/events/session/:id/message persists event draft state', async ()
   assert.deepEqual(state.draft.ram.missingInformation, [])
   assert.equal(state.context.en, 'Arrange carpooling.')
   assert.equal(state.ownerMemberId, undefined)
+})
+
+test('POST /api/events/session/:id/message accepts an explicit no-registration update', async () => {
+  const sessionId = `member-1-event-no-registration-${crypto.randomUUID()}`
+  originResponses.push(Response.json({
+    candidates: [{
+      content: {
+        parts: [{
+          text: JSON.stringify({
+            purpose: { zh: '促进社区交流与信仰分享', en: 'Build community connections and share faith' },
+            personResponsible: 'Alice Chen',
+            title: {
+              zh: '通过音乐与生命见证促进社区交流与信仰分享',
+              en: 'Community Connection and Faith Sharing Through Music and Testimony',
+            },
+            description: { zh: '音乐与生命见证分享会', en: 'Music and life testimony gathering' },
+            locationName: { zh: '社区会堂', en: 'Community Hall' },
+            startDate: '2026-09-12T06:00:00Z',
+            endDate: '2026-09-12T09:00:00Z',
+            registrationDeadline: '',
+            maxCapacity: 0,
+            capacityUnit: 'People',
+            hardConstraints: [],
+            optionalActivities: [],
+            currency: 'NZD',
+            galleryUrls: [],
+            legacySummary: {
+              zh: '已确认讲员的新日期档期；本活动无需报名。',
+              en: 'The speaker is confirmed for the new date; registration is not required.',
+            },
+          }),
+        }],
+      },
+    }],
+  }))
+
+  const response = await dispatch(`https://ccalc.live/api/events/session/${sessionId}/message`, {
+    method: 'POST',
+    body: JSON.stringify({ message: '已确认讲员在该新日期的档期。本活动无需报名。' }),
+    headers: { 'content-type': 'application/json' },
+    env: { GEMINI_API_KEY: 'test-key', API_PROXY_TARGET: 'https://ccalc.live' },
+  })
+
+  assert.equal(response.status, 200)
+  const body = await response.json()
+  assert.equal(body.result.maxCapacity, 0)
+  assert.equal(body.result.registrationDeadline, '')
+  assert.equal(body.result.legacySummary.zh.includes('无需报名'), true)
 })
 
 test('POST /api/events/session/:id/message forwards known app context to Gemini', async () => {

@@ -32,6 +32,22 @@ const statusText = {
   approved: { en: 'Approved', zh: '已批准' },
 } as const
 
+const likelihoodOptions = [
+  { value: 1, en: '1 — Rare (<5%)', zh: '1 — 极少（<5%）' },
+  { value: 2, en: '2 — Unlikely (5–29%)', zh: '2 — 不太可能（5–29%）' },
+  { value: 3, en: '3 — Moderate (30–59%)', zh: '3 — 中等可能（30–59%）' },
+  { value: 4, en: '4 — Likely (60–79%)', zh: '4 — 很可能（60–79%）' },
+  { value: 5, en: '5 — Almost certain (80%+)', zh: '5 — 几乎确定（80%+）' },
+] as const
+
+const impactOptions = [
+  { value: 1, en: '1 — Insignificant', zh: '1 — 可忽略' },
+  { value: 2, en: '2 — Minor / basic first aid', zh: '2 — 轻微／基础急救' },
+  { value: 3, en: '3 — Moderate / medical visit', zh: '3 — 中等／需要就医' },
+  { value: 4, en: '4 — Major / hospitalisation', zh: '4 — 严重／需要住院' },
+  { value: 5, en: '5 — Catastrophic / disability or death', zh: '5 — 灾难性／永久伤残或死亡' },
+] as const
+
 const boolOptions = [
   { value: '', en: 'Not confirmed', zh: '尚未确认' },
   { value: 'true', en: 'Yes - confirmed', zh: '是 - 已确认' },
@@ -134,8 +150,8 @@ const EventRamEditor = ({ ram, status, language, canEdit, canAudit, canSubmit = 
                 <div className="flex items-center justify-between"><span className="text-sm font-black text-slate-700">{l('Hazard', '危害')} {index + 1}</span>{canEdit ? <button type="button" aria-label={l('Remove hazard', '删除危害')} onClick={() => emit({ ...ram, hazards: ram.hazards.filter((_, i) => i !== index) })} className="text-rose-600"><Trash2 className="h-4 w-4" /></button> : null}</div>
                 <div className="mt-3 grid gap-3 md:grid-cols-2">
                   {(['zh', 'en'] as const).map((lang) => <label key={`hazard-${lang}`} className="text-xs font-bold text-slate-600">{l('Hazard', '危害')} ({lang})<input value={hazard.hazard[lang]} onChange={(e) => updateHazard(index, { hazard: { ...hazard.hazard, [lang]: e.target.value } })} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" /></label>)}
-                  <label className="text-xs font-bold text-slate-600">{l('Likelihood (1-5)', '可能性（1–5）')}<select value={hazard.likelihood ?? ''} onChange={(e) => updateHazard(index, { likelihood: e.target.value ? Number(e.target.value) : null })} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"><option value="">—</option>{[1,2,3,4,5].map((score) => <option key={score} value={score}>{score}</option>)}</select></label>
-                  <label className="text-xs font-bold text-slate-600">{l('Impact (1-5)', '影响（1–5）')}<select value={hazard.impact ?? ''} onChange={(e) => updateHazard(index, { impact: e.target.value ? Number(e.target.value) : null })} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"><option value="">—</option>{[1,2,3,4,5].map((score) => <option key={score} value={score}>{score}</option>)}</select></label>
+                  <label className="text-xs font-bold text-slate-600">{l('Likelihood (1-5)', '可能性（1–5）')}<select value={hazard.likelihood ?? ''} onChange={(e) => updateHazard(index, { likelihood: e.target.value ? Number(e.target.value) : null })} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"><option value="">—</option>{likelihoodOptions.map((option) => <option key={option.value} value={option.value}>{option[language]}</option>)}</select></label>
+                  <label className="text-xs font-bold text-slate-600">{l('Impact (1-5)', '影响（1–5）')}<select value={hazard.impact ?? ''} onChange={(e) => updateHazard(index, { impact: e.target.value ? Number(e.target.value) : null })} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"><option value="">—</option>{impactOptions.map((option) => <option key={option.value} value={option.value}>{option[language]}</option>)}</select></label>
                   <div className="md:col-span-2"><span className={`inline-flex rounded-full px-3 py-1 text-xs font-black ${riskTone(hazard.riskScore)}`}>{l('Risk score', '风险分数')}: {hazard.riskScore ?? '—'}</span></div>
                   {(['zh', 'en'] as const).map((lang) => <label key={`control-${lang}`} className="text-xs font-bold text-slate-600">{l('Control measures', '控制措施')} ({lang})<textarea value={hazard.controlMeasures[lang]} onChange={(e) => updateHazard(index, { controlMeasures: { ...hazard.controlMeasures, [lang]: e.target.value } })} rows={2} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" /></label>)}
                   <label className="text-xs font-bold text-slate-600 md:col-span-2">{l('Person responsible - exact confirmed name only', '负责人 - 仅填写已确认的准确姓名')}<input value={hazard.personResponsible} onChange={(e) => updateHazard(index, { personResponsible: e.target.value })} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" /></label>

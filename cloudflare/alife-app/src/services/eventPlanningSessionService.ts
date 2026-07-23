@@ -3,9 +3,11 @@ const EVENT_SESSION_STORAGE_KEY = 'alife-event-planning-session-id'
 const hasWindow = () => typeof window !== 'undefined'
 
 export const eventPlanningSessionService = {
-  getSessionId(memberId?: string) {
+  getSessionId(memberId?: string, eventId?: string) {
     if (memberId) {
-      return `member-${memberId}-event-draft`
+      return eventId
+        ? `member-${memberId}-event-${eventId}-planning`
+        : `member-${memberId}-event-draft`
     }
 
     if (!hasWindow()) {

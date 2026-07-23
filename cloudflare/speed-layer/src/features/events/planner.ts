@@ -135,8 +135,15 @@ const EVENT_DTO_RESPONSE_SCHEMA = {
     locationName: multilingualSchema('Venue or location name in both languages.'),
     startDate: { type: 'string', format: 'date-time' },
     endDate: { type: 'string', format: 'date-time' },
-    registrationDeadline: { type: 'string', format: 'date-time' },
-    maxCapacity: { type: 'integer', minimum: 1 },
+    registrationDeadline: {
+      type: 'string',
+      description: 'ISO-8601 registration deadline, or an empty string when the event does not require registration.',
+    },
+    maxCapacity: {
+      type: 'integer',
+      minimum: 0,
+      description: 'Positive registration capacity, or 0 when the event does not require registration.',
+    },
     capacityUnit: { type: 'string', enum: ['Families', 'People'] },
     hardConstraints: {
       type: 'array',
@@ -269,14 +276,15 @@ Critical extraction rules:
 8. Extract hard constraints from non-negotiable language such as "must", "no", "deadline", "only", "required", and "not allowed".
 9. Do not fabricate precise dates, prices, capacities, or venue facts. If the user gives only a month, set the date fields to the first day and include the ambiguity in legacySummary.
 10. Reuse shared facts consistently across both deliverables. In particular, keep purpose, title/activity name, description, participant count, participant age range, location, schedule, activities, people responsible, and contacts aligned between the public EventDto fields and ram fields whenever the same fact is used. Do not ask for a fact that is already present in the draft or trusted app context.
-11. The current reference date is CURRENT_DATE_PLACEHOLDER.
+11. Registration semantics are explicit. If the user says registration, RSVP, or enrolment is not required, set maxCapacity to 0 and registrationDeadline to an empty string. A zero capacity means "no registration required", not missing information. If registration is required, use a positive maxCapacity and a valid ISO-8601 registrationDeadline.
+12. The current reference date is CURRENT_DATE_PLACEHOLDER.
 
 RAM safety rules derived from the church Risk Assessment Manual:
-12. Produce a RAM draft together with every event draft. Use bilingual activity name/description, participant count and age range, hazards, controls, responsible person, emergency contacts, and outing checks.
-13. Score each hazard with likelihood 1-5 and impact 1-5. Likelihood: 1 rare (<5%), 2 unlikely (5-29%), 3 moderate (30-59%), 4 likely (60-79%), 5 almost certain (80%+). Impact: 1 insignificant, 2 minor/basic first aid, 3 moderate/medical visit, 4 major/hospitalisation, 5 catastrophic/permanent disability or death. riskScore must equal likelihood multiplied by impact.
-14. Never invent or infer a responsible person's name, phone number, first-aid qualification, driver licence, vehicle registration, WOF, or vehicle safety status. Only copy an exact fact explicitly supplied by the user or trusted app context. Otherwise leave the field blank or null and add a bilingual missingInformation item with its fieldPath.
-15. For outings, explicitly consider transport safety, venue risk, first-aid kit and a trained first aider, participant health needs, and weather. Unknown confirmations remain null and are marked missing.
-16. leaderConfirmed is always false in AI output. Human confirmation happens only in the editor.
+13. Produce a RAM draft together with every event draft. Use bilingual activity name/description, participant count and age range, hazards, controls, responsible person, emergency contacts, and outing checks.
+14. Score each hazard with likelihood 1-5 and impact 1-5. Likelihood: 1 rare (<5%), 2 unlikely (5-29%), 3 moderate (30-59%), 4 likely (60-79%), 5 almost certain (80%+). Impact: 1 insignificant, 2 minor/basic first aid, 3 moderate/medical visit, 4 major/hospitalisation, 5 catastrophic/permanent disability or death. riskScore must equal likelihood multiplied by impact.
+15. Never invent or infer a responsible person's name, phone number, first-aid qualification, driver licence, vehicle registration, WOF, or vehicle safety status. Only copy an exact fact explicitly supplied by the user or trusted app context. Otherwise leave the field blank or null and add a bilingual missingInformation item with its fieldPath.
+16. For outings, explicitly consider transport safety, venue risk, first-aid kit and a trained first aider, participant health needs, and weather. Unknown confirmations remain null and are marked missing.
+17. leaderConfirmed is always false in AI output. Human confirmation happens only in the editor.
 
 `
 
@@ -331,17 +339,28 @@ export class EventPlanningSession extends AiChatSession<EventDto, MultilingualSt
         legacySummary: null,
         ram: createEmptyRamDraft(),
       }),
-      onStart: (draft, payload) => ({
-        ...draft,
-        id: payload.eventId || payload.id || payload.appContext?.eventId || draft.id,
-        organizerId: payload.userId || payload.organizerId || payload.appContext?.userId || draft.organizerId,
-        organizerDisplayName: payload.displayName
-          || payload.userProfile?.displayName
-          || payload.appContext?.userProfile?.displayName
-          || draft.organizerDisplayName,
-        memberId: payload.memberId || payload.appContext?.memberId || draft.memberId,
-        groupId: payload.groupId || payload.appContext?.groupId || draft.groupId,
-      }),
+      onStart: (draft, payload) => {
+        const seededDraft = payload.draft || payload.eventDraft
+          ? normalizeEventDto(payload.draft ?? payload.eventDraft)
+          : draft
+
+        return {
+          ...draft,
+          ...seededDraft,
+          id: payload.eventId || payload.id || payload.appContext?.eventId || seededDraft.id,
+          organizerId: payload.userId || payload.organizerId || payload.appContext?.userId || seededDraft.organizerId,
+          organizerDisplayName: payload.displayName
+            || payload.userProfile?.displayName
+            || payload.appContext?.userProfile?.displayName
+            || seededDraft.organizerDisplayName,
+          memberId: payload.memberId || payload.appContext?.memberId || seededDraft.memberId,
+          groupId: payload.groupId || payload.appContext?.groupId || seededDraft.groupId,
+          ram: {
+            ...seededDraft.ram,
+            leaderConfirmed: false,
+          },
+        }
+      },
       mergeDraft: (previousDraft, nextDraft, state) => mergeEventDraft(previousDraft, nextDraft, state.appContext),
       getContextFromDraft: (draft) => draft.legacySummary ?? null,
       buildGeminiContext: ({ state, userMessage, inputMode, appContext, attachments }) => ({
@@ -370,6 +389,7 @@ export class EventPlanningSession extends AiChatSession<EventDto, MultilingualSt
         eventDraft: state.draft,
         context: state.context,
         legacySummary: state.context,
+        appContext: state.appContext,
         chatHistory: state.chatHistory,
         updatedAt: state.updatedAt,
       }),
@@ -388,6 +408,7 @@ export class EventPlanningSession extends AiChatSession<EventDto, MultilingualSt
           eventDraft: state.draft,
           context: state.context,
           legacySummary: state.context,
+          appContext: state.appContext,
           chatHistory: state.chatHistory,
           updatedAt: state.updatedAt,
         },
@@ -478,7 +499,7 @@ function normalizeEventDto(value: unknown): EventDto {
     startDate: typeof candidate.startDate === 'string' ? candidate.startDate : '',
     endDate: typeof candidate.endDate === 'string' ? candidate.endDate : '',
     registrationDeadline: typeof candidate.registrationDeadline === 'string' ? candidate.registrationDeadline : '',
-    maxCapacity: Number.isInteger(candidate.maxCapacity) && Number(candidate.maxCapacity) > 0 ? Number(candidate.maxCapacity) : 1,
+    maxCapacity: Number.isInteger(candidate.maxCapacity) && Number(candidate.maxCapacity) >= 0 ? Number(candidate.maxCapacity) : 1,
     capacityUnit: candidate.capacityUnit === 'People' ? 'People' : 'Families',
     hardConstraints: Array.isArray(candidate.hardConstraints)
       ? candidate.hardConstraints.map((rule) => ({
@@ -608,10 +629,12 @@ function validateEventDto(event: EventDto) {
   requireMultilingual(errors, event.locationName, 'locationName')
   requireIsoDate(errors, event.startDate, 'startDate')
   requireIsoDate(errors, event.endDate, 'endDate')
-  requireIsoDate(errors, event.registrationDeadline, 'registrationDeadline')
+  if (event.maxCapacity > 0) {
+    requireIsoDate(errors, event.registrationDeadline, 'registrationDeadline')
+  }
 
-  if (!Number.isInteger(event.maxCapacity) || event.maxCapacity < 1) {
-    errors.push('maxCapacity must be a positive integer.')
+  if (!Number.isInteger(event.maxCapacity) || event.maxCapacity < 0) {
+    errors.push('maxCapacity must be a non-negative integer.')
   }
 
   if (event.capacityUnit !== 'Families' && event.capacityUnit !== 'People') {

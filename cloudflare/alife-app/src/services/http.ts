@@ -24,10 +24,6 @@ const isApiError = (error: unknown): error is ApiError =>
   typeof (error as { message?: unknown }).message === 'string'
 
 export const normalizeApiError = (error: unknown): ApiError => {
-  if (isApiError(error)) {
-    return error
-  }
-
   if (axios.isAxiosError(error)) {
     const axiosError = error as AxiosError<ErrorPayload | string>
     const payload = axiosError.response?.data
@@ -52,6 +48,10 @@ export const normalizeApiError = (error: unknown): ApiError => {
       method,
       url,
     }
+  }
+
+  if (isApiError(error)) {
+    return error
   }
 
   if (error instanceof Error) {

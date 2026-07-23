@@ -42,6 +42,7 @@ const labels = {
     enrollments: 'Enrollment',
     memories: 'Memories',
     registrationDeadline: 'Registration deadline',
+    noRegistration: 'No registration required',
     location: 'Location',
     time: 'Time',
     capacity: 'Capacity',
@@ -87,6 +88,7 @@ const labels = {
     enrollments: '报名',
     memories: '图文回忆',
     registrationDeadline: '报名截止',
+    noRegistration: '无需报名',
     location: '地点',
     time: '时间',
     capacity: '容量',
@@ -246,8 +248,10 @@ const EventNoticePanel = ({ event, eventDto, language, contacts }: { event: Grou
               <p className="text-xs font-semibold uppercase tracking-widest text-emerald-700">{text.notice}</p>
               <h1 className="mt-2 text-2xl font-semibold leading-tight text-slate-950 sm:text-3xl">{title}</h1>
             </div>
-            <AppBadge variant={isBeforeDeadline(eventDto.registrationDeadline) ? 'success' : 'neutral'}>
-              {text.registrationDeadline}: {formatDateTime(eventDto.registrationDeadline, language) || '-'}
+            <AppBadge variant={eventDto.maxCapacity === 0 || !isBeforeDeadline(eventDto.registrationDeadline) ? 'neutral' : 'success'}>
+              {eventDto.maxCapacity === 0
+                ? text.noRegistration
+                : `${text.registrationDeadline}: ${formatDateTime(eventDto.registrationDeadline, language) || '-'}`}
             </AppBadge>
           </div>
           <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-slate-700">
@@ -274,7 +278,7 @@ const EventNoticePanel = ({ event, eventDto, language, contacts }: { event: Grou
         </AppSectionCard>
         <AppSectionCard dense title={text.capacity}>
           <p className="text-sm text-slate-700">
-            {eventDto.maxCapacity ? `${eventDto.maxCapacity} ${eventDto.capacityUnit}` : '-'}
+            {eventDto.maxCapacity > 0 ? `${eventDto.maxCapacity} ${eventDto.capacityUnit}` : text.noRegistration}
           </p>
           {feeParts.length ? <p className="mt-2 text-sm text-slate-500">{feeParts.join(' - ')}</p> : null}
         </AppSectionCard>
