@@ -471,8 +471,8 @@ const text = {
   },
   editEventAiDescription: { en: 'Refine setup, AI guidance, event notice, and RAM in separate tabs, with submission readiness shown for both deliverables.', zh: '在不同标签中完善初始化、AI 引导、活动通知和 RAM，并分别查看两个文件的提交状态。' },
   eventAssistantIntro: {
-    en: 'Hi! I am your AI event assistant. I will combine your starting brief, poster, and conversation; reuse shared facts for the event notice and RAM report; then guide you to the next missing item.\n\nExample: "Plan a West Coast trip for 15 families on Dec 1-3 2026. Everyone must take the chartered bus. Optional kayaking is $30 per person. Fee: $150/adult, $80/child."',
-    zh: '你好！我是你的 AI 活动助理。我会汇集初始化资料、海报和对话，把共同信息复用于活动通知与 RAM，并引导你补齐下一项资料。\n\n示例："为 15 个家庭计划 2026 年 12 月 1-3 日西海岸旅行。所有人必须乘坐包车。皮划艇自选，每人 $30。费用：成人 $150，儿童 $80。"',
+    en: 'AI Insight: What would you like help with for this event?',
+    zh: 'AI 洞察：这次活动需要我先帮你处理什么？',
   },
   eventLoadFromGroupFailed: { en: 'Unable to load event for editing. Open this page from the group events sidebar.', zh: '无法加载要编辑的活动。请从小组活动侧栏打开此页面。' },
   eventNotFound: { en: 'Event not found for editing.', zh: '未找到要编辑的活动。' },
