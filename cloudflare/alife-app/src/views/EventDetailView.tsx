@@ -220,43 +220,57 @@ const EventNoticePanel = ({ event, eventDto, language, contacts }: { event: Grou
   const posterUrl = typeof eventDto.posterImageUrl === 'string' && eventDto.posterImageUrl.trim()
     ? eventDto.posterImageUrl.trim()
     : undefined
+  const [loadedPoster, setLoadedPoster] = useState<{ url: string; aspectRatio: number } | null>(null)
+  const posterAspectRatio = loadedPoster && loadedPoster.url === posterUrl ? loadedPoster.aspectRatio : null
   const galleryUrls = eventDto.galleryUrls.filter(Boolean)
   const feeParts = [
     eventDto.baseFeePerAdult != null ? `${eventDto.currency} ${eventDto.baseFeePerAdult} / adult` : '',
     eventDto.baseFeePerChild != null ? `${eventDto.currency} ${eventDto.baseFeePerChild} / child` : '',
   ].filter(Boolean)
 
+  const useDesktopSideBySideLayout = posterAspectRatio !== null && posterAspectRatio >= 1
+
   return (
     <div className="space-y-6">
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        {posterUrl ? (
-          <CoverImage
-            src={posterUrl}
-            alt={title || text.poster}
-            aspectRatio={16 / 9}
-            className="w-full"
-            openOnLongPressOrDoubleClick
-          />
-        ) : (
-          <div className="flex min-h-64 items-center justify-center bg-slate-100 text-sm text-slate-500">
-            {text.noPoster}
-          </div>
-        )}
-        <div className="p-5 sm:p-6">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-widest text-emerald-700">{text.notice}</p>
-              <h1 className="mt-2 text-2xl font-semibold leading-tight text-slate-950 sm:text-3xl">{title}</h1>
+        <div className={useDesktopSideBySideLayout ? 'desktop:grid desktop:grid-cols-2' : ''}>
+          {posterUrl ? (
+            <CoverImage
+              key={posterUrl}
+              src={posterUrl}
+              alt={title || text.poster}
+              aspectRatio={posterAspectRatio ?? 16 / 9}
+              className="w-full bg-slate-50"
+              fetchPriority="high"
+              objectFit="contain"
+              onLoad={(image) => {
+                if (image.naturalHeight > 0) {
+                  setLoadedPoster({ url: posterUrl, aspectRatio: image.naturalWidth / image.naturalHeight })
+                }
+              }}
+              openOnLongPressOrDoubleClick
+            />
+          ) : (
+            <div className="flex min-h-64 items-center justify-center bg-slate-100 text-sm text-slate-500">
+              {text.noPoster}
             </div>
-            <AppBadge variant={eventDto.maxCapacity === 0 || !isBeforeDeadline(eventDto.registrationDeadline) ? 'neutral' : 'success'}>
-              {eventDto.maxCapacity === 0
-                ? text.noRegistration
-                : `${text.registrationDeadline}: ${formatDateTime(eventDto.registrationDeadline, language) || '-'}`}
-            </AppBadge>
+          )}
+          <div className={['p-5 sm:p-6', useDesktopSideBySideLayout ? 'desktop:border-l desktop:border-slate-200' : ''].join(' ')}>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-widest text-emerald-700">{text.notice}</p>
+                <h1 className="mt-2 text-2xl font-semibold leading-tight text-slate-950 sm:text-3xl">{title}</h1>
+              </div>
+              <AppBadge variant={eventDto.maxCapacity === 0 || !isBeforeDeadline(eventDto.registrationDeadline) ? 'neutral' : 'success'}>
+                {eventDto.maxCapacity === 0
+                  ? text.noRegistration
+                  : `${text.registrationDeadline}: ${formatDateTime(eventDto.registrationDeadline, language) || '-'}`}
+              </AppBadge>
+            </div>
+            <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-slate-700">
+              {description || text.noDescription}
+            </p>
           </div>
-          <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-slate-700">
-            {description || text.noDescription}
-          </p>
         </div>
       </section>
 
