@@ -14,7 +14,9 @@ interface CoverImageProps {
   /** Fixed height mode (no aspect ratio padding) */
   fixedHeight?: boolean
   /** Callback when image loads */
-  onLoad?: () => void
+  onLoad?: (image: HTMLImageElement) => void
+  /** How the image fits its aspect-ratio container. */
+  objectFit?: 'cover' | 'contain'
   /** Container style overrides */
   style?: React.CSSProperties
   /** Navigate to the image URL on double click or long press. */
@@ -44,6 +46,7 @@ const CoverImage: React.FC<CoverImageProps> = ({
   className = '',
   fixedHeight = false,
   onLoad,
+  objectFit = 'cover',
   style,
   openOnLongPressOrDoubleClick = false,
   navigationUrl,
@@ -96,7 +99,9 @@ const CoverImage: React.FC<CoverImageProps> = ({
   const handleLoad = useCallback(() => {
     setLoaded(true)
     setError(false)
-    onLoad?.()
+    if (imgRef.current) {
+      onLoad?.(imgRef.current)
+    }
   }, [onLoad])
 
   const handleError = useCallback(() => {
@@ -186,7 +191,7 @@ const CoverImage: React.FC<CoverImageProps> = ({
             absolute inset-0 w-full h-full
             transition-opacity duration-300 ease-in-out
             ${loaded ? 'opacity-100' : 'opacity-0'}
-            object-cover
+            ${objectFit === 'contain' ? 'object-contain' : 'object-cover'}
           `}
           sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
         />
