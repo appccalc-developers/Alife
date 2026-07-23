@@ -1338,6 +1338,7 @@ export function addCorsHeaders(request: Request, response: Response, env?: Env) 
   if (responseOrigin) {
     headers.set('access-control-allow-origin', responseOrigin)
     headers.set('access-control-allow-credentials', 'true')
+    headers.set('access-control-expose-headers', 'x-alife-cache, x-alife-authz, x-alife-backend-cache, etag, cache-control')
     if (response.status === 304) {
       headers.set('access-control-allow-methods', CORS_ALLOWED_METHODS)
       headers.set('access-control-allow-headers', CORS_ALLOWED_HEADERS)

@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, CalendarDays, MessageCircle, MessageSquareReply, MicVocal, PlayCircle, Send } from 'lucide-react'
+import { ArrowLeft, CalendarDays, ChevronLeft, ChevronRight, MessageCircle, MessageSquareReply, MicVocal, PlayCircle, Send } from 'lucide-react'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppEmptyState from '../components/layout/AppEmptyState'
 import AppPageShell from '../components/layout/AppPageShell'
 import AppSectionCard from '../components/layout/AppSectionCard'
+import { SermonTranscriptPanel } from '../components/sermons/SermonTranscriptPanel'
 import { getCachedSermons } from '../db/collections/sermonsCollection'
 import { queryClient } from '../db/queryClient'
 import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
@@ -103,6 +104,7 @@ const SermonVideoView = () => {
   const { language, isGuest, isRegistered, me } = useAuthStore()
   const forumText = forumCopy(language)
   const discussionText = sermonDiscussionCopy(language)
+  const iframeRef = useRef<HTMLIFrameElement | null>(null)
   const { sermonId: routeSermonId } = useParams<{ sermonId: string }>()
   const { sermonId: activeSermonId } = useActiveEntityIds({ sermonId: routeSermonId })
   const [searchParams] = useSearchParams()
@@ -111,6 +113,7 @@ const SermonVideoView = () => {
   const [commentMedia, setCommentMedia] = useState<PendingForumMedia[]>([])
   const [commentMessage, setCommentMessage] = useState('')
   const [replyTarget, setReplyTarget] = useState<ForumCommentDto | null>(null)
+  const [commentPage, setCommentPage] = useState(1)
   const requestedVideoId = extractYouTubeVideoId(searchParams.get('videoId'))
   const sermonId = routeSermonId || (requestedVideoId ? '' : activeSermonId)
   const shouldUseVideoIdFallback = Boolean(requestedVideoId && !sermonId)
@@ -160,7 +163,10 @@ const SermonVideoView = () => {
   })
 
   const sermonPost = sermonDiscussionQuery.data ?? null
+  const COMMENTS_PER_PAGE = 5
   const commentThreads = sermonPost ? buildCommentThreads(sermonPost.comments) : []
+  const totalCommentPages = Math.max(1, Math.ceil(commentThreads.length / COMMENTS_PER_PAGE))
+  const paginatedCommentThreads = commentThreads.slice((commentPage - 1) * COMMENTS_PER_PAGE, commentPage * COMMENTS_PER_PAGE)
   const canComment = Boolean(sermon?.id && !isGuest && isRegistered && !sermonPost?.isLocked)
 
   const createCommentMutation = useMutation({
@@ -241,6 +247,7 @@ const SermonVideoView = () => {
             {embedUrl ? (
               <div className="aspect-video w-full">
                 <iframe
+                  ref={iframeRef}
                   className="h-full w-full"
                   src={embedUrl}
                   title={pageTitle}
@@ -286,6 +293,13 @@ const SermonVideoView = () => {
             ) : null}
           </div>
         </article>
+
+        {/* Interactive Bilingual Transcript Panel */}
+        <SermonTranscriptPanel
+          sermonTitle={pageTitle}
+          speakerName={sermon?.speakerName ?? undefined}
+          iframeRef={iframeRef}
+        />
 
         {sermon ? (
           <section className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
@@ -399,7 +413,7 @@ const SermonVideoView = () => {
 
               {commentThreads.length > 0 ? (
                 <div className="space-y-5">
-                  {commentThreads.map(({ comment, replies, replyToById }) => (
+                  {paginatedCommentThreads.map(({ comment, replies, replyToById }) => (
                     <article key={comment.id} className="relative">
                       <div className="flex gap-3">
                         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#e3f0eb] text-xs font-black text-[#176b5a]">
@@ -477,6 +491,48 @@ const SermonVideoView = () => {
                       ) : null}
                     </article>
                   ))}
+
+                  {/* Comment Pagination Controls */}
+                  {totalCommentPages > 1 ? (
+                    <div className="flex items-center justify-between border-t border-slate-100 pt-4 text-xs font-bold text-slate-600">
+                      <button
+                        type="button"
+                        disabled={commentPage <= 1}
+                        onClick={() => setCommentPage((p) => Math.max(1, p - 1))}
+                        className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 transition hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-sm"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                        {language === 'zh' ? '上一页' : 'Previous'}
+                      </button>
+
+                      <div className="flex items-center gap-1.5">
+                        {Array.from({ length: totalCommentPages }, (_, i) => i + 1).map((page) => (
+                          <button
+                            key={page}
+                            type="button"
+                            onClick={() => setCommentPage(page)}
+                            className={`h-7 w-7 rounded-full text-xs font-black transition cursor-pointer ${
+                              page === commentPage
+                                ? 'bg-[#176b5a] text-white shadow-sm'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        ))}
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={commentPage >= totalCommentPages}
+                        onClick={() => setCommentPage((p) => Math.min(totalCommentPages, p + 1))}
+                        className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 transition hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-sm"
+                      >
+                        {language === 'zh' ? '下一页' : 'Next'}
+                        <ChevronRight className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
             </div>

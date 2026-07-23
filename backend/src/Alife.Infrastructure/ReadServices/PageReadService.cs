@@ -2,13 +2,17 @@ using Alife.Application.Pages.Dtos;
 using Alife.Application.Pages.Services;
 using Alife.Domain.Enums;
 using Alife.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Hybrid;
 using System.Text.Json;
 
 namespace Alife.Infrastructure.ReadServices;
 
-public sealed class PageReadService(AlifeDbContext dbContext, HybridCache hybridCache) : IPageReadService
+public sealed class PageReadService(
+    AlifeDbContext dbContext,
+    HybridCache hybridCache,
+    IHttpContextAccessor? httpContextAccessor = null) : IPageReadService
 {
     public Task<IReadOnlyList<PageDto>> GetPublicPagesAsync(CancellationToken cancellationToken)
         => GetOrCreateAsync(
@@ -102,7 +106,33 @@ public sealed class PageReadService(AlifeDbContext dbContext, HybridCache hybrid
                     .OrderByDescending(x => x.UpdatedUtc)
                     .ToListAsync(token);
 
-                return (IReadOnlyList<PageDto>)pages.Select(ToDto).ToList();
+                var pageIds = pages.Select(x => x.Id).ToList();
+                var reviewsList = await dbContext.PagePublicationReviews
+                    .AsNoTracking()
+                    .Include(x => x.PrimaryMenu)
+                    .Where(x => pageIds.Contains(x.PageId))
+                    .ToListAsync(token);
+
+                var reviews = reviewsList
+                    .GroupBy(x => x.PageId)
+                    .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.UpdatedUtc).First());
+
+                return (IReadOnlyList<PageDto>)pages
+                    .Select(page =>
+                    {
+                        reviews.TryGetValue(page.Id, out var review);
+                        return ToDto(
+                            page,
+                            ReadNullableTextMap(review?.AccessNameJson),
+                            review?.CardImageUrl,
+                            ReadNullableTextMap(review?.CardTextJson),
+                            ReadNullableTextMap(review?.PrimaryMenu?.NameJson ?? review?.PrimaryMenuNameJson),
+                            review?.PrimaryMenuId,
+                            review?.PrimaryMenu?.SortOrder ?? 0,
+                            review?.MenuSortOrder ?? 0,
+                            review?.PrimaryMenu?.HomePlacement);
+                    })
+                    .ToList();
             },
             cancellationToken);
 
@@ -119,7 +149,8 @@ public sealed class PageReadService(AlifeDbContext dbContext, HybridCache hybrid
         int primaryMenuSortOrder,
         int menuSortOrder,
         PagePrimaryMenuHomePlacement? primaryMenuHomePlacement)
-        => new(
+    {
+        return new PageDto(
             page.Id,
             page.OwnerGroupId,
             page.CreatedByMemberId,
@@ -129,7 +160,8 @@ public sealed class PageReadService(AlifeDbContext dbContext, HybridCache hybrid
             page.TitleDisplayStyle,
             page.Visibility,
             page.UpdatedUtc,
-            accessName,
+            AccessName: accessName,
+            ReviewRefusal: null,
             CardImageUrl: cardImageUrl,
             CardText: cardText,
             PrimaryMenuName: primaryMenuName,
@@ -137,6 +169,7 @@ public sealed class PageReadService(AlifeDbContext dbContext, HybridCache hybrid
             PrimaryMenuSortOrder: primaryMenuSortOrder,
             MenuSortOrder: menuSortOrder,
             PrimaryMenuHomePlacement: primaryMenuHomePlacement);
+    }
 
     private static IReadOnlyDictionary<string, string>? ReadNullableTextMap(string? value)
     {
@@ -172,14 +205,19 @@ public sealed class PageReadService(AlifeDbContext dbContext, HybridCache hybrid
         }
     }
 
-    private Task<T> GetOrCreateAsync<T>(
+    private async Task<T> GetOrCreateAsync<T>(
         string cacheKey,
         Func<CancellationToken, Task<T>> factory,
         CancellationToken cancellationToken)
     {
-        return hybridCache.GetOrCreateAsync(
+        var isMiss = false;
+        var result = await hybridCache.GetOrCreateAsync(
                 cacheKey,
-                async token => await factory(token),
+                async token =>
+                {
+                    isMiss = true;
+                    return await factory(token);
+                },
                 new HybridCacheEntryOptions
                 {
                     Expiration = TimeSpan.FromMinutes(5),
@@ -187,5 +225,13 @@ public sealed class PageReadService(AlifeDbContext dbContext, HybridCache hybrid
                 },
                 cancellationToken: cancellationToken)
             .AsTask();
+
+        var response = httpContextAccessor?.HttpContext?.Response;
+        if (response != null && !response.HasStarted)
+        {
+            response.Headers["x-alife-backend-cache"] = isMiss ? "MISS" : "HIT";
+        }
+
+        return result;
     }
 }

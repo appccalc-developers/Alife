@@ -21,6 +21,7 @@ public static class AdminPermissionCatalog
     public const string AuditEvents = "admin.events.audit";
     public const string SyncSermons = "admin.sermons.sync";
     public const string RefreshCloudflareCache = "admin.cloudflareCache.refresh";
+    public const string ViewDiagnostics = "admin.diagnostics.view";
 
     private static readonly IReadOnlyList<AdminFeaturePermissionDto> AllPermissions =
     [
@@ -39,7 +40,8 @@ public static class AdminPermissionCatalog
         new(ReviewPages, new Dictionary<string, string> { ["en"] = "Open website builder", ["zh"] = "打开构建网站" }),
         new(AuditEvents, new Dictionary<string, string> { ["en"] = "Review and approve event RAM", ["zh"] = "审核并批准活动 RAM" }),
         new(SyncSermons, new Dictionary<string, string> { ["en"] = "Run sermon sync", ["zh"] = "执行讲道同步" }),
-        new(RefreshCloudflareCache, new Dictionary<string, string> { ["en"] = "Clear edge cache", ["zh"] = "清理边缘缓存" })
+        new(RefreshCloudflareCache, new Dictionary<string, string> { ["en"] = "Clear edge cache", ["zh"] = "清理边缘缓存" }),
+        new(ViewDiagnostics, new Dictionary<string, string> { ["en"] = "View cache diagnostics panel", ["zh"] = "查看缓存诊断面板" })
     ];
 
     private static readonly IReadOnlySet<string> AllCodes = AllPermissions.Select(x => x.Code).ToHashSet(StringComparer.Ordinal);
