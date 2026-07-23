@@ -39,7 +39,9 @@ export const extractYouTubeVideoId = (rawUrl?: string | null) => {
 
 export const toYouTubeEmbedUrl = (videoId?: string | null) => {
   const normalizedVideoId = extractYouTubeVideoId(videoId)
-  return normalizedVideoId ? `https://www.youtube.com/embed/${encodeURIComponent(normalizedVideoId)}?feature=oembed` : ''
+  const origin = typeof window !== 'undefined' ? window.location.origin : ''
+  const originParam = origin ? `&origin=${encodeURIComponent(origin)}` : ''
+  return normalizedVideoId ? `https://www.youtube.com/embed/${encodeURIComponent(normalizedVideoId)}?enablejsapi=1&feature=oembed${originParam}` : ''
 }
 
 export const buildSermonVideoPath = (sermonId: string, videoId?: string | null) => {

@@ -2,13 +2,17 @@ using Alife.Application.Common;
 using Alife.Application.Groups.Dtos;
 using Alife.Application.Groups.Services;
 using Alife.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Hybrid;
 using System.Text.Json;
 
 namespace Alife.Infrastructure.ReadServices;
 
-public sealed class GroupReadService(AlifeDbContext dbContext, HybridCache hybridCache) : IGroupReadService
+public sealed class GroupReadService(
+    AlifeDbContext dbContext,
+    HybridCache hybridCache,
+    IHttpContextAccessor? httpContextAccessor = null) : IGroupReadService
 {
     public Task<GroupDto?> GetChurchAsync(CancellationToken cancellationToken)
         => GetOrCreateAsync(
@@ -207,14 +211,19 @@ public sealed class GroupReadService(AlifeDbContext dbContext, HybridCache hybri
             _ => 0
         };
 
-    private Task<T> GetOrCreateAsync<T>(
+    private async Task<T> GetOrCreateAsync<T>(
         string cacheKey,
         Func<CancellationToken, Task<T>> factory,
         CancellationToken cancellationToken)
     {
-        return hybridCache.GetOrCreateAsync(
+        var isMiss = false;
+        var result = await hybridCache.GetOrCreateAsync(
                 cacheKey,
-                async token => await factory(token),
+                async token =>
+                {
+                    isMiss = true;
+                    return await factory(token);
+                },
                 new HybridCacheEntryOptions
                 {
                     Expiration = TimeSpan.FromMinutes(5),
@@ -222,6 +231,14 @@ public sealed class GroupReadService(AlifeDbContext dbContext, HybridCache hybri
                 },
                 cancellationToken: cancellationToken)
             .AsTask();
+
+        var response = httpContextAccessor?.HttpContext?.Response;
+        if (response != null && !response.HasStarted)
+        {
+            response.Headers["x-alife-backend-cache"] = isMiss ? "MISS" : "HIT";
+        }
+
+        return result;
     }
 
     private static GroupDto ToDto(Domain.Entities.Group group)

@@ -1,38 +1,61 @@
 using Alife.Application.Events.Dtos;
 using Alife.Application.Events.Services;
 using Alife.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Hybrid;
 
 namespace Alife.Infrastructure.ReadServices;
 
-public sealed class EventReadService(AlifeDbContext dbContext, HybridCache hybridCache) : IEventReadService
+public sealed class EventReadService(
+    AlifeDbContext dbContext,
+    HybridCache hybridCache,
+    IHttpContextAccessor? httpContextAccessor = null) : IEventReadService
 {
     public Task<IReadOnlyList<GroupEventSummaryDto>> GetGroupEventsAsync(Guid groupId, CancellationToken cancellationToken)
-        => hybridCache.GetOrCreateAsync(
-                EventCacheKeys.GroupEvents(groupId),
+        => GetOrCreateAsync(
+            EventCacheKeys.GroupEvents(groupId),
+            async token =>
+            {
+                var events = await dbContext.GroupEvents
+                    .AsNoTracking()
+                    .Include(e => e.ContactProfiles)
+                    .Include(e => e.RamAssessment)
+                    .Where(e => e.GroupId == groupId)
+                    .OrderBy(e => e.StartDate)
+                    .ToListAsync(token);
+
+                var dtos = events.Select(e => new GroupEventSummaryDto(
+                    e.Id,
+                    e.GroupId,
+                    e.CreatedByMemberId,
+                    e.TitleEn,
+                    e.TitleZh,
+                    e.StartDate,
+                    e.EndDate,
+                    e.EventDataJson,
+                    e.CreatedUtc,
+                    e.UpdatedUtc,
+                    e.ContactProfiles?.Select(x => x.ContactProfileId).ToList() ?? new List<Guid>(),
+                    e.RamAssessment?.Status ?? Alife.Domain.Enums.EventRamStatus.Draft
+                )).ToList();
+
+                return (IReadOnlyList<GroupEventSummaryDto>)dtos;
+            },
+            cancellationToken);
+
+    private async Task<T> GetOrCreateAsync<T>(
+        string cacheKey,
+        Func<CancellationToken, Task<T>> factory,
+        CancellationToken cancellationToken)
+    {
+        var isMiss = false;
+        var result = await hybridCache.GetOrCreateAsync(
+                cacheKey,
                 async token =>
                 {
-                    var events = await dbContext.GroupEvents
-                        .AsNoTracking()
-                        .Where(e => e.GroupId == groupId)
-                        .OrderBy(e => e.StartDate)
-                        .Select(e => new GroupEventSummaryDto(
-                            e.Id,
-                            e.GroupId,
-                            e.CreatedByMemberId,
-                            e.TitleEn,
-                            e.TitleZh,
-                            e.StartDate,
-                            e.EndDate,
-                            e.EventDataJson,
-                            e.CreatedUtc,
-                            e.UpdatedUtc,
-                            e.ContactProfiles.Select(x => x.ContactProfileId).ToList(),
-                            e.RamAssessment == null ? Alife.Domain.Enums.EventRamStatus.Draft : e.RamAssessment.Status))
-                        .ToListAsync(token);
-
-                    return (IReadOnlyList<GroupEventSummaryDto>)events;
+                    isMiss = true;
+                    return await factory(token);
                 },
                 new HybridCacheEntryOptions
                 {
@@ -41,4 +64,13 @@ public sealed class EventReadService(AlifeDbContext dbContext, HybridCache hybri
                 },
                 cancellationToken: cancellationToken)
             .AsTask();
+
+        var response = httpContextAccessor?.HttpContext?.Response;
+        if (response != null && !response.HasStarted)
+        {
+            response.Headers["x-alife-backend-cache"] = isMiss ? "MISS" : "HIT";
+        }
+
+        return result;
+    }
 }

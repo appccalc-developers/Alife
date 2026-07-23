@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { TerminalSquare } from 'lucide-react'
 import type { MouseEvent } from 'react'
 import { useAuthStore } from '../../stores/auth'
+import { CacheInspectorToggleButton } from '../../components/diagnostics/CacheInspectorHud'
 import NotificationToastHost from '../../components/notifications/NotificationToastHost'
 import { confirmUnsavedChangesNavigation } from '../../utils/unsavedChangesGuard'
 import { HeaderNavigation } from '../navigation/AppNavigation'
@@ -37,6 +38,7 @@ const ShellHeader = ({ appNavItems, groupName, groupManageTo, contextualGroupId,
         <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
           {!auth.loading && auth.me?.displayName ? <Link className="hidden max-w-40 truncate rounded-xl px-2 py-1.5 text-sm font-bold text-[#40554e] hover:bg-[#e3f0eb] hover:text-[#176b5a] sm:block" to="/profile" onClick={guardProfileNavigation}>{auth.me.displayName}</Link> : null}
           <NotificationToastHost />
+          <CacheInspectorToggleButton />
           <button
             type="button"
             className="alife-icon-button min-w-12 px-3 text-sm font-bold"

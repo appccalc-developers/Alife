@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { useLocation } from 'react-router-dom'
+import { CacheInspectorHud } from '../components/diagnostics/CacheInspectorHud'
 import { localizeText } from '../utils/localizedText'
 import { useAuthStore } from '../stores/auth'
 import { groupService } from '../services/groupService'
@@ -231,17 +232,20 @@ const AppShell = () => {
     (auth.isGuest && isPublicBrowsePath(location.pathname))
 
   return (
-    <AnimatePresence initial={false} mode="wait">
-      <motion.div
-        key={showPublicShell ? 'public' : 'workspace'}
-        initial={reduceMotion ? false : { opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={reduceMotion ? { opacity: 1 } : { opacity: 0 }}
-        transition={{ duration: reduceMotion ? 0 : 0.18, ease: 'easeInOut' }}
-      >
-        {showPublicShell ? <PublicHomeShell /> : <WorkspaceShell />}
-      </motion.div>
-    </AnimatePresence>
+    <>
+      <AnimatePresence initial={false} mode="wait">
+        <motion.div
+          key={showPublicShell ? 'public' : 'workspace'}
+          initial={reduceMotion ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={reduceMotion ? { opacity: 1 } : { opacity: 0 }}
+          transition={{ duration: reduceMotion ? 0 : 0.18, ease: 'easeInOut' }}
+        >
+          {showPublicShell ? <PublicHomeShell /> : <WorkspaceShell />}
+        </motion.div>
+      </AnimatePresence>
+      <CacheInspectorHud />
+    </>
   )
 }
 

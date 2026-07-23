@@ -2,12 +2,16 @@ using Alife.Application.Common.Models;
 using Alife.Application.Sermons.Dtos;
 using Alife.Application.Sermons.Services;
 using Alife.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Hybrid;
 
 namespace Alife.Infrastructure.ReadServices;
 
-public sealed class SermonReadService(AlifeDbContext dbContext, HybridCache hybridCache) : ISermonReadService
+public sealed class SermonReadService(
+    AlifeDbContext dbContext,
+    HybridCache hybridCache,
+    IHttpContextAccessor? httpContextAccessor = null) : ISermonReadService
 {
     public Task<SermonDto?> GetSermonByIdAsync(Guid sermonId, CancellationToken cancellationToken)
         => dbContext.Sermons
@@ -63,29 +67,44 @@ public sealed class SermonReadService(AlifeDbContext dbContext, HybridCache hybr
     }
 
     public Task<IReadOnlyList<SermonDto>> GetAllSermonsAsync(CancellationToken cancellationToken)
-        => hybridCache.GetOrCreateAsync(
-                SermonCacheKeys.All(),
+        => GetOrCreateAsync(
+            SermonCacheKeys.All(),
+            async token =>
+            {
+                var sermons = await dbContext.Sermons
+                    .AsNoTracking()
+                    .OrderBy(x => x.PreachedAtUtc == null)
+                    .ThenByDescending(x => x.PreachedAtUtc)
+                    .ThenBy(x => x.SortOrder)
+                    .Select(x => new SermonDto(
+                        x.Id,
+                        x.Title,
+                        x.SpeakerName,
+                        x.ThumbnailUrl,
+                        !string.IsNullOrEmpty(x.VideoUrl)
+                            ? x.VideoUrl
+                            : !string.IsNullOrEmpty(x.YoutubeVideoId)
+                                ? "https://www.youtube.com/watch?v=" + x.YoutubeVideoId
+                                : null,
+                        x.PreachedAtUtc))
+                    .ToListAsync(token);
+
+                return (IReadOnlyList<SermonDto>)sermons;
+            },
+            cancellationToken);
+
+    private async Task<T> GetOrCreateAsync<T>(
+        string cacheKey,
+        Func<CancellationToken, Task<T>> factory,
+        CancellationToken cancellationToken)
+    {
+        var isMiss = false;
+        var result = await hybridCache.GetOrCreateAsync(
+                cacheKey,
                 async token =>
                 {
-                    var sermons = await dbContext.Sermons
-                        .AsNoTracking()
-                        .OrderBy(x => x.PreachedAtUtc == null)
-                        .ThenByDescending(x => x.PreachedAtUtc)
-                        .ThenBy(x => x.SortOrder)
-                        .Select(x => new SermonDto(
-                            x.Id,
-                            x.Title,
-                            x.SpeakerName,
-                            x.ThumbnailUrl,
-                            !string.IsNullOrEmpty(x.VideoUrl)
-                                ? x.VideoUrl
-                                : !string.IsNullOrEmpty(x.YoutubeVideoId)
-                                    ? "https://www.youtube.com/watch?v=" + x.YoutubeVideoId
-                                    : null,
-                            x.PreachedAtUtc))
-                        .ToListAsync(token);
-
-                    return (IReadOnlyList<SermonDto>)sermons;
+                    isMiss = true;
+                    return await factory(token);
                 },
                 new HybridCacheEntryOptions
                 {
@@ -94,4 +113,13 @@ public sealed class SermonReadService(AlifeDbContext dbContext, HybridCache hybr
                 },
                 cancellationToken: cancellationToken)
             .AsTask();
+
+        var response = httpContextAccessor?.HttpContext?.Response;
+        if (response != null && !response.HasStarted)
+        {
+            response.Headers["x-alife-backend-cache"] = isMiss ? "MISS" : "HIT";
+        }
+
+        return result;
+    }
 }
