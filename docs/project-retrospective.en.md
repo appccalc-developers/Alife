@@ -4,7 +4,7 @@
 
 Alife began with a concrete problem: for overseas Chinese churches, groups, members, web pages, sermons, events, enrollment, and bilingual content are often fragmented across unrelated tools, chat histories, and the personal knowledge of a few volunteers. My goal was not to build another information website. It was to create a community platform in which visitors, members, group leaders, content volunteers, reviewers, and platform administrators could complete real tasks.
 
-Between 15 April and 23 July 2026, the project recorded 271 GitHub issues. Of those, 269 are closed and two remain open. The count is not the achievement by itself. The stronger evidence of zero-to-one product ability is that the work documented by those issues gradually formed complete workflows:
+Between 15 April and 23 July 2026, the project recorded 272 GitHub issues. Of those, 270 are closed and two remain open. The count is not the achievement by itself. The stronger evidence of zero-to-one product ability is that the work documented by those issues gradually formed complete workflows:
 
 - Visitors can browse public pages, sermons, events, discussions, and historical articles.
 - Members can join groups, enroll in events, participate in discussions, read a bilingual Bible, and preserve reading progress across devices.
@@ -19,10 +19,10 @@ At the time of this retrospective, Alife is no longer a concept prototype. It is
 ## Evidence base
 
 - Repository: [`appccalc-developers/Alife`](https://github.com/appccalc-developers/Alife)
-- Scope: all 271 open and closed issues
+- Scope: all 272 open and closed issues
 - Date range: 15 April to 23 July 2026
-- Monthly distribution: 22 issues in April, 68 in May, 98 in June, and 83 in July
-- Current state: 269 closed, two open, or 99.3% closed
+- Monthly distribution: 22 issues in April, 68 in May, 98 in June, and 84 in July
+- Snapshot at 23 July 2026: 270 closed, two open, or 99.3% closed
 
 Issue volume represents traceable work, not 271 independent features or a direct measure of engineering speed. GitHub issues and pull requests share one numbering sequence, so issue numbers extend from #1 to #575. The corpus also contains an explicit test issue ([#416](https://github.com/appccalc-developers/Alife/issues/416)). This retrospective treats issue bodies, acceptance criteria, state, and chronology as evidence of product evolution rather than using the raw count as a marketing claim.
 
@@ -200,14 +200,14 @@ The highest-value next phase is not another set of menu items. It is to:
 
 > I started Alife from a real problem in overseas Chinese churches: group operations, bilingual content, events, and communication were fragmented across unrelated tools. In roughly one hundred days, I took it from a basic API and PWA to a usable alpha community platform covering LINE authentication, group and member management, bilingual page building and publication review, sermons, event enrollment and review, forums, announcements, albums, contacts, historical-content migration, and AI-assisted event planning and RAM risk assessment.
 >
-> The strongest evidence is not the 271 issues. It is that I delivered complete workflows across React, .NET, SQL, Azure Functions, Cloudflare Workers, R2, Durable Objects, and several cache layers. I also changed course when early models were wrong: I retired global page ownership, re-layered caching by data sensitivity, and kept AI behind human confirmation and authorization. The product now has the governance, security, operations, and maintainability expected of an alpha. The next step is to validate the beta with real user metrics.
+> The strongest evidence is not the 272 issues. It is that I delivered complete workflows across React, .NET, SQL, Azure Functions, Cloudflare Workers, R2, Durable Objects, and several cache layers. I also changed course when early models were wrong: I retired global page ownership, re-layered caching by data sensitivity, and kept AI behind human confirmation and authorization. The product now has the governance, security, operations, and maintainability expected of an alpha. The next step is to validate the beta with real user metrics.
 
 ## Evidence-use note
 
 This document is suitable for a portfolio or interview narrative, with the following boundaries:
 
 - It is fair to say, “I built and iterated a complete alpha product with end-to-end workflows.”
-- It is fair to say, “269 closed issues demonstrate scope and traceability.”
+- It is fair to say, “270 closed issues demonstrate scope and traceability.”
 - Issue close times should not be presented as actual engineering duration without reviewing pull requests and deployment records.
 - Market success should not be claimed until there is active-user, task-completion, and retention evidence.
 - If parts of the work involved collaborators or AI assistance, the interview account should accurately distinguish product decisions, architecture responsibility, implementation scope, and review ownership.
