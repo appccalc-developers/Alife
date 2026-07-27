@@ -63,7 +63,9 @@ const toAbsoluteUrl = (path: string) => {
     return path
   }
 
-  const apiBase = (import.meta.env.VITE_API_BASE_URL ?? '').trim()
+  // Keep development requests same-origin so Vite can proxy `/api/*`.
+  // This also preserves credentialed cookie behavior without requiring local CORS.
+  const apiBase = import.meta.env.DEV ? '' : (import.meta.env.VITE_API_BASE_URL ?? '').trim()
   if (apiBase) {
     const base = apiBase.endsWith('/') ? apiBase.slice(0, -1) : apiBase
     const relative = path.startsWith('/') ? path : `/${path}`

@@ -3,6 +3,7 @@ import { Navigate, useLocation, useParams } from 'react-router-dom'
 import { useLiveQuery } from '@tanstack/react-db'
 import { useQuery } from '@tanstack/react-query'
 import PageContentRenderer from '../components/page/PageContentRenderer'
+import PageViewSkeleton from '../components/page/PageViewSkeleton'
 import AppBackButton from '../components/layout/AppBackButton'
 import { pageSectionsCanvasClass, pageSectionsChromeClass } from '../components/page-sections/sectionPresets'
 import { fetchPageDetail, pageDetailQueryKey } from '../db/collections/pageCollection'
@@ -20,8 +21,10 @@ const PageView = () => {
   const t = useUiText()
   const auth = useAuthStore()
   const { language } = auth
-  const menuName = new URLSearchParams(location.search).get('page')
+  const searchParams = new URLSearchParams(location.search)
+  const menuName = searchParams.get('page')
   const isPublicMenuPage = location.pathname === '/home' && Boolean(menuName?.trim())
+  const menuPageId = isPublicMenuPage ? searchParams.get('pageId')?.trim() ?? '' : ''
   const isLegacyPublicPage = location.pathname.startsWith('/public/pages/')
   const isPublicPage = isLegacyPublicPage || isPublicMenuPage
   const { pageId: activePageId } = useActiveEntityIds({ pageId: routePageId })
@@ -33,14 +36,14 @@ const PageView = () => {
   } = useQuery({
     queryKey: publicPagesQueryKey(),
     queryFn: () => pageService.getPublicPages(),
-    enabled: isPublicMenuPage,
+    enabled: isPublicMenuPage && !menuPageId,
   })
 
   const publicPage = useMemo(
-    () => isPublicMenuPage ? findPublicPageByMenuName(publicPages, menuName, language) : null,
-    [isPublicMenuPage, language, menuName, publicPages],
+    () => isPublicMenuPage && !menuPageId ? findPublicPageByMenuName(publicPages, menuName, language) : null,
+    [isPublicMenuPage, language, menuName, menuPageId, publicPages],
   )
-  const pageId = isPublicMenuPage ? publicPage?.id ?? '' : activePageId
+  const pageId = isPublicMenuPage ? menuPageId || publicPage?.id || '' : activePageId
 
   const {
     data: page = null,
@@ -79,27 +82,26 @@ const PageView = () => {
     [gpColl],
   )
 
-  const publicPageNotFound = isPublicMenuPage && !publicPagesLoading && !publicPagesError && !publicPage
+  const publicPageNotFound = isPublicMenuPage && !menuPageId && !publicPagesLoading && !publicPagesError && !publicPage
   const backFallbackTo = page?.ownerGroupId ? '/groups' : '/'
   const showBackButton = !isPublicPage
-  const showPageStatus = publicPagesLoading || pageLoading || publicPagesError || publicPageNotFound || isError
-  const showPageChrome = showBackButton || showPageStatus
+  const pagePending = publicPagesLoading || pageLoading
+  const pageFailed = !pagePending && (publicPagesError || publicPageNotFound || isError)
+  const showPageChrome = showBackButton || pageFailed
 
   return (
     !pageId && !isPublicMenuPage ? <Navigate to="/" replace /> :
-    <main className={pageSectionsCanvasClass}>
+    <main className={pageSectionsCanvasClass} aria-busy={pagePending || undefined}>
       {showPageChrome ? (
         <div className={`${pageSectionsChromeClass} space-y-4 pt-20 sm:pt-24`}>
           {showBackButton ? <AppBackButton fallbackTo={backFallbackTo} /> : null}
-          {publicPagesLoading || pageLoading ? (
-            <p className="rounded-lg border border-slate-200 bg-white p-3 text-slate-600">{t('loadingPage')}</p>
-          ) : null}
-          {!publicPagesLoading && !pageLoading && (publicPagesError || publicPageNotFound || isError) ? (
+          {pageFailed ? (
             <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-red-700">{t('pageAccessDenied')}</p>
           ) : null}
         </div>
       ) : null}
-      {!publicPagesLoading && !pageLoading && !publicPagesError && !publicPageNotFound && !isError && page ? (
+      {pagePending ? <PageViewSkeleton label={t('loadingPage')} /> : null}
+      {!pagePending && !pageFailed && page ? (
         <PageContentRenderer
           page={page}
           sections={sections}

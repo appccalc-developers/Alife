@@ -212,9 +212,9 @@ const PublicHomeShell = () => {
   }, [isHome])
 
   return (
-    <div className="min-h-screen bg-[#f7f3ea] text-[#18332d]">
+    <div className="flex min-h-screen flex-col bg-[#f7f3ea] text-[#18332d]">
       {isHome ? null : <HomeNavHeader copy={copy} language={auth.language} navItems={headerNavItems} solid={!isPublicPage} />}
-      <div className={isHome ? '' : isPublicPage ? 'pb-16' : 'px-4 pb-16 pt-24 sm:px-6 lg:px-8'}>
+      <div className={`flex-1 ${isHome ? '' : isPublicPage ? 'pb-16' : 'px-4 pb-16 pt-24 sm:px-6 lg:px-8'}`}>
         <AppRoutes />
       </div>
       {isPublicSiteContent ? <HomeFooter copy={copy} navItems={footerNavItems} /> : null}
