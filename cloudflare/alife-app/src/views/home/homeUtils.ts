@@ -195,7 +195,10 @@ const publicPageLookupKey = (value: string | null | undefined) =>
   value?.trim().replace(/\s+/g, ' ').toLocaleLowerCase() ?? ''
 
 export const publicPageHomePath = (page: PageSummaryDto, language: string) => {
-  const params = new URLSearchParams({ page: publicPageMenuName(page, language) })
+  const params = new URLSearchParams({
+    page: publicPageMenuName(page, language),
+    pageId: page.id,
+  })
   return `/home?${params.toString()}`
 }
 
