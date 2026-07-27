@@ -1,8 +1,11 @@
 using Alife.Application.Abstractions.Integrations;
 using Alife.Application.Abstractions.Security;
+using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
+using Alife.Application.Groups.Services;
 using Alife.Application.Members.Commands.LineLogin;
 using Alife.Domain.Entities;
+using Alife.Domain.Enums;
 using Alife.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
@@ -60,7 +63,7 @@ public class LineLoginCommandHandlerTests
 
         var lineService = CreateLineLoginService(new LineTokenResult("line-uid-123", "Line Name", "line@example.com"));
         var jwtService = CreateJwtService();
-        var handler = new LineLoginCommandHandler(dbContext, lineService, jwtService);
+        var handler = CreateHandler(dbContext, lineService, jwtService);
 
         var result = await handler.Handle(new LineLoginCommand(null, "auth-code"), CancellationToken.None);
 
@@ -104,7 +107,7 @@ public class LineLoginCommandHandlerTests
 
         var lineService = CreateLineLoginService(new LineTokenResult("line-uid-123", "Line Name", "line@example.com"));
         var jwtService = CreateJwtService();
-        var handler = new LineLoginCommandHandler(dbContext, lineService, jwtService);
+        var handler = CreateHandler(dbContext, lineService, jwtService);
 
         var result = await handler.Handle(new LineLoginCommand(currentMemberId, "auth-code"), CancellationToken.None);
 
@@ -123,7 +126,7 @@ public class LineLoginCommandHandlerTests
 
         var lineService = CreateLineLoginService(new LineTokenResult(lineUid, lineDisplayName, lineEmail));
         var jwtService = CreateJwtService();
-        var handler = new LineLoginCommandHandler(dbContext, lineService, jwtService);
+        var handler = CreateHandler(dbContext, lineService, jwtService);
 
         var result = await handler.Handle(new LineLoginCommand(null, "auth-code"), CancellationToken.None);
 
@@ -138,4 +141,177 @@ public class LineLoginCommandHandlerTests
         jwtService.Received(1).CreateVerifiedLineToken(lineUid, lineDisplayName, lineEmail);
         jwtService.DidNotReceive().CreateToken(Arg.Any<Member>(), Arg.Any<bool>());
     }
+
+    [Fact]
+    public async Task Handle_WithRegisteredLineMemberMissingChurchMembership_CreatesRequestAndNotifiesLeadersOnce()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var churchId = Guid.NewGuid();
+        var leaderId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+
+        dbContext.Groups.Add(new Group
+        {
+            Id = churchId,
+            NameJson = "{\"en\":\"Alife Church\",\"zh\":\"丰盛生命教会\"}",
+            AccessType = AccessType.Protected,
+            IsChurch = true,
+            CreatedUtc = now,
+            UpdatedUtc = now
+        });
+        dbContext.Members.AddRange(
+            new Member
+            {
+                Id = leaderId,
+                DisplayName = "Church Leader",
+                IsRegistered = true,
+                CreatedUtc = now,
+                UpdatedUtc = now
+            },
+            new Member
+            {
+                Id = memberId,
+                DisplayName = "James Wong",
+                IsRegistered = true,
+                LineUID = "line-james",
+                CreatedUtc = now,
+                UpdatedUtc = now
+            });
+        dbContext.GroupMemberships.Add(new GroupMembership
+        {
+            Id = Guid.NewGuid(),
+            GroupId = churchId,
+            MemberId = leaderId,
+            Status = MembershipStatus.Approved,
+            Role = MembershipRole.CoLeader,
+            CreatedUtc = now,
+            UpdatedUtc = now
+        });
+        await dbContext.SaveChangesAsync();
+
+        var lineService = CreateLineLoginService(new LineTokenResult("line-james", "James Wong", null));
+        var jwtService = CreateJwtService();
+        var groupCacheInvalidationService = Substitute.For<IGroupCacheInvalidationService>();
+        var cloudflareKvCacheService = Substitute.For<ICloudflareKvCacheService>();
+        var handler = CreateHandler(
+            dbContext,
+            lineService,
+            jwtService,
+            groupCacheInvalidationService,
+            cloudflareKvCacheService);
+
+        var firstResult = await handler.Handle(
+            new LineLoginCommand(null, "first-auth-code"),
+            CancellationToken.None);
+        var secondResult = await handler.Handle(
+            new LineLoginCommand(null, "second-auth-code"),
+            CancellationToken.None);
+
+        Assert.True(firstResult.IsSuccess);
+        Assert.True(secondResult.IsSuccess);
+
+        var membership = await dbContext.GroupMemberships
+            .SingleAsync(x => x.GroupId == churchId && x.MemberId == memberId);
+        Assert.Equal(MembershipStatus.Requested, membership.Status);
+        Assert.Equal(MembershipRole.Member, membership.Role);
+
+        var notification = await dbContext.NotificationMessages.SingleAsync();
+        Assert.Equal(leaderId, notification.RecipientMemberId);
+        Assert.Equal(memberId, notification.CreatedByMemberId);
+        Assert.Equal(churchId, notification.GroupId);
+        Assert.Equal("group.join-request.received", notification.ActionType);
+        Assert.Contains("James Wong", notification.ActionDataJson);
+        Assert.Contains($"/groups/{churchId}/manage", notification.ActionDataJson);
+
+        await groupCacheInvalidationService.Received(1)
+            .RemoveMembershipsAsync(churchId, Arg.Any<CancellationToken>());
+        await cloudflareKvCacheService.Received(1)
+            .RemoveMembershipAsync(churchId, memberId, Arg.Any<CancellationToken>());
+        await cloudflareKvCacheService.Received(1)
+            .RemoveMemberProfileAsync(memberId, Arg.Any<CancellationToken>());
+        await cloudflareKvCacheService.Received(1)
+            .RemoveApiCacheKeyAsync($"member:{memberId}:me", Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData(MembershipStatus.Invited)]
+    [InlineData(MembershipStatus.Requested)]
+    [InlineData(MembershipStatus.Approved)]
+    [InlineData(MembershipStatus.Rejected)]
+    [InlineData(MembershipStatus.Removed)]
+    public async Task Handle_WithChurchMembershipHistory_DoesNotOverwriteOrRepeatRequest(
+        MembershipStatus existingStatus)
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var churchId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+
+        dbContext.Groups.Add(new Group
+        {
+            Id = churchId,
+            NameJson = "{\"en\":\"Alife Church\",\"zh\":\"丰盛生命教会\"}",
+            AccessType = AccessType.Protected,
+            IsChurch = true,
+            CreatedUtc = now,
+            UpdatedUtc = now
+        });
+        dbContext.Members.Add(new Member
+        {
+            Id = memberId,
+            DisplayName = "Existing Member",
+            IsRegistered = true,
+            LineUID = "line-existing",
+            CreatedUtc = now,
+            UpdatedUtc = now
+        });
+        dbContext.GroupMemberships.Add(new GroupMembership
+        {
+            Id = Guid.NewGuid(),
+            GroupId = churchId,
+            MemberId = memberId,
+            Status = existingStatus,
+            Role = MembershipRole.Member,
+            CreatedUtc = now,
+            UpdatedUtc = now
+        });
+        await dbContext.SaveChangesAsync();
+
+        var groupCacheInvalidationService = Substitute.For<IGroupCacheInvalidationService>();
+        var cloudflareKvCacheService = Substitute.For<ICloudflareKvCacheService>();
+        var handler = CreateHandler(
+            dbContext,
+            CreateLineLoginService(new LineTokenResult("line-existing", "Existing Member", null)),
+            CreateJwtService(),
+            groupCacheInvalidationService,
+            cloudflareKvCacheService);
+
+        var result = await handler.Handle(
+            new LineLoginCommand(null, "auth-code"),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var membership = await dbContext.GroupMemberships.SingleAsync();
+        Assert.Equal(existingStatus, membership.Status);
+        Assert.Equal(now, membership.UpdatedUtc);
+        Assert.Empty(dbContext.NotificationMessages);
+        await groupCacheInvalidationService.DidNotReceive()
+            .RemoveMembershipsAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await cloudflareKvCacheService.DidNotReceive()
+            .RemoveMembershipAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
+    private static LineLoginCommandHandler CreateHandler(
+        AlifeDbContext dbContext,
+        ILineLoginService lineLoginService,
+        IJwtTokenService jwtTokenService,
+        IGroupCacheInvalidationService? groupCacheInvalidationService = null,
+        ICloudflareKvCacheService? cloudflareKvCacheService = null)
+        => new(
+            dbContext,
+            lineLoginService,
+            jwtTokenService,
+            groupCacheInvalidationService ?? Substitute.For<IGroupCacheInvalidationService>(),
+            cloudflareKvCacheService ?? Substitute.For<ICloudflareKvCacheService>());
 }
