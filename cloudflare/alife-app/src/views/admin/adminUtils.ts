@@ -2,7 +2,17 @@ import type { AdminGroupOptionDto } from '../../services/groupService'
 
 export type LocalText = { en: string; zh: string }
 
-export const formatDate = (value: string) => new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+const hasTimeZone = (value: string) => /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value)
+
+export const parseUtcDate = (value: string) => {
+  const normalized = value.trim()
+  return new Date(hasTimeZone(normalized) ? normalized : `${normalized}Z`)
+}
+
+export const formatDate = (value: string) => new Intl.DateTimeFormat(undefined, {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+}).format(parseUtcDate(value))
 export const formatRole = (role: string) => role === 'superadmin' ? 'System Admin' : role === 'admin' ? 'Admin' : role === 'user' ? 'User' : role
 export const readLocalized = (text: Record<string, string> | null | undefined, language: string) => !text ? '' : (language === 'zh' ? text.zh : text.en) || text.en || text.zh || ''
 export const parseLocalizedJson = (json: string | null, language: string) => {
