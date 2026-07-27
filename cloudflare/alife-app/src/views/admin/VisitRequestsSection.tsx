@@ -3,6 +3,7 @@ import { CheckCircle2, Clock3, Globe2, Handshake, Loader2, Mail, Phone } from 'l
 import type { AdminPagedResultDto, VisitContactRequestDto, VisitContactRequestStatus } from '../../services/groupService'
 import { Empty, FilterActions, FilterBar, Loading, Panel, Pager, SearchInput, SelectInput } from './AdminUi'
 import type { LabelFn } from './AdminUi'
+import { formatDate } from './adminUtils'
 
 const visitRequestStatusLabel = (status: string, language: string) => {
   if (status === 'contacted') return language === 'zh' ? '已联系' : 'Contacted'
@@ -30,8 +31,6 @@ const visitRequestLanguageTone = (language: string) =>
     : language === 'en'
       ? 'border-indigo-100 bg-indigo-50 text-indigo-700'
       : 'border-violet-100 bg-violet-50 text-violet-700'
-
-const formatDate = (value: string) => new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 
 export const VisitRequestsSection = ({ l, loading, page, filters, setFilters, apply, goToPage, updateStatus, updatingId, language }: {
   l: LabelFn
