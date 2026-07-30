@@ -131,6 +131,8 @@ export type HomeCopy = {
   locationTitle: string
   locationName: string
   locationAddress: string
+  locationContactNameLabel: string
+  locationContactPhoneLabel: string
   openMap: string
   customPageTitle: string
   footerLine: string
@@ -269,6 +271,8 @@ export const getCopy = (language: Language, churchDescription: string): HomeCopy
       locationTitle: '教会地点',
       locationName: '基督城华人丰盛生命教会',
       locationAddress: 'Christchurch, New Zealand',
+      locationContactNameLabel: '问询联系人',
+      locationContactPhoneLabel: '联系电话',
       openMap: '在 Google Maps 打开',
       customPageTitle: '教会最新页面',
       footerLine: 'A warm digital doorway for faith, belonging, and service.',
@@ -406,6 +410,8 @@ export const getCopy = (language: Language, churchDescription: string): HomeCopy
     locationTitle: 'Church Location',
     locationName: 'Chinese Abundant Life Church',
     locationAddress: 'Christchurch, New Zealand',
+    locationContactNameLabel: 'Inquiry contact',
+    locationContactPhoneLabel: 'Phone',
     openMap: 'Open in Google Maps',
     customPageTitle: 'Latest Church Page',
     footerLine: 'A warm digital doorway for faith, belonging, and service.',

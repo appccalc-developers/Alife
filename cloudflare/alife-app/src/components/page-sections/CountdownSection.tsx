@@ -6,6 +6,7 @@ import { useAuthStore } from '../../stores/auth'
 import type { LocalizedText } from '../../types'
 import type { EventDto, GroupEventRecord, MultilingualString } from '../../types/event'
 import type { ListViewMetadata } from '../../types/page-editor'
+import { formatCountdownTargetDateTime } from '../../utils/countdownDateTime'
 import {
   EditableText,
   PropertyPanel,
@@ -250,7 +251,23 @@ const optionLabelForEvent = (record: GroupEventRecord, language: string) => {
   return date ? `${title} - ${date}` : title
 }
 
-const CountdownMedia = ({ src, title }: { src: string; title: string }) => {
+type CountdownMediaProps = {
+  src: string
+  title: string
+  eyebrow: string
+  targetDateTime: string
+  targetDateTimeAttribute?: string
+  targetDateTimeLabel: string
+}
+
+const CountdownMedia = ({
+  src,
+  title,
+  eyebrow,
+  targetDateTime,
+  targetDateTimeAttribute,
+  targetDateTimeLabel,
+}: CountdownMediaProps) => {
   const source = src.trim()
 
   return (
@@ -276,6 +293,24 @@ const CountdownMedia = ({ src, title }: { src: string; title: string }) => {
         />
       )}
       <div className="absolute inset-0 bg-gradient-to-t from-home-dark/84 via-home-dark/18 to-transparent" />
+      <div className="pointer-events-none absolute left-5 top-5 z-10">
+        <span className="inline-flex rounded-lg bg-home-gold px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-home-gold-text">
+          {eyebrow}
+        </span>
+        {targetDateTimeAttribute ? (
+          <time
+            dateTime={targetDateTimeAttribute}
+            aria-label={`${targetDateTimeLabel}: ${targetDateTime}`}
+            className="mt-3 block rounded-lg bg-black/45 px-3 py-2 text-2xl font-bold leading-tight text-white shadow-lg backdrop-blur-sm tabular-nums"
+          >
+            {targetDateTime}
+          </time>
+        ) : (
+          <p className="mt-3 rounded-lg bg-black/45 px-3 py-2 text-2xl font-bold leading-tight text-white shadow-lg backdrop-blur-sm tabular-nums">
+            {targetDateTime}
+          </p>
+        )}
+      </div>
       <span className="absolute inset-0 grid place-items-center">
         <span className="grid h-16 w-16 place-items-center rounded-2xl bg-white/90 text-home-dark shadow-[0_8px_24px_rgba(0,0,0,0.2)] transition group-hover:scale-105">
           <CalendarDays className="h-9 w-9" />
@@ -380,10 +415,13 @@ const CountdownSection = ({ section, mode, domId, disabled, propertiesOnly, show
         ? readLocalizedText(section.contentJson, language, 'completeLabel') || label(language, 'Countdown complete', '倒数已结束')
         : readLocalizedText(section.contentJson, language, 'countdownLabel') || countdownLabel(binding.targetField, language)
   const metaLabel = readLocalizedText(section.contentJson, language, 'metaLabel') ||
-    (isEventBound ? targetLabel(binding.targetField, language) : label(language, 'Target time', '目标时间'))
-  const metaValue = formatDateTime(targetDateTime, language) ||
+    (isEventBound ? targetLabel(binding.targetField, language) : label(language, 'Target date and time', '目标日期时间'))
+  const metaValue = formatCountdownTargetDateTime(targetDateTime, language) ||
     (isEventBound ? '' : readLocalizedText(section.contentJson, language, 'metaValue')) ||
     label(language, 'To be confirmed', '时间待确认')
+  const targetDateTimeAttribute = readDateTime(targetDateTime)
+    ? new Date(targetDateTime).toISOString()
+    : undefined
   const footerText = (isEventBound ? eventDetails?.location : readLocalizedText(section.contentJson, language, 'footerText')) ||
     readLocalizedText(section.contentJson, language, 'footerText') ||
     label(language, 'Confirm details before publishing so leaders and members see the right time.', '发布前请确认详情，让带领人与成员看到正确时间。')
@@ -564,7 +602,14 @@ const CountdownSection = ({ section, mode, domId, disabled, propertiesOnly, show
         <div className="grid gap-5">
           <article className="overflow-hidden rounded-2xl border border-home-border bg-home-dark text-white shadow-[0_16px_48px_rgba(30,18,10,0.18)]">
             <div className="grid lg:grid-cols-[0.58fr_0.42fr]">
-              <CountdownMedia src={imageUrl} title={footerText} />
+              <CountdownMedia
+                src={imageUrl}
+                title={footerText}
+                eyebrow={cardEyebrow}
+                targetDateTime={metaValue}
+                targetDateTimeAttribute={targetDateTimeAttribute}
+                targetDateTimeLabel={metaLabel}
+              />
               <div className="flex flex-col justify-between gap-6 p-6 sm:p-8">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-home-gold">{cardEyebrow}</p>
@@ -608,9 +653,7 @@ const CountdownSection = ({ section, mode, domId, disabled, propertiesOnly, show
                 </div>
 
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-[0.15em] text-white/40">{metaLabel}</p>
-                  <p className="mt-2 text-sm font-semibold text-white">{metaValue}</p>
-                  <p className="mt-3 text-xs font-semibold leading-5 text-white/52">{footerText}</p>
+                  <p className="text-xs font-semibold leading-5 text-white/52">{footerText}</p>
                   {linkUrl || mode === 'edit' ? (
                     <a
                       className="mt-5 inline-flex items-center gap-2 rounded-lg bg-home-gold px-4 py-2.5 text-sm font-semibold text-home-gold-text transition hover:-translate-y-0.5"
