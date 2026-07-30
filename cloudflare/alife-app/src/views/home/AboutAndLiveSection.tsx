@@ -1,22 +1,43 @@
 import { useEffect, useState } from 'react'
 import { ExternalLink, PlayCircle } from 'lucide-react'
 import { motion, useReducedMotion } from 'framer-motion'
+import { formatCountdownTargetDateTime } from '../../utils/countdownDateTime'
 import { entranceAnimation, getServiceCountdown, media, youtubeLiveEmbedUrl, youtubeLiveUrl, youtubeVideosUrl } from './homeUtils'
 import type { HomeCopy } from './homeCopy'
 
 type Props = {
   copy: HomeCopy
+  language: string
 }
 
-const AboutAndLiveSection = ({ copy }: Props) => {
+const AboutAndLiveSection = ({ copy, language }: Props) => {
   const prefersReducedMotion = useReducedMotion()
   const entrance = entranceAnimation(prefersReducedMotion)
   const [countdown, setCountdown] = useState(() => getServiceCountdown())
+  const targetDateTime = formatCountdownTargetDateTime(
+    countdown.targetDateTime,
+    language,
+    'Pacific/Auckland',
+  )
 
   useEffect(() => {
     const timer = window.setInterval(() => setCountdown(getServiceCountdown()), 1000)
     return () => window.clearInterval(timer)
   }, [])
+
+  const targetDateTimeOverlay = (
+    <div className="pointer-events-none absolute left-5 top-5 z-10">
+      <span className="inline-flex rounded-lg bg-home-gold px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-home-gold-text">
+        {copy.liveEyebrow}
+      </span>
+      <time
+        dateTime={countdown.targetDateTime}
+        className="mt-3 block rounded-lg bg-black/45 px-3 py-2 text-2xl font-bold leading-tight text-white shadow-lg backdrop-blur-sm tabular-nums"
+      >
+        {targetDateTime}
+      </time>
+    </div>
+  )
 
   return (
     <section id="about" className="px-5 py-20 sm:px-8 lg:px-10 lg:py-28">
@@ -48,6 +69,7 @@ const AboutAndLiveSection = ({ copy }: Props) => {
                     referrerPolicy="strict-origin-when-cross-origin"
                     allowFullScreen
                   />
+                  {targetDateTimeOverlay}
                   <a
                     className="absolute right-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-lg bg-black/72 px-3 py-2 text-xs font-semibold text-white shadow-lg backdrop-blur transition hover:bg-black/90"
                     href={youtubeLiveUrl}
@@ -61,9 +83,7 @@ const AboutAndLiveSection = ({ copy }: Props) => {
                 <a className="group relative min-h-[18rem] overflow-hidden bg-black" href={youtubeVideosUrl} target="_blank" rel="noreferrer">
                   <img src={media.message} alt="" className="absolute inset-0 h-full w-full object-cover opacity-82 transition duration-500 group-hover:scale-105" loading="lazy" />
                   <div className="absolute inset-0 bg-gradient-to-t from-home-dark/84 via-home-dark/18 to-transparent" />
-                  <span className="absolute left-5 top-5 rounded-lg bg-home-gold px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-home-gold-text">
-                    {copy.liveEyebrow}
-                  </span>
+                  {targetDateTimeOverlay}
                   <span className="absolute inset-0 grid place-items-center">
                     <span className="grid h-16 w-16 place-items-center rounded-2xl bg-white/90 text-home-dark shadow-[0_8px_24px_rgba(0,0,0,0.2)] transition group-hover:scale-105">
                       <PlayCircle className="h-9 w-9" />

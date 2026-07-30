@@ -40,6 +40,7 @@ export const isRouteNavItem = (item: HomeNavItem): item is HomeNavRouteItem =>
 export type ServiceCountdown = {
   totalMs: number
   isLive: boolean
+  targetDateTime: string
   days: number
   hours: number
   minutes: number
@@ -293,17 +294,44 @@ export const isSundayServiceLive = (now = new Date()) => {
 
 export const getServiceCountdown = (now = new Date()): ServiceCountdown => {
   const isLive = isSundayServiceLive(now)
+  const serviceTimeParts = getServiceTimeParts(now)
+  const targetDateTime = isLive
+    ? createServiceDate(
+        serviceTimeParts.year,
+        serviceTimeParts.month,
+        serviceTimeParts.day,
+        Math.floor(COUNTDOWN_TARGET_MINUTES / 60),
+        COUNTDOWN_TARGET_MINUTES % 60,
+      )
+    : getNextSundayServiceTime(now)
+
   if (isLive) {
-    return { totalMs: 0, isLive, days: 0, hours: 0, minutes: 0, seconds: 0 }
+    return {
+      totalMs: 0,
+      isLive,
+      targetDateTime: targetDateTime.toISOString(),
+      days: 0,
+      hours: 0,
+      minutes: 0,
+      seconds: 0,
+    }
   }
 
-  const totalMs = Math.max(0, getNextSundayServiceTime(now).getTime() - now.getTime())
+  const totalMs = Math.max(0, targetDateTime.getTime() - now.getTime())
   const totalSeconds = Math.floor(totalMs / 1000)
   const days = Math.floor(totalSeconds / 86400)
   const hours = Math.floor((totalSeconds % 86400) / 3600)
   const minutes = Math.floor((totalSeconds % 3600) / 60)
   const seconds = totalSeconds % 60
-  return { totalMs, isLive, days, hours, minutes, seconds }
+  return {
+    totalMs,
+    isLive,
+    targetDateTime: targetDateTime.toISOString(),
+    days,
+    hours,
+    minutes,
+    seconds,
+  }
 }
 
 export const createSectionHandler = (closeMenu?: () => void) => (event: MouseEvent<HTMLAnchorElement>, href: string) => {

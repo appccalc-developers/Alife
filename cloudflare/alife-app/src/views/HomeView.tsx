@@ -32,7 +32,7 @@ const HomeView = () => {
       <HomeNavHeader copy={copy} language={language} navItems={headerNavItems} />
       <main className={pageSectionsCanvasClass}>
         <HeroSection copy={copy} />
-        <AboutAndLiveSection copy={copy} />
+        <AboutAndLiveSection copy={copy} language={language} />
         <hr className={pageSectionDividerClass} />
         <VisitSection copy={copy} language={language} />
         <hr className={pageSectionDividerClass} />

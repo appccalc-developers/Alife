@@ -1,5 +1,5 @@
 import type { MouseEvent, ReactNode } from 'react'
-import { ExternalLink, MapPin } from 'lucide-react'
+import { ExternalLink, MapPin, Phone, UserRound } from 'lucide-react'
 import { motion, useReducedMotion } from 'framer-motion'
 
 type LocationSectionPresentationProps = {
@@ -9,6 +9,10 @@ type LocationSectionPresentationProps = {
   locationName: ReactNode
   streetAddress: ReactNode
   locationAddress?: ReactNode
+  contactName?: ReactNode
+  contactNameLabel?: ReactNode
+  contactPhone?: string
+  contactPhoneLabel?: ReactNode
   mapUrl: string
   mapEmbedUrl: string
   openMapLabel: ReactNode
@@ -35,6 +39,10 @@ const LocationSectionPresentation = ({
   locationName,
   streetAddress,
   locationAddress,
+  contactName,
+  contactNameLabel,
+  contactPhone,
+  contactPhoneLabel,
   mapUrl,
   mapEmbedUrl,
   openMapLabel,
@@ -53,6 +61,37 @@ const LocationSectionPresentation = ({
             <div className="mt-5 text-2xl font-bold leading-tight tracking-tight">{locationName}</div>
             <div className="mt-3 max-w-sm text-[0.94rem] leading-7 text-white/55">{streetAddress}</div>
             {locationAddress ? <div className="mt-2 max-w-sm text-sm leading-6 text-white/40">{locationAddress}</div> : null}
+            {contactName || contactPhone ? (
+              <div className="mt-6 grid gap-4 border-t border-white/10 pt-5">
+                {contactName ? (
+                  <div className="flex items-start gap-3">
+                    <UserRound className="mt-0.5 h-4 w-4 shrink-0 text-home-gold" aria-hidden="true" />
+                    <div>
+                      {contactNameLabel ? (
+                        <p className="text-[0.68rem] font-medium uppercase tracking-[0.12em] text-white/40">{contactNameLabel}</p>
+                      ) : null}
+                      <div className="mt-1 text-sm font-semibold text-white/80">{contactName}</div>
+                    </div>
+                  </div>
+                ) : null}
+                {contactPhone ? (
+                  <div className="flex items-start gap-3">
+                    <Phone className="mt-0.5 h-4 w-4 shrink-0 text-home-gold" aria-hidden="true" />
+                    <div>
+                      {contactPhoneLabel ? (
+                        <p className="text-[0.68rem] font-medium uppercase tracking-[0.12em] text-white/40">{contactPhoneLabel}</p>
+                      ) : null}
+                      <a
+                        className="mt-1 block text-sm font-semibold text-white/80 transition hover:text-white"
+                        href={`tel:${contactPhone.replace(/[^\d+]/g, '')}`}
+                      >
+                        {contactPhone}
+                      </a>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
             <a
               className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-white/60 transition hover:text-white"
               href={mapUrl || undefined}
