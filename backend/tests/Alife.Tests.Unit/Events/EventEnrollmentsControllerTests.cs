@@ -12,7 +12,7 @@ namespace Alife.Tests.Unit.Events;
 public class EventEnrollmentsControllerTests
 {
     [Fact]
-    public async Task List_WhenApprovedMember_ReturnsAllEnrollments()
+    public async Task List_WhenHandlerReturnsEnrollments_ReturnsPayload()
     {
         var memberId = Guid.NewGuid();
         var eventId = Guid.NewGuid();

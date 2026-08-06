@@ -35,9 +35,22 @@ public sealed class ListEventEnrollmentsQueryHandler(
             return AppResult<IReadOnlyList<EventEnrollmentDto>>.Forbidden("You must be an approved member to view enrollments.");
         }
 
-        var enrollments = await dbContext.EventEnrollments
+        var canViewAllEnrollments = groupEvent.CreatedByMemberId == request.CurrentMemberId ||
+            await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
+                groupEvent.GroupId,
+                request.CurrentMemberId,
+                cancellationToken);
+
+        var enrollmentQuery = dbContext.EventEnrollments
             .AsNoTracking()
-            .Where(x => x.EventId == request.EventId)
+            .Where(x => x.EventId == request.EventId);
+
+        if (!canViewAllEnrollments)
+        {
+            enrollmentQuery = enrollmentQuery.Where(x => x.MemberId == request.CurrentMemberId);
+        }
+
+        var enrollments = await enrollmentQuery
             .OrderByDescending(x => x.UpdatedUtc)
             .Select(x => new EventEnrollmentDto(
                 x.Id,

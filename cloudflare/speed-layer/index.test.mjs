@@ -460,21 +460,23 @@ test('non-approved membership returns 403 before shared group cache is read', as
   assert.equal(apiCacheGetKeys.includes(`group:${groupId}:events`), false)
 })
 
-test('event enrollments cache is gated by event group mapping and membership mirror', async () => {
+test('event enrollments bypass shared cache because the response is viewer-specific', async () => {
   const groupId = 'group-1'
   const eventId = 'event-1'
   const url = `https://ccalc.live/api/events/${eventId}/enrollments`
   authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved' }))
   apiCacheStore.set(`map:event:${eventId}:group`, JSON.stringify({ groupId }))
-  apiCacheStore.set(createApiCacheKey(url), createStoredResponse([{ id: 'enrollment-1', groupId, eventId }]))
+  apiCacheStore.set(createApiCacheKey(url), createStoredResponse([{ id: 'another-members-enrollment', groupId, eventId }]))
+  originResponses.push(Response.json([{ id: 'own-enrollment', groupId, eventId, memberId: 'member-1' }]))
 
   const response = await dispatch(url, {
     headers: { cookie: `alife_auth=${createJwtWithSub('member-1')}` },
   })
 
-  assert.equal(response.headers.get('x-alife-cache'), 'HIT')
-  assert.deepEqual(await response.json(), [{ id: 'enrollment-1', groupId, eventId }])
-  assert.equal(fetchCalls.length, 0)
+  assert.equal(response.headers.get('x-alife-cache'), 'BYPASS')
+  assert.equal(response.headers.get('cache-control'), 'no-store')
+  assert.deepEqual(await response.json(), [{ id: 'own-enrollment', groupId, eventId, memberId: 'member-1' }])
+  assert.equal(fetchCalls.length, 1)
 })
 
 test('public GET requests are served from cache on the second hit', async () => {

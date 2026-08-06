@@ -19,6 +19,7 @@ public class EventEnrollmentsController(
     ICurrentMemberAccessor currentMemberAccessor) : ControllerBase
 {
     [HttpGet]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public async Task<IActionResult> List(Guid eventId, CancellationToken cancellationToken)
     {
         var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
