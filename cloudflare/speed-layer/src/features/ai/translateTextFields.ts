@@ -26,6 +26,12 @@ type TranslationResponseField = {
   text: string
 }
 
+class GeminiTranslationError extends Error {
+  constructor(readonly status: number, readonly providerMessage: string) {
+    super('Gemini translation request failed.')
+  }
+}
+
 const RESPONSE_SCHEMA = {
   type: 'object',
   required: ['fields'],
@@ -84,6 +90,9 @@ export async function handleTranslateTextFields(request: Request, env: Env): Pro
     return json({ fields }, 200)
   } catch (error) {
     console.error('Gemini text-field translation failed', error)
+    if (error instanceof GeminiTranslationError && error.status === 400 && /api key not valid/i.test(error.providerMessage)) {
+      return json({ message: 'AI translation is not configured with a valid Gemini API key. Please contact an administrator.' }, 503)
+    }
     return json({ message: 'AI translation failed.' }, 502)
   }
 }
@@ -216,7 +225,7 @@ async function callGemini(fields: TranslationFieldRequest[], env: Env): Promise<
   if (!geminiRes.ok) {
     const errorText = await geminiRes.text()
     console.error('Gemini API error', geminiRes.status, errorText)
-    throw new Error('Gemini request failed.')
+    throw new GeminiTranslationError(geminiRes.status, readProviderErrorMessage(errorText))
   }
 
   const geminiData = await geminiRes.json() as {
@@ -271,6 +280,15 @@ function readLanguage(value: unknown): LanguageCode | '' {
 
 function readRequiredString(value: unknown) {
   return typeof value === 'string' ? value.trim() : ''
+}
+
+function readProviderErrorMessage(value: string) {
+  try {
+    const parsed = JSON.parse(value) as unknown
+    return isRecord(parsed) && isRecord(parsed.error) ? readRequiredString(parsed.error.message) : ''
+  } catch {
+    return ''
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

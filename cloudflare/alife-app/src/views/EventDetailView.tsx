@@ -21,8 +21,9 @@ import type { EventReviewRecord } from '../types/review'
 import { contactService } from '../services/contactService'
 import type { ContactProfileDto } from '../types/contact'
 import { getEventLifecycle, readEventLifecycleData } from '../utils/eventLifecycle'
+import EventWorkflowPanel from '../components/events/EventWorkflowPanel'
 
-type EventDetailSection = 'notice' | 'enrollments' | 'memories'
+type EventDetailSection = 'notice' | 'workflow' | 'enrollments' | 'memories'
 
 type EnrollmentPayload = {
   applicantName?: string
@@ -738,6 +739,18 @@ const EventDetailView = () => {
 
       {!loading && !error && event && eventDto ? (
         <>
+          {!isGuest ? (
+            <div className="mb-2 flex justify-end">
+              <Link
+                to={`/groups/${encodeURIComponent(groupId)}/events/${encodeURIComponent(eventId)}${activeSection === 'workflow' ? '' : '?section=workflow'}`}
+                className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+              >
+                {activeSection === 'workflow'
+                  ? (language === 'zh' ? '活动通知' : 'Event notice')
+                  : (language === 'zh' ? '流程与产出物' : 'Workflow & outputs')}
+              </Link>
+            </div>
+          ) : null}
           {(canManage || canAuditRam) ? (
             <div className="mb-4 flex justify-end">
               <Link
@@ -749,7 +762,9 @@ const EventDetailView = () => {
               </Link>
             </div>
           ) : null}
-          {activeSection === 'enrollments' ? (
+          {activeSection === 'workflow' ? (
+            <EventWorkflowPanel eventId={eventId} groupId={groupId} language={language} canManage={canManage} />
+          ) : activeSection === 'enrollments' ? (
             <EnrollmentPanel
               event={event}
               eventDto={eventDto}

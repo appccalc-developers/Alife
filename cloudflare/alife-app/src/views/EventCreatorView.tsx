@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { BookOpenText, CheckCircle2, CircleAlert, FileText, ImageIcon, MessageSquareText, Mic, MicOff, Save, ShieldCheck, Sparkles, Upload } from 'lucide-react'
+import { ArrowRight, BookOpenText, CheckCircle2, CircleAlert, FileText, ImageIcon, Languages, MessageSquareText, Mic, MicOff, Save, ShieldCheck, Sparkles, Upload } from 'lucide-react'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import type { EventDto, EventRamStatus, GroupEventRecord, MultilingualString } from '../types/event'
 import type { AiSessionAppContext, AiSessionAttachment } from '../types/aiSession'
 import { eventService } from '../services/eventService'
+import { eventPosterAiService, type GeneratedEventPoster } from '../services/eventPosterAiService'
+import { aiTranslationService } from '../services/aiTranslationService'
 import { activeEntityService } from '../services/activeEntityService'
 import { eventPlanningSessionService } from '../services/eventPlanningSessionService'
 import { fileToInlineAiAttachment } from '../services/aiSessionService'
@@ -23,6 +25,7 @@ import type { ContactProfileDto } from '../types/contact'
 import { localizeText } from '../utils/localizedText'
 import EventRamEditor from '../components/events/EventRamEditor'
 import { createEmptyEventRamDraft, getEventRamSubmissionIssues, parseEventRam } from '../utils/eventRam'
+import type { MissingTranslatableField } from '../utils/bilingualValidation'
 
 // ────────────────────────────────────────────────────────────────────────────
 // Helper sub-components
@@ -212,6 +215,8 @@ const EventPreview = ({
 type ChatMessage = { role: 'user' | 'assistant'; text: string; markdown?: boolean }
 type PosterUploadStatus = 'idle' | 'selected' | 'uploading' | 'uploaded' | 'error'
 type PosterAnalysisStatus = 'idle' | 'analyzing' | 'analyzed' | 'error'
+type PosterGenerationStatus = 'idle' | 'generating' | 'generated' | 'adopted' | 'error'
+type EventBriefTranslationStatus = 'idle' | 'translating' | 'translated' | 'error'
 type EventEditorTab = 'setup' | 'assistant' | 'notice' | 'ram'
 
 type SpeechRecognitionLike = {
@@ -263,6 +268,22 @@ const createInitialEventDraft = (organizerDisplayName = ''): EventDto => {
 
 const hasText = (value: string | null | undefined) => Boolean(value?.trim())
 const hasBilingualText = (value: MultilingualString | null | undefined) => Boolean(value?.zh.trim() && value?.en.trim())
+
+const getMissingEventBriefTranslations = (eventDraft: EventDto | null): MissingTranslatableField[] => {
+  if (!eventDraft) return []
+  return (['title', 'description'] as const).flatMap((field) => {
+    const zh = eventDraft[field].zh.trim()
+    const en = eventDraft[field].en.trim()
+    if ((!zh && !en) || (zh && en)) return []
+    return [{
+      field,
+      sourceLanguage: zh ? 'zh' : 'en',
+      targetLanguage: zh ? 'en' : 'zh',
+      sourceText: zh || en,
+      textType: field === 'title' ? 'church event title' : 'church event description',
+    } satisfies MissingTranslatableField]
+  })
+}
 
 const getNoticeSubmissionIssues = (event: EventDto) => {
   const issues: string[] = []
@@ -392,15 +413,16 @@ const EventWorkflowPanel = ({
   noticeSubmitted: boolean
 }) => {
   const isZh = language === 'zh'
-  const titleReady = Boolean(eventDraft && ((isZh ? eventDraft.title.zh : eventDraft.title.en) || eventDraft.title.en || eventDraft.title.zh))
+  const titleReady = Boolean(eventDraft && (eventDraft.title.zh.trim() || eventDraft.title.en.trim()))
+  const descriptionReady = Boolean(eventDraft && (eventDraft.description.zh.trim() || eventDraft.description.en.trim()))
   const timeReady = Boolean(eventDraft?.startDate && eventDraft?.endDate)
   const registrationReady = Boolean(eventDraft && (eventDraft.maxCapacity === 0 || (eventDraft.maxCapacity > 0 && eventDraft.registrationDeadline)))
   const savedReady = Boolean(targetEventId)
-  const setupReady = Boolean(eventDraft && hasBilingualText(eventDraft.purpose) && hasText(eventDraft.personResponsible))
+  const setupReady = Boolean(titleReady && descriptionReady && eventDraft && hasText(eventDraft.personResponsible))
   const items = [
     {
       label: isZh ? '1. 填写初始化资料' : '1. Add the starting brief',
-      hint: isZh ? '先说明活动目的、负责人、联系人，并可上传海报。' : 'Add the purpose, person responsible, contacts, and an optional poster.',
+      hint: isZh ? '填写活动标题、描述和负责人，并可生成或上传海报。' : 'Add the title, description, and person responsible; then generate or upload a poster.',
       ready: setupReady,
       icon: <BookOpenText className="h-4 w-4" />,
     },
@@ -494,6 +516,13 @@ const EventCreatorView = () => {
   const [posterUploadError, setPosterUploadError] = useState('')
   const [posterAnalysisStatus, setPosterAnalysisStatus] = useState<PosterAnalysisStatus>('idle')
   const [posterAnalysisMessage, setPosterAnalysisMessage] = useState('')
+  const [posterGenerationStatus, setPosterGenerationStatus] = useState<PosterGenerationStatus>('idle')
+  const [posterGenerationMessage, setPosterGenerationMessage] = useState('')
+  const [posterGenerationGuidance, setPosterGenerationGuidance] = useState('')
+  const [generatedPoster, setGeneratedPoster] = useState<GeneratedEventPoster | null>(null)
+  const [generatedPosterSourceKey, setGeneratedPosterSourceKey] = useState('')
+  const [briefTranslationStatus, setBriefTranslationStatus] = useState<EventBriefTranslationStatus>('idle')
+  const [briefTranslationMessage, setBriefTranslationMessage] = useState('')
   const [activeTab, setActiveTab] = useState<EventEditorTab>('setup')
   const [noticeSubmitted, setNoticeSubmitted] = useState(false)
   const [ramHasLocalChanges, setRamHasLocalChanges] = useState(false)
@@ -519,6 +548,14 @@ const EventCreatorView = () => {
     () => eventDraft ? createEventContextFromDto(eventDraft) : aiContentContext.eventContext,
     [aiContentContext.eventContext, eventDraft],
   )
+  const posterBriefKey = useMemo(() => JSON.stringify(eventDraft ? {
+    title: eventDraft.title,
+    description: eventDraft.description,
+    purpose: eventDraft.purpose,
+    locationName: eventDraft.locationName,
+    startDate: eventDraft.startDate,
+    endDate: eventDraft.endDate,
+  } : null), [eventDraft])
   const selectedContactFacts = useMemo(
     () => availableContacts
       .filter((contact) => (eventDraft?.contactProfileIds ?? []).includes(contact.id))
@@ -998,6 +1035,74 @@ const EventCreatorView = () => {
     void analyzePosterWithAi(file, true)
   }
 
+  const handleGeneratePoster = async () => {
+    if (!effectiveGroupId || !eventDraft) {
+      setPosterGenerationStatus('error')
+      setPosterGenerationMessage(language === 'zh' ? '请先选择教会或小组，并填写活动资料。' : 'Select a church or group and add the event details first.')
+      return
+    }
+
+    const hasTitle = Boolean(eventDraft.title.zh.trim() || eventDraft.title.en.trim())
+    const hasDescription = Boolean(eventDraft.description.zh.trim() || eventDraft.description.en.trim())
+    if (!hasTitle || !hasDescription) {
+      setPosterGenerationStatus('error')
+      setPosterGenerationMessage(language === 'zh' ? '请先填写活动标题和描述，AI 才能生成相关海报。' : 'Add an event title and description before asking AI to generate a relevant poster.')
+      return
+    }
+
+    const sourceKey = posterBriefKey
+    setPosterGenerationStatus('generating')
+    setPosterGenerationMessage(language === 'zh' ? 'AI 正在根据活动描述和本教会资料生成海报草案…' : 'AI is creating a poster draft from the event description and church context…')
+    try {
+      const poster = await eventPosterAiService.generate({
+        groupId: effectiveGroupId,
+        guidance: posterGenerationGuidance.trim(),
+        event: {
+          title: eventDraft.title,
+          description: eventDraft.description,
+          purpose: eventDraft.purpose,
+          locationName: eventDraft.locationName,
+          startDate: eventDraft.startDate,
+          endDate: eventDraft.endDate,
+        },
+      })
+      setGeneratedPoster(poster)
+      setGeneratedPosterSourceKey(sourceKey)
+      setPosterGenerationStatus('generated')
+      const churchName = localizeText(poster.context.churchName, language)
+      setPosterGenerationMessage(language === 'zh'
+        ? `已生成基于${churchName || '本教会'}资料的海报草案。请检查图片和文字，确认后再采用。`
+        : `Poster draft generated from ${churchName || 'the current church'} context. Review the image and all text before adopting it.`)
+    } catch (reason) {
+      setPosterGenerationStatus('error')
+      setPosterGenerationMessage(normalizeApiError(reason).message)
+    }
+  }
+
+  const handleAdoptGeneratedPoster = async () => {
+    if (!generatedPoster) return
+    if (generatedPosterSourceKey !== posterBriefKey) {
+      setPosterGenerationStatus('error')
+      setPosterGenerationMessage(language === 'zh' ? '活动资料已改变，请重新生成后再采用。' : 'The event brief has changed. Regenerate the poster before adopting it.')
+      return
+    }
+
+    try {
+      const file = await eventPosterAiService.toFile(generatedPoster)
+      setLocalPosterPreview(file)
+      setPendingPosterFile(file)
+      setPosterUploadStatus('selected')
+      setPosterUploadError('')
+      setSaveStatus('idle')
+      setNoticeSubmitted(false)
+      setPosterGenerationStatus('adopted')
+      setPosterGenerationMessage(language === 'zh' ? '已采用这张 AI 海报草案；保存活动后才会上传。' : 'AI poster draft adopted. It will upload only after you save the event.')
+    } catch (reason) {
+      setPosterGenerationStatus('error')
+      setPosterGenerationMessage(normalizeApiError(reason).message)
+    }
+  }
+
   const handleCommitDraft = async () => {
     if (!eventDraft) {
       return
@@ -1152,6 +1257,32 @@ const EventCreatorView = () => {
 
   const isSending = isEditMode ? loading : sessionLoading
   const isPosterUploading = posterUploadStatus === 'uploading'
+  const isPosterGenerating = posterGenerationStatus === 'generating'
+  const generatedPosterPreviewUrl = generatedPoster
+    ? `data:${generatedPoster.mimeType};base64,${generatedPoster.imageBase64}`
+    : ''
+  const generatedPosterIsStale = Boolean(generatedPoster && generatedPosterSourceKey !== posterBriefKey)
+  const posterHasRequiredBrief = Boolean(eventDraft
+    && (eventDraft.title.zh.trim() || eventDraft.title.en.trim())
+    && (eventDraft.description.zh.trim() || eventDraft.description.en.trim()))
+  const posterGenerationBlockers = [
+    !effectiveGroupId
+      ? (language === 'zh' ? '选择活动所属的教会或小组' : 'select the church or group that owns this event')
+      : '',
+    !eventDraft || !(eventDraft.title.zh.trim() || eventDraft.title.en.trim())
+      ? (language === 'zh' ? '填写活动标题（至少一种语言）' : 'add an event title in at least one language')
+      : '',
+    !eventDraft || !(eventDraft.description.zh.trim() || eventDraft.description.en.trim())
+      ? (language === 'zh' ? '填写活动描述（至少一种语言）' : 'add an event description in at least one language')
+      : '',
+  ].filter(Boolean)
+  const missingEventBriefTranslations = getMissingEventBriefTranslations(eventDraft)
+  const setupBriefReady = Boolean(
+    effectiveGroupId
+    && posterHasRequiredBrief
+    && eventDraft
+    && hasText(eventDraft.personResponsible),
+  )
   const posterStatusMessage =
     posterUploadStatus === 'selected'
       ? t('eventPosterSelectedPendingUpload')
@@ -1193,6 +1324,54 @@ const EventCreatorView = () => {
     setSaveStatus('idle')
     setRamStatus('draft')
     setRamHasLocalChanges(true)
+    if (patch.title || patch.description) {
+      setBriefTranslationStatus('idle')
+      setBriefTranslationMessage('')
+    }
+  }
+
+  const openEditorStep = (step: EventEditorTab) => {
+    setActiveTab(step)
+    window.requestAnimationFrame(() => {
+      document.getElementById(`event-editor-tab-${step}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }
+
+  const handleFillMissingEventTranslations = async () => {
+    if (!effectiveGroupId || missingEventBriefTranslations.length === 0) return
+    setBriefTranslationStatus('translating')
+    setBriefTranslationMessage(language === 'zh' ? 'AI 正在补全缺少的语言…' : 'AI is filling the missing language…')
+    try {
+      const translations = await aiTranslationService.translateTextFields({
+        scope: CurrentGroup?.isChurch ? 'church' : 'group',
+        groupId: effectiveGroupId,
+        fields: missingEventBriefTranslations,
+      })
+      setEventDraft((current) => {
+        if (!current) return current
+        const title = { ...current.title }
+        const description = { ...current.description }
+        translations.forEach((translation) => {
+          if (translation.field === 'title' && !title[translation.language].trim()) title[translation.language] = translation.text
+          if (translation.field === 'description' && !description[translation.language].trim()) description[translation.language] = translation.text
+        })
+        return {
+          ...current,
+          title,
+          description,
+          ram: current.ram ? { ...current.ram, leaderConfirmed: false } : current.ram,
+        }
+      })
+      setNoticeSubmitted(false)
+      setSaveStatus('idle')
+      setRamStatus('draft')
+      setRamHasLocalChanges(true)
+      setBriefTranslationStatus('translated')
+      setBriefTranslationMessage(language === 'zh' ? '另一种语言已作为 AI 草稿补全，请人工检查。' : 'The other language was filled as an AI draft. Please review it.')
+    } catch (reason) {
+      setBriefTranslationStatus('error')
+      setBriefTranslationMessage(normalizeApiError(reason).message)
+    }
   }
 
   return (
@@ -1217,7 +1396,7 @@ const EventCreatorView = () => {
               role="tab"
               aria-selected={activeTab === tab.id}
               aria-controls={`event-editor-panel-${tab.id}`}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => openEditorStep(tab.id)}
               className={[
                 'inline-flex min-h-11 items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition',
                 activeTab === tab.id ? 'bg-[#176b5a] text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950',
@@ -1251,27 +1430,109 @@ const EventCreatorView = () => {
               <h2 className="mt-1 text-xl font-black text-slate-950">{language === 'zh' ? '先告诉 AI 这次活动为什么而办' : 'Tell AI why this event matters'}</h2>
               <p className="mt-1 text-sm leading-6 text-slate-500">{language === 'zh' ? '这些资料会成为通知文案和 RAM 的共同事实来源；稍后仍可在 AI 对话中补充或更正。' : 'These details become shared facts for the notice and RAM. You can add to or correct them later in AI chat.'}</p>
             </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              {(['zh', 'en'] as const).map((lang) => (
-                <label key={lang} className="text-sm font-bold text-slate-700">
-                  {language === 'zh' ? '活动目的' : 'Event purpose'} ({lang})
-                  <textarea
-                    rows={3}
-                    value={eventDraft.purpose?.[lang] ?? ''}
-                    onChange={(event) => updateSetupDraft({ purpose: { ...(eventDraft.purpose ?? { zh: '', en: '' }), [lang]: event.target.value } })}
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-normal outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                  />
-                </label>
-              ))}
-              <label className="text-sm font-bold text-slate-700 md:col-span-2">
-                {language === 'zh' ? '活动负责人' : 'Person responsible'}
-                <input
-                  value={eventDraft.personResponsible ?? ''}
-                  onChange={(event) => updateSetupDraft({ personResponsible: event.target.value })}
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-normal outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                />
-              </label>
+
+            {effectiveGroupId ? (
+              <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                <CheckCircle2 className="mr-2 inline h-4 w-4" aria-hidden="true" />
+                {language === 'zh'
+                  ? `已选择活动归属：${CurrentGroup?.id === effectiveGroupId ? localizeText(CurrentGroup.name, language) : '当前教会或小组'}`
+                  : `Event owner selected: ${CurrentGroup?.id === effectiveGroupId ? localizeText(CurrentGroup.name, language) : 'current church or group'}`}
+              </p>
+            ) : (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+                <span>{language === 'zh' ? '尚未选择活动所属的教会或小组，因此无法生成海报或保存活动。' : 'No church or group is selected, so the poster cannot be generated and the event cannot be saved.'}</span>
+                <button type="button" onClick={() => navigate('/events/manage')} className="rounded-lg border border-rose-300 bg-white px-3 py-1.5 font-bold text-rose-800">
+                  {language === 'zh' ? '返回活动管理选择' : 'Choose in event management'}
+                </button>
+              </div>
+            )}
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h3 className="font-black text-slate-950">{language === 'zh' ? '活动标题与描述' : 'Event title and description'}</h3>
+                  <span className="mt-1 block text-xs font-semibold text-amber-700">{language === 'zh' ? '海报生成必填；每项至少填写一种语言' : 'Required for poster generation; use at least one language for each'}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { void handleFillMissingEventTranslations() }}
+                  disabled={!effectiveGroupId || missingEventBriefTranslations.length === 0 || briefTranslationStatus === 'translating'}
+                  className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-sky-300 bg-white px-3 py-2 text-sm font-bold text-sky-800 transition hover:bg-sky-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+                >
+                  <Languages className="h-4 w-4" aria-hidden="true" />
+                  {briefTranslationStatus === 'translating'
+                    ? (language === 'zh' ? 'AI 翻译中…' : 'AI translating…')
+                    : (language === 'zh' ? 'AI 补全另一语言' : 'AI fill missing language')}
+                </button>
+              </div>
+              <div className="mt-3 grid gap-4 md:grid-cols-2">
+                {(['zh', 'en'] as const).map((lang) => (
+                  <div key={lang} className="space-y-3">
+                    <label className="block text-sm font-bold text-slate-700">
+                      {language === 'zh' ? '活动标题' : 'Event title'} ({lang})
+                      <input
+                        value={eventDraft.title[lang]}
+                        onChange={(event) => updateSetupDraft({ title: { ...eventDraft.title, [lang]: event.target.value } })}
+                        placeholder={lang === 'zh' ? '例如：2026 青年夏令营' : 'e.g. 2026 Youth Summer Camp'}
+                        className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 font-normal outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                      />
+                    </label>
+                    <label className="block text-sm font-bold text-slate-700">
+                      {language === 'zh' ? '活动描述' : 'Event description'} ({lang})
+                      <textarea
+                        rows={4}
+                        value={eventDraft.description[lang]}
+                        onChange={(event) => updateSetupDraft({ description: { ...eventDraft.description, [lang]: event.target.value } })}
+                        placeholder={lang === 'zh' ? '说明活动对象、主要内容、氛围和希望带来的结果。' : 'Describe the audience, main activities, atmosphere, and intended outcome.'}
+                        className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 font-normal outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                      />
+                    </label>
+                  </div>
+                ))}
+              </div>
+              {briefTranslationMessage ? (
+                <p className={['mt-3 rounded-lg px-3 py-2 text-xs', briefTranslationStatus === 'error' ? 'border border-rose-200 bg-rose-50 text-rose-700' : 'border border-sky-200 bg-sky-50 text-sky-800'].join(' ')}>
+                  {briefTranslationMessage}
+                </p>
+              ) : missingEventBriefTranslations.length > 0 ? (
+                <p className="mt-3 text-xs text-sky-700">{language === 'zh' ? '已检测到只填写了一种语言的内容，可点击上方按钮补全另一种语言；AI 结果需要人工检查。' : 'Some content has only one language. Use the button above to fill the other language, then review the AI draft.'}</p>
+              ) : !posterHasRequiredBrief ? (
+                <p className="mt-3 text-xs text-slate-500">{language === 'zh' ? '先用中文或英文填写标题和描述，之后即可让 AI 补全另一种语言。' : 'First add the title and description in Chinese or English, then AI can fill the other language.'}</p>
+              ) : (
+                <p className="mt-3 text-xs text-emerald-700">{language === 'zh' ? '标题和描述的中英文内容已经完整。' : 'The title and description are complete in both languages.'}</p>
+              )}
             </div>
+
+            <label className="block text-sm font-bold text-slate-700">
+              {language === 'zh' ? '活动负责人' : 'Person responsible'}
+              <input
+                value={eventDraft.personResponsible ?? ''}
+                onChange={(event) => updateSetupDraft({ personResponsible: event.target.value })}
+                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-normal outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              />
+            </label>
+
+            <details className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3">
+              <summary className="cursor-pointer text-sm font-black text-slate-800">
+                {language === 'zh' ? '补充活动目标（可选）' : 'Additional event objective (optional)'}
+              </summary>
+              <p className="mt-2 text-xs leading-5 text-slate-500">
+                {language === 'zh' ? '如果活动描述已经说明了为什么举办，可以不填。仅在需要单独记录期望结果时补充。' : 'Leave this empty when the description already explains why the event exists. Use it only for a distinct intended outcome.'}
+              </p>
+              <div className="mt-3 grid gap-4 md:grid-cols-2">
+                {(['zh', 'en'] as const).map((lang) => (
+                  <label key={lang} className="text-sm font-bold text-slate-700">
+                    {language === 'zh' ? '活动目标' : 'Event objective'} ({lang})
+                    <textarea
+                      rows={3}
+                      value={eventDraft.purpose?.[lang] ?? ''}
+                      onChange={(event) => updateSetupDraft({ purpose: { ...(eventDraft.purpose ?? { zh: '', en: '' }), [lang]: event.target.value } })}
+                      className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 font-normal outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                    />
+                  </label>
+                ))}
+              </div>
+            </details>
 
             <div>
               <h3 className="font-black text-slate-950">{language === 'zh' ? '活动联系人' : 'Event contacts'}</h3>
@@ -1318,6 +1579,118 @@ const EventCreatorView = () => {
               </div>
               {posterStatusMessage ? <p className={['mt-3 rounded-lg px-3 py-2 text-xs', posterUploadStatus === 'error' ? 'border border-rose-200 bg-rose-50 text-rose-700' : posterUploadStatus === 'selected' ? 'border border-amber-200 bg-amber-50 text-amber-700' : 'border border-emerald-200 bg-emerald-50 text-emerald-700'].join(' ')}>{posterStatusMessage}</p> : null}
               {posterAnalysisMessage ? <p className={['mt-2 rounded-lg px-3 py-2 text-xs', posterAnalysisStatus === 'error' ? 'border border-rose-200 bg-rose-50 text-rose-700' : posterAnalysisStatus === 'analyzing' ? 'border border-sky-200 bg-sky-50 text-sky-700' : 'border border-emerald-200 bg-emerald-50 text-emerald-700'].join(' ')}>{posterAnalysisMessage}</p> : null}
+
+              <div className="mt-4 rounded-xl border border-violet-200 bg-white p-4 shadow-sm">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="max-w-2xl">
+                    <h4 className="flex items-center gap-2 font-black text-slate-950">
+                      <Sparkles className="h-4 w-4 text-violet-600" aria-hidden="true" />
+                      {language === 'zh' ? 'AI 生成海报草案' : 'Generate an AI poster draft'}
+                    </h4>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">
+                      {language === 'zh'
+                        ? 'AI 会结合活动标题、描述、目的，以及系统中本教会和所属小组的正式资料生成图片。不会读取联系人、电话或 RAM 内部资料。'
+                        : 'AI uses the event title, description, purpose, and the canonical church and group profile stored in Alife. Contacts, phone numbers, and internal RAM details are not included.'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { void handleGeneratePoster() }}
+                    disabled={!effectiveGroupId || !posterHasRequiredBrief || isPosterGenerating || isPosterUploading || saveStatus === 'saving'}
+                    title={posterGenerationBlockers.length > 0 ? posterGenerationBlockers.join(language === 'zh' ? '；' : '; ') : undefined}
+                    aria-describedby={posterGenerationBlockers.length > 0 ? 'poster-generation-requirements' : undefined}
+                    className="inline-flex items-center gap-2 rounded-lg bg-violet-700 px-3.5 py-2 text-sm font-bold text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Sparkles className="h-4 w-4" aria-hidden="true" />
+                    {isPosterGenerating
+                      ? (language === 'zh' ? '生成中…' : 'Generating…')
+                      : generatedPoster
+                        ? (language === 'zh' ? '重新生成' : 'Regenerate')
+                        : (language === 'zh' ? '根据描述生成' : 'Generate from description')}
+                  </button>
+                </div>
+
+                <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+                  {language === 'zh'
+                    ? '每次生成都会调用 AI，可能产生费用。生成内容可能出现文字、人物或神学表达偏差；必须由负责人检查。只有点击“采用这张海报”并保存活动后，图片才会上传。请勿在补充描述中填写私人或敏感资料。'
+                    : 'Each generation calls AI and may incur cost. Generated text, people, or theological expression may be inaccurate and must be reviewed by a leader. The image uploads only after you choose “Adopt this poster” and save. Do not enter private or sensitive details below.'}
+                </div>
+
+                <label className="mt-3 block text-sm font-bold text-slate-700">
+                  {language === 'zh' ? '补充视觉描述（可选）' : 'Additional visual direction (optional)'}
+                  <textarea
+                    rows={3}
+                    maxLength={600}
+                    value={posterGenerationGuidance}
+                    onChange={(event) => setPosterGenerationGuidance(event.target.value)}
+                    disabled={isPosterGenerating}
+                    placeholder={language === 'zh' ? '例如：温暖自然、适合家庭营会、留出清晰的标题区域。不要填写姓名、电话等私人资料。' : 'For example: warm and natural, suitable for a family camp, with clear space for the title. Do not include names, phone numbers, or other private data.'}
+                    className="mt-1 w-full resize-y rounded-xl border border-slate-300 bg-white px-3 py-2 font-normal outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100 disabled:opacity-60"
+                  />
+                  <span className="mt-1 block text-right text-xs font-normal text-slate-400">{posterGenerationGuidance.length}/600</span>
+                </label>
+
+                {posterGenerationBlockers.length > 0 ? (
+                  <div id="poster-generation-requirements" className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    <p className="font-bold">{language === 'zh' ? '“根据描述生成”暂不可用，还需要：' : '“Generate from description” is unavailable until you:'}</p>
+                    <ul className="mt-1 list-disc space-y-0.5 pl-5">
+                      {posterGenerationBlockers.map((blocker) => <li key={blocker}>{blocker}</li>)}
+                    </ul>
+                  </div>
+                ) : null}
+
+                {generatedPosterPreviewUrl ? (
+                  <div className="mt-4 space-y-3">
+                    <div className="overflow-hidden rounded-xl border border-violet-200 bg-slate-100">
+                      <CoverImage src={generatedPosterPreviewUrl} alt={language === 'zh' ? 'AI 生成的活动海报草案' : 'AI-generated event poster draft'} aspectRatio={16 / 9} className="w-full" />
+                    </div>
+                    {generatedPosterIsStale ? (
+                      <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                        {language === 'zh' ? '活动资料在生成后已经改变。这张草案可能已过期，请重新生成后再采用。' : 'The event brief changed after generation. This draft may be stale; regenerate it before adopting.'}
+                      </p>
+                    ) : null}
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <p className="text-xs text-slate-500">
+                        {language === 'zh' ? 'AI 草案不会自动发布或覆盖现有海报。' : 'AI drafts never publish automatically or overwrite the current poster.'}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => { void handleAdoptGeneratedPoster() }}
+                        disabled={generatedPosterIsStale || isPosterGenerating || isPosterUploading}
+                        className="inline-flex items-center gap-2 rounded-lg border border-violet-300 bg-violet-50 px-3.5 py-2 text-sm font-bold text-violet-800 transition hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                        {language === 'zh' ? '采用这张海报' : 'Adopt this poster'}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+
+                {posterGenerationMessage ? (
+                  <p className={['mt-3 rounded-lg px-3 py-2 text-xs', posterGenerationStatus === 'error' ? 'border border-rose-200 bg-rose-50 text-rose-700' : posterGenerationStatus === 'generating' ? 'border border-sky-200 bg-sky-50 text-sky-700' : 'border border-violet-200 bg-violet-50 text-violet-800'].join(' ')}>
+                    {posterGenerationMessage}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-sky-200 bg-sky-50 px-4 py-4">
+              <div className="max-w-2xl">
+                <p className="font-black text-sky-950">{language === 'zh' ? '第一步之后怎么做？' : 'What comes after step 1?'}</p>
+                <p className="mt-1 text-sm leading-6 text-sky-800">
+                  {setupBriefReady
+                    ? (language === 'zh' ? '基础资料已经齐全。进入第二步，与 AI 一起补齐时间、地点、活动项目、报名设置等共同资料。' : 'The starting brief is ready. Continue to step 2 and use AI to complete timing, venue, activities, enrollment, and other shared facts.')
+                    : (language === 'zh' ? '建议先补齐上面的基础资料；也可以现在进入第二步，让 AI 通过对话协助补充。' : 'Complete the starting brief above if possible, or continue now and let AI help fill the gaps through conversation.')}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => openEditorStep('assistant')}
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-sky-700 px-4 py-2 text-sm font-black text-white shadow-sm transition hover:bg-sky-800"
+              >
+                {language === 'zh' ? '下一步：与 AI 补齐资料' : 'Next: complete details with AI'}
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </button>
             </div>
           </section>
         ) : null}

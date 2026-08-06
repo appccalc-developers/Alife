@@ -79,7 +79,7 @@ export const useShellContext = () => {
     routeGroupEventDetailId ||
     routeGroupEventEnrollmentId ||
     routeGroupEventReviewId ||
-    ['/events', '/events/enroll', '/events/review', '/events/edit'].includes(path),
+    ['/events', '/events/manage', '/events/enroll', '/events/review', '/events/edit'].includes(path),
   )
   const isSermonDetailScreen = Boolean(sermonDetailMatch || path === '/sermons/watch')
   const isProfileScreen = path === '/profile'

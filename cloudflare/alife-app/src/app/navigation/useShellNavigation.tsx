@@ -83,15 +83,6 @@ export const useShellNavigation = ({
       onClick: () => activeEntityService.setGroup(workspaceGroupId, { clearPage: true }),
     },
     {
-      key: 'workspace:events',
-      label: isChinese ? '活动' : 'Events',
-      description: isChinese ? '过往、即将举行和筹备中的活动' : 'Past, upcoming, and planning events',
-      to: '/groups?section=events',
-      matchSearch: '?section=events',
-      icon: <EventsIcon />,
-      onClick: () => activeEntityService.setGroup(workspaceGroupId, { clearPage: true }),
-    },
-    {
       key: 'workspace:announcements',
       label: isChinese ? '公告' : 'Announcements',
       description: isChinese ? '发布和管理小组公告' : 'Publish and manage group announcements',
@@ -117,6 +108,18 @@ export const useShellNavigation = ({
       matchSearch: '?section=pages',
       icon: <FileText className="h-5 w-5" />,
       onClick: () => activeEntityService.setGroup(workspaceGroupId, { clearPage: true }),
+    },
+  ] : []
+
+  const eventsModuleItems: ShellNavItem[] = canManageWorkspace ? [
+    {
+      key: 'events:hub',
+      label: isChinese ? '活动中心' : 'Events hub',
+      description: isChinese ? '独立管理过往、即将举行和筹备中的活动' : 'Manage past, upcoming, and planning events independently',
+      to: '/events/manage',
+      matchPathOnly: true,
+      icon: <EventsIcon />,
+      onClick: () => activeEntityService.setGroup(workspaceGroupId, { clearPage: true, clearEvent: true }),
     },
   ] : []
 
@@ -156,7 +159,7 @@ export const useShellNavigation = ({
   ].filter(isPresent) : []
 
   const contextualItems = eventDetailScreen ? eventItems : []
-  const workspaceItems = [...workspaceHome, ...workspaceManagement, ...contextualItems]
+  const workspaceItems = [...workspaceHome, ...workspaceManagement, ...eventsModuleItems, ...contextualItems]
   const workspaceVisible = Boolean(workspaceGroupId) && workspaceEnabled
 
   const adminPlatformItems: ShellNavItem[] = !auth.loading && (auth.isAdmin || auth.hasAdminPermission(adminPermissions.access))
@@ -296,6 +299,9 @@ export const useShellNavigation = ({
   const workspaceSections: ShellNavSection[] = [
     groupContentItems.length
       ? { key: 'workspace-group', label: isChinese ? '当前小组' : 'Current group', description: isChinese ? '小组总览和管理' : 'Group overview and management', items: groupContentItems }
+      : null,
+    eventsModuleItems.length
+      ? { key: 'workspace-events', label: isChinese ? '活动' : 'Events', description: isChinese ? '独立的活动策划与管理栏目' : 'Independent event planning and management', items: eventsModuleItems }
       : null,
     contextualItems.length
       ? { key: 'workspace-event', label: isChinese ? '当前活动' : 'Current event', description: isChinese ? '活动通知、报名和回顾' : 'Notice, enrollment, and memories', items: contextualItems }

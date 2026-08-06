@@ -9,6 +9,13 @@ using Alife.Application.Events.Commands.SubmitEventRam;
 using Alife.Application.Events.Commands.ApproveEventRam;
 using Alife.Application.Events.Queries.GetGroupEvents;
 using Alife.Application.Events.Queries.GetEventRam;
+using Alife.Application.Events.Queries.GetEventWorkflow;
+using Alife.Application.Events.Queries.ListEventWorkflowTemplates;
+using Alife.Application.Events.Commands.InitializeEventWorkflow;
+using Alife.Application.Events.Commands.UpdateEventWorkflowStep;
+using Alife.Application.Events.Commands.CreateEventArtifact;
+using Alife.Application.Events.Commands.UpdateEventArtifact;
+using Alife.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -138,6 +145,81 @@ public class EventsController(
         return this.ToActionResult(result);
     }
 
+    [HttpGet("event-workflow-templates")]
+    public async Task<IActionResult> ListWorkflowTemplates(CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new ListEventWorkflowTemplatesQuery(), cancellationToken);
+        this.ApplyPrivateNoCacheHeaders();
+        return this.ToActionResult(result);
+    }
+
+    [HttpGet("events/{id:guid}/workflow")]
+    public async Task<IActionResult> GetWorkflow(Guid id, CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null) return Unauthorized();
+        var result = await mediator.Send(new GetEventWorkflowQuery(id, currentMemberId.Value), cancellationToken);
+        this.ApplyPrivateNoCacheHeaders();
+        return this.ToActionResult(result);
+    }
+
+    [HttpPost("events/{id:guid}/workflow")]
+    public async Task<IActionResult> InitializeWorkflow(
+        Guid id,
+        [FromBody] InitializeEventWorkflowRequest request,
+        CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null) return Unauthorized();
+        var result = await mediator.Send(
+            new InitializeEventWorkflowCommand(id, currentMemberId.Value, request.TemplateCode), cancellationToken);
+        return this.ToActionResult(result);
+    }
+
+    [HttpPut("events/{id:guid}/workflow/steps/{stepId:guid}")]
+    public async Task<IActionResult> UpdateWorkflowStep(
+        Guid id,
+        Guid stepId,
+        [FromBody] UpdateEventWorkflowStepRequest request,
+        CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null) return Unauthorized();
+        var result = await mediator.Send(new UpdateEventWorkflowStepCommand(
+            id, stepId, currentMemberId.Value, request.Status, request.AssignedMemberId, request.DueUtc), cancellationToken);
+        return this.ToActionResult(result);
+    }
+
+    [HttpPost("events/{id:guid}/workflow/artifacts")]
+    public async Task<IActionResult> CreateWorkflowArtifact(
+        Guid id,
+        [FromBody] CreateEventArtifactRequest request,
+        CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null) return Unauthorized();
+        var result = await mediator.Send(new CreateEventArtifactCommand(
+            id, currentMemberId.Value, request.WorkflowStepId, request.ArtifactType,
+            request.TitleEn, request.TitleZh, request.IsRequired, request.Visibility,
+            request.FileAssetId, request.DataJson), cancellationToken);
+        return this.ToActionResult(result);
+    }
+
+    [HttpPut("events/{id:guid}/workflow/artifacts/{artifactId:guid}")]
+    public async Task<IActionResult> UpdateWorkflowArtifact(
+        Guid id,
+        Guid artifactId,
+        [FromBody] UpdateEventArtifactRequest request,
+        CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null) return Unauthorized();
+        var result = await mediator.Send(new UpdateEventArtifactCommand(
+            id, artifactId, currentMemberId.Value, request.TitleEn, request.TitleZh,
+            request.Status, request.Visibility, request.FileAssetId, request.DataJson), cancellationToken);
+        return this.ToActionResult(result);
+    }
+
     public record CreateGroupEventRequest(
         string TitleEn,
         string TitleZh,
@@ -157,4 +239,29 @@ public class EventsController(
         string? RamDataJson);
 
     public record SaveEventRamRequest(string RamDataJson);
+
+    public record InitializeEventWorkflowRequest(string TemplateCode);
+
+    public record UpdateEventWorkflowStepRequest(
+        EventWorkflowStepStatus Status,
+        Guid? AssignedMemberId,
+        DateTime? DueUtc);
+
+    public record CreateEventArtifactRequest(
+        Guid? WorkflowStepId,
+        string ArtifactType,
+        string TitleEn,
+        string TitleZh,
+        bool IsRequired,
+        FileAssetVisibility Visibility,
+        Guid? FileAssetId,
+        string DataJson);
+
+    public record UpdateEventArtifactRequest(
+        string TitleEn,
+        string TitleZh,
+        EventArtifactStatus Status,
+        FileAssetVisibility Visibility,
+        Guid? FileAssetId,
+        string DataJson);
 }

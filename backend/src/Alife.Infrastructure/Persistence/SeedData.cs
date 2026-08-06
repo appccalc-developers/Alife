@@ -32,6 +32,7 @@ public static class SeedData
 	{
 		var baselineSeeded = false;
 		var sectionsInserted = 0;
+		await EnsureEventWorkflowTemplatesAsync(dbContext, cancellationToken);
 
 		if (!await dbContext.Groups.AnyAsync(cancellationToken))
 		{
@@ -810,4 +811,114 @@ public static class SeedData
 		var bytes = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes($"{id:N}:{salt}"));
 		return new Guid(bytes[..16]);
 	}
+
+	private static async Task EnsureEventWorkflowTemplatesAsync(
+		AlifeDbContext dbContext,
+		CancellationToken cancellationToken)
+	{
+		var now = DateTime.UtcNow;
+		var templates = new[]
+		{
+			new EventWorkflowTemplate
+			{
+				Id = Guid.Parse("c1000000-0000-0000-0000-000000000001"),
+				Code = "camp",
+				Version = 1,
+				NameEn = "Camp",
+				NameZh = "营会",
+				DescriptionEn = "End-to-end planning, safety, registration, delivery, finance and follow-up for camps.",
+				DescriptionZh = "覆盖营会策划、安全审批、报名、执行、财务结算与跟进。",
+				DefinitionJson = WorkflowDefinitionJson([
+					Stage("proposal", "Proposal and budget", "提案与预算", true, true, null, [
+						Artifact("event_plan", "Event plan", "活动计划", true, "groupVisible"),
+						Artifact("budget", "Budget", "预算", true, "groupVisible")]),
+					Stage("risk_assessment", "Risk assessment", "风险评估", true, true, "ram", [
+						Artifact("ram", "Risk assessment and management", "风险评估与管理", true, "groupVisible")]),
+					Stage("registration", "Registration and payments", "报名与缴费", true, false, null, [
+						Artifact("registration_form", "Registration form", "报名表", true, "groupVisible"),
+						Artifact("participant_list", "Participant list", "参加者名单", true, "groupVisible"),
+						Artifact("payment_records", "Payment records", "缴费记录", false, "memberPrivate")]),
+					Stage("operations", "People and programme", "人员与程序", true, false, null, [
+						Artifact("volunteer_roster", "Volunteer roster", "同工排班", true, "groupVisible"),
+						Artifact("run_sheet", "Programme run sheet", "营会流程表", true, "groupVisible"),
+						Artifact("consent_forms", "Consent forms", "同意书", false, "memberPrivate")]),
+					Stage("execution", "Camp delivery", "营会执行", true, false, null, [
+						Artifact("attendance", "Attendance", "出席记录", true, "groupVisible"),
+						Artifact("incident_report", "Incident reports", "事故报告", false, "memberPrivate"),
+						Artifact("photos", "Camp photos", "营会照片", false, "groupVisible")]),
+					Stage("closure", "Closure and follow-up", "结算与跟进", true, true, null, [
+						Artifact("financial_report", "Financial report", "财务报告", true, "groupVisible"),
+						Artifact("event_review", "Event review", "活动回顾", true, "groupVisible"),
+						Artifact("follow_up_list", "Follow-up list", "跟进清单", false, "memberPrivate")])]),
+				IsActive = true,
+				CreatedUtc = now,
+				UpdatedUtc = now
+			},
+			new EventWorkflowTemplate
+			{
+				Id = Guid.Parse("e1000000-0000-0000-0000-000000000001"),
+				Code = "outreach",
+				Version = 1,
+				NameEn = "Outreach",
+				NameZh = "外展",
+				DescriptionEn = "Team preparation, safe community engagement and accountable new-contact follow-up.",
+				DescriptionZh = "覆盖团队预备、安全的社区接触，以及新朋友的负责跟进。",
+				DefinitionJson = WorkflowDefinitionJson([
+					Stage("purpose_team", "Purpose and team", "目标与团队", true, true, null, [
+						Artifact("outreach_plan", "Outreach plan", "外展计划", true, "groupVisible"),
+						Artifact("team_roster", "Team roster", "团队名单", true, "groupVisible")]),
+					Stage("training", "Training and briefing", "培训与简报", true, false, null, [
+						Artifact("training_materials", "Training materials", "培训材料", true, "groupVisible"),
+						Artifact("briefing_attendance", "Briefing attendance", "简报出席记录", true, "groupVisible")]),
+					Stage("risk_assessment", "Risk assessment", "风险评估", true, true, "ram", [
+						Artifact("ram", "Risk assessment and management", "风险评估与管理", true, "groupVisible")]),
+					Stage("engagement", "Engagement preparation", "接触预备", true, false, null, [
+						Artifact("publicity_materials", "Publicity materials", "宣传材料", false, "public"),
+						Artifact("consent_forms", "Consent forms", "同意书", false, "memberPrivate"),
+						Artifact("contact_capture_plan", "Contact and consent plan", "联系资料与同意计划", true, "memberPrivate")]),
+					Stage("execution", "Outreach delivery", "外展执行", true, false, null, [
+						Artifact("attendance", "Team attendance", "团队出席记录", true, "groupVisible"),
+						Artifact("incident_report", "Incident reports", "事故报告", false, "memberPrivate"),
+						Artifact("photos", "Outreach photos", "外展照片", false, "groupVisible")]),
+					Stage("follow_up", "New-contact follow-up", "新朋友跟进", true, true, null, [
+						Artifact("new_contact_list", "New-contact list", "新朋友名单", true, "memberPrivate"),
+						Artifact("follow_up_assignments", "Follow-up assignments", "跟进分工", true, "memberPrivate"),
+						Artifact("event_review", "Event review", "活动回顾", true, "groupVisible")])]),
+				IsActive = true,
+				CreatedUtc = now,
+				UpdatedUtc = now
+			}
+		};
+
+		var existing = await dbContext.EventWorkflowTemplates
+			.Select(x => new { x.Code, x.Version })
+			.ToListAsync(cancellationToken);
+		var missing = templates
+			.Where(template => !existing.Any(x => x.Code == template.Code && x.Version == template.Version))
+			.ToArray();
+		if (missing.Length == 0) return;
+		dbContext.EventWorkflowTemplates.AddRange(missing);
+		await dbContext.SaveChangesAsync(cancellationToken);
+	}
+
+	private static string WorkflowDefinitionJson(object[] stages)
+		=> JsonSerializer.Serialize(new { stages }, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+	private static object Stage(
+		string key,
+		string nameEn,
+		string nameZh,
+		bool required,
+		bool requiresApproval,
+		string? integrationKey,
+		object[] artifacts)
+		=> new { key, name = new { en = nameEn, zh = nameZh }, required, requiresApproval, integrationKey, artifacts };
+
+	private static object Artifact(
+		string type,
+		string titleEn,
+		string titleZh,
+		bool required,
+		string visibility)
+		=> new { type, title = new { en = titleEn, zh = titleZh }, required, visibility };
 }

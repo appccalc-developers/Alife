@@ -1626,6 +1626,197 @@ test('POST /api/ai/translate-text-fields accepts page editor field paths', async
   assert.equal(prompt.fields[3].field, 'sections.0.actions.1.label')
 })
 
+test('POST /api/ai/translate-text-fields reports an invalid Gemini key as configuration error', async () => {
+  const groupId = 'group-1'
+  authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved', role: 'CoLeader' }))
+  originResponses.push(Response.json({
+    error: { code: 400, status: 'INVALID_ARGUMENT', message: 'API key not valid. Please pass a valid API key.' },
+  }, { status: 400 }))
+
+  const response = await dispatch('https://ccalc.live/api/ai/translate-text-fields', {
+    method: 'POST',
+    body: JSON.stringify({
+      scope: 'group',
+      groupId,
+      fields: [{
+        field: 'title',
+        sourceLanguage: 'zh',
+        targetLanguage: 'en',
+        sourceText: '青年夏令营',
+        textType: 'church event title',
+      }],
+    }),
+    headers: {
+      'content-type': 'application/json',
+      cookie: `alife_auth=${createJwtWithSub('member-1')}`,
+    },
+    env: { ...createEnv(), GEMINI_API_KEY: 'invalid-key' },
+  })
+
+  assert.equal(response.status, 503)
+  assert.deepEqual(await response.json(), {
+    message: 'AI translation is not configured with a valid Gemini API key. Please contact an administrator.',
+  })
+})
+
+test('POST /api/ai/event-poster requires authentication before loading church context', async () => {
+  const response = await dispatch('https://ccalc.live/api/ai/event-poster', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      groupId: 'f7681b3e-2465-4dd5-9f12-3307bb11b87e',
+      event: {
+        title: { zh: '夏令营', en: 'Summer Camp' },
+        description: { zh: '教会家庭夏令营', en: 'A church family summer camp.' },
+      },
+    }),
+    env: { ...createEnv(), GEMINI_API_KEY: 'test-key' },
+  })
+
+  assert.equal(response.status, 401)
+  assert.equal(fetchCalls.length, 0)
+})
+
+test('POST /api/ai/event-poster rejects ordinary group members', async () => {
+  const groupId = 'f7681b3e-2465-4dd5-9f12-3307bb11b87e'
+  authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved', role: 'Member' }))
+
+  const response = await dispatch('https://ccalc.live/api/ai/event-poster', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      cookie: `alife_auth=${createJwtWithSub('member-1')}`,
+    },
+    body: JSON.stringify({
+      groupId,
+      event: {
+        title: { zh: '夏令营', en: 'Summer Camp' },
+        description: { zh: '教会家庭夏令营', en: 'A church family summer camp.' },
+      },
+    }),
+    env: { ...createEnv(), GEMINI_API_KEY: 'test-key' },
+  })
+
+  assert.equal(response.status, 403)
+  assert.equal(fetchCalls.length, 0)
+})
+
+test('POST /api/ai/event-poster uses canonical church context and returns a reviewable image draft', async () => {
+  const groupId = 'f7681b3e-2465-4dd5-9f12-3307bb11b87e'
+  const churchId = '96301ddd-f8b8-462f-835b-9c88c62a05af'
+  authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved', role: 'CoLeader' }))
+  originResponses.push(
+    Response.json({
+      id: groupId,
+      name: { zh: '青年团契', en: 'Youth Fellowship' },
+      description: { zh: '陪伴青年人在基督里成长', en: 'Helping young adults grow in Christ.' },
+      isChurch: false,
+      parentGroupId: churchId,
+    }),
+    Response.json({
+      id: churchId,
+      name: { zh: '丰盛生命教会', en: 'Abundant Life Church' },
+      description: { zh: '服侍当地华人社区', en: 'Serving the local Chinese community.' },
+      isChurch: true,
+      parentGroupId: null,
+    }),
+    Response.json({ output_image: { data: 'YWxpZmUtcG9zdGVy', mime_type: 'image/jpeg' } }),
+  )
+
+  const response = await dispatch('https://ccalc.live/api/ai/event-poster', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      cookie: `alife_auth=${createJwtWithSub('member-1')}`,
+    },
+    body: JSON.stringify({
+      groupId,
+      event: {
+        title: { zh: '青年夏令营', en: 'Youth Summer Camp' },
+        description: { zh: '在自然中敬拜、团契和成长', en: 'Worship, fellowship, and growth in nature.' },
+        purpose: { zh: '建立关系', en: 'Build relationships.' },
+        locationName: { zh: '营地', en: 'Campground' },
+        startDate: '2026-12-27T09:00:00+13:00',
+        endDate: '2026-12-30T16:00:00+13:00',
+      },
+      guidance: 'Warm natural photography with clean space for the event title.',
+    }),
+    env: {
+      ...createEnv(),
+      GEMINI_API_KEY: 'test-key',
+      GEMINI_IMAGE_MODEL: 'gemini-3.1-flash-image',
+    },
+  })
+
+  assert.equal(response.status, 200)
+  assert.equal(response.headers.get('cache-control'), 'no-store')
+  assert.deepEqual(await response.json(), {
+    imageBase64: 'YWxpZmUtcG9zdGVy',
+    mimeType: 'image/jpeg',
+    model: 'gemini-3.1-flash-image',
+    context: {
+      groupName: { zh: '青年团契', en: 'Youth Fellowship' },
+      churchName: { zh: '丰盛生命教会', en: 'Abundant Life Church' },
+    },
+  })
+  assert.equal(fetchCalls.length, 3)
+  assert.equal(new URL(String(fetchCalls[0])).pathname, `/api/groups/${groupId}`)
+  assert.equal(new URL(String(fetchCalls[1])).pathname, `/api/groups/${churchId}`)
+  assert.equal(new URL(String(fetchCalls[2])).pathname, '/v1beta/interactions')
+  assert.equal(fetchInits[2].headers['x-goog-api-key'], 'test-key')
+
+  const geminiBody = JSON.parse(fetchInits[2].body)
+  assert.equal(geminiBody.model, 'gemini-3.1-flash-image')
+  assert.deepEqual(geminiBody.response_format, {
+    type: 'image',
+    mime_type: 'image/jpeg',
+    aspect_ratio: '16:9',
+    image_size: '1K',
+  })
+  assert.match(geminiBody.input, /丰盛生命教会/)
+  assert.match(geminiBody.input, /Youth Summer Camp/)
+  assert.match(geminiBody.input, /Do not include private contact details/)
+  assert.doesNotMatch(geminiBody.input, /member-1/)
+})
+
+test('POST /api/ai/event-poster reports an invalid Gemini key as configuration error', async () => {
+  const groupId = 'f7681b3e-2465-4dd5-9f12-3307bb11b87e'
+  authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved', role: 'Leader' }))
+  originResponses.push(
+    Response.json({
+      id: groupId,
+      name: { zh: '丰盛生命教会', en: 'Abundant Life Church' },
+      description: { zh: '服侍当地社区', en: 'Serving the local community.' },
+      isChurch: true,
+      parentGroupId: null,
+    }),
+    Response.json({
+      error: { code: 400, status: 'INVALID_ARGUMENT', message: 'API key not valid. Please pass a valid API key.' },
+    }, { status: 400 }),
+  )
+
+  const response = await dispatch('https://ccalc.live/api/ai/event-poster', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      cookie: `alife_auth=${createJwtWithSub('member-1')}`,
+    },
+    body: JSON.stringify({
+      groupId,
+      event: {
+        title: { zh: '青年夏令营', en: '' },
+        description: { zh: '在自然中敬拜和团契', en: '' },
+      },
+    }),
+    env: { ...createEnv(), GEMINI_API_KEY: 'invalid-key' },
+  })
+
+  assert.equal(response.status, 503)
+  assert.deepEqual(await response.json(), {
+    message: 'AI image generation is not configured with a valid Gemini API key. Please contact an administrator.',
+  })
+})
+
 test('POST /api/events/extract calls Gemini at the edge and returns EventDto', async () => {
   const eventDto = {
     id: '',

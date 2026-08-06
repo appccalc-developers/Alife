@@ -867,9 +867,11 @@ const EventsPanel = ({ groupId, events, copy, framed = true }: EventsPanelProps)
 
 type GroupManageViewProps = {
   embeddedWorkspace?: boolean
+  forcedSection?: ManageSection
+  standaloneEventsModule?: boolean
 }
 
-const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) => {
+const GroupManageView = ({ embeddedWorkspace = false, forcedSection, standaloneEventsModule = false }: GroupManageViewProps) => {
   const t = useUiText()
   const { groupId: routeGroupId } = useParams<{ groupId: string }>()
   const { groupId: activeGroupId } = useActiveEntityIds({ groupId: routeGroupId })
@@ -905,7 +907,7 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
     refreshMemberships,
   } = useGroupScreen(groupId, { loadEvents: true })
 
-  const activeSection = normalizeManageSection(searchParams.get('section'))
+  const activeSection = forcedSection ?? normalizeManageSection(searchParams.get('section'))
   const copy = managementCopy(language, group?.isChurch)
   const workspacePath = '/groups'
   const requestedCount = memberships.filter((member) => member.status === 'requested').length
@@ -925,6 +927,10 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
   const openManageSection = (section: ManageSection) => {
     if (!guardGroupProfileNavigation()) return
     activeEntityService.setGroup(groupId, { clearPage: true })
+    if (section === 'events') {
+      navigate('/events/manage')
+      return
+    }
     navigate(`${embeddedWorkspace ? '/groups' : '/groups/manage'}?section=${section}`)
   }
   const canManageSubgroup = (subgroupId: string) =>
@@ -1026,9 +1032,40 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
     return <Navigate to="/groups" replace />
   }
 
+  if (!forcedSection && activeSection === 'events') {
+    return <Navigate to="/events/manage" replace />
+  }
+
   return (
     <AppPageShell>
       <div className="space-y-5">
+        {standaloneEventsModule ? (
+          <section className="overflow-hidden rounded-[2rem] border border-emerald-100 bg-gradient-to-br from-white via-emerald-50 to-[#fff4ea] px-6 py-6 text-[#18332d] shadow-[0_20px_55px_rgba(23,107,90,0.08)] sm:px-8">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-700">
+                  {language === 'zh' ? '独立栏目' : 'Independent module'}
+                </p>
+                <h1 className="mt-2 text-3xl font-black tracking-[-0.04em] sm:text-4xl">
+                  {language === 'zh' ? '活动中心' : 'Events hub'}
+                </h1>
+                <p className="mt-3 max-w-3xl text-sm leading-6 text-[#5f716a]">
+                  {language === 'zh'
+                    ? '集中管理教会活动的筹备、发布、报名和复盘。活动是独立栏目，同时仍可保留所属教会或小组。'
+                    : 'Plan, publish, enroll, and review church events in one independent module. Each event can still retain its church or group association.'}
+                </p>
+                {group ? (
+                  <p className="mt-4 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white/80 px-3 py-1.5 text-xs font-bold text-emerald-800">
+                    <CalendarDays className="h-4 w-4" aria-hidden="true" />
+                    {language === 'zh' ? '当前归属：' : 'Current association: '}
+                    {localizeText(group.name, language)}
+                  </p>
+                ) : null}
+              </div>
+              {group ? <div className="shrink-0"><AccessTypeBadge accessType={group.accessType} /></div> : null}
+            </div>
+          </section>
+        ) : (
         <section className="overflow-hidden rounded-[2rem] border border-emerald-100 bg-gradient-to-br from-white via-emerald-50 to-[#fff4ea] px-6 py-6 text-[#18332d] shadow-[0_20px_55px_rgba(23,107,90,0.08)] sm:px-8">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
@@ -1070,6 +1107,7 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
             />
           </div>
         </section>
+        )}
 
         <ManagementContentCard>
           {loading ? (
