@@ -781,7 +781,7 @@ const EventsPanel = ({ groupId, events, copy, framed = true }: EventsPanelProps)
       subtitle={copy.eventsHint}
       action={<AppActionButton variant="primary" onClick={() => {
         activeEntityService.set({ groupId, eventId: '' })
-        navigate('/events/new')
+        navigate(`/groups/${encodeURIComponent(groupId)}/events/new`)
       }}>
         <CalendarDays size={16} aria-hidden="true" className="mr-1.5" />
         {copy.createEvent}
@@ -790,7 +790,7 @@ const EventsPanel = ({ groupId, events, copy, framed = true }: EventsPanelProps)
       {events.length === 0 ? (
         <AppEmptyState title={copy.emptyEventsTitle} description={copy.emptyEventsBody} actionLabel={copy.createEvent} onAction={() => {
           activeEntityService.set({ groupId, eventId: '' })
-          navigate('/events/new')
+          navigate(`/groups/${encodeURIComponent(groupId)}/events/new`)
         }} />
       ) : (
         <div className="space-y-4">
@@ -847,7 +847,7 @@ const EventsPanel = ({ groupId, events, copy, framed = true }: EventsPanelProps)
                       }}>{copy.addReview}</AppActionButton> : null}
                       {activeTab === 'planning' ? <AppActionButton size="sm" variant="secondary" onClick={() => {
                         activeEntityService.setEvent(event.id, groupId)
-                        navigate(`/events/${encodeURIComponent(event.id)}/edit?groupId=${encodeURIComponent(groupId)}`)
+                        navigate(`/groups/${encodeURIComponent(groupId)}/events/${encodeURIComponent(event.id)}/edit`)
                       }}>{language === 'zh' ? '编辑 / RAM' : 'Edit / RAM'}</AppActionButton> : null}
                       {activeTab === 'upcoming' && lifecycleData.acceptsEnrollments && (lifecycleData.registrationDeadlineTime ?? 0) >= Date.now() ? <AppActionButton size="sm" variant="primary" onClick={() => {
                         activeEntityService.setEvent(event.id, groupId)

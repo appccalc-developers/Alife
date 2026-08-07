@@ -52,6 +52,9 @@ public sealed class ApproveEventRamCommandHandler(
         groupEvent.RamAssessment.ApprovedUtc = now;
         groupEvent.RamAssessment.UpdatedUtc = now;
         groupEvent.UpdatedUtc = now;
+        await EventWorkflowIntegration.SyncRamAsync(
+            dbContext, groupEvent.Id, EventRamStatus.Approved, groupEvent.RamAssessment.RamDataJson,
+            request.CurrentMemberId, now, cancellationToken);
 
         var recipientMemberIds = await dbContext.GroupMemberships
             .AsNoTracking()

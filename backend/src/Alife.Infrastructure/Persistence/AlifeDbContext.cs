@@ -28,6 +28,10 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 	public DbSet<EventRamAssessment> EventRamAssessments => Set<EventRamAssessment>();
 	public DbSet<EventEnrollment> EventEnrollments => Set<EventEnrollment>();
 	public DbSet<EventReview> EventReviews => Set<EventReview>();
+	public DbSet<EventWorkflowTemplate> EventWorkflowTemplates => Set<EventWorkflowTemplate>();
+	public DbSet<EventWorkflowRun> EventWorkflowRuns => Set<EventWorkflowRun>();
+	public DbSet<EventWorkflowStep> EventWorkflowSteps => Set<EventWorkflowStep>();
+	public DbSet<EventArtifact> EventArtifacts => Set<EventArtifact>();
 	public DbSet<NotificationMessage> NotificationMessages => Set<NotificationMessage>();
 	public DbSet<Announcement> Announcements => Set<Announcement>();
 	public DbSet<ContentPost> ContentPosts => Set<ContentPost>();
@@ -420,6 +424,61 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 
 			cfg.HasIndex(x => new { x.EventId, x.MemberId });
 			cfg.HasIndex(x => new { x.GroupId, x.UpdatedUtc });
+		});
+
+		modelBuilder.Entity<EventWorkflowTemplate>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.Code).HasMaxLength(80).IsRequired();
+			cfg.Property(x => x.NameEn).HasMaxLength(200).IsRequired();
+			cfg.Property(x => x.NameZh).HasMaxLength(200).IsRequired();
+			cfg.Property(x => x.DescriptionEn).HasMaxLength(1000).IsRequired();
+			cfg.Property(x => x.DescriptionZh).HasMaxLength(1000).IsRequired();
+			cfg.Property(x => x.DefinitionJson).IsRequired();
+			cfg.HasIndex(x => new { x.Code, x.Version }).IsUnique();
+			cfg.HasIndex(x => new { x.IsActive, x.Code });
+		});
+
+		modelBuilder.Entity<EventWorkflowRun>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.TemplateSnapshotJson).IsRequired();
+			cfg.Property(x => x.CurrentStepKey).HasMaxLength(100);
+			cfg.HasOne(x => x.Event).WithOne(x => x.WorkflowRun).HasForeignKey<EventWorkflowRun>(x => x.EventId).OnDelete(DeleteBehavior.Cascade);
+			cfg.HasOne(x => x.Template).WithMany(x => x.Runs).HasForeignKey(x => x.TemplateId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => x.EventId).IsUnique();
+			cfg.HasIndex(x => new { x.Status, x.UpdatedUtc });
+		});
+
+		modelBuilder.Entity<EventWorkflowStep>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.StepKey).HasMaxLength(100).IsRequired();
+			cfg.Property(x => x.NameEn).HasMaxLength(200).IsRequired();
+			cfg.Property(x => x.NameZh).HasMaxLength(200).IsRequired();
+			cfg.Property(x => x.IntegrationKey).HasMaxLength(80);
+			cfg.HasOne(x => x.WorkflowRun).WithMany(x => x.Steps).HasForeignKey(x => x.WorkflowRunId).OnDelete(DeleteBehavior.Cascade);
+			cfg.HasOne(x => x.AssignedMember).WithMany().HasForeignKey(x => x.AssignedMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.CompletedByMember).WithMany().HasForeignKey(x => x.CompletedByMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => new { x.WorkflowRunId, x.StepKey }).IsUnique();
+			cfg.HasIndex(x => new { x.WorkflowRunId, x.SortOrder });
+		});
+
+		modelBuilder.Entity<EventArtifact>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.ArtifactType).HasMaxLength(100).IsRequired();
+			cfg.Property(x => x.TitleEn).HasMaxLength(300).IsRequired();
+			cfg.Property(x => x.TitleZh).HasMaxLength(300).IsRequired();
+			cfg.Property(x => x.DataJson).IsRequired();
+			cfg.HasOne(x => x.Event).WithMany(x => x.Artifacts).HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Cascade);
+			cfg.HasOne(x => x.WorkflowStep).WithMany(x => x.Artifacts).HasForeignKey(x => x.WorkflowStepId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.FileAsset).WithMany().HasForeignKey(x => x.FileAssetId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.CreatedByMember).WithMany().HasForeignKey(x => x.CreatedByMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.ApprovedByMember).WithMany().HasForeignKey(x => x.ApprovedByMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => new { x.EventId, x.UpdatedUtc });
+			cfg.HasIndex(x => x.WorkflowStepId);
+			cfg.HasIndex(x => x.FileAssetId);
 		});
 
 		modelBuilder.Entity<NotificationMessage>(cfg =>

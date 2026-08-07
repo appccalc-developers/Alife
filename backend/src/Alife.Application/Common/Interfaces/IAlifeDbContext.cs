@@ -26,6 +26,10 @@ public interface IAlifeDbContext
     DbSet<EventRamAssessment> EventRamAssessments { get; }
     DbSet<EventEnrollment> EventEnrollments { get; }
     DbSet<EventReview> EventReviews { get; }
+    DbSet<EventWorkflowTemplate> EventWorkflowTemplates { get; }
+    DbSet<EventWorkflowRun> EventWorkflowRuns { get; }
+    DbSet<EventWorkflowStep> EventWorkflowSteps { get; }
+    DbSet<EventArtifact> EventArtifacts { get; }
     DbSet<NotificationMessage> NotificationMessages { get; }
     DbSet<Announcement> Announcements { get; }
     DbSet<ContentPost> ContentPosts { get; }

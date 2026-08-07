@@ -85,7 +85,7 @@ export const useShellNavigation = ({
     {
       key: 'workspace:events',
       label: isChinese ? '活动' : 'Events',
-      description: isChinese ? '过往、即将举行和筹备中的活动' : 'Past, upcoming, and planning events',
+      description: isChinese ? '管理当前小组的过往、即将举行和筹备中活动' : 'Manage past, upcoming, and planning events owned by this group',
       to: '/groups?section=events',
       matchSearch: '?section=events',
       icon: <EventsIcon />,

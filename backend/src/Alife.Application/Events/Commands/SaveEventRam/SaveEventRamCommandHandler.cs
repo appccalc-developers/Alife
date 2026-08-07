@@ -53,6 +53,10 @@ public sealed class SaveEventRamCommandHandler(
         ram.UpdatedUtc = now;
         groupEvent.UpdatedUtc = now;
 
+        await EventWorkflowIntegration.SyncRamAsync(
+            dbContext, groupEvent.Id, EventRamStatus.Draft, ram.RamDataJson,
+            request.CurrentMemberId, now, cancellationToken);
+
         await dbContext.SaveChangesAsync(cancellationToken);
         await eventCacheInvalidationService.RemoveGroupEventsAsync(groupEvent.GroupId, cancellationToken);
         return AppResult<EventRamAssessmentDto>.Success(EventRamPolicy.ToDto(ram, groupEvent.GroupId));

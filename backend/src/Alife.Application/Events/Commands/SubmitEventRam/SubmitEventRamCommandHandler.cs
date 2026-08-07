@@ -44,6 +44,9 @@ public sealed class SubmitEventRamCommandHandler(
         groupEvent.RamAssessment.ApprovedUtc = null;
         groupEvent.RamAssessment.UpdatedUtc = now;
         groupEvent.UpdatedUtc = now;
+        await EventWorkflowIntegration.SyncRamAsync(
+            dbContext, groupEvent.Id, EventRamStatus.AwaitingReview, groupEvent.RamAssessment.RamDataJson,
+            request.CurrentMemberId, now, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         await eventCacheInvalidationService.RemoveGroupEventsAsync(groupEvent.GroupId, cancellationToken);
 

@@ -23,4 +23,6 @@ public class GroupEvent
 	public Member CreatedByMember { get; set; } = null!;
 	public ICollection<EventContactProfile> ContactProfiles { get; set; } = [];
 	public EventRamAssessment? RamAssessment { get; set; }
+	public EventWorkflowRun? WorkflowRun { get; set; }
+	public ICollection<EventArtifact> Artifacts { get; set; } = [];
 }

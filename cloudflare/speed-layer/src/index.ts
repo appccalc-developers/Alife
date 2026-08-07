@@ -20,6 +20,8 @@ export type Env = {
   GEMINI_API_KEY?: string
   /** Optional Gemini model override. Defaults to Gemini 3 Pro. */
   GEMINI_MODEL?: string
+  /** Optional Gemini image model override for event poster generation. */
+  GEMINI_IMAGE_MODEL?: string
   /** Bearer token for backend-triggered speed-layer cache invalidation. */
   CACHE_SYNC_API_TOKEN?: string
   /** Durable Object namespace for live event-planning sessions. */

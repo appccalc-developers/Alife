@@ -38,7 +38,9 @@ export const useShellContext = () => {
   const groupJoinMatch = path.match(/^\/groups\/([^/]+)\/join$/)
   const groupManageMatch = path.match(/^\/groups\/([^/]+)\/manage$/)
   const groupCreatePageMatch = path.match(/^\/groups\/([^/]+)\/pages\/new$/)
-  const groupEventDetailMatch = path.match(/^\/groups\/([^/]+)\/events\/([^/]+)$/)
+  const groupEventCreateMatch = path.match(/^\/groups\/([^/]+)\/events\/new$/)
+  const groupEventEditMatch = path.match(/^\/groups\/([^/]+)\/events\/([^/]+)\/edit$/)
+  const groupEventDetailMatch = groupEventCreateMatch ? null : path.match(/^\/groups\/([^/]+)\/events\/([^/]+)$/)
   const groupEventEnrollmentMatch = path.match(/^\/groups\/([^/]+)\/events\/[^/]+\/enroll$/)
   const groupEventReviewMatch = path.match(/^\/groups\/([^/]+)\/events\/[^/]+\/review$/)
   const eventCreateMatch = path.match(/^\/events\/new$/)
@@ -54,6 +56,8 @@ export const useShellContext = () => {
     groupEventDetailMatch?.[1],
     groupEventEnrollmentMatch?.[1],
     groupEventReviewMatch?.[1],
+    groupEventCreateMatch?.[1],
+    groupEventEditMatch?.[1],
   ].map(normalizeRouteGroupId)
   const routeGroupScreenId = routeGroupIds[0]
   const routeGroupManageId = routeGroupIds[2]
@@ -66,7 +70,7 @@ export const useShellContext = () => {
   const activeIds = useActiveEntityIds({
     groupId: routeGroupIds.find(Boolean) || routeSearchGroupId || undefined,
     pageId: pageEditMatch?.[1] || searchParams.get('page') || undefined,
-    eventId: groupEventDetailMatch?.[2] || eventEditMatch?.[0]?.split('/')[2] || undefined,
+    eventId: groupEventDetailMatch?.[2] || groupEventEditMatch?.[2] || eventEditMatch?.[0]?.split('/')[2] || undefined,
     sermonId: sermonDetailMatch?.[0]?.split('/')[2] || undefined,
   })
 
@@ -76,6 +80,8 @@ export const useShellContext = () => {
   const isEventScreen = Boolean(
     eventCreateMatch ||
     eventEditMatch ||
+    groupEventCreateMatch ||
+    groupEventEditMatch ||
     routeGroupEventDetailId ||
     routeGroupEventEnrollmentId ||
     routeGroupEventReviewId ||
