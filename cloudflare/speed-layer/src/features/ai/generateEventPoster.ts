@@ -86,7 +86,7 @@ export async function handleGenerateEventPoster(request: Request, env: Env): Pro
           type: 'image',
           mime_type: 'image/jpeg',
           aspect_ratio: '16:9',
-          image_size: '1K',
+          image_size: '512',
         },
       }),
     })
@@ -108,11 +108,10 @@ export async function handleGenerateEventPoster(request: Request, env: Env): Pro
       return json({ message: status === 429 ? 'AI poster generation is busy. Please try again shortly.' : 'AI poster generation failed.' }, status)
     }
 
-    const result = await geminiResponse.json() as {
-      output_image?: { data?: unknown; mime_type?: unknown; mimeType?: unknown }
-    }
-    const imageBase64 = readString(result.output_image?.data)
-    const mimeType = normalizeImageMimeType(result.output_image?.mime_type ?? result.output_image?.mimeType)
+    const result = await geminiResponse.json() as unknown
+    const imageOutput = readGeminiImageOutput(result)
+    const imageBase64 = readString(imageOutput?.data)
+    const mimeType = normalizeImageMimeType(imageOutput?.mime_type ?? imageOutput?.mimeType)
     if (!imageBase64 || imageBase64.length > MAX_IMAGE_BASE64_LENGTH || !mimeType) {
       console.error('Gemini poster response did not contain a usable image.')
       return json({ message: 'AI did not return a usable poster image.' }, 502)
@@ -241,6 +240,20 @@ function hasText(value: LocalizedText) {
 function normalizeImageMimeType(value: unknown) {
   const mimeType = readString(value)?.toLowerCase()
   return mimeType === 'image/jpeg' || mimeType === 'image/png' || mimeType === 'image/webp' ? mimeType : null
+}
+
+function readGeminiImageOutput(value: unknown) {
+  if (!isRecord(value) || !Array.isArray(value.steps)) return null
+
+  for (const stepValue of value.steps) {
+    if (!isRecord(stepValue) || stepValue.type !== 'model_output' || !Array.isArray(stepValue.content)) continue
+
+    const imageOutput = stepValue.content.find((contentValue) =>
+      isRecord(contentValue) && contentValue.type === 'image')
+    if (isRecord(imageOutput)) return imageOutput
+  }
+
+  return null
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

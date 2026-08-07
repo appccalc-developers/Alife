@@ -1720,7 +1720,22 @@ test('POST /api/ai/event-poster uses canonical church context and returns a revi
       isChurch: true,
       parentGroupId: null,
     }),
-    Response.json({ output_image: { data: 'YWxpZmUtcG9zdGVy', mime_type: 'image/jpeg' } }),
+    Response.json({
+      steps: [
+        { signature: 'ignored-thought-signature', type: 'thought' },
+        {
+          content: [
+            {
+              data: 'YWxpZmUtcG9zdGVy',
+              mime_type: 'image/jpeg',
+              mime_type_string: 'image/jpeg',
+              type: 'image',
+            },
+          ],
+          type: 'model_output',
+        },
+      ],
+    }),
   )
 
   const response = await dispatch('https://ccalc.live/api/ai/event-poster', {
@@ -1771,7 +1786,7 @@ test('POST /api/ai/event-poster uses canonical church context and returns a revi
     type: 'image',
     mime_type: 'image/jpeg',
     aspect_ratio: '16:9',
-    image_size: '1K',
+    image_size: '512',
   })
   assert.match(geminiBody.input, /丰盛生命教会/)
   assert.match(geminiBody.input, /Youth Summer Camp/)
