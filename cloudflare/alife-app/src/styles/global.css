@@ -20,6 +20,9 @@
   --alife-line-strong: rgba(47, 75, 66, 0.2);
   --alife-shadow: 0 14px 42px rgba(31, 56, 48, 0.08);
   --alife-shadow-soft: 0 8px 24px rgba(31, 56, 48, 0.06);
+  --alife-radius-shell: 1.5rem;
+  --alife-radius-card: 1rem;
+  --alife-radius-control: 0.75rem;
 }
 
 html {
@@ -166,6 +169,19 @@ select {
 .animate-shimmer {
   background-size: 200% 100%;
   animation: shimmer 1.5s ease-in-out infinite;
+}
+
+.alife-skeleton {
+  background-image: linear-gradient(90deg, #e7e1d6 25%, #f3efe7 50%, #e7e1d6 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .alife-skeleton {
+    animation: none;
+    background: #e7e1d6;
+  }
 }
 
 /* YouVersion passage HTML uses USFM classes for headings, paragraphs, poetry, and verse markers. */
