@@ -9,7 +9,7 @@ type UiText = {
 }
 
 const text = {
-  appName: { en: 'Aboundant Life Church', zh: '丰盛生命教会' },
+  appName: { en: 'Chinese Abundant Life Church', zh: '基督城华人丰盛生命教会' },
   appNavigation: { en: 'App navigation', zh: '应用导航' },
   primaryNavigation: { en: 'Primary', zh: '主要导航' },
   home: { en: 'Home', zh: '首页' },

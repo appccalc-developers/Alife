@@ -90,32 +90,33 @@ const WorkspaceShell = () => {
 
   return (
     <div className="alife-workspace relative min-h-screen text-[#18332d]">
-      <ShellHeader
-        appNavItems={navigation.headerItems}
-        groupName={headerGroupName}
-        groupManageTo={headerGroupManageTo}
-        contextualGroupId={context.contextualGroupId}
-        onboarding={context.isOnboardingScreen}
-        debugLoading={debugLoading}
-        onDebug={() => void sendDebugCall()}
-        onOpenGroupDrawer={() => setGroupDrawerOpen(true)}
+      <DesktopNavigation
+        primaryItems={navigation.primaryItems}
+        workspaceItems={navigation.workspaceItems}
+        platformSections={navigation.platformSections}
+        workspaceSections={navigation.workspaceSections}
+        workspaceVisible={navigation.workspaceVisible}
+        workspaceName={headerGroupName}
+        workspaceLabel={navigation.workspaceLabel}
+        workspaceTo="/groups/select"
+        userName={auth.me?.displayName}
+        copy={navigation.copy}
+        collapsed={sidebarCollapsed}
+        onToggle={() => setSidebarCollapsed((current) => !current)}
       />
 
-      <div className={['relative z-10 min-h-screen transition-[padding] duration-300', sidebarCollapsed ? 'desktop:pl-24' : 'desktop:pl-80'].join(' ')}>
-        <DesktopNavigation
-          primaryItems={navigation.primaryItems}
-          workspaceItems={navigation.workspaceItems}
-          platformSections={navigation.platformSections}
-          workspaceSections={navigation.workspaceSections}
-          workspaceVisible={navigation.workspaceVisible}
-          workspaceName={headerGroupName}
-          workspaceLabel={navigation.workspaceLabel}
-          workspaceTo="/groups/select"
-          userName={auth.me?.displayName}
-          copy={navigation.copy}
-          collapsed={sidebarCollapsed}
-          onToggle={() => setSidebarCollapsed((current) => !current)}
+      <div className={['relative z-10 min-h-screen transition-[padding] duration-300', sidebarCollapsed ? 'desktop:pl-20' : 'desktop:pl-72'].join(' ')}>
+        <ShellHeader
+          appNavItems={navigation.headerItems}
+          groupName={headerGroupName}
+          groupManageTo={headerGroupManageTo}
+          contextualGroupId={context.contextualGroupId}
+          onboarding={context.isOnboardingScreen}
+          debugLoading={debugLoading}
+          onDebug={() => void sendDebugCall()}
+          onOpenGroupDrawer={() => setGroupDrawerOpen(true)}
         />
+
         <main
           className={context.isPageEditorScreen
             ? 'mx-auto max-w-none px-0 pb-36 pt-5 sm:pt-7 desktop:pb-14'

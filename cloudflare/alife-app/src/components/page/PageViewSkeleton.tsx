@@ -18,13 +18,13 @@ const PageViewSkeleton = ({ label }: Props) => (
       </div>
       <div className={`${pageSectionsChromeClass} space-y-8 py-14 sm:py-20`}>
         <div className="space-y-3">
-          <div className="h-7 w-3/4 max-w-56 rounded-lg bg-slate-200" />
-          <div className="h-4 w-full rounded-full bg-slate-100" />
-          <div className="h-4 w-5/6 rounded-full bg-slate-100" />
+          <div className="alife-skeleton h-7 w-3/4 max-w-56 rounded-lg" />
+          <div className="alife-skeleton h-4 w-full rounded-full" />
+          <div className="alife-skeleton h-4 w-5/6 rounded-full" />
         </div>
         <div className="grid gap-5 sm:grid-cols-2">
-          <div className="h-36 rounded-2xl bg-slate-100" />
-          <div className="h-36 rounded-2xl bg-slate-100" />
+          <div className="alife-skeleton h-36 rounded-[var(--alife-radius-card)]" />
+          <div className="alife-skeleton h-36 rounded-[var(--alife-radius-card)]" />
         </div>
       </div>
     </div>

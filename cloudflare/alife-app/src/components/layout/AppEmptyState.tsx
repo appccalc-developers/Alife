@@ -12,7 +12,7 @@ const AppEmptyState = ({ title, description, actionLabel, onAction }: Props) => 
     <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#e3f0eb] text-[#176b5a] shadow-sm">
       <Inbox className="h-5 w-5" aria-hidden="true" />
     </div>
-    <p className="text-base font-black text-[#18332d]">{title}</p>
+    <p className="text-base font-black text-[#18332d] desktop:font-bold">{title}</p>
     <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-[#66766f]">{description}</p>
     {actionLabel ? (
       <button
