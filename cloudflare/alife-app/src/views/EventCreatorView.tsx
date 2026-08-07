@@ -485,10 +485,10 @@ const EventCreatorView = () => {
   const { CurrentGroup } = useCurrentGroupStore()
   const location = useLocation()
   const navigate = useNavigate()
-  const { eventId: routeEventId } = useParams<{ eventId?: string }>()
+  const { groupId: routeGroupId, eventId: routeEventId } = useParams<{ groupId?: string; eventId?: string }>()
   const [searchParams] = useSearchParams()
   const activeIds = useActiveEntityIds({
-    groupId: searchParams.get('groupId') || undefined,
+    groupId: routeGroupId || searchParams.get('groupId') || undefined,
     eventId: routeEventId || undefined,
   })
   const isCanonicalEditMode = location.pathname === '/events/edit'
@@ -1038,7 +1038,7 @@ const EventCreatorView = () => {
   const handleGeneratePoster = async () => {
     if (!effectiveGroupId || !eventDraft) {
       setPosterGenerationStatus('error')
-      setPosterGenerationMessage(language === 'zh' ? '请先选择教会或小组，并填写活动资料。' : 'Select a church or group and add the event details first.')
+      setPosterGenerationMessage(language === 'zh' ? '请先从小组管理选择所属小组，并填写活动资料。' : 'Select the owning group from group management and add the event details first.')
       return
     }
 
@@ -1188,7 +1188,7 @@ const EventCreatorView = () => {
         },
       ])
       if (!isEditMode && persistedEventId && effectiveGroupId) {
-        navigate('/events/edit', { replace: true })
+        navigate(`/groups/${encodeURIComponent(effectiveGroupId)}/events/${encodeURIComponent(persistedEventId)}/edit`, { replace: true })
       }
     } catch (err) {
       setSaveStatus('error')
@@ -1267,7 +1267,7 @@ const EventCreatorView = () => {
     && (eventDraft.description.zh.trim() || eventDraft.description.en.trim()))
   const posterGenerationBlockers = [
     !effectiveGroupId
-      ? (language === 'zh' ? '选择活动所属的教会或小组' : 'select the church or group that owns this event')
+      ? (language === 'zh' ? '从小组管理选择活动所属小组' : 'select the group that owns this event from group management')
       : '',
     !eventDraft || !(eventDraft.title.zh.trim() || eventDraft.title.en.trim())
       ? (language === 'zh' ? '填写活动标题（至少一种语言）' : 'add an event title in at least one language')
@@ -1435,14 +1435,14 @@ const EventCreatorView = () => {
               <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
                 <CheckCircle2 className="mr-2 inline h-4 w-4" aria-hidden="true" />
                 {language === 'zh'
-                  ? `已选择活动归属：${CurrentGroup?.id === effectiveGroupId ? localizeText(CurrentGroup.name, language) : '当前教会或小组'}`
-                  : `Event owner selected: ${CurrentGroup?.id === effectiveGroupId ? localizeText(CurrentGroup.name, language) : 'current church or group'}`}
+                  ? `所属小组：${CurrentGroup?.id === effectiveGroupId ? localizeText(CurrentGroup.name, language) : '当前小组'}`
+                  : `Owning group: ${CurrentGroup?.id === effectiveGroupId ? localizeText(CurrentGroup.name, language) : 'current group'}`}
               </p>
             ) : (
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
-                <span>{language === 'zh' ? '尚未选择活动所属的教会或小组，因此无法生成海报或保存活动。' : 'No church or group is selected, so the poster cannot be generated and the event cannot be saved.'}</span>
-                <button type="button" onClick={() => navigate('/events/manage')} className="rounded-lg border border-rose-300 bg-white px-3 py-1.5 font-bold text-rose-800">
-                  {language === 'zh' ? '返回活动管理选择' : 'Choose in event management'}
+                <span>{language === 'zh' ? '尚未从小组管理选择活动所属小组，因此无法生成海报或保存活动。' : 'No owning group is selected from group management, so the poster cannot be generated and the event cannot be saved.'}</span>
+                <button type="button" onClick={() => navigate('/groups?section=events')} className="rounded-lg border border-rose-300 bg-white px-3 py-1.5 font-bold text-rose-800">
+                  {language === 'zh' ? '返回小组管理' : 'Back to group management'}
                 </button>
               </div>
             )}

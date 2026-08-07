@@ -2,7 +2,7 @@
 
 ## Scope
 
-The first implementation adds a lightweight, versioned workflow framework for church events. It intentionally supports ordered stages, approval gates, dedicated integrations and output packages without introducing a general BPMN engine.
+The first implementation adds a lightweight, versioned workflow framework for group-owned events. Event creation, workflow state, enrollment management and authorization remain anchored to the owning group. It intentionally supports ordered stages, approval gates, dedicated integrations and output packages without introducing a general BPMN engine.
 
 The first built-in templates are:
 
@@ -20,6 +20,7 @@ The first built-in templates are:
 ## Authorization and privacy
 
 - Active templates require authentication.
+- Every workflow run is resolved through its `GroupEvent`; there is no separate event ownership model.
 - Workflow initialization, step changes and artifact changes require group leader/co-leader access.
 - Approved group members can read workflow progress and group-visible outputs.
 - `MemberPrivate` artifacts are omitted from regular member responses and are visible only to group leaders/co-leaders and admins.

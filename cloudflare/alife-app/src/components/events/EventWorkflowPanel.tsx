@@ -180,7 +180,7 @@ const EventWorkflowPanel = ({ eventId, groupId, language, canManage }: Props) =>
             {step.integrationKey === 'ram' ? (
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
                 <span>{text.managed}</span>
-                {canManage ? <Link className="font-bold underline" to={`/events/${encodeURIComponent(eventId)}/edit?groupId=${encodeURIComponent(groupId)}`}>{text.openRam}</Link> : null}
+                {canManage ? <Link className="font-bold underline" to={`/groups/${encodeURIComponent(groupId)}/events/${encodeURIComponent(eventId)}/edit`}>{text.openRam}</Link> : null}
               </div>
             ) : null}
 

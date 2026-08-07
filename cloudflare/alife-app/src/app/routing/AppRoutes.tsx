@@ -142,10 +142,11 @@ const AppRoutes = () => {
           <Route path="/events/new" element={<EventCreatorView />} />
           <Route path="/events/edit" element={<EventCreatorView />} />
           <Route path="/events/:eventId/edit" element={<EventCreatorView />} />
-          <Route path="/events/manage" element={<GroupManageView embeddedWorkspace forcedSection="events" standaloneEventsModule />} />
           <Route path="/events" element={<EventDetailView />} />
           <Route path="/events/enroll" element={<EventEnrollmentView />} />
           <Route path="/events/review" element={<EventReviewView />} />
+          <Route path="/groups/:groupId/events/new" element={<EventCreatorView />} />
+          <Route path="/groups/:groupId/events/:eventId/edit" element={<EventCreatorView />} />
           <Route path="/groups/:groupId/events/:eventId" element={<EventDetailView />} />
           <Route path="/groups/:groupId/events/:eventId/enroll" element={<EventEnrollmentView />} />
           <Route path="/groups/:groupId/events/:eventId/review" element={<EventReviewView />} />

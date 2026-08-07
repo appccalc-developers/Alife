@@ -754,7 +754,7 @@ const EventDetailView = () => {
           {(canManage || canAuditRam) ? (
             <div className="mb-4 flex justify-end">
               <Link
-                to={`/events/${encodeURIComponent(eventId)}/edit?groupId=${encodeURIComponent(groupId)}`}
+                to={`/groups/${encodeURIComponent(groupId)}/events/${encodeURIComponent(eventId)}/edit`}
                 onClick={() => activeEntityService.setEvent(eventId, groupId)}
                 className="inline-flex items-center rounded-lg border border-teal-300 bg-white px-3.5 py-2 text-sm font-bold text-teal-800 hover:bg-teal-50"
               >
