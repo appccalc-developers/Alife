@@ -1684,10 +1684,9 @@ test('POST /api/ai/event-poster rejects ordinary group members', async () => {
   const response = await dispatch('https://ccalc.live/api/ai/event-poster', {
     method: 'POST',
     headers: {
-      'content-type': 'application/json',
       cookie: `alife_auth=${createJwtWithSub('member-1')}`,
     },
-    body: JSON.stringify({
+    body: createEventPosterFormData({
       groupId,
       event: {
         title: { zh: '夏令营', en: 'Summer Camp' },
@@ -1741,10 +1740,9 @@ test('POST /api/ai/event-poster uses canonical church context and returns a revi
   const response = await dispatch('https://ccalc.live/api/ai/event-poster', {
     method: 'POST',
     headers: {
-      'content-type': 'application/json',
       cookie: `alife_auth=${createJwtWithSub('member-1')}`,
     },
-    body: JSON.stringify({
+    body: createEventPosterFormData({
       groupId,
       event: {
         title: { zh: '青年夏令营', en: 'Youth Summer Camp' },
@@ -1755,6 +1753,7 @@ test('POST /api/ai/event-poster uses canonical church context and returns a revi
         endDate: '2026-12-30T16:00:00+13:00',
       },
       guidance: 'Warm natural photography with clean space for the event title.',
+      baseImage: new File(['base-poster-image'], 'base-poster.png', { type: 'image/png' }),
     }),
     env: {
       ...createEnv(),
@@ -1788,10 +1787,40 @@ test('POST /api/ai/event-poster uses canonical church context and returns a revi
     aspect_ratio: '16:9',
     image_size: '512',
   })
-  assert.match(geminiBody.input, /丰盛生命教会/)
-  assert.match(geminiBody.input, /Youth Summer Camp/)
-  assert.match(geminiBody.input, /Do not include private contact details/)
-  assert.doesNotMatch(geminiBody.input, /member-1/)
+  assert.equal(geminiBody.input.length, 2)
+  assert.equal(geminiBody.input[0].type, 'text')
+  assert.match(geminiBody.input[0].text, /丰盛生命教会/)
+  assert.match(geminiBody.input[0].text, /Youth Summer Camp/)
+  assert.match(geminiBody.input[0].text, /supplied image is the required visual foundation/i)
+  assert.match(geminiBody.input[0].text, /Do not include private contact details/)
+  assert.doesNotMatch(geminiBody.input[0].text, /member-1/)
+  assert.deepEqual(geminiBody.input[1], {
+    type: 'image',
+    mime_type: 'image/png',
+    data: Buffer.from('base-poster-image').toString('base64'),
+  })
+})
+
+test('POST /api/ai/event-poster requires a base poster image', async () => {
+  const groupId = 'f7681b3e-2465-4dd5-9f12-3307bb11b87e'
+  authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved', role: 'Leader' }))
+
+  const response = await dispatch('https://ccalc.live/api/ai/event-poster', {
+    method: 'POST',
+    headers: { cookie: `alife_auth=${createJwtWithSub('member-1')}` },
+    body: createEventPosterFormData({
+      groupId,
+      event: {
+        title: { zh: '青年夏令营', en: '' },
+        description: { zh: '在自然中敬拜和团契', en: '' },
+      },
+    }),
+    env: { ...createEnv(), GEMINI_API_KEY: 'test-key' },
+  })
+
+  assert.equal(response.status, 400)
+  assert.deepEqual(await response.json(), { message: 'A base poster image is required.' })
+  assert.equal(fetchCalls.length, 0)
 })
 
 test('POST /api/ai/event-poster reports an invalid Gemini key as configuration error', async () => {
@@ -1813,15 +1842,15 @@ test('POST /api/ai/event-poster reports an invalid Gemini key as configuration e
   const response = await dispatch('https://ccalc.live/api/ai/event-poster', {
     method: 'POST',
     headers: {
-      'content-type': 'application/json',
       cookie: `alife_auth=${createJwtWithSub('member-1')}`,
     },
-    body: JSON.stringify({
+    body: createEventPosterFormData({
       groupId,
       event: {
         title: { zh: '青年夏令营', en: '' },
         description: { zh: '在自然中敬拜和团契', en: '' },
       },
+      baseImage: new File(['base-poster-image'], 'base-poster.jpg', { type: 'image/jpeg' }),
     }),
     env: { ...createEnv(), GEMINI_API_KEY: 'invalid-key' },
   })
@@ -2787,6 +2816,15 @@ async function dispatch(url, init = {}) {
 
   const request = new Request(url, { ...requestInit, headers })
   return worker.fetch(request, envOverride ?? createEnv(), createCtx())
+}
+
+function createEventPosterFormData({ groupId, event, guidance, baseImage }) {
+  const formData = new FormData()
+  formData.set('groupId', groupId)
+  formData.set('event', JSON.stringify(event))
+  if (guidance) formData.set('guidance', guidance)
+  if (baseImage) formData.set('baseImage', baseImage, baseImage.name)
+  return formData
 }
 
 function isAiSessionUrl(url) {

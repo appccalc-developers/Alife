@@ -237,6 +237,8 @@ type SpeechRecognitionEventLike = {
 type SpeechRecognitionConstructor = new () => SpeechRecognitionLike
 
 const eventPosterFolder = (groupId: string, eventId: string) => `groups/${groupId}/events/${eventId}/calendar`
+const MAX_POSTER_GENERATION_BASE_IMAGE_BYTES = 6 * 1024 * 1024
+const POSTER_GENERATION_BASE_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 const createIntroMessage = (text: string): ChatMessage => ({
   role: 'assistant',
   text,
@@ -519,6 +521,8 @@ const EventCreatorView = () => {
   const [posterGenerationStatus, setPosterGenerationStatus] = useState<PosterGenerationStatus>('idle')
   const [posterGenerationMessage, setPosterGenerationMessage] = useState('')
   const [posterGenerationGuidance, setPosterGenerationGuidance] = useState('')
+  const [posterGenerationBaseImageName, setPosterGenerationBaseImageName] = useState('')
+  const [posterGenerationBasePreviewUrl, setPosterGenerationBasePreviewUrl] = useState('')
   const [generatedPoster, setGeneratedPoster] = useState<GeneratedEventPoster | null>(null)
   const [generatedPosterSourceKey, setGeneratedPosterSourceKey] = useState('')
   const [briefTranslationStatus, setBriefTranslationStatus] = useState<EventBriefTranslationStatus>('idle')
@@ -543,7 +547,9 @@ const EventCreatorView = () => {
   const initializedSessionScopesRef = useRef(new Set<string>())
   const posterInputRef = useRef<HTMLInputElement>(null)
   const referencePosterInputRef = useRef<HTMLInputElement>(null)
+  const posterGenerationBaseInputRef = useRef<HTMLInputElement>(null)
   const posterObjectUrlRef = useRef('')
+  const posterGenerationBaseObjectUrlRef = useRef('')
   const eventContext = useMemo(
     () => eventDraft ? createEventContextFromDto(eventDraft) : aiContentContext.eventContext,
     [aiContentContext.eventContext, eventDraft],
@@ -621,9 +627,17 @@ const EventCreatorView = () => {
     }
   }
 
+  const clearPosterGenerationBaseObjectUrl = () => {
+    if (posterGenerationBaseObjectUrlRef.current) {
+      URL.revokeObjectURL(posterGenerationBaseObjectUrlRef.current)
+      posterGenerationBaseObjectUrlRef.current = ''
+    }
+  }
+
   useEffect(() => {
     return () => {
       clearPosterObjectUrl()
+      clearPosterGenerationBaseObjectUrl()
     }
   }, [])
 
@@ -1035,7 +1049,7 @@ const EventCreatorView = () => {
     void analyzePosterWithAi(file, true)
   }
 
-  const handleGeneratePoster = async () => {
+  const handleGeneratePoster = async (baseImage: File) => {
     if (!effectiveGroupId || !eventDraft) {
       setPosterGenerationStatus('error')
       setPosterGenerationMessage(language === 'zh' ? '请先从小组管理选择所属小组，并填写活动资料。' : 'Select the owning group from group management and add the event details first.')
@@ -1050,13 +1064,27 @@ const EventCreatorView = () => {
       return
     }
 
+    if (!POSTER_GENERATION_BASE_IMAGE_TYPES.has(baseImage.type.toLowerCase())) {
+      setPosterGenerationStatus('error')
+      setPosterGenerationMessage(language === 'zh' ? '海报底图必须是 JPEG、PNG 或 WebP 图片。' : 'The base poster must be a JPEG, PNG, or WebP image.')
+      return
+    }
+    if (baseImage.size === 0 || baseImage.size > MAX_POSTER_GENERATION_BASE_IMAGE_BYTES) {
+      setPosterGenerationStatus('error')
+      setPosterGenerationMessage(language === 'zh' ? '海报底图必须大于 0 且不超过 6 MB。' : 'The base poster must be larger than 0 bytes and no more than 6 MB.')
+      return
+    }
+
     const sourceKey = posterBriefKey
+    setGeneratedPoster(null)
+    setGeneratedPosterSourceKey('')
     setPosterGenerationStatus('generating')
-    setPosterGenerationMessage(language === 'zh' ? 'AI 正在根据活动描述和本教会资料生成海报草案…' : 'AI is creating a poster draft from the event description and church context…')
+    setPosterGenerationMessage(language === 'zh' ? '正在把底图、活动描述和教会资料传给 Gemini 生成海报草案…' : 'Sending the base image, event description, and church context to Gemini to create a poster draft…')
     try {
       const poster = await eventPosterAiService.generate({
         groupId: effectiveGroupId,
         guidance: posterGenerationGuidance.trim(),
+        baseImage,
         event: {
           title: eventDraft.title,
           description: eventDraft.description,
@@ -1071,12 +1099,36 @@ const EventCreatorView = () => {
       setPosterGenerationStatus('generated')
       const churchName = localizeText(poster.context.churchName, language)
       setPosterGenerationMessage(language === 'zh'
-        ? `已生成基于${churchName || '本教会'}资料的海报草案。请检查图片和文字，确认后再采用。`
-        : `Poster draft generated from ${churchName || 'the current church'} context. Review the image and all text before adopting it.`)
+        ? `已在所选底图基础上生成结合${churchName || '本教会'}资料的海报草案。请检查图片和文字，确认后再采用。`
+        : `Poster draft generated from the selected base image and ${churchName || 'the current church'} context. Review the image and all text before adopting it.`)
     } catch (reason) {
       setPosterGenerationStatus('error')
       setPosterGenerationMessage(normalizeApiError(reason).message)
     }
+  }
+
+  const handlePosterGenerationBaseImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0]
+    event.currentTarget.value = ''
+    if (!file) return
+
+    if (!POSTER_GENERATION_BASE_IMAGE_TYPES.has(file.type.toLowerCase())) {
+      setPosterGenerationStatus('error')
+      setPosterGenerationMessage(language === 'zh' ? '海报底图必须是 JPEG、PNG 或 WebP 图片。' : 'The base poster must be a JPEG, PNG, or WebP image.')
+      return
+    }
+    if (file.size === 0 || file.size > MAX_POSTER_GENERATION_BASE_IMAGE_BYTES) {
+      setPosterGenerationStatus('error')
+      setPosterGenerationMessage(language === 'zh' ? '海报底图必须大于 0 且不超过 6 MB。' : 'The base poster must be larger than 0 bytes and no more than 6 MB.')
+      return
+    }
+
+    clearPosterGenerationBaseObjectUrl()
+    const objectUrl = URL.createObjectURL(file)
+    posterGenerationBaseObjectUrlRef.current = objectUrl
+    setPosterGenerationBasePreviewUrl(objectUrl)
+    setPosterGenerationBaseImageName(file.name)
+    void handleGeneratePoster(file)
   }
 
   const handleAdoptGeneratedPoster = async () => {
@@ -1589,13 +1641,20 @@ const EventCreatorView = () => {
                     </h4>
                     <p className="mt-1 text-sm leading-6 text-slate-600">
                       {language === 'zh'
-                        ? 'AI 会结合活动标题、描述、目的，以及系统中本教会和所属小组的正式资料生成图片。不会读取联系人、电话或 RAM 内部资料。'
-                        : 'AI uses the event title, description, purpose, and the canonical church and group profile stored in Alife. Contacts, phone numbers, and internal RAM details are not included.'}
+                        ? '点击生成后请上传一张海报底图。AI 会以该图片为视觉基础，结合活动标题、描述、目的，以及系统中的教会和小组正式资料进行修改。不会读取联系人、电话或 RAM 内部资料。'
+                        : 'After you click generate, upload a base poster image. AI edits that image using the event title, description, purpose, and the canonical church and group profile stored in Alife. Contacts, phone numbers, and internal RAM details are not included.'}
                     </p>
                   </div>
+                  <input
+                    ref={posterGenerationBaseInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    onChange={handlePosterGenerationBaseImageChange}
+                  />
                   <button
                     type="button"
-                    onClick={() => { void handleGeneratePoster() }}
+                    onClick={() => posterGenerationBaseInputRef.current?.click()}
                     disabled={!effectiveGroupId || !posterHasRequiredBrief || isPosterGenerating || isPosterUploading || saveStatus === 'saving'}
                     title={posterGenerationBlockers.length > 0 ? posterGenerationBlockers.join(language === 'zh' ? '；' : '; ') : undefined}
                     aria-describedby={posterGenerationBlockers.length > 0 ? 'poster-generation-requirements' : undefined}
@@ -1605,16 +1664,28 @@ const EventCreatorView = () => {
                     {isPosterGenerating
                       ? (language === 'zh' ? '生成中…' : 'Generating…')
                       : generatedPoster
-                        ? (language === 'zh' ? '重新生成' : 'Regenerate')
-                        : (language === 'zh' ? '根据描述生成' : 'Generate from description')}
+                        ? (language === 'zh' ? '更换底图并重新生成' : 'Choose another base and regenerate')
+                        : (language === 'zh' ? '上传底图并生成' : 'Upload base and generate')}
                   </button>
                 </div>
 
                 <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
                   {language === 'zh'
-                    ? '每次生成都会调用 AI，可能产生费用。生成内容可能出现文字、人物或神学表达偏差；必须由负责人检查。只有点击“采用这张海报”并保存活动后，图片才会上传。请勿在补充描述中填写私人或敏感资料。'
-                    : 'Each generation calls AI and may incur cost. Generated text, people, or theological expression may be inaccurate and must be reviewed by a leader. The image uploads only after you choose “Adopt this poster” and save. Do not enter private or sensitive details below.'}
+                    ? '选择底图后会立即调用 Gemini，可能产生费用。请只上传有权使用且不含私人或敏感资料的图片。生成内容可能出现文字、人物或神学表达偏差，必须由负责人检查。只有点击“采用这张海报”并保存活动后，生成结果才会成为活动海报。'
+                    : 'Selecting a base image immediately calls Gemini and may incur cost. Upload only an image you have the right to use and that contains no private or sensitive information. Generated text, people, or theological expression may be inaccurate and must be reviewed by a leader. The result becomes the event poster only after you choose “Adopt this poster” and save.'}
                 </div>
+
+                {posterGenerationBasePreviewUrl ? (
+                  <div className="mt-3 grid gap-3 rounded-lg border border-violet-100 bg-violet-50/60 p-3 sm:grid-cols-[10rem_1fr] sm:items-center">
+                    <div className="overflow-hidden rounded-lg border border-violet-200 bg-white">
+                      <img src={posterGenerationBasePreviewUrl} alt={language === 'zh' ? '上传的海报底图' : 'Uploaded base poster'} className="h-24 w-full object-contain" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-violet-900">{language === 'zh' ? '本次生成使用的底图' : 'Base image used for this generation'}</p>
+                      <p className="mt-1 break-all text-xs text-violet-700">{posterGenerationBaseImageName}</p>
+                    </div>
+                  </div>
+                ) : null}
 
                 <label className="mt-3 block text-sm font-bold text-slate-700">
                   {language === 'zh' ? '补充视觉描述（可选）' : 'Additional visual direction (optional)'}
@@ -1632,7 +1703,7 @@ const EventCreatorView = () => {
 
                 {posterGenerationBlockers.length > 0 ? (
                   <div id="poster-generation-requirements" className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                    <p className="font-bold">{language === 'zh' ? '“根据描述生成”暂不可用，还需要：' : '“Generate from description” is unavailable until you:'}</p>
+                    <p className="font-bold">{language === 'zh' ? '“上传底图并生成”暂不可用，还需要：' : '“Upload base and generate” is unavailable until you:'}</p>
                     <ul className="mt-1 list-disc space-y-0.5 pl-5">
                       {posterGenerationBlockers.map((blocker) => <li key={blocker}>{blocker}</li>)}
                     </ul>

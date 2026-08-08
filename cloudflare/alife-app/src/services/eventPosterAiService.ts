@@ -4,6 +4,7 @@ import { http } from './http'
 export type GenerateEventPosterPayload = {
   groupId: string
   guidance?: string
+  baseImage: File
   event: Pick<EventDto, 'title' | 'description' | 'purpose' | 'locationName' | 'startDate' | 'endDate'>
 }
 
@@ -25,7 +26,15 @@ const extensionForMimeType = (mimeType: GeneratedEventPoster['mimeType']) => {
 
 export const eventPosterAiService = {
   async generate(payload: GenerateEventPosterPayload) {
-    const { data } = await http.post<GeneratedEventPoster>('/api/ai/event-poster', payload)
+    const formData = new FormData()
+    formData.set('groupId', payload.groupId)
+    formData.set('event', JSON.stringify(payload.event))
+    if (payload.guidance) {
+      formData.set('guidance', payload.guidance)
+    }
+    formData.set('baseImage', payload.baseImage, payload.baseImage.name)
+
+    const { data } = await http.post<GeneratedEventPoster>('/api/ai/event-poster', formData)
     return data
   },
 
