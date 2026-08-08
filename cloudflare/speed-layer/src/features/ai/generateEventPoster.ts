@@ -5,6 +5,7 @@ const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com'
 const DEFAULT_IMAGE_MODEL = 'gemini-3.1-flash-image'
 const MAX_GUIDANCE_LENGTH = 600
 const MAX_FIELD_LENGTH = 4000
+const MAX_BASE_IMAGE_BYTES = 6 * 1024 * 1024
 const MAX_IMAGE_BASE64_LENGTH = 12 * 1024 * 1024
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -27,6 +28,13 @@ type PosterEventBrief = {
   endDate: string
 }
 
+type PosterGenerationRequest = {
+  groupId: string | null
+  guidance: string | null
+  event: unknown
+  baseImage: File | null
+}
+
 export async function handleGenerateEventPoster(request: Request, env: Env): Promise<Response> {
   if (!env.GEMINI_API_KEY) {
     return json({ message: 'GEMINI_API_KEY is not configured.' }, 503)
@@ -37,14 +45,14 @@ export async function handleGenerateEventPoster(request: Request, env: Env): Pro
     return json({ message: 'Authentication is required.' }, 401)
   }
 
-  let payload: Record<string, unknown>
+  let payload: PosterGenerationRequest
   try {
-    payload = await readJsonObject(request)
+    payload = await readPosterGenerationRequest(request)
   } catch {
     return json({ message: 'Invalid poster generation request body.' }, 400)
   }
 
-  const groupId = readString(payload.groupId)
+  const groupId = payload.groupId
   if (!groupId || !UUID_PATTERN.test(groupId)) {
     return json({ message: 'A valid groupId is required.' }, 400)
   }
@@ -58,7 +66,23 @@ export async function handleGenerateEventPoster(request: Request, env: Env): Pro
     return json({ message: 'Event title and description are required before generating a poster.' }, 400)
   }
 
-  const guidance = readString(payload.guidance)?.slice(0, MAX_GUIDANCE_LENGTH) ?? ''
+  const baseImage = payload.baseImage
+  if (!baseImage) {
+    return json({ message: 'A base poster image is required.' }, 400)
+  }
+
+  const baseImageMimeType = normalizeImageMimeType(baseImage.type)
+  if (!baseImageMimeType) {
+    return json({ message: 'Base poster image must be a JPEG, PNG, or WebP file.' }, 400)
+  }
+  if (baseImage.size === 0) {
+    return json({ message: 'Base poster image cannot be empty.' }, 400)
+  }
+  if (baseImage.size > MAX_BASE_IMAGE_BYTES) {
+    return json({ message: 'Base poster image must be 6 MB or smaller.' }, 400)
+  }
+
+  const guidance = payload.guidance?.slice(0, MAX_GUIDANCE_LENGTH) ?? ''
   let group: CanonicalGroup
   let church: CanonicalGroup
   try {
@@ -73,6 +97,7 @@ export async function handleGenerateEventPoster(request: Request, env: Env): Pro
 
   const model = env.GEMINI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL
   try {
+    const baseImageBase64 = bytesToBase64(new Uint8Array(await baseImage.arrayBuffer()))
     const geminiResponse = await fetch(`${GEMINI_API_BASE}/v1beta/interactions`, {
       method: 'POST',
       headers: {
@@ -81,7 +106,10 @@ export async function handleGenerateEventPoster(request: Request, env: Env): Pro
       },
       body: JSON.stringify({
         model,
-        input: buildPosterPrompt({ event, group, church, guidance }),
+        input: [
+          { type: 'text', text: buildPosterPrompt({ event, group, church, guidance }) },
+          { type: 'image', mime_type: baseImageMimeType, data: baseImageBase64 },
+        ],
         response_format: {
           type: 'image',
           mime_type: 'image/jpeg',
@@ -188,7 +216,7 @@ function forwardedAuthHeaders(request: Request) {
 }
 
 function buildPosterPrompt(args: { event: PosterEventBrief; group: CanonicalGroup; church: CanonicalGroup; guidance: string }) {
-  return `Create one polished 16:9 event poster image for a Chinese Christian church community in New Zealand.
+  return `Transform the supplied base image into one polished 16:9 event poster for a Chinese Christian church community in New Zealand. The supplied image is the required visual foundation; do not ignore it or replace it with an unrelated composition.
 
 Canonical organization context (trusted; do not invent beyond it):
 ${JSON.stringify({
@@ -203,7 +231,7 @@ Optional visual direction from the organizer:
 ${args.guidance || 'No additional direction.'}
 
 Rules:
-1. Base the visual theme on the event description, purpose, and canonical church context above.
+1. Preserve the base image's recognizable visual identity, main subject, and overall composition while adapting it to the event description, purpose, and canonical church context above.
 2. Keep the tone warm, dignified, hopeful, welcoming, family-safe, culturally respectful, and appropriate for a church community.
 3. Do not invent a church logo, denomination, sponsor, Bible quotation, address, date, price, phone number, URL, QR code, or factual claim.
 4. Do not depict a recognizable real person or imply that a generated person is a real church member. Use symbolic imagery, environments, or clearly generic community figures.
@@ -274,10 +302,35 @@ function readProviderErrorMessage(value: string) {
   }
 }
 
-async function readJsonObject(request: Request) {
-  const value = await request.json() as unknown
-  if (!isRecord(value)) throw new Error('Invalid JSON object.')
-  return value
+async function readPosterGenerationRequest(request: Request): Promise<PosterGenerationRequest> {
+  if (!request.headers.get('content-type')?.toLowerCase().startsWith('multipart/form-data')) {
+    throw new Error('Expected multipart form data.')
+  }
+
+  const formData = await request.formData()
+  const eventValue = formData.get('event')
+  if (typeof eventValue !== 'string') {
+    throw new Error('Event data is required.')
+  }
+
+  const event = JSON.parse(eventValue) as unknown
+  const baseImageValue = formData.get('baseImage')
+  return {
+    groupId: readString(formData.get('groupId')),
+    guidance: readString(formData.get('guidance')),
+    event,
+    baseImage: baseImageValue instanceof File ? baseImageValue : null,
+  }
+}
+
+function bytesToBase64(bytes: Uint8Array) {
+  let binary = ''
+  const chunkSize = 0x8000
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize))
+  }
+
+  return btoa(binary)
 }
 
 function json(body: unknown, status: number) {
