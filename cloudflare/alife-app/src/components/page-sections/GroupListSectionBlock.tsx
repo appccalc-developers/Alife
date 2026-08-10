@@ -94,10 +94,13 @@ const GroupListSectionBlock = ({ section, mode, domId, disabled, editorPreview, 
 
   const compactPreview = previewDensity === 'compact' || editorPreview === true
   const hasSectionHeader = Boolean(section.contentJson.header && typeof section.contentJson.header === 'object' && !Array.isArray(section.contentJson.header))
+  const contentClassName = layout === 'carousel'
+    ? `mx-auto max-w-6xl ${sectionSpacingClass(section)}`
+    : `mx-auto max-w-6xl ${sectionSpacingClass(section)} rounded-lg border border-slate-200 bg-white px-4`
 
   return (
     <section id={domId} className={pageSectionShellClass}>
-      <div className={`mx-auto max-w-6xl ${sectionSpacingClass(section)} rounded-lg border border-slate-200 bg-white px-4`}>
+      <div className={contentClassName}>
         {hasSectionHeader ? (
           <SectionHeader
             header={section.contentJson.header}

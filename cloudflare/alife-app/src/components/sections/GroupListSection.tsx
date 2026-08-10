@@ -15,6 +15,7 @@ import { translateUi, type UiTextKey, useUiText } from '../../i18n/uiText'
 import { activeEntityService } from '../../services/activeEntityService'
 import { buildSermonVideoPath, extractYouTubeVideoId } from '../../utils/youtube'
 import type { ContactProfileDto } from '../../types/contact'
+import FeaturedCarousel, { type FeaturedCarouselItem } from '../FeaturedCarousel'
 
 // ---------- Universal Card Interface ----------
 
@@ -150,6 +151,18 @@ const fallbackIcons = {
   subgroup: Users,
 } satisfies Record<UniversalCardItem['type'], typeof FileText>
 
+const activateCardItem = (item: UniversalCardItem) => {
+  if (item.type === 'sermon') {
+    activeEntityService.setSermon(item.id)
+  } else if (item.type === 'subgroup') {
+    activeEntityService.setGroup(item.groupId || item.id)
+  } else if (item.type === 'page') {
+    activeEntityService.setPage(item.id, item.groupId)
+  } else if (item.type === 'event') {
+    activeEntityService.setEvent(item.id, item.groupId)
+  }
+}
+
 export const ListCard: React.FC<{ item: UniversalCardItem; compact?: boolean; cardIndex?: number }> = ({ item, compact, cardIndex = 0 }) => {
   const { language } = useAuthStore()
   const t = useUiText()
@@ -159,22 +172,10 @@ export const ListCard: React.FC<{ item: UniversalCardItem; compact?: boolean; ca
   const titleCls = compact ? 'text-xs' : 'text-sm sm:text-base'
   const dateLocale = language === 'zh' ? 'zh-CN' : 'en-NZ'
   const FallbackIcon = fallbackIcons[item.type]
-  const activateItem = () => {
-    if (item.type === 'sermon') {
-      activeEntityService.setSermon(item.id)
-    } else if (item.type === 'subgroup') {
-      activeEntityService.setGroup(item.groupId || item.id)
-    } else if (item.type === 'page') {
-      activeEntityService.setPage(item.id, item.groupId)
-    } else if (item.type === 'event') {
-      activeEntityService.setEvent(item.id, item.groupId)
-    }
-  }
-
   return (
     <Link
       to={item.url}
-      onClick={activateItem}
+      onClick={() => activateCardItem(item)}
       className="group block h-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition-all hover:border-slate-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-300"
     >
       {item.imageUrl ? (
@@ -322,6 +323,39 @@ export const GroupListSection: React.FC<GroupListSectionProps> = ({ metadata, gr
       <div className={`rounded-lg border border-dashed border-slate-300 bg-slate-50 text-center text-sm text-slate-500 ${shellPad}`}>
         {t('noSourceItems', { source: t(sourceTypeLabels[meta.sourceType] ?? 'content') })}
       </div>
+    )
+  }
+
+  if (layout === 'carousel') {
+    const dateLocale = language === 'zh' ? 'zh-CN' : 'en-NZ'
+    const badge = t(sourceTypeLabels[meta.sourceType] ?? 'content')
+    const carouselItems: FeaturedCarouselItem[] = cardItems.map((item) => {
+      const date = item.date
+        ? new Date(item.date).toLocaleDateString(dateLocale, { year: 'numeric', month: 'short', day: 'numeric' })
+        : ''
+      const description = item.subtitle && item.subtitle !== date
+        ? [item.subtitle, date].filter(Boolean).join(' · ')
+        : item.subtitle || date
+
+      return {
+        id: item.id,
+        title: item.title,
+        description,
+        imageUrl: item.imageUrl,
+        to: item.url,
+        badge,
+        onActivate: () => activateCardItem(item),
+      }
+    })
+
+    return (
+      <FeaturedCarousel
+        items={carouselItems}
+        ariaLabel={badge}
+        previousLabel={language === 'zh' ? `上一项${badge}` : `Previous ${badge}`}
+        nextLabel={language === 'zh' ? `下一项${badge}` : `Next ${badge}`}
+        compact={compact}
+      />
     )
   }
 
