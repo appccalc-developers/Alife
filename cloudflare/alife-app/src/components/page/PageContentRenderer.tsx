@@ -256,7 +256,7 @@ export const createEmptyPageSection = (type: SectionType = 'RichText'): SectionE
       contentJson: {
         header: createDefaultSectionHeader(),
         spacing: 'normal',
-        presentation: 'visit',
+        presentation: 'spotlight',
         spotlight: {
           mode: 'manual',
           source: 'events',
@@ -286,8 +286,8 @@ export const createEmptyPageSection = (type: SectionType = 'RichText'): SectionE
         href: '',
       },
       styleJson: {
-        layout: 'visitSpotlight',
-        presentation: 'visit',
+        layout: 'spotlight',
+        presentation: 'spotlight',
         mediaPosition: 'left',
         imagePosition: 'left',
       },
@@ -392,7 +392,7 @@ export const createPresetPageSection = (preset: string): SectionEditModel => {
       ...section,
       contentJson: {
         ...section.contentJson,
-        presentation: visit ? 'visit' : 'spotlight',
+        presentation: 'spotlight',
         anchorId: visit ? 'visit' : section.contentJson.anchorId,
         spotlight: {
           mode: 'manual',
@@ -419,8 +419,8 @@ export const createPresetPageSection = (preset: string): SectionEditModel => {
       },
       styleJson: {
         ...section.styleJson,
-        layout: visit ? 'visitSpotlight' : 'spotlight',
-        presentation: visit ? 'visit' : 'spotlight',
+        layout: 'spotlight',
+        presentation: 'spotlight',
         mediaPosition: visit ? 'right' : 'left',
         imagePosition: visit ? 'right' : 'left',
       },

@@ -5,7 +5,7 @@ import { BackgroundMedia, EditableText, PropertyPanel, patchContent, patchLocali
 import type { SectionComponentProps } from './types'
 import SectionHeader from './SectionHeader'
 import { pageSectionShellClass, sectionSpacingClass } from './sectionPresets'
-import { richTextBodyClass, sanitizeRichTextHtml } from '../rich-text/richTextHtml'
+import { richTextAppearanceClass, richTextBodyClass, sanitizeRichTextHtml, type RichTextAppearance } from '../rich-text/richTextHtml'
 import MediaPickerInput from '../media/MediaPickerInput'
 
 const TinyMceRichTextEditor = lazy(() => import('../rich-text/TinyMceRichTextEditor'))
@@ -18,11 +18,11 @@ const RichTextHtml = ({ value, fallback, className }: { value: string; fallback:
   )
 }
 
-const TinyMceLoading = () => (
+const TinyMceLoading = ({ focusKey }: { focusKey: string }) => (
   <div
     aria-hidden="true"
     className="h-64 animate-pulse rounded-lg border border-slate-200 bg-slate-100 md:col-span-2"
-    data-editor-focus-target="true"
+    data-editor-focus-key={focusKey}
     tabIndex={-1}
   />
 )
@@ -60,14 +60,15 @@ const RichTextSection = ({ section, mode, domId, disabled, propertiesOnly, showP
   const headerFallbackTitle = title || (overlay ? t('quoteOfDay') : mode === 'edit' ? t('previewNoTitle') : '')
   const headerFallbackSubtitle = subtitle || (overlay ? t('godLovesUsAll') : mode === 'edit' ? t('previewNoSubtitle') : '')
   const renderedText = text || (mode === 'edit' ? t('noRichTextContentYet') : '')
-  const renderTextEditor = (appearance: 'body' | 'bodyOverlay' | 'quoteOverlay' = 'body') => (
-    <Suspense fallback={<TinyMceLoading />}>
+  const renderTextEditor = (appearance: RichTextAppearance = 'body') => (
+    <Suspense fallback={<TinyMceLoading focusKey="rich-text-body" />}>
       <TinyMceRichTextEditor
         value={text}
         placeholder={appearance === 'quoteOverlay' ? t('noQuoteContentYet') : t('noRichTextContentYet')}
         disabled={!editable}
         compact={appearance === 'quoteOverlay'}
         appearance={appearance}
+        focusKey="rich-text-body"
         imageUploadFolder={uploadFolder}
         imagePickerLabel={t('image')}
         groupId={mediaGroupId}
@@ -112,7 +113,7 @@ const RichTextSection = ({ section, mode, domId, disabled, propertiesOnly, showP
           ) : null}
           <div className="mx-auto max-w-3xl">
             {mode === 'render' ? (
-              <RichTextHtml value={renderedText} fallback={t('noRichTextContentYet')} className="leading-7 text-slate-700 [&_a]:text-emerald-700 [&_blockquote]:text-slate-600" />
+              <RichTextHtml value={renderedText} fallback={t('noRichTextContentYet')} className={richTextAppearanceClass.body} />
             ) : (
               renderTextEditor()
             )}
@@ -150,8 +151,8 @@ const RichTextSection = ({ section, mode, domId, disabled, propertiesOnly, showP
                 value={text}
                 fallback={quoteOverlay ? t('noQuoteContentYet') : t('noRichTextContentYet')}
                 className={quoteOverlay
-                  ? 'mx-auto mt-6 max-w-3xl text-2xl italic leading-relaxed text-slate-100 sm:mt-8 sm:text-4xl [&_a]:text-yellow-200 [&_blockquote]:border-yellow-300 [&_blockquote]:text-slate-100'
-                  : 'mx-auto mt-6 max-w-3xl text-left text-base font-normal not-italic leading-7 text-slate-100 sm:mt-8 [&_a]:text-yellow-200 [&_blockquote]:border-yellow-300 [&_blockquote]:text-slate-200'}
+                  ? `mx-auto mt-6 max-w-3xl sm:mt-8 ${richTextAppearanceClass.quoteOverlay}`
+                  : `mx-auto mt-6 max-w-3xl sm:mt-8 ${richTextAppearanceClass.bodyOverlay}`}
               />
             )}
             <EditableText as="p" value={author} fallback="" disabled={!editable} className="mt-4 block text-xl font-medium text-yellow-300 sm:text-3xl" onChange={(value) => updateLocalizedContent({ quoteAuthor: value })} />

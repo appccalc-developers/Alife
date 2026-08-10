@@ -113,7 +113,7 @@ const isSpotlightLayout = (layout: string) => {
     || normalized === 'highlight'
 }
 
-const isVisitSpotlightPresentation = (contentJson: Record<string, unknown>, styleJson: Record<string, unknown>) => {
+const isLegacyVisitSpotlight = (contentJson: Record<string, unknown>, styleJson: Record<string, unknown>) => {
   const marker = firstString(
     contentJson.presentation,
     contentJson.variant,
@@ -320,19 +320,19 @@ export const normalizePageSection = (section: SectionDto): SectionEditModel => {
 
   if (type === 'Spotlight') {
     const media = normalizeSpotlightMedia(contentJson, styleJson)
-    const isVisitSpotlight = isVisitSpotlightPresentation(contentJson, styleJson)
+    const legacyVisitSpotlight = isLegacyVisitSpotlight(contentJson, styleJson)
     const hasSpotlightConfig = Boolean(contentJson.spotlight && typeof contentJson.spotlight === 'object' && !Array.isArray(contentJson.spotlight))
     const binding = readSpotlightBinding(contentJson)
     contentJson.media = media
-    contentJson.presentation = isVisitSpotlight ? 'visit' : 'spotlight'
-    contentJson.spotlight = isVisitSpotlight && !hasSpotlightConfig
+    contentJson.presentation = 'spotlight'
+    contentJson.spotlight = legacyVisitSpotlight && !hasSpotlightConfig
       ? { ...binding, source: 'events', preset: 'upcoming' }
       : binding
     if (!contentJson.body) {
       contentJson.body = toLocalizedHeaderText(firstString(contentJson.body, contentJson.centerText, contentJson.text))
     }
-    styleJson.layout = isVisitSpotlight ? 'visitSpotlight' : 'spotlight'
-    styleJson.presentation = isVisitSpotlight ? 'visit' : 'spotlight'
+    styleJson.layout = 'spotlight'
+    styleJson.presentation = 'spotlight'
     styleJson.mediaPosition = media.position ?? 'left'
     styleJson.imagePosition = media.position ?? 'left'
   }
