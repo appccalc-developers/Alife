@@ -3,6 +3,7 @@ import { Editor } from '@tinymce/tinymce-react'
 import type { Editor as TinyMceEditor } from 'tinymce'
 import { uploadImage, uploadedImageToAppPath } from '../../services/imageWorkerApi'
 import MediaPickerInput, { type MediaPickerInputHandle } from '../media/MediaPickerInput'
+import { richTextEditorContentStyle, type RichTextAppearance } from './richTextHtml'
 
 import 'tinymce/tinymce'
 import 'tinymce/icons/default'
@@ -13,15 +14,17 @@ import 'tinymce/plugins/autoresize'
 import 'tinymce/plugins/image'
 import 'tinymce/plugins/link'
 import 'tinymce/plugins/lists'
+import 'tinymce/plugins/table'
 import 'tinymce/skins/ui/oxide/skin.min.css'
 import 'tinymce/skins/ui/oxide/content.min.css'
 
 type TinyMceRichTextEditorProps = {
   value: string
   placeholder: string
-  appearance?: 'body' | 'bodyOverlay' | 'quoteOverlay'
+  appearance?: RichTextAppearance
   disabled?: boolean
   compact?: boolean
+  focusKey?: string
   imageUploadFolder?: string
   imagePickerLabel: string
   groupId?: string
@@ -56,62 +59,13 @@ const toUniqueImageFile = (source: Blob, sourceFileName = 'rich-text-image') => 
   })
 }
 
-const sharedDisplayContentStyle = [
-  'html { background: transparent; }',
-  'body { box-sizing: border-box; display: flow-root; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; min-width: 0; overflow-wrap: break-word; padding: 12px; }',
-  '* { box-sizing: border-box; }',
-  'a { font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }',
-  'blockquote { border-left-style: solid; border-left-width: 4px; margin: 20px 0; padding-left: 16px; }',
-  'h2, h3, h4 { font-weight: 700; line-height: 1.25; }',
-  'h2 { font-size: 24px; margin: 24px 0 12px; }',
-  'h3 { font-size: 20px; margin: 20px 0 8px; }',
-  'h4 { font-size: 18px; margin: 16px 0 8px; }',
-  'hr { border: 0; border-top: 1px solid #e2e8f0; margin: 24px 0; }',
-  'img { border: 1px solid #e2e8f0; border-radius: 8px; display: block; height: auto; margin: 20px 0; max-width: 100%; }',
-  'img[style*="float: left"], img[style*="float:left"] { margin: 4px 20px 12px 0; }',
-  'img[style*="float: right"], img[style*="float:right"] { margin: 4px 0 12px 20px; }',
-  'li { margin: 4px 0; }',
-  'ol { list-style: decimal; }',
-  'ul { list-style: disc; }',
-  'ol, ul { margin: 0 0 16px; padding-left: 24px; }',
-  'p { margin: 0 0 16px; }',
-  'p:last-child { margin-bottom: 0; }',
-].join(' ')
-
-const editorAppearanceContentStyle: Record<NonNullable<TinyMceRichTextEditorProps['appearance']>, string> = {
-  body: [
-    'body { color: #334155; font-size: 16px; font-style: normal; line-height: 1.75; text-align: left; }',
-    'a { color: #047857; }',
-    'blockquote { border-left-color: #10b981; color: #475569; }',
-    '.mce-content-body[data-mce-placeholder]:not(.mce-visualblocks)::before { color: #94a3b8; }',
-  ].join(' '),
-  bodyOverlay: [
-    'body { color: #f1f5f9; font-size: 16px; font-style: normal; font-weight: 400; line-height: 1.75; text-align: left; }',
-    'a { color: #fef08a; }',
-    'blockquote { border-left-color: #fde047; color: #e2e8f0; }',
-    '.mce-content-body[data-mce-placeholder]:not(.mce-visualblocks)::before { color: rgba(241, 245, 249, 0.72); }',
-  ].join(' '),
-  quoteOverlay: [
-    'body { color: #f1f5f9; font-size: 24px; font-style: italic; line-height: 1.625; margin: 0 auto; max-width: 48rem; text-align: center; }',
-    '@media (min-width: 640px) { body { font-size: 36px; } }',
-    'a { color: #fef08a; }',
-    'blockquote { border-left-color: #fde047; color: #f1f5f9; }',
-    '.mce-content-body[data-mce-placeholder]:not(.mce-visualblocks)::before { color: rgba(241, 245, 249, 0.72); }',
-  ].join(' '),
-}
-
-const editorContentStyle = (appearance: NonNullable<TinyMceRichTextEditorProps['appearance']>) => [
-  sharedDisplayContentStyle,
-  editorAppearanceContentStyle[appearance],
-].join(' ')
-
 const escapeHtmlAttribute = (value: string) => value
   .replace(/&/g, '&amp;')
   .replace(/"/g, '&quot;')
   .replace(/</g, '&lt;')
   .replace(/>/g, '&gt;')
 
-const TinyMceRichTextEditor = ({ value, placeholder, appearance = 'body', disabled, compact, imageUploadFolder, imagePickerLabel, groupId, onChange }: TinyMceRichTextEditorProps) => {
+const TinyMceRichTextEditor = ({ value, placeholder, appearance = 'body', disabled, compact, focusKey, imageUploadFolder, imagePickerLabel, groupId, onChange }: TinyMceRichTextEditorProps) => {
   const reactId = useId()
   const editorId = `rich-text-${reactId.replace(/[^a-zA-Z0-9_-]/g, '')}`
   const [draft, setDraft] = useState(value)
@@ -139,18 +93,26 @@ const TinyMceRichTextEditor = ({ value, placeholder, appearance = 'body', disabl
     promotion: false,
     skin: false,
     content_css: false,
-    plugins: 'autolink autoresize image link lists',
+    inline: false,
+    forced_root_block: 'p',
+    newline_behavior: 'default' as const,
+    plugins: 'autolink autoresize image link lists table',
     autoresize_bottom_margin: 24,
     autoresize_overflow_padding: 0,
-    toolbar: 'undo redo | blocks | bold italic underline | alignleft aligncenter alignright alignjustify | bullist numlist blockquote | link appimage | removeformat',
-    contextmenu: 'link appimage',
+    toolbar: 'undo redo | blocks | bold italic underline | alignleft aligncenter alignright alignjustify | bullist numlist blockquote table | link appimage | removeformat',
+    contextmenu: 'link appimage table',
     block_formats: 'Paragraph=p; Heading 2=h2; Heading 3=h3; Heading 4=h4',
     placeholder,
     iframe_attrs: appearance !== 'body' ? { allowtransparency: 'true', style: 'background-color: transparent;' } : undefined,
     invalid_elements: 'script,iframe,object,embed,form,input,button,textarea,select,style,link,meta',
-    valid_elements: 'p,br,strong/b,em/i,u,s,a[href|target|rel|title],blockquote,ul,ol,li,h2,h3,h4,hr,pre,code,img[src|alt|title|width|height|style]',
+    valid_elements: 'p,br,strong/b,em/i,u,s,a[href|target|rel|title],blockquote,ul,ol,li,h2,h3,h4,hr,pre,code,img[src|alt|title|width|height|style],table[border|cellpadding|cellspacing|style],caption,thead,tbody,tfoot,tr,th[colspan|rowspan|scope|style],td[colspan|rowspan|style],colgroup[span],col[span|style]',
     valid_styles: {
       img: 'width,height,float,display,margin-left,margin-right,margin-top,margin-bottom',
+      table: 'border-collapse,width',
+      caption: 'text-align',
+      th: 'height,text-align,vertical-align,width',
+      td: 'height,text-align,vertical-align,width',
+      col: 'width',
     },
     default_link_target: '_blank',
     automatic_uploads: true,
@@ -159,8 +121,10 @@ const TinyMceRichTextEditor = ({ value, placeholder, appearance = 'body', disabl
     image_advtab: false,
     image_dimensions: true,
     image_uploadtab: true,
-    object_resizing: 'img',
+    object_resizing: 'img table',
     resize_img_proportional: true,
+    table_default_attributes: { border: '1' },
+    table_default_styles: { 'border-collapse': 'collapse', width: '100%' },
     images_upload_handler: async (blobInfo: TinyMceBlobInfo) => uploadForEditor(blobInfo.blob(), blobInfo.filename()),
     target_list: [
       { title: 'Current window', value: '' },
@@ -205,7 +169,7 @@ const TinyMceRichTextEditor = ({ value, placeholder, appearance = 'body', disabl
         }
       })
     },
-    content_style: editorContentStyle(appearance),
+    content_style: richTextEditorContentStyle(appearance),
   }), [appearance, imagePickerLabel, imageUploadFolder, minHeight, placeholder])
 
   const commitDraft = () => {
@@ -218,7 +182,7 @@ const TinyMceRichTextEditor = ({ value, placeholder, appearance = 'body', disabl
     <>
       <div
         className="block md:col-span-2 [&_.tox-tbtn--select]:!bg-slate-50 [&_.tox-tbtn--select]:!font-normal [&_.tox-tbtn--select]:!text-slate-700 [&_.tox-tbtn--select:hover]:!bg-slate-100"
-        data-editor-focus-target="true"
+        data-editor-focus-key={focusKey}
         tabIndex={-1}
       >
         <Editor

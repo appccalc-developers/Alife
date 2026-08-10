@@ -1,11 +1,10 @@
-import { useMemo } from 'react'
+import { Suspense, lazy, useMemo } from 'react'
 import { ArrowRight } from 'lucide-react'
 import { useAuthStore } from '../../stores/auth'
 import { useUiText } from '../../i18n/uiText'
 import { useListSourceResolver } from '../../hooks/useListSourceResolver'
 import { activeEntityService } from '../../services/activeEntityService'
 import {
-  EditableText,
   PropertyPanel,
   SelectInput,
   TextInput,
@@ -22,7 +21,7 @@ import type { SectionComponentProps } from './types'
 import SectionHeader from './SectionHeader'
 import { sectionSpacingClass } from './sectionPresets'
 import { spotlightHeaderForSource } from '../../utils/sectionSourcePresets'
-import type { SpotlightBinding, SpotlightDataSource } from '../../types'
+import type { SpotlightDataSource } from '../../types'
 import type { SermonDto } from '../../services/sermonService'
 import {
   buildSpotlightMetadata,
@@ -36,6 +35,24 @@ import {
   spotlightPresetOptionsForSource,
 } from '../../utils/spotlight'
 import MediaPickerInput from '../media/MediaPickerInput'
+import { richTextAppearanceClass, richTextBodyClass, sanitizeRichTextHtml } from '../rich-text/richTextHtml'
+
+const TinyMceRichTextEditor = lazy(() => import('../rich-text/TinyMceRichTextEditor'))
+
+const TinyMceLoading = ({ focusKey }: { focusKey: string }) => (
+  <div
+    aria-hidden="true"
+    className="h-64 animate-pulse rounded-lg border border-slate-200 bg-slate-100 md:col-span-2"
+    data-editor-focus-key={focusKey}
+    tabIndex={-1}
+  />
+)
+
+const pageImageUploadFolder = (groupId: string | undefined, pageId: string | undefined) => {
+  const groupFolder = groupId ? `groups/${groupId}` : 'global'
+  const pageFolder = pageId ? `pages/${pageId}` : 'pages/draft'
+  return `${groupFolder}/${pageFolder}/rich-text`
+}
 
 const readMediaConfig = (source: Record<string, unknown>, style: Record<string, unknown>) => {
   const media = source.media && typeof source.media === 'object' && !Array.isArray(source.media)
@@ -54,42 +71,15 @@ const readMediaConfig = (source: Record<string, unknown>, style: Record<string, 
   return { type, url, position, youtubeUrl, imageUrl }
 }
 
-type SpotlightPresentation = 'spotlight' | 'visit'
-
-const readStringValue = (source: Record<string, unknown>, ...keys: string[]) => {
-  for (const key of keys) {
-    const value = source[key]
-    if (typeof value === 'string' && value.trim()) {
-      return value.trim()
-    }
-  }
-
-  return ''
-}
-
-const readSpotlightPresentation = (content: Record<string, unknown>, style: Record<string, unknown>): SpotlightPresentation => {
-  const raw = readStringValue(content, 'presentation', 'variant', 'template')
-    || readStringValue(style, 'presentation', 'variant', 'layout')
-  const normalized = raw.replace(/[-_\s]+/g, '').toLowerCase()
-
-  return normalized === 'visit' || normalized === 'visitspotlight' || normalized === 'highlight' || normalized === 'visithighlight' || normalized === 'homevisit'
-    ? 'visit'
-    : 'spotlight'
-}
-
-const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, showProperties = true, onUpdate, contextGroupId, page, allowGroupDataSources = true }: SectionComponentProps) => {
+const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, showProperties = true, onUpdate, contextGroupId, page, pageId, allowGroupDataSources = true }: SectionComponentProps) => {
   const auth = useAuthStore()
   const t = useUiText()
   const editable = mode === 'edit' && !disabled && onUpdate
   const mediaConfig = readMediaConfig(section.contentJson, section.styleJson)
-  const presentation = readSpotlightPresentation(section.contentJson, section.styleJson)
-  const isVisitPresentation = presentation === 'visit'
-  const rawSpotlightBinding = readSpotlightBinding(section.contentJson)
-  const spotlightBinding = isVisitPresentation && rawSpotlightBinding.mode === 'data' && rawSpotlightBinding.source !== 'events'
-    ? { ...rawSpotlightBinding, source: 'events' as SpotlightDataSource, preset: defaultSpotlightPreset('events') }
-    : rawSpotlightBinding
+  const spotlightBinding = readSpotlightBinding(section.contentJson)
   const isDataBound = spotlightBinding.mode === 'data'
   const groupId = contextGroupId || page?.ownerGroupId || undefined
+  const uploadFolder = pageImageUploadFolder(groupId, pageId || page?.id)
   const spotlightMetadata = useMemo(
     () => buildSpotlightMetadata(spotlightBinding),
     [spotlightBinding.itemId, spotlightBinding.mode, spotlightBinding.preset, spotlightBinding.source],
@@ -159,35 +149,6 @@ const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, show
       : {}
     updateContent({ spotlight: { ...currentSpotlight, ...patch } })
   }
-  const updatePresentation = (value: string) => {
-    const nextPresentation: SpotlightPresentation = value === 'visit' ? 'visit' : 'spotlight'
-    const currentSpotlight = section.contentJson.spotlight && typeof section.contentJson.spotlight === 'object' && !Array.isArray(section.contentJson.spotlight)
-      ? section.contentJson.spotlight
-      : {}
-    const nextSpotlight: SpotlightBinding = nextPresentation === 'visit' && spotlightBinding.mode === 'data'
-      ? {
-        ...currentSpotlight,
-        mode: 'data' as const,
-        source: 'events' as const,
-        preset: defaultSpotlightPreset('events'),
-        itemId: spotlightBinding.itemId ?? '',
-      }
-      : currentSpotlight as SpotlightBinding
-
-    onUpdate?.({
-      ...section,
-      contentJson: {
-        ...section.contentJson,
-        presentation: nextPresentation,
-        spotlight: nextSpotlight,
-      },
-      styleJson: {
-        ...section.styleJson,
-        presentation: nextPresentation,
-        layout: nextPresentation === 'visit' ? 'visitSpotlight' : 'spotlight',
-      },
-    })
-  }
   const updateSpotlightSource = (source: SpotlightDataSource) => {
     const currentSpotlight = section.contentJson.spotlight && typeof section.contentJson.spotlight === 'object' && !Array.isArray(section.contentJson.spotlight)
       ? section.contentJson.spotlight
@@ -202,7 +163,6 @@ const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, show
       header: spotlightHeaderForSource(source, section.contentJson.header),
     })
   }
-  const spotlightSourceOptions: SpotlightDataSource[] = isVisitPresentation ? ['events'] : SPOTLIGHT_DATA_SOURCES
   const activateAction = (action: (typeof actions)[number]) => {
     if (action.entityType === 'group' && action.entityId) {
       activeEntityService.setGroup(action.entityId)
@@ -216,28 +176,12 @@ const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, show
   const renderProperties = () => (
     <PropertyPanel>
       <SelectInput
-        focusKey="spotlight-presentation"
-        label={t('presentation')}
-        value={presentation}
-        disabled={disabled}
-        options={[
-          { value: 'spotlight', label: t('standardSpotlight') },
-          { value: 'visit', label: t('visitSpotlight') },
-        ]}
-        onChange={updatePresentation}
-      />
-      <SelectInput
         focusKey="spotlight-mode"
         label={t('spotlightMode')}
         value={spotlightBinding.mode}
         disabled={disabled}
         options={[{ value: 'manual', label: t('manual') }, { value: 'data', label: t('dataBound') }]}
-        onChange={(value) => updateSpotlight({
-          mode: value,
-          source: isVisitPresentation && value === 'data' ? 'events' : spotlightBinding.source,
-          preset: isVisitPresentation && value === 'data' ? defaultSpotlightPreset('events') : spotlightBinding.preset,
-          itemId: spotlightBinding.itemId ?? '',
-        })}
+        onChange={(value) => updateSpotlight({ mode: value, source: spotlightBinding.source, preset: spotlightBinding.preset, itemId: spotlightBinding.itemId ?? '' })}
       />
       <SelectInput
         focusKey="spotlight-media-position"
@@ -260,7 +204,7 @@ const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, show
             label={t('contentSource')}
             value={spotlightBinding.source}
             disabled={disabled}
-            options={spotlightSourceOptions.map((source) => ({ value: source, label: t(source) }))}
+            options={SPOTLIGHT_DATA_SOURCES.map((source) => ({ value: source, label: t(source) }))}
             onChange={(value) => updateSpotlightSource(value as SpotlightDataSource)}
           />
           <SelectInput
@@ -373,17 +317,34 @@ const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, show
       ? <p className="mt-4 text-sm text-red-600">{t('loadFailedWithMessage', { message: spotlightError.message })}</p>
       : isDataBound && !spotlightItem
         ? <p className="mt-4 text-sm text-home-muted">{mediaPlaceholder}</p>
-        : (
-          <EditableText
-            as="p"
-            multiline
-            value={body}
-            fallback={t('noHeroContentYet')}
-            disabled={!editable || isDataBound}
-            className="mt-4 block max-w-[45ch] whitespace-pre-wrap text-[0.94rem] leading-7 text-home-muted"
-            onChange={(value) => updateLocalizedContent({ centerText: value, body: value, text: value })}
-          />
-        )
+        : mode === 'edit' && !isDataBound
+          ? (
+            <div className="mt-4">
+              <Suspense fallback={<TinyMceLoading focusKey="spotlight-body" />}>
+                <TinyMceRichTextEditor
+                  value={body}
+                  placeholder={t('noHeroContentYet')}
+                  appearance="spotlightBody"
+                  disabled={!editable}
+                  compact
+                  focusKey="spotlight-body"
+                  imageUploadFolder={uploadFolder}
+                  imagePickerLabel={t('image')}
+                  groupId={groupId}
+                  onChange={(value) => {
+                    const sanitizedValue = sanitizeRichTextHtml(value)
+                    updateLocalizedContent({ centerText: sanitizedValue, body: sanitizedValue, text: sanitizedValue })
+                  }}
+                />
+              </Suspense>
+            </div>
+          )
+          : (
+            <div
+              className={`${richTextBodyClass} ${richTextAppearanceClass.spotlightBody} mt-4`}
+              dangerouslySetInnerHTML={{ __html: sanitizeRichTextHtml(body || t('noHeroContentYet')) }}
+            />
+          )
   const renderActionLink = (
     action: (typeof actions)[number],
     index: number,
@@ -435,7 +396,7 @@ const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, show
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-home-dark/50 to-transparent" />
         </div>
         <div className={`flex items-center p-7 sm:p-10 lg:p-14 ${mediaPosition === 'right' ? 'lg:order-1' : 'lg:order-2'}`}>
-          <div>
+          <div className="min-w-0 w-full">
             {spotlightBody}
             {actions.length > 0 ? (
               <div className="mt-6 flex flex-wrap gap-3">

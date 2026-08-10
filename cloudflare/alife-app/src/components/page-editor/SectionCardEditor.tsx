@@ -106,6 +106,7 @@ const textValue = (value: unknown, language: string) => {
 
 type GuideTarget =
   | { type: 'preview'; index: number }
+  | { type: 'editor'; focusKey: string }
   | { type: 'properties'; tab: 'common' | 'section'; focusKey: string }
 
 type GuideItem = {
@@ -115,6 +116,13 @@ type GuideItem = {
   target: GuideTarget
   detail?: string
   requiresSectionHeader?: boolean
+}
+
+type SectionGuide = {
+  title: string
+  description: string
+  items: GuideItem[]
+  advice: string
 }
 
 type PropertyTab = 'guidance' | 'common' | 'section'
@@ -180,7 +188,7 @@ const formatMode = (value: string, isZh: boolean) => value === 'data'
   ? (isZh ? '从已有内容带入' : 'Filled from existing content')
   : (isZh ? '手动内容' : 'Manual')
 
-const getSectionGuide = (section: SectionEditModel, language: string) => {
+const getSectionGuide = (section: SectionEditModel, language: string): SectionGuide => {
   const isZh = language === 'zh'
   const title = readHeaderText(section, language, 'title') || readContentText(section, language, 'title', 'headline')
   const subtitle = readHeaderText(section, language, 'subtitle') || readContentText(section, language, 'subtitle', 'subheadline', 'centerText', 'body')
@@ -297,8 +305,8 @@ const getSectionGuide = (section: SectionEditModel, language: string) => {
       description: isZh ? '适合欢迎词、说明、FAQ 或流程介绍。每段只讲一个重点。' : 'Best for welcome copy, explanations, FAQ, or steps. Keep each paragraph focused.',
       items: [
         { label: isZh ? '区块标题' : 'Section title', ready: Boolean(title), detail: summarizeValue(title, isZh), icon: <Type className="h-4 w-4" />, target: { type: 'preview', index: 0 }, requiresSectionHeader: true },
-        { label: isZh ? '正文内容' : 'Body content', ready: Boolean(richText), detail: summarizeValue(richText, isZh), icon: <FileText className="h-4 w-4" />, target: { type: 'preview', index: 2 } },
-        { label: isZh ? '阅读长度' : 'Readable length', ready: !richText || richText.length <= 900, detail: isZh ? `${richText.length} 字符` : `${richText.length} chars`, icon: <Sparkles className="h-4 w-4" />, target: { type: 'preview', index: 2 } },
+        { label: isZh ? '正文内容' : 'Body content', ready: Boolean(richText), detail: summarizeValue(richText, isZh), icon: <FileText className="h-4 w-4" />, target: { type: 'editor', focusKey: 'rich-text-body' } },
+        { label: isZh ? '阅读长度' : 'Readable length', ready: !richText || richText.length <= 900, detail: isZh ? `${richText.length} 字符` : `${richText.length} chars`, icon: <Sparkles className="h-4 w-4" />, target: { type: 'editor', focusKey: 'rich-text-body' } },
       ] satisfies GuideItem[],
       advice: isZh ? '如果内容超过三四段，可以考虑拆成两个区块或 FAQ。' : 'If this grows past a few paragraphs, consider splitting it into another section or FAQ.',
     }
@@ -322,7 +330,15 @@ const getSectionGuide = (section: SectionEditModel, language: string) => {
     description: isZh ? '适合用首页风格的图片、短文和按钮讲一个服事重点。' : 'Use a homepage-style image, concise copy, and one action to tell a focused ministry story.',
     items: [
       { label: isZh ? '标题' : 'Title', ready: Boolean(title), detail: summarizeValue(title, isZh), icon: <Type className="h-4 w-4" />, target: { type: 'preview', index: 0 }, requiresSectionHeader: true },
-      { label: isZh ? '说明文案' : 'Supporting copy', ready: Boolean(subtitle || richText), detail: summarizeValue(subtitle || richText, isZh), icon: <FileText className="h-4 w-4" />, target: { type: 'preview', index: 1 } },
+      {
+        label: isZh ? '说明文案' : 'Supporting copy',
+        ready: Boolean(richText),
+        detail: summarizeValue(richText, isZh),
+        icon: <FileText className="h-4 w-4" />,
+        target: spotlightMode === 'manual'
+          ? { type: 'editor', focusKey: 'spotlight-body' }
+          : { type: 'properties', tab: 'section', focusKey: 'spotlight-source' },
+      },
       {
         label: isZh ? '自动带入' : 'Auto-filled content',
         ready: spotlightMode === 'manual' || Boolean(spotlightSource),
@@ -397,19 +413,34 @@ const SectionCardEditor = ({
   const readyCount = guideItems.filter((item) => item.ready).length
   const guideComplete = readyCount === guideItems.length
   const isZh = language === 'zh'
-  const focusInlineEditable = (index: number) => {
+  const focusPreviewTarget = (index: number) => {
     window.setTimeout(() => {
-      const editables = Array.from(cardRef.current?.querySelectorAll<HTMLElement>('[contenteditable="true"], [data-editor-focus-target="true"]') ?? [])
+      const editables = Array.from(cardRef.current?.querySelectorAll<HTMLElement>('[contenteditable="true"]') ?? [])
       const target = editables[Math.min(index, Math.max(0, editables.length - 1))]
       target?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       target?.focus()
+    }, 50)
+  }
+  const focusRichTextEditor = (focusKey: string) => {
+    window.setTimeout(() => {
+      const editorTargets = Array.from(cardRef.current?.querySelectorAll<HTMLElement>('[data-editor-focus-key]') ?? [])
+      const target = editorTargets.find((element) => element.dataset.editorFocusKey === focusKey)
+      target?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      const iframe = target?.querySelector<HTMLIFrameElement>('iframe')
+      const focusTarget = iframe ?? target
+      focusTarget?.focus()
     }, 50)
   }
   const handleGuideItemClick = (item: GuideItem) => {
     setActiveGuideLabel(item.label)
     if (item.target.type === 'preview') {
       setPropertiesOpen(false)
-      focusInlineEditable(item.target.index)
+      focusPreviewTarget(item.target.index)
+      return
+    }
+    if (item.target.type === 'editor') {
+      setPropertiesOpen(false)
+      focusRichTextEditor(item.target.focusKey)
       return
     }
 
