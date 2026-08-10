@@ -107,23 +107,6 @@ const isSpotlightLayout = (layout: string) => {
     || normalized === 'split'
     || normalized === 'sermonspotlight'
     || normalized === 'spotlight'
-    || normalized === 'visitspotlight'
-    || normalized === 'visithighlight'
-    || normalized === 'homevisit'
-    || normalized === 'highlight'
-}
-
-const isLegacyVisitSpotlight = (contentJson: Record<string, unknown>, styleJson: Record<string, unknown>) => {
-  const marker = firstString(
-    contentJson.presentation,
-    contentJson.variant,
-    contentJson.template,
-    styleJson.presentation,
-    styleJson.variant,
-    styleJson.layout,
-  )
-  const normalized = marker.replace(/[-_\s]+/g, '').toLowerCase()
-  return normalized === 'visit' || normalized === 'visitspotlight' || normalized === 'highlight' || normalized === 'visithighlight' || normalized === 'homevisit'
 }
 
 const normalizeSpotlightMedia = (contentJson: Record<string, unknown>, styleJson: Record<string, unknown>): SpotlightMedia => {
@@ -320,14 +303,10 @@ export const normalizePageSection = (section: SectionDto): SectionEditModel => {
 
   if (type === 'Spotlight') {
     const media = normalizeSpotlightMedia(contentJson, styleJson)
-    const legacyVisitSpotlight = isLegacyVisitSpotlight(contentJson, styleJson)
-    const hasSpotlightConfig = Boolean(contentJson.spotlight && typeof contentJson.spotlight === 'object' && !Array.isArray(contentJson.spotlight))
     const binding = readSpotlightBinding(contentJson)
     contentJson.media = media
     contentJson.presentation = 'spotlight'
-    contentJson.spotlight = legacyVisitSpotlight && !hasSpotlightConfig
-      ? { ...binding, source: 'events', preset: 'upcoming' }
-      : binding
+    contentJson.spotlight = binding
     if (!contentJson.body) {
       contentJson.body = toLocalizedHeaderText(firstString(contentJson.body, contentJson.centerText, contentJson.text))
     }
