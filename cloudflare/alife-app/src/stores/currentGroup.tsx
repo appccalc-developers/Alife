@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useLocation } from 'react-router-dom'
 import { isAuthOptionalLocation } from '../app/routing/publicRoutePolicy'
 import { conditionalGet } from '../db/httpCache'
-import { churchQueryKey, groupQueryKey } from '../db/collections/groupCollection'
+import { churchQueryKey, fetchGroupForViewer } from '../db/collections/groupCollection'
 import { useUiText } from '../i18n/uiText'
 import { activeEntityService } from '../services/activeEntityService'
 import { useAuthStore } from './auth'
@@ -77,10 +77,7 @@ export const CurrentGroupProvider = ({ children }: { children: ReactNode }) => {
       setError('')
 
       try {
-        const group = await conditionalGet<GroupDto>({
-          queryKey: groupQueryKey(activeGroupId),
-          path: `/api/groups/${activeGroupId}`,
-        })
+        const group = await fetchGroupForViewer(activeGroupId, auth.me?.id)
         if (!cancelled) {
           setCurrentGroup(normalizeGroup(group))
         }
@@ -100,7 +97,7 @@ export const CurrentGroupProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       cancelled = true
     }
-  }, [auth.isGuest, groupContextEnabled, refreshChurchGroup])
+  }, [auth.isGuest, auth.me?.id, groupContextEnabled, refreshChurchGroup])
 
   const value = useMemo<CurrentGroupContextValue>(
     () => ({

@@ -84,10 +84,22 @@ export const eventService = {
     await eventSessionService.close(sessionId)
   },
 
-  getGroupEvents: async (groupId: string): Promise<GroupEventRecord[]> => {
-    return conditionalGet<GroupEventRecord[]>({
-      queryKey: groupEventsQueryKey(groupId),
+  getGroupEvents: async (groupId: string, viewerId?: string): Promise<GroupEventRecord[]> => {
+    const queryKey = groupEventsQueryKey(groupId)
+    const fetchEvents = () => conditionalGet<GroupEventRecord[]>({
+      queryKey,
       path: `/api/groups/${groupId}/events`,
+    })
+
+    if (!viewerId) {
+      return fetchEvents()
+    }
+
+    return queryClient.fetchQuery({
+      queryKey: [...queryKey, 'viewer', viewerId],
+      queryFn: fetchEvents,
+      // Coalesce sequential StrictMode startup reads while preserving navigation revalidation.
+      staleTime: 1_000,
     })
   },
 

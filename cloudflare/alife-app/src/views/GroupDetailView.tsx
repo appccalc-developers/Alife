@@ -6,12 +6,15 @@ import GroupManageView from './GroupManageView'
 import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
 import { useGroupScreen } from '../hooks/useGroupScreen'
 import { activeEntityService } from '../services/activeEntityService'
+import { useAuthStore } from '../stores/auth'
 import { useCurrentGroupStore } from '../stores/currentGroup'
 
-const GroupDetailView = () => {
-  const { groupId: routeGroupId } = useParams<{ groupId: string }>()
-  const { groupId: activeGroupId, pageId } = useActiveEntityIds({ groupId: routeGroupId })
-  const groupId = activeGroupId || ''
+type GroupBrowseViewProps = {
+  groupId: string
+  pageId: string
+}
+
+const GroupBrowseView = ({ groupId, pageId }: GroupBrowseViewProps) => {
   const navigate = useNavigate()
   const { setCurrentGroup } = useCurrentGroupStore()
 
@@ -35,14 +38,6 @@ const GroupDetailView = () => {
       setCurrentGroup(group)
     }
   }, [group, setCurrentGroup])
-
-  if (!groupId) {
-    return <Navigate to="/groups/select" replace />
-  }
-
-  if (!pageId && !loading && canManageGroup) {
-    return <GroupManageView embeddedWorkspace />
-  }
 
   return (
     <GroupScreenShell
@@ -75,6 +70,23 @@ const GroupDetailView = () => {
       }}
     />
   )
+}
+
+const GroupDetailView = () => {
+  const auth = useAuthStore()
+  const { groupId: routeGroupId } = useParams<{ groupId: string }>()
+  const { groupId: activeGroupId, pageId } = useActiveEntityIds({ groupId: routeGroupId })
+  const groupId = activeGroupId || ''
+
+  if (!groupId) {
+    return <Navigate to="/groups/select" replace />
+  }
+
+  if (!pageId && auth.canManageGroup(groupId)) {
+    return <GroupManageView embeddedWorkspace />
+  }
+
+  return <GroupBrowseView groupId={groupId} pageId={pageId} />
 }
 
 export default GroupDetailView

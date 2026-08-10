@@ -87,10 +87,15 @@ const HomeRoute = () => {
   return pageMenuName ? <PageView /> : <HomeView />
 }
 
+const isGroupWorkspaceSectionPath = (pathname: string) =>
+  pathname === '/groups' ||
+  pathname === '/groups/manage' ||
+  /^\/groups\/(?!select$|join$|manage$)[^/]+(?:\/manage)?$/.test(pathname)
+
 const AppRoutes = () => {
   const location = useLocation()
   const reduceMotion = useReducedMotion()
-  const routeTransitionKey = location.pathname === '/study'
+  const routeTransitionKey = location.pathname === '/study' || isGroupWorkspaceSectionPath(location.pathname)
     ? location.pathname
     : location.pathname + location.search
 

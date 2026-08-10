@@ -5,9 +5,9 @@ import { groupService } from '../services/groupService'
 import { pageService } from '../services/pageService'
 import { eventService } from '../services/eventService'
 import { useAuthStore } from '../stores/auth'
-import { conditionalGet, removeCachedRecord } from '../db/httpCache'
+import { removeCachedRecord } from '../db/httpCache'
 import { normalizeGroup } from '../utils/apiEnums'
-import { groupQueryKey, getCachedSubgroups, subgroupsQueryKey } from '../db/collections/groupCollection'
+import { ensureGroupForViewer, groupQueryKey, getCachedSubgroups, subgroupsQueryKey } from '../db/collections/groupCollection'
 import { subgroupsCollection } from '../db/collections/groupCollection'
 import { groupPagesCollection, getCachedGroupPages } from '../db/collections/groupCollection'
 import { groupMembershipsCollection, getCachedGroupMemberships } from '../db/collections/groupCollection'
@@ -39,23 +39,21 @@ export const useGroupScreen = (groupId: string, options: GroupScreenOptions = {}
   const queryClient = useQueryClient()
   const shouldLoadEvents = options.loadEvents === true
   const [activeTab, setActiveTab] = useState<GroupTab>('overview')
-  const [group, setGroup] = useState<GroupDto | null>(null)
+  const [loadedGroup, setLoadedGroup] = useState<GroupDto | null>(null)
   const [groupLoading, setGroupLoading] = useState(true)
   const [error, setError] = useState('')
   const [statusMessage, setStatusMessage] = useState('')
   const [events, setEvents] = useState<GroupEventRecord[]>([])
+  const group = loadedGroup?.id === groupId ? loadedGroup : null
 
-  // Load the group as a single object through conditionalGet.
+  // The shell validates the active group; the screen shares that viewer-scoped result.
   useEffect(() => {
     if (!groupId) return
     let cancelled = false
     setGroupLoading(true)
-    conditionalGet<GroupDto>({
-      queryKey: groupQueryKey(groupId),
-      path: `/api/groups/${groupId}`,
-    })
+    ensureGroupForViewer(groupId, auth.me?.id)
       .then((data) => {
-        if (!cancelled) setGroup(normalizeGroup(data))
+        if (!cancelled) setLoadedGroup(normalizeGroup(data))
       })
       .catch((reason) => {
         if (!cancelled) setError(reason instanceof Error ? reason.message : t('groupLoadFailed'))
@@ -64,7 +62,7 @@ export const useGroupScreen = (groupId: string, options: GroupScreenOptions = {}
         if (!cancelled) setGroupLoading(false)
       })
     return () => { cancelled = true }
-  }, [groupId])
+  }, [auth.me?.id, groupId])
 
   const canPubliclyBrowseGroup = group?.isChurch || group?.accessType === 'public'
 
@@ -116,20 +114,22 @@ export const useGroupScreen = (groupId: string, options: GroupScreenOptions = {}
   const canCreatePage = isPlatformAdmin || membership?.status === 'approved'
   const canEditAllPages = canManageGroup
   const canPublishPages = canManageGroup
+  const canLoadEvents = shouldLoadEvents && Boolean(groupId) && (membership?.status === 'approved' || Boolean(canPubliclyBrowseGroup))
+  const eventViewerId = auth.me?.id || 'guest'
 
   // Fetch events for approved members and for public group access.
   useEffect(() => {
-    if (!shouldLoadEvents || !groupId || (membership?.status !== 'approved' && !canPubliclyBrowseGroup)) {
+    if (!canLoadEvents) {
       setEvents([])
       return
     }
 
     let cancelled = false
-    eventService.getGroupEvents(groupId)
+    eventService.getGroupEvents(groupId, eventViewerId)
       .then((data) => { if (!cancelled) setEvents(data) })
       .catch(() => { if (!cancelled) setEvents([]) })
     return () => { cancelled = true }
-  }, [canPubliclyBrowseGroup, groupId, membership?.status, shouldLoadEvents])
+  }, [canLoadEvents, eventViewerId, groupId])
 
   const summary = useMemo(() => {
     if (!group) return ''
@@ -195,7 +195,7 @@ export const useGroupScreen = (groupId: string, options: GroupScreenOptions = {}
     async (payload: { name: LocalizedText; description?: LocalizedText; accessType: GroupDto['accessType']; isClosed: boolean }) => {
       if (!groupId) return null
       const updated = await groupService.updateGroup(groupId, payload)
-      setGroup(updated)
+      setLoadedGroup(updated)
       await removeCachedRecord(groupQueryKey(groupId))
       await queryClient.invalidateQueries({ queryKey: groupQueryKey(groupId) })
       if (updated.parentGroupId) {
