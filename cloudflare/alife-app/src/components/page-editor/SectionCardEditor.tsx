@@ -53,6 +53,7 @@ const sectionTypeLabel = (type: SectionType, isZh: boolean) => {
   if (type === 'RichText') return isZh ? '图文说明' : 'Rich Text'
   if (type === 'Spotlight') return isZh ? '重点推荐' : 'Spotlight'
   if (type === 'CollectionShowcase') return isZh ? '列表视图' : 'List View'
+  if (type === 'ReviewedPageCarousel') return isZh ? '审核页面轮播' : 'Reviewed Page Carousel'
   if (type === 'Album') return isZh ? '相册' : 'Album'
   return type
 }
@@ -198,6 +199,7 @@ const getSectionGuide = (section: SectionEditModel, language: string): SectionGu
   const secondaryLinkLabel = readContentText(section, language, 'secondaryLinkLabel', 'secondaryLabel', 'secondaryCtaLabel')
   const secondaryLinkUrl = readContentText(section, language, 'secondaryLinkUrl', 'secondaryUrl', 'secondaryCtaUrl')
   const source = readContentText(section, language, 'source', 'sourceType')
+  const primaryMenuId = readContentText(section, language, 'primaryMenuId')
   const layout = readContentText(section, language, 'layout')
   const spotlight = section.contentJson.spotlight && typeof section.contentJson.spotlight === 'object' && !Array.isArray(section.contentJson.spotlight)
     ? section.contentJson.spotlight as Record<string, unknown>
@@ -322,6 +324,19 @@ const getSectionGuide = (section: SectionEditModel, language: string): SectionGu
         { label: isZh ? '数量限制' : 'Item limit', ready: limit > 0 && limit <= 50, detail: limit ? (isZh ? `${limit} 项` : `${limit} items`) : fallbackText(isZh), icon: <Settings2 className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'list-limit' } },
       ] satisfies GuideItem[],
       advice: isZh ? '首页建议显示 3 到 6 项，管理页或列表页可以更多。' : 'For home pages, 3 to 6 items usually scans best; directory pages can show more.',
+    }
+  }
+
+  if (section.type === 'ReviewedPageCarousel') {
+    return {
+      title: isZh ? '审核页面轮播引导' : 'Reviewed page carousel guidance',
+      description: isZh ? '选择一个一级主菜单，自动轮播其已审核的公开二级页面。' : 'Choose one primary menu to carousel its reviewed public child pages.',
+      items: [
+        { label: isZh ? '一级主菜单' : 'Primary menu', ready: Boolean(primaryMenuId), detail: primaryMenuId ? (isZh ? '已选择' : 'Selected') : fallbackText(isZh), icon: <LayoutList className="h-4 w-4" />, target: { type: 'properties', tab: 'section', focusKey: 'reviewed-carousel-primary-menu' } },
+        { label: isZh ? '区块标题' : 'Section title', ready: Boolean(title), detail: summarizeValue(title, isZh), icon: <Type className="h-4 w-4" />, target: { type: 'preview', index: 0 } },
+        { label: isZh ? '说明文案' : 'Supporting copy', ready: Boolean(subtitle), detail: summarizeValue(subtitle, isZh), icon: <FileText className="h-4 w-4" />, target: { type: 'preview', index: 1 } },
+      ] satisfies GuideItem[],
+      advice: isZh ? '轮播内容只来自已审核的公开页面；菜单调整后会自动反映最新顺序。' : 'Carousel items come only from reviewed public pages and follow the latest reviewer-defined order.',
     }
   }
 

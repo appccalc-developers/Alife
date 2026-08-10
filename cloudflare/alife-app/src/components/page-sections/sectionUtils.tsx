@@ -361,6 +361,7 @@ export const SelectInput = ({
   label,
   value,
   disabled,
+  required,
   options,
   focusKey,
   onChange,
@@ -368,15 +369,20 @@ export const SelectInput = ({
   label: string
   value: string
   disabled?: boolean
+  required?: boolean
   options: Array<{ value: string; label: string }>
   focusKey?: string
   onChange: (value: string) => void
 }) => (
   <label className="block space-y-1" data-field-key={focusKey}>
-    <span className="text-xs font-medium text-slate-600">{label}</span>
+    <span className="text-xs font-medium text-slate-600">
+      {label}{required ? <span aria-hidden="true" className="ml-0.5 text-red-600">*</span> : null}
+    </span>
     <select
       value={value}
       disabled={disabled}
+      required={required}
+      aria-required={required || undefined}
       className="h-9 w-full rounded border border-slate-300 px-2 text-sm disabled:bg-slate-100"
       onChange={(event) => onChange(event.target.value)}
     >

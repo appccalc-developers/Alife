@@ -49,6 +49,7 @@ export type SectionContentJson = Record<string, unknown> & {
   source?: ListViewSource
   preset?: string
   layout?: ListViewLayout
+  primaryMenuId?: string
 }
 
 export type ListSourceType = 'announcements' | 'sermons' | 'pages' | 'subgroups' | 'events' | 'members' | 'contacts' | 'groups' | 'media' | 'posts'
@@ -123,6 +124,7 @@ export type SectionType =
   | 'Spotlight'
   | 'RichText'
   | 'CollectionShowcase'
+  | 'ReviewedPageCarousel'
   | 'Album'
 
 export type SectionEditModel = {

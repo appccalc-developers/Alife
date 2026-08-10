@@ -19,6 +19,7 @@ type FeaturedCarouselProps = {
   previousLabel: string
   nextLabel: string
   compact?: boolean
+  linksDisabled?: boolean
   onActiveItemChange?: (item: FeaturedCarouselItem) => void
 }
 
@@ -36,6 +37,7 @@ const FeaturedCarousel = ({
   previousLabel,
   nextLabel,
   compact = false,
+  linksDisabled = false,
   onActiveItemChange,
 }: FeaturedCarouselProps) => {
   const prefersReducedMotion = useReducedMotion()
@@ -100,7 +102,14 @@ const FeaturedCarousel = ({
           >
             <Link
               to={activeItem.to}
-              onClick={() => activeItem.onActivate?.()}
+              aria-disabled={linksDisabled || undefined}
+              onClick={(event) => {
+                if (linksDisabled) {
+                  event.preventDefault()
+                  return
+                }
+                activeItem.onActivate?.()
+              }}
               aria-label={`${activeIndex + 1} / ${items.length}: ${activeItem.title}`}
               className="group block h-full"
             >

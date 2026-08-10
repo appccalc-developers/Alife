@@ -306,6 +306,32 @@ export const createEmptyPageSection = (type: SectionType = 'RichText'): SectionE
     }
   }
 
+  if (type === 'ReviewedPageCarousel') {
+    return {
+      order: 0,
+      type: 'ReviewedPageCarousel',
+      contentJson: {
+        sectionKind: 'reviewedPageCarousel',
+        header: {
+          ...createDefaultSectionHeader(),
+          title: localized('Explore our community', '探索我们的群体'),
+          subtitle: localized(
+            'Discover more through the pages in this menu.',
+            '通过这个菜单下的页面进一步了解我们。',
+          ),
+          align: 'left',
+          tone: 'fresh',
+        },
+        spacing: 'normal',
+        primaryMenuId: '',
+      },
+      styleJson: {
+        layout: 'reviewedPageCarousel',
+        frontendType: 'ReviewedPageCarousel',
+      },
+    }
+  }
+
   if (type === 'CollectionShowcase') {
     return {
       order: 0,
