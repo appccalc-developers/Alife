@@ -43,6 +43,7 @@ type Props = {
 const sectionTypeOptions: Array<{ type: SectionType; label: LocalText; description: LocalText; Icon: LucideIcon }> = [
   { type: 'LandingHero', label: { en: 'Landing Hero', zh: '首页视频主视觉' }, description: { en: 'Homepage-style video opening with headline and two actions.', zh: '首页风格的视频开场，包含主标题和两个行动按钮。' }, Icon: Video },
   { type: 'Spotlight', label: { en: 'Spotlight', zh: '重点推荐' }, description: { en: 'Homepage-style spotlight block using custom content or one event.', zh: '首页风格的重点内容，可手动填写或带入一个活动。' }, Icon: Type },
+  { type: 'ReviewedPageCarousel', label: { en: 'Reviewed Page Carousel', zh: '审核页面轮播' }, description: { en: 'Carousel the reviewed child pages from one primary menu.', zh: '轮播一个一级主菜单下已审核的二级页面。' }, Icon: LayoutList },
   { type: 'RichText', label: { en: 'Rich Text', zh: '图文说明' }, description: { en: 'Longer bilingual copy for welcome text, FAQ, or steps.', zh: '适合欢迎语、常见问题、流程说明等较长双语文字。' }, Icon: FileText },
   { type: 'CollectionShowcase', label: { en: 'List View', zh: '列表视图' }, description: { en: 'Show content from events, sermons, groups, pages, or members.', zh: '展示活动、讲道、小组、页面或成员等内容来源。' }, Icon: LayoutList },
   { type: 'Album', label: { en: 'Album', zh: '相册' }, description: { en: 'Display photos from one managed album.', zh: '引用并展示一个已管理的相册。' }, Icon: Images },
