@@ -197,6 +197,9 @@ const contactLocationTextKeys = [
   'locationAddress',
   'addressNote',
   'body',
+  'contactName',
+  'contactNameLabel',
+  'contactPhoneLabel',
   'openMapLabel',
   'linkLabel',
   'linkText',
@@ -481,6 +484,24 @@ const pushSectionCandidates = (
         field: `sections.${index}.locationAddress`,
         textType: 'sectionBody',
         value: locationAddress,
+      })
+    }
+
+    const contactNameLabel = findFirstTextValue(section.contentJson, ['contactNameLabel'])
+    if (contactNameLabel !== undefined) {
+      candidates.push({
+        field: `sections.${index}.contactNameLabel`,
+        textType: 'sectionBody',
+        value: contactNameLabel,
+      })
+    }
+
+    const contactPhoneLabel = findFirstTextValue(section.contentJson, ['contactPhoneLabel'])
+    if (contactPhoneLabel !== undefined) {
+      candidates.push({
+        field: `sections.${index}.contactPhoneLabel`,
+        textType: 'sectionBody',
+        value: contactPhoneLabel,
       })
     }
 
