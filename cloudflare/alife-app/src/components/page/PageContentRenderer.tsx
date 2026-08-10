@@ -8,7 +8,13 @@ import { translateUi, useUiText } from '../../i18n/uiText'
 import { useAuthStore } from '../../stores/auth'
 import { localizeText } from '../../utils/localizedText'
 import { listViewContentDefaultsForSource, normalizeListViewSource } from '../../utils/sectionSourcePresets'
-import { defaultContactLocationMapEmbedUrl, defaultContactLocationMapUrl, defaultContactLocationStreetAddress } from '../../utils/contactLocation'
+import {
+  defaultContactLocationMapEmbedUrl,
+  defaultContactLocationMapUrl,
+  defaultContactLocationStreetAddress,
+  defaultLocationInquiryContactName,
+  defaultLocationInquiryContactPhone,
+} from '../../utils/contactLocation'
 import { DEFAULT_HERO_IMAGE, EditableText } from '../page-sections/sectionUtils'
 import { pageSectionDividerClass, pageSectionShellClass } from '../page-sections/sectionPresets'
 
@@ -202,6 +208,9 @@ export const createEmptyPageSection = (type: SectionType = 'RichText'): SectionE
     const locationName = localized('Chinese Abundant Life Church', '基督城华人丰盛生命教会')
     const address = localized(defaultContactLocationStreetAddress, defaultContactLocationStreetAddress)
     const addressNote = localized('Christchurch, New Zealand', 'Christchurch, New Zealand')
+    const contactName = localized(defaultLocationInquiryContactName, defaultLocationInquiryContactName)
+    const contactNameLabel = localized('Inquiry contact', '问询联系人')
+    const contactPhoneLabel = localized('Phone', '联系电话')
     const openMapLabel = localized('Open in Google Maps', '在 Google Maps 打开')
 
     return {
@@ -230,6 +239,10 @@ export const createEmptyPageSection = (type: SectionType = 'RichText'): SectionE
         locationAddress: addressNote,
         addressNote,
         body: addressNote,
+        contactName,
+        contactNameLabel,
+        contactPhone: defaultLocationInquiryContactPhone,
+        contactPhoneLabel,
         openMapLabel,
         linkLabel: openMapLabel,
         linkText: openMapLabel,

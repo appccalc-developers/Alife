@@ -1,6 +1,12 @@
 import LocationSectionPresentation from '../location/LocationSectionPresentation'
 import { useAuthStore } from '../../stores/auth'
-import { defaultContactLocationMapEmbedUrl, defaultContactLocationMapUrl, defaultContactLocationStreetAddress } from '../../utils/contactLocation'
+import {
+  defaultContactLocationMapEmbedUrl,
+  defaultContactLocationMapUrl,
+  defaultContactLocationStreetAddress,
+  defaultLocationInquiryContactName,
+  defaultLocationInquiryContactPhone,
+} from '../../utils/contactLocation'
 import {
   EditableText,
   PropertyPanel,
@@ -23,6 +29,10 @@ const ContactLocationSection = ({ section, mode, domId, disabled, propertiesOnly
   const locationName = readLocalizedText(section.contentJson, language, 'locationName', 'title') || label(language, 'Chinese Abundant Life Church', '基督城华人丰盛生命教会')
   const streetAddress = readLocalizedText(section.contentJson, language, 'streetAddress', 'address') || defaultContactLocationStreetAddress
   const locationAddress = readLocalizedText(section.contentJson, language, 'locationAddress', 'addressNote', 'body') || label(language, 'Christchurch, New Zealand', 'Christchurch, New Zealand')
+  const contactName = readLocalizedText(section.contentJson, language, 'contactName') || defaultLocationInquiryContactName
+  const contactNameLabel = readLocalizedText(section.contentJson, language, 'contactNameLabel') || label(language, 'Inquiry contact', '问询联系人')
+  const contactPhone = readText(section.contentJson, 'contactPhone') || defaultLocationInquiryContactPhone
+  const contactPhoneLabel = readLocalizedText(section.contentJson, language, 'contactPhoneLabel') || label(language, 'Phone', '联系电话')
   const openMapLabel = readLocalizedText(section.contentJson, language, 'openMapLabel', 'linkLabel', 'linkText', 'ctaLabel') || label(language, 'Open in Google Maps', '在 Google Maps 打开')
   const mapUrl = readText(section.contentJson, 'mapUrl', 'linkUrl', 'ctaUrl', 'href') || defaultContactLocationMapUrl
   const mapEmbedUrl = readText(section.contentJson, 'mapEmbedUrl', 'embedUrl') || defaultContactLocationMapEmbedUrl
@@ -32,6 +42,9 @@ const ContactLocationSection = ({ section, mode, domId, disabled, propertiesOnly
   const updateLocationName = (value: string) => updateLocalizedContent({ locationName: value, title: value })
   const updateStreetAddress = (value: string) => updateLocalizedContent({ streetAddress: value, address: value })
   const updateLocationAddress = (value: string) => updateLocalizedContent({ locationAddress: value, addressNote: value, body: value })
+  const updateContactName = (value: string) => updateLocalizedContent({ contactName: value })
+  const updateContactNameLabel = (value: string) => updateLocalizedContent({ contactNameLabel: value })
+  const updateContactPhoneLabel = (value: string) => updateLocalizedContent({ contactPhoneLabel: value })
   const updateOpenMapLabel = (value: string) => updateLocalizedContent({ openMapLabel: value, linkLabel: value, linkText: value, ctaLabel: value })
 
   const renderProperties = () => (
@@ -64,6 +77,34 @@ const ContactLocationSection = ({ section, mode, domId, disabled, propertiesOnly
         value={locationAddress}
         disabled={disabled}
         onChange={updateLocationAddress}
+      />
+      <TextInput
+        focusKey="contact-location-contact-name"
+        label={label(language, 'Contact name', '联系人姓名')}
+        value={contactName}
+        disabled={disabled}
+        onChange={updateContactName}
+      />
+      <TextInput
+        focusKey="contact-location-contact-name-label"
+        label={label(language, 'Contact name label', '联系人姓名标签')}
+        value={contactNameLabel}
+        disabled={disabled}
+        onChange={updateContactNameLabel}
+      />
+      <TextInput
+        focusKey="contact-location-contact-phone"
+        label={label(language, 'Contact phone', '联系电话')}
+        value={contactPhone}
+        disabled={disabled}
+        onChange={(value) => updateContent({ contactPhone: value })}
+      />
+      <TextInput
+        focusKey="contact-location-contact-phone-label"
+        label={label(language, 'Contact phone label', '联系电话标签')}
+        value={contactPhoneLabel}
+        disabled={disabled}
+        onChange={updateContactPhoneLabel}
       />
       <TextInput
         focusKey="contact-location-map-url"
@@ -127,6 +168,37 @@ const ContactLocationSection = ({ section, mode, domId, disabled, propertiesOnly
             disabled={!editable}
             className="block"
             onChange={updateLocationAddress}
+          />
+        )}
+        contactName={(
+          <EditableText
+            as="span"
+            value={contactName}
+            fallback={label(language, 'Contact name', '联系人姓名')}
+            disabled={!editable}
+            className="block"
+            onChange={updateContactName}
+          />
+        )}
+        contactNameLabel={(
+          <EditableText
+            as="span"
+            value={contactNameLabel}
+            fallback={label(language, 'Inquiry contact', '问询联系人')}
+            disabled={!editable}
+            className="block"
+            onChange={updateContactNameLabel}
+          />
+        )}
+        contactPhone={contactPhone}
+        contactPhoneLabel={(
+          <EditableText
+            as="span"
+            value={contactPhoneLabel}
+            fallback={label(language, 'Phone', '联系电话')}
+            disabled={!editable}
+            className="block"
+            onChange={updateContactPhoneLabel}
           />
         )}
         mapUrl={mapUrl}
