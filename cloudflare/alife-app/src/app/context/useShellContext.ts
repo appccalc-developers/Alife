@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { groupPagesQueryKey, groupQueryKey, subgroupsQueryKey } from '../../db/collections/groupCollection'
+import { fetchGroupForViewer, groupPagesQueryKey, subgroupsQueryKey } from '../../db/collections/groupCollection'
 import { conditionalGet } from '../../db/httpCache'
 import { useActiveEntityIds } from '../../hooks/useActiveEntityIds'
 import { activeEntityService } from '../../services/activeEntityService'
@@ -8,7 +8,7 @@ import { groupService } from '../../services/groupService'
 import { useAuthStore } from '../../stores/auth'
 import { useCurrentGroupStore } from '../../stores/currentGroup'
 import { useLeaderUiPreferences } from '../../stores/leaderUiPreferences'
-import type { GroupDto, GroupSummaryDto, PageSummaryDto } from '../../types'
+import type { GroupSummaryDto, PageSummaryDto } from '../../types'
 import { normalizeGroup, normalizePageSummary } from '../../utils/apiEnums'
 import { normalizeRouteGroupId } from '../../utils/groupRouteIds'
 import { confirmUnsavedChangesNavigation } from '../../utils/unsavedChangesGuard'
@@ -146,7 +146,7 @@ export const useShellContext = () => {
     }
 
     let cancelled = false
-    conditionalGet<GroupDto>({ queryKey: groupQueryKey(contextualGroupId), path: `/api/groups/${contextualGroupId}` })
+    fetchGroupForViewer(contextualGroupId, auth.me?.id)
       .then((group) => {
         if (!cancelled) setContextualGroup(normalizeGroup(group))
       })
@@ -162,7 +162,7 @@ export const useShellContext = () => {
         .catch(() => undefined)
     }
     return () => { cancelled = true }
-  }, [auth.isGuest, contextualGroupId])
+  }, [auth.isGuest, auth.me?.id, contextualGroupId])
 
   useEffect(() => {
     const contextualEventId = groupEventDetailMatch?.[2] || (path === '/events' ? activeIds.eventId : '')

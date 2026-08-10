@@ -26,6 +26,25 @@ export const getCachedVisibleGroups = async () =>
 
 export const groupQueryKey = (groupId: string) => ['group', groupId] as const
 
+const groupViewerQueryKey = (groupId: string, viewerId?: string) =>
+  [...groupQueryKey(groupId), 'viewer', viewerId?.trim() || 'guest'] as const
+
+const groupViewerQueryOptions = (groupId: string, viewerId?: string) => ({
+  queryKey: groupViewerQueryKey(groupId, viewerId),
+  queryFn: () => conditionalGet<GroupDto>({
+    queryKey: groupQueryKey(groupId),
+    path: `/api/groups/${groupId}`,
+  }),
+  // Coalesce sequential StrictMode/shell startup reads without becoming a navigation cache.
+  staleTime: 1_000,
+})
+
+export const fetchGroupForViewer = (groupId: string, viewerId?: string) =>
+  queryClient.fetchQuery(groupViewerQueryOptions(groupId, viewerId))
+
+export const ensureGroupForViewer = (groupId: string, viewerId?: string) =>
+  queryClient.ensureQueryData(groupViewerQueryOptions(groupId, viewerId))
+
 export const getCachedGroup = async (groupId: string) =>
   normalizeNullableGroup((await getCachedRecord<GroupDto>(groupQueryKey(groupId)))?.data)
 
