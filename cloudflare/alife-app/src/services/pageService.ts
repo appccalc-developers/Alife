@@ -60,6 +60,8 @@ const toSectionPayloadType = (type: SectionEditModel['type']): string => {
       return 'richText'
     case 'CollectionShowcase':
       return 'collectionShowcase'
+    case 'ReviewedPageCarousel':
+      return 'collectionShowcase'
     case 'Album':
       return 'album'
     default:
@@ -81,6 +83,10 @@ const contentJsonForWrite = (section: SectionEditModel) => {
     return { ...contentJson, sectionKind: 'contactLocation', datasource: 'custom' }
   }
 
+  if (section.type === 'ReviewedPageCarousel') {
+    return { ...contentJson, sectionKind: 'reviewedPageCarousel' }
+  }
+
   return contentJson
 }
 
@@ -96,6 +102,10 @@ const styleJsonForWrite = (section: SectionEditModel) => {
 
   if (section.type === 'ContactLocation') {
     return { ...styleJson, layout: 'contactLocation', frontendType: 'ContactLocation' }
+  }
+
+  if (section.type === 'ReviewedPageCarousel') {
+    return { ...styleJson, layout: 'reviewedPageCarousel', frontendType: 'ReviewedPageCarousel' }
   }
 
   return styleJson

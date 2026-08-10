@@ -101,6 +101,18 @@ const isCountdownMetadata = (contentJson: Record<string, unknown>, styleJson: Re
   return normalized === 'countdown' || normalized === 'countdownsection'
 }
 
+const isReviewedPageCarouselMetadata = (contentJson: Record<string, unknown>, styleJson: Record<string, unknown>) => {
+  const marker = firstString(
+    contentJson.sectionKind,
+    contentJson.frontendType,
+    styleJson.sectionKind,
+    styleJson.frontendType,
+    styleJson.layout,
+  )
+  const normalized = marker.replace(/[-_\s]+/g, '').toLowerCase()
+  return normalized === 'reviewedpagecarousel' || normalized === 'reviewedpagecarouselsection'
+}
+
 const isSpotlightLayout = (layout: string) => {
   const normalized = layout.replace(/[-_\s]+/g, '').toLowerCase()
   return normalized === 'mediaspotlight'
@@ -209,6 +221,8 @@ const normalizeSectionType = (value: number | string): SectionEditModel['type'] 
     mediaGallery: 'CollectionShowcase',
     listView: 'CollectionShowcase',
     collectionShowcase: 'CollectionShowcase',
+    reviewedPageCarousel: 'ReviewedPageCarousel',
+    reviewedPageCarouselSection: 'ReviewedPageCarousel',
     album: 'Album',
     pageList: 'CollectionShowcase',
     sermonList: 'CollectionShowcase',
@@ -236,7 +250,7 @@ const normalizeSectionType = (value: number | string): SectionEditModel['type'] 
     return legacySectionTypeMap[normalized]
   }
 
-  const values = ['LandingHero', 'Countdown', 'ContactLocation', 'Spotlight', 'RichText', 'CollectionShowcase', 'Album'] as const
+  const values = ['LandingHero', 'Countdown', 'ContactLocation', 'Spotlight', 'RichText', 'CollectionShowcase', 'ReviewedPageCarousel', 'Album'] as const
   return values.includes(normalized as (typeof values)[number]) ? (normalized as SectionEditModel['type']) : 'RichText'
 }
 
@@ -277,6 +291,8 @@ export const normalizePageSection = (section: SectionDto): SectionEditModel => {
       ? 'Countdown'
       : isStoredAsHero && isSpotlightLayout(layout)
       ? 'Spotlight'
+      : normalizedType === 'CollectionShowcase' && isReviewedPageCarouselMetadata(contentJson, styleJson)
+      ? 'ReviewedPageCarousel'
       // Recover album sections saved through the former RichText fallback.
       : normalizedType === 'RichText' && typeof contentJson.albumId === 'string'
       ? 'Album'
@@ -314,6 +330,13 @@ export const normalizePageSection = (section: SectionDto): SectionEditModel => {
     styleJson.presentation = 'spotlight'
     styleJson.mediaPosition = media.position ?? 'left'
     styleJson.imagePosition = media.position ?? 'left'
+  }
+
+  if (type === 'ReviewedPageCarousel') {
+    contentJson.sectionKind = 'reviewedPageCarousel'
+    contentJson.primaryMenuId = firstString(contentJson.primaryMenuId)
+    styleJson.layout = 'reviewedPageCarousel'
+    styleJson.frontendType = 'ReviewedPageCarousel'
   }
 
   if (type === 'CollectionShowcase') {

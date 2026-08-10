@@ -5,6 +5,7 @@ import SpotlightSection from './SpotlightSection'
 import RichTextSection from './RichTextSection'
 import GroupListSectionBlock from './GroupListSectionBlock'
 import AlbumSection from './AlbumSection'
+import ReviewedPageCarouselSection from './ReviewedPageCarouselSection'
 import type { SectionComponentProps } from './types'
 import { pageSectionShellClass } from './sectionPresets'
 
@@ -22,6 +23,8 @@ const SectionBlock = (props: SectionComponentProps) => {
       return <RichTextSection {...props} />
     case 'CollectionShowcase':
       return <GroupListSectionBlock {...props} />
+    case 'ReviewedPageCarousel':
+      return <ReviewedPageCarouselSection {...props} />
     case 'Album':
       return <AlbumSection {...props} />
     default:

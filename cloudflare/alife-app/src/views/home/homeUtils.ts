@@ -2,6 +2,18 @@ import type { MouseEvent } from 'react'
 import type { GroupSummaryDto, PageDetailDto, PageSummaryDto } from '../../types'
 import { defaultContactLocationMapEmbedUrl, defaultContactLocationMapUrl } from '../../utils/contactLocation'
 import { localizeText } from '../../utils/localizedText'
+import {
+  publicPageHomePath,
+  publicPageMenuName,
+  sortPublicReviewedPages,
+} from '../../utils/publicPageMenus'
+
+export {
+  getPublicReviewedPages,
+  publicPageHomePath,
+  publicPageMenuName,
+  sortPublicReviewedPages,
+} from '../../utils/publicPageMenus'
 
 export const media = {
   hero: '/media/alife-church-community-hero.jpg',
@@ -148,15 +160,6 @@ export const readSectionImage = (page: PageDetailDto) => {
   return ''
 }
 
-export const publicPageMenuName = (page: PageSummaryDto, language: string) =>
-  localizeText(page.accessName, language) ||
-  page.accessName?.en ||
-  page.accessName?.zh ||
-  localizeText(page.title, language) ||
-  page.title?.en ||
-  page.title?.zh ||
-  page.id
-
 const primaryMenuLookupKey = (page: PageSummaryDto, fallbackLabel: string) => {
   if (page.primaryMenuId) return page.primaryMenuId
   const en = page.primaryMenuName?.en?.trim() || fallbackLabel
@@ -195,14 +198,6 @@ export const buildPageMenuNavItems = (
 const publicPageLookupKey = (value: string | null | undefined) =>
   value?.trim().replace(/\s+/g, ' ').toLocaleLowerCase() ?? ''
 
-export const publicPageHomePath = (page: PageSummaryDto, language: string) => {
-  const params = new URLSearchParams({
-    page: publicPageMenuName(page, language),
-    pageId: page.id,
-  })
-  return `/home?${params.toString()}`
-}
-
 export const findPublicPageByMenuName = (
   pages: PageSummaryDto[],
   menuName: string | null | undefined,
@@ -227,34 +222,6 @@ export const findPublicPageByMenuName = (
     page.title?.zh,
     page.id,
   ].some((candidate) => publicPageLookupKey(candidate) === target)) ?? null
-}
-
-export const getPublicReviewedPages = (pages: PageSummaryDto[]) => {
-  const byId = new Map<string, PageSummaryDto>()
-  pages.forEach((page) => {
-    if (page.visibility === 'public' && !byId.has(page.id)) {
-      byId.set(page.id, page)
-    }
-  })
-
-  return Array.from(byId.values())
-}
-
-export const sortPublicReviewedPages = (pages: PageSummaryDto[], language: string) => {
-  const locale = language === 'zh' ? 'zh-Hans' : 'en'
-  return getPublicReviewedPages(pages)
-    .sort((left, right) => {
-      const primaryMenuOrder = (left.primaryMenuSortOrder ?? Number.MAX_SAFE_INTEGER) -
-        (right.primaryMenuSortOrder ?? Number.MAX_SAFE_INTEGER)
-      if (primaryMenuOrder) return primaryMenuOrder
-      const menuOrder = (left.menuSortOrder ?? Number.MAX_SAFE_INTEGER) -
-        (right.menuSortOrder ?? Number.MAX_SAFE_INTEGER)
-      if (menuOrder) return menuOrder
-      const leftLabel = publicPageMenuName(left, language)
-      const rightLabel = publicPageMenuName(right, language)
-      return leftLabel.localeCompare(rightLabel, locale, { sensitivity: 'base' }) ||
-        left.id.localeCompare(right.id)
-    })
 }
 
 export const getNextSundayServiceTime = (now = new Date()) => {
