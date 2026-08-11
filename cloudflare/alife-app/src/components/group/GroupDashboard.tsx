@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Bell, BookOpenText, CalendarDays, Repeat2, Settings, UsersRound } from 'lucide-react'
+import { Bell, Repeat2, Settings } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import AppSectionCard from '../layout/AppSectionCard'
-import type { GroupDto, GroupPageDto, GroupSummaryDto } from '../../types/group'
+import type { GroupDto, GroupPageDto } from '../../types/group'
 import type { GroupEventRecord } from '../../types/event'
 import { useAuthStore } from '../../stores/auth'
 import { activeEntityService } from '../../services/activeEntityService'
@@ -13,12 +13,11 @@ import type { AnnouncementDto } from '../../types/announcement'
 type Props = {
   group: GroupDto
   pages: GroupPageDto[]
-  subgroups: GroupSummaryDto[]
   events: GroupEventRecord[]
   canManage: boolean
 }
 
-const GroupDashboard = ({ group, pages, subgroups, events, canManage }: Props) => {
+const GroupDashboard = ({ group, pages, events, canManage }: Props) => {
   const auth = useAuthStore()
   const language = auth.language
   const groupName = localizeText(group.name, language)
@@ -82,23 +81,6 @@ const GroupDashboard = ({ group, pages, subgroups, events, canManage }: Props) =
           ))}
         </section>
       ) : null}
-
-      <section className="grid gap-4 sm:grid-cols-3">
-        {[
-          { key: 'pages', label: language === 'zh' ? '小组页面' : 'Group pages', value: pages.length, icon: BookOpenText },
-          { key: 'events', label: language === 'zh' ? '近期活动' : 'Upcoming events', value: upcomingEvents.length, icon: CalendarDays },
-          { key: 'groups', label: language === 'zh' ? '下属小组' : 'Subgroups', value: subgroups.length, icon: UsersRound },
-        ].map((item) => {
-          const Icon = item.icon
-          return (
-            <div key={item.key} className="alife-panel rounded-[1.5rem] p-5">
-              <Icon className="h-6 w-6 text-[#176b5a]" />
-              <p className="mt-4 text-3xl font-black text-[#18332d]">{item.value}</p>
-              <p className="mt-1 text-sm font-semibold text-[#66766f]">{item.label}</p>
-            </div>
-          )
-        })}
-      </section>
 
       <section className="grid gap-6 xl:grid-cols-2">
         <AppSectionCard title={language === 'zh' ? '小组页面' : 'Group pages'} subtitle={language === 'zh' ? '打开已发布的小组页面，小组长仍可通过右下角按钮编辑当前页面。' : 'Open published group pages. Leaders can still edit the current page from the floating action button.'}>
