@@ -100,6 +100,7 @@ public sealed class CreateSermonForumCommentCommandHandler(
 			AuthorMemberId = request.CurrentMemberId,
 			BodyJson = bodyJson,
 			MediaJson = mediaJson,
+			Visibility = ForumCommentVisibility.Public,
 			CreatedUtc = now,
 			UpdatedUtc = now
 		};
@@ -129,13 +130,14 @@ public sealed class CreateSermonForumCommentCommandHandler(
 				x.ParentCommentId,
 				x.BodyJson,
 				x.MediaJson,
+				x.Visibility,
 				x.IsHidden,
 				x.CreatedUtc,
 				x.UpdatedUtc,
 				new ForumAuthorDto(x.AuthorMember.Id, x.AuthorMember.DisplayName)))
 			.ToListAsync(cancellationToken);
 
-		return AppResult<ForumPostDetailDto>.Success(ForumDtoMapper.ToDetailDto(savedPost, comments));
+		return AppResult<ForumPostDetailDto>.Success(ForumDtoMapper.ToDetailDto(savedPost, comments, useVisibleCommentMetadata: true));
 	}
 
 	private static string SerializeText(string en, string zh)

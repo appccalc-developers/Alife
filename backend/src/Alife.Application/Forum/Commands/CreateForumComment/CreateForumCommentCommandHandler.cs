@@ -48,16 +48,33 @@ public sealed class CreateForumCommentCommandHandler(
 			return AppResult<ForumCommentDto>.Forbidden("You must be a registered member to comment.");
 		}
 
+		if (post.GroupId.HasValue &&
+			!await forumAuthorizationService.CanWriteGroupForumAsync(post.GroupId.Value, request.CurrentMemberId, cancellationToken))
+		{
+			return AppResult<ForumCommentDto>.Forbidden("You must be an approved group member to comment in this group forum.");
+		}
+
+		ForumComment? parentComment = null;
 		if (request.ParentCommentId.HasValue)
 		{
-			var parent = await dbContext.ForumComments
+			parentComment = await dbContext.ForumComments
 				.AsNoTracking()
 				.FirstOrDefaultAsync(x => x.Id == request.ParentCommentId.Value && x.PostId == request.PostId, cancellationToken);
 
-			if (parent is null)
+			if (parentComment is null)
 			{
 				return AppResult<ForumCommentDto>.Validation("Parent comment not found.");
 			}
+		}
+
+		if (!ForumCommentVisibilityPolicy.TryResolve(
+				post,
+				request.Visibility,
+				parentComment,
+				out var visibility,
+				out var visibilityError))
+		{
+			return AppResult<ForumCommentDto>.Validation(visibilityError!);
 		}
 
 		var now = DateTime.UtcNow;
@@ -69,6 +86,7 @@ public sealed class CreateForumCommentCommandHandler(
 			AuthorMemberId = request.CurrentMemberId,
 			BodyJson = bodyJson,
 			MediaJson = mediaJson,
+			Visibility = visibility,
 			CreatedUtc = now,
 			UpdatedUtc = now
 		};

@@ -10,7 +10,7 @@ import { queryClient } from '../db/queryClient'
 import { forumQueryKeys, forumService } from '../services/forumService'
 import { normalizeApiError } from '../services/http'
 import { useAuthStore } from '../stores/auth'
-import type { ForumCommentDto } from '../types/forum'
+import type { ForumCommentDto, ForumCommentVisibilityRequest } from '../types/forum'
 import { ForumMediaGrid, ForumMediaPicker, selectForumMedia, type PendingForumMedia, uploadPendingForumMedia } from './forum/ForumMediaControls'
 import { forumCopy, visibilityLabel } from './forum/forumCopy'
 import { categoryName, formatForumDate, localizedJsonText, oneLanguagePayload, parseForumMedia } from './forum/forumUtils'
@@ -70,12 +70,16 @@ const buildCommentThreads = (comments: ForumCommentDto[]) => {
 
 const ForumCommentForm = ({
   postId,
+  groupForum,
+  forceGroupOnly,
   parentCommentId,
   replyingTo,
   disabled,
   onCancel,
 }: {
   postId: string
+  groupForum: boolean
+  forceGroupOnly: boolean
   parentCommentId?: string | null
   replyingTo?: string | null
   disabled?: boolean
@@ -83,6 +87,7 @@ const ForumCommentForm = ({
 }) => {
   const { language, me } = useAuthStore()
   const text = forumCopy(language)
+  const [visibility, setVisibility] = useState<ForumCommentVisibilityRequest>(groupForum ? 'GroupOnly' : 'Public')
   const [body, setBody] = useState('')
   const [media, setMedia] = useState<PendingForumMedia[]>([])
   const [message, setMessage] = useState('')
@@ -93,6 +98,7 @@ const ForumCommentForm = ({
         body: body.trim() ? oneLanguagePayload(language, body) : null,
         parentCommentId: parentCommentId || null,
         media: uploadedMedia,
+        visibility: groupForum ? (forceGroupOnly ? 'GroupOnly' : visibility) : 'Public',
       })
     },
     onSuccess: async () => {
@@ -154,7 +160,26 @@ const ForumCommentForm = ({
             }}
             onRemove={(id) => setMedia((items) => items.filter((item) => item.id !== id))}
           />
-          <div className="mt-3 flex justify-end">
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+            {groupForum ? (
+              forceGroupOnly ? (
+                <div className="rounded-xl bg-[#e3f0eb] px-3 py-2 text-xs font-bold text-[#0d4f43]">
+                  {text.groupOnlyCommentNotice}
+                </div>
+              ) : (
+                <label className="flex items-center gap-2 text-xs font-black text-slate-600">
+                  <span>{text.commentVisibility}</span>
+                  <select
+                    className="min-h-10 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 shadow-sm"
+                    value={visibility}
+                    onChange={(event) => setVisibility(event.target.value as ForumCommentVisibilityRequest)}
+                  >
+                    <option value="GroupOnly">{text.groupOnly}</option>
+                    <option value="Public">{text.public}</option>
+                  </select>
+                </label>
+              )
+            ) : <span />}
             <AppActionButton variant="primary" disabled={disabled || mutation.isPending} onClick={submit}>
               <Send className="mr-2 h-4 w-4" aria-hidden="true" />
               {mutation.isPending ? (media.length > 0 ? text.mediaUploading : text.postingComment) : text.postComment}
@@ -167,9 +192,11 @@ const ForumCommentForm = ({
 }
 
 const ForumPostView = () => {
-  const { postId } = useParams<{ postId: string }>()
-  const { language, isGuest, isRegistered } = useAuthStore()
+  const { groupId: routeGroupId, postId } = useParams<{ groupId?: string; postId: string }>()
+  const { language, isGuest, isRegistered, memberships } = useAuthStore()
   const text = forumCopy(language)
+  const normalizedRouteGroupId = routeGroupId?.trim() || ''
+  const forumBasePath = normalizedRouteGroupId ? `/groups/${encodeURIComponent(normalizedRouteGroupId)}/forum` : '/forum'
   const [replyTarget, setReplyTarget] = useState<ForumCommentDto | null>(null)
   const postQuery = useQuery({
     queryKey: postId ? forumQueryKeys.post(postId) : ['forum', 'post', 'missing'],
@@ -184,19 +211,22 @@ const ForumPostView = () => {
   })
 
   if (!postId) {
-    return <Navigate to="/forum" replace />
+    return <Navigate to={forumBasePath} replace />
   }
 
-  const post = postQuery.data
+  const post = postQuery.data && (!normalizedRouteGroupId || postQuery.data.groupId === normalizedRouteGroupId)
+    ? postQuery.data
+    : undefined
   const categories = categoriesQuery.data ?? []
-  const canComment = !isGuest && isRegistered && post && !post.isLocked
+  const groupMembership = post?.groupId ? memberships.find((membership) => membership.groupId === post.groupId) : null
+  const canComment = !isGuest && isRegistered && post && !post.isLocked && (!post.groupId || groupMembership?.status === 'approved')
   const commentThreads = post ? buildCommentThreads(post.comments) : []
 
   return (
     <AppPageShell>
       <div className="mx-auto w-full max-w-5xl">
         <div className="mb-4 flex items-center justify-between gap-3">
-          <Link to="/forum" className="inline-flex min-h-11 items-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 shadow-sm transition hover:border-[#176b5a]/30 hover:text-[#176b5a]">
+          <Link to={forumBasePath} className="inline-flex min-h-11 items-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 shadow-sm transition hover:border-[#176b5a]/30 hover:text-[#176b5a]">
             <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
             {text.backToForum}
           </Link>
@@ -305,6 +335,7 @@ const ForumPostView = () => {
                             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                               <p className="text-sm font-black text-slate-950">{displayName(comment)}</p>
                               <p className="text-xs font-semibold text-slate-400">{formatForumDate(comment.createdUtc, language)}</p>
+                              {post.groupId ? <AppBadge variant={isPublicVisibility(comment.visibility) ? 'info' : 'neutral'}>{visibilityLabel(comment.visibility, language)}</AppBadge> : null}
                             </div>
                             {localizedJsonText(comment.bodyJson, language) ? (
                               <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-slate-700">{localizedJsonText(comment.bodyJson, language)}</p>
@@ -327,6 +358,8 @@ const ForumPostView = () => {
                           <div className="mt-4 pl-11 sm:pl-14">
                             <ForumCommentForm
                               postId={post.id}
+                              groupForum={Boolean(post.groupId)}
+                              forceGroupOnly={!isPublicVisibility(post.visibility) || !isPublicVisibility(comment.visibility)}
                               parentCommentId={comment.id}
                               replyingTo={displayName(comment)}
                               onCancel={() => setReplyTarget(null)}
@@ -367,6 +400,7 @@ const ForumPostView = () => {
                                   <ForumMediaGrid media={parseForumMedia(reply.mediaJson)} />
                                   <div className="mt-1 flex flex-wrap items-center gap-2">
                                     <span className="text-xs font-semibold text-slate-400">{formatForumDate(reply.createdUtc, language)}</span>
+                                    {post.groupId ? <AppBadge variant={isPublicVisibility(reply.visibility) ? 'info' : 'neutral'}>{visibilityLabel(reply.visibility, language)}</AppBadge> : null}
                                     {canComment ? (
                                       <button
                                         type="button"
@@ -383,6 +417,8 @@ const ForumPostView = () => {
                                     <div className="mt-3">
                                       <ForumCommentForm
                                         postId={post.id}
+                                        groupForum={Boolean(post.groupId)}
+                                        forceGroupOnly={!isPublicVisibility(post.visibility) || !isPublicVisibility(reply.visibility)}
                                         parentCommentId={reply.id}
                                         replyingTo={displayName(reply)}
                                         onCancel={() => setReplyTarget(null)}
@@ -402,11 +438,15 @@ const ForumPostView = () => {
 
               <div className="mt-5">
                 {canComment ? (
-                  <ForumCommentForm postId={post.id} />
+                  <ForumCommentForm
+                    postId={post.id}
+                    groupForum={Boolean(post.groupId)}
+                    forceGroupOnly={!isPublicVisibility(post.visibility)}
+                  />
                 ) : !post.isLocked ? (
                   <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#176b5a]/15 bg-[#e3f0eb] px-4 py-3 text-sm font-bold text-[#0d4f43]">
-                    <span>{text.loginToComment}</span>
-                    <Link to="/onboarding" className="inline-flex min-h-10 items-center rounded-xl bg-[#176b5a] px-4 text-sm font-black text-white transition hover:bg-[#0d4f43]">
+                    <span>{post.groupId ? text.groupMemberToPost : text.loginToComment}</span>
+                    <Link to={isGuest ? '/onboarding' : '/groups/select'} className="inline-flex min-h-10 items-center rounded-xl bg-[#176b5a] px-4 text-sm font-black text-white transition hover:bg-[#0d4f43]">
                       {text.login}
                     </Link>
                   </div>

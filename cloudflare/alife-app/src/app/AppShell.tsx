@@ -163,6 +163,7 @@ const isPublicBrowsePath = (pathname: string) =>
   pathname === '/groups/select' ||
   /^\/groups\/[^/]+$/.test(pathname) ||
   /^\/groups\/[^/]+\/events\/[^/]+$/.test(pathname) ||
+  /^\/groups\/[^/]+\/forum(?:\/posts\/[^/]+)?$/.test(pathname) ||
   pathname === '/events' ||
   pathname === '/forum' ||
   /^\/forum\/posts\/[^/]+$/.test(pathname) ||

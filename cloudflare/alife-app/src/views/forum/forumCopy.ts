@@ -1,10 +1,13 @@
-import type { ForumPostVisibility } from '../../types/forum'
+import type { ForumCommentVisibility, ForumPostVisibility } from '../../types/forum'
 
 const copy = {
   en: {
     forum: 'Forum',
     forumSubtitle: 'A shared space for questions, testimonies, resources, and community updates.',
+    groupForum: 'Group forum',
+    groupForumSubtitle: 'Conversations for this group. Public posts can be shared beyond the group; group-only posts stay with approved members.',
     communitySpace: 'Community space',
+    groupSpace: 'Group space',
     feed: 'Feed',
     latestConversations: 'Latest conversations',
     conversations: 'conversations',
@@ -40,6 +43,7 @@ const copy = {
     noPosts: 'No forum posts yet.',
     noPostsDescription: 'Start the first conversation for the community.',
     loginToPost: 'Log in to share or comment.',
+    groupMemberToPost: 'Only approved group members can start or join conversations here.',
     login: 'Log in',
     replies: 'replies',
     reply: 'reply',
@@ -58,6 +62,8 @@ const copy = {
     backToForum: 'Back to forum',
     comments: 'Comments',
     comment: 'Comment',
+    commentVisibility: 'Comment visibility',
+    groupOnlyCommentNotice: 'This comment is visible only to approved group members.',
     postComment: 'Post comment',
     postingComment: 'Posting...',
     noComments: 'No comments yet.',
@@ -71,7 +77,10 @@ const copy = {
   zh: {
     forum: '论坛',
     forumSubtitle: '一个全站共享的空间，用来分享问题、见证、资源和社区消息。',
+    groupForum: '小组论坛',
+    groupForumSubtitle: '属于当前小组的讨论空间。公开帖子可分享给组外访客，仅小组可见的帖子只向已批准成员开放。',
     communitySpace: '社区空间',
+    groupSpace: '小组空间',
     feed: '动态',
     latestConversations: '最新讨论',
     conversations: '个讨论',
@@ -107,6 +116,7 @@ const copy = {
     noPosts: '还没有论坛话题。',
     noPostsDescription: '为社区发起第一个讨论吧。',
     loginToPost: '登录后可以分享和评论。',
+    groupMemberToPost: '只有已批准的小组成员可以在这里发帖和评论。',
     login: '登录',
     replies: '条回复',
     reply: '条回复',
@@ -125,6 +135,8 @@ const copy = {
     backToForum: '返回论坛',
     comments: '评论',
     comment: '评论',
+    commentVisibility: '评论可见范围',
+    groupOnlyCommentNotice: '此评论仅对已批准的小组成员可见。',
     postComment: '发表评论',
     postingComment: '发送中...',
     noComments: '还没有评论。',
@@ -139,7 +151,7 @@ const copy = {
 
 export const forumCopy = (language: string) => (language === 'zh' ? copy.zh : copy.en)
 
-export const visibilityLabel = (visibility: ForumPostVisibility, language: string) => {
+export const visibilityLabel = (visibility: ForumPostVisibility | ForumCommentVisibility, language: string) => {
   const text = forumCopy(language)
   if (visibility === 1 || visibility === 'Public' || visibility === 'public') return text.public
   if (visibility === 3 || visibility === 'GroupOnly' || visibility === 'groupOnly') return text.groupOnly

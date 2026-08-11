@@ -46,6 +46,12 @@ public sealed class UpdateForumPostCommandHandler(
 			return AppResult<ForumPostDetailDto>.Forbidden("You do not have permission to update this forum post.");
 		}
 
+		if (post.GroupId.HasValue && !canModerate &&
+			!await forumAuthorizationService.CanWriteGroupForumAsync(post.GroupId.Value, request.CurrentMemberId, cancellationToken))
+		{
+			return AppResult<ForumPostDetailDto>.Forbidden("You must be an approved group member to update this group forum post.");
+		}
+
 		var categoryExists = await dbContext.ForumCategories
 			.AsNoTracking()
 			.AnyAsync(x => x.Id == request.CategoryId && x.IsEnabled, cancellationToken);
@@ -54,14 +60,25 @@ public sealed class UpdateForumPostCommandHandler(
 			return AppResult<ForumPostDetailDto>.NotFound("Forum category not found.");
 		}
 
-		if (post.GroupId.HasValue && request.Visibility != ForumPostVisibility.GroupOnly)
+		if (post.GroupId.HasValue && request.Visibility is not (ForumPostVisibility.Public or ForumPostVisibility.GroupOnly))
 		{
-			return AppResult<ForumPostDetailDto>.Validation("Group forum posts must use GroupOnly visibility.");
+			return AppResult<ForumPostDetailDto>.Validation("Group forum posts must use Public or GroupOnly visibility.");
 		}
 
 		if (!post.GroupId.HasValue && request.Visibility == ForumPostVisibility.GroupOnly)
 		{
 			return AppResult<ForumPostDetailDto>.Validation("GroupOnly visibility requires a group id.");
+		}
+
+		if (post.GroupId.HasValue && request.Visibility == ForumPostVisibility.GroupOnly)
+		{
+			var comments = await dbContext.ForumComments
+				.Where(x => x.PostId == post.Id && x.Visibility != ForumCommentVisibility.GroupOnly)
+				.ToListAsync(cancellationToken);
+			foreach (var comment in comments)
+			{
+				comment.Visibility = ForumCommentVisibility.GroupOnly;
+			}
 		}
 
 		post.CategoryId = request.CategoryId;

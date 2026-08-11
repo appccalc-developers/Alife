@@ -20,15 +20,12 @@ public sealed class ListForumPostsQueryHandler(
 		var page = Math.Max(1, request.Page);
 		var pageSize = Math.Clamp(request.PageSize, 1, 50);
 
-		if (request.GroupId.HasValue &&
-			(request.CurrentMemberId is null ||
-			 !await forumAuthorizationService.CanWriteGroupForumAsync(
-				 request.GroupId.Value,
-				 request.CurrentMemberId.Value,
-				 cancellationToken)))
-		{
-			return AppResult<PagedResult<ForumPostSummaryDto>>.Forbidden("You must be an approved group member to view group forum posts.");
-		}
+		var canReadGroupOnly = request.GroupId.HasValue &&
+			request.CurrentMemberId.HasValue &&
+			await forumAuthorizationService.CanWriteGroupForumAsync(
+				request.GroupId.Value,
+				request.CurrentMemberId.Value,
+				cancellationToken);
 
 		var query = dbContext.ForumPosts
 			.AsNoTracking()
@@ -44,10 +41,18 @@ public sealed class ListForumPostsQueryHandler(
 		if (request.GroupId.HasValue)
 		{
 			query = query.Where(x => x.GroupId == request.GroupId.Value);
+			query = canReadGroupOnly
+				? query.Where(x => x.Visibility == ForumPostVisibility.Public || x.Visibility == ForumPostVisibility.GroupOnly)
+				: query.Where(x => x.Visibility == ForumPostVisibility.Public);
 		}
 		else
 		{
 			query = query.Where(x => x.GroupId == null);
+			var canReadMemberPosts = request.CurrentMemberId.HasValue &&
+				await forumAuthorizationService.CanWriteSiteForumAsync(request.CurrentMemberId.Value, cancellationToken);
+			query = canReadMemberPosts
+				? query.Where(x => x.Visibility == ForumPostVisibility.Public || x.Visibility == ForumPostVisibility.MembersOnly)
+				: query.Where(x => x.Visibility == ForumPostVisibility.Public);
 		}
 
 		if (request.Visibility.HasValue)
@@ -55,23 +60,17 @@ public sealed class ListForumPostsQueryHandler(
 			query = query.Where(x => x.Visibility == request.Visibility.Value);
 		}
 
-		if (request.CurrentMemberId is null)
-		{
-			query = query.Where(x => x.Visibility == ForumPostVisibility.Public);
-		}
-		else if (!await forumAuthorizationService.CanWriteSiteForumAsync(request.CurrentMemberId.Value, cancellationToken))
-		{
-			query = query.Where(x => x.Visibility == ForumPostVisibility.Public);
-		}
-		else if (!request.GroupId.HasValue)
-		{
-			query = query.Where(x => x.Visibility == ForumPostVisibility.Public || x.Visibility == ForumPostVisibility.MembersOnly);
-		}
-
 		var totalCount = await query.CountAsync(cancellationToken);
+		var includeGroupOnlyComments = request.GroupId.HasValue && canReadGroupOnly;
+		var restrictPrivateCommentMetadata = request.GroupId.HasValue && !canReadGroupOnly;
 		var posts = await query
 			.OrderByDescending(x => x.IsPinned)
-			.ThenByDescending(x => x.LastCommentUtc ?? x.UpdatedUtc)
+			.ThenByDescending(x =>
+				x.Comments
+					.Where(comment => !comment.IsHidden &&
+						(includeGroupOnlyComments || comment.Visibility == ForumCommentVisibility.Public))
+					.Max(comment => (DateTime?)comment.CreatedUtc) ??
+				(restrictPrivateCommentMetadata ? x.CreatedUtc : x.UpdatedUtc))
 			.ThenByDescending(x => x.CreatedUtc)
 			.Skip((page - 1) * pageSize)
 			.Take(pageSize)
@@ -100,10 +99,18 @@ public sealed class ListForumPostsQueryHandler(
 				x.IsPinned,
 				x.IsLocked,
 				x.IsHidden,
-				x.CommentCount,
-				x.LastCommentUtc,
+				x.Comments.Count(comment => !comment.IsHidden &&
+					(includeGroupOnlyComments || comment.Visibility == ForumCommentVisibility.Public)),
+				x.Comments
+					.Where(comment => !comment.IsHidden &&
+						(includeGroupOnlyComments || comment.Visibility == ForumCommentVisibility.Public))
+					.Max(comment => (DateTime?)comment.CreatedUtc),
 				x.CreatedUtc,
-				x.UpdatedUtc,
+				restrictPrivateCommentMetadata
+					? x.Comments
+						.Where(comment => !comment.IsHidden && comment.Visibility == ForumCommentVisibility.Public)
+						.Max(comment => (DateTime?)comment.CreatedUtc) ?? x.CreatedUtc
+					: x.UpdatedUtc,
 				new ForumAuthorDto(x.AuthorMember.Id, x.AuthorMember.DisplayName)))
 			.ToListAsync(cancellationToken);
 

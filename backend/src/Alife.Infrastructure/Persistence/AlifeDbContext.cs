@@ -711,6 +711,7 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 
 			cfg.HasIndex(x => new { x.PostId, x.CreatedUtc });
 			cfg.HasIndex(x => new { x.PostId, x.ParentCommentId, x.CreatedUtc });
+			cfg.HasIndex(x => new { x.PostId, x.Visibility, x.IsHidden, x.CreatedUtc });
 			cfg.HasIndex(x => x.AuthorMemberId);
 			cfg.HasQueryFilter(x => x.DeletedUtc == null);
 		});

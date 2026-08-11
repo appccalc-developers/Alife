@@ -52,6 +52,16 @@ export const useShellNavigation = ({
       requireNoActivePage: true,
       onClick: () => activeEntityService.setGroup(workspaceGroupId, { clearPage: true }),
     },
+    {
+      key: 'workspace:forum',
+      label: isChinese ? '论坛' : 'Forum',
+      description: isChinese ? '当前小组的公开与组内讨论' : 'Public and group-only conversations for this group',
+      to: `/groups/${encodeURIComponent(workspaceGroupId)}/forum`,
+      matchPathOnly: true,
+      matchDescendants: true,
+      icon: <MessageSquareText className="h-5 w-5" />,
+      onClick: () => activeEntityService.setGroup(workspaceGroupId, { clearPage: true }),
+    },
   ] : []
 
   const workspaceManagement: ShellNavItem[] = canManageWorkspace ? [

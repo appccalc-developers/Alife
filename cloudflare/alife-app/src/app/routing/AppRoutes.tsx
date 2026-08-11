@@ -129,6 +129,8 @@ const AppRoutes = () => {
           <Route path="/groups/:groupId/contacts/:contactId" element={<ContactDetailView />} />
           <Route path="/forum" element={<ForumView />} />
           <Route path="/forum/posts/:postId" element={<ForumPostView />} />
+          <Route path="/groups/:groupId/forum" element={<ForumView />} />
+          <Route path="/groups/:groupId/forum/posts/:postId" element={<ForumPostView />} />
           <Route path="/public/pages/:pageId" element={<PageView />} />
           <Route path="/pages/:pageId" element={<PageView />} />
           <Route path="/pages" element={<PageView />} />

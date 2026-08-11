@@ -2,6 +2,8 @@ import type { LocalizedText } from './models'
 
 export type ForumPostVisibility = 1 | 2 | 3 | 'public' | 'membersOnly' | 'groupOnly' | 'Public' | 'MembersOnly' | 'GroupOnly'
 export type ForumPostVisibilityRequest = 'Public' | 'MembersOnly' | 'GroupOnly'
+export type ForumCommentVisibility = 1 | 3 | 'public' | 'groupOnly' | 'Public' | 'GroupOnly'
+export type ForumCommentVisibilityRequest = 'Public' | 'GroupOnly'
 
 export type ForumAuthorDto = {
   id: string
@@ -60,6 +62,7 @@ export type ForumCommentDto = {
   parentCommentId?: string | null
   bodyJson: string
   mediaJson: string
+  visibility: ForumCommentVisibility
   isHidden: boolean
   createdUtc: string
   updatedUtc: string
@@ -93,4 +96,5 @@ export type ForumCommentRequest = {
   body?: LocalizedText | null
   parentCommentId?: string | null
   media?: ForumMediaItem[] | null
+  visibility?: ForumCommentVisibilityRequest | null
 }

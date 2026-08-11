@@ -48,9 +48,9 @@ public sealed class CreateForumPostCommandHandler(
 
 		if (request.GroupId.HasValue)
 		{
-			if (request.Visibility != ForumPostVisibility.GroupOnly)
+			if (request.Visibility is not (ForumPostVisibility.Public or ForumPostVisibility.GroupOnly))
 			{
-				return AppResult<ForumPostDetailDto>.Validation("Group forum posts must use GroupOnly visibility.");
+				return AppResult<ForumPostDetailDto>.Validation("Group forum posts must use Public or GroupOnly visibility.");
 			}
 
 			if (!await forumAuthorizationService.CanWriteGroupForumAsync(request.GroupId.Value, request.CurrentMemberId, cancellationToken))

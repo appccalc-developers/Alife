@@ -2,6 +2,7 @@ using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
 using Alife.Application.Forum.Dtos;
 using Alife.Application.Forum.Services;
+using Alife.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -37,6 +38,12 @@ public sealed class GetForumPostQueryHandler(
 			(post.GroupId.HasValue
 				? await forumAuthorizationService.CanModerateGroupForumAsync(post.GroupId.Value, request.CurrentMemberId.Value, cancellationToken)
 				: await forumAuthorizationService.CanModerateSiteForumAsync(request.CurrentMemberId.Value, cancellationToken));
+		var canReadGroupOnlyComments = post.GroupId.HasValue &&
+			request.CurrentMemberId.HasValue &&
+			(canModerate || await forumAuthorizationService.CanWriteGroupForumAsync(
+				post.GroupId.Value,
+				request.CurrentMemberId.Value,
+				cancellationToken));
 
 		var commentsQuery = dbContext.ForumComments
 			.AsNoTracking()
@@ -48,6 +55,11 @@ public sealed class GetForumPostQueryHandler(
 			commentsQuery = commentsQuery.Where(x => !x.IsHidden);
 		}
 
+		if (post.GroupId.HasValue && !canReadGroupOnlyComments)
+		{
+			commentsQuery = commentsQuery.Where(x => x.Visibility == ForumCommentVisibility.Public);
+		}
+
 		var comments = await commentsQuery
 			.OrderBy(x => x.CreatedUtc)
 			.Select(x => new ForumCommentDto(
@@ -56,12 +68,17 @@ public sealed class GetForumPostQueryHandler(
 				x.ParentCommentId,
 				x.BodyJson,
 				x.MediaJson,
+				x.Visibility,
 				x.IsHidden,
 				x.CreatedUtc,
 				x.UpdatedUtc,
 				new ForumAuthorDto(x.AuthorMember.Id, x.AuthorMember.DisplayName)))
 			.ToListAsync(cancellationToken);
 
-		return AppResult<ForumPostDetailDto>.Success(ForumDtoMapper.ToDetailDto(post, comments));
+		return AppResult<ForumPostDetailDto>.Success(ForumDtoMapper.ToDetailDto(
+			post,
+			comments,
+			useVisibleCommentMetadata: true,
+			restrictUpdatedUtc: post.GroupId.HasValue && !canReadGroupOnlyComments));
 	}
 }

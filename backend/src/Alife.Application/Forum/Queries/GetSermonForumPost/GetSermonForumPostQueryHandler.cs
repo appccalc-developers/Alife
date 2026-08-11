@@ -54,12 +54,13 @@ public sealed class GetSermonForumPostQueryHandler(
 				x.ParentCommentId,
 				x.BodyJson,
 				x.MediaJson,
+				x.Visibility,
 				x.IsHidden,
 				x.CreatedUtc,
 				x.UpdatedUtc,
 				new ForumAuthorDto(x.AuthorMember.Id, x.AuthorMember.DisplayName)))
 			.ToListAsync(cancellationToken);
 
-		return AppResult<ForumPostDetailDto>.Success(ForumDtoMapper.ToDetailDto(post, comments));
+		return AppResult<ForumPostDetailDto>.Success(ForumDtoMapper.ToDetailDto(post, comments, useVisibleCommentMetadata: true));
 	}
 }
