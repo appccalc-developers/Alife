@@ -51,6 +51,7 @@ const WorkspaceShell = () => {
     eventDetailScreen: Boolean(context.groupEventDetailMatch || context.location.pathname === '/events'),
     contextualEventId: context.groupEventDetailMatch?.[2] || context.activeIds.eventId,
     contextualEvent: context.contextualEvent,
+    currentGroupIsChurch: context.managementGroup?.isChurch === true,
     workspaceEnabled: !context.isOnboardingScreen,
   })
   const actions = useShellActions({
