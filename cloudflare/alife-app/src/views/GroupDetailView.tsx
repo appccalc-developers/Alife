@@ -54,7 +54,6 @@ const GroupBrowseView = ({ groupId, pageId }: GroupBrowseViewProps) => {
         <GroupDashboard
           group={group}
           pages={pages}
-          subgroups={subgroups}
           events={events}
           canManage={canManageGroup}
         />

@@ -7,7 +7,7 @@ import { activeEntityService } from '../../services/activeEntityService'
 import { useUiText } from '../../i18n/uiText'
 import { confirmUnsavedChangesNavigation } from '../../utils/unsavedChangesGuard'
 import { CloseIcon } from './icons'
-import type { NavigationCopy, ShellNavItem, ShellNavSection } from './types'
+import type { NavigationCopy, ShellNavBadge, ShellNavItem, ShellNavSection } from './types'
 
 const isItemActive = (item: ShellNavItem, pathname: string, search: string) => {
   let target: URL
@@ -65,6 +65,35 @@ const guardNavigationClick = (
   onAllowed?.()
 }
 
+const NavItemBadge = ({ badge, collapsed, itemLabel }: { badge: ShellNavBadge; collapsed: boolean; itemLabel: string }) => {
+  const toneClass = badge.tone === 'attention'
+    ? 'bg-amber-100 text-amber-800 ring-amber-200'
+    : 'bg-slate-100 text-slate-600 ring-slate-200'
+
+  if (collapsed) {
+    return (
+      <>
+        <span
+          aria-hidden="true"
+          className={['absolute -right-0.5 -top-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-black leading-none ring-1', toneClass].join(' ')}
+        >
+          {badge.compactText}
+        </span>
+        <span className="sr-only">{itemLabel}, {badge.accessibleLabel}</span>
+      </>
+    )
+  }
+
+  return (
+    <span
+      title={badge.accessibleLabel}
+      className={['inline-flex shrink-0 items-center rounded-full px-2 py-1 text-[10px] font-black leading-none ring-1 desktop:font-semibold', toneClass].join(' ')}
+    >
+      {badge.text}
+    </span>
+  )
+}
+
 const NavItemContent = ({ item, active, compact = false, collapsed = false }: { item: ShellNavItem; active: boolean; compact?: boolean; collapsed?: boolean }) => (
   <>
     {active && !collapsed && !compact ? <span className="absolute left-2 h-5 w-1 rounded-full bg-[#de6c4d]" aria-hidden="true" /> : null}
@@ -89,6 +118,7 @@ const NavItemContent = ({ item, active, compact = false, collapsed = false }: { 
         {!compact && active && item.description ? <span className="mt-0.5 block truncate text-[11px] font-semibold leading-4 text-[#74837d]">{item.description}</span> : null}
       </span>
     ) : null}
+    {item.badge ? <NavItemBadge badge={item.badge} collapsed={collapsed} itemLabel={item.label} /> : null}
   </>
 )
 

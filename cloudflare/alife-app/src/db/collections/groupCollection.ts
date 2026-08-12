@@ -104,15 +104,17 @@ type MembershipRecord = Omit<GroupMembershipDto, 'groupId'> & { memberId: string
 
 export const groupMembershipsQueryKey = (groupId: string) => ['groupMemberships', groupId] as const
 
+export const groupMembershipsCollectionQueryKey = (groupId: string, enabled = true, includeLineCandidates = false) => [
+  ...groupMembershipsQueryKey(groupId),
+  enabled ? 'enabled' : 'disabled',
+  includeLineCandidates ? 'line-candidates' : 'members-only',
+] as const
+
 export const groupMembershipsCollection = (groupId: string, enabled = true, includeLineCandidates = false) =>
   createCollection(
     queryCollectionOptions({
       queryClient,
-      queryKey: [
-        ...groupMembershipsQueryKey(groupId),
-        enabled ? 'enabled' : 'disabled',
-        includeLineCandidates ? 'line-candidates' : 'members-only',
-      ],
+      queryKey: groupMembershipsCollectionQueryKey(groupId, enabled, includeLineCandidates),
       getKey: (item: MembershipRecord) => item.memberId,
       queryFn: async (): Promise<MembershipRecord[]> => {
         if (!enabled) {

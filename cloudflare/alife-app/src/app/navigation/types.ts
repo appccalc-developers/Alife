@@ -1,5 +1,12 @@
 import type { ReactElement } from 'react'
 
+export type ShellNavBadge = {
+  text: string
+  compactText: string
+  accessibleLabel: string
+  tone: 'attention' | 'neutral'
+}
+
 export type ShellNavItem = {
   key: string
   label: string
@@ -13,6 +20,7 @@ export type ShellNavItem = {
   requireNoActivePage?: boolean
   actionOnly?: boolean
   onClick?: () => void
+  badge?: ShellNavBadge
 }
 
 export type ShellNavSection = {

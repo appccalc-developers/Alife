@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowRightLeft, ArrowUpRight, CalendarDays, Crown, FileText, Loader2, Pencil, ShieldCheck, UserPlus, UserMinus, UsersRound, X } from 'lucide-react'
+import { ArrowRightLeft, CalendarDays, Crown, Loader2, Pencil, ShieldCheck, UserPlus, UserMinus, UsersRound, X } from 'lucide-react'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
 import AppEmptyState from '../components/layout/AppEmptyState'
@@ -84,8 +84,6 @@ const managementCopy = (language: string, isChurch?: boolean) => {
       planningEvents: '筹备中活动',
       totalEvents: '全部活动',
       pastEvents: '已结束',
-      publishedPages: '页面',
-      overview: '运营概览',
       inviteMember: '邀请成员',
       createEvent: '创建活动',
       addPage: '新建页面',
@@ -127,8 +125,6 @@ const managementCopy = (language: string, isChurch?: boolean) => {
       planningEvents: 'Planning events',
       totalEvents: 'Total events',
       pastEvents: 'Past events',
-      publishedPages: 'Pages',
-      overview: 'Operations overview',
       inviteMember: 'Invite people',
       createEvent: 'Create event',
       addPage: 'Add page',
@@ -149,44 +145,9 @@ type MetricListItem = {
   label: string
   value: number | string
   icon: ReactNode
-  onSelect?: () => void
 }
 
-const MetricList = ({ items, ariaLabel, variant = 'list' }: { items: MetricListItem[]; ariaLabel: string; variant?: 'list' | 'grid' }) => {
-  if (variant === 'grid') {
-    return (
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4" role="list" aria-label={ariaLabel}>
-        {items.map((item, index) => {
-          const content = (
-            <>
-              <div className="flex items-center justify-between gap-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#e3f0eb] text-[#176b5a] transition group-hover:bg-[#176b5a] group-hover:text-white">
-                  {item.icon}
-                </span>
-                <span className="text-2xl font-black tabular-nums tracking-[-0.04em] text-[#18332d] sm:text-3xl">{item.value}</span>
-              </div>
-              <span className="mt-3 flex items-center justify-between gap-2 text-xs font-bold leading-5 text-[#66766f]">
-                <span>{item.label}</span>
-                {item.onSelect ? <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-[#176b5a] transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5" /> : null}
-              </span>
-            </>
-          )
-          const className = 'group rounded-2xl border border-[#176b5a]/10 bg-white/80 p-3.5 text-left shadow-[0_8px_22px_rgba(24,51,45,0.05)] backdrop-blur transition duration-200 sm:p-4'
-
-          return item.onSelect ? (
-            <div key={`${item.label}-${index}`} role="listitem">
-              <button type="button" className={`${className} h-full w-full hover:-translate-y-0.5 hover:border-[#176b5a]/25 hover:bg-white hover:shadow-[0_12px_28px_rgba(24,51,45,0.10)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#176b5a]/35`} onClick={item.onSelect}>
-                {content}
-              </button>
-            </div>
-          ) : (
-            <div key={`${item.label}-${index}`} className={className} role="listitem">{content}</div>
-          )
-        })}
-      </div>
-    )
-  }
-
+const MetricList = ({ items, ariaLabel }: { items: MetricListItem[]; ariaLabel: string }) => {
   return (
     <div
       className="overflow-hidden rounded-lg border border-[#2f4b42]/10 bg-white/75 shadow-sm"
@@ -908,9 +869,6 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
   const activeSection = normalizeManageSection(searchParams.get('section'))
   const copy = managementCopy(language, group?.isChurch)
   const workspacePath = '/groups'
-  const requestedCount = memberships.filter((member) => member.status === 'requested').length
-  const approvedCount = memberships.filter((member) => member.status === 'approved').length
-  const upcomingEventCount = events.filter((event) => !event.endDate || new Date(event.endDate).getTime() >= Date.now()).length
   const groupWorkspaceTarget = (_targetGroupId: string) =>
     embeddedWorkspace ? '/groups?section=group' : '/groups/manage?section=group'
   const unsavedGroupProfileMessage = t('groupProfileUnsavedChangesPrompt')
@@ -922,11 +880,6 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
     confirmUnsavedChangesNavigation()
     return false
   }, [hasUnsavedGroupProfileChanges, unsavedGroupProfileMessage])
-  const openManageSection = (section: ManageSection) => {
-    if (!guardGroupProfileNavigation()) return
-    activeEntityService.setGroup(groupId, { clearPage: true })
-    navigate(`${embeddedWorkspace ? '/groups' : '/groups/manage'}?section=${section}`)
-  }
   const canManageSubgroup = (subgroupId: string) =>
     auth.isAdmin ||
     isPlatformAdminRole(auth.me?.platformRole) ||
@@ -1056,18 +1009,6 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
               <p className="mt-3 text-sm leading-6 text-[#5f716a]">{embeddedWorkspace ? (language === 'zh' ? '成员、活动、内容和设置都在这里处理。' : 'People, events, content, and settings in one place.') : copy.subtitle}</p>
             </div>
             {group ? <div className="shrink-0"><AccessTypeBadge accessType={group.accessType} /></div> : null}
-          </div>
-          <div className="mt-6 border-t border-[#176b5a]/10 pt-5">
-            <MetricList
-              variant="grid"
-              ariaLabel={copy.overview}
-              items={[
-                { label: copy.pending, value: requestedCount, icon: <UserPlus className="h-4 w-4" />, onSelect: () => openManageSection('members') },
-                { label: copy.approved, value: approvedCount, icon: <UsersRound className="h-4 w-4" />, onSelect: () => openManageSection('members') },
-                { label: copy.upcomingEvents, value: upcomingEventCount, icon: <CalendarDays className="h-4 w-4" />, onSelect: () => openManageSection('events') },
-                { label: copy.publishedPages, value: pages.length, icon: <FileText className="h-4 w-4" />, onSelect: () => openManageSection('pages') },
-              ]}
-            />
           </div>
         </section>
 

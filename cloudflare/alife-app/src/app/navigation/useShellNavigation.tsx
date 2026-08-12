@@ -1,4 +1,7 @@
+import { useCallback, useMemo, useSyncExternalStore } from 'react'
 import { Activity, Bell, BookMarked, BookOpenText, ContactRound, FileImage, FileText, Globe2, Handshake, Home, Images, LayoutDashboard, MessageSquareText, Network, ShieldCheck, UserCog, UsersRound } from 'lucide-react'
+import { groupMembershipsCollectionQueryKey } from '../../db/collections/groupCollection'
+import { queryClient } from '../../db/queryClient'
 import { activeEntityService } from '../../services/activeEntityService'
 import { useAuthStore } from '../../stores/auth'
 import { translateUi } from '../../i18n/uiText'
@@ -6,16 +9,33 @@ import { EnrollmentIcon, EventsIcon, MemoriesIcon, OnboardingIcon } from './icon
 import type { NavigationCopy, ShellNavItem, ShellNavSection } from './types'
 import type { GroupEventRecord } from '../../types/event'
 import { getEventLifecycle, readEventLifecycleData } from '../../utils/eventLifecycle'
+import type { GroupMembershipDto } from '../../types'
 
 type Args = {
   contextualGroupId: string
   eventDetailScreen: boolean
   contextualEventId?: string
   contextualEvent?: GroupEventRecord | null
+  currentGroupIsChurch: boolean
   workspaceEnabled: boolean
 }
 
 const isPresent = <T,>(value: T | null | undefined): value is T => Boolean(value)
+const subscribeToLocalQueryCache = (onStoreChange: () => void) =>
+  queryClient.getQueryCache().subscribe(() => onStoreChange())
+
+const useLocalMembershipRecords = (groupId: string, includeLineCandidates: boolean) => {
+  const queryKey = useMemo(
+    () => groupMembershipsCollectionQueryKey(groupId, true, includeLineCandidates),
+    [groupId, includeLineCandidates],
+  )
+  const getSnapshot = useCallback(
+    () => queryClient.getQueryData<Array<Pick<GroupMembershipDto, 'status'>>>(queryKey),
+    [queryKey],
+  )
+
+  return useSyncExternalStore(subscribeToLocalQueryCache, getSnapshot, getSnapshot)
+}
 
 const adminPermissions = {
   access: 'admin.access',
@@ -34,12 +54,20 @@ export const useShellNavigation = ({
   eventDetailScreen,
   contextualEventId,
   contextualEvent,
+  currentGroupIsChurch,
   workspaceEnabled,
 }: Args) => {
   const auth = useAuthStore()
   const isChinese = auth.language === 'zh'
   const workspaceGroupId = contextualGroupId
   const canManageWorkspace = Boolean(workspaceGroupId && auth.hasLeaderAccess(workspaceGroupId))
+  const workspaceMembership = auth.memberships.find((item) => item.groupId === workspaceGroupId)
+  const isWorkspaceLeader = workspaceMembership?.status === 'approved' &&
+    (workspaceMembership.role === 'leader' || workspaceMembership.role === 'coLeader')
+  const localMemberships = useLocalMembershipRecords(workspaceGroupId, currentGroupIsChurch)
+  const pendingReviewCount = isWorkspaceLeader && localMemberships
+    ? localMemberships.filter((member) => member.status === 'requested').length
+    : undefined
 
   const workspaceHome: ShellNavItem[] = workspaceGroupId ? [
     {
@@ -73,6 +101,12 @@ export const useShellNavigation = ({
       matchSearch: '?section=members',
       icon: <UsersRound className="h-5 w-5" />,
       onClick: () => activeEntityService.setGroup(workspaceGroupId, { clearPage: true }),
+      badge: pendingReviewCount === undefined ? undefined : {
+        text: `${isChinese ? '待审核' : 'Pending review'} ${pendingReviewCount}`,
+        compactText: String(pendingReviewCount),
+        accessibleLabel: `${isChinese ? '待审核' : 'Pending review'}: ${pendingReviewCount}`,
+        tone: pendingReviewCount > 0 ? 'attention' : 'neutral',
+      },
     },
     {
       key: 'workspace:contacts',
