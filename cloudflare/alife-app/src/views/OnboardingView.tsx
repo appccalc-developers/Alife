@@ -90,6 +90,7 @@ const OnboardingView = () => {
       setMessage(t('enterDisplayName'))
       return
     }
+    const scrollTop = window.scrollY
     setIsDisplayNameLoading(true)
     setMessage('')
     try {
@@ -105,6 +106,9 @@ const OnboardingView = () => {
       setMessage(getErrorMessage(error, t('displayNameLoginFailed')))
     } finally {
       setIsDisplayNameLoading(false)
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => window.scrollTo({ top: scrollTop, behavior: 'auto' }))
+      })
     }
   }
 
@@ -133,7 +137,7 @@ const OnboardingView = () => {
   }
 
   return (
-    <section className="mx-auto grid min-h-[calc(100vh-8rem)] w-full max-w-6xl overflow-hidden rounded-[2rem] border border-[#2f4b42]/10 bg-[#fffdf8]/90 shadow-[0_28px_80px_rgba(31,56,48,0.13)] backdrop-blur-xl lg:grid-cols-[1.05fr_0.95fr]">
+    <section className="mx-auto grid min-h-[calc(100dvh-8rem)] w-full max-w-6xl overflow-hidden rounded-[2rem] border border-[#2f4b42]/10 bg-[#fffdf8]/90 shadow-[0_28px_80px_rgba(31,56,48,0.13)] [overflow-anchor:none] backdrop-blur-xl lg:grid-cols-[1.05fr_0.95fr]">
       <div className="relative hidden overflow-hidden bg-[#123e35] p-10 text-white lg:flex lg:flex-col lg:justify-between">
         <div className="absolute -right-24 -top-24 h-80 w-80 rounded-full bg-[#e37b63]/20 blur-3xl" />
         <div className="absolute -bottom-32 -left-20 h-96 w-96 rounded-full bg-[#57a38e]/25 blur-3xl" />
@@ -277,11 +281,13 @@ const OnboardingView = () => {
             </div>
           )}
 
-          {message ? (
-            <p role="status" className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm leading-6 text-rose-700">
-              {message}
-            </p>
-          ) : null}
+          <div className="mt-5 min-h-[4.25rem]" aria-live="polite">
+            {message ? (
+              <p role="status" className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm leading-6 text-rose-700">
+                {message}
+              </p>
+            ) : null}
+          </div>
         </div>
       </div>
     </section>
