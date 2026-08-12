@@ -5,6 +5,7 @@ import { queryClient } from '../../db/queryClient'
 import { activeEntityService } from '../../services/activeEntityService'
 import { useAuthStore } from '../../stores/auth'
 import { translateUi } from '../../i18n/uiText'
+import { siteForumEntryEnabled } from '../forumAvailability'
 import { EnrollmentIcon, EventsIcon, MemoriesIcon, OnboardingIcon } from './icons'
 import type { NavigationCopy, ShellNavItem, ShellNavSection } from './types'
 import type { GroupEventRecord } from '../../types/event'
@@ -317,13 +318,13 @@ export const useShellNavigation = ({
       matchPathOnly: true,
       icon: <BookMarked className="h-5 w-5" />,
     }] : []),
-    {
+    ...(siteForumEntryEnabled ? [{
       key: 'app:forum',
       label: isChinese ? '论坛' : 'Forum',
       description: isChinese ? '全站分享、问答和资源' : 'Site-wide sharing, Q&A, and resources',
       to: '/forum',
       icon: <MessageSquareText className="h-5 w-5" />,
-    },
+    }] : []),
     guestItem,
   ].filter(isPresent)
 

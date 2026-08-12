@@ -6,6 +6,7 @@ import AppActionButton from '../components/layout/AppActionButton'
 import AppEmptyState from '../components/layout/AppEmptyState'
 import AppPageShell from '../components/layout/AppPageShell'
 import AppSectionCard from '../components/layout/AppSectionCard'
+import { siteForumEntryEnabled } from '../app/forumAvailability'
 import { SermonTranscriptPanel } from '../components/sermons/SermonTranscriptPanel'
 import { getCachedSermons } from '../db/collections/sermonsCollection'
 import { queryClient } from '../db/queryClient'
@@ -315,7 +316,7 @@ const SermonVideoView = () => {
                     {sermonPost?.commentCount ?? 0} {discussionText.responses}
                   </p>
                 </div>
-                {sermonPost ? (
+                {sermonPost && siteForumEntryEnabled ? (
                   <Link
                     to={`/forum/posts/${sermonPost.id}`}
                     className="inline-flex min-h-10 items-center rounded-full border border-[#176b5a]/15 bg-white px-4 text-sm font-black text-[#176b5a] shadow-sm transition hover:bg-[#e3f0eb]"
