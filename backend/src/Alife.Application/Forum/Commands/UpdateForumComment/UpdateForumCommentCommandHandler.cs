@@ -2,6 +2,8 @@ using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
 using Alife.Application.Forum.Dtos;
 using Alife.Application.Forum.Services;
+using Alife.Domain.Entities;
+using Alife.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -43,8 +45,55 @@ public sealed class UpdateForumCommentCommandHandler(
 			return AppResult<ForumCommentDto>.Forbidden("You do not have permission to update this forum comment.");
 		}
 
+		if (comment.Post.GroupId.HasValue && !canModerate &&
+			!await forumAuthorizationService.CanWriteGroupForumAsync(comment.Post.GroupId.Value, request.CurrentMemberId, cancellationToken))
+		{
+			return AppResult<ForumCommentDto>.Forbidden("You must be an approved group member to update this group comment.");
+		}
+
+		ForumComment? parentComment = null;
+		if (comment.ParentCommentId.HasValue)
+		{
+			parentComment = await dbContext.ForumComments
+				.AsNoTracking()
+				.FirstOrDefaultAsync(x => x.Id == comment.ParentCommentId.Value && x.PostId == request.PostId, cancellationToken);
+		}
+
+		if (!ForumCommentVisibilityPolicy.TryResolve(
+				comment.Post,
+				request.Visibility ?? comment.Visibility,
+				parentComment,
+				out var visibility,
+				out var visibilityError))
+		{
+			return AppResult<ForumCommentDto>.Validation(visibilityError!);
+		}
+
 		comment.BodyJson = bodyJson;
 		comment.MediaJson = mediaJson;
+		comment.Visibility = visibility;
+		if (visibility == ForumCommentVisibility.GroupOnly)
+		{
+			var postComments = await dbContext.ForumComments
+				.Where(x => x.PostId == request.PostId && x.Id != comment.Id)
+				.ToListAsync(cancellationToken);
+			var restrictedCommentIds = new HashSet<Guid> { comment.Id };
+			var foundDescendant = true;
+			while (foundDescendant)
+			{
+				foundDescendant = false;
+				foreach (var descendant in postComments)
+				{
+					if (descendant.ParentCommentId.HasValue &&
+						restrictedCommentIds.Contains(descendant.ParentCommentId.Value) &&
+						restrictedCommentIds.Add(descendant.Id))
+					{
+						descendant.Visibility = ForumCommentVisibility.GroupOnly;
+						foundDescendant = true;
+					}
+				}
+			}
+		}
 		comment.UpdatedUtc = DateTime.UtcNow;
 		await dbContext.SaveChangesAsync(cancellationToken);
 

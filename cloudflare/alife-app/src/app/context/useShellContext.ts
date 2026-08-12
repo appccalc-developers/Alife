@@ -38,6 +38,7 @@ export const useShellContext = () => {
   const groupJoinMatch = path.match(/^\/groups\/([^/]+)\/join$/)
   const groupManageMatch = path.match(/^\/groups\/([^/]+)\/manage$/)
   const groupCreatePageMatch = path.match(/^\/groups\/([^/]+)\/pages\/new$/)
+  const groupForumMatch = path.match(/^\/groups\/([^/]+)\/forum(?:\/posts\/[^/]+)?$/)
   const groupEventCreateMatch = path.match(/^\/groups\/([^/]+)\/events\/new$/)
   const groupEventEditMatch = path.match(/^\/groups\/([^/]+)\/events\/([^/]+)\/edit$/)
   const groupEventDetailMatch = groupEventCreateMatch ? null : path.match(/^\/groups\/([^/]+)\/events\/([^/]+)$/)
@@ -58,6 +59,7 @@ export const useShellContext = () => {
     groupEventReviewMatch?.[1],
     groupEventCreateMatch?.[1],
     groupEventEditMatch?.[1],
+    groupForumMatch?.[1],
   ].map(normalizeRouteGroupId)
   const routeGroupScreenId = routeGroupIds[0]
   const routeGroupManageId = routeGroupIds[2]

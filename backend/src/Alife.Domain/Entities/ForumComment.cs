@@ -1,3 +1,5 @@
+using Alife.Domain.Enums;
+
 namespace Alife.Domain.Entities;
 
 public class ForumComment
@@ -8,6 +10,7 @@ public class ForumComment
 	public Guid AuthorMemberId { get; set; }
 	public string BodyJson { get; set; } = "{}";
 	public string MediaJson { get; set; } = "[]";
+	public ForumCommentVisibility Visibility { get; set; } = ForumCommentVisibility.Public;
 	public bool IsHidden { get; set; }
 	public DateTime CreatedUtc { get; set; }
 	public DateTime UpdatedUtc { get; set; }

@@ -1,3 +1,5 @@
+using Alife.Domain.Enums;
+
 namespace Alife.Application.Forum.Dtos;
 
 public sealed record ForumCommentDto(
@@ -6,6 +8,7 @@ public sealed record ForumCommentDto(
 	Guid? ParentCommentId,
 	string BodyJson,
 	string MediaJson,
+	ForumCommentVisibility Visibility,
 	bool IsHidden,
 	DateTime CreatedUtc,
 	DateTime UpdatedUtc,

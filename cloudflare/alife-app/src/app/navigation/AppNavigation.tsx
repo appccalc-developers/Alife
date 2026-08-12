@@ -26,7 +26,7 @@ const isItemActive = (item: ShellNavItem, pathname: string, search: string) => {
     (Boolean(item.pageId) && item.pageId === activePageId && (pathname.startsWith('/groups/') || pathname.startsWith('/pages'))) ||
     (!item.pageId &&
       (!item.requireNoActivePage || !activePageId) &&
-      pathname === target.pathname &&
+      (pathname === target.pathname || (item.matchDescendants && pathname.startsWith(`${target.pathname}/`))) &&
       (item.matchPathOnly || matchesSearch)) ||
     (Boolean(item.pageId) && pageEditMatch?.[1] === item.pageId)
   )

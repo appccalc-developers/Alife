@@ -149,7 +149,7 @@ public class ForumController(
 		}
 
 		var result = await mediator.Send(
-			new CreateForumCommentCommand(postId, currentMemberId.Value, request.ParentCommentId, request.Body, request.Media),
+			new CreateForumCommentCommand(postId, currentMemberId.Value, request.ParentCommentId, request.Body, request.Media, request.Visibility),
 			cancellationToken);
 
 		if (!result.IsSuccess)
@@ -176,7 +176,7 @@ public class ForumController(
 		}
 
 		var result = await mediator.Send(
-			new UpdateForumCommentCommand(postId, commentId, currentMemberId.Value, request.Body, request.Media),
+			new UpdateForumCommentCommand(postId, commentId, currentMemberId.Value, request.Body, request.Media, request.Visibility),
 			cancellationToken);
 
 		this.ApplyPrivateNoCacheHeaders();
@@ -267,5 +267,6 @@ public class ForumController(
 	public sealed record ForumCommentRequest(
 		IReadOnlyDictionary<string, string>? Body,
 		Guid? ParentCommentId = null,
-		IReadOnlyList<ForumMediaInput>? Media = null);
+		IReadOnlyList<ForumMediaInput>? Media = null,
+		ForumCommentVisibility? Visibility = null);
 }

@@ -11,7 +11,7 @@ import { http, normalizeApiError } from './http'
 
 export const forumQueryKeys = {
   categories: ['forum', 'categories'] as const,
-  posts: (categoryId?: string) => ['forum', 'posts', categoryId || 'all'] as const,
+  posts: (categoryId?: string, groupId?: string) => ['forum', 'posts', groupId || 'site', categoryId || 'all'] as const,
   post: (postId: string) => ['forum', 'post', postId] as const,
   sermonPost: (sermonId: string) => ['forum', 'sermon-post', sermonId] as const,
 }
@@ -22,10 +22,11 @@ export const forumService = {
     return data
   },
 
-  listPosts: async (params: { categoryId?: string; page?: number; pageSize?: number } = {}): Promise<ForumPagedResult<ForumPostSummaryDto>> => {
+  listPosts: async (params: { categoryId?: string; groupId?: string; page?: number; pageSize?: number } = {}): Promise<ForumPagedResult<ForumPostSummaryDto>> => {
     const { data } = await http.get<ForumPagedResult<ForumPostSummaryDto>>('/api/forum/posts', {
       params: {
         categoryId: params.categoryId || undefined,
+        groupId: params.groupId || undefined,
         page: params.page ?? 1,
         pageSize: params.pageSize ?? 20,
       },

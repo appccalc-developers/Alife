@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ChevronRight, Eye, MessageCircle, Pin, Plus, RefreshCcw, Send, Sparkles, UsersRound } from 'lucide-react'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
@@ -23,17 +23,19 @@ const isPublicVisibility = (visibility: unknown) =>
 
 const ForumComposer = ({
   defaultCategoryId,
+  groupId,
   onCreated,
   onCancel,
 }: {
   defaultCategoryId: string
+  groupId?: string
   onCreated: (postId: string) => void
   onCancel: () => void
 }) => {
   const { language, me } = useAuthStore()
   const text = forumCopy(language)
   const [categoryId, setCategoryId] = useState(defaultCategoryId)
-  const [visibility, setVisibility] = useState<ForumPostVisibilityRequest>('MembersOnly')
+  const [visibility, setVisibility] = useState<ForumPostVisibilityRequest>(groupId ? 'GroupOnly' : 'MembersOnly')
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
   const [media, setMedia] = useState<PendingForumMedia[]>([])
@@ -48,7 +50,7 @@ const ForumComposer = ({
       const uploadedMedia = await uploadPendingForumMedia(media, `forum/posts/${Date.now()}`)
       return forumService.createPost({
         categoryId,
-        groupId: null,
+        groupId: groupId || null,
         title: oneLanguagePayload(language, title),
         body: oneLanguagePayload(language, body),
         media: uploadedMedia,
@@ -134,7 +136,7 @@ const ForumComposer = ({
               </select>
               <label className="sr-only" htmlFor="forum-visibility">{text.visibility}</label>
               <select id="forum-visibility" className="min-h-10 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 shadow-sm" value={visibility} onChange={(event) => setVisibility(event.target.value as ForumPostVisibilityRequest)}>
-                <option value="MembersOnly">{text.membersOnly}</option>
+                {groupId ? <option value="GroupOnly">{text.groupOnly}</option> : <option value="MembersOnly">{text.membersOnly}</option>}
                 <option value="Public">{text.public}</option>
               </select>
             </div>
@@ -150,10 +152,13 @@ const ForumComposer = ({
 }
 
 const ForumView = () => {
-  const { language, isGuest, isRegistered, me } = useAuthStore()
+  const { groupId: groupIdParam } = useParams<{ groupId?: string }>()
+  const { language, isGuest, isRegistered, me, memberships } = useAuthStore()
   const text = forumCopy(language)
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
+  const groupId = groupIdParam?.trim() || ''
+  const forumBasePath = groupId ? `/groups/${encodeURIComponent(groupId)}/forum` : '/forum'
   const categoryId = searchParams.get('categoryId') || ''
   const [composerOpen, setComposerOpen] = useState(false)
 
@@ -163,8 +168,8 @@ const ForumView = () => {
     staleTime: 5 * 60_000,
   })
   const postsQuery = useQuery({
-    queryKey: forumQueryKeys.posts(categoryId),
-    queryFn: () => forumService.listPosts({ categoryId: categoryId || undefined, page: 1, pageSize: 30 }),
+    queryKey: forumQueryKeys.posts(categoryId, groupId),
+    queryFn: () => forumService.listPosts({ categoryId: categoryId || undefined, groupId: groupId || undefined, page: 1, pageSize: 30 }),
     staleTime: 30_000,
   })
 
@@ -172,7 +177,8 @@ const ForumView = () => {
   const posts = postsQuery.data?.items ?? []
   const firstCategoryId = categories[0]?.id ?? ''
   const defaultCategoryId = categoryId || firstCategoryId
-  const canPost = !isGuest && isRegistered
+  const groupMembership = groupId ? memberships.find((membership) => membership.groupId === groupId) : null
+  const canPost = !isGuest && isRegistered && (!groupId || groupMembership?.status === 'approved')
 
   const categoryOptions = useMemo(() => [
     { id: '', label: text.allCategories },
@@ -192,10 +198,10 @@ const ForumView = () => {
               <div className="max-w-2xl">
                 <div className="inline-flex items-center gap-2 rounded-full border border-[#176b5a]/15 bg-white px-3 py-1.5 text-xs font-black uppercase tracking-[0.12em] text-[#176b5a] shadow-sm">
                   <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-                  {text.communitySpace}
+                  {groupId ? text.groupSpace : text.communitySpace}
                 </div>
-                <h1 className="mt-4 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">{text.forum}</h1>
-                <p className="mt-3 text-base leading-7 text-slate-600">{text.forumSubtitle}</p>
+                <h1 className="mt-4 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">{groupId ? text.groupForum : text.forum}</h1>
+                <p className="mt-3 text-base leading-7 text-slate-600">{groupId ? text.groupForumSubtitle : text.forumSubtitle}</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <button
@@ -252,8 +258,9 @@ const ForumView = () => {
                   composerOpen ? (
                     <ForumComposer
                       defaultCategoryId={defaultCategoryId}
+                      groupId={groupId || undefined}
                       onCancel={() => setComposerOpen(false)}
-                      onCreated={(postId) => navigate(`/forum/posts/${postId}`)}
+                      onCreated={(postId) => navigate(`${forumBasePath}/posts/${postId}`)}
                     />
                   ) : (
                     <button
@@ -272,7 +279,7 @@ const ForumView = () => {
                   )
                 ) : (
                   <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#176b5a]/15 bg-[#e3f0eb] px-4 py-3 text-sm font-bold text-[#0d4f43]">
-                    <span>{text.loginToPost}</span>
+                    <span>{groupId ? text.groupMemberToPost : text.loginToPost}</span>
                     <Link to="/onboarding" className="inline-flex min-h-10 items-center rounded-xl bg-[#176b5a] px-4 text-sm font-black text-white transition hover:bg-[#0d4f43]">
                       {text.login}
                     </Link>
@@ -315,7 +322,7 @@ const ForumView = () => {
                   const media = parseForumMedia(post.mediaJson)
                   const commentsLabel = `${post.commentCount} ${post.commentCount === 1 && language !== 'zh' ? text.reply : text.replies}`
                   return (
-                    <Link key={post.id} to={`/forum/posts/${post.id}`} className="group block bg-white px-5 py-5 transition hover:bg-[#fbfcfa] sm:px-7">
+                    <Link key={post.id} to={`${forumBasePath}/posts/${post.id}`} className="group block bg-white px-5 py-5 transition hover:bg-[#fbfcfa] sm:px-7">
                       <article className="flex gap-4">
                         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#e3f0eb] text-sm font-black text-[#176b5a]">
                           {avatarLetter(post.author.displayName || title)}

@@ -25,8 +25,15 @@ internal static class ForumDtoMapper
 			post.UpdatedUtc,
 			new ForumAuthorDto(post.AuthorMember.Id, post.AuthorMember.DisplayName));
 
-	public static ForumPostDetailDto ToDetailDto(ForumPost post, IReadOnlyList<ForumCommentDto> comments) =>
-		new(
+	public static ForumPostDetailDto ToDetailDto(
+		ForumPost post,
+		IReadOnlyList<ForumCommentDto> comments,
+		bool useVisibleCommentMetadata = false,
+		bool restrictUpdatedUtc = false)
+	{
+		var lastVisibleCommentUtc = comments.Count > 0 ? comments.Max(x => x.CreatedUtc) : (DateTime?)null;
+
+		return new(
 			post.Id,
 			post.CategoryId,
 			post.GroupId,
@@ -39,12 +46,13 @@ internal static class ForumDtoMapper
 			post.IsPinned,
 			post.IsLocked,
 			post.IsHidden,
-			post.CommentCount,
-			post.LastCommentUtc,
+			useVisibleCommentMetadata ? comments.Count : post.CommentCount,
+			useVisibleCommentMetadata ? lastVisibleCommentUtc : post.LastCommentUtc,
 			post.CreatedUtc,
-			post.UpdatedUtc,
+			restrictUpdatedUtc ? lastVisibleCommentUtc ?? post.CreatedUtc : post.UpdatedUtc,
 			new ForumAuthorDto(post.AuthorMember.Id, post.AuthorMember.DisplayName),
 			comments);
+	}
 
 	public static ForumCommentDto ToCommentDto(ForumComment comment) =>
 		new(
@@ -53,6 +61,7 @@ internal static class ForumDtoMapper
 			comment.ParentCommentId,
 			comment.BodyJson,
 			comment.MediaJson,
+			comment.Visibility,
 			comment.IsHidden,
 			comment.CreatedUtc,
 			comment.UpdatedUtc,
