@@ -93,7 +93,8 @@ export const useShellContext = () => {
   const isProfileScreen = path === '/profile'
   const isOnboardingScreen = path === '/onboarding'
   const isGroupSelectScreen = path === '/groups/select'
-  const contextualGroupId = isGroupSelectScreen
+  const isChurchLifeScreen = path === '/church'
+  const contextualGroupId = isGroupSelectScreen || isChurchLifeScreen
     ? ''
     : routeGroupIds.find(Boolean) ||
       activeIds.groupId ||
@@ -200,13 +201,24 @@ export const useShellContext = () => {
   }, [contextualGroup?.parentGroupId])
 
   const openGroup = (groupId: string) => {
-    const continueNavigation = () => {
-      activeEntityService.setGroup(groupId, { clearPage: true })
+    const continueNavigation = async () => {
+      try {
+        const targetGroup = await groupService.getGroup(groupId)
+        if (targetGroup.isChurch) {
+          navigate('/church')
+          return
+        }
+      } catch {
+        navigate('/groups/select')
+        return
+      }
+
+      activeEntityService.setGroup(groupId, { clearPage: true, clearEvent: true })
       navigate('/groups')
     }
 
-    if (confirmUnsavedChangesNavigation('/groups', continueNavigation)) {
-      continueNavigation()
+    if (confirmUnsavedChangesNavigation('/groups', () => { void continueNavigation() })) {
+      void continueNavigation()
     }
   }
 
@@ -238,6 +250,7 @@ export const useShellContext = () => {
     isGroupScreen,
     isManagementScreen,
     isOnboardingScreen,
+    isChurchLifeScreen,
     isPageEditorScreen,
     isProfileScreen,
     isSermonDetailScreen,

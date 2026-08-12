@@ -160,6 +160,7 @@ const WorkspaceShell = () => {
 const isPublicBrowsePath = (pathname: string) =>
   pathname === '/' ||
   pathname === '/home' ||
+  pathname === '/church' ||
   pathname === '/groups' ||
   pathname === '/groups/select' ||
   /^\/groups\/[^/]+$/.test(pathname) ||

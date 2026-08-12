@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host",
+    "test:group-hierarchy": "node --test --experimental-strip-types tests/groupHierarchy.test.ts",
     "typecheck": "tsc -b --pretty false",
     "build": "tsc -b && vite build",
     "preview": "npm run build && npm --prefix ../speed-layer run dev",

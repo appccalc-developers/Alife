@@ -868,6 +868,15 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
 
   const activeSection = normalizeManageSection(searchParams.get('section'))
   const copy = managementCopy(language, group?.isChurch)
+  const groupManagementSections: Array<{ key: ManageSection; label: string; hint: string }> = [
+    { key: 'group', label: language === 'zh' ? '资料与设置' : 'Profile & settings', hint: language === 'zh' ? '名称、介绍、带领团队与访问规则' : 'Name, description, leadership, and access' },
+    { key: 'members', label: copy.members, hint: copy.membersHint },
+    { key: 'contacts', label: copy.contacts, hint: copy.contactsHint },
+    { key: 'subgroups', label: copy.subgroups, hint: copy.subgroupsHint },
+    { key: 'albums', label: copy.albums, hint: copy.albumsHint },
+    { key: 'pages', label: copy.pages, hint: copy.pagesHint },
+  ]
+  const showGroupManagementNavigation = activeSection !== 'events' && activeSection !== 'announcements'
   const workspacePath = '/groups'
   const groupWorkspaceTarget = (_targetGroupId: string) =>
     embeddedWorkspace ? '/groups?section=group' : '/groups/manage?section=group'
@@ -1000,7 +1009,7 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
               ) : null}
               <p className={[!embeddedWorkspace ? 'mt-4' : '', 'text-xs font-black uppercase tracking-[0.22em] text-emerald-700'].join(' ')}>
                 {activeSection === 'group'
-                  ? (group?.isChurch ? (language === 'zh' ? '教会总览' : 'Church overview') : (language === 'zh' ? '小组总览' : 'Group overview'))
+                  ? (group?.isChurch ? (language === 'zh' ? '教会管理' : 'Church Management') : (language === 'zh' ? '小组管理' : 'Group Management'))
                   : copy[activeSection]}
               </p>
               <h1 className="mt-2 text-3xl font-black tracking-[-0.04em] sm:text-4xl">
@@ -1011,6 +1020,40 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
             {group ? <div className="shrink-0"><AccessTypeBadge accessType={group.accessType} /></div> : null}
           </div>
         </section>
+
+        {showGroupManagementNavigation ? (
+          <nav aria-label={language === 'zh' ? '小组管理功能' : 'Group Management features'} className="rounded-[1.75rem] border border-[#2f4b42]/10 bg-[#f5f1e8]/90 p-3 shadow-[0_14px_35px_rgba(24,51,45,0.06)] sm:p-4">
+            <div className="mb-3 px-2">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#176b5a]">{language === 'zh' ? '小组管理' : 'Group Management'}</p>
+              <p className="mt-1 text-sm text-[#66766f]">{language === 'zh' ? '成员、结构、内容和设置集中在这里。' : 'People, structure, content, and settings are organized here.'}</p>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              {groupManagementSections.map((section) => {
+                const target = `/groups?section=${section.key}`
+                const active = activeSection === section.key
+                return (
+                  <Link
+                    key={section.key}
+                    to={target}
+                    className={[
+                      'rounded-2xl border px-4 py-3 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/45',
+                      active
+                        ? 'border-[#176b5a]/25 bg-[#e3f0eb] text-[#18332d] shadow-sm'
+                        : 'border-transparent bg-white/75 text-[#40554e] hover:border-[#176b5a]/15 hover:bg-white',
+                    ].join(' ')}
+                    aria-current={active ? 'page' : undefined}
+                    onClick={(event) => {
+                      if (!guardGroupProfileNavigation()) event.preventDefault()
+                    }}
+                  >
+                    <span className="block text-sm font-black">{section.label}</span>
+                    <span className="mt-1 block text-xs leading-5 text-[#6f7e78]">{section.hint}</span>
+                  </Link>
+                )
+              })}
+            </div>
+          </nav>
+        ) : null}
 
         <ManagementContentCard>
           {loading ? (

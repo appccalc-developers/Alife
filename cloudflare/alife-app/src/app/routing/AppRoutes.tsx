@@ -9,6 +9,7 @@ const AlbumView = lazy(() => import('../../views/AlbumView'))
 const ArticleDetailView = lazy(() => import('../../views/ArticleDetailView'))
 const ArticlesView = lazy(() => import('../../views/ArticlesView'))
 const BibleStudyView = lazy(() => import('../../views/BibleStudyView'))
+const ChurchLifeView = lazy(() => import('../../views/ChurchLifeView'))
 const ContactDetailView = lazy(() => import('../../views/ContactDetailView'))
 const EventCreatorView = lazy(() => import('../../views/EventCreatorView'))
 const EventDetailView = lazy(() => import('../../views/EventDetailView'))
@@ -115,6 +116,7 @@ const AppRoutes = () => {
           <Route path="/articles/:slug" element={<ArticleDetailView />} />
           <Route path="/enter" element={<EntryRoute />} />
           <Route path="/home" element={<HomeRoute />} />
+          <Route path="/church" element={<ChurchLifeView />} />
           <Route path="/groups" element={<GroupDetailView />} />
           <Route path="/groups/select" element={<GroupsView />} />
           <Route path="/groups/join" element={<GroupJoinView />} />

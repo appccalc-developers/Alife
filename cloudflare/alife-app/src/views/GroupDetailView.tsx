@@ -75,10 +75,22 @@ const GroupDetailView = () => {
   const auth = useAuthStore()
   const { groupId: routeGroupId } = useParams<{ groupId: string }>()
   const { groupId: activeGroupId, pageId } = useActiveEntityIds({ groupId: routeGroupId })
+  const { CurrentGroup, setCurrentGroup } = useCurrentGroupStore()
   const groupId = activeGroupId || ''
+  const isChurchRoute = Boolean(groupId && CurrentGroup?.id === groupId && CurrentGroup.isChurch)
+
+  useEffect(() => {
+    if (!isChurchRoute) return
+    activeEntityService.setGroup('', { clearPage: true, clearEvent: true })
+    setCurrentGroup(null)
+  }, [isChurchRoute, setCurrentGroup])
 
   if (!groupId) {
     return <Navigate to="/groups/select" replace />
+  }
+
+  if (isChurchRoute) {
+    return <Navigate to="/church" replace />
   }
 
   if (!pageId && auth.canManageGroup(groupId)) {
