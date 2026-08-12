@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { Check, ChevronDown, ChevronRight, Network, Sparkles, UsersRound } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { Check, ChevronDown, ChevronRight, LayoutList, Network, UsersRound, Workflow } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
 import AccessTypeBadge from '../components/group/AccessTypeBadge'
 import AppBadge from '../components/layout/AppBadge'
 import AppEmptyState from '../components/layout/AppEmptyState'
@@ -234,9 +234,18 @@ const GroupsView = () => {
   }, [activeGroupId, auth.memberships, hierarchy, visibleGroups])
 
   const openGroup = (group: GroupSummaryDto) => {
+    if (group.isChurch) {
+      if (activeEntityService.getAll().groupId === group.id) {
+        activeEntityService.setGroup('', { clearPage: true, clearEvent: true })
+      }
+      navigate('/church')
+      return
+    }
     const membership = auth.memberships.find((item) => item.groupId === group.id)
     activeEntityService.setGroup(group.id, { clearPage: true, clearEvent: true })
-    navigate(membership?.status === 'approved' || group.accessType === 'public' ? '/groups' : '/groups/join')
+    navigate(membership?.status === 'approved' || group.accessType === 'public'
+      ? `/groups/${encodeURIComponent(group.id)}?view=overview`
+      : `/groups/${encodeURIComponent(group.id)}/join`)
   }
 
   const toggleExpanded = (groupId: string) => {
@@ -258,28 +267,34 @@ const GroupsView = () => {
 
   return (
     <AppPageShell>
-      <section className="relative overflow-hidden rounded-[2.25rem] border border-emerald-100 bg-[#173f36] px-6 py-8 text-white shadow-[0_28px_70px_rgba(19,63,54,0.22)] sm:px-9 sm:py-10">
+      <section className="relative overflow-hidden rounded-[1.75rem] border border-emerald-100 bg-[#173f36] px-5 py-5 text-white shadow-[0_20px_52px_rgba(19,63,54,0.18)] sm:px-7 sm:py-6">
         <div className="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-[#de6c4d]/20 blur-3xl" aria-hidden="true" />
         <div className="absolute -bottom-28 left-1/3 h-72 w-72 rounded-full bg-emerald-300/10 blur-3xl" aria-hidden="true" />
-        <div className="relative grid gap-7 lg:grid-cols-[minmax(0,1.25fr)_minmax(17rem,0.75fr)] lg:items-end">
+        <div className="relative grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(15rem,0.55fr)] lg:items-center">
           <div>
-            <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.18em] ring-1 ring-white/15">
-              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-              {language === 'zh' ? '小组生活' : 'Group Life'}
-            </span>
-            <h1 className="mt-5 text-3xl font-black tracking-[-0.045em] sm:text-5xl">
+            <nav aria-label={language === 'zh' ? '小组选择视图' : 'Group selection views'} className="mb-3 inline-flex rounded-full border border-white/15 bg-black/10 p-1 backdrop-blur">
+              <span className="inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-2 text-xs font-black text-[#173f36] shadow-sm">
+                <LayoutList className="h-3.5 w-3.5" aria-hidden="true" />
+                {language === 'zh' ? '简约选择' : 'Simple view'}
+              </span>
+              <Link to="/groups/select/tree" className="inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-xs font-bold text-white/72 transition hover:bg-white/10 hover:text-white">
+                <Workflow className="h-3.5 w-3.5" aria-hidden="true" />
+                {language === 'zh' ? '组织树' : 'Organization tree'}
+              </Link>
+            </nav>
+            <h1 className="mt-2 text-2xl font-black tracking-[-0.04em] sm:text-3xl">
               {language === 'zh' ? '找到你的小组位置' : 'Find your place in the group family'}
             </h1>
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-emerald-50/78 sm:text-base">
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-emerald-50/72">
               {language === 'zh'
-                ? '展开小组结构，先了解上级与下属关系，再明确选择要进入的小组。教会生活不属于小组切换范围。'
-                : 'Explore the hierarchy before choosing a group to enter. Church Life is separate and is never part of group switching.'}
+                ? '展开小组结构，了解上级与下属关系，再选择要进入的小组。'
+                : 'Explore the hierarchy and choose the group you want to enter.'}
             </p>
           </div>
-          <div className="rounded-[1.5rem] border border-white/14 bg-white/10 p-5 backdrop-blur-xl">
+          <div className="rounded-[1.25rem] border border-white/14 bg-white/[0.08] px-4 py-3.5 backdrop-blur-xl">
             <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-100/70">{language === 'zh' ? '当前小组' : 'Current group'}</p>
-            <p className="mt-2 text-xl font-black">{currentGroup ? localizeText(currentGroup.name, language) : (language === 'zh' ? '尚未选择小组' : 'No group selected')}</p>
-            <p className="mt-2 text-xs leading-5 text-emerald-50/70">
+            <p className="mt-1 text-base font-black">{currentGroup ? localizeText(currentGroup.name, language) : (language === 'zh' ? '未选择小组' : 'No group selected')}</p>
+            <p className="mt-1 text-[11px] leading-5 text-emerald-50/65">
               {currentGroup
                 ? (language === 'zh' ? '你可以浏览结构，不会因为查看其他小组而意外切换。' : 'You can explore the hierarchy without switching accidentally.')
                 : (language === 'zh' ? '从下方结构中选择一个小组开始。' : 'Choose a group from the hierarchy below to begin.')}
@@ -304,7 +319,7 @@ const GroupsView = () => {
       {!error && !loading && visibleGroups.length === 0 ? (
         <AppEmptyState
           title={language === 'zh' ? '暂时没有可见小组' : 'No visible groups yet'}
-          description={language === 'zh' ? '有权限查看的小组会显示在这里，教会生活不会出现在小组列表中。' : 'Groups you can discover will appear here. Church Life is not part of this list.'}
+          description={language === 'zh' ? '有权限查看的小组会显示在这里。' : 'Groups you can discover will appear here.'}
         />
       ) : null}
 
@@ -388,10 +403,14 @@ const GroupsView = () => {
 
                   <div className="mt-7 flex flex-col gap-3 border-t border-[#2f4b42]/10 pt-5 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-xs leading-5 text-[#75837e]">
-                      {language === 'zh' ? '只有点击右侧按钮后才会切换当前小组。' : 'Your current group changes only after using this action.'}
+                      {focusedGroup.isChurch
+                        ? (language === 'zh' ? '根节点代表教会生活，不属于小组切换范围。' : 'The root represents Church Life and is not a selectable group.')
+                        : (language === 'zh' ? '只有点击右侧按钮后才会切换当前小组。' : 'Your current group changes only after using this action.')}
                     </p>
                     <button type="button" className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-[#176b5a] px-5 py-3 text-sm font-black text-white shadow-[0_12px_24px_rgba(23,107,90,0.20)] transition hover:-translate-y-0.5 hover:bg-[#125b4d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/55" onClick={() => openGroup(focusedGroup)}>
-                      {activeGroupId === focusedGroup.id
+                      {focusedGroup.isChurch
+                        ? (language === 'zh' ? '进入教会生活' : 'Open Church Life')
+                        : activeGroupId === focusedGroup.id
                         ? (language === 'zh' ? '进入当前小组' : 'Open current group')
                         : focusedMembership?.status === 'approved'
                           ? (language === 'zh' ? '切换并进入' : 'Switch and enter')

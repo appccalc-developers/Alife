@@ -74,7 +74,7 @@ const activateInternalTarget = (target: string) => {
   if (groupMatch) {
     const groupId = decodeURIComponent(groupMatch[1])
     activeEntityService.setGroup(groupId)
-    return '/groups'
+    return `/groups/${encodeURIComponent(groupId)}?view=overview`
   }
 
   const pageEditMatch = target.match(/^\/pages\/([^/]+)\/edit/)

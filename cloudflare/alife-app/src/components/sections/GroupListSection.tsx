@@ -58,7 +58,7 @@ export function subgroupToCardItem(subgroup: GroupSummaryDto, language = 'en'): 
           ? translateUi(language, 'protectedGroup')
           : translateUi(language, 'privateGroup')),
     imageUrl: undefined,
-    url: '/groups',
+    url: `/groups/${encodeURIComponent(subgroup.id)}?view=overview`,
     type: 'subgroup',
     groupId: subgroup.id,
   }

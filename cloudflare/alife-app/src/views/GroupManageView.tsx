@@ -235,6 +235,7 @@ type MembersPanelProps = {
   onKickMember: (memberId: string) => void
   onSetCoLeader: (memberId: string, isCoLeader: boolean) => void
   onProfileUpdated: () => Promise<void>
+  allowInvite?: boolean
   framed?: boolean
 }
 
@@ -319,7 +320,7 @@ const LeadershipPanel = ({ memberships, currentMemberId, onTransferLeadership, f
   )
 }
 
-const MembersPanel = ({ groupId, memberships, copy, onInviteMember, onApproveMember, onRejectMember, onKickMember, onSetCoLeader, onProfileUpdated, framed = true }: MembersPanelProps) => {
+const MembersPanel = ({ groupId, memberships, copy, onInviteMember, onApproveMember, onRejectMember, onKickMember, onSetCoLeader, onProfileUpdated, allowInvite = true, framed = true }: MembersPanelProps) => {
   const t = useUiText()
   const auth = useAuthStore()
   const [roleTarget, setRoleTarget] = useState<GroupMemberToolRow | null>(null)
@@ -348,11 +349,11 @@ const MembersPanel = ({ groupId, memberships, copy, onInviteMember, onApproveMem
     )
   }
   const currentRole = memberships.find((member) => member.memberId === auth.me?.id)?.role
-  const canManageRoles = currentRole === 'leader' || auth.isAdmin || isPlatformAdminRole(auth.me?.platformRole)
-  const canEditProfiles = currentRole === 'leader' || currentRole === 'coLeader' || auth.isAdmin || isPlatformAdminRole(auth.me?.platformRole)
+  const canManageRoles = currentRole === 'leader' || auth.isAdmin
+  const canEditProfiles = currentRole === 'leader' || currentRole === 'coLeader' || auth.isAdmin
   const canRemoveMember = (member: GroupMemberToolRow) => {
     if (member.memberId === auth.me?.id || member.role === 'leader') return false
-    if (auth.isAdmin || isPlatformAdminRole(auth.me?.platformRole)) return true
+    if (auth.isAdmin) return true
     return currentRole === 'leader' || (currentRole === 'coLeader' && member.role === 'member')
   }
 
@@ -418,13 +419,13 @@ const MembersPanel = ({ groupId, memberships, copy, onInviteMember, onApproveMem
     <ManagementPanelShell
       framed={framed}
       title={copy.members}
-      subtitle={copy.membersHint}
-      action={
+      subtitle={allowInvite ? copy.membersHint : (auth.language === 'zh' ? '查看教会成员、申请状态和成员角色。' : 'Review church members, requests, and member roles.')}
+      action={allowInvite ? (
         <AppActionButton variant="primary" onClick={onInviteMember}>
           <UserPlus size={16} aria-hidden="true" className="mr-1.5" />
           {copy.inviteMember}
         </AppActionButton>
-      }
+      ) : null}
     >
       <div className="mb-5">
         <MetricList
@@ -438,7 +439,12 @@ const MembersPanel = ({ groupId, memberships, copy, onInviteMember, onApproveMem
       </div>
 
       {memberships.length === 0 ? (
-        <AppEmptyState title={copy.emptyMembersTitle} description={copy.emptyMembersBody} actionLabel={copy.inviteMember} onAction={onInviteMember} />
+        <AppEmptyState
+          title={copy.emptyMembersTitle}
+          description={allowInvite ? copy.emptyMembersBody : (auth.language === 'zh' ? '目前还没有教会成员记录。' : 'There are no church member records yet.')}
+          actionLabel={allowInvite ? copy.inviteMember : undefined}
+          onAction={allowInvite ? onInviteMember : undefined}
+        />
       ) : null}
 
       {requestedMembers.length > 0 ? (
@@ -828,13 +834,23 @@ const EventsPanel = ({ groupId, events, copy, framed = true }: EventsPanelProps)
 
 type GroupManageViewProps = {
   embeddedWorkspace?: boolean
+  explicitGroupId?: string
+  workspaceBasePath?: string
+  sectionParamName?: string
+  integrated?: boolean
 }
 
-const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) => {
+const GroupManageView = ({
+  embeddedWorkspace = false,
+  explicitGroupId = '',
+  workspaceBasePath = '/groups',
+  sectionParamName = 'section',
+  integrated = false,
+}: GroupManageViewProps) => {
   const t = useUiText()
   const { groupId: routeGroupId } = useParams<{ groupId: string }>()
   const { groupId: activeGroupId } = useActiveEntityIds({ groupId: routeGroupId })
-  const groupId = activeGroupId || ''
+  const groupId = explicitGroupId || activeGroupId || ''
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const auth = useAuthStore()
@@ -866,7 +882,7 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
     refreshMemberships,
   } = useGroupScreen(groupId, { loadEvents: true })
 
-  const activeSection = normalizeManageSection(searchParams.get('section'))
+  const activeSection = normalizeManageSection(searchParams.get(sectionParamName))
   const copy = managementCopy(language, group?.isChurch)
   const groupManagementSections: Array<{ key: ManageSection; label: string; hint: string }> = [
     { key: 'group', label: language === 'zh' ? '资料与设置' : 'Profile & settings', hint: language === 'zh' ? '名称、介绍、带领团队与访问规则' : 'Name, description, leadership, and access' },
@@ -877,7 +893,7 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
     { key: 'pages', label: copy.pages, hint: copy.pagesHint },
   ]
   const showGroupManagementNavigation = activeSection !== 'events' && activeSection !== 'announcements'
-  const workspacePath = '/groups'
+  const workspacePath = workspaceBasePath
   const groupWorkspaceTarget = (_targetGroupId: string) =>
     embeddedWorkspace ? '/groups?section=group' : '/groups/manage?section=group'
   const unsavedGroupProfileMessage = t('groupProfileUnsavedChangesPrompt')
@@ -891,7 +907,6 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
   }, [hasUnsavedGroupProfileChanges, unsavedGroupProfileMessage])
   const canManageSubgroup = (subgroupId: string) =>
     auth.isAdmin ||
-    isPlatformAdminRole(auth.me?.platformRole) ||
     auth.memberships.some(
       (membership) =>
         membership.groupId === subgroupId &&
@@ -985,13 +1000,12 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
   }
 
   if (!loading && !canManageGroup) {
-    return <Navigate to="/groups" replace />
+    return <Navigate to="/groups?view=overview" replace />
   }
 
-  return (
-    <AppPageShell>
-      <div className="space-y-5">
-        <section className="overflow-hidden rounded-[2rem] border border-emerald-100 bg-gradient-to-br from-white via-emerald-50 to-[#fff4ea] px-6 py-6 text-[#18332d] shadow-[0_20px_55px_rgba(23,107,90,0.08)] sm:px-8">
+  const managementWorkspace = (
+      <div className={integrated ? 'space-y-4' : 'space-y-5'}>
+        {!integrated ? <section className="overflow-hidden rounded-[2rem] border border-emerald-100 bg-gradient-to-br from-white via-emerald-50 to-[#fff4ea] px-6 py-6 text-[#18332d] shadow-[0_20px_55px_rgba(23,107,90,0.08)] sm:px-8">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               {!embeddedWorkspace ? (
@@ -1019,17 +1033,17 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
             </div>
             {group ? <div className="shrink-0"><AccessTypeBadge accessType={group.accessType} /></div> : null}
           </div>
-        </section>
+        </section> : null}
 
-        {showGroupManagementNavigation ? (
-          <nav aria-label={language === 'zh' ? '小组管理功能' : 'Group Management features'} className="rounded-[1.75rem] border border-[#2f4b42]/10 bg-[#f5f1e8]/90 p-3 shadow-[0_14px_35px_rgba(24,51,45,0.06)] sm:p-4">
+        {!integrated && showGroupManagementNavigation ? (
+          <nav aria-label={language === 'zh' ? `${group?.isChurch ? '教会' : '小组'}管理功能` : `${group?.isChurch ? 'Church' : 'Group'} Management features`} className="rounded-[1.75rem] border border-[#2f4b42]/10 bg-[#f5f1e8]/90 p-3 shadow-[0_14px_35px_rgba(24,51,45,0.06)] sm:p-4">
             <div className="mb-3 px-2">
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#176b5a]">{language === 'zh' ? '小组管理' : 'Group Management'}</p>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#176b5a]">{group?.isChurch ? (language === 'zh' ? '教会管理' : 'Church Management') : (language === 'zh' ? '小组管理' : 'Group Management')}</p>
               <p className="mt-1 text-sm text-[#66766f]">{language === 'zh' ? '成员、结构、内容和设置集中在这里。' : 'People, structure, content, and settings are organized here.'}</p>
             </div>
             <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
               {groupManagementSections.map((section) => {
-                const target = `/groups?section=${section.key}`
+                const target = `${workspaceBasePath}?${sectionParamName}=${section.key}`
                 const active = activeSection === section.key
                 return (
                   <Link
@@ -1147,7 +1161,11 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
                   groupId={groupId}
                   memberships={memberships}
                   copy={copy}
-                  onInviteMember={() => navigate('/groups/manage/invite-members')}
+                  allowInvite={!group.isChurch}
+                  onInviteMember={() => {
+                    activeEntityService.setGroup(groupId, { clearPage: true })
+                    navigate(`/groups/${groupId}/manage/invite-members`)
+                  }}
                   onApproveMember={(memberId) => approveMember(memberId).catch(() => setStatusMessage(t('approveFailed')))}
                   onRejectMember={(memberId) => rejectMember(memberId).catch(() => setStatusMessage(t('rejectFailed')))}
                   onKickMember={(memberId) => {
@@ -1212,8 +1230,9 @@ const GroupManageView = ({ embeddedWorkspace = false }: GroupManageViewProps) =>
           ) : null}
         </ManagementContentCard>
       </div>
-    </AppPageShell>
   )
+
+  return integrated ? managementWorkspace : <AppPageShell>{managementWorkspace}</AppPageShell>
 }
 
 export default GroupManageView

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ChevronRight, Eye, MessageCircle, Pin, Plus, RefreshCcw, Send, Sparkles, UsersRound } from 'lucide-react'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
@@ -155,10 +155,11 @@ const ForumView = () => {
   const { groupId: groupIdParam } = useParams<{ groupId?: string }>()
   const { language, isGuest, isRegistered, me, memberships } = useAuthStore()
   const text = forumCopy(language)
+  const churchForum = useLocation().pathname.startsWith('/church/forum')
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const groupId = groupIdParam?.trim() || ''
-  const forumBasePath = groupId ? `/groups/${encodeURIComponent(groupId)}/forum` : '/forum'
+  const forumBasePath = groupId ? `/groups/${encodeURIComponent(groupId)}/forum` : churchForum ? '/church/forum' : '/forum'
   const categoryId = searchParams.get('categoryId') || ''
   const [composerOpen, setComposerOpen] = useState(false)
 
@@ -198,10 +199,10 @@ const ForumView = () => {
               <div className="max-w-2xl">
                 <div className="inline-flex items-center gap-2 rounded-full border border-[#176b5a]/15 bg-white px-3 py-1.5 text-xs font-black uppercase tracking-[0.12em] text-[#176b5a] shadow-sm">
                   <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-                  {groupId ? text.groupSpace : text.communitySpace}
+                  {groupId ? text.groupSpace : churchForum ? text.churchSpace : text.communitySpace}
                 </div>
-                <h1 className="mt-4 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">{groupId ? text.groupForum : text.forum}</h1>
-                <p className="mt-3 text-base leading-7 text-slate-600">{groupId ? text.groupForumSubtitle : text.forumSubtitle}</p>
+                <h1 className="mt-4 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">{groupId ? text.groupForum : churchForum ? text.churchForum : text.forum}</h1>
+                <p className="mt-3 text-base leading-7 text-slate-600">{groupId ? text.groupForumSubtitle : churchForum ? text.churchForumSubtitle : text.forumSubtitle}</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <button

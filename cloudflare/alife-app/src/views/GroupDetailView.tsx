@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Navigate, useNavigate, useParams } from 'react-router-dom'
+import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import GroupScreenShell from '../components/group/GroupScreenShell'
 import GroupDashboard from '../components/group/GroupDashboard'
 import GroupManageView from './GroupManageView'
@@ -12,9 +12,10 @@ import { useCurrentGroupStore } from '../stores/currentGroup'
 type GroupBrowseViewProps = {
   groupId: string
   pageId: string
+  scope?: 'group' | 'church'
 }
 
-const GroupBrowseView = ({ groupId, pageId }: GroupBrowseViewProps) => {
+const GroupBrowseView = ({ groupId, pageId, scope = 'group' }: GroupBrowseViewProps) => {
   const navigate = useNavigate()
   const { setCurrentGroup } = useCurrentGroupStore()
 
@@ -34,10 +35,10 @@ const GroupBrowseView = ({ groupId, pageId }: GroupBrowseViewProps) => {
   } = useGroupScreen(groupId, { loadEvents: true })
 
   useEffect(() => {
-    if (group) {
+    if (group && scope === 'group' && !group.isChurch) {
       setCurrentGroup(group)
     }
-  }, [group, setCurrentGroup])
+  }, [group, scope, setCurrentGroup])
 
   return (
     <GroupScreenShell
@@ -56,6 +57,7 @@ const GroupBrowseView = ({ groupId, pageId }: GroupBrowseViewProps) => {
           pages={pages}
           events={events}
           canManage={canManageGroup}
+          scope={scope}
         />
       ) : null}
       selectedPageId={pageId}
@@ -71,9 +73,32 @@ const GroupBrowseView = ({ groupId, pageId }: GroupBrowseViewProps) => {
   )
 }
 
-const GroupDetailView = () => {
+type GroupWorkspaceViewProps = {
+  groupId: string
+  pageId?: string
+  scope?: 'group' | 'church'
+  managementEnabled?: boolean
+}
+
+export const GroupWorkspaceView = ({ groupId, pageId = '', scope = 'group', managementEnabled = true }: GroupWorkspaceViewProps) => {
   const auth = useAuthStore()
+
+  if (managementEnabled && !pageId && auth.canManageGroup(groupId)) {
+    return (
+      <GroupManageView
+        embeddedWorkspace
+        explicitGroupId={scope === 'church' ? groupId : undefined}
+        workspaceBasePath={scope === 'church' ? '/church' : '/groups'}
+      />
+    )
+  }
+
+  return <GroupBrowseView groupId={groupId} pageId={pageId} scope={scope} />
+}
+
+const GroupDetailView = () => {
   const { groupId: routeGroupId } = useParams<{ groupId: string }>()
+  const [searchParams] = useSearchParams()
   const { groupId: activeGroupId, pageId } = useActiveEntityIds({ groupId: routeGroupId })
   const { CurrentGroup, setCurrentGroup } = useCurrentGroupStore()
   const groupId = activeGroupId || ''
@@ -93,11 +118,13 @@ const GroupDetailView = () => {
     return <Navigate to="/church" replace />
   }
 
-  if (!pageId && auth.canManageGroup(groupId)) {
-    return <GroupManageView embeddedWorkspace />
-  }
-
-  return <GroupBrowseView groupId={groupId} pageId={pageId} />
+  return (
+    <GroupWorkspaceView
+      groupId={groupId}
+      pageId={pageId}
+      managementEnabled={searchParams.get('view') !== 'overview' && searchParams.has('section')}
+    />
+  )
 }
 
 export default GroupDetailView

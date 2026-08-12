@@ -88,13 +88,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     [memberships],
   )
 
-  const isPlatformAdmin = Boolean(me?.isAdmin || me?.platformRole === 'admin' || me?.platformRole === 'superadmin')
   const permissions = useMemo(() => new Set(me?.permissions ?? []), [me?.permissions])
   const hasAdminPermission = useCallback(
     (permissionCode: string) => Boolean(me?.platformRole === 'superadmin' || permissions.has(permissionCode)),
     [me?.platformRole, permissions],
   )
-  const canReviewPages = Boolean(isPlatformAdmin || me?.platformRole === 'page_reviewer' || hasAdminPermission('admin.pages.review'))
+  const isPlatformAdmin = hasAdminPermission('admin.access')
+  const canReviewPages = Boolean(me?.platformRole === 'page_reviewer' || hasAdminPermission('admin.pages.review'))
 
   const canManageGroup = useCallback(
     (groupId: string) => isPlatformAdmin || hasGroupRole(groupId, 'leader') || hasGroupRole(groupId, 'coLeader'),

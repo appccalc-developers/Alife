@@ -1,9 +1,9 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
 import { isAuthOptionalLocation } from '../app/routing/publicRoutePolicy'
 import { fetchGroupForViewer } from '../db/collections/groupCollection'
 import { useUiText } from '../i18n/uiText'
-import { activeEntityService } from '../services/activeEntityService'
+import { ACTIVE_ENTITY_CHANGED_EVENT, activeEntityService } from '../services/activeEntityService'
 import { useAuthStore } from './auth'
 import type { GroupDto } from '../types'
 import { normalizeGroup } from '../utils/apiEnums'
@@ -23,6 +23,7 @@ export const CurrentGroupProvider = ({ children }: { children: ReactNode }) => {
   const location = useLocation()
   const groupContextEnabled = !isAuthOptionalLocation(location)
   const [CurrentGroup, setCurrentGroup] = useState<GroupDto | null>(null)
+  const [activeGroupId, setActiveGroupId] = useState(() => activeEntityService.getAll().groupId)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const tRef = useRef(t)
@@ -32,14 +33,23 @@ export const CurrentGroupProvider = ({ children }: { children: ReactNode }) => {
   }, [t])
 
   useEffect(() => {
+    const syncActiveGroup = () => setActiveGroupId(activeEntityService.getAll().groupId)
+    syncActiveGroup()
+    window.addEventListener(ACTIVE_ENTITY_CHANGED_EVENT, syncActiveGroup)
+    window.addEventListener('storage', syncActiveGroup)
+    return () => {
+      window.removeEventListener(ACTIVE_ENTITY_CHANGED_EVENT, syncActiveGroup)
+      window.removeEventListener('storage', syncActiveGroup)
+    }
+  }, [])
+
+  useEffect(() => {
     if (!groupContextEnabled) {
       setCurrentGroup(null)
       setLoading(false)
       setError('')
       return
     }
-
-    const activeGroupId = activeEntityService.getAll().groupId
 
     if (!activeGroupId || auth.isGuest) {
       setCurrentGroup(null)
@@ -82,16 +92,26 @@ export const CurrentGroupProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       cancelled = true
     }
-  }, [auth.isGuest, auth.me?.id, groupContextEnabled])
+  }, [activeGroupId, auth.isGuest, auth.me?.id, groupContextEnabled])
+
+  const setSelectableCurrentGroup = useCallback((group: GroupDto | null) => {
+    if (group?.isChurch) {
+      if (activeEntityService.getAll().groupId === group.id) {
+        activeEntityService.setGroup('', { clearPage: true, clearEvent: true })
+      }
+      return
+    }
+    setCurrentGroup(group)
+  }, [])
 
   const value = useMemo<CurrentGroupContextValue>(
     () => ({
       CurrentGroup,
       loading,
       error,
-      setCurrentGroup,
+      setCurrentGroup: setSelectableCurrentGroup,
     }),
-    [CurrentGroup, error, loading],
+    [CurrentGroup, error, loading, setSelectableCurrentGroup],
   )
 
   return <CurrentGroupContext.Provider value={value}>{children}</CurrentGroupContext.Provider>

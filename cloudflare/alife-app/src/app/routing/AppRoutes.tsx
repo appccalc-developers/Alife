@@ -19,6 +19,7 @@ const GroupDetailView = lazy(() => import('../../views/GroupDetailView'))
 const GroupJoinView = lazy(() => import('../../views/GroupJoinView'))
 const GroupManageView = lazy(() => import('../../views/GroupManageView'))
 const GroupsView = lazy(() => import('../../views/GroupsView'))
+const GroupTreeView = lazy(() => import('../../views/GroupTreeView'))
 const ForumView = lazy(() => import('../../views/ForumView'))
 const ForumPostView = lazy(() => import('../../views/ForumPostView'))
 const HomeView = lazy(() => import('../../views/HomeView'))
@@ -31,14 +32,15 @@ const ProfileView = lazy(() => import('../../views/ProfileView'))
 const SermonsView = lazy(() => import('../../views/SermonsView'))
 const SermonVideoView = lazy(() => import('../../views/SermonVideoView'))
 
-const AdminRoute = ({ children }: { children: ReactElement }) => {
+const AdminRoute = ({ children, permission }: { children: ReactElement; permission?: string }) => {
   const auth = useAuthStore()
 
   if (!auth.initialized) {
     return <AppRouteLoading />
   }
 
-  return auth.me?.isAdmin || auth.hasAdminPermission('admin.access') ? children : <Navigate to="/" replace />
+  const hasRequiredPermission = !permission || auth.hasAdminPermission(permission)
+  return !auth.isGuest && hasRequiredPermission ? children : <Navigate to="/" replace />
 }
 
 const PageReviewRoute = ({ children }: { children: ReactElement }) => {
@@ -116,9 +118,12 @@ const AppRoutes = () => {
           <Route path="/articles/:slug" element={<ArticleDetailView />} />
           <Route path="/enter" element={<EntryRoute />} />
           <Route path="/home" element={<HomeRoute />} />
-          <Route path="/church" element={<ChurchLifeView />} />
+          <Route path="/church" element={<MemberRoute><ChurchLifeView /></MemberRoute>} />
+          <Route path="/church/forum" element={<MemberRoute><ForumView /></MemberRoute>} />
+          <Route path="/church/forum/posts/:postId" element={<MemberRoute><ForumPostView /></MemberRoute>} />
           <Route path="/groups" element={<GroupDetailView />} />
           <Route path="/groups/select" element={<GroupsView />} />
+          <Route path="/groups/select/tree" element={<GroupTreeView />} />
           <Route path="/groups/join" element={<GroupJoinView />} />
           <Route path="/groups/manage" element={<GroupManageView />} />
           <Route path="/groups/manage/invite-members" element={<InviteMembersView />} />
@@ -173,7 +178,7 @@ const AppRoutes = () => {
           <Route
             path="/admin"
             element={
-              <AdminRoute>
+              <AdminRoute permission="admin.members.view">
                 <AdminView />
               </AdminRoute>
             }
@@ -181,7 +186,7 @@ const AppRoutes = () => {
           <Route
             path="/admin/users"
             element={
-              <AdminRoute>
+              <AdminRoute permission="admin.roles.managePermissions">
                 <AdminView />
               </AdminRoute>
             }
@@ -189,7 +194,7 @@ const AppRoutes = () => {
           <Route
             path="/admin/roles"
             element={
-              <AdminRoute>
+              <AdminRoute permission="admin.auditLogs.view">
                 <AdminView />
               </AdminRoute>
             }
@@ -197,7 +202,7 @@ const AppRoutes = () => {
           <Route
             path="/admin/logs"
             element={
-              <AdminRoute>
+              <AdminRoute permission="admin.messages.manage">
                 <AdminView />
               </AdminRoute>
             }
@@ -205,7 +210,7 @@ const AppRoutes = () => {
           <Route
             path="/admin/messages"
             element={
-              <AdminRoute>
+              <AdminRoute permission="admin.visitRequests.receive">
                 <AdminView />
               </AdminRoute>
             }
@@ -213,7 +218,7 @@ const AppRoutes = () => {
           <Route
             path="/admin/visit-requests"
             element={
-              <AdminRoute>
+              <AdminRoute permission="admin.files.view">
                 <AdminView />
               </AdminRoute>
             }

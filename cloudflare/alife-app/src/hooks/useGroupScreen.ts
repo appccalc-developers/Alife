@@ -83,7 +83,9 @@ export const useGroupScreen = (groupId: string, options: GroupScreenOptions = {}
 
   // Load memberships as a live collection.
   const canLoadMemberships = !auth.isGuest && auth.canManageGroup(groupId)
-  const includeLineCandidates = canLoadMemberships && group?.isChurch === true
+  // Root-church membership is managed from existing church records; invitation
+  // candidates belong to subgroup invitation workflows and must not appear here.
+  const includeLineCandidates = false
   const membershipsColl = useMemo(
     () => (groupId ? groupMembershipsCollection(groupId, canLoadMemberships, includeLineCandidates) : null),
     [canLoadMemberships, groupId, includeLineCandidates],
@@ -109,7 +111,7 @@ export const useGroupScreen = (groupId: string, options: GroupScreenOptions = {}
 
   const membershipRole = useMemo<MembershipRole>(() => membership?.role ?? null, [membership?.role])
 
-  const isPlatformAdmin = auth.isAdmin || auth.me?.platformRole === 'admin' || auth.me?.platformRole === 'superadmin'
+  const isPlatformAdmin = auth.isAdmin
   const canManageGroup = isPlatformAdmin || (membership?.status === 'approved' && (membership.role === 'leader' || membership.role === 'coLeader'))
   const canCreatePage = isPlatformAdmin || membership?.status === 'approved'
   const canEditAllPages = canManageGroup

@@ -21,12 +21,15 @@ export type ShellNavItem = {
   actionOnly?: boolean
   onClick?: () => void
   badge?: ShellNavBadge
+  children?: ShellNavItem[]
 }
 
 export type ShellNavSection = {
   key: string
   label: string
   description?: string
+  to?: string
+  icon?: ReactElement
   items: ShellNavItem[]
 }
 

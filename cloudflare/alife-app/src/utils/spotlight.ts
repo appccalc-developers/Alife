@@ -274,7 +274,7 @@ export const resolveDataSpotlightContent = (source: SpotlightDataSource, item: u
       title: localizeText(group.name, language) || translateUi(language, 'groups'),
       subtitle: accessTypeLabel(group.accessType, language),
       body: localizeText(group.description, language),
-      actions: [{ label: translateUi(language, 'viewDetails'), url: '/groups', entityType: 'group', entityId: group.id }],
+      actions: [{ label: translateUi(language, 'viewDetails'), url: `/groups/${encodeURIComponent(group.id)}?view=overview`, entityType: 'group', entityId: group.id }],
     }
   }
 

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Link, Navigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useLocation, useParams } from 'react-router-dom'
 import { ArrowLeft, Eye, Lock, MessageCircle, MessageSquareReply, Pin, Send } from 'lucide-react'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
@@ -195,8 +195,9 @@ const ForumPostView = () => {
   const { groupId: routeGroupId, postId } = useParams<{ groupId?: string; postId: string }>()
   const { language, isGuest, isRegistered, memberships } = useAuthStore()
   const text = forumCopy(language)
+  const churchForum = useLocation().pathname.startsWith('/church/forum')
   const normalizedRouteGroupId = routeGroupId?.trim() || ''
-  const forumBasePath = normalizedRouteGroupId ? `/groups/${encodeURIComponent(normalizedRouteGroupId)}/forum` : '/forum'
+  const forumBasePath = normalizedRouteGroupId ? `/groups/${encodeURIComponent(normalizedRouteGroupId)}/forum` : churchForum ? '/church/forum' : '/forum'
   const [replyTarget, setReplyTarget] = useState<ForumCommentDto | null>(null)
   const postQuery = useQuery({
     queryKey: postId ? forumQueryKeys.post(postId) : ['forum', 'post', 'missing'],
