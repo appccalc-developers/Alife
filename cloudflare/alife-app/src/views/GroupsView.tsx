@@ -185,7 +185,7 @@ const GroupsView = () => {
     setLoading(true)
     setError('')
 
-    groupService.getVisibleGroups()
+    groupService.getVisibleGroups(auth.me?.id)
       .then((data) => {
         if (cancelled) return
         const selectableGroups = data.filter((group) => !group.isChurch)
@@ -217,7 +217,7 @@ const GroupsView = () => {
       })
 
     return () => { cancelled = true }
-  }, [auth.isGuest])
+  }, [auth.isGuest, auth.me?.id])
 
   useEffect(() => {
     if (hierarchy.length === 0) return

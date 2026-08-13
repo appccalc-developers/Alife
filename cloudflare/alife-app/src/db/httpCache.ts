@@ -169,7 +169,7 @@ const executeConditionalGet = async <TData>({ queryKey, path, parser }: Conditio
   const totalRtt = idbMs + networkMs
   const edgeCache = response.headers.get('x-alife-cache') ?? 'UNKNOWN'
   const backendCache = response.headers.get('x-alife-backend-cache') ?? 'UNKNOWN'
-  const sqlSkipped = response.status === 304 || edgeCache === 'HIT' || backendCache === 'HIT'
+  const sqlSkipped = edgeCache === 'HIT' || edgeCache === 'REVALIDATED' || backendCache === 'HIT'
 
   // 304 Not Modified — return cached data
   if (response.status === 304 && previous?.data !== undefined) {

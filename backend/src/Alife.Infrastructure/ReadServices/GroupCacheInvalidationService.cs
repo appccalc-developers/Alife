@@ -11,16 +11,19 @@ public sealed class GroupCacheInvalidationService(
     public Task RemoveGroupAsync(Guid groupId, CancellationToken cancellationToken = default)
         => Task.WhenAll(
             hybridCache.RemoveAsync(GroupCacheKeys.ById(groupId), cancellationToken).AsTask(),
+            hybridCache.RemoveAsync(GroupCacheKeys.VisibleDiscoverable(), cancellationToken).AsTask(),
             cloudflareKvCacheService.RemoveApiCacheAsync($"/api/groups/{groupId}", cancellationToken));
 
     public Task RemoveChurchAsync(CancellationToken cancellationToken = default)
         => Task.WhenAll(
             hybridCache.RemoveAsync(GroupCacheKeys.Church(), cancellationToken).AsTask(),
+            hybridCache.RemoveAsync(GroupCacheKeys.VisibleDiscoverable(), cancellationToken).AsTask(),
             cloudflareKvCacheService.RemoveApiCacheAsync("/api/groups/church", cancellationToken));
 
     public Task RemoveSubgroupsAsync(Guid groupId, CancellationToken cancellationToken = default)
         => Task.WhenAll(
             hybridCache.RemoveAsync(GroupCacheKeys.Subgroups(groupId), cancellationToken).AsTask(),
+            hybridCache.RemoveAsync(GroupCacheKeys.VisibleDiscoverable(), cancellationToken).AsTask(),
             cloudflareKvCacheService.RemoveApiCacheAsync($"/api/groups/{groupId}/subgroups", cancellationToken));
 
     public Task RemoveMembershipsAsync(Guid groupId, CancellationToken cancellationToken = default)

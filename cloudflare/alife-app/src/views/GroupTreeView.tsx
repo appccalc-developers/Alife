@@ -157,7 +157,7 @@ const GroupTreeView = () => {
     let cancelled = false
     setLoading(true)
     setError(false)
-    groupService.getVisibleGroups()
+    groupService.getVisibleGroups(auth.me?.id)
       .then((items) => {
         if (cancelled) return
         setGroups(items)
@@ -170,7 +170,7 @@ const GroupTreeView = () => {
         }
       })
     return () => { cancelled = true }
-  }, [auth.isGuest])
+  }, [auth.isGuest, auth.me?.id])
 
   useEffect(() => {
     if (hierarchy.length === 0) return
