@@ -17,9 +17,13 @@ public sealed class BackfillMemberPrivateFilesCommandHandler(
         BackfillMemberPrivateFilesCommand request,
         CancellationToken cancellationToken)
     {
-        if (!await AdminPlatformRoleHelpers.IsSuperAdminAsync(dbContext, request.CurrentMemberId, cancellationToken))
+        if (!await AdminPlatformRoleHelpers.HasPermissionAsync(
+                dbContext,
+                request.CurrentMemberId,
+                AdminPermissionCatalog.BackfillPrivateFiles,
+                cancellationToken))
         {
-            return AppResult<FileAssetPrivateBackfillResultDto>.Forbidden("Only super admins can backfill private file storage.");
+            return AppResult<FileAssetPrivateBackfillResultDto>.Forbidden("You do not have permission to migrate private file storage.");
         }
 
         var maxItems = Math.Clamp(request.MaxItems <= 0 ? 50 : request.MaxItems, 1, 200);

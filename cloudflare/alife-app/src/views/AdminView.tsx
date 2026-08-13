@@ -101,7 +101,7 @@ const labels: Record<string, LocalText> = {
   managedRoleCount: { en: 'Managed roles', zh: '可管理角色' },
   roleList: { en: 'Role list', zh: '角色列表' },
   roleListDescription: { en: 'Search and select one role to edit. This layout stays usable when the role list grows.', zh: '搜索并选择一个角色进行编辑。角色变多时，这个布局仍然容易使用。' },
-  permissionModelHint: { en: 'Permissions are built-in platform features. Create a role first, then choose which features that role can use.', zh: '权限来自系统内置功能清单。先创建角色，再勾选这个角色可以使用的功能。' },
+  permissionModelHint: { en: 'These are platform-wide permissions. Church and group workspace management is controlled separately by leader and co-leader roles.', zh: '这里列出的是平台级权限。教会和小组工作区的管理权限由负责人和协同负责人角色单独控制。' },
   selectedRole: { en: 'Selected role', zh: '当前角色' },
   noRolesMatch: { en: 'No roles match this search.', zh: '没有匹配的角色。' },
   newRole: { en: 'New role', zh: '新角色' },
@@ -658,7 +658,7 @@ const AdminView = () => {
 
   return (
     <section className="mx-auto w-full max-w-7xl space-y-5 px-2 py-3 sm:px-4">
-      {section !== 'overview' ? <header className="overflow-hidden rounded-3xl border border-emerald-100 bg-white shadow-sm">
+      {section !== 'overview' && section !== 'roles' ? <header className="overflow-hidden rounded-3xl border border-emerald-100 bg-white shadow-sm">
         <div className="bg-gradient-to-r from-emerald-50 via-white to-amber-50 px-5 py-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
@@ -722,7 +722,7 @@ const AdminView = () => {
         />
       ) : null}
       {section === 'users' ? <UsersSection l={l} loading={loading} page={members} filters={userFilters} setFilters={setUserFilters} roles={roleOptions} isSuperAdmin={isSuperAdmin} canManageMemberProfiles={hasAdminPermission('admin.members.manageProfiles')} updatingMemberId={updatingMemberId} updatingMemberProfileId={updatingMemberProfileId} apply={() => loadUsers(1)} reset={() => { setUserFilters({ search: '', role: '', isRegistered: '' }); setTimeout(() => loadUsers(1).catch(() => undefined), 0) }} goToPage={loadUsers} updateMemberRoles={updateMemberRoles} updateMemberProfile={updateMemberProfile} language={language} currentMemberId={me?.id || ''} /> : null}
-      {section === 'roles' ? <RolesSection l={l} roles={roleOptions} roleForm={roleForm} setRoleForm={setRoleForm} creatingRole={creatingRole} deletingRoleId={deletingRoleId} updatingRolePermissionId={updatingRolePermissionId} roleCodeValidation={roleCodeValidation} roleCodeFeedback={roleCodeFeedback} canSubmitCreateRole={canSubmitCreateRole} createRole={createRole} deleteRole={deleteRole} updateRolePermissions={updateRolePermissions} language={language} /> : null}
+      {section === 'roles' ? <RolesSection l={l} roles={roleOptions} roleForm={roleForm} setRoleForm={setRoleForm} creatingRole={creatingRole} deletingRoleId={deletingRoleId} updatingRolePermissionId={updatingRolePermissionId} roleCodeValidation={roleCodeValidation} roleCodeFeedback={roleCodeFeedback} canSubmitCreateRole={canSubmitCreateRole} createRole={createRole} deleteRole={deleteRole} updateRolePermissions={updateRolePermissions} refresh={refreshCurrent} loading={loading} language={language} /> : null}
       {section === 'logs' ? <LogsSection l={l} loading={loading} page={logs} filters={logFilters} setFilters={setLogFilters} apply={() => loadLogs(1, 25)} goToPage={(page) => loadLogs(page, 25)} language={language} /> : null}
       {section === 'messages' ? <MessagesSection l={l} loading={loading} page={messages} filters={messageFilters} setFilters={setMessageFilters} apply={() => loadMessages(1)} goToPage={loadMessages} groups={groups} roles={roleOptions} members={members.items} sendForm={sendForm} setSendForm={setSendForm} sendMessage={sendMessage} translateMessage={translateMessage} aiTranslating={messageAiDirection} language={language} /> : null}
       {section === 'visitRequests' ? <VisitRequestsSection l={l} loading={loading} page={visitRequests} filters={visitRequestFilters} setFilters={setVisitRequestFilters} apply={() => loadVisitRequests(1)} goToPage={loadVisitRequests} updateStatus={updateVisitRequestStatus} updatingId={updatingVisitRequestId} language={language} /> : null}
@@ -817,7 +817,7 @@ const ChurchManagementDashboard = ({ churchName, sections, users, messages, sync
   const unreadCount = messages.items.filter((message) => !message.readUtc).length
   const showMemberMetric = auth.hasAdminPermission('admin.members.view')
   const showMessageMetric = auth.hasAdminPermission('admin.messages.manage')
-  const showSermonSync = auth.isAdmin
+  const showSermonSync = auth.hasAdminPermission('admin.sermons.sync')
 
   return (
     <section className="overflow-hidden rounded-[2rem] border border-[#254b42] bg-white shadow-[0_24px_70px_rgba(14,47,40,0.16)]">

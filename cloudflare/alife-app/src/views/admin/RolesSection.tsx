@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Loader2, Plus, Trash2, UserCog, X } from 'lucide-react'
+import { Loader2, Plus, RefreshCw, Trash2, UserCog, X } from 'lucide-react'
 import type { AdminPlatformRoleDto } from '../../services/groupService'
 import { Empty, LabeledField, SearchInput, TextInput } from './AdminUi'
 import type { LabelFn } from './AdminUi'
 import { formatRole, readLocalized } from './adminUtils'
 
-export const RolesSection = ({ l, roles, roleForm, setRoleForm, creatingRole, deletingRoleId, updatingRolePermissionId, roleCodeValidation, roleCodeFeedback, canSubmitCreateRole, createRole, deleteRole, updateRolePermissions, language }: {
+export const RolesSection = ({ l, roles, roleForm, setRoleForm, creatingRole, deletingRoleId, updatingRolePermissionId, roleCodeValidation, roleCodeFeedback, canSubmitCreateRole, createRole, deleteRole, updateRolePermissions, refresh, loading, language }: {
   l: LabelFn
   roles: AdminPlatformRoleDto[]
   roleForm: { code: string; nameEn: string; nameZh: string; permissionCodes: string[] }
@@ -20,6 +20,8 @@ export const RolesSection = ({ l, roles, roleForm, setRoleForm, creatingRole, de
   createRole: () => Promise<boolean>
   deleteRole: (role: AdminPlatformRoleDto) => Promise<void>
   updateRolePermissions: (role: AdminPlatformRoleDto, permissionCode: string, enabled: boolean) => Promise<void>
+  refresh: () => Promise<void>
+  loading: boolean
 }) => {
   const availablePermissions = roles.find((role) => role.availablePermissions.length)?.availablePermissions ?? []
   const manageableRoles = roles.filter((role) => role.code !== 'superadmin')
@@ -43,7 +45,8 @@ export const RolesSection = ({ l, roles, roleForm, setRoleForm, creatingRole, de
     if (!term) return availablePermissions
     return availablePermissions.filter((permission) => {
       const name = readLocalized(permission.name, language).toLowerCase()
-      return permission.code.toLowerCase().includes(term) || name.includes(term)
+      const description = readLocalized(permission.description, language).toLowerCase()
+      return permission.code.toLowerCase().includes(term) || name.includes(term) || description.includes(term)
     })
   }, [availablePermissions, language, permissionSearch])
 
@@ -68,12 +71,21 @@ export const RolesSection = ({ l, roles, roleForm, setRoleForm, creatingRole, de
             </span>
             <div>
               <h2 className="text-lg font-black text-slate-950">{l('rolePermissions')}</h2>
-              <p className="mt-1 max-w-3xl text-sm font-medium leading-6 text-slate-600">{l('roleListDescription')}</p>
+              <p className="mt-1 max-w-3xl text-sm font-medium leading-6 text-slate-600">{l('rolesDescription')}</p>
             </div>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <span className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black text-slate-700">{l('managedRoleCount')}: {manageableRoles.length}</span>
             <span className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black text-slate-700">{l('customRole')}: {customRoleCount}</span>
+            <button
+              type="button"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={loading}
+              onClick={() => refresh().catch(() => undefined)}
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
+              {l('refresh')}
+            </button>
             <button
               type="button"
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-slate-800"
@@ -161,10 +173,11 @@ export const RolesSection = ({ l, roles, roleForm, setRoleForm, creatingRole, de
                     const checked = selectedRole.permissions.includes(permission.code)
                     const locked = !selectedRole.canEditPermissions
                     return (
-                      <label key={permission.code} className={`flex min-h-[4.5rem] items-center justify-between gap-4 rounded-2xl border px-4 py-3 transition ${checked ? 'border-sky-200 bg-sky-50/80 text-slate-950' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'} ${locked || selectedRoleSaving ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}>
+                      <label key={permission.code} className={`flex min-h-[6rem] items-center justify-between gap-4 rounded-2xl border px-4 py-3 transition ${checked ? 'border-sky-200 bg-sky-50/80 text-slate-950' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'} ${locked || selectedRoleSaving ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}>
                         <span className="min-w-0">
                           <span className="block text-sm font-black">{readLocalized(permission.name, language) || permission.code}</span>
-                          <span className="mt-1 block break-all font-mono text-[11px] font-semibold text-slate-400">{permission.code}</span>
+                          <span className="mt-1 block text-xs font-medium leading-5 text-slate-500">{readLocalized(permission.description, language)}</span>
+                          <span className="mt-1.5 block break-all font-mono text-[11px] font-semibold text-slate-400">{permission.code}</span>
                         </span>
                         <span className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition ${checked ? 'border-sky-600 bg-sky-600' : 'border-slate-300 bg-slate-100'}`}>
                           <span className={`inline-block h-5 w-5 rounded-full bg-white shadow-sm transition ${checked ? 'translate-x-5' : 'translate-x-1'}`} />
@@ -242,7 +255,8 @@ export const RolesSection = ({ l, roles, roleForm, setRoleForm, creatingRole, de
                         />
                         <span>
                           <span className="block font-bold">{readLocalized(permission.name, language) || permission.code}</span>
-                          <span className="mt-0.5 block break-all font-mono text-[11px] text-slate-400">{permission.code}</span>
+                          <span className="mt-1 block text-xs leading-5 text-slate-500">{readLocalized(permission.description, language)}</span>
+                          <span className="mt-1 block break-all font-mono text-[11px] text-slate-400">{permission.code}</span>
                         </span>
                       </label>
                     )

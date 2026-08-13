@@ -71,7 +71,7 @@ export type AdminPlatformRoleDto = {
   name: LocalizedText
   level: number
   permissions: string[]
-  availablePermissions: Array<{ code: string; name: LocalizedText }>
+  availablePermissions: Array<{ code: string; name: LocalizedText; description: LocalizedText }>
   canEditPermissions: boolean
   isSystem: boolean
   canDelete: boolean
