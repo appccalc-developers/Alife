@@ -17,7 +17,7 @@ public static class MembershipNotificationWriter
         var church = await dbContext.Groups
             .AsNoTracking()
             .Where(x => x.IsChurch)
-            .Select(x => new GroupInfo(x.Id, x.NameJson))
+            .Select(x => new GroupInfo(x.Id, x.NameJson, x.IsChurch))
             .FirstOrDefaultAsync(cancellationToken);
 
         if (church is null)
@@ -46,10 +46,16 @@ public static class MembershipNotificationWriter
                 en = $"{memberName} signed in with LINE. Review church membership and invite or approve them.",
                 zh = $"{memberName} 已使用 LINE 登录。请审核教会成员资格，并邀请或批准加入。"
             },
-            actionUrl = $"/groups/{church.Id}/manage"
+            actionUrl = MembershipNotificationActionData.GetReviewUrl(church.Id, church.IsChurch)
         });
 
-        AddNotifications(dbContext, recipientIds, memberId, church.Id, "church.line-member.waiting", actionDataJson);
+        AddNotifications(
+            dbContext,
+            recipientIds,
+            memberId,
+            church.Id,
+            MembershipNotificationActionData.ChurchLineMemberWaitingActionType,
+            actionDataJson);
     }
 
     public static async Task NotifyGroupLeadersOfJoinRequestAsync(
@@ -87,10 +93,16 @@ public static class MembershipNotificationWriter
                 en = $"{memberName} requested to join {groupName.En}.",
                 zh = $"{memberName} 申请加入 {groupName.Zh}。"
             },
-            actionUrl = $"/groups/{groupId}/manage"
+            actionUrl = MembershipNotificationActionData.GetReviewUrl(groupId, group.IsChurch)
         });
 
-        AddNotifications(dbContext, recipientIds, requesterMemberId, groupId, "group.join-request.received", actionDataJson);
+        AddNotifications(
+            dbContext,
+            recipientIds,
+            requesterMemberId,
+            groupId,
+            MembershipNotificationActionData.GroupJoinRequestReceivedActionType,
+            actionDataJson);
     }
 
     public static async Task NotifyMemberOfGroupInvitationAsync(
@@ -204,7 +216,7 @@ public static class MembershipNotificationWriter
         => await dbContext.Groups
             .AsNoTracking()
             .Where(x => x.Id == groupId)
-            .Select(x => new GroupInfo(x.Id, x.NameJson))
+            .Select(x => new GroupInfo(x.Id, x.NameJson, x.IsChurch))
             .FirstOrDefaultAsync(cancellationToken);
 
     private static async Task<string?> GetMemberDisplayNameAsync(
@@ -297,6 +309,6 @@ public static class MembershipNotificationWriter
             ? text.Trim()
             : null;
 
-    private sealed record GroupInfo(Guid Id, string NameJson);
+    private sealed record GroupInfo(Guid Id, string NameJson, bool IsChurch);
     private sealed record LocalizedText(string En, string Zh);
 }

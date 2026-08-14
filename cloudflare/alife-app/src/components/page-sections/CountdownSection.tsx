@@ -22,6 +22,7 @@ import {
 } from './sectionUtils'
 import type { SectionComponentProps } from './types'
 import MediaPickerInput from '../media/MediaPickerInput'
+import { resolveEventBoundActionUrl } from '../../utils/eventRoutes'
 
 type CountdownMode = 'custom' | 'event'
 type CountdownTargetField = 'startDate' | 'registrationDeadline' | 'endDate'
@@ -428,8 +429,10 @@ const CountdownSection = ({ section, mode, domId, disabled, propertiesOnly, show
   const linkLabel = isEventBound
     ? label(language, 'View event details', '查看活动详情')
     : readLocalizedText(section.contentJson, language, 'linkLabel', 'linkText', 'ctaLabel') || label(language, 'Learn more', '了解更多')
-  const linkUrl = readText(section.contentJson, 'linkUrl', 'ctaUrl', 'href') ||
-    (isEventBound && eventDetails ? '/events' : '')
+  const configuredLinkUrl = readText(section.contentJson, 'linkUrl', 'ctaUrl', 'href')
+  const linkUrl = isEventBound && eventDetails
+    ? resolveEventBoundActionUrl(configuredLinkUrl, eventDetails.record.groupId, eventDetails.record.id)
+    : configuredLinkUrl
   const isExternalLink = Boolean(linkUrl && !linkUrl.startsWith('/') && !linkUrl.startsWith('#'))
 
   const updateContent = (patch: Record<string, unknown>) => onUpdate?.(patchContent(section, patch))
@@ -667,7 +670,7 @@ const CountdownSection = ({ section, mode, domId, disabled, propertiesOnly, show
                         }
 
                         if (isEventBound && eventDetails) {
-                          activeEntityService.setEvent(eventDetails.record.id, eventDetails.record.groupId)
+                          activeEntityService.setEvent(eventDetails.record.id)
                         }
                       }}
                     >

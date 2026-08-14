@@ -1,10 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
 import { isAuthOptionalLocation } from '../app/routing/publicRoutePolicy'
-import { conditionalGet } from '../db/httpCache'
-import { churchQueryKey, fetchGroupForViewer } from '../db/collections/groupCollection'
+import { fetchGroupForViewer } from '../db/collections/groupCollection'
 import { useUiText } from '../i18n/uiText'
-import { activeEntityService } from '../services/activeEntityService'
+import { ACTIVE_ENTITY_CHANGED_EVENT, activeEntityService } from '../services/activeEntityService'
 import { useAuthStore } from './auth'
 import type { GroupDto } from '../types'
 import { normalizeGroup } from '../utils/apiEnums'
@@ -14,7 +13,6 @@ type CurrentGroupContextValue = {
   loading: boolean
   error: string
   setCurrentGroup: (group: GroupDto | null) => void
-  refreshChurchGroup: () => Promise<GroupDto | null>
 }
 
 const CurrentGroupContext = createContext<CurrentGroupContextValue | null>(null)
@@ -25,6 +23,7 @@ export const CurrentGroupProvider = ({ children }: { children: ReactNode }) => {
   const location = useLocation()
   const groupContextEnabled = !isAuthOptionalLocation(location)
   const [CurrentGroup, setCurrentGroup] = useState<GroupDto | null>(null)
+  const [activeGroupId, setActiveGroupId] = useState(() => activeEntityService.getAll().groupId)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const tRef = useRef(t)
@@ -33,25 +32,20 @@ export const CurrentGroupProvider = ({ children }: { children: ReactNode }) => {
     tRef.current = t
   }, [t])
 
-  const refreshChurchGroup = useCallback(async () => {
-    setLoading(true)
-    setError('')
-
-    try {
-      const church = await conditionalGet<GroupDto>({
-        queryKey: churchQueryKey,
-        path: '/api/groups/church',
-      })
-      const normalized = normalizeGroup(church)
-      setCurrentGroup(normalized)
-      return normalized
-    } catch {
-      setError(tRef.current('churchGroupLoadError'))
-      return null
-    } finally {
-      setLoading(false)
+  useEffect(() => {
+    const syncActiveGroup = () => setActiveGroupId(activeEntityService.getAll().groupId)
+    syncActiveGroup()
+    window.addEventListener(ACTIVE_ENTITY_CHANGED_EVENT, syncActiveGroup)
+    window.addEventListener('storage', syncActiveGroup)
+    return () => {
+      window.removeEventListener(ACTIVE_ENTITY_CHANGED_EVENT, syncActiveGroup)
+      window.removeEventListener('storage', syncActiveGroup)
     }
   }, [])
+
+  useEffect(() => {
+    setActiveGroupId(activeEntityService.getAll().groupId)
+  }, [auth.me?.id])
 
   useEffect(() => {
     if (!groupContextEnabled) {
@@ -61,12 +55,21 @@ export const CurrentGroupProvider = ({ children }: { children: ReactNode }) => {
       return
     }
 
-    const activeGroupId = activeEntityService.getAll().groupId
-
-    // Guest users should not attempt to fetch a cached group — it will 403.
-    // Just load the church (public endpoint) instead.
     if (!activeGroupId || auth.isGuest) {
-      refreshChurchGroup().catch(() => undefined)
+      setCurrentGroup(null)
+      setLoading(false)
+      setError('')
+      return
+    }
+
+    const hasUsableMembership = auth.isAdmin || auth.memberships.some(
+      (membership) => membership.groupId === activeGroupId && membership.status === 'approved',
+    )
+    if (!hasUsableMembership) {
+      activeEntityService.setGroup('', { clearPage: true, clearEvent: true })
+      setCurrentGroup(null)
+      setLoading(false)
+      setError('')
       return
     }
 
@@ -79,11 +82,18 @@ export const CurrentGroupProvider = ({ children }: { children: ReactNode }) => {
       try {
         const group = await fetchGroupForViewer(activeGroupId, auth.me?.id)
         if (!cancelled) {
-          setCurrentGroup(normalizeGroup(group))
+          const normalized = normalizeGroup(group)
+          if (normalized.isChurch) {
+            activeEntityService.setGroup('', { clearPage: true, clearEvent: true })
+            setCurrentGroup(null)
+          } else {
+            setCurrentGroup(normalized)
+          }
         }
       } catch {
         if (!cancelled) {
-          await refreshChurchGroup()
+          setCurrentGroup(null)
+          setError(tRef.current('groupLoadFailed'))
         }
       } finally {
         if (!cancelled) {
@@ -97,17 +107,26 @@ export const CurrentGroupProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       cancelled = true
     }
-  }, [auth.isGuest, auth.me?.id, groupContextEnabled, refreshChurchGroup])
+  }, [activeGroupId, auth.isAdmin, auth.isGuest, auth.me?.id, auth.memberships, groupContextEnabled])
+
+  const setSelectableCurrentGroup = useCallback((group: GroupDto | null) => {
+    if (group?.isChurch) {
+      if (activeEntityService.getAll().groupId === group.id) {
+        activeEntityService.setGroup('', { clearPage: true, clearEvent: true })
+      }
+      return
+    }
+    setCurrentGroup(group)
+  }, [])
 
   const value = useMemo<CurrentGroupContextValue>(
     () => ({
       CurrentGroup,
       loading,
       error,
-      setCurrentGroup,
-      refreshChurchGroup,
+      setCurrentGroup: setSelectableCurrentGroup,
     }),
-    [CurrentGroup, error, loading, refreshChurchGroup],
+    [CurrentGroup, error, loading, setSelectableCurrentGroup],
   )
 
   return <CurrentGroupContext.Provider value={value}>{children}</CurrentGroupContext.Provider>

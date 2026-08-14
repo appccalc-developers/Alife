@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useSyncExternalStore } from 'react'
-import { Activity, Bell, BookMarked, BookOpenText, ContactRound, FileImage, FileText, Globe2, Handshake, Home, Images, LayoutDashboard, MessageSquareText, Network, ShieldCheck, UserCog, UsersRound } from 'lucide-react'
+import { Activity, Bell, BookMarked, BookOpenText, Church, FileImage, Globe2, Home, Images, LayoutDashboard, MessageSquareText, Settings2, UsersRound } from 'lucide-react'
 import { groupMembershipsCollectionQueryKey } from '../../db/collections/groupCollection'
 import { queryClient } from '../../db/queryClient'
 import { activeEntityService } from '../../services/activeEntityService'
@@ -11,9 +11,12 @@ import type { NavigationCopy, ShellNavItem, ShellNavSection } from './types'
 import type { GroupEventRecord } from '../../types/event'
 import { getEventLifecycle, readEventLifecycleData } from '../../utils/eventLifecycle'
 import type { GroupMembershipDto } from '../../types'
+import { canAccessChurchManagement } from '../routing/churchManagementAccess'
 
 type Args = {
   contextualGroupId: string
+  churchGroupId: string
+  groupLifeGroupId: string
   eventDetailScreen: boolean
   contextualEventId?: string
   contextualEvent?: GroupEventRecord | null
@@ -39,8 +42,6 @@ const useLocalMembershipRecords = (groupId: string, includeLineCandidates: boole
 }
 
 const adminPermissions = {
-  access: 'admin.access',
-  overview: 'admin.overview.view',
   members: 'admin.members.view',
   roles: 'admin.roles.managePermissions',
   messages: 'admin.messages.manage',
@@ -52,6 +53,8 @@ const adminPermissions = {
 
 export const useShellNavigation = ({
   contextualGroupId,
+  churchGroupId,
+  groupLifeGroupId: requestedGroupLifeGroupId,
   eventDetailScreen,
   contextualEventId,
   contextualEvent,
@@ -60,47 +63,42 @@ export const useShellNavigation = ({
 }: Args) => {
   const auth = useAuthStore()
   const isChinese = auth.language === 'zh'
-  const workspaceGroupId = contextualGroupId
+  const workspaceGroupId = requestedGroupLifeGroupId && requestedGroupLifeGroupId !== churchGroupId
+    ? requestedGroupLifeGroupId
+    : ''
+  const contextualWorkspaceGroupId = currentGroupIsChurch ? '' : contextualGroupId
   const canManageWorkspace = Boolean(workspaceGroupId && auth.hasLeaderAccess(workspaceGroupId))
+  const canManageChurch = Boolean(churchGroupId && auth.hasLeaderAccess(churchGroupId))
   const workspaceMembership = auth.memberships.find((item) => item.groupId === workspaceGroupId)
   const isWorkspaceLeader = workspaceMembership?.status === 'approved' &&
     (workspaceMembership.role === 'leader' || workspaceMembership.role === 'coLeader')
-  const localMemberships = useLocalMembershipRecords(workspaceGroupId, currentGroupIsChurch)
+  const localMemberships = useLocalMembershipRecords(workspaceGroupId, false)
   const pendingReviewCount = isWorkspaceLeader && localMemberships
     ? localMemberships.filter((member) => member.status === 'requested').length
     : undefined
 
-  const workspaceHome: ShellNavItem[] = workspaceGroupId ? [
+  const workspaceOverview: ShellNavItem[] = workspaceGroupId && (auth.isAdmin || workspaceMembership?.status === 'approved') ? [
     {
-      key: 'workspace:home',
-      label: isChinese ? '小组总览' : 'Group overview',
-      description: isChinese ? '小组资料、带领团队和设置' : 'Group profile, leadership, and settings',
-      to: canManageWorkspace ? '/groups?section=group' : '/groups',
-      matchSearch: canManageWorkspace ? ['', '?section=group'] : '',
+      key: 'workspace:overview',
+      label: isChinese ? '小组总览' : 'Group Overview',
+      description: isChinese ? '查看当前小组的公告、活动与内容' : 'See announcements, events, and content for the selected group',
+      to: `/groups/${encodeURIComponent(workspaceGroupId)}?view=overview`,
+      matchSearch: '?view=overview',
       icon: <LayoutDashboard className="h-5 w-5" />,
       requireNoActivePage: true,
       onClick: () => activeEntityService.setGroup(workspaceGroupId, { clearPage: true }),
     },
-    {
-      key: 'workspace:forum',
-      label: isChinese ? '论坛' : 'Forum',
-      description: isChinese ? '当前小组的公开与组内讨论' : 'Public and group-only conversations for this group',
-      to: `/groups/${encodeURIComponent(workspaceGroupId)}/forum`,
-      matchPathOnly: true,
-      matchDescendants: true,
-      icon: <MessageSquareText className="h-5 w-5" />,
-      onClick: () => activeEntityService.setGroup(workspaceGroupId, { clearPage: true }),
-    },
   ] : []
 
-  const workspaceManagement: ShellNavItem[] = canManageWorkspace ? [
+  const workspaceHome: ShellNavItem[] = canManageWorkspace ? [
     {
-      key: 'workspace:members',
-      label: isChinese ? '成员' : 'Members',
-      description: isChinese ? '审批、邀请、角色和成员状态' : 'Approvals, invitations, roles, and member status',
-      to: '/groups?section=members',
-      matchSearch: '?section=members',
-      icon: <UsersRound className="h-5 w-5" />,
+      key: 'workspace:home',
+      label: isChinese ? '小组管理' : 'Group Management',
+      description: isChinese ? '成员、联系人、下属小组、相册、页面和设置' : 'Members, contacts, subgroups, albums, pages, and settings',
+      to: '/groups?section=group',
+      matchSearch: ['', '?section=group', '?section=members', '?section=contacts', '?section=subgroups', '?section=albums', '?section=pages'],
+      icon: <Settings2 className="h-5 w-5" />,
+      requireNoActivePage: true,
       onClick: () => activeEntityService.setGroup(workspaceGroupId, { clearPage: true }),
       badge: pendingReviewCount === undefined ? undefined : {
         text: `${isChinese ? '待审核' : 'Pending review'} ${pendingReviewCount}`,
@@ -109,24 +107,9 @@ export const useShellNavigation = ({
         tone: pendingReviewCount > 0 ? 'attention' : 'neutral',
       },
     },
-    {
-      key: 'workspace:contacts',
-      label: isChinese ? '联系人' : 'Contacts',
-      description: isChinese ? '联系人资料、公开范围和留言入口' : 'Profiles, visibility, and inquiry entry points',
-      to: '/groups?section=contacts',
-      matchSearch: '?section=contacts',
-      icon: <ContactRound className="h-5 w-5" />,
-      onClick: () => activeEntityService.setGroup(workspaceGroupId, { clearPage: true }),
-    },
-    {
-      key: 'workspace:subgroups',
-      label: isChinese ? '下属小组' : 'Subgroups',
-      description: isChinese ? '管理小组结构和负责人' : 'Team structure and leaders',
-      to: '/groups?section=subgroups',
-      matchSearch: '?section=subgroups',
-      icon: <Network className="h-5 w-5" />,
-      onClick: () => activeEntityService.setGroup(workspaceGroupId, { clearPage: true }),
-    },
+  ] : []
+
+  const workspaceManagement: ShellNavItem[] = canManageWorkspace ? [
     {
       key: 'workspace:events',
       label: isChinese ? '活动' : 'Events',
@@ -145,29 +128,78 @@ export const useShellNavigation = ({
       icon: <Bell className="h-5 w-5" />,
       onClick: () => activeEntityService.setGroup(workspaceGroupId, { clearPage: true }),
     },
-    {
-      key: 'workspace:albums',
-      label: isChinese ? '相册' : 'Albums',
-      description: isChinese ? '整理图片、子相册和页面展示' : 'Organize photos, subalbums, and page galleries',
-      to: '/groups?section=albums',
-      matchSearch: '?section=albums',
-      icon: <Images className="h-5 w-5" />,
-      onClick: () => activeEntityService.setGroup(workspaceGroupId, { clearPage: true }),
-    },
-    {
-      key: 'workspace:pages',
-      label: isChinese ? '页面' : 'Pages',
-      description: isChinese ? '发布页面和小组资料' : 'Published pages and group resources',
-      to: '/groups?section=pages',
-      matchSearch: '?section=pages',
-      icon: <FileText className="h-5 w-5" />,
-      onClick: () => activeEntityService.setGroup(workspaceGroupId, { clearPage: true }),
-    },
   ] : []
 
+  const canAccessGroupLifeContent = auth.isAdmin || workspaceMembership?.status === 'approved'
+  const groupForumItems: ShellNavItem[] = workspaceGroupId && canAccessGroupLifeContent ? [{
+    key: 'workspace:forum',
+    label: isChinese ? '小组论坛' : 'Group forum',
+    description: isChinese ? '只查看和发布当前小组的讨论' : 'Discussions scoped to the current group',
+    to: `/groups/${encodeURIComponent(workspaceGroupId)}/forum`,
+    matchPathOnly: true,
+    matchDescendants: true,
+    icon: <MessageSquareText className="h-5 w-5" />,
+    onClick: () => activeEntityService.setGroup(workspaceGroupId, { clearPage: true }),
+  }] : []
+
+  const groupAlbumItems: ShellNavItem[] = workspaceGroupId && canAccessGroupLifeContent ? [{
+    key: 'workspace:albums',
+    label: isChinese ? '相册' : 'Albums',
+    description: isChinese ? '浏览当前小组的相册和图片' : 'Browse albums and photos for the selected group',
+    to: `/groups/${encodeURIComponent(workspaceGroupId)}/albums`,
+    matchPathOnly: true,
+    matchDescendants: true,
+    icon: <Images className="h-5 w-5" />,
+    onClick: () => activeEntityService.setGroup(workspaceGroupId, { clearPage: true }),
+  }] : []
+
+  const churchContentItems: ShellNavItem[] = [
+    !auth.isGuest ? {
+      key: 'church:overview',
+      label: isChinese ? '教会总览' : 'Church Overview',
+      description: isChinese ? '教会公告、页面与近期活动' : 'Church announcements, pages, and upcoming events',
+      to: '/church',
+      icon: <LayoutDashboard className="h-5 w-5" />,
+    } : null,
+    !auth.isGuest ? {
+      key: 'church:forum',
+      label: isChinese ? '教会论坛' : 'Church forum',
+      description: isChinese ? '面向全教会成员的分享与讨论' : 'Church-wide sharing and conversations',
+      to: '/church/forum',
+      matchPathOnly: true,
+      matchDescendants: true,
+      icon: <MessageSquareText className="h-5 w-5" />,
+    } : null,
+    !auth.isGuest && churchGroupId ? {
+      key: 'church:albums',
+      label: isChinese ? '相册' : 'Albums',
+      description: isChinese ? '浏览教会相册和公开图片' : 'Browse church albums and published photos',
+      to: `/groups/${encodeURIComponent(churchGroupId)}/albums`,
+      matchPathOnly: true,
+      matchDescendants: true,
+      icon: <Images className="h-5 w-5" />,
+    } : null,
+    ...(canManageChurch ? [{
+      key: 'church:events',
+      label: isChinese ? '活动' : 'Events',
+      description: isChinese ? '管理教会范围的过往、即将举行和筹备中活动' : 'Manage church-wide past, upcoming, and planning events',
+      to: '/church?section=events',
+      matchSearch: '?section=events',
+      icon: <EventsIcon />,
+    },
+    {
+      key: 'church:announcements',
+      label: isChinese ? '公告' : 'Announcements',
+      description: isChinese ? '发布和管理教会公告' : 'Publish and manage church announcements',
+      to: '/church?section=announcements',
+      matchSearch: '?section=announcements',
+      icon: <Bell className="h-5 w-5" />,
+    }] : []),
+  ].filter(isPresent)
+
   const activeEventId = contextualEventId || ''
-  const eventBasePath = workspaceGroupId && activeEventId
-    ? `/groups/${encodeURIComponent(workspaceGroupId)}/events/${encodeURIComponent(activeEventId)}`
+  const eventBasePath = contextualWorkspaceGroupId && activeEventId
+    ? `/groups/${encodeURIComponent(contextualWorkspaceGroupId)}/events/${encodeURIComponent(activeEventId)}`
     : ''
   const eventLifecycle = contextualEvent ? getEventLifecycle(contextualEvent) : null
   const acceptsEnrollments = contextualEvent ? readEventLifecycleData(contextualEvent).acceptsEnrollments : false
@@ -178,7 +210,7 @@ export const useShellNavigation = ({
       description: isChinese ? '活动详情与发布内容' : 'Event details and published content',
       to: eventBasePath,
       icon: <EventsIcon />,
-      onClick: () => activeEntityService.setEvent(activeEventId, workspaceGroupId),
+      onClick: () => activeEntityService.setEvent(activeEventId),
     },
     eventLifecycle === 'upcoming' && acceptsEnrollments ? {
       key: 'event:enrollments',
@@ -187,7 +219,7 @@ export const useShellNavigation = ({
       to: `${eventBasePath}?section=enrollments`,
       matchSearch: '?section=enrollments',
       icon: <EnrollmentIcon />,
-      onClick: () => activeEntityService.setEvent(activeEventId, workspaceGroupId),
+      onClick: () => activeEntityService.setEvent(activeEventId),
     } : null,
     eventLifecycle === 'past' ? {
       key: 'event:memories',
@@ -196,61 +228,33 @@ export const useShellNavigation = ({
       to: `${eventBasePath}?section=memories`,
       matchSearch: '?section=memories',
       icon: <MemoriesIcon />,
-      onClick: () => activeEntityService.setEvent(activeEventId, workspaceGroupId),
+      onClick: () => activeEntityService.setEvent(activeEventId),
     } : null,
   ].filter(isPresent) : []
 
   const contextualItems = eventDetailScreen ? eventItems : []
-  const workspaceItems = [...workspaceHome, ...workspaceManagement, ...contextualItems]
-  const workspaceVisible = Boolean(workspaceGroupId) && workspaceEnabled
+  const groupContentItems = [...workspaceOverview, ...workspaceHome, ...groupForumItems, ...groupAlbumItems, ...workspaceManagement]
+  const workspaceItems = contextualItems
+  const workspaceVisible = workspaceEnabled && contextualItems.length > 0
 
-  const adminPlatformItems: ShellNavItem[] = !auth.loading && (auth.isAdmin || auth.hasAdminPermission(adminPermissions.access))
+  const canOpenChurchManagement = canAccessChurchManagement({
+    churchGroupId,
+    canManageGroup: auth.hasLeaderAccess,
+    hasAdminPermission: auth.hasAdminPermission,
+  })
+
+  const churchAdminItems: ShellNavItem[] = canOpenChurchManagement ? [
+    {
+      key: 'app:admin-church-management',
+      label: isChinese ? '教会管理' : 'Church Management',
+      description: isChinese ? '进入教会管理中心' : 'Open the church management center',
+      to: '/admin?church=dashboard',
+      icon: <Settings2 className="h-5 w-5" />,
+    },
+  ] : []
+
+  const adminPlatformItems: ShellNavItem[] = !auth.loading
     ? [
-      auth.hasAdminPermission(adminPermissions.overview)
-        ? {
-        key: 'app:admin',
-        label: isChinese ? '平台总览' : 'Platform overview',
-        description: isChinese ? '平台状态和待办入口' : 'Status, queue, and quick actions',
-        to: '/admin',
-        icon: <ShieldCheck className="h-5 w-5" />,
-        }
-        : null,
-      auth.hasAdminPermission(adminPermissions.members)
-        ? {
-        key: 'app:admin-users',
-        label: isChinese ? '成员管理' : 'Members',
-        description: isChinese ? '账号、注册状态和角色分配' : 'Accounts, registration, and role assignment',
-        to: '/admin/users',
-        icon: <UsersRound className="h-5 w-5" />,
-        }
-        : null,
-      auth.hasAdminPermission(adminPermissions.roles)
-        ? {
-        key: 'app:admin-roles',
-        label: isChinese ? '角色管理' : 'Roles',
-        description: isChinese ? '角色、权限和自定义后台能力' : 'Roles, permissions, and custom access',
-        to: '/admin/roles',
-        icon: <UserCog className="h-5 w-5" />,
-        }
-        : null,
-      auth.hasAdminPermission(adminPermissions.messages)
-        ? {
-        key: 'app:admin-messages',
-        label: isChinese ? '通知管理' : 'Notices',
-        description: isChinese ? '发送通知并查看阅读状态' : 'Send notices and review delivery state',
-        to: '/admin/messages',
-        icon: <Bell className="h-5 w-5" />,
-        }
-        : null,
-      auth.hasAdminPermission(adminPermissions.visitRequests)
-        ? {
-        key: 'app:admin-visit-requests',
-        label: isChinese ? '访客接待' : 'Visitor care',
-        description: isChinese ? '查看参观联系请求并标记跟进状态' : 'Review visit requests and follow-up state',
-        to: '/admin/visit-requests',
-        icon: <Handshake className="h-5 w-5" />,
-        }
-        : null,
       auth.hasAdminPermission(adminPermissions.files)
         ? {
         key: 'app:admin-files',
@@ -272,17 +276,19 @@ export const useShellNavigation = ({
     ].filter(isPresent)
     : []
 
-  const siteBuilderItems: ShellNavItem[] = !auth.loading && (auth.canReviewPages || auth.hasAdminPermission(adminPermissions.pageReview))
+  const siteBuilderItems: ShellNavItem[] = !auth.loading && auth.canReviewPages
     ? [
       {
         key: 'app:page-review',
-        label: isChinese ? '构建网站' : 'Build website',
-        description: isChinese ? '组织公开页面、导航和首页展示' : 'Organize public pages, navigation, and home content',
+        label: isChinese ? '首页管理' : 'Homepage Management',
+        description: isChinese ? '管理首页内容、公开导航与页面发布审核' : 'Manage homepage content, public navigation, and page publication review',
         to: '/admin/page-review',
         icon: <Globe2 className="h-5 w-5" />,
       },
     ]
     : []
+
+  const platformManagementItems = [...churchAdminItems, ...siteBuilderItems, ...adminPlatformItems]
 
   const guestItem: ShellNavItem | null = !auth.loading && auth.isGuest
     ? {
@@ -294,8 +300,25 @@ export const useShellNavigation = ({
     }
     : null
 
+  const lifeItems: ShellNavItem[] = [
+    !auth.isGuest ? {
+      key: 'app:church-life',
+      label: isChinese ? '教会生活' : 'Church Life',
+      description: isChinese ? '教会范围的页面、活动与共同生活' : 'Church-wide pages, events, and shared life',
+      to: '/church',
+      matchPathOnly: true,
+      icon: <Church className="h-5 w-5" />,
+    } : null,
+    {
+      key: 'app:group-life',
+      label: isChinese ? '小组生活' : 'Group Life',
+      description: isChinese ? '选择小组并进入小组生活' : 'Choose a group and enter Group Life',
+      to: '/groups/select',
+      icon: <UsersRound className="h-5 w-5" />,
+    },
+  ].filter(isPresent)
+
   const contentItems: ShellNavItem[] = [
-    ...siteBuilderItems,
     {
       key: 'app:home',
       label: translateUi(auth.language, 'home'),
@@ -328,31 +351,43 @@ export const useShellNavigation = ({
     guestItem,
   ].filter(isPresent)
 
-  const primaryItems = [...adminPlatformItems, ...contentItems]
+  const primaryItems = [...lifeItems, ...platformManagementItems, ...contentItems]
   const headerItems = guestItem ? [{ ...guestItem, key: 'app:onboarding-header' }] : []
   const mobileItems = [
-    adminPlatformItems[0] || siteBuilderItems[0] || contentItems.find((item) => item.key === 'app:home'),
-    workspaceItems[0],
+    platformManagementItems[0] || contentItems.find((item) => item.key === 'app:home'),
+    workspaceItems[0] || lifeItems.find((item) => item.key === 'app:group-life'),
     contentItems.find((item) => item.key === 'app:sermons'),
   ].filter(isPresent)
 
-  const workspaceLabel = isChinese ? '小组工作区' : 'Group workspace'
-  const groupContentItems = [...workspaceHome, ...workspaceManagement]
+  const workspaceLabel = isChinese ? '小组生活' : 'Group Life'
   const workspaceSections: ShellNavSection[] = [
-    groupContentItems.length
-      ? { key: 'workspace-group', label: isChinese ? '当前小组' : 'Current group', description: isChinese ? '小组总览和管理' : 'Group overview and management', items: groupContentItems }
-      : null,
     contextualItems.length
       ? { key: 'workspace-event', label: isChinese ? '当前活动' : 'Current event', description: isChinese ? '活动通知、报名和回顾' : 'Notice, enrollment, and memories', items: contextualItems }
       : null,
   ].filter(isPresent)
 
   const platformSections: ShellNavSection[] = [
+    {
+      key: 'platform-group-life',
+      label: isChinese ? '小组生活' : 'Group Life',
+      description: isChinese ? '当前小组的总览、管理、论坛、活动和公告' : 'Overview, management, forum, events, and announcements for the selected group',
+      to: workspaceGroupId ? `/groups/${encodeURIComponent(workspaceGroupId)}?view=overview` : '/groups/select',
+      icon: <UsersRound className="h-5 w-5" />,
+      items: groupContentItems,
+    },
+    !auth.isGuest ? {
+      key: 'platform-church-life',
+      label: isChinese ? '教会生活' : 'Church Life',
+      description: isChinese ? '教会范围的总览、活动与公告' : 'Church-wide overview, events, and announcements',
+      to: '/church',
+      icon: <Church className="h-5 w-5" />,
+      items: churchContentItems,
+    } : null,
     contentItems.length
       ? { key: 'platform-content', label: isChinese ? '公开内容' : 'Public content', description: isChinese ? '面向访客和成员的入口' : 'Visitor and member-facing entry points', items: contentItems }
       : null,
-    adminPlatformItems.length
-      ? { key: 'platform-management', label: isChinese ? '平台管理' : 'Platform management', description: isChinese ? '总览、成员、角色、通知、文件和记录' : 'Overview, members, roles, notices, files, and records', items: adminPlatformItems }
+    platformManagementItems.length
+      ? { key: 'platform-management', label: isChinese ? '平台管理' : 'Platform Management', description: isChinese ? '教会管理、首页管理、文件与审计能力' : 'Church management, homepage management, files, and audit capabilities', items: platformManagementItems }
       : null,
   ].filter(isPresent)
 
@@ -365,10 +400,10 @@ export const useShellNavigation = ({
       menu: '菜单',
       openMenu: '打开导航菜单',
       closeMenu: '关闭导航菜单',
-      communityWorkspace: '小组工作台',
+      communityWorkspace: '未选择小组',
       platformWorkspace: '平台工作区',
       contentWorkspace: '内容入口',
-      currentSpace: '当前空间',
+      currentSpace: '当前小组',
       pagesSection: '页面',
       eventsSection: '活动',
       accountSection: '账号',
@@ -381,10 +416,10 @@ export const useShellNavigation = ({
       menu: 'Menu',
       openMenu: 'Open navigation menu',
       closeMenu: 'Close navigation menu',
-      communityWorkspace: 'Group workspace',
+      communityWorkspace: 'No group selected',
       platformWorkspace: 'Platform workspace',
       contentWorkspace: 'Content',
-      currentSpace: 'Current space',
+      currentSpace: 'Current group',
       pagesSection: 'Pages',
       eventsSection: 'Events',
       accountSection: 'Account',

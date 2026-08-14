@@ -14,10 +14,10 @@ import type { PagePrimaryMenuHomePlacement } from '../types'
 import { localizeText } from '../utils/localizedText'
 
 const copy = {
-  title: { en: 'Build website', zh: '构建网站' },
+  title: { en: 'Homepage Management', zh: '首页管理' },
   subtitle: {
-    en: 'Organize public pages, navigation, and home content while managing publication approval.',
-    zh: '组织公开页面、网站导航和首页展示，并管理页面发布审核。',
+    en: 'Manage homepage content, public navigation, and page publication approval in one place.',
+    zh: '集中管理首页内容、公开导航与页面发布审核。',
   },
   refresh: { en: 'Refresh', zh: '刷新' },
   refreshSuccess: {

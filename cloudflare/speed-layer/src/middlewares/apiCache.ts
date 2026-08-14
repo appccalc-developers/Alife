@@ -76,9 +76,9 @@ export const apiCacheMiddleware = async (
   const sharedContext = req.sharedContext
   const bypassEdgeCache = req.bypassEdgeCache
   const authorizedGroupCache = getAuthorizedGroupCachePolicy(url.pathname)
-  const mutationTargetMemberId = MUTATING_METHODS.has(req.method)
-    ? await getTargetMemberIdFromMutation(req)
-    : ''
+  const mutationTargetMemberIds = MUTATING_METHODS.has(req.method)
+    ? await getTargetMemberIdsFromMutation(req)
+    : []
   const memberProfileCacheKey = req.method === 'GET' && url.pathname === '/api/me'
     ? createMemberProfileApiCacheKey(extractMemberIdFromRequest(req))
     : ''
@@ -309,7 +309,7 @@ export const apiCacheMiddleware = async (
   }
 
   if (response.ok && MUTATING_METHODS.has(req.method)) {
-    ctx.waitUntil(passivelyInvalidate(env, req, response.clone(), mutationTargetMemberId))
+    ctx.waitUntil(passivelyInvalidate(env, req, response.clone(), mutationTargetMemberIds))
   }
 
   const finalResponse = bypassEdgeCache ? withNoStore(response) : response
@@ -549,10 +549,15 @@ export function getEdgeCacheTtlSeconds(requestOrPath: Request | string) {
     : getApiCacheTtlSeconds(requestOrPath)
 }
 
-export async function passivelyInvalidate(env: Env, request: Request, response: Response, targetMemberId = '') {
+export async function passivelyInvalidate(env: Env, request: Request, response: Response, targetMemberIds: readonly string[] = []) {
   const responseForMutationCacheSync = response.clone()
+  const responseForTargetMember = response.clone()
   const paths = await getInvalidationPaths(env, request, response)
-  const keys = getInvalidationKeys(request, targetMemberId)
+  const responseTargetMemberId = readString((await readJsonObject(responseForTargetMember))?.memberId)
+  const affectedTargetMemberIds = responseTargetMemberId
+    ? Array.from(new Set([...targetMemberIds, responseTargetMemberId]))
+    : targetMemberIds
+  const keys = getInvalidationKeys(request, affectedTargetMemberIds)
   const mutationCacheTasks = await getMutationCacheSyncTasks(env, request, responseForMutationCacheSync)
   const originalCacheKey = await createCacheKey(request)
   await Promise.all([
@@ -613,7 +618,7 @@ export async function getInvalidationPaths(env: Env, request: Request, response:
     paths.add(`/api/groups/${claimSubgroupCoLeaderMatch[2]}`)
   }
 
-  const groupActionMatch = path.match(/^\/api\/groups\/([^/]+)\/(join-request|invite|invite\/accept|approve|reject|set-coleader|transfer-leadership|kick)$/)
+  const groupActionMatch = path.match(/^\/api\/groups\/([^/]+)\/(join-request|invite|invite-by-id|invite\/(?:accept|decline)|approve|reject|set-coleader|transfer-leadership|kick)$/)
   if (groupActionMatch) {
     paths.add(`/api/groups/${groupActionMatch[1]}/memberships`)
     paths.add(`/api/groups/${groupActionMatch[1]}/members`)
@@ -748,7 +753,7 @@ async function getMutationCacheSyncTasks(env: Env, request: Request, response: R
   ]
 }
 
-export function getInvalidationKeys(request: Request, targetMemberId = '') {
+export function getInvalidationKeys(request: Request, targetMemberIds: string | readonly string[] = []) {
   const path = new URL(request.url).pathname
   const keys = {
     api: new Set<string>(),
@@ -764,16 +769,19 @@ export function getInvalidationKeys(request: Request, targetMemberId = '') {
 
   const currentMemberId = extractMemberIdFromRequest(request)
 
-  const groupActionMatch = path.match(/^\/api\/groups\/([^/]+)\/(join-request|invite\/accept|approve|reject|set-coleader|transfer-leadership|kick)$/)
+  const groupActionMatch = path.match(/^\/api\/groups\/([^/]+)\/(join-request|invite|invite-by-id|invite\/(?:accept|decline)|approve|reject|set-coleader|transfer-leadership|kick)$/)
   if (groupActionMatch) {
     const affectedMemberIds = new Set<string>()
-    if (targetMemberId) {
-      affectedMemberIds.add(targetMemberId)
+    const explicitTargetMemberIds = typeof targetMemberIds === 'string' ? [targetMemberIds] : targetMemberIds
+    for (const targetMemberId of explicitTargetMemberIds) {
+      if (targetMemberId) {
+        affectedMemberIds.add(targetMemberId)
+      }
     }
     if (currentMemberId && groupActionMatch[2] === 'transfer-leadership') {
       affectedMemberIds.add(currentMemberId)
     }
-    if (!targetMemberId && currentMemberId) {
+    if (affectedMemberIds.size === 0 && currentMemberId) {
       affectedMemberIds.add(currentMemberId)
     }
 
@@ -1431,21 +1439,28 @@ function readMemberships(value: unknown) {
     .filter((membership): membership is MemberProfileMembership => membership !== null)
 }
 
-async function getTargetMemberIdFromMutation(request: Request) {
+async function getTargetMemberIdsFromMutation(request: Request) {
   const contentType = request.headers.get('content-type') ?? ''
   if (contentType && !contentType.includes('application/json')) {
-    return ''
+    return [] as string[]
   }
 
   try {
     const rawBody = await request.clone().text()
     if (!rawBody) {
-      return ''
+      return [] as string[]
     }
 
     const body = JSON.parse(rawBody) as Record<string, unknown>
-    return readString(body.memberId) ?? readString(body.targetMemberId) ?? ''
+    const memberIds = Array.isArray(body.memberIds)
+      ? body.memberIds.map(readString).filter((memberId): memberId is string => Boolean(memberId))
+      : []
+    return Array.from(new Set([
+      readString(body.memberId),
+      readString(body.targetMemberId),
+      ...memberIds,
+    ].filter((memberId): memberId is string => Boolean(memberId))))
   } catch {
-    return ''
+    return [] as string[]
   }
 }

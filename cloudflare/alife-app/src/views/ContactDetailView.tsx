@@ -55,7 +55,7 @@ const ContactDetailView = () => {
   return (
     <AppPageShell>
       <div className="mx-auto max-w-3xl space-y-5">
-        <Link to={`/groups/${groupId}`} className="text-sm font-bold text-emerald-700">← {zh ? '返回小组' : 'Back to group'}</Link>
+        <Link to={`/groups/${encodeURIComponent(groupId)}?view=overview`} className="text-sm font-bold text-emerald-700">← {zh ? '返回小组' : 'Back to group'}</Link>
         <section className="rounded-3xl border border-emerald-100 bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-5 sm:flex-row">
             {contact.photoUrl ? <img src={contact.photoUrl} alt={name} className="h-32 w-32 rounded-2xl object-cover" /> : <span className="flex h-32 w-32 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700"><UserRound className="h-14 w-14" /></span>}

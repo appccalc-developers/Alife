@@ -1,13 +1,15 @@
 import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Link, Navigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useLocation, useParams } from 'react-router-dom'
 import { ArrowLeft, Eye, Lock, MessageCircle, MessageSquareReply, Pin, Send } from 'lucide-react'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
 import AppEmptyState from '../components/layout/AppEmptyState'
 import AppPageShell from '../components/layout/AppPageShell'
 import { queryClient } from '../db/queryClient'
+import { churchQueryKey } from '../db/collections/groupCollection'
 import { forumQueryKeys, forumService } from '../services/forumService'
+import { groupService } from '../services/groupService'
 import { normalizeApiError } from '../services/http'
 import { useAuthStore } from '../stores/auth'
 import type { ForumCommentDto, ForumCommentVisibilityRequest } from '../types/forum'
@@ -195,13 +197,21 @@ const ForumPostView = () => {
   const { groupId: routeGroupId, postId } = useParams<{ groupId?: string; postId: string }>()
   const { language, isGuest, isRegistered, memberships } = useAuthStore()
   const text = forumCopy(language)
+  const churchForum = useLocation().pathname.startsWith('/church/forum')
   const normalizedRouteGroupId = routeGroupId?.trim() || ''
-  const forumBasePath = normalizedRouteGroupId ? `/groups/${encodeURIComponent(normalizedRouteGroupId)}/forum` : '/forum'
+  const churchQuery = useQuery({
+    queryKey: churchQueryKey,
+    queryFn: groupService.getChurch,
+    enabled: churchForum,
+    staleTime: 5 * 60_000,
+  })
+  const scopedGroupId = normalizedRouteGroupId || (churchForum ? churchQuery.data?.id ?? '' : '')
+  const forumBasePath = normalizedRouteGroupId ? `/groups/${encodeURIComponent(normalizedRouteGroupId)}/forum` : churchForum ? '/church/forum' : '/forum'
   const [replyTarget, setReplyTarget] = useState<ForumCommentDto | null>(null)
   const postQuery = useQuery({
     queryKey: postId ? forumQueryKeys.post(postId) : ['forum', 'post', 'missing'],
     queryFn: () => forumService.getPost(postId || ''),
-    enabled: Boolean(postId),
+    enabled: Boolean(postId) && (!churchForum || Boolean(scopedGroupId)),
     staleTime: 30_000,
   })
   const categoriesQuery = useQuery({
@@ -214,7 +224,7 @@ const ForumPostView = () => {
     return <Navigate to={forumBasePath} replace />
   }
 
-  const post = postQuery.data && (!normalizedRouteGroupId || postQuery.data.groupId === normalizedRouteGroupId)
+  const post = postQuery.data && (!scopedGroupId || postQuery.data.groupId === scopedGroupId)
     ? postQuery.data
     : undefined
   const categories = categoriesQuery.data ?? []
@@ -232,25 +242,25 @@ const ForumPostView = () => {
           </Link>
         </div>
 
-        {postQuery.isLoading ? (
+        {postQuery.isLoading || (churchForum && churchQuery.isPending) ? (
           <div className="grid gap-4">
             <div className="h-80 animate-pulse rounded-[1.75rem] border border-slate-200 bg-white" />
             <div className="h-36 animate-pulse rounded-2xl border border-slate-200 bg-white" />
           </div>
         ) : null}
 
-        {!postQuery.isLoading && postQuery.error ? (
+        {!postQuery.isLoading && (postQuery.error || churchQuery.error) ? (
           <div className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm">
             <AppEmptyState
               title={text.postNotFound}
-              description={normalizeApiError(postQuery.error).message || text.postNotFoundDescription}
+              description={normalizeApiError(postQuery.error || churchQuery.error).message || text.postNotFoundDescription}
               actionLabel={text.backToForum}
               onAction={() => window.history.back()}
             />
           </div>
         ) : null}
 
-        {!postQuery.isLoading && !postQuery.error && !post ? (
+        {!postQuery.isLoading && !postQuery.error && !churchQuery.error && !(churchForum && churchQuery.isPending) && !post ? (
           <div className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm">
             <AppEmptyState title={text.postNotFound} description={text.postNotFoundDescription} />
           </div>

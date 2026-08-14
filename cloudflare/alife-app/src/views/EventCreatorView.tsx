@@ -1206,7 +1206,7 @@ const EventCreatorView = () => {
         )
         setSavedEventId(created.id)
         persistedEventId = created.id
-        activeEntityService.setEvent(created.id, effectiveGroupId)
+        activeEntityService.setEvent(created.id)
 
         if (pendingPosterFile) {
           const posterImageUrl = await uploadPosterFile(pendingPosterFile, effectiveGroupId, created.id)
@@ -1223,7 +1223,7 @@ const EventCreatorView = () => {
         throw new Error(t('missingGroupForEvent'))
       }
       if (persistedEventId) {
-        activeEntityService.setEvent(persistedEventId, effectiveGroupId || undefined)
+        activeEntityService.setEvent(persistedEventId)
       }
       setSaveStatus('saved')
       setNoticeSubmitted(true)

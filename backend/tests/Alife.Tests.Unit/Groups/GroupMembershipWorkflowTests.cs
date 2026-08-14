@@ -103,7 +103,46 @@ public class GroupMembershipWorkflowTests
         Assert.Equal(memberId, notification.CreatedByMemberId);
         Assert.Equal(groupId, notification.GroupId);
         Assert.Equal("group.join-request.received", notification.ActionType);
-        Assert.Contains($"/groups/{groupId}/manage", notification.ActionDataJson);
+        Assert.Contains($"/groups/{groupId}/manage?section=members", notification.ActionDataJson);
+    }
+
+    [Theory]
+    [InlineData(MembershipStatus.Invited)]
+    [InlineData(MembershipStatus.Requested)]
+    [InlineData(MembershipStatus.Approved)]
+    public async Task JoinGroup_DoesNotOverwriteActiveMembershipOrSendDuplicateNotification(MembershipStatus existingStatus)
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var groupId = Guid.NewGuid();
+        var leaderId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+        var originalUpdatedUtc = DateTime.UtcNow.AddHours(-1);
+        dbContext.Groups.Add(CreateGroup(groupId, AccessType.Protected));
+        dbContext.Members.AddRange(CreateMember(leaderId, "Leader"), CreateMember(memberId, "Applicant"));
+        dbContext.GroupMemberships.AddRange(
+            CreateMembership(groupId, leaderId, MembershipStatus.Approved, DateTime.UtcNow, MembershipRole.Leader),
+            CreateMembership(groupId, memberId, existingStatus, originalUpdatedUtc));
+        await dbContext.SaveChangesAsync();
+
+        var authorizationService = Substitute.For<IGroupAuthorizationService>();
+        authorizationService.IsRegisteredMemberAsync(memberId, Arg.Any<CancellationToken>()).Returns(true);
+        var invalidationService = Substitute.For<IGroupCacheInvalidationService>();
+        var cloudflareKvCacheService = Substitute.For<ICloudflareKvCacheService>();
+        var handler = new JoinGroupCommandHandler(
+            dbContext,
+            authorizationService,
+            invalidationService,
+            cloudflareKvCacheService);
+
+        var result = await handler.Handle(new JoinGroupCommand(groupId, memberId), CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        var membership = dbContext.GroupMemberships.Single(x => x.MemberId == memberId);
+        Assert.Equal(existingStatus, membership.Status);
+        Assert.Equal(originalUpdatedUtc, membership.UpdatedUtc);
+        Assert.Empty(dbContext.NotificationMessages);
+        await invalidationService.DidNotReceiveWithAnyArgs().RemoveMembershipsAsync(default, default);
+        await cloudflareKvCacheService.DidNotReceiveWithAnyArgs().RemoveMembershipAsync(default, default, default);
     }
 
     [Fact]

@@ -11,7 +11,12 @@ export const useActiveEntityIds = (routeIds: ActiveEntityUpdate = {}): ActiveEnt
   const [ids, setIds] = useState<ActiveEntityIds>(() => activeEntityService.resolve(normalizedRouteIds))
 
   useEffect(() => {
-    setIds(activeEntityService.set(normalizedRouteIds))
+    activeEntityService.set({
+      pageId: normalizedRouteIds.pageId,
+      eventId: normalizedRouteIds.eventId,
+      sermonId: normalizedRouteIds.sermonId,
+    })
+    setIds(activeEntityService.resolve(normalizedRouteIds))
   }, [routeIds.eventId, routeIds.groupId, routeIds.pageId, routeIds.sermonId])
 
   useEffect(() => {

@@ -25,10 +25,10 @@ export const useShellActions = (args: Args): ShellFabItem[] => {
         icon: <BackIcon />,
         onClick: () => {
           const continueNavigation = () => {
-            navigate('/groups')
+            navigate('/groups?view=overview')
           }
 
-          if (confirmUnsavedChangesNavigation('/groups', continueNavigation)) {
+          if (confirmUnsavedChangesNavigation('/groups?view=overview', continueNavigation)) {
             continueNavigation()
           }
         },

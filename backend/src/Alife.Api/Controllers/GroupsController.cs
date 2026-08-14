@@ -81,13 +81,9 @@ public class GroupsController(
             return this.ToActionResult(result);
         }
 
-        if (currentMemberId is null)
+        if (this.ApplyPrivateConditionalCacheHeaders(result.Value))
         {
-            this.ApplyPrivateNoCacheHeaders();
-        }
-        else
-        {
-            this.ApplyPrivateNoCacheHeaders();
+            return StatusCode(StatusCodes.Status304NotModified);
         }
 
         return this.ToActionResult(result);

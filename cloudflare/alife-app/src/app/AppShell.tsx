@@ -19,6 +19,7 @@ import HomeFooter from '../views/home/HomeFooter'
 import { getCopy } from '../views/home/homeCopy'
 import { buildPageMenuNavItems } from '../views/home/homeUtils'
 import { pageService } from '../services/pageService'
+import { workspaceResumeService } from '../services/workspaceResumeService'
 import type { PageSummaryDto } from '../types'
 import { isHomeLocation, isPublicArticlePath, isPublicPageLocation, isPublicPagePath } from './routing/publicRoutePolicy'
 
@@ -45,13 +46,23 @@ const WorkspaceShell = () => {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsedPreference)
   const [debugLoading, setDebugLoading] = useState(false)
+  const contextualGroupIsChurch = context.contextualGroup?.isChurch === true ||
+    Boolean(context.contextualGroupId && context.contextualGroupId === context.churchGroup?.id)
+  const storedGroupIsChurch = context.currentGroup?.isChurch === true ||
+    Boolean(context.currentGroup?.id && context.currentGroup.id === context.churchGroup?.id)
+  const groupLifeGroup = !contextualGroupIsChurch && context.contextualGroup
+    ? context.contextualGroup
+    : (!storedGroupIsChurch ? context.currentGroup : null)
+  const groupLifeGroupId = groupLifeGroup?.id || ''
 
   const navigation = useShellNavigation({
     contextualGroupId: context.contextualGroupId,
+    churchGroupId: context.churchGroup?.id || '',
+    groupLifeGroupId,
     eventDetailScreen: Boolean(context.groupEventDetailMatch || context.location.pathname === '/events'),
     contextualEventId: context.groupEventDetailMatch?.[2] || context.activeIds.eventId,
     contextualEvent: context.contextualEvent,
-    currentGroupIsChurch: context.managementGroup?.isChurch === true,
+    currentGroupIsChurch: context.isChurchLifeScreen || context.managementGroup?.isChurch === true,
     workspaceEnabled: !context.isOnboardingScreen,
   })
   const actions = useShellActions({
@@ -61,16 +72,26 @@ const WorkspaceShell = () => {
     isProfileScreen: context.isProfileScreen,
   })
 
-  const headerGroupName = !context.isOnboardingScreen && context.contextualGroupId
-    ? localizeText(context.managementGroup?.name, auth.language)
+  const headerGroupContextId = !context.isOnboardingScreen ? groupLifeGroupId : ''
+  const headerGroupName = headerGroupContextId
+    ? localizeText(groupLifeGroup?.name, auth.language)
     : ''
-  const headerGroupManageTo = !context.isOnboardingScreen && context.contextualGroupId && context.canOpenCurrentGroupManagement
+  const headerGroupManageTo = headerGroupContextId && context.contextualGroupId === headerGroupContextId && context.canOpenCurrentGroupManagement
     ? '/groups?section=group'
     : undefined
   useEffect(() => {
     setGroupDrawerOpen(false)
     setMobileNavOpen(false)
   }, [context.location.pathname, context.location.search])
+
+  useEffect(() => {
+    if (auth.isGuest) return
+    workspaceResumeService.remember(auth.me?.id, {
+      pathname: context.location.pathname,
+      search: context.location.search,
+      hash: context.location.hash,
+    })
+  }, [auth.isGuest, auth.me?.id, context.location.hash, context.location.pathname, context.location.search])
 
   useEffect(() => {
     writeSidebarCollapsedPreference(sidebarCollapsed)
@@ -111,7 +132,7 @@ const WorkspaceShell = () => {
           appNavItems={navigation.headerItems}
           groupName={headerGroupName}
           groupManageTo={headerGroupManageTo}
-          contextualGroupId={context.contextualGroupId}
+          contextualGroupId={headerGroupContextId}
           onboarding={context.isOnboardingScreen}
           debugLoading={debugLoading}
           onDebug={() => void sendDebugCall()}
@@ -123,8 +144,8 @@ const WorkspaceShell = () => {
             ? 'mx-auto max-w-none px-0 pb-36 pt-5 sm:pt-7 desktop:pb-14'
             : 'mx-auto max-w-[94rem] px-4 pb-36 pt-5 sm:px-6 sm:pt-7 desktop:px-8 desktop:pb-14'}
         >
-          {auth.loading ? <AppRouteLoading /> : null}
-          <AppRoutes />
+          {auth.loading && !auth.initialized ? <AppRouteLoading /> : null}
+          <AppRoutes churchGroupId={context.churchGroup?.id || ''} churchGroupLoading={context.churchGroupLoading} />
         </main>
       </div>
 
@@ -145,7 +166,7 @@ const WorkspaceShell = () => {
       />
       <FloatingActionButtons items={actions} />
       <GroupDrawer
-        currentGroup={context.contextualGroup || (context.currentGroup?.id === context.contextualGroupId ? context.currentGroup : null)}
+        currentGroup={headerGroupContextId ? groupLifeGroup : null}
         churchGroup={context.churchGroup}
         items={context.currentSubgroups}
         open={groupDrawerOpen}
@@ -162,6 +183,7 @@ const isPublicBrowsePath = (pathname: string) =>
   pathname === '/home' ||
   pathname === '/groups' ||
   pathname === '/groups/select' ||
+  pathname === '/groups/select/tree' ||
   /^\/groups\/[^/]+$/.test(pathname) ||
   /^\/groups\/[^/]+\/events\/[^/]+$/.test(pathname) ||
   /^\/groups\/[^/]+\/forum(?:\/posts\/[^/]+)?$/.test(pathname) ||

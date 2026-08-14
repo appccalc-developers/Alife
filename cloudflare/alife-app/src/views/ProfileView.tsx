@@ -115,8 +115,8 @@ const ProfileView = () => {
     setInviteActionGroupId(groupId)
     setInviteError('')
     try {
-      if (accept) await groupService.acceptInvite(groupId)
-      else await groupService.declineInvite(groupId)
+      if (accept) await groupService.acceptInvite(groupId, auth.me?.id)
+      else await groupService.declineInvite(groupId, auth.me?.id)
       await auth.fetchMe()
     } catch (error) {
       setInviteError(normalizeApiError(error).message)

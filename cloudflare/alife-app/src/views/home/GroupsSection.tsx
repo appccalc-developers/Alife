@@ -28,10 +28,11 @@ const GroupsSection = ({ copy, language, groupCards }: Props) => {
   const activeCard = cards[activeIndex]
 
   const groupPath = useCallback((card: HomeGroupCard) => {
+    if (card.group.isChurch) return '/church'
     const membership = auth.memberships.find((item) => item.groupId === card.group.id)
-    return membership?.status === 'approved' || card.group.isChurch || card.group.accessType === 'public'
-      ? `/groups/${card.group.id}`
-      : `/groups/${card.group.id}/join`
+    return membership?.status === 'approved' || card.group.accessType === 'public'
+      ? `/groups/${encodeURIComponent(card.group.id)}?view=overview`
+      : `/groups/${encodeURIComponent(card.group.id)}/join`
   }, [auth.memberships])
 
   const goTo = useCallback((nextIndex: number) => {
@@ -103,7 +104,11 @@ const GroupsSection = ({ copy, language, groupCards }: Props) => {
                 <Link
                   to={groupPath(activeCard)}
                   className="group block h-full"
-                  onClick={() => activeEntityService.setGroup(activeCard.group.id, { clearPage: true })}
+                  onClick={() => {
+                    if (!activeCard.group.isChurch) {
+                      activeEntityService.setGroup(activeCard.group.id, { clearPage: true })
+                    }
+                  }}
                 >
                   <img src={activeCard.imageUrl} alt="" className="absolute inset-0 h-full w-full object-cover opacity-80 transition duration-700 group-hover:scale-[1.03] group-hover:opacity-90" loading="lazy" />
                   <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(24,21,16,0.92)_0%,rgba(24,21,16,0.62)_42%,rgba(24,21,16,0.12)_100%)]" />

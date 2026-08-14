@@ -599,6 +599,46 @@ test('authorized internal cache invalidate purges public pages from every shared
   assert.equal(apiCacheStore.has(createApiCacheKey(url)), false)
 })
 
+test('authorized internal cache invalidate purges only strict group member paths', async () => {
+  const groupId = '11111111-1111-4111-8111-111111111111'
+  const membershipsUrl = `https://ccalc.live/api/groups/${groupId}/memberships`
+  const membersUrl = `https://ccalc.live/api/groups/${groupId}/members`
+  cacheStore.set(membershipsUrl, Response.json([{ memberId: 'stale-member' }]))
+  cacheStore.set(membersUrl, Response.json([{ memberId: 'stale-member' }]))
+  apiCacheStore.set(createApiCacheKey(membershipsUrl), createStoredResponse([{ memberId: 'stale-member' }]))
+
+  const purge = await dispatch('https://ccalc.live/api/internal/cache/invalidate', {
+    method: 'POST',
+    auth: false,
+    headers: {
+      authorization: 'Bearer test-cache-token',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      paths: [
+        `/api/groups/${groupId}/memberships`,
+        `/api/groups/${groupId}/members`,
+        '/api/groups/not-a-guid/memberships',
+        `/api/groups/${groupId}/pages`,
+        `/api/groups/${groupId}/members/extra`,
+      ],
+    }),
+  })
+  await flushWaitUntil()
+
+  assert.equal(purge.status, 200)
+  assert.deepEqual(await purge.json(), {
+    ok: true,
+    purged: [
+      `/api/groups/${groupId}/memberships`,
+      `/api/groups/${groupId}/members`,
+    ],
+  })
+  assert.equal(cacheStore.has(membershipsUrl), false)
+  assert.equal(cacheStore.has(membersUrl), false)
+  assert.equal(apiCacheStore.has(createApiCacheKey(membershipsUrl)), false)
+})
+
 test('unauthorized internal cache invalidate does not purge sermons cache', async () => {
   cacheStore.set('https://ccalc.live/api/sermons', Response.json([{ title: 'Cached sermon' }]))
   apiCacheStore.set('api:/api/sermons', createStoredResponse([{ title: 'Stored sermon' }]))
@@ -1171,6 +1211,69 @@ test('successful member action evicts only that group membership list cache', as
   assert.equal(response.status, 200)
   assert.equal(cacheStore.has(cacheKey(new Request(listUrl))), false)
   assert.equal(cacheStore.has(cacheKey(new Request(otherListUrl))), true)
+  assert.equal(apiCacheStore.has('member:member-1:me'), false)
+  assert.equal(authzStore.has('member:member-1:profile'), false)
+  assert.equal(authzStore.has(`membership:${groupId}:member-1`), false)
+})
+
+test('ordinary invite uses the response member id to evict the invited member profile', async () => {
+  const groupId = 'group-1'
+  apiCacheStore.set('member:member-2:me', createStoredResponse({ id: 'member-2', memberships: [] }))
+  authzStore.set('member:member-2:profile', JSON.stringify({ status: 'cached', memberId: 'member-2' }))
+  authzStore.set(`membership:${groupId}:member-2`, JSON.stringify({ status: 'none' }))
+  originResponses.push(Response.json({ ok: true, memberId: 'member-2' }))
+
+  const response = await dispatch(`https://ccalc.live/api/groups/${groupId}/invite`, {
+    method: 'POST',
+    body: JSON.stringify({ targetPhoneE164: '+64210000002' }),
+    headers: { 'content-type': 'application/json' },
+  })
+  await flushWaitUntil()
+
+  assert.equal(response.status, 200)
+  assert.equal(apiCacheStore.has('member:member-2:me'), false)
+  assert.equal(authzStore.has('member:member-2:profile'), false)
+  assert.equal(authzStore.has(`membership:${groupId}:member-2`), false)
+})
+
+test('batch membership mutations evict every member id in the request', async () => {
+  const groupId = 'group-1'
+  for (const memberId of ['member-2', 'member-3']) {
+    apiCacheStore.set(`member:${memberId}:me`, createStoredResponse({ id: memberId, memberships: [] }))
+    authzStore.set(`member:${memberId}:profile`, JSON.stringify({ status: 'cached', memberId }))
+    authzStore.set(`membership:${groupId}:${memberId}`, JSON.stringify({ status: 'none' }))
+  }
+  originResponses.push(Response.json({ ok: true }))
+
+  const response = await dispatch(`https://ccalc.live/api/groups/${groupId}/invite`, {
+    method: 'POST',
+    body: JSON.stringify({ memberIds: ['member-2', 'member-3'] }),
+    headers: { 'content-type': 'application/json' },
+  })
+  await flushWaitUntil()
+
+  assert.equal(response.status, 200)
+  for (const memberId of ['member-2', 'member-3']) {
+    assert.equal(apiCacheStore.has(`member:${memberId}:me`), false)
+    assert.equal(authzStore.has(`member:${memberId}:profile`), false)
+    assert.equal(authzStore.has(`membership:${groupId}:${memberId}`), false)
+  }
+})
+
+test('declining an invitation evicts the current member profile', async () => {
+  const groupId = 'group-1'
+  apiCacheStore.set('member:member-1:me', createStoredResponse({ id: 'member-1', memberships: [] }))
+  authzStore.set('member:member-1:profile', JSON.stringify({ status: 'cached', memberId: 'member-1' }))
+  authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'invited' }))
+  originResponses.push(Response.json({ ok: true }))
+
+  const response = await dispatch(`https://ccalc.live/api/groups/${groupId}/invite/decline`, {
+    method: 'POST',
+    headers: { cookie: `alife_auth=${createJwtWithSub('member-1')}` },
+  })
+  await flushWaitUntil()
+
+  assert.equal(response.status, 200)
   assert.equal(apiCacheStore.has('member:member-1:me'), false)
   assert.equal(authzStore.has('member:member-1:profile'), false)
   assert.equal(authzStore.has(`membership:${groupId}:member-1`), false)

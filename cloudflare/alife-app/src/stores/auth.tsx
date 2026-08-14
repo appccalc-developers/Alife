@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
 import { authService } from '../services/authService'
+import { activeEntityService } from '../services/activeEntityService'
 import type { MeDto, MembershipRole } from '../types'
 
 type Language = 'en' | 'zh'
@@ -49,6 +50,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchMe = useCallback(async () => {
     const profile = await authService.getMe()
+    activeEntityService.setViewer(profile.id)
     setMe(profile)
     return profile
   }, [])
@@ -69,7 +71,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [fetchMe, me])
 
   const logout = useCallback(async () => {
-    await authService.logout()
+    try {
+      await authService.logout()
+    } finally {
+      activeEntityService.setViewer()
+    }
     setMe(null)
     try {
       await fetchMe()
@@ -88,13 +94,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     [memberships],
   )
 
-  const isPlatformAdmin = Boolean(me?.isAdmin || me?.platformRole === 'admin' || me?.platformRole === 'superadmin')
   const permissions = useMemo(() => new Set(me?.permissions ?? []), [me?.permissions])
   const hasAdminPermission = useCallback(
     (permissionCode: string) => Boolean(me?.platformRole === 'superadmin' || permissions.has(permissionCode)),
     [me?.platformRole, permissions],
   )
-  const canReviewPages = Boolean(isPlatformAdmin || me?.platformRole === 'page_reviewer' || hasAdminPermission('admin.pages.review'))
+  const isPlatformAdmin = hasAdminPermission('admin.access')
+  const canReviewPages = Boolean(me?.platformRole === 'page_reviewer' || hasAdminPermission('admin.pages.review'))
 
   const canManageGroup = useCallback(
     (groupId: string) => isPlatformAdmin || hasGroupRole(groupId, 'leader') || hasGroupRole(groupId, 'coLeader'),

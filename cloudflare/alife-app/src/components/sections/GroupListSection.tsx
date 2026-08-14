@@ -16,6 +16,7 @@ import { activeEntityService } from '../../services/activeEntityService'
 import { buildSermonVideoPath, extractYouTubeVideoId } from '../../utils/youtube'
 import type { ContactProfileDto } from '../../types/contact'
 import FeaturedCarousel, { type FeaturedCarouselItem } from '../FeaturedCarousel'
+import { buildEventDetailPath } from '../../utils/eventRoutes'
 
 // ---------- Universal Card Interface ----------
 
@@ -58,7 +59,7 @@ export function subgroupToCardItem(subgroup: GroupSummaryDto, language = 'en'): 
           ? translateUi(language, 'protectedGroup')
           : translateUi(language, 'privateGroup')),
     imageUrl: undefined,
-    url: '/groups',
+    url: `/groups/${encodeURIComponent(subgroup.id)}?view=overview`,
     type: 'subgroup',
     groupId: subgroup.id,
   }
@@ -110,7 +111,7 @@ export function eventToCardItem(event: GroupEventRecord, language = 'en'): Unive
     subtitle: dateDisplay,
     imageUrl: posterImageUrl,
     date: dateStr,
-    url: '/events',
+    url: buildEventDetailPath(event.groupId, event.id),
     type: 'event',
     groupId: event.groupId,
   }
@@ -159,7 +160,7 @@ const activateCardItem = (item: UniversalCardItem) => {
   } else if (item.type === 'page') {
     activeEntityService.setPage(item.id, item.groupId)
   } else if (item.type === 'event') {
-    activeEntityService.setEvent(item.id, item.groupId)
+    activeEntityService.setEvent(item.id)
   }
 }
 

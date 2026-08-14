@@ -57,24 +57,23 @@ const normalizeActionUrl = (actionUrl: string) => {
 const activateInternalTarget = (target: string) => {
   const eventMatch = target.match(/^\/groups\/([^/]+)\/events\/([^/?#]+)/)
   if (eventMatch) {
-    const groupId = decodeURIComponent(eventMatch[1])
     const eventId = decodeURIComponent(eventMatch[2])
-    activeEntityService.setEvent(eventId, groupId)
-    return '/events'
+    activeEntityService.setEvent(eventId)
+    return target
   }
 
   const groupManageMatch = target.match(/^\/groups\/([^/]+)\/manage(?:\?(.+))?/)
   if (groupManageMatch) {
     const groupId = decodeURIComponent(groupManageMatch[1])
     activeEntityService.setGroup(groupId)
-    return `/groups/manage${groupManageMatch[2] ? `?${groupManageMatch[2]}` : ''}`
+    return target
   }
 
   const groupMatch = target.match(/^\/groups\/([^/?#]+)/)
   if (groupMatch) {
     const groupId = decodeURIComponent(groupMatch[1])
     activeEntityService.setGroup(groupId)
-    return '/groups'
+    return `/groups/${encodeURIComponent(groupId)}?view=overview`
   }
 
   const pageEditMatch = target.match(/^\/pages\/([^/]+)\/edit/)
@@ -165,11 +164,17 @@ const NotificationToastHost = () => {
     }
 
     const target = notification.actionUrl ? normalizeActionUrl(notification.actionUrl) : ''
+    const externalTarget = /^https?:\/\//i.test(target)
+    const internalTarget = target && !externalTarget ? activateInternalTarget(target) : ''
     const continueOpening = async () => {
       setPendingId(notification.id)
       setError('')
 
       try {
+        if (internalTarget) {
+          navigate(internalTarget)
+        }
+
         await notificationService.openNotification(notification.id)
         setNotifications((current) => current.filter((item) => item.id !== notification.id))
         setOpen(false)
@@ -178,10 +183,8 @@ const NotificationToastHost = () => {
           return
         }
 
-        if (/^https?:\/\//i.test(target)) {
+        if (externalTarget) {
           window.location.assign(target)
-        } else {
-          navigate(activateInternalTarget(target))
         }
       } catch (reason) {
         console.warn('Failed to open notification.', reason)

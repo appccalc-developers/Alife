@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { fetchGroupForViewer, groupPagesQueryKey, subgroupsQueryKey } from '../../db/collections/groupCollection'
+import { fetchGroupForViewer, subgroupsQueryKey } from '../../db/collections/groupCollection'
 import { conditionalGet } from '../../db/httpCache'
 import { useActiveEntityIds } from '../../hooks/useActiveEntityIds'
 import { activeEntityService } from '../../services/activeEntityService'
@@ -8,8 +8,8 @@ import { groupService } from '../../services/groupService'
 import { useAuthStore } from '../../stores/auth'
 import { useCurrentGroupStore } from '../../stores/currentGroup'
 import { useLeaderUiPreferences } from '../../stores/leaderUiPreferences'
-import type { GroupSummaryDto, PageSummaryDto } from '../../types'
-import { normalizeGroup, normalizePageSummary } from '../../utils/apiEnums'
+import type { GroupSummaryDto } from '../../types'
+import { normalizeGroup } from '../../utils/apiEnums'
 import { normalizeRouteGroupId } from '../../utils/groupRouteIds'
 import { confirmUnsavedChangesNavigation } from '../../utils/unsavedChangesGuard'
 import { eventService } from '../../services/eventService'
@@ -21,12 +21,11 @@ export const useShellContext = () => {
   const { preferences } = useLeaderUiPreferences(auth.me?.id)
   const location = useLocation()
   const navigate = useNavigate()
-  const [currentGroupPages, setCurrentGroupPages] = useState<PageSummaryDto[]>([])
   const [currentSubgroups, setCurrentSubgroups] = useState<GroupSummaryDto[]>([])
   const [contextualGroup, setContextualGroup] = useState<GroupSummaryDto | null>(null)
   const [churchGroup, setChurchGroup] = useState<GroupSummaryDto | null>(null)
+  const [churchGroupLoading, setChurchGroupLoading] = useState(true)
   const [contextualEvent, setContextualEvent] = useState<GroupEventRecord | null>(null)
-  const pagesGroupIdRef = useRef('')
   const groupDataIdRef = useRef('')
 
   const path = location.pathname
@@ -39,6 +38,7 @@ export const useShellContext = () => {
   const groupManageMatch = path.match(/^\/groups\/([^/]+)\/manage$/)
   const groupCreatePageMatch = path.match(/^\/groups\/([^/]+)\/pages\/new$/)
   const groupForumMatch = path.match(/^\/groups\/([^/]+)\/forum(?:\/posts\/[^/]+)?$/)
+  const groupAlbumMatch = path.match(/^\/groups\/([^/]+)\/albums(?:\/[^/]+)?$/)
   const groupEventCreateMatch = path.match(/^\/groups\/([^/]+)\/events\/new$/)
   const groupEventEditMatch = path.match(/^\/groups\/([^/]+)\/events\/([^/]+)\/edit$/)
   const groupEventDetailMatch = groupEventCreateMatch ? null : path.match(/^\/groups\/([^/]+)\/events\/([^/]+)$/)
@@ -60,6 +60,7 @@ export const useShellContext = () => {
     groupEventCreateMatch?.[1],
     groupEventEditMatch?.[1],
     groupForumMatch?.[1],
+    groupAlbumMatch?.[1],
   ].map(normalizeRouteGroupId)
   const routeGroupScreenId = routeGroupIds[0]
   const routeGroupManageId = routeGroupIds[2]
@@ -92,46 +93,20 @@ export const useShellContext = () => {
   const isSermonDetailScreen = Boolean(sermonDetailMatch || path === '/sermons/watch')
   const isProfileScreen = path === '/profile'
   const isOnboardingScreen = path === '/onboarding'
-  const isGroupSelectScreen = path === '/groups/select'
-  const contextualGroupId = isGroupSelectScreen
+  const isGroupSelectScreen = path === '/groups/select' || path === '/groups/select/tree'
+  const isGroupJoinScreen = path === '/groups/join' || Boolean(groupJoinMatch)
+  const isChurchLifeScreen = path === '/church' || path.startsWith('/church/forum')
+  const contextualGroupId = isGroupSelectScreen || isGroupJoinScreen || isChurchLifeScreen
     ? ''
     : routeGroupIds.find(Boolean) ||
       activeIds.groupId ||
       ((eventCreateMatch || eventEditMatch || pageEditMatch) ? CurrentGroup?.id || '' : '')
 
   const membership = contextualGroupId ? auth.memberships.find((item) => item.groupId === contextualGroupId) : null
-  const isPlatformAdmin = auth.isAdmin || auth.me?.platformRole === 'admin' || auth.me?.platformRole === 'superadmin'
+  const isPlatformAdmin = auth.isAdmin
   const canManageCurrentGroup = isPlatformAdmin || (membership?.status === 'approved' && (membership.role === 'leader' || membership.role === 'coLeader'))
   const canOpenCurrentGroupManagement = canManageCurrentGroup && preferences.exerciseGroupManagement
-  const shouldUseGroupPageNav = (isGroupScreen || isPageEditorScreen) && !isManagementScreen && !isEventScreen
   const managementGroup = CurrentGroup?.id === contextualGroupId ? CurrentGroup : contextualGroup
-
-  useEffect(() => {
-    if (!contextualGroupId) {
-      return
-    }
-
-    if (pagesGroupIdRef.current !== contextualGroupId) {
-      pagesGroupIdRef.current = contextualGroupId
-      setCurrentGroupPages([])
-    }
-
-    let cancelled = false
-    conditionalGet<PageSummaryDto[]>({ queryKey: groupPagesQueryKey(contextualGroupId), path: `/api/groups/${contextualGroupId}/pages` })
-      .then((pages) => {
-        if (!cancelled) setCurrentGroupPages(pages.map(normalizePageSummary))
-      })
-      .catch(() => undefined)
-    return () => { cancelled = true }
-  }, [contextualGroupId])
-
-  useEffect(() => {
-    if (!contextualGroupId || !shouldUseGroupPageNav || currentGroupPages.length === 0) return
-    if (isGroupScreen) return
-    if (!currentGroupPages.some((page) => page.id === activeIds.pageId)) {
-      activeEntityService.setPage(currentGroupPages[0].id, contextualGroupId)
-    }
-  }, [activeIds.pageId, contextualGroupId, currentGroupPages, isGroupScreen, shouldUseGroupPageNav])
 
   useEffect(() => {
     if (!contextualGroupId) {
@@ -186,33 +161,50 @@ export const useShellContext = () => {
   }, [activeIds.eventId, contextualGroupId, groupEventDetailMatch?.[2], path])
 
   useEffect(() => {
-    if (!contextualGroup?.parentGroupId) {
-      setChurchGroup(null)
-      return
-    }
     let cancelled = false
     groupService.getChurch().then((group) => {
-      if (!cancelled) setChurchGroup(group)
+      if (!cancelled) {
+        setChurchGroup(group)
+        if (activeEntityService.getAll().groupId === group.id) {
+          activeEntityService.setGroup('', { clearPage: true, clearEvent: true })
+        }
+      }
     }).catch(() => {
       if (!cancelled) setChurchGroup(null)
+    }).finally(() => {
+      if (!cancelled) setChurchGroupLoading(false)
     })
     return () => { cancelled = true }
-  }, [contextualGroup?.parentGroupId])
+  }, [])
 
   const openGroup = (groupId: string) => {
-    const continueNavigation = () => {
-      activeEntityService.setGroup(groupId, { clearPage: true })
-      navigate('/groups')
+    const continueNavigation = async () => {
+      try {
+        const targetGroup = await groupService.getGroup(groupId)
+        if (targetGroup.isChurch) {
+          navigate('/church')
+          return
+        }
+      } catch {
+        navigate('/groups/select')
+        return
+      }
+
+      activeEntityService.setGroup(groupId, { clearPage: true, clearEvent: true })
+      navigate(`/groups/${encodeURIComponent(groupId)}?view=overview`)
     }
 
-    if (confirmUnsavedChangesNavigation('/groups', continueNavigation)) {
-      continueNavigation()
+    const target = `/groups/${encodeURIComponent(groupId)}?view=overview`
+    if (confirmUnsavedChangesNavigation(target, () => { void continueNavigation() })) {
+      void continueNavigation()
     }
   }
 
   const openSubgroup = (groupId: string) => {
     const subgroupMembership = auth.memberships.find((item) => item.groupId === groupId)
-    const target = subgroupMembership?.status === 'approved' ? '/groups' : '/groups/join'
+    const target = subgroupMembership?.status === 'approved'
+      ? `/groups/${encodeURIComponent(groupId)}?view=overview`
+      : `/groups/${encodeURIComponent(groupId)}/join`
     const continueNavigation = () => {
       activeEntityService.setGroup(groupId, { clearPage: true })
       navigate(target)
@@ -227,17 +219,18 @@ export const useShellContext = () => {
     activeIds,
     canOpenCurrentGroupManagement,
     churchGroup,
+    churchGroupLoading,
     contextualGroup,
     contextualGroupId,
     contextualEvent,
     currentGroup: CurrentGroup,
-    currentGroupPages,
     currentSubgroups,
     groupEventDetailMatch,
     isEventScreen,
     isGroupScreen,
     isManagementScreen,
     isOnboardingScreen,
+    isChurchLifeScreen,
     isPageEditorScreen,
     isProfileScreen,
     isSermonDetailScreen,
@@ -246,6 +239,5 @@ export const useShellContext = () => {
     navigate,
     openGroup,
     openSubgroup,
-    shouldUseGroupPageNav,
   }
 }

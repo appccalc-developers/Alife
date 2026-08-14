@@ -1,4 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 
 namespace Alife.Api.Http;
 
@@ -25,6 +28,18 @@ public static class ConditionalRequestExtensions
             AppendVary(controller.Response.Headers, "Authorization");
         }
 
+        public bool ApplyPrivateConditionalCacheHeaders<T>(T value)
+        {
+            controller.ApplyPrivateNoCacheHeaders();
+
+            var payload = JsonSerializer.Serialize(value);
+            var hash = SHA256.HashData(Encoding.UTF8.GetBytes(payload));
+            var etag = $"W/\"{Convert.ToHexString(hash.AsSpan(0, 8)).ToLowerInvariant()}\"";
+            controller.Response.Headers.ETag = etag;
+
+            return MatchesIfNoneMatch(controller.Request.Headers.IfNoneMatch, etag);
+        }
+
         public void ApplyNoStoreHeaders()
         {
             controller.Response.Headers.CacheControl = "no-store";
@@ -46,5 +61,17 @@ public static class ConditionalRequestExtensions
         {
             headers.Vary = $"{vary}, {value}";
         }
+    }
+
+    private static bool MatchesIfNoneMatch(string? headerValue, string etag)
+    {
+        if (string.IsNullOrWhiteSpace(headerValue))
+        {
+            return false;
+        }
+
+        return headerValue
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Any(candidate => candidate == "*" || string.Equals(candidate, etag, StringComparison.Ordinal));
     }
 }

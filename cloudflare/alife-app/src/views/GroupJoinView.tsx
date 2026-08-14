@@ -44,6 +44,8 @@ const GroupJoinView = () => {
   const canSubmit = Boolean(
     group &&
     !isApproved &&
+    !isRequested &&
+    !isInvited &&
     !submitting &&
     auth.isRegistered &&
     (group.accessType !== 'private' || Boolean(group.parentGroupId)),
@@ -60,7 +62,9 @@ const GroupJoinView = () => {
       .then((data) => {
         if (cancelled) return
         setGroup(data)
-        setCurrentGroup(data)
+        if (isApproved) {
+          setCurrentGroup(data)
+        }
       })
       .catch((reason) => {
         if (!cancelled) {
@@ -76,7 +80,7 @@ const GroupJoinView = () => {
     return () => {
       cancelled = true
     }
-  }, [groupId, setCurrentGroup, t])
+  }, [groupId, isApproved, setCurrentGroup, t])
 
   const submitJoin = async () => {
     if (!group) return
@@ -86,11 +90,11 @@ const GroupJoinView = () => {
     setStatusMessage('')
 
     try {
-      const result = await groupService.requestJoin(group.id)
+      const result = await groupService.requestJoin(group.id, auth.me?.id)
       await auth.fetchMe()
       if (result.status === 'approved') {
         activeEntityService.setGroup(group.id)
-        navigate('/groups', { replace: true })
+        navigate(`/groups/${encodeURIComponent(group.id)}?view=overview`, { replace: true })
         return
       }
 
@@ -113,7 +117,7 @@ const GroupJoinView = () => {
   const returnToPreviousGroup = () => {
     if (returnGroupId) {
       activeEntityService.setGroup(returnGroupId)
-      navigate('/groups')
+      navigate(`/groups/${encodeURIComponent(returnGroupId)}?view=overview`)
       return
     }
 
@@ -187,7 +191,7 @@ const GroupJoinView = () => {
                 variant="primary"
                 onClick={() => {
                   activeEntityService.setGroup(group.id)
-                  navigate('/groups')
+                  navigate(`/groups/${encodeURIComponent(group.id)}?view=overview`)
                 }}
               >
                 {t('openGroup')}

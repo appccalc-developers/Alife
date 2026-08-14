@@ -3,7 +3,7 @@ import { queryCollectionOptions } from '@tanstack/query-db-collection'
 import type { GroupDto, GroupMembershipDto, GroupSummaryDto, PageSummaryDto } from '../../types'
 import type { GroupEventRecord } from '../../types/event'
 import { normalizeGroup, normalizeGroupMembership, normalizePageSummary } from '../../utils/apiEnums'
-import { conditionalGet, getCachedRecord } from '../httpCache'
+import { conditionalGet, getCachedRecord, removeCachedRecord } from '../httpCache'
 import { queryClient } from '../queryClient'
 
 // ---------- Church (single object, cached only and not exposed as a collection) ----------
@@ -17,10 +17,41 @@ export const getCachedChurch = async () => {
 
 // ---------- Publicly visible groups ----------
 
-export const visibleGroupsQueryKey = ['visibleGroups'] as const
+export const visibleGroupsQueryKey = (viewerId?: string) =>
+  ['visibleGroups', 'viewer', viewerId?.trim() || 'anonymous'] as const
+const legacyVisibleGroupsQueryKey = ['visibleGroups'] as const
 
-export const getCachedVisibleGroups = async () =>
-  ((await getCachedRecord<GroupSummaryDto[]>(visibleGroupsQueryKey))?.data ?? []).map(normalizeGroup)
+const visibleGroupsQueryOptions = (viewerId?: string) => ({
+  queryKey: visibleGroupsQueryKey(viewerId),
+  queryFn: async () => {
+    // The legacy key was shared by every signed-in user in the same browser.
+    // Remove it before using the viewer-scoped cache so private group names cannot linger there.
+    await removeCachedRecord(legacyVisibleGroupsQueryKey)
+    const groups = await conditionalGet<GroupSummaryDto[]>({
+      queryKey: visibleGroupsQueryKey(viewerId),
+      path: '/api/groups/visible',
+    })
+    return groups.map(normalizeGroup)
+  },
+})
+
+export const fetchVisibleGroupsForViewer = (viewerId?: string) =>
+  queryClient.fetchQuery(visibleGroupsQueryOptions(viewerId))
+
+export const getCachedVisibleGroups = async (viewerId?: string) =>
+  ((await getCachedRecord<GroupSummaryDto[]>(visibleGroupsQueryKey(viewerId)))?.data ?? []).map(normalizeGroup)
+
+export const invalidateVisibleGroupsForViewers = async (...viewerIds: Array<string | null | undefined>) => {
+  const normalizedViewerIds = Array.from(new Set(viewerIds.map((viewerId) => viewerId?.trim()).filter(Boolean))) as string[]
+  const queryKeys = normalizedViewerIds.map((viewerId) => visibleGroupsQueryKey(viewerId))
+
+  await Promise.all([
+    removeCachedRecord(legacyVisibleGroupsQueryKey),
+    ...queryKeys.map((queryKey) => removeCachedRecord(queryKey)),
+  ])
+  queryClient.removeQueries({ queryKey: legacyVisibleGroupsQueryKey, exact: true })
+  queryKeys.forEach((queryKey) => queryClient.removeQueries({ queryKey, exact: true }))
+}
 
 // ---------- Group by id (single object, cached only and not exposed as a collection) ----------
 
