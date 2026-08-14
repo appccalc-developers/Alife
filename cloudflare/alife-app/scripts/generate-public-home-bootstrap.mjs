@@ -28,8 +28,11 @@ const generate = async () => {
     throw new Error('/api/pages/public did not return an array')
   }
 
+  const isPublicVisibility = (visibility) =>
+    visibility === 'public' || visibility === 'Public' || visibility === 2
+
   const publicPages = publicPagesResponse.filter((page) =>
-    page && typeof page.id === 'string' && page.visibility === 'public',
+    page && typeof page.id === 'string' && isPublicVisibility(page.visibility),
   )
   const homePageSummary = publicPages
     .filter((page) => typeof page.primaryMenuId === 'string' && page.primaryMenuId.trim())
@@ -44,7 +47,7 @@ const generate = async () => {
   }
 
   const homePage = await fetchJson(`/api/pages/${encodeURIComponent(homePageSummary.id)}`)
-  if (!homePage || homePage.id !== homePageSummary.id || homePage.visibility !== 'public') {
+  if (!homePage || homePage.id !== homePageSummary.id || !isPublicVisibility(homePage.visibility)) {
     throw new Error('The selected homepage detail is not a matching public page')
   }
 
