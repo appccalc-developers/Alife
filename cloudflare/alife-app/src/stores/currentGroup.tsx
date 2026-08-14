@@ -44,6 +44,10 @@ export const CurrentGroupProvider = ({ children }: { children: ReactNode }) => {
   }, [])
 
   useEffect(() => {
+    setActiveGroupId(activeEntityService.getAll().groupId)
+  }, [auth.me?.id])
+
+  useEffect(() => {
     if (!groupContextEnabled) {
       setCurrentGroup(null)
       setLoading(false)
@@ -52,6 +56,17 @@ export const CurrentGroupProvider = ({ children }: { children: ReactNode }) => {
     }
 
     if (!activeGroupId || auth.isGuest) {
+      setCurrentGroup(null)
+      setLoading(false)
+      setError('')
+      return
+    }
+
+    const hasUsableMembership = auth.isAdmin || auth.memberships.some(
+      (membership) => membership.groupId === activeGroupId && membership.status === 'approved',
+    )
+    if (!hasUsableMembership) {
+      activeEntityService.setGroup('', { clearPage: true, clearEvent: true })
       setCurrentGroup(null)
       setLoading(false)
       setError('')
@@ -92,7 +107,7 @@ export const CurrentGroupProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       cancelled = true
     }
-  }, [activeGroupId, auth.isGuest, auth.me?.id, groupContextEnabled])
+  }, [activeGroupId, auth.isAdmin, auth.isGuest, auth.me?.id, auth.memberships, groupContextEnabled])
 
   const setSelectableCurrentGroup = useCallback((group: GroupDto | null) => {
     if (group?.isChurch) {

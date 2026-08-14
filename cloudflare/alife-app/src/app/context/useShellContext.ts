@@ -93,8 +93,9 @@ export const useShellContext = () => {
   const isProfileScreen = path === '/profile'
   const isOnboardingScreen = path === '/onboarding'
   const isGroupSelectScreen = path === '/groups/select' || path === '/groups/select/tree'
+  const isGroupJoinScreen = path === '/groups/join' || Boolean(groupJoinMatch)
   const isChurchLifeScreen = path === '/church' || path.startsWith('/church/forum')
-  const contextualGroupId = isGroupSelectScreen || isChurchLifeScreen
+  const contextualGroupId = isGroupSelectScreen || isGroupJoinScreen || isChurchLifeScreen
     ? ''
     : routeGroupIds.find(Boolean) ||
       activeIds.groupId ||

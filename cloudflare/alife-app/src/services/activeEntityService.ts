@@ -18,6 +18,8 @@ const storageKeys: Record<keyof ActiveEntityIds, string> = {
   sermonId: 'alife-active-sermon-id',
 }
 
+let activeViewerId = ''
+
 const emptyIds: ActiveEntityIds = {
   groupId: '',
   pageId: '',
@@ -32,12 +34,26 @@ const normalizeId = (value: string | null | undefined) => value?.trim() ?? ''
 const normalizeEntityId = (key: keyof ActiveEntityIds, value: string | null | undefined) =>
   key === 'groupId' ? normalizeRouteGroupId(value) : normalizeId(value)
 
+const viewerStorageKey = (key: keyof ActiveEntityIds) =>
+  activeViewerId ? `${storageKeys[key]}:${encodeURIComponent(activeViewerId)}` : ''
+
+const removeLegacyStorage = () => {
+  if (!hasWindow()) {
+    return
+  }
+
+  for (const key of Object.keys(storageKeys) as Array<keyof ActiveEntityIds>) {
+    window.localStorage.removeItem(storageKeys[key])
+  }
+}
+
 const readId = (key: keyof ActiveEntityIds) => {
   if (!hasWindow()) {
     return ''
   }
 
-  return normalizeEntityId(key, window.localStorage.getItem(storageKeys[key]))
+  const scopedKey = viewerStorageKey(key)
+  return scopedKey ? normalizeEntityId(key, window.localStorage.getItem(scopedKey)) : ''
 }
 
 const writeId = (key: keyof ActiveEntityIds, value: string) => {
@@ -45,11 +61,16 @@ const writeId = (key: keyof ActiveEntityIds, value: string) => {
     return
   }
 
+  const scopedKey = viewerStorageKey(key)
+  if (!scopedKey) {
+    return
+  }
+
   const normalizedValue = normalizeEntityId(key, value)
   if (normalizedValue) {
-    window.localStorage.setItem(storageKeys[key], normalizedValue)
+    window.localStorage.setItem(scopedKey, normalizedValue)
   } else {
-    window.localStorage.removeItem(storageKeys[key])
+    window.localStorage.removeItem(scopedKey)
   }
 }
 
@@ -62,6 +83,18 @@ const emitChanged = () => {
 }
 
 export const activeEntityService = {
+  setViewer(viewerId?: string | null) {
+    const nextViewerId = normalizeId(viewerId)
+    removeLegacyStorage()
+    if (activeViewerId === nextViewerId) {
+      return this.getAll()
+    }
+
+    activeViewerId = nextViewerId
+    emitChanged()
+    return this.getAll()
+  },
+
   getAll(): ActiveEntityIds {
     return {
       groupId: readId('groupId'),
@@ -127,11 +160,10 @@ export const activeEntityService = {
     })
   },
 
-  setEvent(eventId: string, groupId?: string) {
-    this.set({
-      eventId,
-      ...(groupId ? { groupId } : {}),
-    })
+  setEvent(eventId: string, _groupId?: string) {
+    // An event's owning group is route context, not a request to switch the
+    // viewer's selected group. Group changes must remain explicit.
+    this.set({ eventId })
   },
 
   setSermon(sermonId: string) {

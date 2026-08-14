@@ -2,6 +2,8 @@ import { lazy, Suspense, type ReactElement } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../../stores/auth'
+import { activeEntityService } from '../../services/activeEntityService'
+import { workspaceResumeService } from '../../services/workspaceResumeService'
 import AppRouteLoading from '../components/AppRouteLoading'
 
 const AdminView = lazy(() => import('../../views/AdminView'))
@@ -80,7 +82,17 @@ const EntryRoute = () => {
     return <AppRouteLoading />
   }
 
-  return <Navigate to={auth.isGuest ? '/onboarding' : '/groups/select'} replace />
+  if (auth.isGuest) {
+    return <Navigate to="/onboarding" replace />
+  }
+
+  const rememberedLocation = workspaceResumeService.get(auth.me?.id)
+  const activeGroupId = activeEntityService.getAll().groupId
+  const destination = rememberedLocation || (activeGroupId
+    ? `/groups/${encodeURIComponent(activeGroupId)}?view=overview`
+    : '/groups/select')
+
+  return <Navigate to={destination} replace />
 }
 
 const HomeRoute = () => {
@@ -186,7 +198,7 @@ const AppRoutes = () => {
           <Route
             path="/admin/users"
             element={
-              <AdminRoute permission="admin.roles.managePermissions">
+              <AdminRoute permission="admin.members.view">
                 <AdminView />
               </AdminRoute>
             }
@@ -194,7 +206,7 @@ const AppRoutes = () => {
           <Route
             path="/admin/roles"
             element={
-              <AdminRoute permission="admin.auditLogs.view">
+              <AdminRoute permission="admin.roles.managePermissions">
                 <AdminView />
               </AdminRoute>
             }
@@ -202,7 +214,7 @@ const AppRoutes = () => {
           <Route
             path="/admin/logs"
             element={
-              <AdminRoute permission="admin.messages.manage">
+              <AdminRoute permission="admin.auditLogs.view">
                 <AdminView />
               </AdminRoute>
             }
@@ -210,7 +222,7 @@ const AppRoutes = () => {
           <Route
             path="/admin/messages"
             element={
-              <AdminRoute permission="admin.visitRequests.receive">
+              <AdminRoute permission="admin.messages.manage">
                 <AdminView />
               </AdminRoute>
             }
@@ -218,7 +230,7 @@ const AppRoutes = () => {
           <Route
             path="/admin/visit-requests"
             element={
-              <AdminRoute permission="admin.files.view">
+              <AdminRoute permission="admin.visitRequests.receive">
                 <AdminView />
               </AdminRoute>
             }
@@ -234,7 +246,7 @@ const AppRoutes = () => {
           <Route
             path="/admin/files"
             element={
-              <AdminRoute>
+              <AdminRoute permission="admin.files.view">
                 <AdminView />
               </AdminRoute>
             }

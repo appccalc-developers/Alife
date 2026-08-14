@@ -41,6 +41,18 @@ export const fetchVisibleGroupsForViewer = (viewerId?: string) =>
 export const getCachedVisibleGroups = async (viewerId?: string) =>
   ((await getCachedRecord<GroupSummaryDto[]>(visibleGroupsQueryKey(viewerId)))?.data ?? []).map(normalizeGroup)
 
+export const invalidateVisibleGroupsForViewers = async (...viewerIds: Array<string | null | undefined>) => {
+  const normalizedViewerIds = Array.from(new Set(viewerIds.map((viewerId) => viewerId?.trim()).filter(Boolean))) as string[]
+  const queryKeys = normalizedViewerIds.map((viewerId) => visibleGroupsQueryKey(viewerId))
+
+  await Promise.all([
+    removeCachedRecord(legacyVisibleGroupsQueryKey),
+    ...queryKeys.map((queryKey) => removeCachedRecord(queryKey)),
+  ])
+  queryClient.removeQueries({ queryKey: legacyVisibleGroupsQueryKey, exact: true })
+  queryKeys.forEach((queryKey) => queryClient.removeQueries({ queryKey, exact: true }))
+}
+
 // ---------- Group by id (single object, cached only and not exposed as a collection) ----------
 
 export const groupQueryKey = (groupId: string) => ['group', groupId] as const

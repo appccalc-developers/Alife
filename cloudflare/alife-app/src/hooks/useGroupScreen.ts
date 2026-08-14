@@ -164,7 +164,7 @@ export const useGroupScreen = (groupId: string, options: GroupScreenOptions = {}
 
   const joinOrRequest = useCallback(async () => {
     if (!groupId) return
-    const result = await groupService.requestJoin(groupId)
+    const result = await groupService.requestJoin(groupId, auth.me?.id)
     const localizedStatus =
       result.status === 'approved'
         ? t('approved')
@@ -212,66 +212,66 @@ export const useGroupScreen = (groupId: string, options: GroupScreenOptions = {}
   const inviteMember = useCallback(
     async (targetPhoneE164: string) => {
       if (!groupId) return
-      await groupService.inviteMember(groupId, { targetPhoneE164 })
+      await groupService.inviteMember(groupId, { targetPhoneE164 }, auth.me?.id)
       await queryClient.invalidateQueries({ queryKey: ['groupMemberships', groupId] })
       setStatusMessage(t('inviteSent'))
     },
-    [groupId, queryClient, t],
+    [auth.me?.id, groupId, queryClient, t],
   )
 
   const inviteMemberById = useCallback(
     async (targetMemberId: string) => {
       if (!groupId) return
-      await groupService.inviteMemberById(groupId, targetMemberId)
+      await groupService.inviteMemberById(groupId, targetMemberId, auth.me?.id)
       await queryClient.invalidateQueries({ queryKey: ['groupMemberships', groupId] })
     },
-    [groupId, queryClient],
+    [auth.me?.id, groupId, queryClient],
   )
 
   const approveMember = useCallback(
     async (memberId: string) => {
       if (!groupId) return
-      await groupService.approveMember(groupId, { memberId })
+      await groupService.approveMember(groupId, { memberId }, auth.me?.id)
       await queryClient.invalidateQueries({ queryKey: ['groupMemberships', groupId] })
       setStatusMessage(t('memberApprovedSuccess'))
     },
-    [groupId, queryClient, t],
+    [auth.me?.id, groupId, queryClient, t],
   )
 
   const rejectMember = useCallback(
     async (memberId: string) => {
       if (!groupId) return
-      await groupService.rejectMember(groupId, { memberId })
+      await groupService.rejectMember(groupId, { memberId }, auth.me?.id)
       await queryClient.invalidateQueries({ queryKey: ['groupMemberships', groupId] })
       setStatusMessage(t('memberRequestRejected'))
     },
-    [groupId, queryClient, t],
+    [auth.me?.id, groupId, queryClient, t],
   )
 
   const kickMember = useCallback(
     async (memberId: string) => {
       if (!groupId) return
-      await groupService.kickMember(groupId, { memberId })
+      await groupService.kickMember(groupId, { memberId }, auth.me?.id)
       await queryClient.invalidateQueries({ queryKey: ['groupMemberships', groupId] })
       setStatusMessage(t('memberRemovedSuccess'))
     },
-    [groupId, queryClient, t],
+    [auth.me?.id, groupId, queryClient, t],
   )
 
   const setCoLeader = useCallback(
     async (memberId: string, isCoLeader: boolean) => {
       if (!groupId) return
-      await groupService.setCoLeader(groupId, { memberId, isCoLeader })
+      await groupService.setCoLeader(groupId, { memberId, isCoLeader }, auth.me?.id)
       await queryClient.invalidateQueries({ queryKey: ['groupMemberships', groupId] })
       setStatusMessage(isCoLeader ? t('coLeaderSetSuccess') : t('coLeaderResetSuccess'))
     },
-    [groupId, queryClient, t],
+    [auth.me?.id, groupId, queryClient, t],
   )
 
   const transferLeadership = useCallback(
     async (memberId: string) => {
       if (!groupId) return
-      await groupService.transferLeadership(groupId, { memberId })
+      await groupService.transferLeadership(groupId, { memberId }, auth.me?.id)
       await queryClient.invalidateQueries({ queryKey: ['groupMemberships', groupId] })
       await auth.fetchMe()
       setStatusMessage(t('leadershipTransferSuccess'))

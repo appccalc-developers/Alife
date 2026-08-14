@@ -19,6 +19,7 @@ import HomeFooter from '../views/home/HomeFooter'
 import { getCopy } from '../views/home/homeCopy'
 import { buildPageMenuNavItems } from '../views/home/homeUtils'
 import { pageService } from '../services/pageService'
+import { workspaceResumeService } from '../services/workspaceResumeService'
 import type { PageSummaryDto } from '../types'
 import { isHomeLocation, isPublicArticlePath, isPublicPageLocation, isPublicPagePath } from './routing/publicRoutePolicy'
 
@@ -82,6 +83,15 @@ const WorkspaceShell = () => {
     setGroupDrawerOpen(false)
     setMobileNavOpen(false)
   }, [context.location.pathname, context.location.search])
+
+  useEffect(() => {
+    if (auth.isGuest) return
+    workspaceResumeService.remember(auth.me?.id, {
+      pathname: context.location.pathname,
+      search: context.location.search,
+      hash: context.location.hash,
+    })
+  }, [auth.isGuest, auth.me?.id, context.location.hash, context.location.pathname, context.location.search])
 
   useEffect(() => {
     writeSidebarCollapsedPreference(sidebarCollapsed)

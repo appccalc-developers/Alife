@@ -70,7 +70,7 @@ public sealed class InviteGroupMemberCommandHandler(
         }
         else if (membership.Status == MembershipStatus.Approved)
         {
-            return AppResult<GroupActionResultDto>.Success(new GroupActionResultDto(true));
+            return AppResult<GroupActionResultDto>.Success(new GroupActionResultDto(true, MemberId: target.Id));
         }
         else
         {
@@ -90,6 +90,6 @@ public sealed class InviteGroupMemberCommandHandler(
         await cloudflareKvCacheService.RemoveMembershipAsync(request.GroupId, target.Id, cancellationToken);
         await groupCacheInvalidationService.RemoveMembershipsAsync(request.GroupId, cancellationToken);
 
-        return AppResult<GroupActionResultDto>.Success(new GroupActionResultDto(true));
+        return AppResult<GroupActionResultDto>.Success(new GroupActionResultDto(true, MemberId: target.Id));
     }
 }

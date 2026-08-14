@@ -379,9 +379,9 @@ const EventsSection = ({ copy, language, upcomingEvents, loading = false }: Prop
                           {activeDetails.location || copy.eventsLocationFallback}
                         </span>
                         <Link
-                          to="/events"
+                          to={`/groups/${encodeURIComponent(activeEvent.groupId)}/events/${encodeURIComponent(activeEvent.id)}`}
                           className="inline-flex min-h-11 items-center gap-2 rounded-full bg-home-gold px-5 text-sm font-black text-[#173f37] shadow-[0_18px_52px_rgba(245,215,152,0.24)] transition hover:-translate-y-0.5 hover:bg-white focus:outline-none focus:ring-2 focus:ring-home-green/35"
-                          onClick={() => activeEntityService.setEvent(activeEvent.id, activeEvent.groupId)}
+                          onClick={() => activeEntityService.setEvent(activeEvent.id)}
                         >
                           {copy.eventsOpen}
                           <ChevronRight className="h-4 w-4" />

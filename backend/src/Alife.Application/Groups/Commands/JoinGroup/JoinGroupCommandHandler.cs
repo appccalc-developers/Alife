@@ -54,6 +54,11 @@ public sealed class JoinGroupCommandHandler(
             .OrderByDescending(x => x.UpdatedUtc)
             .FirstOrDefaultAsync(cancellationToken);
 
+        if (membership?.Status is MembershipStatus.Approved or MembershipStatus.Requested or MembershipStatus.Invited)
+        {
+            return AppResult<GroupStatusResultDto>.Conflict("An active membership, request, or invitation already exists for this group.");
+        }
+
         var status = group.AccessType switch
         {
             AccessType.Public => MembershipStatus.Approved,

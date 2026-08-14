@@ -27,6 +27,9 @@ const GroupDashboard = ({ group, pages, events, scope = 'group' }: Props) => {
     .sort((left, right) => new Date(left.startDate).getTime() - new Date(right.startDate).getTime())
     .slice(0, 3)
   const [announcements, setAnnouncements] = useState<AnnouncementDto[]>([])
+  const openEvent = (eventId: string) => {
+    activeEntityService.set({ pageId: '', eventId })
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -104,7 +107,7 @@ const GroupDashboard = ({ group, pages, events, scope = 'group' }: Props) => {
         </header>
 
         {nextEvent ? (
-          <Link to="/events" onClick={() => activeEntityService.setEvent(nextEvent.id, group.id)} className="group flex flex-col gap-4 rounded-[1.5rem] border border-[#d9e5df] bg-white px-5 py-5 shadow-[0_14px_40px_rgba(24,51,45,0.06)] transition hover:-translate-y-0.5 hover:border-[#9cc8b9] hover:shadow-[0_18px_45px_rgba(24,51,45,0.10)] sm:flex-row sm:items-center sm:px-7">
+          <Link to={`/groups/${encodeURIComponent(group.id)}/events/${encodeURIComponent(nextEvent.id)}`} onClick={() => openEvent(nextEvent.id)} className="group flex flex-col gap-4 rounded-[1.5rem] border border-[#d9e5df] bg-white px-5 py-5 shadow-[0_14px_40px_rgba(24,51,45,0.06)] transition hover:-translate-y-0.5 hover:border-[#9cc8b9] hover:shadow-[0_18px_45px_rgba(24,51,45,0.10)] sm:flex-row sm:items-center sm:px-7">
             <time className="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-2xl bg-[#edf6f2] text-[#176b5a]">
               <span className="text-[0.62rem] font-black uppercase tracking-[0.12em]">{new Date(nextEvent.startDate).toLocaleDateString(locale, { month: 'short' })}</span>
               <span className="text-2xl font-black leading-none">{new Date(nextEvent.startDate).getDate()}</span>
@@ -126,7 +129,7 @@ const GroupDashboard = ({ group, pages, events, scope = 'group' }: Props) => {
             </div>
             <div className="overflow-hidden rounded-[1.65rem] border border-[#dfe7e3] bg-white shadow-[0_12px_36px_rgba(24,51,45,0.05)]">
               {churchUpcomingEvents.slice(0, 5).map((event) => (
-                <Link key={event.id} to="/events" onClick={() => activeEntityService.setEvent(event.id, group.id)} className="group grid grid-cols-[4.25rem_minmax(0,1fr)_auto] items-center gap-4 border-b border-[#e9eeeb] px-5 py-4 last:border-b-0 hover:bg-[#f5faf7]">
+                <Link key={event.id} to={`/groups/${encodeURIComponent(group.id)}/events/${encodeURIComponent(event.id)}`} onClick={() => openEvent(event.id)} className="group grid grid-cols-[4.25rem_minmax(0,1fr)_auto] items-center gap-4 border-b border-[#e9eeeb] px-5 py-4 last:border-b-0 hover:bg-[#f5faf7]">
                   <time className="text-center"><span className="block text-[0.62rem] font-black uppercase tracking-[0.12em] text-[#9b6447]">{new Date(event.startDate).toLocaleDateString(locale, { month: 'short' })}</span><span className="mt-0.5 block text-2xl font-black text-[#18332d]">{new Date(event.startDate).getDate()}</span></time>
                   <div className="min-w-0"><h3 className="truncate text-sm font-black text-[#27473f]">{eventTitle(event)}</h3><p className="mt-1 text-xs text-[#7c8983]">{new Date(event.startDate).toLocaleString(locale, { weekday: 'short', hour: '2-digit', minute: '2-digit' })}</p></div>
                   <ArrowUpRight className="h-4 w-4 text-[#9aaba4] transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[#176b5a]" aria-hidden="true" />
@@ -192,7 +195,7 @@ const GroupDashboard = ({ group, pages, events, scope = 'group' }: Props) => {
           </div>
           <div className="overflow-hidden rounded-[1.65rem] border border-[#dfe7e3] bg-white shadow-[0_12px_36px_rgba(24,51,45,0.05)]">
             {upcomingEvents.map((event, index) => (
-              <Link key={event.id} to="/events" onClick={() => activeEntityService.setEvent(event.id, group.id)} className="group grid grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-4 border-b border-[#e8eeeb] px-5 py-5 last:border-b-0 hover:bg-[#f5faf7]">
+              <Link key={event.id} to={`/groups/${encodeURIComponent(group.id)}/events/${encodeURIComponent(event.id)}`} onClick={() => openEvent(event.id)} className="group grid grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-4 border-b border-[#e8eeeb] px-5 py-5 last:border-b-0 hover:bg-[#f5faf7]">
                 <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#edf6f2] text-sm font-black text-[#176b5a]">{String(index + 1).padStart(2, '0')}</span>
                 <div className="min-w-0"><h3 className="truncate text-sm font-black text-[#27473f]">{eventTitle(event)}</h3><p className="mt-1 text-xs text-[#7c8983]">{new Date(event.startDate).toLocaleString(locale, { month: 'long', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' })}</p></div>
                 <ArrowUpRight className="h-4 w-4 text-[#a0ada7] transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[#176b5a]" aria-hidden="true" />

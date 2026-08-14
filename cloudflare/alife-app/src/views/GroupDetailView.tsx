@@ -1,10 +1,13 @@
 import { useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import AppPageShell from '../components/layout/AppPageShell'
 import GroupScreenShell from '../components/group/GroupScreenShell'
 import GroupDashboard from '../components/group/GroupDashboard'
 import GroupManageView from './GroupManageView'
 import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
 import { useGroupScreen } from '../hooks/useGroupScreen'
+import { ensureGroupForViewer } from '../db/collections/groupCollection'
 import { activeEntityService } from '../services/activeEntityService'
 import { useAuthStore } from '../stores/auth'
 import { useCurrentGroupStore } from '../stores/currentGroup'
@@ -97,12 +100,19 @@ export const GroupWorkspaceView = ({ groupId, pageId = '', scope = 'group', mana
 }
 
 const GroupDetailView = () => {
+  const auth = useAuthStore()
   const { groupId: routeGroupId } = useParams<{ groupId: string }>()
   const [searchParams] = useSearchParams()
   const { groupId: activeGroupId, pageId } = useActiveEntityIds({ groupId: routeGroupId })
-  const { CurrentGroup, setCurrentGroup } = useCurrentGroupStore()
+  const { setCurrentGroup } = useCurrentGroupStore()
   const groupId = activeGroupId || ''
-  const isChurchRoute = Boolean(groupId && CurrentGroup?.id === groupId && CurrentGroup.isChurch)
+  const routeGroupQuery = useQuery({
+    queryKey: ['group-route-scope', routeGroupId ?? '', auth.me?.id ?? 'guest'],
+    queryFn: () => ensureGroupForViewer(routeGroupId || '', auth.me?.id),
+    enabled: Boolean(routeGroupId),
+    staleTime: 1_000,
+  })
+  const isChurchRoute = routeGroupQuery.data?.isChurch === true
 
   useEffect(() => {
     if (!isChurchRoute) return
@@ -112,6 +122,16 @@ const GroupDetailView = () => {
 
   if (!groupId) {
     return <Navigate to="/groups/select" replace />
+  }
+
+  if (routeGroupId && routeGroupQuery.isPending) {
+    return (
+      <AppPageShell>
+        <section className="rounded-2xl border border-emerald-100 bg-white p-5 text-sm text-[#60716a]">
+          {auth.language === 'zh' ? '正在确认小组入口…' : 'Checking group access…'}
+        </section>
+      </AppPageShell>
+    )
   }
 
   if (isChurchRoute) {

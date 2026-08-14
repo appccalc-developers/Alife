@@ -267,7 +267,11 @@ const GroupTreeView = () => {
       return
     }
     const membership = auth.memberships.find((item) => item.groupId === group.id)
-    activeEntityService.setGroup(group.id, { clearPage: true, clearEvent: true })
+    if (membership?.status === 'approved') {
+      activeEntityService.setGroup(group.id, { clearPage: true, clearEvent: true })
+    } else if (activeEntityService.getAll().groupId === group.id) {
+      activeEntityService.setGroup('', { clearPage: true, clearEvent: true })
+    }
     navigate(membership?.status === 'approved' || group.accessType === 'public'
       ? `/groups/${encodeURIComponent(group.id)}?view=overview`
       : `/groups/${encodeURIComponent(group.id)}/join`)

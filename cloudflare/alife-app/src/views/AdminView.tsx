@@ -755,6 +755,7 @@ const ChurchManagementHub = ({
   language: string
 }) => {
   const auth = useAuthStore()
+  const [workspaceRefreshRequest, setWorkspaceRefreshRequest] = useState(0)
   const isChinese = language === 'zh'
   const churchName = localizeText(church?.name, language) || (isChinese ? '教会' : 'Church')
   const managementSections: ChurchHubSectionConfig[] = [
@@ -773,6 +774,10 @@ const ChurchManagementHub = ({
     ...(auth.hasAdminPermission('admin.visitRequests.receive') ? [{ key: 'visitors', label: isChinese ? '访客接待' : 'Visitor care', description: isChinese ? '处理参观联系请求和跟进状态' : 'Handle visit requests and follow-up status', icon: Handshake, to: '/admin/visit-requests' }] : []),
   ]
   const canAccessDashboard = dashboardAreas.length > 0
+  const refreshWorkspace = async () => {
+    setWorkspaceRefreshRequest((current) => current + 1)
+    await refresh()
+  }
 
   if (activeSection === 'dashboard') {
     if (!church) return <section className="rounded-[1.75rem] border border-emerald-100 bg-white p-6 text-sm text-[#60716a]">{isChinese ? '正在加载教会管理…' : 'Loading church management…'}</section>
@@ -792,11 +797,11 @@ const ChurchManagementHub = ({
           <h1 className="mt-2 text-2xl font-black tracking-[-0.035em] text-[#18332d]">{activeConfig.label}</h1>
           <p className="mt-1 text-sm text-[#687770]">{activeConfig.description}</p>
         </div>
-        <button className="inline-flex min-h-10 items-center justify-center gap-2 self-start rounded-xl border border-[#d7e3dd] bg-white px-4 text-sm font-black text-[#176b5a] transition hover:bg-[#edf5f1] disabled:opacity-60 sm:self-auto" disabled={loading} type="button" onClick={() => refresh().catch(() => undefined)}>
+        <button className="inline-flex min-h-10 items-center justify-center gap-2 self-start rounded-xl border border-[#d7e3dd] bg-white px-4 text-sm font-black text-[#176b5a] transition hover:bg-[#edf5f1] disabled:opacity-60 sm:self-auto" disabled={loading} type="button" onClick={() => refreshWorkspace().catch(() => undefined)}>
           <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />{isChinese ? '刷新' : 'Refresh'}
         </button>
       </header>
-      <GroupManageView embeddedWorkspace explicitGroupId={church.id} workspaceBasePath="/admin" sectionParamName="church" integrated />
+      <GroupManageView embeddedWorkspace explicitGroupId={church.id} workspaceBasePath="/admin" sectionParamName="church" integrated refreshRequest={workspaceRefreshRequest} />
     </div>
   )
 }

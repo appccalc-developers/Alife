@@ -1,5 +1,6 @@
 using Alife.Application.Abstractions.Security;
 using Alife.Application.Members.Commands.RegisterMember;
+using Alife.Application.Groups.Services;
 using Alife.Domain.Entities;
 using Alife.Domain.Enums;
 using Alife.Infrastructure.Persistence;
@@ -50,7 +51,8 @@ public class RegisterMemberNotificationTests
         var jwtTokenService = Substitute.For<IJwtTokenService>();
         jwtTokenService.CreateToken(Arg.Any<Member>(), false)
             .Returns(("member-token", now.AddDays(7)));
-        var handler = new RegisterMemberCommandHandler(dbContext, jwtTokenService);
+        var cacheInvalidationService = Substitute.For<IGroupCacheInvalidationService>();
+        var handler = new RegisterMemberCommandHandler(dbContext, jwtTokenService, cacheInvalidationService);
 
         var result = await handler.Handle(
             new RegisterMemberCommand(null, "line-new-member", "New LINE User", null, null, "new@example.com"),
@@ -64,7 +66,8 @@ public class RegisterMemberNotificationTests
         Assert.Equal(churchId, notification.GroupId);
         Assert.Equal("church.line-member.waiting", notification.ActionType);
         Assert.Contains(registeredMember.Id.ToString(), notification.ActionDataJson);
-        Assert.Contains($"/groups/{churchId}/manage", notification.ActionDataJson);
+        Assert.Contains("/admin?church=members", notification.ActionDataJson);
+        await cacheInvalidationService.Received(1).RemoveMembershipsAsync(churchId, Arg.Any<CancellationToken>());
     }
 
     private static AlifeDbContext CreateInMemoryDbContext()

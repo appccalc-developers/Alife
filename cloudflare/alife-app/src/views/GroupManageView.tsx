@@ -838,6 +838,7 @@ type GroupManageViewProps = {
   workspaceBasePath?: string
   sectionParamName?: string
   integrated?: boolean
+  refreshRequest?: number
 }
 
 const GroupManageView = ({
@@ -846,6 +847,7 @@ const GroupManageView = ({
   workspaceBasePath = '/groups',
   sectionParamName = 'section',
   integrated = false,
+  refreshRequest = 0,
 }: GroupManageViewProps) => {
   const t = useUiText()
   const { groupId: routeGroupId } = useParams<{ groupId: string }>()
@@ -881,6 +883,14 @@ const GroupManageView = ({
     transferLeadership,
     refreshMemberships,
   } = useGroupScreen(groupId, { loadEvents: true })
+  const lastRefreshRequest = useRef(refreshRequest)
+
+  useEffect(() => {
+    if (lastRefreshRequest.current === refreshRequest) return
+    if (!group || !canManageGroup) return
+    lastRefreshRequest.current = refreshRequest
+    refreshMemberships().catch(() => undefined)
+  }, [canManageGroup, group, refreshMemberships, refreshRequest])
 
   const activeSection = normalizeManageSection(searchParams.get(sectionParamName))
   const copy = managementCopy(language, group?.isChurch)

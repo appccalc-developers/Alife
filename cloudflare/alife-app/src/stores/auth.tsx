@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
 import { authService } from '../services/authService'
+import { activeEntityService } from '../services/activeEntityService'
 import type { MeDto, MembershipRole } from '../types'
 
 type Language = 'en' | 'zh'
@@ -49,6 +50,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchMe = useCallback(async () => {
     const profile = await authService.getMe()
+    activeEntityService.setViewer(profile.id)
     setMe(profile)
     return profile
   }, [])
@@ -69,7 +71,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [fetchMe, me])
 
   const logout = useCallback(async () => {
-    await authService.logout()
+    try {
+      await authService.logout()
+    } finally {
+      activeEntityService.setViewer()
+    }
     setMe(null)
     try {
       await fetchMe()
