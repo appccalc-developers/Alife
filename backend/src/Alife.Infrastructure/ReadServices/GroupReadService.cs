@@ -46,19 +46,76 @@ public sealed class GroupReadService(
         Guid? memberId,
         CancellationToken cancellationToken)
     {
-        var groups = await dbContext.Groups
+        var discoverableGroups = await GetVisibleDiscoverableGroupsAsync(memberId.HasValue, cancellationToken);
+        if (!memberId.HasValue)
+        {
+            return discoverableGroups.Select(item => item.Group).ToList();
+        }
+
+        // Private-group discovery is viewer-specific and authorization-sensitive.
+        // Keep it out of shared caches so membership removal takes effect immediately.
+        var privateGroups = await dbContext.Groups
             .AsNoTracking()
             .Where(group =>
                 !group.IsClosed &&
-                (group.AccessType != Domain.Enums.AccessType.Private ||
-                 (memberId.HasValue &&
-                  group.Memberships.Any(membership => membership.MemberId == memberId.Value))))
-            .OrderByDescending(group => group.IsChurch)
-            .ThenBy(group => group.CreatedUtc)
+                group.AccessType == Domain.Enums.AccessType.Private &&
+                group.Memberships.Any(membership =>
+                    membership.MemberId == memberId.Value &&
+                    membership.Status != Domain.Enums.MembershipStatus.Rejected &&
+                    membership.Status != Domain.Enums.MembershipStatus.Removed))
             .ToListAsync(cancellationToken);
 
-        return groups.Select(ToSummaryDto).ToList();
+        return discoverableGroups
+            .Concat(privateGroups.Select(group => new VisibleGroupCacheItem(ToSummaryDto(group), group.CreatedUtc)))
+            .OrderByDescending(item => item.Group.IsChurch)
+            .ThenBy(item => item.CreatedUtc)
+            .Select(item => item.Group)
+            .ToList();
     }
+
+    private async Task<IReadOnlyList<VisibleGroupCacheItem>> GetVisibleDiscoverableGroupsAsync(
+        bool includesViewerSpecificQuery,
+        CancellationToken cancellationToken)
+    {
+        var isMiss = false;
+        var groups = await hybridCache.GetOrCreateAsync(
+                GroupCacheKeys.VisibleDiscoverable(),
+                async token =>
+                {
+                    isMiss = true;
+                    var discoverableGroups = await dbContext.Groups
+                        .AsNoTracking()
+                        .Where(group =>
+                            !group.IsClosed &&
+                            group.AccessType != Domain.Enums.AccessType.Private)
+                        .OrderByDescending(group => group.IsChurch)
+                        .ThenBy(group => group.CreatedUtc)
+                        .ToListAsync(token);
+
+                    return discoverableGroups
+                        .Select(group => new VisibleGroupCacheItem(ToSummaryDto(group), group.CreatedUtc))
+                        .ToList();
+                },
+                new HybridCacheEntryOptions
+                {
+                    Expiration = TimeSpan.FromMinutes(5),
+                    LocalCacheExpiration = TimeSpan.FromMinutes(2)
+                },
+                cancellationToken: cancellationToken)
+            .AsTask();
+
+        var response = httpContextAccessor?.HttpContext?.Response;
+        if (response != null && !response.HasStarted)
+        {
+            response.Headers["x-alife-backend-cache"] = isMiss
+                ? "MISS"
+                : includesViewerSpecificQuery ? "PARTIAL_HIT" : "HIT";
+        }
+
+        return groups;
+    }
+
+    private sealed record VisibleGroupCacheItem(GroupSummaryDto Group, DateTime CreatedUtc);
 
     public Task<IReadOnlyList<GroupSummaryDto>> GetSubgroupsAsync(Guid groupId, CancellationToken cancellationToken)
         => GetOrCreateAsync(

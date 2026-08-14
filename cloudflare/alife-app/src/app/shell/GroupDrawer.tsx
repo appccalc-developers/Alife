@@ -77,16 +77,11 @@ const GroupDrawer = ({ currentGroup, churchGroup, items, open, onClose, onOpenGr
             <span aria-hidden="true">→</span>
           </Link>
 
-          {currentGroup?.parentGroupId ? (
+          {currentGroup?.parentGroupId && currentGroup.parentGroupId !== churchGroup?.id ? (
             <div className="mb-3 space-y-2 border-b border-slate-200 pb-3">
               <button type="button" className="w-full rounded-2xl border border-[#2f4b42]/10 bg-[#f0ece2]/70 px-4 py-3 text-left text-sm font-semibold text-[#18332d] transition hover:bg-[#e3f0eb]" onClick={() => onOpenGroup(currentGroup.parentGroupId!)}>
                 {t('backToParentGroup')}
               </button>
-              {churchGroup ? (
-                <button type="button" className="w-full rounded-2xl border border-[#2f4b42]/10 bg-[#f0ece2]/70 px-4 py-3 text-left text-sm font-semibold text-[#18332d] transition hover:bg-[#e3f0eb]" onClick={() => onOpenGroup(churchGroup.id)}>
-                  {t('backToChurch')}
-                </button>
-              ) : null}
             </div>
           ) : null}
 

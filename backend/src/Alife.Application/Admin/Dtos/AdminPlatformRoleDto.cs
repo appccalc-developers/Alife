@@ -1,6 +1,9 @@
 namespace Alife.Application.Admin.Dtos;
 
-public sealed record AdminFeaturePermissionDto(string Code, IReadOnlyDictionary<string, string> Name);
+public sealed record AdminFeaturePermissionDto(
+    string Code,
+    IReadOnlyDictionary<string, string> Name,
+    IReadOnlyDictionary<string, string> Description);
 
 public sealed record AdminPlatformRoleDto(
     int Id,

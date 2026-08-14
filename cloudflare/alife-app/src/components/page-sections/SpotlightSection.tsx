@@ -167,7 +167,7 @@ const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, show
     if (action.entityType === 'group' && action.entityId) {
       activeEntityService.setGroup(action.entityId)
     } else if (action.entityType === 'event' && action.entityId) {
-      activeEntityService.setEvent(action.entityId, action.groupId)
+      activeEntityService.setEvent(action.entityId)
     } else if (action.entityType === 'sermon' && action.entityId) {
       activeEntityService.setSermon(action.entityId)
     }

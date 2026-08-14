@@ -10,6 +10,7 @@ import { CloseIcon } from './icons'
 import type { NavigationCopy, ShellNavBadge, ShellNavItem, ShellNavSection } from './types'
 
 const isItemActive = (item: ShellNavItem, pathname: string, search: string) => {
+  if (item.children?.some((child) => isItemActive(child, pathname, search))) return true
   let target: URL
   try {
     target = new URL(item.to || '/', window.location.origin)
@@ -122,13 +123,13 @@ const NavItemContent = ({ item, active, compact = false, collapsed = false }: { 
   </>
 )
 
-const SidebarLink = ({ item, collapsed = false, onClick }: { item: ShellNavItem; collapsed?: boolean; onClick?: () => void }) => {
+const SidebarLink = ({ item, collapsed = false, nested = false, onClick }: { item: ShellNavItem; collapsed?: boolean; nested?: boolean; onClick?: () => void }) => {
   const location = useLocation()
   const navigate = useNavigate()
   const active = isItemActive(item, location.pathname, location.search)
   const className = [
     'group relative flex w-full items-center font-bold outline-none transition duration-200 focus-visible:ring-2 focus-visible:ring-[#de6c4d]/45',
-    collapsed ? 'mx-auto h-11 w-11 justify-center rounded-2xl p-0 desktop:rounded-xl' : [active ? 'min-h-14' : 'min-h-12', 'gap-2.5 rounded-2xl py-1.5 pl-4 pr-2.5 desktop:rounded-xl'].join(' '),
+    collapsed ? 'mx-auto h-11 w-11 justify-center rounded-2xl p-0 desktop:rounded-xl' : nested ? 'min-h-10 gap-2 rounded-xl py-1 pl-7 pr-2.5' : [active ? 'min-h-14' : 'min-h-12', 'gap-2.5 rounded-2xl py-1.5 pl-4 pr-2.5 desktop:rounded-xl'].join(' '),
     collapsed
       ? active
         ? 'text-[#123d34]'
@@ -143,7 +144,7 @@ const SidebarLink = ({ item, collapsed = false, onClick }: { item: ShellNavItem;
       onClick?.()
     }, item.actionOnly ? undefined : () => navigate(item.to))
   }
-  const content = <NavItemContent item={item} active={active} collapsed={collapsed} />
+  const content = <NavItemContent item={item} active={active} compact={nested} collapsed={collapsed} />
 
   return item.actionOnly ? (
     <button type="button" onClick={handleClick} title={collapsed ? item.label : undefined} aria-current={active ? 'page' : undefined} className={className}>
@@ -156,16 +157,59 @@ const SidebarLink = ({ item, collapsed = false, onClick }: { item: ShellNavItem;
   )
 }
 
+const NestedSidebarItem = ({ item, onItemClick }: { item: ShellNavItem; onItemClick?: () => void }) => {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const childActive = Boolean(item.children?.some((child) => isItemActive(child, location.pathname, location.search)))
+  const [open, setOpen] = useState(childActive)
+
+  useEffect(() => {
+    if (childActive) setOpen(true)
+  }, [childActive])
+
+  if (!item.children?.length) return <SidebarLink item={item} onClick={onItemClick} />
+
+  return (
+    <div className={['overflow-hidden rounded-xl transition', childActive ? 'bg-white/80 ring-1 ring-[#dbe4de]' : 'bg-transparent'].join(' ')}>
+      <div className="group flex min-h-11 w-full items-center rounded-xl text-[#4e5f58] transition hover:bg-white/72 hover:text-[#123d34]">
+        <Link
+          to={item.to}
+          onClick={(event) => guardNavigationClick(event, item.to, () => { item.onClick?.(); onItemClick?.() }, () => navigate(item.to))}
+          className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl px-3 py-1.5 font-bold outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/45"
+        >
+          <NavItemContent item={item} active={childActive} compact />
+        </Link>
+        <button type="button" onClick={() => setOpen((current) => !current)} aria-expanded={open} aria-label={`${open ? 'Collapse' : 'Expand'} ${item.label}`} className="mr-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition hover:bg-[#e3f0eb] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/45">
+          <ChevronDown className={['h-3.5 w-3.5 transition-transform duration-200', open ? '' : '-rotate-90'].join(' ')} aria-hidden="true" />
+        </button>
+      </div>
+      <AnimatePresence initial={false}>
+        {open ? (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.18, ease: 'easeOut' }} className="space-y-1 overflow-hidden px-1 pb-1.5">
+            {item.children.map((child) => <SidebarLink key={child.key} item={child} nested onClick={onItemClick} />)}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </div>
+  )
+}
+
 const NavigationSection = ({ section, collapsed = false, onItemClick }: { section: ShellNavSection; collapsed?: boolean; onItemClick?: () => void }) => {
   const [open, setOpen] = useState(true)
   const location = useLocation()
-  const sectionActive = section.items.some((item) => isItemActive(item, location.pathname, location.search))
+  const navigate = useNavigate()
+  const sectionTargetPath = section.to?.split('?')[0] || ''
+  const sectionDestinationActive = Boolean(sectionTargetPath) && (
+    location.pathname === sectionTargetPath ||
+    (sectionTargetPath === '/groups' && location.pathname.startsWith('/groups/'))
+  )
+  const sectionActive = sectionDestinationActive || section.items.some((item) => isItemActive(item, location.pathname, location.search))
 
   useEffect(() => {
     if (sectionActive) setOpen(true)
   }, [sectionActive])
 
-  if (!section.items.length) return null
+  if (!section.items.length && !section.to) return null
 
   if (collapsed) {
     return (
@@ -173,7 +217,21 @@ const NavigationSection = ({ section, collapsed = false, onItemClick }: { sectio
         'flex flex-col items-center gap-1.5 rounded-[1.25rem] p-1 transition desktop:gap-2 desktop:rounded-none desktop:bg-transparent desktop:p-0 desktop:ring-0',
         sectionActive ? 'bg-[#eef5f1] ring-1 ring-[#c9ddd4]' : 'bg-transparent',
       ].join(' ')}>
-        {section.items.map((item) => <SidebarLink key={item.key} item={item} collapsed onClick={onItemClick} />)}
+        {section.to && section.icon ? (
+          <SidebarLink
+            item={{
+              key: `${section.key}:home`,
+              label: section.label,
+              description: section.description,
+              to: section.to,
+              icon: section.icon,
+              matchPathOnly: true,
+            }}
+            collapsed
+            onClick={onItemClick}
+          />
+        ) : null}
+        {section.items.map((item) => <SidebarLink key={item.key} item={{ ...item, children: undefined }} collapsed onClick={onItemClick} />)}
       </section>
     )
   }
@@ -183,31 +241,47 @@ const NavigationSection = ({ section, collapsed = false, onItemClick }: { sectio
       'rounded-[1.35rem] p-1.5 transition desktop:rounded-none desktop:bg-transparent desktop:p-0 desktop:ring-0',
       sectionActive ? 'bg-[#f4f8f5] ring-1 ring-[#cddfd6]' : 'bg-[#f7f3ec] ring-1 ring-[#ded6cb]/70',
     ].join(' ')}>
-      <button
-        type="button"
+      <div
         className={[
           'group flex w-full items-center gap-2 rounded-[1.1rem] px-3 py-2.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/45 desktop:rounded-lg desktop:px-2.5',
           open ? 'text-[#53665f] hover:bg-white/62 desktop:hover:bg-[#f1eee7]' : 'bg-white text-[#18332d] shadow-[0_10px_22px_rgba(30,54,48,0.06)] desktop:bg-[#f1eee7] desktop:shadow-none',
         ].join(' ')}
-        onClick={() => setOpen((current) => !current)}
-        aria-expanded={open}
       >
-        <span className="min-w-0 flex-1">
-          <span className={['block truncate text-xs font-black leading-4 desktop:font-semibold', sectionActive ? 'text-[#173f36]' : 'text-[#314840]'].join(' ')}>{section.label}</span>
-          {!open && section.description ? <span className="mt-0.5 block truncate text-[11px] font-semibold leading-4 text-[#87938e]">{section.description}</span> : null}
-        </span>
-        <span className={['inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full px-2 text-[11px] font-black desktop:font-semibold', sectionActive ? 'bg-[#173f36] text-white' : 'bg-[#e7eee9] text-[#53665f]'].join(' ')}>
-          {section.items.length}
-        </span>
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-[#6b7a74] transition group-hover:bg-[#edf5f1] group-hover:text-[#123d34]">
-          <ChevronDown
-            className={['h-3.5 w-3.5 transition-transform duration-200', open ? '' : '-rotate-90'].join(' ')}
-            aria-hidden="true"
-          />
-        </span>
-      </button>
+        {section.to ? (
+          <Link
+            to={section.to}
+            onClick={(event) => guardNavigationClick(event, section.to || '/', onItemClick, () => navigate(section.to || '/'))}
+            aria-current={sectionDestinationActive ? 'page' : undefined}
+            className="flex min-w-0 flex-1 items-center gap-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/45"
+          >
+            {section.icon ? <span className={['flex h-8 w-8 shrink-0 items-center justify-center rounded-xl', sectionActive ? 'bg-[#173f36] text-white' : 'bg-[#e7eee9] text-[#53665f]'].join(' ')}>{section.icon}</span> : null}
+            <span className="min-w-0 flex-1">
+              <span className={['block truncate text-xs font-black leading-4 desktop:font-semibold', sectionActive ? 'text-[#173f36]' : 'text-[#314840]'].join(' ')}>{section.label}</span>
+              {!open && section.description ? <span className="mt-0.5 block truncate text-[11px] font-semibold leading-4 text-[#87938e]">{section.description}</span> : null}
+            </span>
+          </Link>
+        ) : (
+          <span className="min-w-0 flex-1">
+            <span className={['block truncate text-xs font-black leading-4 desktop:font-semibold', sectionActive ? 'text-[#173f36]' : 'text-[#314840]'].join(' ')}>{section.label}</span>
+            {!open && section.description ? <span className="mt-0.5 block truncate text-[11px] font-semibold leading-4 text-[#87938e]">{section.description}</span> : null}
+          </span>
+        )}
+        {section.items.length ? (
+          <>
+            <span className={['inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full px-2 text-[11px] font-black desktop:font-semibold', sectionActive ? 'bg-[#173f36] text-white' : 'bg-[#e7eee9] text-[#53665f]'].join(' ')}>
+              {section.items.length}
+            </span>
+            <button type="button" onClick={() => setOpen((current) => !current)} aria-expanded={open} aria-label={`${open ? 'Collapse' : 'Expand'} ${section.label}`} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-[#6b7a74] transition group-hover:bg-[#edf5f1] group-hover:text-[#123d34] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/45">
+              <ChevronDown
+                className={['h-3.5 w-3.5 transition-transform duration-200', open ? '' : '-rotate-90'].join(' ')}
+                aria-hidden="true"
+              />
+            </button>
+          </>
+        ) : null}
+      </div>
       <AnimatePresence initial={false}>
-        {open ? (
+        {open && section.items.length ? (
           <motion.div
             key="items"
             initial={{ height: 0, opacity: 0 }}
@@ -216,7 +290,7 @@ const NavigationSection = ({ section, collapsed = false, onItemClick }: { sectio
             transition={{ duration: 0.18, ease: 'easeOut' }}
             className="mt-1 space-y-1 overflow-hidden px-0.5 pb-0.5"
           >
-            {section.items.map((item) => <SidebarLink key={item.key} item={item} collapsed={collapsed} onClick={onItemClick} />)}
+            {section.items.map((item) => <NestedSidebarItem key={item.key} item={item} onItemClick={onItemClick} />)}
           </motion.div>
         ) : null}
       </AnimatePresence>

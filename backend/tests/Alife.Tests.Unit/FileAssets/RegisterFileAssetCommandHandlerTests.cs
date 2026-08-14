@@ -1,3 +1,4 @@
+using Alife.Application.Admin;
 using Alife.Application.Common.Models;
 using Alife.Application.Admin.Commands.BackfillMemberPrivateFiles;
 using Alife.Application.FileAssets.Commands.RegisterFileAsset;
@@ -494,6 +495,76 @@ public class RegisterFileAssetCommandHandlerTests
         var updated = await dbContext.FileAssets.SingleAsync();
         Assert.Equal(targetKey, updated.ObjectKey);
         Assert.Null(updated.PublicUrl);
+    }
+
+    [Fact]
+    public async Task BackfillMemberPrivateFiles_AllowsRoleWithDelegatedPermission()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var memberId = Guid.NewGuid();
+        var roleId = 710;
+        dbContext.Members.Add(new Member
+        {
+            Id = memberId,
+            DisplayName = "Private file migrator",
+            IsRegistered = true,
+            CreatedUtc = DateTime.UtcNow,
+            UpdatedUtc = DateTime.UtcNow
+        });
+        dbContext.PlatformRoles.Add(new PlatformRole
+        {
+            Id = roleId,
+            Code = "private_file_migrator",
+            NameJson = "{}",
+            PermissionsJson = AdminPermissionCatalog.WritePermissions([AdminPermissionCatalog.BackfillPrivateFiles]),
+            Level = 5
+        });
+        dbContext.MemberPlatformRoles.Add(new MemberPlatformRole
+        {
+            Id = Guid.NewGuid(),
+            MemberId = memberId,
+            RoleId = roleId,
+            AssignedUtc = DateTime.UtcNow
+        });
+        await dbContext.SaveChangesAsync();
+
+        var handler = new BackfillMemberPrivateFilesCommandHandler(
+            dbContext,
+            Substitute.For<IFileAssetObjectMover>());
+
+        var result = await handler.Handle(
+            new BackfillMemberPrivateFilesCommand(memberId, true, 50),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Message);
+        Assert.Equal(0, result.Value?.Scanned);
+    }
+
+    [Fact]
+    public async Task BackfillMemberPrivateFiles_RejectsRoleWithoutDelegatedPermission()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var memberId = Guid.NewGuid();
+        dbContext.Members.Add(new Member
+        {
+            Id = memberId,
+            DisplayName = "Member",
+            IsRegistered = true,
+            CreatedUtc = DateTime.UtcNow,
+            UpdatedUtc = DateTime.UtcNow
+        });
+        await dbContext.SaveChangesAsync();
+
+        var handler = new BackfillMemberPrivateFilesCommandHandler(
+            dbContext,
+            Substitute.For<IFileAssetObjectMover>());
+
+        var result = await handler.Handle(
+            new BackfillMemberPrivateFilesCommand(memberId, true, 50),
+            CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("You do not have permission to migrate private file storage.", result.Message);
     }
 
     private static RegisterFileAssetCommand CreateCommand(

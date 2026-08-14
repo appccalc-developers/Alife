@@ -2,14 +2,18 @@ import { lazy, Suspense, useEffect, type ReactElement } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../../stores/auth'
+import { activeEntityService } from '../../services/activeEntityService'
+import { workspaceResumeService } from '../../services/workspaceResumeService'
 import AppRouteLoading from '../components/AppRouteLoading'
 import { isHomeLocation, isPublicPageLocation } from './publicRoutePolicy'
+import { canAccessChurchManagement, hasChurchManagementAdminPermission } from './churchManagementAccess'
 
 const AdminView = lazy(() => import('../../views/AdminView'))
 const AlbumView = lazy(() => import('../../views/AlbumView'))
 const ArticleDetailView = lazy(() => import('../../views/ArticleDetailView'))
 const ArticlesView = lazy(() => import('../../views/ArticlesView'))
 const BibleStudyView = lazy(() => import('../../views/BibleStudyView'))
+const ChurchLifeView = lazy(() => import('../../views/ChurchLifeView'))
 const ContactDetailView = lazy(() => import('../../views/ContactDetailView'))
 const EventCreatorView = lazy(() => import('../../views/EventCreatorView'))
 const EventDetailView = lazy(() => import('../../views/EventDetailView'))
@@ -19,6 +23,7 @@ const GroupDetailView = lazy(() => import('../../views/GroupDetailView'))
 const GroupJoinView = lazy(() => import('../../views/GroupJoinView'))
 const GroupManageView = lazy(() => import('../../views/GroupManageView'))
 const GroupsView = lazy(() => import('../../views/GroupsView'))
+const GroupTreeView = lazy(() => import('../../views/GroupTreeView'))
 const ForumView = lazy(() => import('../../views/ForumView'))
 const ForumPostView = lazy(() => import('../../views/ForumPostView'))
 const HomeView = lazy(() => import('../../views/HomeView'))
@@ -32,14 +37,40 @@ const ProfileView = lazy(() => import('../../views/ProfileView'))
 const SermonsView = lazy(() => import('../../views/SermonsView'))
 const SermonVideoView = lazy(() => import('../../views/SermonVideoView'))
 
-const AdminRoute = ({ children }: { children: ReactElement }) => {
+const AdminRoute = ({ children, permission }: { children: ReactElement; permission?: string }) => {
   const auth = useAuthStore()
 
   if (!auth.initialized) {
     return <AppRouteLoading />
   }
 
-  return auth.me?.isAdmin || auth.hasAdminPermission('admin.access') ? children : <Navigate to="/" replace />
+  const hasRequiredPermission = !permission || auth.hasAdminPermission(permission)
+  return !auth.isGuest && hasRequiredPermission ? children : <Navigate to="/" replace />
+}
+
+const ChurchManagementRoute = ({
+  children,
+  churchGroupId,
+  churchGroupLoading,
+}: {
+  children: ReactElement
+  churchGroupId: string
+  churchGroupLoading: boolean
+}) => {
+  const auth = useAuthStore()
+  const hasScopedPermission = hasChurchManagementAdminPermission(auth.hasAdminPermission)
+
+  if (!auth.initialized || (!hasScopedPermission && churchGroupLoading)) {
+    return <AppRouteLoading />
+  }
+
+  const canAccess = !auth.isGuest && canAccessChurchManagement({
+    churchGroupId,
+    canManageGroup: auth.canManageGroup,
+    hasAdminPermission: auth.hasAdminPermission,
+  })
+
+  return canAccess ? children : <Navigate to="/" replace />
 }
 
 const PageReviewRoute = ({ children }: { children: ReactElement }) => {
@@ -79,7 +110,17 @@ const EntryRoute = () => {
     return <AppRouteLoading />
   }
 
-  return <Navigate to={auth.isGuest ? '/onboarding' : '/groups/select'} replace />
+  if (auth.isGuest) {
+    return <Navigate to="/onboarding" replace />
+  }
+
+  const rememberedLocation = workspaceResumeService.get(auth.me?.id)
+  const activeGroupId = activeEntityService.getAll().groupId
+  const destination = rememberedLocation || (activeGroupId
+    ? `/groups/${encodeURIComponent(activeGroupId)}?view=overview`
+    : '/groups/select')
+
+  return <Navigate to={destination} replace />
 }
 
 const HomeRoute = () => {
@@ -94,7 +135,12 @@ const isGroupWorkspaceSectionPath = (pathname: string) =>
   pathname === '/groups/manage' ||
   /^\/groups\/(?!select$|join$|manage$)[^/]+(?:\/manage)?$/.test(pathname)
 
-const AppRoutes = () => {
+type AppRoutesProps = {
+  churchGroupId?: string
+  churchGroupLoading?: boolean
+}
+
+const AppRoutes = ({ churchGroupId = '', churchGroupLoading = false }: AppRoutesProps) => {
   const location = useLocation()
   const reduceMotion = useReducedMotion()
   const isManagedPublicPage = isHomeLocation(location) || isPublicPageLocation(location)
@@ -126,8 +172,12 @@ const AppRoutes = () => {
           <Route path="/articles/:slug" element={<ArticleDetailView />} />
           <Route path="/enter" element={<EntryRoute />} />
           <Route path="/home" element={<HomeRoute />} />
+          <Route path="/church" element={<MemberRoute><ChurchLifeView /></MemberRoute>} />
+          <Route path="/church/forum" element={<MemberRoute><ForumView /></MemberRoute>} />
+          <Route path="/church/forum/posts/:postId" element={<MemberRoute><ForumPostView /></MemberRoute>} />
           <Route path="/groups" element={<GroupDetailView />} />
           <Route path="/groups/select" element={<GroupsView />} />
+          <Route path="/groups/select/tree" element={<GroupTreeView />} />
           <Route path="/groups/join" element={<GroupJoinView />} />
           <Route path="/groups/manage" element={<GroupManageView />} />
           <Route path="/groups/manage/invite-members" element={<InviteMembersView />} />
@@ -182,15 +232,15 @@ const AppRoutes = () => {
           <Route
             path="/admin"
             element={
-              <AdminRoute>
+              <ChurchManagementRoute churchGroupId={churchGroupId} churchGroupLoading={churchGroupLoading}>
                 <AdminView />
-              </AdminRoute>
+              </ChurchManagementRoute>
             }
           />
           <Route
             path="/admin/users"
             element={
-              <AdminRoute>
+              <AdminRoute permission="admin.members.view">
                 <AdminView />
               </AdminRoute>
             }
@@ -198,7 +248,7 @@ const AppRoutes = () => {
           <Route
             path="/admin/roles"
             element={
-              <AdminRoute>
+              <AdminRoute permission="admin.roles.managePermissions">
                 <AdminView />
               </AdminRoute>
             }
@@ -206,7 +256,7 @@ const AppRoutes = () => {
           <Route
             path="/admin/logs"
             element={
-              <AdminRoute>
+              <AdminRoute permission="admin.auditLogs.view">
                 <AdminView />
               </AdminRoute>
             }
@@ -214,7 +264,7 @@ const AppRoutes = () => {
           <Route
             path="/admin/messages"
             element={
-              <AdminRoute>
+              <AdminRoute permission="admin.messages.manage">
                 <AdminView />
               </AdminRoute>
             }
@@ -222,7 +272,7 @@ const AppRoutes = () => {
           <Route
             path="/admin/visit-requests"
             element={
-              <AdminRoute>
+              <AdminRoute permission="admin.visitRequests.receive">
                 <AdminView />
               </AdminRoute>
             }
@@ -238,7 +288,7 @@ const AppRoutes = () => {
           <Route
             path="/admin/files"
             element={
-              <AdminRoute>
+              <AdminRoute permission="admin.files.view">
                 <AdminView />
               </AdminRoute>
             }

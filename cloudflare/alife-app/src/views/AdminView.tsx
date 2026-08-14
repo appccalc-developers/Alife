@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
-import { Bell, ChevronRight, Globe2, Loader2, MessageSquareWarning, Pencil, RefreshCw, ShieldCheck, UserCheck, UsersRound, X } from 'lucide-react'
+import { Bell, ChevronRight, Church, ContactRound, FileText, GalleryHorizontal, Handshake, Loader2, Network, Pencil, RefreshCw, Settings2, ShieldCheck, UserCog, UsersRound, X } from 'lucide-react'
 import {
   groupService,
   type AdminGroupOptionDto,
@@ -28,14 +28,20 @@ import { PlatformFilesSection } from './admin/FilesSection'
 import { formatDate, formatRole, readLocalized } from './admin/adminUtils'
 import RegionalPhoneInput from '../components/forms/RegionalPhoneInput'
 import { isValidPhoneNumber } from '../utils/phoneNumber'
+import GroupManageView from './GroupManageView'
+import type { GroupDto } from '../types'
+import { localizeText } from '../utils/localizedText'
 
 type AdminSection = 'overview' | 'users' | 'roles' | 'logs' | 'messages' | 'visitRequests' | 'files'
+type ChurchHubSection = 'dashboard' | 'group' | 'members' | 'contacts' | 'subgroups' | 'albums' | 'pages'
+type ChurchHubSectionConfig = { key: ChurchHubSection; label: string; description: string; icon: LucideIcon }
+type ChurchManagementAreaConfig = { key: string; label: string; description: string; icon: LucideIcon; to: string }
 type MessageTranslationDirection = 'zh-en' | 'en-zh'
 type LocalText = { en: string; zh: string }
 type LabelFn = (key: string, values?: Record<string, string | number>) => string
 
 const labels: Record<string, LocalText> = {
-  overview: { en: 'Platform workspace', zh: '平台工作台' },
+  overview: { en: 'Church Management', zh: '教会管理' },
   users: { en: 'Member management', zh: '成员管理' },
   roles: { en: 'Role management', zh: '角色管理' },
   logs: { en: 'Operation logs', zh: '操作日志' },
@@ -95,7 +101,7 @@ const labels: Record<string, LocalText> = {
   managedRoleCount: { en: 'Managed roles', zh: '可管理角色' },
   roleList: { en: 'Role list', zh: '角色列表' },
   roleListDescription: { en: 'Search and select one role to edit. This layout stays usable when the role list grows.', zh: '搜索并选择一个角色进行编辑。角色变多时，这个布局仍然容易使用。' },
-  permissionModelHint: { en: 'Permissions are built-in platform features. Create a role first, then choose which features that role can use.', zh: '权限来自系统内置功能清单。先创建角色，再勾选这个角色可以使用的功能。' },
+  permissionModelHint: { en: 'These are platform-wide permissions. Church and group workspace management is controlled separately by leader and co-leader roles.', zh: '这里列出的是平台级权限。教会和小组工作区的管理权限由负责人和协同负责人角色单独控制。' },
   selectedRole: { en: 'Selected role', zh: '当前角色' },
   noRolesMatch: { en: 'No roles match this search.', zh: '没有匹配的角色。' },
   newRole: { en: 'New role', zh: '新角色' },
@@ -235,7 +241,7 @@ const labels: Record<string, LocalText> = {
 } satisfies Record<string, LocalText>
 
 const emptyPage = <T,>(pageSize = 25): AdminPagedResultDto<T> => ({ items: [], totalCount: 0, page: 1, pageSize, totalPages: 0 })
-const overviewActivityPageSize = 5
+const overviewActivityPageSize = 50
 const roleTone: Record<string, string> = {
   superadmin: 'border-rose-200 bg-rose-50 text-rose-700',
   admin: 'border-amber-200 bg-amber-50 text-amber-700',
@@ -253,17 +259,16 @@ const canonicalRoleCode = (value: string) => {
 const runQuietly = async (...tasks: Array<Promise<unknown>>) => {
   await Promise.allSettled(tasks)
 }
-const logActionLabel = (action: string, language: string) => {
-  if (action === 'member.platform-role.set') return language === 'zh' ? '平台角色变更' : 'Platform role changed'
-  if (action === 'notification.admin.send') return language === 'zh' ? '管理员发送通知' : 'Admin notification sent'
-  return action
-}
 const sectionFromPath = (pathname: string): AdminSection => pathname.endsWith('/users') ? 'users' : pathname.endsWith('/roles') ? 'roles' : pathname.endsWith('/logs') ? 'logs' : pathname.endsWith('/messages') ? 'messages' : pathname.endsWith('/visit-requests') ? 'visitRequests' : pathname.endsWith('/files') ? 'files' : 'overview'
+const churchHubSectionKeys = new Set<ChurchHubSection>(['dashboard', 'group', 'members', 'contacts', 'subgroups', 'albums', 'pages'])
+const readChurchHubSection = (value: string | null): ChurchHubSection => churchHubSectionKeys.has(value as ChurchHubSection) ? value as ChurchHubSection : 'dashboard'
 
 const AdminView = () => {
   const t = useUiText()
-  const { language, me, hasAdminPermission } = useAuthStore()
+  const { language, me, hasAdminPermission, canManageGroup } = useAuthStore()
   const section = sectionFromPath(useLocation().pathname)
+  const [searchParams] = useSearchParams()
+  const churchHubSection = readChurchHubSection(searchParams.get('church'))
   const l = useCallback<LabelFn>((key, values) => {
     const template = labels[key][language] || labels[key].en
     return template.replace(/\{(\w+)\}/g, (_, name: string) => String(values?.[name] ?? `{${name}}`))
@@ -283,6 +288,7 @@ const AdminView = () => {
   }, [])
 
   const [roles, setRoles] = useState<AdminPlatformRoleDto[]>([])
+  const [church, setChurch] = useState<GroupDto | null>(null)
   const [groups, setGroups] = useState<AdminGroupOptionDto[]>([])
   const [members, setMembers] = useState(emptyPage<AdminMemberDto>())
   const [logs, setLogs] = useState(emptyPage<AuditLogDto>())
@@ -352,18 +358,22 @@ const AdminView = () => {
     setGroups(nextGroups.items)
   }, [])
 
-  const loadUsers = useCallback(async (page = members.page) => {
+  const loadChurch = useCallback(async () => {
+    setChurch(await groupService.getChurch())
+  }, [])
+
+  const loadUsers = useCallback(async (page = members.page, pageSize = section === 'overview' ? 100 : 25) => {
     setLoading(true)
     setError('')
     try {
       const isRegistered = userFilters.isRegistered === '' ? null : userFilters.isRegistered === 'true'
-      setMembers(await groupService.getAdminMembers({ ...userFilters, isRegistered, page, pageSize: members.pageSize }))
+      setMembers(await groupService.getAdminMembers({ ...userFilters, isRegistered, page, pageSize }))
     } catch (reason) {
       setError(await formatLoadError(reason, 'members'))
     } finally {
       setLoading(false)
     }
-  }, [formatLoadError, members.page, members.pageSize, userFilters])
+  }, [formatLoadError, members.page, section, userFilters])
 
   const loadLogs = useCallback(async (page = logs.page, pageSize = logs.pageSize) => {
     setLoading(true)
@@ -407,12 +417,17 @@ const AdminView = () => {
     else if (section === 'logs') await loadLogs(logs.page, 25)
     else if (section === 'messages') await loadMessages()
     else if (section === 'visitRequests') await loadVisitRequests()
-    else await Promise.all([loadUsers(1), loadLogs(1, overviewActivityPageSize), loadMessages(1)])
+    else {
+      const tasks: Promise<unknown>[] = [loadChurch()]
+      if (hasAdminPermission('admin.members.view')) tasks.push(loadUsers(1))
+      if (hasAdminPermission('admin.messages.manage')) tasks.push(loadMessages(1))
+      await Promise.all(tasks)
+    }
     setMessage(l('refreshed'))
-  }, [l, loadLogs, loadMessages, loadUsers, loadVisitRequests, logs.page, section])
+  }, [hasAdminPermission, l, loadChurch, loadLogs, loadMessages, loadUsers, loadVisitRequests, logs.page, section])
 
   useEffect(() => {
-    if (section === 'visitRequests') return
+    if (!['users', 'roles', 'messages'].includes(section)) return
     loadRolesAndGroups().catch((reason) => { formatLoadError(reason).then(setError).catch(() => setError(l('loadFailed'))) })
   }, [formatLoadError, l, loadRolesAndGroups, section])
 
@@ -422,7 +437,12 @@ const AdminView = () => {
     if (section === 'logs') loadLogs(1, 25).catch(() => undefined)
     if (section === 'messages') Promise.all([loadMessages(1), loadUsers(1)]).catch(() => undefined)
     if (section === 'visitRequests') loadVisitRequests(1).catch(() => undefined)
-    if (section === 'overview') Promise.all([loadUsers(1), loadLogs(1, overviewActivityPageSize), loadMessages(1)]).catch(() => undefined)
+    if (section === 'overview') {
+      const tasks: Promise<unknown>[] = [loadChurch()]
+      if (hasAdminPermission('admin.members.view')) tasks.push(loadUsers(1))
+      if (hasAdminPermission('admin.messages.manage')) tasks.push(loadMessages(1))
+      Promise.all(tasks).catch(() => undefined)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [section])
 
@@ -638,7 +658,7 @@ const AdminView = () => {
 
   return (
     <section className="mx-auto w-full max-w-7xl space-y-5 px-2 py-3 sm:px-4">
-      <header className="overflow-hidden rounded-3xl border border-emerald-100 bg-white shadow-sm">
+      {section !== 'overview' && section !== 'roles' ? <header className="overflow-hidden rounded-3xl border border-emerald-100 bg-white shadow-sm">
         <div className="bg-gradient-to-r from-emerald-50 via-white to-amber-50 px-5 py-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
@@ -652,7 +672,7 @@ const AdminView = () => {
             </button>
           </div>
         </div>
-      </header>
+      </header> : null}
 
       {message || error ? (
         <div className="fixed inset-0 z-[100] flex items-start justify-center bg-slate-950/25 px-4 py-[calc(env(safe-area-inset-top)+1rem)] backdrop-blur-sm sm:items-center">
@@ -687,9 +707,22 @@ const AdminView = () => {
         </div>
       ) : null}
 
-      {section === 'overview' ? <Overview l={l} users={members} logs={logs} messages={messages} syncing={syncing} syncSermons={syncSermons} goToLogsPage={(page) => loadLogs(page, overviewActivityPageSize)} language={language} /> : null}
+      {section === 'overview' ? (
+        <ChurchManagementHub
+          activeSection={churchHubSection}
+          church={church}
+          canManageChurch={Boolean(church && canManageGroup(church.id))}
+          users={members}
+          messages={messages}
+          syncing={syncing}
+          loading={loading}
+          syncSermons={syncSermons}
+          refresh={refreshCurrent}
+          language={language}
+        />
+      ) : null}
       {section === 'users' ? <UsersSection l={l} loading={loading} page={members} filters={userFilters} setFilters={setUserFilters} roles={roleOptions} isSuperAdmin={isSuperAdmin} canManageMemberProfiles={hasAdminPermission('admin.members.manageProfiles')} updatingMemberId={updatingMemberId} updatingMemberProfileId={updatingMemberProfileId} apply={() => loadUsers(1)} reset={() => { setUserFilters({ search: '', role: '', isRegistered: '' }); setTimeout(() => loadUsers(1).catch(() => undefined), 0) }} goToPage={loadUsers} updateMemberRoles={updateMemberRoles} updateMemberProfile={updateMemberProfile} language={language} currentMemberId={me?.id || ''} /> : null}
-      {section === 'roles' ? <RolesSection l={l} roles={roleOptions} roleForm={roleForm} setRoleForm={setRoleForm} creatingRole={creatingRole} deletingRoleId={deletingRoleId} updatingRolePermissionId={updatingRolePermissionId} roleCodeValidation={roleCodeValidation} roleCodeFeedback={roleCodeFeedback} canSubmitCreateRole={canSubmitCreateRole} createRole={createRole} deleteRole={deleteRole} updateRolePermissions={updateRolePermissions} language={language} /> : null}
+      {section === 'roles' ? <RolesSection l={l} roles={roleOptions} roleForm={roleForm} setRoleForm={setRoleForm} creatingRole={creatingRole} deletingRoleId={deletingRoleId} updatingRolePermissionId={updatingRolePermissionId} roleCodeValidation={roleCodeValidation} roleCodeFeedback={roleCodeFeedback} canSubmitCreateRole={canSubmitCreateRole} createRole={createRole} deleteRole={deleteRole} updateRolePermissions={updateRolePermissions} refresh={refreshCurrent} loading={loading} language={language} /> : null}
       {section === 'logs' ? <LogsSection l={l} loading={loading} page={logs} filters={logFilters} setFilters={setLogFilters} apply={() => loadLogs(1, 25)} goToPage={(page) => loadLogs(page, 25)} language={language} /> : null}
       {section === 'messages' ? <MessagesSection l={l} loading={loading} page={messages} filters={messageFilters} setFilters={setMessageFilters} apply={() => loadMessages(1)} goToPage={loadMessages} groups={groups} roles={roleOptions} members={members.items} sendForm={sendForm} setSendForm={setSendForm} sendMessage={sendMessage} translateMessage={translateMessage} aiTranslating={messageAiDirection} language={language} /> : null}
       {section === 'visitRequests' ? <VisitRequestsSection l={l} loading={loading} page={visitRequests} filters={visitRequestFilters} setFilters={setVisitRequestFilters} apply={() => loadVisitRequests(1)} goToPage={loadVisitRequests} updateStatus={updateVisitRequestStatus} updatingId={updatingVisitRequestId} language={language} /> : null}
@@ -698,176 +731,148 @@ const AdminView = () => {
   )
 }
 
-const Overview = ({ l, users, logs, messages, syncing, syncSermons, goToLogsPage, language }: {
-  l: LabelFn
+const ChurchManagementHub = ({
+  activeSection,
+  church,
+  canManageChurch,
+  users,
+  messages,
+  syncing,
+  loading,
+  syncSermons,
+  refresh,
+  language,
+}: {
+  activeSection: ChurchHubSection
+  church: GroupDto | null
+  canManageChurch: boolean
   users: AdminPagedResultDto<AdminMemberDto>
-  logs: AdminPagedResultDto<AuditLogDto>
   messages: AdminPagedResultDto<AdminNotificationDto>
   syncing: boolean
+  loading: boolean
   syncSermons: () => Promise<void>
-  goToLogsPage: (page: number) => Promise<void>
+  refresh: () => Promise<void>
   language: string
 }) => {
-  const registeredCount = users.items.filter((member) => member.isRegistered).length
-  const guestCount = users.items.filter((member) => !member.isRegistered).length
-  const unreadCount = messages.items.filter((message) => !message.readUtc).length
+  const auth = useAuthStore()
+  const [workspaceRefreshRequest, setWorkspaceRefreshRequest] = useState(0)
+  const isChinese = language === 'zh'
+  const churchName = localizeText(church?.name, language) || (isChinese ? '教会' : 'Church')
+  const managementSections: ChurchHubSectionConfig[] = [
+    { key: 'group', label: isChinese ? '资料与设置' : 'Profile & settings', description: isChinese ? '教会身份、介绍与访问规则' : 'Identity, description, and access rules', icon: Settings2 },
+    { key: 'members', label: isChinese ? '教会成员' : 'Church members', description: isChinese ? '审批、角色与成员状态' : 'Approvals, roles, and member status', icon: UsersRound },
+    { key: 'contacts', label: isChinese ? '联系人' : 'Contacts', description: isChinese ? '公开联系人与留言入口' : 'Public contacts and inquiry entry points', icon: ContactRound },
+    { key: 'subgroups', label: isChinese ? '组织架构' : 'Organization', description: isChinese ? '事工、小组与负责人结构' : 'Ministries, groups, and leadership structure', icon: Network },
+    { key: 'albums', label: isChinese ? '教会相册' : 'Church albums', description: isChinese ? '图片资产、相册和展示内容' : 'Image assets, albums, and presentation', icon: GalleryHorizontal },
+    { key: 'pages', label: isChinese ? '页面内容' : 'Page content', description: isChinese ? '教会页面、公开范围与发布' : 'Church pages, visibility, and publishing', icon: FileText },
+  ]
+  const dashboardAreas: ChurchManagementAreaConfig[] = [
+    ...(canManageChurch ? managementSections.map((section) => ({ ...section, to: `/admin?church=${section.key}` })) : []),
+    ...(auth.hasAdminPermission('admin.members.view') ? [{ key: 'accounts', label: isChinese ? '账号管理' : 'Account management', description: isChinese ? '账号状态、成员资料与平台角色' : 'Account state, member profiles, and platform roles', icon: UsersRound, to: '/admin/users' }] : []),
+    ...(auth.hasAdminPermission('admin.roles.managePermissions') ? [{ key: 'roles', label: isChinese ? '角色管理' : 'Role management', description: isChinese ? '后台角色、权限范围与功能访问' : 'Admin roles, permissions, and feature access', icon: UserCog, to: '/admin/roles' }] : []),
+    ...(auth.hasAdminPermission('admin.messages.manage') ? [{ key: 'notices', label: isChinese ? '通知管理' : 'Notification management', description: isChinese ? '发送通知并查看阅读与回复状态' : 'Send notifications and review read and reply status', icon: Bell, to: '/admin/messages' }] : []),
+    ...(auth.hasAdminPermission('admin.visitRequests.receive') ? [{ key: 'visitors', label: isChinese ? '访客接待' : 'Visitor care', description: isChinese ? '处理参观联系请求和跟进状态' : 'Handle visit requests and follow-up status', icon: Handshake, to: '/admin/visit-requests' }] : []),
+  ]
+  const canAccessDashboard = dashboardAreas.length > 0
+  const refreshWorkspace = async () => {
+    setWorkspaceRefreshRequest((current) => current + 1)
+    await refresh()
+  }
+
+  if (activeSection === 'dashboard') {
+    if (!church) return <section className="rounded-[1.75rem] border border-emerald-100 bg-white p-6 text-sm text-[#60716a]">{isChinese ? '正在加载教会管理…' : 'Loading church management…'}</section>
+    if (!canAccessDashboard) return <section className="rounded-[1.75rem] border border-amber-200 bg-amber-50 p-6 text-sm leading-6 text-amber-900">{isChinese ? '你没有进入教会管理的权限。' : 'You do not have access to church management.'}</section>
+    return <ChurchManagementDashboard churchName={churchName} sections={dashboardAreas} users={users} messages={messages} syncing={syncing} loading={loading} syncSermons={syncSermons} refresh={refresh} language={language} />
+  }
+
+  const activeConfig = managementSections.find((item) => item.key === activeSection) ?? managementSections[0]
+  if (!church) return <section className="rounded-[1.75rem] border border-emerald-100 bg-white p-6 text-sm text-[#60716a]">{isChinese ? '正在加载教会管理资料…' : 'Loading church management data…'}</section>
+  if (!canManageChurch) return <section className="rounded-[1.75rem] border border-amber-200 bg-amber-50 p-6 text-sm leading-6 text-amber-900">{isChinese ? '你没有修改教会资料的权限。' : 'You do not have permission to modify church data.'}</section>
+
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 md:grid-cols-4">
-        <MetricCard to="/admin/users" icon={UsersRound} title={l('users')} value={users.totalCount} detail={l('total')} />
-        <MetricCard to="/admin/users" icon={ShieldCheck} title={l('registeredUsers')} value={registeredCount} detail={l('registered')} />
-        <MetricCard to="/admin/users" icon={UsersRound} title={l('guestUsers')} value={guestCount} detail={l('guest')} />
-        <MetricCard to="/admin/messages" icon={Bell} title={l('messages')} value={messages.totalCount} detail={l('unread')} />
-      </div>
-
-      <div className="grid items-stretch gap-4 xl:grid-cols-2">
-        <section className="flex min-w-0 flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm xl:h-[30rem]">
-          <div className="border-b border-slate-100 bg-slate-50/80 p-5">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <h2 className="text-lg font-black text-slate-950">{l('quickOps')}</h2>
-                <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">{l('homeDescription')}</p>
-              </div>
-              <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-slate-700 shadow-sm ring-1 ring-slate-200">
-                <Globe2 className="h-5 w-5" aria-hidden="true" />
-              </span>
-            </div>
-          </div>
-          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
-            <PlatformTaskQueue
-              l={l}
-              guestCount={guestCount}
-              unreadCount={unreadCount}
-            />
-            <div className="grid gap-3 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.9fr)]">
-              <Link
-                to="/admin/page-review"
-                className="flex min-h-[7rem] items-start justify-between gap-4 rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-4 transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md"
-              >
-                <span className="min-w-0">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-emerald-700 shadow-sm">
-                    <Globe2 className="h-5 w-5" aria-hidden="true" />
-                  </span>
-                  <span className="mt-4 block text-base font-black text-slate-950">{l('createDefaultHome')}</span>
-                  <span className="mt-1 block text-sm leading-6 text-slate-600">{l('homeDescription')}</span>
-                </span>
-                <ChevronRight className="mt-1 h-5 w-5 shrink-0 text-emerald-700" aria-hidden="true" />
-              </Link>
-              <button
-                className="flex min-h-[7rem] items-start justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-sky-200 hover:bg-sky-50/40 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
-                type="button"
-                disabled={syncing}
-                onClick={() => syncSermons().catch(() => undefined)}
-              >
-                <span className="min-w-0">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-50 text-sky-700">
-                    {syncing ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> : <RefreshCw className="h-5 w-5" aria-hidden="true" />}
-                  </span>
-                  <span className="mt-4 block text-base font-black text-slate-950">{syncing ? l('syncing') : l('sync')}</span>
-                  <span className="mt-1 block text-sm leading-6 text-slate-500">{l('sermonsDescription')}</span>
-                </span>
-                <ChevronRight className="mt-1 h-5 w-5 shrink-0 text-slate-400" aria-hidden="true" />
-              </button>
-            </div>
-          </div>
-        </section>
-
-        <Panel title={l('latestActivity')} description={l('logsDescription')} count={logs.totalCount} className="flex min-h-[22rem] min-w-0 max-h-[30rem] flex-col xl:h-[30rem] xl:min-h-0 xl:max-h-none">
-          <div className="min-h-0 flex-1 divide-y divide-slate-100 overflow-y-auto">
-            {logs.items.map((log) => (
-              <div key={log.id} className="px-5 py-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="break-words text-sm font-black text-slate-950">{logActionLabel(log.action, language)}</p>
-                    <p className="mt-1 break-words text-sm text-slate-500">{log.actorDisplayName || l('unknown')} - {log.targetDisplayName || log.entityType}</p>
-                  </div>
-                  <span className="shrink-0 rounded-xl bg-slate-50 px-2.5 py-1 text-xs font-bold text-slate-500">{log.entityType}</span>
-                </div>
-                <p className="mt-3 text-xs font-semibold text-slate-400">{formatDate(log.occurredUtc)}</p>
-              </div>
-            ))}
-            {logs.items.length === 0 ? <Empty text={l('noLogs')} /> : null}
-          </div>
-          <Pager l={l} page={logs} goToPage={goToLogsPage} compact />
-        </Panel>
-      </div>
+      <header className="flex flex-col gap-3 px-1 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <Link to="/admin?church=dashboard" className="inline-flex items-center gap-1 text-xs font-black text-[#176b5a] transition hover:text-[#0f4f42]"><ChevronRight className="h-3.5 w-3.5 rotate-180" />{isChinese ? '返回教会管理' : 'Back to church management'}</Link>
+          <h1 className="mt-2 text-2xl font-black tracking-[-0.035em] text-[#18332d]">{activeConfig.label}</h1>
+          <p className="mt-1 text-sm text-[#687770]">{activeConfig.description}</p>
+        </div>
+        <button className="inline-flex min-h-10 items-center justify-center gap-2 self-start rounded-xl border border-[#d7e3dd] bg-white px-4 text-sm font-black text-[#176b5a] transition hover:bg-[#edf5f1] disabled:opacity-60 sm:self-auto" disabled={loading} type="button" onClick={() => refreshWorkspace().catch(() => undefined)}>
+          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />{isChinese ? '刷新' : 'Refresh'}
+        </button>
+      </header>
+      <GroupManageView embeddedWorkspace explicitGroupId={church.id} workspaceBasePath="/admin" sectionParamName="church" integrated refreshRequest={workspaceRefreshRequest} />
     </div>
   )
 }
 
-const PlatformTaskQueue = ({ l, guestCount, unreadCount }: {
-  l: LabelFn
-  guestCount: number
-  unreadCount: number
+const ChurchManagementDashboard = ({ churchName, sections, users, messages, syncing, loading, syncSermons, refresh, language }: {
+  churchName: string
+  sections: ChurchManagementAreaConfig[]
+  users: AdminPagedResultDto<AdminMemberDto>
+  messages: AdminPagedResultDto<AdminNotificationDto>
+  syncing: boolean
+  loading: boolean
+  syncSermons: () => Promise<void>
+  refresh: () => Promise<void>
+  language: string
 }) => {
-  const tasks = [
-    {
-      to: '/admin/visit-requests',
-      icon: <UserCheck className="h-4 w-4" />,
-      label: l('guestReviewTask'),
-      hint: l('guestReviewHint'),
-      count: guestCount,
-      urgent: guestCount > 0,
-    },
-    {
-      to: '/admin/messages',
-      icon: <MessageSquareWarning className="h-4 w-4" />,
-      label: l('unreadMessagesTask'),
-      hint: l('unreadMessagesHint'),
-      count: unreadCount,
-      urgent: unreadCount > 0,
-    },
-  ]
-  const urgentCount = tasks.filter((task) => task.urgent).length
+  const auth = useAuthStore()
+  const isChinese = language === 'zh'
+  const unreadCount = messages.items.filter((message) => !message.readUtc).length
+  const showMemberMetric = auth.hasAdminPermission('admin.members.view')
+  const showMessageMetric = auth.hasAdminPermission('admin.messages.manage')
+  const showSermonSync = auth.hasAdminPermission('admin.sermons.sync')
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="min-w-0">
-          <h3 className="text-sm font-black text-slate-950">{l('platformQueue')}</h3>
-          <p className="mt-0.5 text-xs font-semibold leading-5 text-slate-500">{urgentCount === 0 ? l('noPlatformTasks') : l('platformQueueDescription')}</p>
+    <section className="overflow-hidden rounded-[2rem] border border-[#254b42] bg-white shadow-[0_24px_70px_rgba(14,47,40,0.16)]">
+      <header className="relative isolate overflow-hidden bg-[#0e3029] px-6 py-6 text-white sm:px-8 sm:py-7">
+        <div className="absolute -right-20 -top-28 h-72 w-72 rounded-full bg-[#e29a66]/22 blur-3xl" aria-hidden="true" />
+        <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div className="flex min-w-0 items-start gap-4">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-[#f6d3b5]"><Church className="h-6 w-6" /></span>
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-200">{isChinese ? '教会管理' : 'Church management'}</p>
+              <h1 className="mt-1.5 truncate text-3xl font-black tracking-[-0.045em]">{churchName}</h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-white/60">{isChinese ? '成员、组织、内容与教会资料集中管理。' : 'Manage people, organization, content, and church information in one place.'}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-5 self-start lg:self-auto">
+            {showMemberMetric ? <div><p className="text-2xl font-black tabular-nums">{users.totalCount}</p><p className="text-[10px] font-bold uppercase tracking-wide text-white/45">{isChinese ? '账号' : 'Accounts'}</p></div> : null}
+            {showMessageMetric ? <div className={showMemberMetric ? 'border-l border-white/12 pl-5' : ''}><p className="text-2xl font-black tabular-nums">{unreadCount}</p><p className="text-[10px] font-bold uppercase tracking-wide text-white/45">{isChinese ? '未读通知' : 'Unread'}</p></div> : null}
+            <button className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/15 disabled:opacity-60" type="button" disabled={loading} onClick={() => refresh().catch(() => undefined)} aria-label={isChinese ? '刷新教会管理' : 'Refresh church management'}><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></button>
+          </div>
         </div>
-        <span className={`inline-flex h-7 min-w-7 items-center justify-center rounded-full px-2.5 text-xs font-black ${urgentCount > 0 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-50 text-emerald-700'}`}>
-          {urgentCount}
-        </span>
+      </header>
+
+      <div className={showSermonSync ? 'grid xl:grid-cols-[minmax(0,1fr)_19rem]' : 'grid'}>
+        <div className="min-w-0">
+          <div className="px-6 pb-3 pt-5 sm:px-8"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#176b5a]">{isChinese ? '管理功能' : 'Management areas'}</p><h2 className="mt-1 text-xl font-black tracking-[-0.025em] text-[#18332d]">{isChinese ? '选择要处理的内容' : 'Choose what to manage'}</h2></div>
+          <div className="grid border-t border-[#e3e8e5] md:grid-cols-2">
+          {sections.map((section, index) => {
+            const Icon = section.icon
+            return (
+              <Link key={section.key} to={section.to} className={`group flex min-h-28 items-center gap-4 border-b border-[#e3e8e5] px-6 py-5 transition hover:bg-[#f2f7f4] sm:px-8 ${index % 2 === 0 ? 'md:border-r' : ''}`}>
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#e3f0eb] text-[#176b5a] transition group-hover:bg-[#173f36] group-hover:text-white"><Icon className="h-5 w-5" /></span>
+                <span className="min-w-0 flex-1"><span className="block text-sm font-black text-[#18332d]">{section.label}</span><span className="mt-1 block text-xs font-semibold leading-5 text-[#718079]">{section.description}</span></span>
+                <ChevronRight className="h-4 w-4 shrink-0 text-[#9aa7a1] transition group-hover:translate-x-1 group-hover:text-[#176b5a]" />
+              </Link>
+            )
+          })}
+          </div>
+        </div>
+
+        {showSermonSync ? <aside className="border-t border-[#e3e8e5] bg-[#f7f4ed] px-6 py-5 xl:border-l xl:border-t-0">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#7b8882]">{isChinese ? '快捷操作' : 'Quick actions'}</p>
+          <div className="mt-3 divide-y divide-[#dfe5e1] border-y border-[#dfe5e1]">
+            <button type="button" disabled={syncing} onClick={() => syncSermons().catch(() => undefined)} className="group flex w-full items-center gap-3 py-4 text-left text-[#31544b] transition hover:text-[#176b5a] disabled:opacity-60">{syncing ? <Loader2 className="h-5 w-5 shrink-0 animate-spin" /> : <RefreshCw className="h-5 w-5 shrink-0" />}<span className="min-w-0 flex-1"><span className="block text-sm font-black">{syncing ? (isChinese ? '正在同步…' : 'Syncing…') : (isChinese ? '同步讲道' : 'Sync sermons')}</span><span className="mt-0.5 block text-xs font-semibold text-[#7a8782]">{isChinese ? '更新讲道来源' : 'Refresh sermon sources'}</span></span><ChevronRight className="h-4 w-4 transition group-hover:translate-x-1" /></button>
+          </div>
+          <p className="mt-5 text-xs font-semibold leading-5 text-[#7a8782]">{isChinese ? `共 ${sections.length} 个管理功能，所有入口集中在当前页面。` : `${sections.length} management areas, all available from this page.`}</p>
+        </aside> : null}
       </div>
-      <div className="mt-2 grid gap-2 lg:grid-cols-2">
-        {tasks.map((task) => (
-          <Link
-            key={task.label}
-            to={task.to}
-            className={[
-              'grid min-h-14 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-xl border bg-white px-2.5 py-2 transition hover:-translate-y-0.5 hover:shadow-sm',
-              task.urgent ? 'border-amber-200' : 'border-slate-200 hover:border-emerald-200',
-            ].join(' ')}
-          >
-            <span className={[
-              'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
-              task.urgent ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700',
-            ].join(' ')}>
-              {task.icon}
-            </span>
-            <span className="min-w-0">
-              <span className="block text-xs font-black leading-5 text-slate-950">{task.label}</span>
-            </span>
-            <span className={`rounded-lg px-2 py-0.5 text-xs font-black ${task.urgent ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>{task.count}</span>
-          </Link>
-        ))}
-      </div>
-    </div>
+    </section>
   )
 }
-
-const MetricCard = ({ to, icon: Icon, title, value, detail }: { to: string; icon: LucideIcon; title: string; value: number; detail: string }) => (
-  <Link to={to} className="grid min-h-28 grid-cols-[auto_minmax(0,1fr)] items-center gap-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-emerald-50/30 hover:shadow-md">
-    <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700"><Icon className="h-5 w-5" /></span>
-    <span className="min-w-0">
-      <span className="block text-3xl font-black leading-none text-slate-950">{value}</span>
-      <span className="mt-2 block truncate text-sm font-black text-slate-950">{title}</span>
-      <span className="mt-0.5 block text-xs font-semibold text-slate-500">{detail}</span>
-    </span>
-  </Link>
-)
 
 const UsersSection = ({ l, loading, page, filters, setFilters, roles, isSuperAdmin, canManageMemberProfiles, updatingMemberId, updatingMemberProfileId, apply, reset, goToPage, updateMemberRoles, updateMemberProfile, language, currentMemberId }: {
   l: LabelFn

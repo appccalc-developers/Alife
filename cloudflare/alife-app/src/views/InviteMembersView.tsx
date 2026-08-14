@@ -18,7 +18,7 @@ const InviteMembersView = () => {
   const { groupId: activeGroupId } = useActiveEntityIds({ groupId: routeGroupId })
   const groupId = activeGroupId || ''
   const navigate = useNavigate()
-  const { inviteMemberById } = useGroupScreen(groupId)
+  const { group, inviteMemberById } = useGroupScreen(groupId)
 
   const [allMembers, setAllMembers] = useState<MemberSummaryDto[]>([])
   const [loadingMembers, setLoadingMembers] = useState(true)
@@ -28,7 +28,7 @@ const InviteMembersView = () => {
   const [submitError, setSubmitError] = useState('')
 
   useEffect(() => {
-    if (!groupId) {
+    if (!groupId || group?.isChurch) {
       return
     }
 
@@ -46,7 +46,7 @@ const InviteMembersView = () => {
         if (!cancelled) setLoadingMembers(false)
       })
     return () => { cancelled = true }
-  }, [groupId, t])
+  }, [group?.isChurch, groupId, t])
 
   const getInviteStatusLabel = (status?: MembershipStatus | null) => {
     if (status === 'invited') return t('waitingResponse')
@@ -99,6 +99,7 @@ const InviteMembersView = () => {
 
   return (
     !groupId ? <Navigate to="/groups/select" replace /> :
+    group?.isChurch ? <Navigate to="/admin?church=members" replace /> :
     <AppPageShell>
       <div className="mb-5">
         <button

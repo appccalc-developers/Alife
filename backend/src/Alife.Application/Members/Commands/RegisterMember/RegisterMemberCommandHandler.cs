@@ -3,6 +3,7 @@ using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
 using Alife.Application.Members.Dtos;
 using Alife.Application.Notifications.Services;
+using Alife.Application.Groups.Services;
 using Alife.Domain.Entities;
 using Alife.Domain.Enums;
 using MediatR;
@@ -12,7 +13,8 @@ namespace Alife.Application.Members.Commands.RegisterMember;
 
 public sealed class RegisterMemberCommandHandler(
     IAlifeDbContext dbContext,
-    IJwtTokenService jwtTokenService)
+    IJwtTokenService jwtTokenService,
+    IGroupCacheInvalidationService groupCacheInvalidationService)
     : IRequestHandler<RegisterMemberCommand, AppResult<MemberRegistrationResultDto>>
 {
     public async Task<AppResult<MemberRegistrationResultDto>> Handle(
@@ -129,6 +131,10 @@ public sealed class RegisterMemberCommandHandler(
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        if (church is not null)
+        {
+            await groupCacheInvalidationService.RemoveMembershipsAsync(church.Id, cancellationToken);
+        }
 
         var (token, expiresUtc) = jwtTokenService.CreateToken(memberToRegister, isGuest: false);
         return AppResult<MemberRegistrationResultDto>.Success(new MemberRegistrationResultDto(token, expiresUtc));

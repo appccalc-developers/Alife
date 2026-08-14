@@ -1,6 +1,6 @@
 import { http } from './http'
 import { conditionalGet, removeCachedRecord } from '../db/httpCache'
-import { churchQueryKey, subgroupsQueryKey, visibleGroupsQueryKey } from '../db/collections/groupCollection'
+import { churchQueryKey, fetchVisibleGroupsForViewer, invalidateVisibleGroupsForViewers, subgroupsQueryKey } from '../db/collections/groupCollection'
 import { sermonsQueryKey } from '../db/collections/sermonsCollection'
 import { queryClient } from '../db/queryClient'
 import { publicPagesQueryKey } from './pageService'
@@ -27,6 +27,13 @@ export type MemberTargetPayload = {
 
 export type InviteMemberPayload = {
   targetPhoneE164: string
+}
+
+export type GroupActionResultDto = {
+  ok: boolean
+  groupId?: string | null
+  parentGroupId?: string | null
+  memberId?: string | null
 }
 
 export type MemberSummaryDto = {
@@ -71,7 +78,7 @@ export type AdminPlatformRoleDto = {
   name: LocalizedText
   level: number
   permissions: string[]
-  availablePermissions: Array<{ code: string; name: LocalizedText }>
+  availablePermissions: Array<{ code: string; name: LocalizedText; description: LocalizedText }>
   canEditPermissions: boolean
   isSystem: boolean
   canDelete: boolean
@@ -324,12 +331,8 @@ export const groupService = {
     return normalizeGroup(data)
   },
 
-  async getVisibleGroups() {
-    const data = await conditionalGet<GroupSummaryDto[]>({
-      queryKey: visibleGroupsQueryKey,
-      path: '/api/groups/visible',
-    })
-    return data.map(normalizeGroup)
+  async getVisibleGroups(viewerId?: string) {
+    return fetchVisibleGroupsForViewer(viewerId)
   },
 
   async getSubgroups(groupId: string) {
@@ -353,8 +356,9 @@ export const groupService = {
     return data.map(normalizeGroupMembership)
   },
 
-  async requestJoin(groupId: string) {
+  async requestJoin(groupId: string, viewerId?: string) {
     const { data } = await http.post<{ status: string }>(`/api/groups/${groupId}/join-request`)
+    await invalidateVisibleGroupsForViewers(viewerId)
     return { ...data, status: normalizeMembershipStatus(data.status) }
   },
 
@@ -385,12 +389,14 @@ export const groupService = {
     await http.post(`/api/groups/${groupId}/close`)
   },
 
-  async inviteMember(groupId: string, payload: InviteMemberPayload) {
-    await http.post(`/api/groups/${groupId}/invite`, payload)
+  async inviteMember(groupId: string, payload: InviteMemberPayload, viewerId?: string) {
+    const { data } = await http.post<GroupActionResultDto>(`/api/groups/${groupId}/invite`, payload)
+    await invalidateVisibleGroupsForViewers(viewerId, data.memberId)
   },
 
-  async inviteMemberById(groupId: string, targetMemberId: string) {
+  async inviteMemberById(groupId: string, targetMemberId: string, viewerId?: string) {
     await http.post(`/api/groups/${groupId}/invite-by-id`, { targetMemberId })
+    await invalidateVisibleGroupsForViewers(viewerId, targetMemberId)
   },
 
   async getInviteCandidates(groupId: string): Promise<MemberSummaryDto[]> {
@@ -406,32 +412,39 @@ export const groupService = {
     return data
   },
 
-  async acceptInvite(groupId: string) {
+  async acceptInvite(groupId: string, viewerId?: string) {
     await http.post(`/api/groups/${groupId}/invite/accept`)
+    await invalidateVisibleGroupsForViewers(viewerId)
   },
 
-  async declineInvite(groupId: string) {
+  async declineInvite(groupId: string, viewerId?: string) {
     await http.post(`/api/groups/${groupId}/invite/decline`)
+    await invalidateVisibleGroupsForViewers(viewerId)
   },
 
-  async approveMember(groupId: string, payload: MemberTargetPayload) {
+  async approveMember(groupId: string, payload: MemberTargetPayload, viewerId?: string) {
     await http.post(`/api/groups/${groupId}/approve`, payload)
+    await invalidateVisibleGroupsForViewers(viewerId, payload.memberId)
   },
 
-  async rejectMember(groupId: string, payload: MemberTargetPayload) {
+  async rejectMember(groupId: string, payload: MemberTargetPayload, viewerId?: string) {
     await http.post(`/api/groups/${groupId}/reject`, payload)
+    await invalidateVisibleGroupsForViewers(viewerId, payload.memberId)
   },
 
-  async setCoLeader(groupId: string, payload: SetCoLeaderPayload) {
+  async setCoLeader(groupId: string, payload: SetCoLeaderPayload, viewerId?: string) {
     await http.post(`/api/groups/${groupId}/set-coleader`, payload)
+    await invalidateVisibleGroupsForViewers(viewerId, payload.memberId)
   },
 
-  async transferLeadership(groupId: string, payload: MemberTargetPayload) {
+  async transferLeadership(groupId: string, payload: MemberTargetPayload, viewerId?: string) {
     await http.post(`/api/groups/${groupId}/transfer-leadership`, payload)
+    await invalidateVisibleGroupsForViewers(viewerId, payload.memberId)
   },
 
-  async kickMember(groupId: string, payload: MemberTargetPayload) {
+  async kickMember(groupId: string, payload: MemberTargetPayload, viewerId?: string) {
     await http.post(`/api/groups/${groupId}/kick`, payload)
+    await invalidateVisibleGroupsForViewers(viewerId, payload.memberId)
   },
 
   async getGroupMemberProfile(groupId: string, memberId: string) {
