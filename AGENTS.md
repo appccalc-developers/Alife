@@ -14,7 +14,7 @@ This tracked file is the canonical instruction source for Codex and other coding
 
 Alife is an alpha-stage community/church group platform for overseas Chinese Christian communities. It manages groups, members, pages, sermons, events, bilingual content, and AI-assisted event workflows.
 
-Alife is also part of Stephen Wu's professional portfolio while returning to paid IT work. Stability, maintainability, architecture clarity, and demonstrable product value matter.
+Alife is maintained collaboratively by a team. Stability, maintainability, architecture clarity, shared understanding, and demonstrable product value matter.
 
 ## Primary goals
 
@@ -24,7 +24,7 @@ Prioritize:
 2. Improve real user experience for group leaders and members.
 3. Preserve the current architecture unless a change is explicitly requested.
 4. Prefer small, reviewable, incremental changes over broad rewrites.
-5. Make the codebase easier to explain in a portfolio or job interview.
+5. Keep the codebase easy to understand, review, maintain, hand over, and explain to new team members.
 6. Support bilingual English/Chinese usage consistently.
 7. Protect authentication, authorization, privacy, and cache correctness.
 
@@ -42,7 +42,7 @@ Before changing files:
 
 While implementing:
 
-- Keep each change within one coherent Issue.
+- Keep each change within one coherent scope. When an Issue exists, keep the change within that Issue.
 - Preserve layer boundaries and existing public contracts.
 - Use focused patches and explicit file scope.
 - Do not delete, overwrite, stage, or publish unrelated user work.
@@ -50,7 +50,7 @@ While implementing:
 
 After implementing:
 
-- Review the final diff against the Issue and its acceptance criteria.
+- Review the final diff against the requested scope and, when applicable, the linked Issue and its acceptance criteria.
 - Run focused checks proportional to the risk.
 - Report what changed, files changed, verification performed, anything not verified, risks, and the next useful step.
 
@@ -178,7 +178,7 @@ If browser, provider, database, or deployment verification is unavailable, say s
 
 GitHub Issue and PR prose defaults to English. User-facing product content remains bilingual where required.
 
-Every meaningful change must have one coherent Issue before implementation begins. Reuse an existing Issue when it already covers the work; do not create duplicates to satisfy process mechanically.
+These standards apply only when the user explicitly requests an Issue or a user-authorized publish workflow requires one. Local implementation and verification may begin and finish without an Issue. Reuse an existing Issue when it already covers the work; do not create duplicates to satisfy process mechanically.
 
 ### Feature Issues
 
@@ -221,6 +221,8 @@ Before any GitHub Issue write, restate the target repository, title, and intende
 
 ## Pull Request authoring standard
 
+These standards apply only when the user explicitly requests a PR, invokes `/shipit`, or explicitly requests the complete publish flow.
+
 An Issue defines why the change is needed, what is in scope, and how completion is judged. A PR explains how it was implemented, what actually changed, and what evidence supports review.
 
 Every meaningful PR must:
@@ -238,22 +240,23 @@ Do not mix unrelated changes into one PR. Do not mark a PR ready, merge it, or c
 
 ## Branch, commit, and publishing conventions
 
-For new meaningful work:
+Local implementation and verification are the default. Do not create or update an Issue, create or switch branches, stage, commit, push, or open a PR merely because work is meaningful. Perform Git and GitHub mutations only when the user explicitly requests the specific action, invokes `/shipit`, or explicitly requests the complete publish flow.
 
-1. Create or confirm the Issue.
-2. Start from an up-to-date, clean understanding of `main`.
-3. Create `agent/<issue-number>-<short-slug>`.
-4. Implement the smallest coherent change.
-5. Stage only explicit in-scope paths.
-6. Commit as `type(scope): summary (#<issue-number>)`.
-7. Push the branch and open a Draft PR against `main`.
+Keep a request for a single action scoped to that action:
 
-Use common conventional types such as `feat`, `fix`, `docs`, `test`, `refactor`, `chore`, or `ci`. Keep subjects concise, imperative, and portfolio-friendly.
+- A request to create or update an Issue does not authorize a branch, commit, push, or PR.
+- A request to create or switch branches does not authorize an Issue, commit, push, or PR.
+- A request to commit authorizes staging only explicit in-scope paths and creating the local commit. It does not authorize an Issue, push, or PR.
+- A request to push authorizes pushing the requested branch. It does not authorize an Issue or PR.
+- A request to open a PR authorizes the Issue, branch, focused verification, commit, and push prerequisites required to create that PR, but no unrelated GitHub mutation.
+- `/shipit` or an explicit request for the complete publish flow authorizes the full workflow below.
 
-If `main` already contains uncommitted work when traceability is requested:
+Use common conventional types such as `feat`, `fix`, `docs`, `test`, `refactor`, `chore`, or `ci`. Keep subjects concise, imperative, clear to reviewers, and easy to trace. Use `type(scope): summary (#<issue-number>)` when the work is linked to an Issue; otherwise use `type(scope): summary`.
+
+If `main` already contains uncommitted work when a branch, commit, or publish action is requested:
 
 - Inspect every modified and untracked path before acting.
-- If all changes form one coherent task, create or reuse its Issue, then switch to the feature branch while preserving the worktree.
+- If all changes form one coherent task, preserve the worktree while performing only the requested Git action. Under `/shipit` or a complete publish request, create or reuse the Issue before switching to `agent/<issue-number>-<short-slug>`.
 - If the worktree is mixed or ownership is unclear, stop and request direction. Do not stash, discard, stage, or publish unrelated work.
 
 Prefer the GitHub app for Issue and PR metadata and writes. If repository write permission is unavailable there, use the authenticated `gh` CLI without repeating failed connector writes. If `gh` is missing, install it once only when installation is authorized.
