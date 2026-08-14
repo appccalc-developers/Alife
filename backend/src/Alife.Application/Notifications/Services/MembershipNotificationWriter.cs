@@ -46,10 +46,16 @@ public static class MembershipNotificationWriter
                 en = $"{memberName} signed in with LINE. Review church membership and invite or approve them.",
                 zh = $"{memberName} 已使用 LINE 登录。请审核教会成员资格，并邀请或批准加入。"
             },
-            actionUrl = "/admin?church=members"
+            actionUrl = MembershipNotificationActionData.GetReviewUrl(church.Id, church.IsChurch)
         });
 
-        AddNotifications(dbContext, recipientIds, memberId, church.Id, "church.line-member.waiting", actionDataJson);
+        AddNotifications(
+            dbContext,
+            recipientIds,
+            memberId,
+            church.Id,
+            MembershipNotificationActionData.ChurchLineMemberWaitingActionType,
+            actionDataJson);
     }
 
     public static async Task NotifyGroupLeadersOfJoinRequestAsync(
@@ -87,12 +93,16 @@ public static class MembershipNotificationWriter
                 en = $"{memberName} requested to join {groupName.En}.",
                 zh = $"{memberName} 申请加入 {groupName.Zh}。"
             },
-            actionUrl = group.IsChurch
-                ? "/admin?church=members"
-                : $"/groups/{groupId}/manage?section=members"
+            actionUrl = MembershipNotificationActionData.GetReviewUrl(groupId, group.IsChurch)
         });
 
-        AddNotifications(dbContext, recipientIds, requesterMemberId, groupId, "group.join-request.received", actionDataJson);
+        AddNotifications(
+            dbContext,
+            recipientIds,
+            requesterMemberId,
+            groupId,
+            MembershipNotificationActionData.GroupJoinRequestReceivedActionType,
+            actionDataJson);
     }
 
     public static async Task NotifyMemberOfGroupInvitationAsync(

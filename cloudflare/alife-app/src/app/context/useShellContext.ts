@@ -24,6 +24,7 @@ export const useShellContext = () => {
   const [currentSubgroups, setCurrentSubgroups] = useState<GroupSummaryDto[]>([])
   const [contextualGroup, setContextualGroup] = useState<GroupSummaryDto | null>(null)
   const [churchGroup, setChurchGroup] = useState<GroupSummaryDto | null>(null)
+  const [churchGroupLoading, setChurchGroupLoading] = useState(true)
   const [contextualEvent, setContextualEvent] = useState<GroupEventRecord | null>(null)
   const groupDataIdRef = useRef('')
 
@@ -170,6 +171,8 @@ export const useShellContext = () => {
       }
     }).catch(() => {
       if (!cancelled) setChurchGroup(null)
+    }).finally(() => {
+      if (!cancelled) setChurchGroupLoading(false)
     })
     return () => { cancelled = true }
   }, [])
@@ -216,6 +219,7 @@ export const useShellContext = () => {
     activeIds,
     canOpenCurrentGroupManagement,
     churchGroup,
+    churchGroupLoading,
     contextualGroup,
     contextualGroupId,
     contextualEvent,

@@ -7,6 +7,7 @@ using Alife.Domain.Entities;
 using Alife.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
+using System.Text.Json;
 
 namespace Alife.Tests.Unit.Notifications;
 
@@ -149,6 +150,68 @@ public class NotificationHandlersTests
     }
 
     [Fact]
+    public async Task ListNotifications_NormalizesHistoricMembershipReviewTargetsWithoutUpdatingStoredRows()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var recipientId = Guid.NewGuid();
+        var creatorId = Guid.NewGuid();
+        var churchId = Guid.NewGuid();
+        var groupId = Guid.NewGuid();
+        var churchNotificationId = Guid.NewGuid();
+        var groupNotificationId = Guid.NewGuid();
+        var actionDataGroupNotificationId = Guid.NewGuid();
+        var missingGroupNotificationId = Guid.NewGuid();
+        var unrelatedNotificationId = Guid.NewGuid();
+        var malformedNotificationId = Guid.NewGuid();
+        var missingGroupId = Guid.NewGuid();
+        var occurredUtc = new DateTime(2026, 8, 14, 8, 0, 0, DateTimeKind.Utc);
+        var churchActionData = $"{{\"groupId\":\"{churchId}\",\"actionUrl\":\"/groups/{churchId}/manage\"}}";
+        var groupActionData = $"{{\"groupId\":\"{groupId}\",\"actionUrl\":\"/groups/{groupId}/manage\"}}";
+        var actionDataGroupActionData = $"{{\"groupId\":\"{groupId}\",\"actionUrl\":\"/groups/{groupId}/manage\"}}";
+        var missingGroupActionData = $"{{\"groupId\":\"{missingGroupId}\",\"actionUrl\":\"/groups/{missingGroupId}/manage\"}}";
+        var unrelatedActionData = "{\"actionUrl\":\"/profile\"}";
+        const string malformedActionData = "{not-json";
+
+        dbContext.Groups.AddRange(
+            new Group { Id = churchId, IsChurch = true, CreatedUtc = occurredUtc, UpdatedUtc = occurredUtc },
+            new Group { Id = groupId, IsChurch = false, CreatedUtc = occurredUtc, UpdatedUtc = occurredUtc });
+        dbContext.NotificationMessages.AddRange(
+            CreateNotificationWithAction(churchNotificationId, recipientId, creatorId, churchId, occurredUtc, "church.line-member.waiting", churchActionData),
+            CreateNotificationWithAction(groupNotificationId, recipientId, creatorId, groupId, occurredUtc.AddMinutes(1), "group.join-request.received", groupActionData),
+            CreateNotificationWithAction(actionDataGroupNotificationId, recipientId, creatorId, null, occurredUtc.AddMinutes(2), "group.join-request.received", actionDataGroupActionData),
+            CreateNotificationWithAction(missingGroupNotificationId, recipientId, creatorId, missingGroupId, occurredUtc.AddMinutes(3), "group.join-request.received", missingGroupActionData),
+            CreateNotificationWithAction(unrelatedNotificationId, recipientId, creatorId, groupId, occurredUtc.AddMinutes(4), "event.review.requested", unrelatedActionData),
+            CreateNotificationWithAction(malformedNotificationId, recipientId, creatorId, groupId, occurredUtc.AddMinutes(5), "group.join-request.received", malformedActionData));
+        await dbContext.SaveChangesAsync();
+
+        var handler = new ListNotificationsQueryHandler(dbContext);
+        var result = await handler.Handle(new ListNotificationsQuery(recipientId), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var notifications = Assert.IsAssignableFrom<IReadOnlyList<Alife.Application.Notifications.Dtos.NotificationMessageDto>>(result.Value)
+            .ToDictionary(x => x.Id);
+        Assert.Equal(
+            "/admin?church=members",
+            JsonDocument.Parse(notifications[churchNotificationId].ActionDataJson).RootElement.GetProperty("actionUrl").GetString());
+        Assert.Equal(
+            $"/groups/{groupId}/manage?section=members",
+            JsonDocument.Parse(notifications[groupNotificationId].ActionDataJson).RootElement.GetProperty("actionUrl").GetString());
+        Assert.Equal(
+            $"/groups/{groupId}/manage?section=members",
+            JsonDocument.Parse(notifications[actionDataGroupNotificationId].ActionDataJson).RootElement.GetProperty("actionUrl").GetString());
+        Assert.Equal(missingGroupActionData, notifications[missingGroupNotificationId].ActionDataJson);
+        Assert.Equal(unrelatedActionData, notifications[unrelatedNotificationId].ActionDataJson);
+        Assert.Equal(malformedActionData, notifications[malformedNotificationId].ActionDataJson);
+
+        dbContext.ChangeTracker.Clear();
+        var storedRows = await dbContext.NotificationMessages
+            .Where(x => x.Id == churchNotificationId || x.Id == groupNotificationId)
+            .ToDictionaryAsync(x => x.Id, x => x.ActionDataJson);
+        Assert.Equal(churchActionData, storedRows[churchNotificationId]);
+        Assert.Equal(groupActionData, storedRows[groupNotificationId]);
+    }
+
+    [Fact]
     public async Task MarkNotificationRead_WhenRecipientMarksRead_StoresFirstReadTime()
     {
         using var dbContext = CreateInMemoryDbContext();
@@ -277,5 +340,26 @@ public class NotificationHandlersTests
             RepliedUtc = repliedUtc,
             CreatedUtc = occurredUtc,
             UpdatedUtc = repliedUtc ?? occurredUtc
+        };
+
+    private static NotificationMessage CreateNotificationWithAction(
+        Guid id,
+        Guid recipientMemberId,
+        Guid createdByMemberId,
+        Guid? groupId,
+        DateTime occurredUtc,
+        string actionType,
+        string actionDataJson)
+        => new()
+        {
+            Id = id,
+            RecipientMemberId = recipientMemberId,
+            CreatedByMemberId = createdByMemberId,
+            GroupId = groupId,
+            OccurredUtc = occurredUtc,
+            ActionType = actionType,
+            ActionDataJson = actionDataJson,
+            CreatedUtc = occurredUtc,
+            UpdatedUtc = occurredUtc
         };
 }

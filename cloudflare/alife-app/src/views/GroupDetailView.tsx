@@ -104,7 +104,6 @@ const GroupDetailView = () => {
   const { groupId: routeGroupId } = useParams<{ groupId: string }>()
   const [searchParams] = useSearchParams()
   const { groupId: activeGroupId, pageId } = useActiveEntityIds({ groupId: routeGroupId })
-  const { setCurrentGroup } = useCurrentGroupStore()
   const groupId = activeGroupId || ''
   const routeGroupQuery = useQuery({
     queryKey: ['group-route-scope', routeGroupId ?? '', auth.me?.id ?? 'guest'],
@@ -113,12 +112,6 @@ const GroupDetailView = () => {
     staleTime: 1_000,
   })
   const isChurchRoute = routeGroupQuery.data?.isChurch === true
-
-  useEffect(() => {
-    if (!isChurchRoute) return
-    activeEntityService.setGroup('', { clearPage: true, clearEvent: true })
-    setCurrentGroup(null)
-  }, [isChurchRoute, setCurrentGroup])
 
   if (!groupId) {
     return <Navigate to="/groups/select" replace />

@@ -805,19 +805,19 @@ const EventsPanel = ({ groupId, events, copy, framed = true }: EventsPanelProps)
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <AppActionButton size="sm" variant="secondary" onClick={() => {
-                        activeEntityService.setEvent(event.id, groupId)
+                        activeEntityService.setEvent(event.id)
                         navigate(detailPath)
                       }}>{copy.viewEventPosts}</AppActionButton>
                       {activeTab === 'past' ? <AppActionButton size="sm" variant="primary" onClick={() => {
-                        activeEntityService.setEvent(event.id, groupId)
+                        activeEntityService.setEvent(event.id)
                         navigate(`${detailPath}/review`)
                       }}>{copy.addReview}</AppActionButton> : null}
                       {activeTab === 'planning' ? <AppActionButton size="sm" variant="secondary" onClick={() => {
-                        activeEntityService.setEvent(event.id, groupId)
+                        activeEntityService.setEvent(event.id)
                         navigate(`/groups/${encodeURIComponent(groupId)}/events/${encodeURIComponent(event.id)}/edit`)
                       }}>{language === 'zh' ? '编辑 / RAM' : 'Edit / RAM'}</AppActionButton> : null}
                       {activeTab === 'upcoming' && lifecycleData.acceptsEnrollments && (lifecycleData.registrationDeadlineTime ?? 0) >= Date.now() ? <AppActionButton size="sm" variant="primary" onClick={() => {
-                        activeEntityService.setEvent(event.id, groupId)
+                        activeEntityService.setEvent(event.id)
                         navigate(`${detailPath}/enroll`)
                       }}>{copy.enroll}</AppActionButton> : null}
                     </div>

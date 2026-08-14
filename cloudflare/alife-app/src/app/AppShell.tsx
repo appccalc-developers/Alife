@@ -145,7 +145,7 @@ const WorkspaceShell = () => {
             : 'mx-auto max-w-[94rem] px-4 pb-36 pt-5 sm:px-6 sm:pt-7 desktop:px-8 desktop:pb-14'}
         >
           {auth.loading && !auth.initialized ? <AppRouteLoading /> : null}
-          <AppRoutes />
+          <AppRoutes churchGroupId={context.churchGroup?.id || ''} churchGroupLoading={context.churchGroupLoading} />
         </main>
       </div>
 

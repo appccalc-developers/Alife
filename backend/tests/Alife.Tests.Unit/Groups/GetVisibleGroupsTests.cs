@@ -168,7 +168,8 @@ public class GetVisibleGroupsTests
         Assert.DoesNotContain(memberVisible, group => group.Id == removedPrivateId);
 
         var kvCache = Substitute.For<Alife.Application.Common.Interfaces.ICloudflareKvCacheService>();
-        var invalidation = new GroupCacheInvalidationService(hybridCache, kvCache);
+        var speedLayerCache = Substitute.For<Alife.Application.Common.Interfaces.ICloudflareSpeedLayerCacheService>();
+        var invalidation = new GroupCacheInvalidationService(hybridCache, kvCache, speedLayerCache);
         await invalidation.RemoveSubgroupsAsync(churchId);
 
         var refreshed = await readService.GetVisibleGroupsAsync(null, CancellationToken.None);

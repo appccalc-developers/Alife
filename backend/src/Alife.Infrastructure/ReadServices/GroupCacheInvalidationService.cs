@@ -6,7 +6,8 @@ namespace Alife.Infrastructure.ReadServices;
 
 public sealed class GroupCacheInvalidationService(
     HybridCache hybridCache,
-    ICloudflareKvCacheService cloudflareKvCacheService) : IGroupCacheInvalidationService
+    ICloudflareKvCacheService cloudflareKvCacheService,
+    ICloudflareSpeedLayerCacheService cloudflareSpeedLayerCacheService) : IGroupCacheInvalidationService
 {
     public Task RemoveGroupAsync(Guid groupId, CancellationToken cancellationToken = default)
         => Task.WhenAll(
@@ -32,5 +33,11 @@ public sealed class GroupCacheInvalidationService(
             cloudflareKvCacheService.RemoveApiCacheAsync($"/api/groups/{groupId}/memberships", cancellationToken),
             cloudflareKvCacheService.RemoveApiCacheAsync($"/api/groups/{groupId}/pages", cancellationToken),
             cloudflareKvCacheService.RemoveApiCacheAsync($"/api/groups/{groupId}/events", cancellationToken),
-            cloudflareKvCacheService.RemoveApiCacheAsync($"/api/groups/{groupId}", cancellationToken));
+            cloudflareKvCacheService.RemoveApiCacheAsync($"/api/groups/{groupId}", cancellationToken),
+            cloudflareSpeedLayerCacheService.PurgeApiPathsAsync(
+                [
+                    $"/api/groups/{groupId}/memberships",
+                    $"/api/groups/{groupId}/members"
+                ],
+                cancellationToken));
 }

@@ -524,7 +524,7 @@ const MemoriesPanel = ({
       {memberId ? <div className="flex justify-end">
         <Link
           to={`/groups/${encodeURIComponent(groupId)}/events/${encodeURIComponent(eventId)}/review`}
-          onClick={() => activeEntityService.setEvent(eventId, groupId)}
+          onClick={() => activeEntityService.setEvent(eventId)}
           className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
         >
           {text.addReview}
@@ -556,7 +556,7 @@ const MemoriesPanel = ({
               <div className="flex flex-wrap gap-2">
                 <Link
                   to={`/groups/${encodeURIComponent(groupId)}/events/${encodeURIComponent(eventId)}/review?reviewId=${encodeURIComponent(review.id)}`}
-                  onClick={() => activeEntityService.setEvent(eventId, groupId)}
+                  onClick={() => activeEntityService.setEvent(eventId)}
                   className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-100"
                 >
                   {text.modifyReview}
@@ -755,7 +755,7 @@ const EventDetailView = () => {
             <div className="mb-4 flex justify-end">
               <Link
                 to={`/groups/${encodeURIComponent(groupId)}/events/${encodeURIComponent(eventId)}/edit`}
-                onClick={() => activeEntityService.setEvent(eventId, groupId)}
+                onClick={() => activeEntityService.setEvent(eventId)}
                 className="inline-flex items-center rounded-lg border border-teal-300 bg-white px-3.5 py-2 text-sm font-bold text-teal-800 hover:bg-teal-50"
               >
                 {language === 'zh' ? (canAuditRam ? '检查 / 批准 RAM' : '编辑活动 / RAM') : (canAuditRam ? 'Review / approve RAM' : 'Edit event / RAM')}

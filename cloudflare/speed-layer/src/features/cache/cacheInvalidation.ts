@@ -2,6 +2,8 @@ import type { Env, ExecutionContext } from '../../index'
 import { purgeApiPathCache, warmPublicPagesCache } from '../../middlewares/apiCache'
 
 const ALLOWED_PURGE_PATHS = new Set(['/api/sermons', '/api/pages/public'])
+const GROUP_MEMBER_PATH =
+  /^\/api\/groups\/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\/(?:memberships|members)$/
 const PUBLIC_CONTENT_POST_PATH =
   /^\/api\/public\/groups\/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\/posts(?:\/[a-z0-9-]{1,180})?$/
 
@@ -53,7 +55,7 @@ function readAllowedPaths(value: unknown) {
   for (const path of paths) {
     if (
       typeof path === 'string' &&
-      (ALLOWED_PURGE_PATHS.has(path) || PUBLIC_CONTENT_POST_PATH.test(path))
+      (ALLOWED_PURGE_PATHS.has(path) || GROUP_MEMBER_PATH.test(path) || PUBLIC_CONTENT_POST_PATH.test(path))
     ) {
       allowed.add(path)
     }

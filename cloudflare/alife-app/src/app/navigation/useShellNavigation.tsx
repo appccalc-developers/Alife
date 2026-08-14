@@ -11,6 +11,7 @@ import type { NavigationCopy, ShellNavItem, ShellNavSection } from './types'
 import type { GroupEventRecord } from '../../types/event'
 import { getEventLifecycle, readEventLifecycleData } from '../../utils/eventLifecycle'
 import type { GroupMembershipDto } from '../../types'
+import { canAccessChurchManagement } from '../routing/churchManagementAccess'
 
 type Args = {
   contextualGroupId: string
@@ -209,7 +210,7 @@ export const useShellNavigation = ({
       description: isChinese ? '活动详情与发布内容' : 'Event details and published content',
       to: eventBasePath,
       icon: <EventsIcon />,
-      onClick: () => activeEntityService.setEvent(activeEventId, workspaceGroupId),
+      onClick: () => activeEntityService.setEvent(activeEventId),
     },
     eventLifecycle === 'upcoming' && acceptsEnrollments ? {
       key: 'event:enrollments',
@@ -218,7 +219,7 @@ export const useShellNavigation = ({
       to: `${eventBasePath}?section=enrollments`,
       matchSearch: '?section=enrollments',
       icon: <EnrollmentIcon />,
-      onClick: () => activeEntityService.setEvent(activeEventId, workspaceGroupId),
+      onClick: () => activeEntityService.setEvent(activeEventId),
     } : null,
     eventLifecycle === 'past' ? {
       key: 'event:memories',
@@ -227,7 +228,7 @@ export const useShellNavigation = ({
       to: `${eventBasePath}?section=memories`,
       matchSearch: '?section=memories',
       icon: <MemoriesIcon />,
-      onClick: () => activeEntityService.setEvent(activeEventId, workspaceGroupId),
+      onClick: () => activeEntityService.setEvent(activeEventId),
     } : null,
   ].filter(isPresent) : []
 
@@ -236,12 +237,11 @@ export const useShellNavigation = ({
   const workspaceItems = contextualItems
   const workspaceVisible = workspaceEnabled && contextualItems.length > 0
 
-  const canOpenChurchManagement = canManageChurch || [
-    adminPermissions.members,
-    adminPermissions.roles,
-    adminPermissions.messages,
-    adminPermissions.visitRequests,
-  ].some((permission) => auth.hasAdminPermission(permission))
+  const canOpenChurchManagement = canAccessChurchManagement({
+    churchGroupId,
+    canManageGroup: auth.hasLeaderAccess,
+    hasAdminPermission: auth.hasAdminPermission,
+  })
 
   const churchAdminItems: ShellNavItem[] = canOpenChurchManagement ? [
     {

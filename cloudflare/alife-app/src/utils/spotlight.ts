@@ -16,6 +16,7 @@ import { translateUi, type UiTextKey } from '../i18n/uiText'
 import { normalizeListViewMetadata } from './listViewMetadata'
 import { localizeText } from './localizedText'
 import { buildSermonVideoPath, extractYouTubeVideoId } from './youtube'
+import { buildEventDetailPath } from './eventRoutes'
 
 export type SpotlightMemberRecord = {
   memberId: string
@@ -320,6 +321,6 @@ export const resolveDataSpotlightContent = (source: SpotlightDataSource, item: u
     subtitle: formatDate(event.startDate, language),
     body: description || location,
     media: posterImageUrl ? { type: 'image', url: posterImageUrl } : undefined,
-    actions: [{ label: translateUi(language, 'viewDetails'), url: '/events', entityType: 'event', entityId: event.id, groupId: event.groupId }],
+    actions: [{ label: translateUi(language, 'viewDetails'), url: buildEventDetailPath(event.groupId, event.id), entityType: 'event', entityId: event.id, groupId: event.groupId }],
   }
 }

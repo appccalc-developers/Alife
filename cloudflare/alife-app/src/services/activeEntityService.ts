@@ -160,7 +160,7 @@ export const activeEntityService = {
     })
   },
 
-  setEvent(eventId: string, _groupId?: string) {
+  setEvent(eventId: string) {
     // An event's owning group is route context, not a request to switch the
     // viewer's selected group. Group changes must remain explicit.
     this.set({ eventId })

@@ -29,6 +29,13 @@ export type InviteMemberPayload = {
   targetPhoneE164: string
 }
 
+export type GroupActionResultDto = {
+  ok: boolean
+  groupId?: string | null
+  parentGroupId?: string | null
+  memberId?: string | null
+}
+
 export type MemberSummaryDto = {
   id: string
   displayName: string | null
@@ -383,8 +390,8 @@ export const groupService = {
   },
 
   async inviteMember(groupId: string, payload: InviteMemberPayload, viewerId?: string) {
-    await http.post(`/api/groups/${groupId}/invite`, payload)
-    await invalidateVisibleGroupsForViewers(viewerId)
+    const { data } = await http.post<GroupActionResultDto>(`/api/groups/${groupId}/invite`, payload)
+    await invalidateVisibleGroupsForViewers(viewerId, data.memberId)
   },
 
   async inviteMemberById(groupId: string, targetMemberId: string, viewerId?: string) {

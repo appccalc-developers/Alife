@@ -5,6 +5,7 @@ import { useAuthStore } from '../../stores/auth'
 import { activeEntityService } from '../../services/activeEntityService'
 import { workspaceResumeService } from '../../services/workspaceResumeService'
 import AppRouteLoading from '../components/AppRouteLoading'
+import { canAccessChurchManagement, hasChurchManagementAdminPermission } from './churchManagementAccess'
 
 const AdminView = lazy(() => import('../../views/AdminView'))
 const AlbumView = lazy(() => import('../../views/AlbumView'))
@@ -43,6 +44,31 @@ const AdminRoute = ({ children, permission }: { children: ReactElement; permissi
 
   const hasRequiredPermission = !permission || auth.hasAdminPermission(permission)
   return !auth.isGuest && hasRequiredPermission ? children : <Navigate to="/" replace />
+}
+
+const ChurchManagementRoute = ({
+  children,
+  churchGroupId,
+  churchGroupLoading,
+}: {
+  children: ReactElement
+  churchGroupId: string
+  churchGroupLoading: boolean
+}) => {
+  const auth = useAuthStore()
+  const hasScopedPermission = hasChurchManagementAdminPermission(auth.hasAdminPermission)
+
+  if (!auth.initialized || (!hasScopedPermission && churchGroupLoading)) {
+    return <AppRouteLoading />
+  }
+
+  const canAccess = !auth.isGuest && canAccessChurchManagement({
+    churchGroupId,
+    canManageGroup: auth.canManageGroup,
+    hasAdminPermission: auth.hasAdminPermission,
+  })
+
+  return canAccess ? children : <Navigate to="/" replace />
 }
 
 const PageReviewRoute = ({ children }: { children: ReactElement }) => {
@@ -107,7 +133,12 @@ const isGroupWorkspaceSectionPath = (pathname: string) =>
   pathname === '/groups/manage' ||
   /^\/groups\/(?!select$|join$|manage$)[^/]+(?:\/manage)?$/.test(pathname)
 
-const AppRoutes = () => {
+type AppRoutesProps = {
+  churchGroupId?: string
+  churchGroupLoading?: boolean
+}
+
+const AppRoutes = ({ churchGroupId = '', churchGroupLoading = false }: AppRoutesProps) => {
   const location = useLocation()
   const reduceMotion = useReducedMotion()
   const routeTransitionKey = location.pathname === '/study' || isGroupWorkspaceSectionPath(location.pathname)
@@ -190,9 +221,9 @@ const AppRoutes = () => {
           <Route
             path="/admin"
             element={
-              <AdminRoute permission="admin.members.view">
+              <ChurchManagementRoute churchGroupId={churchGroupId} churchGroupLoading={churchGroupLoading}>
                 <AdminView />
-              </AdminRoute>
+              </ChurchManagementRoute>
             }
           />
           <Route

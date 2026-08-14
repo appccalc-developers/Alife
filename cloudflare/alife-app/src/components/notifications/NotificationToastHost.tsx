@@ -66,7 +66,7 @@ const activateInternalTarget = (target: string) => {
   if (groupManageMatch) {
     const groupId = decodeURIComponent(groupManageMatch[1])
     activeEntityService.setGroup(groupId)
-    return `/groups/manage${groupManageMatch[2] ? `?${groupManageMatch[2]}` : ''}`
+    return target
   }
 
   const groupMatch = target.match(/^\/groups\/([^/?#]+)/)

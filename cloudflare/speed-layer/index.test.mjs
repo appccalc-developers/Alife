@@ -599,6 +599,46 @@ test('authorized internal cache invalidate purges public pages from every shared
   assert.equal(apiCacheStore.has(createApiCacheKey(url)), false)
 })
 
+test('authorized internal cache invalidate purges only strict group member paths', async () => {
+  const groupId = '11111111-1111-4111-8111-111111111111'
+  const membershipsUrl = `https://ccalc.live/api/groups/${groupId}/memberships`
+  const membersUrl = `https://ccalc.live/api/groups/${groupId}/members`
+  cacheStore.set(membershipsUrl, Response.json([{ memberId: 'stale-member' }]))
+  cacheStore.set(membersUrl, Response.json([{ memberId: 'stale-member' }]))
+  apiCacheStore.set(createApiCacheKey(membershipsUrl), createStoredResponse([{ memberId: 'stale-member' }]))
+
+  const purge = await dispatch('https://ccalc.live/api/internal/cache/invalidate', {
+    method: 'POST',
+    auth: false,
+    headers: {
+      authorization: 'Bearer test-cache-token',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      paths: [
+        `/api/groups/${groupId}/memberships`,
+        `/api/groups/${groupId}/members`,
+        '/api/groups/not-a-guid/memberships',
+        `/api/groups/${groupId}/pages`,
+        `/api/groups/${groupId}/members/extra`,
+      ],
+    }),
+  })
+  await flushWaitUntil()
+
+  assert.equal(purge.status, 200)
+  assert.deepEqual(await purge.json(), {
+    ok: true,
+    purged: [
+      `/api/groups/${groupId}/memberships`,
+      `/api/groups/${groupId}/members`,
+    ],
+  })
+  assert.equal(cacheStore.has(membershipsUrl), false)
+  assert.equal(cacheStore.has(membersUrl), false)
+  assert.equal(apiCacheStore.has(createApiCacheKey(membershipsUrl)), false)
+})
+
 test('unauthorized internal cache invalidate does not purge sermons cache', async () => {
   cacheStore.set('https://ccalc.live/api/sermons', Response.json([{ title: 'Cached sermon' }]))
   apiCacheStore.set('api:/api/sermons', createStoredResponse([{ title: 'Stored sermon' }]))
