@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host",
+    "generate:public-home-bootstrap": "node scripts/generate-public-home-bootstrap.mjs",
     "typecheck": "tsc -b --pretty false",
     "build": "tsc -b && vite build",
     "preview": "npm run build && npm --prefix ../speed-layer run dev",

@@ -1,0 +1,885 @@
+{
+  "generatedAt": "2026-08-14T00:20:21.550Z",
+  "pages": [
+    {
+      "id": "9d9fa762-42c7-44b7-a31a-ff56ff207dc9",
+      "ownerGroupId": "676395fd-4339-4bec-99e8-4eac560d52ac",
+      "createdByMemberId": "22222222-2222-2222-2222-222222222222",
+      "title": {
+        "en": "Home",
+        "zh": "主页"
+      },
+      "description": {
+        "en": "Public home page for visitors, seekers, and members.",
+        "zh": "面向访客、慕道朋友和成员的公共首页。"
+      },
+      "tagsJson": "[]",
+      "titleDisplayStyle": "Default",
+      "visibility": "public",
+      "updatedUtc": "2026-08-10T09:21:54.1628365",
+      "accessName": {
+        "en": "Home",
+        "zh": "主页"
+      },
+      "reviewRefusal": null,
+      "cardImageUrl": "/media/alife-groups.jpg",
+      "cardText": {
+        "en": "Public home page for visitors, seekers, and members.",
+        "zh": "面向访客、慕道朋友和成员的公共首页。"
+      },
+      "primaryMenuName": {
+        "en": "Welcome",
+        "zh": "欢迎"
+      },
+      "primaryMenuId": "9d516a7f-ccd6-4a8e-8497-a9dc122b7fd6",
+      "primaryMenuSortOrder": 0,
+      "menuSortOrder": 0,
+      "primaryMenuHomePlacement": null
+    },
+    {
+      "id": "027fe1ba-4b2b-6c89-ab7d-908ede3282b6",
+      "ownerGroupId": "11111111-1111-1111-1111-111111111111",
+      "createdByMemberId": "22222222-2222-2222-2222-222222222222",
+      "title": {
+        "en": "Pastoral Team",
+        "zh": "教牧团队"
+      },
+      "description": {
+        "en": "Pastoral and ministry teams presented on the church's 2021 website.",
+        "zh": "原教会网站于 2021 年展示的教牧与事奉团队。"
+      },
+      "tagsJson": "[\"about\",\"nzalc-import\",\"legacy\"]",
+      "titleDisplayStyle": "Default",
+      "visibility": "public",
+      "updatedUtc": "2026-07-18T12:43:16.4619496",
+      "accessName": {
+        "en": "Pastoral Team",
+        "zh": "教牧团队"
+      },
+      "reviewRefusal": null,
+      "cardImageUrl": "https://pages.nzalc.org/images/alc/ChurchTeam/New2021/Psters2.jpg",
+      "cardText": {
+        "en": "Pastoral and ministry teams presented on the church's 2021 website.",
+        "zh": "原教会网站于 2021 年展示的教牧与事奉团队。"
+      },
+      "primaryMenuName": {
+        "en": "About Us",
+        "zh": "关于我们"
+      },
+      "primaryMenuId": "9eb30cf9-2a69-4a30-beb3-9769797ae785",
+      "primaryMenuSortOrder": 1,
+      "menuSortOrder": 0,
+      "primaryMenuHomePlacement": null
+    },
+    {
+      "id": "2a3dd832-1ee0-069a-c6e5-318c9e517af9",
+      "ownerGroupId": "11111111-1111-1111-1111-111111111111",
+      "createdByMemberId": "22222222-2222-2222-2222-222222222222",
+      "title": {
+        "en": "Church Introduction",
+        "zh": "教会介绍"
+      },
+      "description": {
+        "en": "An introduction to Abundant Life Church and the story of its founding in Christchurch.",
+        "zh": "丰盛生命教会简介，以及教会在基督城成立的历史。"
+      },
+      "tagsJson": "[\"about\",\"nzalc-import\",\"legacy\"]",
+      "titleDisplayStyle": "Default",
+      "visibility": "public",
+      "updatedUtc": "2026-07-18T12:43:16.4619496",
+      "accessName": {
+        "en": "Church Introduction",
+        "zh": "教会介绍"
+      },
+      "reviewRefusal": null,
+      "cardImageUrl": "https://pages.nzalc.org/images/IMG_1324.JPG",
+      "cardText": {
+        "en": "An introduction to Abundant Life Church and the story of its founding in Christchurch.",
+        "zh": "丰盛生命教会简介，以及教会在基督城成立的历史。"
+      },
+      "primaryMenuName": {
+        "en": "About Us",
+        "zh": "关于我们"
+      },
+      "primaryMenuId": "9eb30cf9-2a69-4a30-beb3-9769797ae785",
+      "primaryMenuSortOrder": 1,
+      "menuSortOrder": 1,
+      "primaryMenuHomePlacement": null
+    },
+    {
+      "id": "7756643f-92ab-fe0f-8375-a86825c81d3e",
+      "ownerGroupId": "11111111-1111-1111-1111-111111111111",
+      "createdByMemberId": "22222222-2222-2222-2222-222222222222",
+      "title": {
+        "en": "Church Principles",
+        "zh": "教会理念"
+      },
+      "description": {
+        "en": "Ten principles describing the church's biblical foundation, leadership, mission, and ministry model.",
+        "zh": "十项教会理念，说明教会的圣经根基、领导、使命与牧养模式。"
+      },
+      "tagsJson": "[\"about\",\"nzalc-import\",\"legacy\"]",
+      "titleDisplayStyle": "Default",
+      "visibility": "public",
+      "updatedUtc": "2026-07-18T12:43:16.4619496",
+      "accessName": {
+        "en": "Church Principles",
+        "zh": "教会理念"
+      },
+      "reviewRefusal": null,
+      "cardImageUrl": "https://pages.nzalc.org/images/slideshow/thumbnail-121.jpg",
+      "cardText": {
+        "en": "Ten principles describing the church's biblical foundation, leadership, mission, and ministry model.",
+        "zh": "十项教会理念，说明教会的圣经根基、领导、使命与牧养模式。"
+      },
+      "primaryMenuName": {
+        "en": "About Us",
+        "zh": "关于我们"
+      },
+      "primaryMenuId": "9eb30cf9-2a69-4a30-beb3-9769797ae785",
+      "primaryMenuSortOrder": 1,
+      "menuSortOrder": 2,
+      "primaryMenuHomePlacement": null
+    },
+    {
+      "id": "18bd749f-6bd2-d41c-6e99-38531cb35f54",
+      "ownerGroupId": "11111111-1111-1111-1111-111111111111",
+      "createdByMemberId": "22222222-2222-2222-2222-222222222222",
+      "title": {
+        "en": "Church Vision",
+        "zh": "教会异象"
+      },
+      "description": {
+        "en": "Six vision statements for a Spirit-empowered church serving its city, nation, and the world.",
+        "zh": "六项教会异象：靠圣灵能力服事城市、国家与世界。"
+      },
+      "tagsJson": "[\"about\",\"nzalc-import\",\"legacy\"]",
+      "titleDisplayStyle": "Default",
+      "visibility": "public",
+      "updatedUtc": "2026-07-18T12:43:16.4619496",
+      "accessName": {
+        "en": "Church Vision",
+        "zh": "教会异象"
+      },
+      "reviewRefusal": null,
+      "cardImageUrl": "https://pages.nzalc.org/images/slideshow/IMG_80021.jpg",
+      "cardText": {
+        "en": "Six vision statements for a Spirit-empowered church serving its city, nation, and the world.",
+        "zh": "六项教会异象：靠圣灵能力服事城市、国家与世界。"
+      },
+      "primaryMenuName": {
+        "en": "About Us",
+        "zh": "关于我们"
+      },
+      "primaryMenuId": "9eb30cf9-2a69-4a30-beb3-9769797ae785",
+      "primaryMenuSortOrder": 1,
+      "menuSortOrder": 3,
+      "primaryMenuHomePlacement": null
+    },
+    {
+      "id": "82a1808a-8aa7-63bc-7ca3-272581487e34",
+      "ownerGroupId": "11111111-1111-1111-1111-111111111111",
+      "createdByMemberId": "22222222-2222-2222-2222-222222222222",
+      "title": {
+        "en": "Our Faith",
+        "zh": "我们的信仰"
+      },
+      "description": {
+        "en": "Fifteen statements summarising the church's biblical Christian faith.",
+        "zh": "十五项信仰宣言，概述教会所持守的圣经信仰。"
+      },
+      "tagsJson": "[\"about\",\"nzalc-import\",\"legacy\"]",
+      "titleDisplayStyle": "Default",
+      "visibility": "public",
+      "updatedUtc": "2026-07-18T12:43:16.4619496",
+      "accessName": {
+        "en": "Our Faith",
+        "zh": "我们的信仰"
+      },
+      "reviewRefusal": null,
+      "cardImageUrl": "https://pages.nzalc.org/images/slideshow/thumbnail-21.jpg",
+      "cardText": {
+        "en": "Fifteen statements summarising the church's biblical Christian faith.",
+        "zh": "十五项信仰宣言，概述教会所持守的圣经信仰。"
+      },
+      "primaryMenuName": {
+        "en": "About Us",
+        "zh": "关于我们"
+      },
+      "primaryMenuId": "9eb30cf9-2a69-4a30-beb3-9769797ae785",
+      "primaryMenuSortOrder": 1,
+      "menuSortOrder": 4,
+      "primaryMenuHomePlacement": null
+    },
+    {
+      "id": "e0f5b1a3-da4c-b547-2bac-bac0ebede906",
+      "ownerGroupId": "11111111-1111-1111-1111-111111111111",
+      "createdByMemberId": "22222222-2222-2222-2222-222222222222",
+      "title": {
+        "en": "Church Purposes",
+        "zh": "教会目标"
+      },
+      "description": {
+        "en": "The church's five biblical purposes and the six historical goals recorded for 2015.",
+        "zh": "教会的五大圣经目标，以及原网站记录的 2015 年六项目标。"
+      },
+      "tagsJson": "[\"about\",\"nzalc-import\",\"legacy\"]",
+      "titleDisplayStyle": "Default",
+      "visibility": "public",
+      "updatedUtc": "2026-08-09T02:21:21.4162156",
+      "accessName": {
+        "en": "Church Purposes",
+        "zh": "教会目标"
+      },
+      "reviewRefusal": null,
+      "cardImageUrl": "https://pages.nzalc.org/images/slideshow/thumbnail7.jpg",
+      "cardText": {
+        "en": "The church's five biblical purposes and the six historical goals recorded for 2015.",
+        "zh": "教会的五大圣经目标，以及原网站记录的 2015 年六项目标。"
+      },
+      "primaryMenuName": {
+        "en": "About Us",
+        "zh": "关于我们"
+      },
+      "primaryMenuId": "9eb30cf9-2a69-4a30-beb3-9769797ae785",
+      "primaryMenuSortOrder": 1,
+      "menuSortOrder": 5,
+      "primaryMenuHomePlacement": null
+    },
+    {
+      "id": "a60f8370-c5f1-4de0-a3bd-b87285142cde",
+      "ownerGroupId": "11111111-1111-1111-1111-111111111111",
+      "createdByMemberId": "22222222-2222-2222-2222-222222222222",
+      "title": {
+        "en": "Ministries",
+        "zh": "事工"
+      },
+      "description": {
+        "en": "",
+        "zh": ""
+      },
+      "tagsJson": "[]",
+      "titleDisplayStyle": "Default",
+      "visibility": "public",
+      "updatedUtc": "2026-07-26T03:58:18.6911887",
+      "accessName": {
+        "en": "Ministries",
+        "zh": "事工"
+      },
+      "reviewRefusal": null,
+      "cardImageUrl": "/images/global/alife-visit.jpg",
+      "cardText": {
+        "en": "Ministries",
+        "zh": "事工"
+      },
+      "primaryMenuName": {
+        "en": "Events",
+        "zh": "活动"
+      },
+      "primaryMenuId": "3832b3d1-f5e1-4e98-9815-a2f578941c23",
+      "primaryMenuSortOrder": 2,
+      "menuSortOrder": 0,
+      "primaryMenuHomePlacement": "recentEvents"
+    },
+    {
+      "id": "8f2ac53a-b68b-4310-9ea0-dd07650d4776",
+      "ownerGroupId": "cccccccc-cccc-cccc-cccc-cccccccccccc",
+      "createdByMemberId": "22222222-2222-2222-2222-222222222222",
+      "title": {
+        "en": "Home",
+        "zh": "主页"
+      },
+      "description": {
+        "en": "Alpha Fellowship demo workspace.",
+        "zh": "启发团契 演示工作区。"
+      },
+      "tagsJson": "[]",
+      "titleDisplayStyle": "Default",
+      "visibility": "public",
+      "updatedUtc": "2026-07-16T08:10:45.4657161",
+      "accessName": {
+        "en": "Alpha Course",
+        "zh": "启发团契"
+      },
+      "reviewRefusal": null,
+      "cardImageUrl": "https://images.unsplash.com/photo-1528605248644-14dd04022da1?auto=format&fit=crop&w=1600&q=80",
+      "cardText": {
+        "en": "Alpha Fellowship demo workspace.",
+        "zh": "启发团契 演示工作区。"
+      },
+      "primaryMenuName": {
+        "en": "Events",
+        "zh": "活动"
+      },
+      "primaryMenuId": "3832b3d1-f5e1-4e98-9815-a2f578941c23",
+      "primaryMenuSortOrder": 2,
+      "menuSortOrder": 1,
+      "primaryMenuHomePlacement": "recentEvents"
+    },
+    {
+      "id": "60a5764f-8e96-48c8-a16c-83deb30a5416",
+      "ownerGroupId": "11111111-1111-1111-1111-111111111111",
+      "createdByMemberId": "22222222-2222-2222-2222-222222222222",
+      "title": {
+        "en": "Mother day",
+        "zh": "母亲节"
+      },
+      "description": {
+        "en": "CCALC Church events page",
+        "zh": "CCALC 教会活动页面"
+      },
+      "tagsJson": "[\"events\"]",
+      "titleDisplayStyle": "Default",
+      "visibility": "public",
+      "updatedUtc": "2026-07-26T04:04:43.397408",
+      "accessName": {
+        "en": "Mother day",
+        "zh": "母亲节"
+      },
+      "reviewRefusal": null,
+      "cardImageUrl": "/images/global/desktop.jpg",
+      "cardText": {
+        "en": "CCALC Church events page",
+        "zh": "CCALC 教会活动页面"
+      },
+      "primaryMenuName": {
+        "en": "Events",
+        "zh": "活动"
+      },
+      "primaryMenuId": "3832b3d1-f5e1-4e98-9815-a2f578941c23",
+      "primaryMenuSortOrder": 2,
+      "menuSortOrder": 2,
+      "primaryMenuHomePlacement": "recentEvents"
+    },
+    {
+      "id": "fd3be32a-c184-4b64-b82e-9509838251eb",
+      "ownerGroupId": "f0322153-b3a9-4106-9260-f2e2302fb650",
+      "createdByMemberId": "22222222-2222-2222-2222-222222222222",
+      "title": {
+        "en": "Boys' brigade",
+        "zh": "少年男子旅团"
+      },
+      "description": {
+        "en": "Public page for Boys' brigade.",
+        "zh": "少年男子旅团公开页面。"
+      },
+      "tagsJson": "[\"alpha-test\",\"group\"]",
+      "titleDisplayStyle": "Default",
+      "visibility": "public",
+      "updatedUtc": "2026-08-10T10:30:09.892353",
+      "accessName": {
+        "en": "Boys' brigade",
+        "zh": "少年男子旅团"
+      },
+      "reviewRefusal": null,
+      "cardImageUrl": null,
+      "cardText": {
+        "en": "Public page for Boys' brigade.",
+        "zh": "少年男子旅团公开页面。"
+      },
+      "primaryMenuName": {
+        "en": "Groups",
+        "zh": "小组"
+      },
+      "primaryMenuId": "7b2d9ac2-0466-456c-b030-7f61b3cf5573",
+      "primaryMenuSortOrder": 3,
+      "menuSortOrder": 6,
+      "primaryMenuHomePlacement": "churchOrganization"
+    },
+    {
+      "id": "17378ada-1a72-4903-b589-2d0b8e83c1c7",
+      "ownerGroupId": "81baeebb-2af7-462a-8ccb-83a158598ab6",
+      "createdByMemberId": "22222222-2222-2222-2222-222222222222",
+      "title": {
+        "en": "Girls' brigade",
+        "zh": "少年女子旅团"
+      },
+      "description": {
+        "en": "Public page for Girls' brigade.",
+        "zh": "少年女子旅团公开页面。"
+      },
+      "tagsJson": "[\"alpha-test\",\"group\"]",
+      "titleDisplayStyle": "Default",
+      "visibility": "public",
+      "updatedUtc": "2026-08-10T10:30:15.4916714",
+      "accessName": {
+        "en": "Girls' brigade",
+        "zh": "少年女子旅团"
+      },
+      "reviewRefusal": null,
+      "cardImageUrl": null,
+      "cardText": {
+        "en": "Public page for Girls' brigade.",
+        "zh": "少年女子旅团公开页面。"
+      },
+      "primaryMenuName": {
+        "en": "Groups",
+        "zh": "小组"
+      },
+      "primaryMenuId": "7b2d9ac2-0466-456c-b030-7f61b3cf5573",
+      "primaryMenuSortOrder": 3,
+      "menuSortOrder": 7,
+      "primaryMenuHomePlacement": "churchOrganization"
+    },
+    {
+      "id": "8f2591a0-2fbd-41c8-9ec9-0b2bb0a0e3ef",
+      "ownerGroupId": "687bd5eb-5135-4411-9e4d-fdad8daa8ff3",
+      "createdByMemberId": "22222222-2222-2222-2222-222222222222",
+      "title": {
+        "en": "University Students / Young Professionals Home Group",
+        "zh": "大學生/社青小家"
+      },
+      "description": {
+        "en": "Public page for University Students / Young Professionals Home Group.",
+        "zh": "大學生/社青小家公开页面。"
+      },
+      "tagsJson": "[\"alpha-test\",\"group\"]",
+      "titleDisplayStyle": "Default",
+      "visibility": "public",
+      "updatedUtc": "2026-08-10T10:30:26.0759401",
+      "accessName": {
+        "en": "University Students / Young Professionals Home Group",
+        "zh": "大學生/社青小家"
+      },
+      "reviewRefusal": null,
+      "cardImageUrl": null,
+      "cardText": {
+        "en": "Public page for University Students / Young Professionals Home Group.",
+        "zh": "大學生/社青小家公开页面。"
+      },
+      "primaryMenuName": {
+        "en": "Groups",
+        "zh": "小组"
+      },
+      "primaryMenuId": "7b2d9ac2-0466-456c-b030-7f61b3cf5573",
+      "primaryMenuSortOrder": 3,
+      "menuSortOrder": 9,
+      "primaryMenuHomePlacement": "churchOrganization"
+    },
+    {
+      "id": "7a1f3831-8735-43f4-81ba-97f903caecf2",
+      "ownerGroupId": "7032aa52-393d-4bf9-8519-2f5f00b7072a",
+      "createdByMemberId": "22222222-2222-2222-2222-222222222222",
+      "title": {
+        "en": "Living Water Home Group",
+        "zh": "活水小家"
+      },
+      "description": {
+        "en": "Public page for Living Water Home Group.",
+        "zh": "活水小家公开页面。"
+      },
+      "tagsJson": "[\"alpha-test\",\"group\"]",
+      "titleDisplayStyle": "Default",
+      "visibility": "public",
+      "updatedUtc": "2026-08-10T10:30:58.0066541",
+      "accessName": {
+        "en": "Living Water Home Group",
+        "zh": "活水小家"
+      },
+      "reviewRefusal": null,
+      "cardImageUrl": null,
+      "cardText": {
+        "en": "Public page for Living Water Home Group.",
+        "zh": "活水小家公开页面。"
+      },
+      "primaryMenuName": {
+        "en": "Groups",
+        "zh": "小组"
+      },
+      "primaryMenuId": "7b2d9ac2-0466-456c-b030-7f61b3cf5573",
+      "primaryMenuSortOrder": 3,
+      "menuSortOrder": 15,
+      "primaryMenuHomePlacement": "churchOrganization"
+    },
+    {
+      "id": "29f6beb0-e2e6-49f3-b37b-0b5fef5254ab",
+      "ownerGroupId": "33333333-3333-3333-3333-333333333333",
+      "createdByMemberId": "22222222-2222-2222-2222-222222222222",
+      "title": {
+        "zh": "青年团契",
+        "en": "Youth group"
+      },
+      "description": {
+        "zh": "青年团契公开页面。",
+        "en": "Public page for Youth group."
+      },
+      "tagsJson": "[\"alpha-test\",\"group\"]",
+      "titleDisplayStyle": "Default",
+      "visibility": "public",
+      "updatedUtc": "2026-08-10T10:34:09.2026706",
+      "accessName": {
+        "en": "Youth group",
+        "zh": "青年团契"
+      },
+      "reviewRefusal": null,
+      "cardImageUrl": null,
+      "cardText": {
+        "en": "Public page for Youth group.",
+        "zh": "青年团契公开页面。"
+      },
+      "primaryMenuName": {
+        "en": "Groups",
+        "zh": "小组"
+      },
+      "primaryMenuId": "7b2d9ac2-0466-456c-b030-7f61b3cf5573",
+      "primaryMenuSortOrder": 3,
+      "menuSortOrder": 18,
+      "primaryMenuHomePlacement": "churchOrganization"
+    },
+    {
+      "id": "e9b922c4-f86b-408d-93b1-7d70b3a2c967",
+      "ownerGroupId": "676395fd-4339-4bec-99e8-4eac560d52ac",
+      "createdByMemberId": "22222222-2222-2222-2222-222222222222",
+      "title": {
+        "zh": "基甸小家",
+        "en": "Gideon Home Group"
+      },
+      "description": {
+        "zh": "基甸小家公开页面。",
+        "en": "Public page for Gideon Home Group."
+      },
+      "tagsJson": "[\"alpha-test\",\"group\"]",
+      "titleDisplayStyle": "Default",
+      "visibility": "public",
+      "updatedUtc": "2026-08-10T10:34:15.4047531",
+      "accessName": {
+        "en": "Gideon Home Group",
+        "zh": "基甸小家"
+      },
+      "reviewRefusal": null,
+      "cardImageUrl": null,
+      "cardText": {
+        "en": "Public page for Gideon Home Group.",
+        "zh": "基甸小家公开页面。"
+      },
+      "primaryMenuName": {
+        "en": "Groups",
+        "zh": "小组"
+      },
+      "primaryMenuId": "7b2d9ac2-0466-456c-b030-7f61b3cf5573",
+      "primaryMenuSortOrder": 3,
+      "menuSortOrder": 19,
+      "primaryMenuHomePlacement": "churchOrganization"
+    },
+    {
+      "id": "d307e1a6-7cc9-4911-9e32-c4fb7a12a83e",
+      "ownerGroupId": "11384a60-fe16-486c-82fd-4b44b7e1f8c3",
+      "createdByMemberId": "22222222-2222-2222-2222-222222222222",
+      "title": {
+        "zh": "磐石小家",
+        "en": "Rock Home Group"
+      },
+      "description": {
+        "zh": "磐石小家公开页面。",
+        "en": "Public page for Rock Home Group."
+      },
+      "tagsJson": "[\"alpha-test\",\"group\"]",
+      "titleDisplayStyle": "Default",
+      "visibility": "public",
+      "updatedUtc": "2026-08-10T10:34:22.4777057",
+      "accessName": {
+        "en": "Rock Home Group",
+        "zh": "磐石小家"
+      },
+      "reviewRefusal": null,
+      "cardImageUrl": null,
+      "cardText": {
+        "en": "Public page for Rock Home Group.",
+        "zh": "磐石小家公开页面。"
+      },
+      "primaryMenuName": {
+        "en": "Groups",
+        "zh": "小组"
+      },
+      "primaryMenuId": "7b2d9ac2-0466-456c-b030-7f61b3cf5573",
+      "primaryMenuSortOrder": 3,
+      "menuSortOrder": 20,
+      "primaryMenuHomePlacement": "churchOrganization"
+    },
+    {
+      "id": "5c95d86b-7da2-4365-a917-896cb4d1173d",
+      "ownerGroupId": "c6f149a7-483d-4600-ae12-b8694676ae18",
+      "createdByMemberId": "22222222-2222-2222-2222-222222222222",
+      "title": {
+        "zh": "恩慈小家",
+        "en": "Mercy Home Group"
+      },
+      "description": {
+        "zh": "恩慈小家公开页面。",
+        "en": "Public page for Mercy Home Group."
+      },
+      "tagsJson": "[\"alpha-test\",\"group\"]",
+      "titleDisplayStyle": "Default",
+      "visibility": "public",
+      "updatedUtc": "2026-08-10T10:34:28.0738551",
+      "accessName": {
+        "en": "Mercy Home Group",
+        "zh": "恩慈小家"
+      },
+      "reviewRefusal": null,
+      "cardImageUrl": null,
+      "cardText": {
+        "en": "Public page for Mercy Home Group.",
+        "zh": "恩慈小家公开页面。"
+      },
+      "primaryMenuName": {
+        "en": "Groups",
+        "zh": "小组"
+      },
+      "primaryMenuId": "7b2d9ac2-0466-456c-b030-7f61b3cf5573",
+      "primaryMenuSortOrder": 3,
+      "menuSortOrder": 21,
+      "primaryMenuHomePlacement": "churchOrganization"
+    },
+    {
+      "id": "6b54f961-4760-410c-a60a-a3beba16fbd7",
+      "ownerGroupId": "44444444-4444-4444-4444-444444444444",
+      "createdByMemberId": "22222222-2222-2222-2222-222222222222",
+      "title": {
+        "zh": "馨香小家",
+        "en": "Fragrant Offering Home Group"
+      },
+      "description": {
+        "zh": "馨香小家公开页面。",
+        "en": "Public page for Fragrant Offering Home Group."
+      },
+      "tagsJson": "[\"alpha-test\",\"group\"]",
+      "titleDisplayStyle": "Default",
+      "visibility": "public",
+      "updatedUtc": "2026-08-10T10:34:33.1526928",
+      "accessName": {
+        "en": "Fragrant Offering Home Group",
+        "zh": "馨香小家"
+      },
+      "reviewRefusal": null,
+      "cardImageUrl": null,
+      "cardText": {
+        "en": "Public page for Fragrant Offering Home Group.",
+        "zh": "馨香小家公开页面。"
+      },
+      "primaryMenuName": {
+        "en": "Groups",
+        "zh": "小组"
+      },
+      "primaryMenuId": "7b2d9ac2-0466-456c-b030-7f61b3cf5573",
+      "primaryMenuSortOrder": 3,
+      "menuSortOrder": 22,
+      "primaryMenuHomePlacement": "churchOrganization"
+    },
+    {
+      "id": "287b9adc-f6d9-44f1-9e09-6752fcf4d61f",
+      "ownerGroupId": "cccccccc-cccc-cccc-cccc-cccccccccccc",
+      "createdByMemberId": "22222222-2222-2222-2222-222222222222",
+      "title": {
+        "zh": "恩雨小家",
+        "en": "Grace Rain Home Group"
+      },
+      "description": {
+        "zh": "恩雨小家公开页面。",
+        "en": "Public page for Grace Rain Home Group."
+      },
+      "tagsJson": "[\"alpha-test\",\"group\"]",
+      "titleDisplayStyle": "Default",
+      "visibility": "public",
+      "updatedUtc": "2026-08-10T10:34:38.4831192",
+      "accessName": {
+        "en": "Grace Rain Home Group",
+        "zh": "恩雨小家"
+      },
+      "reviewRefusal": null,
+      "cardImageUrl": null,
+      "cardText": {
+        "en": "Public page for Grace Rain Home Group.",
+        "zh": "恩雨小家公开页面。"
+      },
+      "primaryMenuName": {
+        "en": "Groups",
+        "zh": "小组"
+      },
+      "primaryMenuId": "7b2d9ac2-0466-456c-b030-7f61b3cf5573",
+      "primaryMenuSortOrder": 3,
+      "menuSortOrder": 23,
+      "primaryMenuHomePlacement": "churchOrganization"
+    },
+    {
+      "id": "15399e20-1b8b-4549-8c4b-a3c2f452a3f5",
+      "ownerGroupId": "77777777-7777-7777-7777-777777777777",
+      "createdByMemberId": "22222222-2222-2222-2222-222222222222",
+      "title": {
+        "zh": "信心小家",
+        "en": "Faith Home Group"
+      },
+      "description": {
+        "zh": "信心小家公开页面。",
+        "en": "Public page for Faith Home Group."
+      },
+      "tagsJson": "[\"alpha-test\",\"group\"]",
+      "titleDisplayStyle": "Default",
+      "visibility": "public",
+      "updatedUtc": "2026-08-10T10:34:43.6813792",
+      "accessName": {
+        "en": "Faith Home Group",
+        "zh": "信心小家"
+      },
+      "reviewRefusal": null,
+      "cardImageUrl": null,
+      "cardText": {
+        "en": "Public page for Faith Home Group.",
+        "zh": "信心小家公开页面。"
+      },
+      "primaryMenuName": {
+        "en": "Groups",
+        "zh": "小组"
+      },
+      "primaryMenuId": "7b2d9ac2-0466-456c-b030-7f61b3cf5573",
+      "primaryMenuSortOrder": 3,
+      "menuSortOrder": 24,
+      "primaryMenuHomePlacement": "churchOrganization"
+    },
+    {
+      "id": "4c37b066-e7f6-464f-bbae-cbaa4f5ffad1",
+      "ownerGroupId": "dddddddd-dddd-dddd-dddd-dddddddddddd",
+      "createdByMemberId": "22222222-2222-2222-2222-222222222222",
+      "title": {
+        "zh": "恩愛小家",
+        "en": "Love Home Group"
+      },
+      "description": {
+        "zh": "恩愛小家公开页面。",
+        "en": "Public page for Love Home Group."
+      },
+      "tagsJson": "[\"alpha-test\",\"group\"]",
+      "titleDisplayStyle": "Default",
+      "visibility": "public",
+      "updatedUtc": "2026-08-10T10:34:48.9733605",
+      "accessName": {
+        "en": "Love Home Group",
+        "zh": "恩愛小家"
+      },
+      "reviewRefusal": null,
+      "cardImageUrl": null,
+      "cardText": {
+        "en": "Public page for Love Home Group.",
+        "zh": "恩愛小家公开页面。"
+      },
+      "primaryMenuName": {
+        "en": "Groups",
+        "zh": "小组"
+      },
+      "primaryMenuId": "7b2d9ac2-0466-456c-b030-7f61b3cf5573",
+      "primaryMenuSortOrder": 3,
+      "menuSortOrder": 25,
+      "primaryMenuHomePlacement": "churchOrganization"
+    },
+    {
+      "id": "5c8457d7-80b0-4c60-bbdb-27b313f0324d",
+      "ownerGroupId": "e7f00024-b72c-418f-a16b-3d2f581a1227",
+      "createdByMemberId": "22222222-2222-2222-2222-222222222222",
+      "title": {
+        "en": "",
+        "zh": ""
+      },
+      "description": {
+        "en": "",
+        "zh": ""
+      },
+      "tagsJson": "[]",
+      "titleDisplayStyle": "Default",
+      "visibility": "public",
+      "updatedUtc": "2026-08-13T07:47:27.4795341",
+      "accessName": {
+        "en": "Garden of Joy",
+        "zh": "喜乐园"
+      },
+      "reviewRefusal": null,
+      "cardImageUrl": "/images/global/thumbnail1.jpg",
+      "cardText": {
+        "en": "Garden of Joy",
+        "zh": "喜乐园"
+      },
+      "primaryMenuName": {
+        "en": "Groups",
+        "zh": "小组"
+      },
+      "primaryMenuId": "7b2d9ac2-0466-456c-b030-7f61b3cf5573",
+      "primaryMenuSortOrder": 3,
+      "menuSortOrder": 26,
+      "primaryMenuHomePlacement": "churchOrganization"
+    }
+  ],
+  "homePage": {
+    "id": "9d9fa762-42c7-44b7-a31a-ff56ff207dc9",
+    "ownerGroupId": "676395fd-4339-4bec-99e8-4eac560d52ac",
+    "createdByMemberId": "22222222-2222-2222-2222-222222222222",
+    "title": {
+      "en": "Home",
+      "zh": "主页"
+    },
+    "description": {
+      "en": "Public home page for visitors, seekers, and members.",
+      "zh": "面向访客、慕道朋友和成员的公共首页。"
+    },
+    "tagsJson": "[]",
+    "titleDisplayStyle": "Default",
+    "visibility": "public",
+    "updatedUtc": "2026-08-10T09:21:54.1628365",
+    "sections": [
+      {
+        "id": "9695e164-b9bf-4cf3-80e1-1a0cc5652ad1",
+        "order": 1,
+        "type": "landingHero",
+        "contentJson": "{\"sectionKind\":\"landingHero\",\"header\":{\"title\":{\"en\":\"Meet Christ here. Grow through real community.\",\"zh\":\"在基督里相遇，在真实关系中成长。\"},\"subtitle\":{\"en\":\"A welcoming first screen for visitors, seekers, and members.\",\"zh\":\"为访客、慕道朋友和成员准备的首页主视觉。\"},\"align\":\"left\",\"scale\":\"feature\",\"tone\":\"primary\"},\"spacing\":\"large\",\"backgroundVideo\":\"/images/global/church_hero-background.mp4\",\"videoUrl\":\"/images/global/church_hero-background.mp4\",\"backgroundImage\":\"/images/global/church_hero-background.mp4\",\"backgroundImageUrl\":\"/images/global/church_hero-background.mp4\",\"posterImage\":\"/media/alife-groups.jpg\",\"posterImageUrl\":\"/media/alife-groups.jpg\",\"imageUrl\":\"/media/alife-groups.jpg\",\"title\":{\"en\":\"Meet Christ here. Grow through real community.\",\"zh\":\"在基督里相遇，在真实关系中成长。\"},\"headline\":{\"en\":\"Meet Christ here. Grow through real community.\",\"zh\":\"在基督里相遇，在真实关系中成长。\"},\"centerText\":{\"en\":\"A welcoming first screen for visitors, seekers, and members.\",\"zh\":\"为访客、慕道朋友和成员准备的首页主视觉。\"},\"body\":{\"en\":\"A welcoming first screen for visitors, seekers, and members.\",\"zh\":\"为访客、慕道朋友和成员准备的首页主视觉。\"},\"subtitle\":{\"en\":\"A welcoming first screen for visitors, seekers, and members.\",\"zh\":\"为访客、慕道朋友和成员准备的首页主视觉。\"},\"subheadline\":{\"en\":\"A welcoming first screen for visitors, seekers, and members.\",\"zh\":\"为访客、慕道朋友和成员准备的首页主视觉。\"},\"linkLabel\":{\"en\":\"\",\"zh\":\"\"},\"linkText\":{\"en\":\"\",\"zh\":\"\"},\"ctaLabel\":{\"en\":\"\",\"zh\":\"\"},\"linkUrl\":\"\",\"ctaUrl\":\"\",\"href\":\"\",\"secondaryLinkLabel\":{\"en\":\"\",\"zh\":\"\"},\"secondaryLabel\":{\"en\":\"\",\"zh\":\"\"},\"secondaryCtaLabel\":{\"en\":\"\",\"zh\":\"\"},\"secondaryLinkUrl\":\"\",\"secondaryUrl\":\"\",\"secondaryCtaUrl\":\"\"}",
+        "styleJson": "{\"layout\":\"landingHero\",\"frontendType\":\"LandingHero\"}"
+      },
+      {
+        "id": "2885439f-e805-4ca6-b7c0-ca69b962cee5",
+        "order": 2,
+        "type": "spotlight",
+        "contentJson": "{\"spacing\":\"normal\",\"presentation\":\"spotlight\",\"spotlight\":{\"mode\":\"manual\",\"source\":\"events\",\"preset\":\"upcoming\"},\"media\":{\"type\":\"image\",\"url\":\"/media/alife-visit.jpg\",\"position\":\"left\"},\"imageUrl\":\"/media/alife-visit.jpg\",\"backgroundImage\":\"/media/alife-visit.jpg\",\"backgroundImageUrl\":\"/media/alife-visit.jpg\",\"title\":{\"en\":\"(Title not yet entered)\",\"zh\":\"（尚未填写标题）\"},\"headline\":{\"en\":\"(Title not yet entered)\",\"zh\":\"（尚未填写标题）\"},\"subtitle\":{\"en\":\"(Subtitle)\",\"zh\":\"（副标题）\"},\"subheadline\":{\"en\":\"(Subtitle)\",\"zh\":\"（副标题）\"},\"centerText\":{\"en\":\"<h2>Welcome to God's house this Sunday.</h2><p>Every Sunday, we gather to worship, listen to God's word, greet one another, and pray for the city of Christchurch. Whether you are visiting church for the first time or have been on your faith journey for a long time, we hope this place becomes a home where you can know Jesus and find spiritual family.</p><table style=\\\"width: 90%; border-collapse: collapse;\\\"><colgroup><col><col><col></colgroup><tbody><tr><td><strong>Sunday Service</strong></td><td><strong>Main Hall</strong></td><td>10:00-11:30</td></tr><tr><td><strong>Youth Service</strong></td><td><strong>Side Hall</strong></td><td>10:00-11:30</td></tr><tr><td><strong>Sunday School</strong></td><td><strong>Second Floor Hall</strong></td><td>10:00-11:30</td></tr></tbody></table><p></p>\",\"zh\":\"<h2>欢迎你在主日来到神的家。</h2>\\n<p>每个主日，我们一起敬拜、聆听神的话、彼此问候，也为基督城这座城市祷告。无论你是第一次来到教会，还是已经在信仰路上走了很久，这里都盼望成为你认识耶稣、找到属灵家人的地方。</p>\\n<table style=\\\"width: 90%; border-collapse: collapse;\\\"><colgroup><col><col><col></colgroup>\\n<tbody>\\n<tr>\\n<td><strong>主日崇拜</strong></td>\\n<td><strong>大堂</strong></td>\\n<td>10:00-11:30</td>\\n</tr>\\n<tr>\\n<td><strong>青年堂</strong></td>\\n<td><strong>副堂</strong></td>\\n<td>10:00-11:30</td>\\n</tr>\\n<tr>\\n<td><strong>主日学</strong></td>\\n<td><strong>二楼大堂</strong></td>\\n<td>10:00-11:30</td>\\n</tr>\\n</tbody>\\n</table>\\n<p></p>\"},\"body\":{\"en\":\"<h2>Welcome to God's house this Sunday.</h2><p>Every Sunday, we gather to worship, listen to God's word, greet one another, and pray for the city of Christchurch. Whether you are visiting church for the first time or have been on your faith journey for a long time, we hope this place becomes a home where you can know Jesus and find spiritual family.</p><table style=\\\"width: 90%; border-collapse: collapse;\\\"><colgroup><col><col><col></colgroup><tbody><tr><td><strong>Sunday Service</strong></td><td><strong>Main Hall</strong></td><td>10:00-11:30</td></tr><tr><td><strong>Youth Service</strong></td><td><strong>Side Hall</strong></td><td>10:00-11:30</td></tr><tr><td><strong>Sunday School</strong></td><td><strong>Second Floor Hall</strong></td><td>10:00-11:30</td></tr></tbody></table><p></p>\",\"zh\":\"<h2>欢迎你在主日来到神的家。</h2>\\n<p>每个主日，我们一起敬拜、聆听神的话、彼此问候，也为基督城这座城市祷告。无论你是第一次来到教会，还是已经在信仰路上走了很久，这里都盼望成为你认识耶稣、找到属灵家人的地方。</p>\\n<table style=\\\"width: 90%; border-collapse: collapse;\\\"><colgroup><col><col><col></colgroup>\\n<tbody>\\n<tr>\\n<td><strong>主日崇拜</strong></td>\\n<td><strong>大堂</strong></td>\\n<td>10:00-11:30</td>\\n</tr>\\n<tr>\\n<td><strong>青年堂</strong></td>\\n<td><strong>副堂</strong></td>\\n<td>10:00-11:30</td>\\n</tr>\\n<tr>\\n<td><strong>主日学</strong></td>\\n<td><strong>二楼大堂</strong></td>\\n<td>10:00-11:30</td>\\n</tr>\\n</tbody>\\n</table>\\n<p></p>\"},\"text\":{\"en\":\"<h2>Welcome to God's house this Sunday.</h2><p>Every Sunday, we gather to worship, listen to God's word, greet one another, and pray for the city of Christchurch. Whether you are visiting church for the first time or have been on your faith journey for a long time, we hope this place becomes a home where you can know Jesus and find spiritual family.</p><table style=\\\"width: 90%; border-collapse: collapse;\\\"><colgroup><col><col><col></colgroup><tbody><tr><td><strong>Sunday Service</strong></td><td><strong>Main Hall</strong></td><td>10:00-11:30</td></tr><tr><td><strong>Youth Service</strong></td><td><strong>Side Hall</strong></td><td>10:00-11:30</td></tr><tr><td><strong>Sunday School</strong></td><td><strong>Second Floor Hall</strong></td><td>10:00-11:30</td></tr></tbody></table><p></p>\",\"zh\":\"<h2>欢迎你在主日来到神的家。</h2>\\n<p>每个主日，我们一起敬拜、聆听神的话、彼此问候，也为基督城这座城市祷告。无论你是第一次来到教会，还是已经在信仰路上走了很久，这里都盼望成为你认识耶稣、找到属灵家人的地方。</p>\\n<table style=\\\"width: 90%; border-collapse: collapse;\\\"><colgroup><col><col><col></colgroup>\\n<tbody>\\n<tr>\\n<td><strong>主日崇拜</strong></td>\\n<td><strong>大堂</strong></td>\\n<td>10:00-11:30</td>\\n</tr>\\n<tr>\\n<td><strong>青年堂</strong></td>\\n<td><strong>副堂</strong></td>\\n<td>10:00-11:30</td>\\n</tr>\\n<tr>\\n<td><strong>主日学</strong></td>\\n<td><strong>二楼大堂</strong></td>\\n<td>10:00-11:30</td>\\n</tr>\\n</tbody>\\n</table>\\n<p></p>\"},\"youtubeUrl\":\"\",\"linkLabel\":{\"en\":\"\",\"zh\":\"\"},\"linkText\":{\"en\":\"\",\"zh\":\"\"},\"ctaLabel\":{\"en\":\"\",\"zh\":\"\"},\"linkUrl\":\"\",\"ctaUrl\":\"\",\"href\":\"\"}",
+        "styleJson": "{\"layout\":\"spotlight\",\"presentation\":\"spotlight\",\"mediaPosition\":\"left\",\"imagePosition\":\"left\"}"
+      },
+      {
+        "id": "9813a738-2677-4360-a43a-9363315eb492",
+        "order": 3,
+        "type": "collectionShowcase",
+        "contentJson": "{\"sectionKind\":\"reviewedPageCarousel\",\"header\":{\"title\":{\"en\":\"Explore our community\",\"zh\":\"探索我们的群体\"},\"subtitle\":{\"en\":\"Discover more through the pages in this menu.\",\"zh\":\"通过这个菜单下的页面进一步了解我们。\"},\"align\":\"left\",\"scale\":\"normal\",\"tone\":\"fresh\"},\"spacing\":\"normal\",\"primaryMenuId\":\"7b2d9ac2-0466-456c-b030-7f61b3cf5573\"}",
+        "styleJson": "{\"layout\":\"reviewedPageCarousel\",\"frontendType\":\"ReviewedPageCarousel\"}"
+      },
+      {
+        "id": "0076b66a-e1d3-4273-b560-13dc37ebdee6",
+        "order": 4,
+        "type": "collectionShowcase",
+        "contentJson": "{\"sectionKind\":\"reviewedPageCarousel\",\"header\":{\"title\":{\"en\":\"Explore our community\",\"zh\":\"探索我们的群体\"},\"subtitle\":{\"en\":\"Discover more through the pages in this menu.\",\"zh\":\"通过这个菜单下的页面进一步了解我们。\"},\"align\":\"left\",\"scale\":\"normal\",\"tone\":\"fresh\"},\"spacing\":\"normal\",\"primaryMenuId\":\"3832b3d1-f5e1-4e98-9815-a2f578941c23\"}",
+        "styleJson": "{\"layout\":\"reviewedPageCarousel\",\"frontendType\":\"ReviewedPageCarousel\"}"
+      },
+      {
+        "id": "7f3a0872-77c6-4342-9e85-542e1cb929e0",
+        "order": 5,
+        "type": "collectionShowcase",
+        "contentJson": "{\"sectionKind\":\"reviewedPageCarousel\",\"header\":{\"title\":{\"en\":\"Explore our community\",\"zh\":\"探索我们的群体\"},\"subtitle\":{\"en\":\"Discover more through the pages in this menu.\",\"zh\":\"通过这个菜单下的页面进一步了解我们。\"},\"align\":\"left\",\"scale\":\"normal\",\"tone\":\"fresh\"},\"spacing\":\"normal\",\"primaryMenuId\":\"9eb30cf9-2a69-4a30-beb3-9769797ae785\"}",
+        "styleJson": "{\"layout\":\"reviewedPageCarousel\",\"frontendType\":\"ReviewedPageCarousel\"}"
+      },
+      {
+        "id": "84bf706e-6673-4676-b069-34fb2f72a961",
+        "order": 6,
+        "type": "collectionShowcase",
+        "contentJson": "{\"spacing\":\"normal\",\"layout\":\"carousel\",\"source\":\"sermons\",\"sourceType\":\"sermons\",\"sourceScope\":\"global\",\"preset\":\"latest\",\"limit\":4,\"sortBy\":\"date\",\"sortDirection\":\"desc\"}",
+        "styleJson": "{}"
+      },
+      {
+        "id": "23d2c1f8-a39a-4d44-ab39-13c4a899f418",
+        "order": 7,
+        "type": "spotlight",
+        "contentJson": "{\"header\":{\"icon\":\"bible\",\"title\":{\"en\":\"Psalm 133:1\",\"zh\":\"诗篇 133:1\"},\"align\":\"left\",\"scale\":\"normal\",\"tone\":\"primary\"},\"spacing\":\"normal\",\"presentation\":\"spotlight\",\"spotlight\":{\"mode\":\"manual\",\"source\":\"events\",\"preset\":\"upcoming\"},\"media\":{\"type\":\"image\",\"url\":\"/media/alife-groups.jpg\",\"position\":\"left\"},\"imageUrl\":\"/media/alife-groups.jpg\",\"backgroundImage\":\"/media/alife-groups.jpg\",\"backgroundImageUrl\":\"/media/alife-groups.jpg\",\"title\":{\"en\":\"Psalm 133:1\",\"zh\":\"诗篇 133:1\"},\"headline\":{\"en\":\"Psalm 133:1\",\"zh\":\"诗篇 133:1\"},\"subtitle\":{\"en\":\"\",\"zh\":\"\"},\"subheadline\":{\"en\":\"\",\"zh\":\"\"},\"centerText\":{\"en\":\"See how good and how pleasant it is for brothers to live together in unity!\",\"zh\":\"看哪，弟兄和睦同居，是何等的善，何等的美！\"},\"body\":{\"en\":\"See how good and how pleasant it is for brothers to live together in unity!\",\"zh\":\"看哪，弟兄和睦同居，是何等的善，何等的美！\"},\"text\":{\"en\":\"See how good and how pleasant it is for brothers to live together in unity!\",\"zh\":\"看哪，弟兄和睦同居，是何等的善，何等的美！\"},\"youtubeUrl\":\"\",\"linkLabel\":{\"en\":\"\",\"zh\":\"\"},\"linkText\":{\"en\":\"\",\"zh\":\"\"},\"ctaLabel\":{\"en\":\"\",\"zh\":\"\"},\"linkUrl\":\"\",\"ctaUrl\":\"\",\"href\":\"\"}",
+        "styleJson": "{\"layout\":\"spotlight\",\"presentation\":\"spotlight\",\"mediaPosition\":\"left\",\"imagePosition\":\"left\"}"
+      },
+      {
+        "id": "1d69235a-34b0-4378-8e92-f3fc3757eb5a",
+        "order": 8,
+        "type": "contactLocation",
+        "contentJson": "{\"sectionKind\":\"contactLocation\",\"header\":{\"title\":{\"en\":\"Chinese Abundant Life Church\",\"zh\":\"基督城华人丰盛生命教会\"},\"subtitle\":{\"en\":\"182 The Runway, Wigram, Christchurch 8042\",\"zh\":\"182 The Runway, Wigram, Christchurch 8042\"},\"align\":\"left\",\"scale\":\"normal\",\"tone\":\"primary\"},\"datasource\":\"custom\",\"location\":{\"mode\":\"custom\"},\"spacing\":\"large\",\"locationTitle\":{\"en\":\"Church Location\",\"zh\":\"教会地点\"},\"locationName\":{\"en\":\"Chinese Abundant Life Church\",\"zh\":\"基督城华人丰盛生命教会\"},\"title\":{\"en\":\"Chinese Abundant Life Church\",\"zh\":\"基督城华人丰盛生命教会\"},\"streetAddress\":{\"en\":\"182 The Runway, Wigram, Christchurch 8042\",\"zh\":\"182 The Runway, Wigram, Christchurch 8042\"},\"address\":{\"en\":\"182 The Runway, Wigram, Christchurch 8042\",\"zh\":\"182 The Runway, Wigram, Christchurch 8042\"},\"locationAddress\":{\"en\":\"Christchurch, New Zealand\",\"zh\":\"Christchurch, New Zealand\"},\"addressNote\":{\"en\":\"Christchurch, New Zealand\",\"zh\":\"Christchurch, New Zealand\"},\"body\":{\"en\":\"Christchurch, New Zealand\",\"zh\":\"Christchurch, New Zealand\"},\"contactName\":{\"en\":\"莊思思 贾鹏\",\"zh\":\"贾鹏\"},\"contactNameLabel\":{\"en\":\"Inquiry contact\",\"zh\":\"问询联系人\"},\"contactPhone\":\"03-9600999\",\"contactPhoneLabel\":{\"en\":\"Phone\",\"zh\":\"联系电话\"},\"openMapLabel\":{\"en\":\"Open in Google Maps\",\"zh\":\"在 Google Maps 打开\"},\"linkLabel\":{\"en\":\"Open in Google Maps\",\"zh\":\"在 Google Maps 打开\"},\"linkText\":{\"en\":\"Open in Google Maps\",\"zh\":\"在 Google Maps 打开\"},\"ctaLabel\":{\"en\":\"Open in Google Maps\",\"zh\":\"在 Google Maps 打开\"},\"mapUrl\":\"https://maps.app.goo.gl/VUdzffqEkKiq2Jy29\",\"linkUrl\":\"https://maps.app.goo.gl/VUdzffqEkKiq2Jy29\",\"ctaUrl\":\"https://maps.app.goo.gl/VUdzffqEkKiq2Jy29\",\"href\":\"https://maps.app.goo.gl/VUdzffqEkKiq2Jy29\",\"mapEmbedUrl\":\"https://maps.google.com/maps?q=-43.5498482,172.5624243&z=16&output=embed\",\"embedUrl\":\"https://maps.google.com/maps?q=-43.5498482,172.5624243&z=16&output=embed\"}",
+        "styleJson": "{\"layout\":\"contactLocation\",\"frontendType\":\"ContactLocation\"}"
+      }
+    ]
+  }
+}

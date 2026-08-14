@@ -18,8 +18,7 @@ import HomeNavHeader from '../views/home/HomeNavHeader'
 import HomeFooter from '../views/home/HomeFooter'
 import { getCopy } from '../views/home/homeCopy'
 import { buildPageMenuNavItems } from '../views/home/homeUtils'
-import { pageService } from '../services/pageService'
-import type { PageSummaryDto } from '../types'
+import { usePublicPagesQuery } from '../hooks/usePublicPageQueries'
 import { isHomeLocation, isPublicArticlePath, isPublicPageLocation, isPublicPagePath } from './routing/publicRoutePolicy'
 
 const readSidebarCollapsedPreference = () => {
@@ -177,42 +176,21 @@ const isPublicBrowsePath = (pathname: string) =>
 const PublicHomeShell = () => {
   const auth = useAuthStore()
   const location = useLocation()
-  const [publicPages, setPublicPages] = useState<PageSummaryDto[]>([])
+  const publicPagesQuery = usePublicPagesQuery()
+  const publicPages = publicPagesQuery.data ?? []
   const isPublicPage = isPublicPageLocation(location)
   const isPublicArticle = isPublicArticlePath(location.pathname)
   const isPublicSiteContent = isPublicPage || isPublicArticle
   const isHome = isHomeLocation(location)
   const copy = getCopy(auth.language, '')
-  const welcomeNavItem = useMemo(
-    () => ({ href: '/#welcome', label: copy.nav.welcome }),
-    [copy.nav.welcome],
-  )
-  const footerNavItems = useMemo(() => [welcomeNavItem], [welcomeNavItem])
   const headerNavItems = useMemo(
-    () => [
-      welcomeNavItem,
-      ...buildPageMenuNavItems(publicPages, auth.language, copy.nav.ministries),
-      { to: '/articles', label: copy.nav.articles },
-    ],
-    [auth.language, copy.nav.articles, copy.nav.ministries, publicPages, welcomeNavItem],
+    () => buildPageMenuNavItems(publicPages, auth.language, copy.nav.ministries),
+    [auth.language, copy.nav.ministries, publicPages],
   )
-
-  useEffect(() => {
-    if (isHome) {
-      return undefined
-    }
-
-    let cancelled = false
-    pageService.getPublicPages()
-      .then((pages) => {
-        if (!cancelled) {
-          setPublicPages(pages)
-        }
-      })
-      .catch((error) => console.error('[PublicHomeShell] public pages load failed:', error))
-
-    return () => { cancelled = true }
-  }, [isHome])
+  const footerNavItems = useMemo(() => {
+    const firstNavItem = headerNavItems[0]
+    return firstNavItem ? [{ href: '/', label: firstNavItem.label }] : []
+  }, [headerNavItems])
 
   return (
     <div className="flex min-h-screen flex-col bg-[#f7f3ea] text-[#18332d]">

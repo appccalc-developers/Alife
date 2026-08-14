@@ -9,6 +9,7 @@ import { pageSectionsCanvasClass, pageSectionsChromeClass } from '../components/
 import { fetchPageDetail, pageDetailQueryKey } from '../db/collections/pageCollection'
 import { subgroupsCollection, groupPagesCollection } from '../db/collections/groupCollection'
 import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
+import { usePublicPageDetailQuery } from '../hooks/usePublicPageQueries'
 import { useUiText } from '../i18n/uiText'
 import { pageService, publicPagesQueryKey } from '../services/pageService'
 import { useAuthStore } from '../stores/auth'
@@ -45,15 +46,17 @@ const PageView = () => {
   )
   const pageId = isPublicMenuPage ? menuPageId || publicPage?.id || '' : activePageId
 
+  const privatePageQuery = useQuery({
+    queryKey: pageDetailQueryKey(pageId),
+    queryFn: () => fetchPageDetail(pageId),
+    enabled: Boolean(pageId) && !isPublicPage,
+  })
+  const publicPageQuery = usePublicPageDetailQuery(isPublicPage ? pageId : '')
   const {
     data: page = null,
     isLoading: pageLoading,
     isError,
-  } = useQuery({
-    queryKey: pageDetailQueryKey(pageId),
-    queryFn: () => fetchPageDetail(pageId),
-    enabled: Boolean(pageId),
-  })
+  } = isPublicPage ? publicPageQuery : privatePageQuery
 
   const sections = useMemo(
     () => (page?.sections ?? []).slice().sort((a, b) => a.order - b.order),
@@ -83,10 +86,17 @@ const PageView = () => {
   )
 
   const publicPageNotFound = isPublicMenuPage && !menuPageId && !publicPagesLoading && !publicPagesError && !publicPage
+  const publicPageUnavailable = isPublicPage && Boolean(pageId) && !pageLoading && page === null
   const backFallbackTo = page?.ownerGroupId ? '/groups' : '/'
   const showBackButton = !isPublicPage
   const pagePending = publicPagesLoading || pageLoading
-  const pageFailed = !pagePending && (publicPagesError || publicPageNotFound || isError)
+  const publicPageFailed = isPublicPage && !page && (
+    (publicPagesError && publicPages.length === 0) ||
+    publicPageNotFound ||
+    publicPageUnavailable ||
+    isError
+  )
+  const pageFailed = !pagePending && (publicPageFailed || (!isPublicPage && isError))
   const showPageChrome = showBackButton || pageFailed
 
   return (

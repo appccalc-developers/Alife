@@ -4,6 +4,7 @@ import { conditionalGet, getCachedRecord } from '../httpCache'
 import { QUERY_STALE_TIME_MS, queryClient } from '../queryClient'
 
 export const pageDetailQueryKey = (pageId: string) => ['pageDetail', pageId] as const
+export const publicPageDetailQueryKey = (pageId: string) => ['publicPageDetail', pageId] as const
 
 export const getCachedPageDetail = async (pageId: string) =>
   normalizeNullablePageDetail((await getCachedRecord<PageDetailDto>(pageDetailQueryKey(pageId)))?.data)
@@ -15,6 +16,31 @@ export const fetchPageDetail = async (pageId: string) =>
     queryKey: pageDetailQueryKey(pageId),
     path: pageDetailPath(pageId),
     parser: (data) => normalizePageDetail(data as PageDetailDto & { tagsJson?: string }),
+  })
+
+export const getCachedPublicPageDetailRecord = async (pageId: string) => {
+  const record = await getCachedRecord<PageDetailDto | null>(publicPageDetailQueryKey(pageId))
+  if (!record) {
+    return undefined
+  }
+
+  const page = record.data
+    ? normalizePageDetail(record.data as PageDetailDto & { tagsJson?: string })
+    : null
+  return {
+    ...record,
+    data: page?.visibility === 'public' ? page : null,
+  }
+}
+
+export const fetchPublicPageDetail = async (pageId: string) =>
+  conditionalGet<PageDetailDto | null>({
+    queryKey: publicPageDetailQueryKey(pageId),
+    path: pageDetailPath(pageId),
+    parser: (data) => {
+      const page = normalizePageDetail(data as PageDetailDto & { tagsJson?: string })
+      return page.visibility === 'public' ? page : null
+    },
   })
 
 export const getFreshPageDetail = (pageId: string) => {

@@ -1,8 +1,9 @@
-import { lazy, Suspense, type ReactElement } from 'react'
+import { lazy, Suspense, useEffect, type ReactElement } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../../stores/auth'
 import AppRouteLoading from '../components/AppRouteLoading'
+import { isHomeLocation, isPublicPageLocation } from './publicRoutePolicy'
 
 const AdminView = lazy(() => import('../../views/AdminView'))
 const AlbumView = lazy(() => import('../../views/AlbumView'))
@@ -25,7 +26,8 @@ const InviteMembersView = lazy(() => import('../../views/InviteMembersView'))
 const OnboardingView = lazy(() => import('../../views/OnboardingView'))
 const PageReviewView = lazy(() => import('../../views/PageReviewView'))
 const PageEditorView = lazy(() => import('../../views/PageEditorView'))
-const PageView = lazy(() => import('../../views/PageView'))
+const loadPageView = () => import('../../views/PageView')
+const PageView = lazy(loadPageView)
 const ProfileView = lazy(() => import('../../views/ProfileView'))
 const SermonsView = lazy(() => import('../../views/SermonsView'))
 const SermonVideoView = lazy(() => import('../../views/SermonVideoView'))
@@ -95,9 +97,18 @@ const isGroupWorkspaceSectionPath = (pathname: string) =>
 const AppRoutes = () => {
   const location = useLocation()
   const reduceMotion = useReducedMotion()
-  const routeTransitionKey = location.pathname === '/study' || isGroupWorkspaceSectionPath(location.pathname)
-    ? location.pathname
-    : location.pathname + location.search
+  const isManagedPublicPage = isHomeLocation(location) || isPublicPageLocation(location)
+  const routeTransitionKey = isManagedPublicPage
+    ? 'managed-public-page'
+    : (location.pathname === '/study' || isGroupWorkspaceSectionPath(location.pathname)
+      ? location.pathname
+      : location.pathname + location.search)
+
+  useEffect(() => {
+    if (isManagedPublicPage) {
+      void loadPageView()
+    }
+  }, [isManagedPublicPage])
 
   return (
     <AnimatePresence initial={false} mode="wait">

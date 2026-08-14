@@ -135,6 +135,9 @@ export type HomeCopy = {
   locationContactPhoneLabel: string
   openMap: string
   customPageTitle: string
+  homepageLoading: string
+  homepageEmpty: string
+  homepageUnavailable: string
   footerLine: string
 }
 
@@ -275,6 +278,9 @@ export const getCopy = (language: Language, churchDescription: string): HomeCopy
       locationContactPhoneLabel: '联系电话',
       openMap: '在 Google Maps 打开',
       customPageTitle: '教会最新页面',
+      homepageLoading: '正在加载主页',
+      homepageEmpty: '目前还没有可显示的公开主页。',
+      homepageUnavailable: '主页暂时无法加载，请稍后再试。',
       footerLine: 'A warm digital doorway for faith, belonging, and service.',
     }
   }
@@ -414,6 +420,9 @@ export const getCopy = (language: Language, churchDescription: string): HomeCopy
     locationContactPhoneLabel: 'Phone',
     openMap: 'Open in Google Maps',
     customPageTitle: 'Latest Church Page',
+    homepageLoading: 'Loading homepage',
+    homepageEmpty: 'No public homepage is available yet.',
+    homepageUnavailable: 'The homepage is temporarily unavailable. Please try again later.',
     footerLine: 'A warm digital doorway for faith, belonging, and service.',
   }
 }
