@@ -28,8 +28,12 @@ public sealed class SavePageMenuLayoutCommandHandler(
             .OrderBy(x => x.SortOrder)
             .ThenBy(x => x.Id)
             .ToListAsync(cancellationToken);
-        var approvedReviews = await dbContext.PagePublicationReviews
-            .Where(x => x.Status == PagePublicationReviewStatus.Approved)
+        var approvedReviews = await (
+            from review in dbContext.PagePublicationReviews
+            join page in dbContext.Pages on review.PageId equals page.Id
+            where review.Status == PagePublicationReviewStatus.Approved &&
+                  page.Visibility == PageVisibility.Public
+            select review)
             .ToListAsync(cancellationToken);
 
         var requestedMenuIds = request.Menus.Select(x => x.PrimaryMenuId).ToList();

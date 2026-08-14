@@ -348,6 +348,112 @@ public class PagePublicationReviewTests
         await cacheInvalidation.Received(1).RemovePublicAsync(Arg.Any<CancellationToken>());
     }
 
+    [Theory]
+    [InlineData(true, PageVisibility.Public)]
+    [InlineData(false, PageVisibility.Draft)]
+    public async Task SaveMenuLayout_IgnoresApprovedReviewsForPagesHiddenFromReviewCandidates(
+        bool isDeleted,
+        PageVisibility visibility)
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var reviewerId = Guid.NewGuid();
+        var authorId = Guid.NewGuid();
+        var groupId = Guid.NewGuid();
+        var visiblePageId = Guid.NewGuid();
+        var hiddenPageId = Guid.NewGuid();
+        await SeedReviewerScenarioAsync(dbContext, reviewerId, authorId, groupId, visiblePageId);
+        var now = DateTime.UtcNow;
+        var hiddenPage = CreatePublicPage(hiddenPageId, groupId, authorId, "Hidden", now);
+        hiddenPage.IsDeleted = isDeleted;
+        hiddenPage.Visibility = visibility;
+        dbContext.Pages.Add(hiddenPage);
+        var firstMenu = new PagePrimaryMenu
+        {
+            Id = Guid.NewGuid(),
+            NameJson = "{\"en\":\"Ministries\",\"zh\":\"事工\"}",
+            SortOrder = 0,
+            CreatedUtc = now,
+            UpdatedUtc = now
+        };
+        var secondMenu = new PagePrimaryMenu
+        {
+            Id = Guid.NewGuid(),
+            NameJson = "{\"en\":\"Community\",\"zh\":\"社区\"}",
+            SortOrder = 1,
+            CreatedUtc = now,
+            UpdatedUtc = now
+        };
+        var visibleReview = CreateApprovedReview(visiblePageId, firstMenu, 0, now);
+        var hiddenReview = CreateApprovedReview(hiddenPageId, firstMenu, 7, now);
+        dbContext.PagePrimaryMenus.AddRange(firstMenu, secondMenu);
+        dbContext.PagePublicationReviews.AddRange(visibleReview, hiddenReview);
+        await dbContext.SaveChangesAsync();
+        var cacheInvalidation = Substitute.For<IPageCacheInvalidationService>();
+        var handler = new SavePageMenuLayoutCommandHandler(dbContext, cacheInvalidation);
+
+        var result = await handler.Handle(
+            new SavePageMenuLayoutCommand(
+                reviewerId,
+                [
+                    new PagePrimaryMenuLayoutItemDto(secondMenu.Id, [visiblePageId]),
+                    new PagePrimaryMenuLayoutItemDto(firstMenu.Id, [])
+                ]),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(0, secondMenu.SortOrder);
+        Assert.Equal(1, firstMenu.SortOrder);
+        Assert.Equal(secondMenu.Id, visibleReview.PrimaryMenuId);
+        Assert.Equal(0, visibleReview.MenuSortOrder);
+        Assert.Equal(firstMenu.Id, hiddenReview.PrimaryMenuId);
+        Assert.Equal(7, hiddenReview.MenuSortOrder);
+        Assert.Contains(dbContext.AuditLogs, log => log.Action == "page.menu-layout.update");
+        await cacheInvalidation.Received(1).RemovePublicAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SaveMenuLayout_RejectsIncompleteOrDuplicateVisibleApprovedPageSet(bool duplicatePageId)
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var reviewerId = Guid.NewGuid();
+        var authorId = Guid.NewGuid();
+        var groupId = Guid.NewGuid();
+        var firstPageId = Guid.NewGuid();
+        var secondPageId = Guid.NewGuid();
+        await SeedReviewerScenarioAsync(dbContext, reviewerId, authorId, groupId, firstPageId);
+        var now = DateTime.UtcNow;
+        dbContext.Pages.Add(CreatePublicPage(secondPageId, groupId, authorId, "Second", now));
+        var menu = new PagePrimaryMenu
+        {
+            Id = Guid.NewGuid(),
+            NameJson = "{\"en\":\"Ministries\",\"zh\":\"事工\"}",
+            SortOrder = 0,
+            CreatedUtc = now,
+            UpdatedUtc = now
+        };
+        dbContext.PagePrimaryMenus.Add(menu);
+        dbContext.PagePublicationReviews.AddRange(
+            CreateApprovedReview(firstPageId, menu, 0, now),
+            CreateApprovedReview(secondPageId, menu, 1, now));
+        await dbContext.SaveChangesAsync();
+        var cacheInvalidation = Substitute.For<IPageCacheInvalidationService>();
+        var handler = new SavePageMenuLayoutCommandHandler(dbContext, cacheInvalidation);
+        var requestedPageIds = duplicatePageId ? new[] { firstPageId, firstPageId } : new[] { firstPageId };
+
+        var result = await handler.Handle(
+            new SavePageMenuLayoutCommand(
+                reviewerId,
+                [new PagePrimaryMenuLayoutItemDto(menu.Id, requestedPageIds)]),
+            CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(Application.Common.Models.AppResultStatus.Conflict, result.Status);
+        Assert.DoesNotContain(dbContext.AuditLogs, log => log.Action == "page.menu-layout.update");
+        await cacheInvalidation.DidNotReceive().RemovePublicAsync(Arg.Any<CancellationToken>());
+    }
+
     [Fact]
     public async Task CreatePrimaryMenu_CreatesEmptyMenuAtEndOfTabOrder()
     {
