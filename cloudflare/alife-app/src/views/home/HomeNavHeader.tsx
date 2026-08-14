@@ -36,13 +36,7 @@ const HomeNavHeader = ({ copy, language, solid = false, navItems: providedNavIte
   const accountLabel = copy.enterAlife
   const nextLanguageLabel = copy.nextLanguageLabel
 
-  const fallbackNavItems: HomeNavItem[] = [
-    { href: '#welcome', label: copy.nav.welcome },
-  ]
-
-  const navItems = providedNavItems?.length
-    ? providedNavItems
-    : fallbackNavItems
+  const navItems = providedNavItems ?? []
   const scrollToSection = createSectionHandler(() => setMenuOpen(false))
   const closeDropdownNavigation = (target?: HTMLElement) => {
     setMenuOpen(false)

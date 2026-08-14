@@ -1,6 +1,6 @@
 import { http } from './http'
 import { groupPagesQueryKey } from '../db/collections/groupCollection'
-import { pageDetailQueryKey, setPageDetailCache } from '../db/collections/pageCollection'
+import { pageDetailQueryKey, publicPageDetailQueryKey, setPageDetailCache } from '../db/collections/pageCollection'
 import { conditionalGet, getCachedRecord, removeCachedRecord } from '../db/httpCache'
 import { queryClient } from '../db/queryClient'
 import type { LocalizedText, PageDetailDto, PageEditModel, PageSummaryDto, PageVisibility, SectionEditModel } from '../types'
@@ -131,11 +131,22 @@ const invalidateQueryCache = async (queryKey: readonly unknown[]) => {
 
 export const publicPagesQueryKey = () => ['publicPages'] as const
 
+export const getCachedPublicPagesRecord = async () => {
+  const record = await getCachedRecord<PageSummaryDto[]>(publicPagesQueryKey())
+  return record
+    ? { ...record, data: record.data.map(normalizePageSummary) }
+    : undefined
+}
+
 export const getCachedPublicPages = async () =>
-  ((await getCachedRecord<PageSummaryDto[]>(publicPagesQueryKey()))?.data ?? []).map(normalizePageSummary)
+  (await getCachedPublicPagesRecord())?.data ?? []
 
 const invalidatePublicPagesCache = async () => {
   await invalidateQueryCache(publicPagesQueryKey())
+}
+
+const invalidatePublicPageDetailCache = async (pageId: string) => {
+  await invalidateQueryCache(publicPageDetailQueryKey(pageId))
 }
 
 const invalidatePageListCache = async (page: PageSummaryDto | PageDetailDto) => {
@@ -181,6 +192,7 @@ export const pageService = {
     const normalized = cachePageDetail(data as PageDetailDto & { tagsJson?: string })
     await invalidatePageListCache(normalized)
     await invalidatePublicPagesCache()
+    await invalidatePublicPageDetailCache(pageId)
     return normalized
   },
 
@@ -200,6 +212,7 @@ export const pageService = {
     }
     await invalidatePageListCache(normalized)
     await invalidatePublicPagesCache()
+    await invalidatePublicPageDetailCache(pageId)
     return normalized
   },
 
@@ -219,6 +232,7 @@ export const pageService = {
   async deletePage(pageId: string) {
     await http.delete(`/api/pages/${pageId}`)
     await invalidatePublicPagesCache()
+    await invalidatePublicPageDetailCache(pageId)
   },
 
   toSectionPublishPayload,

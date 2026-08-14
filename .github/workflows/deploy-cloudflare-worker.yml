@@ -48,6 +48,10 @@ jobs:
         working-directory: ./cloudflare/alife-app
         run: npm ci
 
+      - name: Refresh public homepage bootstrap
+        working-directory: ./cloudflare/alife-app
+        run: npm run generate:public-home-bootstrap
+
       - name: Build Frontend
         working-directory: ./cloudflare/alife-app
         run: npm run build

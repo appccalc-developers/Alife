@@ -173,27 +173,33 @@ export const buildPageMenuNavItems = (
   fallbackLabel: string,
 ): HomeNavItem[] => {
   const groups = new Map<string, { label: string; sortOrder: number; items: HomeNavDropdownChild[] }>()
-
-  sortPublicReviewedPages(pages, language)
+  const sortedMenuPages = sortPublicReviewedPages(pages, language)
     .filter((page) => page.primaryMenuId && localizeText(page.primaryMenuName, language))
-    .forEach((page) => {
-      const key = primaryMenuLookupKey(page, fallbackLabel)
-      const label = localizeText(page.primaryMenuName, language) || fallbackLabel
-      const group = groups.get(key) ?? { label, sortOrder: page.primaryMenuSortOrder ?? Number.MAX_SAFE_INTEGER, items: [] }
-      group.items.push({
-        to: publicPageHomePath(page, language),
-        label: publicPageMenuName(page, language),
-      })
-      groups.set(key, group)
+  const homePageId = sortedMenuPages[0]?.id
+
+  sortedMenuPages.forEach((page) => {
+    const key = primaryMenuLookupKey(page, fallbackLabel)
+    const label = localizeText(page.primaryMenuName, language) || fallbackLabel
+    const group = groups.get(key) ?? { label, sortOrder: page.primaryMenuSortOrder ?? Number.MAX_SAFE_INTEGER, items: [] }
+    group.items.push({
+      to: page.id === homePageId ? '/' : publicPageHomePath(page, language),
+      label: publicPageMenuName(page, language),
     })
+    groups.set(key, group)
+  })
 
   const locale = language === 'zh' ? 'zh-Hans' : 'en'
   return Array.from(groups.entries())
     .sort(([, left], [, right]) => left.sortOrder - right.sortOrder || left.label.localeCompare(right.label, locale, { sensitivity: 'base' }))
     .map(([key, group]) => group.items.length === 1
-      ? { href: group.items[0].to, label: group.label }
+      ? { to: group.items[0].to, label: group.label }
       : { key: `pages:${key}`, label: group.label, items: group.items })
 }
+
+export const getFirstPageMenuPage = (pages: PageSummaryDto[], language: string) =>
+  sortPublicReviewedPages(pages, language).find((page) =>
+    Boolean(page.primaryMenuId && localizeText(page.primaryMenuName, language)),
+  ) ?? null
 
 const publicPageLookupKey = (value: string | null | undefined) =>
   value?.trim().replace(/\s+/g, ' ').toLocaleLowerCase() ?? ''

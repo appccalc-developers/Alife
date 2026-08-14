@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import logo from '../../assets/logo.png'
 import type { HomeCopy } from './homeCopy'
 
@@ -17,7 +18,7 @@ const HomeFooter = ({ copy, navItems }: Props) => (
         </div>
       </div>
       <div className="flex flex-wrap gap-x-5 gap-y-2 text-[0.84rem] font-medium text-home-muted">
-        {navItems.map((item) => <a key={item.href} className="transition hover:text-home-gold-text" href={item.href}>{item.label}</a>)}
+        {navItems.map((item) => <Link key={item.href} className="transition hover:text-home-gold-text" to={item.href}>{item.label}</Link>)}
       </div>
     </div>
   </footer>
