@@ -1,6 +1,5 @@
 import bootstrapJson from '../generated/publicHomeBootstrap.json'
 import type { PageDetailDto, PageSummaryDto } from '../types'
-import { normalizePageSummary, normalizePageVisibility } from '../utils/apiEnums'
 import { normalizePageDetail } from '../utils/pageDetail'
 
 type PublicHomeBootstrap = {
