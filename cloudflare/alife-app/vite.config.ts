@@ -42,6 +42,10 @@ export default defineConfig(() => {
         navigateFallback: null,
         skipWaiting: true,
         globPatterns: ['**/*.{js,css,html,json,png,svg,ico,webp,woff2}'],
+        // Historical article covers are numerous and load lazily. Keep them out
+        // of the install-time precache and let the image runtime cache retain
+        // only the covers a visitor actually views.
+        globIgnores: ['article-covers/generated/**'],
         runtimeCaching: [
           {
             // The hero MP4 is served as a full response by Workers Static Assets.
