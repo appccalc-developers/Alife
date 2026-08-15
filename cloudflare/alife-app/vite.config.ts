@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
@@ -6,7 +6,25 @@ const ONE_WEEK_IN_SECONDS = 7 * 24 * 60 * 60
 const THIRTY_DAYS_IN_SECONDS = 30 * 24 * 60 * 60
 declare const self: { location: { origin: string } }
 
-export default defineConfig(() => {
+const isLoopbackUrl = (value: string) => {
+  try {
+    const hostname = new URL(value).hostname.toLowerCase()
+    return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1'
+  } catch {
+    return false
+  }
+}
+
+export default defineConfig(({ command, mode }) => {
+  const environment = loadEnv(mode, process.cwd(), '')
+  const configuredApiBaseUrl = (environment.VITE_API_BASE_URL ?? '').trim()
+  if (command === 'build' && isLoopbackUrl(configuredApiBaseUrl)) {
+    // A developer's ignored .env may point at the local Functions host. That
+    // address must never be embedded in a browser bundle deployed to Cloudflare.
+    process.env.VITE_API_BASE_URL = ''
+    console.warn('Ignoring loopback VITE_API_BASE_URL for this production build; using same-origin /api.')
+  }
+
   const apiProxyTarget = process.env.API_PROXY_TARGET || 'http://127.0.0.1:7071'
   const aiProxyTarget = process.env.AI_PROXY_TARGET || process.env.SPEED_LAYER_PROXY_TARGET || 'http://127.0.0.1:8787'
   const imagesProxyTarget = process.env.IMAGES_PROXY_TARGET || 'https://images.ccalc.live'
@@ -42,6 +60,10 @@ export default defineConfig(() => {
         navigateFallback: null,
         skipWaiting: true,
         globPatterns: ['**/*.{js,css,html,json,png,svg,ico,webp,woff2}'],
+        // Historical article covers are numerous and load lazily. Keep them out
+        // of the install-time precache and let the image runtime cache retain
+        // only the covers a visitor actually views.
+        globIgnores: ['article-covers/generated/**'],
         runtimeCaching: [
           {
             // The hero MP4 is served as a full response by Workers Static Assets.

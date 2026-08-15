@@ -7,6 +7,7 @@ import { useAuthStore } from '../stores/auth'
 import type { ContentPostCategory, ContentPostSummaryDto } from '../types/contentPost'
 import { localizeText } from '../utils/localizedText'
 import { articleCopy, contentPostCategories, contentPostCategoryLabel } from './articles/articleCopy'
+import { generatedArticleCoverUrl } from './articles/articleCover'
 
 const PAGE_SIZE = 18
 
@@ -50,16 +51,21 @@ const ArticleCard = ({
 }) => {
   const title = localizeText(post.title, language)
   const summary = localizeText(post.summary, language)
+  const [coverLoadFailed, setCoverLoadFailed] = useState(false)
+  const coverUrl = coverLoadFailed
+    ? null
+    : post.coverImageUrl || generatedArticleCoverUrl(post.slug)
 
   return (
     <article className="group flex h-full flex-col overflow-hidden rounded-3xl border border-[#18332d]/8 bg-white shadow-[0_14px_45px_rgba(24,51,45,0.06)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_20px_55px_rgba(24,51,45,0.11)]">
       <Link className="block overflow-hidden bg-[#dce7df]" to={`/articles/${encodeURIComponent(post.slug)}`} tabIndex={-1}>
-        {post.coverImageUrl ? (
+        {coverUrl ? (
           <img
             className="aspect-[16/10] w-full object-cover transition duration-500 group-hover:scale-[1.025]"
-            src={post.coverImageUrl}
+            src={coverUrl}
             alt={title}
             loading="lazy"
+            onError={() => setCoverLoadFailed(true)}
           />
         ) : (
           <span className="grid aspect-[16/10] place-items-center bg-[linear-gradient(135deg,#dce7df,#eee5cf)] text-[#31594e]">
