@@ -1,4 +1,6 @@
-export type Language = 'en' | 'zh'
+import type { Language } from '../../i18n/locale'
+
+export type { Language }
 
 export type HomeCopy = {
   nav: {
@@ -122,7 +124,6 @@ export type HomeCopy = {
   recentSermonsFallbackMeta: string
   recentSermonsItemFallback: string
   recentSermonsEmpty: string
-  nextLanguageLabel: string
   loginPromptTitle: string
   loginPromptBody: string
   loginPromptLogin: string
@@ -265,7 +266,6 @@ export const getCopy = (language: Language, churchDescription: string): HomeCopy
       recentSermonsFallbackMeta: '主日讲道',
       recentSermonsItemFallback: '讲道',
       recentSermonsEmpty: '近期讲道同步后，会在这里自动展示最新信息。',
-      nextLanguageLabel: 'EN',
       loginPromptTitle: '需要登录',
       loginPromptBody: '请先登录或注册后再继续操作。',
       loginPromptLogin: '前往登录',
@@ -407,7 +407,6 @@ export const getCopy = (language: Language, churchDescription: string): HomeCopy
     recentSermonsFallbackMeta: 'Sunday sermon',
     recentSermonsItemFallback: 'Sermon',
     recentSermonsEmpty: 'Recent sermons will appear here automatically after the sermon list is synced.',
-    nextLanguageLabel: '中文',
     loginPromptTitle: 'Login Required',
     loginPromptBody: 'Please log in or sign up to continue.',
     loginPromptLogin: 'Go to Login',

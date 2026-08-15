@@ -1,24 +1,8 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { authService } from '../services/authService'
 import { activeEntityService } from '../services/activeEntityService'
+import { applyDocumentLocale, getInitialLanguage, saveLanguagePreference, type Language } from '../i18n/locale'
 import type { MeDto, MembershipRole } from '../types'
-
-type Language = 'en' | 'zh'
-const LANGUAGE_STORAGE_KEY = 'alife.language'
-
-const readStoredLanguage = (): Language => {
-  if (typeof window === 'undefined') {
-    return 'en'
-  }
-
-  return window.localStorage.getItem(LANGUAGE_STORAGE_KEY) === 'zh' ? 'zh' : 'en'
-}
-
-const writeStoredLanguage = (language: Language) => {
-  if (typeof window !== 'undefined') {
-    window.localStorage.setItem(LANGUAGE_STORAGE_KEY, language)
-  }
-}
 
 type AuthContextValue = {
   me: MeDto | null
@@ -46,7 +30,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [me, setMe] = useState<MeDto | null>(null)
   const [loading, setLoading] = useState(false)
   const [initialized, setInitialized] = useState(false)
-  const [language, setLanguage] = useState<Language>(() => readStoredLanguage())
+  const [language, setLanguage] = useState<Language>(() => getInitialLanguage())
+
+  useEffect(() => {
+    applyDocumentLocale(language)
+  }, [language])
 
   const fetchMe = useCallback(async () => {
     const profile = await authService.getMe()
@@ -108,8 +96,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   )
 
   const updateLanguage = useCallback(async (value: Language) => {
+    applyDocumentLocale(value)
     setLanguage(value)
-    writeStoredLanguage(value)
+    saveLanguagePreference(value)
   }, [])
 
   const value = useMemo<AuthContextValue>(

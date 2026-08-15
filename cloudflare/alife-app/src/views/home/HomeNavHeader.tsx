@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { ChevronDown, Menu, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import logo from '../../assets/logo.png'
+import LanguageSelector from '../../components/i18n/LanguageSelector'
 import { useAuthStore } from '../../stores/auth'
 import type { HomeCopy, Language } from './homeCopy'
 import { createSectionHandler, isDropdownNavItem, isRouteNavItem } from './homeUtils'
@@ -34,7 +35,6 @@ const HomeNavHeader = ({ copy, language, solid = false, navItems: providedNavIte
 
   const accountTo = '/enter'
   const accountLabel = copy.enterAlife
-  const nextLanguageLabel = copy.nextLanguageLabel
 
   const navItems = providedNavItems ?? []
   const scrollToSection = createSectionHandler(() => setMenuOpen(false))
@@ -137,14 +137,7 @@ const HomeNavHeader = ({ copy, language, solid = false, navItems: providedNavIte
         </nav>
 
         <div className="flex items-center gap-3">
-          <button
-            className="text-[0.84rem] font-medium text-white/45 transition hover:text-white"
-            type="button"
-            onClick={() => void auth.updateLanguage(language === 'zh' ? 'en' : 'zh')}
-            aria-label="Switch language"
-          >
-            {nextLanguageLabel}
-          </button>
+          <LanguageSelector language={language} onChange={auth.updateLanguage} variant="home" />
           <Link className="hidden whitespace-nowrap rounded-lg border border-white/15 px-4 py-1.5 text-[0.84rem] font-semibold text-white/90 transition hover:border-white/25 hover:bg-white/[0.06] sm:inline-flex" to={accountTo}>
             {accountLabel}
           </Link>
