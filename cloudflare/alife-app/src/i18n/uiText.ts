@@ -721,6 +721,11 @@ const text = {
   noSubtitleYet: { en: 'No subtitle yet.', zh: '尚无副标题。' },
   buttonText: { en: 'Button text', zh: '按钮文字' },
   heroStyle: { en: 'Hero Style', zh: '主视觉样式' },
+  landingHeroBottomFade: { en: 'Fade into the next section', zh: '淡出至下一区块' },
+  landingHeroBottomFadeDescription: {
+    en: 'Blend the bottom of the hero into the page background for a softer transition.',
+    zh: '让主视觉底部渐变到页面背景色，使区块衔接更柔和。',
+  },
   featured: { en: 'Featured', zh: '特色' },
   classic: { en: 'Classic', zh: '经典' },
   poster: { en: 'Poster', zh: '海报' },

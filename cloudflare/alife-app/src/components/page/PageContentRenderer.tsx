@@ -126,6 +126,7 @@ export const createEmptyPageSection = (type: SectionType = 'RichText'): SectionE
       styleJson: {
         layout: 'landingHero',
         frontendType: 'LandingHero',
+        bottomFade: false,
       },
     }
   }

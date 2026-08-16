@@ -9,6 +9,7 @@ import {
   patchContent,
   patchLocalizedContent,
   patchLocalizedSectionHeader,
+  patchStyle,
   readLocalizedText,
   readText,
 } from './sectionUtils'
@@ -58,9 +59,11 @@ const LandingHeroSection = ({ section, mode, domId, disabled, editorPreview, pre
   const primaryUrl = readText(section.contentJson, 'linkUrl', 'ctaUrl', 'href')
   const secondaryLabel = readLocalizedText(section.contentJson, auth.language, 'secondaryLinkLabel', 'secondaryLabel', 'secondaryCtaLabel')
   const secondaryUrl = readText(section.contentJson, 'secondaryLinkUrl', 'secondaryUrl', 'secondaryCtaUrl')
+  const bottomFade = section.styleJson.bottomFade === true
   const mediaGroupId = contextGroupId || page?.ownerGroupId || undefined
 
   const updateContent = (patch: Record<string, unknown>) => onUpdate?.(patchContent(section, patch))
+  const updateStyle = (patch: Record<string, unknown>) => onUpdate?.(patchStyle(section, patch))
   const updateLocalizedContent = (patch: Record<string, string>) => onUpdate?.(patchLocalizedContent(section, auth.language, patch))
   const updateHeroTitle = (value: string) => {
     const nextSection = patchLocalizedContent(section, auth.language, { title: value, headline: value })
@@ -149,6 +152,22 @@ const LandingHeroSection = ({ section, mode, domId, disabled, editorPreview, pre
         disabled={disabled}
         onChange={(value) => updateContent({ secondaryLinkUrl: value, secondaryUrl: value, secondaryCtaUrl: value })}
       />
+      <label
+        className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 md:col-span-2"
+        data-field-key="landing-hero-bottom-fade"
+      >
+        <input
+          type="checkbox"
+          className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#176b5a] focus:ring-[#176b5a]"
+          checked={bottomFade}
+          disabled={disabled}
+          onChange={(event) => updateStyle({ bottomFade: event.target.checked })}
+        />
+        <span>
+          <span className="block text-sm font-bold text-slate-900">{t('landingHeroBottomFade')}</span>
+          <span className="mt-1 block text-xs leading-5 text-slate-600">{t('landingHeroBottomFadeDescription')}</span>
+        </span>
+      </label>
     </PropertyPanel>
   )
 
@@ -167,7 +186,7 @@ const LandingHeroSection = ({ section, mode, domId, disabled, editorPreview, pre
       ].join(' ')}
     >
       <LandingHeroMedia src={mediaUrl} poster={posterUrl} />
-      {!compactPreview ? <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] h-48 bg-gradient-to-t from-home-surface to-transparent" /> : null}
+      {bottomFade && !compactPreview ? <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] h-48 bg-gradient-to-t from-home-surface to-transparent" /> : null}
 
       <div className={['relative z-10 mx-auto flex max-w-6xl items-end px-5 sm:px-8 lg:px-10', compactPreview ? 'min-h-[30rem] pb-12 pt-20' : 'min-h-dvh pb-24 pt-24'].join(' ')}>
         <div className="max-w-xl">
