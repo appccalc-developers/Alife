@@ -6,6 +6,7 @@ import {
   normalizeChurchManagementSection,
 } from '../src/app/routing/churchManagementAccess.ts'
 import { buildEventDetailPath, resolveEventBoundActionUrl } from '../src/utils/eventRoutes.ts'
+import { getRouteTransitionKey, isForumFeedPath } from '../src/app/routing/routeTransitionPolicy.ts'
 
 test('church management access accepts church managers and each scoped platform permission', () => {
   assert.equal(canAccessChurchManagement({
@@ -58,4 +59,21 @@ test('event-bound actions replace only missing and legacy detail links', () => {
     resolveEventBoundActionUrl(' https://example.com/event ', 'group-id', 'event-id'),
     ' https://example.com/event ',
   )
+})
+
+test('forum feed category changes preserve the mounted route view', () => {
+  for (const pathname of ['/forum', '/church/forum', '/groups/group-id/forum']) {
+    assert.equal(isForumFeedPath(pathname), true)
+    assert.equal(getRouteTransitionKey({ pathname, search: '?categoryId=updates', isManagedPublicPage: false }), pathname)
+  }
+})
+
+test('forum post detail routes keep their full transition identity', () => {
+  for (const pathname of ['/forum/posts/post-id', '/church/forum/posts/post-id', '/groups/group-id/forum/posts/post-id']) {
+    assert.equal(isForumFeedPath(pathname), false)
+    assert.equal(
+      getRouteTransitionKey({ pathname, search: '?reply=comment-id', isManagedPublicPage: false }),
+      `${pathname}?reply=comment-id`,
+    )
+  }
 })

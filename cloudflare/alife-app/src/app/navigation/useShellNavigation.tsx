@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useSyncExternalStore } from 'react'
-import { Activity, Bell, BookMarked, BookOpenText, Church, FileImage, Globe2, Home, Images, MessageSquareText, Settings2, ShieldCheck, UsersRound } from 'lucide-react'
+import { Activity, Bell, BookMarked, BookOpenText, Church, FileImage, Globe2, Home, Images, MessageSquareText, Settings2, ShieldCheck, UserRound, UsersRound } from 'lucide-react'
 import { groupMembershipsCollectionQueryKey } from '../../db/collections/groupCollection'
 import { queryClient } from '../../db/queryClient'
 import { activeEntityService } from '../../services/activeEntityService'
@@ -66,6 +66,7 @@ export const useShellNavigation = ({
   const auth = useAuthStore()
   const isChinese = auth.language === 'zh'
   const memberAccountLabel = isChinese ? '成员账号' : 'Member account'
+  const personalCenterLabel = isChinese ? '个人中心' : 'Personal Center'
   const workspaceGroupId = requestedGroupLifeGroupId && requestedGroupLifeGroupId !== churchGroupId
     ? requestedGroupLifeGroupId
     : ''
@@ -325,10 +326,10 @@ export const useShellNavigation = ({
   const profileItem: ShellNavItem | null = !auth.loading && !auth.isGuest
     ? {
       key: 'app:profile',
-      label: auth.me?.displayName || memberAccountLabel,
-      description: memberAccountLabel,
+      label: personalCenterLabel,
+      description: auth.me?.displayName || memberAccountLabel,
       to: '/profile',
-      icon: <span aria-hidden="true" className="text-xs font-black">{(auth.me?.displayName || memberAccountLabel).slice(0, 1).toUpperCase()}</span>,
+      icon: <UserRound className="h-5 w-5" />,
     }
     : null
   const personalCenterItem = guestItem || profileItem
@@ -363,21 +364,6 @@ export const useShellNavigation = ({
       toggleOnHeaderClick: Boolean(workspaceGroupId),
       items: groupContentItems,
     },
-    contentItems.length
-      ? { key: 'platform-content', label: isChinese ? '公开内容' : 'Public content', description: isChinese ? '面向访客和成员的入口' : 'Visitor and member-facing entry points', items: contentItems }
-      : null,
-    platformManagementItems.length
-      ? {
-        key: 'platform-management',
-        label: isChinese ? '平台管理' : 'Platform Management',
-        description: isChinese ? '教会管理、首页管理、文件与审计能力' : 'Church management, homepage management, files, and audit capabilities',
-        to: platformManagementItems[0].to,
-        icon: <ShieldCheck className="h-5 w-5" />,
-        collapsible: true,
-        toggleOnHeaderClick: true,
-        items: platformManagementChildItems,
-      }
-      : null,
     personalCenterItem
       ? {
         key: 'platform-personal-center',
@@ -388,8 +374,23 @@ export const useShellNavigation = ({
         collapsible: true,
         showDescription: true,
         toggleOnHeaderClick: true,
-        alignToBottom: true,
         items: auth.isGuest ? [] : accountItems,
+      }
+      : null,
+    contentItems.length
+      ? { key: 'platform-content', label: isChinese ? '公开内容' : 'Public content', description: isChinese ? '面向访客和成员的入口' : 'Visitor and member-facing entry points', items: contentItems }
+      : null,
+    platformManagementItems.length
+      ? {
+        key: 'platform-management',
+        label: isChinese ? '系统管理' : 'System Management',
+        description: isChinese ? '教会管理、首页管理、文件与审计能力' : 'Church management, homepage management, files, and audit capabilities',
+        to: platformManagementItems[0].to,
+        icon: <ShieldCheck className="h-5 w-5" />,
+        collapsible: true,
+        toggleOnHeaderClick: true,
+        alignToBottom: true,
+        items: platformManagementChildItems,
       }
       : null,
   ].filter(isPresent)
