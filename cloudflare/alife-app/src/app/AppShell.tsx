@@ -9,10 +9,9 @@ import AppRouteLoading from './components/AppRouteLoading'
 import AppRoutes from './routing/AppRoutes'
 import { useShellContext } from './context/useShellContext'
 import { useShellNavigation } from './navigation/useShellNavigation'
-import { BottomNavigation, DesktopNavigation, MobileNavigationDrawer } from './navigation/AppNavigation'
+import { BottomNavigation, DesktopNavigation } from './navigation/AppNavigation'
 import { useShellActions } from './actions/useShellActions'
 import FloatingActionButtons from './actions/FloatingActionButtons'
-import GroupDrawer from './shell/GroupDrawer'
 import ShellHeader from './shell/ShellHeader'
 import HomeNavHeader from '../views/home/HomeNavHeader'
 import HomeFooter from '../views/home/HomeFooter'
@@ -41,8 +40,6 @@ const writeSidebarCollapsedPreference = (collapsed: boolean) => {
 const WorkspaceShell = () => {
   const auth = useAuthStore()
   const context = useShellContext()
-  const [groupDrawerOpen, setGroupDrawerOpen] = useState(false)
-  const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsedPreference)
   const [debugLoading, setDebugLoading] = useState(false)
   const contextualGroupIsChurch = context.contextualGroup?.isChurch === true ||
@@ -53,11 +50,15 @@ const WorkspaceShell = () => {
     ? context.contextualGroup
     : (!storedGroupIsChurch ? context.currentGroup : null)
   const groupLifeGroupId = groupLifeGroup?.id || ''
+  const groupLifeGroupName = groupLifeGroupId
+    ? localizeText(groupLifeGroup?.name, auth.language)
+    : ''
 
   const navigation = useShellNavigation({
     contextualGroupId: context.contextualGroupId,
     churchGroupId: context.churchGroup?.id || '',
     groupLifeGroupId,
+    groupLifeGroupName,
     eventDetailScreen: Boolean(context.groupEventDetailMatch || context.location.pathname === '/events'),
     contextualEventId: context.groupEventDetailMatch?.[2] || context.activeIds.eventId,
     contextualEvent: context.contextualEvent,
@@ -72,16 +73,6 @@ const WorkspaceShell = () => {
   })
 
   const headerGroupContextId = !context.isOnboardingScreen ? groupLifeGroupId : ''
-  const headerGroupName = headerGroupContextId
-    ? localizeText(groupLifeGroup?.name, auth.language)
-    : ''
-  const headerGroupManageTo = headerGroupContextId && context.contextualGroupId === headerGroupContextId && context.canOpenCurrentGroupManagement
-    ? '/groups?section=group'
-    : undefined
-  useEffect(() => {
-    setGroupDrawerOpen(false)
-    setMobileNavOpen(false)
-  }, [context.location.pathname, context.location.search])
 
   useEffect(() => {
     if (auth.isGuest) return
@@ -112,16 +103,9 @@ const WorkspaceShell = () => {
   return (
     <div className="alife-workspace relative min-h-screen text-[#18332d]">
       <DesktopNavigation
-        accountItems={navigation.accountItems}
-        primaryItems={navigation.primaryItems}
-        workspaceItems={navigation.workspaceItems}
         platformSections={navigation.platformSections}
         workspaceSections={navigation.workspaceSections}
         workspaceVisible={navigation.workspaceVisible}
-        workspaceName={headerGroupName}
-        workspaceLabel={navigation.workspaceLabel}
-        workspaceTo="/groups/select"
-        userName={auth.me?.displayName}
         copy={navigation.copy}
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed((current) => !current)}
@@ -130,13 +114,10 @@ const WorkspaceShell = () => {
       <div className={['relative z-10 min-h-screen transition-[padding] duration-300', sidebarCollapsed ? 'desktop:pl-20' : 'desktop:pl-72'].join(' ')}>
         <ShellHeader
           appNavItems={navigation.headerItems}
-          groupName={headerGroupName}
-          groupManageTo={headerGroupManageTo}
           contextualGroupId={headerGroupContextId}
           onboarding={context.isOnboardingScreen}
           debugLoading={debugLoading}
           onDebug={() => void sendDebugCall()}
-          onOpenGroupDrawer={() => setGroupDrawerOpen(true)}
         />
 
         <main
@@ -149,32 +130,14 @@ const WorkspaceShell = () => {
         </main>
       </div>
 
-      <BottomNavigation items={navigation.mobileItems} onOpenMenu={() => setMobileNavOpen(true)} copy={navigation.copy} />
-      <MobileNavigationDrawer
-        open={mobileNavOpen}
-        onClose={() => setMobileNavOpen(false)}
-        accountItems={navigation.accountItems}
-        primaryItems={navigation.primaryItems}
-        workspaceItems={navigation.workspaceItems}
-        platformSections={navigation.platformSections}
-        workspaceSections={navigation.workspaceSections}
-        workspaceVisible={navigation.workspaceVisible}
-        workspaceName={headerGroupName}
-        workspaceLabel={navigation.workspaceLabel}
-        workspaceTo="/groups/select"
-        userName={auth.me?.displayName}
+      <BottomNavigation
+        sections={[
+          ...(navigation.workspaceVisible ? navigation.workspaceSections : []),
+          ...navigation.platformSections,
+        ]}
         copy={navigation.copy}
       />
       <FloatingActionButtons items={actions} />
-      <GroupDrawer
-        currentGroup={headerGroupContextId ? groupLifeGroup : null}
-        churchGroup={context.churchGroup}
-        items={context.currentSubgroups}
-        open={groupDrawerOpen}
-        onClose={() => setGroupDrawerOpen(false)}
-        onOpenGroup={context.openGroup}
-        onOpenSubgroup={context.openSubgroup}
-      />
     </div>
   )
 }
@@ -231,10 +194,15 @@ const AppShell = () => {
   const auth = useAuthStore()
   const location = useLocation()
   const reduceMotion = useReducedMotion()
-  const showPublicShell = isHomeLocation(location) ||
+  const preserveAlifeGroupSelectionShell = auth.isGuest &&
+    (location.pathname === '/groups/select' || location.pathname === '/groups/select/tree') &&
+    new URLSearchParams(location.search).get('from') === 'alife'
+  const showPublicShell = !preserveAlifeGroupSelectionShell && (
+    isHomeLocation(location) ||
     isPublicPageLocation(location) ||
     isPublicArticlePath(location.pathname) ||
     (auth.isGuest && isPublicBrowsePath(location.pathname))
+  )
 
   return (
     <>
