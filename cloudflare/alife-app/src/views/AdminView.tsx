@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
-import { Bell, ChevronRight, Church, ContactRound, FileText, GalleryHorizontal, Handshake, Loader2, Network, Pencil, RefreshCw, Settings2, ShieldCheck, UserCog, UsersRound, X } from 'lucide-react'
+import { Bell, ChevronRight, Church, ContactRound, Handshake, Loader2, Network, Pencil, RefreshCw, Settings2, ShieldCheck, UserCog, UsersRound, X } from 'lucide-react'
 import {
   groupService,
   type AdminGroupOptionDto,
@@ -31,10 +31,10 @@ import { isValidPhoneNumber } from '../utils/phoneNumber'
 import GroupManageView from './GroupManageView'
 import type { GroupDto } from '../types'
 import { localizeText } from '../utils/localizedText'
+import { normalizeChurchManagementSection, type ChurchManagementSection } from '../app/routing/churchManagementAccess'
 
 type AdminSection = 'overview' | 'users' | 'roles' | 'logs' | 'messages' | 'visitRequests' | 'files'
-type ChurchHubSection = 'dashboard' | 'group' | 'members' | 'contacts' | 'subgroups' | 'albums' | 'pages'
-type ChurchHubSectionConfig = { key: ChurchHubSection; label: string; description: string; icon: LucideIcon }
+type ChurchHubSectionConfig = { key: ChurchManagementSection; label: string; description: string; icon: LucideIcon }
 type ChurchManagementAreaConfig = { key: string; label: string; description: string; icon: LucideIcon; to: string }
 type MessageTranslationDirection = 'zh-en' | 'en-zh'
 type LocalText = { en: string; zh: string }
@@ -260,15 +260,13 @@ const runQuietly = async (...tasks: Array<Promise<unknown>>) => {
   await Promise.allSettled(tasks)
 }
 const sectionFromPath = (pathname: string): AdminSection => pathname.endsWith('/users') ? 'users' : pathname.endsWith('/roles') ? 'roles' : pathname.endsWith('/logs') ? 'logs' : pathname.endsWith('/messages') ? 'messages' : pathname.endsWith('/visit-requests') ? 'visitRequests' : pathname.endsWith('/files') ? 'files' : 'overview'
-const churchHubSectionKeys = new Set<ChurchHubSection>(['dashboard', 'group', 'members', 'contacts', 'subgroups', 'albums', 'pages'])
-const readChurchHubSection = (value: string | null): ChurchHubSection => churchHubSectionKeys.has(value as ChurchHubSection) ? value as ChurchHubSection : 'dashboard'
 
 const AdminView = () => {
   const t = useUiText()
   const { language, me, hasAdminPermission, canManageGroup } = useAuthStore()
   const section = sectionFromPath(useLocation().pathname)
   const [searchParams] = useSearchParams()
-  const churchHubSection = readChurchHubSection(searchParams.get('church'))
+  const churchHubSection = normalizeChurchManagementSection(searchParams.get('church'))
   const l = useCallback<LabelFn>((key, values) => {
     const template = labels[key][language] || labels[key].en
     return template.replace(/\{(\w+)\}/g, (_, name: string) => String(values?.[name] ?? `{${name}}`))
@@ -743,7 +741,7 @@ const ChurchManagementHub = ({
   refresh,
   language,
 }: {
-  activeSection: ChurchHubSection
+  activeSection: ChurchManagementSection
   church: GroupDto | null
   canManageChurch: boolean
   users: AdminPagedResultDto<AdminMemberDto>
@@ -763,8 +761,6 @@ const ChurchManagementHub = ({
     { key: 'members', label: isChinese ? '教会成员' : 'Church members', description: isChinese ? '审批、角色与成员状态' : 'Approvals, roles, and member status', icon: UsersRound },
     { key: 'contacts', label: isChinese ? '联系人' : 'Contacts', description: isChinese ? '公开联系人与留言入口' : 'Public contacts and inquiry entry points', icon: ContactRound },
     { key: 'subgroups', label: isChinese ? '组织架构' : 'Organization', description: isChinese ? '事工、小组与负责人结构' : 'Ministries, groups, and leadership structure', icon: Network },
-    { key: 'albums', label: isChinese ? '教会相册' : 'Church albums', description: isChinese ? '图片资产、相册和展示内容' : 'Image assets, albums, and presentation', icon: GalleryHorizontal },
-    { key: 'pages', label: isChinese ? '页面内容' : 'Page content', description: isChinese ? '教会页面、公开范围与发布' : 'Church pages, visibility, and publishing', icon: FileText },
   ]
   const dashboardAreas: ChurchManagementAreaConfig[] = [
     ...(canManageChurch ? managementSections.map((section) => ({ ...section, to: `/admin?church=${section.key}` })) : []),
@@ -834,7 +830,7 @@ const ChurchManagementDashboard = ({ churchName, sections, users, messages, sync
             <div className="min-w-0">
               <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-200">{isChinese ? '教会管理' : 'Church management'}</p>
               <h1 className="mt-1.5 truncate text-3xl font-black tracking-[-0.045em]">{churchName}</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-white/60">{isChinese ? '成员、组织、内容与教会资料集中管理。' : 'Manage people, organization, content, and church information in one place.'}</p>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-white/60">{isChinese ? '成员、组织、通知与教会资料集中管理。' : 'Manage people, organization, notices, and church information in one place.'}</p>
             </div>
           </div>
           <div className="flex items-center gap-5 self-start lg:self-auto">

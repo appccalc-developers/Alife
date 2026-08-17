@@ -3,6 +3,7 @@ import test from 'node:test'
 import {
   canAccessChurchManagement,
   churchManagementAdminPermissions,
+  normalizeChurchManagementSection,
 } from '../src/app/routing/churchManagementAccess.ts'
 import { buildEventDetailPath, resolveEventBoundActionUrl } from '../src/utils/eventRoutes.ts'
 
@@ -28,6 +29,14 @@ test('church management access rejects users without church leadership or scoped
     canManageGroup: () => false,
     hasAdminPermission: () => false,
   }), false)
+})
+
+test('church management routes exclude group-owned page and album sections', () => {
+  assert.equal(normalizeChurchManagementSection('group'), 'group')
+  assert.equal(normalizeChurchManagementSection('subgroups'), 'subgroups')
+  assert.equal(normalizeChurchManagementSection('albums'), 'dashboard')
+  assert.equal(normalizeChurchManagementSection('pages'), 'dashboard')
+  assert.equal(normalizeChurchManagementSection(null), 'dashboard')
 })
 
 test('event detail routes encode group and event identifiers', () => {
