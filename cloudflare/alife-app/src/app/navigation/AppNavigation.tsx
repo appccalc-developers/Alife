@@ -380,6 +380,7 @@ export const HeaderNavigation = ({
 }
 
 type WorkspaceNavigationProps = {
+  accountItems: ShellNavItem[]
   primaryItems: ShellNavItem[]
   workspaceItems: ShellNavItem[]
   platformSections: ShellNavSection[]
@@ -503,6 +504,11 @@ export const DesktopNavigation = ({
               </div>
             </Link>
           ) : null}
+          {props.accountItems.length ? (
+            <div className="mb-2 space-y-1">
+              {props.accountItems.map((item) => <SidebarLink key={item.key} item={item} collapsed={collapsed} />)}
+            </div>
+          ) : null}
           <button type="button" className={['flex h-11 items-center justify-center rounded-xl text-xs font-semibold text-[#62736c] transition hover:bg-white hover:text-[#18332d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/45', collapsed ? 'w-full' : 'w-full gap-2'].join(' ')} onClick={onToggle} aria-label={collapsed ? props.copy.expand : props.copy.collapse}>
             {collapsed ? <ChevronRight className="h-4 w-4" /> : <><ChevronLeft className="h-4 w-4" /><span>{props.copy.collapse}</span></>}
           </button>
@@ -556,6 +562,12 @@ export const MobileNavigationDrawer = ({
               </Link>
               <button type="button" className="alife-icon-button" onClick={onClose} aria-label={props.copy.closeMenu}><CloseIcon /></button>
             </div>
+
+            {props.accountItems.length ? (
+              <div className="mb-4 space-y-1">
+                {props.accountItems.map((item) => <SidebarLink key={item.key} item={item} onClick={onClose} />)}
+              </div>
+            ) : null}
 
             <CurrentSpaceLink
               workspaceName={props.workspaceName}

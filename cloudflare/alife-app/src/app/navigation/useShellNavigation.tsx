@@ -318,29 +318,35 @@ export const useShellNavigation = ({
     },
   ].filter(isPresent)
 
-  const contentItems: ShellNavItem[] = [
+  const churchWebsiteItems: ShellNavItem[] = [
     {
       key: 'app:home',
-      label: translateUi(auth.language, 'home'),
-      description: isChinese ? '公开首页和访客入口' : 'Public home and visitor entry',
+      label: isChinese ? '教会网站' : 'Church Website',
+      description: isChinese ? '教会公开网站和访客入口' : 'Public church website and visitor entry',
       to: '/',
       icon: <Home className="h-5 w-5" />,
     },
     {
       key: 'app:sermons',
-      label: translateUi(auth.language, 'sermons'),
-      description: isChinese ? '讲道视频和信息库' : 'Sermons and teaching library',
+      label: isChinese ? '主日证道' : 'Sunday Sermons',
+      description: isChinese ? '主日证道视频和信息库' : 'Sunday sermon videos and teaching library',
       to: '/sermons',
       icon: <BookOpenText className="h-5 w-5" />,
     },
-    ...(!auth.isGuest ? [{
+  ]
+
+  const accountItems: ShellNavItem[] = !auth.isGuest
+    ? [{
       key: 'app:study',
-      label: isChinese ? '查经' : 'Bible study',
+      label: isChinese ? '查经进度' : 'Bible Study Progress',
       description: isChinese ? '中英文经文阅读与小组查经' : 'Bilingual Scripture reading and group study',
       to: '/study',
       matchPathOnly: true,
       icon: <BookMarked className="h-5 w-5" />,
-    }] : []),
+    }]
+    : []
+
+  const contentItems: ShellNavItem[] = [
     ...(siteForumEntryEnabled ? [{
       key: 'app:forum',
       label: isChinese ? '论坛' : 'Forum',
@@ -351,12 +357,12 @@ export const useShellNavigation = ({
     guestItem,
   ].filter(isPresent)
 
-  const primaryItems = [...lifeItems, ...platformManagementItems, ...contentItems]
+  const primaryItems = [...lifeItems, ...platformManagementItems, ...churchWebsiteItems, ...contentItems, ...accountItems]
   const headerItems = guestItem ? [{ ...guestItem, key: 'app:onboarding-header' }] : []
   const mobileItems = [
-    platformManagementItems[0] || contentItems.find((item) => item.key === 'app:home'),
+    platformManagementItems[0] || churchWebsiteItems.find((item) => item.key === 'app:home'),
     workspaceItems[0] || lifeItems.find((item) => item.key === 'app:group-life'),
-    contentItems.find((item) => item.key === 'app:sermons'),
+    churchWebsiteItems.find((item) => item.key === 'app:sermons'),
   ].filter(isPresent)
 
   const workspaceLabel = isChinese ? '小组生活' : 'Group Life'
@@ -375,14 +381,16 @@ export const useShellNavigation = ({
       icon: <UsersRound className="h-5 w-5" />,
       items: groupContentItems,
     },
-    !auth.isGuest ? {
+    {
       key: 'platform-church-life',
       label: isChinese ? '教会生活' : 'Church Life',
-      description: isChinese ? '教会范围的总览、活动与公告' : 'Church-wide overview, events, and announcements',
-      to: '/church',
+      description: auth.isGuest
+        ? (isChinese ? '教会网站与主日证道' : 'Church website and Sunday sermons')
+        : (isChinese ? '教会范围的总览、活动与公告' : 'Church-wide overview, events, and announcements'),
+      to: auth.isGuest ? '/' : '/church',
       icon: <Church className="h-5 w-5" />,
-      items: churchContentItems,
-    } : null,
+      items: [...churchWebsiteItems, ...churchContentItems],
+    },
     contentItems.length
       ? { key: 'platform-content', label: isChinese ? '公开内容' : 'Public content', description: isChinese ? '面向访客和成员的入口' : 'Visitor and member-facing entry points', items: contentItems }
       : null,
@@ -426,6 +434,7 @@ export const useShellNavigation = ({
     }
 
   return {
+    accountItems,
     copy,
     headerItems,
     mobileItems,

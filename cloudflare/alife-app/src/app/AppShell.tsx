@@ -112,6 +112,7 @@ const WorkspaceShell = () => {
   return (
     <div className="alife-workspace relative min-h-screen text-[#18332d]">
       <DesktopNavigation
+        accountItems={navigation.accountItems}
         primaryItems={navigation.primaryItems}
         workspaceItems={navigation.workspaceItems}
         platformSections={navigation.platformSections}
@@ -152,6 +153,7 @@ const WorkspaceShell = () => {
       <MobileNavigationDrawer
         open={mobileNavOpen}
         onClose={() => setMobileNavOpen(false)}
+        accountItems={navigation.accountItems}
         primaryItems={navigation.primaryItems}
         workspaceItems={navigation.workspaceItems}
         platformSections={navigation.platformSections}

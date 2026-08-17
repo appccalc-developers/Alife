@@ -5,6 +5,24 @@ export const churchManagementAdminPermissions = [
   'admin.visitRequests.receive',
 ] as const
 
+export const churchManagementSections = [
+  'dashboard',
+  'group',
+  'members',
+  'contacts',
+  'subgroups',
+] as const
+
+export type ChurchManagementSection = typeof churchManagementSections[number]
+
+const churchManagementSectionSet = new Set<string>(churchManagementSections)
+
+export const normalizeChurchManagementSection = (
+  value?: string | null,
+): ChurchManagementSection => churchManagementSectionSet.has(value ?? '')
+  ? value as ChurchManagementSection
+  : 'dashboard'
+
 type ChurchManagementAccessArgs = {
   churchGroupId?: string | null
   canManageGroup: (groupId: string) => boolean
