@@ -215,10 +215,18 @@ const ManagementPanelShell = ({ title, subtitle, action, framed = true, children
 
 const ManagementContentCard = ({
   children,
+  labelledBy,
 }: {
   children: ReactNode
+  labelledBy?: string
 }) => (
-  <section className="alife-panel overflow-hidden rounded-2xl p-0">
+  <section
+    id={labelledBy ? 'group-management-panel' : undefined}
+    role={labelledBy ? 'tabpanel' : undefined}
+    aria-labelledby={labelledBy}
+    tabIndex={labelledBy ? 0 : undefined}
+    className="alife-panel overflow-hidden rounded-2xl p-0 outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/45"
+  >
     <div className="p-4 sm:p-5">
       {children}
     </div>
@@ -1046,12 +1054,11 @@ const GroupManageView = ({
         </section> : null}
 
         {!integrated && showGroupManagementNavigation ? (
-          <nav aria-label={language === 'zh' ? `${group?.isChurch ? '教会' : '小组'}管理功能` : `${group?.isChurch ? 'Church' : 'Group'} Management features`} className="rounded-[1.75rem] border border-[#2f4b42]/10 bg-[#f5f1e8]/90 p-3 shadow-[0_14px_35px_rgba(24,51,45,0.06)] sm:p-4">
-            <div className="mb-3 px-2">
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#176b5a]">{group?.isChurch ? (language === 'zh' ? '教会管理' : 'Church Management') : (language === 'zh' ? '小组管理' : 'Group Management')}</p>
-              <p className="mt-1 text-sm text-[#66766f]">{language === 'zh' ? '成员、结构、内容和设置集中在这里。' : 'People, structure, content, and settings are organized here.'}</p>
-            </div>
-            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+          <nav
+            aria-label={language === 'zh' ? `${group?.isChurch ? '教会' : '小组'}管理视图` : `${group?.isChurch ? 'Church' : 'Group'} management views`}
+            className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
+            <div className="flex min-w-max items-center gap-1 border-b border-[#ccd9d3]" role="tablist">
               {groupManagementSections.map((section) => {
                 const target = `${workspaceBasePath}?${sectionParamName}=${section.key}`
                 const active = activeSection === section.key
@@ -1059,19 +1066,21 @@ const GroupManageView = ({
                   <Link
                     key={section.key}
                     to={target}
+                    id={`group-management-tab-${section.key}`}
+                    role="tab"
+                    aria-selected={active}
+                    aria-controls="group-management-panel"
                     className={[
-                      'rounded-2xl border px-4 py-3 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/45',
+                      'relative flex min-h-11 items-center whitespace-nowrap border-b-2 px-3.5 py-2 text-sm font-black transition focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/45',
                       active
-                        ? 'border-[#176b5a]/25 bg-[#e3f0eb] text-[#18332d] shadow-sm'
-                        : 'border-transparent bg-white/75 text-[#40554e] hover:border-[#176b5a]/15 hover:bg-white',
+                        ? 'border-[#176b5a] text-[#173f36]'
+                        : 'border-transparent text-[#64756e] hover:border-[#9cb8ad] hover:text-[#173f36]',
                     ].join(' ')}
-                    aria-current={active ? 'page' : undefined}
                     onClick={(event) => {
                       if (!guardGroupProfileNavigation()) event.preventDefault()
                     }}
                   >
-                    <span className="block text-sm font-black">{section.label}</span>
-                    <span className="mt-1 block text-xs leading-5 text-[#6f7e78]">{section.hint}</span>
+                    {section.label}
                   </Link>
                 )
               })}
@@ -1079,7 +1088,7 @@ const GroupManageView = ({
           </nav>
         ) : null}
 
-        <ManagementContentCard>
+        <ManagementContentCard labelledBy={showGroupManagementNavigation && !integrated ? `group-management-tab-${activeSection}` : undefined}>
           {loading ? (
             <p className="text-sm text-slate-600">{t('loadingManagementWorkspace')}</p>
           ) : null}

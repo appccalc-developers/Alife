@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ChevronRight, Eye, MessageCircle, Pin, Plus, RefreshCcw, Send, Sparkles, UsersRound } from 'lucide-react'
+import { ChevronRight, Eye, ListFilter, MessageCircle, Pin, Plus, RefreshCcw, Send, Sparkles, UsersRound } from 'lucide-react'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
 import AppEmptyState from '../components/layout/AppEmptyState'
@@ -198,6 +198,13 @@ const ForumView = () => {
 
   const activeCategoryLabel = categoryOptions.find((item) => item.id === categoryId)?.label || text.allCategories
   const publicCount = posts.filter((post) => isPublicVisibility(post.visibility)).length
+  const selectCategory = (nextCategoryId: string) => {
+    if (nextCategoryId === categoryId) return
+    const next = new URLSearchParams(searchParams)
+    if (nextCategoryId) next.set('categoryId', nextCategoryId)
+    else next.delete('categoryId')
+    setSearchParams(next, { preventScrollReset: true })
+  }
 
   return (
     <AppPageShell>
@@ -240,29 +247,23 @@ const ForumView = () => {
 
           <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_21rem]">
             <main className="min-w-0 border-slate-200 lg:border-r">
-              <nav className="flex gap-2 overflow-x-auto border-b border-slate-200 px-5 py-3 sm:px-7" aria-label={text.category}>
-                {categoryOptions.map((category) => {
-                  const active = category.id === categoryId
-                  return (
-                    <button
-                      key={category.id || 'all'}
-                      type="button"
-                      className={[
-                        'min-h-10 shrink-0 rounded-full px-4 text-sm font-black transition',
-                        active ? 'bg-slate-950 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-[#e3f0eb] hover:text-[#176b5a]',
-                      ].join(' ')}
-                      onClick={() => {
-                        const next = new URLSearchParams(searchParams)
-                        if (category.id) next.set('categoryId', category.id)
-                        else next.delete('categoryId')
-                        setSearchParams(next)
-                      }}
-                    >
-                      {category.label}
-                    </button>
-                  )
-                })}
-              </nav>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-3 sm:px-7">
+                <label htmlFor="forum-feed-category-filter" className="inline-flex items-center gap-2 text-sm font-black text-slate-700">
+                  <ListFilter className="h-4 w-4 text-[#176b5a]" aria-hidden="true" />
+                  {text.postCategory}
+                </label>
+                <select
+                  id="forum-feed-category-filter"
+                  aria-controls="forum-feed-panel"
+                  value={categoryId}
+                  onChange={(event) => selectCategory(event.target.value)}
+                  className="min-h-10 min-w-44 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-black text-slate-700 outline-none transition hover:border-[#176b5a]/30 hover:bg-white focus:border-[#176b5a] focus:bg-white focus:ring-4 focus:ring-[#176b5a]/10"
+                >
+                  {categoryOptions.map((category) => (
+                    <option key={category.id || 'all'} value={category.id}>{category.label}</option>
+                  ))}
+                </select>
+              </div>
 
               <div className="border-b border-slate-200 bg-white px-5 py-4 sm:px-7">
                 {canPost ? (
@@ -298,77 +299,79 @@ const ForumView = () => {
                 )}
               </div>
 
-              <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-3 sm:px-7">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">{text.feed}</p>
-                  <p className="mt-0.5 text-sm font-black text-slate-900">{activeCategoryLabel}</p>
+              <section id="forum-feed-panel" aria-busy={postsQuery.isFetching}>
+                <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-3 sm:px-7">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">{text.feed}</p>
+                    <p className="mt-0.5 text-sm font-black text-slate-900">{activeCategoryLabel}</p>
+                  </div>
+                  <p className="text-sm font-black text-slate-500">{posts.length} {text.conversations}</p>
                 </div>
-                <p className="text-sm font-black text-slate-500">{posts.length} {text.conversations}</p>
-              </div>
 
-              {postsQuery.isLoading || categoriesQuery.isLoading || (churchForum && churchQuery.isPending) ? (
-                <div className="grid gap-0">
-                  {[0, 1, 2].map((item) => (
-                    <div key={item} className="h-36 animate-pulse border-b border-slate-200 bg-white" />
-                  ))}
-                </div>
-              ) : null}
+                {postsQuery.isLoading || categoriesQuery.isLoading || (churchForum && churchQuery.isPending) ? (
+                  <div className="grid gap-0">
+                    {[0, 1, 2].map((item) => (
+                      <div key={item} className="h-36 animate-pulse border-b border-slate-200 bg-white" />
+                    ))}
+                  </div>
+                ) : null}
 
-              {!postsQuery.isLoading && (postsQuery.error || churchQuery.error) ? (
-                <div className="p-5 sm:p-7">
-                  <AppEmptyState title={text.loadFailed} description={normalizeApiError(postsQuery.error || churchQuery.error).message} actionLabel={text.retry} onAction={() => void (churchQuery.error ? churchQuery.refetch() : postsQuery.refetch())} />
-                </div>
-              ) : null}
+                {!postsQuery.isLoading && (postsQuery.error || churchQuery.error) ? (
+                  <div className="p-5 sm:p-7">
+                    <AppEmptyState title={text.loadFailed} description={normalizeApiError(postsQuery.error || churchQuery.error).message} actionLabel={text.retry} onAction={() => void (churchQuery.error ? churchQuery.refetch() : postsQuery.refetch())} />
+                  </div>
+                ) : null}
 
-              {!postsQuery.isLoading && !postsQuery.error && !churchQuery.error && !(churchForum && churchQuery.isPending) && posts.length === 0 ? (
-                <div className="p-5 sm:p-7">
-                  <AppEmptyState title={text.noPosts} description={text.noPostsDescription} actionLabel={canPost ? text.newPost : undefined} onAction={canPost ? () => setComposerOpen(true) : undefined} />
-                </div>
-              ) : null}
+                {!postsQuery.isLoading && !postsQuery.error && !churchQuery.error && !(churchForum && churchQuery.isPending) && posts.length === 0 ? (
+                  <div className="p-5 sm:p-7">
+                    <AppEmptyState title={text.noPosts} description={text.noPostsDescription} actionLabel={canPost ? text.newPost : undefined} onAction={canPost ? () => setComposerOpen(true) : undefined} />
+                  </div>
+                ) : null}
 
-              <div className="divide-y divide-slate-200">
-                {posts.map((post) => {
-                  const title = localizedJsonText(post.titleJson, language) || text.untitled
-                  const excerpt = localizedJsonExcerpt(post.bodyJson, language)
-                  const media = parseForumMedia(post.mediaJson)
-                  const commentsLabel = `${post.commentCount} ${post.commentCount === 1 && language !== 'zh' ? text.reply : text.replies}`
-                  return (
-                    <Link key={post.id} to={`${forumBasePath}/posts/${post.id}`} className="group block bg-white px-5 py-5 transition hover:bg-[#fbfcfa] sm:px-7">
-                      <article className="flex gap-4">
-                        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#e3f0eb] text-sm font-black text-[#176b5a]">
-                          {avatarLetter(post.author.displayName || title)}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                            <span className="text-sm font-black text-slate-950">{post.author.displayName || post.author.id.slice(0, 8)}</span>
-                            <span className="text-xs font-semibold text-slate-400">{formatForumDate(post.lastCommentUtc || post.updatedUtc, language)}</span>
-                            {post.isPinned ? <AppBadge variant="warning"><Pin className="mr-1 h-3 w-3" />{text.pinned}</AppBadge> : null}
-                          </div>
-                          <h2 className="mt-2 text-lg font-black leading-snug text-slate-950 transition group-hover:text-[#176b5a] sm:text-xl">{title}</h2>
-                          {excerpt ? <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">{excerpt}</p> : null}
-                          {post.sermon ? <ForumSermonEmbed sermon={post.sermon} mode="compact" /> : null}
-                          <ForumMediaGrid media={media.slice(0, 3)} />
-                          <div className="mt-4 flex flex-wrap items-center gap-2">
-                            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">{categoryName(categories, post.categoryId, language)}</span>
-                            <AppBadge variant={isPublicVisibility(post.visibility) ? 'info' : 'neutral'}>
-                              <Eye className="mr-1 h-3 w-3" aria-hidden="true" />
-                              {visibilityLabel(post.visibility, language)}
-                            </AppBadge>
-                            {post.isLocked ? <AppBadge>{text.locked}</AppBadge> : null}
-                          </div>
-                        </div>
-                        <div className="hidden shrink-0 flex-col items-end justify-between sm:flex">
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-black text-slate-600">
-                            <MessageCircle className="h-4 w-4" aria-hidden="true" />
-                            {commentsLabel}
+                <div className="divide-y divide-slate-200">
+                  {posts.map((post) => {
+                    const title = localizedJsonText(post.titleJson, language) || text.untitled
+                    const excerpt = localizedJsonExcerpt(post.bodyJson, language)
+                    const media = parseForumMedia(post.mediaJson)
+                    const commentsLabel = `${post.commentCount} ${post.commentCount === 1 && language !== 'zh' ? text.reply : text.replies}`
+                    return (
+                      <Link key={post.id} to={`${forumBasePath}/posts/${post.id}`} className="group block bg-white px-5 py-5 transition hover:bg-[#fbfcfa] sm:px-7">
+                        <article className="flex gap-4">
+                          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#e3f0eb] text-sm font-black text-[#176b5a]">
+                            {avatarLetter(post.author.displayName || title)}
                           </span>
-                          <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-[#176b5a]" aria-hidden="true" />
-                        </div>
-                      </article>
-                    </Link>
-                  )
-                })}
-              </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                              <span className="text-sm font-black text-slate-950">{post.author.displayName || post.author.id.slice(0, 8)}</span>
+                              <span className="text-xs font-semibold text-slate-400">{formatForumDate(post.lastCommentUtc || post.updatedUtc, language)}</span>
+                              {post.isPinned ? <AppBadge variant="warning"><Pin className="mr-1 h-3 w-3" />{text.pinned}</AppBadge> : null}
+                            </div>
+                            <h2 className="mt-2 text-lg font-black leading-snug text-slate-950 transition group-hover:text-[#176b5a] sm:text-xl">{title}</h2>
+                            {excerpt ? <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">{excerpt}</p> : null}
+                            {post.sermon ? <ForumSermonEmbed sermon={post.sermon} mode="compact" /> : null}
+                            <ForumMediaGrid media={media.slice(0, 3)} />
+                            <div className="mt-4 flex flex-wrap items-center gap-2">
+                              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">{categoryName(categories, post.categoryId, language)}</span>
+                              <AppBadge variant={isPublicVisibility(post.visibility) ? 'info' : 'neutral'}>
+                                <Eye className="mr-1 h-3 w-3" aria-hidden="true" />
+                                {visibilityLabel(post.visibility, language)}
+                              </AppBadge>
+                              {post.isLocked ? <AppBadge>{text.locked}</AppBadge> : null}
+                            </div>
+                          </div>
+                          <div className="hidden shrink-0 flex-col items-end justify-between sm:flex">
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-black text-slate-600">
+                              <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                              {commentsLabel}
+                            </span>
+                            <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-[#176b5a]" aria-hidden="true" />
+                          </div>
+                        </article>
+                      </Link>
+                    )
+                  })}
+                </div>
+              </section>
             </main>
 
             <aside className="bg-slate-50 p-5 sm:p-7 lg:p-6">
@@ -387,34 +390,6 @@ const ForumView = () => {
                       <p className="text-2xl font-black text-[#0d4f43]">{publicCount}</p>
                       <p className="mt-1 text-xs font-bold text-[#176b5a]">{text.public}</p>
                     </div>
-                  </div>
-                </section>
-
-                <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <p className="text-sm font-black text-slate-950">{text.availableTopics}</p>
-                  <div className="mt-3 grid gap-1">
-                    {categoryOptions.map((category) => {
-                      const active = category.id === categoryId
-                      return (
-                        <button
-                          key={category.id || 'all-side'}
-                          type="button"
-                          className={[
-                            'flex min-h-11 items-center justify-between rounded-xl px-3 text-left text-sm font-black transition',
-                            active ? 'bg-slate-950 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950',
-                          ].join(' ')}
-                          onClick={() => {
-                            const next = new URLSearchParams(searchParams)
-                            if (category.id) next.set('categoryId', category.id)
-                            else next.delete('categoryId')
-                            setSearchParams(next)
-                          }}
-                        >
-                          <span>{category.label}</span>
-                          {active ? <ChevronRight className="h-4 w-4" aria-hidden="true" /> : null}
-                        </button>
-                      )
-                    })}
                   </div>
                 </section>
               </div>

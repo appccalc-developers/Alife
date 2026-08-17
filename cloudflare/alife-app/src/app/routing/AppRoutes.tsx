@@ -7,6 +7,7 @@ import { workspaceResumeService } from '../../services/workspaceResumeService'
 import AppRouteLoading from '../components/AppRouteLoading'
 import RouteChunkErrorBoundary from '../components/RouteChunkErrorBoundary'
 import { isHomeLocation, isPublicPageLocation } from './publicRoutePolicy'
+import { getRouteTransitionKey } from './routeTransitionPolicy'
 import { canAccessChurchManagement, hasChurchManagementAdminPermission } from './churchManagementAccess'
 
 const AdminView = lazy(() => import('../../views/AdminView'))
@@ -131,11 +132,6 @@ const HomeRoute = () => {
   return pageMenuName ? <PageView /> : <HomeView />
 }
 
-const isGroupWorkspaceSectionPath = (pathname: string) =>
-  pathname === '/groups' ||
-  pathname === '/groups/manage' ||
-  /^\/groups\/(?!select$|join$|manage$)[^/]+(?:\/manage)?$/.test(pathname)
-
 type AppRoutesProps = {
   churchGroupId?: string
   churchGroupLoading?: boolean
@@ -145,11 +141,11 @@ const AppRoutes = ({ churchGroupId = '', churchGroupLoading = false }: AppRoutes
   const location = useLocation()
   const reduceMotion = useReducedMotion()
   const isManagedPublicPage = isHomeLocation(location) || isPublicPageLocation(location)
-  const routeTransitionKey = isManagedPublicPage
-    ? 'managed-public-page'
-    : (location.pathname === '/study' || isGroupWorkspaceSectionPath(location.pathname)
-      ? location.pathname
-      : location.pathname + location.search)
+  const routeTransitionKey = getRouteTransitionKey({
+    pathname: location.pathname,
+    search: location.search,
+    isManagedPublicPage,
+  })
 
   useEffect(() => {
     if (isManagedPublicPage) {
