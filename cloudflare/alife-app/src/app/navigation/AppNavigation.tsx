@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { ChevronDown, ChevronLeft, ChevronRight, Home, LayoutGrid, Menu } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, Menu } from 'lucide-react'
 import { useEffect, useState, type MouseEvent } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import logo from '../../assets/logo.png'
@@ -194,28 +194,96 @@ const NestedSidebarItem = ({ item, onItemClick }: { item: ShellNavItem; onItemCl
   )
 }
 
-const NavigationSection = ({ section, collapsed = false, onItemClick }: { section: ShellNavSection; collapsed?: boolean; onItemClick?: () => void }) => {
-  const [open, setOpen] = useState(true)
+const isSectionActive = (section: ShellNavSection, pathname: string, search: string) => {
+  const sectionTargetPath = section.to?.split('?')[0] || ''
+  const sectionDestinationActive = Boolean(sectionTargetPath) && (
+    pathname === sectionTargetPath ||
+    (sectionTargetPath === '/groups' && pathname.startsWith('/groups/'))
+  )
+
+  return sectionDestinationActive || section.items.some((item) => isItemActive(item, pathname, search))
+}
+
+const NavigationSection = ({
+  section,
+  collapsed = false,
+  open: controlledOpen,
+  onToggle,
+  onItemClick,
+}: {
+  section: ShellNavSection
+  collapsed?: boolean
+  open?: boolean
+  onToggle?: () => void
+  onItemClick?: () => void
+}) => {
+  const [localOpen, setLocalOpen] = useState(true)
   const location = useLocation()
   const navigate = useNavigate()
+  const open = controlledOpen ?? localOpen
   const sectionTargetPath = section.to?.split('?')[0] || ''
   const sectionDestinationActive = Boolean(sectionTargetPath) && (
     location.pathname === sectionTargetPath ||
     (sectionTargetPath === '/groups' && location.pathname.startsWith('/groups/'))
   )
-  const sectionActive = sectionDestinationActive || section.items.some((item) => isItemActive(item, location.pathname, location.search))
+  const sectionActive = isSectionActive(section, location.pathname, location.search)
+  const collapsible = section.collapsible ?? section.items.length > 0
+  const sectionHeaderClassName = [
+    'group flex w-full items-center gap-2 rounded-[1.1rem] px-3 py-2.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/45 desktop:rounded-lg desktop:px-2.5',
+    open ? 'text-[#53665f] hover:bg-white/62 desktop:hover:bg-[#f1eee7]' : 'bg-white text-[#18332d] shadow-[0_10px_22px_rgba(30,54,48,0.06)] desktop:bg-[#f1eee7] desktop:shadow-none',
+  ].join(' ')
+  const sectionIcon = section.icon ? (
+    <span className={['flex h-8 w-8 shrink-0 items-center justify-center rounded-xl', sectionActive ? 'bg-[#173f36] text-white' : 'bg-[#e7eee9] text-[#53665f]'].join(' ')}>{section.icon}</span>
+  ) : null
+  const sectionText = (
+    <span className="min-w-0 flex-1">
+      <span className={['block truncate text-xs font-black leading-4 desktop:font-semibold', sectionActive ? 'text-[#173f36]' : 'text-[#314840]'].join(' ')}>{section.label}</span>
+      {(section.showDescription || !open) && section.description ? <span className="mt-0.5 block truncate text-[11px] font-semibold leading-4 text-[#87938e]">{section.description}</span> : null}
+    </span>
+  )
+  const sectionChevron = collapsible ? (
+    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-[#6b7a74] transition group-hover:bg-[#edf5f1] group-hover:text-[#123d34]">
+      <ChevronDown
+        className={['h-3.5 w-3.5 transition-transform duration-200', open ? '' : '-rotate-90'].join(' ')}
+        aria-hidden="true"
+      />
+    </span>
+  ) : null
+
+  const toggleSection = () => {
+    if (onToggle) {
+      onToggle()
+      return
+    }
+
+    setLocalOpen((current) => !current)
+  }
+
+  const handleSectionHeaderClick = (event: MouseEvent<HTMLButtonElement>) => {
+    if (!section.to) {
+      toggleSection()
+      return
+    }
+
+    guardNavigationClick(event, section.to, () => {
+      toggleSection()
+      onItemClick?.()
+      navigate(section.to || '/')
+    })
+  }
 
   useEffect(() => {
-    if (sectionActive) setOpen(true)
-  }, [sectionActive])
+    if (sectionActive && !section.toggleOnHeaderClick && controlledOpen === undefined) setLocalOpen(true)
+  }, [controlledOpen, sectionActive, section.toggleOnHeaderClick])
 
-  if (!section.items.length && !section.to) return null
+  if (!section.items.length && !section.to && !collapsible) return null
 
   if (collapsed) {
     return (
       <section className={[
         'flex flex-col items-center gap-1.5 rounded-[1.25rem] p-1 transition desktop:gap-2 desktop:rounded-none desktop:bg-transparent desktop:p-0 desktop:ring-0',
         sectionActive ? 'bg-[#eef5f1] ring-1 ring-[#c9ddd4]' : 'bg-transparent',
+        section.alignToBottom ? 'mt-auto' : '',
       ].join(' ')}>
         {section.to && section.icon ? (
           <SidebarLink
@@ -240,46 +308,34 @@ const NavigationSection = ({ section, collapsed = false, onItemClick }: { sectio
     <section className={[
       'rounded-[1.35rem] p-1.5 transition desktop:rounded-none desktop:bg-transparent desktop:p-0 desktop:ring-0',
       sectionActive ? 'bg-[#f4f8f5] ring-1 ring-[#cddfd6]' : 'bg-[#f7f3ec] ring-1 ring-[#ded6cb]/70',
+      section.alignToBottom ? 'mt-auto' : '',
     ].join(' ')}>
-      <div
-        className={[
-          'group flex w-full items-center gap-2 rounded-[1.1rem] px-3 py-2.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/45 desktop:rounded-lg desktop:px-2.5',
-          open ? 'text-[#53665f] hover:bg-white/62 desktop:hover:bg-[#f1eee7]' : 'bg-white text-[#18332d] shadow-[0_10px_22px_rgba(30,54,48,0.06)] desktop:bg-[#f1eee7] desktop:shadow-none',
-        ].join(' ')}
-      >
-        {section.to ? (
-          <Link
-            to={section.to}
-            onClick={(event) => guardNavigationClick(event, section.to || '/', onItemClick, () => navigate(section.to || '/'))}
-            aria-current={sectionDestinationActive ? 'page' : undefined}
-            className="flex min-w-0 flex-1 items-center gap-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/45"
-          >
-            {section.icon ? <span className={['flex h-8 w-8 shrink-0 items-center justify-center rounded-xl', sectionActive ? 'bg-[#173f36] text-white' : 'bg-[#e7eee9] text-[#53665f]'].join(' ')}>{section.icon}</span> : null}
-            <span className="min-w-0 flex-1">
-              <span className={['block truncate text-xs font-black leading-4 desktop:font-semibold', sectionActive ? 'text-[#173f36]' : 'text-[#314840]'].join(' ')}>{section.label}</span>
-              {!open && section.description ? <span className="mt-0.5 block truncate text-[11px] font-semibold leading-4 text-[#87938e]">{section.description}</span> : null}
-            </span>
-          </Link>
-        ) : (
-          <span className="min-w-0 flex-1">
-            <span className={['block truncate text-xs font-black leading-4 desktop:font-semibold', sectionActive ? 'text-[#173f36]' : 'text-[#314840]'].join(' ')}>{section.label}</span>
-            {!open && section.description ? <span className="mt-0.5 block truncate text-[11px] font-semibold leading-4 text-[#87938e]">{section.description}</span> : null}
-          </span>
-        )}
-        {section.items.length ? (
-          <>
-            <span className={['inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full px-2 text-[11px] font-black desktop:font-semibold', sectionActive ? 'bg-[#173f36] text-white' : 'bg-[#e7eee9] text-[#53665f]'].join(' ')}>
-              {section.items.length}
-            </span>
-            <button type="button" onClick={() => setOpen((current) => !current)} aria-expanded={open} aria-label={`${open ? 'Collapse' : 'Expand'} ${section.label}`} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-[#6b7a74] transition group-hover:bg-[#edf5f1] group-hover:text-[#123d34] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/45">
-              <ChevronDown
-                className={['h-3.5 w-3.5 transition-transform duration-200', open ? '' : '-rotate-90'].join(' ')}
-                aria-hidden="true"
-              />
+      {section.toggleOnHeaderClick ? (
+        <button type="button" onClick={handleSectionHeaderClick} aria-expanded={open} aria-label={`${open ? 'Collapse' : 'Expand'} ${section.label}`} className={sectionHeaderClassName}>
+          {sectionIcon}
+          {sectionText}
+          {sectionChevron}
+        </button>
+      ) : (
+        <div className={sectionHeaderClassName}>
+          {section.to ? (
+            <Link
+              to={section.to}
+              onClick={(event) => guardNavigationClick(event, section.to || '/', onItemClick, () => navigate(section.to || '/'))}
+              aria-current={sectionDestinationActive ? 'page' : undefined}
+              className="flex min-w-0 flex-1 items-center gap-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/45"
+            >
+              {sectionIcon}
+              {sectionText}
+            </Link>
+          ) : sectionText}
+          {collapsible ? (
+            <button type="button" onClick={toggleSection} aria-expanded={open} aria-label={`${open ? 'Collapse' : 'Expand'} ${section.label}`} className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/45">
+              {sectionChevron}
             </button>
-          </>
-        ) : null}
-      </div>
+          ) : null}
+        </div>
+      )}
       <AnimatePresence initial={false}>
         {open && section.items.length ? (
           <motion.div
@@ -298,67 +354,50 @@ const NavigationSection = ({ section, collapsed = false, onItemClick }: { sectio
   )
 }
 
-const SearchNavLink = ({ item, mobile = false }: { item: ShellNavItem; mobile?: boolean }) => {
+const NavigationSectionGroup = ({
+  sections,
+  collapsed = false,
+  onItemClick,
+}: {
+  sections: ShellNavSection[]
+  collapsed?: boolean
+  onItemClick?: () => void
+}) => {
   const location = useLocation()
-  const navigate = useNavigate()
-  const active = isItemActive(item, location.pathname, location.search)
-  const className = [
-    'group flex w-full items-center font-semibold transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/45',
-    mobile ? 'min-w-0 flex-1 flex-col justify-center gap-1 rounded-2xl px-1 py-2 text-[11px]' : 'gap-3 rounded-xl px-3.5 py-3 text-sm',
-    active ? 'bg-[#173f36] text-white shadow-[0_9px_22px_rgba(23,63,54,0.18)]' : 'text-[#60716a] hover:bg-[#e3f0eb] hover:text-[#0d4f43]',
-  ].join(' ')
-  const content = (
-    <>
-      <span className={mobile ? 'flex h-6 items-center justify-center' : 'flex h-5 w-5 items-center justify-center'}>{item.icon}</span>
-      <span className={mobile ? 'max-w-full truncate leading-tight' : ''}>{item.label}</span>
-    </>
-  )
+  const activeSectionKey = sections.find((section) => isSectionActive(section, location.pathname, location.search))?.key
+  const firstAccordionSectionKey = sections.find((section) => section.toggleOnHeaderClick)?.key
+  const [openSectionKey, setOpenSectionKey] = useState<string | null>(() => activeSectionKey || firstAccordionSectionKey || null)
 
-  return (
-    <motion.div whileTap={{ scale: 0.95 }} transition={{ type: 'spring', stiffness: 400, damping: 17 }}>
-      {item.actionOnly ? (
-        <button type="button" className={className} onClick={(event) => guardNavigationClick(event, item.to, item.onClick)} aria-current={active ? 'page' : undefined}>
-          {content}
-        </button>
-      ) : (
-        <Link to={item.to} onClick={(event) => guardNavigationClick(event, item.to, item.onClick, () => navigate(item.to))} className={className}>
-          {content}
-        </Link>
-      )}
-    </motion.div>
-  )
+  useEffect(() => {
+    if (activeSectionKey) setOpenSectionKey(activeSectionKey)
+  }, [activeSectionKey])
+
+  return sections.map((section) => (
+    <NavigationSection
+      key={section.key}
+      section={section}
+      collapsed={collapsed}
+      open={section.toggleOnHeaderClick ? openSectionKey === section.key : undefined}
+      onToggle={section.toggleOnHeaderClick
+        ? () => setOpenSectionKey((current) => current === section.key ? null : section.key)
+        : undefined}
+      onItemClick={onItemClick}
+    />
+  ))
 }
 
-export const HeaderNavigation = ({
-  items,
-  currentGroupName,
-  currentGroupManageTo,
-}: {
-  items: ShellNavItem[]
-  currentGroupName?: string
-  currentGroupManageTo?: string
-}) => {
+export const HeaderNavigation = ({ items }: { items: ShellNavItem[] }) => {
   const t = useUiText()
   const navigate = useNavigate()
 
   return (
     <nav className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden sm:gap-3" aria-label={t('appNavigation')}>
       <Link to="/" onClick={(event) => guardNavigationClick(event, '/', undefined, () => navigate('/'))} className="flex shrink-0 items-center gap-2.5 rounded-xl text-[#18332d] desktop:hidden" aria-label={t('home')}>
-        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#e3f0eb] ring-1 ring-[#176b5a]/10 sm:h-10 sm:w-10 sm:rounded-2xl">
-          <img src={logo} alt={t('appName')} className="h-7 w-auto drop-shadow-sm sm:h-8" />
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#e3f0eb] ring-1 ring-[#176b5a]/10 sm:h-10 sm:w-10 sm:rounded-2xl">
+          <img src={logo} alt={t('appName')} className="h-full w-full object-contain p-1 drop-shadow-sm" />
         </span>
         <span className="hidden text-lg font-bold tracking-[-0.04em] desktop:block">Alife</span>
       </Link>
-      {currentGroupName && currentGroupManageTo ? (
-        <Link to={currentGroupManageTo} onClick={(event) => guardNavigationClick(event, currentGroupManageTo, undefined, () => navigate(currentGroupManageTo))} className="inline-flex h-9 min-w-0 max-w-72 flex-1 items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 text-xs font-semibold text-emerald-900 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-100 hover:text-emerald-950 focus:outline-none focus:ring-2 focus:ring-emerald-300 sm:h-10 sm:max-w-xs sm:flex-none sm:gap-2 sm:px-3 sm:text-sm desktop:hidden">
-          <span className="flex h-5 w-5 shrink-0 items-center justify-center text-emerald-700">
-            <Home className="h-4 w-4" aria-hidden="true" />
-          </span>
-          <span className="truncate">{currentGroupName}</span>
-        </Link>
-      ) : currentGroupName ? (
-        <span className="min-w-0 max-w-72 flex-1 truncate border-l border-[#2f4b42]/15 pl-2 text-xs font-semibold text-[#40554e] sm:max-w-xs sm:pl-3 sm:text-sm desktop:hidden">{currentGroupName}</span>
-      ) : null}
       {items.map((item) => (
         <motion.div key={item.key} whileTap={{ scale: 0.95 }}>
           <NavLink
@@ -380,16 +419,9 @@ export const HeaderNavigation = ({
 }
 
 type WorkspaceNavigationProps = {
-  accountItems: ShellNavItem[]
-  primaryItems: ShellNavItem[]
-  workspaceItems: ShellNavItem[]
   platformSections: ShellNavSection[]
   workspaceSections: ShellNavSection[]
   workspaceVisible: boolean
-  workspaceName?: string
-  workspaceLabel: string
-  workspaceTo?: string
-  userName?: string
   copy: NavigationCopy
 }
 
@@ -405,7 +437,7 @@ const SidebarBrand = ({ collapsed }: { collapsed: boolean }) => {
       aria-label={t('home')}
     >
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--alife-radius-control)] bg-[#e3f0eb] ring-1 ring-[#176b5a]/10">
-        <img src={logo} alt={t('appName')} className="h-8 w-auto drop-shadow-sm" />
+        <img src={logo} alt={t('appName')} className="h-full w-full object-contain p-1 drop-shadow-sm" />
       </span>
       {!collapsed ? (
         <span className="min-w-0">
@@ -417,51 +449,12 @@ const SidebarBrand = ({ collapsed }: { collapsed: boolean }) => {
   )
 }
 
-const CurrentSpaceLink = ({ collapsed, workspaceName, workspaceLabel, workspaceTo, copy }: {
-  collapsed?: boolean
-  workspaceName?: string
-  workspaceLabel: string
-  workspaceTo?: string
-  copy: NavigationCopy
-}) => {
-  const target = workspaceTo || '/groups/select'
-  const navigate = useNavigate()
-
-  return (
-    <Link
-      to={target}
-      title={collapsed ? workspaceLabel : undefined}
-      onClick={(event) => guardNavigationClick(event, target, undefined, () => navigate(target))}
-      className={[
-        'group flex transition',
-        collapsed
-          ? 'h-12 w-12 items-center justify-center rounded-[var(--alife-radius-control)] bg-[#173f36] p-0 text-white hover:bg-[#12352e]'
-          : 'items-center gap-3 rounded-[var(--alife-radius-control)] bg-[#f1eee7]/85 px-2.5 py-2.5 hover:bg-[#e7eee9]',
-      ].join(' ')}
-    >
-      <div className={[
-        'flex shrink-0 items-center justify-center rounded-[var(--alife-radius-control)]',
-        collapsed ? 'h-10 w-10 text-white' : 'h-10 w-10 bg-[#173f36] text-white',
-      ].join(' ')}>
-        <LayoutGrid className="h-5 w-5" aria-hidden="true" />
-      </div>
-      {!collapsed ? (
-        <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-semibold text-[#60716a]">{copy.currentSpace}</p>
-          <p className="mt-0.5 truncate text-sm font-semibold text-[#18332d]">{workspaceName || copy.communityWorkspace}</p>
-        </div>
-      ) : null}
-    </Link>
-  )
-}
-
 export const DesktopNavigation = ({
   collapsed,
   onToggle,
   ...props
 }: WorkspaceNavigationProps & { collapsed: boolean; onToggle: () => void }) => {
   const t = useUiText()
-  const navigate = useNavigate()
   const workspaceSections = props.workspaceVisible ? props.workspaceSections : []
 
   return (
@@ -472,43 +465,22 @@ export const DesktopNavigation = ({
       className={['fixed bottom-0 left-0 top-0 z-20 hidden transition-[width] duration-300 desktop:block', collapsed ? 'w-20' : 'w-72'].join(' ')}
     >
       <aside className="flex h-full flex-col overflow-hidden border-r border-[#ddd4c8] bg-[#f8f5ee]/97 shadow-[10px_0_32px_rgba(30,54,48,0.06)] backdrop-blur-xl" aria-label={t('primaryNavigation')}>
-        <div className={['border-b border-[#e2d8cc]', collapsed ? 'space-y-2 p-3' : 'space-y-3 p-4'].join(' ')}>
+        <div className={['border-b border-[#e2d8cc]', collapsed ? 'p-3' : 'p-4'].join(' ')}>
           <SidebarBrand collapsed={collapsed} />
-          <CurrentSpaceLink
-            collapsed={collapsed}
-            workspaceName={props.workspaceName}
-            workspaceLabel={props.workspaceLabel}
-            workspaceTo={props.workspaceTo}
-            copy={props.copy}
-          />
         </div>
 
-        <nav className={['min-h-0 flex-1 overflow-y-auto', collapsed ? 'space-y-3 px-3 py-4' : 'space-y-5 px-3 py-4'].join(' ')}>
+        <nav className={['flex min-h-0 flex-1 flex-col overflow-y-auto', collapsed ? 'gap-3 px-3 py-4' : 'gap-5 px-3 py-4'].join(' ')}>
           {workspaceSections.length ? (
             <div className={collapsed ? 'space-y-2 border-b border-[#e5ddd2] pb-3' : 'space-y-3'}>
               {workspaceSections.map((section) => <NavigationSection key={section.key} section={section} collapsed={collapsed} />)}
             </div>
           ) : null}
-          <div className={collapsed ? 'space-y-2' : 'space-y-3'}>
-            {props.platformSections.map((section) => <NavigationSection key={section.key} section={section} collapsed={collapsed} />)}
+          <div className={collapsed ? 'flex flex-1 flex-col gap-2' : 'flex flex-1 flex-col gap-3'}>
+            <NavigationSectionGroup sections={props.platformSections} collapsed={collapsed} />
           </div>
         </nav>
 
         <div className={['border-t border-[#e2d8cc]', collapsed ? 'p-3' : 'p-3'].join(' ')}>
-          {props.userName && !collapsed ? (
-            <Link to="/profile" onClick={(event) => guardNavigationClick(event, '/profile', undefined, () => navigate('/profile'))} className="mb-2 flex items-center gap-3 rounded-2xl bg-white/74 px-3 py-2.5 transition hover:bg-white">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#e3f0eb] text-sm font-black text-[#176b5a]">{props.userName.slice(0, 1).toUpperCase()}</span>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-[#18332d]">{props.userName}</p>
-                <p className="text-[11px] font-semibold text-[#7d8a85]">{props.copy.memberAccount}</p>
-              </div>
-            </Link>
-          ) : null}
-          {props.accountItems.length ? (
-            <div className="mb-2 space-y-1">
-              {props.accountItems.map((item) => <SidebarLink key={item.key} item={item} collapsed={collapsed} />)}
-            </div>
-          ) : null}
           <button type="button" className={['flex h-11 items-center justify-center rounded-xl text-xs font-semibold text-[#62736c] transition hover:bg-white hover:text-[#18332d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/45', collapsed ? 'w-full' : 'w-full gap-2'].join(' ')} onClick={onToggle} aria-label={collapsed ? props.copy.expand : props.copy.collapse}>
             {collapsed ? <ChevronRight className="h-4 w-4" /> : <><ChevronLeft className="h-4 w-4" /><span>{props.copy.collapse}</span></>}
           </button>
@@ -519,76 +491,141 @@ export const DesktopNavigation = ({
 }
 
 export const BottomNavigation = ({
-  items,
-  onOpenMenu,
+  sections,
   copy,
 }: {
-  items: ShellNavItem[]
-  onOpenMenu: () => void
+  sections: ShellNavSection[]
   copy: NavigationCopy
 }) => {
   const t = useUiText()
-  return (
-    <motion.nav initial={{ y: 80 }} animate={{ y: 0 }} transition={{ type: 'spring', stiffness: 300, damping: 28, delay: 0.1 }} className="alife-panel fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-[calc(0.75rem+env(safe-area-inset-left))] right-[calc(0.75rem+env(safe-area-inset-right))] z-30 rounded-[1.6rem] px-2 pb-1 pt-1.5 desktop:hidden" aria-label={t('primaryNavigation')}>
-      <div className="mx-auto flex max-w-lg items-stretch gap-1">
-        {items.map((item) => <div key={item.key} className="flex-1"><SearchNavLink item={item} mobile /></div>)}
-        <button type="button" className="flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 text-[11px] font-semibold text-[#60716a] transition hover:bg-[#e3f0eb] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/45" onClick={onOpenMenu} aria-label={copy.openMenu}>
-          <span className="flex h-6 items-center justify-center"><Menu className="h-5 w-5" /></span>
-          <span>{copy.menu}</span>
-        </button>
-      </div>
-    </motion.nav>
-  )
-}
-
-export const MobileNavigationDrawer = ({
-  open,
-  onClose,
-  ...props
-}: WorkspaceNavigationProps & { open: boolean; onClose: () => void }) => {
+  const location = useLocation()
   const navigate = useNavigate()
-  const accountTarget = props.userName ? '/profile' : '/'
+  const [openSectionKey, setOpenSectionKey] = useState<string | null>(null)
+  const openSection = sections.find((section) => section.key === openSectionKey)
+
+  useEffect(() => {
+    setOpenSectionKey(null)
+  }, [location.pathname, location.search])
+
+  useEffect(() => {
+    if (!openSectionKey) return
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpenSectionKey(null)
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [openSectionKey])
+
+  const handleSectionClick = (event: MouseEvent<HTMLButtonElement>, section: ShellNavSection) => {
+    if (section.items.length > 0) {
+      setOpenSectionKey((current) => current === section.key ? null : section.key)
+      return
+    }
+
+    if (section.to) {
+      guardNavigationClick(event, section.to, () => navigate(section.to || '/'))
+    }
+  }
 
   return (
-    <AnimatePresence>
-      {open ? (
-        <>
-          <motion.button type="button" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-40 bg-emerald-950/35 backdrop-blur-sm desktop:hidden" aria-label={props.copy.closeMenu} onClick={onClose} />
-          <motion.aside initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }} transition={{ type: 'spring', stiffness: 340, damping: 32 }} className="fixed bottom-[env(safe-area-inset-bottom)] left-[env(safe-area-inset-left)] top-[env(safe-area-inset-top)] z-50 flex w-[min(90vw,24rem)] flex-col bg-[#f4f0e8] p-4 shadow-2xl desktop:hidden">
-            <div className="mb-4 flex items-center justify-between">
-              <Link to={accountTarget} onClick={(event) => guardNavigationClick(event, accountTarget, onClose, () => navigate(accountTarget))} className="flex items-center gap-3">
-                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#e3f0eb]"><img src={logo} alt="Alife" className="h-8 w-auto" /></span>
-                <div><p className="text-lg font-black tracking-[-0.04em] text-[#18332d]">Alife</p><p className="text-[11px] font-semibold text-[#7d8a85]">{props.userName || props.copy.communityWorkspace}</p></div>
-              </Link>
-              <button type="button" className="alife-icon-button" onClick={onClose} aria-label={props.copy.closeMenu}><CloseIcon /></button>
-            </div>
+    <>
+      <motion.nav
+        initial={{ y: 80 }}
+        animate={{ y: 0 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 28, delay: 0.1 }}
+        className="alife-panel fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-[calc(0.75rem+env(safe-area-inset-left))] right-[calc(0.75rem+env(safe-area-inset-right))] z-30 rounded-[1.6rem] px-2 py-1.5 desktop:hidden"
+        aria-label={t('primaryNavigation')}
+      >
+        <div className="mx-auto flex max-w-xl items-stretch gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {sections.map((section) => {
+            const active = isSectionActive(section, location.pathname, location.search)
+            const sheetOpen = openSectionKey === section.key
+            const submenuId = `mobile-submenu-${section.key.replace(/[^a-zA-Z0-9_-]/g, '-')}`
 
-            {props.accountItems.length ? (
-              <div className="mb-4 space-y-1">
-                {props.accountItems.map((item) => <SidebarLink key={item.key} item={item} onClick={onClose} />)}
-              </div>
-            ) : null}
+            return (
+              <motion.button
+                key={section.key}
+                type="button"
+                whileTap={{ scale: 0.95 }}
+                onClick={(event) => handleSectionClick(event, section)}
+                aria-current={active ? 'page' : undefined}
+                aria-expanded={section.items.length > 0 ? sheetOpen : undefined}
+                aria-controls={section.items.length > 0 ? submenuId : undefined}
+                aria-haspopup={section.items.length > 0 ? 'dialog' : undefined}
+                className={[
+                  'group flex min-w-[4.25rem] flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-1.5 py-2 text-[10px] font-black leading-tight transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/55',
+                  active || sheetOpen
+                    ? 'bg-[#173f36] text-white shadow-[0_8px_18px_rgba(23,63,54,0.18)]'
+                    : 'text-[#60716a] hover:bg-[#e3f0eb] hover:text-[#0d4f43]',
+                ].join(' ')}
+              >
+                <span className={['flex h-6 w-7 items-center justify-center transition', active || sheetOpen ? 'text-white' : 'text-[#53665f] group-hover:text-[#176b5a]'].join(' ')}>
+                  {section.icon || <Menu className="h-5 w-5" aria-hidden="true" />}
+                </span>
+                <span className="max-w-full truncate">{section.label}</span>
+              </motion.button>
+            )
+          })}
+        </div>
+      </motion.nav>
 
-            <CurrentSpaceLink
-              workspaceName={props.workspaceName}
-              workspaceLabel={props.workspaceLabel}
-              workspaceTo={props.workspaceTo}
-              copy={props.copy}
+      <AnimatePresence>
+        {openSection && openSection.items.length > 0 ? (
+          <>
+            <motion.button
+              type="button"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-40 bg-[#102f28]/48 backdrop-blur-[2px] desktop:hidden"
+              aria-label={copy.closeMenu}
+              onClick={() => setOpenSectionKey(null)}
             />
-
-            <nav className="mt-5 min-h-0 flex-1 space-y-6 overflow-y-auto pb-8">
-              {props.workspaceVisible && props.workspaceSections.length ? (
-                <div className="space-y-4 rounded-[1.35rem] border border-[#ded6cb] bg-[#ece6dc]/72 p-2">
-                  {props.workspaceSections.map((section) => <NavigationSection key={section.key} section={section} onItemClick={onClose} />)}
-                </div>
-              ) : null}
-              <div className="space-y-4">
-                {props.platformSections.map((section) => <NavigationSection key={section.key} section={section} onItemClick={onClose} />)}
+            <motion.section
+              id={`mobile-submenu-${openSection.key.replace(/[^a-zA-Z0-9_-]/g, '-')}`}
+              role="dialog"
+              aria-modal="true"
+              aria-label={openSection.label}
+              initial={{ y: '100%', opacity: 0.8 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: '100%', opacity: 0.8 }}
+              transition={{ type: 'spring', stiffness: 360, damping: 34 }}
+              className="fixed inset-x-0 bottom-0 z-50 max-h-[min(76dvh,42rem)] overflow-hidden rounded-t-[2rem] border-t border-[#ded6cb] bg-[#f8f5ee] px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-2 shadow-[0_-24px_60px_rgba(16,47,40,0.24)] desktop:hidden"
+            >
+              <div className="mx-auto mb-2 h-1.5 w-12 rounded-full bg-[#c8d2cd]" aria-hidden="true" />
+              <div className="flex items-start gap-2">
+                {openSection.to ? (
+                  <Link
+                    to={openSection.to}
+                    onClick={(event) => guardNavigationClick(event, openSection.to || '/', () => setOpenSectionKey(null), () => navigate(openSection.to || '/'))}
+                    className="group flex min-w-0 flex-1 items-center gap-3 rounded-[1.25rem] px-2 py-2.5 transition hover:bg-[#e7eee9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/55"
+                  >
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#173f36] text-white">{openSection.icon || <Menu className="h-5 w-5" />}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-base font-black text-[#18332d]">{openSection.label}</span>
+                      {openSection.description ? <span className="mt-0.5 block line-clamp-2 text-xs font-semibold leading-5 text-[#718079]">{openSection.description}</span> : null}
+                    </span>
+                    <ChevronRight className="h-4 w-4 shrink-0 text-[#7a8983] transition group-hover:translate-x-0.5" aria-hidden="true" />
+                  </Link>
+                ) : (
+                  <div className="flex min-w-0 flex-1 items-center gap-3 px-2 py-2.5">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#173f36] text-white">{openSection.icon || <Menu className="h-5 w-5" />}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-base font-black text-[#18332d]">{openSection.label}</span>
+                      {openSection.description ? <span className="mt-0.5 block line-clamp-2 text-xs font-semibold leading-5 text-[#718079]">{openSection.description}</span> : null}
+                    </span>
+                  </div>
+                )}
+                <button type="button" className="alife-icon-button mt-2 shrink-0" onClick={() => setOpenSectionKey(null)} aria-label={copy.closeMenu}><CloseIcon /></button>
               </div>
-            </nav>
-          </motion.aside>
-        </>
-      ) : null}
-    </AnimatePresence>
+
+              <div className="mt-2 max-h-[calc(min(76dvh,42rem)-6.5rem)] space-y-1 overflow-y-auto rounded-[1.5rem] bg-white/72 p-2 ring-1 ring-[#ded6cb]/75">
+                {openSection.items.map((item) => <NestedSidebarItem key={item.key} item={item} onItemClick={() => setOpenSectionKey(null)} />)}
+              </div>
+            </motion.section>
+          </>
+        ) : null}
+      </AnimatePresence>
+    </>
   )
 }

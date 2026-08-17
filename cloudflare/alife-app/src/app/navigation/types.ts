@@ -30,12 +30,15 @@ export type ShellNavSection = {
   description?: string
   to?: string
   icon?: ReactElement
+  collapsible?: boolean
+  showDescription?: boolean
+  toggleOnHeaderClick?: boolean
+  alignToBottom?: boolean
   items: ShellNavItem[]
 }
 
 export type NavigationCopy = {
   alife: string
-  memberAccount: string
   collapse: string
   expand: string
   menu: string

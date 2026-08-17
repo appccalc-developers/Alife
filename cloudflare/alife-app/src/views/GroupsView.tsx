@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Check, ChevronDown, ChevronRight, LayoutList, Network, UsersRound, Workflow } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import AccessTypeBadge from '../components/group/AccessTypeBadge'
 import AppBadge from '../components/layout/AppBadge'
 import AppEmptyState from '../components/layout/AppEmptyState'
@@ -160,6 +160,7 @@ const HierarchyRow = ({
 
 const GroupsView = () => {
   const auth = useAuthStore()
+  const location = useLocation()
   const navigate = useNavigate()
   const reduceMotion = useReducedMotion() === true
   const { groupId: activeGroupId } = useActiveEntityIds()
@@ -170,6 +171,7 @@ const GroupsView = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const language = auth.language
+  const alifeShellSearch = new URLSearchParams(location.search).get('from') === 'alife' ? '?from=alife' : ''
   const visibleGroups = useMemo(() => groups.filter((group) => !group.isChurch), [groups])
   const hierarchy = useMemo(() => buildGroupHierarchy(visibleGroups), [visibleGroups])
   const focusedNode = useMemo(() => findGroupHierarchyNode(hierarchy, focusedGroupId), [focusedGroupId, hierarchy])
@@ -241,6 +243,10 @@ const GroupsView = () => {
       navigate('/church')
       return
     }
+    if (auth.isGuest) {
+      navigate('/onboarding')
+      return
+    }
     const membership = auth.memberships.find((item) => item.groupId === group.id)
     if (membership?.status === 'approved') {
       activeEntityService.setGroup(group.id, { clearPage: true, clearEvent: true })
@@ -281,7 +287,7 @@ const GroupsView = () => {
                 <LayoutList className="h-3.5 w-3.5" aria-hidden="true" />
                 {language === 'zh' ? '简约选择' : 'Simple view'}
               </span>
-              <Link to="/groups/select/tree" className="inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-xs font-bold text-white/72 transition hover:bg-white/10 hover:text-white">
+              <Link to={`/groups/select/tree${alifeShellSearch}`} className="inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-xs font-bold text-white/72 transition hover:bg-white/10 hover:text-white">
                 <Workflow className="h-3.5 w-3.5" aria-hidden="true" />
                 {language === 'zh' ? '组织树' : 'Organization tree'}
               </Link>
@@ -414,6 +420,8 @@ const GroupsView = () => {
                     <button type="button" className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-[#176b5a] px-5 py-3 text-sm font-black text-white shadow-[0_12px_24px_rgba(23,107,90,0.20)] transition hover:-translate-y-0.5 hover:bg-[#125b4d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/55" onClick={() => openGroup(focusedGroup)}>
                       {focusedGroup.isChurch
                         ? (language === 'zh' ? '进入教会生活' : 'Open Church Life')
+                        : auth.isGuest
+                          ? (language === 'zh' ? '申请加入教会' : 'Apply to join the church')
                         : activeGroupId === focusedGroup.id
                         ? (language === 'zh' ? '进入当前小组' : 'Open current group')
                         : focusedMembership?.status === 'approved'

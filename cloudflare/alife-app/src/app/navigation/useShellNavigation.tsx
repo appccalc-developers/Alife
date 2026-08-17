@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useSyncExternalStore } from 'react'
-import { Activity, Bell, BookMarked, BookOpenText, Church, FileImage, Globe2, Home, Images, LayoutDashboard, MessageSquareText, Settings2, UsersRound } from 'lucide-react'
+import { Activity, Bell, BookMarked, BookOpenText, Church, FileImage, Globe2, Home, Images, MessageSquareText, Settings2, ShieldCheck, UsersRound } from 'lucide-react'
 import { groupMembershipsCollectionQueryKey } from '../../db/collections/groupCollection'
 import { queryClient } from '../../db/queryClient'
 import { activeEntityService } from '../../services/activeEntityService'
@@ -17,6 +17,7 @@ type Args = {
   contextualGroupId: string
   churchGroupId: string
   groupLifeGroupId: string
+  groupLifeGroupName: string
   eventDetailScreen: boolean
   contextualEventId?: string
   contextualEvent?: GroupEventRecord | null
@@ -55,6 +56,7 @@ export const useShellNavigation = ({
   contextualGroupId,
   churchGroupId,
   groupLifeGroupId: requestedGroupLifeGroupId,
+  groupLifeGroupName,
   eventDetailScreen,
   contextualEventId,
   contextualEvent,
@@ -63,6 +65,7 @@ export const useShellNavigation = ({
 }: Args) => {
   const auth = useAuthStore()
   const isChinese = auth.language === 'zh'
+  const memberAccountLabel = isChinese ? '成员账号' : 'Member account'
   const workspaceGroupId = requestedGroupLifeGroupId && requestedGroupLifeGroupId !== churchGroupId
     ? requestedGroupLifeGroupId
     : ''
@@ -76,19 +79,6 @@ export const useShellNavigation = ({
   const pendingReviewCount = isWorkspaceLeader && localMemberships
     ? localMemberships.filter((member) => member.status === 'requested').length
     : undefined
-
-  const workspaceOverview: ShellNavItem[] = workspaceGroupId && (auth.isAdmin || workspaceMembership?.status === 'approved') ? [
-    {
-      key: 'workspace:overview',
-      label: isChinese ? '小组总览' : 'Group Overview',
-      description: isChinese ? '查看当前小组的公告、活动与内容' : 'See announcements, events, and content for the selected group',
-      to: `/groups/${encodeURIComponent(workspaceGroupId)}?view=overview`,
-      matchSearch: '?view=overview',
-      icon: <LayoutDashboard className="h-5 w-5" />,
-      requireNoActivePage: true,
-      onClick: () => activeEntityService.setGroup(workspaceGroupId, { clearPage: true }),
-    },
-  ] : []
 
   const workspaceHome: ShellNavItem[] = canManageWorkspace ? [
     {
@@ -154,13 +144,6 @@ export const useShellNavigation = ({
   }] : []
 
   const churchContentItems: ShellNavItem[] = [
-    !auth.isGuest ? {
-      key: 'church:overview',
-      label: isChinese ? '教会总览' : 'Church Overview',
-      description: isChinese ? '教会公告、页面与近期活动' : 'Church announcements, pages, and upcoming events',
-      to: '/church',
-      icon: <LayoutDashboard className="h-5 w-5" />,
-    } : null,
     !auth.isGuest ? {
       key: 'church:forum',
       label: isChinese ? '教会论坛' : 'Church forum',
@@ -233,8 +216,7 @@ export const useShellNavigation = ({
   ].filter(isPresent) : []
 
   const contextualItems = eventDetailScreen ? eventItems : []
-  const groupContentItems = [...workspaceOverview, ...workspaceHome, ...groupForumItems, ...groupAlbumItems, ...workspaceManagement]
-  const workspaceItems = contextualItems
+  const groupContentItems = [...workspaceHome, ...groupForumItems, ...groupAlbumItems, ...workspaceManagement]
   const workspaceVisible = workspaceEnabled && contextualItems.length > 0
 
   const canOpenChurchManagement = canAccessChurchManagement({
@@ -289,6 +271,7 @@ export const useShellNavigation = ({
     : []
 
   const platformManagementItems = [...churchAdminItems, ...siteBuilderItems, ...adminPlatformItems]
+  const platformManagementChildItems = [...siteBuilderItems, ...adminPlatformItems]
 
   const guestItem: ShellNavItem | null = !auth.loading && auth.isGuest
     ? {
@@ -300,24 +283,7 @@ export const useShellNavigation = ({
     }
     : null
 
-  const lifeItems: ShellNavItem[] = [
-    !auth.isGuest ? {
-      key: 'app:church-life',
-      label: isChinese ? '教会生活' : 'Church Life',
-      description: isChinese ? '教会范围的页面、活动与共同生活' : 'Church-wide pages, events, and shared life',
-      to: '/church',
-      matchPathOnly: true,
-      icon: <Church className="h-5 w-5" />,
-    } : null,
-    {
-      key: 'app:group-life',
-      label: isChinese ? '小组生活' : 'Group Life',
-      description: isChinese ? '选择小组并进入小组生活' : 'Choose a group and enter Group Life',
-      to: '/groups/select',
-      icon: <UsersRound className="h-5 w-5" />,
-    },
-  ].filter(isPresent)
-
+  const groupSelectionTo = auth.isGuest ? '/groups/select?from=alife' : '/groups/select'
   const churchWebsiteItems: ShellNavItem[] = [
     {
       key: 'app:home',
@@ -335,7 +301,7 @@ export const useShellNavigation = ({
     },
   ]
 
-  const accountItems: ShellNavItem[] = !auth.isGuest
+  const accountItems: ShellNavItem[] = !auth.loading && !auth.isGuest
     ? [{
       key: 'app:study',
       label: isChinese ? '查经进度' : 'Bible Study Progress',
@@ -354,18 +320,20 @@ export const useShellNavigation = ({
       to: '/forum',
       icon: <MessageSquareText className="h-5 w-5" />,
     }] : []),
-    guestItem,
   ].filter(isPresent)
 
-  const primaryItems = [...lifeItems, ...platformManagementItems, ...churchWebsiteItems, ...contentItems, ...accountItems]
+  const profileItem: ShellNavItem | null = !auth.loading && !auth.isGuest
+    ? {
+      key: 'app:profile',
+      label: auth.me?.displayName || memberAccountLabel,
+      description: memberAccountLabel,
+      to: '/profile',
+      icon: <span aria-hidden="true" className="text-xs font-black">{(auth.me?.displayName || memberAccountLabel).slice(0, 1).toUpperCase()}</span>,
+    }
+    : null
+  const personalCenterItem = guestItem || profileItem
   const headerItems = guestItem ? [{ ...guestItem, key: 'app:onboarding-header' }] : []
-  const mobileItems = [
-    platformManagementItems[0] || churchWebsiteItems.find((item) => item.key === 'app:home'),
-    workspaceItems[0] || lifeItems.find((item) => item.key === 'app:group-life'),
-    churchWebsiteItems.find((item) => item.key === 'app:sermons'),
-  ].filter(isPresent)
 
-  const workspaceLabel = isChinese ? '小组生活' : 'Group Life'
   const workspaceSections: ShellNavSection[] = [
     contextualItems.length
       ? { key: 'workspace-event', label: isChinese ? '当前活动' : 'Current event', description: isChinese ? '活动通知、报名和回顾' : 'Notice, enrollment, and memories', items: contextualItems }
@@ -374,35 +342,61 @@ export const useShellNavigation = ({
 
   const platformSections: ShellNavSection[] = [
     {
-      key: 'platform-group-life',
-      label: isChinese ? '小组生活' : 'Group Life',
-      description: isChinese ? '当前小组的总览、管理、论坛、活动和公告' : 'Overview, management, forum, events, and announcements for the selected group',
-      to: workspaceGroupId ? `/groups/${encodeURIComponent(workspaceGroupId)}?view=overview` : '/groups/select',
-      icon: <UsersRound className="h-5 w-5" />,
-      items: groupContentItems,
-    },
-    {
       key: 'platform-church-life',
       label: isChinese ? '教会生活' : 'Church Life',
       description: auth.isGuest
         ? (isChinese ? '教会网站与主日证道' : 'Church website and Sunday sermons')
         : (isChinese ? '教会范围的总览、活动与公告' : 'Church-wide overview, events, and announcements'),
-      to: auth.isGuest ? '/' : '/church',
+      to: auth.isGuest ? '/sermons' : '/church',
       icon: <Church className="h-5 w-5" />,
+      collapsible: true,
+      toggleOnHeaderClick: true,
       items: [...churchWebsiteItems, ...churchContentItems],
+    },
+    {
+      key: 'platform-group-life',
+      label: groupLifeGroupName || (isChinese ? '小组生活' : 'Group Life'),
+      description: isChinese ? '当前小组的总览、管理、论坛、活动和公告' : 'Overview, management, forum, events, and announcements for the selected group',
+      to: workspaceGroupId ? `/groups/${encodeURIComponent(workspaceGroupId)}?view=overview` : groupSelectionTo,
+      icon: <UsersRound className="h-5 w-5" />,
+      collapsible: Boolean(workspaceGroupId),
+      toggleOnHeaderClick: Boolean(workspaceGroupId),
+      items: groupContentItems,
     },
     contentItems.length
       ? { key: 'platform-content', label: isChinese ? '公开内容' : 'Public content', description: isChinese ? '面向访客和成员的入口' : 'Visitor and member-facing entry points', items: contentItems }
       : null,
     platformManagementItems.length
-      ? { key: 'platform-management', label: isChinese ? '平台管理' : 'Platform Management', description: isChinese ? '教会管理、首页管理、文件与审计能力' : 'Church management, homepage management, files, and audit capabilities', items: platformManagementItems }
+      ? {
+        key: 'platform-management',
+        label: isChinese ? '平台管理' : 'Platform Management',
+        description: isChinese ? '教会管理、首页管理、文件与审计能力' : 'Church management, homepage management, files, and audit capabilities',
+        to: platformManagementItems[0].to,
+        icon: <ShieldCheck className="h-5 w-5" />,
+        collapsible: true,
+        toggleOnHeaderClick: true,
+        items: platformManagementChildItems,
+      }
+      : null,
+    personalCenterItem
+      ? {
+        key: 'platform-personal-center',
+        label: personalCenterItem.label,
+        description: personalCenterItem.description,
+        to: personalCenterItem.to,
+        icon: personalCenterItem.icon,
+        collapsible: true,
+        showDescription: true,
+        toggleOnHeaderClick: true,
+        alignToBottom: true,
+        items: auth.isGuest ? [] : accountItems,
+      }
       : null,
   ].filter(isPresent)
 
   const copy: NavigationCopy = isChinese
     ? {
       alife: '平台入口',
-      memberAccount: '成员账号',
       collapse: '收起侧边栏',
       expand: '展开侧边栏',
       menu: '菜单',
@@ -418,7 +412,6 @@ export const useShellNavigation = ({
     }
     : {
       alife: 'Platform',
-      memberAccount: 'Member account',
       collapse: 'Collapse sidebar',
       expand: 'Expand sidebar',
       menu: 'Menu',
@@ -434,14 +427,9 @@ export const useShellNavigation = ({
     }
 
   return {
-    accountItems,
     copy,
     headerItems,
-    mobileItems,
     platformSections,
-    primaryItems,
-    workspaceItems,
-    workspaceLabel,
     workspaceSections,
     workspaceVisible,
   }
