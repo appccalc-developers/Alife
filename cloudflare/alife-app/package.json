@@ -11,6 +11,7 @@
     "test:locale": "node --test --experimental-strip-types tests/locale.test.ts",
     "test:article-covers": "node --test --experimental-strip-types tests/articleCover.test.ts",
     "test:navigation-policy": "node --test --experimental-strip-types tests/navigationPolicy.test.ts",
+    "test:route-chunk-recovery": "node --test --experimental-strip-types tests/routeChunkRecovery.test.ts",
     "typecheck": "tsc -b --pretty false",
     "build": "tsc -b && vite build",
     "preview": "npm run build && npm --prefix ../speed-layer run dev",

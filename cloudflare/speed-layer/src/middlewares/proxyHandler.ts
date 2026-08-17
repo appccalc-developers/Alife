@@ -24,7 +24,18 @@ export const proxyHandler = {
     }
 
     if (!isProxyPath(url.pathname)) {
-      return addCorsHeaders(request, new Response('Not found', { status: 404 }), env)
+      return addCorsHeaders(
+        request,
+        new Response('Not found', {
+          status: 404,
+          headers: {
+            'cache-control': 'no-store',
+            'content-type': 'text/plain; charset=utf-8',
+            'x-content-type-options': 'nosniff',
+          },
+        }),
+        env,
+      )
     }
 
     if (request.method === 'OPTIONS') {

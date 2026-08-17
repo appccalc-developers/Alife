@@ -5,6 +5,7 @@ import { useAuthStore } from '../../stores/auth'
 import { activeEntityService } from '../../services/activeEntityService'
 import { workspaceResumeService } from '../../services/workspaceResumeService'
 import AppRouteLoading from '../components/AppRouteLoading'
+import RouteChunkErrorBoundary from '../components/RouteChunkErrorBoundary'
 import { isHomeLocation, isPublicPageLocation } from './publicRoutePolicy'
 import { canAccessChurchManagement, hasChurchManagementAdminPermission } from './churchManagementAccess'
 
@@ -165,8 +166,9 @@ const AppRoutes = ({ churchGroupId = '', churchGroupLoading = false }: AppRoutes
         exit={reduceMotion ? { opacity: 1 } : { opacity: 0 }}
         transition={{ duration: reduceMotion ? 0 : 0.18, ease: 'easeInOut' }}
       >
-        <Suspense fallback={<AppRouteLoading />}>
-          <Routes location={location}>
+        <RouteChunkErrorBoundary>
+          <Suspense fallback={<AppRouteLoading />}>
+            <Routes location={location}>
           <Route path="/" element={<HomeView />} />
           <Route path="/articles" element={<ArticlesView />} />
           <Route path="/articles/:slug" element={<ArticleDetailView />} />
@@ -294,8 +296,9 @@ const AppRoutes = ({ churchGroupId = '', churchGroupLoading = false }: AppRoutes
             }
           />
           <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
+            </Routes>
+          </Suspense>
+        </RouteChunkErrorBoundary>
       </motion.div>
     </AnimatePresence>
   )
