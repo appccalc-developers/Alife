@@ -7,7 +7,7 @@ import { EventPlanningSession } from './dist/app_ccalc/index.js'
 
 const ORIGIN = 'https://ccalc.live'
 
-test('frontend build applies short-lived SPA shell and immutable hashed asset caching', async () => {
+test('frontend build revalidates SPA files in browsers while retaining hashed assets at the edge', async () => {
   const headers = await readFile(new URL('../alife-app/dist/_headers', import.meta.url), 'utf8')
 
   assert.match(
@@ -16,7 +16,7 @@ test('frontend build applies short-lived SPA shell and immutable hashed asset ca
   )
   assert.match(
     headers,
-    /\/assets\/\*\s+! Cache-Control\s+! Cloudflare-CDN-Cache-Control\s+Cache-Control: public, max-age=31536000, immutable\s+Cloudflare-CDN-Cache-Control: public, max-age=31536000/,
+    /\/assets\/\*\s+! Cache-Control\s+! Cloudflare-CDN-Cache-Control\s+Cache-Control: public, max-age=0, must-revalidate\s+Cloudflare-CDN-Cache-Control: public, max-age=31536000/,
   )
   assert.match(
     headers,
@@ -127,6 +127,17 @@ beforeEach(() => {
       },
     },
   }
+})
+
+test('missing non-API resources return an uncacheable plain-text 404', async () => {
+  const response = await dispatch(`${ORIGIN}/assets/missing-route-chunk.js`)
+
+  assert.equal(response.status, 404)
+  assert.equal(response.headers.get('cache-control'), 'no-store')
+  assert.equal(response.headers.get('content-type'), 'text/plain; charset=utf-8')
+  assert.equal(response.headers.get('x-content-type-options'), 'nosniff')
+  assert.equal(await response.text(), 'Not found')
+  assert.equal(fetchCalls.length, 0)
 })
 
 test('approved group member can read shared group detail cache', async () => {

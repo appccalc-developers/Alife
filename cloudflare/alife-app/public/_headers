@@ -3,11 +3,13 @@
   Cache-Control: public, max-age=60, must-revalidate
   Cloudflare-CDN-Cache-Control: public, max-age=60, must-revalidate
 
-# Fingerprinted Vite assets are safe to cache permanently because their URLs change with content.
+# Keep fingerprinted assets in Cloudflare's edge cache, but require browsers to
+# revalidate before reuse. This prevents an SPA fallback or transient 404 from
+# being pinned under a JavaScript URL for a year.
 /assets/*
   ! Cache-Control
   ! Cloudflare-CDN-Cache-Control
-  Cache-Control: public, max-age=31536000, immutable
+  Cache-Control: public, max-age=0, must-revalidate
   Cloudflare-CDN-Cache-Control: public, max-age=31536000
 
 # These stable URLs must be revalidated so they can announce a new application version immediately.
