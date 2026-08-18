@@ -140,7 +140,7 @@ const PageEditorView = () => {
     groupId: routeCreateGroupId || queryGroupId || undefined,
     pageId: editPageIdParam || undefined,
   })
-  const createGroupId = routeCreateGroupId
+  const createGroupId = routeCreateGroupId || (location.pathname === '/pages/new' ? activeIds.groupId : '')
   const editPageId = editPageIdParam ?? (location.pathname === '/pages/edit' ? activeIds.pageId : '')
 
   const isCreateMode = Boolean(createGroupId)

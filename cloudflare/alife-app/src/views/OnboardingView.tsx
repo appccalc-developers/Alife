@@ -101,7 +101,7 @@ const OnboardingView = () => {
         password,
       })
       await auth.fetchMe()
-      navigate('/')
+      navigate('/enter', { replace: true })
     } catch (error) {
       setMessage(getErrorMessage(error, t('displayNameLoginFailed')))
     } finally {
@@ -128,7 +128,7 @@ const OnboardingView = () => {
       })
       await auth.fetchMe()
       setMessage(t('registeredSuccessfully'))
-      navigate('/')
+      navigate('/enter', { replace: true })
     } catch (error) {
       setMessage(getErrorMessage(error, t('registrationFailed')))
     } finally {

@@ -17,7 +17,7 @@ import AppSectionCard from '../layout/AppSectionCard'
 
 type Props = {
   eventId: string
-  groupId: string
+  editPath: string
   language: string
   canManage: boolean
 }
@@ -58,7 +58,7 @@ const labels = {
 const localize = (value: WorkflowText, language: string) =>
   (language === 'zh' ? value.zh : value.en) || value.en || value.zh
 
-const EventWorkflowPanel = ({ eventId, groupId, language, canManage }: Props) => {
+const EventWorkflowPanel = ({ eventId, editPath, language, canManage }: Props) => {
   const text = language === 'zh' ? labels.zh : labels.en
   const [workflow, setWorkflow] = useState<EventWorkflow | null>(null)
   const [templates, setTemplates] = useState<EventWorkflowTemplate[]>([])
@@ -180,7 +180,7 @@ const EventWorkflowPanel = ({ eventId, groupId, language, canManage }: Props) =>
             {step.integrationKey === 'ram' ? (
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
                 <span>{text.managed}</span>
-                {canManage ? <Link className="font-bold underline" to={`/groups/${encodeURIComponent(groupId)}/events/${encodeURIComponent(eventId)}/edit`}>{text.openRam}</Link> : null}
+                {canManage ? <Link className="font-bold underline" to={editPath}>{text.openRam}</Link> : null}
               </div>
             ) : null}
 

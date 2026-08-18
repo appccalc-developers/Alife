@@ -8,6 +8,7 @@ import { activeEntityService } from '../../services/activeEntityService'
 import { localizeText } from '../../utils/localizedText'
 import { announcementService } from '../../services/announcementService'
 import type { AnnouncementDto } from '../../types/announcement'
+import { buildScopedEventDetailPath } from '../../utils/eventRoutes'
 
 type Props = {
   group: GroupDto
@@ -15,9 +16,10 @@ type Props = {
   events: GroupEventRecord[]
   canManage: boolean
   scope?: 'group' | 'church'
+  explicitGroupRoute?: boolean
 }
 
-const GroupDashboard = ({ group, pages, events, scope = 'group' }: Props) => {
+const GroupDashboard = ({ group, pages, events, scope = 'group', explicitGroupRoute = false }: Props) => {
   const auth = useAuthStore()
   const language = auth.language
   const groupName = localizeText(group.name, language)
@@ -30,6 +32,7 @@ const GroupDashboard = ({ group, pages, events, scope = 'group' }: Props) => {
   const openEvent = (eventId: string) => {
     activeEntityService.set({ pageId: '', eventId })
   }
+  const eventPath = (eventId: string) => buildScopedEventDetailPath(group.id, eventId, scope === 'church' || explicitGroupRoute)
 
   useEffect(() => {
     let cancelled = false
@@ -107,7 +110,7 @@ const GroupDashboard = ({ group, pages, events, scope = 'group' }: Props) => {
         </header>
 
         {nextEvent ? (
-          <Link to={`/groups/${encodeURIComponent(group.id)}/events/${encodeURIComponent(nextEvent.id)}`} onClick={() => openEvent(nextEvent.id)} className="group flex flex-col gap-4 rounded-[1.5rem] border border-[#d9e5df] bg-white px-5 py-5 shadow-[0_14px_40px_rgba(24,51,45,0.06)] transition hover:-translate-y-0.5 hover:border-[#9cc8b9] hover:shadow-[0_18px_45px_rgba(24,51,45,0.10)] sm:flex-row sm:items-center sm:px-7">
+          <Link to={eventPath(nextEvent.id)} onClick={() => openEvent(nextEvent.id)} className="group flex flex-col gap-4 rounded-[1.5rem] border border-[#d9e5df] bg-white px-5 py-5 shadow-[0_14px_40px_rgba(24,51,45,0.06)] transition hover:-translate-y-0.5 hover:border-[#9cc8b9] hover:shadow-[0_18px_45px_rgba(24,51,45,0.10)] sm:flex-row sm:items-center sm:px-7">
             <time className="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-2xl bg-[#edf6f2] text-[#176b5a]">
               <span className="text-[0.62rem] font-black uppercase tracking-[0.12em]">{new Date(nextEvent.startDate).toLocaleDateString(locale, { month: 'short' })}</span>
               <span className="text-2xl font-black leading-none">{new Date(nextEvent.startDate).getDate()}</span>
@@ -129,7 +132,7 @@ const GroupDashboard = ({ group, pages, events, scope = 'group' }: Props) => {
             </div>
             <div className="overflow-hidden rounded-[1.65rem] border border-[#dfe7e3] bg-white shadow-[0_12px_36px_rgba(24,51,45,0.05)]">
               {churchUpcomingEvents.slice(0, 5).map((event) => (
-                <Link key={event.id} to={`/groups/${encodeURIComponent(group.id)}/events/${encodeURIComponent(event.id)}`} onClick={() => openEvent(event.id)} className="group grid grid-cols-[4.25rem_minmax(0,1fr)_auto] items-center gap-4 border-b border-[#e9eeeb] px-5 py-4 last:border-b-0 hover:bg-[#f5faf7]">
+                <Link key={event.id} to={eventPath(event.id)} onClick={() => openEvent(event.id)} className="group grid grid-cols-[4.25rem_minmax(0,1fr)_auto] items-center gap-4 border-b border-[#e9eeeb] px-5 py-4 last:border-b-0 hover:bg-[#f5faf7]">
                   <time className="text-center"><span className="block text-[0.62rem] font-black uppercase tracking-[0.12em] text-[#9b6447]">{new Date(event.startDate).toLocaleDateString(locale, { month: 'short' })}</span><span className="mt-0.5 block text-2xl font-black text-[#18332d]">{new Date(event.startDate).getDate()}</span></time>
                   <div className="min-w-0"><h3 className="truncate text-sm font-black text-[#27473f]">{eventTitle(event)}</h3><p className="mt-1 text-xs text-[#7c8983]">{new Date(event.startDate).toLocaleString(locale, { weekday: 'short', hour: '2-digit', minute: '2-digit' })}</p></div>
                   <ArrowUpRight className="h-4 w-4 text-[#9aaba4] transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[#176b5a]" aria-hidden="true" />
@@ -195,7 +198,7 @@ const GroupDashboard = ({ group, pages, events, scope = 'group' }: Props) => {
           </div>
           <div className="overflow-hidden rounded-[1.65rem] border border-[#dfe7e3] bg-white shadow-[0_12px_36px_rgba(24,51,45,0.05)]">
             {upcomingEvents.map((event, index) => (
-              <Link key={event.id} to={`/groups/${encodeURIComponent(group.id)}/events/${encodeURIComponent(event.id)}`} onClick={() => openEvent(event.id)} className="group grid grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-4 border-b border-[#e8eeeb] px-5 py-5 last:border-b-0 hover:bg-[#f5faf7]">
+              <Link key={event.id} to={eventPath(event.id)} onClick={() => openEvent(event.id)} className="group grid grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-4 border-b border-[#e8eeeb] px-5 py-5 last:border-b-0 hover:bg-[#f5faf7]">
                 <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#edf6f2] text-sm font-black text-[#176b5a]">{String(index + 1).padStart(2, '0')}</span>
                 <div className="min-w-0"><h3 className="truncate text-sm font-black text-[#27473f]">{eventTitle(event)}</h3><p className="mt-1 text-xs text-[#7c8983]">{new Date(event.startDate).toLocaleString(locale, { month: 'long', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' })}</p></div>
                 <ArrowUpRight className="h-4 w-4 text-[#a0ada7] transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[#176b5a]" aria-hidden="true" />
@@ -216,7 +219,7 @@ const GroupDashboard = ({ group, pages, events, scope = 'group' }: Props) => {
 
       <section aria-labelledby="group-pages-heading">
         <div className="mb-4 flex items-end justify-between gap-4 px-1"><div><p className="text-[0.65rem] font-black uppercase tracking-[0.2em] text-[#176b5a]">{language === 'zh' ? '发现' : 'Discover'}</p><h2 id="group-pages-heading" className="mt-1 text-2xl font-black tracking-[-0.035em] text-[#18332d]">{language === 'zh' ? '小组内容' : 'Group content'}</h2></div><FileText className="h-5 w-5 text-[#87968f]" aria-hidden="true" /></div>
-        {pages.length ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{pages.slice(0, 6).map((page, index) => <Link key={page.id} to="/groups" onClick={() => activeEntityService.setPage(page.id, group.id)} className="group relative min-h-32 overflow-hidden rounded-[1.4rem] border border-[#dfe7e3] bg-white p-5 shadow-[0_10px_30px_rgba(24,51,45,0.04)] transition hover:-translate-y-0.5 hover:border-[#a9cabe] hover:shadow-[0_16px_38px_rgba(24,51,45,0.08)]"><span className="text-[0.62rem] font-black uppercase tracking-[0.16em] text-[#9aa69f]">{String(index + 1).padStart(2, '0')}</span><h3 className="mt-5 pr-8 text-base font-black text-[#27473f]">{localizeText(page.title, language)}</h3><ArrowUpRight className="absolute bottom-5 right-5 h-4 w-4 text-[#9aaba4] transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[#176b5a]" aria-hidden="true" /></Link>)}</div> : <div className="rounded-[1.5rem] border border-dashed border-[#cfdcd6] bg-white/55 px-6 py-8 text-sm text-[#718079]">{language === 'zh' ? '这个小组还没有发布内容。' : 'This group has not published any content yet.'}</div>}
+        {pages.length ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{pages.slice(0, 6).map((page, index) => <Link key={page.id} to={explicitGroupRoute ? `/groups/${encodeURIComponent(group.id)}?page=${encodeURIComponent(page.id)}` : '/groups'} onClick={() => { if (!explicitGroupRoute) activeEntityService.setPage(page.id, group.id) }} className="group relative min-h-32 overflow-hidden rounded-[1.4rem] border border-[#dfe7e3] bg-white p-5 shadow-[0_10px_30px_rgba(24,51,45,0.04)] transition hover:-translate-y-0.5 hover:border-[#a9cabe] hover:shadow-[0_16px_38px_rgba(24,51,45,0.08)]"><span className="text-[0.62rem] font-black uppercase tracking-[0.16em] text-[#9aa69f]">{String(index + 1).padStart(2, '0')}</span><h3 className="mt-5 pr-8 text-base font-black text-[#27473f]">{localizeText(page.title, language)}</h3><ArrowUpRight className="absolute bottom-5 right-5 h-4 w-4 text-[#9aaba4] transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[#176b5a]" aria-hidden="true" /></Link>)}</div> : <div className="rounded-[1.5rem] border border-dashed border-[#cfdcd6] bg-white/55 px-6 py-8 text-sm text-[#718079]">{language === 'zh' ? '这个小组还没有发布内容。' : 'This group has not published any content yet.'}</div>}
       </section>
     </div>
   )

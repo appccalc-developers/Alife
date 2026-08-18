@@ -16,6 +16,7 @@ import type { GroupEventRecord } from '../types/event'
 import type { EventReviewRecord } from '../types/review'
 import { loadAiContentContext, type AiContentContext } from '../utils/aiContentContext'
 import { getEventLifecycle } from '../utils/eventLifecycle'
+import { buildScopedEventDetailPath } from '../utils/eventRoutes'
 
 const EventReviewView = () => {
   const t = useUiText()
@@ -32,6 +33,7 @@ const EventReviewView = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
+  const eventBasePath = buildScopedEventDetailPath(groupId, eventId, Boolean(routeGroupId))
 
   useEffect(() => {
     if (!groupId || !eventId) {
@@ -107,13 +109,13 @@ const EventReviewView = () => {
   }
 
   if (event && getEventLifecycle(event) !== 'past') {
-    return <Navigate to={`/groups/${encodeURIComponent(groupId)}/events/${encodeURIComponent(eventId)}`} replace />
+    return <Navigate to={eventBasePath} replace />
   }
 
   return (
     <AppPageShell>
       <div className="mb-5">
-        <Link to={`/groups/${encodeURIComponent(groupId)}/events/${encodeURIComponent(eventId)}?section=memories`} className="text-sm font-medium text-slate-600 hover:text-slate-950">
+        <Link to={`${eventBasePath}?section=memories`} className="text-sm font-medium text-slate-600 hover:text-slate-950">
           {t('backToGroup')}
         </Link>
       </div>

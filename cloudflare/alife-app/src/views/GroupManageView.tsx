@@ -25,6 +25,7 @@ import ContactManagementPanel from '../components/group/ContactManagementPanel'
 import RegionalPhoneInput from '../components/forms/RegionalPhoneInput'
 import { isValidPhoneNumber } from '../utils/phoneNumber'
 import { getEventLifecycle, readEventLifecycleData, sortEventsByLatestStart, type EventLifecycle } from '../utils/eventLifecycle'
+import { buildScopedEventDetailPath } from '../utils/eventRoutes'
 
 const shortId = (value: string) => (value.length > 8 ? value.slice(0, 8) : value)
 
@@ -727,12 +728,13 @@ type EventsPanelProps = {
   groupId: string
   events: GroupEventRecord[]
   copy: ReturnType<typeof managementCopy>
+  currentGroupRoute?: boolean
   framed?: boolean
 }
 
 const eventTabs: EventLifecycle[] = ['past', 'upcoming', 'planning']
 
-const EventsPanel = ({ groupId, events, copy, framed = true }: EventsPanelProps) => {
+const EventsPanel = ({ groupId, events, copy, currentGroupRoute = false, framed = true }: EventsPanelProps) => {
   const navigate = useNavigate()
   const t = useUiText()
   const { language } = useAuthStore()
@@ -755,8 +757,8 @@ const EventsPanel = ({ groupId, events, copy, framed = true }: EventsPanelProps)
       title={copy.events}
       subtitle={copy.eventsHint}
       action={<AppActionButton variant="primary" onClick={() => {
-        activeEntityService.set({ groupId, eventId: '' })
-        navigate(`/groups/${encodeURIComponent(groupId)}/events/new`)
+        if (currentGroupRoute) activeEntityService.set({ groupId, eventId: '' })
+        navigate(currentGroupRoute ? '/events/new' : `/groups/${encodeURIComponent(groupId)}/events/new`)
       }}>
         <CalendarDays size={16} aria-hidden="true" className="mr-1.5" />
         {copy.createEvent}
@@ -764,8 +766,8 @@ const EventsPanel = ({ groupId, events, copy, framed = true }: EventsPanelProps)
     >
       {events.length === 0 ? (
         <AppEmptyState title={copy.emptyEventsTitle} description={copy.emptyEventsBody} actionLabel={copy.createEvent} onAction={() => {
-          activeEntityService.set({ groupId, eventId: '' })
-          navigate(`/groups/${encodeURIComponent(groupId)}/events/new`)
+          if (currentGroupRoute) activeEntityService.set({ groupId, eventId: '' })
+          navigate(currentGroupRoute ? '/events/new' : `/groups/${encodeURIComponent(groupId)}/events/new`)
         }} />
       ) : (
         <div className="space-y-4">
@@ -799,7 +801,7 @@ const EventsPanel = ({ groupId, events, copy, framed = true }: EventsPanelProps)
               {displayedEvents.map((event) => {
                 const title = (language === 'zh' ? event.titleZh : event.titleEn) || event.titleEn || event.titleZh || t('untitled')
                 const lifecycleData = readEventLifecycleData(event)
-                const detailPath = `/groups/${encodeURIComponent(groupId)}/events/${encodeURIComponent(event.id)}`
+                const detailPath = buildScopedEventDetailPath(groupId, event.id, !currentGroupRoute)
                 return (
                   <div key={event.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/80 p-4">
                     <div>
@@ -822,7 +824,7 @@ const EventsPanel = ({ groupId, events, copy, framed = true }: EventsPanelProps)
                       }}>{copy.addReview}</AppActionButton> : null}
                       {activeTab === 'planning' ? <AppActionButton size="sm" variant="secondary" onClick={() => {
                         activeEntityService.setEvent(event.id)
-                        navigate(`/groups/${encodeURIComponent(groupId)}/events/${encodeURIComponent(event.id)}/edit`)
+                        navigate(`${detailPath}/edit`)
                       }}>{language === 'zh' ? '编辑 / RAM' : 'Edit / RAM'}</AppActionButton> : null}
                       {activeTab === 'upcoming' && lifecycleData.acceptsEnrollments && (lifecycleData.registrationDeadlineTime ?? 0) >= Date.now() ? <AppActionButton size="sm" variant="primary" onClick={() => {
                         activeEntityService.setEvent(event.id)
@@ -861,6 +863,7 @@ const GroupManageView = ({
   const { groupId: routeGroupId } = useParams<{ groupId: string }>()
   const { groupId: activeGroupId } = useActiveEntityIds({ groupId: routeGroupId })
   const groupId = explicitGroupId || activeGroupId || ''
+  const currentGroupRoute = !routeGroupId && !explicitGroupId
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const auth = useAuthStore()
@@ -954,10 +957,10 @@ const GroupManageView = ({
   }
 
   useEffect(() => {
-    if (group) {
+    if (group && currentGroupRoute) {
       setCurrentGroup(group)
     }
-  }, [group, setCurrentGroup])
+  }, [currentGroupRoute, group, setCurrentGroup])
 
   useEffect(() => {
     setUnsavedChangesGuard(hasUnsavedGroupProfileChanges, unsavedGroupProfileMessage)
@@ -1182,8 +1185,8 @@ const GroupManageView = ({
                   copy={copy}
                   allowInvite={!group.isChurch}
                   onInviteMember={() => {
-                    activeEntityService.setGroup(groupId, { clearPage: true })
-                    navigate(`/groups/${groupId}/manage/invite-members`)
+                    if (currentGroupRoute) activeEntityService.setGroup(groupId, { clearPage: true })
+                    navigate(currentGroupRoute ? '/groups/manage/invite-members' : `/groups/${encodeURIComponent(groupId)}/manage/invite-members`)
                   }}
                   onApproveMember={(memberId) => approveMember(memberId).catch(() => setStatusMessage(t('approveFailed')))}
                   onRejectMember={(memberId) => rejectMember(memberId).catch(() => setStatusMessage(t('rejectFailed')))}
@@ -1207,8 +1210,8 @@ const GroupManageView = ({
                   language={language}
                   pages={pages}
                   onAddPage={() => {
-                    activeEntityService.setGroup(groupId, { clearPage: true })
-                    navigate(`/groups/${groupId}/pages/new`)
+                    if (currentGroupRoute) activeEntityService.setGroup(groupId, { clearPage: true })
+                    navigate(currentGroupRoute ? '/pages/new' : `/groups/${encodeURIComponent(groupId)}/pages/new`)
                   }}
                   onDeletePage={(pageId) => {
                     if (!window.confirm(t('removePageConfirm'))) return
@@ -1223,7 +1226,7 @@ const GroupManageView = ({
                   framed={false}
                   title={copy.albums}
                   subtitle={copy.albumsHint}
-                  action={<AppActionButton variant="primary" onClick={() => navigate(`/groups/${groupId}/albums`)}>{copy.albums}</AppActionButton>}
+                  action={<AppActionButton variant="primary" onClick={() => navigate(currentGroupRoute ? '/albums' : `/groups/${encodeURIComponent(groupId)}/albums`)}>{copy.albums}</AppActionButton>}
                 >
                   <p className="text-sm leading-6 text-slate-600">{copy.albumsHint}</p>
                 </ManagementPanelShell>
@@ -1235,6 +1238,7 @@ const GroupManageView = ({
                   groupId={groupId}
                   events={events}
                   copy={copy}
+                  currentGroupRoute={currentGroupRoute}
                 />
               ) : null}
 

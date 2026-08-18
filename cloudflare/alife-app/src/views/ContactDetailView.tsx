@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, Navigate, useParams } from 'react-router-dom'
 import { Mail, Phone, Send, UserRound } from 'lucide-react'
 import AppPageShell from '../components/layout/AppPageShell'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
 import AppEmptyState from '../components/layout/AppEmptyState'
+import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
 import { contactService } from '../services/contactService'
 import { normalizeApiError } from '../services/http'
 import { useAuthStore } from '../stores/auth'
@@ -14,7 +15,8 @@ import { localizeText } from '../utils/localizedText'
 const inputClass = 'mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-100'
 
 const ContactDetailView = () => {
-  const { groupId = '', contactId = '' } = useParams<{ groupId: string; contactId: string }>()
+  const { groupId: routeGroupId, contactId = '' } = useParams<{ groupId?: string; contactId: string }>()
+  const { groupId } = useActiveEntityIds({ groupId: routeGroupId })
   const auth = useAuthStore()
   const zh = auth.language === 'zh'
   const [contact, setContact] = useState<ContactProfileDto | null>(null)
@@ -25,6 +27,7 @@ const ContactDetailView = () => {
   const [form, setForm] = useState({ displayName: auth.me?.displayName ?? '', email: auth.me?.email ?? '', phone: auth.me?.phoneE164 ?? '', message: '' })
 
   useEffect(() => {
+    if (!groupId) return
     let cancelled = false
     setLoading(true)
     contactService.list(groupId)
@@ -48,6 +51,8 @@ const ContactDetailView = () => {
     }
   }
 
+  if (!groupId) return <Navigate to="/groups/select" replace />
+
   if (loading) return <AppPageShell><p className="text-sm text-slate-500">{zh ? '正在加载联系人…' : 'Loading contact…'}</p></AppPageShell>
   if (!contact) return <AppPageShell><AppEmptyState title={zh ? '未找到联系人' : 'Contact not found'} description={error || (zh ? '此联系人不可见或已被删除。' : 'This contact is unavailable or has been removed.')} /></AppPageShell>
 
@@ -55,7 +60,7 @@ const ContactDetailView = () => {
   return (
     <AppPageShell>
       <div className="mx-auto max-w-3xl space-y-5">
-        <Link to={`/groups/${encodeURIComponent(groupId)}?view=overview`} className="text-sm font-bold text-emerald-700">← {zh ? '返回小组' : 'Back to group'}</Link>
+        <Link to={routeGroupId ? `/groups/${encodeURIComponent(routeGroupId)}?view=overview` : '/groups?view=overview'} className="text-sm font-bold text-emerald-700">← {zh ? '返回小组' : 'Back to group'}</Link>
         <section className="rounded-3xl border border-emerald-100 bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-5 sm:flex-row">
             {contact.photoUrl ? <img src={contact.photoUrl} alt={name} className="h-32 w-32 rounded-2xl object-cover" /> : <span className="flex h-32 w-32 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700"><UserRound className="h-14 w-14" /></span>}

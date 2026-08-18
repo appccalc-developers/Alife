@@ -5,8 +5,16 @@ import {
   churchManagementAdminPermissions,
   normalizeChurchManagementSection,
 } from '../src/app/routing/churchManagementAccess.ts'
-import { buildEventDetailPath, resolveEventBoundActionUrl } from '../src/utils/eventRoutes.ts'
+import {
+  buildCurrentGroupEventPath,
+  buildEventDetailPath,
+  buildScopedEventDetailPath,
+  resolveEventBoundActionUrl,
+} from '../src/utils/eventRoutes.ts'
 import { getRouteTransitionKey, isForumFeedPath } from '../src/app/routing/routeTransitionPolicy.ts'
+import { isHomeLocation } from '../src/app/routing/publicRoutePolicy.ts'
+import { normalizeRouteGroupId } from '../src/utils/groupRouteIds.ts'
+import { resolveWorkspaceEntryLocation, toWorkspaceLocation } from '../src/services/workspaceResumeService.ts'
 
 test('church management access accepts church managers and each scoped platform permission', () => {
   assert.equal(canAccessChurchManagement({
@@ -45,6 +53,33 @@ test('event detail routes encode group and event identifiers', () => {
     buildEventDetailPath('group / one', 'event?two'),
     '/groups/group%20%2F%20one/events/event%3Ftwo',
   )
+  assert.equal(buildCurrentGroupEventPath('event?two'), '/events/event%3Ftwo')
+  assert.equal(buildScopedEventDetailPath('group-id', 'event-id'), '/events/event-id')
+  assert.equal(
+    buildScopedEventDetailPath('group-id', 'event-id', true),
+    '/groups/group-id/events/event-id',
+  )
+})
+
+test('workspace entry resumes the last route before falling back to the current group or church life', () => {
+  assert.equal(resolveWorkspaceEntryLocation('/groups/forum?categoryId=updates', 'group-id'), '/groups/forum?categoryId=updates')
+  assert.equal(resolveWorkspaceEntryLocation('', 'group-id'), '/groups?view=overview')
+  assert.equal(resolveWorkspaceEntryLocation('', ''), '/church')
+  assert.equal(toWorkspaceLocation({ pathname: '/events/event-id', search: '?section=memories' }), '/events/event-id?section=memories')
+  assert.equal(toWorkspaceLocation({ pathname: '/' }), '')
+})
+
+test('only the actual homepage uses the public home shell', () => {
+  assert.equal(isHomeLocation({ pathname: '/', search: '' }), true)
+  assert.equal(isHomeLocation({ pathname: '/home', search: '' }), true)
+  assert.equal(isHomeLocation({ pathname: '/home', search: '?page=about' }), false)
+  assert.equal(isHomeLocation({ pathname: '/articles', search: '' }), false)
+})
+
+test('current-group route segments are not parsed as explicit group identifiers', () => {
+  assert.equal(normalizeRouteGroupId('forum'), '')
+  assert.equal(normalizeRouteGroupId('manage'), '')
+  assert.equal(normalizeRouteGroupId('group-id'), 'group-id')
 })
 
 test('event-bound actions replace only missing and legacy detail links', () => {
@@ -62,14 +97,14 @@ test('event-bound actions replace only missing and legacy detail links', () => {
 })
 
 test('forum feed category changes preserve the mounted route view', () => {
-  for (const pathname of ['/forum', '/church/forum', '/groups/group-id/forum']) {
+  for (const pathname of ['/forum', '/church/forum', '/groups/forum', '/groups/group-id/forum']) {
     assert.equal(isForumFeedPath(pathname), true)
     assert.equal(getRouteTransitionKey({ pathname, search: '?categoryId=updates', isManagedPublicPage: false }), pathname)
   }
 })
 
 test('forum post detail routes keep their full transition identity', () => {
-  for (const pathname of ['/forum/posts/post-id', '/church/forum/posts/post-id', '/groups/group-id/forum/posts/post-id']) {
+  for (const pathname of ['/forum/posts/post-id', '/church/forum/posts/post-id', '/groups/forum/posts/post-id', '/groups/group-id/forum/posts/post-id']) {
     assert.equal(isForumFeedPath(pathname), false)
     assert.equal(
       getRouteTransitionKey({ pathname, search: '?reply=comment-id', isManagedPublicPage: false }),

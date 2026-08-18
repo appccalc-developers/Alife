@@ -3,7 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../../stores/auth'
 import { activeEntityService } from '../../services/activeEntityService'
-import { workspaceResumeService } from '../../services/workspaceResumeService'
+import { resolveWorkspaceEntryLocation, workspaceResumeService } from '../../services/workspaceResumeService'
 import AppRouteLoading from '../components/AppRouteLoading'
 import RouteChunkErrorBoundary from '../components/RouteChunkErrorBoundary'
 import { isHomeLocation, isPublicPageLocation } from './publicRoutePolicy'
@@ -92,7 +92,7 @@ const OnboardingRoute = ({ children }: { children: ReactElement }) => {
     return <AppRouteLoading />
   }
 
-  return !auth.loading && !auth.isGuest ? <Navigate to="/" replace /> : children
+  return !auth.loading && !auth.isGuest ? <Navigate to="/enter" replace /> : children
 }
 
 const MemberRoute = ({ children }: { children: ReactElement }) => {
@@ -118,9 +118,7 @@ const EntryRoute = () => {
 
   const rememberedLocation = workspaceResumeService.get(auth.me?.id)
   const activeGroupId = activeEntityService.getAll().groupId
-  const destination = rememberedLocation || (activeGroupId
-    ? `/groups/${encodeURIComponent(activeGroupId)}?view=overview`
-    : '/groups/select')
+  const destination = resolveWorkspaceEntryLocation(rememberedLocation, activeGroupId)
 
   return <Navigate to={destination} replace />
 }
@@ -183,11 +181,16 @@ const AppRoutes = ({ churchGroupId = '', churchGroupLoading = false }: AppRoutes
           <Route path="/groups/:groupId/join" element={<GroupJoinView />} />
           <Route path="/groups/:groupId/manage" element={<GroupManageView />} />
           <Route path="/groups/:groupId/manage/invite-members" element={<InviteMembersView />} />
+          <Route path="/albums" element={<AlbumView />} />
+          <Route path="/albums/:albumId" element={<AlbumView />} />
           <Route path="/groups/:groupId/albums" element={<AlbumView />} />
           <Route path="/groups/:groupId/albums/:albumId" element={<AlbumView />} />
+          <Route path="/contacts/:contactId" element={<ContactDetailView />} />
           <Route path="/groups/:groupId/contacts/:contactId" element={<ContactDetailView />} />
           <Route path="/forum" element={<ForumView />} />
           <Route path="/forum/posts/:postId" element={<ForumPostView />} />
+          <Route path="/groups/forum" element={<ForumView />} />
+          <Route path="/groups/forum/posts/:postId" element={<ForumPostView />} />
           <Route path="/groups/:groupId/forum" element={<ForumView />} />
           <Route path="/groups/:groupId/forum/posts/:postId" element={<ForumPostView />} />
           <Route path="/public/pages/:pageId" element={<PageView />} />
@@ -209,13 +212,17 @@ const AppRoutes = ({ churchGroupId = '', churchGroupLoading = false }: AppRoutes
           <Route path="/events/edit" element={<EventCreatorView />} />
           <Route path="/events/:eventId/edit" element={<EventCreatorView />} />
           <Route path="/events" element={<EventDetailView />} />
+          <Route path="/events/:eventId" element={<EventDetailView />} />
           <Route path="/events/enroll" element={<EventEnrollmentView />} />
+          <Route path="/events/:eventId/enroll" element={<EventEnrollmentView />} />
           <Route path="/events/review" element={<EventReviewView />} />
+          <Route path="/events/:eventId/review" element={<EventReviewView />} />
           <Route path="/groups/:groupId/events/new" element={<EventCreatorView />} />
           <Route path="/groups/:groupId/events/:eventId/edit" element={<EventCreatorView />} />
           <Route path="/groups/:groupId/events/:eventId" element={<EventDetailView />} />
           <Route path="/groups/:groupId/events/:eventId/enroll" element={<EventEnrollmentView />} />
           <Route path="/groups/:groupId/events/:eventId/review" element={<EventReviewView />} />
+          <Route path="/pages/new" element={<PageEditorView />} />
           <Route path="/groups/:groupId/pages/new" element={<PageEditorView />} />
           <Route path="/pages/:pageId/edit" element={<PageEditorView />} />
           <Route path="/pages/edit" element={<PageEditorView />} />

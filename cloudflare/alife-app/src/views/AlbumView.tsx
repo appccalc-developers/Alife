@@ -1,17 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, FolderPlus, Images, Plus, Trash2, Upload } from 'lucide-react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppEmptyState from '../components/layout/AppEmptyState'
 import AppPageShell from '../components/layout/AppPageShell'
+import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
 import { albumService, type AlbumDetail, type AlbumSummary, type AlbumVisibility } from '../services/albumService'
 import { fileAssetService, resolveFileAssetAccessUrl } from '../services/fileAssetService'
 import { deleteImageObject, isImageFile, uploadImage } from '../services/imageWorkerApi'
 import { useAuthStore } from '../stores/auth'
 import { localizeText } from '../utils/localizedText'
 
-const AlbumCard = ({ album, language }: { album: AlbumSummary; language: string }) => (
-  <Link to={`/groups/${album.groupId}/albums/${album.id}`} className="group overflow-hidden rounded-2xl border border-[#2f4b42]/10 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+const AlbumCard = ({ album, language, basePath }: { album: AlbumSummary; language: string; basePath: string }) => (
+  <Link to={`${basePath}/${encodeURIComponent(album.id)}`} className="group overflow-hidden rounded-2xl border border-[#2f4b42]/10 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
     <div className="aspect-[4/3] overflow-hidden bg-[#e3f0eb]">
       {album.coverUrl ? <img src={resolveFileAssetAccessUrl(album.coverUrl) ?? album.coverUrl} alt="" className="h-full w-full object-cover transition duration-300 group-hover:scale-105" loading="lazy" /> : (
         <div className="flex h-full items-center justify-center text-[#176b5a]"><Images className="h-12 w-12" /></div>
@@ -25,7 +26,8 @@ const AlbumCard = ({ album, language }: { album: AlbumSummary; language: string 
 )
 
 const AlbumView = () => {
-  const { groupId = '', albumId } = useParams()
+  const { groupId: routeGroupId, albumId } = useParams<{ groupId?: string; albumId?: string }>()
+  const { groupId } = useActiveEntityIds({ groupId: routeGroupId })
   const navigate = useNavigate()
   const auth = useAuthStore()
   const isZh = auth.language === 'zh'
@@ -40,6 +42,9 @@ const AlbumView = () => {
   const [nameZh, setNameZh] = useState('')
   const [visibility, setVisibility] = useState<AlbumVisibility>(detail?.album.visibility ?? 'groupVisible')
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const albumBasePath = routeGroupId
+    ? `/groups/${encodeURIComponent(routeGroupId)}/albums`
+    : '/albums'
 
   const load = async () => {
     if (!groupId) return
@@ -68,7 +73,7 @@ const AlbumView = () => {
         visibility,
       })
       setShowCreate(false); setNameEn(''); setNameZh('')
-      navigate(`/groups/${groupId}/albums/${created.album.id}`)
+      navigate(`${albumBasePath}/${encodeURIComponent(created.album.id)}`)
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to create album.') }
     finally { setBusy(false) }
   }
@@ -116,6 +121,10 @@ const AlbumView = () => {
 
   const albums = detail?.children ?? roots
   const pageTitle = detail ? localizeText(detail.album.name, auth.language) : (isZh ? '相册' : 'Albums')
+  if (!groupId) {
+    return <Navigate to="/groups/select" replace />
+  }
+
   return (
     <AppPageShell
       title={pageTitle}
@@ -124,8 +133,8 @@ const AlbumView = () => {
     >
       {detail ? (
         <nav className="flex flex-wrap items-center gap-1 text-sm text-[#66766f]" aria-label={isZh ? '相册路径' : 'Album breadcrumbs'}>
-          <Link className="rounded-lg px-2 py-1 hover:bg-[#e3f0eb]" to={`/groups/${groupId}/albums`}>{isZh ? '相册' : 'Albums'}</Link>
-          {detail.breadcrumbs.map(item => <span key={item.id} className="flex items-center gap-1"><ChevronRight className="h-4 w-4" /><Link className="rounded-lg px-2 py-1 hover:bg-[#e3f0eb]" to={`/groups/${groupId}/albums/${item.id}`}>{localizeText(item.name, auth.language)}</Link></span>)}
+          <Link className="rounded-lg px-2 py-1 hover:bg-[#e3f0eb]" to={albumBasePath}>{isZh ? '相册' : 'Albums'}</Link>
+          {detail.breadcrumbs.map(item => <span key={item.id} className="flex items-center gap-1"><ChevronRight className="h-4 w-4" /><Link className="rounded-lg px-2 py-1 hover:bg-[#e3f0eb]" to={`${albumBasePath}/${encodeURIComponent(item.id)}`}>{localizeText(item.name, auth.language)}</Link></span>)}
         </nav>
       ) : null}
       {showCreate ? (
@@ -138,7 +147,7 @@ const AlbumView = () => {
       ) : null}
       {error ? <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p> : null}
       {loading ? <p className="rounded-xl bg-white p-5 text-sm text-[#66766f]">{isZh ? '正在加载…' : 'Loading…'}</p> : null}
-      {!loading && albums.length ? <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{albums.map(album => <AlbumCard key={album.id} album={album} language={auth.language} />)}</section> : null}
+      {!loading && albums.length ? <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{albums.map(album => <AlbumCard key={album.id} album={album} language={auth.language} basePath={albumBasePath} />)}</section> : null}
       {!loading && !albums.length && !detail?.photos.length ? <AppEmptyState title={isZh ? '这里还是空的' : 'Nothing here yet'} description={isZh ? '创建相册或上传第一张图片。' : 'Create an album or upload the first image.'} /> : null}
       {detail ? (
         <section className="space-y-4">

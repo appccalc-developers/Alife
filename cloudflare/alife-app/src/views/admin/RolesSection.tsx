@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Loader2, Plus, RefreshCw, Trash2, UserCog, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, Loader2, Plus, RefreshCw, Trash2, UserCog, X } from 'lucide-react'
 import type { AdminPlatformRoleDto } from '../../services/groupService'
 import { Empty, LabeledField, SearchInput, TextInput } from './AdminUi'
 import type { LabelFn } from './AdminUi'
@@ -30,6 +30,9 @@ export const RolesSection = ({ l, roles, roleForm, setRoleForm, creatingRole, de
   const [permissionSearch, setPermissionSearch] = useState('')
   const [selectedRoleCode, setSelectedRoleCode] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
+  const [roleSummaryExpanded, setRoleSummaryExpanded] = useState(() =>
+    typeof window === 'undefined' || !window.matchMedia('(max-width: 767px)').matches,
+  )
 
   const visibleRoles = useMemo(() => {
     const term = roleSearch.trim().toLowerCase()
@@ -64,17 +67,28 @@ export const RolesSection = ({ l, roles, roleForm, setRoleForm, creatingRole, de
   return (
     <div className="space-y-4">
       <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex flex-col gap-4 border-b border-slate-100 p-5 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-start gap-3">
+        <div className={`relative flex flex-col gap-4 p-5 pr-16 md:border-b md:border-slate-100 md:pr-5 lg:flex-row lg:items-center lg:justify-between ${roleSummaryExpanded ? 'border-b border-slate-100' : ''}`}>
+          <div className="flex min-w-0 items-start gap-3">
             <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white">
               <UserCog className="h-5 w-5" aria-hidden="true" />
             </span>
-            <div>
+            <div className="min-w-0">
               <h2 className="text-lg font-black text-slate-950">{l('rolePermissions')}</h2>
-              <p className="mt-1 max-w-3xl text-sm font-medium leading-6 text-slate-600">{l('rolesDescription')}</p>
+              <p id="role-permissions-description" className={`${roleSummaryExpanded ? 'block' : 'hidden'} mt-1 max-w-3xl text-sm font-medium leading-6 text-slate-600 md:block`}>{l('rolesDescription')}</p>
             </div>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <button
+            type="button"
+            className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-600 transition hover:border-slate-300 hover:bg-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-100 md:hidden"
+            aria-expanded={roleSummaryExpanded}
+            aria-controls="role-permissions-description role-permissions-actions role-permissions-summary"
+            aria-label={l(roleSummaryExpanded ? 'collapseRolePermissions' : 'expandRolePermissions')}
+            title={l(roleSummaryExpanded ? 'collapseRolePermissions' : 'expandRolePermissions')}
+            onClick={() => setRoleSummaryExpanded((current) => !current)}
+          >
+            {roleSummaryExpanded ? <ChevronUp className="h-5 w-5" aria-hidden="true" /> : <ChevronDown className="h-5 w-5" aria-hidden="true" />}
+          </button>
+          <div id="role-permissions-actions" className={`${roleSummaryExpanded ? 'flex' : 'hidden'} flex-col gap-2 sm:flex-row sm:items-center md:flex`}>
             <span className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black text-slate-700">{l('managedRoleCount')}: {manageableRoles.length}</span>
             <span className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black text-slate-700">{l('customRole')}: {customRoleCount}</span>
             <button
@@ -96,8 +110,10 @@ export const RolesSection = ({ l, roles, roleForm, setRoleForm, creatingRole, de
             </button>
           </div>
         </div>
-        <p className="px-5 py-3 text-xs font-semibold leading-5 text-slate-500">{l('superAdminHidden')}</p>
-        <p className="border-t border-slate-100 px-5 py-3 text-xs font-semibold leading-5 text-sky-700">{l('permissionModelHint')}</p>
+        <div id="role-permissions-summary" className={`${roleSummaryExpanded ? 'block' : 'hidden'} md:block`}>
+          <p className="px-5 py-3 text-xs font-semibold leading-5 text-slate-500">{l('superAdminHidden')}</p>
+          <p className="border-t border-slate-100 px-5 py-3 text-xs font-semibold leading-5 text-sky-700">{l('permissionModelHint')}</p>
+        </div>
       </section>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(18rem,22rem)_minmax(0,1fr)]">
@@ -105,34 +121,43 @@ export const RolesSection = ({ l, roles, roleForm, setRoleForm, creatingRole, de
           <div className="border-b border-slate-100 p-4">
             <h2 className="text-base font-black text-slate-950">{l('roleList')}</h2>
             <div className="mt-3">
-              <SearchInput placeholder={l('search')} value={roleSearch} onChange={(event) => setRoleSearch(event.target.value)} />
+              <SearchInput aria-label={l('searchRoles')} placeholder={l('searchRoles')} value={roleSearch} onChange={(event) => setRoleSearch(event.target.value)} />
             </div>
           </div>
-          <div className="max-h-[70vh] overflow-y-auto p-3">
+          <div className="max-h-64 overflow-y-auto p-3 xl:max-h-[70vh]">
             {visibleRoles.length ? (
-              <div className="grid gap-2">
+              <fieldset className="grid gap-1.5">
+                <legend className="sr-only">{l('roleList')}</legend>
                 {visibleRoles.map((role) => {
                   const selected = selectedRole?.code === role.code
                   return (
-                    <button
+                    <label
                       key={role.code}
-                      type="button"
-                      className={`flex min-h-16 w-full items-start justify-between gap-3 rounded-2xl border px-3 py-3 text-left transition ${selected ? 'border-sky-200 bg-sky-50 text-slate-950 shadow-sm' : 'border-transparent bg-white text-slate-700 hover:border-slate-200 hover:bg-slate-50'}`}
-                      onClick={() => setSelectedRoleCode(role.code)}
+                      className={`grid min-h-12 cursor-pointer grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition ${selected ? 'border-sky-300 bg-sky-50 text-slate-950 shadow-sm' : 'border-transparent bg-white text-slate-700 hover:border-slate-200 hover:bg-slate-50'}`}
                     >
+                      <input
+                        type="radio"
+                        name="managed-platform-role"
+                        value={role.code}
+                        checked={selected}
+                        className="h-4 w-4 border-slate-300 text-sky-700 focus:ring-sky-500"
+                        onChange={() => setSelectedRoleCode(role.code)}
+                      />
                       <span className="min-w-0">
                         <span className="block truncate text-sm font-black">{readLocalized(role.name, language) || formatRole(role.code)}</span>
-                        <span className="mt-1 block truncate font-mono text-[11px] font-semibold text-slate-400">{role.code}</span>
-                        <span className="mt-2 flex flex-wrap gap-1.5">
-                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${role.isSystem ? 'bg-sky-100 text-sky-700' : 'bg-emerald-100 text-emerald-700'}`}>{role.isSystem ? l('builtInRole') : l('customRole')}</span>
-                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-500">{l('assignedMembers')}: {role.assignedMemberCount}</span>
+                        <span className="mt-0.5 flex min-w-0 items-center gap-1 text-[10px] font-semibold text-slate-400">
+                          <span className="truncate font-mono">{role.code}</span>
+                          <span aria-hidden="true">·</span>
+                          <span className="shrink-0">{role.isSystem ? l('builtInRole') : l('customRole')}</span>
+                          <span aria-hidden="true">·</span>
+                          <span className="shrink-0">{l('assignedMembers')}: {role.assignedMemberCount}</span>
                         </span>
                       </span>
-                      <span className={`rounded-full px-2 py-1 text-[11px] font-black ${selected ? 'bg-white text-sky-800' : 'bg-slate-100 text-slate-500'}`}>{role.permissions.length}</span>
-                    </button>
+                      <span className={`min-w-7 rounded-full px-2 py-1 text-center text-[11px] font-black ${selected ? 'bg-white text-sky-800' : 'bg-slate-100 text-slate-500'}`}>{role.permissions.length}</span>
+                    </label>
                   )
                 })}
-              </div>
+              </fieldset>
             ) : <Empty text={l('noRolesMatch')} />}
           </div>
         </section>
