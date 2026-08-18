@@ -66,9 +66,10 @@ const GroupListSectionBlock = ({ section, mode, domId, disabled, editorPreview, 
   const updateHeaderTitle = (value: string) => onUpdate?.(patchLocalizedSectionHeader(section, auth.language, 'title', value))
   const updateHeaderSubtitle = (value: string) => onUpdate?.(patchLocalizedSectionHeader(section, auth.language, 'subtitle', value))
   const groupId = contextGroupId || page?.ownerGroupId || undefined
+  const publicEvents = !allowGroupDataSources && page?.visibility === 'public' && source === 'events'
   // Contacts are safe to resolve on public pages: the API returns only public
   // profiles to anonymous visitors and applies group membership server-side.
-  const canLoadSource = allowGroupDataSources || source === 'sermons' || (page?.visibility === 'public' && source === 'contacts')
+  const canLoadSource = allowGroupDataSources || source === 'sermons' || (page?.visibility === 'public' && (source === 'contacts' || source === 'events'))
   const renderProperties = () => (
     <PropertyPanel>
       <SelectInput
@@ -117,6 +118,7 @@ const GroupListSectionBlock = ({ section, mode, domId, disabled, editorPreview, 
           groupId={groupId}
           compact={compactPreview}
           enabled={canLoadSource}
+          publicEvents={publicEvents}
         />
         {mode === 'edit' && showProperties ? renderProperties() : null}
       </div>

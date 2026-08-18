@@ -5,12 +5,23 @@ import type {
   EventWorkflowStep,
   EventWorkflowStepStatus,
   EventWorkflowTemplate,
+  CreateEventWorkflowTemplateInput,
 } from '../types/eventWorkflow'
 import { http } from './http'
 
 export const eventWorkflowService = {
-  listTemplates: async (): Promise<EventWorkflowTemplate[]> => {
-    const { data } = await http.get<EventWorkflowTemplate[]>('/api/event-workflow-templates')
+  listTemplates: async (groupId?: string): Promise<EventWorkflowTemplate[]> => {
+    const { data } = await http.get<EventWorkflowTemplate[]>('/api/event-workflow-templates', {
+      params: groupId ? { groupId } : undefined,
+    })
+    return data
+  },
+
+  createTemplate: async (
+    groupId: string,
+    input: CreateEventWorkflowTemplateInput,
+  ): Promise<EventWorkflowTemplate> => {
+    const { data } = await http.post<EventWorkflowTemplate>(`/api/groups/${groupId}/event-workflow-templates`, input)
     return data
   },
 

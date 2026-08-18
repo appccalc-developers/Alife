@@ -726,6 +726,7 @@ const PagesPanel = ({ groupId, language, pages, onAddPage, onDeletePage, onUpdat
 
 type EventsPanelProps = {
   groupId: string
+  isChurch?: boolean
   events: GroupEventRecord[]
   copy: ReturnType<typeof managementCopy>
   currentGroupRoute?: boolean
@@ -734,7 +735,14 @@ type EventsPanelProps = {
 
 const eventTabs: EventLifecycle[] = ['past', 'upcoming', 'planning']
 
-const EventsPanel = ({ groupId, events, copy, currentGroupRoute = false, framed = true }: EventsPanelProps) => {
+const eventVisibilityLabel = (event: GroupEventRecord, language: string, isChurch = false) => {
+  if (event.visibility === 'public') return language === 'zh' ? '公开可见' : 'Public'
+  if (event.visibility === 'churchVisible') return language === 'zh' ? '教会内可见' : 'Church members'
+  if (isChurch) return language === 'zh' ? '教会内可见' : 'Church members'
+  return language === 'zh' ? '小组内可见' : 'Group members'
+}
+
+const EventsPanel = ({ groupId, isChurch = false, events, copy, currentGroupRoute = false, framed = true }: EventsPanelProps) => {
   const navigate = useNavigate()
   const t = useUiText()
   const { language } = useAuthStore()
@@ -807,6 +815,7 @@ const EventsPanel = ({ groupId, events, copy, currentGroupRoute = false, framed 
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="font-medium text-slate-950">{title}</p>
+                        <AppBadge variant={event.visibility === 'public' ? 'success' : 'neutral'}>{eventVisibilityLabel(event, language, isChurch)}</AppBadge>
                         {activeTab === 'upcoming' && lifecycleData.registrationDeadlineTime !== null && lifecycleData.registrationDeadlineTime < Date.now() ? <AppBadge variant="neutral">{copy.enrollmentClosed}</AppBadge> : null}
                         {activeTab === 'planning' && !lifecycleData.acceptsEnrollments ? <AppBadge variant="neutral">{copy.noEnrollment}</AppBadge> : null}
                         {activeTab === 'planning' ? <AppBadge variant="neutral">RAM: {event.ramStatus ?? 'draft'}</AppBadge> : null}
@@ -1236,6 +1245,7 @@ const GroupManageView = ({
                 <EventsPanel
                   framed={false}
                   groupId={groupId}
+                  isChurch={group.isChurch}
                   events={events}
                   copy={copy}
                   currentGroupRoute={currentGroupRoute}

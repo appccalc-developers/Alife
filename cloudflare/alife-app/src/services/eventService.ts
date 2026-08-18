@@ -85,7 +85,8 @@ export const eventService = {
   },
 
   getGroupEvents: async (groupId: string, viewerId?: string): Promise<GroupEventRecord[]> => {
-    const queryKey = groupEventsQueryKey(groupId)
+    const baseQueryKey = groupEventsQueryKey(groupId)
+    const queryKey = viewerId ? [...baseQueryKey, 'viewer', viewerId] : baseQueryKey
     const fetchEvents = () => conditionalGet<GroupEventRecord[]>({
       queryKey,
       path: `/api/groups/${groupId}/events`,
@@ -103,11 +104,18 @@ export const eventService = {
     })
   },
 
+  getPublicUpcomingEvents: async (): Promise<GroupEventRecord[]> =>
+    conditionalGet<GroupEventRecord[]>({
+      queryKey: ['publicUpcomingEvents'],
+      path: '/api/events/public/upcoming',
+    }),
+
   createGroupEvent: async (
     groupId: string,
     eventDto: EventDto,
     sessionId?: string,
     aiContext?: AiContentContext,
+    workflowTemplateCode?: string | null,
   ): Promise<GroupEventRecord> => {
     const titleEn = eventDto.title.en || eventDto.title.zh || ''
     const titleZh = eventDto.title.zh || eventDto.title.en || ''
@@ -120,6 +128,7 @@ export const eventService = {
       eventDataJson,
       ramDataJson,
       contactProfileIds: eventDto.contactProfileIds ?? [],
+      workflowTemplateCode: workflowTemplateCode || null,
       missionStatements: aiContext?.missionStatements ?? [],
       eventContext: aiContext?.eventContext ?? { eventDataJson, eventData: eventDto },
     })

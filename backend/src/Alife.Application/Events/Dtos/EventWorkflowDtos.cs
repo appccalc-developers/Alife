@@ -20,6 +20,7 @@ public sealed record EventWorkflowStageDefinitionDto(
 
 public sealed record EventWorkflowTemplateDto(
     Guid Id,
+    Guid? OwnerGroupId,
     string Code,
     int Version,
     WorkflowTextDto Name,

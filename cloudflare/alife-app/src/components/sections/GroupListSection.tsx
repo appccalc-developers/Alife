@@ -105,10 +105,15 @@ export function eventToCardItem(event: GroupEventRecord, language = 'en'): Unive
   const dateStr = event.startDate || ''
   const locale = language === 'zh' ? 'zh-CN' : 'en-NZ'
   const dateDisplay = dateStr ? new Date(dateStr).toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' }) : ''
+  const visibilityLabel = event.visibility === 'public'
+    ? (language === 'zh' ? '公开活动' : 'Public event')
+    : event.visibility === 'churchVisible'
+      ? (language === 'zh' ? '教会内可见' : 'Church members')
+      : ''
   return {
     id: event.id,
     title,
-    subtitle: dateDisplay,
+    subtitle: [visibilityLabel, dateDisplay].filter(Boolean).join(' · '),
     imageUrl: posterImageUrl,
     date: dateStr,
     url: buildEventDetailPath(event.groupId, event.id),
@@ -223,6 +228,7 @@ interface GroupListSectionProps {
   /** Smaller cards for editor inline preview */
   compact?: boolean
   enabled?: boolean
+  publicEvents?: boolean
 }
 
 const adapterMap: Record<string, (item: any) => UniversalCardItem> = {
@@ -235,7 +241,7 @@ const adapterMap: Record<string, (item: any) => UniversalCardItem> = {
   contacts: contactToCardItem,
 }
 
-export const GroupListSection: React.FC<GroupListSectionProps> = ({ metadata, groupId, compact, enabled = true }) => {
+export const GroupListSection: React.FC<GroupListSectionProps> = ({ metadata, groupId, compact, enabled = true, publicEvents = false }) => {
   const { language } = useAuthStore()
   const t = useUiText()
   const raw = metadata as Record<string, unknown>
@@ -244,7 +250,7 @@ export const GroupListSection: React.FC<GroupListSectionProps> = ({ metadata, gr
     [raw.source, raw.sourceType, raw.sourceScope, raw.preset, raw.layout, raw.limit, raw.sortBy, raw.sortDirection, raw.filterText, raw.id],
   )
 
-  const { data, isLoading, error } = useListSourceResolver(meta, { groupId, enabled })
+  const { data, isLoading, error } = useListSourceResolver(meta, { groupId, enabled, publicEvents })
 
   const cardItems = useMemo(() => {
     const resolvedSourceType = meta.sourceType === 'groups' ? 'subgroups' : meta.sourceType

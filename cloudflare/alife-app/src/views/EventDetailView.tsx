@@ -148,6 +148,7 @@ const formatDateTime = (value: string | null | undefined, language: string) => {
 
 const fallbackEventDto = (record: GroupEventRecord): EventDto => ({
   id: record.id,
+  visibility: record.visibility ?? 'groupVisible',
   title: { zh: record.titleZh, en: record.titleEn },
   description: { zh: '', en: '' },
   locationName: { zh: '', en: '' },
@@ -670,7 +671,7 @@ const EventDetailView = () => {
     setError('')
 
     Promise.all([
-      eventService.getGroupEvents(groupId),
+      eventService.getGroupEvents(groupId, me?.id ?? 'anonymous'),
       enrollmentSessionService.listEventEnrollments(eventId).catch(() => [] as EventEnrollmentRecord[]),
       reviewSessionService.listEventReviews(eventId).catch(() => [] as EventReviewRecord[]),
       contactService.list(groupId).catch(() => [] as ContactProfileDto[]),
@@ -698,7 +699,7 @@ const EventDetailView = () => {
     return () => {
       cancelled = true
     }
-  }, [eventId, groupId, text.eventLoadFailed])
+  }, [eventId, groupId, me?.id, text.eventLoadFailed])
 
   const eventDto = useMemo(() => (event ? parseEventDto(event) : null), [event])
   const lifecycle = event ? getEventLifecycle(event) : null

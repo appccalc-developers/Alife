@@ -454,20 +454,22 @@ test('anonymous group events reach the origin without reading the member cache',
   assert.equal(apiCacheGetKeys.includes(`group:${groupId}:events`), false)
 })
 
-test('non-approved membership returns 403 before shared group cache is read', async () => {
+test('non-group member event reads reach origin for church visibility checks', async () => {
   const groupId = 'group-1'
   const url = `https://ccalc.live/api/groups/${groupId}/events`
   authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'pending' }))
   apiCacheStore.set(`group:${groupId}:events`, createStoredResponse([{ id: 'event-1', groupId }]))
+  originResponses.push(Response.json([{ id: 'church-visible-event', groupId }]))
 
   const response = await dispatch(url, {
     headers: { cookie: `alife_auth=${createJwtWithSub('member-1')}` },
   })
 
-  assert.equal(response.status, 403)
+  assert.equal(response.status, 200)
   assert.equal(response.headers.get('x-alife-cache'), 'BYPASS')
   assert.equal(response.headers.get('x-alife-authz'), 'miss')
-  assert.equal(fetchCalls.length, 0)
+  assert.deepEqual(await response.json(), [{ id: 'church-visible-event', groupId }])
+  assert.equal(fetchCalls.length, 1)
   assert.equal(apiCacheGetKeys.includes(`group:${groupId}:events`), false)
 })
 
@@ -1356,7 +1358,9 @@ test('successful event update evicts the group events list cache', async () => {
   const groupId = 'group-1'
   const eventId = 'event-1'
   const listUrl = `https://ccalc.live/api/groups/${groupId}/events`
+  const publicListUrl = 'https://ccalc.live/api/events/public/upcoming'
   cacheStore.set(cacheKey(new Request(listUrl)), Response.json([{ id: eventId, groupId }]))
+  cacheStore.set(cacheKey(new Request(publicListUrl)), Response.json([{ id: eventId, groupId }]))
   originResponses.push(Response.json({ id: eventId, groupId, titleEn: 'Updated' }))
 
   const response = await dispatch(`https://ccalc.live/api/events/${eventId}`, {
@@ -1367,9 +1371,24 @@ test('successful event update evicts the group events list cache', async () => {
 
   assert.equal(response.status, 200)
   assert.equal(cacheStore.has(cacheKey(new Request(listUrl))), false)
+  assert.equal(cacheStore.has(cacheKey(new Request(publicListUrl))), false)
 })
 
-test('approved group event reads use shared Cache API', async () => {
+test('public upcoming events use the queryless public cache', async () => {
+  const url = 'https://ccalc.live/api/events/public/upcoming'
+  originResponses.push(Response.json([{ id: 'public-event', groupId: 'group-1', visibility: 'public' }]))
+
+  const first = await dispatch(url)
+  await flushWaitUntil()
+  const second = await dispatch(url)
+
+  assert.equal(first.headers.get('x-alife-cache'), 'MISS')
+  assert.equal(second.headers.get('x-alife-cache'), 'HIT')
+  assert.deepEqual(await second.json(), [{ id: 'public-event', groupId: 'group-1', visibility: 'public' }])
+  assert.equal(fetchCalls.length, 1)
+})
+
+test('approved group event reads bypass shared cache because manager and member views differ', async () => {
   const groupId = 'group-1'
   const listUrl = `https://ccalc.live/api/groups/${groupId}/events`
   authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved' }))
@@ -1379,9 +1398,9 @@ test('approved group event reads use shared Cache API', async () => {
     headers: { cookie: `alife_auth=${createJwtWithSub('member-1')}` },
   })
   await flushWaitUntil()
-  assert.equal(first.headers.get('x-alife-cache'), 'MISS')
+  assert.equal(first.headers.get('x-alife-cache'), 'BYPASS')
   assert.equal(first.headers.get('cache-control'), 'private, no-cache')
-  assert.equal(apiCacheStore.has(createApiCacheKey(listUrl)), true)
+  assert.equal(apiCacheStore.has(createApiCacheKey(listUrl)), false)
 
   originResponses.push(Response.json([{ id: 'event-2', groupId }]))
   const second = await dispatch(listUrl, {
@@ -1389,8 +1408,9 @@ test('approved group event reads use shared Cache API', async () => {
   })
   await flushWaitUntil()
 
-  assert.equal(second.headers.get('x-alife-cache'), 'HIT')
-  assert.equal(fetchCalls.length, 1)
+  assert.equal(second.headers.get('x-alife-cache'), 'BYPASS')
+  assert.deepEqual(await second.json(), [{ id: 'event-2', groupId }])
+  assert.equal(fetchCalls.length, 2)
 })
 
 test('approved members in the same group share the same group pages cache key', async () => {
@@ -1485,7 +1505,7 @@ test('closing a subgroup invalidates the parent subgroup list cache', async () =
   assert.equal(apiCacheStore.has(`group:${parentId}:subgroups`), false)
 })
 
-test('shared group subresource caches use 24 hour TTLs', async () => {
+test('shareable group subresources use 24 hour TTLs while event lists remain private', async () => {
   const groupId = 'group-1'
   authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved' }))
   originResponses.push(Response.json([{ id: 'page-1', ownerGroupId: groupId }]))
@@ -1508,7 +1528,7 @@ test('shared group subresource caches use 24 hour TTLs', async () => {
 
   assert.equal(apiCachePutOptions.get(`group:${groupId}:pages`).expirationTtl, 86400)
   assert.equal(apiCachePutOptions.get(`group:${groupId}:subgroups`).expirationTtl, 86400)
-  assert.equal(apiCachePutOptions.get(`group:${groupId}:events`).expirationTtl, 86400)
+  assert.equal(apiCachePutOptions.has(`group:${groupId}:events`), false)
   assert.equal(apiCachePutOptions.get(`group:${groupId}:members`).expirationTtl, 86400)
 })
 
@@ -2063,6 +2083,74 @@ test('AI session routes require authentication before Gemini', async () => {
   assert.equal(response.status, 401)
   assert.equal(response.headers.get('cache-control'), 'no-store')
   assert.equal(fetchCalls.length, 0)
+})
+
+test('AI sessions read structured JSON after Gemini thought parts', async () => {
+  const sessionId = `member-1-event-thought-parts-${crypto.randomUUID()}`
+  originResponses.push(Response.json({
+    candidates: [{
+      finishReason: 'STOP',
+      content: {
+        parts: [
+          { thought: true, text: 'Internal reasoning that is not part of the JSON response.' },
+          {
+            text: JSON.stringify({
+              title: { zh: '小组聚餐', en: 'Group Meal' },
+              description: { zh: '小组一起聚餐。', en: 'A group meal together.' },
+              locationName: { zh: '教会', en: 'Church' },
+              startDate: '2026-08-22T02:00:00Z',
+              endDate: '2026-08-22T05:00:00Z',
+              registrationDeadline: '',
+              maxCapacity: 0,
+              capacityUnit: 'People',
+              hardConstraints: [],
+              optionalActivities: [],
+              currency: 'NZD',
+              galleryUrls: [],
+              legacySummary: { zh: '无需报名。', en: 'No registration is required.' },
+            }),
+          },
+        ],
+      },
+    }],
+  }))
+
+  const response = await dispatch(`https://ccalc.live/api/events/session/${sessionId}/message`, {
+    method: 'POST',
+    body: JSON.stringify({ message: 'Plan a group meal that does not require registration.' }),
+    headers: { 'content-type': 'application/json' },
+    env: { GEMINI_API_KEY: 'test-key', API_PROXY_TARGET: 'https://ccalc.live' },
+  })
+
+  assert.equal(response.status, 200)
+  const body = await response.json()
+  assert.equal(body.result.title.en, 'Group Meal')
+  assert.equal(body.result.maxCapacity, 0)
+
+  const geminiBody = JSON.parse(fetchInits[0].body)
+  assert.equal(geminiBody.generationConfig.maxOutputTokens, 8192)
+  assert.equal(geminiBody.generationConfig.thinkingConfig.thinkingLevel, 'minimal')
+})
+
+test('AI sessions report truncated Gemini structured responses without logging response content', async () => {
+  const sessionId = `member-1-event-truncated-${crypto.randomUUID()}`
+  originResponses.push(Response.json({
+    candidates: [{
+      finishReason: 'MAX_TOKENS',
+      content: { parts: [{ text: '{"title":{"zh":"未完成' }] },
+    }],
+  }))
+
+  const response = await dispatch(`https://ccalc.live/api/events/session/${sessionId}/message`, {
+    method: 'POST',
+    body: JSON.stringify({ message: 'Plan a detailed event.' }),
+    headers: { 'content-type': 'application/json' },
+    env: { GEMINI_API_KEY: 'test-key', API_PROXY_TARGET: 'https://ccalc.live' },
+  })
+
+  assert.equal(response.status, 502)
+  const body = await response.json()
+  assert.equal(body.message, 'AI response was cut off before completion. Please try again.')
 })
 
 test('POST /api/events/session/:id/start initializes a new event planning session', async () => {

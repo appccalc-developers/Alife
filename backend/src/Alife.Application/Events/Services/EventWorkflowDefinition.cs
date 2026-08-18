@@ -52,6 +52,7 @@ public static class EventWorkflowDefinition
 
     public static EventWorkflowTemplateDto ToDto(EventWorkflowTemplate template) => new(
         template.Id,
+        template.OwnerGroupId,
         template.Code,
         template.Version,
         new WorkflowTextDto(template.NameEn, template.NameZh),
@@ -62,6 +63,7 @@ public static class EventWorkflowDefinition
     {
         var template = new EventWorkflowTemplateDto(
             run.Template.Id,
+            run.Template.OwnerGroupId,
             run.Template.Code,
             run.TemplateVersion,
             new WorkflowTextDto(run.Template.NameEn, run.Template.NameZh),

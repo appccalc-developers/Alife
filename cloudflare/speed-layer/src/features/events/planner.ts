@@ -81,6 +81,7 @@ export type EventDto = {
   id?: string
   organizerId?: string
   organizerDisplayName?: string
+  visibility?: 'groupVisible' | 'churchVisible' | 'public'
   personResponsible?: string
   memberId?: string
   groupId?: string
@@ -432,6 +433,7 @@ function mergeEventDraft(
 
   return {
     ...nextDraft,
+    visibility: previousDraft?.visibility ?? eventData?.visibility ?? nextDraft.visibility ?? 'groupVisible',
     id: appContext.eventId || nextDraft.id || previousDraft?.id || eventData?.id || '',
     organizerId: appContext.userId || nextDraft.organizerId || previousDraft?.organizerId || eventData?.organizerId || '',
     organizerDisplayName: userProfile?.displayName
@@ -489,6 +491,9 @@ function normalizeEventDto(value: unknown): EventDto {
     id: typeof candidate.id === 'string' ? candidate.id : '',
     organizerId: typeof candidate.organizerId === 'string' ? candidate.organizerId : '',
     organizerDisplayName: typeof candidate.organizerDisplayName === 'string' ? candidate.organizerDisplayName : '',
+    visibility: candidate.visibility === 'churchVisible' || candidate.visibility === 'public'
+      ? candidate.visibility
+      : 'groupVisible',
     personResponsible: typeof candidate.personResponsible === 'string' ? candidate.personResponsible : '',
     memberId: typeof candidate.memberId === 'string' ? candidate.memberId : '',
     groupId: typeof candidate.groupId === 'string' ? candidate.groupId : '',

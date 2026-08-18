@@ -8,6 +8,7 @@ const SESSION_TTL_MS = 6 * 60 * 60 * 1000
 const MAX_AI_ATTACHMENTS_PER_REQUEST = 4
 const MAX_AI_ATTACHMENT_BYTES = 6 * 1024 * 1024
 const MAX_INLINE_DATA_CHARS = Math.ceil(MAX_AI_ATTACHMENT_BYTES * 4 / 3) + 128
+const MAX_GEMINI_OUTPUT_TOKENS = 8192
 
 export type AiChatMessage = {
   role: 'user' | 'model'
@@ -442,8 +443,9 @@ export class AiChatSession<TDraft, TContext = unknown> {
       generationConfig: {
         responseMimeType: 'application/json',
         responseSchema: this.config.responseSchema,
+        thinkingConfig: { thinkingLevel: 'minimal' },
         temperature: 0.2,
-        maxOutputTokens: 4096,
+        maxOutputTokens: MAX_GEMINI_OUTPUT_TOKENS,
       },
     }
 
@@ -463,14 +465,47 @@ export class AiChatSession<TDraft, TContext = unknown> {
     }
 
     const geminiData = await geminiRes.json() as {
-      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>
+      candidates?: Array<{
+        finishReason?: string
+        content?: { parts?: Array<{ text?: string; thought?: boolean }> }
+      }>
+      promptFeedback?: { blockReason?: string }
     }
-    const jsonText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
+    const candidate = geminiData.candidates?.[0]
+    const parts = candidate?.content?.parts ?? []
+    const jsonText = parts
+      .filter((part) => part.thought !== true && typeof part.text === 'string')
+      .map((part) => part.text)
+      .join('')
+      .trim()
+    const finishReason = candidate?.finishReason ?? ''
+
+    if (finishReason === 'MAX_TOKENS') {
+      console.error('Gemini structured response was truncated', {
+        finishReason,
+        partCount: parts.length,
+        textLength: jsonText.length,
+      })
+      throw new Error('AI response was cut off before completion. Please try again.')
+    }
+
+    if (!jsonText) {
+      console.error('Gemini returned no structured response text', {
+        finishReason,
+        blockReason: geminiData.promptFeedback?.blockReason ?? '',
+        partCount: parts.length,
+      })
+      throw new Error('AI returned no structured event data. Please try again.')
+    }
 
     try {
       return this.config.normalizeDraft(JSON.parse(jsonText))
     } catch {
-      console.error('Gemini returned invalid JSON:', jsonText)
+      console.error('Gemini returned invalid structured JSON', {
+        finishReason,
+        partCount: parts.length,
+        textLength: jsonText.length,
+      })
       throw new Error('AI returned an unexpected response format.')
     }
   }

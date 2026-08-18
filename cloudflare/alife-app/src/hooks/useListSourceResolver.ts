@@ -10,6 +10,7 @@ import {
 import type { ListViewMetadata } from '../types/page-editor'
 import type { SermonDto } from '../services/sermonService'
 import type { GroupEventRecord } from '../types/event'
+import { eventService } from '../services/eventService'
 import type { GroupSummaryDto } from '../types'
 import type { AnnouncementDto } from '../types/announcement'
 import { announcementService } from '../services/announcementService'
@@ -179,6 +180,8 @@ export type ListSourceResolverOptions = {
   groupId?: string
   /** Skip collection wiring entirely when the caller only needs the hook shape. */
   enabled?: boolean
+  /** Resolve only approved public events, without using a viewer-scoped group list. */
+  publicEvents?: boolean
 }
 
 /**
@@ -198,6 +201,7 @@ export type ListSourceResolverOptions = {
 export function useListSourceResolver(metadata: ListViewMetadata, options?: ListSourceResolverOptions): ListSourceResult {
   const { groupId: activeGroupId } = useActiveEntityIds()
   const enabled = options?.enabled ?? true
+  const publicEvents = options?.publicEvents === true
 
   const currentGroupId = enabled ? (options?.groupId?.trim() || activeGroupId || '').trim() : ''
   const sourceType = resolveSourceType(metadata.sourceType)
@@ -247,6 +251,9 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
   const [contactsData, setContactsData] = useState<ContactProfileDto[]>([])
   const [contactsLoading, setContactsLoading] = useState(false)
   const [contactsError, setContactsError] = useState(false)
+  const [publicEventsData, setPublicEventsData] = useState<GroupEventRecord[]>([])
+  const [publicEventsLoading, setPublicEventsLoading] = useState(false)
+  const [publicEventsError, setPublicEventsError] = useState(false)
 
   useEffect(() => {
     if (!isAnnouncements || !targetGroupId) {
@@ -282,6 +289,24 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
       .finally(() => { if (!cancelled) setContactsLoading(false) })
     return () => { cancelled = true }
   }, [isContacts, targetGroupId])
+
+  useEffect(() => {
+    if (!isEvents || !publicEvents) {
+      setPublicEventsData([])
+      setPublicEventsLoading(false)
+      setPublicEventsError(false)
+      return
+    }
+
+    let cancelled = false
+    setPublicEventsLoading(true)
+    setPublicEventsError(false)
+    eventService.getPublicUpcomingEvents()
+      .then((items) => { if (!cancelled) setPublicEventsData(items) })
+      .catch(() => { if (!cancelled) setPublicEventsError(true) })
+      .finally(() => { if (!cancelled) setPublicEventsLoading(false) })
+    return () => { cancelled = true }
+  }, [isEvents, publicEvents])
 
   // Sermons (always global, always available)
   const sermonsLive = useLiveQuery(
@@ -343,22 +368,30 @@ export function useListSourceResolver(metadata: ListViewMetadata, options?: List
   // Events (always group-scoped, no global option)
   const groupEventsLive = useLiveQuery(
     () => {
-      if (!isEvents || !targetGroupId) return undefined
+      if (!isEvents || publicEvents || !targetGroupId) return undefined
       return groupEventsCollection(targetGroupId)
     },
-    [isEvents, targetGroupId],
+    [isEvents, publicEvents, targetGroupId],
   )
   const eventsData = isEvents
-    ? ((groupEventsLive.data ?? []) as GroupEventRecord[])
+    ? publicEvents
+      ? publicEventsData
+      : ((groupEventsLive.data ?? []) as GroupEventRecord[])
     : ([] as GroupEventRecord[])
   const eventsLoading = isEvents
-    ? (groupEventsLive.isLoading ?? true)
+    ? publicEvents
+      ? publicEventsLoading
+      : (groupEventsLive.isLoading ?? true)
     : false
   const eventsReady = isEvents
-    ? (groupEventsLive.isReady ?? false)
+    ? publicEvents
+      ? !publicEventsLoading
+      : (groupEventsLive.isReady ?? false)
     : true
   const eventsError = isEvents
-    ? (groupEventsLive.isError ?? false)
+    ? publicEvents
+      ? publicEventsError
+      : (groupEventsLive.isError ?? false)
     : false
 
   // Build the result data based on source type

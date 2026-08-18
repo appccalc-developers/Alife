@@ -114,10 +114,10 @@ export const apiCacheMiddleware = async (
   }
 
   if (req.method === 'GET' && authorizedGroupCache && sharedContext) {
-    // The backend deliberately allows anonymous event reads and applies the
-    // event visibility rules itself. Never serve the member-scoped events
-    // cache to visitors, but do let the anonymous request reach the origin.
-    if (authorizedGroupCache.cacheKind === 'events' && sharedContext.authzStatus === 'no-principal') {
+    // Event lists vary by visibility, publication state and manager role.
+    // Always let the origin enforce those dimensions and never reuse a
+    // group-shared response across viewers.
+    if (authorizedGroupCache.cacheKind === 'events') {
       const originResponse = await next()
       const response = originResponse.status === 200 ? await withEtag(originResponse) : originResponse
 
@@ -608,6 +608,9 @@ export async function getInvalidationPaths(env: Env, request: Request, response:
   const groupSubresourceMatch = path.match(/^\/api\/groups\/([^/]+)\/(subgroups|pages|events|memberships|members)$/)
   if (groupSubresourceMatch) {
     paths.add(`/api/groups/${groupSubresourceMatch[1]}/${groupSubresourceMatch[2]}`)
+    if (groupSubresourceMatch[2] === 'events') {
+      paths.add('/api/events/public/upcoming')
+    }
   }
 
   const claimSubgroupCoLeaderMatch = path.match(/^\/api\/groups\/([^/]+)\/subgroups\/([^/]+)\/claim-coleader$/)
@@ -683,6 +686,7 @@ export async function getInvalidationPaths(env: Env, request: Request, response:
 
   const eventId = path.match(/^\/api\/events\/([^/]+)$/)?.[1]
   if (eventId) {
+    paths.add('/api/events/public/upcoming')
     const body = await readJsonObject(response)
     const groupId = readString(body?.groupId) ?? await readEntityGroup(env, 'event', eventId)
     if (groupId) {
@@ -692,6 +696,7 @@ export async function getInvalidationPaths(env: Env, request: Request, response:
 
   const eventRamMatch = path.match(/^\/api\/events\/([^/]+)\/ram(?:\/(?:submit|approve))?$/)
   if (eventRamMatch) {
+    paths.add('/api/events/public/upcoming')
     const body = await readJsonObject(response)
     const groupId = readString(body?.groupId) ?? await readEntityGroup(env, 'event', eventRamMatch[1])
     if (groupId) {

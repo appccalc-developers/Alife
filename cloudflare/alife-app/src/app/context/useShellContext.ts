@@ -173,7 +173,7 @@ export const useShellContext = () => {
     }
 
     let cancelled = false
-    eventService.getGroupEvents(contextualGroupId)
+    eventService.getGroupEvents(contextualGroupId, auth.me?.id ?? 'anonymous')
       .then((events) => {
         if (!cancelled) setContextualEvent(events.find((event) => event.id === contextualEventRouteId) ?? null)
       })
@@ -182,7 +182,7 @@ export const useShellContext = () => {
       })
 
     return () => { cancelled = true }
-  }, [contextualEventRouteId, contextualGroupId])
+  }, [auth.me?.id, contextualEventRouteId, contextualGroupId])
 
   useEffect(() => {
     let cancelled = false

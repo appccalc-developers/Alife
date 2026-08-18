@@ -462,8 +462,8 @@ const text = {
   },
   editEventAiDescription: { en: 'Refine setup, AI guidance, event notice, and RAM in separate tabs, with submission readiness shown for both deliverables.', zh: '在不同标签中完善初始化、AI 引导、活动通知和 RAM，并分别查看两个文件的提交状态。' },
   eventAssistantIntro: {
-    en: 'AI Insight: What would you like help with for this event?',
-    zh: 'AI 洞察：这次活动需要我先帮你处理什么？',
+    en: 'Tell me what is known about the event. I will organize the facts, identify what is missing, and guide you to the next step.',
+    zh: '请告诉我目前已知的活动资料。我会整理事实、指出缺失内容，并引导你进入下一步。',
   },
   eventLoadFromGroupFailed: { en: 'Unable to load event for editing. Open this page from the group events sidebar.', zh: '无法加载要编辑的活动。请从小组活动侧栏打开此页面。' },
   eventNotFound: { en: 'Event not found for editing.', zh: '未找到要编辑的活动。' },

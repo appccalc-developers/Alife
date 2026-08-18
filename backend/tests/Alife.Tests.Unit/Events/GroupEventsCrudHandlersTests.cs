@@ -52,7 +52,166 @@ public class GroupEventsCrudHandlersTests
         Assert.NotNull(result.Value);
         Assert.Equal(groupId, result.Value.GroupId);
         Assert.Equal("English Title", result.Value.TitleEn);
+        Assert.Equal(EventVisibilityPolicy.GroupVisible, result.Value.Visibility);
         Assert.Equal(1, await dbContext.GroupEvents.CountAsync());
+    }
+
+    [Fact]
+    public async Task CreateGroupEvent_WithUnsupportedVisibility_IsRejected()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var authorization = Substitute.For<IGroupAuthorizationService>();
+        var groupId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+        authorization.IsLeaderOrCoLeaderAsync(groupId, memberId, Arg.Any<CancellationToken>()).Returns(true);
+        var handler = new CreateGroupEventCommandHandler(
+            dbContext,
+            authorization,
+            Substitute.For<IEventCacheInvalidationService>());
+
+        var result = await handler.Handle(new CreateGroupEventCommand(
+            groupId,
+            memberId,
+            "Event",
+            "活动",
+            DateTime.UtcNow,
+            DateTime.UtcNow.AddHours(1),
+            "{\"visibility\":\"secret\"}"), CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Empty(dbContext.GroupEvents);
+    }
+
+    [Fact]
+    public async Task CreateGroupEvent_WithWorkflowTemplate_CreatesVersionedWorkflowInSameSave()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var groupAuthorizationService = Substitute.For<IGroupAuthorizationService>();
+        var groupId = Guid.NewGuid();
+        var currentMemberId = Guid.NewGuid();
+        groupAuthorizationService
+            .IsLeaderOrCoLeaderAsync(groupId, currentMemberId, Arg.Any<CancellationToken>())
+            .Returns(true);
+        dbContext.EventWorkflowTemplates.Add(new EventWorkflowTemplate
+        {
+            Id = Guid.NewGuid(),
+            Code = "camp",
+            Version = 3,
+            NameEn = "Camp",
+            NameZh = "营会",
+            DescriptionEn = "Camp workflow",
+            DescriptionZh = "营会工作流",
+            DefinitionJson = WorkflowDefinition,
+            IsActive = true,
+            CreatedUtc = DateTime.UtcNow,
+            UpdatedUtc = DateTime.UtcNow
+        });
+        await dbContext.SaveChangesAsync();
+
+        var eventCacheInvalidationService = Substitute.For<IEventCacheInvalidationService>();
+        var handler = new CreateGroupEventCommandHandler(dbContext, groupAuthorizationService, eventCacheInvalidationService);
+
+        var result = await handler.Handle(
+            new CreateGroupEventCommand(
+                groupId,
+                currentMemberId,
+                "Camp",
+                "营会",
+                new DateTime(2026, 1, 10, 10, 0, 0, DateTimeKind.Utc),
+                new DateTime(2026, 1, 12, 12, 0, 0, DateTimeKind.Utc),
+                "{}",
+                WorkflowTemplateCode: "CAMP"),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var run = await dbContext.EventWorkflowRuns
+            .Include(x => x.Steps)
+                .ThenInclude(x => x.Artifacts)
+            .SingleAsync();
+        Assert.Equal(result.Value!.Id, run.EventId);
+        Assert.Equal(3, run.TemplateVersion);
+        Assert.Equal(WorkflowDefinition, run.TemplateSnapshotJson);
+        Assert.Equal("proposal", run.CurrentStepKey);
+        Assert.Equal(2, run.Steps.Count);
+        Assert.Contains(run.Steps.SelectMany(x => x.Artifacts), x => x.ArtifactType == "ram");
+        Assert.Equal(1, await dbContext.GroupEvents.CountAsync());
+        Assert.Equal(1, await dbContext.EventRamAssessments.CountAsync());
+    }
+
+    [Fact]
+    public async Task CreateGroupEvent_WithUnknownWorkflow_DoesNotCreatePartialEvent()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var groupAuthorizationService = Substitute.For<IGroupAuthorizationService>();
+        var groupId = Guid.NewGuid();
+        var currentMemberId = Guid.NewGuid();
+        groupAuthorizationService
+            .IsLeaderOrCoLeaderAsync(groupId, currentMemberId, Arg.Any<CancellationToken>())
+            .Returns(true);
+        var eventCacheInvalidationService = Substitute.For<IEventCacheInvalidationService>();
+        var handler = new CreateGroupEventCommandHandler(dbContext, groupAuthorizationService, eventCacheInvalidationService);
+
+        var result = await handler.Handle(
+            new CreateGroupEventCommand(
+                groupId,
+                currentMemberId,
+                "Event",
+                "活动",
+                DateTime.UtcNow,
+                DateTime.UtcNow.AddHours(2),
+                "{}",
+                WorkflowTemplateCode: "missing"),
+            CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Empty(dbContext.GroupEvents);
+        Assert.Empty(dbContext.EventRamAssessments);
+        Assert.Empty(dbContext.EventWorkflowRuns);
+    }
+
+    [Fact]
+    public async Task CreateGroupEvent_WithAnotherGroupsCustomWorkflow_IsRejected()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var groupAuthorizationService = Substitute.For<IGroupAuthorizationService>();
+        var groupId = Guid.NewGuid();
+        var otherGroupId = Guid.NewGuid();
+        var currentMemberId = Guid.NewGuid();
+        groupAuthorizationService
+            .IsLeaderOrCoLeaderAsync(groupId, currentMemberId, Arg.Any<CancellationToken>())
+            .Returns(true);
+        dbContext.EventWorkflowTemplates.Add(new EventWorkflowTemplate
+        {
+            Id = Guid.NewGuid(),
+            OwnerGroupId = otherGroupId,
+            Code = "custom_other_group",
+            Version = 1,
+            NameEn = "Other group workflow",
+            NameZh = "其他小组流程",
+            DescriptionEn = "Private to another group",
+            DescriptionZh = "只属于其他小组",
+            DefinitionJson = WorkflowDefinition,
+            IsActive = true,
+            CreatedUtc = DateTime.UtcNow,
+            UpdatedUtc = DateTime.UtcNow
+        });
+        await dbContext.SaveChangesAsync();
+        var eventCacheInvalidationService = Substitute.For<IEventCacheInvalidationService>();
+        var handler = new CreateGroupEventCommandHandler(dbContext, groupAuthorizationService, eventCacheInvalidationService);
+
+        var result = await handler.Handle(new CreateGroupEventCommand(
+            groupId,
+            currentMemberId,
+            "Event",
+            "活动",
+            DateTime.UtcNow,
+            DateTime.UtcNow.AddHours(2),
+            "{}",
+            WorkflowTemplateCode: "custom_other_group"), CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Empty(dbContext.GroupEvents);
+        Assert.Empty(dbContext.EventWorkflowRuns);
     }
 
     [Fact]
@@ -106,6 +265,9 @@ public class GroupEventsCrudHandlersTests
         var currentMemberId = Guid.NewGuid();
         groupAuthorizationService
             .IsApprovedMemberAsync(groupId, currentMemberId, Arg.Any<CancellationToken>())
+            .Returns(true);
+        groupAuthorizationService
+            .IsLeaderOrCoLeaderAsync(groupId, currentMemberId, Arg.Any<CancellationToken>())
             .Returns(true);
 
         dbContext.GroupEvents.AddRange(
@@ -183,7 +345,7 @@ public class GroupEventsCrudHandlersTests
     }
 
     [Fact]
-    public async Task GetGroupEvents_GuestCanReadChurchEvents()
+    public async Task GetGroupEvents_GuestCanReadOnlyApprovedPublicChurchEvents()
     {
         var groupAuthorizationService = Substitute.For<IGroupAuthorizationService>();
         var groupReadService = Substitute.For<IGroupReadService>();
@@ -201,9 +363,11 @@ public class GroupEventsCrudHandlersTests
                     "Guest Event",
                     DateTime.UtcNow,
                     DateTime.UtcNow.AddHours(1),
-                    "{}",
+                    "{\"visibility\":\"public\",\"description\":{\"en\":\"Welcome\"},\"personResponsible\":\"Private lead\"}",
                     DateTime.UtcNow,
-                    DateTime.UtcNow)
+                    DateTime.UtcNow,
+                    RamStatus: EventRamStatus.Approved,
+                    Visibility: EventVisibilityPolicy.Public)
             ]);
         var handler = new GetGroupEventsQueryHandler(eventReadService, groupReadService, groupAuthorizationService);
 
@@ -211,6 +375,79 @@ public class GroupEventsCrudHandlersTests
 
         Assert.True(result.IsSuccess);
         Assert.Single(result.Value!);
+        Assert.DoesNotContain("Private lead", result.Value![0].EventDataJson);
+        Assert.Empty(result.Value[0].ContactProfileIds!);
+        Assert.Equal(Guid.Empty, result.Value[0].CreatedByMemberId);
+    }
+
+    [Fact]
+    public async Task GetGroupEvents_ChurchMemberCanReadApprovedChurchVisibleSubgroupEvent()
+    {
+        var groupAuthorizationService = Substitute.For<IGroupAuthorizationService>();
+        var groupReadService = Substitute.For<IGroupReadService>();
+        var eventReadService = Substitute.For<IEventReadService>();
+        var churchId = Guid.NewGuid();
+        var groupId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+        groupReadService.GetByIdAsync(groupId, Arg.Any<CancellationToken>())
+            .Returns(new GroupDto(
+                groupId,
+                new Dictionary<string, string> { ["en"] = "Subgroup" },
+                null,
+                churchId,
+                AccessType.Protected,
+                false,
+                false,
+                DateTime.UtcNow,
+                DateTime.UtcNow));
+        groupAuthorizationService.IsApprovedMemberAsync(groupId, memberId, Arg.Any<CancellationToken>())
+            .Returns(false);
+        groupAuthorizationService.IsApprovedMemberAsync(churchId, memberId, Arg.Any<CancellationToken>())
+            .Returns(true);
+        eventReadService.GetGroupEventsAsync(groupId, Arg.Any<CancellationToken>())
+            .Returns([
+                new Alife.Application.Events.Dtos.GroupEventSummaryDto(
+                    Guid.NewGuid(), groupId, Guid.NewGuid(), "Church event", "教会活动",
+                    DateTime.UtcNow, DateTime.UtcNow.AddHours(1),
+                    "{\"visibility\":\"churchVisible\",\"description\":{\"en\":\"Welcome\"},\"contactProfileIds\":[\"secret\"]}",
+                    DateTime.UtcNow, DateTime.UtcNow,
+                    [Guid.NewGuid()], EventRamStatus.Approved, EventVisibilityPolicy.ChurchVisible)
+            ]);
+        var handler = new GetGroupEventsQueryHandler(eventReadService, groupReadService, groupAuthorizationService);
+
+        var result = await handler.Handle(new GetGroupEventsQuery(groupId, memberId), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var visibleEvent = Assert.Single(result.Value!);
+        Assert.Equal(EventVisibilityPolicy.ChurchVisible, visibleEvent.Visibility);
+        Assert.Empty(visibleEvent.ContactProfileIds!);
+        Assert.DoesNotContain("contactProfileIds", visibleEvent.EventDataJson);
+    }
+
+    [Fact]
+    public async Task GetGroupEvents_DoesNotExposeUnapprovedPublicEventToGuest()
+    {
+        var groupAuthorizationService = Substitute.For<IGroupAuthorizationService>();
+        var groupReadService = Substitute.For<IGroupReadService>();
+        var eventReadService = Substitute.For<IEventReadService>();
+        var groupId = Guid.NewGuid();
+        groupReadService.GetByIdAsync(groupId, Arg.Any<CancellationToken>())
+            .Returns(CreateGroup(groupId, isChurch: false));
+        eventReadService.GetGroupEventsAsync(groupId, Arg.Any<CancellationToken>())
+            .Returns([
+                new Alife.Application.Events.Dtos.GroupEventSummaryDto(
+                    Guid.NewGuid(), groupId, Guid.NewGuid(), "Draft", "草稿",
+                    DateTime.UtcNow, DateTime.UtcNow.AddHours(1), "{\"visibility\":\"public\"}",
+                    DateTime.UtcNow, DateTime.UtcNow,
+                    RamStatus: EventRamStatus.AwaitingReview,
+                    Visibility: EventVisibilityPolicy.Public)
+            ]);
+        var handler = new GetGroupEventsQueryHandler(eventReadService, groupReadService, groupAuthorizationService);
+
+        var result = await handler.Handle(new GetGroupEventsQuery(groupId, null), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Empty(result.Value!);
     }
 
     [Fact]
@@ -329,4 +566,13 @@ public class GroupEventsCrudHandlersTests
             CreatedUtc = DateTime.UtcNow,
             UpdatedUtc = DateTime.UtcNow
         };
+
+    private const string WorkflowDefinition = """
+        {"stages":[
+          {"key":"proposal","name":{"en":"Proposal","zh":"提案"},"required":true,"requiresApproval":true,"integrationKey":null,
+           "artifacts":[{"type":"event_plan","title":{"en":"Plan","zh":"计划"},"required":true,"visibility":"groupVisible"}]},
+          {"key":"risk_assessment","name":{"en":"Risk assessment","zh":"风险评估"},"required":true,"requiresApproval":true,"integrationKey":"ram",
+           "artifacts":[{"type":"ram","title":{"en":"RAM","zh":"风险评估"},"required":true,"visibility":"groupVisible"}]}
+        ]}
+        """;
 }

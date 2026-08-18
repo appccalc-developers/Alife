@@ -4,4 +4,5 @@ using MediatR;
 
 namespace Alife.Application.Events.Queries.ListEventWorkflowTemplates;
 
-public sealed record ListEventWorkflowTemplatesQuery : IRequest<AppResult<IReadOnlyList<EventWorkflowTemplateDto>>>;
+public sealed record ListEventWorkflowTemplatesQuery(Guid? GroupId, Guid CurrentMemberId)
+    : IRequest<AppResult<IReadOnlyList<EventWorkflowTemplateDto>>>;
