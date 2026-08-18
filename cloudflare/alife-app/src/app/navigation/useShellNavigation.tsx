@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useSyncExternalStore } from 'react'
-import { Activity, Bell, BookMarked, BookOpenText, Church, FileImage, Globe2, Home, Images, MessageSquareText, Settings2, ShieldCheck, UserRound, UsersRound } from 'lucide-react'
+import { Activity, Bell, BookMarked, BookOpenText, Church, ClipboardCheck, FileImage, Globe2, Home, Images, MessageSquareText, Settings2, ShieldCheck, UserRound, UsersRound } from 'lucide-react'
 import { groupMembershipsCollectionQueryKey } from '../../db/collections/groupCollection'
 import { queryClient } from '../../db/queryClient'
 import { activeEntityService } from '../../services/activeEntityService'
@@ -12,6 +12,8 @@ import type { GroupEventRecord } from '../../types/event'
 import { getEventLifecycle, readEventLifecycleData } from '../../utils/eventLifecycle'
 import type { GroupMembershipDto } from '../../types'
 import { canAccessChurchManagement } from '../routing/churchManagementAccess'
+import { useCurrentTasks } from '../../hooks/useCurrentTasks'
+import { countCurrentTasks, formatTaskCount } from '../../utils/currentTasks'
 
 type Args = {
   contextualGroupId: string
@@ -64,6 +66,7 @@ export const useShellNavigation = ({
   workspaceEnabled,
 }: Args) => {
   const auth = useAuthStore()
+  const currentTasksQuery = useCurrentTasks()
   const isChinese = auth.language === 'zh'
   const memberAccountLabel = isChinese ? '成员账号' : 'Member account'
   const personalCenterLabel = isChinese ? '个人中心' : 'Personal Center'
@@ -287,6 +290,7 @@ export const useShellNavigation = ({
     : null
 
   const groupSelectionTo = auth.isGuest ? '/groups/select?from=alife' : '/groups/select'
+  const taskCounts = countCurrentTasks(currentTasksQuery.data ?? [])
   const churchWebsiteItems: ShellNavItem[] = [
     {
       key: 'app:home',
@@ -306,6 +310,27 @@ export const useShellNavigation = ({
 
   const accountItems: ShellNavItem[] = !auth.loading && !auth.isGuest
     ? [{
+      key: 'app:tasks',
+      label: isChinese ? '当前事务' : 'Current tasks',
+      description: isChinese ? '处理职能待办和成员通知' : 'Handle duty tasks and member notifications',
+      to: '/tasks',
+      matchPathOnly: true,
+      icon: <ClipboardCheck className="h-5 w-5" />,
+      badges: [
+        {
+          text: String(taskCounts.urgent),
+          compactText: formatTaskCount(taskCounts.urgent),
+          accessibleLabel: `${isChinese ? '紧要事务' : 'Urgent tasks'}: ${taskCounts.urgent}`,
+          tone: 'urgent',
+        },
+        {
+          text: String(taskCounts.general),
+          compactText: formatTaskCount(taskCounts.general),
+          accessibleLabel: `${isChinese ? '一般事务' : 'General tasks'}: ${taskCounts.general}`,
+          tone: 'general',
+        },
+      ],
+    }, {
       key: 'app:study',
       label: isChinese ? '查经进度' : 'Bible Study Progress',
       description: isChinese ? '中英文经文阅读与小组查经' : 'Bilingual Scripture reading and group study',

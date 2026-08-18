@@ -38,6 +38,7 @@ const PageView = lazy(loadPageView)
 const ProfileView = lazy(() => import('../../views/ProfileView'))
 const SermonsView = lazy(() => import('../../views/SermonsView'))
 const SermonVideoView = lazy(() => import('../../views/SermonVideoView'))
+const TasksView = lazy(() => import('../../views/TasksView'))
 
 const AdminRoute = ({ children, permission }: { children: ReactElement; permission?: string }) => {
   const auth = useAuthStore()
@@ -197,6 +198,7 @@ const AppRoutes = ({ churchGroupId = '', churchGroupLoading = false }: AppRoutes
           <Route path="/pages/:pageId" element={<PageView />} />
           <Route path="/pages" element={<PageView />} />
           <Route path="/profile" element={<ProfileView />} />
+          <Route path="/tasks" element={<MemberRoute><TasksView /></MemberRoute>} />
           <Route path="/sermons" element={<SermonsView />} />
           <Route path="/sermons/:sermonId" element={<SermonVideoView />} />
           <Route path="/sermons/watch" element={<SermonVideoView />} />

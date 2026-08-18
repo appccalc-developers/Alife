@@ -5,6 +5,7 @@ import { groupService } from '../services/groupService'
 import { pageService } from '../services/pageService'
 import { eventService } from '../services/eventService'
 import { useAuthStore } from '../stores/auth'
+import { invalidateCurrentTasks } from './useCurrentTasks'
 import { removeCachedRecord } from '../db/httpCache'
 import { normalizeGroup } from '../utils/apiEnums'
 import { ensureGroupForViewer, groupQueryKey, getCachedSubgroups, subgroupsQueryKey } from '../db/collections/groupCollection'
@@ -233,6 +234,7 @@ export const useGroupScreen = (groupId: string, options: GroupScreenOptions = {}
       if (!groupId) return
       await groupService.approveMember(groupId, { memberId }, auth.me?.id)
       await queryClient.invalidateQueries({ queryKey: ['groupMemberships', groupId] })
+      await invalidateCurrentTasks(auth.me?.id)
       setStatusMessage(t('memberApprovedSuccess'))
     },
     [auth.me?.id, groupId, queryClient, t],
@@ -243,6 +245,7 @@ export const useGroupScreen = (groupId: string, options: GroupScreenOptions = {}
       if (!groupId) return
       await groupService.rejectMember(groupId, { memberId }, auth.me?.id)
       await queryClient.invalidateQueries({ queryKey: ['groupMemberships', groupId] })
+      await invalidateCurrentTasks(auth.me?.id)
       setStatusMessage(t('memberRequestRejected'))
     },
     [auth.me?.id, groupId, queryClient, t],

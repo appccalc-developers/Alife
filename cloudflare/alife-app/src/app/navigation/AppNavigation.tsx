@@ -67,9 +67,13 @@ const guardNavigationClick = (
 }
 
 const NavItemBadge = ({ badge, collapsed, itemLabel }: { badge: ShellNavBadge; collapsed: boolean; itemLabel: string }) => {
-  const toneClass = badge.tone === 'attention'
-    ? 'bg-amber-100 text-amber-800 ring-amber-200'
-    : 'bg-slate-100 text-slate-600 ring-slate-200'
+  const toneClass = badge.tone === 'urgent'
+    ? 'bg-[#de6c4d] text-white ring-[#bd4c33]/30'
+    : badge.tone === 'general'
+      ? 'bg-[#176b5a] text-white ring-[#0d4f43]/25'
+      : badge.tone === 'attention'
+        ? 'bg-amber-100 text-amber-800 ring-amber-200'
+        : 'bg-slate-100 text-slate-600 ring-slate-200'
 
   if (collapsed) {
     return (
@@ -95,6 +99,33 @@ const NavItemBadge = ({ badge, collapsed, itemLabel }: { badge: ShellNavBadge; c
   )
 }
 
+const NavItemBadges = ({ badges, collapsed, itemLabel }: { badges: ShellNavBadge[]; collapsed: boolean; itemLabel: string }) => (
+  <span
+    className={collapsed ? 'absolute -right-1.5 -top-1.5 flex flex-col gap-0.5' : 'flex shrink-0 items-center gap-1'}
+    aria-label={`${itemLabel}: ${badges.map((badge) => badge.accessibleLabel).join(', ')}`}
+  >
+    {badges.map((badge) => {
+      const toneClass = badge.tone === 'urgent'
+        ? 'bg-[#de6c4d] text-white ring-[#bd4c33]/30'
+        : 'bg-[#176b5a] text-white ring-[#0d4f43]/25'
+      return (
+        <span
+          key={`${badge.tone}:${badge.accessibleLabel}`}
+          aria-hidden="true"
+          title={badge.accessibleLabel}
+          className={[
+            'inline-flex items-center justify-center rounded-full font-black leading-none ring-1',
+            collapsed ? 'h-4 min-w-4 px-1 text-[8px]' : 'h-5 min-w-5 px-1.5 text-[10px]',
+            toneClass,
+          ].join(' ')}
+        >
+          {badge.compactText}
+        </span>
+      )
+    })}
+  </span>
+)
+
 const NavItemContent = ({ item, active, compact = false, collapsed = false }: { item: ShellNavItem; active: boolean; compact?: boolean; collapsed?: boolean }) => (
   <>
     {active && !collapsed && !compact ? <span className="absolute left-2 h-5 w-1 rounded-full bg-[#de6c4d]" aria-hidden="true" /> : null}
@@ -119,7 +150,11 @@ const NavItemContent = ({ item, active, compact = false, collapsed = false }: { 
         {!compact && active && item.description ? <span className="mt-0.5 block truncate text-[11px] font-semibold leading-4 text-[#74837d]">{item.description}</span> : null}
       </span>
     ) : null}
-    {item.badge ? <NavItemBadge badge={item.badge} collapsed={collapsed} itemLabel={item.label} /> : null}
+    {item.badges?.length
+      ? <NavItemBadges badges={item.badges} collapsed={collapsed} itemLabel={item.label} />
+      : item.badge
+        ? <NavItemBadge badge={item.badge} collapsed={collapsed} itemLabel={item.label} />
+        : null}
   </>
 )
 

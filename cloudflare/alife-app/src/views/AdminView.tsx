@@ -18,6 +18,7 @@ import { normalizeApiError } from '../services/http'
 import { aiTranslationService } from '../services/aiTranslationService'
 import { useUiText } from '../i18n/uiText'
 import { useAuthStore } from '../stores/auth'
+import { invalidateCurrentTasks } from '../hooks/useCurrentTasks'
 import type { MissingTranslatableField } from '../utils/bilingualValidation'
 import { Panel, FilterBar, SearchInput, SelectInput, FilterActions, Loading, Empty, Pill, Pager } from './admin/AdminUi'
 import { VisitRequestsSection } from './admin/VisitRequestsSection'
@@ -576,6 +577,7 @@ const AdminView = () => {
         items: current.items.map((request) => request.id === item.id ? updated : request),
       }))
       setMessage(l('visitRequestUpdated'))
+      await invalidateCurrentTasks(me?.id)
       await runQuietly(loadLogs(1, section === 'overview' ? overviewActivityPageSize : 25))
     } catch (reason) {
       setError(formatActionError(reason, l('visitRequestUpdateFailed')))
