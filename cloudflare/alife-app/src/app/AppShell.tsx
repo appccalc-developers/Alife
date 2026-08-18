@@ -19,7 +19,7 @@ import { getCopy } from '../views/home/homeCopy'
 import { buildPageMenuNavItems } from '../views/home/homeUtils'
 import { usePublicPagesQuery } from '../hooks/usePublicPageQueries'
 import { workspaceResumeService } from '../services/workspaceResumeService'
-import { isHomeLocation, isPublicArticlePath, isPublicPageLocation } from './routing/publicRoutePolicy'
+import { isHomeLocation, isPublicArticlePath, isPublicPageLocation, usesPublicHomeLayout } from './routing/publicRoutePolicy'
 
 const readSidebarCollapsedPreference = () => {
   try {
@@ -171,7 +171,7 @@ const PublicHomeShell = () => {
 const AppShell = () => {
   const location = useLocation()
   const reduceMotion = useReducedMotion()
-  const showPublicShell = isHomeLocation(location)
+  const showPublicShell = usesPublicHomeLayout(location)
 
   return (
     <>

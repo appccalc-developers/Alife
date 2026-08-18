@@ -12,7 +12,7 @@ import {
   resolveEventBoundActionUrl,
 } from '../src/utils/eventRoutes.ts'
 import { getRouteTransitionKey, isForumFeedPath } from '../src/app/routing/routeTransitionPolicy.ts'
-import { isHomeLocation } from '../src/app/routing/publicRoutePolicy.ts'
+import { isHomeLocation, usesPublicHomeLayout } from '../src/app/routing/publicRoutePolicy.ts'
 import { normalizeRouteGroupId } from '../src/utils/groupRouteIds.ts'
 import { resolveWorkspaceEntryLocation, toWorkspaceLocation } from '../src/services/workspaceResumeService.ts'
 
@@ -69,11 +69,17 @@ test('workspace entry resumes the last route before falling back to the current 
   assert.equal(toWorkspaceLocation({ pathname: '/' }), '')
 })
 
-test('only the actual homepage uses the public home shell', () => {
+test('home and managed public pages use the public home layout', () => {
   assert.equal(isHomeLocation({ pathname: '/', search: '' }), true)
   assert.equal(isHomeLocation({ pathname: '/home', search: '' }), true)
   assert.equal(isHomeLocation({ pathname: '/home', search: '?page=about' }), false)
-  assert.equal(isHomeLocation({ pathname: '/articles', search: '' }), false)
+
+  assert.equal(usesPublicHomeLayout({ pathname: '/', search: '' }), true)
+  assert.equal(usesPublicHomeLayout({ pathname: '/home', search: '' }), true)
+  assert.equal(usesPublicHomeLayout({ pathname: '/home', search: '?page=about' }), true)
+  assert.equal(usesPublicHomeLayout({ pathname: '/public/pages/page-id', search: '' }), true)
+  assert.equal(usesPublicHomeLayout({ pathname: '/articles', search: '' }), false)
+  assert.equal(usesPublicHomeLayout({ pathname: '/church', search: '' }), false)
 })
 
 test('current-group route segments are not parsed as explicit group identifiers', () => {

@@ -20,5 +20,8 @@ export const isHomeLocation = (location: RouteLocation) =>
   location.pathname === '/' ||
   (location.pathname === '/home' && !hasPublicPageMenuName(location.search))
 
+export const usesPublicHomeLayout = (location: RouteLocation) =>
+  isHomeLocation(location) || isPublicPageLocation(location)
+
 export const isAuthOptionalLocation = (location: RouteLocation) =>
   isHomeLocation(location) || isPublicPageLocation(location) || isPublicArticlePath(location.pathname)
