@@ -3,6 +3,8 @@ export type MultilingualString = {
   en: string
 }
 
+export type EventVisibility = 'groupVisible' | 'churchVisible' | 'public'
+
 export type EventRuleDto = {
   ruleKey: string
   displayMessage: MultilingualString
@@ -82,6 +84,7 @@ export type EventDto = {
   id?: string
   organizerId?: string
   organizerDisplayName?: string
+  visibility?: EventVisibility
   personResponsible?: string
   purpose?: MultilingualString
   title: MultilingualString
@@ -129,14 +132,15 @@ export type EventSessionSsePayload = {
 export type GroupEventRecord = {
   id: string
   groupId: string
-  createdByMemberId: string
+  createdByMemberId?: string
   titleEn: string
   titleZh: string
   startDate: string
   endDate: string
   eventDataJson: string
-  createdUtc: string
-  updatedUtc: string
+  createdUtc?: string
+  updatedUtc?: string
   contactProfileIds?: string[]
   ramStatus?: EventRamStatus
+  visibility?: EventVisibility
 }

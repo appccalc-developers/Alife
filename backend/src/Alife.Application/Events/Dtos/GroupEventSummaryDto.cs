@@ -15,4 +15,5 @@ public record GroupEventSummaryDto(
     DateTime CreatedUtc,
     DateTime UpdatedUtc,
     IReadOnlyList<Guid>? ContactProfileIds = null,
-    EventRamStatus RamStatus = EventRamStatus.Draft);
+    EventRamStatus RamStatus = EventRamStatus.Draft,
+    string Visibility = "groupVisible");

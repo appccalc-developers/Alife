@@ -435,8 +435,11 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 			cfg.Property(x => x.DescriptionEn).HasMaxLength(1000).IsRequired();
 			cfg.Property(x => x.DescriptionZh).HasMaxLength(1000).IsRequired();
 			cfg.Property(x => x.DefinitionJson).IsRequired();
+			cfg.HasOne(x => x.OwnerGroup).WithMany().HasForeignKey(x => x.OwnerGroupId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.CreatedByMember).WithMany().HasForeignKey(x => x.CreatedByMemberId).OnDelete(DeleteBehavior.Restrict);
 			cfg.HasIndex(x => new { x.Code, x.Version }).IsUnique();
 			cfg.HasIndex(x => new { x.IsActive, x.Code });
+			cfg.HasIndex(x => new { x.OwnerGroupId, x.IsActive, x.UpdatedUtc });
 		});
 
 		modelBuilder.Entity<EventWorkflowRun>(cfg =>

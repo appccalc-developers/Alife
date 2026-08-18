@@ -35,7 +35,7 @@ export type SharedCacheContext = {
 }
 
 const AUTHZ_MIRROR_TTL_SECONDS = 7 * 24 * 60 * 60
-const PUBLIC_CACHEABLE_API_PATHS = new Set(['/api/sermons', '/api/pages/public'])
+const PUBLIC_CACHEABLE_API_PATHS = new Set(['/api/sermons', '/api/pages/public', '/api/events/public/upcoming'])
 const GROUP_SHARED_SUBRESOURCES = new Set(['pages', 'events', 'memberships', 'members', 'subgroups'])
 // Enrollment responses are viewer-specific: managers see the full list while
 // ordinary members only see their own record. They must never use a shared key.

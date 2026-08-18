@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowRight, BookOpenText, CheckCircle2, CircleAlert, FileText, ImageIcon, Languages, MessageSquareText, Mic, MicOff, Save, ShieldCheck, Sparkles, Upload } from 'lucide-react'
+import { ArrowRight, BookOpenText, Bot, CheckCircle2, ChevronDown, CircleAlert, FileText, ImageIcon, Languages, ListChecks, Mic, MicOff, Save, ShieldCheck, Sparkles, Upload, UserRound } from 'lucide-react'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import type { EventDto, EventRamStatus, GroupEventRecord, MultilingualString } from '../types/event'
-import type { AiSessionAppContext, AiSessionAttachment } from '../types/aiSession'
+import type { EventDto, EventRamDraft, EventRamStatus, GroupEventRecord, MultilingualString } from '../types/event'
+import type { AiSessionAppContext, AiSessionAttachment, AiSessionState } from '../types/aiSession'
 import { eventService } from '../services/eventService'
+import { eventWorkflowService } from '../services/eventWorkflowService'
 import { eventPosterAiService, type GeneratedEventPoster } from '../services/eventPosterAiService'
 import { aiTranslationService } from '../services/aiTranslationService'
 import { activeEntityService } from '../services/activeEntityService'
@@ -27,6 +28,9 @@ import { localizeText } from '../utils/localizedText'
 import EventRamEditor from '../components/events/EventRamEditor'
 import { createEmptyEventRamDraft, getEventRamSubmissionIssues, parseEventRam } from '../utils/eventRam'
 import type { MissingTranslatableField } from '../utils/bilingualValidation'
+import type { CreateEventWorkflowTemplateInput, EventWorkflowTemplate } from '../types/eventWorkflow'
+import EventWorkflowTemplatePicker from '../components/events/EventWorkflowTemplatePicker'
+import { confirmUnsavedChangesNavigation, setUnsavedChangesGuard } from '../utils/unsavedChangesGuard'
 
 // ────────────────────────────────────────────────────────────────────────────
 // Helper sub-components
@@ -249,6 +253,7 @@ const createIntroMessage = (text: string): ChatMessage => ({
 const createInitialEventDraft = (organizerDisplayName = ''): EventDto => {
   const draft: EventDto = {
     organizerDisplayName,
+    visibility: 'groupVisible',
     personResponsible: organizerDisplayName,
     purpose: { zh: '', en: '' },
     title: { zh: '', en: '' },
@@ -304,6 +309,46 @@ const getNoticeSubmissionIssues = (event: EventDto) => {
   return issues
 }
 
+const getNoticeIssueLabel = (issue: string, language: string) => {
+  const labels: Record<string, { zh: string; en: string }> = {
+    eventDraft: { zh: '活动草稿', en: 'event draft' },
+    group: { zh: '活动所属小组', en: 'owning group' },
+    title: { zh: '中英文活动标题', en: 'bilingual event title' },
+    description: { zh: '中英文活动描述', en: 'bilingual event description' },
+    locationName: { zh: '中英文活动地点', en: 'bilingual event location' },
+    startDate: { zh: '开始时间', en: 'start time' },
+    endDate: { zh: '结束时间', en: 'end time' },
+    registrationDeadline: { zh: '报名截止时间', en: 'registration deadline' },
+    dateOrder: { zh: '正确的开始和结束时间', en: 'valid start and end order' },
+    registrationDeadlineOrder: { zh: '早于活动开始的报名截止时间', en: 'a registration deadline before the event starts' },
+    maxCapacity: { zh: '报名人数或无需报名', en: 'capacity or no-registration choice' },
+    currency: { zh: '活动币种', en: 'event currency' },
+  }
+  const label = labels[issue]
+  return label ? (language === 'zh' ? label.zh : label.en) : issue
+}
+
+const hasRecoverableEventSession = (
+  state: AiSessionState<EventDto, MultilingualString | null> | null,
+) => {
+  if (!state) return false
+  const draft = state.draft
+  const hasDraftContent = Boolean(draft && (
+    draft.title.zh.trim()
+    || draft.title.en.trim()
+    || draft.description.zh.trim()
+    || draft.description.en.trim()
+    || draft.locationName.zh.trim()
+    || draft.locationName.en.trim()
+    || draft.startDate
+    || draft.endDate
+    || draft.hardConstraints.length > 0
+    || draft.optionalActivities.length > 0
+  ))
+  const hasContext = Boolean(state.context && (state.context.zh.trim() || state.context.en.trim()))
+  return hasDraftContent || hasContext || state.chatHistory.length > 0
+}
+
 const SubmissionStatusHeader = ({
   title,
   description,
@@ -312,6 +357,9 @@ const SubmissionStatusHeader = ({
   submittedDetail,
   remainingCount,
   language,
+  remainingMessage,
+  resolveLabel,
+  onResolve,
 }: {
   title: string
   description: string
@@ -320,6 +368,9 @@ const SubmissionStatusHeader = ({
   submittedDetail?: string
   remainingCount: number
   language: 'en' | 'zh'
+  remainingMessage?: string
+  resolveLabel?: string
+  onResolve?: () => void
 }) => {
   const isZh = language === 'zh'
   return (
@@ -341,9 +392,16 @@ const SubmissionStatusHeader = ({
         </div>
       </div>
       {!canSubmit && remainingCount > 0 ? (
-        <p className="mt-3 text-xs font-semibold text-amber-700">
-          {isZh ? `还需补齐 ${remainingCount} 项资料，AI 会在“AI 对话与洞察”中继续引导。` : `${remainingCount} item(s) still need attention. AI will continue guiding you in AI chat and insights.`}
-        </p>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-amber-50 px-3 py-2.5">
+          <p className="text-xs font-semibold leading-5 text-amber-800">
+            {remainingMessage || (isZh ? `还需补齐 ${remainingCount} 项资料。` : `${remainingCount} item(s) still need attention.`)}
+          </p>
+          {onResolve && resolveLabel ? (
+            <button type="button" onClick={onResolve} className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-black text-amber-900 transition hover:bg-amber-100">
+              {resolveLabel}
+            </button>
+          ) : null}
+        </div>
       ) : null}
     </header>
   )
@@ -360,6 +418,7 @@ const getSpeechRecognition = (): SpeechRecognitionConstructor | null => {
 
 const fallbackDraftFromRecord = (record: GroupEventRecord): EventDto => ({
   id: record.id,
+  visibility: record.visibility ?? 'groupVisible',
   personResponsible: '',
   purpose: { zh: '', en: '' },
   title: { zh: record.titleZh, en: record.titleEn },
@@ -389,6 +448,7 @@ const getDraftFromRecord = (record: GroupEventRecord): EventDto => {
       const draft = {
         ...parsed,
         id: record.id,
+        visibility: parsed.visibility ?? record.visibility ?? 'groupVisible',
         personResponsible: parsed.personResponsible || parsed.organizerDisplayName || '',
         purpose: parsed.purpose ?? { zh: '', en: '' },
         contactProfileIds: record.contactProfileIds ?? parsed.contactProfileIds ?? [],
@@ -400,86 +460,6 @@ const getDraftFromRecord = (record: GroupEventRecord): EventDto => {
   }
 
   return fallbackDraftFromRecord(record)
-}
-
-const EventWorkflowPanel = ({
-  eventDraft,
-  targetEventId,
-  language,
-  ramStatus,
-  noticeSubmitted,
-}: {
-  eventDraft: EventDto | null
-  targetEventId: string
-  language: string
-  ramStatus: EventRamStatus
-  noticeSubmitted: boolean
-}) => {
-  const isZh = language === 'zh'
-  const titleReady = Boolean(eventDraft && (eventDraft.title.zh.trim() || eventDraft.title.en.trim()))
-  const descriptionReady = Boolean(eventDraft && (eventDraft.description.zh.trim() || eventDraft.description.en.trim()))
-  const timeReady = Boolean(eventDraft?.startDate && eventDraft?.endDate)
-  const registrationReady = Boolean(eventDraft && (eventDraft.maxCapacity === 0 || (eventDraft.maxCapacity > 0 && eventDraft.registrationDeadline)))
-  const savedReady = Boolean(targetEventId)
-  const setupReady = Boolean(titleReady && descriptionReady && eventDraft && hasText(eventDraft.personResponsible))
-  const items = [
-    {
-      label: isZh ? '1. 填写初始化资料' : '1. Add the starting brief',
-      hint: isZh ? '填写活动标题、描述和负责人，并可生成或上传海报。' : 'Add the title, description, and person responsible; then generate or upload a poster.',
-      ready: setupReady,
-      icon: <BookOpenText className="h-4 w-4" />,
-    },
-    {
-      label: isZh ? '2. 与 AI 补齐共同资料' : '2. Complete shared facts with AI',
-      hint: isZh ? 'AI 会把活动项目等资料同时用于通知和 RAM。' : 'AI reuses facts such as activities across the notice and RAM.',
-      ready: titleReady && timeReady && registrationReady,
-      icon: <MessageSquareText className="h-4 w-4" />,
-    },
-    {
-      label: isZh ? '3. 提交活动通知' : '3. Submit the event notice',
-      hint: isZh ? '检查双语文案、时间、地点、报名资料和海报。' : 'Check bilingual copy, timing, venue, enrollment details, and poster.',
-      ready: savedReady && noticeSubmitted,
-      icon: <FileText className="h-4 w-4" />,
-    },
-    {
-      label: isZh ? '4. 人工确认并提交 RAM' : '4. Human-check and submit the RAM',
-      hint: isZh ? '补齐缺失资料并由组长确认，不接受 AI 猜测。' : 'Resolve missing facts and have a leader confirm them; do not accept AI guesses.',
-      ready: ramStatus === 'awaitingReview' || ramStatus === 'approved',
-      icon: <ShieldCheck className="h-4 w-4" />,
-    },
-    {
-      label: isZh ? '5. RAM 审核批准' : '5. RAM review and approval',
-      hint: isZh ? '只有批准后才进入近期活动并开放报名。' : 'Only approval moves the event to Upcoming and allows enrollment.',
-      ready: ramStatus === 'approved',
-      icon: <ShieldCheck className="h-4 w-4" />,
-    },
-  ]
-  const readyCount = items.filter((item) => item.ready).length
-
-  return (
-    <section className="rounded-2xl border border-[#2f4b42]/10 bg-white/78 p-4 shadow-[0_10px_30px_rgba(31,56,48,0.06)]">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-[#176b5a]">{isZh ? '活动工作流' : 'Event workflow'}</p>
-          <h2 className="mt-1 text-lg font-black text-[#18332d]">{isZh ? '从想法到可报名活动' : 'From idea to enrollable event'}</h2>
-        </div>
-        <span className="rounded-lg bg-[#e3f0eb] px-3 py-1 text-sm font-black text-[#176b5a]">{readyCount}/{items.length}</span>
-      </div>
-      <div className="mt-4 grid gap-3 md:grid-cols-2">
-        {items.map((item) => (
-          <div key={item.label} className={['flex gap-3 rounded-xl border p-3', item.ready ? 'border-emerald-200 bg-emerald-50/70' : 'border-slate-200 bg-white'].join(' ')}>
-            <span className={['flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', item.ready ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'].join(' ')}>
-              {item.ready ? <CheckCircle2 className="h-4 w-4" /> : item.icon}
-            </span>
-            <span>
-              <span className="block text-sm font-black text-slate-950">{item.label}</span>
-              <span className="mt-1 block text-xs leading-5 text-slate-500">{item.hint}</span>
-            </span>
-          </div>
-        ))}
-      </div>
-    </section>
-  )
 }
 
 const EventCreatorView = () => {
@@ -509,7 +489,13 @@ const EventCreatorView = () => {
   const [listening, setListening] = useState(false)
   const [eventDraft, setEventDraft] = useState<EventDto | null>(() => createInitialEventDraft(me?.displayName))
   const [availableContacts, setAvailableContacts] = useState<ContactProfileDto[]>([])
+  const [workflowTemplates, setWorkflowTemplates] = useState<EventWorkflowTemplate[]>([])
+  const [workflowTemplatesLoading, setWorkflowTemplatesLoading] = useState(false)
+  const [workflowTemplatesError, setWorkflowTemplatesError] = useState('')
+  const [selectedWorkflowCode, setSelectedWorkflowCode] = useState<string | null>(null)
   const [aiInsight, setAiInsight] = useState<MultilingualString | null>(null)
+  const [recoveredDraftNotice, setRecoveredDraftNotice] = useState<{ updatedAt: string } | null>(null)
+  const [draftResetting, setDraftResetting] = useState(false)
   const [error, setError] = useState('')
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [savedEventId, setSavedEventId] = useState('')
@@ -528,17 +514,30 @@ const EventCreatorView = () => {
   const [generatedPosterSourceKey, setGeneratedPosterSourceKey] = useState('')
   const [briefTranslationStatus, setBriefTranslationStatus] = useState<EventBriefTranslationStatus>('idle')
   const [briefTranslationMessage, setBriefTranslationMessage] = useState('')
-  const [activeTab, setActiveTab] = useState<EventEditorTab>('setup')
+  const [activeTab, setActiveTab] = useState<EventEditorTab>(() => {
+    const requestedStep = searchParams.get('step')
+    return requestedStep === 'assistant' || requestedStep === 'notice' || requestedStep === 'ram'
+      ? requestedStep
+      : 'setup'
+  })
   const [noticeSubmitted, setNoticeSubmitted] = useState(false)
   const [ramHasLocalChanges, setRamHasLocalChanges] = useState(false)
   const [ramStatus, setRamStatus] = useState<EventRamStatus>('draft')
   const [ramBusy, setRamBusy] = useState(false)
   const [ramMessage, setRamMessage] = useState('')
+  const [ramAutosaveStatus, setRamAutosaveStatus] = useState<'idle' | 'pending' | 'saving' | 'saved' | 'error'>('idle')
+  const [ramLastSavedAt, setRamLastSavedAt] = useState<string | null>(null)
+  const [ramAutosaveInFlight, setRamAutosaveInFlight] = useState(false)
   const [aiContentContext, setAiContentContext] = useState<AiContentContext>({ missionStatements: [], eventContext: null })
   const [sessionContextEventId, setSessionContextEventId] = useState('')
   const [ramSessionContextEventId, setRamSessionContextEventId] = useState('')
   const [sessionContextRevision, setSessionContextRevision] = useState(0)
   const targetEventId = eventId ?? savedEventId
+  const ramDraftJson = useMemo(() => eventDraft?.ram ? JSON.stringify(eventDraft.ram) : '', [eventDraft?.ram])
+  const hasUnsavedRamNavigationChanges = Boolean(targetEventId && ramHasLocalChanges)
+  const unsavedRamNavigationMessage = language === 'zh'
+    ? 'RAM 有尚未保存的更改。离开后这些更改会丢失，是否仍要离开？'
+    : 'The RAM has unsaved changes. They will be lost if you leave. Leave without saving?'
   const canEditRam = Boolean(effectiveGroupId && canManageGroup(effectiveGroupId))
   const canAuditRam = hasAdminPermission('admin.events.audit')
   const sessionId = useMemo(
@@ -546,8 +545,112 @@ const EventCreatorView = () => {
     [eventId, me?.id],
   )
   const initializedSessionScopesRef = useRef(new Set<string>())
+  const initialSessionHydratedRef = useRef('')
+  const ramBrowserBackGuardRegisteredRef = useRef(false)
+  const ramBrowserBackAllowedRef = useRef(false)
+  const latestRamDraftJsonRef = useRef(ramDraftJson)
+  const ramAutosavePromiseRef = useRef<Promise<void> | null>(null)
+  const ramAutosaveFailedJsonRef = useRef('')
   const posterInputRef = useRef<HTMLInputElement>(null)
   const referencePosterInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    latestRamDraftJsonRef.current = ramDraftJson
+  }, [ramDraftJson])
+
+  useEffect(() => {
+    if (!targetEventId || !eventDraft?.ram || !ramHasLocalChanges || ramBusy || ramAutosaveInFlight || ramAutosaveFailedJsonRef.current === ramDraftJson) {
+      return
+    }
+
+    setRamAutosaveStatus('pending')
+    const ramSnapshot: EventRamDraft = eventDraft.ram
+    const snapshotJson = ramDraftJson
+    const timeoutId = window.setTimeout(() => {
+      let task: Promise<void> | null = null
+      task = (async () => {
+        setRamAutosaveInFlight(true)
+        setRamAutosaveStatus('saving')
+        try {
+          const record = await eventService.saveEventRam(targetEventId, ramSnapshot)
+          ramAutosaveFailedJsonRef.current = ''
+          setRamStatus(record.status)
+          setRamLastSavedAt(record.updatedUtc)
+          setSessionContextRevision((current) => current + 1)
+          if (latestRamDraftJsonRef.current === snapshotJson) {
+            setRamHasLocalChanges(false)
+            setRamAutosaveStatus('saved')
+          } else {
+            setRamAutosaveStatus('pending')
+          }
+        } catch {
+          ramAutosaveFailedJsonRef.current = snapshotJson
+          setRamAutosaveStatus('error')
+        } finally {
+          if (ramAutosavePromiseRef.current === task) {
+            ramAutosavePromiseRef.current = null
+          }
+          setRamAutosaveInFlight(false)
+        }
+      })()
+      ramAutosavePromiseRef.current = task
+    }, 1500)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [eventDraft?.ram, ramAutosaveInFlight, ramBusy, ramDraftJson, ramHasLocalChanges, targetEventId])
+
+  useEffect(() => {
+    setUnsavedChangesGuard(hasUnsavedRamNavigationChanges, unsavedRamNavigationMessage, 'confirm')
+    return () => setUnsavedChangesGuard(false)
+  }, [hasUnsavedRamNavigationChanges, unsavedRamNavigationMessage])
+
+  useEffect(() => {
+    if (!hasUnsavedRamNavigationChanges) return
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [hasUnsavedRamNavigationChanges])
+
+  useEffect(() => {
+    if (!hasUnsavedRamNavigationChanges) {
+      ramBrowserBackGuardRegisteredRef.current = false
+      ramBrowserBackAllowedRef.current = false
+      return
+    }
+
+    if (!ramBrowserBackGuardRegisteredRef.current) {
+      window.history.pushState({ alifeUnsavedEventRamGuard: true }, '', window.location.href)
+      ramBrowserBackGuardRegisteredRef.current = true
+    }
+
+    const handlePopState = () => {
+      if (ramBrowserBackAllowedRef.current) {
+        ramBrowserBackAllowedRef.current = false
+        return
+      }
+
+      const continueNavigation = () => {
+        ramBrowserBackAllowedRef.current = true
+        setUnsavedChangesGuard(false)
+        window.history.back()
+      }
+
+      if (confirmUnsavedChangesNavigation(undefined, continueNavigation)) {
+        continueNavigation()
+        return
+      }
+
+      window.history.pushState({ alifeUnsavedEventRamGuard: true }, '', window.location.href)
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [hasUnsavedRamNavigationChanges])
   const posterGenerationBaseInputRef = useRef<HTMLInputElement>(null)
   const posterObjectUrlRef = useRef('')
   const posterGenerationBaseObjectUrlRef = useRef('')
@@ -608,6 +711,7 @@ const EventCreatorView = () => {
   }), [aiContentContext.missionStatements, effectiveGroupId, eventContext, language, me?.displayName, me?.id, selectedContactFacts, targetEventId])
   const {
     state: sessionState,
+    setState: setSessionState,
     loading: sessionLoading,
     error: sessionError,
     clearError: clearSessionError,
@@ -663,12 +767,72 @@ const EventCreatorView = () => {
     if (isEditMode) {
       return
     }
-    if (sessionState?.draft) {
-      setEventDraft(sessionState.draft)
+    if (!sessionState) {
+      return
+    }
+
+    const isInitialHydration = initialSessionHydratedRef.current !== sessionId
+    if (isInitialHydration) {
+      initialSessionHydratedRef.current = sessionId
+    }
+
+    if (sessionState.draft) {
+      setEventDraft((current) => ({
+        ...sessionState.draft!,
+        visibility: sessionState.draft?.visibility ?? current?.visibility ?? 'groupVisible',
+      }))
       setRamHasLocalChanges(true)
     }
     setAiInsight(sessionState?.context ?? null)
-  }, [isEditMode, sessionState])
+
+    if (isInitialHydration && hasRecoverableEventSession(sessionState)) {
+      setRecoveredDraftNotice({ updatedAt: sessionState.updatedAt })
+      const restoredMessages: ChatMessage[] = [createIntroMessage(t('eventAssistantIntro'))]
+      sessionState.chatHistory
+        .filter((message) => message.role === 'user')
+        .forEach((message) => restoredMessages.push({ role: 'user', text: message.text }))
+      const restoredInsight = sessionState.context
+        ? ((language === 'zh' ? sessionState.context.zh : sessionState.context.en)
+          || sessionState.context.en
+          || sessionState.context.zh)
+        : ''
+      if (restoredInsight) {
+        restoredMessages.push({ role: 'assistant', text: restoredInsight, markdown: true })
+      }
+      setMessages(restoredMessages)
+    }
+  }, [isEditMode, language, sessionId, sessionState, t])
+
+  useEffect(() => {
+    if (isEditMode) {
+      return
+    }
+
+    let cancelled = false
+    setWorkflowTemplatesLoading(true)
+    setWorkflowTemplatesError('')
+    eventWorkflowService.listTemplates(effectiveGroupId || undefined)
+      .then((templates) => {
+        if (!cancelled) {
+          setWorkflowTemplates(templates)
+        }
+      })
+      .catch((reason) => {
+        if (!cancelled) {
+          setWorkflowTemplates([])
+          setWorkflowTemplatesError(normalizeApiError(reason).message)
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setWorkflowTemplatesLoading(false)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [effectiveGroupId, isEditMode])
 
   useEffect(() => {
     if (!effectiveGroupId) {
@@ -714,6 +878,9 @@ const EventCreatorView = () => {
     let cancelled = false
     setSessionContextEventId('')
     setRamSessionContextEventId('')
+    ramAutosaveFailedJsonRef.current = ''
+    setRamLastSavedAt(null)
+    setRamAutosaveStatus('idle')
     if (eventFromNavigationState && eventFromNavigationStateId === eventIdValue) {
       const draft = getDraftFromRecord(eventFromNavigationState)
       setError('')
@@ -727,6 +894,8 @@ const EventCreatorView = () => {
         .then((ramRecord) => {
           if (cancelled) return
           setRamStatus(ramRecord.status)
+          setRamLastSavedAt(ramRecord.updatedUtc)
+          setRamAutosaveStatus('saved')
           setEventDraft((current) => current ? { ...current, ram: parseEventRam(ramRecord) } : current)
         })
         .catch(() => undefined)
@@ -762,6 +931,8 @@ const EventCreatorView = () => {
           .then((ramRecord) => {
             if (cancelled) return
             setRamStatus(ramRecord.status)
+            setRamLastSavedAt(ramRecord.updatedUtc)
+            setRamAutosaveStatus('saved')
             setEventDraft((current) => current ? { ...current, ram: parseEventRam(ramRecord) } : current)
           })
           .catch(() => undefined)
@@ -782,6 +953,14 @@ const EventCreatorView = () => {
 
   useEffect(() => {
     if (!eventDraft) {
+      return
+    }
+
+    if (!isEditMode && !sessionState) {
+      return
+    }
+
+    if (!isEditMode && hasRecoverableEventSession(sessionState)) {
       return
     }
 
@@ -806,7 +985,7 @@ const EventCreatorView = () => {
         initializedSessionScopesRef.current.delete(scope)
         setError(normalizeApiError(reason).message)
       })
-  }, [activeTab, aiAppContext, eventDraft, eventIdValue, isEditMode, ramSessionContextEventId, sessionContextEventId, sessionContextRevision, sessionId])
+  }, [activeTab, aiAppContext, eventDraft, eventIdValue, isEditMode, ramSessionContextEventId, sessionContextEventId, sessionContextRevision, sessionId, sessionState])
 
   const scrollToBottom = () => {
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
@@ -842,6 +1021,7 @@ const EventCreatorView = () => {
         }
         setEventDraft((current) => ({
           ...dto,
+          visibility: current?.visibility ?? dto.visibility ?? 'groupVisible',
           organizerDisplayName: dto.organizerDisplayName || current?.organizerDisplayName || me?.displayName || '',
           personResponsible: dto.personResponsible || current?.personResponsible || me?.displayName || '',
           purpose: dto.purpose && (dto.purpose.zh.trim() || dto.purpose.en.trim())
@@ -861,7 +1041,10 @@ const EventCreatorView = () => {
           ...prev,
           {
             role: 'assistant',
-            text: t('eventExtracted', { name: lang || t('yourEvent') }),
+            text: nextInsight
+              ? ((language === 'zh' ? nextInsight.zh : nextInsight.en) || nextInsight.en || nextInsight.zh)
+              : t('eventExtracted', { name: lang || t('yourEvent') }),
+            markdown: Boolean(nextInsight),
           },
         ])
       } else {
@@ -930,7 +1113,7 @@ const EventCreatorView = () => {
       const succeeded = await handleAiRequest(prompt, [attachment])
       setPosterAnalysisStatus(succeeded ? 'analyzed' : 'error')
       setPosterAnalysisMessage(succeeded
-        ? (language === 'zh' ? 'AI 已读取海报；请到“AI 对话与洞察”查看结果。' : 'AI read the poster. Review the result in AI chat and insights.')
+        ? (language === 'zh' ? 'AI 已读取海报；请到“AI 协助”查看整理结果。' : 'AI read the poster. Review the organized result in AI assistance.')
         : (language === 'zh' ? 'AI 未能读取海报，请稍后重试。' : 'AI could not read the poster. Please try again.'))
     } catch (reason) {
       setPosterAnalysisStatus('error')
@@ -1204,6 +1387,7 @@ const EventCreatorView = () => {
             ...aiContentContext,
             eventContext: createEventContextFromDto(pendingPosterFile ? { ...eventDraft, posterImageUrl: null } : eventDraft),
           },
+          selectedWorkflowCode,
         )
         setSavedEventId(created.id)
         persistedEventId = created.id
@@ -1242,7 +1426,9 @@ const EventCreatorView = () => {
       ])
       if (!isEditMode && persistedEventId && effectiveGroupId) {
         const explicitGroupRoute = Boolean(routeGroupId || searchParams.get('groupId'))
-        navigate(`${buildScopedEventDetailPath(effectiveGroupId, persistedEventId, explicitGroupRoute)}/edit`, { replace: true })
+        navigate(`${buildScopedEventDetailPath(effectiveGroupId, persistedEventId, explicitGroupRoute)}/edit?step=ram`, { replace: true })
+      } else if (isEditMode) {
+        setActiveTab('ram')
       }
     } catch (err) {
       setSaveStatus('error')
@@ -1263,13 +1449,22 @@ const EventCreatorView = () => {
     if (!targetEventId || !eventDraft?.ram) return
     setRamBusy(true)
     setRamMessage('')
+    setRamAutosaveStatus('saving')
     try {
+      if (ramAutosavePromiseRef.current) {
+        await ramAutosavePromiseRef.current
+      }
       const record = await eventService.saveEventRam(targetEventId, eventDraft.ram)
+      ramAutosaveFailedJsonRef.current = ''
       setRamStatus(record.status)
       setRamHasLocalChanges(false)
+      setRamLastSavedAt(record.updatedUtc)
+      setRamAutosaveStatus('saved')
       setSessionContextRevision((current) => current + 1)
       setRamMessage(language === 'zh' ? 'RAM 草稿已保存。' : 'RAM draft saved.')
     } catch (reason) {
+      ramAutosaveFailedJsonRef.current = latestRamDraftJsonRef.current
+      setRamAutosaveStatus('error')
       setRamMessage(normalizeApiError(reason).message)
     } finally {
       setRamBusy(false)
@@ -1281,10 +1476,16 @@ const EventCreatorView = () => {
     setRamBusy(true)
     setRamMessage('')
     try {
-      await eventService.saveEventRam(targetEventId, eventDraft.ram)
+      if (ramAutosavePromiseRef.current) {
+        await ramAutosavePromiseRef.current
+      }
+      const savedRecord = await eventService.saveEventRam(targetEventId, eventDraft.ram)
+      ramAutosaveFailedJsonRef.current = ''
+      setRamLastSavedAt(savedRecord.updatedUtc)
+      setRamHasLocalChanges(false)
+      setRamAutosaveStatus('saved')
       const record = await eventService.submitEventRam(targetEventId)
       setRamStatus(record.status)
-      setRamHasLocalChanges(false)
       setRamMessage(language === 'zh' ? 'RAM 已提交审核。' : 'RAM sent for review.')
     } catch (reason) {
       setRamMessage(normalizeApiError(reason).message)
@@ -1298,9 +1499,14 @@ const EventCreatorView = () => {
     setRamBusy(true)
     setRamMessage('')
     try {
+      if (ramAutosavePromiseRef.current) {
+        await ramAutosavePromiseRef.current
+      }
       const record = await eventService.approveEventRam(targetEventId)
       setRamStatus(record.status)
       setRamHasLocalChanges(false)
+      setRamLastSavedAt(record.updatedUtc)
+      setRamAutosaveStatus('saved')
       setRamMessage(language === 'zh' ? 'RAM 已批准，活动现在可以进入近期活动。' : 'RAM approved. The event can now appear as upcoming.')
     } catch (reason) {
       setRamMessage(normalizeApiError(reason).message)
@@ -1352,6 +1558,8 @@ const EventCreatorView = () => {
     : t('eventPosterChoose')
   const noticeIssues = eventDraft ? getNoticeSubmissionIssues(eventDraft) : ['eventDraft']
   if (!effectiveGroupId) noticeIssues.push('group')
+  const assistantMissingDetails = [...new Set(noticeIssues)].map((issue) => getNoticeIssueLabel(issue, language))
+  const assistantDetailsReady = assistantMissingDetails.length === 0
   const noticeCanSubmit = noticeIssues.length === 0 && canEditRam
   const ramIssues = eventDraft?.ram ? getEventRamSubmissionIssues(eventDraft.ram, Boolean(targetEventId)) : ['ram']
   const ramCanSubmit = ramIssues.length === 0 && canEditRam
@@ -1362,10 +1570,10 @@ const EventCreatorView = () => {
       ? (language === 'zh' ? '已提交审核' : 'Submitted for review')
       : undefined
   const tabs: Array<{ id: EventEditorTab; label: string; icon: React.ReactNode; ready?: boolean; submitted?: boolean }> = [
-    { id: 'setup', label: language === 'zh' ? '1. 工作流与初始化' : '1. Workflow & setup', icon: <BookOpenText className="h-4 w-4" /> },
-    { id: 'assistant', label: language === 'zh' ? '2. AI 对话与洞察' : '2. AI chat & insights', icon: <Sparkles className="h-4 w-4" /> },
-    { id: 'notice', label: language === 'zh' ? '3. 活动通知文案' : '3. Event notice', icon: <FileText className="h-4 w-4" />, ready: noticeCanSubmit, submitted: noticeSubmitted },
-    { id: 'ram', label: language === 'zh' ? '4. 风险评估与管理' : '4. Risk assessment', icon: <ShieldCheck className="h-4 w-4" />, ready: ramCanSubmit, submitted: ramSubmitted },
+    { id: 'setup', label: language === 'zh' ? '1. 基本资料' : '1. Basic details', icon: <BookOpenText className="h-4 w-4" />, ready: setupBriefReady },
+    { id: 'assistant', label: language === 'zh' ? '2. AI 协助' : '2. AI assistance', icon: <Sparkles className="h-4 w-4" />, ready: assistantDetailsReady },
+    { id: 'notice', label: language === 'zh' ? '3. 通知与报名' : '3. Notice & registration', icon: <FileText className="h-4 w-4" />, ready: noticeCanSubmit, submitted: noticeSubmitted },
+    { id: 'ram', label: language === 'zh' ? '4. RAM 风险审批' : '4. RAM approval', icon: <ShieldCheck className="h-4 w-4" />, ready: ramCanSubmit, submitted: ramSubmitted },
   ]
 
   const updateSetupDraft = (patch: Partial<EventDto>) => {
@@ -1389,6 +1597,48 @@ const EventCreatorView = () => {
     window.requestAnimationFrame(() => {
       document.getElementById(`event-editor-tab-${step}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     })
+  }
+
+  const handleDiscardRecoveredDraft = async () => {
+    const confirmed = window.confirm(language === 'zh'
+      ? '确定放弃已找回的活动草稿并重新开始吗？此操作无法撤销。'
+      : 'Discard the recovered event draft and start again? This cannot be undone.')
+    if (!confirmed) return
+
+    setDraftResetting(true)
+    setError('')
+    try {
+      await eventService.closeSession(sessionId)
+      const freshDraft = createInitialEventDraft(me?.displayName)
+      const updatedAt = new Date().toISOString()
+      initializedSessionScopesRef.current.clear()
+      initialSessionHydratedRef.current = sessionId
+      setRecoveredDraftNotice(null)
+      setEventDraft(freshDraft)
+      setAiInsight(null)
+      setMessages([createIntroMessage(t('eventAssistantIntro'))])
+      setInput('')
+      setNoticeSubmitted(false)
+      setSaveStatus('idle')
+      setRamStatus('draft')
+      setRamHasLocalChanges(false)
+      ramAutosaveFailedJsonRef.current = ''
+      setRamLastSavedAt(null)
+      setRamAutosaveStatus('idle')
+      setSessionState({
+        sessionId,
+        draft: freshDraft,
+        context: null,
+        appContext: baseAiAppContext,
+        chatHistory: [],
+        updatedAt,
+      })
+      setActiveTab('setup')
+    } catch (reason) {
+      setError(normalizeApiError(reason).message)
+    } finally {
+      setDraftResetting(false)
+    }
   }
 
   const handleFillMissingEventTranslations = async () => {
@@ -1428,9 +1678,19 @@ const EventCreatorView = () => {
     }
   }
 
+  const handleCreateWorkflowTemplate = async (input: CreateEventWorkflowTemplateInput) => {
+    if (!effectiveGroupId) {
+      throw new Error(language === 'zh' ? '请先选择活动所属小组。' : 'Select the group that owns this event first.')
+    }
+    const template = await eventWorkflowService.createTemplate(effectiveGroupId, input)
+    setWorkflowTemplates((current) => [...current.filter((item) => item.code !== template.code), template])
+    setWorkflowTemplatesError('')
+    return template
+  }
+
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6">
-      <div className="rounded-2xl border border-[#2f4b42]/10 bg-white/78 px-5 py-5 shadow-[0_10px_30px_rgba(31,56,48,0.06)]">
+    <div className="mx-auto flex max-w-5xl flex-col gap-5">
+      <div className="rounded-2xl border border-[#2f4b42]/10 bg-white/78 px-5 py-4 shadow-[0_10px_30px_rgba(31,56,48,0.06)]">
         <p className="text-xs font-black uppercase tracking-[0.18em] text-[#176b5a]">{isEditMode ? t('edit') : t('createEvent')}</p>
         <h1 className="mt-2 text-2xl font-black tracking-[-0.03em] text-slate-950">{isEditMode ? t('editEventWithAi') : t('createEventWithAi')}</h1>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
@@ -1440,7 +1700,53 @@ const EventCreatorView = () => {
         </p>
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-[#2f4b42]/10 bg-white/85 p-2 shadow-[0_10px_30px_rgba(31,56,48,0.06)]" role="tablist" aria-label={language === 'zh' ? '活动编辑步骤' : 'Event editor steps'}>
+      {!isEditMode && recoveredDraftNotice ? (
+        <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 shadow-sm" aria-live="polite">
+          <div>
+            <p className="font-black text-amber-950">{language === 'zh' ? '已找回未提交的活动草稿' : 'Recovered an unsaved event draft'}</p>
+            <p className="mt-1 text-sm text-amber-800">
+              {language === 'zh' ? '活动资料和 AI 整理结果已经恢复。' : 'Event details and the AI summary have been restored.'}
+              {' · '}
+              {new Date(recoveredDraftNotice.updatedAt).toLocaleString(language === 'zh' ? 'zh-CN' : 'en-NZ')}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setRecoveredDraftNotice(null)
+                openEditorStep(aiInsight ? 'assistant' : 'setup')
+              }}
+              className="rounded-xl bg-amber-700 px-4 py-2 text-sm font-black text-white transition hover:bg-amber-800"
+            >
+              {language === 'zh' ? '继续编辑' : 'Continue editing'}
+            </button>
+            <button
+              type="button"
+              onClick={() => { void handleDiscardRecoveredDraft() }}
+              disabled={draftResetting}
+              className="rounded-xl border border-amber-300 bg-white px-4 py-2 text-sm font-bold text-amber-900 transition hover:bg-amber-100 disabled:opacity-60"
+            >
+              {draftResetting ? (language === 'zh' ? '正在清除…' : 'Clearing…') : (language === 'zh' ? '放弃并重新开始' : 'Discard and start again')}
+            </button>
+          </div>
+        </section>
+      ) : null}
+
+      {!isEditMode ? (
+        <EventWorkflowTemplatePicker
+          templates={workflowTemplates}
+          selectedCode={selectedWorkflowCode}
+          language={language}
+          loading={workflowTemplatesLoading}
+          error={workflowTemplatesError}
+          disabled={saveStatus === 'saving'}
+          onChange={setSelectedWorkflowCode}
+          onCreateCustom={effectiveGroupId && canEditRam ? handleCreateWorkflowTemplate : undefined}
+        />
+      ) : null}
+
+      <div className="sticky top-3 z-20 overflow-x-auto rounded-2xl border border-[#2f4b42]/10 bg-white/90 p-2 shadow-[0_10px_30px_rgba(31,56,48,0.10)] backdrop-blur" role="tablist" aria-label={language === 'zh' ? '活动编辑步骤' : 'Event editor steps'}>
         <div className="flex min-w-max gap-1">
           {tabs.map((tab) => (
             <button
@@ -1469,14 +1775,6 @@ const EventCreatorView = () => {
       )}
 
       <div id="event-editor-panel-setup" role="tabpanel" aria-labelledby="event-editor-tab-setup" hidden={activeTab !== 'setup'} className="space-y-6">
-        <EventWorkflowPanel
-          eventDraft={eventDraft}
-          targetEventId={targetEventId}
-          language={language}
-          ramStatus={ramStatus}
-          noticeSubmitted={noticeSubmitted}
-        />
-
         {eventDraft ? (
           <section className="space-y-5 rounded-2xl border border-[#2f4b42]/10 bg-white/90 p-5 shadow-[0_10px_30px_rgba(31,56,48,0.06)]">
             <div>
@@ -1500,6 +1798,64 @@ const EventCreatorView = () => {
                 </button>
               </div>
             )}
+
+            <fieldset className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+              <legend className="px-1 text-sm font-black text-slate-950">
+                {language === 'zh' ? '谁可以看到这个活动？' : 'Who can see this event?'}
+              </legend>
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                {language === 'zh'
+                  ? '只有 RAM 批准后，活动才会按这里的范围展示；草稿和待审核内容仍只对管理者可见。'
+                  : 'This visibility applies only after RAM approval. Drafts and pending reviews remain visible to managers only.'}
+              </p>
+              <div className="mt-3 grid gap-3 md:grid-cols-3">
+                {([
+                  {
+                    value: 'groupVisible' as const,
+                    title: CurrentGroup?.isChurch
+                      ? (language === 'zh' ? '教会内可见' : 'Church members')
+                      : (language === 'zh' ? '小组内可见' : 'Group members'),
+                    description: CurrentGroup?.isChurch
+                      ? (language === 'zh' ? '仅已批准的教会成员可以查看。' : 'Only approved church members can view it.')
+                      : (language === 'zh' ? '仅本小组已批准成员可以查看。' : 'Only approved members of this group can view it.'),
+                  },
+                  ...(!CurrentGroup?.isChurch ? [{
+                    value: 'churchVisible' as const,
+                    title: language === 'zh' ? '教会内可见' : 'Church members',
+                    description: language === 'zh' ? '本小组成员及所属教会成员可以查看。' : 'Members of this group and its church can view it.',
+                  }] : []),
+                  {
+                    value: 'public' as const,
+                    title: language === 'zh' ? '公开可见' : 'Public',
+                    description: language === 'zh' ? '任何访客都可查看，并可显示在公开首页活动卡片中。' : 'Anyone can view it, and it can appear in public homepage event cards.',
+                  },
+                ]).map((option) => {
+                  const selected = (eventDraft.visibility ?? 'groupVisible') === option.value
+                  return (
+                    <label
+                      key={option.value}
+                      className={[
+                        'cursor-pointer rounded-xl border p-3 transition',
+                        selected ? 'border-emerald-400 bg-emerald-50 ring-2 ring-emerald-100' : 'border-slate-200 bg-white hover:border-emerald-200',
+                      ].join(' ')}
+                    >
+                      <span className="flex items-center gap-2 font-bold text-slate-950">
+                        <input
+                          type="radio"
+                          name="event-visibility"
+                          value={option.value}
+                          checked={selected}
+                          onChange={() => updateSetupDraft({ visibility: option.value })}
+                          className="h-4 w-4 accent-emerald-700"
+                        />
+                        {option.title}
+                      </span>
+                      <span className="mt-2 block pl-6 text-xs leading-5 text-slate-500">{option.description}</span>
+                    </label>
+                  )
+                })}
+              </div>
+            </fieldset>
 
             <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -1588,7 +1944,30 @@ const EventCreatorView = () => {
               </div>
             </details>
 
-            <div>
+            <details
+              className="group rounded-xl border border-slate-200 bg-white"
+            >
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-4 [&::-webkit-details-marker]:hidden">
+                <div>
+                  <h3 className="font-black text-slate-950">{language === 'zh' ? '联系人与海报（可选）' : 'Contacts and poster (optional)'}</h3>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {language === 'zh'
+                      ? '不影响进入下一步。需要展示联系人、上传旧海报或生成 AI 海报时再展开。'
+                      : 'This does not block the next step. Expand it only when you need contacts, an existing poster, or an AI poster.'}
+                  </p>
+                  {(eventDraft.contactProfileIds?.length || eventDraft.posterImageUrl || posterPreviewUrl) ? (
+                    <p className="mt-2 text-xs font-bold text-emerald-700">
+                      {language === 'zh'
+                        ? `已选择 ${eventDraft.contactProfileIds?.length ?? 0} 位联系人${eventDraft.posterImageUrl || posterPreviewUrl ? ' · 已有海报' : ''}`
+                        : `${eventDraft.contactProfileIds?.length ?? 0} contact(s) selected${eventDraft.posterImageUrl || posterPreviewUrl ? ' · poster added' : ''}`}
+                    </p>
+                  ) : null}
+                </div>
+                <ChevronDown className="h-5 w-5 shrink-0 text-slate-500 transition group-open:rotate-180" aria-hidden="true" />
+              </summary>
+
+              <div className="space-y-5 border-t border-slate-200 px-4 py-5">
+                <div>
               <h3 className="font-black text-slate-950">{language === 'zh' ? '活动联系人' : 'Event contacts'}</h3>
               <p className="mt-1 text-sm text-slate-500">{language === 'zh' ? '可选择一位或多位联系人，他们会显示在活动详情中。' : 'Choose one or more contacts to show with the event.'}</p>
               {availableContacts.length > 0 ? (
@@ -1612,9 +1991,9 @@ const EventCreatorView = () => {
                   })}
                 </div>
               ) : <p className="mt-3 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-500">{language === 'zh' ? '当前小组尚无可选择的联系人资料。' : 'This group has no available contact profiles yet.'}</p>}
-            </div>
+                </div>
 
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <h3 className="font-black text-slate-950">{language === 'zh' ? '海报与 AI 读取' : 'Poster and AI reading'}</h3>
@@ -1746,6 +2125,8 @@ const EventCreatorView = () => {
                 ) : null}
               </div>
             </div>
+              </div>
+            </details>
 
             <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-sky-200 bg-sky-50 px-4 py-4">
               <div className="max-w-2xl">
@@ -1769,53 +2150,171 @@ const EventCreatorView = () => {
         ) : null}
       </div>
 
-      <div id="event-editor-panel-assistant" role="tabpanel" aria-labelledby="event-editor-tab-assistant" hidden={activeTab !== 'assistant'} className="space-y-4">
-        <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm leading-6 text-sky-900">
-          <strong>{language === 'zh' ? '共享资料工作区：' : 'Shared-facts workspace: '}</strong>
-          {language === 'zh' ? 'AI 会汇集初始化资料、海报和对话，复用活动名称、项目、人数、联系人等信息，同时引导完成通知文案和 RAM。所有安全事实仍须人工确认。' : 'AI combines the starting brief, posters, and chat; reuses names, activities, attendance, contacts, and other facts across the notice and RAM; and guides both deliverables. Safety facts still require human confirmation.'}
-        </div>
-        {aiInsight ? (
-          <div className="rounded-xl border border-sky-200 bg-white px-4 py-3 text-sm text-sky-950 shadow-sm">
-            <span className="font-bold">{t('aiInsight')}</span>{language === 'zh' ? aiInsight.zh : aiInsight.en}
-          </div>
-        ) : null}
-        <div className="flex max-h-[50vh] min-h-72 flex-col gap-3 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50 p-4">
-          {messages.map((msg, i) => (
-            <div key={i} className={['max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed', msg.role === 'user' ? 'ml-auto bg-emerald-700 text-white' : 'mr-auto bg-white text-slate-800 shadow-sm'].join(' ')}>
-              {msg.markdown && msg.role === 'assistant' ? (
-                <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>, ul: ({ children }) => <ul className="mb-2 list-disc pl-5 last:mb-0">{children}</ul>, ol: ({ children }) => <ol className="mb-2 list-decimal pl-5 last:mb-0">{children}</ol>, li: ({ children }) => <li className="mb-1">{children}</li>, code: ({ children }) => <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">{children}</code> }}>{msg.text}</ReactMarkdown>
-              ) : msg.text.split('\n').map((line, j) => <span key={j}>{line}{j < msg.text.split('\n').length - 1 && <br />}</span>)}
+      <div id="event-editor-panel-assistant" role="tabpanel" aria-labelledby="event-editor-tab-assistant" hidden={activeTab !== 'assistant'}>
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(18rem,0.75fr)] lg:items-start">
+          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_10px_30px_rgba(31,56,48,0.06)]" aria-labelledby="event-ai-workspace-title">
+            <header className="flex items-start gap-3 border-b border-slate-200 px-4 py-4 sm:px-5">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700">
+                <Sparkles className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <div>
+                <h2 id="event-ai-workspace-title" className="font-black text-slate-950">{language === 'zh' ? 'AI 活动助理' : 'AI event assistant'}</h2>
+                <p className="mt-1 text-sm leading-6 text-slate-500">
+                  {language === 'zh' ? '直接描述活动或更正资料；每次回复都会同步更新活动草稿。' : 'Describe the event or correct a detail. Every response updates the event draft.'}
+                </p>
+              </div>
+            </header>
+
+            <div className="flex max-h-[52vh] min-h-[23rem] flex-col gap-3 overflow-y-auto bg-slate-50/80 p-4 sm:p-5" aria-live="polite">
+              {messages.map((msg, i) => (
+                <div key={i} className={['max-w-[90%] rounded-2xl px-4 py-3 text-sm leading-relaxed', msg.role === 'user' ? 'ml-auto bg-emerald-700 text-white' : 'mr-auto border border-slate-200 bg-white text-slate-800 shadow-sm'].join(' ')}>
+                  <div className={['mb-1.5 flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wide', msg.role === 'user' ? 'justify-end text-emerald-100' : 'text-violet-700'].join(' ')}>
+                    {msg.role === 'user' ? <UserRound className="h-3.5 w-3.5" aria-hidden="true" /> : <Bot className="h-3.5 w-3.5" aria-hidden="true" />}
+                    {msg.role === 'user' ? (language === 'zh' ? '你' : 'You') : (language === 'zh' ? 'AI 整理' : 'AI summary')}
+                  </div>
+                  {msg.markdown && msg.role === 'assistant' ? (
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>, ul: ({ children }) => <ul className="mb-2 list-disc pl-5 last:mb-0">{children}</ul>, ol: ({ children }) => <ol className="mb-2 list-decimal pl-5 last:mb-0">{children}</ol>, li: ({ children }) => <li className="mb-1">{children}</li>, code: ({ children }) => <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">{children}</code> }}>{msg.text}</ReactMarkdown>
+                  ) : msg.text.split('\n').map((line, j) => <span key={j}>{line}{j < msg.text.split('\n').length - 1 && <br />}</span>)}
+                </div>
+              ))}
+              {isSending ? (
+                <div className="mr-auto max-w-[90%] rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm text-violet-600 shadow-sm">
+                  <span className="animate-pulse">{t('geminiThinking')}</span>
+                </div>
+              ) : null}
+              <div ref={bottomRef} />
             </div>
-          ))}
-          {isSending ? <div className="mr-auto max-w-[85%] rounded-2xl bg-white px-4 py-2.5 text-sm text-slate-400 shadow-sm"><span className="animate-pulse">{t('geminiThinking')}</span></div> : null}
-          <div ref={bottomRef} />
-        </div>
-        <div className="flex items-end gap-3">
-          <textarea ref={textareaRef} rows={3} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={handleKeyDown} disabled={isSending} placeholder={t('describeEventPlaceholder')} className="flex-1 resize-none rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder-slate-400 shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100 disabled:opacity-60" />
-          <button type="button" onClick={handleVoiceToggle} className={['inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border shadow-sm transition', listening ? 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'].join(' ')} aria-label={listening ? t('stopVoiceInput') : t('startVoiceInput')}>{listening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}</button>
-          <button type="button" onClick={() => { void handleSend() }} disabled={isSending || !input.trim()} className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-700 text-white shadow-sm transition hover:bg-emerald-800 disabled:opacity-50" aria-label={t('send')}>
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 2L11 13" /><path d="M22 2L15 22l-4-9-9-4 20-7z" /></svg>
-          </button>
+
+            <div className="border-t border-slate-200 bg-white p-4 sm:p-5">
+              <label htmlFor="event-ai-message" className="mb-2 block text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+                {language === 'zh' ? '补充或更正活动资料' : 'Add or correct event details'}
+              </label>
+              <div className="flex items-end gap-2">
+                <textarea id="event-ai-message" ref={textareaRef} rows={3} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={handleKeyDown} disabled={isSending} placeholder={t('describeEventPlaceholder')} className="flex-1 resize-none rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder-slate-400 shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100 disabled:opacity-60" />
+                <button type="button" onClick={handleVoiceToggle} className={['inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border shadow-sm transition', listening ? 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'].join(' ')} aria-label={listening ? t('stopVoiceInput') : t('startVoiceInput')}>{listening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}</button>
+                <button type="button" onClick={() => { void handleSend() }} disabled={isSending || !input.trim()} className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-700 text-white shadow-sm transition hover:bg-emerald-800 disabled:opacity-50" aria-label={t('send')}>
+                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 2L11 13" /><path d="M22 2L15 22l-4-9-9-4 20-7z" /></svg>
+                </button>
+              </div>
+              <p className="mt-2 text-xs leading-5 text-slate-500">
+                {language === 'zh' ? 'AI 只整理你提供的事实；负责人、电话、资质和安全确认仍需人工核对。' : 'AI organizes only the facts you provide. People, phone numbers, qualifications, and safety confirmations still require human review.'}
+              </p>
+            </div>
+          </section>
+
+          <aside className="space-y-4 lg:sticky lg:top-24" aria-labelledby="event-assistant-next-step">
+            <section className={['rounded-2xl border p-5 shadow-sm', assistantDetailsReady ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'].join(' ')}>
+              <div className="flex items-start gap-3">
+                <span className={['flex h-9 w-9 shrink-0 items-center justify-center rounded-xl', assistantDetailsReady ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'].join(' ')}>
+                  {assistantDetailsReady ? <CheckCircle2 className="h-5 w-5" aria-hidden="true" /> : <ListChecks className="h-5 w-5" aria-hidden="true" />}
+                </span>
+                <div>
+                  <p className={['text-xs font-black uppercase tracking-[0.16em]', assistantDetailsReady ? 'text-emerald-700' : 'text-amber-700'].join(' ')}>{language === 'zh' ? '资料完成情况' : 'Details status'}</p>
+                  <h3 id="event-assistant-next-step" className="mt-1 text-lg font-black text-slate-950">
+                    {noticeSubmitted && targetEventId
+                      ? (language === 'zh' ? '通知已提交' : 'Notice submitted')
+                      : assistantDetailsReady
+                        ? (language === 'zh' ? '活动资料已经齐全' : 'Event details are ready')
+                        : (language === 'zh' ? `还需确认 ${assistantMissingDetails.length} 项` : `${assistantMissingDetails.length} item(s) to confirm`)}
+                  </h3>
+                </div>
+              </div>
+
+              {!assistantDetailsReady ? (
+                <div className="mt-4">
+                  <p className="text-xs font-bold text-amber-900">{language === 'zh' ? '点击一项，直接在对话中补充：' : 'Choose an item to add it in chat:'}</p>
+                  <div className="mt-2 flex flex-wrap gap-2" aria-label={language === 'zh' ? '待确认资料' : 'Details to confirm'}>
+                    {assistantMissingDetails.map((detail) => (
+                      <button
+                        key={detail}
+                        type="button"
+                        onClick={() => {
+                          setInput((current) => `${current.trim()}${current.trim() ? '\n' : ''}${detail}${language === 'zh' ? '：' : ': '}`)
+                          window.requestAnimationFrame(() => textareaRef.current?.focus())
+                        }}
+                        className="rounded-full border border-amber-300 bg-white px-3 py-1.5 text-xs font-bold text-amber-900 transition hover:bg-amber-100"
+                      >
+                        {detail}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-3 text-sm leading-6 text-slate-600">
+                  {noticeSubmitted && targetEventId
+                    ? (language === 'zh' ? '下一步人工核对 RAM 的风险、责任人和紧急联系人。' : 'Next, manually verify RAM risks, owners, and emergency contacts.')
+                    : (language === 'zh' ? '下一步预览双语通知与报名设置，再由你确认提交。' : 'Next, preview the bilingual notice and registration settings before submitting.')}
+                </p>
+              )}
+
+              <div className="mt-4 grid gap-2">
+                {assistantDetailsReady ? (
+                  <button type="button" onClick={() => openEditorStep(noticeSubmitted && targetEventId ? 'ram' : 'notice')} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-black text-white transition hover:bg-emerald-800">
+                    {noticeSubmitted && targetEventId ? (language === 'zh' ? '下一步：RAM 风险审批' : 'Next: RAM approval') : (language === 'zh' ? '下一步：检查通知与报名' : 'Next: review notice and registration')}
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                ) : (
+                  <button type="button" onClick={() => textareaRef.current?.focus()} className="min-h-11 rounded-xl bg-amber-700 px-4 py-2 text-sm font-black text-white transition hover:bg-amber-800">
+                    {language === 'zh' ? '继续告诉 AI' : 'Continue with AI'}
+                  </button>
+                )}
+                <button type="button" onClick={() => openEditorStep('setup')} className="min-h-10 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-50">
+                  {language === 'zh' ? '返回基本资料手动修改' : 'Edit basic details manually'}
+                </button>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm leading-6 text-sky-900">
+              <p className="font-black">{language === 'zh' ? 'AI 会更新哪些地方？' : 'What does AI update?'}</p>
+              <ul className="mt-2 space-y-1 text-xs">
+                <li>✓ {language === 'zh' ? '活动基本资料' : 'Basic event details'}</li>
+                <li>✓ {language === 'zh' ? '双语通知与报名设置' : 'Bilingual notice and registration'}</li>
+                <li>✓ {language === 'zh' ? 'RAM 草稿中的非敏感事实' : 'Non-sensitive facts in the RAM draft'}</li>
+              </ul>
+            </section>
+          </aside>
         </div>
       </div>
 
       <div id="event-editor-panel-notice" role="tabpanel" aria-labelledby="event-editor-tab-notice" hidden={activeTab !== 'notice'} className="space-y-5">
-        <SubmissionStatusHeader title={language === 'zh' ? '活动通知文案' : 'Event notice copy'} description={language === 'zh' ? '这是面向成员的双语活动通知。每次 AI 整理后，可提交与已提交状态都会在这里更新。' : 'This is the bilingual member-facing event notice. Ready and submitted states update after every AI pass.'} canSubmit={noticeCanSubmit} submitted={noticeSubmitted} remainingCount={noticeIssues.length} language={language} />
+        <SubmissionStatusHeader
+          title={language === 'zh' ? '活动通知文案' : 'Event notice copy'}
+          description={language === 'zh' ? '这是面向成员的双语活动通知。检查时间、地点和报名设置后，由你确认提交。' : 'This is the bilingual member-facing notice. Review its timing, venue, and registration settings before submitting.'}
+          canSubmit={noticeCanSubmit}
+          submitted={noticeSubmitted}
+          remainingCount={noticeIssues.length}
+          language={language}
+          remainingMessage={language === 'zh' ? `通知还缺 ${noticeIssues.length} 项资料，请返回 AI 协助继续补齐。` : `The notice still needs ${noticeIssues.length} item(s). Return to AI assistance to complete them.`}
+          resolveLabel={language === 'zh' ? '返回 AI 协助' : 'Back to AI assistance'}
+          onResolve={() => openEditorStep('assistant')}
+        />
         {eventDraft ? <EventPreview event={eventDraft} lang={language} posterPreviewUrl={posterPreviewUrl} posterPendingUpload={Boolean(pendingPosterFile)} submitted={noticeSubmitted} /> : null}
         {eventDraft ? (
           <div className="flex flex-wrap items-center justify-end gap-3">
             {!effectiveGroupId ? <p className="text-xs text-amber-600">{t('noGroupContext')}</p> : null}
             {saveStatus === 'saved' ? <p className="text-xs text-emerald-600">{t('eventSavedToGroupShort')}</p> : null}
             <button type="button" onClick={() => { void handleCommitDraft() }} disabled={!noticeCanSubmit || saveStatus === 'saving' || isPosterUploading} className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 disabled:opacity-60">
-              <Save className="h-4 w-4" />{saveStatus === 'saving' ? t('saving') : targetEventId ? (language === 'zh' ? '重新提交活动通知' : 'Resubmit event notice') : (language === 'zh' ? '提交活动通知' : 'Submit event notice')}
+              <Save className="h-4 w-4" />{saveStatus === 'saving' ? t('saving') : noticeSubmitted ? (language === 'zh' ? '重新提交活动通知' : 'Resubmit event notice') : (language === 'zh' ? '提交并进入 RAM' : 'Submit and continue to RAM')}
             </button>
           </div>
         ) : null}
       </div>
 
       <div id="event-editor-panel-ram" role="tabpanel" aria-labelledby="event-editor-tab-ram" hidden={activeTab !== 'ram'} className="space-y-5">
-        <SubmissionStatusHeader title={language === 'zh' ? '风险评估与管理' : 'Risk Assessment and Management'} description={language === 'zh' ? 'AI 会复用活动资料起草 RAM，但负责人、电话、资质、车辆和安全确认不得由 AI 猜测，必须人工核对。' : 'AI reuses event facts to draft the RAM, but responsible people, phone numbers, qualifications, vehicles, and safety confirmations must be checked by a human.'} canSubmit={ramCanSubmit} submitted={ramSubmitted} submittedDetail={ramSubmittedDetail} remainingCount={ramIssues.length} language={language} />
-        {!targetEventId ? <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{language === 'zh' ? '请先在“活动通知文案”中保存活动，再保存或提交 RAM。' : 'Save the event in Event notice first, then save or submit the RAM.'}</p> : null}
+        <SubmissionStatusHeader
+          title={language === 'zh' ? '风险评估与管理' : 'Risk Assessment and Management'}
+          description={language === 'zh' ? 'AI 会复用活动资料起草 RAM，但负责人、电话、资质、车辆和安全确认不得由 AI 猜测，必须人工核对。' : 'AI reuses event facts to draft the RAM, but responsible people, phone numbers, qualifications, vehicles, and safety confirmations must be checked by a human.'}
+          canSubmit={ramCanSubmit}
+          submitted={ramSubmitted}
+          submittedDetail={ramSubmittedDetail}
+          remainingCount={targetEventId ? ramIssues.length : 1}
+          language={language}
+          remainingMessage={!targetEventId
+            ? (language === 'zh' ? '请先提交活动通知，系统保存活动后才能处理 RAM。' : 'Submit the event notice first so the event exists before RAM can be processed.')
+            : (language === 'zh' ? `RAM 还需人工核对 ${ramIssues.length} 项资料，请在下方逐项完成。` : `RAM still needs ${ramIssues.length} item(s) to be checked manually below.`)}
+          resolveLabel={!targetEventId ? (language === 'zh' ? '返回通知与报名' : 'Back to notice') : undefined}
+          onResolve={!targetEventId ? () => openEditorStep('notice') : undefined}
+        />
         {eventDraft?.ram ? (
           <EventRamEditor
             ram={eventDraft.ram}
@@ -1825,10 +2324,14 @@ const EventCreatorView = () => {
             canAudit={canAuditRam}
             canSubmit={ramCanSubmit}
             busy={ramBusy}
+            autosaveEnabled={Boolean(targetEventId)}
+            autosaveStatus={ramAutosaveStatus}
+            lastSavedAt={ramLastSavedAt}
             onChange={(ram) => {
               setEventDraft((current) => current ? { ...current, ram } : current)
               setRamStatus('draft')
               setRamHasLocalChanges(true)
+              setRamAutosaveStatus(targetEventId ? 'pending' : 'idle')
               setRamMessage('')
             }}
             onSave={targetEventId ? () => { void handleSaveRam() } : undefined}

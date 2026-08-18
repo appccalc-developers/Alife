@@ -1,5 +1,7 @@
 using Alife.Application.Events.Commands.InitializeEventWorkflow;
+using Alife.Application.Events.Commands.CreateEventWorkflowTemplate;
 using Alife.Application.Events.Queries.GetEventWorkflow;
+using Alife.Application.Events.Queries.ListEventWorkflowTemplates;
 using Alife.Application.Events.Services;
 using Alife.Application.Groups.Services;
 using Alife.Domain.Entities;
@@ -12,6 +14,95 @@ namespace Alife.Tests.Unit.Events;
 
 public class EventWorkflowFrameworkTests
 {
+    [Fact]
+    public async Task CreateCustomTemplate_AsLeader_SavesBilingualOrderedApprovalStages()
+    {
+        using var dbContext = CreateDbContext();
+        var groupId = Guid.NewGuid();
+        var leaderId = Guid.NewGuid();
+        var authorization = Substitute.For<IGroupAuthorizationService>();
+        authorization.IsLeaderOrCoLeaderAsync(groupId, leaderId, Arg.Any<CancellationToken>()).Returns(true);
+        var handler = new CreateEventWorkflowTemplateCommandHandler(dbContext, authorization);
+
+        var result = await handler.Handle(new CreateEventWorkflowTemplateCommand(
+            groupId,
+            leaderId,
+            string.Empty,
+            "家庭日筹备",
+            string.Empty,
+            "大型家庭活动",
+            [
+                new CreateEventWorkflowStageInput(string.Empty, "策划", true),
+                new CreateEventWorkflowStageInput("Delivery", "执行", false)
+            ]), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(groupId, result.Value!.OwnerGroupId);
+        Assert.Equal("家庭日筹备", result.Value.Name.En);
+        Assert.Equal("家庭日筹备", result.Value.Name.Zh);
+        Assert.Collection(result.Value.Stages,
+            stage =>
+            {
+                Assert.Equal("stage_1", stage.Key);
+                Assert.True(stage.RequiresApproval);
+            },
+            stage =>
+            {
+                Assert.Equal("stage_2", stage.Key);
+                Assert.False(stage.RequiresApproval);
+            });
+        Assert.Single(await dbContext.EventWorkflowTemplates.ToListAsync());
+    }
+
+    [Fact]
+    public async Task CreateCustomTemplate_AsRegularMember_IsForbidden()
+    {
+        using var dbContext = CreateDbContext();
+        var groupId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+        var authorization = Substitute.For<IGroupAuthorizationService>();
+        authorization.IsLeaderOrCoLeaderAsync(groupId, memberId, Arg.Any<CancellationToken>()).Returns(false);
+        var handler = new CreateEventWorkflowTemplateCommandHandler(dbContext, authorization);
+
+        var result = await handler.Handle(new CreateEventWorkflowTemplateCommand(
+            groupId,
+            memberId,
+            "Custom",
+            "自定义",
+            string.Empty,
+            string.Empty,
+            [new CreateEventWorkflowStageInput("Plan", "策划", false)]), CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Empty(await dbContext.EventWorkflowTemplates.ToListAsync());
+    }
+
+    [Fact]
+    public async Task ListTemplates_ReturnsGlobalAndCurrentGroupTemplatesOnly()
+    {
+        using var dbContext = CreateDbContext();
+        var groupId = Guid.NewGuid();
+        var otherGroupId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+        var global = CreateTemplate("camp", CampDefinition);
+        var currentGroup = CreateTemplate("custom_current", CampDefinition);
+        currentGroup.OwnerGroupId = groupId;
+        var otherGroup = CreateTemplate("custom_other", CampDefinition);
+        otherGroup.OwnerGroupId = otherGroupId;
+        dbContext.EventWorkflowTemplates.AddRange(global, currentGroup, otherGroup);
+        await dbContext.SaveChangesAsync();
+        var authorization = Substitute.For<IGroupAuthorizationService>();
+        authorization.IsApprovedMemberAsync(groupId, memberId, Arg.Any<CancellationToken>()).Returns(true);
+        var handler = new ListEventWorkflowTemplatesQueryHandler(dbContext, authorization);
+
+        var result = await handler.Handle(new ListEventWorkflowTemplatesQuery(groupId, memberId), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var templates = Assert.IsAssignableFrom<IReadOnlyList<Alife.Application.Events.Dtos.EventWorkflowTemplateDto>>(result.Value);
+        Assert.Equal(["camp", "custom_current"], templates.Select(x => x.Code));
+        Assert.DoesNotContain(templates, x => x.Code == "custom_other");
+    }
+
     [Fact]
     public async Task InitializeCampWorkflow_CreatesVersionedStepsAndOutputPlaceholders()
     {

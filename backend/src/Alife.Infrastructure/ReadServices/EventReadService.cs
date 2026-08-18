@@ -37,12 +37,52 @@ public sealed class EventReadService(
                     e.CreatedUtc,
                     e.UpdatedUtc,
                     e.ContactProfiles?.Select(x => x.ContactProfileId).ToList() ?? new List<Guid>(),
-                    e.RamAssessment?.Status ?? Alife.Domain.Enums.EventRamStatus.Draft
+                    e.RamAssessment?.Status ?? Alife.Domain.Enums.EventRamStatus.Draft,
+                    Alife.Application.Events.Services.EventVisibilityPolicy.ReadVisibility(e.EventDataJson)
                 )).ToList();
 
                 return (IReadOnlyList<GroupEventSummaryDto>)dtos;
             },
             cancellationToken);
+
+    public async Task<IReadOnlyList<PublicEventSummaryDto>> GetPublicUpcomingEventsAsync(
+        DateTime fromUtc,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        var events = await GetOrCreateAsync(
+            EventCacheKeys.PublicUpcomingEvents(),
+            async token =>
+            {
+                var candidates = await dbContext.GroupEvents
+                    .AsNoTracking()
+                    .Include(e => e.RamAssessment)
+                    .Where(e => e.EndDate >= fromUtc &&
+                        e.RamAssessment != null &&
+                        e.RamAssessment.Status == Alife.Domain.Enums.EventRamStatus.Approved)
+                    .OrderBy(e => e.StartDate)
+                    .Take(200)
+                    .ToListAsync(token);
+
+                return candidates
+                    .Where(e => Alife.Application.Events.Services.EventVisibilityPolicy.ReadVisibility(e.EventDataJson) ==
+                        Alife.Application.Events.Services.EventVisibilityPolicy.Public)
+                    .Take(50)
+                    .Select(e => new PublicEventSummaryDto(
+                        e.Id,
+                        e.GroupId,
+                        e.TitleEn,
+                        e.TitleZh,
+                        e.StartDate,
+                        e.EndDate,
+                        Alife.Application.Events.Services.EventVisibilityPolicy.CreatePublicEventDataJson(e.EventDataJson),
+                        Alife.Application.Events.Services.EventVisibilityPolicy.Public))
+                    .ToList();
+            },
+            cancellationToken);
+
+        return events.Take(Math.Clamp(limit, 1, 50)).ToList();
+    }
 
     private async Task<T> GetOrCreateAsync<T>(
         string cacheKey,

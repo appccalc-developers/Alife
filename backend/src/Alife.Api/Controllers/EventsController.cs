@@ -11,7 +11,9 @@ using Alife.Application.Events.Queries.GetGroupEvents;
 using Alife.Application.Events.Queries.GetEventRam;
 using Alife.Application.Events.Queries.GetEventWorkflow;
 using Alife.Application.Events.Queries.ListEventWorkflowTemplates;
+using Alife.Application.Events.Queries.ListPublicUpcomingEvents;
 using Alife.Application.Events.Commands.InitializeEventWorkflow;
+using Alife.Application.Events.Commands.CreateEventWorkflowTemplate;
 using Alife.Application.Events.Commands.UpdateEventWorkflowStep;
 using Alife.Application.Events.Commands.CreateEventArtifact;
 using Alife.Application.Events.Commands.UpdateEventArtifact;
@@ -29,6 +31,15 @@ public class EventsController(
     IMediator mediator,
     ICurrentMemberAccessor currentMemberAccessor) : ControllerBase
 {
+    [HttpGet("events/public/upcoming")]
+    [AllowAnonymous]
+    public async Task<IActionResult> PublicUpcomingEvents([FromQuery] int limit = 50, CancellationToken cancellationToken = default)
+    {
+        var result = await mediator.Send(new ListPublicUpcomingEventsQuery(limit), cancellationToken);
+        this.ApplyPublicCacheHeaders();
+        return this.ToActionResult(result);
+    }
+
     [HttpGet("groups/{groupId:guid}/events")]
     [AllowAnonymous]
     public async Task<IActionResult> GroupEvents(Guid groupId, CancellationToken cancellationToken = default)
@@ -64,7 +75,8 @@ public class EventsController(
                 request.EndDate,
                 request.EventDataJson,
                 request.ContactProfileIds ?? [],
-                request.RamDataJson),
+                request.RamDataJson,
+                request.WorkflowTemplateCode),
             cancellationToken);
 
         return this.ToActionResult(result);
@@ -146,10 +158,34 @@ public class EventsController(
     }
 
     [HttpGet("event-workflow-templates")]
-    public async Task<IActionResult> ListWorkflowTemplates(CancellationToken cancellationToken)
+    public async Task<IActionResult> ListWorkflowTemplates([FromQuery] Guid? groupId, CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(new ListEventWorkflowTemplatesQuery(), cancellationToken);
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null) return Unauthorized();
+        var result = await mediator.Send(new ListEventWorkflowTemplatesQuery(groupId, currentMemberId.Value), cancellationToken);
         this.ApplyPrivateNoCacheHeaders();
+        return this.ToActionResult(result);
+    }
+
+    [HttpPost("groups/{groupId:guid}/event-workflow-templates")]
+    public async Task<IActionResult> CreateWorkflowTemplate(
+        Guid groupId,
+        [FromBody] CreateEventWorkflowTemplateRequest request,
+        CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null) return Unauthorized();
+        var result = await mediator.Send(new CreateEventWorkflowTemplateCommand(
+            groupId,
+            currentMemberId.Value,
+            request.NameEn,
+            request.NameZh,
+            request.DescriptionEn,
+            request.DescriptionZh,
+            (request.Stages ?? []).Select(stage => new CreateEventWorkflowStageInput(
+                stage.NameEn,
+                stage.NameZh,
+                stage.RequiresApproval)).ToArray()), cancellationToken);
         return this.ToActionResult(result);
     }
 
@@ -227,7 +263,8 @@ public class EventsController(
         DateTime EndDate,
         string EventDataJson,
         IReadOnlyList<Guid>? ContactProfileIds,
-        string? RamDataJson);
+        string? RamDataJson,
+        string? WorkflowTemplateCode);
 
     public record UpdateGroupEventRequest(
         string TitleEn,
@@ -241,6 +278,18 @@ public class EventsController(
     public record SaveEventRamRequest(string RamDataJson);
 
     public record InitializeEventWorkflowRequest(string TemplateCode);
+
+    public record CreateEventWorkflowTemplateRequest(
+        string NameEn,
+        string NameZh,
+        string DescriptionEn,
+        string DescriptionZh,
+        IReadOnlyList<CreateEventWorkflowStageRequest>? Stages);
+
+    public record CreateEventWorkflowStageRequest(
+        string NameEn,
+        string NameZh,
+        bool RequiresApproval);
 
     public record UpdateEventWorkflowStepRequest(
         EventWorkflowStepStatus Status,

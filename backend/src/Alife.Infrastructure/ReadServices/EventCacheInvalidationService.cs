@@ -11,7 +11,9 @@ public sealed class EventCacheInvalidationService(
     public Task RemoveGroupEventsAsync(Guid groupId, CancellationToken cancellationToken = default)
         => Task.WhenAll(
             hybridCache.RemoveAsync(EventCacheKeys.GroupEvents(groupId), cancellationToken).AsTask(),
-            cloudflareKvCacheService.RemoveApiCacheAsync($"/api/groups/{groupId}/events", cancellationToken));
+            hybridCache.RemoveAsync(EventCacheKeys.PublicUpcomingEvents(), cancellationToken).AsTask(),
+            cloudflareKvCacheService.RemoveApiCacheAsync($"/api/groups/{groupId}/events", cancellationToken),
+            cloudflareKvCacheService.RemoveApiCacheAsync("/api/events/public/upcoming", cancellationToken));
 
     public Task RemoveEventEnrollmentsAsync(Guid eventId, CancellationToken cancellationToken = default)
         => cloudflareKvCacheService.RemoveApiCacheAsync($"/api/events/{eventId}/enrollments", cancellationToken);

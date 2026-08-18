@@ -35,6 +35,11 @@ public sealed class UpdateGroupEventCommandHandler(
             return AppResult<GroupEventSummaryDto>.Forbidden("Only group leaders and co-leaders can update events.");
         }
 
+        if (!EventVisibilityPolicy.TryReadVisibility(request.EventDataJson, out var visibility))
+        {
+            return AppResult<GroupEventSummaryDto>.Validation("Event data must be a JSON object with a supported visibility.");
+        }
+
         var contactProfileIds = (request.ContactProfileIds ?? []).Distinct().ToArray();
         var validContactCount = await dbContext.ContactProfiles.AsNoTracking().CountAsync(
             x => x.OwnerGroupId == groupEvent.GroupId && contactProfileIds.Contains(x.Id), cancellationToken);
@@ -107,6 +112,7 @@ public sealed class UpdateGroupEventCommandHandler(
             groupEvent.CreatedUtc,
             groupEvent.UpdatedUtc,
             contactProfileIds,
-            groupEvent.RamAssessment?.Status ?? Alife.Domain.Enums.EventRamStatus.Draft));
+            groupEvent.RamAssessment?.Status ?? Alife.Domain.Enums.EventRamStatus.Draft,
+            visibility));
     }
 }

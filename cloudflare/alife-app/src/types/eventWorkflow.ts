@@ -28,11 +28,24 @@ export type EventWorkflowStageDefinition = {
 
 export type EventWorkflowTemplate = {
   id: string
+  ownerGroupId?: string | null
   code: string
   version: number
   name: WorkflowText
   description: WorkflowText
   stages: EventWorkflowStageDefinition[]
+}
+
+export type CreateEventWorkflowTemplateInput = {
+  nameEn: string
+  nameZh: string
+  descriptionEn: string
+  descriptionZh: string
+  stages: Array<{
+    nameEn: string
+    nameZh: string
+    requiresApproval: boolean
+  }>
 }
 
 export type EventArtifact = {

@@ -329,6 +329,7 @@ const CountdownSection = ({ section, mode, domId, disabled, propertiesOnly, show
   const binding = readCountdownBinding(section.contentJson)
   const isEventBound = binding.mode === 'event'
   const groupId = contextGroupId || page?.ownerGroupId || undefined
+  const publicEvents = !allowGroupDataSources && page?.visibility === 'public'
   const metadata = useMemo<ListViewMetadata>(() => ({
     sourceType: 'events',
     sourceScope: 'group',
@@ -341,7 +342,8 @@ const CountdownSection = ({ section, mode, domId, disabled, propertiesOnly, show
   }), [binding.eventId, binding.preset])
   const { data: events, isLoading: eventsLoading, error: eventsError } = useListSourceResolver(metadata, {
     groupId,
-    enabled: isEventBound && allowGroupDataSources,
+    enabled: isEventBound && (allowGroupDataSources || publicEvents),
+    publicEvents,
   })
   const eventRecords = (events ?? []) as GroupEventRecord[]
   const selectedEvent = isEventBound

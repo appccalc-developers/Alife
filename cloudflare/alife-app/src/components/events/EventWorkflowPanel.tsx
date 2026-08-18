@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { CheckCircle2, Circle, Clock3, ShieldCheck } from 'lucide-react'
 import { eventWorkflowService } from '../../services/eventWorkflowService'
 import { normalizeApiError } from '../../services/http'
 import type {
@@ -88,6 +89,11 @@ const EventWorkflowPanel = ({ eventId, editPath, language, canManage }: Props) =
   const requiredSteps = workflow?.steps.filter((step) => step.isRequired) ?? []
   const completedRequired = requiredSteps.filter((step) => step.status === 'completed').length
   const progress = requiredSteps.length ? Math.round((completedRequired / requiredSteps.length) * 100) : 0
+  const workflowStatus = workflow?.status === 'completed'
+    ? (language === 'zh' ? '已完成' : 'Completed')
+    : workflow?.status === 'cancelled'
+      ? (language === 'zh' ? '已取消' : 'Cancelled')
+      : (language === 'zh' ? '进行中' : 'Active')
 
   const initialize = async (template: EventWorkflowTemplate) => {
     setBusyId(template.id)
@@ -143,7 +149,9 @@ const EventWorkflowPanel = ({ eventId, editPath, language, canManage }: Props) =
                     <AppBadge variant="neutral">{text.version} {template.version}</AppBadge>
                   </div>
                   <p className="mt-2 flex-1 text-sm leading-6 text-slate-600">{localize(template.description, language)}</p>
-                  <p className="mt-3 text-xs text-slate-500">{template.stages.length} stages · {template.stages.reduce((count, stage) => count + stage.artifacts.length, 0)} outputs</p>
+                  <p className="mt-3 text-xs text-slate-500">
+                    {template.stages.length} {language === 'zh' ? '个阶段' : 'stages'} · {template.stages.reduce((count, stage) => count + stage.artifacts.length, 0)} {language === 'zh' ? '项产出物' : 'outputs'}
+                  </p>
                   <AppActionButton className="mt-4" disabled={Boolean(busyId)} onClick={() => void initialize(template)}>
                     {busyId === template.id ? text.initializing : text.initialize}
                   </AppActionButton>
@@ -162,21 +170,64 @@ const EventWorkflowPanel = ({ eventId, editPath, language, canManage }: Props) =
       <AppSectionCard title={localize(workflow.template.name, language)}>
         <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
           <p className="text-slate-600">{completedRequired}/{requiredSteps.length} {text.progress}</p>
-          <AppBadge variant={workflow.status === 'completed' ? 'success' : 'neutral'}>{workflow.status}</AppBadge>
+          <AppBadge variant={workflow.status === 'completed' ? 'success' : 'neutral'}>{workflowStatus}</AppBadge>
         </div>
         <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100" aria-label={`${progress}%`}>
           <div className="h-full rounded-full bg-emerald-600 transition-all" style={{ width: `${progress}%` }} />
         </div>
+
+        <ol className="mt-5 flex snap-x gap-2 overflow-x-auto pb-2" aria-label={language === 'zh' ? '工作流步骤导航' : 'Workflow step navigation'}>
+          {workflow.steps.map((step, index) => {
+            const isCurrent = workflow.currentStepKey === step.stepKey
+            const isCompleted = step.status === 'completed'
+            return (
+              <li key={step.id} className="flex min-w-[11rem] flex-1 snap-start items-center">
+                <a
+                  href={`#workflow-step-${step.id}`}
+                  aria-current={isCurrent ? 'step' : undefined}
+                  className={[
+                    'flex min-h-20 flex-1 items-start gap-3 rounded-xl border px-3 py-3 text-left transition focus:outline-none focus:ring-2 focus:ring-emerald-300',
+                    isCurrent
+                      ? 'border-sky-300 bg-sky-50 text-sky-950'
+                      : isCompleted
+                        ? 'border-emerald-200 bg-emerald-50 text-emerald-950'
+                        : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-200',
+                  ].join(' ')}
+                >
+                  <span className="mt-0.5 shrink-0" aria-hidden="true">
+                    {isCompleted
+                      ? <CheckCircle2 className="h-5 w-5 text-emerald-700" />
+                      : isCurrent
+                        ? <Clock3 className="h-5 w-5 text-sky-700" />
+                        : <Circle className="h-5 w-5 text-slate-400" />}
+                  </span>
+                  <span>
+                    <span className="block text-xs font-bold uppercase tracking-wide opacity-70">
+                      {language === 'zh' ? `第 ${index + 1} 步` : `Step ${index + 1}`}
+                    </span>
+                    <span className="mt-1 block text-sm font-black leading-5">{localize(step.name, language)}</span>
+                    {step.requiresApproval ? (
+                      <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-bold text-amber-700">
+                        <ShieldCheck className="h-3 w-3" aria-hidden="true" />{language === 'zh' ? '需审批' : 'Approval'}
+                      </span>
+                    ) : null}
+                  </span>
+                </a>
+                {index < workflow.steps.length - 1 ? <span className="mx-1 h-px w-3 shrink-0 bg-slate-300" aria-hidden="true" /> : null}
+              </li>
+            )
+          })}
+        </ol>
       </AppSectionCard>
 
       {workflow.steps.map((step) => {
         const requiredApproved = step.artifacts.filter((artifact) => artifact.isRequired).every((artifact) => artifact.status === 'approved')
         return (
-          <AppSectionCard
-            key={step.id}
-            title={`${step.sortOrder}. ${localize(step.name, language)}`}
-            action={<AppBadge variant={statusTone(step.status)}>{text[step.status]}</AppBadge>}
-          >
+          <div key={step.id} id={`workflow-step-${step.id}`} className="scroll-mt-24">
+            <AppSectionCard
+              title={`${step.sortOrder}. ${localize(step.name, language)}`}
+              action={<AppBadge variant={statusTone(step.status)}>{text[step.status]}</AppBadge>}
+            >
             {step.integrationKey === 'ram' ? (
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
                 <span>{text.managed}</span>
@@ -216,7 +267,8 @@ const EventWorkflowPanel = ({ eventId, editPath, language, canManage }: Props) =
                 {step.status === 'completed' ? <AppActionButton size="sm" variant="secondary" disabled={busyId === step.id} onClick={() => void updateStep(step, 'inProgress')}>{text.reopen}</AppActionButton> : null}
               </div>
             ) : null}
-          </AppSectionCard>
+            </AppSectionCard>
+          </div>
         )
       })}
     </div>

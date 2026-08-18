@@ -2,7 +2,6 @@ using Alife.Application.Common.Models;
 using Alife.Application.Events.Dtos;
 using Alife.Application.Events.Services;
 using Alife.Application.Groups.Services;
-using Alife.Domain.Enums;
 using MediatR;
 
 namespace Alife.Application.Events.Queries.GetGroupEvents;
@@ -21,19 +20,43 @@ public sealed class GetGroupEventsQueryHandler(
             return AppResult<IReadOnlyList<GroupEventSummaryDto>>.NotFound("Group not found.");
         }
 
-        var isApproved = request.CurrentMemberId.HasValue &&
+        var canManage = request.CurrentMemberId.HasValue &&
+            await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
+                request.GroupId,
+                request.CurrentMemberId.Value,
+                cancellationToken);
+
+        var isGroupMember = request.CurrentMemberId.HasValue &&
             await groupAuthorizationService.IsApprovedMemberAsync(
                 request.GroupId,
                 request.CurrentMemberId.Value,
                 cancellationToken);
 
-        if (!group.IsChurch && group.AccessType != AccessType.Public && !isApproved)
-        {
-            return AppResult<IReadOnlyList<GroupEventSummaryDto>>.Forbidden("You must be a member to view group events.");
-        }
+        var churchGroupId = group.IsChurch ? group.Id : group.ParentGroupId;
+        var isChurchMember = request.CurrentMemberId.HasValue && churchGroupId.HasValue &&
+            await groupAuthorizationService.IsApprovedMemberAsync(
+                churchGroupId.Value,
+                request.CurrentMemberId.Value,
+                cancellationToken);
 
         var events = await eventReadService.GetGroupEventsAsync(request.GroupId, cancellationToken);
 
-        return AppResult<IReadOnlyList<GroupEventSummaryDto>>.Success(events);
+        if (canManage)
+        {
+            return AppResult<IReadOnlyList<GroupEventSummaryDto>>.Success(events);
+        }
+
+        var visibleEvents = events
+            .Where(EventVisibilityPolicy.IsPublished)
+            .Where(groupEvent => EventVisibilityPolicy.CanView(
+                groupEvent.Visibility,
+                isGroupMember,
+                isChurchMember))
+            .Select(groupEvent => isGroupMember
+                ? groupEvent
+                : EventVisibilityPolicy.SanitizeForExpandedAudience(groupEvent))
+            .ToList();
+
+        return AppResult<IReadOnlyList<GroupEventSummaryDto>>.Success(visibleEvents);
     }
 }
