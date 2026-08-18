@@ -8,6 +8,7 @@ import AppEmptyState from '../components/layout/AppEmptyState'
 import AppPageShell from '../components/layout/AppPageShell'
 import { queryClient } from '../db/queryClient'
 import { churchQueryKey } from '../db/collections/groupCollection'
+import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
 import { forumQueryKeys, forumService } from '../services/forumService'
 import { groupService } from '../services/groupService'
 import { normalizeApiError } from '../services/http'
@@ -197,7 +198,10 @@ const ForumPostView = () => {
   const { groupId: routeGroupId, postId } = useParams<{ groupId?: string; postId: string }>()
   const { language, isGuest, isRegistered, memberships } = useAuthStore()
   const text = forumCopy(language)
-  const churchForum = useLocation().pathname.startsWith('/church/forum')
+  const location = useLocation()
+  const churchForum = location.pathname.startsWith('/church/forum')
+  const currentGroupForum = location.pathname.startsWith('/groups/forum')
+  const { groupId: activeGroupId } = useActiveEntityIds()
   const normalizedRouteGroupId = routeGroupId?.trim() || ''
   const churchQuery = useQuery({
     queryKey: churchQueryKey,
@@ -205,13 +209,13 @@ const ForumPostView = () => {
     enabled: churchForum,
     staleTime: 5 * 60_000,
   })
-  const scopedGroupId = normalizedRouteGroupId || (churchForum ? churchQuery.data?.id ?? '' : '')
-  const forumBasePath = normalizedRouteGroupId ? `/groups/${encodeURIComponent(normalizedRouteGroupId)}/forum` : churchForum ? '/church/forum' : '/forum'
+  const scopedGroupId = normalizedRouteGroupId || (churchForum ? churchQuery.data?.id ?? '' : currentGroupForum ? activeGroupId : '')
+  const forumBasePath = normalizedRouteGroupId ? `/groups/${encodeURIComponent(normalizedRouteGroupId)}/forum` : churchForum ? '/church/forum' : currentGroupForum ? '/groups/forum' : '/forum'
   const [replyTarget, setReplyTarget] = useState<ForumCommentDto | null>(null)
   const postQuery = useQuery({
     queryKey: postId ? forumQueryKeys.post(postId) : ['forum', 'post', 'missing'],
     queryFn: () => forumService.getPost(postId || ''),
-    enabled: Boolean(postId) && (!churchForum || Boolean(scopedGroupId)),
+    enabled: Boolean(postId) && ((!churchForum && !currentGroupForum) || Boolean(scopedGroupId)),
     staleTime: 30_000,
   })
   const categoriesQuery = useQuery({
@@ -219,6 +223,10 @@ const ForumPostView = () => {
     queryFn: forumService.listCategories,
     staleTime: 5 * 60_000,
   })
+
+  if (currentGroupForum && !scopedGroupId) {
+    return <Navigate to="/groups/select" replace />
+  }
 
   if (!postId) {
     return <Navigate to={forumBasePath} replace />

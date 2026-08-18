@@ -19,7 +19,7 @@ import { getCopy } from '../views/home/homeCopy'
 import { buildPageMenuNavItems } from '../views/home/homeUtils'
 import { usePublicPagesQuery } from '../hooks/usePublicPageQueries'
 import { workspaceResumeService } from '../services/workspaceResumeService'
-import { isHomeLocation, isPublicArticlePath, isPublicPageLocation, isPublicPagePath } from './routing/publicRoutePolicy'
+import { isHomeLocation, isPublicArticlePath, isPublicPageLocation } from './routing/publicRoutePolicy'
 
 const readSidebarCollapsedPreference = () => {
   try {
@@ -42,13 +42,9 @@ const WorkspaceShell = () => {
   const context = useShellContext()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsedPreference)
   const [debugLoading, setDebugLoading] = useState(false)
-  const contextualGroupIsChurch = context.contextualGroup?.isChurch === true ||
-    Boolean(context.contextualGroupId && context.contextualGroupId === context.churchGroup?.id)
   const storedGroupIsChurch = context.currentGroup?.isChurch === true ||
     Boolean(context.currentGroup?.id && context.currentGroup.id === context.churchGroup?.id)
-  const groupLifeGroup = !contextualGroupIsChurch && context.contextualGroup
-    ? context.contextualGroup
-    : (!storedGroupIsChurch ? context.currentGroup : null)
+  const groupLifeGroup = !storedGroupIsChurch ? context.currentGroup : null
   const groupLifeGroupId = groupLifeGroup?.id || ''
   const groupLifeGroupName = groupLifeGroupId
     ? localizeText(groupLifeGroup?.name, auth.language)
@@ -59,8 +55,8 @@ const WorkspaceShell = () => {
     churchGroupId: context.churchGroup?.id || '',
     groupLifeGroupId,
     groupLifeGroupName,
-    eventDetailScreen: Boolean(context.groupEventDetailMatch || context.location.pathname === '/events'),
-    contextualEventId: context.groupEventDetailMatch?.[2] || context.activeIds.eventId,
+    eventDetailScreen: context.isEventDetailScreen,
+    contextualEventId: context.contextualEventId,
     contextualEvent: context.contextualEvent,
     currentGroupIsChurch: context.isChurchLifeScreen || context.managementGroup?.isChurch === true,
     workspaceEnabled: !context.isOnboardingScreen,
@@ -142,24 +138,6 @@ const WorkspaceShell = () => {
   )
 }
 
-const isPublicBrowsePath = (pathname: string) =>
-  pathname === '/' ||
-  pathname === '/home' ||
-  pathname === '/groups' ||
-  pathname === '/groups/select' ||
-  pathname === '/groups/select/tree' ||
-  /^\/groups\/[^/]+$/.test(pathname) ||
-  /^\/groups\/[^/]+\/events\/[^/]+$/.test(pathname) ||
-  /^\/groups\/[^/]+\/forum(?:\/posts\/[^/]+)?$/.test(pathname) ||
-  pathname === '/events' ||
-  pathname === '/forum' ||
-  /^\/forum\/posts\/[^/]+$/.test(pathname) ||
-  isPublicArticlePath(pathname) ||
-  isPublicPagePath(pathname) ||
-  pathname === '/sermons' ||
-  pathname === '/sermons/watch' ||
-  /^\/sermons\/[^/]+$/.test(pathname)
-
 const PublicHomeShell = () => {
   const auth = useAuthStore()
   const location = useLocation()
@@ -191,18 +169,9 @@ const PublicHomeShell = () => {
 }
 
 const AppShell = () => {
-  const auth = useAuthStore()
   const location = useLocation()
   const reduceMotion = useReducedMotion()
-  const preserveAlifeGroupSelectionShell = auth.isGuest &&
-    (location.pathname === '/groups/select' || location.pathname === '/groups/select/tree') &&
-    new URLSearchParams(location.search).get('from') === 'alife'
-  const showPublicShell = !preserveAlifeGroupSelectionShell && (
-    isHomeLocation(location) ||
-    isPublicPageLocation(location) ||
-    isPublicArticlePath(location.pathname) ||
-    (auth.isGuest && isPublicBrowsePath(location.pathname))
-  )
+  const showPublicShell = isHomeLocation(location)
 
   return (
     <>

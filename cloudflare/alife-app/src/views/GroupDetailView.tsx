@@ -16,9 +16,10 @@ type GroupBrowseViewProps = {
   groupId: string
   pageId: string
   scope?: 'group' | 'church'
+  explicitGroupRoute?: boolean
 }
 
-const GroupBrowseView = ({ groupId, pageId, scope = 'group' }: GroupBrowseViewProps) => {
+const GroupBrowseView = ({ groupId, pageId, scope = 'group', explicitGroupRoute = false }: GroupBrowseViewProps) => {
   const navigate = useNavigate()
   const { setCurrentGroup } = useCurrentGroupStore()
 
@@ -38,10 +39,10 @@ const GroupBrowseView = ({ groupId, pageId, scope = 'group' }: GroupBrowseViewPr
   } = useGroupScreen(groupId, { loadEvents: true })
 
   useEffect(() => {
-    if (group && scope === 'group' && !group.isChurch) {
+    if (group && scope === 'group' && !explicitGroupRoute && !group.isChurch) {
       setCurrentGroup(group)
     }
-  }, [group, scope, setCurrentGroup])
+  }, [explicitGroupRoute, group, scope, setCurrentGroup])
 
   return (
     <GroupScreenShell
@@ -61,13 +62,14 @@ const GroupBrowseView = ({ groupId, pageId, scope = 'group' }: GroupBrowseViewPr
           events={events}
           canManage={canManageGroup}
           scope={scope}
+          explicitGroupRoute={explicitGroupRoute}
         />
       ) : null}
       selectedPageId={pageId}
       statusMessage={statusMessage}
       onAddPage={() => {
-        activeEntityService.setGroup(groupId, { clearPage: true })
-        navigate(`/groups/${groupId}/pages/new`)
+        if (!explicitGroupRoute) activeEntityService.setGroup(groupId, { clearPage: true })
+        navigate(scope === 'group' && !explicitGroupRoute ? '/pages/new' : `/groups/${encodeURIComponent(groupId)}/pages/new`)
       }}
       onPageSaved={() => {
         refreshPages().catch(() => undefined)
@@ -81,9 +83,10 @@ type GroupWorkspaceViewProps = {
   pageId?: string
   scope?: 'group' | 'church'
   managementEnabled?: boolean
+  explicitGroupRoute?: boolean
 }
 
-export const GroupWorkspaceView = ({ groupId, pageId = '', scope = 'group', managementEnabled = true }: GroupWorkspaceViewProps) => {
+export const GroupWorkspaceView = ({ groupId, pageId = '', scope = 'group', managementEnabled = true, explicitGroupRoute = false }: GroupWorkspaceViewProps) => {
   const auth = useAuthStore()
 
   if (managementEnabled && !pageId && auth.canManageGroup(groupId)) {
@@ -96,15 +99,16 @@ export const GroupWorkspaceView = ({ groupId, pageId = '', scope = 'group', mana
     )
   }
 
-  return <GroupBrowseView groupId={groupId} pageId={pageId} scope={scope} />
+  return <GroupBrowseView groupId={groupId} pageId={pageId} scope={scope} explicitGroupRoute={explicitGroupRoute} />
 }
 
 const GroupDetailView = () => {
   const auth = useAuthStore()
   const { groupId: routeGroupId } = useParams<{ groupId: string }>()
   const [searchParams] = useSearchParams()
-  const { groupId: activeGroupId, pageId } = useActiveEntityIds({ groupId: routeGroupId })
+  const { groupId: activeGroupId, pageId: activePageId } = useActiveEntityIds({ groupId: routeGroupId })
   const groupId = activeGroupId || ''
+  const pageId = routeGroupId ? searchParams.get('page')?.trim() ?? '' : activePageId
   const routeGroupQuery = useQuery({
     queryKey: ['group-route-scope', routeGroupId ?? '', auth.me?.id ?? 'guest'],
     queryFn: () => ensureGroupForViewer(routeGroupId || '', auth.me?.id),
@@ -135,6 +139,7 @@ const GroupDetailView = () => {
     <GroupWorkspaceView
       groupId={groupId}
       pageId={pageId}
+      explicitGroupRoute={Boolean(routeGroupId)}
       managementEnabled={searchParams.get('view') !== 'overview' && searchParams.has('section')}
     />
   )

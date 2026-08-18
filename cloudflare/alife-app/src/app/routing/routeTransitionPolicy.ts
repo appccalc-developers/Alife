@@ -6,6 +6,7 @@ const isGroupWorkspaceSectionPath = (pathname: string) =>
 export const isForumFeedPath = (pathname: string) =>
   pathname === '/forum' ||
   pathname === '/church/forum' ||
+  pathname === '/groups/forum' ||
   /^\/groups\/[^/]+\/forum$/.test(pathname)
 
 export const getRouteTransitionKey = ({

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ChevronRight, Eye, ListFilter, MessageCircle, Pin, Plus, RefreshCcw, Send, Sparkles, UsersRound } from 'lucide-react'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
@@ -8,6 +8,7 @@ import AppEmptyState from '../components/layout/AppEmptyState'
 import AppPageShell from '../components/layout/AppPageShell'
 import { queryClient } from '../db/queryClient'
 import { churchQueryKey } from '../db/collections/groupCollection'
+import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
 import { forumQueryKeys, forumService } from '../services/forumService'
 import { groupService } from '../services/groupService'
 import { normalizeApiError } from '../services/http'
@@ -157,7 +158,10 @@ const ForumView = () => {
   const { groupId: groupIdParam } = useParams<{ groupId?: string }>()
   const { language, isGuest, isRegistered, me, memberships } = useAuthStore()
   const text = forumCopy(language)
-  const churchForum = useLocation().pathname.startsWith('/church/forum')
+  const location = useLocation()
+  const churchForum = location.pathname.startsWith('/church/forum')
+  const currentGroupForum = location.pathname.startsWith('/groups/forum')
+  const { groupId: activeGroupId } = useActiveEntityIds()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const routeGroupId = groupIdParam?.trim() || ''
@@ -167,8 +171,9 @@ const ForumView = () => {
     enabled: churchForum,
     staleTime: 5 * 60_000,
   })
-  const groupId = routeGroupId || (churchForum ? churchQuery.data?.id ?? '' : '')
-  const forumBasePath = routeGroupId ? `/groups/${encodeURIComponent(routeGroupId)}/forum` : churchForum ? '/church/forum' : '/forum'
+  const groupId = routeGroupId || (churchForum ? churchQuery.data?.id ?? '' : currentGroupForum ? activeGroupId : '')
+  const forumBasePath = routeGroupId ? `/groups/${encodeURIComponent(routeGroupId)}/forum` : churchForum ? '/church/forum' : currentGroupForum ? '/groups/forum' : '/forum'
+  const groupScopedForum = Boolean(routeGroupId || currentGroupForum)
   const categoryId = searchParams.get('categoryId') || ''
   const [composerOpen, setComposerOpen] = useState(false)
 
@@ -180,7 +185,7 @@ const ForumView = () => {
   const postsQuery = useQuery({
     queryKey: forumQueryKeys.posts(categoryId, groupId),
     queryFn: () => forumService.listPosts({ categoryId: categoryId || undefined, groupId: groupId || undefined, page: 1, pageSize: 30 }),
-    enabled: !churchForum || Boolean(groupId),
+    enabled: (!churchForum && !currentGroupForum) || Boolean(groupId),
     staleTime: 30_000,
   })
 
@@ -206,6 +211,10 @@ const ForumView = () => {
     setSearchParams(next, { preventScrollReset: true })
   }
 
+  if (currentGroupForum && !groupId) {
+    return <Navigate to="/groups/select" replace />
+  }
+
   return (
     <AppPageShell>
       <div className="mx-auto w-full max-w-7xl">
@@ -216,10 +225,10 @@ const ForumView = () => {
               <div className="max-w-2xl">
                 <div className="inline-flex items-center gap-2 rounded-full border border-[#176b5a]/15 bg-white px-3 py-1.5 text-xs font-black uppercase tracking-[0.12em] text-[#176b5a] shadow-sm">
                   <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-                  {routeGroupId ? text.groupSpace : churchForum ? text.churchSpace : text.communitySpace}
+                  {groupScopedForum ? text.groupSpace : churchForum ? text.churchSpace : text.communitySpace}
                 </div>
-                <h1 className="mt-4 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">{routeGroupId ? text.groupForum : churchForum ? text.churchForum : text.forum}</h1>
-                <p className="mt-3 text-base leading-7 text-slate-600">{routeGroupId ? text.groupForumSubtitle : churchForum ? text.churchForumSubtitle : text.forumSubtitle}</p>
+                <h1 className="mt-4 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">{groupScopedForum ? text.groupForum : churchForum ? text.churchForum : text.forum}</h1>
+                <p className="mt-3 text-base leading-7 text-slate-600">{groupScopedForum ? text.groupForumSubtitle : churchForum ? text.churchForumSubtitle : text.forumSubtitle}</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <button

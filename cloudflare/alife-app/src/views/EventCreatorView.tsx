@@ -7,6 +7,7 @@ import { eventService } from '../services/eventService'
 import { eventPosterAiService, type GeneratedEventPoster } from '../services/eventPosterAiService'
 import { aiTranslationService } from '../services/aiTranslationService'
 import { activeEntityService } from '../services/activeEntityService'
+import { buildScopedEventDetailPath } from '../utils/eventRoutes'
 import { eventPlanningSessionService } from '../services/eventPlanningSessionService'
 import { fileToInlineAiAttachment } from '../services/aiSessionService'
 import { isImageFile, uploadImage } from '../services/imageWorkerApi'
@@ -1240,7 +1241,8 @@ const EventCreatorView = () => {
         },
       ])
       if (!isEditMode && persistedEventId && effectiveGroupId) {
-        navigate(`/groups/${encodeURIComponent(effectiveGroupId)}/events/${encodeURIComponent(persistedEventId)}/edit`, { replace: true })
+        const explicitGroupRoute = Boolean(routeGroupId || searchParams.get('groupId'))
+        navigate(`${buildScopedEventDetailPath(effectiveGroupId, persistedEventId, explicitGroupRoute)}/edit`, { replace: true })
       }
     } catch (err) {
       setSaveStatus('error')

@@ -30,10 +30,11 @@ const GroupsSection = ({ copy, language, groupCards }: Props) => {
   const groupPath = useCallback((card: HomeGroupCard) => {
     if (card.group.isChurch) return '/church'
     const membership = auth.memberships.find((item) => item.groupId === card.group.id)
+    if (!auth.isGuest && membership?.status === 'approved') return '/groups?view=overview'
     return membership?.status === 'approved' || card.group.accessType === 'public'
       ? `/groups/${encodeURIComponent(card.group.id)}?view=overview`
       : `/groups/${encodeURIComponent(card.group.id)}/join`
-  }, [auth.memberships])
+  }, [auth.isGuest, auth.memberships])
 
   const goTo = useCallback((nextIndex: number) => {
     if (cards.length === 0) return
@@ -105,7 +106,8 @@ const GroupsSection = ({ copy, language, groupCards }: Props) => {
                   to={groupPath(activeCard)}
                   className="group block h-full"
                   onClick={() => {
-                    if (!activeCard.group.isChurch) {
+                    const membership = auth.memberships.find((item) => item.groupId === activeCard.group.id)
+                    if (!activeCard.group.isChurch && membership?.status === 'approved') {
                       activeEntityService.setGroup(activeCard.group.id, { clearPage: true })
                     }
                   }}

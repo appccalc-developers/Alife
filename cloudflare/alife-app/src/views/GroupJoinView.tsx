@@ -94,7 +94,7 @@ const GroupJoinView = () => {
       await auth.fetchMe()
       if (result.status === 'approved') {
         activeEntityService.setGroup(group.id)
-        navigate(`/groups/${encodeURIComponent(group.id)}?view=overview`, { replace: true })
+        navigate('/groups?view=overview', { replace: true })
         return
       }
 
@@ -117,7 +117,7 @@ const GroupJoinView = () => {
   const returnToPreviousGroup = () => {
     if (returnGroupId) {
       activeEntityService.setGroup(returnGroupId)
-      navigate(`/groups/${encodeURIComponent(returnGroupId)}?view=overview`)
+      navigate('/groups?view=overview')
       return
     }
 
@@ -125,7 +125,7 @@ const GroupJoinView = () => {
   }
 
   if (!groupId) {
-    return <Navigate to="/" replace />
+    return <Navigate to="/groups/select" replace />
   }
 
   if (loading) {
@@ -191,7 +191,7 @@ const GroupJoinView = () => {
                 variant="primary"
                 onClick={() => {
                   activeEntityService.setGroup(group.id)
-                  navigate(`/groups/${encodeURIComponent(group.id)}?view=overview`)
+                  navigate('/groups?view=overview')
                 }}
               >
                 {t('openGroup')}

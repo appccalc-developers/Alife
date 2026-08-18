@@ -17,7 +17,6 @@ import {
   buildGroupHierarchy,
   findGroupHierarchyNode,
   getGroupHierarchyAncestorIds,
-  getGroupHierarchyPath,
   type GroupHierarchyNode,
 } from '../utils/groupHierarchy'
 
@@ -40,7 +39,8 @@ const readSectionImage = (page: PageDetailDto) => {
   return ''
 }
 
-const membershipLabel = (membership: GroupMembershipDto | undefined, language: string) => {
+const membershipLabel = (membership: GroupMembershipDto | undefined, language: string, isGuest = false) => {
+  if (isGuest) return language === 'zh' ? '登录后可申请' : 'Sign in to apply'
   if (membership?.status === 'approved') return language === 'zh' ? '已加入' : 'Joined'
   if (membership?.status === 'requested') return language === 'zh' ? '申请审核中' : 'Request pending'
   if (membership?.status === 'invited') return language === 'zh' ? '收到邀请' : 'Invited'
@@ -57,34 +57,47 @@ const membershipVariant = (membership: GroupMembershipDto | undefined) => {
 type HierarchyRowProps = {
   node: GroupHierarchyNode
   depth: number
+  path: GroupSummaryDto[]
   language: string
   activeGroupId: string
   focusedGroupId: string
   expandedIds: Set<string>
   memberships: GroupMembershipDto[]
+  groupImages: Record<string, string>
+  isGuest: boolean
   reduceMotion: boolean
-  onFocus: (groupId: string) => void
-  onToggle: (groupId: string) => void
+  onReveal: (groupId: string) => void
+  onToggleDetail: (groupId: string) => void
+  onToggleChildren: (groupId: string) => void
+  onOpen: (group: GroupSummaryDto) => void
 }
 
 const HierarchyRow = ({
   node,
   depth,
+  path,
   language,
   activeGroupId,
   focusedGroupId,
   expandedIds,
   memberships,
+  groupImages,
+  isGuest,
   reduceMotion,
-  onFocus,
-  onToggle,
+  onReveal,
+  onToggleDetail,
+  onToggleChildren,
+  onOpen,
 }: HierarchyRowProps) => {
   const groupName = localizeText(node.group.name, language)
   const hasChildren = node.children.length > 0
   const expanded = expandedIds.has(node.group.id)
-  const active = activeGroupId === node.group.id
+  const active = !isGuest && activeGroupId === node.group.id
   const focused = focusedGroupId === node.group.id
   const membership = memberships.find((item) => item.groupId === node.group.id)
+  const triggerId = `group-detail-trigger-${node.group.id}`
+  const detailId = `group-detail-${node.group.id}`
+  const nextPath = [...path, node.group]
 
   return (
     <li role="treeitem" aria-level={depth + 1} aria-selected={focused} aria-expanded={hasChildren ? expanded : undefined}>
@@ -103,7 +116,7 @@ const HierarchyRow = ({
             type="button"
             className="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[#176b5a] transition hover:bg-white"
             aria-label={`${expanded ? (language === 'zh' ? '收起' : 'Collapse') : (language === 'zh' ? '展开' : 'Expand')} ${groupName}`}
-            onClick={() => onToggle(node.group.id)}
+            onClick={() => onToggleChildren(node.group.id)}
           >
             <ChevronDown className={['h-4 w-4 transition-transform', expanded ? '' : '-rotate-90'].join(' ')} />
           </button>
@@ -113,18 +126,102 @@ const HierarchyRow = ({
           </span>
         )}
 
-        <button type="button" className="min-w-0 flex-1 text-left" onClick={() => onFocus(node.group.id)}>
-          <span className="flex items-center gap-2">
-            <span className="truncate text-sm font-bold text-[#18332d]">{groupName}</span>
-            {active ? <Check className="h-3.5 w-3.5 shrink-0 text-[#176b5a]" aria-label={language === 'zh' ? '当前小组' : 'Current group'} /> : null}
+        <button
+          id={triggerId}
+          type="button"
+          aria-expanded={focused}
+          aria-controls={detailId}
+          className="flex min-w-0 flex-1 items-center gap-3 text-left focus-visible:outline-none"
+          onClick={() => onToggleDetail(node.group.id)}
+        >
+          <span className="min-w-0 flex-1">
+            <span className="flex items-center gap-2">
+              <span className="truncate text-sm font-bold text-[#18332d]">{groupName}</span>
+              {active ? <Check className="h-3.5 w-3.5 shrink-0 text-[#176b5a]" aria-label={language === 'zh' ? '当前小组' : 'Current group'} /> : null}
+            </span>
+            <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-semibold text-[#718079]">
+              <span>{membershipLabel(membership, language, isGuest)}</span>
+              {hasChildren ? <span>{language === 'zh' ? `${node.children.length} 个下属小组` : `${node.children.length} subgroup${node.children.length === 1 ? '' : 's'}`}</span> : null}
+            </span>
           </span>
-          <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-semibold text-[#718079]">
-            <span>{membershipLabel(membership, language)}</span>
-            {hasChildren ? <span>{language === 'zh' ? `${node.children.length} 个下属小组` : `${node.children.length} subgroup${node.children.length === 1 ? '' : 's'}`}</span> : null}
-          </span>
+          <ChevronDown className={['h-4 w-4 shrink-0 text-[#8a9792] transition-transform', focused ? 'rotate-180 text-[#176b5a]' : ''].join(' ')} aria-hidden="true" />
         </button>
-        <ChevronRight className="h-4 w-4 shrink-0 text-[#8a9792] transition group-hover:translate-x-0.5" aria-hidden="true" />
       </div>
+
+      <AnimatePresence initial={false}>
+        {focused ? (
+          <motion.div
+            id={detailId}
+            role="region"
+            aria-labelledby={triggerId}
+            initial={reduceMotion ? false : { opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={reduceMotion ? { opacity: 1 } : { opacity: 0, height: 0 }}
+            transition={{ duration: reduceMotion ? 0 : 0.22 }}
+            className="overflow-hidden"
+          >
+            <div className="my-2 overflow-hidden rounded-2xl border border-[#176b5a]/15 bg-white shadow-[0_14px_34px_rgba(24,51,45,0.09)]">
+              <div className="grid sm:grid-cols-[10.5rem_minmax(0,1fr)]">
+                <div className="relative min-h-32 overflow-hidden bg-emerald-100 sm:min-h-full">
+                  <img src={groupImages[node.group.id] || fallbackGroupImages[0]} alt={groupName} className="absolute inset-0 h-full w-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#173f36]/55 to-transparent" aria-hidden="true" />
+                </div>
+                <div className="min-w-0 p-4 sm:p-5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <AppBadge variant={isGuest ? 'neutral' : membershipVariant(membership)}>{membershipLabel(membership, language, isGuest)}</AppBadge>
+                    <AccessTypeBadge accessType={node.group.accessType} />
+                    {active ? <AppBadge variant="info">{language === 'zh' ? '当前小组' : 'Current group'}</AppBadge> : null}
+                  </div>
+                  <nav aria-label={language === 'zh' ? '小组层级路径' : 'Group hierarchy path'} className="mt-3 flex flex-wrap items-center gap-1 text-[11px] font-bold text-[#64756e]">
+                    {nextPath.map((pathGroup, index) => (
+                      <span key={pathGroup.id} className="inline-flex items-center gap-1">
+                        {index > 0 ? <ChevronRight className="h-3 w-3" aria-hidden="true" /> : null}
+                        <button type="button" className="rounded-md px-1 py-0.5 transition hover:bg-[#e3f0eb] hover:text-[#176b5a]" onClick={() => onReveal(pathGroup.id)}>
+                          {localizeText(pathGroup.name, language)}
+                        </button>
+                      </span>
+                    ))}
+                  </nav>
+                  <p className="mt-3 text-sm leading-6 text-[#60716a]">
+                    {localizeText(node.group.description, language) || (language === 'zh' ? '进入此小组查看小组页面、活动和公告。' : 'Enter this group to see its pages, events, and announcements.')}
+                  </p>
+
+                  {hasChildren ? (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {node.children.map((child) => (
+                        <button key={child.group.id} type="button" className="rounded-full bg-[#f5f1e8] px-3 py-1.5 text-xs font-bold text-[#176b5a] transition hover:bg-[#e3f0eb]" onClick={() => onReveal(child.group.id)}>
+                          {localizeText(child.group.name, language)}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+              <div className="flex flex-col gap-3 border-t border-[#2f4b42]/10 bg-[#fbfcfa] px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                <p className="text-xs leading-5 text-[#75837e]">
+                  {isGuest
+                    ? (language === 'zh' ? '您正以访客身份浏览；登录或注册后可申请加入这个小组。' : "You're browsing as a guest. Sign in or register to apply to this group.")
+                    : (language === 'zh' ? '只有使用进入按钮后才会切换当前小组。' : 'Your current group changes only after using the enter action.')}
+                </p>
+                <button type="button" className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-full bg-[#176b5a] px-4 py-2 text-sm font-black text-white shadow-[0_10px_22px_rgba(23,107,90,0.18)] transition hover:bg-[#125b4d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/55" onClick={() => onOpen(node.group)}>
+                  {isGuest
+                    ? (language === 'zh' ? '登录或注册' : 'Sign in or register')
+                    : active
+                      ? (language === 'zh' ? '进入当前小组' : 'Open current group')
+                      : membership?.status === 'approved'
+                        ? (language === 'zh' ? '切换并进入' : 'Switch and enter')
+                        : membership?.status === 'requested'
+                          ? (language === 'zh' ? '查看申请状态' : 'View request')
+                          : membership?.status === 'invited'
+                            ? (language === 'zh' ? '查看邀请' : 'Review invitation')
+                            : (language === 'zh' ? '查看并申请加入' : 'View and request to join')}
+                  <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
       <AnimatePresence initial={false}>
         {hasChildren && expanded ? (
@@ -141,14 +238,19 @@ const HierarchyRow = ({
                 key={child.group.id}
                 node={child}
                 depth={depth + 1}
+                path={nextPath}
                 language={language}
                 activeGroupId={activeGroupId}
                 focusedGroupId={focusedGroupId}
                 expandedIds={expandedIds}
                 memberships={memberships}
+                groupImages={groupImages}
+                isGuest={isGuest}
                 reduceMotion={reduceMotion}
-                onFocus={onFocus}
-                onToggle={onToggle}
+                onReveal={onReveal}
+                onToggleDetail={onToggleDetail}
+                onToggleChildren={onToggleChildren}
+                onOpen={onOpen}
               />
             ))}
           </motion.ul>
@@ -174,13 +276,7 @@ const GroupsView = () => {
   const alifeShellSearch = new URLSearchParams(location.search).get('from') === 'alife' ? '?from=alife' : ''
   const visibleGroups = useMemo(() => groups.filter((group) => !group.isChurch), [groups])
   const hierarchy = useMemo(() => buildGroupHierarchy(visibleGroups), [visibleGroups])
-  const focusedNode = useMemo(() => findGroupHierarchyNode(hierarchy, focusedGroupId), [focusedGroupId, hierarchy])
-  const focusedGroup = focusedNode?.group ?? null
   const currentGroup = visibleGroups.find((group) => group.id === activeGroupId) ?? null
-  const focusedPath = useMemo(() => getGroupHierarchyPath(hierarchy, focusedGroupId), [focusedGroupId, hierarchy])
-  const focusedMembership = focusedGroup
-    ? auth.memberships.find((membership) => membership.groupId === focusedGroup.id)
-    : undefined
 
   useEffect(() => {
     let cancelled = false
@@ -250,10 +346,13 @@ const GroupsView = () => {
     const membership = auth.memberships.find((item) => item.groupId === group.id)
     if (membership?.status === 'approved') {
       activeEntityService.setGroup(group.id, { clearPage: true, clearEvent: true })
-    } else if (activeEntityService.getAll().groupId === group.id) {
+      navigate('/groups?view=overview')
+      return
+    }
+    if (activeEntityService.getAll().groupId === group.id) {
       activeEntityService.setGroup('', { clearPage: true, clearEvent: true })
     }
-    navigate(membership?.status === 'approved' || group.accessType === 'public'
+    navigate(group.accessType === 'public'
       ? `/groups/${encodeURIComponent(group.id)}?view=overview`
       : `/groups/${encodeURIComponent(group.id)}/join`)
   }
@@ -267,12 +366,20 @@ const GroupsView = () => {
     })
   }
 
-  const focusGroup = (groupId: string) => {
+  const revealGroup = (groupId: string) => {
     setFocusedGroupId(groupId)
     setExpandedIds((current) => new Set([
       ...current,
       ...getGroupHierarchyAncestorIds(hierarchy, groupId),
     ]))
+  }
+
+  const toggleGroupDetail = (groupId: string) => {
+    if (focusedGroupId === groupId) {
+      setFocusedGroupId('')
+      return
+    }
+    revealGroup(groupId)
   }
 
   return (
@@ -296,18 +403,28 @@ const GroupsView = () => {
               {language === 'zh' ? '找到你的小组位置' : 'Find your place in the group family'}
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-emerald-50/72">
-              {language === 'zh'
-                ? '展开小组结构，了解上级与下属关系，再选择要进入的小组。'
-                : 'Explore the hierarchy and choose the group you want to enter.'}
+              {auth.isGuest
+                ? (language === 'zh'
+                    ? '浏览小组层级与公开资料；登录或注册后可申请加入。'
+                    : 'Browse the group hierarchy and public details. Sign in or register to apply.')
+                : (language === 'zh'
+                    ? '在层级中展开任一小组，直接查看详情并选择要进入的小组。'
+                    : 'Expand any group in the hierarchy to review its details and choose where to enter.')}
             </p>
           </div>
           <div className="rounded-[1.25rem] border border-white/14 bg-white/[0.08] px-4 py-3.5 backdrop-blur-xl">
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-100/70">{language === 'zh' ? '当前小组' : 'Current group'}</p>
-            <p className="mt-1 text-base font-black">{currentGroup ? localizeText(currentGroup.name, language) : (language === 'zh' ? '未选择小组' : 'No group selected')}</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-100/70">
+              {auth.isGuest ? (language === 'zh' ? '浏览身份' : 'Browsing as') : (language === 'zh' ? '当前小组' : 'Current group')}
+            </p>
+            <p className="mt-1 text-base font-black">
+              {auth.isGuest ? (language === 'zh' ? '访客' : 'Guest') : currentGroup ? localizeText(currentGroup.name, language) : (language === 'zh' ? '未选择小组' : 'No group selected')}
+            </p>
             <p className="mt-1 text-[11px] leading-5 text-emerald-50/65">
-              {currentGroup
-                ? (language === 'zh' ? '你可以浏览结构，不会因为查看其他小组而意外切换。' : 'You can explore the hierarchy without switching accidentally.')
-                : (language === 'zh' ? '从下方结构中选择一个小组开始。' : 'Choose a group from the hierarchy below to begin.')}
+              {auth.isGuest
+                ? (language === 'zh' ? '可浏览公开的小组资料；登录或注册后可申请加入。' : 'Browse public group details; sign in or register to apply.')
+                : currentGroup
+                  ? (language === 'zh' ? '你可以浏览结构，不会因为查看其他小组而意外切换。' : 'You can explore the hierarchy without switching accidentally.')
+                  : (language === 'zh' ? '从下方结构中选择一个小组开始。' : 'Choose a group from the hierarchy below to begin.')}
             </p>
           </div>
         </div>
@@ -316,13 +433,11 @@ const GroupsView = () => {
       {error ? <AppEmptyState title={language === 'zh' ? '加载失败' : 'Unable to load'} description={language === 'zh' ? '无法加载小组结构。' : 'Unable to load the group structure.'} /> : null}
 
       {!error && loading ? (
-        <section className="grid gap-5 lg:grid-cols-[minmax(20rem,0.9fr)_minmax(0,1.1fr)]">
-          {[0, 1].map((column) => (
-            <div key={column} className="min-h-96 animate-pulse rounded-[2rem] border border-emerald-100 bg-white/78 p-5">
-              <div className="h-5 w-2/5 rounded-lg bg-emerald-100/70" />
-              <div className="mt-6 space-y-3">{[0, 1, 2, 3].map((row) => <div key={row} className="h-14 rounded-2xl bg-emerald-50" />)}</div>
-            </div>
-          ))}
+        <section className="min-h-96 animate-pulse rounded-[2rem] border border-emerald-100 bg-white/78 p-5">
+          <div className="h-5 w-2/5 rounded-lg bg-emerald-100/70" />
+          <div className="mt-6 space-y-3">
+            {[0, 1, 2, 3, 4].map((row) => <div key={row} className="h-14 rounded-2xl bg-emerald-50" />)}
+          </div>
         </section>
       ) : null}
 
@@ -334,110 +449,37 @@ const GroupsView = () => {
       ) : null}
 
       {!error && !loading && visibleGroups.length > 0 ? (
-        <section className="grid items-start gap-5 lg:grid-cols-[minmax(20rem,0.9fr)_minmax(0,1.1fr)]">
-          <div className="rounded-[2rem] border border-[#2f4b42]/10 bg-[#f7f3eb]/92 p-4 shadow-[0_18px_45px_rgba(24,51,45,0.08)] sm:p-5">
-            <div className="flex items-start justify-between gap-4 px-1 pb-4">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#176b5a]">{language === 'zh' ? '小组结构' : 'Group structure'}</p>
-                <h2 className="mt-1 text-xl font-black text-[#18332d]">{language === 'zh' ? '按层级浏览' : 'Browse by hierarchy'}</h2>
-              </div>
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#e3f0eb] text-[#176b5a]"><Network className="h-5 w-5" aria-hidden="true" /></span>
+        <section className="rounded-[2rem] border border-[#2f4b42]/10 bg-[#f7f3eb]/92 p-4 shadow-[0_18px_45px_rgba(24,51,45,0.08)] sm:p-5">
+          <div className="flex items-start justify-between gap-4 px-1 pb-4">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#176b5a]">{language === 'zh' ? '小组结构' : 'Group structure'}</p>
+              <h2 className="mt-1 text-xl font-black text-[#18332d]">{language === 'zh' ? '按层级浏览' : 'Browse by hierarchy'}</h2>
+              <p className="mt-1.5 text-xs leading-5 text-[#718079]">{language === 'zh' ? '点击小组名称可在列表中展开详情；左侧箭头用于展开下属层级。' : 'Select a group name to expand its details; use the left arrow to reveal subgroups.'}</p>
             </div>
-            <ul role="tree" aria-label={language === 'zh' ? '可见小组结构' : 'Visible group hierarchy'} className="space-y-1">
-              {hierarchy.map((node) => (
-                <HierarchyRow
-                  key={node.group.id}
-                  node={node}
-                  depth={0}
-                  language={language}
-                  activeGroupId={activeGroupId}
-                  focusedGroupId={focusedGroupId}
-                  expandedIds={expandedIds}
-                  memberships={auth.memberships}
-                  reduceMotion={reduceMotion}
-                  onFocus={focusGroup}
-                  onToggle={toggleExpanded}
-                />
-              ))}
-            </ul>
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#e3f0eb] text-[#176b5a]"><Network className="h-5 w-5" aria-hidden="true" /></span>
           </div>
-
-          <AnimatePresence mode="wait" initial={false}>
-            {focusedGroup ? (
-              <motion.aside
-                key={focusedGroup.id}
-                initial={reduceMotion ? false : { opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={reduceMotion ? { opacity: 1 } : { opacity: 0, y: -6 }}
-                transition={{ duration: reduceMotion ? 0 : 0.22 }}
-                className="overflow-hidden rounded-[2rem] border border-emerald-100 bg-white shadow-[0_22px_55px_rgba(24,51,45,0.10)]"
-                aria-live="polite"
-              >
-                <div className="relative h-56 overflow-hidden bg-emerald-100 sm:h-64">
-                  <img src={groupImages[focusedGroup.id] || fallbackGroupImages[0]} alt={localizeText(focusedGroup.name, language)} className="h-full w-full object-cover" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#173f36]/90 via-[#173f36]/25 to-transparent" />
-                  <div className="absolute inset-x-0 bottom-0 p-6 sm:p-7">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <AppBadge variant={membershipVariant(focusedMembership)}>{membershipLabel(focusedMembership, language)}</AppBadge>
-                      <AccessTypeBadge accessType={focusedGroup.accessType} />
-                      {activeGroupId === focusedGroup.id ? <AppBadge variant="info">{language === 'zh' ? '当前小组' : 'Current group'}</AppBadge> : null}
-                    </div>
-                    <h2 className="mt-3 text-3xl font-black tracking-[-0.04em] text-white">{localizeText(focusedGroup.name, language)}</h2>
-                  </div>
-                </div>
-                <div className="p-6 sm:p-7">
-                  <nav aria-label={language === 'zh' ? '小组层级路径' : 'Group hierarchy path'} className="flex flex-wrap items-center gap-1.5 text-xs font-bold text-[#64756e]">
-                    {focusedPath.map((pathGroup, index) => (
-                      <span key={pathGroup.id} className="inline-flex items-center gap-1.5">
-                        {index > 0 ? <ChevronRight className="h-3 w-3" aria-hidden="true" /> : null}
-                        <button type="button" className="rounded-lg px-1.5 py-1 transition hover:bg-[#e3f0eb] hover:text-[#176b5a]" onClick={() => focusGroup(pathGroup.id)}>{localizeText(pathGroup.name, language)}</button>
-                      </span>
-                    ))}
-                  </nav>
-                  <p className="mt-5 text-sm leading-7 text-[#60716a]">
-                    {localizeText(focusedGroup.description, language) || (language === 'zh' ? '进入此小组查看小组页面、活动和公告。' : 'Enter this group to see its pages, events, and announcements.')}
-                  </p>
-
-                  {focusedNode && focusedNode.children.length > 0 ? (
-                    <div className="mt-6 rounded-2xl bg-[#f5f1e8] p-4">
-                      <p className="text-xs font-black uppercase tracking-[0.15em] text-[#6a7973]">{language === 'zh' ? '包含下属小组' : 'Contains subgroups'}</p>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {focusedNode.children.map((child) => (
-                          <button key={child.group.id} type="button" className="rounded-full bg-white px-3 py-2 text-xs font-bold text-[#176b5a] ring-1 ring-[#176b5a]/12 transition hover:bg-[#e3f0eb]" onClick={() => focusGroup(child.group.id)}>
-                            {localizeText(child.group.name, language)}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-
-                  <div className="mt-7 flex flex-col gap-3 border-t border-[#2f4b42]/10 pt-5 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-xs leading-5 text-[#75837e]">
-                      {focusedGroup.isChurch
-                        ? (language === 'zh' ? '根节点代表教会生活，不属于小组切换范围。' : 'The root represents Church Life and is not a selectable group.')
-                        : (language === 'zh' ? '只有点击右侧按钮后才会切换当前小组。' : 'Your current group changes only after using this action.')}
-                    </p>
-                    <button type="button" className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-[#176b5a] px-5 py-3 text-sm font-black text-white shadow-[0_12px_24px_rgba(23,107,90,0.20)] transition hover:-translate-y-0.5 hover:bg-[#125b4d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/55" onClick={() => openGroup(focusedGroup)}>
-                      {focusedGroup.isChurch
-                        ? (language === 'zh' ? '进入教会生活' : 'Open Church Life')
-                        : auth.isGuest
-                          ? (language === 'zh' ? '申请加入教会' : 'Apply to join the church')
-                        : activeGroupId === focusedGroup.id
-                        ? (language === 'zh' ? '进入当前小组' : 'Open current group')
-                        : focusedMembership?.status === 'approved'
-                          ? (language === 'zh' ? '切换并进入' : 'Switch and enter')
-                          : focusedMembership?.status === 'requested'
-                            ? (language === 'zh' ? '查看申请状态' : 'View request')
-                            : focusedMembership?.status === 'invited'
-                              ? (language === 'zh' ? '查看邀请' : 'Review invitation')
-                              : (language === 'zh' ? '查看并申请加入' : 'View and request to join')}
-                      <ChevronRight className="h-4 w-4" aria-hidden="true" />
-                    </button>
-                  </div>
-                </div>
-              </motion.aside>
-            ) : null}
-          </AnimatePresence>
+          <ul role="tree" aria-label={language === 'zh' ? '可见小组结构' : 'Visible group hierarchy'} className="space-y-1">
+            {hierarchy.map((node) => (
+              <HierarchyRow
+                key={node.group.id}
+                node={node}
+                depth={0}
+                path={[]}
+                language={language}
+                activeGroupId={activeGroupId}
+                focusedGroupId={focusedGroupId}
+                expandedIds={expandedIds}
+                memberships={auth.memberships}
+                groupImages={groupImages}
+                isGuest={auth.isGuest}
+                reduceMotion={reduceMotion}
+                onReveal={revealGroup}
+                onToggleDetail={toggleGroupDetail}
+                onToggleChildren={toggleExpanded}
+                onOpen={openGroup}
+              />
+            ))}
+          </ul>
         </section>
       ) : null}
     </AppPageShell>

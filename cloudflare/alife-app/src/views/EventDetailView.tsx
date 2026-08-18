@@ -21,6 +21,7 @@ import type { EventReviewRecord } from '../types/review'
 import { contactService } from '../services/contactService'
 import type { ContactProfileDto } from '../types/contact'
 import { getEventLifecycle, readEventLifecycleData } from '../utils/eventLifecycle'
+import { buildScopedEventDetailPath } from '../utils/eventRoutes'
 import EventWorkflowPanel from '../components/events/EventWorkflowPanel'
 
 type EventDetailSection = 'notice' | 'workflow' | 'enrollments' | 'memories'
@@ -213,7 +214,7 @@ const isBeforeDeadline = (deadline: string | null | undefined) => {
   return Number.isFinite(time) ? Date.now() <= time : true
 }
 
-const EventNoticePanel = ({ event, eventDto, language, contacts }: { event: GroupEventRecord; eventDto: EventDto; language: string; contacts: ContactProfileDto[] }) => {
+const EventNoticePanel = ({ event, eventDto, language, contacts, currentGroupRoute }: { event: GroupEventRecord; eventDto: EventDto; language: string; contacts: ContactProfileDto[]; currentGroupRoute: boolean }) => {
   const text = getLabels(language)
   const title = localized(eventDto.title, language) || event.titleEn || event.titleZh
   const description = localized(eventDto.description, language)
@@ -329,7 +330,7 @@ const EventNoticePanel = ({ event, eventDto, language, contacts }: { event: Grou
         <AppSectionCard dense title={language === 'zh' ? '活动联系人' : 'Event contacts'}>
           <div className="grid gap-3 sm:grid-cols-2">
             {contacts.map((contact) => (
-              <Link key={contact.id} to={`/groups/${contact.ownerGroupId}/contacts/${contact.id}`} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3 transition hover:border-emerald-300 hover:bg-emerald-50/50">
+              <Link key={contact.id} to={currentGroupRoute ? `/contacts/${encodeURIComponent(contact.id)}` : `/groups/${encodeURIComponent(contact.ownerGroupId)}/contacts/${encodeURIComponent(contact.id)}`} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3 transition hover:border-emerald-300 hover:bg-emerald-50/50">
                 {contact.photoUrl ? <img src={contact.photoUrl} alt="" className="h-12 w-12 rounded-lg object-cover" /> : null}
                 <span><span className="block font-bold text-slate-950">{localized(contact.name as MultilingualString, language)}</span><span className="block text-sm text-slate-500">{localized(contact.role as MultilingualString, language)}</span></span>
               </Link>
@@ -484,16 +485,16 @@ const EnrollmentPanel = ({
 }
 
 const MemoriesPanel = ({
-  groupId,
   eventId,
+  eventBasePath,
   reviews,
   language,
   memberId,
   canManage,
   onRefresh,
 }: {
-  groupId: string
   eventId: string
+  eventBasePath: string
   reviews: EventReviewRecord[]
   language: string
   memberId?: string
@@ -523,7 +524,7 @@ const MemoriesPanel = ({
     <div className="space-y-5">
       {memberId ? <div className="flex justify-end">
         <Link
-          to={`/groups/${encodeURIComponent(groupId)}/events/${encodeURIComponent(eventId)}/review`}
+          to={`${eventBasePath}/review`}
           onClick={() => activeEntityService.setEvent(eventId)}
           className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
         >
@@ -555,7 +556,7 @@ const MemoriesPanel = ({
             action={canMutate ? (
               <div className="flex flex-wrap gap-2">
                 <Link
-                  to={`/groups/${encodeURIComponent(groupId)}/events/${encodeURIComponent(eventId)}/review?reviewId=${encodeURIComponent(review.id)}`}
+                  to={`${eventBasePath}/review?reviewId=${encodeURIComponent(review.id)}`}
                   onClick={() => activeEntityService.setEvent(eventId)}
                   className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-100"
                 >
@@ -643,6 +644,8 @@ const EventDetailView = () => {
   const [error, setError] = useState('')
 
   const activeSection = (searchParams.get('section') || 'notice') as EventDetailSection
+  const currentGroupRoute = !routeGroupId
+  const eventBasePath = buildScopedEventDetailPath(groupId, eventId, Boolean(routeGroupId))
 
   const refreshRelated = useCallback(async () => {
     if (!eventId) return
@@ -710,7 +713,7 @@ const EventDetailView = () => {
     ((activeSection === 'enrollments' && (lifecycle !== 'upcoming' || !acceptsEnrollments)) ||
       (activeSection === 'memories' && lifecycle !== 'past'))
   ) {
-    return <Navigate to={`/groups/${encodeURIComponent(groupId)}/events/${encodeURIComponent(eventId)}`} replace />
+    return <Navigate to={eventBasePath} replace />
   }
 
   return (
@@ -742,7 +745,7 @@ const EventDetailView = () => {
           {!isGuest ? (
             <div className="mb-2 flex justify-end">
               <Link
-                to={`/groups/${encodeURIComponent(groupId)}/events/${encodeURIComponent(eventId)}${activeSection === 'workflow' ? '' : '?section=workflow'}`}
+                to={`${eventBasePath}${activeSection === 'workflow' ? '' : '?section=workflow'}`}
                 className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
               >
                 {activeSection === 'workflow'
@@ -754,7 +757,7 @@ const EventDetailView = () => {
           {(canManage || canAuditRam) ? (
             <div className="mb-4 flex justify-end">
               <Link
-                to={`/groups/${encodeURIComponent(groupId)}/events/${encodeURIComponent(eventId)}/edit`}
+                to={`${eventBasePath}/edit`}
                 onClick={() => activeEntityService.setEvent(eventId)}
                 className="inline-flex items-center rounded-lg border border-teal-300 bg-white px-3.5 py-2 text-sm font-bold text-teal-800 hover:bg-teal-50"
               >
@@ -763,7 +766,7 @@ const EventDetailView = () => {
             </div>
           ) : null}
           {activeSection === 'workflow' ? (
-            <EventWorkflowPanel eventId={eventId} groupId={groupId} language={language} canManage={canManage} />
+            <EventWorkflowPanel eventId={eventId} editPath={`${eventBasePath}/edit`} language={language} canManage={canManage} />
           ) : activeSection === 'enrollments' ? (
             <EnrollmentPanel
               event={event}
@@ -777,8 +780,8 @@ const EventDetailView = () => {
             />
           ) : activeSection === 'memories' ? (
             <MemoriesPanel
-              groupId={groupId}
               eventId={eventId}
+              eventBasePath={eventBasePath}
               reviews={reviews}
               language={language}
               memberId={me?.id}
@@ -786,7 +789,7 @@ const EventDetailView = () => {
               onRefresh={refreshRelated}
             />
           ) : (
-            <EventNoticePanel event={event} eventDto={eventDto} language={language} contacts={contacts} />
+            <EventNoticePanel event={event} eventDto={eventDto} language={language} contacts={contacts} currentGroupRoute={currentGroupRoute} />
           )}
         </>
       ) : null}

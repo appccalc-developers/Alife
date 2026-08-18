@@ -126,7 +126,7 @@ export const useShellNavigation = ({
     key: 'workspace:forum',
     label: isChinese ? '小组论坛' : 'Group forum',
     description: isChinese ? '只查看和发布当前小组的讨论' : 'Discussions scoped to the current group',
-    to: `/groups/${encodeURIComponent(workspaceGroupId)}/forum`,
+    to: '/groups/forum',
     matchPathOnly: true,
     matchDescendants: true,
     icon: <MessageSquareText className="h-5 w-5" />,
@@ -137,7 +137,7 @@ export const useShellNavigation = ({
     key: 'workspace:albums',
     label: isChinese ? '相册' : 'Albums',
     description: isChinese ? '浏览当前小组的相册和图片' : 'Browse albums and photos for the selected group',
-    to: `/groups/${encodeURIComponent(workspaceGroupId)}/albums`,
+    to: '/albums',
     matchPathOnly: true,
     matchDescendants: true,
     icon: <Images className="h-5 w-5" />,
@@ -183,7 +183,9 @@ export const useShellNavigation = ({
 
   const activeEventId = contextualEventId || ''
   const eventBasePath = contextualWorkspaceGroupId && activeEventId
-    ? `/groups/${encodeURIComponent(contextualWorkspaceGroupId)}/events/${encodeURIComponent(activeEventId)}`
+    ? contextualWorkspaceGroupId === workspaceGroupId
+      ? `/events/${encodeURIComponent(activeEventId)}`
+      : `/groups/${encodeURIComponent(contextualWorkspaceGroupId)}/events/${encodeURIComponent(activeEventId)}`
     : ''
   const eventLifecycle = contextualEvent ? getEventLifecycle(contextualEvent) : null
   const acceptsEnrollments = contextualEvent ? readEventLifecycleData(contextualEvent).acceptsEnrollments : false
@@ -358,7 +360,7 @@ export const useShellNavigation = ({
       key: 'platform-group-life',
       label: groupLifeGroupName || (isChinese ? '小组生活' : 'Group Life'),
       description: isChinese ? '当前小组的总览、管理、论坛、活动和公告' : 'Overview, management, forum, events, and announcements for the selected group',
-      to: workspaceGroupId ? `/groups/${encodeURIComponent(workspaceGroupId)}?view=overview` : groupSelectionTo,
+      to: workspaceGroupId ? '/groups?view=overview' : groupSelectionTo,
       icon: <UsersRound className="h-5 w-5" />,
       collapsible: Boolean(workspaceGroupId),
       toggleOnHeaderClick: Boolean(workspaceGroupId),

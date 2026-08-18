@@ -8,6 +8,7 @@ import { useAuthStore } from '../../stores/auth'
 import type { AppNotification, NotificationText } from '../../types/notification'
 import { useUiText, type UiTextKey } from '../../i18n/uiText'
 import { confirmUnsavedChangesNavigation } from '../../utils/unsavedChangesGuard'
+import { normalizeRouteGroupId } from '../../utils/groupRouteIds'
 
 const localizeNotificationText = (value: NotificationText | undefined, language: string) => {
   if (!value) {
@@ -64,16 +65,14 @@ const activateInternalTarget = (target: string) => {
 
   const groupManageMatch = target.match(/^\/groups\/([^/]+)\/manage(?:\?(.+))?/)
   if (groupManageMatch) {
-    const groupId = decodeURIComponent(groupManageMatch[1])
-    activeEntityService.setGroup(groupId)
     return target
   }
 
   const groupMatch = target.match(/^\/groups\/([^/?#]+)/)
   if (groupMatch) {
-    const groupId = decodeURIComponent(groupMatch[1])
-    activeEntityService.setGroup(groupId)
-    return `/groups/${encodeURIComponent(groupId)}?view=overview`
+    const groupId = normalizeRouteGroupId(decodeURIComponent(groupMatch[1]))
+    if (!groupId) return target
+    return target
   }
 
   const pageEditMatch = target.match(/^\/pages\/([^/]+)\/edit/)

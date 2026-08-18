@@ -10,6 +10,7 @@ import { eventService } from '../services/eventService'
 import { useAuthStore } from '../stores/auth'
 import type { GroupEventRecord } from '../types/event'
 import { getEventLifecycle, readEventLifecycleData } from '../utils/eventLifecycle'
+import { buildScopedEventDetailPath } from '../utils/eventRoutes'
 
 const EventEnrollmentView = () => {
   const t = useUiText()
@@ -20,6 +21,7 @@ const EventEnrollmentView = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
+  const eventBasePath = buildScopedEventDetailPath(groupId, eventId, Boolean(routeGroupId))
 
   useEffect(() => {
     if (!groupId || !eventId) {
@@ -58,13 +60,13 @@ const EventEnrollmentView = () => {
   }
 
   if (event && (getEventLifecycle(event) !== 'upcoming' || !readEventLifecycleData(event).acceptsEnrollments)) {
-    return <Navigate to={`/groups/${encodeURIComponent(groupId)}/events/${encodeURIComponent(eventId)}`} replace />
+    return <Navigate to={eventBasePath} replace />
   }
 
   return (
     <AppPageShell>
       <div className="mb-5">
-        <Link to={`/groups/${encodeURIComponent(groupId)}/events/${encodeURIComponent(eventId)}`} className="text-sm font-medium text-slate-600 hover:text-slate-950">
+        <Link to={eventBasePath} className="text-sm font-medium text-slate-600 hover:text-slate-950">
           {t('backToGroup')}
         </Link>
       </div>

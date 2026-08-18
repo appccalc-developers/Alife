@@ -18,6 +18,9 @@ const InviteMembersView = () => {
   const { groupId: activeGroupId } = useActiveEntityIds({ groupId: routeGroupId })
   const groupId = activeGroupId || ''
   const navigate = useNavigate()
+  const manageMembersPath = routeGroupId
+    ? `/groups/${encodeURIComponent(routeGroupId)}/manage?section=members`
+    : '/groups/manage?section=members'
   const { group, inviteMemberById } = useGroupScreen(groupId)
 
   const [allMembers, setAllMembers] = useState<MemberSummaryDto[]>([])
@@ -82,14 +85,14 @@ const InviteMembersView = () => {
     const inviteableMemberIds = new Set(allMembers.filter((member) => canInviteWithStatus(member.membershipStatus)).map((member) => member.id))
     const toInvite = [...selected].filter((id) => inviteableMemberIds.has(id))
     if (toInvite.length === 0) {
-      navigate('/groups/manage?section=members', { replace: true })
+      navigate(manageMembersPath, { replace: true })
       return
     }
     setSubmitting(true)
     setSubmitError('')
     try {
       await Promise.all(toInvite.map((id) => inviteMemberById(id)))
-      navigate('/groups/manage?section=members', { replace: true })
+      navigate(manageMembersPath, { replace: true })
     } catch {
       setSubmitError(t('inviteSentFailed'))
     } finally {
@@ -104,7 +107,7 @@ const InviteMembersView = () => {
       <div className="mb-5">
         <button
           type="button"
-          onClick={() => navigate('/groups/manage?section=members', { replace: true })}
+          onClick={() => navigate(manageMembersPath, { replace: true })}
           className="text-sm font-medium text-slate-600 hover:text-slate-950"
         >
           {t('backToGroup')}
@@ -166,7 +169,7 @@ const InviteMembersView = () => {
           </AppActionButton>
           <AppActionButton
             variant="secondary"
-            onClick={() => navigate('/groups/manage?section=members', { replace: true })}
+            onClick={() => navigate(manageMembersPath, { replace: true })}
             disabled={submitting}
           >
             {t('cancel')}

@@ -96,7 +96,8 @@ const buildTreeLayout = (roots: GroupHierarchyNode[], expandedIds: Set<string>) 
   }
 }
 
-const membershipLabel = (membership: GroupMembershipDto | undefined, language: string) => {
+const membershipLabel = (membership: GroupMembershipDto | undefined, language: string, isGuest = false) => {
+  if (isGuest) return language === 'zh' ? '登录后可申请' : 'Sign in to apply'
   if (membership?.status === 'approved') return language === 'zh' ? '已加入' : 'Joined'
   if (membership?.status === 'requested') return language === 'zh' ? '审核中' : 'Pending'
   if (membership?.status === 'invited') return language === 'zh' ? '已邀请' : 'Invited'
@@ -275,10 +276,13 @@ const GroupTreeView = () => {
     const membership = auth.memberships.find((item) => item.groupId === group.id)
     if (membership?.status === 'approved') {
       activeEntityService.setGroup(group.id, { clearPage: true, clearEvent: true })
-    } else if (activeEntityService.getAll().groupId === group.id) {
+      navigate('/groups?view=overview')
+      return
+    }
+    if (activeEntityService.getAll().groupId === group.id) {
       activeEntityService.setGroup('', { clearPage: true, clearEvent: true })
     }
-    navigate(membership?.status === 'approved' || group.accessType === 'public'
+    navigate(group.accessType === 'public'
       ? `/groups/${encodeURIComponent(group.id)}?view=overview`
       : `/groups/${encodeURIComponent(group.id)}/join`)
   }
@@ -310,9 +314,13 @@ const GroupTreeView = () => {
               {language === 'zh' ? '看见小组如何彼此连接' : 'See how every group connects'}
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-white/62">
-              {language === 'zh'
-                ? '从组织树理解父级、同级与下属关系。聚焦节点只用于预览，确认后才会切换当前小组。'
-                : 'Explore parent, peer, and subgroup relationships. Focusing a node only previews it; your current group changes after confirmation.'}
+              {auth.isGuest
+                ? (language === 'zh'
+                    ? '从组织树了解小组之间的关系并浏览公开资料；登录或注册后可申请加入。'
+                    : 'Explore group relationships and public details. Sign in or register to apply.')
+                : (language === 'zh'
+                    ? '从组织树理解父级、同级与下属关系。聚焦节点只用于预览，确认后才会切换当前小组。'
+                    : 'Explore parent, peer, and subgroup relationships. Focusing a node only previews it; your current group changes after confirmation.')}
             </p>
           </div>
           <div className="grid grid-cols-2 divide-x divide-white/10 overflow-hidden rounded-[1.5rem] border border-white/12 bg-white/[0.07] backdrop-blur">
@@ -321,8 +329,13 @@ const GroupTreeView = () => {
               <p className="mt-1 text-2xl font-black tabular-nums">{allNodes.length}</p>
             </div>
             <div className="px-4 py-3.5">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/45">{language === 'zh' ? '当前小组' : 'Current group'}</p>
-              <p className="mt-1 truncate text-sm font-black">{currentGroup ? localizeText(currentGroup.name, language) : (language === 'zh' ? '尚未选择' : 'Not selected')}</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/45">
+                {auth.isGuest ? (language === 'zh' ? '浏览身份' : 'Browsing as') : (language === 'zh' ? '当前小组' : 'Current group')}
+              </p>
+              <p className="mt-1 truncate text-sm font-black">
+                {auth.isGuest ? (language === 'zh' ? '访客' : 'Guest') : currentGroup ? localizeText(currentGroup.name, language) : (language === 'zh' ? '尚未选择' : 'Not selected')}
+              </p>
+              {auth.isGuest ? <p className="mt-1 text-[10px] leading-4 text-white/55">{language === 'zh' ? '登录或注册后可申请加入' : 'Sign in or register to apply'}</p> : null}
             </div>
           </div>
         </div>
@@ -353,7 +366,7 @@ const GroupTreeView = () => {
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
-                {currentGroup ? <button type="button" onClick={focusCurrentGroup} className="inline-flex items-center gap-1.5 rounded-full border border-[#cbd9d3] bg-white px-3.5 py-2 text-xs font-black text-[#31544b] transition hover:-translate-y-0.5 hover:bg-[#edf5f1]"><Crosshair className="h-3.5 w-3.5" />{language === 'zh' ? '定位当前小组' : 'Locate current'}</button> : null}
+                {!auth.isGuest && currentGroup ? <button type="button" onClick={focusCurrentGroup} className="inline-flex items-center gap-1.5 rounded-full border border-[#cbd9d3] bg-white px-3.5 py-2 text-xs font-black text-[#31544b] transition hover:-translate-y-0.5 hover:bg-[#edf5f1]"><Crosshair className="h-3.5 w-3.5" />{language === 'zh' ? '定位当前小组' : 'Locate current'}</button> : null}
                 <button type="button" onClick={collapseAll} className="rounded-full border border-[#d7dfda] bg-white px-3.5 py-2 text-xs font-bold text-[#53665f] transition hover:bg-[#edf5f1]">{language === 'zh' ? '收起分支' : 'Collapse'}</button>
                 <button type="button" onClick={showOverview} className="inline-flex items-center gap-1.5 rounded-full bg-[#173f36] px-3.5 py-2 text-xs font-black text-white shadow-[0_8px_20px_rgba(23,63,54,.18)] transition hover:-translate-y-0.5 hover:bg-[#102f29]"><Maximize2 className="h-3.5 w-3.5" />{language === 'zh' ? '全局总览' : 'Overview'}</button>
               </div>
@@ -406,7 +419,7 @@ const GroupTreeView = () => {
                     const churchRoot = node.group.isChurch
                     const membership = auth.memberships.find((item) => item.groupId === node.group.id)
                     const focused = node.group.id === focusedGroupId
-                    const active = node.group.id === activeGroupId
+                    const active = !auth.isGuest && node.group.id === activeGroupId
                     const expanded = expandedIds.has(node.group.id)
                     const inFocusedPath = focusedPathIds.has(node.group.id)
                     return (
@@ -434,7 +447,11 @@ const GroupTreeView = () => {
                             <span className={['mt-2 flex items-center gap-2 truncate text-sm font-black', churchRoot ? 'text-white' : 'text-[#18332d]'].join(' ')}>{focused && !churchRoot ? <Eye className="h-3.5 w-3.5 shrink-0 text-[#de6c4d]" aria-hidden="true" /> : null}{churchRoot ? <Church className="h-4 w-4 shrink-0 text-[#ffc79f]" aria-hidden="true" /> : null}<span className="truncate">{localizeText(node.group.name, language)}</span></span>
                             <span className={['mt-1.5 flex items-center gap-1.5 text-[11px] font-bold', churchRoot ? 'text-white/62' : 'text-[#687871]'].join(' ')}>
                               {churchRoot ? <Workflow className="h-3.5 w-3.5 text-emerald-200" aria-hidden="true" /> : <UsersRound className="h-3.5 w-3.5 text-[#176b5a]" aria-hidden="true" />}
-                              {churchRoot ? (language === 'zh' ? `${allNodes.length} 个小组 · 不参与切换` : `${allNodes.length} groups · never switched`) : membershipLabel(membership, language)}
+                              {churchRoot
+                                ? auth.isGuest
+                                  ? (language === 'zh' ? `${allNodes.length} 个小组` : `${allNodes.length} groups`)
+                                  : (language === 'zh' ? `${allNodes.length} 个小组 · 不参与切换` : `${allNodes.length} groups · never switched`)
+                                : membershipLabel(membership, language, auth.isGuest)}
                               {!churchRoot && node.children.length ? <span className="text-[#a0aaa5]">·</span> : null}
                               {!churchRoot && node.children.length ? <span>{language === 'zh' ? `${node.children.length} 个下属` : `${node.children.length} children`}</span> : null}
                             </span>
@@ -466,8 +483,8 @@ const GroupTreeView = () => {
               <motion.aside key={focusedGroup.id} initial={reduceMotion ? false : { opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -8 }} transition={{ duration: reduceMotion ? 0 : 0.22 }} className="overflow-hidden rounded-[2rem] border border-[#2f4b42]/10 bg-white shadow-[0_22px_60px_rgba(24,51,45,0.10)] lg:sticky lg:top-5">
                 <div className="border-b border-[#e3e7e4] bg-gradient-to-br from-[#173f36] to-[#245b4f] p-6 text-white">
                   <div className="flex flex-wrap items-center gap-2">
-                    <AppBadge variant={membershipVariant(focusedMembership)}>{membershipLabel(focusedMembership, language)}</AppBadge>
-                    {activeGroupId === focusedGroup.id ? <span className="rounded-full bg-white/12 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-white ring-1 ring-white/15">{language === 'zh' ? '当前小组' : 'Current'}</span> : null}
+                    <AppBadge variant={auth.isGuest ? 'neutral' : membershipVariant(focusedMembership)}>{membershipLabel(focusedMembership, language, auth.isGuest)}</AppBadge>
+                    {!auth.isGuest && activeGroupId === focusedGroup.id ? <span className="rounded-full bg-white/12 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-white ring-1 ring-white/15">{language === 'zh' ? '当前小组' : 'Current'}</span> : null}
                   </div>
                   <h2 className="mt-4 text-2xl font-black tracking-[-0.035em]">{localizeText(focusedGroup.name, language)}</h2>
                   <p className="mt-2 text-sm leading-6 text-white/62">{localizeText(focusedGroup.description, language) || (language === 'zh' ? '进入此小组查看小组生活、活动和公告。' : 'Enter this group to see Group Life, events, and announcements.')}</p>
@@ -499,14 +516,18 @@ const GroupTreeView = () => {
                   <div className="mt-6 border-t border-[#e3e7e4] pt-5">
                     <p className="text-xs leading-5 text-[#75837e]">
                       {focusedGroup.isChurch
-                        ? (language === 'zh' ? '根节点代表教会生活，不属于小组切换范围。' : 'The root represents Church Life and is not a selectable group.')
-                        : (language === 'zh' ? '预览不会改变当前小组，只有确认进入后才会切换。' : 'Previewing does not change your current group. Switching occurs only after confirmation.')}
+                        ? auth.isGuest
+                          ? (language === 'zh' ? '根节点代表教会生活，可直接进入浏览。' : 'The root represents Church Life and can be opened directly.')
+                          : (language === 'zh' ? '根节点代表教会生活，不属于小组切换范围。' : 'The root represents Church Life and is not a selectable group.')
+                        : auth.isGuest
+                          ? (language === 'zh' ? '您正以访客身份浏览；登录或注册后可申请加入这个小组。' : "You're browsing as a guest. Sign in or register to apply to this group.")
+                          : (language === 'zh' ? '预览不会改变当前小组，只有确认进入后才会切换。' : 'Previewing does not change your current group. Switching occurs only after confirmation.')}
                     </p>
                     <button type="button" onClick={() => openGroup(focusedGroup)} className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-[#176b5a] px-5 py-3 text-sm font-black text-white shadow-[0_12px_24px_rgba(23,107,90,0.20)] transition hover:-translate-y-0.5 hover:bg-[#125b4d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/55">
                       {focusedGroup.isChurch
                         ? (language === 'zh' ? '进入教会生活' : 'Open Church Life')
                         : auth.isGuest
-                          ? (language === 'zh' ? '申请加入教会' : 'Apply to join the church')
+                          ? (language === 'zh' ? '登录或注册' : 'Sign in or register')
                         : activeGroupId === focusedGroup.id
                         ? (language === 'zh' ? '进入当前小组' : 'Open current group')
                         : focusedMembership?.status === 'approved'
