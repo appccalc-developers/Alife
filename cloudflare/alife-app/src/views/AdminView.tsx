@@ -659,7 +659,7 @@ const AdminView = () => {
 
   return (
     <section className="mx-auto w-full max-w-7xl space-y-5 px-2 py-3 sm:px-4">
-      {section !== 'overview' && section !== 'roles' ? <header className="overflow-hidden rounded-3xl border border-emerald-100 bg-white shadow-sm">
+      {section === 'messages' ? <header className="overflow-hidden rounded-3xl border border-emerald-100 bg-white shadow-sm">
         <div className="bg-gradient-to-r from-emerald-50 via-white to-amber-50 px-5 py-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
