@@ -1,100 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowRight, Bell, Check, Loader2, X } from 'lucide-react'
-import { activeEntityService } from '../../services/activeEntityService'
-import { notificationService } from '../../services/notificationService'
 import { useAuthStore } from '../../stores/auth'
-import type { AppNotification, NotificationText } from '../../types/notification'
+import type { AppNotification } from '../../types/notification'
 import { useUiText, type UiTextKey } from '../../i18n/uiText'
 import { confirmUnsavedChangesNavigation } from '../../utils/unsavedChangesGuard'
-import { normalizeRouteGroupId } from '../../utils/groupRouteIds'
-
-const localizeNotificationText = (value: NotificationText | undefined, language: string) => {
-  if (!value) {
-    return ''
-  }
-
-  if (typeof value === 'string') {
-    return value
-  }
-
-  return language === 'zh'
-    ? value.zh || value.en || Object.values(value)[0] || ''
-    : value.en || value.zh || Object.values(value)[0] || ''
-}
-
-const formatNotificationDate = (value: string | undefined, language: string) => {
-  if (!value) {
-    return ''
-  }
-
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) {
-    return ''
-  }
-
-  return new Intl.DateTimeFormat(language === 'zh' ? 'zh-CN' : 'en-NZ', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date)
-}
-
-const normalizeActionUrl = (actionUrl: string) => {
-  const trimmed = actionUrl.trim()
-  if (!trimmed) {
-    return ''
-  }
-
-  if (/^https?:\/\//i.test(trimmed)) {
-    return trimmed
-  }
-
-  return trimmed.startsWith('/') ? trimmed : `/${trimmed.replace(/^\/+/, '')}`
-}
-
-const activateInternalTarget = (target: string) => {
-  const eventMatch = target.match(/^\/groups\/([^/]+)\/events\/([^/?#]+)/)
-  if (eventMatch) {
-    const eventId = decodeURIComponent(eventMatch[2])
-    activeEntityService.setEvent(eventId)
-    return target
-  }
-
-  const groupManageMatch = target.match(/^\/groups\/([^/]+)\/manage(?:\?(.+))?/)
-  if (groupManageMatch) {
-    return target
-  }
-
-  const groupMatch = target.match(/^\/groups\/([^/?#]+)/)
-  if (groupMatch) {
-    const groupId = normalizeRouteGroupId(decodeURIComponent(groupMatch[1]))
-    if (!groupId) return target
-    return target
-  }
-
-  const pageEditMatch = target.match(/^\/pages\/([^/]+)\/edit/)
-  if (pageEditMatch) {
-    activeEntityService.setPage(decodeURIComponent(pageEditMatch[1]))
-    return '/pages/edit'
-  }
-
-  const pageMatch = target.match(/^\/pages\/([^/?#]+)/)
-  if (pageMatch) {
-    activeEntityService.setPage(decodeURIComponent(pageMatch[1]))
-    return '/pages'
-  }
-
-  const sermonMatch = target.match(/^\/sermons\/([^/?#]+)/)
-  if (sermonMatch && sermonMatch[1] !== 'watch') {
-    activeEntityService.setSermon(decodeURIComponent(sermonMatch[1]))
-    return '/sermons/watch'
-  }
-
-  return target
-}
+import { markCurrentTaskRead, useCurrentTasks } from '../../hooks/useCurrentTasks'
+import { formatNotificationDate, localizeNotificationText, normalizeNotificationActionUrl } from '../../utils/currentTasks'
+import { activateNotificationTarget } from '../../utils/notificationRoutes'
 
 const getNotificationActionLabelKey = (notification: AppNotification): UiTextKey => {
   switch (notification.actionType) {
@@ -113,45 +27,12 @@ const NotificationToastHost = () => {
   const auth = useAuthStore()
   const t = useUiText()
   const navigate = useNavigate()
-  const [notifications, setNotifications] = useState<AppNotification[]>([])
+  const currentTasksQuery = useCurrentTasks()
+  const notifications = currentTasksQuery.data ?? []
   const [open, setOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
   const [pendingId, setPendingId] = useState('')
   const [error, setError] = useState('')
-
-  useEffect(() => {
-    if (!auth.initialized || auth.loading || auth.isGuest) {
-      setNotifications([])
-      setOpen(false)
-      return
-    }
-
-    let cancelled = false
-    setLoading(true)
-    setError('')
-
-    notificationService
-      .getOpenNotifications()
-      .then((items) => {
-        if (!cancelled) {
-          setNotifications(items)
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setNotifications([])
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoading(false)
-        }
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [auth.initialized, auth.isGuest, auth.loading, auth.me?.id])
+  const loading = currentTasksQuery.isLoading
 
   if (!auth.initialized || auth.loading || auth.isGuest) {
     return null
@@ -162,20 +43,20 @@ const NotificationToastHost = () => {
       return
     }
 
-    const target = notification.actionUrl ? normalizeActionUrl(notification.actionUrl) : ''
+    const target = notification.actionUrl ? normalizeNotificationActionUrl(notification.actionUrl) : ''
     const externalTarget = /^https?:\/\//i.test(target)
-    const internalTarget = target && !externalTarget ? activateInternalTarget(target) : ''
+    const internalTarget = target && !externalTarget ? activateNotificationTarget(target) : ''
     const continueOpening = async () => {
       setPendingId(notification.id)
       setError('')
 
       try {
+        if (notification.completionMode === 'read' && auth.me?.id) {
+          await markCurrentTaskRead(auth.me.id, notification.id)
+        }
         if (internalTarget) {
           navigate(internalTarget)
         }
-
-        await notificationService.openNotification(notification.id)
-        setNotifications((current) => current.filter((item) => item.id !== notification.id))
         setOpen(false)
 
         if (!target) {

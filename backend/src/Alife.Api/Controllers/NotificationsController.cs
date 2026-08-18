@@ -5,6 +5,7 @@ using Alife.Application.Abstractions.Identity;
 using Alife.Application.Notifications.Commands.CreateNotification;
 using Alife.Application.Notifications.Commands.MarkNotificationRead;
 using Alife.Application.Notifications.Commands.ReplyNotification;
+using Alife.Application.Notifications.Queries.ListCurrentNotificationTasks;
 using Alife.Application.Notifications.Queries.ListNotifications;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -29,6 +30,27 @@ public class NotificationsController(
         }
 
         var result = await mediator.Send(new ListNotificationsQuery(currentMemberId.Value), cancellationToken);
+        if (!result.IsSuccess)
+        {
+            return this.ToActionResult(result);
+        }
+
+        this.ApplyPrivateNoCacheHeaders();
+        return this.ToActionResult(result);
+    }
+
+    [HttpGet("current")]
+    public async Task<IActionResult> ListCurrent(CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null)
+        {
+            return Unauthorized();
+        }
+
+        var result = await mediator.Send(
+            new ListCurrentNotificationTasksQuery(currentMemberId.Value),
+            cancellationToken);
         if (!result.IsSuccess)
         {
             return this.ToActionResult(result);

@@ -4,7 +4,7 @@ export type ShellNavBadge = {
   text: string
   compactText: string
   accessibleLabel: string
-  tone: 'attention' | 'neutral'
+  tone: 'attention' | 'neutral' | 'urgent' | 'general'
 }
 
 export type ShellNavItem = {
@@ -21,6 +21,7 @@ export type ShellNavItem = {
   actionOnly?: boolean
   onClick?: () => void
   badge?: ShellNavBadge
+  badges?: ShellNavBadge[]
   children?: ShellNavItem[]
 }
 

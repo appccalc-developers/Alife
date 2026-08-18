@@ -43,6 +43,7 @@ public class CreateVisitContactRequestCommandHandlerTests
         Assert.Equal(receiverId, notification.RecipientMemberId);
         Assert.Equal("visitor.contact.requested", notification.ActionType);
         Assert.Contains(request.Id.ToString(), notification.ActionDataJson);
+        Assert.Contains("/admin/visit-requests", notification.ActionDataJson);
     }
 
     [Fact]

@@ -107,7 +107,8 @@ public sealed class CreateVisitContactRequestCommandHandler(IAlifeDbContext dbCo
                     phone,
                     preferredLanguage,
                     message,
-                    sourcePage
+                    sourcePage,
+                    actionUrl = "/admin/visit-requests"
                 }),
                 CreatedUtc = now,
                 UpdatedUtc = now

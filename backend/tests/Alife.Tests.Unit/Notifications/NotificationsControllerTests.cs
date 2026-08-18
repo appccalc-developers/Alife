@@ -4,6 +4,7 @@ using Alife.Application.Abstractions.Identity;
 using Alife.Application.Common.Models;
 using Alife.Application.Notifications.Dtos;
 using Alife.Application.Notifications.Commands.MarkNotificationRead;
+using Alife.Application.Notifications.Queries.ListCurrentNotificationTasks;
 using Alife.Application.Notifications.Queries.ListNotifications;
 using MediatR;
 using Microsoft.AspNetCore.Http;
@@ -34,6 +35,41 @@ public class NotificationsControllerTests
         var notifications = Assert.IsAssignableFrom<IEnumerable<NotificationMessageDto>>(ok.Value).ToList();
         Assert.Single(notifications);
         Assert.Equal(memberId, notifications[0].RecipientMemberId);
+    }
+
+    [Fact]
+    public async Task ListCurrent_WhenAuthenticated_ReturnsPrivateCurrentTasks()
+    {
+        var memberId = Guid.NewGuid();
+        var mediator = Substitute.For<IMediator>();
+        var currentMemberAccessor = Substitute.For<ICurrentMemberAccessor>();
+        currentMemberAccessor.GetCurrentMemberId().Returns(memberId);
+        mediator
+            .Send(Arg.Any<ListCurrentNotificationTasksQuery>(), Arg.Any<CancellationToken>())
+            .Returns(AppResult<IReadOnlyList<CurrentNotificationTaskDto>>.Success([
+                CreateCurrentTask(memberId)
+            ]));
+        var controller = CreateController(mediator, currentMemberAccessor);
+
+        var result = await controller.ListCurrent(CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var tasks = Assert.IsAssignableFrom<IEnumerable<CurrentNotificationTaskDto>>(ok.Value).ToList();
+        Assert.Single(tasks);
+        Assert.Equal(memberId, tasks[0].RecipientMemberId);
+        Assert.Equal("private, no-cache", controller.Response.Headers.CacheControl);
+        Assert.Contains("Cookie", controller.Response.Headers.Vary.ToString());
+        Assert.Contains("Authorization", controller.Response.Headers.Vary.ToString());
+    }
+
+    [Fact]
+    public async Task ListCurrent_WhenUnauthenticated_ReturnsUnauthorized()
+    {
+        var controller = CreateController(Substitute.For<IMediator>(), Substitute.For<ICurrentMemberAccessor>());
+
+        var result = await controller.ListCurrent(CancellationToken.None);
+
+        Assert.IsType<UnauthorizedResult>(result);
     }
 
     [Fact]
@@ -98,6 +134,26 @@ public class NotificationsControllerTests
             null,
             DateTime.UtcNow,
             DateTime.UtcNow);
+
+    private static CurrentNotificationTaskDto CreateCurrentTask(Guid memberId)
+        => new(
+            Guid.NewGuid(),
+            memberId,
+            Guid.NewGuid(),
+            null,
+            null,
+            DateTime.UtcNow,
+            "personal.followup",
+            "{}",
+            null,
+            null,
+            null,
+            DateTime.UtcNow,
+            DateTime.UtcNow,
+            null,
+            "general",
+            "read",
+            null);
 
     private static NotificationsController CreateController(
         IMediator mediator,
