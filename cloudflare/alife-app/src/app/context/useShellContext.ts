@@ -7,7 +7,6 @@ import { activeEntityService } from '../../services/activeEntityService'
 import { groupService } from '../../services/groupService'
 import { useAuthStore } from '../../stores/auth'
 import { useCurrentGroupStore } from '../../stores/currentGroup'
-import { useLeaderUiPreferences } from '../../stores/leaderUiPreferences'
 import type { GroupSummaryDto } from '../../types'
 import { normalizeGroup } from '../../utils/apiEnums'
 import { normalizeRouteGroupId } from '../../utils/groupRouteIds'
@@ -18,7 +17,6 @@ import type { GroupEventRecord } from '../../types/event'
 export const useShellContext = () => {
   const auth = useAuthStore()
   const { CurrentGroup } = useCurrentGroupStore()
-  const { preferences } = useLeaderUiPreferences(auth.me?.id)
   const location = useLocation()
   const navigate = useNavigate()
   const [currentSubgroups, setCurrentSubgroups] = useState<GroupSummaryDto[]>([])
@@ -122,7 +120,7 @@ export const useShellContext = () => {
   const membership = contextualGroupId ? auth.memberships.find((item) => item.groupId === contextualGroupId) : null
   const isPlatformAdmin = auth.isAdmin
   const canManageCurrentGroup = isPlatformAdmin || (membership?.status === 'approved' && (membership.role === 'leader' || membership.role === 'coLeader'))
-  const canOpenCurrentGroupManagement = canManageCurrentGroup && preferences.exerciseGroupManagement
+  const canOpenCurrentGroupManagement = canManageCurrentGroup
   const managementGroup = CurrentGroup?.id === contextualGroupId ? CurrentGroup : contextualGroup
   const contextualEventRouteId = groupEventDetailMatch?.[2] ||
     groupEventEditMatch?.[2] ||
