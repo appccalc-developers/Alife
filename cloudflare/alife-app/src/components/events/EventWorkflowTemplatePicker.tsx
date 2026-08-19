@@ -28,7 +28,7 @@ const EventWorkflowTemplatePicker = ({
   onCreateCustom,
 }: Props) => {
   const isZh = language === 'zh'
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(true)
   const [showCustomEditor, setShowCustomEditor] = useState(false)
   const selectedTemplate = templates.find((template) => template.code === selectedCode) ?? null
   const selectedName = selectedTemplate
@@ -42,7 +42,6 @@ const EventWorkflowTemplatePicker = ({
 
   const selectTemplate = (templateCode: string | null) => {
     onChange(templateCode)
-    setExpanded(false)
   }
 
   return (
@@ -128,7 +127,6 @@ const EventWorkflowTemplatePicker = ({
                 const template = await onCreateCustom(input)
                 onChange(template.code)
                 setShowCustomEditor(false)
-                setExpanded(false)
                 return template
               }}
             />
