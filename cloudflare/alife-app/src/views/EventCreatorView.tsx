@@ -1949,17 +1949,17 @@ const EventCreatorView = () => {
             >
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-4 [&::-webkit-details-marker]:hidden">
                 <div>
-                  <h3 className="font-black text-slate-950">{language === 'zh' ? '联系人与海报（可选）' : 'Contacts and poster (optional)'}</h3>
+                  <h3 className="font-black text-slate-950">{language === 'zh' ? '活动联系人（可选）' : 'Event contacts (optional)'}</h3>
                   <p className="mt-1 text-sm text-slate-500">
                     {language === 'zh'
-                      ? '不影响进入下一步。需要展示联系人、上传旧海报或生成 AI 海报时再展开。'
-                      : 'This does not block the next step. Expand it only when you need contacts, an existing poster, or an AI poster.'}
+                      ? '选择需要显示在活动详情中的联系人；这不会影响进入下一步。'
+                      : 'Choose contacts to display on the event detail page. This does not block the next step.'}
                   </p>
-                  {(eventDraft.contactProfileIds?.length || eventDraft.posterImageUrl || posterPreviewUrl) ? (
+                  {eventDraft.contactProfileIds?.length ? (
                     <p className="mt-2 text-xs font-bold text-emerald-700">
                       {language === 'zh'
-                        ? `已选择 ${eventDraft.contactProfileIds?.length ?? 0} 位联系人${eventDraft.posterImageUrl || posterPreviewUrl ? ' · 已有海报' : ''}`
-                        : `${eventDraft.contactProfileIds?.length ?? 0} contact(s) selected${eventDraft.posterImageUrl || posterPreviewUrl ? ' · poster added' : ''}`}
+                        ? `已选择 ${eventDraft.contactProfileIds.length} 位联系人`
+                        : `${eventDraft.contactProfileIds.length} contact(s) selected`}
                     </p>
                   ) : null}
                 </div>
@@ -1992,12 +1992,15 @@ const EventCreatorView = () => {
                 </div>
               ) : <p className="mt-3 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-500">{language === 'zh' ? '当前小组尚无可选择的联系人资料。' : 'This group has no available contact profiles yet.'}</p>}
                 </div>
+              </div>
+            </details>
 
-                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+            <div id="event-poster-workspace" className="rounded-xl border border-violet-200 bg-violet-50/40 p-4 shadow-sm">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <h3 className="font-black text-slate-950">{language === 'zh' ? '海报与 AI 读取' : 'Poster and AI reading'}</h3>
-                  <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">{language === 'zh' ? '现用海报会保存为活动图片并自动交给 AI 读取。旧海报或 PDF 可仅供 AI 参考，不会成为当前活动海报。' : 'A current poster is saved as the event image and read by AI. An old poster or PDF can be AI reference only and will not become the current poster.'}</p>
+                  <p className="text-xs font-black uppercase tracking-[0.14em] text-violet-700">{language === 'zh' ? '独立海报工作区' : 'Independent poster workspace'}</p>
+                  <h3 className="mt-1 font-black text-slate-950">{language === 'zh' ? '活动海报与 AI 生成' : 'Event poster and AI generation'}</h3>
+                  <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">{language === 'zh' ? '选好筹备流程后，你仍可在这里上传现有海报、读取旧海报，或根据活动资料生成新的 AI 海报草案。' : 'After choosing a preparation workflow, you can still upload a current poster, read an old poster, or generate a new AI poster draft from the event details.'}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <input ref={posterInputRef} type="file" accept="image/*" className="hidden" onChange={(event) => { void handlePosterChange(event) }} />
@@ -2125,8 +2128,6 @@ const EventCreatorView = () => {
                 ) : null}
               </div>
             </div>
-              </div>
-            </details>
 
             <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-sky-200 bg-sky-50 px-4 py-4">
               <div className="max-w-2xl">
