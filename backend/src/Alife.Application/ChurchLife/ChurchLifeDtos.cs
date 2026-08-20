@@ -57,4 +57,8 @@ public interface IChurchLifeService
         int page,
         int pageSize,
         CancellationToken cancellationToken);
+    Task<Common.Models.AppResult<ForumPostDetailDto>> GetForumPostAsync(
+        Guid memberId,
+        Guid postId,
+        CancellationToken cancellationToken);
 }

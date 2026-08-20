@@ -55,10 +55,18 @@ public sealed class ChurchLifeController(
                 token),
             cancellationToken);
 
+    [HttpGet("forum/posts/{postId:guid}")]
+    public async Task<IActionResult> ForumPost(Guid postId, CancellationToken cancellationToken)
+        => await ExecuteAsync(
+            (memberId, token) => churchLife.GetForumPostAsync(memberId, postId, token),
+            cancellationToken);
+
     private async Task<IActionResult> ExecuteAsync<T>(
         Func<Guid, CancellationToken, Task<Alife.Application.Common.Models.AppResult<T>>> action,
         CancellationToken cancellationToken)
     {
+        this.ApplyNoStoreHeaders();
+
         var memberId = currentMemberAccessor.GetCurrentMemberId();
         if (!memberId.HasValue)
         {
@@ -66,7 +74,6 @@ public sealed class ChurchLifeController(
         }
 
         var result = await action(memberId.Value, cancellationToken);
-        this.ApplyPrivateNoCacheHeaders();
         return this.ToActionResult(result);
     }
 }

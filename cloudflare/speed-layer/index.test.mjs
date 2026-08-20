@@ -1158,13 +1158,14 @@ test('unauthenticated GET /api/me bypasses edge cache', async () => {
   assert.equal(apiCacheStore.size, 0)
 })
 
-test('Church Life aggregate responses are never reused across viewers', async () => {
+test('Church Life responses are never reused across viewers', async () => {
   const paths = [
     '/api/church-life/pages?ownerGroupId=group-1',
     '/api/church-life/events',
     '/api/church-life/announcements',
     '/api/church-life/albums',
     '/api/church-life/forum/posts?page=1&pageSize=20',
+    '/api/church-life/forum/posts/11111111-1111-1111-1111-111111111111',
   ]
 
   for (const path of paths) {

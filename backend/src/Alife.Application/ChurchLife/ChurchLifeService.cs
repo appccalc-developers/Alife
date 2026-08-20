@@ -6,9 +6,11 @@ using Alife.Application.Common.Models;
 using Alife.Application.Events.Dtos;
 using Alife.Application.Events.Services;
 using Alife.Application.Forum.Dtos;
+using Alife.Application.Forum.Queries.GetForumPost;
 using Alife.Application.Pages.Dtos;
 using Alife.Application.Pages.Services;
 using Alife.Domain.Enums;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace Alife.Application.ChurchLife;
@@ -18,7 +20,8 @@ public sealed class ChurchLifeService(
     IChurchLifeScopeService scopeService,
     IPageReadService pageReadService,
     IEventReadService eventReadService,
-    IAlbumService albumService) : IChurchLifeService
+    IAlbumService albumService,
+    ISender sender) : IChurchLifeService
 {
     public async Task<AppResult<ChurchLifeListDto<PageDto>>> ListPagesAsync(
         Guid memberId,
@@ -338,6 +341,31 @@ public sealed class ChurchLifeService(
 
         return AppResult<ChurchLifePagedDto<ForumPostSummaryDto>>.Success(
             new ChurchLifePagedDto<ForumPostSummaryDto>(posts, groups, page, pageSize, totalCount));
+    }
+
+    public async Task<AppResult<ForumPostDetailDto>> GetForumPostAsync(
+        Guid memberId,
+        Guid postId,
+        CancellationToken cancellationToken)
+    {
+        var scopeResult = await scopeService.GetScopeAsync(memberId, cancellationToken);
+        if (!scopeResult.IsSuccess)
+        {
+            return CopyFailure<ForumPostDetailDto>(scopeResult);
+        }
+
+        var ownerGroupId = await db.ForumPosts
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(x => x.Id == postId && x.DeletedUtc == null)
+            .Select(x => x.GroupId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (!ownerGroupId.HasValue || scopeResult.Value!.Groups.All(x => x.Id != ownerGroupId.Value))
+        {
+            return AppResult<ForumPostDetailDto>.NotFound("Forum post was not found in Church Life.");
+        }
+
+        return await sender.Send(new GetForumPostQuery(postId, memberId), cancellationToken);
     }
 
     private static bool CanViewEvent(GroupEventSummaryDto groupEvent, bool isOwnerGroupMember, bool isChurchMember)

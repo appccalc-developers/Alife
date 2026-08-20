@@ -155,9 +155,10 @@ const SermonVideoView = () => {
   const videoId = sermonId ? sermonVideoId || requestedVideoId : requestedVideoId || sermonVideoId
   const embedUrl = toYouTubeEmbedUrl(videoId)
   const pageTitle = sermon?.title || t('watchSermon')
+  const forumViewerId = me?.id || 'guest'
 
   const sermonDiscussionQuery = useQuery({
-    queryKey: sermon?.id ? forumQueryKeys.sermonPost(sermon.id) : ['forum', 'sermon-post', 'missing'],
+    queryKey: sermon?.id ? forumQueryKeys.sermonPost(sermon.id, forumViewerId) : ['forum', 'sermon-post', 'missing', forumViewerId],
     queryFn: () => forumService.getSermonPost(sermon?.id || ''),
     enabled: Boolean(sermon?.id),
     staleTime: 30_000,
@@ -184,7 +185,7 @@ const SermonVideoView = () => {
       setCommentMedia([])
       setCommentMessage('')
       setReplyTarget(null)
-      queryClient.setQueryData(forumQueryKeys.sermonPost(post.sermonId || sermon!.id), post)
+      queryClient.setQueryData(forumQueryKeys.sermonPost(post.sermonId || sermon!.id, forumViewerId), post)
       await queryClient.invalidateQueries({ queryKey: ['forum', 'posts'] })
     },
     onError: (error) => setCommentMessage(normalizeApiError(error).message),

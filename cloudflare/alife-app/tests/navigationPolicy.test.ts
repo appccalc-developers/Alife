@@ -143,8 +143,11 @@ test('navigation section matching tolerates Church Life owner filters', () => {
   assert.equal(matchesRequiredSearch('?ownerGroupId=ministry', ''), false)
 })
 
-test('Church forum detail accepts descendant-owned posts without changing group route scope', () => {
-  assert.equal(belongsToForumRouteScope(true, 'church', 'descendant-ministry'), true)
-  assert.equal(belongsToForumRouteScope(false, 'ministry', 'descendant-ministry'), false)
-  assert.equal(belongsToForumRouteScope(false, 'ministry', 'ministry'), true)
+test('site and group forum details enforce their exact ownership scope', () => {
+  assert.equal(belongsToForumRouteScope('', null), true)
+  assert.equal(belongsToForumRouteScope('', undefined), true)
+  assert.equal(belongsToForumRouteScope('', 'ministry'), false)
+  assert.equal(belongsToForumRouteScope('ministry', 'descendant-ministry'), false)
+  assert.equal(belongsToForumRouteScope('ministry', 'ministry'), true)
+  assert.equal(belongsToForumRouteScope('ministry', null), false)
 })

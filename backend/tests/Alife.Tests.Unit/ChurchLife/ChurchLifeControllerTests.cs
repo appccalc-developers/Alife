@@ -13,7 +13,7 @@ namespace Alife.Tests.Unit.ChurchLife;
 public sealed class ChurchLifeControllerTests
 {
     [Fact]
-    public async Task Pages_RequiresAuthorizationAndReturnsViewerScopedCacheHeaders()
+    public async Task Pages_RequiresAuthorizationAndReturnsNoStoreHeaders()
     {
         var memberId = Guid.NewGuid();
         var churchLife = Substitute.For<IChurchLifeService>();
@@ -30,20 +30,24 @@ public sealed class ChurchLifeControllerTests
 
         Assert.IsType<OkObjectResult>(result);
         Assert.NotNull(typeof(ChurchLifeController).GetCustomAttributes(typeof(AuthorizeAttribute), true).SingleOrDefault());
-        Assert.Equal("private, no-cache", controller.Response.Headers.CacheControl.ToString());
-        Assert.Contains("Cookie", controller.Response.Headers.Vary.ToString());
-        Assert.Contains("Authorization", controller.Response.Headers.Vary.ToString());
+        Assert.Equal("no-store", controller.Response.Headers.CacheControl.ToString());
+        Assert.Equal("no-cache", controller.Response.Headers.Pragma.ToString());
     }
 
     [Fact]
     public async Task Pages_WithoutPrincipalReturnsUnauthorizedWithoutCallingService()
     {
         var churchLife = Substitute.For<IChurchLifeService>();
-        var controller = new ChurchLifeController(churchLife, Substitute.For<ICurrentMemberAccessor>());
+        var controller = new ChurchLifeController(churchLife, Substitute.For<ICurrentMemberAccessor>())
+        {
+            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() },
+        };
 
         var result = await controller.Pages(null, CancellationToken.None);
 
         Assert.IsType<UnauthorizedResult>(result);
+        Assert.Equal("no-store", controller.Response.Headers.CacheControl.ToString());
+        Assert.Equal("no-cache", controller.Response.Headers.Pragma.ToString());
         await churchLife.DidNotReceiveWithAnyArgs().ListPagesAsync(default, default, default);
     }
 }

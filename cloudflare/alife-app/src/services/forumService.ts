@@ -9,13 +9,10 @@ import type {
 } from '../types/forum'
 import { http, normalizeApiError } from './http'
 import { invalidateChurchLifeQueries } from './churchLifeService'
+import { invalidateForumPostQueries } from './forumCache'
 
-export const forumQueryKeys = {
-  categories: ['forum', 'categories'] as const,
-  posts: (categoryId?: string, groupId?: string) => ['forum', 'posts', groupId || 'site', categoryId || 'all'] as const,
-  post: (postId: string) => ['forum', 'post', postId] as const,
-  sermonPost: (sermonId: string) => ['forum', 'sermon-post', sermonId] as const,
-}
+export { forumQueryKeys } from './contentQueryKeys'
+export { invalidateForumPostQueries } from './forumCache'
 
 export const forumService = {
   listCategories: async (): Promise<ForumCategoryDto[]> => {
@@ -48,7 +45,7 @@ export const forumService = {
 
   createComment: async (postId: string, payload: ForumCommentRequest): Promise<ForumCommentDto> => {
     const { data } = await http.post<ForumCommentDto>(`/api/forum/posts/${postId}/comments`, payload)
-    await invalidateChurchLifeQueries()
+    await invalidateForumPostQueries(postId)
     return data
   },
 
@@ -67,6 +64,7 @@ export const forumService = {
 
   createSermonComment: async (sermonId: string, payload: ForumCommentRequest): Promise<ForumPostDetailDto> => {
     const { data } = await http.post<ForumPostDetailDto>(`/api/sermons/${sermonId}/comments`, payload)
+    await invalidateForumPostQueries(data.id)
     return data
   },
 }

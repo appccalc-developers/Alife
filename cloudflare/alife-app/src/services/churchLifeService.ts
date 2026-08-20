@@ -1,10 +1,11 @@
 import type { AlbumSummary } from './albumService'
 import type { AnnouncementDto } from '../types/announcement'
 import type { GroupEventRecord } from '../types/event'
-import type { ForumPostSummaryDto } from '../types/forum'
+import type { ForumPostDetailDto, ForumPostSummaryDto } from '../types/forum'
 import type { LocalizedText, PageSummaryDto } from '../types'
 import { normalizePageSummary } from '../utils/apiEnums'
 import { queryClient } from '../db/queryClient'
+import { churchLifeQueryKeys } from './contentQueryKeys'
 import { http } from './http'
 
 export type ChurchLifeGroup = {
@@ -27,13 +28,7 @@ export type ChurchLifePagedList<T> = ChurchLifeList<T> & {
   totalCount: number
 }
 
-export const churchLifeQueryKeys = {
-  all: ['church-life'] as const,
-  content: (contentType: string, viewerId: string, ownerGroupId?: string) =>
-    ['church-life', viewerId, contentType, ownerGroupId || 'all'] as const,
-  forum: (viewerId: string, ownerGroupId: string | undefined, categoryId: string | undefined, page: number, pageSize: number) =>
-    ['church-life', viewerId, 'forum', ownerGroupId || 'all', categoryId || 'all', page, pageSize] as const,
-}
+export { churchLifeQueryKeys } from './contentQueryKeys'
 
 const list = async <T>(path: string, ownerGroupId?: string): Promise<ChurchLifeList<T>> => {
   const { data } = await http.get<ChurchLifeList<T>>(path, {
@@ -75,6 +70,13 @@ export const churchLifeService = {
         pageSize: params.pageSize ?? 20,
       },
     })
+    return data
+  },
+
+  async getForumPost(postId: string): Promise<ForumPostDetailDto> {
+    const { data } = await http.get<ForumPostDetailDto>(
+      `/api/church-life/forum/posts/${encodeURIComponent(postId)}`,
+    )
     return data
   },
 }

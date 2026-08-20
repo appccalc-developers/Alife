@@ -3,11 +3,14 @@ using Alife.Application.ChurchLife;
 using Alife.Application.Common.Models;
 using Alife.Application.Events.Dtos;
 using Alife.Application.Events.Services;
+using Alife.Application.Forum.Dtos;
+using Alife.Application.Forum.Queries.GetForumPost;
 using Alife.Application.Pages.Dtos;
 using Alife.Application.Pages.Services;
 using Alife.Domain.Entities;
 using Alife.Domain.Enums;
 using Alife.Infrastructure.Persistence;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 
@@ -115,7 +118,13 @@ public sealed class ChurchLifeServiceTests
         albumService.ListChurchLifeAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
             .Returns([publicAlbum]);
 
-        var service = new ChurchLifeService(db, new ChurchLifeScopeService(db), pageRead, eventRead, albumService);
+        var service = new ChurchLifeService(
+            db,
+            new ChurchLifeScopeService(db),
+            pageRead,
+            eventRead,
+            albumService,
+            Substitute.For<ISender>());
 
         var pages = await service.ListPagesAsync(memberId, null, CancellationToken.None);
         var events = await service.ListEventsAsync(memberId, null, CancellationToken.None);
@@ -148,7 +157,8 @@ public sealed class ChurchLifeServiceTests
             new ChurchLifeScopeService(db),
             Substitute.For<IPageReadService>(),
             Substitute.For<IEventReadService>(),
-            Substitute.For<IAlbumService>());
+            Substitute.For<IAlbumService>(),
+            Substitute.For<ISender>());
 
         var result = await service.ListAnnouncementsAsync(memberId, Guid.NewGuid(), CancellationToken.None);
 
@@ -177,7 +187,8 @@ public sealed class ChurchLifeServiceTests
             new ChurchLifeScopeService(db),
             pageRead,
             Substitute.For<IEventReadService>(),
-            Substitute.For<IAlbumService>());
+            Substitute.For<IAlbumService>(),
+            Substitute.For<ISender>());
 
         var result = await service.ListPagesAsync(memberId, null, CancellationToken.None);
 
@@ -210,7 +221,8 @@ public sealed class ChurchLifeServiceTests
             new ChurchLifeScopeService(db),
             Substitute.For<IPageReadService>(),
             Substitute.For<IEventReadService>(),
-            Substitute.For<IAlbumService>());
+            Substitute.For<IAlbumService>(),
+            Substitute.For<ISender>());
 
         var missing = await service.ListForumPostsAsync(
             memberId,
@@ -258,7 +270,8 @@ public sealed class ChurchLifeServiceTests
             new ChurchLifeScopeService(db),
             Substitute.For<IPageReadService>(),
             eventRead,
-            Substitute.For<IAlbumService>());
+            Substitute.For<IAlbumService>(),
+            Substitute.For<ISender>());
 
         var events = await service.ListEventsAsync(memberId, null, CancellationToken.None);
         var announcements = await service.ListAnnouncementsAsync(memberId, null, CancellationToken.None);
@@ -306,7 +319,8 @@ public sealed class ChurchLifeServiceTests
             new ChurchLifeScopeService(db),
             pageRead,
             eventRead,
-            Substitute.For<IAlbumService>());
+            Substitute.For<IAlbumService>(),
+            Substitute.For<ISender>());
 
         var pages = await service.ListPagesAsync(memberId, null, CancellationToken.None);
         var events = await service.ListEventsAsync(memberId, null, CancellationToken.None);
@@ -316,6 +330,108 @@ public sealed class ChurchLifeServiceTests
         Assert.Single(events.Value!.Items);
         Assert.Single(announcements.Value!.Items);
         Assert.True(pages.Value.Groups.Single(x => x.Id == child.Id).CanManage);
+    }
+
+    [Fact]
+    public async Task ForumPost_DelegatesAuthorizedDescendantVisibilityToExistingForumQuery()
+    {
+        await using var db = CreateDb();
+        var memberId = Guid.NewGuid();
+        var root = Group("Church", isChurch: true);
+        var ministry = Group("Ministry", parentId: root.Id);
+        var categoryId = Guid.NewGuid();
+        var post = ForumPost(categoryId, ministry.Id, memberId, ForumPostVisibility.Public, DateTime.UtcNow);
+        db.Members.Add(Member(memberId));
+        db.Groups.AddRange(root, ministry);
+        db.ForumPosts.Add(post);
+        await db.SaveChangesAsync();
+        var detail = ForumPostDetail(post);
+        var sender = Substitute.For<ISender>();
+        sender.Send(
+                Arg.Is<GetForumPostQuery>(query => query.PostId == post.Id && query.CurrentMemberId == memberId),
+                Arg.Any<CancellationToken>())
+            .Returns(AppResult<ForumPostDetailDto>.Success(detail));
+        var service = ChurchLifeService(db, sender);
+
+        var result = await service.GetForumPostAsync(memberId, post.Id, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Same(detail, result.Value);
+        await sender.Received(1).Send(
+            Arg.Is<GetForumPostQuery>(query => query.PostId == post.Id && query.CurrentMemberId == memberId),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ForumPost_PreservesGroupOnlyAuthorizationFailureFromExistingForumQuery()
+    {
+        await using var db = CreateDb();
+        var memberId = Guid.NewGuid();
+        var root = Group("Church", isChurch: true);
+        var ministry = Group("Ministry", parentId: root.Id);
+        var post = ForumPost(Guid.NewGuid(), ministry.Id, memberId, ForumPostVisibility.GroupOnly, DateTime.UtcNow);
+        db.Members.Add(Member(memberId));
+        db.Groups.AddRange(root, ministry);
+        db.ForumPosts.Add(post);
+        await db.SaveChangesAsync();
+        var sender = Substitute.For<ISender>();
+        sender.Send(Arg.Any<GetForumPostQuery>(), Arg.Any<CancellationToken>())
+            .Returns(AppResult<ForumPostDetailDto>.Forbidden("Group membership is required."));
+        var service = ChurchLifeService(db, sender);
+
+        var result = await service.GetForumPostAsync(memberId, post.Id, CancellationToken.None);
+
+        Assert.Equal(AppResultStatus.Forbidden, result.Status);
+        await sender.Received(1).Send(Arg.Any<GetForumPostQuery>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ForumPost_ReturnsNotFoundOutsideOpenChurchHierarchy()
+    {
+        await using var db = CreateDb();
+        var memberId = Guid.NewGuid();
+        var root = Group("Church", isChurch: true);
+        var closed = Group("Closed", parentId: root.Id, isClosed: true);
+        var unrelated = Group("Unrelated");
+        var closedPost = ForumPost(Guid.NewGuid(), closed.Id, memberId, ForumPostVisibility.Public, DateTime.UtcNow);
+        var unrelatedPost = ForumPost(Guid.NewGuid(), unrelated.Id, memberId, ForumPostVisibility.Public, DateTime.UtcNow);
+        var sitePost = ForumPost(Guid.NewGuid(), null, memberId, ForumPostVisibility.Public, DateTime.UtcNow);
+        db.Members.Add(Member(memberId));
+        db.Groups.AddRange(root, closed, unrelated);
+        db.ForumPosts.AddRange(closedPost, unrelatedPost, sitePost);
+        await db.SaveChangesAsync();
+        var sender = Substitute.For<ISender>();
+        var service = ChurchLifeService(db, sender);
+
+        var closedResult = await service.GetForumPostAsync(memberId, closedPost.Id, CancellationToken.None);
+        var unrelatedResult = await service.GetForumPostAsync(memberId, unrelatedPost.Id, CancellationToken.None);
+        var siteResult = await service.GetForumPostAsync(memberId, sitePost.Id, CancellationToken.None);
+
+        Assert.Equal(AppResultStatus.NotFound, closedResult.Status);
+        Assert.Equal(AppResultStatus.NotFound, unrelatedResult.Status);
+        Assert.Equal(AppResultStatus.NotFound, siteResult.Status);
+        await sender.DidNotReceiveWithAnyArgs().Send(default!, default);
+    }
+
+    [Fact]
+    public async Task ForumPost_RejectsUnregisteredMemberBeforeReadingPost()
+    {
+        await using var db = CreateDb();
+        var member = Member(Guid.NewGuid());
+        member.IsRegistered = false;
+        var root = Group("Church", isChurch: true);
+        var post = ForumPost(Guid.NewGuid(), root.Id, member.Id, ForumPostVisibility.Public, DateTime.UtcNow);
+        db.Members.Add(member);
+        db.Groups.Add(root);
+        db.ForumPosts.Add(post);
+        await db.SaveChangesAsync();
+        var sender = Substitute.For<ISender>();
+        var service = ChurchLifeService(db, sender);
+
+        var result = await service.GetForumPostAsync(member.Id, post.Id, CancellationToken.None);
+
+        Assert.Equal(AppResultStatus.Forbidden, result.Status);
+        await sender.DidNotReceiveWithAnyArgs().Send(default!, default);
     }
 
     [Fact]
@@ -336,6 +452,14 @@ public sealed class ChurchLifeServiceTests
     private static AlifeDbContext CreateDb() => new(new DbContextOptionsBuilder<AlifeDbContext>()
         .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
         .Options);
+
+    private static ChurchLifeService ChurchLifeService(AlifeDbContext db, ISender sender) => new(
+        db,
+        new ChurchLifeScopeService(db),
+        Substitute.For<IPageReadService>(),
+        Substitute.For<IEventReadService>(),
+        Substitute.For<IAlbumService>(),
+        sender);
 
     private static Group Group(
         string name,
@@ -461,4 +585,24 @@ public sealed class ChurchLifeServiceTests
             CreatedUtc = createdUtc,
             UpdatedUtc = createdUtc,
         };
+
+    private static ForumPostDetailDto ForumPostDetail(ForumPost post) => new(
+        post.Id,
+        post.CategoryId,
+        post.GroupId,
+        null,
+        null,
+        post.TitleJson,
+        post.BodyJson,
+        post.MediaJson,
+        post.Visibility,
+        post.IsPinned,
+        post.IsLocked,
+        post.IsHidden,
+        0,
+        null,
+        post.CreatedUtc,
+        post.UpdatedUtc,
+        new ForumAuthorDto(post.AuthorMemberId, "Member"),
+        []);
 }

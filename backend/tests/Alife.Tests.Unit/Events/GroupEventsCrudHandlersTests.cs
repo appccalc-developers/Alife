@@ -400,6 +400,8 @@ public class GroupEventsCrudHandlersTests
                 false,
                 DateTime.UtcNow,
                 DateTime.UtcNow));
+        groupReadService.GetByIdAsync(churchId, Arg.Any<CancellationToken>())
+            .Returns(CreateGroup(churchId, isChurch: true));
         groupAuthorizationService.IsApprovedMemberAsync(groupId, memberId, Arg.Any<CancellationToken>())
             .Returns(false);
         groupAuthorizationService.IsApprovedMemberAsync(churchId, memberId, Arg.Any<CancellationToken>())
@@ -422,6 +424,81 @@ public class GroupEventsCrudHandlersTests
         Assert.Equal(EventVisibilityPolicy.ChurchVisible, visibleEvent.Visibility);
         Assert.Empty(visibleEvent.ContactProfileIds!);
         Assert.DoesNotContain("contactProfileIds", visibleEvent.EventDataJson);
+    }
+
+    [Fact]
+    public async Task GetGroupEvents_RootChurchMemberCanReadSanitizedChurchVisibleDeepDescendantEvent()
+    {
+        var groupAuthorizationService = Substitute.For<IGroupAuthorizationService>();
+        var groupReadService = Substitute.For<IGroupReadService>();
+        var eventReadService = Substitute.For<IEventReadService>();
+        var churchId = Guid.NewGuid();
+        var ministryId = Guid.NewGuid();
+        var teamId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+        var groups = new Dictionary<Guid, GroupDto>
+        {
+            [churchId] = new(
+                churchId,
+                new Dictionary<string, string> { ["en"] = "Church" },
+                null,
+                null,
+                AccessType.Public,
+                true,
+                false,
+                DateTime.UtcNow,
+                DateTime.UtcNow),
+            [ministryId] = new(
+                ministryId,
+                new Dictionary<string, string> { ["en"] = "Ministry" },
+                null,
+                churchId,
+                AccessType.Protected,
+                false,
+                false,
+                DateTime.UtcNow,
+                DateTime.UtcNow),
+            [teamId] = new(
+                teamId,
+                new Dictionary<string, string> { ["en"] = "Team" },
+                null,
+                ministryId,
+                AccessType.Protected,
+                false,
+                false,
+                DateTime.UtcNow,
+                DateTime.UtcNow),
+        };
+        groupReadService.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(call => groups.GetValueOrDefault(call.ArgAt<Guid>(0)));
+        groupAuthorizationService.IsApprovedMemberAsync(teamId, memberId, Arg.Any<CancellationToken>())
+            .Returns(false);
+        groupAuthorizationService.IsApprovedMemberAsync(churchId, memberId, Arg.Any<CancellationToken>())
+            .Returns(true);
+        eventReadService.GetGroupEventsAsync(teamId, Arg.Any<CancellationToken>())
+            .Returns([
+                new Alife.Application.Events.Dtos.GroupEventSummaryDto(
+                    Guid.NewGuid(), teamId, Guid.NewGuid(), "Team event", "团队活动",
+                    DateTime.UtcNow, DateTime.UtcNow.AddHours(1),
+                    "{\"visibility\":\"churchVisible\",\"personResponsible\":\"Private lead\",\"contactProfileIds\":[\"secret\"]}",
+                    DateTime.UtcNow, DateTime.UtcNow,
+                    [Guid.NewGuid()], EventRamStatus.Approved, EventVisibilityPolicy.ChurchVisible)
+            ]);
+        var handler = new GetGroupEventsQueryHandler(eventReadService, groupReadService, groupAuthorizationService);
+
+        var result = await handler.Handle(new GetGroupEventsQuery(teamId, memberId), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var visibleEvent = Assert.Single(result.Value!);
+        Assert.Equal(EventVisibilityPolicy.ChurchVisible, visibleEvent.Visibility);
+        Assert.Equal(Guid.Empty, visibleEvent.CreatedByMemberId);
+        Assert.Empty(visibleEvent.ContactProfileIds!);
+        Assert.DoesNotContain("Private lead", visibleEvent.EventDataJson);
+        Assert.DoesNotContain("contactProfileIds", visibleEvent.EventDataJson);
+        await groupAuthorizationService.Received(1).IsApprovedMemberAsync(
+            churchId,
+            memberId,
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
