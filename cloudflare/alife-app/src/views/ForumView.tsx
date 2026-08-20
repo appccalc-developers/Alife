@@ -1,28 +1,40 @@
-import { useMemo, useState } from 'react'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useEffect, useMemo, useState } from 'react'
+import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query'
 import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ChevronRight, Eye, ListFilter, MessageCircle, Pin, Plus, RefreshCcw, Send, Sparkles, UsersRound } from 'lucide-react'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
 import AppEmptyState from '../components/layout/AppEmptyState'
 import AppPageShell from '../components/layout/AppPageShell'
+import ChurchGroupFilter from '../components/church-life/ChurchGroupFilter'
+import ChurchLifeResultsRegion from '../components/church-life/ChurchLifeResultsRegion'
 import { queryClient } from '../db/queryClient'
 import { churchQueryKey } from '../db/collections/groupCollection'
 import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
 import { forumQueryKeys, forumService } from '../services/forumService'
 import { groupService } from '../services/groupService'
+import { churchLifeQueryKeys, churchLifeService, invalidateChurchLifeQueries, type ChurchLifeGroup } from '../services/churchLifeService'
 import { normalizeApiError } from '../services/http'
 import { useAuthStore } from '../stores/auth'
-import type { ForumPostVisibilityRequest } from '../types/forum'
+import type { ForumPostSummaryDto, ForumPostVisibilityRequest } from '../types/forum'
 import { ForumMediaGrid, ForumMediaPicker, selectForumMedia, type PendingForumMedia, uploadPendingForumMedia } from './forum/ForumMediaControls'
 import { forumCopy, visibilityLabel } from './forum/forumCopy'
 import { categoryName, formatForumDate, localizedJsonExcerpt, localizedJsonText, oneLanguagePayload, parseForumMedia } from './forum/forumUtils'
 import ForumSermonEmbed from './forum/ForumSermonEmbed'
+import { churchGroupPath, updateChurchLifeOwnerFilter } from '../utils/churchLifeGroups'
 
 const avatarLetter = (value?: string | null) => (value || 'A').slice(0, 1).toUpperCase()
 
 const isPublicVisibility = (visibility: unknown) =>
   visibility === 1 || visibility === 'Public' || visibility === 'public'
+
+type ForumFeedResult = {
+  items: ForumPostSummaryDto[]
+  groups?: ChurchLifeGroup[]
+  page: number
+  pageSize: number
+  totalCount: number
+}
 
 const ForumComposer = ({
   defaultCategoryId,
@@ -62,6 +74,7 @@ const ForumComposer = ({
     },
     onSuccess: async (post) => {
       await queryClient.invalidateQueries({ queryKey: ['forum'] })
+      await invalidateChurchLifeQueries()
       onCreated(post.id)
     },
     onError: (error) => setMessage(normalizeApiError(error).message),
@@ -175,6 +188,9 @@ const ForumView = () => {
   const forumBasePath = routeGroupId ? `/groups/${encodeURIComponent(routeGroupId)}/forum` : churchForum ? '/church/forum' : currentGroupForum ? '/groups/forum' : '/forum'
   const groupScopedForum = Boolean(routeGroupId || currentGroupForum)
   const categoryId = searchParams.get('categoryId') || ''
+  const ownerGroupId = churchForum ? searchParams.get('ownerGroupId') || '' : ''
+  const page = Math.max(1, Number.parseInt(searchParams.get('page') || '1', 10) || 1)
+  const pageSize = 30
   const [composerOpen, setComposerOpen] = useState(false)
 
   const categoriesQuery = useQuery({
@@ -182,15 +198,27 @@ const ForumView = () => {
     queryFn: forumService.listCategories,
     staleTime: 5 * 60_000,
   })
-  const postsQuery = useQuery({
-    queryKey: forumQueryKeys.posts(categoryId, groupId),
-    queryFn: () => forumService.listPosts({ categoryId: categoryId || undefined, groupId: groupId || undefined, page: 1, pageSize: 30 }),
+  const postsQuery = useQuery<ForumFeedResult>({
+    queryKey: churchForum
+      ? churchLifeQueryKeys.forum(me?.id ?? 'member', ownerGroupId || undefined, categoryId || undefined, page, pageSize)
+      : [...forumQueryKeys.posts(categoryId, groupId), page, pageSize],
+    queryFn: async () => churchForum
+      ? churchLifeService.listForumPosts({ ownerGroupId: ownerGroupId || undefined, categoryId: categoryId || undefined, page, pageSize })
+      : forumService.listPosts({ categoryId: categoryId || undefined, groupId: groupId || undefined, page, pageSize }),
     enabled: (!churchForum && !currentGroupForum) || Boolean(groupId),
+    placeholderData: keepPreviousData,
     staleTime: 30_000,
   })
 
   const categories = categoriesQuery.data ?? []
   const posts = postsQuery.data?.items ?? []
+  const [retainedChurchGroups, setRetainedChurchGroups] = useState<ChurchLifeGroup[]>([])
+  const churchGroups = churchForum ? postsQuery.data?.groups ?? retainedChurchGroups : []
+
+  useEffect(() => {
+    if (churchForum && postsQuery.data?.groups) setRetainedChurchGroups(postsQuery.data.groups)
+  }, [churchForum, postsQuery.data?.groups])
+
   const firstCategoryId = categories[0]?.id ?? ''
   const defaultCategoryId = categoryId || firstCategoryId
   const groupMembership = groupId ? memberships.find((membership) => membership.groupId === groupId) : null
@@ -208,6 +236,16 @@ const ForumView = () => {
     const next = new URLSearchParams(searchParams)
     if (nextCategoryId) next.set('categoryId', nextCategoryId)
     else next.delete('categoryId')
+    next.delete('page')
+    setSearchParams(next, { preventScrollReset: true })
+  }
+  const selectOwnerGroup = (nextOwnerGroupId: string) => {
+    setSearchParams(updateChurchLifeOwnerFilter(searchParams, nextOwnerGroupId), { preventScrollReset: true })
+  }
+  const selectPage = (nextPage: number) => {
+    const next = new URLSearchParams(searchParams)
+    if (nextPage > 1) next.set('page', String(nextPage))
+    else next.delete('page')
     setSearchParams(next, { preventScrollReset: true })
   }
 
@@ -272,6 +310,7 @@ const ForumView = () => {
                     <option key={category.id || 'all'} value={category.id}>{category.label}</option>
                   ))}
                 </select>
+                {churchForum ? <ChurchGroupFilter groups={churchGroups} value={ownerGroupId} language={language} onChange={selectOwnerGroup} /> : null}
               </div>
 
               <div className="border-b border-slate-200 bg-white px-5 py-4 sm:px-7">
@@ -308,7 +347,7 @@ const ForumView = () => {
                 )}
               </div>
 
-              <section id="forum-feed-panel" aria-busy={postsQuery.isFetching}>
+              <section id="forum-feed-panel">
                 <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-3 sm:px-7">
                   <div>
                     <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">{text.feed}</p>
@@ -317,69 +356,79 @@ const ForumView = () => {
                   <p className="text-sm font-black text-slate-500">{posts.length} {text.conversations}</p>
                 </div>
 
-                {postsQuery.isLoading || categoriesQuery.isLoading || (churchForum && churchQuery.isPending) ? (
-                  <div className="grid gap-0">
-                    {[0, 1, 2].map((item) => (
-                      <div key={item} className="h-36 animate-pulse border-b border-slate-200 bg-white" />
-                    ))}
-                  </div>
-                ) : null}
+                <ChurchLifeResultsRegion busy={postsQuery.isFetching && !postsQuery.isPending} language={language}>
+                  {postsQuery.isLoading || categoriesQuery.isLoading || (churchForum && churchQuery.isPending) ? (
+                    <div className="grid gap-0">
+                      {[0, 1, 2].map((item) => (
+                        <div key={item} className="h-36 animate-pulse border-b border-slate-200 bg-white" />
+                      ))}
+                    </div>
+                  ) : null}
 
-                {!postsQuery.isLoading && (postsQuery.error || churchQuery.error) ? (
-                  <div className="p-5 sm:p-7">
-                    <AppEmptyState title={text.loadFailed} description={normalizeApiError(postsQuery.error || churchQuery.error).message} actionLabel={text.retry} onAction={() => void (churchQuery.error ? churchQuery.refetch() : postsQuery.refetch())} />
-                  </div>
-                ) : null}
+                  {!postsQuery.isLoading && (postsQuery.error || churchQuery.error) ? (
+                    <div className="p-5 sm:p-7">
+                      <AppEmptyState title={text.loadFailed} description={normalizeApiError(postsQuery.error || churchQuery.error).message} actionLabel={text.retry} onAction={() => void (churchQuery.error ? churchQuery.refetch() : postsQuery.refetch())} />
+                    </div>
+                  ) : null}
 
-                {!postsQuery.isLoading && !postsQuery.error && !churchQuery.error && !(churchForum && churchQuery.isPending) && posts.length === 0 ? (
-                  <div className="p-5 sm:p-7">
-                    <AppEmptyState title={text.noPosts} description={text.noPostsDescription} actionLabel={canPost ? text.newPost : undefined} onAction={canPost ? () => setComposerOpen(true) : undefined} />
-                  </div>
-                ) : null}
+                  {!postsQuery.isLoading && !postsQuery.error && !churchQuery.error && !(churchForum && churchQuery.isPending) && posts.length === 0 ? (
+                    <div className="p-5 sm:p-7">
+                      <AppEmptyState title={text.noPosts} description={text.noPostsDescription} actionLabel={canPost ? text.newPost : undefined} onAction={canPost ? () => setComposerOpen(true) : undefined} />
+                    </div>
+                  ) : null}
 
-                <div className="divide-y divide-slate-200">
-                  {posts.map((post) => {
-                    const title = localizedJsonText(post.titleJson, language) || text.untitled
-                    const excerpt = localizedJsonExcerpt(post.bodyJson, language)
-                    const media = parseForumMedia(post.mediaJson)
-                    const commentsLabel = `${post.commentCount} ${post.commentCount === 1 && language !== 'zh' ? text.reply : text.replies}`
-                    return (
-                      <Link key={post.id} to={`${forumBasePath}/posts/${post.id}`} className="group block bg-white px-5 py-5 transition hover:bg-[#fbfcfa] sm:px-7">
-                        <article className="flex gap-4">
-                          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#e3f0eb] text-sm font-black text-[#176b5a]">
-                            {avatarLetter(post.author.displayName || title)}
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                              <span className="text-sm font-black text-slate-950">{post.author.displayName || post.author.id.slice(0, 8)}</span>
-                              <span className="text-xs font-semibold text-slate-400">{formatForumDate(post.lastCommentUtc || post.updatedUtc, language)}</span>
-                              {post.isPinned ? <AppBadge variant="warning"><Pin className="mr-1 h-3 w-3" />{text.pinned}</AppBadge> : null}
-                            </div>
-                            <h2 className="mt-2 text-lg font-black leading-snug text-slate-950 transition group-hover:text-[#176b5a] sm:text-xl">{title}</h2>
-                            {excerpt ? <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">{excerpt}</p> : null}
-                            {post.sermon ? <ForumSermonEmbed sermon={post.sermon} mode="compact" /> : null}
-                            <ForumMediaGrid media={media.slice(0, 3)} />
-                            <div className="mt-4 flex flex-wrap items-center gap-2">
-                              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">{categoryName(categories, post.categoryId, language)}</span>
-                              <AppBadge variant={isPublicVisibility(post.visibility) ? 'info' : 'neutral'}>
-                                <Eye className="mr-1 h-3 w-3" aria-hidden="true" />
-                                {visibilityLabel(post.visibility, language)}
-                              </AppBadge>
-                              {post.isLocked ? <AppBadge>{text.locked}</AppBadge> : null}
-                            </div>
-                          </div>
-                          <div className="hidden shrink-0 flex-col items-end justify-between sm:flex">
-                            <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-black text-slate-600">
-                              <MessageCircle className="h-4 w-4" aria-hidden="true" />
-                              {commentsLabel}
+                  <div className="divide-y divide-slate-200">
+                    {posts.map((post) => {
+                      const title = localizedJsonText(post.titleJson, language) || text.untitled
+                      const excerpt = localizedJsonExcerpt(post.bodyJson, language)
+                      const media = parseForumMedia(post.mediaJson)
+                      const commentsLabel = `${post.commentCount} ${post.commentCount === 1 && language !== 'zh' ? text.reply : text.replies}`
+                      return (
+                        <Link key={post.id} to={`${forumBasePath}/posts/${post.id}`} className="group block bg-white px-5 py-5 transition hover:bg-[#fbfcfa] sm:px-7">
+                          <article className="flex gap-4">
+                            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#e3f0eb] text-sm font-black text-[#176b5a]">
+                              {avatarLetter(post.author.displayName || title)}
                             </span>
-                            <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-[#176b5a]" aria-hidden="true" />
-                          </div>
-                        </article>
-                      </Link>
-                    )
-                  })}
-                </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                <span className="text-sm font-black text-slate-950">{post.author.displayName || post.author.id.slice(0, 8)}</span>
+                                <span className="text-xs font-semibold text-slate-400">{formatForumDate(post.lastCommentUtc || post.updatedUtc, language)}</span>
+                                {post.isPinned ? <AppBadge variant="warning"><Pin className="mr-1 h-3 w-3" />{text.pinned}</AppBadge> : null}
+                                {churchForum && post.groupId ? <span className="max-w-full truncate rounded-full bg-[#e3f0eb] px-2.5 py-1 text-[0.65rem] font-black text-[#176b5a]">{churchGroupPath(post.groupId, churchGroups, language)}</span> : null}
+                              </div>
+                              <h2 className="mt-2 text-lg font-black leading-snug text-slate-950 transition group-hover:text-[#176b5a] sm:text-xl">{title}</h2>
+                              {excerpt ? <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">{excerpt}</p> : null}
+                              {post.sermon ? <ForumSermonEmbed sermon={post.sermon} mode="compact" /> : null}
+                              <ForumMediaGrid media={media.slice(0, 3)} />
+                              <div className="mt-4 flex flex-wrap items-center gap-2">
+                                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">{categoryName(categories, post.categoryId, language)}</span>
+                                <AppBadge variant={isPublicVisibility(post.visibility) ? 'info' : 'neutral'}>
+                                  <Eye className="mr-1 h-3 w-3" aria-hidden="true" />
+                                  {visibilityLabel(post.visibility, language)}
+                                </AppBadge>
+                                {post.isLocked ? <AppBadge>{text.locked}</AppBadge> : null}
+                              </div>
+                            </div>
+                            <div className="hidden shrink-0 flex-col items-end justify-between sm:flex">
+                              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-black text-slate-600">
+                                <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                                {commentsLabel}
+                              </span>
+                              <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-[#176b5a]" aria-hidden="true" />
+                            </div>
+                          </article>
+                        </Link>
+                      )
+                    })}
+                  </div>
+                  {(postsQuery.data?.totalCount ?? 0) > pageSize ? (
+                    <nav className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-5 py-4 sm:px-7" aria-label={language === 'zh' ? '论坛分页' : 'Forum pagination'}>
+                      <button type="button" className="min-h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 disabled:opacity-40" disabled={page <= 1} onClick={() => selectPage(page - 1)}>{language === 'zh' ? '上一页' : 'Previous'}</button>
+                      <span className="text-sm font-black text-slate-500">{language === 'zh' ? `第 ${page} 页` : `Page ${page}`}</span>
+                      <button type="button" className="min-h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 disabled:opacity-40" disabled={page * pageSize >= (postsQuery.data?.totalCount ?? 0)} onClick={() => selectPage(page + 1)}>{language === 'zh' ? '下一页' : 'Next'}</button>
+                    </nav>
+                  ) : null}
+                </ChurchLifeResultsRegion>
               </section>
             </main>
 

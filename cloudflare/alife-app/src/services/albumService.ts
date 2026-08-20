@@ -1,4 +1,5 @@
 import { http } from './http'
+import { invalidateChurchLifeQueries } from './churchLifeService'
 
 export type AlbumVisibility = 'public' | 'groupVisible'
 export type AlbumSummary = {
@@ -43,18 +44,22 @@ export const albumService = {
   },
   async create(groupId: string, input: { parentAlbumId?: string | null; name: Record<string, string>; description?: Record<string, string>; visibility: AlbumVisibility }) {
     const { data } = await http.post<AlbumDetail>(`/api/groups/${groupId}/albums`, input)
+    await invalidateChurchLifeQueries()
     return data
   },
   async addPhoto(albumId: string, fileAssetId: string) {
     const { data } = await http.post<AlbumDetail>(`/api/albums/${albumId}/photos`, { fileAssetId, caption: null })
+    await invalidateChurchLifeQueries()
     return data
   },
   async removePhoto(albumId: string, photoId: string) {
     const { data } = await http.delete<AlbumDetail>(`/api/albums/${albumId}/photos/${photoId}`)
+    await invalidateChurchLifeQueries()
     return data
   },
   async reorderPhotos(albumId: string, photoIds: string[]) {
     const { data } = await http.put<AlbumDetail>(`/api/albums/${albumId}/photos/order`, { photoIds })
+    await invalidateChurchLifeQueries()
     return data
   },
 }

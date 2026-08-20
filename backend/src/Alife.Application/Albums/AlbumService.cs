@@ -26,6 +26,34 @@ public sealed class AlbumService(IAlifeDbContext db, IGroupAuthorizationService 
         return AppResult<IReadOnlyList<AlbumSummaryDto>>.Success(await MapSummariesAsync(albums, cancellationToken, !canReadGroup));
     }
 
+    public async Task<IReadOnlyList<AlbumSummaryDto>> ListChurchLifeAsync(
+        IReadOnlyCollection<Guid> groupIds,
+        IReadOnlyCollection<Guid> approvedGroupIds,
+        CancellationToken cancellationToken)
+    {
+        if (groupIds.Count == 0)
+        {
+            return [];
+        }
+
+        var scopeIds = groupIds.ToList();
+        var memberGroupIds = approvedGroupIds.ToList();
+        var albums = await db.Albums
+            .AsNoTracking()
+            .Where(x =>
+                scopeIds.Contains(x.GroupId) &&
+                x.ParentAlbumId == null &&
+                (x.Visibility == AlbumVisibility.Public || memberGroupIds.Contains(x.GroupId)))
+            .OrderBy(x => x.SortOrder)
+            .ThenBy(x => x.CreatedUtc)
+            .ToListAsync(cancellationToken);
+
+        return await MapSummariesAsync(
+            albums,
+            cancellationToken,
+            approvedGroupIds: memberGroupIds.ToHashSet());
+    }
+
     public async Task<AppResult<AlbumDetailDto>> GetAsync(Guid albumId, Guid? currentMemberId, CancellationToken cancellationToken)
     {
         var album = await db.Albums.AsNoTracking().FirstOrDefaultAsync(x => x.Id == albumId, cancellationToken);
@@ -157,16 +185,27 @@ public sealed class AlbumService(IAlifeDbContext db, IGroupAuthorizationService 
             canManage);
     }
 
-    private async Task<IReadOnlyList<AlbumSummaryDto>> MapSummariesAsync(IReadOnlyList<Album> albums, CancellationToken cancellationToken, bool publicOnly = false)
+    private async Task<IReadOnlyList<AlbumSummaryDto>> MapSummariesAsync(
+        IReadOnlyList<Album> albums,
+        CancellationToken cancellationToken,
+        bool publicOnly = false,
+        IReadOnlySet<Guid>? approvedGroupIds = null)
     {
         if (albums.Count == 0) return [];
         var ids = albums.Select(x => x.Id).ToList();
         var photoCounts = await db.AlbumPhotos.AsNoTracking().Where(x => ids.Contains(x.AlbumId)).GroupBy(x => x.AlbumId)
             .Select(x => new { Id = x.Key, Count = x.Count() }).ToDictionaryAsync(x => x.Id, x => x.Count, cancellationToken);
-        var childQuery = db.Albums.AsNoTracking().Where(x => x.ParentAlbumId.HasValue && ids.Contains(x.ParentAlbumId.Value));
-        if (publicOnly) childQuery = childQuery.Where(x => x.Visibility == AlbumVisibility.Public);
-        var childCounts = await childQuery.GroupBy(x => x.ParentAlbumId!.Value)
-            .Select(x => new { Id = x.Key, Count = x.Count() }).ToDictionaryAsync(x => x.Id, x => x.Count, cancellationToken);
+        var children = await db.Albums.AsNoTracking()
+            .Where(x => x.ParentAlbumId.HasValue && ids.Contains(x.ParentAlbumId.Value))
+            .Select(x => new { ParentId = x.ParentAlbumId!.Value, x.GroupId, x.Visibility })
+            .ToListAsync(cancellationToken);
+        var childCounts = children
+            .Where(x =>
+                (!publicOnly && approvedGroupIds is null) ||
+                x.Visibility == AlbumVisibility.Public ||
+                (approvedGroupIds?.Contains(x.GroupId) ?? false))
+            .GroupBy(x => x.ParentId)
+            .ToDictionary(x => x.Key, x => x.Count());
         var covers = await db.AlbumPhotos.AsNoTracking().Where(x => ids.Contains(x.AlbumId)).Include(x => x.FileAsset)
             .OrderBy(x => x.SortOrder).ToListAsync(cancellationToken);
         return albums.Select(x =>

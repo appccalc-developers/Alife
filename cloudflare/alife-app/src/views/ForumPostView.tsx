@@ -14,6 +14,7 @@ import { groupService } from '../services/groupService'
 import { normalizeApiError } from '../services/http'
 import { useAuthStore } from '../stores/auth'
 import type { ForumCommentDto, ForumCommentVisibilityRequest } from '../types/forum'
+import { belongsToForumRouteScope } from '../utils/forumRouteScope'
 import { ForumMediaGrid, ForumMediaPicker, selectForumMedia, type PendingForumMedia, uploadPendingForumMedia } from './forum/ForumMediaControls'
 import { forumCopy, visibilityLabel } from './forum/forumCopy'
 import { categoryName, formatForumDate, localizedJsonText, oneLanguagePayload, parseForumMedia } from './forum/forumUtils'
@@ -232,7 +233,7 @@ const ForumPostView = () => {
     return <Navigate to={forumBasePath} replace />
   }
 
-  const post = postQuery.data && (!scopedGroupId || postQuery.data.groupId === scopedGroupId)
+  const post = postQuery.data && belongsToForumRouteScope(churchForum, scopedGroupId, postQuery.data.groupId)
     ? postQuery.data
     : undefined
   const categories = categoriesQuery.data ?? []

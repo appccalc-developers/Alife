@@ -16,6 +16,7 @@ const ArticleDetailView = lazy(() => import('../../views/ArticleDetailView'))
 const ArticlesView = lazy(() => import('../../views/ArticlesView'))
 const BibleStudyView = lazy(() => import('../../views/BibleStudyView'))
 const ChurchLifeView = lazy(() => import('../../views/ChurchLifeView'))
+const ChurchAlbumsView = lazy(() => import('../../views/ChurchAlbumsView'))
 const ContactDetailView = lazy(() => import('../../views/ContactDetailView'))
 const EventCreatorView = lazy(() => import('../../views/EventCreatorView'))
 const EventDetailView = lazy(() => import('../../views/EventDetailView'))
@@ -170,6 +171,7 @@ const AppRoutes = ({ churchGroupId = '', churchGroupLoading = false }: AppRoutes
           <Route path="/enter" element={<EntryRoute />} />
           <Route path="/home" element={<HomeRoute />} />
           <Route path="/church" element={<MemberRoute><ChurchLifeView /></MemberRoute>} />
+          <Route path="/church/albums" element={<MemberRoute><ChurchAlbumsView /></MemberRoute>} />
           <Route path="/church/forum" element={<MemberRoute><ForumView /></MemberRoute>} />
           <Route path="/church/forum/posts/:postId" element={<MemberRoute><ForumPostView /></MemberRoute>} />
           <Route path="/groups" element={<GroupDetailView />} />

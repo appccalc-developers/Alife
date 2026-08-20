@@ -7,6 +7,7 @@ import type { LocalizedText, PageDetailDto, PageEditModel, PageSummaryDto, PageV
 import { normalizePageSummary } from '../utils/apiEnums'
 import { normalizePageDetail } from '../utils/pageDetail'
 import { toLocalizedText } from '../utils/localizedText'
+import { invalidateChurchLifeQueries } from './churchLifeService'
 
 export type CreateGroupPagePayload = {
   title: LocalizedText
@@ -151,6 +152,7 @@ const invalidatePublicPageDetailCache = async (pageId: string) => {
 
 const invalidatePageListCache = async (page: PageSummaryDto | PageDetailDto) => {
   await invalidateQueryCache(groupPagesQueryKey(page.ownerGroupId))
+  await invalidateChurchLifeQueries()
 }
 
 const cachePageDetail = (page: PageDetailDto & { tagsJson?: string }) => {
@@ -231,6 +233,7 @@ export const pageService = {
 
   async deletePage(pageId: string) {
     await http.delete(`/api/pages/${pageId}`)
+    await invalidateChurchLifeQueries()
     await invalidatePublicPagesCache()
     await invalidatePublicPageDetailCache(pageId)
   },

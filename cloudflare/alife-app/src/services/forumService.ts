@@ -8,6 +8,7 @@ import type {
   ForumPostSummaryDto,
 } from '../types/forum'
 import { http, normalizeApiError } from './http'
+import { invalidateChurchLifeQueries } from './churchLifeService'
 
 export const forumQueryKeys = {
   categories: ['forum', 'categories'] as const,
@@ -41,11 +42,13 @@ export const forumService = {
 
   createPost: async (payload: ForumPostRequest): Promise<ForumPostDetailDto> => {
     const { data } = await http.post<ForumPostDetailDto>('/api/forum/posts', payload)
+    await invalidateChurchLifeQueries()
     return data
   },
 
   createComment: async (postId: string, payload: ForumCommentRequest): Promise<ForumCommentDto> => {
     const { data } = await http.post<ForumCommentDto>(`/api/forum/posts/${postId}/comments`, payload)
+    await invalidateChurchLifeQueries()
     return data
   },
 

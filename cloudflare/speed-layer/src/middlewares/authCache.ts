@@ -64,6 +64,13 @@ export function shouldBypassEdgeCache(pathname: string, sharedContext?: SharedCa
     return false
   }
 
+  // Church Life merges content using the current viewer's approved memberships.
+  // It must stay outside both public and group-shared caches even if a future
+  // route classifier is able to infer one of the owning groups.
+  if (pathname === '/api/church-life' || pathname.startsWith('/api/church-life/')) {
+    return true
+  }
+
   if (sharedContext) {
     return false
   }

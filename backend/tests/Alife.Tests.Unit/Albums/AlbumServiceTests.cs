@@ -92,6 +92,39 @@ public sealed class AlbumServiceTests
         Assert.Empty(db.Albums);
     }
 
+    [Fact]
+    public async Task ListChurchLife_IncludesPublicPrivateGroupAlbumsAndOnlyApprovedMemberAlbums()
+    {
+        await using var db = CreateDb();
+        var publicGroupId = Guid.NewGuid();
+        var privateGroupId = Guid.NewGuid();
+        var unrelatedGroupId = Guid.NewGuid();
+        db.Groups.AddRange(
+            new Group { Id = publicGroupId, NameJson = "{}" },
+            new Group { Id = privateGroupId, NameJson = "{}", AccessType = AccessType.Private },
+            new Group { Id = unrelatedGroupId, NameJson = "{}" });
+        var publicPrivateAlbum = Album(privateGroupId, "Public private", AlbumVisibility.Public);
+        var hiddenPrivateAlbum = Album(privateGroupId, "Hidden private", AlbumVisibility.GroupVisible);
+        var hiddenPrivateChild = Album(privateGroupId, "Hidden private child", AlbumVisibility.GroupVisible, publicPrivateAlbum.Id);
+        var memberAlbum = Album(publicGroupId, "Member", AlbumVisibility.GroupVisible);
+        var childAlbum = Album(publicGroupId, "Child", AlbumVisibility.Public, memberAlbum.Id);
+        var unrelatedAlbum = Album(unrelatedGroupId, "Unrelated", AlbumVisibility.Public);
+        db.Albums.AddRange(publicPrivateAlbum, hiddenPrivateAlbum, hiddenPrivateChild, memberAlbum, childAlbum, unrelatedAlbum);
+        await db.SaveChangesAsync();
+        var service = new AlbumService(db, Substitute.For<IGroupAuthorizationService>());
+
+        var result = await service.ListChurchLifeAsync(
+            [publicGroupId, privateGroupId],
+            [publicGroupId],
+            CancellationToken.None);
+
+        Assert.Equal(
+            new[] { publicPrivateAlbum.Id, memberAlbum.Id }.OrderBy(x => x),
+            result.Select(x => x.Id).OrderBy(x => x));
+        Assert.Equal(0, result.Single(x => x.Id == publicPrivateAlbum.Id).ChildCount);
+        Assert.Equal(1, result.Single(x => x.Id == memberAlbum.Id).ChildCount);
+    }
+
     private static Album Album(Guid groupId, string name, AlbumVisibility visibility, Guid? parentId = null) => new()
     {
         Id = Guid.NewGuid(), GroupId = groupId, ParentAlbumId = parentId,
