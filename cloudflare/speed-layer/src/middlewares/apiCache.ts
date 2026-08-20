@@ -639,6 +639,17 @@ export async function getInvalidationPaths(env: Env, request: Request, response:
     }
   }
 
+  const groupUpdateMatch = request.method === 'PUT'
+    ? path.match(/^\/api\/groups\/([^/]+)$/)
+    : null
+  if (groupUpdateMatch) {
+    const body = await readJsonObject(response)
+    const parentGroupId = readString(body?.parentGroupId)
+    if (parentGroupId) {
+      paths.add(`/api/groups/${parentGroupId}/subgroups`)
+    }
+  }
+
   const pageId = path.match(/^\/api\/pages\/([^/]+)(?:\/publish)?$/)?.[1]
   if (pageId) {
     paths.add(`/api/pages/${pageId}`)
