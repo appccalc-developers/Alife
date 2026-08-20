@@ -6,6 +6,7 @@ import AppActionButton from '../components/layout/AppActionButton'
 import AppEmptyState from '../components/layout/AppEmptyState'
 import AppPageShell from '../components/layout/AppPageShell'
 import AppSectionCard from '../components/layout/AppSectionCard'
+import AiLanguageAutofill from '../components/ai/AiLanguageAutofill'
 import { siteForumEntryEnabled } from '../app/forumAvailability'
 import { SermonTranscriptPanel } from '../components/sermons/SermonTranscriptPanel'
 import { getCachedSermons } from '../db/collections/sermonsCollection'
@@ -20,7 +21,8 @@ import type { ForumCommentDto } from '../types/forum'
 import { extractYouTubeVideoId, toYouTubeEmbedUrl } from '../utils/youtube'
 import { ForumMediaGrid, ForumMediaPicker, selectForumMedia, type PendingForumMedia, uploadPendingForumMedia } from './forum/ForumMediaControls'
 import { forumCopy } from './forum/forumCopy'
-import { formatForumDate, localizedJsonText, oneLanguagePayload, parseForumMedia } from './forum/forumUtils'
+import { formatForumDate, localizedJsonText, parseForumMedia } from './forum/forumUtils'
+import { compactBilingualText, validateRequiredBilingualFields, type LanguageCode } from '../utils/bilingualValidation'
 
 const formatSermonDate = (value: string | null | undefined, fallback: string) => {
   if (!value) return fallback
@@ -110,7 +112,7 @@ const SermonVideoView = () => {
   const { sermonId: activeSermonId } = useActiveEntityIds({ sermonId: routeSermonId })
   const [searchParams] = useSearchParams()
   const [cachedSermons, setCachedSermons] = useState<Awaited<ReturnType<typeof getCachedSermons>>>([])
-  const [commentBody, setCommentBody] = useState('')
+  const [commentBody, setCommentBody] = useState({ en: '', zh: '' })
   const [commentMedia, setCommentMedia] = useState<PendingForumMedia[]>([])
   const [commentMessage, setCommentMessage] = useState('')
   const [replyTarget, setReplyTarget] = useState<ForumCommentDto | null>(null)
@@ -175,13 +177,13 @@ const SermonVideoView = () => {
     mutationFn: async () => {
       const uploadedMedia = await uploadPendingForumMedia(commentMedia, `forum/sermons/${sermon!.id}/${Date.now()}`)
       return forumService.createSermonComment(sermon!.id, {
-        body: commentBody.trim() ? oneLanguagePayload(language, commentBody) : null,
+        body: commentBody.en.trim() || commentBody.zh.trim() ? compactBilingualText(commentBody) : null,
         parentCommentId: replyTarget?.id ?? null,
         media: uploadedMedia,
       })
     },
     onSuccess: async (post) => {
-      setCommentBody('')
+      setCommentBody({ en: '', zh: '' })
       setCommentMedia([])
       setCommentMessage('')
       setReplyTarget(null)
@@ -193,13 +195,19 @@ const SermonVideoView = () => {
 
   const submitComment = () => {
     setCommentMessage('')
-    if (!commentBody.trim() && commentMedia.length === 0) {
+    if (!commentBody.en.trim() && !commentBody.zh.trim() && commentMedia.length === 0) {
       setCommentMessage(forumText.emptyComment)
       return
     }
 
     createCommentMutation.mutate()
   }
+
+  const editorLanguages: LanguageCode[] = language === 'zh' ? ['zh', 'en'] : ['en', 'zh']
+  const missingCommentTranslations = validateRequiredBilingualFields(
+    { body: commentBody },
+    [{ field: 'body', textType: 'sermonCommentBody' }],
+  ).missingTranslatableFields
 
   if (!sermonId && !requestedVideoId) {
     return <Navigate to="/sermons" replace />
@@ -355,12 +363,34 @@ const SermonVideoView = () => {
                         ) : null}
                       </div>
                       {commentMessage ? <p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{commentMessage}</p> : null}
-                      <textarea
-                        className="mt-3 min-h-24 w-full resize-y rounded-2xl border border-[#176b5a]/15 bg-white px-4 py-3 text-sm leading-7 text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#176b5a] focus:ring-4 focus:ring-[#176b5a]/10"
-                        value={commentBody}
-                        placeholder={forumText.commentPlaceholder}
+                      <div className="mt-3 grid gap-3 md:grid-cols-2">
+                        {editorLanguages.map((editorLanguage) => (
+                          <label key={editorLanguage} className="text-xs font-black text-slate-500">
+                            {editorLanguage === 'zh' ? '中文' : 'English'}
+                            <textarea
+                              className="mt-1 min-h-24 w-full resize-y rounded-2xl border border-[#176b5a]/15 bg-white px-4 py-3 text-sm font-normal leading-7 text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#176b5a] focus:ring-4 focus:ring-[#176b5a]/10"
+                              value={commentBody[editorLanguage]}
+                              placeholder={editorLanguage === 'zh' ? '写下你的回应…' : 'Write a thoughtful response…'}
+                              disabled={createCommentMutation.isPending}
+                              onChange={(event) => setCommentBody((current) => ({ ...current, [editorLanguage]: event.target.value }))}
+                            />
+                          </label>
+                        ))}
+                      </div>
+                      <AiLanguageAutofill
+                        className="mt-3 rounded-xl border border-sky-200 bg-sky-50/50 p-3"
+                        groupId={sermonPost?.groupId || undefined}
+                        scope={sermonPost?.groupId ? 'group' : 'church'}
+                        fields={missingCommentTranslations}
                         disabled={createCommentMutation.isPending}
-                        onChange={(event) => setCommentBody(event.target.value)}
+                        onTranslated={(translations) => {
+                          translations.forEach((translation) => {
+                            if (translation.field !== 'body') return
+                            setCommentBody((current) => current[translation.language].trim()
+                              ? current
+                              : { ...current, [translation.language]: translation.text })
+                          })
+                        }}
                       />
                       <ForumMediaPicker
                         items={commentMedia}

@@ -64,3 +64,14 @@ export function validateRequiredBilingualFields(
     blockingIncompleteFields,
   }
 }
+
+export function compactBilingualText(value: BilingualText | LocalizedText | null | undefined): LocalizedText {
+  const result: LocalizedText = {}
+  const en = typeof value?.en === 'string' ? value.en.trim() : ''
+  const zh = typeof value?.zh === 'string' ? value.zh.trim() : ''
+
+  if (en) result.en = en
+  if (zh) result.zh = zh
+
+  return result
+}

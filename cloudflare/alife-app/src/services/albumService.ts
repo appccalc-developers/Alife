@@ -47,6 +47,11 @@ export const albumService = {
     await invalidateChurchLifeQueries()
     return data
   },
+  async update(albumId: string, input: { name: Record<string, string>; description?: Record<string, string>; visibility: AlbumVisibility }) {
+    const { data } = await http.put<AlbumDetail>(`/api/albums/${albumId}`, input)
+    await invalidateChurchLifeQueries()
+    return data
+  },
   async addPhoto(albumId: string, fileAssetId: string) {
     const { data } = await http.post<AlbumDetail>(`/api/albums/${albumId}/photos`, { fileAssetId, caption: null })
     await invalidateChurchLifeQueries()

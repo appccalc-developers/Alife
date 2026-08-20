@@ -1,15 +1,31 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, FolderPlus, Images, Plus, Trash2, Upload } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, FolderPlus, Images, Pencil, Plus, Trash2, Upload } from 'lucide-react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppEmptyState from '../components/layout/AppEmptyState'
 import AppPageShell from '../components/layout/AppPageShell'
+import AiLanguageAutofill from '../components/ai/AiLanguageAutofill'
 import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
 import { albumService, type AlbumDetail, type AlbumSummary, type AlbumVisibility } from '../services/albumService'
 import { fileAssetService, resolveFileAssetAccessUrl } from '../services/fileAssetService'
 import { deleteImageObject, isImageFile, uploadImage } from '../services/imageWorkerApi'
 import { useAuthStore } from '../stores/auth'
 import { localizeText } from '../utils/localizedText'
+import { compactBilingualText, validateRequiredBilingualFields } from '../utils/bilingualValidation'
+
+type AlbumEditorMode = 'create' | 'edit'
+
+type AlbumFormDraft = {
+  name: { en: string; zh: string }
+  description: { en: string; zh: string }
+  visibility: AlbumVisibility
+}
+
+const emptyAlbumForm = (visibility: AlbumVisibility = 'groupVisible'): AlbumFormDraft => ({
+  name: { en: '', zh: '' },
+  description: { en: '', zh: '' },
+  visibility,
+})
 
 const AlbumCard = ({ album, language, basePath }: { album: AlbumSummary; language: string; basePath: string }) => (
   <Link to={`${basePath}/${encodeURIComponent(album.id)}`} className="group overflow-hidden rounded-2xl border border-[#2f4b42]/10 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
@@ -37,10 +53,8 @@ const AlbumView = () => {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [showCreate, setShowCreate] = useState(false)
-  const [nameEn, setNameEn] = useState('')
-  const [nameZh, setNameZh] = useState('')
-  const [visibility, setVisibility] = useState<AlbumVisibility>(detail?.album.visibility ?? 'groupVisible')
+  const [editorMode, setEditorMode] = useState<AlbumEditorMode | null>(null)
+  const [albumForm, setAlbumForm] = useState<AlbumFormDraft>(() => emptyAlbumForm())
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const albumBasePath = routeGroupId
     ? `/groups/${encodeURIComponent(routeGroupId)}/albums`
@@ -61,20 +75,43 @@ const AlbumView = () => {
   }
 
   useEffect(() => { load().catch(() => undefined) }, [groupId, albumId])
-  useEffect(() => { setVisibility(detail?.album.visibility ?? 'groupVisible') }, [detail?.album.visibility])
 
-  const createAlbum = async () => {
-    if (!nameEn.trim() && !nameZh.trim()) return
+  const openCreate = () => {
+    setAlbumForm(emptyAlbumForm(detail?.album.visibility ?? 'groupVisible'))
+    setEditorMode('create')
+  }
+
+  const openEdit = () => {
+    if (!detail) return
+    setAlbumForm({
+      name: { en: detail.album.name.en ?? '', zh: detail.album.name.zh ?? '' },
+      description: { en: detail.album.description?.en ?? '', zh: detail.album.description?.zh ?? '' },
+      visibility: detail.album.visibility,
+    })
+    setEditorMode('edit')
+  }
+
+  const saveAlbum = async () => {
+    if (!albumForm.name.en.trim() && !albumForm.name.zh.trim()) return
     setBusy(true); setError('')
     try {
-      const created = await albumService.create(groupId, {
-        parentAlbumId: detail?.album.id ?? null,
-        name: { en: nameEn.trim(), zh: nameZh.trim() },
-        visibility,
-      })
-      setShowCreate(false); setNameEn(''); setNameZh('')
-      navigate(`${albumBasePath}/${encodeURIComponent(created.album.id)}`)
-    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to create album.') }
+      const input = {
+        name: compactBilingualText(albumForm.name),
+        description: compactBilingualText(albumForm.description),
+        visibility: albumForm.visibility,
+      }
+      if (editorMode === 'edit' && detail) {
+        setDetail(await albumService.update(detail.album.id, input))
+        setEditorMode(null)
+      } else {
+        const created = await albumService.create(groupId, {
+          ...input,
+          parentAlbumId: detail?.album.id ?? null,
+        })
+        setEditorMode(null)
+        navigate(`${albumBasePath}/${encodeURIComponent(created.album.id)}`)
+      }
+    } catch (cause) { setError(cause instanceof Error ? cause.message : (isZh ? '无法保存相册。' : 'Unable to save album.')) }
     finally { setBusy(false) }
   }
 
@@ -121,6 +158,13 @@ const AlbumView = () => {
 
   const albums = detail?.children ?? roots
   const pageTitle = detail ? localizeText(detail.album.name, auth.language) : (isZh ? '相册' : 'Albums')
+  const missingAlbumTranslations = validateRequiredBilingualFields(
+    { name: albumForm.name, description: albumForm.description },
+    [
+      { field: 'name', textType: 'albumName' },
+      { field: 'description', textType: 'albumDescription' },
+    ],
+  ).missingTranslatableFields
   if (!groupId) {
     return <Navigate to="/groups/select" replace />
   }
@@ -129,7 +173,12 @@ const AlbumView = () => {
     <AppPageShell
       title={pageTitle}
       subtitle={detail ? localizeText(detail.album.description, auth.language) : (isZh ? '用相册和子相册整理小组图片。' : 'Organize group images with albums and subalbums.')}
-      actions={canManage ? <AppActionButton variant="primary" onClick={() => setShowCreate(value => !value)}><FolderPlus className="mr-2 h-4 w-4" />{isZh ? (detail ? '新建子相册' : '新建相册') : (detail ? 'New subalbum' : 'New album')}</AppActionButton> : undefined}
+      actions={canManage ? (
+        <div className="flex flex-wrap gap-2">
+          {detail ? <AppActionButton variant="secondary" onClick={openEdit}><Pencil className="mr-2 h-4 w-4" />{isZh ? '编辑相册' : 'Edit album'}</AppActionButton> : null}
+          <AppActionButton variant="primary" onClick={openCreate}><FolderPlus className="mr-2 h-4 w-4" />{isZh ? (detail ? '新建子相册' : '新建相册') : (detail ? 'New subalbum' : 'New album')}</AppActionButton>
+        </div>
+      ) : undefined}
     >
       {detail ? (
         <nav className="flex flex-wrap items-center gap-1 text-sm text-[#66766f]" aria-label={isZh ? '相册路径' : 'Album breadcrumbs'}>
@@ -137,12 +186,41 @@ const AlbumView = () => {
           {detail.breadcrumbs.map(item => <span key={item.id} className="flex items-center gap-1"><ChevronRight className="h-4 w-4" /><Link className="rounded-lg px-2 py-1 hover:bg-[#e3f0eb]" to={`${albumBasePath}/${encodeURIComponent(item.id)}`}>{localizeText(item.name, auth.language)}</Link></span>)}
         </nav>
       ) : null}
-      {showCreate ? (
-        <section className="grid gap-3 rounded-2xl border border-[#2f4b42]/10 bg-white p-4 md:grid-cols-2">
-          <label className="text-sm font-bold text-[#40554e]">English name<input className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-normal" value={nameEn} onChange={event => setNameEn(event.target.value)} /></label>
-          <label className="text-sm font-bold text-[#40554e]">中文名称<input className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-normal" value={nameZh} onChange={event => setNameZh(event.target.value)} /></label>
-          <label className="text-sm font-bold text-[#40554e]">{isZh ? '可见范围' : 'Visibility'}<select className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-normal" value={visibility} onChange={event => setVisibility(event.target.value as AlbumVisibility)}><option value="groupVisible">{isZh ? '小组成员' : 'Group members'}</option><option value="public">{isZh ? '公开' : 'Public'}</option></select></label>
-          <div className="flex items-end gap-2"><AppActionButton variant="primary" disabled={busy || (!nameEn.trim() && !nameZh.trim())} onClick={createAlbum}><Plus className="mr-2 h-4 w-4" />{isZh ? '创建' : 'Create'}</AppActionButton><AppActionButton onClick={() => setShowCreate(false)}>{isZh ? '取消' : 'Cancel'}</AppActionButton></div>
+      {editorMode ? (
+        <section className="rounded-2xl border border-[#2f4b42]/10 bg-white p-4">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="font-black text-[#18332d]">
+              {editorMode === 'edit'
+                ? (isZh ? '编辑相册' : 'Edit album')
+                : (isZh ? (detail ? '新建子相册' : '新建相册') : (detail ? 'New subalbum' : 'New album'))}
+            </h2>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            <label className="text-sm font-bold text-[#40554e]">English name<input className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-normal" value={albumForm.name.en} onChange={event => setAlbumForm((current) => ({ ...current, name: { ...current.name, en: event.target.value } }))} /></label>
+            <label className="text-sm font-bold text-[#40554e]">中文名称<input className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-normal" value={albumForm.name.zh} onChange={event => setAlbumForm((current) => ({ ...current, name: { ...current.name, zh: event.target.value } }))} /></label>
+            <label className="text-sm font-bold text-[#40554e]">English description <span className="font-normal text-slate-400">(optional)</span><textarea rows={3} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-normal" value={albumForm.description.en} onChange={event => setAlbumForm((current) => ({ ...current, description: { ...current.description, en: event.target.value } }))} /></label>
+            <label className="text-sm font-bold text-[#40554e]">中文描述 <span className="font-normal text-slate-400">（可选）</span><textarea rows={3} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-normal" value={albumForm.description.zh} onChange={event => setAlbumForm((current) => ({ ...current, description: { ...current.description, zh: event.target.value } }))} /></label>
+            <AiLanguageAutofill
+              key={`${editorMode}-${detail?.album.id ?? 'root'}`}
+              className="rounded-xl border border-sky-200 bg-sky-50/50 p-3 md:col-span-2"
+              groupId={groupId}
+              fields={missingAlbumTranslations}
+              disabled={busy}
+              onTranslated={(translations) => {
+                setAlbumForm((current) => {
+                  const next = { ...current }
+                  translations.forEach((translation) => {
+                    if (translation.field !== 'name' && translation.field !== 'description') return
+                    if (next[translation.field][translation.language].trim()) return
+                    next[translation.field] = { ...next[translation.field], [translation.language]: translation.text }
+                  })
+                  return next
+                })
+              }}
+            />
+            <label className="text-sm font-bold text-[#40554e]">{isZh ? '可见范围' : 'Visibility'}<select className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-normal" value={albumForm.visibility} onChange={event => setAlbumForm((current) => ({ ...current, visibility: event.target.value as AlbumVisibility }))}><option value="groupVisible">{isZh ? '小组成员' : 'Group members'}</option><option value="public">{isZh ? '公开' : 'Public'}</option></select></label>
+            <div className="flex items-end gap-2"><AppActionButton variant="primary" disabled={busy || (!albumForm.name.en.trim() && !albumForm.name.zh.trim())} onClick={saveAlbum}><Plus className="mr-2 h-4 w-4" />{editorMode === 'edit' ? (isZh ? '保存更改' : 'Save changes') : (isZh ? '创建' : 'Create')}</AppActionButton><AppActionButton onClick={() => setEditorMode(null)}>{isZh ? '取消' : 'Cancel'}</AppActionButton></div>
+          </div>
         </section>
       ) : null}
       {error ? <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p> : null}

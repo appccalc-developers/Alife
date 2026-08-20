@@ -40,6 +40,18 @@ public sealed class AlbumsController(IAlbumService albums, ICurrentMemberAccesso
         return result.IsSuccess ? Created($"/api/albums/{result.Value!.Album.Id}", result.Value) : this.ToActionResult(result);
     }
 
+    [HttpPut("albums/{albumId:guid}")]
+    public async Task<IActionResult> Update(Guid albumId, [FromBody] UpdateAlbumRequest request, CancellationToken cancellationToken)
+    {
+        var memberId = currentMemberAccessor.GetCurrentMemberId();
+        if (!memberId.HasValue) return Unauthorized();
+        return this.ToActionResult(await albums.UpdateAsync(
+            albumId,
+            new UpdateAlbumInput(request.Name, request.Description, request.Visibility),
+            memberId.Value,
+            cancellationToken));
+    }
+
     [HttpPost("albums/{albumId:guid}/photos")]
     public async Task<IActionResult> AddPhoto(Guid albumId, [FromBody] AddAlbumPhotoRequest request, CancellationToken cancellationToken)
     {
@@ -65,6 +77,7 @@ public sealed class AlbumsController(IAlbumService albums, ICurrentMemberAccesso
     }
 
     public sealed record CreateAlbumRequest(Guid? ParentAlbumId, Dictionary<string, string> Name, Dictionary<string, string>? Description, AlbumVisibility Visibility);
+    public sealed record UpdateAlbumRequest(Dictionary<string, string> Name, Dictionary<string, string>? Description, AlbumVisibility Visibility);
     public sealed record AddAlbumPhotoRequest(Guid FileAssetId, Dictionary<string, string>? Caption);
     public sealed record ReorderAlbumPhotosRequest(IReadOnlyList<Guid> PhotoIds);
 }

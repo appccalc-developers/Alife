@@ -38,3 +38,8 @@ public sealed record CreateAlbumInput(
     IReadOnlyDictionary<string, string> Name,
     IReadOnlyDictionary<string, string>? Description,
     AlbumVisibility Visibility);
+
+public sealed record UpdateAlbumInput(
+    IReadOnlyDictionary<string, string> Name,
+    IReadOnlyDictionary<string, string>? Description,
+    AlbumVisibility Visibility);

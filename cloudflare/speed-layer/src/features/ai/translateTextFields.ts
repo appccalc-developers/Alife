@@ -5,9 +5,21 @@ const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com'
 const DEFAULT_GEMINI_MODEL = 'gemini-3.1-flash-lite'
 const SUPPORTED_LANGUAGES = new Set(['zh', 'en'])
 const SUPPORTED_SCOPES = new Set(['group', 'church', 'page'])
-const ALLOWED_FIELDS = new Set(['name', 'description', 'mission', 'introduction', 'intro', 'title', 'body'])
+const ALLOWED_FIELDS = new Set([
+  'name',
+  'description',
+  'mission',
+  'introduction',
+  'intro',
+  'title',
+  'summary',
+  'content',
+  'body',
+  'role',
+  'notes',
+])
 const ALLOWED_PAGE_FIELD_PATTERN = /^page\.(title|description)$/
-const ALLOWED_SECTION_FIELD_PATTERN = /^sections\.(0|[1-9]\d*)\.(header\.(title|subtitle)|title|subtitle|body|text|quoteAuthor|linkLabel|actions\.(0|[1-9]\d*)\.label)$/
+const ALLOWED_SECTION_FIELD_PATTERN = /^sections\.(0|[1-9]\d*)\.(header\.(title|subtitle)|title|subtitle|body|text|quoteAuthor|linkLabel|secondaryLinkLabel|locationTitle|locationName|streetAddress|locationAddress|contactNameLabel|contactPhoneLabel|openMapLabel|actions\.(0|[1-9]\d*)\.label)$/
 const MAX_FIELDS = 12
 
 type LanguageCode = 'zh' | 'en'

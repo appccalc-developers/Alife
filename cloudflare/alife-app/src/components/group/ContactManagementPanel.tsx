@@ -6,6 +6,8 @@ import { contactService } from '../../services/contactService'
 import type { ContactProfileDto, ContactProfileInput } from '../../types/contact'
 import { localizeText } from '../../utils/localizedText'
 import { normalizeApiError } from '../../services/http'
+import { validateRequiredBilingualFields } from '../../utils/bilingualValidation'
+import AiLanguageAutofill from '../ai/AiLanguageAutofill'
 import AppActionButton from '../layout/AppActionButton'
 import AppBadge from '../layout/AppBadge'
 import AppEmptyState from '../layout/AppEmptyState'
@@ -131,6 +133,14 @@ const ContactManagementPanel = ({ groupId, memberships, onCountChange }: Props) 
   }
 
   const approvedMembers = memberships.filter((item) => item.status === 'approved')
+  const missingTranslations = validateRequiredBilingualFields(
+    { name: form.name, role: form.role, notes: form.notes },
+    [
+      { field: 'name', textType: 'contactName' },
+      { field: 'role', textType: 'contactRole' },
+      { field: 'notes', textType: 'contactNotes' },
+    ],
+  ).missingTranslatableFields
 
   const renderForm = () => (
     <div className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 sm:p-5">
@@ -170,6 +180,26 @@ const ContactManagementPanel = ({ groupId, memberships, onCountChange }: Props) 
         <label className="text-sm font-medium">Email<input type="email" className={inputClass} value={form.email ?? ''} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
         <label className="text-sm font-medium">Notes (English)<textarea rows={3} className={inputClass} value={form.notes?.en ?? ''} onChange={(e) => updateLocalized('notes', 'en', e.target.value)} /></label>
         <label className="text-sm font-medium">备注（中文）<textarea rows={3} className={inputClass} value={form.notes?.zh ?? ''} onChange={(e) => updateLocalized('notes', 'zh', e.target.value)} /></label>
+        <AiLanguageAutofill
+          key={editing?.id ?? 'new-contact'}
+          className="rounded-xl border border-sky-200 bg-sky-50/50 p-3 md:col-span-2"
+          groupId={groupId}
+          fields={missingTranslations}
+          disabled={saving}
+          sensitive
+          onTranslated={(translations) => {
+            setForm((current) => {
+              const next = { ...current }
+              translations.forEach((translation) => {
+                if (translation.field !== 'name' && translation.field !== 'role' && translation.field !== 'notes') return
+                const value = next[translation.field] ?? { en: '', zh: '' }
+                if (value[translation.language]?.trim()) return
+                next[translation.field] = { ...value, [translation.language]: translation.text }
+              })
+              return next
+            })
+          }}
+        />
         <label className="md:col-span-2 text-sm font-medium">{zh ? '可见范围' : 'Visibility'}<select className={inputClass} value={form.visibility} onChange={(e) => setForm({ ...form, visibility: e.target.value as ContactProfileInput['visibility'] })}><option value="groupOnly">GroupOnly</option><option value="public">Public</option></select></label>
       </div>
 
