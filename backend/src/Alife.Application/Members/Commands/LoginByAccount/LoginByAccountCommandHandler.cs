@@ -1,44 +1,49 @@
 using Alife.Application.Abstractions.Security;
+using Alife.Application.Common;
 using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
 using Alife.Application.Members.Dtos;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
-namespace Alife.Application.Members.Commands.LoginByDisplayName;
+namespace Alife.Application.Members.Commands.LoginByAccount;
 
-public sealed class LoginByDisplayNameCommandHandler(
+public sealed class LoginByAccountCommandHandler(
     IAlifeDbContext dbContext,
     IJwtTokenService jwtTokenService)
-    : IRequestHandler<LoginByDisplayNameCommand, AppResult<MemberActionResultDto>>
+    : IRequestHandler<LoginByAccountCommand, AppResult<MemberActionResultDto>>
 {
     public async Task<AppResult<MemberActionResultDto>> Handle(
-        LoginByDisplayNameCommand request,
+        LoginByAccountCommand request,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.DisplayName))
+        if (string.IsNullOrWhiteSpace(request.Account))
         {
-            return AppResult<MemberActionResultDto>.Validation("Display name is required.");
+            return AppResult<MemberActionResultDto>.Validation("Account is required.");
         }
 
-        var displayName = request.DisplayName.Trim();
+        var account = request.Account.Trim();
+        var phoneCandidates = SupportedPhoneNumber.GetE164Candidates(account);
 
         var matches = await dbContext.Members
             .AsNoTracking()
             .Include(x => x.PlatformRoles)
             .ThenInclude(x => x.Role)
-            .Where(x => x.IsRegistered && x.DisplayName == displayName)
+            .Where(x => x.IsRegistered &&
+                        (x.DisplayName == account ||
+                         x.PhoneE164 == account ||
+                         phoneCandidates.Contains(x.PhoneE164!)))
             .Take(2)
             .ToListAsync(cancellationToken);
 
         if (matches.Count == 0)
         {
-            return AppResult<MemberActionResultDto>.NotFound("No registered member found with that display name.");
+            return AppResult<MemberActionResultDto>.NotFound("No registered member found with that account.");
         }
 
         if (matches.Count > 1)
         {
-            return AppResult<MemberActionResultDto>.Conflict("Multiple members share that display name. Please use LINE login instead.");
+            return AppResult<MemberActionResultDto>.Conflict("Multiple members match that account. Please use LINE login instead.");
         }
 
         var member = matches[0];

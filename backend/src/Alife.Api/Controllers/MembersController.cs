@@ -4,7 +4,7 @@ using Alife.Api.Security;
 using Alife.Application.Abstractions.Identity;
 using Alife.Application.Abstractions.Integrations;
 using Alife.Application.Members.Commands.LineLogin;
-using Alife.Application.Members.Commands.LoginByDisplayName;
+using Alife.Application.Members.Commands.LoginByAccount;
 using Alife.Application.Members.Commands.RegisterMember;
 using Alife.Application.Members.Commands.SaveBibleReadingProgress;
 using Alife.Application.Members.Commands.UpdateCurrentMemberProfile;
@@ -178,12 +178,11 @@ public class MembersController(
         return Ok(new { ok = true, expiresUtc = result.Value.ExpiresUtc });
     }
 
-    [HttpPost("members/login/display-name")]
+    [HttpPost("members/login/account")]
     [AllowAnonymous]
-    public async Task<IActionResult> LoginByDisplayName([FromBody] LoginByDisplayNameRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> LoginByAccount([FromBody] LoginByAccountRequest request, CancellationToken cancellationToken)
     {
-        var account = request.Account ?? request.DisplayName ?? string.Empty;
-        var result = await mediator.Send(new LoginByDisplayNameCommand(account, request.Password), cancellationToken);
+        var result = await mediator.Send(new LoginByAccountCommand(request.Account ?? string.Empty, request.Password), cancellationToken);
 
         if (!result.IsSuccess || result.Value is null)
         {
@@ -279,7 +278,7 @@ public class MembersController(
     }
 
     public record RegisterRequest(string Name, string? Sex, int? Age, string? Email);
-    public record LoginByDisplayNameRequest(string? Account, string? Password, string? DisplayName);
+    public record LoginByAccountRequest(string? Account, string? Password);
     public record UpdateCurrentMemberProfileRequest(string? DisplayName, string? Email, string? PhoneE164);
     public record SaveBibleReadingProgressRequest(
         string Book,

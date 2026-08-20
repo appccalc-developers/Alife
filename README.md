@@ -163,7 +163,7 @@ npx wrangler deploy
 
 ## Main Features In The Current Code
 
-- Member identity through LINE Login, display-name login, and dev/admin flows.
+- Member identity through LINE Login, Alpha account login by display name or phone number with an optional international calling code, and dev/admin flows.
 - JWT authentication stored in the HttpOnly `alife_auth` cookie.
 - Hierarchical church/group model with public, protected, and private access types.
 - Group membership workflows: request, invite, accept, decline, approve, reject, co-leader assignment, kick, subgroup creation, and subgroup co-leader claim.
@@ -201,7 +201,7 @@ Private user-specific data must not be stored in shared public caches.
 | Area | Representative routes |
 |---|---|
 | Auth/session | `POST /api/auth/login`, `POST /api/auth/logout`, `POST /api/auth/dev/admin`, `GET /api/me` |
-| LINE/member | `GET /api/members/line/login`, `GET /api/members/line/callback`, `POST /api/members/register` |
+| LINE/member | `GET /api/members/line/login`, `GET /api/members/line/callback`, `POST /api/members/login/account`, `POST /api/members/register` |
 | Groups | `GET /api/groups/church`, `GET /api/groups/{id}`, `POST /api/groups/{id}/join-request` |
 | Group management | `POST /api/groups/{id}/subgroups`, `POST /api/groups/{id}/approve`, `POST /api/groups/{id}/set-coleader` |
 | Pages | `GET /api/pages/global`, `GET /api/groups/{groupId}/pages`, `POST /api/groups/{groupId}/pages`, `PUT /api/pages/{id}` |
