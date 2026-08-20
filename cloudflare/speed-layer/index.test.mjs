@@ -1540,6 +1540,77 @@ test('closing a subgroup invalidates the parent subgroup list cache', async () =
   assert.equal(apiCacheStore.has(`group:${parentId}:subgroups`), false)
 })
 
+test('updating a subgroup invalidates the parent subgroup list from edge and KV caches', async () => {
+  const parentId = 'parent-group-1'
+  const childId = 'child-group-1'
+  const parentSubgroupsUrl = `https://ccalc.live/api/groups/${parentId}/subgroups`
+  cacheStore.set(
+    parentSubgroupsUrl,
+    Response.json([{ id: childId, name: { zh: '旧名称' }, parentGroupId: parentId }]),
+  )
+  apiCacheStore.set(
+    `group:${parentId}:subgroups`,
+    createStoredResponse([{ id: childId, name: { zh: '旧名称' }, parentGroupId: parentId }]),
+  )
+  originResponses.push(Response.json({
+    id: childId,
+    name: { zh: '新名称' },
+    parentGroupId: parentId,
+  }))
+
+  const response = await dispatch(`https://ccalc.live/api/groups/${childId}`, {
+    method: 'PUT',
+    body: JSON.stringify({
+      name: { zh: '新名称' },
+      accessType: 'protected',
+      isClosed: false,
+    }),
+    headers: {
+      'content-type': 'application/json',
+      cookie: `alife_auth=${createJwtWithSub('member-1')}`,
+    },
+  })
+  await flushWaitUntil()
+
+  assert.equal(response.status, 200)
+  assert.equal(cacheStore.has(parentSubgroupsUrl), false)
+  assert.equal(apiCacheStore.has(`group:${parentId}:subgroups`), false)
+})
+
+test('updating a root group leaves unrelated subgroup list caches intact', async () => {
+  const churchId = 'church-group-1'
+  const unrelatedParentId = 'unrelated-parent-1'
+  const unrelatedSubgroupsUrl = `https://ccalc.live/api/groups/${unrelatedParentId}/subgroups`
+  cacheStore.set(unrelatedSubgroupsUrl, Response.json([{ id: 'unrelated-child-1' }]))
+  apiCacheStore.set(
+    `group:${unrelatedParentId}:subgroups`,
+    createStoredResponse([{ id: 'unrelated-child-1' }]),
+  )
+  originResponses.push(Response.json({
+    id: churchId,
+    name: { zh: '教会新名称' },
+    parentGroupId: null,
+  }))
+
+  const response = await dispatch(`https://ccalc.live/api/groups/${churchId}`, {
+    method: 'PUT',
+    body: JSON.stringify({
+      name: { zh: '教会新名称' },
+      accessType: 'public',
+      isClosed: false,
+    }),
+    headers: {
+      'content-type': 'application/json',
+      cookie: `alife_auth=${createJwtWithSub('member-1')}`,
+    },
+  })
+  await flushWaitUntil()
+
+  assert.equal(response.status, 200)
+  assert.equal(cacheStore.has(unrelatedSubgroupsUrl), true)
+  assert.equal(apiCacheStore.has(`group:${unrelatedParentId}:subgroups`), true)
+})
+
 test('shareable group subresources use 24 hour TTLs while event lists remain private', async () => {
   const groupId = 'group-1'
   authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved' }))
