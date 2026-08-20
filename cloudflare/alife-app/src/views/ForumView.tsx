@@ -222,7 +222,7 @@ const ForumView = () => {
   const firstCategoryId = categories[0]?.id ?? ''
   const defaultCategoryId = categoryId || firstCategoryId
   const groupMembership = groupId ? memberships.find((membership) => membership.groupId === groupId) : null
-  const canPost = !isGuest && isRegistered && (!groupId || groupMembership?.status === 'approved')
+  const canPost = !isGuest && isRegistered && (!churchForum || Boolean(groupId)) && (!groupId || groupMembership?.status === 'approved')
 
   const categoryOptions = useMemo(() => [
     { id: '', label: text.allCategories },
