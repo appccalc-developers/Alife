@@ -5,7 +5,9 @@ import type { GroupDto } from '../../types/group'
 import type { AnnouncementAudience, AnnouncementDto, AnnouncementPriority, AnnouncementStatus, SaveAnnouncementPayload } from '../../types/announcement'
 import { useAuthStore } from '../../stores/auth'
 import { localizeText } from '../../utils/localizedText'
+import { validateRequiredBilingualFields } from '../../utils/bilingualValidation'
 import AppActionButton from '../layout/AppActionButton'
+import AiLanguageAutofill from '../ai/AiLanguageAutofill'
 
 const toLocalInput = (value?: string | null) => {
   const date = value ? new Date(value) : new Date()
@@ -36,6 +38,14 @@ const AnnouncementManagementPanel = ({ group, onMessage }: { group: GroupDto; on
   const [form, setForm] = useState<SaveAnnouncementPayload>(() => emptyForm(group.id, group.isChurch))
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const missingTranslations = useMemo(() => validateRequiredBilingualFields(
+    { title: form.title, summary: form.summary, content: form.content },
+    [
+      { field: 'title', textType: 'announcementTitle' },
+      { field: 'summary', textType: 'announcementSummary' },
+      { field: 'content', textType: 'announcementContent' },
+    ],
+  ).missingTranslatableFields, [form.content, form.summary, form.title])
   const copy = useMemo(() => language === 'zh' ? {
     title: '公告', hint: '发布有对象、时间和期限的短期信息。', add: '新建公告', empty: '还没有公告。', edit: '编辑公告',
     titleEn: '英文标题', titleZh: '中文标题', summaryEn: '英文摘要', summaryZh: '中文摘要', contentEn: '英文内容（可选）', contentZh: '中文内容（可选）',
@@ -95,6 +105,26 @@ const AnnouncementManagementPanel = ({ group, onMessage }: { group: GroupDto; on
       {open ? (
         <div className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4">
           <div className="mb-3 flex items-center justify-between"><h3 className="font-black text-[#18332d]">{editingId ? copy.edit : copy.add}</h3><button type="button" onClick={() => setOpen(false)} aria-label={copy.cancel}><X className="h-5 w-5" /></button></div>
+          <AiLanguageAutofill
+            key={editingId ?? 'new-announcement'}
+            className="mb-4 rounded-xl border border-sky-200 bg-sky-50/50 p-3"
+            groupId={group.id}
+            scope={group.isChurch ? 'church' : 'group'}
+            fields={missingTranslations}
+            disabled={saving}
+            onTranslated={(translations) => {
+              setForm((current) => {
+                const next = { ...current }
+                translations.forEach((translation) => {
+                  if (translation.field !== 'title' && translation.field !== 'summary' && translation.field !== 'content') return
+                  const value = next[translation.field] ?? { en: '', zh: '' }
+                  if (value[translation.language]?.trim()) return
+                  next[translation.field] = { ...value, [translation.language]: translation.text }
+                })
+                return next
+              })
+            }}
+          />
           <div className="grid gap-3 md:grid-cols-2">
             {([['title', 'en', copy.titleEn], ['title', 'zh', copy.titleZh], ['summary', 'en', copy.summaryEn], ['summary', 'zh', copy.summaryZh]] as const).map(([field, locale, label]) => <label key={`${field}-${locale}`} className="text-xs font-bold text-slate-700">{label}<input className={inputClass} value={form[field]?.[locale] ?? ''} onChange={(event) => localized(field, locale, event.target.value)} /></label>)}
             <label className="text-xs font-bold text-slate-700">{copy.contentEn}<textarea rows={3} className={inputClass} value={form.content?.en ?? ''} onChange={(event) => localized('content', 'en', event.target.value)} /></label>

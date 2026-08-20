@@ -93,6 +93,114 @@ public sealed class AlbumServiceTests
     }
 
     [Fact]
+    public async Task UpdateAlbum_AllowsLeaderToSaveBilingualDetails()
+    {
+        await using var db = CreateDb();
+        var groupId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+        var album = Album(groupId, "Original", AlbumVisibility.GroupVisible);
+        db.Groups.Add(new Group { Id = groupId, NameJson = "{}" });
+        db.Albums.Add(album);
+        await db.SaveChangesAsync();
+        var authorization = Substitute.For<IGroupAuthorizationService>();
+        authorization.IsLeaderOrCoLeaderAsync(groupId, memberId, Arg.Any<CancellationToken>()).Returns(true);
+        authorization.IsApprovedMemberAsync(groupId, memberId, Arg.Any<CancellationToken>()).Returns(true);
+        var input = new UpdateAlbumInput(
+            new Dictionary<string, string> { ["en"] = "Community life", ["zh"] = "群体生活" },
+            new Dictionary<string, string> { ["en"] = "Shared memories", ["zh"] = "共同回忆" },
+            AlbumVisibility.GroupVisible);
+
+        var result = await new AlbumService(db, authorization).UpdateAsync(album.Id, input, memberId, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("Community life", result.Value!.Album.Name["en"]);
+        Assert.Equal("群体生活", result.Value.Album.Name["zh"]);
+        Assert.Equal("共同回忆", result.Value.Album.Description!["zh"]);
+    }
+
+    [Fact]
+    public async Task UpdateAlbum_RejectsApprovedReadOnlyMember()
+    {
+        await using var db = CreateDb();
+        var groupId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+        var album = Album(groupId, "Original", AlbumVisibility.GroupVisible);
+        db.Groups.Add(new Group { Id = groupId, NameJson = "{}" });
+        db.Albums.Add(album);
+        await db.SaveChangesAsync();
+        var authorization = Substitute.For<IGroupAuthorizationService>();
+        authorization.IsLeaderOrCoLeaderAsync(groupId, memberId, Arg.Any<CancellationToken>()).Returns(false);
+        var input = new UpdateAlbumInput(
+            new Dictionary<string, string> { ["en"] = "Changed" },
+            null,
+            AlbumVisibility.GroupVisible);
+
+        var result = await new AlbumService(db, authorization).UpdateAsync(album.Id, input, memberId, CancellationToken.None);
+
+        Assert.Equal(AppResultStatus.Forbidden, result.Status);
+        Assert.Equal("{\"en\":\"Original\"}", (await db.Albums.FindAsync(album.Id))!.NameJson);
+    }
+
+    [Fact]
+    public async Task UpdateAlbum_RejectsPublicVisibilityWhenAPhotoIsMemberOnly()
+    {
+        await using var db = CreateDb();
+        var groupId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+        var album = Album(groupId, "Members", AlbumVisibility.GroupVisible);
+        var asset = new FileAsset
+        {
+            Id = Guid.NewGuid(),
+            GroupId = groupId,
+            ObjectKey = "albums/photo.jpg",
+            OriginalFileName = "photo.jpg",
+            StoredFileName = "photo.jpg",
+            ContentType = "image/jpeg",
+            Visibility = FileAssetVisibility.GroupVisible,
+        };
+        db.Groups.Add(new Group { Id = groupId, NameJson = "{}" });
+        db.Albums.Add(album);
+        db.FileAssets.Add(asset);
+        db.AlbumPhotos.Add(new AlbumPhoto { Id = Guid.NewGuid(), AlbumId = album.Id, FileAssetId = asset.Id, CreatedUtc = DateTime.UtcNow });
+        await db.SaveChangesAsync();
+        var authorization = Substitute.For<IGroupAuthorizationService>();
+        authorization.IsLeaderOrCoLeaderAsync(groupId, memberId, Arg.Any<CancellationToken>()).Returns(true);
+        var input = new UpdateAlbumInput(
+            new Dictionary<string, string> { ["en"] = "Public" },
+            null,
+            AlbumVisibility.Public);
+
+        var result = await new AlbumService(db, authorization).UpdateAsync(album.Id, input, memberId, CancellationToken.None);
+
+        Assert.Equal(AppResultStatus.ValidationError, result.Status);
+        Assert.Equal(AlbumVisibility.GroupVisible, (await db.Albums.FindAsync(album.Id))!.Visibility);
+    }
+
+    [Fact]
+    public async Task UpdateAlbum_RejectsMemberOnlyVisibilityWhenItHasPublicChild()
+    {
+        await using var db = CreateDb();
+        var groupId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+        var parent = Album(groupId, "Parent", AlbumVisibility.Public);
+        var child = Album(groupId, "Public child", AlbumVisibility.Public, parent.Id);
+        db.Groups.Add(new Group { Id = groupId, NameJson = "{}" });
+        db.Albums.AddRange(parent, child);
+        await db.SaveChangesAsync();
+        var authorization = Substitute.For<IGroupAuthorizationService>();
+        authorization.IsLeaderOrCoLeaderAsync(groupId, memberId, Arg.Any<CancellationToken>()).Returns(true);
+        var input = new UpdateAlbumInput(
+            new Dictionary<string, string> { ["en"] = "Parent" },
+            null,
+            AlbumVisibility.GroupVisible);
+
+        var result = await new AlbumService(db, authorization).UpdateAsync(parent.Id, input, memberId, CancellationToken.None);
+
+        Assert.Equal(AppResultStatus.ValidationError, result.Status);
+        Assert.Equal(AlbumVisibility.Public, (await db.Albums.FindAsync(parent.Id))!.Visibility);
+    }
+
+    [Fact]
     public async Task ListChurchLife_IncludesPublicPrivateGroupAlbumsAndOnlyApprovedMemberAlbums()
     {
         await using var db = CreateDb();

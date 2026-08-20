@@ -6,6 +6,7 @@ import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
 import AppEmptyState from '../components/layout/AppEmptyState'
 import AppPageShell from '../components/layout/AppPageShell'
+import AiLanguageAutofill from '../components/ai/AiLanguageAutofill'
 import ChurchGroupFilter from '../components/church-life/ChurchGroupFilter'
 import ChurchLifeResultsRegion from '../components/church-life/ChurchLifeResultsRegion'
 import { queryClient } from '../db/queryClient'
@@ -19,14 +20,17 @@ import { useAuthStore } from '../stores/auth'
 import type { ForumPostSummaryDto, ForumPostVisibilityRequest } from '../types/forum'
 import { ForumMediaGrid, ForumMediaPicker, selectForumMedia, type PendingForumMedia, uploadPendingForumMedia } from './forum/ForumMediaControls'
 import { forumCopy, visibilityLabel } from './forum/forumCopy'
-import { categoryName, formatForumDate, localizedJsonExcerpt, localizedJsonText, oneLanguagePayload, parseForumMedia } from './forum/forumUtils'
+import { categoryName, formatForumDate, localizedJsonExcerpt, localizedJsonText, parseForumMedia } from './forum/forumUtils'
 import ForumSermonEmbed from './forum/ForumSermonEmbed'
 import { churchGroupPath, updateChurchLifeOwnerFilter } from '../utils/churchLifeGroups'
+import { compactBilingualText, validateRequiredBilingualFields, type LanguageCode } from '../utils/bilingualValidation'
 
 const avatarLetter = (value?: string | null) => (value || 'A').slice(0, 1).toUpperCase()
 
 const isPublicVisibility = (visibility: unknown) =>
   visibility === 1 || visibility === 'Public' || visibility === 'public'
+
+const emptyBilingualDraft = () => ({ en: '', zh: '' })
 
 type ForumFeedResult = {
   items: ForumPostSummaryDto[]
@@ -51,8 +55,8 @@ const ForumComposer = ({
   const text = forumCopy(language)
   const [categoryId, setCategoryId] = useState(defaultCategoryId)
   const [visibility, setVisibility] = useState<ForumPostVisibilityRequest>(groupId ? 'GroupOnly' : 'MembersOnly')
-  const [title, setTitle] = useState('')
-  const [body, setBody] = useState('')
+  const [title, setTitle] = useState(emptyBilingualDraft)
+  const [body, setBody] = useState(emptyBilingualDraft)
   const [media, setMedia] = useState<PendingForumMedia[]>([])
   const [message, setMessage] = useState('')
   const categoriesQuery = useQuery({
@@ -66,8 +70,8 @@ const ForumComposer = ({
       return forumService.createPost({
         categoryId,
         groupId: groupId || null,
-        title: oneLanguagePayload(language, title),
-        body: oneLanguagePayload(language, body),
+        title: compactBilingualText(title),
+        body: compactBilingualText(body),
         media: uploadedMedia,
         visibility,
       })
@@ -86,11 +90,11 @@ const ForumComposer = ({
       setMessage(text.chooseCategory)
       return
     }
-    if (!title.trim()) {
+    if (!title.en.trim() && !title.zh.trim()) {
       setMessage(text.emptyTitle)
       return
     }
-    if (!body.trim()) {
+    if (!body.en.trim() && !body.zh.trim()) {
       setMessage(text.emptyBody)
       return
     }
@@ -98,6 +102,14 @@ const ForumComposer = ({
   }
 
   const categories = categoriesQuery.data ?? []
+  const editorLanguages: LanguageCode[] = language === 'zh' ? ['zh', 'en'] : ['en', 'zh']
+  const missingTranslations = validateRequiredBilingualFields(
+    { title, body },
+    [
+      { field: 'title', textType: 'forumPostTitle' },
+      { field: 'body', textType: 'forumPostBody' },
+    ],
+  ).missingTranslatableFields
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_18px_50px_rgba(15,23,42,0.08)] sm:p-5">
@@ -116,18 +128,50 @@ const ForumComposer = ({
             </button>
           </div>
           {message ? <p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{message}</p> : null}
-          <input
-            className="mt-4 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-base font-black text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-[#176b5a] focus:bg-white focus:ring-4 focus:ring-[#176b5a]/10"
-            value={title}
-            placeholder={text.title}
-            onChange={(event) => setTitle(event.target.value)}
-            maxLength={180}
-          />
-          <textarea
-            className="mt-3 min-h-32 w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-7 text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#176b5a] focus:bg-white focus:ring-4 focus:ring-[#176b5a]/10"
-            value={body}
-            placeholder={text.body}
-            onChange={(event) => setBody(event.target.value)}
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {editorLanguages.map((editorLanguage) => (
+              <div key={editorLanguage} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
+                <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">
+                  {editorLanguage === 'zh' ? '中文' : 'English'}
+                </p>
+                <input
+                  className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-base font-black text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-[#176b5a] focus:ring-4 focus:ring-[#176b5a]/10"
+                  value={title[editorLanguage]}
+                  aria-label={`${text.title} (${editorLanguage})`}
+                  placeholder={editorLanguage === 'zh' ? '话题标题' : 'Topic title'}
+                  onChange={(event) => setTitle((current) => ({ ...current, [editorLanguage]: event.target.value }))}
+                  maxLength={180}
+                />
+                <textarea
+                  className="mt-3 min-h-32 w-full resize-y rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm leading-7 text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#176b5a] focus:ring-4 focus:ring-[#176b5a]/10"
+                  value={body[editorLanguage]}
+                  aria-label={`${text.body} (${editorLanguage})`}
+                  placeholder={editorLanguage === 'zh' ? '写下话题正文…' : 'Write the topic body…'}
+                  onChange={(event) => setBody((current) => ({ ...current, [editorLanguage]: event.target.value }))}
+                />
+              </div>
+            ))}
+          </div>
+          <AiLanguageAutofill
+            className="mt-3 rounded-xl border border-sky-200 bg-sky-50/50 p-3"
+            groupId={groupId}
+            scope={groupId ? 'group' : 'church'}
+            fields={missingTranslations}
+            disabled={createMutation.isPending}
+            onTranslated={(translations) => {
+              translations.forEach((translation) => {
+                if (translation.field === 'title') {
+                  setTitle((current) => current[translation.language].trim()
+                    ? current
+                    : { ...current, [translation.language]: translation.text })
+                }
+                if (translation.field === 'body') {
+                  setBody((current) => current[translation.language].trim()
+                    ? current
+                    : { ...current, [translation.language]: translation.text })
+                }
+              })
+            }}
           />
           <ForumMediaPicker
             items={media}

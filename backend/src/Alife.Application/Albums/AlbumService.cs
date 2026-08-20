@@ -96,6 +96,50 @@ public sealed class AlbumService(IAlifeDbContext db, IGroupAuthorizationService 
         return AppResult<AlbumDetailDto>.Success(await BuildDetailAsync(album, currentMemberId, cancellationToken));
     }
 
+    public async Task<AppResult<AlbumDetailDto>> UpdateAsync(Guid albumId, UpdateAlbumInput input, Guid currentMemberId, CancellationToken cancellationToken)
+    {
+        var album = await db.Albums.FirstOrDefaultAsync(x => x.Id == albumId, cancellationToken);
+        if (album is null) return AppResult<AlbumDetailDto>.NotFound("Album not found.");
+        if (!await authorization.IsLeaderOrCoLeaderAsync(album.GroupId, currentMemberId, cancellationToken))
+            return AppResult<AlbumDetailDto>.Forbidden("Only group leaders and co-leaders can update albums.");
+
+        var name = Normalize(input.Name);
+        if (name.Count == 0) return AppResult<AlbumDetailDto>.Validation("An English or Chinese album name is required.");
+
+        if (input.Visibility == AlbumVisibility.Public)
+        {
+            if (album.ParentAlbumId.HasValue)
+            {
+                var parentVisibility = await db.Albums.AsNoTracking()
+                    .Where(x => x.Id == album.ParentAlbumId.Value)
+                    .Select(x => (AlbumVisibility?)x.Visibility)
+                    .FirstOrDefaultAsync(cancellationToken);
+                if (parentVisibility == AlbumVisibility.GroupVisible)
+                    return AppResult<AlbumDetailDto>.Validation("A public album cannot be nested inside a member-only album.");
+            }
+
+            var hasPrivatePhoto = await db.AlbumPhotos.AsNoTracking()
+                .Where(x => x.AlbumId == albumId)
+                .AnyAsync(x => x.FileAsset.Visibility != FileAssetVisibility.Public, cancellationToken);
+            if (hasPrivatePhoto)
+                return AppResult<AlbumDetailDto>.Validation("A public album requires public file assets for every photo.");
+        }
+        else
+        {
+            var hasPublicChild = await db.Albums.AsNoTracking()
+                .AnyAsync(x => x.ParentAlbumId == albumId && x.Visibility == AlbumVisibility.Public, cancellationToken);
+            if (hasPublicChild)
+                return AppResult<AlbumDetailDto>.Validation("A member-only album cannot contain a public child album.");
+        }
+
+        album.NameJson = Write(name);
+        album.DescriptionJson = WriteOptional(input.Description);
+        album.Visibility = input.Visibility;
+        album.UpdatedUtc = DateTime.UtcNow;
+        await db.SaveChangesAsync(cancellationToken);
+        return AppResult<AlbumDetailDto>.Success(await BuildDetailAsync(album, currentMemberId, cancellationToken));
+    }
+
     public async Task<AppResult<AlbumDetailDto>> AddPhotoAsync(Guid albumId, Guid fileAssetId, IReadOnlyDictionary<string, string>? caption, Guid currentMemberId, CancellationToken cancellationToken)
     {
         var album = await db.Albums.FirstOrDefaultAsync(x => x.Id == albumId, cancellationToken);

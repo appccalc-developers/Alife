@@ -1787,6 +1787,48 @@ test('POST /api/ai/translate-text-fields returns deterministic translated fields
   assert.equal(prompt.fields.length, 2)
 })
 
+test('POST /api/ai/translate-text-fields accepts announcement and contact fields', async () => {
+  const groupId = 'group-1'
+  authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved', role: 'Leader' }))
+  originResponses.push(Response.json({
+    candidates: [{
+      content: {
+        parts: [{
+          text: JSON.stringify({
+            fields: [
+              { field: 'summary', language: 'zh', text: '公告摘要' },
+              { field: 'content', language: 'zh', text: '公告内容' },
+              { field: 'role', language: 'zh', text: '青年牧者' },
+              { field: 'notes', language: 'zh', text: '负责青年事工。' },
+            ],
+          }),
+        }],
+      },
+    }],
+  }))
+
+  const fields = [
+    { field: 'summary', sourceLanguage: 'en', targetLanguage: 'zh', sourceText: 'Announcement summary', textType: 'announcementSummary' },
+    { field: 'content', sourceLanguage: 'en', targetLanguage: 'zh', sourceText: 'Announcement content', textType: 'announcementContent' },
+    { field: 'role', sourceLanguage: 'en', targetLanguage: 'zh', sourceText: 'Youth pastor', textType: 'contactRole' },
+    { field: 'notes', sourceLanguage: 'en', targetLanguage: 'zh', sourceText: 'Leads the youth ministry.', textType: 'contactNotes' },
+  ]
+  const response = await dispatch('https://ccalc.live/api/ai/translate-text-fields', {
+    method: 'POST',
+    body: JSON.stringify({ scope: 'group', groupId, fields }),
+    headers: {
+      'content-type': 'application/json',
+      cookie: `alife_auth=${createJwtWithSub('member-1')}`,
+    },
+    env: { GEMINI_API_KEY: 'test-key' },
+  })
+
+  assert.equal(response.status, 200)
+  assert.equal((await response.json()).fields.length, fields.length)
+  const prompt = JSON.parse(JSON.parse(fetchInits[0].body).contents[0].parts[0].text)
+  assert.deepEqual(prompt.fields.map((field) => field.field), ['summary', 'content', 'role', 'notes'])
+})
+
 test('POST /api/ai/translate-text-fields accepts page editor field paths', async () => {
   const groupId = 'group-1'
   authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved', role: 'CoLeader' }))
@@ -1799,6 +1841,8 @@ test('POST /api/ai/translate-text-fields accepts page editor field paths', async
               { field: 'page.title', language: 'zh', text: 'Youth page' },
               { field: 'sections.0.header.title', language: 'zh', text: 'Welcome' },
               { field: 'sections.0.body', language: 'zh', text: 'Body copy' },
+              { field: 'sections.0.secondaryLinkLabel', language: 'zh', text: 'Contact us' },
+              { field: 'sections.1.locationAddress', language: 'zh', text: 'Christchurch, New Zealand' },
               { field: 'sections.0.actions.1.label', language: 'zh', text: 'Learn more' },
             ],
           }),
@@ -1835,6 +1879,20 @@ test('POST /api/ai/translate-text-fields accepts page editor field paths', async
           textType: 'sectionBody',
         },
         {
+          field: 'sections.0.secondaryLinkLabel',
+          sourceLanguage: 'en',
+          targetLanguage: 'zh',
+          sourceText: 'Contact us',
+          textType: 'sectionActionLabel',
+        },
+        {
+          field: 'sections.1.locationAddress',
+          sourceLanguage: 'en',
+          targetLanguage: 'zh',
+          sourceText: 'Christchurch, New Zealand',
+          textType: 'sectionBody',
+        },
+        {
           field: 'sections.0.actions.1.label',
           sourceLanguage: 'en',
           targetLanguage: 'zh',
@@ -1856,6 +1914,8 @@ test('POST /api/ai/translate-text-fields accepts page editor field paths', async
       { field: 'page.title', language: 'zh', text: 'Youth page' },
       { field: 'sections.0.header.title', language: 'zh', text: 'Welcome' },
       { field: 'sections.0.body', language: 'zh', text: 'Body copy' },
+      { field: 'sections.0.secondaryLinkLabel', language: 'zh', text: 'Contact us' },
+      { field: 'sections.1.locationAddress', language: 'zh', text: 'Christchurch, New Zealand' },
       { field: 'sections.0.actions.1.label', language: 'zh', text: 'Learn more' },
     ],
   })
@@ -1863,7 +1923,8 @@ test('POST /api/ai/translate-text-fields accepts page editor field paths', async
   const geminiBody = JSON.parse(fetchInits[0].body)
   const prompt = JSON.parse(geminiBody.contents[0].parts[0].text)
   assert.equal(prompt.fields[0].field, 'page.title')
-  assert.equal(prompt.fields[3].field, 'sections.0.actions.1.label')
+  assert.equal(prompt.fields[3].field, 'sections.0.secondaryLinkLabel')
+  assert.equal(prompt.fields[5].field, 'sections.0.actions.1.label')
 })
 
 test('POST /api/ai/translate-text-fields reports an invalid Gemini key as configuration error', async () => {

@@ -10,6 +10,8 @@
     "test:group-hierarchy": "node --test --experimental-strip-types tests/groupHierarchy.test.ts",
     "test:church-life": "node --test --experimental-strip-types tests/churchLife.test.ts",
     "test:locale": "node --test --experimental-strip-types tests/locale.test.ts",
+    "test:bilingual": "node --test --experimental-strip-types tests/bilingualValidation.test.ts",
+    "test:page-bilingual": "node --test --experimental-strip-types tests/pageBilingualCompletion.test.ts",
     "test:article-covers": "node --test --experimental-strip-types tests/articleCover.test.ts",
     "test:navigation-policy": "node --test --experimental-strip-types tests/navigationPolicy.test.ts",
     "test:route-chunk-recovery": "node --test --experimental-strip-types tests/routeChunkRecovery.test.ts",

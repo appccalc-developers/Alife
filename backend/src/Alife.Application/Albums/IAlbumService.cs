@@ -11,6 +11,7 @@ public interface IAlbumService
         CancellationToken cancellationToken);
     Task<AppResult<AlbumDetailDto>> GetAsync(Guid albumId, Guid? currentMemberId, CancellationToken cancellationToken);
     Task<AppResult<AlbumDetailDto>> CreateAsync(CreateAlbumInput input, Guid currentMemberId, CancellationToken cancellationToken);
+    Task<AppResult<AlbumDetailDto>> UpdateAsync(Guid albumId, UpdateAlbumInput input, Guid currentMemberId, CancellationToken cancellationToken);
     Task<AppResult<AlbumDetailDto>> AddPhotoAsync(Guid albumId, Guid fileAssetId, IReadOnlyDictionary<string, string>? caption, Guid currentMemberId, CancellationToken cancellationToken);
     Task<AppResult<AlbumDetailDto>> RemovePhotoAsync(Guid albumId, Guid photoId, Guid currentMemberId, CancellationToken cancellationToken);
     Task<AppResult<AlbumDetailDto>> ReorderPhotosAsync(Guid albumId, IReadOnlyList<Guid> photoIds, Guid currentMemberId, CancellationToken cancellationToken);

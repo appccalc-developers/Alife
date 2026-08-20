@@ -6,6 +6,7 @@ import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
 import AppEmptyState from '../components/layout/AppEmptyState'
 import AppPageShell from '../components/layout/AppPageShell'
+import AiLanguageAutofill from '../components/ai/AiLanguageAutofill'
 import { queryClient } from '../db/queryClient'
 import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
 import { churchLifeQueryKeys, churchLifeService } from '../services/churchLifeService'
@@ -16,8 +17,9 @@ import type { ForumCommentDto, ForumCommentVisibilityRequest } from '../types/fo
 import { belongsToForumRouteScope } from '../utils/forumRouteScope'
 import { ForumMediaGrid, ForumMediaPicker, selectForumMedia, type PendingForumMedia, uploadPendingForumMedia } from './forum/ForumMediaControls'
 import { forumCopy, visibilityLabel } from './forum/forumCopy'
-import { categoryName, formatForumDate, localizedJsonText, oneLanguagePayload, parseForumMedia } from './forum/forumUtils'
+import { categoryName, formatForumDate, localizedJsonText, parseForumMedia } from './forum/forumUtils'
 import ForumSermonEmbed from './forum/ForumSermonEmbed'
+import { compactBilingualText, validateRequiredBilingualFields, type LanguageCode } from '../utils/bilingualValidation'
 
 const avatarLetter = (value?: string | null) => (value || 'A').slice(0, 1).toUpperCase()
 
@@ -73,6 +75,7 @@ const buildCommentThreads = (comments: ForumCommentDto[]) => {
 
 const ForumCommentForm = ({
   postId,
+  ownerGroupId,
   groupForum,
   forceGroupOnly,
   parentCommentId,
@@ -81,6 +84,7 @@ const ForumCommentForm = ({
   onCancel,
 }: {
   postId: string
+  ownerGroupId?: string | null
   groupForum: boolean
   forceGroupOnly: boolean
   parentCommentId?: string | null
@@ -91,21 +95,21 @@ const ForumCommentForm = ({
   const { language, me } = useAuthStore()
   const text = forumCopy(language)
   const [visibility, setVisibility] = useState<ForumCommentVisibilityRequest>(groupForum ? 'GroupOnly' : 'Public')
-  const [body, setBody] = useState('')
+  const [body, setBody] = useState({ en: '', zh: '' })
   const [media, setMedia] = useState<PendingForumMedia[]>([])
   const [message, setMessage] = useState('')
   const mutation = useMutation({
     mutationFn: async () => {
       const uploadedMedia = await uploadPendingForumMedia(media, `forum/comments/${postId}/${Date.now()}`)
       return forumService.createComment(postId, {
-        body: body.trim() ? oneLanguagePayload(language, body) : null,
+        body: body.en.trim() || body.zh.trim() ? compactBilingualText(body) : null,
         parentCommentId: parentCommentId || null,
         media: uploadedMedia,
         visibility: groupForum ? (forceGroupOnly ? 'GroupOnly' : visibility) : 'Public',
       })
     },
     onSuccess: async () => {
-      setBody('')
+      setBody({ en: '', zh: '' })
       setMedia([])
       onCancel?.()
       await queryClient.invalidateQueries({ queryKey: ['forum', 'posts'] })
@@ -115,12 +119,18 @@ const ForumCommentForm = ({
 
   const submit = () => {
     setMessage('')
-    if (!body.trim() && media.length === 0) {
+    if (!body.en.trim() && !body.zh.trim() && media.length === 0) {
       setMessage(text.emptyComment)
       return
     }
     mutation.mutate()
   }
+
+  const editorLanguages: LanguageCode[] = language === 'zh' ? ['zh', 'en'] : ['en', 'zh']
+  const missingTranslations = validateRequiredBilingualFields(
+    { body },
+    [{ field: 'body', textType: 'forumCommentBody' }],
+  ).missingTranslatableFields
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
@@ -141,12 +151,34 @@ const ForumCommentForm = ({
             ) : null}
           </div>
           {message ? <p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{message}</p> : null}
-          <textarea
-            className="mt-3 min-h-28 w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-7 text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#176b5a] focus:bg-white focus:ring-4 focus:ring-[#176b5a]/10"
-            value={body}
-            placeholder={text.commentPlaceholder}
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            {editorLanguages.map((editorLanguage) => (
+              <label key={editorLanguage} className="text-xs font-black text-slate-500">
+                {editorLanguage === 'zh' ? '中文' : 'English'}
+                <textarea
+                  className="mt-1 min-h-28 w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-normal leading-7 text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#176b5a] focus:bg-white focus:ring-4 focus:ring-[#176b5a]/10"
+                  value={body[editorLanguage]}
+                  placeholder={editorLanguage === 'zh' ? '写下你的回应…' : 'Write a thoughtful response…'}
+                  disabled={disabled || mutation.isPending}
+                  onChange={(event) => setBody((current) => ({ ...current, [editorLanguage]: event.target.value }))}
+                />
+              </label>
+            ))}
+          </div>
+          <AiLanguageAutofill
+            className="mt-3 rounded-xl border border-sky-200 bg-sky-50/50 p-3"
+            groupId={ownerGroupId || undefined}
+            scope={ownerGroupId ? 'group' : 'church'}
+            fields={missingTranslations}
             disabled={disabled || mutation.isPending}
-            onChange={(event) => setBody(event.target.value)}
+            onTranslated={(translations) => {
+              translations.forEach((translation) => {
+                if (translation.field !== 'body') return
+                setBody((current) => current[translation.language].trim()
+                  ? current
+                  : { ...current, [translation.language]: translation.text })
+              })
+            }}
           />
           <ForumMediaPicker
             items={media}
@@ -374,6 +406,7 @@ const ForumPostView = () => {
                           <div className="mt-4 pl-11 sm:pl-14">
                             <ForumCommentForm
                               postId={post.id}
+                              ownerGroupId={post.groupId}
                               groupForum={Boolean(post.groupId)}
                               forceGroupOnly={!isPublicVisibility(post.visibility) || !isPublicVisibility(comment.visibility)}
                               parentCommentId={comment.id}
@@ -433,6 +466,7 @@ const ForumPostView = () => {
                                     <div className="mt-3">
                                       <ForumCommentForm
                                         postId={post.id}
+                                        ownerGroupId={post.groupId}
                                         groupForum={Boolean(post.groupId)}
                                         forceGroupOnly={!isPublicVisibility(post.visibility) || !isPublicVisibility(reply.visibility)}
                                         parentCommentId={reply.id}
@@ -456,6 +490,7 @@ const ForumPostView = () => {
                 {canComment ? (
                   <ForumCommentForm
                     postId={post.id}
+                    ownerGroupId={post.groupId}
                     groupForum={Boolean(post.groupId)}
                     forceGroupOnly={!isPublicVisibility(post.visibility)}
                   />

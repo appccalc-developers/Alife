@@ -680,12 +680,15 @@ const SectionCardEditor = ({
             </div>
           </div>
           {languageIssueCount > 0 ? (
-            <div className="mx-4 mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900" onClick={(event) => event.stopPropagation()}>
+            <div className="mx-4 mb-3 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sky-900" onClick={(event) => event.stopPropagation()}>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex min-w-0 items-start gap-2">
                   <Languages className="mt-0.5 h-4 w-4 shrink-0" />
                   <p className="text-xs font-bold leading-5">
-                    {t('sectionLanguageIssueWarning', { count: languageIssueCount })}
+                    {t('sectionLanguageIssueWarning', {
+                      count: languageIssueCount,
+                      language: t(isZh ? 'english' : 'chinese'),
+                    })}
                   </p>
                 </div>
                 {onFixLanguageIssues ? (

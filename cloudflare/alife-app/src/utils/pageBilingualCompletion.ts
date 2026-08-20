@@ -564,6 +564,32 @@ export const collectMissingPageTranslations = (model: PageEditModel): MissingTra
   return fields
 }
 
+export const collectSectionTranslationRequests = (
+  section: SectionEditModel,
+  index: number,
+  sourceLanguage: LanguageCode,
+): MissingTranslatableField[] => {
+  const candidates: FieldCandidate[] = []
+  pushSectionCandidates(candidates, section, index)
+
+  const targetLanguage: LanguageCode = sourceLanguage === 'zh' ? 'en' : 'zh'
+
+  return candidates.flatMap((candidate) => {
+    const sourceText = readBilingualText(candidate.value)[sourceLanguage].trim()
+    if (!sourceText) {
+      return []
+    }
+
+    return [{
+      field: candidate.field,
+      sourceLanguage,
+      targetLanguage,
+      sourceText,
+      textType: candidate.textType,
+    }]
+  })
+}
+
 const sectionIndexFromField = (field: string) => {
   const match = /^sections\.(\d+)\./.exec(field)
   if (!match) {
@@ -639,9 +665,10 @@ const mergeTranslation = (
   current: unknown,
   language: LanguageCode,
   text: string,
+  overwriteExisting = false,
 ): LocalizedText => {
   const value = readBilingualText(current)
-  if (value[language]?.trim()) {
+  if (!overwriteExisting && value[language]?.trim()) {
     return value
   }
 
@@ -657,9 +684,10 @@ const patchContentAliases = (
   keys: string[],
   language: LanguageCode,
   text: string,
+  overwriteExisting = false,
 ) => {
   const baseValue = findFirstTextValue(section.contentJson, keys)
-  const nextValue = mergeTranslation(baseValue, language, text)
+  const nextValue = mergeTranslation(baseValue, language, text, overwriteExisting)
   const contentPatch = Object.fromEntries(keys.map((key) => [key, nextValue]))
 
   return {
@@ -741,6 +769,7 @@ const applySectionTranslation = (
   path: string[],
   language: LanguageCode,
   text: string,
+  overwriteExisting = false,
 ) => {
   if (path[0] === 'header' && (path[1] === 'title' || path[1] === 'subtitle')) {
     const header = readHeader(section)
@@ -750,12 +779,14 @@ const applySectionTranslation = (
         ...section.contentJson,
         header: {
           ...header,
-          [path[1]]: mergeTranslation(header[path[1]], language, text),
+          [path[1]]: mergeTranslation(header[path[1]], language, text, overwriteExisting),
         },
       },
     }
     const aliases = contentAliasesForHeaderField(section, path[1])
-    return aliases.length > 0 ? patchContentAliases(nextSection, aliases, language, text) : nextSection
+    return aliases.length > 0
+      ? patchContentAliases(nextSection, aliases, language, text, overwriteExisting)
+      : nextSection
   }
 
   if (path[0] === 'actions') {
@@ -768,7 +799,7 @@ const applySectionTranslation = (
     const currentAction = isRecord(actions[actionIndex]) ? actions[actionIndex] : {}
     actions[actionIndex] = {
       ...currentAction,
-      label: mergeTranslation(currentAction.label, language, text),
+      label: mergeTranslation(currentAction.label, language, text, overwriteExisting),
     }
 
     return {
@@ -784,7 +815,13 @@ const applySectionTranslation = (
     return section
   }
 
-  return patchContentAliases(section, contentAliasesForField(section, path[0]), language, text)
+  return patchContentAliases(
+    section,
+    contentAliasesForField(section, path[0]),
+    language,
+    text,
+    overwriteExisting,
+  )
 }
 
 const prepareLocalizedForLanguageIssue = (
@@ -914,6 +951,7 @@ export const applyPageTranslations = (
   model: PageEditModel,
   translatedFields: TranslationResultField[],
   requestedFields: MissingTranslatableField[],
+  options: { overwriteExisting?: boolean } = {},
 ): PageEditModel => {
   const requestedTargets = new Set(
     requestedFields.map((field) => `${field.field}.${field.targetLanguage}`),
@@ -928,7 +966,12 @@ export const applyPageTranslations = (
       const field = translated.field === 'page.title' ? 'title' : 'description'
       return {
         ...currentModel,
-        [field]: mergeTranslation(currentModel[field], translated.language, translated.text),
+        [field]: mergeTranslation(
+          currentModel[field],
+          translated.language,
+          translated.text,
+          options.overwriteExisting,
+        ),
       }
     }
 
@@ -949,6 +992,7 @@ export const applyPageTranslations = (
       match[2].split('.'),
       translated.language,
       translated.text,
+      options.overwriteExisting,
     )
 
     return {
