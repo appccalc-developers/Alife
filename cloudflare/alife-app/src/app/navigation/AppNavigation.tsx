@@ -7,6 +7,7 @@ import { activeEntityService } from '../../services/activeEntityService'
 import { useUiText } from '../../i18n/uiText'
 import { confirmUnsavedChangesNavigation } from '../../utils/unsavedChangesGuard'
 import { CloseIcon } from './icons'
+import { matchesRequiredSearch } from './searchMatch'
 import type { NavigationCopy, ShellNavBadge, ShellNavItem, ShellNavSection } from './types'
 
 const isItemActive = (item: ShellNavItem, pathname: string, search: string) => {
@@ -20,7 +21,9 @@ const isItemActive = (item: ShellNavItem, pathname: string, search: string) => {
   const pageEditMatch = pathname.match(/^\/pages\/([^/]+)\/edit$/)
   const activePageId = activeEntityService.getAll().pageId
   const matchesSearch = item.matchSearch
-    ? (Array.isArray(item.matchSearch) ? item.matchSearch.includes(search) : search === item.matchSearch)
+    ? (Array.isArray(item.matchSearch)
+        ? item.matchSearch.some((requiredSearch) => matchesRequiredSearch(search, requiredSearch))
+        : matchesRequiredSearch(search, item.matchSearch))
     : search === target.search
 
   return (

@@ -15,6 +15,8 @@ import { getRouteTransitionKey, isForumFeedPath } from '../src/app/routing/route
 import { isHomeLocation, usesPublicHomeLayout } from '../src/app/routing/publicRoutePolicy.ts'
 import { normalizeRouteGroupId } from '../src/utils/groupRouteIds.ts'
 import { resolveWorkspaceEntryLocation, toWorkspaceLocation } from '../src/services/workspaceResumeService.ts'
+import { matchesRequiredSearch } from '../src/app/navigation/searchMatch.ts'
+import { belongsToForumRouteScope } from '../src/utils/forumRouteScope.ts'
 
 test('church management access accepts church managers and each scoped platform permission', () => {
   assert.equal(canAccessChurchManagement({
@@ -109,6 +111,20 @@ test('forum feed category changes preserve the mounted route view', () => {
   }
 })
 
+test('Church Life owner filters preserve list routes while section changes keep distinct identities', () => {
+  const transitionKey = (pathname: string, search: string) =>
+    getRouteTransitionKey({ pathname, search, isManagedPublicPage: false })
+
+  assert.equal(transitionKey('/church', '?ownerGroupId=ministry'), '/church')
+  assert.equal(transitionKey('/church', '?section=events&ownerGroupId=ministry'), '/church?section=events')
+  assert.equal(transitionKey('/church', '?ownerGroupId=ministry&section=announcements'), '/church?section=announcements')
+  assert.equal(transitionKey('/church/albums', '?ownerGroupId=ministry'), '/church/albums')
+  assert.notEqual(
+    transitionKey('/church', '?section=events&ownerGroupId=ministry'),
+    transitionKey('/church', '?section=announcements&ownerGroupId=ministry'),
+  )
+})
+
 test('forum post detail routes keep their full transition identity', () => {
   for (const pathname of ['/forum/posts/post-id', '/church/forum/posts/post-id', '/groups/forum/posts/post-id', '/groups/group-id/forum/posts/post-id']) {
     assert.equal(isForumFeedPath(pathname), false)
@@ -117,4 +133,21 @@ test('forum post detail routes keep their full transition identity', () => {
       `${pathname}?reply=comment-id`,
     )
   }
+})
+
+test('navigation section matching tolerates Church Life owner filters', () => {
+  assert.equal(matchesRequiredSearch('?section=events&ownerGroupId=ministry', '?section=events'), true)
+  assert.equal(matchesRequiredSearch('?ownerGroupId=ministry&section=events', '?section=events'), true)
+  assert.equal(matchesRequiredSearch('?section=announcements', '?section=events'), false)
+  assert.equal(matchesRequiredSearch('', ''), true)
+  assert.equal(matchesRequiredSearch('?ownerGroupId=ministry', ''), false)
+})
+
+test('site and group forum details enforce their exact ownership scope', () => {
+  assert.equal(belongsToForumRouteScope('', null), true)
+  assert.equal(belongsToForumRouteScope('', undefined), true)
+  assert.equal(belongsToForumRouteScope('', 'ministry'), false)
+  assert.equal(belongsToForumRouteScope('ministry', 'descendant-ministry'), false)
+  assert.equal(belongsToForumRouteScope('ministry', 'ministry'), true)
+  assert.equal(belongsToForumRouteScope('ministry', null), false)
 })

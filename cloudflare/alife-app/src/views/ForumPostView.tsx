@@ -7,13 +7,13 @@ import AppBadge from '../components/layout/AppBadge'
 import AppEmptyState from '../components/layout/AppEmptyState'
 import AppPageShell from '../components/layout/AppPageShell'
 import { queryClient } from '../db/queryClient'
-import { churchQueryKey } from '../db/collections/groupCollection'
 import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
+import { churchLifeQueryKeys, churchLifeService } from '../services/churchLifeService'
 import { forumQueryKeys, forumService } from '../services/forumService'
-import { groupService } from '../services/groupService'
 import { normalizeApiError } from '../services/http'
 import { useAuthStore } from '../stores/auth'
 import type { ForumCommentDto, ForumCommentVisibilityRequest } from '../types/forum'
+import { belongsToForumRouteScope } from '../utils/forumRouteScope'
 import { ForumMediaGrid, ForumMediaPicker, selectForumMedia, type PendingForumMedia, uploadPendingForumMedia } from './forum/ForumMediaControls'
 import { forumCopy, visibilityLabel } from './forum/forumCopy'
 import { categoryName, formatForumDate, localizedJsonText, oneLanguagePayload, parseForumMedia } from './forum/forumUtils'
@@ -108,10 +108,7 @@ const ForumCommentForm = ({
       setBody('')
       setMedia([])
       onCancel?.()
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: forumQueryKeys.post(postId) }),
-        queryClient.invalidateQueries({ queryKey: ['forum', 'posts'] }),
-      ])
+      await queryClient.invalidateQueries({ queryKey: ['forum', 'posts'] })
     },
     onError: (error) => setMessage(normalizeApiError(error).message),
   })
@@ -196,26 +193,27 @@ const ForumCommentForm = ({
 
 const ForumPostView = () => {
   const { groupId: routeGroupId, postId } = useParams<{ groupId?: string; postId: string }>()
-  const { language, isGuest, isRegistered, memberships } = useAuthStore()
+  const { language, isGuest, isRegistered, memberships, me } = useAuthStore()
   const text = forumCopy(language)
   const location = useLocation()
   const churchForum = location.pathname.startsWith('/church/forum')
   const currentGroupForum = location.pathname.startsWith('/groups/forum')
   const { groupId: activeGroupId } = useActiveEntityIds()
   const normalizedRouteGroupId = routeGroupId?.trim() || ''
-  const churchQuery = useQuery({
-    queryKey: churchQueryKey,
-    queryFn: groupService.getChurch,
-    enabled: churchForum,
-    staleTime: 5 * 60_000,
-  })
-  const scopedGroupId = normalizedRouteGroupId || (churchForum ? churchQuery.data?.id ?? '' : currentGroupForum ? activeGroupId : '')
+  const scopedGroupId = normalizedRouteGroupId || (currentGroupForum ? activeGroupId : '')
+  const viewerId = me?.id || 'guest'
   const forumBasePath = normalizedRouteGroupId ? `/groups/${encodeURIComponent(normalizedRouteGroupId)}/forum` : churchForum ? '/church/forum' : currentGroupForum ? '/groups/forum' : '/forum'
   const [replyTarget, setReplyTarget] = useState<ForumCommentDto | null>(null)
   const postQuery = useQuery({
-    queryKey: postId ? forumQueryKeys.post(postId) : ['forum', 'post', 'missing'],
-    queryFn: () => forumService.getPost(postId || ''),
-    enabled: Boolean(postId) && ((!churchForum && !currentGroupForum) || Boolean(scopedGroupId)),
+    queryKey: postId
+      ? churchForum
+        ? churchLifeQueryKeys.forumPost(viewerId, postId)
+        : forumQueryKeys.post(postId, viewerId)
+      : ['forum', 'post', 'missing', viewerId],
+    queryFn: () => churchForum
+      ? churchLifeService.getForumPost(postId || '')
+      : forumService.getPost(postId || ''),
+    enabled: Boolean(postId) && (!currentGroupForum || Boolean(scopedGroupId)),
     staleTime: 30_000,
   })
   const categoriesQuery = useQuery({
@@ -232,7 +230,7 @@ const ForumPostView = () => {
     return <Navigate to={forumBasePath} replace />
   }
 
-  const post = postQuery.data && (!scopedGroupId || postQuery.data.groupId === scopedGroupId)
+  const post = postQuery.data && (churchForum || belongsToForumRouteScope(scopedGroupId, postQuery.data.groupId))
     ? postQuery.data
     : undefined
   const categories = categoriesQuery.data ?? []
@@ -250,25 +248,25 @@ const ForumPostView = () => {
           </Link>
         </div>
 
-        {postQuery.isLoading || (churchForum && churchQuery.isPending) ? (
+        {postQuery.isLoading ? (
           <div className="grid gap-4">
             <div className="h-80 animate-pulse rounded-[1.75rem] border border-slate-200 bg-white" />
             <div className="h-36 animate-pulse rounded-2xl border border-slate-200 bg-white" />
           </div>
         ) : null}
 
-        {!postQuery.isLoading && (postQuery.error || churchQuery.error) ? (
+        {!postQuery.isLoading && postQuery.error ? (
           <div className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm">
             <AppEmptyState
               title={text.postNotFound}
-              description={normalizeApiError(postQuery.error || churchQuery.error).message || text.postNotFoundDescription}
+              description={normalizeApiError(postQuery.error).message || text.postNotFoundDescription}
               actionLabel={text.backToForum}
               onAction={() => window.history.back()}
             />
           </div>
         ) : null}
 
-        {!postQuery.isLoading && !postQuery.error && !churchQuery.error && !(churchForum && churchQuery.isPending) && !post ? (
+        {!postQuery.isLoading && !postQuery.error && !post ? (
           <div className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm">
             <AppEmptyState title={text.postNotFound} description={text.postNotFoundDescription} />
           </div>

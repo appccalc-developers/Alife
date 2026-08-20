@@ -7,6 +7,7 @@ import { queryClient } from '../db/queryClient'
 import type { AiContentContext } from '../utils/aiContentContext'
 import { http } from './http'
 import { createAiSessionService } from './aiSessionService'
+import { invalidateChurchLifeQueries } from './churchLifeService'
 
 const eventSessionService = createAiSessionService<EventDto, EventDto['legacySummary']>('/api/events/session')
 
@@ -14,6 +15,7 @@ const invalidateGroupEventsCache = async (groupId: string) => {
   const queryKey = groupEventsQueryKey(groupId)
   await removeCachedRecord(queryKey)
   await queryClient.invalidateQueries({ queryKey })
+  await invalidateChurchLifeQueries()
 }
 
 const closeEventSession = async (sessionId?: string) => {
@@ -172,6 +174,8 @@ export const eventService = {
     await http.delete(`/api/events/${eventId}`)
     if (groupId) {
       await invalidateGroupEventsCache(groupId)
+    } else {
+      await invalidateChurchLifeQueries()
     }
   },
 

@@ -1158,6 +1158,41 @@ test('unauthenticated GET /api/me bypasses edge cache', async () => {
   assert.equal(apiCacheStore.size, 0)
 })
 
+test('Church Life responses are never reused across viewers', async () => {
+  const paths = [
+    '/api/church-life/pages?ownerGroupId=group-1',
+    '/api/church-life/events',
+    '/api/church-life/announcements',
+    '/api/church-life/albums',
+    '/api/church-life/forum/posts?page=1&pageSize=20',
+    '/api/church-life/forum/posts/11111111-1111-1111-1111-111111111111',
+  ]
+
+  for (const path of paths) {
+    originResponses.push(Response.json({ viewer: 'member-1', items: [], groups: [] }))
+    originResponses.push(Response.json({ viewer: 'member-2', items: [], groups: [] }))
+
+    const first = await dispatch(`https://ccalc.live${path}`, {
+      headers: { cookie: `alife_auth=${createJwtWithSub('member-1')}` },
+    })
+    await flushWaitUntil()
+    const second = await dispatch(`https://ccalc.live${path}`, {
+      headers: { cookie: `alife_auth=${createJwtWithSub('member-2')}` },
+    })
+    await flushWaitUntil()
+
+    assert.equal(first.headers.get('x-alife-cache'), 'BYPASS')
+    assert.equal(first.headers.get('cache-control'), 'no-store')
+    assert.equal(second.headers.get('x-alife-cache'), 'BYPASS')
+    assert.equal(second.headers.get('cache-control'), 'no-store')
+    assert.equal((await first.json()).viewer, 'member-1')
+    assert.equal((await second.json()).viewer, 'member-2')
+  }
+
+  assert.equal(fetchCalls.length, paths.length * 2)
+  assert.equal([...apiCacheRawStore.keys()].some((key) => key.includes('/api/church-life')), false)
+})
+
 test('successful PUT evicts the corresponding GET cache entry', async () => {
   const url = 'https://ccalc.live/api/pages/home?lang=en'
   cacheStore.set(cacheKey(new Request(url)), Response.json({ title: 'Stale page' }))

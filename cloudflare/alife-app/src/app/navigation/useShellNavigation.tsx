@@ -75,7 +75,6 @@ export const useShellNavigation = ({
     : ''
   const contextualWorkspaceGroupId = currentGroupIsChurch ? '' : contextualGroupId
   const canManageWorkspace = Boolean(workspaceGroupId && auth.hasLeaderAccess(workspaceGroupId))
-  const canManageChurch = Boolean(churchGroupId && auth.hasLeaderAccess(churchGroupId))
   const workspaceMembership = auth.memberships.find((item) => item.groupId === workspaceGroupId)
   const isWorkspaceLeader = workspaceMembership?.status === 'approved' &&
     (workspaceMembership.role === 'leader' || workspaceMembership.role === 'coLeader')
@@ -148,7 +147,7 @@ export const useShellNavigation = ({
   }] : []
 
   const churchContentItems: ShellNavItem[] = [
-    !auth.isGuest ? {
+    !auth.isGuest && auth.isRegistered ? {
       key: 'church:forum',
       label: isChinese ? '教会论坛' : 'Church forum',
       description: isChinese ? '面向全教会成员的分享与讨论' : 'Church-wide sharing and conversations',
@@ -157,19 +156,19 @@ export const useShellNavigation = ({
       matchDescendants: true,
       icon: <MessageSquareText className="h-5 w-5" />,
     } : null,
-    !auth.isGuest && churchGroupId ? {
+    !auth.isGuest && auth.isRegistered ? {
       key: 'church:albums',
       label: isChinese ? '相册' : 'Albums',
-      description: isChinese ? '浏览教会相册和公开图片' : 'Browse church albums and published photos',
-      to: `/groups/${encodeURIComponent(churchGroupId)}/albums`,
+      description: isChinese ? '浏览教会及下属事工的相册' : 'Browse albums from the church and its ministries',
+      to: '/church/albums',
       matchPathOnly: true,
       matchDescendants: true,
       icon: <Images className="h-5 w-5" />,
     } : null,
-    ...(canManageChurch ? [{
+    ...(!auth.isGuest && auth.isRegistered ? [{
       key: 'church:events',
       label: isChinese ? '活动' : 'Events',
-      description: isChinese ? '管理教会范围的过往、即将举行和筹备中活动' : 'Manage church-wide past, upcoming, and planning events',
+      description: isChinese ? '浏览教会及下属事工已批准的活动' : 'Browse approved events across church ministries',
       to: '/church?section=events',
       matchSearch: '?section=events',
       icon: <EventsIcon />,
@@ -177,7 +176,7 @@ export const useShellNavigation = ({
     {
       key: 'church:announcements',
       label: isChinese ? '公告' : 'Announcements',
-      description: isChinese ? '发布和管理教会公告' : 'Publish and manage church announcements',
+      description: isChinese ? '浏览教会及下属事工的有效公告' : 'Browse active announcements across church ministries',
       to: '/church?section=announcements',
       matchSearch: '?section=announcements',
       icon: <Bell className="h-5 w-5" />,

@@ -1,6 +1,7 @@
 using Alife.Application.Common.Models;
 using Alife.Application.Events.Dtos;
 using Alife.Application.Events.Services;
+using Alife.Application.Groups.Dtos;
 using Alife.Application.Groups.Services;
 using MediatR;
 
@@ -32,12 +33,16 @@ public sealed class GetGroupEventsQueryHandler(
                 request.CurrentMemberId.Value,
                 cancellationToken);
 
-        var churchGroupId = group.IsChurch ? group.Id : group.ParentGroupId;
-        var isChurchMember = request.CurrentMemberId.HasValue && churchGroupId.HasValue &&
-            await groupAuthorizationService.IsApprovedMemberAsync(
-                churchGroupId.Value,
-                request.CurrentMemberId.Value,
-                cancellationToken);
+        var isChurchMember = false;
+        if (request.CurrentMemberId.HasValue)
+        {
+            var churchGroupId = await FindChurchRootIdAsync(group, cancellationToken);
+            isChurchMember = churchGroupId.HasValue &&
+                await groupAuthorizationService.IsApprovedMemberAsync(
+                    churchGroupId.Value,
+                    request.CurrentMemberId.Value,
+                    cancellationToken);
+        }
 
         var events = await eventReadService.GetGroupEventsAsync(request.GroupId, cancellationToken);
 
@@ -58,5 +63,34 @@ public sealed class GetGroupEventsQueryHandler(
             .ToList();
 
         return AppResult<IReadOnlyList<GroupEventSummaryDto>>.Success(visibleEvents);
+    }
+
+    private async Task<Guid?> FindChurchRootIdAsync(GroupDto group, CancellationToken cancellationToken)
+    {
+        var current = group;
+        var visited = new HashSet<Guid>();
+
+        while (visited.Add(current.Id))
+        {
+            if (current.IsChurch)
+            {
+                return current.Id;
+            }
+
+            if (!current.ParentGroupId.HasValue)
+            {
+                return null;
+            }
+
+            var parent = await groupReadService.GetByIdAsync(current.ParentGroupId.Value, cancellationToken);
+            if (parent is null)
+            {
+                return null;
+            }
+
+            current = parent;
+        }
+
+        return null;
     }
 }

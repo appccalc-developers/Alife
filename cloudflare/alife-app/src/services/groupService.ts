@@ -7,6 +7,7 @@ import { publicPagesQueryKey } from './pageService'
 import type { GroupDto, GroupMembershipDto, GroupSummaryDto, LocalizedText, MembershipStatus, PagePrimaryMenuHomePlacement, PageSummaryDto } from '../types'
 import { normalizeGroup, normalizeGroupMembership, normalizeMembershipStatus, normalizePageSummary, normalizePageVisibility } from '../utils/apiEnums'
 import { toLocalizedText } from '../utils/localizedText'
+import { invalidateChurchLifeQueries } from './churchLifeService'
 
 export type CreateSubgroupPayload = {
   name: LocalizedText
@@ -359,20 +360,24 @@ export const groupService = {
   async requestJoin(groupId: string, viewerId?: string) {
     const { data } = await http.post<{ status: string }>(`/api/groups/${groupId}/join-request`)
     await invalidateVisibleGroupsForViewers(viewerId)
+    await invalidateChurchLifeQueries()
     return { ...data, status: normalizeMembershipStatus(data.status) }
   },
 
   async createSubgroup(groupId: string, payload: CreateSubgroupPayload) {
     const { data } = await http.post<GroupSummaryDto>(`/api/groups/${groupId}/subgroups`, payload)
+    await invalidateChurchLifeQueries()
     return normalizeGroup(data)
   },
 
   async claimSubgroupCoLeader(groupId: string, subgroupId: string) {
     await http.post(`/api/groups/${groupId}/subgroups/${subgroupId}/claim-coleader`)
+    await invalidateChurchLifeQueries()
   },
 
   async updateGroup(groupId: string, payload: UpdateGroupPayload) {
     const { data } = await http.put<GroupDto>(`/api/groups/${groupId}`, payload)
+    await invalidateChurchLifeQueries()
     return normalizeGroup(data)
   },
 
@@ -383,10 +388,12 @@ export const groupService = {
 
   async deleteSubgroup(subgroupId: string) {
     await http.post(`/api/groups/${subgroupId}/close`)
+    await invalidateChurchLifeQueries()
   },
 
   async closeGroup(groupId: string) {
     await http.post(`/api/groups/${groupId}/close`)
+    await invalidateChurchLifeQueries()
   },
 
   async inviteMember(groupId: string, payload: InviteMemberPayload, viewerId?: string) {
@@ -415,11 +422,13 @@ export const groupService = {
   async acceptInvite(groupId: string, viewerId?: string) {
     await http.post(`/api/groups/${groupId}/invite/accept`)
     await invalidateVisibleGroupsForViewers(viewerId)
+    await invalidateChurchLifeQueries()
   },
 
   async declineInvite(groupId: string, viewerId?: string) {
     await http.post(`/api/groups/${groupId}/invite/decline`)
     await invalidateVisibleGroupsForViewers(viewerId)
+    await invalidateChurchLifeQueries()
   },
 
   async approveMember(groupId: string, payload: MemberTargetPayload, viewerId?: string) {
@@ -524,12 +533,14 @@ export const groupService = {
   async approvePagePublicationReview(pageId: string, payload: ApprovePagePublicationReviewPayload) {
     const { data } = await http.post<PagePublicationReviewActionDto>(`/api/admin/pages/${pageId}/publication-review/approve`, payload)
     await invalidatePublicPagesCache()
+    await invalidateChurchLifeQueries()
     return data
   },
 
   async returnPagePublicationReview(pageId: string, payload: ReturnPagePublicationReviewPayload) {
     const { data } = await http.post<PagePublicationReviewActionDto>(`/api/admin/pages/${pageId}/publication-review/return`, payload)
     await invalidatePublicPagesCache()
+    await invalidateChurchLifeQueries()
     return data
   },
 
