@@ -35,10 +35,10 @@ const OnboardingView = () => {
   const [lineConfirmed, setLineConfirmed] = useState(false)
   const [isRegistering, setIsRegistering] = useState(false)
   const [isLineLoading, setIsLineLoading] = useState(false)
-  const [displayNameLogin, setDisplayNameLogin] = useState('')
+  const [accountLogin, setAccountLogin] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [isDisplayNameLoading, setIsDisplayNameLoading] = useState(false)
+  const [isAccountLoginLoading, setIsAccountLoginLoading] = useState(false)
 
   const nameInputRef = useRef<HTMLInputElement | null>(null)
   const canRegister = lineConfirmed && !isRegistering
@@ -84,28 +84,27 @@ const OnboardingView = () => {
     }
   }
 
-  const loginWithDisplayName = async (event?: FormEvent<HTMLFormElement>) => {
+  const loginWithAccount = async (event?: FormEvent<HTMLFormElement>) => {
     event?.preventDefault()
-    if (!displayNameLogin.trim()) {
-      setMessage(t('enterDisplayName'))
+    if (!accountLogin.trim()) {
+      setMessage(t('enterAccount'))
       return
     }
     const scrollTop = window.scrollY
-    setIsDisplayNameLoading(true)
+    setIsAccountLoginLoading(true)
     setMessage('')
     try {
       await auth.bootstrap()
-      await http.post('/api/members/login/display-name', {
-        account: displayNameLogin.trim(),
-        displayName: displayNameLogin.trim(),
+      await http.post('/api/members/login/account', {
+        account: accountLogin.trim(),
         password,
       })
       await auth.fetchMe()
       navigate('/enter', { replace: true })
     } catch (error) {
-      setMessage(getErrorMessage(error, t('displayNameLoginFailed')))
+      setMessage(getErrorMessage(error, t('accountLoginFailed')))
     } finally {
-      setIsDisplayNameLoading(false)
+      setIsAccountLoginLoading(false)
       window.requestAnimationFrame(() => {
         window.requestAnimationFrame(() => window.scrollTo({ top: scrollTop, behavior: 'auto' }))
       })
@@ -191,16 +190,16 @@ const OnboardingView = () => {
                 <p className="mt-2 text-sm leading-6 text-[#66766f]">{t('accountLoginDescription')}</p>
               </div>
 
-              <form className="mt-8 space-y-5" onSubmit={(event) => void loginWithDisplayName(event)}>
+              <form className="mt-8 space-y-5" onSubmit={(event) => void loginWithAccount(event)}>
                 <label className="block">
                   <span className="mb-2 block text-sm font-semibold text-[#314b43]">{t('account')}</span>
                   <input
-                    value={displayNameLogin}
-                    onChange={(event) => setDisplayNameLogin(event.target.value)}
+                    value={accountLogin}
+                    onChange={(event) => setAccountLogin(event.target.value)}
                     className="alife-input"
                     placeholder={t('accountPlaceholder')}
                     autoComplete="username"
-                    disabled={isDisplayNameLoading}
+                    disabled={isAccountLoginLoading}
                   />
                 </label>
 
@@ -214,7 +213,7 @@ const OnboardingView = () => {
                       placeholder={t('passwordPlaceholder')}
                       type={showPassword ? 'text' : 'password'}
                       autoComplete="current-password"
-                      disabled={isDisplayNameLoading}
+                      disabled={isAccountLoginLoading}
                     />
                     <button
                       type="button"
@@ -234,10 +233,10 @@ const OnboardingView = () => {
                 <button
                   type="submit"
                   className="group flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-[#176b5a] px-5 py-3 font-semibold text-white shadow-[0_12px_28px_rgba(23,107,90,0.24)] transition hover:-translate-y-0.5 hover:bg-[#0d4f43] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
-                  disabled={isDisplayNameLoading || !displayNameLogin.trim()}
+                  disabled={isAccountLoginLoading || !accountLogin.trim()}
                 >
-                  {isDisplayNameLoading ? t('loggingIn') : t('login')}
-                  {!isDisplayNameLoading ? <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" /> : null}
+                  {isAccountLoginLoading ? t('loggingIn') : t('login')}
+                  {!isAccountLoginLoading ? <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" /> : null}
                 </button>
               </form>
 

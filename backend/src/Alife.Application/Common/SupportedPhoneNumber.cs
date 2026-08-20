@@ -33,4 +33,41 @@ public static class SupportedPhoneNumber
                nationalNumber.Length <= region.Value.Max &&
                nationalNumber.All(char.IsDigit);
     }
+
+    public static string[] GetE164Candidates(string value)
+    {
+        var trimmed = value.Trim();
+        if (trimmed.Length == 0 || trimmed.Any(character =>
+                !char.IsDigit(character) &&
+                !char.IsWhiteSpace(character) &&
+                character is not '+' and not '-' and not '(' and not ')'))
+        {
+            return [];
+        }
+
+        var plusCount = trimmed.Count(character => character == '+');
+        if (plusCount > 1 || (plusCount == 1 && trimmed[0] != '+'))
+        {
+            return [];
+        }
+
+        var digits = string.Concat(trimmed.Where(char.IsDigit));
+        if (digits.Length == 0)
+        {
+            return [];
+        }
+
+        if (plusCount == 1)
+        {
+            var internationalCandidate = $"+{digits}";
+            return IsValid(internationalCandidate) ? [internationalCandidate] : [];
+        }
+
+        var nationalNumber = digits.StartsWith('0') ? digits[1..] : digits;
+        return RegionLengths.Keys
+            .Select(region => $"{region}{nationalNumber}")
+            .Where(IsValid)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+    }
 }

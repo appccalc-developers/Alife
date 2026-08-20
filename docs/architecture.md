@@ -101,7 +101,7 @@ Alife uses JWT authentication stored in the HttpOnly cookie `alife_auth`.
 
 Flow:
 
-1. User signs in through LINE Login, display-name login, or dev/admin flow.
+1. User signs in through LINE Login, Alpha account login by display name or phone number with an optional international calling code, or dev/admin flow.
 2. Backend issues a JWT with minimal claims such as `sub` and expiry.
 3. JwtBearer middleware reads the JWT from the cookie.
 4. `CurrentMemberAccessor` resolves the current member from the `sub` claim.
@@ -129,7 +129,7 @@ This is important because leaders and co-leaders can change membership state, an
 Controllers are grouped by responsibility:
 
 - `AuthController`: login, logout, dev/admin session.
-- `MembersController`: `/api/me`, LINE login/callback, registration, display-name login, member listing.
+- `MembersController`: `/api/me`, LINE login/callback, registration, Alpha account login, member listing.
 - `GroupsController`: church root, group detail, subgroups, membership workflows, invite candidates, group update/close.
 - `PagesController`: global pages, group pages, page detail, create/update/publish/delete.
 - `EventsController`: group event list/create/update/delete.
