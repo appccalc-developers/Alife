@@ -3,7 +3,11 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../../stores/auth'
 import { activeEntityService } from '../../services/activeEntityService'
-import { resolveWorkspaceEntryLocation, workspaceResumeService } from '../../services/workspaceResumeService'
+import {
+  resolveWorkspaceEntryLocation,
+  resolveWorkspaceFallbackLocation,
+  workspaceResumeService,
+} from '../../services/workspaceResumeService'
 import AppRouteLoading from '../components/AppRouteLoading'
 import RouteChunkErrorBoundary from '../components/RouteChunkErrorBoundary'
 import { isHomeLocation, isPublicPageLocation } from './publicRoutePolicy'
@@ -50,7 +54,9 @@ const AdminRoute = ({ children, permission }: { children: ReactElement; permissi
   }
 
   const hasRequiredPermission = !permission || auth.hasAdminPermission(permission)
-  return !auth.isGuest && hasRequiredPermission ? children : <Navigate to="/" replace />
+  return !auth.isGuest && hasRequiredPermission
+    ? children
+    : <Navigate to={resolveWorkspaceFallbackLocation(auth.isGuest)} replace />
 }
 
 const ChurchManagementRoute = ({
@@ -75,7 +81,9 @@ const ChurchManagementRoute = ({
     hasAdminPermission: auth.hasAdminPermission,
   })
 
-  return canAccess ? children : <Navigate to="/" replace />
+  return canAccess
+    ? children
+    : <Navigate to={resolveWorkspaceFallbackLocation(auth.isGuest)} replace />
 }
 
 const PageReviewRoute = ({ children }: { children: ReactElement }) => {
@@ -85,7 +93,9 @@ const PageReviewRoute = ({ children }: { children: ReactElement }) => {
     return <AppRouteLoading />
   }
 
-  return auth.canReviewPages ? children : <Navigate to="/" replace />
+  return auth.canReviewPages
+    ? children
+    : <Navigate to={resolveWorkspaceFallbackLocation(auth.isGuest)} replace />
 }
 
 const OnboardingRoute = ({ children }: { children: ReactElement }) => {
@@ -105,7 +115,9 @@ const MemberRoute = ({ children }: { children: ReactElement }) => {
     return <AppRouteLoading />
   }
 
-  return !auth.loading && !auth.isGuest ? children : <Navigate to="/" replace />
+  return !auth.loading && !auth.isGuest
+    ? children
+    : <Navigate to={resolveWorkspaceFallbackLocation(auth.isGuest)} replace />
 }
 
 const EntryRoute = () => {
@@ -124,6 +136,16 @@ const EntryRoute = () => {
   const destination = resolveWorkspaceEntryLocation(rememberedLocation, activeGroupId)
 
   return <Navigate to={destination} replace />
+}
+
+const WorkspaceFallbackRoute = () => {
+  const auth = useAuthStore()
+
+  if (!auth.initialized) {
+    return <AppRouteLoading />
+  }
+
+  return <Navigate to={resolveWorkspaceFallbackLocation(auth.isGuest)} replace />
 }
 
 const HomeRoute = () => {
@@ -311,7 +333,7 @@ const AppRoutes = ({ churchGroupId = '', churchGroupLoading = false }: AppRoutes
               </AdminRoute>
             }
           />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<WorkspaceFallbackRoute />} />
             </Routes>
           </Suspense>
         </RouteChunkErrorBoundary>
