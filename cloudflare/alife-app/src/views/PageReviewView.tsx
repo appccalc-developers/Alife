@@ -5,7 +5,6 @@ import AppActionButton from '../components/layout/AppActionButton'
 import AppEmptyState from '../components/layout/AppEmptyState'
 import AppPageShell from '../components/layout/AppPageShell'
 import AppSectionCard from '../components/layout/AppSectionCard'
-import MediaPickerInput from '../components/media/MediaPickerInput'
 import { activeEntityService } from '../services/activeEntityService'
 import { groupService, type AdminPagePrimaryMenuDto, type AdminPageReviewDto } from '../services/groupService'
 import { normalizeApiError } from '../services/http'
@@ -41,8 +40,8 @@ const copy = {
   },
   queue: { en: 'Pages for review', zh: '审核页面' },
   queueHint: {
-    en: 'Configure each public page under a bilingual primary menu, with its own menu name, card image, and card text. Approved menu settings can be edited later.',
-    zh: '为每个公开页面选择双语一级菜单，并配置页面菜单名、卡片图片和卡片文字；批准后仍可继续修改。',
+    en: 'Configure each public page under a bilingual primary menu. The card image comes from the first image in the page sections; reviewers can adjust the menu name and card text.',
+    zh: '为每个公开页面选择双语一级菜单；卡片图片自动取自页面 section 列表中的第一张图，审核员可以调整菜单名和卡片文字。',
   },
   groupPage: { en: 'group page', zh: '小组页面' },
   draftStatus: { en: 'Draft', zh: '草稿' },
@@ -68,13 +67,15 @@ const copy = {
   accessNameEn: { en: 'English menu name', zh: '英文菜单名' },
   accessNameZh: { en: 'Chinese menu name', zh: '中文菜单名' },
   accessNameRequired: { en: 'Please enter both English and Chinese menu names.', zh: '请填写英文和中文菜单名。' },
-  cardImageUrl: { en: 'Card image URL', zh: '卡片图片 URL' },
-  cardImageUrlPlaceholder: { en: 'https://...', zh: 'https://...' },
+  cardImageSourceHint: {
+    en: 'Automatically taken from the first image in the page sections.',
+    zh: '自动取自页面 section 列表中的第一张图。',
+  },
   cardTextEn: { en: 'English card text', zh: '英文卡片文字' },
   cardTextZh: { en: 'Chinese card text', zh: '中文卡片文字' },
-  cardDetailsRequired: {
-    en: 'Please enter a card image URL and both English and Chinese card text.',
-    zh: '请填写卡片图片 URL，以及英文和中文卡片文字。',
+  cardTextRequired: {
+    en: 'Please enter both English and Chinese card text.',
+    zh: '请填写英文和中文卡片文字。',
   },
   cardPreview: { en: 'Ministry card preview', zh: '事工卡片预览' },
   cardText: { en: 'Card text', zh: '卡片文字' },
@@ -209,10 +210,29 @@ const ReviewStatusIcon = ({ status }: { status: ReviewTab }) => {
   return <Clock3 className="mr-1 h-3.5 w-3.5" />
 }
 
-const initialAccessName = (page: AdminPageReviewDto) => ({
-  en: page.accessName?.en || page.title?.en || page.title?.zh || '',
-  zh: page.accessName?.zh || page.title?.zh || page.title?.en || '',
-})
+const ReviewCardImage = ({ imageUrl, alt }: { imageUrl: string | null | undefined; alt: string }) => (
+  <span className="flex h-16 w-24 shrink-0 overflow-hidden rounded-xl bg-slate-200 text-slate-500 sm:h-20 sm:w-28">
+    {imageUrl ? (
+      <img src={imageUrl} alt={alt} className="h-full w-full object-cover" loading="lazy" />
+    ) : (
+      <span className="flex h-full w-full items-center justify-center" role="img" aria-label={alt}>
+        <ImagePlus className="h-6 w-6" />
+      </span>
+    )}
+  </span>
+)
+
+const initialAccessName = (page: AdminPageReviewDto) => {
+  const groupEn = page.ownerGroupName?.en || page.ownerGroupName?.zh || ''
+  const groupZh = page.ownerGroupName?.zh || page.ownerGroupName?.en || ''
+  const titleEn = page.title?.en || page.title?.zh || ''
+  const titleZh = page.title?.zh || page.title?.en || ''
+
+  return {
+    en: page.accessName?.en || [groupEn, titleEn].filter(Boolean).join('-'),
+    zh: page.accessName?.zh || [groupZh, titleZh].filter(Boolean).join('-'),
+  }
+}
 
 const primaryMenuKey = (value: AdminPageReviewDto['primaryMenuName']) => {
   const en = value?.en?.trim().replace(/\s+/g, ' ').toLocaleLowerCase() || ''
@@ -247,7 +267,6 @@ const PageReviewView = () => {
   const [primaryMenuSelection, setPrimaryMenuSelection] = useState('')
   const [primaryMenuName, setPrimaryMenuName] = useState({ en: '', zh: '' })
   const [accessName, setAccessName] = useState({ en: '', zh: '' })
-  const [cardImageUrl, setCardImageUrl] = useState('')
   const [cardText, setCardText] = useState({ en: '', zh: '' })
   const [returningPage, setReturningPage] = useState<AdminPageReviewDto | null>(null)
   const [returnReason, setReturnReason] = useState('')
@@ -372,7 +391,6 @@ const PageReviewView = () => {
     )
     setPrimaryMenuName(nextPrimaryMenuName)
     setAccessName(initialAccessName(page))
-    setCardImageUrl(page.cardImageUrl || '')
     setCardText(initialCardText(page))
     setError('')
     setMessage('')
@@ -387,7 +405,6 @@ const PageReviewView = () => {
     setPrimaryMenuSelection('')
     setPrimaryMenuName({ en: '', zh: '' })
     setAccessName({ en: '', zh: '' })
-    setCardImageUrl('')
     setCardText({ en: '', zh: '' })
     setConfirmingPageModificationId(null)
   }
@@ -409,7 +426,6 @@ const PageReviewView = () => {
       en: cardText.en.trim(),
       zh: cardText.zh.trim(),
     }
-    const nextCardImageUrl = cardImageUrl.trim()
     const editingApprovedMenuItem = approvingPage.reviewStatus === 'approved'
     if (!editingApprovedMenuItem && (!nextPrimaryMenuName.en || !nextPrimaryMenuName.zh)) {
       setError(text(language, 'primaryMenuRequired'))
@@ -419,8 +435,8 @@ const PageReviewView = () => {
       setError(text(language, 'accessNameRequired'))
       return
     }
-    if (!nextCardImageUrl || !nextCardText.en || !nextCardText.zh) {
-      setError(text(language, 'cardDetailsRequired'))
+    if (!nextCardText.en || !nextCardText.zh) {
+      setError(text(language, 'cardTextRequired'))
       return
     }
 
@@ -431,7 +447,6 @@ const PageReviewView = () => {
       await groupService.approvePagePublicationReview(approvingPage.id, {
         primaryMenuName: editingApprovedMenuItem ? undefined : nextPrimaryMenuName,
         accessName: nextAccessName,
-        cardImageUrl: nextCardImageUrl,
         cardText: nextCardText,
       })
       await load()
@@ -440,7 +455,6 @@ const PageReviewView = () => {
       setPrimaryMenuSelection('')
       setPrimaryMenuName({ en: '', zh: '' })
       setAccessName({ en: '', zh: '' })
-      setCardImageUrl('')
       setCardText({ en: '', zh: '' })
       setConfirmingPageModificationId(null)
       selectReviewTab('approved')
@@ -844,21 +858,18 @@ const PageReviewView = () => {
             />
           </label>
         </div>
-        {!inline ? <div className="mt-4">
-          <MediaPickerInput
-            label={text(language, 'cardImageUrl')}
-            value={cardImageUrl}
-            disabled={Boolean(actingPageId)}
-            accept="image"
-            onChange={(value) => {
-              setCardImageUrl(value.slice(0, 1200))
-              if (error === text(language, 'cardDetailsRequired')) {
-                setError('')
-              }
-            }}
-          />
-          <p className="mt-1 text-xs text-slate-500">{text(language, 'cardImageUrlPlaceholder')}</p>
-        </div> : null}
+        {!inline ? (
+          <div className="mt-4">
+            <p className="text-sm font-bold text-slate-700">{text(language, 'cardImage')}</p>
+            <div className="mt-2 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <ReviewCardImage
+                imageUrl={page.cardImageUrl}
+                alt={localizeText(accessName, language) || localizeText(page.title, language)}
+              />
+              <p className="text-xs leading-5 text-slate-500">{text(language, 'cardImageSourceHint')}</p>
+            </div>
+          </div>
+        ) : null}
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <label className="block text-sm font-bold text-slate-700" htmlFor={`${fieldPrefix}-card-en`}>
             {text(language, 'cardTextEn')}
@@ -869,7 +880,7 @@ const PageReviewView = () => {
               maxLength={280}
               onChange={(event) => {
                 setCardText((current) => ({ ...current, en: event.target.value }))
-                if (error === text(language, 'cardDetailsRequired')) {
+                if (error === text(language, 'cardTextRequired')) {
                   setError('')
                 }
               }}
@@ -884,7 +895,7 @@ const PageReviewView = () => {
               maxLength={280}
               onChange={(event) => {
                 setCardText((current) => ({ ...current, zh: event.target.value }))
-                if (error === text(language, 'cardDetailsRequired')) {
+                if (error === text(language, 'cardTextRequired')) {
                   setError('')
                 }
               }}
@@ -892,8 +903,12 @@ const PageReviewView = () => {
           </label>
         </div>
         {!inline ? <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-          {cardImageUrl.trim() ? (
-            <img src={cardImageUrl.trim()} alt="" className="h-40 w-full object-cover" />
+          {page.cardImageUrl ? (
+            <img
+              src={page.cardImageUrl}
+              alt={localizeText(accessName, language) || localizeText(page.title, language)}
+              className="h-40 w-full object-cover"
+            />
           ) : null}
           <div className="p-4">
             <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">{text(language, 'cardPreview')}</p>
@@ -1188,12 +1203,13 @@ const PageReviewView = () => {
               const primaryMenuLabel = localizeText(page.primaryMenuName, language)
               const accessLabel = localizeText(page.accessName, language)
               const cardLabel = localizeText(page.cardText, language)
+              const displayedAccessLabel = accessLabel || `${groupName}-${title}`
+              const displayedCardText = cardLabel || localizeText(page.description, language)
 
               if (page.reviewStatus === 'approved') {
                 const editorExpanded = approvingPage?.id === page.id
                 const editorId = `approved-menu-editor-${page.id}`
                 const approvedActionsDisabled = Boolean(actingPageId) || layoutSaving
-                const displayedCardImageUrl = editorExpanded ? cardImageUrl : page.cardImageUrl || ''
 
                 return (
                   <article
@@ -1216,34 +1232,13 @@ const PageReviewView = () => {
                       >
                         <GripVertical className="h-5 w-5" aria-hidden="true" />
                       </span>
-                      <MediaPickerInput
-                        label={text(language, 'cardImage')}
-                        value={displayedCardImageUrl}
-                        disabled={approvedActionsDisabled}
-                        accept="image"
-                        onOpen={() => {
-                          if (!editorExpanded) openApproveDialog(page)
-                        }}
-                        onChange={(value) => {
-                          setCardImageUrl(value.slice(0, 1200))
-                          if (error === text(language, 'cardDetailsRequired')) setError('')
-                        }}
-                        trigger={displayedCardImageUrl ? (
-                          <img
-                            src={displayedCardImageUrl}
-                            alt=""
-                            className="h-16 w-24 object-cover sm:h-20 sm:w-28"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <span className="flex h-16 w-24 items-center justify-center bg-slate-200 text-slate-500 sm:h-20 sm:w-28">
-                            <ImagePlus className="h-6 w-6" />
-                          </span>
-                        )}
+                      <ReviewCardImage
+                        imageUrl={page.cardImageUrl}
+                        alt={displayedAccessLabel}
                       />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-2">
-                          <p className="truncate text-sm font-black text-slate-800">{accessLabel || title}</p>
+                          <p className="truncate text-sm font-black text-slate-800">{displayedAccessLabel}</p>
                           <button
                             type="button"
                             className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-emerald-100 hover:text-emerald-700 focus:outline-none focus:ring-4 focus:ring-emerald-100"
@@ -1260,7 +1255,7 @@ const PageReviewView = () => {
                             )}
                           </button>
                         </div>
-                        {cardLabel ? <p className="mt-1 line-clamp-2 text-sm leading-6 text-slate-600">{cardLabel}</p> : null}
+                        {displayedCardText ? <p className="mt-1 line-clamp-2 text-sm leading-6 text-slate-600">{displayedCardText}</p> : null}
                       </div>
                     </div>
                     {editorExpanded ? (
@@ -1296,24 +1291,15 @@ const PageReviewView = () => {
                       {page.description ? (
                         <p className="mt-1 line-clamp-2 text-sm leading-6 text-slate-600">{localizeText(page.description, language)}</p>
                       ) : null}
-                      {(page.cardImageUrl || cardLabel) ? (
-                        <div className="mt-3 flex gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                          {page.cardImageUrl ? (
-                            <img
-                              src={page.cardImageUrl}
-                              alt=""
-                              className="h-16 w-24 shrink-0 rounded-xl object-cover"
-                              loading="lazy"
-                            />
+                      <div className="mt-3 flex gap-3 rounded-xl bg-slate-50 p-3">
+                        <ReviewCardImage imageUrl={page.cardImageUrl} alt={displayedAccessLabel} />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-black text-slate-800">{displayedAccessLabel}</p>
+                          {displayedCardText ? (
+                            <p className="mt-1 line-clamp-2 text-sm leading-6 text-slate-600">{displayedCardText}</p>
                           ) : null}
-                          <div className="min-w-0">
-                            <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
-                              {text(language, 'cardPreview')}
-                            </p>
-                            {cardLabel ? <p className="mt-1 line-clamp-2 text-sm leading-6 text-slate-600">{cardLabel}</p> : null}
-                          </div>
                         </div>
-                      ) : null}
+                      </div>
                       <dl className="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
                         <div>
                           <dt className="font-bold text-slate-700">{text(language, 'group')}</dt>
@@ -1323,12 +1309,10 @@ const PageReviewView = () => {
                           <dt className="font-bold text-slate-700">{text(language, 'author')}</dt>
                           <dd className="mt-0.5 break-words">{page.creatorDisplayName || page.createdByMemberId}</dd>
                         </div>
-                        {accessLabel ? (
-                          <div>
-                            <dt className="font-bold text-slate-700">{text(language, 'menuName')}</dt>
-                            <dd className="mt-0.5 break-words">{accessLabel}</dd>
-                          </div>
-                        ) : null}
+                        <div>
+                          <dt className="font-bold text-slate-700">{text(language, 'menuName')}</dt>
+                          <dd className="mt-0.5 break-words">{displayedAccessLabel}</dd>
+                        </div>
                         {primaryMenuLabel ? (
                           <div>
                             <dt className="font-bold text-slate-700">{text(language, 'primaryMenu')}</dt>

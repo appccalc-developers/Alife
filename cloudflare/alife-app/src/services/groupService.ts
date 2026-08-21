@@ -126,7 +126,6 @@ export type PagePublicationReviewActionDto = {
 export type ApprovePagePublicationReviewPayload = {
   primaryMenuName?: LocalizedText | null
   accessName: LocalizedText
-  cardImageUrl?: string | null
   cardText?: LocalizedText | null
 }
 

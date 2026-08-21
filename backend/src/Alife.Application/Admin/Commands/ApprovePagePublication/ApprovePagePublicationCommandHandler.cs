@@ -16,8 +16,6 @@ public sealed class ApprovePagePublicationCommandHandler(
     IPageCacheInvalidationService pageCacheInvalidationService)
     : IRequestHandler<ApprovePagePublicationCommand, AppResult<PagePublicationReviewActionDto>>
 {
-    private const int MaxCardImageUrlLength = 1200;
-
     public async Task<AppResult<PagePublicationReviewActionDto>> Handle(
         ApprovePagePublicationCommand request,
         CancellationToken cancellationToken)
@@ -27,7 +25,11 @@ public sealed class ApprovePagePublicationCommandHandler(
             return AppResult<PagePublicationReviewActionDto>.Forbidden("Page reviewer access is required.");
         }
 
-        var page = await dbContext.Pages.FirstOrDefaultAsync(x => x.Id == request.PageId, cancellationToken);
+        var page = await dbContext.Pages
+            .Include(x => x.OwnerGroup)
+            .Include(x => x.Sections)
+                .ThenInclude(x => x.Links)
+            .FirstOrDefaultAsync(x => x.Id == request.PageId, cancellationToken);
         if (page is null)
         {
             return AppResult<PagePublicationReviewActionDto>.NotFound("Page was not found.");
@@ -42,9 +44,10 @@ public sealed class ApprovePagePublicationCommandHandler(
         var ownerGroupId = page.OwnerGroupId;
         var title = ReadTextMap(page.TitleJson);
         var description = ReadTextMap(page.DescriptionJson);
-        var accessName = NormalizeAccessName(request.AccessName, title);
+        var ownerGroupName = ReadTextMap(page.OwnerGroup?.NameJson);
+        var accessName = NormalizeAccessName(request.AccessName, ownerGroupName, title);
         var cardText = NormalizeCardText(request.CardText, description, title);
-        var cardImageUrl = NormalizeCardImageUrl(request.CardImageUrl);
+        var cardImageUrl = PagePublicationReviewDefaults.ExtractFirstSectionImage(page.Sections);
         var review = await dbContext.PagePublicationReviews
             .FirstOrDefaultAsync(x => x.PageId == page.Id, cancellationToken);
         var previousStatus = review?.Status.ToString() ?? "Pending";
@@ -210,14 +213,14 @@ public sealed class ApprovePagePublicationCommandHandler(
 
     private static IReadOnlyDictionary<string, string> NormalizeAccessName(
         IReadOnlyDictionary<string, string>? value,
+        IReadOnlyDictionary<string, string> ownerGroupName,
         IReadOnlyDictionary<string, string> title)
     {
-        var fallbackEn = ReadTextValue(title, "en") ?? ReadTextValue(title, "zh") ?? "Untitled page";
-        var fallbackZh = ReadTextValue(title, "zh") ?? ReadTextValue(title, "en") ?? fallbackEn;
+        var fallback = PagePublicationReviewDefaults.CreateAccessName(ownerGroupName, title);
         return new Dictionary<string, string>
         {
-            ["en"] = ReadTextValue(value, "en") ?? fallbackEn,
-            ["zh"] = ReadTextValue(value, "zh") ?? fallbackZh
+            ["en"] = ReadTextValue(value, "en") ?? fallback["en"],
+            ["zh"] = ReadTextValue(value, "zh") ?? fallback["zh"]
         };
     }
 
@@ -241,17 +244,6 @@ public sealed class ApprovePagePublicationCommandHandler(
             ["en"] = ReadTextValue(value, "en") ?? fallbackEn,
             ["zh"] = ReadTextValue(value, "zh") ?? fallbackZh
         };
-    }
-
-    private static string? NormalizeCardImageUrl(string? value)
-    {
-        var text = value?.Trim();
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            return null;
-        }
-
-        return text.Length <= MaxCardImageUrlLength ? text : text[..MaxCardImageUrlLength];
     }
 
     private static string? ReadTextValue(IReadOnlyDictionary<string, string>? value, string key)

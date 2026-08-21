@@ -1,6 +1,8 @@
 using Alife.Application.Admin.Dtos;
 using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
+using Alife.Application.Pages.Services;
+using Alife.Domain.Entities;
 using Alife.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -43,6 +45,7 @@ public sealed class ListPageReviewCandidatesQueryHandler(IAlifeDbContext dbConte
 
         var pageIds = rows.Select(row => row.Id).ToList();
         var reviewsByPageId = new Dictionary<Guid, ReviewRow>();
+        var sectionsByPageId = new Dictionary<Guid, List<Section>>();
 
         if (pageIds.Count > 0)
         {
@@ -64,19 +67,40 @@ public sealed class ListPageReviewCandidatesQueryHandler(IAlifeDbContext dbConte
                     review => review.PageId,
                     review => review,
                     cancellationToken);
+
+            sectionsByPageId = (await dbContext.Sections
+                    .AsNoTracking()
+                    .Include(section => section.Links)
+                    .Where(section => pageIds.Contains(section.PageId))
+                    .OrderBy(section => section.PageId)
+                    .ThenBy(section => section.Order)
+                    .ThenBy(section => section.Id)
+                    .ToListAsync(cancellationToken))
+                .GroupBy(section => section.PageId)
+                .ToDictionary(group => group.Key, group => group.ToList());
         }
 
         var candidates = rows
             .Select(row =>
             {
                 reviewsByPageId.TryGetValue(row.Id, out var review);
+                sectionsByPageId.TryGetValue(row.Id, out var sections);
+                var ownerGroupName = ReadTextMap(row.OwnerGroupNameJson);
+                var title = ReadTextMap(row.TitleJson);
+                var accessName = ReadNullableTextMap(review?.AccessNameJson) ??
+                                 PagePublicationReviewDefaults.CreateAccessName(ownerGroupName, title);
+                var extractedCardImageUrl = PagePublicationReviewDefaults.ExtractFirstSectionImage(sections ?? []);
+                var cardImageUrl = extractedCardImageUrl ??
+                                   (review?.Status == PagePublicationReviewStatus.Approved
+                                       ? review.CardImageUrl
+                                       : null);
                 return new AdminPageReviewDto(
                     row.Id,
                     row.OwnerGroupId,
-                    ReadTextMap(row.OwnerGroupNameJson),
+                    ownerGroupName,
                     row.CreatedByMemberId,
                     row.CreatorDisplayName,
-                    ReadTextMap(row.TitleJson),
+                    title,
                     ReadNullableTextMap(row.DescriptionJson),
                     row.TagsJson,
                     row.TitleDisplayStyle,
@@ -85,8 +109,8 @@ public sealed class ListPageReviewCandidatesQueryHandler(IAlifeDbContext dbConte
                     review?.PrimaryMenuId,
                     ReadNullableTextMap(review?.PrimaryMenuNameJson),
                     review?.MenuSortOrder ?? 0,
-                    ReadNullableTextMap(review?.AccessNameJson),
-                    review?.CardImageUrl,
+                    accessName,
+                    cardImageUrl,
                     ReadNullableTextMap(review?.CardTextJson),
                     review?.ReturnReason,
                     review?.ReviewedUtc,

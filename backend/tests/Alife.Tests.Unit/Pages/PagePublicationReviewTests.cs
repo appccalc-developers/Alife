@@ -78,6 +78,39 @@ public class PagePublicationReviewTests
                 Visibility = PageVisibility.Public,
                 UpdatedUtc = now.AddMinutes(5)
             });
+        dbContext.Sections.AddRange(
+            new Section
+            {
+                Id = Guid.NewGuid(),
+                PageId = pageId,
+                Order = 1,
+                Type = SectionType.LandingHero,
+                ContentJson = "{\"backgroundImageUrl\":\"/media/intro.mp4\"}"
+            },
+            new Section
+            {
+                Id = Guid.NewGuid(),
+                PageId = pageId,
+                Order = 2,
+                Type = SectionType.RichText,
+                ContentJson = "{\"backgroundImageUrl\":\"/media/pending-card.jpg\"}"
+            },
+            new Section
+            {
+                Id = Guid.NewGuid(),
+                PageId = returnedPageId,
+                Order = 1,
+                Type = SectionType.Spotlight,
+                ContentJson = "{\"media\":{\"type\":\"image\",\"url\":\"/media/returned-card.jpg\"}}"
+            },
+            new Section
+            {
+                Id = Guid.NewGuid(),
+                PageId = approvedPageId,
+                Order = 1,
+                Type = SectionType.RichText,
+                ContentJson = "{\"backgroundImageUrl\":\"/media/new-approved-card.jpg\"}"
+            });
         dbContext.PagePublicationReviews.AddRange(
             new PagePublicationReview
             {
@@ -112,7 +145,13 @@ public class PagePublicationReviewTests
         Assert.True(result.IsSuccess);
         Assert.Equal(3, result.Value!.Count);
         Assert.All(result.Value, page => Assert.Equal(PageVisibility.Public, page.Visibility));
-        Assert.Contains(result.Value, page => page.Id == pageId && page.ReviewStatus == AdminPageReviewStatus.Pending);
+        Assert.Contains(result.Value, page =>
+            page.Id == pageId &&
+            page.ReviewStatus == AdminPageReviewStatus.Pending &&
+            page.AccessName != null &&
+            page.AccessName["en"] == "Alpha Group-Review me" &&
+            page.AccessName["zh"] == "Alpha 小组-请审核" &&
+            page.CardImageUrl == "/media/pending-card.jpg");
         Assert.Contains(result.Value, page =>
             page.Id == approvedPageId &&
             page.ReviewStatus == AdminPageReviewStatus.Approved &&
@@ -120,12 +159,16 @@ public class PagePublicationReviewTests
             page.PrimaryMenuName["en"] == "Ministries" &&
             page.AccessName != null &&
             page.AccessName["en"] == "Approved menu" &&
-            page.CardImageUrl == "https://example.test/approved.jpg" &&
+            page.CardImageUrl == "/media/new-approved-card.jpg" &&
             page.CardText != null &&
             page.CardText["en"] == "Approved card");
         Assert.Contains(result.Value, page =>
             page.Id == returnedPageId &&
             page.ReviewStatus == AdminPageReviewStatus.Returned &&
+            page.AccessName != null &&
+            page.AccessName["en"] == "Alpha Group-Returned review" &&
+            page.AccessName["zh"] == "Alpha 小组-已退回审核" &&
+            page.CardImageUrl == "/media/returned-card.jpg" &&
             page.ReturnReason == "Needs revision");
     }
 
@@ -176,6 +219,24 @@ public class PagePublicationReviewTests
         var groupId = Guid.NewGuid();
         var pageId = Guid.NewGuid();
         await SeedReviewerScenarioAsync(dbContext, reviewerId, authorId, groupId, pageId);
+        dbContext.Sections.AddRange(
+            new Section
+            {
+                Id = Guid.NewGuid(),
+                PageId = pageId,
+                Order = 1,
+                Type = SectionType.LandingHero,
+                ContentJson = "{\"backgroundVideo\":\"/media/intro.mp4\",\"posterImageUrl\":\"/media/page-card.jpg\"}"
+            },
+            new Section
+            {
+                Id = Guid.NewGuid(),
+                PageId = pageId,
+                Order = 2,
+                Type = SectionType.RichText,
+                ContentJson = "{\"backgroundImageUrl\":\"/media/second-card.jpg\"}"
+            });
+        await dbContext.SaveChangesAsync();
         var cacheInvalidation = Substitute.For<IPageCacheInvalidationService>();
         var handler = new ApprovePagePublicationCommandHandler(dbContext, cacheInvalidation);
 
@@ -185,7 +246,6 @@ public class PagePublicationReviewTests
                 pageId,
                 new Dictionary<string, string> { ["en"] = "Ministries", ["zh"] = "事工" },
                 new Dictionary<string, string> { ["en"] = "Menu name", ["zh"] = "菜单名" },
-                "https://example.test/ministry.jpg",
                 new Dictionary<string, string> { ["en"] = "Card text", ["zh"] = "卡片文字" }),
             CancellationToken.None);
 
@@ -204,7 +264,7 @@ public class PagePublicationReviewTests
             review.PrimaryMenuNameJson.Contains("Ministries") &&
             review.AccessNameJson != null &&
             review.AccessNameJson.Contains("Menu name") &&
-            review.CardImageUrl == "https://example.test/ministry.jpg" &&
+            review.CardImageUrl == "/media/page-card.jpg" &&
             review.CardTextJson != null &&
             review.CardTextJson.Contains("Card text"));
         Assert.Contains(dbContext.AuditLogs, log => log.Action == "page.publication-review.approve" && log.EntityId == pageId);
@@ -215,7 +275,6 @@ public class PagePublicationReviewTests
                 pageId,
                 new Dictionary<string, string> { ["en"] = "Community", ["zh"] = "社区" },
                 new Dictionary<string, string> { ["en"] = "Updated menu", ["zh"] = "更新菜单" },
-                "https://example.test/updated.jpg",
                 new Dictionary<string, string> { ["en"] = "Updated text", ["zh"] = "更新文字" }),
             CancellationToken.None);
 
@@ -223,7 +282,7 @@ public class PagePublicationReviewTests
         var updatedReview = await dbContext.PagePublicationReviews.FirstAsync(review => review.PageId == pageId);
         Assert.Contains("Community", updatedReview.PrimaryMenuNameJson);
         Assert.Contains("Updated menu", updatedReview.AccessNameJson);
-        Assert.Equal("https://example.test/updated.jpg", updatedReview.CardImageUrl);
+        Assert.Equal("/media/page-card.jpg", updatedReview.CardImageUrl);
         Assert.Contains("Updated text", updatedReview.CardTextJson);
 
         await cacheInvalidation.Received(2).RemoveDetailAsync(pageId, Arg.Any<CancellationToken>());
@@ -248,7 +307,6 @@ public class PagePublicationReviewTests
                 pageId,
                 new Dictionary<string, string> { ["en"] = "Ministries" },
                 new Dictionary<string, string> { ["en"] = "Menu", ["zh"] = "菜单" },
-                "https://example.test/ministry.jpg",
                 new Dictionary<string, string> { ["en"] = "Text", ["zh"] = "文字" }),
             CancellationToken.None);
 
@@ -278,7 +336,6 @@ public class PagePublicationReviewTests
                 pageId,
                 new Dictionary<string, string> { ["en"] = "Ministries", ["zh"] = "事工" },
                 new Dictionary<string, string> { ["en"] = "Menu name", ["zh"] = "菜单名" },
-                "https://example.test/ministry.jpg",
                 new Dictionary<string, string> { ["en"] = "Card text", ["zh"] = "卡片文字" }),
             CancellationToken.None);
 
