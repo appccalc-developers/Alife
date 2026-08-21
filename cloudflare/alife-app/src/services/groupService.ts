@@ -446,6 +446,11 @@ export const groupService = {
     await invalidateVisibleGroupsForViewers(viewerId, payload.memberId)
   },
 
+  async appointLeader(groupId: string, payload: MemberTargetPayload, viewerId?: string) {
+    await http.post(`/api/groups/${groupId}/appoint-leader`, payload)
+    await invalidateVisibleGroupsForViewers(viewerId, payload.memberId)
+  },
+
   async transferLeadership(groupId: string, payload: MemberTargetPayload, viewerId?: string) {
     await http.post(`/api/groups/${groupId}/transfer-leadership`, payload)
     await invalidateVisibleGroupsForViewers(viewerId, payload.memberId)

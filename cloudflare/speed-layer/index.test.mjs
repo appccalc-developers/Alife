@@ -1264,6 +1264,30 @@ test('successful member action evicts only that group membership list cache', as
   assert.equal(authzStore.has(`membership:${groupId}:member-1`), false)
 })
 
+test('admin leader appointment evicts the group member list and appointed member authorization caches', async () => {
+  const groupId = 'group-1'
+  const targetMemberId = 'member-2'
+  const membershipsUrl = `https://ccalc.live/api/groups/${groupId}/memberships`
+  apiCacheStore.set(createApiCacheKey(membershipsUrl), createStoredResponse([{ memberId: 'member-1', role: 'Leader' }]))
+  apiCacheStore.set(`member:${targetMemberId}:me`, createStoredResponse({ id: targetMemberId, memberships: [] }))
+  authzStore.set(`member:${targetMemberId}:profile`, JSON.stringify({ status: 'cached', memberId: targetMemberId }))
+  authzStore.set(`membership:${groupId}:${targetMemberId}`, JSON.stringify({ status: 'none' }))
+  originResponses.push(Response.json({ ok: true, groupId, memberId: targetMemberId }))
+
+  const response = await dispatch(`https://ccalc.live/api/groups/${groupId}/appoint-leader`, {
+    method: 'POST',
+    body: JSON.stringify({ memberId: targetMemberId }),
+    headers: { 'content-type': 'application/json' },
+  })
+  await flushWaitUntil()
+
+  assert.equal(response.status, 200)
+  assert.equal(apiCacheStore.has(createApiCacheKey(membershipsUrl)), false)
+  assert.equal(apiCacheStore.has(`member:${targetMemberId}:me`), false)
+  assert.equal(authzStore.has(`member:${targetMemberId}:profile`), false)
+  assert.equal(authzStore.has(`membership:${groupId}:${targetMemberId}`), false)
+})
+
 test('ordinary invite uses the response member id to evict the invited member profile', async () => {
   const groupId = 'group-1'
   apiCacheStore.set('member:member-2:me', createStoredResponse({ id: 'member-2', memberships: [] }))

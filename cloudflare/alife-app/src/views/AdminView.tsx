@@ -802,7 +802,7 @@ const ChurchManagementHub = ({
           <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />{isChinese ? '刷新' : 'Refresh'}
         </button>
       </header>
-      <GroupManageView embeddedWorkspace explicitGroupId={church.id} workspaceBasePath="/admin" sectionParamName="church" integrated refreshRequest={workspaceRefreshRequest} />
+      <GroupManageView embeddedWorkspace explicitGroupId={church.id} workspaceBasePath="/admin" sectionParamName="church" integrated refreshRequest={workspaceRefreshRequest} subgroupDetailBasePath={auth.isAdmin ? '/admin/groups' : undefined} />
     </div>
   )
 }
