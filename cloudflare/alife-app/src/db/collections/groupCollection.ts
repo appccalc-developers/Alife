@@ -38,6 +38,9 @@ const visibleGroupsQueryOptions = (viewerId?: string) => ({
 export const fetchVisibleGroupsForViewer = (viewerId?: string) =>
   queryClient.fetchQuery(visibleGroupsQueryOptions(viewerId))
 
+export const fetchFreshVisibleGroupsForViewer = (viewerId?: string) =>
+  queryClient.fetchQuery({ ...visibleGroupsQueryOptions(viewerId), staleTime: 0 })
+
 export const getCachedVisibleGroups = async (viewerId?: string) =>
   ((await getCachedRecord<GroupSummaryDto[]>(visibleGroupsQueryKey(viewerId)))?.data ?? []).map(normalizeGroup)
 
