@@ -36,6 +36,9 @@ export const toWorkspaceLocation = ({ pathname, search = '', hash = '' }: Worksp
 export const resolveWorkspaceEntryLocation = (rememberedLocation: string, activeGroupId: string) =>
   rememberedLocation || (activeGroupId.trim() ? '/groups?view=overview' : '/church')
 
+export const resolveWorkspaceFallbackLocation = (isGuest: boolean) =>
+  isGuest ? '/' : '/church'
+
 export const workspaceResumeService = {
   remember(viewerId: string | null | undefined, location: WorkspaceLocation) {
     const normalizedViewerId = viewerId?.trim()

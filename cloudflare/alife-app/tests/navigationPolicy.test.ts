@@ -14,7 +14,11 @@ import {
 import { getRouteTransitionKey, isForumFeedPath } from '../src/app/routing/routeTransitionPolicy.ts'
 import { isHomeLocation, usesPublicHomeLayout } from '../src/app/routing/publicRoutePolicy.ts'
 import { normalizeRouteGroupId } from '../src/utils/groupRouteIds.ts'
-import { resolveWorkspaceEntryLocation, toWorkspaceLocation } from '../src/services/workspaceResumeService.ts'
+import {
+  resolveWorkspaceEntryLocation,
+  resolveWorkspaceFallbackLocation,
+  toWorkspaceLocation,
+} from '../src/services/workspaceResumeService.ts'
 import { matchesRequiredSearch } from '../src/app/navigation/searchMatch.ts'
 import { belongsToForumRouteScope } from '../src/utils/forumRouteScope.ts'
 
@@ -69,6 +73,11 @@ test('workspace entry resumes the last route before falling back to the current 
   assert.equal(resolveWorkspaceEntryLocation('', ''), '/church')
   assert.equal(toWorkspaceLocation({ pathname: '/events/event-id', search: '?section=memories' }), '/events/event-id?section=memories')
   assert.equal(toWorkspaceLocation({ pathname: '/' }), '')
+})
+
+test('workspace access failures keep signed-in members inside Alife', () => {
+  assert.equal(resolveWorkspaceFallbackLocation(false), '/church')
+  assert.equal(resolveWorkspaceFallbackLocation(true), '/')
 })
 
 test('home and managed public pages use the public home layout', () => {
