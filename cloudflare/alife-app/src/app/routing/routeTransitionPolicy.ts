@@ -3,6 +3,9 @@ const isGroupWorkspaceSectionPath = (pathname: string) =>
   pathname === '/groups/manage' ||
   /^\/groups\/(?!select$|join$|manage$)[^/]+(?:\/manage)?$/.test(pathname)
 
+const isAdminGroupWorkspacePath = (pathname: string) =>
+  /^\/admin\/groups\/[^/]+$/.test(pathname)
+
 export const isForumFeedPath = (pathname: string) =>
   pathname === '/forum' ||
   pathname === '/church/forum' ||
@@ -31,6 +34,11 @@ export const getRouteTransitionKey = ({
   if (isManagedPublicPage) return 'managed-public-page'
   const churchLifeTransitionKey = getChurchLifeTransitionKey(pathname, search)
   if (churchLifeTransitionKey) return churchLifeTransitionKey
-  if (pathname === '/study' || isGroupWorkspaceSectionPath(pathname) || isForumFeedPath(pathname)) return pathname
+  if (
+    pathname === '/study' ||
+    isGroupWorkspaceSectionPath(pathname) ||
+    isAdminGroupWorkspacePath(pathname) ||
+    isForumFeedPath(pathname)
+  ) return pathname
   return pathname + search
 }
