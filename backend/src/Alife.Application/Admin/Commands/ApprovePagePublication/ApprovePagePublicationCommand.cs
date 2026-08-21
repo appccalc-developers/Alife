@@ -9,6 +9,5 @@ public sealed record ApprovePagePublicationCommand(
     Guid PageId,
     IReadOnlyDictionary<string, string>? PrimaryMenuName,
     IReadOnlyDictionary<string, string>? AccessName,
-    string? CardImageUrl,
     IReadOnlyDictionary<string, string>? CardText)
     : IRequest<AppResult<PagePublicationReviewActionDto>>;

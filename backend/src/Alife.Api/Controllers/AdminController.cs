@@ -168,7 +168,6 @@ public class AdminController(IMediator mediator, ICurrentMemberAccessor currentM
                 pageId,
                 request?.PrimaryMenuName,
                 request?.AccessName,
-                request?.CardImageUrl,
                 request?.CardText),
             cancellationToken);
         this.ApplyPrivateNoCacheHeaders();
@@ -572,6 +571,7 @@ public class AdminController(IMediator mediator, ICurrentMemberAccessor currentM
     public sealed record ApprovePagePublicationReviewRequest(
         IReadOnlyDictionary<string, string>? PrimaryMenuName,
         IReadOnlyDictionary<string, string>? AccessName,
+        // Legacy clients may still send this field; card images are now derived from page sections.
         string? CardImageUrl,
         IReadOnlyDictionary<string, string>? CardText);
     public sealed record UpdatePagePrimaryMenuRequest(
