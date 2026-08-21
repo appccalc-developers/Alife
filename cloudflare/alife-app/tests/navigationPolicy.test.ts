@@ -111,6 +111,19 @@ test('forum feed category changes preserve the mounted route view', () => {
   }
 })
 
+test('admin group tab changes preserve the mounted group management view', () => {
+  const transitionKey = (pathname: string, search: string) =>
+    getRouteTransitionKey({ pathname, search, isManagedPublicPage: false })
+
+  assert.equal(transitionKey('/admin/groups/group-id', '?tab=profile'), '/admin/groups/group-id')
+  assert.equal(transitionKey('/admin/groups/group-id', '?tab=leadership'), '/admin/groups/group-id')
+  assert.equal(transitionKey('/admin/groups/group-id', '?tab=members'), '/admin/groups/group-id')
+  assert.notEqual(
+    transitionKey('/admin/groups/group-one', '?tab=profile'),
+    transitionKey('/admin/groups/group-two', '?tab=profile'),
+  )
+})
+
 test('Church Life owner filters preserve list routes while section changes keep distinct identities', () => {
   const transitionKey = (pathname: string, search: string) =>
     getRouteTransitionKey({ pathname, search, isManagedPublicPage: false })
