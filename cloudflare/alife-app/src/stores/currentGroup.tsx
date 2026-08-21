@@ -1,12 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
 import { isAuthOptionalLocation } from '../app/routing/publicRoutePolicy'
-import { fetchGroupForViewer } from '../db/collections/groupCollection'
+import { fetchFreshVisibleGroupsForViewer, fetchGroupForViewer } from '../db/collections/groupCollection'
 import { useUiText } from '../i18n/uiText'
 import { ACTIVE_ENTITY_CHANGED_EVENT, activeEntityService } from '../services/activeEntityService'
 import { useAuthStore } from './auth'
 import type { GroupDto } from '../types'
 import { normalizeGroup } from '../utils/apiEnums'
+import { hasApprovedMembership, selectPreferredCurrentGroup } from '../utils/currentGroupSelection'
 
 type CurrentGroupContextValue = {
   CurrentGroup: GroupDto | null
@@ -55,22 +56,58 @@ export const CurrentGroupProvider = ({ children }: { children: ReactNode }) => {
       return
     }
 
-    if (!activeGroupId || auth.isGuest) {
+    if (auth.isGuest) {
       setCurrentGroup(null)
       setLoading(false)
       setError('')
       return
     }
 
-    const hasUsableMembership = auth.isAdmin || auth.memberships.some(
-      (membership) => membership.groupId === activeGroupId && membership.status === 'approved',
-    )
+    const hasUsableMembership = Boolean(activeGroupId) &&
+      hasApprovedMembership(auth.memberships, activeGroupId)
     if (!hasUsableMembership) {
-      activeEntityService.setGroup('', { clearPage: true, clearEvent: true })
       setCurrentGroup(null)
-      setLoading(false)
       setError('')
-      return
+
+      if (activeGroupId) {
+        setLoading(true)
+        activeEntityService.setGroup('', { clearPage: true, clearEvent: true })
+        return
+      }
+
+      if (!auth.memberships.some((membership) => membership.status === 'approved')) {
+        setLoading(false)
+        return
+      }
+
+      let cancelled = false
+
+      const selectFallbackGroup = async () => {
+        setLoading(true)
+
+        try {
+          const visibleGroups = await fetchFreshVisibleGroupsForViewer(auth.me?.id)
+          const fallbackGroup = selectPreferredCurrentGroup(visibleGroups, auth.memberships)
+          if (cancelled) return
+
+          if (fallbackGroup) {
+            activeEntityService.setGroup(fallbackGroup.id, { clearPage: true, clearEvent: true })
+          } else {
+            setLoading(false)
+          }
+        } catch {
+          if (!cancelled) {
+            setLoading(false)
+            setError(tRef.current('groupLoadFailed'))
+          }
+        }
+      }
+
+      selectFallbackGroup().catch(() => undefined)
+
+      return () => {
+        cancelled = true
+      }
     }
 
     let cancelled = false
@@ -107,7 +144,7 @@ export const CurrentGroupProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       cancelled = true
     }
-  }, [activeGroupId, auth.isAdmin, auth.isGuest, auth.me?.id, auth.memberships, groupContextEnabled])
+  }, [activeGroupId, auth.isGuest, auth.me?.id, auth.memberships, groupContextEnabled])
 
   const setSelectableCurrentGroup = useCallback((group: GroupDto | null) => {
     if (group?.isChurch) {
