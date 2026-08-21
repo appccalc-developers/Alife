@@ -858,6 +858,7 @@ type GroupManageViewProps = {
   sectionParamName?: string
   integrated?: boolean
   refreshRequest?: number
+  subgroupDetailBasePath?: string
 }
 
 const GroupManageView = ({
@@ -867,6 +868,7 @@ const GroupManageView = ({
   sectionParamName = 'section',
   integrated = false,
   refreshRequest = 0,
+  subgroupDetailBasePath = '',
 }: GroupManageViewProps) => {
   const t = useUiText()
   const { groupId: routeGroupId } = useParams<{ groupId: string }>()
@@ -924,8 +926,10 @@ const GroupManageView = ({
   ]
   const showGroupManagementNavigation = activeSection !== 'events' && activeSection !== 'announcements'
   const workspacePath = workspaceBasePath
-  const groupWorkspaceTarget = (_targetGroupId: string) =>
-    embeddedWorkspace ? '/groups?section=group' : '/groups/manage?section=group'
+  const groupWorkspaceTarget = (targetGroupId: string) =>
+    subgroupDetailBasePath
+      ? `${subgroupDetailBasePath}/${encodeURIComponent(targetGroupId)}`
+      : embeddedWorkspace ? '/groups?section=group' : '/groups/manage?section=group'
   const unsavedGroupProfileMessage = t('groupProfileUnsavedChangesPrompt')
   const guardGroupProfileNavigation = useCallback(() => {
     if (!hasUnsavedGroupProfileChanges) {
@@ -946,6 +950,11 @@ const GroupManageView = ({
 
   const handleOpenSubgroup = async (subgroupId: string) => {
     if (!guardGroupProfileNavigation()) return
+
+    if (subgroupDetailBasePath) {
+      navigate(groupWorkspaceTarget(subgroupId))
+      return
+    }
 
     if (canManageSubgroup(subgroupId)) {
       activeEntityService.setGroup(subgroupId)
@@ -1017,7 +1026,7 @@ const GroupManageView = ({
     try {
       const subgroup = await createSubgroup(toLocalizedText(subgroupName.trim()), 'protected')
       if (subgroup) {
-        activeEntityService.setGroup(subgroup.id)
+        if (!subgroupDetailBasePath) activeEntityService.setGroup(subgroup.id)
         navigate(groupWorkspaceTarget(subgroup.id))
       }
     } catch {

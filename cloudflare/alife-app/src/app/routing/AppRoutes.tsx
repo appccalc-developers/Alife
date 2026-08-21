@@ -11,6 +11,7 @@ import { getRouteTransitionKey } from './routeTransitionPolicy'
 import { canAccessChurchManagement, hasChurchManagementAdminPermission } from './churchManagementAccess'
 
 const AdminView = lazy(() => import('../../views/AdminView'))
+const AdminGroupView = lazy(() => import('../../views/AdminGroupView'))
 const AlbumView = lazy(() => import('../../views/AlbumView'))
 const ArticleDetailView = lazy(() => import('../../views/ArticleDetailView'))
 const ArticlesView = lazy(() => import('../../views/ArticlesView'))
@@ -251,6 +252,14 @@ const AppRoutes = ({ churchGroupId = '', churchGroupLoading = false }: AppRoutes
             element={
               <AdminRoute permission="admin.members.view">
                 <AdminView />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/groups/:groupId"
+            element={
+              <AdminRoute permission="admin.access">
+                <AdminGroupView />
               </AdminRoute>
             }
           />
