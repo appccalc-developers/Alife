@@ -1,0 +1,2187 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="Alife 是为海外华人基督教社区打造的双语教会与群组平台。">
+  <meta name="theme-color" content="#0d4f43">
+  <title>Alife — 让教会生活，落在同一个地方</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #18332d;
+      --ink-soft: #526860;
+      --green: #176b5a;
+      --green-deep: #0d4f43;
+      --green-night: #082f29;
+      --green-soft: #dceee7;
+      --coral: #e37b63;
+      --coral-soft: #f8ddd5;
+      --sand: #f3efe6;
+      --paper: #fffdf8;
+      --white: #ffffff;
+      --line: rgba(24, 51, 45, 0.14);
+      --line-light: rgba(255, 255, 255, 0.18);
+      --shadow: 0 24px 70px rgba(22, 54, 46, 0.12);
+      --display: "Aptos Display", "Segoe UI Variable Display", "PingFang SC", "Microsoft YaHei", sans-serif;
+      --body: "Aptos", "Segoe UI Variable Text", "PingFang SC", "Microsoft YaHei", sans-serif;
+      --mono: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+      --page: min(1180px, calc(100vw - 40px));
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    html {
+      min-width: 320px;
+      scroll-behavior: smooth;
+      scroll-padding-top: 96px;
+      background: var(--sand);
+    }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 92% 6%, rgba(23, 107, 90, 0.11), transparent 31rem),
+        radial-gradient(circle at 4% 14%, rgba(227, 123, 99, 0.10), transparent 27rem),
+        var(--sand);
+      font-family: var(--body);
+      font-size: 16px;
+      line-height: 1.65;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    img {
+      display: block;
+      max-width: 100%;
+    }
+
+    a {
+      color: inherit;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 0.22em;
+    }
+
+    button,
+    a {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    :focus-visible {
+      outline: 3px solid rgba(227, 123, 99, 0.7);
+      outline-offset: 4px;
+    }
+
+    ::selection {
+      color: var(--white);
+      background: var(--green);
+    }
+
+    .skip-link {
+      position: fixed;
+      z-index: 100;
+      top: 12px;
+      left: 12px;
+      padding: 10px 16px;
+      color: var(--white);
+      background: var(--green-night);
+      border-radius: 8px;
+      transform: translateY(-160%);
+      transition: transform 160ms ease;
+    }
+
+    .skip-link:focus {
+      transform: translateY(0);
+    }
+
+    .progress {
+      position: fixed;
+      z-index: 90;
+      inset: 0 0 auto;
+      height: 3px;
+      pointer-events: none;
+    }
+
+    .progress__bar {
+      display: block;
+      width: 0;
+      height: 100%;
+      background: var(--coral);
+      transform-origin: left;
+    }
+
+    .site-header {
+      position: sticky;
+      z-index: 80;
+      top: 0;
+      border-bottom: 1px solid rgba(24, 51, 45, 0.09);
+      background: rgba(243, 239, 230, 0.88);
+      backdrop-filter: blur(18px);
+    }
+
+    .site-header__inner {
+      width: var(--page);
+      min-height: 72px;
+      margin-inline: auto;
+      display: flex;
+      align-items: center;
+      gap: 28px;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 11px;
+      min-width: max-content;
+      color: var(--ink);
+      text-decoration: none;
+    }
+
+    .brand__mark {
+      position: relative;
+      display: grid;
+      width: 36px;
+      height: 36px;
+      place-items: center;
+      overflow: hidden;
+      color: var(--white);
+      background: var(--green-deep);
+      border-radius: 50%;
+      font-family: var(--display);
+      font-size: 15px;
+      font-weight: 800;
+    }
+
+    .brand__mark::after {
+      content: "";
+      position: absolute;
+      width: 13px;
+      height: 13px;
+      right: -2px;
+      bottom: -2px;
+      background: var(--coral);
+      border: 3px solid var(--sand);
+      border-radius: 50%;
+    }
+
+    .brand__name {
+      display: block;
+      font-family: var(--display);
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1;
+    }
+
+    .brand__meta {
+      display: block;
+      margin-top: 4px;
+      color: var(--ink-soft);
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.12em;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+
+    .site-nav {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .site-nav a {
+      position: relative;
+      color: #3d554d;
+      font-size: 14px;
+      font-weight: 650;
+      text-decoration: none;
+    }
+
+    .site-nav a::after {
+      content: "";
+      position: absolute;
+      inset: auto 0 -7px;
+      height: 2px;
+      background: var(--coral);
+      transform: scaleX(0);
+      transform-origin: right;
+      transition: transform 180ms ease;
+    }
+
+    .site-nav a:hover::after,
+    .site-nav a:focus-visible::after {
+      transform: scaleX(1);
+      transform-origin: left;
+    }
+
+    .language-toggle {
+      min-width: 92px;
+      padding: 8px 11px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: var(--green-deep);
+      background: rgba(255, 255, 255, 0.62);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 750;
+      letter-spacing: 0.04em;
+      transition: background 180ms ease, border-color 180ms ease, transform 180ms ease;
+    }
+
+    .language-toggle:hover {
+      background: var(--white);
+      border-color: rgba(23, 107, 90, 0.35);
+      transform: translateY(-1px);
+    }
+
+    .language-toggle__dot {
+      width: 6px;
+      height: 6px;
+      background: var(--coral);
+      border-radius: 50%;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      min-height: 730px;
+      display: grid;
+      align-items: center;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .hero::before {
+      content: "";
+      position: absolute;
+      width: 660px;
+      height: 660px;
+      top: 38px;
+      right: max(-260px, calc((100vw - 1180px) / 2 - 220px));
+      border: 1px solid rgba(23, 107, 90, 0.11);
+      border-radius: 50%;
+      box-shadow:
+        0 0 0 110px rgba(23, 107, 90, 0.025),
+        0 0 0 240px rgba(23, 107, 90, 0.018);
+      pointer-events: none;
+    }
+
+    .hero__inner {
+      position: relative;
+      z-index: 1;
+      width: var(--page);
+      margin-inline: auto;
+      padding: 88px 0 76px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.14fr) minmax(420px, 0.86fr);
+      align-items: center;
+      gap: clamp(34px, 5vw, 72px);
+    }
+
+    .eyebrow {
+      margin: 0 0 22px;
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      color: var(--green);
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 28px;
+      height: 2px;
+      background: var(--coral);
+    }
+
+    .hero h1,
+    .section-heading,
+    .dark-heading,
+    .start-heading {
+      margin: 0;
+      font-family: var(--display);
+      font-weight: 780;
+      letter-spacing: -0.055em;
+      line-height: 0.98;
+      text-wrap: balance;
+    }
+
+    .hero h1 {
+      max-width: 720px;
+      font-size: clamp(52px, 5.3vw, 80px);
+    }
+
+    .hero h1 span {
+      display: inline-block;
+      color: var(--green);
+    }
+
+    html[lang="zh-CN"] .hero h1 span {
+      white-space: nowrap;
+    }
+
+    .hero__lead {
+      max-width: 620px;
+      margin: 30px 0 0;
+      color: var(--ink-soft);
+      font-size: clamp(17px, 1.6vw, 21px);
+      line-height: 1.65;
+    }
+
+    .hero__actions {
+      margin-top: 38px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .button {
+      min-height: 48px;
+      padding: 11px 19px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      border: 1px solid transparent;
+      border-radius: 11px;
+      font-weight: 750;
+      text-decoration: none;
+      transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+    }
+
+    .button:hover {
+      transform: translateY(-2px);
+    }
+
+    .button--primary {
+      color: var(--white);
+      background: var(--green-deep);
+      box-shadow: 0 10px 26px rgba(13, 79, 67, 0.22);
+    }
+
+    .button--primary:hover {
+      background: var(--green-night);
+      box-shadow: 0 14px 32px rgba(13, 79, 67, 0.28);
+    }
+
+    .button--ghost {
+      color: var(--ink);
+      background: rgba(255, 255, 255, 0.42);
+      border-color: var(--line);
+    }
+
+    .button--ghost:hover {
+      background: var(--white);
+    }
+
+    .arrow {
+      font-size: 1.12em;
+      line-height: 1;
+    }
+
+    .hero__facts {
+      margin: 34px 0 0;
+      padding: 22px 0 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 20px;
+      border-top: 1px solid var(--line);
+      list-style: none;
+    }
+
+    .hero__facts li {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: #486158;
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .hero__facts li::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      background: var(--green);
+      border: 2px solid var(--green-soft);
+      border-radius: 50%;
+      box-sizing: content-box;
+    }
+
+    .community-orbit {
+      position: relative;
+      min-height: 500px;
+      isolation: isolate;
+    }
+
+    .community-orbit__ring,
+    .community-orbit__ring::before,
+    .community-orbit__ring::after {
+      position: absolute;
+      border-radius: 50%;
+    }
+
+    .community-orbit__ring {
+      width: 410px;
+      height: 410px;
+      inset: 45px 50% auto auto;
+      transform: translateX(50%);
+      border: 1px dashed rgba(23, 107, 90, 0.38);
+      animation: orbit-spin 38s linear infinite;
+    }
+
+    .community-orbit__ring::before {
+      content: "";
+      inset: 58px;
+      border: 1px solid rgba(23, 107, 90, 0.16);
+    }
+
+    .community-orbit__ring::after {
+      content: "";
+      inset: 122px;
+      background: rgba(255, 255, 255, 0.46);
+      border: 1px solid rgba(23, 107, 90, 0.1);
+    }
+
+    .community-orbit__core {
+      position: absolute;
+      z-index: 2;
+      width: 190px;
+      height: 190px;
+      top: 155px;
+      left: 50%;
+      padding: 26px;
+      display: grid;
+      place-content: center;
+      color: var(--white);
+      background:
+        radial-gradient(circle at 30% 24%, rgba(255, 255, 255, 0.16), transparent 26%),
+        var(--green-deep);
+      border-radius: 50%;
+      box-shadow: 0 24px 62px rgba(13, 79, 67, 0.28);
+      text-align: center;
+      transform: translateX(-50%);
+    }
+
+    .community-orbit__core strong {
+      display: block;
+      font-family: var(--display);
+      font-size: 26px;
+      letter-spacing: -0.045em;
+      line-height: 1.05;
+    }
+
+    .community-orbit__core span {
+      display: block;
+      margin-top: 9px;
+      color: rgba(255, 255, 255, 0.72);
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+
+    .orbit-node {
+      position: absolute;
+      z-index: 3;
+      min-width: 132px;
+      padding: 13px 16px;
+      color: var(--ink);
+      background: rgba(255, 253, 248, 0.94);
+      border: 1px solid rgba(24, 51, 45, 0.13);
+      border-radius: 14px;
+      box-shadow: 0 14px 34px rgba(22, 54, 46, 0.11);
+    }
+
+    .orbit-node::before {
+      content: "";
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      top: 18px;
+      left: -5px;
+      background: var(--coral);
+      border: 2px solid var(--sand);
+      border-radius: 50%;
+    }
+
+    .orbit-node strong,
+    .orbit-node span {
+      display: block;
+    }
+
+    .orbit-node strong {
+      font-family: var(--display);
+      font-size: 15px;
+      line-height: 1.2;
+    }
+
+    .orbit-node span {
+      margin-top: 4px;
+      color: var(--ink-soft);
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .orbit-node--one { top: 5px; left: 50%; transform: translateX(-50%); }
+    .orbit-node--two { top: 112px; right: 0; }
+    .orbit-node--three { right: 12px; bottom: 65px; }
+    .orbit-node--four { bottom: 0; left: 45px; }
+    .orbit-node--five { top: 122px; left: 0; }
+
+    .orbit-note {
+      position: absolute;
+      right: 50%;
+      bottom: 37px;
+      width: 210px;
+      color: var(--ink-soft);
+      font-size: 12px;
+      line-height: 1.5;
+      text-align: center;
+      transform: translateX(50%);
+    }
+
+    .section {
+      padding: clamp(86px, 10vw, 140px) 0;
+    }
+
+    .section__inner {
+      width: var(--page);
+      margin-inline: auto;
+    }
+
+    .section-intro {
+      max-width: 820px;
+    }
+
+    .section-heading,
+    .dark-heading,
+    .start-heading {
+      font-size: clamp(42px, 5vw, 68px);
+    }
+
+    .section-copy {
+      max-width: 720px;
+      margin: 24px 0 0;
+      color: var(--ink-soft);
+      font-size: clamp(16px, 1.5vw, 19px);
+    }
+
+    .journey {
+      background: rgba(255, 253, 248, 0.62);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .journey-track {
+      position: relative;
+      margin: 68px 0 0;
+      padding: 0;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 0;
+      list-style: none;
+    }
+
+    .journey-track::before {
+      content: "";
+      position: absolute;
+      top: 31px;
+      right: 8%;
+      left: 8%;
+      height: 1px;
+      background: var(--line);
+    }
+
+    .journey-step {
+      position: relative;
+      padding-right: clamp(18px, 3vw, 40px);
+    }
+
+    .journey-step:last-child {
+      padding-right: 0;
+    }
+
+    .journey-step__number {
+      position: relative;
+      z-index: 1;
+      width: 62px;
+      height: 62px;
+      display: grid;
+      place-items: center;
+      color: var(--green-deep);
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      box-shadow: 0 8px 26px rgba(22, 54, 46, 0.08);
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .journey-step:nth-child(3) .journey-step__number,
+    .journey-step:nth-child(5) .journey-step__number {
+      color: var(--white);
+      background: var(--green-deep);
+      border-color: var(--green-deep);
+    }
+
+    .journey-step h3 {
+      margin: 24px 0 0;
+      font-family: var(--display);
+      font-size: 22px;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+    }
+
+    .journey-step p {
+      margin: 11px 0 0;
+      color: var(--ink-soft);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .showcase {
+      color: var(--white);
+      background:
+        radial-gradient(circle at 84% 20%, rgba(227, 123, 99, 0.18), transparent 32rem),
+        radial-gradient(circle at 8% 86%, rgba(74, 171, 146, 0.16), transparent 27rem),
+        var(--green-night);
+    }
+
+    .showcase .eyebrow {
+      color: #8ed9c4;
+    }
+
+    .dark-heading {
+      max-width: 850px;
+    }
+
+    .showcase__copy {
+      max-width: 700px;
+      margin: 24px 0 0;
+      color: rgba(255, 255, 255, 0.68);
+      font-size: 18px;
+    }
+
+    .product-viewer {
+      margin-top: 56px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 238px;
+      gap: 22px;
+      align-items: start;
+    }
+
+    .product-stage {
+      margin: 0;
+      overflow: hidden;
+      background: #eef3f0;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 20px;
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.25);
+    }
+
+    .product-stage__chrome {
+      min-height: 44px;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #596d66;
+      background: rgba(255, 255, 255, 0.96);
+      border-bottom: 1px solid rgba(24, 51, 45, 0.1);
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .window-dots {
+      display: flex;
+      gap: 6px;
+    }
+
+    .window-dots i {
+      width: 7px;
+      height: 7px;
+      display: block;
+      background: #b8c6c0;
+      border-radius: 50%;
+    }
+
+    .window-dots i:first-child { background: var(--coral); }
+
+    .product-stage__image-wrap {
+      position: relative;
+      aspect-ratio: 1905 / 938;
+      overflow: hidden;
+      background: #e7edea;
+    }
+
+    .product-stage__image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: opacity 160ms ease, transform 500ms ease;
+    }
+
+    .product-stage:hover .product-stage__image {
+      transform: scale(1.012);
+    }
+
+    .product-stage__image.is-changing {
+      opacity: 0.25;
+    }
+
+    .product-stage figcaption {
+      min-height: 76px;
+      padding: 17px 20px;
+      color: #526860;
+      background: var(--white);
+      font-size: 13px;
+    }
+
+    .product-tabs {
+      display: grid;
+      gap: 9px;
+    }
+
+    .product-tab {
+      width: 100%;
+      padding: 12px;
+      display: grid;
+      grid-template-columns: 72px minmax(0, 1fr);
+      align-items: center;
+      gap: 12px;
+      color: rgba(255, 255, 255, 0.7);
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      cursor: pointer;
+      text-align: left;
+      transition: color 180ms ease, background 180ms ease, border-color 180ms ease;
+    }
+
+    .product-tab:hover,
+    .product-tab[aria-selected="true"] {
+      color: var(--white);
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(142, 217, 196, 0.45);
+    }
+
+    .product-tab[aria-selected="true"] {
+      box-shadow: inset 3px 0 0 #8ed9c4;
+    }
+
+    .product-tab img {
+      width: 72px;
+      height: 49px;
+      aspect-ratio: 1.46;
+      object-fit: cover;
+      border-radius: 7px;
+      opacity: 0.76;
+    }
+
+    .product-tab[aria-selected="true"] img {
+      opacity: 1;
+    }
+
+    .product-tab span {
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+
+    .capability-ledger {
+      margin: 62px 0 0;
+      border-top: 1px solid var(--line-light);
+    }
+
+    .capability-row {
+      padding: 24px 0;
+      display: grid;
+      grid-template-columns: 0.65fr 1.45fr 1.9fr;
+      gap: 30px;
+      border-bottom: 1px solid var(--line-light);
+    }
+
+    .capability-row__index {
+      color: var(--coral);
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.12em;
+    }
+
+    .capability-row h3 {
+      margin: 0;
+      font-family: var(--display);
+      font-size: 24px;
+      letter-spacing: -0.035em;
+      line-height: 1.15;
+    }
+
+    .capability-row p {
+      margin: 0;
+      color: rgba(255, 255, 255, 0.66);
+      font-size: 14px;
+    }
+
+    .architecture {
+      background: var(--paper);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .architecture-layout {
+      display: grid;
+      grid-template-columns: minmax(260px, 0.72fr) minmax(0, 1.28fr);
+      gap: clamp(54px, 8vw, 104px);
+      align-items: start;
+    }
+
+    .architecture-copy {
+      position: sticky;
+      top: 118px;
+    }
+
+    .architecture-copy .section-heading {
+      font-size: clamp(40px, 4.5vw, 62px);
+    }
+
+    .architecture-note {
+      margin-top: 28px;
+      padding: 18px 0 0 20px;
+      color: var(--ink-soft);
+      border-top: 1px solid var(--line);
+      border-left: 3px solid var(--coral);
+      font-size: 14px;
+    }
+
+    .system-map {
+      margin: 0;
+      padding: clamp(25px, 4vw, 44px);
+      background:
+        linear-gradient(rgba(23, 107, 90, 0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(23, 107, 90, 0.045) 1px, transparent 1px),
+        #f4f8f6;
+      background-size: 28px 28px;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .system-map__lane {
+      display: grid;
+      grid-template-columns: 82px minmax(0, 1fr);
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .system-map__lane + .system-map__lane {
+      margin-top: 18px;
+    }
+
+    .system-map__label {
+      padding-top: 16px;
+      color: #73877f;
+      font-family: var(--mono);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .system-map__nodes {
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .system-map__nodes--single {
+      grid-template-columns: 1fr;
+    }
+
+    .system-map__nodes--double {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .system-node {
+      position: relative;
+      min-height: 92px;
+      padding: 17px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      color: var(--ink);
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid rgba(24, 51, 45, 0.13);
+      border-radius: 13px;
+    }
+
+    .system-node--edge {
+      color: var(--white);
+      background: var(--green-deep);
+      border-color: var(--green-deep);
+    }
+
+    .system-node--accent {
+      background: var(--coral-soft);
+      border-color: rgba(227, 123, 99, 0.28);
+    }
+
+    .system-node__role {
+      color: inherit;
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      opacity: 0.68;
+      text-transform: uppercase;
+    }
+
+    .system-node strong {
+      display: block;
+      margin-top: 12px;
+      font-family: var(--display);
+      font-size: 16px;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+    }
+
+    .system-map__connector {
+      height: 24px;
+      margin-left: 122px;
+      border-left: 1px dashed rgba(23, 107, 90, 0.45);
+    }
+
+    .system-map figcaption {
+      margin-top: 28px;
+      padding-top: 20px;
+      color: var(--ink-soft);
+      border-top: 1px solid var(--line);
+      font-size: 12px;
+    }
+
+    .stack-list {
+      margin: 34px 0 0;
+      padding: 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      list-style: none;
+    }
+
+    .stack-list li {
+      padding: 7px 10px;
+      color: #3d5c52;
+      background: var(--green-soft);
+      border: 1px solid rgba(23, 107, 90, 0.12);
+      border-radius: 7px;
+      font-family: var(--mono);
+      font-size: 10px;
+    }
+
+    .principles {
+      background: var(--sand);
+    }
+
+    .principles-layout {
+      display: grid;
+      grid-template-columns: minmax(230px, 0.7fr) minmax(0, 1.3fr);
+      gap: clamp(50px, 8vw, 112px);
+      align-items: start;
+    }
+
+    .principles-list {
+      margin: 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .principle {
+      padding: 28px 0;
+      display: grid;
+      grid-template-columns: 46px minmax(0, 0.85fr) minmax(0, 1.45fr);
+      gap: 22px;
+      align-items: start;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .principle dt,
+    .principle dd {
+      margin: 0;
+    }
+
+    .principle::before {
+      content: attr(data-index);
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      color: var(--green-deep);
+      background: var(--green-soft);
+      border-radius: 50%;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .principle dt {
+      font-family: var(--display);
+      font-size: 20px;
+      font-weight: 760;
+      letter-spacing: -0.03em;
+      line-height: 1.25;
+    }
+
+    .principle dd {
+      color: var(--ink-soft);
+      font-size: 14px;
+    }
+
+    .start {
+      color: var(--white);
+      background: var(--green-deep);
+    }
+
+    .start-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 0.92fr) minmax(440px, 1.08fr);
+      gap: clamp(50px, 8vw, 100px);
+      align-items: start;
+    }
+
+    .start .eyebrow {
+      color: #9bdeca;
+    }
+
+    .start-copy {
+      margin: 24px 0 0;
+      color: rgba(255, 255, 255, 0.68);
+      font-size: 18px;
+    }
+
+    .requirements {
+      margin: 30px 0 0;
+      padding: 0;
+      display: grid;
+      gap: 10px;
+      list-style: none;
+    }
+
+    .requirements li {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      color: rgba(255, 255, 255, 0.78);
+      font-size: 14px;
+    }
+
+    .requirements li::before {
+      content: "✓";
+      color: #9bdeca;
+      font-weight: 800;
+    }
+
+    .terminal-stack {
+      display: grid;
+      gap: 16px;
+    }
+
+    .terminal {
+      overflow: hidden;
+      background: var(--green-night);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 15px;
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.18);
+    }
+
+    .terminal__head {
+      min-height: 42px;
+      padding: 0 12px 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      background: rgba(255, 255, 255, 0.055);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .terminal__title {
+      color: rgba(255, 255, 255, 0.55);
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .copy-button {
+      padding: 6px 9px;
+      color: rgba(255, 255, 255, 0.72);
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 7px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .copy-button:hover {
+      color: var(--white);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .terminal pre {
+      margin: 0;
+      padding: 20px;
+      overflow-x: auto;
+      color: #d7eee7;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .terminal code::before {
+      content: "> ";
+      color: var(--coral);
+    }
+
+    .local-urls {
+      margin: 20px 0 0;
+      padding: 0;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      list-style: none;
+    }
+
+    .local-urls li {
+      padding: 11px 12px;
+      color: rgba(255, 255, 255, 0.64);
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 9px;
+      font-size: 11px;
+    }
+
+    .local-urls strong,
+    .local-urls code {
+      display: block;
+    }
+
+    .local-urls strong {
+      color: var(--white);
+      font-size: 12px;
+    }
+
+    .local-urls code {
+      margin-top: 4px;
+      font-family: var(--mono);
+      font-size: 9px;
+    }
+
+    .repository {
+      background: var(--paper);
+    }
+
+    .repository-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 0.88fr) minmax(380px, 1.12fr);
+      gap: clamp(46px, 7vw, 88px);
+      align-items: start;
+    }
+
+    .repo-tree {
+      margin: 0;
+      padding: clamp(24px, 4vw, 38px);
+      overflow-x: auto;
+      color: #d8eee7;
+      background: var(--green-night);
+      border-radius: 17px;
+      box-shadow: var(--shadow);
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.9;
+    }
+
+    .repo-tree .muted {
+      color: #74968b;
+    }
+
+    .docs-grid {
+      margin-top: 36px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .doc-link {
+      min-height: 92px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      color: var(--ink);
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      text-decoration: none;
+      transition: border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+    }
+
+    .doc-link:hover {
+      border-color: rgba(23, 107, 90, 0.35);
+      box-shadow: 0 12px 30px rgba(22, 54, 46, 0.09);
+      transform: translateY(-2px);
+    }
+
+    .doc-link span:first-child {
+      font-family: var(--display);
+      font-size: 15px;
+      font-weight: 760;
+    }
+
+    .doc-link span:last-child {
+      color: var(--green);
+      font-family: var(--mono);
+      font-size: 10px;
+    }
+
+    .site-footer {
+      color: rgba(255, 255, 255, 0.72);
+      background: var(--green-night);
+    }
+
+    .site-footer__inner {
+      width: var(--page);
+      margin-inline: auto;
+      padding: 42px 0;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 30px;
+      align-items: end;
+    }
+
+    .site-footer__title {
+      margin: 0;
+      color: var(--white);
+      font-family: var(--display);
+      font-size: 23px;
+      font-weight: 760;
+      letter-spacing: -0.035em;
+    }
+
+    .site-footer__copy {
+      max-width: 630px;
+      margin: 8px 0 0;
+      font-size: 13px;
+    }
+
+    .site-footer__links {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 18px;
+    }
+
+    .site-footer__links a {
+      color: var(--white);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    html.js [data-reveal] {
+      opacity: 0;
+      transform: translateY(22px);
+      transition: opacity 620ms ease, transform 620ms cubic-bezier(.22, .8, .24, 1);
+    }
+
+    html.js [data-reveal].is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @keyframes orbit-spin {
+      to { transform: translateX(50%) rotate(360deg); }
+    }
+
+    @media (max-width: 980px) {
+      .site-nav a {
+        display: none;
+      }
+
+      .hero__inner,
+      .architecture-layout,
+      .principles-layout,
+      .start-layout,
+      .repository-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .hero__inner {
+        padding-top: 72px;
+      }
+
+      .hero__copy {
+        max-width: 760px;
+      }
+
+      .community-orbit {
+        width: min(540px, 100%);
+        margin-inline: auto;
+      }
+
+      .journey-track {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 34px 0;
+      }
+
+      .journey-track::before {
+        display: none;
+      }
+
+      .product-viewer {
+        grid-template-columns: 1fr;
+      }
+
+      .product-tabs {
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+      .product-tab {
+        grid-template-columns: 54px minmax(0, 1fr);
+      }
+
+      .product-tab img {
+        width: 54px;
+        height: 37px;
+      }
+
+      .architecture-copy {
+        position: static;
+      }
+
+      .principle {
+        grid-template-columns: 46px minmax(160px, 0.8fr) minmax(0, 1.2fr);
+      }
+    }
+
+    @media (max-width: 680px) {
+      :root {
+        --page: min(100% - 28px, 1180px);
+      }
+
+      html {
+        scroll-padding-top: 76px;
+      }
+
+      .site-header__inner {
+        min-height: 64px;
+        gap: 14px;
+      }
+
+      .brand__meta {
+        display: none;
+      }
+
+      .language-toggle {
+        min-width: 80px;
+      }
+
+      .hero {
+        min-height: auto;
+      }
+
+      .hero__inner {
+        padding: 62px 0 54px;
+        gap: 46px;
+      }
+
+      .hero h1 {
+        font-size: clamp(46px, 14.6vw, 70px);
+      }
+
+      .hero h1 span {
+        white-space: normal;
+      }
+
+      .hero__lead {
+        font-size: 17px;
+      }
+
+      .hero__actions {
+        display: grid;
+      }
+
+      .button {
+        width: 100%;
+      }
+
+      .hero__facts {
+        display: grid;
+        gap: 10px;
+      }
+
+      .community-orbit {
+        min-height: auto;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .community-orbit__ring,
+      .orbit-note {
+        display: none;
+      }
+
+      .community-orbit__core,
+      .orbit-node,
+      .orbit-node--one,
+      .orbit-node--two,
+      .orbit-node--three,
+      .orbit-node--four,
+      .orbit-node--five {
+        position: static;
+        width: auto;
+        height: auto;
+        min-width: 0;
+        transform: none;
+      }
+
+      .community-orbit__core {
+        grid-column: 1 / -1;
+        min-height: 146px;
+        border-radius: 18px;
+      }
+
+      .orbit-node {
+        min-height: 86px;
+      }
+
+      .orbit-node::before {
+        top: 14px;
+        right: 14px;
+        left: auto;
+        border-color: var(--paper);
+      }
+
+      .orbit-node:last-of-type {
+        grid-column: 1 / -1;
+      }
+
+      .section {
+        padding: 80px 0;
+      }
+
+      .section-heading,
+      .dark-heading,
+      .start-heading {
+        font-size: clamp(38px, 11vw, 52px);
+      }
+
+      .journey-track {
+        grid-template-columns: 1fr;
+        gap: 0;
+      }
+
+      .journey-step {
+        min-height: 118px;
+        padding: 0 0 26px 82px;
+      }
+
+      .journey-step::before {
+        content: "";
+        position: absolute;
+        top: 58px;
+        bottom: 0;
+        left: 30px;
+        border-left: 1px solid var(--line);
+      }
+
+      .journey-step:last-child::before {
+        display: none;
+      }
+
+      .journey-step__number {
+        position: absolute;
+        top: 0;
+        left: 0;
+      }
+
+      .journey-step h3 {
+        margin-top: 0;
+      }
+
+      .product-tabs {
+        display: flex;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        scrollbar-width: thin;
+        padding-bottom: 8px;
+      }
+
+      .product-tab {
+        min-width: 168px;
+        scroll-snap-align: start;
+      }
+
+      .product-stage figcaption {
+        min-height: 96px;
+      }
+
+      .capability-row {
+        grid-template-columns: 44px 1fr;
+        gap: 15px;
+      }
+
+      .capability-row p {
+        grid-column: 2;
+      }
+
+      .system-map {
+        padding: 18px;
+      }
+
+      .system-map__lane {
+        grid-template-columns: 1fr;
+        gap: 7px;
+      }
+
+      .system-map__label {
+        padding: 0;
+      }
+
+      .system-map__nodes,
+      .system-map__nodes--double {
+        grid-template-columns: 1fr;
+      }
+
+      .system-map__connector {
+        margin-left: 24px;
+      }
+
+      .principle {
+        grid-template-columns: 42px 1fr;
+        gap: 14px;
+      }
+
+      .principle dd {
+        grid-column: 2;
+      }
+
+      .start-layout,
+      .repository-layout {
+        gap: 44px;
+      }
+
+      .local-urls,
+      .docs-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .site-footer__inner {
+        grid-template-columns: 1fr;
+        align-items: start;
+      }
+
+      .site-footer__links {
+        justify-content: flex-start;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.001ms !important;
+      }
+
+      html.js [data-reveal] {
+        opacity: 1;
+        transform: none;
+      }
+    }
+  </style>
+  <script>
+    document.documentElement.classList.add('js')
+    window.__alifeReadmeReady = false
+    window.addEventListener('DOMContentLoaded', () => {
+      window.setTimeout(() => {
+        if (window.__alifeReadmeReady) return
+        document.querySelectorAll('[data-reveal]').forEach((node) => node.classList.add('is-visible'))
+      }, 1800)
+    }, { once: true })
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#main" data-zh="跳到主要内容" data-en="Skip to main content">跳到主要内容</a>
+  <div class="progress" aria-hidden="true"><span class="progress__bar" id="progress-bar"></span></div>
+
+  <header class="site-header">
+    <div class="site-header__inner">
+      <a class="brand" href="#top" aria-label="Alife 首页" data-aria-zh="Alife 首页" data-aria-en="Alife home">
+        <span class="brand__mark" aria-hidden="true">A</span>
+        <span>
+          <span class="brand__name">Alife</span>
+          <span class="brand__meta">Community platform</span>
+        </span>
+      </a>
+      <nav class="site-nav" aria-label="页面导航" data-aria-zh="页面导航" data-aria-en="Page navigation">
+        <a href="#journey" data-zh="参与旅程" data-en="Journey">参与旅程</a>
+        <a href="#product" data-zh="产品界面" data-en="Product">产品界面</a>
+        <a href="#architecture" data-zh="系统架构" data-en="Architecture">系统架构</a>
+        <a href="#start" data-zh="本地运行" data-en="Get started">本地运行</a>
+        <button class="language-toggle" id="language-toggle" type="button" aria-label="Switch to English">
+          <span class="language-toggle__dot" aria-hidden="true"></span>
+          <span id="language-current">中文</span>
+          <span aria-hidden="true">/</span>
+          <span id="language-next">EN</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero" id="top">
+      <div class="hero__inner">
+        <div class="hero__copy" data-reveal>
+          <p class="eyebrow" data-zh="ALIFE · 双语教会社区平台" data-en="ALIFE · BILINGUAL CHURCH COMMUNITY PLATFORM">ALIFE · 双语教会社区平台</p>
+          <h1 data-i18n-html data-zh="让教会生活，<br><span>落在同一个地方。</span>" data-en="Bring church life<br><span>into one shared place.</span>">让教会生活，<br><span>落在同一个地方。</span></h1>
+          <p class="hero__lead" data-zh="Alife 把访客发现、成员参与、小组带领、双语内容与安全发布连成一条清晰旅程，让分散的事工协作回到同一个可用、可维护的线上家园。" data-en="Alife connects visitor discovery, member participation, group leadership, bilingual content and safe publishing into one clear journey—a practical, maintainable digital home for shared ministry.">Alife 把访客发现、成员参与、小组带领、双语内容与安全发布连成一条清晰旅程，让分散的事工协作回到同一个可用、可维护的线上家园。</p>
+          <div class="hero__actions">
+            <a class="button button--primary" href="#product"><span data-zh="查看真实产品" data-en="See the real product">查看真实产品</span><span class="arrow" aria-hidden="true">↘</span></a>
+            <a class="button button--ghost" href="#start"><span data-zh="在本地运行" data-en="Run it locally">在本地运行</span><span class="arrow" aria-hidden="true">→</span></a>
+          </div>
+          <ul class="hero__facts" aria-label="产品特征" data-aria-zh="产品特征" data-aria-en="Product characteristics">
+            <li data-zh="中英双语内容" data-en="English + Chinese content">中英双语内容</li>
+            <li data-zh="移动优先 PWA" data-en="Mobile-first PWA">移动优先 PWA</li>
+            <li data-zh="AI 草稿由人确认" data-en="Human-reviewed AI drafts">AI 草稿由人确认</li>
+          </ul>
+        </div>
+
+        <div class="community-orbit" aria-label="从访客到审核者的社区参与旅程" data-aria-zh="从访客到审核者的社区参与旅程" data-aria-en="Community journey from guest to reviewer" data-reveal>
+          <div class="community-orbit__ring" aria-hidden="true"></div>
+          <div class="community-orbit__core">
+            <strong data-i18n-html data-zh="共同<br>生活" data-en="Shared<br>life">共同<br>生活</strong>
+            <span>one digital home</span>
+          </div>
+          <div class="orbit-node orbit-node--one">
+            <strong data-zh="访客" data-en="Guest">访客</strong>
+            <span data-zh="发现与到访" data-en="Discover & visit">发现与到访</span>
+          </div>
+          <div class="orbit-node orbit-node--two">
+            <strong data-zh="成员" data-en="Member">成员</strong>
+            <span data-zh="加入与参与" data-en="Join & participate">加入与参与</span>
+          </div>
+          <div class="orbit-node orbit-node--three">
+            <strong data-zh="组长" data-en="Leader">组长</strong>
+            <span data-zh="带领与关怀" data-en="Lead & care">带领与关怀</span>
+          </div>
+          <div class="orbit-node orbit-node--four">
+            <strong data-zh="内容同工" data-en="Creator">内容同工</strong>
+            <span data-zh="建立双语内容" data-en="Create bilingually">建立双语内容</span>
+          </div>
+          <div class="orbit-node orbit-node--five">
+            <strong data-zh="审核者" data-en="Reviewer">审核者</strong>
+            <span data-zh="安全发布" data-en="Publish safely">安全发布</span>
+          </div>
+          <p class="orbit-note" data-zh="每个角色看见所需的内容，也承担清楚的责任。" data-en="Each role sees what it needs and owns a clear responsibility.">每个角色看见所需的内容，也承担清楚的责任。</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section journey" id="journey">
+      <div class="section__inner">
+        <div class="section-intro" data-reveal>
+          <p class="eyebrow" data-zh="为什么是 Alife" data-en="WHY ALIFE">为什么是 Alife</p>
+          <h2 class="section-heading" data-zh="不是更多工具，而是一条连续的参与旅程。" data-en="Not more tools. One continuous journey of participation.">不是更多工具，而是一条连续的参与旅程。</h2>
+          <p class="section-copy" data-zh="海外华人教会的网页、群组、活动和沟通常常散落在不同系统。Alife 以真实角色的下一步为组织方式，让人不用先理解系统，就知道自己现在可以做什么。" data-en="Church websites, groups, events and communication often live in separate systems. Alife organises the experience around each person’s next real action, so people can move forward without first learning the system.">海外华人教会的网页、群组、活动和沟通常常散落在不同系统。Alife 以真实角色的下一步为组织方式，让人不用先理解系统，就知道自己现在可以做什么。</p>
+        </div>
+
+        <ol class="journey-track" data-reveal>
+          <li class="journey-step">
+            <span class="journey-step__number">01</span>
+            <h3 data-zh="发现教会" data-en="Discover">发现教会</h3>
+            <p data-zh="公开首页、到访信息、讲道与历史文章，让第一次接触有清楚入口。" data-en="A public home, visit information, sermons and articles create a clear first doorway.">公开首页、到访信息、讲道与历史文章，让第一次接触有清楚入口。</p>
+          </li>
+          <li class="journey-step">
+            <span class="journey-step__number">02</span>
+            <h3 data-zh="进入群体" data-en="Join">进入群体</h3>
+            <p data-zh="通过 LINE 或成员账号登录，发现群组并完成申请、邀请与审批。" data-en="Sign in with LINE or a member account, discover groups, and complete request or invitation flows.">通过 LINE 或成员账号登录，发现群组并完成申请、邀请与审批。</p>
+          </li>
+          <li class="journey-step">
+            <span class="journey-step__number">03</span>
+            <h3 data-zh="持续参与" data-en="Participate">持续参与</h3>
+            <p data-zh="活动报名、通知、论坛、相册、讲道和圣经阅读汇聚在移动端。" data-en="Events, notifications, forums, albums, sermons and Bible reading meet in one mobile experience.">活动报名、通知、论坛、相册、讲道和圣经阅读汇聚在移动端。</p>
+          </li>
+          <li class="journey-step">
+            <span class="journey-step__number">04</span>
+            <h3 data-zh="带领与关怀" data-en="Lead">带领与关怀</h3>
+            <p data-zh="组长管理成员、角色、子群组、公告、联系人、页面与活动。" data-en="Leaders manage people, roles, subgroups, notices, contacts, pages and events.">组长管理成员、角色、子群组、公告、联系人、页面与活动。</p>
+          </li>
+          <li class="journey-step">
+            <span class="journey-step__number">05</span>
+            <h3 data-zh="审核与发布" data-en="Publish">审核与发布</h3>
+            <p data-zh="双语页面先建立、预览和审核，再安全进入公开网站。" data-en="Bilingual pages are built, previewed and reviewed before they safely reach the public site.">双语页面先建立、预览和审核，再安全进入公开网站。</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="section showcase" id="product">
+      <div class="section__inner">
+        <div data-reveal>
+          <p class="eyebrow" data-zh="当前 Alpha 产品" data-en="THE ALPHA PRODUCT TODAY">当前 Alpha 产品</p>
+          <h2 class="dark-heading" data-zh="产品证据，不是概念图。" data-en="Product evidence, not concept art.">产品证据，不是概念图。</h2>
+          <p class="showcase__copy" data-zh="公开网站和登录后的工作空间共享同一套内容与治理模型。以下界面均来自当前仓库中的实际实现。" data-en="The public site and signed-in workspace share one content and governance model. Every screen below comes from the implementation in this repository.">公开网站和登录后的工作空间共享同一套内容与治理模型。以下界面均来自当前仓库中的实际实现。</p>
+        </div>
+
+        <div class="product-viewer" data-reveal>
+          <figure class="product-stage" id="product-panel">
+            <div class="product-stage__chrome">
+              <span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+              <span>alife / product view</span>
+            </div>
+            <div class="product-stage__image-wrap">
+              <img class="product-stage__image" id="product-image" src="docs/assets/portfolio/alife-public-home.png" width="1905" height="938" alt="Alife 公开网站首页">
+            </div>
+            <figcaption id="product-caption" data-zh="公开体验与登录后的群组工作空间共用同一产品和内容体系。" data-en="The public experience and signed-in group workspace share one product and content system.">公开体验与登录后的群组工作空间共用同一产品和内容体系。</figcaption>
+          </figure>
+
+          <div class="product-tabs" role="tablist" aria-label="选择产品截图" data-aria-zh="选择产品截图" data-aria-en="Choose a product screenshot">
+            <button class="product-tab" type="button" role="tab" aria-selected="true" aria-controls="product-panel" data-src="docs/assets/portfolio/alife-public-home.png" data-alt-zh="Alife 公开网站首页" data-alt-en="Alife public website home" data-caption-zh="公开体验与登录后的群组工作空间共用同一产品和内容体系。" data-caption-en="The public experience and signed-in group workspace share one product and content system.">
+              <img src="docs/assets/portfolio/alife-public-home.png" width="1905" height="938" alt="" loading="lazy">
+              <span data-zh="公开首页" data-en="Public home">公开首页</span>
+            </button>
+            <button class="product-tab" type="button" role="tab" tabindex="-1" aria-selected="false" aria-controls="product-panel" data-src="docs/assets/portfolio/alife-platform-workspace.png" data-alt-zh="Alife 平台运营工作空间" data-alt-en="Alife platform operations workspace" data-caption-zh="统一呈现用户、通知、待办与审计活动，让平台责任有清晰落点。" data-caption-en="Users, notifications, tasks and audit activity come together in a clear operational workspace.">
+              <img src="docs/assets/portfolio/alife-platform-workspace.png" width="1905" height="938" alt="" loading="lazy">
+              <span data-zh="运营工作区" data-en="Operations">运营工作区</span>
+            </button>
+            <button class="product-tab" type="button" role="tab" tabindex="-1" aria-selected="false" aria-controls="product-panel" data-src="docs/assets/portfolio/alife-website-builder.png" data-alt-zh="Alife 公开网站构建与审核界面" data-alt-en="Alife public website builder and review workspace" data-caption-zh="内容同工管理双语菜单、页面顺序、审核状态与首页投放。" data-caption-en="Content teams manage bilingual menus, page order, review status and home-page placement.">
+              <img src="docs/assets/portfolio/alife-website-builder.png" width="1905" height="938" alt="" loading="lazy">
+              <span data-zh="网站构建" data-en="Site builder">网站构建</span>
+            </button>
+            <button class="product-tab" type="button" role="tab" tabindex="-1" aria-selected="false" aria-controls="product-panel" data-src="docs/assets/portfolio/alife-page-editor.png" data-alt-zh="Alife WYSIWYG 双语页面编辑器" data-alt-en="Alife bilingual WYSIWYG page editor" data-caption-zh="在真实页面画面上编辑区块、媒体与双语内容，并在发布前预览。" data-caption-en="Edit sections, media and bilingual content on the real page canvas, then preview before publishing.">
+              <img src="docs/assets/portfolio/alife-page-editor.png" width="1905" height="938" alt="" loading="lazy">
+              <span data-zh="页面编辑器" data-en="Page editor">页面编辑器</span>
+            </button>
+            <button class="product-tab" type="button" role="tab" tabindex="-1" aria-selected="false" aria-controls="product-panel" data-src="docs/assets/portfolio/alife-ai-event-assistant.png" data-alt-zh="Alife AI 活动助手" data-alt-en="Alife AI event assistant" data-caption-zh="AI 复用活动事实形成可编辑草稿，但提交与发布仍由人决定。" data-caption-en="AI reuses event facts to form editable drafts, while people retain control of commit and publication.">
+              <img src="docs/assets/portfolio/alife-ai-event-assistant.png" width="1905" height="938" alt="" loading="lazy">
+              <span data-zh="AI 活动助手" data-en="AI event assistant">AI 活动助手</span>
+            </button>
+            <button class="product-tab" type="button" role="tab" tabindex="-1" aria-selected="false" aria-controls="product-panel" data-src="docs/assets/portfolio/alife-ram-workflow.png" data-alt-zh="Alife 双语 RAM 风险评估工作流" data-alt-en="Alife bilingual RAM risk assessment workflow" data-caption-zh="双语风险草稿、状态与提交就绪度都可见；安全事实必须由负责人确认。" data-caption-en="Bilingual risk drafts, status and readiness remain visible; accountable people must confirm safety facts.">
+              <img src="docs/assets/portfolio/alife-ram-workflow.png" width="1905" height="938" alt="" loading="lazy">
+              <span data-zh="RAM 风险评估" data-en="RAM review">RAM 风险评估</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="capability-ledger" data-reveal>
+          <article class="capability-row">
+            <span class="capability-row__index">CONNECT</span>
+            <h3 data-zh="连接人和群体" data-en="Connect people and groups">连接人和群体</h3>
+            <p data-zh="LINE 登录、群组发现、成员申请与邀请、角色管理、通知与联系人流程。" data-en="LINE sign-in, group discovery, requests and invitations, role management, notifications and contact workflows.">LINE 登录、群组发现、成员申请与邀请、角色管理、通知与联系人流程。</p>
+          </article>
+          <article class="capability-row">
+            <span class="capability-row__index">CREATE</span>
+            <h3 data-zh="建立共同内容" data-en="Create shared content">建立共同内容</h3>
+            <p data-zh="双语页面构建器、讲道、文章、相册、论坛、活动、报名与复盘。" data-en="A bilingual page builder, sermons, articles, albums, forums, events, enrolment and review.">双语页面构建器、讲道、文章、相册、论坛、活动、报名与复盘。</p>
+          </article>
+          <article class="capability-row">
+            <span class="capability-row__index">STEWARD</span>
+            <h3 data-zh="治理内容与风险" data-en="Steward content and risk">治理内容与风险</h3>
+            <p data-zh="页面审核、权限与审计、活动工作流、RAM 风险评估，以及坚持人工确认的 AI 辅助。" data-en="Page review, permissions and audit, event workflows, RAM risk assessment, and AI assistance with human confirmation.">页面审核、权限与审计、活动工作流、RAM 风险评估，以及坚持人工确认的 AI 辅助。</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section architecture" id="architecture">
+      <div class="section__inner architecture-layout">
+        <div class="architecture-copy" data-reveal>
+          <p class="eyebrow" data-zh="系统架构" data-en="SYSTEM ARCHITECTURE">系统架构</p>
+          <h2 class="section-heading" data-zh="快在边缘，规则留在后端。" data-en="Fast at the edge. Authority at the backend.">快在边缘，规则留在后端。</h2>
+          <p class="section-copy" data-zh="Alife 以边界换取稳定：前端负责体验，Cloudflare 负责加速和短期会话，.NET API 负责授权与业务规则，SQL 保存持久事实。" data-en="Alife uses clear boundaries for stability: the frontend owns experience, Cloudflare owns acceleration and temporary sessions, the .NET API owns authorisation and business rules, and SQL preserves durable facts.">Alife 以边界换取稳定：前端负责体验，Cloudflare 负责加速和短期会话，.NET API 负责授权与业务规则，SQL 保存持久事实。</p>
+          <p class="architecture-note" data-zh="共享缓存只保存同一授权范围内完全相同的内容；成员私有数据不会进入公开共享缓存。" data-en="Shared caches only hold identical representations for the same authorised audience; member-private data never enters a public shared cache.">共享缓存只保存同一授权范围内完全相同的内容；成员私有数据不会进入公开共享缓存。</p>
+          <ul class="stack-list" aria-label="技术栈" data-aria-zh="技术栈" data-aria-en="Technology stack">
+            <li>React 19</li><li>TypeScript</li><li>Vite PWA</li><li>TanStack</li><li>.NET 10</li><li>Azure Functions</li><li>EF Core</li><li>SQL Server</li><li>Cloudflare Workers</li><li>Durable Objects</li><li>R2</li>
+          </ul>
+        </div>
+
+        <figure class="system-map" data-reveal>
+          <div class="system-map__lane">
+            <span class="system-map__label" data-zh="体验层" data-en="EXPERIENCE">体验层</span>
+            <div class="system-map__nodes system-map__nodes--single">
+              <div class="system-node">
+                <span class="system-node__role">Browser / PWA</span>
+                <strong data-zh="React 双语界面与本地缓存" data-en="React bilingual UI and local cache">React 双语界面与本地缓存</strong>
+              </div>
+            </div>
+          </div>
+          <div class="system-map__connector" aria-hidden="true"></div>
+          <div class="system-map__lane">
+            <span class="system-map__label" data-zh="边缘层" data-en="EDGE">边缘层</span>
+            <div class="system-map__nodes system-map__nodes--single">
+              <div class="system-node system-node--edge">
+                <span class="system-node__role">Cloudflare speed layer</span>
+                <strong data-zh="静态资源、API 代理、ETag 与授权缓存" data-en="Assets, API proxy, ETags and authorised cache">静态资源、API 代理、ETag 与授权缓存</strong>
+              </div>
+            </div>
+          </div>
+          <div class="system-map__connector" aria-hidden="true"></div>
+          <div class="system-map__lane">
+            <span class="system-map__label" data-zh="能力层" data-en="CAPABILITIES">能力层</span>
+            <div class="system-map__nodes">
+              <div class="system-node">
+                <span class="system-node__role">.NET API</span>
+                <strong data-zh="业务规则与授权" data-en="Rules and authorisation">业务规则与授权</strong>
+              </div>
+              <div class="system-node system-node--accent">
+                <span class="system-node__role">Durable Objects</span>
+                <strong data-zh="临时 AI 会话" data-en="Temporary AI sessions">临时 AI 会话</strong>
+              </div>
+              <div class="system-node">
+                <span class="system-node__role">Images Worker</span>
+                <strong data-zh="媒体访问与处理" data-en="Media access and handling">媒体访问与处理</strong>
+              </div>
+            </div>
+          </div>
+          <div class="system-map__connector" aria-hidden="true"></div>
+          <div class="system-map__lane">
+            <span class="system-map__label" data-zh="数据层" data-en="DATA">数据层</span>
+            <div class="system-map__nodes system-map__nodes--double">
+              <div class="system-node">
+                <span class="system-node__role">SQL + EF Core</span>
+                <strong data-zh="持久业务事实" data-en="Durable business facts">持久业务事实</strong>
+              </div>
+              <div class="system-node">
+                <span class="system-node__role">Cloudflare R2</span>
+                <strong data-zh="公开与受保护媒体" data-en="Public and protected media">公开与受保护媒体</strong>
+              </div>
+            </div>
+          </div>
+          <figcaption data-zh="身份与授权由后端负责；边缘层只在安全边界内加速；AI 会话与最终业务记录明确分离。" data-en="Identity and authorisation stay in the backend; the edge accelerates only within safe boundaries; AI sessions remain separate from final business records.">身份与授权由后端负责；边缘层只在安全边界内加速；AI 会话与最终业务记录明确分离。</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="section principles">
+      <div class="section__inner principles-layout">
+        <div data-reveal>
+          <p class="eyebrow" data-zh="不可退让的边界" data-en="NON-NEGOTIABLES">不可退让的边界</p>
+          <h2 class="section-heading" data-zh="服务增长，也守住信任。" data-en="Built to grow service without spending trust.">服务增长，也守住信任。</h2>
+          <p class="section-copy" data-zh="教会社区的软件既处理公开内容，也处理成员身份、联系信息与小组关系。产品价值必须和责任边界一起交付。" data-en="Church community software handles both public content and member identities, contact details and group relationships. Product value must arrive with responsible boundaries.">教会社区的软件既处理公开内容，也处理成员身份、联系信息与小组关系。产品价值必须和责任边界一起交付。</p>
+        </div>
+
+        <dl class="principles-list" data-reveal>
+          <div class="principle" data-index="01">
+            <dt data-zh="授权实时可靠" data-en="Current authorisation">授权实时可靠</dt>
+            <dd data-zh="JWT 只保存最小身份；群组角色与可见性依据当前后端数据检查，权限变化不等待令牌过期。" data-en="JWTs carry minimal identity; group roles and visibility are checked against current backend data, so permission changes do not wait for token expiry.">JWT 只保存最小身份；群组角色与可见性依据当前后端数据检查，权限变化不等待令牌过期。</dd>
+          </div>
+          <div class="principle" data-index="02">
+            <dt data-zh="缓存服从隐私" data-en="Cache serves privacy">缓存服从隐私</dt>
+            <dd data-zh="公开、群组共享、成员专属与浏览器本地缓存各自有明确键、失效与可见性规则。" data-en="Public, group-shared, member-specific and local browser caches each have explicit keys, invalidation and visibility rules.">公开、群组共享、成员专属与浏览器本地缓存各自有明确键、失效与可见性规则。</dd>
+          </div>
+          <div class="principle" data-index="03">
+            <dt data-zh="双语是数据结构" data-en="Bilingual by structure">双语是数据结构</dt>
+            <dd data-zh="内容以 { en, zh } 形态保存；语言切换只改变呈现，不重取数据，也不破坏另一种语言。" data-en="Content is stored as { en, zh }; switching language changes presentation without refetching or erasing the other language.">内容以 { en, zh } 形态保存；语言切换只改变呈现，不重取数据，也不破坏另一种语言。</dd>
+          </div>
+          <div class="principle" data-index="04">
+            <dt data-zh="AI 提议，人来决定" data-en="AI proposes, people decide">AI 提议，人来决定</dt>
+            <dd data-zh="AI 可以形成策划、翻译与风险草稿，但不能编造安全事实，也不能绕过人工确认直接发布。" data-en="AI can draft plans, translations and risk material, but it cannot invent safety facts or bypass human confirmation to publish.">AI 可以形成策划、翻译与风险草稿，但不能编造安全事实，也不能绕过人工确认直接发布。</dd>
+          </div>
+        </dl>
+      </div>
+    </section>
+
+    <section class="section start" id="start">
+      <div class="section__inner start-layout">
+        <div data-reveal>
+          <p class="eyebrow" data-zh="开始开发" data-en="START DEVELOPING">开始开发</p>
+          <h2 class="start-heading" data-zh="一条命令，启动日常本地栈。" data-en="One command for the everyday local stack.">一条命令，启动日常本地栈。</h2>
+          <p class="start-copy" data-zh="默认脚本启动 Azure Functions API、Cloudflare speed layer 与 Vite 前端。SQL Server 容器已运行时使用 SkipSql；需要刷新架构或种子数据时再应用迁移。" data-en="The default script starts the Azure Functions API, Cloudflare speed layer and Vite frontend. Use SkipSql when the SQL Server container is already running, and apply migrations only when schema or seed data needs refreshing.">默认脚本启动 Azure Functions API、Cloudflare speed layer 与 Vite 前端。SQL Server 容器已运行时使用 SkipSql；需要刷新架构或种子数据时再应用迁移。</p>
+          <ul class="requirements">
+            <li>.NET SDK 10.0.x</li>
+            <li>Node.js 20+</li>
+            <li data-zh="Docker Desktop（本地 SQL Server）" data-en="Docker Desktop (local SQL Server)">Docker Desktop（本地 SQL Server）</li>
+            <li data-zh="Wrangler CLI 或项目内 npx wrangler" data-en="Wrangler CLI or the repository's npx wrangler">Wrangler CLI 或项目内 npx wrangler</li>
+          </ul>
+        </div>
+
+        <div class="terminal-stack" data-reveal>
+          <section class="terminal" aria-label="日常本地开发命令" data-aria-zh="日常本地开发命令" data-aria-en="Everyday local development command">
+            <div class="terminal__head">
+              <span class="terminal__title" data-zh="日常本地开发" data-en="EVERYDAY LOCAL DEVELOPMENT">日常本地开发</span>
+              <button class="copy-button" type="button" data-copy-target="command-dev" data-zh="复制" data-en="Copy">复制</button>
+            </div>
+            <pre><code id="command-dev">.\alife-dev.cmd -SkipSql</code></pre>
+          </section>
+          <section class="terminal" aria-label="应用迁移并启动命令" data-aria-zh="应用迁移并启动命令" data-aria-en="Apply migrations and start command">
+            <div class="terminal__head">
+              <span class="terminal__title" data-zh="迁移与种子数据需要刷新时" data-en="WHEN MIGRATIONS OR SEED DATA CHANGE">迁移与种子数据需要刷新时</span>
+              <button class="copy-button" type="button" data-copy-target="command-migrate" data-zh="复制" data-en="Copy">复制</button>
+            </div>
+            <pre><code id="command-migrate">.\alife-dev.cmd -SkipSql -ApplyMigrations</code></pre>
+          </section>
+          <ul class="local-urls" aria-label="本地服务地址" data-aria-zh="本地服务地址" data-aria-en="Local service addresses">
+            <li><strong>Frontend</strong><code>localhost:5173</code></li>
+            <li><strong>Speed layer</strong><code>localhost:8787</code></li>
+            <li><strong>API</strong><code>127.0.0.1:7071</code></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section repository" id="repository">
+      <div class="section__inner repository-layout">
+        <div data-reveal>
+          <p class="eyebrow" data-zh="继续阅读" data-en="KEEP EXPLORING">继续阅读</p>
+          <h2 class="section-heading" data-zh="从产品到代码，每层都有清楚入口。" data-en="A clear way into every layer, from product to code.">从产品到代码，每层都有清楚入口。</h2>
+          <p class="section-copy" data-zh="主 README 记录完整环境变量、API 区域与常用命令；专题文档进一步解释产品、前后端、边缘缓存与 PWA 决策。" data-en="The main README covers environment variables, API areas and common commands. Focused documents explain the product, frontend, backend, edge cache and PWA decisions in depth.">主 README 记录完整环境变量、API 区域与常用命令；专题文档进一步解释产品、前后端、边缘缓存与 PWA 决策。</p>
+          <div class="docs-grid">
+            <a class="doc-link" href="README.md"><span data-zh="完整开发说明" data-en="Full development guide">完整开发说明</span><span>README.md →</span></a>
+            <a class="doc-link" href="docs/architecture.md"><span data-zh="总体架构" data-en="System architecture">总体架构</span><span>docs/architecture.md →</span></a>
+            <a class="doc-link" href="docs/alife-ministry-guide.zh-CN.md"><span data-zh="教会事工说明" data-en="Ministry guide (Chinese)">教会事工说明</span><span>docs/alife-ministry-guide.zh-CN.md →</span></a>
+            <a class="doc-link" href="docs/alife-portfolio-case-study.zh-CN.md"><span data-zh="项目案例回顾" data-en="Portfolio case study (Chinese)">项目案例回顾</span><span>docs/alife-portfolio-case-study.zh-CN.md →</span></a>
+            <a class="doc-link" href="docs/frontend_architecture.md"><span data-zh="前端架构" data-en="Frontend architecture">前端架构</span><span>docs/frontend_architecture.md →</span></a>
+            <a class="doc-link" href="docs/speed-layer_architecture.md"><span data-zh="边缘层架构" data-en="Speed-layer architecture">边缘层架构</span><span>docs/speed-layer_architecture.md →</span></a>
+          </div>
+        </div>
+
+        <pre class="repo-tree" aria-label="仓库目录结构" data-aria-zh="仓库目录结构" data-aria-en="Repository structure"><code><span class="muted">Alife/</span>
+├─ backend/
+│  ├─ src/
+│  │  ├─ Alife.Domain/
+│  │  ├─ Alife.Application/
+│  │  ├─ Alife.Infrastructure/
+│  │  ├─ Alife.Api/
+│  │  └─ Alife.DbMigrator/
+│  └─ tests/Alife.Tests.Unit/
+├─ cloudflare/
+│  ├─ alife-app/          <span class="muted"># React PWA</span>
+│  ├─ speed-layer/        <span class="muted"># edge + AI sessions</span>
+│  └─ images-api/         <span class="muted"># R2 media worker</span>
+├─ docs/                  <span class="muted"># product + architecture</span>
+├─ infra/terraform/       <span class="muted"># infrastructure</span>
+├─ alife-dev.cmd          <span class="muted"># local stack</span>
+└─ README.md              <span class="muted"># complete reference</span></code></pre>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="site-footer__inner">
+      <div>
+        <p class="site-footer__title" data-zh="Alife 正处于面向真实教会与小组使用的 Alpha 阶段。" data-en="Alife is in alpha for real church and group use.">Alife 正处于面向真实教会与小组使用的 Alpha 阶段。</p>
+        <p class="site-footer__copy" data-zh="稳定、可维护、双语一致、授权可靠，并让 AI 始终停留在人的责任边界之内。" data-en="Stable, maintainable, consistently bilingual, securely authorised—and keeping AI within human responsibility.">稳定、可维护、双语一致、授权可靠，并让 AI 始终停留在人的责任边界之内。</p>
+      </div>
+      <div class="site-footer__links">
+        <a href="https://ccalc.live" target="_blank" rel="noreferrer" data-zh="打开产品 ↗" data-en="Open product ↗">打开产品 ↗</a>
+        <a href="https://github.com/appccalc-developers/Alife" target="_blank" rel="noreferrer">GitHub ↗</a>
+        <a href="#top" data-zh="回到顶部 ↑" data-en="Back to top ↑">回到顶部 ↑</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    (() => {
+      const root = document.documentElement
+      const languageToggle = document.getElementById('language-toggle')
+      const languageCurrent = document.getElementById('language-current')
+      const languageNext = document.getElementById('language-next')
+      const productImage = document.getElementById('product-image')
+      const productCaption = document.getElementById('product-caption')
+      const productTabs = [...document.querySelectorAll('.product-tab')]
+      const translatedNodes = [...document.querySelectorAll('[data-zh][data-en]')]
+      const translatedAriaNodes = [...document.querySelectorAll('[data-aria-zh][data-aria-en]')]
+      const savedLanguage = (() => {
+        try {
+          return localStorage.getItem('alife-readme-language')
+        } catch {
+          return null
+        }
+      })()
+      let language = savedLanguage === 'en' ? 'en' : 'zh'
+      let activeProductTab = productTabs[0]
+
+      const updateProductCopy = () => {
+        if (!activeProductTab || !productImage || !productCaption) return
+        productImage.alt = activeProductTab.dataset[language === 'zh' ? 'altZh' : 'altEn'] || ''
+        productCaption.textContent = activeProductTab.dataset[language === 'zh' ? 'captionZh' : 'captionEn'] || ''
+      }
+
+      const setLanguage = (nextLanguage) => {
+        language = nextLanguage
+        root.lang = language === 'zh' ? 'zh-CN' : 'en'
+        translatedNodes.forEach((node) => {
+          const value = node.dataset[language]
+          if (typeof value !== 'string') return
+          if (node.hasAttribute('data-i18n-html')) node.innerHTML = value
+          else node.textContent = value
+        })
+        translatedAriaNodes.forEach((node) => {
+          const value = node.dataset[language === 'zh' ? 'ariaZh' : 'ariaEn']
+          if (typeof value === 'string') node.setAttribute('aria-label', value)
+        })
+        languageCurrent.textContent = language === 'zh' ? '中文' : 'EN'
+        languageNext.textContent = language === 'zh' ? 'EN' : '中文'
+        languageToggle.setAttribute('aria-label', language === 'zh' ? 'Switch to English' : '切换到中文')
+        document.title = language === 'zh'
+          ? 'Alife — 让教会生活，落在同一个地方'
+          : 'Alife — Bring church life into one shared place'
+        try {
+          localStorage.setItem('alife-readme-language', language)
+        } catch {
+          // The page still works when a browser blocks storage for local files.
+        }
+        updateProductCopy()
+      }
+
+      languageToggle.addEventListener('click', () => setLanguage(language === 'zh' ? 'en' : 'zh'))
+
+      productTabs.forEach((tab, index) => {
+        tab.addEventListener('click', () => {
+          if (tab === activeProductTab || !productImage) return
+          activeProductTab = tab
+          productTabs.forEach((item) => {
+            const isSelected = item === tab
+            item.setAttribute('aria-selected', String(isSelected))
+            item.tabIndex = isSelected ? 0 : -1
+          })
+          productImage.classList.add('is-changing')
+          window.setTimeout(() => {
+            productImage.src = tab.dataset.src || ''
+            updateProductCopy()
+            productImage.classList.remove('is-changing')
+          }, 140)
+        })
+
+        tab.addEventListener('keydown', (event) => {
+          if (!['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(event.key)) return
+          event.preventDefault()
+          let nextIndex = index
+          if (event.key === 'ArrowRight') nextIndex = (index + 1) % productTabs.length
+          if (event.key === 'ArrowLeft') nextIndex = (index - 1 + productTabs.length) % productTabs.length
+          if (event.key === 'Home') nextIndex = 0
+          if (event.key === 'End') nextIndex = productTabs.length - 1
+          productTabs[nextIndex].focus()
+          productTabs[nextIndex].click()
+        })
+      })
+
+      const copyText = async (text) => {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text)
+          return
+        }
+        const input = document.createElement('textarea')
+        input.value = text
+        input.setAttribute('readonly', '')
+        input.style.position = 'fixed'
+        input.style.opacity = '0'
+        document.body.appendChild(input)
+        input.select()
+        document.execCommand('copy')
+        input.remove()
+      }
+
+      document.querySelectorAll('[data-copy-target]').forEach((button) => {
+        button.addEventListener('click', async () => {
+          const target = document.getElementById(button.dataset.copyTarget)
+          if (!target) return
+          try {
+            await copyText(target.textContent.trim())
+            button.textContent = language === 'zh' ? '已复制' : 'Copied'
+            window.setTimeout(() => {
+              button.textContent = language === 'zh' ? '复制' : 'Copy'
+            }, 1400)
+          } catch {
+            button.textContent = language === 'zh' ? '复制失败' : 'Copy failed'
+          }
+        })
+      })
+
+      const progressBar = document.getElementById('progress-bar')
+      const updateProgress = () => {
+        if (!progressBar) return
+        const scrollable = document.documentElement.scrollHeight - window.innerHeight
+        const ratio = scrollable > 0 ? Math.min(window.scrollY / scrollable, 1) : 0
+        progressBar.style.width = `${ratio * 100}%`
+      }
+      document.addEventListener('scroll', updateProgress, { passive: true })
+      updateProgress()
+
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      const revealNodes = document.querySelectorAll('[data-reveal]')
+      if (reducedMotion || !('IntersectionObserver' in window)) {
+        revealNodes.forEach((node) => node.classList.add('is-visible'))
+      } else {
+        const revealVisibleNodes = () => {
+          revealNodes.forEach((node) => {
+            if (node.classList.contains('is-visible')) return
+            const rect = node.getBoundingClientRect()
+            if (rect.top < window.innerHeight * 0.94 && rect.bottom > 0) {
+              node.classList.add('is-visible')
+            }
+          })
+        }
+        const observer = new IntersectionObserver((entries) => {
+          entries.forEach((entry) => {
+            if (!entry.isIntersecting) return
+            entry.target.classList.add('is-visible')
+            observer.unobserve(entry.target)
+          })
+        }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' })
+        revealNodes.forEach((node) => observer.observe(node))
+        document.addEventListener('scroll', revealVisibleNodes, { passive: true })
+        window.addEventListener('resize', revealVisibleNodes, { passive: true })
+        window.addEventListener('hashchange', () => window.setTimeout(revealVisibleNodes, 120))
+        window.addEventListener('load', () => {
+          revealVisibleNodes()
+          window.setTimeout(revealVisibleNodes, 350)
+        })
+        revealVisibleNodes()
+      }
+
+      setLanguage(language)
+      window.__alifeReadmeReady = true
+    })()
+  </script>
+</body>
+</html>
