@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { Dispatch, SetStateAction } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
-import { Bell, ChevronRight, Church, ContactRound, Handshake, Loader2, Network, Pencil, RefreshCw, Settings2, ShieldCheck, UserCog, UsersRound, X } from 'lucide-react'
+import { Bell, ChevronRight, Church, ContactRound, Handshake, Loader2, Network, RefreshCw, Settings2, UserCog, UsersRound } from 'lucide-react'
 import {
   groupService,
   type AdminGroupOptionDto,
@@ -10,6 +9,7 @@ import {
   type AdminNotificationDto,
   type AdminPagedResultDto,
   type AdminPlatformRoleDto,
+  type UpdateAdminMemberProfilePayload,
   type AuditLogDto,
   type VisitContactRequestDto,
   type VisitContactRequestStatus,
@@ -20,15 +20,12 @@ import { useUiText } from '../i18n/uiText'
 import { useAuthStore } from '../stores/auth'
 import { invalidateCurrentTasks } from '../hooks/useCurrentTasks'
 import type { MissingTranslatableField } from '../utils/bilingualValidation'
-import { Panel, FilterBar, SearchInput, SelectInput, FilterActions, Loading, Empty, Pill, Pager } from './admin/AdminUi'
 import { VisitRequestsSection } from './admin/VisitRequestsSection'
 import { MessagesSection } from './admin/MessagesSection'
 import { RolesSection } from './admin/RolesSection'
 import { LogsSection } from './admin/LogsSection'
 import { PlatformFilesSection } from './admin/FilesSection'
-import { formatDate, formatRole, readLocalized } from './admin/adminUtils'
-import RegionalPhoneInput from '../components/forms/RegionalPhoneInput'
-import { isValidPhoneNumber } from '../utils/phoneNumber'
+import MembersSection from './admin/MembersSection'
 import GroupManageView from './GroupManageView'
 import type { GroupDto } from '../types'
 import { localizeText } from '../utils/localizedText'
@@ -49,7 +46,7 @@ const labels: Record<string, LocalText> = {
   messages: { en: 'Notices', zh: '通知管理' },
   visitRequests: { en: 'Visitor care', zh: '访客接待' },
   files: { en: 'Platform files', zh: '平台文件管理' },
-  usersDescription: { en: 'Manage accounts, registration state, and platform roles.', zh: '管理账号、注册状态和平台角色。' },
+  usersDescription: { en: 'Manage church membership, account state, management roles, and group participation.', zh: '集中管理教会成员资格、账号状态、管理角色和所在小组。' },
   rolesDescription: { en: 'Create roles, delete unused custom roles, and control which features each role can use.', zh: '创建角色、删除未使用的自定义角色，并控制每个角色可用的功能。' },
   logsDescription: { en: 'Review platform-level administrative actions.', zh: '查看平台级管理操作记录。' },
   messagesDescription: { en: 'Send notices to members and check whether they were read or replied to.', zh: '向成员发送通知，并查看是否已读或已回复。' },
@@ -74,6 +71,7 @@ const labels: Record<string, LocalText> = {
   refreshed: { en: 'Admin data refreshed.', zh: '管理数据已刷新。' },
   roleUpdated: { en: 'Platform role updated.', zh: '平台角色已更新。' },
   memberUpdated: { en: 'Member profile updated.', zh: '成员资料已更新。' },
+  membershipUpdated: { en: 'Church membership updated.', zh: '教会成员资格已更新。' },
   rolePermissionsUpdated: { en: 'Role permissions updated.', zh: '角色权限已更新。' },
   roleCreated: { en: 'Role created.', zh: '角色已创建。' },
   roleDeleted: { en: 'Role deleted.', zh: '角色已删除。' },
@@ -85,6 +83,7 @@ const labels: Record<string, LocalText> = {
   networkHint: { en: 'The API did not respond. Check that the backend host and Vite proxy are running.', zh: 'API 没有响应，请确认后端服务和 Vite 代理正在运行。' },
   roleUpdateFailed: { en: 'Unable to update this role.', zh: '无法更新这个角色。' },
   memberUpdateFailed: { en: 'Unable to update this member.', zh: '无法更新该成员资料。' },
+  membershipUpdateFailed: { en: 'Unable to update church membership.', zh: '无法更新教会成员资格。' },
   rolePermissionsUpdateFailed: { en: 'Unable to update role permissions.', zh: '无法更新角色权限。' },
   roleCreateFailed: { en: 'Unable to create this role.', zh: '无法创建这个角色。' },
   roleDeleteFailed: { en: 'Unable to delete this role.', zh: '无法删除这个角色。' },
@@ -246,11 +245,6 @@ const labels: Record<string, LocalText> = {
 
 const emptyPage = <T,>(pageSize = 25): AdminPagedResultDto<T> => ({ items: [], totalCount: 0, page: 1, pageSize, totalPages: 0 })
 const overviewActivityPageSize = 50
-const roleTone: Record<string, string> = {
-  superadmin: 'border-rose-200 bg-rose-50 text-rose-700',
-  admin: 'border-amber-200 bg-amber-50 text-amber-700',
-  user: 'border-slate-200 bg-slate-50 text-slate-600',
-}
 const roleCodePattern = /^[a-z][a-z0-9._-]{1,49}$/
 const normalizeRoleCodeInput = (value: string) => value.trim().toLowerCase()
 const canonicalRoleCode = (value: string) => {
@@ -302,11 +296,11 @@ const AdminView = () => {
   const [syncing, setSyncing] = useState(false)
   const [updatingMemberId, setUpdatingMemberId] = useState<string | null>(null)
   const [updatingMemberProfileId, setUpdatingMemberProfileId] = useState<string | null>(null)
+  const [updatingMembershipId, setUpdatingMembershipId] = useState<string | null>(null)
   const [updatingRolePermissionId, setUpdatingRolePermissionId] = useState<number | null>(null)
   const [deletingRoleId, setDeletingRoleId] = useState<number | null>(null)
   const [creatingRole, setCreatingRole] = useState(false)
   const [messageAiDirection, setMessageAiDirection] = useState<MessageTranslationDirection | null>(null)
-  const [userFilters, setUserFilters] = useState({ search: '', role: '', isRegistered: '' })
   const [logFilters, setLogFilters] = useState({ search: '', action: '', entityType: '', fromUtc: '', toUtc: '' })
   const [messageFilters, setMessageFilters] = useState({ search: '', actionType: '', status: '' })
   const [visitRequestFilters, setVisitRequestFilters] = useState({ search: '', status: '' })
@@ -368,14 +362,13 @@ const AdminView = () => {
     setLoading(true)
     setError('')
     try {
-      const isRegistered = userFilters.isRegistered === '' ? null : userFilters.isRegistered === 'true'
-      setMembers(await groupService.getAdminMembers({ ...userFilters, isRegistered, page, pageSize }))
+      setMembers(await groupService.getAdminMembers({ page, pageSize }))
     } catch (reason) {
       setError(await formatLoadError(reason, 'members'))
     } finally {
       setLoading(false)
     }
-  }, [formatLoadError, members.page, section, userFilters])
+  }, [formatLoadError, members.page, section])
 
   const loadLogs = useCallback(async (page = logs.page, pageSize = logs.pageSize) => {
     setLoading(true)
@@ -415,7 +408,7 @@ const AdminView = () => {
 
   const refreshCurrent = useCallback(async () => {
     setMessage('')
-    if (section === 'users') await loadUsers()
+    if (section === 'users') await loadChurch()
     else if (section === 'logs') await loadLogs(logs.page, 25)
     else if (section === 'messages') await loadMessages()
     else if (section === 'visitRequests') await loadVisitRequests()
@@ -434,7 +427,7 @@ const AdminView = () => {
   }, [formatLoadError, l, loadRolesAndGroups, section])
 
   useEffect(() => {
-    if (section === 'users') loadUsers(1).catch(() => undefined)
+    if (section === 'users') loadChurch().catch(() => undefined)
     if (section === 'roles') loadRolesAndGroups().catch(() => undefined)
     if (section === 'logs') loadLogs(1, 25).catch(() => undefined)
     if (section === 'messages') Promise.all([loadMessages(1), loadUsers(1)]).catch(() => undefined)
@@ -463,28 +456,34 @@ const AdminView = () => {
   }
 
   const updateMemberRoles = async (member: AdminMemberDto, roleCode: string, enabled: boolean) => {
-    if (member.id === me?.id) return setError(l('cannotChangeOwnRole'))
-    if (roleCode === 'superadmin') return setError(l('cannotAssignSuperAdmin'))
+    if (member.id === me?.id) throw new Error(l('cannotChangeOwnRole'))
+    if (roleCode === 'superadmin') throw new Error(l('cannotAssignSuperAdmin'))
     const currentRoles = member.platformRoles.filter((role) => role !== 'user')
     const roleCodes = enabled
       ? Array.from(new Set([...currentRoles, roleCode]))
       : currentRoles.filter((role) => role !== roleCode)
-    if (currentRoles.length === roleCodes.length && currentRoles.every((role) => roleCodes.includes(role))) return
+    if (currentRoles.length === roleCodes.length && currentRoles.every((role) => roleCodes.includes(role))) return member
     setUpdatingMemberId(member.id)
     setError('')
     setMessage('')
     try {
-      await groupService.setMemberPlatformRoles(member.id, roleCodes)
+      const updated = await groupService.setMemberPlatformRoles(member.id, roleCodes)
+      setMembers((current) => ({
+        ...current,
+        items: current.items.map((item) => item.id === updated.id ? updated : item),
+      }))
       setMessage(l('roleUpdated'))
-      await runQuietly(loadUsers(members.page), loadLogs(1, section === 'overview' ? overviewActivityPageSize : 25))
+      await runQuietly(loadLogs(1, section === 'overview' ? overviewActivityPageSize : 25))
+      return updated
     } catch (reason) {
       setError(formatActionError(reason, l('roleUpdateFailed')))
+      throw reason
     } finally {
       setUpdatingMemberId(null)
     }
   }
 
-  const updateMemberProfile = async (memberId: string, payload: { displayName: string; email: string | null; phoneE164: string | null }) => {
+  const updateMemberProfile = async (memberId: string, payload: UpdateAdminMemberProfilePayload) => {
     setUpdatingMemberProfileId(memberId)
     setError('')
     setMessage('')
@@ -502,6 +501,25 @@ const AdminView = () => {
       throw reason
     } finally {
       setUpdatingMemberProfileId(null)
+    }
+  }
+
+  const updateChurchMembership = async (member: AdminMemberDto, action: 'approve' | 'reject' | 'deactivate' | 'invite') => {
+    if (!church) throw new Error(language === 'zh' ? '找不到教会资料。' : 'Church data is unavailable.')
+    setUpdatingMembershipId(member.id)
+    setError('')
+    setMessage('')
+    try {
+      if (action === 'approve') await groupService.approveMember(church.id, { memberId: member.id }, me?.id)
+      if (action === 'reject') await groupService.rejectMember(church.id, { memberId: member.id }, me?.id)
+      if (action === 'deactivate') await groupService.kickMember(church.id, { memberId: member.id }, me?.id)
+      if (action === 'invite') await groupService.inviteMemberById(church.id, member.id, me?.id)
+      setMessage(l('membershipUpdated'))
+    } catch (reason) {
+      setError(formatActionError(reason, l('membershipUpdateFailed')))
+      throw reason
+    } finally {
+      setUpdatingMembershipId(null)
     }
   }
 
@@ -724,7 +742,7 @@ const AdminView = () => {
           language={language}
         />
       ) : null}
-      {section === 'users' ? <UsersSection l={l} loading={loading} page={members} filters={userFilters} setFilters={setUserFilters} roles={roleOptions} isSuperAdmin={isSuperAdmin} canManageMemberProfiles={hasAdminPermission('admin.members.manageProfiles')} updatingMemberId={updatingMemberId} updatingMemberProfileId={updatingMemberProfileId} apply={() => loadUsers(1)} reset={() => { setUserFilters({ search: '', role: '', isRegistered: '' }); setTimeout(() => loadUsers(1).catch(() => undefined), 0) }} goToPage={loadUsers} updateMemberRoles={updateMemberRoles} updateMemberProfile={updateMemberProfile} language={language} currentMemberId={me?.id || ''} /> : null}
+      {section === 'users' ? <MembersSection roles={roleOptions} groups={groups} isSuperAdmin={isSuperAdmin} canAssignPlatformRoles={hasAdminPermission('admin.members.assignPlatformRoles')} canManageMemberProfiles={hasAdminPermission('admin.members.manageProfiles')} canManageMembership={Boolean(church && canManageGroup(church.id))} updatingMemberId={updatingMemberId} updatingMemberProfileId={updatingMemberProfileId} updatingMembershipId={updatingMembershipId} updateMemberRoles={updateMemberRoles} updateMemberProfile={updateMemberProfile} updateMembership={updateChurchMembership} language={language} currentMemberId={me?.id || ''} /> : null}
       {section === 'roles' ? <RolesSection l={l} roles={roleOptions} roleForm={roleForm} setRoleForm={setRoleForm} creatingRole={creatingRole} deletingRoleId={deletingRoleId} updatingRolePermissionId={updatingRolePermissionId} roleCodeValidation={roleCodeValidation} roleCodeFeedback={roleCodeFeedback} canSubmitCreateRole={canSubmitCreateRole} createRole={createRole} deleteRole={deleteRole} updateRolePermissions={updateRolePermissions} refresh={refreshCurrent} loading={loading} language={language} /> : null}
       {section === 'logs' ? <LogsSection l={l} loading={loading} page={logs} filters={logFilters} setFilters={setLogFilters} apply={() => loadLogs(1, 25)} goToPage={(page) => loadLogs(page, 25)} language={language} /> : null}
       {section === 'messages' ? <MessagesSection l={l} loading={loading} page={messages} filters={messageFilters} setFilters={setMessageFilters} apply={() => loadMessages(1)} goToPage={loadMessages} groups={groups} roles={roleOptions} members={members.items} sendForm={sendForm} setSendForm={setSendForm} sendMessage={sendMessage} translateMessage={translateMessage} aiTranslating={messageAiDirection} language={language} /> : null}
@@ -763,13 +781,18 @@ const ChurchManagementHub = ({
   const churchName = localizeText(church?.name, language) || (isChinese ? '教会' : 'Church')
   const managementSections: ChurchHubSectionConfig[] = [
     { key: 'group', label: isChinese ? '资料与设置' : 'Profile & settings', description: isChinese ? '教会身份、介绍与访问规则' : 'Identity, description, and access rules', icon: Settings2 },
-    { key: 'members', label: isChinese ? '教会成员' : 'Church members', description: isChinese ? '审批、角色与成员状态' : 'Approvals, roles, and member status', icon: UsersRound },
+    { key: 'members', label: isChinese ? '成员管理' : 'Member management', description: isChinese ? '成员资格、账号、职能与所在小组' : 'Membership, accounts, duties, and groups', icon: UsersRound },
     { key: 'contacts', label: isChinese ? '联系人' : 'Contacts', description: isChinese ? '公开联系人与留言入口' : 'Public contacts and inquiry entry points', icon: ContactRound },
     { key: 'subgroups', label: isChinese ? '组织架构' : 'Organization', description: isChinese ? '事工、小组与负责人结构' : 'Ministries, groups, and leadership structure', icon: Network },
   ]
+  const churchWorkspaceSections = managementSections.filter((section) => section.key !== 'members')
   const dashboardAreas: ChurchManagementAreaConfig[] = [
-    ...(canManageChurch ? managementSections.map((section) => ({ ...section, to: `/admin?church=${section.key}` })) : []),
-    ...(auth.hasAdminPermission('admin.members.view') ? [{ key: 'accounts', label: isChinese ? '账号管理' : 'Account management', description: isChinese ? '账号状态、成员资料与平台角色' : 'Account state, member profiles, and platform roles', icon: UsersRound, to: '/admin/users' }] : []),
+    ...(auth.hasAdminPermission('admin.members.view')
+      ? [{ key: 'members', label: isChinese ? '成员管理' : 'Member management', description: isChinese ? '成员资格、账号、管理职能与所在小组' : 'Membership, accounts, management duties, and groups', icon: UsersRound, to: '/admin/users' }]
+      : canManageChurch
+        ? [{ key: 'members', label: isChinese ? '成员管理' : 'Member management', description: isChinese ? '审批教会成员资格与成员状态' : 'Review church membership and member status', icon: UsersRound, to: '/admin?church=members' }]
+        : []),
+    ...(canManageChurch ? churchWorkspaceSections.map((section) => ({ ...section, to: `/admin?church=${section.key}` })) : []),
     ...(auth.hasAdminPermission('admin.roles.managePermissions') ? [{ key: 'roles', label: isChinese ? '角色管理' : 'Role management', description: isChinese ? '后台角色、权限范围与功能访问' : 'Admin roles, permissions, and feature access', icon: UserCog, to: '/admin/roles' }] : []),
     ...(auth.hasAdminPermission('admin.messages.manage') ? [{ key: 'notices', label: isChinese ? '通知管理' : 'Notification management', description: isChinese ? '发送通知并查看阅读与回复状态' : 'Send notifications and review read and reply status', icon: Bell, to: '/admin/messages' }] : []),
     ...(auth.hasAdminPermission('admin.visitRequests.receive') ? [{ key: 'visitors', label: isChinese ? '访客接待' : 'Visitor care', description: isChinese ? '处理参观联系请求和跟进状态' : 'Handle visit requests and follow-up status', icon: Handshake, to: '/admin/visit-requests' }] : []),
@@ -839,7 +862,7 @@ const ChurchManagementDashboard = ({ churchName, sections, users, messages, sync
             </div>
           </div>
           <div className="flex items-center gap-5 self-start lg:self-auto">
-            {showMemberMetric ? <div><p className="text-2xl font-black tabular-nums">{users.totalCount}</p><p className="text-[10px] font-bold uppercase tracking-wide text-white/45">{isChinese ? '账号' : 'Accounts'}</p></div> : null}
+            {showMemberMetric ? <div><p className="text-2xl font-black tabular-nums">{users.totalCount}</p><p className="text-[10px] font-bold uppercase tracking-wide text-white/45">{isChinese ? '成员' : 'Members'}</p></div> : null}
             {showMessageMetric ? <div className={showMemberMetric ? 'border-l border-white/12 pl-5' : ''}><p className="text-2xl font-black tabular-nums">{unreadCount}</p><p className="text-[10px] font-bold uppercase tracking-wide text-white/45">{isChinese ? '未读通知' : 'Unread'}</p></div> : null}
             <button className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/15 disabled:opacity-60" type="button" disabled={loading} onClick={() => refresh().catch(() => undefined)} aria-label={isChinese ? '刷新教会管理' : 'Refresh church management'}><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></button>
           </div>
@@ -872,328 +895,6 @@ const ChurchManagementDashboard = ({ churchName, sections, users, messages, sync
         </aside> : null}
       </div>
     </section>
-  )
-}
-
-const UsersSection = ({ l, loading, page, filters, setFilters, roles, isSuperAdmin, canManageMemberProfiles, updatingMemberId, updatingMemberProfileId, apply, reset, goToPage, updateMemberRoles, updateMemberProfile, language, currentMemberId }: {
-  l: LabelFn
-  loading: boolean
-  page: AdminPagedResultDto<AdminMemberDto>
-  filters: { search: string; role: string; isRegistered: string }
-  setFilters: Dispatch<SetStateAction<{ search: string; role: string; isRegistered: string }>>
-  roles: AdminPlatformRoleDto[]
-  isSuperAdmin: boolean
-  canManageMemberProfiles: boolean
-  updatingMemberId: string | null
-  updatingMemberProfileId: string | null
-  apply: () => Promise<void>
-  reset: () => void
-  goToPage: (page: number) => Promise<void>
-  updateMemberRoles: (member: AdminMemberDto, roleCode: string, enabled: boolean) => Promise<void>
-  updateMemberProfile: (memberId: string, payload: { displayName: string; email: string | null; phoneE164: string | null }) => Promise<AdminMemberDto>
-  language: string
-  currentMemberId: string
-}) => {
-  const [selectedMemberId, setSelectedMemberId] = useState('')
-  const [editTarget, setEditTarget] = useState<AdminMemberDto | null>(null)
-  const [editForm, setEditForm] = useState({ displayName: '', email: '', phoneE164: '' })
-  const [editError, setEditError] = useState('')
-  const selectedMember = page.items.find((member) => member.id === selectedMemberId) ?? page.items[0] ?? null
-  const editing = Boolean(editTarget && updatingMemberProfileId === editTarget.id)
-
-  const openEditDialog = (member: AdminMemberDto) => {
-    setEditTarget(member)
-    setEditForm({
-      displayName: member.displayName || '',
-      email: member.email || '',
-      phoneE164: member.phoneE164 || '',
-    })
-    setEditError('')
-  }
-
-  const closeEditDialog = () => {
-    if (editing) return
-    setEditTarget(null)
-    setEditError('')
-  }
-
-  const submitMemberProfile = async () => {
-    if (!editTarget || editing) return
-    const displayName = editForm.displayName.trim()
-    if (!displayName) {
-      setEditError(`${l('displayName')}: ${language === 'zh' ? '必填' : 'Required'}`)
-      return
-    }
-    if (!isValidPhoneNumber(editForm.phoneE164)) {
-      setEditError(language === 'zh' ? '请检查电话号码和所选地区。' : 'Check the phone number and selected region.')
-      return
-    }
-
-    setEditError('')
-    try {
-      await updateMemberProfile(editTarget.id, {
-        displayName,
-        email: editForm.email.trim() || null,
-        phoneE164: editForm.phoneE164.trim() || null,
-      })
-      setEditTarget(null)
-    } catch (reason) {
-      setEditError(normalizeApiError(reason).message)
-    }
-  }
-
-  useEffect(() => {
-    if (page.items.length && !selectedMember) {
-      setSelectedMemberId(page.items[0].id)
-    }
-  }, [page.items, selectedMember])
-
-  const renderRolePills = (member: AdminMemberDto) => {
-    const activeRoleCodes = member.platformRoles.filter((role) => role !== 'user')
-    const displayRoleCodes = activeRoleCodes.length ? activeRoleCodes : ['user']
-    return displayRoleCodes.map((roleCode) => {
-      const roleLabel = readLocalized(roles.find((role) => role.code === roleCode)?.name, language) || formatRole(roleCode)
-      return (
-        <span key={roleCode} className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-bold ${roleTone[roleCode] || roleTone.admin}`}>
-          <ShieldCheck className="mr-1 h-3.5 w-3.5" />
-          {roleLabel}
-        </span>
-      )
-    })
-  }
-
-  const getCompactRoleText = (member: AdminMemberDto) => {
-    const activeRoleCodes = member.platformRoles.filter((role) => role !== 'user')
-    const displayRoleCodes = activeRoleCodes.length ? activeRoleCodes : ['user']
-    return displayRoleCodes.map((roleCode) => readLocalized(roles.find((role) => role.code === roleCode)?.name, language) || formatRole(roleCode)).join(' / ')
-  }
-
-  return (
-    <>
-    <Panel title={l('users')} description={l('usersDescription')} count={page.totalCount}>
-      <FilterBar>
-        <SearchInput placeholder={l('search')} value={filters.search} onChange={(e) => setFilters((x) => ({ ...x, search: e.target.value }))} />
-        <SelectInput value={filters.role} onChange={(e) => setFilters((x) => ({ ...x, role: e.target.value }))}>
-          <option value="">{l('allRoles')}</option>
-          {roles.map((role) => <option key={role.code} value={role.code}>{readLocalized(role.name, language) || formatRole(role.code)}</option>)}
-        </SelectInput>
-        <SelectInput value={filters.isRegistered} onChange={(e) => setFilters((x) => ({ ...x, isRegistered: e.target.value }))}>
-          <option value="">{l('allRegistration')}</option>
-          <option value="true">{l('registeredOnly')}</option>
-          <option value="false">{l('guestsOnly')}</option>
-        </SelectInput>
-        <FilterActions l={l} apply={apply} reset={reset} />
-      </FilterBar>
-      <div className="flex flex-col gap-3 border-b border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm font-medium leading-6 text-slate-600">{l('guestReviewHint')}</p>
-        <Link
-          to="/admin/visit-requests"
-          className="inline-flex min-h-10 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-800 transition hover:border-emerald-300 hover:bg-emerald-100"
-        >
-          {l('memberVisitorCareLink')}
-        </Link>
-      </div>
-      {!isSuperAdmin ? <p className="m-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{l('superAdminOnly')}</p> : null}
-      {loading ? <Loading text={l('loading')} /> : page.items.length ? (
-        <>
-          <div className="grid gap-4 p-4 xl:grid-cols-[minmax(19rem,24rem)_minmax(0,1fr)]">
-            <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-              <div className="border-b border-slate-100 bg-slate-50/70 px-4 py-3">
-                <h3 className="text-sm font-black text-slate-950">{l('member')}</h3>
-                <p className="mt-1 text-xs font-semibold text-slate-500">{page.totalCount} {l('total')}</p>
-              </div>
-              <div className="max-h-[68vh] overflow-y-auto p-2">
-                {page.items.map((member) => {
-                  const selected = selectedMember?.id === member.id
-                  const displayName = member.displayName || l('unknown')
-                  const initials = displayName.trim().slice(0, 2).toUpperCase()
-                  return (
-                    <button
-                      key={member.id}
-                      type="button"
-                      className={`flex w-full gap-2.5 rounded-xl border px-3 py-2.5 text-left transition ${selected ? 'border-emerald-200 bg-emerald-50/80 shadow-sm' : 'border-transparent bg-white hover:border-slate-200 hover:bg-slate-50'}`}
-                      onClick={() => setSelectedMemberId(member.id)}
-                    >
-                      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-black ${selected ? 'bg-emerald-700 text-white' : 'bg-slate-100 text-slate-600'}`}>{initials}</span>
-                      <span className="min-w-0 flex-1">
-                        <span className="flex min-w-0 flex-wrap items-center gap-2">
-                          <span className="truncate text-sm font-black text-slate-950">{displayName}</span>
-                          {member.id === currentMemberId ? <Pill tone="sky">{l('you')}</Pill> : null}
-                        </span>
-                        <span className="mt-1 block truncate text-xs font-semibold text-slate-500">{member.email || member.phoneE164 || '-'}</span>
-                        <span className="mt-1 block truncate text-[11px] font-bold text-emerald-700">{getCompactRoleText(member)}</span>
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
-            </section>
-
-            <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-              {selectedMember ? (
-                <>
-                  <div className="border-b border-slate-100 bg-gradient-to-r from-white via-emerald-50/70 to-white p-5">
-                    <div className="flex flex-col gap-5">
-                      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                        <div className="flex min-w-0 gap-4">
-                          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-700 text-base font-black text-white shadow-sm ring-1 ring-emerald-200">
-                          {(selectedMember.displayName || l('unknown')).trim().slice(0, 2).toUpperCase()}
-                          </div>
-                          <div className="min-w-0">
-                            <h3 className="text-xl font-black text-slate-950">{selectedMember.displayName || l('unknown')}</h3>
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {selectedMember.id === currentMemberId ? <Pill tone="sky">{l('you')}</Pill> : null}
-                              {renderRolePills(selectedMember)}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          {canManageMemberProfiles ? (
-                            <button
-                              type="button"
-                              className="inline-flex min-h-9 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-sm font-black text-emerald-800 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
-                              onClick={() => openEditDialog(selectedMember)}
-                            >
-                              <Pencil className="h-4 w-4" aria-hidden="true" />
-                              {l('editMember')}
-                            </button>
-                          ) : null}
-                          <Pill tone={selectedMember.isRegistered ? 'green' : 'slate'}>{selectedMember.isRegistered ? l('registered') : l('guest')}</Pill>
-                        </div>
-                      </div>
-                      <div className="grid gap-3 md:grid-cols-3">
-                        <div className="rounded-2xl border border-white bg-white/80 p-3 shadow-sm">
-                          <div className="text-xs font-black uppercase text-slate-400">{l('contact')}</div>
-                          <div className="mt-2 break-all text-sm font-bold text-slate-800">{selectedMember.email || '-'}</div>
-                          <div className="mt-1 break-all text-xs font-semibold text-slate-500">{selectedMember.phoneE164 || '-'}</div>
-                        </div>
-                        <div className="rounded-2xl border border-white bg-white/80 p-3 shadow-sm">
-                          <div className="text-xs font-black uppercase text-slate-400">{l('groups')}</div>
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            <span className="rounded-xl bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-700">{selectedMember.approvedGroupCount} {l('approved')}</span>
-                            <span className="rounded-xl bg-amber-50 px-2.5 py-1 text-xs font-black text-amber-700">{selectedMember.pendingGroupCount} {l('pending')}</span>
-                          </div>
-                        </div>
-                        <div className="rounded-2xl border border-white bg-white/80 p-3 shadow-sm">
-                          <div className="text-xs font-black uppercase text-slate-400">{l('registration')}</div>
-                          <div className="mt-2 text-sm font-black text-slate-900">{selectedMember.isRegistered ? l('registered') : l('guest')}</div>
-                          <div className="mt-1 text-xs font-semibold text-slate-500">{selectedMember.platformRoles.filter((role) => role !== 'user').length || 1} {l('role')}</div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-4 p-5 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)]">
-                    <section className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-                      <h4 className="text-sm font-black text-slate-950">{l('accountDetails')}</h4>
-                      <dl className="mt-4 grid gap-3">
-                        <div className="rounded-xl border border-slate-200 bg-white p-3">
-                          <dt className="text-xs font-black uppercase text-slate-400">{l('createdAt')}</dt>
-                          <dd className="mt-1 text-sm font-bold text-slate-800">{formatDate(selectedMember.createdUtc)}</dd>
-                        </div>
-                        <div className="rounded-xl border border-slate-200 bg-white p-3">
-                          <dt className="text-xs font-black uppercase text-slate-400">{l('updatedAt')}</dt>
-                          <dd className="mt-1 text-sm font-bold text-slate-800">{formatDate(selectedMember.updatedUtc)}</dd>
-                        </div>
-                      </dl>
-                    </section>
-
-                    <section className="rounded-2xl border border-slate-200 bg-white p-4">
-                      <h4 className="text-sm font-black text-slate-950">{l('roleAssignment')}</h4>
-                      <div className="mt-3 grid gap-2">
-                        {roles.filter((role) => role.code !== 'user' && role.code !== 'superadmin').map((role) => {
-                          const checked = selectedMember.platformRoles.includes(role.code)
-                          const protectedPlatformRole = role.code === 'admin' || role.code === 'superadmin'
-                          const disabled = selectedMember.id === currentMemberId || updatingMemberId === selectedMember.id || (!isSuperAdmin && protectedPlatformRole)
-                          return (
-                            <label key={role.code} className={`flex min-h-11 items-center justify-between gap-3 rounded-xl border px-3 py-2 text-sm transition ${checked ? 'border-emerald-200 bg-emerald-50/80 text-slate-950' : 'border-slate-200 bg-white text-slate-600'} ${disabled ? 'cursor-not-allowed opacity-70' : 'cursor-pointer hover:border-emerald-200'}`}>
-                              <span>
-                                <span className="block font-bold">{readLocalized(role.name, language) || formatRole(role.code)}</span>
-                                <span className="block font-mono text-[11px] text-slate-400">{role.code}</span>
-                              </span>
-                              <input
-                                type="checkbox"
-                                className="h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-500"
-                                checked={checked}
-                                disabled={disabled}
-                                onChange={(event) => updateMemberRoles(selectedMember, role.code, event.target.checked).catch(() => undefined)}
-                              />
-                            </label>
-                          )
-                        })}
-                      </div>
-                      {updatingMemberId === selectedMember.id ? <p className="mt-3 flex items-center gap-2 text-xs font-semibold text-emerald-700"><Loader2 className="h-3.5 w-3.5 animate-spin" />{l('loading')}</p> : null}
-                    </section>
-                  </div>
-                </>
-              ) : <Empty text={l('selectMemberHint')} />}
-            </section>
-          </div>
-          <Pager l={l} page={page} goToPage={goToPage} />
-        </>
-      ) : <Empty text={l('noMembers')} />}
-    </Panel>
-
-    {editTarget ? (
-      <div className="fixed inset-0 z-[70] flex items-end bg-slate-950/50 px-4 pb-24 pt-6 backdrop-blur-sm sm:items-center sm:justify-center sm:py-6" role="presentation">
-        <button type="button" className="absolute inset-0" aria-label={l('closeDialog')} disabled={editing} onClick={closeEditDialog} />
-        <section className="relative z-10 flex max-h-[calc(100dvh-7.5rem)] w-full max-w-lg flex-col overflow-hidden rounded-3xl bg-white shadow-2xl sm:max-h-[calc(100dvh-3rem)]" role="dialog" aria-modal="true" aria-labelledby="edit-member-title">
-          <header className="flex items-start justify-between gap-4 border-b border-slate-100 bg-gradient-to-r from-emerald-50 to-white px-5 py-4 sm:px-6">
-            <div>
-              <h2 id="edit-member-title" className="text-lg font-black text-slate-950">{l('editMember')}</h2>
-              <p className="mt-1 text-sm leading-6 text-slate-600">{l('editMemberDescription')}</p>
-            </div>
-            <button type="button" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:bg-white hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300" aria-label={l('closeDialog')} disabled={editing} onClick={closeEditDialog}>
-              <X className="h-5 w-5" aria-hidden="true" />
-            </button>
-          </header>
-
-          <form className="space-y-4 overflow-y-auto p-5 sm:p-6" onSubmit={(event) => { event.preventDefault(); submitMemberProfile().catch(() => undefined) }}>
-            <label className="block">
-              <span className="text-xs font-black uppercase tracking-wide text-slate-500">{l('displayName')}</span>
-              <input
-                autoFocus
-                required
-                maxLength={150}
-                value={editForm.displayName}
-                onChange={(event) => setEditForm((current) => ({ ...current, displayName: event.target.value }))}
-                className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              />
-            </label>
-
-            <label className="block">
-              <span className="text-xs font-black uppercase tracking-wide text-slate-500">{l('email')}</span>
-              <input
-                type="email"
-                maxLength={200}
-                value={editForm.email}
-                onChange={(event) => setEditForm((current) => ({ ...current, email: event.target.value }))}
-                className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              />
-            </label>
-
-            <RegionalPhoneInput
-              value={editForm.phoneE164}
-              onChange={(phoneE164) => setEditForm((current) => ({ ...current, phoneE164 }))}
-              language={language === 'zh' ? 'zh' : 'en'}
-              label={l('phone')}
-              hint={l('phoneE164Hint')}
-            />
-
-            {editError ? <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700" role="alert">{editError}</p> : null}
-
-            <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4">
-              <button type="button" className="inline-flex min-h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:opacity-60" disabled={editing} onClick={closeEditDialog}>{l('cancel')}</button>
-              <button type="submit" className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-black text-white transition hover:bg-emerald-800 disabled:cursor-wait disabled:opacity-60" disabled={editing || !editForm.displayName.trim()}>
-                {editing ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
-                {editing ? l('saving') : l('saveChanges')}
-              </button>
-            </div>
-          </form>
-        </section>
-      </div>
-    ) : null}
-    </>
   )
 }
 

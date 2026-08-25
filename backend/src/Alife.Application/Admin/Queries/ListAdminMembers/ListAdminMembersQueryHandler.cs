@@ -27,32 +27,60 @@ public sealed class ListAdminMembersQueryHandler(IAlifeDbContext dbContext)
         var search = request.Search?.Trim();
         if (!string.IsNullOrWhiteSpace(search))
         {
-            membersQuery = membersQuery.Where(x =>
-                (x.DisplayName != null && x.DisplayName.Contains(search)) ||
-                (x.Email != null && x.Email.Contains(search)) ||
-                (x.PhoneE164 != null && x.PhoneE164.Contains(search)));
+            membersQuery = membersQuery.Where(member =>
+                member.DisplayName != null && member.DisplayName.Contains(search));
         }
 
         if (request.IsRegistered is bool isRegistered)
         {
-            membersQuery = membersQuery.Where(x => x.IsRegistered == isRegistered);
+            membersQuery = membersQuery.Where(member => member.IsRegistered == isRegistered);
         }
 
         var roleCode = AdminPlatformRoleHelpers.NormalizeRoleCode(request.Role ?? string.Empty);
         if (!string.IsNullOrWhiteSpace(roleCode))
         {
-            membersQuery = roleCode switch
-            {
-                "superadmin" => membersQuery.Where(x => x.PlatformRoles.Any(role =>
-                    role.RevokedUtc == null && role.Role.Code == "superadmin")),
-                "admin" => membersQuery.Where(x =>
-                    x.PlatformRoles.Any(role => role.RevokedUtc == null && role.Role.Code == "admin")),
-                AdminPlatformRoleHelpers.PageReviewerRoleCode => membersQuery.Where(x =>
-                    x.PlatformRoles.Any(role => role.RevokedUtc == null && role.Role.Code == AdminPlatformRoleHelpers.PageReviewerRoleCode)),
-                "user" => membersQuery.Where(x =>
-                    !x.PlatformRoles.Any(role => role.RevokedUtc == null && role.Role.Code != "user")),
-                _ => membersQuery
-            };
+            membersQuery = membersQuery.Where(member => roleCode == "user"
+                ? !member.PlatformRoles.Any(role => role.RevokedUtc == null && role.Role.Code != "user")
+                : member.PlatformRoles.Any(role => role.RevokedUtc == null && role.Role.Code == roleCode));
+        }
+
+        if (request.ManagementOnly == true)
+        {
+            membersQuery = membersQuery.Where(member => member.PlatformRoles.Any(role =>
+                role.RevokedUtc == null && role.Role.Code != "user"));
+        }
+
+        if (request.LeadersOnly == true)
+        {
+            membersQuery = membersQuery.Where(member => member.Memberships.Any(membership =>
+                !membership.Group.IsChurch &&
+                membership.Status == MembershipStatus.Approved &&
+                membership.Role == MembershipRole.Leader));
+        }
+
+        var selectedStatuses = ParseTokens(request.MemberStatuses);
+        if (selectedStatuses.Count > 0 && selectedStatuses.Count < 3)
+        {
+            var includePending = selectedStatuses.Contains("pending");
+            var includeActive = selectedStatuses.Contains("active");
+            var includeInactive = selectedStatuses.Contains("inactive");
+            membersQuery = membersQuery.Where(member =>
+                (includePending && member.Memberships.Any(membership =>
+                    membership.Group.IsChurch && membership.Status == MembershipStatus.Requested)) ||
+                (includeActive && member.Memberships.Any(membership =>
+                    membership.Group.IsChurch && membership.Status == MembershipStatus.Approved)) ||
+                (includeInactive && !member.Memberships.Any(membership =>
+                    membership.Group.IsChurch &&
+                    (membership.Status == MembershipStatus.Requested || membership.Status == MembershipStatus.Approved))));
+        }
+
+        var selectedGroupIds = ParseGroupIds(request.GroupIds);
+        if (selectedGroupIds.Count > 0)
+        {
+            membersQuery = membersQuery.Where(member => member.Memberships.Any(membership =>
+                selectedGroupIds.Contains(membership.GroupId) &&
+                !membership.Group.IsChurch &&
+                membership.Status == MembershipStatus.Approved));
         }
 
         var normalizedPage = AdminPaging.NormalizePage(request.Page);
@@ -61,13 +89,7 @@ public sealed class ListAdminMembersQueryHandler(IAlifeDbContext dbContext)
         var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)normalizedPageSize);
 
         var pageRows = await membersQuery
-            .OrderByDescending(member => member.PlatformRoles
-                .Where(role => role.RevokedUtc == null)
-                .Select(role => (int?)role.Role.Level)
-                .Max() ?? 0)
-            .ThenByDescending(member => member.IsRegistered)
-            .ThenByDescending(member => member.Memberships.Count(m => m.Status == MembershipStatus.Requested))
-            .ThenByDescending(member => member.Memberships.Count(m => m.Status == MembershipStatus.Approved))
+            .OrderBy(member => member.DisplayName == null)
             .ThenBy(member => member.DisplayName)
             .ThenBy(member => member.Id)
             .Skip((normalizedPage - 1) * normalizedPageSize)
@@ -76,13 +98,17 @@ public sealed class ListAdminMembersQueryHandler(IAlifeDbContext dbContext)
             {
                 member.Id,
                 member.DisplayName,
+                member.Salutation,
+                member.Sex,
                 member.Email,
                 member.PhoneE164,
                 member.IsRegistered,
                 member.CreatedUtc,
                 member.UpdatedUtc,
-                ApprovedGroupCount = member.Memberships.Count(m => m.Status == MembershipStatus.Approved),
-                PendingGroupCount = member.Memberships.Count(m => m.Status == MembershipStatus.Requested)
+                ApprovedGroupCount = member.Memberships.Count(membership =>
+                    !membership.Group.IsChurch && membership.Status == MembershipStatus.Approved),
+                PendingGroupCount = member.Memberships.Count(membership =>
+                    !membership.Group.IsChurch && membership.Status == MembershipStatus.Requested)
             })
             .ToListAsync(cancellationToken);
 
@@ -91,10 +117,21 @@ public sealed class ListAdminMembersQueryHandler(IAlifeDbContext dbContext)
             .AsNoTracking()
             .Where(role => pageMemberIds.Contains(role.MemberId) && role.RevokedUtc == null)
             .OrderByDescending(role => role.Role.Level)
-            .Select(role => new
+            .Select(role => new { role.MemberId, role.Role.Code })
+            .ToListAsync(cancellationToken);
+
+        var membershipRows = await dbContext.GroupMemberships
+            .AsNoTracking()
+            .Where(membership => pageMemberIds.Contains(membership.MemberId))
+            .Select(membership => new
             {
-                role.MemberId,
-                role.Role.Code
+                membership.MemberId,
+                membership.GroupId,
+                membership.Group.NameJson,
+                membership.Group.IsChurch,
+                membership.Status,
+                membership.Role,
+                membership.UpdatedUtc
             })
             .ToListAsync(cancellationToken);
 
@@ -103,15 +140,36 @@ public sealed class ListAdminMembersQueryHandler(IAlifeDbContext dbContext)
             .ToDictionary(
                 group => group.Key,
                 group => (IReadOnlyList<string>)group.Select(role => role.Code).ToList());
-
         var highestRoleByMember = roleRows
             .GroupBy(role => role.MemberId)
             .ToDictionary(group => group.Key, group => group.Select(role => role.Code).FirstOrDefault());
+        var churchMembershipByMember = membershipRows
+            .Where(membership => membership.IsChurch)
+            .GroupBy(membership => membership.MemberId)
+            .ToDictionary(group => group.Key, group => group.OrderByDescending(membership => membership.UpdatedUtc).First());
+        var groupsByMember = membershipRows
+            .Where(membership => !membership.IsChurch && membership.Status == MembershipStatus.Approved)
+            .GroupBy(membership => membership.MemberId)
+            .ToDictionary(
+                group => group.Key,
+                group => (IReadOnlyList<AdminMemberGroupDto>)group
+                    .OrderBy(membership => membership.NameJson)
+                    .Select(membership => new AdminMemberGroupDto(
+                        membership.GroupId,
+                        membership.NameJson,
+                        membership.Status,
+                        membership.Role))
+                    .ToList());
 
-        var items = pageRows
-            .Select(member => new AdminMemberDto(
+        var items = pageRows.Select(member =>
+        {
+            churchMembershipByMember.TryGetValue(member.Id, out var churchMembership);
+            var memberGroups = groupsByMember.TryGetValue(member.Id, out var groups) ? groups : [];
+            return new AdminMemberDto(
                 member.Id,
                 member.DisplayName,
+                member.Salutation,
+                member.Sex,
                 member.Email,
                 member.PhoneE164,
                 member.IsRegistered,
@@ -123,16 +181,32 @@ public sealed class ListAdminMembersQueryHandler(IAlifeDbContext dbContext)
                     : "user",
                 rolesByMember.TryGetValue(member.Id, out var roles) ? roles : [],
                 member.ApprovedGroupCount,
-                member.PendingGroupCount))
-            .ToList();
+                member.PendingGroupCount,
+                churchMembership?.Status,
+                churchMembership?.Role,
+                memberGroups.Any(group => group.Role == MembershipRole.Leader),
+                memberGroups);
+        }).ToList();
 
-        var members = new AdminPagedResultDto<AdminMemberDto>(
+        return AppResult<AdminPagedResultDto<AdminMemberDto>>.Success(new AdminPagedResultDto<AdminMemberDto>(
             items,
             totalCount,
             normalizedPage,
             normalizedPageSize,
-            totalPages);
-
-        return AppResult<AdminPagedResultDto<AdminMemberDto>>.Success(members);
+            totalPages));
     }
+
+    private static HashSet<string> ParseTokens(string? value)
+        => (value ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(token => token.ToLowerInvariant())
+            .Where(token => token is "pending" or "active" or "inactive")
+            .ToHashSet(StringComparer.Ordinal);
+
+    private static HashSet<Guid> ParseGroupIds(string? value)
+        => (value ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(token => Guid.TryParse(token, out var groupId) ? groupId : Guid.Empty)
+            .Where(groupId => groupId != Guid.Empty)
+            .ToHashSet();
 }

@@ -22,6 +22,8 @@ public class UpdateMemberProfileCommandHandlerTests
         {
             Id = targetId,
             DisplayName = "Old name",
+            Salutation = "Brother",
+            Sex = "Male",
             Email = "old@example.com",
             PhoneE164 = "+64210000000",
             PhoneVerifiedUtc = DateTime.UtcNow.AddDays(-2),
@@ -45,11 +47,13 @@ public class UpdateMemberProfileCommandHandlerTests
         var handler = new UpdateMemberProfileCommandHandler(dbContext, cacheInvalidation);
 
         var result = await handler.Handle(
-            new UpdateMemberProfileCommand(actorId, targetId, " New name ", "NEW@EXAMPLE.COM", "+64211111111"),
+            new UpdateMemberProfileCommand(actorId, targetId, " New name ", "NEW@EXAMPLE.COM", "+64211111111", " Pastor ", "Other"),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Message);
         Assert.Equal("New name", result.Value!.DisplayName);
+        Assert.Equal("Pastor", result.Value.Salutation);
+        Assert.Equal("Other", result.Value.Sex);
         Assert.Equal("new@example.com", result.Value.Email);
         Assert.Equal("+64211111111", result.Value.PhoneE164);
         Assert.Null((await dbContext.Members.FindAsync(targetId))!.PhoneVerifiedUtc);
