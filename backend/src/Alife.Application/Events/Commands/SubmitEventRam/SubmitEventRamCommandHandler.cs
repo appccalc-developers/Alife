@@ -4,6 +4,7 @@ using Alife.Application.Events.Dtos;
 using Alife.Application.Events.Services;
 using Alife.Application.Groups.Services;
 using Alife.Domain.Enums;
+using Alife.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,6 +20,8 @@ public sealed class SubmitEventRamCommandHandler(
     {
         var groupEvent = await dbContext.GroupEvents
             .Include(x => x.RamAssessment)
+            .Include(x => x.Plan).ThenInclude(x => x!.Modules)
+            .Include(x => x.Plan).ThenInclude(x => x!.Decisions)
             .FirstOrDefaultAsync(x => x.Id == request.EventId, cancellationToken);
         if (groupEvent?.RamAssessment is null)
         {
@@ -37,6 +40,20 @@ public sealed class SubmitEventRamCommandHandler(
         }
 
         var now = DateTime.UtcNow;
+        if (groupEvent.Plan is null)
+        {
+            groupEvent.Plan = EventCompositionFactory.CreateInitial(
+                groupEvent,
+                request.CurrentMemberId,
+                groupEvent.RamAssessment.RamDataJson,
+                now);
+            dbContext.EventPlans.Add(groupEvent.Plan);
+        }
+        var decision = EventRamDecisionPolicy.RequestReview(
+            groupEvent.Plan,
+            request.CurrentMemberId,
+            groupEvent.RamAssessment.UpdatedUtc,
+            now);
         groupEvent.RamAssessment.Status = EventRamStatus.AwaitingReview;
         groupEvent.RamAssessment.SubmittedByMemberId = request.CurrentMemberId;
         groupEvent.RamAssessment.SubmittedUtc = now;
@@ -44,9 +61,18 @@ public sealed class SubmitEventRamCommandHandler(
         groupEvent.RamAssessment.ApprovedUtc = null;
         groupEvent.RamAssessment.UpdatedUtc = now;
         groupEvent.UpdatedUtc = now;
-        await EventWorkflowIntegration.SyncRamAsync(
-            dbContext, groupEvent.Id, EventRamStatus.AwaitingReview, groupEvent.RamAssessment.RamDataJson,
-            request.CurrentMemberId, now, cancellationToken);
+        dbContext.AuditLogs.Add(new AuditLog
+        {
+            Id = Guid.NewGuid(),
+            ActorMemberId = request.CurrentMemberId,
+            Action = "event.ram.review-requested",
+            EntityType = nameof(EventDecisionRecord),
+            EntityId = decision.Id,
+            GroupId = groupEvent.GroupId,
+            EventId = groupEvent.Id,
+            MetadataJson = System.Text.Json.JsonSerializer.Serialize(new { decisionKey = EventRamDecisionPolicy.DecisionKey }),
+            OccurredUtc = now
+        });
         await dbContext.SaveChangesAsync(cancellationToken);
         await eventCacheInvalidationService.RemoveGroupEventsAsync(groupEvent.GroupId, cancellationToken);
 

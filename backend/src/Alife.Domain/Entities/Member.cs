@@ -21,4 +21,6 @@ public class Member
 	public ICollection<ForumComment> ForumComments { get; set; } = [];
 	public BibleReadingProgress? BibleReadingProgress { get; set; }
 	public ICollection<ContactProfile> ContactProfiles { get; set; } = [];
+	public ICollection<GroupMemberSchedulingProfile> SchedulingProfiles { get; set; } = [];
+	public ICollection<EventRosterAssignment> RosterAssignments { get; set; } = [];
 }

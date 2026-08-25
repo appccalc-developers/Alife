@@ -48,6 +48,7 @@ public class EventLifecyclePolicyTests
         var now = new DateTime(2026, 7, 22, 0, 0, 0, DateTimeKind.Utc);
         var groupEvent = EventEndingAt(now.AddDays(2), "2026-07-23T00:00:00Z", 20);
         groupEvent.RamAssessment!.Status = EventRamStatus.AwaitingReview;
+        groupEvent.EventDataJson = $$"""{"registrationDeadline":"2026-07-23T00:00:00Z","maxCapacity":20,"hardConstraints":[{"ruleKey":"children"}]}""";
 
         var allowed = EventLifecyclePolicy.CanCreateEnrollment(groupEvent, now, out var error);
 
@@ -55,8 +56,22 @@ public class EventLifecyclePolicyTests
         Assert.Contains("RAM has not been approved", error);
     }
 
+    [Fact]
+    public void CanCreateEnrollment_DoesNotInventRamApprovalForLowRiskEvent()
+    {
+        var now = new DateTime(2026, 7, 22, 0, 0, 0, DateTimeKind.Utc);
+        var groupEvent = EventEndingAt(now.AddDays(2), "2026-07-23T00:00:00Z", 20);
+        groupEvent.RamAssessment!.Status = EventRamStatus.Draft;
+
+        var allowed = EventLifecyclePolicy.CanCreateEnrollment(groupEvent, now, out var error);
+
+        Assert.True(allowed);
+        Assert.Empty(error);
+    }
+
     private static GroupEvent EventEndingAt(DateTime endDate, string deadline, int capacity) => new()
     {
+        StartDate = endDate.AddHours(-1),
         EndDate = endDate,
         EventDataJson = $$"""{"registrationDeadline":"{{deadline}}","maxCapacity":{{capacity}}}""",
         RamAssessment = new EventRamAssessment { Status = EventRamStatus.Approved }

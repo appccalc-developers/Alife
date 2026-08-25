@@ -23,6 +23,7 @@ public interface IAlifeDbContext
     DbSet<AlbumPhoto> AlbumPhotos { get; }
     DbSet<Sermon> Sermons { get; }
     DbSet<GroupEvent> GroupEvents { get; }
+    DbSet<EventSeries> EventSeries { get; }
     DbSet<EventRamAssessment> EventRamAssessments { get; }
     DbSet<EventEnrollment> EventEnrollments { get; }
     DbSet<EventReview> EventReviews { get; }
@@ -40,6 +41,26 @@ public interface IAlifeDbContext
     DbSet<ForumCategory> ForumCategories { get; }
     DbSet<ForumPost> ForumPosts { get; }
     DbSet<ForumComment> ForumComments { get; }
+    DbSet<Venue> Venues { get; }
+    DbSet<VenueSpace> VenueSpaces { get; }
+    DbSet<EventVenueBooking> EventVenueBookings { get; }
+    DbSet<EventPlan> EventPlans { get; }
+    DbSet<EventPlanRevision> EventPlanRevisions { get; }
+    DbSet<EventOccurrence> EventOccurrences { get; }
+    DbSet<EventModuleInstance> EventModuleInstances { get; }
+    DbSet<EventReadinessGate> EventReadinessGates { get; }
+    DbSet<EventDecisionRecord> EventDecisionRecords { get; }
+    DbSet<GroupMemberSchedulingProfile> GroupMemberSchedulingProfiles { get; }
+    DbSet<GroupRosterCapability> GroupRosterCapabilities { get; }
+    DbSet<EventRosterShift> EventRosterShifts { get; }
+    DbSet<EventRosterAssignment> EventRosterAssignments { get; }
+    DbSet<EventProgrammeItem> EventProgrammeItems { get; }
+    DbSet<EventClosureReport> EventClosureReports { get; }
+    DbSet<EventPreparationTask> EventPreparationTasks { get; }
+    DbSet<EventPreparationTaskDependency> EventPreparationTaskDependencies { get; }
+    DbSet<EventAttendanceRecord> EventAttendanceRecords { get; }
+    DbSet<EventFinanceEntry> EventFinanceEntries { get; }
+    DbSet<EventFinanceReconciliation> EventFinanceReconciliations { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

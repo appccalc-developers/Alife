@@ -13,4 +13,5 @@ public class EventEnrollment
     public Group Group { get; set; } = null!;
     public GroupEvent Event { get; set; } = null!;
     public Member Member { get; set; } = null!;
+    public ICollection<EventAttendanceRecord> AttendanceRecords { get; set; } = [];
 }

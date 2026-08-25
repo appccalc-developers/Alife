@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react'
-import { Check, LogOut, Mail, Pencil, Phone, ShieldCheck, UserRound, X } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { CalendarClock, Check, LogOut, Mail, Pencil, Phone, ShieldCheck, UserRound, X } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
 import RegionalPhoneInput from '../components/forms/RegionalPhoneInput'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
@@ -146,6 +146,8 @@ const ProfileView = () => {
       </section>
 
       {saveSuccess ? <p className="flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800" role="status"><Check className="h-4 w-4" />{copy.saved}</p> : null}
+
+      {!me.isGuest ? <AppSectionCard title={language === 'zh' ? '活动排班偏好' : 'Event scheduling preferences'} subtitle={language === 'zh' ? '维护你愿意参与的岗位、固定不方便时间和每天最多安排次数。' : 'Maintain preferred roles, recurring unavailable times and your daily assignment limit.'} action={<Link to="/profile/scheduling" className="inline-flex items-center gap-2 rounded-xl bg-violet-700 px-4 py-2 text-sm font-black text-white"><CalendarClock className="h-4 w-4" />{language === 'zh' ? '管理排班偏好' : 'Manage preferences'}</Link>}><p className="text-sm leading-6 text-slate-600">{language === 'zh' ? '这些资料只用于组内活动排班。智能建议不会自动安排你，最终由活动负责人确认。' : 'This information is restricted to group rostering. Smart suggestions never assign you automatically; an event leader confirms the roster.'}</p></AppSectionCard> : null}
 
       <AppSectionCard
         title={copy.contactTitle}

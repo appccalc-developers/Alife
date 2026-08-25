@@ -29,6 +29,8 @@ public sealed class ApproveEventRamCommandHandler(
 
         var groupEvent = await dbContext.GroupEvents
             .Include(x => x.RamAssessment)
+            .Include(x => x.Plan).ThenInclude(x => x!.Modules)
+            .Include(x => x.Plan).ThenInclude(x => x!.Decisions)
             .FirstOrDefaultAsync(x => x.Id == request.EventId, cancellationToken);
         if (groupEvent?.RamAssessment is null)
         {
@@ -38,6 +40,20 @@ public sealed class ApproveEventRamCommandHandler(
         if (groupEvent.RamAssessment.Status != EventRamStatus.AwaitingReview)
         {
             return AppResult<EventRamAssessmentDto>.Conflict("Only a RAM awaiting review can be approved.");
+        }
+
+        var decision = EventRamDecisionPolicy.LatestPending(groupEvent.Plan);
+        if (decision is null)
+        {
+            return AppResult<EventRamAssessmentDto>.Conflict("The RAM has no active review request. Ask the event leader to submit it again.");
+        }
+        if (decision.RequestedByMemberId == request.CurrentMemberId)
+        {
+            return AppResult<EventRamAssessmentDto>.Forbidden("The person who submitted this RAM cannot approve their own request.");
+        }
+        if (request.DecisionNotes.Trim().Length > 2000)
+        {
+            return AppResult<EventRamAssessmentDto>.Validation("Decision notes cannot exceed 2000 characters.");
         }
 
         var errors = EventRamPolicy.ValidateForReview(groupEvent.RamAssessment.RamDataJson);
@@ -52,10 +68,22 @@ public sealed class ApproveEventRamCommandHandler(
         groupEvent.RamAssessment.ApprovedUtc = now;
         groupEvent.RamAssessment.UpdatedUtc = now;
         groupEvent.UpdatedUtc = now;
-        await EventWorkflowIntegration.SyncRamAsync(
-            dbContext, groupEvent.Id, EventRamStatus.Approved, groupEvent.RamAssessment.RamDataJson,
-            request.CurrentMemberId, now, cancellationToken);
-
+        decision.Status = EventDecisionStatus.Approved;
+        decision.DecidedByMemberId = request.CurrentMemberId;
+        decision.DecisionNotes = request.DecisionNotes.Trim();
+        decision.DecidedUtc = now;
+        dbContext.AuditLogs.Add(new AuditLog
+        {
+            Id = Guid.NewGuid(),
+            ActorMemberId = request.CurrentMemberId,
+            Action = "event.ram.approved",
+            EntityType = nameof(EventDecisionRecord),
+            EntityId = decision.Id,
+            GroupId = groupEvent.GroupId,
+            EventId = groupEvent.Id,
+            MetadataJson = JsonSerializer.Serialize(new { decisionKey = EventRamDecisionPolicy.DecisionKey }),
+            OccurredUtc = now
+        });
         var recipientMemberIds = await dbContext.GroupMemberships
             .AsNoTracking()
             .Where(x => x.GroupId == groupEvent.GroupId && x.Status == MembershipStatus.Approved)

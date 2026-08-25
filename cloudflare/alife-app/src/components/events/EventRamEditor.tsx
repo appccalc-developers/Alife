@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { AlertTriangle, CheckCircle2, ChevronDown, ClipboardCheck, Plus, ShieldCheck, Trash2 } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ChevronDown, ClipboardCheck, Plus, RotateCcw, ShieldCheck, Trash2 } from 'lucide-react'
 import type { EventRamDraft, EventRamStatus, MultilingualString, RamHazard, RamOutingSafety } from '../../types/event'
 
 type Props = {
@@ -9,6 +9,8 @@ type Props = {
   canEdit: boolean
   canAudit: boolean
   canSubmit?: boolean
+  currentMemberId?: string | null
+  submittedByMemberId?: string | null
   busy?: boolean
   autosaveEnabled?: boolean
   autosaveStatus?: 'idle' | 'pending' | 'saving' | 'saved' | 'error'
@@ -16,7 +18,8 @@ type Props = {
   onChange: (ram: EventRamDraft) => void
   onSave?: () => void
   onSubmit?: () => void
-  onApprove?: () => void
+  onApprove?: (decisionNotes: string) => void
+  onReturn?: (decisionNotes: string) => void
 }
 
 const emptyText = (): MultilingualString => ({ zh: '', en: '' })
@@ -216,7 +219,7 @@ const RamCollapsibleSection = ({
   </section>
 )
 
-const EventRamEditor = ({ ram, status, language, canEdit, canAudit, canSubmit = false, busy = false, autosaveEnabled = false, autosaveStatus = 'idle', lastSavedAt = null, onChange, onSave, onSubmit, onApprove }: Props) => {
+const EventRamEditor = ({ ram, status, language, canEdit, canAudit, canSubmit = false, currentMemberId = null, submittedByMemberId = null, busy = false, autosaveEnabled = false, autosaveStatus = 'idle', lastSavedAt = null, onChange, onSave, onSubmit, onApprove, onReturn }: Props) => {
   const isZh = language === 'zh'
   const l = (en: string, zh: string) => isZh ? zh : en
   const lastSavedTime = lastSavedAt
@@ -267,13 +270,16 @@ const EventRamEditor = ({ ram, status, language, canEdit, canAudit, canSubmit = 
     }
   })
   const [submitGuidance, setSubmitGuidance] = useState('')
+  const [reviewNotes, setReviewNotes] = useState('')
   const [selectedRiskPresetId, setSelectedRiskPresetId] = useState('')
   const completedSectionCount = Object.values(sectionCompletion).filter(Boolean).length
   const progressPercent = completedSectionCount * 25
+  const isSelfReview = Boolean(currentMemberId && submittedByMemberId && currentMemberId === submittedByMemberId)
+  const canReview = canAudit && status === 'awaitingReview' && !isSelfReview
   const showActionBar = Boolean(
     (canEdit && onSave)
     || (canEdit && onSubmit && status === 'draft')
-    || (canAudit && onApprove && status === 'awaitingReview'),
+    || (canAudit && status === 'awaitingReview'),
   )
   const fieldClass = (invalid: boolean, extra = '') => [
     'mt-1 w-full rounded-lg border px-3 py-2 font-normal outline-none transition focus:ring-2 focus:ring-teal-100',
@@ -596,10 +602,17 @@ const EventRamEditor = ({ ram, status, language, canEdit, canAudit, canSubmit = 
       {showActionBar ? <div className="sticky bottom-3 z-10 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-[0_12px_30px_rgba(15,23,42,0.14)] backdrop-blur">
         <p className="sr-only" aria-live="polite">{submitGuidance}</p>
         {submitGuidance ? <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900" aria-hidden="true">{submitGuidance}</p> : null}
+        {status === 'awaitingReview' && canAudit ? <div className="mb-3 space-y-2">
+          {isSelfReview ? <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-bold text-amber-900">{l('You submitted this RAM, so another authorized person must review it.', '这份 RAM 是你提交的，必须由另一位有权限的人审核，不能自己批准。')}</p> : <>
+            <label className="block text-xs font-bold text-slate-700">{l('Review notes', '审核意见')}<textarea value={reviewNotes} onChange={(event) => setReviewNotes(event.target.value)} maxLength={2000} rows={2} placeholder={l('Optional when approving; required when returning for changes.', '批准时可选；退回修改时必须填写原因。')} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" /></label>
+            <p className="text-xs text-slate-500">{l('Check the hazards, controls, named responsible people and emergency contacts. AI cannot make this decision.', '请核对风险、控制措施、明确负责人和紧急联系人。AI 不能替你作出审批决定。')}</p>
+          </>}
+        </div> : null}
         <div className="flex flex-wrap items-center justify-end gap-2">
         {canEdit && onSave ? <button type="button" disabled={busy} onClick={onSave} className="inline-flex items-center gap-2 rounded-lg border border-teal-300 bg-white px-4 py-2 text-sm font-bold text-teal-800 disabled:opacity-50"><ClipboardCheck className="h-4 w-4" />{l('Save now', '立即保存')}</button> : null}
         {canEdit && onSubmit && status === 'draft' ? <button type="button" disabled={busy || (!canSubmit && !firstIncompleteSection)} onClick={handleSubmitAttempt} title={firstIncompleteSection ? l('Opens the first incomplete section without submitting.', '资料尚未完成；点击后定位到第一个未完成分区，不会提交。') : undefined} className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"><ShieldCheck className="h-4 w-4" />{firstIncompleteSection ? l('Find next incomplete item', '定位下一未完成项') : l('Send for review', '提交审核')}</button> : null}
-        {canAudit && onApprove && status === 'awaitingReview' ? <button type="button" disabled={busy} onClick={onApprove} className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"><CheckCircle2 className="h-4 w-4" />{l('Approve RAM', '批准 RAM')}</button> : null}
+        {canReview && onReturn ? <button type="button" disabled={busy || reviewNotes.trim().length < 3} onClick={() => onReturn(reviewNotes.trim())} className="inline-flex items-center gap-2 rounded-lg border border-rose-300 bg-white px-4 py-2 text-sm font-bold text-rose-800 disabled:opacity-50"><RotateCcw className="h-4 w-4" />{l('Return for changes', '退回修改')}</button> : null}
+        {canReview && onApprove ? <button type="button" disabled={busy} onClick={() => onApprove(reviewNotes.trim())} className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"><CheckCircle2 className="h-4 w-4" />{l('Approve RAM', '批准 RAM')}</button> : null}
         </div>
       </div> : null}
     </section>

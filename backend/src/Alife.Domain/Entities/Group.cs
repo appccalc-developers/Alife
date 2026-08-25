@@ -18,4 +18,7 @@ public class Group
 	public ICollection<Group> Subgroups { get; set; } = [];
 	public ICollection<GroupMembership> Memberships { get; set; } = [];
 	public ICollection<ContactProfile> ContactProfiles { get; set; } = [];
+	public ICollection<Venue> Venues { get; set; } = [];
+	public ICollection<EventSeries> EventSeries { get; set; } = [];
+	public ICollection<GroupRosterCapability> RosterCapabilities { get; set; } = [];
 }

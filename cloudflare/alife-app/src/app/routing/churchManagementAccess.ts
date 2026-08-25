@@ -3,6 +3,8 @@ export const churchManagementAdminPermissions = [
   'admin.roles.managePermissions',
   'admin.messages.manage',
   'admin.visitRequests.receive',
+  'admin.venues.manageCatalog',
+  'admin.venues.reviewBookings',
 ] as const
 
 export const churchManagementSections = [

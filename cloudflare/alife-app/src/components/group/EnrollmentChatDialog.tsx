@@ -5,6 +5,35 @@ import type { EnrollmentDraft } from '../../types/enrollment'
 import { enrollmentSessionService } from '../../services/enrollmentSessionService'
 import { normalizeApiError } from '../../services/http'
 
+const readCapacityUnit = (event: GroupEventRecord): 'People' | 'Families' => {
+  try {
+    const value = JSON.parse(event.eventDataJson) as { capacityUnit?: unknown }
+    return value.capacityUnit === 'Families' ? 'Families' : 'People'
+  } catch {
+    return 'People'
+  }
+}
+
+const readFinance = (event: GroupEventRecord, language: string) => {
+  try {
+    const value = JSON.parse(event.eventDataJson) as {
+      baseFeePerAdult?: unknown; baseFeePerChild?: unknown; optionalActivities?: Array<{ extraFee?: unknown }>
+      paymentEvidenceRequired?: unknown; paymentInstructions?: { en?: unknown; zh?: unknown }; refundPolicy?: { en?: unknown; zh?: unknown }
+    }
+    const hasCharges = (typeof value.baseFeePerAdult === 'number' && value.baseFeePerAdult > 0)
+      || (typeof value.baseFeePerChild === 'number' && value.baseFeePerChild > 0)
+      || Boolean(value.optionalActivities?.some((x) => typeof x.extraFee === 'number' && x.extraFee > 0))
+    const localized = (text?: { en?: unknown; zh?: unknown }) => {
+      const preferred = language === 'zh' ? text?.zh : text?.en
+      const fallback = language === 'zh' ? text?.en : text?.zh
+      return typeof preferred === 'string' && preferred.trim() ? preferred : typeof fallback === 'string' ? fallback : ''
+    }
+    return { hasCharges, evidenceRequired: value.paymentEvidenceRequired === true, payment: localized(value.paymentInstructions), refund: localized(value.refundPolicy) }
+  } catch {
+    return { hasCharges: false, evidenceRequired: false, payment: '', refund: '' }
+  }
+}
+
 type Props = {
   open?: boolean
   variant?: 'dialog' | 'page'
@@ -31,6 +60,7 @@ const EnrollmentChatDialog = ({
   const isDialog = variant === 'dialog'
   const [applicantName, setApplicantName] = useState('')
   const [consentStatus, setConsentStatus] = useState<EnrollmentDraft['consentStatus']>('unknown')
+  const [participantCount, setParticipantCount] = useState(1)
   const [paymentFiles, setPaymentFiles] = useState<File[]>([])
   const [commitStatus, setCommitStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [commitError, setCommitError] = useState('')
@@ -41,6 +71,7 @@ const EnrollmentChatDialog = ({
     nameTouchedRef.current = false
     setApplicantName(initialApplicantName.trim())
     setConsentStatus('unknown')
+    setParticipantCount(1)
     setPaymentFiles([])
     setCommitStatus('idle')
     setCommitError('')
@@ -65,9 +96,13 @@ const EnrollmentChatDialog = ({
   const title = language === 'zh'
     ? event.titleZh || event.titleEn || translateUi(language, 'untitled')
     : event.titleEn || event.titleZh || translateUi(language, 'untitled')
+  const finance = readFinance(event, language)
 
   const canCommit = Boolean(applicantName.trim())
+    && Number.isInteger(participantCount)
+    && participantCount > 0
     && consentStatus === 'granted'
+    && (!finance.evidenceRequired || paymentFiles.length > 0)
     && commitStatus !== 'saving'
     && commitStatus !== 'saved'
 
@@ -91,6 +126,7 @@ const EnrollmentChatDialog = ({
     const draft: EnrollmentDraft = {
       eventId: event.id,
       applicantName: applicantName.trim(),
+      participantCount: readCapacityUnit(event) === 'People' ? participantCount : 1,
       consentStatus,
     }
 
@@ -166,6 +202,26 @@ const EnrollmentChatDialog = ({
             />
           </div>
 
+          {readCapacityUnit(event) === 'People' ? <div>
+            <label htmlFor="enrollment-participant-count" className="block text-sm font-medium text-slate-900">
+              {language === 'zh' ? '本次报名共几人' : 'Number of people in this registration'}
+            </label>
+            <input
+              id="enrollment-participant-count"
+              type="number"
+              min={1}
+              step={1}
+              value={participantCount}
+              onChange={(inputEvent) => {
+                setParticipantCount(Number(inputEvent.target.value))
+                resetCommitState()
+              }}
+              className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+              required
+            />
+            <p className="mt-1 text-xs text-slate-500">{language === 'zh' ? '系统按这里的人数检查剩余名额。' : 'Capacity is checked against this number.'}</p>
+          </div> : null}
+
           <fieldset className="space-y-3">
             <legend className="text-sm font-medium text-slate-900">{t('consent')}</legend>
             <label className="flex items-start gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-700">
@@ -199,7 +255,13 @@ const EnrollmentChatDialog = ({
             </label>
           </fieldset>
 
-          <div className="space-y-3">
+          {finance.hasCharges ? <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
+            <p className="font-black">{language === 'zh' ? '付款与退款说明' : 'Payment and refund information'}</p>
+            {finance.payment ? <p className="mt-2 whitespace-pre-wrap leading-6">{finance.payment}</p> : null}
+            {finance.refund ? <p className="mt-2 whitespace-pre-wrap border-t border-emerald-200 pt-2 text-xs leading-5">{finance.refund}</p> : null}
+          </div> : null}
+
+          {finance.evidenceRequired ? <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-medium text-slate-900">{t('paymentFiles')}</p>
@@ -238,7 +300,7 @@ const EnrollmentChatDialog = ({
                 ))}
               </ul>
             )}
-          </div>
+          </div> : null}
 
           {commitError ? (
             <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">

@@ -21,6 +21,18 @@ import {
 } from '../src/services/workspaceResumeService.ts'
 import { matchesRequiredSearch } from '../src/app/navigation/searchMatch.ts'
 import { belongsToForumRouteScope } from '../src/utils/forumRouteScope.ts'
+import { eventUsesPreparationModule, readEventLifecycleData } from '../src/utils/eventLifecycle.ts'
+import type { GroupEventRecord } from '../src/types/event.ts'
+
+const eventRecord = (eventDataJson: string): GroupEventRecord => ({
+  id: 'event-id',
+  groupId: 'group-id',
+  titleEn: 'Event',
+  titleZh: '活动',
+  startDate: '2026-09-01T08:00:00.000Z',
+  endDate: '2026-09-01T10:00:00.000Z',
+  eventDataJson,
+})
 
 test('church management access accepts church managers and each scoped platform permission', () => {
   assert.equal(canAccessChurchManagement({
@@ -65,6 +77,53 @@ test('event detail routes encode group and event identifiers', () => {
     buildScopedEventDetailPath('group-id', 'event-id', true),
     '/groups/group-id/events/event-id',
   )
+})
+
+test('event module navigation follows explicit selection and only infers evidenced legacy modules', () => {
+  const selected = readEventLifecycleData(eventRecord(JSON.stringify({
+    enabledModules: ['venue', 'registration'],
+    requiresRoster: false,
+  })))
+  assert.equal(eventUsesPreparationModule(selected, 'venue'), true)
+  assert.equal(eventUsesPreparationModule(selected, 'registration'), true)
+  assert.equal(eventUsesPreparationModule(selected, 'finance'), false)
+  assert.equal(eventUsesPreparationModule(selected, 'roster'), false)
+
+  const roster = readEventLifecycleData(eventRecord(JSON.stringify({
+    enabledModules: [],
+    requiresRoster: true,
+  })))
+  assert.equal(eventUsesPreparationModule(roster, 'roster'), false)
+
+  const formallyComposed = readEventLifecycleData({
+    ...eventRecord(JSON.stringify({
+      maxCapacity: 80,
+      registrationDeadline: '2026-10-01T08:00:00.000Z',
+      baseFeePerAdult: 25,
+      requiresRoster: true,
+    })),
+    enabledModules: [],
+  })
+  assert.equal(eventUsesPreparationModule(formallyComposed, 'registration'), false)
+  assert.equal(eventUsesPreparationModule(formallyComposed, 'finance'), false)
+  assert.equal(eventUsesPreparationModule(formallyComposed, 'roster'), false)
+
+  const emptyLegacy = readEventLifecycleData(eventRecord('{}'))
+  assert.equal(eventUsesPreparationModule(emptyLegacy, 'finance'), false)
+  assert.equal(eventUsesPreparationModule(emptyLegacy, 'venue'), false)
+  assert.equal(eventUsesPreparationModule(emptyLegacy, 'registration'), false)
+
+  const evidencedLegacy = readEventLifecycleData(eventRecord(JSON.stringify({
+    locationName: { en: 'Main hall', zh: '' },
+    maxCapacity: 80,
+    registrationDeadline: '2026-10-01T08:00:00.000Z',
+    baseFeePerAdult: 25,
+    requiresRoster: true,
+  })))
+  assert.equal(eventUsesPreparationModule(evidencedLegacy, 'venue'), false)
+  assert.equal(eventUsesPreparationModule(evidencedLegacy, 'registration'), true)
+  assert.equal(eventUsesPreparationModule(evidencedLegacy, 'finance'), true)
+  assert.equal(eventUsesPreparationModule(evidencedLegacy, 'roster'), true)
 })
 
 test('workspace entry resumes the last route before falling back to the current group or church life', () => {

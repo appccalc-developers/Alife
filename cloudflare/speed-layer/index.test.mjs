@@ -2186,6 +2186,440 @@ test('POST /api/ai/event-poster reports an invalid Gemini key as configuration e
   })
 })
 
+test('POST /api/ai/event-closure requires authentication before loading event evidence', async () => {
+  const response = await dispatch('https://ccalc.live/api/ai/event-closure', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ eventId: '11111111-1111-1111-1111-111111111111' }),
+    env: { ...createEnv(), GEMINI_API_KEY: 'test-key' },
+  })
+
+  assert.equal(response.status, 401)
+  assert.equal(response.headers.get('cache-control'), 'no-store')
+  assert.equal(fetchCalls.length, 0)
+})
+
+test('POST /api/ai/event-closure uses sanitized aggregate evidence and returns an unconfirmed draft', async () => {
+  const eventId = '11111111-1111-1111-1111-111111111111'
+  originResponses.push(
+    Response.json({
+      eventId,
+      eventTitle: { zh: '社区晚餐', en: 'Community Dinner' },
+      eventEndUtc: '2026-08-24T08:00:00Z',
+      eventHasEnded: true,
+      evidence: {
+        enrollmentSubmissions: 42,
+        acceptedRosterAssignments: 8,
+        requiredRosterAssignments: 8,
+        memberReviews: 6,
+        paymentEvidence: 'private-bank-transfer-receipt',
+      },
+      report: {
+        summary: { zh: '', en: '' },
+        attendanceNotes: '签到表尚待负责人核对。',
+        financeNotes: '',
+        incidentNotes: '',
+        followUpNotes: '',
+      },
+      previousLearnings: [{
+        eventId: '22222222-2222-2222-2222-222222222222',
+        eventTitle: { zh: '去年社区晚餐', en: 'Last Community Dinner' },
+        learning: {
+          title: { zh: '提前安排接待', en: 'Arrange welcome early' },
+          detail: { zh: '至少提前一周确认接待岗位。', en: 'Confirm welcome roles at least one week early.' },
+          reuseNextTime: true,
+        },
+      }],
+      memberNames: ['Private Member Name'],
+      memberReviewContent: ['Private personal reflection'],
+    }),
+    Response.json({
+      candidates: [{
+        content: {
+          parts: [
+            { thought: true, text: 'not part of the returned JSON' },
+            { text: JSON.stringify({
+              summary: { zh: '活动已结束，部分结果仍需负责人核对。', en: 'The event has ended; some outcomes still require leader review.' },
+              attendanceNotes: '请负责人根据签到表核对实际人数。',
+              financeNotes: '请负责人核对收入、支出和差异。',
+              incidentNotes: '请负责人确认是否有事故或险情。',
+              followUpNotes: '请负责人确认尚未完成的跟进事项。',
+              leaderConfirmed: true,
+              learnings: [{
+                title: { zh: '提前确认接待', en: 'Confirm welcome early' },
+                detail: { zh: '下次提前确认接待岗位。', en: 'Confirm welcome roles early next time.' },
+                reuseNextTime: true,
+              }],
+            }) },
+          ],
+        },
+      }],
+    }),
+  )
+
+  const response = await dispatch('https://ccalc.live/api/ai/event-closure', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      cookie: `alife_auth=${createJwtWithSub('member-1')}`,
+    },
+    body: JSON.stringify({ eventId }),
+    env: { ...createEnv(), GEMINI_API_KEY: 'test-key' },
+  })
+
+  assert.equal(response.status, 200)
+  assert.equal(response.headers.get('cache-control'), 'no-store')
+  const body = await response.json()
+  assert.equal(body.requiresLeaderConfirmation, true)
+  assert.equal(body.draft.leaderConfirmed, false)
+  assert.equal(body.draft.learnings.length, 1)
+  assert.equal(body.draft.learnings[0].reuseNextTime, false)
+
+  assert.equal(fetchCalls.length, 2)
+  assert.equal(new URL(String(fetchCalls[0])).pathname, `/api/events/${eventId}/closure`)
+  assert.equal(new URL(String(fetchCalls[1])).hostname, 'generativelanguage.googleapis.com')
+  const geminiBody = JSON.parse(fetchInits[1].body)
+  const promptText = geminiBody.contents[0].parts[0].text
+  assert.match(promptText, /Community Dinner/)
+  assert.match(promptText, /enrollmentSubmissions.*42/)
+  assert.match(promptText, /Arrange welcome early/)
+  assert.doesNotMatch(promptText, /Private Member Name/)
+  assert.doesNotMatch(promptText, /Private personal reflection/)
+  assert.doesNotMatch(promptText, /private-bank-transfer-receipt/)
+})
+
+test('POST /api/ai/event-module-suggestions requires authentication before loading module data', async () => {
+  const response = await dispatch('https://ccalc.live/api/ai/event-module-suggestions', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ eventId: '11111111-1111-1111-1111-111111111111', module: 'registration' }),
+    env: { ...createEnv(), GEMINI_API_KEY: 'test-key' },
+  })
+
+  assert.equal(response.status, 401)
+  assert.match(response.headers.get('cache-control'), /no-store/)
+  assert.equal(fetchCalls.length, 0)
+})
+
+test('registration module suggestions exclude applicant details and remain an unpersisted human-review preview', async () => {
+  const eventId = '33333333-3333-3333-3333-333333333333'
+  originResponses.push(
+    Response.json({
+      eventId,
+      groupId: 'group-1',
+      titleEn: 'Community Day',
+      titleZh: '社区日',
+      startUtc: '2026-10-10T08:00:00.000Z',
+      maxCapacity: 40,
+      capacityUnit: 'People',
+      registrationDeadlineUtc: '2026-10-01T08:00:00.000Z',
+      status: 'open',
+      enrollmentCount: 12,
+      reservedUnits: 15,
+      remainingUnits: 25,
+      registrations: [{ memberId: 'private-member-id', applicantName: 'Private Applicant', reservedUnits: 3 }],
+    }),
+    Response.json({
+      previousLearnings: [{
+        eventTitle: { en: 'Last Community Day', zh: '上次社区日' },
+        learning: {
+          title: { en: 'Close registration early', zh: '提前截止报名' },
+          detail: { en: 'Leave time for catering.', zh: '为餐饮准备预留时间。' },
+        },
+      }],
+      privateContacts: ['Private Person 021000000'],
+    }),
+    Response.json({
+      candidates: [{ content: { parts: [{ text: JSON.stringify({
+        suggestions: [
+          {
+            key: 'registrationDeadlineUtc',
+            label: { en: 'Registration deadline', zh: '报名截止时间' },
+            value: '2026-10-03T08:00:00.000Z',
+            rationale: { en: 'Leaves one week to prepare.', zh: '预留一周准备时间。' },
+            basis: 'inference',
+          },
+          {
+            key: 'memberId',
+            label: { en: 'Member', zh: '成员' },
+            value: 'private-member-id',
+            rationale: { en: 'Should be ignored.', zh: '应被忽略。' },
+            basis: 'currentEvent',
+          },
+        ],
+        warnings: [{ en: 'Confirm expected demand.', zh: '请确认预计报名人数。' }],
+      }) }] } }],
+    }),
+  )
+
+  const response = await dispatch('https://ccalc.live/api/ai/event-module-suggestions', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      cookie: `alife_auth=${createJwtWithSub('member-1')}`,
+    },
+    body: JSON.stringify({ eventId, module: 'registration' }),
+    env: { ...createEnv(), GEMINI_API_KEY: 'test-key' },
+  })
+
+  assert.equal(response.status, 200)
+  assert.match(response.headers.get('cache-control'), /no-store/)
+  const body = await response.json()
+  assert.equal(body.module, 'registration')
+  assert.equal(body.requiresHumanReview, true)
+  assert.equal(body.persisted, false)
+  assert.deepEqual(body.suggestions.map((item) => item.key), ['registrationDeadlineUtc'])
+  assert.equal(body.warnings.length, 1)
+
+  assert.equal(fetchCalls.length, 3)
+  assert.equal(new URL(String(fetchCalls[0])).pathname, `/api/events/${eventId}/registration`)
+  assert.equal(new URL(String(fetchCalls[1])).pathname, `/api/events/${eventId}/closure`)
+  assert.equal(new URL(String(fetchCalls[2])).hostname, 'generativelanguage.googleapis.com')
+  const geminiBody = JSON.parse(fetchInits[2].body)
+  const promptText = geminiBody.contents[0].parts[0].text
+  assert.match(promptText, /Community Day/)
+  assert.match(promptText, /Close registration early/)
+  assert.doesNotMatch(promptText, /Private Applicant/)
+  assert.doesNotMatch(promptText, /private-member-id/)
+  assert.doesNotMatch(promptText, /Private Person/)
+})
+
+test('finance module suggestions exclude evidence and transactions and reject unsupported price output', async () => {
+  const eventId = '44444444-4444-4444-4444-444444444444'
+  originResponses.push(
+    Response.json({
+      eventId,
+      groupId: 'group-1',
+      titleEn: 'Family Camp',
+      titleZh: '家庭营',
+      status: 'Configuring',
+      currency: 'NZD',
+      paymentInstructions: { en: '', zh: '' },
+      refundPolicy: { en: '', zh: '' },
+      paymentEvidenceRequired: false,
+      leaderConfirmed: false,
+      options: [],
+      evidenceSubmissionCount: 2,
+      evidenceFileCount: 2,
+      evidenceSummaries: [{ applicantName: 'Private Payer', fileUrl: 'https://private.example/receipt' }],
+      actualEntries: [{ description: { en: 'Account 12-3456-7890123-00', zh: '银行账号' }, amount: 500 }],
+    }),
+    Response.json({ previousLearnings: [] }),
+    Response.json({
+      candidates: [{ content: { parts: [{ text: JSON.stringify({
+        suggestions: [
+          {
+            key: 'paymentInstructionsEn',
+            label: { en: 'Payment instructions', zh: '付款说明' },
+            value: 'Ask the event leader for the approved payment method.',
+            rationale: { en: 'No approved account details are present.', zh: '当前没有已确认的收款账号。' },
+            basis: 'currentEvent',
+          },
+          {
+            key: 'baseFeePerAdult',
+            label: { en: 'Adult fee', zh: '成人费用' },
+            value: '50',
+            rationale: { en: 'Invented price.', zh: '编造价格。' },
+            basis: 'inference',
+          },
+        ],
+        warnings: [],
+      }) }] } }],
+    }),
+  )
+
+  const response = await dispatch('https://ccalc.live/api/ai/event-module-suggestions', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      cookie: `alife_auth=${createJwtWithSub('member-1')}`,
+    },
+    body: JSON.stringify({ eventId, module: 'finance' }),
+    env: { ...createEnv(), GEMINI_API_KEY: 'test-key' },
+  })
+
+  assert.equal(response.status, 200)
+  const body = await response.json()
+  assert.deepEqual(body.suggestions.map((item) => item.key), ['paymentInstructionsEn'])
+  const geminiBody = JSON.parse(fetchInits[2].body)
+  const promptText = geminiBody.contents[0].parts[0].text
+  assert.doesNotMatch(promptText, /Private Payer/)
+  assert.doesNotMatch(promptText, /private\.example/)
+  assert.doesNotMatch(promptText, /12-3456-7890123-00/)
+})
+
+test('venue module suggestions use only maintained spaces and exclude request and review identities', async () => {
+  const eventId = '55555555-5555-5555-5555-555555555555'
+  const spaceId = '66666666-6666-6666-6666-666666666666'
+  originResponses.push(
+    Response.json({
+      eventId,
+      eventTitle: { en: 'Community Lunch', zh: '社区午餐' },
+      eventStartUtc: '2026-11-01T00:00:00.000Z',
+      eventEndUtc: '2026-11-01T04:00:00.000Z',
+      venues: [{
+        name: { en: 'Church Centre', zh: '教会中心' },
+        address: { en: 'Private caretaker address', zh: '私人地址' },
+        spaces: [{ id: spaceId, name: { en: 'Hall', zh: '礼堂' }, capacity: 100, resourcesJson: '["kitchen","accessible-entry"]', isActive: true }],
+      }],
+      occurrences: [],
+      bookings: [{
+        venueSpaceId: spaceId,
+        startUtc: '2026-11-01T00:00:00.000Z',
+        endUtc: '2026-11-01T04:00:00.000Z',
+        status: 'draft',
+        requestedByDisplayName: 'Private Requester',
+        reviewedByDisplayName: 'Private Reviewer',
+        decisionNotes: 'Private decision note',
+      }],
+    }),
+    Response.json({ previousLearnings: [] }),
+    Response.json({
+      candidates: [{ content: { parts: [{ text: JSON.stringify({
+        suggestions: [
+          { key: 'venueSpaceId', label: { en: 'Space', zh: '空间' }, value: spaceId, rationale: { en: 'The maintained space lists a kitchen.', zh: '目录显示该空间有厨房。' }, basis: 'currentEvent' },
+          { key: 'venueSpaceId', label: { en: 'Invented space', zh: '虚构空间' }, value: '77777777-7777-7777-7777-777777777777', rationale: { en: 'Unsupported.', zh: '不支持。' }, basis: 'inference' },
+          { key: 'purposeEn', label: { en: 'Purpose', zh: '用途' }, value: 'Community lunch', rationale: { en: 'Matches this event.', zh: '与本次活动一致。' }, basis: 'currentEvent' },
+        ],
+        warnings: [],
+      }) }] } }],
+    }),
+  )
+
+  const response = await dispatch('https://ccalc.live/api/ai/event-module-suggestions', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', cookie: `alife_auth=${createJwtWithSub('member-1')}` },
+    body: JSON.stringify({ eventId, module: 'venue', guidance: 'We need a kitchen.' }),
+    env: { ...createEnv(), GEMINI_API_KEY: 'test-key' },
+  })
+
+  assert.equal(response.status, 200)
+  const body = await response.json()
+  assert.equal(body.persisted, false)
+  assert.equal(body.requiresHumanReview, true)
+  assert.deepEqual(body.suggestions.map((item) => item.key), ['venueSpaceId', 'purposeEn'])
+  assert.equal(new URL(String(fetchCalls[0])).pathname, `/api/events/${eventId}/venue-workspace`)
+  const promptText = JSON.parse(fetchInits[2].body).contents[0].parts[0].text
+  assert.match(promptText, /Church Centre/)
+  assert.match(promptText, /accessible-entry/)
+  assert.doesNotMatch(promptText, /Private caretaker address/)
+  assert.doesNotMatch(promptText, /Private Requester/)
+  assert.doesNotMatch(promptText, /Private Reviewer/)
+  assert.doesNotMatch(promptText, /Private decision note/)
+})
+
+test('roster module suggestions configure shifts without exposing or selecting members', async () => {
+  const eventId = '88888888-8888-8888-8888-888888888888'
+  originResponses.push(
+    Response.json({
+      eventId,
+      eventTitle: { en: 'Family Day', zh: '家庭日' },
+      eventStartUtc: '2026-12-05T01:00:00.000Z',
+      eventEndUtc: '2026-12-05T05:00:00.000Z',
+      shifts: [],
+      members: [{
+        memberId: 'private-member-id',
+        displayName: 'Private Member',
+        unavailableWindows: [{ reason: 'Private school pickup detail' }],
+        selfNotes: 'Private self note',
+        managerNotes: 'Private manager note',
+      }],
+    }),
+    Response.json({ previousLearnings: [] }),
+    Response.json({
+      candidates: [{ content: { parts: [{ text: JSON.stringify({
+        suggestions: [
+          { key: 'roleKey', label: { en: 'Role key', zh: '岗位代号' }, value: 'welcome-team', rationale: { en: 'A welcome role supports arrival.', zh: '接待岗位可支持入场。' }, basis: 'inference' },
+          { key: 'startUtc', label: { en: 'Start', zh: '开始' }, value: '2026-12-05T00:00:00.000Z', rationale: { en: 'Outside the event.', zh: '超出活动时间。' }, basis: 'inference' },
+          { key: 'memberId', label: { en: 'Member', zh: '成员' }, value: 'private-member-id', rationale: { en: 'Must be ignored.', zh: '必须忽略。' }, basis: 'inference' },
+          { key: 'requiredPeople', label: { en: 'People needed', zh: '需要人数' }, value: '2', rationale: { en: 'Leader must verify this recommendation.', zh: '负责人需要核对该建议。' }, basis: 'inference' },
+        ],
+        warnings: [],
+      }) }] } }],
+    }),
+  )
+
+  const response = await dispatch('https://ccalc.live/api/ai/event-module-suggestions', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', cookie: `alife_auth=${createJwtWithSub('member-1')}` },
+    body: JSON.stringify({ eventId, module: 'roster' }),
+    env: { ...createEnv(), GEMINI_API_KEY: 'test-key' },
+  })
+
+  assert.equal(response.status, 200)
+  const body = await response.json()
+  assert.deepEqual(body.suggestions.map((item) => item.key), ['roleKey', 'requiredPeople'])
+  assert.equal(new URL(String(fetchCalls[0])).pathname, `/api/events/${eventId}/roster`)
+  const promptText = JSON.parse(fetchInits[2].body).contents[0].parts[0].text
+  assert.match(promptText, /Family Day/)
+  assert.doesNotMatch(promptText, /Private Member/)
+  assert.doesNotMatch(promptText, /private-member-id/)
+  assert.doesNotMatch(promptText, /Private school pickup detail/)
+  assert.doesNotMatch(promptText, /Private self note/)
+  assert.doesNotMatch(promptText, /Private manager note/)
+})
+
+test('programme module suggestions draft one run-sheet item without exposing people or confirming work', async () => {
+  const eventId = '99999999-9999-9999-9999-999999999999'
+  originResponses.push(
+    Response.json({
+      eventId,
+      eventTitle: { en: 'Community Dinner', zh: '社区晚餐' },
+      eventStartUtc: '2027-01-09T04:00:00.000Z',
+      eventEndUtc: '2027-01-09T08:00:00.000Z',
+      occurrences: [{ id: 'occurrence-1', name: { en: 'Dinner', zh: '晚餐' }, startUtc: '2027-01-09T04:00:00.000Z', endUtc: '2027-01-09T08:00:00.000Z' }],
+      items: [{
+        title: { en: 'Welcome', zh: '接待' },
+        startUtc: '2027-01-09T04:00:00.000Z',
+        endUtc: '2027-01-09T04:30:00.000Z',
+        requiresHandover: true,
+        ownerDisplayName: 'Private Owner',
+        handover: { en: 'Private operational note', zh: '私人交接内容' },
+      }],
+      rosterOptions: [{
+        shiftId: 'shift-1', name: { en: 'Welcome team', zh: '接待组' },
+        startUtc: '2027-01-09T04:00:00.000Z', endUtc: '2027-01-09T04:30:00.000Z',
+        assignees: [{ memberId: 'private-member-id', displayName: 'Private Member', status: 'accepted', memberResponseNotes: 'Private response' }],
+      }],
+      members: [{ id: 'private-member-id', displayName: 'Private Member' }],
+    }),
+    Response.json({ previousLearnings: [] }),
+    Response.json({
+      candidates: [{ content: { parts: [{ text: JSON.stringify({
+        suggestions: [
+          { key: 'titleEn', label: { en: 'Item title', zh: '环节名称' }, value: 'Team briefing', rationale: { en: 'A short briefing supports the confirmed sequence.', zh: '简短说明会可衔接已确认流程。' }, basis: 'inference' },
+          { key: 'startUtc', label: { en: 'Start', zh: '开始' }, value: '2027-01-09T03:00:00.000Z', rationale: { en: 'Outside event.', zh: '超出活动时间。' }, basis: 'inference' },
+          { key: 'ownerMemberId', label: { en: 'Owner', zh: '负责人' }, value: 'private-member-id', rationale: { en: 'Must be ignored.', zh: '必须忽略。' }, basis: 'inference' },
+          { key: 'handoverZh', label: { en: 'Handover', zh: '交接' }, value: '把签到表交给接待台。', rationale: { en: 'The leader still reviews this operational note.', zh: '负责人仍需核对这条现场说明。' }, basis: 'inference' },
+        ],
+        warnings: [],
+      }) }] } }],
+    }),
+  )
+
+  const response = await dispatch('https://ccalc.live/api/ai/event-module-suggestions', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', cookie: `alife_auth=${createJwtWithSub('member-1')}` },
+    body: JSON.stringify({ eventId, module: 'programme' }),
+    env: { ...createEnv(), GEMINI_API_KEY: 'test-key' },
+  })
+
+  assert.equal(response.status, 200)
+  const body = await response.json()
+  assert.equal(body.persisted, false)
+  assert.equal(body.requiresHumanReview, true)
+  assert.deepEqual(body.suggestions.map((item) => item.key), ['titleEn', 'handoverZh'])
+  assert.equal(new URL(String(fetchCalls[0])).pathname, `/api/events/${eventId}/programme`)
+  const promptText = JSON.parse(fetchInits[2].body).contents[0].parts[0].text
+  assert.match(promptText, /Community Dinner/)
+  assert.match(promptText, /Welcome team/)
+  assert.doesNotMatch(promptText, /Private Owner/)
+  assert.doesNotMatch(promptText, /Private Member/)
+  assert.doesNotMatch(promptText, /private-member-id/)
+  assert.doesNotMatch(promptText, /Private operational note/)
+  assert.doesNotMatch(promptText, /Private response/)
+})
+
 test('POST /api/events/extract calls Gemini at the edge and returns EventDto', async () => {
   const eventDto = {
     id: '',
@@ -2495,6 +2929,53 @@ test('POST /api/events/session/:id/message persists event draft state', async ()
   assert.deepEqual(state.draft.ram.missingInformation, [])
   assert.equal(state.context.en, 'Arrange carpooling.')
   assert.equal(state.ownerMemberId, undefined)
+})
+
+test('event AI cannot silently remove a human-selected roster module', async () => {
+  const sessionId = `member-1-event-roster-${crypto.randomUUID()}`
+  const draft = {
+    title: { zh: '绀惧尯娲诲姩', en: 'Community Event' },
+    description: { zh: '绀惧尯娲诲姩', en: 'A community event.' },
+    locationName: { zh: '鏁欎細', en: 'Church' },
+    startDate: '2026-10-01T08:00:00Z',
+    endDate: '2026-10-01T12:00:00Z',
+    registrationDeadline: '',
+    maxCapacity: 0,
+    capacityUnit: 'People',
+    hardConstraints: [],
+    optionalActivities: [],
+    requiresRoster: true,
+    currency: 'NZD',
+    galleryUrls: [],
+    legacySummary: null,
+  }
+
+  const startResponse = await dispatch(`https://ccalc.live/api/events/session/${sessionId}/start`, {
+    method: 'POST',
+    body: JSON.stringify({ draft }),
+    headers: { 'content-type': 'application/json' },
+    env: { API_PROXY_TARGET: 'https://ccalc.live' },
+  })
+  assert.equal(startResponse.status, 200)
+
+  originResponses.push(Response.json({
+    candidates: [{
+      content: {
+        parts: [{ text: JSON.stringify({ ...draft, requiresRoster: false }) }],
+      },
+    }],
+  }))
+
+  const response = await dispatch(`https://ccalc.live/api/events/session/${sessionId}/message`, {
+    method: 'POST',
+    body: JSON.stringify({ message: 'Help improve the event description.' }),
+    headers: { 'content-type': 'application/json' },
+    env: { GEMINI_API_KEY: 'test-key', API_PROXY_TARGET: 'https://ccalc.live' },
+  })
+
+  assert.equal(response.status, 200)
+  const body = await response.json()
+  assert.equal(body.result.requiresRoster, true)
 })
 
 test('POST /api/events/session/:id/message accepts an explicit no-registration update', async () => {

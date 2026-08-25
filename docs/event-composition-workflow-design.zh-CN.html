@@ -1,0 +1,2129 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ALIFE 未来活动管理体验与操作示例</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #15332d;
+      --muted: #63746f;
+      --paper: #ffffff;
+      --canvas: #f3f7f5;
+      --line: #dce8e3;
+      --green: #176b5a;
+      --green-deep: #103d34;
+      --green-soft: #e7f5ef;
+      --blue: #2b638f;
+      --blue-soft: #eaf3fb;
+      --amber: #8e5c12;
+      --amber-soft: #fff3d4;
+      --purple: #67489a;
+      --purple-soft: #f2edfb;
+      --rose: #91444b;
+      --rose-soft: #fff0f1;
+      --shadow: 0 18px 50px rgba(27, 68, 57, 0.09);
+      --sidebar: 280px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 0 0, rgba(23, 107, 90, 0.12), transparent 30rem),
+        var(--canvas);
+      font-family: "Microsoft YaHei", "PingFang SC", system-ui, -apple-system, sans-serif;
+      line-height: 1.65;
+    }
+
+    button, input, select { font: inherit; }
+    a { color: inherit; }
+    h1, h2, h3, h4 { line-height: 1.3; }
+    h1 { margin: 0; font-size: clamp(32px, 5vw, 58px); letter-spacing: -0.045em; }
+    h2 { margin: 0; font-size: clamp(23px, 3vw, 34px); }
+    h3 { margin: 0 0 10px; font-size: 20px; }
+    h4 { margin: 0 0 7px; font-size: 16px; }
+    p { margin: 0 0 12px; }
+    ul, ol { margin-top: 10px; }
+    .muted { color: var(--muted); }
+
+    .page {
+      width: min(1180px, calc(100% - 32px));
+      margin: 30px auto 72px;
+      transition: width 220ms ease, margin 220ms ease;
+    }
+
+    body:not(.sidebar-hidden) .page {
+      width: min(1180px, calc(100% - var(--sidebar) - 64px));
+      margin-left: calc(var(--sidebar) + max(32px, (100vw - var(--sidebar) - 1180px) / 2));
+      margin-right: 0;
+    }
+
+    .sidebar {
+      position: fixed;
+      z-index: 50;
+      inset: 18px auto 18px 18px;
+      display: flex;
+      width: calc(var(--sidebar) - 18px);
+      flex-direction: column;
+      overflow: hidden;
+      color: #fff;
+      background: linear-gradient(165deg, #113a31, #175e50 58%, #284d6d);
+      border-radius: 22px;
+      box-shadow: 0 22px 60px rgba(17, 53, 45, 0.25);
+      transition: transform 220ms ease, visibility 220ms ease;
+    }
+
+    body.sidebar-hidden .sidebar {
+      visibility: hidden;
+      transform: translateX(calc(-100% - 24px));
+    }
+
+    .sidebar-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 21px 19px 15px;
+      border-bottom: 1px solid rgba(255,255,255,.12);
+    }
+
+    .sidebar-kicker {
+      display: block;
+      color: rgba(255,255,255,.62);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .16em;
+    }
+
+    .sidebar-title { display: block; margin-top: 2px; font-size: 17px; }
+    .sidebar-close, .sidebar-open, .sidebar-backdrop {
+      border: 0;
+      cursor: pointer;
+    }
+    .sidebar-close {
+      display: grid;
+      width: 34px;
+      height: 34px;
+      flex: 0 0 auto;
+      place-items: center;
+      color: #fff;
+      background: rgba(255,255,255,.12);
+      border-radius: 11px;
+      font-size: 20px;
+    }
+
+    .sidebar-open {
+      position: fixed;
+      z-index: 45;
+      left: 0;
+      top: 18px;
+      display: none;
+      width: 40px;
+      height: 42px;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      background: var(--green-deep);
+      border-radius: 0 13px 13px 0;
+      box-shadow: 0 10px 28px rgba(17, 53, 45, .24);
+      font-size: 18px;
+    }
+    body.sidebar-hidden .sidebar-open { display: inline-flex; }
+    .sidebar-open span:last-child {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+    }
+    .sidebar-backdrop { display: none; }
+
+    .read-progress { height: 3px; background: rgba(255,255,255,.1); }
+    .read-progress span { display: block; width: 0; height: 100%; background: #9ce0cf; }
+    .sidebar nav { display: flex; min-height: 0; flex: 1; }
+    .toc {
+      display: grid;
+      width: 100%;
+      align-content: start;
+      gap: 3px;
+      margin: 0;
+      padding: 14px 12px 22px;
+      overflow-y: auto;
+      list-style: none;
+    }
+    .toc a {
+      display: flex;
+      min-height: 39px;
+      align-items: center;
+      padding: 8px 11px;
+      color: rgba(255,255,255,.75);
+      text-decoration: none;
+      border-radius: 11px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .toc a:hover { color: #fff; background: rgba(255,255,255,.09); }
+    .toc a.active { color: var(--green-deep); background: #e8f5f0; }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: clamp(30px, 5vw, 60px);
+      color: #fff;
+      background: linear-gradient(135deg, #123e34 0%, #176b5a 62%, #2d607d 100%);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+    }
+    .hero::after {
+      content: "";
+      position: absolute;
+      width: 370px;
+      height: 370px;
+      right: -145px;
+      top: -170px;
+      border: 72px solid rgba(255,255,255,.07);
+      border-radius: 50%;
+    }
+    .eyebrow {
+      margin-bottom: 12px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .16em;
+      opacity: .78;
+    }
+    .hero-lead {
+      position: relative;
+      z-index: 1;
+      max-width: 900px;
+      margin-top: 20px;
+      color: rgba(255,255,255,.88);
+      font-size: clamp(16px, 2vw, 20px);
+    }
+    .hero-formula {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-top: 26px;
+    }
+    .hero-formula span {
+      padding: 7px 11px;
+      background: rgba(255,255,255,.12);
+      border: 1px solid rgba(255,255,255,.13);
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .hero-formula b { color: #bcefe1; }
+
+    .section {
+      margin-top: 24px;
+      padding: clamp(23px, 4vw, 40px);
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      box-shadow: 0 10px 30px rgba(30,64,54,.05);
+      scroll-margin-top: 20px;
+    }
+    .section-head {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      margin-bottom: 22px;
+    }
+    .section-no {
+      display: grid;
+      width: 36px;
+      height: 36px;
+      flex: 0 0 auto;
+      place-items: center;
+      color: #fff;
+      background: var(--green);
+      border-radius: 12px;
+      font-weight: 800;
+    }
+
+    .statement {
+      padding: clamp(22px, 4vw, 34px);
+      color: #fff;
+      background: linear-gradient(135deg, #143f35, #275c78);
+      border-radius: 20px;
+    }
+    .statement strong { display: block; font-size: clamp(21px, 3vw, 30px); line-height: 1.35; }
+    .statement p { margin: 12px 0 0; color: rgba(255,255,255,.8); }
+
+    .principles, .module-grid, .role-grid, .migration-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 13px;
+      margin-top: 18px;
+    }
+    .principles article, .module-card, .role-card, .migration-card {
+      padding: 18px;
+      background: var(--canvas);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+    }
+    .principles strong { display: block; margin-bottom: 5px; color: var(--green); }
+
+    .master-flow {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      counter-reset: master;
+    }
+    .master-flow li {
+      position: relative;
+      min-width: 0;
+      min-height: 180px;
+      padding: 46px 15px 16px;
+      background: var(--canvas);
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      counter-increment: master;
+    }
+    .master-flow li::before {
+      content: counter(master);
+      position: absolute;
+      left: 14px;
+      top: 13px;
+      display: grid;
+      width: 24px;
+      height: 24px;
+      place-items: center;
+      color: #fff;
+      background: var(--green);
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .master-flow li:not(:last-child)::after {
+      content: "→";
+      position: absolute;
+      z-index: 2;
+      right: -12px;
+      top: 50%;
+      color: var(--green);
+      font-weight: 900;
+      transform: translateY(-50%);
+    }
+    .master-flow strong { display: block; margin-bottom: 5px; }
+    .master-flow span { display: block; color: var(--muted); font-size: 12px; }
+    .master-flow em {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 5px 8px;
+      color: var(--green-deep);
+      background: var(--green-soft);
+      border-radius: 8px;
+      font-size: 10px;
+      font-style: normal;
+      font-weight: 800;
+    }
+
+    .model-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 18px;
+    }
+    .model-strip article { padding: 17px; background: var(--canvas); border: 1px solid var(--line); border-radius: 15px; }
+    .model-strip strong { display: block; margin-bottom: 5px; color: var(--green); }
+    .model-strip span { color: var(--muted); font-size: 12px; }
+
+    .engine-flow {
+      display: grid;
+      grid-template-columns: 1fr auto 1.15fr auto 1.15fr auto 1.2fr;
+      gap: 9px;
+      align-items: stretch;
+      margin-top: 20px;
+    }
+    .engine-node { padding: 18px; background: var(--canvas); border: 1px solid var(--line); border-radius: 16px; }
+    .engine-node.primary { color: #fff; background: linear-gradient(145deg, #176b5a, #285f91); border: 0; }
+    .engine-node.output { background: var(--blue-soft); }
+    .engine-node .engine-label { display: block; margin-bottom: 7px; color: var(--green); font-size: 10px; font-weight: 900; letter-spacing: .08em; }
+    .engine-node.primary .engine-label { color: #c9f3e7; }
+    .engine-node h3 { margin-bottom: 6px; }
+    .engine-node p, .engine-node li { color: var(--muted); font-size: 11px; }
+    .engine-node.primary p, .engine-node.primary li { color: rgba(255,255,255,.78); }
+    .engine-node ul { margin-bottom: 0; padding-left: 17px; }
+    .engine-arrow { display: grid; place-items: center; color: var(--green); font-size: 24px; font-weight: 900; }
+
+    .engine-duties { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 11px; margin-top: 18px; }
+    .engine-duty { padding: 17px; background: #fff; border: 1px solid var(--line); border-radius: 14px; }
+    .engine-duty span { display: grid; width: 24px; height: 24px; margin-bottom: 8px; place-items: center; color: #fff; background: var(--green); border-radius: 8px; font-size: 10px; font-weight: 900; }
+    .engine-duty strong { display: block; margin-bottom: 5px; }
+    .engine-duty p { margin: 0; color: var(--muted); font-size: 12px; }
+
+    .orchestration-flow { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 18px 0 0; padding: 0; list-style: none; counter-reset: orchestration; }
+    .orchestration-flow li { position: relative; min-height: 112px; padding: 40px 13px 13px; background: var(--green-soft); border-radius: 14px; color: var(--muted); font-size: 11px; counter-increment: orchestration; }
+    .orchestration-flow li::before { content: counter(orchestration); position: absolute; left: 13px; top: 11px; display: grid; width: 22px; height: 22px; place-items: center; color: #fff; background: var(--green); border-radius: 7px; font-size: 10px; font-weight: 900; }
+    .orchestration-flow strong { display: block; margin-bottom: 4px; color: var(--ink); }
+
+    .service-loop { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 18px; }
+    .service-loop article { padding: 16px; background: var(--canvas); border-left: 4px solid var(--blue); border-radius: 13px; }
+    .service-loop strong { display: block; margin-bottom: 5px; }
+    .service-loop span { color: var(--muted); font-size: 11px; }
+
+    .scope-levels { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 9px; margin-top: 18px; }
+    .scope-level { padding: 15px 11px; text-align: center; background: #fff; border: 1px solid var(--line); border-radius: 13px; }
+    .scope-level strong { display: block; margin-bottom: 5px; color: var(--green-deep); }
+    .scope-level span { color: var(--muted); font-size: 10px; }
+
+    .camp-architecture { display: grid; grid-template-columns: 1.05fr 1.3fr 1fr; gap: 12px; margin-top: 18px; }
+    .camp-column { padding: 17px; background: var(--canvas); border: 1px solid var(--line); border-radius: 16px; }
+    .camp-column h3 { margin-bottom: 8px; }
+    .camp-column ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 11px; }
+    .camp-day { margin-top: 9px; padding: 10px; background: #fff; border-radius: 10px; }
+    .camp-day strong { display: block; font-size: 11px; }
+    .camp-day span { color: var(--muted); font-size: 10px; }
+
+    .engine-contract { margin-top: 18px; overflow-x: auto; border: 1px solid var(--line); border-radius: 15px; }
+    .engine-contract table { width: 100%; min-width: 820px; border-collapse: collapse; background: #fff; }
+    .engine-contract th, .engine-contract td { padding: 12px 14px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); font-size: 12px; }
+    .engine-contract th { color: #fff; background: var(--green-deep); }
+    .engine-contract tr:last-child td { border-bottom: 0; }
+    .engine-contract td:first-child { color: var(--ink); font-weight: 900; white-space: nowrap; }
+
+    .venue-principles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 11px; margin-top: 18px; }
+    .venue-principles article { padding: 17px; background: var(--canvas); border: 1px solid var(--line); border-radius: 15px; }
+    .venue-principles strong { display: block; margin-bottom: 5px; color: var(--green-deep); }
+    .venue-principles span { color: var(--muted); font-size: 12px; }
+
+    .page-boundary { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: stretch; margin-top: 20px; }
+    .page-boundary article { padding: 18px; background: var(--canvas); border: 1px solid var(--line); border-radius: 16px; }
+    .page-boundary strong { display: block; margin: 6px 0; color: var(--green-deep); }
+    .page-boundary span { color: var(--muted); font-size: 11px; }
+    .page-route { display: inline-block; padding: 4px 7px; color: var(--purple); background: var(--purple-soft); border-radius: 7px; font: 10px ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .page-boundary-arrow { display: grid; place-items: center; color: var(--green); font-size: 24px; font-weight: 900; }
+    .page-separation { margin-top: 12px; padding: 14px 16px; color: var(--rose); background: var(--rose-soft); border-radius: 13px; font-weight: 800; }
+    .venue-demo + .venue-demo { margin-top: 18px; }
+
+    .venue-demo { margin-top: 20px; overflow: hidden; background: #eef4f1; border: 1px solid #b9cec5; border-radius: 20px; }
+    .venue-demo-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; align-items: center; padding: 16px 18px; color: #fff; background: linear-gradient(135deg, var(--green-deep), #285f91); }
+    .venue-demo-head strong, .venue-demo-head span { display: block; }
+    .venue-demo-head span { color: rgba(255,255,255,.72); font-size: 11px; }
+    .venue-demo-panel { padding: 18px; }
+    .venue-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .venue-option { padding: 14px; background: #fff; border: 1px solid var(--line); border-radius: 13px; }
+    .venue-option.selected { border-color: var(--green); box-shadow: inset 0 0 0 1px var(--green); }
+    .venue-option strong { display: block; margin: 5px 0; }
+    .venue-option p { margin: 0; color: var(--muted); font-size: 11px; }
+    .venue-status { display: inline-block; padding: 3px 6px; color: var(--green); background: var(--green-soft); border-radius: 6px; font-size: 9px; font-weight: 900; }
+    .venue-status.warning { color: #85550d; background: var(--amber-soft); }
+    .venue-status.blocked { color: var(--rose); background: var(--rose-soft); }
+
+    .booking-segments { display: grid; gap: 8px; margin-top: 12px; }
+    .booking-segment { display: grid; grid-template-columns: 1.15fr 1fr .8fr auto; gap: 9px; align-items: center; padding: 11px; background: var(--canvas); border-radius: 11px; font-size: 11px; }
+    .booking-segment strong { color: var(--ink); }
+    .booking-segment span { color: var(--muted); }
+
+    .booking-flow { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; margin: 18px 0 0; padding: 0; list-style: none; }
+    .booking-flow li { position: relative; padding: 13px 9px; text-align: center; background: var(--green-soft); border-radius: 11px; color: var(--muted); font-size: 10px; }
+    .booking-flow li strong { display: block; color: var(--ink); }
+    .booking-flow li:not(:last-child)::after { content: "→"; position: absolute; z-index: 2; right: -9px; top: 50%; color: var(--green); font-weight: 900; transform: translateY(-50%); }
+
+    .venue-admin-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; }
+    .venue-admin-card { padding: 14px; background: #fff; border: 1px solid var(--line); border-radius: 13px; }
+    .venue-admin-card strong { display: block; margin: 5px 0; font-size: 12px; }
+    .venue-admin-card p { margin: 0; color: var(--muted); font-size: 10px; }
+
+    .pattern-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 18px; }
+    .pattern-card { padding: 16px; background: var(--canvas); border-left: 4px solid var(--purple); border-radius: 13px; }
+    .pattern-card code { display: block; margin-bottom: 5px; color: var(--purple); font-weight: 900; }
+    .pattern-card strong { display: block; margin-bottom: 4px; }
+    .pattern-card p { margin: 0; color: var(--muted); font-size: 11px; }
+
+    .code-outline { margin-top: 18px; padding: 16px; overflow-x: auto; color: #d8f2eb; background: #132f29; border-radius: 14px; font: 12px/1.65 ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre; }
+
+    .case-banner {
+      display: grid;
+      grid-template-columns: 1.4fr repeat(3, minmax(0, .7fr));
+      gap: 1px;
+      overflow: hidden;
+      margin-bottom: 22px;
+      background: var(--line);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+    }
+    .case-banner > div { padding: 17px; background: #fff; }
+    .case-banner .case-title { color: #fff; background: linear-gradient(135deg, var(--green-deep), #285f91); }
+    .case-banner strong { display: block; margin-bottom: 4px; }
+    .case-banner span { color: var(--muted); font-size: 12px; }
+    .case-banner .case-title span { color: rgba(255,255,255,.78); }
+
+    .screen-path { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 0; padding: 0; list-style: none; }
+    .screen-path li { padding: 6px 9px; color: var(--green-deep); background: var(--green-soft); border-radius: 9px; font-size: 11px; font-weight: 800; }
+    .screen-path li:not(:last-child)::after { content: " ›"; margin-left: 7px; color: var(--muted); }
+
+    .worked-steps { display: grid; gap: 14px; margin-top: 20px; }
+    .worked-step { overflow: hidden; border: 1px solid var(--line); border-radius: 18px; }
+    .worked-step-head { display: flex; gap: 12px; align-items: center; padding: 15px 18px; color: #fff; background: var(--green-deep); }
+    .worked-step-head .step-index { display: grid; width: 28px; height: 28px; flex: 0 0 auto; place-items: center; color: var(--green-deep); background: #fff; border-radius: 9px; font-size: 12px; font-weight: 900; }
+    .worked-step-head strong { font-size: 16px; }
+    .worked-step-head span { display: block; color: rgba(255,255,255,.72); font-size: 11px; }
+    .worked-step-body { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); background: var(--line); gap: 1px; }
+    .worked-step-body article { min-width: 0; padding: 17px; background: #fff; }
+    .worked-step-body article:nth-child(2) { background: var(--purple-soft); }
+    .worked-step-body article:nth-child(3) { background: var(--blue-soft); }
+    .worked-step-body h4 { margin-bottom: 7px; }
+    .worked-step-body ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 12px; }
+    .worked-step-body .example-input { margin: 9px 0 0; padding: 10px; color: var(--ink); background: var(--canvas); border-radius: 10px; font-size: 12px; }
+
+    .approval-example { margin-top: 18px; overflow-x: auto; border: 1px solid var(--line); border-radius: 15px; }
+    .approval-example table { width: 100%; min-width: 850px; border-collapse: collapse; background: #fff; }
+    .approval-example th, .approval-example td { padding: 12px 14px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); font-size: 12px; }
+    .approval-example th { color: #fff; background: var(--green-deep); }
+    .approval-example tr:last-child td { border-bottom: 0; }
+    .approval-example td:first-child { color: var(--ink); font-weight: 800; }
+    .approval-example .unlocks { color: var(--green); font-weight: 800; }
+
+    .day-flow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-top: 18px; }
+    .day-flow article { padding: 15px; background: var(--canvas); border-top: 4px solid var(--green); border-radius: 13px; }
+    .day-flow strong { display: block; margin-bottom: 5px; }
+    .day-flow span { color: var(--muted); font-size: 11px; }
+
+    .hero-actions { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 9px; margin-top: 22px; }
+    .hero-action { display: inline-flex; align-items: center; min-height: 40px; padding: 0 15px; color: var(--green-deep); background: #fff; border-radius: 11px; font-size: 13px; font-weight: 900; text-decoration: none; }
+    .hero-action.secondary { color: #fff; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2); }
+
+    .deep-dive { margin-top: 18px; border: 1px solid var(--line); border-radius: 16px; background: #fff; }
+    .deep-dive > summary { position: relative; padding: 16px 48px 16px 18px; cursor: pointer; color: var(--green-deep); background: var(--canvas); border-radius: 16px; font-weight: 900; list-style: none; }
+    .deep-dive > summary::-webkit-details-marker { display: none; }
+    .deep-dive > summary::after { content: "+"; position: absolute; right: 17px; top: 50%; display: grid; width: 25px; height: 25px; place-items: center; color: #fff; background: var(--green); border-radius: 8px; transform: translateY(-50%); }
+    .deep-dive[open] > summary { border-radius: 16px 16px 0 0; border-bottom: 1px solid var(--line); }
+    .deep-dive[open] > summary::after { content: "−"; }
+    .deep-dive-content { padding: 20px; }
+    .deep-dive-note { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; font-weight: 500; }
+
+    .product-demo { margin-top: 22px; overflow: hidden; background: #eef4f1; border: 1px solid #b9cec5; border-radius: 22px; box-shadow: 0 18px 42px rgba(16,58,47,.12); }
+    .demo-appbar { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; align-items: center; padding: 16px 18px; color: #fff; background: var(--green-deep); }
+    .demo-appbar strong, .demo-appbar span { display: block; }
+    .demo-appbar span { color: rgba(255,255,255,.7); font-size: 11px; }
+    .demo-save { padding: 7px 10px; color: #d9f5ed !important; background: rgba(255,255,255,.1); border-radius: 9px; font-weight: 800; }
+    .demo-tabs { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 1px; padding: 0; background: #c9d8d2; }
+    .demo-tab { min-height: 62px; padding: 9px 6px; color: var(--muted); background: #fff; border: 0; cursor: pointer; font-size: 11px; font-weight: 800; }
+    .demo-tab span { display: grid; width: 22px; height: 22px; margin: 0 auto 5px; place-items: center; color: var(--green-deep); background: var(--green-soft); border-radius: 7px; }
+    .demo-tab[aria-selected="true"] { color: var(--green-deep); background: var(--green-soft); box-shadow: inset 0 -3px var(--green); }
+    .demo-tab[aria-selected="true"] span { color: #fff; background: var(--green); }
+    .demo-panel { padding: 18px; }
+    .demo-panel[hidden] { display: none; }
+    .demo-panel-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; align-items: flex-start; margin-bottom: 14px; }
+    .demo-panel-head p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+    .demo-progress { padding: 6px 9px; color: var(--green-deep); background: var(--green-soft); border-radius: 9px; font-size: 11px; font-weight: 900; }
+    .demo-layout { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(230px, .8fr); gap: 14px; align-items: start; }
+    .demo-surface, .demo-ai-card { padding: 17px; background: #fff; border: 1px solid var(--line); border-radius: 16px; }
+    .demo-ai-card { position: relative; background: linear-gradient(145deg, #f4efff, #eef6ff); border-color: #d8ccef; }
+    .demo-ai-card::before { content: "AI 协助"; display: inline-block; margin-bottom: 10px; padding: 4px 7px; color: var(--purple); background: #fff; border-radius: 7px; font-size: 10px; font-weight: 900; }
+    .demo-ai-card p, .demo-ai-card li { color: var(--muted); font-size: 12px; }
+    .demo-ai-card ul { padding-left: 18px; }
+    .demo-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .mock-field { padding: 11px; background: var(--canvas); border: 1px solid var(--line); border-radius: 11px; }
+    .mock-field.wide { grid-column: 1 / -1; }
+    .mock-field label { display: block; margin-bottom: 4px; color: var(--muted); font-size: 10px; font-weight: 800; }
+    .mock-field span { color: var(--ink); font-size: 12px; }
+    .mock-field.needs { border-color: #d49a33; background: var(--amber-soft); }
+    .demo-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+    .demo-button { min-height: 34px; padding: 0 12px; color: var(--green-deep); background: #fff; border: 1px solid #aac5ba; border-radius: 9px; font-weight: 800; }
+    .demo-button.primary { color: #fff; background: var(--green); border-color: var(--green); }
+    .demo-button.ai { color: var(--purple); background: var(--purple-soft); border-color: #d7c9ef; }
+    .demo-module-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+    .demo-module { padding: 12px; background: #fff; border: 1px solid var(--line); border-radius: 12px; }
+    .demo-module strong { display: block; margin: 5px 0; font-size: 12px; }
+    .demo-module p { margin: 0; color: var(--muted); font-size: 10px; }
+    .demo-badge { display: inline-block; padding: 3px 6px; border-radius: 6px; color: var(--green); background: var(--green-soft); font-size: 9px; font-weight: 900; }
+    .demo-badge.policy { color: #85550d; background: var(--amber-soft); }
+    .demo-badge.todo { color: var(--rose); background: var(--rose-soft); }
+    .demo-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+    .demo-list li { display: flex; justify-content: space-between; gap: 10px; padding: 11px; background: var(--canvas); border-radius: 10px; font-size: 11px; }
+    .demo-list small { color: var(--muted); }
+    .demo-help { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; margin-top: 14px; overflow: hidden; background: var(--line); border-radius: 13px; }
+    .demo-help div { padding: 12px; background: #fff; font-size: 11px; }
+    .demo-help strong { display: block; margin-bottom: 4px; color: var(--green-deep); }
+    .demo-help span { color: var(--muted); }
+    .demo-feedback { margin: 0 18px 18px; padding: 11px 13px; color: var(--green-deep); background: #fff; border-left: 4px solid var(--green); border-radius: 10px; font-size: 12px; }
+
+    .module-catalog {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin: 18px 0;
+    }
+    .catalog-column { padding: 18px; border-radius: 17px; }
+    .catalog-column.core { background: var(--green-soft); }
+    .catalog-column.capability { background: var(--blue-soft); }
+    .catalog-column.policy { background: var(--amber-soft); }
+    .catalog-column h3 { margin-bottom: 7px; }
+    .catalog-column p { color: var(--muted); font-size: 12px; }
+    .catalog-column .chips { margin-top: 12px; }
+    .catalog-column .chip { background: rgba(255,255,255,.72); }
+
+    .module-lifecycle {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 8px;
+      margin: 18px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+    .module-lifecycle li {
+      position: relative;
+      padding: 13px 9px;
+      text-align: center;
+      background: var(--canvas);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+    .module-lifecycle li strong { display: block; color: var(--ink); }
+    .module-lifecycle li:not(:last-child)::after {
+      content: "→";
+      position: absolute;
+      z-index: 2;
+      right: -9px;
+      top: 50%;
+      color: var(--green);
+      font-weight: 900;
+      transform: translateY(-50%);
+    }
+
+    .dependency-map {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 18px;
+    }
+    .dependency-map article { padding: 17px; background: var(--canvas); border-left: 4px solid var(--blue); border-radius: 13px; }
+    .dependency-map strong { display: block; margin-bottom: 5px; }
+    .dependency-map span { color: var(--muted); font-size: 12px; }
+
+    .schedule-inputs {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 18px;
+    }
+    .schedule-inputs article { padding: 19px; background: var(--canvas); border: 1px solid var(--line); border-radius: 17px; }
+    .schedule-inputs .source { display: block; margin-bottom: 8px; color: var(--purple); font-size: 10px; font-weight: 900; letter-spacing: .08em; }
+    .schedule-inputs ul { margin-bottom: 0; padding-left: 18px; color: var(--muted); font-size: 12px; }
+
+    .tag-example {
+      display: grid;
+      grid-template-columns: 150px 1fr 1fr 1fr;
+      gap: 1px;
+      margin-top: 18px;
+      overflow: hidden;
+      background: var(--line);
+      border: 1px solid var(--line);
+      border-radius: 15px;
+    }
+    .tag-example > div { padding: 12px; background: #fff; font-size: 12px; }
+    .tag-example .tag-head { color: #fff; background: var(--green-deep); font-weight: 800; }
+    .tag-example .tag-name { color: var(--green-deep); background: var(--green-soft); font-weight: 800; }
+    .tag-example .avoid { color: var(--rose); background: var(--rose-soft); font-weight: 800; }
+
+    .schedule-flow {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 9px;
+      margin: 18px 0 0;
+      padding: 0;
+      list-style: none;
+      counter-reset: schedule;
+    }
+    .schedule-flow li { position: relative; padding: 38px 11px 13px; background: var(--purple-soft); border-radius: 13px; color: var(--muted); font-size: 11px; counter-increment: schedule; }
+    .schedule-flow li::before { content: counter(schedule); position: absolute; left: 11px; top: 10px; display: grid; width: 21px; height: 21px; place-items: center; color: #fff; background: var(--purple); border-radius: 7px; font-size: 10px; font-weight: 800; }
+    .schedule-flow li strong { display: block; margin-bottom: 4px; color: var(--ink); }
+    .schedule-flow li:not(:last-child)::after { content: "→"; position: absolute; z-index: 2; right: -10px; top: 50%; color: var(--purple); font-weight: 900; transform: translateY(-50%); }
+
+    .flow-break {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr auto 1fr;
+      gap: 12px;
+      align-items: stretch;
+      margin-top: 22px;
+    }
+    .flow-layer {
+      padding: 20px;
+      border-radius: 18px;
+    }
+    .flow-layer.user { background: var(--green-soft); }
+    .flow-layer.kernel { color: #fff; background: linear-gradient(145deg, #176b5a, #2b638f); }
+    .flow-layer.workspace { background: var(--blue-soft); }
+    .flow-layer ul { margin-bottom: 0; padding-left: 19px; }
+    .flow-layer.kernel p, .flow-layer.kernel li { color: rgba(255,255,255,.82); }
+    .flow-arrow { display: grid; place-items: center; color: var(--green); font-size: 25px; font-weight: 900; }
+
+    .simulator {
+      display: grid;
+      grid-template-columns: .8fr 1.2fr;
+      gap: 18px;
+      align-items: start;
+    }
+    .sim-controls {
+      padding: 20px;
+      background: var(--canvas);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+    }
+    .sim-controls label.title { display: block; margin-bottom: 6px; font-weight: 800; }
+    .sim-controls select {
+      width: 100%;
+      padding: 10px 12px;
+      color: var(--ink);
+      background: #fff;
+      border: 1px solid #bccfc7;
+      border-radius: 11px;
+    }
+    .facts { display: grid; gap: 8px; margin-top: 16px; }
+    .fact {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      padding: 10px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      cursor: pointer;
+    }
+    .fact input { margin-top: 4px; accent-color: var(--green); }
+    .fact strong, .fact span { display: block; }
+    .fact span { color: var(--muted); font-size: 11px; }
+    .sim-result { display: grid; gap: 12px; }
+    .result-block { padding: 18px; background: #fff; border: 1px solid var(--line); border-radius: 16px; }
+    .result-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: center; }
+    .count { color: var(--green); font-size: 12px; font-weight: 800; }
+    .chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 11px; }
+    .chip { padding: 6px 9px; color: var(--green-deep); background: var(--green-soft); border-radius: 999px; font-size: 12px; font-weight: 800; }
+    .reason-list { display: grid; gap: 8px; margin: 11px 0 0; padding: 0; list-style: none; }
+    .reason-list li { padding-left: 15px; border-left: 3px solid var(--blue); color: var(--muted); font-size: 12px; }
+    .reason-list strong { color: var(--ink); }
+
+    .module-card .module-type {
+      display: inline-block;
+      margin-bottom: 10px;
+      padding: 4px 8px;
+      color: var(--green);
+      background: var(--green-soft);
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 800;
+    }
+    .module-card ul { margin-bottom: 0; padding-left: 18px; color: var(--muted); font-size: 13px; }
+
+    .approval-flow {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 9px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .approval-flow li {
+      position: relative;
+      min-width: 0;
+      padding: 14px 11px;
+      text-align: center;
+      background: var(--amber-soft);
+      border-radius: 13px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .approval-flow li:not(:last-child)::after {
+      content: "→";
+      position: absolute;
+      right: -10px;
+      top: 50%;
+      color: var(--amber);
+      transform: translateY(-50%);
+    }
+    .decision-split {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 18px;
+    }
+    .decision-split article { padding: 17px; border-radius: 15px; }
+    .decision-split .approve { background: var(--green-soft); }
+    .decision-split .return { background: var(--amber-soft); }
+    .decision-split .reject { background: var(--rose-soft); }
+    .decision-split p { color: var(--muted); font-size: 12px; }
+
+    .gate-track {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .gate {
+      position: relative;
+      padding: 21px;
+      background: var(--canvas);
+      border-top: 5px solid var(--green);
+      border-radius: 15px;
+    }
+    .gate:nth-child(2) { border-color: var(--blue); }
+    .gate:nth-child(3) { border-color: var(--amber); }
+    .gate:nth-child(4) { border-color: var(--purple); }
+    .gate .gate-en { color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .08em; }
+    .gate ul { margin-bottom: 0; padding-left: 18px; color: var(--muted); font-size: 12px; }
+
+    .lane-board {
+      display: grid;
+      gap: 1px;
+      overflow: hidden;
+      background: var(--line);
+      border: 1px solid var(--line);
+      border-radius: 17px;
+    }
+    .lane {
+      display: grid;
+      grid-template-columns: 130px repeat(5, minmax(0, 1fr));
+      gap: 1px;
+      background: var(--line);
+    }
+    .lane > div { min-width: 0; padding: 13px; background: #fff; font-size: 12px; }
+    .lane .lane-name { display: flex; align-items: center; color: var(--green-deep); background: var(--green-soft); font-weight: 800; }
+    .lane .work { color: var(--muted); }
+    .lane .work strong { display: block; color: var(--ink); }
+    .lane-head > div { color: #fff; background: var(--green-deep); font-weight: 800; }
+
+    .role-card strong { display: block; margin-bottom: 5px; }
+    .role-card p, .migration-card p { color: var(--muted); font-size: 13px; }
+
+    .ai-rail {
+      display: grid;
+      grid-template-columns: 190px 1fr;
+      gap: 16px;
+      align-items: center;
+      margin-top: 18px;
+      padding: 18px;
+      color: #fff;
+      background: linear-gradient(135deg, #493278, #285f91 62%, #176b5a);
+      border-radius: 18px;
+    }
+    .ai-rail strong { font-size: 18px; }
+    .ai-rail p { margin: 0; color: rgba(255,255,255,.82); font-size: 13px; }
+
+    .ai-current {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 22px;
+    }
+    .ai-current article { padding: 19px; border-radius: 17px; }
+    .ai-current .available { background: var(--green-soft); }
+    .ai-current .missing { background: var(--amber-soft); }
+    .ai-current ul { margin-bottom: 0; padding-left: 19px; color: var(--muted); font-size: 13px; }
+
+    .ai-stage-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 13px;
+      margin-top: 18px;
+    }
+    .ai-stage {
+      position: relative;
+      padding: 20px;
+      overflow: hidden;
+      background: var(--canvas);
+      border: 1px solid var(--line);
+      border-radius: 17px;
+    }
+    .ai-stage::after {
+      content: "AI";
+      position: absolute;
+      right: 12px;
+      top: 11px;
+      color: var(--purple);
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: .08em;
+    }
+    .ai-stage .stage-label {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--purple);
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .ai-stage ul { margin-bottom: 0; padding-left: 18px; color: var(--muted); font-size: 12px; }
+
+    .trust-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 18px;
+    }
+    .trust-grid article {
+      padding: 15px;
+      border-left: 4px solid var(--purple);
+      background: var(--purple-soft);
+      border-radius: 12px;
+    }
+    .trust-grid strong { display: block; margin-bottom: 4px; }
+    .trust-grid span { color: var(--muted); font-size: 12px; }
+
+    .ai-action-flow {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 9px;
+      margin: 18px 0 0;
+      padding: 0;
+      list-style: none;
+      counter-reset: ai-action;
+    }
+    .ai-action-flow li {
+      position: relative;
+      min-width: 0;
+      padding: 38px 11px 13px;
+      background: var(--purple-soft);
+      border-radius: 13px;
+      color: var(--muted);
+      font-size: 11px;
+      counter-increment: ai-action;
+    }
+    .ai-action-flow li::before {
+      content: counter(ai-action);
+      position: absolute;
+      left: 11px;
+      top: 10px;
+      display: grid;
+      width: 21px;
+      height: 21px;
+      place-items: center;
+      color: #fff;
+      background: var(--purple);
+      border-radius: 7px;
+      font-size: 10px;
+      font-weight: 800;
+    }
+    .ai-action-flow li:not(:last-child)::after {
+      content: "→";
+      position: absolute;
+      z-index: 2;
+      right: -10px;
+      top: 50%;
+      color: var(--purple);
+      font-weight: 900;
+      transform: translateY(-50%);
+    }
+    .ai-action-flow strong { display: block; margin-bottom: 4px; color: var(--ink); font-size: 12px; }
+
+    .role-matrix {
+      margin-top: 18px;
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+    }
+    .role-matrix table { width: 100%; min-width: 760px; border-collapse: collapse; background: #fff; }
+    .role-matrix th, .role-matrix td { padding: 12px 14px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); font-size: 12px; }
+    .role-matrix th { color: var(--green-deep); background: var(--green-soft); font-weight: 800; }
+    .role-matrix tr:last-child td { border-bottom: 0; }
+    .role-matrix td:first-child { color: var(--ink); font-weight: 800; white-space: nowrap; }
+    .role-matrix .allowed { color: var(--green); font-weight: 800; }
+    .role-matrix .blocked { color: var(--rose); font-weight: 800; }
+
+    .guardrails {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 11px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .guardrails li { padding: 15px 17px; background: var(--canvas); border-radius: 13px; }
+    .guardrails strong { color: var(--green); }
+
+    .migration-card .phase {
+      display: block;
+      margin-bottom: 7px;
+      color: var(--green);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .09em;
+    }
+    .migration-card ul { padding-left: 18px; color: var(--muted); font-size: 12px; }
+
+    .callout {
+      margin-top: 18px;
+      padding: 17px 19px;
+      background: var(--blue-soft);
+      border-radius: 15px;
+    }
+    .callout.warning { background: var(--amber-soft); }
+    footer { padding: 28px 8px 0; color: var(--muted); text-align: center; font-size: 12px; }
+
+    @media (max-width: 1080px) {
+      body:not(.sidebar-hidden) { overflow: hidden; }
+      body:not(.sidebar-hidden) .page,
+      body.sidebar-hidden .page { width: min(1180px, calc(100% - 32px)); margin: 76px auto 72px; }
+      .sidebar { inset: 12px auto 12px 12px; width: min(330px, calc(100vw - 24px)); }
+      .sidebar-open { left: 18px; width: auto; padding: 0 14px; gap: 8px; border-radius: 13px; font-size: 15px; font-weight: 800; }
+      .sidebar-open span:last-child { position: static; width: auto; height: auto; overflow: visible; clip: auto; }
+      .sidebar-backdrop { position: fixed; z-index: 40; inset: 0; display: block; width: 100%; height: 100%; padding: 0; background: rgba(11,31,26,.46); transition: opacity 180ms ease; }
+      body.sidebar-hidden .sidebar-backdrop { visibility: hidden; opacity: 0; pointer-events: none; }
+      .section { scroll-margin-top: 76px; }
+    }
+
+    @media (max-width: 900px) {
+      .master-flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .master-flow li:not(:last-child)::after { display: none; }
+      .flow-break { grid-template-columns: 1fr; }
+      .flow-arrow { transform: rotate(90deg); }
+      .simulator { grid-template-columns: 1fr; }
+      .principles, .module-grid, .role-grid, .migration-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .ai-stage-grid, .trust-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .approval-flow, .ai-action-flow { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .approval-flow li:not(:last-child)::after, .ai-action-flow li:not(:last-child)::after { display: none; }
+      .gate-track { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .lane { grid-template-columns: 115px repeat(5, minmax(145px, 1fr)); }
+      .lane-board { overflow-x: auto; }
+      .model-strip, .module-catalog, .schedule-inputs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .engine-flow { grid-template-columns: 1fr; }
+      .engine-arrow { transform: rotate(90deg); }
+      .engine-duties, .service-loop, .orchestration-flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .venue-principles, .pattern-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .venue-admin-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .booking-flow { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .booking-flow li:not(:last-child)::after { display: none; }
+      .scope-levels { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .camp-architecture { grid-template-columns: 1fr; }
+      .page-boundary { grid-template-columns: 1fr; }
+      .page-boundary-arrow { transform: rotate(90deg); }
+      .case-banner { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .worked-step-body { grid-template-columns: 1fr; }
+      .day-flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .module-lifecycle, .schedule-flow { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .module-lifecycle li:not(:last-child)::after, .schedule-flow li:not(:last-child)::after { display: none; }
+      .tag-example { grid-template-columns: 130px repeat(3, minmax(180px, 1fr)); overflow-x: auto; }
+      .demo-layout { grid-template-columns: 1fr; }
+      .demo-module-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 620px) {
+      .page { width: min(100% - 20px, 1180px); }
+      body:not(.sidebar-hidden) .page,
+      body.sidebar-hidden .page { width: min(100% - 20px, 1180px); margin-top: 72px; }
+      .hero, .section { border-radius: 18px; }
+      .principles, .module-grid, .role-grid, .migration-grid, .decision-split, .gate-track, .guardrails, .master-flow, .ai-current, .ai-stage-grid, .trust-grid, .ai-rail, .model-strip, .module-catalog, .schedule-inputs, .dependency-map, .case-banner, .day-flow, .engine-duties, .service-loop, .orchestration-flow, .scope-levels, .venue-principles, .pattern-grid, .venue-admin-grid, .venue-options { grid-template-columns: 1fr; }
+      .booking-segments .booking-segment { grid-template-columns: 1fr; }
+      .booking-flow { grid-template-columns: 1fr; }
+      .booking-flow li:not(:last-child)::after { display: block; content: "↓"; right: auto; left: 50%; top: auto; bottom: -13px; transform: translateX(-50%); }
+      .approval-flow, .ai-action-flow { grid-template-columns: 1fr; }
+      .approval-flow li:not(:last-child)::after, .ai-action-flow li:not(:last-child)::after { display: block; content: "↓"; right: auto; left: 50%; top: auto; bottom: -13px; transform: translateX(-50%); }
+      .module-lifecycle, .schedule-flow { grid-template-columns: 1fr; }
+      .module-lifecycle li:not(:last-child)::after, .schedule-flow li:not(:last-child)::after { display: block; content: "↓"; right: auto; left: 50%; top: auto; bottom: -13px; transform: translateX(-50%); }
+      .demo-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .demo-form, .demo-module-grid, .demo-help { grid-template-columns: 1fr; }
+    }
+
+    @media print {
+      body { background: #fff; }
+      .sidebar, .sidebar-open, .sidebar-backdrop { display: none !important; }
+      .page, body:not(.sidebar-hidden) .page { width: 100%; margin: 0; }
+      .hero, .section { box-shadow: none; break-inside: avoid; }
+      .sim-controls { display: none; }
+      details > summary { display: none; }
+      details > .deep-dive-content { display: block; }
+    }
+  </style>
+</head>
+<body class="sidebar-hidden">
+  <button id="sidebar-open" class="sidebar-open" type="button" aria-controls="sidebar" aria-expanded="false"><span aria-hidden="true">☰</span><span>内容导航</span></button>
+  <button id="sidebar-backdrop" class="sidebar-backdrop" type="button" tabindex="-1" aria-label="关闭目录"></button>
+  <aside id="sidebar" class="sidebar" aria-label="文档目录" aria-hidden="true">
+    <div class="sidebar-head">
+      <div><span class="sidebar-kicker">ALIFE · 活动体验建议</span><strong class="sidebar-title">未来活动管理</strong></div>
+      <button id="sidebar-close" class="sidebar-close" type="button" aria-label="隐藏目录">×</button>
+    </div>
+    <div class="read-progress" aria-hidden="true"><span id="read-progress"></span></div>
+    <nav aria-label="内容章节">
+      <ul class="toc">
+        <li><a href="#idea">核心思路</a></li>
+        <li><a href="#master-flow">六步主流程</a></li>
+        <li><a href="#worked-example">完整创建实例</a></li>
+        <li><a href="#composition">主架构流程</a></li>
+        <li><a href="#simulator">试一试不同活动</a></li>
+        <li><a href="#modules">活动可以有哪些功能</a></li>
+        <li><a href="#venue-booking">两个场地页面</a></li>
+        <li><a href="#approval">什么情况需要批准</a></li>
+        <li><a href="#gates">什么时候可以开放</a></li>
+        <li><a href="#roles">角色协作</a></li>
+        <li><a href="#workspace">工作页面</a></li>
+        <li><a href="#smart-scheduling">智能排班</a></li>
+        <li><a href="#ai-assistance">AI 怎样协助</a></li>
+        <li><a href="#migration">如何逐步实现</a></li>
+        <li><a href="#guardrails">需要坚持的原则</a></li>
+      </ul>
+    </nav>
+  </aside>
+
+  <main class="page">
+    <header class="hero">
+      <p class="eyebrow">ALIFE · 未来活动管理体验</p>
+      <h1>告诉系统要办什么，接下来一步一步完成</h1>
+      <p class="hero-lead">负责人先说清活动想法，AI 帮忙整理资料；系统列出这次真正需要做的报名、海报、排班和安全工作。每个人只看自己的下一步，需要批准的事项才送给合适的人决定。</p>
+      <div class="hero-formula" aria-label="活动组合公式">
+        <span>说出活动想法</span><b>→</b><span>确认需要做的事</span><b>→</b><span>分工与准备</span><b>→</b><span>按需审批</span><b>→</b><span>举办并结项</span>
+      </div>
+      <div class="hero-actions"><a class="hero-action" href="#worked-example">直接体验操作页面</a><a class="hero-action secondary" href="#master-flow">先看六步流程</a></div>
+    </header>
+
+    <div class="callout warning"><strong>当前代码结论：</strong>现有活动实现不满足这份设计，不能只在旧页面上继续增加表单。旧的 <code>GroupEvent + EventDataJson + 固定 Workflow</code> 将作为过渡兼容层，活动核心会整体替换为“活动事实 → 方案版本 → 场次 → 模块实例 → 准备条件 → 审批决定”的主引擎。历史活动会转换，不会直接删除。</div>
+    <div class="callout"><strong>2026-08-26 重构进度：</strong>现有活动模型已被判定为不满足目标，实施范围因此是全部活动换轨，而不是只为新活动增加另一套入口。主引擎的第一批正式模型已经进入代码；新建或修改活动会生成版本化方案、正式场次、按事实选择的模块实例和准备条件。创建页已取消“先选固定工作流”，改为先确认活动事实、由负责人明确确认发布，再进入本次活动的筹备方案；通知发布与 RAM 批准已经分开，只有确实存在风险事实的活动才加入 RAM 模块，低风险活动不再为了发布或报名伪造一次安全审批。基本资料、场地申请、RAM、报名、费用和排班都以真实数据计算状态，缺标题、时间错误、无效可见范围、未批准场地、未确认费用等情况不会被错误显示为“已准备”。报名负责人可以独立设置人数／家庭容量和截止时间，服务器在并发报名时检查容量；费用负责人可以独立设置收费项目、双语付款与退款说明及付款凭证要求，AI 只能起草，负责人必须人工确认，付款凭证也不会出现在公开活动资料中。RAM 已接入正式提交、批准、退回、意见、决定失效和审计记录，并禁止提交人自审。排班支持成员维护不可用时间和岗位偏好；管理者也可以为不会使用系统的成员代录岗位能力和不可用时段，并记录“待确认／已确认”、确认方式和复核日期。只有已经确认且仍在有效期内的代录资料才会进入建议。候选建议会用中英文说明时间冲突、必要标签、最近 180 天的服务负担、连续服事周数和往期同岗位经验，但建议本身不落库。负责人现在可以比较“公平轮换”和“经验优先”两套整场草案；系统会跨班次处理时间重叠、每日上限和人员缺口，并解释岗位为何仍未补齐。小组也有独立的岗位资格目录，可维护中英文名称、是否需要到期日和默认有效天数；班次可以直接选择急救、驾驶、儿童事工培训等常用资格，成员资格到期或目录停用后会被服务端阻止推荐，旧自由标签不能绕过需要有效期的资格。负责人逐项采用后，成员本人仍要接受、拒绝或请求调整；只有成员接受的名额才计入完成度，岗位或时间变化会要求重新确认。家庭、健康等原因不会传给智能建议，管理者内部备注也不会成为推荐依据。活动程序单现在也是独立的按需模块：负责人用一张时间轴安排当天环节，可关联已有排班岗位并直接查看已接受和待回复人员，不会复制排班页面；环节要成为“已确认”，必须有直接负责人或已接受的排班人员，需要交接时还必须填写现场交接说明。AI 只能起草单个环节的时间、双语说明和交接提示，不能选择负责人、确认排班或保存正式程序。活动结束后会进入独立结项模块，由负责人核实出席、财务、事故和跟进结果，并选择可供以后参考的经验；AI 只能读取汇总记录和已确认经验来起草，不能保存、确认或自动采用经验。营会、多日活动和多场地活动可以在一项活动内建立多个正式场次，每个场次有自己的时间与时区，并可绑定不同场地申请。负责人还可以建立跨模块任务、指派成员、设置截止时间和前置任务；循环依赖会被拒绝，前置工作未完成时不能越级完成，成员只看到分给自己的下一步。活动筹备页已把审批说明收敛到一个统一区域：模块清单不再重复铺审批卡片，每个决定只说明“决定什么、谁来决定、从哪里进入、要看什么、决定后发生什么”。<strong>迁移脚本会为全部未删除活动建立正式新方案，并在发现任何遗漏时中止迁移；旧固定流程不能再创建、推进或修改旧流程附件，只保留历史只读资料用于追溯。原活动资料不会被删除。</strong>下一步继续完成全流程浏览器、权限、双语和错误状态回归。</div>
+
+    <div class="callout"><strong>2026-08-26 最新核对：</strong>活动列表和编辑页现在优先读取主流程保存的正式模块清单；只要活动已经建立新方案，就不再根据旧人数、费用、排班或普通地点文字猜测并重新打开模块。场地只会在负责人明确加入“申请教会场地”后出现，普通地点说明不会变成教会场地申请。场地申请会记录真正点击提交的人，创建草稿或代为提交的人都不能审批自己的申请；一个活动有多个有效场地申请时，必须全部批准才显示场地准备完成。两条修正迁移已经应用到当前连接的数据库，当前无待执行迁移。实际页面已核对：示例活动的六个按需模块全部保持未选，筹备方案只显示活动通知和结项，不再出现旧字段推断出的报名、财务、场地或排班。</div>
+
+    <section id="idea" class="section">
+      <div class="section-head"><span class="section-no">1</span><div><h2>负责人实际会感受到什么</h2><p class="muted">不用先学习流程设计，也不用面对一张很长的固定表单。</p></div></div>
+      <div class="statement">
+        <strong>你先说明要办什么活动，系统再把这次真正要做的事情列出来。</strong>
+        <p>需要报名就出现报名，需要同工就出现排班，需要海报就保留海报；只有预算、安全或公开发布等事项需要别人决定时，才出现明确的审批。</p>
+      </div>
+      <details class="deep-dive">
+        <summary>想了解这套体验背后的设计原则？<span class="deep-dive-note">以下内容主要供产品、管理者和开发人员讨论</span></summary>
+        <div class="deep-dive-content"><div class="principles">
+        <article><strong>模板只是起点</strong><span>营会、聚餐、培训等模板提供常见预设，但不会把所有活动固定成同一流程。</span></article>
+        <article><strong>事实改变方案</strong><span>儿童、收费、交通、住宿、公众参与等真实情况决定需要哪些模块和政策。</span></article>
+        <article><strong>人确认最终方案</strong><span>系统解释推荐原因；负责人可以补充事实、接受建议或在允许范围内调整。</span></article>
+        <article><strong>模块贡献工作</strong><span>模块不只是页面，它会产生角色、任务、资料、检查和准备条件。</span></article>
+        <article><strong>政策不能随意绕过</strong><span>触发儿童安全或高风险要求后，负责人不能为了省事直接关闭。</span></article>
+        <article><strong>活动保存稳定快照</strong><span>模板或政策以后升级，不会偷偷改变正在进行或已经完成的活动。</span></article>
+        </div></div>
+      </details>
+    </section>
+
+    <section id="master-flow" class="section">
+      <div class="section-head"><span class="section-no">2</span><div><h2>所有活动共用的六步主流程</h2><p class="muted">主流程只表达活动从创建到完成的方向；真正的筹备内容由启用的模块提供。</p></div></div>
+      <ol class="master-flow">
+        <li><strong>创建活动</strong><span>选择活动模板，填写时间、地点、对象、规模、可见范围等事实。模板只给出常用起点。</span><em>产出：活动基本资料</em></li>
+        <li><strong>组合模块</strong><span>系统根据模板、事实和教会政策推荐或强制加入报名、排班、财务、RAM 等模块，并说明原因。</span><em>产出：模块方案</em></li>
+        <li><strong>配置与分工</strong><span>负责人确认模块设置、模块负责人、任务、期限和资料权限；AI 可生成待确认配置。</span><em>产出：可执行工作区</em></li>
+        <li><strong>筹备与按需审批</strong><span>各模块独立推进。只有预算、风险等具体问题需要判断时才提交审批，不让全部工作停在一个总审批上。</span><em>产出：准备门槛状态</em></li>
+        <li><strong>执行活动</strong><span>达到执行条件后使用排班、签到、交通、现场检查和沟通等模块；异常由对应模块记录和处理。</span><em>产出：执行记录</em></li>
+        <li><strong>结项与复用</strong><span>完成财务、出席、跟进和复盘。有效任务、排班经验和问题进入下次活动的参考资料。</span><em>产出：活动档案与经验</em></li>
+      </ol>
+      <div class="ai-rail">
+        <strong>AI 每一步都能帮忙，但不会替人作决定</strong>
+        <p>AI 可以整理资料、填写草稿、发现遗漏、安排建议和解释下一步；哪些安全要求必须做到、是否批准以及是否正式发布，仍由系统规则和有权限的人决定。</p>
+      </div>
+    </section>
+
+    <section id="worked-example" class="section">
+      <div class="section-head"><span class="section-no">3</span><div><h2>完整实例：创建“2026 社区中秋外展晚会”</h2><p class="muted">以下按未来页面的真实操作顺序演示。日期、人数和审批角色是目标设计示例，用于说明产品怎样工作，不代表当前教会政策已经这样配置。</p></div></div>
+
+      <div class="case-banner">
+        <div class="case-title"><strong>2026 社区中秋外展晚会</strong><span>社区外展 · 对公众开放 · 有儿童节目 · 免费</span></div>
+        <div><strong>时间</strong><span>2026-10-03<br>16:00–20:30</span></div>
+        <div><strong>地点／人数</strong><span>希望使用教会场地，待选择<br>预计 180 人</span></div>
+        <div><strong>负责人</strong><span>外展组负责人<br>协作：儿童、餐饮、敬拜</span></div>
+      </div>
+
+      <ul class="screen-path" aria-label="创建页面路径">
+        <li>活动</li><li>创建活动</li><li>选择“社区外展”</li><li>AI 整理资料</li><li>确认模块方案</li><li>进入活动工作区</li>
+      </ul>
+
+      <div class="product-demo" aria-label="活动管理操作页面示例">
+        <div class="demo-appbar">
+          <div><strong>2026 社区中秋外展晚会</strong><span>活动负责人视图 · 目标页面示例</span></div>
+          <span class="demo-save">草稿已自动保存 · 刚刚</span>
+        </div>
+        <div class="demo-tabs" role="tablist" aria-label="活动操作阶段">
+          <button id="demo-tab-create" class="demo-tab" type="button" role="tab" aria-selected="true" aria-controls="demo-create" data-demo-stage="create"><span>1</span>创建资料</button>
+          <button id="demo-tab-modules" class="demo-tab" type="button" role="tab" aria-selected="false" aria-controls="demo-modules" data-demo-stage="modules"><span>2</span>确认模块</button>
+          <button id="demo-tab-prepare" class="demo-tab" type="button" role="tab" aria-selected="false" aria-controls="demo-prepare" data-demo-stage="prepare"><span>3</span>筹备工作台</button>
+          <button id="demo-tab-approval" class="demo-tab" type="button" role="tab" aria-selected="false" aria-controls="demo-approval" data-demo-stage="approval"><span>4</span>按需审批</button>
+          <button id="demo-tab-delivery" class="demo-tab" type="button" role="tab" aria-selected="false" aria-controls="demo-delivery" data-demo-stage="delivery"><span>5</span>活动当天</button>
+          <button id="demo-tab-close" class="demo-tab" type="button" role="tab" aria-selected="false" aria-controls="demo-close" data-demo-stage="close"><span>6</span>结项复盘</button>
+        </div>
+
+        <div id="demo-create" class="demo-panel" role="tabpanel" aria-labelledby="demo-tab-create" data-demo-panel="create">
+          <div class="demo-panel-head"><div><h3>先确认 AI 整理出的基本资料</h3><p>负责人说出活动构想后，页面直接填好已知内容，并把不确定内容标出来。</p></div><span class="demo-progress">8／12 已完成</span></div>
+          <div class="demo-layout">
+            <div class="demo-surface">
+              <div class="demo-form">
+                <div class="mock-field"><label>活动名称</label><span>2026 社区中秋外展晚会</span></div>
+                <div class="mock-field"><label>活动类型</label><span>社区外展</span></div>
+                <div class="mock-field"><label>日期与时间</label><span>2026-10-03 · 16:00–20:30</span></div>
+                <div class="mock-field needs"><label>地点</label><span>待从管理员维护的场地目录选择，或填写外部地点</span></div>
+                <div class="mock-field"><label>预计人数／收费</label><span>180 人 · 免费</span></div>
+                <div class="mock-field"><label>可见范围</label><span>公开活动页；筹备资料仅协作人员可见</span></div>
+                <div class="mock-field wide"><label>活动内容</label><span>面向社区家庭的中秋晚会，包含晚餐、节目和儿童活动。</span></div>
+                <div class="mock-field needs"><label>还需要负责人确认</label><span>实际地点与容量、报名截止日期、是否允许活动照片用于公开宣传</span></div>
+              </div>
+              <div class="demo-actions"><button class="demo-button" type="button">保存草稿</button><button class="demo-button primary" type="button" data-demo-next="modules">确认资料，查看需要做什么</button></div>
+            </div>
+            <aside class="demo-ai-card"><h4>已从你的描述整理 8 项资料</h4><p>你只说希望使用教会场地，但场地目录没有资料，因此我没有猜测具体地点和容量。</p><ul><li>已生成中英文标题和简介草稿</li><li>发现公众开放、儿童节目和餐饮</li><li>建议场地权限所有者先维护目录，或由负责人填写外部地点</li></ul><button class="demo-button ai" type="button">查看 AI 填写的差异</button></aside>
+          </div>
+          <div class="demo-help"><div><strong>你现在要做</strong><span>确认实际地点、容量等 4 项资料。</span></div><div><strong>AI 已经帮忙</strong><span>整理 8 项资料并生成双语草稿。</span></div><div><strong>完成后进入</strong><span>系统根据事实提出模块方案。</span></div></div>
+        </div>
+
+        <div id="demo-modules" class="demo-panel" role="tabpanel" aria-labelledby="demo-tab-modules" data-demo-panel="modules" hidden>
+          <div class="demo-panel-head"><div><h3>确认这场活动需要做哪些工作</h3><p>每张卡片说明为什么出现。政策要求的项目不能直接关闭，可选项目可以调整。</p></div><span class="demo-progress">10 个模块</span></div>
+          <div class="demo-layout">
+            <div class="demo-surface"><div class="demo-module-grid">
+              <article class="demo-module"><span class="demo-badge">模板预设</span><strong>海报与内容</strong><p>生成双语海报和活动页面，不被筹备流程覆盖。</p></article>
+              <article class="demo-module"><span class="demo-badge">模板预设</span><strong>报名与容量</strong><p>公众活动预计 180 人，需要报名和容量提醒。</p></article>
+              <article class="demo-module"><span class="demo-badge">负责人选择</span><strong>排班</strong><p>需要接待、儿童、餐饮、音响和收场同工。</p></article>
+              <article class="demo-module"><span class="demo-badge policy">活动事实触发</span><strong>RAM 风险</strong><p>公众开放并包含餐饮，需要确认风险控制。</p></article>
+              <article class="demo-module"><span class="demo-badge policy">政策要求</span><strong>儿童安全</strong><p>有儿童节目，需要资格、比例和签到签退。</p></article>
+              <article class="demo-module"><span class="demo-badge">活动需要</span><strong>场地与资源</strong><p>根据人数、儿童活动、餐饮和停车需求，从管理员维护的目录寻找合适空间。</p></article>
+              <article class="demo-module"><span class="demo-badge">模板预设</span><strong>餐饮与签到</strong><p>根据报名人数准备餐饮并记录实际到场。</p></article>
+              <article class="demo-module"><span class="demo-badge">负责人选择</span><strong>财务</strong><p>虽然活动免费，仍有 NZD 3,000 支出预算。</p></article>
+              <article class="demo-module"><span class="demo-badge">模板预设</span><strong>通知</strong><p>只在人工确认后发送报名和岗位通知。</p></article>
+              <article class="demo-module"><span class="demo-badge">模板预设</span><strong>跟进与复盘</strong><p>活动后完成出席、财务和经验整理。</p></article>
+            </div><div class="demo-actions"><button class="demo-button" type="button">＋ 添加其他模块</button><button class="demo-button primary" type="button" data-demo-next="prepare">确认模块并建立工作区</button></div></div>
+            <aside class="demo-ai-card"><h4>参考了 2 场获准查看的类似外展</h4><p>去年现场报名较多，建议保留“现场签到”和“容量提醒”。本次多了儿童节目，因此新增儿童安全模块。</p><ul><li>没有复制旧联系人</li><li>没有继承旧审批</li><li>海报仍作为独立模块保留</li></ul><button class="demo-button ai" type="button">应用建议的模块组合</button></aside>
+          </div>
+          <div class="demo-help"><div><strong>你现在要做</strong><span>确认 10 个模块是否符合实际。</span></div><div><strong>AI 已经帮忙</strong><span>比较往期活动并解释新增原因。</span></div><div><strong>完成后进入</strong><span>为每个模块分配负责人和任务。</span></div></div>
+        </div>
+
+        <div id="demo-prepare" class="demo-panel" role="tabpanel" aria-labelledby="demo-tab-prepare" data-demo-panel="prepare" hidden>
+          <div class="demo-panel-head"><div><h3>活动筹备工作台</h3><p>先看最重要的下一步，再进入具体模块处理。模块可以并行推进。</p></div><span class="demo-progress">整体准备度 62%</span></div>
+          <div class="demo-layout">
+            <div class="demo-surface"><ul class="demo-list">
+              <li><span><strong>海报与内容</strong><br><small>负责人：内容同工 · 双语文案已确认</small></span><span class="demo-badge">完成 90%</span></li>
+              <li><span><strong>报名与容量</strong><br><small>还需确认报名截止日期</small></span><span class="demo-badge todo">下一步</span></li>
+              <li><span><strong>场地与资源</strong><br><small>场地目录为空；等待管理员维护，或由负责人填写外部地点</small></span><span class="demo-badge todo">有阻塞</span></li>
+              <li><span><strong>排班</strong><br><small>14／15 个岗位已有人，缺 1 名儿童同工</small></span><span class="demo-badge policy">有阻塞</span></li>
+              <li><span><strong>RAM 风险</strong><br><small>控制措施已填写，等待安全负责人提交</small></span><span class="demo-badge">待提交</span></li>
+              <li><span><strong>预算</strong><br><small>NZD 3,000 预算草案已完成</small></span><span class="demo-badge">待审批</span></li>
+            </ul><div class="demo-actions"><button class="demo-button ai" type="button">让 AI 帮我处理下一步</button><button class="demo-button primary" type="button" data-demo-next="approval">查看需要审批的事项</button></div></div>
+            <aside class="demo-ai-card"><h4>你现在最应该处理排班缺口</h4><p>儿童岗位仍缺 1 名合资格同工，这会阻止儿童区域运行。</p><ul><li>我可以按资格和可用时间提出 3 名人选</li><li>Peter 本月负担较高，建议不要继续增加</li><li>报名截止日期也需要今天确认</li></ul><button class="demo-button ai" type="button">生成候选排班</button></aside>
+          </div>
+          <div class="demo-help"><div><strong>你现在要做</strong><span>先解决阻塞，不必逐张打开所有卡片。</span></div><div><strong>AI 已经帮忙</strong><span>按影响和期限排列个人下一步。</span></div><div><strong>完成后进入</strong><span>模块负责人分别提交需要判断的事项。</span></div></div>
+        </div>
+
+        <div id="demo-approval" class="demo-panel" role="tabpanel" aria-labelledby="demo-tab-approval" data-demo-panel="approval" hidden>
+          <div class="demo-panel-head"><div><h3>需要人工决定的事项</h3><p>审批人只回答具体问题；普通筹备任务不会停下来等待。</p></div><span class="demo-progress">1 已批准 · 2 待审 · 1 未提交</span></div>
+          <div class="demo-layout">
+            <div class="demo-surface"><ul class="demo-list">
+              <li><span><strong>公开海报和活动页面可以发布吗？</strong><br><small>公开发布人 · 已批准 · 图片授权与双语文案齐全</small></span><span class="demo-badge">已批准</span></li>
+              <li><span><strong>NZD 3,000 预算是否可接受？</strong><br><small>财务审批人 · 等待决定</small></span><span class="demo-badge policy">待审批</span></li>
+              <li><span><strong>儿童人员资格和比例符合要求吗？</strong><br><small>儿童安全审批人 · 等待决定</small></span><span class="demo-badge policy">待审批</span></li>
+              <li><span><strong>活动风险控制足以执行吗？</strong><br><small>安全负责人还未提交 RAM</small></span><span class="demo-badge todo">缺少提交</span></li>
+            </ul><div class="demo-actions"><button class="demo-button" type="button">查看原始依据</button><button class="demo-button primary" type="button" data-demo-next="delivery">查看活动当天页面</button></div></div>
+            <aside class="demo-ai-card"><h4>审批摘要已准备</h4><p>预算比参考活动高 NZD 420，主要来自儿童区域租赁和食材上涨。RAM 仍缺少疏散负责人确认。</p><ul><li>AI 只整理差异和缺失</li><li>批准、退回、拒绝必须由审批人选择</li><li>人数重大变化会让受影响决定重新确认</li></ul></aside>
+          </div>
+          <div class="demo-help"><div><strong>提交人要做</strong><span>补齐依据并提交具体问题。</span></div><div><strong>AI 已经帮忙</strong><span>检查缺失、摘要变化、链接原始资料。</span></div><div><strong>审批人要做</strong><span>本人批准、退回或拒绝，并说明理由。</span></div></div>
+        </div>
+
+        <div id="demo-delivery" class="demo-panel" role="tabpanel" aria-labelledby="demo-tab-delivery" data-demo-panel="delivery" hidden>
+          <div class="demo-panel-head"><div><h3>活动当天：每个人只看自己的工作</h3><p>负责人查看全局缺口；普通同工只看到岗位需要的资料。</p></div><span class="demo-progress">现场状态正常</span></div>
+          <div class="demo-layout">
+            <div class="demo-surface"><ul class="demo-list">
+              <li><span><strong>15:00 · 场地与餐饮准备</strong><br><small>负责人 6／6 已到岗</small></span><span class="demo-badge">正常</span></li>
+              <li><span><strong>16:00 · 接待岗位</strong><br><small>李叔等 4 人 · 坐席位置已安排</small></span><span class="demo-badge">正常</span></li>
+              <li><span><strong>16:30 · 儿童签到</strong><br><small>2 名合资格同工 · 比例符合要求</small></span><span class="demo-badge">正常</span></li>
+              <li><span><strong>18:00 · 音响岗位</strong><br><small>1 人报告迟到 20 分钟</small></span><span class="demo-badge policy">需关注</span></li>
+            </ul><div class="demo-actions"><button class="demo-button ai" type="button">查找符合条件的临时替补</button><button class="demo-button primary" type="button" data-demo-next="close">活动结束，开始结项</button></div></div>
+            <aside class="demo-ai-card"><h4>音响岗位临时建议</h4><p>找到 2 名当时无冲突且具备音响技能的成员。方案不会自动改班或发送通知。</p><ul><li>候选 A 本月服事 1 次</li><li>候选 B 距离岗位较近</li><li>负责人选择并联系后才生效</li></ul></aside>
+          </div>
+          <div class="demo-help"><div><strong>同工看到</strong><span>自己的岗位、时间、地点和必要说明。</span></div><div><strong>AI 已经帮忙</strong><span>发现冲突并筛选符合硬条件的替补。</span></div><div><strong>负责人决定</strong><span>选择替补、确认变更并通知相关人员。</span></div></div>
+        </div>
+
+        <div id="demo-close" class="demo-panel" role="tabpanel" aria-labelledby="demo-tab-close" data-demo-panel="close" hidden>
+          <div class="demo-panel-head"><div><h3>结项与复盘</h3><p>各模块先完成自己的结果，AI 再整理成一份可修改的复盘草稿。</p></div><span class="demo-progress">结项完成 75%</span></div>
+          <div class="demo-layout">
+            <div class="demo-surface"><div class="demo-module-grid">
+              <article class="demo-module"><span class="demo-badge">报名／签到</span><strong>报名 203 · 到场 176</strong><p>现场报名高峰集中在 16:20–16:45。</p></article>
+              <article class="demo-module"><span class="demo-badge">财务</span><strong>实际支出 NZD 2,860</strong><p>比预算少 NZD 140，等待发票归档。</p></article>
+              <article class="demo-module"><span class="demo-badge">排班</span><strong>1 次临时替补</strong><p>音响岗位负担需要下次提前分散。</p></article>
+              <article class="demo-module"><span class="demo-badge">安全</span><strong>0 事故 · 1 条改进</strong><p>儿童签到入口在高峰期拥堵。</p></article>
+            </div><div class="demo-actions"><button class="demo-button ai" type="button">生成复盘草稿</button><button class="demo-button primary" type="button">负责人确认并结项</button></div></div>
+            <aside class="demo-ai-card"><h4>建议保留到下次的经验</h4><ul><li>儿童签到提前 20 分钟开放</li><li>音响岗位至少准备 1 名候补</li><li>餐饮按确认人数的 90%–95% 准备</li></ul><p>这些建议只有负责人选择后才进入下次活动参考，不会自动修改模板。</p></aside>
+          </div>
+          <div class="demo-help"><div><strong>模块负责人要做</strong><span>完成出席、支出、事故和跟进记录。</span></div><div><strong>AI 已经帮忙</strong><span>汇总结果并提出有依据的改进建议。</span></div><div><strong>负责人最终做</strong><span>修正复盘、选择可复用经验并确认结项。</span></div></div>
+        </div>
+        <div id="demo-feedback" class="demo-feedback" role="status" aria-live="polite" hidden></div>
+      </div>
+
+      <details class="deep-dive walkthrough-details">
+        <summary>查看这场活动的逐步文字说明<span class="deep-dive-note">包含详细操作、AI 动作、审批问题、变化处理和活动当天流程</span></summary>
+        <div class="deep-dive-content"><div class="worked-steps">
+        <article class="worked-step">
+          <div class="worked-step-head"><span class="step-index">1</span><div><strong>负责人创建活动并说清楚想法</strong><span>此时只建立草稿，不发布、不提交审批</span></div></div>
+          <div class="worked-step-body">
+            <article><h4>负责人实际操作</h4><ul><li>点击“创建活动”</li><li>选择“社区外展”模板</li><li>在 AI 输入框说出活动构想</li></ul><div class="example-input">“10 月 3 日下午在教会办中秋外展晚会，预计 180 人，免费，对社区开放，有儿童节目和晚餐，需要海报、报名和同工排班。”</div></article>
+            <article><h4>AI 当场完成</h4><ul><li>把自然语言拆成标题、日期、时间、地点、人数、费用、对象和活动特点</li><li>生成中英文标题与简介草稿</li><li>明确询问尚不知道的场地容量、报名截止时间、照片使用和负责人</li><li>所有内容标为“待负责人确认”</li></ul></article>
+            <article><h4>页面产生的结果</h4><ul><li>活动草稿自动保存并显示最后保存时间</li><li>顶部进度显示“基本资料 8／11”</li><li>下一步按钮写明“确认事实并查看模块方案”</li><li>离开页面后可从“我的草稿”找回</li></ul></article>
+          </div>
+        </article>
+
+        <article class="worked-step">
+          <div class="worked-step-head"><span class="step-index">2</span><div><strong>系统提出本次活动需要的模块组合</strong><span>负责人看到具体模块和原因，而不是一条看不懂的统一流程</span></div></div>
+          <div class="worked-step-body">
+            <article><h4>系统确定加入</h4><ul><li><strong>基础：</strong>基本资料、角色与可见性、任务、操作记录</li><li><strong>模板预设：</strong>海报与内容、报名、排班、餐饮、场地、签到、跟进</li><li><strong>事实触发：</strong>公众开放 → RAM 与公开可见性；儿童节目 → 儿童安全</li><li><strong>暂不加入：</strong>交通、住宿、收费</li></ul></article>
+            <article><h4>AI 怎样辅助</h4><ul><li>解释每个模块为什么出现</li><li>在权限范围内比较上一场类似外展的模块、任务耗时和常见遗漏</li><li>提示：“去年现场报名较多，建议保留现场签到和容量提醒”</li><li>只生成建议，不把往期联系人、审批或旧价格直接复制过来</li></ul></article>
+            <article><h4>负责人必须确认</h4><ul><li>接受或补充可选模块</li><li>确认管理小组、协作小组和活动可见范围</li><li>查看政策强制模块为什么不能关闭</li><li>点击“建立活动工作区”</li></ul><div class="example-input"><strong>特别说明：</strong>海报与内容仍是独立模块。选择“外展”不会收起或覆盖海报功能。</div></article>
+          </div>
+        </article>
+
+        <article class="worked-step">
+          <div class="worked-step-head"><span class="step-index">3</span><div><strong>负责人配置模块，AI 直接填写待确认设置</strong><span>每个模块可以独立完成，不必从头到尾反复填写相同资料</span></div></div>
+          <div class="worked-step-body">
+            <article><h4>负责人分配工作</h4><ul><li>报名负责人：设置 180 人容量和报名截止日期</li><li>场地负责人：提交空间需求；等待管理员维护目录，或登记外部地点</li><li>内容负责人：确认双语文案和海报</li><li>排班负责人：建立岗位和班次</li><li>安全负责人：完成 RAM</li><li>儿童负责人：确认资格、比例和签到签退</li><li>财务负责人：建立 NZD 3,000 预算草案</li></ul></article>
+            <article><h4>AI 在模块里直接做什么</h4><ul><li>报名：根据活动资料生成最小化报名表和隐私说明</li><li>海报：生成双语文案、尺寸建议和海报草稿</li><li>任务：从往期活动生成待确认任务、负责人建议和期限</li><li>RAM：根据本次场地、人数、餐饮和儿童安排提出风险问题</li><li>所有修改以差异形式展示，可逐项接受、修改或拒绝</li></ul></article>
+            <article><h4>系统持续检查</h4><ul><li>同一资料由活动基本信息提供，模块只引用，不重复保存</li><li>显示每个模块的负责人、完成度、阻塞原因和下一步</li><li>海报完成不会代表 RAM 已完成</li><li>未完成模块只影响它贡献的准备门槛</li></ul></article>
+          </div>
+        </article>
+
+        <article class="worked-step">
+          <div class="worked-step-head"><span class="step-index">4</span><div><strong>排班负责人使用 AI 生成候选排班</strong><span>管理者可以协助录入成员限制；AI 只能使用转换后的排班资料</span></div></div>
+          <div class="worked-step-body">
+            <article><h4>先建立岗位需求</h4><ul><li>接待：16:00–18:00，4 人，至少 1 人会英语</li><li>儿童签到：16:30–19:30，2 人，必须具备儿童服事资格</li><li>餐饮：15:00–19:00，6 人，分为两班</li><li>音响：15:30–20:30，2 人，至少 1 人熟悉设备</li><li>收场：20:30–21:30，5 人</li></ul></article>
+            <article><h4>AI 使用的成员约束示例</h4><ul><li>李叔：适合有座位的接待岗位，每班最多 2 小时</li><li>陈姐妹：16:30 前不可用；儿童服事资格已确认</li><li>Peter：会英语和音响；本月已服事 3 次，尽量减轻负担</li><li>王弟兄：管理者电话确认，可参加 18:00 后的收场准备</li></ul><div class="example-input">排班负责人只看到这些可执行条件，不需要看到接孩子、健康或家庭原因。</div></article>
+            <article><h4>AI 给出的结果</h4><ul><li>生成方案 A“优先公平”和方案 B“优先熟练度”</li><li>建议李叔 16:00–18:00 坐席接待，陈姐妹 16:30 后进入儿童签到</li><li>提示 Peter 负担偏高，并给出替代人选</li><li>明确列出仍缺 1 名合资格儿童同工</li><li>负责人调整后发布，成员再确认各自班次</li></ul></article>
+          </div>
+        </article>
+
+        <article class="worked-step">
+          <div class="worked-step-head"><span class="step-index">5</span><div><strong>只把需要判断的事项送去审批</strong><span>普通任务继续进行，不等待一个笼统的“活动总审批”</span></div></div>
+          <div class="worked-step-body">
+            <article><h4>模块负责人提交</h4><ul><li>提交具体问题，而不是只点“完成”</li><li>附上系统规定的资料和本次变更摘要</li><li>提交前自动打开第一个未完成分区并聚焦无效字段</li></ul></article>
+            <article><h4>AI 帮助审批准备</h4><ul><li>检查资料是否齐全、前后是否矛盾</li><li>摘要预算变化、主要风险和仍待判断的问题</li><li>链接回原始表单、文件和人工确认记录</li><li>不能替审批人选择批准或拒绝</li></ul></article>
+            <article><h4>审批人看到什么</h4><ul><li>本次到底要决定的问题</li><li>谁提交、依据是什么、与上次相比改了什么</li><li>批准会解锁哪个门槛</li><li>退回时必须写清需要补什么</li></ul></article>
+          </div>
+        </article>
+      </div>
+
+      <h3 style="margin-top: 28px;">这场活动当前会出现的四个决定</h3>
+      <div class="approval-example">
+        <table>
+          <thead><tr><th>审批问题</th><th>提交依据</th><th>谁提交</th><th>谁决定</th><th>批准后解锁</th></tr></thead>
+          <tbody>
+            <tr><td>NZD 3,000 的预算和支出上限是否可接受？</td><td>预算明细、资金来源、采购负责人</td><td>财务负责人</td><td>具有相应额度权限的财务审批人</td><td class="unlocks">允许按预算采购；结项时仍需对账</td></tr>
+            <tr><td>本次公众活动的风险控制是否足以执行？</td><td>RAM、场地图、紧急联系人、控制措施负责人</td><td>安全负责人</td><td>教会指定的安全审批人</td><td class="unlocks">Delivery Ready 的 RAM 条件</td></tr>
+            <tr><td>儿童区域的人员资格、比例和签到签退是否符合要求？</td><td>岗位名单、资格状态、班次比例、交接方案</td><td>儿童负责人</td><td>儿童安全授权审批人</td><td class="unlocks">儿童区域可以运行</td></tr>
+            <tr><td>这份公开海报和活动页面是否可以对外发布？</td><td>双语文案、图片授权、可见范围、报名链接</td><td>内容负责人</td><td>具有公开发布权限的人</td><td class="unlocks">Publish Ready；海报模块仍可继续生成其他版本</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="worked-steps">
+        <article class="worked-step">
+          <div class="worked-step-head"><span class="step-index">6</span><div><strong>活动按门槛逐步开放</strong><span>不是等所有事情做完才发布，也不是发布后就代表可以执行</span></div></div>
+          <div class="worked-step-body">
+            <article><h4>可以发布预告</h4><ul><li>时间地点、公众可见范围已确认</li><li>公开文案、图片授权已通过</li><li>负责人点击“发布活动页面”</li></ul></article>
+            <article><h4>可以开放报名</h4><ul><li>容量、截止时间、报名字段和隐私说明已确认</li><li>儿童相关同意内容已准备</li><li>负责人点击“开放报名”</li></ul></article>
+            <article><h4>可以执行</h4><ul><li>RAM、儿童安全、关键岗位、场地和紧急安排均已满足</li><li>系统列出尚未确认班次，不允许模糊显示“差不多完成”</li><li>活动负责人最终确认进入执行状态</li></ul></article>
+          </div>
+        </article>
+
+        <article class="worked-step">
+          <div class="worked-step-head"><span class="step-index">7</span><div><strong>报名和现场情况变化时，只重算受影响部分</strong><span>避免修改一个字段就把全部流程和审批推倒重来</span></div></div>
+          <div class="worked-step-body">
+            <article><h4>例：报名增至 220 人</h4><ul><li>报名模块提示超过原容量</li><li>餐饮和签到任务自动更新人数</li><li>RAM 要求重新检查疏散、场地和人员密度</li></ul></article>
+            <article><h4>AI 怎样帮助</h4><ul><li>总结哪些设置受影响</li><li>参考类似规模活动提出新增班次和物资建议</li><li>重新生成排班候选，但保留已经确认且没有冲突的班次</li><li>生成待确认变更，不直接通知成员</li></ul></article>
+            <article><h4>哪些决定失效</h4><ul><li>若人数变化超过政策阈值，RAM 决定重新进入待审</li><li>未受影响的海报发布决定和预算决定继续有效，除非具体内容也变了</li><li>页面说明“为什么需要重新确认”</li></ul></article>
+          </div>
+        </article>
+
+        <article class="worked-step">
+          <div class="worked-step-head"><span class="step-index">8</span><div><strong>活动当天按模块运行</strong><span>每个人首先看到自己的下一步，不需要理解整套流程</span></div></div>
+          <div class="worked-step-body">
+            <article><h4>成员首页</h4><ul><li>显示今天的岗位、时间和地点</li><li>一键确认到岗或报告不能参加</li><li>只显示岗位所需资料</li></ul></article>
+            <article><h4>负责人工作台</h4><ul><li>签到人数、岗位缺口和关键检查</li><li>AI 根据已确认资料生成现场简报</li><li>临时缺人时提供符合硬约束的替代建议</li></ul></article>
+            <article><h4>安全与隐私</h4><ul><li>事故进入受限记录，不进入公开动态</li><li>AI 不提供医疗或安全决定</li><li>现场变更记录操作者和时间</li></ul></article>
+          </div>
+        </article>
+
+        <article class="worked-step">
+          <div class="worked-step-head"><span class="step-index">9</span><div><strong>活动结项并留下下次真正可用的经验</strong><span>复用经验，不复制旧日期、联系人和审批结论</span></div></div>
+          <div class="worked-step-body">
+            <article><h4>模块完成结项</h4><ul><li>报名／签到：实际到场和爽约情况</li><li>财务：实际支出和差异说明</li><li>排班：缺岗、替补和负担分布</li><li>RAM：事故、险情和控制措施效果</li></ul></article>
+            <article><h4>AI 形成复盘草稿</h4><ul><li>汇总“餐饮高估 15%、儿童签到高峰拥堵、音响岗位负担过高”</li><li>提出下次模板调整和任务提前量建议</li><li>所有结论链接到可验证记录</li></ul></article>
+            <article><h4>负责人最终确认</h4><ul><li>修正 AI 误解并确认复盘</li><li>选择哪些任务、标签或模块设置进入下次参考</li><li>结项后历史活动保持原始快照</li></ul></article>
+          </div>
+        </article>
+      </div>
+
+      <h3 style="margin-top: 28px;">活动当天，系统按时间展示这些动作</h3>
+      <div class="day-flow">
+        <article><strong>15:00 场地准备</strong><span>餐饮、舞台和安全检查任务开始</span></article>
+        <article><strong>16:00 同工签到</strong><span>排班模块显示缺岗和替代建议</span></article>
+        <article><strong>16:30 来宾签到</strong><span>报名和儿童签到分别运行</span></article>
+        <article><strong>18:00 晚会进行</strong><span>负责人查看关键岗位，不展示无关隐私资料</span></article>
+        <article><strong>20:30 收场</strong><span>物资、事故、出席和后续任务进入结项</span></article>
+      </div>
+        </div>
+      </details>
+    </section>
+
+    <section id="composition" class="section">
+      <div class="section-head"><span class="section-no">4</span><div><h2>主架构：一个主引擎怎样串联整场活动</h2><p class="muted">不是让报名、排班、RAM、场地和报告各自形成一套孤立流程；主引擎掌握活动全局，各功能负责自己的专业工作。</p></div></div>
+
+      <div class="statement">
+        <strong>主引擎管“整场活动怎样向前走”，功能模块管“这一项工作怎样做完”。</strong>
+        <p>模块可以同时工作，也可以互相提供结果。主引擎统一处理活动阶段、人员权限、任务依赖、需要批准的事项、什么时候可以发布／报名／举办，以及所有变更记录。</p>
+      </div>
+
+      <div class="engine-flow" aria-label="活动主架构流程">
+        <article class="engine-node"><span class="engine-label">负责人和 AI</span><h3>确认活动事实</h3><ul><li>活动目的和名义</li><li>时间、场地、参加者</li><li>儿童、收费、交通、住宿</li><li>可见范围和责任人</li></ul></article>
+        <div class="engine-arrow" aria-hidden="true">→</div>
+        <article class="engine-node"><span class="engine-label">方案生成</span><h3>决定这次需要什么</h3><ul><li>模板提供常用起点</li><li>事实触发安全与政策要求</li><li>负责人加入可选功能</li><li>检查模块依赖和冲突</li></ul></article>
+        <div class="engine-arrow" aria-hidden="true">→</div>
+        <article class="engine-node primary"><span class="engine-label">活动主引擎</span><h3>建立并运行活动方案</h3><ul><li>保存本次方案</li><li>产生角色、任务和期限</li><li>协调并行模块</li><li>汇总阻塞、批准和开放条件</li></ul></article>
+        <div class="engine-arrow" aria-hidden="true">→</div>
+        <article class="engine-node output"><span class="engine-label">不同角色看到的页面</span><h3>把全局变成个人下一步</h3><ul><li>负责人：全局进度与阻塞</li><li>模块负责人：本项任务</li><li>审批人：待决定问题</li><li>同工：自己的班次</li></ul></article>
+      </div>
+
+      <h3 style="margin-top: 28px;">主引擎具体负责六件事</h3>
+      <div class="engine-duties">
+        <article class="engine-duty"><span>1</span><strong>保存本次活动方案</strong><p>记录本次启用了什么、为什么启用、使用哪个规则版本。以后模板变化不会改写已经开始的活动。</p></article>
+        <article class="engine-duty"><span>2</span><strong>建立活动结构</strong><p>组织多日、场次、场地／区域、节目和班次，让复杂活动仍然属于同一个整体。</p></article>
+        <article class="engine-duty"><span>3</span><strong>串联工作依赖</strong><p>例如报名人数影响餐饮和场地，场次时间影响排班，儿童岗位资格影响是否可以举办。</p></article>
+        <article class="engine-duty"><span>4</span><strong>统一人员和权限</strong><p>明确活动负责人、模块负责人、审批人和同工分别能看到及修改什么，避免模块各自放大权限。</p></article>
+        <article class="engine-duty"><span>5</span><strong>汇总决定与开放条件</strong><p>模块提交具体批准问题；主引擎计算活动是否可以发布、报名、举办和结项，并说明还缺什么。</p></article>
+        <article class="engine-duty"><span>6</span><strong>处理变化与历史</strong><p>资料改变时只重算受影响部分，显示差异，必要时让相关批准失效，同时保留完整操作记录。</p></article>
+      </div>
+
+      <h3 style="margin-top: 28px;">一场活动进入主引擎后的完整运行顺序</h3>
+      <ol class="orchestration-flow">
+        <li><strong>确认事实</strong>AI 从文字、语音或文件整理资料；负责人确认关键内容。</li>
+        <li><strong>生成活动方案</strong>列出必需、建议、自选和暂不需要的功能，并解释原因。</li>
+        <li><strong>保存方案版本</strong>建立本次活动的结构、模块、规则、角色和权限边界。</li>
+        <li><strong>生成工作</strong>各模块贡献页面、任务、负责人、期限、资料和通知。</li>
+        <li><strong>并行筹备</strong>报名、海报、排班、场地、RAM、财务等可以同时推进。</li>
+        <li><strong>提交具体决定</strong>只有预算、安全、儿童保护或公开发布等问题进入审批。</li>
+        <li><strong>汇总是否就绪</strong>主引擎持续说明是否可以预告、报名或举办，以及仍缺谁或什么。</li>
+        <li><strong>执行和结项</strong>活动当天记录实际情况；之后汇总出席、财务、事故、跟进和复盘。</li>
+      </ol>
+
+      <h3 style="margin-top: 28px;">周边功能怎样接入主引擎</h3>
+      <div class="service-loop">
+        <article><strong>报名流程</strong><span>管理邀请、家庭、容量、候补、取消和出席；向场地、餐饮、交通和最终报告提供已确认人数。</span></article>
+        <article><strong>排班流程</strong><span>接收岗位、场次、地点、资格和个人约束；向主引擎报告缺岗、已确认班次和临时替补。</span></article>
+        <article><strong>RAM 审批流程</strong><span>根据活动、场地或高风险场次记录危险和控制措施；批准后只解锁相应的举办条件。</span></article>
+        <article><strong>场地流程</strong><span>管理房间、区域、容量、设备、预订、布置、清场和时间冲突；把容量或场地变化反馈给报名和 RAM。</span></article>
+        <article><strong>财务流程</strong><span>处理预算、收费、采购、报销、退款和对账；超出权限或政策要求时才产生预算审批。</span></article>
+        <article><strong>海报与公开页面</strong><span>使用已确认资料生成双语内容和海报；发布许可独立判断，不会被筹备流程覆盖或删除。</span></article>
+        <article><strong>现场运行</strong><span>汇总当日场次、区域、班次、签到、检查、事故和升级事项，为负责人提供现场总览。</span></article>
+        <article><strong>最终报告</strong><span>从各模块读取已经确认的结果，形成结项清单和复盘草稿；负责人修正后才正式归档。</span></article>
+      </div>
+
+      <div class="callout"><strong>模块之间不直接随意改数据：</strong>报名模块发布“确认人数发生变化”，主引擎判断餐饮、场地、排班和 RAM 哪些需要更新；受影响模块再生成待确认任务。这样不会形成彼此看不见的自动修改。</div>
+
+      <h3 style="margin-top: 28px;">多日、多场地活动怎样放进同一架构</h3>
+      <p class="muted">复杂活动不是不断建立“子活动”。系统根据是否需要独立报名、费用、权限、RAM、取消和结项，选择合适的层级。</p>
+      <div class="scope-levels">
+        <article class="scope-level"><strong>系列</strong><span>多次相关活动共用名称、常用团队和重复设置</span></article>
+        <article class="scope-level"><strong>活动</strong><span>可以独立发布、报名、取消和结项的整体</span></article>
+        <article class="scope-level"><strong>日期／某一次</strong><span>多日活动的某一天，或定期聚会的某一周</span></article>
+        <article class="scope-level"><strong>场次</strong><span>工作坊、儿童节目、敬拜或并行内容</span></article>
+        <article class="scope-level"><strong>场地／区域</strong><span>礼堂、营地、儿童区、餐饮区或停车区</span></article>
+        <article class="scope-level"><strong>岗位／班次</strong><span>某个时间和地点需要谁完成什么工作</span></article>
+      </div>
+
+      <div class="callout warning"><strong>什么时候才建立独立的子活动？</strong>如果一个部分共享主活动报名、可见范围、主要团队和结项，只是时间、场地或负责人不同，就使用“场次”。只有它需要自己的参加者、费用、RAM、权限、取消或结项时，才成为独立子活动，而且先限制为一层父子关系。</div>
+
+      <h3 style="margin-top: 28px;">实例：三天家庭营会如何被主引擎串起来</h3>
+      <div class="camp-architecture">
+        <article class="camp-column"><h3>一个活动整体</h3><ul><li>名称：2026 家庭营会</li><li>统一报名、收费和总负责人</li><li>统一可见范围和结项</li><li>功能：报名、财务、住宿、交通、节目、排班、儿童安全、RAM</li></ul><div class="camp-day"><strong>不是三个互不相关的活动</strong><span>三天共享参加者和治理，因此仍然属于一个活动。</span></div></article>
+        <article class="camp-column"><h3>三天中的场次和场地</h3><div class="camp-day"><strong>周五 · 教会 → 营地</strong><span>集合签到、巴士出发、营地入住、开幕聚会</span></div><div class="camp-day"><strong>周六 · 营地／湖区</strong><span>成人工作坊、儿童组、湖边活动、晚间聚会；三个场次可并行</span></div><div class="camp-day"><strong>周日 · 营地 → 教会</strong><span>主日敬拜、房间检查、退房、返程和物资归还</span></div></article>
+        <article class="camp-column"><h3>模块怎样互相提供结果</h3><ul><li>报名确认家庭人数和年龄 → 房间、餐饮、交通容量</li><li>节目确定场次和地点 → 排班和场地预订</li><li>湖边场次触发局部 RAM → 只影响该场次能否运行</li><li>儿童模块提供资格和比例 → 排班只能选择合资格同工</li><li>每天的出席、支出和事故 → 最终报告统一汇总</li></ul></article>
+      </div>
+
+      <details class="deep-dive">
+        <summary>展开主引擎与模块之间必须遵守的详细约定<span class="deep-dive-note">供产品、数据、API、权限和开发实现讨论使用</span></summary>
+        <div class="deep-dive-content">
+          <div class="engine-contract">
+            <table>
+              <thead><tr><th>模块必须交给主引擎</th><th>内容</th><th>主引擎怎样使用</th></tr></thead>
+              <tbody>
+                <tr><td>启用原因</td><td>模板预设、事实触发、政策强制或负责人选择</td><td>向使用者解释为什么出现、是否允许移除</td></tr>
+                <tr><td>作用范围</td><td>整场活动、某一天、某个场次、场地／区域或班次</td><td>只让变化和批准影响真正相关的部分</td></tr>
+                <tr><td>角色与权限</td><td>负责人、协作人、审批资格和最小资料权限</td><td>生成角色工作台并在服务端检查权限</td></tr>
+                <tr><td>任务与依赖</td><td>任务、期限、前置结果、阻塞和交接</td><td>生成个人下一步，并允许模块并行推进</td></tr>
+                <tr><td>资料与结果</td><td>需要的字段、文件、输出结果及资料敏感级别</td><td>控制共享范围，避免把敏感资料放进公共页面或共享缓存</td></tr>
+                <tr><td>决定与依据</td><td>要批准的具体问题、所需证据、合资格审批人</td><td>建立审批事项并记录批准、退回、拒绝和失效</td></tr>
+                <tr><td>开放条件</td><td>本模块对预告、报名、举办或结项贡献的条件</td><td>汇总全局状态并解释仍缺什么</td></tr>
+                <tr><td>变化规则</td><td>哪些字段改变会重算任务、让决定失效或需要重新确认</td><td>显示影响差异，只更新受影响部分并保留历史</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="model-strip">
+            <article><strong>活动是全局边界</strong><span>保存目标、责任、权限、方案版本和完整历史。</span></article>
+            <article><strong>结构描述时间与空间</strong><span>系列、日期、场次、区域和班次不是通用子活动树。</span></article>
+            <article><strong>模块提供专业能力</strong><span>模块带来页面、任务、数据、通知、决定和完成条件。</span></article>
+            <article><strong>AI 只能形成待确认变化</strong><span>AI 通过主引擎建议设置，不能越过模块权限直接改正式状态。</span></article>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <section id="simulator" class="section">
+      <div class="section-head"><span class="section-no">5</span><div><h2>换一换活动条件，看看要做的事怎样变化</h2><p class="muted">选择一种活动，再勾选收费、儿童、交通等真实情况，下面会立即显示需要的功能、决定和执行条件。</p></div></div>
+      <div class="simulator">
+        <div class="sim-controls">
+          <label class="title" for="archetype">活动模板</label>
+          <select id="archetype">
+            <option value="simple">小组聚餐／简单活动</option>
+            <option value="camp" selected>营会／退修会</option>
+            <option value="recurring">定期聚会／培训</option>
+            <option value="large">大型公开活动</option>
+          </select>
+          <div class="facts" aria-label="活动事实">
+            <label class="fact"><input type="checkbox" data-fact="paid" checked><span><strong>活动收费</strong><span>需要价格、退款和结算安排</span></span></label>
+            <label class="fact"><input type="checkbox" data-fact="children" checked><span><strong>有未成年人参加</strong><span>触发监护、同意和签到签退要求</span></span></label>
+            <label class="fact"><input type="checkbox" data-fact="transport" checked><span><strong>统一安排交通</strong><span>需要司机、车辆和出行安全资料</span></span></label>
+            <label class="fact"><input type="checkbox" data-fact="overnight" checked><span><strong>包含住宿</strong><span>需要房间、健康资料和夜间责任安排</span></span></label>
+            <label class="fact"><input type="checkbox" data-fact="public"><span><strong>对公众开放</strong><span>需要公开内容、报名和隐私边界</span></span></label>
+            <label class="fact"><input type="checkbox" data-fact="recurring"><span><strong>定期重复举行</strong><span>需要场次、常设团队和每次准备检查</span></span></label>
+            <label class="fact"><input type="checkbox" data-fact="multiDay" checked><span><strong>跨越多个日期</strong><span>每天需要自己的场次、任务和运行状态</span></span></label>
+            <label class="fact"><input type="checkbox" data-fact="multiVenue" checked><span><strong>使用多个场地或区域</strong><span>需要容量、设备、预订、布置和场地冲突检查</span></span></label>
+            <label class="fact"><input type="checkbox" data-fact="multiSession" checked><span><strong>有多个或并行场次</strong><span>每个场次可以有自己的时间、地点、负责人和岗位</span></span></label>
+          </div>
+        </div>
+        <div class="sim-result" aria-live="polite">
+          <article class="result-block"><div class="result-head"><h3>启用的功能模块</h3><span id="module-count" class="count"></span></div><div id="module-chips" class="chips"></div></article>
+          <article class="result-block"><div class="result-head"><h3>产生的审批与确认</h3><span id="decision-count" class="count"></span></div><ul id="decision-list" class="reason-list"></ul></article>
+          <article class="result-block"><div class="result-head"><h3>举办活动前必须完成</h3><span class="count">可以举办</span></div><ul id="delivery-list" class="reason-list"></ul></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="modules" class="section">
+      <div class="section-head"><span class="section-no">6</span><div><h2>活动可以加入哪些功能</h2><p class="muted">报名、海报、排班、财务和风险管理都可以独立加入。简单活动少一些，复杂活动多一些。</p></div></div>
+
+      <h3>系统会把这些功能分成三种</h3>
+      <div class="module-catalog">
+        <article class="catalog-column core"><h3>基础模块 · 每个活动都有</h3><p>维持活动最小骨架，不代表每个活动都要走同样的筹备流程。</p><div class="chips"><span class="chip">基本资料</span><span class="chip">角色与可见性</span><span class="chip">任务与时间线</span><span class="chip">通知与操作记录</span></div></article>
+        <article class="catalog-column capability"><h3>能力模块 · 按需要加入</h3><p>负责人可选择，模板可预设，活动事实也可触发推荐。</p><div class="chips"><span class="chip">报名</span><span class="chip">排班</span><span class="chip">财务</span><span class="chip">海报与内容</span><span class="chip">节目与制作</span><span class="chip">场地与资源</span><span class="chip">签到</span><span class="chip">现场运行</span><span class="chip">餐饮</span><span class="chip">交通</span><span class="chip">住宿</span><span class="chip">跟进</span></div></article>
+        <article class="catalog-column policy"><h3>保障模块 · 政策可强制</h3><p>当活动事实触发教会要求时不能随意移除，但必须解释触发原因。</p><div class="chips"><span class="chip">RAM 风险</span><span class="chip">儿童安全</span><span class="chip">同意书</span><span class="chip">紧急与事故</span><span class="chip">隐私控制</span></div></article>
+      </div>
+
+      <details class="deep-dive">
+        <summary>展开模块的运行规则和相互关系<span class="deep-dive-note">包括加入来源、负责人、资料、审批、状态和模块依赖</span></summary>
+        <div class="deep-dive-content"><div class="callout"><strong>模块有三个加入入口：</strong>模板默认加入、政策根据事实强制加入、负责人按实际需要主动加入。页面必须标明来源；如果允许移除，也要先显示会失去哪些任务、资料和准备条件。</div>
+
+      <h3 style="margin-top: 28px;">每个模块必须包含这些内容</h3>
+      <div class="module-grid">
+        <article class="module-card"><span class="module-type">触发</span><h4>启用条件与原因</h4><ul><li>需要哪些活动事实</li><li>是推荐还是政策强制</li><li>为什么本次活动启用</li></ul></article>
+        <article class="module-card"><span class="module-type">责任</span><h4>角色与任务</h4><ul><li>需要哪些活动角色</li><li>谁负责、谁协作</li><li>任务期限和依赖关系</li></ul></article>
+        <article class="module-card"><span class="module-type">资料</span><h4>数据与依据</h4><ul><li>需要填写哪些资料</li><li>哪些文件是审批依据</li><li>资料对谁可见、保留多久</li></ul></article>
+        <article class="module-card"><span class="module-type">治理</span><h4>审批与准备门槛</h4><ul><li>是否产生审批问题</li><li>通过条件和审批资格</li><li>影响发布、报名、执行或结项</li></ul></article>
+        <article class="module-card"><span class="module-type">生命周期</span><h4>变更与失效</h4><ul><li>哪些变化需要重新确认</li><li>批准后修改如何失效</li><li>异常、取消和结项怎样处理</li></ul></article>
+        <article class="module-card"><span class="module-type">版本</span><h4>稳定与兼容</h4><ul><li>模块和政策采用哪个版本</li><li>旧活动保留原始快照</li><li>升级前展示方案差异</li></ul></article>
+      </div>
+
+      <h3 style="margin-top: 28px;">一个模块自己的小流程</h3>
+      <ol class="module-lifecycle" aria-label="模块生命周期">
+        <li><strong>未启用</strong>不产生工作</li>
+        <li><strong>已推荐</strong>说明加入原因</li>
+        <li><strong>已启用</strong>建立模块实例</li>
+        <li><strong>配置中</strong>填写设置与分工</li>
+        <li><strong>已就绪</strong>必要任务已完成</li>
+        <li><strong>运行中</strong>用于活动执行</li>
+        <li><strong>已结项</strong>归档结果与经验</li>
+      </ol>
+
+      <h3 style="margin-top: 28px;">模块之间通过明确结果连接</h3>
+      <div class="dependency-map">
+        <article><strong>报名 → 餐饮／交通／住宿</strong><span>已确认人数、年龄和选择项提供容量依据；下游模块不能随意读取无关个人资料。</span></article>
+        <article><strong>人员资料 → 排班</strong><span>只提供岗位需要的可用时间、技能和限制，不把整份成员档案交给排班负责人或 AI。</span></article>
+        <article><strong>儿童安全 → 排班</strong><span>产生岗位资格、人数比例和不可单独值班等确定约束，AI 不能自行放宽。</span></article>
+        <article><strong>RAM → 任务／执行门槛</strong><span>风险控制措施转为责任人和到期任务；关键措施未完成时阻止执行，而不是阻止前期预告。</span></article>
+        <article><strong>报名／财务 → 结项</strong><span>价格、付款和退款形成对账要求；审批只在政策要求或超出授权范围时发生。</span></article>
+        <article><strong>排班 → 通知／签到</strong><span>人工发布排班后才发送岗位通知，并在现场展示当日职责；草稿不会提前通知成员。</span></article>
+      </div>
+        </div>
+      </details>
+
+      <div class="statement" style="margin-top: 24px;">
+        <strong>例：营会不是一条“营会专用大流程”</strong>
+        <p>它是“基础资料＋报名＋财务＋住宿＋交通＋餐饮＋排班＋RAM＋儿童安全＋签到”的一次组合。若另一个营会没有儿童或统一交通，对应模块和审批就不会出现；海报模块仍然独立存在，不会被筹备流程覆盖。</p>
+      </div>
+    </section>
+
+    <section id="venue-booking" class="section">
+      <div class="section-head"><span class="section-no">7</span><div><h2>场地目录与场地申请：两个独立页面</h2><p class="muted">系统管理页面负责维护“有什么场地”；活动工作区页面只负责“这场活动要申请什么”。</p></div></div>
+
+      <div class="statement">
+        <strong>系统不会猜测教会有什么场地：场地目录从空白开始，必须由有权限的人维护。</strong>
+        <p>管理员先建立场地，再添加房间、区域、容量、设备、开放时间和预订规则。只有已发布到场地目录的内容才能被活动负责人搜索和申请。</p>
+      </div>
+
+      <div class="callout"><strong>2026-08-26 实施状态：</strong>第一批可运行能力已经进入代码：场地目录从空白开始，可维护场地、空间、容量、设备和启用状态；活动负责人可在独立页面保存草稿并人工提交；场地审批人在第三个独立工作台批准或退回，批准时由后端事务检查同一空间的时间冲突。相关数据库迁移已按用户授权应用到当前配置的数据库，当前没有待执行迁移。</div>
+      <div class="callout warning"><strong>仍属于后续设计：</strong>场地开放时间、维护封锁、逐场地权限所有者、多空间临时保留、幂等提交、外部地点、与 RAM／举办条件联动，以及 AI 根据活动需要推荐候选空间。目前页面和接口不会假装这些能力已经完成。</div>
+
+      <div class="venue-principles">
+        <article><strong>第一步：建立场地目录</strong><span>系统管理员授权场地所有者；场地所有者录入本组织真实拥有或长期管理的场地。</span></article>
+        <article><strong>第二步：发布可申请空间</strong><span>资料经过确认后才供活动选择。草稿、停用和维护中的空间不会被当成可用场地。</span></article>
+        <article><strong>第三步：活动按目录申请</strong><span>主引擎只使用已经维护的真实资料；外部地点作为本次活动地点记录，不会自动加入教会目录。</span></article>
+      </div>
+
+      <div class="page-boundary" aria-label="场地维护页面与申请页面边界">
+        <article><span class="page-route">/system/venues</span><strong>页面一：系统管理／场地目录</strong><span>只给系统管理员、场地权限所有者和获授权管理员。负责建立真实场地资料、空间、资源、规则、权限和发布状态。</span></article>
+        <div class="page-boundary-arrow" aria-hidden="true">⇄</div>
+        <article><span class="page-route">/events/{eventId}/venue-request</span><strong>页面二：活动工作区／场地申请</strong><span>只处理这一场活动的地点需求、查询、申请和状态。只能读取已发布目录，绝不在这里修改场地资料。</span></article>
+      </div>
+      <div class="page-separation">两个页面拥有不同导航、不同权限、不同表单和不同保存对象。活动负责人不能通过申请页面顺便创建或修改教会场地。</div>
+      <div class="page-separation"><span class="page-route">/system/venue-bookings</span> 是第三个独立的“场地申请审批”工作台，只处理已经提交的申请；它既不维护场地目录，也不代替活动负责人创建申请。</div>
+
+      <div class="venue-demo" aria-label="系统管理场地目录页面示例">
+        <div class="venue-demo-head"><div><strong>系统管理 › 场地目录</strong><span>独立管理页面 · 不属于任何一场活动</span></div><span class="page-route">/system/venues</span></div>
+        <div class="venue-demo-panel">
+          <div class="demo-panel-head"><div><h3>从空白建立本组织的场地目录</h3><p>系统管理员先授权场地权限所有者，再由场地权限所有者录入和发布真实资料。</p></div><span class="demo-progress">目录尚未建立</span></div>
+          <div class="demo-layout">
+            <div class="demo-surface">
+              <div class="venue-admin-grid">
+                <article class="venue-admin-card"><span class="venue-status warning">第 1 步</span><strong>建立场地</strong><p>填写真实名称、中英文显示名、地址、时区、所属组织和场地权限所有者。</p></article>
+                <article class="venue-admin-card"><span class="venue-status warning">第 2 步</span><strong>添加空间与资源</strong><p>逐个添加房间、区域、容量、设备、无障碍、图片和平面图。</p></article>
+                <article class="venue-admin-card"><span class="venue-status warning">第 3 步</span><strong>设置可用规则</strong><p>维护开放时间、缓冲、提前期、维护封锁、取消和审批要求。</p></article>
+                <article class="venue-admin-card"><span class="venue-status warning">第 4 步</span><strong>检查并发布</strong><p>确认容量和安全资料来源，再决定对哪些用户显示和开放申请。</p></article>
+              </div>
+              <div class="demo-form" style="margin-top: 12px;">
+                <div class="mock-field needs"><label>场地名称</label><span>尚未填写——必须由管理员录入真实名称</span></div>
+                <div class="mock-field needs"><label>地址与时区</label><span>尚未填写</span></div>
+                <div class="mock-field needs"><label>所属组织</label><span>选择拥有或长期管理该场地的组织</span></div>
+                <div class="mock-field needs"><label>场地权限所有者</label><span>选择负责维护和授权的人员或团队</span></div>
+                <div class="mock-field needs"><label>可见范围</label><span>仅管理员／教会成员／公开简介</span></div>
+                <div class="mock-field"><label>发布状态</label><span>草稿——活动负责人暂时看不到</span></div>
+              </div>
+              <div class="demo-actions"><button class="demo-button" type="button" data-venue-message="系统会建立一个未发布的场地草稿；必须填写真实资料并经过权限所有者确认。">＋ 新建场地草稿</button><button class="demo-button primary" type="button" data-venue-message="当前必填资料尚未完成，因此不能发布到活动可申请目录。">检查并发布到目录</button></div>
+            </div>
+            <aside class="demo-ai-card"><h4>AI 只能协助整理，不能创造场地事实</h4><p>管理员可以上传场地说明、平面图或现有清单，让 AI 提取候选名称、空间和设备。</p><ul><li>容量、所有权、钥匙负责人和安全属性必须人工确认</li><li>AI 可以发现重复空间和矛盾开放时间</li><li>场地权限所有者决定是否发布</li></ul></aside>
+          </div>
+        </div>
+        <div class="demo-feedback venue-feedback" role="status" aria-live="polite" hidden></div>
+      </div>
+
+      <div class="callout"><strong>页面之间的数据通道：</strong>管理页面只向外发布经过确认的场地目录和可用规则；活动申请页面提交 BookingRequest；场地审批结果再以 BookingDecision 返回活动。双方不共享编辑表单。</div>
+
+      <div class="venue-demo" aria-label="活动场地申请页面示例">
+        <div class="venue-demo-head"><div><strong>活动 › 2026 社区中秋外展晚会 › 场地申请</strong><span>活动工作区中的独立申请页面</span></div><span class="page-route">/events/{eventId}/venue-request</span></div>
+        <div class="venue-demo-panel">
+          <div class="demo-panel-head"><div><h3>从已发布的场地目录选择，或者记录外部地点</h3><p>当前目录为空，所以页面明确显示没有可申请场地，不会自行生成任何房间。</p></div><span class="demo-progress">当前可申请场地：0</span></div>
+          <div class="demo-layout">
+            <div class="demo-surface">
+              <div class="callout warning" style="margin-top: 0;"><strong>尚未维护教会场地</strong><br>当前组织没有已发布的场地或空间。申请页面不能新增场地；需要由场地权限所有者到系统管理页面维护。</div>
+              <div class="venue-options" style="margin-top: 12px;">
+                <article class="venue-option"><span class="venue-status warning">等待目录</span><strong>申请教会管理的场地</strong><p>目录发布后，本页会按照本次活动人数、时间和设备需求显示真实空间。</p></article>
+                <article class="venue-option"><span class="venue-status">仅本次活动</span><strong>填写外部地点</strong><p>保存到本次活动，不会加入教会场地目录，也不能被其他活动当作可预订空间。</p></article>
+              </div>
+              <div class="demo-actions"><button class="demo-button" type="button" data-venue-message="系统会向场地权限所有者发送资料维护请求；活动申请页面本身不会创建场地。">通知场地管理员补充目录</button><button class="demo-button primary" type="button" data-venue-message="系统会打开本次活动的外部地点表单；该资料只属于本活动。">填写外部地点</button></div>
+            </div>
+            <aside class="demo-ai-card"><h4>AI 只匹配已发布目录</h4><p>目录为空时，AI 不推荐、不补全、不推断教会场地。</p><ul><li>不能修改场地目录</li><li>不能把历史地址自动升级为教会场地</li><li>可以整理本次活动的外部地点草稿</li></ul></aside>
+          </div>
+        </div>
+        <div class="demo-feedback venue-feedback" role="status" aria-live="polite" hidden></div>
+      </div>
+
+      <details class="deep-dive">
+        <summary>展开两个页面的角色和权限边界<span class="deep-dive-note">维护权、申请权、审批权和普通查看权必须独立判断</span></summary>
+        <div class="deep-dive-content"><div class="engine-contract">
+          <table>
+            <thead><tr><th>角色</th><th>系统管理／场地目录</th><th>活动／场地申请</th><th>明确禁止</th></tr></thead>
+            <tbody>
+              <tr><td>系统管理员</td><td>建立组织场地管理范围并授权场地所有者</td><td>没有活动角色时不参与普通申请</td><td>不能仅凭系统身份替场地所有者批准申请</td></tr>
+              <tr><td>场地权限所有者</td><td>维护和发布场地、空间、规则及管理员名单</td><td>从独立审批工作台处理申请决定</td><td>不能静默改写已确认预订</td></tr>
+              <tr><td>活动负责人</td><td>无维护权限</td><td>查看可申请目录，提交、修改或取消本活动申请</td><td>不能在申请页新增或编辑教会场地</td></tr>
+              <tr><td>普通成员</td><td>无维护权限</td><td>只有活动角色授权后才查看相关申请状态</td><td>不能获知其他活动的预订人和内部用途</td></tr>
+            </tbody>
+          </table>
+        </div></div>
+      </details>
+
+      <h3 style="margin-top: 28px;">场地目录建立并发布后，一次预订怎样完成</h3>
+      <ol class="booking-flow" aria-label="场地预订流程">
+        <li><strong>选择活动场次</strong>读取日期、人数和设备需求</li>
+        <li><strong>搜索合适空间</strong>检查容量、开放时间和资格</li>
+        <li><strong>建立临时保留</strong>短时间锁住整套空间避免抢占</li>
+        <li><strong>按规则决定</strong>常规申请确认，例外进入人工审批</li>
+        <li><strong>确认并通知</strong>写入活动场次和场地交接任务</li>
+        <li><strong>变更重新检查</strong>时间、人数或空间变化重算影响</li>
+        <li><strong>使用并完成交接</strong>开门、检查、清场、事故和损坏记录</li>
+      </ol>
+
+      <div class="callout"><strong>哪些情况通常需要场地负责人决定：</strong>公众活动、超过常规容量、厨房或特殊设备、非开放时间、外部组织、收费使用、需要钥匙／门禁、违反缓冲时间，或申请政策允许的例外。普通且完全符合规则的内部申请可按教会设置直接确认。</div>
+
+      <details class="deep-dive">
+        <summary>展开场地资料、数据权限和代码设计模式<span class="deep-dive-note">供产品、后端、数据库、权限和测试设计使用</span></summary>
+        <div class="deep-dive-content">
+          <h3>需要维护的核心资料</h3>
+          <div class="engine-contract">
+            <table>
+              <thead><tr><th>对象</th><th>保存什么</th><th>重要规则</th></tr></thead>
+              <tbody>
+                <tr><td>Venue 场地</td><td>中英文名称、地址、时区、所有组织、联系人、可见范围</td><td>一个场地包含多个空间；所有权和普通管理权限分开</td></tr>
+                <tr><td>Space 空间</td><td>房间／区域、容量、用途、无障碍、设备、平面图、开放状态</td><td>容量和安全属性必须人工确认并保留版本</td></tr>
+                <tr><td>Resource 资源</td><td>音响、投影、桌椅、钥匙、车辆或可借设备</td><td>可绑定空间，也可跨空间预订；数量不能超额</td></tr>
+                <tr><td>AvailabilityRule 可用规则</td><td>常规开放时间、节假日、准备／清场缓冲、提前期和最长时长</td><td>规则变化不应静默破坏已确认预订</td></tr>
+                <tr><td>MaintenanceBlock 封锁</td><td>维护、私人使用、紧急关闭和不可预订时段</td><td>必须记录原因、范围、创建人和有效时间</td></tr>
+                <tr><td>BookingPolicy 预订政策</td><td>谁可以申请、哪些情况自动确认、哪些需要审批、取消和例外规则</td><td>政策按组织／场地／空间分层，具体规则优先</td></tr>
+                <tr><td>Booking 预订</td><td>活动、申请人、多个时间段、空间／资源、状态、决定和交接结果</td><td>正式预订引用活动和场次，不复制敏感活动资料</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3 style="margin-top: 24px;">在现有分层架构内使用的设计模式</h3>
+          <div class="callout"><strong>不另建一套场地工作流框架：</strong>前端负责操作体验，应用服务协调用例，领域对象和政策负责预订规则，现有持久化层保存数据，领域事件把结果通知活动主引擎。下面的模式用于明确职责，不要求引入新框架或付费服务。</div>
+          <div class="pattern-grid">
+            <article class="pattern-card"><code>Aggregate</code><strong>场地和预订各自保持一致性</strong><p>Venue 管理空间与规则；Booking 管理多个预订片段、状态和决定。活动只保存预订引用和结果。</p></article>
+            <article class="pattern-card"><code>Strategy + Specification</code><strong>组合可用性和审批规则</strong><p>容量、开放时间、资格、缓冲、冲突和审批策略可以替换及测试，不把大量条件散落在控制器中。</p></article>
+            <article class="pattern-card"><code>State</code><strong>控制预订生命周期</strong><p>草稿、检查完成、临时保留、待审批、已确认、使用中、已完成、被拒绝和已取消只能按允许路径转换。</p></article>
+            <article class="pattern-card"><code>Process Manager</code><strong>协调多空间整套预订</strong><p>负责申请中多个真实空间的整体保留、审批、失败补偿和人工选择，避免只确认其中一部分。</p></article>
+            <article class="pattern-card"><code>Domain Events</code><strong>通知主引擎和相关模块</strong><p>确认、改期、取消或维护封锁产生明确事件，由活动方案、RAM、排班和通知处理自己的影响。</p></article>
+            <article class="pattern-card"><code>Repository + Adapter</code><strong>隔离存储和外部日历</strong><p>领域逻辑不依赖数据库或日历供应商；未来接入外部日历时通过适配器，不改变活动合同。</p></article>
+          </div>
+
+          <div class="code-outline" aria-label="场地目录与预订代码职责示例">VenueCatalogApplicationService                  // 系统管理页面专用
+  ├─ AuthorizeVenueMaintenance(user, organisationScope)
+  ├─ CreateOrUpdateVenueCatalogDraft(venue, spaces, resources, rules)
+  ├─ ValidateOwnershipCapacityAndVisibility()
+  ├─ VenueCatalogAggregate.publish(ownerConfirmation)
+  └─ Publish(VenueCatalogPublished | VenueCatalogChanged)
+
+VenueBookingApplicationService                  // 活动申请页面专用
+  ├─ Authorize(user, event, venueScope)
+  ├─ ReadPublishedVenueCatalog()                 // 只读，不能修改目录
+  ├─ BuildRequest(eventFacts, sessions, requestedSpaces)
+  ├─ AvailabilitySpecification.evaluate(request)
+  ├─ BookingProcessManager.holdAllSegments(request, idempotencyKey)
+  ├─ BookingApprovalStrategy.evaluate(request, venuePolicy)
+  ├─ BookingAggregate.submitOrConfirm(decision)
+  ├─ BookingRepository.saveWithConcurrencyCheck(booking)
+  └─ Publish(VenueBookingConfirmed | ApprovalRequired | BookingConflict)
+
+EventWorkflowOrchestrator
+  ├─ updates Venue module status and activity readiness
+  ├─ creates handover, setup and close-down tasks
+  ├─ asks RAM, Registration and Roster modules to re-check affected facts
+  └─ presents every generated change for human confirmation when required</div>
+
+          <div class="callout warning"><strong>代码边界：</strong>场地目录与预订申请使用不同应用服务、不同命令和不同授权策略。预订服务只能读取已发布目录；任何“申请时顺便创建场地”的命令都应在后端被拒绝。</div>
+
+          <div class="callout warning"><strong>并发与安全：</strong>提交必须带幂等键；临时保留需要过期时间；重叠检查与写入必须在数据库事务和并发控制下完成。权限只能由后端判断。公开可用时间可以缓存，但预订人、内部活动名称、儿童安排和联系人不能进入公共或共享缓存。</div>
+
+          <h3 style="margin-top: 24px;">必须覆盖的测试</h3>
+          <div class="dependency-map">
+            <article><strong>重叠与并发</strong><span>两个用户同时申请同一空间；多个空间中一个冲突；临时保留过期；重复提交不产生两个预订。</span></article>
+            <article><strong>权限矩阵</strong><span>系统管理员、场地所有者、排期员、活动负责人和普通成员分别验证查看、修改、批准和取消。</span></article>
+            <article><strong>规则与状态</strong><span>自动确认、人工审批、退回、拒绝、取消、维护封锁、非开放时间和状态跳跃。</span></article>
+            <article><strong>活动联动</strong><span>确认、改期、人数增加、场地取消后，RAM、报名、排班和举办条件只更新受影响部分。</span></article>
+            <article><strong>隐私与缓存</strong><span>不同查看者不能通过公开可用时间、共享缓存、日志或 AI 间接获得内部活动资料。</span></article>
+            <article><strong>多日多场地</strong><span>跨午夜、夏令时、重复日期、多个时区、部分场次取消和整套预订失败补偿。</span></article>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <section id="approval" class="section">
+      <div class="section-head"><span class="section-no">8</span><div><h2>什么情况下才需要别人批准</h2><p class="muted">不是审批整个活动，而是明确回答预算、安全或公开发布等具体问题。</p></div></div>
+      <div class="callout"><strong>RAM 第一批已经实现：</strong>负责人完成资料并人工确认后提交“本次风险控制是否足以执行”这一具体问题；系统记录提交人和时间。具有活动审计权限、且不是提交人的人员可以批准或填写原因退回。退回后负责人必须修改并再次人工确认。只有时间、地点、人数、活动说明、风险约束、排班需求或 RAM 内容发生实质变化时，原决定才会明确失效并要求重新提交；单独更换海报不会推翻 RAM 审批。历史中已待审或已批准的 RAM 会迁移为同样的决定记录。</div>
+      <div class="callout"><strong>当前页面入口：</strong>活动负责人在“筹备方案”里统一查看所有需要别人决定的事项。场地申请由负责人从活动的“场地申请”页面准备和提交，场地审批人从“教会管理 → 场地申请审批”处理；RAM 的准备、提交与有权限人员的决定都从“当前活动 → 编辑活动 → 风险评估”进入。统一审批区会同时写明审批问题、审批资格、入口、所需依据和决定影响，不再让审批说明散落在多张重复卡片里。</div>
+      <ol class="approval-flow" aria-label="审批流程">
+        <li>模块产生审批问题</li><li>负责人完成任务</li><li>提交规定依据</li><li>系统检查完整性</li><li>合资格人员审阅</li><li>记录决定与意见</li><li>更新准备门槛</li>
+      </ol>
+      <div class="decision-split">
+        <article class="approve"><h4>批准</h4><p>依据充分且符合政策。记录审批人、时间、意见和被解锁的准备门槛。</p></article>
+        <article class="return"><h4>退回修改</h4><p>方向可以接受，但资料或控制措施不足。必须说明缺口和重新提交要求。</p></article>
+        <article class="reject"><h4>拒绝</h4><p>方案不可接受或不符合政策。记录原因，并阻止相关门槛通过。</p></article>
+      </div>
+      <div class="callout warning"><strong>禁止状态跳跃：</strong>需要审批的事项不能从“进行中”直接变成“已完成”；提交人不能审批自己的提交，审批也不能在缺少规定依据时完成。</div>
+    </section>
+
+    <section id="gates" class="section">
+      <div class="section-head"><span class="section-no">9</span><div><h2>做到什么程度，活动才可以向前走</h2><p class="muted">可以先发布预告，再开放报名；临近活动时，还要确认人员和安全安排已经就绪。</p></div></div>
+      <div class="gate-track">
+        <article class="gate"><span class="gate-en">第一步</span><h3>可以预告</h3><ul><li>基础资料和时间地点明确</li><li>可见范围已经确认</li><li>公开内容符合隐私要求</li></ul></article>
+        <article class="gate"><span class="gate-en">第二步</span><h3>可以报名</h3><ul><li>报名方式、容量和截止时间明确</li><li>费用和退款规则已确认</li><li>同意书与资料用途已准备</li></ul></article>
+        <article class="gate"><span class="gate-en">第三步</span><h3>可以举办</h3><ul><li>关键角色已经有人负责</li><li>风险管理和安全要求已满足</li><li>交通、场地和紧急安排可用</li></ul></article>
+        <article class="gate"><span class="gate-en">第四步</span><h3>可以结项</h3><ul><li>财务和出席资料已完成</li><li>事故与跟进事项已处理</li><li>活动回顾和资料归档完成</li></ul></article>
+      </div>
+      <div class="callout"><strong>门槛由模块共同贡献：</strong>例如财务模块可能同时影响“可以报名”和“可以结项”；RAM 主要影响“可以执行”，不应永远阻止活动提前发布预告。</div>
+    </section>
+
+    <section id="roles" class="section">
+      <div class="section-head"><span class="section-no">10</span><div><h2>不同的人分别做什么</h2><p class="muted">活动负责人掌握全局；每项工作有自己的负责人；需要批准时再交给有资格的人。</p></div></div>
+      <div class="lane-board" aria-label="活动角色泳道">
+        <div class="lane lane-head"><div>角色</div><div>方案确认</div><div>筹备</div><div>提交</div><div>决定</div><div>执行与结项</div></div>
+        <div class="lane"><div class="lane-name">活动负责人</div><div class="work"><strong>确认边界</strong>活动事实、范围和团队</div><div class="work"><strong>跟踪准备度</strong>处理阻塞和变更</div><div class="work"><strong>最终提交</strong>确认资料完整</div><div class="work">查看决定和退回要求</div><div class="work"><strong>承担结果</strong>执行和复盘</div></div>
+        <div class="lane"><div class="lane-name">模块负责人</div><div class="work">接受模块职责</div><div class="work"><strong>完成模块任务</strong>报名、排班、RAM 等</div><div class="work"><strong>提交依据</strong>文件、名单或确认</div><div class="work">根据意见修改</div><div class="work">运行模块并完成结项</div></div>
+        <div class="lane"><div class="lane-name">审批人</div><div class="work">确认审批资格</div><div class="work">必要时提前给出指导</div><div class="work">接收待审批事项</div><div class="work"><strong>批准／退回／拒绝</strong>记录理由</div><div class="work">查看后续重大变化</div></div>
+        <div class="lane"><div class="lane-name">系统</div><div class="work"><strong>生成快照</strong>记录版本与原因</div><div class="work"><strong>生成任务</strong>提醒期限和依赖</div><div class="work">检查依据完整性</div><div class="work"><strong>更新门槛</strong>保留决定历史</div><div class="work">归档、统计和提醒</div></div>
+      </div>
+      <div class="role-grid">
+        <article class="role-card"><strong>管理小组</strong><p>对活动最终归属和治理负责，不等于独自完成所有工作。</p></article>
+        <article class="role-card"><strong>协作小组</strong><p>按约定参与活动，拥有明确职责和可见范围，不自动获得全部资料。</p></article>
+        <article class="role-card"><strong>活动角色</strong><p>由模块产生，如安全负责人、财务负责人、排班负责人或报名负责人。</p></article>
+      </div>
+    </section>
+
+    <section id="workspace" class="section">
+      <div class="section-head"><span class="section-no">11</span><div><h2>打开活动后，页面首先告诉你什么</h2><p class="muted">先回答“现在最应该做什么”，需要时再进入报名、排班或安全等详细页面。</p></div></div>
+      <div class="flow-break">
+        <article class="flow-layer user"><h3>顶部：活动准备度</h3><ul><li>四类准备门槛</li><li>当前阶段和下一个里程碑</li><li>是否可以预告、报名或执行</li></ul></article>
+        <div class="flow-arrow" aria-hidden="true">→</div>
+        <article class="flow-layer kernel"><h3>主体：个人下一步</h3><ul><li>我需要完成的任务</li><li>阻塞原因和缺少依据</li><li>等待谁处理</li><li>最接近到期的事项</li></ul></article>
+        <div class="flow-arrow" aria-hidden="true">→</div>
+        <article class="flow-layer workspace"><h3>展开：模块工作区</h3><ul><li>报名、排班、RAM、财务</li><li>资料、审批和历史</li><li>角色、期限和变更记录</li></ul></article>
+      </div>
+      <div class="callout"><strong>流程图不是装饰：</strong>点击阶段或模块必须进入可以实际完成工作的区域；页面需要持续显示进入下一阶段还缺什么，而不是只展示一排已完成／未完成节点。</div>
+    </section>
+
+    <section id="smart-scheduling" class="section">
+      <div class="section-head"><span class="section-no">12</span><div><h2>智能排班：把人的真实情况变成可用约束</h2><p class="muted">排班模块不只是选择姓名。它需要同时理解岗位需求、个人可用情况、服事负担和必须遵守的安全规则。</p></div></div>
+
+      <h3>资料不要求全部由个人填写</h3>
+      <div class="schedule-inputs">
+        <article><span class="source">本人配置</span><h3>简单表达自己的情况</h3><ul><li>固定不可用时间</li><li>愿意承担的岗位和频率</li><li>交通、行动或照护限制</li><li>可随时查看、更正或撤回</li></ul></article>
+        <article><span class="source">管理者协助记录</span><h3>适合不熟悉手机的成员</h3><ul><li>面对面或电话了解后代为录入</li><li>使用教会预设的快捷标签</li><li>记录由谁、何时、通过何种方式确认</li><li>先进入“待确认”，确认后才用于正式排班</li></ul></article>
+        <article><span class="source">系统计算</span><h3>从已确认记录形成指标</h3><ul><li>近期服事次数和连续周数</li><li>已接受的岗位与时间冲突</li><li>资格有效期和轮换公平度</li><li>只能形成建议，不能推断家庭或健康身份</li></ul></article>
+      </div>
+
+      <div class="callout"><strong>适老化做法：</strong>管理者可以批量选择成员、使用大按钮和常用标签快速协助配置；成员不需要登录系统才能表达限制。管理者应记录“已当面确认／已电话确认／待本人确认”，并让本人或获授权的关怀负责人能够纠正。</div>
+
+      <h3 style="margin-top: 28px;">标签要描述排班事实，不给人贴身份结论</h3>
+      <div class="tag-example" aria-label="排班标签设计示例">
+        <div class="tag-head">不要直接使用</div><div class="tag-head">转换为可执行标签</div><div class="tag-head">来源与有效期</div><div class="tag-head">排班可见内容</div>
+        <div class="tag-name avoid">“宝妈”</div><div>工作日 15:00–16:00 不可用；晚间岗位需提前确认</div><div>管理者代录 · 电话确认 · 每学期复核</div><div>只显示不可用时间，不显示家庭原因</div>
+        <div class="tag-name avoid">“老人”</div><div>适合白天岗位；每班不超过 2 小时；需要有座位的岗位</div><div>本人或关怀同工确认 · 六个月复核</div><div>只显示岗位限制，不公开年龄或健康说明</div>
+        <div class="tag-name avoid">“很能干”</div><div>可负责接待；可操作音响；愿意每月最多服事 2 次</div><div>技能经负责人确认 · 资格到期时提醒</div><div>显示技能、意愿上限和有效状态</div>
+      </div>
+
+      <h3 style="margin-top: 28px;">AI 排班的六步工作方式</h3>
+      <ol class="schedule-flow" aria-label="AI 智能排班流程">
+        <li><strong>定义岗位</strong>时间、人数、技能、资格和搭配要求</li>
+        <li><strong>读取最小资料</strong>只取可用时间、适岗条件和负担指标</li>
+        <li><strong>先守硬约束</strong>时间冲突、资格、安全比例绝不突破</li>
+        <li><strong>再优化偏好</strong>兼顾照护安排、意愿、连续服事与公平度</li>
+        <li><strong>给出候选方案</strong>展示 A／B 方案、空缺、冲突和推荐理由</li>
+        <li><strong>人工发布</strong>排班负责人复核，成员确认后正式生效</li>
+      </ol>
+
+      <div class="dependency-map">
+        <article><strong>硬约束 · 不能为了排满而违反</strong><span>同一时间不能重复安排；儿童岗位资格和人数比例必须满足；明确不可用时间、每班上限和必要的无障碍条件必须遵守。</span></article>
+        <article><strong>软偏好 · 尽量满足并解释取舍</strong><span>偏好岗位、避免连续多周、家庭同行、交通便利、轮换公平和个人服事频率。无法全部满足时显示冲突，不静默牺牲某个人。</span></article>
+      </div>
+
+      <div class="callout warning"><strong>隐私边界：</strong>排班负责人通常只需要看到“不可用”和“适合什么岗位”，不需要知道接孩子、健康状况或家庭关系的细节。敏感说明应单独受限，AI 默认只接收转换后的排班约束。</div>
+    </section>
+
+    <section id="ai-assistance" class="section">
+      <div class="section-head"><span class="section-no">13</span><div><h2>AI 应该怎样贯穿活动流程</h2><p class="muted">AI 不应只存在于创建页面的聊天框，而应进入每个模块，帮助设置、比较、检查和解释，但不能替人批准或发布。</p></div></div>
+
+      <details class="deep-dive">
+        <summary>查看当前版本与目标体验的差距<span class="deep-dive-note">主要供产品规划和开发评估使用</span></summary>
+        <div class="deep-dive-content"><div class="ai-current">
+        <article class="available">
+          <h3>当前已经具备</h3>
+          <ul>
+            <li>通过对话、语音、图片或 PDF 整理活动资料</li>
+            <li>生成中英文活动草稿和补全另一种语言</li>
+            <li>同步形成活动通知与 RAM 草稿</li>
+            <li>标记缺失的风险、安全和联系人资料</li>
+            <li>读取参考海报并生成可人工采用的海报草案</li>
+            <li>保留活动会话，支持找回未完成草稿</li>
+          </ul>
+        </article>
+        <article class="missing">
+          <h3>当前主要缺口</h3>
+          <ul>
+            <li>AI 不理解活动采用了哪些模块和政策</li>
+            <li>活动保存后缺少阶段感知的持续协助</li>
+            <li>不能围绕个人角色解释下一步和阻塞原因</li>
+            <li>不能检查审批依据是否完整或总结变更</li>
+            <li>执行、结项和模板改进阶段几乎没有 AI</li>
+            <li>事实、建议、假设和人工确认的来源区分不够直观</li>
+          </ul>
+        </article>
+        </div></div>
+      </details>
+
+      <h3>六个阶段的 AI 协助</h3>
+      <div class="ai-stage-grid">
+        <article class="ai-stage"><span class="stage-label">01 · 活动构想</span><h4>把自然表达变成候选事实</h4><ul><li>理解文字、语音、海报和旧活动资料</li><li>整理双语标题、目的、时间、对象和地点</li><li>把不确定内容明确标为待确认，不静默猜测</li></ul></article>
+        <article class="ai-stage"><span class="stage-label">02 · 方案组合</span><h4>解释为什么需要这些模块</h4><ul><li>根据已知事实推荐活动模板和模块</li><li>在权限范围内参考往期相似活动及实际结果</li><li>说明政策触发原因，并比较当前方案与参考方案的差异</li></ul></article>
+        <article class="ai-stage"><span class="stage-label">03 · 模块配置与筹备</span><h4>进入具体模块直接帮忙</h4><ul><li>在报名、排班、财务、RAM 等模块内生成待确认设置</li><li>复用往期有效任务和检查清单，更新为本次活动草稿</li><li>排班时遵守人员约束、岗位资格和公平度，并解释冲突</li></ul></article>
+        <article class="ai-stage"><span class="stage-label">04 · 提交审批</span><h4>帮助准备依据，不替人审批</h4><ul><li>检查规定材料是否齐全且相互一致</li><li>生成变更摘要、风险摘要和待判断问题</li><li>指出疑点和缺失信息，由提交人修正</li></ul></article>
+        <article class="ai-stage"><span class="stage-label">05 · 活动执行</span><h4>帮助团队掌握现场信息</h4><ul><li>生成简报、程序单和岗位提醒草稿</li><li>根据已确认资料回答流程性问题</li><li>整理现场记录和异常，但不作安全或医疗决定</li></ul></article>
+        <article class="ai-stage"><span class="stage-label">06 · 结项复盘</span><h4>把活动资料转成可用经验</h4><ul><li>汇总出席、财务、事故和跟进事项</li><li>形成活动回顾和待办草稿</li><li>发现重复阻塞并提出模板改进建议，等待人工采用</li></ul></article>
+      </div>
+
+      <h3 style="margin-top: 28px;">AI 可以直接帮忙设置，但最终由有权限的人提交</h3>
+      <p class="muted">AI 可以在任意流程步骤内填写字段、生成任务、安排建议、补充清单或形成模块设置，但所有修改先进入“待确认变更”，不能直接改变正式活动状态。</p>
+      <div class="callout"><strong>每个模块都提供同一组 AI 动作：</strong>解释为什么启用、参考相似活动、帮我完成设置、检查缺失与冲突、生成任务、总结本次修改。AI 只操作当前用户有权管理的模块，并把改动逐项展示。</div>
+      <ol class="ai-action-flow" aria-label="AI 辅助设置与人工提交流程">
+        <li><strong>用户提出目标</strong>例如“参考去年营会安排本次交通和排班”。</li>
+        <li><strong>系统检查角色</strong>确定此人可以查看什么、可以修改哪个模块。</li>
+        <li><strong>AI 读取限定资料</strong>只读取当前步骤和获准参考的往期活动内容。</li>
+        <li><strong>生成待确认修改</strong>填写草稿并列出新增、修改、删除及推荐原因。</li>
+        <li><strong>系统执行确定验证</strong>检查必填、权限、政策、时间冲突和资料完整性。</li>
+        <li><strong>操作人复核</strong>逐项接受、修改或拒绝；必要时补充真实资料。</li>
+        <li><strong>人工提交</strong>有权限的角色正式保存或提交，之后才进入审批流程。</li>
+      </ol>
+
+      <div class="callout"><strong>直接帮忙设置 ≠ 自动执行：</strong>AI 可以把表单、任务、排班建议和模块配置直接填进草稿，减少人工录入；提交按钮仍属于当前登录用户，服务端必须再次检查角色和权限。</div>
+
+      <details class="deep-dive">
+        <summary>展开不同用户角色的 AI 权限<span class="deep-dive-note">谁可以查看、让 AI 修改和最终提交哪些内容</span></summary>
+        <div class="deep-dive-content"><div class="role-matrix">
+        <table>
+          <thead><tr><th>当前用户角色</th><th>AI 可以读取</th><th>AI 可以形成的待确认修改</th><th>最终人工动作</th><th>明确禁止</th></tr></thead>
+          <tbody>
+            <tr><td>普通查看者</td><td>本人有权查看的活动摘要与公开资料</td><td>解释流程、回答“下一步是什么”</td><td>无提交权限</td><td class="blocked">不能修改活动或读取内部资料</td></tr>
+            <tr><td>任务执行人</td><td>本人任务、相关模块资料和必要依据</td><td>填写任务草稿、生成清单、整理本人提交材料</td><td class="allowed">确认并提交本人任务</td><td class="blocked">不能修改其他模块或代替负责人</td></tr>
+            <tr><td>模块负责人</td><td>所负责模块及获准的相关往期模块资料</td><td>配置模块、生成任务、整理依据和提交摘要</td><td class="allowed">复核并提交模块</td><td class="blocked">不能批准自己的提交</td></tr>
+            <tr><td>活动负责人</td><td>活动方案、各模块状态、协作小组和非受限资料</td><td>调整方案草稿、分工建议、变更计划和结项材料</td><td class="allowed">确认方案级变更并提交审批</td><td class="blocked">不能绕过政策或读取无授权敏感资料</td></tr>
+            <tr><td>审批人</td><td>审批问题、规定依据、变更历史和必要上下文</td><td>生成证据摘要、疑点和建议提问</td><td class="allowed">本人批准、退回或拒绝</td><td class="blocked">AI 不能替审批人作出决定</td></tr>
+            <tr><td>模板／政策维护者</td><td>获授权的模板、政策版本和脱敏使用数据</td><td>形成新版本草案和影响分析</td><td class="allowed">人工评审并发布新版本</td><td class="blocked">不能自动改变进行中或历史活动</td></tr>
+          </tbody>
+        </table>
+        </div></div>
+      </details>
+
+      <h3 style="margin-top: 28px;">AI 怎样参考往期类似活动</h3>
+      <div class="principles">
+        <article><strong>先说明为什么相似</strong><span>根据活动类别、对象、规模、地点、收费、交通、住宿和所用模块解释匹配原因。</span></article>
+        <article><strong>比较而不是照抄</strong><span>展示本次与往期在事实、模块、任务、期限、预算和风险上的差异。</span></article>
+        <article><strong>优先复用有效经验</strong><span>参考已完成任务、常见阻塞、退回原因、实际出席和复盘结论。</span></article>
+        <article><strong>过期资料必须失效</strong><span>旧日期、价格、场地、负责人、联系方式、资质和车辆信息必须重新确认。</span></article>
+        <article><strong>权限跟随当前用户</strong><span>用户看不到的往期活动和敏感资料，AI 同样不能检索、摘要或间接透露。</span></article>
+        <article><strong>应用时展示差异</strong><span>AI 将复用内容转换成本次活动的待确认修改，操作人逐项采用后再提交。</span></article>
+      </div>
+
+      <div class="callout warning"><strong>往期审批不能继承：</strong>过去活动的 RAM 批准、预算批准、儿童安全确认或发布授权，只能作为经验参考；本次活动必须根据自己的事实和政策重新判断。</div>
+
+      <h3 style="margin-top: 28px;">AI 在流程页面中的呈现方式</h3>
+      <div class="flow-break">
+        <article class="flow-layer user"><h3>流程顶部</h3><ul><li>一句话说明当前准备度</li><li>最重要的下一步</li><li>为什么尚不能报名或执行</li></ul></article>
+        <div class="flow-arrow" aria-hidden="true">→</div>
+        <article class="flow-layer kernel"><h3>任务和模块内部</h3><ul><li>补资料、生成初稿、检查一致性</li><li>建议必须引用当前活动事实</li><li>人工采用后才写入正式资料</li></ul></article>
+        <div class="flow-arrow" aria-hidden="true">→</div>
+        <article class="flow-layer workspace"><h3>审批人与负责人</h3><ul><li>查看 AI 整理的摘要</li><li>一键回到原始依据</li><li>清楚区分 AI 建议与人工确认</li></ul></article>
+      </div>
+
+      <details class="deep-dive">
+        <summary>展开 AI 的隐私、权限与审计原则<span class="deep-dive-note">供管理者、安全审核和开发人员查看</span></summary>
+        <div class="deep-dive-content"><div class="trust-grid">
+        <article><strong>标明来源</strong><span>区分用户输入、系统事实、上传资料、AI 建议和人工确认。</span></article>
+        <article><strong>表达不确定性</strong><span>不知道就标记缺失，不编造姓名、电话、资质、费用或安全结论。</span></article>
+        <article><strong>最小化资料</strong><span>每次只向 AI 提供完成当前任务真正需要的资料，默认排除敏感联系人和健康信息。</span></article>
+        <article><strong>明确采用动作</strong><span>AI 可以直接填写待确认修改，但必须由具有相应角色的人复核和提交。</span></article>
+        <article><strong>不能越权</strong><span>AI 权限不能超过当前用户，也不能批准事项、改变政策、发布活动或发送通知。</span></article>
+        <article><strong>保留审计</strong><span>记录使用的上下文、模型输出、人工修改和最终决定，方便复核。</span></article>
+        </div></div>
+      </details>
+
+      <div class="callout warning"><strong>关键分工：</strong>确定规则负责组合方案、检查权限和计算门槛；AI 可以在授权范围内直接生成待确认设置；操作人负责复核并提交，审批人负责作出决定。</div>
+    </section>
+
+    <section id="migration" class="section">
+      <div class="section-head"><span class="section-no">14</span><div><h2>如何一步一步做到</h2><p class="muted">所有现有活动先统一进入新主架构；各业务模块再按风险和使用价值分批做深。</p></div></div>
+      <div class="callout"><strong>迁移底线：</strong>不存在“旧活动继续用旧流程、新活动才用新流程”的双轨方案。全部未删除活动都建立新方案并进入同一详情入口；还未完成专属页面的模块可以显示为待配置，但不能退回固定五步流程。随后依次完善审批、营会、智能排班、定期聚会、交通、住宿和大型活动。</div>
+      <details class="deep-dive">
+        <summary>展开分阶段实施路线<span class="deep-dive-note">供 Issue、PR 和开发排期讨论使用</span></summary>
+        <div class="deep-dive-content"><div class="migration-grid">
+        <article class="migration-card"><span class="phase">阶段 0 · 已完成 RAM 首批</span><h3>让现有审批可信</h3><ul><li>RAM 已建立正式 Decision 记录与审计日志</li><li>RAM 已禁止自审和状态跳跃</li><li>RAM 已支持带原因退回和重新提交</li><li>主流程已显示提交人、审批人、决定、原因和下一步</li><li>预算、发布和儿童安全随后复用同一底座</li></ul></article>
+        <article class="migration-card"><span class="phase">阶段 1 · 全量换轨</span><h3>全部活动建立新方案</h3><ul><li>全部未删除活动生成有版本的事实快照</li><li>统一建立模块实例、场次和准备门槛</li><li>旧固定流程停止创建和推进</li><li>只读保留历史资料，便于追溯而不是继续操作</li></ul></article>
+        <article class="migration-card"><span class="phase">阶段 2 · 纵向完成</span><h3>先把营会做完整</h3><ul><li>RAM 作为第一个标准模块</li><li>报名与财务形成完整闭环</li><li>加入活动角色与协作小组</li><li>从创建走到结项真实试用</li></ul></article>
+        <article class="migration-card"><span class="phase">阶段 3 · 首轮已完成</span><h3>建立教会场地与预订</h3><ul><li>已完成：场地目录与活动申请分为独立页面、独立权限和独立保存对象</li><li>已完成：场地、空间、容量、设备、申请草稿、人工提交、审批和时间冲突检查</li><li>已完成：申请绑定正式场次；所有有效申请均批准后才满足场地准备条件</li><li>已完成：记录实际提交人并禁止草稿创建人或实际提交人自审</li><li>下一批：开放规则、维护封锁、多空间临时保留，以及场地变化对 RAM 的精细联动</li></ul></article>
+        <article class="migration-card"><span class="phase">阶段 4 · 已完成首轮</span><h3>加入智能排班、程序单与定期聚会</h3><ul><li>已完成：成员自填偏好与时间，管理者可代录并记录确认方式和有效期</li><li>已完成：岗位、班次、时间冲突、180 天负担、连续周数与同岗位经验</li><li>已完成：小组岗位资格目录、成员资格有效期和过期阻断，旧自由标签不能绕过到期规则</li><li>已完成：公平轮换／经验优先整场比较、人员缺口说明、双语理由和成员本人接受</li><li>已完成：按需程序单、排班岗位关联、负责人确认、现场交接与 AI 人工复核边界</li></ul></article>
+        <article class="migration-card"><span class="phase">阶段 5 · 扩展场景</span><h3>逐步增加模块</h3><ul><li>交通、住宿和同意书</li><li>大型活动与社区开放</li><li>隐私敏感的跟进独立评估</li><li>依据真实使用调整模板</li></ul></article>
+        <article class="migration-card"><span class="phase">持续 · 治理与改进</span><h3>版本化、安全、可解释</h3><ul><li>平台、教会、小组模板分层</li><li>查看耗时、阻塞和退回</li><li>先建立基线再设指标</li><li>AI 可填写待确认配置，但不批准或发布</li></ul></article>
+        </div></div>
+      </details>
+    </section>
+
+    <section id="guardrails" class="section">
+      <div class="section-head"><span class="section-no">15</span><div><h2>无论怎样扩展，都要坚持的原则</h2><p class="muted">系统可以更聪明，但不能让流程、权限和人的责任变得模糊。</p></div></div>
+      <div class="statement"><strong>AI 可以多做事，但最后的确认、批准和发布必须清楚地回到人。</strong><p>安全和隐私要求不能为了方便被跳过；历史活动也不能因为模板升级而被悄悄改变。</p></div>
+      <details class="deep-dive">
+        <summary>展开完整的产品与技术边界<span class="deep-dive-note">供方案评审和开发实现使用</span></summary>
+        <div class="deep-dive-content"><ul class="guardrails">
+        <li><strong>不做任意脚本：</strong>组合规则必须确定、可测试、可解释。</li>
+        <li><strong>不让用户自由关闭政策：</strong>安全和隐私要求由事实触发。</li>
+        <li><strong>不复制多套流程引擎：</strong>所有模块共用权限、任务、审批、通知和审计底座。</li>
+        <li><strong>不把所有资料放进活动表：</strong>报名、相册、报告等保持独立权限和生命周期。</li>
+        <li><strong>不让 AI 成为权威：</strong>AI 可以整理和推荐，但人负责确认、批准和发布。</li>
+        <li><strong>不破坏历史活动：</strong>活动保存方案快照，模板升级通过新版本生效。</li>
+        </ul></div>
+      </details>
+    </section>
+
+    <footer>ALIFE 未来活动管理体验建议 · 操作原型与完整说明 · 2026-08-25</footer>
+  </main>
+
+  <script>
+    (() => {
+      const body = document.body;
+      const sidebar = document.getElementById('sidebar');
+      const openButton = document.getElementById('sidebar-open');
+      const closeButton = document.getElementById('sidebar-close');
+      const backdrop = document.getElementById('sidebar-backdrop');
+      const progress = document.getElementById('read-progress');
+      const links = [...document.querySelectorAll('.toc a')];
+      const desktop = window.matchMedia('(min-width: 1081px)');
+      let saved = null;
+      try { saved = localStorage.getItem('alife-composition-doc-sidebar'); } catch (_) {}
+
+      const setSidebar = (open, remember = false) => {
+        body.classList.toggle('sidebar-hidden', !open);
+        sidebar.setAttribute('aria-hidden', String(!open));
+        openButton.setAttribute('aria-expanded', String(open));
+        if (remember && desktop.matches) {
+          saved = open ? 'open' : 'closed';
+          try { localStorage.setItem('alife-composition-doc-sidebar', saved); } catch (_) {}
+        }
+      };
+      setSidebar(desktop.matches && saved !== 'closed');
+      openButton.addEventListener('click', () => setSidebar(true, true));
+      closeButton.addEventListener('click', () => { setSidebar(false, true); openButton.focus(); });
+      backdrop.addEventListener('click', () => setSidebar(false));
+      document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && !body.classList.contains('sidebar-hidden')) setSidebar(false, desktop.matches);
+      });
+      desktop.addEventListener('change', event => setSidebar(event.matches && saved !== 'closed'));
+
+      const setActive = id => links.forEach(link => {
+        const active = link.hash === `#${id}`;
+        link.classList.toggle('active', active);
+        if (active) link.setAttribute('aria-current', 'location'); else link.removeAttribute('aria-current');
+      });
+      links.forEach(link => link.addEventListener('click', () => {
+        setActive(link.hash.slice(1));
+        if (!desktop.matches) setSidebar(false);
+      }));
+      const sections = links.map(link => document.querySelector(link.hash)).filter(Boolean);
+      const observer = new IntersectionObserver(entries => {
+        const visible = entries.filter(entry => entry.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+        if (visible) setActive(visible.target.id);
+      }, { rootMargin: '-8% 0px -78% 0px', threshold: 0 });
+      sections.forEach(section => observer.observe(section));
+      const updateProgress = () => {
+        const available = document.documentElement.scrollHeight - innerHeight;
+        progress.style.width = `${available > 0 ? Math.min(100, scrollY / available * 100) : 0}%`;
+      };
+      addEventListener('scroll', updateProgress, { passive: true });
+      updateProgress();
+      setActive(location.hash.slice(1) || 'idea');
+
+      const demoTabs = [...document.querySelectorAll('[data-demo-stage]')];
+      const demoPanels = [...document.querySelectorAll('[data-demo-panel]')];
+      const demoFeedback = document.getElementById('demo-feedback');
+      const selectDemoStage = (stage, moveFocus = false) => {
+        demoTabs.forEach(tab => {
+          const active = tab.dataset.demoStage === stage;
+          tab.setAttribute('aria-selected', String(active));
+          tab.tabIndex = active ? 0 : -1;
+          if (active && moveFocus) tab.focus();
+        });
+        demoPanels.forEach(panel => { panel.hidden = panel.dataset.demoPanel !== stage; });
+        if (demoFeedback) demoFeedback.hidden = true;
+      };
+      demoTabs.forEach((tab, index) => {
+        tab.addEventListener('click', () => selectDemoStage(tab.dataset.demoStage));
+        tab.addEventListener('keydown', event => {
+          if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+          event.preventDefault();
+          let next = index;
+          if (event.key === 'ArrowLeft') next = (index - 1 + demoTabs.length) % demoTabs.length;
+          if (event.key === 'ArrowRight') next = (index + 1) % demoTabs.length;
+          if (event.key === 'Home') next = 0;
+          if (event.key === 'End') next = demoTabs.length - 1;
+          selectDemoStage(demoTabs[next].dataset.demoStage, true);
+        });
+      });
+      document.querySelectorAll('[data-demo-next]').forEach(button => button.addEventListener('click', () => {
+        selectDemoStage(button.dataset.demoNext, true);
+      }));
+      document.querySelectorAll('.product-demo .demo-button:not([data-demo-next])').forEach(button => button.addEventListener('click', () => {
+        if (!demoFeedback) return;
+        const action = button.textContent.trim();
+        const isAi = button.classList.contains('ai');
+        demoFeedback.textContent = isAi
+          ? `操作示例：AI 会执行“${action}”，并先显示待确认结果；负责人接受后才写入正式资料。`
+          : `操作示例：“${action}”会在正式产品中打开相应确认界面，本设计稿不会修改真实活动。`;
+        demoFeedback.hidden = false;
+      }));
+
+      document.querySelectorAll('[data-venue-message]').forEach(button => button.addEventListener('click', () => {
+        const venueFeedback = button.closest('.venue-demo')?.querySelector('.venue-feedback');
+        if (!venueFeedback) return;
+        venueFeedback.textContent = button.dataset.venueMessage;
+        venueFeedback.hidden = false;
+      }));
+
+      const presets = {
+        simple: [],
+        camp: ['paid', 'children', 'transport', 'overnight', 'multiDay', 'multiVenue', 'multiSession'],
+        recurring: ['recurring', 'multiSession'],
+        large: ['paid', 'public', 'multiVenue', 'multiSession']
+      };
+      const moduleRules = [
+        { name: '活动资料与通知', when: () => true },
+        { name: '报名与容量', when: f => f.paid || f.children || f.public || f.overnight },
+        { name: '财务', when: f => f.paid },
+        { name: 'RAM 风险管理', when: f => f.transport || f.overnight || f.public },
+        { name: '儿童安全与同意', when: f => f.children },
+        { name: '交通', when: f => f.transport },
+        { name: '住宿', when: f => f.overnight },
+        { name: '排班与岗位', when: f => f.recurring || f.children || f.public || f.multiDay || f.multiSession },
+        { name: '场次与出席', when: f => f.recurring },
+        { name: '节目与制作', when: f => f.multiDay || f.multiSession || f.public },
+        { name: '场地与资源', when: f => f.multiVenue || f.multiSession || f.overnight },
+        { name: '现场运行', when: f => f.public && (f.multiVenue || f.multiSession) },
+        { name: '公开沟通', when: f => f.public },
+        { name: '结项与回顾', when: () => true }
+      ];
+
+      const archetype = document.getElementById('archetype');
+      const factInputs = [...document.querySelectorAll('[data-fact]')];
+      const moduleChips = document.getElementById('module-chips');
+      const moduleCount = document.getElementById('module-count');
+      const decisionList = document.getElementById('decision-list');
+      const decisionCount = document.getElementById('decision-count');
+      const deliveryList = document.getElementById('delivery-list');
+
+      const facts = () => Object.fromEntries(factInputs.map(input => [input.dataset.fact, input.checked]));
+      const render = () => {
+        const f = facts();
+        const modules = moduleRules.filter(rule => rule.when(f)).map(rule => rule.name);
+        moduleCount.textContent = `${modules.length} 个模块`;
+        moduleChips.innerHTML = modules.map(name => `<span class="chip">${name}</span>`).join('');
+
+        const decisions = [];
+        if (f.paid) decisions.push(['预算与收费方案', '财务模块要求审批预算、价格和退款安排。']);
+        if (f.transport || f.overnight || f.public || f.multiVenue) decisions.push(['风险是否可接受', 'RAM 模块要求根据活动、场地和高风险场次的控制措施作出执行决定。']);
+        if (f.children) decisions.push(['儿童安全安排确认', '政策要求确认负责人、同意、签到签退和紧急安排。']);
+        if (f.public) decisions.push(['公开内容与隐私确认', '公开沟通前确认发布内容不包含受限资料。']);
+        decisionCount.textContent = decisions.length ? `${decisions.length} 项决定` : '无需正式审批';
+        decisionList.innerHTML = decisions.length
+          ? decisions.map(([name, reason]) => `<li><strong>${name}</strong><br>${reason}</li>`).join('')
+          : '<li><strong>负责人确认即可</strong><br>当前事实没有触发正式审批；仍需完成基础资料和可见范围确认。</li>';
+
+        const delivery = ['活动负责人已经确认', '时间、地点和紧急联系人完整'];
+        if (f.children || f.public || f.recurring) delivery.push('关键岗位和排班已经完成');
+        if (f.transport || f.overnight || f.public || f.multiVenue) delivery.push('RAM 已批准且控制措施已有负责人');
+        if (f.multiDay || f.multiSession) delivery.push('每一天和每个场次的负责人、时间与地点已经确认');
+        if (f.multiVenue) delivery.push('场地、区域、容量、设备和交接安排没有冲突');
+        if (f.transport) delivery.push('司机、车辆和集合安排已确认');
+        if (f.overnight) delivery.push('住宿、健康资料和夜间责任安排已确认');
+        if (f.children) delivery.push('监护人同意和签到签退方案已准备');
+        deliveryList.innerHTML = delivery.map(item => `<li><strong>${item}</strong></li>`).join('');
+      };
+
+      archetype.addEventListener('change', () => {
+        const selected = new Set(presets[archetype.value]);
+        factInputs.forEach(input => { input.checked = selected.has(input.dataset.fact); });
+        render();
+      });
+      factInputs.forEach(input => input.addEventListener('change', render));
+      render();
+    })();
+  </script>
+</body>
+</html>

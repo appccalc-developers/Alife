@@ -1,5 +1,3 @@
-using System.Globalization;
-using System.Text.Json;
 using Alife.Domain.Entities;
 using Alife.Domain.Enums;
 
@@ -10,7 +8,9 @@ public static class EventLifecyclePolicy
     public static bool CanCreateEnrollment(GroupEvent groupEvent, DateTime utcNow, out string error)
     {
         error = string.Empty;
-        if (groupEvent.RamAssessment?.Status != EventRamStatus.Approved)
+        var ramRequired = groupEvent.Plan?.Modules.Any(x => x.IsRequired && x.ModuleKey == "ram")
+            ?? EventCompositionFactory.RequiresRam(groupEvent.EventDataJson, groupEvent.RamAssessment?.RamDataJson);
+        if (ramRequired && groupEvent.RamAssessment?.Status != EventRamStatus.Approved)
         {
             error = "This event is still in planning because its RAM has not been approved.";
             return false;
@@ -22,41 +22,7 @@ public static class EventLifecyclePolicy
             return false;
         }
 
-        try
-        {
-            using var document = JsonDocument.Parse(groupEvent.EventDataJson);
-            var root = document.RootElement;
-            var hasCapacity = root.TryGetProperty("maxCapacity", out var capacityElement) &&
-                capacityElement.TryGetInt32(out var capacity) &&
-                capacity > 0;
-            var deadline = default(DateTimeOffset);
-            var hasDeadline = root.TryGetProperty("registrationDeadline", out var deadlineElement) &&
-                deadlineElement.ValueKind == JsonValueKind.String &&
-                DateTimeOffset.TryParse(
-                    deadlineElement.GetString(),
-                    CultureInfo.InvariantCulture,
-                    DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
-                    out deadline);
-
-            if (!hasCapacity || !hasDeadline)
-            {
-                error = "This event is not accepting enrollments.";
-                return false;
-            }
-
-            if (deadline.UtcDateTime < utcNow)
-            {
-                error = "Enrollment is closed for this event.";
-                return false;
-            }
-
-            return true;
-        }
-        catch (JsonException)
-        {
-            error = "This event is not accepting enrollments.";
-            return false;
-        }
+        return EventRegistrationPolicy.TryValidateConfiguration(groupEvent, utcNow, out _, out error);
     }
 
     public static bool CanCreateReview(GroupEvent groupEvent, DateTime utcNow)

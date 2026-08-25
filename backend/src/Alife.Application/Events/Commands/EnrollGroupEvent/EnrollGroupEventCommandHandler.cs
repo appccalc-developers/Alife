@@ -6,6 +6,7 @@ using Alife.Application.Groups.Services;
 using Alife.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using System.Transactions;
 
 namespace Alife.Application.Events.Commands.EnrollGroupEvent;
 
@@ -26,6 +27,11 @@ public sealed class EnrollGroupEventCommandHandler(
             return AppResult<EventEnrollmentDto>.Forbidden("Only approved group members can enroll in events.");
         }
 
+        using var transaction = new TransactionScope(
+            TransactionScopeOption.Required,
+            new TransactionOptions { IsolationLevel = IsolationLevel.Serializable, Timeout = TimeSpan.FromSeconds(15) },
+            TransactionScopeAsyncFlowOption.Enabled);
+
         var groupEvent = await dbContext.GroupEvents
             .AsNoTracking()
             .Include(x => x.RamAssessment)
@@ -36,6 +42,10 @@ public sealed class EnrollGroupEventCommandHandler(
         if (groupEvent is null)
         {
             return AppResult<EventEnrollmentDto>.NotFound("Event not found.");
+        }
+        if (!EventRegistrationPolicy.IsEnabled(groupEvent))
+        {
+            return AppResult<EventEnrollmentDto>.Conflict("Registration is not part of this event plan.");
         }
 
         var now = DateTime.UtcNow;
@@ -50,6 +60,26 @@ public sealed class EnrollGroupEventCommandHandler(
                      x.EventId == request.EventId &&
                      x.MemberId == request.CurrentMemberId,
                 cancellationToken);
+
+        EventRegistrationPolicy.TryReadSettings(groupEvent, out var settings, out _);
+        if (!EventRegistrationPolicy.ValidateEnrollmentRequirements(groupEvent, request.EnrollmentJson, out var requirementsError))
+        {
+            return AppResult<EventEnrollmentDto>.Validation(requirementsError);
+        }
+        if (!EventRegistrationPolicy.TryReadReservedUnits(
+                request.EnrollmentJson, settings.CapacityUnit, out var requestedUnits, out var unitsError))
+        {
+            return AppResult<EventEnrollmentDto>.Validation(unitsError);
+        }
+        var existingPayloads = await dbContext.EventEnrollments.AsNoTracking()
+            .Where(x => x.EventId == request.EventId && (enrollment == null || x.Id != enrollment.Id))
+            .Select(x => x.EnrollmentJson)
+            .ToListAsync(cancellationToken);
+        var reservedUnits = EventRegistrationPolicy.CountReservedUnits(existingPayloads, settings.CapacityUnit);
+        if (reservedUnits + requestedUnits > settings.MaxCapacity)
+        {
+            return AppResult<EventEnrollmentDto>.Conflict("This registration would exceed the event capacity.");
+        }
 
         if (enrollment is null)
         {
@@ -72,6 +102,7 @@ public sealed class EnrollGroupEventCommandHandler(
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        transaction.Complete();
 
         return AppResult<EventEnrollmentDto>.Success(ToDto(enrollment));
     }

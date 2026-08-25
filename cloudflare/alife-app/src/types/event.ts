@@ -4,6 +4,7 @@ export type MultilingualString = {
 }
 
 export type EventVisibility = 'groupVisible' | 'churchVisible' | 'public'
+export type EventPublicationStatus = 'draft' | 'published'
 
 export type EventRuleDto = {
   ruleKey: string
@@ -85,6 +86,7 @@ export type EventDto = {
   organizerId?: string
   organizerDisplayName?: string
   visibility?: EventVisibility
+  publicationStatus?: EventPublicationStatus
   personResponsible?: string
   purpose?: MultilingualString
   title: MultilingualString
@@ -100,10 +102,17 @@ export type EventDto = {
   baseFeePerAdult?: number | null
   baseFeePerChild?: number | null
   currency: string
+  paymentInstructions?: MultilingualString
+  refundPolicy?: MultilingualString
+  paymentEvidenceRequired?: boolean
+  financeLeaderConfirmed?: boolean
   posterImageUrl?: string | null
   galleryUrls: string[]
   legacySummary?: MultilingualString | null
   contactProfileIds?: string[]
+  requiresRoster?: boolean
+  /** Optional preparation modules explicitly chosen by the leader. */
+  enabledModules?: Array<'venue' | 'registration' | 'finance' | 'ram' | 'roster' | 'programme'>
   ram?: EventRamDraft
 }
 
@@ -142,5 +151,9 @@ export type GroupEventRecord = {
   updatedUtc?: string
   contactProfileIds?: string[]
   ramStatus?: EventRamStatus
+  requiresRam?: boolean
+  enabledModules?: EventDto['enabledModules']
   visibility?: EventVisibility
+  eventSeriesId?: string | null
+  seriesOccurrenceDate?: string | null
 }

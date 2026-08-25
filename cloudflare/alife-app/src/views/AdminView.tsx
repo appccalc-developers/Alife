@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
-import { Bell, ChevronRight, Church, ContactRound, Handshake, Loader2, Network, Pencil, RefreshCw, Settings2, ShieldCheck, UserCog, UsersRound, X } from 'lucide-react'
+import { Bell, Building2, ChevronRight, Church, ContactRound, FileCheck2, Handshake, Loader2, Network, Pencil, RefreshCw, Settings2, ShieldCheck, UserCog, UsersRound, X } from 'lucide-react'
 import {
   groupService,
   type AdminGroupOptionDto,
@@ -773,6 +773,8 @@ const ChurchManagementHub = ({
     ...(auth.hasAdminPermission('admin.roles.managePermissions') ? [{ key: 'roles', label: isChinese ? '角色管理' : 'Role management', description: isChinese ? '后台角色、权限范围与功能访问' : 'Admin roles, permissions, and feature access', icon: UserCog, to: '/admin/roles' }] : []),
     ...(auth.hasAdminPermission('admin.messages.manage') ? [{ key: 'notices', label: isChinese ? '通知管理' : 'Notification management', description: isChinese ? '发送通知并查看阅读与回复状态' : 'Send notifications and review read and reply status', icon: Bell, to: '/admin/messages' }] : []),
     ...(auth.hasAdminPermission('admin.visitRequests.receive') ? [{ key: 'visitors', label: isChinese ? '访客接待' : 'Visitor care', description: isChinese ? '处理参观联系请求和跟进状态' : 'Handle visit requests and follow-up status', icon: Handshake, to: '/admin/visit-requests' }] : []),
+    ...(auth.hasAdminPermission('admin.venues.manageCatalog') ? [{ key: 'venues', label: isChinese ? '场地目录' : 'Venue catalog', description: isChinese ? '维护真实场地、空间、容量和设备' : 'Maintain real venues, spaces, capacity, and equipment', icon: Building2, to: '/system/venues' }] : []),
+    ...(auth.hasAdminPermission('admin.venues.reviewBookings') ? [{ key: 'venueRequests', label: isChinese ? '场地申请审批' : 'Venue request review', description: isChinese ? '处理活动负责人已经提交的场地申请' : 'Review venue requests submitted by event leaders', icon: FileCheck2, to: '/system/venue-bookings' }] : []),
   ]
   const canAccessDashboard = dashboardAreas.length > 0
   const refreshWorkspace = async () => {

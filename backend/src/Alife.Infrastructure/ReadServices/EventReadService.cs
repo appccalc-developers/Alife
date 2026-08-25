@@ -21,6 +21,7 @@ public sealed class EventReadService(
                     .AsNoTracking()
                     .Include(e => e.ContactProfiles)
                     .Include(e => e.RamAssessment)
+                    .Include(e => e.Plan).ThenInclude(e => e!.Modules)
                     .Where(e => e.GroupId == groupId)
                     .OrderBy(e => e.StartDate)
                     .ToListAsync(token);
@@ -38,7 +39,11 @@ public sealed class EventReadService(
                     e.UpdatedUtc,
                     e.ContactProfiles?.Select(x => x.ContactProfileId).ToList() ?? new List<Guid>(),
                     e.RamAssessment?.Status ?? Alife.Domain.Enums.EventRamStatus.Draft,
-                    Alife.Application.Events.Services.EventVisibilityPolicy.ReadVisibility(e.EventDataJson)
+                    Alife.Application.Events.Services.EventVisibilityPolicy.ReadVisibility(e.EventDataJson),
+                    EventCompositionFactory.RequiresRam(e.EventDataJson, e.RamAssessment?.RamDataJson),
+                    e.EventSeriesId,
+                    e.SeriesOccurrenceDate,
+                    EventCompositionFactory.SelectedOptionalModules(e)
                 )).ToList();
 
                 return (IReadOnlyList<GroupEventSummaryDto>)dtos;
@@ -57,16 +62,17 @@ public sealed class EventReadService(
                 var candidates = await dbContext.GroupEvents
                     .AsNoTracking()
                     .Include(e => e.RamAssessment)
-                    .Where(e => e.EndDate >= fromUtc &&
-                        e.RamAssessment != null &&
-                        e.RamAssessment.Status == Alife.Domain.Enums.EventRamStatus.Approved)
+                    .Where(e => e.EndDate >= fromUtc)
                     .OrderBy(e => e.StartDate)
                     .Take(200)
                     .ToListAsync(token);
 
                 return candidates
                     .Where(e => Alife.Application.Events.Services.EventVisibilityPolicy.ReadVisibility(e.EventDataJson) ==
-                        Alife.Application.Events.Services.EventVisibilityPolicy.Public)
+                            Alife.Application.Events.Services.EventVisibilityPolicy.Public
+                        && Alife.Application.Events.Services.EventVisibilityPolicy.IsPublicationConfirmed(
+                            e.EventDataJson,
+                            e.RamAssessment?.Status ?? Alife.Domain.Enums.EventRamStatus.Draft))
                     .Take(50)
                     .Select(e => new PublicEventSummaryDto(
                         e.Id,

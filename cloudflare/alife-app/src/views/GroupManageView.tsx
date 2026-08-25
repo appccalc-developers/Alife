@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowRightLeft, CalendarDays, Crown, Loader2, Pencil, ShieldCheck, UserPlus, UserMinus, UsersRound, X } from 'lucide-react'
+import { ArrowRightLeft, CalendarDays, Crown, Loader2, Pencil, Repeat2, ShieldCheck, UserPlus, UserMinus, UsersRound, X } from 'lucide-react'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
 import AppEmptyState from '../components/layout/AppEmptyState'
@@ -26,6 +26,7 @@ import RegionalPhoneInput from '../components/forms/RegionalPhoneInput'
 import { isValidPhoneNumber } from '../utils/phoneNumber'
 import { getEventLifecycle, readEventLifecycleData, sortEventsByLatestStart, type EventLifecycle } from '../utils/eventLifecycle'
 import { buildScopedEventDetailPath } from '../utils/eventRoutes'
+import EventWorkspaceNav from '../components/events/EventWorkspaceNav'
 
 const shortId = (value: string) => (value.length > 8 ? value.slice(0, 8) : value)
 
@@ -67,7 +68,7 @@ const managementCopy = (language: string, isChurch?: boolean) => {
       contacts: '联系人',
       contactsHint: '联系人资料、公开范围和留言入口',
       events: '活动',
-      eventsHint: '创建活动、维护报名和后续回顾',
+      eventsHint: '创建活动，并按实际需要加入场地、报名、费用、风险或排班',
       pages: '页面',
       pagesHint: '发布页面和小组资料',
       albums: '相册',
@@ -91,7 +92,7 @@ const managementCopy = (language: string, isChurch?: boolean) => {
       emptyMembersTitle: '还没有成员记录',
       emptyMembersBody: '可以先邀请成员，或等待成员提交加入申请。',
       emptyEventsTitle: '还没有活动',
-      emptyEventsBody: '用 AI 活动助理创建第一场活动，之后可在这里维护报名和回顾。',
+      emptyEventsBody: '先填写活动目的和时间，再按需要加入场地、报名、费用、风险或排班。',
       viewEventPosts: '查看发布内容',
       addReview: '添加回顾',
       enroll: '报名',
@@ -108,7 +109,7 @@ const managementCopy = (language: string, isChurch?: boolean) => {
       contacts: 'Contacts',
       contactsHint: 'Profiles, visibility, and inquiry entry points',
       events: 'Events',
-      eventsHint: 'Create events, manage enrollment, and capture memories',
+      eventsHint: 'Create events, then add venue, registration, finance, risk or roster only when needed',
       pages: 'Pages',
       pagesHint: 'Published pages and group resources',
       albums: 'Albums',
@@ -132,7 +133,7 @@ const managementCopy = (language: string, isChurch?: boolean) => {
       emptyMembersTitle: 'No member records yet',
       emptyMembersBody: 'Invite people or wait for join requests to appear here.',
       emptyEventsTitle: 'No events yet',
-      emptyEventsBody: 'Create the first event with the AI event assistant, then manage enrollment and memories here.',
+      emptyEventsBody: 'Start with the purpose and time, then add venue, registration, finance, risk or roster only when needed.',
       viewEventPosts: 'View posts',
       addReview: 'Add review',
       enroll: 'Enroll',
@@ -764,14 +765,17 @@ const EventsPanel = ({ groupId, isChurch = false, events, copy, currentGroupRout
       framed={framed}
       title={copy.events}
       subtitle={copy.eventsHint}
-      action={<AppActionButton variant="primary" onClick={() => {
-        if (currentGroupRoute) activeEntityService.set({ groupId, eventId: '' })
-        navigate(currentGroupRoute ? '/events/new' : `/groups/${encodeURIComponent(groupId)}/events/new`)
-      }}>
-        <CalendarDays size={16} aria-hidden="true" className="mr-1.5" />
-        {copy.createEvent}
-      </AppActionButton>}
+      action={<div className="flex flex-wrap gap-2">
+        <AppActionButton variant="primary" onClick={() => {
+          if (currentGroupRoute) activeEntityService.set({ groupId, eventId: '' })
+          navigate(currentGroupRoute ? '/events/new' : `/groups/${encodeURIComponent(groupId)}/events/new`)
+        }}>
+          <CalendarDays size={16} aria-hidden="true" className="mr-1.5" />
+          {copy.createEvent}
+        </AppActionButton>
+      </div>}
     >
+      <div className="mb-5"><EventWorkspaceNav groupId={groupId} currentGroupRoute={currentGroupRoute} active="events" language={language} /></div>
       {events.length === 0 ? (
         <AppEmptyState title={copy.emptyEventsTitle} description={copy.emptyEventsBody} actionLabel={copy.createEvent} onAction={() => {
           if (currentGroupRoute) activeEntityService.set({ groupId, eventId: '' })
@@ -805,16 +809,17 @@ const EventsPanel = ({ groupId, isChurch = false, events, copy, currentGroupRout
           {displayedEvents.length === 0 ? (
             <p className="rounded-2xl border border-dashed border-[#176b5a]/25 bg-white/64 p-6 text-center text-sm text-[#66766f]">{copy.noEventsInSection}</p>
           ) : (
-            <div className="space-y-2">
+            <div className="overflow-hidden rounded-2xl border border-[#2f4b42]/10 bg-white/[0.72] shadow-[0_10px_28px_rgba(31,56,48,0.045)]">
               {displayedEvents.map((event) => {
                 const title = (language === 'zh' ? event.titleZh : event.titleEn) || event.titleEn || event.titleZh || t('untitled')
                 const lifecycleData = readEventLifecycleData(event)
                 const detailPath = buildScopedEventDetailPath(groupId, event.id, !currentGroupRoute)
                 return (
-                  <div key={event.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/80 p-4">
+                  <div key={event.id} className="flex flex-wrap items-center justify-between gap-4 border-b border-[#2f4b42]/10 px-4 py-4 transition last:border-b-0 hover:bg-[#f7faf8] sm:px-5">
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="font-medium text-slate-950">{title}</p>
+                        {event.eventSeriesId ? <AppBadge variant="neutral"><Repeat2 className="mr-1 inline h-3.5 w-3.5" />{language === 'zh' ? '系列场次' : 'Series event'}</AppBadge> : null}
                         <AppBadge variant={event.visibility === 'public' ? 'success' : 'neutral'}>{eventVisibilityLabel(event, language, isChurch)}</AppBadge>
                         {activeTab === 'upcoming' && lifecycleData.registrationDeadlineTime !== null && lifecycleData.registrationDeadlineTime < Date.now() ? <AppBadge variant="neutral">{copy.enrollmentClosed}</AppBadge> : null}
                         {activeTab === 'planning' && !lifecycleData.acceptsEnrollments ? <AppBadge variant="neutral">{copy.noEnrollment}</AppBadge> : null}

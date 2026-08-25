@@ -3,6 +3,7 @@ import type { MultilingualString } from './event'
 export type EnrollmentDraft = {
   eventId: string
   applicantName: string
+  participantCount: number
   consentStatus: 'unknown' | 'granted' | 'declined'
   assistantReply?: MultilingualString | null
 }

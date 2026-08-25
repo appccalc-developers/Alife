@@ -77,6 +77,7 @@ export const enrollmentSessionService = {
       eventId: payload.eventId,
       groupId: payload.groupId,
       applicantName: payload.draft.applicantName,
+      participantCount: payload.draft.participantCount,
       consentStatus: payload.draft.consentStatus,
       assistantReply: payload.draft.assistantReply ?? null,
       paymentFiles,

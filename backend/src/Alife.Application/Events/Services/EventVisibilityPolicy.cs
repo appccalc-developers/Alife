@@ -30,6 +30,7 @@ public static class EventVisibilityPolicy
         "posterImageUrl",
         "galleryUrls",
         "legacySummary",
+        "publicationStatus",
         "visibility"
     ];
 
@@ -89,7 +90,10 @@ public static class EventVisibilityPolicy
             CreatedByMemberId = Guid.Empty,
             EventDataJson = CreatePublicEventDataJson(source.EventDataJson),
             ContactProfileIds = [],
-            Visibility = ReadVisibility(source.EventDataJson)
+            Visibility = ReadVisibility(source.EventDataJson),
+            EnabledModules = source.EnabledModules is null
+                ? null
+                : source.EnabledModules.Where(moduleKey => moduleKey == "registration").ToArray()
         };
 
     public static string CreatePublicEventDataJson(string eventDataJson)
@@ -120,5 +124,21 @@ public static class EventVisibilityPolicy
     }
 
     public static bool IsPublished(GroupEventSummaryDto groupEvent)
-        => groupEvent.RamStatus == EventRamStatus.Approved;
+        => IsPublicationConfirmed(groupEvent.EventDataJson, groupEvent.RamStatus);
+
+    public static bool IsPublicationConfirmed(string eventDataJson, EventRamStatus ramStatus)
+    {
+        try
+        {
+            var root = JsonNode.Parse(eventDataJson) as JsonObject;
+            if (string.Equals(root?["publicationStatus"]?.GetValue<string>(), "published", StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        catch (JsonException) { }
+        catch (InvalidOperationException) { }
+
+        // Before publication was separated from RAM, approved RAM was the only
+        // persisted publication signal. Keep those existing activities visible.
+        return ramStatus == EventRamStatus.Approved;
+    }
 }

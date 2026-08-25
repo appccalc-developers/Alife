@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
 using Alife.Application.Events.Dtos;
@@ -34,9 +33,23 @@ public sealed class CreateGroupEventCommandHandler(
             return AppResult<GroupEventSummaryDto>.Validation("RAM data must be a JSON object.");
         }
 
-        if (!EventVisibilityPolicy.TryReadVisibility(request.EventDataJson, out var visibility))
+        string eventDataJson;
+        try { eventDataJson = EventFinancePolicy.ForceUnconfirmed(request.EventDataJson); }
+        catch (System.Text.Json.JsonException)
         {
             return AppResult<GroupEventSummaryDto>.Validation("Event data must be a JSON object with a supported visibility.");
+        }
+
+        if (!EventVisibilityPolicy.TryReadVisibility(eventDataJson, out var visibility))
+        {
+            return AppResult<GroupEventSummaryDto>.Validation("Event data must be a JSON object with a supported visibility.");
+        }
+
+        var coreValidationError = EventCorePolicy.ValidationError(
+            request.TitleEn, request.TitleZh, request.StartDate, request.EndDate, eventDataJson);
+        if (coreValidationError is not null)
+        {
+            return AppResult<GroupEventSummaryDto>.Validation(coreValidationError);
         }
 
         var contactProfileIds = (request.ContactProfileIds ?? []).Distinct().ToArray();
@@ -45,31 +58,6 @@ public sealed class CreateGroupEventCommandHandler(
         if (validContactCount != contactProfileIds.Length)
         {
             return AppResult<GroupEventSummaryDto>.Validation("Every event contact must belong to the event group.");
-        }
-
-        EventWorkflowTemplate? workflowTemplate = null;
-        IReadOnlyList<EventWorkflowStageDefinitionDto>? workflowStages = null;
-        if (!string.IsNullOrWhiteSpace(request.WorkflowTemplateCode))
-        {
-            var templateCode = request.WorkflowTemplateCode.Trim().ToLowerInvariant();
-            workflowTemplate = await dbContext.EventWorkflowTemplates
-                .Where(x => x.IsActive && x.Code == templateCode &&
-                    (x.OwnerGroupId == null || x.OwnerGroupId == request.GroupId))
-                .OrderByDescending(x => x.Version)
-                .FirstOrDefaultAsync(cancellationToken);
-            if (workflowTemplate is null)
-            {
-                return AppResult<GroupEventSummaryDto>.NotFound("Workflow template not found.");
-            }
-
-            try
-            {
-                workflowStages = EventWorkflowDefinition.Parse(workflowTemplate.DefinitionJson);
-            }
-            catch (JsonException)
-            {
-                return AppResult<GroupEventSummaryDto>.Validation("The selected workflow template is invalid.");
-            }
         }
 
         var now = DateTime.UtcNow;
@@ -90,32 +78,46 @@ public sealed class CreateGroupEventCommandHandler(
             TitleZh = request.TitleZh,
             StartDate = request.StartDate,
             EndDate = request.EndDate,
-            EventDataJson = request.EventDataJson,
+            EventDataJson = eventDataJson,
             CreatedUtc = now,
             UpdatedUtc = now,
             RamAssessment = ramAssessment
         };
         ramAssessment.EventId = groupEvent.Id;
+        groupEvent.Plan = EventCompositionFactory.CreateInitial(
+            groupEvent,
+            request.CurrentMemberId,
+            request.RamDataJson,
+            now,
+            request.AiAssistanceReviewed
+                ? "AI-assisted event draft confirmed by leader"
+                : "Initial composition");
 
         dbContext.GroupEvents.Add(groupEvent);
         dbContext.EventRamAssessments.Add(ramAssessment);
+        if (request.AiAssistanceReviewed)
+        {
+            dbContext.AuditLogs.Add(new AuditLog
+            {
+                Id = Guid.NewGuid(),
+                ActorMemberId = request.CurrentMemberId,
+                GroupId = request.GroupId,
+                EventId = groupEvent.Id,
+                Action = "event.ai-draft.confirmed",
+                EntityType = nameof(GroupEvent),
+                EntityId = groupEvent.Id,
+                MetadataJson = "{\"humanReviewed\":true,\"promptStored\":false,\"outputStored\":false}",
+                OccurredUtc = now
+            });
+        }
         dbContext.EventContactProfiles.AddRange(contactProfileIds.Select(contactProfileId => new EventContactProfile
         {
             EventId = groupEvent.Id,
             ContactProfileId = contactProfileId
         }));
-        if (workflowTemplate is not null && workflowStages is not null)
-        {
-            dbContext.EventWorkflowRuns.Add(EventWorkflowRunFactory.Create(
-                groupEvent,
-                workflowTemplate,
-                workflowStages,
-                request.CurrentMemberId,
-                now));
-        }
-
         // One SaveChanges call keeps event creation, RAM initialization and the
-        // selected workflow snapshot atomic for relational database providers.
+        // composed event plan atomic for relational database providers. The legacy
+        // workflow template field is intentionally ignored for older API clients.
         await dbContext.SaveChangesAsync(cancellationToken);
         await eventCacheInvalidationService.RemoveGroupEventsAsync(request.GroupId, cancellationToken);
 
@@ -124,5 +126,7 @@ public sealed class CreateGroupEventCommandHandler(
 
     private static GroupEventSummaryDto ToDto(GroupEvent e, IReadOnlyList<Guid> contactProfileIds, EventRamStatus ramStatus, string visibility) =>
         new(e.Id, e.GroupId, e.CreatedByMemberId, e.TitleEn, e.TitleZh,
-            e.StartDate, e.EndDate, e.EventDataJson, e.CreatedUtc, e.UpdatedUtc, contactProfileIds, ramStatus, visibility);
+            e.StartDate, e.EndDate, e.EventDataJson, e.CreatedUtc, e.UpdatedUtc, contactProfileIds, ramStatus, visibility,
+            EventCompositionFactory.RequiresRam(e.EventDataJson, e.RamAssessment?.RamDataJson), e.EventSeriesId, e.SeriesOccurrenceDate,
+            EventCompositionFactory.SelectedOptionalModules(e));
 }

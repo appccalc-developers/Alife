@@ -22,11 +22,16 @@ public record EventDto
     // --- Rules & AI Constraints ---
     public List<EventRuleDto> HardConstraints { get; init; } = [];
     public List<OptionalActivityDto> OptionalActivities { get; init; } = [];
+    public bool RequiresRoster { get; init; }
 
     // --- Financials ---
     public decimal? BaseFeePerAdult { get; init; }
     public decimal? BaseFeePerChild { get; init; }
     public string Currency { get; init; } = "NZD";
+    public MultilingualString PaymentInstructions { get; init; } = new();
+    public MultilingualString RefundPolicy { get; init; } = new();
+    public bool PaymentEvidenceRequired { get; init; }
+    public bool FinanceLeaderConfirmed { get; init; }
 
     // --- Media & Legacy ---
     public string? PosterImageUrl { get; init; }

@@ -13,4 +13,6 @@ public sealed record UpdateGroupEventCommand(
     DateTime EndDate,
     string EventDataJson,
     IReadOnlyList<Guid>? ContactProfileIds = null,
-    string? RamDataJson = null) : IRequest<AppResult<GroupEventSummaryDto>>;
+    string? RamDataJson = null,
+    bool PreserveFinanceConfirmation = false,
+    bool AiAssistanceReviewed = false) : IRequest<AppResult<GroupEventSummaryDto>>;

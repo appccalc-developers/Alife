@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useSyncExternalStore } from 'react'
-import { Activity, Bell, BookMarked, BookOpenText, Church, ClipboardCheck, FileImage, Globe2, Home, Images, MessageSquareText, Settings2, ShieldCheck, UserRound, UsersRound } from 'lucide-react'
+import { Activity, Bell, BookMarked, BookOpenText, Building2, CalendarClock, Church, ClipboardCheck, ClipboardList, FileCheck2, FileImage, Globe2, Home, Images, MessageSquareText, Settings2, ShieldCheck, UserRound, UsersRound, WalletCards } from 'lucide-react'
 import { groupMembershipsCollectionQueryKey } from '../../db/collections/groupCollection'
 import { queryClient } from '../../db/queryClient'
 import { activeEntityService } from '../../services/activeEntityService'
@@ -9,7 +9,7 @@ import { siteForumEntryEnabled } from '../forumAvailability'
 import { EnrollmentIcon, EventsIcon, MemoriesIcon, OnboardingIcon } from './icons'
 import type { NavigationCopy, ShellNavItem, ShellNavSection } from './types'
 import type { GroupEventRecord } from '../../types/event'
-import { getEventLifecycle, readEventLifecycleData } from '../../utils/eventLifecycle'
+import { eventUsesPreparationModule, getEventLifecycle, readEventLifecycleData } from '../../utils/eventLifecycle'
 import type { GroupMembershipDto } from '../../types'
 import { canAccessChurchManagement } from '../routing/churchManagementAccess'
 import { useCurrentTasks } from '../../hooks/useCurrentTasks'
@@ -52,6 +52,8 @@ const adminPermissions = {
   files: 'admin.files.view',
   logs: 'admin.auditLogs.view',
   pageReview: 'admin.pages.review',
+  venueCatalog: 'admin.venues.manageCatalog',
+  venueBookings: 'admin.venues.reviewBookings',
 } as const
 
 export const useShellNavigation = ({
@@ -110,6 +112,15 @@ export const useShellNavigation = ({
       to: '/groups?section=events',
       matchSearch: '?section=events',
       icon: <EventsIcon />,
+      onClick: () => activeEntityService.setGroup(workspaceGroupId, { clearPage: true }),
+    },
+    {
+      key: 'workspace:roster-capabilities',
+      label: isChinese ? '岗位资格' : 'Roster capabilities',
+      description: isChinese ? '维护常用岗位资格、有效期规则和双语名称' : 'Maintain common qualifications, expiry rules, and bilingual names',
+      to: `/groups/${encodeURIComponent(workspaceGroupId)}/roster-capabilities`,
+      matchPathOnly: true,
+      icon: <ShieldCheck className="h-5 w-5" />,
       onClick: () => activeEntityService.setGroup(workspaceGroupId, { clearPage: true }),
     },
     {
@@ -189,18 +200,31 @@ export const useShellNavigation = ({
       ? `/events/${encodeURIComponent(activeEventId)}`
       : `/groups/${encodeURIComponent(contextualWorkspaceGroupId)}/events/${encodeURIComponent(activeEventId)}`
     : ''
+  const contextualEventData = contextualEvent ? readEventLifecycleData(contextualEvent) : null
   const eventLifecycle = contextualEvent ? getEventLifecycle(contextualEvent) : null
-  const acceptsEnrollments = contextualEvent ? readEventLifecycleData(contextualEvent).acceptsEnrollments : false
+  const acceptsEnrollments = contextualEventData?.acceptsEnrollments ?? false
+  const eventUsesModule = (moduleKey: 'venue' | 'registration' | 'finance' | 'ram' | 'roster' | 'programme') =>
+    eventUsesPreparationModule(contextualEventData, moduleKey)
+  const canManageContextualEvent = contextualEvent ? auth.isAdmin || auth.hasLeaderAccess(contextualEvent.groupId) : false
   const eventItems: ShellNavItem[] = eventBasePath ? [
     {
       key: 'event:notice',
-      label: isChinese ? '活动通知' : 'Notice',
-      description: isChinese ? '活动详情与发布内容' : 'Event details and published content',
+      label: isChinese ? '活动总览' : 'Event overview',
+      description: isChinese ? '查看活动内容、筹备流程和当前进度' : 'See event content, preparation flow, and progress',
       to: eventBasePath,
       icon: <EventsIcon />,
       onClick: () => activeEntityService.setEvent(activeEventId),
     },
-    eventLifecycle === 'upcoming' && acceptsEnrollments ? {
+    workspaceEnabled && eventUsesModule('roster') ? {
+      key: 'event:my-roster',
+      label: isChinese ? '我的排班' : 'My assignments',
+      description: isChinese ? '接受、拒绝或请求调整分配给我的岗位' : 'Accept, decline or request changes to my roles',
+      to: `${eventBasePath}/my-roster`,
+      matchPathOnly: true,
+      icon: <ClipboardCheck className="h-5 w-5" />,
+      onClick: () => activeEntityService.setEvent(activeEventId),
+    } : null,
+    canManageContextualEvent && eventLifecycle === 'upcoming' && acceptsEnrollments ? {
       key: 'event:enrollments',
       label: isChinese ? '报名管理' : 'Enrollment',
       description: isChinese ? '报名名单和参与状态' : 'Registrations and attendance status',
@@ -218,9 +242,76 @@ export const useShellNavigation = ({
       icon: <MemoriesIcon />,
       onClick: () => activeEntityService.setEvent(activeEventId),
     } : null,
+    canManageContextualEvent && eventUsesModule('venue') ? {
+      key: 'event:venue-request',
+      label: isChinese ? '场地申请' : 'Venue request',
+      description: isChinese ? '选择已登记场地，保存草稿并提交审批' : 'Choose a registered venue, save a draft, and submit it for review',
+      to: `${eventBasePath}/venue-request`,
+      matchPathOnly: true,
+      icon: <Building2 className="h-5 w-5" />,
+      onClick: () => activeEntityService.setEvent(activeEventId),
+    } : null,
+    canManageContextualEvent && eventUsesModule('registration') ? {
+      key: 'event:registration-settings',
+      label: isChinese ? '报名设置' : 'Registration settings',
+      description: isChinese ? '设置容量和截止时间，查看报名进度' : 'Set capacity and deadline, then review registrations',
+      to: `${eventBasePath}/registration`,
+      matchPathOnly: true,
+      icon: <EnrollmentIcon />,
+      onClick: () => activeEntityService.setEvent(activeEventId),
+    } : null,
+    canManageContextualEvent && eventUsesModule('finance') ? {
+      key: 'event:finance',
+      label: isChinese ? '费用与收款' : 'Fees and payments',
+      description: isChinese ? '确认收费、付款说明、退款规则和凭证要求' : 'Confirm charges, payment instructions, refunds and evidence requirements',
+      to: `${eventBasePath}/finance`,
+      matchPathOnly: true,
+      icon: <WalletCards className="h-5 w-5" />,
+      onClick: () => activeEntityService.setEvent(activeEventId),
+    } : null,
+    canManageContextualEvent && eventUsesModule('ram') ? {
+      key: 'event:ram',
+      label: isChinese ? '风险评估' : 'Risk assessment',
+      description: isChinese ? '填写风险控制、人工确认并提交给另一位审计人员审批' : 'Prepare controls, confirm the facts, and submit to a different event auditor',
+      to: `${eventBasePath}/edit?step=ram`,
+      matchSearch: '?step=ram',
+      icon: <ShieldCheck className="h-5 w-5" />,
+      onClick: () => activeEntityService.setEvent(activeEventId),
+    } : null,
+    canManageContextualEvent && eventUsesModule('roster') ? {
+      key: 'event:roster',
+      label: isChinese ? '同工排班' : 'Roster',
+      description: isChinese ? '按时间限制和岗位标签生成建议，再由负责人确认' : 'Suggest from availability and role labels, then confirm manually',
+      to: `${eventBasePath}/roster`,
+      matchPathOnly: true,
+      icon: <UsersRound className="h-5 w-5" />,
+      onClick: () => activeEntityService.setEvent(activeEventId),
+    } : null,
+    canManageContextualEvent && eventUsesModule('programme') ? {
+      key: 'event:programme',
+      label: isChinese ? '程序单与交接' : 'Programme and handover',
+      description: isChinese ? '按时间查看环节、负责人、排班回复和现场交接' : 'Timeline, owners, roster responses, and operational handovers',
+      to: `${eventBasePath}/programme`,
+      matchPathOnly: true,
+      icon: <ClipboardList className="h-5 w-5" />,
+      onClick: () => activeEntityService.setEvent(activeEventId),
+    } : null,
+    canManageContextualEvent && eventLifecycle === 'past' ? {
+      key: 'event:closure',
+      label: isChinese ? '活动总结' : 'Closure report',
+      description: isChinese ? '汇总结果、确认结项并保留可复用经验' : 'Confirm outcomes and retain reusable learning',
+      to: `${eventBasePath}/closure`,
+      matchPathOnly: true,
+      icon: <FileCheck2 className="h-5 w-5" />,
+      onClick: () => activeEntityService.setEvent(activeEventId),
+    } : null,
   ].filter(isPresent) : []
 
   const contextualItems = eventDetailScreen ? eventItems : []
+  const contextualMemberItems = contextualItems.filter((item) =>
+    ['event:notice', 'event:my-roster', 'event:memories'].includes(item.key))
+  const contextualManagementItems = contextualItems.filter((item) =>
+    !['event:notice', 'event:my-roster', 'event:memories'].includes(item.key))
   const groupContentItems = [...workspaceHome, ...groupForumItems, ...groupAlbumItems, ...workspaceManagement]
   const workspaceVisible = workspaceEnabled && contextualItems.length > 0
 
@@ -242,6 +333,24 @@ export const useShellNavigation = ({
 
   const adminPlatformItems: ShellNavItem[] = !auth.loading
     ? [
+      auth.hasAdminPermission(adminPermissions.venueCatalog)
+        ? {
+        key: 'app:venue-catalog',
+        label: isChinese ? '场地目录' : 'Venue catalog',
+        description: isChinese ? '维护真实场地、空间、容量和设备' : 'Maintain real venues, spaces, capacity, and equipment',
+        to: '/system/venues',
+        icon: <Building2 className="h-5 w-5" />,
+        }
+        : null,
+      auth.hasAdminPermission(adminPermissions.venueBookings)
+        ? {
+        key: 'app:venue-bookings',
+        label: isChinese ? '场地审批' : 'Venue requests',
+        description: isChinese ? '处理活动负责人提交的场地申请' : 'Review venue requests submitted by event leaders',
+        to: '/system/venue-bookings',
+        icon: <FileCheck2 className="h-5 w-5" />,
+        }
+        : null,
       auth.hasAdminPermission(adminPermissions.files)
         ? {
         key: 'app:admin-files',
@@ -330,6 +439,13 @@ export const useShellNavigation = ({
         },
       ],
     }, {
+      key: 'app:scheduling-profile',
+      label: isChinese ? '我的排班资料' : 'My scheduling profile',
+      description: isChinese ? '维护可服务时间、岗位偏好和每日上限' : 'Maintain availability, role preferences, and daily limits',
+      to: '/profile/scheduling',
+      matchPathOnly: true,
+      icon: <CalendarClock className="h-5 w-5" />,
+    }, {
       key: 'app:study',
       label: isChinese ? '查经进度' : 'Bible Study Progress',
       description: isChinese ? '中英文经文阅读与小组查经' : 'Bilingual Scripture reading and group study',
@@ -362,8 +478,11 @@ export const useShellNavigation = ({
   const headerItems = guestItem ? [{ ...guestItem, key: 'app:onboarding-header' }] : []
 
   const workspaceSections: ShellNavSection[] = [
-    contextualItems.length
-      ? { key: 'workspace-event', label: isChinese ? '当前活动' : 'Current event', description: isChinese ? '活动通知、报名和回顾' : 'Notice, enrollment, and memories', items: contextualItems }
+    contextualMemberItems.length
+      ? { key: 'workspace-event', label: isChinese ? '当前活动' : 'Current event', description: isChinese ? '查看活动与处理分配给我的事项' : 'View the event and handle items assigned to me', items: contextualMemberItems }
+      : null,
+    contextualManagementItems.length
+      ? { key: 'workspace-event-management', label: isChinese ? '活动筹备与执行' : 'Event preparation', description: isChinese ? '负责人按活动需要处理场地、报名、费用、风险与排班' : 'Leader tools for optional venue, registration, finance, risk, and roster work', items: contextualManagementItems }
       : null,
   ].filter(isPresent)
 

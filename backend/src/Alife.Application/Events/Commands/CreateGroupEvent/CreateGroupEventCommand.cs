@@ -14,4 +14,7 @@ public sealed record CreateGroupEventCommand(
     string EventDataJson,
     IReadOnlyList<Guid>? ContactProfileIds = null,
     string? RamDataJson = null,
-    string? WorkflowTemplateCode = null) : IRequest<AppResult<GroupEventSummaryDto>>;
+    // Accepted temporarily so older clients do not fail deserialization. New events are
+    // always composed from facts and this legacy fixed-workflow value is ignored.
+    string? WorkflowTemplateCode = null,
+    bool AiAssistanceReviewed = false) : IRequest<AppResult<GroupEventSummaryDto>>;

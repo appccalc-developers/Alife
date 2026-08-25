@@ -1,0 +1,2583 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ALIFE 活动流程覆盖现状与演进建议</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17322c;
+      --muted: #5f716d;
+      --line: #dce7e3;
+      --paper: #ffffff;
+      --canvas: #f4f7f5;
+      --green: #176b5a;
+      --green-soft: #e9f5f0;
+      --blue: #285f91;
+      --blue-soft: #eaf2fb;
+      --amber: #8c5b15;
+      --amber-soft: #fff4d8;
+      --rose: #924449;
+      --rose-soft: #fff0f1;
+      --violet: #67469a;
+      --violet-soft: #f3edfb;
+      --shadow: 0 18px 48px rgba(30, 64, 54, 0.09);
+      --sidebar-width: 286px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 5% 0%, rgba(23, 107, 90, 0.10), transparent 28rem),
+        var(--canvas);
+      font-family: "Microsoft YaHei", "PingFang SC", system-ui, -apple-system, sans-serif;
+      line-height: 1.7;
+    }
+
+    a { color: var(--green); }
+
+    .page {
+      width: min(1180px, calc(100% - 32px));
+      margin: 32px auto 72px;
+      transition: width 220ms ease, margin 220ms ease;
+    }
+
+    body:not(.sidebar-collapsed) .page {
+      width: min(1180px, calc(100% - var(--sidebar-width) - 64px));
+      margin-left: calc(var(--sidebar-width) + max(32px, (100vw - var(--sidebar-width) - 1180px) / 2));
+      margin-right: 0;
+    }
+
+    .doc-sidebar {
+      position: fixed;
+      z-index: 50;
+      inset: 18px auto 18px 18px;
+      display: flex;
+      width: calc(var(--sidebar-width) - 18px);
+      flex-direction: column;
+      overflow: hidden;
+      color: #fff;
+      background: linear-gradient(165deg, #123b32 0%, #175f51 62%, #244b68 100%);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 22px;
+      box-shadow: 0 22px 60px rgba(17, 53, 45, 0.25);
+      transform: translateX(0);
+      transition: transform 220ms ease, visibility 220ms ease;
+    }
+
+    body.sidebar-collapsed .doc-sidebar {
+      visibility: hidden;
+      transform: translateX(calc(-100% - 24px));
+    }
+
+    .sidebar-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 22px 20px 15px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .sidebar-kicker {
+      display: block;
+      color: rgba(255, 255, 255, 0.62);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    .sidebar-title {
+      display: block;
+      margin-top: 2px;
+      font-size: 17px;
+      line-height: 1.35;
+    }
+
+    .sidebar-close,
+    .sidebar-launch,
+    .sidebar-backdrop {
+      border: 0;
+      cursor: pointer;
+      font: inherit;
+    }
+
+    .sidebar-close {
+      display: grid;
+      width: 34px;
+      height: 34px;
+      flex: 0 0 auto;
+      place-items: center;
+      color: #fff;
+      background: rgba(255, 255, 255, 0.11);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 11px;
+      font-size: 20px;
+    }
+
+    .sidebar-close:hover { background: rgba(255, 255, 255, 0.2); }
+
+    .sidebar-launch {
+      position: fixed;
+      z-index: 45;
+      left: 0;
+      top: 18px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 42px;
+      padding: 0;
+      color: #fff;
+      background: #174f43;
+      border-radius: 0 13px 13px 0;
+      box-shadow: 0 10px 30px rgba(17, 53, 45, 0.24);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    body.sidebar-collapsed .sidebar-launch { display: inline-flex; }
+
+    .sidebar-launch .menu-icon {
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .sidebar-launch .launch-label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+    }
+
+    .sidebar-backdrop { display: none; }
+
+    .sidebar-progress {
+      height: 3px;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .sidebar-progress span {
+      display: block;
+      width: 0;
+      height: 100%;
+      background: #9ce0cf;
+      transition: width 100ms linear;
+    }
+
+    .doc-sidebar nav {
+      display: flex;
+      min-height: 0;
+      flex: 1;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: clamp(28px, 5vw, 56px);
+      color: #fff;
+      background: linear-gradient(135deg, #143f35, #176b5a 64%, #2a7d69);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      width: 360px;
+      height: 360px;
+      right: -130px;
+      top: -165px;
+      border: 70px solid rgba(255, 255, 255, 0.08);
+      border-radius: 50%;
+    }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      opacity: 0.84;
+    }
+
+    h1, h2, h3, h4 { line-height: 1.3; }
+
+    h1 {
+      max-width: 850px;
+      margin: 0;
+      font-size: clamp(30px, 5vw, 52px);
+      letter-spacing: -0.04em;
+    }
+
+    .hero-lead {
+      max-width: 900px;
+      margin: 20px 0 0;
+      font-size: clamp(16px, 2vw, 20px);
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .hero-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 24px;
+    }
+
+    .hero-meta span,
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 11px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .hero-meta span { background: rgba(255, 255, 255, 0.14); }
+
+    .toc {
+      display: grid;
+      width: 100%;
+      align-content: start;
+      gap: 3px;
+      margin: 0;
+      padding: 14px 12px 22px;
+      list-style: none;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+    }
+
+    .toc a {
+      display: flex;
+      align-items: center;
+      min-height: 39px;
+      padding: 8px 11px;
+      color: rgba(255, 255, 255, 0.74);
+      text-decoration: none;
+      border: 1px solid transparent;
+      border-radius: 11px;
+      font-size: 13px;
+      font-weight: 650;
+      transition: color 150ms ease, background 150ms ease, transform 150ms ease;
+    }
+
+    .toc a:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.09);
+      transform: translateX(2px);
+    }
+
+    .toc a.active {
+      color: #143f35;
+      background: #e8f5f0;
+      box-shadow: 0 6px 18px rgba(5, 30, 24, 0.15);
+    }
+
+    .section {
+      margin-top: 24px;
+      padding: clamp(22px, 4vw, 38px);
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      box-shadow: 0 10px 30px rgba(30, 64, 54, 0.05);
+      scroll-margin-top: 20px;
+    }
+
+    .section-heading {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .section-number {
+      flex: 0 0 auto;
+      display: grid;
+      width: 36px;
+      height: 36px;
+      place-items: center;
+      color: #fff;
+      background: var(--green);
+      border-radius: 12px;
+      font-weight: 800;
+    }
+
+    h2 { margin: 0; font-size: clamp(23px, 3vw, 32px); }
+    h3 { margin: 0 0 10px; font-size: 19px; }
+    h4 { margin: 0 0 8px; font-size: 16px; }
+    p { margin: 0 0 12px; }
+
+    .muted { color: var(--muted); }
+
+    .answer {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .answer article,
+    .mini-card {
+      padding: 18px;
+      border-radius: 18px;
+      background: var(--canvas);
+      border: 1px solid var(--line);
+    }
+
+    .answer strong {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--green);
+      font-size: 18px;
+    }
+
+    .callout {
+      margin-top: 18px;
+      padding: 18px 20px;
+      border-left: 5px solid var(--green);
+      background: var(--green-soft);
+      border-radius: 12px;
+    }
+
+    .callout.warning {
+      border-left-color: var(--amber);
+      background: var(--amber-soft);
+    }
+
+    .callout.critical {
+      border-left-color: var(--rose);
+      background: var(--rose-soft);
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 18px;
+      padding: 0;
+      list-style: none;
+      counter-reset: flow;
+    }
+
+    .flow li {
+      position: relative;
+      min-height: 126px;
+      padding: 42px 16px 16px;
+      background: var(--canvas);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      counter-increment: flow;
+    }
+
+    .flow li::before {
+      content: counter(flow);
+      position: absolute;
+      left: 15px;
+      top: 13px;
+      display: grid;
+      width: 24px;
+      height: 24px;
+      place-items: center;
+      color: #fff;
+      background: var(--green);
+      border-radius: 50%;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .flow strong { display: block; margin-bottom: 5px; }
+    .flow span { color: var(--muted); font-size: 13px; }
+
+    .screen-map,
+    .operation-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .screen-card,
+    .operation-card {
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--canvas);
+    }
+
+    .screen-card .screen-label {
+      display: inline-flex;
+      margin-bottom: 10px;
+      padding: 3px 9px;
+      color: var(--blue);
+      background: var(--blue-soft);
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .screen-card ol,
+    .operation-card ol {
+      margin: 10px 0 0;
+      padding-left: 22px;
+    }
+
+    .screen-card li,
+    .operation-card li { margin-bottom: 6px; }
+
+    .handoff {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 14px;
+      align-items: center;
+      margin-top: 14px;
+      padding: 18px;
+      color: var(--ink);
+      background: var(--green-soft);
+      border-radius: 16px;
+    }
+
+    .handoff .arrow {
+      color: var(--green);
+      font-size: 28px;
+      font-weight: 800;
+    }
+
+    .state-group {
+      margin-top: 18px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--canvas);
+    }
+
+    .state-track {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .state-node {
+      padding: 7px 11px;
+      border-radius: 10px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .state-node.final {
+      color: #155c4d;
+      background: var(--green-soft);
+      border-color: #b9decf;
+    }
+
+    .state-node.review {
+      color: var(--amber);
+      background: var(--amber-soft);
+      border-color: #eed79e;
+    }
+
+    .state-arrow {
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .button-name {
+      display: inline-block;
+      padding: 2px 7px;
+      color: var(--green);
+      background: var(--green-soft);
+      border-radius: 7px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .diagram-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 4px 0 18px;
+    }
+
+    .diagram-legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .legend-mark {
+      width: 12px;
+      height: 12px;
+      border-radius: 4px;
+      background: var(--paper);
+      border: 2px solid var(--line);
+    }
+
+    .legend-mark.approval { background: var(--amber-soft); border-color: #d8ad5f; }
+    .legend-mark.ram { background: var(--green-soft); border-color: var(--green); }
+
+    .flow-figure {
+      margin-top: 18px;
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: var(--canvas);
+    }
+
+    .flow-figure figcaption {
+      margin-bottom: 15px;
+    }
+
+    .flow-figure figcaption strong {
+      display: block;
+      font-size: 19px;
+    }
+
+    .flow-figure figcaption span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .approval-flow {
+      display: grid;
+      gap: 14px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .approval-flow.six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+    .approval-flow.five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .approval-flow.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+    .approval-flow li {
+      position: relative;
+      min-width: 0;
+      padding: 14px;
+      background: var(--paper);
+      border: 2px solid var(--line);
+      border-radius: 15px;
+    }
+
+    .approval-flow li:not(:last-child)::after {
+      content: "→";
+      position: absolute;
+      z-index: 2;
+      right: -14px;
+      top: 50%;
+      width: 14px;
+      color: var(--muted);
+      text-align: center;
+      transform: translateY(-50%);
+      font-weight: 800;
+    }
+
+    .approval-flow li.approval {
+      background: var(--amber-soft);
+      border-color: #d8ad5f;
+    }
+
+    .approval-flow li.ram {
+      background: var(--green-soft);
+      border-color: var(--green);
+    }
+
+    .flow-step-number {
+      display: inline-grid;
+      width: 24px;
+      height: 24px;
+      margin-bottom: 8px;
+      place-items: center;
+      color: #fff;
+      background: var(--green);
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .approval-flow h4 { font-size: 14px; }
+
+    .approval-flow p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .node-label {
+      display: inline-block;
+      margin-top: 9px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      color: var(--amber);
+      background: rgba(255, 255, 255, 0.75);
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .ram .node-label { color: var(--green); }
+
+    .approval-explain {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .approval-explain article {
+      padding: 16px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+    }
+
+    .approval-explain article.ram-card { border-top: 4px solid var(--green); }
+    .approval-explain article.generic-card { border-top: 4px solid #d8ad5f; }
+
+    .approval-explain dl { margin: 10px 0 0; }
+
+    .approval-explain dt {
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .approval-explain dd {
+      margin: 1px 0 0;
+      font-size: 13px;
+    }
+
+    .template-grid,
+    .architecture-grid,
+    .roadmap-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .template {
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--canvas);
+    }
+
+    .template header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .template ol {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding-left: 24px;
+    }
+
+    .template li { padding-left: 4px; }
+
+    .tag.done { color: #155c4d; background: var(--green-soft); }
+    .tag.partial { color: var(--amber); background: var(--amber-soft); }
+    .tag.gap { color: var(--rose); background: var(--rose-soft); }
+    .tag.future { color: var(--violet); background: var(--violet-soft); }
+    .tag.info { color: var(--blue); background: var(--blue-soft); }
+
+    .table-wrap {
+      overflow-x: auto;
+      margin-top: 16px;
+    }
+
+    table {
+      width: 100%;
+      min-width: 820px;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th, td {
+      padding: 13px 12px;
+      text-align: left;
+      vertical-align: top;
+      border-bottom: 1px solid var(--line);
+    }
+
+    th {
+      color: var(--muted);
+      background: #f8faf9;
+      font-size: 12px;
+      letter-spacing: 0.03em;
+    }
+
+    td:first-child, th:first-child {
+      position: sticky;
+      left: 0;
+      z-index: 1;
+      background: var(--paper);
+      font-weight: 700;
+    }
+
+    th:first-child { background: #f8faf9; }
+
+    .status {
+      display: inline-block;
+      min-width: 54px;
+      margin-bottom: 4px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .status.yes { color: #155c4d; background: var(--green-soft); }
+    .status.some { color: var(--amber); background: var(--amber-soft); }
+    .status.no { color: var(--rose); background: var(--rose-soft); }
+    .status.na { color: var(--muted); background: #edf1ef; }
+
+    .layers {
+      display: grid;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .vision-panel {
+      position: relative;
+      overflow: hidden;
+      margin-bottom: 22px;
+      padding: clamp(24px, 4vw, 38px);
+      color: #fff;
+      background: linear-gradient(135deg, #102f29, #175f51 58%, #284d6c);
+      border-radius: 22px;
+    }
+
+    .vision-panel::after {
+      content: "";
+      position: absolute;
+      width: 260px;
+      height: 260px;
+      right: -100px;
+      bottom: -150px;
+      border: 52px solid rgba(255, 255, 255, 0.07);
+      border-radius: 50%;
+    }
+
+    .vision-panel h3 {
+      max-width: 900px;
+      margin: 0;
+      font-size: clamp(22px, 3vw, 34px);
+    }
+
+    .vision-panel > p {
+      max-width: 900px;
+      margin: 14px 0 0;
+      color: rgba(255, 255, 255, 0.86);
+    }
+
+    .vision-outcomes {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 22px;
+    }
+
+    .vision-outcomes div {
+      padding: 14px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 14px;
+    }
+
+    .vision-outcomes strong { display: block; margin-bottom: 4px; }
+    .vision-outcomes span { color: rgba(255, 255, 255, 0.78); font-size: 12px; }
+
+    .future-journey {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 10px;
+      margin: 18px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .future-journey li {
+      position: relative;
+      min-width: 0;
+      padding: 38px 13px 14px;
+      background: var(--canvas);
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      counter-increment: future-step;
+    }
+
+    .future-journey { counter-reset: future-step; }
+
+    .future-journey li::before {
+      content: counter(future-step);
+      position: absolute;
+      left: 12px;
+      top: 11px;
+      display: grid;
+      width: 21px;
+      height: 21px;
+      place-items: center;
+      color: #fff;
+      background: var(--green);
+      border-radius: 7px;
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .future-journey li:not(:last-child)::after {
+      content: "→";
+      position: absolute;
+      z-index: 2;
+      right: -11px;
+      top: 50%;
+      color: var(--green);
+      font-weight: 800;
+      transform: translateY(-50%);
+    }
+
+    .future-journey strong { display: block; font-size: 13px; }
+    .future-journey span { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+
+    .pillar-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .pillar-card {
+      position: relative;
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--canvas);
+    }
+
+    .pillar-card .pillar-number {
+      display: inline-grid;
+      width: 30px;
+      height: 30px;
+      margin-bottom: 12px;
+      place-items: center;
+      color: #fff;
+      background: linear-gradient(135deg, var(--green), var(--blue));
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .pillar-card ul {
+      margin: 10px 0 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .experience-map {
+      display: grid;
+      grid-template-columns: 1fr 1.35fr 1fr;
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .experience-map article {
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--canvas);
+    }
+
+    .experience-map article.primary {
+      color: #fff;
+      background: linear-gradient(150deg, #175f51, #284d6c);
+      border-color: transparent;
+    }
+
+    .experience-map article.primary p,
+    .experience-map article.primary li { color: rgba(255, 255, 255, 0.82); }
+
+    .experience-map ul {
+      margin: 10px 0 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .priority-list {
+      display: grid;
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .priority-row {
+      display: grid;
+      grid-template-columns: 150px 1fr 1fr;
+      gap: 16px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--canvas);
+    }
+
+    .priority-row .priority-label {
+      color: var(--green);
+      font-weight: 800;
+    }
+
+    .priority-row h4 { margin-bottom: 5px; }
+    .priority-row p { color: var(--muted); font-size: 13px; }
+
+    .measure-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .measure-grid article {
+      padding: 16px;
+      border-left: 4px solid var(--green);
+      background: var(--canvas);
+      border-radius: 12px;
+    }
+
+    .measure-grid h4 { margin-bottom: 4px; }
+    .measure-grid p { color: var(--muted); font-size: 12px; }
+
+    .target-definition {
+      margin-top: 18px;
+      padding: 18px;
+      background: var(--blue-soft);
+      border-radius: 16px;
+    }
+
+    .target-definition ul {
+      margin: 10px 0 0;
+      padding-left: 20px;
+    }
+
+    .layer {
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      gap: 18px;
+      align-items: start;
+      padding: 18px;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+    }
+
+    .layer:nth-child(1) { background: var(--green-soft); }
+    .layer:nth-child(2) { background: var(--blue-soft); }
+    .layer:nth-child(3) { background: var(--violet-soft); }
+    .layer:nth-child(4) { background: var(--amber-soft); }
+
+    .layer strong { font-size: 17px; }
+    .layer p { margin: 0; }
+
+    .package-list {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .package-list article {
+      padding: 17px;
+      border-top: 4px solid var(--green);
+      border-radius: 12px;
+      background: var(--canvas);
+    }
+
+    .package-list p { color: var(--muted); font-size: 13px; }
+
+    .roadmap-step {
+      position: relative;
+      padding: 20px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: var(--canvas);
+    }
+
+    .roadmap-step .phase {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    ul.clean {
+      margin: 10px 0 0;
+      padding-left: 20px;
+    }
+
+    .decision-list {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      counter-reset: decisions;
+    }
+
+    .decision-list li {
+      position: relative;
+      padding: 14px 16px 14px 54px;
+      background: var(--canvas);
+      border-radius: 14px;
+      counter-increment: decisions;
+    }
+
+    .decision-list li::before {
+      content: counter(decisions);
+      position: absolute;
+      left: 15px;
+      top: 13px;
+      display: grid;
+      width: 26px;
+      height: 26px;
+      place-items: center;
+      color: #fff;
+      background: var(--green);
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .evidence {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding-left: 20px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    code {
+      padding: 2px 5px;
+      color: #23443b;
+      background: #edf3f0;
+      border-radius: 5px;
+      font-family: Consolas, "SFMono-Regular", monospace;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    footer {
+      margin-top: 22px;
+      color: var(--muted);
+      text-align: center;
+      font-size: 13px;
+    }
+
+    @media (max-width: 1080px) {
+      body:not(.sidebar-collapsed) { overflow: hidden; }
+      body:not(.sidebar-collapsed) .page,
+      body.sidebar-collapsed .page {
+        width: min(1180px, calc(100% - 32px));
+        margin: 32px auto 72px;
+      }
+      .doc-sidebar {
+        inset: 12px auto 12px 12px;
+        width: min(330px, calc(100vw - 24px));
+      }
+      body.sidebar-collapsed .page { margin-top: 76px; }
+      .section { scroll-margin-top: 76px; }
+      .sidebar-launch {
+        left: 18px;
+        width: auto;
+        height: auto;
+        gap: 8px;
+        padding: 10px 14px;
+        border-radius: 13px;
+      }
+      .sidebar-launch .launch-label {
+        position: static;
+        width: auto;
+        height: auto;
+        overflow: visible;
+        clip: auto;
+      }
+      .sidebar-backdrop {
+        position: fixed;
+        z-index: 40;
+        inset: 0;
+        display: block;
+        width: 100%;
+        height: 100%;
+        padding: 0;
+        background: rgba(11, 31, 26, 0.46);
+        opacity: 1;
+        transition: opacity 180ms ease, visibility 180ms ease;
+      }
+      body.sidebar-collapsed .sidebar-backdrop {
+        visibility: hidden;
+        opacity: 0;
+        pointer-events: none;
+      }
+    }
+
+    @media (max-width: 860px) {
+      .answer,
+      .flow,
+      .package-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .layer { grid-template-columns: 1fr; gap: 6px; }
+      .approval-flow.six,
+      .approval-flow.five { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .approval-flow.four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .approval-flow li:not(:last-child)::after { display: none; }
+      .vision-outcomes,
+      .pillar-grid,
+      .measure-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .future-journey { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .future-journey li:not(:last-child)::after { display: none; }
+      .experience-map { grid-template-columns: 1fr; }
+      .priority-row { grid-template-columns: 120px 1fr; }
+      .priority-row > :last-child { grid-column: 2; }
+    }
+
+    @media (max-width: 620px) {
+      .page { width: min(100% - 20px, 1180px); margin-top: 10px; }
+      body.sidebar-collapsed .page { margin-top: 72px; }
+      .hero, .section { border-radius: 18px; }
+      .answer,
+      .flow,
+      .template-grid,
+      .architecture-grid,
+      .roadmap-grid,
+      .package-list,
+      .screen-map,
+      .operation-grid,
+      .approval-explain,
+      .approval-flow.six,
+      .approval-flow.five,
+      .approval-flow.four { grid-template-columns: 1fr; }
+      .handoff { grid-template-columns: 1fr; }
+      .handoff .arrow { transform: rotate(90deg); justify-self: center; }
+      .approval-flow li:not(:last-child)::after {
+        display: block;
+        content: "↓";
+        right: auto;
+        left: 50%;
+        top: auto;
+        bottom: -15px;
+        transform: translateX(-50%);
+      }
+      .vision-outcomes,
+      .pillar-grid,
+      .future-journey,
+      .measure-grid { grid-template-columns: 1fr; }
+      .future-journey li:not(:last-child)::after {
+        display: block;
+        content: "↓";
+        right: auto;
+        left: 50%;
+        top: auto;
+        bottom: -12px;
+        transform: translateX(-50%);
+      }
+      .priority-row { grid-template-columns: 1fr; }
+      .priority-row > :last-child { grid-column: auto; }
+    }
+
+    @media print {
+      body { background: #fff; }
+      .page { width: 100%; margin: 0; }
+      .hero, .section { box-shadow: none; break-inside: avoid; }
+      .doc-sidebar, .sidebar-launch, .sidebar-backdrop { display: none !important; }
+      .table-wrap { overflow: visible; }
+      table { min-width: 0; font-size: 10px; }
+      th, td { padding: 6px; }
+    }
+  </style>
+</head>
+<body class="sidebar-collapsed">
+  <button id="sidebar-open" class="sidebar-launch" type="button" aria-controls="doc-sidebar" aria-expanded="false">
+    <span class="menu-icon" aria-hidden="true">☰</span>
+    <span class="launch-label">文档目录</span>
+  </button>
+
+  <button id="sidebar-backdrop" class="sidebar-backdrop" type="button" tabindex="-1" aria-label="关闭文档目录"></button>
+
+  <aside id="doc-sidebar" class="doc-sidebar" aria-label="文档目录" aria-hidden="true">
+    <div class="sidebar-head">
+      <div>
+        <span class="sidebar-kicker">ALIFE · RESEARCH</span>
+        <strong class="sidebar-title">活动流程设计</strong>
+      </div>
+      <button id="sidebar-close" class="sidebar-close" type="button" aria-label="隐藏文档目录">×</button>
+    </div>
+    <div class="sidebar-progress" aria-hidden="true"><span id="reading-progress"></span></div>
+    <nav aria-label="文档章节">
+      <ul class="toc">
+        <li><a href="#answer">先说结论</a></li>
+        <li><a href="#current-flow">当前流程</a></li>
+        <li><a href="#page-guide">页面怎么衔接</a></li>
+        <li><a href="#approval-guide">审批流程图</a></li>
+        <li><a href="#operation-guide">操作手册</a></li>
+        <li><a href="#current-options">现有三种方式</a></li>
+        <li><a href="#coverage">覆盖矩阵</a></li>
+        <li><a href="#activity-fit">活动类型适配</a></li>
+        <li><a href="#future">未来产品蓝图</a></li>
+        <li><a href="#roadmap">落地路线</a></li>
+        <li><a href="#decisions">需要确认</a></li>
+        <li><a href="#evidence">事实依据</a></li>
+      </ul>
+    </nav>
+  </aside>
+
+  <main class="page">
+    <header class="hero">
+      <p class="eyebrow">ALIFE · 活动管理研究与演进建议</p>
+      <h1>活动流程覆盖现状与未来设计</h1>
+      <p class="hero-lead">
+        这份文档说明当前活动功能究竟覆盖到哪里、创建页面与流程页面怎样衔接、审批节点实际审批什么，并提出未来的产品目标、理想使用流程、核心能力、优化优先级与分阶段落地路线。
+      </p>
+      <div class="hero-meta">
+        <span>讨论稿</span>
+        <span>更新日期：2026-08-21</span>
+        <span>代码基线：061ded7</span>
+        <span>范围：活动创建、筹备、审批、执行与跟进</span>
+      </div>
+    </header>
+
+    <section id="answer" class="section">
+      <div class="section-heading">
+        <span class="section-number">1</span>
+        <div>
+          <h2>先说结论</h2>
+          <p class="muted">页面上看到的“三种”，不是三种活动类型。</p>
+        </div>
+      </div>
+
+      <div class="answer">
+        <article>
+          <strong>当前是什么</strong>
+          一个通用的活动流程机制，加上“轻量创建、营会、外展”三种筹备选择。营会和外展才是内置流程模板，轻量创建表示不生成额外筹备任务。
+        </article>
+        <article>
+          <strong>当前覆盖到哪里</strong>
+          已覆盖活动资料、双语内容、草稿找回、AI 整理、通知、报名基础、海报、可见范围、RAM、人工作出确认、线性阶段、审批点和产出物状态。
+        </article>
+        <article>
+          <strong>未来应该怎样</strong>
+          产品上提供多个活动流程包；开发上保留一个稳定核心。营会、外展、培训、常规聚会、敬拜、儿童青少年等分别配置流程和专用模块。
+        </article>
+        <article>
+          <strong>审批目前怎样</strong>
+          RAM 已经有独立审计权限；其他审批点目前只是由组长或副组长操作的状态标记，还没有独立审批人、审批意见和禁止自审规则。
+        </article>
+      </div>
+
+      <div class="callout">
+        <strong>对截图中建议的判断：</strong>
+        “不要让一套固定流程硬套所有活动”是正确的；但不建议复制多套互不相干的流程引擎。更稳妥的方式是“一套共享核心 + 多个活动流程包 + 可插拔专用模块”。这样既能覆盖不同活动，也不会把权限、隐私、审批、通知和审计逻辑复制很多遍。
+      </div>
+    </section>
+
+    <section id="current-flow" class="section">
+      <div class="section-heading">
+        <span class="section-number">2</span>
+        <div>
+          <h2>当前实际覆盖的活动流程</h2>
+          <p class="muted">以下是现在系统已经形成的完整链路，不等于每个活动都需要使用所有环节。</p>
+        </div>
+      </div>
+
+      <ol class="flow">
+        <li><strong>开始或找回草稿</strong><span>新建活动，或继续上次未提交的活动草稿。</span></li>
+        <li><strong>选择筹备方式</strong><span>轻量创建、营会、外展，或小组自定义模板。</span></li>
+        <li><strong>填写活动资料</strong><span>标题、说明、时间、地点、对象、人数、费用、联系人和可见范围。</span></li>
+        <li><strong>准备活动海报</strong><span>上传现有海报、读取参考海报，或生成需要人工采用的 AI 海报草案。</span></li>
+        <li><strong>AI 协助整理</strong><span>整理已提供的事实、指出缺失资料；不能替代负责人作安全或身份确认。</span></li>
+        <li><strong>提交活动通知</strong><span>保存活动资料，形成通知与报名所需的活动记录。</span></li>
+        <li><strong>完成 RAM 审核</strong><span>按基本信息、风险、联系人、人工确认处理，并由有权限的人批准。</span></li>
+        <li><strong>执行筹备与跟进</strong><span>如果选择了流程模板，保存后生成阶段、审批点和产出物，并记录完成情况。</span></li>
+      </ol>
+
+      <div class="callout warning">
+        <strong>当前容易造成误解的地方：</strong>
+        “活动创建四步”和“模板内的筹备阶段”属于两个层次。前者负责把活动建立并通过 RAM；后者负责活动建立后的具体筹备与执行。未来界面应继续明确区分“创建活动”和“执行流程”。
+      </div>
+    </section>
+
+    <section id="page-guide" class="section">
+      <div class="section-heading">
+        <span class="section-number">2A</span>
+        <div>
+          <h2>两个页面怎样衔接</h2>
+          <p class="muted">当前不是在一个页面里完成全部工作，而是先创建活动，再到活动详情执行筹备流程。</p>
+        </div>
+      </div>
+
+      <div class="screen-map">
+        <article class="screen-card">
+          <span class="screen-label">页面一</span>
+          <h3>活动创建／编辑页面</h3>
+          <p>解决“活动是什么、谁能看、能否发布”的问题。</p>
+          <ol>
+            <li>选择所属小组和筹备方式。</li>
+            <li>填写标题、说明、时间、地点、对象、人数、费用与联系人。</li>
+            <li>设置小组内、教会内或公开可见。</li>
+            <li>上传、读取或生成活动海报。</li>
+            <li>让 AI 整理事实并人工核对。</li>
+            <li>提交活动通知，建立活动记录。</li>
+            <li>填写并提交 RAM，等待活动审计人员批准。</li>
+          </ol>
+        </article>
+
+        <article class="screen-card">
+          <span class="screen-label">页面二</span>
+          <h3>活动详情里的“活动工作流”</h3>
+          <p>解决“活动建立以后，团队怎样完成筹备任务”的问题。</p>
+          <ol>
+            <li>查看所选模板、必需阶段完成数量和当前阶段。</li>
+            <li>点击顶部阶段卡，跳到对应阶段。</li>
+            <li>处理该阶段的计划、预算、名单、报告等产出物。</li>
+            <li>开始阶段、提交审批、完成或重新打开阶段。</li>
+            <li>RAM 阶段不在这里直接操作，而是返回活动编辑页面处理。</li>
+          </ol>
+        </article>
+      </div>
+
+      <div class="handoff">
+        <div>
+          <strong>创建页面的结果</strong>
+          <p class="muted">保存活动时，系统根据选中的模板生成一份不可被未来模板修改影响的流程快照、阶段和产出物占位。</p>
+        </div>
+        <div class="arrow" aria-hidden="true">→</div>
+        <div>
+          <strong>流程页面接手执行</strong>
+          <p class="muted">团队在活动详情中推进筹备状态；如果选择轻量创建，则没有额外阶段，活动仍保留通知、报名和 RAM。</p>
+        </div>
+      </div>
+
+      <div class="callout warning">
+        <strong>不要混淆：</strong>
+        活动可见范围不是流程审批。选择“公开可见”只表示 RAM 批准后允许公开展示；真正令活动进入可见状态的是 RAM 批准，不是普通阶段的“完成”按钮。
+      </div>
+    </section>
+
+    <section id="approval-guide" class="section">
+      <div class="section-heading">
+        <span class="section-number">2B</span>
+        <div>
+          <h2>审批节点到底审批什么</h2>
+          <p class="muted">先沿着当前营会、外展、RAM 和自定义流程图看审批点，再解释每个节点的操作者与系统约束。</p>
+        </div>
+      </div>
+
+      <div id="approval-flows">
+        <div class="diagram-legend" aria-label="流程图图例">
+          <span><i class="legend-mark" aria-hidden="true"></i>普通执行阶段</span>
+          <span><i class="legend-mark approval" aria-hidden="true"></i>普通审批标记</span>
+          <span><i class="legend-mark ram" aria-hidden="true"></i>有独立权限的 RAM 审批</span>
+        </div>
+
+        <figure class="flow-figure">
+          <figcaption>
+            <strong>流程图一：营会</strong>
+            <span>当前 6 个阶段中有 3 个审批点；只有 RAM 使用独立的活动审计权限。</span>
+          </figcaption>
+          <ol class="approval-flow six" aria-label="营会审批流程">
+            <li class="approval">
+              <span class="flow-step-number">1</span>
+              <h4>提案与预算</h4>
+              <p>计划、预算</p>
+              <span class="node-label">普通审批</span>
+            </li>
+            <li class="ram">
+              <span class="flow-step-number">2</span>
+              <h4>风险评估</h4>
+              <p>RAM 风险资料</p>
+              <span class="node-label">审计审批</span>
+            </li>
+            <li>
+              <span class="flow-step-number">3</span>
+              <h4>报名与缴费</h4>
+              <p>报名表、名单、缴费</p>
+            </li>
+            <li>
+              <span class="flow-step-number">4</span>
+              <h4>人员与程序</h4>
+              <p>排班、流程表、同意书</p>
+            </li>
+            <li>
+              <span class="flow-step-number">5</span>
+              <h4>营会执行</h4>
+              <p>出席、事故、照片</p>
+            </li>
+            <li class="approval">
+              <span class="flow-step-number">6</span>
+              <h4>结算与跟进</h4>
+              <p>财务、回顾、跟进</p>
+              <span class="node-label">普通审批</span>
+            </li>
+          </ol>
+
+          <div class="approval-explain">
+            <article class="generic-card">
+              <h4>① 提案与预算审批</h4>
+              <dl>
+                <dt>审批什么</dt><dd>活动方案是否可行，预算是否允许进入正式筹备。</dd>
+                <dt>当前必需依据</dt><dd>“活动计划”和“预算”两个产出物的状态。</dd>
+                <dt>当前谁操作</dt><dd>任一组长或副组长；没有指定牧者或财务角色。</dd>
+                <dt>通过后</dt><dd>该阶段可被标记完成，流程进入风险评估。</dd>
+                <dt>系统没有确认</dt><dd>预算金额、财务签字、实际文件和审批意见。</dd>
+              </dl>
+            </article>
+            <article class="ram-card">
+              <h4>② RAM 风险审批</h4>
+              <dl>
+                <dt>审批什么</dt><dd>风险、控制措施、负责人、紧急联系人和外出安全事实。</dd>
+                <dt>当前必需依据</dt><dd>RAM 四个分区完整，AI 缺失标记已处理，组长完成人工确认。</dd>
+                <dt>当前谁操作</dt><dd>组长／副组长提交；活动审计权限人员批准。</dd>
+                <dt>通过后</dt><dd>RAM 及对应阶段自动完成，活动按可见范围展示。</dd>
+                <dt>系统没有确认</dt><dd>审计人员的具体意见和退回原因。</dd>
+              </dl>
+            </article>
+            <article class="generic-card">
+              <h4>⑥ 结算与跟进审批</h4>
+              <dl>
+                <dt>审批什么</dt><dd>财务是否结清、活动是否完成回顾、后续工作是否安排。</dd>
+                <dt>当前必需依据</dt><dd>“财务报告”和“活动回顾”已批准；跟进清单为可选私密产出物。</dd>
+                <dt>当前谁操作</dt><dd>任一组长或副组长；没有独立财务复核人。</dd>
+                <dt>通过后</dt><dd>最后阶段完成；所有必需阶段完成时整个营会流程结束。</dd>
+                <dt>系统没有确认</dt><dd>收支差异、付款凭证、跟进结果和正式结项意见。</dd>
+              </dl>
+            </article>
+          </div>
+        </figure>
+
+        <figure class="flow-figure">
+          <figcaption>
+            <strong>流程图二：外展</strong>
+            <span>当前 6 个阶段中有 3 个审批点，重点落在事工方向、风险和新朋友资料的负责跟进。</span>
+          </figcaption>
+          <ol class="approval-flow six" aria-label="外展审批流程">
+            <li class="approval">
+              <span class="flow-step-number">1</span>
+              <h4>目标与团队</h4>
+              <p>外展计划、团队名单</p>
+              <span class="node-label">普通审批</span>
+            </li>
+            <li>
+              <span class="flow-step-number">2</span>
+              <h4>培训与简报</h4>
+              <p>培训材料、出席记录</p>
+            </li>
+            <li class="ram">
+              <span class="flow-step-number">3</span>
+              <h4>风险评估</h4>
+              <p>RAM 风险资料</p>
+              <span class="node-label">审计审批</span>
+            </li>
+            <li>
+              <span class="flow-step-number">4</span>
+              <h4>接触预备</h4>
+              <p>宣传、同意、联系计划</p>
+            </li>
+            <li>
+              <span class="flow-step-number">5</span>
+              <h4>外展执行</h4>
+              <p>出席、事故、照片</p>
+            </li>
+            <li class="approval">
+              <span class="flow-step-number">6</span>
+              <h4>新朋友跟进</h4>
+              <p>名单、分工、活动回顾</p>
+              <span class="node-label">普通审批</span>
+            </li>
+          </ol>
+
+          <div class="approval-explain">
+            <article class="generic-card">
+              <h4>① 目标与团队审批</h4>
+              <dl>
+                <dt>审批什么</dt><dd>外展目标、方式、团队组成和负责人是否适合。</dd>
+                <dt>当前必需依据</dt><dd>“外展计划”和“团队名单”两个产出物已批准。</dd>
+                <dt>当前谁操作</dt><dd>任一组长或副组长；没有指定事工负责人或牧者。</dd>
+                <dt>通过后</dt><dd>该阶段完成，团队可继续培训与简报。</dd>
+                <dt>系统没有确认</dt><dd>团队资格、事工授权、目标人群和接触边界。</dd>
+              </dl>
+            </article>
+            <article class="ram-card">
+              <h4>③ RAM 风险审批</h4>
+              <dl>
+                <dt>审批什么</dt><dd>外展地点、交通、人员接触和现场执行相关风险。</dd>
+                <dt>当前必需依据</dt><dd>完整 RAM、控制措施、真实负责人和紧急联系人。</dd>
+                <dt>当前谁操作</dt><dd>组长／副组长提交；活动审计权限人员批准。</dd>
+                <dt>通过后</dt><dd>RAM 阶段自动完成，活动获得展示条件。</dd>
+                <dt>系统没有确认</dt><dd>审计意见、复审要求和退回说明。</dd>
+              </dl>
+            </article>
+            <article class="generic-card">
+              <h4>⑥ 新朋友跟进审批</h4>
+              <dl>
+                <dt>审批什么</dt><dd>新朋友资料是否得到同意、是否安全保管、是否已明确跟进人。</dd>
+                <dt>当前必需依据</dt><dd>新朋友名单、跟进分工和活动回顾均显示为已批准。</dd>
+                <dt>当前谁操作</dt><dd>任一组长或副组长；私密名单对普通成员隐藏。</dd>
+                <dt>通过后</dt><dd>最后阶段完成，外展流程可以结束。</dd>
+                <dt>系统没有确认</dt><dd>同意有效期、删除期限、交接记录和隐私负责人复核。</dd>
+              </dl>
+            </article>
+          </div>
+        </figure>
+
+        <figure class="flow-figure">
+          <figcaption>
+            <strong>流程图三：RAM 独立审批</strong>
+            <span>这是当前唯一真正区分提交人与批准权限的审批流程，并会直接影响活动可见性。</span>
+          </figcaption>
+          <ol class="approval-flow five" aria-label="RAM 独立审批流程">
+            <li>
+              <span class="flow-step-number">1</span>
+              <h4>填写四个分区</h4>
+              <p>基本信息、风险、联系人、人工确认</p>
+            </li>
+            <li>
+              <span class="flow-step-number">2</span>
+              <h4>完整性检查</h4>
+              <p>缺失时自动定位第一个无效字段</p>
+            </li>
+            <li class="approval">
+              <span class="flow-step-number">3</span>
+              <h4>提交审核</h4>
+              <p>组长／副组长提交</p>
+              <span class="node-label">提交点</span>
+            </li>
+            <li class="ram">
+              <span class="flow-step-number">4</span>
+              <h4>批准 RAM</h4>
+              <p>活动审计权限人员操作</p>
+              <span class="node-label">独立审批</span>
+            </li>
+            <li>
+              <span class="flow-step-number">5</span>
+              <h4>同步结果</h4>
+              <p>流程完成、活动展示、通知成员</p>
+            </li>
+          </ol>
+
+          <div class="approval-explain">
+            <article class="ram-card">
+              <h4>提交前检查</h4>
+              <dl>
+                <dt>必须完成</dt><dd>活动名称和说明、人数与年龄、外出选择、至少一个完整风险、紧急联系人、所需安全检查。</dd>
+                <dt>人工责任</dt><dd>组长确认姓名、电话、资质、驾照、车辆 Rego 和 WOF 等不是 AI 猜测。</dd>
+              </dl>
+            </article>
+            <article class="ram-card">
+              <h4>审计人员批准</h4>
+              <dl>
+                <dt>权限</dt><dd>必须拥有 <code>admin.events.audit</code>，普通组长身份本身不够。</dd>
+                <dt>系统动作</dt><dd>再次验证 RAM 完整性，记录批准人和时间，然后同步工作流。</dd>
+              </dl>
+            </article>
+            <article class="generic-card">
+              <h4>当前退回方式不足</h4>
+              <dl>
+                <dt>发现问题时</dt><dd>当前没有“退回修改并填写意见”按钮。</dd>
+                <dt>实际结果</dt><dd>负责人再次修改并保存 RAM 后，状态回到草稿，原提交和批准记录被清除，再重新提交。</dd>
+              </dl>
+            </article>
+          </div>
+        </figure>
+
+        <figure class="flow-figure">
+          <figcaption>
+            <strong>流程图四：自定义模板的审批点</strong>
+            <span>自定义模板只能设置“这个阶段需要审批”，不能说明审批事项、材料和审批角色。</span>
+          </figcaption>
+          <ol class="approval-flow four" aria-label="自定义模板审批流程">
+            <li>
+              <span class="flow-step-number">1</span>
+              <h4>创建阶段</h4>
+              <p>填写中英文名称并勾选需要审批</p>
+            </li>
+            <li>
+              <span class="flow-step-number">2</span>
+              <h4>开始阶段</h4>
+              <p>组长／副组长点击开始</p>
+            </li>
+            <li class="approval">
+              <span class="flow-step-number">3</span>
+              <h4>请求审批</h4>
+              <p>状态变为等待审批</p>
+              <span class="node-label">状态标记</span>
+            </li>
+            <li class="approval">
+              <span class="flow-step-number">4</span>
+              <h4>完成阶段</h4>
+              <p>同一管理角色可以直接完成</p>
+              <span class="node-label">没有独立批准人</span>
+            </li>
+          </ol>
+
+          <div class="approval-explain">
+            <article class="generic-card">
+              <h4>审批对象</h4>
+              <p>系统只知道阶段名称，不知道要审批计划、预算、安全、文案还是隐私事项。</p>
+            </article>
+            <article class="generic-card">
+              <h4>审批依据</h4>
+              <p>自定义模板不能配置必需产出物或连接专用模块，因此系统没有客观材料检查。</p>
+            </article>
+            <article class="generic-card">
+              <h4>审批角色</h4>
+              <p>组长或副组长都能请求审批和完成阶段；当前不能指定另一人，也不能禁止自审。</p>
+            </article>
+          </div>
+        </figure>
+      </div>
+
+      <h3 style="margin-top: 28px;">审批类型、角色和系统结果总表</h3>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>审批对象</th>
+              <th>提交人</th>
+              <th>当前批准人</th>
+              <th>系统实际检查</th>
+              <th>批准后的结果</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>RAM 风险评估</td>
+              <td>所属小组的组长或副组长</td>
+              <td>拥有 <code>admin.events.audit</code> 权限的活动审计人员</td>
+              <td>RAM 必填内容、风险、紧急联系人和人工确认是否完整；只允许批准“等待审核”的 RAM</td>
+              <td>RAM 变为已批准；对应流程阶段和 RAM 产出物同步完成；活动按可见范围展示并通知小组成员</td>
+            </tr>
+            <tr>
+              <td>普通产出物</td>
+              <td>所属小组的组长或副组长</td>
+              <td>同样是组长或副组长；目前可以由同一人完成</td>
+              <td>只检查状态和文件可见级别是否一致；当前不要求必须附文件，也没有审批意见</td>
+              <td>产出物由“已提交”变为“已批准”，允许所在阶段满足完成条件</td>
+            </tr>
+            <tr>
+              <td>普通阶段审批点</td>
+              <td>所属小组的组长或副组长</td>
+              <td>同样是组长或副组长；没有指定审批角色</td>
+              <td>完成阶段时，所有必需产出物必须已批准；不检查提交人与批准人是否不同</td>
+              <td>阶段变为“已完成”，流程进度增加；全部必需阶段完成后流程结束</td>
+            </tr>
+            <tr>
+              <td>活动通知／公开发布</td>
+              <td>所属小组的组长或副组长</td>
+              <td>目前没有独立文案或发布审批人</td>
+              <td>活动资料完整，并且 RAM 获得批准</td>
+              <td>活动依据小组、教会或公开范围被相应人员看到</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 style="margin-top: 26px;">三个状态变化要分开理解</h3>
+
+      <div class="state-group">
+        <h4>普通产出物：计划、预算、名单、报告等</h4>
+        <div class="state-track" aria-label="普通产出物状态变化">
+          <span class="state-node">草稿</span><span class="state-arrow">→ 标记已提交 →</span>
+          <span class="state-node review">已提交</span><span class="state-arrow">→ 批准 →</span>
+          <span class="state-node final">已批准</span><span class="state-arrow">→ 退回草稿 →</span>
+          <span class="state-node">草稿</span>
+        </div>
+        <p class="muted">当前只有“草稿、已提交、已批准”三种状态，没有“退回修改”理由或拒绝意见。页面只允许已批准产出物退回草稿。</p>
+      </div>
+
+      <div class="state-group">
+        <h4>普通流程阶段</h4>
+        <div class="state-track" aria-label="普通流程阶段状态变化">
+          <span class="state-node">未开始</span><span class="state-arrow">→ 开始 →</span>
+          <span class="state-node">进行中</span><span class="state-arrow">→ 请求审批 →</span>
+          <span class="state-node review">等待审批</span><span class="state-arrow">→ 完成阶段 →</span>
+          <span class="state-node final">已完成</span><span class="state-arrow">→ 重新打开 →</span>
+          <span class="state-node">进行中</span>
+        </div>
+        <p class="muted">“请求审批”目前只是把状态改成等待审批。系统没有独立的“批准阶段”按钮；组长或副组长使用“完成阶段”结束该阶段。</p>
+      </div>
+
+      <div class="state-group">
+        <h4>RAM 风险审批</h4>
+        <div class="state-track" aria-label="RAM 状态变化">
+          <span class="state-node">草稿</span><span class="state-arrow">→ 组长提交审核 →</span>
+          <span class="state-node review">等待审核</span><span class="state-arrow">→ 审计人员批准 →</span>
+          <span class="state-node final">已批准</span>
+        </div>
+        <p class="muted">RAM 保存任何修改时都会回到草稿，并清除此前的提交与批准记录。当前没有“退回并填写意见”按钮。</p>
+      </div>
+
+      <h3 style="margin-top: 26px;">内置模板中的审批点逐一说明</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>模板与节点</th>
+              <th>业务上应当确认什么</th>
+              <th>当前系统怎样做</th>
+              <th>当前不足</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>营会：提案与预算</td>
+              <td>活动目标、计划和预算是否可行，是否允许进入正式筹备</td>
+              <td>活动计划与预算两个必需产出物先标记已批准，再完成阶段</td>
+              <td>没有指定牧者或财务审批人，也没有金额、预算明细和审批意见</td>
+            </tr>
+            <tr>
+              <td>营会／外展：风险评估</td>
+              <td>风险、控制措施、负责人、紧急联系人和外出安全是否可信且完整</td>
+              <td>通过独立 RAM 页面提交，由活动审计权限人员批准</td>
+              <td>当前缺少退回原因和复审意见，但这是目前最接近真正审批的节点</td>
+            </tr>
+            <tr>
+              <td>营会：结算与跟进</td>
+              <td>财务是否结清、活动回顾是否完成、后续事项是否有人负责</td>
+              <td>财务报告和活动回顾为必需产出物；批准后完成阶段</td>
+              <td>没有财务角色、金额核对、差异说明或跟进完成证明</td>
+            </tr>
+            <tr>
+              <td>外展：目标与团队</td>
+              <td>外展目标、方式、团队和负责人是否合适</td>
+              <td>外展计划与团队名单为必需产出物；批准后完成阶段</td>
+              <td>没有事工负责人或牧者专属审批，也没有团队资格规则</td>
+            </tr>
+            <tr>
+              <td>外展：新朋友跟进</td>
+              <td>敏感联系资料是否被妥善保管，跟进是否得到同意并明确分工</td>
+              <td>新朋友名单、跟进分工和活动回顾进入产出物状态；前两项仅管理者可见</td>
+              <td>没有同意有效期、资料删除期限、交接记录或隐私负责人审批</td>
+            </tr>
+            <tr>
+              <td>自定义模板：任意审批点</td>
+              <td>由创建者填写的阶段名称决定，系统本身不知道审批内容</td>
+              <td>显示“需要审批”，允许进入等待审批并由组长／副组长完成</td>
+              <td>不能设置审批说明、必需材料、指定角色或审批条件，因此目前更像提醒标记</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout critical">
+        <strong>必须明确的现状限制：</strong>
+        普通审批点目前不具备职责分离。请求审批的人可以继续批准产出物并完成阶段；“需要审批”的阶段也可以不经过等待审批状态而直接完成，只要必需产出物已经显示为批准。产出物没有附文件时也能变成已批准。因此，除 RAM 外，现有审批徽标只能视为团队进度记录，不能视为正式的财务、安全、隐私或事工授权证明。
+      </div>
+
+      <div class="callout">
+        <strong>未来合格的审批节点应当包含：</strong>
+        审批事项说明、必需证据、提交角色、审批角色、禁止自审、批准／退回修改／拒绝、审批意见、时间记录、提醒和审计日志；不同节点应分别支持事工负责人、财务、活动审计、隐私负责人或教会管理员。
+      </div>
+    </section>
+
+    <section id="operation-guide" class="section">
+      <div class="section-heading">
+        <span class="section-number">2C</span>
+        <div>
+          <h2>当前页面操作手册</h2>
+          <p class="muted">下面按真实按钮和页面状态说明怎样操作，不把尚未实现的功能写成可用功能。</p>
+        </div>
+      </div>
+
+      <div class="operation-grid">
+        <article class="operation-card">
+          <h3>一、新建活动并生成流程</h3>
+          <ol>
+            <li>进入活动创建页面，先确认所属小组。</li>
+            <li>在顶部选择“轻量创建、营会、外展”或已保存的自定义模板。</li>
+            <li>选中模板后，在下方确认阶段顺序和带盾牌标记的审批点。</li>
+            <li>完成活动资料、可见范围、联系人和海报；AI 协助可选。</li>
+            <li>点击 <span class="button-name">提交并进入 RAM</span>。只有保存活动后，模板才会生成实际阶段和任务。</li>
+            <li>如果选轻量创建，活动仍可继续完成通知、报名和 RAM，但活动详情不会出现额外筹备阶段。</li>
+          </ol>
+        </article>
+
+        <article class="operation-card">
+          <h3>二、填写和提交 RAM</h3>
+          <ol>
+            <li>依次完成“基本信息、风险、联系人、人工确认”四个分区。</li>
+            <li>修改内容会自动保存；顶部显示完成比例和最后保存状态。</li>
+            <li>资料不完整时点击底部按钮，页面会展开第一个未完成分区并定位到第一个无效字段。</li>
+            <li>组长核实姓名、电话、资质、车辆和安全事实，勾选人工确认。</li>
+            <li>点击 <span class="button-name">提交审核</span>，RAM 进入等待审核。</li>
+            <li>拥有活动审计权限的人在同一 RAM 页面点击 <span class="button-name">批准 RAM</span>。</li>
+          </ol>
+        </article>
+
+        <article class="operation-card">
+          <h3>三、从活动详情进入流程</h3>
+          <ol>
+            <li>打开已保存活动的详情页，找到“活动工作流”。</li>
+            <li>顶部显示模板名称、版本、必需步骤完成数量和总体状态。</li>
+            <li>点击横向阶段卡，页面跳到对应阶段；蓝色卡表示当前优先阶段，绿色卡表示已完成。</li>
+            <li>如果旧活动还没有流程，组长／副组长可以在这里选择模板并点击 <span class="button-name">采用此工作流</span>。</li>
+            <li>活动一旦已有流程，当前页面不能更换成另一个模板。</li>
+          </ol>
+        </article>
+
+        <article class="operation-card">
+          <h3>四、处理普通产出物</h3>
+          <ol>
+            <li>查看产出物是否必需，以及公开、小组可见或管理者私密的可见级别。</li>
+            <li>产出物准备好后点击 <span class="button-name">标记为已提交</span>。</li>
+            <li>复核人点击 <span class="button-name">批准</span>，状态变为已批准。</li>
+            <li>发现已批准内容需要重做时，点击 <span class="button-name">退回草稿</span>。</li>
+            <li>如果显示“打开文件”，先打开并核对文件；没有文件按钮时，不能仅凭状态徽标断定材料已经上传。</li>
+          </ol>
+        </article>
+
+        <article class="operation-card">
+          <h3>五、推进普通阶段</h3>
+          <ol>
+            <li>点击 <span class="button-name">开始</span>，阶段由未开始变为进行中。</li>
+            <li>若阶段标记为需要审批，准备完成后点击 <span class="button-name">请求审批</span>。</li>
+            <li>所有必需产出物必须先显示为已批准，否则 <span class="button-name">完成阶段</span> 不可用。</li>
+            <li>复核无误后点击 <span class="button-name">完成阶段</span>。</li>
+            <li>完成后需要继续修改，可点击 <span class="button-name">重新打开</span> 回到进行中。</li>
+          </ol>
+        </article>
+
+        <article class="operation-card">
+          <h3>六、RAM 阶段怎样操作</h3>
+          <ol>
+            <li>流程页面的 RAM 阶段只显示同步状态，不提供普通阶段按钮。</li>
+            <li>点击 <span class="button-name">打开活动／RAM 编辑器</span> 返回活动编辑页面。</li>
+            <li>RAM 提交后，流程阶段自动变为等待审批，RAM 产出物变为已提交。</li>
+            <li>RAM 批准后，流程阶段自动完成，RAM 产出物自动批准。</li>
+            <li>再次保存 RAM 修改会撤销原批准并把流程阶段退回进行中。</li>
+          </ol>
+        </article>
+      </div>
+
+      <h3 style="margin-top: 26px;">按钮、权限和结果速查</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>按钮</th>
+              <th>谁能看到</th>
+              <th>什么时候可用</th>
+              <th>点击后的结果</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>开始</td><td>组长／副组长</td><td>普通阶段为未开始</td><td>阶段变为进行中</td></tr>
+            <tr><td>请求审批</td><td>组长／副组长</td><td>普通阶段需要审批且正在进行</td><td>阶段变为等待审批；不会自动通知指定审批人</td></tr>
+            <tr><td>完成阶段</td><td>组长／副组长</td><td>普通阶段未完成，且所有必需产出物已批准</td><td>记录完成者和完成时间，更新总进度</td></tr>
+            <tr><td>重新打开</td><td>组长／副组长</td><td>普通阶段已完成</td><td>阶段回到进行中，清除完成者和完成时间</td></tr>
+            <tr><td>标记为已提交</td><td>组长／副组长</td><td>普通产出物为草稿</td><td>产出物变为已提交</td></tr>
+            <tr><td>批准</td><td>组长／副组长</td><td>普通产出物为已提交</td><td>记录当前操作者为批准人和批准时间</td></tr>
+            <tr><td>退回草稿</td><td>组长／副组长</td><td>普通产出物已经批准</td><td>清除批准人和时间，状态回到草稿</td></tr>
+            <tr><td>提交审核（RAM）</td><td>组长／副组长</td><td>RAM 四个分区完整且已人工确认</td><td>RAM 和对应流程阶段进入等待审核／审批</td></tr>
+            <tr><td>批准 RAM</td><td>活动审计权限人员</td><td>RAM 正在等待审核且仍满足完整性检查</td><td>批准 RAM、完成对应流程阶段，并使活动按可见范围展示</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warning">
+        <strong>当前页面尚不能操作的内容：</strong>
+        不能在流程页分配负责人或截止日期，不能上传或选择产出物文件，不能填写审批意见，不能把“等待审批”退回为“需要修改”，不能指定不同审批角色，也不能阻止同一人提交和批准。数据模型中已有部分负责人、截止日期和“需要修改”状态，但页面尚未提供相应操作。
+      </div>
+    </section>
+
+    <section id="current-options" class="section">
+      <div class="section-heading">
+        <span class="section-number">3</span>
+        <div>
+          <h2>现有三种筹备方式分别覆盖什么</h2>
+          <p class="muted">当前只有两个内置专项模板；自定义模板是第四种能力入口，不是固定活动类型。</p>
+        </div>
+      </div>
+
+      <div class="template-grid">
+        <article class="template">
+          <header><h3>轻量创建</h3><span class="tag done">已实现</span></header>
+          <p>适合聚餐、查经和普通聚会。完成活动资料、通知、报名与 RAM，但不会额外生成一套筹备任务。</p>
+          <p class="muted"><strong>适合：</strong>准备工作少、负责人清楚、没有复杂跨阶段交付物的活动。</p>
+        </article>
+
+        <article class="template">
+          <header><h3>营会流程</h3><span class="tag done">6 个阶段</span></header>
+          <ol>
+            <li>提案与预算（审批）</li>
+            <li>风险评估（审批，连接 RAM）</li>
+            <li>报名与缴费</li>
+            <li>人员与程序</li>
+            <li>营会执行</li>
+            <li>结算与跟进（审批）</li>
+          </ol>
+          <p class="muted">内置 15 项产出物，包括计划、预算、参加者名单、缴费记录、同工排班、同意书、出席、事故报告和财务报告等。</p>
+        </article>
+
+        <article class="template">
+          <header><h3>外展流程</h3><span class="tag done">6 个阶段</span></header>
+          <ol>
+            <li>目标与团队（审批）</li>
+            <li>培训与简报</li>
+            <li>风险评估（审批，连接 RAM）</li>
+            <li>接触预备</li>
+            <li>外展执行</li>
+            <li>新朋友跟进（审批）</li>
+          </ol>
+          <p class="muted">内置 14 项产出物，特别关注培训、同意、联系资料隐私、新朋友名单与跟进分工。</p>
+        </article>
+
+        <article class="template">
+          <header><h3>小组自定义模板</h3><span class="tag partial">基础版本</span></header>
+          <p>组长可以命名模板，添加、删除和排序 1–12 个阶段，并为阶段设置审批点；模板只在本小组内重复使用。</p>
+          <p class="muted"><strong>目前不能配置：</strong>产出物、RAM 等专用连接、条件分支、并行步骤、角色要求、提醒规则、模板编辑、复制、归档和版本升级。</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="coverage" class="section">
+      <div class="section-heading">
+        <span class="section-number">4</span>
+        <div>
+          <h2>当前能力覆盖矩阵</h2>
+          <p class="muted">“已有”表示代码中存在；“部分”表示只有基础能力，不能完整承担该活动类型的业务要求。</p>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>能力</th>
+              <th>轻量创建</th>
+              <th>营会</th>
+              <th>外展</th>
+              <th>自定义模板</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>基本资料、双语、时间地点</td>
+              <td><span class="status yes">已有</span><br>使用通用活动资料</td>
+              <td><span class="status yes">已有</span><br>使用通用活动资料</td>
+              <td><span class="status yes">已有</span><br>使用通用活动资料</td>
+              <td><span class="status yes">已有</span><br>使用通用活动资料</td>
+            </tr>
+            <tr>
+              <td>草稿找回、离开提醒</td>
+              <td><span class="status yes">已有</span></td>
+              <td><span class="status yes">已有</span></td>
+              <td><span class="status yes">已有</span></td>
+              <td><span class="status yes">已有</span></td>
+            </tr>
+            <tr>
+              <td>AI 资料整理与海报草案</td>
+              <td><span class="status yes">已有</span></td>
+              <td><span class="status yes">已有</span></td>
+              <td><span class="status yes">已有</span></td>
+              <td><span class="status yes">已有</span></td>
+            </tr>
+            <tr>
+              <td>小组／教会／公开可见</td>
+              <td><span class="status yes">已有</span></td>
+              <td><span class="status yes">已有</span></td>
+              <td><span class="status yes">已有</span></td>
+              <td><span class="status yes">已有</span></td>
+            </tr>
+            <tr>
+              <td>RAM 与人工批准</td>
+              <td><span class="status yes">已有</span><br>通用 RAM</td>
+              <td><span class="status yes">已有</span><br>流程阶段与 RAM 同步</td>
+              <td><span class="status yes">已有</span><br>流程阶段与 RAM 同步</td>
+              <td><span class="status some">部分</span><br>活动有 RAM，但自定义阶段不能连接 RAM</td>
+            </tr>
+            <tr>
+              <td>阶段顺序与进度</td>
+              <td><span class="status na">不适用</span><br>没有额外筹备阶段</td>
+              <td><span class="status yes">已有</span><br>固定 6 阶段</td>
+              <td><span class="status yes">已有</span><br>固定 6 阶段</td>
+              <td><span class="status yes">已有</span><br>1–12 个线性阶段</td>
+            </tr>
+            <tr>
+              <td>阶段审批点</td>
+              <td><span class="status na">不适用</span></td>
+              <td><span class="status yes">已有</span><br>3 个审批阶段</td>
+              <td><span class="status yes">已有</span><br>3 个审批阶段</td>
+              <td><span class="status yes">已有</span><br>创建时自由设置</td>
+            </tr>
+            <tr>
+              <td>产出物与隐私级别</td>
+              <td><span class="status no">没有</span><br>没有流程产出物</td>
+              <td><span class="status yes">已有</span><br>15 项预设</td>
+              <td><span class="status yes">已有</span><br>14 项预设</td>
+              <td><span class="status no">没有</span><br>界面不能配置产出物</td>
+            </tr>
+            <tr>
+              <td>条件分支、并行任务</td>
+              <td><span class="status no">没有</span></td>
+              <td><span class="status no">没有</span></td>
+              <td><span class="status no">没有</span></td>
+              <td><span class="status no">没有</span></td>
+            </tr>
+            <tr>
+              <td>按活动类型显示专用字段</td>
+              <td><span class="status no">没有</span></td>
+              <td><span class="status some">部分</span><br>通过预设产出物体现</td>
+              <td><span class="status some">部分</span><br>通过预设产出物体现</td>
+              <td><span class="status no">没有</span></td>
+            </tr>
+            <tr>
+              <td>模板编辑、归档、版本升级</td>
+              <td><span class="status na">不适用</span></td>
+              <td><span class="status some">代码管理</span></td>
+              <td><span class="status some">代码管理</span></td>
+              <td><span class="status no">尚未提供</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="activity-fit" class="section">
+      <div class="section-heading">
+        <span class="section-number">5</span>
+        <div>
+          <h2>当前对常见活动类型的适配程度</h2>
+          <p class="muted">这里评价的是“能否完整管理这种活动”，不是“能否新建一条活动记录”。所有类型都能建立基本活动记录，但专项管理深度不同。</p>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>活动类型</th>
+              <th>当前最接近的方式</th>
+              <th>现有覆盖</th>
+              <th>主要缺口</th>
+              <th>建议方向</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>聚餐、查经、祷告会、普通小组聚会</td>
+              <td>轻量创建</td>
+              <td><span class="status yes">可用</span><br>基本资料、通知、报名、海报、RAM</td>
+              <td>重复活动、固定参与者、简单签到、低风险快速通道</td>
+              <td>常规聚会流程包</td>
+            </tr>
+            <tr>
+              <td>营会、退修会</td>
+              <td>营会</td>
+              <td><span class="status yes">较完整</span><br>预算、风险、报名、人员、执行、结算</td>
+              <td>住宿分配、多场次、房间、接送批次、监护人规则</td>
+              <td>扩展现有营会流程包</td>
+            </tr>
+            <tr>
+              <td>外展、布道、社区接触</td>
+              <td>外展</td>
+              <td><span class="status yes">较完整</span><br>团队、培训、风险、同意、隐私和跟进</td>
+              <td>跟进生命周期、资料保留期限、访客交接和结果统计</td>
+              <td>扩展现有外展流程包</td>
+            </tr>
+            <tr>
+              <td>课程、门训、培训、讲座</td>
+              <td>轻量或自定义</td>
+              <td><span class="status some">部分</span><br>可安排线性阶段和审批</td>
+              <td>课次、课程材料、讲员、出席、作业、完成状态</td>
+              <td>培训／课程流程包</td>
+            </tr>
+            <tr>
+              <td>主日、敬拜、特会、演出</td>
+              <td>轻量或自定义</td>
+              <td><span class="status some">部分</span><br>可管理通知和简单筹备</td>
+              <td>程序单、服事排班、场地、设备、彩排、技术检查</td>
+              <td>敬拜／大型活动流程包</td>
+            </tr>
+            <tr>
+              <td>儿童、青少年活动</td>
+              <td>营会或自定义</td>
+              <td><span class="status some">不足</span><br>有同意书与风险产出物</td>
+              <td>监护人、接送授权、健康资料、签到签退、儿童安全政策</td>
+              <td>儿童青少年政策包 + 营会／常规流程包</td>
+            </tr>
+            <tr>
+              <td>社区服务、义工行动</td>
+              <td>外展或自定义</td>
+              <td><span class="status some">部分</span><br>团队、培训和执行阶段可复用</td>
+              <td>班次、物资、服务地点、受助者隐私、交接记录</td>
+              <td>社区服务流程包</td>
+            </tr>
+            <tr>
+              <td>探访、关怀、牧养约谈</td>
+              <td>不建议直接套用</td>
+              <td><span class="status no">不适合</span><br>通用活动记录公开面过强</td>
+              <td>高度敏感资料、个案权限、保密记录、持续跟进</td>
+              <td>单独的关怀模块，仅复用任务与权限基础</td>
+            </tr>
+            <tr>
+              <td>大型会议、多日多场地活动</td>
+              <td>营会</td>
+              <td><span class="status some">部分</span><br>可管理总体活动</td>
+              <td>分会场、议程、讲员、票务／座位、多个执行团队</td>
+              <td>大型活动流程包或营会流程包增强版</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="future" class="section">
+      <div class="section-heading">
+        <span class="section-number">6</span>
+        <div>
+          <h2>未来目标：一个核心，多个活动流程包</h2>
+          <p class="muted">不是把现在的表单做得更复杂，而是让每类活动获得恰到好处的引导、协作、审批和安全保障。</p>
+        </div>
+      </div>
+
+      <div class="vision-panel">
+        <h3>让每次活动在正确的流程、正确的责任人、充分的依据和合适的可见范围下完成。</h3>
+        <p>这是未来活动管理的北极星目标：简单活动足够快，复杂活动足够安全；负责人随时知道下一步，审批人清楚自己在判断什么，教会也能持续改善流程。</p>
+        <div class="vision-outcomes">
+          <div><strong>清晰</strong><span>每个人都看得懂当前进度、下一步和阻塞原因</span></div>
+          <div><strong>适配</strong><span>不同活动只出现真正需要的阶段、资料和政策</span></div>
+          <div><strong>可信</strong><span>重要决定有负责人、有依据、有意见、有记录</span></div>
+          <div><strong>可改进</strong><span>模板能复用和升级，旧活动不会被新规则悄悄改变</span></div>
+        </div>
+      </div>
+
+      <h3>未来一次活动应当怎样完成</h3>
+      <ol class="future-journey" aria-label="未来活动端到端使用流程">
+        <li><strong>识别活动</strong><span>先回答“这是什么活动”，不先面对一整套复杂表单。</span></li>
+        <li><strong>推荐方案</strong><span>系统推荐流程包、政策和专用模块，并说明推荐原因。</span></li>
+        <li><strong>确认边界</strong><span>负责人确认角色、时间、对象、可见范围和所需资料。</span></li>
+        <li><strong>协同筹备</strong><span>按阶段分工、设定期限、提交产出物，并清楚看到阻塞项。</span></li>
+        <li><strong>提交审批</strong><span>审批人围绕明确问题和依据作出批准、退回或拒绝决定。</span></li>
+        <li><strong>执行活动</strong><span>使用签到、排班、现场检查和异常记录等按需模块。</span></li>
+        <li><strong>结束复盘</strong><span>完成结算与跟进，沉淀经验，但不自动修改已有模板。</span></li>
+      </ol>
+
+      <div class="target-definition">
+        <strong>目标定义：</strong>未来不是为营会、外展、培训分别复制三套互不相干的系统。使用者看到的是适合不同场景的流程包；底层仍共用权限、隐私、任务、通知、审计和双语能力。这样既能覆盖不同活动，也能控制开发和维护风险。
+      </div>
+
+      <h3 style="margin-top: 28px;">未来能力结构</h3>
+
+      <div class="layers" aria-label="未来活动流程架构">
+        <div class="layer">
+          <strong>共享核心</strong>
+          <p>登录与权限、所属小组、双语资料、草稿、可见范围、AI 人工确认、通知、任务、审计、缓存与隐私。所有活动共用，只维护一份。</p>
+        </div>
+        <div class="layer">
+          <strong>活动流程包</strong>
+          <p>为每类活动定义推荐阶段、审批点、必需产出物、角色、提醒规则和适用政策。流程包可以独立升级和版本化。</p>
+        </div>
+        <div class="layer">
+          <strong>专用模块</strong>
+          <p>RAM、报名与缴费、签到、同工排班、同意书与监护人、场次与场地、设备检查、新朋友跟进等按需启用。</p>
+        </div>
+        <div class="layer">
+          <strong>活动实例快照</strong>
+          <p>每个活动保存创建时所选流程包和版本的快照。以后模板改变，不会偷偷改变正在进行或已经完成的活动。</p>
+        </div>
+      </div>
+
+      <h3 style="margin-top: 26px;">建议优先形成的流程包</h3>
+      <div class="package-list">
+        <article><h4>常规聚会</h4><p>聚餐、查经、祷告会、小组聚会；字段少、快速发布，可根据风险触发 RAM。</p></article>
+        <article><h4>营会／退修会</h4><p>保留现有营会模板，逐步加入住宿、多场次、接送、监护人与结算。</p></article>
+        <article><h4>外展／社区接触</h4><p>保留现有外展模板，加强同意、资料保留、访客交接和后续跟进。</p></article>
+        <article><h4>培训／课程</h4><p>覆盖课次、材料、讲员、报名、出席与完成情况，不强行使用营会字段。</p></article>
+        <article><h4>敬拜／大型活动</h4><p>覆盖程序、排班、场地、设备、彩排、执行台本与多个团队协作。</p></article>
+        <article><h4>儿童青少年政策包</h4><p>作为可叠加政策，加入监护人、健康资料、接送授权、签到签退和安全确认。</p></article>
+      </div>
+
+      <div class="callout">
+        <strong>关键设计原则：</strong>
+        “活动类型”回答这是什么活动；“流程包”回答怎样筹备；“可见范围”回答谁能看到；“政策包”回答必须遵守哪些安全和隐私规则。四者需要分开，不能再由一个模板名称同时承担。
+      </div>
+
+      <h3 style="margin-top: 30px;">未来六项核心能力</h3>
+      <div class="pillar-grid">
+        <article class="pillar-card">
+          <span class="pillar-number">01</span>
+          <h4>引导式创建</h4>
+          <ul>
+            <li>先选活动类型，再推荐流程，不用猜模板。</li>
+            <li>只显示当前活动需要的字段和政策问题。</li>
+            <li>选择前可预览阶段、审批、预计工作量与适用范围。</li>
+          </ul>
+        </article>
+        <article class="pillar-card">
+          <span class="pillar-number">02</span>
+          <h4>可信审批中心</h4>
+          <ul>
+            <li>每个审批点明确审批事项、依据、审批人和通过条件。</li>
+            <li>支持提交、批准、退回修改、拒绝、意见和通知。</li>
+            <li>关键事项禁止提交人自审，并完整保留决定记录。</li>
+          </ul>
+        </article>
+        <article class="pillar-card">
+          <span class="pillar-number">03</span>
+          <h4>可视化协作</h4>
+          <ul>
+            <li>用角色泳道、阶段卡片和依赖关系呈现流程。</li>
+            <li>清楚显示负责人、期限、下一动作、阻塞和逾期。</li>
+            <li>任务、资料、审批和历史围绕同一活动组织。</li>
+          </ul>
+        </article>
+        <article class="pillar-card">
+          <span class="pillar-number">04</span>
+          <h4>流程治理</h4>
+          <ul>
+            <li>区分平台、教会和小组模板的维护权限。</li>
+            <li>支持复制、编辑、停用、版本升级和活动快照。</li>
+            <li>规则变化可追踪、可解释，并提供安全回退方案。</li>
+          </ul>
+        </article>
+        <article class="pillar-card">
+          <span class="pillar-number">05</span>
+          <h4>可插拔业务模块</h4>
+          <ul>
+            <li>RAM、报名缴费、签到、排班、同意书按需组合。</li>
+            <li>进一步支持场次场地、设备、交通、住宿和跟进。</li>
+            <li>敏感资料按角色和用途控制，不随流程公开传播。</li>
+          </ul>
+        </article>
+        <article class="pillar-card">
+          <span class="pillar-number">06</span>
+          <h4>受控的 AI 协助</h4>
+          <ul>
+            <li>根据当前阶段提示缺失信息、风险和下一步。</li>
+            <li>帮助整理资料、形成摘要和建议，不编造安全事实。</li>
+            <li>AI 不代替审批、不自动发布，最终决定始终由人确认。</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3 style="margin-top: 30px;">未来流程页面应该长什么样</h3>
+      <div class="experience-map">
+        <article>
+          <h4>负责人首页</h4>
+          <p class="muted">先给结论，再给细节。</p>
+          <ul>
+            <li>当前完成度与是否可以进入下一阶段</li>
+            <li>今天最需要处理的下一动作</li>
+            <li>阻塞原因、逾期事项和待他人处理项目</li>
+            <li>活动何时达到“可报名、可执行、可结束”</li>
+          </ul>
+        </article>
+        <article class="primary">
+          <h4>活动流程中心</h4>
+          <p>这是主要工作页面，不再只是纵向排列的一长串表单。</p>
+          <ul>
+            <li>顶部显示阶段地图、关键里程碑和整体准备度</li>
+            <li>中部用角色泳道表达谁负责、谁配合、谁审批</li>
+            <li>每个阶段集中展示任务、资料、审批、风险和历史</li>
+            <li>右侧持续显示“下一步”和进入下一阶段的条件</li>
+          </ul>
+        </article>
+        <article>
+          <h4>审批人工作台</h4>
+          <p class="muted">审批不是点一个勾，而是完成一次有依据的判断。</p>
+          <ul>
+            <li>待审批列表和响应期限</li>
+            <li>本次到底要判断的问题</li>
+            <li>负责人提交的材料、风险和变更摘要</li>
+            <li>批准、退回、拒绝及必须填写的决定意见</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3 style="margin-top: 30px;">优化优先级</h3>
+      <div class="priority-list">
+        <article class="priority-row">
+          <div class="priority-label">P0 · 先建立信任</div>
+          <div><h4>让审批真正成立</h4><p>明确事项、依据、审批角色和通过条件；补齐提交、退回、拒绝、意见、通知与审计；关键节点禁止自审。</p></div>
+          <div><h4>完成信号</h4><p>任何人打开审批记录，都能回答“谁在何时、根据什么、做了什么决定，以及下一步是什么”。</p></div>
+        </article>
+        <article class="priority-row">
+          <div class="priority-label">P1 · 扩大真实覆盖</div>
+          <div><h4>建立活动类型和流程包</h4><p>先覆盖常规聚会、营会、外展和培训；补齐模板版本、活动快照、政策触发和负责人／期限设置。</p></div>
+          <div><h4>完成信号</h4><p>大多数常见活动不再借用不合适的营会或外展流程，简单活动也不会被复杂字段拖累。</p></div>
+        </article>
+        <article class="priority-row">
+          <div class="priority-label">P2 · 提升协作效率</div>
+          <div><h4>补齐专用模块和协作能力</h4><p>按优先级加入报名缴费、排班签到、同意书、多场次等模块，再处理并行任务、跨小组协作、变更和异常。</p></div>
+          <div><h4>完成信号</h4><p>负责人无需在线下表格和聊天记录中反复对账，系统能清楚呈现依赖、阻塞和责任归属。</p></div>
+        </article>
+        <article class="priority-row">
+          <div class="priority-label">P3 · 持续优化</div>
+          <div><h4>用数据和 AI 改善流程</h4><p>分析耗时、退回与阻塞，比较模板版本；AI 根据阶段提出建议、整理依据和预警，但不代替人的决定。</p></div>
+          <div><h4>完成信号</h4><p>流程改动能够说明依据并验证成效；AI 的每项建议都可检查、可修改、可忽略。</p></div>
+        </article>
+      </div>
+
+      <h3 style="margin-top: 30px;">如何衡量目标是否达成</h3>
+      <div class="measure-grid">
+        <article><h4>创建是否清楚</h4><p>观察创建完成率、平均用时、中途退出位置，以及选错流程后重新创建的比例。</p></article>
+        <article><h4>审批是否有效</h4><p>观察首次通过率、平均响应时间、退回是否有明确原因，以及自审或无依据审批是否归零。</p></article>
+        <article><h4>执行是否可预期</h4><p>观察阶段按时完成率、逾期任务、长期阻塞项，以及活动开始前关键条件的完成度。</p></article>
+        <article><h4>流程是否可复用</h4><p>观察流程包复用率、各版本使用情况、重复自建模板数量和旧流程淘汰情况。</p></article>
+        <article><h4>安全是否可信</h4><p>检查越权访问、隐私泄露、可见范围错误和关键审计缺失；这些事件的目标应始终是零。</p></article>
+        <article><h4>AI 是否真正有价值</h4><p>观察建议采纳率、人工修改率和节省时间；自动审批与未经确认发布的数量必须保持为零。</p></article>
+      </div>
+
+      <div class="callout">
+        <strong>指标使用原则：</strong>先用当前产品建立真实基线，再为各阶段设定数值目标。现阶段不应凭空承诺“提升多少百分比”，而应先确保数据定义、采集方式和业务含义一致。
+      </div>
+    </section>
+
+    <section id="roadmap" class="section">
+      <div class="section-heading">
+        <span class="section-number">7</span>
+        <div>
+          <h2>建议实施路线</h2>
+          <p class="muted">先让现有审批和页面值得信任，再扩大活动覆盖；每一阶段都能单独交付、验证和回退。</p>
+        </div>
+      </div>
+
+      <div class="target-definition">
+        <strong>第一优先不是继续增加模板数量。</strong>
+        当前最重要的是把“下一步是什么、要交什么、谁来审批、凭什么通过”讲清楚。这个基础没有建立，模板越多，使用者面对的困惑和维护成本也会越多。
+      </div>
+
+      <div class="roadmap-grid" style="margin-top: 18px;">
+        <article class="roadmap-step">
+          <span class="phase">第一阶段 · 可信可用</span>
+          <h3>先修好现有流程体验和审批</h3>
+          <ul class="clean">
+            <li>重构流程首页：突出下一步、阻塞项、负责人和进入下一阶段的条件。</li>
+            <li>统一审批状态和操作，加入提交、退回、拒绝、意见、通知与决定记录。</li>
+            <li>重要审批分离提交人与审批人；产出物必须提供规定的依据。</li>
+            <li>补齐负责人和期限的设置入口，并保持海报、RAM、可见范围等现有能力独立可用。</li>
+          </ul>
+          <p class="muted"><strong>交付判断：</strong>营会和外展能够完整走通，参与者无需口头解释也能知道如何操作。</p>
+        </article>
+
+        <article class="roadmap-step">
+          <span class="phase">第二阶段 · 覆盖扩展</span>
+          <h3>建立活动类型、流程包和模板治理</h3>
+          <ul class="clean">
+            <li>增加独立的“活动类型／活动族”，不再用流程模板代替活动类型。</li>
+            <li>优先覆盖常规聚会、营会、外展和培训，并允许选择轻量创建。</li>
+            <li>支持预览流程、复制模板、编辑新版本、停用旧版本和保留活动快照。</li>
+            <li>根据参与者、地点、年龄、交通等事实触发 RAM 或儿童安全等政策。</li>
+          </ul>
+          <p class="muted"><strong>交付判断：</strong>四类活动各自拥有合适流程，模板变更不会影响进行中或已完成活动。</p>
+        </article>
+
+        <article class="roadmap-step">
+          <span class="phase">第三阶段 · 协作深化</span>
+          <h3>加入高价值专用模块</h3>
+          <ul class="clean">
+            <li>根据业务价值选择首批模块，而不是一次开发全部功能。</li>
+            <li>优先评估报名缴费、签到排班、监护人同意和多场次管理。</li>
+            <li>逐步支持并行任务、跨小组协作、变更申请、异常处理和升级提醒。</li>
+            <li>将敏感健康、儿童和访客资料限制在真正需要的角色范围内。</li>
+          </ul>
+          <p class="muted"><strong>交付判断：</strong>至少两个高频线下工具被系统替代，且权限和隐私验证通过。</p>
+        </article>
+
+        <article class="roadmap-step">
+          <span class="phase">第四阶段 · 智能改进</span>
+          <h3>用数据和 AI 优化，而不是代替人</h3>
+          <ul class="clean">
+            <li>建立流程耗时、退回、阻塞、逾期和模板复用的管理视图。</li>
+            <li>用版本对比验证流程调整是否真的减少工作或提高安全。</li>
+            <li>AI 根据当前阶段整理资料、提醒缺口、预判阻塞并解释推荐原因。</li>
+            <li>继续坚持人工批准和人工发布，不把 AI 建议当作事实或授权。</li>
+          </ul>
+          <p class="muted"><strong>交付判断：</strong>每次流程优化都有可核对的依据，AI 结果始终可审查、可修改、可拒绝。</p>
+        </article>
+
+        <article class="roadmap-step">
+          <span class="phase">持续原则 · 安全演进</span>
+          <h3>每一阶段都必须守住的边界</h3>
+          <ul class="clean">
+            <li>先小范围试用，再逐步推广；保留旧流程的查看和回退能力。</li>
+            <li>服务端持续校验所属小组、角色、可见范围和审批权限。</li>
+            <li>双语资料、已有活动和现有 API 保持兼容，不用重建历史数据。</li>
+            <li>每次发布都有验收场景、权限测试、隐私检查和清晰变更说明。</li>
+          </ul>
+        </article>
+
+        <article class="roadmap-step">
+          <span class="phase">最终目标 · 可判断的成功</span>
+          <h3>负责人不再“研究系统”才能办活动</h3>
+          <ul class="clean">
+            <li>负责人先选“这是什么活动”，系统再推荐“怎样筹备”。</li>
+            <li>每个参与者只看到与自己相关的任务、资料和决定。</li>
+            <li>审批有明确问题与依据，活动是否准备就绪可以被解释和追溯。</li>
+            <li>流程可以复用和持续改善，但不会牺牲隐私、人工判断或历史稳定性。</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="decisions" class="section">
+      <div class="section-heading">
+        <span class="section-number">8</span>
+        <div>
+          <h2>进入开发前需要业务方确认的问题</h2>
+          <p class="muted">这些答案会决定第一轮流程包的边界，避免再次用一个模板猜所有活动。</p>
+        </div>
+      </div>
+
+      <ol class="decision-list">
+        <li><strong>首批必须覆盖哪四类活动？</strong> 建议从常规聚会、营会、外展、培训开始。</li>
+        <li><strong>哪些活动一定需要完整 RAM，哪些只需简化风险确认？</strong> 应由活动事实和政策触发，而不是只看模板名称。</li>
+        <li><strong>儿童青少年要求是独立活动类型，还是叠加到任何活动上的政策？</strong> 建议作为可叠加政策。</li>
+        <li><strong>模板由谁维护？</strong> 需要确定平台、教会管理员和小组组长各自能创建、修改或停用什么。</li>
+        <li><strong>报名、缴费、排班、签到和跟进，第一阶段最需要哪两个专用模块？</strong> 不宜同时开发全部模块。</li>
+        <li><strong>探访关怀是否纳入活动？</strong> 因为隐私和持续个案管理要求不同，建议先作为独立模块评估。</li>
+      </ol>
+    </section>
+
+    <section id="evidence" class="section">
+      <div class="section-heading">
+        <span class="section-number">9</span>
+        <div>
+          <h2>事实依据与边界</h2>
+          <p class="muted">“当前已实现”来自代码；“适配判断”和“未来目标”是本文件提出的产品与架构建议。</p>
+        </div>
+      </div>
+
+      <ul class="evidence">
+        <li><code>backend/src/Alife.Infrastructure/Persistence/SeedData.cs</code>：营会和外展内置模板、阶段、审批点与产出物。</li>
+        <li><code>backend/src/Alife.Application/Events/Commands/CreateEventWorkflowTemplate</code>：小组自定义模板目前只创建线性必需阶段和审批点。</li>
+        <li><code>backend/src/Alife.Application/Events/Services/EventWorkflowDefinition.cs</code>：流程定义、状态计算、产出物可见级别和模板快照。</li>
+        <li><code>backend/src/Alife.Application/Events/Commands/UpdateEventWorkflowStep</code>：普通阶段状态、权限和完成条件。</li>
+        <li><code>backend/src/Alife.Application/Events/Commands/UpdateEventArtifact</code>：普通产出物提交与批准的权限和状态记录。</li>
+        <li><code>backend/src/Alife.Application/Events/Commands/SubmitEventRam</code> 与 <code>ApproveEventRam</code>：RAM 的提交人、独立审计权限和批准结果。</li>
+        <li><code>backend/src/Alife.Application/Events/Services/EventWorkflowIntegration.cs</code>：RAM 状态与流程阶段、产出物的自动同步。</li>
+        <li><code>cloudflare/alife-app/src/components/events/EventWorkflowTemplatePicker.tsx</code>：轻量创建、模板选择和阶段预览。</li>
+        <li><code>cloudflare/alife-app/src/components/events/EventWorkflowPanel.tsx</code>：活动创建后的流程进度、步骤和产出物操作。</li>
+        <li><code>cloudflare/alife-app/src/views/EventCreatorView.tsx</code>：草稿、AI、通知、RAM、可见范围、联系人和海报。</li>
+        <li><code>docs/event-workflow-framework.md</code>：现有框架的范围、授权、隐私与明确限制。</li>
+      </ul>
+
+      <div class="callout warning">
+        本文件不建议立即引入 BPMN 或任意脚本，也不建议把探访等高隐私场景直接塞入公开活动模型。每增加一个流程包，都需要单独核对权限、个人资料、缓存、审计、双语和旧数据兼容性。
+      </div>
+    </section>
+
+    <footer>
+      ALIFE 活动流程覆盖现状与演进建议 · 可直接使用浏览器打开或打印为 PDF
+    </footer>
+  </main>
+
+  <script>
+    (() => {
+      const body = document.body;
+      const sidebar = document.getElementById("doc-sidebar");
+      const openButton = document.getElementById("sidebar-open");
+      const closeButton = document.getElementById("sidebar-close");
+      const backdrop = document.getElementById("sidebar-backdrop");
+      const progress = document.getElementById("reading-progress");
+      const links = [...document.querySelectorAll(".toc a")];
+      const desktop = window.matchMedia("(min-width: 1081px)");
+      let savedState = null;
+
+      try { savedState = localStorage.getItem("alife-event-doc-sidebar"); } catch (_) {}
+
+      const setSidebar = (open, remember = false) => {
+        body.classList.toggle("sidebar-collapsed", !open);
+        sidebar.setAttribute("aria-hidden", String(!open));
+        openButton.setAttribute("aria-expanded", String(open));
+        if (remember && desktop.matches) {
+          savedState = open ? "open" : "closed";
+          try { localStorage.setItem("alife-event-doc-sidebar", savedState); } catch (_) {}
+        }
+      };
+
+      const setActiveLink = (id) => {
+        links.forEach((link) => {
+          const active = link.getAttribute("href") === `#${id}`;
+          link.classList.toggle("active", active);
+          if (active) link.setAttribute("aria-current", "location");
+          else link.removeAttribute("aria-current");
+        });
+      };
+
+      setSidebar(desktop.matches && savedState !== "closed");
+
+      openButton.addEventListener("click", () => {
+        setSidebar(true, true);
+        if (!desktop.matches) links[0]?.focus();
+      });
+      closeButton.addEventListener("click", () => {
+        setSidebar(false, true);
+        openButton.focus();
+      });
+      backdrop.addEventListener("click", () => setSidebar(false));
+
+      links.forEach((link) => {
+        link.addEventListener("click", () => {
+          setActiveLink(link.hash.slice(1));
+          if (!desktop.matches) setSidebar(false);
+        });
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && !body.classList.contains("sidebar-collapsed")) {
+          setSidebar(false, desktop.matches);
+          openButton.focus();
+        }
+      });
+
+      desktop.addEventListener("change", (event) => {
+        setSidebar(event.matches && savedState !== "closed");
+      });
+
+      const updateProgress = () => {
+        const available = document.documentElement.scrollHeight - window.innerHeight;
+        const percent = available > 0 ? Math.min(100, Math.max(0, window.scrollY / available * 100)) : 0;
+        progress.style.width = `${percent}%`;
+      };
+
+      const sections = links
+        .map((link) => document.querySelector(link.getAttribute("href")))
+        .filter(Boolean);
+      const observer = new IntersectionObserver((entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+        if (visible) setActiveLink(visible.target.id);
+      }, { rootMargin: "-8% 0px -78% 0px", threshold: 0 });
+      sections.forEach((section) => observer.observe(section));
+
+      window.addEventListener("scroll", updateProgress, { passive: true });
+      updateProgress();
+      setActiveLink(location.hash.slice(1) || "answer");
+    })();
+  </script>
+</body>
+</html>

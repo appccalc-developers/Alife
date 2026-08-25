@@ -34,8 +34,8 @@ public class EnrollGroupEventCommandHandlerTests
             CreatedByMemberId = currentMemberId,
             TitleEn = "Camp",
             TitleZh = "營會",
-            StartDate = DateTime.UtcNow,
-            EndDate = DateTime.UtcNow.AddHours(1),
+            StartDate = DateTime.UtcNow.AddHours(1),
+            EndDate = DateTime.UtcNow.AddHours(2),
             EventDataJson = $$"""{"registrationDeadline":"{{DateTime.UtcNow.AddMinutes(30):O}}","maxCapacity":20}""",
             CreatedUtc = DateTime.UtcNow,
             UpdatedUtc = DateTime.UtcNow,
@@ -84,8 +84,8 @@ public class EnrollGroupEventCommandHandlerTests
             CreatedByMemberId = currentMemberId,
             TitleEn = "Camp",
             TitleZh = "營會",
-            StartDate = DateTime.UtcNow,
-            EndDate = DateTime.UtcNow.AddHours(1),
+            StartDate = DateTime.UtcNow.AddHours(1),
+            EndDate = DateTime.UtcNow.AddHours(2),
             EventDataJson = $$"""{"registrationDeadline":"{{DateTime.UtcNow.AddMinutes(30):O}}","maxCapacity":20}""",
             CreatedUtc = DateTime.UtcNow,
             UpdatedUtc = DateTime.UtcNow,
@@ -125,5 +125,49 @@ public class EnrollGroupEventCommandHandlerTests
         var enrollment = await dbContext.EventEnrollments.SingleAsync();
         Assert.Equal(enrollmentId, enrollment.Id);
         Assert.Equal(updatedPayload, enrollment.EnrollmentJson);
+    }
+
+    [Fact]
+    public async Task EnrollGroupEvent_WhenPeopleCapacityWouldBeExceeded_ReturnsConflict()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var authorization = Substitute.For<IGroupAuthorizationService>();
+        var groupId = Guid.NewGuid();
+        var currentMemberId = Guid.NewGuid();
+        var existingMemberId = Guid.NewGuid();
+        var eventId = Guid.NewGuid();
+        dbContext.GroupEvents.Add(new GroupEvent
+        {
+            Id = eventId,
+            GroupId = groupId,
+            CreatedByMemberId = currentMemberId,
+            TitleEn = "Camp",
+            TitleZh = "营会",
+            StartDate = DateTime.UtcNow.AddHours(2),
+            EndDate = DateTime.UtcNow.AddHours(4),
+            EventDataJson = $$"""{"registrationDeadline":"{{DateTime.UtcNow.AddHours(1):O}}","maxCapacity":4,"capacityUnit":"People"}""",
+            CreatedUtc = DateTime.UtcNow,
+            UpdatedUtc = DateTime.UtcNow,
+            RamAssessment = new EventRamAssessment
+            {
+                RamDataJson = "{}", Status = EventRamStatus.Approved,
+                CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow
+            }
+        });
+        dbContext.EventEnrollments.Add(new EventEnrollment
+        {
+            Id = Guid.NewGuid(), GroupId = groupId, EventId = eventId, MemberId = existingMemberId,
+            EnrollmentJson = "{\"applicantName\":\"Family A\",\"participantCount\":4}",
+            CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow
+        });
+        await dbContext.SaveChangesAsync();
+        authorization.IsApprovedMemberAsync(groupId, currentMemberId, Arg.Any<CancellationToken>()).Returns(true);
+
+        var result = await new EnrollGroupEventCommandHandler(dbContext, authorization).Handle(
+            new EnrollGroupEventCommand(groupId, currentMemberId, eventId, "{\"applicantName\":\"Bob\",\"participantCount\":1}"),
+            CancellationToken.None);
+
+        Assert.Equal(Alife.Application.Common.Models.AppResultStatus.Conflict, result.Status);
+        Assert.Single(await dbContext.EventEnrollments.ToListAsync());
     }
 }

@@ -25,6 +25,7 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 	public DbSet<AlbumPhoto> AlbumPhotos => Set<AlbumPhoto>();
 	public DbSet<Sermon> Sermons => Set<Sermon>();
 	public DbSet<GroupEvent> GroupEvents => Set<GroupEvent>();
+	public DbSet<EventSeries> EventSeries => Set<EventSeries>();
 	public DbSet<EventRamAssessment> EventRamAssessments => Set<EventRamAssessment>();
 	public DbSet<EventEnrollment> EventEnrollments => Set<EventEnrollment>();
 	public DbSet<EventReview> EventReviews => Set<EventReview>();
@@ -42,6 +43,26 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 	public DbSet<ForumCategory> ForumCategories => Set<ForumCategory>();
 	public DbSet<ForumPost> ForumPosts => Set<ForumPost>();
 	public DbSet<ForumComment> ForumComments => Set<ForumComment>();
+	public DbSet<Venue> Venues => Set<Venue>();
+	public DbSet<VenueSpace> VenueSpaces => Set<VenueSpace>();
+	public DbSet<EventVenueBooking> EventVenueBookings => Set<EventVenueBooking>();
+	public DbSet<EventPlan> EventPlans => Set<EventPlan>();
+	public DbSet<EventPlanRevision> EventPlanRevisions => Set<EventPlanRevision>();
+	public DbSet<EventOccurrence> EventOccurrences => Set<EventOccurrence>();
+	public DbSet<EventModuleInstance> EventModuleInstances => Set<EventModuleInstance>();
+	public DbSet<EventReadinessGate> EventReadinessGates => Set<EventReadinessGate>();
+	public DbSet<EventDecisionRecord> EventDecisionRecords => Set<EventDecisionRecord>();
+	public DbSet<GroupMemberSchedulingProfile> GroupMemberSchedulingProfiles => Set<GroupMemberSchedulingProfile>();
+	public DbSet<GroupRosterCapability> GroupRosterCapabilities => Set<GroupRosterCapability>();
+	public DbSet<EventRosterShift> EventRosterShifts => Set<EventRosterShift>();
+	public DbSet<EventRosterAssignment> EventRosterAssignments => Set<EventRosterAssignment>();
+	public DbSet<EventProgrammeItem> EventProgrammeItems => Set<EventProgrammeItem>();
+	public DbSet<EventClosureReport> EventClosureReports => Set<EventClosureReport>();
+	public DbSet<EventPreparationTask> EventPreparationTasks => Set<EventPreparationTask>();
+	public DbSet<EventPreparationTaskDependency> EventPreparationTaskDependencies => Set<EventPreparationTaskDependency>();
+	public DbSet<EventAttendanceRecord> EventAttendanceRecords => Set<EventAttendanceRecord>();
+	public DbSet<EventFinanceEntry> EventFinanceEntries => Set<EventFinanceEntry>();
+	public DbSet<EventFinanceReconciliation> EventFinanceReconciliations => Set<EventFinanceReconciliation>();
 
 	protected override void OnModelCreating(ModelBuilder modelBuilder)
 	{
@@ -350,9 +371,32 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 				.HasForeignKey(x => x.CreatedByMemberId)
 				.OnDelete(DeleteBehavior.Restrict);
 
+			cfg.HasOne(x => x.EventSeries)
+				.WithMany(x => x.Instances)
+				.HasForeignKey(x => x.EventSeriesId)
+				.OnDelete(DeleteBehavior.Restrict);
+
 			cfg.HasIndex(x => new { x.GroupId, x.UpdatedUtc });
 			cfg.HasIndex(x => x.CreatedByMemberId);
+			cfg.HasIndex(x => new { x.EventSeriesId, x.SeriesOccurrenceDate })
+				.IsUnique()
+				.HasFilter("[event_series_id] IS NOT NULL AND [series_occurrence_date] IS NOT NULL");
 			cfg.HasQueryFilter(x => !x.IsDeleted);
+		});
+
+		modelBuilder.Entity<EventSeries>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.NameEn).HasMaxLength(300).IsRequired();
+			cfg.Property(x => x.NameZh).HasMaxLength(300).IsRequired();
+			cfg.Property(x => x.DescriptionEn).HasMaxLength(2000).IsRequired();
+			cfg.Property(x => x.DescriptionZh).HasMaxLength(2000).IsRequired();
+			cfg.Property(x => x.TimeZoneId).HasMaxLength(100).IsRequired();
+			cfg.Property(x => x.Visibility).HasMaxLength(30).IsRequired();
+			cfg.Property(x => x.DefaultModulesJson).IsRequired();
+			cfg.HasOne(x => x.Group).WithMany(x => x.EventSeries).HasForeignKey(x => x.GroupId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.CreatedByMember).WithMany().HasForeignKey(x => x.CreatedByMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => new { x.GroupId, x.IsActive, x.UpdatedUtc });
 		});
 
 		modelBuilder.Entity<EventRamAssessment>(cfg =>
@@ -440,6 +484,261 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 			cfg.HasIndex(x => new { x.Code, x.Version }).IsUnique();
 			cfg.HasIndex(x => new { x.IsActive, x.Code });
 			cfg.HasIndex(x => new { x.OwnerGroupId, x.IsActive, x.UpdatedUtc });
+		});
+
+		modelBuilder.Entity<Venue>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.NameEn).HasMaxLength(200).IsRequired();
+			cfg.Property(x => x.NameZh).HasMaxLength(200).IsRequired();
+			cfg.Property(x => x.DescriptionEn).HasMaxLength(1000).IsRequired();
+			cfg.Property(x => x.DescriptionZh).HasMaxLength(1000).IsRequired();
+			cfg.Property(x => x.AddressEn).HasMaxLength(500).IsRequired();
+			cfg.Property(x => x.AddressZh).HasMaxLength(500).IsRequired();
+			cfg.Property(x => x.TimeZoneId).HasMaxLength(100).IsRequired();
+			cfg.HasOne(x => x.ChurchGroup).WithMany(x => x.Venues).HasForeignKey(x => x.ChurchGroupId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.CreatedByMember).WithMany().HasForeignKey(x => x.CreatedByMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.UpdatedByMember).WithMany().HasForeignKey(x => x.UpdatedByMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => new { x.ChurchGroupId, x.IsActive, x.UpdatedUtc });
+			cfg.HasQueryFilter(x => !x.IsDeleted);
+		});
+
+		modelBuilder.Entity<VenueSpace>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.NameEn).HasMaxLength(200).IsRequired();
+			cfg.Property(x => x.NameZh).HasMaxLength(200).IsRequired();
+			cfg.Property(x => x.ResourcesJson).IsRequired();
+			cfg.Property(x => x.BookingPolicyJson).IsRequired();
+			cfg.HasOne(x => x.Venue).WithMany(x => x.Spaces).HasForeignKey(x => x.VenueId).OnDelete(DeleteBehavior.Cascade);
+			cfg.HasIndex(x => new { x.VenueId, x.IsActive });
+		});
+
+		modelBuilder.Entity<EventVenueBooking>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.PurposeEn).HasMaxLength(500).IsRequired();
+			cfg.Property(x => x.PurposeZh).HasMaxLength(500).IsRequired();
+			cfg.Property(x => x.Notes).HasMaxLength(2000).IsRequired();
+			cfg.Property(x => x.DecisionNotes).HasMaxLength(2000).IsRequired();
+			cfg.Property(x => x.RowVersion).IsRowVersion();
+			cfg.HasOne(x => x.Event).WithMany(x => x.VenueBookings).HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Cascade);
+			cfg.HasOne(x => x.EventOccurrence).WithMany(x => x.VenueBookings).HasForeignKey(x => x.EventOccurrenceId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.VenueSpace).WithMany(x => x.Bookings).HasForeignKey(x => x.VenueSpaceId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.RequestedByMember).WithMany().HasForeignKey(x => x.RequestedByMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.SubmittedByMember).WithMany().HasForeignKey(x => x.SubmittedByMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.ReviewedByMember).WithMany().HasForeignKey(x => x.ReviewedByMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => new { x.EventId, x.UpdatedUtc });
+			cfg.HasIndex(x => x.EventOccurrenceId);
+			cfg.HasIndex(x => new { x.VenueSpaceId, x.Status, x.StartUtc, x.EndUtc });
+		});
+
+		modelBuilder.Entity<EventPlan>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.HasOne(x => x.Event).WithOne(x => x.Plan).HasForeignKey<EventPlan>(x => x.EventId).OnDelete(DeleteBehavior.Cascade);
+			cfg.HasIndex(x => x.EventId).IsUnique();
+			cfg.HasIndex(x => new { x.Status, x.UpdatedUtc });
+		});
+
+		modelBuilder.Entity<EventPlanRevision>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.FactsJson).IsRequired();
+			cfg.Property(x => x.CompositionJson).IsRequired();
+			cfg.Property(x => x.ChangeReason).HasMaxLength(500).IsRequired();
+			cfg.HasOne(x => x.EventPlan).WithMany(x => x.Revisions).HasForeignKey(x => x.EventPlanId).OnDelete(DeleteBehavior.Cascade);
+			cfg.HasOne(x => x.CreatedByMember).WithMany().HasForeignKey(x => x.CreatedByMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => new { x.EventPlanId, x.Revision }).IsUnique();
+		});
+
+		modelBuilder.Entity<EventOccurrence>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.OccurrenceKey).HasMaxLength(100).IsRequired();
+			cfg.Property(x => x.NameEn).HasMaxLength(200).IsRequired();
+			cfg.Property(x => x.NameZh).HasMaxLength(200).IsRequired();
+			cfg.Property(x => x.TimeZoneId).HasMaxLength(100).IsRequired();
+			cfg.HasOne(x => x.EventPlan).WithMany(x => x.Occurrences).HasForeignKey(x => x.EventPlanId).OnDelete(DeleteBehavior.Cascade);
+			cfg.HasIndex(x => new { x.EventPlanId, x.OccurrenceKey }).IsUnique();
+		});
+
+		modelBuilder.Entity<EventModuleInstance>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.ModuleKey).HasMaxLength(80).IsRequired();
+			cfg.Property(x => x.ConfigurationJson).IsRequired();
+			cfg.HasOne(x => x.EventPlan).WithMany(x => x.Modules).HasForeignKey(x => x.EventPlanId).OnDelete(DeleteBehavior.Cascade);
+			cfg.HasOne(x => x.AddedByMember).WithMany().HasForeignKey(x => x.AddedByMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => new { x.EventPlanId, x.ModuleKey }).IsUnique();
+		});
+
+		modelBuilder.Entity<EventReadinessGate>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.GateKey).HasMaxLength(120).IsRequired();
+			cfg.Property(x => x.NameEn).HasMaxLength(200).IsRequired();
+			cfg.Property(x => x.NameZh).HasMaxLength(200).IsRequired();
+			cfg.Property(x => x.ExplanationJson).IsRequired();
+			cfg.HasOne(x => x.EventPlan).WithMany(x => x.ReadinessGates).HasForeignKey(x => x.EventPlanId).OnDelete(DeleteBehavior.Cascade);
+			cfg.HasOne(x => x.ModuleInstance).WithMany().HasForeignKey(x => x.ModuleInstanceId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => new { x.EventPlanId, x.GateKey }).IsUnique();
+		});
+
+		modelBuilder.Entity<EventDecisionRecord>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.DecisionKey).HasMaxLength(120).IsRequired();
+			cfg.Property(x => x.RequestJson).IsRequired();
+			cfg.Property(x => x.DecisionNotes).HasMaxLength(2000).IsRequired();
+			cfg.HasOne(x => x.EventPlan).WithMany(x => x.Decisions).HasForeignKey(x => x.EventPlanId).OnDelete(DeleteBehavior.Cascade);
+			cfg.HasOne(x => x.ModuleInstance).WithMany().HasForeignKey(x => x.ModuleInstanceId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.RequestedByMember).WithMany().HasForeignKey(x => x.RequestedByMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.DecidedByMember).WithMany().HasForeignKey(x => x.DecidedByMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => new { x.EventPlanId, x.DecisionKey, x.RequestedUtc });
+		});
+
+		modelBuilder.Entity<GroupMemberSchedulingProfile>(cfg =>
+		{
+			cfg.HasKey(x => new { x.GroupId, x.MemberId });
+			cfg.Property(x => x.PreferredRoleKeysJson).IsRequired();
+			cfg.Property(x => x.UnavailableWindowsJson).IsRequired();
+			cfg.Property(x => x.SelfNotes).HasMaxLength(1000).IsRequired();
+			cfg.Property(x => x.ManagerLabelsJson).IsRequired();
+			cfg.Property(x => x.ManagerNotes).HasMaxLength(1000).IsRequired();
+			cfg.HasOne(x => x.Group).WithMany().HasForeignKey(x => x.GroupId).OnDelete(DeleteBehavior.Cascade);
+			cfg.HasOne(x => x.Member).WithMany(x => x.SchedulingProfiles).HasForeignKey(x => x.MemberId).OnDelete(DeleteBehavior.Cascade);
+			cfg.HasIndex(x => new { x.GroupId, x.ManagerUpdatedUtc });
+		});
+
+		modelBuilder.Entity<EventRosterShift>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.RoleKey).HasMaxLength(80).IsRequired();
+			cfg.Property(x => x.NameEn).HasMaxLength(200).IsRequired();
+			cfg.Property(x => x.NameZh).HasMaxLength(200).IsRequired();
+			cfg.Property(x => x.RequiredLabelsJson).IsRequired();
+			cfg.Property(x => x.Notes).HasMaxLength(1000).IsRequired();
+			cfg.HasOne(x => x.Event).WithMany(x => x.RosterShifts).HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Cascade);
+			cfg.HasIndex(x => new { x.EventId, x.StartUtc, x.RoleKey });
+		});
+
+		modelBuilder.Entity<EventRosterAssignment>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.ConfirmationNotes).HasMaxLength(1000).IsRequired();
+			cfg.Property(x => x.MemberResponseNotes).HasMaxLength(1000).IsRequired();
+			cfg.HasOne(x => x.Shift).WithMany(x => x.Assignments).HasForeignKey(x => x.ShiftId).OnDelete(DeleteBehavior.Cascade);
+			cfg.HasOne(x => x.Member).WithMany(x => x.RosterAssignments).HasForeignKey(x => x.MemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.ConfirmedByMember).WithMany().HasForeignKey(x => x.ConfirmedByMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => new { x.ShiftId, x.MemberId }).IsUnique();
+			cfg.HasIndex(x => new { x.MemberId, x.Status, x.ConfirmedUtc });
+		});
+
+		modelBuilder.Entity<EventClosureReport>(cfg =>
+		{
+			cfg.HasKey(x => x.EventId);
+			cfg.Property(x => x.SummaryEn).HasMaxLength(4000).IsRequired();
+			cfg.Property(x => x.SummaryZh).HasMaxLength(4000).IsRequired();
+			cfg.Property(x => x.AttendanceNotes).HasMaxLength(4000).IsRequired();
+			cfg.Property(x => x.FinanceNotes).HasMaxLength(4000).IsRequired();
+			cfg.Property(x => x.IncidentNotes).HasMaxLength(4000).IsRequired();
+			cfg.Property(x => x.FollowUpNotes).HasMaxLength(4000).IsRequired();
+			cfg.Property(x => x.ReusableLearningsJson).IsRequired();
+			cfg.HasOne(x => x.Event).WithOne(x => x.ClosureReport).HasForeignKey<EventClosureReport>(x => x.EventId).OnDelete(DeleteBehavior.Cascade);
+			cfg.HasOne(x => x.ConfirmedByMember).WithMany().HasForeignKey(x => x.ConfirmedByMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => new { x.LeaderConfirmed, x.UpdatedUtc });
+		});
+
+		modelBuilder.Entity<EventPreparationTask>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.ModuleKey).HasMaxLength(80).IsRequired();
+			cfg.Property(x => x.TitleEn).HasMaxLength(300).IsRequired();
+			cfg.Property(x => x.TitleZh).HasMaxLength(300).IsRequired();
+			cfg.Property(x => x.DescriptionEn).HasMaxLength(2000).IsRequired();
+			cfg.Property(x => x.DescriptionZh).HasMaxLength(2000).IsRequired();
+			cfg.HasOne(x => x.Event).WithMany(x => x.PreparationTasks).HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Cascade);
+			cfg.HasOne(x => x.AssignedMember).WithMany().HasForeignKey(x => x.AssignedMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.CreatedByMember).WithMany().HasForeignKey(x => x.CreatedByMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.UpdatedByMember).WithMany().HasForeignKey(x => x.UpdatedByMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => new { x.EventId, x.Status, x.DueUtc });
+			cfg.HasIndex(x => new { x.AssignedMemberId, x.Status, x.DueUtc });
+		});
+
+		modelBuilder.Entity<EventPreparationTaskDependency>(cfg =>
+		{
+			cfg.HasKey(x => new { x.TaskId, x.DependsOnTaskId });
+			cfg.HasOne(x => x.Task).WithMany(x => x.Dependencies).HasForeignKey(x => x.TaskId).OnDelete(DeleteBehavior.Cascade);
+			cfg.HasOne(x => x.DependsOnTask).WithMany(x => x.Dependents).HasForeignKey(x => x.DependsOnTaskId).OnDelete(DeleteBehavior.Restrict);
+		});
+
+		modelBuilder.Entity<EventProgrammeItem>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.TitleEn).HasMaxLength(300).IsRequired();
+			cfg.Property(x => x.TitleZh).HasMaxLength(300).IsRequired();
+			cfg.Property(x => x.InstructionsEn).HasMaxLength(2000).IsRequired();
+			cfg.Property(x => x.InstructionsZh).HasMaxLength(2000).IsRequired();
+			cfg.Property(x => x.HandoverEn).HasMaxLength(2000).IsRequired();
+			cfg.Property(x => x.HandoverZh).HasMaxLength(2000).IsRequired();
+			cfg.HasOne(x => x.Event).WithMany(x => x.ProgrammeItems).HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Cascade);
+			cfg.HasOne(x => x.EventOccurrence).WithMany(x => x.ProgrammeItems).HasForeignKey(x => x.EventOccurrenceId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.RosterShift).WithMany(x => x.ProgrammeItems).HasForeignKey(x => x.RosterShiftId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.OwnerMember).WithMany().HasForeignKey(x => x.OwnerMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.UpdatedByMember).WithMany().HasForeignKey(x => x.UpdatedByMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => new { x.EventId, x.StartUtc, x.SortOrder });
+			cfg.HasIndex(x => x.EventOccurrenceId);
+			cfg.HasIndex(x => x.RosterShiftId);
+		});
+
+		modelBuilder.Entity<GroupRosterCapability>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.Key).HasMaxLength(80).IsRequired();
+			cfg.Property(x => x.NameEn).HasMaxLength(200).IsRequired();
+			cfg.Property(x => x.NameZh).HasMaxLength(200).IsRequired();
+			cfg.Property(x => x.DescriptionEn).HasMaxLength(1000).IsRequired();
+			cfg.Property(x => x.DescriptionZh).HasMaxLength(1000).IsRequired();
+			cfg.HasOne(x => x.Group).WithMany(x => x.RosterCapabilities).HasForeignKey(x => x.GroupId).OnDelete(DeleteBehavior.Cascade);
+			cfg.HasIndex(x => new { x.GroupId, x.Key }).IsUnique();
+			cfg.HasIndex(x => new { x.GroupId, x.IsActive });
+		});
+
+		modelBuilder.Entity<EventAttendanceRecord>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.Notes).HasMaxLength(1000).IsRequired();
+			cfg.HasOne(x => x.Event).WithMany(x => x.AttendanceRecords).HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Cascade);
+			cfg.HasOne(x => x.EventOccurrence).WithMany(x => x.AttendanceRecords).HasForeignKey(x => x.EventOccurrenceId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.EventEnrollment).WithMany(x => x.AttendanceRecords).HasForeignKey(x => x.EventEnrollmentId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.RecordedByMember).WithMany().HasForeignKey(x => x.RecordedByMemberId).OnDelete(DeleteBehavior.Restrict);
+			// SQL Server otherwise adds a nullable-column filter automatically. Keeping
+			// the index unfiltered also guarantees one aggregate walk-in row per session.
+			cfg.HasIndex(x => new { x.EventOccurrenceId, x.EventEnrollmentId }).IsUnique().HasFilter(null);
+			cfg.HasIndex(x => new { x.EventId, x.UpdatedUtc });
+		});
+
+		modelBuilder.Entity<EventFinanceEntry>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.Category).HasMaxLength(100).IsRequired();
+			cfg.Property(x => x.DescriptionEn).HasMaxLength(500).IsRequired();
+			cfg.Property(x => x.DescriptionZh).HasMaxLength(500).IsRequired();
+			cfg.Property(x => x.Amount).HasPrecision(18, 2);
+			cfg.HasOne(x => x.Event).WithMany(x => x.FinanceEntries).HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Cascade);
+			cfg.HasOne(x => x.RecordedByMember).WithMany().HasForeignKey(x => x.RecordedByMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => new { x.EventId, x.OccurredUtc });
+		});
+
+		modelBuilder.Entity<EventFinanceReconciliation>(cfg =>
+		{
+			cfg.HasKey(x => x.EventId);
+			cfg.Property(x => x.NotesEn).HasMaxLength(2000).IsRequired();
+			cfg.Property(x => x.NotesZh).HasMaxLength(2000).IsRequired();
+			cfg.HasOne(x => x.Event).WithOne(x => x.FinanceReconciliation).HasForeignKey<EventFinanceReconciliation>(x => x.EventId).OnDelete(DeleteBehavior.Cascade);
+			cfg.HasOne(x => x.ConfirmedByMember).WithMany().HasForeignKey(x => x.ConfirmedByMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => new { x.LeaderConfirmed, x.UpdatedUtc });
 		});
 
 		modelBuilder.Entity<EventWorkflowRun>(cfg =>

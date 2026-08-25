@@ -18,6 +18,8 @@ public static class AdminPermissionCatalog
     public const string ViewAuditLogs = "admin.auditLogs.view";
     public const string ReviewPages = "admin.pages.review";
     public const string AuditEvents = "admin.events.audit";
+    public const string ManageVenueCatalog = "admin.venues.manageCatalog";
+    public const string ReviewVenueBookings = "admin.venues.reviewBookings";
     public const string SyncSermons = "admin.sermons.sync";
     public const string RefreshCloudflareCache = "admin.cloudflareCache.refresh";
     public const string ViewDiagnostics = "admin.diagnostics.view";
@@ -37,6 +39,8 @@ public static class AdminPermissionCatalog
         Permission(ViewAuditLogs, "View administrative audit logs", "查看管理审计日志", "Review recorded platform-level administrative changes and actors.", "查看已记录的平台级管理变更和操作人员。"),
         Permission(ReviewPages, "Review homepage publication", "审核首页内容发布", "Review public page submissions and manage homepage navigation and publication metadata.", "审核公开页面提交，并管理首页导航和发布信息。"),
         Permission(AuditEvents, "Review event risk assessments", "审核活动风险评估", "View restricted event RAM details and approve submitted assessments.", "查看受限的活动 RAM 详情并批准已提交的评估。"),
+        Permission(ManageVenueCatalog, "Manage venue catalog", "维护场地目录", "Maintain the church's real venues, spaces, capacities, resources, and booking rules.", "维护教会实际拥有的场地、空间、容量、资源和预订规则。"),
+        Permission(ReviewVenueBookings, "Review venue requests", "审批场地申请", "Review submitted event venue requests and decide whether a space can be reserved.", "审核活动提交的场地申请，并决定是否预留空间。"),
         Permission(SyncSermons, "Synchronize sermons", "同步讲道", "Run a manual synchronization from configured sermon sources.", "从已配置的讲道来源执行手动同步。"),
         Permission(RefreshCloudflareCache, "Refresh shared edge caches", "刷新共享边缘缓存", "Invalidate shared Cloudflare caches for an approved church or group scope.", "使获准教会或小组范围内的 Cloudflare 共享缓存失效。"),
         Permission(ViewDiagnostics, "View cache diagnostics", "查看缓存诊断", "Open the cache diagnostics inspector outside local development.", "在本地开发环境之外打开缓存诊断检查器。")

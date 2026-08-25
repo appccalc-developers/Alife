@@ -96,9 +96,14 @@ export type EventDto = {
   capacityUnit: 'Families' | 'People'
   hardConstraints: EventRuleDto[]
   optionalActivities: OptionalActivityDto[]
+  requiresRoster: boolean
   baseFeePerAdult?: number | null
   baseFeePerChild?: number | null
   currency: string
+  paymentInstructions?: MultilingualString
+  refundPolicy?: MultilingualString
+  paymentEvidenceRequired?: boolean
+  financeLeaderConfirmed?: boolean
   posterImageUrl?: string | null
   galleryUrls: string[]
   legacySummary?: MultilingualString | null
@@ -118,6 +123,7 @@ const EVENT_DTO_RESPONSE_SCHEMA = {
     'capacityUnit',
     'hardConstraints',
     'optionalActivities',
+    'requiresRoster',
     'currency',
     'galleryUrls',
     'legacySummary',
@@ -170,9 +176,17 @@ const EVENT_DTO_RESPONSE_SCHEMA = {
         },
       },
     },
+    requiresRoster: {
+      type: 'boolean',
+      description: 'Whether this event needs a volunteer roster module. Preserve the current value unless the user explicitly changes the staffing need.',
+    },
     baseFeePerAdult: { type: 'number', nullable: true },
     baseFeePerChild: { type: 'number', nullable: true },
     currency: { type: 'string' },
+    paymentInstructions: multilingualSchema('How members pay, in both languages.'),
+    refundPolicy: multilingualSchema('The refund and cancellation rule, in both languages.'),
+    paymentEvidenceRequired: { type: 'boolean' },
+    financeLeaderConfirmed: { type: 'boolean', description: 'Always false for AI output. Only an event leader may confirm finance settings.' },
     posterImageUrl: { type: 'string', nullable: true },
     galleryUrls: { type: 'array', items: { type: 'string' } },
     legacySummary: {
@@ -286,6 +300,8 @@ RAM safety rules derived from the church Risk Assessment Manual:
 15. Never invent or infer a responsible person's name, phone number, first-aid qualification, driver licence, vehicle registration, WOF, or vehicle safety status. Only copy an exact fact explicitly supplied by the user or trusted app context. Otherwise leave the field blank or null and add a bilingual missingInformation item with its fieldPath.
 16. For outings, explicitly consider transport safety, venue risk, first-aid kit and a trained first aider, participant health needs, and weather. Unknown confirmations remain null and are marked missing.
 17. leaderConfirmed is always false in AI output. Human confirmation happens only in the editor.
+18. requiresRoster is a module choice, not a guess about a person. Preserve the current value unless the user explicitly says staffing or volunteer shifts are or are not needed. AI may suggest the module in legacySummary, but the human confirms the setting.
+19. Finance assistance may draft bilingual payment instructions and refund rules, but financeLeaderConfirmed is always false. Never approve a payment file or claim that money was received.
 
 `
 
@@ -335,6 +351,7 @@ export class EventPlanningSession extends AiChatSession<EventDto, MultilingualSt
         capacityUnit: 'Families',
         hardConstraints: [],
         optionalActivities: [],
+        requiresRoster: false,
         currency: 'NZD',
         galleryUrls: [],
         legacySummary: null,
@@ -434,6 +451,10 @@ function mergeEventDraft(
   return {
     ...nextDraft,
     visibility: previousDraft?.visibility ?? eventData?.visibility ?? nextDraft.visibility ?? 'groupVisible',
+    // Module composition is committed by the operator in the event editor. AI may
+    // explain or recommend a roster, but a chat response must not silently add or
+    // remove the module from an existing draft.
+    requiresRoster: previousDraft?.requiresRoster ?? eventData?.requiresRoster ?? false,
     id: appContext.eventId || nextDraft.id || previousDraft?.id || eventData?.id || '',
     organizerId: appContext.userId || nextDraft.organizerId || previousDraft?.organizerId || eventData?.organizerId || '',
     organizerDisplayName: userProfile?.displayName
@@ -520,9 +541,14 @@ function normalizeEventDto(value: unknown): EventDto {
         extraFee: typeof activity?.extraFee === 'number' && activity.extraFee >= 0 ? activity.extraFee : 0,
       }))
       : [],
+    requiresRoster: candidate.requiresRoster === true,
     baseFeePerAdult: typeof candidate.baseFeePerAdult === 'number' ? candidate.baseFeePerAdult : null,
     baseFeePerChild: typeof candidate.baseFeePerChild === 'number' ? candidate.baseFeePerChild : null,
     currency: typeof candidate.currency === 'string' && candidate.currency.trim() ? candidate.currency : 'NZD',
+    paymentInstructions: normalizeMultilingualString(candidate.paymentInstructions),
+    refundPolicy: normalizeMultilingualString(candidate.refundPolicy),
+    paymentEvidenceRequired: candidate.paymentEvidenceRequired === true,
+    financeLeaderConfirmed: false,
     posterImageUrl: typeof candidate.posterImageUrl === 'string' ? candidate.posterImageUrl : null,
     galleryUrls: Array.isArray(candidate.galleryUrls) ? candidate.galleryUrls.filter((url) => typeof url === 'string') : [],
     legacySummary: candidate.legacySummary ? normalizeMultilingualString(candidate.legacySummary) : null,

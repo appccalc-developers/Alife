@@ -45,7 +45,7 @@ public class GroupEventsCrudHandlersTests
                 "中文標題",
                 new DateTime(2026, 1, 10, 10, 0, 0, DateTimeKind.Utc),
                 new DateTime(2026, 1, 10, 12, 0, 0, DateTimeKind.Utc),
-                "{\"description\":\"test\"}"),
+                "{\"description\":\"test\",\"enabledModules\":[\"venue\"]}"),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -53,7 +53,42 @@ public class GroupEventsCrudHandlersTests
         Assert.Equal(groupId, result.Value.GroupId);
         Assert.Equal("English Title", result.Value.TitleEn);
         Assert.Equal(EventVisibilityPolicy.GroupVisible, result.Value.Visibility);
+        Assert.Equal(["venue"], result.Value.EnabledModules);
         Assert.Equal(1, await dbContext.GroupEvents.CountAsync());
+    }
+
+    [Fact]
+    public async Task CreateGroupEvent_WithReviewedAiDraft_RecordsHumanConfirmationWithoutAiContent()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var authorization = Substitute.For<IGroupAuthorizationService>();
+        var groupId = Guid.NewGuid();
+        var leaderId = Guid.NewGuid();
+        authorization.IsLeaderOrCoLeaderAsync(groupId, leaderId, Arg.Any<CancellationToken>()).Returns(true);
+        var handler = new CreateGroupEventCommandHandler(
+            dbContext,
+            authorization,
+            Substitute.For<IEventCacheInvalidationService>());
+
+        var result = await handler.Handle(new CreateGroupEventCommand(
+            groupId,
+            leaderId,
+            "Reviewed draft",
+            "已核对草稿",
+            DateTime.UtcNow.AddDays(1),
+            DateTime.UtcNow.AddDays(1).AddHours(2),
+            "{\"visibility\":\"groupVisible\"}",
+            AiAssistanceReviewed: true), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var revision = await dbContext.EventPlanRevisions.SingleAsync();
+        Assert.Equal("AI-assisted event draft confirmed by leader", revision.ChangeReason);
+        var audit = await dbContext.AuditLogs.SingleAsync(x => x.Action == "event.ai-draft.confirmed");
+        Assert.Equal(leaderId, audit.ActorMemberId);
+        Assert.Contains("\"humanReviewed\":true", audit.MetadataJson);
+        Assert.Contains("\"promptStored\":false", audit.MetadataJson);
+        Assert.Contains("\"outputStored\":false", audit.MetadataJson);
+        Assert.DoesNotContain("Reviewed draft", audit.MetadataJson);
     }
 
     [Fact]
@@ -83,7 +118,7 @@ public class GroupEventsCrudHandlersTests
     }
 
     [Fact]
-    public async Task CreateGroupEvent_WithWorkflowTemplate_CreatesVersionedWorkflowInSameSave()
+    public async Task CreateGroupEvent_WithLegacyWorkflowField_CreatesComposedPlanInstead()
     {
         using var dbContext = CreateInMemoryDbContext();
         var groupAuthorizationService = Substitute.For<IGroupAuthorizationService>();
@@ -124,22 +159,21 @@ public class GroupEventsCrudHandlersTests
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        var run = await dbContext.EventWorkflowRuns
-            .Include(x => x.Steps)
-                .ThenInclude(x => x.Artifacts)
+        var plan = await dbContext.EventPlans
+            .Include(x => x.Modules)
+            .Include(x => x.Revisions)
             .SingleAsync();
-        Assert.Equal(result.Value!.Id, run.EventId);
-        Assert.Equal(3, run.TemplateVersion);
-        Assert.Equal(WorkflowDefinition, run.TemplateSnapshotJson);
-        Assert.Equal("proposal", run.CurrentStepKey);
-        Assert.Equal(2, run.Steps.Count);
-        Assert.Contains(run.Steps.SelectMany(x => x.Artifacts), x => x.ArtifactType == "ram");
+        Assert.Equal(result.Value!.Id, plan.EventId);
+        Assert.Contains(plan.Modules, x => x.ModuleKey == "core");
+        Assert.Contains(plan.Modules, x => x.ModuleKey == "communications");
+        Assert.Single(plan.Revisions);
+        Assert.Empty(dbContext.EventWorkflowRuns);
         Assert.Equal(1, await dbContext.GroupEvents.CountAsync());
         Assert.Equal(1, await dbContext.EventRamAssessments.CountAsync());
     }
 
     [Fact]
-    public async Task CreateGroupEvent_WithUnknownWorkflow_DoesNotCreatePartialEvent()
+    public async Task CreateGroupEvent_WithUnknownLegacyWorkflowField_DoesNotBlockNewPlan()
     {
         using var dbContext = CreateInMemoryDbContext();
         var groupAuthorizationService = Substitute.For<IGroupAuthorizationService>();
@@ -163,14 +197,15 @@ public class GroupEventsCrudHandlersTests
                 WorkflowTemplateCode: "missing"),
             CancellationToken.None);
 
-        Assert.False(result.IsSuccess);
-        Assert.Empty(dbContext.GroupEvents);
-        Assert.Empty(dbContext.EventRamAssessments);
+        Assert.True(result.IsSuccess);
+        Assert.Single(dbContext.GroupEvents);
+        Assert.Single(dbContext.EventRamAssessments);
+        Assert.Single(dbContext.EventPlans);
         Assert.Empty(dbContext.EventWorkflowRuns);
     }
 
     [Fact]
-    public async Task CreateGroupEvent_WithAnotherGroupsCustomWorkflow_IsRejected()
+    public async Task CreateGroupEvent_WithAnotherGroupsLegacyWorkflowField_IgnoresIt()
     {
         using var dbContext = CreateInMemoryDbContext();
         var groupAuthorizationService = Substitute.For<IGroupAuthorizationService>();
@@ -209,8 +244,9 @@ public class GroupEventsCrudHandlersTests
             "{}",
             WorkflowTemplateCode: "custom_other_group"), CancellationToken.None);
 
-        Assert.False(result.IsSuccess);
-        Assert.Empty(dbContext.GroupEvents);
+        Assert.True(result.IsSuccess);
+        Assert.Single(dbContext.GroupEvents);
+        Assert.Single(dbContext.EventPlans);
         Assert.Empty(dbContext.EventWorkflowRuns);
     }
 
@@ -566,15 +602,62 @@ public class GroupEventsCrudHandlersTests
                 "更新後",
                 new DateTime(2026, 3, 1, 10, 0, 0, DateTimeKind.Utc),
                 new DateTime(2026, 3, 1, 11, 0, 0, DateTimeKind.Utc),
-                "{\"after\":true}"),
+                "{\"after\":true,\"enabledModules\":[\"programme\",\"roster\"]}"),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.NotNull(result.Value);
         Assert.Equal("After", result.Value.TitleEn);
         Assert.Equal("更新後", result.Value.TitleZh);
-        Assert.Equal("{\"after\":true}", result.Value.EventDataJson);
+        Assert.Equal("{\"after\":true,\"enabledModules\":[\"programme\",\"roster\"]}", result.Value.EventDataJson);
+        Assert.Equal(["programme", "roster"], result.Value.EnabledModules);
         Assert.True(result.Value.UpdatedUtc >= createdUtc);
+    }
+
+    [Fact]
+    public async Task UpdateGroupEvent_WithReviewedAiDraft_RecordsReviewedRevisionAndAudit()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var authorization = Substitute.For<IGroupAuthorizationService>();
+        var groupId = Guid.NewGuid();
+        var leaderId = Guid.NewGuid();
+        var eventId = Guid.NewGuid();
+        dbContext.GroupEvents.Add(new GroupEvent
+        {
+            Id = eventId,
+            GroupId = groupId,
+            CreatedByMemberId = leaderId,
+            TitleEn = "Before",
+            TitleZh = "修改前",
+            StartDate = DateTime.UtcNow.AddDays(1),
+            EndDate = DateTime.UtcNow.AddDays(1).AddHours(1),
+            EventDataJson = "{\"visibility\":\"groupVisible\"}",
+            CreatedUtc = DateTime.UtcNow,
+            UpdatedUtc = DateTime.UtcNow
+        });
+        await dbContext.SaveChangesAsync();
+        authorization.IsLeaderOrCoLeaderAsync(groupId, leaderId, Arg.Any<CancellationToken>()).Returns(true);
+        var handler = new UpdateGroupEventCommandHandler(
+            dbContext,
+            authorization,
+            Substitute.For<IEventCacheInvalidationService>());
+
+        var result = await handler.Handle(new UpdateGroupEventCommand(
+            eventId,
+            leaderId,
+            "After",
+            "修改后",
+            DateTime.UtcNow.AddDays(2),
+            DateTime.UtcNow.AddDays(2).AddHours(1),
+            "{\"visibility\":\"groupVisible\"}",
+            AiAssistanceReviewed: true), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var revision = await dbContext.EventPlanRevisions.SingleAsync();
+        Assert.Equal("AI-assisted event draft confirmed by leader", revision.ChangeReason);
+        var audit = await dbContext.AuditLogs.SingleAsync(x => x.Action == "event.ai-draft.confirmed");
+        Assert.Equal(eventId, audit.EventId);
+        Assert.DoesNotContain("After", audit.MetadataJson);
     }
 
     [Fact]

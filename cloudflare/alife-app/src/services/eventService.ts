@@ -117,7 +117,7 @@ export const eventService = {
     eventDto: EventDto,
     sessionId?: string,
     aiContext?: AiContentContext,
-    workflowTemplateCode?: string | null,
+    aiAssistanceReviewed = false,
   ): Promise<GroupEventRecord> => {
     const titleEn = eventDto.title.en || eventDto.title.zh || ''
     const titleZh = eventDto.title.zh || eventDto.title.en || ''
@@ -130,9 +130,9 @@ export const eventService = {
       eventDataJson,
       ramDataJson,
       contactProfileIds: eventDto.contactProfileIds ?? [],
-      workflowTemplateCode: workflowTemplateCode || null,
       missionStatements: aiContext?.missionStatements ?? [],
       eventContext: aiContext?.eventContext ?? { eventDataJson, eventData: eventDto },
+      aiAssistanceReviewed,
     })
     try {
       await invalidateGroupEventsCache(groupId)
@@ -147,6 +147,7 @@ export const eventService = {
     eventDto: EventDto,
     sessionId?: string,
     aiContext?: AiContentContext,
+    aiAssistanceReviewed = false,
   ): Promise<GroupEventRecord> => {
     const titleEn = eventDto.title.en || eventDto.title.zh || ''
     const titleZh = eventDto.title.zh || eventDto.title.en || ''
@@ -161,6 +162,7 @@ export const eventService = {
       contactProfileIds: eventDto.contactProfileIds ?? [],
       missionStatements: aiContext?.missionStatements ?? [],
       eventContext: aiContext?.eventContext ?? { eventDataJson, eventData: eventDto },
+      aiAssistanceReviewed,
     })
     try {
       await invalidateGroupEventsCache(data.groupId)
@@ -198,8 +200,14 @@ export const eventService = {
     return data
   },
 
-  approveEventRam: async (eventId: string): Promise<EventRamAssessmentRecord> => {
-    const { data } = await http.post<EventRamAssessmentRecord>(`/api/events/${eventId}/ram/approve`, {})
+  approveEventRam: async (eventId: string, decisionNotes = ''): Promise<EventRamAssessmentRecord> => {
+    const { data } = await http.post<EventRamAssessmentRecord>(`/api/events/${eventId}/ram/approve`, { decisionNotes })
+    await invalidateGroupEventsCache(data.groupId)
+    return data
+  },
+
+  returnEventRam: async (eventId: string, decisionNotes: string): Promise<EventRamAssessmentRecord> => {
+    const { data } = await http.post<EventRamAssessmentRecord>(`/api/events/${eventId}/ram/return`, { decisionNotes })
     await invalidateGroupEventsCache(data.groupId)
     return data
   },
