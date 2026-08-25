@@ -79,6 +79,11 @@ export const VisitRequestsSection = ({ l, loading, page, filters, setFilters, ap
                     ) : null}
                   </div>
                   <h3 className="mt-3 break-words text-base font-bold text-slate-950">{item.displayName || l('visitorName')}</h3>
+                  {item.salutation ? (
+                    <p className="mt-1 text-sm font-medium text-slate-500">
+                      {language === 'zh' ? '称谓' : 'Preferred address'}: <span className="text-slate-700">{item.salutation}</span>
+                    </p>
+                  ) : null}
                   <div className="mt-2 flex flex-wrap gap-2">
                     {item.email ? (
                       <a className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700" href={`mailto:${item.email}`}>

@@ -17,6 +17,7 @@
     "test:route-chunk-recovery": "node --test --experimental-strip-types tests/routeChunkRecovery.test.ts",
     "test:current-tasks": "node --test --experimental-strip-types tests/currentTasks.test.ts",
     "test:current-group-selection": "node --test --experimental-strip-types tests/currentGroupSelection.test.ts",
+    "test:visit-contact": "node --test --experimental-strip-types tests/visitContactValidation.test.ts",
     "typecheck": "tsc -b --pretty false",
     "build": "tsc -b && vite build",
     "preview": "npm run build && npm --prefix ../speed-layer run dev",

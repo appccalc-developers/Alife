@@ -277,6 +277,16 @@ const visitTranslatableSectionFields = (
     normalizeExistingContentField(content, key)
   })
 
+  if (section.type === 'Spotlight' && isRecord(content.contactUs)) {
+    if (issues) {
+      collectStructureIssue(issues, `sections.${sectionIndex}.contactUs.guidance`, content.contactUs.guidance, sectionIndex)
+      collectStructureIssue(issues, `sections.${sectionIndex}.contactUs.successMessage`, content.contactUs.successMessage, sectionIndex)
+    } else {
+      normalizeExistingContentField(content.contactUs, 'guidance')
+      normalizeExistingContentField(content.contactUs, 'successMessage')
+    }
+  }
+
   if (section.type === 'Countdown' && Array.isArray(content.items)) {
     if (issues) {
       content.items.forEach((item, itemIndex) => {
@@ -347,6 +357,9 @@ export const normalizePageI18nStructure = (model: PageEditModel): PageEditModel 
     const content = nextSection.contentJson as Record<string, unknown>
     if (isRecord(content.header)) {
       content.header = { ...content.header }
+    }
+    if (isRecord(content.contactUs)) {
+      content.contactUs = { ...content.contactUs }
     }
 
     visitTranslatableSectionFields(nextSection, sectionIndex)
@@ -427,6 +440,25 @@ const pushSectionCandidates = (
         textType: 'sectionBody',
         value: body,
       })
+    }
+
+    if (section.type === 'Spotlight' && isRecord(section.contentJson.contactUs)) {
+      const guidance = section.contentJson.contactUs.guidance
+      const successMessage = section.contentJson.contactUs.successMessage
+      if (hasAnyText(guidance)) {
+        candidates.push({
+          field: `sections.${index}.contactUs.guidance`,
+          textType: 'sectionBody',
+          value: guidance,
+        })
+      }
+      if (hasAnyText(successMessage)) {
+        candidates.push({
+          field: `sections.${index}.contactUs.successMessage`,
+          textType: 'sectionBody',
+          value: successMessage,
+        })
+      }
     }
 
     const linkLabel = findFirstTextValue(section.contentJson, ['linkLabel', 'linkText', 'ctaLabel'])
@@ -811,6 +843,20 @@ const applySectionTranslation = (
     }
   }
 
+  if (path[0] === 'contactUs' && (path[1] === 'guidance' || path[1] === 'successMessage')) {
+    const contactUs = isRecord(section.contentJson.contactUs) ? section.contentJson.contactUs : {}
+    return {
+      ...section,
+      contentJson: {
+        ...section.contentJson,
+        contactUs: {
+          ...contactUs,
+          [path[1]]: mergeTranslation(contactUs[path[1]], language, text, overwriteExisting),
+        },
+      },
+    }
+  }
+
   if (!path[0]) {
     return section
   }
@@ -899,6 +945,20 @@ const prepareSectionForLanguageIssue = (
       contentJson: {
         ...section.contentJson,
         actions,
+      },
+    }
+  }
+
+  if (path[0] === 'contactUs' && (path[1] === 'guidance' || path[1] === 'successMessage')) {
+    const contactUs = isRecord(section.contentJson.contactUs) ? section.contentJson.contactUs : {}
+    return {
+      ...section,
+      contentJson: {
+        ...section.contentJson,
+        contactUs: {
+          ...contactUs,
+          [path[1]]: prepareLocalizedForLanguageIssue(contactUs[path[1]], issue),
+        },
       },
     }
   }

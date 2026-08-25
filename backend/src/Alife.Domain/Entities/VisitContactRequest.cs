@@ -4,6 +4,7 @@ public class VisitContactRequest
 {
     public Guid Id { get; set; }
     public string DisplayName { get; set; } = string.Empty;
+    public string? Salutation { get; set; }
     public string? Email { get; set; }
     public string? Phone { get; set; }
     public string? PreferredLanguage { get; set; }

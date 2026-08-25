@@ -189,6 +189,7 @@ export type VisitContactRequestStatus = 'new' | 'followUp' | 'contacted'
 export type VisitContactRequestDto = {
   id: string
   displayName: string
+  salutation: string | null
   email: string | null
   phone: string | null
   preferredLanguage: string | null

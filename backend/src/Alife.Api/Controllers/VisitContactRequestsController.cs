@@ -1,3 +1,4 @@
+using Alife.Api.Http;
 using Alife.Api.Results;
 using Alife.Application.VisitContactRequests.Commands.CreateVisitContactRequest;
 using MediatR;
@@ -19,6 +20,7 @@ public class VisitContactRequestsController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(
             new CreateVisitContactRequestCommand(
                 request.DisplayName,
+                request.Salutation,
                 request.Email,
                 request.Phone,
                 request.PreferredLanguage,
@@ -28,6 +30,7 @@ public class VisitContactRequestsController(IMediator mediator) : ControllerBase
                 Request.Headers.UserAgent.ToString()),
             cancellationToken);
 
+        this.ApplyNoStoreHeaders();
         return result.IsSuccess
             ? StatusCode(StatusCodes.Status201Created, result.Value)
             : this.ToActionResult(result);
@@ -35,6 +38,7 @@ public class VisitContactRequestsController(IMediator mediator) : ControllerBase
 
     public sealed record CreateVisitContactRequestRequest(
         string DisplayName,
+        string? Salutation,
         string? Email,
         string? Phone,
         string? PreferredLanguage,

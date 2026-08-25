@@ -6,6 +6,7 @@ namespace Alife.Application.VisitContactRequests.Commands.CreateVisitContactRequ
 
 public sealed record CreateVisitContactRequestCommand(
     string DisplayName,
+    string? Salutation,
     string? Email,
     string? Phone,
     string? PreferredLanguage,

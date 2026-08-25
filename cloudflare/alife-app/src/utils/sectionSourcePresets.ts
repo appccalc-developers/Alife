@@ -179,6 +179,12 @@ const spotlightSourcePresets: Record<SpotlightDataSource, HeaderPreset> = {
     subtitle: localized('Connect people with the right ministry contact.', '帮助大家联系合适的服事联系人。'),
     tone: 'fresh',
   },
+  contactUs: {
+    icon: 'handshake',
+    title: localized('Contact us', '联系我们'),
+    subtitle: localized('Leave a message and our visitor care team will respond.', '留下信息，访客接待团队会尽快回应。'),
+    tone: 'fresh',
+  },
 }
 
 export const spotlightHeaderForSource = (source: SpotlightDataSource, currentHeader?: unknown) =>

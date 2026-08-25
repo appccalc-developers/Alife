@@ -582,6 +582,7 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 		{
 			cfg.HasKey(x => x.Id);
 			cfg.Property(x => x.DisplayName).HasMaxLength(150).IsRequired();
+			cfg.Property(x => x.Salutation).HasMaxLength(100);
 			cfg.Property(x => x.Email).HasMaxLength(200);
 			cfg.Property(x => x.Phone).HasMaxLength(60);
 			cfg.Property(x => x.PreferredLanguage).HasMaxLength(20);

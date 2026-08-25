@@ -2,10 +2,11 @@ import { http } from './http'
 
 export type VisitContactPayload = {
   displayName: string
+  salutation?: string | null
   email?: string | null
   phone?: string | null
   preferredLanguage?: 'zh' | 'en' | 'bilingual' | null
-  message?: string | null
+  message: string
   sourcePage?: string | null
 }
 

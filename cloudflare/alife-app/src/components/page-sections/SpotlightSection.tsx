@@ -7,6 +7,7 @@ import { activeEntityService } from '../../services/activeEntityService'
 import {
   PropertyPanel,
   SelectInput,
+  TextAreaInput,
   TextInput,
   patchContent,
   patchLocalizedContent,
@@ -15,6 +16,7 @@ import {
   readLocalizedText,
   readText,
   isVideoSource,
+  toLocalizedValue,
   toYouTubeEmbedUrl,
 } from './sectionUtils'
 import type { SectionComponentProps } from './types'
@@ -36,6 +38,10 @@ import {
 } from '../../utils/spotlight'
 import MediaPickerInput from '../media/MediaPickerInput'
 import { richTextAppearanceClass, richTextBodyClass, sanitizeRichTextHtml } from '../rich-text/richTextHtml'
+import ContactUsSpotlightForm, {
+  DEFAULT_CONTACT_US_GUIDANCE,
+  DEFAULT_CONTACT_US_SUCCESS_MESSAGE,
+} from './ContactUsSpotlightForm'
 
 const TinyMceRichTextEditor = lazy(() => import('../rich-text/TinyMceRichTextEditor'))
 
@@ -64,7 +70,13 @@ const readMediaConfig = (source: Record<string, unknown>, style: Record<string, 
   const imageUrl = typeof media.url === 'string' && media.type === 'image'
     ? media.url
     : readText(source, 'imageUrl', 'backgroundImage', 'backgroundImageUrl')
-  const type = media.type === 'youtube' || youtubeUrl ? 'youtube' : 'image'
+  const type = media.type === 'youtube'
+    ? 'youtube'
+    : media.type === 'image'
+      ? 'image'
+      : youtubeUrl
+        ? 'youtube'
+        : 'image'
   const url = type === 'youtube' ? youtubeUrl : imageUrl
   const position = media.position === 'right' || readText(style, 'mediaPosition', 'imagePosition') === 'right' ? 'right' : 'left'
 
@@ -78,6 +90,7 @@ const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, show
   const mediaConfig = readMediaConfig(section.contentJson, section.styleJson)
   const spotlightBinding = readSpotlightBinding(section.contentJson)
   const isDataBound = spotlightBinding.mode === 'data'
+  const isContactUsSource = isDataBound && spotlightBinding.source === 'contactUs'
   const groupId = contextGroupId || page?.ownerGroupId || undefined
   const uploadFolder = pageImageUploadFolder(groupId, pageId || page?.id)
   const spotlightMetadata = useMemo(
@@ -86,16 +99,23 @@ const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, show
   )
   const { data: spotlightItems, isLoading: spotlightLoading, error: spotlightError } = useListSourceResolver(spotlightMetadata, {
     groupId,
-    enabled: isDataBound && (allowGroupDataSources || spotlightBinding.source === 'sermons'),
+    enabled: isDataBound && !isContactUsSource && (allowGroupDataSources || spotlightBinding.source === 'sermons'),
   })
   const spotlightItem = useMemo(
     () => selectSpotlightItem(spotlightItems, spotlightBinding),
     [spotlightBinding.itemId, spotlightBinding.source, spotlightItems],
   )
   const boundContent = useMemo(
-    () => isDataBound && spotlightItem ? resolveDataSpotlightContent(spotlightBinding.source, spotlightItem, auth.language) : undefined,
-    [auth.language, isDataBound, spotlightBinding.source, spotlightItem],
+    () => isDataBound && !isContactUsSource && spotlightItem ? resolveDataSpotlightContent(spotlightBinding.source, spotlightItem, auth.language) : undefined,
+    [auth.language, isContactUsSource, isDataBound, spotlightBinding.source, spotlightItem],
   )
+  const contactUsConfig = section.contentJson.contactUs && typeof section.contentJson.contactUs === 'object' && !Array.isArray(section.contentJson.contactUs)
+    ? section.contentJson.contactUs as Record<string, unknown>
+    : {}
+  const contactUsGuidance = readLocalizedText(contactUsConfig, auth.language, 'guidance')
+    || (auth.language === 'zh' ? DEFAULT_CONTACT_US_GUIDANCE.zh : DEFAULT_CONTACT_US_GUIDANCE.en)
+  const contactUsSuccessMessage = readLocalizedText(contactUsConfig, auth.language, 'successMessage')
+    || (auth.language === 'zh' ? DEFAULT_CONTACT_US_SUCCESS_MESSAGE.zh : DEFAULT_CONTACT_US_SUCCESS_MESSAGE.en)
   const title = readLocalizedText(section.contentJson, auth.language, 'title', 'headline') || boundContent?.title || ''
   const subtitle = readLocalizedText(section.contentJson, auth.language, 'subtitle', 'subheadline') || boundContent?.subtitle || ''
   const body = readLocalizedText(section.contentJson, auth.language, 'centerText', 'body', 'text') || boundContent?.body || ''
@@ -149,6 +169,14 @@ const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, show
       : {}
     updateContent({ spotlight: { ...currentSpotlight, ...patch } })
   }
+  const updateContactUsCopy = (field: 'guidance' | 'successMessage', value: string) => {
+    updateContent({
+      contactUs: {
+        ...contactUsConfig,
+        [field]: toLocalizedValue(contactUsConfig[field], auth.language, value),
+      },
+    })
+  }
   const updateSpotlightSource = (source: SpotlightDataSource) => {
     const currentSpotlight = section.contentJson.spotlight && typeof section.contentJson.spotlight === 'object' && !Array.isArray(section.contentJson.spotlight)
       ? section.contentJson.spotlight
@@ -161,6 +189,12 @@ const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, show
         itemId: '',
       },
       header: spotlightHeaderForSource(source, section.contentJson.header),
+      ...(source === 'contactUs' ? {
+        contactUs: {
+          guidance: contactUsConfig.guidance ?? DEFAULT_CONTACT_US_GUIDANCE,
+          successMessage: contactUsConfig.successMessage ?? DEFAULT_CONTACT_US_SUCCESS_MESSAGE,
+        },
+      } : {}),
     })
   }
   const activateAction = (action: (typeof actions)[number]) => {
@@ -207,22 +241,72 @@ const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, show
             options={SPOTLIGHT_DATA_SOURCES.map((source) => ({ value: source, label: t(source) }))}
             onChange={(value) => updateSpotlightSource(value as SpotlightDataSource)}
           />
-          <SelectInput
-            focusKey="spotlight-preset"
-            label={t('preset')}
-            value={spotlightBinding.preset}
-            disabled={disabled}
-            options={spotlightPresetOptionsForSource(spotlightBinding.source, t)}
-            onChange={(value) => updateSpotlight({ preset: value })}
-          />
-          <TextInput
-            focusKey="spotlight-reference-id"
-            label={t('referenceId')}
-            value={spotlightBinding.itemId ?? ''}
-            disabled={disabled}
-            placeholder={t('referenceId')}
-            onChange={(value) => updateSpotlight({ itemId: value })}
-          />
+          {isContactUsSource ? (
+            <>
+              <SelectInput
+                focusKey="spotlight-media-type"
+                label={t('mediaType')}
+                value={mediaConfig.type}
+                disabled={disabled}
+                options={[{ value: 'image', label: t('image') }, { value: 'youtube', label: t('youtube') }]}
+                onChange={(value) => updateMedia({ type: value, url: value === 'youtube' ? youtubeUrl : imageUrl, position: mediaPosition })}
+              />
+              {mediaConfig.type === 'youtube' ? (
+                <TextInput
+                  focusKey="spotlight-media-url"
+                  label={t('youtubeUrl')}
+                  value={mediaConfig.url}
+                  disabled={disabled}
+                  onChange={(value) => updateContent({ media: mediaWith({ type: mediaConfig.type, url: value, position: mediaPosition }), youtubeUrl: value })}
+                />
+              ) : (
+                <MediaPickerInput
+                  focusKey="spotlight-media-url"
+                  label={t('imageOrVideoUrl')}
+                  value={mediaConfig.url}
+                  disabled={disabled}
+                  groupId={groupId}
+                  accept="media"
+                  onChange={(value) => updateContent({ media: mediaWith({ type: mediaConfig.type, url: value, position: mediaPosition }), imageUrl: value, backgroundImage: value, backgroundImageUrl: value })}
+                />
+              )}
+              <TextAreaInput
+                focusKey="spotlight-contact-us-guidance"
+                label={auth.language === 'zh' ? '发送前引导' : 'Pre-send guidance'}
+                value={contactUsGuidance}
+                disabled={disabled}
+                rows={3}
+                onChange={(value) => updateContactUsCopy('guidance', value)}
+              />
+              <TextAreaInput
+                focusKey="spotlight-contact-us-success"
+                label={auth.language === 'zh' ? '发送成功回应' : 'Success response'}
+                value={contactUsSuccessMessage}
+                disabled={disabled}
+                rows={3}
+                onChange={(value) => updateContactUsCopy('successMessage', value)}
+              />
+            </>
+          ) : (
+            <>
+              <SelectInput
+                focusKey="spotlight-preset"
+                label={t('preset')}
+                value={spotlightBinding.preset}
+                disabled={disabled}
+                options={spotlightPresetOptionsForSource(spotlightBinding.source, t)}
+                onChange={(value) => updateSpotlight({ preset: value })}
+              />
+              <TextInput
+                focusKey="spotlight-reference-id"
+                label={t('referenceId')}
+                value={spotlightBinding.itemId ?? ''}
+                disabled={disabled}
+                placeholder={t('referenceId')}
+                onChange={(value) => updateSpotlight({ itemId: value })}
+              />
+            </>
+          )}
         </>
       ) : (
         <>
@@ -269,7 +353,7 @@ const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, show
     return renderProperties()
   }
 
-  const mediaPlaceholder = isDataBound
+  const mediaPlaceholder = isDataBound && !isContactUsSource
     ? t('noSourceItems', { source: resolveSpotlightSourceLabel(spotlightBinding, auth.language) })
     : t('noImageYet')
   const renderMedia = () => {
@@ -311,7 +395,16 @@ const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, show
     )
   }
 
-  const spotlightBody = isDataBound && spotlightLoading
+  const spotlightBody = isContactUsSource
+    ? (
+      <ContactUsSpotlightForm
+        mode={mode}
+        language={auth.language}
+        guidance={contactUsGuidance}
+        successMessage={contactUsSuccessMessage}
+      />
+    )
+    : isDataBound && spotlightLoading
     ? <p className="mt-4 text-sm text-home-muted">{t('loadingPageSections')}</p>
     : isDataBound && spotlightError
       ? <p className="mt-4 text-sm text-red-600">{t('loadFailedWithMessage', { message: spotlightError.message })}</p>
@@ -398,7 +491,7 @@ const SpotlightSection = ({ section, mode, domId, disabled, propertiesOnly, show
         <div className={`flex items-center p-7 sm:p-10 lg:p-14 ${mediaPosition === 'right' ? 'lg:order-1' : 'lg:order-2'}`}>
           <div className="min-w-0 w-full">
             {spotlightBody}
-            {actions.length > 0 ? (
+            {!isContactUsSource && actions.length > 0 ? (
               <div className="mt-6 flex flex-wrap gap-3">
                 {actions.map((action, index) => renderActionLink(
                   action,

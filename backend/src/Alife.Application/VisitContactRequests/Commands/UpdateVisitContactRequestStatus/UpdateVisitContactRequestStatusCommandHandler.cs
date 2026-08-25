@@ -78,6 +78,7 @@ public sealed class UpdateVisitContactRequestStatusCommandHandler(IAlifeDbContex
         return AppResult<VisitContactRequestDto>.Success(new VisitContactRequestDto(
             entity.Id,
             entity.DisplayName,
+            entity.Salutation,
             entity.Email,
             entity.Phone,
             entity.PreferredLanguage,

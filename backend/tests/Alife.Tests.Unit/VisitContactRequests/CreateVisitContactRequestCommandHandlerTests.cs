@@ -23,6 +23,7 @@ public class CreateVisitContactRequestCommandHandlerTests
         var result = await handler.Handle(
             new CreateVisitContactRequestCommand(
                 "Visitor",
+                "Brother Visitor",
                 "visitor@example.com",
                 null,
                 "zh",
@@ -38,11 +39,13 @@ public class CreateVisitContactRequestCommandHandlerTests
 
         var request = await dbContext.VisitContactRequests.SingleAsync();
         Assert.Equal("visitor@example.com", request.Email);
+        Assert.Equal("Brother Visitor", request.Salutation);
 
         var notification = await dbContext.NotificationMessages.SingleAsync();
         Assert.Equal(receiverId, notification.RecipientMemberId);
         Assert.Equal("visitor.contact.requested", notification.ActionType);
         Assert.Contains(request.Id.ToString(), notification.ActionDataJson);
+        Assert.Contains("Brother Visitor", notification.ActionDataJson);
         Assert.Contains("/admin/visit-requests", notification.ActionDataJson);
     }
 
@@ -55,6 +58,7 @@ public class CreateVisitContactRequestCommandHandlerTests
         var result = await handler.Handle(
             new CreateVisitContactRequestCommand(
                 "Visitor",
+                null,
                 "",
                 "",
                 "en",
@@ -79,6 +83,7 @@ public class CreateVisitContactRequestCommandHandlerTests
         var result = await handler.Handle(
             new CreateVisitContactRequestCommand(
                 "Visitor",
+                null,
                 "not-an-email",
                 null,
                 "en",
@@ -103,6 +108,7 @@ public class CreateVisitContactRequestCommandHandlerTests
             new CreateVisitContactRequestCommand(
                 "Visitor",
                 null,
+                null,
                 "+64abc",
                 "en",
                 null,
@@ -117,6 +123,104 @@ public class CreateVisitContactRequestCommandHandlerTests
     }
 
     [Fact]
+    public async Task Create_RequiresMessage()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var handler = new CreateVisitContactRequestCommandHandler(dbContext);
+
+        var result = await handler.Handle(
+            new CreateVisitContactRequestCommand(
+                "Visitor",
+                null,
+                "visitor@example.com",
+                null,
+                "en",
+                " ",
+                "/contact",
+                null,
+                null),
+            CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(AppResultStatus.ValidationError, result.Status);
+        Assert.Empty(dbContext.VisitContactRequests);
+        Assert.Empty(dbContext.NotificationMessages);
+    }
+
+    [Fact]
+    public async Task Create_RequiresName()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var handler = new CreateVisitContactRequestCommandHandler(dbContext);
+
+        var result = await handler.Handle(
+            new CreateVisitContactRequestCommand(
+                " ",
+                null,
+                "visitor@example.com",
+                null,
+                "en",
+                "Please contact me.",
+                "/contact",
+                null,
+                null),
+            CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(AppResultStatus.ValidationError, result.Status);
+        Assert.Empty(dbContext.VisitContactRequests);
+    }
+
+    [Fact]
+    public async Task Create_AllowsMissingSalutation()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var handler = new CreateVisitContactRequestCommandHandler(dbContext);
+
+        var result = await handler.Handle(
+            new CreateVisitContactRequestCommand(
+                "Visitor",
+                " ",
+                "visitor@example.com",
+                null,
+                "en",
+                "Please contact me.",
+                "/contact",
+                null,
+                null),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Null(result.Value?.Salutation);
+        Assert.Null((await dbContext.VisitContactRequests.SingleAsync()).Salutation);
+    }
+
+    [Fact]
+    public async Task Create_StoresValidPhoneRequest()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var handler = new CreateVisitContactRequestCommandHandler(dbContext);
+
+        var result = await handler.Handle(
+            new CreateVisitContactRequestCommand(
+                "Visitor",
+                "Sister Anna",
+                null,
+                "+64211234567",
+                "en",
+                "Please call me about Sunday service.",
+                "/contact",
+                null,
+                null),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("+64211234567", result.Value?.Phone);
+        Assert.Equal("Sister Anna", result.Value?.Salutation);
+        Assert.Null(result.Value?.Email);
+    }
+
+    [Fact]
     public async Task List_ReturnsRequestsForVisitorContactReceiver()
     {
         using var dbContext = CreateInMemoryDbContext();
@@ -126,6 +230,7 @@ public class CreateVisitContactRequestCommandHandlerTests
         {
             Id = Guid.NewGuid(),
             DisplayName = "Visitor",
+            Salutation = "Sister Anna",
             Email = "visitor@example.com",
             Status = "new",
             SubmittedUtc = DateTime.UtcNow,
@@ -136,12 +241,13 @@ public class CreateVisitContactRequestCommandHandlerTests
 
         var handler = new ListVisitContactRequestsQueryHandler(dbContext);
         var result = await handler.Handle(
-            new ListVisitContactRequestsQuery(receiverId, "visitor", "new"),
+            new ListVisitContactRequestsQuery(receiverId, "Sister Anna", "new"),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Single(result.Value!.Items);
         Assert.Equal("Visitor", result.Value.Items[0].DisplayName);
+        Assert.Equal("Sister Anna", result.Value.Items[0].Salutation);
     }
 
     [Fact]

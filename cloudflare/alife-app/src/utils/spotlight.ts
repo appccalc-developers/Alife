@@ -42,7 +42,7 @@ export type SpotlightResolvedContent = {
   actions: SpotlightActionLink[]
 }
 
-export const SPOTLIGHT_DATA_SOURCES: SpotlightDataSource[] = ['announcements', 'events', 'sermons', 'groups', 'members', 'contacts']
+export const SPOTLIGHT_DATA_SOURCES: SpotlightDataSource[] = ['announcements', 'events', 'sermons', 'groups', 'members', 'contacts', 'contactUs']
 
 const trimString = (value: unknown) => typeof value === 'string' ? value.trim() : ''
 
@@ -100,6 +100,8 @@ const spotlightSourceLabelKey = (source: SpotlightDataSource): UiTextKey => {
       return 'members'
     case 'contacts':
       return 'contacts'
+    case 'contactUs':
+      return 'contactUs'
     case 'events':
       return 'events'
     case 'sermons':
@@ -120,6 +122,8 @@ export const defaultSpotlightPreset = (source: SpotlightDataSource): SpotlightPr
       return 'latest'
     case 'contacts':
       return 'latest'
+    case 'contactUs':
+      return 'all'
     case 'sermons':
     default:
       return 'latest'
@@ -176,10 +180,11 @@ export const spotlightPresetOptionsForSource = (source: SpotlightDataSource, t: 
 
 export const buildSpotlightMetadata = (binding: SpotlightBinding): ListViewMetadata => {
   const normalized = readSpotlightBinding({ spotlight: binding })
+  const source = normalized.source === 'contactUs' ? 'sermons' : normalized.source
   return normalizeListViewMetadata({
-    sourceType: normalized.source,
-    source: normalized.source === 'members' ? 'groups' : normalized.source === 'announcements' ? undefined : normalized.source,
-    sourceScope: normalized.source === 'sermons' ? 'global' : 'group',
+    sourceType: source,
+    source: source === 'members' ? 'groups' : source === 'announcements' ? undefined : source,
+    sourceScope: source === 'sermons' ? 'global' : 'group',
     preset: normalized.preset,
     limit: normalized.itemId ? 50 : 1,
   })
@@ -241,6 +246,15 @@ export const resolveSpotlightSourceLabel = (binding: SpotlightBinding, language:
 }
 
 export const resolveDataSpotlightContent = (source: SpotlightDataSource, item: unknown, language: string): SpotlightResolvedContent => {
+  if (source === 'contactUs') {
+    return {
+      title: translateUi(language, 'contactUs'),
+      subtitle: '',
+      body: '',
+      actions: [],
+    }
+  }
+
   if (source === 'announcements') {
     const announcement = item as AnnouncementDto
     return {

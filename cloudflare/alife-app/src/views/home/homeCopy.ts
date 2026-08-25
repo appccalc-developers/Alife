@@ -66,6 +66,7 @@ export type HomeCopy = {
   visitContactClose: string
   visitContactHint: string
   visitContactNameRequired: string
+  visitContactMessageRequired: string
   visitContactEmailInvalid: string
   visitContactPhoneInvalid: string
   liveTitle: string
@@ -208,6 +209,7 @@ export const getCopy = (language: Language, churchDescription: string): HomeCopy
       visitContactClose: '关闭',
       visitContactHint: '请至少留下邮箱或电话其中一种',
       visitContactNameRequired: '请输入姓名',
+      visitContactMessageRequired: '请输入留言',
       visitContactEmailInvalid: '请输入有效的邮箱地址',
       visitContactPhoneInvalid: '请输入有效的电话号码',
       liveTitle: '主日崇拜直播',
@@ -349,6 +351,7 @@ export const getCopy = (language: Language, churchDescription: string): HomeCopy
     visitContactClose: 'Close',
     visitContactHint: 'Please leave at least email or phone',
     visitContactNameRequired: 'Please enter your name',
+    visitContactMessageRequired: 'Please enter a message',
     visitContactEmailInvalid: 'Please enter a valid email address',
     visitContactPhoneInvalid: 'Please enter a valid phone number',
     liveTitle: 'Sunday Worship Livestream',
