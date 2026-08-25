@@ -4,8 +4,8 @@ import { churchQueryKey, fetchVisibleGroupsForViewer, invalidateVisibleGroupsFor
 import { sermonsQueryKey } from '../db/collections/sermonsCollection'
 import { queryClient } from '../db/queryClient'
 import { publicPagesQueryKey } from './pageService'
-import type { GroupDto, GroupMembershipDto, GroupSummaryDto, LocalizedText, MembershipStatus, PagePrimaryMenuHomePlacement, PageSummaryDto } from '../types'
-import { normalizeGroup, normalizeGroupMembership, normalizeMembershipStatus, normalizePageSummary, normalizePageVisibility } from '../utils/apiEnums'
+import type { GroupDto, GroupMembershipDto, GroupSummaryDto, LocalizedText, MembershipRole, MembershipStatus, PagePrimaryMenuHomePlacement, PageSummaryDto } from '../types'
+import { normalizeGroup, normalizeGroupMembership, normalizeMembershipRole, normalizeMembershipStatus, normalizePageSummary, normalizePageVisibility } from '../utils/apiEnums'
 import { toLocalizedText } from '../utils/localizedText'
 import { invalidateChurchLifeQueries } from './churchLifeService'
 
@@ -51,6 +51,8 @@ export type SetCoLeaderPayload = {
 export type AdminMemberDto = {
   id: string
   displayName: string | null
+  salutation: string | null
+  sex: string | null
   email: string | null
   phoneE164: string | null
   isRegistered: boolean
@@ -61,12 +63,35 @@ export type AdminMemberDto = {
   platformRoles: string[]
   approvedGroupCount: number
   pendingGroupCount: number
+  churchMembershipStatus: MembershipStatus | null
+  churchMembershipRole: MembershipRole | null
+  isGroupLeader: boolean
+  groups: AdminMemberGroupDto[]
+}
+
+export type AdminMemberGroupDto = {
+  id: string
+  nameJson: string
+  status: MembershipStatus
+  role: MembershipRole
+}
+
+export type AdminMemberStatusFilter = 'pending' | 'active' | 'inactive'
+
+export type AdminMemberFilters = {
+  search: string
+  managementOnly: boolean
+  leadersOnly: boolean
+  memberStatuses: AdminMemberStatusFilter[]
+  groupIds: string[]
 }
 
 export type UpdateAdminMemberProfilePayload = {
   displayName: string
   email: string | null
   phoneE164: string | null
+  salutation?: string | null
+  sex?: string | null
 }
 
 export type GroupMemberProfileDto = UpdateAdminMemberProfilePayload & {
@@ -301,6 +326,21 @@ const normalizeAdminPageReviewStatus = (value: unknown): AdminPageReviewDto['rev
 
   return 'pending'
 }
+
+const normalizeAdminMember = (member: AdminMemberDto): AdminMemberDto => ({
+  ...member,
+  churchMembershipStatus: member.churchMembershipStatus === null || member.churchMembershipStatus === undefined
+    ? null
+    : normalizeMembershipStatus(member.churchMembershipStatus),
+  churchMembershipRole: member.churchMembershipRole === null || member.churchMembershipRole === undefined
+    ? null
+    : normalizeMembershipRole(member.churchMembershipRole),
+  groups: (member.groups ?? []).map((group) => ({
+    ...group,
+    status: normalizeMembershipStatus(group.status),
+    role: normalizeMembershipRole(group.role),
+  })),
+})
 
 const invalidatePublicPagesCache = async () => {
   await removeCachedRecord(publicPagesQueryKey())
@@ -549,9 +589,15 @@ export const groupService = {
     return data
   },
 
-  async getAdminMembers(params: { search?: string; role?: string; isRegistered?: boolean | null; page?: number; pageSize?: number } = {}) {
-    const { data } = await http.get<unknown>(`/api/admin/members${toQuery(params)}`)
-    return normalizeAdminPagedResult<AdminMemberDto>(data)
+  async getAdminMembers(params: Partial<AdminMemberFilters> & { role?: string; isRegistered?: boolean | null; page?: number; pageSize?: number } = {}) {
+    const queryParams = {
+      ...params,
+      memberStatuses: params.memberStatuses?.join(','),
+      groupIds: params.groupIds?.join(','),
+    }
+    const { data } = await http.get<unknown>(`/api/admin/members${toQuery(queryParams)}`)
+    const page = normalizeAdminPagedResult<AdminMemberDto>(data)
+    return { ...page, items: page.items.map(normalizeAdminMember) }
   },
 
   async setMemberPlatformRoles(memberId: string, roleCodes: string[]) {

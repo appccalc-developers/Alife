@@ -32,6 +32,8 @@ public sealed partial class UpdateMemberProfileCommandHandler(
         var displayName = Normalize(request.DisplayName);
         var email = Normalize(request.Email)?.ToLowerInvariant();
         var phoneE164 = Normalize(request.PhoneE164);
+        var salutation = Normalize(request.Salutation);
+        var sex = Normalize(request.Sex);
 
         if (string.IsNullOrWhiteSpace(displayName))
         {
@@ -41,6 +43,16 @@ public sealed partial class UpdateMemberProfileCommandHandler(
         if (displayName.Length > 150)
         {
             return AppResult<AdminMemberDto>.Validation("Display name must be 150 characters or fewer.");
+        }
+
+        if (salutation is { Length: > 100 })
+        {
+            return AppResult<AdminMemberDto>.Validation("Salutation must be 100 characters or fewer.");
+        }
+
+        if (sex is { Length: > 40 })
+        {
+            return AppResult<AdminMemberDto>.Validation("Gender must be 40 characters or fewer.");
         }
 
         if (email is { Length: > 200 } || (email is not null && !EmailPattern().IsMatch(email)))
@@ -79,11 +91,13 @@ public sealed partial class UpdateMemberProfileCommandHandler(
             .Distinct()
             .ToListAsync(cancellationToken);
 
-        var before = new { target.DisplayName, target.Email, target.PhoneE164 };
+        var before = new { target.DisplayName, target.Salutation, target.Sex, target.Email, target.PhoneE164 };
         var phoneChanged = !string.Equals(target.PhoneE164, phoneE164, StringComparison.Ordinal);
         var now = DateTime.UtcNow;
 
         target.DisplayName = displayName;
+        target.Salutation = salutation;
+        target.Sex = sex;
         target.Email = email;
         target.PhoneE164 = phoneE164;
         if (phoneChanged)
@@ -101,7 +115,7 @@ public sealed partial class UpdateMemberProfileCommandHandler(
             EntityId = target.Id,
             TargetMemberId = target.Id,
             BeforeJson = JsonSerializer.Serialize(before),
-            AfterJson = JsonSerializer.Serialize(new { target.DisplayName, target.Email, target.PhoneE164 }),
+            AfterJson = JsonSerializer.Serialize(new { target.DisplayName, target.Salutation, target.Sex, target.Email, target.PhoneE164 }),
             OccurredUtc = now
         }, cancellationToken);
 

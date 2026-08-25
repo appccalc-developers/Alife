@@ -9,6 +9,10 @@ public sealed record ListAdminMembersQuery(
     string? Search,
     string? Role,
     bool? IsRegistered,
+    bool? ManagementOnly,
+    bool? LeadersOnly,
+    string? MemberStatuses,
+    string? GroupIds,
     int Page = 1,
     int PageSize = 25)
     : IRequest<AppResult<AdminPagedResultDto<AdminMemberDto>>>;
