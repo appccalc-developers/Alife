@@ -33,8 +33,9 @@ public sealed class CreateVisitContactRequestCommandHandler(IAlifeDbContext dbCo
         CancellationToken cancellationToken)
     {
         var displayName = NormalizeLength(request.DisplayName, 150);
-        var email = NormalizeLength(request.Email, 200);
-        var phone = NormalizeLength(request.Phone, 60);
+        var salutation = NormalizeOptionalLength(request.Salutation, 100);
+        var email = NormalizeOptionalLength(request.Email, 200);
+        var phone = NormalizeOptionalLength(request.Phone, 60);
         var message = NormalizeLength(request.Message, 2000);
         var preferredLanguage = NormalizeLanguage(request.PreferredLanguage);
         var sourcePage = NormalizeLength(request.SourcePage, 500);
@@ -59,11 +60,17 @@ public sealed class CreateVisitContactRequestCommandHandler(IAlifeDbContext dbCo
             return AppResult<VisitContactRequestDto>.Validation("Phone format is invalid.");
         }
 
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return AppResult<VisitContactRequestDto>.Validation("Message is required.");
+        }
+
         var now = DateTime.UtcNow;
         var entity = new VisitContactRequest
         {
             Id = Guid.NewGuid(),
             DisplayName = displayName,
+            Salutation = salutation,
             Email = email,
             Phone = phone,
             PreferredLanguage = preferredLanguage,
@@ -99,10 +106,11 @@ public sealed class CreateVisitContactRequestCommandHandler(IAlifeDbContext dbCo
                     },
                     body = new
                     {
-                        en = $"{displayName} left contact details from the public home page.",
-                        zh = $"{displayName} 在公共首页留下了联系方式。"
+                        en = $"{displayName} left contact details from a public page.",
+                        zh = $"{displayName} 在公开页面留下了联系方式。"
                     },
                     displayName,
+                    salutation,
                     email,
                     phone,
                     preferredLanguage,
@@ -143,6 +151,7 @@ public sealed class CreateVisitContactRequestCommandHandler(IAlifeDbContext dbCo
         => new(
             entity.Id,
             entity.DisplayName,
+            entity.Salutation,
             entity.Email,
             entity.Phone,
             entity.PreferredLanguage,
@@ -160,6 +169,12 @@ public sealed class CreateVisitContactRequestCommandHandler(IAlifeDbContext dbCo
     {
         var normalized = value?.Trim() ?? string.Empty;
         return normalized.Length <= maxLength ? normalized : normalized[..maxLength];
+    }
+
+    private static string? NormalizeOptionalLength(string? value, int maxLength)
+    {
+        var normalized = NormalizeLength(value, maxLength);
+        return normalized.Length == 0 ? null : normalized;
     }
 
     private static bool IsValidPhoneNumber(string phone)

@@ -22,7 +22,7 @@ export type SectionAction = {
   url?: string
 }
 export type SpotlightMode = 'manual' | 'data'
-export type SpotlightDataSource = 'announcements' | 'events' | 'sermons' | 'groups' | 'members' | 'contacts'
+export type SpotlightDataSource = 'announcements' | 'events' | 'sermons' | 'groups' | 'members' | 'contacts' | 'contactUs'
 export type SpotlightPreset = 'latest' | 'upcoming' | 'featured' | 'recent' | 'all'
 export type SpotlightBinding = {
   mode?: SpotlightMode

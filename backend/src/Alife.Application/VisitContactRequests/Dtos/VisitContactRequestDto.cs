@@ -3,6 +3,7 @@ namespace Alife.Application.VisitContactRequests.Dtos;
 public sealed record VisitContactRequestDto(
     Guid Id,
     string DisplayName,
+    string? Salutation,
     string? Email,
     string? Phone,
     string? PreferredLanguage,

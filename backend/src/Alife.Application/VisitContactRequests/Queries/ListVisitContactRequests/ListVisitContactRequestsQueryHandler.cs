@@ -27,6 +27,7 @@ public sealed class ListVisitContactRequestsQueryHandler(IAlifeDbContext dbConte
         {
             query = query.Where(x =>
                 x.DisplayName.Contains(search) ||
+                (x.Salutation != null && x.Salutation.Contains(search)) ||
                 (x.Email != null && x.Email.Contains(search)) ||
                 (x.Phone != null && x.Phone.Contains(search)) ||
                 (x.Message != null && x.Message.Contains(search)) ||
@@ -44,6 +45,7 @@ public sealed class ListVisitContactRequestsQueryHandler(IAlifeDbContext dbConte
             .Select(x => new VisitContactRequestDto(
                 x.Id,
                 x.DisplayName,
+                x.Salutation,
                 x.Email,
                 x.Phone,
                 x.PreferredLanguage,

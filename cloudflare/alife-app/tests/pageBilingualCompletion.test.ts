@@ -100,3 +100,33 @@ test('section translation can overwrite the previous target-language version wit
     url: '/learn-more',
   }])
 })
+
+test('Contact Us guidance and success response participate in section translation', () => {
+  const contactSection: SectionEditModel = {
+    order: 0,
+    type: 'Spotlight',
+    contentJson: {
+      spotlight: { mode: 'data', source: 'contactUs' },
+      contactUs: {
+        guidance: { en: 'Leave a message', zh: '' },
+        successMessage: { en: 'Message sent', zh: '' },
+      },
+    },
+    styleJson: {},
+  }
+  const contactModel = { ...model, sections: [contactSection] }
+  const requests = collectSectionTranslationRequests(contactSection, 0, 'en')
+
+  assert.ok(requests.some((request) => request.field === 'sections.0.contactUs.guidance'))
+  assert.ok(requests.some((request) => request.field === 'sections.0.contactUs.successMessage'))
+
+  const updated = applyPageTranslations(contactModel, [
+    { field: 'sections.0.contactUs.guidance', language: 'zh', text: '请留下留言' },
+    { field: 'sections.0.contactUs.successMessage', language: 'zh', text: '留言已发送' },
+  ], requests)
+
+  assert.deepEqual(updated.sections[0].contentJson.contactUs, {
+    guidance: { en: 'Leave a message', zh: '请留下留言' },
+    successMessage: { en: 'Message sent', zh: '留言已发送' },
+  })
+})

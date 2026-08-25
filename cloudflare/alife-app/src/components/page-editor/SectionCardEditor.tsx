@@ -166,6 +166,8 @@ const formatSource = (value: string, isZh: boolean) => {
     pages: { en: 'Pages', zh: '页面' },
     posts: { en: 'Posts', zh: '帖子' },
     members: { en: 'Members', zh: '成员' },
+    contacts: { en: 'Contacts', zh: '联系人' },
+    contactUs: { en: 'Contact Us', zh: '联系我们' },
   }
   const key = value.trim()
   const label = labels[key]
@@ -208,6 +210,12 @@ const getSectionGuide = (section: SectionEditModel, language: string): SectionGu
   const spotlightSource = textValue(spotlight.source, language)
   const spotlightPreset = textValue(spotlight.preset, language)
   const spotlightItemId = textValue(spotlight.itemId, language)
+  const contactUs = section.contentJson.contactUs && typeof section.contentJson.contactUs === 'object' && !Array.isArray(section.contentJson.contactUs)
+    ? section.contentJson.contactUs as Record<string, unknown>
+    : {}
+  const contactUsGuidance = textValue(contactUs.guidance, language)
+  const contactUsSuccessMessage = textValue(contactUs.successMessage, language)
+  const isContactUsSpotlight = spotlightMode === 'data' && spotlightSource === 'contactUs'
   const countdown = section.contentJson.countdown && typeof section.contentJson.countdown === 'object' && !Array.isArray(section.contentJson.countdown)
     ? section.contentJson.countdown as Record<string, unknown>
     : {}
@@ -346,11 +354,13 @@ const getSectionGuide = (section: SectionEditModel, language: string): SectionGu
     items: [
       { label: isZh ? '标题' : 'Title', ready: Boolean(title), detail: summarizeValue(title, isZh), icon: <Type className="h-4 w-4" />, target: { type: 'preview', index: 0 }, requiresSectionHeader: true },
       {
-        label: isZh ? '说明文案' : 'Supporting copy',
-        ready: Boolean(richText),
-        detail: summarizeValue(richText, isZh),
+        label: isContactUsSpotlight ? (isZh ? '表单引导' : 'Form guidance') : (isZh ? '说明文案' : 'Supporting copy'),
+        ready: isContactUsSpotlight ? Boolean(contactUsGuidance) : Boolean(richText),
+        detail: summarizeValue(isContactUsSpotlight ? contactUsGuidance : richText, isZh),
         icon: <FileText className="h-4 w-4" />,
-        target: spotlightMode === 'manual'
+        target: isContactUsSpotlight
+          ? { type: 'properties', tab: 'section', focusKey: 'spotlight-contact-us-guidance' }
+          : spotlightMode === 'manual'
           ? { type: 'editor', focusKey: 'spotlight-body' }
           : { type: 'properties', tab: 'section', focusKey: 'spotlight-source' },
       },
@@ -358,28 +368,32 @@ const getSectionGuide = (section: SectionEditModel, language: string): SectionGu
         label: isZh ? '自动带入' : 'Auto-filled content',
         ready: spotlightMode === 'manual' || Boolean(spotlightSource),
         detail: spotlightMode === 'data'
-          ? `${formatSource(spotlightSource, isZh)} · ${formatPreset(spotlightPreset, isZh)}`
+          ? isContactUsSpotlight ? formatSource(spotlightSource, isZh) : `${formatSource(spotlightSource, isZh)} · ${formatPreset(spotlightPreset, isZh)}`
           : formatMode(spotlightMode, isZh),
         icon: <LayoutList className="h-4 w-4" />,
         target: { type: 'properties', tab: 'section', focusKey: spotlightMode === 'data' ? 'spotlight-source' : 'spotlight-mode' },
       },
       {
         label: isZh ? '图片/媒体' : 'Media',
-        ready: spotlightMode === 'data' || isMediaValue(media),
+        ready: isContactUsSpotlight ? isMediaValue(media) : spotlightMode === 'data' || isMediaValue(media),
         detail: spotlightMode === 'data'
-          ? (isZh ? `来自 ${formatSource(spotlightSource, true)} / ${formatPreset(spotlightPreset, true)}` : `From ${formatSource(spotlightSource, false)} / ${formatPreset(spotlightPreset, false)}`)
+          ? isContactUsSpotlight
+            ? summarizeValue(media, isZh)
+            : (isZh ? `来自 ${formatSource(spotlightSource, true)} / ${formatPreset(spotlightPreset, true)}` : `From ${formatSource(spotlightSource, false)} / ${formatPreset(spotlightPreset, false)}`)
           : summarizeValue(media, isZh),
         icon: <ImageUp className="h-4 w-4" />,
-        target: { type: 'properties', tab: 'section', focusKey: spotlightMode === 'data' ? 'spotlight-preset' : 'spotlight-media-url' },
+        target: { type: 'properties', tab: 'section', focusKey: isContactUsSpotlight || spotlightMode === 'manual' ? 'spotlight-media-url' : 'spotlight-preset' },
       },
       {
-        label: isZh ? '行动链接' : 'Action link',
-        ready: spotlightMode === 'data' || Boolean(linkLabel || linkUrl),
-        detail: spotlightMode === 'data'
-          ? (spotlightItemId ? (isZh ? `指定 ID: ${summarizeValue(spotlightItemId, true)}` : `Pinned ID: ${summarizeValue(spotlightItemId, false)}`) : (isZh ? '使用来源默认行动' : 'Uses source default action'))
+        label: isContactUsSpotlight ? (isZh ? '成功回应' : 'Success response') : (isZh ? '行动链接' : 'Action link'),
+        ready: isContactUsSpotlight ? Boolean(contactUsSuccessMessage) : spotlightMode === 'data' || Boolean(linkLabel || linkUrl),
+        detail: isContactUsSpotlight
+          ? summarizeValue(contactUsSuccessMessage, isZh)
+          : spotlightMode === 'data'
+            ? (spotlightItemId ? (isZh ? `指定 ID: ${summarizeValue(spotlightItemId, true)}` : `Pinned ID: ${summarizeValue(spotlightItemId, false)}`) : (isZh ? '使用来源默认行动' : 'Uses source default action'))
           : summarizeValue(linkUrl || linkLabel, isZh),
         icon: <Link2 className="h-4 w-4" />,
-        target: { type: 'properties', tab: 'section', focusKey: spotlightMode === 'data' ? 'spotlight-reference-id' : 'spotlight-action-url' },
+        target: { type: 'properties', tab: 'section', focusKey: isContactUsSpotlight ? 'spotlight-contact-us-success' : spotlightMode === 'data' ? 'spotlight-reference-id' : 'spotlight-action-url' },
       },
     ] satisfies GuideItem[],
     advice: isZh ? '用一个清楚行动收尾，比如了解更多、报名、联系同工。' : 'End with one clear action, such as learn more, register, or contact a leader.',

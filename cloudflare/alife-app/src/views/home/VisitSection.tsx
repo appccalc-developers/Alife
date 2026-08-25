@@ -6,6 +6,13 @@ import { motion, useReducedMotion } from 'framer-motion'
 import { entranceAnimation, createSectionHandler, media } from './homeUtils'
 import type { HomeCopy, Language } from './homeCopy'
 import { visitContactService } from '../../services/visitContactService'
+import {
+  buildVisitContactPhone,
+  isVisitContactEmailValid,
+  isVisitContactPhoneValid,
+  VISIT_CONTACT_COUNTRY_CODES,
+  type VisitContactCountryCode,
+} from '../../utils/visitContactValidation'
 
 type Props = {
   copy: HomeCopy
@@ -13,37 +20,6 @@ type Props = {
 }
 
 type ContactLanguage = Language | 'bilingual'
-
-const phoneCountryCodes = [
-  { value: '+86', label: '+86 中国大陆' },
-  { value: '+852', label: '+852 香港' },
-  { value: '+853', label: '+853 澳门' },
-  { value: '+886', label: '+886 台湾' },
-  { value: '+64', label: '+64 新西兰' },
-  { value: '+61', label: '+61 澳洲' },
-]
-
-const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-const normalizePhoneNumber = (value: string) => value.replace(/\s/g, '')
-
-const validatePhoneNumber = (countryCode: string, number: string) => {
-  const digits = normalizePhoneNumber(number)
-  if (!/^\d+$/.test(digits)) return false
-
-  const lengthRules: Record<string, { min: number; max: number }> = {
-    '+86': { min: 11, max: 11 },
-    '+852': { min: 8, max: 8 },
-    '+853': { min: 8, max: 8 },
-    '+886': { min: 9, max: 10 },
-    '+64': { min: 8, max: 11 },
-    '+61': { min: 9, max: 10 },
-  }
-
-  const rule = lengthRules[countryCode]
-  if (!rule) return false
-  return digits.length >= rule.min && digits.length <= rule.max
-}
 
 const VisitSection = ({ copy, language }: Props) => {
   const prefersReducedMotion = useReducedMotion()
@@ -53,7 +29,7 @@ const VisitSection = ({ copy, language }: Props) => {
   const [contactForm, setContactForm] = useState({
     displayName: '',
     email: '',
-    phoneCountryCode: '+64',
+    phoneCountryCode: '+64' as VisitContactCountryCode,
     phoneNumber: '',
     preferredLanguage: language as ContactLanguage,
     message: '',
@@ -67,7 +43,9 @@ const VisitSection = ({ copy, language }: Props) => {
   }, [language])
 
   const phoneFull = useMemo(
-    () => `${contactForm.phoneCountryCode}${normalizePhoneNumber(contactForm.phoneNumber)}`,
+    () => contactForm.phoneNumber.trim()
+      ? buildVisitContactPhone(contactForm.phoneCountryCode, contactForm.phoneNumber)
+      : '',
     [contactForm.phoneCountryCode, contactForm.phoneNumber],
   )
 
@@ -76,13 +54,15 @@ const VisitSection = ({ copy, language }: Props) => {
     const name = contactForm.displayName.trim()
     const email = contactForm.email.trim()
     const phoneNumber = contactForm.phoneNumber.trim()
+    const message = contactForm.message.trim()
 
     if (!name) result.name = copy.visitContactNameRequired
-    if (email && !emailRegex.test(email)) result.email = copy.visitContactEmailInvalid
-    if (phoneNumber && !validatePhoneNumber(contactForm.phoneCountryCode, phoneNumber)) {
+    if (email && !isVisitContactEmailValid(email)) result.email = copy.visitContactEmailInvalid
+    if (phoneNumber && !isVisitContactPhoneValid(contactForm.phoneCountryCode, phoneNumber)) {
       result.phone = copy.visitContactPhoneInvalid
     }
     if (!email && !phoneNumber) result.contact = copy.visitContactHint
+    if (!message) result.message = copy.visitContactMessageRequired
 
     return result
   }, [contactForm, copy])
@@ -91,7 +71,7 @@ const VisitSection = ({ copy, language }: Props) => {
 
   const submitContact = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    setTouched({ displayName: true, email: true, phoneNumber: true })
+    setTouched({ displayName: true, email: true, phoneNumber: true, message: true })
     if (!isValid) return
 
     setSubmittingContact(true)
@@ -103,14 +83,14 @@ const VisitSection = ({ copy, language }: Props) => {
         email: contactForm.email.trim() || null,
         phone: phoneFull || null,
         preferredLanguage: contactForm.preferredLanguage,
-        message: contactForm.message.trim() || null,
+        message: contactForm.message.trim(),
         sourcePage: window.location.pathname,
       })
       setContactStatus('success')
       setContactForm({
         displayName: '',
         email: '',
-        phoneCountryCode: '+64',
+        phoneCountryCode: '+64' as VisitContactCountryCode,
         phoneNumber: '',
         preferredLanguage: language as ContactLanguage,
         message: '',
@@ -223,10 +203,10 @@ const VisitSection = ({ copy, language }: Props) => {
                       <select
                         aria-label={copy.visitContactCountryCode}
                         value={contactForm.phoneCountryCode}
-                        onChange={(event) => setContactForm((current) => ({ ...current, phoneCountryCode: event.target.value }))}
+                        onChange={(event) => setContactForm((current) => ({ ...current, phoneCountryCode: event.target.value as VisitContactCountryCode }))}
                         className="min-h-11 w-[7rem] shrink-0 rounded-lg border border-home-border bg-white px-2 text-sm font-medium text-home-gold-text outline-none transition focus:border-home-green focus:ring-2 focus:ring-home-green/20"
                       >
-                        {phoneCountryCodes.map((code) => (
+                        {VISIT_CONTACT_COUNTRY_CODES.map((code) => (
                           <option key={code.value} value={code.value}>{code.value}</option>
                         ))}
                       </select>
@@ -269,8 +249,12 @@ const VisitSection = ({ copy, language }: Props) => {
                       rows={3}
                       value={contactForm.message}
                       onChange={(event) => setContactForm((current) => ({ ...current, message: event.target.value }))}
+                      onBlur={() => setTouched((current) => ({ ...current, message: true }))}
                       className="resize-none min-w-0 rounded-lg border border-home-border bg-white px-3 py-2.5 text-sm font-medium leading-6 text-home-gold-text outline-none transition focus:border-home-green focus:ring-2 focus:ring-home-green/20"
                     />
+                    {touched.message && errors.message ? (
+                      <span className="text-xs font-medium text-rose-600">{errors.message}</span>
+                    ) : null}
                   </label>
 
                   {contactStatus === 'error' ? <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800">{copy.visitContactError}</p> : null}
