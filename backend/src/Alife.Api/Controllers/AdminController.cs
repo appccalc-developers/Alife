@@ -73,6 +73,10 @@ public class AdminController(IMediator mediator, ICurrentMemberAccessor currentM
         [FromQuery] string? search,
         [FromQuery] string? role,
         [FromQuery] bool? isRegistered,
+        [FromQuery] bool? managementOnly,
+        [FromQuery] bool? leadersOnly,
+        [FromQuery] string? memberStatuses,
+        [FromQuery] string? groupIds,
         [FromQuery] int page,
         [FromQuery] int pageSize,
         CancellationToken cancellationToken)
@@ -86,7 +90,17 @@ public class AdminController(IMediator mediator, ICurrentMemberAccessor currentM
         try
         {
             var result = await mediator.Send(
-                new ListAdminMembersQuery(currentMemberId.Value, search, role, isRegistered, page <= 0 ? 1 : page, pageSize <= 0 ? 25 : pageSize),
+                new ListAdminMembersQuery(
+                    currentMemberId.Value,
+                    search,
+                    role,
+                    isRegistered,
+                    managementOnly,
+                    leadersOnly,
+                    memberStatuses,
+                    groupIds,
+                    page <= 0 ? 1 : page,
+                    pageSize <= 0 ? 25 : pageSize),
                 cancellationToken);
             this.ApplyPrivateNoCacheHeaders();
             return this.ToActionResult(result);
@@ -326,7 +340,9 @@ public class AdminController(IMediator mediator, ICurrentMemberAccessor currentM
                 memberId,
                 request.DisplayName,
                 request.Email,
-                request.PhoneE164),
+                request.PhoneE164,
+                request.Salutation,
+                request.Sex),
             cancellationToken);
         this.ApplyPrivateNoCacheHeaders();
         return this.ToActionResult(result);
@@ -558,7 +574,12 @@ public class AdminController(IMediator mediator, ICurrentMemberAccessor currentM
     }
 
     public sealed record SetMemberPlatformRoleRequest(string? RoleCode, IReadOnlyList<string>? RoleCodes);
-    public sealed record UpdateMemberProfileRequest(string? DisplayName, string? Email, string? PhoneE164);
+    public sealed record UpdateMemberProfileRequest(
+        string? DisplayName,
+        string? Email,
+        string? PhoneE164,
+        string? Salutation = null,
+        string? Sex = null);
 
     public sealed record CreatePlatformRoleRequest(
         string Code,

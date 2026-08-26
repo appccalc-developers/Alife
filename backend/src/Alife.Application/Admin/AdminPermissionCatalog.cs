@@ -27,8 +27,8 @@ public static class AdminPermissionCatalog
     private static readonly IReadOnlyList<AdminFeaturePermissionDto> AllPermissions =
     [
         Permission(AccessAdmin, "Administer all group workspaces", "管理全部小组工作区", "Treats this role as a platform administrator in group authorization. This is broader than opening the management menu.", "在小组授权中将该角色视为平台管理员；权限范围远大于仅进入管理菜单。"),
-        Permission(ViewMembers, "View member accounts", "查看成员账号", "View registered members and guest records in account management.", "在账号管理中查看已注册成员和访客记录。"),
-        Permission(ManageMemberProfiles, "Edit member account profiles", "编辑成员账号资料", "Edit member display names and account contact details.", "修改成员显示名称和账号联系方式。"),
+        Permission(ViewMembers, "View members", "查看成员", "View church membership, account state, management duties, and group participation in member management.", "在成员管理中查看教会成员资格、账号状态、管理职能和所在小组。"),
+        Permission(ManageMemberProfiles, "Edit member profiles", "编辑成员资料", "Edit member names, preferred address, and gender.", "修改成员姓名、称谓和性别。"),
         Permission(AssignPlatformRoles, "Assign platform roles to members", "为成员分配平台角色", "Assign or remove platform roles. Admin and System Admin assignments remain specially protected.", "分配或移除平台角色；管理员和系统管理员的分配仍受额外保护。"),
         Permission(ViewGroups, "View the platform group directory", "查看平台小组目录", "View groups across the platform in administrative selectors and reports.", "在管理选择器和报表中查看全平台小组。"),
         Permission(ManageRolePermissions, "Manage roles and permissions", "管理角色与权限", "Create custom roles, edit their permissions, and delete unused custom roles.", "创建自定义角色、调整其权限，并删除未使用的自定义角色。"),

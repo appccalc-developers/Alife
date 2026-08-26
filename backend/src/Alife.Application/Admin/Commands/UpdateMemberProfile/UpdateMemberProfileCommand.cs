@@ -9,4 +9,6 @@ public sealed record UpdateMemberProfileCommand(
     Guid TargetMemberId,
     string? DisplayName,
     string? Email,
-    string? PhoneE164) : IRequest<AppResult<AdminMemberDto>>;
+    string? PhoneE164,
+    string? Salutation = null,
+    string? Sex = null) : IRequest<AppResult<AdminMemberDto>>;

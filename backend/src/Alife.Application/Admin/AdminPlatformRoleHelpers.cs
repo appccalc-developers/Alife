@@ -86,6 +86,8 @@ internal static class AdminPlatformRoleHelpers
         => members.Select(member => new AdminMemberDto(
                 member.Id,
                 member.DisplayName,
+                member.Salutation,
+                member.Sex,
                 member.Email,
                 member.PhoneE164,
                 member.IsRegistered,
@@ -103,7 +105,30 @@ internal static class AdminPlatformRoleHelpers
                     .Select(role => role.Role.Code)
                     .ToList(),
                 member.Memberships.Count(m => m.Status == MembershipStatus.Approved),
-                member.Memberships.Count(m => m.Status == MembershipStatus.Requested)));
+                member.Memberships.Count(m => m.Status == MembershipStatus.Requested),
+                member.Memberships
+                    .Where(membership => membership.Group.IsChurch)
+                    .OrderByDescending(membership => membership.UpdatedUtc)
+                    .Select(membership => (MembershipStatus?)membership.Status)
+                    .FirstOrDefault(),
+                member.Memberships
+                    .Where(membership => membership.Group.IsChurch)
+                    .OrderByDescending(membership => membership.UpdatedUtc)
+                    .Select(membership => (MembershipRole?)membership.Role)
+                    .FirstOrDefault(),
+                member.Memberships.Any(membership =>
+                    !membership.Group.IsChurch &&
+                    membership.Status == MembershipStatus.Approved &&
+                    membership.Role == MembershipRole.Leader),
+                member.Memberships
+                    .Where(membership => !membership.Group.IsChurch && membership.Status == MembershipStatus.Approved)
+                    .OrderBy(membership => membership.Group.NameJson)
+                    .Select(membership => new AdminMemberGroupDto(
+                        membership.GroupId,
+                        membership.Group.NameJson,
+                        membership.Status,
+                        membership.Role))
+                    .ToList()));
 
     public static async Task<bool> HasPermissionAsync(
         IAlifeDbContext dbContext,
