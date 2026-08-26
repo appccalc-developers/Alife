@@ -8,6 +8,7 @@ import { localizeText } from '../../utils/localizedText'
 import { validateRequiredBilingualFields } from '../../utils/bilingualValidation'
 import AppActionButton from '../layout/AppActionButton'
 import AiLanguageAutofill from '../ai/AiLanguageAutofill'
+import useConfirmation from '../../hooks/useConfirmation'
 
 const toLocalInput = (value?: string | null) => {
   const date = value ? new Date(value) : new Date()
@@ -33,6 +34,7 @@ const inputClass = 'mt-1 w-full rounded-lg border border-slate-300 bg-white px-3
 
 const AnnouncementManagementPanel = ({ group, onMessage }: { group: GroupDto; onMessage: (message: string) => void }) => {
   const { language } = useAuthStore()
+  const { requestConfirmation, confirmationModal } = useConfirmation()
   const [items, setItems] = useState<AnnouncementDto[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<SaveAnnouncementPayload>(() => emptyForm(group.id, group.isChurch))
@@ -49,11 +51,11 @@ const AnnouncementManagementPanel = ({ group, onMessage }: { group: GroupDto; on
   const copy = useMemo(() => language === 'zh' ? {
     title: '公告', hint: '发布有对象、时间和期限的短期信息。', add: '新建公告', empty: '还没有公告。', edit: '编辑公告',
     titleEn: '英文标题', titleZh: '中文标题', summaryEn: '英文摘要', summaryZh: '中文摘要', contentEn: '英文内容（可选）', contentZh: '中文内容（可选）',
-    audience: '对象', priority: '优先级', status: '状态', publish: '发布时间', expire: '到期时间（可选）', pinned: '置顶', notify: '发布时发送应用内通知', save: '保存', cancel: '取消', delete: '删除',
+    audience: '对象', priority: '优先级', status: '状态', publish: '发布时间', expire: '到期时间（可选）', pinned: '置顶', notify: '发布时发送应用内通知', save: '保存', cancel: '取消', delete: '删除', deleteTitle: '要删除公告吗？', deleteConfirm: '这条公告会被永久删除，此操作无法撤销。', deleteFailed: '无法删除公告。',
   } : {
     title: 'Announcements', hint: 'Publish short-lived information with a clear audience and schedule.', add: 'New announcement', empty: 'No announcements yet.', edit: 'Edit announcement',
     titleEn: 'English title', titleZh: 'Chinese title', summaryEn: 'English summary', summaryZh: 'Chinese summary', contentEn: 'English content (optional)', contentZh: 'Chinese content (optional)',
-    audience: 'Audience', priority: 'Priority', status: 'Status', publish: 'Publish time', expire: 'Expiry (optional)', pinned: 'Pinned', notify: 'Send in-app notifications on publication', save: 'Save', cancel: 'Cancel', delete: 'Delete',
+    audience: 'Audience', priority: 'Priority', status: 'Status', publish: 'Publish time', expire: 'Expiry (optional)', pinned: 'Pinned', notify: 'Send in-app notifications on publication', save: 'Save', cancel: 'Cancel', delete: 'Delete', deleteTitle: 'Delete announcement?', deleteConfirm: 'This announcement will be deleted permanently. This cannot be undone.', deleteFailed: 'Unable to delete announcement.',
   }, [language])
 
   const load = async () => setItems(await announcementService.listManaged(group.id))
@@ -92,6 +94,22 @@ const AnnouncementManagementPanel = ({ group, onMessage }: { group: GroupDto; on
       onMessage(error instanceof Error ? error.message : language === 'zh' ? '保存公告失败。' : 'Unable to save announcement.')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const remove = async (item: AnnouncementDto) => {
+    if (!await requestConfirmation({
+      title: copy.deleteTitle,
+      description: copy.deleteConfirm,
+      confirmLabel: copy.delete,
+      tone: 'danger',
+    })) return
+
+    try {
+      await announcementService.delete(item.id)
+      await load()
+    } catch {
+      onMessage(copy.deleteFailed)
     }
   }
 
@@ -140,7 +158,8 @@ const AnnouncementManagementPanel = ({ group, onMessage }: { group: GroupDto; on
         </div>
       ) : null}
 
-      {items.length === 0 ? <p className="text-sm text-slate-500">{copy.empty}</p> : <div className="space-y-2">{items.map((item) => <article key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/80 p-4"><div className="flex min-w-0 items-start gap-3"><Bell className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" /><div><p className="font-bold text-slate-950">{localizeText(item.title, language)}</p><p className="mt-1 text-xs text-slate-500">{item.status} · {item.priority} · {new Date(item.publishUtc).toLocaleString()}</p></div></div><div className="flex gap-2"><AppActionButton size="sm" variant="secondary" onClick={() => beginEdit(item)}><Pencil className="h-4 w-4" /></AppActionButton><AppActionButton size="sm" variant="danger" onClick={() => { if (window.confirm(copy.delete)) announcementService.delete(item.id).then(load).catch(() => onMessage('Unable to delete announcement.')) }}><Trash2 className="h-4 w-4" /></AppActionButton></div></article>)}</div>}
+      {items.length === 0 ? <p className="text-sm text-slate-500">{copy.empty}</p> : <div className="space-y-2">{items.map((item) => <article key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/80 p-4"><div className="flex min-w-0 items-start gap-3"><Bell className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" /><div><p className="font-bold text-slate-950">{localizeText(item.title, language)}</p><p className="mt-1 text-xs text-slate-500">{item.status} · {item.priority} · {new Date(item.publishUtc).toLocaleString()}</p></div></div><div className="flex gap-2"><AppActionButton size="sm" variant="secondary" onClick={() => beginEdit(item)}><Pencil className="h-4 w-4" /></AppActionButton><AppActionButton size="sm" variant="danger" onClick={() => { remove(item).catch(() => undefined) }}><Trash2 className="h-4 w-4" /></AppActionButton></div></article>)}</div>}
+      {confirmationModal}
     </section>
   )
 }

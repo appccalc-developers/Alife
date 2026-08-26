@@ -7,6 +7,7 @@ import { useUiText } from '../../i18n/uiText'
 import { toLocalizedText } from '../../utils/localizedText'
 import { aiTranslationService } from '../../services/aiTranslationService'
 import { validateRequiredBilingualFields, type MissingTranslatableField } from '../../utils/bilingualValidation'
+import AppConfirmationModal from '../layout/AppConfirmationModal'
 
 type Props = {
   group: GroupDto
@@ -188,36 +189,21 @@ const GroupOverviewPanel = ({ group, saving = false, onSave, onStatusMessage, on
       </div>
     </form>
 
-    {pendingAiFields.length > 0 ? (
-      <div className="fixed inset-0 z-[60] flex items-end bg-slate-950/45 px-4 py-6 desktop:items-center desktop:justify-center">
-        <button
-          type="button"
-          className="absolute inset-0"
-          aria-label={t('cancel')}
-          onClick={() => {
-            if (!aiFilling) setPendingAiFields([])
-          }}
-        />
-        <section className="relative z-10 w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
-          <h3 className="text-base font-semibold text-slate-950">{t('aiBilingualAutofillTitle')}</h3>
-          <p className="mt-2 text-sm leading-6 text-slate-600">{t('aiBilingualAutofillConfirm')}</p>
-          <div className="mt-5 flex flex-wrap justify-end gap-2">
-            <AppActionButton variant="secondary" disabled={aiFilling} onClick={() => setPendingAiFields([])}>
-              {t('aiBilingualAutofillDecline')}
-            </AppActionButton>
-            <AppActionButton
-              variant="primary"
-              disabled={aiFilling}
-              onClick={() => {
-                fillMissingWithAi().catch(() => undefined)
-              }}
-            >
-              {aiFilling ? t('aiAutofilling') : t('aiBilingualAutofillAccept')}
-            </AppActionButton>
-          </div>
-        </section>
-      </div>
-    ) : null}
+    <AppConfirmationModal
+      open={pendingAiFields.length > 0}
+      title={t('aiBilingualAutofillTitle')}
+      description={t('aiBilingualAutofillConfirm')}
+      confirmLabel={aiFilling ? t('aiAutofilling') : t('aiBilingualAutofillAccept')}
+      cancelLabel={t('aiBilingualAutofillDecline')}
+      closeLabel={t('closeConfirmationDialog')}
+      busy={aiFilling}
+      onCancel={() => {
+        if (!aiFilling) setPendingAiFields([])
+      }}
+      onConfirm={() => {
+        fillMissingWithAi().catch(() => undefined)
+      }}
+    />
   </>
   )
 

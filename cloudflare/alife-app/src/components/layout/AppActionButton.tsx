@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react'
+import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react'
 
 type Props = {
   variant?: 'primary' | 'secondary' | 'danger' | 'ghost'
@@ -7,14 +7,14 @@ type Props = {
   children: ReactNode
 } & ButtonHTMLAttributes<HTMLButtonElement>
 
-const AppActionButton = ({
+const AppActionButton = forwardRef<HTMLButtonElement, Props>(({
   variant = 'secondary',
   size = 'md',
   block = false,
   children,
   className = '',
   ...props
-}: Props) => {
+}, ref) => {
   const variantClass =
     variant === 'primary'
       ? 'border border-[#176b5a] bg-[#176b5a] text-white shadow-[0_9px_22px_rgba(23,107,90,0.18)] hover:border-[#0d4f43] hover:bg-[#0d4f43]'
@@ -28,6 +28,7 @@ const AppActionButton = ({
 
   return (
     <button
+      ref={ref}
       type="button"
       className={`inline-flex items-center justify-center rounded-xl font-bold transition duration-200 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 ${variantClass} ${sizeClass} ${block ? 'w-full' : ''} ${className}`.trim()}
       {...props}
@@ -35,6 +36,8 @@ const AppActionButton = ({
       {children}
     </button>
   )
-}
+})
+
+AppActionButton.displayName = 'AppActionButton'
 
 export default AppActionButton

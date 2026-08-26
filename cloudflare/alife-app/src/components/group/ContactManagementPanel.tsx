@@ -12,6 +12,7 @@ import AppActionButton from '../layout/AppActionButton'
 import AppBadge from '../layout/AppBadge'
 import AppEmptyState from '../layout/AppEmptyState'
 import MediaPickerInput from '../media/MediaPickerInput'
+import useConfirmation from '../../hooks/useConfirmation'
 
 type Props = {
   groupId: string
@@ -53,6 +54,7 @@ const ContactPhotoPreview = ({ url, label, emptyLabel }: { url?: string | null; 
 
 const ContactManagementPanel = ({ groupId, memberships, onCountChange }: Props) => {
   const { language } = useAuthStore()
+  const { requestConfirmation, confirmationModal } = useConfirmation()
   const zh = language === 'zh'
   const [contacts, setContacts] = useState<ContactProfileDto[]>([])
   const [loading, setLoading] = useState(true)
@@ -123,7 +125,13 @@ const ContactManagementPanel = ({ groupId, memberships, onCountChange }: Props) 
   }
 
   const remove = async (contact: ContactProfileDto) => {
-    if (!window.confirm(zh ? `删除联系人“${localizeText(contact.name, language)}”？` : `Delete “${localizeText(contact.name, language)}”?`)) return
+    const name = localizeText(contact.name, language)
+    if (!await requestConfirmation({
+      title: zh ? '要删除联系人吗？' : 'Delete contact?',
+      description: zh ? `联系人“${name}”会从这个小组中删除。` : `“${name}” will be removed from this group’s contacts.`,
+      confirmLabel: zh ? '删除联系人' : 'Delete contact',
+      tone: 'danger',
+    })) return
     try {
       await contactService.remove(contact.id)
       await load()
@@ -243,7 +251,7 @@ const ContactManagementPanel = ({ groupId, memberships, onCountChange }: Props) 
           </article>
         ))}
       </div>
-
+      {confirmationModal}
     </section>
   )
 }

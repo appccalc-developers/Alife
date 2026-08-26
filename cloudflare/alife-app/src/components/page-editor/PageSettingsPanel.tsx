@@ -7,6 +7,7 @@ import { useUiText } from '../../i18n/uiText'
 import { useAuthStore } from '../../stores/auth'
 import type { PageVisibility } from '../../types/group'
 import type { PageEditModel } from '../../types/page-editor'
+import useConfirmation from '../../hooks/useConfirmation'
 
 type PublishReadiness = {
   missingTranslationCount: number
@@ -84,6 +85,7 @@ const PageSettingsPanel = ({
   onResetDefaultHome,
 }: Props) => {
   const t = useUiText()
+  const { requestConfirmation, confirmationModal } = useConfirmation()
   const { language } = useAuthStore()
   const isZh = language === 'zh'
   const canUsePublishDock = Boolean(publishReadiness && onSave)
@@ -351,9 +353,16 @@ const PageSettingsPanel = ({
               className="mt-3 inline-flex items-center justify-center rounded-xl bg-amber-500 px-4 py-2 text-sm font-black text-slate-950 transition hover:bg-amber-400 disabled:opacity-60"
               disabled={!canEdit}
               onClick={() => {
-                if (window.confirm(t('restoreDefaultHomeConfirm'))) {
-                  onResetDefaultHome()
-                }
+                requestConfirmation({
+                  title: t('restoreDefaultHome'),
+                  description: t('restoreDefaultHomeConfirm'),
+                  confirmLabel: t('restoreDefaultHome'),
+                  tone: 'danger',
+                }).then((confirmed) => {
+                  if (confirmed) {
+                    onResetDefaultHome()
+                  }
+                }).catch(() => undefined)
               }}
             >
               {t('restoreDefaultHome')}
@@ -372,6 +381,7 @@ const PageSettingsPanel = ({
       </ul>
       {message ? <p className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs text-slate-700">{message}</p> : null}
     </AppSectionCard>
+    {confirmationModal}
   </div>
   )
 }
