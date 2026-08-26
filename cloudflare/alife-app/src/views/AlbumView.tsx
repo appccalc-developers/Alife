@@ -12,6 +12,7 @@ import { deleteImageObject, isImageFile, uploadImage } from '../services/imageWo
 import { useAuthStore } from '../stores/auth'
 import { localizeText } from '../utils/localizedText'
 import { compactBilingualText, validateRequiredBilingualFields } from '../utils/bilingualValidation'
+import useConfirmation from '../hooks/useConfirmation'
 
 type AlbumEditorMode = 'create' | 'edit'
 
@@ -46,6 +47,7 @@ const AlbumView = () => {
   const { groupId } = useActiveEntityIds({ groupId: routeGroupId })
   const navigate = useNavigate()
   const auth = useAuthStore()
+  const { requestConfirmation, confirmationModal } = useConfirmation()
   const isZh = auth.language === 'zh'
   const canManage = auth.canManageGroup(groupId)
   const [roots, setRoots] = useState<AlbumSummary[]>([])
@@ -147,7 +149,12 @@ const AlbumView = () => {
   }
 
   const removePhoto = async (photoId: string, objectKey: string) => {
-    if (!detail || !window.confirm(isZh ? '确定删除这张图片吗？此操作无法撤销。' : 'Delete this image permanently?')) return
+    if (!detail || !await requestConfirmation({
+      title: isZh ? '要删除图片吗？' : 'Delete photo?',
+      description: isZh ? '这张图片会被永久删除，此操作无法撤销。' : 'This photo will be deleted permanently. This cannot be undone.',
+      confirmLabel: isZh ? '删除图片' : 'Delete photo',
+      tone: 'danger',
+    })) return
     setBusy(true)
     try {
       setDetail(await albumService.removePhoto(detail.album.id, photoId))
@@ -238,6 +245,7 @@ const AlbumView = () => {
           ))}</div> : null}
         </section>
       ) : null}
+      {confirmationModal}
     </AppPageShell>
   )
 }

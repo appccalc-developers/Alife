@@ -31,6 +31,7 @@ import type { MissingTranslatableField } from '../utils/bilingualValidation'
 import type { CreateEventWorkflowTemplateInput, EventWorkflowTemplate } from '../types/eventWorkflow'
 import EventWorkflowTemplatePicker from '../components/events/EventWorkflowTemplatePicker'
 import { confirmUnsavedChangesNavigation, setUnsavedChangesGuard } from '../utils/unsavedChangesGuard'
+import useConfirmation from '../hooks/useConfirmation'
 
 // ────────────────────────────────────────────────────────────────────────────
 // Helper sub-components
@@ -465,6 +466,7 @@ const getDraftFromRecord = (record: GroupEventRecord): EventDto => {
 const EventCreatorView = () => {
   const { language, me, hasAdminPermission, canManageGroup } = useAuthStore()
   const t = useUiText()
+  const { requestConfirmation, confirmationModal } = useConfirmation()
   const { CurrentGroup } = useCurrentGroupStore()
   const location = useLocation()
   const navigate = useNavigate()
@@ -1600,9 +1602,14 @@ const EventCreatorView = () => {
   }
 
   const handleDiscardRecoveredDraft = async () => {
-    const confirmed = window.confirm(language === 'zh'
-      ? '确定放弃已找回的活动草稿并重新开始吗？此操作无法撤销。'
-      : 'Discard the recovered event draft and start again? This cannot be undone.')
+    const confirmed = await requestConfirmation({
+      title: language === 'zh' ? '放弃已找回的草稿？' : 'Discard recovered draft?',
+      description: language === 'zh'
+        ? '放弃已找回的活动草稿并重新开始后，此操作无法撤销。'
+        : 'The recovered event draft will be discarded so you can start again. This cannot be undone.',
+      confirmLabel: language === 'zh' ? '放弃草稿' : 'Discard draft',
+      tone: 'danger',
+    })
     if (!confirmed) return
 
     setDraftResetting(true)
@@ -2342,6 +2349,7 @@ const EventCreatorView = () => {
         ) : null}
         {ramMessage ? <p className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">{ramMessage}</p> : null}
       </div>
+      {confirmationModal}
     </div>
   )
 }

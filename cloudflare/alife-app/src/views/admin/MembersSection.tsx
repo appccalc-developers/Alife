@@ -23,6 +23,7 @@ import {
 } from '../../services/groupService'
 import { normalizeApiError } from '../../services/http'
 import { formatRole, groupNameLabel, parseLocalizedJson, parseUtcDate, readLocalized } from './adminUtils'
+import useConfirmation from '../../hooks/useConfirmation'
 
 type MembershipAction = 'approve' | 'reject' | 'deactivate' | 'invite'
 
@@ -95,6 +96,7 @@ const MembersSection = ({
   updateMembership,
 }: MembersSectionProps) => {
   const isChinese = language === 'zh'
+  const { requestConfirmation, confirmationModal } = useConfirmation()
   const copy = isChinese ? {
     title: '成员管理',
     description: '集中查看教会成员资格、管理职能、账号状态和所在小组。',
@@ -339,8 +341,18 @@ const MembersSection = ({
 
   const runMembershipAction = async (member: AdminMemberDto, action: MembershipAction) => {
     const name = member.displayName || copy.member
-    if (action === 'deactivate' && !window.confirm(copy.confirmDeactivate(name))) return
-    if (action === 'reject' && !window.confirm(copy.confirmReject(name))) return
+    if (action === 'deactivate' && !await requestConfirmation({
+      title: copy.deactivate,
+      description: copy.confirmDeactivate(name),
+      confirmLabel: copy.deactivate,
+      tone: 'danger',
+    })) return
+    if (action === 'reject' && !await requestConfirmation({
+      title: copy.reject,
+      description: copy.confirmReject(name),
+      confirmLabel: copy.reject,
+      tone: 'danger',
+    })) return
     await updateMembership(member, action)
     setRefreshVersion((current) => current + 1)
   }
@@ -491,6 +503,7 @@ const MembersSection = ({
       </footer>
 
       {editTarget ? <div className="fixed inset-0 z-[70] flex items-end bg-slate-950/45 px-4 pb-24 pt-6 backdrop-blur-sm sm:items-center sm:justify-center sm:py-6"><button type="button" className="absolute inset-0" aria-label={copy.close} disabled={updatingMemberProfileId === editTarget.id} onClick={() => setEditTarget(null)} /><section className="relative z-10 w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="edit-member-title"><header className="flex items-start justify-between gap-4 border-b border-[#dce7e2] bg-[#edf5f1] px-5 py-4"><div><h2 id="edit-member-title" className="text-lg font-black text-[#18332d]">{copy.edit}</h2><p className="mt-1 text-sm leading-6 text-[#60716a]">{copy.editDescription}</p></div><button type="button" onClick={() => setEditTarget(null)} className="flex h-9 w-9 items-center justify-center rounded-xl text-[#60716a] hover:bg-white" aria-label={copy.close}><X className="h-5 w-5" /></button></header><form className="space-y-4 p-5" onSubmit={(event) => { event.preventDefault(); submitProfile().catch(() => undefined) }}><FormField label={copy.name}><input autoFocus required maxLength={150} value={editForm.displayName} onChange={(event) => setEditForm((current) => ({ ...current, displayName: event.target.value }))} className="min-h-11 w-full rounded-xl border border-[#cbdad4] bg-white px-3 text-sm text-[#18332d] outline-none focus:border-[#21705f] focus:ring-4 focus:ring-[#dcece6]" /></FormField><FormField label={copy.salutation}><input maxLength={100} value={editForm.salutation} onChange={(event) => setEditForm((current) => ({ ...current, salutation: event.target.value }))} className="min-h-11 w-full rounded-xl border border-[#cbdad4] bg-white px-3 text-sm text-[#18332d] outline-none focus:border-[#21705f] focus:ring-4 focus:ring-[#dcece6]" /></FormField><FormField label={copy.gender}><select value={editForm.sex} onChange={(event) => setEditForm((current) => ({ ...current, sex: event.target.value }))} className="min-h-11 w-full rounded-xl border border-[#cbdad4] bg-white px-3 text-sm text-[#18332d] outline-none focus:border-[#21705f] focus:ring-4 focus:ring-[#dcece6]"><option value="">{copy.notProvided}</option><option value="Male">{copy.male}</option><option value="Female">{copy.female}</option><option value="Other">{copy.other}</option></select></FormField>{editError ? <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700" role="alert">{editError}</p> : null}<div className="flex justify-end gap-2 border-t border-[#e3ebe7] pt-4"><button type="button" disabled={updatingMemberProfileId === editTarget.id} onClick={() => setEditTarget(null)} className="min-h-10 rounded-xl border border-[#cbdad4] px-4 text-sm font-black text-[#60716a]">{copy.cancel}</button><button type="submit" disabled={updatingMemberProfileId === editTarget.id || !editForm.displayName.trim()} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#176b5a] px-4 text-sm font-black text-white disabled:opacity-55">{updatingMemberProfileId === editTarget.id ? <Loader2 className="h-4 w-4 animate-spin" /> : null}{updatingMemberProfileId === editTarget.id ? copy.saving : copy.save}</button></div></form></section></div> : null}
+      {confirmationModal}
     </section>
   )
 }

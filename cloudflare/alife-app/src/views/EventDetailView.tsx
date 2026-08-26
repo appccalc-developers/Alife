@@ -23,6 +23,7 @@ import type { ContactProfileDto } from '../types/contact'
 import { getEventLifecycle, readEventLifecycleData } from '../utils/eventLifecycle'
 import { buildScopedEventDetailPath } from '../utils/eventRoutes'
 import EventWorkflowPanel from '../components/events/EventWorkflowPanel'
+import useConfirmation from '../hooks/useConfirmation'
 
 type EventDetailSection = 'notice' | 'workflow' | 'enrollments' | 'memories'
 
@@ -60,7 +61,8 @@ const labels = {
     withdraw: 'Withdraw enrollment',
     withdrawing: 'Withdrawing...',
     withdrawClosed: 'Enrollment withdrawal is closed after the registration deadline.',
-    withdrawConfirm: 'Withdraw your enrollment for this event?',
+    withdrawConfirm: 'You will no longer be enrolled in this event and your submitted enrollment will be removed.',
+    withdrawTitle: 'Withdraw enrollment?',
     withdrawSuccess: 'Enrollment withdrawn.',
     noEnrollments: 'No enrollments yet.',
     enrollNow: 'Enroll now',
@@ -72,7 +74,8 @@ const labels = {
     addReview: 'Add review',
     modifyReview: 'Modify review',
     deleteReview: 'Delete',
-    deleteReviewConfirm: 'Delete this review?',
+    deleteReviewConfirm: 'This review will be removed from the event. This cannot be undone.',
+    deleteReviewTitle: 'Delete review?',
     deleteReviewSuccess: 'Review deleted.',
     summary: 'Summary',
     reflection: 'Reflection',
@@ -106,7 +109,8 @@ const labels = {
     withdraw: '撤回报名',
     withdrawing: '正在撤回...',
     withdrawClosed: '报名截止后不能撤回报名。',
-    withdrawConfirm: '要撤回你对此活动的报名吗？',
+    withdrawConfirm: '撤回后，你将不再报名此活动，已提交的报名资料也会被移除。',
+    withdrawTitle: '要撤回报名吗？',
     withdrawSuccess: '报名已撤回。',
     noEnrollments: '还没有人报名。',
     enrollNow: '我要报名',
@@ -118,7 +122,8 @@ const labels = {
     addReview: '添加回顾',
     modifyReview: '修改回顾',
     deleteReview: '删除',
-    deleteReviewConfirm: '要删除这条回顾吗？',
+    deleteReviewConfirm: '这条回顾将从活动中移除，此操作无法撤销。',
+    deleteReviewTitle: '要删除回顾吗？',
     deleteReviewSuccess: '回顾已删除。',
     summary: '摘要',
     reflection: '回顾',
@@ -380,13 +385,19 @@ const EnrollmentPanel = ({
   onRefresh: () => Promise<void>
 }) => {
   const text = getLabels(language)
+  const { requestConfirmation, confirmationModal } = useConfirmation()
   const [deletingId, setDeletingId] = useState('')
   const [message, setMessage] = useState('')
   const currentEnrollment = memberId ? enrollments.find((item) => item.memberId === memberId) : undefined
   const canWithdraw = isBeforeDeadline(eventDto.registrationDeadline)
 
   const withdraw = async () => {
-    if (!currentEnrollment || !window.confirm(text.withdrawConfirm)) return
+    if (!currentEnrollment || !await requestConfirmation({
+      title: text.withdrawTitle,
+      description: text.withdrawConfirm,
+      confirmLabel: text.withdraw,
+      tone: 'danger',
+    })) return
     setDeletingId(currentEnrollment.id)
     setMessage('')
     try {
@@ -401,6 +412,7 @@ const EnrollmentPanel = ({
   }
 
   return (
+    <>
     <div className="space-y-5">
       {message ? (
         <AppSectionCard dense>
@@ -482,6 +494,8 @@ const EnrollmentPanel = ({
         </div>
       </AppSectionCard>
     </div>
+    {confirmationModal}
+    </>
   )
 }
 
@@ -503,11 +517,17 @@ const MemoriesPanel = ({
   onRefresh: () => Promise<void>
 }) => {
   const text = getLabels(language)
+  const { requestConfirmation, confirmationModal } = useConfirmation()
   const [deletingId, setDeletingId] = useState('')
   const [message, setMessage] = useState('')
 
   const deleteReview = async (reviewId: string) => {
-    if (!window.confirm(text.deleteReviewConfirm)) return
+    if (!await requestConfirmation({
+      title: text.deleteReviewTitle,
+      description: text.deleteReviewConfirm,
+      confirmLabel: text.deleteReview,
+      tone: 'danger',
+    })) return
     setDeletingId(reviewId)
     setMessage('')
     try {
@@ -522,6 +542,7 @@ const MemoriesPanel = ({
   }
 
   return (
+    <>
     <div className="space-y-5">
       {memberId ? <div className="flex justify-end">
         <Link
@@ -625,6 +646,8 @@ const MemoriesPanel = ({
         )
       })}
     </div>
+    {confirmationModal}
+    </>
   )
 }
 

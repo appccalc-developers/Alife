@@ -28,6 +28,7 @@ import {
   normalizePageI18nStructure,
 } from '../utils/pageBilingualCompletion'
 import { confirmUnsavedChangesNavigation, setUnsavedChangesGuard } from '../utils/unsavedChangesGuard'
+import useConfirmation from '../hooks/useConfirmation'
 
 const TRANSLATION_BATCH_SIZE = 12
 const SECTION_AUTO_SAVE_DELAY_MS = 1200
@@ -112,6 +113,7 @@ const PageEditorView = () => {
   const navigate = useNavigate()
   const auth = useAuthStore()
   const t = useUiText()
+  const { requestConfirmation, confirmationModal } = useConfirmation()
   const browserBackGuardRegistered = useRef(false)
   const browserBackAllowed = useRef(false)
   const persistInFlight = useRef(false)
@@ -391,7 +393,12 @@ const PageEditorView = () => {
 
       const missingTranslationFields = collectMissingPageTranslations(modelToPersist)
       if (isManualSave && missingTranslationFields.length > 0) {
-        if (!window.confirm(t('pageAiBilingualAutofillConfirm', { count: missingTranslationFields.length }))) {
+        if (!await requestConfirmation({
+          title: t('aiBilingualAutofillTitle'),
+          description: t('pageAiBilingualAutofillConfirm', { count: missingTranslationFields.length }),
+          confirmLabel: t('aiBilingualAutofillAccept'),
+          cancelLabel: t('aiBilingualAutofillDecline'),
+        })) {
           setMessage(t('bilingualContentIncompleteBlock'))
           return
         }
@@ -628,10 +635,14 @@ const PageEditorView = () => {
       return
     }
 
-    if (!window.confirm(t('aiFixSectionLanguageIssuesConfirm', {
-      count: issues.length,
-      language: t(targetLanguage === 'zh' ? 'chinese' : 'english'),
-    }))) {
+    if (!await requestConfirmation({
+      title: t('aiFixSectionLanguageIssuesTitle'),
+      description: t('aiFixSectionLanguageIssuesConfirm', {
+        count: issues.length,
+        language: t(targetLanguage === 'zh' ? 'chinese' : 'english'),
+      }),
+      confirmLabel: t('aiFixSectionLanguageIssues'),
+    })) {
       return
     }
 
@@ -665,7 +676,7 @@ const PageEditorView = () => {
     } finally {
       setLanguageFixingSectionIndex(null)
     }
-  }, [auth.language, pageModel, resolvedGroupId, t])
+  }, [auth.language, pageModel, requestConfirmation, resolvedGroupId, t])
 
   const leaveEditor = useCallback(() => {
     if (fromPageReview) {
@@ -792,6 +803,7 @@ const PageEditorView = () => {
           }}
         />
       ) : null}
+      {confirmationModal}
     </>
   )
 }

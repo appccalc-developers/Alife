@@ -12,7 +12,7 @@ import MembershipStatusBadge from '../components/group/MembershipStatusBadge'
 import { useGroupScreen, type GroupMemberToolRow } from '../hooks/useGroupScreen'
 import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
 import { useAuthStore } from '../stores/auth'
-import { localizeText, toLocalizedText } from '../utils/localizedText'
+import { localizeText } from '../utils/localizedText'
 import { useCurrentGroupStore } from '../stores/currentGroup'
 import { translateUi, useUiText } from '../i18n/uiText'
 import { activeEntityService } from '../services/activeEntityService'
@@ -26,6 +26,9 @@ import RegionalPhoneInput from '../components/forms/RegionalPhoneInput'
 import { isValidPhoneNumber } from '../utils/phoneNumber'
 import { getEventLifecycle, readEventLifecycleData, sortEventsByLatestStart, type EventLifecycle } from '../utils/eventLifecycle'
 import { buildScopedEventDetailPath } from '../utils/eventRoutes'
+import useConfirmation from '../hooks/useConfirmation'
+import CreateSubgroupModal from '../components/group/CreateSubgroupModal'
+import type { LocalizedText } from '../types'
 
 const shortId = (value: string) => (value.length > 8 ? value.slice(0, 8) : value)
 
@@ -259,6 +262,7 @@ type LeadershipPanelProps = {
 
 const LeadershipPanel = ({ memberships, currentMemberId, onTransferLeadership, framed = true }: LeadershipPanelProps) => {
   const t = useUiText()
+  const { requestConfirmation, confirmationModal } = useConfirmation()
   const { language } = useAuthStore()
   const groupLeadLabel = language === 'zh' ? '组长' : 'Group lead'
   const assistantLeadLabel = language === 'zh' ? '副组长' : 'Assistant lead'
@@ -271,6 +275,7 @@ const LeadershipPanel = ({ memberships, currentMemberId, onTransferLeadership, f
   const getDisplayName = (member: GroupMemberToolRow) => member.displayName || t('memberShort', { id: shortId(member.memberId) })
 
   return (
+    <>
     <ManagementPanelShell
       framed={framed}
       title={groupLeadLabel}
@@ -308,8 +313,13 @@ const LeadershipPanel = ({ memberships, currentMemberId, onTransferLeadership, f
                     size="sm"
                     variant="primary"
                     onClick={() => {
-                      if (!window.confirm(t('transferLeadershipConfirm', { name: displayName }))) return
-                      onTransferLeadership(member.memberId)
+                      requestConfirmation({
+                        title: t('transferLeadership'),
+                        description: t('transferLeadershipConfirm', { name: displayName }),
+                        confirmLabel: t('transferLeadership'),
+                      }).then((confirmed) => {
+                        if (confirmed) onTransferLeadership(member.memberId)
+                      }).catch(() => undefined)
                     }}
                   >
                     <ArrowRightLeft size={14} aria-hidden="true" className="mr-1.5" />
@@ -326,6 +336,8 @@ const LeadershipPanel = ({ memberships, currentMemberId, onTransferLeadership, f
         <p className="mt-3 text-sm text-slate-500">{t('transferLeadershipHelp')}</p>
       )}
     </ManagementPanelShell>
+    {confirmationModal}
+    </>
   )
 }
 
@@ -871,6 +883,7 @@ const GroupManageView = ({
   subgroupDetailBasePath = '',
 }: GroupManageViewProps) => {
   const t = useUiText()
+  const { requestConfirmation, confirmationModal } = useConfirmation()
   const { groupId: routeGroupId } = useParams<{ groupId: string }>()
   const { groupId: activeGroupId } = useActiveEntityIds({ groupId: routeGroupId })
   const groupId = explicitGroupId || activeGroupId || ''
@@ -881,6 +894,9 @@ const GroupManageView = ({
   const { language } = auth
   const { setCurrentGroup } = useCurrentGroupStore()
   const [savingGroup, setSavingGroup] = useState(false)
+  const [createSubgroupOpen, setCreateSubgroupOpen] = useState(false)
+  const [creatingSubgroup, setCreatingSubgroup] = useState(false)
+  const [createSubgroupError, setCreateSubgroupError] = useState('')
   const [hasUnsavedGroupProfileChanges, setHasUnsavedGroupProfileChanges] = useState(false)
   const browserBackGuardRegistered = useRef(false)
   const {
@@ -962,7 +978,11 @@ const GroupManageView = ({
       return
     }
 
-    if (!window.confirm(t('manageClaimSubgroupCoLeaderConfirm'))) return
+    if (!await requestConfirmation({
+      title: t('manageClaimSubgroupCoLeaderTitle'),
+      description: t('manageClaimSubgroupCoLeaderConfirm'),
+      confirmLabel: t('open'),
+    })) return
 
     try {
       await groupService.claimSubgroupCoLeader(groupId, subgroupId)
@@ -1017,20 +1037,22 @@ const GroupManageView = ({
     return () => window.removeEventListener('popstate', handlePopState)
   }, [hasUnsavedGroupProfileChanges, unsavedGroupProfileMessage])
 
-  const handleCreateSubgroup = async () => {
-    if (!guardGroupProfileNavigation()) return
-
-    const subgroupName = window.prompt(t('subgroupName'))
-    if (!subgroupName?.trim()) return
-
+  const handleCreateSubgroup = async (name: LocalizedText) => {
+    setCreatingSubgroup(true)
+    setCreateSubgroupError('')
     try {
-      const subgroup = await createSubgroup(toLocalizedText(subgroupName.trim()), 'protected')
+      const subgroup = await createSubgroup(name, 'protected')
       if (subgroup) {
+        setCreateSubgroupOpen(false)
         if (!subgroupDetailBasePath) activeEntityService.setGroup(subgroup.id)
         navigate(groupWorkspaceTarget(subgroup.id))
       }
     } catch {
-      setStatusMessage(t('manageAddSubgroupFailed'))
+      const message = t('manageAddSubgroupFailed')
+      setCreateSubgroupError(message)
+      setStatusMessage(message)
+    } finally {
+      setCreatingSubgroup(false)
     }
   }
 
@@ -1167,7 +1189,9 @@ const GroupManageView = ({
                   subtitle={t('manageSubgroupsPanelSubtitle')}
                   action={
                     <AppActionButton variant="primary" onClick={() => {
-                      handleCreateSubgroup().catch(() => setStatusMessage(t('manageAddSubgroupFailed')))
+                      if (!guardGroupProfileNavigation()) return
+                      setCreateSubgroupError('')
+                      setCreateSubgroupOpen(true)
                     }}>
                       {t('manageAddSubgroup')}
                     </AppActionButton>
@@ -1209,8 +1233,14 @@ const GroupManageView = ({
                   onApproveMember={(memberId) => approveMember(memberId).catch(() => setStatusMessage(t('approveFailed')))}
                   onRejectMember={(memberId) => rejectMember(memberId).catch(() => setStatusMessage(t('rejectFailed')))}
                   onKickMember={(memberId) => {
-                    if (!window.confirm(t('removeMemberConfirm'))) return
-                    kickMember(memberId).catch(() => setStatusMessage(t('removeMemberFailed')))
+                    requestConfirmation({
+                      title: t('removeMemberTitle'),
+                      description: t('removeMemberConfirm'),
+                      confirmLabel: t('remove'),
+                      tone: 'danger',
+                    }).then((confirmed) => {
+                      if (confirmed) kickMember(memberId).catch(() => setStatusMessage(t('removeMemberFailed')))
+                    }).catch(() => undefined)
                   }}
                   onSetCoLeader={(memberId, isCoLeader) => setCoLeader(memberId, isCoLeader).catch(() => setStatusMessage(t('updateCoLeaderFailed')))}
                   onProfileUpdated={() => refreshMemberships().then(() => undefined)}
@@ -1232,8 +1262,14 @@ const GroupManageView = ({
                     navigate(currentGroupRoute ? '/pages/new' : `/groups/${encodeURIComponent(groupId)}/pages/new`)
                   }}
                   onDeletePage={(pageId) => {
-                    if (!window.confirm(t('removePageConfirm'))) return
-                    deletePage(pageId).catch(() => setStatusMessage(t('removePageFailed')))
+                    requestConfirmation({
+                      title: t('removePageTitle'),
+                      description: t('removePageConfirm'),
+                      confirmLabel: t('remove'),
+                      tone: 'danger',
+                    }).then((confirmed) => {
+                      if (confirmed) deletePage(pageId).catch(() => setStatusMessage(t('removePageFailed')))
+                    }).catch(() => undefined)
                   }}
                   onUpdatePageVisibility={(page, visibility) => updatePageVisibility(page, visibility).catch(() => setStatusMessage(t('updatePageVisibilityFailed')))}
                 />
@@ -1274,7 +1310,23 @@ const GroupManageView = ({
       </div>
   )
 
-  return integrated ? managementWorkspace : <AppPageShell>{managementWorkspace}</AppPageShell>
+  return (
+    <>
+      {integrated ? managementWorkspace : <AppPageShell>{managementWorkspace}</AppPageShell>}
+      <CreateSubgroupModal
+        open={createSubgroupOpen}
+        busy={creatingSubgroup}
+        error={createSubgroupError}
+        onClose={() => {
+          if (!creatingSubgroup) setCreateSubgroupOpen(false)
+        }}
+        onCreate={(name) => {
+          handleCreateSubgroup(name).catch(() => setCreateSubgroupError(t('manageAddSubgroupFailed')))
+        }}
+      />
+      {confirmationModal}
+    </>
+  )
 }
 
 export default GroupManageView
