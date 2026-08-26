@@ -1,0 +1,4 @@
+interface:
+  display_name: "Alife Frontend Design"
+  short_description: "Design Alife UI with its bilingual community identity"
+  default_prompt: "Use $alife-frontend-design to improve this Alife screen while preserving its existing architecture and bilingual behavior."
