@@ -1,0 +1,3916 @@
+{
+  "schemaId": "alife.event-composition",
+  "schemaVersion": "1.1.0",
+  "acceptedLegacySchemaVersions": [
+    "1.0.0"
+  ],
+  "contractStatus": "targetArchitecture",
+  "authorityOrder": [
+    "AGENTS.md and security/privacy/cache invariants",
+    "EVENT-CONTRACT.md architecture decisions and invariants",
+    "event-contract.json exact codes, enums and references",
+    "Explanatory examples"
+  ],
+  "enums": {
+    "governanceMode": [
+      "private",
+      "memberLed",
+      "churchSponsored"
+    ],
+    "sponsorshipStatus": [
+      "notRequested",
+      "pending",
+      "approved",
+      "rejected",
+      "revoked"
+    ],
+    "eventVisibility": [
+      "groupVisible",
+      "churchVisible",
+      "public"
+    ],
+    "factCertainty": [
+      "unknown",
+      "candidate",
+      "confirmed"
+    ],
+    "factSource": [
+      "human",
+      "trustedContext",
+      "aiCandidate",
+      "legacyBackfill"
+    ],
+    "moduleDecisionStatus": [
+      "required",
+      "recommended",
+      "selected",
+      "inactive",
+      "exceptionRequested",
+      "exceptionApproved"
+    ],
+    "dataClass": [
+      "public",
+      "churchOrGroupVisible",
+      "eventTeam",
+      "roleRestricted",
+      "approvalEvidence",
+      "userSpecific"
+    ],
+    "readinessStatus": [
+      "notReady",
+      "blocked",
+      "ready",
+      "complete"
+    ],
+    "surfacePresentation": [
+      "tab",
+      "page"
+    ],
+    "eventVenueReservationStatus": [
+      "confirmed",
+      "released"
+    ],
+    "eventTravelJourneyStatus": [
+      "planned",
+      "confirmed",
+      "cancelled"
+    ],
+    "guardianRelationshipStatus": [
+      "pending",
+      "confirmed",
+      "ended"
+    ],
+    "guardianConsentDecision": [
+      "granted",
+      "withdrawn"
+    ],
+    "childAttendanceState": [
+      "present",
+      "checkedOut"
+    ],
+    "workflowRecommendationStatus": [
+      "selected",
+      "declined",
+      "unavailable"
+    ]
+  },
+  "policyContracts": {
+    "safeguardingPolicyRequirementsV1": {
+      "schemaVersion": {
+        "type": "literal",
+        "value": "1",
+        "required": true
+      },
+      "consentRequired": {
+        "type": "boolean",
+        "required": true,
+        "default": null
+      },
+      "minimumAuthorisedCollectors": {
+        "type": "integer",
+        "minimum": 0,
+        "required": true,
+        "default": null
+      },
+      "workerRequirements": {
+        "type": "array",
+        "required": true,
+        "uniqueBy": "roleRequirementKey",
+        "item": {
+          "roleRequirementKey": {
+            "type": "enum",
+            "values": [
+              "SAFEGUARDING.CHILD:safeguarding.lead",
+              "SAFEGUARDING.CHILD:check-in.worker"
+            ]
+          },
+          "minimum": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "maximumChildrenPerWorker": {
+            "type": "nullable integer",
+            "minimum": 1,
+            "semantics": "policy-supplied ratio only; null means no ratio in this policy version"
+          },
+          "eligibilityEvidenceCode": {
+            "type": "non-empty string",
+            "maxLength": 120
+          }
+        },
+        "invariant": "safeguarding.lead is present with minimum >= 1"
+      },
+      "unknownPropertyRule": "failClosed",
+      "authorityRule": "Only a published human-governed policy version supplies values; AI output cannot create, alter, waive or select them."
+    }
+  },
+  "invariants": [
+    "One Event has exactly one owningGroupId and one accountable owner.",
+    "Visibility and sponsorship are independent dimensions.",
+    "A Child Event has at most one parent level.",
+    "Every Event has at least one EventOccurrence; one-off Events have exactly one initial occurrence.",
+    "Every schema 1.1 creation has one globally unique activityTypeCode belonging to its archetype; legacy snapshots keep it null.",
+    "The four archetype codes and their structure/security semantics are immutable system settings; event templates may be created only inside those four categories.",
+    "The event-template catalogue starts with sixteen system presets at version 2. Template code and archetypeCode are immutable; edit, activate and deactivate create an audited next version.",
+    "Only the current active template version is accepted for schema 1.1 compose, recompose and create. Deactivation never rewrites an existing Event or EventPlanSnapshot.",
+    "Activity-type presets never confirm child, RAM, transport, money, venue or capacity facts, and MONEY.FINANCE is never type-preselected.",
+    "Every initial system-preset activity type version 2 preselects SERVICE.ROSTER and supplies a non-empty, bilingual, editable presetServiceSlots list. Any later template that preselects SERVICE.ROSTER must do the same; accepting a plan creates unassigned slots per occurrence with that occurrence's start/end, while declining SERVICE.ROSTER creates none.",
+    "Preset service-slot counts are planning defaults only: they never establish safeguarding policy, worker-to-child ratios, eligibility policy or member assignment.",
+    "Missing or candidate facts never satisfy a confirmed false condition.",
+    "Compose and recompose never mutate persisted event state.",
+    "Only explicit human acceptance creates an immutable EventPlanSnapshot.",
+    "An accepted snapshot retains every referenced archetype, module and policy version.",
+    "A module with persisted operational data cannot be removed silently.",
+    "EventWorkflowRun, Step and Artifact remain the single general workflow engine.",
+    "AI cannot confirm facts, assign authority, approve, waive, sponsor, persist or publish.",
+    "Unknown modules, policies, enum values and surface keys fail closed.",
+    "Product wire text remains { en, zh }; document locale zh-Hant does not change the key.",
+    "Only an approved sanitised public projection may enter shared cache."
+  ],
+  "architectureDecisions": [
+    {
+      "code": "ADR-01",
+      "decision": "Official sponsorship requires root-church leader/co-leader or admin.events.sponsor approval."
+    },
+    {
+      "code": "ADR-02",
+      "decision": "Each Event has one owning group and accountable owner; other teams are contributors."
+    },
+    {
+      "code": "ADR-03",
+      "decision": "Child Events are one level deep and require an independent lifecycle boundary."
+    },
+    {
+      "code": "ADR-04",
+      "decision": "The system owns module codes, integration executors and surface keys."
+    },
+    {
+      "code": "ADR-05",
+      "decision": "Churches may name safe bilingual templates but cannot assemble arbitrary permissions."
+    },
+    {
+      "code": "ADR-06",
+      "decision": "Policies are non-waivable unless a versioned policy explicitly allows an audited exception."
+    },
+    {
+      "code": "ADR-07",
+      "decision": "Recurring series maintain a rolling 12-week occurrence window in an IANA time zone."
+    },
+    {
+      "code": "ADR-08",
+      "decision": "Four archetypes are immutable system categories; authorised administrators manage immutable versions of templates within them."
+    }
+  ],
+  "aggregates": [
+    {
+      "code": "EventActivityTemplateVersion",
+      "cardinality": "1..* immutable versions per globally unique template code; exactly one current version",
+      "owns": [
+        "code",
+        "version",
+        "archetypeCode",
+        "localizedName",
+        "localizedDescription",
+        "iconKey",
+        "formDefaults",
+        "preselectedModules",
+        "recommendedWorkflowTemplateCode",
+        "presetServiceSlots",
+        "isActive",
+        "isSystemPreset",
+        "createdBy",
+        "concurrencyToken"
+      ],
+      "implementedAs": "current event_activity_template_versions table seeded with 16 system presets; code and archetypeCode are immutable after creation"
+    },
+    {
+      "code": "EventSeries",
+      "cardinality": "0..1 per Event; 1..* Events per Series",
+      "owns": [
+        "recurrenceRule",
+        "timeZone",
+        "exceptionDates",
+        "defaultFacts",
+        "defaultTeam"
+      ],
+      "implementedAs": "current event_composition_series table"
+    },
+    {
+      "code": "Event",
+      "cardinality": "root",
+      "owns": [
+        "owningGroupId",
+        "accountableOwnerMemberId",
+        "visibility",
+        "governanceMode",
+        "sponsorshipStatus",
+        "activePlanVersion"
+      ],
+      "implementedAs": "GroupEvent during compatibility phases"
+    },
+    {
+      "code": "EventOccurrence",
+      "cardinality": "1..* per Event",
+      "owns": [
+        "startUtc",
+        "endUtc",
+        "localDate",
+        "status",
+        "attendance",
+        "exceptions",
+        "incidents",
+        "programmeConcurrencyToken",
+        "rosterConcurrencyToken"
+      ],
+      "implementedAs": "current event_composition_occurrences table; one row per legacy GroupEvent backfill"
+    },
+    {
+      "code": "Session",
+      "cardinality": "0..* per Occurrence",
+      "owns": [
+        "title",
+        "startUtc",
+        "endUtc",
+        "place",
+        "leadMemberId",
+        "localRequirements",
+        "status"
+      ],
+      "implementedAs": "current event_sessions table"
+    },
+    {
+      "code": "ProgramItem",
+      "cardinality": "0..* per Session",
+      "owns": [
+        "sortOrder",
+        "startOffsetMinutes",
+        "durationMinutes",
+        "localizedTitle",
+        "localizedDescription",
+        "ownerMemberId"
+      ],
+      "implementedAs": "current compatible event_program_items table"
+    },
+    {
+      "code": "Zone",
+      "cardinality": "0..* per Occurrence",
+      "owns": [
+        "title",
+        "capacity",
+        "leadMemberId",
+        "operatingState"
+      ],
+      "implementedAs": "current event_zones table foundation"
+    },
+    {
+      "code": "ServiceSlot",
+      "cardinality": "0..* per Occurrence, Session, ProgramItem or Zone",
+      "owns": [
+        "roleCode",
+        "startUtc",
+        "endUtc",
+        "requiredCount",
+        "eligibilityCode"
+      ],
+      "implementedAs": "current compatible event_service_slots table"
+    },
+    {
+      "code": "Venue",
+      "cardinality": "0..* reusable resources per managing Group",
+      "owns": [
+        "localizedName",
+        "localizedAddress",
+        "capacity",
+        "active",
+        "concurrencyToken"
+      ],
+      "implementedAs": "current event_resource_venues table; never embedded as authoritative Session text"
+    },
+    {
+      "code": "VenueReservation",
+      "cardinality": "0..* per Event; optional one EventOccurrence scope",
+      "owns": [
+        "venueId",
+        "eventId",
+        "eventOccurrenceId",
+        "startUtc",
+        "endUtc",
+        "requiredCapacity",
+        "status",
+        "releaseAudit",
+        "concurrencyToken"
+      ],
+      "implementedAs": "current event_resource_venue_reservations table; release retains history"
+    },
+    {
+      "code": "TravelDriver",
+      "cardinality": "0..* event-scoped evidence records per Event",
+      "owns": [
+        "memberId",
+        "licenceClass",
+        "licenceExpiry",
+        "licenceConfirmed",
+        "fitToDriveConfirmed",
+        "verificationAudit",
+        "concurrencyToken"
+      ],
+      "implementedAs": "current event_travel_drivers roleRestricted table; raw licence documents are not stored"
+    },
+    {
+      "code": "TravelVehicle",
+      "cardinality": "0..* event-scoped evidence records per Event",
+      "owns": [
+        "localizedName",
+        "registrationReference",
+        "seatCapacity",
+        "registrationEvidence",
+        "wofEvidence",
+        "verificationAudit",
+        "concurrencyToken"
+      ],
+      "implementedAs": "current event_travel_vehicles roleRestricted table"
+    },
+    {
+      "code": "TravelJourney",
+      "cardinality": "0..* per EventOccurrence",
+      "owns": [
+        "eventId",
+        "eventOccurrenceId",
+        "localizedName",
+        "startUtc",
+        "endUtc",
+        "driverId",
+        "vehicleId",
+        "manifestConfirmed",
+        "status",
+        "concurrencyToken"
+      ],
+      "implementedAs": "current event_travel_journeys table; belongs to exactly one Event and EventOccurrence"
+    },
+    {
+      "code": "TravelPickupStop",
+      "cardinality": "0..* ordered stops per TravelJourney",
+      "owns": [
+        "sortOrder",
+        "localizedName",
+        "localizedAddress",
+        "pickupUtc"
+      ],
+      "implementedAs": "current event_travel_pickup_stops table"
+    },
+    {
+      "code": "TravelPassengerAssignment",
+      "cardinality": "0..* roleRestricted rows per TravelJourney",
+      "owns": [
+        "memberId",
+        "pickupStopId",
+        "assignedByMemberId",
+        "assignedUtc",
+        "endedByMemberId",
+        "endedUtc"
+      ],
+      "implementedAs": "current event_travel_passenger_assignments table; ended rows retain audit history and never enter public projections"
+    },
+    {
+      "code": "SafeguardingPolicyVersion",
+      "cardinality": "0..* immutable published versions per Group or church root",
+      "owns": [
+        "policyCode",
+        "version",
+        "localizedName",
+        "requirementsJson",
+        "effectiveFromUtc",
+        "retiredUtc"
+      ],
+      "implementedAs": "current event_safeguarding_policy_versions table; no policy values are seeded or inferred by this slice"
+    },
+    {
+      "code": "EventSafeguardingConfiguration",
+      "cardinality": "0..1 per Event",
+      "owns": [
+        "policyVersionId",
+        "configuredByMemberId",
+        "configuredUtc",
+        "concurrencyToken"
+      ],
+      "implementedAs": "current event_safeguarding_configurations table; unknown requirements fail closed"
+    },
+    {
+      "code": "EventChildRegistration",
+      "cardinality": "0..* per Event; exactly one existing EventEnrollment reference",
+      "owns": [
+        "enrollmentId",
+        "childMemberId",
+        "optionalPhotoUrl",
+        "active",
+        "concurrencyToken"
+      ],
+      "implementedAs": "current event_safeguarding_child_registrations roleRestricted table; child status is explicit, never age-inferred"
+    },
+    {
+      "code": "EventChildGuardianRelationship",
+      "cardinality": "0..* per EventChildRegistration",
+      "owns": [
+        "guardianMemberId",
+        "relationshipLabel",
+        "status",
+        "guardianConfirmation",
+        "concurrencyToken"
+      ],
+      "implementedAs": "current event_safeguarding_guardian_relationships table; the named guardian confirms their own relationship"
+    },
+    {
+      "code": "EventChildConsentRecord",
+      "cardinality": "0..* append-only decisions per GuardianRelationship and PolicyVersion",
+      "owns": [
+        "policyVersionId",
+        "decision",
+        "recordedByMemberId",
+        "recordedUtc"
+      ],
+      "implementedAs": "current event_safeguarding_child_consents table; a new policy version requires a new current consent"
+    },
+    {
+      "code": "EventChildAuthorisedCollector",
+      "cardinality": "0..* per EventChildRegistration",
+      "owns": [
+        "displayName",
+        "relationshipLabel",
+        "authorisingGuardianRelationshipId",
+        "active",
+        "revocationAudit",
+        "concurrencyToken"
+      ],
+      "implementedAs": "current event_safeguarding_authorised_collectors table; no contact or health data is copied"
+    },
+    {
+      "code": "EventChildAttendance",
+      "cardinality": "0..1 per EventOccurrence and EventChildRegistration",
+      "owns": [
+        "state",
+        "checkInActorAndUtc",
+        "checkOutActorAndUtc",
+        "collectorId",
+        "concurrencyToken"
+      ],
+      "implementedAs": "current event_safeguarding_child_attendance table; checked-out records are not silently reopened"
+    },
+    {
+      "code": "EventSafeguardingWorkerEligibility",
+      "cardinality": "0..* event-scoped evidence references per PolicyVersion, Member and Role",
+      "owns": [
+        "roleRequirementKey",
+        "eligibilityEvidenceCode",
+        "evidenceReference",
+        "isEligible",
+        "verificationAudit",
+        "concurrencyToken"
+      ],
+      "implementedAs": "current event_safeguarding_worker_eligibility table; it references minimum evidence and does not store certification documents"
+    },
+    {
+      "code": "EventFactSet",
+      "cardinality": "1..* immutable versions per Event",
+      "owns": [
+        "facts",
+        "sources",
+        "certainty",
+        "confirmations"
+      ],
+      "implementedAs": "current versioned table with typed JSON validation"
+    },
+    {
+      "code": "EventPlanSnapshot",
+      "cardinality": "1..* immutable versions per Event; one active",
+      "owns": [
+        "archetypeCodeAndVersion",
+        "activityTypeCodeAndVersion",
+        "modules",
+        "policies",
+        "roles",
+        "workflowRecommendationAndResolvedVersion",
+        "readiness",
+        "navigation",
+        "humanDecisions"
+      ],
+      "implementedAs": "current immutable snapshot JSON plus queryable nullable activity-type metadata"
+    },
+    {
+      "code": "ModuleInstance",
+      "cardinality": "0..* per Plan",
+      "owns": [
+        "moduleCode",
+        "definitionVersion",
+        "decisionStatus",
+        "activationReasons"
+      ],
+      "implementedAs": "current plan-owned immutable records"
+    },
+    {
+      "code": "PolicyEvaluation",
+      "cardinality": "0..* per Plan",
+      "owns": [
+        "policyCode",
+        "policyVersion",
+        "result",
+        "evidence",
+        "exceptionState"
+      ],
+      "implementedAs": "target table or plan-owned records"
+    },
+    {
+      "code": "RoleRequirement",
+      "cardinality": "1..* per Plan",
+      "owns": [
+        "scope",
+        "roleCode",
+        "minimum",
+        "recommended",
+        "maximum",
+        "eligibility",
+        "separation"
+      ],
+      "implementedAs": "current plan-owned immutable records"
+    },
+    {
+      "code": "EventTeamMember",
+      "cardinality": "0..* per Event",
+      "owns": [
+        "memberId",
+        "invitedByMemberId",
+        "status",
+        "joinedUtc",
+        "declinedUtc",
+        "endedUtc"
+      ],
+      "implementedAs": "current event_operations_team_members table"
+    },
+    {
+      "code": "EventTask",
+      "cardinality": "0..* per Event",
+      "owns": [
+        "workflowStepId",
+        "localizedTitle",
+        "localizedDescription",
+        "assignedMemberId",
+        "status",
+        "dueUtc",
+        "required",
+        "approval",
+        "restricted",
+        "concurrencyToken"
+      ],
+      "implementedAs": "current event_operations_tasks table; optional link to the single EventWorkflowStep engine"
+    },
+    {
+      "code": "EventTaskDependency",
+      "cardinality": "0..* per EventTask",
+      "owns": [
+        "dependsOnEventTaskId",
+        "dependencyType"
+      ],
+      "implementedAs": "current table with cycle rejection"
+    },
+    {
+      "code": "EventTaskBlocker",
+      "cardinality": "0..* per EventTask",
+      "owns": [
+        "reason",
+        "createdByMemberId",
+        "createdUtc",
+        "resolution",
+        "resolvedByMemberId",
+        "resolvedUtc"
+      ],
+      "implementedAs": "current table"
+    },
+    {
+      "code": "EventRosterAvailability",
+      "cardinality": "0..1 per ServiceSlot and Member",
+      "owns": [
+        "memberId",
+        "status",
+        "updatedUtc"
+      ],
+      "implementedAs": "current user-specific table"
+    },
+    {
+      "code": "EventRosterAssignment",
+      "cardinality": "0..* per ServiceSlot",
+      "owns": [
+        "memberId",
+        "assignedByMemberId",
+        "status",
+        "replacesAssignmentId",
+        "confirmedUtc",
+        "declinedUtc",
+        "endedUtc"
+      ],
+      "implementedAs": "current table with substitution history"
+    },
+    {
+      "code": "EventRoleAssignment",
+      "cardinality": "0..* per Event",
+      "owns": [
+        "roleRequirementId",
+        "memberId",
+        "scope",
+        "status",
+        "acceptedUtc",
+        "declinedUtc",
+        "endedUtc"
+      ],
+      "implementedAs": "current compatible table; assignment begins invited and only the invitee can accept or decline"
+    },
+    {
+      "code": "ApprovalDecision",
+      "cardinality": "0..* per Event or artifact",
+      "owns": [
+        "subjectType",
+        "subjectVersion",
+        "decision",
+        "actorMemberId",
+        "reason",
+        "decidedUtc"
+      ],
+      "implementedAs": "current append-only table"
+    },
+    {
+      "code": "Readiness",
+      "cardinality": "derived per Plan and Occurrence",
+      "owns": [
+        "status",
+        "blockers",
+        "warnings",
+        "checkedUtc"
+      ],
+      "implementedAs": "server projection; snapshot stores accepted inputs and rules"
+    }
+  ],
+  "composition": {
+    "precedence": [
+      "confirmedFacts",
+      "mandatoryPoliciesAndProhibitions",
+      "stillValidHumanSelections",
+      "activityTypePresets",
+      "archetypeStructureDefaults",
+      "explainableRecommendations",
+      "dependencyClosureAndConflictResolution"
+    ],
+    "unknownFactRule": "unknown and candidate facts do not equal false and cannot deactivate a safety, privacy, sponsorship or authority requirement",
+    "proposalRule": "composition returns an immutable proposal value with proposalHash and no side effects",
+    "acceptanceRule": "server recomputes, compares proposalHash and If-Match, applies idempotency, then creates a new immutable snapshot",
+    "retirementRule": "a module with data, money, files, roles, submissions or approvals enters a blocking retirement workflow"
+  },
+  "modules": [
+    {
+      "code": "TEAM.WORK",
+      "version": 1,
+      "name": {
+        "en": "Team and work",
+        "zh": "團隊與任務"
+      },
+      "activationRules": [
+        {
+          "fact": "event.exists",
+          "operator": "eq",
+          "value": true,
+          "decision": "required",
+          "reasonCode": "accountable-owner-required"
+        }
+      ],
+      "dependencies": [],
+      "conflicts": [],
+      "roleRequirements": [
+        {
+          "code": "event.accountableOwner",
+          "minimum": 1,
+          "recommended": 1,
+          "maximum": 1,
+          "eligibility": [
+            "owningGroupLeaderOrDelegate"
+          ],
+          "separationFrom": []
+        }
+      ],
+      "workflowContributions": [
+        "event.prepare",
+        "event.deliver",
+        "event.close"
+      ],
+      "dataClasses": [
+        "eventTeam"
+      ],
+      "readinessRules": [
+        "accountable-owner-assigned"
+      ],
+      "integrationKey": "workflow",
+      "surfaceKey": "team.work",
+      "navigationOrder": 20
+    },
+    {
+      "code": "PEOPLE.REGISTRATION",
+      "version": 1,
+      "name": {
+        "en": "Invitation and registration",
+        "zh": "邀請與報名"
+      },
+      "activationRules": [
+        {
+          "fact": "people.registrationMode",
+          "operator": "neq",
+          "value": "none",
+          "decision": "required",
+          "reasonCode": "registration-enabled"
+        },
+        {
+          "fact": "visibility",
+          "operator": "eq",
+          "value": "public",
+          "decision": "recommended",
+          "reasonCode": "public-discovery"
+        }
+      ],
+      "dependencies": [
+        "TEAM.WORK"
+      ],
+      "conflicts": [],
+      "roleRequirements": [
+        {
+          "code": "registration.manager",
+          "minimum": 1,
+          "recommended": 1,
+          "maximum": null,
+          "eligibility": [
+            "eventTeamMember"
+          ],
+          "separationFrom": []
+        }
+      ],
+      "workflowContributions": [
+        "registration.configure",
+        "registration.open",
+        "registration.close",
+        "attendance.reconcile"
+      ],
+      "dataClasses": [
+        "churchOrGroupVisible",
+        "roleRestricted",
+        "userSpecific"
+      ],
+      "readinessRules": [
+        "registration-window-valid",
+        "capacity-defined",
+        "privacy-notice-confirmed"
+      ],
+      "integrationKey": "registration",
+      "surfaceKey": "people.registration",
+      "navigationOrder": 30
+    },
+    {
+      "code": "SERVICE.ROSTER",
+      "version": 1,
+      "name": {
+        "en": "Service and rosters",
+        "zh": "崗位與輪班"
+      },
+      "activationRules": [
+        {
+          "fact": "people.volunteersRequired",
+          "operator": "eq",
+          "value": true,
+          "decision": "required",
+          "reasonCode": "service-slots-required"
+        }
+      ],
+      "dependencies": [
+        "TEAM.WORK"
+      ],
+      "conflicts": [],
+      "roleRequirements": [
+        {
+          "code": "roster.coordinator",
+          "minimum": 1,
+          "recommended": 1,
+          "maximum": null,
+          "eligibility": [
+            "eventTeamMember"
+          ],
+          "separationFrom": []
+        }
+      ],
+      "workflowContributions": [
+        "roster.define-demand",
+        "roster.collect-availability",
+        "roster.confirm",
+        "roster.handle-substitutes"
+      ],
+      "dataClasses": [
+        "eventTeam",
+        "userSpecific"
+      ],
+      "readinessRules": [
+        "required-slots-filled",
+        "assignees-eligible",
+        "assignees-confirmed"
+      ],
+      "integrationKey": "roster",
+      "surfaceKey": "service.roster",
+      "navigationOrder": 40
+    },
+    {
+      "code": "MONEY.FINANCE",
+      "version": 1,
+      "name": {
+        "en": "Finance",
+        "zh": "財務"
+      },
+      "activationRules": [
+        {
+          "fact": "money.hasMoneyFlow",
+          "operator": "eq",
+          "value": true,
+          "decision": "required",
+          "reasonCode": "money-flow-present"
+        }
+      ],
+      "dependencies": [
+        "TEAM.WORK"
+      ],
+      "conflicts": [],
+      "roleRequirements": [
+        {
+          "code": "finance.owner",
+          "minimum": 1,
+          "recommended": 1,
+          "maximum": null,
+          "eligibility": [
+            "financeApproved"
+          ],
+          "separationFrom": [
+            "finance.approver"
+          ]
+        },
+        {
+          "code": "finance.approver",
+          "minimum": 1,
+          "recommended": 1,
+          "maximum": null,
+          "eligibility": [
+            "financeApprover"
+          ],
+          "separationFrom": [
+            "finance.owner"
+          ]
+        }
+      ],
+      "workflowContributions": [
+        "finance.budget",
+        "finance.collect",
+        "finance.purchase",
+        "finance.reconcile",
+        "finance.close"
+      ],
+      "dataClasses": [
+        "roleRestricted",
+        "approvalEvidence",
+        "userSpecific"
+      ],
+      "readinessRules": [
+        "currency-defined",
+        "budget-approved",
+        "payment-and-refund-terms-published"
+      ],
+      "integrationKey": "finance",
+      "surfaceKey": "money.finance",
+      "navigationOrder": 50
+    },
+    {
+      "code": "SAFETY.RAM",
+      "version": 1,
+      "name": {
+        "en": "RAM and safety",
+        "zh": "RAM 與安全"
+      },
+      "activationRules": [
+        {
+          "fact": "safety.requiresRam",
+          "operator": "eq",
+          "value": true,
+          "decision": "required",
+          "reasonCode": "ram-policy-triggered"
+        }
+      ],
+      "dependencies": [
+        "TEAM.WORK"
+      ],
+      "conflicts": [],
+      "roleRequirements": [
+        {
+          "code": "ram.author",
+          "minimum": 1,
+          "recommended": 1,
+          "maximum": null,
+          "eligibility": [
+            "eventTeamMember"
+          ],
+          "separationFrom": [
+            "ram.approver"
+          ]
+        },
+        {
+          "code": "ram.approver",
+          "minimum": 1,
+          "recommended": 1,
+          "maximum": null,
+          "eligibility": [
+            "admin.events.audit"
+          ],
+          "separationFrom": [
+            "ram.author"
+          ]
+        }
+      ],
+      "workflowContributions": [
+        "ram.draft",
+        "ram.submit",
+        "ram.approve",
+        "incident.record"
+      ],
+      "dataClasses": [
+        "roleRestricted",
+        "approvalEvidence"
+      ],
+      "readinessRules": [
+        "ram-complete",
+        "ram-submitted",
+        "ram-approved"
+      ],
+      "integrationKey": "ram",
+      "surfaceKey": "safety.ram",
+      "navigationOrder": 60
+    },
+    {
+      "code": "SAFEGUARDING.CHILD",
+      "version": 1,
+      "name": {
+        "en": "Child safeguarding",
+        "zh": "兒童保護"
+      },
+      "activationRules": [
+        {
+          "fact": "people.childrenPresent",
+          "operator": "eq",
+          "value": true,
+          "decision": "required",
+          "reasonCode": "children-present"
+        }
+      ],
+      "dependencies": [
+        "TEAM.WORK",
+        "PEOPLE.REGISTRATION"
+      ],
+      "conflicts": [],
+      "roleRequirements": [
+        {
+          "code": "safeguarding.lead",
+          "minimum": 1,
+          "recommended": 1,
+          "maximum": null,
+          "eligibility": [
+            "childMinistryApproved"
+          ],
+          "separationFrom": []
+        },
+        {
+          "code": "check-in.worker",
+          "minimum": 0,
+          "recommended": 0,
+          "maximum": null,
+          "eligibility": [
+            "policyDefinedSafeguardingWorkerEligibility"
+          ],
+          "separationFrom": []
+        }
+      ],
+      "workflowContributions": [
+        "safeguarding.guardian-consent",
+        "safeguarding.worker-check",
+        "safeguarding.check-in-out",
+        "safeguarding.escalate"
+      ],
+      "dataClasses": [
+        "roleRestricted",
+        "approvalEvidence"
+      ],
+      "readinessRules": [
+        "current-policy-loaded",
+        "guardianship-complete",
+        "eligible-workers-and-policy-ratios-satisfied"
+      ],
+      "integrationKey": "safeguarding",
+      "surfaceKey": "safeguarding.child",
+      "navigationOrder": 70
+    },
+    {
+      "code": "PROGRAM.PRODUCTION",
+      "version": 1,
+      "name": {
+        "en": "Programme and production",
+        "zh": "節目與製作"
+      },
+      "activationRules": [
+        {
+          "fact": "programme.productionRequired",
+          "operator": "eq",
+          "value": true,
+          "decision": "required",
+          "reasonCode": "managed-programme"
+        }
+      ],
+      "dependencies": [
+        "TEAM.WORK"
+      ],
+      "conflicts": [],
+      "roleRequirements": [
+        {
+          "code": "programme.lead",
+          "minimum": 1,
+          "recommended": 1,
+          "maximum": null,
+          "eligibility": [
+            "eventTeamMember"
+          ],
+          "separationFrom": []
+        }
+      ],
+      "workflowContributions": [
+        "programme.build",
+        "programme.confirm-content",
+        "programme.rehearse",
+        "programme.deliver"
+      ],
+      "dataClasses": [
+        "eventTeam",
+        "approvalEvidence"
+      ],
+      "readinessRules": [
+        "programme-owner-assigned",
+        "required-items-confirmed",
+        "production-check-complete"
+      ],
+      "integrationKey": "programme",
+      "surfaceKey": "program.production",
+      "navigationOrder": 80
+    },
+    {
+      "code": "PLACE.RESOURCE",
+      "version": 1,
+      "name": {
+        "en": "Venue and resources",
+        "zh": "場地與資源"
+      },
+      "activationRules": [
+        {
+          "fact": "place.resourcesRequired",
+          "operator": "eq",
+          "value": true,
+          "decision": "required",
+          "reasonCode": "managed-place-or-resource"
+        }
+      ],
+      "dependencies": [
+        "TEAM.WORK"
+      ],
+      "conflicts": [],
+      "roleRequirements": [
+        {
+          "code": "resource.coordinator",
+          "minimum": 1,
+          "recommended": 1,
+          "maximum": null,
+          "eligibility": [
+            "eventTeamMember"
+          ],
+          "separationFrom": []
+        }
+      ],
+      "workflowContributions": [
+        "resource.reserve",
+        "resource.prepare",
+        "resource.handover",
+        "resource.close"
+      ],
+      "dataClasses": [
+        "eventTeam",
+        "approvalEvidence"
+      ],
+      "readinessRules": [
+        "capacity-sufficient",
+        "bookings-confirmed",
+        "conflicts-resolved"
+      ],
+      "integrationKey": "resource",
+      "surfaceKey": "place.resource",
+      "navigationOrder": 90
+    },
+    {
+      "code": "MOVE.STAY",
+      "version": 1,
+      "name": {
+        "en": "Transport and accommodation",
+        "zh": "交通與住宿"
+      },
+      "activationRules": [
+        {
+          "fact": "move.transportRequired",
+          "operator": "eq",
+          "value": true,
+          "decision": "required",
+          "reasonCode": "transport-required"
+        },
+        {
+          "fact": "move.accommodationRequired",
+          "operator": "eq",
+          "value": true,
+          "decision": "required",
+          "reasonCode": "accommodation-required"
+        }
+      ],
+      "dependencies": [
+        "TEAM.WORK"
+      ],
+      "conflicts": [],
+      "roleRequirements": [
+        {
+          "code": "travel.coordinator",
+          "minimum": 1,
+          "recommended": 1,
+          "maximum": null,
+          "eligibility": [
+            "eventTeamMember"
+          ],
+          "separationFrom": []
+        }
+      ],
+      "workflowContributions": [
+        "travel.plan",
+        "travel.verify-drivers",
+        "stay.allocate",
+        "travel.confirm-manifests"
+      ],
+      "dataClasses": [
+        "eventTeam",
+        "roleRestricted",
+        "userSpecific"
+      ],
+      "readinessRules": [
+        "transport-and-stay-facts-confirmed",
+        "drivers-and-vehicles-qualified",
+        "manifests-and-night-roles-complete"
+      ],
+      "integrationKey": "travel",
+      "surfaceKey": "move.stay",
+      "navigationOrder": 100
+    },
+    {
+      "code": "FOOD.HOSPITALITY",
+      "version": 1,
+      "name": {
+        "en": "Food and hospitality",
+        "zh": "餐飲與接待"
+      },
+      "activationRules": [
+        {
+          "fact": "food.serviceRequired",
+          "operator": "eq",
+          "value": true,
+          "decision": "required",
+          "reasonCode": "food-service"
+        }
+      ],
+      "dependencies": [
+        "TEAM.WORK"
+      ],
+      "conflicts": [],
+      "roleRequirements": [
+        {
+          "code": "hospitality.lead",
+          "minimum": 1,
+          "recommended": 1,
+          "maximum": null,
+          "eligibility": [
+            "foodPolicyEligible"
+          ],
+          "separationFrom": []
+        }
+      ],
+      "workflowContributions": [
+        "food.plan",
+        "food.collect-dietary-needs",
+        "food.prepare",
+        "food.clean"
+      ],
+      "dataClasses": [
+        "eventTeam",
+        "roleRestricted"
+      ],
+      "readinessRules": [
+        "food-policy-loaded",
+        "allergy-process-confirmed",
+        "service-and-cleaning-roles-filled"
+      ],
+      "integrationKey": "hospitality",
+      "surfaceKey": "food.hospitality",
+      "navigationOrder": 110
+    },
+    {
+      "code": "FESTIVAL.OPERATIONS",
+      "version": 1,
+      "name": {
+        "en": "Festival operations",
+        "zh": "慶典現場營運"
+      },
+      "activationRules": [
+        {
+          "fact": "scale.multiZone",
+          "operator": "eq",
+          "value": true,
+          "decision": "required",
+          "reasonCode": "multi-zone-live-operation"
+        }
+      ],
+      "dependencies": [
+        "TEAM.WORK",
+        "SAFETY.RAM",
+        "PROGRAM.PRODUCTION",
+        "PLACE.RESOURCE"
+      ],
+      "conflicts": [],
+      "roleRequirements": [
+        {
+          "code": "operations.commander",
+          "minimum": 1,
+          "recommended": 1,
+          "maximum": 1,
+          "eligibility": [
+            "eventCommandApproved"
+          ],
+          "separationFrom": []
+        }
+      ],
+      "workflowContributions": [
+        "festival.zone-plan",
+        "festival.command-plan",
+        "festival.live-status",
+        "festival.incident-escalation"
+      ],
+      "dataClasses": [
+        "eventTeam",
+        "roleRestricted",
+        "approvalEvidence"
+      ],
+      "readinessRules": [
+        "zone-leads-assigned",
+        "command-and-escalation-confirmed",
+        "evacuation-and-first-aid-confirmed"
+      ],
+      "integrationKey": "festival",
+      "surfaceKey": "festival.operations",
+      "navigationOrder": 120
+    },
+    {
+      "code": "COMMS.FOLLOWUP",
+      "version": 1,
+      "name": {
+        "en": "Communication and follow-up",
+        "zh": "溝通與跟進"
+      },
+      "activationRules": [
+        {
+          "fact": "comms.followupRequired",
+          "operator": "eq",
+          "value": true,
+          "decision": "required",
+          "reasonCode": "followup-required"
+        },
+        {
+          "fact": "event.exists",
+          "operator": "eq",
+          "value": true,
+          "decision": "recommended",
+          "reasonCode": "event-communications"
+        }
+      ],
+      "dependencies": [
+        "TEAM.WORK"
+      ],
+      "conflicts": [],
+      "roleRequirements": [
+        {
+          "code": "comms.owner",
+          "minimum": 1,
+          "recommended": 1,
+          "maximum": null,
+          "eligibility": [
+            "eventTeamMember"
+          ],
+          "separationFrom": []
+        }
+      ],
+      "workflowContributions": [
+        "comms.notice",
+        "comms.change-broadcast",
+        "comms.follow-up",
+        "comms.retention-review"
+      ],
+      "dataClasses": [
+        "public",
+        "churchOrGroupVisible",
+        "roleRestricted",
+        "userSpecific"
+      ],
+      "readinessRules": [
+        "audience-and-channels-confirmed",
+        "public-copy-approved-when-applicable",
+        "retention-purpose-defined"
+      ],
+      "integrationKey": "followup",
+      "surfaceKey": "comms.followup",
+      "navigationOrder": 130
+    }
+  ],
+  "archetypes": [
+    {
+      "code": "simple-social",
+      "version": 1,
+      "name": {
+        "en": "Simple social / outing",
+        "zh": "簡單社交／外出"
+      },
+      "structureDefaults": {
+        "series": false,
+        "occurrenceCount": 1,
+        "sessions": false,
+        "zones": false
+      },
+      "moduleDefaults": {
+        "required": [
+          "TEAM.WORK"
+        ],
+        "recommended": [
+          "PEOPLE.REGISTRATION",
+          "COMMS.FOLLOWUP"
+        ],
+        "conditional": [
+          "SAFETY.RAM",
+          "MOVE.STAY",
+          "FOOD.HOSPITALITY",
+          "SAFEGUARDING.CHILD"
+        ]
+      },
+      "workflowTemplateRecommendations": [],
+      "moduleDefaultsAppliesTo": [
+        "1.0.0"
+      ],
+      "activityTypeCodes": [
+        "shared-meal",
+        "fellowship-social",
+        "local-outing",
+        "outdoor-activity"
+      ]
+    },
+    {
+      "code": "camp-retreat",
+      "version": 1,
+      "name": {
+        "en": "Camp / retreat",
+        "zh": "營會／退修會"
+      },
+      "structureDefaults": {
+        "series": false,
+        "occurrenceCount": 1,
+        "sessions": true,
+        "zones": false
+      },
+      "moduleDefaults": {
+        "required": [
+          "TEAM.WORK",
+          "PEOPLE.REGISTRATION",
+          "SAFETY.RAM",
+          "PROGRAM.PRODUCTION",
+          "MOVE.STAY"
+        ],
+        "recommended": [
+          "COMMS.FOLLOWUP",
+          "PLACE.RESOURCE"
+        ],
+        "conditional": [
+          "MONEY.FINANCE",
+          "SAFEGUARDING.CHILD",
+          "FOOD.HOSPITALITY",
+          "SERVICE.ROSTER"
+        ]
+      },
+      "workflowTemplateRecommendations": [
+        "camp"
+      ],
+      "moduleDefaultsAppliesTo": [
+        "1.0.0"
+      ],
+      "activityTypeCodes": [
+        "church-camp",
+        "spiritual-retreat",
+        "children-youth-camp",
+        "training-camp"
+      ]
+    },
+    {
+      "code": "recurring-gathering",
+      "version": 1,
+      "name": {
+        "en": "Recurring gathering",
+        "zh": "定期聚會"
+      },
+      "structureDefaults": {
+        "series": true,
+        "rollingOccurrenceWeeks": 12,
+        "sessions": true,
+        "zones": false
+      },
+      "moduleDefaults": {
+        "required": [
+          "TEAM.WORK",
+          "PROGRAM.PRODUCTION"
+        ],
+        "recommended": [
+          "SERVICE.ROSTER",
+          "COMMS.FOLLOWUP"
+        ],
+        "conditional": [
+          "PEOPLE.REGISTRATION",
+          "SAFEGUARDING.CHILD",
+          "PLACE.RESOURCE",
+          "FOOD.HOSPITALITY",
+          "SAFETY.RAM"
+        ]
+      },
+      "workflowTemplateRecommendations": [],
+      "moduleDefaultsAppliesTo": [
+        "1.0.0"
+      ],
+      "activityTypeCodes": [
+        "small-group-fellowship",
+        "worship-service",
+        "bible-study-course",
+        "prayer-meeting"
+      ]
+    },
+    {
+      "code": "festival-celebration",
+      "version": 1,
+      "name": {
+        "en": "Festival / celebration",
+        "zh": "節日慶典"
+      },
+      "structureDefaults": {
+        "series": false,
+        "occurrenceCount": 1,
+        "sessions": true,
+        "zones": true
+      },
+      "moduleDefaults": {
+        "required": [
+          "TEAM.WORK",
+          "PEOPLE.REGISTRATION",
+          "SAFETY.RAM",
+          "PROGRAM.PRODUCTION",
+          "PLACE.RESOURCE",
+          "FESTIVAL.OPERATIONS"
+        ],
+        "recommended": [
+          "SERVICE.ROSTER",
+          "COMMS.FOLLOWUP"
+        ],
+        "conditional": [
+          "MONEY.FINANCE",
+          "SAFEGUARDING.CHILD",
+          "MOVE.STAY",
+          "FOOD.HOSPITALITY"
+        ]
+      },
+      "workflowTemplateRecommendations": [],
+      "moduleDefaultsAppliesTo": [
+        "1.0.0"
+      ],
+      "activityTypeCodes": [
+        "community-festival",
+        "church-celebration",
+        "public-outreach",
+        "concert-performance"
+      ]
+    }
+  ],
+  "activityTypes": [
+    {
+      "code": "shared-meal",
+      "version": 2,
+      "archetypeCode": "simple-social",
+      "name": {
+        "en": "Shared meal",
+        "zh": "聚餐・BBQ"
+      },
+      "description": {
+        "en": "Shared meal with registration and hospitality follow-up.",
+        "zh": "需要報名、餐飲與後續聯絡的共享聚餐。"
+      },
+      "iconKey": "meal",
+      "defaults": {
+        "visibility": "groupVisible",
+        "registrationMode": "required",
+        "capacityUnit": "People"
+      },
+      "preselectedModules": [
+        "PEOPLE.REGISTRATION",
+        "FOOD.HOSPITALITY",
+        "SERVICE.ROSTER",
+        "COMMS.FOLLOWUP"
+      ],
+      "recommendedWorkflowTemplateCode": null,
+      "presetServiceSlots": [
+        {
+          "roleCode": "event.host",
+          "label": {
+            "en": "Event host",
+            "zh": "活動主持"
+          },
+          "requiredCount": 1,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "hospitality.lead",
+          "label": {
+            "en": "Hospitality lead",
+            "zh": "餐飲負責人"
+          },
+          "requiredCount": 1,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "setup.team",
+          "label": {
+            "en": "Setup team",
+            "zh": "場地佈置團隊"
+          },
+          "requiredCount": 2,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "cleanup.team",
+          "label": {
+            "en": "Cleanup team",
+            "zh": "收拾團隊"
+          },
+          "requiredCount": 2,
+          "eligibilityCode": "approvedGroupMember"
+        }
+      ]
+    },
+    {
+      "code": "fellowship-social",
+      "version": 2,
+      "archetypeCode": "simple-social",
+      "name": {
+        "en": "Fellowship social",
+        "zh": "團契聯誼"
+      },
+      "description": {
+        "en": "Low-complexity social gathering.",
+        "zh": "輕量團契聯誼。"
+      },
+      "iconKey": "people",
+      "defaults": {
+        "visibility": "groupVisible",
+        "registrationMode": "none",
+        "capacityUnit": "People"
+      },
+      "preselectedModules": [
+        "PEOPLE.REGISTRATION",
+        "SERVICE.ROSTER",
+        "COMMS.FOLLOWUP"
+      ],
+      "recommendedWorkflowTemplateCode": null,
+      "presetServiceSlots": [
+        {
+          "roleCode": "event.host",
+          "label": {
+            "en": "Event host",
+            "zh": "活動主持"
+          },
+          "requiredCount": 1,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "welcome.team",
+          "label": {
+            "en": "Welcome team",
+            "zh": "接待團隊"
+          },
+          "requiredCount": 2,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "setup.team",
+          "label": {
+            "en": "Setup team",
+            "zh": "場地佈置團隊"
+          },
+          "requiredCount": 2,
+          "eligibilityCode": "approvedGroupMember"
+        }
+      ]
+    },
+    {
+      "code": "local-outing",
+      "version": 2,
+      "archetypeCode": "simple-social",
+      "name": {
+        "en": "Local outing",
+        "zh": "一日外出"
+      },
+      "description": {
+        "en": "Local day outing with travel and safety planning.",
+        "zh": "包含交通與安全準備的一日外出。"
+      },
+      "iconKey": "map",
+      "defaults": {
+        "visibility": "groupVisible",
+        "registrationMode": "required",
+        "capacityUnit": "People"
+      },
+      "preselectedModules": [
+        "PEOPLE.REGISTRATION",
+        "SAFETY.RAM",
+        "MOVE.STAY",
+        "SERVICE.ROSTER",
+        "COMMS.FOLLOWUP"
+      ],
+      "recommendedWorkflowTemplateCode": null,
+      "presetServiceSlots": [
+        {
+          "roleCode": "outing.lead",
+          "label": {
+            "en": "Outing lead",
+            "zh": "外出領隊"
+          },
+          "requiredCount": 1,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "checkin.team",
+          "label": {
+            "en": "Check-in team",
+            "zh": "報到團隊"
+          },
+          "requiredCount": 2,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "transport.coordinator",
+          "label": {
+            "en": "Transport coordinator",
+            "zh": "交通協調員"
+          },
+          "requiredCount": 1,
+          "eligibilityCode": "approvedGroupMember"
+        }
+      ]
+    },
+    {
+      "code": "outdoor-activity",
+      "version": 2,
+      "archetypeCode": "simple-social",
+      "name": {
+        "en": "Outdoor activity",
+        "zh": "戶外活動"
+      },
+      "description": {
+        "en": "Outdoor activity with explicit travel and RAM review.",
+        "zh": "需要交通與 RAM 檢視的戶外活動。"
+      },
+      "iconKey": "outdoors",
+      "defaults": {
+        "visibility": "groupVisible",
+        "registrationMode": "required",
+        "capacityUnit": "People"
+      },
+      "preselectedModules": [
+        "PEOPLE.REGISTRATION",
+        "SAFETY.RAM",
+        "MOVE.STAY",
+        "SERVICE.ROSTER",
+        "COMMS.FOLLOWUP"
+      ],
+      "recommendedWorkflowTemplateCode": null,
+      "presetServiceSlots": [
+        {
+          "roleCode": "activity.lead",
+          "label": {
+            "en": "Activity lead",
+            "zh": "活動領隊"
+          },
+          "requiredCount": 1,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "checkin.team",
+          "label": {
+            "en": "Check-in team",
+            "zh": "報到團隊"
+          },
+          "requiredCount": 2,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "transport.coordinator",
+          "label": {
+            "en": "Transport coordinator",
+            "zh": "交通協調員"
+          },
+          "requiredCount": 1,
+          "eligibilityCode": "approvedGroupMember"
+        }
+      ]
+    },
+    {
+      "code": "church-camp",
+      "version": 2,
+      "archetypeCode": "camp-retreat",
+      "name": {
+        "en": "Church camp",
+        "zh": "全教會營會"
+      },
+      "description": {
+        "en": "Multi-session whole-church camp.",
+        "zh": "多場次全教會營會。"
+      },
+      "iconKey": "camp",
+      "defaults": {
+        "visibility": "churchVisible",
+        "registrationMode": "required",
+        "capacityUnit": "People"
+      },
+      "preselectedModules": [
+        "PEOPLE.REGISTRATION",
+        "SAFETY.RAM",
+        "PROGRAM.PRODUCTION",
+        "PLACE.RESOURCE",
+        "MOVE.STAY",
+        "FOOD.HOSPITALITY",
+        "SERVICE.ROSTER",
+        "COMMS.FOLLOWUP"
+      ],
+      "recommendedWorkflowTemplateCode": "camp",
+      "presetServiceSlots": [
+        {
+          "roleCode": "camp.director",
+          "label": {
+            "en": "Camp director",
+            "zh": "營會總召"
+          },
+          "requiredCount": 1,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "registration.desk",
+          "label": {
+            "en": "Registration desk",
+            "zh": "報到處"
+          },
+          "requiredCount": 2,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "programme.team",
+          "label": {
+            "en": "Programme team",
+            "zh": "節目團隊"
+          },
+          "requiredCount": 2,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "hospitality.team",
+          "label": {
+            "en": "Hospitality team",
+            "zh": "餐飲團隊"
+          },
+          "requiredCount": 2,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "setup.team",
+          "label": {
+            "en": "Setup team",
+            "zh": "場地佈置團隊"
+          },
+          "requiredCount": 3,
+          "eligibilityCode": "approvedGroupMember"
+        }
+      ]
+    },
+    {
+      "code": "spiritual-retreat",
+      "version": 2,
+      "archetypeCode": "camp-retreat",
+      "name": {
+        "en": "Spiritual retreat",
+        "zh": "靈修退修會"
+      },
+      "description": {
+        "en": "Retreat centred on programme and hospitality.",
+        "zh": "以節目與接待為核心的退修會。"
+      },
+      "iconKey": "retreat",
+      "defaults": {
+        "visibility": "churchVisible",
+        "registrationMode": "required",
+        "capacityUnit": "People"
+      },
+      "preselectedModules": [
+        "PEOPLE.REGISTRATION",
+        "SAFETY.RAM",
+        "PROGRAM.PRODUCTION",
+        "PLACE.RESOURCE",
+        "MOVE.STAY",
+        "FOOD.HOSPITALITY",
+        "SERVICE.ROSTER",
+        "COMMS.FOLLOWUP"
+      ],
+      "recommendedWorkflowTemplateCode": "camp",
+      "presetServiceSlots": [
+        {
+          "roleCode": "retreat.lead",
+          "label": {
+            "en": "Retreat lead",
+            "zh": "退修會帶領"
+          },
+          "requiredCount": 1,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "welcome.team",
+          "label": {
+            "en": "Welcome team",
+            "zh": "接待團隊"
+          },
+          "requiredCount": 2,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "programme.team",
+          "label": {
+            "en": "Programme team",
+            "zh": "節目團隊"
+          },
+          "requiredCount": 2,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "hospitality.team",
+          "label": {
+            "en": "Hospitality team",
+            "zh": "餐飲團隊"
+          },
+          "requiredCount": 2,
+          "eligibilityCode": "approvedGroupMember"
+        }
+      ]
+    },
+    {
+      "code": "children-youth-camp",
+      "version": 2,
+      "archetypeCode": "camp-retreat",
+      "name": {
+        "en": "Children/youth camp",
+        "zh": "兒童・青少年營"
+      },
+      "description": {
+        "en": "Camp preset surfacing safeguarding for policy review.",
+        "zh": "預選兒童保護並要求政策檢視的營會。"
+      },
+      "iconKey": "children",
+      "defaults": {
+        "visibility": "churchVisible",
+        "registrationMode": "required",
+        "capacityUnit": "People"
+      },
+      "preselectedModules": [
+        "PEOPLE.REGISTRATION",
+        "SAFETY.RAM",
+        "SAFEGUARDING.CHILD",
+        "PROGRAM.PRODUCTION",
+        "PLACE.RESOURCE",
+        "MOVE.STAY",
+        "FOOD.HOSPITALITY",
+        "SERVICE.ROSTER",
+        "COMMS.FOLLOWUP"
+      ],
+      "recommendedWorkflowTemplateCode": "camp",
+      "presetServiceSlots": [
+        {
+          "roleCode": "camp.director",
+          "label": {
+            "en": "Camp director",
+            "zh": "營會總召"
+          },
+          "requiredCount": 1,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "registration.desk",
+          "label": {
+            "en": "Registration desk",
+            "zh": "報到處"
+          },
+          "requiredCount": 2,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "programme.team",
+          "label": {
+            "en": "Programme team",
+            "zh": "節目團隊"
+          },
+          "requiredCount": 2,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "hospitality.team",
+          "label": {
+            "en": "Hospitality team",
+            "zh": "餐飲團隊"
+          },
+          "requiredCount": 2,
+          "eligibilityCode": "approvedGroupMember"
+        }
+      ]
+    },
+    {
+      "code": "training-camp",
+      "version": 2,
+      "archetypeCode": "camp-retreat",
+      "name": {
+        "en": "Training camp",
+        "zh": "培訓營"
+      },
+      "description": {
+        "en": "Training camp with roster and travel coordination.",
+        "zh": "需要排班與交通協作的培訓營。"
+      },
+      "iconKey": "training",
+      "defaults": {
+        "visibility": "churchVisible",
+        "registrationMode": "required",
+        "capacityUnit": "People"
+      },
+      "preselectedModules": [
+        "PEOPLE.REGISTRATION",
+        "SAFETY.RAM",
+        "PROGRAM.PRODUCTION",
+        "PLACE.RESOURCE",
+        "MOVE.STAY",
+        "FOOD.HOSPITALITY",
+        "SERVICE.ROSTER",
+        "COMMS.FOLLOWUP"
+      ],
+      "recommendedWorkflowTemplateCode": "camp",
+      "presetServiceSlots": [
+        {
+          "roleCode": "training.lead",
+          "label": {
+            "en": "Training lead",
+            "zh": "培訓負責人"
+          },
+          "requiredCount": 1,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "registration.desk",
+          "label": {
+            "en": "Registration desk",
+            "zh": "報到處"
+          },
+          "requiredCount": 2,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "facilitator.team",
+          "label": {
+            "en": "Facilitator team",
+            "zh": "帶領團隊"
+          },
+          "requiredCount": 2,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "hospitality.team",
+          "label": {
+            "en": "Hospitality team",
+            "zh": "餐飲團隊"
+          },
+          "requiredCount": 2,
+          "eligibilityCode": "approvedGroupMember"
+        }
+      ]
+    },
+    {
+      "code": "small-group-fellowship",
+      "version": 2,
+      "archetypeCode": "recurring-gathering",
+      "name": {
+        "en": "Small-group fellowship",
+        "zh": "小組團契"
+      },
+      "description": {
+        "en": "Weekly group gathering.",
+        "zh": "每週小組聚會。"
+      },
+      "iconKey": "fellowship",
+      "defaults": {
+        "visibility": "groupVisible",
+        "registrationMode": "none",
+        "capacityUnit": "People"
+      },
+      "preselectedModules": [
+        "PROGRAM.PRODUCTION",
+        "PLACE.RESOURCE",
+        "SERVICE.ROSTER",
+        "COMMS.FOLLOWUP"
+      ],
+      "recommendedWorkflowTemplateCode": null,
+      "presetServiceSlots": [
+        {
+          "roleCode": "gathering.host",
+          "label": {
+            "en": "Gathering host",
+            "zh": "聚會接待"
+          },
+          "requiredCount": 1,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "discussion.facilitator",
+          "label": {
+            "en": "Discussion facilitator",
+            "zh": "討論帶領"
+          },
+          "requiredCount": 1,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "hospitality.host",
+          "label": {
+            "en": "Hospitality host",
+            "zh": "茶點接待"
+          },
+          "requiredCount": 1,
+          "eligibilityCode": "approvedGroupMember"
+        }
+      ]
+    },
+    {
+      "code": "worship-service",
+      "version": 2,
+      "archetypeCode": "recurring-gathering",
+      "name": {
+        "en": "Worship service",
+        "zh": "主日聚會"
+      },
+      "description": {
+        "en": "Recurring worship service.",
+        "zh": "定期崇拜聚會。"
+      },
+      "iconKey": "worship",
+      "defaults": {
+        "visibility": "churchVisible",
+        "registrationMode": "none",
+        "capacityUnit": "People"
+      },
+      "preselectedModules": [
+        "PROGRAM.PRODUCTION",
+        "PLACE.RESOURCE",
+        "SERVICE.ROSTER",
+        "COMMS.FOLLOWUP"
+      ],
+      "recommendedWorkflowTemplateCode": null,
+      "presetServiceSlots": [
+        {
+          "roleCode": "service.lead",
+          "label": {
+            "en": "Service lead",
+            "zh": "聚會主領"
+          },
+          "requiredCount": 1,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "welcome.team",
+          "label": {
+            "en": "Welcome team",
+            "zh": "接待團隊"
+          },
+          "requiredCount": 2,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "worship.team",
+          "label": {
+            "en": "Worship team",
+            "zh": "敬拜團隊"
+          },
+          "requiredCount": 3,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "av.operator",
+          "label": {
+            "en": "Audio/visual operator",
+            "zh": "音響影像操作"
+          },
+          "requiredCount": 1,
+          "eligibilityCode": "approvedGroupMember"
+        }
+      ]
+    },
+    {
+      "code": "bible-study-course",
+      "version": 2,
+      "archetypeCode": "recurring-gathering",
+      "name": {
+        "en": "Bible study/course",
+        "zh": "查經課程"
+      },
+      "description": {
+        "en": "Registered recurring course.",
+        "zh": "需要報名的定期課程。"
+      },
+      "iconKey": "study",
+      "defaults": {
+        "visibility": "churchVisible",
+        "registrationMode": "required",
+        "capacityUnit": "People"
+      },
+      "preselectedModules": [
+        "PEOPLE.REGISTRATION",
+        "PROGRAM.PRODUCTION",
+        "PLACE.RESOURCE",
+        "SERVICE.ROSTER",
+        "COMMS.FOLLOWUP"
+      ],
+      "recommendedWorkflowTemplateCode": null,
+      "presetServiceSlots": [
+        {
+          "roleCode": "course.facilitator",
+          "label": {
+            "en": "Course facilitator",
+            "zh": "課程帶領"
+          },
+          "requiredCount": 1,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "registration.desk",
+          "label": {
+            "en": "Registration desk",
+            "zh": "報到處"
+          },
+          "requiredCount": 1,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "hospitality.host",
+          "label": {
+            "en": "Hospitality host",
+            "zh": "茶點接待"
+          },
+          "requiredCount": 1,
+          "eligibilityCode": "approvedGroupMember"
+        }
+      ]
+    },
+    {
+      "code": "prayer-meeting",
+      "version": 2,
+      "archetypeCode": "recurring-gathering",
+      "name": {
+        "en": "Prayer meeting",
+        "zh": "禱告會"
+      },
+      "description": {
+        "en": "Recurring prayer gathering.",
+        "zh": "定期禱告聚會。"
+      },
+      "iconKey": "prayer",
+      "defaults": {
+        "visibility": "groupVisible",
+        "registrationMode": "none",
+        "capacityUnit": "People"
+      },
+      "preselectedModules": [
+        "PROGRAM.PRODUCTION",
+        "PLACE.RESOURCE",
+        "SERVICE.ROSTER",
+        "COMMS.FOLLOWUP"
+      ],
+      "recommendedWorkflowTemplateCode": null,
+      "presetServiceSlots": [
+        {
+          "roleCode": "prayer.lead",
+          "label": {
+            "en": "Prayer lead",
+            "zh": "禱告帶領"
+          },
+          "requiredCount": 1,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "welcome.team",
+          "label": {
+            "en": "Welcome team",
+            "zh": "接待團隊"
+          },
+          "requiredCount": 1,
+          "eligibilityCode": "approvedGroupMember"
+        }
+      ]
+    },
+    {
+      "code": "community-festival",
+      "version": 2,
+      "archetypeCode": "festival-celebration",
+      "name": {
+        "en": "Community festival",
+        "zh": "社區節慶"
+      },
+      "description": {
+        "en": "Public community festival.",
+        "zh": "公開社區節慶。"
+      },
+      "iconKey": "festival",
+      "defaults": {
+        "visibility": "public",
+        "registrationMode": "none",
+        "capacityUnit": "People"
+      },
+      "preselectedModules": [
+        "PEOPLE.REGISTRATION",
+        "SAFETY.RAM",
+        "PROGRAM.PRODUCTION",
+        "PLACE.RESOURCE",
+        "FESTIVAL.OPERATIONS",
+        "SERVICE.ROSTER",
+        "FOOD.HOSPITALITY",
+        "COMMS.FOLLOWUP"
+      ],
+      "recommendedWorkflowTemplateCode": null,
+      "presetServiceSlots": [
+        {
+          "roleCode": "operations.commander",
+          "label": {
+            "en": "Operations commander",
+            "zh": "現場總指揮"
+          },
+          "requiredCount": 1,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "welcome.team",
+          "label": {
+            "en": "Welcome team",
+            "zh": "接待團隊"
+          },
+          "requiredCount": 4,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "stage.team",
+          "label": {
+            "en": "Stage team",
+            "zh": "舞台團隊"
+          },
+          "requiredCount": 2,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "site.team",
+          "label": {
+            "en": "Site team",
+            "zh": "場務團隊"
+          },
+          "requiredCount": 4,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "hospitality.team",
+          "label": {
+            "en": "Hospitality team",
+            "zh": "餐飲團隊"
+          },
+          "requiredCount": 3,
+          "eligibilityCode": "approvedGroupMember"
+        }
+      ]
+    },
+    {
+      "code": "church-celebration",
+      "version": 2,
+      "archetypeCode": "festival-celebration",
+      "name": {
+        "en": "Church celebration",
+        "zh": "教會慶典"
+      },
+      "description": {
+        "en": "Church celebration with live operations.",
+        "zh": "需要現場協作的教會慶典。"
+      },
+      "iconKey": "celebration",
+      "defaults": {
+        "visibility": "churchVisible",
+        "registrationMode": "required",
+        "capacityUnit": "People"
+      },
+      "preselectedModules": [
+        "PEOPLE.REGISTRATION",
+        "SAFETY.RAM",
+        "PROGRAM.PRODUCTION",
+        "PLACE.RESOURCE",
+        "FESTIVAL.OPERATIONS",
+        "SERVICE.ROSTER",
+        "FOOD.HOSPITALITY",
+        "COMMS.FOLLOWUP"
+      ],
+      "recommendedWorkflowTemplateCode": null,
+      "presetServiceSlots": [
+        {
+          "roleCode": "celebration.lead",
+          "label": {
+            "en": "Celebration lead",
+            "zh": "慶典負責人"
+          },
+          "requiredCount": 1,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "welcome.team",
+          "label": {
+            "en": "Welcome team",
+            "zh": "接待團隊"
+          },
+          "requiredCount": 3,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "programme.team",
+          "label": {
+            "en": "Programme team",
+            "zh": "節目團隊"
+          },
+          "requiredCount": 2,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "setup.team",
+          "label": {
+            "en": "Setup team",
+            "zh": "場地佈置團隊"
+          },
+          "requiredCount": 4,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "hospitality.team",
+          "label": {
+            "en": "Hospitality team",
+            "zh": "餐飲團隊"
+          },
+          "requiredCount": 3,
+          "eligibilityCode": "approvedGroupMember"
+        }
+      ]
+    },
+    {
+      "code": "public-outreach",
+      "version": 2,
+      "archetypeCode": "festival-celebration",
+      "name": {
+        "en": "Public outreach",
+        "zh": "公開外展"
+      },
+      "description": {
+        "en": "Public outreach with controlled workflow recommendation.",
+        "zh": "帶有受控工作流建議的公開外展。"
+      },
+      "iconKey": "outreach",
+      "defaults": {
+        "visibility": "public",
+        "registrationMode": "none",
+        "capacityUnit": "People"
+      },
+      "preselectedModules": [
+        "PEOPLE.REGISTRATION",
+        "SAFETY.RAM",
+        "PROGRAM.PRODUCTION",
+        "PLACE.RESOURCE",
+        "FESTIVAL.OPERATIONS",
+        "SERVICE.ROSTER",
+        "COMMS.FOLLOWUP"
+      ],
+      "recommendedWorkflowTemplateCode": "outreach",
+      "presetServiceSlots": [
+        {
+          "roleCode": "outreach.lead",
+          "label": {
+            "en": "Outreach lead",
+            "zh": "外展負責人"
+          },
+          "requiredCount": 1,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "welcome.team",
+          "label": {
+            "en": "Welcome team",
+            "zh": "接待團隊"
+          },
+          "requiredCount": 4,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "programme.team",
+          "label": {
+            "en": "Programme team",
+            "zh": "節目團隊"
+          },
+          "requiredCount": 2,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "site.team",
+          "label": {
+            "en": "Site team",
+            "zh": "場務團隊"
+          },
+          "requiredCount": 4,
+          "eligibilityCode": "approvedGroupMember"
+        }
+      ]
+    },
+    {
+      "code": "concert-performance",
+      "version": 2,
+      "archetypeCode": "festival-celebration",
+      "name": {
+        "en": "Concert/performance",
+        "zh": "音樂會・演出"
+      },
+      "description": {
+        "en": "Public performance with production operations.",
+        "zh": "需要製作與現場營運的公開演出。"
+      },
+      "iconKey": "performance",
+      "defaults": {
+        "visibility": "public",
+        "registrationMode": "required",
+        "capacityUnit": "People"
+      },
+      "preselectedModules": [
+        "PEOPLE.REGISTRATION",
+        "SAFETY.RAM",
+        "PROGRAM.PRODUCTION",
+        "PLACE.RESOURCE",
+        "FESTIVAL.OPERATIONS",
+        "SERVICE.ROSTER",
+        "COMMS.FOLLOWUP"
+      ],
+      "recommendedWorkflowTemplateCode": null,
+      "presetServiceSlots": [
+        {
+          "roleCode": "production.lead",
+          "label": {
+            "en": "Production lead",
+            "zh": "製作負責人"
+          },
+          "requiredCount": 1,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "front.of.house",
+          "label": {
+            "en": "Front of house",
+            "zh": "前台接待"
+          },
+          "requiredCount": 4,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "stage.team",
+          "label": {
+            "en": "Stage team",
+            "zh": "舞台團隊"
+          },
+          "requiredCount": 3,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "av.operator",
+          "label": {
+            "en": "Audio/visual operator",
+            "zh": "音響影像操作"
+          },
+          "requiredCount": 2,
+          "eligibilityCode": "approvedGroupMember"
+        },
+        {
+          "roleCode": "setup.team",
+          "label": {
+            "en": "Setup team",
+            "zh": "場地佈置團隊"
+          },
+          "requiredCount": 4,
+          "eligibilityCode": "approvedGroupMember"
+        }
+      ]
+    }
+  ],
+  "surfaceRegistry": [
+    {
+      "surfaceKey": "workspace.overview",
+      "moduleCode": null,
+      "presentation": "tab",
+      "sectionKey": "overview",
+      "pathSegment": null,
+      "order": 10,
+      "componentContract": "EventWorkspaceOverview"
+    },
+    {
+      "surfaceKey": "team.work",
+      "moduleCode": "TEAM.WORK",
+      "presentation": "tab",
+      "sectionKey": "team",
+      "pathSegment": null,
+      "order": 20,
+      "componentContract": "EventTeamPanel"
+    },
+    {
+      "surfaceKey": "people.registration",
+      "moduleCode": "PEOPLE.REGISTRATION",
+      "presentation": "page",
+      "sectionKey": null,
+      "pathSegment": "registration",
+      "order": 30,
+      "componentContract": "EventRegistrationWorkspace"
+    },
+    {
+      "surfaceKey": "service.roster",
+      "moduleCode": "SERVICE.ROSTER",
+      "presentation": "page",
+      "sectionKey": null,
+      "pathSegment": "roster",
+      "order": 40,
+      "componentContract": "EventRosterWorkspace"
+    },
+    {
+      "surfaceKey": "money.finance",
+      "moduleCode": "MONEY.FINANCE",
+      "presentation": "page",
+      "sectionKey": null,
+      "pathSegment": "finance",
+      "order": 50,
+      "componentContract": "EventFinanceWorkspace"
+    },
+    {
+      "surfaceKey": "safety.ram",
+      "moduleCode": "SAFETY.RAM",
+      "presentation": "page",
+      "sectionKey": null,
+      "pathSegment": "ram",
+      "order": 60,
+      "componentContract": "EventRamWorkspace"
+    },
+    {
+      "surfaceKey": "safeguarding.child",
+      "moduleCode": "SAFEGUARDING.CHILD",
+      "presentation": "page",
+      "sectionKey": null,
+      "pathSegment": "safeguarding",
+      "order": 70,
+      "componentContract": "EventSafeguardingWorkspace"
+    },
+    {
+      "surfaceKey": "program.production",
+      "moduleCode": "PROGRAM.PRODUCTION",
+      "presentation": "tab",
+      "sectionKey": "programme",
+      "pathSegment": null,
+      "order": 80,
+      "componentContract": "EventProgrammePanel"
+    },
+    {
+      "surfaceKey": "place.resource",
+      "moduleCode": "PLACE.RESOURCE",
+      "presentation": "tab",
+      "sectionKey": "resources",
+      "pathSegment": null,
+      "order": 90,
+      "componentContract": "EventVenueWorkspaceSurface"
+    },
+    {
+      "surfaceKey": "move.stay",
+      "moduleCode": "MOVE.STAY",
+      "presentation": "page",
+      "sectionKey": null,
+      "pathSegment": "travel",
+      "order": 100,
+      "componentContract": "EventTravelWorkspace"
+    },
+    {
+      "surfaceKey": "food.hospitality",
+      "moduleCode": "FOOD.HOSPITALITY",
+      "presentation": "tab",
+      "sectionKey": "hospitality",
+      "pathSegment": null,
+      "order": 110,
+      "componentContract": "EventHospitalityPanel"
+    },
+    {
+      "surfaceKey": "festival.operations",
+      "moduleCode": "FESTIVAL.OPERATIONS",
+      "presentation": "page",
+      "sectionKey": null,
+      "pathSegment": "operations",
+      "order": 120,
+      "componentContract": "EventOperationsWorkspace"
+    },
+    {
+      "surfaceKey": "comms.followup",
+      "moduleCode": "COMMS.FOLLOWUP",
+      "presentation": "page",
+      "sectionKey": null,
+      "pathSegment": "follow-up",
+      "order": 130,
+      "componentContract": "EventFollowupWorkspace"
+    }
+  ],
+  "authorizationRules": [
+    {
+      "code": "event-template.manage",
+      "actors": [
+        "admin.events.manageTemplates"
+      ],
+      "scope": "platform event-template catalogue; archetype definitions excluded"
+    },
+    {
+      "code": "event.compose",
+      "actors": [
+        "owningGroup.leader",
+        "owningGroup.coLeader",
+        "platform.admin"
+      ],
+      "scope": "owningGroup"
+    },
+    {
+      "code": "event.plan.accept",
+      "actors": [
+        "event.accountableOwner",
+        "owningGroup.leader",
+        "owningGroup.coLeader",
+        "platform.admin"
+      ],
+      "scope": "event"
+    },
+    {
+      "code": "event.role.assign",
+      "actors": [
+        "event.accountableOwner",
+        "owningGroup.leader",
+        "owningGroup.coLeader",
+        "platform.admin"
+      ],
+      "scope": "event"
+    },
+    {
+      "code": "event.role.respond",
+      "actors": [
+        "invitedMember"
+      ],
+      "scope": "own assignment"
+    },
+    {
+      "code": "event.team.manage",
+      "actors": [
+        "event.accountableOwner",
+        "owningGroup.leader",
+        "owningGroup.coLeader"
+      ],
+      "scope": "event"
+    },
+    {
+      "code": "event.task.progress",
+      "actors": [
+        "assignedMember",
+        "event.team.manage"
+      ],
+      "scope": "own non-control fields or managed event"
+    },
+    {
+      "code": "programme.manage",
+      "actors": [
+        "programme.lead accepted",
+        "event.team.manage"
+      ],
+      "scope": "occurrence"
+    },
+    {
+      "code": "roster.manage",
+      "actors": [
+        "roster.coordinator accepted",
+        "event.team.manage"
+      ],
+      "scope": "occurrence"
+    },
+    {
+      "code": "roster.respond",
+      "actors": [
+        "assignedMember"
+      ],
+      "scope": "own availability and assignment"
+    },
+    {
+      "code": "resource.catalogue.manage",
+      "actors": [
+        "resource.coordinator accepted",
+        "event.accountableOwner",
+        "owningGroup.leader",
+        "owningGroup.coLeader"
+      ],
+      "scope": "managingGroup"
+    },
+    {
+      "code": "resource.reservation.manage",
+      "actors": [
+        "resource.coordinator accepted",
+        "event.accountableOwner",
+        "owningGroup.leader",
+        "owningGroup.coLeader"
+      ],
+      "scope": "event"
+    },
+    {
+      "code": "travel.manage",
+      "actors": [
+        "travel.coordinator accepted",
+        "event.accountableOwner",
+        "owningGroup.leader",
+        "owningGroup.coLeader"
+      ],
+      "scope": "event; includes roleRestricted manifest"
+    },
+    {
+      "code": "travel.viewOwnJourney",
+      "actors": [
+        "approved owning-group member",
+        "enrolled participant",
+        "assigned passenger",
+        "assigned event driver"
+      ],
+      "scope": "own userSpecific journey only; never other passenger identities"
+    },
+    {
+      "code": "safeguarding.manage",
+      "actors": [
+        "safeguarding.lead accepted"
+      ],
+      "scope": "event roleRestricted records; ordinary event managers and event-team are not implicit readers"
+    },
+    {
+      "code": "safeguarding.duty",
+      "actors": [
+        "safeguarding.lead accepted",
+        "eligible check-in.worker accepted"
+      ],
+      "scope": "event or assigned occurrence; check-in worker receives minimum duty projection only"
+    },
+    {
+      "code": "safeguarding.guardianRespond",
+      "actors": [
+        "named guardian member"
+      ],
+      "scope": "own relationship, policy-version consent and collector authority only"
+    },
+    {
+      "code": "safeguarding.viewOwnContext",
+      "actors": [
+        "named guardian member",
+        "registered child participant"
+      ],
+      "scope": "explicitly related userSpecific child context only"
+    },
+    {
+      "code": "event.sponsorship.submit",
+      "actors": [
+        "owningGroup.leader",
+        "owningGroup.coLeader"
+      ],
+      "scope": "event"
+    },
+    {
+      "code": "event.sponsorship.decide",
+      "actors": [
+        "rootChurch.leader",
+        "rootChurch.coLeader",
+        "admin.events.sponsor"
+      ],
+      "scope": "rootChurch"
+    },
+    {
+      "code": "ram.approve",
+      "actors": [
+        "admin.events.audit"
+      ],
+      "scope": "event",
+      "separationFrom": [
+        "ram.author"
+      ]
+    },
+    {
+      "code": "finance.approve",
+      "actors": [
+        "finance.approver"
+      ],
+      "scope": "event",
+      "separationFrom": [
+        "finance.owner"
+      ]
+    }
+  ],
+  "cachePolicies": [
+    {
+      "dataClass": "public",
+      "cacheControl": "public, max-age=<short-ttl>, stale-while-revalidate=<approved-window>",
+      "etag": "publicVersion",
+      "shared": true,
+      "keyDimensions": [
+        "eventId",
+        "publicVersion"
+      ],
+      "invalidateOn": [
+        "publish",
+        "withdraw",
+        "publicFieldChanged",
+        "visibilityChanged",
+        "sponsorshipRevoked"
+      ]
+    },
+    {
+      "dataClass": "churchOrGroupVisible",
+      "cacheControl": "private, no-store",
+      "etag": null,
+      "shared": false,
+      "keyDimensions": [
+        "viewerId"
+      ],
+      "invalidateOn": [
+        "membershipChanged",
+        "eventChanged"
+      ]
+    },
+    {
+      "dataClass": "eventTeam",
+      "cacheControl": "private, no-store",
+      "etag": null,
+      "shared": false,
+      "keyDimensions": [
+        "viewerId",
+        "eventId",
+        "roleVersion"
+      ],
+      "invalidateOn": [
+        "roleChanged",
+        "planChanged"
+      ]
+    },
+    {
+      "dataClass": "roleRestricted",
+      "cacheControl": "private, no-store",
+      "etag": null,
+      "shared": false,
+      "keyDimensions": [
+        "viewerId",
+        "eventId",
+        "purpose"
+      ],
+      "invalidateOn": [
+        "roleChanged",
+        "recordChanged"
+      ]
+    },
+    {
+      "dataClass": "approvalEvidence",
+      "cacheControl": "private, no-store",
+      "etag": null,
+      "shared": false,
+      "keyDimensions": [
+        "viewerId",
+        "subjectVersion"
+      ],
+      "invalidateOn": [
+        "newVersion",
+        "decisionAdded"
+      ]
+    },
+    {
+      "dataClass": "userSpecific",
+      "cacheControl": "private, no-store",
+      "etag": null,
+      "shared": false,
+      "keyDimensions": [
+        "viewerId"
+      ],
+      "invalidateOn": [
+        "userRecordChanged",
+        "roleChanged"
+      ]
+    }
+  ],
+  "apis": [
+    {
+      "method": "GET",
+      "path": "/api/admin/event-templates",
+      "request": "search, archetypeCode, active status, sort and page filters",
+      "response": "four immutable AdminEventArchetypeDto categories plus paged current template versions and controlled options",
+      "auth": "admin.events.manageTemplates",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/event-templates",
+      "request": "CreateAdminEventActivityTemplateRequest with one fixed archetypeCode",
+      "response": "AdminEventActivityTemplateDto version 1",
+      "auth": "admin.events.manageTemplates",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": true,
+      "etag": true,
+      "audit": true
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/event-templates/{code}",
+      "request": "UpdateAdminEventActivityTemplateRequest; code and archetypeCode absent and immutable",
+      "response": "AdminEventActivityTemplateDto next version",
+      "auth": "admin.events.manageTemplates",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": true,
+      "ifMatch": true,
+      "audit": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/event-archetypes",
+      "request": "groupId query optional",
+      "response": "EventArchetypeDto[] including only current active templates grouped under the four immutable archetypes",
+      "auth": "authenticated",
+      "cache": "private, no-store",
+      "mutation": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/groups/{groupId}/event-plans/compose",
+      "request": "EventPlanComposeRequest",
+      "response": "EventPlanProposalDto",
+      "auth": "event.compose",
+      "cache": "private, no-store",
+      "mutation": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/groups/{groupId}/events",
+      "request": "existing CreateGroupEventRequest plus optional composition and SeriesSetup; schema 1.1 forbids arbitrary workflowTemplateCode",
+      "response": "existing GroupEventSummaryDto plus optional plan metadata",
+      "auth": "existing group management",
+      "cache": "no-store",
+      "mutation": true,
+      "idempotency": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{id}/plan",
+      "request": null,
+      "response": "EventPlanSnapshotDto",
+      "auth": "viewer filtered by event and data class",
+      "cache": "private, no-store",
+      "mutation": false,
+      "etag": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/plan/recompose",
+      "request": "EventPlanComposeRequest",
+      "response": "EventPlanProposalDto",
+      "auth": "event.compose",
+      "cache": "private, no-store",
+      "mutation": false,
+      "ifMatch": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/plan/accept",
+      "request": "AcceptEventPlanRequest",
+      "response": "EventPlanSnapshotDto",
+      "auth": "event.plan.accept",
+      "cache": "no-store",
+      "mutation": true,
+      "ifMatch": true,
+      "idempotency": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{id}/workspace",
+      "request": null,
+      "response": "EventWorkspaceDto",
+      "auth": "viewer specific",
+      "cache": "private, no-store",
+      "mutation": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/groups/{groupId}/event-series",
+      "request": null,
+      "response": "EventSeriesSummaryDto[]",
+      "auth": "approved group member or manager projection",
+      "cache": "private, no-store",
+      "mutation": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/groups/{groupId}/event-series",
+      "request": "CreateEventSeriesRequest",
+      "response": "EventSeriesDto",
+      "auth": "event.compose",
+      "cache": "no-store",
+      "mutation": true,
+      "idempotency": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/event-series/{seriesId}",
+      "request": null,
+      "response": "EventSeriesDto",
+      "auth": "series visibility",
+      "cache": "private, no-store",
+      "mutation": false,
+      "etag": true
+    },
+    {
+      "method": "PUT",
+      "path": "/api/event-series/{seriesId}",
+      "request": "UpdateEventSeriesRequest",
+      "response": "EventSeriesDto",
+      "auth": "event.compose",
+      "cache": "no-store",
+      "mutation": true,
+      "ifMatch": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/event-series/{seriesId}/occurrences",
+      "request": "date range query",
+      "response": "EventOccurrenceDto[]",
+      "auth": "series visibility",
+      "cache": "private, no-store",
+      "mutation": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{id}/role-assignments",
+      "request": null,
+      "response": "EventRoleAssignmentDto[]",
+      "auth": "event team filtered",
+      "cache": "private, no-store",
+      "mutation": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/role-assignments",
+      "request": "CreateEventRoleAssignmentRequest",
+      "response": "EventRoleAssignmentDto",
+      "auth": "event.role.assign",
+      "cache": "no-store",
+      "mutation": true,
+      "idempotency": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/events/{id}/role-assignments/{assignmentId}",
+      "request": null,
+      "response": "204",
+      "auth": "event.role.assign",
+      "cache": "no-store",
+      "mutation": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/role-assignments/{assignmentId}/accept",
+      "request": null,
+      "response": "EventRoleAssignmentDto",
+      "auth": "event.role.respond",
+      "cache": "no-store",
+      "mutation": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/role-assignments/{assignmentId}/decline",
+      "request": null,
+      "response": "EventRoleAssignmentDto",
+      "auth": "event.role.respond",
+      "cache": "no-store",
+      "mutation": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{id}/occurrences",
+      "request": null,
+      "response": "EventOccurrenceDto[]",
+      "auth": "approved owning-group member or event team",
+      "cache": "private, no-store",
+      "mutation": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{id}/team",
+      "request": null,
+      "response": "EventTeamWorkspaceDto",
+      "auth": "accepted event team; invitee receives own invitation projection",
+      "cache": "private, no-store",
+      "mutation": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/team/members",
+      "request": "InviteEventTeamMemberRequest",
+      "response": "EventTeamMemberDto",
+      "auth": "event.team.manage",
+      "cache": "no-store",
+      "mutation": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/team/members/{teamMemberId}/accept",
+      "request": null,
+      "response": "EventTeamMemberDto",
+      "auth": "invitee only",
+      "cache": "no-store",
+      "mutation": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/team/members/{teamMemberId}/decline",
+      "request": null,
+      "response": "EventTeamMemberDto",
+      "auth": "invitee only",
+      "cache": "no-store",
+      "mutation": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/events/{id}/team/members/{teamMemberId}",
+      "request": null,
+      "response": "EventTeamMemberDto",
+      "auth": "event.team.manage",
+      "cache": "no-store",
+      "mutation": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/tasks",
+      "request": "CreateEventTaskRequest",
+      "response": "EventTaskDto",
+      "auth": "event.team.manage",
+      "cache": "no-store",
+      "mutation": true
+    },
+    {
+      "method": "PUT",
+      "path": "/api/events/{id}/tasks/{taskId}",
+      "request": "UpdateEventTaskRequest",
+      "response": "EventTaskDto",
+      "auth": "assignee progress or event.team.manage",
+      "cache": "no-store",
+      "mutation": true,
+      "ifMatch": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/events/{id}/tasks/{taskId}",
+      "request": null,
+      "response": "EventTaskDto with cancelled state",
+      "auth": "event.team.manage",
+      "cache": "no-store",
+      "mutation": true,
+      "ifMatch": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/tasks/{taskId}/dependencies",
+      "request": "AddEventTaskDependencyRequest",
+      "response": "EventTaskDto",
+      "auth": "event.team.manage",
+      "cache": "no-store",
+      "mutation": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/events/{id}/tasks/{taskId}/dependencies/{dependencyId}",
+      "request": null,
+      "response": "EventTaskDto",
+      "auth": "event.team.manage",
+      "cache": "no-store",
+      "mutation": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/tasks/{taskId}/blockers",
+      "request": "AddEventTaskBlockerRequest",
+      "response": "EventTaskDto",
+      "auth": "assignee or event.team.manage",
+      "cache": "no-store",
+      "mutation": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/tasks/{taskId}/blockers/{blockerId}/resolve",
+      "request": "ResolveEventTaskBlockerRequest",
+      "response": "EventTaskDto",
+      "auth": "assignee or event.team.manage",
+      "cache": "no-store",
+      "mutation": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{id}/occurrences/{occurrenceId}/programme",
+      "request": null,
+      "response": "EventProgrammeDto",
+      "auth": "accepted event team",
+      "cache": "private, no-store",
+      "mutation": false,
+      "etag": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/occurrences/{occurrenceId}/programme/sessions",
+      "request": "SaveEventSessionRequest",
+      "response": "EventProgrammeDto",
+      "auth": "programme.manage",
+      "cache": "no-store",
+      "mutation": true,
+      "ifMatch": true
+    },
+    {
+      "method": "PUT",
+      "path": "/api/events/{id}/occurrences/{occurrenceId}/programme/sessions/{sessionId}",
+      "request": "SaveEventSessionRequest",
+      "response": "EventProgrammeDto",
+      "auth": "programme.manage",
+      "cache": "no-store",
+      "mutation": true,
+      "ifMatch": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/events/{id}/occurrences/{occurrenceId}/programme/sessions/{sessionId}",
+      "request": null,
+      "response": "EventProgrammeDto",
+      "auth": "programme.manage",
+      "cache": "no-store",
+      "mutation": true,
+      "ifMatch": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/occurrences/{occurrenceId}/programme/sessions/{sessionId}/items",
+      "request": "SaveEventProgramItemRequest",
+      "response": "EventProgrammeDto",
+      "auth": "programme.manage",
+      "cache": "no-store",
+      "mutation": true,
+      "ifMatch": true
+    },
+    {
+      "method": "PUT",
+      "path": "/api/events/{id}/occurrences/{occurrenceId}/programme/items/{itemId}",
+      "request": "SaveEventProgramItemRequest",
+      "response": "EventProgrammeDto",
+      "auth": "programme.manage",
+      "cache": "no-store",
+      "mutation": true,
+      "ifMatch": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/events/{id}/occurrences/{occurrenceId}/programme/items/{itemId}",
+      "request": null,
+      "response": "EventProgrammeDto",
+      "auth": "programme.manage",
+      "cache": "no-store",
+      "mutation": true,
+      "ifMatch": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/occurrences/{occurrenceId}/programme/sessions/{sessionId}/reorder",
+      "request": "ReorderEventProgramItemsRequest",
+      "response": "EventProgrammeDto",
+      "auth": "programme.manage",
+      "cache": "no-store",
+      "mutation": true,
+      "ifMatch": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{id}/occurrences/{occurrenceId}/roster",
+      "request": null,
+      "response": "EventRosterDto with viewer-filtered assignments",
+      "auth": "accepted event team or assigned member",
+      "cache": "private, no-store",
+      "mutation": false,
+      "etag": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/occurrences/{occurrenceId}/roster/slots",
+      "request": "SaveEventServiceSlotRequest",
+      "response": "EventRosterDto",
+      "auth": "roster.manage",
+      "cache": "no-store",
+      "mutation": true,
+      "ifMatch": true
+    },
+    {
+      "method": "PUT",
+      "path": "/api/events/{id}/occurrences/{occurrenceId}/roster/slots/{slotId}",
+      "request": "SaveEventServiceSlotRequest",
+      "response": "EventRosterDto",
+      "auth": "roster.manage",
+      "cache": "no-store",
+      "mutation": true,
+      "ifMatch": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/events/{id}/occurrences/{occurrenceId}/roster/slots/{slotId}",
+      "request": null,
+      "response": "EventRosterDto",
+      "auth": "roster.manage",
+      "cache": "no-store",
+      "mutation": true,
+      "ifMatch": true
+    },
+    {
+      "method": "PUT",
+      "path": "/api/events/{id}/occurrences/{occurrenceId}/roster/slots/{slotId}/availability/me",
+      "request": "SetEventAvailabilityRequest",
+      "response": "EventRosterDto",
+      "auth": "roster.respond",
+      "cache": "no-store",
+      "mutation": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/occurrences/{occurrenceId}/roster/slots/{slotId}/assignments",
+      "request": "AssignEventRosterMemberRequest",
+      "response": "EventRosterDto",
+      "auth": "roster.manage",
+      "cache": "no-store",
+      "mutation": true,
+      "ifMatch": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/occurrences/{occurrenceId}/roster/assignments/{assignmentId}/confirm",
+      "request": null,
+      "response": "EventRosterDto",
+      "auth": "assigned member only",
+      "cache": "no-store",
+      "mutation": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/occurrences/{occurrenceId}/roster/assignments/{assignmentId}/decline",
+      "request": null,
+      "response": "EventRosterDto",
+      "auth": "assigned member only",
+      "cache": "no-store",
+      "mutation": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/groups/{groupId}/venues",
+      "request": null,
+      "response": "EventVenueCatalogueDto",
+      "auth": "approved group member or resource.catalogue.manage",
+      "cache": "private, no-store",
+      "mutation": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/groups/{groupId}/venues",
+      "request": "SaveEventVenueRequest",
+      "response": "EventVenueDto",
+      "auth": "resource.catalogue.manage",
+      "cache": "no-store",
+      "mutation": true,
+      "idempotency": true,
+      "etag": true
+    },
+    {
+      "method": "PUT",
+      "path": "/api/groups/{groupId}/venues/{venueId}",
+      "request": "SaveEventVenueRequest",
+      "response": "EventVenueDto",
+      "auth": "resource.catalogue.manage",
+      "cache": "no-store",
+      "mutation": true,
+      "ifMatch": true,
+      "etag": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{id}/venue-reservations",
+      "request": null,
+      "response": "EventVenueWorkspaceDto",
+      "auth": "resource.reservation.manage",
+      "cache": "private, no-store",
+      "mutation": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/venue-reservations",
+      "request": "ReserveEventVenueRequest",
+      "response": "EventVenueWorkspaceDto",
+      "auth": "resource.reservation.manage",
+      "cache": "no-store",
+      "mutation": true,
+      "ifMatch": "Venue ETag",
+      "idempotency": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/venue-reservations/{reservationId}/release",
+      "request": null,
+      "response": "EventVenueWorkspaceDto",
+      "auth": "resource.reservation.manage",
+      "cache": "no-store",
+      "mutation": true,
+      "ifMatch": "VenueReservation ETag",
+      "idempotency": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{id}/travel",
+      "request": null,
+      "response": "EventTravelWorkspaceDto with roleRestricted manifest",
+      "auth": "travel.manage",
+      "cache": "private, no-store",
+      "mutation": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{id}/travel/me",
+      "request": null,
+      "response": "EventTravelMyJourneysDto without other passenger identities",
+      "auth": "travel.viewOwnJourney",
+      "cache": "private, no-store",
+      "mutation": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/travel/drivers",
+      "request": "SaveEventTravelDriverRequest",
+      "response": "EventTravelWorkspaceDto",
+      "auth": "travel.manage",
+      "cache": "private, no-store",
+      "mutation": true,
+      "idempotency": true
+    },
+    {
+      "method": "PUT",
+      "path": "/api/events/{id}/travel/drivers/{driverId}",
+      "request": "SaveEventTravelDriverRequest",
+      "response": "EventTravelWorkspaceDto",
+      "auth": "travel.manage",
+      "cache": "private, no-store",
+      "mutation": true,
+      "ifMatch": "TravelDriver ETag"
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/travel/vehicles",
+      "request": "SaveEventTravelVehicleRequest",
+      "response": "EventTravelWorkspaceDto",
+      "auth": "travel.manage",
+      "cache": "private, no-store",
+      "mutation": true,
+      "idempotency": true
+    },
+    {
+      "method": "PUT",
+      "path": "/api/events/{id}/travel/vehicles/{vehicleId}",
+      "request": "SaveEventTravelVehicleRequest",
+      "response": "EventTravelWorkspaceDto",
+      "auth": "travel.manage",
+      "cache": "private, no-store",
+      "mutation": true,
+      "ifMatch": "TravelVehicle ETag"
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/travel/journeys",
+      "request": "CreateEventTravelJourneyRequest",
+      "response": "EventTravelWorkspaceDto",
+      "auth": "travel.manage",
+      "cache": "private, no-store",
+      "mutation": true,
+      "idempotency": true
+    },
+    {
+      "method": "PUT",
+      "path": "/api/events/{id}/travel/journeys/{journeyId}",
+      "request": "UpdateEventTravelJourneyRequest",
+      "response": "EventTravelWorkspaceDto",
+      "auth": "travel.manage",
+      "cache": "private, no-store",
+      "mutation": true,
+      "ifMatch": "TravelJourney ETag"
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/travel/journeys/{journeyId}/pickup-stops",
+      "request": "SaveEventTravelPickupStopRequest",
+      "response": "EventTravelWorkspaceDto",
+      "auth": "travel.manage",
+      "cache": "private, no-store",
+      "mutation": true,
+      "ifMatch": "TravelJourney ETag",
+      "idempotency": true
+    },
+    {
+      "method": "PUT",
+      "path": "/api/events/{id}/travel/journeys/{journeyId}/pickup-stops/{stopId}",
+      "request": "SaveEventTravelPickupStopRequest",
+      "response": "EventTravelWorkspaceDto",
+      "auth": "travel.manage",
+      "cache": "private, no-store",
+      "mutation": true,
+      "ifMatch": "TravelJourney ETag"
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/travel/journeys/{journeyId}/passengers",
+      "request": "AssignEventTravelPassengerRequest",
+      "response": "EventTravelWorkspaceDto",
+      "auth": "travel.manage",
+      "cache": "private, no-store",
+      "mutation": true,
+      "ifMatch": "TravelJourney ETag",
+      "idempotency": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/travel/journeys/{journeyId}/passengers/{assignmentId}/remove",
+      "request": null,
+      "response": "EventTravelWorkspaceDto",
+      "auth": "travel.manage",
+      "cache": "private, no-store",
+      "mutation": true,
+      "ifMatch": "TravelJourney ETag",
+      "idempotency": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{id}/safeguarding",
+      "request": "optional occurrenceId query",
+      "response": "EventSafeguardingWorkspaceDto filtered to lead or minimum check-in duty",
+      "auth": "safeguarding.duty",
+      "cache": "private, no-store",
+      "mutation": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{id}/safeguarding/me",
+      "request": null,
+      "response": "EventSafeguardingMyContextDto for explicit guardian or child relationship",
+      "auth": "safeguarding.viewOwnContext",
+      "cache": "private, no-store",
+      "mutation": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/safeguarding/configuration",
+      "request": "ConfigureEventSafeguardingRequest",
+      "response": "EventSafeguardingWorkspaceDto",
+      "auth": "safeguarding.manage",
+      "cache": "private, no-store",
+      "mutation": true,
+      "ifMatch": "SafeguardingConfiguration ETag",
+      "idempotency": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/safeguarding/children",
+      "request": "CreateEventChildRegistrationRequest referencing existing EventEnrollment",
+      "response": "EventSafeguardingWorkspaceDto",
+      "auth": "safeguarding.manage",
+      "cache": "private, no-store",
+      "mutation": true,
+      "idempotency": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/safeguarding/children/{childId}/guardians",
+      "request": "CreateEventChildGuardianRequest",
+      "response": "EventSafeguardingWorkspaceDto",
+      "auth": "safeguarding.manage",
+      "cache": "private, no-store",
+      "mutation": true,
+      "ifMatch": "EventChildRegistration ETag",
+      "idempotency": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/safeguarding/guardian-relationships/{relationshipId}/confirm",
+      "request": null,
+      "response": "EventSafeguardingMyContextDto",
+      "auth": "safeguarding.guardianRespond",
+      "cache": "private, no-store",
+      "mutation": true,
+      "ifMatch": "GuardianRelationship ETag",
+      "idempotency": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/safeguarding/guardian-relationships/{relationshipId}/consent",
+      "request": "RecordEventChildConsentRequest",
+      "response": "EventSafeguardingMyContextDto",
+      "auth": "safeguarding.guardianRespond",
+      "cache": "private, no-store",
+      "mutation": true,
+      "ifMatch": "GuardianRelationship ETag",
+      "idempotency": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/safeguarding/children/{childId}/collectors",
+      "request": "CreateEventChildCollectorRequest",
+      "response": "EventSafeguardingMyContextDto",
+      "auth": "safeguarding.guardianRespond",
+      "cache": "private, no-store",
+      "mutation": true,
+      "idempotency": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/safeguarding/collectors/{collectorId}/revoke",
+      "request": null,
+      "response": "EventSafeguardingMyContextDto",
+      "auth": "safeguarding.guardianRespond",
+      "cache": "private, no-store",
+      "mutation": true,
+      "ifMatch": "AuthorisedCollector ETag",
+      "idempotency": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/safeguarding/workers/evidence",
+      "request": "SaveEventSafeguardingWorkerEvidenceRequest matching selected policy",
+      "response": "EventSafeguardingWorkspaceDto",
+      "auth": "safeguarding.manage",
+      "cache": "private, no-store",
+      "mutation": true,
+      "idempotency": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/safeguarding/occurrences/{occurrenceId}/children/{childId}/check-in",
+      "request": null,
+      "response": "EventSafeguardingWorkspaceDto filtered to viewer duty",
+      "auth": "safeguarding.duty",
+      "cache": "private, no-store",
+      "mutation": true,
+      "ifMatch": "EventChildRegistration ETag",
+      "idempotency": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/safeguarding/occurrences/{occurrenceId}/children/{childId}/check-out",
+      "request": "CheckOutEventChildRequest with active collectorId",
+      "response": "EventSafeguardingWorkspaceDto filtered to viewer duty",
+      "auth": "safeguarding.duty",
+      "cache": "private, no-store",
+      "mutation": true,
+      "ifMatch": "EventChildAttendance ETag",
+      "idempotency": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/sponsorship/submit",
+      "request": "SponsorshipSubmissionRequest",
+      "response": "EventSponsorshipDto",
+      "auth": "event.sponsorship.submit",
+      "cache": "no-store",
+      "mutation": true,
+      "idempotency": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/sponsorship/approve",
+      "request": "SponsorshipDecisionRequest",
+      "response": "EventSponsorshipDto",
+      "auth": "event.sponsorship.decide",
+      "cache": "no-store",
+      "mutation": true,
+      "ifMatch": true,
+      "idempotency": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/sponsorship/reject",
+      "request": "SponsorshipDecisionRequest",
+      "response": "EventSponsorshipDto",
+      "auth": "event.sponsorship.decide",
+      "cache": "no-store",
+      "mutation": true,
+      "ifMatch": true,
+      "idempotency": true
+    }
+  ],
+  "acceptanceScenarios": [
+    {
+      "code": "simple-meal",
+      "expected": [
+        "TEAM.WORK required",
+        "registration and communications may be recommended",
+        "no unconfirmed safety or finance deactivation",
+        "simple workspace remains light"
+      ]
+    },
+    {
+      "code": "remote-hike",
+      "expected": [
+        "SAFETY.RAM required",
+        "MOVE.STAY required when transport confirmed",
+        "missing weather/driver/emergency facts block readiness",
+        "RAM approval remains independent"
+      ]
+    },
+    {
+      "code": "child-camp",
+      "expected": [
+        "registration, RAM, safeguarding and travel/stay required",
+        "finance only when money flow confirmed",
+        "child data roleRestricted",
+        "policy ratios loaded from versioned policy"
+      ]
+    },
+    {
+      "code": "recurring-fellowship",
+      "expected": [
+        "EventSeries created",
+        "12 future weeks materialised",
+        "occurrence exception recomposes only that occurrence",
+        "history and Series defaults preserved"
+      ]
+    },
+    {
+      "code": "public-festival-pending-sponsorship",
+      "expected": [
+        "festival module dependency closure",
+        "no public projection while sponsorship pending",
+        "root-church approval required",
+        "publication waits for every readiness gate"
+      ]
+    },
+    {
+      "code": "cross-viewer-cache-isolation",
+      "expected": [
+        "anonymous receives public allow-list only",
+        "church member receives no eventTeam data",
+        "ordinary team role receives no restricted child/payment data",
+        "workspace responses are never shared"
+      ]
+    },
+    {
+      "code": "venue-reservation-conflict",
+      "expected": [
+        "accepted resource coordinator can reserve an active group Venue",
+        "capacity above Venue capacity is rejected",
+        "actual overlap returns venue and UTC interval",
+        "touching boundaries do not conflict",
+        "stale Venue ETag cannot overwrite a concurrent reservation",
+        "release preserves audit history",
+        "Session place JSON remains unchanged",
+        "all management responses are private no-store"
+      ]
+    },
+    {
+      "code": "transport-manifest-readiness",
+      "expected": [
+        "EventOccurrence owns each pickup Journey time boundary",
+        "accepted travel coordinator or event manager can manage the full manifest",
+        "ordinary event team does not gain full manifest access",
+        "participant projection contains only the viewer's journey",
+        "driver and vehicle evidence are event scoped",
+        "capacity prevents excess passenger assignment",
+        "stale Journey ETag cannot win a concurrent assignment",
+        "missing operational or RAM transport evidence explains readiness blockers",
+        "RAM approval is neither duplicated nor modified",
+        "all travel responses are private no-store",
+        "accommodation remains deferred"
+      ]
+    },
+    {
+      "code": "child-consent-checkin",
+      "expected": [
+        "child status and guardian relationship are explicit and never inferred from age, surname, enrollment JSON or contact data",
+        "guardian confirms their own relationship and records policy-version consent",
+        "only the authorising guardian manages their collector authority",
+        "safeguarding lead receives the full minimum operational workspace",
+        "eligible occurrence check-in worker receives only name, optional photo, consent state, authorised collectors and occurrence attendance",
+        "ordinary event-team and unrelated members receive no safeguarding records",
+        "participant and guardian self projections contain only explicitly related children",
+        "unknown, future, retired or unsupported policy requirements fail closed",
+        "no staffing ratio, age, collection or legal rule is hard-coded",
+        "double or stale check-in and check-out cannot overwrite state",
+        "sensitive actions create append-only audit entries without names, health, contact or document content",
+        "all safeguarding responses are private no-store",
+        "full health records, incident management and advanced policy administration remain deferred"
+      ]
+    },
+    {
+      "code": "event-template-administration",
+      "expected": [
+        "exactly four immutable archetype categories remain",
+        "sixteen system presets are seeded and editable through later versions",
+        "an authorised administrator can create a new template only inside one fixed category",
+        "unauthorised list and mutation fail on the server",
+        "code and category are immutable after creation",
+        "deactivation creates a new version and excludes the template from new composition",
+        "existing Events and snapshots keep their recorded code and version",
+        "reactivation creates another version",
+        "stale If-Match cannot overwrite the current version",
+        "every mutation is audited",
+        "management responses are private no-store and vary by viewer credentials"
+      ]
+    }
+  ]
+}
