@@ -23,6 +23,39 @@ public interface IAlifeDbContext
     DbSet<AlbumPhoto> AlbumPhotos { get; }
     DbSet<Sermon> Sermons { get; }
     DbSet<GroupEvent> GroupEvents { get; }
+    DbSet<EventSeries> EventSeries { get; }
+    DbSet<EventOccurrence> EventOccurrences { get; }
+    DbSet<EventSession> EventSessions { get; }
+    DbSet<EventProgramItem> EventProgramItems { get; }
+    DbSet<EventZone> EventZones { get; }
+    DbSet<EventServiceSlot> EventServiceSlots { get; }
+    DbSet<EventActivityTemplateVersion> EventActivityTemplateVersions { get; }
+    DbSet<EventFactSet> EventFactSets { get; }
+    DbSet<EventPlanSnapshot> EventPlanSnapshots { get; }
+    DbSet<EventRoleAssignment> EventRoleAssignments { get; }
+    DbSet<EventTeamMember> EventTeamMembers { get; }
+    DbSet<EventTask> EventTasks { get; }
+    DbSet<EventTaskDependency> EventTaskDependencies { get; }
+    DbSet<EventTaskBlocker> EventTaskBlockers { get; }
+    DbSet<EventRosterAvailability> EventRosterAvailability { get; }
+    DbSet<EventRosterAssignment> EventRosterAssignments { get; }
+    DbSet<EventVenue> EventVenues { get; }
+    DbSet<EventVenueReservation> EventVenueReservations { get; }
+    DbSet<EventTravelDriver> EventTravelDrivers { get; }
+    DbSet<EventTravelVehicle> EventTravelVehicles { get; }
+    DbSet<EventTravelJourney> EventTravelJourneys { get; }
+    DbSet<EventTravelPickupStop> EventTravelPickupStops { get; }
+    DbSet<EventTravelPassengerAssignment> EventTravelPassengerAssignments { get; }
+    DbSet<EventSafeguardingPolicyVersion> EventSafeguardingPolicyVersions { get; }
+    DbSet<EventSafeguardingConfiguration> EventSafeguardingConfigurations { get; }
+    DbSet<EventChildRegistration> EventChildRegistrations { get; }
+    DbSet<EventChildGuardianRelationship> EventChildGuardianRelationships { get; }
+    DbSet<EventChildConsentRecord> EventChildConsentRecords { get; }
+    DbSet<EventChildAuthorisedCollector> EventChildAuthorisedCollectors { get; }
+    DbSet<EventChildAttendance> EventChildAttendanceRecords { get; }
+    DbSet<EventSafeguardingWorkerEligibility> EventSafeguardingWorkerEligibility { get; }
+    DbSet<EventApprovalDecision> EventApprovalDecisions { get; }
+    DbSet<EventIdempotencyRecord> EventIdempotencyRecords { get; }
     DbSet<EventRamAssessment> EventRamAssessments { get; }
     DbSet<EventEnrollment> EventEnrollments { get; }
     DbSet<EventReview> EventReviews { get; }

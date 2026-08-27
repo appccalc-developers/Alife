@@ -767,7 +767,13 @@ const EventDetailView = () => {
       {!loading && !error && event && eventDto ? (
         <>
           {!isGuest ? (
-            <div className="mb-2 flex justify-end">
+            <div className="mb-2 flex flex-wrap justify-end gap-2">
+              <Link
+                to={`${eventBasePath}/workspace`}
+                className="inline-flex items-center rounded-lg border border-[#176b5a]/25 bg-[#e3f0eb] px-3.5 py-2 text-sm font-bold text-[#0d4f43] hover:bg-[#d4e9e1]"
+              >
+                {language === 'zh' ? '活动工作区' : 'Event workspace'}
+              </Link>
               <Link
                 to={`${eventBasePath}${activeSection === 'workflow' ? '' : '?section=workflow'}`}
                 className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
@@ -790,7 +796,7 @@ const EventDetailView = () => {
             </div>
           ) : null}
           {activeSection === 'workflow' ? (
-            <EventWorkflowPanel eventId={eventId} editPath={`${eventBasePath}/edit`} language={language} canManage={canManage} />
+            <EventWorkflowPanel eventId={eventId} groupId={groupId} editPath={`${eventBasePath}/edit`} language={language} canManage={canManage} />
           ) : activeSection === 'enrollments' ? (
             <EnrollmentPanel
               event={event}

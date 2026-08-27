@@ -4,7 +4,7 @@ import { useLocation, useNavigate, useParams, useSearchParams } from 'react-rout
 import type { EventDto, EventRamDraft, EventRamStatus, GroupEventRecord, MultilingualString } from '../types/event'
 import type { AiSessionAppContext, AiSessionAttachment, AiSessionState } from '../types/aiSession'
 import { eventService } from '../services/eventService'
-import { eventWorkflowService } from '../services/eventWorkflowService'
+import { eventCompositionService } from '../services/eventCompositionService'
 import { eventPosterAiService, type GeneratedEventPoster } from '../services/eventPosterAiService'
 import { aiTranslationService } from '../services/aiTranslationService'
 import { activeEntityService } from '../services/activeEntityService'
@@ -28,10 +28,11 @@ import { localizeText } from '../utils/localizedText'
 import EventRamEditor from '../components/events/EventRamEditor'
 import { createEmptyEventRamDraft, getEventRamSubmissionIssues, parseEventRam } from '../utils/eventRam'
 import type { MissingTranslatableField } from '../utils/bilingualValidation'
-import type { CreateEventWorkflowTemplateInput, EventWorkflowTemplate } from '../types/eventWorkflow'
-import EventWorkflowTemplatePicker from '../components/events/EventWorkflowTemplatePicker'
 import { confirmUnsavedChangesNavigation, setUnsavedChangesGuard } from '../utils/unsavedChangesGuard'
 import useConfirmation from '../hooks/useConfirmation'
+import type { EventPlanComposeRequest, EventPlanProposal } from '../types/eventComposition'
+import { buildCreationComposition } from '../utils/eventCreationComposition'
+import EventCreationWizard from './EventCreationWizard'
 
 // ────────────────────────────────────────────────────────────────────────────
 // Helper sub-components
@@ -50,6 +51,7 @@ const BilingualField = ({ label, value }: { label: string; value: MultilingualSt
     </span>
   </div>
 )
+
 
 const fmt = (iso: string) => {
   if (!iso) return '—'
@@ -463,7 +465,7 @@ const getDraftFromRecord = (record: GroupEventRecord): EventDto => {
   return fallbackDraftFromRecord(record)
 }
 
-const EventCreatorView = () => {
+const LegacyEventEditor = () => {
   const { language, me, hasAdminPermission, canManageGroup } = useAuthStore()
   const t = useUiText()
   const { requestConfirmation, confirmationModal } = useConfirmation()
@@ -491,16 +493,17 @@ const EventCreatorView = () => {
   const [listening, setListening] = useState(false)
   const [eventDraft, setEventDraft] = useState<EventDto | null>(() => createInitialEventDraft(me?.displayName))
   const [availableContacts, setAvailableContacts] = useState<ContactProfileDto[]>([])
-  const [workflowTemplates, setWorkflowTemplates] = useState<EventWorkflowTemplate[]>([])
-  const [workflowTemplatesLoading, setWorkflowTemplatesLoading] = useState(false)
-  const [workflowTemplatesError, setWorkflowTemplatesError] = useState('')
-  const [selectedWorkflowCode, setSelectedWorkflowCode] = useState<string | null>(null)
   const [aiInsight, setAiInsight] = useState<MultilingualString | null>(null)
   const [recoveredDraftNotice, setRecoveredDraftNotice] = useState<{ updatedAt: string } | null>(null)
   const [draftResetting, setDraftResetting] = useState(false)
   const [error, setError] = useState('')
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [savedEventId, setSavedEventId] = useState('')
+  const [creationProposal, setCreationProposal] = useState<EventPlanProposal | null>(null)
+  const [creationComposition, setCreationComposition] = useState<EventPlanComposeRequest | null>(null)
+  const [creationPlanError, setCreationPlanError] = useState('')
+  const [creationIdempotencyKey, setCreationIdempotencyKey] = useState('')
+  const [creationDraftSignature, setCreationDraftSignature] = useState('')
   const [pendingPosterFile, setPendingPosterFile] = useState<File | null>(null)
   const [posterPreviewUrl, setPosterPreviewUrl] = useState('')
   const [posterUploadStatus, setPosterUploadStatus] = useState<PosterUploadStatus>('idle')
@@ -804,37 +807,6 @@ const EventCreatorView = () => {
       setMessages(restoredMessages)
     }
   }, [isEditMode, language, sessionId, sessionState, t])
-
-  useEffect(() => {
-    if (isEditMode) {
-      return
-    }
-
-    let cancelled = false
-    setWorkflowTemplatesLoading(true)
-    setWorkflowTemplatesError('')
-    eventWorkflowService.listTemplates(effectiveGroupId || undefined)
-      .then((templates) => {
-        if (!cancelled) {
-          setWorkflowTemplates(templates)
-        }
-      })
-      .catch((reason) => {
-        if (!cancelled) {
-          setWorkflowTemplates([])
-          setWorkflowTemplatesError(normalizeApiError(reason).message)
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setWorkflowTemplatesLoading(false)
-        }
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [effectiveGroupId, isEditMode])
 
   useEffect(() => {
     if (!effectiveGroupId) {
@@ -1361,8 +1333,23 @@ const EventCreatorView = () => {
     }
 
     setSaveStatus('saving')
+    setCreationPlanError('')
     try {
       let persistedEventId = targetEventId
+
+      const currentDraftSignature = JSON.stringify(eventDraft)
+      if (!targetEventId && effectiveGroupId &&
+        (!creationProposal || !creationComposition || creationDraftSignature !== currentDraftSignature)) {
+        const nextComposition = buildCreationComposition(eventDraft)
+        const nextProposal = await eventCompositionService.compose(effectiveGroupId, nextComposition)
+        setCreationComposition(nextComposition)
+        setCreationProposal(nextProposal)
+        setCreationDraftSignature(currentDraftSignature)
+        setCreationIdempotencyKey(crypto.randomUUID())
+        setSaveStatus('idle')
+        scrollToBottom()
+        return
+      }
 
       if (targetEventId) {
         let draftToSave = eventDraft
@@ -1389,11 +1376,22 @@ const EventCreatorView = () => {
             ...aiContentContext,
             eventContext: createEventContextFromDto(pendingPosterFile ? { ...eventDraft, posterImageUrl: null } : eventDraft),
           },
-          selectedWorkflowCode,
+          null,
+          creationProposal && creationComposition
+            ? {
+                composition: creationComposition,
+                proposalHash: creationProposal.proposalHash,
+                idempotencyKey: creationIdempotencyKey,
+              }
+            : undefined,
         )
         setSavedEventId(created.id)
         persistedEventId = created.id
         activeEntityService.setEvent(created.id)
+        setCreationProposal(null)
+        setCreationComposition(null)
+        setCreationDraftSignature('')
+        setCreationIdempotencyKey('')
 
         if (pendingPosterFile) {
           const posterImageUrl = await uploadPosterFile(pendingPosterFile, effectiveGroupId, created.id)
@@ -1435,6 +1433,7 @@ const EventCreatorView = () => {
     } catch (err) {
       setSaveStatus('error')
       const apiError = normalizeApiError(err)
+      setCreationPlanError(apiError.message)
       setMessages((prev) => [
         ...prev,
         {
@@ -1685,16 +1684,6 @@ const EventCreatorView = () => {
     }
   }
 
-  const handleCreateWorkflowTemplate = async (input: CreateEventWorkflowTemplateInput) => {
-    if (!effectiveGroupId) {
-      throw new Error(language === 'zh' ? '请先选择活动所属小组。' : 'Select the group that owns this event first.')
-    }
-    const template = await eventWorkflowService.createTemplate(effectiveGroupId, input)
-    setWorkflowTemplates((current) => [...current.filter((item) => item.code !== template.code), template])
-    setWorkflowTemplatesError('')
-    return template
-  }
-
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-5">
       <div className="rounded-2xl border border-[#2f4b42]/10 bg-white/78 px-5 py-4 shadow-[0_10px_30px_rgba(31,56,48,0.06)]">
@@ -1738,19 +1727,6 @@ const EventCreatorView = () => {
             </button>
           </div>
         </section>
-      ) : null}
-
-      {!isEditMode ? (
-        <EventWorkflowTemplatePicker
-          templates={workflowTemplates}
-          selectedCode={selectedWorkflowCode}
-          language={language}
-          loading={workflowTemplatesLoading}
-          error={workflowTemplatesError}
-          disabled={saveStatus === 'saving'}
-          onChange={setSelectedWorkflowCode}
-          onCreateCustom={effectiveGroupId && canEditRam ? handleCreateWorkflowTemplate : undefined}
-        />
       ) : null}
 
       <div className="sticky top-3 z-20 overflow-x-auto rounded-2xl border border-[#2f4b42]/10 bg-white/90 p-2 shadow-[0_10px_30px_rgba(31,56,48,0.10)] backdrop-blur" role="tablist" aria-label={language === 'zh' ? '活动编辑步骤' : 'Event editor steps'}>
@@ -2297,12 +2273,74 @@ const EventCreatorView = () => {
           onResolve={() => openEditorStep('assistant')}
         />
         {eventDraft ? <EventPreview event={eventDraft} lang={language} posterPreviewUrl={posterPreviewUrl} posterPendingUpload={Boolean(pendingPosterFile)} submitted={noticeSubmitted} /> : null}
+        {!isEditMode && creationProposal ? (
+          <section className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5 shadow-sm" aria-labelledby="event-creation-plan-review">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">
+                  {language === 'zh' ? 'Proposal · 人工接受前' : 'Proposal · before human accept'}
+                </p>
+                <h3 id="event-creation-plan-review" className="mt-1 text-lg font-black text-slate-950">
+                  {language === 'zh' ? '审查活动构成方案' : 'Review the event composition plan'}
+                </h3>
+                <p className="mt-1 text-sm leading-6 text-slate-600">
+                  {language === 'zh'
+                    ? '服务器已根据下列事实重新组合；再次点击提交才会原子建立活动、Occurrence、RAM、Workflow 与不可变方案快照。'
+                    : 'The server recomposed from the facts below. Submit again to atomically create the event, occurrence, RAM, workflow and immutable plan snapshot.'}
+                </p>
+              </div>
+              <span className={['rounded-full px-3 py-1 text-xs font-black', creationProposal.readiness.status === 'ready' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-900'].join(' ')}>
+                {creationProposal.readiness.status}
+              </span>
+            </div>
+            {creationDraftSignature !== JSON.stringify(eventDraft) ? (
+              <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                {language === 'zh' ? '活动资料已改变；下次提交会先生成新的 proposal，不会接受旧方案。' : 'Event details changed. The next submit will create a fresh proposal instead of accepting this one.'}
+              </p>
+            ) : null}
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <div>
+                <h4 className="text-sm font-black text-slate-900">{language === 'zh' ? '确认事实' : 'Confirmed facts'}</h4>
+                <dl className="mt-2 space-y-1 text-xs text-slate-600">
+                  {creationProposal.facts.items.filter((fact) => fact.code !== 'event.exists').map((fact) => (
+                    <div key={fact.code} className="flex items-start justify-between gap-3 rounded-lg bg-white/80 px-3 py-2">
+                      <dt className="break-all font-semibold">{fact.code}</dt>
+                      <dd className="shrink-0">{fact.certainty === 'confirmed' ? String(fact.value) : (language === 'zh' ? '未知' : 'unknown')}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+              <div>
+                <h4 className="text-sm font-black text-slate-900">{language === 'zh' ? '启用模块' : 'Enabled modules'}</h4>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {creationProposal.moduleDecisions.filter((module) => module.status !== 'inactive').map((module) => (
+                    <span key={module.moduleCode} className="rounded-full border border-emerald-200 bg-white px-3 py-1 text-xs font-bold text-emerald-900">
+                      {module.label[language] || module.label.en} · {module.status}
+                    </span>
+                  ))}
+                </div>
+                {creationProposal.readiness.blockers.length ? (
+                  <ul className="mt-3 space-y-1 text-xs text-amber-900">
+                    {creationProposal.readiness.blockers.map((blocker, index) => <li key={`${blocker.en}-${index}`}>• {blocker[language] || blocker.en}</li>)}
+                  </ul>
+                ) : null}
+              </div>
+            </div>
+          </section>
+        ) : null}
         {eventDraft ? (
           <div className="flex flex-wrap items-center justify-end gap-3">
             {!effectiveGroupId ? <p className="text-xs text-amber-600">{t('noGroupContext')}</p> : null}
             {saveStatus === 'saved' ? <p className="text-xs text-emerald-600">{t('eventSavedToGroupShort')}</p> : null}
+            {creationPlanError ? <p className="max-w-xl text-xs text-rose-700" role="alert">{creationPlanError}</p> : null}
             <button type="button" onClick={() => { void handleCommitDraft() }} disabled={!noticeCanSubmit || saveStatus === 'saving' || isPosterUploading} className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 disabled:opacity-60">
-              <Save className="h-4 w-4" />{saveStatus === 'saving' ? t('saving') : noticeSubmitted ? (language === 'zh' ? '重新提交活动通知' : 'Resubmit event notice') : (language === 'zh' ? '提交并进入 RAM' : 'Submit and continue to RAM')}
+              <Save className="h-4 w-4" />{saveStatus === 'saving'
+                ? t('saving')
+                : noticeSubmitted
+                  ? (language === 'zh' ? '重新提交活动通知' : 'Resubmit event notice')
+                  : creationProposal && creationDraftSignature === JSON.stringify(eventDraft)
+                    ? (language === 'zh' ? '接受方案并建立活动' : 'Accept plan and create event')
+                    : (language === 'zh' ? '生成构成 proposal' : 'Build composition proposal')}
             </button>
           </div>
         ) : null}
@@ -2352,6 +2390,13 @@ const EventCreatorView = () => {
       {confirmationModal}
     </div>
   )
+}
+
+const EventCreatorView = () => {
+  const location = useLocation()
+  const { eventId } = useParams<{ eventId?: string }>()
+  const isEditMode = Boolean(eventId) || location.pathname === '/events/edit'
+  return isEditMode ? <LegacyEventEditor /> : <EventCreationWizard />
 }
 
 export default EventCreatorView

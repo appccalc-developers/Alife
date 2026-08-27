@@ -5,6 +5,7 @@ import { groupEventsQueryKey } from '../db/collections/groupCollection'
 import { conditionalGet, removeCachedRecord } from '../db/httpCache'
 import { queryClient } from '../db/queryClient'
 import type { AiContentContext } from '../utils/aiContentContext'
+import type { EventPlanComposeRequest, EventSeriesSetup } from '../types/eventComposition'
 import { http } from './http'
 import { createAiSessionService } from './aiSessionService'
 import { invalidateChurchLifeQueries } from './churchLifeService'
@@ -36,6 +37,13 @@ const createPersistencePayload = (eventDto: EventDto) => {
     eventDataJson: JSON.stringify(publicEventData),
     ramDataJson: JSON.stringify(ram),
   }
+}
+
+export type EventCreationPlan = {
+  composition: EventPlanComposeRequest
+  proposalHash: string
+  idempotencyKey: string
+  seriesSetup?: EventSeriesSetup | null
 }
 
 export const eventService = {
@@ -118,6 +126,7 @@ export const eventService = {
     sessionId?: string,
     aiContext?: AiContentContext,
     workflowTemplateCode?: string | null,
+    creationPlan?: EventCreationPlan,
   ): Promise<GroupEventRecord> => {
     const titleEn = eventDto.title.en || eventDto.title.zh || ''
     const titleZh = eventDto.title.zh || eventDto.title.en || ''
@@ -131,9 +140,12 @@ export const eventService = {
       ramDataJson,
       contactProfileIds: eventDto.contactProfileIds ?? [],
       workflowTemplateCode: workflowTemplateCode || null,
+      composition: creationPlan?.composition ?? null,
+      compositionProposalHash: creationPlan?.proposalHash ?? null,
+      seriesSetup: creationPlan?.seriesSetup ?? null,
       missionStatements: aiContext?.missionStatements ?? [],
       eventContext: aiContext?.eventContext ?? { eventDataJson, eventData: eventDto },
-    })
+    }, creationPlan ? { headers: { 'Idempotency-Key': creationPlan.idempotencyKey } } : undefined)
     try {
       await invalidateGroupEventsCache(groupId)
     } finally {

@@ -76,9 +76,17 @@ public class EventsController(
                 request.EventDataJson,
                 request.ContactProfileIds ?? [],
                 request.RamDataJson,
-                request.WorkflowTemplateCode),
+                request.WorkflowTemplateCode,
+                request.Composition,
+                request.CompositionProposalHash,
+                request.AccountableOwnerMemberId,
+                request.GovernanceMode,
+                request.ParentEventId,
+                Request.Headers["Idempotency-Key"].FirstOrDefault(),
+                request.SeriesSetup),
             cancellationToken);
 
+        this.ApplyNoStoreHeaders();
         return this.ToActionResult(result);
     }
 
@@ -264,7 +272,13 @@ public class EventsController(
         string EventDataJson,
         IReadOnlyList<Guid>? ContactProfileIds,
         string? RamDataJson,
-        string? WorkflowTemplateCode);
+        string? WorkflowTemplateCode,
+        Alife.Application.Events.Dtos.EventPlanComposeRequest? Composition = null,
+        string? CompositionProposalHash = null,
+        Guid? AccountableOwnerMemberId = null,
+        EventGovernanceMode? GovernanceMode = null,
+        Guid? ParentEventId = null,
+        Alife.Application.Events.Dtos.CreateEventSeriesSetupRequest? SeriesSetup = null);
 
     public record UpdateGroupEventRequest(
         string TitleEn,

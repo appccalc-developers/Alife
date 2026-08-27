@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CheckCircle2, Circle, Clock3, ShieldCheck } from 'lucide-react'
+import { CheckCircle2, Circle, Clock3, Plus, ShieldCheck } from 'lucide-react'
 import { eventWorkflowService } from '../../services/eventWorkflowService'
 import { normalizeApiError } from '../../services/http'
 import type {
@@ -11,13 +11,16 @@ import type {
   EventWorkflowStepStatus,
   EventWorkflowTemplate,
   WorkflowText,
+  CreateEventWorkflowTemplateInput,
 } from '../../types/eventWorkflow'
 import AppActionButton from '../layout/AppActionButton'
 import AppBadge from '../layout/AppBadge'
 import AppSectionCard from '../layout/AppSectionCard'
+import CustomEventWorkflowTemplateEditor from './CustomEventWorkflowTemplateEditor'
 
 type Props = {
   eventId: string
+  groupId: string
   editPath: string
   language: string
   canManage: boolean
@@ -59,13 +62,14 @@ const labels = {
 const localize = (value: WorkflowText, language: string) =>
   (language === 'zh' ? value.zh : value.en) || value.en || value.zh
 
-const EventWorkflowPanel = ({ eventId, editPath, language, canManage }: Props) => {
+const EventWorkflowPanel = ({ eventId, groupId, editPath, language, canManage }: Props) => {
   const text = language === 'zh' ? labels.zh : labels.en
   const [workflow, setWorkflow] = useState<EventWorkflow | null>(null)
   const [templates, setTemplates] = useState<EventWorkflowTemplate[]>([])
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState('')
   const [error, setError] = useState('')
+  const [showTemplateEditor, setShowTemplateEditor] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -133,11 +137,33 @@ const EventWorkflowPanel = ({ eventId, editPath, language, canManage }: Props) =
     memberPrivate: text.memberPrivate,
   }), [text])
 
+  const createTemplate = async (input: CreateEventWorkflowTemplateInput) => {
+    const created = await eventWorkflowService.createTemplate(groupId, input)
+    setTemplates((current) => [created, ...current.filter((item) => item.id !== created.id)])
+    setShowTemplateEditor(false)
+    return created
+  }
+
+  const templateManagement = canManage ? (
+    <AppSectionCard
+      title={language === 'zh' ? 'Workflow 模板目录' : 'Workflow template catalogue'}
+      subtitle={workflow
+        ? (language === 'zh' ? '可维护目录，但不会替换这个活动已建立的 Workflow Run。' : 'Maintain the catalogue without replacing this event’s existing workflow run.')
+        : (language === 'zh' ? '可建立自定义模板，再从目录初始化唯一的 Workflow Run。' : 'Create a custom template, then initialize the event’s single workflow run from the catalogue.')}
+      action={!showTemplateEditor ? <AppActionButton size="sm" onClick={() => setShowTemplateEditor(true)}><Plus className="mr-2 h-4 w-4" />{language === 'zh' ? '建立模板' : 'Create template'}</AppActionButton> : undefined}
+    >
+      {showTemplateEditor ? <CustomEventWorkflowTemplateEditor language={language} onCancel={() => setShowTemplateEditor(false)} onSave={createTemplate} /> : (
+        <div className="flex flex-wrap gap-2">{templates.map((template) => <AppBadge key={template.id} variant="neutral">{localize(template.name, language)} · v{template.version}</AppBadge>)}</div>
+      )}
+    </AppSectionCard>
+  ) : null
+
   if (loading) return <AppSectionCard dense><p className="text-sm text-slate-500">{text.loading}</p></AppSectionCard>
 
   if (!workflow) {
     return (
       <div className="space-y-4">
+        {templateManagement}
         {error ? <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p> : null}
         <AppSectionCard title={canManage ? text.choose : text.title}>
           {!canManage ? <p className="text-sm text-slate-600">{text.noWorkflow}</p> : (
@@ -166,6 +192,7 @@ const EventWorkflowPanel = ({ eventId, editPath, language, canManage }: Props) =
 
   return (
     <div className="space-y-5">
+      {templateManagement}
       {error ? <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p> : null}
       <AppSectionCard title={localize(workflow.template.name, language)}>
         <div className="flex flex-wrap items-center justify-between gap-3 text-sm">

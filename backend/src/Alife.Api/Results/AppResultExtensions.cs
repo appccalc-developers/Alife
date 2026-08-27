@@ -18,6 +18,9 @@ public static class AppResultExtensions
                     new { message = result.Message }),
                 AppResultStatus.ValidationError => controller.BadRequest(new { message = result.Message }),
                 AppResultStatus.Conflict => controller.Conflict(new { message = result.Message }),
+                AppResultStatus.PreconditionFailed => controller.StatusCode(
+                    StatusCodes.Status412PreconditionFailed,
+                    new { message = result.Message }),
                 _ => controller.StatusCode(StatusCodes.Status500InternalServerError)
             };
         }

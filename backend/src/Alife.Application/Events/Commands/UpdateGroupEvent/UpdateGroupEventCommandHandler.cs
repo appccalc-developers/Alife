@@ -113,6 +113,10 @@ public sealed class UpdateGroupEventCommandHandler(
             groupEvent.UpdatedUtc,
             contactProfileIds,
             groupEvent.RamAssessment?.Status ?? Alife.Domain.Enums.EventRamStatus.Draft,
-            visibility));
+            visibility,
+            groupEvent.AccountableOwnerMemberId,
+            groupEvent.GovernanceMode,
+            groupEvent.SponsorshipStatus,
+            groupEvent.ActivePlanVersion));
     }
 }

@@ -27,6 +27,8 @@ const EventCreatorView = lazy(() => import('../../views/EventCreatorView'))
 const EventDetailView = lazy(() => import('../../views/EventDetailView'))
 const EventEnrollmentView = lazy(() => import('../../views/EventEnrollmentView'))
 const EventReviewView = lazy(() => import('../../views/EventReviewView'))
+const EventTemplateAdminView = lazy(() => import('../../views/EventTemplateAdminView'))
+const EventWorkspaceView = lazy(() => import('../../views/EventWorkspaceView'))
 const GroupDetailView = lazy(() => import('../../views/GroupDetailView'))
 const GroupJoinView = lazy(() => import('../../views/GroupJoinView'))
 const GroupManageView = lazy(() => import('../../views/GroupManageView'))
@@ -244,11 +246,15 @@ const AppRoutes = ({ churchGroupId = '', churchGroupLoading = false }: AppRoutes
           <Route path="/events/:eventId/enroll" element={<EventEnrollmentView />} />
           <Route path="/events/review" element={<EventReviewView />} />
           <Route path="/events/:eventId/review" element={<EventReviewView />} />
+          <Route path="/events/:eventId/workspace" element={<MemberRoute><EventWorkspaceView /></MemberRoute>} />
+          <Route path="/events/:eventId/workspace/:surfacePath" element={<MemberRoute><EventWorkspaceView /></MemberRoute>} />
           <Route path="/groups/:groupId/events/new" element={<EventCreatorView />} />
           <Route path="/groups/:groupId/events/:eventId/edit" element={<EventCreatorView />} />
           <Route path="/groups/:groupId/events/:eventId" element={<EventDetailView />} />
           <Route path="/groups/:groupId/events/:eventId/enroll" element={<EventEnrollmentView />} />
           <Route path="/groups/:groupId/events/:eventId/review" element={<EventReviewView />} />
+          <Route path="/groups/:groupId/events/:eventId/workspace" element={<MemberRoute><EventWorkspaceView /></MemberRoute>} />
+          <Route path="/groups/:groupId/events/:eventId/workspace/:surfacePath" element={<MemberRoute><EventWorkspaceView /></MemberRoute>} />
           <Route path="/pages/new" element={<PageEditorView />} />
           <Route path="/groups/:groupId/pages/new" element={<PageEditorView />} />
           <Route path="/pages/:pageId/edit" element={<PageEditorView />} />
@@ -323,6 +329,14 @@ const AppRoutes = ({ churchGroupId = '', churchGroupLoading = false }: AppRoutes
               <PageReviewRoute>
                 <PageReviewView />
               </PageReviewRoute>
+            }
+          />
+          <Route
+            path="/admin/event-templates"
+            element={
+              <AdminRoute permission="admin.events.manageTemplates">
+                <EventTemplateAdminView />
+              </AdminRoute>
             }
           />
           <Route

@@ -38,7 +38,11 @@ public sealed class EventReadService(
                     e.UpdatedUtc,
                     e.ContactProfiles?.Select(x => x.ContactProfileId).ToList() ?? new List<Guid>(),
                     e.RamAssessment?.Status ?? Alife.Domain.Enums.EventRamStatus.Draft,
-                    Alife.Application.Events.Services.EventVisibilityPolicy.ReadVisibility(e.EventDataJson)
+                    Alife.Application.Events.Services.EventVisibilityPolicy.ReadVisibility(e.EventDataJson),
+                    e.AccountableOwnerMemberId,
+                    e.GovernanceMode,
+                    e.SponsorshipStatus,
+                    e.ActivePlanVersion
                 )).ToList();
 
                 return (IReadOnlyList<GroupEventSummaryDto>)dtos;
@@ -67,6 +71,8 @@ public sealed class EventReadService(
                 return candidates
                     .Where(e => Alife.Application.Events.Services.EventVisibilityPolicy.ReadVisibility(e.EventDataJson) ==
                         Alife.Application.Events.Services.EventVisibilityPolicy.Public)
+                    .Where(e => e.GovernanceMode != Alife.Domain.Enums.EventGovernanceMode.ChurchSponsored ||
+                        e.SponsorshipStatus == Alife.Domain.Enums.EventSponsorshipStatus.Approved)
                     .Take(50)
                     .Select(e => new PublicEventSummaryDto(
                         e.Id,

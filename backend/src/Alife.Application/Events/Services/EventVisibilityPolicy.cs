@@ -120,5 +120,7 @@ public static class EventVisibilityPolicy
     }
 
     public static bool IsPublished(GroupEventSummaryDto groupEvent)
-        => groupEvent.RamStatus == EventRamStatus.Approved;
+        => groupEvent.RamStatus == EventRamStatus.Approved &&
+           (groupEvent.GovernanceMode != EventGovernanceMode.ChurchSponsored ||
+            groupEvent.SponsorshipStatus == EventSponsorshipStatus.Approved);
 }

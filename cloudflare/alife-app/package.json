@@ -19,6 +19,7 @@
     "test:current-group-selection": "node --test --experimental-strip-types tests/currentGroupSelection.test.ts",
     "test:visit-contact": "node --test --experimental-strip-types tests/visitContactValidation.test.ts",
     "test:web-dialogs": "node --test --experimental-strip-types tests/webDialogs.test.ts",
+    "test:event-composition": "node --test --experimental-strip-types tests/eventComposition.test.ts tests/eventOperations.test.ts tests/eventVenue.test.ts tests/eventTravel.test.ts tests/eventSafeguarding.test.ts tests/eventTemplateAdmin.test.ts",
     "typecheck": "tsc -b --pretty false",
     "build": "tsc -b && vite build",
     "preview": "npm run build && npm --prefix ../speed-layer run dev",

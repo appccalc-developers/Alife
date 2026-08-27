@@ -45,6 +45,14 @@ public static class ConditionalRequestExtensions
             controller.Response.Headers.CacheControl = "no-store";
             controller.Response.Headers.Pragma = "no-cache";
         }
+
+        public void ApplyPrivateNoStoreHeaders()
+        {
+            controller.Response.Headers.CacheControl = "private, no-store";
+            controller.Response.Headers.Pragma = "no-cache";
+            AppendVary(controller.Response.Headers, "Cookie");
+            AppendVary(controller.Response.Headers, "Authorization");
+        }
     }
 
     private static void AppendVary(IHeaderDictionary headers, string value)

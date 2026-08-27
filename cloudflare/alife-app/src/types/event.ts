@@ -143,4 +143,8 @@ export type GroupEventRecord = {
   contactProfileIds?: string[]
   ramStatus?: EventRamStatus
   visibility?: EventVisibility
+  accountableOwnerMemberId?: string | null
+  governanceMode?: 'private' | 'memberLed' | 'churchSponsored'
+  sponsorshipStatus?: 'notRequested' | 'pending' | 'approved' | 'rejected' | 'revoked'
+  activePlanVersion?: number | null
 }
