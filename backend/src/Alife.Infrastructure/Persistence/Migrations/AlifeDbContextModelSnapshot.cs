@@ -607,6 +607,530 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.ToTable("content_posts", (string)null);
                 });
 
+            modelBuilder.Entity("Alife.Domain.Entities.EventActivityTemplateVersion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ArchetypeCode")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)")
+                        .HasColumnName("archetype_code");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)")
+                        .HasColumnName("code");
+
+                    b.Property<Guid>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("concurrency_token");
+
+                    b.Property<Guid?>("CreatedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by_member_id");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<string>("DescriptionEn")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)")
+                        .HasColumnName("description_en");
+
+                    b.Property<string>("DescriptionZh")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)")
+                        .HasColumnName("description_zh");
+
+                    b.Property<string>("IconKey")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)")
+                        .HasColumnName("icon_key");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsCurrent")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_current");
+
+                    b.Property<bool>("IsSystemPreset")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_system_preset");
+
+                    b.Property<string>("NameEn")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("name_en");
+
+                    b.Property<string>("NameZh")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("name_zh");
+
+                    b.Property<string>("PreselectedModulesJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("preselected_modules_json");
+
+                    b.Property<string>("PresetServiceSlotsJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("preset_service_slots_json");
+
+                    b.Property<string>("RecommendedWorkflowTemplateCode")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)")
+                        .HasColumnName("recommended_workflow_template_code");
+
+                    b.Property<string>("RegistrationMode")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)")
+                        .HasColumnName("registration_mode");
+
+                    b.Property<DateTime?>("SupersededUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("superseded_utc");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("int")
+                        .HasColumnName("version");
+
+                    b.Property<string>("Visibility")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)")
+                        .HasColumnName("visibility");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_activity_template_versions");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("ix_event_activity_template_versions_code")
+                        .HasFilter("[is_current] = 1");
+
+                    b.HasIndex("CreatedByMemberId")
+                        .HasDatabaseName("ix_event_activity_template_versions_created_by_member_id");
+
+                    b.HasIndex("Code", "Version")
+                        .IsUnique()
+                        .HasDatabaseName("ix_event_activity_template_versions_code_version");
+
+                    b.HasIndex("ArchetypeCode", "IsCurrent", "IsActive", "NameEn")
+                        .HasDatabaseName("ix_event_activity_template_versions_archetype_code_is_current_is_active_name_en");
+
+                    b.ToTable("event_activity_template_versions", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("42dd88b6-1562-6fc7-5c6a-98fe7a5b1fe5"),
+                            ArchetypeCode = "simple-social",
+                            Code = "shared-meal",
+                            ConcurrencyToken = new Guid("ccad4520-c318-17cb-1611-352cfedc00fb"),
+                            CreatedUtc = new DateTime(2026, 8, 27, 0, 0, 0, 0, DateTimeKind.Utc),
+                            DescriptionEn = "A shared meal with registration and hospitality follow-up.",
+                            DescriptionZh = "需要報名、餐飲與後續聯絡的共享聚餐。",
+                            IconKey = "meal",
+                            IsActive = true,
+                            IsCurrent = true,
+                            IsSystemPreset = true,
+                            NameEn = "Shared meal",
+                            NameZh = "聚餐・BBQ",
+                            PreselectedModulesJson = "[\"PEOPLE.REGISTRATION\",\"FOOD.HOSPITALITY\",\"SERVICE.ROSTER\",\"COMMS.FOLLOWUP\"]",
+                            PresetServiceSlotsJson = "[{\"roleCode\":\"event.host\",\"label\":{\"en\":\"Event host\",\"zh\":\"\\u6D3B\\u52D5\\u4E3B\\u6301\"},\"requiredCount\":1,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"hospitality.lead\",\"label\":{\"en\":\"Hospitality lead\",\"zh\":\"\\u9910\\u98F2\\u8CA0\\u8CAC\\u4EBA\"},\"requiredCount\":1,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"setup.team\",\"label\":{\"en\":\"Setup team\",\"zh\":\"\\u5834\\u5730\\u4F48\\u7F6E\\u5718\\u968A\"},\"requiredCount\":2,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"cleanup.team\",\"label\":{\"en\":\"Cleanup team\",\"zh\":\"\\u6536\\u62FE\\u5718\\u968A\"},\"requiredCount\":2,\"eligibilityCode\":\"approvedGroupMember\"}]",
+                            RegistrationMode = "required",
+                            Version = 2,
+                            Visibility = "groupVisible"
+                        },
+                        new
+                        {
+                            Id = new Guid("ae474f4f-239f-322a-0332-8c832924ab45"),
+                            ArchetypeCode = "simple-social",
+                            Code = "fellowship-social",
+                            ConcurrencyToken = new Guid("1759fb74-218b-0b7e-3c6e-6812fe100fb2"),
+                            CreatedUtc = new DateTime(2026, 8, 27, 0, 0, 0, 0, DateTimeKind.Utc),
+                            DescriptionEn = "A low-complexity social gathering with optional attendance tracking.",
+                            DescriptionZh = "可按需要記錄出席的輕量團契聯誼。",
+                            IconKey = "people",
+                            IsActive = true,
+                            IsCurrent = true,
+                            IsSystemPreset = true,
+                            NameEn = "Fellowship social",
+                            NameZh = "團契聯誼",
+                            PreselectedModulesJson = "[\"PEOPLE.REGISTRATION\",\"SERVICE.ROSTER\",\"COMMS.FOLLOWUP\"]",
+                            PresetServiceSlotsJson = "[{\"roleCode\":\"event.host\",\"label\":{\"en\":\"Event host\",\"zh\":\"\\u6D3B\\u52D5\\u4E3B\\u6301\"},\"requiredCount\":1,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"welcome.team\",\"label\":{\"en\":\"Welcome team\",\"zh\":\"\\u63A5\\u5F85\\u5718\\u968A\"},\"requiredCount\":2,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"setup.team\",\"label\":{\"en\":\"Setup team\",\"zh\":\"\\u5834\\u5730\\u4F48\\u7F6E\\u5718\\u968A\"},\"requiredCount\":2,\"eligibilityCode\":\"approvedGroupMember\"}]",
+                            RegistrationMode = "none",
+                            Version = 2,
+                            Visibility = "groupVisible"
+                        },
+                        new
+                        {
+                            Id = new Guid("18d70aa5-682b-b09c-dbd6-62c11e36d563"),
+                            ArchetypeCode = "simple-social",
+                            Code = "local-outing",
+                            ConcurrencyToken = new Guid("632b5e69-fe7b-951a-7e15-dc8d5217131a"),
+                            CreatedUtc = new DateTime(2026, 8, 27, 0, 0, 0, 0, DateTimeKind.Utc),
+                            DescriptionEn = "A local day outing with registration, travel and safety planning.",
+                            DescriptionZh = "包含報名、交通與安全準備的一日外出。",
+                            IconKey = "map",
+                            IsActive = true,
+                            IsCurrent = true,
+                            IsSystemPreset = true,
+                            NameEn = "Local outing",
+                            NameZh = "一日外出",
+                            PreselectedModulesJson = "[\"PEOPLE.REGISTRATION\",\"SAFETY.RAM\",\"MOVE.STAY\",\"SERVICE.ROSTER\",\"COMMS.FOLLOWUP\"]",
+                            PresetServiceSlotsJson = "[{\"roleCode\":\"outing.lead\",\"label\":{\"en\":\"Outing lead\",\"zh\":\"\\u5916\\u51FA\\u9818\\u968A\"},\"requiredCount\":1,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"checkin.team\",\"label\":{\"en\":\"Check-in team\",\"zh\":\"\\u5831\\u5230\\u5718\\u968A\"},\"requiredCount\":2,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"transport.coordinator\",\"label\":{\"en\":\"Transport coordinator\",\"zh\":\"\\u4EA4\\u901A\\u5354\\u8ABF\\u54E1\"},\"requiredCount\":1,\"eligibilityCode\":\"approvedGroupMember\"}]",
+                            RegistrationMode = "required",
+                            Version = 2,
+                            Visibility = "groupVisible"
+                        },
+                        new
+                        {
+                            Id = new Guid("301ace24-8398-3db6-bbdf-2ca24ee40774"),
+                            ArchetypeCode = "simple-social",
+                            Code = "outdoor-activity",
+                            ConcurrencyToken = new Guid("81852b2d-d66a-75ef-0fcb-7a3a3320cc40"),
+                            CreatedUtc = new DateTime(2026, 8, 27, 0, 0, 0, 0, DateTimeKind.Utc),
+                            DescriptionEn = "An outdoor activity with explicit travel and RAM review.",
+                            DescriptionZh = "需要明確交通與 RAM 檢視的戶外活動。",
+                            IconKey = "outdoors",
+                            IsActive = true,
+                            IsCurrent = true,
+                            IsSystemPreset = true,
+                            NameEn = "Outdoor activity",
+                            NameZh = "戶外活動",
+                            PreselectedModulesJson = "[\"PEOPLE.REGISTRATION\",\"SAFETY.RAM\",\"MOVE.STAY\",\"SERVICE.ROSTER\",\"COMMS.FOLLOWUP\"]",
+                            PresetServiceSlotsJson = "[{\"roleCode\":\"activity.lead\",\"label\":{\"en\":\"Activity lead\",\"zh\":\"\\u6D3B\\u52D5\\u9818\\u968A\"},\"requiredCount\":1,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"checkin.team\",\"label\":{\"en\":\"Check-in team\",\"zh\":\"\\u5831\\u5230\\u5718\\u968A\"},\"requiredCount\":2,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"transport.coordinator\",\"label\":{\"en\":\"Transport coordinator\",\"zh\":\"\\u4EA4\\u901A\\u5354\\u8ABF\\u54E1\"},\"requiredCount\":1,\"eligibilityCode\":\"approvedGroupMember\"}]",
+                            RegistrationMode = "required",
+                            Version = 2,
+                            Visibility = "groupVisible"
+                        },
+                        new
+                        {
+                            Id = new Guid("4b7b57cd-65c0-69e5-e9aa-c6d7954c6c67"),
+                            ArchetypeCode = "camp-retreat",
+                            Code = "church-camp",
+                            ConcurrencyToken = new Guid("d4e9f4f4-84ed-6c0c-1ad7-9d0756d62080"),
+                            CreatedUtc = new DateTime(2026, 8, 27, 0, 0, 0, 0, DateTimeKind.Utc),
+                            DescriptionEn = "A multi-session whole-church camp with operational coordination.",
+                            DescriptionZh = "需要跨模組協作的多場次全教會營會。",
+                            IconKey = "camp",
+                            IsActive = true,
+                            IsCurrent = true,
+                            IsSystemPreset = true,
+                            NameEn = "Church camp",
+                            NameZh = "全教會營會",
+                            PreselectedModulesJson = "[\"PEOPLE.REGISTRATION\",\"SAFETY.RAM\",\"PROGRAM.PRODUCTION\",\"PLACE.RESOURCE\",\"MOVE.STAY\",\"FOOD.HOSPITALITY\",\"SERVICE.ROSTER\",\"COMMS.FOLLOWUP\"]",
+                            PresetServiceSlotsJson = "[{\"roleCode\":\"camp.director\",\"label\":{\"en\":\"Camp director\",\"zh\":\"\\u71DF\\u6703\\u7E3D\\u53EC\"},\"requiredCount\":1,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"registration.desk\",\"label\":{\"en\":\"Registration desk\",\"zh\":\"\\u5831\\u5230\\u8655\"},\"requiredCount\":2,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"programme.team\",\"label\":{\"en\":\"Programme team\",\"zh\":\"\\u7BC0\\u76EE\\u5718\\u968A\"},\"requiredCount\":2,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"hospitality.team\",\"label\":{\"en\":\"Hospitality team\",\"zh\":\"\\u9910\\u98F2\\u5718\\u968A\"},\"requiredCount\":2,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"setup.team\",\"label\":{\"en\":\"Setup team\",\"zh\":\"\\u5834\\u5730\\u4F48\\u7F6E\\u5718\\u968A\"},\"requiredCount\":3,\"eligibilityCode\":\"approvedGroupMember\"}]",
+                            RecommendedWorkflowTemplateCode = "camp",
+                            RegistrationMode = "required",
+                            Version = 2,
+                            Visibility = "churchVisible"
+                        },
+                        new
+                        {
+                            Id = new Guid("ea4884f4-bce2-c92c-5131-845083ca110f"),
+                            ArchetypeCode = "camp-retreat",
+                            Code = "spiritual-retreat",
+                            ConcurrencyToken = new Guid("929caed9-a0a5-9a4d-a5e0-e10c32a3f6f0"),
+                            CreatedUtc = new DateTime(2026, 8, 27, 0, 0, 0, 0, DateTimeKind.Utc),
+                            DescriptionEn = "A retreat centred on programme, place, travel and hospitality.",
+                            DescriptionZh = "以節目、場地、交通與接待為核心的退修會。",
+                            IconKey = "retreat",
+                            IsActive = true,
+                            IsCurrent = true,
+                            IsSystemPreset = true,
+                            NameEn = "Spiritual retreat",
+                            NameZh = "靈修退修會",
+                            PreselectedModulesJson = "[\"PEOPLE.REGISTRATION\",\"SAFETY.RAM\",\"PROGRAM.PRODUCTION\",\"PLACE.RESOURCE\",\"MOVE.STAY\",\"FOOD.HOSPITALITY\",\"SERVICE.ROSTER\",\"COMMS.FOLLOWUP\"]",
+                            PresetServiceSlotsJson = "[{\"roleCode\":\"retreat.lead\",\"label\":{\"en\":\"Retreat lead\",\"zh\":\"\\u9000\\u4FEE\\u6703\\u5E36\\u9818\"},\"requiredCount\":1,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"welcome.team\",\"label\":{\"en\":\"Welcome team\",\"zh\":\"\\u63A5\\u5F85\\u5718\\u968A\"},\"requiredCount\":2,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"programme.team\",\"label\":{\"en\":\"Programme team\",\"zh\":\"\\u7BC0\\u76EE\\u5718\\u968A\"},\"requiredCount\":2,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"hospitality.team\",\"label\":{\"en\":\"Hospitality team\",\"zh\":\"\\u9910\\u98F2\\u5718\\u968A\"},\"requiredCount\":2,\"eligibilityCode\":\"approvedGroupMember\"}]",
+                            RecommendedWorkflowTemplateCode = "camp",
+                            RegistrationMode = "required",
+                            Version = 2,
+                            Visibility = "churchVisible"
+                        },
+                        new
+                        {
+                            Id = new Guid("fb233223-3e78-9532-071a-9ec5cade1366"),
+                            ArchetypeCode = "camp-retreat",
+                            Code = "children-youth-camp",
+                            ConcurrencyToken = new Guid("6541a8c5-4d90-a1e9-3806-0d6e7398f002"),
+                            CreatedUtc = new DateTime(2026, 8, 27, 0, 0, 0, 0, DateTimeKind.Utc),
+                            DescriptionEn = "A camp preset that surfaces safeguarding for explicit policy review.",
+                            DescriptionZh = "預選兒童保護並要求明確政策檢視的營會。",
+                            IconKey = "children",
+                            IsActive = true,
+                            IsCurrent = true,
+                            IsSystemPreset = true,
+                            NameEn = "Children/youth camp",
+                            NameZh = "兒童・青少年營",
+                            PreselectedModulesJson = "[\"PEOPLE.REGISTRATION\",\"SAFETY.RAM\",\"SAFEGUARDING.CHILD\",\"PROGRAM.PRODUCTION\",\"PLACE.RESOURCE\",\"MOVE.STAY\",\"FOOD.HOSPITALITY\",\"SERVICE.ROSTER\",\"COMMS.FOLLOWUP\"]",
+                            PresetServiceSlotsJson = "[{\"roleCode\":\"camp.director\",\"label\":{\"en\":\"Camp director\",\"zh\":\"\\u71DF\\u6703\\u7E3D\\u53EC\"},\"requiredCount\":1,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"registration.desk\",\"label\":{\"en\":\"Registration desk\",\"zh\":\"\\u5831\\u5230\\u8655\"},\"requiredCount\":2,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"programme.team\",\"label\":{\"en\":\"Programme team\",\"zh\":\"\\u7BC0\\u76EE\\u5718\\u968A\"},\"requiredCount\":2,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"hospitality.team\",\"label\":{\"en\":\"Hospitality team\",\"zh\":\"\\u9910\\u98F2\\u5718\\u968A\"},\"requiredCount\":2,\"eligibilityCode\":\"approvedGroupMember\"}]",
+                            RecommendedWorkflowTemplateCode = "camp",
+                            RegistrationMode = "required",
+                            Version = 2,
+                            Visibility = "churchVisible"
+                        },
+                        new
+                        {
+                            Id = new Guid("2b8d4491-7e09-2ef0-34fe-d01a676bd67b"),
+                            ArchetypeCode = "camp-retreat",
+                            Code = "training-camp",
+                            ConcurrencyToken = new Guid("3e98c056-954e-9083-2c9f-999a9c1123a5"),
+                            CreatedUtc = new DateTime(2026, 8, 27, 0, 0, 0, 0, DateTimeKind.Utc),
+                            DescriptionEn = "A training camp with programme, venue, roster and travel coordination.",
+                            DescriptionZh = "需要節目、場地、排班與交通協作的培訓營。",
+                            IconKey = "training",
+                            IsActive = true,
+                            IsCurrent = true,
+                            IsSystemPreset = true,
+                            NameEn = "Training camp",
+                            NameZh = "培訓營",
+                            PreselectedModulesJson = "[\"PEOPLE.REGISTRATION\",\"SAFETY.RAM\",\"PROGRAM.PRODUCTION\",\"PLACE.RESOURCE\",\"MOVE.STAY\",\"FOOD.HOSPITALITY\",\"SERVICE.ROSTER\",\"COMMS.FOLLOWUP\"]",
+                            PresetServiceSlotsJson = "[{\"roleCode\":\"training.lead\",\"label\":{\"en\":\"Training lead\",\"zh\":\"\\u57F9\\u8A13\\u8CA0\\u8CAC\\u4EBA\"},\"requiredCount\":1,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"registration.desk\",\"label\":{\"en\":\"Registration desk\",\"zh\":\"\\u5831\\u5230\\u8655\"},\"requiredCount\":2,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"facilitator.team\",\"label\":{\"en\":\"Facilitator team\",\"zh\":\"\\u5E36\\u9818\\u5718\\u968A\"},\"requiredCount\":2,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"hospitality.team\",\"label\":{\"en\":\"Hospitality team\",\"zh\":\"\\u9910\\u98F2\\u5718\\u968A\"},\"requiredCount\":2,\"eligibilityCode\":\"approvedGroupMember\"}]",
+                            RecommendedWorkflowTemplateCode = "camp",
+                            RegistrationMode = "required",
+                            Version = 2,
+                            Visibility = "churchVisible"
+                        },
+                        new
+                        {
+                            Id = new Guid("f4136549-9494-1b7f-54ce-25ccaa925534"),
+                            ArchetypeCode = "recurring-gathering",
+                            Code = "small-group-fellowship",
+                            ConcurrencyToken = new Guid("bddf3995-852a-070c-e52e-ac9ccd57e7e5"),
+                            CreatedUtc = new DateTime(2026, 8, 27, 0, 0, 0, 0, DateTimeKind.Utc),
+                            DescriptionEn = "A weekly group gathering with programme, place and follow-up.",
+                            DescriptionZh = "包含節目、場地與跟進的每週小組聚會。",
+                            IconKey = "fellowship",
+                            IsActive = true,
+                            IsCurrent = true,
+                            IsSystemPreset = true,
+                            NameEn = "Small-group fellowship",
+                            NameZh = "小組團契",
+                            PreselectedModulesJson = "[\"PROGRAM.PRODUCTION\",\"PLACE.RESOURCE\",\"SERVICE.ROSTER\",\"COMMS.FOLLOWUP\"]",
+                            PresetServiceSlotsJson = "[{\"roleCode\":\"gathering.host\",\"label\":{\"en\":\"Gathering host\",\"zh\":\"\\u805A\\u6703\\u63A5\\u5F85\"},\"requiredCount\":1,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"discussion.facilitator\",\"label\":{\"en\":\"Discussion facilitator\",\"zh\":\"\\u8A0E\\u8AD6\\u5E36\\u9818\"},\"requiredCount\":1,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"hospitality.host\",\"label\":{\"en\":\"Hospitality host\",\"zh\":\"\\u8336\\u9EDE\\u63A5\\u5F85\"},\"requiredCount\":1,\"eligibilityCode\":\"approvedGroupMember\"}]",
+                            RegistrationMode = "none",
+                            Version = 2,
+                            Visibility = "groupVisible"
+                        },
+                        new
+                        {
+                            Id = new Guid("e937f772-f4dd-1f0e-4813-ba46532dbb3d"),
+                            ArchetypeCode = "recurring-gathering",
+                            Code = "worship-service",
+                            ConcurrencyToken = new Guid("88e7abc8-5990-b6a5-3beb-976e210bf811"),
+                            CreatedUtc = new DateTime(2026, 8, 27, 0, 0, 0, 0, DateTimeKind.Utc),
+                            DescriptionEn = "A recurring worship service with programme, venue and roster planning.",
+                            DescriptionZh = "包含節目、場地與排班規劃的定期崇拜。",
+                            IconKey = "worship",
+                            IsActive = true,
+                            IsCurrent = true,
+                            IsSystemPreset = true,
+                            NameEn = "Worship service",
+                            NameZh = "主日聚會",
+                            PreselectedModulesJson = "[\"PROGRAM.PRODUCTION\",\"PLACE.RESOURCE\",\"SERVICE.ROSTER\",\"COMMS.FOLLOWUP\"]",
+                            PresetServiceSlotsJson = "[{\"roleCode\":\"service.lead\",\"label\":{\"en\":\"Service lead\",\"zh\":\"\\u805A\\u6703\\u4E3B\\u9818\"},\"requiredCount\":1,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"welcome.team\",\"label\":{\"en\":\"Welcome team\",\"zh\":\"\\u63A5\\u5F85\\u5718\\u968A\"},\"requiredCount\":2,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"worship.team\",\"label\":{\"en\":\"Worship team\",\"zh\":\"\\u656C\\u62DC\\u5718\\u968A\"},\"requiredCount\":3,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"av.operator\",\"label\":{\"en\":\"Audio/visual operator\",\"zh\":\"\\u97F3\\u97FF\\u5F71\\u50CF\\u64CD\\u4F5C\"},\"requiredCount\":1,\"eligibilityCode\":\"approvedGroupMember\"}]",
+                            RegistrationMode = "none",
+                            Version = 2,
+                            Visibility = "churchVisible"
+                        },
+                        new
+                        {
+                            Id = new Guid("16b10dbb-e7cb-8814-1a32-353989a3cf8b"),
+                            ArchetypeCode = "recurring-gathering",
+                            Code = "bible-study-course",
+                            ConcurrencyToken = new Guid("d74ce8e9-f1cf-2d44-e935-58a67a766272"),
+                            CreatedUtc = new DateTime(2026, 8, 27, 0, 0, 0, 0, DateTimeKind.Utc),
+                            DescriptionEn = "A registered recurring course with programme and venue planning.",
+                            DescriptionZh = "需要報名、課程內容與場地規劃的定期課程。",
+                            IconKey = "study",
+                            IsActive = true,
+                            IsCurrent = true,
+                            IsSystemPreset = true,
+                            NameEn = "Bible study/course",
+                            NameZh = "查經課程",
+                            PreselectedModulesJson = "[\"PEOPLE.REGISTRATION\",\"PROGRAM.PRODUCTION\",\"PLACE.RESOURCE\",\"SERVICE.ROSTER\",\"COMMS.FOLLOWUP\"]",
+                            PresetServiceSlotsJson = "[{\"roleCode\":\"course.facilitator\",\"label\":{\"en\":\"Course facilitator\",\"zh\":\"\\u8AB2\\u7A0B\\u5E36\\u9818\"},\"requiredCount\":1,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"registration.desk\",\"label\":{\"en\":\"Registration desk\",\"zh\":\"\\u5831\\u5230\\u8655\"},\"requiredCount\":1,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"hospitality.host\",\"label\":{\"en\":\"Hospitality host\",\"zh\":\"\\u8336\\u9EDE\\u63A5\\u5F85\"},\"requiredCount\":1,\"eligibilityCode\":\"approvedGroupMember\"}]",
+                            RegistrationMode = "required",
+                            Version = 2,
+                            Visibility = "churchVisible"
+                        },
+                        new
+                        {
+                            Id = new Guid("2e746361-5926-7397-4a33-150f76052fe7"),
+                            ArchetypeCode = "recurring-gathering",
+                            Code = "prayer-meeting",
+                            ConcurrencyToken = new Guid("28220f31-14e2-6e7c-9e37-06f106fcf151"),
+                            CreatedUtc = new DateTime(2026, 8, 27, 0, 0, 0, 0, DateTimeKind.Utc),
+                            DescriptionEn = "A recurring prayer gathering with programme and place coordination.",
+                            DescriptionZh = "包含流程與場地協作的定期禱告聚會。",
+                            IconKey = "prayer",
+                            IsActive = true,
+                            IsCurrent = true,
+                            IsSystemPreset = true,
+                            NameEn = "Prayer meeting",
+                            NameZh = "禱告會",
+                            PreselectedModulesJson = "[\"PROGRAM.PRODUCTION\",\"PLACE.RESOURCE\",\"SERVICE.ROSTER\",\"COMMS.FOLLOWUP\"]",
+                            PresetServiceSlotsJson = "[{\"roleCode\":\"prayer.lead\",\"label\":{\"en\":\"Prayer lead\",\"zh\":\"\\u79B1\\u544A\\u5E36\\u9818\"},\"requiredCount\":1,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"welcome.team\",\"label\":{\"en\":\"Welcome team\",\"zh\":\"\\u63A5\\u5F85\\u5718\\u968A\"},\"requiredCount\":1,\"eligibilityCode\":\"approvedGroupMember\"}]",
+                            RegistrationMode = "none",
+                            Version = 2,
+                            Visibility = "groupVisible"
+                        },
+                        new
+                        {
+                            Id = new Guid("0c5d8b03-b9f6-41e7-0599-a459601fd1ec"),
+                            ArchetypeCode = "festival-celebration",
+                            Code = "community-festival",
+                            ConcurrencyToken = new Guid("2ef8692a-5d61-e2f0-28be-7233e0596fd4"),
+                            CreatedUtc = new DateTime(2026, 8, 27, 0, 0, 0, 0, DateTimeKind.Utc),
+                            DescriptionEn = "A public festival with zones, live operations and hospitality.",
+                            DescriptionZh = "包含區域、現場營運與接待的公開社區節慶。",
+                            IconKey = "festival",
+                            IsActive = true,
+                            IsCurrent = true,
+                            IsSystemPreset = true,
+                            NameEn = "Community festival",
+                            NameZh = "社區節慶",
+                            PreselectedModulesJson = "[\"PEOPLE.REGISTRATION\",\"SAFETY.RAM\",\"PROGRAM.PRODUCTION\",\"PLACE.RESOURCE\",\"FESTIVAL.OPERATIONS\",\"SERVICE.ROSTER\",\"FOOD.HOSPITALITY\",\"COMMS.FOLLOWUP\"]",
+                            PresetServiceSlotsJson = "[{\"roleCode\":\"operations.commander\",\"label\":{\"en\":\"Operations commander\",\"zh\":\"\\u73FE\\u5834\\u7E3D\\u6307\\u63EE\"},\"requiredCount\":1,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"welcome.team\",\"label\":{\"en\":\"Welcome team\",\"zh\":\"\\u63A5\\u5F85\\u5718\\u968A\"},\"requiredCount\":4,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"stage.team\",\"label\":{\"en\":\"Stage team\",\"zh\":\"\\u821E\\u53F0\\u5718\\u968A\"},\"requiredCount\":2,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"site.team\",\"label\":{\"en\":\"Site team\",\"zh\":\"\\u5834\\u52D9\\u5718\\u968A\"},\"requiredCount\":4,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"hospitality.team\",\"label\":{\"en\":\"Hospitality team\",\"zh\":\"\\u9910\\u98F2\\u5718\\u968A\"},\"requiredCount\":3,\"eligibilityCode\":\"approvedGroupMember\"}]",
+                            RegistrationMode = "none",
+                            Version = 2,
+                            Visibility = "public"
+                        },
+                        new
+                        {
+                            Id = new Guid("b40de5e1-953b-ee6f-8788-04e58d9ef3e8"),
+                            ArchetypeCode = "festival-celebration",
+                            Code = "church-celebration",
+                            ConcurrencyToken = new Guid("50656fd0-a065-b73c-4f35-031552e84271"),
+                            CreatedUtc = new DateTime(2026, 8, 27, 0, 0, 0, 0, DateTimeKind.Utc),
+                            DescriptionEn = "A church celebration with registration and coordinated live operations.",
+                            DescriptionZh = "需要報名與現場協作的教會慶典。",
+                            IconKey = "celebration",
+                            IsActive = true,
+                            IsCurrent = true,
+                            IsSystemPreset = true,
+                            NameEn = "Church celebration",
+                            NameZh = "教會慶典",
+                            PreselectedModulesJson = "[\"PEOPLE.REGISTRATION\",\"SAFETY.RAM\",\"PROGRAM.PRODUCTION\",\"PLACE.RESOURCE\",\"FESTIVAL.OPERATIONS\",\"SERVICE.ROSTER\",\"FOOD.HOSPITALITY\",\"COMMS.FOLLOWUP\"]",
+                            PresetServiceSlotsJson = "[{\"roleCode\":\"celebration.lead\",\"label\":{\"en\":\"Celebration lead\",\"zh\":\"\\u6176\\u5178\\u8CA0\\u8CAC\\u4EBA\"},\"requiredCount\":1,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"welcome.team\",\"label\":{\"en\":\"Welcome team\",\"zh\":\"\\u63A5\\u5F85\\u5718\\u968A\"},\"requiredCount\":3,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"programme.team\",\"label\":{\"en\":\"Programme team\",\"zh\":\"\\u7BC0\\u76EE\\u5718\\u968A\"},\"requiredCount\":2,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"setup.team\",\"label\":{\"en\":\"Setup team\",\"zh\":\"\\u5834\\u5730\\u4F48\\u7F6E\\u5718\\u968A\"},\"requiredCount\":4,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"hospitality.team\",\"label\":{\"en\":\"Hospitality team\",\"zh\":\"\\u9910\\u98F2\\u5718\\u968A\"},\"requiredCount\":3,\"eligibilityCode\":\"approvedGroupMember\"}]",
+                            RegistrationMode = "required",
+                            Version = 2,
+                            Visibility = "churchVisible"
+                        },
+                        new
+                        {
+                            Id = new Guid("5b2c8a47-42ea-02be-ea55-bbe87090bf70"),
+                            ArchetypeCode = "festival-celebration",
+                            Code = "public-outreach",
+                            ConcurrencyToken = new Guid("b407ef65-356e-3da6-5c21-86dddbcf1293"),
+                            CreatedUtc = new DateTime(2026, 8, 27, 0, 0, 0, 0, DateTimeKind.Utc),
+                            DescriptionEn = "A public outreach event with controlled outreach workflow recommendation.",
+                            DescriptionZh = "帶有受控 outreach 工作流建議的公開外展。",
+                            IconKey = "outreach",
+                            IsActive = true,
+                            IsCurrent = true,
+                            IsSystemPreset = true,
+                            NameEn = "Public outreach",
+                            NameZh = "公開外展",
+                            PreselectedModulesJson = "[\"PEOPLE.REGISTRATION\",\"SAFETY.RAM\",\"PROGRAM.PRODUCTION\",\"PLACE.RESOURCE\",\"FESTIVAL.OPERATIONS\",\"SERVICE.ROSTER\",\"COMMS.FOLLOWUP\"]",
+                            PresetServiceSlotsJson = "[{\"roleCode\":\"outreach.lead\",\"label\":{\"en\":\"Outreach lead\",\"zh\":\"\\u5916\\u5C55\\u8CA0\\u8CAC\\u4EBA\"},\"requiredCount\":1,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"welcome.team\",\"label\":{\"en\":\"Welcome team\",\"zh\":\"\\u63A5\\u5F85\\u5718\\u968A\"},\"requiredCount\":4,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"programme.team\",\"label\":{\"en\":\"Programme team\",\"zh\":\"\\u7BC0\\u76EE\\u5718\\u968A\"},\"requiredCount\":2,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"site.team\",\"label\":{\"en\":\"Site team\",\"zh\":\"\\u5834\\u52D9\\u5718\\u968A\"},\"requiredCount\":4,\"eligibilityCode\":\"approvedGroupMember\"}]",
+                            RecommendedWorkflowTemplateCode = "outreach",
+                            RegistrationMode = "none",
+                            Version = 2,
+                            Visibility = "public"
+                        },
+                        new
+                        {
+                            Id = new Guid("a23304b8-e5dd-fc01-90bd-d42da5705a65"),
+                            ArchetypeCode = "festival-celebration",
+                            Code = "concert-performance",
+                            ConcurrencyToken = new Guid("73eea620-c319-e33a-c6be-2b6b59b7be11"),
+                            CreatedUtc = new DateTime(2026, 8, 27, 0, 0, 0, 0, DateTimeKind.Utc),
+                            DescriptionEn = "A public performance with registration and production operations.",
+                            DescriptionZh = "需要報名、製作與現場營運的公開演出。",
+                            IconKey = "performance",
+                            IsActive = true,
+                            IsCurrent = true,
+                            IsSystemPreset = true,
+                            NameEn = "Concert/performance",
+                            NameZh = "音樂會・演出",
+                            PreselectedModulesJson = "[\"PEOPLE.REGISTRATION\",\"SAFETY.RAM\",\"PROGRAM.PRODUCTION\",\"PLACE.RESOURCE\",\"FESTIVAL.OPERATIONS\",\"SERVICE.ROSTER\",\"COMMS.FOLLOWUP\"]",
+                            PresetServiceSlotsJson = "[{\"roleCode\":\"production.lead\",\"label\":{\"en\":\"Production lead\",\"zh\":\"\\u88FD\\u4F5C\\u8CA0\\u8CAC\\u4EBA\"},\"requiredCount\":1,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"front.of.house\",\"label\":{\"en\":\"Front of house\",\"zh\":\"\\u524D\\u53F0\\u63A5\\u5F85\"},\"requiredCount\":4,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"stage.team\",\"label\":{\"en\":\"Stage team\",\"zh\":\"\\u821E\\u53F0\\u5718\\u968A\"},\"requiredCount\":3,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"av.operator\",\"label\":{\"en\":\"Audio/visual operator\",\"zh\":\"\\u97F3\\u97FF\\u5F71\\u50CF\\u64CD\\u4F5C\"},\"requiredCount\":2,\"eligibilityCode\":\"approvedGroupMember\"},{\"roleCode\":\"setup.team\",\"label\":{\"en\":\"Setup team\",\"zh\":\"\\u5834\\u5730\\u4F48\\u7F6E\\u5718\\u968A\"},\"requiredCount\":4,\"eligibilityCode\":\"approvedGroupMember\"}]",
+                            RegistrationMode = "required",
+                            Version = 2,
+                            Visibility = "public"
+                        });
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventApprovalDecision", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ActorMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("actor_member_id");
+
+                    b.Property<DateTime>("DecidedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("decided_utc");
+
+                    b.Property<int>("Decision")
+                        .HasColumnType("int")
+                        .HasColumnName("decision");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("event_id");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("SubjectType")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)")
+                        .HasColumnName("subject_type");
+
+                    b.Property<int>("SubjectVersion")
+                        .HasColumnType("int")
+                        .HasColumnName("subject_version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_approval_decisions");
+
+                    b.HasIndex("ActorMemberId")
+                        .HasDatabaseName("ix_event_approval_decisions_actor_member_id");
+
+                    b.HasIndex("EventId", "SubjectType", "DecidedUtc")
+                        .HasDatabaseName("ix_event_approval_decisions_event_id_subject_type_decided_utc");
+
+                    b.ToTable("event_approval_decisions", (string)null);
+                });
+
             modelBuilder.Entity("Alife.Domain.Entities.EventArtifact", b =>
                 {
                     b.Property<Guid>("Id")
@@ -702,6 +1226,336 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.ToTable("event_artifacts", (string)null);
                 });
 
+            modelBuilder.Entity("Alife.Domain.Entities.EventChildAttendance", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CheckedInByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("checked_in_by_member_id");
+
+                    b.Property<DateTime>("CheckedInUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("checked_in_utc");
+
+                    b.Property<Guid?>("CheckedOutByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("checked_out_by_member_id");
+
+                    b.Property<DateTime?>("CheckedOutUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("checked_out_utc");
+
+                    b.Property<Guid>("ChildRegistrationId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("child_registration_id");
+
+                    b.Property<Guid?>("CollectorId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("collector_id");
+
+                    b.Property<Guid>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("concurrency_token");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("event_id");
+
+                    b.Property<Guid>("EventOccurrenceId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("event_occurrence_id");
+
+                    b.Property<int>("State")
+                        .HasColumnType("int")
+                        .HasColumnName("state");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_safeguarding_child_attendance");
+
+                    b.HasIndex("CheckedInByMemberId")
+                        .HasDatabaseName("ix_event_safeguarding_child_attendance_checked_in_by_member_id");
+
+                    b.HasIndex("CheckedOutByMemberId")
+                        .HasDatabaseName("ix_event_safeguarding_child_attendance_checked_out_by_member_id");
+
+                    b.HasIndex("ChildRegistrationId")
+                        .HasDatabaseName("ix_event_safeguarding_child_attendance_child_registration_id");
+
+                    b.HasIndex("CollectorId")
+                        .HasDatabaseName("ix_event_safeguarding_child_attendance_collector_id");
+
+                    b.HasIndex("EventId")
+                        .HasDatabaseName("ix_event_safeguarding_child_attendance_event_id");
+
+                    b.HasIndex("EventOccurrenceId", "ChildRegistrationId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_event_safeguarding_child_attendance_event_occurrence_id_child_registration_id");
+
+                    b.HasIndex("EventOccurrenceId", "State")
+                        .HasDatabaseName("ix_event_safeguarding_child_attendance_event_occurrence_id_state");
+
+                    b.ToTable("event_safeguarding_child_attendance", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_event_safeguarding_child_attendance_checkout", "([state] = 0 AND [checked_out_utc] IS NULL AND [checked_out_by_member_id] IS NULL AND [collector_id] IS NULL) OR ([state] = 1 AND [checked_out_utc] IS NOT NULL AND [checked_out_by_member_id] IS NOT NULL AND [collector_id] IS NOT NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventChildAuthorisedCollector", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AuthorisedByGuardianRelationshipId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("authorised_by_guardian_relationship_id");
+
+                    b.Property<DateTime>("AuthorisedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("authorised_utc");
+
+                    b.Property<Guid>("ChildRegistrationId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("child_registration_id");
+
+                    b.Property<Guid>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("concurrency_token");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("display_name");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("RelationshipLabel")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)")
+                        .HasColumnName("relationship_label");
+
+                    b.Property<Guid?>("RevokedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("revoked_by_member_id");
+
+                    b.Property<DateTime?>("RevokedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("revoked_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_safeguarding_authorised_collectors");
+
+                    b.HasIndex("AuthorisedByGuardianRelationshipId")
+                        .HasDatabaseName("ix_event_safeguarding_authorised_collectors_authorised_by_guardian_relationship_id");
+
+                    b.HasIndex("RevokedByMemberId")
+                        .HasDatabaseName("ix_event_safeguarding_authorised_collectors_revoked_by_member_id");
+
+                    b.HasIndex("ChildRegistrationId", "IsActive", "DisplayName")
+                        .HasDatabaseName("ix_event_safeguarding_authorised_collectors_child_registration_id_is_active_display_name");
+
+                    b.ToTable("event_safeguarding_authorised_collectors", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventChildConsentRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ChildRegistrationId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("child_registration_id");
+
+                    b.Property<int>("Decision")
+                        .HasColumnType("int")
+                        .HasColumnName("decision");
+
+                    b.Property<Guid>("GuardianRelationshipId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("guardian_relationship_id");
+
+                    b.Property<Guid>("PolicyVersionId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("policy_version_id");
+
+                    b.Property<Guid>("RecordedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("recorded_by_member_id");
+
+                    b.Property<DateTime>("RecordedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("recorded_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_safeguarding_child_consents");
+
+                    b.HasIndex("GuardianRelationshipId")
+                        .HasDatabaseName("ix_event_safeguarding_child_consents_guardian_relationship_id");
+
+                    b.HasIndex("PolicyVersionId")
+                        .HasDatabaseName("ix_event_safeguarding_child_consents_policy_version_id");
+
+                    b.HasIndex("RecordedByMemberId")
+                        .HasDatabaseName("ix_event_safeguarding_child_consents_recorded_by_member_id");
+
+                    b.HasIndex("ChildRegistrationId", "PolicyVersionId", "RecordedUtc")
+                        .HasDatabaseName("ix_event_safeguarding_child_consents_child_registration_id_policy_version_id_recorded_utc");
+
+                    b.ToTable("event_safeguarding_child_consents", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventChildGuardianRelationship", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ChildRegistrationId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("child_registration_id");
+
+                    b.Property<Guid>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("concurrency_token");
+
+                    b.Property<DateTime?>("ConfirmedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("confirmed_utc");
+
+                    b.Property<Guid>("CreatedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by_member_id");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<DateTime?>("EndedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("ended_utc");
+
+                    b.Property<Guid>("GuardianMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("guardian_member_id");
+
+                    b.Property<string>("RelationshipLabel")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)")
+                        .HasColumnName("relationship_label");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_safeguarding_guardian_relationships");
+
+                    b.HasIndex("CreatedByMemberId")
+                        .HasDatabaseName("ix_event_safeguarding_guardian_relationships_created_by_member_id");
+
+                    b.HasIndex("GuardianMemberId")
+                        .HasDatabaseName("ix_event_safeguarding_guardian_relationships_guardian_member_id");
+
+                    b.HasIndex("ChildRegistrationId", "GuardianMemberId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_event_safeguarding_guardian_relationships_child_registration_id_guardian_member_id")
+                        .HasFilter("[status] <> 2");
+
+                    b.ToTable("event_safeguarding_guardian_relationships", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventChildRegistration", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ChildMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("child_member_id");
+
+                    b.Property<Guid>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("concurrency_token");
+
+                    b.Property<Guid>("CreatedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by_member_id");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<Guid?>("EndedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("ended_by_member_id");
+
+                    b.Property<DateTime?>("EndedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("ended_utc");
+
+                    b.Property<Guid>("EnrollmentId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("enrollment_id");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("event_id");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("PhotoUrl")
+                        .HasMaxLength(1200)
+                        .HasColumnType("nvarchar(1200)")
+                        .HasColumnName("photo_url");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_safeguarding_child_registrations");
+
+                    b.HasIndex("ChildMemberId")
+                        .HasDatabaseName("ix_event_safeguarding_child_registrations_child_member_id");
+
+                    b.HasIndex("CreatedByMemberId")
+                        .HasDatabaseName("ix_event_safeguarding_child_registrations_created_by_member_id");
+
+                    b.HasIndex("EndedByMemberId")
+                        .HasDatabaseName("ix_event_safeguarding_child_registrations_ended_by_member_id");
+
+                    b.HasIndex("EnrollmentId")
+                        .HasDatabaseName("ix_event_safeguarding_child_registrations_enrollment_id");
+
+                    b.HasIndex("EventId", "ChildMemberId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_event_safeguarding_child_registrations_event_id_child_member_id")
+                        .HasFilter("[is_active] = 1");
+
+                    b.HasIndex("EventId", "EnrollmentId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_event_safeguarding_child_registrations_event_id_enrollment_id");
+
+                    b.ToTable("event_safeguarding_child_registrations", (string)null);
+                });
+
             modelBuilder.Entity("Alife.Domain.Entities.EventContactProfile", b =>
                 {
                     b.Property<Guid>("EventId")
@@ -767,6 +1621,371 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_event_enrollments_group_id_updated_utc");
 
                     b.ToTable("event_enrollments", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventFactSet", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("CreatedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by_member_id");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("event_id");
+
+                    b.Property<string>("FactsJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("facts_json");
+
+                    b.Property<bool>("IsLegacyBackfill")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_legacy_backfill");
+
+                    b.Property<string>("SchemaVersion")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("schema_version");
+
+                    b.Property<string>("SourceHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("source_hash");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("int")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_fact_sets");
+
+                    b.HasIndex("CreatedByMemberId")
+                        .HasDatabaseName("ix_event_fact_sets_created_by_member_id");
+
+                    b.HasIndex("EventId", "Version")
+                        .IsUnique()
+                        .HasDatabaseName("ix_event_fact_sets_event_id_version");
+
+                    b.ToTable("event_fact_sets", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventIdempotencyRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<DateTime>("ExpiresUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("expires_utc");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("key");
+
+                    b.Property<string>("Operation")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)")
+                        .HasColumnName("operation");
+
+                    b.Property<string>("RequestHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("request_hash");
+
+                    b.Property<Guid>("ResultEntityId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("result_entity_id");
+
+                    b.Property<Guid>("ScopeId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("scope_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_idempotency_records");
+
+                    b.HasIndex("ExpiresUtc")
+                        .HasDatabaseName("ix_event_idempotency_records_expires_utc");
+
+                    b.HasIndex("Operation", "ScopeId", "Key")
+                        .IsUnique()
+                        .HasDatabaseName("ix_event_idempotency_records_operation_scope_id_key");
+
+                    b.ToTable("event_idempotency_records", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventOccurrence", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AttendanceJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("attendance_json");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<DateTime>("EndUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("end_utc");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("event_id");
+
+                    b.Property<string>("ExceptionsJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("exceptions_json");
+
+                    b.Property<string>("IncidentsJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("incidents_json");
+
+                    b.Property<bool>("IsLegacyBackfill")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_legacy_backfill");
+
+                    b.Property<DateOnly>("LocalDate")
+                        .HasColumnType("date")
+                        .HasColumnName("local_date");
+
+                    b.Property<Guid>("ProgrammeConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("programme_concurrency_token");
+
+                    b.Property<Guid>("RosterConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("roster_concurrency_token");
+
+                    b.Property<DateTime>("StartUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("start_utc");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_composition_occurrences");
+
+                    b.HasIndex("EventId", "StartUtc")
+                        .IsUnique()
+                        .HasDatabaseName("ix_event_composition_occurrences_event_id_start_utc");
+
+                    b.HasIndex("Status", "StartUtc")
+                        .HasDatabaseName("ix_event_composition_occurrences_status_start_utc");
+
+                    b.ToTable("event_composition_occurrences", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventPlanSnapshot", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("AcceptedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("accepted_by_member_id");
+
+                    b.Property<DateTime?>("AcceptedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("accepted_utc");
+
+                    b.Property<string>("ActivityTypeCode")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)")
+                        .HasColumnName("activity_type_code");
+
+                    b.Property<int?>("ActivityTypeVersion")
+                        .HasColumnType("int")
+                        .HasColumnName("activity_type_version");
+
+                    b.Property<string>("ArchetypeCode")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)")
+                        .HasColumnName("archetype_code");
+
+                    b.Property<int?>("ArchetypeVersion")
+                        .HasColumnType("int")
+                        .HasColumnName("archetype_version");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<string>("ETag")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)")
+                        .HasColumnName("e_tag");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("event_id");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsLegacyBackfill")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_legacy_backfill");
+
+                    b.Property<string>("ProposalHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("proposal_hash");
+
+                    b.Property<string>("SchemaVersion")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("schema_version");
+
+                    b.Property<string>("SnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("snapshot_json");
+
+                    b.Property<Guid>("SourceFactSetId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("source_fact_set_id");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("int")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_plan_snapshots");
+
+                    b.HasIndex("AcceptedByMemberId")
+                        .HasDatabaseName("ix_event_plan_snapshots_accepted_by_member_id");
+
+                    b.HasIndex("EventId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_event_plan_snapshots_event_id")
+                        .HasFilter("[is_active] = 1");
+
+                    b.HasIndex("SourceFactSetId")
+                        .HasDatabaseName("ix_event_plan_snapshots_source_fact_set_id");
+
+                    b.HasIndex("EventId", "Version")
+                        .IsUnique()
+                        .HasDatabaseName("ix_event_plan_snapshots_event_id_version");
+
+                    b.ToTable("event_plan_snapshots", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventProgramItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ContentJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("content_json");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<string>("DescriptionEn")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasColumnName("description_en");
+
+                    b.Property<string>("DescriptionZh")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasColumnName("description_zh");
+
+                    b.Property<int>("DurationMinutes")
+                        .HasColumnType("int")
+                        .HasColumnName("duration_minutes");
+
+                    b.Property<Guid?>("OwnerMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("owner_member_id");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("session_id");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int")
+                        .HasColumnName("sort_order");
+
+                    b.Property<int>("StartOffsetMinutes")
+                        .HasColumnType("int")
+                        .HasColumnName("start_offset_minutes");
+
+                    b.Property<string>("TitleEn")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)")
+                        .HasColumnName("title_en");
+
+                    b.Property<string>("TitleZh")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)")
+                        .HasColumnName("title_zh");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_program_items");
+
+                    b.HasIndex("OwnerMemberId")
+                        .HasDatabaseName("ix_event_program_items_owner_member_id");
+
+                    b.HasIndex("SessionId", "SortOrder")
+                        .HasDatabaseName("ix_event_program_items_session_id_sort_order");
+
+                    b.ToTable("event_program_items", (string)null);
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.EventRamAssessment", b =>
@@ -868,6 +2087,1409 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_event_reviews_group_id_updated_utc");
 
                     b.ToTable("event_reviews", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventRoleAssignment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime?>("AcceptedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("accepted_utc");
+
+                    b.Property<Guid>("AssignedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("assigned_by_member_id");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<DateTime?>("DeclinedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("declined_utc");
+
+                    b.Property<DateTime?>("EndedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("ended_utc");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("event_id");
+
+                    b.Property<Guid>("MemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("member_id");
+
+                    b.Property<string>("RoleRequirementKey")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)")
+                        .HasColumnName("role_requirement_key");
+
+                    b.Property<Guid?>("ScopeId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("scope_id");
+
+                    b.Property<string>("ScopeType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("scope_type");
+
+                    b.Property<int>("Status")
+                        .IsConcurrencyToken()
+                        .HasColumnType("int")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_role_assignments");
+
+                    b.HasIndex("AssignedByMemberId")
+                        .HasDatabaseName("ix_event_role_assignments_assigned_by_member_id");
+
+                    b.HasIndex("MemberId", "EndedUtc")
+                        .HasDatabaseName("ix_event_role_assignments_member_id_ended_utc");
+
+                    b.HasIndex("EventId", "RoleRequirementKey", "MemberId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_event_role_assignments_event_id_role_requirement_key_member_id")
+                        .HasFilter("[ended_utc] IS NULL");
+
+                    b.ToTable("event_role_assignments", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventRosterAssignment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AssignedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("assigned_by_member_id");
+
+                    b.Property<DateTime?>("ConfirmedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("confirmed_utc");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<DateTime?>("DeclinedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("declined_utc");
+
+                    b.Property<DateTime?>("EndedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("ended_utc");
+
+                    b.Property<Guid>("MemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("member_id");
+
+                    b.Property<Guid?>("ReplacesAssignmentId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("replaces_assignment_id");
+
+                    b.Property<Guid>("ServiceSlotId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("service_slot_id");
+
+                    b.Property<int>("Status")
+                        .IsConcurrencyToken()
+                        .HasColumnType("int")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_operations_roster_assignments");
+
+                    b.HasIndex("AssignedByMemberId")
+                        .HasDatabaseName("ix_event_operations_roster_assignments_assigned_by_member_id");
+
+                    b.HasIndex("MemberId")
+                        .HasDatabaseName("ix_event_operations_roster_assignments_member_id");
+
+                    b.HasIndex("ReplacesAssignmentId")
+                        .HasDatabaseName("ix_event_operations_roster_assignments_replaces_assignment_id");
+
+                    b.HasIndex("ServiceSlotId", "MemberId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_event_operations_roster_assignments_service_slot_id_member_id")
+                        .HasFilter("[ended_utc] IS NULL");
+
+                    b.ToTable("event_operations_roster_assignments", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventRosterAvailability", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("MemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("member_id");
+
+                    b.Property<Guid>("ServiceSlotId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("service_slot_id");
+
+                    b.Property<int>("Status")
+                        .IsConcurrencyToken()
+                        .HasColumnType("int")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_operations_roster_availability");
+
+                    b.HasIndex("MemberId")
+                        .HasDatabaseName("ix_event_operations_roster_availability_member_id");
+
+                    b.HasIndex("ServiceSlotId", "MemberId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_event_operations_roster_availability_service_slot_id_member_id");
+
+                    b.ToTable("event_operations_roster_availability", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventSafeguardingConfiguration", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("concurrency_token");
+
+                    b.Property<Guid>("ConfiguredByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("configured_by_member_id");
+
+                    b.Property<DateTime>("ConfiguredUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("configured_utc");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("event_id");
+
+                    b.Property<Guid>("PolicyVersionId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("policy_version_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_safeguarding_configurations");
+
+                    b.HasIndex("ConfiguredByMemberId")
+                        .HasDatabaseName("ix_event_safeguarding_configurations_configured_by_member_id");
+
+                    b.HasIndex("EventId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_event_safeguarding_configurations_event_id");
+
+                    b.HasIndex("PolicyVersionId")
+                        .HasDatabaseName("ix_event_safeguarding_configurations_policy_version_id");
+
+                    b.ToTable("event_safeguarding_configurations", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventSafeguardingPolicyVersion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CreatedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by_member_id");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<DateTime>("EffectiveFromUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("effective_from_utc");
+
+                    b.Property<Guid>("GroupId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("group_id");
+
+                    b.Property<bool>("IsPublished")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_published");
+
+                    b.Property<string>("NameEn")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)")
+                        .HasColumnName("name_en");
+
+                    b.Property<string>("NameZh")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)")
+                        .HasColumnName("name_zh");
+
+                    b.Property<string>("PolicyCode")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)")
+                        .HasColumnName("policy_code");
+
+                    b.Property<string>("RequirementsJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("requirements_json");
+
+                    b.Property<DateTime?>("RetiredUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("retired_utc");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("int")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_safeguarding_policy_versions");
+
+                    b.HasIndex("CreatedByMemberId")
+                        .HasDatabaseName("ix_event_safeguarding_policy_versions_created_by_member_id");
+
+                    b.HasIndex("GroupId", "IsPublished", "EffectiveFromUtc")
+                        .HasDatabaseName("ix_event_safeguarding_policy_versions_group_id_is_published_effective_from_utc");
+
+                    b.HasIndex("GroupId", "PolicyCode", "Version")
+                        .IsUnique()
+                        .HasDatabaseName("ix_event_safeguarding_policy_versions_group_id_policy_code_version");
+
+                    b.ToTable("event_safeguarding_policy_versions", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_event_safeguarding_policy_versions_version", "[version] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventSafeguardingWorkerEligibility", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("concurrency_token");
+
+                    b.Property<string>("EligibilityEvidenceCode")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)")
+                        .HasColumnName("eligibility_evidence_code");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("event_id");
+
+                    b.Property<string>("EvidenceReference")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)")
+                        .HasColumnName("evidence_reference");
+
+                    b.Property<bool>("IsEligible")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_eligible");
+
+                    b.Property<Guid>("MemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("member_id");
+
+                    b.Property<Guid>("PolicyVersionId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("policy_version_id");
+
+                    b.Property<string>("RoleRequirementKey")
+                        .IsRequired()
+                        .HasMaxLength(180)
+                        .HasColumnType("nvarchar(180)")
+                        .HasColumnName("role_requirement_key");
+
+                    b.Property<Guid>("VerifiedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("verified_by_member_id");
+
+                    b.Property<DateTime>("VerifiedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("verified_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_safeguarding_worker_eligibility");
+
+                    b.HasIndex("MemberId")
+                        .HasDatabaseName("ix_event_safeguarding_worker_eligibility_member_id");
+
+                    b.HasIndex("PolicyVersionId")
+                        .HasDatabaseName("ix_event_safeguarding_worker_eligibility_policy_version_id");
+
+                    b.HasIndex("VerifiedByMemberId")
+                        .HasDatabaseName("ix_event_safeguarding_worker_eligibility_verified_by_member_id");
+
+                    b.HasIndex("EventId", "PolicyVersionId", "MemberId", "RoleRequirementKey", "EligibilityEvidenceCode")
+                        .IsUnique()
+                        .HasDatabaseName("ix_event_safeguarding_worker_eligibility_event_id_policy_version_id_member_id_role_requirement_key_eligibility_evidence_code");
+
+                    b.ToTable("event_safeguarding_worker_eligibility", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventSeries", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CreatedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by_member_id");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<string>("DefaultFactsJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("default_facts_json");
+
+                    b.Property<string>("DefaultTeamJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("default_team_json");
+
+                    b.Property<string>("ExceptionDatesJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("exception_dates_json");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<string>("NameEn")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)")
+                        .HasColumnName("name_en");
+
+                    b.Property<string>("NameZh")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)")
+                        .HasColumnName("name_zh");
+
+                    b.Property<Guid>("OwningGroupId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("owning_group_id");
+
+                    b.Property<string>("RecurrenceRule")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("recurrence_rule");
+
+                    b.Property<int>("RollingOccurrenceWeeks")
+                        .HasColumnType("int")
+                        .HasColumnName("rolling_occurrence_weeks");
+
+                    b.Property<string>("TimeZone")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("time_zone");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_composition_series");
+
+                    b.HasIndex("CreatedByMemberId")
+                        .HasDatabaseName("ix_event_composition_series_created_by_member_id");
+
+                    b.HasIndex("OwningGroupId", "UpdatedUtc")
+                        .HasDatabaseName("ix_event_composition_series_owning_group_id_updated_utc");
+
+                    b.ToTable("event_composition_series", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventServiceSlot", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<string>("EligibilityCode")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)")
+                        .HasColumnName("eligibility_code");
+
+                    b.Property<DateTime>("EndUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("end_utc");
+
+                    b.Property<Guid>("OccurrenceId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("occurrence_id");
+
+                    b.Property<Guid?>("ProgramItemId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("program_item_id");
+
+                    b.Property<int>("RequiredCount")
+                        .HasColumnType("int")
+                        .HasColumnName("required_count");
+
+                    b.Property<string>("RoleCode")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)")
+                        .HasColumnName("role_code");
+
+                    b.Property<Guid?>("SessionId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("session_id");
+
+                    b.Property<DateTime>("StartUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("start_utc");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_utc");
+
+                    b.Property<Guid?>("ZoneId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("zone_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_service_slots");
+
+                    b.HasIndex("ProgramItemId")
+                        .HasDatabaseName("ix_event_service_slots_program_item_id");
+
+                    b.HasIndex("SessionId")
+                        .HasDatabaseName("ix_event_service_slots_session_id");
+
+                    b.HasIndex("ZoneId")
+                        .HasDatabaseName("ix_event_service_slots_zone_id");
+
+                    b.HasIndex("OccurrenceId", "StartUtc", "RoleCode")
+                        .HasDatabaseName("ix_event_service_slots_occurrence_id_start_utc_role_code");
+
+                    b.ToTable("event_service_slots", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<DateTime>("EndUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("end_utc");
+
+                    b.Property<Guid?>("LeadMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("lead_member_id");
+
+                    b.Property<string>("LocalRequirementsJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("local_requirements_json");
+
+                    b.Property<Guid>("OccurrenceId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("occurrence_id");
+
+                    b.Property<string>("PlaceJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("place_json");
+
+                    b.Property<DateTime>("StartUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("start_utc");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int")
+                        .HasColumnName("status");
+
+                    b.Property<string>("TitleEn")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)")
+                        .HasColumnName("title_en");
+
+                    b.Property<string>("TitleZh")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)")
+                        .HasColumnName("title_zh");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_sessions");
+
+                    b.HasIndex("LeadMemberId")
+                        .HasDatabaseName("ix_event_sessions_lead_member_id");
+
+                    b.HasIndex("OccurrenceId", "StartUtc")
+                        .HasDatabaseName("ix_event_sessions_occurrence_id_start_utc");
+
+                    b.ToTable("event_sessions", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventTask", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("AssignedMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("assigned_member_id");
+
+                    b.Property<DateTime?>("CompletedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("completed_utc");
+
+                    b.Property<Guid>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("concurrency_token");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<string>("DescriptionEn")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasColumnName("description_en");
+
+                    b.Property<string>("DescriptionZh")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasColumnName("description_zh");
+
+                    b.Property<DateTime?>("DueUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("due_utc");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("event_id");
+
+                    b.Property<bool>("IsRequired")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_required");
+
+                    b.Property<bool>("IsRestricted")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_restricted");
+
+                    b.Property<bool>("RequiresApproval")
+                        .HasColumnType("bit")
+                        .HasColumnName("requires_approval");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int")
+                        .HasColumnName("status");
+
+                    b.Property<string>("TitleEn")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)")
+                        .HasColumnName("title_en");
+
+                    b.Property<string>("TitleZh")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)")
+                        .HasColumnName("title_zh");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_utc");
+
+                    b.Property<Guid?>("WorkflowStepId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("workflow_step_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_operations_tasks");
+
+                    b.HasIndex("AssignedMemberId")
+                        .HasDatabaseName("ix_event_operations_tasks_assigned_member_id");
+
+                    b.HasIndex("WorkflowStepId")
+                        .HasDatabaseName("ix_event_operations_tasks_workflow_step_id");
+
+                    b.HasIndex("EventId", "Status", "DueUtc")
+                        .HasDatabaseName("ix_event_operations_tasks_event_id_status_due_utc");
+
+                    b.ToTable("event_operations_tasks", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventTaskBlocker", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CreatedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by_member_id");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<Guid>("EventTaskId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("event_task_id");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("Resolution")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)")
+                        .HasColumnName("resolution");
+
+                    b.Property<Guid?>("ResolvedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("resolved_by_member_id");
+
+                    b.Property<DateTime?>("ResolvedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("resolved_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_operations_task_blockers");
+
+                    b.HasIndex("CreatedByMemberId")
+                        .HasDatabaseName("ix_event_operations_task_blockers_created_by_member_id");
+
+                    b.HasIndex("EventTaskId")
+                        .HasDatabaseName("ix_event_operations_task_blockers_event_task_id");
+
+                    b.HasIndex("ResolvedByMemberId")
+                        .HasDatabaseName("ix_event_operations_task_blockers_resolved_by_member_id");
+
+                    b.ToTable("event_operations_task_blockers", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventTaskDependency", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<string>("DependencyType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("dependency_type");
+
+                    b.Property<Guid>("DependsOnEventTaskId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("depends_on_event_task_id");
+
+                    b.Property<Guid>("EventTaskId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("event_task_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_operations_task_dependencies");
+
+                    b.HasIndex("DependsOnEventTaskId")
+                        .HasDatabaseName("ix_event_operations_task_dependencies_depends_on_event_task_id");
+
+                    b.HasIndex("EventTaskId", "DependsOnEventTaskId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_event_operations_task_dependencies_event_task_id_depends_on_event_task_id");
+
+                    b.ToTable("event_operations_task_dependencies", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventTeamMember", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<DateTime?>("DeclinedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("declined_utc");
+
+                    b.Property<DateTime?>("EndedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("ended_utc");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("event_id");
+
+                    b.Property<Guid>("InvitedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("invited_by_member_id");
+
+                    b.Property<DateTime?>("JoinedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("joined_utc");
+
+                    b.Property<Guid>("MemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("member_id");
+
+                    b.Property<int>("Status")
+                        .IsConcurrencyToken()
+                        .HasColumnType("int")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_operations_team_members");
+
+                    b.HasIndex("InvitedByMemberId")
+                        .HasDatabaseName("ix_event_operations_team_members_invited_by_member_id");
+
+                    b.HasIndex("MemberId")
+                        .HasDatabaseName("ix_event_operations_team_members_member_id");
+
+                    b.HasIndex("EventId", "MemberId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_event_operations_team_members_event_id_member_id")
+                        .HasFilter("[ended_utc] IS NULL");
+
+                    b.ToTable("event_operations_team_members", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventTravelDriver", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("concurrency_token");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("event_id");
+
+                    b.Property<string>("EvidenceNotes")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("evidence_notes");
+
+                    b.Property<bool>("FitToDriveConfirmed")
+                        .HasColumnType("bit")
+                        .HasColumnName("fit_to_drive_confirmed");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("LicenceClass")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)")
+                        .HasColumnName("licence_class");
+
+                    b.Property<bool>("LicenceConfirmed")
+                        .HasColumnType("bit")
+                        .HasColumnName("licence_confirmed");
+
+                    b.Property<DateOnly?>("LicenceExpiresOn")
+                        .HasColumnType("date")
+                        .HasColumnName("licence_expires_on");
+
+                    b.Property<Guid>("MemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("member_id");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_utc");
+
+                    b.Property<Guid>("VerifiedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("verified_by_member_id");
+
+                    b.Property<DateTime>("VerifiedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("verified_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_travel_drivers");
+
+                    b.HasIndex("MemberId")
+                        .HasDatabaseName("ix_event_travel_drivers_member_id");
+
+                    b.HasIndex("VerifiedByMemberId")
+                        .HasDatabaseName("ix_event_travel_drivers_verified_by_member_id");
+
+                    b.HasIndex("EventId", "IsActive")
+                        .HasDatabaseName("ix_event_travel_drivers_event_id_is_active");
+
+                    b.HasIndex("EventId", "MemberId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_event_travel_drivers_event_id_member_id");
+
+                    b.ToTable("event_travel_drivers", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventTravelJourney", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("concurrency_token");
+
+                    b.Property<Guid>("CreatedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by_member_id");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<Guid?>("DriverId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("driver_id");
+
+                    b.Property<DateTime>("EndUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("end_utc");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("event_id");
+
+                    b.Property<Guid>("EventOccurrenceId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("event_occurrence_id");
+
+                    b.Property<bool>("ManifestConfirmed")
+                        .HasColumnType("bit")
+                        .HasColumnName("manifest_confirmed");
+
+                    b.Property<string>("NameEn")
+                        .IsRequired()
+                        .HasMaxLength(180)
+                        .HasColumnType("nvarchar(180)")
+                        .HasColumnName("name_en");
+
+                    b.Property<string>("NameZh")
+                        .IsRequired()
+                        .HasMaxLength(180)
+                        .HasColumnType("nvarchar(180)")
+                        .HasColumnName("name_zh");
+
+                    b.Property<DateTime>("StartUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("start_utc");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_utc");
+
+                    b.Property<Guid?>("VehicleId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("vehicle_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_travel_journeys");
+
+                    b.HasIndex("CreatedByMemberId")
+                        .HasDatabaseName("ix_event_travel_journeys_created_by_member_id");
+
+                    b.HasIndex("DriverId")
+                        .HasDatabaseName("ix_event_travel_journeys_driver_id");
+
+                    b.HasIndex("VehicleId")
+                        .HasDatabaseName("ix_event_travel_journeys_vehicle_id");
+
+                    b.HasIndex("EventId", "Status")
+                        .HasDatabaseName("ix_event_travel_journeys_event_id_status");
+
+                    b.HasIndex("EventOccurrenceId", "Status", "StartUtc")
+                        .HasDatabaseName("ix_event_travel_journeys_event_occurrence_id_status_start_utc");
+
+                    b.ToTable("event_travel_journeys", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_event_travel_journeys_interval", "[end_utc] > [start_utc]");
+                        });
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventTravelPassengerAssignment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AssignedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("assigned_by_member_id");
+
+                    b.Property<DateTime>("AssignedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("assigned_utc");
+
+                    b.Property<Guid?>("EndedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("ended_by_member_id");
+
+                    b.Property<DateTime?>("EndedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("ended_utc");
+
+                    b.Property<Guid>("JourneyId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("journey_id");
+
+                    b.Property<Guid>("MemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("member_id");
+
+                    b.Property<Guid>("PickupStopId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("pickup_stop_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_travel_passenger_assignments");
+
+                    b.HasIndex("AssignedByMemberId")
+                        .HasDatabaseName("ix_event_travel_passenger_assignments_assigned_by_member_id");
+
+                    b.HasIndex("EndedByMemberId")
+                        .HasDatabaseName("ix_event_travel_passenger_assignments_ended_by_member_id");
+
+                    b.HasIndex("PickupStopId")
+                        .HasDatabaseName("ix_event_travel_passenger_assignments_pickup_stop_id");
+
+                    b.HasIndex("JourneyId", "MemberId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_event_travel_passenger_assignments_journey_id_member_id")
+                        .HasFilter("[ended_utc] IS NULL");
+
+                    b.HasIndex("MemberId", "EndedUtc")
+                        .HasDatabaseName("ix_event_travel_passenger_assignments_member_id_ended_utc");
+
+                    b.ToTable("event_travel_passenger_assignments", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventTravelPickupStop", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AddressEn")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)")
+                        .HasColumnName("address_en");
+
+                    b.Property<string>("AddressZh")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)")
+                        .HasColumnName("address_zh");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<Guid>("JourneyId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("journey_id");
+
+                    b.Property<string>("NameEn")
+                        .IsRequired()
+                        .HasMaxLength(180)
+                        .HasColumnType("nvarchar(180)")
+                        .HasColumnName("name_en");
+
+                    b.Property<string>("NameZh")
+                        .IsRequired()
+                        .HasMaxLength(180)
+                        .HasColumnType("nvarchar(180)")
+                        .HasColumnName("name_zh");
+
+                    b.Property<DateTime>("PickupUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("pickup_utc");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int")
+                        .HasColumnName("sort_order");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_travel_pickup_stops");
+
+                    b.HasIndex("JourneyId", "SortOrder")
+                        .IsUnique()
+                        .HasDatabaseName("ix_event_travel_pickup_stops_journey_id_sort_order");
+
+                    b.ToTable("event_travel_pickup_stops", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventTravelVehicle", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("concurrency_token");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("event_id");
+
+                    b.Property<string>("EvidenceNotes")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("evidence_notes");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("NameEn")
+                        .IsRequired()
+                        .HasMaxLength(180)
+                        .HasColumnType("nvarchar(180)")
+                        .HasColumnName("name_en");
+
+                    b.Property<string>("NameZh")
+                        .IsRequired()
+                        .HasMaxLength(180)
+                        .HasColumnType("nvarchar(180)")
+                        .HasColumnName("name_zh");
+
+                    b.Property<bool>("RegistrationConfirmed")
+                        .HasColumnType("bit")
+                        .HasColumnName("registration_confirmed");
+
+                    b.Property<DateOnly?>("RegistrationExpiresOn")
+                        .HasColumnType("date")
+                        .HasColumnName("registration_expires_on");
+
+                    b.Property<string>("RegistrationReference")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)")
+                        .HasColumnName("registration_reference");
+
+                    b.Property<int>("SeatCapacity")
+                        .HasColumnType("int")
+                        .HasColumnName("seat_capacity");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_utc");
+
+                    b.Property<Guid>("VerifiedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("verified_by_member_id");
+
+                    b.Property<DateTime>("VerifiedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("verified_utc");
+
+                    b.Property<bool>("WofConfirmed")
+                        .HasColumnType("bit")
+                        .HasColumnName("wof_confirmed");
+
+                    b.Property<DateOnly?>("WofExpiresOn")
+                        .HasColumnType("date")
+                        .HasColumnName("wof_expires_on");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_travel_vehicles");
+
+                    b.HasIndex("VerifiedByMemberId")
+                        .HasDatabaseName("ix_event_travel_vehicles_verified_by_member_id");
+
+                    b.HasIndex("EventId", "IsActive")
+                        .HasDatabaseName("ix_event_travel_vehicles_event_id_is_active");
+
+                    b.HasIndex("EventId", "RegistrationReference")
+                        .IsUnique()
+                        .HasDatabaseName("ix_event_travel_vehicles_event_id_registration_reference");
+
+                    b.ToTable("event_travel_vehicles", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_event_travel_vehicles_seat_capacity", "[seat_capacity] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventVenue", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AddressEn")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)")
+                        .HasColumnName("address_en");
+
+                    b.Property<string>("AddressZh")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)")
+                        .HasColumnName("address_zh");
+
+                    b.Property<int>("Capacity")
+                        .HasColumnType("int")
+                        .HasColumnName("capacity");
+
+                    b.Property<Guid>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("concurrency_token");
+
+                    b.Property<Guid>("CreatedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by_member_id");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_active");
+
+                    b.Property<Guid>("ManagingGroupId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("managing_group_id");
+
+                    b.Property<string>("NameEn")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)")
+                        .HasColumnName("name_en");
+
+                    b.Property<string>("NameZh")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)")
+                        .HasColumnName("name_zh");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_resource_venues");
+
+                    b.HasIndex("CreatedByMemberId")
+                        .HasDatabaseName("ix_event_resource_venues_created_by_member_id");
+
+                    b.HasIndex("ManagingGroupId", "IsActive", "NameEn")
+                        .HasDatabaseName("ix_event_resource_venues_managing_group_id_is_active_name_en");
+
+                    b.ToTable("event_resource_venues", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_event_resource_venues_capacity", "[capacity] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventVenueReservation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("concurrency_token");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<DateTime>("EndUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("end_utc");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("event_id");
+
+                    b.Property<Guid?>("EventOccurrenceId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("event_occurrence_id");
+
+                    b.Property<Guid?>("ReleasedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("released_by_member_id");
+
+                    b.Property<DateTime?>("ReleasedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("released_utc");
+
+                    b.Property<int>("RequiredCapacity")
+                        .HasColumnType("int")
+                        .HasColumnName("required_capacity");
+
+                    b.Property<Guid>("ReservedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("reserved_by_member_id");
+
+                    b.Property<DateTime>("StartUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("start_utc");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_utc");
+
+                    b.Property<Guid>("VenueId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("venue_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_resource_venue_reservations");
+
+                    b.HasIndex("ReleasedByMemberId")
+                        .HasDatabaseName("ix_event_resource_venue_reservations_released_by_member_id");
+
+                    b.HasIndex("ReservedByMemberId")
+                        .HasDatabaseName("ix_event_resource_venue_reservations_reserved_by_member_id");
+
+                    b.HasIndex("EventOccurrenceId", "Status")
+                        .HasDatabaseName("ix_event_resource_venue_reservations_event_occurrence_id_status");
+
+                    b.HasIndex("EventId", "Status", "StartUtc")
+                        .HasDatabaseName("ix_event_resource_venue_reservations_event_id_status_start_utc");
+
+                    b.HasIndex("VenueId", "Status", "StartUtc", "EndUtc")
+                        .HasDatabaseName("ix_event_resource_venue_reservations_venue_id_status_start_utc_end_utc");
+
+                    b.ToTable("event_resource_venue_reservations", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_event_resource_venue_reservations_capacity", "[required_capacity] > 0");
+
+                            t.HasCheckConstraint("ck_event_resource_venue_reservations_interval", "[end_utc] > [start_utc]");
+
+                            t.HasCheckConstraint("ck_event_resource_venue_reservations_release", "([status] = 0 AND [released_utc] IS NULL AND [released_by_member_id] IS NULL) OR ([status] = 1 AND [released_utc] IS NOT NULL AND [released_by_member_id] IS NOT NULL)");
+                        });
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.EventWorkflowRun", b =>
@@ -1107,6 +3729,63 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_event_workflow_templates_owner_group_id_is_active_updated_utc");
 
                     b.ToTable("event_workflow_templates", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventZone", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<int?>("Capacity")
+                        .HasColumnType("int")
+                        .HasColumnName("capacity");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<Guid?>("LeadMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("lead_member_id");
+
+                    b.Property<Guid>("OccurrenceId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("occurrence_id");
+
+                    b.Property<string>("OperatingState")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("operating_state");
+
+                    b.Property<string>("TitleEn")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)")
+                        .HasColumnName("title_en");
+
+                    b.Property<string>("TitleZh")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)")
+                        .HasColumnName("title_zh");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_zones");
+
+                    b.HasIndex("LeadMemberId")
+                        .HasDatabaseName("ix_event_zones_lead_member_id");
+
+                    b.HasIndex("OccurrenceId", "TitleEn")
+                        .HasDatabaseName("ix_event_zones_occurrence_id_title_en");
+
+                    b.ToTable("event_zones", (string)null);
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.FileAsset", b =>
@@ -1615,6 +4294,14 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("id");
 
+                    b.Property<Guid>("AccountableOwnerMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("accountable_owner_member_id");
+
+                    b.Property<int?>("ActivePlanVersion")
+                        .HasColumnType("int")
+                        .HasColumnName("active_plan_version");
+
                     b.Property<Guid>("CreatedByMemberId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("created_by_member_id");
@@ -1632,6 +4319,16 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("event_data_json");
 
+                    b.Property<Guid?>("EventSeriesId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("composition_series_id");
+
+                    b.Property<int>("GovernanceMode")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1)
+                        .HasColumnName("governance_mode");
+
                     b.Property<Guid>("GroupId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("group_id");
@@ -1639,6 +4336,21 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit")
                         .HasColumnName("is_deleted");
+
+                    b.Property<Guid?>("ParentEventId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("parent_event_id");
+
+                    b.Property<Guid>("PlanConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("plan_concurrency_token")
+                        .HasDefaultValueSql("NEWSEQUENTIALID()");
+
+                    b.Property<int>("SponsorshipStatus")
+                        .HasColumnType("int")
+                        .HasColumnName("sponsorship_status");
 
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("datetime2")
@@ -1663,8 +4375,17 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_group_events");
 
+                    b.HasIndex("AccountableOwnerMemberId")
+                        .HasDatabaseName("ix_group_events_accountable_owner_member_id");
+
                     b.HasIndex("CreatedByMemberId")
                         .HasDatabaseName("ix_group_events_created_by_member_id");
+
+                    b.HasIndex("EventSeriesId")
+                        .HasDatabaseName("ix_group_events_composition_series_id");
+
+                    b.HasIndex("ParentEventId")
+                        .HasDatabaseName("ix_group_events_parent_event_id");
 
                     b.HasIndex("GroupId", "UpdatedUtc")
                         .HasDatabaseName("ix_group_events_group_id_updated_utc");
@@ -2581,6 +5302,38 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.Navigation("OwnerGroup");
                 });
 
+            modelBuilder.Entity("Alife.Domain.Entities.EventActivityTemplateVersion", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.Member", "CreatedByMember")
+                        .WithMany()
+                        .HasForeignKey("CreatedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_activity_template_versions_members_created_by_member_id");
+
+                    b.Navigation("CreatedByMember");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventApprovalDecision", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.Member", "ActorMember")
+                        .WithMany()
+                        .HasForeignKey("ActorMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_approval_decisions_members_actor_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.GroupEvent", "Event")
+                        .WithMany("ApprovalDecisions")
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_approval_decisions_group_events_event_id");
+
+                    b.Navigation("ActorMember");
+
+                    b.Navigation("Event");
+                });
+
             modelBuilder.Entity("Alife.Domain.Entities.EventArtifact", b =>
                 {
                     b.HasOne("Alife.Domain.Entities.Member", "ApprovedByMember")
@@ -2624,6 +5377,206 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.Navigation("FileAsset");
 
                     b.Navigation("WorkflowStep");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventChildAttendance", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.Member", "CheckedInByMember")
+                        .WithMany()
+                        .HasForeignKey("CheckedInByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_safeguarding_child_attendance_members_checked_in_by_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.Member", "CheckedOutByMember")
+                        .WithMany()
+                        .HasForeignKey("CheckedOutByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_safeguarding_child_attendance_members_checked_out_by_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventChildRegistration", "ChildRegistration")
+                        .WithMany("AttendanceRecords")
+                        .HasForeignKey("ChildRegistrationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_safeguarding_child_attendance_event_safeguarding_child_registrations_child_registration_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventChildAuthorisedCollector", "Collector")
+                        .WithMany("CollectionRecords")
+                        .HasForeignKey("CollectorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_safeguarding_child_attendance_event_safeguarding_authorised_collectors_collector_id");
+
+                    b.HasOne("Alife.Domain.Entities.GroupEvent", "Event")
+                        .WithMany("ChildAttendanceRecords")
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_safeguarding_child_attendance_group_events_event_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventOccurrence", "EventOccurrence")
+                        .WithMany("ChildAttendanceRecords")
+                        .HasForeignKey("EventOccurrenceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_safeguarding_child_attendance_event_composition_occurrences_event_occurrence_id");
+
+                    b.Navigation("CheckedInByMember");
+
+                    b.Navigation("CheckedOutByMember");
+
+                    b.Navigation("ChildRegistration");
+
+                    b.Navigation("Collector");
+
+                    b.Navigation("Event");
+
+                    b.Navigation("EventOccurrence");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventChildAuthorisedCollector", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.EventChildGuardianRelationship", "AuthorisedByGuardianRelationship")
+                        .WithMany("AuthorisedCollectors")
+                        .HasForeignKey("AuthorisedByGuardianRelationshipId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_safeguarding_authorised_collectors_event_safeguarding_guardian_relationships_authorised_by_guardian_relationship_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventChildRegistration", "ChildRegistration")
+                        .WithMany("AuthorisedCollectors")
+                        .HasForeignKey("ChildRegistrationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_safeguarding_authorised_collectors_event_safeguarding_child_registrations_child_registration_id");
+
+                    b.HasOne("Alife.Domain.Entities.Member", "RevokedByMember")
+                        .WithMany()
+                        .HasForeignKey("RevokedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_safeguarding_authorised_collectors_members_revoked_by_member_id");
+
+                    b.Navigation("AuthorisedByGuardianRelationship");
+
+                    b.Navigation("ChildRegistration");
+
+                    b.Navigation("RevokedByMember");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventChildConsentRecord", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.EventChildRegistration", "ChildRegistration")
+                        .WithMany("ConsentRecords")
+                        .HasForeignKey("ChildRegistrationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_safeguarding_child_consents_event_safeguarding_child_registrations_child_registration_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventChildGuardianRelationship", "GuardianRelationship")
+                        .WithMany("ConsentRecords")
+                        .HasForeignKey("GuardianRelationshipId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_safeguarding_child_consents_event_safeguarding_guardian_relationships_guardian_relationship_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventSafeguardingPolicyVersion", "PolicyVersion")
+                        .WithMany()
+                        .HasForeignKey("PolicyVersionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_safeguarding_child_consents_event_safeguarding_policy_versions_policy_version_id");
+
+                    b.HasOne("Alife.Domain.Entities.Member", "RecordedByMember")
+                        .WithMany()
+                        .HasForeignKey("RecordedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_safeguarding_child_consents_members_recorded_by_member_id");
+
+                    b.Navigation("ChildRegistration");
+
+                    b.Navigation("GuardianRelationship");
+
+                    b.Navigation("PolicyVersion");
+
+                    b.Navigation("RecordedByMember");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventChildGuardianRelationship", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.EventChildRegistration", "ChildRegistration")
+                        .WithMany("Guardians")
+                        .HasForeignKey("ChildRegistrationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_safeguarding_guardian_relationships_event_safeguarding_child_registrations_child_registration_id");
+
+                    b.HasOne("Alife.Domain.Entities.Member", "CreatedByMember")
+                        .WithMany()
+                        .HasForeignKey("CreatedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_safeguarding_guardian_relationships_members_created_by_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.Member", "GuardianMember")
+                        .WithMany()
+                        .HasForeignKey("GuardianMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_safeguarding_guardian_relationships_members_guardian_member_id");
+
+                    b.Navigation("ChildRegistration");
+
+                    b.Navigation("CreatedByMember");
+
+                    b.Navigation("GuardianMember");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventChildRegistration", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.Member", "ChildMember")
+                        .WithMany()
+                        .HasForeignKey("ChildMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_safeguarding_child_registrations_members_child_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.Member", "CreatedByMember")
+                        .WithMany()
+                        .HasForeignKey("CreatedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_safeguarding_child_registrations_members_created_by_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.Member", "EndedByMember")
+                        .WithMany()
+                        .HasForeignKey("EndedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_safeguarding_child_registrations_members_ended_by_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventEnrollment", "Enrollment")
+                        .WithMany()
+                        .HasForeignKey("EnrollmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_safeguarding_child_registrations_event_enrollments_enrollment_id");
+
+                    b.HasOne("Alife.Domain.Entities.GroupEvent", "Event")
+                        .WithMany("ChildRegistrations")
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_safeguarding_child_registrations_group_events_event_id");
+
+                    b.Navigation("ChildMember");
+
+                    b.Navigation("CreatedByMember");
+
+                    b.Navigation("EndedByMember");
+
+                    b.Navigation("Enrollment");
+
+                    b.Navigation("Event");
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.EventContactProfile", b =>
@@ -2675,6 +5628,87 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.Navigation("Group");
 
                     b.Navigation("Member");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventFactSet", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.Member", "CreatedByMember")
+                        .WithMany()
+                        .HasForeignKey("CreatedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_fact_sets_members_created_by_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.GroupEvent", "Event")
+                        .WithMany("FactSets")
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_fact_sets_group_events_event_id");
+
+                    b.Navigation("CreatedByMember");
+
+                    b.Navigation("Event");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventOccurrence", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.GroupEvent", "Event")
+                        .WithMany("Occurrences")
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_composition_occurrences_group_events_event_id");
+
+                    b.Navigation("Event");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventPlanSnapshot", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.Member", "AcceptedByMember")
+                        .WithMany()
+                        .HasForeignKey("AcceptedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_plan_snapshots_members_accepted_by_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.GroupEvent", "Event")
+                        .WithMany("PlanSnapshots")
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_plan_snapshots_group_events_event_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventFactSet", "SourceFactSet")
+                        .WithMany("PlanSnapshots")
+                        .HasForeignKey("SourceFactSetId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_plan_snapshots_event_fact_sets_source_fact_set_id");
+
+                    b.Navigation("AcceptedByMember");
+
+                    b.Navigation("Event");
+
+                    b.Navigation("SourceFactSet");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventProgramItem", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.Member", "OwnerMember")
+                        .WithMany()
+                        .HasForeignKey("OwnerMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_program_items_members_owner_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventSession", "Session")
+                        .WithMany("ProgramItems")
+                        .HasForeignKey("SessionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_program_items_event_sessions_session_id");
+
+                    b.Navigation("OwnerMember");
+
+                    b.Navigation("Session");
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.EventRamAssessment", b =>
@@ -2733,6 +5767,593 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.Navigation("Group");
 
                     b.Navigation("Member");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventRoleAssignment", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.Member", "AssignedByMember")
+                        .WithMany()
+                        .HasForeignKey("AssignedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_role_assignments_members_assigned_by_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.GroupEvent", "Event")
+                        .WithMany("RoleAssignments")
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_role_assignments_group_events_event_id");
+
+                    b.HasOne("Alife.Domain.Entities.Member", "Member")
+                        .WithMany()
+                        .HasForeignKey("MemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_role_assignments_members_member_id");
+
+                    b.Navigation("AssignedByMember");
+
+                    b.Navigation("Event");
+
+                    b.Navigation("Member");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventRosterAssignment", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.Member", "AssignedByMember")
+                        .WithMany()
+                        .HasForeignKey("AssignedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_operations_roster_assignments_members_assigned_by_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.Member", "Member")
+                        .WithMany()
+                        .HasForeignKey("MemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_operations_roster_assignments_members_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventRosterAssignment", "ReplacesAssignment")
+                        .WithMany()
+                        .HasForeignKey("ReplacesAssignmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_operations_roster_assignments_event_operations_roster_assignments_replaces_assignment_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventServiceSlot", "ServiceSlot")
+                        .WithMany("Assignments")
+                        .HasForeignKey("ServiceSlotId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_operations_roster_assignments_event_service_slots_service_slot_id");
+
+                    b.Navigation("AssignedByMember");
+
+                    b.Navigation("Member");
+
+                    b.Navigation("ReplacesAssignment");
+
+                    b.Navigation("ServiceSlot");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventRosterAvailability", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.Member", "Member")
+                        .WithMany()
+                        .HasForeignKey("MemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_operations_roster_availability_members_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventServiceSlot", "ServiceSlot")
+                        .WithMany("Availability")
+                        .HasForeignKey("ServiceSlotId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_operations_roster_availability_event_service_slots_service_slot_id");
+
+                    b.Navigation("Member");
+
+                    b.Navigation("ServiceSlot");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventSafeguardingConfiguration", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.Member", "ConfiguredByMember")
+                        .WithMany()
+                        .HasForeignKey("ConfiguredByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_safeguarding_configurations_members_configured_by_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.GroupEvent", "Event")
+                        .WithOne("SafeguardingConfiguration")
+                        .HasForeignKey("Alife.Domain.Entities.EventSafeguardingConfiguration", "EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_safeguarding_configurations_group_events_event_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventSafeguardingPolicyVersion", "PolicyVersion")
+                        .WithMany()
+                        .HasForeignKey("PolicyVersionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_safeguarding_configurations_event_safeguarding_policy_versions_policy_version_id");
+
+                    b.Navigation("ConfiguredByMember");
+
+                    b.Navigation("Event");
+
+                    b.Navigation("PolicyVersion");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventSafeguardingPolicyVersion", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.Member", "CreatedByMember")
+                        .WithMany()
+                        .HasForeignKey("CreatedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_safeguarding_policy_versions_members_created_by_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.Group", "Group")
+                        .WithMany()
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_safeguarding_policy_versions_groups_group_id");
+
+                    b.Navigation("CreatedByMember");
+
+                    b.Navigation("Group");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventSafeguardingWorkerEligibility", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.GroupEvent", "Event")
+                        .WithMany("SafeguardingWorkerEligibility")
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_safeguarding_worker_eligibility_group_events_event_id");
+
+                    b.HasOne("Alife.Domain.Entities.Member", "Member")
+                        .WithMany()
+                        .HasForeignKey("MemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_safeguarding_worker_eligibility_members_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventSafeguardingPolicyVersion", "PolicyVersion")
+                        .WithMany()
+                        .HasForeignKey("PolicyVersionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_safeguarding_worker_eligibility_event_safeguarding_policy_versions_policy_version_id");
+
+                    b.HasOne("Alife.Domain.Entities.Member", "VerifiedByMember")
+                        .WithMany()
+                        .HasForeignKey("VerifiedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_safeguarding_worker_eligibility_members_verified_by_member_id");
+
+                    b.Navigation("Event");
+
+                    b.Navigation("Member");
+
+                    b.Navigation("PolicyVersion");
+
+                    b.Navigation("VerifiedByMember");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventSeries", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.Member", "CreatedByMember")
+                        .WithMany()
+                        .HasForeignKey("CreatedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_composition_series_members_created_by_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.Group", "OwningGroup")
+                        .WithMany()
+                        .HasForeignKey("OwningGroupId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_composition_series_groups_owning_group_id");
+
+                    b.Navigation("CreatedByMember");
+
+                    b.Navigation("OwningGroup");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventServiceSlot", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.EventOccurrence", "Occurrence")
+                        .WithMany("ServiceSlots")
+                        .HasForeignKey("OccurrenceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_service_slots_event_occurrences_occurrence_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventProgramItem", "ProgramItem")
+                        .WithMany()
+                        .HasForeignKey("ProgramItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_service_slots_event_program_items_program_item_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventSession", "Session")
+                        .WithMany("ServiceSlots")
+                        .HasForeignKey("SessionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_service_slots_event_sessions_session_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventZone", "Zone")
+                        .WithMany("ServiceSlots")
+                        .HasForeignKey("ZoneId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_service_slots_event_zones_zone_id");
+
+                    b.Navigation("Occurrence");
+
+                    b.Navigation("ProgramItem");
+
+                    b.Navigation("Session");
+
+                    b.Navigation("Zone");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventSession", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.Member", "LeadMember")
+                        .WithMany()
+                        .HasForeignKey("LeadMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_sessions_members_lead_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventOccurrence", "Occurrence")
+                        .WithMany("Sessions")
+                        .HasForeignKey("OccurrenceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_sessions_event_occurrences_occurrence_id");
+
+                    b.Navigation("LeadMember");
+
+                    b.Navigation("Occurrence");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventTask", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.Member", "AssignedMember")
+                        .WithMany()
+                        .HasForeignKey("AssignedMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_operations_tasks_members_assigned_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.GroupEvent", "Event")
+                        .WithMany("Tasks")
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_operations_tasks_group_events_event_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventWorkflowStep", "WorkflowStep")
+                        .WithMany()
+                        .HasForeignKey("WorkflowStepId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_operations_tasks_event_workflow_steps_workflow_step_id");
+
+                    b.Navigation("AssignedMember");
+
+                    b.Navigation("Event");
+
+                    b.Navigation("WorkflowStep");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventTaskBlocker", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.Member", "CreatedByMember")
+                        .WithMany()
+                        .HasForeignKey("CreatedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_operations_task_blockers_members_created_by_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventTask", "EventTask")
+                        .WithMany("Blockers")
+                        .HasForeignKey("EventTaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_operations_task_blockers_event_operations_tasks_event_task_id");
+
+                    b.HasOne("Alife.Domain.Entities.Member", "ResolvedByMember")
+                        .WithMany()
+                        .HasForeignKey("ResolvedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_operations_task_blockers_members_resolved_by_member_id");
+
+                    b.Navigation("CreatedByMember");
+
+                    b.Navigation("EventTask");
+
+                    b.Navigation("ResolvedByMember");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventTaskDependency", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.EventTask", "DependsOnEventTask")
+                        .WithMany("Dependants")
+                        .HasForeignKey("DependsOnEventTaskId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_operations_task_dependencies_event_operations_tasks_depends_on_event_task_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventTask", "EventTask")
+                        .WithMany("Dependencies")
+                        .HasForeignKey("EventTaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_operations_task_dependencies_event_operations_tasks_event_task_id");
+
+                    b.Navigation("DependsOnEventTask");
+
+                    b.Navigation("EventTask");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventTeamMember", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.GroupEvent", "Event")
+                        .WithMany("TeamMembers")
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_operations_team_members_group_events_event_id");
+
+                    b.HasOne("Alife.Domain.Entities.Member", "InvitedByMember")
+                        .WithMany()
+                        .HasForeignKey("InvitedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_operations_team_members_members_invited_by_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.Member", "Member")
+                        .WithMany()
+                        .HasForeignKey("MemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_operations_team_members_members_member_id");
+
+                    b.Navigation("Event");
+
+                    b.Navigation("InvitedByMember");
+
+                    b.Navigation("Member");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventTravelDriver", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.GroupEvent", "Event")
+                        .WithMany("TravelDrivers")
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_travel_drivers_group_events_event_id");
+
+                    b.HasOne("Alife.Domain.Entities.Member", "Member")
+                        .WithMany()
+                        .HasForeignKey("MemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_travel_drivers_members_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.Member", "VerifiedByMember")
+                        .WithMany()
+                        .HasForeignKey("VerifiedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_travel_drivers_members_verified_by_member_id");
+
+                    b.Navigation("Event");
+
+                    b.Navigation("Member");
+
+                    b.Navigation("VerifiedByMember");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventTravelJourney", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.Member", "CreatedByMember")
+                        .WithMany()
+                        .HasForeignKey("CreatedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_travel_journeys_members_created_by_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventTravelDriver", "Driver")
+                        .WithMany("Journeys")
+                        .HasForeignKey("DriverId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_travel_journeys_event_travel_drivers_driver_id");
+
+                    b.HasOne("Alife.Domain.Entities.GroupEvent", "Event")
+                        .WithMany("TravelJourneys")
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_travel_journeys_group_events_event_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventOccurrence", "EventOccurrence")
+                        .WithMany("TravelJourneys")
+                        .HasForeignKey("EventOccurrenceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_travel_journeys_event_occurrences_event_occurrence_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventTravelVehicle", "Vehicle")
+                        .WithMany("Journeys")
+                        .HasForeignKey("VehicleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_travel_journeys_event_travel_vehicles_vehicle_id");
+
+                    b.Navigation("CreatedByMember");
+
+                    b.Navigation("Driver");
+
+                    b.Navigation("Event");
+
+                    b.Navigation("EventOccurrence");
+
+                    b.Navigation("Vehicle");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventTravelPassengerAssignment", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.Member", "AssignedByMember")
+                        .WithMany()
+                        .HasForeignKey("AssignedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_travel_passenger_assignments_members_assigned_by_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.Member", "EndedByMember")
+                        .WithMany()
+                        .HasForeignKey("EndedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_travel_passenger_assignments_members_ended_by_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventTravelJourney", "Journey")
+                        .WithMany("PassengerAssignments")
+                        .HasForeignKey("JourneyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_travel_passenger_assignments_event_travel_journeys_journey_id");
+
+                    b.HasOne("Alife.Domain.Entities.Member", "Member")
+                        .WithMany()
+                        .HasForeignKey("MemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_travel_passenger_assignments_members_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventTravelPickupStop", "PickupStop")
+                        .WithMany("PassengerAssignments")
+                        .HasForeignKey("PickupStopId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_travel_passenger_assignments_event_travel_pickup_stops_pickup_stop_id");
+
+                    b.Navigation("AssignedByMember");
+
+                    b.Navigation("EndedByMember");
+
+                    b.Navigation("Journey");
+
+                    b.Navigation("Member");
+
+                    b.Navigation("PickupStop");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventTravelPickupStop", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.EventTravelJourney", "Journey")
+                        .WithMany("PickupStops")
+                        .HasForeignKey("JourneyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_travel_pickup_stops_event_travel_journeys_journey_id");
+
+                    b.Navigation("Journey");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventTravelVehicle", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.GroupEvent", "Event")
+                        .WithMany("TravelVehicles")
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_travel_vehicles_group_events_event_id");
+
+                    b.HasOne("Alife.Domain.Entities.Member", "VerifiedByMember")
+                        .WithMany()
+                        .HasForeignKey("VerifiedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_travel_vehicles_members_verified_by_member_id");
+
+                    b.Navigation("Event");
+
+                    b.Navigation("VerifiedByMember");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventVenue", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.Member", "CreatedByMember")
+                        .WithMany()
+                        .HasForeignKey("CreatedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_resource_venues_members_created_by_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.Group", "ManagingGroup")
+                        .WithMany()
+                        .HasForeignKey("ManagingGroupId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_resource_venues_groups_managing_group_id");
+
+                    b.Navigation("CreatedByMember");
+
+                    b.Navigation("ManagingGroup");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventVenueReservation", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.GroupEvent", "Event")
+                        .WithMany("VenueReservations")
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_resource_venue_reservations_group_events_event_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventOccurrence", "EventOccurrence")
+                        .WithMany("VenueReservations")
+                        .HasForeignKey("EventOccurrenceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_resource_venue_reservations_event_composition_occurrences_event_occurrence_id");
+
+                    b.HasOne("Alife.Domain.Entities.Member", "ReleasedByMember")
+                        .WithMany()
+                        .HasForeignKey("ReleasedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_resource_venue_reservations_members_released_by_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.Member", "ReservedByMember")
+                        .WithMany()
+                        .HasForeignKey("ReservedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_resource_venue_reservations_members_reserved_by_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventVenue", "Venue")
+                        .WithMany("Reservations")
+                        .HasForeignKey("VenueId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_resource_venue_reservations_event_resource_venues_venue_id");
+
+                    b.Navigation("Event");
+
+                    b.Navigation("EventOccurrence");
+
+                    b.Navigation("ReleasedByMember");
+
+                    b.Navigation("ReservedByMember");
+
+                    b.Navigation("Venue");
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.EventWorkflowRun", b =>
@@ -2801,6 +6422,26 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.Navigation("CreatedByMember");
 
                     b.Navigation("OwnerGroup");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventZone", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.Member", "LeadMember")
+                        .WithMany()
+                        .HasForeignKey("LeadMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_zones_members_lead_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventOccurrence", "Occurrence")
+                        .WithMany("Zones")
+                        .HasForeignKey("OccurrenceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_zones_event_occurrences_occurrence_id");
+
+                    b.Navigation("LeadMember");
+
+                    b.Navigation("Occurrence");
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.FileAsset", b =>
@@ -2917,12 +6558,25 @@ namespace Alife.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Alife.Domain.Entities.GroupEvent", b =>
                 {
+                    b.HasOne("Alife.Domain.Entities.Member", "AccountableOwnerMember")
+                        .WithMany()
+                        .HasForeignKey("AccountableOwnerMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_group_events_members_accountable_owner_member_id");
+
                     b.HasOne("Alife.Domain.Entities.Member", "CreatedByMember")
                         .WithMany()
                         .HasForeignKey("CreatedByMemberId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_group_events_members_created_by_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventSeries", "EventSeries")
+                        .WithMany("Events")
+                        .HasForeignKey("EventSeriesId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_group_events_event_composition_series_composition_series_id");
 
                     b.HasOne("Alife.Domain.Entities.Group", "Group")
                         .WithMany()
@@ -2931,9 +6585,21 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_group_events_groups_group_id");
 
+                    b.HasOne("Alife.Domain.Entities.GroupEvent", "ParentEvent")
+                        .WithMany("ChildEvents")
+                        .HasForeignKey("ParentEventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_group_events_group_events_parent_event_id");
+
+                    b.Navigation("AccountableOwnerMember");
+
                     b.Navigation("CreatedByMember");
 
+                    b.Navigation("EventSeries");
+
                     b.Navigation("Group");
+
+                    b.Navigation("ParentEvent");
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.GroupMembership", b =>
@@ -3134,6 +6800,104 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.Navigation("Inquiries");
                 });
 
+            modelBuilder.Entity("Alife.Domain.Entities.EventChildAuthorisedCollector", b =>
+                {
+                    b.Navigation("CollectionRecords");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventChildGuardianRelationship", b =>
+                {
+                    b.Navigation("AuthorisedCollectors");
+
+                    b.Navigation("ConsentRecords");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventChildRegistration", b =>
+                {
+                    b.Navigation("AttendanceRecords");
+
+                    b.Navigation("AuthorisedCollectors");
+
+                    b.Navigation("ConsentRecords");
+
+                    b.Navigation("Guardians");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventFactSet", b =>
+                {
+                    b.Navigation("PlanSnapshots");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventOccurrence", b =>
+                {
+                    b.Navigation("ChildAttendanceRecords");
+
+                    b.Navigation("ServiceSlots");
+
+                    b.Navigation("Sessions");
+
+                    b.Navigation("TravelJourneys");
+
+                    b.Navigation("VenueReservations");
+
+                    b.Navigation("Zones");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventSeries", b =>
+                {
+                    b.Navigation("Events");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventServiceSlot", b =>
+                {
+                    b.Navigation("Assignments");
+
+                    b.Navigation("Availability");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventSession", b =>
+                {
+                    b.Navigation("ProgramItems");
+
+                    b.Navigation("ServiceSlots");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventTask", b =>
+                {
+                    b.Navigation("Blockers");
+
+                    b.Navigation("Dependants");
+
+                    b.Navigation("Dependencies");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventTravelDriver", b =>
+                {
+                    b.Navigation("Journeys");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventTravelJourney", b =>
+                {
+                    b.Navigation("PassengerAssignments");
+
+                    b.Navigation("PickupStops");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventTravelPickupStop", b =>
+                {
+                    b.Navigation("PassengerAssignments");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventTravelVehicle", b =>
+                {
+                    b.Navigation("Journeys");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventVenue", b =>
+                {
+                    b.Navigation("Reservations");
+                });
+
             modelBuilder.Entity("Alife.Domain.Entities.EventWorkflowRun", b =>
                 {
                     b.Navigation("Steps");
@@ -3147,6 +6911,11 @@ namespace Alife.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("Alife.Domain.Entities.EventWorkflowTemplate", b =>
                 {
                     b.Navigation("Runs");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventZone", b =>
+                {
+                    b.Navigation("ServiceSlots");
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.ForumCategory", b =>
@@ -3175,11 +6944,43 @@ namespace Alife.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Alife.Domain.Entities.GroupEvent", b =>
                 {
+                    b.Navigation("ApprovalDecisions");
+
                     b.Navigation("Artifacts");
+
+                    b.Navigation("ChildAttendanceRecords");
+
+                    b.Navigation("ChildEvents");
+
+                    b.Navigation("ChildRegistrations");
 
                     b.Navigation("ContactProfiles");
 
+                    b.Navigation("FactSets");
+
+                    b.Navigation("Occurrences");
+
+                    b.Navigation("PlanSnapshots");
+
                     b.Navigation("RamAssessment");
+
+                    b.Navigation("RoleAssignments");
+
+                    b.Navigation("SafeguardingConfiguration");
+
+                    b.Navigation("SafeguardingWorkerEligibility");
+
+                    b.Navigation("Tasks");
+
+                    b.Navigation("TeamMembers");
+
+                    b.Navigation("TravelDrivers");
+
+                    b.Navigation("TravelJourneys");
+
+                    b.Navigation("TravelVehicles");
+
+                    b.Navigation("VenueReservations");
 
                     b.Navigation("WorkflowRun");
                 });

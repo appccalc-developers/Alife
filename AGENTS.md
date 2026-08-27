@@ -51,6 +51,7 @@ While implementing:
 After implementing:
 
 - Review the final diff against the requested scope and, when applicable, the linked Issue and its acceptance criteria.
+- Perform the documentation-impact review described below and update only affected authoritative sources.
 - Run focused checks proportional to the risk.
 - Report what changed, files changed, verification performed, anything not verified, risks, and the next useful step.
 
@@ -111,6 +112,35 @@ When changing content:
 - Support bilingual user-facing forms and clear fallback behavior.
 - Keep translation helpers stable.
 - Avoid API refetches or component remounts for language-only UI switches unless the underlying data changes.
+
+## Documentation impact and Event Management sources
+
+Before completing an implementation task, and always before completing `/shipit`, review the complete diff and determine whether changed behaviour affects:
+
+- normative architecture or ADRs;
+- domain or public contracts;
+- the machine-readable contract;
+- a module specification;
+- implementation or migration status;
+- APIs or DTOs;
+- authorisation, privacy, or cache behaviour;
+- user-visible behaviour or acceptance scenarios;
+- `README.md`, `EventManagement-About.html`, or generated documentation;
+- Simplified Chinese, Traditional Chinese, and English content parity.
+
+Update all affected authoritative documentation in the same change, but do not mechanically edit unrelated documents. Regenerate derived documentation whenever its authoritative input changes. When `docs/events/README.md` changes, run `node docs/events/scripts/generate-event-docs.mjs` in the same change and verify the Simplified Chinese, Traditional Chinese, and English `EventManagement-About.html` sections remain substantively equivalent. Do not edit generated Event HTML directly.
+
+Do not change normative architecture merely to match an implementation shortcut. If implementation and a normative contract disagree, stop and report the conflict unless the task explicitly authorises the architecture or product decision. Do not claim tests, migrations, deployment, generation, or browser verification that was not actually performed.
+
+For an ordinary Event module implementation, normally read only:
+
+- this `AGENTS.md`;
+- `docs/events/EVENT-CONTRACT.md`;
+- the affected `docs/events/modules/<MODULE>.md`;
+- the relevant portion of `docs/events/event-contract.json`;
+- `docs/events/IMPLEMENTATION-STATUS.md`.
+
+The generated long-form handbook is for people and broad architecture review; it is not required context for an ordinary module slice. Overview or onboarding work may also read `docs/events/README.md` and `docs/events/EventManagement-About.html`.
 
 ## Frontend principles
 
@@ -270,11 +300,12 @@ Run this workflow only when the user explicitly types `/shipit` or otherwise exp
 3. Reuse the linked Issue when present; otherwise create a standards-compliant Issue.
 4. If currently on `main`, create `agent/<issue-number>-<short-slug>` before staging or committing. A coherent dirty worktree may move with the branch.
 5. Implement any remaining required work and run relevant checks.
-6. Stage only explicit in-scope file paths. Never stage the whole worktree through a blanket staging command.
-7. Inspect the staged diff and confirm that it satisfies the Issue.
-8. Commit with `type(scope): summary (#<issue-number>)`.
-9. Push with upstream tracking.
-10. Open a Draft PR against `main` using the PR standard and include `Closes #<issue-number>`.
+6. Review the complete diff for documentation impact, update every affected authoritative source, regenerate derived documentation, and verify language parity where applicable.
+7. Stage only explicit in-scope file paths. Never stage the whole worktree through a blanket staging command.
+8. Inspect the staged diff and confirm that it satisfies the Issue and leaves documentation sources internally consistent.
+9. Commit with `type(scope): summary (#<issue-number>)`.
+10. Push with upstream tracking.
+11. Open a Draft PR against `main` using the PR standard and include `Closes #<issue-number>`.
 
 Stop instead of shipping when authentication fails, the target repository is ambiguous, tests reveal an unresolved defect, destructive recovery would be required, or the worktree contains inseparable unrelated changes.
 

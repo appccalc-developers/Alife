@@ -16,4 +16,8 @@ public record GroupEventSummaryDto(
     DateTime UpdatedUtc,
     IReadOnlyList<Guid>? ContactProfileIds = null,
     EventRamStatus RamStatus = EventRamStatus.Draft,
-    string Visibility = "groupVisible");
+    string Visibility = "groupVisible",
+    Guid? AccountableOwnerMemberId = null,
+    EventGovernanceMode GovernanceMode = EventGovernanceMode.MemberLed,
+    EventSponsorshipStatus SponsorshipStatus = EventSponsorshipStatus.NotRequested,
+    int? ActivePlanVersion = null);

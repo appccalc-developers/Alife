@@ -6,7 +6,8 @@ public enum AppResultStatus
     NotFound,
     Forbidden,
     ValidationError,
-    Conflict
+    Conflict,
+    PreconditionFailed
 }
 
 public sealed class AppResult<T>
@@ -28,4 +29,5 @@ public sealed class AppResult<T>
     public static AppResult<T> Forbidden(string message) => new(AppResultStatus.Forbidden, message: message);
     public static AppResult<T> Validation(string message) => new(AppResultStatus.ValidationError, message: message);
     public static AppResult<T> Conflict(string message) => new(AppResultStatus.Conflict, message: message);
+    public static AppResult<T> PreconditionFailed(string message) => new(AppResultStatus.PreconditionFailed, message: message);
 }
