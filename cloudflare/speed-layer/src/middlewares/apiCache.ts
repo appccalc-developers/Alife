@@ -33,7 +33,6 @@ const CACHE_STALE_WHILE_REVALIDATE_SECONDS = 300
 const CACHE_STALE_IF_ERROR_SECONDS = 86400
 const SERMON_CACHE_TTL_SECONDS = 300
 const AUTHZ_MIRROR_TTL_SECONDS = 7 * 24 * 60 * 60
-const MEMBER_PROFILE_CACHE_TTL_SECONDS = 86400
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 const PUBLIC_CACHEABLE_API_PATHS = new Set(['/api/sermons', '/api/pages/public'])
 const CACHE_TAG_BY_API_PATH = new Map([
@@ -79,35 +78,13 @@ export const apiCacheMiddleware = async (
   const mutationTargetMemberIds = MUTATING_METHODS.has(req.method)
     ? await getTargetMemberIdsFromMutation(req)
     : []
-  const memberProfileCacheKey = req.method === 'GET' && url.pathname === '/api/me'
-    ? createMemberProfileApiCacheKey(extractMemberIdFromRequest(req))
-    : ''
-
-  if (memberProfileCacheKey) {
+  if (req.method === 'GET' && url.pathname === '/api/me') {
     const memberId = extractMemberIdFromRequest(req)
-    const cached = await readStoredResponse(env, memberProfileCacheKey)
-    if (cached) {
-      ctx.waitUntil(rememberMemberProfileAuthorization(env, memberId, memberProfileCacheKey, cached.clone()))
-      const clientEtag = req.headers.get('if-none-match')
-      const cachedEtag = cached.headers.get('etag')
-      if (clientEtag && cachedEtag && matchesIfNoneMatch(clientEtag, cachedEtag)) {
-        return addCorsHeaders(req, withCacheHeader(withBrowserCacheControl(new Response(null, {
-          status: 304,
-          headers: cached.headers,
-        }), url.pathname), 'REVALIDATED'), env)
-      }
-
-      return addCorsHeaders(req, withCacheHeader(withBrowserCacheControl(cached, url.pathname), 'HIT'), env)
-    }
-
     const response = await next()
-    if (response.status === 200) {
-      const taggedResponse = await withEtag(response)
-      ctx.waitUntil(Promise.all([
-        writeStoredResponse(env, memberProfileCacheKey, withEdgeCacheControl(taggedResponse.clone()), MEMBER_PROFILE_CACHE_TTL_SECONDS),
-        rememberMemberProfileAuthorization(env, memberId, memberProfileCacheKey, taggedResponse.clone()),
-      ]))
-      return addCorsHeaders(req, withCacheHeader(withBrowserCacheControl(taggedResponse, url.pathname), 'MISS'), env)
+    if (response.status === 200 && memberId) {
+      // Keep only the minimal membership authorization mirror needed by the
+      // existing group cache gate. Never persist or replay the /api/me response.
+      ctx.waitUntil(rememberMemberProfileAuthorization(env, memberId, response.clone()))
     }
 
     return addCorsHeaders(req, withCacheHeader(withNoStore(response), 'BYPASS'), env)
@@ -987,10 +964,9 @@ export async function rememberGroupAuthorization(
 export async function rememberMemberProfileAuthorization(
   env: Env,
   memberId: string,
-  cacheKey: string,
   response: Response,
 ) {
-  if (!memberId || !cacheKey || response.status !== 200) {
+  if (!memberId || response.status !== 200) {
     return
   }
 
@@ -1001,23 +977,7 @@ export async function rememberMemberProfileAuthorization(
 
   const now = new Date().toISOString()
   const memberships = readMemberships(body.memberships)
-  await Promise.all([
-    writeLogicalCacheRecord(
-      createMemberProfileAuthzKey(memberId),
-      {
-        status: 'cached',
-        memberId: readString(body.id) ?? readString(body.memberId) ?? memberId,
-        cacheKey,
-        isGuest: readBoolean(body.isGuest),
-        isRegistered: readBoolean(body.isRegistered),
-        isAdmin: readBoolean(body.isAdmin),
-        memberships,
-        source: 'api-me',
-        updatedUtc: now,
-      },
-      MEMBER_PROFILE_CACHE_TTL_SECONDS,
-    ),
-    ...memberships.map((membership) => writeLogicalCacheRecord(
+  await Promise.all(memberships.map((membership) => writeLogicalCacheRecord(
       createMembershipKey(membership.groupId, memberId),
       {
         status: membership.status,
@@ -1026,8 +986,7 @@ export async function rememberMemberProfileAuthorization(
         updatedUtc: now,
       },
       AUTHZ_MIRROR_TTL_SECONDS,
-    )),
-  ])
+    )))
 }
 
 export function createForbiddenGroupResponse(status?: GroupAuthzStatus) {
@@ -1412,10 +1371,6 @@ export function appendVaryOrigin(vary: string | null) {
     .includes('origin')
     ? vary
     : `${vary}, Origin`
-}
-
-function readBoolean(value: unknown) {
-  return typeof value === 'boolean' ? value : undefined
 }
 
 function getGroupPagesPathGroupId(pathname: string) {

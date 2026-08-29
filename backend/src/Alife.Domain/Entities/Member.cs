@@ -10,6 +10,7 @@ public class Member
 	public string? Email { get; set; }
 	public string? PhoneE164 { get; set; }
 	public string? LineUID { get; set; }
+	public byte[]? WebAuthnUserHandle { get; set; }
 	public DateTime? PhoneVerifiedUtc { get; set; }
 	public bool IsRegistered { get; set; }
 	public DateTime CreatedUtc { get; set; }
@@ -22,4 +23,5 @@ public class Member
 	public ICollection<ForumComment> ForumComments { get; set; } = [];
 	public BibleReadingProgress? BibleReadingProgress { get; set; }
 	public ICollection<ContactProfile> ContactProfiles { get; set; } = [];
+	public ICollection<MemberPasskeyCredential> PasskeyCredentials { get; set; } = [];
 }

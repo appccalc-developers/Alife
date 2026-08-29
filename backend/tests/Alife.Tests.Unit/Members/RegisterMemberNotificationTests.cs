@@ -12,6 +12,42 @@ namespace Alife.Tests.Unit.Members;
 public class RegisterMemberNotificationTests
 {
     [Fact]
+    public async Task RegisterMember_OnPublicDevice_IssuesTwoHourSessionToken()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var jwtTokenService = Substitute.For<IJwtTokenService>();
+        jwtTokenService.CreateToken(
+                Arg.Any<Member>(),
+                "line",
+                "public_device",
+                Arg.Is<TimeSpan>(lifetime => lifetime == TimeSpan.FromHours(2)))
+            .Returns(("public-device-token", DateTime.UtcNow.AddHours(2)));
+        var handler = new RegisterMemberCommandHandler(
+            dbContext,
+            jwtTokenService,
+            Substitute.For<IGroupCacheInvalidationService>());
+
+        var result = await handler.Handle(
+            new RegisterMemberCommand(
+                null,
+                "line-public-device",
+                "Public Device User",
+                null,
+                null,
+                null,
+                true),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("public-device-token", result.Value?.Token);
+        jwtTokenService.Received(1).CreateToken(
+            Arg.Any<Member>(),
+            "line",
+            "public_device",
+            Arg.Is<TimeSpan>(lifetime => lifetime == TimeSpan.FromHours(2)));
+    }
+
+    [Fact]
     public async Task RegisterMember_WithVerifiedLineUidNotifiesChurchLeaders()
     {
         using var dbContext = CreateInMemoryDbContext();

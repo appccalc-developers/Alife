@@ -15,4 +15,8 @@ public sealed record VisitContactRequestDto(
     Guid? HandledByMemberId,
     string? HandledByDisplayName,
     DateTime CreatedUtc,
-    DateTime UpdatedUtc);
+    DateTime UpdatedUtc,
+    string RequestKind = "visitorMessage",
+    string? ReplyPreference = null,
+    string? PrivacyConsentVersion = null,
+    DateTime? PrivacyConsentedUtc = null);

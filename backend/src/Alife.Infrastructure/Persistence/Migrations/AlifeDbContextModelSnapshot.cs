@@ -22,6 +22,55 @@ namespace Alife.Infrastructure.Persistence.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("Alife.Domain.Entities.ActivationGroupGrant", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ActivationInvitationId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("activation_invitation_id");
+
+                    b.Property<string>("ConflictCode")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)")
+                        .HasColumnName("conflict_code");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<Guid>("GroupId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("group_id");
+
+                    b.Property<int>("Role")
+                        .HasColumnType("int")
+                        .HasColumnName("role");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_activation_group_grants");
+
+                    b.HasIndex("GroupId")
+                        .HasDatabaseName("ix_activation_group_grants_group_id");
+
+                    b.HasIndex("ActivationInvitationId", "GroupId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_activation_group_grants_activation_invitation_id_group_id");
+
+                    b.ToTable("activation_group_grants", (string)null);
+                });
+
             modelBuilder.Entity("Alife.Domain.Entities.Album", b =>
                 {
                     b.Property<Guid>("Id")
@@ -201,6 +250,113 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.ToTable("announcements", (string)null);
                 });
 
+            modelBuilder.Entity("Alife.Domain.Entities.ApplicationHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("ActorMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("actor_member_id");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<int>("FromStatus")
+                        .HasColumnType("int")
+                        .HasColumnName("from_status");
+
+                    b.Property<Guid>("GroupMembershipApplicationId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("group_membership_application_id");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("int")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasColumnName("note");
+
+                    b.Property<int>("ToStatus")
+                        .HasColumnType("int")
+                        .HasColumnName("to_status");
+
+                    b.HasKey("Id")
+                        .HasName("pk_application_history");
+
+                    b.HasIndex("ActorMemberId")
+                        .HasDatabaseName("ix_application_history_actor_member_id");
+
+                    b.HasIndex("GroupMembershipApplicationId", "CreatedUtc")
+                        .HasDatabaseName("ix_application_history_group_membership_application_id_created_utc");
+
+                    b.ToTable("application_history", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.ApplicationResponseToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime?>("ConsumedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("consumed_utc");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<int>("DeliveryStatus")
+                        .HasColumnType("int")
+                        .HasColumnName("delivery_status");
+
+                    b.Property<DateTime>("ExpiresUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("expires_utc");
+
+                    b.Property<Guid>("GroupMembershipApplicationId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("group_membership_application_id");
+
+                    b.Property<DateTime?>("RevokedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("revoked_utc");
+
+                    b.Property<byte[]>("SecretHash")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varbinary(32)")
+                        .HasColumnName("secret_hash");
+
+                    b.Property<string>("Selector")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("selector");
+
+                    b.HasKey("Id")
+                        .HasName("pk_application_response_tokens");
+
+                    b.HasIndex("ExpiresUtc")
+                        .HasDatabaseName("ix_application_response_tokens_expires_utc");
+
+                    b.HasIndex("GroupMembershipApplicationId")
+                        .HasDatabaseName("ix_application_response_tokens_group_membership_application_id");
+
+                    b.HasIndex("Selector")
+                        .IsUnique()
+                        .HasDatabaseName("ix_application_response_tokens_selector");
+
+                    b.ToTable("application_response_tokens", (string)null);
+                });
+
             modelBuilder.Entity("Alife.Domain.Entities.AuditLog", b =>
                 {
                     b.Property<Guid>("Id")
@@ -327,6 +483,109 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasName("pk_bible_reading_progresses");
 
                     b.ToTable("bible_reading_progresses", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.ChurchPersonApplication", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("ApplicantMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("applicant_member_id");
+
+                    b.Property<string>("Declaration")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasColumnName("declaration");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)")
+                        .HasColumnName("display_name");
+
+                    b.Property<bool>("IsContactVerified")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_contact_verified");
+
+                    b.Property<Guid?>("LinkedMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("linked_member_id");
+
+                    b.Property<int>("MatchState")
+                        .HasColumnType("int")
+                        .HasColumnName("match_state");
+
+                    b.Property<string>("PhoneE164")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)")
+                        .HasColumnName("phone_e164");
+
+                    b.Property<byte[]>("PhoneLookupHash")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varbinary(32)")
+                        .HasColumnName("phone_lookup_hash");
+
+                    b.Property<string>("PreferredLanguage")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("preferred_language");
+
+                    b.Property<string>("PrivacyConsentVersion")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("privacy_consent_version");
+
+                    b.Property<DateTime>("PrivacyConsentedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("privacy_consented_utc");
+
+                    b.Property<string>("ReplyPreference")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)")
+                        .HasColumnName("reply_preference");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion")
+                        .HasColumnName("row_version");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("SubmittedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("submitted_utc");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_church_person_applications");
+
+                    b.HasIndex("ApplicantMemberId")
+                        .HasDatabaseName("ix_church_person_applications_applicant_member_id");
+
+                    b.HasIndex("LinkedMemberId")
+                        .HasDatabaseName("ix_church_person_applications_linked_member_id");
+
+                    b.HasIndex("PhoneLookupHash", "Status")
+                        .HasDatabaseName("ix_church_person_applications_phone_lookup_hash_status");
+
+                    b.ToTable("church_person_applications", (string)null);
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.ContactInquiry", b =>
@@ -4393,6 +4652,73 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.ToTable("group_events", (string)null);
                 });
 
+            modelBuilder.Entity("Alife.Domain.Entities.GroupJoinInvite", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CreatedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by_member_id");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<DateTime>("ExpiresUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("expires_utc");
+
+                    b.Property<Guid>("GroupId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("group_id");
+
+                    b.Property<DateTime?>("LastUsedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("last_used_utc");
+
+                    b.Property<string>("Selector")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("selector");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int")
+                        .HasColumnName("status");
+
+                    b.Property<int>("SubmissionCount")
+                        .HasColumnType("int")
+                        .HasColumnName("submission_count");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_utc");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("int")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_group_join_invites");
+
+                    b.HasIndex("CreatedByMemberId")
+                        .HasDatabaseName("ix_group_join_invites_created_by_member_id");
+
+                    b.HasIndex("GroupId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_group_join_invites_group_id")
+                        .HasFilter("[status] IN (0, 1)");
+
+                    b.HasIndex("Selector")
+                        .IsUnique()
+                        .HasDatabaseName("ix_group_join_invites_selector");
+
+                    b.ToTable("group_join_invites", (string)null);
+                });
+
             modelBuilder.Entity("Alife.Domain.Entities.GroupMembership", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4444,6 +4770,83 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_group_memberships_member_id_updated_utc");
 
                     b.ToTable("group_memberships", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.GroupMembershipApplication", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("ApplicantMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("applicant_member_id");
+
+                    b.Property<Guid>("ChurchPersonApplicationId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("church_person_application_id");
+
+                    b.Property<byte[]>("DeduplicationKey")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varbinary(32)")
+                        .HasColumnName("deduplication_key");
+
+                    b.Property<Guid>("GroupId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("group_id");
+
+                    b.Property<Guid>("GroupJoinInviteId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("group_join_invite_id");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion")
+                        .HasColumnName("row_version");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("source");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("SubmittedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("submitted_utc");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_group_membership_applications");
+
+                    b.HasIndex("ApplicantMemberId")
+                        .HasDatabaseName("ix_group_membership_applications_applicant_member_id");
+
+                    b.HasIndex("ChurchPersonApplicationId")
+                        .HasDatabaseName("ix_group_membership_applications_church_person_application_id");
+
+                    b.HasIndex("DeduplicationKey")
+                        .IsUnique()
+                        .HasDatabaseName("ix_group_membership_applications_deduplication_key")
+                        .HasFilter("[status] IN (0, 1, 2)");
+
+                    b.HasIndex("GroupJoinInviteId")
+                        .HasDatabaseName("ix_group_membership_applications_group_join_invite_id");
+
+                    b.HasIndex("GroupId", "Status", "SubmittedUtc")
+                        .HasDatabaseName("ix_group_membership_applications_group_id_status_submitted_utc");
+
+                    b.ToTable("group_membership_applications", (string)null);
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.Link", b =>
@@ -4549,6 +4952,11 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasColumnType("datetime2")
                         .HasColumnName("updated_utc");
 
+                    b.Property<byte[]>("WebAuthnUserHandle")
+                        .HasMaxLength(64)
+                        .HasColumnType("varbinary(64)")
+                        .HasColumnName("web_authn_user_handle");
+
                     b.HasKey("Id")
                         .HasName("pk_members");
 
@@ -4565,7 +4973,171 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.HasIndex("UpdatedUtc")
                         .HasDatabaseName("ix_members_updated_utc");
 
+                    b.HasIndex("WebAuthnUserHandle")
+                        .IsUnique()
+                        .HasDatabaseName("ix_members_web_authn_user_handle")
+                        .HasFilter("[web_authn_user_handle] IS NOT NULL");
+
                     b.ToTable("members", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.MemberActivationInvitation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<string>("DeliveryErrorCode")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)")
+                        .HasColumnName("delivery_error_code");
+
+                    b.Property<int>("DeliveryStatus")
+                        .HasColumnType("int")
+                        .HasColumnName("delivery_status");
+
+                    b.Property<DateTime>("ExpiresUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("expires_utc");
+
+                    b.Property<Guid>("IssuedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("issued_by_member_id");
+
+                    b.Property<Guid>("MemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("member_id");
+
+                    b.Property<int>("Purpose")
+                        .HasColumnType("int")
+                        .HasColumnName("purpose");
+
+                    b.Property<DateTime?>("RevokedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("revoked_utc");
+
+                    b.Property<byte[]>("SecretHash")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varbinary(32)")
+                        .HasColumnName("secret_hash");
+
+                    b.Property<string>("Selector")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("selector");
+
+                    b.Property<DateTime?>("SentUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("sent_utc");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime?>("UsedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("used_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_member_activation_invitations");
+
+                    b.HasIndex("ExpiresUtc")
+                        .HasDatabaseName("ix_member_activation_invitations_expires_utc");
+
+                    b.HasIndex("IssuedByMemberId")
+                        .HasDatabaseName("ix_member_activation_invitations_issued_by_member_id");
+
+                    b.HasIndex("Selector")
+                        .IsUnique()
+                        .HasDatabaseName("ix_member_activation_invitations_selector");
+
+                    b.HasIndex("MemberId", "Status")
+                        .HasDatabaseName("ix_member_activation_invitations_member_id_status");
+
+                    b.ToTable("member_activation_invitations", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.MemberPasskeyCredential", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<byte[]>("CredentialId")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("varbinary(1024)")
+                        .HasColumnName("credential_id");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)")
+                        .HasColumnName("display_name");
+
+                    b.Property<bool>("IsBackedUp")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_backed_up");
+
+                    b.Property<bool>("IsBackupEligible")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_backup_eligible");
+
+                    b.Property<DateTime?>("LastUsedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("last_used_utc");
+
+                    b.Property<Guid>("MemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("member_id");
+
+                    b.Property<byte[]>("PublicKey")
+                        .IsRequired()
+                        .HasColumnType("varbinary(max)")
+                        .HasColumnName("public_key");
+
+                    b.Property<DateTime?>("RevokedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("revoked_utc");
+
+                    b.Property<long>("SignatureCounter")
+                        .HasColumnType("bigint")
+                        .HasColumnName("signature_counter");
+
+                    b.Property<string>("TransportsJson")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("transports_json");
+
+                    b.Property<byte[]>("UserHandle")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varbinary(64)")
+                        .HasColumnName("user_handle");
+
+                    b.HasKey("Id")
+                        .HasName("pk_member_passkey_credentials");
+
+                    b.HasIndex("CredentialId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_member_passkey_credentials_credential_id");
+
+                    b.HasIndex("MemberId", "RevokedUtc")
+                        .HasDatabaseName("ix_member_passkey_credentials_member_id_revoked_utc");
+
+                    b.ToTable("member_passkey_credentials", (string)null);
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.MemberPlatformRole", b =>
@@ -4693,6 +5265,74 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_notification_messages_recipient_member_id_replied_utc_occurred_utc");
 
                     b.ToTable("notification_messages", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.OnboardingFlow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("ActivationInvitationId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("activation_invitation_id");
+
+                    b.Property<Guid?>("ApplicationResponseTokenId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("application_response_token_id");
+
+                    b.Property<DateTime?>("ConsumedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("consumed_utc");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<DateTime>("ExpiresUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("expires_utc");
+
+                    b.Property<Guid?>("GroupJoinInviteId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("group_join_invite_id");
+
+                    b.Property<int>("Intent")
+                        .HasColumnType("int")
+                        .HasColumnName("intent");
+
+                    b.Property<bool>("IsPublicDevice")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_public_device");
+
+                    b.Property<byte[]>("LineOAuthStateHash")
+                        .HasMaxLength(32)
+                        .HasColumnType("varbinary(32)")
+                        .HasColumnName("line_o_auth_state_hash");
+
+                    b.Property<string>("ReturnPath")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)")
+                        .HasColumnName("return_path");
+
+                    b.Property<byte[]>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varbinary(32)")
+                        .HasColumnName("token_hash");
+
+                    b.HasKey("Id")
+                        .HasName("pk_onboarding_flows");
+
+                    b.HasIndex("ExpiresUtc")
+                        .HasDatabaseName("ix_onboarding_flows_expires_utc");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique()
+                        .HasDatabaseName("ix_onboarding_flows_token_hash");
+
+                    b.ToTable("onboarding_flows", (string)null);
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.Page", b =>
@@ -4876,6 +5516,57 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.ToTable("page_publication_reviews", (string)null);
                 });
 
+            modelBuilder.Entity("Alife.Domain.Entities.PasskeyCeremony", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime?>("ConsumedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("consumed_utc");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<DateTime>("ExpiresUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("expires_utc");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("int")
+                        .HasColumnName("kind");
+
+                    b.Property<Guid?>("MemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("member_id");
+
+                    b.Property<Guid?>("OnboardingFlowId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("onboarding_flow_id");
+
+                    b.Property<string>("OptionsJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("options_json");
+
+                    b.HasKey("Id")
+                        .HasName("pk_passkey_ceremonies");
+
+                    b.HasIndex("ExpiresUtc")
+                        .HasDatabaseName("ix_passkey_ceremonies_expires_utc");
+
+                    b.HasIndex("MemberId")
+                        .HasDatabaseName("ix_passkey_ceremonies_member_id");
+
+                    b.HasIndex("OnboardingFlowId")
+                        .HasDatabaseName("ix_passkey_ceremonies_onboarding_flow_id");
+
+                    b.ToTable("passkey_ceremonies", (string)null);
+                });
+
             modelBuilder.Entity("Alife.Domain.Entities.PlatformRole", b =>
                 {
                     b.Property<int>("Id")
@@ -4913,6 +5604,50 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_platform_roles_level");
 
                     b.ToTable("platform_roles", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.RateLimitBucket", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<int>("Count")
+                        .HasColumnType("int")
+                        .HasColumnName("count");
+
+                    b.Property<DateTime>("ExpiresUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("expires_utc");
+
+                    b.Property<byte[]>("KeyHash")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varbinary(32)")
+                        .HasColumnName("key_hash");
+
+                    b.Property<string>("Scope")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)")
+                        .HasColumnName("scope");
+
+                    b.Property<DateTime>("WindowStartedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("window_started_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_rate_limit_buckets");
+
+                    b.HasIndex("ExpiresUtc")
+                        .HasDatabaseName("ix_rate_limit_buckets_expires_utc");
+
+                    b.HasIndex("Scope", "KeyHash", "WindowStartedUtc")
+                        .IsUnique()
+                        .HasDatabaseName("ix_rate_limit_buckets_scope_key_hash_window_started_utc");
+
+                    b.ToTable("rate_limit_buckets", (string)null);
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.Section", b =>
@@ -5078,6 +5813,26 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(20)")
                         .HasColumnName("preferred_language");
 
+                    b.Property<string>("PrivacyConsentVersion")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("privacy_consent_version");
+
+                    b.Property<DateTime?>("PrivacyConsentedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("privacy_consented_utc");
+
+                    b.Property<string>("ReplyPreference")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)")
+                        .HasColumnName("reply_preference");
+
+                    b.Property<string>("RequestKind")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("request_kind");
+
                     b.Property<string>("Salutation")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)")
@@ -5120,6 +5875,27 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_visit_contact_requests_status_submitted_utc");
 
                     b.ToTable("visit_contact_requests", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.ActivationGroupGrant", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.MemberActivationInvitation", "ActivationInvitation")
+                        .WithMany("Grants")
+                        .HasForeignKey("ActivationInvitationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_activation_group_grants_member_activation_invitations_activation_invitation_id");
+
+                    b.HasOne("Alife.Domain.Entities.Group", "Group")
+                        .WithMany()
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_activation_group_grants_groups_group_id");
+
+                    b.Navigation("ActivationInvitation");
+
+                    b.Navigation("Group");
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.Album", b =>
@@ -5184,6 +5960,38 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.Navigation("Group");
                 });
 
+            modelBuilder.Entity("Alife.Domain.Entities.ApplicationHistory", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.Member", "ActorMember")
+                        .WithMany()
+                        .HasForeignKey("ActorMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_application_history_members_actor_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.GroupMembershipApplication", "GroupMembershipApplication")
+                        .WithMany("History")
+                        .HasForeignKey("GroupMembershipApplicationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_application_history_group_membership_applications_group_membership_application_id");
+
+                    b.Navigation("ActorMember");
+
+                    b.Navigation("GroupMembershipApplication");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.ApplicationResponseToken", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.GroupMembershipApplication", "GroupMembershipApplication")
+                        .WithMany()
+                        .HasForeignKey("GroupMembershipApplicationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_application_response_tokens_group_membership_applications_group_membership_application_id");
+
+                    b.Navigation("GroupMembershipApplication");
+                });
+
             modelBuilder.Entity("Alife.Domain.Entities.AuditLog", b =>
                 {
                     b.HasOne("Alife.Domain.Entities.Member", "ActorMember")
@@ -5229,6 +6037,25 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_bible_reading_progresses_members_member_id");
 
                     b.Navigation("Member");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.ChurchPersonApplication", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.Member", "ApplicantMember")
+                        .WithMany()
+                        .HasForeignKey("ApplicantMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_church_person_applications_members_applicant_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.Member", "LinkedMember")
+                        .WithMany()
+                        .HasForeignKey("LinkedMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_church_person_applications_members_linked_member_id");
+
+                    b.Navigation("ApplicantMember");
+
+                    b.Navigation("LinkedMember");
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.ContactInquiry", b =>
@@ -6602,6 +7429,27 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.Navigation("ParentEvent");
                 });
 
+            modelBuilder.Entity("Alife.Domain.Entities.GroupJoinInvite", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.Member", "CreatedByMember")
+                        .WithMany()
+                        .HasForeignKey("CreatedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_group_join_invites_members_created_by_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.Group", "Group")
+                        .WithMany()
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_group_join_invites_groups_group_id");
+
+                    b.Navigation("CreatedByMember");
+
+                    b.Navigation("Group");
+                });
+
             modelBuilder.Entity("Alife.Domain.Entities.GroupMembership", b =>
                 {
                     b.HasOne("Alife.Domain.Entities.Group", "Group")
@@ -6623,6 +7471,44 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.Navigation("Member");
                 });
 
+            modelBuilder.Entity("Alife.Domain.Entities.GroupMembershipApplication", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.Member", "ApplicantMember")
+                        .WithMany()
+                        .HasForeignKey("ApplicantMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_group_membership_applications_members_applicant_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.ChurchPersonApplication", "ChurchPersonApplication")
+                        .WithMany("GroupApplications")
+                        .HasForeignKey("ChurchPersonApplicationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_group_membership_applications_church_person_applications_church_person_application_id");
+
+                    b.HasOne("Alife.Domain.Entities.Group", "Group")
+                        .WithMany()
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_group_membership_applications_groups_group_id");
+
+                    b.HasOne("Alife.Domain.Entities.GroupJoinInvite", "GroupJoinInvite")
+                        .WithMany()
+                        .HasForeignKey("GroupJoinInviteId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_group_membership_applications_group_join_invites_group_join_invite_id");
+
+                    b.Navigation("ApplicantMember");
+
+                    b.Navigation("ChurchPersonApplication");
+
+                    b.Navigation("Group");
+
+                    b.Navigation("GroupJoinInvite");
+                });
+
             modelBuilder.Entity("Alife.Domain.Entities.Link", b =>
                 {
                     b.HasOne("Alife.Domain.Entities.Section", "OwnerSection")
@@ -6633,6 +7519,39 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_links_sections_owner_section_id");
 
                     b.Navigation("OwnerSection");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.MemberActivationInvitation", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.Member", "IssuedByMember")
+                        .WithMany()
+                        .HasForeignKey("IssuedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_member_activation_invitations_members_issued_by_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.Member", "Member")
+                        .WithMany()
+                        .HasForeignKey("MemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_member_activation_invitations_members_member_id");
+
+                    b.Navigation("IssuedByMember");
+
+                    b.Navigation("Member");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.MemberPasskeyCredential", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.Member", "Member")
+                        .WithMany("PasskeyCredentials")
+                        .HasForeignKey("MemberId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_member_passkey_credentials_members_member_id");
+
+                    b.Navigation("Member");
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.MemberPlatformRole", b =>
@@ -6758,6 +7677,25 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.Navigation("ReviewedByMember");
                 });
 
+            modelBuilder.Entity("Alife.Domain.Entities.PasskeyCeremony", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.Member", "Member")
+                        .WithMany()
+                        .HasForeignKey("MemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_passkey_ceremonies_members_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.OnboardingFlow", "OnboardingFlow")
+                        .WithMany()
+                        .HasForeignKey("OnboardingFlowId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_passkey_ceremonies_onboarding_flows_onboarding_flow_id");
+
+                    b.Navigation("Member");
+
+                    b.Navigation("OnboardingFlow");
+                });
+
             modelBuilder.Entity("Alife.Domain.Entities.Section", b =>
                 {
                     b.HasOne("Alife.Domain.Entities.Page", "Page")
@@ -6791,6 +7729,11 @@ namespace Alife.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("Alife.Domain.Entities.Announcement", b =>
                 {
                     b.Navigation("Notifications");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.ChurchPersonApplication", b =>
+                {
+                    b.Navigation("GroupApplications");
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.ContactProfile", b =>
@@ -6985,6 +7928,11 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.Navigation("WorkflowRun");
                 });
 
+            modelBuilder.Entity("Alife.Domain.Entities.GroupMembershipApplication", b =>
+                {
+                    b.Navigation("History");
+                });
+
             modelBuilder.Entity("Alife.Domain.Entities.Member", b =>
                 {
                     b.Navigation("AssignedPlatformRoles");
@@ -6999,7 +7947,14 @@ namespace Alife.Infrastructure.Persistence.Migrations
 
                     b.Navigation("Memberships");
 
+                    b.Navigation("PasskeyCredentials");
+
                     b.Navigation("PlatformRoles");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.MemberActivationInvitation", b =>
+                {
+                    b.Navigation("Grants");
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.Page", b =>

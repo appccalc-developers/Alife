@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.IdentityModel.Tokens;
+using Fido2NetLib;
 
 var builder = FunctionsApplication.CreateBuilder(args);
 builder.ConfigureFunctionsWebApplication();
@@ -33,6 +34,22 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddProblemDetails();
 
+var frontendBaseUrl = builder.Configuration["Frontend:BaseUrl"] ?? "http://localhost:5173";
+var frontendOrigin = Uri.TryCreate(frontendBaseUrl, UriKind.Absolute, out var configuredFrontendUri)
+    ? configuredFrontendUri.GetLeftPart(UriPartial.Authority)
+    : "http://localhost:5173";
+var passkeyOrigins = builder.Configuration.GetSection("Passkeys:Origins").Get<string[]>()
+    ?.Where(value => !string.IsNullOrWhiteSpace(value))
+    .Select(value => value.Trim().TrimEnd('/'))
+    .ToHashSet(StringComparer.OrdinalIgnoreCase)
+    ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase) { frontendOrigin };
+builder.Services.AddFido2(options =>
+{
+    options.ServerDomain = builder.Configuration["Passkeys:RpId"] ?? configuredFrontendUri?.Host ?? "localhost";
+    options.ServerName = builder.Configuration["Passkeys:RpName"] ?? "ALIFE";
+    options.Origins = passkeyOrigins;
+});
+
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "replace-me-in-production-with-long-random-key";
 var jwtKeyId = builder.Configuration["Jwt:KeyId"] ?? "alife-local-hs256";
 var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
@@ -43,6 +60,7 @@ var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
+        options.MapInboundClaims = false;
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,

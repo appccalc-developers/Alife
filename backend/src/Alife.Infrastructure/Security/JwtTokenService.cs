@@ -14,13 +14,35 @@ public class JwtTokenService(IConfiguration configuration) : IJwtTokenService
 	public (string Token, DateTime ExpiresUtc) CreateToken(Member member, bool isGuest)
 	{
 		var expiresUtc = DateTime.UtcNow.AddDays(isGuest ? 7 : 30);
+		return CreateMemberToken(member, isGuest ? "guest" : "legacy", isGuest ? "guest" : "standard", expiresUtc);
+	}
+
+	public (string Token, DateTime ExpiresUtc) CreateToken(
+		Member member,
+		string authenticationMethod,
+		string sessionKind,
+		TimeSpan lifetime)
+	{
+		var expiresUtc = DateTime.UtcNow.Add(lifetime);
+		return CreateMemberToken(member, authenticationMethod, sessionKind, expiresUtc);
+	}
+
+	private (string Token, DateTime ExpiresUtc) CreateMemberToken(
+		Member member,
+		string authenticationMethod,
+		string sessionKind,
+		DateTime expiresUtc)
+	{
 		var claims = new List<Claim>
 		{
 			new(JwtRegisteredClaimNames.Sub, member.Id.ToString()),
 			new(ClaimTypes.NameIdentifier, member.Id.ToString()),
 			new("is_registered", member.IsRegistered ? "true" : "false"),
 			new("is_admin", IsPlatformAdmin(member) ? "true" : "false"),
-			new("platform_role", GetPlatformRoleCode(member))
+			new("platform_role", GetPlatformRoleCode(member)),
+			new("amr", authenticationMethod),
+			new("session_kind", sessionKind),
+			new("auth_time", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString())
 		};
 
 		return WriteToken(claims, expiresUtc);

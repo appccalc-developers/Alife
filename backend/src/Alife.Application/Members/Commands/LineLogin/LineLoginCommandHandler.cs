@@ -72,7 +72,13 @@ public sealed class LineLoginCommandHandler(
                         cancellationToken));
             }
 
-            var (Token, ExpiresUtc) = jwtTokenService.CreateToken(existingRegisteredMember, isGuest: false);
+            var sessionKind = request.IsPublicDevice ? "public_device" : "standard";
+            var lifetime = request.IsPublicDevice ? TimeSpan.FromHours(2) : TimeSpan.FromDays(30);
+            var (Token, ExpiresUtc) = jwtTokenService.CreateToken(
+                existingRegisteredMember,
+                "line",
+                sessionKind,
+                lifetime);
             return AppResult<MemberActionResultDto>.Success(new MemberActionResultDto(
                 true,
                 DisplayName: existingRegisteredMember.DisplayName,

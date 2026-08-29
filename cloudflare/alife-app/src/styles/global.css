@@ -144,6 +144,29 @@ select {
     outline: none;
     box-shadow: 0 0 0 4px rgba(23, 107, 90, 0.1);
   }
+
+  .alife-primary-button {
+    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50;
+    background: var(--alife-brand);
+    box-shadow: 0 12px 28px rgba(23, 107, 90, 0.2);
+  }
+
+  .alife-primary-button:hover:not(:disabled) {
+    background: var(--alife-brand-deep);
+    transform: translateY(-1px);
+  }
+
+  .alife-secondary-button {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full border px-5 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50;
+    color: var(--alife-brand);
+    border-color: rgba(23, 107, 90, 0.22);
+    background: rgba(255, 255, 255, 0.82);
+  }
+
+  .alife-secondary-button:hover:not(:disabled) {
+    border-color: rgba(23, 107, 90, 0.42);
+    background: var(--alife-brand-soft);
+  }
 }
 
 /* Safe area insets for iOS devices with notches / home indicators */

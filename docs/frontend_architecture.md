@@ -22,6 +22,7 @@ The frontend should stay focused on presentation, interaction, client-side coord
 | Local collection state | TanStack React DB |
 | ETag cache | IndexedDB through `idb-keyval` |
 | PWA | `vite-plugin-pwa` generated service worker |
+| Identity | Browser WebAuthn API; `qrcode` 1.5.4 for local QR rendering/export |
 | Deployment | Built assets served by Cloudflare speed layer |
 
 ## Source Layout
@@ -83,7 +84,9 @@ React StrictMode
 | View | Responsibility |
 |---|---|
 | `HomeView` | Main member landing experience |
-| `OnboardingView` | Guest/onboarding flow |
+| `OnboardingView` | Unified intent entry, Passkey/LINE compatibility, activation, QR application, recovery, and public-device states |
+| `IdentityLinkEntryView` | Removes activation/join/reply fragments before exchanging one-time secrets |
+| `InternalAlphaLoginView` | Hidden configuration-gated Alpha account selection |
 | `GroupsView` | Group discovery and listing |
 | `GroupDetailView` | Member-facing group reading experience |
 | `GroupManageView` | Leader/co-leader management workspace |
@@ -97,7 +100,7 @@ React StrictMode
 | `EventCreatorView` | Event planning and creation |
 | `EventEnrollmentView` | Enrollment workflow |
 | `EventReviewView` | Review/reflection workflow |
-| `ProfileView` | Current member profile |
+| `ProfileView` | Current member profile and Passkey add/view/revoke controls |
 | `AdminView` | Admin operations |
 
 ## State Model
@@ -130,6 +133,7 @@ Frontend API access is split across `src/services/`, `src/api/`, `src/db/`, and 
 Important services:
 
 - `authService`
+- `identityAccessService`
 - `groupService`
 - `pageService`
 - `eventService`
@@ -202,6 +206,10 @@ This matters because Alife has both:
 
 Keep route state explicit. Avoid making language switches, tab changes, or local editor changes trigger unnecessary server refetches.
 
+Protected-route redirects store only validated absolute relative paths before navigating to `/onboarding`. Signed-in users skip onboarding and resume that path or `/enter`. `/activate/:selector`, `/join/:selector`, `/application/:selector`, and `/internal/alpha-login` use the identity shell, which deliberately omits member workspace navigation and floating actions.
+
+The onboarding screen uses a compact intent list rather than equal-weight cards. Passkey is primary; LINE is clearly labeled as compatibility. Public-device, unsupported, cancellation, expiry, replay, paused/revoked, rate-limit, and network states remain recoverable and never silently downgrade authentication. All new UI copy lives in the existing bilingual `uiText` catalog.
+
 ## Bilingual Content
 
 Alife supports English and Chinese. Content fields often use:
@@ -265,6 +273,9 @@ Management UI should stay task-focused:
 - Subgroup creation and co-leader claim.
 - Page management.
 - Event management.
+- QR invite generation, PNG/SVG download/print, pause/resume/rotate/revoke, and application decisions.
+
+The church member administration area owns pre-registration activations and church-person approval. Group management owns only applications for its group. `/tasks` projects the same live application ID and history rather than copying application records; terminal decisions disappear from pending work.
 
 Frontend role checks improve navigation and display, but backend authorization remains required for every protected operation.
 

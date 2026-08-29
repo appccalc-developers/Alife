@@ -70,6 +70,17 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 	public DbSet<Announcement> Announcements => Set<Announcement>();
 	public DbSet<ContentPost> ContentPosts => Set<ContentPost>();
 	public DbSet<VisitContactRequest> VisitContactRequests => Set<VisitContactRequest>();
+	public DbSet<MemberPasskeyCredential> MemberPasskeyCredentials => Set<MemberPasskeyCredential>();
+	public DbSet<PasskeyCeremony> PasskeyCeremonies => Set<PasskeyCeremony>();
+	public DbSet<OnboardingFlow> OnboardingFlows => Set<OnboardingFlow>();
+	public DbSet<MemberActivationInvitation> MemberActivationInvitations => Set<MemberActivationInvitation>();
+	public DbSet<ActivationGroupGrant> ActivationGroupGrants => Set<ActivationGroupGrant>();
+	public DbSet<GroupJoinInvite> GroupJoinInvites => Set<GroupJoinInvite>();
+	public DbSet<ChurchPersonApplication> ChurchPersonApplications => Set<ChurchPersonApplication>();
+	public DbSet<GroupMembershipApplication> GroupMembershipApplications => Set<GroupMembershipApplication>();
+	public DbSet<ApplicationHistory> ApplicationHistory => Set<ApplicationHistory>();
+	public DbSet<ApplicationResponseToken> ApplicationResponseTokens => Set<ApplicationResponseToken>();
+	public DbSet<RateLimitBucket> RateLimitBuckets => Set<RateLimitBucket>();
 	public DbSet<ContactProfile> ContactProfiles => Set<ContactProfile>();
 	public DbSet<EventContactProfile> EventContactProfiles => Set<EventContactProfile>();
 	public DbSet<ContactInquiry> ContactInquiries => Set<ContactInquiry>();
@@ -102,6 +113,7 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 			cfg.Property(x => x.Email).HasMaxLength(200);
 			cfg.Property(x => x.PhoneE164).HasMaxLength(30);
 			cfg.Property(x => x.LineUID).HasMaxLength(100);
+			cfg.Property(x => x.WebAuthnUserHandle).HasMaxLength(64);
 			cfg.HasIndex(x => x.UpdatedUtc);
 			cfg.HasIndex(x => x.PhoneE164)
 				.IsUnique()
@@ -109,6 +121,9 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 			cfg.HasIndex(x => x.LineUID)
 				.IsUnique()
 				.HasFilter("[line_uid] IS NOT NULL AND [is_registered] = 1");
+			cfg.HasIndex(x => x.WebAuthnUserHandle)
+				.IsUnique()
+				.HasFilter("[web_authn_user_handle] IS NOT NULL");
 		});
 
 		modelBuilder.Entity<BibleReadingProgress>(cfg =>
@@ -1102,6 +1117,9 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 			cfg.Property(x => x.Status).HasMaxLength(40).IsRequired();
 			cfg.Property(x => x.IpAddress).HasMaxLength(64);
 			cfg.Property(x => x.UserAgent).HasMaxLength(500);
+			cfg.Property(x => x.RequestKind).HasMaxLength(50).IsRequired();
+			cfg.Property(x => x.ReplyPreference).HasMaxLength(30);
+			cfg.Property(x => x.PrivacyConsentVersion).HasMaxLength(50);
 
 			cfg.HasOne(x => x.HandledByMember)
 				.WithMany()
@@ -1111,6 +1129,132 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 			cfg.HasIndex(x => new { x.Status, x.SubmittedUtc });
 			cfg.HasIndex(x => x.HandledByMemberId);
 			cfg.HasIndex(x => x.SubmittedUtc);
+		});
+
+		modelBuilder.Entity<MemberPasskeyCredential>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.CredentialId).HasMaxLength(1024).IsRequired();
+			cfg.Property(x => x.PublicKey).IsRequired();
+			cfg.Property(x => x.UserHandle).HasMaxLength(64).IsRequired();
+			cfg.Property(x => x.TransportsJson).HasMaxLength(500);
+			cfg.Property(x => x.DisplayName).HasMaxLength(120).IsRequired();
+			cfg.HasOne(x => x.Member).WithMany(x => x.PasskeyCredentials).HasForeignKey(x => x.MemberId).OnDelete(DeleteBehavior.Cascade);
+			cfg.HasIndex(x => x.CredentialId).IsUnique();
+			cfg.HasIndex(x => new { x.MemberId, x.RevokedUtc });
+		});
+
+		modelBuilder.Entity<OnboardingFlow>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.TokenHash).HasMaxLength(32).IsRequired();
+			cfg.Property(x => x.LineOAuthStateHash).HasMaxLength(32);
+			cfg.Property(x => x.ReturnPath).HasMaxLength(1000);
+			cfg.HasIndex(x => x.TokenHash).IsUnique();
+			cfg.HasIndex(x => x.ExpiresUtc);
+		});
+
+		modelBuilder.Entity<PasskeyCeremony>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.OptionsJson).IsRequired();
+			cfg.HasOne(x => x.Member).WithMany().HasForeignKey(x => x.MemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.OnboardingFlow).WithMany().HasForeignKey(x => x.OnboardingFlowId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => x.ExpiresUtc);
+		});
+
+		modelBuilder.Entity<MemberActivationInvitation>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.Selector).HasMaxLength(64).IsRequired();
+			cfg.Property(x => x.SecretHash).HasMaxLength(32).IsRequired();
+			cfg.Property(x => x.DeliveryErrorCode).HasMaxLength(80);
+			cfg.HasOne(x => x.Member).WithMany().HasForeignKey(x => x.MemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.IssuedByMember).WithMany().HasForeignKey(x => x.IssuedByMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => x.Selector).IsUnique();
+			cfg.HasIndex(x => new { x.MemberId, x.Status });
+			cfg.HasIndex(x => x.ExpiresUtc);
+		});
+
+		modelBuilder.Entity<ActivationGroupGrant>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.ConflictCode).HasMaxLength(80);
+			cfg.HasOne(x => x.ActivationInvitation).WithMany(x => x.Grants).HasForeignKey(x => x.ActivationInvitationId).OnDelete(DeleteBehavior.Cascade);
+			cfg.HasOne(x => x.Group).WithMany().HasForeignKey(x => x.GroupId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => new { x.ActivationInvitationId, x.GroupId }).IsUnique();
+		});
+
+		modelBuilder.Entity<GroupJoinInvite>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.Selector).HasMaxLength(64).IsRequired();
+			cfg.HasOne(x => x.Group).WithMany().HasForeignKey(x => x.GroupId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.CreatedByMember).WithMany().HasForeignKey(x => x.CreatedByMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => x.Selector).IsUnique();
+			cfg.HasIndex(x => x.GroupId)
+				.IsUnique()
+				.HasFilter("[status] IN (0, 1)");
+		});
+
+		modelBuilder.Entity<ChurchPersonApplication>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.DisplayName).HasMaxLength(150).IsRequired();
+			cfg.Property(x => x.PhoneE164).HasMaxLength(30).IsRequired();
+			cfg.Property(x => x.PhoneLookupHash).HasMaxLength(32).IsRequired();
+			cfg.Property(x => x.ReplyPreference).HasMaxLength(30).IsRequired();
+			cfg.Property(x => x.PreferredLanguage).HasMaxLength(20).IsRequired();
+			cfg.Property(x => x.Declaration).HasMaxLength(2000).IsRequired();
+			cfg.Property(x => x.PrivacyConsentVersion).HasMaxLength(50).IsRequired();
+			cfg.Property(x => x.RowVersion).IsRowVersion();
+			cfg.HasOne(x => x.ApplicantMember).WithMany().HasForeignKey(x => x.ApplicantMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.LinkedMember).WithMany().HasForeignKey(x => x.LinkedMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => new { x.PhoneLookupHash, x.Status });
+		});
+
+		modelBuilder.Entity<GroupMembershipApplication>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.Source).HasMaxLength(50).IsRequired();
+			cfg.Property(x => x.DeduplicationKey).HasMaxLength(32).IsRequired();
+			cfg.Property(x => x.RowVersion).IsRowVersion();
+			cfg.HasOne(x => x.ChurchPersonApplication).WithMany(x => x.GroupApplications).HasForeignKey(x => x.ChurchPersonApplicationId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.Group).WithMany().HasForeignKey(x => x.GroupId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.GroupJoinInvite).WithMany().HasForeignKey(x => x.GroupJoinInviteId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.ApplicantMember).WithMany().HasForeignKey(x => x.ApplicantMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => new { x.GroupId, x.Status, x.SubmittedUtc });
+			cfg.HasIndex(x => x.DeduplicationKey)
+				.IsUnique()
+				.HasFilter("[status] IN (0, 1, 2)");
+		});
+
+		modelBuilder.Entity<ApplicationHistory>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.Note).HasMaxLength(2000);
+			cfg.HasOne(x => x.GroupMembershipApplication).WithMany(x => x.History).HasForeignKey(x => x.GroupMembershipApplicationId).OnDelete(DeleteBehavior.Cascade);
+			cfg.HasOne(x => x.ActorMember).WithMany().HasForeignKey(x => x.ActorMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => new { x.GroupMembershipApplicationId, x.CreatedUtc });
+		});
+
+		modelBuilder.Entity<ApplicationResponseToken>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.Selector).HasMaxLength(64).IsRequired();
+			cfg.Property(x => x.SecretHash).HasMaxLength(32).IsRequired();
+			cfg.HasOne(x => x.GroupMembershipApplication).WithMany().HasForeignKey(x => x.GroupMembershipApplicationId).OnDelete(DeleteBehavior.Cascade);
+			cfg.HasIndex(x => x.Selector).IsUnique();
+			cfg.HasIndex(x => x.ExpiresUtc);
+		});
+
+		modelBuilder.Entity<RateLimitBucket>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.Scope).HasMaxLength(80).IsRequired();
+			cfg.Property(x => x.KeyHash).HasMaxLength(32).IsRequired();
+			cfg.HasIndex(x => new { x.Scope, x.KeyHash, x.WindowStartedUtc }).IsUnique();
+			cfg.HasIndex(x => x.ExpiresUtc);
 		});
 
 		modelBuilder.Entity<ContactProfile>(cfg =>

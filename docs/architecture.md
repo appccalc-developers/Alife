@@ -5,7 +5,7 @@
 Alife is a full-stack community and church group platform with four main runtime areas:
 
 - **Backend**: .NET 10 Azure Functions v4 isolated worker, ASP.NET Core controllers, MediatR, EF Core, SQL Server, HybridCache.
-- **Frontend**: React 19 + TypeScript + Vite PWA, Tailwind CSS, TanStack Query, TanStack React DB, Axios, IndexedDB-backed ETag cache.
+- **Frontend**: React 19 + TypeScript + Vite PWA, Tailwind CSS, TanStack Query, TanStack React DB, Axios, IndexedDB-backed ETag cache, browser WebAuthn, and local QR rendering.
 - **Edge**: Cloudflare `speed-layer` Worker for frontend assets, API proxying, edge cache, authorization mirrors, and AI session Durable Objects.
 - **Images**: separate Cloudflare `images-api` Worker backed by Cloudflare R2.
 
@@ -23,7 +23,7 @@ Alife reduces operational friction around church community life:
 
 ### Primary Users
 
-- **Guest**: can open onboarding, sign in, and request/accept access.
+- **Guest**: can open onboarding, leave a visitor message, activate a pre-registered identity, or apply through a group QR without an account being created automatically.
 - **Member**: can view accessible groups, pages, sermons, events, notifications, and enroll in activities.
 - **Leader / CoLeader**: can manage approved groups, subgroups, memberships, pages, and events.
 - **Admin**: can access protected admin operations.
@@ -68,7 +68,11 @@ The backend is controller-style HTTP API hosted inside Azure Functions, not a co
 
 Key entities:
 
-- `Member`: display name, contact fields, LINE UID, registration/admin state.
+- `Member`: display name, contact fields, LINE UID, random WebAuthn user handle, registration/admin state.
+- `MemberPasskeyCredential`, `PasskeyCeremony`, and `OnboardingFlow`: public-key credentials, short-lived one-time ceremonies, and resumable intent context.
+- `MemberActivationInvitation` and `ActivationGroupGrant`: one-time church pre-registration plus explicitly staged group roles.
+- `GroupJoinInvite`, `ChurchPersonApplication`, `GroupMembershipApplication`, and `ApplicationHistory`: QR lifecycle and two-stage human approval records.
+- `RateLimitBucket`: database-backed, HMAC-keyed anonymous security limits.
 - `Group`: bilingual name/description JSON, hierarchy, access type, church/root marker, closed state.
 - `GroupMembership`: member/group relationship with role and status.
 - `Page`: global or group-scoped page with bilingual title/description JSON, tags, visibility, and soft delete.
@@ -97,15 +101,17 @@ Important enums include:
 
 ### Authentication
 
-Alife uses JWT authentication stored in the HttpOnly cookie `alife_auth`.
+Alife uses Passkeys as the primary authenticator and stores the resulting JWT in the HttpOnly cookie `alife_auth`. LINE remains an explicit compatibility path. Internal Alpha access is configuration-whitelisted, absent from public navigation, and disabled unless explicitly enabled in the current environment.
 
 Flow:
 
-1. User signs in through LINE Login, Alpha account login by display name or phone number with an optional international calling code, or dev/admin flow.
-2. Backend issues a JWT with minimal claims such as `sub` and expiry.
-3. JwtBearer middleware reads the JWT from the cookie.
-4. `CurrentMemberAccessor` resolves the current member from the `sub` claim.
-5. Protected API handlers perform current membership and role checks before mutating data.
+1. `/onboarding` creates a 30-minute server-side flow and retains only a validated same-site return path in a short-lived HttpOnly cookie.
+2. A discoverable WebAuthn assertion validates RP ID, allowed origin, challenge, user verification, credential ownership, and signature count. The backend stores no biometric or device-PIN data.
+3. Backend issues a JWT containing `sub`, `amr`, `auth_time`, and `session_kind`; public-device and Alpha cookies are non-persistent with shorter lifetimes.
+4. JwtBearer middleware reads the JWT from the cookie and `CurrentMemberAccessor` resolves the current member.
+5. Protected handlers perform current membership and role checks before mutations. Activation and application approval use one-time token consumption, optimistic concurrency, and idempotent membership/grant creation.
+
+Activation, QR, and application-response URLs keep random secrets in the fragment. The browser removes the fragment before exchanging it in a request body; persistence stores only HMAC hashes. LINE OAuth state is single-use and bound to the server-side onboarding flow. The removed arbitrary display-name/phone login route returns `404`.
 
 ### Authorization
 
@@ -129,7 +135,11 @@ This is important because leaders and co-leaders can change membership state, an
 Controllers are grouped by responsibility:
 
 - `AuthController`: login, logout, dev/admin session.
-- `MembersController`: `/api/me`, LINE login/callback, registration, Alpha account login, member listing.
+- `PasskeysController`: discoverable authentication, registration, credential listing, and credential revocation.
+- `OnboardingController`: flow resume, activation, group-invite resolution, application submission, and application replies.
+- `IdentityManagementController`: activation administration, QR lifecycle, and church/group application decisions.
+- `InternalAlphaLoginController`: server-supplied configuration whitelist and short non-persistent sessions; returns `404` when unavailable.
+- `MembersController`: `/api/me`, LINE login/callback, explicit legacy LINE registration, and member listing.
 - `GroupsController`: church root, group detail, subgroups, membership workflows, invite candidates, group update/close.
 - `PagesController`: global pages, group pages, page detail, create/update/publish/delete.
 - `EventsController`: group event list/create/update/delete.
@@ -138,6 +148,8 @@ Controllers are grouped by responsibility:
 - `NotificationsController`: notification list/create/reply/read.
 - `SermonsController`: sermon listing.
 - `AdminController`: sermon sync and Cloudflare cache refresh.
+
+Identity, token, visitor, application, task, and management responses are `no-store`; the Cloudflare and PWA layers must not cache them. Anonymous identity endpoints use SQL-backed HMAC-keyed limits and fail closed if the limiter is unavailable. `CF-Connecting-IP` is accepted only from configured trusted proxy networks.
 
 Health and diagnostics:
 
@@ -169,12 +181,12 @@ The speed layer uses the Cloudflare Cache API and logical cache records to suppo
 
 - public shared caching for `/api/sermons`, `/api/pages/public`, and confirmed-public `/api/pages/{pageId}` responses;
 - authorized group-shared caching for group pages, subgroups, events, members, and memberships;
-- member profile caching for `/api/me` by member id;
+- uncached `/api/me` responses that may refresh only minimal group-membership authorization mirrors;
 - generated ETags and `304 Not Modified`;
 - passive invalidation after mutations;
 - membership/page/entity metadata mirrors used to decide whether shared cached data can be read.
 
-Browser-facing API responses are returned with private browser cache semantics such as `private, no-cache` and `Vary: Cookie, Authorization` where appropriate. Public image responses can use public immutable-style caching.
+Browser-facing cacheable API responses are returned with private browser revalidation semantics such as `private, no-cache` and `Vary: Cookie, Authorization` where appropriate. `/api/me`, onboarding, credential, activation, application, visitor, internal Alpha, management, and personal-task responses use `no-store`. Public image responses can use public immutable-style caching.
 
 ### Frontend Cache
 

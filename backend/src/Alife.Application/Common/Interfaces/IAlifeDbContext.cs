@@ -67,6 +67,17 @@ public interface IAlifeDbContext
     DbSet<Announcement> Announcements { get; }
     DbSet<ContentPost> ContentPosts { get; }
     DbSet<VisitContactRequest> VisitContactRequests { get; }
+    DbSet<MemberPasskeyCredential> MemberPasskeyCredentials { get; }
+    DbSet<PasskeyCeremony> PasskeyCeremonies { get; }
+    DbSet<OnboardingFlow> OnboardingFlows { get; }
+    DbSet<MemberActivationInvitation> MemberActivationInvitations { get; }
+    DbSet<ActivationGroupGrant> ActivationGroupGrants { get; }
+    DbSet<GroupJoinInvite> GroupJoinInvites { get; }
+    DbSet<ChurchPersonApplication> ChurchPersonApplications { get; }
+    DbSet<GroupMembershipApplication> GroupMembershipApplications { get; }
+    DbSet<ApplicationHistory> ApplicationHistory { get; }
+    DbSet<ApplicationResponseToken> ApplicationResponseTokens { get; }
+    DbSet<RateLimitBucket> RateLimitBuckets { get; }
     DbSet<ContactProfile> ContactProfiles { get; }
     DbSet<EventContactProfile> EventContactProfiles { get; }
     DbSet<ContactInquiry> ContactInquiries { get; }

@@ -8,6 +8,10 @@ public class VisitContactRequest
     public string? Email { get; set; }
     public string? Phone { get; set; }
     public string? PreferredLanguage { get; set; }
+    public string RequestKind { get; set; } = "visitorMessage";
+    public string? ReplyPreference { get; set; }
+    public string? PrivacyConsentVersion { get; set; }
+    public DateTime? PrivacyConsentedUtc { get; set; }
     public string? Message { get; set; }
     public string? SourcePage { get; set; }
     public string Status { get; set; } = "new";

@@ -4,6 +4,7 @@ using Alife.Application.Abstractions.Security;
 using Alife.Application.ContentPosts.Services;
 using Alife.Application.Events.Services;
 using Alife.Application.FileAssets.Services;
+using Alife.Application.IdentityAccess;
 using Alife.Application.Forum.Services;
 using Alife.Application.Groups.Services;
 using Alife.Application.Members.Services;
@@ -33,6 +34,12 @@ public static class DependencyInjection
 		services.AddScoped<IAlifeDbContext>(sp => sp.GetRequiredService<AlifeDbContext>());
 
 		services.AddScoped<IJwtTokenService, JwtTokenService>();
+		services.AddSingleton<IIdentityAccessConfiguration, IdentityAccessConfiguration>();
+		services.AddSingleton<IIdentityTokenService, IdentityTokenService>();
+		services.AddScoped<IServerRateLimiter, SqlServerRateLimiter>();
+		services.AddScoped<IIdentitySerializableExecutor, IdentitySerializableExecutor>();
+		services.AddScoped<IIdentityMessageSender, UnavailableIdentityMessageSender>();
+		services.AddScoped<IPasskeyService, PasskeyService>();
 
 		services.AddHttpClient("youtube", client =>
 		{

@@ -4,7 +4,6 @@ using Alife.Api.Security;
 using Alife.Application.Abstractions.Identity;
 using Alife.Application.Abstractions.Integrations;
 using Alife.Application.Members.Commands.LineLogin;
-using Alife.Application.Members.Commands.LoginByAccount;
 using Alife.Application.Members.Commands.RegisterMember;
 using Alife.Application.Members.Commands.SaveBibleReadingProgress;
 using Alife.Application.Members.Commands.UpdateCurrentMemberProfile;
@@ -26,7 +25,8 @@ public class MembersController(
     IMediator mediator,
     ICurrentMemberAccessor currentMemberAccessor,
     IConfiguration configuration,
-    ILineLoginService lineLoginService) : ControllerBase
+    ILineLoginService lineLoginService,
+    Alife.Application.IdentityAccess.IIdentityAccessService identityAccess) : ControllerBase
 {
     [HttpGet("me")]
     [AllowAnonymous]
@@ -52,13 +52,19 @@ public class MembersController(
 
         if (result.IsSuccess && result.Value is not null)
         {
-            this.ApplyNoStoreHeaders();
-            return Ok(result.Value);
+            var sessionKind = User.FindFirstValue("session_kind") ?? "standard";
+            this.ApplyPrivateNoStoreHeaders();
+            return Ok(result.Value with
+            {
+                AuthenticationMethod = User.FindFirstValue("amr"),
+                SessionKind = sessionKind,
+                NeedsPasskey = sessionKind == "standard" && result.Value.NeedsPasskey
+            });
         }
 
         if (User.Identity?.IsAuthenticated == true && IsGuestPrincipal(User))
         {
-            this.ApplyNoStoreHeaders();
+            this.ApplyPrivateNoStoreHeaders();
             return Ok(new CurrentMemberDto(
                 currentMemberId.Value, null, null, null, null, null,
                 IsGuest: true,
@@ -74,31 +80,39 @@ public class MembersController(
 
     [HttpGet("members/line/login")]
     [AllowAnonymous]
-    public IActionResult LineLogin()
+    public async Task<IActionResult> LineLogin(CancellationToken cancellationToken)
     {
+        this.ApplyPrivateNoStoreHeaders();
         var state = Guid.NewGuid().ToString("N");
+        var binding = await identityAccess.BindLineStateAsync(ReadOnboardingFlowToken(), state, cancellationToken);
+        if (!binding.IsSuccess) return NotFound();
         Response.Cookies.Append(
             "line_oauth_state",
             state,
             AuthCookie.CreateStateCookieOptions(Request, DateTimeOffset.UtcNow.AddMinutes(10)));
 
         var authUrl = lineLoginService.GetAuthorizationUrl(state);
-        Console.WriteLine($"Redirecting to LINE login URL: {authUrl}");
         return Ok(new { authUrl });
     }
 
     [HttpGet("members/line/login/redirect")]
     [AllowAnonymous]
-    public IActionResult LineLoginRedirect()
+    public async Task<IActionResult> LineLoginRedirect(CancellationToken cancellationToken)
     {
+        this.ApplyPrivateNoStoreHeaders();
         var state = Guid.NewGuid().ToString("N");
+        var binding = await identityAccess.BindLineStateAsync(ReadOnboardingFlowToken(), state, cancellationToken);
+        if (!binding.IsSuccess)
+        {
+            var frontend = (configuration["Frontend:BaseUrl"] ?? "").TrimEnd('/');
+            return Redirect($"{frontend}/onboarding?line_error=missing_flow");
+        }
         Response.Cookies.Append(
             "line_oauth_state",
             state,
             AuthCookie.CreateStateCookieOptions(Request, DateTimeOffset.UtcNow.AddMinutes(10)));
 
         var authUrl = lineLoginService.GetAuthorizationUrl(state);
-        Console.WriteLine($"Redirecting to LINE login URL: {authUrl}");
         return Redirect(authUrl);
     }
 
@@ -106,6 +120,7 @@ public class MembersController(
     [AllowAnonymous]
     public async Task<IActionResult> LineCallback([FromQuery] string? code, [FromQuery] string? state, CancellationToken cancellationToken)
     {
+        this.ApplyPrivateNoStoreHeaders();
         var frontendBaseUrl = (configuration["Frontend:BaseUrl"] ?? "").TrimEnd('/');
 
         if (string.IsNullOrWhiteSpace(code))
@@ -114,7 +129,18 @@ public class MembersController(
         }
 
         var storedState = Request.Cookies["line_oauth_state"];
-        if (!string.IsNullOrWhiteSpace(storedState) && storedState != state)
+        if (string.IsNullOrWhiteSpace(storedState) ||
+            string.IsNullOrWhiteSpace(state) ||
+            storedState.Length != state.Length ||
+            !System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
+                System.Text.Encoding.UTF8.GetBytes(storedState),
+                System.Text.Encoding.UTF8.GetBytes(state)))
+        {
+            return Redirect($"{frontendBaseUrl}/onboarding?line_error=invalid_state");
+        }
+
+        var flowResult = await identityAccess.ConsumeLineStateAsync(ReadOnboardingFlowToken(), state, cancellationToken);
+        if (!flowResult.IsSuccess || flowResult.Value is null)
         {
             return Redirect($"{frontendBaseUrl}/onboarding?line_error=invalid_state");
         }
@@ -122,7 +148,9 @@ public class MembersController(
         Response.Cookies.Delete("line_oauth_state");
 
         var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
-        var result = await mediator.Send(new LineLoginCommand(currentMemberId, code), cancellationToken);
+        var result = await mediator.Send(
+            new LineLoginCommand(currentMemberId, code, flowResult.Value.IsPublicDevice),
+            cancellationToken);
 
         if (!result.IsSuccess || result.Value is null)
         {
@@ -131,32 +159,32 @@ public class MembersController(
 
         if (result.Value.Token is not null && result.Value.ExpiresUtc is not null)
         {
-            AuthCookie.WriteCookie(Request, Response, result.Value.Token, result.Value.ExpiresUtc.Value);
+            AuthCookie.WriteCookie(
+                Request,
+                Response,
+                result.Value.Token,
+                result.Value.ExpiresUtc.Value,
+                persistent: !flowResult.Value.IsPublicDevice);
         }
 
         if (result.Value.IsRegistered)
         {
-            return Redirect($"{frontendBaseUrl}?login=success&t={DateTimeOffset.UtcNow.ToUnixTimeSeconds()}");
+            var context = flowResult.Value;
+            if (context.Intent is "activation" or "groupJoin" or "applicationResponse")
+            {
+                return Redirect($"{frontendBaseUrl}/onboarding?intent={Uri.EscapeDataString(context.Intent)}");
+            }
+            return Redirect($"{frontendBaseUrl}{(string.IsNullOrWhiteSpace(context.ReturnPath) ? "/enter" : context.ReturnPath)}");
         }
 
-        var queryParams = new System.Text.StringBuilder($"{frontendBaseUrl}/onboarding?line_login=true");
-        if (!string.IsNullOrWhiteSpace(result.Value.DisplayName))
-        {
-            queryParams.Append($"&line_display_name={Uri.EscapeDataString(result.Value.DisplayName)}");
-        }
-
-        if (!string.IsNullOrWhiteSpace(result.Value.Email))
-        {
-            queryParams.Append($"&line_email={Uri.EscapeDataString(result.Value.Email)}");
-        }
-
-        return Redirect(queryParams.ToString());
+        return Redirect($"{frontendBaseUrl}/onboarding?line_login=true&intent={Uri.EscapeDataString(flowResult.Value.Intent)}");
     }
 
     [HttpPost("members/register")]
     [AllowAnonymous]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request, CancellationToken cancellationToken)
     {
+        this.ApplyPrivateNoStoreHeaders();
         var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
         var verifiedLineUID = currentMemberAccessor.GetVerifiedLineUID();
 
@@ -165,8 +193,17 @@ public class MembersController(
             return Unauthorized();
         }
 
+        var flow = await identityAccess.GetActiveFlowAsync(ReadOnboardingFlowToken(), cancellationToken);
+        var isPublicDevice = flow?.IsPublicDevice == true;
         var result = await mediator.Send(
-            new RegisterMemberCommand(currentMemberId, verifiedLineUID, request.Name, request.Sex, request.Age, request.Email),
+            new RegisterMemberCommand(
+                currentMemberId,
+                verifiedLineUID,
+                request.Name,
+                request.Sex,
+                request.Age,
+                request.Email,
+                isPublicDevice),
             cancellationToken);
 
         if (!result.IsSuccess || result.Value is null)
@@ -174,28 +211,24 @@ public class MembersController(
             return this.ToActionResult(result);
         }
 
-        AuthCookie.WriteCookie(Request, Response, result.Value.Token, result.Value.ExpiresUtc);
+        AuthCookie.WriteCookie(
+            Request,
+            Response,
+            result.Value.Token,
+            result.Value.ExpiresUtc,
+            persistent: !isPublicDevice);
         return Ok(new { ok = true, expiresUtc = result.Value.ExpiresUtc });
     }
 
     [HttpPost("members/login/account")]
     [AllowAnonymous]
-    public async Task<IActionResult> LoginByAccount([FromBody] LoginByAccountRequest request, CancellationToken cancellationToken)
+    public IActionResult LoginByAccount()
     {
-        var result = await mediator.Send(new LoginByAccountCommand(request.Account ?? string.Empty, request.Password), cancellationToken);
-
-        if (!result.IsSuccess || result.Value is null)
-        {
-            return this.ToActionResult(result);
-        }
-
-        if (result.Value.Token is not null && result.Value.ExpiresUtc is not null)
-        {
-            AuthCookie.WriteCookie(Request, Response, result.Value.Token, result.Value.ExpiresUtc.Value);
-        }
-
-        return Ok(new { ok = true, expiresUtc = result.Value.ExpiresUtc });
+        this.ApplyPrivateNoStoreHeaders();
+        return NotFound();
     }
+
+    private string ReadOnboardingFlowToken() => Request.Cookies["alife_onboarding"] ?? string.Empty;
 
     private static string GetMemberProfileCacheKey(Guid memberId, DateTime? updatedUtc)
         => $"member-profile:{memberId}:{updatedUtc?.Ticks ?? 0L}";
@@ -278,7 +311,6 @@ public class MembersController(
     }
 
     public record RegisterRequest(string Name, string? Sex, int? Age, string? Email);
-    public record LoginByAccountRequest(string? Account, string? Password);
     public record UpdateCurrentMemberProfileRequest(string? DisplayName, string? Email, string? PhoneE164);
     public record SaveBibleReadingProgressRequest(
         string Book,

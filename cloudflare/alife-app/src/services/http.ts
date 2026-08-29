@@ -15,6 +15,7 @@ type ErrorPayload = {
   title?: string
   detail?: string
   errors?: Record<string, string[]>
+  code?: string
 }
 
 const isApiError = (error: unknown): error is ApiError =>
@@ -43,7 +44,7 @@ export const normalizeApiError = (error: unknown): ApiError => {
     return {
       message: `${message}${requestHint}`,
       status: axiosError.response?.status,
-      code: axiosError.code,
+      code: (typeof payload === 'object' ? payload?.code : undefined) ?? axiosError.code,
       details,
       method,
       url,

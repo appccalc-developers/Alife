@@ -3,6 +3,14 @@ namespace Alife.Api.Security;
 public static class AuthCookie
 {
     public static void WriteCookie(HttpRequest request, HttpResponse response, string token, DateTime expiresUtc)
+        => WriteCookie(request, response, token, expiresUtc, persistent: true);
+
+    public static void WriteCookie(
+        HttpRequest request,
+        HttpResponse response,
+        string token,
+        DateTime expiresUtc,
+        bool persistent)
     {
         var (sameSite, secure) = ResolveCookiePolicy(request);
 
@@ -11,7 +19,31 @@ public static class AuthCookie
             HttpOnly = true,
             Secure = secure,
             SameSite = sameSite,
-            Expires = expiresUtc
+            Expires = persistent ? expiresUtc : null,
+            MaxAge = persistent ? expiresUtc - DateTime.UtcNow : null
+        });
+    }
+
+    public static void WriteOnboardingCookie(HttpRequest request, HttpResponse response, string token)
+    {
+        var (_, secure) = ResolveCookiePolicy(request);
+        response.Cookies.Append("alife_onboarding", token, new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = secure,
+            SameSite = SameSiteMode.Lax,
+            MaxAge = TimeSpan.FromMinutes(30)
+        });
+    }
+
+    public static void ClearOnboardingCookie(HttpRequest request, HttpResponse response)
+    {
+        var (_, secure) = ResolveCookiePolicy(request);
+        response.Cookies.Delete("alife_onboarding", new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = secure,
+            SameSite = SameSiteMode.Lax
         });
     }
 
@@ -29,12 +61,12 @@ public static class AuthCookie
 
     public static CookieOptions CreateStateCookieOptions(HttpRequest request, DateTimeOffset expiresUtc)
     {
-        var (sameSite, secure) = ResolveCookiePolicy(request);
+        var (_, secure) = ResolveCookiePolicy(request);
         return new CookieOptions
         {
             HttpOnly = true,
             Secure = secure,
-            SameSite = sameSite,
+            SameSite = SameSiteMode.Lax,
             Expires = expiresUtc
         };
     }

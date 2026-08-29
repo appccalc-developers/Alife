@@ -18,6 +18,7 @@
     "test:current-tasks": "node --test --experimental-strip-types tests/currentTasks.test.ts",
     "test:current-group-selection": "node --test --experimental-strip-types tests/currentGroupSelection.test.ts",
     "test:visit-contact": "node --test --experimental-strip-types tests/visitContactValidation.test.ts",
+    "test:identity": "node --test --experimental-strip-types tests/identityPathPolicy.test.ts tests/currentTasks.test.ts",
     "test:web-dialogs": "node --test --experimental-strip-types tests/webDialogs.test.ts",
     "test:event-composition": "node --test --experimental-strip-types tests/eventComposition.test.ts tests/eventOperations.test.ts tests/eventVenue.test.ts tests/eventTravel.test.ts tests/eventSafeguarding.test.ts tests/eventTemplateAdmin.test.ts",
     "typecheck": "tsc -b --pretty false",
@@ -41,6 +42,7 @@
     "react-easy-crop": "^5.5.7",
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.9.6",
+    "qrcode": "1.5.4",
     "remark-gfm": "^4.0.1",
     "speed-layer": "file:../speed-layer",
     "tailwindcss": "^3.4.19",
@@ -48,6 +50,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
     "@vitejs/plugin-react": "^5.1.0",

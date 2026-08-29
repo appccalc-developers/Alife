@@ -33,7 +33,10 @@ const VisitSection = ({ copy, language }: Props) => {
     phoneNumber: '',
     preferredLanguage: language as ContactLanguage,
     message: '',
+    consent: false,
+    website: '',
   })
+  const [formStartedAt, setFormStartedAt] = useState(() => Date.now())
   const [submittingContact, setSubmittingContact] = useState(false)
   const [contactStatus, setContactStatus] = useState<'idle' | 'success' | 'error'>('idle')
   const [touched, setTouched] = useState<Record<string, boolean>>({})
@@ -63,15 +66,16 @@ const VisitSection = ({ copy, language }: Props) => {
     }
     if (!email && !phoneNumber) result.contact = copy.visitContactHint
     if (!message) result.message = copy.visitContactMessageRequired
+    if (!contactForm.consent) result.consent = language === 'zh' ? '请先同意隐私说明' : 'Please accept the privacy notice'
 
     return result
-  }, [contactForm, copy])
+  }, [contactForm, copy, language])
 
   const isValid = Object.keys(errors).length === 0
 
   const submitContact = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    setTouched({ displayName: true, email: true, phoneNumber: true, message: true })
+    setTouched({ displayName: true, email: true, phoneNumber: true, message: true, consent: true })
     if (!isValid) return
 
     setSubmittingContact(true)
@@ -85,6 +89,12 @@ const VisitSection = ({ copy, language }: Props) => {
         preferredLanguage: contactForm.preferredLanguage,
         message: contactForm.message.trim(),
         sourcePage: window.location.pathname,
+        requestKind: 'visitorMessage',
+        replyPreference: contactForm.email.trim() ? 'email' : 'phone',
+        privacyConsent: contactForm.consent,
+        privacyConsentVersion: 'public-visit-v1',
+        honeypot: contactForm.website,
+        formStartedUnixMilliseconds: formStartedAt,
       })
       setContactStatus('success')
       setContactForm({
@@ -94,6 +104,8 @@ const VisitSection = ({ copy, language }: Props) => {
         phoneNumber: '',
         preferredLanguage: language as ContactLanguage,
         message: '',
+        consent: false,
+        website: '',
       })
       setTouched({})
     } catch {
@@ -123,6 +135,7 @@ const VisitSection = ({ copy, language }: Props) => {
                 onClick={() => {
                   setContactOpen(true)
                   setContactStatus('idle')
+                  setFormStartedAt(Date.now())
                 }}
                 className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-home-border bg-white px-5 text-sm font-semibold text-home-gold-text transition hover:-translate-y-0.5 hover:border-home-green/35 hover:bg-[#fffaf0] focus:outline-none focus:ring-2 focus:ring-home-green/30"
               >
@@ -182,6 +195,28 @@ const VisitSection = ({ copy, language }: Props) => {
                       <span className="text-xs font-medium text-rose-600">{errors.name}</span>
                     ) : null}
                   </label>
+
+                  <input
+                    className="hidden"
+                    tabIndex={-1}
+                    autoComplete="off"
+                    value={contactForm.website}
+                    onChange={(event) => setContactForm((current) => ({ ...current, website: event.target.value }))}
+                    aria-hidden="true"
+                  />
+
+                  <label className="flex items-start gap-3 text-xs leading-5 text-home-muted">
+                    <input
+                      type="checkbox"
+                      checked={contactForm.consent}
+                      className="mt-1 h-4 w-4 accent-home-green"
+                      onChange={(event) => setContactForm((current) => ({ ...current, consent: event.target.checked }))}
+                    />
+                    {language === 'zh'
+                      ? '我同意教会使用这些资料回复本次请求。提交不会创建 ALIFE 账号。'
+                      : 'I agree that the church may use these details to respond. Submitting does not create an ALIFE account.'}
+                  </label>
+                  {touched.consent && errors.consent ? <span className="text-xs font-medium text-rose-600">{errors.consent}</span> : null}
 
                   <label className="grid gap-1.5 min-w-0 text-sm font-semibold text-home-gold-text">
                     {copy.visitContactEmail}

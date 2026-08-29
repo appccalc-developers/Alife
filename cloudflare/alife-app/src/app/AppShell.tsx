@@ -59,7 +59,7 @@ const WorkspaceShell = () => {
     contextualEventId: context.contextualEventId,
     contextualEvent: context.contextualEvent,
     currentGroupIsChurch: context.isChurchLifeScreen || context.managementGroup?.isChurch === true,
-    workspaceEnabled: !context.isOnboardingScreen,
+    workspaceEnabled: !context.isIdentityScreen,
   })
   const actions = useShellActions({
     isManagementScreen: context.isManagementScreen,
@@ -68,7 +68,7 @@ const WorkspaceShell = () => {
     isProfileScreen: context.isProfileScreen,
   })
 
-  const headerGroupContextId = !context.isOnboardingScreen ? groupLifeGroupId : ''
+  const headerGroupContextId = !context.isIdentityScreen ? groupLifeGroupId : ''
 
   useEffect(() => {
     if (auth.isGuest) return
@@ -98,20 +98,22 @@ const WorkspaceShell = () => {
 
   return (
     <div className="alife-workspace relative min-h-screen text-[#18332d]">
-      <DesktopNavigation
-        platformSections={navigation.platformSections}
-        workspaceSections={navigation.workspaceSections}
-        workspaceVisible={navigation.workspaceVisible}
-        copy={navigation.copy}
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed((current) => !current)}
-      />
+      {context.isIdentityScreen ? null : (
+        <DesktopNavigation
+          platformSections={navigation.platformSections}
+          workspaceSections={navigation.workspaceSections}
+          workspaceVisible={navigation.workspaceVisible}
+          copy={navigation.copy}
+          collapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed((current) => !current)}
+        />
+      )}
 
-      <div className={['relative z-10 min-h-screen transition-[padding] duration-300', sidebarCollapsed ? 'desktop:pl-20' : 'desktop:pl-72'].join(' ')}>
+      <div className={['relative z-10 min-h-screen transition-[padding] duration-300', context.isIdentityScreen ? '' : sidebarCollapsed ? 'desktop:pl-20' : 'desktop:pl-72'].join(' ')}>
         <ShellHeader
           appNavItems={navigation.headerItems}
           contextualGroupId={headerGroupContextId}
-          onboarding={context.isOnboardingScreen}
+          onboarding={context.isIdentityScreen}
           debugLoading={debugLoading}
           onDebug={() => void sendDebugCall()}
         />
@@ -126,14 +128,18 @@ const WorkspaceShell = () => {
         </main>
       </div>
 
-      <BottomNavigation
-        sections={[
-          ...(navigation.workspaceVisible ? navigation.workspaceSections : []),
-          ...navigation.platformSections,
-        ]}
-        copy={navigation.copy}
-      />
-      <FloatingActionButtons items={actions} />
+      {context.isIdentityScreen ? null : (
+        <>
+          <BottomNavigation
+            sections={[
+              ...(navigation.workspaceVisible ? navigation.workspaceSections : []),
+              ...navigation.platformSections,
+            ]}
+            copy={navigation.copy}
+          />
+          <FloatingActionButtons items={actions} />
+        </>
+      )}
     </div>
   )
 }

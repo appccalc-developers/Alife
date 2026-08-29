@@ -33,9 +33,9 @@ const ShellHeader = ({ appNavItems, contextualGroupId, onboarding, debugLoading,
       <div className="flex min-h-[4.25rem] items-center justify-between gap-2 px-3 py-3 sm:min-h-[4.5rem] sm:gap-3 sm:px-6 desktop:px-7">
         <HeaderNavigation items={appNavItems} />
         <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
-          {!auth.loading && auth.me?.displayName ? <Link className="hidden max-w-40 truncate rounded-xl px-2 py-1.5 text-sm font-semibold text-[#40554e] hover:bg-[#e3f0eb] hover:text-[#176b5a] sm:block" to="/profile" onClick={guardProfileNavigation}>{auth.me.displayName}</Link> : null}
-          <NotificationToastHost />
-          <CacheInspectorToggleButton />
+          {!onboarding && !auth.loading && auth.me?.displayName ? <Link className="hidden max-w-40 truncate rounded-xl px-2 py-1.5 text-sm font-semibold text-[#40554e] hover:bg-[#e3f0eb] hover:text-[#176b5a] sm:block" to="/profile" onClick={guardProfileNavigation}>{auth.me.displayName}</Link> : null}
+          {onboarding ? null : <NotificationToastHost />}
+          {onboarding ? null : <CacheInspectorToggleButton />}
           <LanguageSelector language={auth.language} onChange={auth.updateLanguage} />
           {showDebug ? (
             <button type="button" className="alife-icon-button hidden border-amber-200 bg-amber-50 text-amber-800 disabled:cursor-wait disabled:opacity-60 sm:inline-flex" aria-label="Debug API" disabled={debugLoading} onClick={onDebug}>

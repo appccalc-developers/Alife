@@ -13,6 +13,7 @@ import RouteChunkErrorBoundary from '../components/RouteChunkErrorBoundary'
 import { isHomeLocation, isPublicPageLocation } from './publicRoutePolicy'
 import { getRouteTransitionKey } from './routeTransitionPolicy'
 import { canAccessChurchManagement, hasChurchManagementAdminPermission } from './churchManagementAccess'
+import { buildOnboardingLocation, normalizeIdentityReturnPath } from '../../services/identityPathPolicy'
 
 const AdminView = lazy(() => import('../../views/AdminView'))
 const AdminGroupView = lazy(() => import('../../views/AdminGroupView'))
@@ -38,6 +39,8 @@ const ForumView = lazy(() => import('../../views/ForumView'))
 const ForumPostView = lazy(() => import('../../views/ForumPostView'))
 const HomeView = lazy(() => import('../../views/HomeView'))
 const InviteMembersView = lazy(() => import('../../views/InviteMembersView'))
+const IdentityLinkEntryView = lazy(() => import('../../views/IdentityLinkEntryView'))
+const InternalAlphaLoginView = lazy(() => import('../../views/InternalAlphaLoginView'))
 const OnboardingView = lazy(() => import('../../views/OnboardingView'))
 const PageReviewView = lazy(() => import('../../views/PageReviewView'))
 const PageEditorView = lazy(() => import('../../views/PageEditorView'))
@@ -102,16 +105,24 @@ const PageReviewRoute = ({ children }: { children: ReactElement }) => {
 
 const OnboardingRoute = ({ children }: { children: ReactElement }) => {
   const auth = useAuthStore()
+  const location = useLocation()
 
   if (!auth.initialized) {
     return <AppRouteLoading />
   }
 
-  return !auth.loading && !auth.isGuest ? <Navigate to="/enter" replace /> : children
+  const params = new URLSearchParams(location.search)
+  const resumableIdentityIntent = ['activation', 'groupJoin'].includes(params.get('intent') ?? '')
+  const returnPath = normalizeIdentityReturnPath(params.get('returnTo'))
+
+  return !auth.loading && !auth.isGuest && !resumableIdentityIntent
+    ? <Navigate to={returnPath || '/enter'} replace />
+    : children
 }
 
 const MemberRoute = ({ children }: { children: ReactElement }) => {
   const auth = useAuthStore()
+  const location = useLocation()
 
   if (!auth.initialized) {
     return <AppRouteLoading />
@@ -119,7 +130,7 @@ const MemberRoute = ({ children }: { children: ReactElement }) => {
 
   return !auth.loading && !auth.isGuest
     ? children
-    : <Navigate to={resolveWorkspaceFallbackLocation(auth.isGuest)} replace />
+    : <Navigate to={buildOnboardingLocation(`${location.pathname}${location.search}${location.hash}`)} replace />
 }
 
 const EntryRoute = () => {
@@ -194,6 +205,10 @@ const AppRoutes = ({ churchGroupId = '', churchGroupLoading = false }: AppRoutes
           <Route path="/articles" element={<ArticlesView />} />
           <Route path="/articles/:slug" element={<ArticleDetailView />} />
           <Route path="/enter" element={<EntryRoute />} />
+          <Route path="/activate/:selector" element={<IdentityLinkEntryView />} />
+          <Route path="/join/:selector" element={<IdentityLinkEntryView />} />
+          <Route path="/application/:selector" element={<IdentityLinkEntryView />} />
+          <Route path="/internal/alpha-login" element={<InternalAlphaLoginView />} />
           <Route path="/home" element={<HomeRoute />} />
           <Route path="/church" element={<MemberRoute><ChurchLifeView /></MemberRoute>} />
           <Route path="/church/albums" element={<MemberRoute><ChurchAlbumsView /></MemberRoute>} />

@@ -17,4 +17,6 @@ public sealed record CurrentNotificationTaskDto(
     Guid? AnnouncementId,
     string Category,
     string CompletionMode,
-    string? ActionUrl);
+    string? ActionUrl,
+    string? SourceType = null,
+    Guid? SourceId = null);

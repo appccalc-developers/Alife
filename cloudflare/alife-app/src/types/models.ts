@@ -200,6 +200,9 @@ export type MeDto = {
   platformRole?: 'user' | 'admin' | 'superadmin' | string
   permissions?: string[]
   memberships: GroupMembershipDto[]
+  authenticationMethod?: string | null
+  sessionKind?: string
+  needsPasskey?: boolean
 }
 
 export type PageEditorValidation = {

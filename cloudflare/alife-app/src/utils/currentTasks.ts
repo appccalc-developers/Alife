@@ -102,6 +102,8 @@ export const normalizeCurrentTask = (value: unknown): AppNotification | null => 
     category,
     completionMode,
     details: readDetails(actionData),
+    sourceType: firstString(value.sourceType, actionData?.sourceType) ?? null,
+    sourceId: firstString(value.sourceId, actionData?.sourceId) ?? null,
   }
 }
 

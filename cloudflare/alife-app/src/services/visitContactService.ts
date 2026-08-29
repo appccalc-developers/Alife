@@ -8,6 +8,12 @@ export type VisitContactPayload = {
   preferredLanguage?: 'zh' | 'en' | 'bilingual' | null
   message: string
   sourcePage?: string | null
+  requestKind?: 'visitorMessage' | 'accessRecovery' | 'activationHelp'
+  replyPreference?: 'email' | 'phone' | 'sms' | 'line' | null
+  privacyConsent: boolean
+  privacyConsentVersion: string
+  honeypot?: string | null
+  formStartedUnixMilliseconds: number
 }
 
 export type VisitContactRequestDto = VisitContactPayload & {

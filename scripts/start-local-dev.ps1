@@ -7,7 +7,8 @@ param(
     [switch]$SkipFrontend,
     [switch]$ApplyMigrations,
     [switch]$RebuildFrontendAssets,
-    [switch]$EnableScheduledJobs
+    [switch]$EnableScheduledJobs,
+    [string]$MobilePasskeyOrigin
 )
 
 $ErrorActionPreference = "Stop"
@@ -24,7 +25,72 @@ $azuriteRoot = Join-Path $runtimeRoot "azurite"
 $wranglerStateRoot = Join-Path $runtimeRoot "wrangler"
 $frontendDistRoot = Join-Path $frontendRoot "dist"
 
+$mobilePasskeyUri = $null
+$mobilePasskeyHost = $null
+$normalizedMobilePasskeyOrigin = $null
+if (-not [string]::IsNullOrWhiteSpace($MobilePasskeyOrigin)) {
+    $candidateUri = $null
+    if (-not [Uri]::TryCreate($MobilePasskeyOrigin, [UriKind]::Absolute, [ref]$candidateUri) -or
+        $candidateUri.Scheme -ne "https" -or
+        [string]::IsNullOrWhiteSpace($candidateUri.DnsSafeHost) -or
+        $candidateUri.AbsolutePath -ne "/" -or
+        -not [string]::IsNullOrEmpty($candidateUri.Query) -or
+        -not [string]::IsNullOrEmpty($candidateUri.Fragment) -or
+        -not [string]::IsNullOrEmpty($candidateUri.UserInfo)) {
+        throw "MobilePasskeyOrigin must be an HTTPS origin without a path, query, fragment, or credentials (for example, https://example.trycloudflare.com)."
+    }
+
+    $mobilePasskeyUri = $candidateUri
+    $mobilePasskeyHost = $candidateUri.DnsSafeHost
+    $normalizedMobilePasskeyOrigin = $candidateUri.GetLeftPart([UriPartial]::Authority)
+}
+
 New-Item -ItemType Directory -Force -Path $logRoot, $azuriteRoot, $wranglerStateRoot | Out-Null
+
+function Import-DotEnv {
+    param([string]$Path)
+
+    $importedNames = [System.Collections.Generic.List[string]]::new()
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return $importedNames.ToArray()
+    }
+
+    foreach ($line in Get-Content -LiteralPath $Path) {
+        $trimmed = $line.Trim()
+        if ($trimmed.Length -eq 0 -or $trimmed.StartsWith("#")) {
+            continue
+        }
+
+        $separator = $trimmed.IndexOf('=')
+        if ($separator -le 0) {
+            continue
+        }
+
+        $name = $trimmed.Substring(0, $separator).Trim()
+        $value = $trimmed.Substring($separator + 1).Trim()
+        if ($value.Length -ge 2 -and
+            (($value.StartsWith('"') -and $value.EndsWith('"')) -or
+             ($value.StartsWith("'") -and $value.EndsWith("'")))) {
+            $value = $value.Substring(1, $value.Length - 2)
+        }
+
+        if ($null -eq [Environment]::GetEnvironmentVariable($name, "Process")) {
+            [Environment]::SetEnvironmentVariable($name, $value, "Process")
+            $importedNames.Add($name)
+        }
+    }
+
+    return $importedNames.ToArray()
+}
+
+function Remove-ImportedEnvironment {
+    param([string[]]$Names)
+
+    foreach ($name in $Names) {
+        [Environment]::SetEnvironmentVariable($name, $null, "Process")
+    }
+}
 
 function Test-PortListening {
     param([int]$Port)
@@ -248,6 +314,27 @@ else {
     Write-Host "Skipping Azurite. Scheduled Functions are disabled by default for local UI/API testing."
 }
 
+# Azure Functions Core Tools does not read backend/.env itself. Import it only
+# while starting backend children, then remove the imported values before any
+# frontend or Worker process is launched. A mobile Passkey origin deliberately
+# overrides the local RP configuration for the backend child only.
+$mobileBackendEnvironment = @{}
+if ($null -ne $mobilePasskeyUri) {
+    $mobileBackendOverrides = [ordered]@{
+        "Passkeys__Enabled" = "true"
+        "Passkeys__RpId" = $mobilePasskeyHost
+        "Passkeys__Origins__0" = $normalizedMobilePasskeyOrigin
+        "Frontend__BaseUrl" = $normalizedMobilePasskeyOrigin
+    }
+
+    foreach ($entry in $mobileBackendOverrides.GetEnumerator()) {
+        $mobileBackendEnvironment[$entry.Key] = [Environment]::GetEnvironmentVariable($entry.Key, "Process")
+        [Environment]::SetEnvironmentVariable($entry.Key, $entry.Value, "Process")
+    }
+}
+
+$backendEnvironmentNames = @(Import-DotEnv -Path (Join-Path $backendRoot ".env"))
+
 if ($ApplyMigrations) {
     if ($SkipSql) {
         Write-Host "Waiting for existing SQL Server before applying migrations..."
@@ -292,6 +379,11 @@ if (-not $SkipApi) {
     Wait-Port -Port 7071 -Name "Alife API" -TimeoutSeconds 120
 }
 
+Remove-ImportedEnvironment -Names $backendEnvironmentNames
+foreach ($entry in $mobileBackendEnvironment.GetEnumerator()) {
+    [Environment]::SetEnvironmentVariable($entry.Key, $entry.Value, "Process")
+}
+
 if (-not $SkipSpeedLayer) {
     $frontendIndex = Join-Path $frontendDistRoot "index.html"
     if ($RebuildFrontendAssets -or -not (Test-Path $frontendIndex)) {
@@ -312,6 +404,11 @@ if (-not $SkipSpeedLayer) {
         Write-Warning "cloudflare/speed-layer/.dev.vars was not found. AI routes that require GEMINI_API_KEY may fail. Copy .dev.vars.example to .dev.vars and fill it in when needed."
     }
 
+    $corsAllowedOrigins = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:8787,http://127.0.0.1:8787"
+    if ($null -ne $mobilePasskeyUri) {
+        $corsAllowedOrigins = "$corsAllowedOrigins,$normalizedMobilePasskeyOrigin"
+    }
+
     Start-LoggedProcess `
         -Name "Alife speed layer" `
         -FilePath $npmCommand.Source `
@@ -321,7 +418,7 @@ if (-not $SkipSpeedLayer) {
             "--persist-to", $wranglerStateRoot,
             "--show-interactive-dev-session=false",
             "--var", "API_PROXY_TARGET:http://127.0.0.1:7071",
-            "--var", "CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173,http://localhost:8787,http://127.0.0.1:8787"
+            "--var", "CORS_ALLOWED_ORIGINS:$corsAllowedOrigins"
         ) `
         -WorkingDirectory $speedLayerRoot `
         -OutLog (Join-Path $logRoot "speed-layer.log") `
@@ -337,6 +434,7 @@ if (-not $SkipFrontend) {
 
     $previousApiProxyTarget = $env:API_PROXY_TARGET
     $previousAiProxyTarget = $env:AI_PROXY_TARGET
+    $previousPublicDevHost = $env:ALIFE_PUBLIC_DEV_HOST
     $env:API_PROXY_TARGET = if ($SkipSpeedLayer) {
         "http://127.0.0.1:7071"
     }
@@ -344,6 +442,9 @@ if (-not $SkipFrontend) {
         "http://127.0.0.1:8787"
     }
     $env:AI_PROXY_TARGET = "http://127.0.0.1:8787"
+    if ($null -ne $mobilePasskeyUri) {
+        $env:ALIFE_PUBLIC_DEV_HOST = $mobilePasskeyHost
+    }
     try {
         Start-LoggedProcess `
             -Name "Alife frontend" `
@@ -356,6 +457,7 @@ if (-not $SkipFrontend) {
     finally {
         $env:API_PROXY_TARGET = $previousApiProxyTarget
         $env:AI_PROXY_TARGET = $previousAiProxyTarget
+        $env:ALIFE_PUBLIC_DEV_HOST = $previousPublicDevHost
     }
 
     Wait-Port -Port 5173 -Name "Alife frontend"
@@ -366,4 +468,8 @@ Write-Host "Alife local dev stack is ready."
 Write-Host "Frontend:    http://localhost:5173"
 Write-Host "Speed layer: http://localhost:8787"
 Write-Host "API:         http://127.0.0.1:7071"
+if ($null -ne $mobilePasskeyUri) {
+    Write-Host "Mobile URL:  $normalizedMobilePasskeyOrigin"
+    Write-Host "Passkey RP:  $mobilePasskeyHost"
+}
 Write-Host "Logs:        $logRoot"

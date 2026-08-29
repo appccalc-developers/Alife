@@ -1,5 +1,5 @@
 import { AlertCircle, ArrowRight, BellRing, Check, ChevronDown, ClipboardCheck, LoaderCircle, RefreshCw } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AppPageShell from '../components/layout/AppPageShell'
 import { markCurrentTaskRead, useCurrentTasks } from '../hooks/useCurrentTasks'
@@ -14,6 +14,8 @@ import {
 } from '../utils/currentTasks'
 import { activateNotificationTarget } from '../utils/notificationRoutes'
 import { confirmUnsavedChangesNavigation } from '../utils/unsavedChangesGuard'
+import { identityAccessService, type MembershipApplication } from '../services/identityAccessService'
+import { normalizeApiError } from '../services/http'
 
 const detailOrder: Array<keyof NotificationTaskDetails> = [
   'displayName',
@@ -36,6 +38,9 @@ const TasksView = () => {
   const visibleTasks = tasks.filter((task) => task.category === selectedCategory)
   const [pendingId, setPendingId] = useState('')
   const [actionError, setActionError] = useState('')
+  const [applications, setApplications] = useState<MembershipApplication[]>([])
+  const [supplement, setSupplement] = useState('')
+  const [applicationBusy, setApplicationBusy] = useState(false)
   const zh = auth.language === 'zh'
 
   const copy = zh
@@ -61,6 +66,7 @@ const TasksView = () => {
       details: {
         displayName: '姓名', email: 'Email', phone: '电话', preferredLanguage: '首选语言', message: '留言', sourcePage: '来源页面',
       },
+      applicationTitle: '申请进度', applicationId: '申请编号', supplement: '补充资料', sendSupplement: '提交补充资料', applicationUpdated: '资料已提交，申请已重新进入审核。',
     }
     : {
       title: 'Current tasks',
@@ -84,7 +90,33 @@ const TasksView = () => {
       details: {
         displayName: 'Name', email: 'Email', phone: 'Phone', preferredLanguage: 'Preferred language', message: 'Message', sourcePage: 'Source page',
       },
+      applicationTitle: 'Application progress', applicationId: 'Application ID', supplement: 'Additional information', sendSupplement: 'Send information', applicationUpdated: 'Information sent. The application is back in review.',
     }
+
+  useEffect(() => {
+    identityAccessService.personalApplications().then(setApplications).catch(() => undefined)
+  }, [])
+
+  const selectedApplicationId = new URLSearchParams(window.location.search).get('application') ?? ''
+  const selectedApplication = applications.find((application) => application.id === selectedApplicationId)
+
+  const submitApplicationSupplement = async () => {
+    if (!selectedApplication || supplement.trim().length < 2) return
+    setApplicationBusy(true)
+    setActionError('')
+    try {
+      const updated = await identityAccessService.supplementPersonalApplication(selectedApplication, supplement.trim())
+      setApplications((current) => current.map((item) => item.id === updated.id ? updated : item))
+      setSupplement('')
+      window.history.replaceState(window.history.state, '', '/tasks?type=urgent')
+      await tasksQuery.refetch()
+      setActionError(copy.applicationUpdated)
+    } catch (error) {
+      setActionError(normalizeApiError(error).message)
+    } finally {
+      setApplicationBusy(false)
+    }
+  }
 
   const chooseCategory = (category: NotificationTaskCategory) => {
     if (category === selectedCategory) return
@@ -124,6 +156,14 @@ const TasksView = () => {
 
   return (
     <AppPageShell title={copy.title} subtitle={copy.subtitle}>
+      {selectedApplication ? (
+        <section className="rounded-[1.5rem] border border-[#b9cec5] bg-white p-4 shadow-[0_16px_38px_rgba(30,54,48,0.07)] sm:p-5" aria-labelledby="selected-application-heading">
+          <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 id="selected-application-heading" className="font-black text-[#18332d]">{copy.applicationTitle}</h2><p className="mt-1 text-xs text-[#718079]">{copy.applicationId}: {selectedApplication.id}</p></div><span className="rounded-full bg-[#e3f0eb] px-3 py-1 text-xs font-black text-[#176b5a]">{selectedApplication.status}</span></div>
+          <p className="mt-3 text-sm leading-6 text-[#4f625b]">{auth.language === 'zh' ? selectedApplication.groupNameZh || selectedApplication.groupNameEn : selectedApplication.groupNameEn || selectedApplication.groupNameZh}</p>
+          {selectedApplication.history.length ? <ol className="mt-4 space-y-2 border-l-2 border-[#dce9e3] pl-4">{selectedApplication.history.map((entry) => <li key={entry.id}><p className="text-xs font-bold text-[#314b43]">{entry.kind} · {entry.toStatus}</p>{entry.note ? <p className="mt-1 whitespace-pre-wrap text-sm leading-5 text-[#60716a]">{entry.note}</p> : null}</li>)}</ol> : null}
+          {selectedApplication.status === 'needsInfo' ? <div className="mt-4 border-t border-[#e3ebe7] pt-4"><label className="block text-sm font-bold text-[#314b43]">{copy.supplement}<textarea className="alife-input mt-2 min-h-28 py-3" maxLength={2000} value={supplement} onChange={(event) => setSupplement(event.target.value)} /></label><button className="mt-3 inline-flex min-h-10 items-center rounded-xl bg-[#176b5a] px-4 py-2 text-sm font-black text-white disabled:opacity-50" type="button" disabled={applicationBusy || supplement.trim().length < 2} onClick={() => void submitApplicationSupplement()}>{copy.sendSupplement}</button></div> : null}
+        </section>
+      ) : null}
       <section className="rounded-[1.5rem] border border-[#d8e1dc] bg-[#f8fbf8] p-4 shadow-[0_16px_38px_rgba(30,54,48,0.06)] sm:p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>

@@ -28,6 +28,7 @@ export default defineConfig(({ command, mode }) => {
   const apiProxyTarget = process.env.API_PROXY_TARGET || 'http://127.0.0.1:7071'
   const aiProxyTarget = process.env.AI_PROXY_TARGET || process.env.SPEED_LAYER_PROXY_TARGET || 'http://127.0.0.1:8787'
   const imagesProxyTarget = process.env.IMAGES_PROXY_TARGET || 'https://images.ccalc.live'
+  const publicDevHost = (process.env.ALIFE_PUBLIC_DEV_HOST ?? '').trim()
 
   return {
     plugins: [
@@ -157,6 +158,9 @@ export default defineConfig(({ command, mode }) => {
       }),
     ],
     server: {
+      // Local mobile Passkey testing uses one explicitly selected HTTPS tunnel
+      // host. Never broadly allow every public tunnel host.
+      allowedHosts: publicDevHost ? [publicDevHost] : undefined,
       proxy: {
         '/api/ai': {
           target: aiProxyTarget,

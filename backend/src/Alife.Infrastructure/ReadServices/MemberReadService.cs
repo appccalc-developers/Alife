@@ -25,6 +25,7 @@ public sealed class MemberReadService(AlifeDbContext dbContext) : IMemberReadSer
                 x.Email,
                 x.PhoneE164,
                 x.IsRegistered,
+                HasPasskey = x.PasskeyCredentials.Any(credential => credential.RevokedUtc == null),
                 PlatformRoles = x.PlatformRoles
                     .Where(role => role.RevokedUtc == null)
                     .Select(role => new
@@ -83,7 +84,8 @@ public sealed class MemberReadService(AlifeDbContext dbContext) : IMemberReadSer
                         EnumName.CamelCase(m.Role),
                         ReadTextMap(m.GroupNameJson),
                         m.ParentGroupId))
-                    .ToList());
+                    .ToList(),
+                NeedsPasskey: member.IsRegistered && !member.HasPasskey);
     }
 
     private static IReadOnlyDictionary<string, string> ReadTextMap(string? value)

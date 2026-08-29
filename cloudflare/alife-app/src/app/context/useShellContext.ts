@@ -108,6 +108,9 @@ export const useShellContext = () => {
   const isSermonDetailScreen = Boolean(sermonDetailMatch || path === '/sermons/watch')
   const isProfileScreen = path === '/profile'
   const isOnboardingScreen = path === '/onboarding'
+  const isIdentityScreen = isOnboardingScreen ||
+    path === '/internal/alpha-login' ||
+    /^\/(activate|join|application)\/[^/]+$/.test(path)
   const isGroupSelectScreen = path === '/groups/select' || path === '/groups/select/tree'
   const isGroupJoinScreen = path === '/groups/join' || Boolean(groupJoinMatch)
   const isChurchLifeScreen = path === '/church' || path.startsWith('/church/forum')
@@ -261,6 +264,7 @@ export const useShellContext = () => {
     isEventDetailScreen,
     isEventScreen,
     isGroupScreen,
+    isIdentityScreen,
     isManagementScreen,
     isOnboardingScreen,
     isChurchLifeScreen,
