@@ -22,6 +22,8 @@ public sealed class ReplaceSectionLinksCommandHandler(
     {
         var section = await dbContext.Sections
             .Include(x => x.Page)
+                .ThenInclude(x => x.Sections)
+                    .ThenInclude(x => x.Links)
             .FirstOrDefaultAsync(x => x.Id == request.SectionId, cancellationToken);
 
         if (section is null)
@@ -52,6 +54,7 @@ public sealed class ReplaceSectionLinksCommandHandler(
         {
             Id = Guid.NewGuid(),
             OwnerSectionId = request.SectionId,
+            OwnerSection = section,
             Type = x.Type,
             TargetGroupId = x.TargetGroupId,
             TargetPageId = x.TargetPageId,
@@ -59,12 +62,26 @@ public sealed class ReplaceSectionLinksCommandHandler(
             ImageUrl = x.ImageUrl,
             SortOrder = x.SortOrder
         }).ToList();
+        section.Links = links;
 
         await dbContext.Links.AddRangeAsync(links, cancellationToken);
         var now = DateTime.UtcNow;
         section.Page.UpdatedUtc = now;
-        await PagePublicationReviewState.MarkPendingIfPublicAsync(dbContext, section.Page, now, cancellationToken);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await PagePublicationReviewState.SubmitCopyIfPublicAsync(
+            dbContext,
+            section.Page,
+            request.CurrentMemberId,
+            now,
+            cancellationToken,
+            linksAlreadyLoaded: true);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return AppResult<IReadOnlyList<LinkDto>>.Conflict(PagePublicationReviewState.ConcurrentChangeMessage);
+        }
         await pageCacheInvalidationService.RemoveDetailAsync(section.Page.Id, cancellationToken);
         await pageCacheInvalidationService.RemoveGroupPagesAsync(section.Page.OwnerGroupId, cancellationToken);
 

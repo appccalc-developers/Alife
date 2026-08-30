@@ -6,7 +6,7 @@ import PageContentRenderer, {
   normalizePageSections,
   validatePageContent,
 } from '../page/PageContentRenderer'
-import { ensureFreshPageDetail } from '../../db/collections/pageCollection'
+import { ensureFreshPageDetail, ensureFreshPublicPageDetail } from '../../db/collections/pageCollection'
 import { cloudflareImageService } from '../../services/cloudflareImageService'
 import { pageService } from '../../services/pageService'
 import type { GroupPageDto, GroupSummaryDto } from '../../types/group'
@@ -22,6 +22,7 @@ type Props = {
   selectedPageId?: string
   mode?: 'view' | 'edit'
   canEditAllPages?: boolean
+  canViewWorkingCopy?: boolean
   onSaved?: () => void
   onCreate: () => void
   showCreateAction?: boolean
@@ -70,6 +71,7 @@ const GroupPageTabs = ({
   selectedPageId = '',
   mode = 'view',
   canEditAllPages = false,
+  canViewWorkingCopy = false,
   onSaved,
   onCreate,
   showCreateAction = false,
@@ -79,6 +81,7 @@ const GroupPageTabs = ({
   const { language } = useAuthStore()
   const [sectionsByPageId, setSectionsByPageId] = useState<Record<string, SectionEditModel[]>>({})
   const [modelsByPageId, setModelsByPageId] = useState<Record<string, PageEditModel>>({})
+  const [sourceByPageId, setSourceByPageId] = useState<Record<string, 'working' | 'published'>>({})
   const [loadingPageId, setLoadingPageId] = useState('')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -126,7 +129,8 @@ const GroupPageTabs = ({
       return
     }
 
-    if (sectionsByPageId[activePage.id]) {
+    const source = canViewWorkingCopy ? 'working' : 'published'
+    if (sectionsByPageId[activePage.id] && sourceByPageId[activePage.id] === source) {
       setError('')
       return
     }
@@ -134,12 +138,20 @@ const GroupPageTabs = ({
     setLoadingPageId(activePage.id)
     setError('')
 
-    ensureFreshPageDetail(activePage.id)
+    const loadDetail = canViewWorkingCopy ? ensureFreshPageDetail : ensureFreshPublicPageDetail
+    loadDetail(activePage.id)
       .then((detail) => {
+        if (!detail) {
+          throw new Error('Published page not found.')
+        }
         const normalizedSections = normalizePageSections(detail.sections)
         setSectionsByPageId((current) => ({
           ...current,
           [activePage.id]: normalizedSections,
+        }))
+        setSourceByPageId((current) => ({
+          ...current,
+          [activePage.id]: source,
         }))
         setModelsByPageId((current) => ({
           ...current,
@@ -155,7 +167,7 @@ const GroupPageTabs = ({
       .finally(() => {
         setLoadingPageId((current) => (current === activePage.id ? '' : current))
       })
-  }, [activePage, sectionsByPageId])
+  }, [activePage, canViewWorkingCopy, sectionsByPageId, sourceByPageId, t])
 
   useEffect(() => {
     if (!activePage || !sectionsByPageId[activePage.id]) {

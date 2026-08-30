@@ -65,6 +65,30 @@ public static partial class PagePublicationReviewDefaults
         return null;
     }
 
+    public static string? ExtractFirstSectionImage(IEnumerable<PagePublicationSnapshotSection> sections)
+    {
+        foreach (var section in sections.OrderBy(x => x.Order).ThenBy(x => x.Id))
+        {
+            var contentImage = ExtractFromContentJson(section.ContentJson);
+            if (contentImage is not null)
+            {
+                return contentImage;
+            }
+
+            var linkImage = (section.Links ?? [])
+                .OrderBy(link => link.SortOrder)
+                .ThenBy(link => link.Id)
+                .Select(link => NormalizeImageUrl(link.ImageUrl))
+                .FirstOrDefault(imageUrl => imageUrl is not null);
+            if (linkImage is not null)
+            {
+                return linkImage;
+            }
+        }
+
+        return null;
+    }
+
     private static string? ExtractFromContentJson(string? contentJson)
     {
         if (string.IsNullOrWhiteSpace(contentJson))

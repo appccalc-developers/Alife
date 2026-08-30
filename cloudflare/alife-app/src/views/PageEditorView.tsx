@@ -134,7 +134,6 @@ const PageEditorView = () => {
   const requestedPreset = searchParams.get('preset') ?? ((searchParams.get('template') || '').toLowerCase() === 'home' ? 'home' : null)
   const selectedPreset: PagePresetId | null = isPagePresetId(requestedPreset) ? requestedPreset : null
   const isHomeTemplate = selectedPreset === 'home'
-  const preservePublicationReviewStatus = searchParams.get('preservePublicationReviewStatus') === 'true'
   const fromPageReview = searchParams.get('fromReview') === 'true'
   const reviewReturnPath = '/admin/page-review'
 
@@ -180,8 +179,12 @@ const PageEditorView = () => {
     return auth.me.id === pageModel.createdByMemberId && pageModel.visibility === 'draft'
   }, [auth.me?.id, pageModel.createdByMemberId, pageModel.visibility])
   const canCreatePage = Boolean(membership?.status === 'approved' || canEditAllPages)
-  const canEditPage = isCreateMode ? canCreatePage : canEditAllPages || isCreatorDraft
-  const canEditVisibility = canEditAllPages
+  const canEditPage = isCreateMode
+    ? canCreatePage
+    : fromPageReview
+      ? auth.canReviewPages && canEditAllPages
+      : canEditAllPages || isCreatorDraft
+  const canEditVisibility = canEditAllPages && !fromPageReview
 
   const validation = useMemo(() => validatePageContent(pageModel, auth.language), [auth.language, pageModel])
   const missingTranslationCount = useMemo(() => collectMissingPageTranslations(pageModel).length, [pageModel])
@@ -255,12 +258,13 @@ const PageEditorView = () => {
       return
     }
 
-    const pageData = await ensureFreshPageDetail(targetPageId)
-    const targetGroupId = pageData.ownerGroupId
-
+    const pageData = fromPageReview
+      ? await pageService.getPublicationReviewCopy(targetPageId)
+      : await ensureFreshPageDetail(targetPageId)
     if (!pageData) {
       throw new Error(t('loadEditorFailed'))
     }
+    const targetGroupId = pageData.ownerGroupId
 
     const editModel = mapPageToEditModel(pageData, targetGroupId)
 
@@ -469,25 +473,25 @@ const PageEditorView = () => {
           sections: created.sections,
         }))
       } else {
-        const updated = await pageService.updatePage(targetPageId, {
+        const updatePayload = {
           title,
           description,
           tagsJson,
           titleDisplayStyle,
           sections: sectionsToPersist,
-          preservePublicationReviewStatus,
-        })
+        }
+        const updated = fromPageReview
+          ? await pageService.updatePublicationReviewCopy(targetPageId, updatePayload)
+          : await pageService.updatePage(targetPageId, updatePayload)
         savedPage = updated
         sectionsToPersist = updated.sections
       }
 
       let finalVisibility = savedPage?.visibility ?? selectedVisibility
-      let visibilityChanged = false
       if (isManualSave && canEditVisibility && targetPageId && selectedVisibility !== finalVisibility) {
         setMessage(t('publishing'))
         const publishedPage = await pageService.publishPage(targetPageId, { visibility: selectedVisibility })
         finalVisibility = publishedPage.visibility
-        visibilityChanged = true
         if (savedPage) {
           savedPage = {
             ...savedPage,
@@ -508,7 +512,7 @@ const PageEditorView = () => {
         sections: normalizePageSections(savedPage?.sections ?? sectionsToPersist),
         visibility: finalVisibility,
       }
-      if (savedPage) {
+      if (savedPage && !fromPageReview) {
         setPageDetailCache(savedPage)
       }
       setPageModel((current) => {
@@ -537,15 +541,19 @@ const PageEditorView = () => {
         setAiSectionReviewPending(false)
       }
       const savedMessage =
-        finalVisibility === 'draft'
+        fromPageReview
+          ? t('publicationCopySaved')
+          : finalVisibility === 'draft'
           ? t('draftSaved')
-          : visibilityChanged
-            ? t('pageSavedPublished')
+          : finalVisibility === 'public'
+            ? t('pageSubmittedForReview')
             : t('pageSaved')
       setMessage(
         isManualSave
           ? (translationSaveNotice ? `${translationSaveNotice} ${savedMessage}` : savedMessage)
-          : t('pageAutoSaved'),
+          : finalVisibility === 'public'
+            ? t('pageAutoSavedForReview')
+            : t('pageAutoSaved'),
       )
       if (isManualSave) {
         setLanguageReviewPrompt({ reason: 'save', targetLanguage: otherLanguage(auth.language) })
@@ -571,7 +579,7 @@ const PageEditorView = () => {
   const saveDraft = useCallback(async () => {
     await persist('manual')
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canSaveDraft, pageModel, resolvedGroupId, editPageId, isCreateMode, canEditAllPages, canEditVisibility, preservePublicationReviewStatus])
+  }, [canSaveDraft, pageModel, resolvedGroupId, editPageId, isCreateMode, canEditAllPages, canEditVisibility, fromPageReview])
 
   useEffect(() => {
     const autoSaveAttemptKey = `${editPageId}:${currentSectionsSnapshot}`
@@ -745,29 +753,36 @@ const PageEditorView = () => {
         loading={loading}
         error={error}
         main={
-          <PageContentRenderer
-            page={pageModel}
-            sections={pageModel.sections}
-            subgroupItems={[]}
-            groupPageItems={[]}
-            editing
-            canEdit={canEditPage}
-            message={message}
-            validation={validation}
-            contextGroupId={resolvedGroupId}
-            showHeader={false}
-            framed={false}
-            activeSectionIndex={activeSectionIndex}
-            activeSectionFocusToken={activeSectionFocusToken}
-            sectionLanguageIssueCounts={sectionLanguageIssueCounts}
-            languageFixingSectionIndex={languageFixingSectionIndex}
-            onPageChange={setPageModel}
-            onActiveSectionIndexChange={setActiveSectionIndex}
-            onFixSectionLanguageIssues={(index) => {
-              fixSectionLanguageIssues(index).catch(() => undefined)
-            }}
-            onSectionsChange={(sections) => setPageModel((current) => ({ ...current, sections }))}
-          />
+          <>
+            {fromPageReview ? (
+              <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold leading-6 text-amber-900" role="status">
+                {t('reviewCopyEditingNotice')}
+              </p>
+            ) : null}
+            <PageContentRenderer
+              page={pageModel}
+              sections={pageModel.sections}
+              subgroupItems={[]}
+              groupPageItems={[]}
+              editing
+              canEdit={canEditPage}
+              message={message}
+              validation={validation}
+              contextGroupId={resolvedGroupId}
+              showHeader={false}
+              framed={false}
+              activeSectionIndex={activeSectionIndex}
+              activeSectionFocusToken={activeSectionFocusToken}
+              sectionLanguageIssueCounts={sectionLanguageIssueCounts}
+              languageFixingSectionIndex={languageFixingSectionIndex}
+              onPageChange={setPageModel}
+              onActiveSectionIndexChange={setActiveSectionIndex}
+              onFixSectionLanguageIssues={(index) => {
+                fixSectionLanguageIssues(index).catch(() => undefined)
+              }}
+              onSectionsChange={(sections) => setPageModel((current) => ({ ...current, sections }))}
+            />
+          </>
         }
         sidebar={
           <PageSettingsPanel

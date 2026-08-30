@@ -4836,6 +4836,18 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("primary_menu_name_json");
 
+                    b.Property<Guid?>("PublishedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("published_by_member_id");
+
+                    b.Property<string>("PublishedSnapshotJson")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("published_snapshot_json");
+
+                    b.Property<DateTime?>("PublishedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("published_utc");
+
                     b.Property<string>("ReturnReason")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)")
@@ -4853,7 +4865,20 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasColumnType("int")
                         .HasColumnName("status");
 
+                    b.Property<Guid?>("SubmittedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("submitted_by_member_id");
+
+                    b.Property<string>("SubmittedSnapshotJson")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("submitted_snapshot_json");
+
+                    b.Property<DateTime?>("SubmittedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("submitted_utc");
+
                     b.Property<DateTime>("UpdatedUtc")
+                        .IsConcurrencyToken()
                         .HasColumnType("datetime2")
                         .HasColumnName("updated_utc");
 
@@ -4867,11 +4892,17 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.HasIndex("PrimaryMenuId", "MenuSortOrder")
                         .HasDatabaseName("ix_page_publication_reviews_primary_menu_id_menu_sort_order");
 
+                    b.HasIndex("PublishedByMemberId", "PublishedUtc")
+                        .HasDatabaseName("ix_page_publication_reviews_published_by_member_id_published_utc");
+
                     b.HasIndex("ReviewedByMemberId", "ReviewedUtc")
                         .HasDatabaseName("ix_page_publication_reviews_reviewed_by_member_id_reviewed_utc");
 
                     b.HasIndex("Status", "UpdatedUtc")
                         .HasDatabaseName("ix_page_publication_reviews_status_updated_utc");
+
+                    b.HasIndex("SubmittedByMemberId", "SubmittedUtc")
+                        .HasDatabaseName("ix_page_publication_reviews_submitted_by_member_id_submitted_utc");
 
                     b.ToTable("page_publication_reviews", (string)null);
                 });
@@ -6745,17 +6776,33 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_page_publication_reviews_page_primary_menus_primary_menu_id");
 
+                    b.HasOne("Alife.Domain.Entities.Member", "PublishedByMember")
+                        .WithMany()
+                        .HasForeignKey("PublishedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_page_publication_reviews_members_published_by_member_id");
+
                     b.HasOne("Alife.Domain.Entities.Member", "ReviewedByMember")
                         .WithMany()
                         .HasForeignKey("ReviewedByMemberId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_page_publication_reviews_members_reviewed_by_member_id");
 
+                    b.HasOne("Alife.Domain.Entities.Member", "SubmittedByMember")
+                        .WithMany()
+                        .HasForeignKey("SubmittedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_page_publication_reviews_members_submitted_by_member_id");
+
                     b.Navigation("Page");
 
                     b.Navigation("PrimaryMenu");
 
+                    b.Navigation("PublishedByMember");
+
                     b.Navigation("ReviewedByMember");
+
+                    b.Navigation("SubmittedByMember");
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.Section", b =>

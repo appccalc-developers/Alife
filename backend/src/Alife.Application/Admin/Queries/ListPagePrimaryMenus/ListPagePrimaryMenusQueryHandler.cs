@@ -29,7 +29,8 @@ public sealed class ListPagePrimaryMenusQueryHandler(IAlifeDbContext dbContext)
                 x.NameJson,
                 x.SortOrder,
                 x.HomePlacement,
-                ApprovedPageCount = x.PublicationReviews.Count(review => review.Status == PagePublicationReviewStatus.Approved)
+                ApprovedPageCount = x.PublicationReviews.Count(review =>
+                    review.PublishedSnapshotJson != null || review.Status == PagePublicationReviewStatus.Approved)
             })
             .ToListAsync(cancellationToken);
 

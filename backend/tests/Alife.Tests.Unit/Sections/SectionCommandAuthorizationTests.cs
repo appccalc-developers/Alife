@@ -97,6 +97,66 @@ public class SectionCommandAuthorizationTests
     }
 
     [Fact]
+    public async Task UpdateSection_OnPublishedPage_SubmitsNewCopyAndKeepsPublishedSnapshot()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var groupAuthorizationService = Substitute.For<IGroupAuthorizationService>();
+        var pageCacheInvalidationService = Substitute.For<IPageCacheInvalidationService>();
+        var groupId = Guid.NewGuid();
+        var authorId = Guid.NewGuid();
+        var currentMemberId = Guid.NewGuid();
+        var pageId = Guid.NewGuid();
+        var sectionId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+        var page = CreateGroupPage(pageId, groupId, authorId, PageVisibility.Public);
+        var section = new Section
+        {
+            Id = sectionId,
+            PageId = pageId,
+            Order = 1,
+            Type = SectionType.RichText,
+            ContentJson = "{\"text\":\"published\"}",
+            StyleJson = "{}"
+        };
+        var publishedSnapshot = PagePublicationSnapshots.Capture(page, [section], now);
+        dbContext.Pages.Add(page);
+        dbContext.Sections.Add(section);
+        dbContext.PagePublicationReviews.Add(new PagePublicationReview
+        {
+            Id = Guid.NewGuid(),
+            PageId = pageId,
+            Status = PagePublicationReviewStatus.Approved,
+            SubmittedSnapshotJson = publishedSnapshot,
+            SubmittedByMemberId = authorId,
+            SubmittedUtc = now,
+            PublishedSnapshotJson = publishedSnapshot,
+            PublishedByMemberId = currentMemberId,
+            PublishedUtc = now,
+            CreatedUtc = now,
+            UpdatedUtc = now
+        });
+        await dbContext.SaveChangesAsync();
+        groupAuthorizationService
+            .IsLeaderOrCoLeaderAsync(groupId, currentMemberId, Arg.Any<CancellationToken>())
+            .Returns(true);
+        var handler = new UpdateSectionCommandHandler(
+            dbContext,
+            groupAuthorizationService,
+            pageCacheInvalidationService);
+
+        var result = await handler.Handle(
+            new UpdateSectionCommand(sectionId, currentMemberId, SectionType.RichText, "{\"text\":\"candidate\"}", "{}", 1),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var review = await dbContext.PagePublicationReviews.SingleAsync(candidate => candidate.PageId == pageId);
+        Assert.Equal(PagePublicationReviewStatus.Pending, review.Status);
+        Assert.Equal(publishedSnapshot, review.PublishedSnapshotJson);
+        Assert.Contains("candidate", review.SubmittedSnapshotJson);
+        Assert.DoesNotContain("candidate", review.PublishedSnapshotJson);
+    }
+
+    [Fact]
     public async Task DeleteSection_WhenGroupLeaderOrCoLeaderIsNotPageAuthor_SoftDeletesSection()
     {
         using var dbContext = CreateInMemoryDbContext();

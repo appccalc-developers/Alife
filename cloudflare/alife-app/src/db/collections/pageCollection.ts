@@ -9,7 +9,7 @@ export const publicPageDetailQueryKey = (pageId: string) => ['publicPageDetail',
 export const getCachedPageDetail = async (pageId: string) =>
   normalizeNullablePageDetail((await getCachedRecord<PageDetailDto>(pageDetailQueryKey(pageId)))?.data)
 
-export const pageDetailPath = (pageId: string) => `/api/pages/${pageId}`
+export const pageDetailPath = (pageId: string) => `/api/pages/${pageId}/working-copy`
 
 export const fetchPageDetail = async (pageId: string) =>
   conditionalGet<PageDetailDto>({
@@ -36,7 +36,7 @@ export const getCachedPublicPageDetailRecord = async (pageId: string) => {
 export const fetchPublicPageDetail = async (pageId: string) =>
   conditionalGet<PageDetailDto | null>({
     queryKey: publicPageDetailQueryKey(pageId),
-    path: pageDetailPath(pageId),
+    path: `/api/pages/public/${pageId}`,
     parser: (data) => {
       const page = normalizePageDetail(data as PageDetailDto & { tagsJson?: string })
       return page.visibility === 'public' ? page : null
@@ -59,6 +59,13 @@ export const ensureFreshPageDetail = (pageId: string) =>
   queryClient.fetchQuery({
     queryKey: pageDetailQueryKey(pageId),
     queryFn: () => fetchPageDetail(pageId),
+    staleTime: QUERY_STALE_TIME_MS,
+  })
+
+export const ensureFreshPublicPageDetail = (pageId: string) =>
+  queryClient.fetchQuery({
+    queryKey: publicPageDetailQueryKey(pageId),
+    queryFn: () => fetchPublicPageDetail(pageId),
     staleTime: QUERY_STALE_TIME_MS,
   })
 

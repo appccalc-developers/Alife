@@ -60,7 +60,7 @@ export function shouldBypassEdgeCache(pathname: string, sharedContext?: SharedCa
     return false
   }
 
-  if (PUBLIC_CACHEABLE_API_PATHS.has(pathname) || isPublicContentPostPath(pathname)) {
+  if (PUBLIC_CACHEABLE_API_PATHS.has(pathname) || isPublishedPageDetailPath(pathname) || isPublicContentPostPath(pathname)) {
     return false
   }
 
@@ -76,6 +76,10 @@ export function shouldBypassEdgeCache(pathname: string, sharedContext?: SharedCa
   }
 
   return pathname.startsWith('/api/')
+}
+
+function isPublishedPageDetailPath(pathname: string) {
+  return /^\/api\/pages\/public\/[^/]+$/.test(pathname)
 }
 
 export async function getSharedCacheContext(request: Request, env: Env): Promise<SharedCacheContext | null> {

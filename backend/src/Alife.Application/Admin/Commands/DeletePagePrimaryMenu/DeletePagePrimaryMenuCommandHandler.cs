@@ -32,7 +32,9 @@ public sealed class DeletePagePrimaryMenuCommandHandler(
         var relatedReviews = await dbContext.PagePublicationReviews
             .Where(x => x.PrimaryMenuId == menu.Id)
             .ToListAsync(cancellationToken);
-        if (relatedReviews.Any(x => x.Status == Domain.Enums.PagePublicationReviewStatus.Approved))
+        if (relatedReviews.Any(x =>
+                x.PublishedSnapshotJson is not null ||
+                x.Status == Domain.Enums.PagePublicationReviewStatus.Approved))
         {
             return AppResult<AdminActionResultDto>.Conflict("Only an empty primary menu can be deleted.");
         }

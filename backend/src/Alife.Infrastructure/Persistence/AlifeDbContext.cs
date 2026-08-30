@@ -244,6 +244,9 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 			cfg.Property(x => x.CardImageUrl).HasMaxLength(1200);
 			cfg.Property(x => x.CardTextJson).HasColumnType("nvarchar(max)");
 			cfg.Property(x => x.ReturnReason).HasMaxLength(1000);
+			cfg.Property(x => x.SubmittedSnapshotJson).HasColumnType("nvarchar(max)");
+			cfg.Property(x => x.PublishedSnapshotJson).HasColumnType("nvarchar(max)");
+			cfg.Property(x => x.UpdatedUtc).IsConcurrencyToken();
 
 			cfg.HasOne(x => x.Page)
 				.WithMany()
@@ -260,9 +263,21 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 				.HasForeignKey(x => x.ReviewedByMemberId)
 				.OnDelete(DeleteBehavior.Restrict);
 
+			cfg.HasOne(x => x.SubmittedByMember)
+				.WithMany()
+				.HasForeignKey(x => x.SubmittedByMemberId)
+				.OnDelete(DeleteBehavior.Restrict);
+
+			cfg.HasOne(x => x.PublishedByMember)
+				.WithMany()
+				.HasForeignKey(x => x.PublishedByMemberId)
+				.OnDelete(DeleteBehavior.Restrict);
+
 			cfg.HasIndex(x => x.PageId).IsUnique();
 			cfg.HasIndex(x => new { x.PrimaryMenuId, x.MenuSortOrder });
 			cfg.HasIndex(x => new { x.Status, x.UpdatedUtc });
+			cfg.HasIndex(x => new { x.SubmittedByMemberId, x.SubmittedUtc });
+			cfg.HasIndex(x => new { x.PublishedByMemberId, x.PublishedUtc });
 			cfg.HasIndex(x => new { x.ReviewedByMemberId, x.ReviewedUtc });
 		});
 

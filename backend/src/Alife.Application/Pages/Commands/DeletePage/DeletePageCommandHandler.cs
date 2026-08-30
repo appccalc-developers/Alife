@@ -40,7 +40,9 @@ public sealed class DeletePageCommandHandler(
         await dbContext.SaveChangesAsync(cancellationToken);
 
         await pageCacheInvalidationService.RemoveDetailAsync(page.Id, cancellationToken);
+        await pageCacheInvalidationService.RemovePublishedDetailAsync(page.Id, cancellationToken);
         await pageCacheInvalidationService.RemoveGroupPagesAsync(page.OwnerGroupId, cancellationToken);
+        await pageCacheInvalidationService.RemovePublicAsync(cancellationToken);
 
         return AppResult<PageActionResultDto>.Success(new PageActionResultDto(true));
     }

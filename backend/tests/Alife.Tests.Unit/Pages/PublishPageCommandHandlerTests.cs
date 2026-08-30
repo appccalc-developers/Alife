@@ -59,6 +59,68 @@ public class PublishPageCommandHandlerTests
     }
 
     [Fact]
+    public async Task Handle_WhenPublishedPageIsWithdrawn_ClearsPublishedCopyBeforeAResubmission()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var groupAuthorizationService = Substitute.For<IGroupAuthorizationService>();
+        var pageCacheInvalidationService = Substitute.For<IPageCacheInvalidationService>();
+        var groupId = Guid.NewGuid();
+        var leaderId = Guid.NewGuid();
+        var pageId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+        var page = new Page
+        {
+            Id = pageId,
+            OwnerGroupId = groupId,
+            CreatedByMemberId = leaderId,
+            TitleJson = "{\"en\":\"Welcome\",\"zh\":\"欢迎\"}",
+            TagsJson = "[]",
+            TitleDisplayStyle = "Default",
+            Visibility = PageVisibility.Public,
+            UpdatedUtc = now
+        };
+        var publishedSnapshot = PagePublicationSnapshots.Capture(page, [], now);
+        dbContext.Pages.Add(page);
+        dbContext.PagePublicationReviews.Add(new PagePublicationReview
+        {
+            Id = Guid.NewGuid(),
+            PageId = pageId,
+            Status = PagePublicationReviewStatus.Approved,
+            PublishedSnapshotJson = publishedSnapshot,
+            PublishedByMemberId = leaderId,
+            PublishedUtc = now,
+            CreatedUtc = now,
+            UpdatedUtc = now
+        });
+        await dbContext.SaveChangesAsync();
+        groupAuthorizationService
+            .IsLeaderOrCoLeaderAsync(groupId, leaderId, Arg.Any<CancellationToken>())
+            .Returns(true);
+        var handler = new PublishPageCommandHandler(
+            dbContext,
+            groupAuthorizationService,
+            pageCacheInvalidationService);
+
+        var withdrawResult = await handler.Handle(
+            new PublishPageCommand(pageId, leaderId, PageVisibility.Group),
+            CancellationToken.None);
+        var withdrawnReview = await dbContext.PagePublicationReviews.SingleAsync(review => review.PageId == pageId);
+
+        Assert.True(withdrawResult.IsSuccess);
+        Assert.Null(withdrawnReview.PublishedSnapshotJson);
+
+        var resubmitResult = await handler.Handle(
+            new PublishPageCommand(pageId, leaderId, PageVisibility.Public),
+            CancellationToken.None);
+        var resubmittedReview = await dbContext.PagePublicationReviews.SingleAsync(review => review.PageId == pageId);
+
+        Assert.True(resubmitResult.IsSuccess);
+        Assert.Equal(PagePublicationReviewStatus.Pending, resubmittedReview.Status);
+        Assert.NotNull(resubmittedReview.SubmittedSnapshotJson);
+        Assert.Null(resubmittedReview.PublishedSnapshotJson);
+    }
+
+    [Fact]
     public async Task Handle_WhenPageReviewerPublishesGroupPage_ReturnsForbidden()
     {
         using var dbContext = CreateInMemoryDbContext();

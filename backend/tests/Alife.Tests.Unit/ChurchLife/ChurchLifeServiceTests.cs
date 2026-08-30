@@ -97,6 +97,8 @@ public sealed class ChurchLifeServiceTests
         };
         pageRead.GetGroupPagesAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(call => pagesByGroup.GetValueOrDefault(call.ArgAt<Guid>(0), []));
+        pageRead.GetPublishedByIdAsync(rootPublicPage.Id, Arg.Any<CancellationToken>()).Returns(PageDetailDto(rootPublicPage));
+        pageRead.GetPublishedByIdAsync(privatePublicPage.Id, Arg.Any<CancellationToken>()).Returns(PageDetailDto(privatePublicPage));
 
         var eventRead = Substitute.For<IEventReadService>();
         var childPrivateEvent = Event(child.Id, EventVisibilityPolicy.GroupVisible, EventRamStatus.Approved, now.AddDays(1));
@@ -182,6 +184,7 @@ public sealed class ChurchLifeServiceTests
         var pageRead = Substitute.For<IPageReadService>();
         pageRead.GetGroupPagesAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(call => call.ArgAt<Guid>(0) == publicChild.Id ? [PageDto(page)] : []);
+        pageRead.GetPublishedByIdAsync(page.Id, Arg.Any<CancellationToken>()).Returns(PageDetailDto(page));
         var service = new ChurchLifeService(
             db,
             new ChurchLifeScopeService(db),
@@ -308,6 +311,7 @@ public sealed class ChurchLifeServiceTests
             PageDto(publishedPage),
             PageDto(draftPage),
         ]);
+        pageRead.GetPublishedByIdAsync(publishedPage.Id, Arg.Any<CancellationToken>()).Returns(PageDetailDto(publishedPage));
         var eventRead = Substitute.For<IEventReadService>();
         eventRead.GetGroupEventsAsync(root.Id, Arg.Any<CancellationToken>()).Returns([]);
         eventRead.GetGroupEventsAsync(child.Id, Arg.Any<CancellationToken>()).Returns([
@@ -330,6 +334,43 @@ public sealed class ChurchLifeServiceTests
         Assert.Single(events.Value!.Items);
         Assert.Single(announcements.Value!.Items);
         Assert.True(pages.Value.Groups.Single(x => x.Id == child.Id).CanManage);
+    }
+
+    [Fact]
+    public async Task InvalidPublishedSnapshot_IsExcludedInsteadOfFallingBackToWorkingSummary()
+    {
+        await using var db = CreateDb();
+        var memberId = Guid.NewGuid();
+        var root = Group("Church", isChurch: true);
+        var page = Page(root.Id, PageVisibility.Public, DateTime.UtcNow);
+        db.Members.Add(Member(memberId));
+        db.Groups.Add(root);
+        db.Pages.Add(page);
+        db.PagePublicationReviews.Add(new PagePublicationReview
+        {
+            Id = Guid.NewGuid(),
+            PageId = page.Id,
+            Status = PagePublicationReviewStatus.Pending,
+            PublishedSnapshotJson = "{\"version\":999}",
+            CreatedUtc = DateTime.UtcNow,
+            UpdatedUtc = DateTime.UtcNow
+        });
+        await db.SaveChangesAsync();
+        var pageRead = Substitute.For<IPageReadService>();
+        pageRead.GetGroupPagesAsync(root.Id, Arg.Any<CancellationToken>()).Returns([PageDto(page)]);
+        pageRead.GetPublishedByIdAsync(page.Id, Arg.Any<CancellationToken>()).Returns((PageDetailDto?)null);
+        var service = new ChurchLifeService(
+            db,
+            new ChurchLifeScopeService(db),
+            pageRead,
+            Substitute.For<IEventReadService>(),
+            Substitute.For<IAlbumService>(),
+            Substitute.For<ISender>());
+
+        var result = await service.ListPagesAsync(memberId, null, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Empty(result.Value!.Items);
     }
 
     [Fact]
@@ -520,6 +561,18 @@ public sealed class ChurchLifeServiceTests
         page.TitleDisplayStyle,
         page.Visibility,
         page.UpdatedUtc);
+
+    private static PageDetailDto PageDetailDto(Page page) => new(
+        page.Id,
+        page.OwnerGroupId,
+        page.CreatedByMemberId,
+        new Dictionary<string, string> { ["en"] = "Page" },
+        null,
+        page.TagsJson,
+        page.TitleDisplayStyle,
+        page.Visibility,
+        page.UpdatedUtc,
+        []);
 
     private static PagePublicationReview ApprovedReview(Guid pageId) => new()
     {

@@ -7,6 +7,7 @@ using Alife.Application.Pages.Commands.PublishPage;
 using Alife.Application.Pages.Commands.UpdatePage;
 using Alife.Application.Pages.Queries.GetGroupPages;
 using Alife.Application.Pages.Queries.GetPageById;
+using Alife.Application.Pages.Queries.GetPublishedPageById;
 using Alife.Application.Pages.Queries.GetPublicPages;
 using Alife.Application.Pages.Dtos;
 using Alife.Domain.Enums;
@@ -44,6 +45,31 @@ public class PagesController(
             return this.ToActionResult(result);
         }
 
+        this.ApplyPrivateNoCacheHeaders();
+        return this.ToActionResult(result);
+    }
+
+    [HttpGet("pages/public/{id:guid}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetPublishedById(Guid id, CancellationToken cancellationToken = default)
+    {
+        var result = await mediator.Send(new GetPublishedPageByIdQuery(id), cancellationToken);
+        this.ApplyPublicCacheHeaders();
+        return this.ToActionResult(result);
+    }
+
+    [HttpGet("pages/{id:guid}/working-copy")]
+    public async Task<IActionResult> GetWorkingCopy(Guid id, CancellationToken cancellationToken = default)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null)
+        {
+            return Unauthorized();
+        }
+
+        var result = await mediator.Send(
+            new GetPageByIdQuery(id, currentMemberId.Value, AllowPublishedFallback: false),
+            cancellationToken);
         this.ApplyPrivateNoCacheHeaders();
         return this.ToActionResult(result);
     }

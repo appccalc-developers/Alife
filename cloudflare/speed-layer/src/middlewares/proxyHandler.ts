@@ -115,7 +115,7 @@ function isPageDetailPath(pathname: string) {
 
 function getProxyTargetForPath(pathname: string, env: Env) {
   if (pathname === '/images' || pathname.startsWith('/images/')) {
-    return DEFAULT_IMAGES_API_PROXY_TARGET
+    return env.IMAGES_API_PROXY_TARGET || DEFAULT_IMAGES_API_PROXY_TARGET
   }
 
   return env.API_PROXY_TARGET || DEFAULT_API_PROXY_TARGET
