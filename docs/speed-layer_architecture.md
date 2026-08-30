@@ -110,13 +110,14 @@ These API paths are public shared cache candidates:
 
 - `/api/sermons`
 - `/api/pages/public`
-- confirmed-public `/api/pages/{pageId}` responses
+- `/api/pages/public/{pageId}` published snapshot responses
 
 Public page L1 entries use a one-hour TTL. Their KV L2 records use a 30-day TTL
 and are actively invalidated and warmed when page content changes. A KV hit is
 reported as `x-alife-cache: HIT` because the request did not reach the origin.
-Draft and other non-public page details are never written to the global public
-response cache.
+Group working copies use `/api/pages/{pageId}/working-copy`, remain private/no-store,
+and are never written to the global public response cache. The legacy
+`/api/pages/{pageId}` route returns only a published snapshot for public pages.
 
 Public image responses under `/images/*` can also receive public cache headers.
 
@@ -148,7 +149,7 @@ member:{memberId}:me
 
 Successful `/api/me` responses also seed authorization mirror records for the member's memberships.
 
-### Shared Page And Event Detail Cache
+### Published, Working, And Event Detail Cache
 
 The speed layer can map page and event ids back to group ids with logical records:
 
@@ -157,13 +158,15 @@ map:page:{pageId}:meta
 map:{entityType}:{entityId}:group
 ```
 
-These mappings let the Worker know which group authorization context is required for detail or subresource paths such as:
+These mappings let the Worker know which group authorization context is required for legacy detail or event subresource paths such as:
 
 - `/api/pages/{pageId}`
 - `/api/events/{eventId}/enrollments`
 - `/api/events/{eventId}/reviews`
 
-Draft pages receive extra protection. A shared cached draft page can be read only by its author or a member whose mirrored role allows draft access.
+New page-editor reads use the explicitly private `/api/pages/{pageId}/working-copy`
+path. Public rendering uses `/api/pages/public/{pageId}`, so the two representations
+cannot share a cache key.
 
 ## Authorization Mirrors
 
@@ -234,10 +237,11 @@ For `POST`, `PUT`, `PATCH`, and `DELETE`, the speed layer passively invalidates 
 Examples:
 
 - Group membership actions invalidate member lists, membership lists, member profile cache, and authorization mirror records.
-- Page updates invalidate page detail and owner group page lists.
+- Working-page updates invalidate only the private working detail and owner group page list; the published snapshot remains cached and visible.
+- Approval, explicit withdrawal, visibility changes, or edits to an already approved publication copy invalidate the new and legacy published-detail routes, the owner-group page list, and the public page list.
 - Public-page invalidation purges the `alife-public-pages` cache tag across
   Cloudflare, deletes the KV records, and then warms `/api/pages/public` plus
-  every confirmed-public page detail in batches.
+  every `/api/pages/public/{pageId}` published detail in batches.
 - Event updates invalidate owner group event lists.
 - Enrollment and review mutations invalidate event enrollment/review lists.
 - Sermon sync locally invalidates `/api/sermons` and asks the Cloudflare API to

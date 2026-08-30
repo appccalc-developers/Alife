@@ -71,7 +71,8 @@ Key entities:
 - `Member`: display name, contact fields, LINE UID, registration/admin state.
 - `Group`: bilingual name/description JSON, hierarchy, access type, church/root marker, closed state.
 - `GroupMembership`: member/group relationship with role and status.
-- `Page`: global or group-scoped page with bilingual title/description JSON, tags, visibility, and soft delete.
+- `Page`: the group-owned working page with bilingual title/description JSON, tags, visibility, and soft delete.
+- `PagePublicationReview`: review state plus separate submitted and published JSON snapshots, including section-link metadata used by cards. Editing or returning a submitted copy never mutates the group working page or removes an existing published snapshot; explicitly changing page visibility away from public withdraws that published snapshot. `UpdatedUtc` is an optimistic concurrency token so simultaneous submit/review operations fail with a conflict instead of losing a copy.
 - `Section`: ordered page block with type, content JSON, style JSON, and links.
 - `Link`: section-owned links to groups/pages or external visual items.
 - `Sermon`: synchronized YouTube sermon metadata.
@@ -131,13 +132,13 @@ Controllers are grouped by responsibility:
 - `AuthController`: login, logout, dev/admin session.
 - `MembersController`: `/api/me`, LINE login/callback, registration, Alpha account login, member listing.
 - `GroupsController`: church root, group detail, subgroups, membership workflows, invite candidates, group update/close.
-- `PagesController`: global pages, group pages, page detail, create/update/publish/delete.
+- `PagesController`: group pages, private working-copy detail, immutable published detail, create/update/submit/delete.
+- `AdminController`: publication-copy preview/edit, approval/return, public menu management, sermon sync, and cache refresh.
 - `EventsController`: group event list/create/update/delete.
 - `EventEnrollmentsController`: enrollment list/create/update/delete.
 - `EventReviewsController`: review list/create/update/delete.
 - `NotificationsController`: notification list/create/reply/read.
 - `SermonsController`: sermon listing.
-- `AdminController`: sermon sync and Cloudflare cache refresh.
 
 Health and diagnostics:
 
@@ -163,11 +164,14 @@ Backend read services use `.NET HybridCache` for read-heavy data:
 
 Write operations call invalidation services where applicable.
 
+Public reads fail closed when a stored published snapshot is malformed or uses an unsupported version; they never fall back to unreviewed working content. The publication-snapshot migration also creates pending submitted copies for older public pages that did not yet have a review row.
+
 ### Cloudflare Speed Layer Cache
 
 The speed layer uses the Cloudflare Cache API and logical cache records to support:
 
-- public shared caching for `/api/sermons`, `/api/pages/public`, and confirmed-public `/api/pages/{pageId}` responses;
+- public shared caching for `/api/sermons`, `/api/pages/public`, and `/api/pages/public/{pageId}` published snapshots;
+- private, uncached working-copy reads at `/api/pages/{pageId}/working-copy`;
 - authorized group-shared caching for group pages, subgroups, events, members, and memberships;
 - member profile caching for `/api/me` by member id;
 - generated ETags and `304 Not Modified`;
