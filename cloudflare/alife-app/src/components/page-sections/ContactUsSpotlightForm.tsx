@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Mail, Phone, Send } from 'lucide-react'
 import { visitContactService } from '../../services/visitContactService'
@@ -30,6 +30,8 @@ type ContactForm = {
   phoneCountryCode: VisitContactCountryCode
   phoneNumber: string
   message: string
+  consent: boolean
+  website: string
 }
 
 type ContactStatus = 'idle' | 'submitting' | 'success' | 'error'
@@ -42,6 +44,8 @@ const initialForm = (): ContactForm => ({
   phoneCountryCode: '+64',
   phoneNumber: '',
   message: '',
+  consent: false,
+  website: '',
 })
 
 const inputClass = 'min-h-11 w-full rounded-lg border border-home-border bg-white px-3 text-sm font-medium text-home-gold-text outline-none transition placeholder:text-home-muted/70 focus:border-home-green focus:ring-2 focus:ring-home-green/20 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-home-muted'
@@ -56,6 +60,7 @@ const ContactUsSpotlightForm = ({ mode, language, guidance, successMessage }: {
   const [form, setForm] = useState<ContactForm>(initialForm)
   const [status, setStatus] = useState<ContactStatus>('idle')
   const [touched, setTouched] = useState<Record<string, boolean>>({})
+  const formStartedAt = useRef(Date.now())
 
   const errors = useMemo(() => ({
     displayName: form.displayName.trim() ? '' : (zh ? '请输入姓名' : 'Enter your name'),
@@ -65,9 +70,10 @@ const ContactUsSpotlightForm = ({ mode, language, guidance, successMessage }: {
         ? (zh ? '请输入有效的 Email 地址' : 'Enter a valid email address')
         : (zh ? '请输入有效的电话号码' : 'Enter a valid phone number'),
     message: form.message.trim() ? '' : (zh ? '请输入留言' : 'Enter a message'),
+    consent: form.consent ? '' : (zh ? '请先同意隐私说明' : 'Accept the privacy notice'),
   }), [form, zh])
 
-  const isValid = !errors.displayName && !errors.contact && !errors.message
+  const isValid = !errors.displayName && !errors.contact && !errors.message && !errors.consent
   const controlsDisabled = mode !== 'render' || status === 'submitting' || status === 'success'
 
   const updateForm = (patch: Partial<ContactForm>) => {
@@ -77,7 +83,7 @@ const ContactUsSpotlightForm = ({ mode, language, guidance, successMessage }: {
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    setTouched({ displayName: true, contact: true, message: true })
+    setTouched({ displayName: true, contact: true, message: true, consent: true })
     if (mode !== 'render' || !isValid || controlsDisabled) return
 
     setStatus('submitting')
@@ -90,6 +96,12 @@ const ContactUsSpotlightForm = ({ mode, language, guidance, successMessage }: {
         preferredLanguage: zh ? 'zh' : 'en',
         message: form.message.trim(),
         sourcePage: window.location.pathname,
+        requestKind: 'visitorMessage',
+        replyPreference: form.method,
+        privacyConsent: form.consent,
+        privacyConsentVersion: 'contact-section-v1',
+        honeypot: form.website,
+        formStartedUnixMilliseconds: formStartedAt.current,
       })
       setStatus('success')
     } catch {
@@ -220,6 +232,28 @@ const ContactUsSpotlightForm = ({ mode, language, guidance, successMessage }: {
           />
           {touched.message && errors.message ? <span className="text-xs font-medium text-rose-600">{errors.message}</span> : null}
         </label>
+
+        <input
+          className="hidden"
+          tabIndex={-1}
+          autoComplete="off"
+          value={form.website}
+          onChange={(event) => updateForm({ website: event.target.value })}
+          aria-hidden="true"
+        />
+
+        <label className="flex items-start gap-3 text-xs leading-5 text-home-muted">
+          <input
+            type="checkbox"
+            checked={form.consent}
+            className="mt-1 h-4 w-4 accent-home-green"
+            onChange={(event) => updateForm({ consent: event.target.checked })}
+          />
+          {zh
+            ? '我同意教会使用这些资料回复本次请求。提交不会创建 ALIFE 账号。'
+            : 'I agree that the church may use these details to respond. Submitting does not create an ALIFE account.'}
+        </label>
+        {touched.consent && errors.consent ? <span className="text-xs font-medium text-rose-600">{errors.consent}</span> : null}
 
         <button
           type="submit"

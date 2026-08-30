@@ -13,7 +13,7 @@ The codebase is split into a .NET Azure Functions API, a React PWA, Cloudflare W
 | Frontend data | TanStack Query, TanStack React DB, IndexedDB-backed ETag cache |
 | Database | SQL Server 2022 locally, Azure SQL-compatible schema |
 | Edge | Cloudflare Workers for app hosting, API proxying, edge cache, AI sessions, and image services |
-| Auth | LINE Login OAuth or dev/admin flows -> JWT in HttpOnly cookie `alife_auth` |
+| Auth | Discoverable Passkeys (primary), LINE Login compatibility, and gated internal Alpha sessions -> JWT in HttpOnly cookie `alife_auth` |
 | Backend cache | .NET HybridCache read services and invalidation services |
 | API docs | Swagger/OpenAPI at `/api/swagger/v1/swagger.json` in development |
 
@@ -78,6 +78,16 @@ Useful options:
 .\alife-dev.cmd -SkipSpeedLayer          # API + Vite only
 .\alife-dev.cmd -RebuildFrontendAssets   # rebuild dist before starting speed-layer
 ```
+
+To test Passkeys from a phone, expose the Vite origin through a trusted HTTPS tunnel, then restart the stack with that exact origin:
+
+```powershell
+cloudflared tunnel --url http://localhost:5173
+# Copy the generated HTTPS URL from the previous terminal, then run:
+.\alife-dev.cmd -SkipSql -MobilePasskeyOrigin https://example.trycloudflare.com
+```
+
+Open that HTTPS URL on the phone. The option sets the backend WebAuthn RP ID and allowed origin to the tunnel host and adds only that host to Vite's development allowlist. It does not start or manage the tunnel. Quick Tunnel hostnames change when restarted, so use a named stable tunnel for credentials that must remain reusable across sessions. Treat any tunnel URL as public and stop `cloudflared` after testing.
 
 Azurite is skipped by default because the regular UI/API local workflow does not need local Azure Storage. The backend has a `SermonSync` TimerTrigger, so scheduled Functions are disabled by default. To test scheduled jobs locally, install Azurite once and run:
 
@@ -165,8 +175,9 @@ npx wrangler deploy
 
 ## Main Features In The Current Code
 
-- Member identity through LINE Login, Alpha account login by display name or phone number with an optional international calling code, and dev/admin flows.
-- JWT authentication stored in the HttpOnly `alife_auth` cookie.
+- Member identity through discoverable Passkeys, explicit LINE Login compatibility, one-time church activation links, and configuration-gated internal Alpha accounts.
+- JWT authentication stored in the HttpOnly `alife_auth` cookie, with `amr`, `auth_time`, and `session_kind` claims distinguishing standard, public-device, and Alpha sessions.
+- A unified `/onboarding` flow preserves only validated same-site return paths and resumes activation, QR application, or anonymous reply context through a short-lived HttpOnly cookie.
 - Hierarchical church/group model with public, protected, and private access types.
 - Group membership workflows: request, invite, accept, decline, approve, reject, co-leader assignment, kick, subgroup creation, and subgroup co-leader claim.
 - Bilingual group and page content using JSON-shaped localized text.
@@ -179,44 +190,49 @@ npx wrangler deploy
 
 ## Authentication And Authorization
 
-- LINE OAuth callback lands at `/api/members/line/callback`.
+- `/onboarding` starts username-less WebAuthn authentication with user verification. ALIFE stores public keys and credential metadata, never device PINs or biometric data.
+- Standard Passkey and LINE sessions can last up to 30 days. Public-device sessions are non-persistent and last at most two hours; internal Alpha sessions are non-persistent and last at most twelve hours.
+- LINE OAuth is a compatibility path. Its server-side state is bound to the active onboarding flow; callbacks do not put profile PII in redirect URLs.
+- Activation and QR links use `/activate/{selector}#{secret}` and `/join/{selector}#{signature}`. The fragment is exchanged in a request body and immediately removed from browser history.
 - The backend issues a JWT in the HttpOnly cookie `alife_auth`.
 - JwtBearer middleware reads the token from the cookie automatically.
 - JWT claims are intentionally minimal. Group roles and permissions are checked against current data.
 - Protected APIs return `401` or `403`; they do not redirect browser clients.
+- The legacy arbitrary display-name/phone login route, `POST /api/members/login/account`, intentionally returns `404`.
 
 ## Caching
 
 Alife deliberately uses multiple cache layers:
 
 - Backend `HybridCache` for member, group, page, event, and sermon read services.
-- Cloudflare speed layer cache for safe public responses, authorized group-shared responses, member profile responses, ETags, and passive mutation invalidation.
+- Cloudflare speed layer cache for safe public responses, authorized group-shared responses, ETags, authorization mirrors, and passive mutation invalidation. Identity and member profile responses bypass the edge response cache.
 - `/api/sermons` cache keys include the sorted query string so pagination variants cannot reuse incompatible payloads. Sermon entries use a five-minute edge TTL and the `alife-sermons` cache tag.
 - Sermon sync performs the existing local Worker purge and, when `Cloudflare__ZoneId` and a Cache Purge-capable API token are configured, globally purges the `alife-sermons` tag across Cloudflare data centers.
 - Frontend IndexedDB ETag cache through `conditionalGet`.
 - PWA runtime caching for app assets, images, and fonts. API responses are intentionally excluded from the PWA runtime cache so auth and permission changes are not replayed incorrectly.
 
 Private user-specific data must not be stored in shared public caches.
+All identity ceremonies, onboarding flows, activations, applications, visitor requests, Alpha routes, management mutations, and personal tasks return `Cache-Control: no-store` and vary by cookie/authorization where appropriate.
 
 ## Key API Areas
 
 | Area | Representative routes |
 |---|---|
-| Auth/session | `POST /api/auth/login`, `POST /api/auth/logout`, `POST /api/auth/dev/admin`, `GET /api/me` |
-| LINE/member | `GET /api/members/line/login`, `GET /api/members/line/callback`, `POST /api/members/login/account`, `POST /api/members/register` |
+| Auth/session | `POST /api/auth/passkeys/authentication/*`, `POST /api/auth/logout`, `GET /api/me`, `GET/POST /api/me/passkeys/*` |
+| Onboarding | `POST /api/onboarding/flows`, `POST /api/onboarding/resume`, activation/invite/application-response resolve and completion routes |
+| LINE/member | `GET /api/members/line/login`, `GET /api/members/line/callback`, `POST /api/members/register` |
 | Groups | `GET /api/groups/church`, `GET /api/groups/{id}`, `POST /api/groups/{id}/join-request` |
-| Group management | `POST /api/groups/{id}/subgroups`, `POST /api/groups/{id}/approve`, `POST /api/groups/{id}/set-coleader` |
-| Pages | `GET /api/pages/public`, `GET /api/pages/public/{id}`, `GET /api/pages/{id}/working-copy`, `GET/POST /api/groups/{groupId}/pages`, `PUT /api/pages/{id}`, `POST /api/pages/{id}/publish` |
+| Group management | `POST /api/groups/{id}/subgroups`, `POST /api/groups/{id}/approve`, `/api/groups/{id}/join-invite/*`, `/api/groups/{id}/membership-applications/*` |
+| Pages | `GET /api/pages/global`, `GET /api/groups/{groupId}/pages`, `POST /api/groups/{groupId}/pages`, `PUT /api/pages/{id}` |
 | Events | `GET /api/groups/{groupId}/events`, `POST /api/groups/{groupId}/events`, `PUT /api/events/{id}` |
 | Enrollments/reviews | `GET/POST /api/events/{eventId}/enrollments`, `GET/POST /api/events/{eventId}/reviews` |
 | Notifications | `GET/POST /api/notifications`, `POST /api/notifications/{id}/reply`, `POST /api/notifications/{id}/read` |
-| Page publication review | `GET /api/admin/pages/review-candidates`, `GET/PUT /api/admin/pages/{id}/publication-review/copy`, `POST /api/admin/pages/{id}/publication-review/approve`, `POST /api/admin/pages/{id}/publication-review/return` |
-| Admin operations | `POST /api/admin/sermons/sync`, `POST /api/admin/groups/{groupId}/cloudflare-cache/refresh` |
+| Admin | `POST /api/admin/sermons/sync`, `POST /api/admin/groups/{groupId}/cloudflare-cache/refresh` |
 | AI sessions | `/api/events/session/*`, `/api/enrollments/session/*`, `/api/reviews/session/*` |
 
 ## Configuration
 
-Backend settings can be supplied through environment variables, user secrets, or `local.settings.json` for Azure Functions.
+Backend settings can be supplied through environment variables, user secrets, or `local.settings.json` for Azure Functions. The repository `/dev` launcher imports the ignored `backend/.env` into its child processes; explicit parent-process environment variables take precedence.
 
 | Key | Notes |
 |---|---|
@@ -224,6 +240,11 @@ Backend settings can be supplied through environment variables, user secrets, or
 | `Jwt__Issuer`, `Jwt__Audience`, `Jwt__Key`, `Jwt__KeyId` | JWT signing and validation |
 | `LineLogin__ClientId`, `LineLogin__ClientSecret`, `LineLogin__RedirectUri` | LINE OAuth |
 | `Frontend__BaseUrl` | Frontend redirect/CORS base URL |
+| `Passkeys__Enabled`, `Passkeys__RpId`, `Passkeys__RpName`, `Passkeys__Origins` | WebAuthn relying-party configuration. Missing/disabled configuration reports Passkeys unavailable. |
+| `TokenProtection__SigningKey`, `RateLimiting__HashKey` | Independent high-entropy HMAC keys for one-time secret storage and rate-limit discriminators. Keep in a secret store. |
+| `TrustedProxyNetworks` | Proxy CIDRs allowed to supply `CF-Connecting-IP`; untrusted callers use the direct peer address. |
+| `ActivationMessages__Enabled`, `ActivationMessages__ExposeLinks` | Activation delivery capability. Preview links are development-only; no paid SMS provider is included. |
+| `AlphaLogin__Enabled`, `AlphaLogin__Accounts` | Internal Alpha account whitelist (`accountId`, `memberId`, `label`). Disabled values return `404`; explicit enablement is honored in every environment. |
 | `YOUTUBE_API_KEY`, `YOUTUBE_PLAYLIST_ID` | Sermon sync integration, where configured |
 | `Cloudflare__ApiToken`, `Cloudflare__AccountId`, `Cloudflare__ZoneId`, `Cloudflare__AuthzNamespaceId`, `Cloudflare__ApiCacheNamespaceId` | Cloudflare KV mirror/cache refresh support, where configured. Global sermon invalidation requires the token's `Cache Purge` permission and the zone id. |
 | `Cloudflare__SyncWorkerBaseUrl`, `Cloudflare__SyncApiToken` | Speed-layer cache purge endpoint, where configured. Production base URL is `https://ccalc.live`; token must match Worker `CACHE_SYNC_API_TOKEN`. |

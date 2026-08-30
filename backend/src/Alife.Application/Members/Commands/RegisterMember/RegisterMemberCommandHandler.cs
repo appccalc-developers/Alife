@@ -136,7 +136,11 @@ public sealed class RegisterMemberCommandHandler(
             await groupCacheInvalidationService.RemoveMembershipsAsync(church.Id, cancellationToken);
         }
 
-        var (token, expiresUtc) = jwtTokenService.CreateToken(memberToRegister, isGuest: false);
+        var (token, expiresUtc) = request.IsPublicDevice
+            ? jwtTokenService.CreateToken(memberToRegister, "line", "public_device", TimeSpan.FromHours(2))
+            : string.IsNullOrWhiteSpace(memberToRegister.LineUID)
+                ? jwtTokenService.CreateToken(memberToRegister, isGuest: false)
+                : jwtTokenService.CreateToken(memberToRegister, "line", "standard", TimeSpan.FromDays(30));
         return AppResult<MemberRegistrationResultDto>.Success(new MemberRegistrationResultDto(token, expiresUtc));
     }
 }

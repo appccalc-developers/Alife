@@ -47,4 +47,22 @@ public class JwtTokenServiceTests
 
 		Assert.DoesNotContain(jwt.Claims, claim => claim.Type == "language");
 	}
+
+	[Fact]
+	public void CreateToken_IncludesStableAuthenticationAndSessionClaims()
+	{
+		var service = CreateService();
+		var member = new Member
+		{
+			Id = Guid.NewGuid(),
+			IsRegistered = true
+		};
+
+		var (token, _) = service.CreateToken(member, "passkey", "public_device", TimeSpan.FromHours(2));
+		var jwt = new JwtSecurityTokenHandler().ReadJwtToken(token);
+
+		Assert.Contains(jwt.Claims, claim => claim.Type == "amr" && claim.Value == "passkey");
+		Assert.Contains(jwt.Claims, claim => claim.Type == "session_kind" && claim.Value == "public_device");
+		Assert.Contains(jwt.Claims, claim => claim.Type == "auth_time" && long.TryParse(claim.Value, out _));
+	}
 }

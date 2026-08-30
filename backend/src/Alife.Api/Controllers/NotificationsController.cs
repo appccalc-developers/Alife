@@ -42,6 +42,7 @@ public class NotificationsController(
     [HttpGet("current")]
     public async Task<IActionResult> ListCurrent(CancellationToken cancellationToken)
     {
+        this.ApplyPrivateNoStoreHeaders();
         var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
         if (currentMemberId is null)
         {
@@ -56,7 +57,6 @@ public class NotificationsController(
             return this.ToActionResult(result);
         }
 
-        this.ApplyPrivateNoCacheHeaders();
         return this.ToActionResult(result);
     }
 

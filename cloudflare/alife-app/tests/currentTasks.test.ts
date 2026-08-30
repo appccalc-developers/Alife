@@ -34,17 +34,35 @@ test('current task payloads preserve backend category and safe detail fields', (
       category: 'general',
       completionMode: 'read',
     },
+    {
+      id: 'application-id',
+      actionType: 'membership.application',
+      actionDataJson: JSON.stringify({
+        title: { en: 'Application needs information', zh: '申请需要补充资料' },
+        sourceType: 'membershipApplication',
+        sourceId: 'application-id',
+      }),
+      occurredUtc: '2026-08-19T10:00:00Z',
+      category: 'urgent',
+      completionMode: 'workflow',
+      sourceType: 'membershipApplication',
+      sourceId: 'application-id',
+    },
   ])
 
-  assert.equal(tasks.length, 2)
-  assert.equal(tasks[0].category, 'urgent')
-  assert.deepEqual(tasks[0].details, {
+  assert.equal(tasks.length, 3)
+  assert.equal(tasks[0].id, 'application-id')
+  assert.equal(tasks[0].sourceType, 'membershipApplication')
+  assert.equal(tasks[0].sourceId, 'application-id')
+  const visitorTask = tasks.find((task) => task.id === 'urgent-id')
+  assert.equal(visitorTask?.category, 'urgent')
+  assert.deepEqual(visitorTask?.details, {
     displayName: 'Alex',
     email: 'alex@example.com',
     message: 'I would like to visit.',
   })
-  assert.equal('ipAddress' in (tasks[0].details ?? {}), false)
-  assert.deepEqual(countCurrentTasks(tasks), { urgent: 1, general: 1 })
+  assert.equal('ipAddress' in (visitorTask?.details ?? {}), false)
+  assert.deepEqual(countCurrentTasks(tasks), { urgent: 2, general: 1 })
 })
 
 test('current task normalization never infers a missing category in the browser', () => {

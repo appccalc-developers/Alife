@@ -1110,7 +1110,7 @@ test('GET /api/sermons generates ETag on MISS and returns 304 on matching If-Non
   assert.equal(fetchCalls.length, 1)
 })
 
-test('GET /api/me caches by member uid and mirrors profile authorization', async () => {
+test('GET /api/me is never response-cached and mirrors only group authorization', async () => {
   originResponses.push(Response.json({
     id: 'member-1',
     displayName: 'Alice',
@@ -1123,31 +1123,33 @@ test('GET /api/me caches by member uid and mirrors profile authorization', async
   const headers = { cookie: `alife_auth=${createJwtWithSub('member-1')}` }
   const first = await dispatch('https://ccalc.live/api/me', { headers })
   await flushWaitUntil()
-  authzStore.delete('member:member-1:profile')
-  authzStore.delete('membership:group-1:member-1')
+  originResponses.push(Response.json({
+    id: 'member-1',
+    displayName: 'Alice updated',
+    isGuest: false,
+    isRegistered: true,
+    isAdmin: false,
+    memberships: [{ groupId: 'group-1', status: 'approved', role: 'CoLeader' }],
+  }))
   const second = await dispatch('https://ccalc.live/api/me', { headers })
   await flushWaitUntil()
 
   assert.equal(first.status, 200)
-  assert.equal(first.headers.get('x-alife-cache'), 'MISS')
-  assert.equal(first.headers.get('cache-control'), 'private, no-cache')
+  assert.equal(first.headers.get('x-alife-cache'), 'BYPASS')
+  assert.equal(first.headers.get('cache-control'), 'no-store')
   assert.equal(second.status, 200)
-  assert.equal(second.headers.get('x-alife-cache'), 'HIT')
+  assert.equal(second.headers.get('x-alife-cache'), 'BYPASS')
   assert.deepEqual(await second.json(), {
     id: 'member-1',
-    displayName: 'Alice',
+    displayName: 'Alice updated',
     isGuest: false,
     isRegistered: true,
     isAdmin: false,
     memberships: [{ groupId: 'group-1', status: 'approved', role: 'CoLeader' }],
   })
-  assert.equal(fetchCalls.length, 1)
-  assert.equal(apiCacheStore.has('member:member-1:me'), true)
-  assert.equal(apiCachePutOptions.get('member:member-1:me').expirationTtl, 86400)
-
-  const profileAuthz = JSON.parse(authzStore.get('member:member-1:profile'))
-  assert.equal(profileAuthz.cacheKey, 'member:member-1:me')
-  assert.deepEqual(profileAuthz.memberships, [{ groupId: 'group-1', status: 'approved', role: 'CoLeader' }])
+  assert.equal(fetchCalls.length, 2)
+  assert.equal(apiCacheStore.has('member:member-1:me'), false)
+  assert.equal(authzStore.has('member:member-1:profile'), false)
   assert.deepEqual(JSON.parse(authzStore.get('membership:group-1:member-1')), {
     status: 'approved',
     role: 'CoLeader',
@@ -1156,7 +1158,7 @@ test('GET /api/me caches by member uid and mirrors profile authorization', async
   })
 })
 
-test('GET /api/me does not share the URL cache across members', async () => {
+test('GET /api/me does not create member-specific or URL response cache entries', async () => {
   originResponses.push(Response.json({ id: 'member-1', memberships: [] }))
   originResponses.push(Response.json({ id: 'member-2', memberships: [] }))
 
@@ -1169,12 +1171,12 @@ test('GET /api/me does not share the URL cache across members', async () => {
   })
   await flushWaitUntil()
 
-  assert.equal(first.headers.get('x-alife-cache'), 'MISS')
-  assert.equal(second.headers.get('x-alife-cache'), 'MISS')
+  assert.equal(first.headers.get('x-alife-cache'), 'BYPASS')
+  assert.equal(second.headers.get('x-alife-cache'), 'BYPASS')
   assert.deepEqual(await first.json(), { id: 'member-1', memberships: [] })
   assert.deepEqual(await second.json(), { id: 'member-2', memberships: [] })
-  assert.equal(apiCacheStore.has('member:member-1:me'), true)
-  assert.equal(apiCacheStore.has('member:member-2:me'), true)
+  assert.equal(apiCacheStore.has('member:member-1:me'), false)
+  assert.equal(apiCacheStore.has('member:member-2:me'), false)
   assert.equal(apiCacheStore.has('api:/api/me'), false)
   assert.equal(fetchCalls.length, 2)
 })
@@ -1194,6 +1196,33 @@ test('unauthenticated GET /api/me bypasses edge cache', async () => {
   assert.equal(second.status, 200)
   assert.equal(second.headers.get('x-alife-cache'), 'BYPASS')
   assert.equal(fetchCalls.length, 2)
+  assert.equal(apiCacheStore.size, 0)
+})
+
+test('identity and personal task API families are always no-store and never replayed', async () => {
+  const paths = [
+    '/api/onboarding/capabilities',
+    '/api/me/passkeys',
+    '/api/notifications/current',
+    '/api/internal/alpha-login/accounts',
+    '/api/groups/group-1/membership-applications',
+  ]
+  const headers = { cookie: `alife_auth=${createJwtWithSub('member-1')}` }
+
+  for (const path of paths) {
+    originResponses.push(Response.json({ path, version: 1 }))
+    originResponses.push(Response.json({ path, version: 2 }))
+
+    const first = await dispatch(`https://ccalc.live${path}`, { headers })
+    const second = await dispatch(`https://ccalc.live${path}`, { headers })
+
+    assert.equal(first.headers.get('x-alife-cache'), 'BYPASS', path)
+    assert.equal(first.headers.get('cache-control'), 'no-store', path)
+    assert.equal(second.headers.get('x-alife-cache'), 'BYPASS', path)
+    assert.deepEqual(await second.json(), { path, version: 2 })
+  }
+
+  assert.equal(fetchCalls.length, paths.length * 2)
   assert.equal(apiCacheStore.size, 0)
 })
 

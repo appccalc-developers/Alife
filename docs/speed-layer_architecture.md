@@ -139,15 +139,9 @@ group:{groupId}:{cacheKind}
 
 Before reading group-shared cache, the Worker checks an authorization mirror for the current member and group.
 
-### Member Profile Cache
+### Member Profile And Identity Bypass
 
-`GET /api/me` can be cached per member id:
-
-```text
-member:{memberId}:me
-```
-
-Successful `/api/me` responses also seed authorization mirror records for the member's memberships.
+`GET /api/me` is always fetched from the backend and returned with `Cache-Control: no-store`; the Worker never stores or replays the profile response. A successful authenticated response may refresh only the minimal per-group membership authorization mirrors needed to gate existing group-shared caches. Onboarding, Passkey, activation, join/application, visitor, internal Alpha, identity-management, and personal-task API families likewise bypass response caching.
 
 ### Published, Working, And Event Detail Cache
 
@@ -176,7 +170,6 @@ Important logical keys:
 
 ```text
 membership:{groupId}:{memberId}
-member:{memberId}:profile
 map:page:{pageId}:meta
 map:{entityType}:{entityId}:group
 ```
@@ -198,7 +191,7 @@ If a group-shared cache path needs authorization and the mirror is missing or no
 
 ## Cache Headers
 
-Browser-facing API responses are intentionally conservative:
+Browser-facing cacheable API responses are intentionally conservative:
 
 ```text
 Cache-Control: private, no-cache
@@ -208,6 +201,13 @@ Vary: Accept-Encoding, Cookie, Authorization
 This allows browser and frontend conditional validation while preventing private or member-visible data from being treated as public browser cache content.
 
 Edge-stored records use public edge cache semantics internally. Public image responses can use public browser cache semantics.
+
+Identity, member profile, visitor, management, application, and personal-task responses instead use:
+
+```text
+Cache-Control: no-store
+Vary: Cookie, Authorization
+```
 
 `/api/sermons` keeps pagination parameters in its cache key, uses a five-minute
 edge TTL, and stores `Cache-Tag: alife-sermons` on cached variants. This prevents
@@ -248,7 +248,7 @@ Examples:
   globally purge the `alife-sermons` cache tag. The global purge is required
   because Worker Cache API deletion runs only in the data center handling the
   invalidation request.
-- Subgroup creation and co-leader claim update member profile and membership mirrors.
+- Subgroup creation and co-leader claim update membership authorization mirrors.
 
 Backend invalidation still matters. Edge invalidation is a latency and correctness aid, not the only freshness mechanism.
 

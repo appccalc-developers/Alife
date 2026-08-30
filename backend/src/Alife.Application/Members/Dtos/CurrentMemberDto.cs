@@ -12,4 +12,7 @@ public sealed record CurrentMemberDto(
     bool IsAdmin,
     string PlatformRole,
     IReadOnlyList<string> Permissions,
-    IReadOnlyList<MemberMembershipDto> Memberships);
+    IReadOnlyList<MemberMembershipDto> Memberships,
+    string? AuthenticationMethod = null,
+    string SessionKind = "anonymous",
+    bool NeedsPasskey = false);

@@ -1,5 +1,5 @@
-import { useMemo, useState, type FormEvent } from 'react'
-import { Check, LogOut, Mail, Pencil, Phone, ShieldCheck, UserRound, X } from 'lucide-react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { Check, KeyRound, LogOut, Mail, Pencil, Phone, Plus, ShieldCheck, Trash2, UserRound, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import RegionalPhoneInput from '../components/forms/RegionalPhoneInput'
 import AppActionButton from '../components/layout/AppActionButton'
@@ -10,6 +10,7 @@ import AppSectionCard from '../components/layout/AppSectionCard'
 import { useUiText } from '../i18n/uiText'
 import { authService } from '../services/authService'
 import { groupService } from '../services/groupService'
+import { identityAccessService, type PasskeyCredential } from '../services/identityAccessService'
 import { normalizeApiError } from '../services/http'
 import { useAuthStore } from '../stores/auth'
 import { isValidPhoneNumber } from '../utils/phoneNumber'
@@ -30,6 +31,12 @@ const ProfileView = () => {
   const [logoutError, setLogoutError] = useState('')
   const [inviteActionGroupId, setInviteActionGroupId] = useState('')
   const [inviteError, setInviteError] = useState('')
+  const [passkeys, setPasskeys] = useState<PasskeyCredential[]>([])
+  const [passkeyName, setPasskeyName] = useState('')
+  const [passkeyBusy, setPasskeyBusy] = useState(false)
+  const [passkeyError, setPasskeyError] = useState('')
+  const [passkeyStatus, setPasskeyStatus] = useState('')
+  const [confirmRevokeId, setConfirmRevokeId] = useState('')
 
   const copy = language === 'zh'
     ? {
@@ -40,6 +47,12 @@ const ProfileView = () => {
       phoneHint: '选择地区后输入本地号码，可保留开头的 0。',
       phoneSecurity: '修改电话号码后，原有的电话验证状态会被清除。',
       accountStatus: '账号状态', signOutSubtitle: '退出后，需要重新登录才能使用会员功能。',
+      passkeysTitle: 'Passkey 与登录安全', passkeysSubtitle: '查看、命名、添加或撤销可用于进入 ALIFE 的 Passkey。',
+      passkeyPrivacy: 'ALIFE 只保存公钥和凭据元数据，不会接收或保存设备 PIN、指纹或面容资料。',
+      passkeyName: 'Passkey 名称', passkeyNamePlaceholder: '例如：我的手机', addPasskey: '添加 Passkey',
+      noPasskeys: '尚未添加 Passkey。', lastUsed: '最近使用', created: '建立日期', revoke: '撤销',
+      confirmRevoke: '再次点击以确认撤销', passkeyAdded: 'Passkey 已添加。', passkeyRevoked: 'Passkey 已撤销。',
+      strongAuthHint: '添加或撤销需要最近五分钟内完成 Passkey 或 LINE 强认证。', addPasskeyRecommended: '建议现在添加 Passkey，作为主要登录方式。',
     }
     : {
       eyebrow: 'Member account', intro: 'Manage your contact details, account profile, and group invitations in one place.',
@@ -49,7 +62,22 @@ const ProfileView = () => {
       phoneHint: 'Choose a region and enter the local number. You may keep its leading zero.',
       phoneSecurity: 'Changing your phone number clears its existing verification status.',
       accountStatus: 'Account status', signOutSubtitle: 'You will need to sign in again to use member features.',
+      passkeysTitle: 'Passkeys and sign-in security', passkeysSubtitle: 'View, name, add, or revoke passkeys that can open ALIFE.',
+      passkeyPrivacy: 'ALIFE stores only public keys and credential metadata. It never receives or stores your device PIN, fingerprint, or face data.',
+      passkeyName: 'Passkey name', passkeyNamePlaceholder: 'For example: My phone', addPasskey: 'Add passkey',
+      noPasskeys: 'No passkeys have been added.', lastUsed: 'Last used', created: 'Created', revoke: 'Revoke',
+      confirmRevoke: 'Click again to confirm revocation', passkeyAdded: 'Passkey added.', passkeyRevoked: 'Passkey revoked.',
+      strongAuthHint: 'Adding or revoking requires a passkey or LINE strong authentication from the last five minutes.', addPasskeyRecommended: 'Add a passkey now to make it your primary sign-in method.',
     }
+
+  useEffect(() => {
+    if (!me || me.isGuest) return
+    let active = true
+    identityAccessService.listPasskeys()
+      .then((items) => { if (active) setPasskeys(items) })
+      .catch((error) => { if (active) setPasskeyError(normalizeApiError(error).message) })
+    return () => { active = false }
+  }, [me])
 
   const invitations = me?.memberships.filter((membership) => membership.status === 'invited') ?? []
   const initials = useMemo(() => {
@@ -123,6 +151,43 @@ const ProfileView = () => {
     }
   }
 
+  const addPasskey = async () => {
+    setPasskeyBusy(true)
+    setPasskeyError('')
+    setPasskeyStatus('')
+    try {
+      await identityAccessService.registerPasskey(passkeyName.trim() || undefined)
+      setPasskeys(await identityAccessService.listPasskeys())
+      setPasskeyName('')
+      setPasskeyStatus(copy.passkeyAdded)
+      await auth.fetchMe()
+    } catch (error) {
+      setPasskeyError(normalizeApiError(error).message)
+    } finally {
+      setPasskeyBusy(false)
+    }
+  }
+
+  const revokePasskey = async (credentialId: string) => {
+    if (confirmRevokeId !== credentialId) {
+      setConfirmRevokeId(credentialId)
+      return
+    }
+    setPasskeyBusy(true)
+    setPasskeyError('')
+    setPasskeyStatus('')
+    try {
+      await identityAccessService.revokePasskey(credentialId)
+      setPasskeys(await identityAccessService.listPasskeys())
+      setConfirmRevokeId('')
+      setPasskeyStatus(copy.passkeyRevoked)
+    } catch (error) {
+      setPasskeyError(normalizeApiError(error).message)
+    } finally {
+      setPasskeyBusy(false)
+    }
+  }
+
   if (!me) return <AppEmptyState title={t('profile')} description={t('loadingIdentity')} />
 
   return (
@@ -189,6 +254,35 @@ const ProfileView = () => {
           </div>
         )}
       </AppSectionCard>
+
+      {!me.isGuest ? (
+        <AppSectionCard title={copy.passkeysTitle} subtitle={copy.passkeysSubtitle}>
+          <div className="space-y-4">
+            <p className="flex gap-2 rounded-xl bg-emerald-50 px-3 py-2.5 text-xs leading-5 text-emerald-900"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />{copy.passkeyPrivacy}</p>
+            {me.needsPasskey ? <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm font-semibold text-amber-900">{copy.addPasskeyRecommended}</p> : null}
+            {passkeys.length ? (
+              <ul className="space-y-2">
+                {passkeys.map((credential) => (
+                  <li key={credential.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-100 text-emerald-800"><KeyRound className="h-5 w-5" aria-hidden="true" /></span>
+                      <div className="min-w-0"><p className="truncate font-semibold text-slate-950">{credential.displayName}</p><p className="mt-1 text-xs text-slate-500">{copy.created}: {new Date(credential.createdUtc).toLocaleDateString()} · {copy.lastUsed}: {credential.lastUsedUtc ? new Date(credential.lastUsedUtc).toLocaleDateString() : '—'}</p></div>
+                    </div>
+                    <AppActionButton size="sm" variant={confirmRevokeId === credential.id ? 'danger' : undefined} disabled={passkeyBusy} onClick={() => void revokePasskey(credential.id)}><Trash2 className="mr-1.5 h-4 w-4" />{confirmRevokeId === credential.id ? copy.confirmRevoke : copy.revoke}</AppActionButton>
+                  </li>
+                ))}
+              </ul>
+            ) : <AppEmptyState title={copy.noPasskeys} description={copy.strongAuthHint} />}
+            <div className="grid gap-3 border-t border-slate-100 pt-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+              <label className="block"><span className="text-xs font-black uppercase tracking-wide text-slate-500">{copy.passkeyName}</span><input className="mt-1.5 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" maxLength={120} placeholder={copy.passkeyNamePlaceholder} value={passkeyName} onChange={(event) => setPasskeyName(event.target.value)} /></label>
+              <AppActionButton variant="primary" disabled={passkeyBusy} onClick={() => void addPasskey()}><Plus className="mr-1.5 h-4 w-4" />{copy.addPasskey}</AppActionButton>
+            </div>
+            <p className="text-xs leading-5 text-slate-500">{copy.strongAuthHint}</p>
+            {passkeyStatus ? <p className="text-sm font-semibold text-emerald-700" role="status">{passkeyStatus}</p> : null}
+            {passkeyError ? <p className="text-sm text-rose-700" role="alert">{passkeyError}</p> : null}
+          </div>
+        </AppSectionCard>
+      ) : null}
 
       {invitations.length > 0 ? (
         <AppSectionCard dense title={t('groupInvitations')} subtitle={t('groupInvitationsSubtitle')}>

@@ -37,10 +37,46 @@ public class LineLoginCommandHandlerTests
 
         jwtService.CreateToken(Arg.Any<Member>(), Arg.Any<bool>())
             .Returns(("member-token", expiresUtc));
+        jwtService.CreateToken(Arg.Any<Member>(), "line", "standard", Arg.Any<TimeSpan>())
+            .Returns(("member-token", expiresUtc));
+        jwtService.CreateToken(Arg.Any<Member>(), "line", "public_device", Arg.Any<TimeSpan>())
+            .Returns(("member-token", expiresUtc));
         jwtService.CreateVerifiedLineToken(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string?>())
             .Returns(("line-onboarding-token", expiresUtc));
 
         return jwtService;
+    }
+
+    [Fact]
+    public async Task Handle_OnPublicDevice_IssuesTwoHourNonStandardSessionToken()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var memberId = Guid.NewGuid();
+        dbContext.Members.Add(new Member
+        {
+            Id = memberId,
+            IsRegistered = true,
+            LineUID = "line-public-device",
+            DisplayName = "Public device member",
+            CreatedUtc = DateTime.UtcNow,
+            UpdatedUtc = DateTime.UtcNow
+        });
+        await dbContext.SaveChangesAsync();
+
+        var jwtService = CreateJwtService();
+        var handler = CreateHandler(
+            dbContext,
+            CreateLineLoginService(new LineTokenResult("line-public-device", "Member", null)),
+            jwtService);
+
+        var result = await handler.Handle(new LineLoginCommand(null, "auth-code", true), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        jwtService.Received(1).CreateToken(
+            Arg.Is<Member>(member => member.Id == memberId),
+            "line",
+            "public_device",
+            Arg.Is<TimeSpan>(lifetime => lifetime == TimeSpan.FromHours(2)));
     }
 
     [Fact]
@@ -77,7 +113,11 @@ public class LineLoginCommandHandlerTests
         Assert.Equal("member-token", result.Value.Token);
         Assert.NotNull(result.Value.ExpiresUtc);
 
-        jwtService.Received(1).CreateToken(Arg.Is<Member>(m => m.Id == existingMemberId), false);
+        jwtService.Received(1).CreateToken(
+            Arg.Is<Member>(m => m.Id == existingMemberId),
+            "line",
+            "standard",
+            Arg.Is<TimeSpan>(value => value == TimeSpan.FromDays(30)));
         jwtService.DidNotReceive().CreateVerifiedLineToken(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string?>());
     }
 

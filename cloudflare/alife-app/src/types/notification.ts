@@ -26,4 +26,6 @@ export type AppNotification = {
   category?: NotificationTaskCategory
   completionMode?: NotificationTaskCompletionMode
   details?: NotificationTaskDetails
+  sourceType?: string | null
+  sourceId?: string | null
 }

@@ -30,7 +30,10 @@ public class CreateVisitContactRequestCommandHandlerTests
                 "I would like to visit this Sunday.",
                 "/",
                 "127.0.0.1",
-                "unit-test"),
+                "unit-test",
+                PrivacyConsent: true,
+                PrivacyConsentVersion: "visitor-v1",
+                FormStartedUnixMilliseconds: DateTimeOffset.UtcNow.AddSeconds(-3).ToUnixTimeMilliseconds()),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -45,8 +48,38 @@ public class CreateVisitContactRequestCommandHandlerTests
         Assert.Equal(receiverId, notification.RecipientMemberId);
         Assert.Equal("visitor.contact.requested", notification.ActionType);
         Assert.Contains(request.Id.ToString(), notification.ActionDataJson);
-        Assert.Contains("Brother Visitor", notification.ActionDataJson);
+        Assert.DoesNotContain("Brother Visitor", notification.ActionDataJson);
         Assert.Contains("/admin/visit-requests", notification.ActionDataJson);
+        Assert.Empty(dbContext.Members.Where(member => member.Id != receiverId));
+    }
+
+    [Theory]
+    [InlineData(false, "", -3)]
+    [InlineData(true, "bot-value", -3)]
+    [InlineData(true, "", 0)]
+    public async Task Create_RejectsMissingConsentHoneypotAndTooFastSubmission(
+        bool privacyConsent,
+        string honeypot,
+        int secondsAgo)
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var handler = new CreateVisitContactRequestCommandHandler(dbContext);
+
+        var result = await handler.Handle(
+            new CreateVisitContactRequestCommand(
+                "Visitor", null, "visitor@example.com", null, "en",
+                "Please contact me.", "/onboarding", null, "unit-test",
+                RequestKind: "accessRecovery",
+                ReplyPreference: "email",
+                PrivacyConsent: privacyConsent,
+                PrivacyConsentVersion: "onboarding-v1",
+                Honeypot: honeypot,
+                FormStartedUnixMilliseconds: DateTimeOffset.UtcNow.AddSeconds(secondsAgo).ToUnixTimeMilliseconds()),
+            default);
+
+        Assert.Equal(AppResultStatus.ValidationError, result.Status);
+        Assert.Empty(await dbContext.VisitContactRequests.ToListAsync());
+        Assert.Empty(await dbContext.Members.ToListAsync());
     }
 
     [Fact]
@@ -138,7 +171,10 @@ public class CreateVisitContactRequestCommandHandlerTests
                 " ",
                 "/contact",
                 null,
-                null),
+                null,
+                PrivacyConsent: true,
+                PrivacyConsentVersion: "visitor-v1",
+                FormStartedUnixMilliseconds: DateTimeOffset.UtcNow.AddSeconds(-3).ToUnixTimeMilliseconds()),
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -163,7 +199,10 @@ public class CreateVisitContactRequestCommandHandlerTests
                 "Please contact me.",
                 "/contact",
                 null,
-                null),
+                null,
+                PrivacyConsent: true,
+                PrivacyConsentVersion: "visitor-v1",
+                FormStartedUnixMilliseconds: DateTimeOffset.UtcNow.AddSeconds(-3).ToUnixTimeMilliseconds()),
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -187,7 +226,10 @@ public class CreateVisitContactRequestCommandHandlerTests
                 "Please contact me.",
                 "/contact",
                 null,
-                null),
+                null,
+                PrivacyConsent: true,
+                PrivacyConsentVersion: "visitor-v1",
+                FormStartedUnixMilliseconds: DateTimeOffset.UtcNow.AddSeconds(-3).ToUnixTimeMilliseconds()),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -211,7 +253,10 @@ public class CreateVisitContactRequestCommandHandlerTests
                 "Please call me about Sunday service.",
                 "/contact",
                 null,
-                null),
+                null,
+                PrivacyConsent: true,
+                PrivacyConsentVersion: "visitor-v1",
+                FormStartedUnixMilliseconds: DateTimeOffset.UtcNow.AddSeconds(-3).ToUnixTimeMilliseconds()),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);

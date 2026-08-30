@@ -6,6 +6,7 @@ using Alife.Application.Notifications.Services;
 using Alife.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace Alife.Application.Notifications.Queries.ListCurrentNotificationTasks;
 
@@ -46,11 +47,6 @@ public sealed class ListCurrentNotificationTasksQueryHandler(IAlifeDbContext dbC
                 notification.UpdatedUtc,
                 notification.AnnouncementId))
             .ToListAsync(cancellationToken);
-
-        if (notifications.Count == 0)
-        {
-            return AppResult<IReadOnlyList<CurrentNotificationTaskDto>>.Success([]);
-        }
 
         var parsedNotifications = notifications
             .Select(notification => new ParsedNotification(
@@ -180,6 +176,11 @@ public sealed class ListCurrentNotificationTasksQueryHandler(IAlifeDbContext dbC
                 category = CurrentNotificationTaskPolicy.UrgentCategory;
                 completionMode = CurrentNotificationTaskPolicy.WorkflowCompletionMode;
             }
+            else if (notification.ActionType is "identity.activation.grant_conflict" or "identity.activation.identity_mismatch")
+            {
+                category = CurrentNotificationTaskPolicy.UrgentCategory;
+                completionMode = CurrentNotificationTaskPolicy.ReadCompletionMode;
+            }
             else if (item.ActionData.IsRoleScoped)
             {
                 if (notification.ReadUtc.HasValue || item.ActionData.RoleCodes.Count == 0 ||
@@ -231,7 +232,74 @@ public sealed class ListCurrentNotificationTasksQueryHandler(IAlifeDbContext dbC
                 actionUrl));
         }
 
-        return AppResult<IReadOnlyList<CurrentNotificationTaskDto>>.Success(currentTasks);
+        var applicationTasks = await dbContext.GroupMembershipApplications
+            .AsNoTracking()
+            .Where(application =>
+                (application.ApplicantMemberId == request.CurrentMemberId ||
+                 application.ChurchPersonApplication.LinkedMemberId == request.CurrentMemberId) &&
+                application.Status != MembershipApplicationStatus.Approved &&
+                application.Status != MembershipApplicationStatus.Rejected)
+            .Select(application => new
+            {
+                application.Id,
+                application.GroupId,
+                application.ApplicantMemberId,
+                application.Status,
+                application.SubmittedUtc,
+                application.UpdatedUtc
+            })
+            .OrderByDescending(application => application.UpdatedUtc)
+            .Take(100)
+            .ToListAsync(cancellationToken);
+
+        foreach (var application in applicationTasks)
+        {
+            var needsInformation = application.Status == MembershipApplicationStatus.NeedsInfo;
+            var actionUrl = $"/tasks?application={application.Id}";
+            var actionData = JsonSerializer.Serialize(new
+            {
+                title = new
+                {
+                    en = needsInformation ? "Membership application needs information" : "Membership application in review",
+                    zh = needsInformation ? "入组申请需要补充资料" : "入组申请正在审核"
+                },
+                body = new
+                {
+                    en = needsInformation
+                        ? "A leader requested more information. Open this application to reply."
+                        : "Church and group leaders are reviewing the same application.",
+                    zh = needsInformation
+                        ? "负责人请求补充资料，请打开申请回复。"
+                        : "教会与小组负责人正在审核同一份申请。"
+                },
+                actionUrl,
+                sourceType = "membershipApplication",
+                sourceId = application.Id
+            });
+            currentTasks.Add(new CurrentNotificationTaskDto(
+                application.Id,
+                request.CurrentMemberId,
+                application.ApplicantMemberId ?? request.CurrentMemberId,
+                application.GroupId,
+                null,
+                application.SubmittedUtc,
+                "membership.application",
+                actionData,
+                null,
+                null,
+                null,
+                application.SubmittedUtc,
+                application.UpdatedUtc,
+                null,
+                CurrentNotificationTaskPolicy.UrgentCategory,
+                CurrentNotificationTaskPolicy.WorkflowCompletionMode,
+                actionUrl,
+                "membershipApplication",
+                application.Id));
+        }
+
+        return AppResult<IReadOnlyList<CurrentNotificationTaskDto>>.Success(
+            currentTasks.OrderByDescending(item => item.UpdatedUtc).ToArray());
     }
 
     private sealed record CandidateNotification(

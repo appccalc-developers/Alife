@@ -15,7 +15,7 @@ The backend runs as an Azure Functions v4 isolated worker using .NET 10 and ASP.
 | Language/runtime | C# / .NET 10 |
 | Application pattern | Layered architecture with Domain, Application, Infrastructure, and Api projects |
 | Persistence | EF Core with SQL Server / Azure SQL-compatible schema |
-| Authentication | JWT in HttpOnly cookie `alife_auth` |
+| Authentication | Discoverable Passkeys with LINE compatibility; JWT in HttpOnly cookie `alife_auth` |
 | Authorization | Current database-backed member and group role checks |
 | Backend cache | .NET HybridCache in read services and invalidation services |
 | API documentation | Swagger/OpenAPI in development at `/api/swagger/v1/swagger.json` and `/api/help` |
@@ -158,16 +158,17 @@ Azure Functions HTTP trigger
 
 Authentication and authorization happen before controller actions execute.
 
-## Authentication
+## Authentication And Identity Entry
 
 Alife stores the JWT in the HttpOnly cookie `alife_auth`. The backend configures JwtBearer authentication to read the token from that cookie.
 
 Typical flow:
 
 ```text
-Member signs in
-  -> backend validates login source
-  -> backend issues JWT
+Member opens /onboarding
+  -> backend binds intent and a safe return path to a short-lived flow cookie
+  -> WebAuthn validates a discoverable credential with user verification
+  -> backend issues JWT with amr, auth_time, and session_kind
   -> JWT is stored in HttpOnly alife_auth cookie
   -> future API requests include the cookie
   -> JwtBearer validates issuer, audience, expiry, algorithm, and signing key
@@ -175,6 +176,10 @@ Member signs in
 ```
 
 Protected API calls return `401` or `403`; they do not redirect browser clients.
+
+`IPasskeyService` isolates Fido2 4.0.1 in Infrastructure. Ceremonies expire after five minutes and are consumed once. Standard sessions can persist for 30 days; public-device sessions are non-persistent and last at most two hours; internal Alpha sessions are non-persistent and last at most twelve hours. LINE OAuth is an explicit compatibility route whose single-use state is bound to `OnboardingFlow`.
+
+Activation, group QR, and anonymous response tokens use selector/secret pairs. Raw secrets exist only in URL fragments and request bodies; SQL stores HMAC hashes. Activation and group applications are separate workflows: neither anonymous submission nor a phone match creates an account, contact association, role, or membership without the required human approvals.
 
 ## Authorization
 
@@ -192,9 +197,12 @@ Rules to preserve:
 
 | Area | Responsibility |
 |---|---|
-| Auth | Login, logout, dev/admin session |
-| Members | Current member, LINE callback, registration, member listing |
+| Auth | Passkey authentication/registration, credential management, logout |
+| Onboarding | Resumable identity flow, activation, QR application, anonymous replies |
+| Members | Current member, LINE compatibility callback/registration, member listing |
 | Groups | Church root, group detail, subgroups, join/invite/approve/reject/role workflows |
+| Identity management | Pre-registration activations, QR lifecycle, group applications, church-person applications |
+| Internal Alpha | Configuration-whitelisted accounts; disabled unless explicitly enabled in the current environment |
 | Pages | Group-owned working pages, submitted review copies, published snapshots, create/update/submit/delete |
 | Sections | Page section creation, update, deletion, link replacement |
 | Events | Group event listing, creation, update, deletion |
@@ -240,6 +248,8 @@ dotnet run --project src/Alife.DbMigrator
 ```
 
 Schema changes should be explicit migrations. For alpha stability, avoid hidden implicit schema changes or broad data reshaping.
+
+The identity-entry migration adds Passkey credentials/ceremonies, onboarding flows, activation invitations/grants, group join invitations, two-stage applications/history/reply tokens, rate-limit buckets, a random member WebAuthn handle, and visitor consent metadata. It includes unique credential, current-QR, active-application, row-version, and one-time-token constraints. Generate and review this migration locally; do not apply it to a shared database without explicit approval.
 
 ## Backend Cache
 
@@ -297,6 +307,12 @@ Important settings:
 | `LineLogin__ClientId` | LINE Login client id |
 | `LineLogin__ClientSecret` | LINE Login client secret |
 | `LineLogin__RedirectUri` | LINE Login callback URL |
+| `Passkeys__Enabled`, `Passkeys__RpId`, `Passkeys__RpName`, `Passkeys__Origins` | WebAuthn availability and relying-party validation |
+| `TokenProtection__SigningKey` | HMAC key for stored one-time token and OAuth-state hashes |
+| `RateLimiting__HashKey` | Separate HMAC key for SQL rate-limit discriminators |
+| `TrustedProxyNetworks` | CIDRs allowed to supply `CF-Connecting-IP` |
+| `ActivationMessages__Enabled`, `ActivationMessages__ExposeLinks` | Delivery capability; preview links may be exposed only in Development |
+| `AlphaLogin__Enabled`, `AlphaLogin__Accounts` | Internal whitelist; explicit enablement is honored in every environment |
 | `Youtube__ApiKey` | YouTube sermon sync API key |
 | `Youtube__PlaylistId` | YouTube sermon playlist |
 | `Cloudflare__ApiToken` | Cloudflare cache refresh API token |

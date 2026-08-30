@@ -29,6 +29,7 @@ import { buildScopedEventDetailPath } from '../utils/eventRoutes'
 import useConfirmation from '../hooks/useConfirmation'
 import CreateSubgroupModal from '../components/group/CreateSubgroupModal'
 import type { LocalizedText } from '../types'
+import GroupApplicationsPanel from '../components/group/GroupApplicationsPanel'
 
 const shortId = (value: string) => (value.length > 8 ? value.slice(0, 8) : value)
 
@@ -51,9 +52,9 @@ const formatPlatformRole = (role: string | undefined | null, language: string) =
   return ''
 }
 
-type ManageSection = 'announcements' | 'contacts' | 'members' | 'events' | 'albums' | 'pages' | 'subgroups' | 'group'
+type ManageSection = 'announcements' | 'applications' | 'contacts' | 'members' | 'events' | 'albums' | 'pages' | 'subgroups' | 'group'
 
-const manageSectionKeys: ManageSection[] = ['members', 'contacts', 'subgroups', 'events', 'announcements', 'albums', 'pages', 'group']
+const manageSectionKeys: ManageSection[] = ['members', 'applications', 'contacts', 'subgroups', 'events', 'announcements', 'albums', 'pages', 'group']
 
 const normalizeManageSection = (value: string | null): ManageSection =>
   manageSectionKeys.includes(value as ManageSection) ? value as ManageSection : 'group'
@@ -67,6 +68,8 @@ const managementCopy = (language: string, isChurch?: boolean) => {
       back: `返回${workspace}`,
       members: '成员',
       membersHint: '审批、邀请、角色和成员状态',
+      applications: '申请',
+      applicationsHint: '二维码、个人身份与两阶段入组审批',
       contacts: '联系人',
       contactsHint: '联系人资料、公开范围和留言入口',
       events: '活动',
@@ -108,6 +111,8 @@ const managementCopy = (language: string, isChurch?: boolean) => {
       back: `Back to ${workspace.toLowerCase()}`,
       members: 'Members',
       membersHint: 'Approvals, invitations, roles, and member status',
+      applications: 'Applications',
+      applicationsHint: 'QR invitations, identity review, and two-stage approval',
       contacts: 'Contacts',
       contactsHint: 'Profiles, visibility, and inquiry entry points',
       events: 'Events',
@@ -935,6 +940,7 @@ const GroupManageView = ({
   const groupManagementSections: Array<{ key: ManageSection; label: string; hint: string }> = [
     { key: 'group', label: language === 'zh' ? '资料与设置' : 'Profile & settings', hint: language === 'zh' ? '名称、介绍、带领团队与访问规则' : 'Name, description, leadership, and access' },
     { key: 'members', label: copy.members, hint: copy.membersHint },
+    { key: 'applications', label: copy.applications, hint: copy.applicationsHint },
     { key: 'contacts', label: copy.contacts, hint: copy.contactsHint },
     { key: 'subgroups', label: copy.subgroups, hint: copy.subgroupsHint },
     { key: 'albums', label: copy.albums, hint: copy.albumsHint },
@@ -1245,6 +1251,10 @@ const GroupManageView = ({
                   onSetCoLeader={(memberId, isCoLeader) => setCoLeader(memberId, isCoLeader).catch(() => setStatusMessage(t('updateCoLeaderFailed')))}
                   onProfileUpdated={() => refreshMemberships().then(() => undefined)}
                 />
+              ) : null}
+
+              {activeSection === 'applications' ? (
+                <GroupApplicationsPanel groupId={groupId} language={language} />
               ) : null}
 
               {activeSection === 'contacts' ? (

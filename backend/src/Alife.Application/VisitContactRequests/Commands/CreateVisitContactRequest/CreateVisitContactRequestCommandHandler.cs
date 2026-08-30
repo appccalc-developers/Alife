@@ -39,6 +39,9 @@ public sealed class CreateVisitContactRequestCommandHandler(IAlifeDbContext dbCo
         var message = NormalizeLength(request.Message, 2000);
         var preferredLanguage = NormalizeLanguage(request.PreferredLanguage);
         var sourcePage = NormalizeLength(request.SourcePage, 500);
+        var requestKind = NormalizeRequestKind(request.RequestKind);
+        var replyPreference = NormalizeReplyPreference(request.ReplyPreference);
+        var consentVersion = NormalizeOptionalLength(request.PrivacyConsentVersion, 50);
 
         if (string.IsNullOrWhiteSpace(displayName))
         {
@@ -65,6 +68,14 @@ public sealed class CreateVisitContactRequestCommandHandler(IAlifeDbContext dbCo
             return AppResult<VisitContactRequestDto>.Validation("Message is required.");
         }
 
+        if (!request.PrivacyConsent || string.IsNullOrWhiteSpace(consentVersion) ||
+            !string.IsNullOrWhiteSpace(request.Honeypot) ||
+            request.FormStartedUnixMilliseconds <= 0 ||
+            DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - request.FormStartedUnixMilliseconds < 2000)
+        {
+            return AppResult<VisitContactRequestDto>.Validation("Visitor request validation failed.");
+        }
+
         var now = DateTime.UtcNow;
         var entity = new VisitContactRequest
         {
@@ -74,11 +85,15 @@ public sealed class CreateVisitContactRequestCommandHandler(IAlifeDbContext dbCo
             Email = email,
             Phone = phone,
             PreferredLanguage = preferredLanguage,
+            RequestKind = requestKind,
+            ReplyPreference = replyPreference,
+            PrivacyConsentVersion = consentVersion,
+            PrivacyConsentedUtc = now,
             Message = message,
             SourcePage = sourcePage,
             Status = "new",
             SubmittedUtc = now,
-            IpAddress = NormalizeLength(request.IpAddress, 64),
+            IpAddress = null,
             UserAgent = NormalizeLength(request.UserAgent, 500),
             CreatedUtc = now,
             UpdatedUtc = now
@@ -109,13 +124,7 @@ public sealed class CreateVisitContactRequestCommandHandler(IAlifeDbContext dbCo
                         en = $"{displayName} left contact details from a public page.",
                         zh = $"{displayName} 在公开页面留下了联系方式。"
                     },
-                    displayName,
-                    salutation,
-                    email,
-                    phone,
-                    preferredLanguage,
-                    message,
-                    sourcePage,
+                    requestKind,
                     actionUrl = "/admin/visit-requests"
                 }),
                 CreatedUtc = now,
@@ -163,7 +172,11 @@ public sealed class CreateVisitContactRequestCommandHandler(IAlifeDbContext dbCo
             entity.HandledByMemberId,
             entity.HandledByMember?.DisplayName,
             entity.CreatedUtc,
-            entity.UpdatedUtc);
+            entity.UpdatedUtc,
+            entity.RequestKind,
+            entity.ReplyPreference,
+            entity.PrivacyConsentVersion,
+            entity.PrivacyConsentedUtc);
 
     private static string NormalizeLength(string? value, int maxLength)
     {
@@ -195,4 +208,22 @@ public sealed class CreateVisitContactRequestCommandHandler(IAlifeDbContext dbCo
         var normalized = NormalizeLength(value, 20).ToLowerInvariant();
         return normalized is "zh" or "en" or "bilingual" ? normalized : null;
     }
+
+    private static string NormalizeRequestKind(string? value)
+        => NormalizeLength(value, 50).ToLowerInvariant() switch
+        {
+            "accessrecovery" => "accessRecovery",
+            "activationhelp" => "activationHelp",
+            _ => "visitorMessage"
+        };
+
+    private static string? NormalizeReplyPreference(string? value)
+        => NormalizeLength(value, 30).ToLowerInvariant() switch
+        {
+            "email" => "email",
+            "phone" => "phone",
+            "sms" => "sms",
+            "line" => "line",
+            _ => null
+        };
 }

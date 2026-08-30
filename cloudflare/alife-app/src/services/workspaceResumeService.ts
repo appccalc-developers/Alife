@@ -17,13 +17,18 @@ const isNonResumableLocation = (pathname: string) =>
   pathname.startsWith('/public/pages/') ||
   pathname === '/enter' ||
   pathname === '/onboarding' ||
+  pathname === '/internal/alpha-login' ||
+  /^\/(activate|join|application)\/[^/]+$/.test(pathname) ||
   pathname === '/groups/select' ||
   pathname === '/groups/select/tree' ||
   pathname === '/groups/join' ||
   /^\/groups\/[^/]+\/join$/.test(pathname)
 
 const isSafeInternalPath = (value: string) =>
-  value.startsWith('/') && !value.startsWith('//') && !/[\u0000-\u001f\u007f]/.test(value)
+  value.startsWith('/') &&
+  !value.startsWith('//') &&
+  !value.includes('\\') &&
+  !/[\u0000-\u001f\u007f]/.test(value)
 
 export const toWorkspaceLocation = ({ pathname, search = '', hash = '' }: WorkspaceLocation) => {
   if (!isSafeInternalPath(pathname) || isNonResumableLocation(pathname)) {

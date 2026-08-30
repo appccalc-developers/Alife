@@ -57,7 +57,7 @@ public class NotificationsControllerTests
         var tasks = Assert.IsAssignableFrom<IEnumerable<CurrentNotificationTaskDto>>(ok.Value).ToList();
         Assert.Single(tasks);
         Assert.Equal(memberId, tasks[0].RecipientMemberId);
-        Assert.Equal("private, no-cache", controller.Response.Headers.CacheControl);
+        Assert.Equal("private, no-store", controller.Response.Headers.CacheControl);
         Assert.Contains("Cookie", controller.Response.Headers.Vary.ToString());
         Assert.Contains("Authorization", controller.Response.Headers.Vary.ToString());
     }

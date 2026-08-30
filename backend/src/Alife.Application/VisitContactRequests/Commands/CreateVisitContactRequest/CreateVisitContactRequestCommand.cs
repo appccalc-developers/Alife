@@ -13,4 +13,10 @@ public sealed record CreateVisitContactRequestCommand(
     string? Message,
     string? SourcePage,
     string? IpAddress,
-    string? UserAgent) : IRequest<AppResult<VisitContactRequestDto>>;
+    string? UserAgent,
+    string RequestKind = "visitorMessage",
+    string? ReplyPreference = null,
+    bool PrivacyConsent = false,
+    string? PrivacyConsentVersion = null,
+    string? Honeypot = null,
+    long FormStartedUnixMilliseconds = 0) : IRequest<AppResult<VisitContactRequestDto>>;
