@@ -12,6 +12,8 @@ import { ReviewSession } from './features/events/reviewer'
 
 export type Env = {
   API_PROXY_TARGET?: string
+  /** Optional images API origin override for local development. */
+  IMAGES_API_PROXY_TARGET?: string
   /** Global second-level cache for public API responses and public page metadata. */
   API_CACHE?: KVNamespace
   /** Comma-separated frontend origins allowed for credentialed CORS. */

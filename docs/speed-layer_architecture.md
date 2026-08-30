@@ -15,7 +15,7 @@ The speed layer improves latency and availability without replacing the backend 
 | Language | TypeScript |
 | App assets | Cloudflare Workers static assets from `cloudflare/alife-app/dist` |
 | API origin | `API_PROXY_TARGET`, defaulting to `https://api.ccalc.live` |
-| Image origin | `/images/*` proxy to `https://images.ccalc.live` by default |
+| Image origin | `IMAGES_API_PROXY_TARGET`, defaulting to `https://images.ccalc.live` |
 | Edge cache | Cloudflare Cache API (L1) plus Workers KV (public-page L2) |
 | AI sessions | Durable Objects backed by Worker classes |
 | AI provider | Gemini through `GEMINI_API_KEY` |
@@ -85,7 +85,7 @@ This means the Worker runs first for API and image routes, while regular app rou
 `proxyHandler.ts` forwards allowed proxy paths:
 
 - `/api/*` to `API_PROXY_TARGET`.
-- `/images` and `/images/*` to the image API origin.
+- `/images` and `/images/*` to `IMAGES_API_PROXY_TARGET`, or the production image origin when no override is configured.
 - `/proxy/*` after stripping `/proxy`.
 
 It also handles CORS preflight for proxied routes and forwards credentials/headers needed for cookie auth and conditional GETs.
@@ -286,6 +286,7 @@ Durable Objects store temporary conversation and draft state. Final event, enrol
 | `assets.directory` | Built frontend assets |
 | `assets.run_worker_first` | API/image routes handled by Worker before assets |
 | `API_PROXY_TARGET` | Backend API origin |
+| `IMAGES_API_PROXY_TARGET` | Optional image API origin override used by the standard local stack |
 | `GEMINI_MODEL` | Gemini model override |
 | `GEMINI_API_KEY` | Required Worker secret |
 | `API_CACHE` | Workers KV binding used as the global public-page L2 cache |
@@ -328,6 +329,15 @@ Before caching a new API path, decide:
 Never cache private user-specific data in a public shared cache key.
 
 ## Local Development
+
+The standard repository-root command starts the frontend, backend, speed layer,
+and images API together. It points `IMAGES_API_PROXY_TARGET` at port `8788` and
+reuses `.local-dev/images-wrangler` so stored `/images/...` objects survive
+restarts:
+
+```powershell
+.\alife-dev.cmd -SkipSql
+```
 
 From the frontend package:
 

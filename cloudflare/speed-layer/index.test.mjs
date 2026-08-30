@@ -1723,6 +1723,18 @@ test('GET /images object paths are proxied to images.ccalc.live object paths', a
   assert.equal(fetchCalls[0].url, 'https://images.ccalc.live/folder/hero.png')
 })
 
+test('GET /images object paths use the configured images API origin', async () => {
+  originResponses.push(new Response('image-bytes', { status: 200 }))
+
+  const response = await dispatch('https://ccalc.live/images/folder/hero.png', {
+    env: { IMAGES_API_PROXY_TARGET: 'http://127.0.0.1:8788' },
+  })
+
+  assert.equal(response.status, 200)
+  assert.equal(fetchCalls.length, 1)
+  assert.equal(fetchCalls[0].url, 'http://127.0.0.1:8788/folder/hero.png')
+})
+
 test('HEAD /images object paths are proxied to images.ccalc.live object paths', async () => {
   originResponses.push(new Response(null, {
     status: 200,
