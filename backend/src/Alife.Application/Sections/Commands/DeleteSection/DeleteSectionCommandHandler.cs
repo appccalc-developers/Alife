@@ -19,6 +19,7 @@ public sealed class DeleteSectionCommandHandler(
 	{
 		var section = await dbContext.Sections
 			.Include(x => x.Page)
+				.ThenInclude(x => x.Sections)
 			.FirstOrDefaultAsync(x => x.Id == request.SectionId, cancellationToken);
 
 		if (section is null)
@@ -35,8 +36,20 @@ public sealed class DeleteSectionCommandHandler(
 		section.IsDeleted = true;
 		var now = DateTime.UtcNow;
 		section.Page.UpdatedUtc = now;
-		await PagePublicationReviewState.MarkPendingIfPublicAsync(dbContext, section.Page, now, cancellationToken);
-		await dbContext.SaveChangesAsync(cancellationToken);
+		await PagePublicationReviewState.SubmitCopyIfPublicAsync(
+			dbContext,
+			section.Page,
+			request.CurrentMemberId,
+			now,
+			cancellationToken);
+		try
+		{
+			await dbContext.SaveChangesAsync(cancellationToken);
+		}
+		catch (DbUpdateConcurrencyException)
+		{
+			return AppResult<bool>.Conflict(PagePublicationReviewState.ConcurrentChangeMessage);
+		}
 		await InvalidatePageAsync(section.Page, cancellationToken);
 
 		return AppResult<bool>.Success(true);

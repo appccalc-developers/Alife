@@ -42,17 +42,33 @@ public sealed class ApprovePagePublicationCommandHandler(
 
         var now = DateTime.UtcNow;
         var ownerGroupId = page.OwnerGroupId;
-        var title = ReadTextMap(page.TitleJson);
-        var description = ReadTextMap(page.DescriptionJson);
+        var review = await dbContext.PagePublicationReviews
+            .FirstOrDefaultAsync(x => x.PageId == page.Id, cancellationToken);
+        if (review is null)
+        {
+            return AppResult<PagePublicationReviewActionDto>.Conflict(
+                "A submitted publication copy is required before this page can be approved.");
+        }
+
+        var snapshotJson = review.Status == PagePublicationReviewStatus.Approved
+            ? review.PublishedSnapshotJson ?? review.SubmittedSnapshotJson
+            : review.SubmittedSnapshotJson;
+        var snapshot = PagePublicationSnapshots.Read(snapshotJson);
+        if (snapshot is null)
+        {
+            return AppResult<PagePublicationReviewActionDto>.Conflict("The submitted page copy is invalid. Ask the group to submit it again.");
+        }
+
+        var candidate = PagePublicationSnapshots.ToDetailDto(snapshot);
+        var title = candidate.Title;
+        var description = candidate.Description ?? new Dictionary<string, string>();
         var ownerGroupName = ReadTextMap(page.OwnerGroup?.NameJson);
         var accessName = NormalizeAccessName(request.AccessName, ownerGroupName, title);
         var cardText = NormalizeCardText(request.CardText, description, title);
-        var cardImageUrl = PagePublicationReviewDefaults.ExtractFirstSectionImage(page.Sections);
-        var review = await dbContext.PagePublicationReviews
-            .FirstOrDefaultAsync(x => x.PageId == page.Id, cancellationToken);
-        var previousStatus = review?.Status.ToString() ?? "Pending";
+        var cardImageUrl = PagePublicationReviewDefaults.ExtractFirstSectionImage(snapshot.Sections);
+        var previousStatus = review.Status.ToString();
         var requestedPrimaryMenuName = request.PrimaryMenuName;
-        if (requestedPrimaryMenuName is null && review?.Status == PagePublicationReviewStatus.Approved)
+        if (requestedPrimaryMenuName is null && review?.PrimaryMenuNameJson is not null)
         {
             requestedPrimaryMenuName = ReadTextMap(review.PrimaryMenuNameJson);
         }
@@ -86,26 +102,20 @@ public sealed class ApprovePagePublicationCommandHandler(
             await dbContext.PagePrimaryMenus.AddAsync(primaryMenu, cancellationToken);
         }
 
-        if (review is null)
-        {
-            review = new PagePublicationReview
-            {
-                Id = Guid.NewGuid(),
-                PageId = page.Id,
-                CreatedUtc = now
-            };
-            dbContext.PagePublicationReviews.Add(review);
-        }
-
-        if (review.PrimaryMenuId != primaryMenu.Id)
+        if (review!.PrimaryMenuId != primaryMenu!.Id)
         {
             review.MenuSortOrder = (await dbContext.PagePublicationReviews
-                .Where(x => x.PrimaryMenuId == primaryMenu.Id && x.Status == PagePublicationReviewStatus.Approved)
+                .Where(x =>
+                    x.PrimaryMenuId == primaryMenu.Id &&
+                    (x.PublishedSnapshotJson != null || x.Status == PagePublicationReviewStatus.Approved))
                 .Select(x => (int?)x.MenuSortOrder)
                 .MaxAsync(cancellationToken) ?? -1) + 1;
         }
 
         review.Status = PagePublicationReviewStatus.Approved;
+        review.PublishedSnapshotJson = snapshotJson;
+        review.PublishedByMemberId = request.CurrentMemberId;
+        review.PublishedUtc = now;
         review.PrimaryMenuId = primaryMenu.Id;
         review.PrimaryMenuNameJson = primaryMenu.NameJson;
         review.AccessNameJson = WriteTextMap(accessName);
@@ -147,19 +157,27 @@ public sealed class ApprovePagePublicationCommandHandler(
             OccurredUtc = now
         }, cancellationToken);
 
-        await dbContext.SaveChangesAsync(cancellationToken);
-        await pageCacheInvalidationService.RemoveDetailAsync(page.Id, cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return AppResult<PagePublicationReviewActionDto>.Conflict(PagePublicationReviewState.ConcurrentChangeMessage);
+        }
         await pageCacheInvalidationService.RemoveGroupPagesAsync(ownerGroupId, cancellationToken);
+        await pageCacheInvalidationService.RemovePublishedDetailAsync(page.Id, cancellationToken);
+        await pageCacheInvalidationService.RemovePublicAsync(cancellationToken);
 
         return AppResult<PagePublicationReviewActionDto>.Success(new PagePublicationReviewActionDto(
             true,
             page.Id,
             ownerGroupId,
-            ToDto(page, primaryMenu, review.MenuSortOrder, primaryMenuName, accessName, cardImageUrl, cardText)));
+            ToDto(snapshot, primaryMenu, review.MenuSortOrder, primaryMenuName, accessName, cardImageUrl, cardText)));
     }
 
     private static PageDto ToDto(
-        Page page,
+        PagePublicationSnapshot snapshot,
         PagePrimaryMenu primaryMenu,
         int menuSortOrder,
         IReadOnlyDictionary<string, string> primaryMenuName,
@@ -167,15 +185,15 @@ public sealed class ApprovePagePublicationCommandHandler(
         string? cardImageUrl,
         IReadOnlyDictionary<string, string> cardText)
         => new(
-            page.Id,
-            page.OwnerGroupId,
-            page.CreatedByMemberId,
-            ReadTextMap(page.TitleJson),
-            ReadTextMap(page.DescriptionJson),
-            page.TagsJson,
-            page.TitleDisplayStyle,
-            page.Visibility,
-            page.UpdatedUtc,
+            snapshot.PageId,
+            snapshot.OwnerGroupId,
+            snapshot.CreatedByMemberId,
+            ReadTextMap(snapshot.TitleJson),
+            ReadTextMap(snapshot.DescriptionJson),
+            snapshot.TagsJson,
+            snapshot.TitleDisplayStyle,
+            PageVisibility.Public,
+            snapshot.ContentUpdatedUtc,
             accessName,
             CardImageUrl: cardImageUrl,
             CardText: cardText,

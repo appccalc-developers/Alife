@@ -61,7 +61,7 @@ From the repository root, use the Windows wrapper when you want the normal local
 .\alife-dev.cmd -SkipSql
 ```
 
-That starts `backend/src/Alife.Api`, `cloudflare/speed-layer`, and `cloudflare/alife-app`. Azurite and scheduled Functions are skipped for the normal UI/API workflow. Use `-SkipSql` when Docker Desktop has already started the SQL Server container. When the database schema or seed data needs refreshing, run:
+That starts `backend/src/Alife.Api`, `cloudflare/images-api`, `cloudflare/speed-layer`, and `cloudflare/alife-app`. The images API reuses the local R2 state under `.local-dev/images-wrangler`, and the Vite app serves those objects through stable `/images/...` paths. Azurite and scheduled Functions are skipped for the normal UI/API workflow. Use `-SkipSql` when Docker Desktop has already started the SQL Server container. When the database schema or seed data needs refreshing, run:
 
 ```powershell
 .\alife-dev.cmd -SkipSql -ApplyMigrations
@@ -74,6 +74,7 @@ Useful options:
 ```powershell
 .\alife-dev.cmd                         # also starts the SQL Server container
 .\alife-dev.cmd -SkipSql -UseAzurite     # also start local Azure Storage emulator
+.\alife-dev.cmd -SkipImagesApi           # skip the local images worker
 .\alife-dev.cmd -SkipSpeedLayer          # API + Vite only
 .\alife-dev.cmd -RebuildFrontendAssets   # rebuild dist before starting speed-layer
 ```
@@ -101,6 +102,7 @@ The script writes service logs under `.local-dev/logs`. The local URLs are:
 |---|---|
 | Frontend Vite app | `http://localhost:5173` |
 | Cloudflare speed layer | `http://localhost:8787` |
+| Cloudflare images API | `http://127.0.0.1:8788` |
 | Azure Functions API | `http://127.0.0.1:7071` |
 
 ### 1. Start SQL Server
@@ -179,7 +181,7 @@ npx wrangler deploy
 - Hierarchical church/group model with public, protected, and private access types.
 - Group membership workflows: request, invite, accept, decline, approve, reject, co-leader assignment, kick, subgroup creation, and subgroup co-leader claim.
 - Bilingual group and page content using JSON-shaped localized text.
-- Page builder with global/group pages, draft/group/public visibility, structured sections, and link metadata.
+- Page builder with group-owned working pages, draft/group/public visibility, structured sections, and separate submitted and published snapshots.
 - Sermon listing and admin-triggered YouTube sermon synchronization.
 - Group events with enrollment and review APIs.
 - Notification messages with read and reply workflows.
@@ -225,8 +227,7 @@ All identity ceremonies, onboarding flows, activations, applications, visitor re
 | Events | `GET /api/groups/{groupId}/events`, `POST /api/groups/{groupId}/events`, `PUT /api/events/{id}` |
 | Enrollments/reviews | `GET/POST /api/events/{eventId}/enrollments`, `GET/POST /api/events/{eventId}/reviews` |
 | Notifications | `GET/POST /api/notifications`, `POST /api/notifications/{id}/reply`, `POST /api/notifications/{id}/read` |
-| Admin | `/api/admin/member-activations/*`, `/api/admin/person-applications/*`, sermon sync and Cloudflare cache refresh |
-| Internal Alpha | `GET /api/internal/alpha-login/accounts`, `POST /api/internal/alpha-login` (configuration-gated in every environment) |
+| Admin | `POST /api/admin/sermons/sync`, `POST /api/admin/groups/{groupId}/cloudflare-cache/refresh` |
 | AI sessions | `/api/events/session/*`, `/api/enrollments/session/*`, `/api/reviews/session/*` |
 
 ## Configuration

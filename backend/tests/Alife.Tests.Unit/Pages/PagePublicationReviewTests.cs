@@ -5,13 +5,17 @@ using Alife.Application.Admin.Commands.DeletePagePrimaryMenu;
 using Alife.Application.Admin.Commands.ReturnPagePublication;
 using Alife.Application.Admin.Commands.SavePageMenuLayout;
 using Alife.Application.Admin.Commands.UpdatePagePrimaryMenu;
+using Alife.Application.Admin.Commands.UpdatePagePublicationCopy;
 using Alife.Application.Admin.Queries.ListPageReviewCandidates;
+using Alife.Application.Groups.Services;
+using Alife.Application.Pages.Dtos;
 using Alife.Application.Pages.Services;
 using Alife.Domain.Entities;
 using Alife.Domain.Enums;
 using Alife.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
+using System.Text.Json;
 
 namespace Alife.Tests.Unit.Pages;
 
@@ -138,6 +142,7 @@ public class PagePublicationReviewTests
                 UpdatedUtc = now.AddMinutes(7)
             });
         await dbContext.SaveChangesAsync();
+        await AddPendingReviewAsync(dbContext, pageId, authorId, now.AddMinutes(3));
         var handler = new ListPageReviewCandidatesQueryHandler(dbContext);
 
         var result = await handler.Handle(new ListPageReviewCandidatesQuery(reviewerId), CancellationToken.None);
@@ -181,6 +186,38 @@ public class PagePublicationReviewTests
         var groupId = Guid.NewGuid();
         var pageId = Guid.NewGuid();
         await SeedReviewerScenarioAsync(dbContext, reviewerId, authorId, groupId, pageId);
+        var now = DateTime.UtcNow;
+        var page = await dbContext.Pages.SingleAsync(candidate => candidate.Id == pageId);
+        var publishedSnapshot = PagePublicationSnapshots.Capture(page, [], now);
+        var primaryMenu = new PagePrimaryMenu
+        {
+            Id = Guid.NewGuid(),
+            NameJson = "{\"en\":\"Ministries\",\"zh\":\"事工\"}",
+            SortOrder = 1,
+            CreatedUtc = now,
+            UpdatedUtc = now
+        };
+        dbContext.PagePrimaryMenus.Add(primaryMenu);
+        dbContext.PagePublicationReviews.Add(new PagePublicationReview
+        {
+            Id = Guid.NewGuid(),
+            PageId = pageId,
+            Status = PagePublicationReviewStatus.Pending,
+            PrimaryMenuId = primaryMenu.Id,
+            PrimaryMenuNameJson = primaryMenu.NameJson,
+            MenuSortOrder = 1,
+            AccessNameJson = "{\"en\":\"Review me\",\"zh\":\"请审核\"}",
+            CardTextJson = "{\"en\":\"Published card\",\"zh\":\"已发布卡片\"}",
+            SubmittedSnapshotJson = publishedSnapshot,
+            SubmittedByMemberId = authorId,
+            SubmittedUtc = now,
+            PublishedSnapshotJson = publishedSnapshot,
+            PublishedByMemberId = reviewerId,
+            PublishedUtc = now,
+            CreatedUtc = now,
+            UpdatedUtc = now
+        });
+        await dbContext.SaveChangesAsync();
         var cacheInvalidation = Substitute.For<IPageCacheInvalidationService>();
         var returnHandler = new ReturnPagePublicationCommandHandler(dbContext, cacheInvalidation);
         var listHandler = new ListPageReviewCandidatesQueryHandler(dbContext);
@@ -201,13 +238,17 @@ public class PagePublicationReviewTests
             review.PageId == pageId &&
             review.Status == PagePublicationReviewStatus.Returned &&
             review.ReturnReason == "Please add bilingual contact details.");
+        var returnedReview = await dbContext.PagePublicationReviews.SingleAsync(review => review.PageId == pageId);
+        Assert.Equal(publishedSnapshot, returnedReview.PublishedSnapshotJson);
+        Assert.Equal(primaryMenu.Id, returnedReview.PrimaryMenuId);
+        Assert.Equal("{\"en\":\"Published card\",\"zh\":\"已发布卡片\"}", returnedReview.CardTextJson);
         Assert.Contains(dbContext.AuditLogs, log =>
             log.Action == "page.publication-review.return" &&
             log.EntityId == pageId &&
             log.MetadataJson != null &&
             log.MetadataJson.Contains("Please add bilingual contact details."));
-        await cacheInvalidation.Received(1).RemoveDetailAsync(pageId, Arg.Any<CancellationToken>());
         await cacheInvalidation.Received(1).RemoveGroupPagesAsync(groupId, Arg.Any<CancellationToken>());
+        await cacheInvalidation.DidNotReceive().RemovePublishedDetailAsync(pageId, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -237,6 +278,11 @@ public class PagePublicationReviewTests
                 ContentJson = "{\"backgroundImageUrl\":\"/media/second-card.jpg\"}"
             });
         await dbContext.SaveChangesAsync();
+        await AddPendingReviewAsync(dbContext, pageId, authorId, DateTime.UtcNow);
+        var workingPage = await dbContext.Pages.SingleAsync(candidate => candidate.Id == pageId);
+        workingPage.TitleJson = "{\"en\":\"Working copy changed later\",\"zh\":\"之后修改的工作稿\"}";
+        workingPage.UpdatedUtc = DateTime.UtcNow.AddMinutes(1);
+        await dbContext.SaveChangesAsync();
         var cacheInvalidation = Substitute.For<IPageCacheInvalidationService>();
         var handler = new ApprovePagePublicationCommandHandler(dbContext, cacheInvalidation);
 
@@ -253,10 +299,12 @@ public class PagePublicationReviewTests
         Assert.Equal(groupId, result.Value!.OwnerGroupId);
         Assert.NotNull(result.Value.Page);
         Assert.Equal(groupId, result.Value.Page.OwnerGroupId);
+        Assert.Equal("Review me", result.Value.Page.Title["en"]);
 
         var storedPage = await dbContext.Pages.FirstAsync(x => x.Id == pageId);
         Assert.Equal(groupId, storedPage.OwnerGroupId);
         Assert.Equal(PageVisibility.Public, storedPage.Visibility);
+        Assert.Equal("Working copy changed later", JsonSerializer.Deserialize<Dictionary<string, string>>(storedPage.TitleJson)!["en"]);
         Assert.Contains(dbContext.PagePublicationReviews, review =>
             review.PageId == pageId &&
             review.Status == PagePublicationReviewStatus.Approved &&
@@ -268,6 +316,32 @@ public class PagePublicationReviewTests
             review.CardTextJson != null &&
             review.CardTextJson.Contains("Card text"));
         Assert.Contains(dbContext.AuditLogs, log => log.Action == "page.publication-review.approve" && log.EntityId == pageId);
+
+        var groupAuthorization = Substitute.For<IGroupAuthorizationService>();
+        groupAuthorization
+            .IsLeaderOrCoLeaderAsync(groupId, reviewerId, Arg.Any<CancellationToken>())
+            .Returns(true);
+        var copyHandler = new UpdatePagePublicationCopyCommandHandler(
+            dbContext,
+            groupAuthorization,
+            cacheInvalidation);
+        var copyResult = await copyHandler.Handle(
+            new UpdatePagePublicationCopyCommand(
+                reviewerId,
+                pageId,
+                new Dictionary<string, string> { ["en"] = "Published review copy", ["zh"] = "已发布审核副本" },
+                null,
+                "[]",
+                "Default",
+                [new PageSectionDto(
+                    Guid.NewGuid(),
+                    1,
+                    SectionType.LandingHero,
+                    "{\"posterImageUrl\":\"/media/page-card.jpg\"}",
+                    "{}")]),
+            CancellationToken.None);
+
+        Assert.True(copyResult.IsSuccess);
 
         var updateResult = await handler.Handle(
             new ApprovePagePublicationCommand(
@@ -284,9 +358,11 @@ public class PagePublicationReviewTests
         Assert.Contains("Updated menu", updatedReview.AccessNameJson);
         Assert.Equal("/media/page-card.jpg", updatedReview.CardImageUrl);
         Assert.Contains("Updated text", updatedReview.CardTextJson);
+        Assert.Contains("Published review copy", updatedReview.PublishedSnapshotJson);
 
-        await cacheInvalidation.Received(2).RemoveDetailAsync(pageId, Arg.Any<CancellationToken>());
         await cacheInvalidation.Received(2).RemoveGroupPagesAsync(groupId, Arg.Any<CancellationToken>());
+        await cacheInvalidation.Received(3).RemovePublishedDetailAsync(pageId, Arg.Any<CancellationToken>());
+        await cacheInvalidation.Received(3).RemovePublicAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -298,6 +374,7 @@ public class PagePublicationReviewTests
         var groupId = Guid.NewGuid();
         var pageId = Guid.NewGuid();
         await SeedReviewerScenarioAsync(dbContext, reviewerId, authorId, groupId, pageId);
+        await AddPendingReviewAsync(dbContext, pageId, authorId, DateTime.UtcNow);
         var cacheInvalidation = Substitute.For<IPageCacheInvalidationService>();
         var handler = new ApprovePagePublicationCommandHandler(dbContext, cacheInvalidation);
 
@@ -312,7 +389,34 @@ public class PagePublicationReviewTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(Application.Common.Models.AppResultStatus.ValidationError, result.Status);
+        Assert.DoesNotContain(dbContext.PagePublicationReviews, review =>
+            review.PageId == pageId && review.Status == PagePublicationReviewStatus.Approved);
+    }
+
+    [Fact]
+    public async Task ApproveCandidate_WithoutSubmittedCopy_ReturnsConflict()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var reviewerId = Guid.NewGuid();
+        var authorId = Guid.NewGuid();
+        var groupId = Guid.NewGuid();
+        var pageId = Guid.NewGuid();
+        await SeedReviewerScenarioAsync(dbContext, reviewerId, authorId, groupId, pageId);
+        var cacheInvalidation = Substitute.For<IPageCacheInvalidationService>();
+        var handler = new ApprovePagePublicationCommandHandler(dbContext, cacheInvalidation);
+
+        var result = await handler.Handle(
+            new ApprovePagePublicationCommand(
+                reviewerId,
+                pageId,
+                new Dictionary<string, string> { ["en"] = "Ministries", ["zh"] = "事工" },
+                new Dictionary<string, string> { ["en"] = "Menu", ["zh"] = "菜单" },
+                new Dictionary<string, string> { ["en"] = "Card", ["zh"] = "卡片" }),
+            CancellationToken.None);
+
+        Assert.Equal(Application.Common.Models.AppResultStatus.Conflict, result.Status);
         Assert.DoesNotContain(dbContext.PagePublicationReviews, review => review.PageId == pageId);
+        await cacheInvalidation.DidNotReceive().RemovePublicAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -731,6 +835,30 @@ public class PagePublicationReviewTests
             CreatedUtc = now,
             UpdatedUtc = now
         };
+
+    private static async Task AddPendingReviewAsync(
+        AlifeDbContext dbContext,
+        Guid pageId,
+        Guid submittedByMemberId,
+        DateTime submittedUtc)
+    {
+        var page = await dbContext.Pages
+            .Include(candidate => candidate.Sections)
+                .ThenInclude(section => section.Links)
+            .SingleAsync(candidate => candidate.Id == pageId);
+        dbContext.PagePublicationReviews.Add(new PagePublicationReview
+        {
+            Id = Guid.NewGuid(),
+            PageId = pageId,
+            Status = PagePublicationReviewStatus.Pending,
+            SubmittedSnapshotJson = PagePublicationSnapshots.Capture(page, page.Sections, submittedUtc),
+            SubmittedByMemberId = submittedByMemberId,
+            SubmittedUtc = submittedUtc,
+            CreatedUtc = submittedUtc,
+            UpdatedUtc = submittedUtc
+        });
+        await dbContext.SaveChangesAsync();
+    }
 
     private static AlifeDbContext CreateInMemoryDbContext()
     {

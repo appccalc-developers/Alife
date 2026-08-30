@@ -58,18 +58,32 @@ public sealed class GetGroupPagesQueryHandler(
             return AppResult<IReadOnlyList<PageDto>>.Success([]);
         }
 
-        var approvedPageIds = await dbContext.PagePublicationReviews
+        var publishedPageIds = await dbContext.PagePublicationReviews
             .AsNoTracking()
             .Where(x =>
                 publicPageIds.Contains(x.PageId) &&
-                x.Status == PagePublicationReviewStatus.Approved)
+                (x.PublishedSnapshotJson != null || x.Status == PagePublicationReviewStatus.Approved))
             .Select(x => x.PageId)
             .ToListAsync(cancellationToken);
-        var approved = approvedPageIds.ToHashSet();
+        var published = publishedPageIds.ToHashSet();
+        var result = new List<PageDto>();
+        foreach (var page in pages.Where(x => published.Contains(x.Id)))
+        {
+            var publishedDetail = await pageReadService.GetPublishedByIdAsync(page.Id, cancellationToken);
+            if (publishedDetail is not null)
+            {
+                result.Add(page with
+                {
+                    Title = publishedDetail.Title,
+                    Description = publishedDetail.Description,
+                    TagsJson = publishedDetail.TagsJson,
+                    TitleDisplayStyle = publishedDetail.TitleDisplayStyle,
+                    UpdatedUtc = publishedDetail.UpdatedUtc
+                });
+            }
+        }
 
-        return AppResult<IReadOnlyList<PageDto>>.Success(pages
-            .Where(x => approved.Contains(x.Id))
-            .ToList());
+        return AppResult<IReadOnlyList<PageDto>>.Success(result);
     }
 
     private async Task<IReadOnlyList<PageDto>> AddCurrentRefusalsAsync(

@@ -28,6 +28,7 @@ const PageView = () => {
   const menuPageId = isPublicMenuPage ? searchParams.get('pageId')?.trim() ?? '' : ''
   const isLegacyPublicPage = location.pathname.startsWith('/public/pages/')
   const isPublicPage = isLegacyPublicPage || isPublicMenuPage
+  const isPublicationReviewCopy = searchParams.get('fromReview') === 'true'
   const { pageId: activePageId } = useActiveEntityIds({ pageId: routePageId })
 
   const {
@@ -47,8 +48,10 @@ const PageView = () => {
   const pageId = isPublicMenuPage ? menuPageId || publicPage?.id || '' : activePageId
 
   const privatePageQuery = useQuery({
-    queryKey: pageDetailQueryKey(pageId),
-    queryFn: () => fetchPageDetail(pageId),
+    queryKey: isPublicationReviewCopy ? ['pagePublicationReviewCopy', pageId] : pageDetailQueryKey(pageId),
+    queryFn: () => isPublicationReviewCopy
+      ? pageService.getPublicationReviewCopy(pageId)
+      : fetchPageDetail(pageId),
     enabled: Boolean(pageId) && !isPublicPage,
   })
   const publicPageQuery = usePublicPageDetailQuery(isPublicPage ? pageId : '')

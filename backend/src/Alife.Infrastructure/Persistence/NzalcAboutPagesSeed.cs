@@ -1,3 +1,4 @@
+using Alife.Application.Pages.Services;
 using Alife.Domain.Entities;
 using Alife.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
@@ -433,7 +434,8 @@ public static class NzalcAboutPagesSeed
         var nextPageSortOrder = (await dbContext.PagePublicationReviews
             .Where(review =>
                 review.PrimaryMenuId == menu.Id &&
-                review.Status == PagePublicationReviewStatus.Approved)
+                (review.PublishedSnapshotJson != null ||
+                 review.Status == PagePublicationReviewStatus.Approved))
             .Select(review => (int?)review.MenuSortOrder)
             .MaxAsync(cancellationToken) ?? -1) + 1;
         var sectionsInserted = 0;
@@ -456,10 +458,15 @@ public static class NzalcAboutPagesSeed
             };
             await dbContext.Pages.AddAsync(page, cancellationToken);
 
-            await dbContext.Sections.AddRangeAsync(
+            var sections = new[]
+            {
                 CreateHeroSection(pageId, seed),
-                CreateRichTextSection(pageId, seed));
+                CreateRichTextSection(pageId, seed)
+            };
+            await dbContext.Sections.AddRangeAsync(sections);
             sectionsInserted += 2;
+
+            var snapshotJson = PagePublicationSnapshots.Capture(page, sections, now);
 
             await dbContext.PagePublicationReviews.AddAsync(new PagePublicationReview
             {
@@ -472,6 +479,12 @@ public static class NzalcAboutPagesSeed
                 AccessNameJson = TextJson(seed.TitleEn, seed.TitleZh),
                 CardImageUrl = seed.HeroImageUrl,
                 CardTextJson = TextJson(seed.DescriptionEn, seed.DescriptionZh),
+                SubmittedSnapshotJson = snapshotJson,
+                SubmittedByMemberId = creatorMemberId,
+                SubmittedUtc = now,
+                PublishedSnapshotJson = snapshotJson,
+                PublishedByMemberId = creatorMemberId,
+                PublishedUtc = now,
                 ReviewedByMemberId = creatorMemberId,
                 ReviewedUtc = now,
                 CreatedUtc = now,

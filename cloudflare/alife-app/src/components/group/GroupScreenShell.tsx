@@ -13,6 +13,7 @@ type Props = {
   activeTab: GroupTab
   canCreatePage: boolean
   canEditAllPages: boolean
+  canViewWorkingCopy: boolean
   contentMode?: 'dashboard' | 'pages' | 'tabs'
   dashboard?: ReactNode
   selectedPageId?: string
@@ -30,6 +31,7 @@ const GroupScreenShell = ({
   activeTab,
   canCreatePage,
   canEditAllPages,
+  canViewWorkingCopy,
   contentMode = 'tabs',
   dashboard,
   selectedPageId = '',
@@ -64,6 +66,7 @@ const GroupScreenShell = ({
               selectedPageId={selectedPageId}
               mode="view"
               canEditAllPages={canEditAllPages}
+              canViewWorkingCopy={canViewWorkingCopy}
               onSaved={onPageSaved}
               showCreateAction={contentMode === 'tabs' && canCreatePage}
               flatSections={contentMode === 'pages'}

@@ -478,9 +478,22 @@ const text = {
   uploadingLocalImages: { en: 'Uploading local images...', zh: '正在上传本地图片...' },
   publishing: { en: 'Publishing...', zh: '正在发布...' },
   pageSavedPublished: { en: 'Page saved and published.', zh: '页面已保存并发布。' },
+  pageSubmittedForReview: {
+    en: 'Changes submitted for review as a copy. Any current website version stays published until approval.',
+    zh: '更改已作为副本提交审核；如已有网站版本，批准前会继续保持发布。',
+  },
+  publicationCopySaved: { en: 'Publication copy saved.', zh: '发布副本已保存。' },
+  reviewCopyEditingNotice: {
+    en: 'You are editing the publication copy. The group working page will not be changed.',
+    zh: '你正在编辑发布副本；小家的工作页面不会被改动。',
+  },
   draftSaved: { en: 'Draft saved.', zh: '草稿已保存。' },
   pageSaved: { en: 'Page saved.', zh: '页面已保存。' },
   pageAutoSaved: { en: 'Section changes saved automatically.', zh: '区块更改已自动保存。' },
+  pageAutoSavedForReview: {
+    en: 'Section changes submitted in the review copy. Any current website version is unchanged.',
+    zh: '区块更改已提交到审核副本；如已有网站版本，其内容不受影响。',
+  },
   pageAutoSaveFailed: { en: 'Automatic save failed. Your changes are still here; use Save to try again.', zh: '自动保存失败。更改仍保留在编辑器中，请点击“保存”重试。' },
   savePageFailed: { en: 'Failed to save page.', zh: '保存页面失败。' },
   unsavedExitConfirm: { en: 'You have unsaved changes. Exit without saving?', zh: '你有未保存的更改。要不保存并退出吗？' },

@@ -15,6 +15,7 @@ using Alife.Application.Admin.Commands.SavePageMenuLayout;
 using Alife.Application.Admin.Commands.SetMemberPlatformRole;
 using Alife.Application.Admin.Commands.UpdateMemberProfile;
 using Alife.Application.Admin.Commands.UpdatePagePrimaryMenu;
+using Alife.Application.Admin.Commands.UpdatePagePublicationCopy;
 using Alife.Application.Admin.Commands.SyncSermons;
 using Alife.Application.Admin.Commands.UpdatePlatformRolePermissions;
 using Alife.Application.Admin.Queries.GetAdminSelfDiagnostic;
@@ -22,6 +23,7 @@ using Alife.Application.Admin.Queries.ListAdminGroups;
 using Alife.Application.Admin.Queries.ListAdminMembers;
 using Alife.Application.Admin.Queries.ListAdminNotifications;
 using Alife.Application.Admin.Queries.ListPageReviewCandidates;
+using Alife.Application.Admin.Queries.GetPagePublicationCopy;
 using Alife.Application.Admin.Queries.ListPagePrimaryMenus;
 using Alife.Domain.Enums;
 using Alife.Application.Admin.Dtos;
@@ -144,6 +146,48 @@ public class AdminController(IMediator mediator, ICurrentMemberAccessor currentM
         }
 
         var result = await mediator.Send(new ListPageReviewCandidatesQuery(currentMemberId.Value), cancellationToken);
+        this.ApplyPrivateNoCacheHeaders();
+        return this.ToActionResult(result);
+    }
+
+    [HttpGet("pages/{pageId:guid}/publication-review/copy")]
+    public async Task<IActionResult> GetPagePublicationCopy(Guid pageId, CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null)
+        {
+            return Unauthorized();
+        }
+
+        var result = await mediator.Send(
+            new GetPagePublicationCopyQuery(currentMemberId.Value, pageId),
+            cancellationToken);
+        this.ApplyPrivateNoCacheHeaders();
+        return this.ToActionResult(result);
+    }
+
+    [HttpPut("pages/{pageId:guid}/publication-review/copy")]
+    public async Task<IActionResult> UpdatePagePublicationCopy(
+        Guid pageId,
+        UpdatePagePublicationCopyRequest request,
+        CancellationToken cancellationToken)
+    {
+        var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (currentMemberId is null)
+        {
+            return Unauthorized();
+        }
+
+        var result = await mediator.Send(
+            new UpdatePagePublicationCopyCommand(
+                currentMemberId.Value,
+                pageId,
+                request.Title,
+                request.Description,
+                request.TagsJson,
+                request.TitleDisplayStyle,
+                request.Sections),
+            cancellationToken);
         this.ApplyPrivateNoCacheHeaders();
         return this.ToActionResult(result);
     }
@@ -603,6 +647,12 @@ public class AdminController(IMediator mediator, ICurrentMemberAccessor currentM
         PagePrimaryMenuHomePlacement? HomePlacement);
     public sealed record SavePageMenuLayoutRequest(IReadOnlyList<PagePrimaryMenuLayoutItemDto>? Menus);
     public sealed record ReturnPagePublicationReviewRequest(string Reason);
+    public sealed record UpdatePagePublicationCopyRequest(
+        IReadOnlyDictionary<string, string> Title,
+        IReadOnlyDictionary<string, string>? Description,
+        string? TagsJson,
+        string? TitleDisplayStyle,
+        IReadOnlyList<Alife.Application.Pages.Dtos.PageSectionDto> Sections);
 
     public sealed record SendAdminMessageRequest(
         string Scope,

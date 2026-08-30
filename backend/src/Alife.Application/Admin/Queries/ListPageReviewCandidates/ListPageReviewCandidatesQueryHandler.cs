@@ -25,7 +25,8 @@ public sealed class ListPageReviewCandidatesQueryHandler(IAlifeDbContext dbConte
         var rows = await dbContext.Pages
             .AsNoTracking()
             .Where(page =>
-                page.Visibility == PageVisibility.Public)
+                page.Visibility == PageVisibility.Public &&
+                dbContext.PagePublicationReviews.Any(review => review.PageId == page.Id))
             .OrderByDescending(page => page.UpdatedUtc)
             .Select(page => new
             {
@@ -62,7 +63,9 @@ public sealed class ListPageReviewCandidatesQueryHandler(IAlifeDbContext dbConte
                     review.CardImageUrl,
                     review.CardTextJson,
                     review.ReturnReason,
-                    review.ReviewedUtc))
+                    review.ReviewedUtc,
+                    review.SubmittedSnapshotJson,
+                    review.PublishedSnapshotJson))
                 .ToDictionaryAsync(
                     review => review.PageId,
                     review => review,
@@ -85,15 +88,40 @@ public sealed class ListPageReviewCandidatesQueryHandler(IAlifeDbContext dbConte
             {
                 reviewsByPageId.TryGetValue(row.Id, out var review);
                 sectionsByPageId.TryGetValue(row.Id, out var sections);
+                var snapshot = PagePublicationSnapshots.Read(
+                    review?.Status == PagePublicationReviewStatus.Approved
+                        ? review.PublishedSnapshotJson ?? review.SubmittedSnapshotJson
+                        : review?.SubmittedSnapshotJson);
+                var snapshotPage = snapshot is null ? null : PagePublicationSnapshots.ToPageDto(snapshot);
+                var publishedSnapshot = PagePublicationSnapshots.Read(review?.PublishedSnapshotJson);
+                var publishedSnapshotPage = publishedSnapshot is null
+                    ? null
+                    : PagePublicationSnapshots.ToPageDto(publishedSnapshot);
                 var ownerGroupName = ReadTextMap(row.OwnerGroupNameJson);
-                var title = ReadTextMap(row.TitleJson);
+                var title = snapshotPage?.Title ?? ReadTextMap(row.TitleJson);
+                var description = snapshotPage?.Description ?? ReadNullableTextMap(row.DescriptionJson);
                 var accessName = ReadNullableTextMap(review?.AccessNameJson) ??
                                  PagePublicationReviewDefaults.CreateAccessName(ownerGroupName, title);
-                var extractedCardImageUrl = PagePublicationReviewDefaults.ExtractFirstSectionImage(sections ?? []);
+                var extractedCardImageUrl = snapshot is null
+                    ? PagePublicationReviewDefaults.ExtractFirstSectionImage(sections ?? [])
+                    : PagePublicationReviewDefaults.ExtractFirstSectionImage(snapshot.Sections);
                 var cardImageUrl = extractedCardImageUrl ??
-                                   (review?.Status == PagePublicationReviewStatus.Approved
+                                   (review?.PublishedSnapshotJson is not null || review?.Status == PagePublicationReviewStatus.Approved
                                        ? review.CardImageUrl
                                        : null);
+                var isPublished = review?.PublishedSnapshotJson is not null ||
+                                  review?.Status == PagePublicationReviewStatus.Approved;
+                var publishedTitle = isPublished
+                    ? publishedSnapshotPage?.Title ?? ReadTextMap(row.TitleJson)
+                    : null;
+                var publishedDescription = isPublished
+                    ? publishedSnapshotPage?.Description ?? ReadNullableTextMap(row.DescriptionJson)
+                    : null;
+                var publishedCardImageUrl = isPublished
+                    ? review?.CardImageUrl ?? (publishedSnapshot is null
+                        ? PagePublicationReviewDefaults.ExtractFirstSectionImage(sections ?? [])
+                        : PagePublicationReviewDefaults.ExtractFirstSectionImage(publishedSnapshot.Sections))
+                    : null;
                 return new AdminPageReviewDto(
                     row.Id,
                     row.OwnerGroupId,
@@ -101,11 +129,15 @@ public sealed class ListPageReviewCandidatesQueryHandler(IAlifeDbContext dbConte
                     row.CreatedByMemberId,
                     row.CreatorDisplayName,
                     title,
-                    ReadNullableTextMap(row.DescriptionJson),
-                    row.TagsJson,
-                    row.TitleDisplayStyle,
+                    description,
+                    snapshotPage?.TagsJson ?? row.TagsJson,
+                    snapshotPage?.TitleDisplayStyle ?? row.TitleDisplayStyle,
                     row.Visibility,
                     ToReviewStatus(review?.Status),
+                    isPublished,
+                    publishedTitle,
+                    publishedDescription,
+                    publishedCardImageUrl,
                     review?.PrimaryMenuId,
                     ReadNullableTextMap(review?.PrimaryMenuNameJson),
                     review?.MenuSortOrder ?? 0,
@@ -114,7 +146,7 @@ public sealed class ListPageReviewCandidatesQueryHandler(IAlifeDbContext dbConte
                     ReadNullableTextMap(review?.CardTextJson),
                     review?.ReturnReason,
                     review?.ReviewedUtc,
-                    row.UpdatedUtc);
+                    snapshotPage?.UpdatedUtc ?? row.UpdatedUtc);
             })
             .ToList();
 
@@ -139,7 +171,9 @@ public sealed class ListPageReviewCandidatesQueryHandler(IAlifeDbContext dbConte
         string? CardImageUrl,
         string? CardTextJson,
         string? ReturnReason,
-        DateTime? ReviewedUtc);
+        DateTime? ReviewedUtc,
+        string? SubmittedSnapshotJson,
+        string? PublishedSnapshotJson);
 
     private static IReadOnlyDictionary<string, string> ReadTextMap(string? value)
         => ReadNullableTextMap(value) ?? new Dictionary<string, string>();

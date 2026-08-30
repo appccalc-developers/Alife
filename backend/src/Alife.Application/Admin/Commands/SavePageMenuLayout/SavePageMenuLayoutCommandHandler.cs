@@ -28,10 +28,10 @@ public sealed class SavePageMenuLayoutCommandHandler(
             .OrderBy(x => x.SortOrder)
             .ThenBy(x => x.Id)
             .ToListAsync(cancellationToken);
-        var approvedReviews = await (
+        var publishedReviews = await (
             from review in dbContext.PagePublicationReviews
             join page in dbContext.Pages on review.PageId equals page.Id
-            where review.Status == PagePublicationReviewStatus.Approved &&
+            where (review.PublishedSnapshotJson != null || review.Status == PagePublicationReviewStatus.Approved) &&
                   page.Visibility == PageVisibility.Public
             select review)
             .ToListAsync(cancellationToken);
@@ -45,20 +45,20 @@ public sealed class SavePageMenuLayoutCommandHandler(
 
         var requestedPageIds = request.Menus.SelectMany(x => x.PageIds).ToList();
         if (requestedPageIds.Count != requestedPageIds.Distinct().Count() ||
-            !requestedPageIds.ToHashSet().SetEquals(approvedReviews.Select(x => x.PageId)))
+            !requestedPageIds.ToHashSet().SetEquals(publishedReviews.Select(x => x.PageId)))
         {
             return AppResult<AdminActionResultDto>.Conflict("The approved page layout is stale. Refresh and try again.");
         }
 
         var menusById = menus.ToDictionary(x => x.Id);
-        var reviewsByPageId = approvedReviews.ToDictionary(x => x.PageId);
+        var reviewsByPageId = publishedReviews.ToDictionary(x => x.PageId);
         var before = menus
             .OrderBy(menu => menu.SortOrder)
             .ThenBy(menu => menu.Id)
             .Select(menu => new
         {
             PrimaryMenuId = menu.Id,
-            PageIds = approvedReviews
+            PageIds = publishedReviews
                 .Where(review => review.PrimaryMenuId == menu.Id)
                 .OrderBy(review => review.MenuSortOrder)
                 .Select(review => review.PageId)
@@ -94,7 +94,14 @@ public sealed class SavePageMenuLayoutCommandHandler(
             OccurredUtc = now
         }, cancellationToken);
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return AppResult<AdminActionResultDto>.Conflict(PagePublicationReviewState.ConcurrentChangeMessage);
+        }
         await pageCacheInvalidationService.RemovePublicAsync(cancellationToken);
         return AppResult<AdminActionResultDto>.Success(new AdminActionResultDto(true));
     }

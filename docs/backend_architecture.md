@@ -73,6 +73,7 @@ Key entity areas:
 - `Group`
 - `GroupMembership`
 - `Page`
+- `PagePublicationReview`
 - `Section`
 - `Link`
 - `Sermon`
@@ -86,7 +87,6 @@ Key enum areas:
 - `AccessType`
 - `MembershipStatus`
 - `MembershipRole`
-- `PageScope`
 - `PageVisibility`
 - `SectionType`
 - `LinkType`
@@ -203,15 +203,17 @@ Rules to preserve:
 | Groups | Church root, group detail, subgroups, join/invite/approve/reject/role workflows |
 | Identity management | Pre-registration activations, QR lifecycle, group applications, church-person applications |
 | Internal Alpha | Configuration-whitelisted accounts; disabled unless explicitly enabled in the current environment |
-| Pages | Global and group pages, page detail, create/update/publish/delete |
+| Pages | Group-owned working pages, submitted review copies, published snapshots, create/update/submit/delete |
 | Sections | Page section creation, update, deletion, link replacement |
 | Events | Group event listing, creation, update, deletion |
 | Enrollments | Event enrollment list and member enrollment mutations |
 | Reviews | Event review list and review mutations |
 | Notifications | Notification list, create, reply, mark-read |
 | Sermons | Sermon listing and YouTube-backed sync support |
-| Admin | Sermon sync and Cloudflare cache refresh |
+| Admin | Page-copy approval/return and menu management, sermon sync, and Cloudflare cache refresh |
 | Health | Live, ready, and aggregate health checks |
+
+Page publication uses immutable submitted and published JSON snapshots, including ordered section-link metadata. Public readers reject invalid snapshots rather than exposing the mutable working page. Existing public pages without review records are backfilled as pending submissions, and review-row `UpdatedUtc` concurrency checks return a conflict when submit, approve, return, or review-copy edits race.
 
 ## Data And Payload Conventions
 

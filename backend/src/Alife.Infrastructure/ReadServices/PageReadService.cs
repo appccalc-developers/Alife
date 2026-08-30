@@ -26,7 +26,7 @@ public sealed class PageReadService(
                     from review in reviews.DefaultIfEmpty()
                     where page.Visibility == PageVisibility.Public &&
                           review != null &&
-                          review.Status == PagePublicationReviewStatus.Approved &&
+                          (review.PublishedSnapshotJson != null || review.Status == PagePublicationReviewStatus.Approved) &&
                           review.PrimaryMenuId != null
                     orderby (review.PrimaryMenu != null ? review.PrimaryMenu.SortOrder : int.MaxValue),
                         review.MenuSortOrder,
@@ -34,6 +34,8 @@ public sealed class PageReadService(
                     select new
                     {
                         Page = page,
+                        review.Status,
+                        review.PublishedSnapshotJson,
                         review.AccessNameJson,
                         review.CardImageUrl,
                         review.CardTextJson,
@@ -46,17 +48,100 @@ public sealed class PageReadService(
                     .ToListAsync(token);
 
                 return (IReadOnlyList<PageDto>)pages
-                    .Select(row => ToDto(
-                        row.Page,
-                        ReadNullableTextMap(row.AccessNameJson),
-                        row.CardImageUrl,
-                        ReadNullableTextMap(row.CardTextJson),
-                        ReadNullableTextMap(row.PrimaryMenuNameJson),
-                        row.PrimaryMenuId,
-                        row.PrimaryMenuSortOrder,
-                        row.MenuSortOrder,
-                        row.PrimaryMenuHomePlacement))
+                    .Select(row =>
+                    {
+                        if (row.PublishedSnapshotJson is not null)
+                        {
+                            var snapshot = PagePublicationSnapshots.Read(row.PublishedSnapshotJson);
+                            return snapshot is null
+                                ? null
+                                : ToDto(
+                                    snapshot,
+                                    ReadNullableTextMap(row.AccessNameJson),
+                                    row.CardImageUrl,
+                                    ReadNullableTextMap(row.CardTextJson),
+                                    ReadNullableTextMap(row.PrimaryMenuNameJson),
+                                    row.PrimaryMenuId,
+                                    row.PrimaryMenuSortOrder,
+                                    row.MenuSortOrder,
+                                    row.PrimaryMenuHomePlacement);
+                        }
+
+                        return row.Status == PagePublicationReviewStatus.Approved
+                            ? ToDto(
+                                row.Page,
+                                ReadNullableTextMap(row.AccessNameJson),
+                                row.CardImageUrl,
+                                ReadNullableTextMap(row.CardTextJson),
+                                ReadNullableTextMap(row.PrimaryMenuNameJson),
+                                row.PrimaryMenuId,
+                                row.PrimaryMenuSortOrder,
+                                row.MenuSortOrder,
+                                row.PrimaryMenuHomePlacement)
+                            : null;
+                    })
+                    .Where(page => page is not null)
+                    .Select(page => page!)
                     .ToList();
+            },
+            cancellationToken);
+
+    public Task<PageDetailDto?> GetPublishedByIdAsync(Guid pageId, CancellationToken cancellationToken)
+        => GetOrCreateAsync(
+            PageCacheKeys.PublishedDetail(pageId),
+            async token =>
+            {
+                var row = await (
+                    from page in dbContext.Pages.AsNoTracking()
+                    join review in dbContext.PagePublicationReviews.AsNoTracking()
+                        on page.Id equals review.PageId
+                    where page.Id == pageId &&
+                          page.Visibility == PageVisibility.Public &&
+                          (review.PublishedSnapshotJson != null || review.Status == PagePublicationReviewStatus.Approved)
+                    select new
+                    {
+                        Page = page,
+                        review.Status,
+                        review.PublishedSnapshotJson
+                    })
+                    .FirstOrDefaultAsync(token);
+
+                if (row is null)
+                {
+                    return null;
+                }
+
+                if (row.PublishedSnapshotJson is not null)
+                {
+                    var snapshot = PagePublicationSnapshots.Read(row.PublishedSnapshotJson);
+                    return snapshot is null
+                        ? null
+                        : PagePublicationSnapshots.ToDetailDto(snapshot);
+                }
+
+                if (row.Status != PagePublicationReviewStatus.Approved)
+                {
+                    return null;
+                }
+
+                var sections = await dbContext.Sections
+                    .AsNoTracking()
+                    .Where(x => x.PageId == pageId)
+                    .OrderBy(x => x.Order)
+                    .Select(x => new PageSectionDto(x.Id, x.Order, x.Type, x.ContentJson, x.StyleJson))
+                    .ToListAsync(token);
+
+                return new PageDetailDto(
+                    row.Page.Id,
+                    row.Page.OwnerGroupId,
+                    row.Page.CreatedByMemberId,
+                    ReadTextMap(row.Page.TitleJson),
+                    ReadNullableTextMap(row.Page.DescriptionJson),
+                    row.Page.TagsJson,
+                    row.Page.TitleDisplayStyle,
+                    row.Page.Visibility,
+                    row.Page.UpdatedUtc,
+                    sections);
             },
             cancellationToken);
 
@@ -169,6 +254,31 @@ public sealed class PageReadService(
             PrimaryMenuSortOrder: primaryMenuSortOrder,
             MenuSortOrder: menuSortOrder,
             PrimaryMenuHomePlacement: primaryMenuHomePlacement);
+    }
+
+    private static PageDto ToDto(
+        PagePublicationSnapshot snapshot,
+        IReadOnlyDictionary<string, string>? accessName,
+        string? cardImageUrl,
+        IReadOnlyDictionary<string, string>? cardText,
+        IReadOnlyDictionary<string, string>? primaryMenuName,
+        Guid? primaryMenuId,
+        int primaryMenuSortOrder,
+        int menuSortOrder,
+        PagePrimaryMenuHomePlacement? primaryMenuHomePlacement)
+    {
+        var page = PagePublicationSnapshots.ToPageDto(snapshot);
+        return page with
+        {
+            AccessName = accessName,
+            CardImageUrl = cardImageUrl,
+            CardText = cardText,
+            PrimaryMenuName = primaryMenuName,
+            PrimaryMenuId = primaryMenuId,
+            PrimaryMenuSortOrder = primaryMenuSortOrder,
+            MenuSortOrder = menuSortOrder,
+            PrimaryMenuHomePlacement = primaryMenuHomePlacement
+        };
     }
 
     private static IReadOnlyDictionary<string, string>? ReadNullableTextMap(string? value)

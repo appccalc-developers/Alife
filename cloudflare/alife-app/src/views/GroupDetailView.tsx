@@ -35,6 +35,7 @@ const GroupBrowseView = ({ groupId, pageId, scope = 'group', explicitGroupRoute 
     canManageGroup,
     canCreatePage,
     canEditAllPages,
+    membershipStatus,
     refreshPages,
   } = useGroupScreen(groupId, { loadEvents: true })
 
@@ -54,6 +55,7 @@ const GroupBrowseView = ({ groupId, pageId, scope = 'group', explicitGroupRoute 
       activeTab={activeTab}
       canCreatePage={Boolean(canCreatePage)}
       canEditAllPages={Boolean(canEditAllPages)}
+      canViewWorkingCopy={Boolean(canEditAllPages || membershipStatus === 'approved')}
       contentMode={pageId ? 'pages' : 'dashboard'}
       dashboard={group ? (
         <GroupDashboard

@@ -3,6 +3,7 @@ param(
     [switch]$SkipAzurite,
     [switch]$UseAzurite,
     [switch]$SkipApi,
+    [switch]$SkipImagesApi,
     [switch]$SkipSpeedLayer,
     [switch]$SkipFrontend,
     [switch]$ApplyMigrations,
@@ -18,11 +19,13 @@ $repoRoot = Resolve-Path (Join-Path $scriptPath "..")
 $backendRoot = Join-Path $repoRoot "backend"
 $apiRoot = Join-Path $backendRoot "src\Alife.Api"
 $frontendRoot = Join-Path $repoRoot "cloudflare\alife-app"
+$imagesApiRoot = Join-Path $repoRoot "cloudflare\images-api"
 $speedLayerRoot = Join-Path $repoRoot "cloudflare\speed-layer"
 $runtimeRoot = Join-Path $repoRoot ".local-dev"
 $logRoot = Join-Path $runtimeRoot "logs"
 $azuriteRoot = Join-Path $runtimeRoot "azurite"
 $wranglerStateRoot = Join-Path $runtimeRoot "wrangler"
+$imagesWranglerStateRoot = Join-Path $runtimeRoot "images-wrangler"
 $frontendDistRoot = Join-Path $frontendRoot "dist"
 
 $mobilePasskeyUri = $null
@@ -45,7 +48,7 @@ if (-not [string]::IsNullOrWhiteSpace($MobilePasskeyOrigin)) {
     $normalizedMobilePasskeyOrigin = $candidateUri.GetLeftPart([UriPartial]::Authority)
 }
 
-New-Item -ItemType Directory -Force -Path $logRoot, $azuriteRoot, $wranglerStateRoot | Out-Null
+New-Item -ItemType Directory -Force -Path $logRoot, $azuriteRoot, $wranglerStateRoot, $imagesWranglerStateRoot | Out-Null
 
 function Import-DotEnv {
     param([string]$Path)
@@ -349,6 +352,31 @@ if ($ApplyMigrations) {
         -WorkingDirectory $backendRoot
 }
 
+if (-not $SkipImagesApi) {
+    Stop-ProcessesListeningOnPort -Port 8788 -Name "Alife images API"
+
+    $wranglerCommand = Join-Path $speedLayerRoot "node_modules\.bin\wrangler.cmd"
+    if (-not (Test-Path $wranglerCommand)) {
+        throw "Wrangler was not found under cloudflare/speed-layer/node_modules. Run npm install in cloudflare/speed-layer first."
+    }
+
+    Start-LoggedProcess `
+        -Name "Alife images API" `
+        -FilePath $wranglerCommand `
+        -ArgumentList @(
+            "dev",
+            "--config", (Join-Path $imagesApiRoot "wrangler.toml"),
+            "--port", "8788",
+            "--persist-to", $imagesWranglerStateRoot,
+            "--show-interactive-dev-session=false"
+        ) `
+        -WorkingDirectory $imagesApiRoot `
+        -OutLog (Join-Path $logRoot "images-api.log") `
+        -ErrLog (Join-Path $logRoot "images-api.err.log")
+
+    Wait-Port -Port 8788 -Name "Alife images API" -TimeoutSeconds 120
+}
+
 if (-not $SkipApi) {
     Stop-ProcessesListeningOnPort -Port 7071 -Name "Alife API"
 
@@ -408,18 +436,22 @@ if (-not $SkipSpeedLayer) {
     if ($null -ne $mobilePasskeyUri) {
         $corsAllowedOrigins = "$corsAllowedOrigins,$normalizedMobilePasskeyOrigin"
     }
+    $speedLayerArguments = @(
+        "run", "dev", "--",
+        "--port", "8787",
+        "--persist-to", $wranglerStateRoot,
+        "--show-interactive-dev-session=false",
+        "--var", "API_PROXY_TARGET:http://127.0.0.1:7071",
+        "--var", "CORS_ALLOWED_ORIGINS:$corsAllowedOrigins"
+    )
+    if (-not $SkipImagesApi) {
+        $speedLayerArguments += @("--var", "IMAGES_API_PROXY_TARGET:http://127.0.0.1:8788")
+    }
 
     Start-LoggedProcess `
         -Name "Alife speed layer" `
         -FilePath $npmCommand.Source `
-        -ArgumentList @(
-            "run", "dev", "--",
-            "--port", "8787",
-            "--persist-to", $wranglerStateRoot,
-            "--show-interactive-dev-session=false",
-            "--var", "API_PROXY_TARGET:http://127.0.0.1:7071",
-            "--var", "CORS_ALLOWED_ORIGINS:$corsAllowedOrigins"
-        ) `
+        -ArgumentList $speedLayerArguments `
         -WorkingDirectory $speedLayerRoot `
         -OutLog (Join-Path $logRoot "speed-layer.log") `
         -ErrLog (Join-Path $logRoot "speed-layer.err.log")
@@ -435,6 +467,8 @@ if (-not $SkipFrontend) {
     $previousApiProxyTarget = $env:API_PROXY_TARGET
     $previousAiProxyTarget = $env:AI_PROXY_TARGET
     $previousPublicDevHost = $env:ALIFE_PUBLIC_DEV_HOST
+    $previousImagesProxyTarget = $env:IMAGES_PROXY_TARGET
+    $previousImageApiBaseUrl = $env:VITE_IMAGE_API_BASE_URL
     $env:API_PROXY_TARGET = if ($SkipSpeedLayer) {
         "http://127.0.0.1:7071"
     }
@@ -444,6 +478,10 @@ if (-not $SkipFrontend) {
     $env:AI_PROXY_TARGET = "http://127.0.0.1:8787"
     if ($null -ne $mobilePasskeyUri) {
         $env:ALIFE_PUBLIC_DEV_HOST = $mobilePasskeyHost
+    }
+    if (-not $SkipImagesApi) {
+        $env:IMAGES_PROXY_TARGET = "http://127.0.0.1:8788"
+        $env:VITE_IMAGE_API_BASE_URL = "/images"
     }
     try {
         Start-LoggedProcess `
@@ -458,6 +496,8 @@ if (-not $SkipFrontend) {
         $env:API_PROXY_TARGET = $previousApiProxyTarget
         $env:AI_PROXY_TARGET = $previousAiProxyTarget
         $env:ALIFE_PUBLIC_DEV_HOST = $previousPublicDevHost
+        $env:IMAGES_PROXY_TARGET = $previousImagesProxyTarget
+        $env:VITE_IMAGE_API_BASE_URL = $previousImageApiBaseUrl
     }
 
     Wait-Port -Port 5173 -Name "Alife frontend"
@@ -467,6 +507,9 @@ Write-Host ""
 Write-Host "Alife local dev stack is ready."
 Write-Host "Frontend:    http://localhost:5173"
 Write-Host "Speed layer: http://localhost:8787"
+if (-not $SkipImagesApi) {
+    Write-Host "Images API:  http://127.0.0.1:8788"
+}
 Write-Host "API:         http://127.0.0.1:7071"
 if ($null -ne $mobilePasskeyUri) {
     Write-Host "Mobile URL:  $normalizedMobilePasskeyOrigin"

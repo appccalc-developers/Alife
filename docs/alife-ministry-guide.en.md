@@ -42,13 +42,15 @@ This is well suited for small groups, ministry teams, classes, and other church-
 
 ### 3.3 Page And Content Publishing
 
-- The platform supports both global pages and group-specific pages.
+- Every page remains owned by a church or ministry group, including pages intended for the public website.
 - Pages support bilingual title and summary fields in Chinese and English.
 - Content is organized in sections instead of editing raw page code.
 - Each page can be assigned one of three visibility states:
   - `Draft`: internal draft, not ready for general readers.
   - `Group`: visible to members of the relevant group.
-  - `Public`: visible to the whole church or public visitors.
+  - `Public`: submitted as an isolated copy for church publication review.
+- Reviewers can revise, approve, or return the submitted copy without changing the group's working page.
+- A previously approved website version stays online while a newer copy is being edited, reviewed, or returned.
 
 This allows the system to serve both as an internal ministry information space and as a public-facing church website.
 
@@ -99,7 +101,7 @@ Recommended responsibilities:
 - create and maintain pages;
 - organize text and images for publishing;
 - keep page structure, links, and ordering clear;
-- help move approved content from draft to public or group-visible status.
+- review submitted public copies and maintain public navigation without changing group-owned working pages.
 
 ### 4.3 Group Leaders And Ministry Leaders
 
@@ -107,6 +109,7 @@ Recommended responsibilities:
 
 - manage members within their assigned group;
 - maintain group pages and event information;
+- submit an isolated page copy when content is ready for public review;
 - review join requests and event-related workflows.
 
 ## 5. How To Prepare And Publish Website Content
@@ -115,13 +118,9 @@ This section is the practical content manual for website volunteers. The goal is
 
 ### 5.1 Decide What Type Of Page You Are Creating
 
-Before writing, decide whether the page is:
+Before writing, choose the church or ministry group that will own and maintain the page. Church-wide content, such as service times or newcomer guidance, should be owned by the appropriate church group. Small-group introductions, training notes, and internal announcements should remain owned by their ministry group.
 
-- a global church page, such as church introduction, service times, course overview, giving information, or newcomer guidance; or
-- a group page, such as a small group introduction, ministry-specific information, internal training notes, or group-only announcements.
-
-If the content is intended for all readers, it usually belongs on a public page.
-If the content is only for a ministry team or group, it usually belongs on a group page.
+Then choose the audience. Content intended for visitors can be submitted for public review. Content intended only for approved members should remain group-visible.
 
 ### 5.2 Decide The Visibility Before Publishing
 
@@ -129,13 +128,17 @@ Every page should be reviewed with the correct visibility in mind:
 
 - `Draft`: use while the content is still being prepared or reviewed.
 - `Group`: use for internal ministry or group content.
-- `Public`: use for official church-facing or visitor-facing content.
+- `Public`: capture and submit a copy of official church-facing or visitor-facing content for review.
 
 A recommended workflow is:
 
 1. save the page as `Draft`;
-2. let the responsible reviewer check the content;
-3. publish it as `Group` or `Public` when approved.
+2. use `Group` when approved members can read the working content directly;
+3. choose `Public` when a copy is ready for church publication review;
+4. let the reviewer revise, approve, or return that submitted copy;
+5. continue editing the group working page without changing the live website version, then submit another copy when it is ready.
+
+Approval replaces the website snapshot. Returning a newer submission leaves the last approved snapshot online. Moving the page away from `Public`, or deleting it, withdraws the published version.
 
 ### 5.3 Prepare Bilingual Titles And Summaries
 
@@ -218,6 +221,7 @@ Before publishing, check at least these items:
 - do all links work correctly;
 - are time and location details up to date;
 - is the visibility set correctly;
+- does the submitted public copy contain only content that is safe and ready for visitors;
 - if English content is included, is it natural and understandable.
 
 ### 5.8 Suggested Update Rhythm
@@ -244,7 +248,7 @@ If those responsibilities are defined early, the system will be much easier to s
 
 1. Start with a small set of stable core pages rather than trying to build everything at once.
 2. Prioritize information people ask for most often, such as service times, church introduction, sermon access, courses, and event registration.
-3. Use `Draft` first for all new content.
+3. Use `Draft` first, then submit an isolated copy for public review when the content is ready.
 4. Keep an internal content list with page owner, last updated date, and next review date.
 5. Double-check page visibility whenever a page includes member, group, or internal ministry information.
 
@@ -255,4 +259,4 @@ Alife is well suited to support church communication, group life, and content pu
 For church leadership, it provides a practical coordination platform.
 For content and website volunteers, it provides a section-based content tool that is easier to maintain over time.
 
-If the church uses a simple pattern of draft, review, publish, and scheduled updates, the platform can remain much more manageable than scattered pages maintained without a shared process.
+If the church uses a simple pattern of working draft, submitted review copy, approved website snapshot, and scheduled updates, the platform can remain much more manageable than scattered pages maintained without a shared process.

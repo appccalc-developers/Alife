@@ -51,26 +51,49 @@ public sealed class ChurchLifeService(
             .Where(x => x.Visibility == PageVisibility.Public)
             .Select(x => x.Id)
             .ToList();
-        var approvedPublicPageIds = publicPageIds.Count == 0
+        var publishedPublicPageIds = publicPageIds.Count == 0
             ? []
             : await db.PagePublicationReviews
                 .AsNoTracking()
                 .Where(x =>
                     publicPageIds.Contains(x.PageId) &&
-                    x.Status == PagePublicationReviewStatus.Approved)
+                    (x.PublishedSnapshotJson != null || x.Status == PagePublicationReviewStatus.Approved))
                 .Select(x => x.PageId)
                 .Distinct()
                 .ToListAsync(cancellationToken);
-        var approvedPublicPages = approvedPublicPageIds.ToHashSet();
+        var publishedPublicPages = publishedPublicPageIds.ToHashSet();
 
         var visiblePages = allPages
             .Where(x => x.Visibility != PageVisibility.Draft)
             .Where(x =>
                 (x.Visibility == PageVisibility.Group && scope.ApprovedGroupIds.Contains(x.OwnerGroupId)) ||
-                (x.Visibility == PageVisibility.Public && approvedPublicPages.Contains(x.Id)))
+                (x.Visibility == PageVisibility.Public && publishedPublicPages.Contains(x.Id)))
             .OrderByDescending(x => x.UpdatedUtc)
             .ThenBy(x => x.Id)
             .ToList();
+        var resolvedVisiblePages = new List<PageDto>(visiblePages.Count);
+        foreach (var page in visiblePages)
+        {
+            if (page.Visibility != PageVisibility.Public)
+            {
+                resolvedVisiblePages.Add(page);
+                continue;
+            }
+
+            var publishedDetail = await pageReadService.GetPublishedByIdAsync(page.Id, cancellationToken);
+            if (publishedDetail is not null)
+            {
+                resolvedVisiblePages.Add(page with
+                {
+                    Title = publishedDetail.Title,
+                    Description = publishedDetail.Description,
+                    TagsJson = publishedDetail.TagsJson,
+                    TitleDisplayStyle = publishedDetail.TitleDisplayStyle,
+                    UpdatedUtc = publishedDetail.UpdatedUtc
+                });
+            }
+        }
+        visiblePages = resolvedVisiblePages;
         var groups = BuildGroups(scope, visiblePages.Select(x => x.OwnerGroupId));
 
         if (ownerGroupId.HasValue)
