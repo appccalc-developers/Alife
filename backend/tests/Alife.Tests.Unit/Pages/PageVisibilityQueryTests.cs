@@ -58,7 +58,7 @@ public class PageVisibilityQueryTests
         pageReadService.GetByIdAsync(pageId, Arg.Any<CancellationToken>())
             .Returns(CreatePageDetail(pageId, groupId, authorId, PageVisibility.Draft));
         using var dbContext = CreateInMemoryDbContext();
-        var handler = new GetPageByIdQueryHandler(pageReadService, authorizationService, dbContext);
+        var handler = new GetPageByIdQueryHandler(pageReadService, authorizationService);
 
         var result = await handler.Handle(new GetPageByIdQuery(pageId, memberId), CancellationToken.None);
 
@@ -82,7 +82,7 @@ public class PageVisibilityQueryTests
         pageReadService.GetByIdAsync(pageId, Arg.Any<CancellationToken>())
             .Returns(CreatePageDetail(pageId, groupId, authorId, PageVisibility.Draft));
         using var dbContext = CreateInMemoryDbContext();
-        var handler = new GetPageByIdQueryHandler(pageReadService, authorizationService, dbContext);
+        var handler = new GetPageByIdQueryHandler(pageReadService, authorizationService);
 
         var result = await handler.Handle(new GetPageByIdQuery(pageId, leaderId), CancellationToken.None);
 
@@ -107,7 +107,7 @@ public class PageVisibilityQueryTests
         pageReadService.GetByIdAsync(pageId, Arg.Any<CancellationToken>())
             .Returns(CreatePageDetail(pageId, groupId, authorId, PageVisibility.Draft));
         using var dbContext = CreateInMemoryDbContext();
-        var handler = new GetPageByIdQueryHandler(pageReadService, authorizationService, dbContext);
+        var handler = new GetPageByIdQueryHandler(pageReadService, authorizationService);
 
         var result = await handler.Handle(new GetPageByIdQuery(pageId, reviewerId), CancellationToken.None);
 
@@ -176,6 +176,8 @@ public class PageVisibilityQueryTests
                 CreatePage(groupId, authorId, PageVisibility.Group),
                 CreatePage(groupId, authorId, PageVisibility.Draft)
             ]);
+        pageReadService.GetPublishedByIdAsync(publicPageId, Arg.Any<CancellationToken>())
+            .Returns(CreatePageDetail(publicPageId, groupId, authorId, PageVisibility.Public));
         using var dbContext = CreateInMemoryDbContext();
         dbContext.PagePublicationReviews.Add(new PagePublicationReview
         {
@@ -215,6 +217,8 @@ public class PageVisibilityQueryTests
                 CreatePage(groupId, authorId, PageVisibility.Group),
                 CreatePage(groupId, authorId, PageVisibility.Draft)
             ]);
+        pageReadService.GetPublishedByIdAsync(approvedPublicPageId, Arg.Any<CancellationToken>())
+            .Returns(CreatePageDetail(approvedPublicPageId, groupId, authorId, PageVisibility.Public));
         using var dbContext = CreateInMemoryDbContext();
         dbContext.PagePublicationReviews.Add(new PagePublicationReview
         {
@@ -246,7 +250,7 @@ public class PageVisibilityQueryTests
         pageReadService.GetByIdAsync(pageId, Arg.Any<CancellationToken>())
             .Returns(CreatePageDetail(pageId, groupId, authorId, PageVisibility.Public));
         using var dbContext = CreateInMemoryDbContext();
-        var handler = new GetPageByIdQueryHandler(pageReadService, authorizationService, dbContext);
+        var handler = new GetPageByIdQueryHandler(pageReadService, authorizationService);
 
         var result = await handler.Handle(new GetPageByIdQuery(pageId, null), CancellationToken.None);
 
@@ -265,6 +269,8 @@ public class PageVisibilityQueryTests
         var authorizationService = Substitute.For<IGroupAuthorizationService>();
         pageReadService.GetByIdAsync(pageId, Arg.Any<CancellationToken>())
             .Returns(CreatePageDetail(pageId, groupId, authorId, PageVisibility.Public, updatedUtc));
+        pageReadService.GetPublishedByIdAsync(pageId, Arg.Any<CancellationToken>())
+            .Returns(CreatePageDetail(pageId, groupId, authorId, PageVisibility.Public, updatedUtc));
         using var dbContext = CreateInMemoryDbContext();
         dbContext.PagePublicationReviews.Add(new PagePublicationReview
         {
@@ -276,7 +282,7 @@ public class PageVisibilityQueryTests
             UpdatedUtc = updatedUtc.AddMinutes(1)
         });
         await dbContext.SaveChangesAsync();
-        var handler = new GetPageByIdQueryHandler(pageReadService, authorizationService, dbContext);
+        var handler = new GetPageByIdQueryHandler(pageReadService, authorizationService);
 
         var result = await handler.Handle(new GetPageByIdQuery(pageId, null), CancellationToken.None);
 
@@ -294,12 +300,48 @@ public class PageVisibilityQueryTests
         pageReadService.GetByIdAsync(pageId, Arg.Any<CancellationToken>())
             .Returns(CreatePageDetail(pageId, groupId, authorId, PageVisibility.Group));
         using var dbContext = CreateInMemoryDbContext();
-        var handler = new GetPageByIdQueryHandler(pageReadService, authorizationService, dbContext);
+        var handler = new GetPageByIdQueryHandler(pageReadService, authorizationService);
 
         var result = await handler.Handle(new GetPageByIdQuery(pageId, null), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(Application.Common.Models.AppResultStatus.Forbidden, result.Status);
+    }
+
+    [Fact]
+    public async Task GetPageById_PublicAndWorkingRoutesReturnDifferentCopiesForLeader()
+    {
+        var groupId = Guid.NewGuid();
+        var leaderId = Guid.NewGuid();
+        var authorId = Guid.NewGuid();
+        var pageId = Guid.NewGuid();
+        var pageReadService = Substitute.For<IPageReadService>();
+        var authorizationService = Substitute.For<IGroupAuthorizationService>();
+        pageReadService.GetByIdAsync(pageId, Arg.Any<CancellationToken>())
+            .Returns(CreatePageDetail(pageId, groupId, authorId, PageVisibility.Public) with
+            {
+                Title = new Dictionary<string, string> { ["en"] = "Working copy" }
+            });
+        pageReadService.GetPublishedByIdAsync(pageId, Arg.Any<CancellationToken>())
+            .Returns(CreatePageDetail(pageId, groupId, authorId, PageVisibility.Public) with
+            {
+                Title = new Dictionary<string, string> { ["en"] = "Published copy" }
+            });
+        authorizationService.IsLeaderOrCoLeaderAsync(groupId, leaderId, Arg.Any<CancellationToken>())
+            .Returns(true);
+        var handler = new GetPageByIdQueryHandler(pageReadService, authorizationService);
+
+        var publicResult = await handler.Handle(
+            new GetPageByIdQuery(pageId, leaderId),
+            CancellationToken.None);
+        var workingResult = await handler.Handle(
+            new GetPageByIdQuery(pageId, leaderId, AllowPublishedFallback: false),
+            CancellationToken.None);
+
+        Assert.True(publicResult.IsSuccess);
+        Assert.True(workingResult.IsSuccess);
+        Assert.Equal("Published copy", publicResult.Value!.Title["en"]);
+        Assert.Equal("Working copy", workingResult.Value!.Title["en"]);
     }
 
     private static GroupDto CreateGroup(Guid groupId)

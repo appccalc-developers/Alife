@@ -77,10 +77,18 @@ public sealed class UpdatePagePrimaryMenuCommandHandler(
             OccurredUtc = now
         }, cancellationToken);
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return AppResult<AdminPagePrimaryMenuDto>.Conflict(PagePublicationReviewState.ConcurrentChangeMessage);
+        }
         await pageCacheInvalidationService.RemovePublicAsync(cancellationToken);
 
-        var approvedPageCount = reviews.Count(x => x.Status == PagePublicationReviewStatus.Approved);
+        var approvedPageCount = reviews.Count(x =>
+            x.PublishedSnapshotJson is not null || x.Status == PagePublicationReviewStatus.Approved);
         return AppResult<AdminPagePrimaryMenuDto>.Success(new AdminPagePrimaryMenuDto(menu.Id, name, menu.SortOrder, approvedPageCount, menu.HomePlacement));
     }
 }

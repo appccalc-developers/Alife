@@ -4,5 +4,5 @@ using MediatR;
 
 namespace Alife.Application.Pages.Queries.GetPageById;
 
-public sealed record GetPageByIdQuery(Guid PageId, Guid? CurrentMemberId)
+public sealed record GetPageByIdQuery(Guid PageId, Guid? CurrentMemberId, bool AllowPublishedFallback = true)
     : IRequest<AppResult<PageDetailDto>>;

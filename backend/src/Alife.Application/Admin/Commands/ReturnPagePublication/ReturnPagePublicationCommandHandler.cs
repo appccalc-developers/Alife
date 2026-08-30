@@ -47,26 +47,27 @@ public sealed class ReturnPagePublicationCommandHandler(
         var ownerGroupId = page.OwnerGroupId;
         var review = await dbContext.PagePublicationReviews
             .FirstOrDefaultAsync(x => x.PageId == page.Id, cancellationToken);
-        var previousStatus = review?.Status.ToString() ?? "Pending";
-
         if (review is null)
         {
-            review = new PagePublicationReview
-            {
-                Id = Guid.NewGuid(),
-                PageId = page.Id,
-                CreatedUtc = now
-            };
-            dbContext.PagePublicationReviews.Add(review);
+            return AppResult<PagePublicationReviewActionDto>.Conflict(
+                "A submitted publication copy is required before this page can be returned.");
         }
+        var previousStatus = review.Status.ToString();
+        var withdrawingPublishedCopy = review.Status == PagePublicationReviewStatus.Approved;
 
         review.Status = PagePublicationReviewStatus.Returned;
-        review.PrimaryMenuId = null;
-        review.PrimaryMenuNameJson = null;
-        review.MenuSortOrder = 0;
-        review.AccessNameJson = null;
-        review.CardImageUrl = null;
-        review.CardTextJson = null;
+        if (withdrawingPublishedCopy)
+        {
+            review.PublishedSnapshotJson = null;
+            review.PublishedByMemberId = null;
+            review.PublishedUtc = null;
+            review.PrimaryMenuId = null;
+            review.PrimaryMenuNameJson = null;
+            review.MenuSortOrder = 0;
+            review.AccessNameJson = null;
+            review.CardImageUrl = null;
+            review.CardTextJson = null;
+        }
         review.ReturnReason = reason;
         review.ReviewedByMemberId = request.CurrentMemberId;
         review.ReviewedUtc = now;
@@ -89,9 +90,20 @@ public sealed class ReturnPagePublicationCommandHandler(
             OccurredUtc = now
         }, cancellationToken);
 
-        await dbContext.SaveChangesAsync(cancellationToken);
-        await pageCacheInvalidationService.RemoveDetailAsync(page.Id, cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return AppResult<PagePublicationReviewActionDto>.Conflict(PagePublicationReviewState.ConcurrentChangeMessage);
+        }
         await pageCacheInvalidationService.RemoveGroupPagesAsync(ownerGroupId, cancellationToken);
+        if (withdrawingPublishedCopy)
+        {
+            await pageCacheInvalidationService.RemovePublishedDetailAsync(page.Id, cancellationToken);
+            await pageCacheInvalidationService.RemovePublicAsync(cancellationToken);
+        }
 
         return AppResult<PagePublicationReviewActionDto>.Success(new PagePublicationReviewActionDto(
             true,

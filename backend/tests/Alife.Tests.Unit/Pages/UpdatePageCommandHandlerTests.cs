@@ -61,7 +61,7 @@ public class UpdatePageCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WhenLeaderUpdatesPublicPage_ResetsPublicationReviewToPending()
+    public async Task Handle_WhenLeaderUpdatesPublishedPage_SubmitsCopyAndKeepsPublishedConfiguration()
     {
         using var dbContext = CreateInMemoryDbContext();
         var groupAuthorizationService = Substitute.For<IGroupAuthorizationService>();
@@ -115,7 +115,10 @@ public class UpdatePageCommandHandlerTests
         Assert.True(result.IsSuccess);
         var review = await dbContext.PagePublicationReviews.SingleAsync(x => x.PageId == pageId);
         Assert.Equal(PagePublicationReviewStatus.Pending, review.Status);
-        Assert.Null(review.AccessNameJson);
+        Assert.Equal("{\"en\":\"Menu\",\"zh\":\"菜单\"}", review.AccessNameJson);
+        Assert.NotNull(review.SubmittedSnapshotJson);
+        Assert.Contains("Updated title", review.SubmittedSnapshotJson);
+        Assert.Equal(leaderId, review.SubmittedByMemberId);
         Assert.Null(review.ReviewedByMemberId);
         await pageCacheInvalidationService.Received(1).RemoveDetailAsync(pageId, Arg.Any<CancellationToken>());
         await pageCacheInvalidationService.Received(1).RemoveGroupPagesAsync(groupId, Arg.Any<CancellationToken>());
@@ -177,6 +180,8 @@ public class UpdatePageCommandHandlerTests
         Assert.True(result.IsSuccess);
         var review = await dbContext.PagePublicationReviews.SingleAsync(x => x.PageId == pageId);
         Assert.Equal(PagePublicationReviewStatus.Pending, review.Status);
+        Assert.NotNull(review.SubmittedSnapshotJson);
+        Assert.Contains("Changed title", review.SubmittedSnapshotJson);
         Assert.Null(review.ReviewedByMemberId);
         Assert.Null(review.ReviewedUtc);
     }
@@ -310,7 +315,8 @@ public class UpdatePageCommandHandlerTests
         Assert.True(result.IsSuccess);
         var review = await dbContext.PagePublicationReviews.SingleAsync(x => x.PageId == pageId);
         Assert.Equal(PagePublicationReviewStatus.Pending, review.Status);
-        Assert.Null(review.AccessNameJson);
+        Assert.Equal("{\"en\":\"Approved\",\"zh\":\"已批准\"}", review.AccessNameJson);
+        Assert.NotNull(review.SubmittedSnapshotJson);
         Assert.Null(review.ReviewedByMemberId);
         Assert.Null(review.ReviewedUtc);
     }

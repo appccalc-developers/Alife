@@ -41,14 +41,27 @@ public sealed class CreateSectionCommandHandler(
 			Order = order,
 			Type = request.Type,
 			ContentJson = string.IsNullOrWhiteSpace(request.ContentJson) ? "{}" : request.ContentJson,
-			StyleJson = string.IsNullOrWhiteSpace(request.StyleJson) ? "{}" : request.StyleJson
+			StyleJson = string.IsNullOrWhiteSpace(request.StyleJson) ? "{}" : request.StyleJson,
+			Page = page
 		};
 
 		dbContext.Sections.Add(section);
 		var now = DateTime.UtcNow;
 		page.UpdatedUtc = now;
-		await PagePublicationReviewState.MarkPendingIfPublicAsync(dbContext, page, now, cancellationToken);
-		await dbContext.SaveChangesAsync(cancellationToken);
+		await PagePublicationReviewState.SubmitCopyIfPublicAsync(
+			dbContext,
+			page,
+			request.CurrentMemberId,
+			now,
+			cancellationToken);
+		try
+		{
+			await dbContext.SaveChangesAsync(cancellationToken);
+		}
+		catch (DbUpdateConcurrencyException)
+		{
+			return AppResult<SectionDto>.Conflict(PagePublicationReviewState.ConcurrentChangeMessage);
+		}
 		await InvalidatePageAsync(page, cancellationToken);
 
 		return AppResult<SectionDto>.Success(ToDto(section));

@@ -18,7 +18,9 @@ public sealed class PublishPageCommandHandler(
 {
     public async Task<AppResult<PageDto>> Handle(PublishPageCommand request, CancellationToken cancellationToken)
     {
-        var page = await dbContext.Pages.FirstOrDefaultAsync(x => x.Id == request.PageId, cancellationToken);
+        var page = await dbContext.Pages
+            .Include(x => x.Sections)
+            .FirstOrDefaultAsync(x => x.Id == request.PageId, cancellationToken);
         if (page is null)
         {
             return AppResult<PageDto>.NotFound("Page was not found.");
@@ -35,9 +37,21 @@ public sealed class PublishPageCommandHandler(
         var now = DateTime.UtcNow;
         page.Visibility = request.Visibility;
         page.UpdatedUtc = now;
-        await PagePublicationReviewState.MarkPendingIfPublicAsync(dbContext, page, now, cancellationToken);
+        await PagePublicationReviewState.SubmitCopyIfPublicAsync(
+            dbContext,
+            page,
+            request.CurrentMemberId,
+            now,
+            cancellationToken);
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return AppResult<PageDto>.Conflict(PagePublicationReviewState.ConcurrentChangeMessage);
+        }
         await InvalidatePageAsync(page, cancellationToken);
 
         return AppResult<PageDto>.Success(ToDto(page));
@@ -46,8 +60,9 @@ public sealed class PublishPageCommandHandler(
     private async Task InvalidatePageAsync(Domain.Entities.Page page, CancellationToken cancellationToken)
     {
         await pageCacheInvalidationService.RemoveDetailAsync(page.Id, cancellationToken);
-
         await pageCacheInvalidationService.RemoveGroupPagesAsync(page.OwnerGroupId, cancellationToken);
+        await pageCacheInvalidationService.RemovePublishedDetailAsync(page.Id, cancellationToken);
+        await pageCacheInvalidationService.RemovePublicAsync(cancellationToken);
     }
 
     private static PageDto ToDto(Domain.Entities.Page page)

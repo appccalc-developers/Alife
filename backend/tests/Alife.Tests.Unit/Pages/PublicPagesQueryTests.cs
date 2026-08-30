@@ -1,3 +1,4 @@
+using Alife.Application.Pages.Services;
 using Alife.Domain.Entities;
 using Alife.Domain.Enums;
 using Alife.Infrastructure.Persistence;
@@ -186,6 +187,128 @@ public class PublicPagesQueryTests
         Assert.Equal(0, result[0].PrimaryMenuSortOrder);
         Assert.Equal(0, result[0].MenuSortOrder);
         Assert.Equal(PagePrimaryMenuHomePlacement.ChurchOrganization, result[0].PrimaryMenuHomePlacement);
+    }
+
+    [Fact]
+    public async Task PublishedPage_RemainsVisibleWithApprovedSnapshotWhileEditedCopyIsPending()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        using var services = CreateServiceProvider();
+        var authorId = Guid.NewGuid();
+        var groupId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+        dbContext.Members.Add(new Member
+        {
+            Id = authorId,
+            DisplayName = "Author",
+            IsRegistered = true,
+            CreatedUtc = now,
+            UpdatedUtc = now
+        });
+        dbContext.Groups.Add(CreateGroup(groupId, isChurch: false, parentGroupId: null));
+
+        var page = CreatePage(authorId, groupId, PageVisibility.Public, "Published title");
+        page.UpdatedUtc = now.AddHours(-1);
+        var publishedSection = new Section
+        {
+            Id = Guid.NewGuid(),
+            PageId = page.Id,
+            Order = 1,
+            Type = SectionType.RichText,
+            ContentJson = "{\"body\":{\"en\":\"Published body\",\"zh\":\"已发布内容\"}}",
+            StyleJson = "{}"
+        };
+        var publishedSnapshot = PagePublicationSnapshots.Capture(page, [publishedSection], now.AddHours(-1));
+
+        page.TitleJson = "{\"en\":\"Edited title\",\"zh\":\"编辑中的标题\"}";
+        page.UpdatedUtc = now;
+        var menu = CreatePrimaryMenu("Ministries", 0);
+        dbContext.Pages.Add(page);
+        dbContext.Sections.Add(publishedSection);
+        dbContext.PagePrimaryMenus.Add(menu);
+        dbContext.PagePublicationReviews.Add(new PagePublicationReview
+        {
+            Id = Guid.NewGuid(),
+            PageId = page.Id,
+            Status = PagePublicationReviewStatus.Pending,
+            PrimaryMenuId = menu.Id,
+            PrimaryMenuNameJson = menu.NameJson,
+            AccessNameJson = "{\"en\":\"Published menu\",\"zh\":\"已发布菜单\"}",
+            PublishedSnapshotJson = publishedSnapshot,
+            PublishedByMemberId = authorId,
+            PublishedUtc = now.AddHours(-1),
+            SubmittedSnapshotJson = PagePublicationSnapshots.Capture(page, [publishedSection], now),
+            SubmittedByMemberId = authorId,
+            SubmittedUtc = now,
+            CreatedUtc = now.AddHours(-1),
+            UpdatedUtc = now
+        });
+        await dbContext.SaveChangesAsync();
+        var service = new PageReadService(dbContext, services.GetRequiredService<HybridCache>());
+
+        var publicPages = await service.GetPublicPagesAsync(CancellationToken.None);
+        var publicDetail = await service.GetPublishedByIdAsync(page.Id, CancellationToken.None);
+
+        var publicPage = Assert.Single(publicPages);
+        Assert.Equal("Published title", publicPage.Title["en"]);
+        Assert.NotNull(publicDetail);
+        Assert.Equal("Published title", publicDetail.Title["en"]);
+        Assert.Contains("Published body", Assert.Single(publicDetail.Sections).ContentJson);
+    }
+
+    [Fact]
+    public async Task PublishedPage_WithInvalidSnapshot_FailsClosedWithoutExposingWorkingCopy()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        using var services = CreateServiceProvider();
+        var authorId = Guid.NewGuid();
+        var groupId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+        dbContext.Members.Add(new Member
+        {
+            Id = authorId,
+            DisplayName = "Author",
+            IsRegistered = true,
+            CreatedUtc = now,
+            UpdatedUtc = now
+        });
+        dbContext.Groups.Add(CreateGroup(groupId, isChurch: false, parentGroupId: null));
+
+        var page = CreatePage(authorId, groupId, PageVisibility.Public, "Unreviewed working title");
+        var menu = CreatePrimaryMenu("Ministries", 0);
+        dbContext.Pages.Add(page);
+        dbContext.Sections.Add(new Section
+        {
+            Id = Guid.NewGuid(),
+            PageId = page.Id,
+            Order = 1,
+            Type = SectionType.RichText,
+            ContentJson = "{\"body\":{\"en\":\"Unreviewed working body\"}}",
+            StyleJson = "{}"
+        });
+        dbContext.PagePrimaryMenus.Add(menu);
+        dbContext.PagePublicationReviews.Add(new PagePublicationReview
+        {
+            Id = Guid.NewGuid(),
+            PageId = page.Id,
+            Status = PagePublicationReviewStatus.Pending,
+            PrimaryMenuId = menu.Id,
+            PrimaryMenuNameJson = menu.NameJson,
+            PublishedSnapshotJson = "{\"version\":999}",
+            SubmittedSnapshotJson = PagePublicationSnapshots.Capture(page, [], now),
+            SubmittedByMemberId = authorId,
+            SubmittedUtc = now,
+            CreatedUtc = now,
+            UpdatedUtc = now
+        });
+        await dbContext.SaveChangesAsync();
+        var service = new PageReadService(dbContext, services.GetRequiredService<HybridCache>());
+
+        var publicPages = await service.GetPublicPagesAsync(CancellationToken.None);
+        var publicDetail = await service.GetPublishedByIdAsync(page.Id, CancellationToken.None);
+
+        Assert.Empty(publicPages);
+        Assert.Null(publicDetail);
     }
 
     private static AlifeDbContext CreateInMemoryDbContext()

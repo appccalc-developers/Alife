@@ -67,15 +67,28 @@ public sealed class UpdatePageCommandHandler(
                 Order = incoming.Order,
                 Type = incoming.Section.Type,
                 ContentJson = string.IsNullOrWhiteSpace(incoming.Section.ContentJson) ? "{}" : incoming.Section.ContentJson,
-                StyleJson = string.IsNullOrWhiteSpace(incoming.Section.StyleJson) ? "{}" : incoming.Section.StyleJson
+                StyleJson = string.IsNullOrWhiteSpace(incoming.Section.StyleJson) ? "{}" : incoming.Section.StyleJson,
+                Page = page
             });
         }
 
         if (!await ShouldPreservePublicationReviewStatusAsync(page, request, cancellationToken))
         {
-            await PagePublicationReviewState.MarkPendingIfPublicAsync(dbContext, page, now, cancellationToken);
+            await PagePublicationReviewState.SubmitCopyIfPublicAsync(
+                dbContext,
+                page,
+                request.CurrentMemberId,
+                now,
+                cancellationToken);
         }
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return AppResult<PageDetailDto>.Conflict(PagePublicationReviewState.ConcurrentChangeMessage);
+        }
         await InvalidatePageAsync(page, cancellationToken);
 
         var activeSections = await dbContext.Sections
