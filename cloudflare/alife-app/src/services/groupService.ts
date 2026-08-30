@@ -130,6 +130,10 @@ export type AdminPageReviewDto = {
   titleDisplayStyle: string
   visibility: 'draft' | 'group' | 'public' | string
   reviewStatus: 'pending' | 'approved' | 'returned'
+  isPublished: boolean
+  publishedTitle?: LocalizedText | null
+  publishedDescription?: LocalizedText | null
+  publishedCardImageUrl?: string | null
   primaryMenuId: string | null
   primaryMenuName: LocalizedText | null
   menuSortOrder: number
@@ -294,6 +298,10 @@ const normalizeAdminPageReview = (page: AdminPageReviewDto): AdminPageReviewDto 
   ...page,
   visibility: normalizePageVisibility(page.visibility),
   reviewStatus: normalizeAdminPageReviewStatus(page.reviewStatus),
+  isPublished: page.isPublished ?? normalizeAdminPageReviewStatus(page.reviewStatus) === 'approved',
+  publishedTitle: page.publishedTitle ? toLocalizedText(page.publishedTitle) : null,
+  publishedDescription: page.publishedDescription ? toLocalizedText(page.publishedDescription) : null,
+  publishedCardImageUrl: page.publishedCardImageUrl ?? null,
   primaryMenuName: page.primaryMenuName ? toLocalizedText(page.primaryMenuName) : null,
   accessName: page.accessName ? toLocalizedText(page.accessName) : null,
   cardText: page.cardText ? toLocalizedText(page.cardText) : null,

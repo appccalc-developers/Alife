@@ -15,8 +15,8 @@ import { localizeText } from '../utils/localizedText'
 const copy = {
   title: { en: 'Homepage Management', zh: '首页管理' },
   subtitle: {
-    en: 'Manage homepage content, public navigation, and page publication approval in one place.',
-    zh: '集中管理首页内容、公开导航与页面发布审核。',
+    en: 'Review submitted copies and manage public navigation without changing the group working page.',
+    zh: '审核小家提交的页面副本并管理公开导航，不改动小家的工作页面。',
   },
   refresh: { en: 'Refresh', zh: '刷新' },
   refreshSuccess: {
@@ -40,8 +40,8 @@ const copy = {
   },
   queue: { en: 'Pages for review', zh: '审核页面' },
   queueHint: {
-    en: 'Configure each public page under a bilingual primary menu. The card image comes from the first image in the page sections; reviewers can adjust the menu name and card text.',
-    zh: '为每个公开页面选择双语一级菜单；卡片图片自动取自页面 section 列表中的第一张图，审核员可以调整菜单名和卡片文字。',
+    en: 'Each item is a submitted copy. Approving replaces the website version; returning it leaves the current website version online.',
+    zh: '每项都是提交的副本；批准后替换网站版本，退回时网站现有版本继续在线。',
   },
   groupPage: { en: 'group page', zh: '小组页面' },
   draftStatus: { en: 'Draft', zh: '草稿' },
@@ -53,6 +53,7 @@ const copy = {
   pendingStatus: { en: 'Pending review', zh: '待审核' },
   approvedStatus: { en: 'Approved', zh: '已批准' },
   returnedStatus: { en: 'Returned', zh: '已退回' },
+  publishedVersionRetained: { en: 'Current website version stays published', zh: '网站现有版本继续发布' },
   approve: { en: 'Approve', zh: '批准' },
   editMenu: { en: 'Edit menu', zh: '编辑菜单' },
   saveMenu: { en: 'Save menu changes', zh: '保存菜单修改' },
@@ -279,14 +280,14 @@ const PageReviewView = () => {
       reviewTabs.reduce<Record<ReviewTab, number>>(
         (counts, tab) => ({
           ...counts,
-          [tab]: publicItems.filter((page) => page.reviewStatus === tab).length,
+          [tab]: publicItems.filter((page) => tab === 'approved' ? page.isPublished : page.reviewStatus === tab).length,
         }),
         { pending: 0, approved: 0, returned: 0 },
       ),
     [publicItems],
   )
   const approvedMenuGroups = useMemo(() => {
-    const approvedPages = publicItems.filter((page) => page.reviewStatus === 'approved')
+    const approvedPages = publicItems.filter((page) => page.isPublished)
     return [...primaryMenus]
       .sort((left, right) => left.sortOrder - right.sortOrder || left.id.localeCompare(right.id))
       .map((menu) => ({
@@ -526,7 +527,6 @@ const PageReviewView = () => {
 
   const reviewEditorPath = (page: AdminPageReviewDto) => {
     const params = new URLSearchParams({
-      preservePublicationReviewStatus: 'true',
       fromReview: 'true',
     })
     return `/pages/${page.id}/edit?${params.toString()}`
@@ -534,7 +534,7 @@ const PageReviewView = () => {
 
   const openPage = (page: AdminPageReviewDto) => {
     activeEntityService.setPage(page.id, page.ownerGroupId || undefined)
-    navigate(canEditReviewPage(page) ? reviewEditorPath(page) : `/pages/${page.id}`)
+    navigate(canEditReviewPage(page) ? reviewEditorPath(page) : `/pages/${page.id}?fromReview=true`)
   }
 
   const requestPageModification = (page: AdminPageReviewDto) => {
@@ -561,7 +561,7 @@ const PageReviewView = () => {
           .map((menu) => ({
             primaryMenuId: menu.id,
             pageIds: nextItems
-              .filter((page) => page.reviewStatus === 'approved' && page.primaryMenuId === menu.id)
+              .filter((page) => page.isPublished && page.primaryMenuId === menu.id)
               .sort((left, right) => left.menuSortOrder - right.menuSortOrder || left.id.localeCompare(right.id))
               .map((page) => page.id),
           })),
@@ -624,7 +624,7 @@ const PageReviewView = () => {
       pagesByMenuId.set(
         menu.id,
         items
-          .filter((page) => page.reviewStatus === 'approved' && page.primaryMenuId === menu.id)
+          .filter((page) => page.isPublished && page.primaryMenuId === menu.id)
           .sort((left, right) => left.menuSortOrder - right.menuSortOrder || left.id.localeCompare(right.id))
           .map((page) => page.id),
       )
@@ -1206,10 +1206,14 @@ const PageReviewView = () => {
               const displayedAccessLabel = accessLabel || `${groupName}-${title}`
               const displayedCardText = cardLabel || localizeText(page.description, language)
 
-              if (page.reviewStatus === 'approved') {
+              if (activeTab === 'approved' && page.isPublished) {
+                const publishedTitle = localizeText(page.publishedTitle, language) || title
+                const publishedAccessLabel = accessLabel || `${groupName}-${publishedTitle}`
+                const publishedCardText = cardLabel || localizeText(page.publishedDescription, language)
                 const editorExpanded = approvingPage?.id === page.id
                 const editorId = `approved-menu-editor-${page.id}`
                 const approvedActionsDisabled = Boolean(actingPageId) || layoutSaving
+                const publishedCopyHasPendingReview = page.reviewStatus !== 'approved'
 
                 return (
                   <article
@@ -1233,19 +1237,19 @@ const PageReviewView = () => {
                         <GripVertical className="h-5 w-5" aria-hidden="true" />
                       </span>
                       <ReviewCardImage
-                        imageUrl={page.cardImageUrl}
-                        alt={displayedAccessLabel}
+                        imageUrl={page.publishedCardImageUrl ?? page.cardImageUrl}
+                        alt={publishedAccessLabel}
                       />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-2">
-                          <p className="truncate text-sm font-black text-slate-800">{displayedAccessLabel}</p>
+                          <p className="truncate text-sm font-black text-slate-800">{publishedAccessLabel}</p>
                           <button
                             type="button"
                             className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-emerald-100 hover:text-emerald-700 focus:outline-none focus:ring-4 focus:ring-emerald-100"
                             aria-label={text(language, 'editMenu')}
                             aria-expanded={editorExpanded}
                             aria-controls={editorId}
-                            disabled={approvedActionsDisabled}
+                            disabled={approvedActionsDisabled || publishedCopyHasPendingReview}
                             onClick={() => editorExpanded ? closeApproveDialog() : openApproveDialog(page)}
                           >
                             {disabled ? (
@@ -1255,7 +1259,10 @@ const PageReviewView = () => {
                             )}
                           </button>
                         </div>
-                        {displayedCardText ? <p className="mt-1 line-clamp-2 text-sm leading-6 text-slate-600">{displayedCardText}</p> : null}
+                        {publishedCardText ? <p className="mt-1 line-clamp-2 text-sm leading-6 text-slate-600">{publishedCardText}</p> : null}
+                        {publishedCopyHasPendingReview ? (
+                          <p className="mt-2 text-xs font-bold text-amber-700">{text(language, 'publishedVersionRetained')}</p>
+                        ) : null}
                       </div>
                     </div>
                     {editorExpanded ? (

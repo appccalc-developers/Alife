@@ -171,8 +171,13 @@ export const pageService = {
   },
 
   async getPageById(pageId: string): Promise<PageDetailDto> {
-    const { data } = await http.get<PageDetailDto>(`/api/pages/${pageId}`)
+    const { data } = await http.get<PageDetailDto>(`/api/pages/${pageId}/working-copy`)
     return cachePageDetail(data as PageDetailDto & { tagsJson?: string })
+  },
+
+  async getPublicationReviewCopy(pageId: string): Promise<PageDetailDto> {
+    const { data } = await http.get<PageDetailDto>(`/api/admin/pages/${pageId}/publication-review/copy`)
+    return normalizePageDetail(data as PageDetailDto & { tagsJson?: string })
   },
 
   async createGroupPage(groupId: string, payload: CreateGroupPagePayload) {
@@ -192,6 +197,18 @@ export const pageService = {
       sections: toSectionPublishPayload(payload.sections),
     })
     const normalized = cachePageDetail(data as PageDetailDto & { tagsJson?: string })
+    await invalidatePageListCache(normalized)
+    await invalidatePublicPagesCache()
+    await invalidatePublicPageDetailCache(pageId)
+    return normalized
+  },
+
+  async updatePublicationReviewCopy(pageId: string, payload: UpdatePagePayload) {
+    const { data } = await http.put<PageDetailDto>(`/api/admin/pages/${pageId}/publication-review/copy`, {
+      ...payload,
+      sections: toSectionPublishPayload(payload.sections),
+    })
+    const normalized = normalizePageDetail(data as PageDetailDto & { tagsJson?: string })
     await invalidatePageListCache(normalized)
     await invalidatePublicPagesCache()
     await invalidatePublicPageDetailCache(pageId)

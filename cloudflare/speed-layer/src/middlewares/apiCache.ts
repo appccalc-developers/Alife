@@ -544,7 +544,7 @@ export function getEdgeCacheTtlSeconds(requestOrPath: Request | string) {
   const pathname = typeof requestOrPath === 'string'
     ? new URL(requestOrPath, 'https://alife.local').pathname
     : new URL(requestOrPath.url).pathname
-  return pathname === '/api/pages/public'
+  return pathname === '/api/pages/public' || isPublishedPageDetailPath(pathname)
     ? PUBLIC_CONTENT_EDGE_TTL_SECONDS
     : getApiCacheTtlSeconds(requestOrPath)
 }
@@ -653,7 +653,12 @@ export async function getInvalidationPaths(env: Env, request: Request, response:
   const pageId = path.match(/^\/api\/pages\/([^/]+)(?:\/publish)?$/)?.[1]
   if (pageId) {
     paths.add(`/api/pages/${pageId}`)
-    paths.add('/api/pages/public')
+    paths.add(`/api/pages/${pageId}/working-copy`)
+    const changesPublishedVisibility = path.endsWith('/publish') || request.method === 'DELETE'
+    if (changesPublishedVisibility) {
+      paths.add(`/api/pages/public/${pageId}`)
+      paths.add('/api/pages/public')
+    }
     const body = await readJsonObject(response)
 
     const ownerGroupId = readString(body?.ownerGroupId) ?? await readEntityGroup(env, 'page', pageId)
@@ -667,6 +672,7 @@ export async function getInvalidationPaths(env: Env, request: Request, response:
     const approvedPageId = pageApproveMatch[1]
     const body = await readJsonObject(response)
     paths.add(`/api/pages/${approvedPageId}`)
+    paths.add(`/api/pages/public/${approvedPageId}`)
     paths.add('/api/pages/public')
 
     const ownerGroupId = readString(body?.ownerGroupId) ?? await readEntityGroup(env, 'page', approvedPageId)
@@ -680,9 +686,26 @@ export async function getInvalidationPaths(env: Env, request: Request, response:
     const returnedPageId = pageReturnMatch[1]
     const body = await readJsonObject(response)
     paths.add(`/api/pages/${returnedPageId}`)
+    paths.add(`/api/pages/public/${returnedPageId}`)
     paths.add('/api/pages/public')
 
     const ownerGroupId = readString(body?.ownerGroupId) ?? await readEntityGroup(env, 'page', returnedPageId)
+    if (ownerGroupId) {
+      paths.add(`/api/groups/${ownerGroupId}/pages`)
+    }
+  }
+
+  const pageCopyUpdateMatch = request.method === 'PUT'
+    ? path.match(/^\/api\/admin\/pages\/([^/]+)\/publication-review\/copy$/)
+    : null
+  if (pageCopyUpdateMatch) {
+    const pageCopyId = pageCopyUpdateMatch[1]
+    const body = await readJsonObject(response)
+    paths.add(`/api/pages/${pageCopyId}`)
+    paths.add(`/api/pages/public/${pageCopyId}`)
+    paths.add('/api/pages/public')
+
+    const ownerGroupId = readString(body?.ownerGroupId) ?? await readEntityGroup(env, 'page', pageCopyId)
     if (ownerGroupId) {
       paths.add(`/api/groups/${ownerGroupId}/pages`)
     }
@@ -777,7 +800,7 @@ export function getInvalidationKeys(request: Request, targetMemberIds: string | 
   }
   const pageId = path.match(/^\/api\/pages\/([^/]+)(?:\/publish)?$/)?.[1] ??
     path.match(/^\/api\/admin\/pages\/([^/]+)\/publication-review\/approve$/)?.[1] ??
-    path.match(/^\/api\/admin\/pages\/([^/]+)\/publication-review\/return$/)?.[1]
+    path.match(/^\/api\/admin\/pages\/([^/]+)\/publication-review\/(?:return|copy)$/)?.[1]
   if (pageId) {
     keys.api.add(createEntityGroupMapKey('page', pageId))
     keys.api.add(createPageMetaMapKey(pageId))
@@ -826,7 +849,7 @@ export async function rememberEntityGroups(env: Env, request: Request, response:
   const path = new URL(request.url).pathname
   const groupListMatch = path.match(/^\/api\/groups\/([^/]+)\/(pages|events)$/)
   const publicPageList = path === '/api/pages/public'
-  const pageDetailMatch = path.match(/^\/api\/pages\/([^/]+)$/)
+  const pageDetailMatch = path.match(/^\/api\/pages\/(?:public\/)?([^/]+)$/)
   const eventSubresourceMatch = path.match(/^\/api\/events\/([^/]+)\/(enrollments|reviews)$/)
 
   if (!groupListMatch && !publicPageList && !pageDetailMatch && !eventSubresourceMatch) {
@@ -921,7 +944,7 @@ async function warmPublicPagesCacheCore(env: Env, request: Request) {
 }
 
 async function warmPublicPageDetail(env: Env, request: Request, pageId: string) {
-  const path = `/api/pages/${encodeURIComponent(pageId)}`
+  const path = `/api/pages/public/${encodeURIComponent(pageId)}`
   const detailRequest = createPublicCacheRequest(request, path)
   const originResponse = await fetch(createPublicOriginRequest(env, path))
   if (!originResponse.ok) {
@@ -1064,6 +1087,7 @@ export function shouldUseSharedCacheKey(pathname: string) {
   return pathname === '/images' ||
     pathname.startsWith('/images/') ||
     PUBLIC_CACHEABLE_API_PATHS.has(pathname) ||
+    isPublishedPageDetailPath(pathname) ||
     isPublicContentPostPath(pathname) ||
     Boolean(getGroupDetailId(pathname)) ||
     Boolean(getGroupSubresource(pathname)) ||
@@ -1148,11 +1172,16 @@ async function writePublicCachedResponse(env: Env, request: Request, response: R
 }
 
 function isGlobalPublicContentPath(pathname: string) {
-  return pathname === '/api/pages/public'
+  return pathname === '/api/pages/public' || isPublishedPageDetailPath(pathname)
 }
 
 function isPublicPageDetailCacheKey(key: string) {
-  return /^api:\/api\/pages\/[^/?]+$/.test(key) && key !== 'api:/api/pages/public'
+  return (/^api:\/api\/pages\/[^/?]+$/.test(key) && key !== 'api:/api/pages/public') ||
+    /^api:\/api\/pages\/public\/[^/?]+$/.test(key)
+}
+
+function isPublishedPageDetailPath(pathname: string) {
+  return /^\/api\/pages\/public\/[^/]+$/.test(pathname)
 }
 
 function isPublicPageDetailCacheRecord(key: string, body: string) {
@@ -1230,7 +1259,8 @@ function deserializeStoredResponse(record: unknown) {
 }
 
 export function withCacheTag(response: Response, pathname: string) {
-  const cacheTag = CACHE_TAG_BY_API_PATH.get(pathname)
+  const cacheTag = CACHE_TAG_BY_API_PATH.get(pathname) ??
+    (isPublishedPageDetailPath(pathname) ? 'alife-public-pages' : undefined)
   if (!cacheTag) {
     return response
   }

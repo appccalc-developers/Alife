@@ -736,7 +736,7 @@ test('public pages fall back to global KV after a new edge location misses L1', 
 test('anonymous visitors can read confirmed public page detail from global KV', async () => {
   const pageId = 'public-page-1'
   const groupId = 'church-1'
-  const url = `https://ccalc.live/api/pages/${pageId}`
+  const url = `https://ccalc.live/api/pages/public/${pageId}`
   const env = createEnvWithGlobalApiCache()
   apiCacheRawStore.set(`map:page:${pageId}:meta`, JSON.stringify({
     groupId,
@@ -754,7 +754,7 @@ test('anonymous visitors can read confirmed public page detail from global KV', 
 
   assert.equal(response.status, 200)
   assert.equal(response.headers.get('x-alife-cache'), 'HIT')
-  assert.equal(response.headers.get('x-alife-authz'), 'no-principal')
+  assert.equal(response.headers.get('x-alife-authz'), null)
   assert.deepEqual((await response.json()).sections, [{ id: 'hero-1' }])
   assert.equal(fetchCalls.length, 0)
 })
@@ -782,9 +782,9 @@ test('internal public pages invalidation warms list and public details into glob
 
   assert.equal(response.status, 200)
   assert.equal(apiCacheRawStore.has('api:/api/pages/public'), true)
-  assert.equal(apiCacheRawStore.has(`api:/api/pages/${pageId}`), true)
+  assert.equal(apiCacheRawStore.has(`api:/api/pages/public/${pageId}`), true)
   assert.equal(apiCacheRawStore.has(`map:page:${pageId}:meta`), true)
-  assert.equal(JSON.parse(apiCacheRawStore.get(`api:/api/pages/${pageId}`)).headers['cache-tag'], 'alife-public-pages')
+  assert.equal(JSON.parse(apiCacheRawStore.get(`api:/api/pages/public/${pageId}`)).headers['cache-tag'], 'alife-public-pages')
   assert.equal(fetchCalls.length, 2)
 })
 
@@ -959,6 +959,45 @@ test('page publication return evicts public and group pages caches', async () =>
   assert.equal(cacheStore.has(cacheKey(new Request(publicUrl))), false)
   assert.equal(cacheStore.has(cacheKey(new Request(groupPagesUrl))), false)
   assert.equal(apiCacheStore.has(createApiCacheKey(publicUrl)), false)
+  assert.equal(apiCacheStore.has(`group:${groupId}:pages`), false)
+  assert.equal(apiCacheStore.has(`public:group:${groupId}:pages`), false)
+})
+
+test('approved publication copy update evicts every published page projection', async () => {
+  const pageId = 'group-page-1'
+  const groupId = 'group-1'
+  const publicUrl = 'https://ccalc.live/api/pages/public'
+  const publicDetailUrl = `https://ccalc.live/api/pages/public/${pageId}`
+  const legacyDetailUrl = `https://ccalc.live/api/pages/${pageId}`
+  const groupPagesUrl = `https://ccalc.live/api/groups/${groupId}/pages`
+  for (const url of [publicUrl, publicDetailUrl, legacyDetailUrl, groupPagesUrl]) {
+    cacheStore.set(cacheKey(new Request(url)), Response.json({ stale: true }))
+    apiCacheStore.set(createApiCacheKey(url), createStoredResponse({ stale: true }))
+  }
+  apiCacheStore.set(`group:${groupId}:pages`, createStoredResponse([{ id: pageId }]))
+  apiCacheStore.set(`public:group:${groupId}:pages`, createStoredResponse([{ id: pageId }]))
+  originResponses.push(Response.json({
+    id: pageId,
+    ownerGroupId: groupId,
+    visibility: 'public',
+    sections: [],
+  }))
+
+  const updated = await dispatch(`https://ccalc.live/api/admin/pages/${pageId}/publication-review/copy`, {
+    method: 'PUT',
+    body: JSON.stringify({ title: { en: 'Updated', zh: '更新' }, sections: [] }),
+    headers: {
+      'content-type': 'application/json',
+      cookie: `alife_auth=${createJwtWithSub('reviewer-1')}`,
+    },
+  })
+  await flushWaitUntil()
+
+  assert.equal(updated.status, 200)
+  for (const url of [publicUrl, publicDetailUrl, legacyDetailUrl, groupPagesUrl]) {
+    assert.equal(cacheStore.has(cacheKey(new Request(url))), false, url)
+    assert.equal(apiCacheStore.has(createApiCacheKey(url)), false, url)
+  }
   assert.equal(apiCacheStore.has(`group:${groupId}:pages`), false)
   assert.equal(apiCacheStore.has(`public:group:${groupId}:pages`), false)
 })
