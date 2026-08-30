@@ -1,4 +1,5 @@
 using Alife.Application.Admin.Commands.UpdatePagePublicationCopy;
+using Alife.Application.Admin.Queries.GetPagePublicationCopy;
 using Alife.Application.Admin.Queries.ListPageReviewCandidates;
 using Alife.Application.Common.Models;
 using Alife.Application.Groups.Services;
@@ -188,6 +189,177 @@ public class PagePublicationCopyTests
         var snapshot = PagePublicationSnapshots.Read(review.SubmittedSnapshotJson)!;
         Assert.Equal("/media/linked-image.jpg", Assert.Single(Assert.Single(snapshot.Sections).Links!).ImageUrl);
         Assert.Equal("/media/linked-image.jpg", PagePublicationReviewDefaults.ExtractFirstSectionImage(snapshot.Sections));
+    }
+
+    [Fact]
+    public async Task GetPublicationCopy_SelectsSubmittedOrPublishedSnapshotAndFailsClosed()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var reviewerId = Guid.NewGuid();
+        var authorId = Guid.NewGuid();
+        var pageId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+        dbContext.PlatformRoles.Add(new PlatformRole
+        {
+            Id = (int)PlatformRoleId.PageReviewer,
+            Code = "page_reviewer",
+            NameJson = "{\"en\":\"Page Reviewer\",\"zh\":\"发布审核者\"}",
+            Level = 5
+        });
+        dbContext.Members.AddRange(
+            new Member { Id = reviewerId, DisplayName = "Reviewer", IsRegistered = true },
+            new Member { Id = authorId, DisplayName = "Author", IsRegistered = true });
+        dbContext.MemberPlatformRoles.Add(new MemberPlatformRole
+        {
+            Id = Guid.NewGuid(),
+            MemberId = reviewerId,
+            RoleId = (int)PlatformRoleId.PageReviewer,
+            AssignedUtc = now
+        });
+        var page = new Page
+        {
+            Id = pageId,
+            OwnerGroupId = Guid.NewGuid(),
+            CreatedByMemberId = authorId,
+            TitleJson = "{\"en\":\"Working copy\"}",
+            TagsJson = "[]",
+            TitleDisplayStyle = "Default",
+            Visibility = PageVisibility.Public,
+            UpdatedUtc = now
+        };
+        var submittedJson = PagePublicationSnapshots.Capture(
+            page,
+            new Dictionary<string, string> { ["en"] = "Submitted copy" },
+            null,
+            "[]",
+            "Default",
+            [],
+            now,
+            now);
+        var publishedJson = PagePublicationSnapshots.Capture(
+            page,
+            new Dictionary<string, string> { ["en"] = "Published copy" },
+            null,
+            "[]",
+            "Default",
+            [],
+            now.AddMinutes(-1),
+            now.AddMinutes(-1));
+        var review = new PagePublicationReview
+        {
+            Id = Guid.NewGuid(),
+            PageId = pageId,
+            Status = PagePublicationReviewStatus.Pending,
+            SubmittedSnapshotJson = submittedJson,
+            PublishedSnapshotJson = publishedJson,
+            SubmittedByMemberId = authorId,
+            SubmittedUtc = now,
+            CreatedUtc = now,
+            UpdatedUtc = now
+        };
+        dbContext.Pages.Add(page);
+        dbContext.PagePublicationReviews.Add(review);
+        await dbContext.SaveChangesAsync();
+        var handler = new GetPagePublicationCopyQueryHandler(dbContext);
+
+        var pending = await handler.Handle(
+            new GetPagePublicationCopyQuery(reviewerId, pageId),
+            CancellationToken.None);
+
+        Assert.True(pending.IsSuccess);
+        Assert.Equal("Submitted copy", pending.Value!.Title["en"]);
+
+        review.Status = PagePublicationReviewStatus.Approved;
+        await dbContext.SaveChangesAsync();
+        var approved = await handler.Handle(
+            new GetPagePublicationCopyQuery(reviewerId, pageId),
+            CancellationToken.None);
+
+        Assert.True(approved.IsSuccess);
+        Assert.Equal("Published copy", approved.Value!.Title["en"]);
+
+        review.PublishedSnapshotJson = "{\"version\":999}";
+        review.SubmittedSnapshotJson = null;
+        await dbContext.SaveChangesAsync();
+        var invalid = await handler.Handle(
+            new GetPagePublicationCopyQuery(reviewerId, pageId),
+            CancellationToken.None);
+
+        Assert.Equal(AppResultStatus.Conflict, invalid.Status);
+    }
+
+    [Fact]
+    public async Task PublicationCopyEndpoints_EnforceReviewerAndGroupLeaderPermissions()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var memberId = Guid.NewGuid();
+        var pageId = Guid.NewGuid();
+        var groupId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+        var page = new Page
+        {
+            Id = pageId,
+            OwnerGroupId = groupId,
+            CreatedByMemberId = memberId,
+            TitleJson = "{\"en\":\"Candidate\"}",
+            TagsJson = "[]",
+            TitleDisplayStyle = "Default",
+            Visibility = PageVisibility.Public,
+            UpdatedUtc = now
+        };
+        dbContext.Members.Add(new Member { Id = memberId, DisplayName = "Member", IsRegistered = true });
+        dbContext.Pages.Add(page);
+        dbContext.PagePublicationReviews.Add(new PagePublicationReview
+        {
+            Id = Guid.NewGuid(),
+            PageId = pageId,
+            Status = PagePublicationReviewStatus.Pending,
+            SubmittedSnapshotJson = PagePublicationSnapshots.Capture(page, [], now),
+            SubmittedByMemberId = memberId,
+            SubmittedUtc = now,
+            CreatedUtc = now,
+            UpdatedUtc = now
+        });
+        await dbContext.SaveChangesAsync();
+
+        var getResult = await new GetPagePublicationCopyQueryHandler(dbContext).Handle(
+            new GetPagePublicationCopyQuery(memberId, pageId),
+            CancellationToken.None);
+
+        Assert.Equal(AppResultStatus.Forbidden, getResult.Status);
+
+        dbContext.PlatformRoles.Add(new PlatformRole
+        {
+            Id = (int)PlatformRoleId.PageReviewer,
+            Code = "page_reviewer",
+            NameJson = "{\"en\":\"Page Reviewer\",\"zh\":\"发布审核者\"}",
+            Level = 5
+        });
+        dbContext.MemberPlatformRoles.Add(new MemberPlatformRole
+        {
+            Id = Guid.NewGuid(),
+            MemberId = memberId,
+            RoleId = (int)PlatformRoleId.PageReviewer,
+            AssignedUtc = now
+        });
+        await dbContext.SaveChangesAsync();
+        var authorization = Substitute.For<IGroupAuthorizationService>();
+        authorization.IsLeaderOrCoLeaderAsync(groupId, memberId, Arg.Any<CancellationToken>()).Returns(false);
+        var handler = new UpdatePagePublicationCopyCommandHandler(
+            dbContext,
+            authorization,
+            Substitute.For<IPageCacheInvalidationService>());
+
+        var updateResult = await handler.Handle(new UpdatePagePublicationCopyCommand(
+            memberId,
+            pageId,
+            new Dictionary<string, string> { ["en"] = "Blocked edit" },
+            null,
+            "[]",
+            "Default",
+            []), CancellationToken.None);
+
+        Assert.Equal(AppResultStatus.Forbidden, updateResult.Status);
     }
 
     [Fact]
