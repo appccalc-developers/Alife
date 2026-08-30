@@ -73,6 +73,7 @@ Key entity areas:
 - `Group`
 - `GroupMembership`
 - `Page`
+- `PagePublicationReview`
 - `Section`
 - `Link`
 - `Sermon`
@@ -86,7 +87,6 @@ Key enum areas:
 - `AccessType`
 - `MembershipStatus`
 - `MembershipRole`
-- `PageScope`
 - `PageVisibility`
 - `SectionType`
 - `LinkType`

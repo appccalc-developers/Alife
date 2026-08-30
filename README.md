@@ -168,7 +168,7 @@ npx wrangler deploy
 - Hierarchical church/group model with public, protected, and private access types.
 - Group membership workflows: request, invite, accept, decline, approve, reject, co-leader assignment, kick, subgroup creation, and subgroup co-leader claim.
 - Bilingual group and page content using JSON-shaped localized text.
-- Page builder with global/group pages, draft/group/public visibility, structured sections, and link metadata.
+- Page builder with group-owned working pages, draft/group/public visibility, structured sections, and separate submitted and published snapshots.
 - Sermon listing and admin-triggered YouTube sermon synchronization.
 - Group events with enrollment and review APIs.
 - Notification messages with read and reply workflows.
@@ -204,11 +204,12 @@ Private user-specific data must not be stored in shared public caches.
 | LINE/member | `GET /api/members/line/login`, `GET /api/members/line/callback`, `POST /api/members/login/account`, `POST /api/members/register` |
 | Groups | `GET /api/groups/church`, `GET /api/groups/{id}`, `POST /api/groups/{id}/join-request` |
 | Group management | `POST /api/groups/{id}/subgroups`, `POST /api/groups/{id}/approve`, `POST /api/groups/{id}/set-coleader` |
-| Pages | `GET /api/pages/global`, `GET /api/groups/{groupId}/pages`, `POST /api/groups/{groupId}/pages`, `PUT /api/pages/{id}` |
+| Pages | `GET /api/pages/public`, `GET /api/pages/public/{id}`, `GET /api/pages/{id}/working-copy`, `GET/POST /api/groups/{groupId}/pages`, `PUT /api/pages/{id}`, `POST /api/pages/{id}/publish` |
 | Events | `GET /api/groups/{groupId}/events`, `POST /api/groups/{groupId}/events`, `PUT /api/events/{id}` |
 | Enrollments/reviews | `GET/POST /api/events/{eventId}/enrollments`, `GET/POST /api/events/{eventId}/reviews` |
 | Notifications | `GET/POST /api/notifications`, `POST /api/notifications/{id}/reply`, `POST /api/notifications/{id}/read` |
-| Admin | `POST /api/admin/sermons/sync`, `POST /api/admin/groups/{groupId}/cloudflare-cache/refresh` |
+| Page publication review | `GET /api/admin/pages/review-candidates`, `GET/PUT /api/admin/pages/{id}/publication-review/copy`, `POST /api/admin/pages/{id}/publication-review/approve`, `POST /api/admin/pages/{id}/publication-review/return` |
+| Admin operations | `POST /api/admin/sermons/sync`, `POST /api/admin/groups/{groupId}/cloudflare-cache/refresh` |
 | AI sessions | `/api/events/session/*`, `/api/enrollments/session/*`, `/api/reviews/session/*` |
 
 ## Configuration

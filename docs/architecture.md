@@ -90,7 +90,6 @@ Important enums include:
 - `AccessType`: public, protected, private.
 - `MembershipStatus`: invited, requested, approved, rejected, removed.
 - `MembershipRole`: member, coLeader, leader.
-- `PageScope`: global, group.
 - `PageVisibility`: draft, group, public.
 - `SectionType`: hero, rich text, spotlight, list view, and related section rendering types.
 
@@ -249,7 +248,9 @@ Visibility is explicit:
 
 - `draft`: not broadly visible; privileged users or the creator can work on it.
 - `group`: visible to approved members of the owner group.
-- `public`: intended for public/global or church-visible usage, subject to scope rules.
+- `public`: submits an isolated copy for publication review; it does not expose later working-page edits.
+
+The group-owned working page, the submitted review copy, and the last approved public snapshot have separate lifecycles. A reviewer can revise or return the submitted copy without changing the group working page. If a newer submission is returned, the last approved snapshot remains on the public website until an explicit withdrawal, deletion, or later approval replaces it.
 
 ## AI Session Architecture
 
@@ -333,16 +334,17 @@ Browser loads deployed domain
   -> frontend builds navigation from memberships and active group/page state
 ```
 
-### Leader Publishes A Group Page
+### Leader Submits A Group Page For Publication
 
 ```text
 Leader opens group management
-  -> frontend loads group pages through conditionalGet
-  -> leader edits page/sections
+  -> frontend loads the private working copy
+  -> leader edits the group-owned page and sections
   -> API validates leader/co-leader permission
-  -> page and section records are updated
-  -> backend and speed-layer caches are invalidated for affected page/group paths
-  -> frontend query/IndexedDB caches refresh on the next read
+  -> selecting public captures an immutable submitted snapshot for review
+  -> a page reviewer previews or revises that submitted copy, then approves or returns it
+  -> approval replaces the published snapshot and invalidates the public list/detail caches
+  -> later working-page edits do not change the public website until another copy is approved
 ```
 
 ### Event Enrollment
