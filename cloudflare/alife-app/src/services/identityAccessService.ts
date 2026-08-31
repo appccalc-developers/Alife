@@ -191,20 +191,20 @@ export const identityAccessService = {
   async supplementAnonymousApplication(note: string) {
     return (await http.post<MembershipApplication>('/api/onboarding/application-responses/supplement', { note })).data
   },
-  async authenticatePasskey() {
+  async authenticatePasskey(signal?: AbortSignal) {
     if (!window.PublicKeyCredential || !navigator.credentials) throw new Error('passkey_not_supported')
     const options = (await http.post<PasskeyOptions>('/api/auth/passkeys/authentication/options')).data
-    const credential = await navigator.credentials.get({ publicKey: requestOptions(options.publicKey) }) as PublicKeyCredential | null
+    const credential = await navigator.credentials.get({ publicKey: requestOptions(options.publicKey), signal }) as PublicKeyCredential | null
     if (!credential) throw new Error('passkey_cancelled')
     return (await http.post<{ returnPath: string; sessionKind: string }>('/api/auth/passkeys/authentication/complete', {
       ceremonyId: options.ceremonyId,
       response: serializeAssertion(credential),
     })).data
   },
-  async registerPasskey(displayName?: string) {
+  async registerPasskey(displayName?: string, signal?: AbortSignal) {
     if (!window.PublicKeyCredential || !navigator.credentials) throw new Error('passkey_not_supported')
     const options = (await http.post<PasskeyOptions>('/api/auth/passkeys/registration/options')).data
-    const credential = await navigator.credentials.create({ publicKey: creationOptions(options.publicKey) }) as PublicKeyCredential | null
+    const credential = await navigator.credentials.create({ publicKey: creationOptions(options.publicKey), signal }) as PublicKeyCredential | null
     if (!credential) throw new Error('passkey_cancelled')
     return (await http.post<{ returnPath: string }>('/api/auth/passkeys/registration/complete', {
       ceremonyId: options.ceremonyId,

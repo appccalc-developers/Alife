@@ -4,6 +4,21 @@ All notable changes to Alife are documented in this file.
 
 The format follows Keep a Changelog and the repository uses four-part versions.
 
+## [0.1.1.1] - 2026-08-31
+
+### Changed
+
+- Passkey browser requests now stop after two minutes or when the identity view closes, and bilingual recovery messages no longer describe every browser failure as an explicit cancellation.
+- Passkey verification errors now include a safe trace reference that administrators can correlate with server diagnostics.
+
+### Fixed
+
+- Restored actionable distinction between inactive ALIFE credentials, backend verification failures, and browser or authenticator attempts that do not complete.
+
+### Security
+
+- Failed Passkey assertions log only a controlled completion stage, exception type, Fido2 verification category, and sanitized trace reference; raw WebAuthn material and exception messages remain excluded.
+
 ## [0.1.1.0] - 2026-08-31
 
 ### Added

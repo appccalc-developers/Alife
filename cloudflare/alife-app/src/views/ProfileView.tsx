@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Check, KeyRound, LogOut, Mail, Pencil, Phone, Plus, ShieldCheck, Trash2, UserRound, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import RegionalPhoneInput from '../components/forms/RegionalPhoneInput'
@@ -11,7 +11,9 @@ import { useUiText } from '../i18n/uiText'
 import { authService } from '../services/authService'
 import { groupService } from '../services/groupService'
 import { identityAccessService, type PasskeyCredential } from '../services/identityAccessService'
+import { normalizeIdentityError } from '../services/identityErrorPresentation'
 import { normalizeApiError } from '../services/http'
+import { createPasskeyRequestGuard, type PasskeyRequestGuard } from '../services/passkeyRequestGuard'
 import { useAuthStore } from '../stores/auth'
 import { isValidPhoneNumber } from '../utils/phoneNumber'
 import { localizeText } from '../utils/localizedText'
@@ -37,6 +39,7 @@ const ProfileView = () => {
   const [passkeyError, setPasskeyError] = useState('')
   const [passkeyStatus, setPasskeyStatus] = useState('')
   const [confirmRevokeId, setConfirmRevokeId] = useState('')
+  const passkeyRequest = useRef<PasskeyRequestGuard | null>(null)
 
   const copy = language === 'zh'
     ? {
@@ -78,6 +81,11 @@ const ProfileView = () => {
       .catch((error) => { if (active) setPasskeyError(normalizeApiError(error).message) })
     return () => { active = false }
   }, [me])
+
+  useEffect(() => () => {
+    passkeyRequest.current?.dispose()
+    passkeyRequest.current = null
+  }, [])
 
   const invitations = me?.memberships.filter((membership) => membership.status === 'invited') ?? []
   const initials = useMemo(() => {
@@ -152,18 +160,23 @@ const ProfileView = () => {
   }
 
   const addPasskey = async () => {
+    passkeyRequest.current?.dispose()
+    const request = createPasskeyRequestGuard()
+    passkeyRequest.current = request
     setPasskeyBusy(true)
     setPasskeyError('')
     setPasskeyStatus('')
     try {
-      await identityAccessService.registerPasskey(passkeyName.trim() || undefined)
+      await identityAccessService.registerPasskey(passkeyName.trim() || undefined, request.signal)
       setPasskeys(await identityAccessService.listPasskeys())
       setPasskeyName('')
       setPasskeyStatus(copy.passkeyAdded)
       await auth.fetchMe()
     } catch (error) {
-      setPasskeyError(normalizeApiError(error).message)
+      setPasskeyError(normalizeIdentityError(error, t('passkeyFailed'), t))
     } finally {
+      request.complete()
+      if (passkeyRequest.current === request) passkeyRequest.current = null
       setPasskeyBusy(false)
     }
   }

@@ -106,7 +106,7 @@ Alife uses Passkeys as the primary authenticator and stores the resulting JWT in
 Flow:
 
 1. `/onboarding` creates a 30-minute server-side flow and retains only a validated same-site return path in a short-lived HttpOnly cookie.
-2. A discoverable WebAuthn assertion validates RP ID, allowed origin, challenge, user verification, credential ownership, and signature count. The backend stores no biometric or device-PIN data.
+2. A discoverable WebAuthn assertion validates RP ID, allowed origin, challenge, user verification, credential ownership, and signature count. The backend stores no biometric or device-PIN data. Verification failures expose only a stable client code and trace reference; diagnostics log a controlled stage and Fido2 category without raw credential material or exception messages.
 3. Backend issues a JWT containing `sub`, `amr`, `auth_time`, and `session_kind`; public-device and Alpha cookies are non-persistent with shorter lifetimes.
 4. JwtBearer middleware reads the JWT from the cookie and `CurrentMemberAccessor` resolves the current member.
 5. Protected handlers perform current membership and role checks before mutations. Activation and application approval use one-time token consumption, optimistic concurrency, and idempotent membership/grant creation.

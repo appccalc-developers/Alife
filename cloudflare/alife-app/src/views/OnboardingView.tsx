@@ -17,8 +17,10 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import logo from '../assets/logo.png'
 import { useUiText } from '../i18n/uiText'
 import { identityAccessService, type OnboardingContext } from '../services/identityAccessService'
+import { normalizeIdentityError } from '../services/identityErrorPresentation'
 import { normalizeIdentityReturnPath } from '../services/identityPathPolicy'
 import { http, normalizeApiError } from '../services/http'
+import { createPasskeyRequestGuard, type PasskeyRequestGuard } from '../services/passkeyRequestGuard'
 import { visitContactService } from '../services/visitContactService'
 import { useAuthStore } from '../stores/auth'
 
@@ -47,6 +49,7 @@ const OnboardingView = () => {
   const [supplement, setSupplement] = useState('')
   const [lineProfile, setLineProfile] = useState({ name: '', sex: 'Unknown', age: '', email: '' })
   const formStarted = useRef(Date.now())
+  const passkeyRequest = useRef<PasskeyRequestGuard | null>(null)
 
   const [contact, setContact] = useState<ContactState>({
     displayName: '', email: '', phone: '', message: '', replyPreference: 'sms', consent: false, website: '',
@@ -105,6 +108,11 @@ const OnboardingView = () => {
     return () => { active = false }
   }, [safeReturnPath, searchParams, t])
 
+  useEffect(() => () => {
+    passkeyRequest.current?.dispose()
+    passkeyRequest.current = null
+  }, [])
+
   useEffect(() => {
     setApplication((current) => ({
       ...current,
@@ -114,6 +122,9 @@ const OnboardingView = () => {
   }, [auth.me?.displayName, auth.me?.phoneE164])
 
   const runPasskeyAuthentication = async () => {
+    passkeyRequest.current?.dispose()
+    const request = createPasskeyRequestGuard()
+    passkeyRequest.current = request
     setBusy(true)
     setStatus('')
     try {
@@ -121,7 +132,7 @@ const OnboardingView = () => {
         const created = await identityAccessService.createFlow(safeReturnPath, publicDevice, 'signIn')
         setContext(created)
       }
-      const result = await identityAccessService.authenticatePasskey()
+      const result = await identityAccessService.authenticatePasskey(request.signal)
       await auth.fetchMe()
       if (context?.intent === 'groupJoin') {
         setApplication((current) => ({
@@ -135,17 +146,22 @@ const OnboardingView = () => {
     } catch (error) {
       setStatus(normalizeIdentityError(error, t('passkeyFailed'), t))
     } finally {
+      request.complete()
+      if (passkeyRequest.current === request) passkeyRequest.current = null
       setBusy(false)
     }
   }
 
   const completeActivation = async () => {
+    passkeyRequest.current?.dispose()
+    const request = createPasskeyRequestGuard()
+    passkeyRequest.current = request
     setBusy(true)
     setStatus('')
     try {
       const result = context?.isPublicDevice
         ? await identityAccessService.completePublicDeviceActivation()
-        : await identityAccessService.registerPasskey()
+        : await identityAccessService.registerPasskey(undefined, request.signal)
       await auth.fetchMe()
       const destination = normalizeIdentityReturnPath(result.returnPath) || '/enter'
       if (context?.isPublicDevice) {
@@ -159,6 +175,8 @@ const OnboardingView = () => {
     } catch (error) {
       setStatus(normalizeIdentityError(error, t('passkeyFailed'), t))
     } finally {
+      request.complete()
+      if (passkeyRequest.current === request) passkeyRequest.current = null
       setBusy(false)
     }
   }
@@ -471,13 +489,5 @@ const ApplicationForm = ({ value, onChange, onSubmit, busy, t }: { value: Applic
     <button className="alife-primary-button w-full" type="submit" disabled={busy}>{t('submitApplication')}</button>
   </form>
 )
-
-const normalizeIdentityError = (error: unknown, fallback: string, t: ReturnType<typeof useUiText>) => {
-  if (error instanceof Error && error.message === 'passkey_not_supported') return t('passkeyUnavailable')
-  if (error instanceof DOMException && error.name === 'NotAllowedError') return t('passkeyCancelled')
-  const api = normalizeApiError(error)
-  if (api.code === 'rate_limited') return api.message
-  return api.message || fallback
-}
 
 export default OnboardingView

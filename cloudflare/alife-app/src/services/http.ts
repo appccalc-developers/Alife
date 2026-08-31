@@ -5,6 +5,7 @@ export type ApiError = {
   message: string
   status?: number
   code?: string
+  traceId?: string
   details?: unknown
   method?: string
   url?: string
@@ -16,6 +17,7 @@ type ErrorPayload = {
   detail?: string
   errors?: Record<string, string[]>
   code?: string
+  traceId?: string
 }
 
 const isApiError = (error: unknown): error is ApiError =>
@@ -32,7 +34,7 @@ export const normalizeApiError = (error: unknown): ApiError => {
     const details = typeof payload === 'object' ? payload?.errors ?? payload : textPayload || payload
     const method = axiosError.config?.method?.toUpperCase()
     const url = axiosError.config?.url ?? axiosError.response?.config.url
-    const requestHint = import.meta.env.DEV && url ? ` (${method ?? 'GET'} ${url})` : ''
+    const requestHint = import.meta.env?.DEV && url ? ` (${method ?? 'GET'} ${url})` : ''
     const message =
       textPayload ||
       (typeof payload === 'object' ? payload?.message : undefined) ||
@@ -45,6 +47,7 @@ export const normalizeApiError = (error: unknown): ApiError => {
       message: `${message}${requestHint}`,
       status: axiosError.response?.status,
       code: (typeof payload === 'object' ? payload?.code : undefined) ?? axiosError.code,
+      traceId: typeof payload === 'object' ? payload?.traceId : undefined,
       details,
       method,
       url,
@@ -62,9 +65,9 @@ export const normalizeApiError = (error: unknown): ApiError => {
   return { message: 'Unknown error.' }
 }
 
-const productionBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').trim()
+const productionBaseUrl = (import.meta.env?.VITE_API_BASE_URL ?? '').trim()
 // In dev, same-origin `/api/*` is proxied by Vite (see vite.config.ts) so the browser never hits cross-origin CORS.
-const baseURL = import.meta.env.DEV ? '' : productionBaseUrl
+const baseURL = import.meta.env?.DEV ? '' : productionBaseUrl
 
 const attachErrorNormalization = (client: ReturnType<typeof axios.create>) => {
   client.interceptors.response.use(

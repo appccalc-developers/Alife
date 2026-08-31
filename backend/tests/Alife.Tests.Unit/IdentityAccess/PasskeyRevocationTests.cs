@@ -6,7 +6,11 @@ using Alife.Domain.Enums;
 using Alife.Infrastructure.Persistence;
 using Alife.Infrastructure.Security;
 using Fido2NetLib;
+using Fido2NetLib.Exceptions;
+using Fido2NetLib.Objects;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using System.Text.Json;
 
@@ -149,9 +153,9 @@ public sealed class PasskeyRevocationTests
         var service = CreateService(db, new TestConfiguration(lineEnabled: true));
         using var response = JsonDocument.Parse("{}");
 
-        var expiredResult = await service.CompleteAuthenticationAsync(expired.Id, response.RootElement, default);
-        var failedResult = await service.CompleteAuthenticationAsync(active.Id, response.RootElement, default);
-        var replayResult = await service.CompleteAuthenticationAsync(active.Id, response.RootElement, default);
+        var expiredResult = await service.CompleteAuthenticationAsync(expired.Id, response.RootElement, "test-correlation", default);
+        var failedResult = await service.CompleteAuthenticationAsync(active.Id, response.RootElement, "test-correlation", default);
+        var replayResult = await service.CompleteAuthenticationAsync(active.Id, response.RootElement, "test-correlation", default);
 
         Assert.Equal(AppResultStatus.Conflict, expiredResult.Status);
         Assert.Equal("passkey_challenge_invalid", expiredResult.Message);
@@ -159,6 +163,81 @@ public sealed class PasskeyRevocationTests
         Assert.NotNull(active.ConsumedUtc);
         Assert.Equal(AppResultStatus.Conflict, replayResult.Status);
         Assert.Equal("passkey_challenge_invalid", replayResult.Message);
+    }
+
+    [Fact]
+    public async Task CompleteAuthentication_LogsOnlySafeVerificationDiagnostics()
+    {
+        const string sensitiveExceptionMessage = "sentinel-credential-challenge-signature";
+        await using var db = CreateDb();
+        var member = new Member
+        {
+            Id = Guid.NewGuid(),
+            DisplayName = "Member",
+            IsRegistered = true,
+            CreatedUtc = DateTime.UtcNow,
+            UpdatedUtc = DateTime.UtcNow
+        };
+        member.PasskeyCredentials.Add(new MemberPasskeyCredential
+        {
+            Id = Guid.NewGuid(),
+            MemberId = member.Id,
+            CredentialId = [1],
+            PublicKey = [2],
+            UserHandle = [3],
+            DisplayName = "Test passkey",
+            CreatedUtc = DateTime.UtcNow
+        });
+        var options = new AssertionOptions
+        {
+            Challenge = [7],
+            Timeout = 60_000,
+            RpId = "alife.example",
+            AllowCredentials = [],
+            UserVerification = UserVerificationRequirement.Required,
+            Extensions = new AuthenticationExtensionsClientInputs { Extensions = true }
+        };
+        var ceremony = NewAuthenticationCeremony(DateTime.UtcNow.AddMinutes(5));
+        ceremony.OptionsJson = options.ToJson();
+        db.AddRange(member, ceremony);
+        await db.SaveChangesAsync();
+        var fido2 = Substitute.For<IFido2>();
+        fido2.MakeAssertionAsync(Arg.Any<MakeAssertionParams>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromException<VerifyAssertionResult>(new Fido2VerificationException(
+                Fido2ErrorCode.InvalidSignature,
+                sensitiveExceptionMessage)));
+        var logger = new RecordingLogger<PasskeyService>();
+        var service = CreateService(db, new TestConfiguration(lineEnabled: true), fido2, logger);
+        using var response = JsonDocument.Parse("""
+            {
+              "id": "AQ",
+              "rawId": "AQ",
+              "type": "public-key",
+              "response": {
+                "authenticatorData": "AQ",
+                "clientDataJSON": "AQ",
+                "signature": "AQ",
+                "userHandle": "Aw"
+              },
+              "clientExtensionResults": {}
+            }
+            """);
+
+        var result = await service.CompleteAuthenticationAsync(
+            ceremony.Id,
+            response.RootElement,
+            "trace-700/unsafe",
+            default);
+
+        Assert.Equal(AppResultStatus.Forbidden, result.Status);
+        Assert.Equal("passkey_verification_failed", result.Message);
+        var entry = Assert.Single(logger.Entries);
+        Assert.Contains("verify_assertion", entry);
+        Assert.Contains(nameof(Fido2VerificationException), entry);
+        Assert.Contains(nameof(Fido2ErrorCode.InvalidSignature), entry);
+        Assert.Contains("trace-700unsafe", entry);
+        Assert.DoesNotContain(sensitiveExceptionMessage, entry);
+        Assert.Null(member.PasskeyCredentials.Single().LastUsedUtc);
     }
 
     [Theory]
@@ -212,14 +291,19 @@ public sealed class PasskeyRevocationTests
             .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
             .Options);
 
-    private static PasskeyService CreateService(AlifeDbContext db, IIdentityAccessConfiguration configuration)
+    private static PasskeyService CreateService(
+        AlifeDbContext db,
+        IIdentityAccessConfiguration configuration,
+        IFido2? fido2 = null,
+        ILogger<PasskeyService>? logger = null)
         => new(
-            Substitute.For<IFido2>(),
+            fido2 ?? Substitute.For<IFido2>(),
             db,
             configuration,
             Substitute.For<IJwtTokenService>(),
             Substitute.For<IIdentityAccessService>(),
-            new InlineExecutor());
+            new InlineExecutor(),
+            logger ?? NullLogger<PasskeyService>.Instance);
 
     private static PasskeyCeremony NewAuthenticationCeremony(DateTime expiresUtc)
         => new()
@@ -247,5 +331,29 @@ public sealed class PasskeyRevocationTests
     {
         public Task<T> ExecuteAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken cancellationToken)
             => action(cancellationToken);
+    }
+
+    private sealed class RecordingLogger<T> : ILogger<T>
+    {
+        public List<string> Entries { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull
+            => NoopScope.Instance;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter)
+            => Entries.Add(formatter(state, exception));
+
+        private sealed class NoopScope : IDisposable
+        {
+            public static NoopScope Instance { get; } = new();
+            public void Dispose() { }
+        }
     }
 }

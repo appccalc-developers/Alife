@@ -37,7 +37,11 @@ public sealed class PasskeysController(
         this.ApplyPrivateNoStoreHeaders();
         var limited = await LimitPasskeysAsync("passkey-assertion-ip-10m", 20, cancellationToken);
         if (limited is not null) return limited;
-        var result = await passkeys.CompleteAuthenticationAsync(request.CeremonyId, request.Response, cancellationToken);
+        var result = await passkeys.CompleteAuthenticationAsync(
+            request.CeremonyId,
+            request.Response,
+            HttpContext.TraceIdentifier,
+            cancellationToken);
         if (result.IsSuccess && result.Value?.Session is { } session)
         {
             AuthCookie.WriteCookie(Request, Response, session.Token, session.ExpiresUtc, session.Persistent);
