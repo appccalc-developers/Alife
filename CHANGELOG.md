@@ -4,6 +4,23 @@ All notable changes to Alife are documented in this file.
 
 The format follows Keep a Changelog and the repository uses four-part versions.
 
+## [0.1.1.0] - 2026-08-31
+
+### Added
+
+- Alpha-only tester Stephen can use a separately issued high-entropy setup code to establish the first Passkey during a five-minute recent-authentication window.
+
+### Changed
+
+- Production deployments now pin the `ccalc.live` WebAuthn RP ID and origin and require the Stephen-specific bootstrap secret before updating Azure application settings.
+- Internal Alpha and Profile guidance now explains the bilingual first-Passkey path while preserving ordinary Alpha login when the setup-code field is blank.
+
+### Security
+
+- Ordinary Alpha sessions and generic onboarding flows cannot authorize Passkey registration; bootstrap ceremonies recheck the no-credential invariant inside the final serializable transaction.
+- Revoked, expired, or concurrently changed activation invitations cannot persist a staged Passkey when final activation validation fails.
+- Invalid bootstrap attempts use a generic response and anonymous audit actor without recording setup-code or account metadata.
+
 ## [0.1.0.0] - 2026-08-31
 
 ### Added
