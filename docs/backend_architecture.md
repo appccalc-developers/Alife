@@ -177,7 +177,7 @@ Member opens /onboarding
 
 Protected API calls return `401` or `403`; they do not redirect browser clients.
 
-`IPasskeyService` isolates Fido2 4.0.1 in Infrastructure. Ceremonies expire after five minutes and are consumed once. Standard sessions can persist for 30 days; public-device sessions are non-persistent and last at most two hours; internal Alpha sessions are non-persistent and last at most twelve hours. LINE OAuth is an explicit compatibility route whose single-use state is bound to `OnboardingFlow`.
+`IPasskeyService` isolates Fido2 4.0.1 in Infrastructure. Ceremonies expire after five minutes and are consumed once. Standard sessions can persist for 30 days; public-device sessions are non-persistent and last at most two hours; internal Alpha sessions are non-persistent and last at most twelve hours. Ordinary Alpha sessions do not satisfy recent strong authentication. A whitelisted Alpha-only tester who has never had a Passkey may supply a configured high-entropy setup code to receive `amr=alpha_bootstrap`; this allows only the existing five-minute registration window, remains a non-persistent Alpha session, and is permanently unavailable once any current or revoked credential exists. Bootstrap ceremonies are explicitly marked and recheck that invariant inside the serializable completion transaction. Activation registration stages the new credential in the same unit of work and commits it only after the invitation is revalidated as active and unexpired. LINE OAuth is an explicit compatibility route whose single-use state is bound to `OnboardingFlow`.
 
 Activation, group QR, and anonymous response tokens use selector/secret pairs. Raw secrets exist only in URL fragments and request bodies; SQL stores HMAC hashes. Activation and group applications are separate workflows: neither anonymous submission nor a phone match creates an account, contact association, role, or membership without the required human approvals.
 
@@ -202,7 +202,7 @@ Rules to preserve:
 | Members | Current member, LINE compatibility callback/registration, member listing |
 | Groups | Church root, group detail, subgroups, join/invite/approve/reject/role workflows |
 | Identity management | Pre-registration activations, QR lifecycle, group applications, church-person applications |
-| Internal Alpha | Configuration-whitelisted accounts; disabled unless explicitly enabled in the current environment |
+| Internal Alpha | Configuration-whitelisted accounts; optional first-Passkey bootstrap for explicitly configured testers, permanently disabled after any credential exists; disabled unless explicitly enabled in the current environment |
 | Pages | Group-owned working pages, submitted review copies, published snapshots, create/update/submit/delete |
 | Sections | Page section creation, update, deletion, link replacement |
 | Events | Group event listing, creation, update, deletion |
@@ -312,7 +312,7 @@ Important settings:
 | `RateLimiting__HashKey` | Separate HMAC key for SQL rate-limit discriminators |
 | `TrustedProxyNetworks` | CIDRs allowed to supply `CF-Connecting-IP` |
 | `ActivationMessages__Enabled`, `ActivationMessages__ExposeLinks` | Delivery capability; preview links may be exposed only in Development |
-| `AlphaLogin__Enabled`, `AlphaLogin__Accounts` | Internal whitelist; explicit enablement is honored in every environment |
+| `AlphaLogin__Enabled`, `AlphaLogin__Accounts`, `AlphaLogin__PasskeyBootstrapCodes__<accountId>` | Internal whitelist plus optional per-account first-Passkey secret (minimum 24 characters); explicit enablement is honored in every environment |
 | `Youtube__ApiKey` | YouTube sermon sync API key |
 | `Youtube__PlaylistId` | YouTube sermon playlist |
 | `Cloudflare__ApiToken` | Cloudflare cache refresh API token |

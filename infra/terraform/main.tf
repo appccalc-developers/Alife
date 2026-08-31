@@ -95,6 +95,10 @@ resource "azurerm_linux_function_app" "api" {
     FUNCTIONS_WORKER_RUNTIME             = "dotnet-isolated"
     WEBSITE_RUN_FROM_PACKAGE             = "1"
     Frontend__BaseUrl                    = var.frontend_base_url
+    Passkeys__Enabled                    = "true"
+    Passkeys__RpId                       = var.passkey_rp_id
+    Passkeys__RpName                     = "ALIFE"
+    Passkeys__Origins__0                 = trimsuffix(var.frontend_base_url, "/")
     Cloudflare__AccountId                = var.cloudflare_account_id
     Cloudflare__AuthzNamespaceId         = cloudflare_workers_kv_namespace.authz.id
     Cloudflare__ApiCacheNamespaceId      = cloudflare_workers_kv_namespace.api_cache.id

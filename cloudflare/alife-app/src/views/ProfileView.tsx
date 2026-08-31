@@ -52,7 +52,7 @@ const ProfileView = () => {
       passkeyName: 'Passkey 名称', passkeyNamePlaceholder: '例如：我的手机', addPasskey: '添加 Passkey',
       noPasskeys: '尚未添加 Passkey。', lastUsed: '最近使用', created: '建立日期', revoke: '撤销',
       confirmRevoke: '再次点击以确认撤销', passkeyAdded: 'Passkey 已添加。', passkeyRevoked: 'Passkey 已撤销。',
-      strongAuthHint: '添加或撤销需要最近五分钟内完成 Passkey 或 LINE 强认证。', addPasskeyRecommended: '建议现在添加 Passkey，作为主要登录方式。',
+      strongAuthHint: '添加或撤销需要最近五分钟内完成 Passkey 或 LINE 强认证。首次建立也可使用管理员签发的 Alpha 设置码登录。', addPasskeyRecommended: '建议现在添加 Passkey，作为主要登录方式。',
     }
     : {
       eyebrow: 'Member account', intro: 'Manage your contact details, account profile, and group invitations in one place.',
@@ -67,7 +67,7 @@ const ProfileView = () => {
       passkeyName: 'Passkey name', passkeyNamePlaceholder: 'For example: My phone', addPasskey: 'Add passkey',
       noPasskeys: 'No passkeys have been added.', lastUsed: 'Last used', created: 'Created', revoke: 'Revoke',
       confirmRevoke: 'Click again to confirm revocation', passkeyAdded: 'Passkey added.', passkeyRevoked: 'Passkey revoked.',
-      strongAuthHint: 'Adding or revoking requires a passkey or LINE strong authentication from the last five minutes.', addPasskeyRecommended: 'Add a passkey now to make it your primary sign-in method.',
+      strongAuthHint: 'Adding or revoking requires passkey or LINE strong authentication from the last five minutes. The first passkey can also follow an administrator-issued Alpha setup-code login.', addPasskeyRecommended: 'Add a passkey now to make it your primary sign-in method.',
     }
 
   useEffect(() => {

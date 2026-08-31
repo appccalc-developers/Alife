@@ -13,6 +13,7 @@ It intentionally does not deploy Worker code, static assets, Durable Object migr
 - Azure resource group `ccalc`
 - Azure Linux Function App `fapi-ccalc`
 - Function storage, hosting plan, Application Insights, and Log Analytics
+- Production WebAuthn RP ID and allowed frontend origin defaults
 - Azure SQL server and database
 - Optional long-lived Azure SQL firewall rules
 - Optional GitHub Actions Azure OIDC service principal
@@ -73,6 +74,12 @@ The following remain manually supplied secrets:
 - `LINE_LOGIN_REDIRECT_URI`
 - `CLOUDFLARE_API_TOKEN`
 - `GEMINI_API_KEY`
+- `ALPHA_STEPHEN_PASSKEY_BOOTSTRAP_CODE` (GitHub Actions secret; at least 24 random characters; never store in Terraform variables or state)
+
+The non-secret production Passkey values are pinned in both Terraform and
+`.github/workflows/main_ccalc-api.yml`: RP ID `ccalc.live`, RP name `ALIFE`, and
+allowed origin `https://ccalc.live`. Keep both sources aligned if the public
+frontend domain changes.
 
 ## Notes
 

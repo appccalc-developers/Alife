@@ -150,7 +150,11 @@ public interface IIdentityAccessConfiguration
     IReadOnlyList<AlphaAccountConfiguration> AlphaAccounts { get; }
 }
 
-public sealed record AlphaAccountConfiguration(string AccountId, Guid MemberId, string Label);
+public sealed record AlphaAccountConfiguration(
+    string AccountId,
+    Guid MemberId,
+    string Label,
+    byte[]? PasskeyBootstrapCodeHash = null);
 
 public interface IIdentityTokenService
 {
@@ -202,7 +206,11 @@ public interface IPasskeyService
 {
     Task<AppResult<PasskeyOptionsDto>> BeginAuthenticationAsync(Guid? onboardingFlowId, CancellationToken cancellationToken);
     Task<AppResult<PasskeyCompletionDto>> CompleteAuthenticationAsync(Guid ceremonyId, JsonElement response, CancellationToken cancellationToken);
-    Task<AppResult<PasskeyOptionsDto>> BeginRegistrationAsync(Guid memberId, Guid? onboardingFlowId, CancellationToken cancellationToken);
+    Task<AppResult<PasskeyOptionsDto>> BeginRegistrationAsync(
+        Guid memberId,
+        Guid? onboardingFlowId,
+        bool firstCredentialOnly,
+        CancellationToken cancellationToken);
     Task<AppResult<PasskeyCompletionDto>> CompleteRegistrationAsync(Guid ceremonyId, JsonElement response, string? displayName, CancellationToken cancellationToken);
     Task<AppResult<IReadOnlyList<PasskeyCredentialDto>>> ListAsync(Guid memberId, CancellationToken cancellationToken);
     Task<AppResult<bool>> RevokeAsync(Guid memberId, Guid credentialId, CancellationToken cancellationToken);
@@ -219,7 +227,10 @@ public interface IIdentityAccessService
     Task<AppResult<OnboardingFlowStart>> ResolveActivationAsync(string selector, string secret, bool isPublicDevice, string? returnPath, CancellationToken cancellationToken);
     Task<AppResult<bool>> MarkActivationMismatchAsync(string flowToken, CancellationToken cancellationToken);
     Task<AppResult<IdentitySession>> CompletePublicDeviceActivationAsync(string flowToken, CancellationToken cancellationToken);
-    Task<AppResult<IdentitySession>> CompletePasskeyActivationAsync(Guid flowId, CancellationToken cancellationToken);
+    Task<AppResult<IdentitySession>> CompletePasskeyActivationAsync(
+        Guid flowId,
+        Guid pendingCredentialId,
+        CancellationToken cancellationToken);
     Task<AppResult<ActivationInvitationDto>> CreateActivationAsync(Guid actorMemberId, CreateActivationRequest request, CancellationToken cancellationToken);
     Task<AppResult<IReadOnlyList<ActivationInvitationDto>>> ListActivationsAsync(Guid actorMemberId, CancellationToken cancellationToken);
     Task<AppResult<ActivationInvitationDto>> ResendActivationAsync(Guid actorMemberId, Guid activationId, CancellationToken cancellationToken);
@@ -237,5 +248,8 @@ public interface IIdentityAccessService
     Task<AppResult<MembershipApplicationDto>> DecidePersonApplicationAsync(Guid actorMemberId, Guid applicationId, DecideMembershipApplicationRequest request, CancellationToken cancellationToken);
     Task<AppResult<IReadOnlyList<MembershipApplicationDto>>> ListPersonalApplicationsAsync(Guid memberId, CancellationToken cancellationToken);
     IReadOnlyList<AlphaAccountDto> ListAlphaAccounts();
-    Task<AppResult<IdentitySession>> AlphaLoginAsync(string accountId, CancellationToken cancellationToken);
+    Task<AppResult<IdentitySession>> AlphaLoginAsync(
+        string accountId,
+        string? passkeyBootstrapCode,
+        CancellationToken cancellationToken);
 }

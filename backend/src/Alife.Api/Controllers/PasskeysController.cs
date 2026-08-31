@@ -68,9 +68,10 @@ public sealed class PasskeysController(
                 Extensions = { ["code"] = "activation_session_conflict" }
             });
         }
-        var memberId = flow?.ActivationMemberId ?? currentMemberId;
+        var activationMemberIdForRegistration = flow?.ActivationMemberId;
+        var memberId = activationMemberIdForRegistration ?? currentMemberId;
         if (memberId is null) return Unauthorized();
-        if (flow is null && !HasRecentStrongAuthentication())
+        if (activationMemberIdForRegistration is null && !HasRecentStrongAuthentication())
         {
             return StatusCode(StatusCodes.Status403Forbidden, new ProblemDetails
             {
@@ -79,7 +80,14 @@ public sealed class PasskeysController(
                 Extensions = { ["code"] = "recent_authentication_required" }
             });
         }
-        return this.ToIdentityResult(await passkeys.BeginRegistrationAsync(memberId.Value, flow?.Id, cancellationToken));
+        Guid? activationFlowId = activationMemberIdForRegistration is null ? null : flow!.Id;
+        var firstCredentialOnly = activationFlowId is null &&
+                                  User.FindFirstValue("amr") == "alpha_bootstrap";
+        return this.ToIdentityResult(await passkeys.BeginRegistrationAsync(
+            memberId.Value,
+            activationFlowId,
+            firstCredentialOnly,
+            cancellationToken));
     }
 
     [HttpPost("auth/passkeys/registration/complete")]
@@ -144,7 +152,7 @@ public sealed class PasskeysController(
     {
         var method = User.FindFirstValue("amr");
         var value = User.FindFirstValue("auth_time");
-        return method is "passkey" or "line" &&
+        return method is "passkey" or "line" or "alpha_bootstrap" &&
                long.TryParse(value, out var seconds) &&
                DateTimeOffset.UtcNow - DateTimeOffset.FromUnixTimeSeconds(seconds) <= TimeSpan.FromMinutes(5);
     }

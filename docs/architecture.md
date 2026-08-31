@@ -101,7 +101,7 @@ Important enums include:
 
 ### Authentication
 
-Alife uses Passkeys as the primary authenticator and stores the resulting JWT in the HttpOnly cookie `alife_auth`. LINE remains an explicit compatibility path. Internal Alpha access is configuration-whitelisted, absent from public navigation, and disabled unless explicitly enabled in the current environment.
+Alife uses Passkeys as the primary authenticator and stores the resulting JWT in the HttpOnly cookie `alife_auth`. LINE remains an explicit compatibility path. Internal Alpha access is configuration-whitelisted, absent from public navigation, and disabled unless explicitly enabled in the current environment. Ordinary Alpha sessions cannot register a Passkey. An explicitly configured Alpha-only tester who has never had any Passkey may use a high-entropy setup code to receive a five-minute first-credential registration window; the code is rejected after any current or revoked credential exists.
 
 Flow:
 
@@ -138,7 +138,7 @@ Controllers are grouped by responsibility:
 - `PasskeysController`: discoverable authentication, registration, credential listing, and credential revocation.
 - `OnboardingController`: flow resume, activation, group-invite resolution, application submission, and application replies.
 - `IdentityManagementController`: activation administration, QR lifecycle, and church/group application decisions.
-- `InternalAlphaLoginController`: server-supplied configuration whitelist and short non-persistent sessions; returns `404` when unavailable.
+- `InternalAlphaLoginController`: server-supplied configuration whitelist, short non-persistent sessions, and optional per-account first-Passkey bootstrap; returns `404` when unavailable.
 - `MembersController`: `/api/me`, LINE login/callback, explicit legacy LINE registration, and member listing.
 - `GroupsController`: church root, group detail, subgroups, membership workflows, invite candidates, group update/close.
 - `PagesController`: group pages, private working-copy detail, immutable published detail, create/update/submit/delete.

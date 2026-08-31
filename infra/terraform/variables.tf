@@ -51,6 +51,12 @@ variable "frontend_base_url" {
   default     = "https://ccalc.live"
 }
 
+variable "passkey_rp_id" {
+  description = "WebAuthn relying-party domain. It must equal the frontend host or be its registrable domain suffix."
+  type        = string
+  default     = "ccalc.live"
+}
+
 variable "api_hostname" {
   description = "Public API hostname used by the Cloudflare speed-layer API_PROXY_TARGET."
   type        = string

@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Alife.Application.Abstractions.Security;
 using Alife.Application.Common.Interfaces;
@@ -90,22 +92,28 @@ public sealed class IdentityAccessService(
     public async Task<ActiveOnboardingFlow?> GetActiveFlowAsync(string token, CancellationToken cancellationToken)
     {
         var flow = await FindActiveFlowAsync(token, cancellationToken);
+        var now = DateTime.UtcNow;
         var activationMemberId = flow?.ActivationInvitationId is Guid activationId
             ? await dbContext.MemberActivationInvitations.AsNoTracking()
-                .Where(item => item.Id == activationId)
+                .Where(item => item.Id == activationId &&
+                               item.Status == ActivationStatus.Active &&
+                               item.ExpiresUtc > now)
                 .Select(item => (Guid?)item.MemberId)
                 .SingleOrDefaultAsync(cancellationToken)
             : null;
-        return flow is null
-            ? null
-            : new ActiveOnboardingFlow(
-                flow.Id,
-                flow.Intent,
-                flow.IsPublicDevice,
-                flow.ActivationInvitationId,
-                activationMemberId,
-                flow.GroupJoinInviteId,
-                flow.ReturnPath ?? string.Empty);
+        if (flow is null || (flow.ActivationInvitationId is not null && activationMemberId is null))
+        {
+            return null;
+        }
+
+        return new ActiveOnboardingFlow(
+            flow.Id,
+            flow.Intent,
+            flow.IsPublicDevice,
+            flow.ActivationInvitationId,
+            activationMemberId,
+            flow.GroupJoinInviteId,
+            flow.ReturnPath ?? string.Empty);
     }
 
     public async Task<AppResult<OnboardingFlowStart>> ResolveActivationAsync(
@@ -207,10 +215,19 @@ public sealed class IdentityAccessService(
             return AppResult<IdentitySession>.Forbidden("public_device_flow_required");
         }
 
-        return await CompleteActivationAsync(flow, "activation_link", "public_device", TimeSpan.FromHours(2), false, cancellationToken);
+        return await CompleteActivationAsync(
+            flow,
+            "activation_link",
+            "public_device",
+            TimeSpan.FromHours(2),
+            null,
+            cancellationToken);
     }
 
-    public async Task<AppResult<IdentitySession>> CompletePasskeyActivationAsync(Guid flowId, CancellationToken cancellationToken)
+    public async Task<AppResult<IdentitySession>> CompletePasskeyActivationAsync(
+        Guid flowId,
+        Guid pendingCredentialId,
+        CancellationToken cancellationToken)
     {
         var flow = await dbContext.OnboardingFlows.SingleOrDefaultAsync(
             item => item.Id == flowId && item.ConsumedUtc == null && item.ExpiresUtc > DateTime.UtcNow,
@@ -220,7 +237,13 @@ public sealed class IdentityAccessService(
             return AppResult<IdentitySession>.NotFound("activation_flow_invalid");
         }
 
-        return await CompleteActivationAsync(flow, "passkey", "standard", TimeSpan.FromDays(30), true, cancellationToken);
+        return await CompleteActivationAsync(
+            flow,
+            "passkey",
+            "standard",
+            TimeSpan.FromDays(30),
+            pendingCredentialId,
+            cancellationToken);
     }
 
     public async Task<AppResult<ActivationInvitationDto>> CreateActivationAsync(
@@ -1152,7 +1175,10 @@ public sealed class IdentityAccessService(
             ? configuration.AlphaAccounts.Select(account => new AlphaAccountDto(account.AccountId, account.Label)).ToArray()
             : [];
 
-    public async Task<AppResult<IdentitySession>> AlphaLoginAsync(string accountId, CancellationToken cancellationToken)
+    public async Task<AppResult<IdentitySession>> AlphaLoginAsync(
+        string accountId,
+        string? passkeyBootstrapCode,
+        CancellationToken cancellationToken)
     {
         if (!configuration.AlphaLoginEnabled)
         {
@@ -1176,11 +1202,35 @@ public sealed class IdentityAccessService(
             return AppResult<IdentitySession>.Forbidden("alpha_account_invalid");
         }
 
-        var token = jwtTokenService.CreateToken(member, "alpha", "alpha", TimeSpan.FromHours(12));
-        AddAudit(member.Id, "identity.alpha.signed_in", "AlphaAccount", null, member.Id);
+        var wantsPasskeyBootstrap = !string.IsNullOrWhiteSpace(passkeyBootstrapCode);
+        if (wantsPasskeyBootstrap)
+        {
+            var suppliedHash = SHA256.HashData(Encoding.UTF8.GetBytes(passkeyBootstrapCode!.Trim()));
+            var bootstrapAllowed = configured.PasskeyBootstrapCodeHash is { Length: > 0 } expectedHash &&
+                                   CryptographicOperations.FixedTimeEquals(suppliedHash, expectedHash) &&
+                                   !await dbContext.MemberPasskeyCredentials.AnyAsync(
+                                       credential => credential.MemberId == member.Id,
+                                       cancellationToken);
+            if (!bootstrapAllowed)
+            {
+                AddAudit(null, "identity.alpha.bootstrap_denied", "AlphaAccount", null, member.Id);
+                await dbContext.SaveChangesAsync(cancellationToken);
+                return AppResult<IdentitySession>.Forbidden("alpha_passkey_bootstrap_invalid");
+            }
+        }
+
+        var authenticationMethod = wantsPasskeyBootstrap ? "alpha_bootstrap" : "alpha";
+        var returnPath = wantsPasskeyBootstrap ? "/profile" : "/enter";
+        var token = jwtTokenService.CreateToken(member, authenticationMethod, "alpha", TimeSpan.FromHours(12));
+        AddAudit(
+            member.Id,
+            wantsPasskeyBootstrap ? "identity.alpha.bootstrap_authenticated" : "identity.alpha.signed_in",
+            "AlphaAccount",
+            null,
+            member.Id);
         await dbContext.SaveChangesAsync(cancellationToken);
         return AppResult<IdentitySession>.Success(new IdentitySession(
-            token.Token, token.ExpiresUtc, false, "alpha", "alpha", "/enter"));
+            token.Token, token.ExpiresUtc, false, authenticationMethod, "alpha", returnPath));
     }
 
     private async Task<AppResult<IdentitySession>> CompleteActivationAsync(
@@ -1188,10 +1238,16 @@ public sealed class IdentityAccessService(
         string authenticationMethod,
         string sessionKind,
         TimeSpan lifetime,
-        bool requirePasskey,
+        Guid? pendingCredentialId,
         CancellationToken cancellationToken)
         => await serializableExecutor.ExecuteAsync(
-            token => CompleteActivationCoreAsync(flow, authenticationMethod, sessionKind, lifetime, requirePasskey, token),
+            token => CompleteActivationCoreAsync(
+                flow,
+                authenticationMethod,
+                sessionKind,
+                lifetime,
+                pendingCredentialId,
+                token),
             cancellationToken);
 
     private async Task<AppResult<IdentitySession>> CompleteActivationCoreAsync(
@@ -1199,7 +1255,7 @@ public sealed class IdentityAccessService(
         string authenticationMethod,
         string sessionKind,
         TimeSpan lifetime,
-        bool requirePasskey,
+        Guid? pendingCredentialId,
         CancellationToken cancellationToken)
     {
         if (flow.ActivationInvitationId is not Guid invitationId)
@@ -1217,11 +1273,17 @@ public sealed class IdentityAccessService(
         {
             return AppResult<IdentitySession>.Conflict("activation_not_active");
         }
-        if (requirePasskey && !await dbContext.MemberPasskeyCredentials.AnyAsync(
-                credential => credential.MemberId == invitation.MemberId && credential.RevokedUtc == null,
-                cancellationToken))
+        if (pendingCredentialId is Guid credentialId)
         {
-            return AppResult<IdentitySession>.Conflict("passkey_required");
+            var pendingCredential = dbContext.MemberPasskeyCredentials.Local.SingleOrDefault(
+                credential => credential.Id == credentialId && credential.MemberId == invitation.MemberId);
+            var alreadyPersisted = await dbContext.MemberPasskeyCredentials.AsNoTracking().AnyAsync(
+                credential => credential.Id == credentialId,
+                cancellationToken);
+            if (pendingCredential is null || alreadyPersisted)
+            {
+                return AppResult<IdentitySession>.Conflict("passkey_required");
+            }
         }
 
         var now = DateTime.UtcNow;

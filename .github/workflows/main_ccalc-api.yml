@@ -19,6 +19,8 @@ jobs:
       AZURE_FUNCTIONAPP_NAME: fapi-ccalc
       AZURE_RESOURCE_GROUP: ccalc
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      PASSKEY_RP_ID: ccalc.live
+      PASSKEY_ORIGIN: https://ccalc.live
 
     steps:
       - name: Checkout
@@ -52,6 +54,7 @@ jobs:
           CLOUDFLARE_API_CACHE_NAMESPACE_ID: ${{ secrets.CLOUDFLARE_API_CACHE_NAMESPACE_ID }}
           CLOUDFLARE_SYNC_WORKER_BASE_URL: ${{ secrets.CLOUDFLARE_SYNC_WORKER_BASE_URL }}
           CLOUDFLARE_SYNC_API_TOKEN: ${{ secrets.CLOUDFLARE_SYNC_API_TOKEN }}
+          ALPHA_STEPHEN_PASSKEY_BOOTSTRAP_CODE: ${{ secrets.ALPHA_STEPHEN_PASSKEY_BOOTSTRAP_CODE }}
         run: |
           set -euo pipefail
 
@@ -60,7 +63,20 @@ jobs:
             exit 1
           fi
 
-          settings=("ConnectionStrings__Default=$DB_CONNECTION_STRING")
+          if [ "${#ALPHA_STEPHEN_PASSKEY_BOOTSTRAP_CODE}" -lt 24 ]; then
+            echo "Missing or invalid ALPHA_STEPHEN_PASSKEY_BOOTSTRAP_CODE; it must contain at least 24 characters."
+            exit 1
+          fi
+
+          settings=(
+            "ConnectionStrings__Default=$DB_CONNECTION_STRING"
+            "Passkeys__Enabled=true"
+            "Passkeys__RpId=$PASSKEY_RP_ID"
+            "Passkeys__RpName=ALIFE"
+            "Passkeys__Origins__0=$PASSKEY_ORIGIN"
+            "AlphaLogin__Enabled=true"
+            "AlphaLogin__PasskeyBootstrapCodes__Stephen=$ALPHA_STEPHEN_PASSKEY_BOOTSTRAP_CODE"
+          )
           [ -n "${JWT_KEY:-}" ] && settings+=("Jwt__Key=$JWT_KEY")
           [ -n "${LINE_LOGIN_CLIENT_ID:-}" ] && settings+=("LineLogin__ClientId=$LINE_LOGIN_CLIENT_ID")
           [ -n "${LINE_LOGIN_CLIENT_SECRET:-}" ] && settings+=("LineLogin__ClientSecret=$LINE_LOGIN_CLIENT_SECRET")

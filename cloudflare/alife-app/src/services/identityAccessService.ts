@@ -268,7 +268,10 @@ export const identityAccessService = {
   async listAlphaAccounts() {
     return (await http.get<Array<{ accountId: string; label: string }>>('/api/internal/alpha-login/accounts')).data
   },
-  async alphaLogin(accountId: string) {
-    return (await http.post<{ returnPath: string }>('/api/internal/alpha-login', { accountId })).data
+  async alphaLogin(accountId: string, passkeyBootstrapCode?: string) {
+    return (await http.post<{ returnPath: string }>('/api/internal/alpha-login', {
+      accountId,
+      passkeyBootstrapCode: passkeyBootstrapCode || null,
+    })).data
   },
 }

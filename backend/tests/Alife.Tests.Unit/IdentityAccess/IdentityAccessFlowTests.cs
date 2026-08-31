@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Alife.Application.Abstractions.Security;
 using Alife.Api.Controllers;
 using Alife.Api.Identity;
@@ -84,7 +86,7 @@ public sealed class IdentityAccessFlowTests
         await using var fixture = CreateFixture(alphaEnabled: false);
 
         Assert.Empty(fixture.Service.ListAlphaAccounts());
-        var result = await fixture.Service.AlphaLoginAsync("configured", default);
+        var result = await fixture.Service.AlphaLoginAsync("configured", null, default);
 
         Assert.Equal(AppResultStatus.NotFound, result.Status);
         Assert.Equal("alpha_login_disabled", result.Message);
@@ -95,7 +97,7 @@ public sealed class IdentityAccessFlowTests
     {
         await using var fixture = CreateFixture(alphaEnabled: true);
 
-        var result = await fixture.Service.AlphaLoginAsync("not-configured", default);
+        var result = await fixture.Service.AlphaLoginAsync("not-configured", null, default);
 
         Assert.Equal(AppResultStatus.Forbidden, result.Status);
         var audit = await fixture.Db.AuditLogs.SingleAsync();
@@ -120,7 +122,7 @@ public sealed class IdentityAccessFlowTests
         fixture.Jwt.CreateToken(Arg.Any<Member>(), "alpha", "alpha", TimeSpan.FromHours(12))
             .Returns(("signed-token", DateTime.UtcNow.AddHours(12)));
 
-        var result = await fixture.Service.AlphaLoginAsync("configured", default);
+        var result = await fixture.Service.AlphaLoginAsync("configured", null, default);
 
         Assert.True(result.IsSuccess);
         Assert.False(result.Value!.Persistent);
@@ -128,6 +130,136 @@ public sealed class IdentityAccessFlowTests
         Assert.Equal("alpha", result.Value.SessionKind);
         Assert.Equal("/enter", result.Value.ReturnPath);
         Assert.Contains(await fixture.Db.AuditLogs.ToListAsync(), audit => audit.Action == "identity.alpha.signed_in");
+    }
+
+    [Fact]
+    public async Task AlphaLogin_ValidBootstrapCode_AllowsOnlyFirstPasskeyRegistrationWindow()
+    {
+        const string bootstrapCode = "stephen-alpha-bootstrap-code-123456";
+        var memberId = Guid.NewGuid();
+        await using var fixture = CreateFixture(
+            alphaEnabled: true,
+            alphaMemberId: memberId,
+            passkeyBootstrapCode: bootstrapCode);
+        fixture.Db.Members.Add(new Member
+        {
+            Id = memberId,
+            DisplayName = "Stephen",
+            IsRegistered = true,
+            CreatedUtc = DateTime.UtcNow,
+            UpdatedUtc = DateTime.UtcNow
+        });
+        await fixture.Db.SaveChangesAsync();
+        fixture.Jwt.CreateToken(Arg.Any<Member>(), "alpha_bootstrap", "alpha", TimeSpan.FromHours(12))
+            .Returns(("bootstrap-token", DateTime.UtcNow.AddHours(12)));
+
+        var result = await fixture.Service.AlphaLoginAsync("configured", bootstrapCode, default);
+
+        Assert.True(result.IsSuccess);
+        Assert.False(result.Value!.Persistent);
+        Assert.Equal("alpha_bootstrap", result.Value.AuthenticationMethod);
+        Assert.Equal("alpha", result.Value.SessionKind);
+        Assert.Equal("/profile", result.Value.ReturnPath);
+        var audit = await fixture.Db.AuditLogs.SingleAsync();
+        Assert.Equal("identity.alpha.bootstrap_authenticated", audit.Action);
+        Assert.Null(audit.MetadataJson);
+    }
+
+    [Fact]
+    public async Task AlphaLogin_InvalidBootstrapCode_IsDeniedWithoutSecretMetadata()
+    {
+        const string bootstrapCode = "stephen-alpha-bootstrap-code-123456";
+        var memberId = Guid.NewGuid();
+        await using var fixture = CreateFixture(
+            alphaEnabled: true,
+            alphaMemberId: memberId,
+            passkeyBootstrapCode: bootstrapCode);
+        fixture.Db.Members.Add(new Member
+        {
+            Id = memberId,
+            DisplayName = "Stephen",
+            IsRegistered = true,
+            CreatedUtc = DateTime.UtcNow,
+            UpdatedUtc = DateTime.UtcNow
+        });
+        await fixture.Db.SaveChangesAsync();
+
+        var result = await fixture.Service.AlphaLoginAsync("configured", "incorrect-bootstrap-code-123456", default);
+
+        Assert.Equal(AppResultStatus.Forbidden, result.Status);
+        Assert.Equal("alpha_passkey_bootstrap_invalid", result.Message);
+        var audit = await fixture.Db.AuditLogs.SingleAsync();
+        Assert.Equal("identity.alpha.bootstrap_denied", audit.Action);
+        Assert.Null(audit.ActorMemberId);
+        Assert.Null(audit.MetadataJson);
+        fixture.Jwt.DidNotReceiveWithAnyArgs().CreateToken(default!, default!, default!, default);
+    }
+
+    [Fact]
+    public async Task AlphaLogin_UnconfiguredBootstrapCode_IsDeniedWithoutSecretMetadata()
+    {
+        var memberId = Guid.NewGuid();
+        await using var fixture = CreateFixture(alphaEnabled: true, alphaMemberId: memberId);
+        fixture.Db.Members.Add(new Member
+        {
+            Id = memberId,
+            DisplayName = "Stephen",
+            IsRegistered = true,
+            CreatedUtc = DateTime.UtcNow,
+            UpdatedUtc = DateTime.UtcNow
+        });
+        await fixture.Db.SaveChangesAsync();
+
+        var result = await fixture.Service.AlphaLoginAsync(
+            "configured",
+            "unconfigured-bootstrap-code-123456",
+            default);
+
+        Assert.Equal(AppResultStatus.Forbidden, result.Status);
+        Assert.Equal("alpha_passkey_bootstrap_invalid", result.Message);
+        var audit = await fixture.Db.AuditLogs.SingleAsync();
+        Assert.Equal("identity.alpha.bootstrap_denied", audit.Action);
+        Assert.Null(audit.ActorMemberId);
+        Assert.Null(audit.MetadataJson);
+        fixture.Jwt.DidNotReceiveWithAnyArgs().CreateToken(default!, default!, default!, default);
+    }
+
+    [Fact]
+    public async Task AlphaLogin_BootstrapCodeCannotBeReusedAfterAnyPasskeyExisted()
+    {
+        const string bootstrapCode = "stephen-alpha-bootstrap-code-123456";
+        var memberId = Guid.NewGuid();
+        await using var fixture = CreateFixture(
+            alphaEnabled: true,
+            alphaMemberId: memberId,
+            passkeyBootstrapCode: bootstrapCode);
+        fixture.Db.Members.Add(new Member
+        {
+            Id = memberId,
+            DisplayName = "Stephen",
+            IsRegistered = true,
+            CreatedUtc = DateTime.UtcNow,
+            UpdatedUtc = DateTime.UtcNow
+        });
+        fixture.Db.MemberPasskeyCredentials.Add(new MemberPasskeyCredential
+        {
+            Id = Guid.NewGuid(),
+            MemberId = memberId,
+            CredentialId = [1],
+            PublicKey = [2],
+            UserHandle = [3],
+            DisplayName = "Revoked passkey",
+            CreatedUtc = DateTime.UtcNow.AddDays(-1),
+            RevokedUtc = DateTime.UtcNow
+        });
+        await fixture.Db.SaveChangesAsync();
+
+        var result = await fixture.Service.AlphaLoginAsync("configured", bootstrapCode, default);
+
+        Assert.Equal(AppResultStatus.Forbidden, result.Status);
+        Assert.Equal("alpha_passkey_bootstrap_invalid", result.Message);
+        Assert.Contains(await fixture.Db.AuditLogs.ToListAsync(), audit =>
+            audit.Action == "identity.alpha.bootstrap_denied" && audit.MetadataJson == null);
     }
 
     [Fact]
@@ -149,6 +281,51 @@ public sealed class IdentityAccessFlowTests
     }
 
     [Fact]
+    public void AlphaLoginConfiguration_BindsStephenBootstrapCodeAsHashOnly()
+    {
+        const string bootstrapCode = "stephen-alpha-bootstrap-code-123456";
+        var values = new Dictionary<string, string?>
+        {
+            ["AlphaLogin:Enabled"] = "true",
+            ["AlphaLogin:Accounts:0:AccountId"] = "Stephen",
+            ["AlphaLogin:Accounts:0:MemberId"] = "22222222-2222-2222-2222-222222222222",
+            ["AlphaLogin:Accounts:0:Label"] = "Stephen Alpha Test",
+            ["AlphaLogin:PasskeyBootstrapCodes:Stephen"] = bootstrapCode
+        };
+        var environment = Substitute.For<IHostEnvironment>();
+        environment.EnvironmentName.Returns(Environments.Development);
+
+        var configuration = new IdentityAccessConfiguration(
+            new ConfigurationBuilder().AddInMemoryCollection(values).Build(),
+            environment);
+
+        var account = Assert.Single(configuration.AlphaAccounts);
+        Assert.Equal("Stephen", account.AccountId);
+        Assert.Equal(SHA256.HashData(Encoding.UTF8.GetBytes(bootstrapCode)), account.PasskeyBootstrapCodeHash);
+        Assert.False(Encoding.UTF8.GetBytes(bootstrapCode).SequenceEqual(account.PasskeyBootstrapCodeHash!));
+    }
+
+    [Fact]
+    public void AlphaLoginConfiguration_IgnoresShortBootstrapCode()
+    {
+        var values = new Dictionary<string, string?>
+        {
+            ["AlphaLogin:Accounts:0:AccountId"] = "Stephen",
+            ["AlphaLogin:Accounts:0:MemberId"] = "22222222-2222-2222-2222-222222222222",
+            ["AlphaLogin:Accounts:0:Label"] = "Stephen Alpha Test",
+            ["AlphaLogin:PasskeyBootstrapCodes:Stephen"] = "too-short"
+        };
+        var environment = Substitute.For<IHostEnvironment>();
+        environment.EnvironmentName.Returns(Environments.Development);
+
+        var configuration = new IdentityAccessConfiguration(
+            new ConfigurationBuilder().AddInMemoryCollection(values).Build(),
+            environment);
+
+        Assert.Null(Assert.Single(configuration.AlphaAccounts).PasskeyBootstrapCodeHash);
+    }
+
+    [Fact]
     public async Task AlphaLogin_ExplicitlyEnabledInProduction_GetsShortNonPersistentSession()
     {
         var memberId = Guid.NewGuid();
@@ -165,7 +342,7 @@ public sealed class IdentityAccessFlowTests
         fixture.Jwt.CreateToken(Arg.Any<Member>(), "alpha", "alpha", TimeSpan.FromHours(12))
             .Returns(("signed-token", DateTime.UtcNow.AddHours(12)));
 
-        var result = await fixture.Service.AlphaLoginAsync("configured", default);
+        var result = await fixture.Service.AlphaLoginAsync("configured", null, default);
 
         Assert.True(result.IsSuccess);
         Assert.False(result.Value!.Persistent);
@@ -234,6 +411,166 @@ public sealed class IdentityAccessFlowTests
             Assert.Equal("activation", result.Value!.Context.Intent);
             Assert.Equal("/tasks", result.Value.Context.ReturnPath);
         }
+    }
+
+    [Theory]
+    [InlineData(ActivationStatus.Revoked, false)]
+    [InlineData(ActivationStatus.Used, false)]
+    [InlineData(ActivationStatus.IdentityMismatch, false)]
+    [InlineData(ActivationStatus.Active, true)]
+    public async Task GetActiveFlow_RejectsActivationThatBecameUnavailable(
+        ActivationStatus status,
+        bool expired)
+    {
+        await using var fixture = CreateFixture();
+        var member = NewMember(isRegistered: false);
+        var secret = fixture.TokenService.CreateSecret();
+        var invitation = new MemberActivationInvitation
+        {
+            Id = Guid.NewGuid(),
+            MemberId = member.Id,
+            IssuedByMemberId = member.Id,
+            Selector = "activation-selector",
+            SecretHash = fixture.TokenService.HashToken(secret),
+            Status = ActivationStatus.Active,
+            DeliveryStatus = MessageDeliveryStatus.Sent,
+            CreatedUtc = DateTime.UtcNow.AddMinutes(-5),
+            ExpiresUtc = DateTime.UtcNow.AddHours(1)
+        };
+        fixture.Db.AddRange(member, invitation);
+        await fixture.Db.SaveChangesAsync();
+        var resolved = await fixture.Service.ResolveActivationAsync(
+            invitation.Selector,
+            secret,
+            false,
+            "/profile",
+            default);
+        Assert.True(resolved.IsSuccess);
+
+        invitation.Status = status;
+        invitation.ExpiresUtc = expired ? DateTime.UtcNow.AddSeconds(-1) : invitation.ExpiresUtc;
+        await fixture.Db.SaveChangesAsync();
+
+        Assert.Null(await fixture.Service.GetActiveFlowAsync(resolved.Value!.Token, default));
+    }
+
+    [Theory]
+    [InlineData(ActivationStatus.Active, false, true)]
+    [InlineData(ActivationStatus.Revoked, false, false)]
+    [InlineData(ActivationStatus.Used, false, false)]
+    [InlineData(ActivationStatus.Active, true, false)]
+    public async Task CompletePasskeyActivation_RequiresActiveInvitationAndPendingCredential(
+        ActivationStatus status,
+        bool expired,
+        bool expectedSuccess)
+    {
+        await using var fixture = CreateFixture();
+        var member = NewMember(isRegistered: false);
+        var invitation = new MemberActivationInvitation
+        {
+            Id = Guid.NewGuid(),
+            MemberId = member.Id,
+            IssuedByMemberId = member.Id,
+            Selector = "activation-selector",
+            SecretHash = [1],
+            Status = status,
+            DeliveryStatus = MessageDeliveryStatus.Sent,
+            CreatedUtc = DateTime.UtcNow.AddMinutes(-5),
+            ExpiresUtc = expired ? DateTime.UtcNow.AddSeconds(-1) : DateTime.UtcNow.AddHours(1)
+        };
+        var flow = new OnboardingFlow
+        {
+            Id = Guid.NewGuid(),
+            TokenHash = [2],
+            Intent = OnboardingIntent.Activation,
+            ActivationInvitationId = invitation.Id,
+            CreatedUtc = DateTime.UtcNow,
+            ExpiresUtc = DateTime.UtcNow.AddMinutes(30)
+        };
+        fixture.Db.AddRange(member, invitation, flow);
+        await fixture.Db.SaveChangesAsync();
+        var pendingCredential = new MemberPasskeyCredential
+        {
+            Id = Guid.NewGuid(),
+            MemberId = member.Id,
+            CredentialId = [3],
+            PublicKey = [4],
+            UserHandle = [5],
+            DisplayName = "Pending passkey",
+            CreatedUtc = DateTime.UtcNow
+        };
+        fixture.Db.MemberPasskeyCredentials.Add(pendingCredential);
+        fixture.Jwt.CreateToken(Arg.Any<Member>(), "passkey", "standard", TimeSpan.FromDays(30))
+            .Returns(("activation-token", DateTime.UtcNow.AddDays(30)));
+
+        var result = await fixture.Service.CompletePasskeyActivationAsync(
+            flow.Id,
+            pendingCredential.Id,
+            default);
+
+        Assert.Equal(expectedSuccess, result.IsSuccess);
+        if (expectedSuccess)
+        {
+            Assert.Equal(ActivationStatus.Used, invitation.Status);
+            Assert.True(member.IsRegistered);
+            Assert.Equal(EntityState.Unchanged, fixture.Db.Entry(pendingCredential).State);
+        }
+        else
+        {
+            Assert.Equal(AppResultStatus.Conflict, result.Status);
+            Assert.False(member.IsRegistered);
+            Assert.Equal(EntityState.Added, fixture.Db.Entry(pendingCredential).State);
+        }
+    }
+
+    [Fact]
+    public async Task CompletePasskeyActivation_RejectsCredentialThatWasAlreadyPersisted()
+    {
+        await using var fixture = CreateFixture();
+        var member = NewMember(isRegistered: false);
+        var invitation = new MemberActivationInvitation
+        {
+            Id = Guid.NewGuid(),
+            MemberId = member.Id,
+            IssuedByMemberId = member.Id,
+            Selector = "activation-selector",
+            SecretHash = [1],
+            Status = ActivationStatus.Active,
+            DeliveryStatus = MessageDeliveryStatus.Sent,
+            CreatedUtc = DateTime.UtcNow,
+            ExpiresUtc = DateTime.UtcNow.AddHours(1)
+        };
+        var flow = new OnboardingFlow
+        {
+            Id = Guid.NewGuid(),
+            TokenHash = [2],
+            Intent = OnboardingIntent.Activation,
+            ActivationInvitationId = invitation.Id,
+            CreatedUtc = DateTime.UtcNow,
+            ExpiresUtc = DateTime.UtcNow.AddMinutes(30)
+        };
+        var credential = new MemberPasskeyCredential
+        {
+            Id = Guid.NewGuid(),
+            MemberId = member.Id,
+            CredentialId = [3],
+            PublicKey = [4],
+            UserHandle = [5],
+            DisplayName = "Persisted passkey",
+            CreatedUtc = DateTime.UtcNow
+        };
+        fixture.Db.AddRange(member, invitation, flow, credential);
+        await fixture.Db.SaveChangesAsync();
+
+        var result = await fixture.Service.CompletePasskeyActivationAsync(
+            flow.Id,
+            credential.Id,
+            default);
+
+        Assert.Equal(AppResultStatus.Conflict, result.Status);
+        Assert.Equal("passkey_required", result.Message);
+        Assert.False(member.IsRegistered);
+        Assert.Equal(ActivationStatus.Active, invitation.Status);
     }
 
     [Fact]
@@ -581,7 +918,11 @@ public sealed class IdentityAccessFlowTests
         UpdatedUtc = now
     };
 
-    private static Fixture CreateFixture(bool alphaEnabled = false, Guid? alphaMemberId = null, bool isProduction = false)
+    private static Fixture CreateFixture(
+        bool alphaEnabled = false,
+        Guid? alphaMemberId = null,
+        bool isProduction = false,
+        string? passkeyBootstrapCode = null)
     {
         var options = new DbContextOptionsBuilder<AlifeDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
@@ -596,7 +937,16 @@ public sealed class IdentityAccessFlowTests
         {
             AlphaLoginEnabled = alphaEnabled,
             IsProduction = isProduction,
-            AlphaAccounts = [new AlphaAccountConfiguration("configured", memberId, "Configured account")]
+            AlphaAccounts =
+            [
+                new AlphaAccountConfiguration(
+                    "configured",
+                    memberId,
+                    "Configured account",
+                    passkeyBootstrapCode is null
+                        ? null
+                        : SHA256.HashData(Encoding.UTF8.GetBytes(passkeyBootstrapCode)))
+            ]
         };
         var tokenValues = new Dictionary<string, string?>
         {

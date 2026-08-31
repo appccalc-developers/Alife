@@ -52,12 +52,90 @@ public sealed class PasskeyRevocationTests
         await db.SaveChangesAsync();
         var service = CreateService(db, new TestConfiguration(lineEnabled: true));
 
-        var result = await service.BeginRegistrationAsync(member.Id, flow.Id, default);
+        var result = await service.BeginRegistrationAsync(member.Id, flow.Id, false, default);
 
         Assert.Equal(AppResultStatus.Forbidden, result.Status);
         Assert.Equal("public_device_registration_disabled", result.Message);
         Assert.Null(member.WebAuthnUserHandle);
         Assert.Empty(db.PasskeyCeremonies);
+    }
+
+    [Fact]
+    public async Task BeginRegistration_FirstCredentialOnly_RejectsAnyHistoricalPasskey()
+    {
+        await using var db = CreateDb();
+        var member = new Member
+        {
+            Id = Guid.NewGuid(),
+            DisplayName = "Alpha tester",
+            IsRegistered = true,
+            CreatedUtc = DateTime.UtcNow,
+            UpdatedUtc = DateTime.UtcNow
+        };
+        member.PasskeyCredentials.Add(new MemberPasskeyCredential
+        {
+            Id = Guid.NewGuid(),
+            MemberId = member.Id,
+            CredentialId = [1],
+            PublicKey = [2],
+            UserHandle = [3],
+            DisplayName = "Revoked passkey",
+            CreatedUtc = DateTime.UtcNow.AddDays(-1),
+            RevokedUtc = DateTime.UtcNow
+        });
+        db.Members.Add(member);
+        await db.SaveChangesAsync();
+        var service = CreateService(db, new TestConfiguration(lineEnabled: true));
+
+        var result = await service.BeginRegistrationAsync(member.Id, null, true, default);
+
+        Assert.Equal(AppResultStatus.Forbidden, result.Status);
+        Assert.Equal("alpha_passkey_bootstrap_invalid", result.Message);
+        Assert.Empty(db.PasskeyCeremonies);
+    }
+
+    [Fact]
+    public async Task CompleteRegistration_AlphaBootstrapCeremony_RechecksHistoricalPasskeys()
+    {
+        await using var db = CreateDb();
+        var member = new Member
+        {
+            Id = Guid.NewGuid(),
+            DisplayName = "Alpha tester",
+            IsRegistered = true,
+            CreatedUtc = DateTime.UtcNow,
+            UpdatedUtc = DateTime.UtcNow
+        };
+        member.PasskeyCredentials.Add(new MemberPasskeyCredential
+        {
+            Id = Guid.NewGuid(),
+            MemberId = member.Id,
+            CredentialId = [1],
+            PublicKey = [2],
+            UserHandle = [3],
+            DisplayName = "First passkey",
+            CreatedUtc = DateTime.UtcNow
+        });
+        var ceremony = new PasskeyCeremony
+        {
+            Id = Guid.NewGuid(),
+            Kind = PasskeyCeremonyKind.AlphaBootstrapRegistration,
+            MemberId = member.Id,
+            OptionsJson = "{}",
+            CreatedUtc = DateTime.UtcNow,
+            ExpiresUtc = DateTime.UtcNow.AddMinutes(5)
+        };
+        db.AddRange(member, ceremony);
+        await db.SaveChangesAsync();
+        var service = CreateService(db, new TestConfiguration(lineEnabled: true));
+        using var response = JsonDocument.Parse("{}");
+
+        var result = await service.CompleteRegistrationAsync(ceremony.Id, response.RootElement, null, default);
+
+        Assert.Equal(AppResultStatus.Forbidden, result.Status);
+        Assert.Equal("alpha_passkey_bootstrap_invalid", result.Message);
+        Assert.NotNull(ceremony.ConsumedUtc);
+        Assert.Single(db.MemberPasskeyCredentials);
     }
 
     [Fact]
