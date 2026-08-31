@@ -11,7 +11,6 @@ import {
   MessageCircleMore,
   MessageSquareText,
   ShieldCheck,
-  Smartphone,
   UserPlus,
   X,
 } from 'lucide-react'
@@ -24,6 +23,7 @@ import { normalizeIdentityReturnPath } from '../services/identityPathPolicy'
 import { http, normalizeApiError } from '../services/http'
 import { createPasskeyRequestGuard, type PasskeyRequestGuard } from '../services/passkeyRequestGuard'
 import { visitContactService } from '../services/visitContactService'
+import { isLikelyMobileDevice } from '../services/deviceClass'
 import { useAuthStore } from '../stores/auth'
 
 type ViewMode = 'choices' | 'visitor' | 'recovery' | 'firstTime' | 'lineRegistration' | 'success'
@@ -42,12 +42,13 @@ const OnboardingView = () => {
   const safeReturnPath = normalizeIdentityReturnPath(searchParams.get('returnTo'))
   const [mode, setMode] = useState<ViewMode>('choices')
   const [context, setContext] = useState<OnboardingContext | null>(null)
-  const [capabilities, setCapabilities] = useState({ passkeysEnabled: true, lineLegacyEnabled: true, activationMessagingAvailable: true })
+  const [capabilities, setCapabilities] = useState({ passkeysEnabled: true, lineLegacyEnabled: true })
   const [publicDevice, setPublicDevice] = useState(false)
+  const [mobileDevice] = useState(() => isLikelyMobileDevice())
   const [busy, setBusy] = useState(false)
   const [passkeyWaiting, setPasskeyWaiting] = useState(false)
   const [status, setStatus] = useState('')
-  const [successTarget, setSuccessTarget] = useState('/')
+  const successTarget = '/'
   const [lineConfirmed, setLineConfirmed] = useState(false)
   const [supplement, setSupplement] = useState('')
   const [lineProfile, setLineProfile] = useState({ name: '', sex: 'Unknown', age: '', email: '' })
@@ -136,7 +137,7 @@ const OnboardingView = () => {
         const created = await identityAccessService.createFlow(safeReturnPath, publicDevice, 'signIn')
         setContext(created)
       }
-      const result = await identityAccessService.authenticatePasskey(request.signal)
+      const result = await identityAccessService.authenticatePasskey(!mobileDevice, request.signal)
       await auth.fetchMe()
       if (context?.intent === 'groupJoin') {
         setApplication((current) => ({
@@ -165,19 +166,10 @@ const OnboardingView = () => {
     setPasskeyWaiting(true)
     setStatus('')
     try {
-      const result = context?.isPublicDevice
-        ? await identityAccessService.completePublicDeviceActivation()
-        : await identityAccessService.registerPasskey(undefined, request.signal)
+      const result = await identityAccessService.registerPasskey(undefined, request.signal)
       await auth.fetchMe()
       const destination = normalizeIdentityReturnPath(result.returnPath) || '/enter'
-      if (context?.isPublicDevice) {
-        setContext(null)
-        setSuccessTarget(destination)
-        setMode('success')
-        setStatus(t('publicDeviceActivationReminder'))
-      } else {
-        navigate(destination, { replace: true })
-      }
+      navigate(destination, { replace: true })
     } catch (error) {
       setStatus(normalizeIdentityError(error, t('passkeyFailed'), t))
     } finally {
@@ -328,9 +320,9 @@ const OnboardingView = () => {
       return (
         <div>
           <ScreenHeading icon={KeyRound} title={t('activationTitle')} description={t('activationDescription')} />
-          {context.isPublicDevice ? <PublicDeviceNotice t={t} /> : <PasskeyPrivacy t={t} />}
-          <button className="alife-primary-button mt-6 w-full" type="button" disabled={busy} onClick={() => void completeActivation()}>
-            {busy ? t('checkingPasskey') : context.isPublicDevice ? t('activatePublicDevice') : t('activateWithPasskey')}
+          {!mobileDevice ? <div className="mt-5 rounded-2xl border border-[#e37b63]/20 bg-[#fff2ed] p-4 text-sm leading-6 text-[#915040]">{t('activationMobileRequired')}</div> : <PasskeyPrivacy t={t} />}
+          <button className="alife-primary-button mt-6 w-full" type="button" disabled={busy || !mobileDevice} onClick={() => void completeActivation()}>
+            {busy ? t('checkingPasskey') : t('activateWithPasskey')}
           </button>
           <button className="mt-4 min-h-11 w-full text-sm font-semibold text-[#915040] underline-offset-4 hover:underline" type="button" disabled={busy} onClick={() => void markNotMe()}>
             {t('activationNotMe')}
@@ -417,7 +409,7 @@ const OnboardingView = () => {
         <h1 className="mt-5 text-4xl font-bold tracking-[-0.045em] text-[#18332d]">{t('onboardingTitle')}</h1>
         <p className="mt-3 text-sm leading-6 text-[#66766f]">{t('onboardingSubtitle')}</p>
         <div className="mt-7 divide-y divide-[#2f4b42]/10 overflow-hidden rounded-2xl border border-[#2f4b42]/10 bg-white/75">
-          <IntentButton icon={Fingerprint} title={t('enterMyAlife')} hint={t('enterMyAlifeHint')} disabled={busy || !capabilities.passkeysEnabled} onClick={() => void runPasskeyAuthentication()} />
+          <IntentButton icon={Fingerprint} title={t('enterMyAlife')} hint={mobileDevice ? t('enterMyAlifeHint') : t('enterMyAlifeDesktopHint')} disabled={busy || !capabilities.passkeysEnabled} onClick={() => void runPasskeyAuthentication()} />
           <IntentButton icon={MessageSquareText} title={t('visitorMessage')} hint={t('visitorMessageHint')} onClick={() => { formStarted.current = Date.now(); setMode('visitor') }} />
           <IntentButton icon={Church} title={t('learnAboutChurch')} hint={t('learnAboutChurchHint')} onClick={() => navigate('/')} />
         </div>
@@ -455,7 +447,7 @@ const OnboardingView = () => {
             <div className="mt-5 rounded-2xl border border-[#176b5a]/20 bg-[#e3f0eb]/70 px-4 py-4">
               <div className="flex items-start gap-3" role="status" aria-live="polite">
                 <LoaderCircle className="mt-0.5 h-5 w-5 shrink-0 animate-spin text-[#176b5a] motion-reduce:animate-none" aria-hidden="true" />
-                <p className="min-w-0 flex-1 text-sm leading-6 text-[#314b43]">{t('passkeyWaiting')}</p>
+                <p className="min-w-0 flex-1 text-sm leading-6 text-[#314b43]">{mobileDevice ? t('passkeyWaiting') : t('phoneQrWaiting')}</p>
               </div>
               <button className="alife-secondary-button mt-3 w-full sm:w-auto" type="button" onClick={cancelPasskeyRequest}>
                 <X className="h-4 w-4" aria-hidden="true" /> {t('cancelPasskeyRequest')}
@@ -482,7 +474,6 @@ const ScreenHeading = ({ icon: Icon, title, description }: { icon: typeof Finger
 )
 
 const PasskeyPrivacy = ({ t }: { t: ReturnType<typeof useUiText> }) => <p className="mt-4 flex items-start gap-2 text-xs leading-5 text-[#66766f]"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#176b5a]" aria-hidden="true" />{t('passkeyPrivacy')}</p>
-const PublicDeviceNotice = ({ t }: { t: ReturnType<typeof useUiText> }) => <div className="mt-5 rounded-2xl border border-[#e37b63]/20 bg-[#fff2ed] p-4"><p className="flex items-center gap-2 text-sm font-semibold text-[#915040]"><Smartphone className="h-5 w-5" />{t('publicDevice')}</p><p className="mt-2 text-xs leading-5 text-[#915040]">{t('publicDeviceHint')}</p></div>
 const BackButton = ({ onClick, label }: { onClick: () => void; label: string }) => <button className="mb-6 flex min-h-10 items-center gap-2 text-sm font-semibold text-[#176b5a]" type="button" onClick={onClick}><ArrowLeft className="h-4 w-4" />{label}</button>
 const IdentityMessage = ({ icon: Icon, title, action }: { icon: typeof ShieldCheck; title: string; action?: React.ReactNode }) => <div className="py-8 text-center"><span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#e3f0eb] text-[#176b5a]"><Icon className="h-7 w-7" aria-hidden="true" /></span><p className="mx-auto mt-5 max-w-md text-base leading-7 text-[#314b43]">{title}</p>{action}</div>
 

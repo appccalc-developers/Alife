@@ -29,7 +29,7 @@ public sealed class IdentityAccessService(
     ];
 
     public IdentityCapabilitiesDto GetCapabilities()
-        => new(configuration.PasskeysEnabled, configuration.LineLegacyEnabled, messageSender.IsAvailable);
+        => new(configuration.PasskeysEnabled, configuration.LineLegacyEnabled);
 
     public async Task<AppResult<OnboardingFlowStart>> CreateFlowAsync(
         string? returnPath,
@@ -153,13 +153,16 @@ public sealed class IdentityAccessService(
             return AppResult<OnboardingFlowStart>.Conflict("activation_not_delivered");
         }
 
-        var (flow, flowToken) = CreateFlowEntity(OnboardingIntent.Activation, isPublicDevice, returnPath);
+        // Activation always creates the long-lived credential on the member's phone.
+        // Keep accepting the legacy request field for wire compatibility, but never
+        // turn an activation link into a credential-free public-device session.
+        var (flow, flowToken) = CreateFlowEntity(OnboardingIntent.Activation, false, returnPath);
         flow.ActivationInvitationId = invitation.Id;
         dbContext.OnboardingFlows.Add(flow);
         await dbContext.SaveChangesAsync(cancellationToken);
         return AppResult<OnboardingFlowStart>.Success(new OnboardingFlowStart(
             flowToken,
-            new OnboardingContextDto("activation", isPublicDevice, flow.ReturnPath ?? string.Empty, invitation.Id, State: "active")));
+            new OnboardingContextDto("activation", false, flow.ReturnPath ?? string.Empty, invitation.Id, State: "active")));
     }
 
     public async Task<AppResult<bool>> MarkActivationMismatchAsync(string flowToken, CancellationToken cancellationToken)
@@ -207,22 +210,8 @@ public sealed class IdentityAccessService(
         return AppResult<bool>.Success(true);
     }
 
-    public async Task<AppResult<IdentitySession>> CompletePublicDeviceActivationAsync(string flowToken, CancellationToken cancellationToken)
-    {
-        var flow = await FindActiveFlowAsync(flowToken, cancellationToken);
-        if (flow is null || !flow.IsPublicDevice)
-        {
-            return AppResult<IdentitySession>.Forbidden("public_device_flow_required");
-        }
-
-        return await CompleteActivationAsync(
-            flow,
-            "activation_link",
-            "public_device",
-            TimeSpan.FromHours(2),
-            null,
-            cancellationToken);
-    }
+    public Task<AppResult<IdentitySession>> CompletePublicDeviceActivationAsync(string flowToken, CancellationToken cancellationToken)
+        => Task.FromResult(AppResult<IdentitySession>.Conflict("activation_mobile_passkey_required"));
 
     public async Task<AppResult<IdentitySession>> CompletePasskeyActivationAsync(
         Guid flowId,
@@ -314,6 +303,22 @@ public sealed class IdentityAccessService(
             member.UpdatedUtc = now;
         }
 
+        return await IssueActivationAsync(
+            actorMemberId,
+            member,
+            request.Purpose,
+            grants,
+            cancellationToken);
+    }
+
+    private async Task<AppResult<ActivationInvitationDto>> IssueActivationAsync(
+        Guid actorMemberId,
+        Member member,
+        ActivationPurpose purpose,
+        IReadOnlyList<ActivationGrantRequest> grants,
+        CancellationToken cancellationToken)
+    {
+        var now = DateTime.UtcNow;
         var previous = await dbContext.MemberActivationInvitations
             .Where(item => item.MemberId == member.Id &&
                            (item.Status == ActivationStatus.Active || item.Status == ActivationStatus.PendingDelivery))
@@ -333,11 +338,11 @@ public sealed class IdentityAccessService(
             IssuedByMemberId = actorMemberId,
             Selector = selector,
             SecretHash = tokenService.HashToken(secret),
-            Purpose = request.Purpose,
-            Status = ActivationStatus.PendingDelivery,
-            DeliveryStatus = MessageDeliveryStatus.Pending,
+            Purpose = purpose,
+            Status = ActivationStatus.Active,
+            DeliveryStatus = MessageDeliveryStatus.Manual,
             CreatedUtc = now,
-            ExpiresUtc = now.AddHours(request.Purpose == ActivationPurpose.PasskeyRecovery ? 1 : 72),
+            ExpiresUtc = now.AddHours(purpose == ActivationPurpose.PasskeyRecovery ? 1 : 72),
             Grants = grants.Select(grant => new ActivationGroupGrant
             {
                 Id = Guid.NewGuid(),
@@ -350,27 +355,16 @@ public sealed class IdentityAccessService(
         };
         dbContext.MemberActivationInvitations.Add(invitation);
         AddAudit(actorMemberId, "identity.activation.created", nameof(MemberActivationInvitation), invitation.Id, member.Id);
+        AddAudit(actorMemberId, "identity.activation.delivery_manual", nameof(MemberActivationInvitation), invitation.Id, member.Id);
         await dbContext.SaveChangesAsync(cancellationToken);
 
         var url = $"{configuration.FrontendBaseUrl}/activate/{selector}#{secret}";
-        var delivery = await messageSender.SendActivationAsync(phone, displayName, url, "bilingual", cancellationToken);
-        invitation.DeliveryStatus = delivery.Sent
-            ? MessageDeliveryStatus.Sent
-            : configuration.ExposeActivationLinks
-                ? MessageDeliveryStatus.Pending
-                : messageSender.IsAvailable ? MessageDeliveryStatus.Failed : MessageDeliveryStatus.Unavailable;
-        invitation.Status = delivery.Sent || configuration.ExposeActivationLinks
-            ? ActivationStatus.Active
-            : ActivationStatus.PendingDelivery;
-        invitation.DeliveryErrorCode = delivery.ErrorCode;
-        invitation.SentUtc = delivery.Sent ? DateTime.UtcNow : null;
-        AddAudit(actorMemberId, $"identity.activation.delivery_{ToCamel(invitation.DeliveryStatus)}", nameof(MemberActivationInvitation), invitation.Id, member.Id);
-        await dbContext.SaveChangesAsync(cancellationToken);
-
         return AppResult<ActivationInvitationDto>.Success(ToActivationDto(
             invitation,
             member,
-            configuration.ExposeActivationLinks ? url : null));
+            new ManualActivationMessageDto(
+                member.PhoneE164 ?? string.Empty,
+                BuildManualActivationMessage(url))));
     }
 
     public async Task<AppResult<IReadOnlyList<ActivationInvitationDto>>> ListActivationsAsync(
@@ -929,8 +923,14 @@ public sealed class IdentityAccessService(
             : query.OrderByDescending(item => item.SubmittedUtc);
         var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
         var responseDelivery = await LoadLatestResponseDeliveryAsync(items.Select(item => item.Id), cancellationToken);
+        var activationDelivery = await LoadLatestActivationDeliveryAsync(
+            items.Select(item => item.ChurchPersonApplication.LinkedMemberId ?? item.ApplicantMemberId),
+            cancellationToken);
         return AppResult<MembershipApplicationPageDto>.Success(new MembershipApplicationPageDto(
-            items.Select(item => ToApplicationDto(item, responseDelivery.GetValueOrDefault(item.Id))).ToArray(), page, pageSize, total));
+            items.Select(item => ToApplicationDto(
+                item,
+                responseDelivery.TryGetValue(item.Id, out var responseStatus) ? responseStatus : null,
+                ResolveActivationDelivery(item, activationDelivery))).ToArray(), page, pageSize, total));
     }
 
     public async Task<AppResult<MembershipApplicationDto>> DecideGroupApplicationAsync(
@@ -939,9 +939,52 @@ public sealed class IdentityAccessService(
         Guid applicationId,
         DecideMembershipApplicationRequest request,
         CancellationToken cancellationToken)
-        => await serializableExecutor.ExecuteAsync(
+    {
+        var result = await serializableExecutor.ExecuteAsync(
             token => DecideGroupApplicationCoreAsync(actorMemberId, groupId, applicationId, request, token),
             cancellationToken);
+        if (!result.IsSuccess || request.Decision != ApplicationDecisionKind.Approved)
+        {
+            return result;
+        }
+
+        var application = await LoadApplicationAsync(applicationId, cancellationToken);
+        var memberId = application?.ChurchPersonApplication.LinkedMemberId ?? application?.ApplicantMemberId;
+        if (application is null || memberId is null)
+        {
+            return result;
+        }
+
+        var member = await dbContext.Members.SingleAsync(item => item.Id == memberId.Value, cancellationToken);
+        var hasPasskey = await dbContext.MemberPasskeyCredentials.AnyAsync(
+            credential => credential.MemberId == member.Id && credential.RevokedUtc == null,
+            cancellationToken);
+        if (hasPasskey)
+        {
+            return result;
+        }
+
+        var churchId = await dbContext.Groups.AsNoTracking()
+            .Where(group => group.IsChurch)
+            .Select(group => group.Id)
+            .SingleAsync(cancellationToken);
+        var activation = await IssueActivationAsync(
+            actorMemberId,
+            member,
+            member.IsRegistered ? ActivationPurpose.PasskeyRecovery : ActivationPurpose.FirstActivation,
+            [
+                new ActivationGrantRequest(churchId, MembershipRole.Member),
+                new ActivationGrantRequest(groupId, MembershipRole.Member)
+            ],
+            cancellationToken);
+
+        return activation.IsSuccess
+            ? AppResult<MembershipApplicationDto>.Success(ToApplicationDto(
+                application,
+                activationDeliveryStatus: activation.Value!.DeliveryStatus,
+                manualActivationMessage: activation.Value.ManualActivationMessage))
+            : result;
+    }
 
     private async Task<AppResult<MembershipApplicationDto>> DecideGroupApplicationCoreAsync(
         Guid actorMemberId,
@@ -978,15 +1021,35 @@ public sealed class IdentityAccessService(
         switch (request.Decision)
         {
             case ApplicationDecisionKind.Approved:
-                if (application.ChurchPersonApplication.Status == MembershipApplicationStatus.Approved)
+                var person = application.ChurchPersonApplication;
+                if (!person.IsContactVerified && !request.ContactVerified)
                 {
-                    var membershipResult = await MaterializeMembershipAsync(application, cancellationToken);
-                    application.Status = membershipResult ? MembershipApplicationStatus.Approved : MembershipApplicationStatus.ApprovedWaitingForChurch;
+                    return AppResult<MembershipApplicationDto>.Conflict("contact_verification_required");
                 }
-                else
+                if (request.ContactVerified && !person.IsContactVerified)
                 {
-                    application.Status = MembershipApplicationStatus.ApprovedWaitingForChurch;
+                    person.IsContactVerified = true;
+                    AddAudit(actorMemberId, "identity.person_application.contact_verified", nameof(ChurchPersonApplication), person.Id, person.LinkedMemberId, groupId);
                 }
+                var wasLinked = person.LinkedMemberId is not null;
+                if (!await ResolveApplicantMemberAsync(person, request.LinkedMemberId, cancellationToken))
+                {
+                    return AppResult<MembershipApplicationDto>.Conflict("existing_contact_link_required");
+                }
+                if (!wasLinked && person.LinkedMemberId is not null)
+                {
+                    AddHistory(application, actorMemberId, ApplicationDecisionKind.LinkedToMember, application.Status, application.Status, null);
+                    AddAudit(actorMemberId, "identity.person_application.linked", nameof(ChurchPersonApplication), person.Id, person.LinkedMemberId, groupId);
+                }
+                var churchId = await dbContext.Groups.AsNoTracking()
+                    .Where(group => group.IsChurch)
+                    .Select(group => group.Id)
+                    .SingleAsync(cancellationToken);
+                person.Status = MembershipApplicationStatus.Approved;
+                await EnsureApprovedMembershipAsync(churchId, person.LinkedMemberId!.Value, MembershipRole.Member, cancellationToken);
+                application.Status = await MaterializeMembershipAsync(application, cancellationToken)
+                    ? MembershipApplicationStatus.Approved
+                    : MembershipApplicationStatus.ApprovedWaitingForChurch;
                 break;
             case ApplicationDecisionKind.NeedsInfo:
                 if (string.IsNullOrWhiteSpace(request.Note))
@@ -1149,8 +1212,14 @@ public sealed class IdentityAccessService(
             : query.OrderByDescending(item => item.SubmittedUtc);
         var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
         var responseDelivery = await LoadLatestResponseDeliveryAsync(items.Select(item => item.Id), cancellationToken);
+        var activationDelivery = await LoadLatestActivationDeliveryAsync(
+            items.Select(item => item.ChurchPersonApplication.LinkedMemberId ?? item.ApplicantMemberId),
+            cancellationToken);
         return AppResult<MembershipApplicationPageDto>.Success(new MembershipApplicationPageDto(
-            items.Select(item => ToApplicationDto(item, responseDelivery.GetValueOrDefault(item.Id))).ToArray(), page, pageSize, total));
+            items.Select(item => ToApplicationDto(
+                item,
+                responseDelivery.TryGetValue(item.Id, out var responseStatus) ? responseStatus : null,
+                ResolveActivationDelivery(item, activationDelivery))).ToArray(), page, pageSize, total));
     }
 
     public async Task<AppResult<IReadOnlyList<MembershipApplicationDto>>> ListPersonalApplicationsAsync(
@@ -1166,8 +1235,14 @@ public sealed class IdentityAccessService(
             .Take(100)
             .ToListAsync(cancellationToken);
         var responseDelivery = await LoadLatestResponseDeliveryAsync(items.Select(item => item.Id), cancellationToken);
+        var activationDelivery = await LoadLatestActivationDeliveryAsync(
+            items.Select(item => item.ChurchPersonApplication.LinkedMemberId ?? item.ApplicantMemberId),
+            cancellationToken);
         return AppResult<IReadOnlyList<MembershipApplicationDto>>.Success(
-            items.Select(item => ToApplicationDto(item, responseDelivery.GetValueOrDefault(item.Id))).ToArray());
+            items.Select(item => ToApplicationDto(
+                item,
+                responseDelivery.TryGetValue(item.Id, out var responseStatus) ? responseStatus : null,
+                ResolveActivationDelivery(item, activationDelivery))).ToArray());
     }
 
     public IReadOnlyList<AlphaAccountDto> ListAlphaAccounts()
@@ -1499,6 +1574,36 @@ public sealed class IdentityAccessService(
             .ToDictionary(group => group.Key, group => group.First().DeliveryStatus);
     }
 
+    private async Task<IReadOnlyDictionary<Guid, MessageDeliveryStatus>> LoadLatestActivationDeliveryAsync(
+        IEnumerable<Guid?> memberIds,
+        CancellationToken cancellationToken)
+    {
+        var ids = memberIds.Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToArray();
+        if (ids.Length == 0)
+        {
+            return new Dictionary<Guid, MessageDeliveryStatus>();
+        }
+
+        var invitations = await dbContext.MemberActivationInvitations.AsNoTracking()
+            .Where(item => ids.Contains(item.MemberId))
+            .OrderByDescending(item => item.CreatedUtc)
+            .Select(item => new { item.MemberId, item.DeliveryStatus })
+            .ToListAsync(cancellationToken);
+        return invitations
+            .GroupBy(item => item.MemberId)
+            .ToDictionary(group => group.Key, group => group.First().DeliveryStatus);
+    }
+
+    private static MessageDeliveryStatus? ResolveActivationDelivery(
+        GroupMembershipApplication application,
+        IReadOnlyDictionary<Guid, MessageDeliveryStatus> deliveryByMember)
+    {
+        var memberId = application.ChurchPersonApplication.LinkedMemberId ?? application.ApplicantMemberId;
+        return memberId is Guid id && deliveryByMember.TryGetValue(id, out var delivery)
+            ? delivery
+            : null;
+    }
+
     private async Task<GroupMembershipApplication?> LoadApplicationAsync(Guid applicationId, CancellationToken cancellationToken)
         => await dbContext.GroupMembershipApplications
             .Include(item => item.Group)
@@ -1619,7 +1724,7 @@ public sealed class IdentityAccessService(
     private static ActivationInvitationDto ToActivationDto(
         MemberActivationInvitation invitation,
         Member member,
-        string? previewUrl)
+        ManualActivationMessageDto? manualActivationMessage)
         => new(
             invitation.Id,
             member.Id,
@@ -1632,12 +1737,14 @@ public sealed class IdentityAccessService(
                 : invitation.Status,
             invitation.DeliveryStatus,
             invitation.ExpiresUtc,
-            previewUrl,
+            manualActivationMessage,
             invitation.Grants.Select(grant => new ActivationGrantDto(grant.GroupId, grant.Role, grant.Status, grant.ConflictCode)).ToArray());
 
     private static MembershipApplicationDto ToApplicationDto(
         GroupMembershipApplication application,
-        MessageDeliveryStatus? responseDeliveryStatus = null)
+        MessageDeliveryStatus? responseDeliveryStatus = null,
+        MessageDeliveryStatus? activationDeliveryStatus = null,
+        ManualActivationMessageDto? manualActivationMessage = null)
     {
         var person = application.ChurchPersonApplication;
         var names = ReadLocalized(application.Group.NameJson);
@@ -1658,6 +1765,8 @@ public sealed class IdentityAccessService(
             ToCamel(application.Status),
             application.Source,
             responseDeliveryStatus is null ? null : ToCamel(responseDeliveryStatus.Value),
+            activationDeliveryStatus is null ? null : ToCamel(activationDeliveryStatus.Value),
+            manualActivationMessage,
             application.SubmittedUtc,
             Convert.ToBase64String(application.RowVersion ?? []),
             application.History.OrderBy(item => item.CreatedUtc).Select(item => new ApplicationHistoryDto(
@@ -1669,6 +1778,11 @@ public sealed class IdentityAccessService(
                 item.ActorMemberId,
                 item.CreatedUtc)).ToArray());
     }
+
+    private static string BuildManualActivationMessage(string activationUrl)
+        => $"ALIFE 帐号激活 / Account activation\n" +
+           $"请在手机打开以下链接并建立 Passkey / Open this link on your phone to create a Passkey:\n" +
+           activationUrl;
 
     private void AddHistory(
         GroupMembershipApplication application,

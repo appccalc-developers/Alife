@@ -97,6 +97,41 @@ public sealed class IdentityHttpTests
     }
 
     [Fact]
+    public async Task ManualActivationMutation_ReturnsPrivateNoStoreResponse()
+    {
+        var context = new DefaultHttpContext();
+        var actorId = Guid.NewGuid();
+        var identityAccess = Substitute.For<IIdentityAccessService>();
+        var currentMember = Substitute.For<ICurrentMemberAccessor>();
+        currentMember.GetCurrentMemberId().Returns(actorId);
+        identityAccess.CreateActivationAsync(actorId, Arg.Any<CreateActivationRequest>(), Arg.Any<CancellationToken>())
+            .Returns(AppResult<ActivationInvitationDto>.Success(new ActivationInvitationDto(
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                "Preset member",
+                "•••• 0001",
+                ActivationPurpose.FirstActivation,
+                ActivationStatus.Active,
+                MessageDeliveryStatus.Manual,
+                DateTime.UtcNow.AddHours(72),
+                new ManualActivationMessageDto("+64210000001", "activation message"),
+                [])));
+        var controller = new IdentityManagementController(identityAccess, currentMember)
+        {
+            ControllerContext = new ControllerContext { HttpContext = context }
+        };
+
+        var result = await controller.CreateActivation(
+            new CreateActivationRequest("Preset member", "+64210000001", ActivationPurpose.FirstActivation, []),
+            default);
+
+        Assert.IsType<ObjectResult>(result);
+        Assert.Equal("private, no-store", context.Response.Headers.CacheControl);
+        Assert.Contains("Cookie", context.Response.Headers.Vary.ToString());
+        Assert.Contains("Authorization", context.Response.Headers.Vary.ToString());
+    }
+
+    [Fact]
     public async Task PasskeyRegistration_StandardAlphaSession_RequiresRecentStrongAuthentication()
     {
         var (controller, _, identityAccess) = CreatePasskeysController("alpha");

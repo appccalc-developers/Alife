@@ -25,8 +25,9 @@ import {
 import { normalizeApiError } from '../../services/http'
 import { formatRole, groupNameLabel, parseLocalizedJson, parseUtcDate, readLocalized } from './adminUtils'
 import useConfirmation from '../../hooks/useConfirmation'
-import { identityAccessService, type ActivationInvitation } from '../../services/identityAccessService'
+import { identityAccessService, type ActivationInvitation, type ManualActivationMessage } from '../../services/identityAccessService'
 import PersonApplicationsPanel from './PersonApplicationsPanel'
+import ManualActivationMessageModal from '../../components/identity/ManualActivationMessageModal'
 
 type MembershipAction = 'approve' | 'reject' | 'deactivate' | 'invite'
 
@@ -164,6 +165,11 @@ const MembersSection = ({
     page: (current: number, total: number) => `第 ${current} / ${total || 1} 页`,
     confirmDeactivate: (name: string) => `确定要把 ${name} 设为不活跃吗？这也会移除其子组成员资格。`,
     confirmReject: (name: string) => `确定拒绝 ${name} 的成员申请吗？`,
+    generateActivation: '生成帐号激活短消息',
+    generateNewActivation: '生成新消息',
+    activationReady: '一次性激活消息已生成；请在窗口关闭前复制并人工发送。',
+    passkeyReady: '手机 Passkey 已建立',
+    missingPhone: '需先补充手机号',
   } : {
     title: 'Member management',
     description: 'Review church membership, management duties, account state, and group participation in one place.',
@@ -228,6 +234,11 @@ const MembersSection = ({
     page: (current: number, total: number) => `Page ${current} of ${total || 1}`,
     confirmDeactivate: (name: string) => `Set ${name} as inactive? This also removes their subgroup memberships.`,
     confirmReject: (name: string) => `Reject ${name}’s membership request?`,
+    generateActivation: 'Generate account activation message',
+    generateNewActivation: 'Generate new message',
+    activationReady: 'A one-time activation message was generated. Copy it and send it manually before closing the dialog.',
+    passkeyReady: 'Mobile Passkey is ready',
+    missingPhone: 'Add a phone number first',
   }
 
   const [filters, setFilters] = useState<AdminMemberFilters>(initialFilters)
@@ -245,6 +256,8 @@ const MembersSection = ({
   const [activationForm, setActivationForm] = useState({ displayName: '', phoneE164: '', purpose: 'firstActivation', groupId: '', role: 'member' })
   const [activationBusy, setActivationBusy] = useState('')
   const [activationError, setActivationError] = useState('')
+  const [activationStatus, setActivationStatus] = useState('')
+  const [manualActivationMessage, setManualActivationMessage] = useState<ManualActivationMessage | null>(null)
   const requestSequence = useRef(0)
 
   useEffect(() => {
@@ -373,6 +386,7 @@ const MembersSection = ({
     if (!activationForm.displayName.trim() || !activationForm.phoneE164.trim()) return
     setActivationBusy('create')
     setActivationError('')
+    setActivationStatus('')
     try {
       const created = await identityAccessService.createActivation({
         displayName: activationForm.displayName.trim(),
@@ -381,6 +395,8 @@ const MembersSection = ({
         grants: activationForm.groupId ? [{ groupId: activationForm.groupId, role: activationForm.role }] : [],
       })
       setActivations((current) => [created, ...current])
+      setManualActivationMessage(created.manualActivationMessage ?? null)
+      setActivationStatus(copy.activationReady)
       setActivationForm({ displayName: '', phoneE164: '', purpose: 'firstActivation', groupId: '', role: 'member' })
     } catch (reason) {
       setActivationError(normalizeApiError(reason).message)
@@ -392,13 +408,40 @@ const MembersSection = ({
   const changeActivation = async (activation: ActivationInvitation, action: 'revoke' | 'resend') => {
     setActivationBusy(activation.id)
     setActivationError('')
+    setActivationStatus('')
     try {
       const result = await identityAccessService.changeActivation(activation.id, action)
       if (typeof result === 'boolean') {
         setActivations((current) => current.map((item) => item.id === activation.id ? { ...item, status: 'revoked' } : item))
       } else {
         setActivations((current) => [result, ...current.map((item) => item.id === activation.id ? { ...item, status: 'revoked' } : item)])
+        setManualActivationMessage(result.manualActivationMessage ?? null)
+        setActivationStatus(copy.activationReady)
       }
+    } catch (reason) {
+      setActivationError(normalizeApiError(reason).message)
+    } finally {
+      setActivationBusy('')
+    }
+  }
+
+  const activationPayload = (member: AdminMemberDto) => ({
+    displayName: member.displayName?.trim() || copy.member,
+    phoneE164: member.phoneE164?.trim() || '',
+    purpose: member.isRegistered ? 'passkeyRecovery' : 'firstActivation',
+    grants: [],
+  })
+
+  const generateMemberActivation = async (member: AdminMemberDto) => {
+    if (!member.phoneE164 || !member.needsPasskey) return
+    setActivationBusy(member.id)
+    setActivationError('')
+    setActivationStatus('')
+    try {
+      const created = await identityAccessService.createActivation(activationPayload(member))
+      setActivations((current) => [created, ...current])
+      setManualActivationMessage(created.manualActivationMessage ?? null)
+      setActivationStatus(copy.activationReady)
     } catch (reason) {
       setActivationError(normalizeApiError(reason).message)
     } finally {
@@ -437,7 +480,7 @@ const MembersSection = ({
       {canManageMembership ? (
         <details className="border-b border-[#dce7e2] bg-[#fffaf4] px-4 py-4 sm:px-6">
           <summary className="cursor-pointer list-none text-sm font-black text-[#18332d] marker:hidden">{isChinese ? '预登记与激活邀请' : 'Pre-registration and activation invitations'}</summary>
-          <p className="mt-2 text-xs leading-5 text-[#687770]">{isChinese ? '预登记不会自动授予权限；短信提供方未配置时，邀请会明确停留在待交付状态。' : 'Pre-registration never grants permissions automatically. Without a configured message provider, delivery remains explicitly pending.'}</p>
+          <p className="mt-2 text-xs leading-5 text-[#687770]">{isChinese ? '预登记不会自动授予权限。系统会生成一次性双语短消息，请复制后通过 Phone Link 人工发送。' : 'Pre-registration never grants permissions automatically. ALIFE creates a one-time bilingual message for you to copy and send manually through Phone Link.'}</p>
           <div className="mt-4 grid gap-3 lg:grid-cols-4">
             <label className="block text-xs font-bold text-[#62736c]">{copy.name}<input className="alife-input mt-1" maxLength={150} value={activationForm.displayName} onChange={(event) => setActivationForm((current) => ({ ...current, displayName: event.target.value }))} /></label>
             <label className="block text-xs font-bold text-[#62736c]">{isChinese ? '规范化手机号' : 'Phone number'}<input className="alife-input mt-1" type="tel" placeholder="+64…" value={activationForm.phoneE164} onChange={(event) => setActivationForm((current) => ({ ...current, phoneE164: event.target.value }))} /></label>
@@ -445,13 +488,15 @@ const MembersSection = ({
             <label className="block text-xs font-bold text-[#62736c]">{isChinese ? '可选小组授权' : 'Optional group grant'}<select className="alife-input mt-1" value={activationForm.groupId} onChange={(event) => setActivationForm((current) => ({ ...current, groupId: event.target.value }))}><option value="">{isChinese ? '仅教会成员' : 'Church member only'}</option>{groupOptions.map((group) => <option key={group.id} value={group.id}>{groupNameLabel(group, language)}</option>)}</select></label>
             <label className="block text-xs font-bold text-[#62736c]">{isChinese ? '暂存角色' : 'Staged role'}<select className="alife-input mt-1" disabled={!activationForm.groupId} value={activationForm.role} onChange={(event) => setActivationForm((current) => ({ ...current, role: event.target.value }))}><option value="member">{copy.memberRole}</option><option value="coLeader">{copy.assistantLeader}</option><option value="leader">{copy.groupLeader}</option></select></label>
           </div>
-          <button className="mt-3 inline-flex min-h-10 items-center rounded-xl bg-[#176b5a] px-4 py-2 text-sm font-black text-white disabled:opacity-50" type="button" disabled={activationBusy === 'create' || !activationForm.displayName.trim() || !activationForm.phoneE164.trim()} onClick={() => void createActivation()}><Send className="mr-2 h-4 w-4" />{isChinese ? '建立并尝试交付' : 'Create and attempt delivery'}</button>
-          {activationError ? <p className="mt-3 text-sm text-rose-700" role="alert">{activationError}</p> : null}
-          {activations.length ? <div className="mt-4 space-y-2">{activations.slice(0, 10).map((activation) => <div key={activation.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#e3d8ca] bg-white p-3"><div><p className="text-sm font-bold text-[#18332d]">{activation.displayName} · {activation.maskedPhone}</p><p className="mt-1 text-xs text-[#687770]">{activation.status} · {activation.deliveryStatus} · {new Date(activation.expiresUtc).toLocaleString()}</p>{activation.previewUrl ? <a className="mt-1 block break-all text-xs font-semibold text-[#176b5a] underline" href={activation.previewUrl}>{isChinese ? '开发预览链接' : 'Development preview link'}</a> : null}</div><div className="flex gap-2"><button className="min-h-9 rounded-lg border border-[#cbdad4] px-3 text-xs font-bold" type="button" disabled={Boolean(activationBusy)} onClick={() => void changeActivation(activation, 'resend')}>{isChinese ? '重发' : 'Resend'}</button><button className="min-h-9 rounded-lg border border-rose-200 px-3 text-xs font-bold text-rose-700" type="button" disabled={Boolean(activationBusy) || activation.status === 'used' || activation.status === 'revoked'} onClick={() => void changeActivation(activation, 'revoke')}>{isChinese ? '撤销' : 'Revoke'}</button></div></div>)}</div> : null}
+          <button className="mt-3 inline-flex min-h-10 items-center rounded-xl bg-[#176b5a] px-4 py-2 text-sm font-black text-white disabled:opacity-50" type="button" disabled={activationBusy === 'create' || !activationForm.displayName.trim() || !activationForm.phoneE164.trim()} onClick={() => void createActivation()}><Send className="mr-2 h-4 w-4" />{copy.generateActivation}</button>
+          {activations.length ? <div className="mt-4 space-y-2">{activations.slice(0, 10).map((activation) => <div key={activation.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#e3d8ca] bg-white p-3"><div><p className="text-sm font-bold text-[#18332d]">{activation.displayName} · {activation.maskedPhone}</p><p className="mt-1 text-xs text-[#687770]">{activation.status} · {activation.deliveryStatus} · {new Date(activation.expiresUtc).toLocaleString()}</p></div><div className="flex gap-2"><button className="min-h-9 rounded-lg border border-[#cbdad4] px-3 text-xs font-bold" type="button" disabled={Boolean(activationBusy)} onClick={() => void changeActivation(activation, 'resend')}>{copy.generateNewActivation}</button><button className="min-h-9 rounded-lg border border-rose-200 px-3 text-xs font-bold text-rose-700" type="button" disabled={Boolean(activationBusy) || activation.status === 'used' || activation.status === 'revoked'} onClick={() => void changeActivation(activation, 'revoke')}>{isChinese ? '撤销' : 'Revoke'}</button></div></div>)}</div> : null}
         </details>
       ) : null}
 
       {canManageMembership ? <PersonApplicationsPanel language={language} /> : null}
+
+      {activationStatus ? <p className="border-b border-[#bcdccc] bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 sm:px-6" role="status">{activationStatus}</p> : null}
+      {activationError ? <p className="border-b border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 sm:px-6" role="alert">{activationError}</p> : null}
 
       <div className="border-b border-[#dce7e2] bg-[#f1f6f3] px-4 py-4 sm:px-6">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-end">
@@ -543,6 +588,7 @@ const MembersSection = ({
                         <h3 className="text-sm font-black text-[#18332d]">{copy.accountDetails}</h3>
                         <div className="mt-3 flex flex-wrap gap-2"><span className={`rounded-full px-2.5 py-1 text-xs font-black ${member.isRegistered ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>{member.isRegistered ? copy.registered : copy.guest}</span>{displayRoleCodes(member).map((roleCode) => <RolePill key={roleCode} roleCode={roleCode} label={roleLabel(roleCode)} />)}</div>
                         <dl className="mt-4 space-y-3"><InfoField label={copy.createdAt} value={formatMemberDate(member.createdUtc, isChinese)} /><InfoField label={copy.updatedAt} value={formatMemberDate(member.updatedUtc, isChinese)} /></dl>
+                        {canManageMembership ? <div className="mt-4 border-t border-[#e3ebe7] pt-4">{member.needsPasskey ? <ActionButton busy={activationBusy === member.id} disabled={Boolean(activationBusy) || !member.phoneE164} onClick={() => void generateMemberActivation(member)}>{member.phoneE164 ? copy.generateActivation : copy.missingPhone}</ActionButton> : <p className="text-xs font-bold text-emerald-700"><ShieldCheck className="mr-1.5 inline h-4 w-4" />{copy.passkeyReady}</p>}</div> : null}
                       </section>
 
                       <section className="rounded-2xl border border-[#d6e3dd] bg-white p-4">
@@ -571,6 +617,7 @@ const MembersSection = ({
       </footer>
 
       {editTarget ? <div className="fixed inset-0 z-[70] flex items-end bg-slate-950/45 px-4 pb-24 pt-6 backdrop-blur-sm sm:items-center sm:justify-center sm:py-6"><button type="button" className="absolute inset-0" aria-label={copy.close} disabled={updatingMemberProfileId === editTarget.id} onClick={() => setEditTarget(null)} /><section className="relative z-10 w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="edit-member-title"><header className="flex items-start justify-between gap-4 border-b border-[#dce7e2] bg-[#edf5f1] px-5 py-4"><div><h2 id="edit-member-title" className="text-lg font-black text-[#18332d]">{copy.edit}</h2><p className="mt-1 text-sm leading-6 text-[#60716a]">{copy.editDescription}</p></div><button type="button" onClick={() => setEditTarget(null)} className="flex h-9 w-9 items-center justify-center rounded-xl text-[#60716a] hover:bg-white" aria-label={copy.close}><X className="h-5 w-5" /></button></header><form className="space-y-4 p-5" onSubmit={(event) => { event.preventDefault(); submitProfile().catch(() => undefined) }}><FormField label={copy.name}><input autoFocus required maxLength={150} value={editForm.displayName} onChange={(event) => setEditForm((current) => ({ ...current, displayName: event.target.value }))} className="min-h-11 w-full rounded-xl border border-[#cbdad4] bg-white px-3 text-sm text-[#18332d] outline-none focus:border-[#21705f] focus:ring-4 focus:ring-[#dcece6]" /></FormField><FormField label={copy.salutation}><input maxLength={100} value={editForm.salutation} onChange={(event) => setEditForm((current) => ({ ...current, salutation: event.target.value }))} className="min-h-11 w-full rounded-xl border border-[#cbdad4] bg-white px-3 text-sm text-[#18332d] outline-none focus:border-[#21705f] focus:ring-4 focus:ring-[#dcece6]" /></FormField><FormField label={copy.gender}><select value={editForm.sex} onChange={(event) => setEditForm((current) => ({ ...current, sex: event.target.value }))} className="min-h-11 w-full rounded-xl border border-[#cbdad4] bg-white px-3 text-sm text-[#18332d] outline-none focus:border-[#21705f] focus:ring-4 focus:ring-[#dcece6]"><option value="">{copy.notProvided}</option><option value="Male">{copy.male}</option><option value="Female">{copy.female}</option><option value="Other">{copy.other}</option></select></FormField>{editError ? <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700" role="alert">{editError}</p> : null}<div className="flex justify-end gap-2 border-t border-[#e3ebe7] pt-4"><button type="button" disabled={updatingMemberProfileId === editTarget.id} onClick={() => setEditTarget(null)} className="min-h-10 rounded-xl border border-[#cbdad4] px-4 text-sm font-black text-[#60716a]">{copy.cancel}</button><button type="submit" disabled={updatingMemberProfileId === editTarget.id || !editForm.displayName.trim()} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#176b5a] px-4 text-sm font-black text-white disabled:opacity-55">{updatingMemberProfileId === editTarget.id ? <Loader2 className="h-4 w-4 animate-spin" /> : null}{updatingMemberProfileId === editTarget.id ? copy.saving : copy.save}</button></div></form></section></div> : null}
+      <ManualActivationMessageModal value={manualActivationMessage} language={language} onClose={() => setManualActivationMessage(null)} />
       {confirmationModal}
     </section>
   )

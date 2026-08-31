@@ -91,6 +91,7 @@ internal static class AdminPlatformRoleHelpers
                 member.Email,
                 member.PhoneE164,
                 member.IsRegistered,
+                !member.PasskeyCredentials.Any(credential => credential.RevokedUtc == null),
                 false,
                 member.CreatedUtc,
                 member.UpdatedUtc,

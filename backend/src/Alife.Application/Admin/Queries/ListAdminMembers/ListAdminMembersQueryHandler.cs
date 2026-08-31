@@ -103,6 +103,7 @@ public sealed class ListAdminMembersQueryHandler(IAlifeDbContext dbContext)
                 member.Email,
                 member.PhoneE164,
                 member.IsRegistered,
+                NeedsPasskey = !member.PasskeyCredentials.Any(credential => credential.RevokedUtc == null),
                 member.CreatedUtc,
                 member.UpdatedUtc,
                 ApprovedGroupCount = member.Memberships.Count(membership =>
@@ -173,6 +174,7 @@ public sealed class ListAdminMembersQueryHandler(IAlifeDbContext dbContext)
                 member.Email,
                 member.PhoneE164,
                 member.IsRegistered,
+                member.NeedsPasskey,
                 false,
                 member.CreatedUtc,
                 member.UpdatedUtc,

@@ -17,6 +17,7 @@ import { createPasskeyRequestGuard, type PasskeyRequestGuard } from '../services
 import { useAuthStore } from '../stores/auth'
 import { isValidPhoneNumber } from '../utils/phoneNumber'
 import { localizeText } from '../utils/localizedText'
+import { isLikelyMobileDevice } from '../services/deviceClass'
 
 const ProfileView = () => {
   const auth = useAuthStore()
@@ -40,6 +41,7 @@ const ProfileView = () => {
   const [passkeyError, setPasskeyError] = useState('')
   const [passkeyStatus, setPasskeyStatus] = useState('')
   const [confirmRevokeId, setConfirmRevokeId] = useState('')
+  const [mobileDevice] = useState(() => isLikelyMobileDevice())
   const passkeyRequest = useRef<PasskeyRequestGuard | null>(null)
 
   const copy = language === 'zh'
@@ -58,6 +60,7 @@ const ProfileView = () => {
       confirmRevoke: '再次点击以确认撤销', passkeyAdded: 'Passkey 已添加。', passkeyRevoked: 'Passkey 已撤销。',
       passkeyWaiting: '正在等待 Windows 或密码管理器打开 Passkey 窗口。如果没有出现窗口，请先取消本次请求。', cancelPasskeyRequest: '取消 Passkey 验证',
       strongAuthHint: '添加或撤销需要最近五分钟内完成 Passkey 或 LINE 强认证。首次建立也可使用管理员签发的 Alpha 设置码登录。', addPasskeyRecommended: '建议现在添加 Passkey，作为主要登录方式。',
+      mobileOnly: 'Passkey 只在个人手机上建立。电脑登录时由浏览器显示二维码，再用手机 Passkey 验证。',
     }
     : {
       eyebrow: 'Member account', intro: 'Manage your contact details, account profile, and group invitations in one place.',
@@ -74,6 +77,7 @@ const ProfileView = () => {
       confirmRevoke: 'Click again to confirm revocation', passkeyAdded: 'Passkey added.', passkeyRevoked: 'Passkey revoked.',
       passkeyWaiting: 'Waiting for Windows or your password manager to open the Passkey prompt. If no prompt appears, cancel this request first.', cancelPasskeyRequest: 'Cancel Passkey request',
       strongAuthHint: 'Adding or revoking requires passkey or LINE strong authentication from the last five minutes. The first passkey can also follow an administrator-issued Alpha setup-code login.', addPasskeyRecommended: 'Add a passkey now to make it your primary sign-in method.',
+      mobileOnly: 'Passkeys are created only on a personal phone. On a computer, use the browser QR and approve with your phone Passkey.',
     }
 
   useEffect(() => {
@@ -163,6 +167,10 @@ const ProfileView = () => {
   }
 
   const addPasskey = async () => {
+    if (!mobileDevice) {
+      setPasskeyError(copy.mobileOnly)
+      return
+    }
     passkeyRequest.current?.dispose()
     const request = createPasskeyRequestGuard()
     passkeyRequest.current = request
@@ -295,10 +303,10 @@ const ProfileView = () => {
                 ))}
               </ul>
             ) : <AppEmptyState title={copy.noPasskeys} description={copy.strongAuthHint} />}
-            <div className="grid gap-3 border-t border-slate-100 pt-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+            {mobileDevice ? <div className="grid gap-3 border-t border-slate-100 pt-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
               <label className="block"><span className="text-xs font-black uppercase tracking-wide text-slate-500">{copy.passkeyName}</span><input className="mt-1.5 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" maxLength={120} placeholder={copy.passkeyNamePlaceholder} value={passkeyName} onChange={(event) => setPasskeyName(event.target.value)} /></label>
               <AppActionButton variant="primary" disabled={passkeyBusy} onClick={() => void addPasskey()}><Plus className="mr-1.5 h-4 w-4" />{copy.addPasskey}</AppActionButton>
-            </div>
+            </div> : <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm leading-6 text-amber-900">{copy.mobileOnly}</p>}
             {passkeyWaiting ? (
               <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3">
                 <div className="flex items-start gap-2.5" role="status" aria-live="polite">
