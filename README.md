@@ -176,6 +176,7 @@ npx wrangler deploy
 ## Main Features In The Current Code
 
 - Member identity through discoverable Passkeys, explicit LINE Login compatibility, one-time church activation links, and configuration-gated internal Alpha accounts.
+- Passkeys are created from activation or Profile only on a personal mobile device. Desktop authentication prefers WebAuthn hybrid transport so the browser can show a QR for approval with the phone Passkey; no Passkey is created on the computer.
 - JWT authentication stored in the HttpOnly `alife_auth` cookie, with `amr`, `auth_time`, and `session_kind` claims distinguishing standard, public-device, and Alpha sessions.
 - A unified `/onboarding` flow preserves only validated same-site return paths and resumes activation, QR application, or anonymous reply context through a short-lived HttpOnly cookie.
 - Hierarchical church/group model with public, protected, and private access types.
@@ -195,6 +196,7 @@ npx wrangler deploy
 - Standard Passkey and LINE sessions can last up to 30 days. Public-device sessions are non-persistent and last at most two hours; internal Alpha sessions are non-persistent and last at most twelve hours. A configured Alpha-only tester with no current or revoked Passkey can use an administrator-issued setup code to open a five-minute first-Passkey registration window; the code is permanently unavailable after any Passkey has existed, and ordinary Alpha sessions remain non-strong authentication.
 - LINE OAuth is a compatibility path. Its server-side state is bound to the active onboarding flow; callbacks do not put profile PII in redirect URLs.
 - Activation and QR links use `/activate/{selector}#{secret}` and `/join/{selector}#{signature}`. The fragment is exchanged in a request body and immediately removed from browser history.
+- A group QR creates an application without access. A leader must explicitly attest that they verified the applicant and phone; approval materializes church/group membership and returns a one-time manual activation message when the member has no active Passkey. Authorized leaders copy the phone and message for manual delivery. Ambiguous existing-phone matches still require an explicit member link rather than automatic association.
 - The backend issues a JWT in the HttpOnly cookie `alife_auth`.
 - JwtBearer middleware reads the token from the cookie automatically.
 - JWT claims are intentionally minimal. Group roles and permissions are checked against current data.
@@ -244,7 +246,6 @@ Backend settings can be supplied through environment variables, user secrets, or
 | `Passkeys__Enabled`, `Passkeys__RpId`, `Passkeys__RpName`, `Passkeys__Origins` | WebAuthn relying-party configuration. Missing/disabled configuration reports Passkeys unavailable. |
 | `TokenProtection__SigningKey`, `RateLimiting__HashKey` | Independent high-entropy HMAC keys for one-time secret storage and rate-limit discriminators. Keep in a secret store. |
 | `TrustedProxyNetworks` | Proxy CIDRs allowed to supply `CF-Connecting-IP`; untrusted callers use the direct peer address. |
-| `ActivationMessages__Enabled`, `ActivationMessages__ExposeLinks` | Activation delivery capability. Preview links are development-only; no paid SMS provider is included. |
 | `AlphaLogin__Enabled`, `AlphaLogin__Accounts`, `AlphaLogin__PasskeyBootstrapCodes__<accountId>` | Internal Alpha whitelist (`accountId`, `memberId`, `label`) and optional per-account first-Passkey setup codes. Codes must be high-entropy secrets of at least 24 characters and must never be committed or logged. Disabled Alpha login returns `404`; explicit enablement is honored in every environment. Production currently provisions the setup code only for the whitelisted `Stephen` account. |
 | `YOUTUBE_API_KEY`, `YOUTUBE_PLAYLIST_ID` | Sermon sync integration, where configured |
 | `Cloudflare__ApiToken`, `Cloudflare__AccountId`, `Cloudflare__ZoneId`, `Cloudflare__AuthzNamespaceId`, `Cloudflare__ApiCacheNamespaceId` | Cloudflare KV mirror/cache refresh support, where configured. Global sermon invalidation requires the token's `Cache Purge` permission and the zone id. |

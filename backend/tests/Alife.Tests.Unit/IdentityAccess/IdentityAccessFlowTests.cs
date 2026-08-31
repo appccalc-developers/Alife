@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using Alife.Application.Abstractions.Security;
 using Alife.Api.Controllers;
 using Alife.Api.Identity;
@@ -454,6 +455,35 @@ public sealed class IdentityAccessFlowTests
         Assert.Null(await fixture.Service.GetActiveFlowAsync(resolved.Value!.Token, default));
     }
 
+    [Fact]
+    public async Task ResolveActivation_IgnoresLegacyPublicDeviceRequest()
+    {
+        await using var fixture = CreateFixture();
+        var member = NewMember(isRegistered: false);
+        var secret = fixture.TokenService.CreateSecret();
+        fixture.Db.Members.Add(member);
+        fixture.Db.MemberActivationInvitations.Add(new MemberActivationInvitation
+        {
+            Id = Guid.NewGuid(),
+            MemberId = member.Id,
+            IssuedByMemberId = member.Id,
+            Selector = "mobile-only-activation",
+            SecretHash = fixture.TokenService.HashToken(secret),
+            Status = ActivationStatus.Active,
+            DeliveryStatus = MessageDeliveryStatus.Sent,
+            CreatedUtc = DateTime.UtcNow,
+            ExpiresUtc = DateTime.UtcNow.AddHours(1)
+        });
+        await fixture.Db.SaveChangesAsync();
+
+        var result = await fixture.Service.ResolveActivationAsync(
+            "mobile-only-activation", secret, true, "/profile", default);
+
+        Assert.True(result.IsSuccess);
+        Assert.False(result.Value!.Context.IsPublicDevice);
+        Assert.False((await fixture.Db.OnboardingFlows.SingleAsync()).IsPublicDevice);
+    }
+
     [Theory]
     [InlineData(ActivationStatus.Active, false, true)]
     [InlineData(ActivationStatus.Revoked, false, false)]
@@ -636,18 +666,153 @@ public sealed class IdentityAccessFlowTests
     }
 
     [Fact]
-    public async Task TwoStageApproval_MaterializesChurchAndGroupMembershipOnlyAfterBothDecisions()
+    public async Task ManualActivation_CreateListAndRegenerate_ExposeSecretOnlyInMutationResponses()
+    {
+        await using var fixture = CreateFixture();
+        var actorId = Guid.NewGuid();
+        var churchId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+        fixture.GroupAuthorization.IsAdminAsync(actorId, Arg.Any<CancellationToken>()).Returns(true);
+        fixture.Db.Groups.Add(new Group
+        {
+            Id = churchId,
+            IsChurch = true,
+            NameJson = "{}",
+            CreatedUtc = now,
+            UpdatedUtc = now
+        });
+        await fixture.Db.SaveChangesAsync();
+
+        var first = await fixture.Service.CreateActivationAsync(
+            actorId,
+            new CreateActivationRequest("Preset member", "+64210000001", ActivationPurpose.FirstActivation, []),
+            default);
+
+        Assert.True(first.IsSuccess);
+        Assert.Equal(ActivationStatus.Active, first.Value!.Status);
+        Assert.Equal(MessageDeliveryStatus.Manual, first.Value.DeliveryStatus);
+        Assert.Equal("+64210000001", first.Value.ManualActivationMessage!.RecipientPhoneE164);
+        var firstMessage = first.Value.ManualActivationMessage.Message;
+        var firstUrl = firstMessage.Split('\n').Last();
+        Assert.Equal(
+            $"ALIFE 帐号激活 / Account activation\n" +
+            $"请在手机打开以下链接并建立 Passkey / Open this link on your phone to create a Passkey:\n" +
+            firstUrl,
+            firstMessage);
+        var firstSecret = firstUrl[(firstUrl.IndexOf('#') + 1)..];
+        var persisted = await fixture.Db.MemberActivationInvitations.SingleAsync();
+        Assert.True(fixture.TokenService.VerifyToken(firstSecret, persisted.SecretHash));
+        Assert.Equal(persisted.CreatedUtc.AddHours(72), persisted.ExpiresUtc);
+        Assert.DoesNotContain(firstSecret, JsonSerializer.Serialize(new
+        {
+            persisted.Selector,
+            persisted.SecretHash,
+            persisted.DeliveryErrorCode
+        }), StringComparison.Ordinal);
+        Assert.DoesNotContain(firstSecret, JsonSerializer.Serialize(await fixture.Db.AuditLogs.AsNoTracking().ToListAsync()), StringComparison.Ordinal);
+
+        var listed = await fixture.Service.ListActivationsAsync(actorId, default);
+
+        Assert.True(listed.IsSuccess);
+        var listedInvitation = Assert.Single(listed.Value!);
+        Assert.Null(listedInvitation.ManualActivationMessage);
+        Assert.Equal("•••• 0001", listedInvitation.MaskedPhone);
+        Assert.DoesNotContain("manualActivationMessage", JsonSerializer.Serialize(listed.Value), StringComparison.OrdinalIgnoreCase);
+
+        var regenerated = await fixture.Service.ResendActivationAsync(actorId, first.Value.Id, default);
+
+        Assert.True(regenerated.IsSuccess);
+        Assert.NotNull(regenerated.Value!.ManualActivationMessage);
+        Assert.NotEqual(firstMessage, regenerated.Value.ManualActivationMessage.Message);
+        Assert.Equal(
+            ActivationStatus.Revoked,
+            (await fixture.Db.MemberActivationInvitations.SingleAsync(item => item.Id == first.Value.Id)).Status);
+        Assert.Equal(2, await fixture.Db.MemberActivationInvitations.CountAsync());
+    }
+
+    [Fact]
+    public async Task ManualActivation_GenerateListAndRegenerateRequireChurchManagementPermission()
+    {
+        await using var fixture = CreateFixture();
+        var authorizedActorId = Guid.NewGuid();
+        var unauthorizedActorId = Guid.NewGuid();
+        fixture.GroupAuthorization.IsAdminAsync(authorizedActorId, Arg.Any<CancellationToken>()).Returns(true);
+        fixture.Db.Groups.Add(new Group
+        {
+            Id = Guid.NewGuid(),
+            IsChurch = true,
+            NameJson = "{}",
+            CreatedUtc = DateTime.UtcNow,
+            UpdatedUtc = DateTime.UtcNow
+        });
+        await fixture.Db.SaveChangesAsync();
+
+        var created = await fixture.Service.CreateActivationAsync(
+            authorizedActorId,
+            new CreateActivationRequest("Preset member", "+64210000001", ActivationPurpose.FirstActivation, []),
+            default);
+        var generate = await fixture.Service.CreateActivationAsync(
+            unauthorizedActorId,
+            new CreateActivationRequest("Another member", "+64210000002", ActivationPurpose.FirstActivation, []),
+            default);
+        var list = await fixture.Service.ListActivationsAsync(unauthorizedActorId, default);
+        var regenerate = await fixture.Service.ResendActivationAsync(unauthorizedActorId, created.Value!.Id, default);
+
+        Assert.True(created.IsSuccess);
+        Assert.Equal(AppResultStatus.Forbidden, generate.Status);
+        Assert.Equal(AppResultStatus.Forbidden, list.Status);
+        Assert.Equal(AppResultStatus.Forbidden, regenerate.Status);
+        Assert.Single(await fixture.Db.MemberActivationInvitations.ToListAsync());
+    }
+
+    [Fact]
+    public async Task ManualPasskeyRecovery_ExpiresAfterOneHour()
+    {
+        await using var fixture = CreateFixture();
+        var actorId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+        fixture.GroupAuthorization.IsAdminAsync(actorId, Arg.Any<CancellationToken>()).Returns(true);
+        fixture.Db.Groups.Add(new Group
+        {
+            Id = Guid.NewGuid(),
+            IsChurch = true,
+            NameJson = "{}",
+            CreatedUtc = now,
+            UpdatedUtc = now
+        });
+        fixture.Db.Members.Add(new Member
+        {
+            Id = Guid.NewGuid(),
+            DisplayName = "Recovery member",
+            PhoneE164 = "+64210000003",
+            IsRegistered = true,
+            CreatedUtc = now,
+            UpdatedUtc = now
+        });
+        await fixture.Db.SaveChangesAsync();
+
+        var result = await fixture.Service.CreateActivationAsync(
+            actorId,
+            new CreateActivationRequest("Recovery member", "+64210000003", ActivationPurpose.PasskeyRecovery, []),
+            default);
+
+        Assert.True(result.IsSuccess);
+        var persisted = await fixture.Db.MemberActivationInvitations.SingleAsync();
+        Assert.Equal(persisted.CreatedUtc.AddHours(1), persisted.ExpiresUtc);
+        Assert.Equal(MessageDeliveryStatus.Manual, result.Value!.DeliveryStatus);
+    }
+
+    [Fact]
+    public async Task VerifiedGroupLeaderApproval_MaterializesMembershipAndReturnsManualActivationMessage()
     {
         await using var fixture = CreateFixture();
         var groupActorId = Guid.NewGuid();
-        var churchActorId = Guid.NewGuid();
         var churchId = Guid.NewGuid();
         var groupId = Guid.NewGuid();
         var personId = Guid.NewGuid();
         var applicationId = Guid.NewGuid();
         var now = DateTime.UtcNow;
         fixture.GroupAuthorization.IsLeaderOrCoLeaderAsync(groupId, groupActorId, Arg.Any<CancellationToken>()).Returns(true);
-        fixture.GroupAuthorization.IsAdminAsync(churchActorId, Arg.Any<CancellationToken>()).Returns(true);
         fixture.Db.Groups.AddRange(
             new Group { Id = churchId, IsChurch = true, NameJson = "{}", CreatedUtc = now, UpdatedUtc = now },
             new Group { Id = groupId, NameJson = "{}", CreatedUtc = now, UpdatedUtc = now });
@@ -659,23 +824,124 @@ public sealed class IdentityAccessFlowTests
 
         var groupDecision = await fixture.Service.DecideGroupApplicationAsync(
             groupActorId, groupId, applicationId,
-            new DecideMembershipApplicationRequest(ApplicationDecisionKind.Approved, null, "AA=="), default);
+            new DecideMembershipApplicationRequest(
+                ApplicationDecisionKind.Approved,
+                null,
+                "AA==",
+                ContactVerified: true),
+            default);
 
         Assert.True(groupDecision.IsSuccess);
-        Assert.Equal("approvedWaitingForChurch", groupDecision.Value!.Status);
-        Assert.Equal(0, await fixture.Db.Members.CountAsync());
-        Assert.Equal(0, await fixture.Db.GroupMemberships.CountAsync());
-
-        var churchDecision = await fixture.Service.DecidePersonApplicationAsync(
-            churchActorId, applicationId,
-            new DecideMembershipApplicationRequest(ApplicationDecisionKind.Approved, null, "AA==", ContactVerified: true), default);
-
-        Assert.True(churchDecision.IsSuccess);
-        Assert.Equal("approved", churchDecision.Value!.Status);
+        Assert.Equal("approved", groupDecision.Value!.Status);
+        Assert.Equal("approved", groupDecision.Value.PersonStatus);
+        Assert.True(groupDecision.Value.IsContactVerified);
+        Assert.Equal("manual", groupDecision.Value.ActivationDeliveryStatus);
+        Assert.NotNull(groupDecision.Value.ManualActivationMessage);
+        Assert.Equal("+64210000000", groupDecision.Value.ManualActivationMessage.RecipientPhoneE164);
+        Assert.StartsWith(
+            "ALIFE 帐号激活 / Account activation\n请在手机打开以下链接并建立 Passkey / Open this link on your phone to create a Passkey:\nhttps://alife.example/activate/",
+            groupDecision.Value.ManualActivationMessage.Message,
+            StringComparison.Ordinal);
         var linkedMemberId = (await fixture.Db.ChurchPersonApplications.SingleAsync()).LinkedMemberId;
         Assert.NotNull(linkedMemberId);
         Assert.Equal(2, await fixture.Db.GroupMemberships.CountAsync(item => item.MemberId == linkedMemberId));
-        Assert.Contains(churchDecision.Value.History, item => item.Kind == "linkedToMember");
+        Assert.Contains(groupDecision.Value.History, item => item.Kind == "linkedToMember");
+        var activation = await fixture.Db.MemberActivationInvitations.SingleAsync();
+        Assert.Equal(linkedMemberId, activation.MemberId);
+        Assert.Equal(ActivationStatus.Active, activation.Status);
+        Assert.Equal(MessageDeliveryStatus.Manual, activation.DeliveryStatus);
+    }
+
+    [Fact]
+    public async Task VerifiedGroupLeaderApproval_DoesNotGenerateActivationForMemberWithActivePasskey()
+    {
+        await using var fixture = CreateFixture();
+        var actorId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+        var churchId = Guid.NewGuid();
+        var groupId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+        fixture.GroupAuthorization.IsLeaderOrCoLeaderAsync(groupId, actorId, Arg.Any<CancellationToken>()).Returns(true);
+        fixture.Db.Groups.AddRange(
+            new Group { Id = churchId, IsChurch = true, NameJson = "{}", CreatedUtc = now, UpdatedUtc = now },
+            new Group { Id = groupId, NameJson = "{}", CreatedUtc = now, UpdatedUtc = now });
+        fixture.Db.Members.Add(new Member
+        {
+            Id = memberId,
+            DisplayName = "Existing member",
+            PhoneE164 = "+64210000002",
+            IsRegistered = true,
+            CreatedUtc = now,
+            UpdatedUtc = now
+        });
+        fixture.Db.MemberPasskeyCredentials.Add(new MemberPasskeyCredential
+        {
+            Id = Guid.NewGuid(),
+            MemberId = memberId,
+            CredentialId = [1],
+            PublicKey = [2],
+            UserHandle = [3],
+            DisplayName = "Phone",
+            CreatedUtc = now
+        });
+        var person = NewPerson(Guid.NewGuid(), now);
+        person.LinkedMemberId = memberId;
+        person.MatchState = ApplicantMatchState.Linked;
+        fixture.Db.ChurchPersonApplications.Add(person);
+        fixture.Db.GroupMembershipApplications.Add(NewApplication(Guid.NewGuid(), groupId, person, now));
+        await fixture.Db.SaveChangesAsync();
+        fixture.Db.ChangeTracker.Clear();
+        var application = await fixture.Db.GroupMembershipApplications.AsNoTracking().SingleAsync();
+
+        var result = await fixture.Service.DecideGroupApplicationAsync(
+            actorId,
+            groupId,
+            application.Id,
+            new DecideMembershipApplicationRequest(
+                ApplicationDecisionKind.Approved,
+                null,
+                "AA==",
+                ContactVerified: true),
+            default);
+
+        Assert.True(result.IsSuccess);
+        Assert.Null(result.Value!.ManualActivationMessage);
+        Assert.Null(result.Value.ActivationDeliveryStatus);
+        Assert.Empty(await fixture.Db.MemberActivationInvitations.ToListAsync());
+    }
+
+    [Fact]
+    public async Task GroupLeaderApproval_RequiresExplicitIdentityAndPhoneVerification()
+    {
+        await using var fixture = CreateFixture();
+        var actorId = Guid.NewGuid();
+        var churchId = Guid.NewGuid();
+        var groupId = Guid.NewGuid();
+        var personId = Guid.NewGuid();
+        var applicationId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+        fixture.GroupAuthorization.IsLeaderOrCoLeaderAsync(groupId, actorId, Arg.Any<CancellationToken>()).Returns(true);
+        fixture.Db.Groups.AddRange(
+            new Group { Id = churchId, IsChurch = true, NameJson = "{}", CreatedUtc = now, UpdatedUtc = now },
+            new Group { Id = groupId, NameJson = "{}", CreatedUtc = now, UpdatedUtc = now });
+        var person = NewPerson(personId, now);
+        fixture.Db.ChurchPersonApplications.Add(person);
+        fixture.Db.GroupMembershipApplications.Add(NewApplication(applicationId, groupId, person, now));
+        await fixture.Db.SaveChangesAsync();
+        fixture.Db.ChangeTracker.Clear();
+
+        var result = await fixture.Service.DecideGroupApplicationAsync(
+            actorId,
+            groupId,
+            applicationId,
+            new DecideMembershipApplicationRequest(ApplicationDecisionKind.Approved, null, "AA=="),
+            default);
+
+        Assert.Equal(AppResultStatus.Conflict, result.Status);
+        Assert.Equal("contact_verification_required", result.Message);
+        Assert.Empty(await fixture.Db.Members.ToListAsync());
+        Assert.Empty(await fixture.Db.GroupMemberships.ToListAsync());
+        Assert.Empty(await fixture.Db.MemberActivationInvitations.ToListAsync());
     }
 
     [Fact]
@@ -720,7 +986,7 @@ public sealed class IdentityAccessFlowTests
     }
 
     [Fact]
-    public async Task PublicDeviceActivation_ConsumesInvitationAndCreatesShortNonPersistentSession()
+    public async Task PublicDeviceActivation_IsRejectedWithoutConsumingInvitation()
     {
         await using var fixture = CreateFixture();
         var member = NewMember(isRegistered: false);
@@ -756,17 +1022,12 @@ public sealed class IdentityAccessFlowTests
             ExpiresUtc = now.AddMinutes(30)
         });
         await fixture.Db.SaveChangesAsync();
-        fixture.Jwt.CreateToken(Arg.Any<Member>(), "activation_link", "public_device", TimeSpan.FromHours(2))
-            .Returns(("public-token", now.AddHours(2)));
-
         var result = await fixture.Service.CompletePublicDeviceActivationAsync(flowToken, default);
 
-        Assert.True(result.IsSuccess);
-        Assert.False(result.Value!.Persistent);
-        Assert.Equal("public_device", result.Value.SessionKind);
-        Assert.Equal("/tasks", result.Value.ReturnPath);
-        Assert.True((await fixture.Db.Members.SingleAsync(item => item.Id == member.Id)).IsRegistered);
-        Assert.Equal(ActivationStatus.Used, (await fixture.Db.MemberActivationInvitations.SingleAsync()).Status);
+        Assert.Equal(AppResultStatus.Conflict, result.Status);
+        Assert.Equal("activation_mobile_passkey_required", result.Message);
+        Assert.False((await fixture.Db.Members.SingleAsync(item => item.Id == member.Id)).IsRegistered);
+        Assert.Equal(ActivationStatus.Active, (await fixture.Db.MemberActivationInvitations.SingleAsync()).Status);
     }
 
     [Fact]
@@ -931,6 +1192,12 @@ public sealed class IdentityAccessFlowTests
         var groupAuthorization = Substitute.For<IGroupAuthorizationService>();
         var messageSender = Substitute.For<IIdentityMessageSender>();
         messageSender.IsAvailable.Returns(false);
+        messageSender.SendApplicationResponseAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>())
+            .Returns(new IdentityMessageResult(false, "provider_unavailable"));
         var jwt = Substitute.For<IJwtTokenService>();
         var memberId = alphaMemberId ?? Guid.NewGuid();
         var configuration = new TestConfiguration
@@ -995,8 +1262,6 @@ public sealed class IdentityAccessFlowTests
     {
         public bool PasskeysEnabled { get; init; } = true;
         public bool LineLegacyEnabled { get; init; } = true;
-        public bool ActivationMessagingAvailable => false;
-        public bool ExposeActivationLinks => false;
         public bool AlphaLoginEnabled { get; init; }
         public bool IsProduction { get; init; }
         public string FrontendBaseUrl => "https://alife.example";

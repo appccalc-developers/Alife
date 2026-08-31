@@ -38,7 +38,8 @@ public enum MessageDeliveryStatus
     Pending = 0,
     Sent = 1,
     Unavailable = 2,
-    Failed = 3
+    Failed = 3,
+    Manual = 4
 }
 
 public enum StagedGrantStatus

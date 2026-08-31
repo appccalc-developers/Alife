@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Alife.Application.Common.Models;
 using Alife.Domain.Enums;
 
@@ -56,6 +57,10 @@ public sealed record CreateActivationRequest(
 
 public sealed record ActivationGrantDto(Guid GroupId, MembershipRole Role, StagedGrantStatus Status, string? ConflictCode);
 
+public sealed record ManualActivationMessageDto(
+    string RecipientPhoneE164,
+    string Message);
+
 public sealed record ActivationInvitationDto(
     Guid Id,
     Guid MemberId,
@@ -65,7 +70,7 @@ public sealed record ActivationInvitationDto(
     ActivationStatus Status,
     MessageDeliveryStatus DeliveryStatus,
     DateTime ExpiresUtc,
-    string? PreviewUrl,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] ManualActivationMessageDto? ManualActivationMessage,
     IReadOnlyList<ActivationGrantDto> Grants);
 
 public sealed record GroupJoinInviteDto(
@@ -114,6 +119,8 @@ public sealed record MembershipApplicationDto(
     string Status,
     string Source,
     string? ResponseDeliveryStatus,
+    string? ActivationDeliveryStatus,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] ManualActivationMessageDto? ManualActivationMessage,
     DateTime SubmittedUtc,
     string RowVersion,
     IReadOnlyList<ApplicationHistoryDto> History);
@@ -135,15 +142,12 @@ public sealed record AlphaAccountDto(string AccountId, string Label);
 
 public sealed record IdentityCapabilitiesDto(
     bool PasskeysEnabled,
-    bool LineLegacyEnabled,
-    bool ActivationMessagingAvailable);
+    bool LineLegacyEnabled);
 
 public interface IIdentityAccessConfiguration
 {
     bool PasskeysEnabled { get; }
     bool LineLegacyEnabled { get; }
-    bool ActivationMessagingAvailable { get; }
-    bool ExposeActivationLinks { get; }
     bool AlphaLoginEnabled { get; }
     bool IsProduction { get; }
     string FrontendBaseUrl { get; }
@@ -169,13 +173,6 @@ public interface IIdentityTokenService
 public interface IIdentityMessageSender
 {
     bool IsAvailable { get; }
-    Task<IdentityMessageResult> SendActivationAsync(
-        string phoneE164,
-        string displayName,
-        string activationUrl,
-        string preferredLanguage,
-        CancellationToken cancellationToken);
-
     Task<IdentityMessageResult> SendApplicationResponseAsync(
         string phoneE164,
         string responseUrl,

@@ -56,6 +56,7 @@ export type AdminMemberDto = {
   email: string | null
   phoneE164: string | null
   isRegistered: boolean
+  needsPasskey: boolean
   legacyIsAdmin: boolean
   createdUtc: string
   updatedUtc: string

@@ -13,8 +13,6 @@ public sealed class IdentityAccessConfiguration : IIdentityAccessConfiguration
         IsProduction = environment.IsProduction();
         PasskeysEnabled = configuration.GetValue("Passkeys:Enabled", false);
         LineLegacyEnabled = configuration.GetValue("LineLogin:Enabled", true);
-        ActivationMessagingAvailable = configuration.GetValue("ActivationMessages:Enabled", false);
-        ExposeActivationLinks = !IsProduction && configuration.GetValue("ActivationMessages:ExposeLinks", false);
         AlphaLoginEnabled = configuration.GetValue("AlphaLogin:Enabled", false);
         FrontendBaseUrl = (configuration["Frontend:BaseUrl"] ?? "http://localhost:5173").TrimEnd('/');
         AlphaAccounts = configuration.GetSection("AlphaLogin:Accounts")
@@ -36,8 +34,6 @@ public sealed class IdentityAccessConfiguration : IIdentityAccessConfiguration
 
     public bool PasskeysEnabled { get; }
     public bool LineLegacyEnabled { get; }
-    public bool ActivationMessagingAvailable { get; }
-    public bool ExposeActivationLinks { get; }
     public bool AlphaLoginEnabled { get; }
     public bool IsProduction { get; }
     public string FrontendBaseUrl { get; }

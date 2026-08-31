@@ -4,6 +4,29 @@ All notable changes to Alife are documented in this file.
 
 The format follows Keep a Changelog and the repository uses four-part versions.
 
+## [0.1.1.4] - 2026-09-01
+
+### Added
+
+- Single-use manual activation messages that authorized leaders can copy and send through their chosen phone-messaging tool.
+- An accessible copy dialog that reveals the full recipient phone and activation message only in the successful mutation response.
+
+### Changed
+
+- A group leader now explicitly verifies the applicant and phone before one-step membership approval; approval returns a manual activation message when the member has no current Passkey, while ambiguous existing-phone matches still fail closed for explicit linking.
+- Church member management now generates one activation message at a time; generating a replacement revokes the previous invitation.
+- Desktop Passkey authentication prefers WebAuthn hybrid QR verification with the phone, while activation and Profile credential creation are presented only on personal mobile devices.
+- The legacy credential-free public-device activation completion path is rejected; activation now always requires mobile Passkey registration.
+
+### Removed
+
+- Twilio activation SMS configuration, deployment secrets, provider integration, and current-page bulk activation sending.
+
+### Security
+
+- Activation messages and full URLs are not persisted; only the raw key's HMAC hash is stored. Activation and application list APIs omit the message and URL and keep recipient phones masked.
+- Losing or closing the one-time copy dialog does not roll back membership. An authorized leader must generate a replacement, which revokes the previous invitation.
+
 ## [0.1.1.3] - 2026-08-31
 
 ### Changed

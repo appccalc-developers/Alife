@@ -38,6 +38,7 @@ public class ListAdminMembersQueryHandlerTests
         Assert.Equal("Female", alice.Sex);
         Assert.Equal(MembershipStatus.Approved, alice.ChurchMembershipStatus);
         Assert.True(alice.IsGroupLeader);
+        Assert.False(alice.NeedsPasskey);
         var group = Assert.Single(alice.Groups);
         Assert.Equal(data.GroupId, group.Id);
         Assert.Equal(MembershipRole.Leader, group.Role);
@@ -45,6 +46,7 @@ public class ListAdminMembersQueryHandlerTests
 
         var ben = result.Value.Items[1];
         Assert.Equal(MembershipStatus.Requested, ben.ChurchMembershipStatus);
+        Assert.True(ben.NeedsPasskey);
         Assert.Empty(ben.Groups);
     }
 
@@ -150,6 +152,16 @@ public class ListAdminMembersQueryHandlerTests
         dbContext.MemberPlatformRoles.AddRange(
             new MemberPlatformRole { Id = Guid.NewGuid(), MemberId = actorId, RoleId = 30, AssignedByMemberId = actorId, AssignedUtc = now },
             new MemberPlatformRole { Id = Guid.NewGuid(), MemberId = aliceId, RoleId = 31, AssignedByMemberId = actorId, AssignedUtc = now });
+        dbContext.MemberPasskeyCredentials.Add(new MemberPasskeyCredential
+        {
+            Id = Guid.NewGuid(),
+            MemberId = aliceId,
+            CredentialId = [1, 2, 3],
+            PublicKey = [4, 5, 6],
+            UserHandle = [7, 8, 9],
+            DisplayName = "Alice's phone",
+            CreatedUtc = now
+        });
         dbContext.GroupMemberships.AddRange(
             new GroupMembership { Id = Guid.NewGuid(), GroupId = churchId, MemberId = aliceId, Status = MembershipStatus.Approved, Role = MembershipRole.Member, CreatedUtc = now, UpdatedUtc = now },
             new GroupMembership { Id = Guid.NewGuid(), GroupId = groupId, MemberId = aliceId, Status = MembershipStatus.Approved, Role = MembershipRole.Leader, CreatedUtc = now, UpdatedUtc = now },

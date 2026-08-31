@@ -16,6 +16,7 @@ public sealed record AdminMemberDto(
     string? Email,
     string? PhoneE164,
     bool IsRegistered,
+    bool NeedsPasskey,
     bool LegacyIsAdmin,
     DateTime CreatedUtc,
     DateTime UpdatedUtc,

@@ -3,7 +3,11 @@ import { http } from './http'
 export type IdentityCapabilities = {
   passkeysEnabled: boolean
   lineLegacyEnabled: boolean
-  activationMessagingAvailable: boolean
+}
+
+export type ManualActivationMessage = {
+  recipientPhoneE164: string
+  message: string
 }
 
 export type OnboardingContext = {
@@ -44,6 +48,8 @@ export type MembershipApplication = {
   status: string
   source: string
   responseDeliveryStatus?: string | null
+  activationDeliveryStatus?: string | null
+  manualActivationMessage?: ManualActivationMessage | null
   submittedUtc: string
   rowVersion: string
   history: Array<{
@@ -83,7 +89,7 @@ export type ActivationInvitation = {
   status: string
   deliveryStatus: string
   expiresUtc: string
-  previewUrl?: string | null
+  manualActivationMessage?: ManualActivationMessage | null
   grants: Array<{ groupId: string; role: string; status: string; conflictCode?: string | null }>
 }
 
@@ -116,13 +122,14 @@ const creationOptions = (source: Record<string, unknown>): PublicKeyCredentialCr
   return value as PublicKeyCredentialCreationOptions
 }
 
-const requestOptions = (source: Record<string, unknown>): PublicKeyCredentialRequestOptions => {
+const requestOptions = (source: Record<string, unknown>, preferHybrid = false): PublicKeyCredentialRequestOptions => {
   const value = structuredClone(source) as Record<string, any>
   value.challenge = fromBase64Url(value.challenge)
   value.allowCredentials = (value.allowCredentials ?? []).map((credential: Record<string, unknown>) => ({
     ...credential,
     id: fromBase64Url(credential.id),
   }))
+  if (preferHybrid) value.hints = ['hybrid']
   return value as PublicKeyCredentialRequestOptions
 }
 
@@ -175,9 +182,6 @@ export const identityAccessService = {
   async activationNotMe() {
     await http.post('/api/onboarding/activation/not-me')
   },
-  async completePublicDeviceActivation() {
-    return (await http.post<{ returnPath: string }>('/api/onboarding/activation/complete-public-device')).data
-  },
   async resolveGroupInvite(selector: string, signature: string, isPublicDevice: boolean, returnPath = '') {
     return (await http.post<OnboardingContext>('/api/onboarding/group-invites/resolve', {
       selector, secret: signature, isPublicDevice, returnPath,
@@ -191,10 +195,10 @@ export const identityAccessService = {
   async supplementAnonymousApplication(note: string) {
     return (await http.post<MembershipApplication>('/api/onboarding/application-responses/supplement', { note })).data
   },
-  async authenticatePasskey(signal?: AbortSignal) {
+  async authenticatePasskey(preferHybrid = false, signal?: AbortSignal) {
     if (!window.PublicKeyCredential || !navigator.credentials) throw new Error('passkey_not_supported')
     const options = (await http.post<PasskeyOptions>('/api/auth/passkeys/authentication/options')).data
-    const credential = await navigator.credentials.get({ publicKey: requestOptions(options.publicKey), signal }) as PublicKeyCredential | null
+    const credential = await navigator.credentials.get({ publicKey: requestOptions(options.publicKey, preferHybrid), signal }) as PublicKeyCredential | null
     if (!credential) throw new Error('passkey_cancelled')
     return (await http.post<{ returnPath: string; sessionKind: string }>('/api/auth/passkeys/authentication/complete', {
       ceremonyId: options.ceremonyId,
@@ -250,10 +254,10 @@ export const identityAccessService = {
   async listGroupApplications(groupId: string, params: Record<string, string | number | undefined>) {
     return (await http.get<MembershipApplicationPage>(`/api/groups/${groupId}/membership-applications`, { params })).data
   },
-  async decideGroupApplication(groupId: string, application: MembershipApplication, decision: string, note?: string) {
+  async decideGroupApplication(groupId: string, application: MembershipApplication, decision: string, note?: string, contactVerified = false, linkedMemberId?: string) {
     return (await http.post<MembershipApplication>(
       `/api/groups/${groupId}/membership-applications/${application.id}/decisions`,
-      { decision, note, rowVersion: application.rowVersion },
+      { decision, note, rowVersion: application.rowVersion, contactVerified, linkedMemberId: linkedMemberId || null },
     )).data
   },
   async listPersonApplications(params: Record<string, string | number | undefined>) {

@@ -331,8 +331,6 @@ public sealed class PasskeyRevocationTests
     {
         public bool PasskeysEnabled => passkeysEnabled;
         public bool LineLegacyEnabled => lineEnabled;
-        public bool ActivationMessagingAvailable => false;
-        public bool ExposeActivationLinks => false;
         public bool AlphaLoginEnabled => false;
         public bool IsProduction => false;
         public string FrontendBaseUrl => "https://alife.example";

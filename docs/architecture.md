@@ -71,7 +71,7 @@ Key entities:
 - `Member`: display name, contact fields, LINE UID, random WebAuthn user handle, registration/admin state.
 - `MemberPasskeyCredential`, `PasskeyCeremony`, and `OnboardingFlow`: public-key credentials, short-lived one-time ceremonies, and resumable intent context.
 - `MemberActivationInvitation` and `ActivationGroupGrant`: one-time church pre-registration plus explicitly staged group roles.
-- `GroupJoinInvite`, `ChurchPersonApplication`, `GroupMembershipApplication`, and `ApplicationHistory`: QR lifecycle and two-stage human approval records.
+- `GroupJoinInvite`, `ChurchPersonApplication`, `GroupMembershipApplication`, and `ApplicationHistory`: QR lifecycle, leader identity verification, approval history, and explicit ambiguous-match handling.
 - `RateLimitBucket`: database-backed, HMAC-keyed anonymous security limits.
 - `Group`: bilingual name/description JSON, hierarchy, access type, church/root marker, closed state.
 - `GroupMembership`: member/group relationship with role and status.
@@ -107,11 +107,14 @@ Flow:
 
 1. `/onboarding` creates a 30-minute server-side flow and retains only a validated same-site return path in a short-lived HttpOnly cookie.
 2. A discoverable WebAuthn assertion validates RP ID, allowed origin, challenge, user verification, credential ownership, and signature count. The backend stores no biometric or device-PIN data. Verification failures expose only a stable client code and trace reference; diagnostics log a controlled stage and Fido2 category without raw credential material or exception messages. Known-credential failures at the Fido2 verification stage persist the same fixed fields in the restricted audit store as a telemetry-independent fallback, without linking the diagnostic row to a credential or member.
+   On mobile, activation and Profile can create the resident credential. On desktop, the frontend supplies the WebAuthn Level 3 `hybrid` hint first so the browser prefers a phone-mediated QR ceremony; hints guide compatible user agents but are not an authenticator-attestation guarantee.
 3. Backend issues a JWT containing `sub`, `amr`, `auth_time`, and `session_kind`; public-device and Alpha cookies are non-persistent with shorter lifetimes.
 4. JwtBearer middleware reads the JWT from the cookie and `CurrentMemberAccessor` resolves the current member.
 5. Protected handlers perform current membership and role checks before mutations. Activation and application approval use one-time token consumption, optimistic concurrency, and idempotent membership/grant creation.
 
 Activation, QR, and application-response URLs keep random secrets in the fragment. The browser removes the fragment before exchanging it in a request body; persistence stores only HMAC hashes. LINE OAuth state is single-use and bound to the server-side onboarding flow. The removed arbitrary display-name/phone login route returns `404`.
+
+Anonymous QR submission does not create a member or grant access. A group leader or co-leader must explicitly confirm that the applicant and phone were verified before approval. Approval links or creates the member, establishes church and requested-group membership, and returns a one-time manual activation message when no active Passkey exists. The full phone, message, and raw activation URL exist only in that authorized mutation response; list APIs remain masked and secret-free. A possible or ambiguous existing-phone match is never auto-linked; it remains an exception requiring an explicit member association.
 
 ### Authorization
 
