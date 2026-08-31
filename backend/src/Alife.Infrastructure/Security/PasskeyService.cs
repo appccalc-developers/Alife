@@ -8,6 +8,7 @@ using Alife.Infrastructure.Persistence;
 using Fido2NetLib;
 using Fido2NetLib.Objects;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Alife.Infrastructure.Security;
 
@@ -17,7 +18,8 @@ public sealed class PasskeyService(
     IIdentityAccessConfiguration configuration,
     IJwtTokenService jwtTokenService,
     IIdentityAccessService identityAccessService,
-    IIdentitySerializableExecutor serializableExecutor) : IPasskeyService
+    IIdentitySerializableExecutor serializableExecutor,
+    ILogger<PasskeyService> logger) : IPasskeyService
 {
     public async Task<AppResult<PasskeyOptionsDto>> BeginAuthenticationAsync(
         Guid? onboardingFlowId,
@@ -53,14 +55,16 @@ public sealed class PasskeyService(
     public async Task<AppResult<PasskeyCompletionDto>> CompleteAuthenticationAsync(
         Guid ceremonyId,
         JsonElement response,
+        string correlationId,
         CancellationToken cancellationToken)
         => await serializableExecutor.ExecuteAsync(
-            token => CompleteAuthenticationCoreAsync(ceremonyId, response, token),
+            token => CompleteAuthenticationCoreAsync(ceremonyId, response, correlationId, token),
             cancellationToken);
 
     private async Task<AppResult<PasskeyCompletionDto>> CompleteAuthenticationCoreAsync(
         Guid ceremonyId,
         JsonElement response,
+        string correlationId,
         CancellationToken cancellationToken)
     {
         var ceremony = await dbContext.PasskeyCeremonies
@@ -73,10 +77,12 @@ public sealed class PasskeyService(
 
         ceremony!.ConsumedUtc = DateTime.UtcNow;
         await dbContext.SaveChangesAsync(cancellationToken);
+        var failureStage = "parse_assertion";
         try
         {
             var raw = JsonSerializer.Deserialize<AuthenticatorAssertionRawResponse>(response.GetRawText())
                       ?? throw new InvalidOperationException("Assertion response is missing.");
+            failureStage = "load_credential";
             var credential = await dbContext.MemberPasskeyCredentials
                 .Include(item => item.Member)
                     .ThenInclude(member => member.PlatformRoles)
@@ -88,6 +94,7 @@ public sealed class PasskeyService(
             }
 
             var originalOptions = AssertionOptions.FromJson(ceremony.OptionsJson);
+            failureStage = "verify_assertion";
             var verified = await fido2.MakeAssertionAsync(new MakeAssertionParams
             {
                 AssertionResponse = raw,
@@ -107,8 +114,10 @@ public sealed class PasskeyService(
             credential.IsBackedUp = verified.IsBackedUp;
             credential.LastUsedUtc = DateTime.UtcNow;
             AddAudit(credential.MemberId, "identity.passkey.authenticated", credential.Id, credential.MemberId);
+            failureStage = "persist_assertion";
             await dbContext.SaveChangesAsync(cancellationToken);
 
+            failureStage = "create_session";
             var flow = ceremony.OnboardingFlow;
             var isPublicDevice = flow?.IsPublicDevice == true;
             var lifetime = isPublicDevice ? TimeSpan.FromHours(2) : TimeSpan.FromDays(30);
@@ -123,8 +132,24 @@ public sealed class PasskeyService(
                 flow?.ReturnPath ?? "/enter");
             return AppResult<PasskeyCompletionDto>.Success(new PasskeyCompletionDto(session, null));
         }
-        catch when (!cancellationToken.IsCancellationRequested)
+        catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
         {
+            var verificationCode = exception is Fido2VerificationException verificationException
+                ? verificationException.Code.ToString()
+                : "NotAvailable";
+            var safeCorrelationId = SanitizeCorrelationId(correlationId);
+            await PersistVerificationFailureAuditAsync(
+                failureStage,
+                exception,
+                verificationCode,
+                safeCorrelationId,
+                cancellationToken);
+            logger.LogWarning(
+                "Passkey authentication failed at {FailureStage}. ExceptionType: {ExceptionType}. VerificationCode: {VerificationCode}. CorrelationId: {CorrelationId}.",
+                failureStage,
+                exception.GetType().FullName ?? exception.GetType().Name,
+                verificationCode,
+                safeCorrelationId);
             return AppResult<PasskeyCompletionDto>.Forbidden("passkey_verification_failed");
         }
     }
@@ -347,6 +372,47 @@ public sealed class PasskeyService(
             OccurredUtc = DateTime.UtcNow
         });
 
+    private async Task PersistVerificationFailureAuditAsync(
+        string failureStage,
+        Exception exception,
+        string verificationCode,
+        string correlationId,
+        CancellationToken cancellationToken)
+    {
+        if (failureStage != "verify_assertion" || exception is not Fido2VerificationException)
+        {
+            return;
+        }
+
+        var audit = new AuditLog
+        {
+            Id = Guid.NewGuid(),
+            Action = "identity.passkey.authentication_failed",
+            EntityType = "PasskeyAuthentication",
+            MetadataJson = JsonSerializer.Serialize(new
+            {
+                FailureStage = failureStage,
+                ExceptionType = exception.GetType().FullName ?? exception.GetType().Name,
+                VerificationCode = verificationCode,
+                CorrelationId = correlationId
+            }),
+            OccurredUtc = DateTime.UtcNow
+        };
+        dbContext.AuditLogs.Add(audit);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception auditException) when (!cancellationToken.IsCancellationRequested)
+        {
+            dbContext.Entry(audit).State = EntityState.Detached;
+            logger.LogWarning(
+                "Passkey authentication diagnostic audit persistence failed. ExceptionType: {ExceptionType}. CorrelationId: {CorrelationId}.",
+                auditException.GetType().FullName ?? auditException.GetType().Name,
+                correlationId);
+        }
+    }
+
     private static bool IsActive(PasskeyCeremony? ceremony, PasskeyCeremonyKind kind)
         => ceremony is not null && ceremony.Kind == kind && ceremony.ConsumedUtc is null && ceremony.ExpiresUtc > DateTime.UtcNow;
 
@@ -360,6 +426,20 @@ public sealed class PasskeyService(
     {
         var normalized = value?.Trim();
         return string.IsNullOrWhiteSpace(normalized) ? "Passkey" : normalized[..Math.Min(normalized.Length, 120)];
+    }
+
+    private static string SanitizeCorrelationId(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "unavailable";
+        }
+
+        var safe = value
+            .Where(character => char.IsLetterOrDigit(character) || character is '-' or '_' or ':')
+            .Take(128)
+            .ToArray();
+        return safe.Length == 0 ? "unavailable" : new string(safe);
     }
 
     private static PasskeyCredentialDto ToDto(MemberPasskeyCredential credential)

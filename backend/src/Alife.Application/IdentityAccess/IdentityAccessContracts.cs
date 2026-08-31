@@ -205,7 +205,11 @@ public interface IIdentitySerializableExecutor
 public interface IPasskeyService
 {
     Task<AppResult<PasskeyOptionsDto>> BeginAuthenticationAsync(Guid? onboardingFlowId, CancellationToken cancellationToken);
-    Task<AppResult<PasskeyCompletionDto>> CompleteAuthenticationAsync(Guid ceremonyId, JsonElement response, CancellationToken cancellationToken);
+    Task<AppResult<PasskeyCompletionDto>> CompleteAuthenticationAsync(
+        Guid ceremonyId,
+        JsonElement response,
+        string correlationId,
+        CancellationToken cancellationToken);
     Task<AppResult<PasskeyOptionsDto>> BeginRegistrationAsync(
         Guid memberId,
         Guid? onboardingFlowId,

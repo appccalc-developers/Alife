@@ -79,6 +79,24 @@ public sealed class IdentityHttpTests
     }
 
     [Fact]
+    public void IdentityFailure_IncludesRequestTraceIdentifier()
+    {
+        var context = new DefaultHttpContext { TraceIdentifier = "trace-700" };
+        var controller = new TestController
+        {
+            ControllerContext = new ControllerContext { HttpContext = context }
+        };
+
+        var result = controller.ToIdentityResult(AppResult<bool>.Forbidden("passkey_verification_failed"));
+
+        var forbidden = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status403Forbidden, forbidden.StatusCode);
+        var problem = Assert.IsType<ProblemDetails>(forbidden.Value);
+        Assert.Equal("passkey_verification_failed", problem.Extensions["code"]);
+        Assert.Equal("trace-700", problem.Extensions["traceId"]);
+    }
+
+    [Fact]
     public async Task PasskeyRegistration_StandardAlphaSession_RequiresRecentStrongAuthentication()
     {
         var (controller, _, identityAccess) = CreatePasskeysController("alpha");
@@ -262,4 +280,6 @@ public sealed class IdentityHttpTests
         context.Request.Headers["CF-Connecting-IP"] = forwarded;
         return context.Request;
     }
+
+    private sealed class TestController : ControllerBase;
 }

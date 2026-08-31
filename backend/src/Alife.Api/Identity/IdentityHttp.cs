@@ -28,7 +28,11 @@ public static class IdentityHttp
         {
             Status = status,
             Title = "The identity request could not be completed.",
-            Extensions = { ["code"] = result.Message ?? "identity_request_failed" }
+            Extensions =
+            {
+                ["code"] = result.Message ?? "identity_request_failed",
+                ["traceId"] = controller.HttpContext.TraceIdentifier
+            }
         });
     }
 

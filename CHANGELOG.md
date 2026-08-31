@@ -4,6 +4,38 @@ All notable changes to Alife are documented in this file.
 
 The format follows Keep a Changelog and the repository uses four-part versions.
 
+## [0.1.1.3] - 2026-08-31
+
+### Changed
+
+- Passkey operations now show a bilingual waiting state while Windows or a password manager owns the browser request.
+- Onboarding and Profile provide an explicit cancel action so a delayed or hidden system prompt no longer leaves only a disabled control.
+
+## [0.1.1.2] - 2026-08-31
+
+### Fixed
+
+- Known-credential Fido2 verification failures now retain their privacy-safe diagnostic category in the existing restricted audit store when platform telemetry is unavailable.
+
+### Security
+
+- Diagnostic audit fallback is limited to the assertion-verification stage and excludes credential IDs, member IDs, challenges, signatures, tokens, exception messages, IP addresses, and user agents.
+
+## [0.1.1.1] - 2026-08-31
+
+### Changed
+
+- Passkey browser requests now stop after two minutes or when the identity view closes, and bilingual recovery messages no longer describe every browser failure as an explicit cancellation.
+- Passkey verification errors now include a safe trace reference that administrators can correlate with server diagnostics.
+
+### Fixed
+
+- Restored actionable distinction between inactive ALIFE credentials, backend verification failures, and browser or authenticator attempts that do not complete.
+
+### Security
+
+- Failed Passkey assertions log only a controlled completion stage, exception type, Fido2 verification category, and sanitized trace reference; raw WebAuthn material and exception messages remain excluded.
+
 ## [0.1.1.0] - 2026-08-31
 
 ### Added

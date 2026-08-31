@@ -6,19 +6,23 @@ import {
   Church,
   Fingerprint,
   KeyRound,
+  LoaderCircle,
   LockKeyhole,
   MessageCircleMore,
   MessageSquareText,
   ShieldCheck,
   Smartphone,
   UserPlus,
+  X,
 } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import logo from '../assets/logo.png'
 import { useUiText } from '../i18n/uiText'
 import { identityAccessService, type OnboardingContext } from '../services/identityAccessService'
+import { normalizeIdentityError } from '../services/identityErrorPresentation'
 import { normalizeIdentityReturnPath } from '../services/identityPathPolicy'
 import { http, normalizeApiError } from '../services/http'
+import { createPasskeyRequestGuard, type PasskeyRequestGuard } from '../services/passkeyRequestGuard'
 import { visitContactService } from '../services/visitContactService'
 import { useAuthStore } from '../stores/auth'
 
@@ -41,12 +45,14 @@ const OnboardingView = () => {
   const [capabilities, setCapabilities] = useState({ passkeysEnabled: true, lineLegacyEnabled: true, activationMessagingAvailable: true })
   const [publicDevice, setPublicDevice] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [passkeyWaiting, setPasskeyWaiting] = useState(false)
   const [status, setStatus] = useState('')
   const [successTarget, setSuccessTarget] = useState('/')
   const [lineConfirmed, setLineConfirmed] = useState(false)
   const [supplement, setSupplement] = useState('')
   const [lineProfile, setLineProfile] = useState({ name: '', sex: 'Unknown', age: '', email: '' })
   const formStarted = useRef(Date.now())
+  const passkeyRequest = useRef<PasskeyRequestGuard | null>(null)
 
   const [contact, setContact] = useState<ContactState>({
     displayName: '', email: '', phone: '', message: '', replyPreference: 'sms', consent: false, website: '',
@@ -105,6 +111,11 @@ const OnboardingView = () => {
     return () => { active = false }
   }, [safeReturnPath, searchParams, t])
 
+  useEffect(() => () => {
+    passkeyRequest.current?.dispose()
+    passkeyRequest.current = null
+  }, [])
+
   useEffect(() => {
     setApplication((current) => ({
       ...current,
@@ -114,14 +125,18 @@ const OnboardingView = () => {
   }, [auth.me?.displayName, auth.me?.phoneE164])
 
   const runPasskeyAuthentication = async () => {
+    passkeyRequest.current?.dispose()
+    const request = createPasskeyRequestGuard()
+    passkeyRequest.current = request
     setBusy(true)
+    setPasskeyWaiting(true)
     setStatus('')
     try {
       if (!context || context.intent === 'signIn') {
         const created = await identityAccessService.createFlow(safeReturnPath, publicDevice, 'signIn')
         setContext(created)
       }
-      const result = await identityAccessService.authenticatePasskey()
+      const result = await identityAccessService.authenticatePasskey(request.signal)
       await auth.fetchMe()
       if (context?.intent === 'groupJoin') {
         setApplication((current) => ({
@@ -135,17 +150,24 @@ const OnboardingView = () => {
     } catch (error) {
       setStatus(normalizeIdentityError(error, t('passkeyFailed'), t))
     } finally {
+      request.complete()
+      if (passkeyRequest.current === request) passkeyRequest.current = null
+      setPasskeyWaiting(false)
       setBusy(false)
     }
   }
 
   const completeActivation = async () => {
+    passkeyRequest.current?.dispose()
+    const request = createPasskeyRequestGuard()
+    passkeyRequest.current = request
     setBusy(true)
+    setPasskeyWaiting(true)
     setStatus('')
     try {
       const result = context?.isPublicDevice
         ? await identityAccessService.completePublicDeviceActivation()
-        : await identityAccessService.registerPasskey()
+        : await identityAccessService.registerPasskey(undefined, request.signal)
       await auth.fetchMe()
       const destination = normalizeIdentityReturnPath(result.returnPath) || '/enter'
       if (context?.isPublicDevice) {
@@ -159,8 +181,15 @@ const OnboardingView = () => {
     } catch (error) {
       setStatus(normalizeIdentityError(error, t('passkeyFailed'), t))
     } finally {
+      request.complete()
+      if (passkeyRequest.current === request) passkeyRequest.current = null
+      setPasskeyWaiting(false)
       setBusy(false)
     }
+  }
+
+  const cancelPasskeyRequest = () => {
+    passkeyRequest.current?.dispose()
   }
 
   const markNotMe = async () => {
@@ -422,6 +451,17 @@ const OnboardingView = () => {
         <div className="mx-auto w-full max-w-xl">
           <div className="mb-7 flex items-center gap-3 lg:hidden"><span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#e3f0eb]"><img src={logo} alt={t('appName')} className="h-9 w-auto" /></span><span className="text-xl font-bold text-[#18332d]">ALIFE</span></div>
           {content}
+          {passkeyWaiting ? (
+            <div className="mt-5 rounded-2xl border border-[#176b5a]/20 bg-[#e3f0eb]/70 px-4 py-4">
+              <div className="flex items-start gap-3" role="status" aria-live="polite">
+                <LoaderCircle className="mt-0.5 h-5 w-5 shrink-0 animate-spin text-[#176b5a] motion-reduce:animate-none" aria-hidden="true" />
+                <p className="min-w-0 flex-1 text-sm leading-6 text-[#314b43]">{t('passkeyWaiting')}</p>
+              </div>
+              <button className="alife-secondary-button mt-3 w-full sm:w-auto" type="button" onClick={cancelPasskeyRequest}>
+                <X className="h-4 w-4" aria-hidden="true" /> {t('cancelPasskeyRequest')}
+              </button>
+            </div>
+          ) : null}
           {status && mode !== 'success' ? <p role="status" aria-live="polite" className="mt-5 rounded-2xl border border-[#e37b63]/25 bg-[#fff2ed] px-4 py-3 text-sm leading-6 text-[#915040]">{status}</p> : null}
         </div>
       </main>
@@ -471,13 +511,5 @@ const ApplicationForm = ({ value, onChange, onSubmit, busy, t }: { value: Applic
     <button className="alife-primary-button w-full" type="submit" disabled={busy}>{t('submitApplication')}</button>
   </form>
 )
-
-const normalizeIdentityError = (error: unknown, fallback: string, t: ReturnType<typeof useUiText>) => {
-  if (error instanceof Error && error.message === 'passkey_not_supported') return t('passkeyUnavailable')
-  if (error instanceof DOMException && error.name === 'NotAllowedError') return t('passkeyCancelled')
-  const api = normalizeApiError(error)
-  if (api.code === 'rate_limited') return api.message
-  return api.message || fallback
-}
 
 export default OnboardingView
