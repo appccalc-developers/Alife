@@ -4,6 +4,16 @@ All notable changes to Alife are documented in this file.
 
 The format follows Keep a Changelog and the repository uses four-part versions.
 
+## [0.1.1.2] - 2026-08-31
+
+### Fixed
+
+- Known-credential Fido2 verification failures now retain their privacy-safe diagnostic category in the existing restricted audit store when platform telemetry is unavailable.
+
+### Security
+
+- Diagnostic audit fallback is limited to the assertion-verification stage and excludes credential IDs, member IDs, challenges, signatures, tokens, exception messages, IP addresses, and user agents.
+
 ## [0.1.1.1] - 2026-08-31
 
 ### Changed

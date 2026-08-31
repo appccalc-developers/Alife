@@ -137,12 +137,19 @@ public sealed class PasskeyService(
             var verificationCode = exception is Fido2VerificationException verificationException
                 ? verificationException.Code.ToString()
                 : "NotAvailable";
+            var safeCorrelationId = SanitizeCorrelationId(correlationId);
+            await PersistVerificationFailureAuditAsync(
+                failureStage,
+                exception,
+                verificationCode,
+                safeCorrelationId,
+                cancellationToken);
             logger.LogWarning(
                 "Passkey authentication failed at {FailureStage}. ExceptionType: {ExceptionType}. VerificationCode: {VerificationCode}. CorrelationId: {CorrelationId}.",
                 failureStage,
                 exception.GetType().FullName ?? exception.GetType().Name,
                 verificationCode,
-                SanitizeCorrelationId(correlationId));
+                safeCorrelationId);
             return AppResult<PasskeyCompletionDto>.Forbidden("passkey_verification_failed");
         }
     }
@@ -364,6 +371,47 @@ public sealed class PasskeyService(
             TargetMemberId = targetMemberId,
             OccurredUtc = DateTime.UtcNow
         });
+
+    private async Task PersistVerificationFailureAuditAsync(
+        string failureStage,
+        Exception exception,
+        string verificationCode,
+        string correlationId,
+        CancellationToken cancellationToken)
+    {
+        if (failureStage != "verify_assertion" || exception is not Fido2VerificationException)
+        {
+            return;
+        }
+
+        var audit = new AuditLog
+        {
+            Id = Guid.NewGuid(),
+            Action = "identity.passkey.authentication_failed",
+            EntityType = "PasskeyAuthentication",
+            MetadataJson = JsonSerializer.Serialize(new
+            {
+                FailureStage = failureStage,
+                ExceptionType = exception.GetType().FullName ?? exception.GetType().Name,
+                VerificationCode = verificationCode,
+                CorrelationId = correlationId
+            }),
+            OccurredUtc = DateTime.UtcNow
+        };
+        dbContext.AuditLogs.Add(audit);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception auditException) when (!cancellationToken.IsCancellationRequested)
+        {
+            dbContext.Entry(audit).State = EntityState.Detached;
+            logger.LogWarning(
+                "Passkey authentication diagnostic audit persistence failed. ExceptionType: {ExceptionType}. CorrelationId: {CorrelationId}.",
+                auditException.GetType().FullName ?? auditException.GetType().Name,
+                correlationId);
+        }
+    }
 
     private static bool IsActive(PasskeyCeremony? ceremony, PasskeyCeremonyKind kind)
         => ceremony is not null && ceremony.Kind == kind && ceremony.ConsumedUtc is null && ceremony.ExpiresUtc > DateTime.UtcNow;

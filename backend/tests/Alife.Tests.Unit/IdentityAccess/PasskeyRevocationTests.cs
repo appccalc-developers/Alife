@@ -163,10 +163,11 @@ public sealed class PasskeyRevocationTests
         Assert.NotNull(active.ConsumedUtc);
         Assert.Equal(AppResultStatus.Conflict, replayResult.Status);
         Assert.Equal("passkey_challenge_invalid", replayResult.Message);
+        Assert.Empty(db.AuditLogs);
     }
 
     [Fact]
-    public async Task CompleteAuthentication_LogsOnlySafeVerificationDiagnostics()
+    public async Task CompleteAuthentication_PersistsAndLogsOnlySafeVerificationDiagnostics()
     {
         const string sensitiveExceptionMessage = "sentinel-credential-challenge-signature";
         await using var db = CreateDb();
@@ -238,6 +239,17 @@ public sealed class PasskeyRevocationTests
         Assert.Contains("trace-700unsafe", entry);
         Assert.DoesNotContain(sensitiveExceptionMessage, entry);
         Assert.Null(member.PasskeyCredentials.Single().LastUsedUtc);
+        var audit = Assert.Single(db.AuditLogs);
+        Assert.Null(audit.ActorMemberId);
+        Assert.Null(audit.EntityId);
+        Assert.Null(audit.TargetMemberId);
+        Assert.Equal("identity.passkey.authentication_failed", audit.Action);
+        Assert.Equal("PasskeyAuthentication", audit.EntityType);
+        Assert.Contains("verify_assertion", audit.MetadataJson);
+        Assert.Contains(nameof(Fido2VerificationException), audit.MetadataJson);
+        Assert.Contains(nameof(Fido2ErrorCode.InvalidSignature), audit.MetadataJson);
+        Assert.Contains("trace-700unsafe", audit.MetadataJson);
+        Assert.DoesNotContain(sensitiveExceptionMessage, audit.MetadataJson);
     }
 
     [Theory]
