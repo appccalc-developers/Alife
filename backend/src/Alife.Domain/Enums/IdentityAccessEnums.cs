@@ -3,7 +3,8 @@ namespace Alife.Domain.Enums;
 public enum PasskeyCeremonyKind
 {
     Registration = 0,
-    Authentication = 1
+    Authentication = 1,
+    AlphaBootstrapRegistration = 2
 }
 
 public enum OnboardingIntent

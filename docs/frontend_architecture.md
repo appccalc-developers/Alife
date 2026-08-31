@@ -86,7 +86,7 @@ React StrictMode
 | `HomeView` | Main member landing experience |
 | `OnboardingView` | Unified intent entry, Passkey/LINE compatibility, activation, QR application, recovery, and public-device states |
 | `IdentityLinkEntryView` | Removes activation/join/reply fragments before exchanging one-time secrets |
-| `InternalAlphaLoginView` | Hidden configuration-gated Alpha account selection |
+| `InternalAlphaLoginView` | Hidden configuration-gated Alpha account selection and optional administrator-issued first-Passkey setup code |
 | `GroupsView` | Group discovery and listing |
 | `GroupDetailView` | Member-facing group reading experience |
 | `GroupManageView` | Leader/co-leader management workspace |
@@ -208,7 +208,7 @@ Keep route state explicit. Avoid making language switches, tab changes, or local
 
 Protected-route redirects store only validated absolute relative paths before navigating to `/onboarding`. Signed-in users skip onboarding and resume that path or `/enter`. `/activate/:selector`, `/join/:selector`, `/application/:selector`, and `/internal/alpha-login` use the identity shell, which deliberately omits member workspace navigation and floating actions.
 
-The onboarding screen uses a compact intent list rather than equal-weight cards. Passkey is primary; LINE is clearly labeled as compatibility. Public-device, unsupported, cancellation, expiry, replay, paused/revoked, rate-limit, and network states remain recoverable and never silently downgrade authentication. All new UI copy lives in the existing bilingual `uiText` catalog.
+The onboarding screen uses a compact intent list rather than equal-weight cards. Passkey is primary; LINE is clearly labeled as compatibility. Public-device, unsupported, cancellation, expiry, replay, paused/revoked, rate-limit, and network states remain recoverable and never silently downgrade authentication. Alpha-only tester Stephen may paste the separately issued first-Passkey setup code on the internal login screen; success redirects to Profile so registration can finish within five minutes, while leaving the field blank preserves ordinary Alpha login. All new UI copy lives in the existing bilingual `uiText` catalog.
 
 ## Bilingual Content
 

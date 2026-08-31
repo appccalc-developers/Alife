@@ -191,7 +191,7 @@ npx wrangler deploy
 ## Authentication And Authorization
 
 - `/onboarding` starts username-less WebAuthn authentication with user verification. ALIFE stores public keys and credential metadata, never device PINs or biometric data.
-- Standard Passkey and LINE sessions can last up to 30 days. Public-device sessions are non-persistent and last at most two hours; internal Alpha sessions are non-persistent and last at most twelve hours.
+- Standard Passkey and LINE sessions can last up to 30 days. Public-device sessions are non-persistent and last at most two hours; internal Alpha sessions are non-persistent and last at most twelve hours. A configured Alpha-only tester with no current or revoked Passkey can use an administrator-issued setup code to open a five-minute first-Passkey registration window; the code is permanently unavailable after any Passkey has existed, and ordinary Alpha sessions remain non-strong authentication.
 - LINE OAuth is a compatibility path. Its server-side state is bound to the active onboarding flow; callbacks do not put profile PII in redirect URLs.
 - Activation and QR links use `/activate/{selector}#{secret}` and `/join/{selector}#{signature}`. The fragment is exchanged in a request body and immediately removed from browser history.
 - The backend issues a JWT in the HttpOnly cookie `alife_auth`.
@@ -244,7 +244,7 @@ Backend settings can be supplied through environment variables, user secrets, or
 | `TokenProtection__SigningKey`, `RateLimiting__HashKey` | Independent high-entropy HMAC keys for one-time secret storage and rate-limit discriminators. Keep in a secret store. |
 | `TrustedProxyNetworks` | Proxy CIDRs allowed to supply `CF-Connecting-IP`; untrusted callers use the direct peer address. |
 | `ActivationMessages__Enabled`, `ActivationMessages__ExposeLinks` | Activation delivery capability. Preview links are development-only; no paid SMS provider is included. |
-| `AlphaLogin__Enabled`, `AlphaLogin__Accounts` | Internal Alpha account whitelist (`accountId`, `memberId`, `label`). Disabled values return `404`; explicit enablement is honored in every environment. |
+| `AlphaLogin__Enabled`, `AlphaLogin__Accounts`, `AlphaLogin__PasskeyBootstrapCodes__<accountId>` | Internal Alpha whitelist (`accountId`, `memberId`, `label`) and optional per-account first-Passkey setup codes. Codes must be high-entropy secrets of at least 24 characters and must never be committed or logged. Disabled Alpha login returns `404`; explicit enablement is honored in every environment. Production currently provisions the setup code only for the whitelisted `Stephen` account. |
 | `YOUTUBE_API_KEY`, `YOUTUBE_PLAYLIST_ID` | Sermon sync integration, where configured |
 | `Cloudflare__ApiToken`, `Cloudflare__AccountId`, `Cloudflare__ZoneId`, `Cloudflare__AuthzNamespaceId`, `Cloudflare__ApiCacheNamespaceId` | Cloudflare KV mirror/cache refresh support, where configured. Global sermon invalidation requires the token's `Cache Purge` permission and the zone id. |
 | `Cloudflare__SyncWorkerBaseUrl`, `Cloudflare__SyncApiToken` | Speed-layer cache purge endpoint, where configured. Production base URL is `https://ccalc.live`; token must match Worker `CACHE_SYNC_API_TOKEN`. |

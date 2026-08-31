@@ -11,6 +11,7 @@ cloudflare_zone_id    = "replace-with-ccalc-live-zone-id"
 resource_group_name = "ccalc"
 function_app_name   = "fapi-ccalc"
 frontend_base_url   = "https://ccalc.live"
+passkey_rp_id       = "ccalc.live"
 api_hostname        = "api.ccalc.live"
 
 # Keep false while Wrangler owns custom_domain entries in:

@@ -42,7 +42,10 @@ public sealed class InternalAlphaLoginController(
             "alpha-login-account-15m", request.AccountId, 5, TimeSpan.FromMinutes(15), cancellationToken);
         if (!accountDecision.Allowed) return this.RateLimited(accountDecision);
 
-        var result = await identityAccess.AlphaLoginAsync(request.AccountId, cancellationToken);
+        var result = await identityAccess.AlphaLoginAsync(
+            request.AccountId,
+            request.PasskeyBootstrapCode,
+            cancellationToken);
         if (result.IsSuccess && result.Value is not null)
         {
             AuthCookie.WriteCookie(Request, Response, result.Value.Token, result.Value.ExpiresUtc, persistent: false);
@@ -51,5 +54,5 @@ public sealed class InternalAlphaLoginController(
         return this.ToIdentityResult(result);
     }
 
-    public sealed record AlphaLoginRequest(string AccountId);
+    public sealed record AlphaLoginRequest(string AccountId, string? PasskeyBootstrapCode = null);
 }

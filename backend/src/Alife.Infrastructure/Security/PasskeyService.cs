@@ -132,6 +132,7 @@ public sealed class PasskeyService(
     public async Task<AppResult<PasskeyOptionsDto>> BeginRegistrationAsync(
         Guid memberId,
         Guid? onboardingFlowId,
+        bool firstCredentialOnly,
         CancellationToken cancellationToken)
     {
         if (!configuration.PasskeysEnabled)
@@ -143,6 +144,13 @@ public sealed class PasskeyService(
         if (member is null)
         {
             return AppResult<PasskeyOptionsDto>.NotFound("member_not_found");
+        }
+
+        if (firstCredentialOnly && await dbContext.MemberPasskeyCredentials.AnyAsync(
+                item => item.MemberId == memberId,
+                cancellationToken))
+        {
+            return AppResult<PasskeyOptionsDto>.Forbidden("alpha_passkey_bootstrap_invalid");
         }
 
         if (onboardingFlowId is Guid flowId)
@@ -181,7 +189,9 @@ public sealed class PasskeyService(
         var ceremony = new PasskeyCeremony
         {
             Id = Guid.NewGuid(),
-            Kind = PasskeyCeremonyKind.Registration,
+            Kind = firstCredentialOnly
+                ? PasskeyCeremonyKind.AlphaBootstrapRegistration
+                : PasskeyCeremonyKind.Registration,
             MemberId = member.Id,
             OnboardingFlowId = onboardingFlowId,
             OptionsJson = options.ToJson(),
@@ -211,61 +221,73 @@ public sealed class PasskeyService(
         CancellationToken cancellationToken)
     {
         var ceremony = await dbContext.PasskeyCeremonies.SingleOrDefaultAsync(item => item.Id == ceremonyId, cancellationToken);
-        if (!IsActive(ceremony, PasskeyCeremonyKind.Registration) || ceremony!.MemberId is not Guid memberId)
+        if (!IsActiveRegistration(ceremony) || ceremony!.MemberId is not Guid memberId)
         {
             return AppResult<PasskeyCompletionDto>.Conflict("passkey_challenge_invalid");
         }
 
         ceremony.ConsumedUtc = DateTime.UtcNow;
         await dbContext.SaveChangesAsync(cancellationToken);
+        if (ceremony.Kind == PasskeyCeremonyKind.AlphaBootstrapRegistration &&
+            await dbContext.MemberPasskeyCredentials.AnyAsync(
+                credential => credential.MemberId == memberId,
+                cancellationToken))
+        {
+            return AppResult<PasskeyCompletionDto>.Forbidden("alpha_passkey_bootstrap_invalid");
+        }
+        RegisteredPublicKeyCredential registered;
         try
         {
             var raw = JsonSerializer.Deserialize<AuthenticatorAttestationRawResponse>(response.GetRawText())
                       ?? throw new InvalidOperationException("Attestation response is missing.");
             var options = CredentialCreateOptions.FromJson(ceremony.OptionsJson);
-            var registered = await fido2.MakeNewCredentialAsync(new MakeNewCredentialParams
+            registered = await fido2.MakeNewCredentialAsync(new MakeNewCredentialParams
             {
                 AttestationResponse = raw,
                 OriginalOptions = options,
                 IsCredentialIdUniqueToUserCallback = async (args, token) =>
                     !await dbContext.MemberPasskeyCredentials.AnyAsync(item => item.CredentialId == args.CredentialId, token)
             }, cancellationToken);
-
-            var credential = new MemberPasskeyCredential
-            {
-                Id = Guid.NewGuid(),
-                MemberId = memberId,
-                CredentialId = registered.Id,
-                PublicKey = registered.PublicKey,
-                UserHandle = registered.User.Id,
-                SignatureCounter = registered.SignCount,
-                TransportsJson = JsonSerializer.Serialize(registered.Transports.Select(item => item.ToString().ToLowerInvariant())),
-                IsBackupEligible = registered.IsBackupEligible,
-                IsBackedUp = registered.IsBackedUp,
-                DisplayName = NormalizeCredentialName(displayName),
-                CreatedUtc = DateTime.UtcNow
-            };
-            dbContext.MemberPasskeyCredentials.Add(credential);
-            AddAudit(memberId, "identity.passkey.registered", credential.Id, memberId);
-            await dbContext.SaveChangesAsync(cancellationToken);
-
-            IdentitySession? session = null;
-            if (ceremony.OnboardingFlowId is Guid flowId)
-            {
-                var activation = await identityAccessService.CompletePasskeyActivationAsync(flowId, cancellationToken);
-                if (!activation.IsSuccess)
-                {
-                    return AppResult<PasskeyCompletionDto>.Conflict(activation.Message ?? "activation_failed");
-                }
-                session = activation.Value;
-            }
-
-            return AppResult<PasskeyCompletionDto>.Success(new PasskeyCompletionDto(session, ToDto(credential)));
         }
         catch when (!cancellationToken.IsCancellationRequested)
         {
             return AppResult<PasskeyCompletionDto>.Forbidden("passkey_verification_failed");
         }
+
+        var credential = new MemberPasskeyCredential
+        {
+            Id = Guid.NewGuid(),
+            MemberId = memberId,
+            CredentialId = registered.Id,
+            PublicKey = registered.PublicKey,
+            UserHandle = registered.User.Id,
+            SignatureCounter = registered.SignCount,
+            TransportsJson = JsonSerializer.Serialize(registered.Transports.Select(item => item.ToString().ToLowerInvariant())),
+            IsBackupEligible = registered.IsBackupEligible,
+            IsBackedUp = registered.IsBackedUp,
+            DisplayName = NormalizeCredentialName(displayName),
+            CreatedUtc = DateTime.UtcNow
+        };
+        dbContext.MemberPasskeyCredentials.Add(credential);
+
+        IdentitySession? session = null;
+        if (ceremony.OnboardingFlowId is Guid flowId)
+        {
+            var activation = await identityAccessService.CompletePasskeyActivationAsync(
+                flowId,
+                credential.Id,
+                cancellationToken);
+            if (!activation.IsSuccess)
+            {
+                dbContext.MemberPasskeyCredentials.Remove(credential);
+                return AppResult<PasskeyCompletionDto>.Conflict(activation.Message ?? "activation_failed");
+            }
+            session = activation.Value;
+        }
+
+        AddAudit(memberId, "identity.passkey.registered", credential.Id, memberId);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return AppResult<PasskeyCompletionDto>.Success(new PasskeyCompletionDto(session, ToDto(credential)));
     }
 
     public async Task<AppResult<IReadOnlyList<PasskeyCredentialDto>>> ListAsync(
@@ -327,6 +349,12 @@ public sealed class PasskeyService(
 
     private static bool IsActive(PasskeyCeremony? ceremony, PasskeyCeremonyKind kind)
         => ceremony is not null && ceremony.Kind == kind && ceremony.ConsumedUtc is null && ceremony.ExpiresUtc > DateTime.UtcNow;
+
+    private static bool IsActiveRegistration(PasskeyCeremony? ceremony)
+        => ceremony is not null &&
+           ceremony.Kind is PasskeyCeremonyKind.Registration or PasskeyCeremonyKind.AlphaBootstrapRegistration &&
+           ceremony.ConsumedUtc is null &&
+           ceremony.ExpiresUtc > DateTime.UtcNow;
 
     private static string NormalizeCredentialName(string? value)
     {
