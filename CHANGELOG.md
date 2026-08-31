@@ -4,6 +4,13 @@ All notable changes to Alife are documented in this file.
 
 The format follows Keep a Changelog and the repository uses four-part versions.
 
+## [0.1.1.3] - 2026-08-31
+
+### Changed
+
+- Passkey operations now show a bilingual waiting state while Windows or a password manager owns the browser request.
+- Onboarding and Profile provide an explicit cancel action so a delayed or hidden system prompt no longer leaves only a disabled control.
+
 ## [0.1.1.2] - 2026-08-31
 
 ### Fixed

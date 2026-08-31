@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { Check, KeyRound, LogOut, Mail, Pencil, Phone, Plus, ShieldCheck, Trash2, UserRound, X } from 'lucide-react'
+import { Check, KeyRound, LoaderCircle, LogOut, Mail, Pencil, Phone, Plus, ShieldCheck, Trash2, UserRound, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import RegionalPhoneInput from '../components/forms/RegionalPhoneInput'
 import AppActionButton from '../components/layout/AppActionButton'
@@ -36,6 +36,7 @@ const ProfileView = () => {
   const [passkeys, setPasskeys] = useState<PasskeyCredential[]>([])
   const [passkeyName, setPasskeyName] = useState('')
   const [passkeyBusy, setPasskeyBusy] = useState(false)
+  const [passkeyWaiting, setPasskeyWaiting] = useState(false)
   const [passkeyError, setPasskeyError] = useState('')
   const [passkeyStatus, setPasskeyStatus] = useState('')
   const [confirmRevokeId, setConfirmRevokeId] = useState('')
@@ -55,6 +56,7 @@ const ProfileView = () => {
       passkeyName: 'Passkey 名称', passkeyNamePlaceholder: '例如：我的手机', addPasskey: '添加 Passkey',
       noPasskeys: '尚未添加 Passkey。', lastUsed: '最近使用', created: '建立日期', revoke: '撤销',
       confirmRevoke: '再次点击以确认撤销', passkeyAdded: 'Passkey 已添加。', passkeyRevoked: 'Passkey 已撤销。',
+      passkeyWaiting: '正在等待 Windows 或密码管理器打开 Passkey 窗口。如果没有出现窗口，请先取消本次请求。', cancelPasskeyRequest: '取消 Passkey 验证',
       strongAuthHint: '添加或撤销需要最近五分钟内完成 Passkey 或 LINE 强认证。首次建立也可使用管理员签发的 Alpha 设置码登录。', addPasskeyRecommended: '建议现在添加 Passkey，作为主要登录方式。',
     }
     : {
@@ -70,6 +72,7 @@ const ProfileView = () => {
       passkeyName: 'Passkey name', passkeyNamePlaceholder: 'For example: My phone', addPasskey: 'Add passkey',
       noPasskeys: 'No passkeys have been added.', lastUsed: 'Last used', created: 'Created', revoke: 'Revoke',
       confirmRevoke: 'Click again to confirm revocation', passkeyAdded: 'Passkey added.', passkeyRevoked: 'Passkey revoked.',
+      passkeyWaiting: 'Waiting for Windows or your password manager to open the Passkey prompt. If no prompt appears, cancel this request first.', cancelPasskeyRequest: 'Cancel Passkey request',
       strongAuthHint: 'Adding or revoking requires passkey or LINE strong authentication from the last five minutes. The first passkey can also follow an administrator-issued Alpha setup-code login.', addPasskeyRecommended: 'Add a passkey now to make it your primary sign-in method.',
     }
 
@@ -164,6 +167,7 @@ const ProfileView = () => {
     const request = createPasskeyRequestGuard()
     passkeyRequest.current = request
     setPasskeyBusy(true)
+    setPasskeyWaiting(true)
     setPasskeyError('')
     setPasskeyStatus('')
     try {
@@ -177,8 +181,13 @@ const ProfileView = () => {
     } finally {
       request.complete()
       if (passkeyRequest.current === request) passkeyRequest.current = null
+      setPasskeyWaiting(false)
       setPasskeyBusy(false)
     }
+  }
+
+  const cancelPasskeyRequest = () => {
+    passkeyRequest.current?.dispose()
   }
 
   const revokePasskey = async (credentialId: string) => {
@@ -290,6 +299,15 @@ const ProfileView = () => {
               <label className="block"><span className="text-xs font-black uppercase tracking-wide text-slate-500">{copy.passkeyName}</span><input className="mt-1.5 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" maxLength={120} placeholder={copy.passkeyNamePlaceholder} value={passkeyName} onChange={(event) => setPasskeyName(event.target.value)} /></label>
               <AppActionButton variant="primary" disabled={passkeyBusy} onClick={() => void addPasskey()}><Plus className="mr-1.5 h-4 w-4" />{copy.addPasskey}</AppActionButton>
             </div>
+            {passkeyWaiting ? (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3">
+                <div className="flex items-start gap-2.5" role="status" aria-live="polite">
+                  <LoaderCircle className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-emerald-700 motion-reduce:animate-none" aria-hidden="true" />
+                  <p className="min-w-0 flex-1 text-xs leading-5 text-emerald-900">{copy.passkeyWaiting}</p>
+                </div>
+                <AppActionButton className="mt-2.5" size="sm" onClick={cancelPasskeyRequest}><X className="mr-1.5 h-4 w-4" />{copy.cancelPasskeyRequest}</AppActionButton>
+              </div>
+            ) : null}
             <p className="text-xs leading-5 text-slate-500">{copy.strongAuthHint}</p>
             {passkeyStatus ? <p className="text-sm font-semibold text-emerald-700" role="status">{passkeyStatus}</p> : null}
             {passkeyError ? <p className="text-sm text-rose-700" role="alert">{passkeyError}</p> : null}
