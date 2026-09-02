@@ -13,7 +13,8 @@ namespace Alife.Application.Events.Commands.ApproveEventRam;
 
 public sealed class ApproveEventRamCommandHandler(
     IAlifeDbContext dbContext,
-    IEventCacheInvalidationService eventCacheInvalidationService)
+    IEventCacheInvalidationService eventCacheInvalidationService,
+    IEventPackageInvalidationService packageInvalidationService)
     : IRequestHandler<ApproveEventRamCommand, AppResult<EventRamAssessmentDto>>
 {
     private const string EventCreatedActionType = "event.created";
@@ -83,6 +84,9 @@ public sealed class ApproveEventRamCommandHandler(
             CreatedUtc = now,
             UpdatedUtc = now
         }));
+
+        await packageInvalidationService.InvalidateForMaterialChangeAsync(
+            groupEvent, request.CurrentMemberId, "event.ram.approved", "governanceCritical", cancellationToken);
 
         await dbContext.SaveChangesAsync(cancellationToken);
         await eventCacheInvalidationService.RemoveGroupEventsAsync(groupEvent.GroupId, cancellationToken);

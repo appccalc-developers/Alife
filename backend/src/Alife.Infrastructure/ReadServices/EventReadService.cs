@@ -12,8 +12,9 @@ public sealed class EventReadService(
     HybridCache hybridCache,
     IHttpContextAccessor? httpContextAccessor = null) : IEventReadService
 {
-    public Task<IReadOnlyList<GroupEventSummaryDto>> GetGroupEventsAsync(Guid groupId, CancellationToken cancellationToken)
-        => GetOrCreateAsync(
+    public async Task<IReadOnlyList<GroupEventSummaryDto>> GetGroupEventsAsync(Guid groupId, CancellationToken cancellationToken)
+    {
+        var cached = await GetOrCreateAsync(
             EventCacheKeys.GroupEvents(groupId),
             async token =>
             {
@@ -21,6 +22,8 @@ public sealed class EventReadService(
                     .AsNoTracking()
                     .Include(e => e.ContactProfiles)
                     .Include(e => e.RamAssessment)
+                    .Include(e => e.PublishedPackage).ThenInclude(package => package!.Conditions)
+                    .Include(e => e.PublishedPackage).ThenInclude(package => package!.Decisions)
                     .Where(e => e.GroupId == groupId)
                     .OrderBy(e => e.StartDate)
                     .ToListAsync(token);
@@ -42,12 +45,43 @@ public sealed class EventReadService(
                     e.AccountableOwnerMemberId,
                     e.GovernanceMode,
                     e.SponsorshipStatus,
-                    e.ActivePlanVersion
+                    e.ActivePlanVersion,
+                    e.PublicationStatus,
+                    PublicationGateSatisfied(e, DateTime.UtcNow),
+                    e.PublishedPackageId,
+                    e.PublishedUtc
                 )).ToList();
 
                 return (IReadOnlyList<GroupEventSummaryDto>)dtos;
             },
             cancellationToken);
+        if (cached.Count == 0) return cached;
+
+        // The group list is shared and may outlive a condition or approval deadline. Keep the
+        // expensive presentation projection cached, but always refresh the security/lifecycle
+        // dimensions that decide whether downstream church-life views may expose the Event.
+        var ids = cached.Select(x => x.Id).ToArray();
+        var current = await dbContext.GroupEvents.AsNoTracking()
+            .Include(e => e.RamAssessment)
+            .Include(e => e.PublishedPackage).ThenInclude(package => package!.Conditions)
+            .Include(e => e.PublishedPackage).ThenInclude(package => package!.Decisions)
+            .Where(e => ids.Contains(e.Id)).ToDictionaryAsync(e => e.Id, cancellationToken);
+        var now = DateTime.UtcNow;
+        return cached.Where(x => current.ContainsKey(x.Id)).Select(value =>
+        {
+            var entity = current[value.Id];
+            return value with
+            {
+                RamStatus = entity.RamAssessment?.Status ?? Alife.Domain.Enums.EventRamStatus.Draft,
+                GovernanceMode = entity.GovernanceMode,
+                SponsorshipStatus = entity.SponsorshipStatus,
+                PublicationStatus = entity.PublicationStatus,
+                PublicationGateSatisfied = PublicationGateSatisfied(entity, now),
+                PublishedPackageId = entity.PublishedPackageId,
+                PublishedUtc = entity.PublishedUtc
+            };
+        }).ToList();
+    }
 
     public async Task<IReadOnlyList<PublicEventSummaryDto>> GetPublicUpcomingEventsAsync(
         DateTime fromUtc,
@@ -61,6 +95,8 @@ public sealed class EventReadService(
                 var candidates = await dbContext.GroupEvents
                     .AsNoTracking()
                     .Include(e => e.RamAssessment)
+                    .Include(e => e.PublishedPackage).ThenInclude(package => package!.Conditions)
+                    .Include(e => e.PublishedPackage).ThenInclude(package => package!.Decisions)
                     .Where(e => e.EndDate >= fromUtc &&
                         e.RamAssessment != null &&
                         e.RamAssessment.Status == Alife.Domain.Enums.EventRamStatus.Approved)
@@ -73,6 +109,8 @@ public sealed class EventReadService(
                         Alife.Application.Events.Services.EventVisibilityPolicy.Public)
                     .Where(e => e.GovernanceMode != Alife.Domain.Enums.EventGovernanceMode.ChurchSponsored ||
                         e.SponsorshipStatus == Alife.Domain.Enums.EventSponsorshipStatus.Approved)
+                    .Where(e => e.PublicationStatus == Alife.Domain.Enums.EventPublicationStatus.LegacyImplicit ||
+                        e.PublicationStatus == Alife.Domain.Enums.EventPublicationStatus.Published && PublicationGateSatisfied(e, DateTime.UtcNow))
                     .Take(50)
                     .Select(e => new PublicEventSummaryDto(
                         e.Id,
@@ -87,7 +125,35 @@ public sealed class EventReadService(
             },
             cancellationToken);
 
-        return events.Take(Math.Clamp(limit, 1, 50)).ToList();
+        if (events.Count == 0) return [];
+
+        // The shared projection may outlive a condition deadline. Re-check the small cached ID set
+        // against authoritative lifecycle state on every request so stale cache can never keep an
+        // expired, revoked, unpublished, or sponsorship-blocked Event public.
+        var candidateIds = events.Select(x => x.Id).ToArray();
+        var currentStates = await dbContext.GroupEvents.AsNoTracking()
+            .Include(e => e.RamAssessment)
+            .Include(e => e.PublishedPackage).ThenInclude(package => package!.Conditions)
+            .Include(e => e.PublishedPackage).ThenInclude(package => package!.Decisions)
+            .Where(e => candidateIds.Contains(e.Id)).ToListAsync(cancellationToken);
+        var now = DateTime.UtcNow;
+        var currentlyPublic = currentStates.Where(e =>
+                e.RamAssessment?.Status == Alife.Domain.Enums.EventRamStatus.Approved &&
+                (e.GovernanceMode != Alife.Domain.Enums.EventGovernanceMode.ChurchSponsored ||
+                 e.SponsorshipStatus == Alife.Domain.Enums.EventSponsorshipStatus.Approved) &&
+                (e.PublicationStatus == Alife.Domain.Enums.EventPublicationStatus.LegacyImplicit ||
+                 e.PublicationStatus == Alife.Domain.Enums.EventPublicationStatus.Published && PublicationGateSatisfied(e, now)))
+            .Select(e => e.Id).ToHashSet();
+        return events.Where(x => currentlyPublic.Contains(x.Id))
+            .Take(Math.Clamp(limit, 1, 50)).ToList();
+    }
+
+    private static bool PublicationGateSatisfied(Alife.Domain.Entities.GroupEvent groupEvent, DateTime now)
+    {
+        if (groupEvent.PublicationStatus == Alife.Domain.Enums.EventPublicationStatus.LegacyImplicit) return true;
+        if (groupEvent.PublicationStatus != Alife.Domain.Enums.EventPublicationStatus.Published) return false;
+        return EventPackageGateEvaluator.Evaluate(Alife.Domain.Enums.EventLifecycleGate.Publish,
+            groupEvent.PublicationGateMode, groupEvent.PublishedPackage, now).Allowed;
     }
 
     private async Task<T> GetOrCreateAsync<T>(

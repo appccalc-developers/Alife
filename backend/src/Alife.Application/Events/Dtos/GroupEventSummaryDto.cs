@@ -20,4 +20,8 @@ public record GroupEventSummaryDto(
     Guid? AccountableOwnerMemberId = null,
     EventGovernanceMode GovernanceMode = EventGovernanceMode.MemberLed,
     EventSponsorshipStatus SponsorshipStatus = EventSponsorshipStatus.NotRequested,
-    int? ActivePlanVersion = null);
+    int? ActivePlanVersion = null,
+    EventPublicationStatus PublicationStatus = EventPublicationStatus.LegacyImplicit,
+    bool PublicationGateSatisfied = true,
+    Guid? PublishedPackageId = null,
+    DateTime? PublishedUtc = null);

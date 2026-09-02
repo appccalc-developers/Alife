@@ -11,7 +11,8 @@ namespace Alife.Application.Events.Commands.UpdateGroupEvent;
 public sealed class UpdateGroupEventCommandHandler(
     IAlifeDbContext dbContext,
     IGroupAuthorizationService groupAuthorizationService,
-    IEventCacheInvalidationService eventCacheInvalidationService)
+    IEventCacheInvalidationService eventCacheInvalidationService,
+    IEventPackageInvalidationService packageInvalidationService)
     : IRequestHandler<UpdateGroupEventCommand, AppResult<GroupEventSummaryDto>>
 {
     public async Task<AppResult<GroupEventSummaryDto>> Handle(UpdateGroupEventCommand request, CancellationToken cancellationToken)
@@ -51,6 +52,12 @@ public sealed class UpdateGroupEventCommandHandler(
         var existingContacts = await dbContext.EventContactProfiles
             .Where(x => x.EventId == groupEvent.Id)
             .ToListAsync(cancellationToken);
+        var materialChange = groupEvent.StartDate != request.StartDate ||
+            groupEvent.EndDate != request.EndDate ||
+            !GovernanceEventDataEquivalent(groupEvent.EventDataJson, request.EventDataJson) ||
+            !existingContacts.Select(x => x.ContactProfileId).Order().SequenceEqual(contactProfileIds.Order()) ||
+            (request.RamDataJson is not null &&
+                !JsonEquivalent(groupEvent.RamAssessment?.RamDataJson ?? "{}", request.RamDataJson));
         dbContext.EventContactProfiles.RemoveRange(existingContacts);
         dbContext.EventContactProfiles.AddRange(contactProfileIds.Select(contactProfileId => new Alife.Domain.Entities.EventContactProfile
         {
@@ -86,7 +93,7 @@ public sealed class UpdateGroupEventCommandHandler(
             groupEvent.RamAssessment.RamDataJson = request.RamDataJson;
         }
 
-        if (groupEvent.RamAssessment is not null)
+        if (groupEvent.RamAssessment is not null && materialChange)
         {
             groupEvent.RamAssessment.Status = Alife.Domain.Enums.EventRamStatus.Draft;
             groupEvent.RamAssessment.SubmittedByMemberId = null;
@@ -94,6 +101,15 @@ public sealed class UpdateGroupEventCommandHandler(
             groupEvent.RamAssessment.ApprovedByMemberId = null;
             groupEvent.RamAssessment.ApprovedUtc = null;
             groupEvent.RamAssessment.UpdatedUtc = now;
+        }
+        if (materialChange)
+        {
+            await packageInvalidationService.InvalidateForMaterialChangeAsync(
+                groupEvent,
+                request.CurrentMemberId,
+                "event.core.materialChange",
+                "governanceCritical",
+                cancellationToken);
         }
         await dbContext.SaveChangesAsync(cancellationToken);
         await eventCacheInvalidationService.RemoveGroupEventsAsync(groupEvent.GroupId, cancellationToken);
@@ -119,4 +135,36 @@ public sealed class UpdateGroupEventCommandHandler(
             groupEvent.SponsorshipStatus,
             groupEvent.ActivePlanVersion));
     }
+
+    private static bool JsonEquivalent(string left, string right)
+    {
+        try
+        {
+            using var leftDocument = System.Text.Json.JsonDocument.Parse(left);
+            using var rightDocument = System.Text.Json.JsonDocument.Parse(right);
+            return string.Equals(
+                EventPackageCanonicalizer.Serialize(leftDocument.RootElement),
+                EventPackageCanonicalizer.Serialize(rightDocument.RootElement),
+                StringComparison.Ordinal);
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return string.Equals(left, right, StringComparison.Ordinal);
+        }
+    }
+
+    private static bool GovernanceEventDataEquivalent(string left, string right)
+    {
+        try
+        {
+            return JsonEquivalent(
+                EventPackageCanonicalizer.GovernanceEventDataProjection(left),
+                EventPackageCanonicalizer.GovernanceEventDataProjection(right));
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return false;
+        }
+    }
+
 }

@@ -82,6 +82,7 @@ const RamSurface = (props: EventSurfaceProps) => (
 // can supply an import path, component name, URL or executable definition.
 const surfaceComponentRegistry: Readonly<Record<EventSurfaceKey, ComponentType<EventSurfaceProps>>> = Object.freeze({
   'workspace.overview': GenericSurface,
+  'workspace.governance': GenericSurface,
   'team.work': EventTeamPanel,
   'people.registration': RegistrationSurface,
   'service.roster': EventRosterWorkspace,

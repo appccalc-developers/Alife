@@ -1,6 +1,6 @@
 # Event Management Implementation Status
 
-> Documentation class: **Operational**. Captured from the current worktree on 2026-08-27 at branch baseline `1fb1cc5`. This file describes repository delivery state, not timeless architecture. The target contract remains [EVENT-CONTRACT.md](EVENT-CONTRACT.md).
+> Documentation class: **Operational**. Captured from the current worktree on 2026-09-02 at branch baseline `eb1a4b9`. This file describes repository delivery state, not timeless architecture. The target contract remains [EVENT-CONTRACT.md](EVENT-CONTRACT.md).
 
 ## Evidence rule
 
@@ -21,6 +21,22 @@ The current branch contains:
 - a compile-time controlled frontend Surface Registry and role-aware Event workspace;
 - the existing `EventWorkflowRun` / Step / Artifact engine as the single general workflow engine;
 - server-side visibility controls and private/no-store handling for protected workspaces.
+
+## Event Package Approval status
+
+**Usable M0–M4 approval backbone implemented in the current source; operational rollout verification remains.** The normative human and machine contracts describe an immutable, version-bound Event Package, explicit Event/occurrence coverage, three governance tiers, independent decisions and conditions, material-change invalidation, lifecycle gates, privacy-minimised module contributions, and compatible `off` / `dryRun` / `enforced` rollout. The detailed Chinese [execution goal](EVENT-PACKAGE-APPROVAL-EXECUTION-GOAL.zh-CN.md) is a non-normative delivery brief and explicitly excludes Plan B.
+
+M1 adds Event Package, source-reference, and versioned governance-policy persistence; a reversible migration; canonical JSON/hash generation; a serializable double-read consistency boundary; immutable version history; Event/Occurrence/Series-window/Child Event scope; legacy transition classification; owner/leader generation and Event-team read authorisation; and `private, no-store` generate/list/current/detail APIs.
+
+M2 adds append-only decision and structured-condition persistence; submit/withdraw/approve/approve-with-conditions/return/reject/revoke commands; condition evidence submission, independent verification, policy-controlled waiver and persisted expiry; condition-linked restricted Readiness tasks with one-way state projection; tier-resolved server authority with standard/enhanced submitter separation and enhanced specialist-author separation; bilingual reasons and notifications; ETag, idempotency and audit records; and an exact actor-capability projection used by the UI.
+
+M3 uses one evaluator for explicit Publish/Unpublish, Registration open/close, Payment and Execute gates. Both enrollment command paths enforce Registration state; payment is deliberately fail-closed/unavailable without adding a provider; and execution confirmation is Package/scope-bound and limited by the policy-defined pre-event window. Structured gate results expose stable reason codes, bilingual explanations, responsible roles and next actions. Public and signed-in group lists revalidate lifecycle authority after cache reads. Accepted Plan, Event core, role, task, programme, roster, RAM, venue, travel and safeguarding mutations invoke Package invalidation hooks according to their authoritative source. History and enrollments are preserved while bound publication, registration and execution states safely converge. Presentation-only Event content is excluded from the governance source hash.
+
+Recurring Events now freeze occurrence-versioned programme, roster, venue and travel source references. An occurrence-bound venue change records a persistent scoped review in the occurrence, creates an accountable-owner task and audit/notification, invalidates the old occurrence Package, and leaves the series baseline and unrelated occurrences active. An approved replacement occurrence Package resolves the review and its task. Occurrence execution confirmation is persisted independently instead of changing Event-wide execution state. Exact scope filtering, history pagination/sort/status filters and occurrence lifecycle queries are reachable in the bilingual Package workspace.
+
+Package manifests now include stable trigger reasons, required specialist decisions, warnings and seven ordered bilingual summary sections rendered with section navigation. Condition evidence references become inaccessible after the 90-day post-Event retention boundary while preserving only their irreversible hash and audit timestamps; audit entries never copy the reference content.
+
+The remaining verification work is operational rollout/backfill evidence, broader public-URL/SEO/cache and role-matrix regression coverage, and signed-in browser verification at target breakpoints. A real payment boundary remains intentionally unavailable and is outside this target unless separately authorised. The existing `EventApprovalDecision` flow still records official sponsorship decisions only and is not reused as Package Approval authority.
 
 ## Module status
 
@@ -52,8 +68,15 @@ The branch contains these Event Composition migrations:
 - `20260826184322_AddChildConsentCheckIn`
 - `20260826215739_AddEventActivityTypePlanning`
 - `20260827002820_AddEventActivityTemplateCatalog`
+- `20260902081531_AddEventPackageApprovalFoundation`
+- `20260902085209_AddEventPackageDecisionAndPublishGate`
+- `20260902091325_AddEventRegistrationGate`
+- `20260902091903_AddEventExecutionGate`
+- `20260902094710_AddEventPackageApprovalDelegation`
+- `20260902105449_AddEventPackageConditionReadinessTask`
+- `20260902115816_AddEventOccurrenceExecutionAndEvidenceRetention`
 
-This documentation refactor did not apply a migration or inspect any database migration history. Historical branch evidence says these migrations were generated and SQL generation was checked but no database was changed; that external application state is **not re-verified here**.
+On 2026-09-03 the seven Event Package migrations were applied to the configured dedicated Azure development database, rolled back together to `20260830122558_NormalizePageImageUrls`, and then reapplied successfully. The database was initially behind by eleven prerequisite migrations; those prerequisites were applied once before the isolated seven-migration rollback rehearsal. The DbMigrator then completed against the restored current schema. No production database or application deployment was involved.
 
 ## Recently completed vertical slices present in source
 
@@ -63,9 +86,11 @@ This documentation refactor did not apply a migration or inspect any database mi
 - Transport manifest readiness: first usable transport portion of `MOVE.STAY`; accommodation remains open.
 - Child consent and check-in: first usable `SAFEGUARDING.CHILD` slice.
 - Activity Type planning and Event-template administration: four immutable categories, sixteen presets, immutable versions, active-template resolution, and dedicated admin permission.
+- Event Package M2 first usable slice: immutable source-derived snapshots, formal submit/decision history, tier/separation authorization, explicit publication state, enforced Publish gate, cache invalidation, and bilingual workspace controls.
 
 ## Open implementation gaps
 
+- Event Package Approval still needs expanded URL/SEO/cache and platform-emergency role regression tests plus signed-in browser/end-to-end verification. Payment remains explicitly unavailable rather than silently bypassed.
 - No finance business persistence/API/UI for budgets, fees, claims, refunds, reconciliation, or close-out.
 - No food/hospitality business persistence/API/UI for dietary summaries, menus, service, safety, or cleanup.
 - No live festival operations flow for zone state, crowd flow, first aid, command log, weather, or evacuation.
@@ -85,13 +110,29 @@ node docs/events/scripts/generate-event-docs.mjs --check
 
 The generator validates JSON parsing, exact module/archetype counts and order, uniqueness, module dependencies, archetype → Activity Type references, surface → module references, bilingual `{ en, zh }` names/labels, API method/path uniqueness, local documentation links, generated-output freshness, and three-language overview structure.
 
-Checks run against the current source during this refactor:
+Checks run against the current source during the Event Package Approval contract slice:
 
-- `node docs/events/scripts/generate-event-docs.mjs --check` — passed; also matched backend module, Activity Type/archetype, and Surface Registry definitions.
-- `npm run test:event-composition` — 31 passed, 0 failed.
-- Local browser render at 390px and desktop width — the three-language overview switched among all languages with no horizontal overflow; the long handbook validated its machine contract, opened mobile navigation, switched Traditional Chinese/English, and had no horizontal overflow.
+- `node docs/events/scripts/generate-event-docs.mjs` — passed and regenerated the three-language overview and long handbook from authoritative sources.
+- `node docs/events/scripts/generate-event-docs.mjs --check` — passed; also matched backend module, Activity Type/archetype, and Surface Registry definitions and validated the Event Package contract additions.
+- Direct Node execution of the seven Event Composition frontend suites plus the application-dialog guard — 35 passed, 0 failed. The tests cover controlled surfaces, the top-level Governance tab, seven-section Package navigation, scoped history, formal confirmation modals, mutation concurrency headers, operations state, venue, travel, safeguarding, template administration and the ban on blocking browser dialogs.
+- `node --test cloudflare/speed-layer/index.test.mjs` — 103 passed, 0 failed, including anonymous/member Event-cache separation, public upcoming Event caching, user-specific enrollment bypass, event-mutation eviction and conditional revalidation behavior.
+- `dotnet restore backend/Alife.sln` followed by `dotnet build backend/Alife.sln --no-restore` — passed with 0 errors; two existing `NU1510` package-pruning warnings remain.
+- `dotnet test backend/tests/Alife.Tests.Unit/Alife.Tests.Unit.csproj --no-restore --filter FullyQualifiedName~Alife.Tests.Unit.Events` — 107 passed, 0 failed, including eleven Event Package foundation/decision/Publish-gate tests.
+- `dotnet test backend/Alife.sln --no-restore` — 507 passed, 0 failed against the current source after the condition-retention, seven-section manifest, top-level Governance surface and occurrence-local execution changes. The focused `EventPackageFoundationTests` run passes 31/31.
+- EF generated `20260902081531_AddEventPackageApprovalFoundation`; forward and reverse SQL generation both passed. Inspection confirmed only the three intended Package/policy/source tables, scope checks, foreign keys, and filtered uniqueness indexes.
+- EF generated `20260902085209_AddEventPackageDecisionAndPublishGate`; forward and reverse SQL generation both passed. Inspection confirmed the intended decision/condition tables plus backward-compatible `legacyImplicit` publication fields and restrictive foreign keys.
+- EF generated `20260902091325_AddEventRegistrationGate` and `20260902091903_AddEventExecutionGate`; forward and combined reverse SQL generation passed. Inspection confirmed six lifecycle fields per gate, sequential concurrency-token defaults, indexes, and restrictive Package/Member foreign keys.
+- EF generated `20260902094710_AddEventPackageApprovalDelegation`; forward and reverse SQL generation passed after rebuilding the migration assembly. Inspection confirmed the scoped delegation check constraint, four restrictive foreign keys, bounded text fields, concurrency token and authority/expiry lookup indexes.
+- EF generated `20260902105449_AddEventPackageConditionReadinessTask`; inspection confirms the nullable restrictive FK and filtered unique index linking one authoritative condition to one restricted task. It has not been applied to a database.
+- EF generated `20260902115816_AddEventOccurrenceExecutionAndEvidenceRetention`; forward/reverse/idempotent SQL generation passed. Inspection confirms occurrence-local execution columns, sequential concurrency token, restrictive Package/Member foreign keys and evidence hash/expiry/unavailable fields. `dotnet ef migrations has-pending-model-changes` reports no pending model changes.
+- Dedicated Azure development database rehearsal — passed: all pending prerequisites and the seven Package migrations applied; the seven Package migrations then reverted in reverse order to `20260830122558_NormalizePageImageUrls` and reapplied in forward order. DbMigrator completed afterward with the current schema and seed path.
+- Dedicated Azure development legacy rehearsal — passed: a fixed legacy Event/Plan cohort generated a real Package through `IEventPackageService`, and the persisted `dryRun` policy resolved to `timeLimitedCompatibility`. A fixed Demo Leader account and a three-occurrence complex Event with registration, children, transport, venue, programme, roster and RAM modules remain available for signed-in browser acceptance.
+- Current forward SQL from the pre-Package baseline through the latest Package migration, reverse SQL for the latest migration, and an idempotent Package migration script were regenerated successfully and inspected during final verification. Migration listing could not query the configured SQL Server, so applied/pending database state remains intentionally unverified and no database was changed.
+- Frontend `tsc -p cloudflare/alife-app/tsconfig.json --noEmit` — passed against the current source, including the scoped Package workspace, structured gate cards, history controls and confirmation flow. The composite `tsc -b` check still stops on pre-existing TanStack collection declaration incompatibilities and downstream `unknown` projections outside the Event Package files; the independent Vite production build below was run successfully.
+- Direct `vite build` — passed after 3,245 modules transformed and generated the PWA service worker. Existing bundle-size and mixed static/dynamic `idb-keyval` warnings remain; no deployment was performed.
+- `git diff --check -- docs/events` — passed with line-ending notices only and no whitespace error.
 
-The long-form template retains historical verification prose for presentation continuity. Those old counts are not current verification evidence and are subordinate to this file. No migration, deployment, or signed-in browser matrix is claimed by this documentation refactor.
+The long-form template retains historical verification prose for presentation continuity. Those old counts are not current verification evidence and are subordinate to this file. A local production preview loaded successfully in the in-app browser, but the available session stopped at onboarding without an authenticated API/test Event, so the signed-in Governance workflow and its 320px/tablet/desktop matrix remain explicitly unverified. The development-database rehearsal above is complete; no application deployment is claimed.
 
 ## Historical-document inconsistencies resolved
 
@@ -102,7 +143,8 @@ The long-form template retains historical verification prose for presentation co
 
 ## Recommended next slices
 
-1. `PEOPLE.REGISTRATION`: atomic capacity and waitlist state transitions with participant/manager projections and notifications.
-2. `SAFETY.RAM`: versioned policy evidence, expiry, change-triggered review, and exception audit.
-3. `COMMS.FOLLOWUP`: human-confirmed Event change broadcasts using existing in-app notification infrastructure.
-4. `MONEY.FINANCE`: minor-unit budget, expense claim, independent approval, and close-out without adding a payment provider.
+1. Run and document the legacy dry-run cohort exercise, enforced transition and rollback-read path without applying migrations to a shared database.
+2. Expand automated bypass tests across anonymous URLs, signed-in group lists, enrollment routes, shared-cache revalidation, and exact role/delegation negative cases.
+3. Complete signed-in browser verification in English and Chinese at 320px, tablet and desktop widths, including occurrence switching, conflict/retry, condition and history controls.
+4. Verify the condition evidence retention boundary with a disposable evidence record in the development database and review any jurisdiction-specific change to the default 90-day policy before production rollout.
+5. Resume the existing module roadmap after the approval backbone is hardened: registration capacity/waitlist, versioned RAM evidence, audited communication delivery, then finance core.

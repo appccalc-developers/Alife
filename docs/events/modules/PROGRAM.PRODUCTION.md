@@ -36,6 +36,10 @@ At least one accepted `programme.lead` who is an Event team member. The lead or 
 
 `programme-owner-assigned`, `required-items-confirmed`, and `production-check-complete`.
 
+### Event Package contribution
+
+Contributes occurrence/session structure, programme version, owner coverage, required-item/content confirmation, rehearsal/production readiness, and blockers. Public copy remains a draft until the Publish gate passes. Programme-only cosmetic changes do not automatically invalidate overall approval; policy-classified operational or governance-critical changes identify the affected scope.
+
 ### User experience
 
 An occurrence-first editor supports ordered Sessions and minute-level ProgramItems, explicit ownership, conflict-safe updates, print/run-sheet output, and bilingual display.

@@ -57,6 +57,12 @@ Event Plan
 
 模块是受控的产品能力，不是任意运行时代码。每个模块定义 ActivationRules、Dependencies、RoleRequirements、WorkflowContributions、DataClassification、ReadinessRules 和 Version。
 
+### 活动方案正式审批
+
+Event Package Approval 是 Plan 接受之后、发布／开放报名／收款／确认执行之前的独立治理环节。系统从当前 Plan、版本化治理政策、活动范围和各模块的最小必要摘要生成不可变 Package；提交后，由服务器确认有资格且与提交人适当分离的审批人作出批准、附条件批准或拒绝决定。Package 审批不取代 RAM、儿童保护、财务等专业审批，也不会自动触发后续动作。
+
+审批只对绑定的 Plan、Package 版本、政策版本、来源向量和明确范围有效。重要来源变更、专业审批撤销或过期、条件失效会使相关生命周期门禁失效，并向操作者返回可解释的阻断原因。已有活动不会被补造历史批准；它们只按版本化迁移政策从 `off`、`dryRun` 进入 `enforced`。Plan B 和自动后备方案启用不在当前范围内。
+
 ### 人工确认与 AI 权限边界
 
 组合只生成候选方案。服务器在接受时重新组合并检查 hash、并发和幂等性；只有明确的人工接受才能建立权威、版本化且不可变的 Event Plan snapshot。以后修改原型、模板、模块或政策，不得改写已接受方案或历史实例。
@@ -130,6 +136,12 @@ Event Plan
 
 模組是受控的產品能力，不是任意 runtime 程式碼。每個模組定義 ActivationRules、Dependencies、RoleRequirements、WorkflowContributions、DataClassification、ReadinessRules 和 Version。
 
+### 活動方案正式審批
+
+Event Package Approval 是 Plan 接受之後、發布／開放報名／收款／確認執行之前的獨立治理環節。系統從當前 Plan、版本化治理政策、活動範圍和各模組的最小必要摘要產生不可變 Package；提交後，由伺服器確認有資格且與提交人適當分離的審批人作出批准、附條件批准或拒絕決定。Package 審批不取代 RAM、兒童保護、財務等專業審批，也不會自動觸發後續動作。
+
+審批只對綁定的 Plan、Package 版本、政策版本、來源向量和明確範圍有效。重要來源變更、專業審批撤銷或過期、條件失效會使相關生命週期門禁失效，並向操作者回傳可解釋的阻斷原因。既有活動不會被補造歷史批准；它們只按版本化遷移政策從 `off`、`dryRun` 進入 `enforced`。Plan B 和自動後備方案啟用不在目前範圍內。
+
 ### 人工確認與 AI 權限邊界
 
 組合只產生候選方案。伺服器在接受時重新組合並檢查 hash、並行控制和冪等性；只有明確的人工接受才能建立權威、版本化且不可變的 Event Plan snapshot。以後修改原型、範本、模組或政策，不得改寫已接受方案或歷史實例。
@@ -202,6 +214,12 @@ These four archetypes are immutable system categories and safety boundaries. Act
 - [COMMS.FOLLOWUP](modules/COMMS.FOLLOWUP.md)
 
 Modules are controlled product capabilities, not arbitrary runtime code. Every module defines ActivationRules, Dependencies, RoleRequirements, WorkflowContributions, DataClassification, ReadinessRules, and Version.
+
+### Event Package Approval
+
+Event Package Approval is a distinct governance step after Plan acceptance and before publication, registration opening, payment acceptance, or execution confirmation. The system generates an immutable Package from the current Plan, versioned governance policy, explicit scope, and each module's minimum necessary summary. After submission, a server-verified eligible approver with appropriate separation from the submitter records approval, conditional approval, or rejection. Package approval neither replaces specialist RAM, safeguarding, or finance decisions nor performs a downstream action automatically.
+
+Approval is valid only for the bound Plan, Package version, policy version, source vector, and explicit scope. Material source changes, revoked or expired specialist decisions, and failed conditions invalidate the affected lifecycle gates with explainable blockers. Existing Events receive no invented historical approval; they enter enforcement only through a versioned `off`, `dryRun`, then `enforced` migration policy. Plan B and automatic contingency activation are outside the current scope.
 
 ### Human confirmation and AI authority
 

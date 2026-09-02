@@ -36,6 +36,10 @@ At least one accepted `travel.coordinator` who is an Event team member. Coordina
 
 `transport-and-stay-facts-confirmed`, `drivers-and-vehicles-qualified`, and `manifests-and-night-roles-complete`, integrated with rather than duplicating RAM evidence.
 
+### Event Package contribution
+
+Contributes transport/accommodation requirement, occurrence journey coverage, driver/vehicle qualification summary, capacity/manifests completeness, overnight-duty state, source versions, and blockers. It never copies passenger identities, personal journeys, room occupants, contact data, or documents. Route, vehicle, driver, accommodation, and overnight-responsibility changes are classified for scoped re-approval and RAM impact.
+
 ### User experience
 
 Coordinators manage bilingual stops, vehicle capacity, and restricted passengers with ETag/idempotency protection. Participants see only their own journey. Accommodation will use the same minimum-disclosure pattern.

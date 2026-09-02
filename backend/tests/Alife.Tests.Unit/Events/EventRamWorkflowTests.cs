@@ -76,7 +76,8 @@ public class EventRamWorkflowTests
         var authorization = Substitute.For<IGroupAuthorizationService>();
         authorization.IsLeaderOrCoLeaderAsync(groupId, leaderId, Arg.Any<CancellationToken>()).Returns(true);
         var cache = Substitute.For<IEventCacheInvalidationService>();
-        var handler = new SaveEventRamCommandHandler(dbContext, authorization, cache);
+        var handler = new SaveEventRamCommandHandler(dbContext, authorization, cache,
+            new EventPackageInvalidationService(dbContext));
 
         var result = await handler.Handle(new SaveEventRamCommand(groupEvent.Id, leaderId, ValidRamJson), CancellationToken.None);
 
@@ -120,8 +121,9 @@ public class EventRamWorkflowTests
         var authorization = Substitute.For<IGroupAuthorizationService>();
         authorization.IsLeaderOrCoLeaderAsync(groupId, leaderId, Arg.Any<CancellationToken>()).Returns(true);
         var cache = Substitute.For<IEventCacheInvalidationService>();
-        var submitHandler = new SubmitEventRamCommandHandler(dbContext, authorization, cache);
-        var approveHandler = new ApproveEventRamCommandHandler(dbContext, cache);
+        var invalidation = new EventPackageInvalidationService(dbContext);
+        var submitHandler = new SubmitEventRamCommandHandler(dbContext, authorization, cache, invalidation);
+        var approveHandler = new ApproveEventRamCommandHandler(dbContext, cache, invalidation);
 
         var submitted = await submitHandler.Handle(new SubmitEventRamCommand(groupEvent.Id, leaderId), CancellationToken.None);
         var approved = await approveHandler.Handle(new ApproveEventRamCommand(groupEvent.Id, auditorId), CancellationToken.None);

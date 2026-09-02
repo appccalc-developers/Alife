@@ -36,6 +36,10 @@ At least one `finance.owner` and one independent `finance.approver`. Each role i
 
 `currency-defined`, `budget-approved`, and `payment-and-refund-terms-published`.
 
+### Event Package contribution
+
+Contributes money-flow presence, currency, policy-safe aggregate budget/fee summary, refund terms, finance decision reference/version/expiry, and blockers. It never copies bank, payer, claim, invoice, or line-item detail into the Package. Any payment or fee acceptance additionally requires the Registration gate and current Finance approval; no payment provider is introduced by Event Package Approval.
+
 ### User experience
 
 Owners prepare records; independent approvers review explicit versions. Participants see only their own fee/refund projection. Conflict, approval, and close-out states remain visible and auditable.

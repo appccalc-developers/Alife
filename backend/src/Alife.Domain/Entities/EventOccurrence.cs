@@ -18,8 +18,16 @@ public sealed class EventOccurrence
     public DateTime UpdatedUtc { get; set; }
     public Guid ProgrammeConcurrencyToken { get; set; } = Guid.NewGuid();
     public Guid RosterConcurrencyToken { get; set; } = Guid.NewGuid();
+    public EventExecutionStatus ExecutionStatus { get; set; } = EventExecutionStatus.NotConfirmed;
+    public Guid? ExecutionPackageId { get; set; }
+    public Guid? ExecutionConfirmedByMemberId { get; set; }
+    public DateTime? ExecutionConfirmedUtc { get; set; }
+    public EventPackageEnforcementMode ExecutionGateMode { get; set; } = EventPackageEnforcementMode.Off;
+    public Guid ExecutionConcurrencyToken { get; set; } = Guid.NewGuid();
 
     public GroupEvent Event { get; set; } = null!;
+    public EventPackage? ExecutionPackage { get; set; }
+    public Member? ExecutionConfirmedByMember { get; set; }
     public ICollection<EventSession> Sessions { get; set; } = [];
     public ICollection<EventZone> Zones { get; set; } = [];
     public ICollection<EventServiceSlot> ServiceSlots { get; set; } = [];

@@ -19,6 +19,8 @@ public static class AdminPermissionCatalog
     public const string ReviewPages = "admin.pages.review";
     public const string AuditEvents = "admin.events.audit";
     public const string SponsorEvents = "admin.events.sponsor";
+    public const string ApproveEventPackages = "admin.events.approvePackages";
+    public const string ManageEventPackagePolicies = "admin.events.managePackagePolicies";
     public const string ManageEventTemplates = "admin.events.manageTemplates";
     public const string SyncSermons = "admin.sermons.sync";
     public const string RefreshCloudflareCache = "admin.cloudflareCache.refresh";
@@ -40,6 +42,8 @@ public static class AdminPermissionCatalog
         Permission(ReviewPages, "Review homepage publication", "审核首页内容发布", "Review public page submissions and manage homepage navigation and publication metadata.", "审核公开页面提交，并管理首页导航和发布信息。"),
         Permission(AuditEvents, "Review event risk assessments", "审核活动风险评估", "View restricted event RAM details and approve submitted assessments.", "查看受限的活动 RAM 详情并批准已提交的评估。"),
         Permission(SponsorEvents, "Decide church event sponsorship", "决定教会活动赞助", "Approve or reject formal root-church sponsorship for an event without granting unrelated administration access.", "批准或拒绝活动的根教会正式赞助，但不授予其他管理权限。"),
+        Permission(ApproveEventPackages, "Approve enhanced Event Packages", "审批增强级活动方案", "Make formal whole-package decisions for enhanced-governance events, subject to separation-of-duties checks.", "在职责分离检查通过后，对增强治理等级的活动方案作出正式整体决定。"),
+        Permission(ManageEventPackagePolicies, "Manage Event Package policies", "管理活动方案政策", "Publish immutable governance-policy versions and controlled rollout modes for Event Package approval.", "发布不可变的活动方案治理政策版本及受控上线模式。"),
         Permission(ManageEventTemplates, "Manage event templates", "管理活动模板", "Create, edit, activate, and deactivate the platform event templates available under the four fixed event categories.", "在四个固定活动分类下创建、编辑、启用及停用平台活动模板。"),
         Permission(SyncSermons, "Synchronize sermons", "同步讲道", "Run a manual synchronization from configured sermon sources.", "从已配置的讲道来源执行手动同步。"),
         Permission(RefreshCloudflareCache, "Refresh shared edge caches", "刷新共享边缘缓存", "Invalidate shared Cloudflare caches for an approved church or group scope.", "使获准教会或小组范围内的 Cloudflare 共享缓存失效。"),

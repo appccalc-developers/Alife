@@ -32,6 +32,12 @@ public interface IAlifeDbContext
     DbSet<EventActivityTemplateVersion> EventActivityTemplateVersions { get; }
     DbSet<EventFactSet> EventFactSets { get; }
     DbSet<EventPlanSnapshot> EventPlanSnapshots { get; }
+    DbSet<EventPackageGovernancePolicyVersion> EventPackageGovernancePolicyVersions { get; }
+    DbSet<EventPackage> EventPackages { get; }
+    DbSet<EventPackageSourceReference> EventPackageSourceReferences { get; }
+    DbSet<EventPackageDecision> EventPackageDecisions { get; }
+    DbSet<EventPackageCondition> EventPackageConditions { get; }
+    DbSet<EventPackageApprovalDelegation> EventPackageApprovalDelegations { get; }
     DbSet<EventRoleAssignment> EventRoleAssignments { get; }
     DbSet<EventTeamMember> EventTeamMembers { get; }
     DbSet<EventTask> EventTasks { get; }
@@ -86,4 +92,10 @@ public interface IAlifeDbContext
     DbSet<ForumComment> ForumComments { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+    Task<IAlifeTransaction?> BeginSerializableTransactionAsync(CancellationToken cancellationToken = default);
+}
+
+public interface IAlifeTransaction : IAsyncDisposable
+{
+    Task CommitAsync(CancellationToken cancellationToken = default);
 }

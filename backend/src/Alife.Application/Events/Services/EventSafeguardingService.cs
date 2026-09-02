@@ -11,7 +11,8 @@ namespace Alife.Application.Events.Services;
 
 public sealed class EventSafeguardingService(
     IAlifeDbContext db,
-    IGroupAuthorizationService authorization) : IEventSafeguardingService
+    IGroupAuthorizationService authorization,
+    IEventPackageInvalidationService? packageInvalidation = null) : IEventSafeguardingService
 {
     public const string ModuleCode = "SAFEGUARDING.CHILD";
     public const string Classification = "roleRestricted";
@@ -78,7 +79,7 @@ public sealed class EventSafeguardingService(
         }
         AddAudit("safeguarding.policy.configure", access.Value!, memberId, null, now);
         db.EventIdempotencyRecords.Add(NewIdempotency("safeguarding.policy.configure", eventId, idempotencyKey, memberId, request, configuration.Id, now));
-        return await SaveWorkspace(access.Value!, null, true, "The safeguarding policy changed concurrently; reload and try again.", ct);
+        return await SaveWorkspace(access.Value!, memberId, null, true, true, "The safeguarding policy changed concurrently; reload and try again.", ct);
     }
 
     public async Task<AppResult<EventSafeguardingWorkspaceDto>> RegisterChildAsync(Guid eventId, Guid memberId, CreateEventChildRegistrationRequest request, string idempotencyKey, CancellationToken ct)
@@ -101,7 +102,7 @@ public sealed class EventSafeguardingService(
         db.EventChildRegistrations.Add(child);
         AddAudit("safeguarding.child.register", access.Value!, memberId, child.Id, now);
         db.EventIdempotencyRecords.Add(NewIdempotency("safeguarding.child.register", eventId, idempotencyKey, memberId, request, child.Id, now));
-        return await SaveWorkspace(access.Value!, null, true, "The child registration changed concurrently; reload and try again.", ct);
+        return await SaveWorkspace(access.Value!, memberId, null, true, true, "The child registration changed concurrently; reload and try again.", ct);
     }
 
     public async Task<AppResult<EventSafeguardingWorkspaceDto>> AddGuardianAsync(Guid eventId, Guid childId, Guid memberId, CreateEventChildGuardianRequest request, string ifMatch, string idempotencyKey, CancellationToken ct)
@@ -130,7 +131,7 @@ public sealed class EventSafeguardingService(
         db.EventChildGuardianRelationships.Add(relationship);
         AddAudit("safeguarding.guardian.create", access.Value!, memberId, child.Id, now);
         db.EventIdempotencyRecords.Add(NewIdempotency("safeguarding.guardian.create", childId, idempotencyKey, memberId, request, relationship.Id, now));
-        return await SaveWorkspace(access.Value!, null, true, "The guardian relationship changed concurrently; reload and try again.", ct);
+        return await SaveWorkspace(access.Value!, memberId, null, true, true, "The guardian relationship changed concurrently; reload and try again.", ct);
     }
 
     public async Task<AppResult<EventSafeguardingMyContextDto>> ConfirmGuardianAsync(Guid eventId, Guid relationshipId, Guid memberId, string ifMatch, string idempotencyKey, CancellationToken ct)
@@ -150,7 +151,7 @@ public sealed class EventSafeguardingService(
         AddAudit("safeguarding.guardian.confirm", relationship.ChildRegistration.Event, memberId,
             relationship.ChildRegistrationId, now);
         db.EventIdempotencyRecords.Add(NewIdempotency("safeguarding.guardian.confirm", relationshipId, idempotencyKey, memberId, request, relationship.Id, now));
-        return await SaveMyContext(eventId, memberId, "The guardian relationship changed concurrently; reload and try again.", ct);
+        return await SaveMyContext(eventId, memberId, true, "The guardian relationship changed concurrently; reload and try again.", ct);
     }
 
     public async Task<AppResult<EventSafeguardingMyContextDto>> RecordConsentAsync(Guid eventId, Guid relationshipId, Guid memberId, RecordEventChildConsentRequest request, string ifMatch, string idempotencyKey, CancellationToken ct)
@@ -178,7 +179,7 @@ public sealed class EventSafeguardingService(
         AddAudit(request.Decision == EventGuardianConsentDecision.Granted ? "safeguarding.consent.grant" : "safeguarding.consent.withdraw",
             relationship.ChildRegistration.Event, memberId, relationship.ChildRegistrationId, now);
         db.EventIdempotencyRecords.Add(NewIdempotency("safeguarding.consent.record", relationshipId, idempotencyKey, memberId, request, record.Id, now));
-        return await SaveMyContext(eventId, memberId, "Consent changed concurrently; reload and try again.", ct);
+        return await SaveMyContext(eventId, memberId, true, "Consent changed concurrently; reload and try again.", ct);
     }
 
     public async Task<AppResult<EventSafeguardingMyContextDto>> AddCollectorAsync(Guid eventId, Guid childId, Guid memberId, CreateEventChildCollectorRequest request, string idempotencyKey, CancellationToken ct)
@@ -199,7 +200,7 @@ public sealed class EventSafeguardingService(
         db.EventChildAuthorisedCollectors.Add(collector);
         AddAudit("safeguarding.collector.authorize", relationship.ChildRegistration.Event, memberId, childId, now);
         db.EventIdempotencyRecords.Add(NewIdempotency("safeguarding.collector.authorize", childId, idempotencyKey, memberId, request, collector.Id, now));
-        return await SaveMyContext(eventId, memberId, "Collector authority changed concurrently; reload and try again.", ct);
+        return await SaveMyContext(eventId, memberId, true, "Collector authority changed concurrently; reload and try again.", ct);
     }
 
     public async Task<AppResult<EventSafeguardingMyContextDto>> RevokeCollectorAsync(Guid eventId, Guid collectorId, Guid memberId, string ifMatch, string idempotencyKey, CancellationToken ct)
@@ -220,7 +221,7 @@ public sealed class EventSafeguardingService(
         AddAudit("safeguarding.collector.revoke", collector.ChildRegistration.Event, memberId,
             collector.ChildRegistrationId, now);
         db.EventIdempotencyRecords.Add(NewIdempotency("safeguarding.collector.revoke", collectorId, idempotencyKey, memberId, request, collector.Id, now));
-        return await SaveMyContext(eventId, memberId, "Collector authority changed concurrently; reload and try again.", ct);
+        return await SaveMyContext(eventId, memberId, true, "Collector authority changed concurrently; reload and try again.", ct);
     }
 
     public async Task<AppResult<EventSafeguardingWorkspaceDto>> SaveWorkerEvidenceAsync(Guid eventId, Guid memberId, SaveEventSafeguardingWorkerEvidenceRequest request, string idempotencyKey, CancellationToken ct)
@@ -255,7 +256,7 @@ public sealed class EventSafeguardingService(
         evidence.VerifiedByMemberId = memberId; evidence.VerifiedUtc = now; evidence.ConcurrencyToken = Guid.NewGuid();
         AddAudit("safeguarding.worker-evidence.save", access.Value!, memberId, null, now);
         db.EventIdempotencyRecords.Add(NewIdempotency("safeguarding.worker-evidence.save", eventId, idempotencyKey, memberId, request, evidence.Id, now));
-        return await SaveWorkspace(access.Value!, null, true, "Worker eligibility evidence changed concurrently; reload and try again.", ct);
+        return await SaveWorkspace(access.Value!, memberId, null, true, true, "Worker eligibility evidence changed concurrently; reload and try again.", ct);
     }
 
     public async Task<AppResult<EventSafeguardingWorkspaceDto>> CheckInAsync(Guid eventId, Guid occurrenceId, Guid childId, Guid memberId, string ifMatch, string idempotencyKey, CancellationToken ct)
@@ -285,7 +286,7 @@ public sealed class EventSafeguardingService(
         db.EventChildAttendanceRecords.Add(attendance);
         AddAudit("safeguarding.occurrence.check-in", duty.Value!, memberId, childId, now);
         db.EventIdempotencyRecords.Add(NewIdempotency("safeguarding.occurrence.check-in", occurrenceId, idempotencyKey, memberId, new { childId }, attendance.Id, now));
-        return await SaveWorkspace(duty.Value!, occurrenceId, await IsLead(eventId, memberId, ct), "Check-in changed concurrently; reload and try again.", ct);
+        return await SaveWorkspace(duty.Value!, memberId, occurrenceId, await IsLead(eventId, memberId, ct), false, "Check-in changed concurrently; reload and try again.", ct);
     }
 
     public async Task<AppResult<EventSafeguardingWorkspaceDto>> CheckOutAsync(Guid eventId, Guid occurrenceId, Guid childId, Guid memberId, CheckOutEventChildRequest request, string ifMatch, string idempotencyKey, CancellationToken ct)
@@ -309,7 +310,7 @@ public sealed class EventSafeguardingService(
         attendance.CheckedOutUtc = now; attendance.CollectorId = collector.Id; attendance.ConcurrencyToken = Guid.NewGuid();
         AddAudit("safeguarding.occurrence.check-out", duty.Value!, memberId, childId, now);
         db.EventIdempotencyRecords.Add(NewIdempotency("safeguarding.occurrence.check-out", occurrenceId, idempotencyKey, memberId, request, attendance.Id, now));
-        return await SaveWorkspace(duty.Value!, occurrenceId, await IsLead(eventId, memberId, ct), "Check-out changed concurrently; reload and try again.", ct);
+        return await SaveWorkspace(duty.Value!, memberId, occurrenceId, await IsLead(eventId, memberId, ct), false, "Check-out changed concurrently; reload and try again.", ct);
     }
 
     private async Task<EventSafeguardingWorkspaceDto> BuildWorkspace(GroupEvent groupEvent, Guid? occurrenceId, bool fullAccess, CancellationToken ct)
@@ -455,16 +456,28 @@ public sealed class EventSafeguardingService(
         => await authorization.IsApprovedMemberAsync(groupEvent.GroupId, memberId, ct) ||
            await db.EventEnrollments.AsNoTracking().AnyAsync(x => x.EventId == groupEvent.Id && x.MemberId == memberId, ct);
 
-    private async Task<AppResult<EventSafeguardingWorkspaceDto>> SaveWorkspace(GroupEvent groupEvent, Guid? occurrenceId, bool fullAccess, string conflict, CancellationToken ct)
+    private async Task<AppResult<EventSafeguardingWorkspaceDto>> SaveWorkspace(
+        GroupEvent groupEvent, Guid actorMemberId, Guid? occurrenceId, bool fullAccess,
+        bool invalidatesPackage, string conflict, CancellationToken ct)
     {
+        if (invalidatesPackage && packageInvalidation is not null)
+            await packageInvalidation.InvalidateForModuleChangeAsync(groupEvent, actorMemberId, ModuleCode,
+                "event.safeguarding.changed", "governanceCritical", ct);
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateConcurrencyException) { return AppResult<EventSafeguardingWorkspaceDto>.PreconditionFailed(conflict); }
         catch (DbUpdateException) { return AppResult<EventSafeguardingWorkspaceDto>.Conflict(conflict); }
         return AppResult<EventSafeguardingWorkspaceDto>.Success(await BuildWorkspace(groupEvent, occurrenceId, fullAccess, ct));
     }
 
-    private async Task<AppResult<EventSafeguardingMyContextDto>> SaveMyContext(Guid eventId, Guid memberId, string conflict, CancellationToken ct)
+    private async Task<AppResult<EventSafeguardingMyContextDto>> SaveMyContext(
+        Guid eventId, Guid memberId, bool invalidatesPackage, string conflict, CancellationToken ct)
     {
+        if (invalidatesPackage && packageInvalidation is not null)
+        {
+            var groupEvent = await db.GroupEvents.FirstAsync(x => x.Id == eventId, ct);
+            await packageInvalidation.InvalidateForModuleChangeAsync(groupEvent, memberId, ModuleCode,
+                "event.safeguarding.changed", "governanceCritical", ct);
+        }
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateConcurrencyException) { return AppResult<EventSafeguardingMyContextDto>.PreconditionFailed(conflict); }
         catch (DbUpdateException) { return AppResult<EventSafeguardingMyContextDto>.Conflict(conflict); }

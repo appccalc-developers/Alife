@@ -2022,6 +2022,33 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("exceptions_json");
 
+                    b.Property<Guid>("ExecutionConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("execution_concurrency_token")
+                        .HasDefaultValueSql("NEWSEQUENTIALID()");
+
+                    b.Property<Guid?>("ExecutionConfirmedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("execution_confirmed_by_member_id");
+
+                    b.Property<DateTime?>("ExecutionConfirmedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("execution_confirmed_utc");
+
+                    b.Property<int>("ExecutionGateMode")
+                        .HasColumnType("int")
+                        .HasColumnName("execution_gate_mode");
+
+                    b.Property<Guid?>("ExecutionPackageId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("execution_package_id");
+
+                    b.Property<int>("ExecutionStatus")
+                        .HasColumnType("int")
+                        .HasColumnName("execution_status");
+
                     b.Property<string>("IncidentsJson")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)")
@@ -2060,6 +2087,12 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_event_composition_occurrences");
 
+                    b.HasIndex("ExecutionConfirmedByMemberId")
+                        .HasDatabaseName("ix_event_composition_occurrences_execution_confirmed_by_member_id");
+
+                    b.HasIndex("ExecutionPackageId")
+                        .HasDatabaseName("ix_event_composition_occurrences_execution_package_id");
+
                     b.HasIndex("EventId", "StartUtc")
                         .IsUnique()
                         .HasDatabaseName("ix_event_composition_occurrences_event_id_start_utc");
@@ -2067,7 +2100,576 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.HasIndex("Status", "StartUtc")
                         .HasDatabaseName("ix_event_composition_occurrences_status_start_utc");
 
+                    b.HasIndex("EventId", "ExecutionStatus", "StartUtc")
+                        .HasDatabaseName("ix_event_composition_occurrences_event_id_execution_status_start_utc");
+
                     b.ToTable("event_composition_occurrences", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventPackage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<int>("ApprovalValidityStatus")
+                        .HasColumnType("int")
+                        .HasColumnName("approval_validity_status");
+
+                    b.Property<Guid>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("concurrency_token");
+
+                    b.Property<string>("ContentHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("content_hash");
+
+                    b.Property<int>("CoverageMode")
+                        .HasColumnType("int")
+                        .HasColumnName("coverage_mode");
+
+                    b.Property<string>("CoveredOccurrenceIdsJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("covered_occurrence_ids_json");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("event_id");
+
+                    b.Property<int>("EventPlanVersion")
+                        .HasColumnType("int")
+                        .HasColumnName("event_plan_version");
+
+                    b.Property<Guid>("GeneratedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("generated_by_member_id");
+
+                    b.Property<DateTime>("GeneratedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("generated_utc");
+
+                    b.Property<string>("GovernancePolicyVersion")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)")
+                        .HasColumnName("governance_policy_version");
+
+                    b.Property<Guid>("GovernancePolicyVersionId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("governance_policy_version_id");
+
+                    b.Property<int>("GovernanceTier")
+                        .HasColumnType("int")
+                        .HasColumnName("governance_tier");
+
+                    b.Property<string>("ManifestJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("manifest_json");
+
+                    b.Property<string>("PackageSchemaVersion")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("package_schema_version");
+
+                    b.Property<Guid?>("ScopeId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("scope_id");
+
+                    b.Property<int>("ScopeType")
+                        .HasColumnType("int")
+                        .HasColumnName("scope_type");
+
+                    b.Property<string>("SourceVectorHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("source_vector_hash");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int")
+                        .HasColumnName("status");
+
+                    b.Property<Guid?>("SubmittedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("submitted_by_member_id");
+
+                    b.Property<DateTime?>("SubmittedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("submitted_utc");
+
+                    b.Property<Guid?>("SupersedesPackageId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("supersedes_package_id");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("int")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_packages");
+
+                    b.HasIndex("GeneratedByMemberId")
+                        .HasDatabaseName("ix_event_packages_generated_by_member_id");
+
+                    b.HasIndex("GovernancePolicyVersionId")
+                        .HasDatabaseName("ix_event_packages_governance_policy_version_id");
+
+                    b.HasIndex("ScopeId")
+                        .HasDatabaseName("ix_event_packages_scope_id");
+
+                    b.HasIndex("SubmittedByMemberId")
+                        .HasDatabaseName("ix_event_packages_submitted_by_member_id");
+
+                    b.HasIndex("SupersedesPackageId")
+                        .HasDatabaseName("ix_event_packages_supersedes_package_id");
+
+                    b.HasIndex("EventId", "ScopeType", "Version")
+                        .IsUnique()
+                        .HasDatabaseName("ix_event_packages_event_id_scope_type_version")
+                        .HasFilter("[scope_id] IS NULL");
+
+                    b.HasIndex("EventId", "ScopeType", "ScopeId", "Version")
+                        .IsUnique()
+                        .HasDatabaseName("ix_event_packages_event_id_scope_type_scope_id_version")
+                        .HasFilter("[scope_id] IS NOT NULL");
+
+                    b.HasIndex("EventId", "ScopeType", "ScopeId", "Status", "GeneratedUtc")
+                        .HasDatabaseName("ix_event_packages_event_id_scope_type_scope_id_status_generated_utc");
+
+                    b.ToTable("event_packages", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_event_packages_scope", "([scope_type] = 0 AND [scope_id] IS NULL) OR ([scope_type] = 1 AND [scope_id] IS NOT NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventPackageApprovalDelegation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("concurrency_token")
+                        .HasDefaultValueSql("NEWSEQUENTIALID()");
+
+                    b.Property<Guid>("DelegatedToMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("delegated_to_member_id");
+
+                    b.Property<DateTime>("ExpiresUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("expires_utc");
+
+                    b.Property<Guid>("GrantedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("granted_by_member_id");
+
+                    b.Property<DateTime>("GrantedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("granted_utc");
+
+                    b.Property<Guid>("OrganisationId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("organisation_id");
+
+                    b.Property<string>("PermissionCode")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)")
+                        .HasColumnName("permission_code");
+
+                    b.Property<string>("RevocationReasonEn")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)")
+                        .HasColumnName("revocation_reason_en");
+
+                    b.Property<string>("RevocationReasonZh")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)")
+                        .HasColumnName("revocation_reason_zh");
+
+                    b.Property<Guid?>("RevokedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("revoked_by_member_id");
+
+                    b.Property<DateTime?>("RevokedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("revoked_utc");
+
+                    b.Property<Guid?>("ScopeId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("scope_id");
+
+                    b.Property<int>("ScopeType")
+                        .HasColumnType("int")
+                        .HasColumnName("scope_type");
+
+                    b.Property<DateTime>("StartsUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("starts_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_package_approval_delegations");
+
+                    b.HasIndex("GrantedByMemberId")
+                        .HasDatabaseName("ix_event_package_approval_delegations_granted_by_member_id");
+
+                    b.HasIndex("RevokedByMemberId")
+                        .HasDatabaseName("ix_event_package_approval_delegations_revoked_by_member_id");
+
+                    b.HasIndex("DelegatedToMemberId", "StartsUtc", "ExpiresUtc", "RevokedUtc")
+                        .HasDatabaseName("ix_event_package_approval_delegations_delegated_to_member_id_starts_utc_expires_utc_revoked_utc");
+
+                    b.HasIndex("OrganisationId", "ScopeType", "ScopeId", "DelegatedToMemberId", "PermissionCode", "ExpiresUtc")
+                        .HasDatabaseName("ix_event_package_approval_delegations_organisation_id_scope_type_scope_id_delegated_to_member_id_permission_code_expires_utc");
+
+                    b.ToTable("event_package_approval_delegations", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_event_package_approval_delegations_scope", "([scope_type] = 0 AND [scope_id] IS NULL) OR ([scope_type] IN (1, 2) AND [scope_id] IS NOT NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventPackageCondition", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<int>("AppliesToGate")
+                        .HasColumnType("int")
+                        .HasColumnName("applies_to_gate");
+
+                    b.Property<Guid>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("concurrency_token");
+
+                    b.Property<DateTime>("DueUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("due_utc");
+
+                    b.Property<Guid>("EventPackageId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("event_package_id");
+
+                    b.Property<DateTime?>("EvidenceExpiresUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("evidence_expires_utc");
+
+                    b.Property<string>("EvidenceReference")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)")
+                        .HasColumnName("evidence_reference");
+
+                    b.Property<string>("EvidenceReferenceHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("evidence_reference_hash");
+
+                    b.Property<DateTime?>("EvidenceUnavailableUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("evidence_unavailable_utc");
+
+                    b.Property<DateTime?>("ExpiredUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("expired_utc");
+
+                    b.Property<string>("OwnerRoleRequirementKey")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)")
+                        .HasColumnName("owner_role_requirement_key");
+
+                    b.Property<Guid?>("ReadinessTaskId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("readiness_task_id");
+
+                    b.Property<Guid?>("SatisfiedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("satisfied_by_member_id");
+
+                    b.Property<DateTime?>("SatisfiedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("satisfied_utc");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int")
+                        .HasColumnName("status");
+
+                    b.Property<string>("TextEn")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasColumnName("text_en");
+
+                    b.Property<string>("TextZh")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasColumnName("text_zh");
+
+                    b.Property<Guid?>("VerifiedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("verified_by_member_id");
+
+                    b.Property<DateTime?>("VerifiedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("verified_utc");
+
+                    b.Property<Guid?>("WaivedByDecisionId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("waived_by_decision_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_package_conditions");
+
+                    b.HasIndex("ReadinessTaskId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_event_package_conditions_readiness_task_id")
+                        .HasFilter("[readiness_task_id] IS NOT NULL");
+
+                    b.HasIndex("SatisfiedByMemberId")
+                        .HasDatabaseName("ix_event_package_conditions_satisfied_by_member_id");
+
+                    b.HasIndex("VerifiedByMemberId")
+                        .HasDatabaseName("ix_event_package_conditions_verified_by_member_id");
+
+                    b.HasIndex("WaivedByDecisionId")
+                        .HasDatabaseName("ix_event_package_conditions_waived_by_decision_id");
+
+                    b.HasIndex("EventPackageId", "Status", "DueUtc")
+                        .HasDatabaseName("ix_event_package_conditions_event_package_id_status_due_utc");
+
+                    b.ToTable("event_package_conditions", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventPackageDecision", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ActorMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("actor_member_id");
+
+                    b.Property<DateTime>("DecidedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("decided_utc");
+
+                    b.Property<string>("DecisionAuthoritySnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("decision_authority_snapshot_json");
+
+                    b.Property<int>("DecisionType")
+                        .HasColumnType("int")
+                        .HasColumnName("decision_type");
+
+                    b.Property<DateTime>("EffectiveUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("effective_utc");
+
+                    b.Property<Guid>("EventPackageId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("event_package_id");
+
+                    b.Property<DateTime?>("ExpiresUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("expires_utc");
+
+                    b.Property<string>("InvalidatedReasonCode")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)")
+                        .HasColumnName("invalidated_reason_code");
+
+                    b.Property<string>("ReasonEn")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasColumnName("reason_en");
+
+                    b.Property<string>("ReasonZh")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasColumnName("reason_zh");
+
+                    b.Property<string>("RequestHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("request_hash");
+
+                    b.Property<Guid?>("RevokedByDecisionId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("revoked_by_decision_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_package_decisions");
+
+                    b.HasIndex("ActorMemberId")
+                        .HasDatabaseName("ix_event_package_decisions_actor_member_id");
+
+                    b.HasIndex("RevokedByDecisionId")
+                        .HasDatabaseName("ix_event_package_decisions_revoked_by_decision_id");
+
+                    b.HasIndex("EventPackageId", "DecidedUtc")
+                        .HasDatabaseName("ix_event_package_decisions_event_package_id_decided_utc");
+
+                    b.ToTable("event_package_decisions", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventPackageGovernancePolicyVersion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("EffectiveFromUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("effective_from_utc");
+
+                    b.Property<int>("EnforcementMode")
+                        .HasColumnType("int")
+                        .HasColumnName("enforcement_mode");
+
+                    b.Property<bool>("IsPublished")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_published");
+
+                    b.Property<Guid?>("OrganisationId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("organisation_id");
+
+                    b.Property<Guid>("PublishedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("published_by_member_id");
+
+                    b.Property<DateTime>("PublishedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("published_utc");
+
+                    b.Property<DateTime?>("RetiredUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("retired_utc");
+
+                    b.Property<string>("RulesJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("rules_json");
+
+                    b.Property<string>("SchemaVersion")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("schema_version");
+
+                    b.Property<string>("Version")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_package_governance_policy_versions");
+
+                    b.HasIndex("PublishedByMemberId")
+                        .HasDatabaseName("ix_event_package_governance_policy_versions_published_by_member_id");
+
+                    b.HasIndex("Version")
+                        .IsUnique()
+                        .HasDatabaseName("ix_event_package_governance_policy_versions_version")
+                        .HasFilter("[organisation_id] IS NULL");
+
+                    b.HasIndex("OrganisationId", "Version")
+                        .IsUnique()
+                        .HasDatabaseName("ix_event_package_governance_policy_versions_organisation_id_version")
+                        .HasFilter("[organisation_id] IS NOT NULL");
+
+                    b.HasIndex("OrganisationId", "IsPublished", "EffectiveFromUtc")
+                        .HasDatabaseName("ix_event_package_governance_policy_versions_organisation_id_is_published_effective_from_utc");
+
+                    b.ToTable("event_package_governance_policy_versions", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventPackageSourceReference", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CapturedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("captured_utc");
+
+                    b.Property<string>("DataClass")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)")
+                        .HasColumnName("data_class");
+
+                    b.Property<Guid>("EventPackageId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("event_package_id");
+
+                    b.Property<string>("ModuleCode")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)")
+                        .HasColumnName("module_code");
+
+                    b.Property<bool>("RequiredForDecision")
+                        .HasColumnType("bit")
+                        .HasColumnName("required_for_decision");
+
+                    b.Property<Guid?>("SourceDecisionId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("source_decision_id");
+
+                    b.Property<Guid>("SubjectId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("subject_id");
+
+                    b.Property<string>("SubjectType")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)")
+                        .HasColumnName("subject_type");
+
+                    b.Property<string>("SubjectVersion")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)")
+                        .HasColumnName("subject_version");
+
+                    b.Property<DateTime?>("ValidUntilUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("valid_until_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_package_source_references");
+
+                    b.HasIndex("EventPackageId", "ModuleCode", "SubjectType", "SubjectId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_event_package_source_references_event_package_id_module_code_subject_type_subject_id");
+
+                    b.ToTable("event_package_source_references", (string)null);
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.EventPlanSnapshot", b =>
@@ -4582,6 +5184,33 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("composition_series_id");
 
+                    b.Property<Guid>("ExecutionConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("execution_concurrency_token")
+                        .HasDefaultValueSql("NEWSEQUENTIALID()");
+
+                    b.Property<Guid?>("ExecutionConfirmedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("execution_confirmed_by_member_id");
+
+                    b.Property<DateTime?>("ExecutionConfirmedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("execution_confirmed_utc");
+
+                    b.Property<int>("ExecutionGateMode")
+                        .HasColumnType("int")
+                        .HasColumnName("execution_gate_mode");
+
+                    b.Property<Guid?>("ExecutionPackageId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("execution_package_id");
+
+                    b.Property<int>("ExecutionStatus")
+                        .HasColumnType("int")
+                        .HasColumnName("execution_status");
+
                     b.Property<int>("GovernanceMode")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
@@ -4606,6 +5235,60 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("plan_concurrency_token")
                         .HasDefaultValueSql("NEWSEQUENTIALID()");
+
+                    b.Property<Guid>("PublicationConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("publication_concurrency_token")
+                        .HasDefaultValueSql("NEWSEQUENTIALID()");
+
+                    b.Property<int>("PublicationGateMode")
+                        .HasColumnType("int")
+                        .HasColumnName("publication_gate_mode");
+
+                    b.Property<int>("PublicationStatus")
+                        .HasColumnType("int")
+                        .HasColumnName("publication_status");
+
+                    b.Property<Guid?>("PublishedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("published_by_member_id");
+
+                    b.Property<Guid?>("PublishedPackageId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("published_package_id");
+
+                    b.Property<DateTime?>("PublishedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("published_utc");
+
+                    b.Property<Guid>("RegistrationConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("registration_concurrency_token")
+                        .HasDefaultValueSql("NEWSEQUENTIALID()");
+
+                    b.Property<int>("RegistrationGateMode")
+                        .HasColumnType("int")
+                        .HasColumnName("registration_gate_mode");
+
+                    b.Property<Guid?>("RegistrationOpenedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("registration_opened_by_member_id");
+
+                    b.Property<DateTime?>("RegistrationOpenedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("registration_opened_utc");
+
+                    b.Property<Guid?>("RegistrationPackageId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("registration_package_id");
+
+                    b.Property<int>("RegistrationStatus")
+                        .HasColumnType("int")
+                        .HasColumnName("registration_status");
 
                     b.Property<int>("SponsorshipStatus")
                         .HasColumnType("int")
@@ -4643,11 +5326,38 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.HasIndex("EventSeriesId")
                         .HasDatabaseName("ix_group_events_composition_series_id");
 
+                    b.HasIndex("ExecutionConfirmedByMemberId")
+                        .HasDatabaseName("ix_group_events_execution_confirmed_by_member_id");
+
+                    b.HasIndex("ExecutionPackageId")
+                        .HasDatabaseName("ix_group_events_execution_package_id");
+
                     b.HasIndex("ParentEventId")
                         .HasDatabaseName("ix_group_events_parent_event_id");
 
+                    b.HasIndex("PublishedByMemberId")
+                        .HasDatabaseName("ix_group_events_published_by_member_id");
+
+                    b.HasIndex("PublishedPackageId")
+                        .HasDatabaseName("ix_group_events_published_package_id");
+
+                    b.HasIndex("RegistrationOpenedByMemberId")
+                        .HasDatabaseName("ix_group_events_registration_opened_by_member_id");
+
+                    b.HasIndex("RegistrationPackageId")
+                        .HasDatabaseName("ix_group_events_registration_package_id");
+
                     b.HasIndex("GroupId", "UpdatedUtc")
                         .HasDatabaseName("ix_group_events_group_id_updated_utc");
+
+                    b.HasIndex("ExecutionStatus", "StartDate", "EndDate")
+                        .HasDatabaseName("ix_group_events_execution_status_start_date_end_date");
+
+                    b.HasIndex("PublicationStatus", "StartDate", "EndDate")
+                        .HasDatabaseName("ix_group_events_publication_status_start_date_end_date");
+
+                    b.HasIndex("RegistrationStatus", "StartDate", "EndDate")
+                        .HasDatabaseName("ix_group_events_registration_status_start_date_end_date");
 
                     b.ToTable("group_events", (string)null);
                 });
@@ -6517,7 +7227,220 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_event_composition_occurrences_group_events_event_id");
 
+                    b.HasOne("Alife.Domain.Entities.Member", "ExecutionConfirmedByMember")
+                        .WithMany()
+                        .HasForeignKey("ExecutionConfirmedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_composition_occurrences_members_execution_confirmed_by_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventPackage", "ExecutionPackage")
+                        .WithMany()
+                        .HasForeignKey("ExecutionPackageId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_composition_occurrences_event_packages_execution_package_id");
+
                     b.Navigation("Event");
+
+                    b.Navigation("ExecutionConfirmedByMember");
+
+                    b.Navigation("ExecutionPackage");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventPackage", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.GroupEvent", "Event")
+                        .WithMany("EventPackages")
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_packages_group_events_event_id");
+
+                    b.HasOne("Alife.Domain.Entities.Member", "GeneratedByMember")
+                        .WithMany()
+                        .HasForeignKey("GeneratedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_packages_members_generated_by_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventPackageGovernancePolicyVersion", "GovernancePolicy")
+                        .WithMany("EventPackages")
+                        .HasForeignKey("GovernancePolicyVersionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_packages_event_package_governance_policy_versions_governance_policy_version_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventOccurrence", "ScopeOccurrence")
+                        .WithMany()
+                        .HasForeignKey("ScopeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_packages_event_composition_occurrences_scope_id");
+
+                    b.HasOne("Alife.Domain.Entities.Member", "SubmittedByMember")
+                        .WithMany()
+                        .HasForeignKey("SubmittedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_packages_members_submitted_by_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventPackage", "SupersedesPackage")
+                        .WithMany()
+                        .HasForeignKey("SupersedesPackageId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_packages_event_packages_supersedes_package_id");
+
+                    b.Navigation("Event");
+
+                    b.Navigation("GeneratedByMember");
+
+                    b.Navigation("GovernancePolicy");
+
+                    b.Navigation("ScopeOccurrence");
+
+                    b.Navigation("SubmittedByMember");
+
+                    b.Navigation("SupersedesPackage");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventPackageApprovalDelegation", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.Member", "DelegatedToMember")
+                        .WithMany()
+                        .HasForeignKey("DelegatedToMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_package_approval_delegations_members_delegated_to_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.Member", "GrantedByMember")
+                        .WithMany()
+                        .HasForeignKey("GrantedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_package_approval_delegations_members_granted_by_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.Group", "Organisation")
+                        .WithMany()
+                        .HasForeignKey("OrganisationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_package_approval_delegations_groups_organisation_id");
+
+                    b.HasOne("Alife.Domain.Entities.Member", "RevokedByMember")
+                        .WithMany()
+                        .HasForeignKey("RevokedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_package_approval_delegations_members_revoked_by_member_id");
+
+                    b.Navigation("DelegatedToMember");
+
+                    b.Navigation("GrantedByMember");
+
+                    b.Navigation("Organisation");
+
+                    b.Navigation("RevokedByMember");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventPackageCondition", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.EventPackage", "EventPackage")
+                        .WithMany("Conditions")
+                        .HasForeignKey("EventPackageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_package_conditions_event_packages_event_package_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventTask", "ReadinessTask")
+                        .WithMany()
+                        .HasForeignKey("ReadinessTaskId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_package_conditions_event_tasks_readiness_task_id");
+
+                    b.HasOne("Alife.Domain.Entities.Member", "SatisfiedByMember")
+                        .WithMany()
+                        .HasForeignKey("SatisfiedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_package_conditions_members_satisfied_by_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.Member", "VerifiedByMember")
+                        .WithMany()
+                        .HasForeignKey("VerifiedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_package_conditions_members_verified_by_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventPackageDecision", "WaivedByDecision")
+                        .WithMany("WaivedConditions")
+                        .HasForeignKey("WaivedByDecisionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_package_conditions_event_package_decisions_waived_by_decision_id");
+
+                    b.Navigation("EventPackage");
+
+                    b.Navigation("ReadinessTask");
+
+                    b.Navigation("SatisfiedByMember");
+
+                    b.Navigation("VerifiedByMember");
+
+                    b.Navigation("WaivedByDecision");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventPackageDecision", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.Member", "ActorMember")
+                        .WithMany()
+                        .HasForeignKey("ActorMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_package_decisions_members_actor_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventPackage", "EventPackage")
+                        .WithMany("Decisions")
+                        .HasForeignKey("EventPackageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_package_decisions_event_packages_event_package_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventPackageDecision", "RevokedByDecision")
+                        .WithMany()
+                        .HasForeignKey("RevokedByDecisionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_package_decisions_event_package_decisions_revoked_by_decision_id");
+
+                    b.Navigation("ActorMember");
+
+                    b.Navigation("EventPackage");
+
+                    b.Navigation("RevokedByDecision");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventPackageGovernancePolicyVersion", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.Group", "Organisation")
+                        .WithMany()
+                        .HasForeignKey("OrganisationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_package_governance_policy_versions_groups_organisation_id");
+
+                    b.HasOne("Alife.Domain.Entities.Member", "PublishedByMember")
+                        .WithMany()
+                        .HasForeignKey("PublishedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_package_governance_policy_versions_members_published_by_member_id");
+
+                    b.Navigation("Organisation");
+
+                    b.Navigation("PublishedByMember");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventPackageSourceReference", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.EventPackage", "EventPackage")
+                        .WithMany("SourceReferences")
+                        .HasForeignKey("EventPackageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_package_source_references_event_packages_event_package_id");
+
+                    b.Navigation("EventPackage");
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.EventPlanSnapshot", b =>
@@ -7436,6 +8359,18 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_group_events_event_composition_series_composition_series_id");
 
+                    b.HasOne("Alife.Domain.Entities.Member", "ExecutionConfirmedByMember")
+                        .WithMany()
+                        .HasForeignKey("ExecutionConfirmedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_group_events_members_execution_confirmed_by_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventPackage", "ExecutionPackage")
+                        .WithMany()
+                        .HasForeignKey("ExecutionPackageId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_group_events_event_packages_execution_package_id");
+
                     b.HasOne("Alife.Domain.Entities.Group", "Group")
                         .WithMany()
                         .HasForeignKey("GroupId")
@@ -7449,15 +8384,51 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_group_events_group_events_parent_event_id");
 
+                    b.HasOne("Alife.Domain.Entities.Member", "PublishedByMember")
+                        .WithMany()
+                        .HasForeignKey("PublishedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_group_events_members_published_by_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventPackage", "PublishedPackage")
+                        .WithMany()
+                        .HasForeignKey("PublishedPackageId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_group_events_event_packages_published_package_id");
+
+                    b.HasOne("Alife.Domain.Entities.Member", "RegistrationOpenedByMember")
+                        .WithMany()
+                        .HasForeignKey("RegistrationOpenedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_group_events_members_registration_opened_by_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventPackage", "RegistrationPackage")
+                        .WithMany()
+                        .HasForeignKey("RegistrationPackageId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_group_events_event_packages_registration_package_id");
+
                     b.Navigation("AccountableOwnerMember");
 
                     b.Navigation("CreatedByMember");
 
                     b.Navigation("EventSeries");
 
+                    b.Navigation("ExecutionConfirmedByMember");
+
+                    b.Navigation("ExecutionPackage");
+
                     b.Navigation("Group");
 
                     b.Navigation("ParentEvent");
+
+                    b.Navigation("PublishedByMember");
+
+                    b.Navigation("PublishedPackage");
+
+                    b.Navigation("RegistrationOpenedByMember");
+
+                    b.Navigation("RegistrationPackage");
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.GroupJoinInvite", b =>
@@ -7833,6 +8804,25 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.Navigation("Zones");
                 });
 
+            modelBuilder.Entity("Alife.Domain.Entities.EventPackage", b =>
+                {
+                    b.Navigation("Conditions");
+
+                    b.Navigation("Decisions");
+
+                    b.Navigation("SourceReferences");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventPackageDecision", b =>
+                {
+                    b.Navigation("WaivedConditions");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventPackageGovernancePolicyVersion", b =>
+                {
+                    b.Navigation("EventPackages");
+                });
+
             modelBuilder.Entity("Alife.Domain.Entities.EventSeries", b =>
                 {
                     b.Navigation("Events");
@@ -7945,6 +8935,8 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.Navigation("ChildRegistrations");
 
                     b.Navigation("ContactProfiles");
+
+                    b.Navigation("EventPackages");
 
                     b.Navigation("FactSets");
 

@@ -36,6 +36,10 @@ At least one `roster.coordinator` from the Event team. Coordinators manage occur
 
 `required-slots-filled`, `assignees-eligible`, and `assignees-confirmed`.
 
+### Event Package contribution
+
+Contributes occurrence-scoped counts for required, eligible, accepted, confirmed, and missing critical roles plus source versions. It does not copy ordinary member availability or unrelated assignment history. A governance-critical lead/qualified-role change identifies the affected occurrence and may invalidate its execution gate.
+
 ### User experience
 
 The coordinator workspace is occurrence-first. Members see only their own requests and responses. Time editing uses the occurrence's resolved time boundary and preserves history during substitution.

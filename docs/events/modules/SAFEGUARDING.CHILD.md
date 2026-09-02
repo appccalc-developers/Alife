@@ -36,6 +36,10 @@ At least one accepted `safeguarding.lead` with controlled eligibility. `check-in
 
 `current-policy-loaded`, `guardianship-complete`, and `eligible-workers-and-policy-ratios-satisfied`. Unknown policy requirements fail closed; ratios and legal rules are never hard-coded from examples or AI output.
 
+### Event Package contribution
+
+Contributes only policy version, configuration/consent completeness, eligible-worker coverage, safeguarding decision reference, expiry, and blocker counts. It never copies child identity, health, guardian, collector, attendance, or document content. Only independently authorised safeguarding viewers may follow a protected source reference beyond the minimum Package summary.
+
 ### User experience
 
 Leads receive the minimum full operational workspace; assigned check-in workers receive only duty-essential identity, consent, collector, and occurrence state; guardians and participants receive only explicitly related self context.

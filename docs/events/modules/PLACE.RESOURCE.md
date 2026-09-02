@@ -36,13 +36,17 @@ At least one `resource.coordinator` who is an Event team member. Catalogue autho
 
 `capacity-sufficient`, `bookings-confirmed`, and `conflicts-resolved`.
 
+### Event Package contribution
+
+Contributes venue/reservation identity and version, occurrence coverage, capacity comparison, booking status, conflict result, setup/resource readiness, and blockers. It does not copy unrelated catalogue or booking data. Event-wide venue, time, or capacity changes invalidate all affected coverage. An occurrence-bound reservation change uses the occurrence source vector, creates a local review/task, invalidates the prior occurrence Package, and preserves unrelated series occurrences until the scoped Package is approved.
+
 ### User experience
 
 Coordinators select active group venues, see capacity and actual UTC conflicts, reserve or release without deleting history, and recover from stale ETags. Touching half-open boundaries do not conflict.
 
 ## Current implementation
 
-Current venue slice. Reusable venue catalogue/capacity, Event and occurrence reservations, history-preserving release, half-open overlap detection, ETags, idempotency, exact coordinator authorisation, readiness, private APIs, reachable `EventVenueWorkspaceSurface`, and legacy `Session.PlaceJson` compatibility exist.
+Current venue slice. Reusable venue catalogue/capacity, Event and occurrence reservations, history-preserving release, half-open overlap detection, ETags, idempotency, exact coordinator authorisation, readiness, occurrence-local Package invalidation/review, private APIs, reachable `EventVenueWorkspaceSurface`, and legacy `Session.PlaceJson` compatibility exist.
 
 ## Open contract gaps
 

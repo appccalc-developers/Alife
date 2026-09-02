@@ -12,7 +12,8 @@ namespace Alife.Application.Events.Commands.SubmitEventRam;
 public sealed class SubmitEventRamCommandHandler(
     IAlifeDbContext dbContext,
     IGroupAuthorizationService groupAuthorizationService,
-    IEventCacheInvalidationService eventCacheInvalidationService)
+    IEventCacheInvalidationService eventCacheInvalidationService,
+    IEventPackageInvalidationService packageInvalidationService)
     : IRequestHandler<SubmitEventRamCommand, AppResult<EventRamAssessmentDto>>
 {
     public async Task<AppResult<EventRamAssessmentDto>> Handle(SubmitEventRamCommand request, CancellationToken cancellationToken)
@@ -47,6 +48,8 @@ public sealed class SubmitEventRamCommandHandler(
         await EventWorkflowIntegration.SyncRamAsync(
             dbContext, groupEvent.Id, EventRamStatus.AwaitingReview, groupEvent.RamAssessment.RamDataJson,
             request.CurrentMemberId, now, cancellationToken);
+        await packageInvalidationService.InvalidateForMaterialChangeAsync(
+            groupEvent, request.CurrentMemberId, "event.ram.submitted", "governanceCritical", cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         await eventCacheInvalidationService.RemoveGroupEventsAsync(groupEvent.GroupId, cancellationToken);
 

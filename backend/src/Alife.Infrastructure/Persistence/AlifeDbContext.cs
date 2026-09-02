@@ -3,11 +3,18 @@ using Alife.Domain.Entities;
 using Alife.Application.Events.Services;
 using Alife.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
+using System.Data;
 
 namespace Alife.Infrastructure.Persistence;
 
 public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContext(options), IAlifeDbContext
 {
+	public async Task<IAlifeTransaction?> BeginSerializableTransactionAsync(CancellationToken cancellationToken = default)
+		=> Database.IsRelational()
+			? new AlifeTransaction(await Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken))
+			: null;
+
 	public DbSet<Group> Groups => Set<Group>();
 	public DbSet<Member> Members => Set<Member>();
 	public DbSet<BibleReadingProgress> BibleReadingProgresses => Set<BibleReadingProgress>();
@@ -35,6 +42,12 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 	public DbSet<EventActivityTemplateVersion> EventActivityTemplateVersions => Set<EventActivityTemplateVersion>();
 	public DbSet<EventFactSet> EventFactSets => Set<EventFactSet>();
 	public DbSet<EventPlanSnapshot> EventPlanSnapshots => Set<EventPlanSnapshot>();
+	public DbSet<EventPackageGovernancePolicyVersion> EventPackageGovernancePolicyVersions => Set<EventPackageGovernancePolicyVersion>();
+	public DbSet<EventPackage> EventPackages => Set<EventPackage>();
+	public DbSet<EventPackageSourceReference> EventPackageSourceReferences => Set<EventPackageSourceReference>();
+	public DbSet<EventPackageDecision> EventPackageDecisions => Set<EventPackageDecision>();
+	public DbSet<EventPackageCondition> EventPackageConditions => Set<EventPackageCondition>();
+	public DbSet<EventPackageApprovalDelegation> EventPackageApprovalDelegations => Set<EventPackageApprovalDelegation>();
 	public DbSet<EventRoleAssignment> EventRoleAssignments => Set<EventRoleAssignment>();
 	public DbSet<EventTeamMember> EventTeamMembers => Set<EventTeamMember>();
 	public DbSet<EventTask> EventTasks => Set<EventTask>();
@@ -87,6 +100,12 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 	public DbSet<ForumCategory> ForumCategories => Set<ForumCategory>();
 	public DbSet<ForumPost> ForumPosts => Set<ForumPost>();
 	public DbSet<ForumComment> ForumComments => Set<ForumComment>();
+
+	private sealed class AlifeTransaction(IDbContextTransaction transaction) : IAlifeTransaction
+	{
+		public Task CommitAsync(CancellationToken cancellationToken = default) => transaction.CommitAsync(cancellationToken);
+		public ValueTask DisposeAsync() => transaction.DisposeAsync();
+	}
 
 	protected override void OnModelCreating(ModelBuilder modelBuilder)
 	{
@@ -577,6 +596,130 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 			cfg.HasOne(x => x.AcceptedByMember).WithMany().HasForeignKey(x => x.AcceptedByMemberId).OnDelete(DeleteBehavior.Restrict);
 			cfg.HasIndex(x => new { x.EventId, x.Version }).IsUnique();
 			cfg.HasIndex(x => x.EventId).IsUnique().HasFilter("[is_active] = 1");
+		});
+
+		modelBuilder.Entity<EventPackageGovernancePolicyVersion>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.Version).HasMaxLength(40).IsRequired();
+			cfg.Property(x => x.SchemaVersion).HasMaxLength(20).IsRequired();
+			cfg.Property(x => x.RulesJson).IsRequired();
+			cfg.HasOne(x => x.Organisation).WithMany().HasForeignKey(x => x.OrganisationId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.PublishedByMember).WithMany().HasForeignKey(x => x.PublishedByMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => new { x.OrganisationId, x.Version }).IsUnique().HasFilter("[organisation_id] IS NOT NULL");
+			cfg.HasIndex(x => x.Version).IsUnique().HasFilter("[organisation_id] IS NULL");
+			cfg.HasIndex(x => new { x.OrganisationId, x.IsPublished, x.EffectiveFromUtc });
+		});
+
+		modelBuilder.Entity<EventPackage>(cfg =>
+		{
+			cfg.ToTable(table => table.HasCheckConstraint("ck_event_packages_scope", "([scope_type] = 0 AND [scope_id] IS NULL) OR ([scope_type] = 1 AND [scope_id] IS NOT NULL)"));
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.CoveredOccurrenceIdsJson).IsRequired();
+			cfg.Property(x => x.PackageSchemaVersion).HasMaxLength(20).IsRequired();
+			cfg.Property(x => x.GovernancePolicyVersion).HasMaxLength(40).IsRequired();
+			cfg.Property(x => x.ContentHash).HasMaxLength(64).IsRequired();
+			cfg.Property(x => x.SourceVectorHash).HasMaxLength(64).IsRequired();
+			cfg.Property(x => x.ManifestJson).IsRequired();
+			cfg.Property(x => x.ConcurrencyToken).IsConcurrencyToken();
+			cfg.HasOne(x => x.Event).WithMany(x => x.EventPackages).HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.ScopeOccurrence).WithMany().HasForeignKey(x => x.ScopeId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.GovernancePolicy).WithMany(x => x.EventPackages).HasForeignKey(x => x.GovernancePolicyVersionId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.SupersedesPackage).WithMany().HasForeignKey(x => x.SupersedesPackageId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.GeneratedByMember).WithMany().HasForeignKey(x => x.GeneratedByMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.SubmittedByMember).WithMany().HasForeignKey(x => x.SubmittedByMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => new { x.EventId, x.ScopeType, x.ScopeId, x.Version }).IsUnique().HasFilter("[scope_id] IS NOT NULL");
+			cfg.HasIndex(x => new { x.EventId, x.ScopeType, x.Version }).IsUnique().HasFilter("[scope_id] IS NULL");
+			cfg.HasIndex(x => new { x.EventId, x.ScopeType, x.ScopeId, x.Status, x.GeneratedUtc });
+		});
+
+		modelBuilder.Entity<GroupEvent>(cfg =>
+		{
+			cfg.Property(x => x.PublicationConcurrencyToken).HasDefaultValueSql("NEWSEQUENTIALID()").IsConcurrencyToken();
+			cfg.HasOne(x => x.PublishedPackage).WithMany().HasForeignKey(x => x.PublishedPackageId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.PublishedByMember).WithMany().HasForeignKey(x => x.PublishedByMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => new { x.PublicationStatus, x.StartDate, x.EndDate });
+			cfg.HasIndex(x => x.PublishedPackageId);
+			cfg.Property(x => x.RegistrationConcurrencyToken).HasDefaultValueSql("NEWSEQUENTIALID()").IsConcurrencyToken();
+			cfg.HasOne(x => x.RegistrationPackage).WithMany().HasForeignKey(x => x.RegistrationPackageId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.RegistrationOpenedByMember).WithMany().HasForeignKey(x => x.RegistrationOpenedByMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => new { x.RegistrationStatus, x.StartDate, x.EndDate });
+			cfg.HasIndex(x => x.RegistrationPackageId);
+			cfg.Property(x => x.ExecutionConcurrencyToken).HasDefaultValueSql("NEWSEQUENTIALID()").IsConcurrencyToken();
+			cfg.HasOne(x => x.ExecutionPackage).WithMany().HasForeignKey(x => x.ExecutionPackageId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.ExecutionConfirmedByMember).WithMany().HasForeignKey(x => x.ExecutionConfirmedByMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => new { x.ExecutionStatus, x.StartDate, x.EndDate });
+			cfg.HasIndex(x => x.ExecutionPackageId);
+		});
+
+		modelBuilder.Entity<EventOccurrence>(cfg =>
+		{
+			cfg.Property(x => x.ExecutionConcurrencyToken).HasDefaultValueSql("NEWSEQUENTIALID()").IsConcurrencyToken();
+			cfg.HasOne(x => x.ExecutionPackage).WithMany().HasForeignKey(x => x.ExecutionPackageId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.ExecutionConfirmedByMember).WithMany().HasForeignKey(x => x.ExecutionConfirmedByMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => new { x.EventId, x.ExecutionStatus, x.StartUtc });
+			cfg.HasIndex(x => x.ExecutionPackageId);
+		});
+
+		modelBuilder.Entity<EventPackageSourceReference>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.ModuleCode).HasMaxLength(80).IsRequired();
+			cfg.Property(x => x.SubjectType).HasMaxLength(80).IsRequired();
+			cfg.Property(x => x.SubjectVersion).HasMaxLength(160).IsRequired();
+			cfg.Property(x => x.DataClass).HasMaxLength(40).IsRequired();
+			cfg.HasOne(x => x.EventPackage).WithMany(x => x.SourceReferences).HasForeignKey(x => x.EventPackageId).OnDelete(DeleteBehavior.Cascade);
+			cfg.HasIndex(x => new { x.EventPackageId, x.ModuleCode, x.SubjectType, x.SubjectId }).IsUnique();
+		});
+
+		modelBuilder.Entity<EventPackageApprovalDelegation>(cfg =>
+		{
+			cfg.ToTable(table => table.HasCheckConstraint("ck_event_package_approval_delegations_scope",
+				"([scope_type] = 0 AND [scope_id] IS NULL) OR ([scope_type] IN (1, 2) AND [scope_id] IS NOT NULL)"));
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.PermissionCode).HasMaxLength(120).IsRequired();
+			cfg.Property(x => x.RevocationReasonEn).HasMaxLength(1000);
+			cfg.Property(x => x.RevocationReasonZh).HasMaxLength(1000);
+			cfg.Property(x => x.ConcurrencyToken).HasDefaultValueSql("NEWSEQUENTIALID()").IsConcurrencyToken();
+			cfg.HasOne(x => x.Organisation).WithMany().HasForeignKey(x => x.OrganisationId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.DelegatedToMember).WithMany().HasForeignKey(x => x.DelegatedToMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.GrantedByMember).WithMany().HasForeignKey(x => x.GrantedByMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.RevokedByMember).WithMany().HasForeignKey(x => x.RevokedByMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => new { x.OrganisationId, x.ScopeType, x.ScopeId, x.DelegatedToMemberId, x.PermissionCode, x.ExpiresUtc });
+			cfg.HasIndex(x => new { x.DelegatedToMemberId, x.StartsUtc, x.ExpiresUtc, x.RevokedUtc });
+		});
+
+		modelBuilder.Entity<EventPackageDecision>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.ReasonEn).HasMaxLength(2000).IsRequired();
+			cfg.Property(x => x.ReasonZh).HasMaxLength(2000).IsRequired();
+			cfg.Property(x => x.DecisionAuthoritySnapshotJson).IsRequired();
+			cfg.Property(x => x.InvalidatedReasonCode).HasMaxLength(120);
+			cfg.Property(x => x.RequestHash).HasMaxLength(64).IsRequired();
+			cfg.HasOne(x => x.EventPackage).WithMany(x => x.Decisions).HasForeignKey(x => x.EventPackageId).OnDelete(DeleteBehavior.Cascade);
+			cfg.HasOne(x => x.ActorMember).WithMany().HasForeignKey(x => x.ActorMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.RevokedByDecision).WithMany().HasForeignKey(x => x.RevokedByDecisionId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => new { x.EventPackageId, x.DecidedUtc });
+			cfg.HasIndex(x => x.RevokedByDecisionId);
+		});
+
+		modelBuilder.Entity<EventPackageCondition>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.TextEn).HasMaxLength(2000).IsRequired();
+			cfg.Property(x => x.TextZh).HasMaxLength(2000).IsRequired();
+			cfg.Property(x => x.OwnerRoleRequirementKey).HasMaxLength(160).IsRequired();
+			cfg.Property(x => x.EvidenceReference).HasMaxLength(1000);
+			cfg.Property(x => x.EvidenceReferenceHash).HasMaxLength(64);
+			cfg.Property(x => x.ConcurrencyToken).IsConcurrencyToken();
+			cfg.HasOne(x => x.EventPackage).WithMany(x => x.Conditions).HasForeignKey(x => x.EventPackageId).OnDelete(DeleteBehavior.Cascade);
+			cfg.HasOne(x => x.ReadinessTask).WithMany().HasForeignKey(x => x.ReadinessTaskId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.WaivedByDecision).WithMany(x => x.WaivedConditions).HasForeignKey(x => x.WaivedByDecisionId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.SatisfiedByMember).WithMany().HasForeignKey(x => x.SatisfiedByMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.VerifiedByMember).WithMany().HasForeignKey(x => x.VerifiedByMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => new { x.EventPackageId, x.Status, x.DueUtc });
+			cfg.HasIndex(x => x.ReadinessTaskId).IsUnique().HasFilter("[readiness_task_id] IS NOT NULL");
 		});
 
 	modelBuilder.Entity<EventRoleAssignment>(cfg =>

@@ -21,6 +21,9 @@ public static class DependencyInjection
         services.AddScoped<IEventVenueService, EventVenueService>();
         services.AddScoped<IEventTravelService, EventTravelService>();
         services.AddScoped<IEventSafeguardingService, EventSafeguardingService>();
+        services.AddScoped<IEventPackageService, EventPackageService>();
+        services.AddScoped<IEventPackageInvalidationService, EventPackageInvalidationService>();
+        services.AddScoped<IEventPackageDelegationService, EventPackageDelegationService>();
         services.AddScoped<IIdentityAccessService, IdentityAccessService>();
         return services;
     }

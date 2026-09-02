@@ -54,7 +54,8 @@ public sealed record CreateEventRoleAssignmentCommand(
 
 public sealed class CreateEventRoleAssignmentCommandHandler(
     IAlifeDbContext dbContext,
-    IGroupAuthorizationService groupAuthorizationService)
+    IGroupAuthorizationService groupAuthorizationService,
+    IEventPackageInvalidationService? packageInvalidationService = null)
     : IRequestHandler<CreateEventRoleAssignmentCommand, AppResult<EventRoleAssignmentDto>>
 {
     public async Task<AppResult<EventRoleAssignmentDto>> Handle(
@@ -191,6 +192,10 @@ public sealed class CreateEventRoleAssignmentCommandHandler(
             CreatedUtc = now,
             ExpiresUtc = now.AddDays(7)
         });
+        if (packageInvalidationService is not null)
+            await packageInvalidationService.InvalidateForModuleChangeAsync(
+                groupEvent, request.CurrentMemberId, ModuleForRole(requirement.RequirementKey),
+                "event.role.assignmentCreated", "operational", cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         return AppResult<EventRoleAssignmentDto>.Success(EventCompositionPersistence.ToDto(assignment));
     }
@@ -222,6 +227,13 @@ public sealed class CreateEventRoleAssignmentCommandHandler(
             _ => Task.FromResult(false)
         };
     }
+
+    private static string ModuleForRole(string requirementKey)
+    {
+        var separator = requirementKey.IndexOf(':');
+        var prefix = separator > 0 ? requirementKey[..separator] : string.Empty;
+        return EventCompositionDefinitions.ModulesByCode.ContainsKey(prefix) ? prefix : "TEAM.WORK";
+    }
 }
 
 public sealed record EndEventRoleAssignmentCommand(
@@ -232,7 +244,8 @@ public sealed record EndEventRoleAssignmentCommand(
 
 public sealed class EndEventRoleAssignmentCommandHandler(
     IAlifeDbContext dbContext,
-    IGroupAuthorizationService groupAuthorizationService)
+    IGroupAuthorizationService groupAuthorizationService,
+    IEventPackageInvalidationService? packageInvalidationService = null)
     : IRequestHandler<EndEventRoleAssignmentCommand, AppResult<bool>>
 {
     public async Task<AppResult<bool>> Handle(
@@ -265,6 +278,10 @@ public sealed class EndEventRoleAssignmentCommandHandler(
         assignment.EndedUtc = DateTime.UtcNow;
         assignment.Status = EventRoleAssignmentStatus.Ended;
         assignment.UpdatedUtc = assignment.EndedUtc.Value;
+        if (packageInvalidationService is not null)
+            await packageInvalidationService.InvalidateForModuleChangeAsync(
+                assignment.Event, request.CurrentMemberId, ModuleForRole(assignment.RoleRequirementKey),
+                "event.role.assignmentEnded", "governanceCritical", cancellationToken);
         try
         {
             await dbContext.SaveChangesAsync(cancellationToken);
@@ -275,13 +292,22 @@ public sealed class EndEventRoleAssignmentCommandHandler(
         }
         return AppResult<bool>.Success(true);
     }
+
+    private static string ModuleForRole(string requirementKey)
+    {
+        var separator = requirementKey.IndexOf(':');
+        var prefix = separator > 0 ? requirementKey[..separator] : string.Empty;
+        return EventCompositionDefinitions.ModulesByCode.ContainsKey(prefix) ? prefix : "TEAM.WORK";
+    }
 }
 
 public sealed record RespondToEventRoleAssignmentCommand(
     Guid EventId, Guid AssignmentId, Guid CurrentMemberId, bool Accept)
     : IRequest<AppResult<EventRoleAssignmentDto>>;
 
-public sealed class RespondToEventRoleAssignmentCommandHandler(IAlifeDbContext dbContext)
+public sealed class RespondToEventRoleAssignmentCommandHandler(
+    IAlifeDbContext dbContext,
+    IEventPackageInvalidationService? packageInvalidationService = null)
     : IRequestHandler<RespondToEventRoleAssignmentCommand, AppResult<EventRoleAssignmentDto>>
 {
     public async Task<AppResult<EventRoleAssignmentDto>> Handle(
@@ -325,6 +351,16 @@ public sealed class RespondToEventRoleAssignmentCommandHandler(IAlifeDbContext d
             assignment.Event.AccountableOwnerMemberId = assignment.MemberId;
             assignment.Event.PlanConcurrencyToken = Guid.NewGuid();
             assignment.Event.UpdatedUtc = now;
+        }
+        if (packageInvalidationService is not null)
+        {
+            var separator = assignment.RoleRequirementKey.IndexOf(':');
+            var prefix = separator > 0 ? assignment.RoleRequirementKey[..separator] : string.Empty;
+            var moduleCode = EventCompositionDefinitions.ModulesByCode.ContainsKey(prefix) ? prefix : "TEAM.WORK";
+            await packageInvalidationService.InvalidateForModuleChangeAsync(
+                assignment.Event, request.CurrentMemberId, moduleCode,
+                request.Accept ? "event.role.assignmentAccepted" : "event.role.assignmentDeclined",
+                request.Accept ? "operational" : "governanceCritical", cancellationToken);
         }
         try
         {

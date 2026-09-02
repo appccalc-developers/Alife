@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
-import { Bell, CalendarRange, ChevronRight, Church, ContactRound, Handshake, Loader2, Network, RefreshCw, Settings2, UserCog, UsersRound } from 'lucide-react'
+import { Bell, CalendarRange, ChevronRight, Church, ContactRound, Handshake, Loader2, Network, RefreshCw, Settings2, ShieldCheck, UserCog, UsersRound } from 'lucide-react'
 import {
   groupService,
   type AdminGroupOptionDto,
@@ -797,6 +797,7 @@ const ChurchManagementHub = ({
     ...(auth.hasAdminPermission('admin.messages.manage') ? [{ key: 'notices', label: isChinese ? '通知管理' : 'Notification management', description: isChinese ? '发送通知并查看阅读与回复状态' : 'Send notifications and review read and reply status', icon: Bell, to: '/admin/messages' }] : []),
     ...(auth.hasAdminPermission('admin.visitRequests.receive') ? [{ key: 'visitors', label: isChinese ? '访客接待' : 'Visitor care', description: isChinese ? '处理参观联系请求和跟进状态' : 'Handle visit requests and follow-up status', icon: Handshake, to: '/admin/visit-requests' }] : []),
     ...(auth.hasAdminPermission('admin.events.manageTemplates') ? [{ key: 'event-templates', label: isChinese ? '活动模板' : 'Event templates', description: isChinese ? '管理四个固定活动分类下的创建模板' : 'Manage creation templates within the four fixed event categories', icon: CalendarRange, to: '/admin/event-templates' }] : []),
+    ...(auth.hasAdminPermission('admin.events.managePackagePolicies') ? [{ key: 'event-package-policies', label: isChinese ? '活动方案政策' : 'Event Package policies', description: isChinese ? '管理审批等级、有效期、委派和渐进启用' : 'Manage approval tiers, validity, delegation, and rollout', icon: ShieldCheck, to: '/admin/event-package-policies' }] : []),
   ]
   const canAccessDashboard = dashboardAreas.length > 0
   const refreshWorkspace = async () => {

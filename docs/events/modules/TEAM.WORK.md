@@ -36,6 +36,10 @@ Owning and contributing teams, accepted Event roles, task/dependency/blocker sta
 
 `accountable-owner-assigned` is always required. Operational task blockers may contribute additional readiness reasons.
 
+### Event Package contribution
+
+Contributes the accountable owner, accepted key-role coverage, required task/blocker summary, hand-off state, and immutable references to relevant artifacts. Package submission may create a linked approval task/artifact, but task completion never creates or changes the authoritative Event Package decision. Conditions reference the authoritative Event Package Condition and cannot be verified by ticking a normal task.
+
 ### User experience
 
 The Event workspace exposes team membership, invitation state, tasks, dependencies, blockers, and role-aware actions with explicit loading, empty, conflict, and retry states.

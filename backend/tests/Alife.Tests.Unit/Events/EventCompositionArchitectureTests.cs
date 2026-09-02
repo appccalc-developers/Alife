@@ -170,8 +170,10 @@ public class EventCompositionArchitectureTests
 
         Assert.Equal(first.Value!.ProposalHash, second.Value!.ProposalHash);
         Assert.Equal(12, EventCompositionDefinitions.Modules.Count);
-        Assert.Equal(13, EventCompositionDefinitions.Surfaces.Count);
-        Assert.Equal(13, EventCompositionDefinitions.Surfaces.Select(x => x.SurfaceKey).Distinct().Count());
+        Assert.Equal(14, EventCompositionDefinitions.Surfaces.Count);
+        Assert.Equal(14, EventCompositionDefinitions.Surfaces.Select(x => x.SurfaceKey).Distinct().Count());
+        Assert.Equal("EventPackageGovernanceWorkspace",
+            EventCompositionDefinitions.SurfacesByKey["workspace.governance"].ComponentContract);
         Assert.All(EventCompositionDefinitions.Modules, module =>
             Assert.True(EventCompositionDefinitions.SurfacesByKey.ContainsKey(module.SurfaceKey)));
     }
@@ -457,7 +459,8 @@ public class EventCompositionArchitectureTests
         authorization.IsLeaderOrCoLeaderAsync(groupId, ownerId, Arg.Any<CancellationToken>()).Returns(true);
         var cache = Substitute.For<IEventCacheInvalidationService>();
         var engine = new EventCompositionEngine();
-        var handler = new AcceptEventPlanCommandHandler(dbContext, authorization, engine, cache);
+        var handler = new AcceptEventPlanCommandHandler(dbContext, authorization, engine, cache,
+            new EventPackageInvalidationService(dbContext));
         var composition = Request(null);
         var currentETag = EventCompositionPersistence.CreateEmptyPlanETag(groupEvent);
         var proposal = engine.Compose(composition, new EventCompositionContext(
