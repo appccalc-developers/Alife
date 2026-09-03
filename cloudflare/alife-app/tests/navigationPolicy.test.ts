@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
+import path from 'node:path'
 import test from 'node:test'
 import {
   canAccessChurchManagement,
@@ -22,6 +24,10 @@ import {
 } from '../src/services/workspaceResumeService.ts'
 import { matchesRequiredSearch } from '../src/app/navigation/searchMatch.ts'
 import { belongsToForumRouteScope } from '../src/utils/forumRouteScope.ts'
+import { resolveManageSection } from '../src/utils/groupManagementSections.ts'
+
+const readSource = (relativePath: string) =>
+  readFile(path.resolve(import.meta.dirname, relativePath), 'utf8')
 
 test('church management access accepts only members who can manage the root church', () => {
   assert.equal(canAccessChurchManagement({
@@ -174,6 +180,40 @@ test('navigation section matching tolerates Church Life owner filters', () => {
   assert.equal(matchesRequiredSearch('?section=announcements', '?section=events'), false)
   assert.equal(matchesRequiredSearch('', ''), true)
   assert.equal(matchesRequiredSearch('?ownerGroupId=ministry', ''), false)
+})
+
+test('Church Life and Group Life place announcements before albums and forums after events', async () => {
+  const source = await readSource('../src/app/navigation/useShellNavigation.tsx')
+  const churchItems = source.slice(
+    source.indexOf('const churchContentItems'),
+    source.indexOf('const activeEventId'),
+  )
+  const groupItems = source.slice(
+    source.indexOf('const groupContentItems'),
+    source.indexOf('const workspaceVisible'),
+  )
+
+  const churchOrder = [
+    "key: 'church:announcements'",
+    "key: 'church:albums'",
+    "key: 'church:events'",
+    "key: 'church:forum'",
+  ].map((key) => churchItems.indexOf(key))
+
+  assert.ok(churchOrder.every((position) => position >= 0))
+  assert.deepEqual(churchOrder, [...churchOrder].sort((left, right) => left - right))
+  assert.match(
+    groupItems,
+    /\.\.\.workspaceAnnouncementItems[\s\S]*\.\.\.groupAlbumItems[\s\S]*\.\.\.workspaceEventItems[\s\S]*\.\.\.groupForumItems/,
+  )
+})
+
+test('standalone group management sections remain distinct from the default group section', () => {
+  assert.equal(resolveManageSection('group'), 'group')
+  assert.equal(resolveManageSection('announcements'), 'announcements')
+  assert.equal(resolveManageSection('events'), 'events')
+  assert.equal(resolveManageSection('unknown'), 'group')
+  assert.equal(resolveManageSection('announcements', ['group', 'members']), 'group')
 })
 
 test('site and group forum details enforce their exact ownership scope', () => {
