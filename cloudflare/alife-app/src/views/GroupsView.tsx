@@ -383,52 +383,26 @@ const GroupsView = () => {
   }
 
   return (
-    <AppPageShell>
-      <section className="relative overflow-hidden rounded-[1.75rem] border border-emerald-100 bg-[#173f36] px-5 py-5 text-white shadow-[0_20px_52px_rgba(19,63,54,0.18)] sm:px-7 sm:py-6">
-        <div className="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-[#de6c4d]/20 blur-3xl" aria-hidden="true" />
-        <div className="absolute -bottom-28 left-1/3 h-72 w-72 rounded-full bg-emerald-300/10 blur-3xl" aria-hidden="true" />
-        <div className="relative grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(15rem,0.55fr)] lg:items-center">
-          <div>
-            <nav aria-label={language === 'zh' ? '小组选择视图' : 'Group selection views'} className="mb-3 inline-flex rounded-full border border-white/15 bg-black/10 p-1 backdrop-blur">
-              <span className="inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-2 text-xs font-black text-[#173f36] shadow-sm">
-                <LayoutList className="h-3.5 w-3.5" aria-hidden="true" />
-                {language === 'zh' ? '简约选择' : 'Simple view'}
-              </span>
-              <Link to={`/groups/select/tree${alifeShellSearch}`} className="inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-xs font-bold text-white/72 transition hover:bg-white/10 hover:text-white">
-                <Workflow className="h-3.5 w-3.5" aria-hidden="true" />
-                {language === 'zh' ? '组织树' : 'Organization tree'}
-              </Link>
-            </nav>
-            <h1 className="mt-2 text-2xl font-black tracking-[-0.04em] sm:text-3xl">
-              {language === 'zh' ? '找到你的小组位置' : 'Find your place in the group family'}
-            </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-emerald-50/72">
-              {auth.isGuest
-                ? (language === 'zh'
-                    ? '浏览小组层级与公开资料；登录或注册后可申请加入。'
-                    : 'Browse the group hierarchy and public details. Sign in or register to apply.')
-                : (language === 'zh'
-                    ? '在层级中展开任一小组，直接查看详情并选择要进入的小组。'
-                    : 'Expand any group in the hierarchy to review its details and choose where to enter.')}
-            </p>
-          </div>
-          <div className="rounded-[1.25rem] border border-white/14 bg-white/[0.08] px-4 py-3.5 backdrop-blur-xl">
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-100/70">
-              {auth.isGuest ? (language === 'zh' ? '浏览身份' : 'Browsing as') : (language === 'zh' ? '当前小组' : 'Current group')}
-            </p>
-            <p className="mt-1 text-base font-black">
-              {auth.isGuest ? (language === 'zh' ? '访客' : 'Guest') : currentGroup ? localizeText(currentGroup.name, language) : (language === 'zh' ? '未选择小组' : 'No group selected')}
-            </p>
-            <p className="mt-1 text-[11px] leading-5 text-emerald-50/65">
-              {auth.isGuest
-                ? (language === 'zh' ? '可浏览公开的小组资料；登录或注册后可申请加入。' : 'Browse public group details; sign in or register to apply.')
-                : currentGroup
-                  ? (language === 'zh' ? '你可以浏览结构，不会因为查看其他小组而意外切换。' : 'You can explore the hierarchy without switching accidentally.')
-                  : (language === 'zh' ? '从下方结构中选择一个小组开始。' : 'Choose a group from the hierarchy below to begin.')}
-            </p>
-          </div>
-        </div>
-      </section>
+    <AppPageShell
+      title={language === 'zh' ? '选择小组' : 'Choose a group'}
+      context={language === 'zh' ? '小组生活 / 小组列表' : 'Group Life / Group list'}
+      subtitle={auth.isGuest
+        ? (language === 'zh' ? '浏览公开小组；登录或注册后可申请加入。' : 'Browse public groups, then sign in or register to apply.')
+        : (language === 'zh' ? '查看小组层级并选择要进入的小组。预览不会改变当前小组。' : 'Explore the hierarchy and choose a group to enter. Previewing does not switch groups.')}
+      status={<AppBadge variant={auth.isGuest || !currentGroup ? 'neutral' : 'success'}>{auth.isGuest ? (language === 'zh' ? '访客' : 'Guest') : currentGroup ? localizeText(currentGroup.name, language) : (language === 'zh' ? '未选择' : 'Not selected')}</AppBadge>}
+      controls={(
+        <nav aria-label={language === 'zh' ? '小组选择视图' : 'Group selection views'} className="inline-flex rounded-xl border border-[#173f36] bg-[#173f36] p-1">
+          <span className="inline-flex min-h-9 items-center gap-2 rounded-lg bg-white px-3 text-xs font-black text-[#173f36] shadow-sm">
+            <LayoutList className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>{language === 'zh' ? '列表' : 'List'}</span>
+          </span>
+          <Link to={`/groups/select/tree${alifeShellSearch}`} className="inline-flex min-h-9 items-center gap-2 rounded-lg px-3 text-xs font-bold text-white/78 transition hover:bg-white/10 hover:text-white">
+            <Workflow className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>{language === 'zh' ? '组织树' : 'Tree'}</span>
+          </Link>
+        </nav>
+      )}
+    >
 
       {error ? <AppEmptyState title={language === 'zh' ? '加载失败' : 'Unable to load'} description={language === 'zh' ? '无法加载小组结构。' : 'Unable to load the group structure.'} /> : null}
 

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Link, Navigate, useLocation, useParams } from 'react-router-dom'
-import { ArrowLeft, Eye, Lock, MessageCircle, MessageSquareReply, Pin, Send } from 'lucide-react'
+import { Eye, Lock, MessageCircle, MessageSquareReply, Pin, Send } from 'lucide-react'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
 import AppEmptyState from '../components/layout/AppEmptyState'
@@ -269,17 +269,34 @@ const ForumPostView = () => {
   const groupMembership = post?.groupId ? memberships.find((membership) => membership.groupId === post.groupId) : null
   const canComment = !isGuest && isRegistered && post && !post.isLocked && (!post.groupId || groupMembership?.status === 'approved')
   const commentThreads = post ? buildCommentThreads(post.comments) : []
+  const postTitle = post
+    ? localizedJsonText(post.titleJson, language) || text.untitled
+    : text.forum
+  const pageContext = churchForum
+    ? (language === 'zh' ? '教会生活 / 论坛' : 'Church Life / Forum')
+    : scopedGroupId
+      ? (language === 'zh' ? '小组生活 / 论坛' : 'Group Life / Forum')
+      : (language === 'zh' ? '公开内容 / 论坛' : 'Public Content / Forum')
+  const statusLabel = post?.isHidden
+    ? text.hidden
+    : post?.isLocked
+      ? `${text.locked} · ${visibilityLabel(post.visibility, language)}`
+      : post ? visibilityLabel(post.visibility, language) : ''
 
   return (
-    <AppPageShell>
+    <AppPageShell
+      title={postTitle}
+      context={pageContext}
+      subtitle={post ? `${post.author.displayName || post.author.id.slice(0, 8)} · ${formatForumDate(post.createdUtc, language)}` : undefined}
+      backLink={{ to: forumBasePath, label: text.backToForum }}
+      status={post ? (
+        <AppBadge variant={post.isHidden ? 'danger' : post.isLocked ? 'warning' : isPublicVisibility(post.visibility) ? 'info' : 'neutral'}>
+          {post.isLocked ? <Lock className="mr-1 h-3 w-3" aria-hidden="true" /> : <Eye className="mr-1 h-3 w-3" aria-hidden="true" />}
+          {statusLabel}
+        </AppBadge>
+      ) : undefined}
+    >
       <div className="mx-auto w-full max-w-5xl">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <Link to={forumBasePath} className="inline-flex min-h-11 items-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 shadow-sm transition hover:border-[#176b5a]/30 hover:text-[#176b5a]">
-            <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
-            {text.backToForum}
-          </Link>
-        </div>
-
         {postQuery.isLoading ? (
           <div className="grid gap-4">
             <div className="h-80 animate-pulse rounded-[1.75rem] border border-slate-200 bg-white" />
@@ -292,8 +309,6 @@ const ForumPostView = () => {
             <AppEmptyState
               title={text.postNotFound}
               description={normalizeApiError(postQuery.error).message || text.postNotFoundDescription}
-              actionLabel={text.backToForum}
-              onAction={() => window.history.back()}
             />
           </div>
         ) : null}
@@ -318,20 +333,10 @@ const ForumPostView = () => {
                         <span className="text-sm font-black text-slate-950">{post.author.displayName || post.author.id.slice(0, 8)}</span>
                         <span className="text-xs font-semibold text-slate-400">{formatForumDate(post.createdUtc, language)}</span>
                         {post.isPinned ? <AppBadge variant="warning"><Pin className="mr-1 h-3 w-3" />{text.pinned}</AppBadge> : null}
-                        {post.isLocked ? <AppBadge><Lock className="mr-1 h-3 w-3" />{text.locked}</AppBadge> : null}
                       </div>
 
-                      <h1 className="mt-3 text-3xl font-black leading-tight tracking-tight text-slate-950 sm:text-4xl">
-                        {localizedJsonText(post.titleJson, language) || text.untitled}
-                      </h1>
-
-                      <div className="mt-4 flex flex-wrap items-center gap-2">
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
                         <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-slate-600 ring-1 ring-slate-200">{categoryName(categories, post.categoryId, language)}</span>
-                        <AppBadge variant={isPublicVisibility(post.visibility) ? 'info' : 'neutral'}>
-                          <Eye className="mr-1 h-3 w-3" aria-hidden="true" />
-                          {visibilityLabel(post.visibility, language)}
-                        </AppBadge>
-                        {post.isHidden ? <AppBadge variant="danger">{text.hidden}</AppBadge> : null}
                       </div>
                     </div>
                   </div>
@@ -509,15 +514,6 @@ const ForumPostView = () => {
               <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <p className="text-sm font-black text-slate-950">{text.category}</p>
                 <p className="mt-2 rounded-xl bg-slate-50 px-3 py-2 text-sm font-black text-slate-700">{categoryName(categories, post.categoryId, language)}</p>
-              </section>
-              <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <p className="text-sm font-black text-slate-950">{text.visibility}</p>
-                <div className="mt-3">
-                  <AppBadge variant={isPublicVisibility(post.visibility) ? 'info' : 'neutral'}>
-                    <Eye className="mr-1 h-3 w-3" aria-hidden="true" />
-                    {visibilityLabel(post.visibility, language)}
-                  </AppBadge>
-                </div>
               </section>
             </aside>
           </div>

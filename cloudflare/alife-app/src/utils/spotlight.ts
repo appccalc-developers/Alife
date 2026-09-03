@@ -300,7 +300,7 @@ export const resolveDataSpotlightContent = (source: SpotlightDataSource, item: u
       title: displayName,
       subtitle: translateUi(language, 'role', { role: member.role || 'member' }),
       body: member.status,
-      actions: [{ label: translateUi(language, 'viewDetails'), url: '/profile' }],
+      actions: [{ label: translateUi(language, 'viewDetails'), url: '/profile/settings' }],
     }
   }
 

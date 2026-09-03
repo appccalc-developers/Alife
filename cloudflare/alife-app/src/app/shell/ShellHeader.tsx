@@ -9,6 +9,7 @@ import NotificationToastHost from '../../components/notifications/NotificationTo
 import { confirmUnsavedChangesNavigation } from '../../utils/unsavedChangesGuard'
 import { HeaderNavigation } from '../navigation/AppNavigation'
 import type { ShellNavItem } from '../navigation/types'
+import { PROFILE_SETTINGS_PATH } from '../routing/personalCenterRoutes'
 
 type Props = {
   appNavItems: ShellNavItem[]
@@ -23,7 +24,7 @@ const ShellHeader = ({ appNavItems, contextualGroupId, onboarding, debugLoading,
   const navigate = useNavigate()
   const showDebug = import.meta.env.DEV && !onboarding && Boolean(contextualGroupId)
   const guardProfileNavigation = (event: MouseEvent<HTMLAnchorElement>) => {
-    if (!confirmUnsavedChangesNavigation('/profile', () => navigate('/profile'))) {
+    if (!confirmUnsavedChangesNavigation(PROFILE_SETTINGS_PATH, () => navigate(PROFILE_SETTINGS_PATH))) {
       event.preventDefault()
     }
   }
@@ -33,7 +34,7 @@ const ShellHeader = ({ appNavItems, contextualGroupId, onboarding, debugLoading,
       <div className="flex min-h-[4.25rem] items-center justify-between gap-2 px-3 py-3 sm:min-h-[4.5rem] sm:gap-3 sm:px-6 desktop:px-7">
         <HeaderNavigation items={appNavItems} />
         <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
-          {!onboarding && !auth.loading && auth.me?.displayName ? <Link className="hidden max-w-40 truncate rounded-xl px-2 py-1.5 text-sm font-semibold text-[#40554e] hover:bg-[#e3f0eb] hover:text-[#176b5a] sm:block" to="/profile" onClick={guardProfileNavigation}>{auth.me.displayName}</Link> : null}
+          {!onboarding && !auth.loading && auth.me?.displayName ? <Link className="hidden max-w-40 truncate rounded-xl px-2 py-1.5 text-sm font-semibold text-[#40554e] hover:bg-[#e3f0eb] hover:text-[#176b5a] sm:block" to={PROFILE_SETTINGS_PATH} onClick={guardProfileNavigation}>{auth.me.displayName}</Link> : null}
           {onboarding ? null : <NotificationToastHost />}
           {onboarding ? null : <CacheInspectorToggleButton />}
           <LanguageSelector language={auth.language} onChange={auth.updateLanguage} />

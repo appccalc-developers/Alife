@@ -47,7 +47,7 @@ const LandingHeroMedia = ({ src, poster }: { src: string; poster: string }) => {
   )
 }
 
-const LandingHeroSection = ({ section, mode, domId, disabled, editorPreview, previewDensity = 'full', propertiesOnly, showProperties = true, contextGroupId, page, onUpdate }: SectionComponentProps) => {
+const LandingHeroSection = ({ section, mode, domId, disabled, editorPreview, previewDensity = 'full', headingLevel = 'h1', propertiesOnly, showProperties = true, contextGroupId, page, onUpdate }: SectionComponentProps) => {
   const auth = useAuthStore()
   const t = useUiText()
   const editable = mode === 'edit' && !disabled && onUpdate
@@ -191,7 +191,7 @@ const LandingHeroSection = ({ section, mode, domId, disabled, editorPreview, pre
       <div className={['relative z-10 mx-auto flex max-w-6xl items-end px-5 sm:px-8 lg:px-10', compactPreview ? 'min-h-[30rem] pb-12 pt-20' : 'min-h-dvh pb-24 pt-24'].join(' ')}>
         <div className="max-w-xl">
           <EditableText
-            as="h1"
+            as={headingLevel}
             multiline
             value={title}
             fallback={auth.language === 'zh' ? '在这里写下页面最重要的邀请。' : 'Write the page’s most important invitation here.'}

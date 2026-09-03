@@ -13,6 +13,7 @@ type SectionHeaderVariant = 'normal' | 'hero'
 type SectionHeaderProps = {
   header?: SectionHeaderModel
   variant?: SectionHeaderVariant
+  headingLevel?: 'h1' | 'h2'
   titleFallback?: string
   subtitleFallback?: string
   disabled?: boolean
@@ -94,6 +95,7 @@ const heroToneClasses = {
 const SectionHeader = ({
   header,
   variant = 'normal',
+  headingLevel,
   titleFallback = '',
   subtitleFallback = '',
   disabled,
@@ -227,7 +229,7 @@ const SectionHeader = ({
       {renderIcon()}
       {title || onTitleChange ? (
         <EditableText
-          as={variant === 'hero' ? 'h1' : 'h2'}
+          as={headingLevel ?? (variant === 'hero' ? 'h1' : 'h2')}
           value={title}
           fallback={titleFallback}
           disabled={disabled}

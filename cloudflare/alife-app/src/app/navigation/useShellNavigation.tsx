@@ -14,6 +14,7 @@ import type { GroupMembershipDto } from '../../types'
 import { canAccessChurchManagement, hasSystemManagementAdminPermission } from '../routing/churchManagementAccess'
 import { useCurrentTasks } from '../../hooks/useCurrentTasks'
 import { countCurrentTasks, formatTaskCount } from '../../utils/currentTasks'
+import { PERSONAL_CENTER_PATH, PROFILE_SETTINGS_PATH } from '../routing/personalCenterRoutes'
 
 type Args = {
   contextualGroupId: string
@@ -257,6 +258,13 @@ export const useShellNavigation = ({
 
   const accountItems: ShellNavItem[] = !auth.loading && !auth.isGuest
     ? [{
+      key: 'app:profile-settings',
+      label: isChinese ? '个人资料' : 'Profile settings',
+      description: isChinese ? '联系方式、登录安全和小组邀请' : 'Contact details, sign-in security, and group invitations',
+      to: PROFILE_SETTINGS_PATH,
+      matchPathOnly: true,
+      icon: <UserRound className="h-5 w-5" />,
+    }, {
       key: 'app:tasks',
       label: isChinese ? '当前事务' : 'Current tasks',
       description: isChinese ? '处理职能待办和成员通知' : 'Handle duty tasks and member notifications',
@@ -302,7 +310,7 @@ export const useShellNavigation = ({
       key: 'app:profile',
       label: personalCenterLabel,
       description: auth.me?.displayName || memberAccountLabel,
-      to: '/profile',
+      to: PERSONAL_CENTER_PATH,
       icon: <UserRound className="h-5 w-5" />,
     }
     : null

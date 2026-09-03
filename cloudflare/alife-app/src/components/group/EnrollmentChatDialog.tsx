@@ -116,7 +116,7 @@ const EnrollmentChatDialog = ({
         <button type="button" className="absolute inset-0" aria-label={t('closeEnrollmentDialog')} onClick={() => onClose?.()} />
       ) : null}
       <section className={isDialog ? 'relative z-10 flex max-h-[85vh] w-full flex-col rounded-t-3xl bg-white shadow-2xl desktop:max-w-2xl desktop:rounded-3xl' : 'flex w-full flex-col rounded-2xl border border-slate-200 bg-white shadow-sm'}>
-        <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
+        {isDialog ? <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-emerald-700">
               {t('eventEnrollment')}
@@ -125,20 +125,18 @@ const EnrollmentChatDialog = ({
               {title}
             </h2>
           </div>
-          {isDialog ? (
-            <button
-              type="button"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-900"
-              onClick={() => onClose?.()}
-              aria-label={t('closeEnrollmentDialog')}
-            >
-              <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M18 6 6 18" />
-                <path d="m6 6 12 12" />
-              </svg>
-            </button>
-          ) : null}
-        </div>
+          <button
+            type="button"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+            onClick={() => onClose?.()}
+            aria-label={t('closeEnrollmentDialog')}
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 6 6 18" />
+              <path d="m6 6 12 12" />
+            </svg>
+          </button>
+        </div> : null}
 
         <form
           className="space-y-5 overflow-y-auto px-5 py-5"

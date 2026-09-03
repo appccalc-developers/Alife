@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
+import { Navigate, useParams, useSearchParams } from 'react-router-dom'
+import AppBadge from '../components/layout/AppBadge'
 import ReviewChatDialog from '../components/group/ReviewChatDialog'
 import AppEmptyState from '../components/layout/AppEmptyState'
 import AppPageShell from '../components/layout/AppPageShell'
@@ -34,6 +35,7 @@ const EventReviewView = () => {
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const eventBasePath = buildScopedEventDetailPath(groupId, eventId, Boolean(routeGroupId))
+  const eventTitle = event ? (language === 'zh' ? event.titleZh || event.titleEn : event.titleEn || event.titleZh) : ''
 
   useEffect(() => {
     if (!groupId || !eventId) {
@@ -113,12 +115,12 @@ const EventReviewView = () => {
   }
 
   return (
-    <AppPageShell>
-      <div className="mb-5">
-        <Link to={`${eventBasePath}?section=memories`} className="text-sm font-medium text-slate-600 hover:text-slate-950">
-          {t('backToGroup')}
-        </Link>
-      </div>
+    <AppPageShell
+      title={eventTitle || (language === 'zh' ? '活动回顾' : 'Event review')}
+      context={language === 'zh' ? '小组生活 / 活动 / 回顾' : 'Group Life / Event / Review'}
+      status={event ? <AppBadge variant="neutral">{language === 'zh' ? '已结束' : 'Past event'}</AppBadge> : undefined}
+      backLink={{ label: language === 'zh' ? '返回活动回顾' : 'Back to event memories', to: `${eventBasePath}?section=memories` }}
+    >
 
       {loading ? (
         <AppSectionCard dense>

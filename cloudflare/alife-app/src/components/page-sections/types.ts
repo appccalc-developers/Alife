@@ -26,6 +26,7 @@ export type SectionComponentProps = {
   disabled?: boolean
   editorPreview?: boolean
   previewDensity?: SectionPreviewDensity
+  headingLevel?: 'h1' | 'h2'
   propertiesOnly?: boolean
   showProperties?: boolean
   onUpdate?: (section: SectionEditModel) => void

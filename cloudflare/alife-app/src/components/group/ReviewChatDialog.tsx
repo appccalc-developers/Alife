@@ -407,23 +407,8 @@ const ReviewChatDialog = ({
     }
   }
 
-  const title = language === 'zh'
-    ? event.titleZh || event.titleEn || translateUi(language, 'untitled')
-    : event.titleEn || event.titleZh || translateUi(language, 'untitled')
-
   return (
     <section className="mx-auto flex min-h-[calc(100vh-9rem)] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-emerald-700">
-            {t('reviewAiAssistantTitle')}
-          </p>
-          <h2 className="mt-1 text-xl font-semibold text-slate-950">
-            {title}
-          </h2>
-        </div>
-      </div>
-
       <div className="grid min-h-0 flex-1 gap-0 desktop:grid-cols-2">
         <div className="flex min-h-0 flex-col border-b border-slate-200 desktop:border-b-0 desktop:border-r">
           <div className="flex-1 space-y-3 overflow-y-auto bg-slate-50 px-4 py-4">

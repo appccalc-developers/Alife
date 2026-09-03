@@ -294,52 +294,31 @@ const GroupTreeView = () => {
   }
 
   return (
-    <AppPageShell>
-      <section className="relative isolate overflow-hidden rounded-[1.75rem] border border-[#244a40] bg-[#0f322a] px-5 py-5 text-white shadow-[0_20px_55px_rgba(16,50,42,0.20)] sm:px-7 sm:py-6">
-        <div className="absolute inset-0 opacity-35 [background-image:radial-gradient(rgba(255,255,255,.16)_1px,transparent_1px)] [background-size:24px_24px]" aria-hidden="true" />
-        <div className="absolute -right-20 -top-28 h-72 w-72 rounded-full bg-[#de6c4d]/22 blur-3xl" aria-hidden="true" />
-        <div className="relative grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(15rem,0.55fr)] lg:items-center">
-          <div>
-            <nav aria-label={language === 'zh' ? '小组选择视图' : 'Group selection views'} className="mb-3 inline-flex rounded-full border border-white/15 bg-black/10 p-1 backdrop-blur">
-              <Link to={`/groups/select${alifeShellSearch}`} className="inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-xs font-bold text-white/70 transition hover:bg-white/10 hover:text-white">
-                <LayoutList className="h-3.5 w-3.5" aria-hidden="true" />
-                {language === 'zh' ? '简约选择' : 'Simple view'}
-              </Link>
-              <span className="inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-2 text-xs font-black text-[#173f36] shadow-sm">
-                <Workflow className="h-3.5 w-3.5" aria-hidden="true" />
-                {language === 'zh' ? '组织树' : 'Organization tree'}
-              </span>
-            </nav>
-            <h1 className="mt-2 text-2xl font-black tracking-[-0.04em] sm:text-3xl">
-              {language === 'zh' ? '看见小组如何彼此连接' : 'See how every group connects'}
-            </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-white/62">
-              {auth.isGuest
-                ? (language === 'zh'
-                    ? '从组织树了解小组之间的关系并浏览公开资料；登录或注册后可申请加入。'
-                    : 'Explore group relationships and public details. Sign in or register to apply.')
-                : (language === 'zh'
-                    ? '从组织树理解父级、同级与下属关系。聚焦节点只用于预览，确认后才会切换当前小组。'
-                    : 'Explore parent, peer, and subgroup relationships. Focusing a node only previews it; your current group changes after confirmation.')}
-            </p>
-          </div>
-          <div className="grid grid-cols-2 divide-x divide-white/10 overflow-hidden rounded-[1.5rem] border border-white/12 bg-white/[0.07] backdrop-blur">
-            <div className="px-4 py-3.5">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/45">{language === 'zh' ? '可见小组' : 'Visible groups'}</p>
-              <p className="mt-1 text-2xl font-black tabular-nums">{allNodes.length}</p>
-            </div>
-            <div className="px-4 py-3.5">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/45">
-                {auth.isGuest ? (language === 'zh' ? '浏览身份' : 'Browsing as') : (language === 'zh' ? '当前小组' : 'Current group')}
-              </p>
-              <p className="mt-1 truncate text-sm font-black">
-                {auth.isGuest ? (language === 'zh' ? '访客' : 'Guest') : currentGroup ? localizeText(currentGroup.name, language) : (language === 'zh' ? '尚未选择' : 'Not selected')}
-              </p>
-              {auth.isGuest ? <p className="mt-1 text-[10px] leading-4 text-white/55">{language === 'zh' ? '登录或注册后可申请加入' : 'Sign in or register to apply'}</p> : null}
-            </div>
-          </div>
+    <AppPageShell
+      title={language === 'zh' ? '小组组织树' : 'Group organization'}
+      context={language === 'zh' ? '小组生活 / 组织树' : 'Group Life / Organization tree'}
+      subtitle={auth.isGuest
+        ? (language === 'zh' ? '浏览小组关系与公开资料；登录或注册后可申请加入。' : 'Explore group relationships and public details, then sign in to apply.')
+        : (language === 'zh' ? '聚焦节点只用于预览；确认进入后才会切换当前小组。' : 'Focusing a node only previews it; your current group changes after confirmation.')}
+      status={(
+        <div className="flex flex-wrap items-center gap-2">
+          <AppBadge variant="info">{language === 'zh' ? `${allNodes.length} 个小组` : `${allNodes.length} groups`}</AppBadge>
+          <AppBadge variant={auth.isGuest || !currentGroup ? 'neutral' : 'success'}>{auth.isGuest ? (language === 'zh' ? '访客' : 'Guest') : currentGroup ? localizeText(currentGroup.name, language) : (language === 'zh' ? '未选择' : 'Not selected')}</AppBadge>
         </div>
-      </section>
+      )}
+      controls={(
+        <nav aria-label={language === 'zh' ? '小组选择视图' : 'Group selection views'} className="inline-flex rounded-xl border border-[#173f36] bg-[#173f36] p-1">
+          <Link to={`/groups/select${alifeShellSearch}`} className="inline-flex min-h-9 items-center gap-2 rounded-lg px-3 text-xs font-bold text-white/78 transition hover:bg-white/10 hover:text-white">
+            <LayoutList className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>{language === 'zh' ? '列表' : 'List'}</span>
+          </Link>
+          <span className="inline-flex min-h-9 items-center gap-2 rounded-lg bg-white px-3 text-xs font-black text-[#173f36] shadow-sm">
+            <Workflow className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>{language === 'zh' ? '组织树' : 'Tree'}</span>
+          </span>
+        </nav>
+      )}
+    >
 
       {error ? <AppEmptyState title={language === 'zh' ? '加载失败' : 'Unable to load'} description={language === 'zh' ? '无法加载小组组织树。' : 'Unable to load the group organization tree.'} /> : null}
 
@@ -368,7 +347,7 @@ const GroupTreeView = () => {
               <div className="flex flex-wrap gap-2">
                 {!auth.isGuest && currentGroup ? <button type="button" onClick={focusCurrentGroup} className="inline-flex items-center gap-1.5 rounded-full border border-[#cbd9d3] bg-white px-3.5 py-2 text-xs font-black text-[#31544b] transition hover:-translate-y-0.5 hover:bg-[#edf5f1]"><Crosshair className="h-3.5 w-3.5" />{language === 'zh' ? '定位当前小组' : 'Locate current'}</button> : null}
                 <button type="button" onClick={collapseAll} className="rounded-full border border-[#d7dfda] bg-white px-3.5 py-2 text-xs font-bold text-[#53665f] transition hover:bg-[#edf5f1]">{language === 'zh' ? '收起分支' : 'Collapse'}</button>
-                <button type="button" onClick={showOverview} className="inline-flex items-center gap-1.5 rounded-full bg-[#173f36] px-3.5 py-2 text-xs font-black text-white shadow-[0_8px_20px_rgba(23,63,54,.18)] transition hover:-translate-y-0.5 hover:bg-[#102f29]"><Maximize2 className="h-3.5 w-3.5" />{language === 'zh' ? '全局总览' : 'Overview'}</button>
+                <button type="button" onClick={showOverview} className="inline-flex items-center gap-1.5 rounded-full border border-[#cbd9d3] bg-white px-3.5 py-2 text-xs font-black text-[#31544b] transition hover:bg-[#edf5f1]"><Maximize2 className="h-3.5 w-3.5" />{language === 'zh' ? '全局总览' : 'Overview'}</button>
               </div>
             </header>
 

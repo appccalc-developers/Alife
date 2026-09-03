@@ -456,12 +456,13 @@ const EventCreationWizard = () => {
     : ['Archetype', 'Event template', 'Preset & modules', 'Details & facts', 'Plan review']
 
   if (!canCreate && groupId) {
-    return <AppPageShell title={isZh ? '建立活动' : 'Create event'}><AppEmptyState title={isZh ? '需要小组管理权限' : 'Group management permission required'} description={isZh ? '只有所属小组的 leader／co-leader 可以建立并接受活动方案。' : 'Only an owning-group leader or co-leader can create and accept an event plan.'} /></AppPageShell>
+    return <AppPageShell title={isZh ? '建立活动' : 'Create event'} context={isZh ? '小组生活 / 活动' : 'Group Life / Events'}><AppEmptyState title={isZh ? '需要小组管理权限' : 'Group management permission required'} description={isZh ? '只有所属小组的 leader／co-leader 可以建立并接受活动方案。' : 'Only an owning-group leader or co-leader can create and accept an event plan.'} /></AppPageShell>
   }
 
   return (
     <AppPageShell
       title={isZh ? '建立活动' : 'Create an event'}
+      context={isZh ? '小组生活 / 活动 / 新建' : 'Group Life / Events / New'}
       subtitle={isZh ? '从系统原型和具体活动模板开始；所有预选都要在人工接受前审查。' : 'Start with a system archetype and event template. Every preset remains reviewable before human acceptance.'}
     >
       <nav className="overflow-x-auto rounded-2xl border border-[#2f4b42]/10 bg-white/80 p-2" aria-label={isZh ? '建立活动步骤' : 'Event creation steps'}>

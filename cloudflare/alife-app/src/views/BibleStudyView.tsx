@@ -4,65 +4,21 @@ import { useSearchParams } from 'react-router-dom'
 import type { BibleVersion } from '@youversion/platform-core'
 import YouVersionBibleReader from '../components/bible/YouVersionBibleReader'
 import AppPageShell from '../components/layout/AppPageShell'
-import { bibleReadingProgressService, type BibleReadingProgress } from '../services/bibleReadingProgressService'
+import { bibleReadingProgressService } from '../services/bibleReadingProgressService'
 import { getAvailableBibleVersions } from '../services/youVersionBibleService'
 import { useAuthStore } from '../stores/auth'
 import { bibleBooks, findBibleBook } from '../utils/bibleBooks'
+import {
+  normalizeReadingPosition,
+  readSavedReadingPosition,
+  saveReadingPosition,
+  type ReaderLanguage,
+  type SavedReadingPosition,
+} from '../utils/bibleReadingProgress'
 
-type ReaderLanguage = 'zh' | 'en'
 type Testament = 'old' | 'new'
-type SavedReadingPosition = {
-  book: string
-  chapter: number
-  language: ReaderLanguage
-  zhVersion?: string
-  enVersion?: string
-  updatedUtc: string
-}
 
 const OLD_TESTAMENT_COUNT = 39
-const readingPositionStorageKey = (memberId: string) => `alife:bible-reading-position:${memberId}`
-
-const readSavedReadingPosition = (memberId: string): SavedReadingPosition | null => {
-  try {
-    const raw = window.localStorage.getItem(readingPositionStorageKey(memberId))
-    if (!raw) return null
-    const value = JSON.parse(raw) as Partial<SavedReadingPosition>
-    const savedBook = bibleBooks.find((item) => item.id === value.book)
-    if (!savedBook) return null
-    return {
-      book: savedBook.id,
-      chapter: clampChapter(String(value.chapter ?? 1), savedBook.chapters),
-      language: value.language === 'en' ? 'en' : 'zh',
-      zhVersion: typeof value.zhVersion === 'string' ? value.zhVersion : undefined,
-      enVersion: typeof value.enVersion === 'string' ? value.enVersion : undefined,
-      updatedUtc: typeof value.updatedUtc === 'string' ? value.updatedUtc : new Date(0).toISOString(),
-    }
-  } catch {
-    return null
-  }
-}
-
-const saveReadingPosition = (memberId: string, position: SavedReadingPosition) => {
-  try {
-    window.localStorage.setItem(readingPositionStorageKey(memberId), JSON.stringify(position))
-  } catch {
-    // Reading still works when storage is disabled or full.
-  }
-}
-
-const normalizeReadingPosition = (value: BibleReadingProgress): SavedReadingPosition | null => {
-  const savedBook = bibleBooks.find((item) => item.id === value.book)
-  if (!savedBook) return null
-  return {
-    book: savedBook.id,
-    chapter: clampChapter(String(value.chapter), savedBook.chapters),
-    language: value.language === 'en' ? 'en' : 'zh',
-    zhVersion: value.zhVersion || undefined,
-    enVersion: value.enVersion || undefined,
-    updatedUtc: value.updatedUtc,
-  }
-}
 
 const bookGroups = [
   { id: 'law', testament: 'old' as const, zh: '律法书', en: 'Law', books: bibleBooks.slice(0, 5) },
@@ -239,6 +195,7 @@ const BibleStudyView = () => {
   return (
     <AppPageShell
       title={isZh ? '查经' : 'Bible study'}
+      context={isZh ? '个人中心 / 查经进度' : 'Personal Center / Bible progress'}
       subtitle={isZh ? '选择经卷和章节，安静阅读、预备和记录。' : 'Choose a book and chapter to read, prepare, and reflect.'}
     >
       <section className="space-y-4">

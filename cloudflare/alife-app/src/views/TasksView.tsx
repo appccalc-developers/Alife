@@ -1,4 +1,4 @@
-import { AlertCircle, ArrowRight, BellRing, Check, ChevronDown, ClipboardCheck, LoaderCircle, RefreshCw } from 'lucide-react'
+import { AlertCircle, ArrowRight, BellRing, Check, ChevronDown, LoaderCircle, RefreshCw } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AppPageShell from '../components/layout/AppPageShell'
@@ -155,7 +155,44 @@ const TasksView = () => {
   }
 
   return (
-    <AppPageShell title={copy.title} subtitle={copy.subtitle}>
+    <AppPageShell
+      title={copy.title}
+      context={zh ? '个人中心 / 当前事务' : 'Personal Center / Current tasks'}
+      subtitle={copy.subtitle}
+      controls={(
+        <div className="flex rounded-xl border border-[#173f36] bg-[#173f36] p-1" role="tablist" aria-label={copy.chooser}>
+          {(['urgent', 'general'] as const).map((category) => {
+            const active = selectedCategory === category
+            const urgent = category === 'urgent'
+            const label = urgent ? copy.urgent : copy.general
+            const count = counts[category]
+            return (
+              <button
+                key={category}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => chooseCategory(category)}
+                className={[
+                  'flex min-h-9 items-center gap-2 rounded-lg px-2.5 text-xs font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/45 sm:px-3',
+                  active ? 'bg-white text-[#173f36] shadow-sm' : 'text-white/78 hover:bg-white/10 hover:text-white',
+                ].join(' ')}
+              >
+                <span>{label}</span>
+                <span className={['inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] leading-5', active ? urgent ? 'bg-[#fbe8e2] text-[#9b3d29]' : 'bg-[#dceee7] text-[#155345]' : 'bg-white/12 text-white'].join(' ')}>{formatTaskCount(count)}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+      overflowLabel={zh ? '更多操作' : 'More actions'}
+      overflowActions={[{
+        label: tasksQuery.isFetching ? (zh ? '正在刷新' : 'Refreshing') : (zh ? '刷新事务' : 'Refresh tasks'),
+        icon: <RefreshCw className={tasksQuery.isFetching ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />,
+        onSelect: () => void tasksQuery.refetch(),
+        disabled: tasksQuery.isFetching,
+      }]}
+    >
       {selectedApplication ? (
         <section className="rounded-[1.5rem] border border-[#b9cec5] bg-white p-4 shadow-[0_16px_38px_rgba(30,54,48,0.07)] sm:p-5" aria-labelledby="selected-application-heading">
           <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 id="selected-application-heading" className="font-black text-[#18332d]">{copy.applicationTitle}</h2><p className="mt-1 text-xs text-[#718079]">{copy.applicationId}: {selectedApplication.id}</p></div><span className="rounded-full bg-[#e3f0eb] px-3 py-1 text-xs font-black text-[#176b5a]">{selectedApplication.status}</span></div>
@@ -164,41 +201,6 @@ const TasksView = () => {
           {selectedApplication.status === 'needsInfo' ? <div className="mt-4 border-t border-[#e3ebe7] pt-4"><label className="block text-sm font-bold text-[#314b43]">{copy.supplement}<textarea className="alife-input mt-2 min-h-28 py-3" maxLength={2000} value={supplement} onChange={(event) => setSupplement(event.target.value)} /></label><button className="mt-3 inline-flex min-h-10 items-center rounded-xl bg-[#176b5a] px-4 py-2 text-sm font-black text-white disabled:opacity-50" type="button" disabled={applicationBusy || supplement.trim().length < 2} onClick={() => void submitApplicationSupplement()}>{copy.sendSupplement}</button></div> : null}
         </section>
       ) : null}
-      <section className="rounded-[1.5rem] border border-[#d8e1dc] bg-[#f8fbf8] p-4 shadow-[0_16px_38px_rgba(30,54,48,0.06)] sm:p-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-sm font-black text-[#18332d]"><ClipboardCheck className="h-5 w-5 text-[#176b5a]" />{copy.chooser}</div>
-            <p className="mt-1 text-xs font-semibold leading-5 text-[#718079]">{copy.chooserHint}</p>
-          </div>
-          <div className="flex rounded-xl border border-[#cddbd4] bg-white p-1" role="tablist" aria-label={copy.chooser}>
-            {(['urgent', 'general'] as const).map((category) => {
-              const active = selectedCategory === category
-              const urgent = category === 'urgent'
-              const label = urgent ? copy.urgent : copy.general
-              const count = counts[category]
-              return (
-                <button
-                  key={category}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => chooseCategory(category)}
-                  className={[
-                    'flex min-h-10 items-center gap-2 rounded-lg px-3 py-2 text-sm font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#176b5a]/30 sm:px-4',
-                    active
-                      ? urgent ? 'bg-[#de6c4d] text-white shadow-sm' : 'bg-[#176b5a] text-white shadow-sm'
-                      : 'text-[#63756d] hover:bg-[#edf5f1]',
-                  ].join(' ')}
-                >
-                  <span>{label}</span>
-                  <span className={['inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] leading-5', active ? 'bg-white/20 text-white' : urgent ? 'bg-[#fbe8e2] text-[#9b3d29]' : 'bg-[#dceee7] text-[#155345]'].join(' ')}>{formatTaskCount(count)}</span>
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      </section>
-
       {actionError ? <p className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800" role="alert">{actionError}</p> : null}
 
       {tasksQuery.isLoading ? (
@@ -209,7 +211,6 @@ const TasksView = () => {
         <div className="rounded-[1.5rem] border border-[#ead8c6] bg-[#fffbf5] p-6 text-center shadow-[0_16px_38px_rgba(30,54,48,0.07)]">
           <AlertCircle className="mx-auto h-8 w-8 text-[#b65c3e]" />
           <p className="mt-3 text-sm leading-6 text-[#725b4d]">{copy.loadFailed}</p>
-          <button type="button" onClick={() => void tasksQuery.refetch()} className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#173f36] px-4 py-2 text-sm font-black text-white transition hover:bg-[#0d4f43] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#176b5a]/30"><RefreshCw className="h-4 w-4" />{copy.retry}</button>
         </div>
       ) : visibleTasks.length === 0 ? (
         <div className="rounded-[1.5rem] border border-dashed border-[#cbdad3] bg-white/70 px-6 py-12 text-center">

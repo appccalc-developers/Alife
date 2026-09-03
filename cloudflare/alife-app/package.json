@@ -20,6 +20,7 @@
     "test:visit-contact": "node --test --experimental-strip-types tests/visitContactValidation.test.ts",
     "test:identity": "node --test --experimental-strip-types tests/identityPathPolicy.test.ts tests/currentTasks.test.ts tests/passkeyErrors.test.ts tests/passkeyRequestGuard.test.ts tests/deviceClass.test.ts tests/manualActivationClipboard.test.ts",
     "test:web-dialogs": "node --test --experimental-strip-types tests/webDialogs.test.ts",
+    "test:workspace-layout": "node --test --experimental-strip-types tests/workspaceLayout.test.ts",
     "test:event-composition": "node --test --experimental-strip-types tests/eventComposition.test.ts tests/eventOperations.test.ts tests/eventVenue.test.ts tests/eventTravel.test.ts tests/eventSafeguarding.test.ts tests/eventTemplateAdmin.test.ts tests/eventPackageApproval.test.ts",
     "typecheck": "tsc -b --pretty false",
     "build": "tsc -b && vite build",

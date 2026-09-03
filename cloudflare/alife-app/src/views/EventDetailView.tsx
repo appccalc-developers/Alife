@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
+import { LayoutDashboard, Pencil, Workflow } from 'lucide-react'
 import EnrollmentChatDialog from '../components/group/EnrollmentChatDialog'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
 import AppEmptyState from '../components/layout/AppEmptyState'
 import AppPageShell from '../components/layout/AppPageShell'
 import AppSectionCard from '../components/layout/AppSectionCard'
+import AppTitleBarAction from '../components/layout/AppTitleBarAction'
 import CoverImage from '../components/CoverImage'
 import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
 import { activeEntityService } from '../services/activeEntityService'
@@ -266,8 +268,7 @@ const EventNoticePanel = ({ event, eventDto, language, contacts, currentGroupRou
           <div className={['p-5 sm:p-6', useDesktopSideBySideLayout ? 'desktop:border-l desktop:border-slate-200' : ''].join(' ')}>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-widest text-emerald-700">{text.notice}</p>
-                <h1 className="mt-2 text-2xl font-semibold leading-tight text-slate-950 sm:text-3xl">{title}</h1>
+                <h2 className="text-base font-black text-[#18332d]">{text.notice}</h2>
               </div>
               <AppBadge variant={eventDto.maxCapacity === 0 || !isBeforeDeadline(eventDto.registrationDeadline) ? 'neutral' : 'success'}>
                 {eventDto.maxCapacity === 0
@@ -727,6 +728,35 @@ const EventDetailView = () => {
   const eventDto = useMemo(() => (event ? parseEventDto(event) : null), [event])
   const lifecycle = event ? getEventLifecycle(event) : null
   const acceptsEnrollments = event ? readEventLifecycleData(event).acceptsEnrollments : false
+  const eventTitle = eventDto ? localized(eventDto.title, language) || event?.titleEn || event?.titleZh : ''
+  const eventLocation = eventDto ? localized(eventDto.locationName, language) : ''
+  const eventSubtitle = eventDto
+    ? [formatDateTime(eventDto.startDate, language), eventLocation].filter(Boolean).join(' · ')
+    : undefined
+  const lifecycleLabel = lifecycle === 'planning'
+    ? (language === 'zh' ? '筹备中' : 'Planning')
+    : lifecycle === 'past'
+      ? (language === 'zh' ? '已结束' : 'Past')
+      : lifecycle === 'upcoming'
+        ? (language === 'zh' ? '即将举行' : 'Upcoming')
+        : ''
+  const sectionContext = activeSection === 'workflow'
+    ? (language === 'zh' ? '流程与产出物' : 'Workflow & outputs')
+    : activeSection === 'enrollments'
+      ? (language === 'zh' ? '报名' : 'Enrollment')
+      : activeSection === 'memories'
+        ? (language === 'zh' ? '回顾' : 'Memories')
+        : (language === 'zh' ? '活动通知' : 'Event notice')
+  const eventScopeContext = routeGroupId
+    ? (language === 'zh' ? '教会生活 / 活动' : 'Church Life / Events')
+    : (language === 'zh' ? '小组生活 / 活动' : 'Group Life / Events')
+  const eventContext = (
+    <>
+      <span className="desktop:hidden">{eventScopeContext}</span>
+      <span className="hidden desktop:inline">{eventScopeContext} / {sectionContext}</span>
+    </>
+  )
+  const backToEventsPath = routeGroupId ? '/church?section=events' : '/groups?section=events'
 
   if (!groupId || !eventId) {
     return <Navigate to="/" replace />
@@ -741,13 +771,33 @@ const EventDetailView = () => {
   }
 
   return (
-    <AppPageShell>
-      <div className="mb-1">
-        <Link to="/groups?section=events" className="text-sm font-medium text-slate-600 hover:text-slate-950">
-          {text.backToEvents}
-        </Link>
-      </div>
-
+    <AppPageShell
+      title={eventTitle || (language === 'zh' ? '活动' : 'Events')}
+      context={eventContext}
+      subtitle={eventSubtitle}
+      backLink={{ to: backToEventsPath, label: text.backToEvents }}
+      status={lifecycle ? <AppBadge variant={lifecycle === 'upcoming' ? 'success' : lifecycle === 'planning' ? 'warning' : 'neutral'}>{lifecycleLabel}</AppBadge> : undefined}
+      primaryAction={!isGuest && event ? (
+        <AppTitleBarAction
+          label={language === 'zh' ? '活动工作区' : 'Event workspace'}
+          icon={<LayoutDashboard className="h-4 w-4" />}
+          to={`${eventBasePath}/workspace`}
+        />
+      ) : undefined}
+      overflowLabel={language === 'zh' ? '更多操作' : 'More actions'}
+      overflowActions={event ? [{
+        label: activeSection === 'workflow'
+          ? (language === 'zh' ? '活动通知' : 'Event notice')
+          : (language === 'zh' ? '流程与产出物' : 'Workflow & outputs'),
+        icon: <Workflow className="h-4 w-4" />,
+        to: `${eventBasePath}${activeSection === 'workflow' ? '' : '?section=workflow'}`,
+      }, ...((canManage || canAuditRam) ? [{
+        label: language === 'zh' ? (canAuditRam ? '检查 / 批准 RAM' : '编辑活动 / RAM') : (canAuditRam ? 'Review / approve RAM' : 'Edit event / RAM'),
+        icon: <Pencil className="h-4 w-4" />,
+        to: `${eventBasePath}/edit`,
+        onSelect: () => activeEntityService.setEvent(eventId),
+      }] : [])] : []}
+    >
       {loading ? (
         <AppSectionCard dense>
           <p className="text-sm text-slate-600">{text.loading}</p>
@@ -766,35 +816,6 @@ const EventDetailView = () => {
 
       {!loading && !error && event && eventDto ? (
         <>
-          {!isGuest ? (
-            <div className="mb-2 flex flex-wrap justify-end gap-2">
-              <Link
-                to={`${eventBasePath}/workspace`}
-                className="inline-flex items-center rounded-lg border border-[#176b5a]/25 bg-[#e3f0eb] px-3.5 py-2 text-sm font-bold text-[#0d4f43] hover:bg-[#d4e9e1]"
-              >
-                {language === 'zh' ? '活动工作区' : 'Event workspace'}
-              </Link>
-              <Link
-                to={`${eventBasePath}${activeSection === 'workflow' ? '' : '?section=workflow'}`}
-                className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
-              >
-                {activeSection === 'workflow'
-                  ? (language === 'zh' ? '活动通知' : 'Event notice')
-                  : (language === 'zh' ? '流程与产出物' : 'Workflow & outputs')}
-              </Link>
-            </div>
-          ) : null}
-          {(canManage || canAuditRam) ? (
-            <div className="mb-4 flex justify-end">
-              <Link
-                to={`${eventBasePath}/edit`}
-                onClick={() => activeEntityService.setEvent(eventId)}
-                className="inline-flex items-center rounded-lg border border-teal-300 bg-white px-3.5 py-2 text-sm font-bold text-teal-800 hover:bg-teal-50"
-              >
-                {language === 'zh' ? (canAuditRam ? '检查 / 批准 RAM' : '编辑活动 / RAM') : (canAuditRam ? 'Review / approve RAM' : 'Edit event / RAM')}
-              </Link>
-            </div>
-          ) : null}
           {activeSection === 'workflow' ? (
             <EventWorkflowPanel eventId={eventId} groupId={groupId} editPath={`${eventBasePath}/edit`} language={language} canManage={canManage} />
           ) : activeSection === 'enrollments' ? (

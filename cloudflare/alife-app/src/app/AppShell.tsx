@@ -20,6 +20,7 @@ import { buildPageMenuNavItems } from '../views/home/homeUtils'
 import { usePublicPagesQuery } from '../hooks/usePublicPageQueries'
 import { workspaceResumeService } from '../services/workspaceResumeService'
 import { isHomeLocation, isPublicArticlePath, isPublicPageLocation, usesPublicHomeLayout } from './routing/publicRoutePolicy'
+import { getWorkspaceArea } from './routing/workspaceArea'
 
 const readSidebarCollapsedPreference = () => {
   try {
@@ -65,10 +66,10 @@ const WorkspaceShell = () => {
     isManagementScreen: context.isManagementScreen,
     isEventScreen: context.isEventScreen,
     isSermonDetailScreen: context.isSermonDetailScreen,
-    isProfileScreen: context.isProfileScreen,
   })
 
   const headerGroupContextId = !context.isIdentityScreen ? groupLifeGroupId : ''
+  const workspaceArea = getWorkspaceArea(context.location.pathname)
 
   useEffect(() => {
     if (auth.isGuest) return
@@ -97,7 +98,7 @@ const WorkspaceShell = () => {
   }
 
   return (
-    <div className="alife-workspace relative min-h-screen text-[#18332d]">
+    <div className="alife-workspace relative min-h-screen text-[#18332d]" data-workspace-area={workspaceArea}>
       {context.isIdentityScreen ? null : (
         <DesktopNavigation
           platformSections={navigation.platformSections}

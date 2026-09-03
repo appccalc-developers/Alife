@@ -294,6 +294,7 @@ const GroupPageTabs = ({
             groupPageItems={pages}
             showHeader={false}
             framed={false}
+            sectionHeroHeadingLevel="h2"
           />
         ) : null}
       </>
@@ -326,6 +327,7 @@ const GroupPageTabs = ({
             groupPageItems={pages}
             showHeader={false}
             framed={false}
+            sectionHeroHeadingLevel="h2"
           />
         ) : null}
 
@@ -344,6 +346,7 @@ const GroupPageTabs = ({
                 contextGroupId={activePage.ownerGroupId}
                 showHeader={false}
                 framed={false}
+                sectionHeroHeadingLevel="h2"
                 onPageChange={updateActiveModel}
                 onSectionsChange={(sections) => updateActiveModel({ ...activeModel, sections })}
               />

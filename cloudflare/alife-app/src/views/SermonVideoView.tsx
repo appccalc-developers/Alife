@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, CalendarDays, ChevronLeft, ChevronRight, MessageCircle, MessageSquareReply, MicVocal, PlayCircle, Send } from 'lucide-react'
+import { ChevronLeft, ChevronRight, MessageCircle, MessageSquareReply, Send } from 'lucide-react'
 import AppActionButton from '../components/layout/AppActionButton'
+import AppBadge from '../components/layout/AppBadge'
 import AppEmptyState from '../components/layout/AppEmptyState'
 import AppPageShell from '../components/layout/AppPageShell'
 import AppSectionCard from '../components/layout/AppSectionCard'
@@ -158,6 +159,12 @@ const SermonVideoView = () => {
   const embedUrl = toYouTubeEmbedUrl(videoId)
   const pageTitle = sermon?.title || t('watchSermon')
   const forumViewerId = me?.id || 'guest'
+  const sermonContext = (
+    <>
+      <span className="desktop:hidden">{language === 'zh' ? '教会生活 / 证道' : 'Church Life / Sermons'}</span>
+      <span className="hidden desktop:inline">{language === 'zh' ? '教会生活 / 主日证道' : 'Church Life / Sunday Sermons'}</span>
+    </>
+  )
 
   const sermonDiscussionQuery = useQuery({
     queryKey: sermon?.id ? forumQueryKeys.sermonPost(sermon.id, forumViewerId) : ['forum', 'sermon-post', 'missing', forumViewerId],
@@ -215,7 +222,7 @@ const SermonVideoView = () => {
 
   if (!embedUrl && sermonLoading && !sermon) {
     return (
-      <AppPageShell>
+      <AppPageShell title={t('sermons')} context={sermonContext}>
         <AppSectionCard dense>
           <p className="text-sm text-slate-600">{t('loadingPage')}</p>
         </AppSectionCard>
@@ -225,7 +232,7 @@ const SermonVideoView = () => {
 
   if (!embedUrl && sermonError && !sermon) {
     return (
-      <AppPageShell>
+      <AppPageShell title={t('sermons')} context={sermonContext}>
         <AppSectionCard dense>
           <p className="text-sm text-rose-700">{t('sermonsLoadFailed')}</p>
         </AppSectionCard>
@@ -235,23 +242,21 @@ const SermonVideoView = () => {
 
   if (!sermon && !embedUrl) {
     return (
-      <AppPageShell>
+      <AppPageShell title={t('sermons')} context={sermonContext} backLink={{ to: '/sermons', label: `${t('back')} ${t('sermons')}` }}>
         <AppEmptyState title={t('sermonNotFound')} description={t('sermonNotFoundDescription')} />
       </AppPageShell>
     )
   }
 
   return (
-    <AppPageShell>
+    <AppPageShell
+      title={pageTitle}
+      context={sermonContext}
+      subtitle={sermon ? `${sermon.speakerName || t('guestSpeaker')} · ${formatSermonDate(sermon.preachedAt, t('noDate'))}` : undefined}
+      backLink={{ to: '/sermons', label: `${t('back')} ${t('sermons')}` }}
+      status={<AppBadge variant={embedUrl ? 'success' : 'warning'}>{embedUrl ? (language === 'zh' ? '可观看' : 'Available') : (language === 'zh' ? '视频未连接' : 'Video unavailable')}</AppBadge>}
+    >
       <section className="mx-auto max-w-5xl space-y-6">
-        <Link
-          to="/sermons"
-          className="inline-flex min-h-10 items-center rounded-full border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-800"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
-          {t('back')} {t('sermons')}
-        </Link>
-
         <article className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-[0_18px_55px_rgba(15,23,42,0.08)]">
           <div className="bg-slate-950">
             {embedUrl ? (
@@ -273,35 +278,6 @@ const SermonVideoView = () => {
             )}
           </div>
 
-          <div className="space-y-4 p-5 sm:p-6">
-            <div className="flex flex-wrap items-center gap-2 text-xs font-black text-emerald-800">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1">
-                <PlayCircle className="h-3.5 w-3.5" />
-                {t('watchSermon')}
-              </span>
-              {sermonPost ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-slate-600">
-                  <MessageCircle className="h-3.5 w-3.5" />
-                  {sermonPost.commentCount} {discussionText.comments}
-                </span>
-              ) : null}
-            </div>
-
-            <h1 className="text-2xl font-black leading-tight text-slate-950 sm:text-4xl">{pageTitle}</h1>
-
-            {sermon ? (
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-slate-100 pt-4 text-sm font-semibold text-slate-600">
-                <span className="inline-flex items-center gap-1.5">
-                  <MicVocal className="h-4 w-4 text-emerald-700" />
-                  {sermon.speakerName || t('guestSpeaker')}
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <CalendarDays className="h-4 w-4 text-emerald-700" />
-                  {formatSermonDate(sermon.preachedAt, t('noDate'))}
-                </span>
-              </div>
-            ) : null}
-          </div>
         </article>
 
         {/* Interactive Bilingual Transcript Panel */}

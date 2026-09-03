@@ -5,6 +5,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import ChurchGroupFilter from '../components/church-life/ChurchGroupFilter'
 import ChurchLifeResultsRegion from '../components/church-life/ChurchLifeResultsRegion'
 import AppEmptyState from '../components/layout/AppEmptyState'
+import AppOverflowMenu from '../components/layout/AppOverflowMenu'
 import AppPageShell from '../components/layout/AppPageShell'
 import { churchLifeQueryKeys, churchLifeService, type ChurchLifeGroup } from '../services/churchLifeService'
 import { resolveFileAssetAccessUrl } from '../services/fileAssetService'
@@ -39,8 +40,9 @@ const ChurchAlbumsView = () => {
   return (
     <AppPageShell
       title={language === 'zh' ? '教会相册' : 'Church albums'}
+      context={language === 'zh' ? '教会生活 / 相册' : 'Church Life / Albums'}
       subtitle={language === 'zh' ? '浏览教会及所有开放下属事工的顶层相册；子相册仍在实际所属组中展开。' : 'Browse top-level albums from the church and every open descendant ministry; subalbums continue inside the actual owning group.'}
-      actions={<ChurchGroupFilter groups={groups} value={ownerGroupId} language={language} onChange={selectOwnerGroup} />}
+      controls={<ChurchGroupFilter groups={groups} value={ownerGroupId} language={language} onChange={selectOwnerGroup} />}
     >
       <ChurchLifeResultsRegion busy={albumsQuery.isFetching && !albumsQuery.isPending} language={language}>
         {albumsQuery.isPending ? <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{[0, 1, 2].map((item) => <div key={item} className="h-72 animate-pulse rounded-2xl border border-[#dfe7e3] bg-white" />)}</div> : null}
@@ -62,7 +64,18 @@ const ChurchAlbumsView = () => {
                       <p className="mt-1 text-xs text-[#66766f]">{language === 'zh' ? `${album.childCount} 个子相册 · ${album.photoCount} 张图片` : `${album.childCount} subalbums · ${album.photoCount} photos`}</p>
                     </div>
                   </Link>
-                  {owner?.canManage ? <div className="border-t border-[#e5ebe8] px-4 py-3"><Link className="inline-flex items-center gap-1 text-xs font-black text-[#176b5a]" to={`/groups/${encodeURIComponent(album.groupId)}/manage?section=albums`}><Settings2 className="h-3.5 w-3.5" />{language === 'zh' ? '在所属组管理' : 'Manage in owning group'}</Link></div> : null}
+                  {owner?.canManage ? (
+                    <div className="flex justify-end border-t border-[#e5ebe8] px-3 py-2">
+                      <AppOverflowMenu
+                        label={language === 'zh' ? '更多操作' : 'More actions'}
+                        actions={[{
+                          label: language === 'zh' ? '在所属组管理' : 'Manage in owning group',
+                          to: `/groups/${encodeURIComponent(album.groupId)}/manage?section=albums`,
+                          icon: <Settings2 className="h-4 w-4" />,
+                        }]}
+                      />
+                    </div>
+                  ) : null}
                 </article>
               )
             })}
