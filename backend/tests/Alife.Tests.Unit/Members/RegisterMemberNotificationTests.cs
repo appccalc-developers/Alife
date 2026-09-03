@@ -102,7 +102,7 @@ public class RegisterMemberNotificationTests
         Assert.Equal(churchId, notification.GroupId);
         Assert.Equal("church.line-member.waiting", notification.ActionType);
         Assert.Contains(registeredMember.Id.ToString(), notification.ActionDataJson);
-        Assert.Contains("/admin?church=members", notification.ActionDataJson);
+        Assert.Contains("/church/manage?section=members", notification.ActionDataJson);
         await cacheInvalidationService.Received(1).RemoveMembershipsAsync(churchId, Arg.Any<CancellationToken>());
     }
 

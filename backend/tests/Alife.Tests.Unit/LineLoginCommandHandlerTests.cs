@@ -262,7 +262,7 @@ public class LineLoginCommandHandlerTests
         Assert.Equal(churchId, notification.GroupId);
         Assert.Equal("group.join-request.received", notification.ActionType);
         Assert.Contains("James Wong", notification.ActionDataJson);
-        Assert.Contains("/admin?church=members", notification.ActionDataJson);
+        Assert.Contains("/church/manage?section=members", notification.ActionDataJson);
 
         await groupCacheInvalidationService.Received(1)
             .RemoveMembershipsAsync(churchId, Arg.Any<CancellationToken>());

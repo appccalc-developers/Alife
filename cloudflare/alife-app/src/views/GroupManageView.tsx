@@ -876,6 +876,11 @@ type GroupManageViewProps = {
   integrated?: boolean
   refreshRequest?: number
   subgroupDetailBasePath?: string
+  visibleSections?: readonly ManageSection[]
+  sectionLabels?: Partial<Record<ManageSection, string>>
+  membersContent?: ReactNode
+  workspaceEyebrow?: string
+  workspaceDescription?: string
 }
 
 const GroupManageView = ({
@@ -886,6 +891,11 @@ const GroupManageView = ({
   integrated = false,
   refreshRequest = 0,
   subgroupDetailBasePath = '',
+  visibleSections,
+  sectionLabels,
+  membersContent,
+  workspaceEyebrow,
+  workspaceDescription,
 }: GroupManageViewProps) => {
   const t = useUiText()
   const { requestConfirmation, confirmationModal } = useConfirmation()
@@ -935,9 +945,9 @@ const GroupManageView = ({
     refreshMemberships().catch(() => undefined)
   }, [canManageGroup, group, refreshMemberships, refreshRequest])
 
-  const activeSection = normalizeManageSection(searchParams.get(sectionParamName))
+  const requestedSection = normalizeManageSection(searchParams.get(sectionParamName))
   const copy = managementCopy(language, group?.isChurch)
-  const groupManagementSections: Array<{ key: ManageSection; label: string; hint: string }> = [
+  const allGroupManagementSections: Array<{ key: ManageSection; label: string; hint: string }> = [
     { key: 'group', label: language === 'zh' ? '资料与设置' : 'Profile & settings', hint: language === 'zh' ? '名称、介绍、带领团队与访问规则' : 'Name, description, leadership, and access' },
     { key: 'members', label: copy.members, hint: copy.membersHint },
     { key: 'applications', label: copy.applications, hint: copy.applicationsHint },
@@ -946,6 +956,16 @@ const GroupManageView = ({
     { key: 'albums', label: copy.albums, hint: copy.albumsHint },
     { key: 'pages', label: copy.pages, hint: copy.pagesHint },
   ]
+  const groupManagementSections = visibleSections?.length
+    ? allGroupManagementSections.filter((section) => visibleSections.includes(section.key))
+    : allGroupManagementSections
+  const labelledGroupManagementSections = groupManagementSections.map((section) => ({
+    ...section,
+    label: sectionLabels?.[section.key] || section.label,
+  }))
+  const activeSection = labelledGroupManagementSections.some((section) => section.key === requestedSection)
+    ? requestedSection
+    : labelledGroupManagementSections[0]?.key ?? 'group'
   const showGroupManagementNavigation = activeSection !== 'events' && activeSection !== 'announcements'
   const workspacePath = workspaceBasePath
   const groupWorkspaceTarget = (targetGroupId: string) =>
@@ -1089,14 +1109,14 @@ const GroupManageView = ({
                 </Link>
               ) : null}
               <p className={[!embeddedWorkspace ? 'mt-4' : '', 'text-xs font-black uppercase tracking-[0.22em] text-emerald-700'].join(' ')}>
-                {activeSection === 'group'
+                {workspaceEyebrow || (activeSection === 'group'
                   ? (group?.isChurch ? (language === 'zh' ? '教会管理' : 'Church Management') : (language === 'zh' ? '小组管理' : 'Group Management'))
-                  : copy[activeSection]}
+                  : copy[activeSection])}
               </p>
               <h1 className="mt-2 text-3xl font-black tracking-[-0.04em] sm:text-4xl">
                 {embeddedWorkspace ? localizeText(group?.name, language) || copy.title : copy.title}
               </h1>
-              <p className="mt-3 text-sm leading-6 text-[#5f716a]">{embeddedWorkspace ? (language === 'zh' ? '成员、活动、内容和设置都在这里处理。' : 'People, events, content, and settings in one place.') : copy.subtitle}</p>
+              <p className="mt-3 text-sm leading-6 text-[#5f716a]">{workspaceDescription || (embeddedWorkspace ? (language === 'zh' ? '成员、活动、内容和设置都在这里处理。' : 'People, events, content, and settings in one place.') : copy.subtitle)}</p>
             </div>
             {group ? <div className="shrink-0"><AccessTypeBadge accessType={group.accessType} /></div> : null}
           </div>
@@ -1108,7 +1128,7 @@ const GroupManageView = ({
             className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
             <div className="flex min-w-max items-center gap-1 border-b border-[#ccd9d3]" role="tablist">
-              {groupManagementSections.map((section) => {
+              {labelledGroupManagementSections.map((section) => {
                 const target = `${workspaceBasePath}?${sectionParamName}=${section.key}`
                 const active = activeSection === section.key
                 return (
@@ -1226,7 +1246,7 @@ const GroupManageView = ({
               ) : null}
 
               {activeSection === 'members' ? (
-                <MembersPanel
+                membersContent ?? <MembersPanel
                   framed={false}
                   groupId={groupId}
                   memberships={memberships}

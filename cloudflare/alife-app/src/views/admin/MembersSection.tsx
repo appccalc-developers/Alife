@@ -103,7 +103,7 @@ const MembersSection = ({
   const { requestConfirmation, confirmationModal } = useConfirmation()
   const copy = isChinese ? {
     title: '成员管理',
-    description: '集中查看教会成员资格、管理职能、账号状态和所在小组。',
+    description: '集中查看成员资格、注册账号、管理职能、账号状态和所在小组。',
     search: '按姓名搜索',
     filters: '筛选成员',
     management: '管理人员',
@@ -172,7 +172,7 @@ const MembersSection = ({
     missingPhone: '需先补充手机号',
   } : {
     title: 'Member management',
-    description: 'Review church membership, management duties, account state, and group participation in one place.',
+    description: 'Review membership, registered accounts, management duties, account state, and group participation in one place.',
     search: 'Search by name',
     filters: 'Filter members',
     management: 'Management staff',

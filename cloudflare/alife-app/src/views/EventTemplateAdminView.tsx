@@ -150,7 +150,7 @@ const EventTemplateAdminView = () => {
       subtitle={isZh ? '四个活动分类由系统固定；管理分类内可用于创建活动的版本化模板。' : 'The four event categories are system-fixed. Manage the versioned templates offered inside them during event creation.'}
       actions={<><AppActionButton onClick={() => void load(filters)} disabled={state === 'loading'}><RefreshCw className={`mr-2 h-4 w-4 ${state === 'loading' ? 'animate-spin' : ''}`} />{isZh ? '刷新' : 'Refresh'}</AppActionButton><AppActionButton variant="primary" onClick={openCreate}><Plus className="mr-2 h-4 w-4" />{isZh ? '新增模板' : 'New template'}</AppActionButton></>}
     >
-      <Link to="/admin?church=dashboard" className="inline-flex items-center gap-1 text-sm font-black text-[#176b5a] hover:underline"><ChevronLeft className="h-4 w-4" />{isZh ? '返回系统管理' : 'Back to System Management'}</Link>
+      <Link to="/admin" className="inline-flex items-center gap-1 text-sm font-black text-[#176b5a] hover:underline"><ChevronLeft className="h-4 w-4" />{isZh ? '返回系统管理' : 'Back to System Management'}</Link>
 
       <section aria-labelledby="fixed-categories-heading">
         <div className="mb-3 flex items-center gap-2"><LockKeyhole className="h-4 w-4 text-[#176b5a]" /><h2 id="fixed-categories-heading" className="text-sm font-black text-[#18332d]">{isZh ? '固定活动分类' : 'Fixed event categories'}</h2></div>

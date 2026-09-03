@@ -102,7 +102,7 @@ const InviteMembersView = () => {
 
   return (
     !groupId ? <Navigate to="/groups/select" replace /> :
-    group?.isChurch ? <Navigate to="/admin?church=members" replace /> :
+    group?.isChurch ? <Navigate to="/church/manage?section=members" replace /> :
     <AppPageShell>
       <div className="mb-5">
         <button

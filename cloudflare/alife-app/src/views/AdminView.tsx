@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useLocation, useSearchParams } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
-import { Bell, CalendarRange, ChevronRight, Church, ContactRound, Handshake, Loader2, Network, RefreshCw, Settings2, ShieldCheck, UserCog, UsersRound } from 'lucide-react'
+import { Activity, Bell, CalendarRange, ChevronRight, FileImage, Globe2, Handshake, Loader2, RefreshCw, ShieldCheck, UserCog } from 'lucide-react'
 import {
   groupService,
   type AdminGroupOptionDto,
@@ -26,20 +26,16 @@ import { RolesSection } from './admin/RolesSection'
 import { LogsSection } from './admin/LogsSection'
 import { PlatformFilesSection } from './admin/FilesSection'
 import MembersSection from './admin/MembersSection'
-import GroupManageView from './GroupManageView'
 import type { GroupDto } from '../types'
-import { localizeText } from '../utils/localizedText'
-import { normalizeChurchManagementSection, type ChurchManagementSection } from '../app/routing/churchManagementAccess'
 
 type AdminSection = 'overview' | 'users' | 'roles' | 'logs' | 'messages' | 'visitRequests' | 'files'
-type ChurchHubSectionConfig = { key: ChurchManagementSection; label: string; description: string; icon: LucideIcon }
-type ChurchManagementAreaConfig = { key: string; label: string; description: string; icon: LucideIcon; to: string }
+type SystemManagementAreaConfig = { key: string; label: string; description: string; icon: LucideIcon; to: string }
 type MessageTranslationDirection = 'zh-en' | 'en-zh'
 type LocalText = { en: string; zh: string }
 type LabelFn = (key: string, values?: Record<string, string | number>) => string
 
 const labels: Record<string, LocalText> = {
-  overview: { en: 'Church Management', zh: '教会管理' },
+  overview: { en: 'System Management', zh: '系统管理' },
   users: { en: 'Member management', zh: '成员管理' },
   roles: { en: 'Role management', zh: '角色管理' },
   logs: { en: 'Operation logs', zh: '操作日志' },
@@ -259,12 +255,16 @@ const runQuietly = async (...tasks: Array<Promise<unknown>>) => {
 }
 const sectionFromPath = (pathname: string): AdminSection => pathname.endsWith('/users') ? 'users' : pathname.endsWith('/roles') ? 'roles' : pathname.endsWith('/logs') ? 'logs' : pathname.endsWith('/messages') ? 'messages' : pathname.endsWith('/visit-requests') ? 'visitRequests' : pathname.endsWith('/files') ? 'files' : 'overview'
 
-const AdminView = () => {
+type AdminViewProps = {
+  embedded?: boolean
+  sectionOverride?: AdminSection
+}
+
+const AdminView = ({ embedded = false, sectionOverride }: AdminViewProps = {}) => {
   const t = useUiText()
   const { language, me, hasAdminPermission, canManageGroup } = useAuthStore()
-  const section = sectionFromPath(useLocation().pathname)
-  const [searchParams] = useSearchParams()
-  const churchHubSection = normalizeChurchManagementSection(searchParams.get('church'))
+  const routeSection = sectionFromPath(useLocation().pathname)
+  const section = sectionOverride ?? routeSection
   const l = useCallback<LabelFn>((key, values) => {
     const template = labels[key][language] || labels[key].en
     return template.replace(/\{(\w+)\}/g, (_, name: string) => String(values?.[name] ?? `{${name}}`))
@@ -413,13 +413,12 @@ const AdminView = () => {
     else if (section === 'messages') await loadMessages()
     else if (section === 'visitRequests') await loadVisitRequests()
     else {
-      const tasks: Promise<unknown>[] = [loadChurch()]
-      if (hasAdminPermission('admin.members.view')) tasks.push(loadUsers(1))
+      const tasks: Promise<unknown>[] = []
       if (hasAdminPermission('admin.messages.manage')) tasks.push(loadMessages(1))
       await Promise.all(tasks)
     }
     setMessage(l('refreshed'))
-  }, [hasAdminPermission, l, loadChurch, loadLogs, loadMessages, loadUsers, loadVisitRequests, logs.page, section])
+  }, [hasAdminPermission, l, loadChurch, loadLogs, loadMessages, loadVisitRequests, logs.page, section])
 
   useEffect(() => {
     if (!['users', 'roles', 'messages'].includes(section)) return
@@ -433,8 +432,7 @@ const AdminView = () => {
     if (section === 'messages') Promise.all([loadMessages(1), loadUsers(1)]).catch(() => undefined)
     if (section === 'visitRequests') loadVisitRequests(1).catch(() => undefined)
     if (section === 'overview') {
-      const tasks: Promise<unknown>[] = [loadChurch()]
-      if (hasAdminPermission('admin.members.view')) tasks.push(loadUsers(1))
+      const tasks: Promise<unknown>[] = []
       if (hasAdminPermission('admin.messages.manage')) tasks.push(loadMessages(1))
       Promise.all(tasks).catch(() => undefined)
     }
@@ -678,7 +676,7 @@ const AdminView = () => {
   }
 
   return (
-    <section className="mx-auto w-full max-w-7xl space-y-5 px-2 py-3 sm:px-4">
+    <section className={embedded ? 'w-full space-y-5' : 'mx-auto w-full max-w-7xl space-y-5 px-2 py-3 sm:px-4'}>
       {section === 'messages' ? <header className="overflow-hidden rounded-3xl border border-emerald-100 bg-white shadow-sm">
         <div className="bg-gradient-to-r from-emerald-50 via-white to-amber-50 px-5 py-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -729,11 +727,7 @@ const AdminView = () => {
       ) : null}
 
       {section === 'overview' ? (
-        <ChurchManagementHub
-          activeSection={churchHubSection}
-          church={church}
-          canManageChurch={Boolean(church && canManageGroup(church.id))}
-          users={members}
+        <SystemManagementDashboard
           messages={messages}
           syncing={syncing}
           loading={loading}
@@ -752,90 +746,7 @@ const AdminView = () => {
   )
 }
 
-const ChurchManagementHub = ({
-  activeSection,
-  church,
-  canManageChurch,
-  users,
-  messages,
-  syncing,
-  loading,
-  syncSermons,
-  refresh,
-  language,
-}: {
-  activeSection: ChurchManagementSection
-  church: GroupDto | null
-  canManageChurch: boolean
-  users: AdminPagedResultDto<AdminMemberDto>
-  messages: AdminPagedResultDto<AdminNotificationDto>
-  syncing: boolean
-  loading: boolean
-  syncSermons: () => Promise<void>
-  refresh: () => Promise<void>
-  language: string
-}) => {
-  const auth = useAuthStore()
-  const [workspaceRefreshRequest, setWorkspaceRefreshRequest] = useState(0)
-  const isChinese = language === 'zh'
-  const churchName = localizeText(church?.name, language) || (isChinese ? '教会' : 'Church')
-  const managementSections: ChurchHubSectionConfig[] = [
-    { key: 'group', label: isChinese ? '资料与设置' : 'Profile & settings', description: isChinese ? '教会身份、介绍与访问规则' : 'Identity, description, and access rules', icon: Settings2 },
-    { key: 'members', label: isChinese ? '成员管理' : 'Member management', description: isChinese ? '成员资格、账号、职能与所在小组' : 'Membership, accounts, duties, and groups', icon: UsersRound },
-    { key: 'contacts', label: isChinese ? '联系人' : 'Contacts', description: isChinese ? '公开联系人与留言入口' : 'Public contacts and inquiry entry points', icon: ContactRound },
-    { key: 'subgroups', label: isChinese ? '组织架构' : 'Organization', description: isChinese ? '事工、小组与负责人结构' : 'Ministries, groups, and leadership structure', icon: Network },
-  ]
-  const churchWorkspaceSections = managementSections.filter((section) => section.key !== 'members')
-  const dashboardAreas: ChurchManagementAreaConfig[] = [
-    ...(auth.hasAdminPermission('admin.members.view')
-      ? [{ key: 'members', label: isChinese ? '成员管理' : 'Member management', description: isChinese ? '成员资格、账号、管理职能与所在小组' : 'Membership, accounts, management duties, and groups', icon: UsersRound, to: '/admin/users' }]
-      : canManageChurch
-        ? [{ key: 'members', label: isChinese ? '成员管理' : 'Member management', description: isChinese ? '审批教会成员资格与成员状态' : 'Review church membership and member status', icon: UsersRound, to: '/admin?church=members' }]
-        : []),
-    ...(canManageChurch ? churchWorkspaceSections.map((section) => ({ ...section, to: `/admin?church=${section.key}` })) : []),
-    ...(auth.hasAdminPermission('admin.roles.managePermissions') ? [{ key: 'roles', label: isChinese ? '角色管理' : 'Role management', description: isChinese ? '后台角色、权限范围与功能访问' : 'Admin roles, permissions, and feature access', icon: UserCog, to: '/admin/roles' }] : []),
-    ...(auth.hasAdminPermission('admin.messages.manage') ? [{ key: 'notices', label: isChinese ? '通知管理' : 'Notification management', description: isChinese ? '发送通知并查看阅读与回复状态' : 'Send notifications and review read and reply status', icon: Bell, to: '/admin/messages' }] : []),
-    ...(auth.hasAdminPermission('admin.visitRequests.receive') ? [{ key: 'visitors', label: isChinese ? '访客接待' : 'Visitor care', description: isChinese ? '处理参观联系请求和跟进状态' : 'Handle visit requests and follow-up status', icon: Handshake, to: '/admin/visit-requests' }] : []),
-    ...(auth.hasAdminPermission('admin.events.manageTemplates') ? [{ key: 'event-templates', label: isChinese ? '活动模板' : 'Event templates', description: isChinese ? '管理四个固定活动分类下的创建模板' : 'Manage creation templates within the four fixed event categories', icon: CalendarRange, to: '/admin/event-templates' }] : []),
-    ...(auth.hasAdminPermission('admin.events.managePackagePolicies') ? [{ key: 'event-package-policies', label: isChinese ? '活动方案政策' : 'Event Package policies', description: isChinese ? '管理审批等级、有效期、委派和渐进启用' : 'Manage approval tiers, validity, delegation, and rollout', icon: ShieldCheck, to: '/admin/event-package-policies' }] : []),
-  ]
-  const canAccessDashboard = dashboardAreas.length > 0
-  const refreshWorkspace = async () => {
-    setWorkspaceRefreshRequest((current) => current + 1)
-    await refresh()
-  }
-
-  if (activeSection === 'dashboard') {
-    if (!church) return <section className="rounded-[1.75rem] border border-emerald-100 bg-white p-6 text-sm text-[#60716a]">{isChinese ? '正在加载教会管理…' : 'Loading church management…'}</section>
-    if (!canAccessDashboard) return <section className="rounded-[1.75rem] border border-amber-200 bg-amber-50 p-6 text-sm leading-6 text-amber-900">{isChinese ? '你没有进入教会管理的权限。' : 'You do not have access to church management.'}</section>
-    return <ChurchManagementDashboard churchName={churchName} sections={dashboardAreas} users={users} messages={messages} syncing={syncing} loading={loading} syncSermons={syncSermons} refresh={refresh} language={language} />
-  }
-
-  const activeConfig = managementSections.find((item) => item.key === activeSection) ?? managementSections[0]
-  if (!church) return <section className="rounded-[1.75rem] border border-emerald-100 bg-white p-6 text-sm text-[#60716a]">{isChinese ? '正在加载教会管理资料…' : 'Loading church management data…'}</section>
-  if (!canManageChurch) return <section className="rounded-[1.75rem] border border-amber-200 bg-amber-50 p-6 text-sm leading-6 text-amber-900">{isChinese ? '你没有修改教会资料的权限。' : 'You do not have permission to modify church data.'}</section>
-
-  return (
-    <div className="space-y-4">
-      <header className="flex flex-col gap-3 px-1 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <Link to="/admin?church=dashboard" className="inline-flex items-center gap-1 text-xs font-black text-[#176b5a] transition hover:text-[#0f4f42]"><ChevronRight className="h-3.5 w-3.5 rotate-180" />{isChinese ? '返回教会管理' : 'Back to church management'}</Link>
-          <h1 className="mt-2 text-2xl font-black tracking-[-0.035em] text-[#18332d]">{activeConfig.label}</h1>
-          <p className="mt-1 text-sm text-[#687770]">{activeConfig.description}</p>
-        </div>
-        <button className="inline-flex min-h-10 items-center justify-center gap-2 self-start rounded-xl border border-[#d7e3dd] bg-white px-4 text-sm font-black text-[#176b5a] transition hover:bg-[#edf5f1] disabled:opacity-60 sm:self-auto" disabled={loading} type="button" onClick={() => refreshWorkspace().catch(() => undefined)}>
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />{isChinese ? '刷新' : 'Refresh'}
-        </button>
-      </header>
-      <GroupManageView embeddedWorkspace explicitGroupId={church.id} workspaceBasePath="/admin" sectionParamName="church" integrated refreshRequest={workspaceRefreshRequest} subgroupDetailBasePath={auth.isAdmin ? '/admin/groups' : undefined} />
-    </div>
-  )
-}
-
-const ChurchManagementDashboard = ({ churchName, sections, users, messages, syncing, loading, syncSermons, refresh, language }: {
-  churchName: string
-  sections: ChurchManagementAreaConfig[]
-  users: AdminPagedResultDto<AdminMemberDto>
+const SystemManagementDashboard = ({ messages, syncing, loading, syncSermons, refresh, language }: {
   messages: AdminPagedResultDto<AdminNotificationDto>
   syncing: boolean
   loading: boolean
@@ -846,9 +757,18 @@ const ChurchManagementDashboard = ({ churchName, sections, users, messages, sync
   const auth = useAuthStore()
   const isChinese = language === 'zh'
   const unreadCount = messages.items.filter((message) => !message.readUtc).length
-  const showMemberMetric = auth.hasAdminPermission('admin.members.view')
   const showMessageMetric = auth.hasAdminPermission('admin.messages.manage')
   const showSermonSync = auth.hasAdminPermission('admin.sermons.sync')
+  const sections: SystemManagementAreaConfig[] = [
+    ...(auth.hasAdminPermission('admin.roles.managePermissions') ? [{ key: 'roles', label: isChinese ? '角色管理' : 'Role management', description: isChinese ? '平台角色、权限范围与功能访问' : 'Platform roles, permissions, and feature access', icon: UserCog, to: '/admin/roles' }] : []),
+    ...(showMessageMetric ? [{ key: 'notices', label: isChinese ? '通知管理' : 'Notification management', description: isChinese ? '发送通知并查看阅读与回复状态' : 'Send notifications and review read and reply status', icon: Bell, to: '/admin/messages' }] : []),
+    ...(auth.hasAdminPermission('admin.visitRequests.receive') ? [{ key: 'visitors', label: isChinese ? '访客接待' : 'Visitor care', description: isChinese ? '处理参观联系请求和跟进状态' : 'Handle visit requests and follow-up status', icon: Handshake, to: '/admin/visit-requests' }] : []),
+    ...(auth.canReviewPages ? [{ key: 'homepage', label: isChinese ? '首页管理' : 'Homepage management', description: isChinese ? '管理首页内容、公开导航与页面发布审核' : 'Manage homepage content, public navigation, and page publication review', icon: Globe2, to: '/admin/page-review' }] : []),
+    ...(auth.hasAdminPermission('admin.events.manageTemplates') ? [{ key: 'event-templates', label: isChinese ? '活动模板' : 'Event templates', description: isChinese ? '管理四个固定活动分类下的创建模板' : 'Manage creation templates within the four fixed event categories', icon: CalendarRange, to: '/admin/event-templates' }] : []),
+    ...(auth.hasAdminPermission('admin.events.managePackagePolicies') ? [{ key: 'event-package-policies', label: isChinese ? '活动方案政策' : 'Event Package policies', description: isChinese ? '管理审批等级、有效期、委派和渐进启用' : 'Manage approval tiers, validity, delegation, and rollout', icon: ShieldCheck, to: '/admin/event-package-policies' }] : []),
+    ...(auth.hasAdminPermission('admin.files.view') ? [{ key: 'files', label: isChinese ? '文件管理' : 'File management', description: isChinese ? '查看上传文件、可见范围和归属' : 'Review uploads, visibility, and ownership', icon: FileImage, to: '/admin/files' }] : []),
+    ...(auth.hasAdminPermission('admin.auditLogs.view') ? [{ key: 'logs', label: isChinese ? '操作日志' : 'Audit logs', description: isChinese ? '查看敏感平台操作记录' : 'Review sensitive platform actions', icon: Activity, to: '/admin/logs' }] : []),
+  ]
 
   return (
     <section className="overflow-hidden rounded-[2rem] border border-[#254b42] bg-white shadow-[0_24px_70px_rgba(14,47,40,0.16)]">
@@ -856,24 +776,23 @@ const ChurchManagementDashboard = ({ churchName, sections, users, messages, sync
         <div className="absolute -right-20 -top-28 h-72 w-72 rounded-full bg-[#e29a66]/22 blur-3xl" aria-hidden="true" />
         <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex min-w-0 items-start gap-4">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-[#f6d3b5]"><Church className="h-6 w-6" /></span>
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-[#f6d3b5]"><ShieldCheck className="h-6 w-6" /></span>
             <div className="min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-200">{isChinese ? '教会管理' : 'Church management'}</p>
-              <h1 className="mt-1.5 truncate text-3xl font-black tracking-[-0.045em]">{churchName}</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-white/60">{isChinese ? '成员、组织、通知与教会资料集中管理。' : 'Manage people, organization, notices, and church information in one place.'}</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-200">{isChinese ? '平台治理' : 'Platform administration'}</p>
+              <h1 className="mt-1.5 truncate text-3xl font-black tracking-[-0.045em]">{isChinese ? '系统管理' : 'System Management'}</h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-white/60">{isChinese ? '集中管理平台权限、内容运营与审计功能。' : 'Manage platform permissions, content operations, and oversight in one place.'}</p>
             </div>
           </div>
           <div className="flex items-center gap-5 self-start lg:self-auto">
-            {showMemberMetric ? <div><p className="text-2xl font-black tabular-nums">{users.totalCount}</p><p className="text-[10px] font-bold uppercase tracking-wide text-white/45">{isChinese ? '成员' : 'Members'}</p></div> : null}
-            {showMessageMetric ? <div className={showMemberMetric ? 'border-l border-white/12 pl-5' : ''}><p className="text-2xl font-black tabular-nums">{unreadCount}</p><p className="text-[10px] font-bold uppercase tracking-wide text-white/45">{isChinese ? '未读通知' : 'Unread'}</p></div> : null}
-            <button className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/15 disabled:opacity-60" type="button" disabled={loading} onClick={() => refresh().catch(() => undefined)} aria-label={isChinese ? '刷新教会管理' : 'Refresh church management'}><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></button>
+            {showMessageMetric ? <div><p className="text-2xl font-black tabular-nums">{unreadCount}</p><p className="text-[10px] font-bold uppercase tracking-wide text-white/45">{isChinese ? '未读通知' : 'Unread'}</p></div> : null}
+            <button className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/15 disabled:opacity-60" type="button" disabled={loading} onClick={() => refresh().catch(() => undefined)} aria-label={isChinese ? '刷新系统管理' : 'Refresh system management'}><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></button>
           </div>
         </div>
       </header>
 
       <div className={showSermonSync ? 'grid xl:grid-cols-[minmax(0,1fr)_19rem]' : 'grid'}>
         <div className="min-w-0">
-          <div className="px-6 pb-3 pt-5 sm:px-8"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#176b5a]">{isChinese ? '管理功能' : 'Management areas'}</p><h2 className="mt-1 text-xl font-black tracking-[-0.025em] text-[#18332d]">{isChinese ? '选择要处理的内容' : 'Choose what to manage'}</h2></div>
+          <div className="px-6 pb-3 pt-5 sm:px-8"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#176b5a]">{isChinese ? '系统功能' : 'System areas'}</p><h2 className="mt-1 text-xl font-black tracking-[-0.025em] text-[#18332d]">{isChinese ? '选择要处理的内容' : 'Choose what to manage'}</h2></div>
           <div className="grid border-t border-[#e3e8e5] md:grid-cols-2">
           {sections.map((section, index) => {
             const Icon = section.icon
@@ -893,7 +812,7 @@ const ChurchManagementDashboard = ({ churchName, sections, users, messages, sync
           <div className="mt-3 divide-y divide-[#dfe5e1] border-y border-[#dfe5e1]">
             <button type="button" disabled={syncing} onClick={() => syncSermons().catch(() => undefined)} className="group flex w-full items-center gap-3 py-4 text-left text-[#31544b] transition hover:text-[#176b5a] disabled:opacity-60">{syncing ? <Loader2 className="h-5 w-5 shrink-0 animate-spin" /> : <RefreshCw className="h-5 w-5 shrink-0" />}<span className="min-w-0 flex-1"><span className="block text-sm font-black">{syncing ? (isChinese ? '正在同步…' : 'Syncing…') : (isChinese ? '同步讲道' : 'Sync sermons')}</span><span className="mt-0.5 block text-xs font-semibold text-[#7a8782]">{isChinese ? '更新讲道来源' : 'Refresh sermon sources'}</span></span><ChevronRight className="h-4 w-4 transition group-hover:translate-x-1" /></button>
           </div>
-          <p className="mt-5 text-xs font-semibold leading-5 text-[#7a8782]">{isChinese ? `共 ${sections.length} 个管理功能，所有入口集中在当前页面。` : `${sections.length} management areas, all available from this page.`}</p>
+          <p className="mt-5 text-xs font-semibold leading-5 text-[#7a8782]">{isChinese ? `共 ${sections.length} 个系统功能，所有入口集中在当前页面。` : `${sections.length} system areas, all available from this page.`}</p>
         </aside> : null}
       </div>
     </section>

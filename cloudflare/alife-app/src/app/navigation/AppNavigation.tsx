@@ -236,6 +236,7 @@ const isSectionActive = (section: ShellNavSection, pathname: string, search: str
   const sectionTargetPath = section.to?.split('?')[0] || ''
   const sectionDestinationActive = Boolean(sectionTargetPath) && (
     pathname === sectionTargetPath ||
+    (section.matchDescendants && pathname.startsWith(`${sectionTargetPath}/`)) ||
     (sectionTargetPath === '/groups' && pathname.startsWith('/groups/'))
   )
 
@@ -262,6 +263,7 @@ const NavigationSection = ({
   const sectionTargetPath = section.to?.split('?')[0] || ''
   const sectionDestinationActive = Boolean(sectionTargetPath) && (
     location.pathname === sectionTargetPath ||
+    (section.matchDescendants && location.pathname.startsWith(`${sectionTargetPath}/`)) ||
     (sectionTargetPath === '/groups' && location.pathname.startsWith('/groups/'))
   )
   const sectionActive = isSectionActive(section, location.pathname, location.search)
@@ -332,6 +334,7 @@ const NavigationSection = ({
               to: section.to,
               icon: section.icon,
               matchPathOnly: true,
+              matchDescendants: section.matchDescendants,
             }}
             collapsed
             onClick={onItemClick}

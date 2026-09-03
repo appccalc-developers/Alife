@@ -198,7 +198,7 @@ public sealed class IdentityAccessService(
             {
                 title = new { en = "Activation invitation rejected by recipient", zh = "收件人拒绝了激活邀请" },
                 body = new { en = "The invitation was immediately disabled. Review the pre-registration before issuing another.", zh = "邀请已立即失效，请核对预登记资料后再决定是否重发。" },
-                actionUrl = "/admin/users",
+                actionUrl = "/church/manage?section=members",
                 sourceType = "memberActivationInvitation",
                 sourceId = invitation.Id
             }),

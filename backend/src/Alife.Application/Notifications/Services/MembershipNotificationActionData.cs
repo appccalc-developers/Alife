@@ -13,7 +13,7 @@ internal static class MembershipNotificationActionData
 
     public static string GetReviewUrl(Guid groupId, bool isChurch)
         => isChurch
-            ? "/admin?church=members"
+            ? "/church/manage?section=members"
             : $"/groups/{groupId}/manage?section=members";
 
     public static Guid? ResolveGroupId(Guid? groupId, string actionDataJson)
