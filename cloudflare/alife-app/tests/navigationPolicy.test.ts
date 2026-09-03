@@ -2,8 +2,9 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   canAccessChurchManagement,
-  churchManagementAdminPermissions,
+  hasSystemManagementAdminPermission,
   normalizeChurchManagementSection,
+  systemManagementAdminPermissions,
 } from '../src/app/routing/churchManagementAccess.ts'
 import {
   buildCurrentGroupEventPath,
@@ -22,28 +23,28 @@ import {
 import { matchesRequiredSearch } from '../src/app/navigation/searchMatch.ts'
 import { belongsToForumRouteScope } from '../src/utils/forumRouteScope.ts'
 
-test('church management access accepts church managers and each scoped platform permission', () => {
+test('church management access accepts only members who can manage the root church', () => {
   assert.equal(canAccessChurchManagement({
     churchGroupId: 'church-id',
     canManageGroup: (groupId) => groupId === 'church-id',
-    hasAdminPermission: () => false,
   }), true)
 
-  for (const grantedPermission of churchManagementAdminPermissions) {
-    assert.equal(canAccessChurchManagement({
-      churchGroupId: 'church-id',
-      canManageGroup: () => false,
-      hasAdminPermission: (permission) => permission === grantedPermission,
-    }), true)
-  }
-})
-
-test('church management access rejects users without church leadership or scoped permission', () => {
   assert.equal(canAccessChurchManagement({
     churchGroupId: 'church-id',
     canManageGroup: () => false,
-    hasAdminPermission: () => false,
   }), false)
+  assert.equal(canAccessChurchManagement({
+    churchGroupId: '',
+    canManageGroup: () => true,
+  }), false)
+})
+
+test('system management access recognizes every system dashboard permission', () => {
+  for (const grantedPermission of systemManagementAdminPermissions) {
+    assert.equal(hasSystemManagementAdminPermission((permission) => permission === grantedPermission), true)
+  }
+  assert.equal(hasSystemManagementAdminPermission((permission) => permission === 'admin.members.view'), false)
+  assert.equal(hasSystemManagementAdminPermission(() => false), false)
 })
 
 test('church management routes exclude group-owned page and album sections', () => {
@@ -131,6 +132,16 @@ test('admin group tab changes preserve the mounted group management view', () =>
     transitionKey('/admin/groups/group-one', '?tab=profile'),
     transitionKey('/admin/groups/group-two', '?tab=profile'),
   )
+})
+
+test('church management tab changes preserve the mounted management view', () => {
+  const transitionKey = (search: string) =>
+    getRouteTransitionKey({ pathname: '/church/manage', search, isManagedPublicPage: false })
+
+  assert.equal(transitionKey('?section=group'), '/church/manage')
+  assert.equal(transitionKey('?section=members'), '/church/manage')
+  assert.equal(transitionKey('?section=contacts'), '/church/manage')
+  assert.equal(transitionKey('?section=subgroups'), '/church/manage')
 })
 
 test('Church Life owner filters preserve list routes while section changes keep distinct identities', () => {

@@ -12,7 +12,11 @@ import AppRouteLoading from '../components/AppRouteLoading'
 import RouteChunkErrorBoundary from '../components/RouteChunkErrorBoundary'
 import { isHomeLocation, isPublicPageLocation } from './publicRoutePolicy'
 import { getRouteTransitionKey } from './routeTransitionPolicy'
-import { canAccessChurchManagement, hasChurchManagementAdminPermission } from './churchManagementAccess'
+import {
+  canAccessChurchManagement,
+  hasSystemManagementAdminPermission,
+  normalizeChurchManagementSection,
+} from './churchManagementAccess'
 import { buildOnboardingLocation, normalizeIdentityReturnPath } from '../../services/identityPathPolicy'
 
 const AdminView = lazy(() => import('../../views/AdminView'))
@@ -23,6 +27,7 @@ const ArticlesView = lazy(() => import('../../views/ArticlesView'))
 const BibleStudyView = lazy(() => import('../../views/BibleStudyView'))
 const ChurchLifeView = lazy(() => import('../../views/ChurchLifeView'))
 const ChurchAlbumsView = lazy(() => import('../../views/ChurchAlbumsView'))
+const ChurchManagementView = lazy(() => import('../../views/ChurchManagementView'))
 const ContactDetailView = lazy(() => import('../../views/ContactDetailView'))
 const EventCreatorView = lazy(() => import('../../views/EventCreatorView'))
 const EventDetailView = lazy(() => import('../../views/EventDetailView'))
@@ -75,21 +80,58 @@ const ChurchManagementRoute = ({
   churchGroupLoading: boolean
 }) => {
   const auth = useAuthStore()
-  const hasScopedPermission = hasChurchManagementAdminPermission(auth.hasAdminPermission)
 
-  if (!auth.initialized || (!hasScopedPermission && churchGroupLoading)) {
+  if (!auth.initialized || churchGroupLoading) {
     return <AppRouteLoading />
   }
 
   const canAccess = !auth.isGuest && canAccessChurchManagement({
     churchGroupId,
     canManageGroup: auth.canManageGroup,
-    hasAdminPermission: auth.hasAdminPermission,
   })
 
   return canAccess
     ? children
     : <Navigate to={resolveWorkspaceFallbackLocation(auth.isGuest)} replace />
+}
+
+const SystemManagementRoute = ({ children }: { children: ReactElement }) => {
+  const auth = useAuthStore()
+
+  if (!auth.initialized) {
+    return <AppRouteLoading />
+  }
+
+  const canAccess = !auth.isGuest && (
+    auth.canReviewPages || hasSystemManagementAdminPermission(auth.hasAdminPermission)
+  )
+
+  return canAccess
+    ? children
+    : <Navigate to={resolveWorkspaceFallbackLocation(auth.isGuest)} replace />
+}
+
+const AdminLandingRoute = ({
+  churchGroupId,
+  churchGroupLoading,
+}: {
+  churchGroupId: string
+  churchGroupLoading: boolean
+}) => {
+  const location = useLocation()
+  const searchParams = new URLSearchParams(location.search)
+
+  if (searchParams.has('church')) {
+    const legacySection = normalizeChurchManagementSection(searchParams.get('church'))
+    const section = legacySection === 'dashboard' ? 'group' : legacySection
+    return (
+      <ChurchManagementRoute churchGroupId={churchGroupId} churchGroupLoading={churchGroupLoading}>
+        <Navigate to={`/church/manage?section=${section}`} replace />
+      </ChurchManagementRoute>
+    )
+  }
+
+  return <SystemManagementRoute><AdminView /></SystemManagementRoute>
 }
 
 const PageReviewRoute = ({ children }: { children: ReactElement }) => {
@@ -215,6 +257,14 @@ const AppRoutes = ({ churchGroupId = '', churchGroupLoading = false }: AppRoutes
           <Route path="/church/albums" element={<MemberRoute><ChurchAlbumsView /></MemberRoute>} />
           <Route path="/church/forum" element={<MemberRoute><ForumView /></MemberRoute>} />
           <Route path="/church/forum/posts/:postId" element={<MemberRoute><ForumPostView /></MemberRoute>} />
+          <Route
+            path="/church/manage"
+            element={
+              <ChurchManagementRoute churchGroupId={churchGroupId} churchGroupLoading={churchGroupLoading}>
+                <ChurchManagementView churchGroupId={churchGroupId} />
+              </ChurchManagementRoute>
+            }
+          />
           <Route path="/groups" element={<GroupDetailView />} />
           <Route path="/groups/select" element={<GroupsView />} />
           <Route path="/groups/select/tree" element={<GroupTreeView />} />
@@ -285,18 +335,14 @@ const AppRoutes = ({ churchGroupId = '', churchGroupLoading = false }: AppRoutes
           />
           <Route
             path="/admin"
-            element={
-              <ChurchManagementRoute churchGroupId={churchGroupId} churchGroupLoading={churchGroupLoading}>
-                <AdminView />
-              </ChurchManagementRoute>
-            }
+            element={<AdminLandingRoute churchGroupId={churchGroupId} churchGroupLoading={churchGroupLoading} />}
           />
           <Route
             path="/admin/users"
             element={
-              <AdminRoute permission="admin.members.view">
-                <AdminView />
-              </AdminRoute>
+              <ChurchManagementRoute churchGroupId={churchGroupId} churchGroupLoading={churchGroupLoading}>
+                <Navigate to="/church/manage?section=members" replace />
+              </ChurchManagementRoute>
             }
           />
           <Route

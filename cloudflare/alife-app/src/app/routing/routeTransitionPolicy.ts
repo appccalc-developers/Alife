@@ -36,6 +36,7 @@ export const getRouteTransitionKey = ({
   if (churchLifeTransitionKey) return churchLifeTransitionKey
   if (
     pathname === '/study' ||
+    pathname === '/church/manage' ||
     isGroupWorkspaceSectionPath(pathname) ||
     isAdminGroupWorkspacePath(pathname) ||
     isForumFeedPath(pathname)

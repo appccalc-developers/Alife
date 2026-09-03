@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useSyncExternalStore } from 'react'
-import { Activity, Bell, BookMarked, BookOpenText, Church, ClipboardCheck, FileImage, Globe2, Home, Images, MessageSquareText, Settings2, ShieldCheck, UserRound, UsersRound } from 'lucide-react'
+import { Bell, BookMarked, BookOpenText, Church, ClipboardCheck, Images, MessageSquareText, Settings2, ShieldCheck, UserRound, UsersRound } from 'lucide-react'
 import { groupMembershipsCollectionQueryKey } from '../../db/collections/groupCollection'
 import { queryClient } from '../../db/queryClient'
 import { activeEntityService } from '../../services/activeEntityService'
@@ -11,7 +11,7 @@ import type { NavigationCopy, ShellNavItem, ShellNavSection } from './types'
 import type { GroupEventRecord } from '../../types/event'
 import { getEventLifecycle, readEventLifecycleData } from '../../utils/eventLifecycle'
 import type { GroupMembershipDto } from '../../types'
-import { canAccessChurchManagement } from '../routing/churchManagementAccess'
+import { canAccessChurchManagement, hasSystemManagementAdminPermission } from '../routing/churchManagementAccess'
 import { useCurrentTasks } from '../../hooks/useCurrentTasks'
 import { countCurrentTasks, formatTaskCount } from '../../utils/currentTasks'
 
@@ -43,16 +43,6 @@ const useLocalMembershipRecords = (groupId: string, includeLineCandidates: boole
 
   return useSyncExternalStore(subscribeToLocalQueryCache, getSnapshot, getSnapshot)
 }
-
-const adminPermissions = {
-  members: 'admin.members.view',
-  roles: 'admin.roles.managePermissions',
-  messages: 'admin.messages.manage',
-  visitRequests: 'admin.visitRequests.receive',
-  files: 'admin.files.view',
-  logs: 'admin.auditLogs.view',
-  pageReview: 'admin.pages.review',
-} as const
 
 export const useShellNavigation = ({
   contextualGroupId,
@@ -227,56 +217,10 @@ export const useShellNavigation = ({
   const canOpenChurchManagement = canAccessChurchManagement({
     churchGroupId,
     canManageGroup: auth.hasLeaderAccess,
-    hasAdminPermission: auth.hasAdminPermission,
   })
-
-  const churchAdminItems: ShellNavItem[] = canOpenChurchManagement ? [
-    {
-      key: 'app:admin-church-management',
-      label: isChinese ? '教会管理' : 'Church Management',
-      description: isChinese ? '进入教会管理中心' : 'Open the church management center',
-      to: '/admin?church=dashboard',
-      icon: <Settings2 className="h-5 w-5" />,
-    },
-  ] : []
-
-  const adminPlatformItems: ShellNavItem[] = !auth.loading
-    ? [
-      auth.hasAdminPermission(adminPermissions.files)
-        ? {
-        key: 'app:admin-files',
-        label: isChinese ? '文件管理' : 'Files',
-        description: isChinese ? '上传文件、可见范围和归属' : 'Uploads, visibility, and ownership',
-        to: '/admin/files',
-        icon: <FileImage className="h-5 w-5" />,
-        }
-        : null,
-      auth.hasAdminPermission(adminPermissions.logs)
-        ? {
-        key: 'app:admin-logs',
-        label: isChinese ? '操作日志' : 'Audit logs',
-        description: isChinese ? '查看敏感平台操作记录' : 'Review sensitive platform actions',
-        to: '/admin/logs',
-        icon: <Activity className="h-5 w-5" />,
-        }
-        : null,
-    ].filter(isPresent)
-    : []
-
-  const siteBuilderItems: ShellNavItem[] = !auth.loading && auth.canReviewPages
-    ? [
-      {
-        key: 'app:page-review',
-        label: isChinese ? '首页管理' : 'Homepage Management',
-        description: isChinese ? '管理首页内容、公开导航与页面发布审核' : 'Manage homepage content, public navigation, and page publication review',
-        to: '/admin/page-review',
-        icon: <Globe2 className="h-5 w-5" />,
-      },
-    ]
-    : []
-
-  const platformManagementItems = [...churchAdminItems, ...siteBuilderItems, ...adminPlatformItems]
-  const platformManagementChildItems = [...siteBuilderItems, ...adminPlatformItems]
+  const canOpenSystemManagement = !auth.loading && (
+    auth.canReviewPages || hasSystemManagementAdminPermission(auth.hasAdminPermission)
+  )
 
   const guestItem: ShellNavItem | null = !auth.loading && auth.isGuest
     ? {
@@ -290,14 +234,7 @@ export const useShellNavigation = ({
 
   const groupSelectionTo = auth.isGuest ? '/groups/select?from=alife' : '/groups/select'
   const taskCounts = countCurrentTasks(currentTasksQuery.data ?? [])
-  const churchWebsiteItems: ShellNavItem[] = [
-    {
-      key: 'app:home',
-      label: isChinese ? '教会网站' : 'Church Website',
-      description: isChinese ? '教会公开网站和访客入口' : 'Public church website and visitor entry',
-      to: '/',
-      icon: <Home className="h-5 w-5" />,
-    },
+  const churchPrimaryItems: ShellNavItem[] = [
     {
       key: 'app:sermons',
       label: isChinese ? '主日证道' : 'Sunday Sermons',
@@ -372,13 +309,24 @@ export const useShellNavigation = ({
       key: 'platform-church-life',
       label: isChinese ? '教会生活' : 'Church Life',
       description: auth.isGuest
-        ? (isChinese ? '教会网站与主日证道' : 'Church website and Sunday sermons')
+        ? (isChinese ? '主日证道与教会公开内容' : 'Sunday sermons and public church content')
         : (isChinese ? '教会范围的总览、活动与公告' : 'Church-wide overview, events, and announcements'),
       to: auth.isGuest ? '/sermons' : '/church',
       icon: <Church className="h-5 w-5" />,
       collapsible: true,
       toggleOnHeaderClick: true,
-      items: [...churchWebsiteItems, ...churchContentItems],
+      items: [
+        ...(canOpenChurchManagement ? [{
+          key: 'church:management',
+          label: isChinese ? '教会管理' : 'Church Management',
+          description: isChinese ? '教会资料、成员、联系人和组织架构' : 'Church profile, members, contacts, and organization',
+          to: '/church/manage?section=group',
+          matchPathOnly: true,
+          icon: <Settings2 className="h-5 w-5" />,
+        }] : []),
+        ...churchPrimaryItems,
+        ...churchContentItems,
+      ],
     },
     {
       key: 'platform-group-life',
@@ -406,17 +354,17 @@ export const useShellNavigation = ({
     contentItems.length
       ? { key: 'platform-content', label: isChinese ? '公开内容' : 'Public content', description: isChinese ? '面向访客和成员的入口' : 'Visitor and member-facing entry points', items: contentItems }
       : null,
-    platformManagementItems.length
+    canOpenSystemManagement
       ? {
         key: 'platform-management',
         label: isChinese ? '系统管理' : 'System Management',
-        description: isChinese ? '教会管理、首页管理、文件与审计能力' : 'Church management, homepage management, files, and audit capabilities',
-        to: platformManagementItems[0].to,
+        description: isChinese ? '平台角色、内容、文件与审计能力' : 'Platform roles, content, files, and audit capabilities',
+        to: '/admin',
         icon: <ShieldCheck className="h-5 w-5" />,
-        collapsible: true,
-        toggleOnHeaderClick: true,
+        collapsible: false,
         alignToBottom: true,
-        items: platformManagementChildItems,
+        matchDescendants: true,
+        items: [],
       }
       : null,
   ].filter(isPresent)

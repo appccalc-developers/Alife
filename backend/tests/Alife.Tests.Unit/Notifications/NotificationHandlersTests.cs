@@ -191,7 +191,7 @@ public class NotificationHandlersTests
         var notifications = Assert.IsAssignableFrom<IReadOnlyList<Alife.Application.Notifications.Dtos.NotificationMessageDto>>(result.Value)
             .ToDictionary(x => x.Id);
         Assert.Equal(
-            "/admin?church=members",
+            "/church/manage?section=members",
             JsonDocument.Parse(notifications[churchNotificationId].ActionDataJson).RootElement.GetProperty("actionUrl").GetString());
         Assert.Equal(
             $"/groups/{groupId}/manage?section=members",

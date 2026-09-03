@@ -35,6 +35,7 @@ export type ShellNavSection = {
   showDescription?: boolean
   toggleOnHeaderClick?: boolean
   alignToBottom?: boolean
+  matchDescendants?: boolean
   items: ShellNavItem[]
 }
 
