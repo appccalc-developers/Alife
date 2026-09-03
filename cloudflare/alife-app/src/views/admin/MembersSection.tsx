@@ -32,6 +32,7 @@ import ManualActivationMessageModal from '../../components/identity/ManualActiva
 type MembershipAction = 'approve' | 'reject' | 'deactivate' | 'invite'
 
 type MembersSectionProps = {
+  embedded?: boolean
   roles: AdminPlatformRoleDto[]
   groups: AdminGroupOptionDto[]
   language: string
@@ -84,6 +85,7 @@ const formatMemberDate = (value: string, isChinese: boolean) =>
   }).format(parseUtcDate(value))
 
 const MembersSection = ({
+  embedded = false,
   roles,
   groups,
   language,
@@ -463,6 +465,7 @@ const MembersSection = ({
   }
   const groupRoleLabel = (role: AdminMemberDto['groups'][number]['role']) =>
     role === 'leader' ? copy.groupLeader : role === 'coLeader' ? copy.assistantLeader : copy.memberRole
+  const Heading = embedded ? 'h2' : 'h1'
 
   return (
     <section className="overflow-hidden rounded-[2rem] border border-[#cadbd4] bg-[#fbfdfc] shadow-[0_18px_55px_rgba(25,63,53,0.09)]">
@@ -470,7 +473,7 @@ const MembersSection = ({
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#21705f]">{isChinese ? '教会名册' : 'Church directory'}</p>
-            <h1 className="mt-1.5 text-2xl font-black tracking-[-0.035em] text-[#18332d]">{copy.title}</h1>
+            <Heading className="mt-1.5 text-2xl font-black tracking-[-0.035em] text-[#18332d]">{copy.title}</Heading>
             <p className="mt-1 max-w-2xl text-sm leading-6 text-[#687770]">{copy.description}</p>
           </div>
           <div className="rounded-2xl bg-[#e5f1ec] px-4 py-2 text-sm font-black text-[#176b5a]">{copy.results(page.totalCount)}</div>

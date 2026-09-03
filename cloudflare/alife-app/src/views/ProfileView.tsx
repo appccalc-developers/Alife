@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Check, KeyRound, LoaderCircle, LogOut, Mail, Pencil, Phone, Plus, ShieldCheck, Trash2, UserRound, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import RegionalPhoneInput from '../components/forms/RegionalPhoneInput'
@@ -7,6 +7,7 @@ import AppBadge from '../components/layout/AppBadge'
 import AppEmptyState from '../components/layout/AppEmptyState'
 import AppPageShell from '../components/layout/AppPageShell'
 import AppSectionCard from '../components/layout/AppSectionCard'
+import AppTitleBarAction from '../components/layout/AppTitleBarAction'
 import { useUiText } from '../i18n/uiText'
 import { authService } from '../services/authService'
 import { groupService } from '../services/groupService'
@@ -95,11 +96,6 @@ const ProfileView = () => {
   }, [])
 
   const invitations = me?.memberships.filter((membership) => membership.status === 'invited') ?? []
-  const initials = useMemo(() => {
-    const name = me?.displayName?.trim()
-    if (!name) return 'A'
-    return name.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase()
-  }, [me?.displayName])
 
   const beginEditing = () => {
     if (!me) return
@@ -218,38 +214,32 @@ const ProfileView = () => {
     }
   }
 
-  if (!me) return <AppEmptyState title={t('profile')} description={t('loadingIdentity')} />
+  if (!me) return <AppPageShell title={t('profile')} context={language === 'zh' ? '个人中心 / 个人资料' : 'Personal Center / Profile'}><AppEmptyState title={t('profile')} description={t('loadingIdentity')} /></AppPageShell>
 
   return (
-    <AppPageShell>
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#123f35] via-[#176b5a] to-[#24917a] px-5 py-6 text-white shadow-[0_20px_55px_rgba(18,63,53,0.24)] sm:px-8 sm:py-8">
-        <div className="absolute -right-16 -top-20 h-56 w-56 rounded-full border border-white/15 bg-white/5" aria-hidden="true" />
-        <div className="relative">
-          <div className="absolute right-0 top-0 flex items-center gap-2 rounded-xl border border-white/20 bg-[#0d4f43]/35 px-3 py-2 shadow-sm backdrop-blur">
-            <span className="text-[0.65rem] font-black uppercase tracking-[0.12em] text-emerald-50/80">{copy.accountStatus}</span>
-            <AppBadge variant={me.isRegistered ? 'success' : 'neutral'}>{me.isRegistered ? t('registered') : t('guest')}</AppBadge>
-          </div>
-          <div className="flex min-w-0 items-center gap-4 pt-14 sm:gap-5 sm:pr-52 sm:pt-0">
-            <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl border border-white/25 bg-white/15 text-xl font-black shadow-inner backdrop-blur sm:h-20 sm:w-20 sm:text-2xl">{initials}</div>
-            <div className="min-w-0">
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-100">{copy.eyebrow}</p>
-              <h1 className="mt-1 truncate text-2xl font-black tracking-[-0.03em] sm:text-3xl">{me.displayName || t('profile')}</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-emerald-50/85">{copy.intro}</p>
-            </div>
-          </div>
-        </div>
-      </section>
+    <AppPageShell
+      title={me.displayName || t('profile')}
+      context={language === 'zh' ? '个人中心 / 个人资料' : 'Personal Center / Profile'}
+      subtitle={copy.intro}
+      status={<AppBadge variant={me.isRegistered ? 'success' : 'neutral'}>{me.isRegistered ? t('registered') : t('guest')}</AppBadge>}
+      backLink={{ label: language === 'zh' ? '返回个人中心' : 'Back to Personal Center', to: '/profile' }}
+      primaryAction={!editing && !me.isGuest ? <AppTitleBarAction label={copy.edit} icon={<Pencil className="h-4 w-4" />} onClick={beginEditing} /> : undefined}
+      overflowLabel={language === 'zh' ? '更多账号操作' : 'More account actions'}
+      overflowActions={[{
+        label: loggingOut ? t('loggingOut') : t('logout'),
+        icon: <LogOut className="h-4 w-4" />,
+        onSelect: () => void handleLogout(),
+        disabled: loggingOut,
+        tone: 'danger',
+      }]}
+    >
 
       {saveSuccess ? <p className="flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800" role="status"><Check className="h-4 w-4" />{copy.saved}</p> : null}
+      {logoutError ? <p className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">{logoutError}</p> : null}
 
       <AppSectionCard
         title={copy.contactTitle}
         subtitle={copy.contactSubtitle}
-        action={!editing && !me.isGuest ? (
-          <AppActionButton onClick={beginEditing}>
-            <Pencil className="mr-2 h-4 w-4" aria-hidden="true" />{copy.edit}
-          </AppActionButton>
-        ) : null}
       >
         {editing ? (
           <form className="space-y-4" onSubmit={saveProfile}>
@@ -305,7 +295,7 @@ const ProfileView = () => {
             ) : <AppEmptyState title={copy.noPasskeys} description={copy.strongAuthHint} />}
             {mobileDevice ? <div className="grid gap-3 border-t border-slate-100 pt-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
               <label className="block"><span className="text-xs font-black uppercase tracking-wide text-slate-500">{copy.passkeyName}</span><input className="mt-1.5 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" maxLength={120} placeholder={copy.passkeyNamePlaceholder} value={passkeyName} onChange={(event) => setPasskeyName(event.target.value)} /></label>
-              <AppActionButton variant="primary" disabled={passkeyBusy} onClick={() => void addPasskey()}><Plus className="mr-1.5 h-4 w-4" />{copy.addPasskey}</AppActionButton>
+              <AppActionButton variant="secondary" disabled={passkeyBusy} onClick={() => void addPasskey()}><Plus className="mr-1.5 h-4 w-4" />{copy.addPasskey}</AppActionButton>
             </div> : <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm leading-6 text-amber-900">{copy.mobileOnly}</p>}
             {passkeyWaiting ? (
               <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3">
@@ -329,19 +319,12 @@ const ProfileView = () => {
             {invitations.map((membership) => {
               const groupName = localizeText(membership.groupName, language) || t('group')
               const isBusy = inviteActionGroupId === membership.groupId
-              return <div key={membership.groupId} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-3"><div><p className="font-semibold text-slate-950">{groupName}</p><p className="mt-1 text-xs text-slate-500">{t('invited')}</p></div><div className="flex gap-2"><AppActionButton size="sm" variant="primary" disabled={isBusy} onClick={() => void respondToInvite(membership.groupId, true)}>{isBusy ? t('saving') : t('acceptInvite')}</AppActionButton><AppActionButton size="sm" variant="danger" disabled={isBusy} onClick={() => void respondToInvite(membership.groupId, false)}>{t('declineInvite')}</AppActionButton></div></div>
+              return <div key={membership.groupId} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-3"><div><p className="font-semibold text-slate-950">{groupName}</p><p className="mt-1 text-xs text-slate-500">{t('invited')}</p></div><div className="flex gap-2"><AppActionButton size="sm" variant="secondary" disabled={isBusy} onClick={() => void respondToInvite(membership.groupId, true)}>{isBusy ? t('saving') : t('acceptInvite')}</AppActionButton><AppActionButton size="sm" variant="danger" disabled={isBusy} onClick={() => void respondToInvite(membership.groupId, false)}>{t('declineInvite')}</AppActionButton></div></div>
             })}
             {inviteError ? <p className="text-sm text-rose-600">{inviteError}</p> : null}
           </div>
         </AppSectionCard>
       ) : null}
-
-      <div className="pt-4 sm:pt-6">
-        <AppSectionCard dense title={t('logout')} subtitle={copy.signOutSubtitle}>
-          <AppActionButton variant="danger" disabled={loggingOut} onClick={() => void handleLogout()}><LogOut className="mr-2 h-4 w-4" />{loggingOut ? t('loggingOut') : t('logout')}</AppActionButton>
-          {logoutError ? <p className="mt-3 text-sm text-rose-600">{logoutError}</p> : null}
-        </AppSectionCard>
-      </div>
     </AppPageShell>
   )
 }

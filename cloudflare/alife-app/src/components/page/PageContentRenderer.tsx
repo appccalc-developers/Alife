@@ -36,6 +36,7 @@ type Props = {
   allowGroupDataSources?: boolean
   showHeader?: boolean
   framed?: boolean
+  sectionHeroHeadingLevel?: 'h1' | 'h2'
   activeSectionIndex?: number
   activeSectionFocusToken?: number
   sectionLanguageIssueCounts?: Record<number, number>
@@ -521,6 +522,7 @@ const PageContentRenderer = ({
   allowGroupDataSources = true,
   showHeader = true,
   framed = true,
+  sectionHeroHeadingLevel = 'h1',
   activeSectionIndex,
   activeSectionFocusToken,
   sectionLanguageIssueCounts,
@@ -594,6 +596,7 @@ const PageContentRenderer = ({
               allowGroupDataSources={allowGroupDataSources}
               pageId={pageId}
               domId={getPageSectionDomId(section, index)}
+              headingLevel={sectionHeroHeadingLevel}
             />
             {index < sections.length - 1 ? <hr className={pageSectionDividerClass} /> : null}
           </Fragment>
@@ -689,6 +692,7 @@ const PageContentRenderer = ({
                 allowGroupDataSources={allowGroupDataSources}
                 pageId={pageId}
                 domId={getPageSectionDomId(section, index)}
+                headingLevel={sectionHeroHeadingLevel}
               />
               {index < sections.length - 1 ? <hr className={pageSectionDividerClass} /> : null}
             </Fragment>

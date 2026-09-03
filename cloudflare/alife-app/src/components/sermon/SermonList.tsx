@@ -10,6 +10,8 @@ import { useUiText } from '../../i18n/uiText'
 import { activeEntityService } from '../../services/activeEntityService'
 import { sermonService, type SermonDto } from '../../services/sermonService'
 import { buildSermonVideoPath, extractYouTubeVideoId } from '../../utils/youtube'
+import AppPageShell from '../layout/AppPageShell'
+import { useAuthStore } from '../../stores/auth'
 
 const formatSermonDate = (value: string | null | undefined, fallback: string) => {
   if (!value) return fallback
@@ -22,6 +24,8 @@ const pageSize = 12
 
 const SermonList = () => {
   const t = useUiText()
+  const { language } = useAuthStore()
+  const isZh = language === 'zh'
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [cachedSermons, setCachedSermons] = useState<Awaited<ReturnType<typeof getCachedSermons>>>([])
   const { preloadImages } = useImagePreloader()
@@ -130,42 +134,33 @@ const SermonList = () => {
 
   if (initialLoading) {
     return (
-      <section className="mx-auto max-w-6xl space-y-5">
-        <header className="rounded-3xl border border-slate-200 bg-white/80 p-5 shadow-sm">
-          <div className="h-8 w-56 animate-pulse rounded bg-slate-200" />
-          <div className="mt-3 h-4 w-80 max-w-full animate-pulse rounded bg-slate-200" />
-        </header>
-
+      <AppPageShell
+        title={t('latestSermons')}
+        context={isZh ? '教会生活 / 主日证道' : 'Church Life / Sunday Sermons'}
+        subtitle={t('latestSermonsDescription')}
+      >
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 6 }, (_, index) => (
             <SermonCardSkeleton key={index} />
           ))}
         </div>
-      </section>
+      </AppPageShell>
     )
   }
 
   return (
-    <section className="mx-auto max-w-6xl space-y-5">
-      <header className="flex flex-col gap-4 rounded-3xl border border-emerald-100 bg-white/85 p-5 shadow-[0_18px_45px_rgba(31,56,48,0.08)] sm:flex-row sm:items-end sm:justify-between sm:p-6">
-        <div className="min-w-0">
-          <p className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-black uppercase text-emerald-800">{t('sermons')}</p>
-          <h1 className="mt-3 text-3xl font-black leading-tight text-slate-950 sm:text-4xl">{t('latestSermons')}</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">{t('latestSermonsDescription')}</p>
-        </div>
-        <button
-          type="button"
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-800 transition hover:border-emerald-300 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={isRefreshing || sermonsQuery.isLoading || sermonsQuery.isFetching}
-          onClick={() => {
-            loadSermons().catch(() => undefined)
-          }}
-        >
-          <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-          {isRefreshing ? t('refreshing') : t('refresh')}
-        </button>
-      </header>
-
+    <AppPageShell
+      title={t('latestSermons')}
+      context={isZh ? '教会生活 / 主日证道' : 'Church Life / Sunday Sermons'}
+      subtitle={t('latestSermonsDescription')}
+      overflowLabel={isZh ? '更多操作' : 'More actions'}
+      overflowActions={[{
+        label: isRefreshing ? t('refreshing') : t('refresh'),
+        icon: <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />,
+        disabled: isRefreshing || sermonsQuery.isLoading || sermonsQuery.isFetching,
+        onSelect: () => { loadSermons().catch(() => undefined) },
+      }]}
+    >
       {errorMessage && sermons.length === 0 ? (
         <p className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">{errorMessage}</p>
       ) : null}
@@ -250,7 +245,7 @@ const SermonList = () => {
           {t('showingAllSermons', { count: totalCount })}
         </p>
       ) : null}
-    </section>
+    </AppPageShell>
   )
 }
 

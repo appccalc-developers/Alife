@@ -1,19 +1,23 @@
 import { useEffect, useState } from 'react'
+import { Send } from 'lucide-react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
-import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
 import AppPageShell from '../components/layout/AppPageShell'
 import AppSectionCard from '../components/layout/AppSectionCard'
+import AppTitleBarAction from '../components/layout/AppTitleBarAction'
 import { useGroupScreen } from '../hooks/useGroupScreen'
 import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
 import { groupService, type MemberSummaryDto } from '../services/groupService'
 import { useUiText } from '../i18n/uiText'
+import { useAuthStore } from '../stores/auth'
 import type { MembershipStatus } from '../types'
+import { localizeText } from '../utils/localizedText'
 
 const canInviteWithStatus = (status?: MembershipStatus | null) => !status || status === 'rejected' || status === 'removed'
 
 const InviteMembersView = () => {
   const t = useUiText()
+  const { language } = useAuthStore()
   const { groupId: routeGroupId } = useParams<{ groupId: string }>()
   const { groupId: activeGroupId } = useActiveEntityIds({ groupId: routeGroupId })
   const groupId = activeGroupId || ''
@@ -84,10 +88,7 @@ const InviteMembersView = () => {
   const handleSubmit = async () => {
     const inviteableMemberIds = new Set(allMembers.filter((member) => canInviteWithStatus(member.membershipStatus)).map((member) => member.id))
     const toInvite = [...selected].filter((id) => inviteableMemberIds.has(id))
-    if (toInvite.length === 0) {
-      navigate(manageMembersPath, { replace: true })
-      return
-    }
+    if (toInvite.length === 0) return
     setSubmitting(true)
     setSubmitError('')
     try {
@@ -103,19 +104,23 @@ const InviteMembersView = () => {
   return (
     !groupId ? <Navigate to="/groups/select" replace /> :
     group?.isChurch ? <Navigate to="/church/manage?section=members" replace /> :
-    <AppPageShell>
-      <div className="mb-5">
-        <button
-          type="button"
-          onClick={() => navigate(manageMembersPath, { replace: true })}
-          className="text-sm font-medium text-slate-600 hover:text-slate-950"
-        >
-          {t('backToGroup')}
-        </button>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-950">{t('inviteMembersTitle')}</h1>
-        <p className="mt-1 text-sm text-slate-600">{t('inviteMembersSubtitle')}</p>
-      </div>
-
+    <AppPageShell
+      title={t('inviteMembersTitle')}
+      context={language === 'zh'
+        ? `${group ? localizeText(group.name, language) : t('group')} / 成员管理`
+        : `${group ? localizeText(group.name, language) : t('group')} / Member management`}
+      subtitle={t('inviteMembersSubtitle')}
+      status={<AppBadge variant={selected.size ? 'info' : 'neutral'}>{language === 'zh' ? `已选 ${selected.size} 人` : `${selected.size} selected`}</AppBadge>}
+      backLink={{ label: t('backToGroup'), to: manageMembersPath }}
+      primaryAction={(
+        <AppTitleBarAction
+          label={submitting ? t('sending') : t('sendInvites')}
+          icon={<Send className="h-4 w-4" />}
+          onClick={() => void handleSubmit()}
+          disabled={submitting || loadingMembers || Boolean(loadError) || selected.size === 0}
+        />
+      )}
+    >
       <AppSectionCard dense>
         {loadingMembers ? (
           <p className="text-sm text-slate-600">{t('loadingMembers')}</p>
@@ -159,22 +164,6 @@ const InviteMembersView = () => {
           <p className="mt-3 text-sm text-rose-700">{submitError}</p>
         ) : null}
 
-        <div className="mt-5 flex gap-3">
-          <AppActionButton
-            variant="primary"
-            onClick={handleSubmit}
-            disabled={submitting || loadingMembers || !!loadError}
-          >
-            {submitting ? t('sending') : t('sendInvites')}
-          </AppActionButton>
-          <AppActionButton
-            variant="secondary"
-            onClick={() => navigate(manageMembersPath, { replace: true })}
-            disabled={submitting}
-          >
-            {t('cancel')}
-          </AppActionButton>
-        </div>
       </AppSectionCard>
     </AppPageShell>
   )

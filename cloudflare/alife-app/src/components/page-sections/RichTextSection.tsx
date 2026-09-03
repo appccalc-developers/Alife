@@ -33,7 +33,7 @@ const pageImageUploadFolder = (groupId: string | undefined, pageId: string | und
   return `${groupFolder}/${pageFolder}/rich-text`
 }
 
-const RichTextSection = ({ section, mode, domId, disabled, propertiesOnly, showProperties = true, contextGroupId, page, pageId, onUpdate }: SectionComponentProps) => {
+const RichTextSection = ({ section, mode, domId, disabled, headingLevel, propertiesOnly, showProperties = true, contextGroupId, page, pageId, onUpdate }: SectionComponentProps) => {
   const auth = useAuthStore()
   const t = useUiText()
   const editable = mode === 'edit' && !disabled && onUpdate
@@ -134,6 +134,7 @@ const RichTextSection = ({ section, mode, domId, disabled, propertiesOnly, showP
               <SectionHeader
                 header={section.contentJson.header}
                 variant="hero"
+                headingLevel={headingLevel}
                 titleFallback={headerFallbackTitle}
                 subtitleFallback={headerFallbackSubtitle}
                 disabled={!editable}

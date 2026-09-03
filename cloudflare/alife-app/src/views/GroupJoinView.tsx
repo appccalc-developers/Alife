@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
+import { DoorOpen, UserPlus } from 'lucide-react'
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import AccessTypeBadge from '../components/group/AccessTypeBadge'
-import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
 import AppEmptyState from '../components/layout/AppEmptyState'
 import AppPageShell from '../components/layout/AppPageShell'
 import AppSectionCard from '../components/layout/AppSectionCard'
+import AppTitleBarAction from '../components/layout/AppTitleBarAction'
 import { useUiText } from '../i18n/uiText'
 import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
 import { activeEntityService } from '../services/activeEntityService'
@@ -114,27 +115,17 @@ const GroupJoinView = () => {
     }
   }
 
-  const returnToPreviousGroup = () => {
-    if (returnGroupId) {
-      activeEntityService.setGroup(returnGroupId)
-      navigate('/groups?view=overview')
-      return
-    }
-
-    navigate(-1)
-  }
-
   if (!groupId) {
     return <Navigate to="/groups/select" replace />
   }
 
   if (loading) {
-    return <p className="rounded bg-white p-3">{t('loadingGroup')}</p>
+    return <AppPageShell title={t('joinGroup')} context={language === 'zh' ? '小组生活 / 加入小组' : 'Group Life / Join group'}><p className="rounded bg-white p-3">{t('loadingGroup')}</p></AppPageShell>
   }
 
   if (!group) {
     return (
-      <AppPageShell>
+      <AppPageShell title={t('joinGroup')} context={language === 'zh' ? '小组生活 / 加入小组' : 'Group Life / Join group'}>
         <AppEmptyState title={t('groupNotFound')} description={error || t('groupNotFoundDescription')} />
       </AppPageShell>
     )
@@ -158,23 +149,42 @@ const GroupJoinView = () => {
       : group.accessType === 'protected'
         ? t('protectedJoinDescription')
         : t('privateJoinDescription')
+  const backPath = returnGroupId ? '/groups?view=overview' : '/groups/select'
+  const primaryAction = isApproved ? (
+    <AppTitleBarAction
+      label={t('openGroup')}
+      icon={<DoorOpen className="h-4 w-4" />}
+      onClick={() => {
+        activeEntityService.setGroup(group.id)
+        navigate('/groups?view=overview')
+      }}
+    />
+  ) : auth.isGuest ? (
+    <AppTitleBarAction label={language === 'zh' ? '登录或注册' : 'Sign in or register'} icon={<UserPlus className="h-4 w-4" />} to="/onboarding" />
+  ) : canSubmit ? (
+    <AppTitleBarAction
+      label={submitting ? t('submitting') : group.accessType === 'protected' ? t('submitJoinRequest') : t('confirmJoinGroup')}
+      icon={<UserPlus className="h-4 w-4" />}
+      disabled={submitting}
+      onClick={() => void submitJoin()}
+    />
+  ) : undefined
 
   return (
-    <AppPageShell>
+    <AppPageShell
+      title={localizeText(group.name, language)}
+      context={language === 'zh' ? '小组生活 / 加入小组' : 'Group Life / Join group'}
+      subtitle={localizeText(group.description, language) || description}
+      status={<div className="flex flex-wrap items-center gap-2"><AccessTypeBadge accessType={group.accessType} showProtected />{statusBadge}</div>}
+      primaryAction={primaryAction}
+      backLink={{
+        label: language === 'zh' ? '返回小组选择' : 'Back to group selection',
+        to: backPath,
+        onClick: returnGroupId ? () => activeEntityService.setGroup(returnGroupId) : undefined,
+      }}
+    >
       <AppSectionCard>
         <div className="space-y-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-slate-500">{t('joinGroup')}</p>
-              <h1 className="mt-1 break-words text-2xl font-semibold text-slate-950">{localizeText(group.name, language)}</h1>
-              {localizeText(group.description, language) ? <p className="mt-2 text-sm text-slate-600">{localizeText(group.description, language)}</p> : null}
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <AccessTypeBadge accessType={group.accessType} />
-              {statusBadge}
-            </div>
-          </div>
-
           <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
             <p className="text-sm leading-6 text-slate-700">{description}</p>
           </div>
@@ -184,33 +194,6 @@ const GroupJoinView = () => {
               {t('registrationRequiredToJoin')}
             </div>
           ) : null}
-
-          {isApproved ? (
-            <div className="flex flex-wrap gap-2">
-              <AppActionButton
-                variant="primary"
-                onClick={() => {
-                  activeEntityService.setGroup(group.id)
-                  navigate('/groups?view=overview')
-                }}
-              >
-                {t('openGroup')}
-              </AppActionButton>
-            </div>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              <AppActionButton variant="primary" disabled={!canSubmit} onClick={submitJoin}>
-                {submitting
-                  ? t('submitting')
-                  : group.accessType === 'protected'
-                    ? t('submitJoinRequest')
-                    : t('confirmJoinGroup')}
-              </AppActionButton>
-              <AppActionButton variant="ghost" onClick={returnToPreviousGroup}>
-                {t('back')}
-              </AppActionButton>
-            </div>
-          )}
 
           {statusMessage ? <p className="text-sm font-medium text-emerald-700">{statusMessage}</p> : null}
           {error ? <p className="text-sm font-medium text-rose-700">{error}</p> : null}

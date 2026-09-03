@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query'
 import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ChevronRight, Eye, ListFilter, MessageCircle, Pin, Plus, RefreshCcw, Send, Sparkles, UsersRound } from 'lucide-react'
+import { ChevronRight, Eye, ListFilter, MessageCircle, Pin, Plus, RefreshCcw, Send, UsersRound } from 'lucide-react'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
 import AppEmptyState from '../components/layout/AppEmptyState'
 import AppPageShell from '../components/layout/AppPageShell'
+import AppTitleBarAction from '../components/layout/AppTitleBarAction'
 import AiLanguageAutofill from '../components/ai/AiLanguageAutofill'
 import ChurchGroupFilter from '../components/church-life/ChurchGroupFilter'
 import ChurchLifeResultsRegion from '../components/church-life/ChurchLifeResultsRegion'
@@ -297,45 +298,32 @@ const ForumView = () => {
     return <Navigate to="/groups/select" replace />
   }
 
+  const pageTitle = groupScopedForum ? text.groupForum : churchForum ? text.churchForum : text.forum
+  const pageSubtitle = groupScopedForum ? text.groupForumSubtitle : churchForum ? text.churchForumSubtitle : text.forumSubtitle
+  const pageContext = groupScopedForum
+    ? (language === 'zh' ? '小组生活 / 论坛' : 'Group Life / Forum')
+    : churchForum
+      ? (language === 'zh' ? '教会生活 / 论坛' : 'Church Life / Forum')
+      : (language === 'zh' ? '公开内容 / 论坛' : 'Public Content / Forum')
+
   return (
-    <AppPageShell>
+    <AppPageShell
+      title={pageTitle}
+      context={pageContext}
+      subtitle={pageSubtitle}
+      primaryAction={canPost && !composerOpen ? (
+        <AppTitleBarAction label={text.newPost} icon={<Plus className="h-4 w-4" />} onClick={() => setComposerOpen(true)} />
+      ) : undefined}
+      overflowLabel={language === 'zh' ? '更多操作' : 'More actions'}
+      overflowActions={[{
+        label: text.refresh,
+        icon: <RefreshCcw className={['h-4 w-4', postsQuery.isFetching ? 'animate-spin' : ''].join(' ')} />,
+        disabled: postsQuery.isFetching,
+        onSelect: () => { void postsQuery.refetch() },
+      }]}
+    >
       <div className="mx-auto w-full max-w-7xl">
         <section className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.08)]">
-          <header className="relative border-b border-slate-200 bg-[#f8faf9] px-5 py-6 sm:px-7 lg:px-8">
-            <div className="absolute right-0 top-0 h-32 w-32 rounded-bl-[4rem] bg-[#176b5a]/10" aria-hidden="true" />
-            <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-              <div className="max-w-2xl">
-                <div className="inline-flex items-center gap-2 rounded-full border border-[#176b5a]/15 bg-white px-3 py-1.5 text-xs font-black uppercase tracking-[0.12em] text-[#176b5a] shadow-sm">
-                  <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-                  {groupScopedForum ? text.groupSpace : churchForum ? text.churchSpace : text.communitySpace}
-                </div>
-                <h1 className="mt-4 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">{groupScopedForum ? text.groupForum : churchForum ? text.churchForum : text.forum}</h1>
-                <p className="mt-3 text-base leading-7 text-slate-600">{groupScopedForum ? text.groupForumSubtitle : churchForum ? text.churchForumSubtitle : text.forumSubtitle}</p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 shadow-sm transition hover:border-[#176b5a]/30 hover:text-[#176b5a] disabled:opacity-50"
-                  onClick={() => void postsQuery.refetch()}
-                  disabled={postsQuery.isFetching}
-                >
-                  <RefreshCcw className={['mr-2 h-4 w-4', postsQuery.isFetching ? 'animate-spin' : ''].join(' ')} aria-hidden="true" />
-                  {text.refresh}
-                </button>
-                {canPost ? (
-                  <button
-                    type="button"
-                    className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#176b5a] px-4 text-sm font-black text-white shadow-[0_14px_30px_rgba(23,107,90,0.22)] transition hover:bg-[#0d4f43]"
-                    onClick={() => setComposerOpen(true)}
-                  >
-                    <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
-                    {text.newPost}
-                  </button>
-                ) : null}
-              </div>
-            </div>
-          </header>
-
           <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_21rem]">
             <main className="min-w-0 border-slate-200 lg:border-r">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-3 sm:px-7">
@@ -357,9 +345,9 @@ const ForumView = () => {
                 {churchForum ? <ChurchGroupFilter groups={churchGroups} value={ownerGroupId} language={language} onChange={selectOwnerGroup} /> : null}
               </div>
 
-              <div className="border-b border-slate-200 bg-white px-5 py-4 sm:px-7">
-                {canPost ? (
-                  composerOpen ? (
+              {composerOpen || !canPost ? (
+                <div className="border-b border-slate-200 bg-white px-5 py-4 sm:px-7">
+                  {canPost ? (
                     <ForumComposer
                       defaultCategoryId={defaultCategoryId}
                       groupId={groupId || undefined}
@@ -367,29 +355,15 @@ const ForumView = () => {
                       onCreated={(postId) => navigate(`${forumBasePath}/posts/${postId}`)}
                     />
                   ) : (
-                    <button
-                      type="button"
-                      className="flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 text-left transition hover:border-[#176b5a]/30 hover:bg-white hover:shadow-sm"
-                      onClick={() => setComposerOpen(true)}
-                    >
-                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-sm font-black text-[#176b5a] shadow-sm">
-                        {avatarLetter(me?.displayName)}
-                      </span>
-                      <span className="min-w-0 flex-1 text-sm font-bold text-slate-500">{text.quickShare}</span>
-                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[#176b5a] text-white">
-                        <Plus className="h-4 w-4" aria-hidden="true" />
-                      </span>
-                    </button>
-                  )
-                ) : (
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#176b5a]/15 bg-[#e3f0eb] px-4 py-3 text-sm font-bold text-[#0d4f43]">
-                    <span>{groupId ? text.groupMemberToPost : text.loginToPost}</span>
-                    <Link to="/onboarding" className="inline-flex min-h-10 items-center rounded-xl bg-[#176b5a] px-4 text-sm font-black text-white transition hover:bg-[#0d4f43]">
-                      {text.login}
-                    </Link>
-                  </div>
-                )}
-              </div>
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#176b5a]/15 bg-[#e3f0eb] px-4 py-3 text-sm font-bold text-[#0d4f43]">
+                      <span>{groupId ? text.groupMemberToPost : text.loginToPost}</span>
+                      <Link to="/onboarding" className="inline-flex min-h-10 items-center rounded-xl bg-[#176b5a] px-4 text-sm font-black text-white transition hover:bg-[#0d4f43]">
+                        {text.login}
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              ) : null}
 
               <section id="forum-feed-panel">
                 <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-3 sm:px-7">
@@ -417,7 +391,7 @@ const ForumView = () => {
 
                   {!postsQuery.isLoading && !postsQuery.error && !churchQuery.error && !(churchForum && churchQuery.isPending) && posts.length === 0 ? (
                     <div className="p-5 sm:p-7">
-                      <AppEmptyState title={text.noPosts} description={text.noPostsDescription} actionLabel={canPost ? text.newPost : undefined} onAction={canPost ? () => setComposerOpen(true) : undefined} />
+                      <AppEmptyState title={text.noPosts} description={text.noPostsDescription} />
                     </div>
                   ) : null}
 

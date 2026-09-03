@@ -90,6 +90,23 @@ select {
       radial-gradient(circle at 8% 10%, rgba(227, 123, 99, 0.1), transparent 24rem),
       radial-gradient(circle at 92% 0%, rgba(23, 107, 90, 0.13), transparent 28rem),
       linear-gradient(180deg, #f8f6f0 0%, var(--alife-workspace-bg) 44%, #eee8dc 100%);
+    --alife-titlebar-background: rgba(255, 255, 255, 0.86);
+    --alife-titlebar-border: rgba(47, 75, 66, 0.12);
+    --alife-titlebar-shadow: 0 10px 30px rgba(31, 56, 48, 0.07);
+    --alife-titlebar-title: #18332d;
+    --alife-titlebar-context: #176b5a;
+    --alife-titlebar-subtitle: #66766f;
+    --alife-titlebar-back: #53665f;
+    --alife-titlebar-back-hover: #0d4f43;
+    --alife-titlebar-back-hover-bg: #e3f0eb;
+    --alife-titlebar-divider: rgba(47, 75, 66, 0.1);
+    --alife-titlebar-controls: #ffffff;
+    --alife-titlebar-accent: #e37b63;
+    --alife-titlebar-primary-bg: #176b5a;
+    --alife-titlebar-primary-hover: #0d4f43;
+    --alife-titlebar-primary-text: #ffffff;
+    --alife-titlebar-primary-border: #176b5a;
+    --alife-titlebar-primary-shadow: 0 9px 22px rgba(23, 107, 90, 0.18);
   }
 
   .alife-workspace::before {
@@ -103,6 +120,101 @@ select {
       linear-gradient(90deg, rgba(47, 75, 66, 0.045) 1px, transparent 1px);
     background-size: 40px 40px;
     mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.62), transparent 72%);
+  }
+
+  .alife-workspace[data-workspace-area='member'] {
+    --alife-workspace-bg: #e6eee9;
+    --alife-surface: rgba(255, 253, 248, 0.94);
+    --alife-surface-strong: #fffdf8;
+    --alife-line: rgba(24, 67, 57, 0.14);
+    --alife-line-strong: rgba(24, 67, 57, 0.24);
+    --alife-shadow: 0 16px 40px rgba(18, 59, 52, 0.1);
+    --alife-shadow-soft: 0 8px 24px rgba(18, 59, 52, 0.075);
+    --alife-titlebar-background:
+      radial-gradient(circle at 92% -48%, rgba(169, 216, 199, 0.3), transparent 22rem),
+      linear-gradient(128deg, #123b34 0%, #174f44 58%, #1f6756 100%);
+    --alife-titlebar-border: rgba(255, 255, 255, 0.13);
+    --alife-titlebar-shadow: 0 20px 48px rgba(13, 79, 67, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    --alife-titlebar-title: #fffdf8;
+    --alife-titlebar-context: #a9d8c7;
+    --alife-titlebar-subtitle: #c7d9d2;
+    --alife-titlebar-back: #c7ddd5;
+    --alife-titlebar-back-hover: #ffffff;
+    --alife-titlebar-back-hover-bg: rgba(255, 255, 255, 0.1);
+    --alife-titlebar-divider: rgba(255, 255, 255, 0.15);
+    --alife-titlebar-controls: #fff9ef;
+    --alife-titlebar-accent: #f08b72;
+    --alife-titlebar-primary-bg: #fff9ef;
+    --alife-titlebar-primary-hover: #ffffff;
+    --alife-titlebar-primary-text: #123b34;
+    --alife-titlebar-primary-border: rgba(255, 255, 255, 0.55);
+    --alife-titlebar-primary-shadow: 0 10px 24px rgba(7, 42, 35, 0.2);
+    background:
+      radial-gradient(circle at 7% 3%, rgba(255, 253, 248, 0.78), transparent 25rem),
+      radial-gradient(circle at 92% 0%, rgba(85, 153, 130, 0.2), transparent 31rem),
+      radial-gradient(circle at 54% 68%, rgba(227, 123, 99, 0.07), transparent 36rem),
+      linear-gradient(180deg, #edf3ef 0%, var(--alife-workspace-bg) 50%, #dce7e1 100%);
+  }
+
+  .alife-workspace[data-workspace-area='member']::before {
+    background-image:
+      linear-gradient(rgba(18, 59, 52, 0.052) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(18, 59, 52, 0.052) 1px, transparent 1px);
+    mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.54), transparent 76%);
+  }
+
+  .alife-titlebar {
+    color: var(--alife-titlebar-title);
+    border: 1px solid var(--alife-titlebar-border);
+    background: var(--alife-titlebar-background);
+    box-shadow: var(--alife-titlebar-shadow);
+    backdrop-filter: blur(14px);
+  }
+
+  .alife-titlebar-accent {
+    background: var(--alife-titlebar-accent);
+    box-shadow: 0 0 18px color-mix(in srgb, var(--alife-titlebar-accent) 38%, transparent);
+  }
+
+  .alife-titlebar-back {
+    color: var(--alife-titlebar-back);
+  }
+
+  .alife-titlebar-back:hover {
+    color: var(--alife-titlebar-back-hover);
+    background: var(--alife-titlebar-back-hover-bg);
+  }
+
+  .alife-titlebar-context {
+    color: var(--alife-titlebar-context);
+  }
+
+  .alife-titlebar-title {
+    color: var(--alife-titlebar-title);
+  }
+
+  .alife-titlebar-subtitle {
+    color: var(--alife-titlebar-subtitle);
+  }
+
+  .alife-titlebar-controls-slot {
+    border-color: var(--alife-titlebar-divider);
+  }
+
+  .alife-titlebar-controls {
+    color: var(--alife-ink);
+    background: var(--alife-titlebar-controls);
+  }
+
+  .alife-titlebar-primary {
+    color: var(--alife-titlebar-primary-text);
+    border-color: var(--alife-titlebar-primary-border);
+    background: var(--alife-titlebar-primary-bg);
+    box-shadow: var(--alife-titlebar-primary-shadow);
+  }
+
+  .alife-titlebar-primary:hover:not(:disabled) {
+    background: var(--alife-titlebar-primary-hover);
   }
 
   .alife-panel {

@@ -1,9 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, FolderPlus, Images, Pencil, Plus, Trash2, Upload } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { ChevronDown, ChevronRight, ChevronUp, FolderPlus, Images, Pencil, Plus, Trash2, Upload } from 'lucide-react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import AppActionButton from '../components/layout/AppActionButton'
+import AppBadge from '../components/layout/AppBadge'
 import AppEmptyState from '../components/layout/AppEmptyState'
+import AppOverflowMenu from '../components/layout/AppOverflowMenu'
 import AppPageShell from '../components/layout/AppPageShell'
+import AppTitleBarAction from '../components/layout/AppTitleBarAction'
 import AiLanguageAutofill from '../components/ai/AiLanguageAutofill'
 import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
 import { albumService, type AlbumDetail, type AlbumSummary, type AlbumVisibility } from '../services/albumService'
@@ -13,6 +17,7 @@ import { useAuthStore } from '../stores/auth'
 import { localizeText } from '../utils/localizedText'
 import { compactBilingualText, validateRequiredBilingualFields } from '../utils/bilingualValidation'
 import useConfirmation from '../hooks/useConfirmation'
+import { fetchGroupForViewer, groupQueryKey } from '../db/collections/groupCollection'
 
 type AlbumEditorMode = 'create' | 'edit'
 
@@ -58,6 +63,12 @@ const AlbumView = () => {
   const [editorMode, setEditorMode] = useState<AlbumEditorMode | null>(null)
   const [albumForm, setAlbumForm] = useState<AlbumFormDraft>(() => emptyAlbumForm())
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const ownerGroupQuery = useQuery({
+    queryKey: groupQueryKey(groupId),
+    queryFn: () => fetchGroupForViewer(groupId, auth.me?.id),
+    enabled: Boolean(groupId),
+    staleTime: 5 * 60_000,
+  })
   const albumBasePath = routeGroupId
     ? `/groups/${encodeURIComponent(routeGroupId)}/albums`
     : '/albums'
@@ -165,6 +176,13 @@ const AlbumView = () => {
 
   const albums = detail?.children ?? roots
   const pageTitle = detail ? localizeText(detail.album.name, auth.language) : (isZh ? '相册' : 'Albums')
+  const ownerGroupName = localizeText(ownerGroupQuery.data?.name, auth.language)
+  const albumContext = ownerGroupName ? (
+    <>
+      <span className="desktop:hidden">{ownerGroupName} / {isZh ? '相册' : 'Albums'}</span>
+      <span className="hidden desktop:inline">{ownerGroupQuery.data?.isChurch ? (isZh ? '教会生活' : 'Church Life') : (isZh ? '小组生活' : 'Group Life')} / {ownerGroupName} / {isZh ? '相册' : 'Albums'}</span>
+    </>
+  ) : (isZh ? '小组内容 / 相册' : 'Group Content / Albums')
   const missingAlbumTranslations = validateRequiredBilingualFields(
     { name: albumForm.name, description: albumForm.description },
     [
@@ -179,14 +197,33 @@ const AlbumView = () => {
   return (
     <AppPageShell
       title={pageTitle}
+      context={albumContext}
       subtitle={detail ? localizeText(detail.album.description, auth.language) : (isZh ? '用相册和子相册整理小组图片。' : 'Organize group images with albums and subalbums.')}
-      actions={canManage ? (
-        <div className="flex flex-wrap gap-2">
-          {detail ? <AppActionButton variant="secondary" onClick={openEdit}><Pencil className="mr-2 h-4 w-4" />{isZh ? '编辑相册' : 'Edit album'}</AppActionButton> : null}
-          <AppActionButton variant="primary" onClick={openCreate}><FolderPlus className="mr-2 h-4 w-4" />{isZh ? (detail ? '新建子相册' : '新建相册') : (detail ? 'New subalbum' : 'New album')}</AppActionButton>
-        </div>
+      status={detail ? <AppBadge variant={detail.album.visibility === 'public' ? 'info' : 'neutral'}>{detail.album.visibility === 'public' ? (isZh ? '公开' : 'Public') : (isZh ? '小组可见' : 'Group visible')}</AppBadge> : undefined}
+      primaryAction={canManage && !editorMode ? (
+        detail ? (
+          <AppTitleBarAction
+            label={busy ? (isZh ? '处理中…' : 'Working…') : (isZh ? '上传图片' : 'Upload images')}
+            icon={<Upload className="h-4 w-4" />}
+            disabled={busy}
+            onClick={() => fileInputRef.current?.click()}
+          />
+        ) : (
+          <AppTitleBarAction label={isZh ? '新建相册' : 'New album'} icon={<FolderPlus className="h-4 w-4" />} onClick={openCreate} />
+        )
       ) : undefined}
+      overflowLabel={isZh ? '更多操作' : 'More actions'}
+      overflowActions={detail && canManage && !editorMode ? [{
+        label: isZh ? '编辑相册' : 'Edit album',
+        icon: <Pencil className="h-4 w-4" />,
+        onSelect: openEdit,
+      }, {
+        label: isZh ? '新建子相册' : 'New subalbum',
+        icon: <FolderPlus className="h-4 w-4" />,
+        onSelect: openCreate,
+      }] : []}
     >
+      <input ref={fileInputRef} className="hidden" type="file" accept="image/*" multiple onChange={event => uploadFiles(event.target.files)} />
       {detail ? (
         <nav className="flex flex-wrap items-center gap-1 text-sm text-[#66766f]" aria-label={isZh ? '相册路径' : 'Album breadcrumbs'}>
           <Link className="rounded-lg px-2 py-1 hover:bg-[#e3f0eb]" to={albumBasePath}>{isZh ? '相册' : 'Albums'}</Link>
@@ -236,11 +273,34 @@ const AlbumView = () => {
       {!loading && !albums.length && !detail?.photos.length ? <AppEmptyState title={isZh ? '这里还是空的' : 'Nothing here yet'} description={isZh ? '创建相册或上传第一张图片。' : 'Create an album or upload the first image.'} /> : null}
       {detail ? (
         <section className="space-y-4">
-          {detail.canManage ? <div className="flex justify-end"><input ref={fileInputRef} className="hidden" type="file" accept="image/*" multiple onChange={event => uploadFiles(event.target.files)} /><AppActionButton variant="primary" disabled={busy} onClick={() => fileInputRef.current?.click()}><Upload className="mr-2 h-4 w-4" />{busy ? (isZh ? '处理中…' : 'Working…') : (isZh ? '上传图片' : 'Upload images')}</AppActionButton></div> : null}
           {detail.photos.length ? <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{detail.photos.map((photo, index) => (
             <figure key={photo.id} className="overflow-hidden rounded-2xl border border-[#2f4b42]/10 bg-white shadow-sm">
               <img src={resolveFileAssetAccessUrl(photo.url) ?? photo.url} alt={localizeText(photo.caption, auth.language) || photo.originalFileName} className="aspect-square w-full object-cover" loading="lazy" />
-              {detail.canManage ? <figcaption className="flex items-center justify-between gap-2 p-2"><span className="truncate px-1 text-xs text-[#66766f]">{photo.originalFileName}</span><span className="flex gap-1"><button disabled={busy || index === 0} onClick={() => movePhoto(index, -1)} className="rounded-lg p-2 hover:bg-slate-100 disabled:opacity-30" aria-label={isZh ? '前移' : 'Move earlier'}><ChevronLeft className="h-4 w-4 sm:hidden" /><ChevronUp className="hidden h-4 w-4 sm:block" /></button><button disabled={busy || index === detail.photos.length - 1} onClick={() => movePhoto(index, 1)} className="rounded-lg p-2 hover:bg-slate-100 disabled:opacity-30" aria-label={isZh ? '后移' : 'Move later'}><ChevronRight className="h-4 w-4 sm:hidden" /><ChevronDown className="hidden h-4 w-4 sm:block" /></button><button disabled={busy} onClick={() => removePhoto(photo.id, photo.objectKey)} className="rounded-lg p-2 text-rose-600 hover:bg-rose-50" aria-label={isZh ? '删除' : 'Delete'}><Trash2 className="h-4 w-4" /></button></span></figcaption> : null}
+              {detail.canManage ? (
+                <figcaption className="flex items-center justify-between gap-2 p-2">
+                  <span className="truncate px-1 text-xs text-[#66766f]">{photo.originalFileName}</span>
+                  <AppOverflowMenu
+                    label={isZh ? '图片操作' : 'Photo actions'}
+                    actions={[{
+                      label: isZh ? '前移' : 'Move earlier',
+                      icon: <ChevronUp className="h-4 w-4" />,
+                      disabled: busy || index === 0,
+                      onSelect: () => { void movePhoto(index, -1) },
+                    }, {
+                      label: isZh ? '后移' : 'Move later',
+                      icon: <ChevronDown className="h-4 w-4" />,
+                      disabled: busy || index === detail.photos.length - 1,
+                      onSelect: () => { void movePhoto(index, 1) },
+                    }, {
+                      label: isZh ? '删除图片' : 'Delete photo',
+                      icon: <Trash2 className="h-4 w-4" />,
+                      tone: 'danger',
+                      disabled: busy,
+                      onSelect: () => { void removePhoto(photo.id, photo.objectKey) },
+                    }]}
+                  />
+                </figcaption>
+              ) : null}
             </figure>
           ))}</div> : null}
         </section>

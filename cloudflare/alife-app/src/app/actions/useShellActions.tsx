@@ -10,7 +10,6 @@ type Args = {
   isManagementScreen: boolean
   isEventScreen: boolean
   isSermonDetailScreen: boolean
-  isProfileScreen: boolean
 }
 
 export const useShellActions = (args: Args): ShellFabItem[] => {
@@ -35,7 +34,7 @@ export const useShellActions = (args: Args): ShellFabItem[] => {
       },
     ]
   }
-  if (args.isEventScreen || args.isSermonDetailScreen || args.isProfileScreen) {
+  if (args.isEventScreen || args.isSermonDetailScreen) {
     return [
       {
         label: translateUi(auth.language, 'back'),

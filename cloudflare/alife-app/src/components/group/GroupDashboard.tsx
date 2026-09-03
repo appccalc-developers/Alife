@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
-import { ArrowUpRight, Bell, CalendarDays, FileText, Repeat2 } from 'lucide-react'
+import { ArrowUpRight, Bell, CalendarDays, FileText, Settings2, UsersRound } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import AccessTypeBadge from './AccessTypeBadge'
+import AppPageShell from '../layout/AppPageShell'
 import type { GroupDto, GroupPageDto } from '../../types/group'
 import type { GroupEventRecord } from '../../types/event'
 import { useAuthStore } from '../../stores/auth'
@@ -19,15 +21,15 @@ type Props = {
   explicitGroupRoute?: boolean
 }
 
-const GroupDashboard = ({ group, pages, events, scope = 'group', explicitGroupRoute = false }: Props) => {
+const GroupDashboard = ({ group, pages, events, canManage, scope = 'group', explicitGroupRoute = false }: Props) => {
   const auth = useAuthStore()
   const language = auth.language
   const groupName = localizeText(group.name, language)
   const groupDescription = localizeText(group.description, language)
-  const upcomingEvents = [...events]
+  const allUpcomingEvents = [...events]
     .filter((event) => event.ramStatus === 'approved' && (!event.endDate || new Date(event.endDate).getTime() >= Date.now()))
     .sort((left, right) => new Date(left.startDate).getTime() - new Date(right.startDate).getTime())
-    .slice(0, 3)
+  const upcomingEvents = allUpcomingEvents.slice(0, 3)
   const [announcements, setAnnouncements] = useState<AnnouncementDto[]>([])
   const openEvent = (eventId: string) => {
     activeEntityService.set({ pageId: '', eventId })
@@ -73,16 +75,25 @@ const GroupDashboard = ({ group, pages, events, scope = 'group', explicitGroupRo
     const eventTitle = (event: GroupEventRecord) => (language === 'zh' ? event.titleZh : event.titleEn) || event.titleEn || event.titleZh
 
     return (
+      <AppPageShell
+        title={groupName}
+        context={language === 'zh' ? '教会生活 / 总览' : 'Church Life / Overview'}
+        subtitle={groupDescription || (language === 'zh' ? '查看教会近期安排、重要公告与公开内容。' : 'See the church’s upcoming schedule, important notices, and published content.')}
+        status={<AccessTypeBadge accessType={group.accessType} showProtected />}
+        overflowLabel={language === 'zh' ? '更多操作' : 'More actions'}
+        overflowActions={canManage ? [{
+          label: language === 'zh' ? '管理教会' : 'Manage church',
+          icon: <Settings2 className="h-4 w-4" />,
+          to: '/church/manage',
+        }] : []}
+      >
       <div className="space-y-7 pb-4">
         <header className="relative isolate overflow-hidden rounded-[2rem] border border-[#dce8e2] bg-[linear-gradient(135deg,#fffdf8_0%,#f2f8f5_52%,#f8eee6_100%)] px-6 py-8 text-[#17362f] shadow-[0_24px_65px_rgba(35,73,63,0.10)] sm:px-9 sm:py-10">
           <div className="absolute -right-20 -top-28 h-72 w-72 rounded-full bg-[#edc6a9]/45 blur-3xl" aria-hidden="true" />
           <div className="absolute -bottom-32 left-1/4 h-64 w-64 rounded-full bg-emerald-200/30 blur-3xl" aria-hidden="true" />
           <div className="relative grid gap-9 lg:grid-cols-[minmax(0,1.2fr)_minmax(17rem,.8fr)] lg:items-end">
             <div>
-              <p className="text-[0.68rem] font-black uppercase tracking-[0.24em] text-[#19705d]">{language === 'zh' ? '教会生活 · 总览' : 'Church Life · Overview'}</p>
-              <h1 className="mt-3 max-w-3xl text-3xl font-black tracking-[-0.05em] sm:text-5xl">{groupName}</h1>
-              <p className="mt-4 max-w-2xl text-sm leading-7 text-[#61756d] sm:text-base">{groupDescription || (language === 'zh' ? '在这里了解教会近期安排、重要公告与公开内容。' : 'Find the church’s upcoming schedule, important notices, and published content here.')}</p>
-              <div className="mt-7 flex flex-wrap gap-x-7 gap-y-3 border-t border-[#cadbd4] pt-5 text-xs font-bold text-[#687c74]">
+              <div className="flex flex-wrap gap-x-7 gap-y-3 text-xs font-bold text-[#687c74]">
                 <span><strong className="mr-2 text-xl font-black text-[#17362f]">{churchUpcomingEvents.length}</strong>{language === 'zh' ? '近期活动' : 'upcoming events'}</span>
                 <span><strong className="mr-2 text-xl font-black text-[#17362f]">{announcements.length}</strong>{language === 'zh' ? '当前公告' : 'active notices'}</span>
                 <span><strong className="mr-2 text-xl font-black text-[#17362f]">{pages.length}</strong>{language === 'zh' ? '内容入口' : 'content links'}</span>
@@ -156,6 +167,7 @@ const GroupDashboard = ({ group, pages, events, scope = 'group', explicitGroupRo
           {pages.length ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{pages.slice(0, 6).map((page, index) => <Link key={page.id} to={`/church?page=${encodeURIComponent(page.id)}`} className="group relative min-h-32 overflow-hidden rounded-[1.4rem] border border-[#dfe7e3] bg-white p-5 shadow-[0_10px_30px_rgba(24,51,45,0.04)] transition hover:-translate-y-0.5 hover:border-[#a9cabe]"><span className="text-[0.62rem] font-black uppercase tracking-[0.16em] text-[#93a099]">{String(index + 1).padStart(2, '0')}</span><h3 className="mt-5 pr-8 text-base font-black text-[#27473f]">{localizeText(page.title, language)}</h3><ArrowUpRight className="absolute bottom-5 right-5 h-4 w-4 text-[#9aaba4] transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[#176b5a]" aria-hidden="true" /></Link>)}</div> : <div className="rounded-[1.5rem] border border-dashed border-[#cfdcd6] px-6 py-8 text-sm text-[#718079]">{language === 'zh' ? '教会还没有发布内容。' : 'No church content has been published.'}</div>}
         </section>
       </div>
+      </AppPageShell>
     )
   }
 
@@ -163,32 +175,38 @@ const GroupDashboard = ({ group, pages, events, scope = 'group', explicitGroupRo
   const eventTitle = (event: GroupEventRecord) => (language === 'zh' ? event.titleZh : event.titleEn) || event.titleEn || event.titleZh
 
   return (
+    <AppPageShell
+      title={groupName}
+      context={language === 'zh' ? '小组生活 / 总览' : 'Group Life / Overview'}
+      subtitle={groupDescription || (language === 'zh' ? '查看小组最近的活动、公告与已发布内容。' : 'See the group’s latest events, notices, and published content.')}
+      status={<AccessTypeBadge accessType={group.accessType} showProtected />}
+      overflowLabel={language === 'zh' ? '更多操作' : 'More actions'}
+      overflowActions={[
+        {
+          label: language === 'zh' ? '切换小组' : 'Switch group',
+          icon: <UsersRound className="h-4 w-4" />,
+          to: '/groups/select',
+        },
+        ...(canManage ? [{
+          label: language === 'zh' ? '管理小组' : 'Manage group',
+          icon: <Settings2 className="h-4 w-4" />,
+          to: '/groups?section=group',
+        }] : []),
+      ]}
+    >
     <div className="space-y-7 pb-4">
-      <header className="relative isolate overflow-hidden rounded-[2rem] border border-[#dce7e2] bg-[#fbfcf9] px-6 py-7 shadow-[0_24px_60px_rgba(30,63,54,0.09)] sm:px-8 sm:py-8">
-        <div className="absolute inset-y-0 right-0 w-2/5 bg-[linear-gradient(135deg,rgba(219,239,231,0.25),rgba(241,205,178,0.38))]" aria-hidden="true" />
-        <div className="absolute -right-12 -top-20 h-52 w-52 rounded-full border-[36px] border-white/45" aria-hidden="true" />
-        <div className="relative grid gap-7 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-end">
-          <div>
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="inline-flex rounded-full bg-[#e5f1ec] px-3 py-1 text-[0.65rem] font-black uppercase tracking-[0.2em] text-[#176b5a]">{language === 'zh' ? '小组总览' : 'Group overview'}</span>
-              <span className="text-xs font-bold text-[#89968f]">{language === 'zh' ? '小组生活' : 'Group Life'}</span>
-            </div>
-            <h1 className="mt-4 text-3xl font-black tracking-[-0.045em] text-[#18332d] sm:text-5xl">{groupName}</h1>
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-[#65766f] sm:text-base">{groupDescription || (language === 'zh' ? '查看小组最近的活动、公告与已发布内容。' : 'See the group’s latest events, notices, and published content.')}</p>
+      <section className="grid grid-cols-3 overflow-hidden rounded-[1.5rem] border border-[var(--alife-line)] bg-[var(--alife-surface-strong)] shadow-[var(--alife-shadow-soft)]" aria-label={language === 'zh' ? '小组近况' : 'Group at a glance'}>
+        {[
+          { value: allUpcomingEvents.length, label: language === 'zh' ? '近期活动' : 'Events' },
+          { value: announcements.length, label: language === 'zh' ? '当前公告' : 'Notices' },
+          { value: pages.length, label: language === 'zh' ? '内容入口' : 'Content' },
+        ].map((item) => (
+          <div key={item.label} className="border-r border-[var(--alife-line)] px-3 py-4 text-center last:border-r-0 sm:px-5 sm:py-5">
+            <strong className="block text-2xl font-black tabular-nums text-[#18332d]">{item.value}</strong>
+            <span className="mt-1 block text-[0.65rem] font-bold text-[#718079] sm:text-xs">{item.label}</span>
           </div>
-          <div className="relative rounded-[1.5rem] border border-white/80 bg-white/72 p-5 shadow-[0_15px_35px_rgba(30,63,54,0.07)] backdrop-blur-sm">
-            <div className="grid grid-cols-3 divide-x divide-[#dce7e2] text-center">
-              <div><strong className="block text-2xl font-black text-[#18332d]">{upcomingEvents.length}</strong><span className="mt-1 block text-[0.65rem] font-bold text-[#7c8b85]">{language === 'zh' ? '近期活动' : 'Events'}</span></div>
-              <div><strong className="block text-2xl font-black text-[#18332d]">{announcements.length}</strong><span className="mt-1 block text-[0.65rem] font-bold text-[#7c8b85]">{language === 'zh' ? '公告' : 'Notices'}</span></div>
-              <div><strong className="block text-2xl font-black text-[#18332d]">{pages.length}</strong><span className="mt-1 block text-[0.65rem] font-bold text-[#7c8b85]">{language === 'zh' ? '内容' : 'Pages'}</span></div>
-            </div>
-            <Link className="mt-5 flex items-center justify-between rounded-xl bg-[#183f35] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#176b5a]" to="/groups/select">
-              <span className="inline-flex items-center gap-2"><Repeat2 className="h-4 w-4" />{language === 'zh' ? '切换小组' : 'Switch group'}</span>
-              <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
-            </Link>
-          </div>
-        </div>
-      </header>
+        ))}
+      </section>
 
       <div className="grid gap-7 xl:grid-cols-[minmax(0,1.08fr)_minmax(19rem,.92fr)]">
         <section aria-labelledby="group-events-heading">
@@ -222,6 +240,7 @@ const GroupDashboard = ({ group, pages, events, scope = 'group', explicitGroupRo
         {pages.length ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{pages.slice(0, 6).map((page, index) => <Link key={page.id} to={explicitGroupRoute ? `/groups/${encodeURIComponent(group.id)}?page=${encodeURIComponent(page.id)}` : '/groups'} onClick={() => { if (!explicitGroupRoute) activeEntityService.setPage(page.id, group.id) }} className="group relative min-h-32 overflow-hidden rounded-[1.4rem] border border-[#dfe7e3] bg-white p-5 shadow-[0_10px_30px_rgba(24,51,45,0.04)] transition hover:-translate-y-0.5 hover:border-[#a9cabe] hover:shadow-[0_16px_38px_rgba(24,51,45,0.08)]"><span className="text-[0.62rem] font-black uppercase tracking-[0.16em] text-[#9aa69f]">{String(index + 1).padStart(2, '0')}</span><h3 className="mt-5 pr-8 text-base font-black text-[#27473f]">{localizeText(page.title, language)}</h3><ArrowUpRight className="absolute bottom-5 right-5 h-4 w-4 text-[#9aaba4] transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[#176b5a]" aria-hidden="true" /></Link>)}</div> : <div className="rounded-[1.5rem] border border-dashed border-[#cfdcd6] bg-white/55 px-6 py-8 text-sm text-[#718079]">{language === 'zh' ? '这个小组还没有发布内容。' : 'This group has not published any content yet.'}</div>}
       </section>
     </div>
+    </AppPageShell>
   )
 }
 

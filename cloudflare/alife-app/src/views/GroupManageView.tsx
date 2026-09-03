@@ -873,7 +873,7 @@ type GroupManageViewProps = {
   visibleSections?: readonly ManageSection[]
   sectionLabels?: Partial<Record<ManageSection, string>>
   membersContent?: ReactNode
-  workspaceEyebrow?: string
+  workspaceEyebrow?: ReactNode
   workspaceDescription?: string
 }
 
@@ -1083,36 +1083,6 @@ const GroupManageView = ({
 
   const managementWorkspace = (
       <div className={integrated ? 'space-y-4' : 'space-y-5'}>
-        {!integrated ? <section className="overflow-hidden rounded-[2rem] border border-emerald-100 bg-gradient-to-br from-white via-emerald-50 to-[#fff4ea] px-6 py-6 text-[#18332d] shadow-[0_20px_55px_rgba(23,107,90,0.08)] sm:px-8">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0">
-              {!embeddedWorkspace ? (
-                <Link
-                  to={workspacePath}
-                  className="text-sm font-bold text-emerald-700 transition hover:text-emerald-900"
-                  onClick={(event) => {
-                    if (!guardGroupProfileNavigation()) {
-                      event.preventDefault()
-                    }
-                  }}
-                >
-                  {copy.back}
-                </Link>
-              ) : null}
-              <p className={[!embeddedWorkspace ? 'mt-4' : '', 'text-xs font-black uppercase tracking-[0.22em] text-emerald-700'].join(' ')}>
-                {workspaceEyebrow || (activeSection === 'group'
-                  ? (group?.isChurch ? (language === 'zh' ? '教会管理' : 'Church Management') : (language === 'zh' ? '小组管理' : 'Group Management'))
-                  : copy[activeSection])}
-              </p>
-              <h1 className="mt-2 text-3xl font-black tracking-[-0.04em] sm:text-4xl">
-                {embeddedWorkspace ? localizeText(group?.name, language) || copy.title : copy.title}
-              </h1>
-              <p className="mt-3 text-sm leading-6 text-[#5f716a]">{workspaceDescription || (embeddedWorkspace ? (language === 'zh' ? '成员、活动、内容和设置都在这里处理。' : 'People, events, content, and settings in one place.') : copy.subtitle)}</p>
-            </div>
-            {group ? <div className="shrink-0"><AccessTypeBadge accessType={group.accessType} /></div> : null}
-          </div>
-        </section> : null}
-
         {!integrated && showGroupManagementNavigation ? (
           <nav
             aria-label={language === 'zh' ? `${group?.isChurch ? '教会' : '小组'}管理视图` : `${group?.isChurch ? 'Church' : 'Group'} management views`}
@@ -1333,7 +1303,25 @@ const GroupManageView = ({
 
   return (
     <>
-      {integrated ? managementWorkspace : <AppPageShell>{managementWorkspace}</AppPageShell>}
+      {integrated ? managementWorkspace : (
+        <AppPageShell
+          title={embeddedWorkspace ? localizeText(group?.name, language) || copy.title : copy.title}
+          context={workspaceEyebrow || (activeSection === 'group'
+            ? (group?.isChurch ? (language === 'zh' ? '教会生活 / 教会管理' : 'Church Life / Church Management') : (language === 'zh' ? '小组生活 / 小组管理' : 'Group Life / Group Management'))
+            : `${group?.isChurch ? (language === 'zh' ? '教会管理' : 'Church Management') : (language === 'zh' ? '小组管理' : 'Group Management')} / ${copy[activeSection]}`)}
+          subtitle={workspaceDescription || (embeddedWorkspace ? (language === 'zh' ? '在这里维护资料、成员、联系人和组织架构。' : 'Maintain profile, members, contacts, and organization here.') : copy.subtitle)}
+          status={group ? <AccessTypeBadge accessType={group.accessType} showProtected /> : undefined}
+          backLink={!embeddedWorkspace ? {
+            to: workspacePath,
+            label: copy.back,
+            onClick: (event) => {
+              if (!guardGroupProfileNavigation()) event.preventDefault()
+            },
+          } : undefined}
+        >
+          {managementWorkspace}
+        </AppPageShell>
+      )}
       <CreateSubgroupModal
         open={createSubgroupOpen}
         busy={creatingSubgroup}

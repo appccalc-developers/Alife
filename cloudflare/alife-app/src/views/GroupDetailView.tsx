@@ -1,6 +1,8 @@
 import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { Pencil, Settings2 } from 'lucide-react'
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import AppBadge from '../components/layout/AppBadge'
 import AppPageShell from '../components/layout/AppPageShell'
 import GroupScreenShell from '../components/group/GroupScreenShell'
 import GroupDashboard from '../components/group/GroupDashboard'
@@ -11,6 +13,7 @@ import { ensureGroupForViewer } from '../db/collections/groupCollection'
 import { activeEntityService } from '../services/activeEntityService'
 import { useAuthStore } from '../stores/auth'
 import { useCurrentGroupStore } from '../stores/currentGroup'
+import { localizeText } from '../utils/localizedText'
 
 type GroupBrowseViewProps = {
   groupId: string
@@ -21,6 +24,7 @@ type GroupBrowseViewProps = {
 
 const GroupBrowseView = ({ groupId, pageId, scope = 'group', explicitGroupRoute = false }: GroupBrowseViewProps) => {
   const navigate = useNavigate()
+  const { language } = useAuthStore()
   const { setCurrentGroup } = useCurrentGroupStore()
 
   const {
@@ -45,7 +49,16 @@ const GroupBrowseView = ({ groupId, pageId, scope = 'group', explicitGroupRoute 
     }
   }, [explicitGroupRoute, group, scope, setCurrentGroup])
 
-  return (
+  const selectedPage = pages.find((page) => page.id === pageId) ?? pages[0] ?? null
+  const groupName = group ? localizeText(group.name, language) : ''
+  const pageTitle = selectedPage ? localizeText(selectedPage.title, language) : ''
+  const visibilityLabel = selectedPage?.visibility === 'public'
+    ? (language === 'zh' ? '公开' : 'Public')
+    : selectedPage?.visibility === 'group'
+      ? (language === 'zh' ? '小组可见' : 'Group only')
+      : (language === 'zh' ? '草稿' : 'Draft')
+
+  const content = (
     <GroupScreenShell
       group={group}
       subgroups={subgroups}
@@ -78,6 +91,58 @@ const GroupBrowseView = ({ groupId, pageId, scope = 'group', explicitGroupRoute 
       }}
     />
   )
+
+  if (pageId) {
+    const overviewPath = explicitGroupRoute
+      ? `/groups/${encodeURIComponent(groupId)}?view=overview`
+      : '/groups?view=overview'
+
+    return (
+      <AppPageShell
+        title={pageTitle || (language === 'zh' ? '小组内容' : 'Group content')}
+        context={scope === 'church'
+          ? (language === 'zh' ? `${groupName} / 内容` : `${groupName} / Content`)
+          : (language === 'zh' ? `小组生活 / ${groupName} / 内容` : `Group Life / ${groupName} / Content`)}
+        subtitle={selectedPage ? localizeText(selectedPage.description, language) : undefined}
+        status={selectedPage ? <AppBadge variant={selectedPage.visibility === 'draft' ? 'warning' : 'info'}>{visibilityLabel}</AppBadge> : undefined}
+        backLink={{
+          label: language === 'zh' ? '返回小组总览' : 'Back to group overview',
+          to: overviewPath,
+          onClick: explicitGroupRoute ? undefined : () => activeEntityService.setPage('', groupId),
+        }}
+        overflowLabel={language === 'zh' ? '更多操作' : 'More actions'}
+        overflowActions={[
+          ...(selectedPage && canEditAllPages ? [{
+            label: language === 'zh' ? '编辑页面' : 'Edit page',
+            icon: <Pencil className="h-4 w-4" />,
+            to: `/pages/${encodeURIComponent(selectedPage.id)}/edit`,
+          }] : []),
+          ...(canManageGroup ? [{
+            label: language === 'zh' ? '管理小组内容' : 'Manage group content',
+            icon: <Settings2 className="h-4 w-4" />,
+            to: explicitGroupRoute
+              ? `/groups/${encodeURIComponent(groupId)}/manage?section=pages`
+              : '/groups?section=pages',
+          }] : []),
+        ]}
+      >
+        {content}
+      </AppPageShell>
+    )
+  }
+
+  if (loading || error || !group) {
+    return (
+      <AppPageShell
+        title={language === 'zh' ? '小组生活' : 'Group Life'}
+        context={language === 'zh' ? '小组生活 / 总览' : 'Group Life / Overview'}
+      >
+        {content}
+      </AppPageShell>
+    )
+  }
+
+  return content
 }
 
 type GroupWorkspaceViewProps = {
@@ -125,7 +190,7 @@ const GroupDetailView = () => {
 
   if (routeGroupId && routeGroupQuery.isPending) {
     return (
-      <AppPageShell>
+      <AppPageShell title={auth.language === 'zh' ? '小组生活' : 'Group Life'} context={auth.language === 'zh' ? '小组生活 / 总览' : 'Group Life / Overview'}>
         <section className="rounded-2xl border border-emerald-100 bg-white p-5 text-sm text-[#60716a]">
           {auth.language === 'zh' ? '正在确认小组入口…' : 'Checking group access…'}
         </section>

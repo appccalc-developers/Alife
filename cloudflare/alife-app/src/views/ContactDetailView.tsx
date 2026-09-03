@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, Navigate, useParams } from 'react-router-dom'
+import { Navigate, useParams } from 'react-router-dom'
 import { Mail, Phone, Send, UserRound } from 'lucide-react'
 import AppPageShell from '../components/layout/AppPageShell'
 import AppActionButton from '../components/layout/AppActionButton'
@@ -53,21 +53,23 @@ const ContactDetailView = () => {
 
   if (!groupId) return <Navigate to="/groups/select" replace />
 
-  if (loading) return <AppPageShell><p className="text-sm text-slate-500">{zh ? '正在加载联系人…' : 'Loading contact…'}</p></AppPageShell>
-  if (!contact) return <AppPageShell><AppEmptyState title={zh ? '未找到联系人' : 'Contact not found'} description={error || (zh ? '此联系人不可见或已被删除。' : 'This contact is unavailable or has been removed.')} /></AppPageShell>
+  if (loading) return <AppPageShell title={zh ? '联系人' : 'Contact'} context={zh ? '小组生活 / 联系人' : 'Group Life / Contact'}><p className="text-sm text-slate-500">{zh ? '正在加载联系人…' : 'Loading contact…'}</p></AppPageShell>
+  if (!contact) return <AppPageShell title={zh ? '联系人' : 'Contact'} context={zh ? '小组生活 / 联系人' : 'Group Life / Contact'}><AppEmptyState title={zh ? '未找到联系人' : 'Contact not found'} description={error || (zh ? '此联系人不可见或已被删除。' : 'This contact is unavailable or has been removed.')} /></AppPageShell>
 
   const name = localizeText(contact.name, auth.language)
   return (
-    <AppPageShell>
+    <AppPageShell
+      title={name}
+      context={zh ? '小组生活 / 联系人' : 'Group Life / Contact'}
+      subtitle={localizeText(contact.role, auth.language)}
+      status={<AppBadge variant={contact.visibility === 'public' ? 'success' : 'info'}>{contact.visibility === 'public' ? (zh ? '公开' : 'Public') : (zh ? '小组可见' : 'Group only')}</AppBadge>}
+      backLink={{ label: zh ? '返回小组' : 'Back to group', to: routeGroupId ? `/groups/${encodeURIComponent(routeGroupId)}?view=overview` : '/groups?view=overview' }}
+    >
       <div className="mx-auto max-w-3xl space-y-5">
-        <Link to={routeGroupId ? `/groups/${encodeURIComponent(routeGroupId)}?view=overview` : '/groups?view=overview'} className="text-sm font-bold text-emerald-700">← {zh ? '返回小组' : 'Back to group'}</Link>
         <section className="rounded-3xl border border-emerald-100 bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-5 sm:flex-row">
             {contact.photoUrl ? <img src={contact.photoUrl} alt={name} className="h-32 w-32 rounded-2xl object-cover" /> : <span className="flex h-32 w-32 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700"><UserRound className="h-14 w-14" /></span>}
             <div className="min-w-0 flex-1">
-              <AppBadge variant={contact.visibility === 'public' ? 'success' : 'info'}>{contact.visibility === 'public' ? 'Public' : 'GroupOnly'}</AppBadge>
-              <h1 className="mt-3 text-3xl font-black text-slate-950">{name}</h1>
-              <p className="mt-1 text-lg text-slate-600">{localizeText(contact.role, auth.language)}</p>
               {contact.notes ? <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-slate-600">{localizeText(contact.notes, auth.language)}</p> : null}
               <div className="mt-4 flex flex-wrap gap-3 text-sm">
                 {contact.phone ? <a href={`tel:${contact.phone}`} className="inline-flex items-center gap-1.5 font-medium text-emerald-700"><Phone className="h-4 w-4" />{contact.phone}</a> : null}

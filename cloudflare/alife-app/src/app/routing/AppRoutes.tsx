@@ -18,6 +18,7 @@ import {
   normalizeChurchManagementSection,
 } from './churchManagementAccess'
 import { buildOnboardingLocation, normalizeIdentityReturnPath } from '../../services/identityPathPolicy'
+import { PERSONAL_CENTER_PATH, PROFILE_SETTINGS_PATH } from './personalCenterRoutes'
 
 const AdminView = lazy(() => import('../../views/AdminView'))
 const AdminGroupView = lazy(() => import('../../views/AdminGroupView'))
@@ -52,6 +53,7 @@ const PageReviewView = lazy(() => import('../../views/PageReviewView'))
 const PageEditorView = lazy(() => import('../../views/PageEditorView'))
 const loadPageView = () => import('../../views/PageView')
 const PageView = lazy(loadPageView)
+const PersonalCenterView = lazy(() => import('../../views/PersonalCenterView'))
 const ProfileView = lazy(() => import('../../views/ProfileView'))
 const SermonsView = lazy(() => import('../../views/SermonsView'))
 const SermonVideoView = lazy(() => import('../../views/SermonVideoView'))
@@ -290,7 +292,8 @@ const AppRoutes = ({ churchGroupId = '', churchGroupLoading = false }: AppRoutes
           <Route path="/public/pages/:pageId" element={<PageView />} />
           <Route path="/pages/:pageId" element={<PageView />} />
           <Route path="/pages" element={<PageView />} />
-          <Route path="/profile" element={<ProfileView />} />
+          <Route path={PERSONAL_CENTER_PATH} element={<MemberRoute><PersonalCenterView /></MemberRoute>} />
+          <Route path={PROFILE_SETTINGS_PATH} element={<MemberRoute><ProfileView /></MemberRoute>} />
           <Route path="/tasks" element={<MemberRoute><TasksView /></MemberRoute>} />
           <Route path="/sermons" element={<SermonsView />} />
           <Route path="/sermons/:sermonId" element={<SermonVideoView />} />

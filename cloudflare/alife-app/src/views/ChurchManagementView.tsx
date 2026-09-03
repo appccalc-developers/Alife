@@ -24,7 +24,12 @@ const ChurchManagementView = ({ churchGroupId }: { churchGroupId: string }) => {
       membersContent={auth.hasAdminPermission('admin.members.view')
         ? <AdminView embedded sectionOverride="users" />
         : undefined}
-      workspaceEyebrow={isChinese ? '教会管理' : 'Church Management'}
+      workspaceEyebrow={(
+        <>
+          <span className="desktop:hidden">{isChinese ? '教会生活 / 管理' : 'Church / Management'}</span>
+          <span className="hidden desktop:inline">{isChinese ? '教会生活 / 教会管理' : 'Church Life / Church Management'}</span>
+        </>
+      )}
       workspaceDescription={isChinese
         ? '在同一页面维护教会资料、成员、联系人和组织架构。'
         : 'Manage church profile, members, contacts, and organization in one place.'}

@@ -106,7 +106,6 @@ export const useShellContext = () => {
     ['/events', '/events/enroll', '/events/review', '/events/edit'].includes(path),
   )
   const isSermonDetailScreen = Boolean(sermonDetailMatch || path === '/sermons/watch')
-  const isProfileScreen = path === '/profile'
   const isOnboardingScreen = path === '/onboarding'
   const isIdentityScreen = isOnboardingScreen ||
     path === '/internal/alpha-login' ||
@@ -269,7 +268,6 @@ export const useShellContext = () => {
     isOnboardingScreen,
     isChurchLifeScreen,
     isPageEditorScreen,
-    isProfileScreen,
     isSermonDetailScreen,
     location,
     managementGroup,

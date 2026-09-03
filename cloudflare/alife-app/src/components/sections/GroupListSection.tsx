@@ -71,7 +71,7 @@ export function memberToCardItem(member: { memberId: string; status: string; rol
     id: member.memberId,
     title: displayName,
     subtitle: translateUi(language, 'role', { role: member.role || 'member' }),
-    url: '/profile',
+    url: '/profile/settings',
     type: 'member',
   }
 }
