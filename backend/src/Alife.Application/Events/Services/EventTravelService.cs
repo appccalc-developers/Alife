@@ -11,7 +11,8 @@ namespace Alife.Application.Events.Services;
 
 public sealed class EventTravelService(
     IAlifeDbContext db,
-    IGroupAuthorizationService authorization) : IEventTravelService
+    IGroupAuthorizationService authorization,
+    IEventPackageInvalidationService? packageInvalidation = null) : IEventTravelService
 {
     private const string ModuleCode = "MOVE.STAY";
     private const string CoordinatorRoleKey = "MOVE.STAY:travel.coordinator";
@@ -83,7 +84,7 @@ public sealed class EventTravelService(
         };
         db.EventTravelDrivers.Add(entity);
         db.EventIdempotencyRecords.Add(NewIdempotency("travel.driver.create", eventId, idempotencyKey!, memberId, request, entity.Id, now));
-        return await SaveWorkspace(access.Value!, "The driver or idempotency key changed concurrently; reload and try again.", ct);
+        return await SaveWorkspace(access.Value!, memberId, "The driver or idempotency key changed concurrently; reload and try again.", ct);
     }
 
     public async Task<AppResult<EventTravelWorkspaceDto>> UpdateDriverAsync(Guid eventId, Guid driverId, Guid memberId, SaveEventTravelDriverRequest request, string? ifMatch, CancellationToken ct)
@@ -104,7 +105,7 @@ public sealed class EventTravelService(
         entity.EvidenceNotes = request.EvidenceNotes?.Trim() ?? string.Empty; entity.IsActive = request.IsActive;
         entity.VerifiedByMemberId = memberId; entity.VerifiedUtc = DateTime.UtcNow;
         entity.UpdatedUtc = entity.VerifiedUtc; entity.ConcurrencyToken = Guid.NewGuid();
-        return await SaveWorkspace(access.Value!, "The driver evidence changed while saving; reload and try again.", ct);
+        return await SaveWorkspace(access.Value!, memberId, "The driver evidence changed while saving; reload and try again.", ct);
     }
 
     public async Task<AppResult<EventTravelWorkspaceDto>> CreateVehicleAsync(Guid eventId, Guid memberId, SaveEventTravelVehicleRequest request, string? idempotencyKey, CancellationToken ct)
@@ -131,7 +132,7 @@ public sealed class EventTravelService(
         };
         db.EventTravelVehicles.Add(entity);
         db.EventIdempotencyRecords.Add(NewIdempotency("travel.vehicle.create", eventId, idempotencyKey!, memberId, request, entity.Id, now));
-        return await SaveWorkspace(access.Value!, "The vehicle or idempotency key changed concurrently; reload and try again.", ct);
+        return await SaveWorkspace(access.Value!, memberId, "The vehicle or idempotency key changed concurrently; reload and try again.", ct);
     }
 
     public async Task<AppResult<EventTravelWorkspaceDto>> UpdateVehicleAsync(Guid eventId, Guid vehicleId, Guid memberId, SaveEventTravelVehicleRequest request, string? ifMatch, CancellationToken ct)
@@ -158,7 +159,7 @@ public sealed class EventTravelService(
         entity.WofExpiresOn = request.WofExpiresOn; entity.EvidenceNotes = request.EvidenceNotes?.Trim() ?? string.Empty;
         entity.IsActive = request.IsActive; entity.VerifiedByMemberId = memberId; entity.VerifiedUtc = DateTime.UtcNow;
         entity.UpdatedUtc = entity.VerifiedUtc; entity.ConcurrencyToken = Guid.NewGuid();
-        return await SaveWorkspace(access.Value!, "The vehicle evidence changed while saving; reload and try again.", ct);
+        return await SaveWorkspace(access.Value!, memberId, "The vehicle evidence changed while saving; reload and try again.", ct);
     }
 
     public async Task<AppResult<EventTravelWorkspaceDto>> CreateJourneyAsync(Guid eventId, Guid memberId, CreateEventTravelJourneyRequest request, string? idempotencyKey, CancellationToken ct)
@@ -187,7 +188,7 @@ public sealed class EventTravelService(
         };
         db.EventTravelJourneys.Add(entity);
         db.EventIdempotencyRecords.Add(NewIdempotency("travel.journey.create", eventId, idempotencyKey!, memberId, request, entity.Id, now));
-        return await SaveWorkspace(access.Value!, "The journey or idempotency key changed concurrently; reload and try again.", ct);
+        return await SaveWorkspace(access.Value!, memberId, "The journey or idempotency key changed concurrently; reload and try again.", ct);
     }
 
     public async Task<AppResult<EventTravelWorkspaceDto>> UpdateJourneyAsync(Guid eventId, Guid journeyId, Guid memberId, UpdateEventTravelJourneyRequest request, string? ifMatch, CancellationToken ct)
@@ -217,7 +218,7 @@ public sealed class EventTravelService(
         journey.StartUtc = request.StartUtc; journey.EndUtc = request.EndUtc; journey.DriverId = request.DriverId; journey.VehicleId = request.VehicleId;
         journey.ManifestConfirmed = request.ManifestConfirmed; journey.Status = request.Status;
         journey.ConcurrencyToken = Guid.NewGuid(); journey.UpdatedUtc = DateTime.UtcNow;
-        return await SaveWorkspace(access.Value!, "The journey changed while saving; reload and try again.", ct);
+        return await SaveWorkspace(access.Value!, memberId, "The journey changed while saving; reload and try again.", ct);
     }
 
     public async Task<AppResult<EventTravelWorkspaceDto>> AddPickupStopAsync(Guid eventId, Guid journeyId, Guid memberId, SaveEventTravelPickupStopRequest request, string? ifMatch, string? idempotencyKey, CancellationToken ct)
@@ -245,7 +246,7 @@ public sealed class EventTravelService(
         db.EventTravelPickupStops.Add(entity); journey.ManifestConfirmed = false;
         journey.ConcurrencyToken = Guid.NewGuid(); journey.UpdatedUtc = now;
         db.EventIdempotencyRecords.Add(NewIdempotency("travel.stop.create", journeyId, idempotencyKey!, memberId, request, entity.Id, now));
-        return await SaveWorkspace(access.Value!, "The journey or pickup stop changed concurrently; reload and try again.", ct);
+        return await SaveWorkspace(access.Value!, memberId, "The journey or pickup stop changed concurrently; reload and try again.", ct);
     }
 
     public async Task<AppResult<EventTravelWorkspaceDto>> UpdatePickupStopAsync(Guid eventId, Guid journeyId, Guid stopId, Guid memberId, SaveEventTravelPickupStopRequest request, string? ifMatch, CancellationToken ct)
@@ -265,7 +266,7 @@ public sealed class EventTravelService(
         stop.AddressEn = request.Address?.En.Trim() ?? string.Empty; stop.AddressZh = request.Address?.Zh.Trim() ?? string.Empty;
         stop.PickupUtc = request.PickupUtc; stop.UpdatedUtc = DateTime.UtcNow;
         journey.ManifestConfirmed = false; journey.ConcurrencyToken = Guid.NewGuid(); journey.UpdatedUtc = stop.UpdatedUtc;
-        return await SaveWorkspace(access.Value!, "The journey changed while saving the pickup stop; reload and try again.", ct);
+        return await SaveWorkspace(access.Value!, memberId, "The journey changed while saving the pickup stop; reload and try again.", ct);
     }
 
     public async Task<AppResult<EventTravelWorkspaceDto>> AssignPassengerAsync(Guid eventId, Guid journeyId, Guid memberId, AssignEventTravelPassengerRequest request, string? ifMatch, string? idempotencyKey, CancellationToken ct)
@@ -297,7 +298,7 @@ public sealed class EventTravelService(
         db.EventTravelPassengerAssignments.Add(entity); journey.ManifestConfirmed = false;
         journey.ConcurrencyToken = Guid.NewGuid(); journey.UpdatedUtc = now;
         db.EventIdempotencyRecords.Add(NewIdempotency("travel.passenger.assign", journeyId, idempotencyKey!, memberId, request, entity.Id, now));
-        return await SaveWorkspace(access.Value!, "The passenger assignment changed concurrently; reload and try again.", ct);
+        return await SaveWorkspace(access.Value!, memberId, "The passenger assignment changed concurrently; reload and try again.", ct);
     }
 
     public async Task<AppResult<EventTravelWorkspaceDto>> RemovePassengerAsync(Guid eventId, Guid journeyId, Guid assignmentId, Guid memberId, string? ifMatch, string? idempotencyKey, CancellationToken ct)
@@ -318,7 +319,7 @@ public sealed class EventTravelService(
         assignment.EndedByMemberId = memberId; assignment.EndedUtc = now;
         journey.ManifestConfirmed = false; journey.ConcurrencyToken = Guid.NewGuid(); journey.UpdatedUtc = now;
         db.EventIdempotencyRecords.Add(NewIdempotency("travel.passenger.remove", journeyId, idempotencyKey!, memberId, request, assignment.Id, now));
-        return await SaveWorkspace(access.Value!, "The passenger assignment changed concurrently; reload and try again.", ct);
+        return await SaveWorkspace(access.Value!, memberId, "The passenger assignment changed concurrently; reload and try again.", ct);
     }
 
     private async Task<AppResult<GroupEvent>> RequireCoordinator(Guid eventId, Guid memberId, CancellationToken ct)
@@ -409,8 +410,12 @@ public sealed class EventTravelService(
         return null;
     }
 
-    private async Task<AppResult<EventTravelWorkspaceDto>> SaveWorkspace(GroupEvent groupEvent, string conflictMessage, CancellationToken ct)
+    private async Task<AppResult<EventTravelWorkspaceDto>> SaveWorkspace(
+        GroupEvent groupEvent, Guid actorMemberId, string conflictMessage, CancellationToken ct)
     {
+        if (packageInvalidation is not null)
+            await packageInvalidation.InvalidateForModuleChangeAsync(groupEvent, actorMemberId, ModuleCode,
+                "event.travel.changed", "governanceCritical", ct);
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateConcurrencyException) { return AppResult<EventTravelWorkspaceDto>.PreconditionFailed(conflictMessage); }
         catch (DbUpdateException) { return AppResult<EventTravelWorkspaceDto>.Conflict(conflictMessage); }

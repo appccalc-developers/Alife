@@ -36,6 +36,10 @@ Exactly one `operations.commander` with controlled `eventCommandApproved` eligib
 
 `zone-leads-assigned`, `command-and-escalation-confirmed`, and `evacuation-and-first-aid-confirmed`.
 
+### Event Package contribution
+
+Contributes zone/command structure, accountable leads, crowd/first-aid/weather/evacuation readiness summary, policy versions, and blockers. It never copies incident, child, or medical detail. Until the live operations flow exists, a required contribution remains unavailable or follows an explicitly approved policy exception; Event Package Approval cannot mark the target-only flow complete.
+
 ### User experience
 
 The command workspace shows zone state, accountable owners, unresolved incidents, weather/evacuation decisions, and readiness. It does not expose child or medical detail outside the authorised specialist flow.

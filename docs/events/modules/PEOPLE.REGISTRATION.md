@@ -36,6 +36,10 @@ At least one `registration.manager` who is an Event team member. Participants ma
 
 `registration-window-valid`, `capacity-defined`, and `privacy-notice-confirmed`.
 
+### Event Package contribution
+
+Contributes registration mode, scope, opening/deadline state, capacity/waitlist summary, privacy notice/consent version, cancellation/refund terms, and blockers. It never contributes participant identities or answers. Open/close and every enrolment mutation use the Event lifecycle gate; an old public URL or QR cannot accept an enrolment while the gate is closed.
+
 ### User experience
 
 Participants see their own registration state and safe actions. Managers receive an authorised list and explicit capacity/waitlist controls. The bilingual wire shape remains `{ en, zh }`.

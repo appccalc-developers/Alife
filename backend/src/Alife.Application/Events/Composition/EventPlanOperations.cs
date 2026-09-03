@@ -210,6 +210,7 @@ public sealed class AcceptEventPlanCommandHandler(
     IGroupAuthorizationService groupAuthorizationService,
     IEventCompositionEngine compositionEngine,
     IEventCacheInvalidationService eventCacheInvalidationService,
+    IEventPackageInvalidationService packageInvalidationService,
     IEventActivityTemplateCatalog? activityTemplateCatalog = null)
     : IRequestHandler<AcceptEventPlanCommand, AppResult<EventPlanSnapshotDto>>
 {
@@ -396,6 +397,12 @@ public sealed class AcceptEventPlanCommandHandler(
         groupEvent.PlanConcurrencyToken = Guid.NewGuid();
         groupEvent.UpdatedUtc = now;
         EventCompositionPersistence.SyncWorkflowContributions(groupEvent.WorkflowRun, acceptedProposal, now);
+        await packageInvalidationService.InvalidateForMaterialChangeAsync(
+            groupEvent,
+            request.CurrentMemberId,
+            "event.plan.accepted",
+            "governanceCritical",
+            cancellationToken);
 
         try
         {
@@ -492,7 +499,11 @@ public sealed class GetEventWorkspaceQueryHandler(
                     "workspace.overview", null, "tab", "overview", null,
                     new LocalizedTextDto("Overview", "總覽"), 10,
                     EventReadinessStatus.NotReady, [blocker],
-                    canManage ? ["plan.recompose", "plan.accept"] : [])],
+                    canManage ? ["plan.recompose", "plan.accept"] : []),
+                 new EventWorkspaceItemDto(
+                    "workspace.governance", null, "tab", "governance", null,
+                    new LocalizedTextDto("Governance", "審批治理"), 15,
+                    EventReadinessStatus.NotReady, [blocker], [])],
                 [blocker],
                 canManage,
                 groupEvent.SponsorshipStatus));
@@ -511,7 +522,14 @@ public sealed class GetEventWorkspaceQueryHandler(
         var currentPlan = EventCompositionPersistence.RefreshReadiness(snapshot.Plan, groupEvent, DateTime.UtcNow);
         currentPlan = await EventCompositionPersistence.ApplyOperationalReadinessAsync(
             dbContext, currentPlan, groupEvent, DateTime.UtcNow, cancellationToken);
-        var items = currentPlan.Navigation
+        var navigation = currentPlan.Navigation.Any(item => item.SurfaceKey == "workspace.governance")
+            ? currentPlan.Navigation
+            : currentPlan.Navigation.Append(new EventWorkspaceItemDto(
+                "workspace.governance", null, "tab", "governance", null,
+                new LocalizedTextDto("Governance", "審批治理"), 15,
+                currentPlan.Readiness.Status, [], []))
+                .OrderBy(item => item.Order).ToArray();
+        var items = navigation
             .Where(item => CanSeeItem(item, isEventTeam, isGroupMember || isChurchMember, canAuditRam, isRosterParticipant))
             .Select(item => item with
             {
@@ -590,6 +608,8 @@ public sealed class GetEventWorkspaceQueryHandler(
         }
         if (item.ModuleCode is null)
         {
+            if (item.SurfaceKey == "workspace.governance")
+                return canManage ? ["event.package.view", "event.package.generate"] : ["event.package.view"];
             return canManage ? ["plan.recompose", "plan.accept", "event.role.assign"] : ["plan.view"];
         }
         if (!EventCompositionDefinitions.ModulesByCode.TryGetValue(item.ModuleCode, out var module))

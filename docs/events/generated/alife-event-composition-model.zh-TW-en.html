@@ -2547,6 +2547,75 @@ public sealed record AcceptEventPlanRequest(
       "selected",
       "declined",
       "unavailable"
+    ],
+    "eventPackageScopeType": [
+      "event",
+      "occurrence"
+    ],
+    "eventPackageCoverageMode": [
+      "explicitOccurrences",
+      "planBoundSeriesWindow"
+    ],
+    "eventGovernanceTier": [
+      "light",
+      "standard",
+      "enhanced"
+    ],
+    "eventPackageStatus": [
+      "draft",
+      "submitted",
+      "returnedForAmendment",
+      "rejected",
+      "approvedWithConditions",
+      "approved",
+      "withdrawn",
+      "superseded"
+    ],
+    "eventPackageApprovalValidity": [
+      "notDecided",
+      "active",
+      "invalidated",
+      "expired",
+      "revoked"
+    ],
+    "eventPackageDecisionType": [
+      "approve",
+      "approveWithConditions",
+      "returnForAmendment",
+      "reject",
+      "revoke",
+      "conditionWaiver"
+    ],
+    "eventPackageConditionStatus": [
+      "open",
+      "evidenceSubmitted",
+      "verified",
+      "rejected",
+      "expired",
+      "waived"
+    ],
+    "eventLifecycleGate": [
+      "publish",
+      "registration",
+      "payment",
+      "execute"
+    ],
+    "eventPackageEnforcementMode": [
+      "off",
+      "dryRun",
+      "enforced"
+    ],
+    "legacyEventPackageTransition": [
+      "formalPackageRequired",
+      "legacyReadOnlyPackage",
+      "timeLimitedCompatibility",
+      "safetyCriticalBlocked"
+    ],
+    "eventChangeClassification": [
+      "cosmetic",
+      "operational",
+      "governanceCritical",
+      "unknown"
     ]
   },
   "policyContracts": {
@@ -2597,7 +2666,245 @@ public sealed record AcceptEventPlanRequest(
       },
       "unknownPropertyRule": "failClosed",
       "authorityRule": "Only a published human-governed policy version supplies values; AI output cannot create, alter, waive or select them."
+    },
+    "eventPackageGovernancePolicyV1": {
+      "schemaVersion": {
+        "type": "literal",
+        "value": "1",
+        "required": true
+      },
+      "tierRules": {
+        "type": "ordered array",
+        "required": true,
+        "allowedResults": [
+          "light",
+          "standard",
+          "enhanced"
+        ],
+        "semantics": "evaluate confirmed facts and current module requirements; strictest matching result wins; unknown required facts fail closed",
+        "item": {
+          "tier": {
+            "type": "enum",
+            "values": [
+              "light",
+              "standard",
+              "enhanced"
+            ]
+          },
+          "whenAnyConfirmedFactCodes": {
+            "type": "array of known fact codes"
+          },
+          "whenAnyActivityTypeCodes": {
+            "type": "array of known Activity Type codes"
+          },
+          "whenAnyModuleCodes": {
+            "type": "array of canonical module codes"
+          }
+        }
+      },
+      "authorityByTier": {
+        "light": {
+          "minimumApproverCount": 1,
+          "actors": [
+            "event.accountableOwner"
+          ],
+          "separationFrom": []
+        },
+        "standard": {
+          "minimumApproverCount": 1,
+          "actors": [
+            "owningGroup.leader",
+            "owningGroup.coLeader"
+          ],
+          "separationFrom": [
+            "event.package.submitter"
+          ],
+          "fallback": "rootChurch.leaderOrCoLeader"
+        },
+        "enhanced": {
+          "minimumApproverCount": 1,
+          "actors": [
+            "rootChurch.leader",
+            "rootChurch.coLeader",
+            "admin.events.approvePackages"
+          ],
+          "separationFrom": [
+            "event.package.submitter",
+            "affectedSpecialistAuthor"
+          ]
+        }
+      },
+      "numericThresholdRule": "attendance, money and risk thresholds are required policy data and are never application constants",
+      "preEventConfirmationWindowHours": {
+        "type": "positive integer",
+        "required": true,
+        "default": null
+      },
+      "approvalValidityByTier": {
+        "type": "object of positive durations or explicit occurrence coverage",
+        "required": true,
+        "default": null
+      },
+      "materialChangeRules": {
+        "type": "ordered array",
+        "required": true,
+        "allowedResults": [
+          "cosmetic",
+          "operational",
+          "governanceCritical"
+        ],
+        "unknownResult": "unknown"
+      },
+      "conditionWaiverAllowed": {
+        "type": "boolean",
+        "required": true,
+        "default": false,
+        "semantics": "waiver remains unavailable unless this immutable policy version explicitly enables it; the waiver is an append-only decision by policy-resolved authority separated from the condition owner and evidence actors"
+      },
+      "delegationRules": {
+        "requiredFields": [
+          "organisationId",
+          "scopeType",
+          "scopeId",
+          "permissionCode",
+          "startsUtc",
+          "expiresUtc",
+          "grantedByMemberId",
+          "revocationAudit"
+        ],
+        "default": "delegationDisabledUnlessExplicitlyEnabled"
+      },
+      "legacyRollout": {
+        "modes": [
+          "off",
+          "dryRun",
+          "enforced"
+        ],
+        "requiredFields": [
+          "effectiveFromUtc",
+          "transitionDeadlineUtc",
+          "cohortRule",
+          "safetyCriticalModuleCodes",
+          "transitionByMode"
+        ],
+        "transitionByMode": {
+          "off": "legacyReadOnlyPackage",
+          "dryRun": "timeLimitedCompatibility",
+          "enforced": "formalPackageRequired"
+        },
+        "safetyCriticalOverride": "safetyCriticalBlocked"
+      },
+      "unknownPropertyRule": "failClosed",
+      "authorityRule": "Only an immutable published policy version can set tiers, thresholds, authority, validity, change classification, delegation or rollout."
     }
+  },
+  "eventPackageApproval": {
+    "packageSchemaVersion": "1.0",
+    "canonicalization": {
+      "format": "UTF-8 canonical JSON",
+      "objectPropertyOrder": "ordinal by property name",
+      "arrayOrder": "contract-defined; sourceReferences ordered by moduleCode, subjectType, subjectId, subjectVersion",
+      "dateTime": "UTC ISO-8601 with Z",
+      "hash": "SHA-256 over schema, scope, Plan, governance policy, manifest and source vector"
+    },
+    "scopeRules": {
+      "default": "event",
+      "oneOff": "event scope covers the initial occurrence",
+      "recurring": "explicitOccurrences or planBoundSeriesWindow",
+      "inheritance": "same Plan and Series defaults, inside validity window, no package-relevant occurrence exception",
+      "occurrenceException": "an occurrence-local module change records an open scoped review, invalidates the prior occurrence Package, preserves unrelated occurrence coverage, and blocks that occurrence from inherited execution authority until an approved occurrence Package resolves the review",
+      "occurrenceExecution": "execution confirmation for occurrence scope is stored on that EventOccurrence with its own Package binding, actor, timestamp, enforcement mode and concurrency token; it never marks sibling occurrences or the Event scope confirmed",
+      "childEvent": "independent Package and gates; parent approval never approves child"
+    },
+    "packageSections": [
+      "overview",
+      "structure",
+      "peoplePlaceResources",
+      "safetySafeguarding",
+      "registrationFinancePrivacyComms",
+      "specialistDecisions",
+      "readinessChanges"
+    ],
+    "manifestGovernanceFields": [
+      "triggerReasons",
+      "requiredSpecialistDecisions",
+      "sections",
+      "warnings"
+    ],
+    "sourceConsistency": {
+      "generateRequiresPlanIfMatch": true,
+      "revalidateBeforeCommit": true,
+      "onChangedSource": "event.package.sourceChanged",
+      "partialSubmittablePackageAllowed": false
+    },
+    "conditionReadinessRule": "one authoritative EventPackageCondition owns a linked restricted Readiness task; condition state projects one-way into task state, while task completion cannot verify, waive or otherwise change the condition",
+    "gateResultRequiredFields": [
+      "gate",
+      "scope",
+      "allowed",
+      "evaluatedUtc",
+      "eventPlanVersion",
+      "eventPackageVersion",
+      "governancePolicyVersion",
+      "blockers",
+      "warnings"
+    ],
+    "gateReasonCodes": [
+      "event.package.missing",
+      "event.package.notSubmitted",
+      "event.package.notApproved",
+      "event.package.invalidated",
+      "event.package.expired",
+      "event.package.revoked",
+      "event.package.scopeMismatch",
+      "event.package.sourceChanged",
+      "event.package.condition.open",
+      "event.package.condition.expired",
+      "event.execute.occurrenceReviewRequired",
+      "event.payment.capabilityUnavailable",
+      "event.specialistApproval.missing",
+      "event.specialistApproval.expired",
+      "event.sponsorship.required",
+      "event.registration.configurationIncomplete",
+      "event.publicCopy.notApproved",
+      "event.readiness.blocked",
+      "event.execution.confirmationMissing",
+      "event.legacy.transitionRequired",
+      "event.authorization.denied"
+    ],
+    "postInvalidationActions": [
+      "blockNewPublication",
+      "withdrawPublicProjection",
+      "pauseRegistration",
+      "blockExecution",
+      "requireHumanNotificationReview"
+    ],
+    "retentionRule": "retain minimum immutable audit metadata and hashes; condition evidence references are approvalEvidence, become inaccessible 90 days after the later of submission or Event end, preserve only their SHA-256 audit hash and availability timestamps, and never place reference content in audit logs; stricter source-module retention continues to govern source content",
+    "targetSurfaces": [
+      {
+        "surfaceKey": "event.package.prepare",
+        "audience": [
+          "accountableOwner",
+          "eventTeamMember"
+        ],
+        "purpose": "prepare, inspect, regenerate, diff and submit the current Package"
+      },
+      {
+        "surfaceKey": "event.package.review",
+        "audience": [
+          "eligiblePackageApprover"
+        ],
+        "purpose": "review source evidence, record approve, reject or conditional approval, and revoke a decision"
+      },
+      {
+        "surfaceKey": "event.package.gates",
+        "audience": [
+          "authorisedEventViewer"
+        ],
+        "purpose": "explain publication, registration, payment and execution blockers without exposing restricted evidence"
+      }
+    ],
+    "planB": "deferred"
   },
   "invariants": [
     "One Event has exactly one owningGroupId and one accountable owner.",
@@ -2620,7 +2927,16 @@ public sealed record AcceptEventPlanRequest(
     "AI cannot confirm facts, assign authority, approve, waive, sponsor, persist or publish.",
     "Unknown modules, policies, enum values and surface keys fail closed.",
     "Product wire text remains { en, zh }; document locale zh-Hant does not change the key.",
-    "Only an approved sanitised public projection may enter shared cache."
+    "Only an approved sanitised public projection may enter shared cache.",
+    "Plan acceptance, Event Package Approval, specialist approvals, sponsorship, Readiness and Ready to Proceed remain distinct.",
+    "A Package is immutable after submission and binds one Plan version, Package schema, governance policy, scope, source vector and content hash.",
+    "EventWorkflow task or artifact state never creates, changes or replaces an Event Package decision.",
+    "Only an active approval for the current Package scope can satisfy an approval-required lifecycle gate.",
+    "Approval never automatically publishes, opens registration, accepts payment or confirms execution.",
+    "A Package for a Child Event is independent; Series state and parent approval never approve it.",
+    "Package generation and submission fail on any changed required source rather than persisting mixed-time evidence.",
+    "Existing Events receive no invented Package approval and enter enforcement only through an audited rollout policy.",
+    "Plan B and automated contingency activation remain deferred."
   ],
   "architectureDecisions": [
     {
@@ -2654,6 +2970,26 @@ public sealed record AcceptEventPlanRequest(
     {
       "code": "ADR-08",
       "decision": "Four archetypes are immutable system categories; authorised administrators manage immutable versions of templates within them."
+    },
+    {
+      "code": "ADR-09",
+      "decision": "Plan acceptance is not Event Package Approval; overall approval is version-bound and never replaces specialist decisions."
+    },
+    {
+      "code": "ADR-10",
+      "decision": "Event is the default Package boundary; occurrence exceptions may be scoped locally, Series is never directly approved, and Child Events require independent Packages."
+    },
+    {
+      "code": "ADR-11",
+      "decision": "Package generation uses canonical content and an atomically revalidated source-version vector; changed sources fail with conflict."
+    },
+    {
+      "code": "ADR-12",
+      "decision": "Package lifecycle and approval validity are separate, and one server evaluator owns every lifecycle gate."
+    },
+    {
+      "code": "ADR-13",
+      "decision": "Package enforcement uses off, dryRun and enforced modes; legacy Events never receive invented approvals and rollout remains reversible."
     }
   ],
   "aggregates": [
@@ -2715,7 +3051,13 @@ public sealed record AcceptEventPlanRequest(
         "exceptions",
         "incidents",
         "programmeConcurrencyToken",
-        "rosterConcurrencyToken"
+        "rosterConcurrencyToken",
+        "executionStatus",
+        "executionPackageId",
+        "executionConfirmedByMemberId",
+        "executionConfirmedUtc",
+        "executionGateMode",
+        "executionConcurrencyToken"
       ],
       "implementedAs": "current event_composition_occurrences table; one row per legacy GroupEvent backfill"
     },
@@ -2991,6 +3333,78 @@ public sealed record AcceptEventPlanRequest(
       "implementedAs": "current immutable snapshot JSON plus queryable nullable activity-type metadata"
     },
     {
+      "code": "EventPackage",
+      "cardinality": "1..* immutable versions per Event or occurrence scope; at most one current authorising version per scope",
+      "owns": [
+        "eventId",
+        "scopeTypeAndId",
+        "coverageModeAndOccurrenceWindow",
+        "version",
+        "eventPlanVersion",
+        "packageSchemaVersion",
+        "governancePolicyVersion",
+        "governanceTier",
+        "status",
+        "approvalValidity",
+        "manifest",
+        "sourceVectorHash",
+        "contentHash",
+        "supersedesPackageId",
+        "generationAndSubmissionAudit",
+        "concurrencyToken"
+      ],
+      "implementedAs": "target Event Core governance tables; not EventWorkflow state"
+    },
+    {
+      "code": "EventPackageSourceReference",
+      "cardinality": "1..* immutable ordered references per EventPackage",
+      "owns": [
+        "moduleCode",
+        "subjectTypeAndId",
+        "subjectVersionOrHash",
+        "sourceDecisionId",
+        "validUntilUtc",
+        "dataClass",
+        "requiredForDecision",
+        "capturedUtc"
+      ],
+      "implementedAs": "target minimum-summary reference table; sensitive source content stays in its module"
+    },
+    {
+      "code": "EventPackageDecision",
+      "cardinality": "append-only decisions per EventPackage",
+      "owns": [
+        "decisionType",
+        "actorMemberId",
+        "bilingualReason",
+        "authoritySnapshot",
+        "decidedEffectiveAndExpiryUtc",
+        "revocationOrInvalidationLink",
+        "requestHash"
+      ],
+      "implementedAs": "target Event Core decision ledger; existing sponsorship ApprovalDecision remains independently authoritative"
+    },
+    {
+      "code": "EventPackageCondition",
+      "cardinality": "0..* conditions per approvedWithConditions EventPackage",
+      "owns": [
+        "bilingualText",
+        "affectedGates",
+        "ownerRoleRequirementKey",
+        "dueUtc",
+        "status",
+        "evidenceReference",
+        "evidenceReferenceHash",
+        "evidenceExpiresUtc",
+        "evidenceUnavailableUtc",
+        "satisfactionAudit",
+        "verificationAudit",
+        "waiverDecisionId",
+        "concurrencyToken"
+      ],
+      "implementedAs": "target authoritative condition table referenced by Readiness and Workflow"
+    },
+    {
       "code": "ModuleInstance",
       "cardinality": "0..* per Plan",
       "owns": [
@@ -3199,6 +3613,20 @@ public sealed record AcceptEventPlanRequest(
       "readinessRules": [
         "accountable-owner-assigned"
       ],
+      "eventPackageContribution": {
+        "summaryFields": [
+          "accountableOwner",
+          "acceptedKeyRoleCoverage",
+          "requiredTaskAndBlockerSummary",
+          "handoffState",
+          "artifactReferences"
+        ],
+        "prohibitedContent": [
+          "unrelatedTaskDetail",
+          "artifactContent"
+        ],
+        "sourceValidityImpact": "key-role, blocker or handoff changes are classified; workflow task or artifact state never creates a Package decision"
+      },
       "integrationKey": "workflow",
       "surfaceKey": "team.work",
       "navigationOrder": 20
@@ -3258,6 +3686,21 @@ public sealed record AcceptEventPlanRequest(
         "capacity-defined",
         "privacy-notice-confirmed"
       ],
+      "eventPackageContribution": {
+        "summaryFields": [
+          "registrationModeAndScope",
+          "openingAndDeadlineState",
+          "capacityAndWaitlistSummary",
+          "privacyNoticeAndConsentVersion",
+          "cancellationAndRefundTerms",
+          "blockers"
+        ],
+        "prohibitedContent": [
+          "participantIdentity",
+          "registrationAnswers"
+        ],
+        "sourceValidityImpact": "open, close and every enrolment mutation must evaluate the Registration gate"
+      },
       "integrationKey": "registration",
       "surfaceKey": "people.registration",
       "navigationOrder": 30
@@ -3309,6 +3752,19 @@ public sealed record AcceptEventPlanRequest(
         "assignees-eligible",
         "assignees-confirmed"
       ],
+      "eventPackageContribution": {
+        "summaryFields": [
+          "occurrenceScope",
+          "requiredEligibleAcceptedConfirmedCounts",
+          "missingCriticalRoleCount",
+          "sourceVersions"
+        ],
+        "prohibitedContent": [
+          "ordinaryMemberAvailability",
+          "unrelatedAssignmentHistory"
+        ],
+        "sourceValidityImpact": "governance-critical lead or qualified-role changes may invalidate the affected occurrence execution gate"
+      },
       "integrationKey": "roster",
       "surfaceKey": "service.roster",
       "navigationOrder": 40
@@ -3376,6 +3832,23 @@ public sealed record AcceptEventPlanRequest(
         "budget-approved",
         "payment-and-refund-terms-published"
       ],
+      "eventPackageContribution": {
+        "summaryFields": [
+          "moneyFlowPresence",
+          "currency",
+          "aggregateBudgetAndFeeSummary",
+          "refundTerms",
+          "financeDecisionReferenceVersionAndExpiry",
+          "blockers"
+        ],
+        "prohibitedContent": [
+          "bankDetail",
+          "payerIdentity",
+          "claimOrInvoiceDetail",
+          "lineItems"
+        ],
+        "sourceValidityImpact": "payment additionally requires the Registration gate and current Finance approval; target-only evidence stays unavailable or excepted"
+      },
       "integrationKey": "finance",
       "surfaceKey": "money.finance",
       "navigationOrder": 50
@@ -3441,6 +3914,21 @@ public sealed record AcceptEventPlanRequest(
         "ram-submitted",
         "ram-approved"
       ],
+      "eventPackageContribution": {
+        "summaryFields": [
+          "ramAndPolicyVersion",
+          "statusAndDecisionReference",
+          "residualRiskSummary",
+          "expiry",
+          "emergencyWeatherTransportCheckSummary",
+          "blockers"
+        ],
+        "prohibitedContent": [
+          "restrictedHazardEvidence",
+          "personalIncidentDetail"
+        ],
+        "sourceValidityImpact": "revocation, expiry or RAM-relevant material change invalidates affected gates and requires policy-driven RAM re-review"
+      },
       "integrationKey": "ram",
       "surfaceKey": "safety.ram",
       "navigationOrder": 60
@@ -3503,6 +3991,24 @@ public sealed record AcceptEventPlanRequest(
         "guardianship-complete",
         "eligible-workers-and-policy-ratios-satisfied"
       ],
+      "eventPackageContribution": {
+        "summaryFields": [
+          "policyVersion",
+          "configurationAndConsentCompleteness",
+          "eligibleWorkerCoverage",
+          "safeguardingDecisionReference",
+          "expiry",
+          "blockerCounts"
+        ],
+        "prohibitedContent": [
+          "childIdentity",
+          "healthDetail",
+          "guardianOrCollectorIdentity",
+          "attendanceDetail",
+          "documentContent"
+        ],
+        "sourceValidityImpact": "protected source references remain restricted to independently authorised safeguarding viewers"
+      },
       "integrationKey": "safeguarding",
       "surfaceKey": "safeguarding.child",
       "navigationOrder": 70
@@ -3554,6 +4060,20 @@ public sealed record AcceptEventPlanRequest(
         "required-items-confirmed",
         "production-check-complete"
       ],
+      "eventPackageContribution": {
+        "summaryFields": [
+          "occurrenceAndSessionStructure",
+          "programmeVersion",
+          "ownerCoverage",
+          "contentConfirmation",
+          "rehearsalAndProductionReadiness",
+          "blockers"
+        ],
+        "prohibitedContent": [
+          "unapprovedPublicCopy"
+        ],
+        "sourceValidityImpact": "cosmetic programme changes do not automatically invalidate approval; operational or governance-critical changes identify affected scope"
+      },
       "integrationKey": "programme",
       "surfaceKey": "program.production",
       "navigationOrder": 80
@@ -3605,6 +4125,21 @@ public sealed record AcceptEventPlanRequest(
         "bookings-confirmed",
         "conflicts-resolved"
       ],
+      "eventPackageContribution": {
+        "summaryFields": [
+          "venueReservationIdentityAndVersion",
+          "occurrenceCoverage",
+          "capacityComparison",
+          "bookingAndConflictState",
+          "setupAndResourceReadiness",
+          "blockers"
+        ],
+        "prohibitedContent": [
+          "unrelatedCatalogueData",
+          "unrelatedBookingData"
+        ],
+        "sourceValidityImpact": "venue, time or capacity changes are Package-relevant before publication, registration or execution continues"
+      },
       "integrationKey": "resource",
       "surfaceKey": "place.resource",
       "navigationOrder": 90
@@ -3664,6 +4199,24 @@ public sealed record AcceptEventPlanRequest(
         "drivers-and-vehicles-qualified",
         "manifests-and-night-roles-complete"
       ],
+      "eventPackageContribution": {
+        "summaryFields": [
+          "transportAndAccommodationRequirement",
+          "occurrenceJourneyCoverage",
+          "driverVehicleQualificationSummary",
+          "capacityAndManifestCompleteness",
+          "overnightDutyState",
+          "sourceVersionsAndBlockers"
+        ],
+        "prohibitedContent": [
+          "passengerIdentity",
+          "personalJourney",
+          "roomOccupant",
+          "contactData",
+          "documentContent"
+        ],
+        "sourceValidityImpact": "route, vehicle, driver, accommodation or overnight-responsibility changes are classified for scoped re-approval and RAM impact"
+      },
       "integrationKey": "travel",
       "surfaceKey": "move.stay",
       "navigationOrder": 100
@@ -3715,6 +4268,22 @@ public sealed record AcceptEventPlanRequest(
         "allergy-process-confirmed",
         "service-and-cleaning-roles-filled"
       ],
+      "eventPackageContribution": {
+        "summaryFields": [
+          "serviceRequirement",
+          "headcountAndServingAggregate",
+          "foodPolicyVersion",
+          "allergyProcessConfirmation",
+          "vendorAndSafetySummary",
+          "roleCoverageAndBlockers"
+        ],
+        "prohibitedContent": [
+          "participantDietaryIdentity",
+          "allergyIdentity",
+          "healthDetail"
+        ],
+        "sourceValidityImpact": "required target-only evidence remains unavailable or follows an explicitly approved policy exception"
+      },
       "integrationKey": "hospitality",
       "surfaceKey": "food.hospitality",
       "navigationOrder": 110
@@ -3770,6 +4339,21 @@ public sealed record AcceptEventPlanRequest(
         "command-and-escalation-confirmed",
         "evacuation-and-first-aid-confirmed"
       ],
+      "eventPackageContribution": {
+        "summaryFields": [
+          "zoneAndCommandStructure",
+          "accountableLeads",
+          "crowdFirstAidWeatherEvacuationReadiness",
+          "policyVersions",
+          "blockers"
+        ],
+        "prohibitedContent": [
+          "incidentDetail",
+          "childDetail",
+          "medicalDetail"
+        ],
+        "sourceValidityImpact": "required target-only evidence remains unavailable or excepted and cannot be represented as complete"
+      },
       "integrationKey": "festival",
       "surfaceKey": "festival.operations",
       "navigationOrder": 120
@@ -3830,6 +4414,20 @@ public sealed record AcceptEventPlanRequest(
         "public-copy-approved-when-applicable",
         "retention-purpose-defined"
       ],
+      "eventPackageContribution": {
+        "summaryFields": [
+          "publicCopyAndPosterDraftVersions",
+          "audienceCategoryAndCount",
+          "channelPlan",
+          "privacyAndRetentionPurpose",
+          "humanApprovalState",
+          "blockers"
+        ],
+        "prohibitedContent": [
+          "recipientIdentity"
+        ],
+        "sourceValidityImpact": "approval can unlock publication eligibility but never sends content; invalidation only prepares human-reviewed change or cancellation work"
+      },
       "integrationKey": "followup",
       "surfaceKey": "comms.followup",
       "navigationOrder": 130
@@ -5049,6 +5647,15 @@ public sealed record AcceptEventPlanRequest(
       "componentContract": "EventWorkspaceOverview"
     },
     {
+      "surfaceKey": "workspace.governance",
+      "moduleCode": null,
+      "presentation": "tab",
+      "sectionKey": "governance",
+      "pathSegment": null,
+      "order": 15,
+      "componentContract": "EventPackageGovernanceWorkspace"
+    },
+    {
       "surfaceKey": "team.work",
       "moduleCode": "TEAM.WORK",
       "presentation": "tab",
@@ -5329,6 +5936,143 @@ public sealed record AcceptEventPlanRequest(
       "scope": "rootChurch"
     },
     {
+      "code": "event.package.view",
+      "actors": [
+        "event.accountableOwner",
+        "event.package.submitter",
+        "eligible overall approver",
+        "platform.admin with explicit event package permission"
+      ],
+      "scope": "event or occurrence; viewer-filtered approvalEvidence projection and independently authorised module summaries only"
+    },
+    {
+      "code": "event.package.generate",
+      "actors": [
+        "event.accountableOwner",
+        "accepted event.lead",
+        "owningGroup.leader",
+        "owningGroup.coLeader"
+      ],
+      "scope": "managed Event or occurrence; server derives actor and requires current Plan If-Match"
+    },
+    {
+      "code": "event.package.submit",
+      "actors": [
+        "event.accountableOwner",
+        "accepted event.lead",
+        "owningGroup.leader",
+        "owningGroup.coLeader"
+      ],
+      "scope": "current draft Package for managed Event or occurrence; actor cannot be supplied by client"
+    },
+    {
+      "code": "event.package.withdraw",
+      "actors": [
+        "package.submitter",
+        "event.accountableOwner",
+        "owningGroup.leader",
+        "owningGroup.coLeader"
+      ],
+      "scope": "current draft or submitted Package before final decision"
+    },
+    {
+      "code": "event.package.decide",
+      "actors": [
+        "policy-resolved light, standard or enhanced approver"
+      ],
+      "scope": "exact Package scope; server resolves authority snapshot and enforces submitter and specialist-author separation"
+    },
+    {
+      "code": "event.package.delegation.grant",
+      "actors": [
+        "organisation.leader",
+        "organisation.coLeader",
+        "admin.events.managePackagePolicies"
+      ],
+      "scope": "organisation, Event or Occurrence; time-limited and enabled only by immutable policy"
+    },
+    {
+      "code": "event.package.delegation.revoke",
+      "actors": [
+        "delegation.grantor",
+        "current organisation leader or coLeader",
+        "admin.events.managePackagePolicies"
+      ],
+      "scope": "exact delegation with If-Match and bilingual reason"
+    },
+    {
+      "code": "event.package.decision.revoke",
+      "actors": [
+        "policy-resolved approver at least as authoritative as original decision"
+      ],
+      "scope": "exact Package decision; append-only revocation with reason and If-Match"
+    },
+    {
+      "code": "event.package.condition.satisfy",
+      "actors": [
+        "accepted member holding condition ownerRoleRequirementKey"
+      ],
+      "scope": "one condition and minimum evidence reference"
+    },
+    {
+      "code": "event.package.condition.verify",
+      "actors": [
+        "policy-resolved condition verifier"
+      ],
+      "scope": "one condition; separated from evidence submitter when policy requires"
+    },
+    {
+      "code": "event.package.condition.waive",
+      "actors": [
+        "policy-resolved Package decision authority"
+      ],
+      "scope": "one unresolved condition; policy must explicitly allow waiver and actor must be separated from the condition owner and evidence actors"
+    },
+    {
+      "code": "event.publish",
+      "actors": [
+        "event.accountableOwner",
+        "owningGroup.leader",
+        "owningGroup.coLeader"
+      ],
+      "scope": "Event or approved public occurrence scope after publish gate"
+    },
+    {
+      "code": "event.unpublish",
+      "actors": [
+        "event.accountableOwner",
+        "owningGroup.leader",
+        "owningGroup.coLeader",
+        "policy-authorised safety actor"
+      ],
+      "scope": "published Event or occurrence; preserve approved historical public snapshot"
+    },
+    {
+      "code": "event.registration.open",
+      "actors": [
+        "accepted registration.manager",
+        "event.accountableOwner"
+      ],
+      "scope": "Event or occurrence after registration gate"
+    },
+    {
+      "code": "event.registration.close",
+      "actors": [
+        "accepted registration.manager",
+        "event.accountableOwner",
+        "policy-authorised safety actor"
+      ],
+      "scope": "Event or occurrence; existing enrolments preserved"
+    },
+    {
+      "code": "event.execution.confirm",
+      "actors": [
+        "accepted event.lead",
+        "event.accountableOwner"
+      ],
+      "scope": "exact Event or occurrence Package inside policy-defined pre-event window"
+    },
+    {
       "code": "ram.approve",
       "actors": [
         "admin.events.audit"
@@ -5364,7 +6108,13 @@ public sealed record AcceptEventPlanRequest(
         "withdraw",
         "publicFieldChanged",
         "visibilityChanged",
-        "sponsorshipRevoked"
+        "sponsorshipRevoked",
+        "eventPackageApproved",
+        "eventPackageInvalidated",
+        "eventPackageExpired",
+        "eventPackageRevoked",
+        "eventPackageConditionChanged",
+        "registrationGateChanged"
       ]
     },
     {
@@ -5421,7 +6171,12 @@ public sealed record AcceptEventPlanRequest(
       ],
       "invalidateOn": [
         "newVersion",
-        "decisionAdded"
+        "decisionAdded",
+        "sourceChanged",
+        "conditionChanged",
+        "approvalValidityChanged",
+        "roleOrDelegationChanged",
+        "retentionStateChanged"
       ]
     },
     {
@@ -5439,6 +6194,67 @@ public sealed record AcceptEventPlanRequest(
     }
   ],
   "apis": [
+    {
+      "method": "GET",
+      "path": "/api/admin/event-package-policies",
+      "request": "optional organisationId",
+      "response": "immutable EventPackagePolicyAdminDto version history",
+      "auth": "admin.events.managePackagePolicies",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/event-package-policies/publish",
+      "request": "complete PublishEventPackagePolicyRequest; actor omitted",
+      "response": "new immutable immediately effective policy version",
+      "auth": "admin.events.managePackagePolicies",
+      "cache": "no-store",
+      "mutation": true,
+      "idempotency": true,
+      "audit": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/event-package-policies/rollout-report",
+      "request": "optional windowDays query from 1 to 90",
+      "response": "EventPackageRolloutReportDto with evaluated lifecycle operation count, would-block count, affected Event count and aggregated stable reason codes",
+      "auth": "admin.events.managePackagePolicies",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/event-package-delegations",
+      "request": "organisationId",
+      "response": "manager-visible delegation history or the caller's own delegation",
+      "auth": "event.package.delegation.grant or delegated member",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/event-package-delegations",
+      "request": "GrantEventPackageApprovalDelegationRequest; actor omitted",
+      "response": "time-limited EventPackageApprovalDelegationDto",
+      "auth": "event.package.delegation.grant",
+      "cache": "no-store",
+      "mutation": true,
+      "idempotency": true,
+      "audit": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/event-package-delegations/{delegationId}/revoke",
+      "request": "bilingual revocation reason; actor omitted",
+      "response": "revoked EventPackageApprovalDelegationDto",
+      "auth": "event.package.delegation.revoke",
+      "cache": "no-store",
+      "mutation": true,
+      "ifMatch": true,
+      "idempotency": true,
+      "audit": true
+    },
     {
       "method": "GET",
       "path": "/api/admin/event-templates",
@@ -5537,6 +6353,218 @@ public sealed record AcceptEventPlanRequest(
       "auth": "viewer specific",
       "cache": "private, no-store",
       "mutation": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{id}/packages/current",
+      "request": "scopeType and optional occurrenceId query",
+      "response": "viewer-filtered EventPackageDto with lifecycle, approval validity, sources, conditions and ETag",
+      "auth": "event.package.view",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false,
+      "etag": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{id}/packages/{packageId}",
+      "request": null,
+      "response": "viewer-filtered immutable EventPackageDto",
+      "auth": "event.package.view",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false,
+      "etag": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{id}/packages",
+      "request": "page, pageSize, status, scopeType, optional scopeId and sort filters",
+      "response": "EventPackagePageDto with items, page, pageSize and totalCount",
+      "auth": "event.package.view",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/packages/generate",
+      "request": "GenerateEventPackageRequest with scope only; actor omitted",
+      "response": "EventPackageDto draft plus source vector summary and ETag",
+      "auth": "event.package.generate",
+      "cache": "no-store",
+      "mutation": true,
+      "ifMatch": "current Event Plan ETag",
+      "idempotency": true,
+      "audit": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/packages/{packageId}/submit",
+      "request": "SubmitEventPackageRequest without actor identity",
+      "response": "frozen EventPackageDto and linked Workflow task/artifact references",
+      "auth": "event.package.submit",
+      "cache": "no-store",
+      "mutation": true,
+      "ifMatch": "EventPackage ETag and unchanged source vector",
+      "idempotency": true,
+      "audit": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/packages/{packageId}/withdraw",
+      "request": "WithdrawEventPackageRequest with bilingual reason and no actor identity",
+      "response": "EventPackageDto",
+      "auth": "event.package.withdraw",
+      "cache": "no-store",
+      "mutation": true,
+      "ifMatch": "EventPackage ETag",
+      "idempotency": true,
+      "audit": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/packages/{packageId}/decisions",
+      "request": "DecideEventPackageRequest with decisionType, bilingual reason and structured conditions; actor and authority omitted",
+      "response": "EventPackageDto with append-only decision",
+      "auth": "event.package.decide",
+      "cache": "no-store",
+      "mutation": true,
+      "ifMatch": "EventPackage ETag",
+      "idempotency": true,
+      "audit": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/packages/{packageId}/decisions/{decisionId}/revoke",
+      "request": "RevokeEventPackageDecisionRequest with bilingual reason and no actor identity",
+      "response": "EventPackageDto with append-only revocation decision",
+      "auth": "event.package.decision.revoke",
+      "cache": "no-store",
+      "mutation": true,
+      "ifMatch": "EventPackage ETag",
+      "idempotency": true,
+      "audit": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/packages/{packageId}/conditions/{conditionId}/satisfy",
+      "request": "SatisfyEventPackageConditionRequest with minimum evidence reference",
+      "response": "EventPackageConditionDto",
+      "auth": "event.package.condition.satisfy",
+      "cache": "no-store",
+      "mutation": true,
+      "ifMatch": "EventPackageCondition ETag",
+      "idempotency": true,
+      "audit": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/packages/{packageId}/conditions/{conditionId}/verify",
+      "request": "VerifyEventPackageConditionRequest with outcome and bilingual reason",
+      "response": "EventPackageConditionDto and recalculated gate summary",
+      "auth": "event.package.condition.verify",
+      "cache": "no-store",
+      "mutation": true,
+      "ifMatch": "EventPackageCondition ETag",
+      "idempotency": true,
+      "audit": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/packages/{packageId}/conditions/{conditionId}/waive",
+      "request": "WaiveEventPackageConditionRequest with bilingual reason and no actor identity",
+      "response": "EventPackageConditionDto and recalculated gate summary",
+      "auth": "event.package.condition.waive",
+      "cache": "no-store",
+      "mutation": true,
+      "ifMatch": "EventPackageCondition ETag",
+      "idempotency": true,
+      "audit": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{id}/packages/{packageId}/diff/{otherPackageId}",
+      "request": null,
+      "response": "viewer-filtered EventPackageDiffDto with classifications, affected scopes, decisions and gates",
+      "auth": "event.package.view",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{id}/packages/{packageId}/capabilities",
+      "request": null,
+      "response": "viewer-specific EventPackageActorCapabilitiesDto for Package, lifecycle, delegation and per-condition actions",
+      "auth": "event.package.view; every projected action is recomputed from current membership, accepted roles, tier authority, delegation, separation rules, policy and lifecycle state",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{id}/lifecycle-gates",
+      "request": "optional occurrenceId query",
+      "response": "EventLifecycleDto with structured bilingual Publish, Registration, Payment and Execute gate results; Payment is fail-closed with capabilityUnavailable until a payment boundary exists",
+      "auth": "viewer-specific event access; protected details filtered by permission",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/publish",
+      "request": "PublishEventRequest without actor identity",
+      "response": "published Event summary and gate evidence version",
+      "auth": "event.publish",
+      "cache": "no-store; invalidate approved public projection",
+      "mutation": true,
+      "ifMatch": "Event and current Package ETags",
+      "idempotency": true,
+      "audit": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/unpublish",
+      "request": "UnpublishEventRequest with reason",
+      "response": "Event lifecycle summary",
+      "auth": "event.unpublish",
+      "cache": "no-store; invalidate every public projection",
+      "mutation": true,
+      "ifMatch": "Event ETag",
+      "idempotency": true,
+      "audit": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/registration/open",
+      "request": "OpenEventRegistrationRequest without actor identity",
+      "response": "Event registration lifecycle summary and gate evidence version",
+      "auth": "event.registration.open",
+      "cache": "no-store",
+      "mutation": true,
+      "ifMatch": "Event and current Package ETags",
+      "idempotency": true,
+      "audit": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/registration/close",
+      "request": "CloseEventRegistrationRequest with reason",
+      "response": "Event registration lifecycle summary",
+      "auth": "event.registration.close",
+      "cache": "no-store",
+      "mutation": true,
+      "ifMatch": "Event ETag",
+      "idempotency": true,
+      "audit": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/execution/confirm",
+      "request": "ConfirmEventExecutionRequest with scope and no actor identity",
+      "response": "Event execution readiness summary and gate evidence version",
+      "auth": "event.execution.confirm",
+      "cache": "no-store",
+      "mutation": true,
+      "ifMatch": "Event and current Package ETags",
+      "idempotency": true,
+      "audit": true
     },
     {
       "method": "GET",
@@ -6365,6 +7393,75 @@ public sealed record AcceptEventPlanRequest(
         "stale If-Match cannot overwrite the current version",
         "every mutation is audited",
         "management responses are private no-store and vary by viewer credentials"
+      ]
+    },
+    {
+      "code": "event-package-standard-approval",
+      "expected": [
+        "Plan acceptance creates no Package approval",
+        "authorised Event Lead generates a canonical draft from one Plan and source-version vector",
+        "submission freezes the Package and links a Workflow task/artifact without delegating authority to Workflow",
+        "client cannot provide submitter, approver or authority snapshot",
+        "separate eligible owning-group leader or co-leader approves the exact Package and Plan versions",
+        "approval does not automatically publish or open registration",
+        "explicit Publish succeeds only after every current gate requirement passes",
+        "all Package and decision responses are private no-store"
+      ]
+    },
+    {
+      "code": "event-package-conditional-approval",
+      "expected": [
+        "approver creates bilingual structured conditions with gate, owner, due time and evidence rule",
+        "conditions appear as Readiness requirements and linked Workflow work",
+        "task completion alone cannot verify a condition",
+        "condition owner submits minimum evidence and a policy-eligible separate verifier decides it",
+        "open, rejected or expired condition blocks only its affected gates",
+        "verified conditions allow gate reevaluation without changing the original decision"
+      ]
+    },
+    {
+      "code": "event-package-material-change",
+      "expected": [
+        "venue or capacity change produces a field-level governanceCritical diff",
+        "affected Package approval becomes invalid without rewriting history",
+        "public projection and registration converge to policy-defined safe state",
+        "existing enrolments are preserved",
+        "new Plan and Package versions are required before reopening",
+        "cosmetic copy changes retain history without unconditional overall re-approval",
+        "unknown classification fails closed"
+      ]
+    },
+    {
+      "code": "event-package-recurring-occurrence",
+      "expected": [
+        "Series itself has no approval decision",
+        "Event Package records explicitOccurrences or planBoundSeriesWindow coverage",
+        "future occurrence inherits only inside the recorded window with the same Plan and Series defaults",
+        "one occurrence venue exception creates local review and does not invalidate unrelated occurrences",
+        "Event-level accountable owner or governance change invalidates every affected occurrence",
+        "Child Event remains independently packaged"
+      ]
+    },
+    {
+      "code": "event-package-source-conflict-and-privacy",
+      "expected": [
+        "source change during generation or submission returns event.package.sourceChanged",
+        "no partial or mixed-time Package can be submitted",
+        "same idempotency key and request hash returns the same result",
+        "ordinary event-team cannot read Package approval evidence",
+        "approver sees minimum authorised summaries but not full child, health, passenger or finance records",
+        "anonymous draft URL, QR, search, sitemap and cache paths expose nothing"
+      ]
+    },
+    {
+      "code": "event-package-legacy-rollout",
+      "expected": [
+        "legacy Event receives no invented approval",
+        "dryRun preserves current RAM, sponsorship, visibility and registration behaviour",
+        "non-sensitive differences identify Events requiring transition",
+        "enforcement begins only through audited cohort, deadline, explicit transition or safety-critical rule",
+        "rollback preserves all Package records and never reactivates an invalid Package",
+        "existing public Events and registrations do not disappear without an explainable policy outcome"
       ]
     }
   ]

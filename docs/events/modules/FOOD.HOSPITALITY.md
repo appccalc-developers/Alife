@@ -36,6 +36,10 @@ At least one `hospitality.lead` with controlled `foodPolicyEligible` evidence. R
 
 `food-policy-loaded`, `allergy-process-confirmed`, and `service-and-cleaning-roles-filled`.
 
+### Event Package contribution
+
+Contributes service requirement, headcount/serving aggregate, food-policy version, allergy-process confirmation, vendor/safety summary, role coverage, and blockers. It never copies participant dietary/allergy identities or health detail. Until this module has authoritative persistence/API, a required food contribution remains unavailable or follows an explicitly approved policy exception.
+
 ### User experience
 
 Participants submit their own needs through registration. Authorised hospitality leads receive a purpose-limited aggregate and actionable exceptions, with explicit safety sign-off and cleanup state.

@@ -36,6 +36,10 @@ At least one `comms.owner` who is an Event team member. Public copy requires the
 
 `audience-and-channels-confirmed`, `public-copy-approved-when-applicable`, and `retention-purpose-defined`.
 
+### Event Package contribution
+
+Contributes public-copy/poster draft versions, audience category and count, channel plan, privacy/retention purpose, human approval state, and blockers. It never copies recipient identities into the Package. Approval can unlock publication eligibility but never sends content; invalidation creates a human-reviewed change/cancellation draft and delivery work without automatically notifying anyone.
+
 ### User experience
 
 Owners review bilingual content and an immutable audience snapshot before send. Delivery result, retry, withdrawal, and retention state are visible without auto-publishing AI drafts.

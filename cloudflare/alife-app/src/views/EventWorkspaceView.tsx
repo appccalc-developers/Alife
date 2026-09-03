@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
 import { EventSurfaceRenderer } from '../components/events/EventSurfaceRenderer'
+import { EventPackageFoundationPanel } from '../components/events/EventPackageFoundationPanel'
 import { resolveEventSurface, resolveEventSurfacePath } from '../components/events/eventSurfaceRegistry'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
@@ -458,6 +459,14 @@ const EventWorkspaceView = () => {
             ) : <AppEmptyState title={text.enabledPages} description={text.noPages} />}
           </AppSectionCard>
         </>
+      ) : selectedTab?.surfaceKey === 'workspace.governance' ? (
+        <EventPackageFoundationPanel
+          eventId={eventId}
+          groupId={groupId}
+          planETag={plan?.eTag}
+          canManage={workspace.canManage}
+          language={language}
+        />
       ) : selectedTab ? (
         <EventSurfaceRenderer item={selectedTab} language={language} eventBasePath={eventBasePath} eventId={eventId} groupId={groupId} canManage={workspace.canManage} />
       ) : null}

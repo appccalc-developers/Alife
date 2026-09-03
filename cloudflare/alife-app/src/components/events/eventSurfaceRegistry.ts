@@ -10,6 +10,7 @@ export type EventSurfaceRegistryEntry = {
 
 const entries = [
   ['workspace.overview', 'tab', 'overview', undefined, 'EventWorkspaceOverview'],
+  ['workspace.governance', 'tab', 'governance', undefined, 'EventPackageGovernanceWorkspace'],
   ['team.work', 'tab', 'team', undefined, 'EventTeamPanel'],
   ['people.registration', 'page', undefined, 'registration', 'EventRegistrationWorkspace'],
   ['service.roster', 'page', undefined, 'roster', 'EventRosterWorkspace'],

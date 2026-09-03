@@ -557,7 +557,8 @@ public class GroupEventsCrudHandlersTests
             .Returns(true);
 
         var eventCacheInvalidationService = Substitute.For<IEventCacheInvalidationService>();
-        var handler = new UpdateGroupEventCommandHandler(dbContext, groupAuthorizationService, eventCacheInvalidationService);
+        var handler = new UpdateGroupEventCommandHandler(dbContext, groupAuthorizationService,
+            eventCacheInvalidationService, new EventPackageInvalidationService(dbContext));
         var result = await handler.Handle(
             new UpdateGroupEventCommand(
                 eventId,

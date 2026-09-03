@@ -36,6 +36,10 @@ At least one `ram.author` from the Event team and one separate `ram.approver` wi
 
 `ram-complete`, `ram-submitted`, and `ram-approved`. Public visibility remains gated by approved RAM where current policy requires it.
 
+### Event Package contribution
+
+Contributes RAM version, policy version, status, approval decision reference, residual-risk summary, expiry, emergency/weather/transport-check summary, and blockers. The Package never owns or replaces the RAM decision. Revocation, expiry, or a RAM-relevant material change invalidates affected Package gates and requires RAM re-review according to policy.
+
 ### User experience
 
 Authors edit a non-destructive draft; submission freezes the reviewed version; an independent approver records a decision. Rejection and re-review preserve history and explain blockers.

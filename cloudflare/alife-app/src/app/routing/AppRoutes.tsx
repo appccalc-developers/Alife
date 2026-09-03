@@ -29,6 +29,7 @@ const EventDetailView = lazy(() => import('../../views/EventDetailView'))
 const EventEnrollmentView = lazy(() => import('../../views/EventEnrollmentView'))
 const EventReviewView = lazy(() => import('../../views/EventReviewView'))
 const EventTemplateAdminView = lazy(() => import('../../views/EventTemplateAdminView'))
+const EventPackagePolicyAdminView = lazy(() => import('../../views/EventPackagePolicyAdminView'))
 const EventWorkspaceView = lazy(() => import('../../views/EventWorkspaceView'))
 const GroupDetailView = lazy(() => import('../../views/GroupDetailView'))
 const GroupJoinView = lazy(() => import('../../views/GroupJoinView'))
@@ -351,6 +352,14 @@ const AppRoutes = ({ churchGroupId = '', churchGroupLoading = false }: AppRoutes
             element={
               <AdminRoute permission="admin.events.manageTemplates">
                 <EventTemplateAdminView />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/event-package-policies"
+            element={
+              <AdminRoute permission="admin.events.managePackagePolicies">
+                <EventPackagePolicyAdminView />
               </AdminRoute>
             }
           />

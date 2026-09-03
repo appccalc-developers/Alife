@@ -290,6 +290,7 @@ public static class EventCompositionDefinitions
     public static readonly IReadOnlyList<EventSurfaceDefinition> Surfaces =
     [
         Surface("workspace.overview", null, "tab", "overview", null, 10, "EventWorkspaceOverview", "Overview", "總覽"),
+        Surface("workspace.governance", null, "tab", "governance", null, 15, "EventPackageGovernanceWorkspace", "Governance", "審批治理"),
         Surface("team.work", "TEAM.WORK", "tab", "team", null, 20, "EventTeamPanel", "Team", "團隊"),
         Surface("people.registration", "PEOPLE.REGISTRATION", "page", null, "registration", 30, "EventRegistrationWorkspace", "Registration", "報名"),
         Surface("service.roster", "SERVICE.ROSTER", "page", null, "roster", 40, "EventRosterWorkspace", "Roster", "排班"),

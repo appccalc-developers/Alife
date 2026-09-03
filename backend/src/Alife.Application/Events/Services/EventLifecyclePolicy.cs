@@ -9,6 +9,27 @@ public static class EventLifecyclePolicy
 {
     public static bool CanCreateEnrollment(GroupEvent groupEvent, DateTime utcNow, out string error)
     {
+        if (!CanOpenRegistration(groupEvent, utcNow, out error)) return false;
+        if (groupEvent.RegistrationStatus == EventRegistrationStatus.Closed)
+        {
+            error = "Enrollment is closed for this event.";
+            return false;
+        }
+        if (groupEvent.RegistrationStatus == EventRegistrationStatus.Open)
+        {
+            var gate = EventPackageGateEvaluator.Evaluate(EventLifecycleGate.Registration,
+                groupEvent.RegistrationGateMode, groupEvent.RegistrationPackage, utcNow);
+            if (!gate.Allowed)
+            {
+                error = gate.ReasonCodes.FirstOrDefault() ?? "The Event Package registration gate is blocked.";
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public static bool CanOpenRegistration(GroupEvent groupEvent, DateTime utcNow, out string error)
+    {
         error = string.Empty;
         if (groupEvent.RamAssessment?.Status != EventRamStatus.Approved)
         {

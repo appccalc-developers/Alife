@@ -10,7 +10,8 @@ namespace Alife.Application.Events.Services;
 
 public sealed class EventVenueService(
     IAlifeDbContext db,
-    IGroupAuthorizationService authorization) : IEventVenueService
+    IGroupAuthorizationService authorization,
+    IEventPackageInvalidationService? packageInvalidation = null) : IEventVenueService
 {
     private const string ModuleCode = "PLACE.RESOURCE";
     private const string CoordinatorRoleKey = "PLACE.RESOURCE:resource.coordinator";
@@ -166,6 +167,16 @@ public sealed class EventVenueService(
         db.EventVenueReservations.Add(reservation);
         venue.ConcurrencyToken = Guid.NewGuid(); venue.UpdatedUtc = now;
         db.EventIdempotencyRecords.Add(NewIdempotency(ReserveOperation, eventId, normalizedKey, requestHash, reservation.Id, now));
+        if (packageInvalidation is not null)
+        {
+            if (request.EventOccurrenceId.HasValue)
+                await packageInvalidation.InvalidateForOccurrenceModuleChangeAsync(groupEvent,
+                    request.EventOccurrenceId.Value, memberId, ModuleCode,
+                    "event.venue.reservationChanged", "governanceCritical", ct);
+            else
+                await packageInvalidation.InvalidateForModuleChangeAsync(groupEvent, memberId, ModuleCode,
+                    "event.venue.reservationChanged", "governanceCritical", ct);
+        }
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateConcurrencyException) { return AppResult<EventVenueWorkspaceDto>.PreconditionFailed("The venue changed while reserving; reload to see the winning reservation."); }
         catch (DbUpdateException) { return AppResult<EventVenueWorkspaceDto>.Conflict("The reservation or idempotency key was changed by another request; reload and try again."); }
@@ -198,6 +209,16 @@ public sealed class EventVenueService(
         reservation.ReleasedUtc = now; reservation.UpdatedUtc = now; reservation.ConcurrencyToken = Guid.NewGuid();
         reservation.Venue.ConcurrencyToken = Guid.NewGuid(); reservation.Venue.UpdatedUtc = now;
         db.EventIdempotencyRecords.Add(NewIdempotency(ReleaseOperation, eventId, normalizedKey, requestHash, reservation.Id, now));
+        if (packageInvalidation is not null)
+        {
+            if (reservation.EventOccurrenceId.HasValue)
+                await packageInvalidation.InvalidateForOccurrenceModuleChangeAsync(reservation.Event,
+                    reservation.EventOccurrenceId.Value, memberId, ModuleCode,
+                    "event.venue.reservationChanged", "governanceCritical", ct);
+            else
+                await packageInvalidation.InvalidateForModuleChangeAsync(reservation.Event, memberId, ModuleCode,
+                    "event.venue.reservationChanged", "governanceCritical", ct);
+        }
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateConcurrencyException) { return AppResult<EventVenueWorkspaceDto>.PreconditionFailed("The venue or reservation changed while releasing; reload and try again."); }
         catch (DbUpdateException) { return AppResult<EventVenueWorkspaceDto>.Conflict("The release or idempotency key was changed by another request; reload and try again."); }

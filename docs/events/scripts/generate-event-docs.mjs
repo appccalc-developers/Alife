@@ -32,6 +32,34 @@ const expectedArchetypes = [
 ]
 const localeOrder = ['zh-CN', 'zh-TW', 'en']
 const operationalContractKeys = ['baseline', 'implementationInventory', 'migrationPhases', 'verificationEvidence']
+const requiredEventPackageEnums = [
+  'eventPackageScopeType',
+  'eventPackageCoverageMode',
+  'eventGovernanceTier',
+  'eventPackageStatus',
+  'eventPackageApprovalValidity',
+  'eventPackageDecisionType',
+  'eventPackageConditionStatus',
+  'eventLifecycleGate',
+  'eventPackageEnforcementMode',
+  'legacyEventPackageTransition',
+  'eventChangeClassification',
+]
+const requiredEventPackageAuthorizationRules = [
+  'event.package.view',
+  'event.package.generate',
+  'event.package.submit',
+  'event.package.withdraw',
+  'event.package.decide',
+  'event.package.decision.revoke',
+  'event.package.condition.satisfy',
+  'event.package.condition.verify',
+  'event.publish',
+  'event.unpublish',
+  'event.registration.open',
+  'event.registration.close',
+  'event.execution.confirm',
+]
 
 const fail = (message) => {
   throw new Error(message)
@@ -287,6 +315,8 @@ const validateContract = (contract) => {
   assertUnique(contract.surfaceRegistry.map(({ surfaceKey }) => surfaceKey), 'surface key')
   assertUnique(contract.authorizationRules.map(({ code }) => code), 'authorization rule code')
   assertUnique(contract.apis.map(({ method, path }) => `${method} ${path}`), 'API method/path')
+  assertUnique(contract.architectureDecisions.map(({ code }) => code), 'architecture decision code')
+  assertUnique(contract.aggregates.map(({ code }) => code), 'aggregate code')
   if (JSON.stringify(moduleCodes) !== JSON.stringify(expectedModules)) fail('The twelve module codes or their canonical order changed.')
   if (JSON.stringify(archetypeCodes) !== JSON.stringify(expectedArchetypes)) fail('The four immutable archetype codes or their order changed.')
   const moduleSet = new Set(moduleCodes)
@@ -296,6 +326,10 @@ const validateContract = (contract) => {
       if (!moduleSet.has(dependency)) fail(`${module.code} has unknown dependency ${dependency}.`)
     }
     if (!module.name?.en || !module.name?.zh) fail(`${module.code} is missing bilingual name.en/name.zh.`)
+    const contribution = module.eventPackageContribution
+    if (!contribution || !contribution.summaryFields?.length || !contribution.prohibitedContent?.length || !contribution.sourceValidityImpact) {
+      fail(`${module.code} is missing a complete Event Package contribution contract.`)
+    }
   }
   for (const archetype of contract.archetypes) {
     if (!archetype.name?.en || !archetype.name?.zh) fail(`${archetype.code} is missing bilingual name.en/name.zh.`)
@@ -324,6 +358,30 @@ const validateContract = (contract) => {
   for (const module of contract.modules) {
     const surface = contract.surfaceRegistry.find(({ surfaceKey }) => surfaceKey === module.surfaceKey)
     if (!surface || surface.moduleCode !== module.code) fail(`${module.code} has an invalid surface reference.`)
+  }
+  const eventPackage = contract.eventPackageApproval
+  if (!eventPackage || eventPackage.packageSchemaVersion !== '1.0') fail('Event Package Approval schema 1.0 is missing.')
+  if (eventPackage.planB !== 'deferred') fail('Plan B must remain explicitly deferred in the Event Package contract.')
+  if (!contract.policyContracts?.eventPackageGovernancePolicyV1) fail('Event Package governance policy contract v1 is missing.')
+  if (eventPackage.packageSections?.length !== 7) fail('Event Package must define its seven canonical sections.')
+  assertUnique(eventPackage.gateReasonCodes, 'Event Package gate reason code')
+  assertUnique(eventPackage.targetSurfaces.map(({ surfaceKey }) => surfaceKey), 'Event Package target surface key')
+  for (const enumName of requiredEventPackageEnums) {
+    if (!contract.enums[enumName]?.length) fail(`Event Package enum ${enumName} is missing or empty.`)
+  }
+  const authorizationCodes = new Set(contract.authorizationRules.map(({ code }) => code))
+  for (const code of requiredEventPackageAuthorizationRules) {
+    if (!authorizationCodes.has(code)) fail(`Event Package authorization rule ${code} is missing.`)
+  }
+  const apiPaths = new Set(contract.apis.map(({ path }) => path))
+  for (const path of [
+    '/api/events/{id}/packages/current',
+    '/api/events/{id}/packages/generate',
+    '/api/events/{id}/packages/{packageId}/submit',
+    '/api/events/{id}/packages/{packageId}/decisions',
+    '/api/events/{id}/lifecycle-gates',
+  ]) {
+    if (!apiPaths.has(path)) fail(`Event Package API ${path} is missing.`)
   }
 }
 
