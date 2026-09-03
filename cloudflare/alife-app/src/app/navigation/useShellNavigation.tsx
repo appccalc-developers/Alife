@@ -92,7 +92,7 @@ export const useShellNavigation = ({
     },
   ] : []
 
-  const workspaceManagement: ShellNavItem[] = canManageWorkspace ? [
+  const workspaceEventItems: ShellNavItem[] = canManageWorkspace ? [
     {
       key: 'workspace:events',
       label: isChinese ? '活动' : 'Events',
@@ -102,6 +102,9 @@ export const useShellNavigation = ({
       icon: <EventsIcon />,
       onClick: () => activeEntityService.setGroup(workspaceGroupId, { clearPage: true }),
     },
+  ] : []
+
+  const workspaceAnnouncementItems: ShellNavItem[] = canManageWorkspace ? [
     {
       key: 'workspace:announcements',
       label: isChinese ? '公告' : 'Announcements',
@@ -138,13 +141,12 @@ export const useShellNavigation = ({
 
   const churchContentItems: ShellNavItem[] = [
     !auth.isGuest && auth.isRegistered ? {
-      key: 'church:forum',
-      label: isChinese ? '教会论坛' : 'Church forum',
-      description: isChinese ? '面向全教会成员的分享与讨论' : 'Church-wide sharing and conversations',
-      to: '/church/forum',
-      matchPathOnly: true,
-      matchDescendants: true,
-      icon: <MessageSquareText className="h-5 w-5" />,
+      key: 'church:announcements',
+      label: isChinese ? '公告' : 'Announcements',
+      description: isChinese ? '浏览教会及下属事工的有效公告' : 'Browse active announcements across church ministries',
+      to: '/church?section=announcements',
+      matchSearch: '?section=announcements',
+      icon: <Bell className="h-5 w-5" />,
     } : null,
     !auth.isGuest && auth.isRegistered ? {
       key: 'church:albums',
@@ -155,22 +157,25 @@ export const useShellNavigation = ({
       matchDescendants: true,
       icon: <Images className="h-5 w-5" />,
     } : null,
-    ...(!auth.isGuest && auth.isRegistered ? [{
-      key: 'church:events',
-      label: isChinese ? '活动' : 'Events',
-      description: isChinese ? '浏览教会及下属事工已批准的活动' : 'Browse approved events across church ministries',
-      to: '/church?section=events',
-      matchSearch: '?section=events',
-      icon: <EventsIcon />,
-    },
-    {
-      key: 'church:announcements',
-      label: isChinese ? '公告' : 'Announcements',
-      description: isChinese ? '浏览教会及下属事工的有效公告' : 'Browse active announcements across church ministries',
-      to: '/church?section=announcements',
-      matchSearch: '?section=announcements',
-      icon: <Bell className="h-5 w-5" />,
-    }] : []),
+    ...(!auth.isGuest && auth.isRegistered ? [
+      {
+        key: 'church:events',
+        label: isChinese ? '活动' : 'Events',
+        description: isChinese ? '浏览教会及下属事工已批准的活动' : 'Browse approved events across church ministries',
+        to: '/church?section=events',
+        matchSearch: '?section=events',
+        icon: <EventsIcon />,
+      },
+      {
+        key: 'church:forum',
+        label: isChinese ? '教会论坛' : 'Church forum',
+        description: isChinese ? '面向全教会成员的分享与讨论' : 'Church-wide sharing and conversations',
+        to: '/church/forum',
+        matchPathOnly: true,
+        matchDescendants: true,
+        icon: <MessageSquareText className="h-5 w-5" />,
+      },
+    ] : []),
   ].filter(isPresent)
 
   const activeEventId = contextualEventId || ''
@@ -211,7 +216,13 @@ export const useShellNavigation = ({
   ].filter(isPresent) : []
 
   const contextualItems = eventDetailScreen ? eventItems : []
-  const groupContentItems = [...workspaceHome, ...groupForumItems, ...groupAlbumItems, ...workspaceManagement]
+  const groupContentItems = [
+    ...workspaceHome,
+    ...workspaceAnnouncementItems,
+    ...groupAlbumItems,
+    ...workspaceEventItems,
+    ...groupForumItems,
+  ]
   const workspaceVisible = workspaceEnabled && contextualItems.length > 0
 
   const canOpenChurchManagement = canAccessChurchManagement({
@@ -310,7 +321,7 @@ export const useShellNavigation = ({
       label: isChinese ? '教会生活' : 'Church Life',
       description: auth.isGuest
         ? (isChinese ? '主日证道与教会公开内容' : 'Sunday sermons and public church content')
-        : (isChinese ? '教会范围的总览、活动与公告' : 'Church-wide overview, events, and announcements'),
+        : (isChinese ? '教会范围的总览、公告、相册、活动和论坛' : 'Church-wide overview, announcements, albums, events, and forum'),
       to: auth.isGuest ? '/sermons' : '/church',
       icon: <Church className="h-5 w-5" />,
       collapsible: true,
@@ -331,7 +342,7 @@ export const useShellNavigation = ({
     {
       key: 'platform-group-life',
       label: groupLifeGroupName || (isChinese ? '小组生活' : 'Group Life'),
-      description: isChinese ? '当前小组的总览、管理、论坛、活动和公告' : 'Overview, management, forum, events, and announcements for the selected group',
+      description: isChinese ? '当前小组的总览、管理、公告、相册、活动和论坛' : 'Overview, management, announcements, albums, events, and forum for the selected group',
       to: workspaceGroupId ? '/groups?view=overview' : groupSelectionTo,
       icon: <UsersRound className="h-5 w-5" />,
       collapsible: Boolean(workspaceGroupId),

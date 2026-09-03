@@ -30,6 +30,7 @@ import useConfirmation from '../hooks/useConfirmation'
 import CreateSubgroupModal from '../components/group/CreateSubgroupModal'
 import type { LocalizedText } from '../types'
 import GroupApplicationsPanel from '../components/group/GroupApplicationsPanel'
+import { resolveManageSection, type ManageSection } from '../utils/groupManagementSections'
 
 const shortId = (value: string) => (value.length > 8 ? value.slice(0, 8) : value)
 
@@ -51,13 +52,6 @@ const formatPlatformRole = (role: string | undefined | null, language: string) =
   if (role === 'admin') return language === 'zh' ? '管理员' : 'Admin'
   return ''
 }
-
-type ManageSection = 'announcements' | 'applications' | 'contacts' | 'members' | 'events' | 'albums' | 'pages' | 'subgroups' | 'group'
-
-const manageSectionKeys: ManageSection[] = ['members', 'applications', 'contacts', 'subgroups', 'events', 'announcements', 'albums', 'pages', 'group']
-
-const normalizeManageSection = (value: string | null): ManageSection =>
-  manageSectionKeys.includes(value as ManageSection) ? value as ManageSection : 'group'
 
 const managementCopy = (language: string, isChurch?: boolean) => {
   const workspace = isChurch ? (language === 'zh' ? '教会' : 'Church') : (language === 'zh' ? '小组' : 'Group')
@@ -945,7 +939,7 @@ const GroupManageView = ({
     refreshMemberships().catch(() => undefined)
   }, [canManageGroup, group, refreshMemberships, refreshRequest])
 
-  const requestedSection = normalizeManageSection(searchParams.get(sectionParamName))
+  const activeSection = resolveManageSection(searchParams.get(sectionParamName), visibleSections)
   const copy = managementCopy(language, group?.isChurch)
   const allGroupManagementSections: Array<{ key: ManageSection; label: string; hint: string }> = [
     { key: 'group', label: language === 'zh' ? '资料与设置' : 'Profile & settings', hint: language === 'zh' ? '名称、介绍、带领团队与访问规则' : 'Name, description, leadership, and access' },
@@ -963,9 +957,6 @@ const GroupManageView = ({
     ...section,
     label: sectionLabels?.[section.key] || section.label,
   }))
-  const activeSection = labelledGroupManagementSections.some((section) => section.key === requestedSection)
-    ? requestedSection
-    : labelledGroupManagementSections[0]?.key ?? 'group'
   const showGroupManagementNavigation = activeSection !== 'events' && activeSection !== 'announcements'
   const workspacePath = workspaceBasePath
   const groupWorkspaceTarget = (targetGroupId: string) =>
