@@ -70,7 +70,7 @@ const describeAuditLog = (log: AuditLogDto, language: string) => {
   return logActionLabel(log.action, language)
 }
 
-export const LogsSection = ({ l, loading, page, filters, setFilters, apply, goToPage, language }: {
+export const LogsSection = ({ l, loading, page, filters, setFilters, apply, goToPage, language, connected = false }: {
   l: LabelFn
   loading: boolean
   page: AdminPagedResultDto<AuditLogDto>
@@ -79,8 +79,9 @@ export const LogsSection = ({ l, loading, page, filters, setFilters, apply, goTo
   apply: () => Promise<void>
   goToPage: (page: number) => Promise<void>
   language: string
+  connected?: boolean
 }) => (
-  <Panel title={l('logs')} description={l('logsDescription')} count={page.totalCount}>
+  <Panel title={l('logs')} description={l('logsDescription')} count={page.totalCount} connected={connected}>
     <FilterBar>
       <SearchInput placeholder={l('search')} value={filters.search} onChange={(e) => setFilters((x) => ({ ...x, search: e.target.value }))} />
       <TextInput placeholder={l('action')} value={filters.action} onChange={(e) => setFilters((x) => ({ ...x, action: e.target.value }))} />

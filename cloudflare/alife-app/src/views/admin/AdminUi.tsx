@@ -4,9 +4,9 @@ import type { AdminPagedResultDto } from '../../services/groupService'
 
 export type LabelFn = (key: string, values?: Record<string, string | number>) => string
 
-export const Panel = ({ title, description, count, children, className }: { title: string; description: string; count?: number; children: ReactNode; className?: string }) => (
-  <section className={`overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm ${className || ''}`}>
-    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 p-5"><div><h2 className="text-lg font-black text-slate-950">{title}</h2><p className="mt-1 text-sm leading-6 text-slate-500">{description}</p></div>{typeof count === 'number' ? <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-black text-emerald-700">{count}</span> : null}</div>
+export const Panel = ({ title, description, count, children, className, connected = false }: { title: string; description: string; count?: number; children: ReactNode; className?: string; connected?: boolean }) => (
+  <section className={`overflow-hidden bg-white ${connected ? '' : 'rounded-3xl border border-slate-200 shadow-sm'} ${className || ''}`}>
+    {!connected ? <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 p-5"><div><h2 className="text-lg font-black text-slate-950">{title}</h2><p className="mt-1 text-sm leading-6 text-slate-500">{description}</p></div>{typeof count === 'number' ? <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-black text-emerald-700">{count}</span> : null}</div> : null}
     {children}
   </section>
 )

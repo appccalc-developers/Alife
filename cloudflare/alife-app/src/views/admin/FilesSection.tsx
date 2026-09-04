@@ -61,7 +61,7 @@ const emptyFilePage = (): PagedResult<FileAsset> => ({
   hasNextPage: false,
 })
 
-export const PlatformFilesSection = ({ l, language, groups }: { l: LabelFn; language: string; groups: AdminGroupOptionDto[] }) => {
+export const PlatformFilesSection = ({ l, language, groups, connected = false }: { l: LabelFn; language: string; groups: AdminGroupOptionDto[]; connected?: boolean }) => {
   const [page, setPage] = useState(emptyFilePage)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -144,7 +144,7 @@ export const PlatformFilesSection = ({ l, language, groups }: { l: LabelFn; lang
   }
 
   return (
-    <Panel title={l('files')} description={l('filesDescription')} count={page.totalCount}>
+    <Panel title={l('files')} description={l('filesDescription')} count={page.totalCount} connected={connected}>
       <div className="border-b border-slate-200 bg-slate-50 p-4">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <LabeledField label={copy.groupFilter}>

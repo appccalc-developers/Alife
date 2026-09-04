@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
 import AppPageShell from '../components/layout/AppPageShell'
@@ -8,6 +7,7 @@ import { eventPackagePolicyAdminService } from '../services/eventPackagePolicyAd
 import { normalizeApiError } from '../services/http'
 import { useAuthStore } from '../stores/auth'
 import type { EventPackagePolicyAdmin, EventPackageRolloutReport } from '../types/eventPackagePolicyAdmin'
+import SystemManagementFrame from './admin/SystemManagementFrame'
 
 const defaultRules = JSON.stringify({
   schemaVersion: '1',
@@ -72,10 +72,15 @@ const EventPackagePolicyAdminView = () => {
     finally { setBusy(false) }
   }
 
-  return <AppPageShell title={zh ? '活动方案治理政策' : 'Event Package governance policies'}
-    subtitle={zh ? '发布不可变政策版本，控制审批等级、有效期、委派和渐进启用。' : 'Publish immutable policy versions controlling approval tiers, validity, delegation, and rollout.'}
-    actions={<Link className="text-sm font-bold text-[#176b5a]" to="/admin">{zh ? '返回管理中心' : 'Back to administration'}</Link>}>
-    {rollout ? <AppSectionCard title={zh ? `近 ${rollout.windowDays} 天 Dry Run` : `${rollout.windowDays}-day dry-run evidence`}>
+  return <AppPageShell>
+    <SystemManagementFrame
+      title={zh ? '活动方案治理政策' : 'Event Package governance policies'}
+      subtitle={zh ? '发布不可变政策版本，控制审批等级、有效期、委派和渐进启用。' : 'Publish immutable policy versions controlling approval tiers, validity, delegation, and rollout.'}
+      language={language}
+      iconKey="eventPackagePolicies"
+      bodyClassName="space-y-5 p-4 sm:p-5 lg:p-6"
+    >
+      {rollout ? <AppSectionCard title={zh ? `近 ${rollout.windowDays} 天 Dry Run` : `${rollout.windowDays}-day dry-run evidence`}>
       <div className="grid gap-3 text-sm tablet:grid-cols-3">
         <div className="rounded-xl bg-[#f4f8f6] p-3"><strong className="block text-2xl text-[#18332d]">{rollout.evaluatedOperationCount}</strong>{zh ? '已评估生命周期操作' : 'lifecycle operations evaluated'}</div>
         <div className="rounded-xl bg-amber-50 p-3 text-amber-950"><strong className="block text-2xl">{rollout.wouldBlockOperationCount}</strong>{zh ? '启用后会被阻止' : 'would be blocked when enforced'}</div>
@@ -100,7 +105,8 @@ const EventPackagePolicyAdminView = () => {
           <AppActionButton type="submit" variant="primary" disabled={busy || !confirmed || !version.trim()}>{busy ? (zh ? '正在发布…' : 'Publishing…') : (zh ? '发布不可变政策版本' : 'Publish immutable policy version')}</AppActionButton>
         </form>
       </AppSectionCard>
-    </div>
+      </div>
+    </SystemManagementFrame>
   </AppPageShell>
 }
 

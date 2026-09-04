@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { CalendarRange, ChevronLeft, ChevronRight, CircleOff, LockKeyhole, Pencil, Plus, RefreshCw, Search, Trash2 } from 'lucide-react'
-import { Link } from 'react-router-dom'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
 import AppEmptyState from '../components/layout/AppEmptyState'
@@ -20,6 +19,7 @@ import {
   validateEventTemplateAdminForm,
   type EventTemplateAdminForm,
 } from '../utils/eventTemplateAdminState'
+import SystemManagementFrame from './admin/SystemManagementFrame'
 
 type EditorMode = 'closed' | 'create' | 'edit'
 const fieldClass = 'mt-1.5 min-h-11 w-full rounded-xl border border-[#2f4b42]/15 bg-white px-3 text-sm text-[#18332d] outline-none transition focus:border-[#176b5a] focus:ring-2 focus:ring-[#176b5a]/15 disabled:bg-slate-50 disabled:text-slate-500'
@@ -145,14 +145,16 @@ const EventTemplateAdminView = () => {
   }))
 
   return (
-    <AppPageShell
-      title={isZh ? '活动模板管理' : 'Event template management'}
-      subtitle={isZh ? '四个活动分类由系统固定；管理分类内可用于创建活动的版本化模板。' : 'The four event categories are system-fixed. Manage the versioned templates offered inside them during event creation.'}
-      actions={<><AppActionButton onClick={() => void load(filters)} disabled={state === 'loading'}><RefreshCw className={`mr-2 h-4 w-4 ${state === 'loading' ? 'animate-spin' : ''}`} />{isZh ? '刷新' : 'Refresh'}</AppActionButton><AppActionButton variant="primary" onClick={openCreate}><Plus className="mr-2 h-4 w-4" />{isZh ? '新增模板' : 'New template'}</AppActionButton></>}
-    >
-      <Link to="/admin" className="inline-flex items-center gap-1 text-sm font-black text-[#176b5a] hover:underline"><ChevronLeft className="h-4 w-4" />{isZh ? '返回系统管理' : 'Back to System Management'}</Link>
-
-      <section aria-labelledby="fixed-categories-heading">
+    <AppPageShell>
+      <SystemManagementFrame
+        title={isZh ? '活动模板管理' : 'Event template management'}
+        subtitle={isZh ? '四个活动分类由系统固定；管理分类内可用于创建活动的版本化模板。' : 'The four event categories are system-fixed. Manage the versioned templates offered inside them during event creation.'}
+        language={language}
+        iconKey="eventTemplates"
+        bodyClassName="space-y-6 p-4 sm:p-5 lg:p-6"
+        actions={<><button type="button" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60" onClick={() => void load(filters)} disabled={state === 'loading'}><RefreshCw className={`h-4 w-4 ${state === 'loading' ? 'animate-spin' : ''}`} />{isZh ? '刷新' : 'Refresh'}</button><button type="button" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/60 bg-[#fff9ef] px-4 py-2.5 text-sm font-black text-[#123b34] shadow-[0_10px_24px_rgba(7,42,35,0.2)] transition hover:-translate-y-0.5 hover:bg-white" onClick={openCreate}><Plus className="h-4 w-4" />{isZh ? '新增模板' : 'New template'}</button></>}
+      >
+        <section aria-labelledby="fixed-categories-heading">
         <div className="mb-3 flex items-center gap-2"><LockKeyhole className="h-4 w-4 text-[#176b5a]" /><h2 id="fixed-categories-heading" className="text-sm font-black text-[#18332d]">{isZh ? '固定活动分类' : 'Fixed event categories'}</h2></div>
         <div className="grid gap-3 tablet:grid-cols-2 desktop:grid-cols-4">
           {(catalog?.archetypes ?? []).map((archetype) => <button key={archetype.code} type="button" aria-pressed={filters.archetypeCode === archetype.code} onClick={() => chooseCategory(archetype.code)} className={`min-h-28 rounded-2xl border p-4 text-left transition focus:outline-none focus:ring-2 focus:ring-[#176b5a]/30 ${filters.archetypeCode === archetype.code ? 'border-[#176b5a] bg-[#e3f0eb]' : 'border-[#2f4b42]/10 bg-white hover:border-[#176b5a]/35'}`}><div className="flex items-start justify-between gap-2"><CalendarRange className="h-5 w-5 text-[#176b5a]" /><LockKeyhole className="h-3.5 w-3.5 text-[#809088]" aria-label={isZh ? '不可修改分类' : 'Immutable category'} /></div><p className="mt-3 font-black text-[#18332d]">{localize(archetype.name, language)}</p><p className="mt-1 text-xs text-[#66766f]">{archetype.activeTemplateCount}/{archetype.totalTemplateCount} {isZh ? '启用' : 'active'} · {archetype.code}</p></button>)}
@@ -176,7 +178,7 @@ const EventTemplateAdminView = () => {
         {catalog && catalog.templates.totalPages > 1 ? <nav aria-label={isZh ? '模板分页' : 'Template pagination'} className="mt-5 flex items-center justify-between gap-3"><AppActionButton disabled={filters.page <= 1 || state === 'loading'} onClick={() => setFilters((current) => ({ ...current, page: current.page - 1 }))}><ChevronLeft className="mr-1 h-4 w-4" />{isZh ? '上一页' : 'Previous'}</AppActionButton><span className="text-xs font-bold text-[#66766f]">{filters.page}/{catalog.templates.totalPages} · {catalog.templates.totalCount}</span><AppActionButton disabled={filters.page >= catalog.templates.totalPages || state === 'loading'} onClick={() => setFilters((current) => ({ ...current, page: current.page + 1 }))}>{isZh ? '下一页' : 'Next'}<ChevronRight className="ml-1 h-4 w-4" /></AppActionButton></nav> : null}
       </AppSectionCard>
 
-      {editorMode !== 'closed' && catalog ? <AppSectionCard title={editorMode === 'create' ? (isZh ? '新增活动模板' : 'Create event template') : (isZh ? '编辑活动模板' : 'Edit event template')} subtitle={isZh ? '代码与所属分类创建后不可更改；保存修改会建立新的模板版本。' : 'Code and category are immutable after creation. Saving an edit creates a new template version.'} action={<AppActionButton variant="ghost" onClick={() => { setEditorMode('closed'); setSelected(null) }}>{isZh ? '关闭' : 'Close'}</AppActionButton>}>
+        {editorMode !== 'closed' && catalog ? <AppSectionCard title={editorMode === 'create' ? (isZh ? '新增活动模板' : 'Create event template') : (isZh ? '编辑活动模板' : 'Edit event template')} subtitle={isZh ? '代码与所属分类创建后不可更改；保存修改会建立新的模板版本。' : 'Code and category are immutable after creation. Saving an edit creates a new template version.'} action={<AppActionButton variant="ghost" onClick={() => { setEditorMode('closed'); setSelected(null) }}>{isZh ? '关闭' : 'Close'}</AppActionButton>}>
         <form className="space-y-6" onSubmit={(event) => void save(event)}>
           {success ? <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800">{success}</p> : null}
           {error ? <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-800">{error}</p> : null}
@@ -204,7 +206,8 @@ const EventTemplateAdminView = () => {
 
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#2f4b42]/10 pt-5"><p className="text-xs text-[#66766f]">{editorMode === 'edit' ? <>{isZh ? '当前' : 'Current'} v{selected?.template.version} · {isZh ? '保存后建立下一版本' : 'saving creates the next version'}</> : (isZh ? '新模板从 v1 开始' : 'New templates start at v1')}</p><div className="flex flex-wrap gap-2">{editorMode === 'edit' && selected && !selected.isActive ? <AppBadge variant="danger"><CircleOff className="mr-1 h-3.5 w-3.5" />{isZh ? '目前停用' : 'Currently inactive'}</AppBadge> : null}<AppActionButton type="submit" variant="primary" disabled={saving || Boolean(validationCode)}>{saving ? (isZh ? '保存中……' : 'Saving…') : (isZh ? '保存新版本' : 'Save new version')}</AppActionButton></div></div>
         </form>
-      </AppSectionCard> : null}
+        </AppSectionCard> : null}
+      </SystemManagementFrame>
       {confirmationModal}
     </AppPageShell>
   )
