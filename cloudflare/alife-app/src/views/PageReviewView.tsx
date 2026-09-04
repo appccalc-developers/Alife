@@ -11,6 +11,7 @@ import { normalizeApiError } from '../services/http'
 import { useAuthStore } from '../stores/auth'
 import type { PagePrimaryMenuHomePlacement } from '../types'
 import { localizeText } from '../utils/localizedText'
+import SystemManagementFrame from './admin/SystemManagementFrame'
 
 const copy = {
   title: { en: 'Homepage Management', zh: '首页管理' },
@@ -953,36 +954,32 @@ const PageReviewView = () => {
 
   return (
     <AppPageShell>
-      <section className="overflow-hidden rounded-3xl border border-emerald-100 bg-white shadow-sm">
-        <div className="border-b border-emerald-100 bg-gradient-to-r from-emerald-50 via-white to-amber-50 px-5 py-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">
-                {language === 'zh' ? '平台审核' : 'Platform review'}
-              </p>
-              <h1 className="mt-2 text-2xl font-black text-slate-950 sm:text-3xl">{text(language, 'title')}</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">{text(language, 'subtitle')}</p>
-            </div>
-            <AppActionButton
-              variant="secondary"
-              disabled={loading || layoutSaving || Boolean(actingPageId)}
-              onClick={() => refreshWebsite().catch(() => undefined)}
-            >
-              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-              {text(language, 'refresh')}
-            </AppActionButton>
-          </div>
-        </div>
-      </section>
+      <SystemManagementFrame
+        title={text(language, 'title')}
+        subtitle={text(language, 'subtitle')}
+        language={language}
+        iconKey="pageReview"
+        bodyClassName="space-y-5 p-4 sm:p-5 lg:p-6"
+        actions={(
+          <button
+            type="button"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={loading || layoutSaving || Boolean(actingPageId)}
+            onClick={() => refreshWebsite().catch(() => undefined)}
+          >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            {text(language, 'refresh')}
+          </button>
+        )}
+      >
+        {message ? (
+          <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</p>
+        ) : null}
+        {error ? (
+          <p className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm leading-6 text-rose-700">{error}</p>
+        ) : null}
 
-      {message ? (
-        <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</p>
-      ) : null}
-      {error ? (
-        <p className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm leading-6 text-rose-700">{error}</p>
-      ) : null}
-
-      <AppSectionCard dense title={text(language, 'queue')} subtitle={text(language, 'queueHint')}>
+        <AppSectionCard dense title={text(language, 'queue')} subtitle={text(language, 'queueHint')}>
         {!loading ? (
           <div className="mb-4 flex flex-wrap gap-2" role="tablist" aria-label={text(language, 'queue')}>
             {reviewTabs.map((tab) => {
@@ -1370,7 +1367,8 @@ const PageReviewView = () => {
             })}
           </div>
         )}
-      </AppSectionCard>
+        </AppSectionCard>
+      </SystemManagementFrame>
 
       {approvingPage && approvingPage.reviewStatus !== 'approved' ? (
         <div className="fixed inset-0 z-[70] flex items-end bg-slate-950/45 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+4.5rem)] sm:items-center sm:justify-center sm:pb-4">

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import type { LucideIcon } from 'lucide-react'
-import { Activity, Bell, CalendarRange, ChevronRight, FileImage, Globe2, Handshake, Loader2, RefreshCw, ShieldCheck, UserCog } from 'lucide-react'
+import { ChevronRight, Loader2, RefreshCw } from 'lucide-react'
 import {
   groupService,
   type AdminGroupOptionDto,
@@ -26,10 +25,11 @@ import { RolesSection } from './admin/RolesSection'
 import { LogsSection } from './admin/LogsSection'
 import { PlatformFilesSection } from './admin/FilesSection'
 import MembersSection from './admin/MembersSection'
+import SystemManagementFrame, { systemManagementIcons, type SystemManagementIconKey } from './admin/SystemManagementFrame'
 import type { GroupDto } from '../types'
 
 type AdminSection = 'overview' | 'users' | 'roles' | 'logs' | 'messages' | 'visitRequests' | 'files'
-type SystemManagementAreaConfig = { key: string; label: string; description: string; icon: LucideIcon; to: string }
+type SystemManagementAreaConfig = { key: string; label: string; description: string; iconKey: SystemManagementIconKey; to: string }
 type MessageTranslationDirection = 'zh-en' | 'en-zh'
 type LocalText = { en: string; zh: string }
 type LabelFn = (key: string, values?: Record<string, string | number>) => string
@@ -675,24 +675,21 @@ const AdminView = ({ embedded = false, sectionOverride }: AdminViewProps = {}) =
     }
   }
 
+  const managementPage: { title: string; subtitle: string; iconKey: SystemManagementIconKey } | null =
+    section === 'roles'
+      ? { title: l('roles'), subtitle: l('rolesDescription'), iconKey: 'roles' }
+      : section === 'logs'
+        ? { title: l('logs'), subtitle: l('logsDescription'), iconKey: 'logs' }
+        : section === 'messages'
+          ? { title: l('messages'), subtitle: l('messagesDescription'), iconKey: 'messages' }
+          : section === 'visitRequests'
+            ? { title: l('visitRequests'), subtitle: l('visitRequestsDescription'), iconKey: 'visitRequests' }
+            : section === 'files'
+              ? { title: l('files'), subtitle: l('filesDescription'), iconKey: 'files' }
+              : null
+
   return (
     <section className={embedded ? 'w-full space-y-5' : 'mx-auto w-full max-w-7xl space-y-5 px-2 py-3 sm:px-4'}>
-      {section === 'messages' ? <header className="overflow-hidden rounded-3xl border border-emerald-100 bg-white shadow-sm">
-        <div className="bg-gradient-to-r from-emerald-50 via-white to-amber-50 px-5 py-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">{t('admin')}</p>
-              <h1 className="mt-2 text-2xl font-black text-slate-950 sm:text-3xl">{l(section)}</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">{t('adminDescription')}</p>
-            </div>
-            <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 py-2.5 text-sm font-black text-emerald-800 shadow-sm transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60" disabled={loading} type="button" onClick={() => refreshCurrent().catch(() => undefined)}>
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
-              {l('refresh')}
-            </button>
-          </div>
-        </div>
-      </header> : null}
-
       {message || error ? (
         <div className="fixed inset-0 z-[100] flex items-start justify-center bg-slate-950/25 px-4 py-[calc(env(safe-area-inset-top)+1rem)] backdrop-blur-sm sm:items-center">
           <div className={`w-full max-w-md overflow-hidden rounded-3xl border bg-white shadow-2xl ${error ? 'border-rose-200' : 'border-emerald-200'}`} role="alertdialog" aria-modal="true">
@@ -737,11 +734,27 @@ const AdminView = ({ embedded = false, sectionOverride }: AdminViewProps = {}) =
         />
       ) : null}
       {section === 'users' ? <MembersSection embedded={embedded} roles={roleOptions} groups={groups} isSuperAdmin={isSuperAdmin} canAssignPlatformRoles={hasAdminPermission('admin.members.assignPlatformRoles')} canManageMemberProfiles={hasAdminPermission('admin.members.manageProfiles')} canManageMembership={Boolean(church && canManageGroup(church.id))} updatingMemberId={updatingMemberId} updatingMemberProfileId={updatingMemberProfileId} updatingMembershipId={updatingMembershipId} updateMemberRoles={updateMemberRoles} updateMemberProfile={updateMemberProfile} updateMembership={updateChurchMembership} language={language} currentMemberId={me?.id || ''} /> : null}
-      {section === 'roles' ? <RolesSection l={l} roles={roleOptions} roleForm={roleForm} setRoleForm={setRoleForm} creatingRole={creatingRole} deletingRoleId={deletingRoleId} updatingRolePermissionId={updatingRolePermissionId} roleCodeValidation={roleCodeValidation} roleCodeFeedback={roleCodeFeedback} canSubmitCreateRole={canSubmitCreateRole} createRole={createRole} deleteRole={deleteRole} updateRolePermissions={updateRolePermissions} refresh={refreshCurrent} loading={loading} language={language} /> : null}
-      {section === 'logs' ? <LogsSection l={l} loading={loading} page={logs} filters={logFilters} setFilters={setLogFilters} apply={() => loadLogs(1, 25)} goToPage={(page) => loadLogs(page, 25)} language={language} /> : null}
-      {section === 'messages' ? <MessagesSection l={l} loading={loading} page={messages} filters={messageFilters} setFilters={setMessageFilters} apply={() => loadMessages(1)} goToPage={loadMessages} groups={groups} roles={roleOptions} members={members.items} sendForm={sendForm} setSendForm={setSendForm} sendMessage={sendMessage} translateMessage={translateMessage} aiTranslating={messageAiDirection} language={language} /> : null}
-      {section === 'visitRequests' ? <VisitRequestsSection l={l} loading={loading} page={visitRequests} filters={visitRequestFilters} setFilters={setVisitRequestFilters} apply={() => loadVisitRequests(1)} goToPage={loadVisitRequests} updateStatus={updateVisitRequestStatus} updatingId={updatingVisitRequestId} language={language} /> : null}
-      {section === 'files' ? <PlatformFilesSection l={l} language={language} groups={groups} /> : null}
+      {managementPage ? (
+        <SystemManagementFrame
+          title={managementPage.title}
+          subtitle={managementPage.subtitle}
+          language={language}
+          iconKey={managementPage.iconKey}
+          bodyClassName={section === 'visitRequests' || section === 'logs' || section === 'files' ? '' : 'p-4 sm:p-5 lg:p-6'}
+          actions={section === 'messages' ? (
+            <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60" disabled={loading} type="button" onClick={() => refreshCurrent().catch(() => undefined)}>
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
+              {l('refresh')}
+            </button>
+          ) : undefined}
+        >
+          {section === 'roles' ? <RolesSection l={l} roles={roleOptions} roleForm={roleForm} setRoleForm={setRoleForm} creatingRole={creatingRole} deletingRoleId={deletingRoleId} updatingRolePermissionId={updatingRolePermissionId} roleCodeValidation={roleCodeValidation} roleCodeFeedback={roleCodeFeedback} canSubmitCreateRole={canSubmitCreateRole} createRole={createRole} deleteRole={deleteRole} updateRolePermissions={updateRolePermissions} refresh={refreshCurrent} loading={loading} language={language} /> : null}
+          {section === 'logs' ? <LogsSection l={l} loading={loading} page={logs} filters={logFilters} setFilters={setLogFilters} apply={() => loadLogs(1, 25)} goToPage={(page) => loadLogs(page, 25)} language={language} connected /> : null}
+          {section === 'messages' ? <MessagesSection l={l} loading={loading} page={messages} filters={messageFilters} setFilters={setMessageFilters} apply={() => loadMessages(1)} goToPage={loadMessages} groups={groups} roles={roleOptions} members={members.items} sendForm={sendForm} setSendForm={setSendForm} sendMessage={sendMessage} translateMessage={translateMessage} aiTranslating={messageAiDirection} language={language} /> : null}
+          {section === 'visitRequests' ? <VisitRequestsSection l={l} loading={loading} page={visitRequests} filters={visitRequestFilters} setFilters={setVisitRequestFilters} apply={() => loadVisitRequests(1)} goToPage={loadVisitRequests} updateStatus={updateVisitRequestStatus} updatingId={updatingVisitRequestId} language={language} connected /> : null}
+          {section === 'files' ? <PlatformFilesSection l={l} language={language} groups={groups} connected /> : null}
+        </SystemManagementFrame>
+      ) : null}
     </section>
   )
 }
@@ -760,42 +773,31 @@ const SystemManagementDashboard = ({ messages, syncing, loading, syncSermons, re
   const showMessageMetric = auth.hasAdminPermission('admin.messages.manage')
   const showSermonSync = auth.hasAdminPermission('admin.sermons.sync')
   const sections: SystemManagementAreaConfig[] = [
-    ...(auth.hasAdminPermission('admin.roles.managePermissions') ? [{ key: 'roles', label: isChinese ? '角色管理' : 'Role management', description: isChinese ? '平台角色、权限范围与功能访问' : 'Platform roles, permissions, and feature access', icon: UserCog, to: '/admin/roles' }] : []),
-    ...(showMessageMetric ? [{ key: 'notices', label: isChinese ? '通知管理' : 'Notification management', description: isChinese ? '发送通知并查看阅读与回复状态' : 'Send notifications and review read and reply status', icon: Bell, to: '/admin/messages' }] : []),
-    ...(auth.hasAdminPermission('admin.visitRequests.receive') ? [{ key: 'visitors', label: isChinese ? '访客接待' : 'Visitor care', description: isChinese ? '处理参观联系请求和跟进状态' : 'Handle visit requests and follow-up status', icon: Handshake, to: '/admin/visit-requests' }] : []),
-    ...(auth.canReviewPages ? [{ key: 'homepage', label: isChinese ? '首页管理' : 'Homepage management', description: isChinese ? '管理首页内容、公开导航与页面发布审核' : 'Manage homepage content, public navigation, and page publication review', icon: Globe2, to: '/admin/page-review' }] : []),
-    ...(auth.hasAdminPermission('admin.events.manageTemplates') ? [{ key: 'event-templates', label: isChinese ? '活动模板' : 'Event templates', description: isChinese ? '管理四个固定活动分类下的创建模板' : 'Manage creation templates within the four fixed event categories', icon: CalendarRange, to: '/admin/event-templates' }] : []),
-    ...(auth.hasAdminPermission('admin.events.managePackagePolicies') ? [{ key: 'event-package-policies', label: isChinese ? '活动方案政策' : 'Event Package policies', description: isChinese ? '管理审批等级、有效期、委派和渐进启用' : 'Manage approval tiers, validity, delegation, and rollout', icon: ShieldCheck, to: '/admin/event-package-policies' }] : []),
-    ...(auth.hasAdminPermission('admin.files.view') ? [{ key: 'files', label: isChinese ? '文件管理' : 'File management', description: isChinese ? '查看上传文件、可见范围和归属' : 'Review uploads, visibility, and ownership', icon: FileImage, to: '/admin/files' }] : []),
-    ...(auth.hasAdminPermission('admin.auditLogs.view') ? [{ key: 'logs', label: isChinese ? '操作日志' : 'Audit logs', description: isChinese ? '查看敏感平台操作记录' : 'Review sensitive platform actions', icon: Activity, to: '/admin/logs' }] : []),
+    ...(auth.hasAdminPermission('admin.roles.managePermissions') ? [{ key: 'roles', label: isChinese ? '角色管理' : 'Role management', description: isChinese ? '平台角色、权限范围与功能访问' : 'Platform roles, permissions, and feature access', iconKey: 'roles' as const, to: '/admin/roles' }] : []),
+    ...(showMessageMetric ? [{ key: 'notices', label: isChinese ? '通知管理' : 'Notification management', description: isChinese ? '发送通知并查看阅读与回复状态' : 'Send notifications and review read and reply status', iconKey: 'messages' as const, to: '/admin/messages' }] : []),
+    ...(auth.hasAdminPermission('admin.visitRequests.receive') ? [{ key: 'visitors', label: isChinese ? '访客接待' : 'Visitor care', description: isChinese ? '处理参观联系请求和跟进状态' : 'Handle visit requests and follow-up status', iconKey: 'visitRequests' as const, to: '/admin/visit-requests' }] : []),
+    ...(auth.canReviewPages ? [{ key: 'homepage', label: isChinese ? '首页管理' : 'Homepage management', description: isChinese ? '管理首页内容、公开导航与页面发布审核' : 'Manage homepage content, public navigation, and page publication review', iconKey: 'pageReview' as const, to: '/admin/page-review' }] : []),
+    ...(auth.hasAdminPermission('admin.events.manageTemplates') ? [{ key: 'event-templates', label: isChinese ? '活动模板' : 'Event templates', description: isChinese ? '管理四个固定活动分类下的创建模板' : 'Manage creation templates within the four fixed event categories', iconKey: 'eventTemplates' as const, to: '/admin/event-templates' }] : []),
+    ...(auth.hasAdminPermission('admin.events.managePackagePolicies') ? [{ key: 'event-package-policies', label: isChinese ? '活动方案政策' : 'Event Package policies', description: isChinese ? '管理审批等级、有效期、委派和渐进启用' : 'Manage approval tiers, validity, delegation, and rollout', iconKey: 'eventPackagePolicies' as const, to: '/admin/event-package-policies' }] : []),
+    ...(auth.hasAdminPermission('admin.files.view') ? [{ key: 'files', label: isChinese ? '文件管理' : 'File management', description: isChinese ? '查看上传文件、可见范围和归属' : 'Review uploads, visibility, and ownership', iconKey: 'files' as const, to: '/admin/files' }] : []),
+    ...(auth.hasAdminPermission('admin.auditLogs.view') ? [{ key: 'logs', label: isChinese ? '操作日志' : 'Audit logs', description: isChinese ? '查看敏感平台操作记录' : 'Review sensitive platform actions', iconKey: 'logs' as const, to: '/admin/logs' }] : []),
   ]
 
   return (
-    <section className="overflow-hidden rounded-[2rem] border border-[#254b42] bg-white shadow-[0_24px_70px_rgba(14,47,40,0.16)]">
-      <header className="relative isolate overflow-hidden bg-[#0e3029] px-6 py-6 text-white sm:px-8 sm:py-7">
-        <div className="absolute -right-20 -top-28 h-72 w-72 rounded-full bg-[#e29a66]/22 blur-3xl" aria-hidden="true" />
-        <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-          <div className="flex min-w-0 items-start gap-4">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-[#f6d3b5]"><ShieldCheck className="h-6 w-6" /></span>
-            <div className="min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-200">{isChinese ? '平台治理' : 'Platform administration'}</p>
-              <h1 className="mt-1.5 truncate text-3xl font-black tracking-[-0.045em]">{isChinese ? '系统管理' : 'System Management'}</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-white/60">{isChinese ? '集中管理平台权限、内容运营与审计功能。' : 'Manage platform permissions, content operations, and oversight in one place.'}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-5 self-start lg:self-auto">
-            {showMessageMetric ? <div><p className="text-2xl font-black tabular-nums">{unreadCount}</p><p className="text-[10px] font-bold uppercase tracking-wide text-white/45">{isChinese ? '未读通知' : 'Unread'}</p></div> : null}
-            <button className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/15 disabled:opacity-60" type="button" disabled={loading} onClick={() => refresh().catch(() => undefined)} aria-label={isChinese ? '刷新系统管理' : 'Refresh system management'}><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></button>
-          </div>
-        </div>
-      </header>
-
+    <SystemManagementFrame
+      title={isChinese ? '系统管理' : 'System Management'}
+      subtitle={isChinese ? '集中管理平台权限、内容运营与审计功能。' : 'Manage platform permissions, content operations, and oversight in one place.'}
+      language={language}
+      iconKey="overview"
+      showBackLink={false}
+      actions={<>{showMessageMetric ? <div><p className="text-2xl font-black tabular-nums">{unreadCount}</p><p className="text-[10px] font-bold uppercase tracking-wide text-white/45">{isChinese ? '未读通知' : 'Unread'}</p></div> : null}<button className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/15 disabled:opacity-60" type="button" disabled={loading} onClick={() => refresh().catch(() => undefined)} aria-label={isChinese ? '刷新系统管理' : 'Refresh system management'}><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></button></>}
+    >
       <div className={showSermonSync ? 'grid xl:grid-cols-[minmax(0,1fr)_19rem]' : 'grid'}>
         <div className="min-w-0">
           <div className="px-6 pb-3 pt-5 sm:px-8"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#176b5a]">{isChinese ? '系统功能' : 'System areas'}</p><h2 className="mt-1 text-xl font-black tracking-[-0.025em] text-[#18332d]">{isChinese ? '选择要处理的内容' : 'Choose what to manage'}</h2></div>
           <div className="grid border-t border-[#e3e8e5] md:grid-cols-2">
           {sections.map((section, index) => {
-            const Icon = section.icon
+            const Icon = systemManagementIcons[section.iconKey]
             return (
               <Link key={section.key} to={section.to} className={`group flex min-h-28 items-center gap-4 border-b border-[#e3e8e5] px-6 py-5 transition hover:bg-[#f2f7f4] sm:px-8 ${index % 2 === 0 ? 'md:border-r' : ''}`}>
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#e3f0eb] text-[#176b5a] transition group-hover:bg-[#173f36] group-hover:text-white"><Icon className="h-5 w-5" /></span>
@@ -815,7 +817,7 @@ const SystemManagementDashboard = ({ messages, syncing, loading, syncSermons, re
           <p className="mt-5 text-xs font-semibold leading-5 text-[#7a8782]">{isChinese ? `共 ${sections.length} 个系统功能，所有入口集中在当前页面。` : `${sections.length} system areas, all available from this page.`}</p>
         </aside> : null}
       </div>
-    </section>
+    </SystemManagementFrame>
   )
 }
 

@@ -32,7 +32,7 @@ const visitRequestLanguageTone = (language: string) =>
       ? 'border-indigo-100 bg-indigo-50 text-indigo-700'
       : 'border-violet-100 bg-violet-50 text-violet-700'
 
-export const VisitRequestsSection = ({ l, loading, page, filters, setFilters, apply, goToPage, updateStatus, updatingId, language }: {
+export const VisitRequestsSection = ({ l, loading, page, filters, setFilters, apply, goToPage, updateStatus, updatingId, language, connected = false }: {
   l: LabelFn
   loading: boolean
   page: AdminPagedResultDto<VisitContactRequestDto>
@@ -43,8 +43,9 @@ export const VisitRequestsSection = ({ l, loading, page, filters, setFilters, ap
   updateStatus: (item: VisitContactRequestDto, status: VisitContactRequestStatus) => Promise<void>
   updatingId: string | null
   language: string
+  connected?: boolean
 }) => (
-  <Panel title={l('visitRequests')} description={l('visitRequestsDescription')} count={page.totalCount}>
+  <Panel title={l('visitRequests')} description={l('visitRequestsDescription')} count={page.totalCount} connected={connected}>
     <FilterBar>
       <SearchInput placeholder={l('search')} value={filters.search} onChange={(e) => setFilters((x) => ({ ...x, search: e.target.value }))} />
       <SelectInput value={filters.status} onChange={(e) => setFilters((x) => ({ ...x, status: e.target.value }))}>
