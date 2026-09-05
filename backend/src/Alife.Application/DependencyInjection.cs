@@ -15,6 +15,7 @@ public static class DependencyInjection
         services.AddScoped<IAlbumService, AlbumService>();
         services.AddScoped<IChurchLifeScopeService, ChurchLifeScopeService>();
         services.AddScoped<IChurchLifeService, ChurchLifeService>();
+        services.AddScoped<SundayBulletinService>();
         services.AddSingleton<IEventCompositionEngine, EventCompositionEngine>();
         services.AddScoped<IEventActivityTemplateCatalog, EventActivityTemplateCatalog>();
         services.AddScoped<IEventOperationsService, EventOperationsService>();

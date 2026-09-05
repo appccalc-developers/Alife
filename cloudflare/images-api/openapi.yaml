@@ -9,6 +9,54 @@ info:
 servers:
   - url: https://images.ccalc.live
 paths:
+  /api/admin/sunday-bulletins/{objectKey}:
+    put:
+      summary: Replace a church bulletin PDF (backend only)
+      description: Requires the existing file admin secret. Only private/sunday-bulletins/{churchId}/{yyyy-MM-dd}.pdf keys are accepted. Maximum 20 MiB; PDF header required.
+      parameters:
+        - in: path
+          name: objectKey
+          required: true
+          schema: { type: string }
+        - in: header
+          name: x-alife-file-admin-secret
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/pdf:
+            schema: { type: string, format: binary }
+      responses:
+        "204": { description: Uploaded or replaced }
+        "400": { description: Invalid PDF or content type }
+        "403": { description: Invalid server secret }
+        "413": { description: PDF exceeds 20 MiB }
+  /api/private-files/{objectKey}:
+    get:
+      summary: Read a church bulletin with a short-lived backend signature
+      description: Bulletin keys only. Responses use private, no-store. Signature covers the complete object key and Unix expiry separated by a newline, using HMAC-SHA256 and base64url encoding. HEAD uses the same validation without a body.
+      parameters:
+        - in: path
+          name: objectKey
+          required: true
+          schema: { type: string }
+        - in: query
+          name: exp
+          required: true
+          schema: { type: integer }
+        - in: query
+          name: sig
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: PDF streamed inline
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        "403": { description: Missing, expired or invalid signature }
+        "404": { description: Bulletin not found }
   /api/images/config:
     get:
       summary: Get runtime configuration

@@ -87,6 +87,9 @@ public sealed class RegisterFileAssetCommandHandler(
 
     private static string? ValidateRequest(RegisterFileAssetCommand request)
     {
+        if (request.Purpose == FileAssetPurpose.SundayBulletin ||
+            (request.ObjectKey?.Trim().Replace('\\', '/').TrimStart('/').StartsWith("private/sunday-bulletins/", StringComparison.OrdinalIgnoreCase) ?? false))
+            return "Use the church bulletin upload endpoint.";
         if (string.IsNullOrWhiteSpace(request.StorageProvider))
         {
             return "Storage provider is required.";

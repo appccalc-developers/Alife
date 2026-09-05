@@ -27,6 +27,10 @@ public sealed class GetFileAssetOpenUrlQueryHandler(
             return AppResult<string>.NotFound("File not found.");
         }
 
+        // The dedicated endpoint rechecks current church membership before signing.
+        if (fileAsset.Purpose == FileAssetPurpose.SundayBulletin)
+            return AppResult<string>.Success($"/api/church-life/bulletins/{fileAsset.StoredFileName.Replace(".pdf", "")}/open");
+
         if (fileAsset.Visibility != FileAssetVisibility.MemberPrivate && string.IsNullOrWhiteSpace(fileAsset.PublicUrl))
         {
             return AppResult<string>.NotFound("File URL not found.");

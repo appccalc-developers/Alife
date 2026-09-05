@@ -184,6 +184,7 @@ npx wrangler deploy
 - Bilingual group and page content using JSON-shaped localized text.
 - Page builder with group-owned working pages, draft/group/public visibility, structured sections, and separate submitted and published snapshots.
 - Sermon listing and admin-triggered YouTube sermon synchronization.
+- [Church-only Sunday bulletins](docs/sunday-bulletins.md) below Sunday Sermons, with a rolling three-month date list, signed PDF viewing, and manager upload/replacement.
 - Group events with enrollment and review APIs.
 - Notification messages with read and reply workflows.
 - AI-assisted event planning, enrollment, and review sessions through Cloudflare Durable Objects.
@@ -228,6 +229,7 @@ All identity ceremonies, onboarding flows, activations, applications, visitor re
 | Group management | `POST /api/groups/{id}/subgroups`, `POST /api/groups/{id}/approve`, `/api/groups/{id}/join-invite/*`, `/api/groups/{id}/membership-applications/*` |
 | Pages | `GET /api/pages/global`, `GET /api/groups/{groupId}/pages`, `POST /api/groups/{groupId}/pages`, `PUT /api/pages/{id}` |
 | Events | `GET /api/groups/{groupId}/events`, `POST /api/groups/{groupId}/events`, `PUT /api/events/{id}` |
+| Sunday bulletins | `GET /api/church-life/bulletins`, `GET /api/church-life/bulletins/{date}/open`, `PUT /api/church-life/bulletins/{date}` |
 | Enrollments/reviews | `GET/POST /api/events/{eventId}/enrollments`, `GET/POST /api/events/{eventId}/reviews` |
 | Notifications | `GET/POST /api/notifications`, `POST /api/notifications/{id}/reply`, `POST /api/notifications/{id}/read` |
 | Admin | `POST /api/admin/sermons/sync`, `POST /api/admin/groups/{groupId}/cloudflare-cache/refresh` |

@@ -4,6 +4,7 @@ using Alife.Application.Abstractions.Security;
 using Alife.Application.ContentPosts.Services;
 using Alife.Application.Events.Services;
 using Alife.Application.FileAssets.Services;
+using Alife.Application.ChurchLife;
 using Alife.Application.IdentityAccess;
 using Alife.Application.Forum.Services;
 using Alife.Application.Groups.Services;
@@ -27,6 +28,7 @@ public static class DependencyInjection
 	public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
 	{
 		services.AddHybridCache();
+		services.AddHttpClient<ISundayBulletinStorage, SundayBulletinStorage>(client => client.Timeout = TimeSpan.FromSeconds(60));
 		services.AddDbContext<AlifeDbContext>(options =>
 			options
 				.UseSqlServer(configuration.GetConnectionString("Default"))

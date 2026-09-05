@@ -10,5 +10,6 @@ public enum FileAssetPurpose
     ReviewPhoto = 6,
     GroupCover = 7,
     MemberAvatar = 8,
-    AlbumPhoto = 9
+    AlbumPhoto = 9,
+    SundayBulletin = 10
 }
