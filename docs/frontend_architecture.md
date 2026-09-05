@@ -392,3 +392,7 @@ Manual checks after meaningful UI changes:
 - Page editor can load, edit, preview, and save bilingual content.
 - Event planning, enrollment, and review flows require user confirmation before persistence.
 - PWA service worker does not replay `/api/*` responses.
+
+### Application continuation and personal recovery
+
+Applicants may omit a phone number. The original browser retains an HttpOnly receipt and displays an application reference, manual status refresh, focus refresh, and approved first-Passkey setup. Re-scanning the group QR resumes that browser’s application. Member-list expanded details provide an accessible in-person verification modal and ten-minute personal recovery QR. The activation page displays the target account and asks a different signed-in member to sign out explicitly. English/Chinese state copy is paired; language changes do not restart application preparation. Secrets remain outside persistent frontend stores. See [identity access](identity-access.md).

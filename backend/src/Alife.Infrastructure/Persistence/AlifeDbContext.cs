@@ -1359,8 +1359,8 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 		{
 			cfg.HasKey(x => x.Id);
 			cfg.Property(x => x.DisplayName).HasMaxLength(150).IsRequired();
-			cfg.Property(x => x.PhoneE164).HasMaxLength(30).IsRequired();
-			cfg.Property(x => x.PhoneLookupHash).HasMaxLength(32).IsRequired();
+			cfg.Property(x => x.PhoneE164).HasMaxLength(30);
+			cfg.Property(x => x.PhoneLookupHash).HasMaxLength(32);
 			cfg.Property(x => x.ReplyPreference).HasMaxLength(30).IsRequired();
 			cfg.Property(x => x.PreferredLanguage).HasMaxLength(20).IsRequired();
 			cfg.Property(x => x.Declaration).HasMaxLength(2000).IsRequired();
@@ -1373,6 +1373,8 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 
 		modelBuilder.Entity<GroupMembershipApplication>(cfg =>
 		{
+			cfg.Property(x => x.BrowserTokenHash).HasMaxLength(32);
+			cfg.HasIndex(x => new { x.BrowserTokenHash, x.GroupId });
 			cfg.HasKey(x => x.Id);
 			cfg.Property(x => x.Source).HasMaxLength(50).IsRequired();
 			cfg.Property(x => x.DeduplicationKey).HasMaxLength(32).IsRequired();

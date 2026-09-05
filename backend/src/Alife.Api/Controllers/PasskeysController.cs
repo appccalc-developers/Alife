@@ -99,6 +99,10 @@ public sealed class PasskeysController(
     public async Task<IActionResult> CompleteRegistration(CompletePasskeyRequest request, CancellationToken cancellationToken)
     {
         this.ApplyPrivateNoStoreHeaders();
+        var activeFlow = await identityAccess.GetActiveFlowAsync(Request.Cookies["alife_onboarding"] ?? string.Empty, cancellationToken);
+        var signedInMemberId = currentMemberAccessor.GetCurrentMemberId();
+        if (activeFlow?.ActivationMemberId is Guid targetId && signedInMemberId is Guid actorId && targetId != actorId)
+            return Conflict(new ProblemDetails { Status = 409, Title = "Sign out before activating a different identity.", Extensions = { ["code"] = "activation_session_conflict" } });
         var limited = await LimitPasskeysAsync("passkey-registration-ip-10m", 20, cancellationToken);
         if (limited is not null) return limited;
         var result = await passkeys.CompleteRegistrationAsync(request.CeremonyId, request.Response, request.DisplayName, cancellationToken);

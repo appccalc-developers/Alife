@@ -2,6 +2,16 @@ namespace Alife.Api.Security;
 
 public static class AuthCookie
 {
+    public static void WriteApplicationCookie(HttpRequest request, HttpResponse response, string token)
+    {
+        var (_, secure) = ResolveCookiePolicy(request);
+        response.Cookies.Append("alife_application", token, new CookieOptions
+        {
+            HttpOnly = true, Secure = secure, SameSite = SameSiteMode.Lax,
+            Path = "/", MaxAge = TimeSpan.FromHours(72)
+        });
+    }
+
     public static void WriteCookie(HttpRequest request, HttpResponse response, string token, DateTime expiresUtc)
         => WriteCookie(request, response, token, expiresUtc, persistent: true);
 

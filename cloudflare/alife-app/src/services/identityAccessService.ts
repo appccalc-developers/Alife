@@ -15,10 +15,12 @@ export type OnboardingContext = {
   isPublicDevice: boolean
   returnPath: string
   activationInvitationId?: string | null
+  activationMemberId?: string | null
   groupJoinInviteId?: string | null
   groupApplicationId?: string | null
   groupNameEn?: string | null
   groupNameZh?: string | null
+  displayName?: string | null
   state?: string | null
 }
 
@@ -42,6 +44,7 @@ export type MembershipApplication = {
   replyPreference: string
   preferredLanguage: string
   declaration: string
+  isIdentityVerified?: boolean
   isContactVerified: boolean
   matchState: string
   personStatus: string
@@ -164,7 +167,25 @@ const serializeAssertion = (credential: PublicKeyCredential) => {
   }
 }
 
+export type BrowserApplicationStatus = { application: MembershipApplication; canActivate: boolean }
+export type PersonalPasskeyInvitation = { id: string; memberId: string; displayName: string; url: string; expiresUtc: string }
+
 export const identityAccessService = {
+  async browserApplication(applicationId?: string, inviteId?: string) {
+    return (await http.post<BrowserApplicationStatus>('/api/onboarding/browser-applications/status', { applicationId, inviteId })).data
+  },
+  async activateBrowserApplication(id: string) {
+    return (await http.post<OnboardingContext>(`/api/onboarding/browser-applications/${id}/activate`)).data
+  },
+  async supplementBrowserApplication(application: MembershipApplication, note: string) {
+    return (await http.post<MembershipApplication>(`/api/onboarding/browser-applications/${application.id}/supplements`, { note, rowVersion: application.rowVersion })).data
+  },
+  async issuePersonalPasskey(groupId: string, memberId: string) {
+    return (await http.post<PersonalPasskeyInvitation>(`/api/groups/${groupId}/members/${memberId}/passkey-recovery`, { identityVerified: true })).data
+  },
+  async revokePersonalPasskey(groupId: string, memberId: string, id: string) {
+    await http.post(`/api/groups/${groupId}/members/${memberId}/passkey-recovery/${id}/revoke`)
+  },
   async capabilities() {
     return (await http.get<IdentityCapabilities>('/api/onboarding/capabilities')).data
   },
@@ -225,7 +246,7 @@ export const identityAccessService = {
   async listActivations() {
     return (await http.get<ActivationInvitation[]>('/api/admin/member-activations')).data
   },
-  async createActivation(payload: { displayName: string; phoneE164: string; purpose: string; grants: Array<{ groupId: string; role: string }> }) {
+  async createActivation(payload: { displayName: string; phoneE164: string; purpose: string; identityVerified?: boolean; grants: Array<{ groupId: string; role: string }> }) {
     return (await http.post<ActivationInvitation>('/api/admin/member-activations', payload)).data
   },
   async changeActivation(id: string, action: 'revoke' | 'resend') {
@@ -254,19 +275,19 @@ export const identityAccessService = {
   async listGroupApplications(groupId: string, params: Record<string, string | number | undefined>) {
     return (await http.get<MembershipApplicationPage>(`/api/groups/${groupId}/membership-applications`, { params })).data
   },
-  async decideGroupApplication(groupId: string, application: MembershipApplication, decision: string, note?: string, contactVerified = false, linkedMemberId?: string) {
+  async decideGroupApplication(groupId: string, application: MembershipApplication, decision: string, note?: string, identityVerified = false, linkedMemberId?: string) {
     return (await http.post<MembershipApplication>(
       `/api/groups/${groupId}/membership-applications/${application.id}/decisions`,
-      { decision, note, rowVersion: application.rowVersion, contactVerified, linkedMemberId: linkedMemberId || null },
+      { decision, note, rowVersion: application.rowVersion, identityVerified, linkedMemberId: linkedMemberId || null },
     )).data
   },
   async listPersonApplications(params: Record<string, string | number | undefined>) {
     return (await http.get<MembershipApplicationPage>('/api/admin/person-applications', { params })).data
   },
-  async decidePersonApplication(application: MembershipApplication, decision: string, note?: string, linkedMemberId?: string, contactVerified = false) {
+  async decidePersonApplication(application: MembershipApplication, decision: string, note?: string, linkedMemberId?: string, identityVerified = false) {
     return (await http.post<MembershipApplication>(
       `/api/admin/person-applications/${application.id}/decisions`,
-      { decision, note, linkedMemberId: linkedMemberId || null, contactVerified, rowVersion: application.rowVersion },
+      { decision, note, linkedMemberId: linkedMemberId || null, identityVerified, rowVersion: application.rowVersion },
     )).data
   },
   async listAlphaAccounts() {

@@ -20,7 +20,7 @@ using NSubstitute;
 
 namespace Alife.Tests.Unit.IdentityAccess;
 
-public sealed class IdentityAccessFlowTests
+public sealed partial class IdentityAccessFlowTests
 {
     [Fact]
     public async Task CreateAndResumeFlow_PreservesPublicDeviceAndSafeReturnPath()
@@ -766,7 +766,7 @@ public sealed class IdentityAccessFlowTests
     }
 
     [Fact]
-    public async Task ManualPasskeyRecovery_ExpiresAfterOneHour()
+    public async Task ManualPasskeyRecovery_ExpiresAfterTenMinutes()
     {
         await using var fixture = CreateFixture();
         var actorId = Guid.NewGuid();
@@ -793,12 +793,12 @@ public sealed class IdentityAccessFlowTests
 
         var result = await fixture.Service.CreateActivationAsync(
             actorId,
-            new CreateActivationRequest("Recovery member", "+64210000003", ActivationPurpose.PasskeyRecovery, []),
+            new CreateActivationRequest("Recovery member", "+64210000003", ActivationPurpose.PasskeyRecovery, [], IdentityVerified: true),
             default);
 
         Assert.True(result.IsSuccess);
         var persisted = await fixture.Db.MemberActivationInvitations.SingleAsync();
-        Assert.Equal(persisted.CreatedUtc.AddHours(1), persisted.ExpiresUtc);
+        Assert.Equal(persisted.CreatedUtc.AddMinutes(10), persisted.ExpiresUtc);
         Assert.Equal(MessageDeliveryStatus.Manual, result.Value!.DeliveryStatus);
     }
 
@@ -911,7 +911,7 @@ public sealed class IdentityAccessFlowTests
     }
 
     [Fact]
-    public async Task GroupLeaderApproval_RequiresExplicitIdentityAndPhoneVerification()
+    public async Task GroupLeaderApproval_RequiresExplicitIdentityVerification()
     {
         await using var fixture = CreateFixture();
         var actorId = Guid.NewGuid();
@@ -938,7 +938,7 @@ public sealed class IdentityAccessFlowTests
             default);
 
         Assert.Equal(AppResultStatus.Conflict, result.Status);
-        Assert.Equal("contact_verification_required", result.Message);
+        Assert.Equal("identity_verification_required", result.Message);
         Assert.Empty(await fixture.Db.Members.ToListAsync());
         Assert.Empty(await fixture.Db.GroupMemberships.ToListAsync());
         Assert.Empty(await fixture.Db.MemberActivationInvitations.ToListAsync());
@@ -1090,6 +1090,7 @@ public sealed class IdentityAccessFlowTests
             PrivacyConsentVersion = "v1",
             PrivacyConsentedUtc = now,
             IsContactVerified = true,
+            IsIdentityVerified = true,
             MatchState = ApplicantMatchState.Linked,
             Status = MembershipApplicationStatus.Submitted,
             SubmittedUtc = now,

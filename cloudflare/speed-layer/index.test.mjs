@@ -1202,6 +1202,8 @@ test('unauthenticated GET /api/me bypasses edge cache', async () => {
 test('identity and personal task API families are always no-store and never replayed', async () => {
   const paths = [
     '/api/onboarding/capabilities',
+    '/api/onboarding/browser-applications/status',
+    '/api/groups/group-1/members/member-1/passkey-recovery',
     '/api/me/passkeys',
     '/api/notifications/current',
     '/api/internal/alpha-login/accounts',

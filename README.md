@@ -175,7 +175,7 @@ npx wrangler deploy
 
 ## Main Features In The Current Code
 
-- Member identity through discoverable Passkeys, explicit LINE Login compatibility, one-time church activation links, and configuration-gated internal Alpha accounts.
+- Member identity through discoverable Passkeys, explicit LINE Login compatibility, one-time church activation links, and configuration-gated internal Alpha accounts. [Phone-optional group applications](docs/identity-access.md) resume in the original browser after approval; leaders can issue personal Passkey recovery QRs to ordinary members.
 - Passkeys are created from activation or Profile only on a personal mobile device. Desktop authentication prefers WebAuthn hybrid transport so the browser can show a QR for approval with the phone Passkey; no Passkey is created on the computer.
 - JWT authentication stored in the HttpOnly `alife_auth` cookie, with `amr`, `auth_time`, and `session_kind` claims distinguishing standard, public-device, and Alpha sessions.
 - A unified `/onboarding` flow preserves only validated same-site return paths and resumes activation, QR application, or anonymous reply context through a short-lived HttpOnly cookie.

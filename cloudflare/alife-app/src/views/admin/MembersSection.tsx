@@ -1,3 +1,4 @@
+import PersonalPasskeyRecovery from '../../components/identity/PersonalPasskeyRecovery'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
@@ -384,8 +385,16 @@ const MembersSection = ({
     setRefreshVersion((current) => current + 1)
   }
 
+  const confirmRecoveryIdentity = () => requestConfirmation({
+    title: isChinese ? '恢复 Passkey' : 'Recover Passkey',
+    description: isChinese ? '请确认已现场核实本人。新 Passkey 建立后撤销全部旧凭证；其他设备现有登录不会退出。' : 'Confirm you verified this person in person. Creating the new Passkey revokes all old credentials; existing device sessions remain active.',
+    confirmLabel: isChinese ? '已核实本人，继续' : 'Identity verified, continue',
+    tone: 'danger',
+  })
+
   const createActivation = async () => {
     if (!activationForm.displayName.trim() || !activationForm.phoneE164.trim()) return
+    if (activationForm.purpose === 'passkeyRecovery' && !await confirmRecoveryIdentity()) return
     setActivationBusy('create')
     setActivationError('')
     setActivationStatus('')
@@ -394,6 +403,7 @@ const MembersSection = ({
         displayName: activationForm.displayName.trim(),
         phoneE164: activationForm.phoneE164.trim(),
         purpose: activationForm.purpose,
+        identityVerified: activationForm.purpose === 'passkeyRecovery',
         grants: activationForm.groupId ? [{ groupId: activationForm.groupId, role: activationForm.role }] : [],
       })
       setActivations((current) => [created, ...current])
@@ -431,11 +441,13 @@ const MembersSection = ({
     displayName: member.displayName?.trim() || copy.member,
     phoneE164: member.phoneE164?.trim() || '',
     purpose: member.isRegistered ? 'passkeyRecovery' : 'firstActivation',
+    identityVerified: member.isRegistered,
     grants: [],
   })
 
   const generateMemberActivation = async (member: AdminMemberDto) => {
     if (!member.phoneE164 || !member.needsPasskey) return
+    if (member.isRegistered && !await confirmRecoveryIdentity()) return
     setActivationBusy(member.id)
     setActivationError('')
     setActivationStatus('')
@@ -492,7 +504,7 @@ const MembersSection = ({
             <label className="block text-xs font-bold text-[#62736c]">{isChinese ? '暂存角色' : 'Staged role'}<select className="alife-input mt-1" disabled={!activationForm.groupId} value={activationForm.role} onChange={(event) => setActivationForm((current) => ({ ...current, role: event.target.value }))}><option value="member">{copy.memberRole}</option><option value="coLeader">{copy.assistantLeader}</option><option value="leader">{copy.groupLeader}</option></select></label>
           </div>
           <button className="mt-3 inline-flex min-h-10 items-center rounded-xl bg-[#176b5a] px-4 py-2 text-sm font-black text-white disabled:opacity-50" type="button" disabled={activationBusy === 'create' || !activationForm.displayName.trim() || !activationForm.phoneE164.trim()} onClick={() => void createActivation()}><Send className="mr-2 h-4 w-4" />{copy.generateActivation}</button>
-          {activations.length ? <div className="mt-4 space-y-2">{activations.slice(0, 10).map((activation) => <div key={activation.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#e3d8ca] bg-white p-3"><div><p className="text-sm font-bold text-[#18332d]">{activation.displayName} · {activation.maskedPhone}</p><p className="mt-1 text-xs text-[#687770]">{activation.status} · {activation.deliveryStatus} · {new Date(activation.expiresUtc).toLocaleString()}</p></div><div className="flex gap-2"><button className="min-h-9 rounded-lg border border-[#cbdad4] px-3 text-xs font-bold" type="button" disabled={Boolean(activationBusy)} onClick={() => void changeActivation(activation, 'resend')}>{copy.generateNewActivation}</button><button className="min-h-9 rounded-lg border border-rose-200 px-3 text-xs font-bold text-rose-700" type="button" disabled={Boolean(activationBusy) || activation.status === 'used' || activation.status === 'revoked'} onClick={() => void changeActivation(activation, 'revoke')}>{isChinese ? '撤销' : 'Revoke'}</button></div></div>)}</div> : null}
+          {activations.length ? <div className="mt-4 space-y-2">{activations.slice(0, 10).map((activation) => <div key={activation.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#e3d8ca] bg-white p-3"><div><p className="text-sm font-bold text-[#18332d]">{activation.displayName} · {activation.maskedPhone}</p><p className="mt-1 text-xs text-[#687770]">{activation.status} · {activation.deliveryStatus} · {new Date(activation.expiresUtc).toLocaleString()}</p></div><div className="flex gap-2">{activation.purpose === 'passkeyRecovery' ? <PersonalPasskeyRecovery groupId={groups.find(group => group.isChurch)?.id ?? ''} memberId={activation.memberId} displayName={activation.displayName} /> : <button className="min-h-9 rounded-lg border border-[#cbdad4] px-3 text-xs font-bold" type="button" disabled={Boolean(activationBusy)} onClick={() => void changeActivation(activation, 'resend')}>{copy.generateNewActivation}</button>}<button className="min-h-9 rounded-lg border border-rose-200 px-3 text-xs font-bold text-rose-700" type="button" disabled={Boolean(activationBusy) || activation.status === 'used' || activation.status === 'revoked'} onClick={() => void changeActivation(activation, 'revoke')}>{isChinese ? '撤销' : 'Revoke'}</button></div></div>)}</div> : null}
         </details>
       ) : null}
 
@@ -589,6 +601,7 @@ const MembersSection = ({
 
                       <section className="rounded-2xl border border-[#d6e3dd] bg-white p-4">
                         <h3 className="text-sm font-black text-[#18332d]">{copy.accountDetails}</h3>
+                        {canManageMembership && member.id !== currentMemberId && state === 'active' ? <PersonalPasskeyRecovery groupId={groups.find(group => group.isChurch)?.id ?? ''} memberId={member.id} displayName={name} /> : null}
                         <div className="mt-3 flex flex-wrap gap-2"><span className={`rounded-full px-2.5 py-1 text-xs font-black ${member.isRegistered ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>{member.isRegistered ? copy.registered : copy.guest}</span>{displayRoleCodes(member).map((roleCode) => <RolePill key={roleCode} roleCode={roleCode} label={roleLabel(roleCode)} />)}</div>
                         <dl className="mt-4 space-y-3"><InfoField label={copy.createdAt} value={formatMemberDate(member.createdUtc, isChinese)} /><InfoField label={copy.updatedAt} value={formatMemberDate(member.updatedUtc, isChinese)} /></dl>
                         {canManageMembership ? <div className="mt-4 border-t border-[#e3ebe7] pt-4">{member.needsPasskey ? <ActionButton busy={activationBusy === member.id} disabled={Boolean(activationBusy) || !member.phoneE164} onClick={() => void generateMemberActivation(member)}>{member.phoneE164 ? copy.generateActivation : copy.missingPhone}</ActionButton> : <p className="text-xs font-bold text-emerald-700"><ShieldCheck className="mr-1.5 inline h-4 w-4" />{copy.passkeyReady}</p>}</div> : null}

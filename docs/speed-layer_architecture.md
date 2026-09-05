@@ -379,3 +379,7 @@ For protected routes, inspect:
 - `Cache-Control`
 - `Vary`
 - `ETag`
+
+### Browser continuation and recovery
+
+Browser-application status, supplement, activation, and member-specific `passkey-recovery` routes bypass response caching. New cookies and recovery QR secrets never enter shared cache entries. Existing JWT sessions and group authorization mirrors are unchanged: this release revokes lost Passkey credentials, not already-issued sessions. See [identity access](identity-access.md).

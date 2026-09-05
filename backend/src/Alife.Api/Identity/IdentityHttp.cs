@@ -8,6 +8,16 @@ namespace Alife.Api.Identity;
 
 public static class IdentityHttp
 {
+    public static bool IsTrustedBrowserOrigin(HttpRequest request, IConfiguration configuration)
+    {
+        var supplied = request.Headers.Origin.ToString();
+        if (!Uri.TryCreate(supplied, UriKind.Absolute, out var origin) || origin.AbsolutePath != "/" ||
+            !string.IsNullOrEmpty(origin.Query) || !string.IsNullOrEmpty(origin.Fragment) || !string.IsNullOrEmpty(origin.UserInfo)) return false;
+        var allowed = configuration["Frontend:BaseUrl"] ?? "http://localhost:5173";
+        return Uri.TryCreate(allowed, UriKind.Absolute, out var frontend) &&
+            string.Equals(origin.GetLeftPart(UriPartial.Authority), frontend.GetLeftPart(UriPartial.Authority), StringComparison.OrdinalIgnoreCase);
+    }
+
     public static IActionResult ToIdentityResult<T>(this ControllerBase controller, AppResult<T> result)
     {
         if (result.IsSuccess)
