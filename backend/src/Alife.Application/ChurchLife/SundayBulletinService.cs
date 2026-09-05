@@ -5,6 +5,7 @@ using Alife.Application.Groups.Services;
 using Alife.Domain.Entities;
 using Alife.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Alife.Application.ChurchLife;
 
@@ -17,10 +18,22 @@ public interface ISundayBulletinStorage
 }
 
 public sealed class SundayBulletinService(IAlifeDbContext db, IGroupAuthorizationService authorization,
-    IFileStorageProviderResolver providers, IFileAssetAccessUrlSigner signer, ISundayBulletinStorage storage)
+    IFileStorageProviderResolver providers, IFileAssetAccessUrlSigner signer, ISundayBulletinStorage storage,
+    ILogger<SundayBulletinService>? logger = null)
 {
     public const int MaxPdfBytes = 20 * 1024 * 1024;
     public const string KeyPrefix = "private/sunday-bulletins/";
+    private const string StorageUnavailable = "Bulletin storage is unavailable. Please contact a church administrator.";
+
+    private bool IsStorageFailure(Exception error, CancellationToken token)
+    {
+        if (error is not (InvalidOperationException or HttpRequestException) &&
+            !(error is OperationCanceledException && !token.IsCancellationRequested)) return false;
+        // Do not log file names, signed URLs, request content or credentials.
+        logger?.LogWarning("Sunday bulletin storage failed: {FailureType}; HTTP status: {StatusCode}",
+            error.GetType().Name, (error as HttpRequestException)?.StatusCode);
+        return true;
+    }
 
     public static IReadOnlyList<DateOnly> Dates(DateOnly today)
     {
@@ -68,7 +81,14 @@ public sealed class SundayBulletinService(IAlifeDbContext db, IGroupAuthorizatio
         var file = await db.FileAssets.AsNoTracking().FirstOrDefaultAsync(x => !x.IsDeleted &&
             x.GroupId == church && x.Purpose == FileAssetPurpose.SundayBulletin && x.ObjectKey == key, token);
         if (file is null) return AppResult<string>.NotFound("Bulletin has not been uploaded.");
-        return AppResult<string>.Success(await signer.CreatePrivateReadUrlAsync(file.StorageProvider, key, TimeSpan.FromMinutes(5), token));
+        try
+        {
+            return AppResult<string>.Success(await signer.CreatePrivateReadUrlAsync(file.StorageProvider, key, TimeSpan.FromMinutes(5), token));
+        }
+        catch (Exception error) when (IsStorageFailure(error, token))
+        {
+            return AppResult<string>.ServiceUnavailable(StorageUnavailable);
+        }
     }
 
     public async Task<AppResult<bool>> UploadAsync(Guid memberId, DateOnly date, string fileName, byte[] pdf, CancellationToken token)
@@ -83,8 +103,15 @@ public sealed class SundayBulletinService(IAlifeDbContext db, IGroupAuthorizatio
         var file = await db.FileAssets.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.ObjectKey == key && x.Purpose == FileAssetPurpose.SundayBulletin, token);
         var provider = file is null ? await providers.GetDefaultAsync(token) : await providers.GetByCodeAsync(file.StorageProvider, token);
         // Check signed access configuration before replacing the existing object.
-        await signer.CreatePrivateReadUrlAsync(provider.Code, key, TimeSpan.FromMinutes(5), token);
-        await storage.UploadAsync(provider, key, pdf, token);
+        try
+        {
+            await signer.CreatePrivateReadUrlAsync(provider.Code, key, TimeSpan.FromMinutes(5), token);
+            await storage.UploadAsync(provider, key, pdf, token);
+        }
+        catch (Exception error) when (IsStorageFailure(error, token))
+        {
+            return AppResult<bool>.ServiceUnavailable(StorageUnavailable);
+        }
         var now = DateTime.UtcNow;
         if (file is null)
         {
