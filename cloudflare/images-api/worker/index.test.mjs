@@ -300,7 +300,7 @@ function createBucket() {
       };
     },
     async put(key, body, options = {}) {
-      const value = body instanceof ReadableStream ? await new Response(body).text() : String(body);
+      const value = body instanceof ReadableStream || body instanceof Uint8Array ? await new Response(body).text() : String(body);
       objects.set(key, createObject(key, options.httpMetadata?.contentType, value));
     },
     async head(key) {

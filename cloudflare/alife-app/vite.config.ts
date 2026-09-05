@@ -67,6 +67,11 @@ export default defineConfig(({ command, mode }) => {
         globIgnores: ['article-covers/generated/**'],
         runtimeCaching: [
           {
+            // Bulletin PDF navigations must never enter the document/offline cache.
+            urlPattern: ({ url }) => /^\/(?:images\/)?api\/(?:church-life\/bulletins(?:\/|$)|private-files\/private\/sunday-bulletins\/)/.test(url.pathname),
+            handler: 'NetworkOnly',
+          },
+          {
             // The hero MP4 is served as a full response by Workers Static Assets.
             // Cache that response once and synthesize byte-range responses for
             // reliable repeat playback, including after auth-state navigation.

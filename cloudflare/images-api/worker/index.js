@@ -1,3 +1,5 @@
+import { handleSundayBulletin, isBulletinPath } from './sunday-bulletins.js';
+
 const IMAGE_EXTENSIONS = new Set([
   "jpg",
   "jpeg",
@@ -215,6 +217,7 @@ function sanitizeFileName(name) {
  * and image objects at this level.
  */
 async function listFolder(request, env, folderPath) {
+  if (isBulletinPath(folderPath)) return json({ error: "Not found." }, 404);
   const configuredLimit = Number.parseInt(env.BUCKET_LIST_LIMIT ?? "500", 10);
   const limit = Number.isFinite(configuredLimit) && configuredLimit > 0 ? configuredLimit : 500;
 
@@ -223,7 +226,7 @@ async function listFolder(request, env, folderPath) {
 
   const listing = await env.IMAGE_BUCKET.list({ prefix, delimiter: "/", limit });
 
-  const folders = (listing.delimitedPrefixes || []).map((p) => {
+  const folders = (listing.delimitedPrefixes || []).filter(p => !isBulletinPath(p)).map((p) => {
     const name = p.replace(/\/$/, "").split("/").pop();
     return { type: "folder", path: p, name };
   });
@@ -257,6 +260,7 @@ async function listFolder(request, env, folderPath) {
  * (or just <sanitized-filename> for the root).
  */
 async function uploadToPath(request, env, folderPath) {
+  if (isBulletinPath(folderPath)) return json({ error: "Not found." }, 404);
   const contentType = request.headers.get("content-type") || "";
   if (!contentType.toLowerCase().includes("multipart/form-data")) {
     return json({ error: 'Use multipart/form-data with field name "file".' }, 400);
@@ -315,6 +319,7 @@ async function uploadToPath(request, env, folderPath) {
  * After deletion, empty parent folder markers are cleaned up.
  */
 async function deletePath(_request, env, targetPath) {
+  if (isBulletinPath(targetPath)) return json({ error: "Not found." }, 404);
   if (!targetPath) {
     return json({ error: "Path is required." }, 400);
   }
@@ -406,6 +411,7 @@ async function fetchObjectByPublicPath(request, env, pathname) {
 }
 
 async function fetchBucketObject(env, key, headOnly = false) {
+  if (isBulletinPath(key)) return json({ error: "Not found." }, 404);
   const object = headOnly ? await env.IMAGE_BUCKET.head(key) : await env.IMAGE_BUCKET.get(key);
   if (!object) {
     return json({ error: "Image not found." }, 404);
@@ -499,6 +505,8 @@ export default {
     const method = request.method;
 
     try {
+      const bulletinResponse = await handleSundayBulletin(request, env);
+      if (bulletinResponse) return bulletinResponse;
       // CORS preflight
       if (method === "OPTIONS" && (pathname.startsWith("/api/") || isPublicObjectPath(pathname))) {
         return handleOptions(request);

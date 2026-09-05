@@ -254,6 +254,13 @@ export const useShellNavigation = ({
       to: '/sermons',
       icon: <BookOpenText className="h-5 w-5" />,
     },
+    ...(!auth.loading && !auth.isGuest && churchGroupId && (auth.hasLeaderAccess(churchGroupId) || auth.memberships.some(item => item.groupId === churchGroupId && item.status === 'approved')) ? [{
+      key: 'app:bulletins',
+      label: isChinese ? '主日周报' : 'Sunday Bulletins',
+      description: isChinese ? '查看教会内的每周周报' : 'Weekly bulletins for church members',
+      to: '/church/bulletins',
+      icon: <BookOpenText className="h-5 w-5" />,
+    }] : []),
   ]
 
   const accountItems: ShellNavItem[] = !auth.loading && !auth.isGuest

@@ -13,6 +13,7 @@ export type FileAssetPurpose =
   | 'groupCover'
   | 'memberAvatar'
   | 'albumPhoto'
+  | 'sundayBulletin'
 
 export type FileAsset = {
   id: string
