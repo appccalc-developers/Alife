@@ -21,6 +21,12 @@ jobs:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       PASSKEY_RP_ID: ccalc.live
       PASSKEY_ORIGIN: https://ccalc.live
+      FileAssets__ProviderCode: cloudflare-r2
+      FileAssets__BucketName: ccalc
+      FileAssets__ImageApiBaseUrl: https://images.ccalc.live
+      FileAssets__UploadApiBaseUrl: https://images.ccalc.live
+      FileAssets__PrivateFileBaseUrl: https://images.ccalc.live
+      FileAssets__PrivateFileMaxLifetimeMinutes: '5'
 
     steps:
       - name: Checkout
@@ -55,6 +61,8 @@ jobs:
           CLOUDFLARE_SYNC_WORKER_BASE_URL: ${{ secrets.CLOUDFLARE_SYNC_WORKER_BASE_URL }}
           CLOUDFLARE_SYNC_API_TOKEN: ${{ secrets.CLOUDFLARE_SYNC_API_TOKEN }}
           ALPHA_STEPHEN_PASSKEY_BOOTSTRAP_CODE: ${{ secrets.ALPHA_STEPHEN_PASSKEY_BOOTSTRAP_CODE }}
+          FILE_ADMIN_BACKFILL_SECRET: ${{ secrets.FILE_ADMIN_BACKFILL_SECRET }}
+          FILE_ACCESS_SIGNING_SECRET: ${{ secrets.FILE_ACCESS_SIGNING_SECRET }}
         run: |
           set -euo pipefail
 
@@ -68,7 +76,20 @@ jobs:
             exit 1
           fi
 
+          if [ "${#FILE_ADMIN_BACKFILL_SECRET}" -lt 32 ] || [ "${#FILE_ACCESS_SIGNING_SECRET}" -lt 32 ]; then
+            echo "Missing file storage secrets. Configure FILE_ADMIN_BACKFILL_SECRET and FILE_ACCESS_SIGNING_SECRET in repository secrets before deployment."
+            exit 1
+          fi
+
           settings=(
+            "FileAssets__ProviderCode=$FileAssets__ProviderCode"
+            "FileAssets__BucketName=$FileAssets__BucketName"
+            "FileAssets__ImageApiBaseUrl=$FileAssets__ImageApiBaseUrl"
+            "FileAssets__UploadApiBaseUrl=$FileAssets__UploadApiBaseUrl"
+            "FileAssets__PrivateFileBaseUrl=$FileAssets__PrivateFileBaseUrl"
+            "FileAssets__PrivateFileMaxLifetimeMinutes=$FileAssets__PrivateFileMaxLifetimeMinutes"
+            "FileAssets__ImageApiAdminSecret=$FILE_ADMIN_BACKFILL_SECRET"
+            "FileAssets__PrivateFileSigningSecret=$FILE_ACCESS_SIGNING_SECRET"
             "ConnectionStrings__Default=$DB_CONNECTION_STRING"
             "Passkeys__Enabled=true"
             "Passkeys__RpId=$PASSKEY_RP_ID"

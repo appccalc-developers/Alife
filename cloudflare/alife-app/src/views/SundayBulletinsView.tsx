@@ -44,10 +44,13 @@ export default function SundayBulletinsView() {
       await query.refetch()
       setNotice({ error: false, text: zh ? `${date} 周报上传成功。` : `Bulletin for ${date} uploaded.` })
     } catch (error) {
-      const denied = normalizeApiError(error).status === 403
+      const status = normalizeApiError(error).status
+      const denied = status === 403
       setNotice({ error: true, text: denied
         ? (zh ? '你没有上传周报的权限。' : 'You do not have permission to upload bulletins.')
-        : (zh ? '上传失败，请检查 PDF 文件后重试。' : 'Upload failed. Check the PDF file and try again.') })
+        : status === 503
+          ? (zh ? '周报存储暂时不可用，请联系教会管理员检查存储配置。' : 'Bulletin storage is unavailable. Please contact a church administrator.')
+          : (zh ? '上传失败，请检查 PDF 文件后重试。' : 'Upload failed. Check the PDF file and try again.') })
     } finally { setBusyDate(null) }
   }
 
