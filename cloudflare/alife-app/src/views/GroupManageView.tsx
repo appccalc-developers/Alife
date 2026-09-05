@@ -1,3 +1,4 @@
+import PersonalPasskeyRecovery from '../components/identity/PersonalPasskeyRecovery'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowRightLeft, CalendarDays, Crown, Loader2, Pencil, ShieldCheck, UserPlus, UserMinus, UsersRound, X } from 'lucide-react'
@@ -540,6 +541,7 @@ const MembersPanel = ({ groupId, memberships, copy, onInviteMember, onApproveMem
                   ) : null}
                 </div>
               ) : null}
+              {canEditProfiles && member.memberId !== auth.me?.id && (member.role === 'member' || auth.isAdmin) ? <details className="w-full border-t border-slate-100 pt-3"><summary className="cursor-pointer py-2 text-sm font-semibold text-[#176b5a]">{t('passkeyRecoveryTitle')}</summary><div className="pt-2"><PersonalPasskeyRecovery groupId={groupId} memberId={member.memberId} displayName={getDisplayName(member)} /></div></details> : null}
             </div>
           ))
         )}

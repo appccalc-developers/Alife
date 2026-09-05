@@ -305,6 +305,7 @@ public sealed class PasskeyService(
             if (!activation.IsSuccess)
             {
                 dbContext.MemberPasskeyCredentials.Remove(credential);
+                await dbContext.SaveChangesAsync(cancellationToken);
                 return AppResult<PasskeyCompletionDto>.Conflict(activation.Message ?? "activation_failed");
             }
             session = activation.Value;

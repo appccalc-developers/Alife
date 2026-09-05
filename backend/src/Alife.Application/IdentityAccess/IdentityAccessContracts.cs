@@ -22,7 +22,9 @@ public sealed record OnboardingContextDto(
     Guid? GroupApplicationId = null,
     string? GroupNameEn = null,
     string? GroupNameZh = null,
-    string? State = null);
+    string? State = null,
+    string? DisplayName = null,
+    Guid? ActivationMemberId = null);
 
 public sealed record OnboardingFlowStart(string Token, OnboardingContextDto Context);
 
@@ -53,7 +55,8 @@ public sealed record CreateActivationRequest(
     string DisplayName,
     string PhoneE164,
     ActivationPurpose Purpose,
-    IReadOnlyList<ActivationGrantRequest> Grants);
+    IReadOnlyList<ActivationGrantRequest> Grants,
+    bool IdentityVerified = false);
 
 public sealed record ActivationGrantDto(Guid GroupId, MembershipRole Role, StagedGrantStatus Status, string? ConflictCode);
 
@@ -84,7 +87,7 @@ public sealed record GroupJoinInviteDto(
 
 public sealed record SubmitGroupApplicationRequest(
     string DisplayName,
-    string PhoneE164,
+    string? PhoneE164,
     string ReplyPreference,
     string PreferredLanguage,
     string Declaration,
@@ -123,7 +126,8 @@ public sealed record MembershipApplicationDto(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] ManualActivationMessageDto? ManualActivationMessage,
     DateTime SubmittedUtc,
     string RowVersion,
-    IReadOnlyList<ApplicationHistoryDto> History);
+    IReadOnlyList<ApplicationHistoryDto> History,
+    bool IsIdentityVerified = false);
 
 public sealed record MembershipApplicationPageDto(
     IReadOnlyList<MembershipApplicationDto> Items,
@@ -136,7 +140,8 @@ public sealed record DecideMembershipApplicationRequest(
     string? Note,
     string RowVersion,
     Guid? LinkedMemberId = null,
-    bool ContactVerified = false);
+    bool ContactVerified = false,
+    bool IdentityVerified = false);
 
 public sealed record AlphaAccountDto(string AccountId, string Label);
 
@@ -217,8 +222,17 @@ public interface IPasskeyService
     Task<AppResult<bool>> RevokeAsync(Guid memberId, Guid credentialId, CancellationToken cancellationToken);
 }
 
+public sealed record BrowserApplicationStatus(MembershipApplicationDto Application, bool CanActivate);
+public sealed record PersonalPasskeyInvitation(Guid Id, Guid MemberId, string DisplayName, string Url, DateTime ExpiresUtc);
+
 public interface IIdentityAccessService
 {
+    Task<AppResult<BrowserApplicationStatus>> GetBrowserApplicationAsync(string browserToken, Guid? applicationId, Guid? inviteId, CancellationToken cancellationToken);
+    Task<AppResult<OnboardingFlowStart>> StartBrowserActivationAsync(string browserToken, Guid applicationId, CancellationToken cancellationToken);
+    Task<AppResult<MembershipApplicationDto>> SupplementBrowserApplicationAsync(string browserToken, Guid applicationId, string note, string? rowVersion, CancellationToken cancellationToken);
+    Task<AppResult<PersonalPasskeyInvitation>> IssuePersonalPasskeyAsync(Guid actor, Guid groupId, Guid memberId, bool identityVerified, CancellationToken cancellationToken);
+    Task<AppResult<bool>> RevokePersonalPasskeyAsync(Guid actor, Guid groupId, Guid memberId, Guid invitationId, CancellationToken cancellationToken);
+
     IdentityCapabilitiesDto GetCapabilities();
     Task<AppResult<OnboardingFlowStart>> CreateFlowAsync(string? returnPath, bool isPublicDevice, OnboardingIntent intent, CancellationToken cancellationToken);
     Task<AppResult<OnboardingContextDto>> ResumeFlowAsync(string token, CancellationToken cancellationToken);
@@ -241,7 +255,7 @@ public interface IIdentityAccessService
     Task<AppResult<GroupJoinInviteDto>> ChangeGroupInviteStatusAsync(Guid actorMemberId, Guid groupId, string action, CancellationToken cancellationToken);
     Task<AppResult<OnboardingFlowStart>> ResolveGroupInviteAsync(string selector, string signature, bool isPublicDevice, string? returnPath, CancellationToken cancellationToken);
     Task<AppResult<OnboardingFlowStart>> ResolveApplicationResponseAsync(string selector, string secret, CancellationToken cancellationToken);
-    Task<AppResult<MembershipApplicationDto>> SubmitGroupApplicationAsync(string flowToken, Guid? applicantMemberId, SubmitGroupApplicationRequest request, CancellationToken cancellationToken);
+    Task<AppResult<MembershipApplicationDto>> SubmitGroupApplicationAsync(string flowToken, Guid? applicantMemberId, SubmitGroupApplicationRequest request, CancellationToken cancellationToken, string? browserToken = null);
     Task<AppResult<MembershipApplicationDto>> SupplementApplicationAsync(string flowToken, Guid? memberId, Guid? applicationId, string note, string? rowVersion, CancellationToken cancellationToken);
     Task<AppResult<MembershipApplicationPageDto>> ListGroupApplicationsAsync(Guid actorMemberId, Guid groupId, string? status, string? search, string? sort, int page, int pageSize, CancellationToken cancellationToken);
     Task<AppResult<MembershipApplicationPageDto>> ListPersonApplicationsAsync(Guid actorMemberId, string? status, string? search, string? sort, int page, int pageSize, CancellationToken cancellationToken);

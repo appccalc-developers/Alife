@@ -130,14 +130,19 @@ public sealed class OnboardingController(
         CancellationToken cancellationToken)
     {
         this.ApplyPrivateNoStoreHeaders();
+        if (!IdentityHttp.IsTrustedBrowserOrigin(Request, configuration)) return StatusCode(403, new { code = "identity_origin_invalid" });
         var limited = await LimitAsync("group-application-ip-1h", "ip", 3, TimeSpan.FromHours(1), cancellationToken);
         if (limited is not null) return limited;
         limited = await LimitAsync("group-application-ip-1d", "ip", 10, TimeSpan.FromDays(1), cancellationToken);
         if (limited is not null) return limited;
         limited = await LimitAsync("group-application-flow-1h", ReadFlowToken(), 3, TimeSpan.FromHours(1), cancellationToken);
         if (limited is not null) return limited;
+        var browserToken = Request.Cookies["alife_application"];
+        if (browserToken is null || browserToken.Length != 64 || !browserToken.All(Uri.IsHexDigit))
+            browserToken = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
         var result = await identityAccess.SubmitGroupApplicationAsync(
-            ReadFlowToken(), currentMemberAccessor.GetCurrentMemberId(), request, cancellationToken);
+            ReadFlowToken(), currentMemberAccessor.GetCurrentMemberId(), request, cancellationToken, browserToken);
+        if (result.IsSuccess) AuthCookie.WriteApplicationCookie(Request, Response, browserToken);
         return this.ToIdentityResult(result);
     }
 

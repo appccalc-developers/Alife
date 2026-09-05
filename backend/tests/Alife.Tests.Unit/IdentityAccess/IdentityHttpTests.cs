@@ -18,6 +18,60 @@ namespace Alife.Tests.Unit.IdentityAccess;
 
 public sealed class IdentityHttpTests
 {
+    [Theory]
+    [InlineData("https://alife.example", true)]
+    [InlineData("https://evil.example", false)]
+    [InlineData("https://alife.example.evil.example", false)]
+    [InlineData("null", false)]
+    [InlineData("", false)]
+    public void Continuation_RequiresConfiguredOrigin(string origin, bool expected)
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers.Origin = origin;
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Frontend:BaseUrl"] = "https://alife.example" }).Build();
+        Assert.Equal(expected, IdentityHttp.IsTrustedBrowserOrigin(context.Request, config));
+    }
+
+    [Fact]
+    public void BrowserReceiptCookie_IsSeparateSecureHttpOnlyAndExpiresAfter72Hours()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Scheme = "https";
+        Alife.Api.Security.AuthCookie.WriteApplicationCookie(context.Request, context.Response, "secret");
+        var cookie = context.Response.Headers.SetCookie.ToString();
+        Assert.Contains("alife_application=", cookie);
+        Assert.Contains("httponly", cookie);
+        Assert.Contains("secure", cookie);
+        Assert.Contains("samesite=lax", cookie);
+        Assert.Contains("max-age=259200", cookie);
+        Assert.DoesNotContain("alife_onboarding", cookie);
+    }
+
+    [Fact]
+    public async Task RecoveryController_AllowsEffectiveAlphaSessionAndReturnsNoStore()
+    {
+        var actor = Guid.NewGuid(); var member = Guid.NewGuid(); var group = Guid.NewGuid();
+        var identity = Substitute.For<IIdentityAccessService>();
+        identity.IssuePersonalPasskeyAsync(actor, group, member, true, Arg.Any<CancellationToken>())
+            .Returns(AppResult<PersonalPasskeyInvitation>.Success(new(Guid.NewGuid(), member, "Member", "https://alife.example/activate/selector#secret", DateTime.UtcNow.AddMinutes(10))));
+        var accessor = Substitute.For<ICurrentMemberAccessor>();
+        accessor.GetCurrentMemberId().Returns(actor);
+        var limiter = Substitute.For<IServerRateLimiter>();
+        limiter.TryConsumeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>())
+            .Returns(new RateLimitDecision(true, DateTime.UtcNow, 9));
+        var context = new DefaultHttpContext();
+        context.User = new ClaimsPrincipal(new ClaimsIdentity([new Claim("amr", "alpha")], "test"));
+        context.Request.Headers.Origin = "https://alife.example";
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Frontend:BaseUrl"] = "https://alife.example" }).Build();
+        var controller = new IdentityContinuationController(identity, accessor, limiter, config) { ControllerContext = new() { HttpContext = context } };
+        Assert.IsType<OkObjectResult>(await controller.Issue(group, member, new(true), default));
+        Assert.Equal("private, no-store", context.Response.Headers.CacheControl);
+        Assert.Contains("Cookie", context.Response.Headers.Vary.ToString());
+        context.Request.Headers.Origin = "https://evil.example";
+        Assert.Equal(403, Assert.IsType<ObjectResult>(await controller.Issue(group, member, new(true), default)).StatusCode);
+        await identity.Received(1).IssuePersonalPasskeyAsync(actor, group, member, true, Arg.Any<CancellationToken>());
+    }
+
     [Fact]
     public void ClientKey_IgnoresForwardedAddressFromUnconfiguredLoopbackPeer()
     {

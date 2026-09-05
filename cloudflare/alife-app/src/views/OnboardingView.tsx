@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import logo from '../assets/logo.png'
+import BrowserApplicationPanel from '../components/identity/BrowserApplicationPanel'
 import { useUiText } from '../i18n/uiText'
 import { identityAccessService, type OnboardingContext } from '../services/identityAccessService'
 import { normalizeIdentityError } from '../services/identityErrorPresentation'
@@ -37,6 +38,8 @@ const getLineLoginRedirectUrl = () => {
 const OnboardingView = () => {
   const auth = useAuthStore()
   const t = useUiText()
+  const textRef = useRef(t)
+  textRef.current = t
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const safeReturnPath = normalizeIdentityReturnPath(searchParams.get('returnTo'))
@@ -76,10 +79,11 @@ const OnboardingView = () => {
         if (!active) return
         setCapabilities(available)
 
+        if (searchParams.get('application')) { setContext({ intent: 'groupJoin', isPublicDevice: false, returnPath: '' }); return }
         const intent = searchParams.get('intent')
         const lineLogin = searchParams.get('line_login')
         const lineError = searchParams.get('line_error')
-        if (lineError) setStatus(t('lineLoginFailed', { error: lineError }))
+        if (lineError) setStatus(textRef.current('lineLoginFailed', { error: lineError }))
         if (lineLogin === 'true') {
           try {
             const resumed = await identityAccessService.resume()
@@ -103,14 +107,14 @@ const OnboardingView = () => {
         const created = await identityAccessService.createFlow(safeReturnPath, false, 'signIn')
         if (active) setContext(created)
       } catch (error) {
-        if (active) setStatus(normalizeIdentityError(error, t('identityLinkInvalid'), t))
+        if (active) setStatus(normalizeIdentityError(error, textRef.current('identityLinkInvalid'), textRef.current))
       } finally {
         if (active) setBusy(false)
       }
     }
     void prepare()
     return () => { active = false }
-  }, [safeReturnPath, searchParams, t])
+  }, [safeReturnPath, searchParams])
 
   useEffect(() => () => {
     passkeyRequest.current?.dispose()
@@ -192,7 +196,7 @@ const OnboardingView = () => {
       setMode('success')
       setStatus(t('activationNotMeDone'))
     } catch (error) {
-      setStatus(normalizeIdentityError(error, t('identityLinkInvalid'), t))
+      setStatus(normalizeIdentityError(error, textRef.current('identityLinkInvalid'), textRef.current))
     } finally {
       setBusy(false)
     }
@@ -232,22 +236,21 @@ const OnboardingView = () => {
 
   const submitApplication = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!application.displayName.trim() || !application.phoneE164.trim() || !application.declaration.trim() || !application.privacyConsent) {
+    if (!application.displayName.trim() || !application.declaration.trim() || !application.privacyConsent) {
       setStatus(t('requiredFieldsMissing'))
       return
     }
     setBusy(true)
     setStatus('')
     try {
-      await identityAccessService.submitGroupApplication({
+      const submitted = await identityAccessService.submitGroupApplication({
         ...application,
         preferredLanguage: auth.language,
         privacyConsentVersion: 'group-application-v1',
         honeypot: application.website,
         formStartedUnixMilliseconds: formStarted.current,
       })
-      setMode('success')
-      setStatus(t('applicationSubmitted'))
+      navigate(`/onboarding?application=${encodeURIComponent(submitted.id)}`, { replace: true })
     } catch (error) {
       setStatus(normalizeApiError(error).message)
     } finally {
@@ -317,11 +320,14 @@ const OnboardingView = () => {
       return <IdentityMessage icon={ShieldCheck} title={t('identityLoading')} />
     }
     if (context?.intent === 'activation') {
+      const sessionConflict = !auth.isGuest && Boolean(auth.me?.id && context.activationMemberId && auth.me.id !== context.activationMemberId)
       return (
         <div>
           <ScreenHeading icon={KeyRound} title={t('activationTitle')} description={t('activationDescription')} />
+          {context.displayName ? <p className="mt-4 text-lg font-bold">{context.displayName}</p> : null}
+          {sessionConflict ? <div className="mt-4"><p role="alert">{t('activationSignOutFirst')}</p><button type="button" className="alife-secondary-button mt-3" disabled={busy} onClick={() => { setBusy(true); void auth.logout().catch(error => setStatus(normalizeApiError(error).message)).finally(() => setBusy(false)) }}>{t('logout')}</button></div> : null}
           {!mobileDevice ? <div className="mt-5 rounded-2xl border border-[#e37b63]/20 bg-[#fff2ed] p-4 text-sm leading-6 text-[#915040]">{t('activationMobileRequired')}</div> : <PasskeyPrivacy t={t} />}
-          <button className="alife-primary-button mt-6 w-full" type="button" disabled={busy || !mobileDevice} onClick={() => void completeActivation()}>
+          <button className="alife-primary-button mt-6 w-full" type="button" disabled={busy || !mobileDevice || sessionConflict} onClick={() => void completeActivation()}>
             {busy ? t('checkingPasskey') : t('activateWithPasskey')}
           </button>
           <button className="mt-4 min-h-11 w-full text-sm font-semibold text-[#915040] underline-offset-4 hover:underline" type="button" disabled={busy} onClick={() => void markNotMe()}>
@@ -335,6 +341,7 @@ const OnboardingView = () => {
       return (
         <div>
           <ScreenHeading icon={UserPlus} title={t('groupApplicationTitle', { group: groupName || t('group') })} description={t('groupApplicationDescription')} />
+          <BrowserApplicationPanel key={searchParams.get('application') || context.groupJoinInviteId || 'application'} applicationId={searchParams.get('application') || undefined} inviteId={context.groupJoinInviteId || undefined}>
           {auth.isGuest ? (
             <div className="mt-6 rounded-2xl border border-[#176b5a]/15 bg-[#e3f0eb]/70 p-4">
               <p className="text-sm leading-6 text-[#314b43]">{t('existingMemberSignInFirst')}</p>
@@ -345,6 +352,7 @@ const OnboardingView = () => {
             </div>
           ) : null}
           <ApplicationForm value={application} onChange={setApplication} onSubmit={submitApplication} busy={busy} t={t} />
+          </BrowserApplicationPanel>
         </div>
       )
     }
@@ -494,7 +502,7 @@ type ApplicationState = { displayName: string; phoneE164: string; replyPreferenc
 const ApplicationForm = ({ value, onChange, onSubmit, busy, t }: { value: ApplicationState; onChange: (value: ApplicationState) => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; busy: boolean; t: ReturnType<typeof useUiText> }) => (
   <form className="mt-6 space-y-4" onSubmit={onSubmit}>
     <input className="alife-input" aria-label={t('displayName')} value={value.displayName} onChange={(event) => onChange({ ...value, displayName: event.target.value })} placeholder={t('displayName')} autoComplete="name" />
-    <input className="alife-input" aria-label={t('phone')} value={value.phoneE164} onChange={(event) => onChange({ ...value, phoneE164: event.target.value })} placeholder="+64…" autoComplete="tel" />
+    <input className="alife-input" aria-label={t('phoneOptional')} value={value.phoneE164} onChange={(event) => onChange({ ...value, phoneE164: event.target.value })} placeholder={t('phoneOptional')} autoComplete="tel" />
     <select className="alife-input" aria-label={t('replyPreference')} value={value.replyPreference} onChange={(event) => onChange({ ...value, replyPreference: event.target.value })}><option value="sms">{t('textMessage')}</option><option value="phone">{t('phoneCall')}</option><option value="line">LINE</option></select>
     <textarea className="alife-input min-h-28 resize-y" aria-label={t('applicantDeclaration')} value={value.declaration} onChange={(event) => onChange({ ...value, declaration: event.target.value })} placeholder={t('applicantDeclaration')} />
     <input className="hidden" tabIndex={-1} autoComplete="off" value={value.website} onChange={(event) => onChange({ ...value, website: event.target.value })} aria-hidden="true" />

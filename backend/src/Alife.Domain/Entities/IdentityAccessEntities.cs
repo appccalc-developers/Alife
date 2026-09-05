@@ -35,6 +35,8 @@ public sealed class OnboardingFlow
 
 public sealed class MemberActivationInvitation
 {
+    public Guid? RecoveryGroupId { get; set; }
+    public Guid? SourceApplicationId { get; set; }
     public Guid Id { get; set; }
     public Guid MemberId { get; set; }
     public Guid IssuedByMemberId { get; set; }
@@ -94,14 +96,17 @@ public sealed class ChurchPersonApplication
     public Guid? ApplicantMemberId { get; set; }
     public Guid? LinkedMemberId { get; set; }
     public string DisplayName { get; set; } = string.Empty;
-    public string PhoneE164 { get; set; } = string.Empty;
-    public byte[] PhoneLookupHash { get; set; } = [];
+    public string? PhoneE164 { get; set; }
+    public byte[]? PhoneLookupHash { get; set; }
     public string ReplyPreference { get; set; } = string.Empty;
     public string PreferredLanguage { get; set; } = string.Empty;
     public string Declaration { get; set; } = string.Empty;
     public string PrivacyConsentVersion { get; set; } = string.Empty;
     public DateTime PrivacyConsentedUtc { get; set; }
     public bool IsContactVerified { get; set; }
+    public bool IsIdentityVerified { get; set; }
+    public Guid? IdentityVerifiedByMemberId { get; set; }
+    public DateTime? IdentityVerifiedUtc { get; set; }
     public ApplicantMatchState MatchState { get; set; }
     public MembershipApplicationStatus Status { get; set; }
     public DateTime SubmittedUtc { get; set; }
@@ -115,6 +120,9 @@ public sealed class ChurchPersonApplication
 
 public sealed class GroupMembershipApplication
 {
+    public byte[]? BrowserTokenHash { get; set; }
+    public DateTime? BrowserTokenExpiresUtc { get; set; }
+    public DateTime? BrowserTokenConsumedUtc { get; set; }
     public Guid Id { get; set; }
     public Guid ChurchPersonApplicationId { get; set; }
     public Guid GroupId { get; set; }

@@ -114,7 +114,7 @@ Flow:
 
 Activation, QR, and application-response URLs keep random secrets in the fragment. The browser removes the fragment before exchanging it in a request body; persistence stores only HMAC hashes. LINE OAuth state is single-use and bound to the server-side onboarding flow. The removed arbitrary display-name/phone login route returns `404`.
 
-Anonymous QR submission does not create a member or grant access. A group leader or co-leader must explicitly confirm that the applicant and phone were verified before approval. Approval links or creates the member, establishes church and requested-group membership, and returns a one-time manual activation message when no active Passkey exists. The full phone, message, and raw activation URL exist only in that authorized mutation response; list APIs remain masked and secret-free. A possible or ambiguous existing-phone match is never auto-linked; it remains an exception requiring an explicit member association.
+Anonymous QR submission does not create a member or grant access. Phone is optional. A group leader or co-leader must explicitly confirm in-person identity verification and compare the application reference before approval; telephone verification remains a separate fact. Approval links or creates the member and establishes church and requested-group membership. A new applicant can resume first activation with a 72-hour HttpOnly browser receipt; legacy applications retain the one-time manual activation message. Already registered members must use authorized recovery. The full phone, message, and raw activation URL exist only in that authorized mutation response; list APIs remain masked and secret-free. A possible or ambiguous existing-phone match is never auto-linked; it remains an exception requiring an explicit member association.
 
 ### Authorization
 
@@ -431,3 +431,5 @@ npm test
 - Broader API integration tests with a test database.
 - Browser-level tests for onboarding, group management, page editing, and event enrollment/review.
 - Explicit cache header regression tests for protected group/member data.
+
+See [browser continuation and personal recovery](identity-access.md) for the phone-optional contract, member-list recovery permissions, migration, and rollout. Recovery revokes old Passkeys after successful registration; existing login sessions remain valid.
