@@ -9,13 +9,14 @@ type CreateSubgroupModalProps = {
   open: boolean
   busy: boolean
   error?: string
+  title?: string
   onClose: () => void
   onCreate: (name: LocalizedText) => void
 }
 
 const inputClass = 'mt-1.5 min-h-11 w-full rounded-xl border border-[#cbdad4] bg-white px-3 text-sm text-[#18332d] outline-none transition focus:border-[#21705f] focus:ring-4 focus:ring-[#dcece6]'
 
-const CreateSubgroupModal = ({ open, busy, error, onClose, onCreate }: CreateSubgroupModalProps) => {
+const CreateSubgroupModal = ({ open, busy, error, title, onClose, onCreate }: CreateSubgroupModalProps) => {
   const t = useUiText()
   const englishNameRef = useRef<HTMLInputElement>(null)
   const [name, setName] = useState<LocalizedText>({ en: '', zh: '' })
@@ -40,7 +41,7 @@ const CreateSubgroupModal = ({ open, busy, error, onClose, onCreate }: CreateSub
   return (
     <AppModal
       open={open}
-      title={t('manageAddSubgroup')}
+      title={title ?? t('manageAddSubgroup')}
       description={t('createSubgroupDescription')}
       closeLabel={t('closeCreateSubgroupDialog')}
       onClose={onClose}
@@ -55,7 +56,7 @@ const CreateSubgroupModal = ({ open, busy, error, onClose, onCreate }: CreateSub
           </AppActionButton>
           <AppActionButton type="submit" form="create-subgroup-form" variant="primary" disabled={busy || !hasName}>
             {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" /> : null}
-            {busy ? t('creatingSubgroup') : t('manageAddSubgroup')}
+            {busy ? t('creatingSubgroup') : title ?? t('manageAddSubgroup')}
           </AppActionButton>
         </>
       )}

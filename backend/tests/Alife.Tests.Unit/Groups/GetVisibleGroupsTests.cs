@@ -177,6 +177,31 @@ public class GetVisibleGroupsTests
         Assert.Contains(refreshed, group => group.Id == newPublicId);
     }
 
+    [Fact]
+    public async Task ReadService_PreservesGroupTypesInDetailsAndCachedLists()
+    {
+        await using var dbContext = CreateDbContext();
+        var church = CreateGroup(Guid.NewGuid(), "Church", AccessType.Public, isChurch: true);
+        var fellowship = CreateGroup(Guid.NewGuid(), "Fellowship", AccessType.Public, church.Id);
+        var ministry = CreateGroup(Guid.NewGuid(), "Ministry", AccessType.Public, church.Id);
+        ministry.GroupType = GroupType.Ministry;
+        dbContext.Groups.AddRange(church, fellowship, ministry);
+        await dbContext.SaveChangesAsync();
+        using var services = CreateServices();
+        var reader = new GroupReadService(dbContext, services.GetRequiredService<HybridCache>());
+
+        Assert.Equal(GroupType.Fellowship, fellowship.GroupType);
+        Assert.Equal(GroupType.Ministry, (await reader.GetByIdAsync(ministry.Id, CancellationToken.None))!.GroupType);
+        for (var i = 0; i < 2; i++)
+        {
+            var children = await reader.GetSubgroupsAsync(church.Id, CancellationToken.None);
+            Assert.Equal(GroupType.Fellowship, children.Single(x => x.Id == fellowship.Id).GroupType);
+            Assert.Equal(GroupType.Ministry, children.Single(x => x.Id == ministry.Id).GroupType);
+            var visible = await reader.GetVisibleGroupsAsync(null, CancellationToken.None);
+            Assert.Equal(GroupType.Ministry, visible.Single(x => x.Id == ministry.Id).GroupType);
+        }
+    }
+
     private static AlifeDbContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<AlifeDbContext>()

@@ -207,11 +207,14 @@ public class GroupMembershipWorkflowTests
                 leaderId,
                 new Dictionary<string, string> { ["en"] = "New subgroup", ["zh"] = "新子小组" },
                 null,
-                AccessType.Protected),
+                AccessType.Protected,
+                GroupType.Ministry),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         var membership = dbContext.GroupMemberships.Single();
+        Assert.Equal(GroupType.Ministry, result.Value!.GroupType);
+        Assert.Equal(GroupType.Ministry, dbContext.Groups.Single(x => x.Id == result.Value.Id).GroupType);
         Assert.Equal(result.Value!.Id, membership.GroupId);
         Assert.Equal(leaderId, membership.MemberId);
         Assert.Equal(MembershipStatus.Approved, membership.Status);
@@ -228,6 +231,46 @@ public class GroupMembershipWorkflowTests
             $"member:{leaderId}:me",
             Arg.Any<CancellationToken>());
         await cloudflareKvCacheService.Received(1).RemoveMemberProfileAsync(leaderId, Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData(true, GroupType.Fellowship, true, true)]
+    [InlineData(true, GroupType.Ministry, true, true)]
+    [InlineData(false, GroupType.Ministry, true, true)]
+    [InlineData(false, GroupType.Fellowship, true, false)]
+    [InlineData(true, (GroupType)99, true, false)]
+    [InlineData(false, (GroupType)99, true, false)]
+    [InlineData(true, GroupType.Fellowship, false, false)]
+    [InlineData(true, GroupType.Ministry, false, false)]
+    [InlineData(false, GroupType.Ministry, false, false)]
+    public async Task CreateSubgroup_EnforcesTypeAndAuthorization(bool isChurch, GroupType groupType, bool canManage, bool succeeds)
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var parentId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+        dbContext.Groups.Add(CreateGroup(parentId, AccessType.Protected, isChurch: isChurch));
+        await dbContext.SaveChangesAsync();
+        var authorization = Substitute.For<IGroupAuthorizationService>();
+        authorization.IsLeaderOrCoLeaderAsync(parentId, memberId, Arg.Any<CancellationToken>()).Returns(canManage);
+        var invalidation = Substitute.For<IGroupCacheInvalidationService>();
+        var handler = new CreateSubgroupCommandHandler(dbContext, authorization, invalidation, Substitute.For<ICloudflareKvCacheService>());
+
+        var result = await handler.Handle(new CreateSubgroupCommand(parentId, memberId,
+            new Dictionary<string, string> { ["en"] = "Team", ["zh"] = "团队" }, null, AccessType.Protected, groupType), CancellationToken.None);
+
+        Assert.Equal(succeeds, result.IsSuccess);
+        Assert.Equal(succeeds ? 2 : 1, dbContext.Groups.Count());
+        if (succeeds)
+        {
+            Assert.Equal(groupType, result.Value!.GroupType);
+            Assert.Equal("团队", result.Value.Name["zh"]);
+        }
+        else
+        {
+            Assert.Empty(dbContext.GroupMemberships);
+            Assert.Equal(canManage ? Alife.Application.Common.Models.AppResultStatus.ValidationError : Alife.Application.Common.Models.AppResultStatus.Forbidden, result.Status);
+            await invalidation.DidNotReceive().RemoveSubgroupsAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        }
     }
 
     [Fact]

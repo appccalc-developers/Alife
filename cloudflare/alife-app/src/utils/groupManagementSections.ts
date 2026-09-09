@@ -4,9 +4,9 @@ export type ManageSection =
   | 'contacts'
   | 'members'
   | 'events'
-  | 'albums'
   | 'pages'
   | 'subgroups'
+  | 'ministries'
   | 'group'
 
 const manageSectionKeys: ManageSection[] = [
@@ -14,9 +14,9 @@ const manageSectionKeys: ManageSection[] = [
   'applications',
   'contacts',
   'subgroups',
+  'ministries',
   'events',
   'announcements',
-  'albums',
   'pages',
   'group',
 ]
@@ -27,8 +27,10 @@ export const normalizeManageSection = (value: string | null): ManageSection =>
 export const resolveManageSection = (
   value: string | null,
   visibleSections?: readonly ManageSection[],
+  isChurch?: boolean,
 ): ManageSection => {
-  const requestedSection = normalizeManageSection(value)
+  const normalizedSection = normalizeManageSection(value)
+  const requestedSection = normalizedSection === 'ministries' && isChurch === false ? 'subgroups' : normalizedSection
 
   if (!visibleSections?.length || visibleSections.includes(requestedSection)) {
     return requestedSection

@@ -11,4 +11,5 @@ public sealed record GroupDto(
     bool IsChurch,
     bool IsClosed,
     DateTime CreatedUtc,
-    DateTime UpdatedUtc);
+    DateTime UpdatedUtc,
+    GroupType GroupType = GroupType.Fellowship);

@@ -1,6 +1,7 @@
 import type {
   AccessType,
   GroupDto,
+  GroupType,
   GroupMembershipDto,
   GroupSummaryDto,
   MeDto,
@@ -98,11 +99,15 @@ export const normalizeMe = (me: MeDto): MeDto => ({
   memberships: (me.memberships ?? []).map(normalizeMembership),
 })
 
+export const normalizeGroupType = (value: unknown): GroupType =>
+  normalizeEnum<GroupType>(value, { 0: 'fellowship', 1: 'ministry' }, { fellowship: 'fellowship', ministry: 'ministry' }, 'fellowship')
+
 export const normalizeGroup = <T extends GroupDto | GroupSummaryDto>(group: T): T => ({
   ...group,
   name: toLocalizedText(group.name),
   description: group.description ? toLocalizedText(group.description) : group.description,
   accessType: normalizeAccessType(group.accessType),
+  groupType: normalizeGroupType(group.groupType),
 })
 
 export const normalizePageSummary = (page: PageSummaryDto): PageSummaryDto => ({

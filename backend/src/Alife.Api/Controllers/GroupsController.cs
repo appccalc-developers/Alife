@@ -124,7 +124,7 @@ public class GroupsController(
         }
 
         var result = await mediator.Send(
-            new CreateSubgroupCommand(id, currentMemberId.Value, request.Name, request.Description, request.AccessType),
+            new CreateSubgroupCommand(id, currentMemberId.Value, request.Name, request.Description, request.AccessType, request.GroupType),
             cancellationToken);
 
         return this.ToActionResult(result);
@@ -431,7 +431,8 @@ public class GroupsController(
     public record CreateSubgroupRequest(
         IReadOnlyDictionary<string, string> Name,
         IReadOnlyDictionary<string, string>? Description,
-        AccessType AccessType);
+        AccessType AccessType,
+        GroupType GroupType = GroupType.Fellowship);
     public record UpdateGroupRequest(
         IReadOnlyDictionary<string, string> Name,
         IReadOnlyDictionary<string, string>? Description,

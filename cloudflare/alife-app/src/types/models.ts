@@ -70,11 +70,14 @@ export interface ListViewMetadata {
   id?: string
 }
 
+export type GroupType = 'fellowship' | 'ministry'
+
 export type GroupDto = {
   id: string
   name: LocalizedText
   description?: LocalizedText | null
   accessType: AccessType
+  groupType?: GroupType
   isChurch: boolean
   isClosed: boolean
   parentGroupId: string | null
@@ -87,6 +90,7 @@ export type GroupSummaryDto = {
   name: LocalizedText
   description?: LocalizedText | null
   accessType: AccessType
+  groupType?: GroupType
   isChurch: boolean
   isClosed: boolean
   parentGroupId: string | null

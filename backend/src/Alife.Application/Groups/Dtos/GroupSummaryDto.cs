@@ -9,4 +9,5 @@ public sealed record GroupSummaryDto(
     Guid? ParentGroupId,
     AccessType AccessType,
     bool IsChurch,
-    bool IsClosed);
+    bool IsClosed,
+    GroupType GroupType = GroupType.Fellowship);
