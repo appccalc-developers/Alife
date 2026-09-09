@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — identity workflow completion
+
+- Public group QR entry supports browser-bound account recovery and reverified continuation from another browser while preserving the original account, application history and approval state.
+- Pre-registration supports email-only invitations, pending review and explicit recipient acceptance; new first-activation links last 24 hours.
+- Added configurable SMTP (including Gmail via STARTTLS) and optional Microsoft 365 Graph email delivery, without a fixed mailbox domain, plus deployment-only administrator activation/recovery. SMS remains manually delivered. Existing login sessions remain active after Passkey recovery.
+- Added the additive `AccountApplicationInvitations` migration; deployment and selected email provider verification are required before enabling the new flow.
+
 All notable changes to Alife are documented in this file.
 
 The format follows Keep a Changelog and the repository uses four-part versions.

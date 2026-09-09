@@ -52,7 +52,7 @@ namespace Alife.Infrastructure.Persistence.Migrations
         {
             migrationBuilder.Sql("""
                 IF EXISTS (SELECT 1 FROM group_membership_applications WHERE group_join_invite_id IS NULL)
-                    OR EXISTS (SELECT 1 FROM church_person_applications WHERE email IS NOT NULL OR sex IS NOT NULL OR notification_consented_utc IS NOT NULL)
+                    OR EXISTS (SELECT 1 FROM church_person_applications WHERE email IS NOT NULL OR sex IS NOT NULL OR notification_consented_utc IS NOT NULL OR notification_consent_version IS NOT NULL)
                     THROW 51000, 'Public church applications contain data. Retain the additive schema when rolling back the application.', 1;
                 """);
             migrationBuilder.DropColumn(

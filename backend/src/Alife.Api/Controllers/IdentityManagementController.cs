@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Alife.Api.Controllers;
 
 [ApiController]
+[TypeFilter(typeof(IdentityMutationFilter))]
 [Authorize]
 public sealed class IdentityManagementController(
     IIdentityAccessService identityAccess,

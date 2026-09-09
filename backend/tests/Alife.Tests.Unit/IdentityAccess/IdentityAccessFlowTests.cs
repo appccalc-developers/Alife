@@ -702,7 +702,7 @@ public sealed partial class IdentityAccessFlowTests
         var firstSecret = firstUrl[(firstUrl.IndexOf('#') + 1)..];
         var persisted = await fixture.Db.MemberActivationInvitations.SingleAsync();
         Assert.True(fixture.TokenService.VerifyToken(firstSecret, persisted.SecretHash));
-        Assert.Equal(persisted.CreatedUtc.AddHours(72), persisted.ExpiresUtc);
+        Assert.Equal(persisted.CreatedUtc.AddHours(24), persisted.ExpiresUtc);
         Assert.DoesNotContain(firstSecret, JsonSerializer.Serialize(new
         {
             persisted.Selector,
@@ -1184,7 +1184,9 @@ public sealed partial class IdentityAccessFlowTests
         bool alphaEnabled = false,
         Guid? alphaMemberId = null,
         bool isProduction = false,
-        string? passkeyBootstrapCode = null)
+        string? passkeyBootstrapCode = null,
+        Guid? deploymentAdminId = null,
+        IIdentityEmailSender? emailSender = null)
     {
         var options = new DbContextOptionsBuilder<AlifeDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
@@ -1205,6 +1207,8 @@ public sealed partial class IdentityAccessFlowTests
         {
             AlphaLoginEnabled = alphaEnabled,
             IsProduction = isProduction,
+            DeploymentAdministratorId = deploymentAdminId,
+            DeploymentAdministratorEmail = "administrator@nzalc.org",
             AlphaAccounts =
             [
                 new AlphaAccountConfiguration(
@@ -1226,7 +1230,7 @@ public sealed partial class IdentityAccessFlowTests
         var tokenService = new IdentityTokenService(
             new ConfigurationBuilder().AddInMemoryCollection(tokenValues).Build(), environment);
         var service = new IdentityAccessService(
-            db, groupAuthorization, tokenService, messageSender, configuration, jwt, new InlineExecutor());
+            db, groupAuthorization, tokenService, messageSender, configuration, jwt, new InlineExecutor(), emailSender);
         return new Fixture(db, service, jwt, groupAuthorization, tokenService, messageSender);
     }
 
@@ -1261,6 +1265,8 @@ public sealed partial class IdentityAccessFlowTests
 
     private sealed class TestConfiguration : IIdentityAccessConfiguration
     {
+        public Guid? DeploymentAdministratorId { get; init; }
+        public string? DeploymentAdministratorEmail { get; init; }
         public bool PasskeysEnabled { get; init; } = true;
         public bool LineLegacyEnabled { get; init; } = true;
         public bool AlphaLoginEnabled { get; init; }

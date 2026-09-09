@@ -25,6 +25,8 @@ export type OnboardingContext = {
   groupNameZh?: string | null
   displayName?: string | null
   state?: string | null
+  approvalRequired?: boolean
+  accepted?: boolean
 }
 
 export type PasskeyCredential = {
@@ -91,6 +93,9 @@ export type GroupJoinInvite = {
 }
 
 export type ActivationInvitation = {
+  hasEmail?: boolean
+  approvalRequired?: boolean
+  accepted?: boolean
   id: string
   memberId: string
   displayName: string
@@ -178,6 +183,15 @@ export type BrowserApplicationStatus = { application: MembershipApplication; can
 export type PersonalPasskeyInvitation = { id: string; memberId: string; displayName: string; url: string; expiresUtc: string }
 
 export const identityAccessService = {
+  async acceptInvitation() {
+    return (await http.post<OnboardingContext>('/api/onboarding/activation/accept')).data
+  },
+  async approveInvitation(id: string) {
+    return (await http.post<ActivationInvitation>(`/api/admin/member-activations/${id}/approve`, { identityVerified: true })).data
+  },
+  async emailInvitation(id: string) {
+    return (await http.post<ActivationInvitation>(`/api/admin/member-activations/${id}/email`)).data
+  },
   async browserApplication(applicationId?: string, inviteId?: string) {
     return (await http.post<BrowserApplicationStatus>('/api/onboarding/browser-applications/status', { applicationId, inviteId })).data
   },
@@ -254,7 +268,7 @@ export const identityAccessService = {
   async listActivations() {
     return (await http.get<ActivationInvitation[]>('/api/admin/member-activations')).data
   },
-  async createActivation(payload: { displayName: string; phoneE164: string; purpose: string; identityVerified?: boolean; grants: Array<{ groupId: string; role: string }> }) {
+  async createActivation(payload: { displayName: string; phoneE164: string; email?: string; approvalRequired?: boolean; purpose: string; identityVerified?: boolean; grants: Array<{ groupId: string; role: string }> }) {
     return (await http.post<ActivationInvitation>('/api/admin/member-activations', payload)).data
   },
   async changeActivation(id: string, action: 'revoke' | 'resend') {
@@ -286,10 +300,10 @@ export const identityAccessService = {
   async listGroupApplications(groupId: string, params: Record<string, string | number | undefined>) {
     return (await http.get<MembershipApplicationPage>(`/api/groups/${groupId}/membership-applications`, { params })).data
   },
-  async decideGroupApplication(groupId: string, application: MembershipApplication, decision: string, note?: string, identityVerified = false, linkedMemberId?: string) {
+  async decideGroupApplication(groupId: string, application: MembershipApplication, decision: string, note?: string, identityVerified = false, linkedMemberId?: string, originalApplicationId?: string) {
     return (await http.post<MembershipApplication>(
       `/api/groups/${groupId}/membership-applications/${application.id}/decisions`,
-      { decision, note, rowVersion: application.rowVersion, identityVerified, linkedMemberId: linkedMemberId || null },
+      { decision, note, rowVersion: application.rowVersion, identityVerified, linkedMemberId: linkedMemberId || null, originalApplicationId },
     )).data
   },
   async listPersonApplications(params: Record<string, string | number | undefined>) {
@@ -298,7 +312,7 @@ export const identityAccessService = {
   async decidePersonApplication(application: MembershipApplication, decision: string, note?: string, linkedMemberId?: string, identityVerified = false) {
     return (await http.post<MembershipApplication>(
       `/api/admin/person-applications/${application.id}/decisions`,
-      { decision, note, linkedMemberId: linkedMemberId || null, identityVerified, rowVersion: application.rowVersion },
+      { decision, note, linkedMemberId: application.source === 'continuationQr' ? null : linkedMemberId || null, originalApplicationId: application.source === 'continuationQr' ? linkedMemberId : undefined, identityVerified, rowVersion: application.rowVersion },
     )).data
   },
   async listAlphaAccounts() {

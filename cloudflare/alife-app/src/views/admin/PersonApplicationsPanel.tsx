@@ -1,3 +1,5 @@
+import { identityWorkflowError } from '../../services/identityWorkflowError'
+import RecoveryMemberSelect from '../../components/identity/RecoveryMemberSelect'
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import { Search, UserRoundCheck } from 'lucide-react'
 import { identityAccessService, type MembershipApplication, type ManualActivationMessage } from '../../services/identityAccessService'
@@ -53,7 +55,7 @@ const PersonApplicationsPanel = ({ language }: { language: string }) => {
       if (result.manualActivationMessage) setManualMessage(result.manualActivationMessage)
       await load()
     } catch (caught) {
-      setError(normalizeApiError(caught).message)
+      setError(identityWorkflowError(caught, language))
     } finally {
       setBusy('')
     }
@@ -82,10 +84,12 @@ const PersonApplicationsPanel = ({ language }: { language: string }) => {
               <div><dt className="font-semibold">{zh ? '通知同意' : 'Notification consent'}</dt><dd>{application.notificationConsentedUtc ? `${application.notificationConsentVersion} · ${new Date(application.notificationConsentedUtc).toLocaleString()}` : '—'}</dd></div>
             </dl>
             <p className="whitespace-pre-wrap break-words text-sm leading-6">{application.declaration}</p>
+            {application.source === 'recoveryQr' || application.source === 'continuationQr' ? <p className="text-sm font-semibold">{application.source === 'recoveryQr' ? (zh ? '恢复帐号' : 'Account recovery') : (zh ? '继续原申请' : 'Continue an application')}</p> : null}
+            {application.responseDeliveryStatus === 'unavailable' || application.responseDeliveryStatus === 'failed' ? <p role="status" className="text-sm text-amber-900">{copy.deliveryUnavailable}</p> : null}
             <p className="text-xs text-[#687770]">{application.groupNameEn || application.groupNameZh} · {application.matchState}</p>
             {!['approved', 'rejected'].includes(application.personStatus) ? <div className="grid gap-3 border-t border-[#dce7e2] pt-4 sm:grid-cols-2">
               <label className="text-sm font-semibold">{copy.note}<textarea className="alife-input mt-1 min-h-20 py-2" value={notes[application.id] ?? ''} onChange={event => setNotes(current => ({ ...current, [application.id]: event.target.value }))} /></label>
-              <label className="text-sm font-semibold">{copy.linked}<input className="alife-input mt-1" value={links[application.id] ?? ''} onChange={event => setLinks(current => ({ ...current, [application.id]: event.target.value }))} /></label>
+              <label className="text-sm font-semibold">{application.source === 'continuationQr' ? (zh ? '原申请编号' : 'Original application reference') : copy.linked}{application.source === 'recoveryQr' ? <RecoveryMemberSelect groupId={application.groupId} zh={zh} value={links[application.id] ?? ''} onChange={value => setLinks(current => ({ ...current, [application.id]: value }))} /> : <input className="alife-input mt-1" value={links[application.id] ?? ''} onChange={event => setLinks(current => ({ ...current, [application.id]: event.target.value }))} />}</label>
               <label className="flex min-h-11 items-start gap-3 text-sm leading-6 sm:col-span-2"><input type="checkbox" className="mt-1 h-4 w-4 shrink-0 accent-[#176b5a]" checked={application.isIdentityVerified || verified[application.id] === true} disabled={application.isIdentityVerified} onChange={event => setVerified(current => ({ ...current, [application.id]: event.target.checked }))} />{copy.verified}</label>
               <p className="text-xs leading-5 text-[#687770] sm:col-span-2">{zh ? '批准后请复制注册指引，通过申请人同意的短信或 email 人工发送。待补充或拒绝也需要人工联系；系统不会自动发送通知。' : 'After approval, copy the registration instructions and send them manually by the agreed SMS or email channel. Information requests and rejections also need manual follow-up; notifications are not sent automatically.'}</p>
               <div className="flex flex-wrap gap-2 sm:col-span-2"><button className="alife-primary-button" type="button" disabled={busy === application.id || (!application.isIdentityVerified && verified[application.id] !== true)} onClick={() => void decide(application, 'approved')}>{copy.approve}</button><button className="alife-secondary-button" type="button" disabled={busy === application.id || !notes[application.id]?.trim()} onClick={() => void decide(application, 'needsInfo')}>{copy.info}</button><button className="alife-secondary-button text-rose-700" type="button" disabled={busy === application.id} onClick={() => void decide(application, 'rejected')}>{copy.reject}</button></div>

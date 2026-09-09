@@ -1,3 +1,4 @@
+import { identityWorkflowError } from '../../services/identityWorkflowError'
 import PersonalPasskeyRecovery from '../../components/identity/PersonalPasskeyRecovery'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
@@ -256,7 +257,7 @@ const MembersSection = ({
   const [editForm, setEditForm] = useState({ displayName: '', salutation: '', sex: '' })
   const [editError, setEditError] = useState('')
   const [activations, setActivations] = useState<ActivationInvitation[]>([])
-  const [activationForm, setActivationForm] = useState({ displayName: '', phoneE164: '', purpose: 'firstActivation', groupId: '', role: 'member' })
+  const [activationForm, setActivationForm] = useState({ displayName: '', phoneE164: '', email: '', approvalRequired: true, purpose: 'firstActivation', groupId: '', role: 'member' })
   const [activationBusy, setActivationBusy] = useState('')
   const [activationError, setActivationError] = useState('')
   const [activationStatus, setActivationStatus] = useState('')
@@ -392,8 +393,20 @@ const MembersSection = ({
     tone: 'danger',
   })
 
+  const invitationAction = async (activation: ActivationInvitation, action: 'approve' | 'email') => {
+    if (action === 'approve' && !await requestConfirmation({ title: isChinese ? '批准邀请' : 'Approve invitation', description: isChinese ? '确认已核实本人及此邀请指定的帐号，并批准加入。' : 'Confirm that you verified the person and the account named in this invitation, and approve their membership.', confirmLabel: isChinese ? '已核实，批准' : 'Verified, approve' })) return
+    setActivationBusy(activation.id)
+    setActivationError('')
+    try {
+      const result = action === 'approve' ? await identityAccessService.approveInvitation(activation.id) : await identityAccessService.emailInvitation(activation.id)
+      setActivations(await identityAccessService.listActivations())
+      setActivationStatus(action === 'email' ? (result.deliveryStatus === 'sent' ? (isChinese ? '邮件服务已接收，等待投递。' : 'The mail service accepted the message for delivery.') : (isChinese ? '邮件未确认发送，请检查服务配置。' : 'Email sending was not confirmed. Check the mail configuration.')) : (isChinese ? '邀请已批准。' : 'Invitation approved.'))
+    } catch (reason) { setActivationError(identityWorkflowError(reason, language)) }
+    finally { setActivationBusy('') }
+  }
+
   const createActivation = async () => {
-    if (!activationForm.displayName.trim() || !activationForm.phoneE164.trim()) return
+    if (!activationForm.displayName.trim() || (!activationForm.phoneE164.trim() && !activationForm.email.trim())) return
     if (activationForm.purpose === 'passkeyRecovery' && !await confirmRecoveryIdentity()) return
     setActivationBusy('create')
     setActivationError('')
@@ -402,6 +415,8 @@ const MembersSection = ({
       const created = await identityAccessService.createActivation({
         displayName: activationForm.displayName.trim(),
         phoneE164: activationForm.phoneE164.trim(),
+        email: activationForm.email.trim() || undefined,
+        approvalRequired: activationForm.purpose === 'firstActivation' && activationForm.approvalRequired,
         purpose: activationForm.purpose,
         identityVerified: activationForm.purpose === 'passkeyRecovery',
         grants: activationForm.groupId ? [{ groupId: activationForm.groupId, role: activationForm.role }] : [],
@@ -409,9 +424,9 @@ const MembersSection = ({
       setActivations((current) => [created, ...current])
       setManualActivationMessage(created.manualActivationMessage ?? null)
       setActivationStatus(copy.activationReady)
-      setActivationForm({ displayName: '', phoneE164: '', purpose: 'firstActivation', groupId: '', role: 'member' })
+      setActivationForm({ displayName: '', phoneE164: '', email: '', approvalRequired: true, purpose: 'firstActivation', groupId: '', role: 'member' })
     } catch (reason) {
-      setActivationError(normalizeApiError(reason).message)
+      setActivationError(identityWorkflowError(reason, language))
     } finally {
       setActivationBusy('')
     }
@@ -431,7 +446,7 @@ const MembersSection = ({
         setActivationStatus(copy.activationReady)
       }
     } catch (reason) {
-      setActivationError(normalizeApiError(reason).message)
+      setActivationError(identityWorkflowError(reason, language))
     } finally {
       setActivationBusy('')
     }
@@ -457,7 +472,7 @@ const MembersSection = ({
       setManualActivationMessage(created.manualActivationMessage ?? null)
       setActivationStatus(copy.activationReady)
     } catch (reason) {
-      setActivationError(normalizeApiError(reason).message)
+      setActivationError(identityWorkflowError(reason, language))
     } finally {
       setActivationBusy('')
     }
@@ -497,14 +512,16 @@ const MembersSection = ({
           <summary className="cursor-pointer list-none text-sm font-black text-[#18332d] marker:hidden">{isChinese ? '预登记与激活邀请' : 'Pre-registration and activation invitations'}</summary>
           <p className="mt-2 text-xs leading-5 text-[#687770]">{isChinese ? '预登记不会自动授予权限。系统会生成一次性双语短消息，请复制后通过 Phone Link 人工发送。' : 'Pre-registration never grants permissions automatically. ALIFE creates a one-time bilingual message for you to copy and send manually through Phone Link.'}</p>
           <div className="mt-4 grid gap-3 lg:grid-cols-4">
+            <label className="block text-xs font-bold text-[#62736c]">Email<input className="alife-input mt-1" type="email" maxLength={254} value={activationForm.email} onChange={event => setActivationForm(current => ({ ...current, email: event.target.value }))} /></label>
+            <label className="block text-xs font-bold text-[#62736c]">{isChinese ? '审核状态' : 'Approval status'}<select className="alife-input mt-1" value={activationForm.approvalRequired ? 'pending' : 'approved'} onChange={event => setActivationForm(current => ({ ...current, approvalRequired: event.target.value === 'pending' }))}><option value="pending">{isChinese ? '仅录入名单，仍需审核' : 'Pre-registered; approval required'}</option><option value="approved">{isChinese ? '已核实并批准，等待本人激活' : 'Verified and approved; awaiting activation'}</option></select></label>
             <label className="block text-xs font-bold text-[#62736c]">{copy.name}<input className="alife-input mt-1" maxLength={150} value={activationForm.displayName} onChange={(event) => setActivationForm((current) => ({ ...current, displayName: event.target.value }))} /></label>
             <label className="block text-xs font-bold text-[#62736c]">{isChinese ? '规范化手机号' : 'Phone number'}<input className="alife-input mt-1" type="tel" placeholder="+64…" value={activationForm.phoneE164} onChange={(event) => setActivationForm((current) => ({ ...current, phoneE164: event.target.value }))} /></label>
             <label className="block text-xs font-bold text-[#62736c]">{isChinese ? '邀请用途' : 'Invitation purpose'}<select className="alife-input mt-1" value={activationForm.purpose} onChange={(event) => setActivationForm((current) => ({ ...current, purpose: event.target.value }))}><option value="firstActivation">{isChinese ? '首次激活' : 'First activation'}</option><option value="passkeyRecovery">{isChinese ? 'Passkey 恢复' : 'Passkey recovery'}</option></select></label>
             <label className="block text-xs font-bold text-[#62736c]">{isChinese ? '可选小组授权' : 'Optional group grant'}<select className="alife-input mt-1" value={activationForm.groupId} onChange={(event) => setActivationForm((current) => ({ ...current, groupId: event.target.value }))}><option value="">{isChinese ? '仅教会成员' : 'Church member only'}</option>{groupOptions.map((group) => <option key={group.id} value={group.id}>{groupNameLabel(group, language)}</option>)}</select></label>
             <label className="block text-xs font-bold text-[#62736c]">{isChinese ? '暂存角色' : 'Staged role'}<select className="alife-input mt-1" disabled={!activationForm.groupId} value={activationForm.role} onChange={(event) => setActivationForm((current) => ({ ...current, role: event.target.value }))}><option value="member">{copy.memberRole}</option><option value="coLeader">{copy.assistantLeader}</option><option value="leader">{copy.groupLeader}</option></select></label>
           </div>
-          <button className="mt-3 inline-flex min-h-10 items-center rounded-xl bg-[#176b5a] px-4 py-2 text-sm font-black text-white disabled:opacity-50" type="button" disabled={activationBusy === 'create' || !activationForm.displayName.trim() || !activationForm.phoneE164.trim()} onClick={() => void createActivation()}><Send className="mr-2 h-4 w-4" />{copy.generateActivation}</button>
-          {activations.length ? <div className="mt-4 space-y-2">{activations.slice(0, 10).map((activation) => <div key={activation.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#e3d8ca] bg-white p-3"><div><p className="text-sm font-bold text-[#18332d]">{activation.displayName} · {activation.maskedPhone}</p><p className="mt-1 text-xs text-[#687770]">{activation.status} · {activation.deliveryStatus} · {new Date(activation.expiresUtc).toLocaleString()}</p></div><div className="flex gap-2">{activation.purpose === 'passkeyRecovery' ? <PersonalPasskeyRecovery groupId={groups.find(group => group.isChurch)?.id ?? ''} memberId={activation.memberId} displayName={activation.displayName} /> : <button className="min-h-9 rounded-lg border border-[#cbdad4] px-3 text-xs font-bold" type="button" disabled={Boolean(activationBusy)} onClick={() => void changeActivation(activation, 'resend')}>{copy.generateNewActivation}</button>}<button className="min-h-9 rounded-lg border border-rose-200 px-3 text-xs font-bold text-rose-700" type="button" disabled={Boolean(activationBusy) || activation.status === 'used' || activation.status === 'revoked'} onClick={() => void changeActivation(activation, 'revoke')}>{isChinese ? '撤销' : 'Revoke'}</button></div></div>)}</div> : null}
+          <button className="mt-3 inline-flex min-h-10 items-center rounded-xl bg-[#176b5a] px-4 py-2 text-sm font-black text-white disabled:opacity-50" type="button" disabled={activationBusy === 'create' || !activationForm.displayName.trim() || (!activationForm.phoneE164.trim() && !activationForm.email.trim())} onClick={() => void createActivation()}><Send className="mr-2 h-4 w-4" />{copy.generateActivation}</button>
+          {activations.length ? <div className="mt-4 space-y-2">{activations.slice(0, 10).map((activation) => <div key={activation.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#e3d8ca] bg-white p-3"><div><p className="text-sm font-bold text-[#18332d]">{activation.displayName} · {activation.maskedPhone}</p><p className="mt-1 text-xs text-[#687770]">{activation.approvalRequired ? (isChinese ? '待审核' : 'Awaiting approval') : (isChinese ? '已批准' : 'Approved')} · {activation.accepted ? (isChinese ? '本人已接受' : 'Accepted by recipient') : (isChinese ? '本人尚未接受' : 'Not yet accepted')} · {activation.status} · {activation.deliveryStatus} · {new Date(activation.expiresUtc).toLocaleString()}</p></div><div className="flex flex-wrap gap-2">{activation.approvalRequired && activation.status === 'active' ? <button className="alife-secondary-button" disabled={Boolean(activationBusy)} onClick={() => void invitationAction(activation, 'approve')}>{isChinese ? '核实并批准邀请' : 'Verify and approve invitation'}</button> : null}{activation.hasEmail && activation.purpose === 'firstActivation' && activation.status === 'active' ? <button className="alife-secondary-button" disabled={Boolean(activationBusy)} onClick={() => void invitationAction(activation, 'email')}>{isChinese ? '发送新邮件链接' : 'Email a new link'}</button> : null}{activation.purpose === 'passkeyRecovery' ? <PersonalPasskeyRecovery groupId={groups.find(group => group.isChurch)?.id ?? ''} memberId={activation.memberId} displayName={activation.displayName} /> : <button className="min-h-9 rounded-lg border border-[#cbdad4] px-3 text-xs font-bold" type="button" disabled={Boolean(activationBusy)} onClick={() => void changeActivation(activation, 'resend')}>{copy.generateNewActivation}</button>}<button className="min-h-9 rounded-lg border border-rose-200 px-3 text-xs font-bold text-rose-700" type="button" disabled={Boolean(activationBusy) || activation.status === 'used' || activation.status === 'revoked'} onClick={() => void changeActivation(activation, 'revoke')}>{isChinese ? '撤销' : 'Revoke'}</button></div></div>)}</div> : null}
         </details>
       ) : null}
 

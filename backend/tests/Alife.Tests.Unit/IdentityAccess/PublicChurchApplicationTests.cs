@@ -11,7 +11,7 @@ public sealed partial class IdentityAccessFlowTests
 {
     private static SubmitGroupApplicationRequest PublicApplicationRequest() => new(
         "张三 Alice", null, "email", "zh", "希望参加教会生活", "church-application-v1", true, "",
-        DateTimeOffset.UtcNow.AddSeconds(-5).ToUnixTimeMilliseconds(), "Female", "alice@example.test", true);
+        DateTimeOffset.UtcNow.AddSeconds(-5).ToUnixTimeMilliseconds(), Sex: "Female", Email: "alice@example.test", NotificationConsent: true);
 
     private static async Task<(Guid Church, string Flow)> PreparePublicApplication(Fixture fixture)
     {
@@ -65,6 +65,7 @@ public sealed partial class IdentityAccessFlowTests
     [InlineData("sms")]
     [InlineData("honeypot")]
     [InlineData("fast")]
+    [InlineData("intent")]
     public async Task PublicApplication_RejectsIncompleteOrUnconsentedRequests(string invalid)
     {
         await using var fixture = CreateFixture();
@@ -79,6 +80,7 @@ public sealed partial class IdentityAccessFlowTests
             "version" => request with { PrivacyConsentVersion = "v0" },
             "sms" => request with { ReplyPreference = "sms" },
             "honeypot" => request with { Honeypot = "bot" },
+            "intent" => request with { Intent = "recovery" },
             _ => request with { FormStartedUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() }
         };
         var result = await fixture.Service.SubmitChurchApplicationAsync(setup.Flow, null, request, default, "phone-browser");

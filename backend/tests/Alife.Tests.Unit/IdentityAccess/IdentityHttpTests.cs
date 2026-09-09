@@ -34,7 +34,7 @@ public sealed class IdentityHttpTests
         context.Request.Headers.Origin = origin;
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Frontend:BaseUrl"] = "https://alife.example" }).Build();
         var controller = new OnboardingController(identity, Substitute.For<ICurrentMemberAccessor>(), limiter, config) { ControllerContext = new() { HttpContext = context } };
-        var request = new SubmitGroupApplicationRequest("Alice", null, "email", "en", "Joining", "church-application-v1", true, "", 0, "Unknown", "alice@example.test", true);
+        var request = new SubmitGroupApplicationRequest("Alice", null, "email", "en", "Joining", "church-application-v1", true, "", 0, Sex: "Unknown", Email: "alice@example.test", NotificationConsent: true);
         await controller.SubmitChurchApplication(request, default);
         Assert.Equal("private, no-store", context.Response.Headers.CacheControl);
         if (allowed)

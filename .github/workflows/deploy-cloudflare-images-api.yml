@@ -33,10 +33,28 @@ jobs:
           node-version: 24
 
       - name: Test images API Worker
-        run: node --test cloudflare/images-api/worker/index.test.mjs
+        run: node --test cloudflare/images-api/worker/*.test.mjs
+
+      - name: Validate file storage secrets
+        env:
+          FILE_ADMIN_BACKFILL_SECRET: ${{ secrets.FILE_ADMIN_BACKFILL_SECRET }}
+          FILE_ACCESS_SIGNING_SECRET: ${{ secrets.FILE_ACCESS_SIGNING_SECRET }}
+        run: |
+          if [ "${#FILE_ADMIN_BACKFILL_SECRET}" -lt 32 ] || [ "${#FILE_ACCESS_SIGNING_SECRET}" -lt 32 ]; then
+            echo "Missing file storage secrets. Configure both FILE_ADMIN_BACKFILL_SECRET and FILE_ACCESS_SIGNING_SECRET."
+            exit 1
+          fi
 
       - name: Deploy images API Worker
         run: npx wrangler@4.88.0 deploy --config cloudflare/images-api/wrangler.toml
+
+      - name: Configure signed file access and backend uploads
+        env:
+          FILE_ADMIN_BACKFILL_SECRET: ${{ secrets.FILE_ADMIN_BACKFILL_SECRET }}
+          FILE_ACCESS_SIGNING_SECRET: ${{ secrets.FILE_ACCESS_SIGNING_SECRET }}
+        run: |
+          node -e 'process.stdout.write(JSON.stringify({FILE_ADMIN_BACKFILL_SECRET: process.env.FILE_ADMIN_BACKFILL_SECRET, FILE_ACCESS_SIGNING_SECRET: process.env.FILE_ACCESS_SIGNING_SECRET}))' |
+            npx wrangler@4.88.0 secret bulk --config cloudflare/images-api/wrangler.toml
 
       - name: Deploy OpenAPI spec to R2
         run: >

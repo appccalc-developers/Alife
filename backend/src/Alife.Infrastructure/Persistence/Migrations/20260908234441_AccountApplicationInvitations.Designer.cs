@@ -4,6 +4,7 @@ using Alife.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Alife.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AlifeDbContext))]
-    partial class AlifeDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260908234441_AccountApplicationInvitations")]
+    partial class AccountApplicationInvitations
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -508,11 +511,6 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(150)")
                         .HasColumnName("display_name");
 
-                    b.Property<string>("Email")
-                        .HasMaxLength(320)
-                        .HasColumnType("nvarchar(320)")
-                        .HasColumnName("email");
-
                     b.Property<Guid?>("IdentityVerifiedByMemberId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("identity_verified_by_member_id");
@@ -536,15 +534,6 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.Property<int>("MatchState")
                         .HasColumnType("int")
                         .HasColumnName("match_state");
-
-                    b.Property<string>("NotificationConsentVersion")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)")
-                        .HasColumnName("notification_consent_version");
-
-                    b.Property<DateTime?>("NotificationConsentedUtc")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("notification_consented_utc");
 
                     b.Property<string>("PhoneE164")
                         .HasMaxLength(30)
@@ -584,11 +573,6 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion")
                         .HasColumnName("row_version");
-
-                    b.Property<string>("Sex")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
-                        .HasColumnName("sex");
 
                     b.Property<int>("Status")
                         .HasColumnType("int")
@@ -5553,7 +5537,7 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("group_id");
 
-                    b.Property<Guid?>("GroupJoinInviteId")
+                    b.Property<Guid>("GroupJoinInviteId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("group_join_invite_id");
 
@@ -8573,6 +8557,7 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("GroupJoinInviteId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
                         .HasConstraintName("fk_group_membership_applications_group_join_invites_group_join_invite_id");
 
                     b.Navigation("ApplicantMember");

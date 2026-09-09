@@ -1,4 +1,5 @@
 using Alife.Application.Pages.Services;
+using Alife.Application.IdentityAccess;
 using Alife.Infrastructure;
 using Alife.Infrastructure.Persistence;
 using Microsoft.Data.SqlClient;
@@ -25,15 +26,34 @@ if (string.IsNullOrWhiteSpace(connectionString))
 }
 
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddScoped<IIdentityAccessService, IdentityAccessService>();
 
 using var host = builder.Build();
 using var scope = host.Services.CreateScope();
+
+// Explicit recovery does not run migrations, seeding, or unrelated cache mutations.
+var recoverAdministrator = args.Any(argument => string.Equals(argument, "--AdministratorActivation:Recover=true", StringComparison.OrdinalIgnoreCase));
+if (builder.Configuration.GetValue<bool>("AdministratorActivation:Recover") && !recoverAdministrator)
+    throw new InvalidOperationException("Administrator recovery requires an explicit --AdministratorActivation:Recover=true command-line argument.");
+if (recoverAdministrator)
+{
+    var recovery = await scope.ServiceProvider.GetRequiredService<IIdentityAccessService>().InitializeAdministratorAsync(true, default);
+    Console.WriteLine(recovery.IsSuccess ? "Administrator recovery email accepted." : recovery.Message);
+    Environment.ExitCode = recovery.IsSuccess ? 0 : 1;
+    return;
+}
 
 await EnsureSqlServerDatabaseExistsAsync(connectionString);
 
 var dbContext = scope.ServiceProvider.GetRequiredService<AlifeDbContext>();
 await dbContext.Database.MigrateAsync();
 var seedSummary = await SeedData.EnsureSeededAsync(dbContext, builder.Configuration);
+if (builder.Configuration.GetValue<bool>("AdministratorActivation:Enabled"))
+{
+    var activation = await scope.ServiceProvider.GetRequiredService<IIdentityAccessService>().InitializeAdministratorAsync(false, default);
+    Console.WriteLine(activation.IsSuccess ? "Administrator initialization checked." : activation.Message);
+    if (!activation.IsSuccess) Environment.ExitCode = 1;
+}
 
 // Seeders write directly through the DbContext, so they bypass the application
 // commands that normally invalidate the public website's page caches.

@@ -60,6 +60,33 @@ public sealed class IdentityContinuationController(
 
     private string BrowserToken => Request.Cookies["alife_application"] ?? string.Empty;
 
+    [HttpPost("api/onboarding/activation/accept")]
+    public async Task<IActionResult> Accept(CancellationToken token)
+    {
+        var denied = await GuardAsync("invitation-accept", 10, token);
+        return denied ?? this.ToIdentityResult(await identityAccess.AcceptInvitationAsync(Request.Cookies["alife_onboarding"] ?? string.Empty, token));
+    }
+
+    [Authorize]
+    [HttpPost("api/admin/member-activations/{invitationId:guid}/approve")]
+    public async Task<IActionResult> ApproveInvitation(Guid invitationId, RecoveryRequest request, CancellationToken token)
+    {
+        var denied = await GuardAsync("invitation-approve", 10, token);
+        if (denied is not null) return denied;
+        var actor = currentMemberAccessor.GetCurrentMemberId();
+        return actor is null ? Unauthorized() : this.ToIdentityResult(await identityAccess.ApproveInvitationAsync(actor.Value, invitationId, request.IdentityVerified, token));
+    }
+
+    [Authorize]
+    [HttpPost("api/admin/member-activations/{invitationId:guid}/email")]
+    public async Task<IActionResult> EmailInvitation(Guid invitationId, CancellationToken token)
+    {
+        var denied = await GuardAsync("invitation-email", 5, token);
+        if (denied is not null) return denied;
+        var actor = currentMemberAccessor.GetCurrentMemberId();
+        return actor is null ? Unauthorized() : this.ToIdentityResult(await identityAccess.EmailInvitationAsync(actor.Value, invitationId, token));
+    }
+
     private async Task<IActionResult?> GuardAsync(string scope, int limit, CancellationToken token)
     {
         this.ApplyPrivateNoStoreHeaders();

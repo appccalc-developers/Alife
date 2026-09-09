@@ -18,6 +18,9 @@ public static class AppResultExtensions
                     new { message = result.Message }),
                 AppResultStatus.ValidationError => controller.BadRequest(new { message = result.Message }),
                 AppResultStatus.Conflict => controller.Conflict(new { message = result.Message }),
+                AppResultStatus.ServiceUnavailable => controller.StatusCode(
+                    StatusCodes.Status503ServiceUnavailable,
+                    new { message = result.Message }),
                 AppResultStatus.PreconditionFailed => controller.StatusCode(
                     StatusCodes.Status412PreconditionFailed,
                     new { message = result.Message }),

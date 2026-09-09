@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Alife.Api.Controllers;
 
 [ApiController]
+[TypeFilter(typeof(IdentityMutationFilter))]
 [Route("api/onboarding")]
 public sealed class OnboardingController(
     IIdentityAccessService identityAccess,

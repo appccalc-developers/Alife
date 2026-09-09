@@ -941,7 +941,7 @@ const text = {
   applicationReceipt: { en: "Application reference", zh: "申请编号" },
   applicationCheck: { en: "Check approval status", zh: "查看审批结果" },
   applicationBrowserHint: { en: "Keep this page in the same browser. Return here or scan the application QR again to check progress.", zh: "请保留此页面并使用同一浏览器。可返回这里，或再次扫描申请二维码查看进度。" },
-  applicationBrowserLost: { en: "Cannot resume this application. Use the original browser or ask your leader for a personal setup QR.", zh: "无法接续申请。请使用原浏览器，或请组长提供个人设置二维码。" },
+  applicationBrowserLost: { en: "Cannot resume this application. Scan the public group QR, choose to continue an application, and ask a leader to verify and link your current request.", zh: "无法接续申请。请扫描公共小组二维码，选择继续原申请，并请同工核实及关联当前申请。" },
   applicationPending: { en: "Waiting for your leader to verify you and approve.", zh: "等待组长核实本人并批准。" },
   applicationApproved: { en: "Approved. Create your Passkey on your phone.", zh: "申请已通过，请在手机上建立 Passkey。" },
   applicationRecoveryRequired: { en: "Membership approved. Sign in to your existing account, or ask your leader for a personal recovery QR.", zh: "入组已批准。请登录已有账号，或请组长提供个人恢复二维码。" },
