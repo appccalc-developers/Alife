@@ -35,6 +35,10 @@ public sealed class OnboardingFlow
 
 public sealed class MemberActivationInvitation
 {
+    public bool ApprovalRequired { get; set; }
+    public DateTime? AcceptedUtc { get; set; }
+    public string? DeliveryEmail { get; set; }
+    public bool IsDeploymentAdministrator { get; set; }
     public Guid? RecoveryGroupId { get; set; }
     public Guid? SourceApplicationId { get; set; }
     public Guid Id { get; set; }
@@ -120,6 +124,7 @@ public sealed class ChurchPersonApplication
 
 public sealed class GroupMembershipApplication
 {
+    public Guid? ContinuedApplicationId { get; set; }
     public byte[]? BrowserTokenHash { get; set; }
     public DateTime? BrowserTokenExpiresUtc { get; set; }
     public DateTime? BrowserTokenConsumedUtc { get; set; }

@@ -1,3 +1,4 @@
+import { identityWorkflowError } from '../../services/identityWorkflowError'
 import { useCallback, useEffect, useState } from 'react'
 import { Download, Pause, Play, Printer, QrCode, RefreshCw, Search, ShieldX } from 'lucide-react'
 import QRCode from 'qrcode'
@@ -7,6 +8,7 @@ import ManualActivationMessageModal from '../identity/ManualActivationMessageMod
 import AppActionButton from '../layout/AppActionButton'
 import AppBadge from '../layout/AppBadge'
 import AppEmptyState from '../layout/AppEmptyState'
+import RecoveryMemberSelect from '../identity/RecoveryMemberSelect'
 
 type Props = {
   groupId: string
@@ -21,14 +23,14 @@ const GroupApplicationsPanel = ({ groupId, language }: Props) => {
     downloadPng: '下载 PNG', downloadSvg: '下载 SVG', print: '打印', expires: '有效期至', submissions: '提交数',
     applications: '待处理申请', search: '搜索姓名', allStatuses: '全部状态', newest: '最新优先', oldest: '最早优先',
     noApplications: '没有符合条件的申请。', approve: '确认身份并批准', needsInfo: '补充资料', reject: '拒绝', note: '决定说明（补充资料时必填）', verified: '我已现场核实本人，并核对其手机上的申请编号', deliveryUnavailable: '补充资料通知未能送达；状态已保留，请改用人工联系。', activationReady: '申请人可在原浏览器查看审批结果并建立 Passkey；无法接续时请从成员名单提供个人二维码。', activationPending: '成员身份已批准，但旧邀请尚未交付；请在成员管理生成新消息。',
-    previous: '上一页', next: '下一页', security: 'selector 不包含小组 ID；fragment 中的签名只在浏览器中用于安全解析。',
+    previous: '上一页', next: '下一页', security: '二维码可能被转发。批准前必须当面核对本人手机上的具体申请。',
   } : {
     title: 'Membership applications', subtitle: 'Phone numbers are optional. A leader verifies the person in person and checks their application reference before approval; applicants can then continue Passkey setup in the original browser.',
     qrTitle: 'Current application QR', qrEmpty: 'No QR code has been created.', generate: 'Generate QR', pause: 'Pause', resume: 'Resume', rotate: 'Rotate', revoke: 'Revoke',
     downloadPng: 'Download PNG', downloadSvg: 'Download SVG', print: 'Print', expires: 'Expires', submissions: 'Submissions',
     applications: 'Applications', search: 'Search by name', allStatuses: 'All statuses', newest: 'Newest first', oldest: 'Oldest first',
     noApplications: 'No applications match these filters.', approve: 'Verify identity and approve', needsInfo: 'Request information', reject: 'Reject', note: 'Decision note (required when requesting information)', verified: 'I verified this person in person and checked the application reference on their phone', deliveryUnavailable: 'The information request was not delivered. The state is preserved for manual follow-up.', activationReady: 'The applicant can check approval in the original browser and create a Passkey. If they cannot resume, provide a personal QR from the member list.', activationPending: 'Membership was approved, but the old invitation was not delivered. Generate a new message in member management.',
-    previous: 'Previous', next: 'Next', security: 'The selector contains no group ID; the fragment signature grants browser-only resolution.',
+    previous: 'Previous', next: 'Next', security: 'This QR may be forwarded. Verify the person and the specific application on their phone before approval.',
   }
   const [invite, setInvite] = useState<GroupJoinInvite | null>(null)
   const [pngUrl, setPngUrl] = useState('')
@@ -64,7 +66,7 @@ const GroupApplicationsPanel = ({ groupId, language }: Props) => {
       setInvite(currentInvite)
       setItems(result.items)
       setTotal(result.total)
-    }).catch((caught) => { if (active) setError(normalizeApiError(caught).message) })
+    }).catch((caught) => { if (active) setError(identityWorkflowError(caught, language)) })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [groupId, page, search, sort, status])
@@ -88,7 +90,7 @@ const GroupApplicationsPanel = ({ groupId, language }: Props) => {
     try {
       setInvite(await identityAccessService.changeGroupInvite(groupId, action))
     } catch (caught) {
-      setError(normalizeApiError(caught).message)
+      setError(identityWorkflowError(caught, language))
     } finally {
       setBusy('')
     }
@@ -106,12 +108,13 @@ const GroupApplicationsPanel = ({ groupId, language }: Props) => {
         decision,
         note || undefined,
         application.isIdentityVerified || verified[application.id] === true,
-        links[application.id]?.trim() || undefined,
+        application.source === 'continuationQr' ? undefined : links[application.id]?.trim() || undefined,
+        application.source === 'continuationQr' ? links[application.id]?.trim() || undefined : undefined,
       )
       if (result.manualActivationMessage) setManualActivationMessage(result.manualActivationMessage)
       await loadApplications()
     } catch (caught) {
-      setError(normalizeApiError(caught).message)
+      setError(identityWorkflowError(caught, language))
     } finally {
       setBusy('')
     }
@@ -139,7 +142,7 @@ const GroupApplicationsPanel = ({ groupId, language }: Props) => {
           {invite ? <p className="mt-3 text-center text-xs text-slate-500">{copy.expires}: {new Date(invite.expiresUtc).toLocaleDateString()} · {copy.submissions}: {invite.submissionCount}</p> : null}
           <p className="mt-3 rounded-xl bg-white px-3 py-2 text-xs leading-5 text-slate-600 print:hidden">{copy.security}</p>
           <div className="mt-4 flex flex-wrap gap-2 print:hidden">
-            {!invite || !['active', 'paused'].includes(invite.status) ? <AppActionButton variant="primary" onClick={() => void identityAccessService.generateGroupInvite(groupId).then(setInvite).catch((caught) => setError(normalizeApiError(caught).message))}><QrCode className="mr-1.5 h-4 w-4" />{copy.generate}</AppActionButton> : null}
+            {!invite || !['active', 'paused'].includes(invite.status) ? <AppActionButton variant="primary" onClick={() => void identityAccessService.generateGroupInvite(groupId).then(setInvite).catch((caught) => setError(identityWorkflowError(caught, language)))}><QrCode className="mr-1.5 h-4 w-4" />{copy.generate}</AppActionButton> : null}
             {invite?.status === 'active' ? <AppActionButton disabled={Boolean(busy)} onClick={() => void changeInvite('pause')}><Pause className="mr-1.5 h-4 w-4" />{copy.pause}</AppActionButton> : null}
             {invite?.status === 'paused' ? <AppActionButton disabled={Boolean(busy)} onClick={() => void changeInvite('resume')}><Play className="mr-1.5 h-4 w-4" />{copy.resume}</AppActionButton> : null}
             {invite && ['active', 'paused'].includes(invite.status) ? <><AppActionButton disabled={Boolean(busy)} onClick={() => void changeInvite('rotate')}><RefreshCw className="mr-1.5 h-4 w-4" />{copy.rotate}</AppActionButton><AppActionButton variant="danger" disabled={Boolean(busy)} onClick={() => void changeInvite('revoke')}><ShieldX className="mr-1.5 h-4 w-4" />{copy.revoke}</AppActionButton></> : null}
@@ -154,7 +157,7 @@ const GroupApplicationsPanel = ({ groupId, language }: Props) => {
             <select className="alife-input" value={status} onChange={(event) => { setStatus(event.target.value); setPage(1) }}><option value="">{copy.allStatuses}</option><option value="submitted">submitted</option><option value="needsInfo">needsInfo</option><option value="approvedWaitingForChurch">approvedWaitingForChurch</option><option value="approved">approved</option><option value="rejected">rejected</option></select>
             <select className="alife-input" value={sort} onChange={(event) => setSort(event.target.value)}><option value="newest">{copy.newest}</option><option value="oldest">{copy.oldest}</option></select>
           </div>
-          {loading ? <p className="mt-4 text-sm text-slate-500">…</p> : items.length ? <div className="mt-4 space-y-3">{items.map((application) => <article key={application.id} className="rounded-2xl border border-slate-200 bg-white p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-bold text-slate-950">{application.displayName}</p><p className="mt-1 text-xs text-slate-500">{application.id}<br />{application.maskedPhone} · {new Date(application.submittedUtc).toLocaleString()}</p></div><div className="flex flex-wrap gap-2"><AppBadge variant="neutral">{application.personStatus}</AppBadge><AppBadge variant={application.status === 'approved' ? 'success' : 'neutral'}>{application.status}</AppBadge></div></div><p className="mt-3 text-sm leading-6 text-slate-700">{application.declaration}</p>{['unavailable', 'failed'].includes(application.responseDeliveryStatus ?? '') ? <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold leading-5 text-amber-900" role="status">{copy.deliveryUnavailable}</p> : null}{['manual', 'sent'].includes(application.activationDeliveryStatus ?? '') ? <p className="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-semibold leading-5 text-emerald-900" role="status">{copy.activationReady}</p> : ['unavailable', 'failed', 'pending'].includes(application.activationDeliveryStatus ?? '') ? <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold leading-5 text-amber-900" role="status">{copy.activationPending}</p> : null}{['submitted', 'needsInfo', 'approvedWaitingForChurch'].includes(application.status) ? <div className="mt-4 space-y-3 border-t border-slate-100 pt-3"><label className="block text-xs font-bold text-slate-600">{copy.note}<textarea className="alife-input mt-1 min-h-20 py-2" value={notes[application.id] ?? ''} onChange={(event) => setNotes((current) => ({ ...current, [application.id]: event.target.value }))} /></label><label className="block text-xs font-bold text-slate-600">{language === 'zh' ? '关联已有成员编号（选填，仅在核实已有账号后填写）' : 'Existing member ID (optional; only after verifying the existing account)'}<input className="alife-input mt-1" value={links[application.id] ?? ''} onChange={(event) => setLinks(current => ({ ...current, [application.id]: event.target.value }))} /></label><label className="flex min-h-11 items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs font-bold leading-5 text-emerald-900"><input type="checkbox" className="mt-0.5 h-4 w-4 accent-[#176b5a]" checked={application.isIdentityVerified || verified[application.id] === true} disabled={application.isIdentityVerified} onChange={(event) => setVerified((current) => ({ ...current, [application.id]: event.target.checked }))} />{copy.verified}</label><div className="flex flex-wrap gap-2"><AppActionButton size="sm" variant="primary" disabled={busy === application.id || (!application.isIdentityVerified && verified[application.id] !== true)} onClick={() => void decide(application, 'approved')}>{copy.approve}</AppActionButton><AppActionButton size="sm" disabled={busy === application.id || !(notes[application.id]?.trim())} onClick={() => void decide(application, 'needsInfo')}>{copy.needsInfo}</AppActionButton><AppActionButton size="sm" variant="danger" disabled={busy === application.id} onClick={() => void decide(application, 'rejected')}>{copy.reject}</AppActionButton></div></div> : null}</article>)}</div> : <div className="mt-4"><AppEmptyState title={copy.noApplications} description="" /></div>}
+          {loading ? <p className="mt-4 text-sm text-slate-500">…</p> : items.length ? <div className="mt-4 space-y-3">{items.map((application) => <article key={application.id} className="rounded-2xl border border-slate-200 bg-white p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-bold text-slate-950">{application.displayName}</p><p className="text-xs text-[#176b5a]">{application.source === 'recoveryQr' ? (zh ? '恢复帐号' : 'Account recovery') : application.source === 'continuationQr' ? (zh ? '继续原申请' : 'Continue an application') : (zh ? '入会申请' : 'Membership application')}</p><p className="mt-1 text-xs text-slate-500">{application.id}<br />{application.maskedPhone} · {new Date(application.submittedUtc).toLocaleString()}</p></div><div className="flex flex-wrap gap-2"><AppBadge variant="neutral">{application.personStatus}</AppBadge><AppBadge variant={application.status === 'approved' ? 'success' : 'neutral'}>{application.status}</AppBadge></div></div><p className="mt-3 text-sm leading-6 text-slate-700">{application.declaration}</p>{['unavailable', 'failed'].includes(application.responseDeliveryStatus ?? '') ? <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold leading-5 text-amber-900" role="status">{copy.deliveryUnavailable}</p> : null}{['manual', 'sent'].includes(application.activationDeliveryStatus ?? '') ? <p className="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-semibold leading-5 text-emerald-900" role="status">{copy.activationReady}</p> : ['unavailable', 'failed', 'pending'].includes(application.activationDeliveryStatus ?? '') ? <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold leading-5 text-amber-900" role="status">{copy.activationPending}</p> : null}{['submitted', 'needsInfo', 'approvedWaitingForChurch'].includes(application.status) ? <div className="mt-4 space-y-3 border-t border-slate-100 pt-3"><label className="block text-xs font-bold text-slate-600">{copy.note}<textarea className="alife-input mt-1 min-h-20 py-2" value={notes[application.id] ?? ''} onChange={(event) => setNotes((current) => ({ ...current, [application.id]: event.target.value }))} /></label><label className="block text-xs font-bold text-slate-600">{application.source === 'continuationQr' ? (zh ? '原申请编号（核实后关联）' : 'Original application reference (verify before linking)') : application.source === 'recoveryQr' ? (zh ? '原成员编号（必填，先在成员名单核实）' : 'Original member ID (required; verify in the member directory)') : (zh ? '关联已有成员编号（选填）' : 'Existing member ID (optional)')}{application.source === 'recoveryQr' ? <RecoveryMemberSelect groupId={groupId} zh={zh} value={links[application.id] ?? ''} onChange={value => setLinks(current => ({ ...current, [application.id]: value }))} /> : <input className="alife-input mt-1" value={links[application.id] ?? ''} onChange={(event) => setLinks(current => ({ ...current, [application.id]: event.target.value }))} />}</label><label className="flex min-h-11 items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs font-bold leading-5 text-emerald-900"><input type="checkbox" className="mt-0.5 h-4 w-4 accent-[#176b5a]" checked={application.isIdentityVerified || verified[application.id] === true} disabled={application.isIdentityVerified} onChange={(event) => setVerified((current) => ({ ...current, [application.id]: event.target.checked }))} />{copy.verified}</label><div className="flex flex-wrap gap-2"><AppActionButton size="sm" variant="primary" disabled={busy === application.id || (!application.isIdentityVerified && verified[application.id] !== true)} onClick={() => void decide(application, 'approved')}>{copy.approve}</AppActionButton><AppActionButton size="sm" disabled={busy === application.id || !(notes[application.id]?.trim())} onClick={() => void decide(application, 'needsInfo')}>{copy.needsInfo}</AppActionButton><AppActionButton size="sm" variant="danger" disabled={busy === application.id} onClick={() => void decide(application, 'rejected')}>{copy.reject}</AppActionButton></div></div> : null}</article>)}</div> : <div className="mt-4"><AppEmptyState title={copy.noApplications} description="" /></div>}
           <div className="mt-4 flex items-center justify-between"><AppActionButton size="sm" disabled={page <= 1} onClick={() => setPage((current) => current - 1)}>{copy.previous}</AppActionButton><span className="text-xs text-slate-500">{page} / {Math.max(1, Math.ceil(total / 20))}</span><AppActionButton size="sm" disabled={page * 20 >= total} onClick={() => setPage((current) => current + 1)}>{copy.next}</AppActionButton></div>
         </section>
       </div>

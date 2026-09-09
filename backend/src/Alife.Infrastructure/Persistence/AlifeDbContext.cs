@@ -1323,6 +1323,7 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 
 		modelBuilder.Entity<MemberActivationInvitation>(cfg =>
 		{
+			cfg.Property(x => x.DeliveryEmail).HasMaxLength(254);
 			cfg.HasKey(x => x.Id);
 			cfg.Property(x => x.Selector).HasMaxLength(64).IsRequired();
 			cfg.Property(x => x.SecretHash).HasMaxLength(32).IsRequired();

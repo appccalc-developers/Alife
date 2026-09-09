@@ -12,6 +12,13 @@ public sealed partial class IdentityAccessService
     {
         if (string.IsNullOrWhiteSpace(browserToken) || (applicationId is null && inviteId is null)) return null;
         var hash = tokenService.HashToken(browserToken);
+        if (applicationId is Guid requestedId)
+        {
+            var continuedId = await dbContext.GroupMembershipApplications.Where(x => x.Id == requestedId &&
+                x.BrowserTokenHash == hash && x.BrowserTokenExpiresUtc > DateTime.UtcNow)
+                .Select(x => x.ContinuedApplicationId).SingleOrDefaultAsync(cancellationToken);
+            if (continuedId is not null) applicationId = continuedId;
+        }
         var query = dbContext.GroupMembershipApplications
             .Include(x => x.Group).Include(x => x.ChurchPersonApplication).Include(x => x.History)
             .Where(x => x.BrowserTokenHash == hash && x.BrowserTokenExpiresUtc > DateTime.UtcNow && x.BrowserTokenConsumedUtc == null);
@@ -36,6 +43,9 @@ public sealed partial class IdentityAccessService
     {
         if (application.Status != MembershipApplicationStatus.Approved || !application.ChurchPersonApplication.IsIdentityVerified ||
             application.ChurchPersonApplication.LinkedMemberId is not Guid memberId) return false;
+        if (application.Source == "recoveryQr")
+            return await dbContext.MemberActivationInvitations.AnyAsync(x => x.SourceApplicationId == application.Id &&
+                x.MemberId == memberId && x.Purpose == ActivationPurpose.PasskeyRecovery && x.Status == ActivationStatus.Active && x.ExpiresUtc > DateTime.UtcNow, cancellationToken);
         // An existing account must use the separately authorized recovery path.
         return await IsOrdinaryMemberAsync(memberId, cancellationToken) && await dbContext.Members.AnyAsync(x => x.Id == memberId && !x.IsRegistered, cancellationToken) &&
             !await dbContext.MemberPasskeyCredentials.AnyAsync(x => x.MemberId == memberId, cancellationToken);
@@ -59,7 +69,7 @@ public sealed partial class IdentityAccessService
                 return AppResult<OnboardingFlowStart>.Conflict("application_activation_unavailable");
             var memberId = application.ChurchPersonApplication.LinkedMemberId!.Value;
             var invitation = await dbContext.MemberActivationInvitations.Where(x => x.MemberId == memberId &&
-                x.SourceApplicationId == application.Id && x.Purpose == ActivationPurpose.FirstActivation &&
+                x.SourceApplicationId == application.Id &&
                 x.Status == ActivationStatus.Active && x.ExpiresUtc > DateTime.UtcNow).FirstOrDefaultAsync(token);
             // Approval issues the invitation. A revoked invitation must never be recreated by its applicant.
             if (invitation is null) return AppResult<OnboardingFlowStart>.Conflict("application_activation_unavailable");

@@ -24,7 +24,9 @@ public sealed record OnboardingContextDto(
     string? GroupNameZh = null,
     string? State = null,
     string? DisplayName = null,
-    Guid? ActivationMemberId = null);
+    Guid? ActivationMemberId = null,
+    bool ApprovalRequired = false,
+    bool Accepted = false);
 
 public sealed record OnboardingFlowStart(string Token, OnboardingContextDto Context);
 
@@ -56,7 +58,9 @@ public sealed record CreateActivationRequest(
     string PhoneE164,
     ActivationPurpose Purpose,
     IReadOnlyList<ActivationGrantRequest> Grants,
-    bool IdentityVerified = false);
+    bool IdentityVerified = false,
+    string? Email = null,
+    bool ApprovalRequired = false);
 
 public sealed record ActivationGrantDto(Guid GroupId, MembershipRole Role, StagedGrantStatus Status, string? ConflictCode);
 
@@ -74,7 +78,10 @@ public sealed record ActivationInvitationDto(
     MessageDeliveryStatus DeliveryStatus,
     DateTime ExpiresUtc,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] ManualActivationMessageDto? ManualActivationMessage,
-    IReadOnlyList<ActivationGrantDto> Grants);
+    IReadOnlyList<ActivationGrantDto> Grants,
+    bool ApprovalRequired = false,
+    bool Accepted = false,
+    bool HasEmail = false);
 
 public sealed record GroupJoinInviteDto(
     Guid Id,
@@ -94,7 +101,8 @@ public sealed record SubmitGroupApplicationRequest(
     string PrivacyConsentVersion,
     bool PrivacyConsent,
     string Honeypot,
-    long FormStartedUnixMilliseconds);
+    long FormStartedUnixMilliseconds,
+    string Intent = "join");
 
 public sealed record ApplicationHistoryDto(
     Guid Id,
@@ -141,7 +149,8 @@ public sealed record DecideMembershipApplicationRequest(
     string RowVersion,
     Guid? LinkedMemberId = null,
     bool ContactVerified = false,
-    bool IdentityVerified = false);
+    bool IdentityVerified = false,
+    Guid? OriginalApplicationId = null);
 
 public sealed record AlphaAccountDto(string AccountId, string Label);
 
@@ -157,6 +166,14 @@ public interface IIdentityAccessConfiguration
     bool IsProduction { get; }
     string FrontendBaseUrl { get; }
     IReadOnlyList<AlphaAccountConfiguration> AlphaAccounts { get; }
+    Guid? DeploymentAdministratorId => null;
+    string? DeploymentAdministratorEmail => null;
+}
+
+public interface IIdentityEmailSender
+{
+    bool IsAvailable { get; }
+    Task<IdentityMessageResult> SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken);
 }
 
 public sealed record AlphaAccountConfiguration(
@@ -227,6 +244,10 @@ public sealed record PersonalPasskeyInvitation(Guid Id, Guid MemberId, string Di
 
 public interface IIdentityAccessService
 {
+    Task<AppResult<OnboardingContextDto>> AcceptInvitationAsync(string flowToken, CancellationToken token);
+    Task<AppResult<ActivationInvitationDto>> ApproveInvitationAsync(Guid actor, Guid invitationId, bool identityVerified, CancellationToken token);
+    Task<AppResult<ActivationInvitationDto>> EmailInvitationAsync(Guid actor, Guid invitationId, CancellationToken token);
+    Task<AppResult<bool>> InitializeAdministratorAsync(bool recovery, CancellationToken token);
     Task<AppResult<BrowserApplicationStatus>> GetBrowserApplicationAsync(string browserToken, Guid? applicationId, Guid? inviteId, CancellationToken cancellationToken);
     Task<AppResult<OnboardingFlowStart>> StartBrowserActivationAsync(string browserToken, Guid applicationId, CancellationToken cancellationToken);
     Task<AppResult<MembershipApplicationDto>> SupplementBrowserApplicationAsync(string browserToken, Guid applicationId, string note, string? rowVersion, CancellationToken cancellationToken);

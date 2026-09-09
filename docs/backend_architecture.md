@@ -215,6 +215,17 @@ Rules to preserve:
 | Admin | Page-copy approval/return and menu management, sermon sync, and Cloudflare cache refresh |
 | Health | Live, ready, and aggregate health checks |
 
+Identity applications additionally distinguish joining, browser continuation and account
+recovery. Recovery approval requires an explicitly selected existing member and current
+browser receipt; continuation transfers the original application receipt without changing
+its approval state. Invitations separately record pending review and acceptance. Configurable
+SMTP or Microsoft 365 Graph email and deployment-only administrator recovery reuse the one-time invitation
+transaction. Recovery revokes old credentials but does not revoke existing JWT sessions.
+Provider selection stays in Infrastructure behind `IIdentityEmailSender`; application
+authorization, invitation expiry and consumption do not depend on the mail provider.
+See [identity workflow contracts and configuration](identity-access.md) for the additive
+interfaces, authorization rules, delivery behavior and migration requirements.
+
 Page publication uses immutable submitted and published JSON snapshots, including ordered section-link metadata. Public readers reject invalid snapshots rather than exposing the mutable working page. Existing public pages without review records are backfilled as pending submissions, and review-row `UpdatedUtc` concurrency checks return a conflict when submit, approve, return, or review-copy edits race.
 
 ## Data And Payload Conventions
