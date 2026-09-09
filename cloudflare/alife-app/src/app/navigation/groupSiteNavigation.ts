@@ -1,5 +1,12 @@
 export type GroupSiteSection = 'home' | 'announcements' | 'albums' | 'forum' | 'events'
 
+export const getLegacyGroupEntryPath = (search: string, savedGroupId: string) => {
+  const params = new URLSearchParams(search)
+  return savedGroupId && (params.has('section') || params.has('page'))
+    ? `/groups/${encodeURIComponent(savedGroupId)}${search}`
+    : null
+}
+
 export const getGroupSiteRoute = (pathname: string, search = ''): { section: GroupSiteSection; groupId?: string } | null => {
   if (/^\/groups\/forum(?:\/posts\/[^/]+)?$/.test(pathname)) return { section: 'forum' }
   const forum = pathname.match(/^\/groups\/([^/]+)\/forum(?:\/posts\/[^/]+)?$/)
@@ -8,7 +15,7 @@ export const getGroupSiteRoute = (pathname: string, search = ''): { section: Gro
   const albums = pathname.match(/^\/groups\/([^/]+)\/albums(?:\/[^/]+)?$/)
   if (albums) return { section: 'albums', groupId: albums[1] }
   const group = pathname.match(/^\/groups(?:\/([^/]+))?$/)
-  if (!group || ['select', 'join', 'manage', 'forum'].includes(group[1])) return null
+  if (!group || !group[1] || ['select', 'join', 'manage', 'forum'].includes(group[1])) return null
   const params = new URLSearchParams(search)
   const section = params.get('section')
   if (params.get('view') === 'overview' || !section) return { section: 'home', groupId: group[1] }

@@ -11,12 +11,12 @@ import { canAccessChurchManagement, hasSystemManagementAdminPermission } from '.
 import { useCurrentTasks } from '../../hooks/useCurrentTasks'
 import { countCurrentTasks, formatTaskCount } from '../../utils/currentTasks'
 import { PERSONAL_CENTER_PATH, PROFILE_SETTINGS_PATH } from '../routing/personalCenterRoutes'
+import { getGroupLifeMemberships } from './groupLifeMemberships'
+import { localizeText } from '../../utils/localizedText'
 
 type Args = {
   contextualGroupId: string
   churchGroupId: string
-  groupLifeGroupId: string
-  groupLifeGroupName: string
   eventDetailScreen: boolean
   contextualEventId?: string
   contextualEvent?: GroupEventRecord | null
@@ -28,8 +28,6 @@ const isPresent = <T,>(value: T | null | undefined): value is T => Boolean(value
 export const useShellNavigation = ({
   contextualGroupId,
   churchGroupId,
-  groupLifeGroupId: requestedGroupLifeGroupId,
-  groupLifeGroupName,
   eventDetailScreen,
   contextualEventId,
   contextualEvent,
@@ -41,30 +39,25 @@ export const useShellNavigation = ({
   const isChinese = auth.language === 'zh'
   const memberAccountLabel = isChinese ? '成员账号' : 'Member account'
   const personalCenterLabel = isChinese ? '个人中心' : 'Personal Center'
-  const workspaceGroupId = requestedGroupLifeGroupId && requestedGroupLifeGroupId !== churchGroupId
-    ? requestedGroupLifeGroupId
-    : ''
   const contextualWorkspaceGroupId = currentGroupIsChurch ? '' : contextualGroupId
-  const canManageWorkspace = Boolean(workspaceGroupId && auth.hasLeaderAccess(workspaceGroupId))
-
-  const workspaceHome: ShellNavItem[] = canManageWorkspace ? [
-    {
-      key: 'workspace:home',
-      label: isChinese ? '小组管理' : 'Group Management',
-      description: isChinese ? '成员、联系人、事工、页面和设置' : 'Members, contacts, ministries, pages, and settings',
-      to: '/groups?section=group',
-      matchSearch: ['', '?section=group', '?section=members', '?section=contacts', '?section=subgroups', '?section=albums', '?section=pages'],
-      icon: <Settings2 className="h-5 w-5" />,
-      requireNoActivePage: true,
-      onClick: () => activeEntityService.setGroup(workspaceGroupId, { clearPage: true }),
-    },
-  ] : []
+  const groupContentItems: ShellNavItem[] = getGroupLifeMemberships(auth.memberships, churchGroupId)
+    .map((membership) => ({
+      key: `group-life:${membership.groupId}`,
+      label: localizeText(membership.groupName, auth.language) || (isChinese ? '未命名小组' : 'Unnamed group'),
+      description: membership.role === 'leader'
+        ? (isChinese ? '组长' : 'Group leader')
+        : membership.role === 'coLeader'
+          ? (isChinese ? '副组长' : 'Co-leader')
+          : (isChinese ? '活跃组员' : 'Active member'),
+      to: `/groups/${encodeURIComponent(membership.groupId)}?view=overview`,
+      matchPathOnly: true,
+      matchDescendants: true,
+      icon: <UsersRound className="h-5 w-5" />,
+    }))
 
   const activeEventId = contextualEventId || ''
   const eventBasePath = contextualWorkspaceGroupId && activeEventId
-    ? contextualWorkspaceGroupId === workspaceGroupId
-      ? `/events/${encodeURIComponent(activeEventId)}`
-      : `/groups/${encodeURIComponent(contextualWorkspaceGroupId)}/events/${encodeURIComponent(activeEventId)}`
+    ? `/groups/${encodeURIComponent(contextualWorkspaceGroupId)}/events/${encodeURIComponent(activeEventId)}`
     : ''
   const eventLifecycle = contextualEvent ? getEventLifecycle(contextualEvent) : null
   const acceptsEnrollments = contextualEvent ? readEventLifecycleData(contextualEvent).acceptsEnrollments : false
@@ -98,9 +91,6 @@ export const useShellNavigation = ({
   ].filter(isPresent) : []
 
   const contextualItems = eventDetailScreen ? eventItems : []
-  const groupContentItems = [
-    ...workspaceHome,
-  ]
   const workspaceVisible = workspaceEnabled && contextualItems.length > 0
 
   const canOpenChurchManagement = canAccessChurchManagement({
@@ -121,7 +111,6 @@ export const useShellNavigation = ({
     }
     : null
 
-  const groupSelectionTo = auth.isGuest ? '/groups/select?from=alife' : '/groups/select'
   const taskCounts = countCurrentTasks(currentTasksQuery.data ?? [])
   const accountItems: ShellNavItem[] = !auth.loading && !auth.isGuest
     ? [{
@@ -232,11 +221,11 @@ export const useShellNavigation = ({
     },
     {
       key: 'platform-group-life',
-      label: groupLifeGroupName || (isChinese ? '小组生活' : 'Group Life'),
-      description: isChinese ? '当前小组的总览、管理、公告、相册、活动和论坛' : 'Overview, management, announcements, albums, events, and forum for the selected group',
-      to: workspaceGroupId ? '/groups?view=overview' : groupSelectionTo,
+      label: isChinese ? '小组生活' : 'Group Life',
+      description: isChinese ? '你已加入的小组，按组长、副组长、活跃组员排序' : 'Your groups, ordered by leader, co-leader, then active member',
+      to: '/groups',
       icon: <UsersRound className="h-5 w-5" />,
-      collapsible: Boolean(workspaceGroupId),
+      collapsible: groupContentItems.length > 0,
       toggleOnHeaderClick: false,
       mobileNavigateFirst: true,
       activePathPrefixes: ['/groups', '/albums'],

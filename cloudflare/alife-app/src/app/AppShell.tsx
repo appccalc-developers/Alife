@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { useLocation } from 'react-router-dom'
 import { CacheInspectorHud } from '../components/diagnostics/CacheInspectorHud'
-import { localizeText } from '../utils/localizedText'
 import { useAuthStore } from '../stores/auth'
 import { groupService } from '../services/groupService'
 import AppRouteLoading from './components/AppRouteLoading'
@@ -47,19 +46,10 @@ const WorkspaceShell = () => {
   const context = useShellContext()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsedPreference)
   const [debugLoading, setDebugLoading] = useState(false)
-  const storedGroupIsChurch = context.currentGroup?.isChurch === true ||
-    Boolean(context.currentGroup?.id && context.currentGroup.id === context.churchGroup?.id)
-  const groupLifeGroup = !storedGroupIsChurch ? context.currentGroup : null
-  const groupLifeGroupId = groupLifeGroup?.id || ''
-  const groupLifeGroupName = groupLifeGroupId
-    ? localizeText(groupLifeGroup?.name, auth.language)
-    : ''
 
   const navigation = useShellNavigation({
     contextualGroupId: context.contextualGroupId,
     churchGroupId: context.churchGroup?.id || '',
-    groupLifeGroupId,
-    groupLifeGroupName,
     eventDetailScreen: context.isEventDetailScreen,
     contextualEventId: context.contextualEventId,
     contextualEvent: context.contextualEvent,
@@ -72,11 +62,11 @@ const WorkspaceShell = () => {
     isSermonDetailScreen: context.isSermonDetailScreen,
   })
 
-  const headerGroupContextId = !context.isIdentityScreen ? groupLifeGroupId : ''
+  const headerGroupContextId = !context.isIdentityScreen ? context.contextualGroupId : ''
   const workspaceArea = getWorkspaceArea(context.location.pathname)
   const churchSite = getChurchSiteSection(context.location.pathname, context.location.search) !== null
   const groupSite = getGroupSiteRoute(context.location.pathname, context.location.search)
-  const groupSiteId = groupSite?.groupId || groupLifeGroupId
+  const groupSiteId = groupSite?.groupId || context.contextualGroupId
   const routeContent = <AppRoutes churchGroupId={context.churchGroup?.id || ''} churchGroupLoading={context.churchGroupLoading} />
 
   useEffect(() => {

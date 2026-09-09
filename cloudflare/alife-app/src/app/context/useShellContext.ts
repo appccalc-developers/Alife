@@ -114,7 +114,7 @@ export const useShellContext = () => {
   const isGroupSelectScreen = path === '/groups/select' || path === '/groups/select/tree'
   const isGroupJoinScreen = path === '/groups/join' || Boolean(groupJoinMatch)
   const isChurchLifeScreen = getChurchSiteSection(path, location.search) !== null
-  const contextualGroupId = isGroupSelectScreen || isGroupJoinScreen || isChurchLifeScreen
+  const contextualGroupId = (path === '/groups' && !searchParams.has('section') && !searchParams.has('page')) || isGroupSelectScreen || isGroupJoinScreen || isChurchLifeScreen
     ? ''
     : routeGroupIds.find(Boolean) ||
       activeIds.groupId ||
@@ -224,11 +224,10 @@ export const useShellContext = () => {
         return
       }
 
-      activeEntityService.setGroup(groupId, { clearPage: true, clearEvent: true })
-      navigate('/groups?view=overview')
+      navigate(`/groups/${encodeURIComponent(groupId)}?view=overview`)
     }
 
-    const target = approved ? '/groups?view=overview' : `/groups/${encodeURIComponent(groupId)}/join`
+    const target = approved ? `/groups/${encodeURIComponent(groupId)}?view=overview` : `/groups/${encodeURIComponent(groupId)}/join`
     if (confirmUnsavedChangesNavigation(target, () => { void continueNavigation() })) {
       void continueNavigation()
     }
@@ -238,10 +237,9 @@ export const useShellContext = () => {
     const subgroupMembership = auth.memberships.find((item) => item.groupId === groupId)
     const approved = subgroupMembership?.status === 'approved'
     const target = approved
-      ? '/groups?view=overview'
+      ? `/groups/${encodeURIComponent(groupId)}?view=overview`
       : `/groups/${encodeURIComponent(groupId)}/join`
     const continueNavigation = () => {
-      if (approved) activeEntityService.setGroup(groupId, { clearPage: true })
       navigate(target)
     }
 
