@@ -92,6 +92,10 @@ public sealed class GroupJoinInvite
 
 public sealed class ChurchPersonApplication
 {
+    public string? Sex { get; set; }
+    public string? Email { get; set; }
+    public string? NotificationConsentVersion { get; set; }
+    public DateTime? NotificationConsentedUtc { get; set; }
     public Guid Id { get; set; }
     public Guid? ApplicantMemberId { get; set; }
     public Guid? LinkedMemberId { get; set; }
@@ -126,7 +130,7 @@ public sealed class GroupMembershipApplication
     public Guid Id { get; set; }
     public Guid ChurchPersonApplicationId { get; set; }
     public Guid GroupId { get; set; }
-    public Guid GroupJoinInviteId { get; set; }
+    public Guid? GroupJoinInviteId { get; set; }
     public Guid? ApplicantMemberId { get; set; }
     public byte[] DeduplicationKey { get; set; } = [];
     public MembershipApplicationStatus Status { get; set; }
@@ -137,7 +141,7 @@ public sealed class GroupMembershipApplication
 
     public ChurchPersonApplication ChurchPersonApplication { get; set; } = null!;
     public Group Group { get; set; } = null!;
-    public GroupJoinInvite GroupJoinInvite { get; set; } = null!;
+    public GroupJoinInvite? GroupJoinInvite { get; set; }
     public Member? ApplicantMember { get; set; }
     public ICollection<ApplicationHistory> History { get; set; } = [];
 }

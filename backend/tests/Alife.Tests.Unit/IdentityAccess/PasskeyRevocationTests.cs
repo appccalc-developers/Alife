@@ -18,6 +18,41 @@ namespace Alife.Tests.Unit.IdentityAccess;
 
 public sealed class PasskeyRevocationTests
 {
+    [Theory]
+    [InlineData("  张三 Alice  ", "张三 Alice")]
+    [InlineData("   ", "ALIFE member")]
+    [InlineData(null, "ALIFE member")]
+    public async Task BeginRegistration_UsesDisplayNameAndPreservesStableUserHandle(string? displayName, string expected)
+    {
+        await using var db = CreateDb();
+        var handle = System.Security.Cryptography.RandomNumberGenerator.GetBytes(32);
+        var member = new Member
+        {
+            Id = Guid.NewGuid(), DisplayName = displayName!, WebAuthnUserHandle = handle,
+            CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow
+        };
+        db.Members.Add(member);
+        await db.SaveChangesAsync();
+        var fido2 = Substitute.For<IFido2>();
+        fido2.RequestNewCredential(Arg.Any<RequestNewCredentialParams>()).Returns(call => new CredentialCreateOptions
+        {
+            Rp = new PublicKeyCredentialRpEntity("alife.example", "ALIFE"),
+            PubKeyCredParams = [],
+            User = call.Arg<RequestNewCredentialParams>().User,
+            Challenge = [1, 2, 3]
+        });
+        var service = CreateService(db, new TestConfiguration(true), fido2);
+
+        var result = await service.BeginRegistrationAsync(member.Id, null, false, default);
+
+        Assert.Equal(AppResultStatus.Success, result.Status);
+        var options = CredentialCreateOptions.FromJson(Assert.Single(db.PasskeyCeremonies).OptionsJson);
+        Assert.Equal(expected, options.User.Name);
+        Assert.Equal(expected, options.User.DisplayName);
+        Assert.Equal(handle, options.User.Id);
+        Assert.Equal(handle, member.WebAuthnUserHandle);
+    }
+
     [Fact]
     public async Task BeginAuthentication_WhenDisabled_DoesNotCreateCeremony()
     {

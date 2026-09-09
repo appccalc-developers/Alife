@@ -19,6 +19,8 @@ const ManualActivationMessageModal = ({ value, language, onClose }: Props) => {
   const phoneRef = useRef<HTMLInputElement>(null)
   const messageRef = useRef<HTMLTextAreaElement>(null)
   const [copyState, setCopyState] = useState<CopyState>('idle')
+  const useEmail = Boolean(value?.recipientEmail && (value.replyPreference === 'email' || !value.recipientPhoneE164))
+  const recipient = useEmail ? value?.recipientEmail ?? '' : value?.recipientPhoneE164 ?? ''
 
   useEffect(() => {
     if (value) setCopyState('idle')
@@ -63,18 +65,18 @@ const ManualActivationMessageModal = ({ value, language, onClose }: Props) => {
         </div>
 
         <label className="block text-sm font-bold text-[#40554e]">
-          {zh ? '收件人手机号' : 'Recipient phone'}
+          {useEmail ? (zh ? '收件人 email' : 'Recipient email') : (zh ? '收件人手机号' : 'Recipient phone')}
           <input
             ref={phoneRef}
             className="mt-1.5 min-h-11 w-full rounded-xl border border-[#cbdad4] bg-[#f7faf8] px-3 font-mono text-sm text-[#18332d] outline-none focus:border-[#21705f] focus:ring-4 focus:ring-[#dcece6]"
             readOnly
-            value={value.recipientPhoneE164}
+            value={recipient}
             onFocus={(event) => event.currentTarget.select()}
           />
         </label>
-        <AppActionButton block onClick={() => void copyValue('phone', value.recipientPhoneE164)}>
+        <AppActionButton block onClick={() => void copyValue('phone', recipient)}>
           {copyState === 'phone' ? <Check className="mr-2 h-4 w-4" aria-hidden="true" /> : <Copy className="mr-2 h-4 w-4" aria-hidden="true" />}
-          {copyState === 'phone' ? (zh ? '手机号已复制' : 'Phone copied') : (zh ? '复制手机号' : 'Copy phone')}
+          {copyState === 'phone' ? (zh ? '收件人已复制' : 'Recipient copied') : (zh ? '复制收件人' : 'Copy recipient')}
         </AppActionButton>
 
         <label className="block text-sm font-bold text-[#40554e]">

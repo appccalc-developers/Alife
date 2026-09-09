@@ -128,6 +128,15 @@ public sealed class OnboardingController(
     public async Task<IActionResult> SubmitGroupApplication(
         SubmitGroupApplicationRequest request,
         CancellationToken cancellationToken)
+        => await SubmitApplication(request, false, cancellationToken);
+
+    [HttpPost("church-applications")]
+    public async Task<IActionResult> SubmitChurchApplication(
+        SubmitGroupApplicationRequest request, CancellationToken cancellationToken)
+        => await SubmitApplication(request, true, cancellationToken);
+
+    private async Task<IActionResult> SubmitApplication(
+        SubmitGroupApplicationRequest request, bool churchApplication, CancellationToken cancellationToken)
     {
         this.ApplyPrivateNoStoreHeaders();
         if (!IdentityHttp.IsTrustedBrowserOrigin(Request, configuration)) return StatusCode(403, new { code = "identity_origin_invalid" });
@@ -140,8 +149,9 @@ public sealed class OnboardingController(
         var browserToken = Request.Cookies["alife_application"];
         if (browserToken is null || browserToken.Length != 64 || !browserToken.All(Uri.IsHexDigit))
             browserToken = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
-        var result = await identityAccess.SubmitGroupApplicationAsync(
-            ReadFlowToken(), currentMemberAccessor.GetCurrentMemberId(), request, cancellationToken, browserToken);
+        var result = churchApplication
+            ? await identityAccess.SubmitChurchApplicationAsync(ReadFlowToken(), currentMemberAccessor.GetCurrentMemberId(), request, cancellationToken, browserToken)
+            : await identityAccess.SubmitGroupApplicationAsync(ReadFlowToken(), currentMemberAccessor.GetCurrentMemberId(), request, cancellationToken, browserToken);
         if (result.IsSuccess) AuthCookie.WriteApplicationCookie(Request, Response, browserToken);
         return this.ToIdentityResult(result);
     }

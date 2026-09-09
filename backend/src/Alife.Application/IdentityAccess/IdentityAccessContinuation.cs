@@ -10,12 +10,15 @@ public sealed partial class IdentityAccessService
     private async Task<GroupMembershipApplication?> FindBrowserApplicationAsync(
         string browserToken, Guid? applicationId, Guid? inviteId, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(browserToken) || (applicationId is null && inviteId is null)) return null;
+        if (string.IsNullOrWhiteSpace(browserToken)) return null;
         var hash = tokenService.HashToken(browserToken);
         var query = dbContext.GroupMembershipApplications
             .Include(x => x.Group).Include(x => x.ChurchPersonApplication).Include(x => x.History)
             .Where(x => x.BrowserTokenHash == hash && x.BrowserTokenExpiresUtc > DateTime.UtcNow && x.BrowserTokenConsumedUtc == null);
         if (applicationId is Guid id) query = query.Where(x => x.Id == id);
+        // A rescan of the public phone-entry QR resumes only this browser's church application.
+        if (applicationId is null && inviteId is null)
+            query = query.Where(x => x.Source == "publicChurchApplication" && x.Group.IsChurch && !x.Group.IsClosed);
         if (inviteId is Guid invitationId)
         {
             var invite = await dbContext.GroupJoinInvites.SingleOrDefaultAsync(x => x.Id == invitationId, cancellationToken);

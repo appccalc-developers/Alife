@@ -404,6 +404,10 @@ public sealed partial class IdentityAccessService(
         Guid actorMemberId,
         Guid activationId,
         CancellationToken cancellationToken)
+        => await serializableExecutor.ExecuteAsync(token => ResendActivationCoreAsync(actorMemberId, activationId, token), cancellationToken);
+
+    private async Task<AppResult<ActivationInvitationDto>> ResendActivationCoreAsync(
+        Guid actorMemberId, Guid activationId, CancellationToken cancellationToken)
     {
         var invitation = await dbContext.MemberActivationInvitations.AsNoTracking()
             .Include(item => item.Member)
@@ -417,6 +421,30 @@ public sealed partial class IdentityAccessService(
             return await groupAuthorization.IsAdminAsync(actorMemberId, cancellationToken)
                 ? AppResult<ActivationInvitationDto>.Conflict("recovery_reissue_requires_verification")
                 : AppResult<ActivationInvitationDto>.Forbidden("passkey_recovery_forbidden");
+        if (invitation.SourceApplicationId is Guid sourceId)
+        {
+            var application = await LoadApplicationAsync(sourceId, cancellationToken);
+            if (application?.Source == "publicChurchApplication")
+            {
+                if (!application.Group.IsChurch || !await CanManageChurchAsync(actorMemberId, application.GroupId, cancellationToken))
+                    return AppResult<ActivationInvitationDto>.Forbidden("activation_create_forbidden");
+                if (application.Status != MembershipApplicationStatus.Approved || !application.ChurchPersonApplication.IsIdentityVerified ||
+                    application.ChurchPersonApplication.LinkedMemberId != invitation.MemberId || invitation.Member.IsRegistered ||
+                    !await IsOrdinaryMemberAsync(invitation.MemberId, cancellationToken) ||
+                    await dbContext.MemberPasskeyCredentials.AnyAsync(x => x.MemberId == invitation.MemberId, cancellationToken))
+                    return AppResult<ActivationInvitationDto>.Conflict("application_activation_unavailable");
+                var issued = await IssueActivationAsync(actorMemberId, invitation.Member, ActivationPurpose.FirstActivation,
+                    [new ActivationGrantRequest(application.GroupId, MembershipRole.Member)], cancellationToken, sourceApplicationId: sourceId);
+                return issued.IsSuccess ? AppResult<ActivationInvitationDto>.Success(issued.Value! with
+                {
+                    ManualActivationMessage = issued.Value!.ManualActivationMessage! with
+                    {
+                        RecipientEmail = application.ChurchPersonApplication.Email,
+                        ReplyPreference = application.ChurchPersonApplication.ReplyPreference
+                    }
+                }) : issued;
+            }
+        }
         return await CreateActivationAsync(actorMemberId, new CreateActivationRequest(
             invitation.Member.DisplayName ?? string.Empty,
             invitation.Member.PhoneE164 ?? string.Empty,
@@ -636,23 +664,38 @@ public sealed partial class IdentityAccessService(
             token => SubmitGroupApplicationCoreAsync(flowToken, applicantMemberId, request, token, browserToken),
             cancellationToken);
 
+    public Task<AppResult<MembershipApplicationDto>> SubmitChurchApplicationAsync(
+        string flowToken, Guid? applicantMemberId, SubmitGroupApplicationRequest request,
+        CancellationToken cancellationToken, string browserToken)
+        => serializableExecutor.ExecuteAsync(
+            token => SubmitGroupApplicationCoreAsync(flowToken, applicantMemberId, request, token, browserToken, true), cancellationToken);
+
     private async Task<AppResult<MembershipApplicationDto>> SubmitGroupApplicationCoreAsync(
         string flowToken,
         Guid? applicantMemberId,
         SubmitGroupApplicationRequest request,
-        CancellationToken cancellationToken, string? browserToken = null)
+        CancellationToken cancellationToken, string? browserToken = null, bool publicChurchApplication = false)
     {
         var flow = await FindActiveFlowAsync(flowToken, cancellationToken);
-        if (flow?.GroupJoinInviteId is not Guid inviteId)
+        GroupJoinInvite? invite = null;
+        Group? targetGroup;
+        if (publicChurchApplication)
         {
-            return AppResult<MembershipApplicationDto>.NotFound("join_flow_invalid");
+            if (flow?.Intent != OnboardingIntent.SignIn || string.IsNullOrWhiteSpace(browserToken))
+                return AppResult<MembershipApplicationDto>.NotFound("join_flow_invalid");
+            targetGroup = await dbContext.Groups.SingleOrDefaultAsync(x => x.IsChurch && !x.IsClosed, cancellationToken);
+            if (targetGroup is null) return AppResult<MembershipApplicationDto>.NotFound("church_application_unavailable");
         }
-
-        var invite = await dbContext.GroupJoinInvites.Include(item => item.Group).SingleAsync(item => item.Id == inviteId, cancellationToken);
-        if (invite.Status != GroupJoinInviteStatus.Active || invite.ExpiresUtc <= DateTime.UtcNow)
+        else
         {
-            return AppResult<MembershipApplicationDto>.Conflict("join_invite_not_active");
+            if (flow?.GroupJoinInviteId is not Guid inviteId)
+                return AppResult<MembershipApplicationDto>.NotFound("join_flow_invalid");
+            invite = await dbContext.GroupJoinInvites.Include(item => item.Group).SingleAsync(item => item.Id == inviteId, cancellationToken);
+            if (invite.Status != GroupJoinInviteStatus.Active || invite.ExpiresUtc <= DateTime.UtcNow)
+                return AppResult<MembershipApplicationDto>.Conflict("join_invite_not_active");
+            targetGroup = invite.Group;
         }
+        var targetGroupId = targetGroup.Id;
 
         if (!string.IsNullOrWhiteSpace(request.Honeypot) ||
             DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - request.FormStartedUnixMilliseconds < 2000)
@@ -662,6 +705,13 @@ public sealed partial class IdentityAccessService(
 
         var displayName = request.DisplayName.Trim();
         var phone = NormalizePhone(request.PhoneE164);
+        var email = request.Email?.Trim();
+        if (publicChurchApplication &&
+            (email is not { Length: > 0 and <= 320 } || !new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(email) ||
+             request.Sex is not ("Male" or "Female" or "Unknown") || !request.NotificationConsent ||
+             request.PrivacyConsentVersion != "church-application-v1" ||
+             request.ReplyPreference is not ("email" or "sms") || (request.ReplyPreference == "sms" && phone is null)))
+            return AppResult<MembershipApplicationDto>.Validation("application_invalid");
         if (displayName.Length is < 2 or > 150 || (!string.IsNullOrWhiteSpace(request.PhoneE164) && phone is null) ||
             !request.PrivacyConsent || request.Declaration.Trim().Length is < 2 or > 2000 ||
             request.PrivacyConsentVersion.Trim().Length == 0)
@@ -670,7 +720,7 @@ public sealed partial class IdentityAccessService(
         }
 
         if (applicantMemberId is Guid memberId && await dbContext.GroupMembershipApplications.AnyAsync(
-                item => item.GroupId == invite.GroupId && item.ApplicantMemberId == memberId && ActiveApplicationStatuses.Contains(item.Status),
+                item => item.GroupId == targetGroupId && item.ApplicantMemberId == memberId && ActiveApplicationStatuses.Contains(item.Status),
                 cancellationToken))
         {
             return AppResult<MembershipApplicationDto>.Conflict("application_already_active");
@@ -678,10 +728,10 @@ public sealed partial class IdentityAccessService(
 
         var phoneHash = phone is null ? null : tokenService.HashLookup(phone);
         var browserHash = string.IsNullOrWhiteSpace(browserToken) ? null : tokenService.HashToken(browserToken);
-        if (browserHash is not null && await dbContext.GroupMembershipApplications.AnyAsync(item => item.GroupId == invite.GroupId && item.BrowserTokenHash == browserHash && item.BrowserTokenExpiresUtc > DateTime.UtcNow && item.BrowserTokenConsumedUtc == null && item.Status != MembershipApplicationStatus.Rejected, cancellationToken))
+        if (browserHash is not null && await dbContext.GroupMembershipApplications.AnyAsync(item => item.GroupId == targetGroupId && item.BrowserTokenHash == browserHash && item.BrowserTokenExpiresUtc > DateTime.UtcNow && item.BrowserTokenConsumedUtc == null && item.Status != MembershipApplicationStatus.Rejected, cancellationToken))
             return AppResult<MembershipApplicationDto>.Conflict("application_already_active");
         if (applicantMemberId is null && phoneHash is not null && await dbContext.GroupMembershipApplications.AnyAsync(
-                item => item.GroupId == invite.GroupId &&
+                item => item.GroupId == targetGroupId &&
                         item.ChurchPersonApplication.PhoneLookupHash == phoneHash &&
                         ActiveApplicationStatuses.Contains(item.Status),
                 cancellationToken))
@@ -730,6 +780,10 @@ public sealed partial class IdentityAccessService(
         var now = DateTime.UtcNow;
         var person = new ChurchPersonApplication
         {
+            Sex = publicChurchApplication ? request.Sex : null,
+            Email = publicChurchApplication ? email : null,
+            NotificationConsentVersion = publicChurchApplication ? "church-application-v1" : null,
+            NotificationConsentedUtc = publicChurchApplication ? now : null,
             Id = Guid.NewGuid(),
             ApplicantMemberId = applicant?.Id,
             LinkedMemberId = applicant?.Id,
@@ -753,12 +807,12 @@ public sealed partial class IdentityAccessService(
             BrowserTokenExpiresUtc = browserHash is null ? null : now.AddHours(72),
             Id = Guid.NewGuid(),
             ChurchPersonApplicationId = person.Id,
-            GroupId = invite.GroupId,
-            GroupJoinInviteId = invite.Id,
+            GroupId = targetGroupId,
+            GroupJoinInviteId = invite?.Id,
             ApplicantMemberId = applicant?.Id,
-            DeduplicationKey = tokenService.HashLookup($"membership-application\n{invite.GroupId}\n{applicant?.Id.ToString() ?? phone ?? browserToken ?? tokenService.CreateSecret()}"),
+            DeduplicationKey = tokenService.HashLookup($"membership-application\n{targetGroupId}\n{applicant?.Id.ToString() ?? phone ?? browserToken ?? tokenService.CreateSecret()}"),
             Status = MembershipApplicationStatus.Submitted,
-            Source = "groupJoinQr",
+            Source = publicChurchApplication ? "publicChurchApplication" : "groupJoinQr",
             SubmittedUtc = now,
             UpdatedUtc = now
         };
@@ -773,13 +827,12 @@ public sealed partial class IdentityAccessService(
         });
         dbContext.ChurchPersonApplications.Add(person);
         dbContext.GroupMembershipApplications.Add(application);
-        invite.LastUsedUtc = now;
-        invite.SubmissionCount++;
-        flow.ConsumedUtc = now;
-        AddAudit(applicant?.Id, "identity.membership_application.submitted", nameof(GroupMembershipApplication), application.Id, applicant?.Id, invite.GroupId);
+        if (invite is not null) { invite.LastUsedUtc = now; invite.SubmissionCount++; }
+        flow!.ConsumedUtc = now;
+        AddAudit(applicant?.Id, "identity.membership_application.submitted", nameof(GroupMembershipApplication), application.Id, applicant?.Id, targetGroupId);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        application.Group = invite.Group;
+        application.Group = targetGroup;
         application.ChurchPersonApplication = person;
         return AppResult<MembershipApplicationDto>.Success(ToApplicationDto(application));
     }
@@ -972,9 +1025,15 @@ public sealed partial class IdentityAccessService(
             return result;
         }
 
+        return await IssueApprovedApplicationAsync(actorMemberId, applicationId, result, cancellationToken);
+    }
+
+    private async Task<AppResult<MembershipApplicationDto>> IssueApprovedApplicationAsync(
+        Guid actorMemberId, Guid applicationId, AppResult<MembershipApplicationDto> result, CancellationToken cancellationToken)
+    {
         var application = await LoadApplicationAsync(applicationId, cancellationToken);
         var memberId = application?.ChurchPersonApplication.LinkedMemberId ?? application?.ApplicantMemberId;
-        if (application is null || memberId is null)
+        if (application is null || memberId is null || application.Status != MembershipApplicationStatus.Approved)
         {
             return result;
         }
@@ -996,17 +1055,24 @@ public sealed partial class IdentityAccessService(
             actorMemberId,
             member,
             ActivationPurpose.FirstActivation,
-            [
+            new[]
+            {
                 new ActivationGrantRequest(churchId, MembershipRole.Member),
-                new ActivationGrantRequest(groupId, MembershipRole.Member)
-            ],
+                new ActivationGrantRequest(application.GroupId, MembershipRole.Member)
+            }.DistinctBy(x => x.GroupId).ToArray(),
             cancellationToken, sourceApplicationId: application.Id);
 
         return activation.IsSuccess
             ? AppResult<MembershipApplicationDto>.Success(ToApplicationDto(
                 application,
                 activationDeliveryStatus: activation.Value!.DeliveryStatus,
-                manualActivationMessage: application.BrowserTokenHash is null ? activation.Value.ManualActivationMessage : null))
+                manualActivationMessage: application.Source == "publicChurchApplication"
+                    ? activation.Value.ManualActivationMessage! with
+                    {
+                        RecipientEmail = application.ChurchPersonApplication.Email,
+                        ReplyPreference = application.ChurchPersonApplication.ReplyPreference
+                    }
+                    : application.BrowserTokenHash is null ? activation.Value.ManualActivationMessage : null))
             : result;
     }
 
@@ -1078,7 +1144,7 @@ public sealed partial class IdentityAccessService(
                     .SingleAsync(cancellationToken);
                 person.Status = MembershipApplicationStatus.Approved;
                 await EnsureApprovedMembershipAsync(churchId, person.LinkedMemberId!.Value, MembershipRole.Member, cancellationToken);
-                application.Status = await MaterializeMembershipAsync(application, cancellationToken)
+                application.Status = groupId == churchId || await MaterializeMembershipAsync(application, cancellationToken)
                     ? MembershipApplicationStatus.Approved
                     : MembershipApplicationStatus.ApprovedWaitingForChurch;
                 break;
@@ -1178,7 +1244,11 @@ public sealed partial class IdentityAccessService(
                 }
                 person.Status = MembershipApplicationStatus.Approved;
                 await EnsureApprovedMembershipAsync(church.Id, person.LinkedMemberId!.Value, MembershipRole.Member, cancellationToken);
-                if (application.Status == MembershipApplicationStatus.ApprovedWaitingForChurch)
+                if (application.GroupId == church.Id)
+                {
+                    application.Status = MembershipApplicationStatus.Approved;
+                }
+                else if (application.Status == MembershipApplicationStatus.ApprovedWaitingForChurch)
                 {
                     application.Status = await MaterializeMembershipAsync(application, cancellationToken)
                         ? MembershipApplicationStatus.Approved
@@ -1207,7 +1277,10 @@ public sealed partial class IdentityAccessService(
         AddHistory(application, actorMemberId, request.Decision, groupFrom, application.Status, request.Note);
         AddAudit(actorMemberId, $"identity.person_application.{ToCamel(request.Decision)}", nameof(ChurchPersonApplication), person.Id, person.LinkedMemberId);
         await dbContext.SaveChangesAsync(cancellationToken);
-        return AppResult<MembershipApplicationDto>.Success(ToApplicationDto(application, responseDeliveryStatus));
+        var result = AppResult<MembershipApplicationDto>.Success(ToApplicationDto(application, responseDeliveryStatus));
+        return application.Source == "publicChurchApplication" && request.Decision == ApplicationDecisionKind.Approved
+            ? await IssueApprovedApplicationAsync(actorMemberId, applicationId, result, cancellationToken)
+            : result;
     }
 
     public async Task<AppResult<MembershipApplicationPageDto>> ListPersonApplicationsAsync(
@@ -1522,6 +1595,8 @@ public sealed partial class IdentityAccessService(
             Id = Guid.NewGuid(),
             DisplayName = person.DisplayName,
             PhoneE164 = person.PhoneE164,
+            Sex = person.Sex,
+            Email = person.Email,
             IsRegistered = false,
             CreatedUtc = now,
             UpdatedUtc = now
@@ -1849,7 +1924,8 @@ public sealed partial class IdentityAccessService(
                 ToCamel(item.ToStatus),
                 item.Note,
                 item.ActorMemberId,
-                item.CreatedUtc)).ToArray(), person.IsIdentityVerified);
+                item.CreatedUtc)).ToArray(), person.IsIdentityVerified, person.Sex, person.Email,
+            person.NotificationConsentVersion, person.NotificationConsentedUtc);
     }
 
     private static string BuildManualActivationMessage(string activationUrl)
@@ -1926,6 +2002,7 @@ public sealed partial class IdentityAccessService(
         => value.Trim().ToLowerInvariant() switch
         {
             "sms" => "sms",
+            "email" => "email",
             "phone" => "phone",
             "line" => "line",
             _ => "sms"

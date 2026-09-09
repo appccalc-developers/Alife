@@ -2,6 +2,49 @@
 
 ## Product contract
 
+The public ALIFE entry offers membership application separately from existing-member
+Passkey sign-in. Selecting “Enter my ALIFE” opens a choice/confirmation screen; only
+an explicit Passkey action invokes the system authenticator. Failure or cancellation
+does not imply that someone is a new applicant: sign-in, application and recovery
+remain distinct choices.
+
+“Would you like to join ALIFE?” shows a public QR/address on desktop. The applicant
+opens it on their personal phone. Before showing a form, the original browser resumes
+an existing application receipt. Without a receipt, a live session check directs an
+authenticated member to their existing account; a failed check offers retry, not a
+new form. Other visitors see explicit Passkey sign-in, assistance for prior applicants,
+and a first-application confirmation. Cancellation or authentication failure never
+automatically opens the form. WebAuthn does not expose a silent credential-presence
+check: this reduces duplicate submissions but cannot enforce one application per
+physical phone across browsers, expired receipts, or cleared cookies. First-time
+applicants explicitly continue, then fill in name, sex (including “prefer not to say”),
+required email, optional phone, and message. Email or SMS is selected for follow-up;
+SMS requires a valid phone. Two unchecked confirmations are required: use of details
+to process the application, and SMS/email delivery of results and registration
+instructions. Both consent records use `church-application-v1`; no religious or
+membership-rule declaration is inferred. Submission alone creates no Member,
+membership, credentials, or authenticated session.
+
+Public applications target only the configured open church group and enter Member
+Management's expanded “Membership applications · Pending approval” table. Reviewers
+can filter, sort, paginate and expand rows to inspect submitted details. Existing
+church-management authorization, in-person identity verification, explicit account
+association and optimistic concurrency still govern decisions. Approval creates the
+ordinary church identity and a source-bound first-activation invitation, unless the
+linked account already exists/is registered or elevated. Newly created members retain
+the submitted sex/email; existing linked profiles are never overwritten.
+
+Notifications are **manual**, not automatically sent: approval returns a one-time
+message plus the authorized recipient phone/email and channel for the reviewer to
+copy and send. Authorized regeneration supports email-only applicants and preserves
+the source application while revoking the previous link. It does not claim delivery. Requests for information and rejections
+also require manual follow-up. On the original phone browser the applicant may
+refresh progress and, after approval, create a Passkey there. Rescanning the public
+QR on that same browser resumes its latest public church application. The QR carries
+no personal information or identity capability. Browser receipts still expire after
+72 hours; changing browsers or expiry requires administrator assistance or the
+separately delivered activation link.
+
 An applicant may omit their phone number. The leader verifies the person in person
 and compares the application reference displayed on that person's phone before
 approving. Identity verification and telephone verification are separate facts;
@@ -32,6 +75,21 @@ credentials. Issuer authority and target roles are checked again before completi
 
 ## Interfaces and storage
 
+- `POST /api/onboarding/church-applications` reuses the application request with
+  additional `sex`, `email`, and `notificationConsent`. It requires a live sign-in
+  onboarding flow, the exact current privacy-consent version, trusted Origin,
+  honeypot/timing checks and existing application rate limits. The backend selects
+  the church; clients cannot select a target group or bypass a group QR.
+- `ChurchPersonApplication` adds nullable sex/email and notification-consent version
+  and time. `GroupMembershipApplication.GroupJoinInviteId` becomes nullable only to
+  represent the new `publicChurchApplication` source; existing QR submissions still
+  require an active invitation. DTO additions are optional for existing clients.
+- Browser status requests without application/invite IDs resume only the receipt
+  owner's public church application. Full submitted email is available only to the
+  receipt owner or authorized application reviewers; responses remain private/no-store.
+  Raw activation links are never returned by list/status APIs or persisted in client
+  caches. No contact information is used as proof of account ownership.
+
 - `POST /api/onboarding/group-applications` accepts an omitted/null/blank `phoneE164`;
   supplied nonblank numbers must validate. The existing response is retained and the
   response sets `alife_application`, an HttpOnly, SameSite=Lax cookie (Secure on HTTPS),
@@ -40,6 +98,7 @@ credentials. Issuer authority and target roles are checked again before completi
   One browser token may own several applications; each association expires 72 hours
   after submission, even if the cookie is refreshed by another submission.
 - `POST /api/onboarding/browser-applications/status` takes `applicationId` or `inviteId`.
+  Omitting both resumes the receipt owner's latest public church application only.
   It returns `{ application, canActivate }` only with the associated valid cookie.
   Invite lookup also requires a currently active, unexpired group invite. Applicant
   history excludes internal decision notes and actor identifiers.
@@ -75,6 +134,25 @@ or logs. Existing content caching and JWT session lifetimes are unchanged.
 
 ## User experience and verification
 
+Passkey registration is offered only on personal mobile devices. The shared browser
+registration function rejects desktop devices before fetching options or calling
+WebAuthn; Windows remains classified as desktop even with touch or a mobile hint.
+Both registration API endpoints also reject requests identifying Windows through
+User-Agent or Sec-CH-UA-Platform with `passkey_phone_required` and private/no-store.
+These platform signals guide supported usage; they are not cryptographic proof of
+where a credential is stored. Authentication and registration authorization remain
+unchanged. Desktop authentication retains the hybrid phone hint, which browsers
+may ignore; ALIFE cannot control the password manager's complete picker or sync.
+
+New credentials use the member's trimmed display name for both WebAuthn `user.name`
+and `user.displayName`, with `ALIFE member` as the blank-name fallback. The random
+`user.id` remains unchanged and is the identity key, so equal display names do not
+merge accounts. The optional credential nickname in ALIFE is separate. Existing
+credentials are not automatically renamed, recreated, deleted, or revoked.
+Obsolete laptop credentials are cleaned up manually in the owning password manager;
+Google Password Manager entries may be synced with the phone, so only confirmed
+obsolete ALIFE credentials should be removed.
+
 The waiting page shows the application reference and a check-results button, refreshing
 on window focus without background polling. Chinese and English are supported without
 language-only refetches. Changing browsers, clearing cookies, expiry, or lost continuation
@@ -89,6 +167,12 @@ no-store and Origin rejection; mobile/desktop layouts and both languages. Real i
 Safari registration and Windows hybrid authentication require physical-device testing.
 
 ## Migration and rollout
+
+Apply `PublicChurchApplications` before deploying this public application UI/backend.
+It is additive except for relaxing the invitation FK's nullability. Existing records
+receive null new fields, not invented consent. Its down migration refuses to run while
+public applications or new-field data exist; retain the additive schema for rollback.
+Generation and SQL review do not apply the migration to a shared database.
 
 Apply `BrowserApplicationAndPasskeyRecovery` before deploying the backend and frontend.
 It makes application phone fields nullable and adds browser receipt, identity verification,
