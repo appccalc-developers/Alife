@@ -6518,13 +6518,26 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasColumnType("bit")
                         .HasColumnName("is_deleted");
 
+                    b.Property<int>("MetadataVersion")
+                        .HasColumnType("int")
+                        .HasColumnName("metadata_version");
+
                     b.Property<DateTime?>("PreachedAtUtc")
                         .HasColumnType("datetime2")
                         .HasColumnName("preached_at_utc");
 
+                    b.Property<DateTime?>("PublishedAtUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("published_at_utc");
+
                     b.Property<int>("SortOrder")
                         .HasColumnType("int")
                         .HasColumnName("sort_order");
+
+                    b.Property<string>("SourceTitle")
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)")
+                        .HasColumnName("source_title");
 
                     b.Property<string>("SpeakerName")
                         .IsRequired()

@@ -22,6 +22,7 @@ public class YoutubeService(
 
     public async Task SyncSermonsAsync(CancellationToken cancellationToken = default)
     {
+        await SermonMetadataBackfill.RunAsync(dbContext, sermonCacheInvalidationService, cancellationToken);
         var apiKey = configuration["YOUTUBE_API_KEY"];
         var playlistId = configuration["YOUTUBE_PLAYLIST_ID"];
 
@@ -66,6 +67,9 @@ public class YoutubeService(
 
                 existing.Title = item.Title;
                 existing.SpeakerName = item.SpeakerName;
+                existing.SourceTitle = item.SourceTitle;
+                existing.PublishedAtUtc = item.PublishedAtUtc;
+                existing.MetadataVersion = SermonMetadata.CurrentVersion;
                 existing.ThumbnailUrl = item.ThumbnailUrl;
                 existing.VideoUrl = item.VideoUrl;
                 existing.PreachedAtUtc = item.PreachedAtUtc;
@@ -87,6 +91,9 @@ public class YoutubeService(
                 YoutubeVideoId = item.VideoId,
                 Title = item.Title,
                 SpeakerName = item.SpeakerName,
+                SourceTitle = item.SourceTitle,
+                PublishedAtUtc = item.PublishedAtUtc,
+                MetadataVersion = SermonMetadata.CurrentVersion,
                 ThumbnailUrl = item.ThumbnailUrl,
                 VideoUrl = item.VideoUrl,
                 PreachedAtUtc = item.PreachedAtUtc,
@@ -167,32 +174,25 @@ public class YoutubeService(
                     title = "Untitled Sermon";
                 }
 
-                var speakerName = item.Snippet?.VideoOwnerChannelTitle?.Trim();
-                if (string.IsNullOrWhiteSpace(speakerName))
-                {
-                    speakerName = item.Snippet?.ChannelTitle?.Trim();
-                }
-
-                if (string.IsNullOrWhiteSpace(speakerName))
-                {
-                    speakerName = "Guest Speaker";
-                }
-
                 var thumbnailUrl =
                     item.Snippet?.Thumbnails?.Standard?.Url ??
                     item.Snippet?.Thumbnails?.High?.Url ??
                     item.Snippet?.Thumbnails?.Medium?.Url ??
                     item.Snippet?.Thumbnails?.Default?.Url;
 
-                var preachedAtUtc = ResolvePreachedAtUtc(title, item.Snippet?.PublishedAt);
+                var publishedAtUtc = DateTimeOffset.TryParse(item.ContentDetails?.VideoPublishedAt ?? item.Snippet?.PublishedAt,
+                    CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var published) ? published.UtcDateTime : (DateTime?)null;
+                var metadata = SermonMetadata.Parse(title, publishedAtUtc);
 
                 sermons.Add(new PlaylistSermonItem(
                     videoId,
-                    title,
-                    speakerName,
+                    metadata.Title,
+                    metadata.SpeakerName,
                     thumbnailUrl,
                     $"https://www.youtube.com/watch?v={videoId}",
-                    preachedAtUtc));
+                    metadata.PreachedAtUtc,
+                    title,
+                    publishedAtUtc));
 
                 if (sermons.Count >= MaxSermonsToSync)
                 {
@@ -213,7 +213,7 @@ public class YoutubeService(
 
     private static string BuildPlaylistItemsUri(string apiKey, string playlistId, string? nextPageToken)
     {
-        var query = $"playlistItems?part=snippet&maxResults={MaxResultsPerPage}&playlistId={Uri.EscapeDataString(playlistId)}&key={Uri.EscapeDataString(apiKey)}";
+        var query = $"playlistItems?part=snippet,contentDetails&maxResults={MaxResultsPerPage}&playlistId={Uri.EscapeDataString(playlistId)}&key={Uri.EscapeDataString(apiKey)}";
         if (!string.IsNullOrWhiteSpace(nextPageToken))
         {
             query += $"&pageToken={Uri.EscapeDataString(nextPageToken)}";
@@ -222,38 +222,15 @@ public class YoutubeService(
         return query;
     }
 
-    private static DateTime? ResolvePreachedAtUtc(string title, string? publishedAt)
-    {
-        if (title.Length >= 10)
-        {
-            var titleDateText = title[..10].Trim().Replace(' ', '-');
-            if (DateOnly.TryParseExact(
-                    titleDateText,
-                    "yyyy-MM-dd",
-                    CultureInfo.InvariantCulture,
-                    DateTimeStyles.None,
-                    out var preachedAtDate))
-            {
-                return preachedAtDate.ToDateTime(new TimeOnly(22, 0), DateTimeKind.Utc);
-            }
-        }
-
-        return DateTimeOffset.TryParse(
-            publishedAt,
-            CultureInfo.InvariantCulture,
-            DateTimeStyles.AssumeUniversal,
-            out var publishedAtOffset)
-            ? publishedAtOffset.UtcDateTime
-            : null;
-    }
-
     private sealed record PlaylistSermonItem(
         string VideoId,
         string Title,
         string SpeakerName,
         string? ThumbnailUrl,
         string VideoUrl,
-        DateTime? PreachedAtUtc);
+        DateTime? PreachedAtUtc,
+        string SourceTitle,
+        DateTime? PublishedAtUtc);
 
     private sealed class YoutubePlaylistItemsResponse
     {
@@ -264,6 +241,12 @@ public class YoutubeService(
     private sealed class YoutubePlaylistItem
     {
         public YoutubeSnippet? Snippet { get; set; }
+        public YoutubeContentDetails? ContentDetails { get; set; }
+    }
+
+    private sealed class YoutubeContentDetails
+    {
+        public string? VideoPublishedAt { get; set; }
     }
 
     private sealed class YoutubeSnippet

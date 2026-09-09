@@ -22,11 +22,14 @@ public class YoutubeServiceSyncTests
         {
             Id = Guid.NewGuid(),
             YoutubeVideoId = "video-1",
-            Title = "Sunday Sermon",
+            Title = "Hope",
             SpeakerName = "Speaker One",
+            SourceTitle = "2026-06-28 Sunday Sermon Hope | Speaker: Speaker One",
+            PublishedAtUtc = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc),
+            MetadataVersion = SermonMetadata.CurrentVersion,
             ThumbnailUrl = "https://img.example/video-1.jpg",
             VideoUrl = "https://www.youtube.com/watch?v=video-1",
-            PreachedAtUtc = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc),
+            PreachedAtUtc = new DateTime(2026, 6, 28, 0, 0, 0, DateTimeKind.Utc),
             SortOrder = 0,
             SyncedUtc = originalUpdatedUtc,
             UpdatedUtc = originalUpdatedUtc,
@@ -36,7 +39,7 @@ public class YoutubeServiceSyncTests
         var cacheInvalidationService = CreateCacheInvalidationService();
         var service = CreateService(dbContext, cacheInvalidationService, CreatePlaylistJson(
             "video-1",
-            "Sunday Sermon",
+            "2026-06-28 Sunday Sermon Hope | Speaker: Speaker One",
             "Speaker One",
             "https://img.example/video-1.jpg",
             "2026-07-01T00:00:00Z"));
@@ -69,7 +72,7 @@ public class YoutubeServiceSyncTests
     }
 
     [Fact]
-    public async Task SyncSermonsAsync_WhenTitleStartsWithDate_UsesTitleDateAtTwentyTwoUtc()
+    public async Task SyncSermonsAsync_WhenTitleStartsWithDate_UsesTitleCalendarDate()
     {
         using var dbContext = CreateInMemoryDbContext();
         var cacheInvalidationService = CreateCacheInvalidationService();
@@ -83,11 +86,11 @@ public class YoutubeServiceSyncTests
         await service.SyncSermonsAsync();
 
         var sermon = await dbContext.Sermons.SingleAsync();
-        Assert.Equal(new DateTime(2026, 7, 1, 22, 0, 0, DateTimeKind.Utc), sermon.PreachedAtUtc);
+        Assert.Equal(new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc), sermon.PreachedAtUtc);
     }
 
     [Fact]
-    public async Task SyncSermonsAsync_WhenTitleIsShort_UsesPublishedAt()
+    public async Task SyncSermonsAsync_WhenTitleIsShort_UsesSundayBeforePublication()
     {
         using var dbContext = CreateInMemoryDbContext();
         var cacheInvalidationService = CreateCacheInvalidationService();
@@ -101,7 +104,10 @@ public class YoutubeServiceSyncTests
         await service.SyncSermonsAsync();
 
         var sermon = await dbContext.Sermons.SingleAsync();
-        Assert.Equal(new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc), sermon.PreachedAtUtc);
+        Assert.Equal(new DateTime(2026, 6, 28, 0, 0, 0, DateTimeKind.Utc), sermon.PreachedAtUtc);
+        Assert.Equal(string.Empty, sermon.SpeakerName);
+        Assert.Equal("Short", sermon.SourceTitle);
+        Assert.Equal(SermonMetadata.CurrentVersion, sermon.MetadataVersion);
     }
 
     private static YoutubeService CreateService(

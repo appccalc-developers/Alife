@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ArrowUpRight, Bell, CalendarDays, FileText, Settings2, UsersRound } from 'lucide-react'
+import { ArrowUpRight, Bell, CalendarDays, FileText, Settings2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import AccessTypeBadge from './AccessTypeBadge'
 import AppPageShell from '../layout/AppPageShell'
@@ -78,7 +78,7 @@ const GroupDashboard = ({ group, pages, events, canManage, scope = 'group', expl
       <AppPageShell
         title={groupName}
         context={language === 'zh' ? '教会生活 / 总览' : 'Church Life / Overview'}
-        subtitle={groupDescription || (language === 'zh' ? '查看教会近期安排、重要公告与公开内容。' : 'See the church’s upcoming schedule, important notices, and published content.')}
+        subtitle={groupDescription || (language === 'zh' ? '查看教会近期安排与重要公告。' : 'See the church’s upcoming schedule and important notices.')}
         status={<AccessTypeBadge accessType={group.accessType} showProtected />}
         overflowLabel={language === 'zh' ? '更多操作' : 'More actions'}
         overflowActions={canManage ? [{
@@ -96,7 +96,6 @@ const GroupDashboard = ({ group, pages, events, canManage, scope = 'group', expl
               <div className="flex flex-wrap gap-x-7 gap-y-3 text-xs font-bold text-[#687c74]">
                 <span><strong className="mr-2 text-xl font-black text-[#17362f]">{churchUpcomingEvents.length}</strong>{language === 'zh' ? '近期活动' : 'upcoming events'}</span>
                 <span><strong className="mr-2 text-xl font-black text-[#17362f]">{announcements.length}</strong>{language === 'zh' ? '当前公告' : 'active notices'}</span>
-                <span><strong className="mr-2 text-xl font-black text-[#17362f]">{pages.length}</strong>{language === 'zh' ? '内容入口' : 'content links'}</span>
               </div>
             </div>
 
@@ -161,11 +160,6 @@ const GroupDashboard = ({ group, pages, events, canManage, scope = 'group', expl
             </div>
           </section>
         </div>
-
-        <section aria-labelledby="church-pages-heading">
-          <div className="mb-4 px-1"><p className="text-[0.65rem] font-black uppercase tracking-[0.2em] text-[#176b5a]">{language === 'zh' ? '探索' : 'Explore'}</p><h2 id="church-pages-heading" className="mt-1 text-2xl font-black tracking-[-0.035em] text-[#18332d]">{language === 'zh' ? '教会内容' : 'Church content'}</h2></div>
-          {pages.length ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{pages.slice(0, 6).map((page, index) => <Link key={page.id} to={`/church?page=${encodeURIComponent(page.id)}`} className="group relative min-h-32 overflow-hidden rounded-[1.4rem] border border-[#dfe7e3] bg-white p-5 shadow-[0_10px_30px_rgba(24,51,45,0.04)] transition hover:-translate-y-0.5 hover:border-[#a9cabe]"><span className="text-[0.62rem] font-black uppercase tracking-[0.16em] text-[#93a099]">{String(index + 1).padStart(2, '0')}</span><h3 className="mt-5 pr-8 text-base font-black text-[#27473f]">{localizeText(page.title, language)}</h3><ArrowUpRight className="absolute bottom-5 right-5 h-4 w-4 text-[#9aaba4] transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[#176b5a]" aria-hidden="true" /></Link>)}</div> : <div className="rounded-[1.5rem] border border-dashed border-[#cfdcd6] px-6 py-8 text-sm text-[#718079]">{language === 'zh' ? '教会还没有发布内容。' : 'No church content has been published.'}</div>}
-        </section>
       </div>
       </AppPageShell>
     )
@@ -180,19 +174,6 @@ const GroupDashboard = ({ group, pages, events, canManage, scope = 'group', expl
       context={language === 'zh' ? '小组生活 / 总览' : 'Group Life / Overview'}
       subtitle={groupDescription || (language === 'zh' ? '查看小组最近的活动、公告与已发布内容。' : 'See the group’s latest events, notices, and published content.')}
       status={<AccessTypeBadge accessType={group.accessType} showProtected />}
-      overflowLabel={language === 'zh' ? '更多操作' : 'More actions'}
-      overflowActions={[
-        {
-          label: language === 'zh' ? '切换小组' : 'Switch group',
-          icon: <UsersRound className="h-4 w-4" />,
-          to: '/groups/select',
-        },
-        ...(canManage ? [{
-          label: language === 'zh' ? '管理小组' : 'Manage group',
-          icon: <Settings2 className="h-4 w-4" />,
-          to: '/groups?section=group',
-        }] : []),
-      ]}
     >
     <div className="space-y-7 pb-4">
       <section className="grid grid-cols-3 overflow-hidden rounded-[1.5rem] border border-[var(--alife-line)] bg-[var(--alife-surface-strong)] shadow-[var(--alife-shadow-soft)]" aria-label={language === 'zh' ? '小组近况' : 'Group at a glance'}>

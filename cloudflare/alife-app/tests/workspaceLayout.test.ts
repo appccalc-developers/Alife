@@ -13,6 +13,8 @@ test('workspace theme routes isolate system management from member pages', () =>
   assert.equal(getWorkspaceArea('/admin'), 'system')
   assert.equal(getWorkspaceArea('/admin/groups/group-id'), 'system')
   assert.equal(getWorkspaceArea('/church/manage'), 'member')
+  assert.equal(getWorkspaceArea('/church/homepage'), 'member')
+  assert.equal(getWorkspaceArea('/church/visit-requests'), 'member')
   assert.equal(getWorkspaceArea('/groups/manage'), 'member')
   assert.equal(getWorkspaceArea('/profile/settings'), 'member')
 })

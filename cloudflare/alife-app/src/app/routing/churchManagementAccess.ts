@@ -2,7 +2,6 @@ export const systemManagementAdminPermissions = [
   'admin.access',
   'admin.roles.managePermissions',
   'admin.messages.manage',
-  'admin.visitRequests.receive',
   'admin.events.manageTemplates',
   'admin.events.managePackagePolicies',
   'admin.files.view',

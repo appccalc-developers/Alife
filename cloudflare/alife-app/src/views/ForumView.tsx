@@ -8,7 +8,8 @@ import AppEmptyState from '../components/layout/AppEmptyState'
 import AppPageShell from '../components/layout/AppPageShell'
 import AppTitleBarAction from '../components/layout/AppTitleBarAction'
 import AiLanguageAutofill from '../components/ai/AiLanguageAutofill'
-import ChurchGroupFilter from '../components/church-life/ChurchGroupFilter'
+import { useChurchSiteGroups } from '../components/church-life/ChurchSiteLayout'
+import { useGroupSiteLayout } from '../components/group/GroupSiteLayout'
 import ChurchLifeResultsRegion from '../components/church-life/ChurchLifeResultsRegion'
 import { queryClient } from '../db/queryClient'
 import { churchQueryKey } from '../db/collections/groupCollection'
@@ -23,7 +24,8 @@ import { ForumMediaGrid, ForumMediaPicker, selectForumMedia, type PendingForumMe
 import { forumCopy, visibilityLabel } from './forum/forumCopy'
 import { categoryName, formatForumDate, localizedJsonExcerpt, localizedJsonText, parseForumMedia } from './forum/forumUtils'
 import ForumSermonEmbed from './forum/ForumSermonEmbed'
-import { churchGroupPath, updateChurchLifeOwnerFilter } from '../utils/churchLifeGroups'
+import { churchGroupPath } from '../utils/churchLifeGroups'
+import { withChurchSiteOwnerFilter } from '../app/navigation/churchSiteNavigation'
 import { compactBilingualText, validateRequiredBilingualFields, type LanguageCode } from '../utils/bilingualValidation'
 
 const avatarLetter = (value?: string | null) => (value || 'A').slice(0, 1).toUpperCase()
@@ -218,6 +220,8 @@ const ForumView = () => {
   const text = forumCopy(language)
   const location = useLocation()
   const churchForum = location.pathname.startsWith('/church/forum')
+  const groupSite = useGroupSiteLayout()
+  const siteForum = churchForum || groupSite
   const currentGroupForum = location.pathname.startsWith('/groups/forum')
   const { groupId: activeGroupId } = useActiveEntityIds()
   const navigate = useNavigate()
@@ -233,7 +237,7 @@ const ForumView = () => {
   const forumBasePath = routeGroupId ? `/groups/${encodeURIComponent(routeGroupId)}/forum` : churchForum ? '/church/forum' : currentGroupForum ? '/groups/forum' : '/forum'
   const groupScopedForum = Boolean(routeGroupId || currentGroupForum)
   const categoryId = searchParams.get('categoryId') || ''
-  const ownerGroupId = churchForum ? searchParams.get('ownerGroupId') || '' : ''
+  const ownerGroupId = churchForum ? searchParams.get('ownerGroupId')?.trim() || '' : ''
   const page = Math.max(1, Number.parseInt(searchParams.get('page') || '1', 10) || 1)
   const pageSize = 30
   const [composerOpen, setComposerOpen] = useState(false)
@@ -257,6 +261,7 @@ const ForumView = () => {
 
   const categories = categoriesQuery.data ?? []
   const posts = postsQuery.data?.items ?? []
+  useChurchSiteGroups(churchForum ? postsQuery.data?.groups : undefined)
   const [retainedChurchGroups, setRetainedChurchGroups] = useState<ChurchLifeGroup[]>([])
   const churchGroups = churchForum ? postsQuery.data?.groups ?? retainedChurchGroups : []
 
@@ -284,9 +289,6 @@ const ForumView = () => {
     next.delete('page')
     setSearchParams(next, { preventScrollReset: true })
   }
-  const selectOwnerGroup = (nextOwnerGroupId: string) => {
-    setSearchParams(updateChurchLifeOwnerFilter(searchParams, nextOwnerGroupId), { preventScrollReset: true })
-  }
   const selectPage = (nextPage: number) => {
     const next = new URLSearchParams(searchParams)
     if (nextPage > 1) next.set('page', String(nextPage))
@@ -311,11 +313,11 @@ const ForumView = () => {
       title={pageTitle}
       context={pageContext}
       subtitle={pageSubtitle}
-      primaryAction={canPost && !composerOpen ? (
+      primaryAction={!siteForum && canPost && !composerOpen ? (
         <AppTitleBarAction label={text.newPost} icon={<Plus className="h-4 w-4" />} onClick={() => setComposerOpen(true)} />
       ) : undefined}
       overflowLabel={language === 'zh' ? '更多操作' : 'More actions'}
-      overflowActions={[{
+      overflowActions={siteForum ? [] : [{
         label: text.refresh,
         icon: <RefreshCcw className={['h-4 w-4', postsQuery.isFetching ? 'animate-spin' : ''].join(' ')} />,
         disabled: postsQuery.isFetching,
@@ -342,7 +344,12 @@ const ForumView = () => {
                     <option key={category.id || 'all'} value={category.id}>{category.label}</option>
                   ))}
                 </select>
-                {churchForum ? <ChurchGroupFilter groups={churchGroups} value={ownerGroupId} language={language} onChange={selectOwnerGroup} /> : null}
+                {siteForum && <div className="ml-auto flex items-center gap-2">
+                  {canPost && !composerOpen && <AppActionButton variant="primary" onClick={() => setComposerOpen(true)}><Plus className="mr-1 h-4 w-4" aria-hidden="true" />{text.newPost}</AppActionButton>}
+                  <AppActionButton disabled={postsQuery.isFetching} onClick={() => void postsQuery.refetch()} aria-label={text.refresh}>
+                    <RefreshCcw className={`h-4 w-4 ${postsQuery.isFetching ? 'animate-spin' : ''}`} aria-hidden="true" />
+                  </AppActionButton>
+                </div>}
               </div>
 
               {composerOpen || !canPost ? (
@@ -352,7 +359,7 @@ const ForumView = () => {
                       defaultCategoryId={defaultCategoryId}
                       groupId={groupId || undefined}
                       onCancel={() => setComposerOpen(false)}
-                      onCreated={(postId) => navigate(`${forumBasePath}/posts/${postId}`)}
+                      onCreated={(postId) => navigate(churchForum ? withChurchSiteOwnerFilter(`${forumBasePath}/posts/${postId}`, location.search) : `${forumBasePath}/posts/${postId}`)}
                     />
                   ) : (
                     <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#176b5a]/15 bg-[#e3f0eb] px-4 py-3 text-sm font-bold text-[#0d4f43]">
@@ -402,7 +409,7 @@ const ForumView = () => {
                       const media = parseForumMedia(post.mediaJson)
                       const commentsLabel = `${post.commentCount} ${post.commentCount === 1 && language !== 'zh' ? text.reply : text.replies}`
                       return (
-                        <Link key={post.id} to={`${forumBasePath}/posts/${post.id}`} className="group block bg-white px-5 py-5 transition hover:bg-[#fbfcfa] sm:px-7">
+                        <Link key={post.id} to={churchForum ? withChurchSiteOwnerFilter(`${forumBasePath}/posts/${post.id}`, location.search) : `${forumBasePath}/posts/${post.id}`} className="group block bg-white px-5 py-5 transition hover:bg-[#fbfcfa] sm:px-7">
                           <article className="flex gap-4">
                             <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#e3f0eb] text-sm font-black text-[#176b5a]">
                               {avatarLetter(post.author.displayName || title)}

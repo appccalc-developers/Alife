@@ -12,12 +12,8 @@ import { sermonService, type SermonDto } from '../../services/sermonService'
 import { buildSermonVideoPath, extractYouTubeVideoId } from '../../utils/youtube'
 import AppPageShell from '../layout/AppPageShell'
 import { useAuthStore } from '../../stores/auth'
-
-const formatSermonDate = (value: string | null | undefined, fallback: string) => {
-  if (!value) return fallback
-
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(value))
-}
+import { formatSermonDate, presentSermon } from '../../utils/sermonPresentation'
+import SermonBulletinActions, { useSermonBulletins } from './SermonBulletinActions'
 
 const getSermonTime = (sermon: SermonDto) => sermon.preachedAt ? new Date(sermon.preachedAt).getTime() : 0
 const pageSize = 12
@@ -55,8 +51,9 @@ const SermonList = () => {
   const sermons = useMemo(() => {
     const loaded = sermonsQuery.data?.pages.flatMap((page) => Array.isArray(page.items) ? page.items : []) ?? []
     const source = loaded.length > 0 ? loaded : cachedSermons
-    return [...source].sort((left, right) => getSermonTime(right) - getSermonTime(left))
+    return source.map(presentSermon).sort((left, right) => getSermonTime(right) - getSermonTime(left))
   }, [cachedSermons, sermonsQuery.data])
+  const bulletins = useSermonBulletins(sermons.map(sermon => sermon.preachedAt))
 
   // Preload first 4 sermon images after initial data load
   useEffect(() => {
@@ -123,11 +120,11 @@ const SermonList = () => {
     <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 ${compact ? 'text-xs' : 'text-sm'} text-slate-600`}>
       <span className="inline-flex items-center gap-1.5">
         <MicVocal className="h-3.5 w-3.5 text-emerald-700" />
-        {sermon.speakerName || t('guestSpeaker')}
+        {sermon.speakerName || (isZh ? '讲员未注明' : 'Speaker not specified')}
       </span>
       <span className="inline-flex items-center gap-1.5">
         <CalendarDays className="h-3.5 w-3.5 text-emerald-700" />
-        {formatSermonDate(sermon.preachedAt, t('noDate'))}
+        {formatSermonDate(sermon.preachedAt, language, t('noDate'))}
       </span>
     </div>
   )
@@ -174,27 +171,31 @@ const SermonList = () => {
       ) : null}
 
       {featuredSermon ? (
-        <Link
-          to={buildSermonVideoPath(featuredSermon.id, extractYouTubeVideoId(featuredSermon.videoUrl))}
-          onClick={() => activeEntityService.setSermon(featuredSermon.id)}
-          className="group grid overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-emerald-100 lg:grid-cols-[minmax(0,1.15fr)_minmax(20rem,0.85fr)]"
-        >
-          <figure className="relative overflow-hidden bg-slate-100">
+        <article className="grid overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm lg:grid-cols-[minmax(0,1.15fr)_minmax(20rem,0.85fr)]">
+          <Link to={buildSermonVideoPath(featuredSermon.id, extractYouTubeVideoId(featuredSermon.videoUrl))}
+            onClick={() => activeEntityService.setSermon(featuredSermon.id)}
+            aria-label={`${t('watchSermon')}: ${featuredSermon.title || t('sermons')}`}
+            className="group relative overflow-hidden bg-slate-100 focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-emerald-300">
             {renderSermonImage(featuredSermon, 0, 'h-64 w-full sm:h-80 lg:h-full')}
             <span className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full bg-slate-950/80 px-3 py-1 text-xs font-black text-white backdrop-blur">
               <PlayCircle className="h-3.5 w-3.5" />
               {t('watchSermon')}
             </span>
-          </figure>
-          <div className="flex flex-col justify-center p-5 sm:p-7">
+          </Link>
+          <div className="flex min-w-0 flex-col">
+            <div className="flex flex-1 flex-col justify-center p-5 sm:p-7">
             {renderMeta(featuredSermon)}
-            <h2 className="mt-4 text-2xl font-black leading-tight text-slate-950 sm:text-3xl">{featuredSermon.title}</h2>
-            <span className="mt-6 inline-flex w-fit items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-black text-white transition group-hover:bg-emerald-800">
+            <h2 className="mt-4 text-2xl font-black leading-tight text-slate-950 sm:text-3xl">{featuredSermon.title || t('sermons')}</h2>
+            <Link to={buildSermonVideoPath(featuredSermon.id, extractYouTubeVideoId(featuredSermon.videoUrl))}
+              onClick={() => activeEntityService.setSermon(featuredSermon.id)}
+              className="mt-6 inline-flex min-h-11 w-fit items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-black text-white transition hover:bg-emerald-800 focus-visible:ring-4 focus-visible:ring-emerald-200">
               <PlayCircle className="h-4 w-4" />
               {t('watchSermon')}
-            </span>
+            </Link>
+            </div>
+            <SermonBulletinActions date={featuredSermon.preachedAt} bulletins={bulletins} />
           </div>
-        </Link>
+        </article>
       ) : null}
 
       {remainingSermons.length > 0 ? (
@@ -204,11 +205,11 @@ const SermonList = () => {
             const imageIndex = index + 1
 
             return (
+              <article key={sermon.id} className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
               <Link
-                key={sermon.id}
                 to={sermonPath}
                 onClick={() => activeEntityService.setSermon(sermon.id)}
-                className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-emerald-100"
+                className="group block flex-1 transition hover:bg-emerald-50/30 focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-emerald-200"
               >
                 <figure className="relative overflow-hidden">
                   {renderSermonImage(sermon, imageIndex, 'h-44 w-full transition duration-300 group-hover:scale-[1.03]')}
@@ -218,10 +219,12 @@ const SermonList = () => {
                 </figure>
 
                 <div className="space-y-3 p-4">
-                  <h2 className="line-clamp-2 min-h-[3rem] text-base font-black leading-6 text-slate-950">{sermon.title}</h2>
+                  <h2 className="line-clamp-2 min-h-[3rem] text-base font-black leading-6 text-slate-950">{sermon.title || t('sermons')}</h2>
                   {renderMeta(sermon, true)}
                 </div>
               </Link>
+              <SermonBulletinActions date={sermon.preachedAt} bulletins={bulletins} />
+              </article>
             )
           })}
         </div>

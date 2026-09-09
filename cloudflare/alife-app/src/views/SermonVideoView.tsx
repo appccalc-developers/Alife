@@ -24,11 +24,7 @@ import { ForumMediaGrid, ForumMediaPicker, selectForumMedia, type PendingForumMe
 import { forumCopy } from './forum/forumCopy'
 import { formatForumDate, localizedJsonText, parseForumMedia } from './forum/forumUtils'
 import { compactBilingualText, validateRequiredBilingualFields, type LanguageCode } from '../utils/bilingualValidation'
-
-const formatSermonDate = (value: string | null | undefined, fallback: string) => {
-  if (!value) return fallback
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(value))
-}
+import { formatSermonDate, presentSermon } from '../utils/sermonPresentation'
 
 const avatarLetter = (value?: string | null) => (value || 'A').slice(0, 1).toUpperCase()
 
@@ -157,7 +153,8 @@ const SermonVideoView = () => {
   const sermonVideoId = extractYouTubeVideoId(sermon?.videoUrl)
   const videoId = sermonId ? sermonVideoId || requestedVideoId : requestedVideoId || sermonVideoId
   const embedUrl = toYouTubeEmbedUrl(videoId)
-  const pageTitle = sermon?.title || t('watchSermon')
+  const presentation = sermon ? presentSermon(sermon) : null
+  const pageTitle = presentation?.title || t('watchSermon')
   const forumViewerId = me?.id || 'guest'
   const sermonContext = (
     <>
@@ -252,7 +249,7 @@ const SermonVideoView = () => {
     <AppPageShell
       title={pageTitle}
       context={sermonContext}
-      subtitle={sermon ? `${sermon.speakerName || t('guestSpeaker')} · ${formatSermonDate(sermon.preachedAt, t('noDate'))}` : undefined}
+      subtitle={presentation ? `${presentation.speakerName || (language === 'zh' ? '讲员未注明' : 'Speaker not specified')} · ${formatSermonDate(presentation.preachedAt, language, t('noDate'))}` : undefined}
       backLink={{ to: '/sermons', label: `${t('back')} ${t('sermons')}` }}
       status={<AppBadge variant={embedUrl ? 'success' : 'warning'}>{embedUrl ? (language === 'zh' ? '可观看' : 'Available') : (language === 'zh' ? '视频未连接' : 'Video unavailable')}</AppBadge>}
     >
@@ -283,7 +280,7 @@ const SermonVideoView = () => {
         {/* Interactive Bilingual Transcript Panel */}
         <SermonTranscriptPanel
           sermonTitle={pageTitle}
-          speakerName={sermon?.speakerName ?? undefined}
+          speakerName={presentation?.speakerName || undefined}
           iframeRef={iframeRef}
         />
 

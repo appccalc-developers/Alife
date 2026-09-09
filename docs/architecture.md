@@ -79,7 +79,7 @@ Key entities:
 - `PagePublicationReview`: review state plus separate submitted and published JSON snapshots, including section-link metadata used by cards. Editing or returning a submitted copy never mutates the group working page or removes an existing published snapshot; explicitly changing page visibility away from public withdraws that published snapshot. `UpdatedUtc` is an optimistic concurrency token so simultaneous submit/review operations fail with a conflict instead of losing a copy.
 - `Section`: ordered page block with type, content JSON, style JSON, and links.
 - `Link`: section-owned links to groups/pages or external visual items.
-- `Sermon`: synchronized YouTube sermon metadata.
+- `Sermon`: synchronized YouTube metadata with normalized topic, speaker and sermon date; original title/publication inputs and a processing version support the [sermon metadata backfill](sermon-metadata.md).
 - `GroupEvent`: group-owned event with bilingual titles and serialized rich event JSON.
 - `EventEnrollment`: one enrollment per event/member, stored as JSON.
 - `EventReview`: event review JSON; multiple reviews per event/member are allowed.

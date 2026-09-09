@@ -16,6 +16,7 @@ export type ShellNavItem = {
   matchSearch?: string | string[]
   matchPathOnly?: boolean
   matchDescendants?: boolean
+  activePathPrefixes?: string[]
   pageId?: string
   requireNoActivePage?: boolean
   actionOnly?: boolean
@@ -36,6 +37,8 @@ export type ShellNavSection = {
   toggleOnHeaderClick?: boolean
   alignToBottom?: boolean
   matchDescendants?: boolean
+  activePathPrefixes?: string[]
+  mobileNavigateFirst?: boolean
   items: ShellNavItem[]
 }
 

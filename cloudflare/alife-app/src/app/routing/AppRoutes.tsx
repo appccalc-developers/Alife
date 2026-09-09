@@ -27,7 +27,6 @@ const ArticleDetailView = lazy(() => import('../../views/ArticleDetailView'))
 const ArticlesView = lazy(() => import('../../views/ArticlesView'))
 const BibleStudyView = lazy(() => import('../../views/BibleStudyView'))
 const ChurchLifeView = lazy(() => import('../../views/ChurchLifeView'))
-const SundayBulletinsView = lazy(() => import('../../views/SundayBulletinsView'))
 const ChurchAlbumsView = lazy(() => import('../../views/ChurchAlbumsView'))
 const ChurchManagementView = lazy(() => import('../../views/ChurchManagementView'))
 const ContactDetailView = lazy(() => import('../../views/ContactDetailView'))
@@ -106,7 +105,7 @@ const SystemManagementRoute = ({ children }: { children: ReactElement }) => {
   }
 
   const canAccess = !auth.isGuest && (
-    auth.canReviewPages || hasSystemManagementAdminPermission(auth.hasAdminPermission)
+    hasSystemManagementAdminPermission(auth.hasAdminPermission)
   )
 
   return canAccess
@@ -144,9 +143,14 @@ const PageReviewRoute = ({ children }: { children: ReactElement }) => {
     return <AppRouteLoading />
   }
 
-  return auth.canReviewPages
+  return !auth.isGuest && auth.canReviewPages
     ? children
     : <Navigate to={resolveWorkspaceFallbackLocation(auth.isGuest)} replace />
+}
+
+const LegacyChurchToolRoute = ({ to }: { to: string }) => {
+  const { search, hash } = useLocation()
+  return <Navigate to={{ pathname: to, search, hash }} replace />
 }
 
 const OnboardingRoute = ({ children }: { children: ReactElement }) => {
@@ -257,8 +261,10 @@ const AppRoutes = ({ churchGroupId = '', churchGroupLoading = false }: AppRoutes
           <Route path="/internal/alpha-login" element={<InternalAlphaLoginView />} />
           <Route path="/home" element={<HomeRoute />} />
           <Route path="/church" element={<MemberRoute><ChurchLifeView /></MemberRoute>} />
-          <Route path="/church/bulletins" element={<MemberRoute><SundayBulletinsView /></MemberRoute>} />
+          <Route path="/church/bulletins" element={<MemberRoute><Navigate to="/sermons" replace /></MemberRoute>} />
           <Route path="/church/albums" element={<MemberRoute><ChurchAlbumsView /></MemberRoute>} />
+          <Route path="/church/groups/:groupId/albums" element={<MemberRoute><AlbumView /></MemberRoute>} />
+          <Route path="/church/groups/:groupId/albums/:albumId" element={<MemberRoute><AlbumView /></MemberRoute>} />
           <Route path="/church/forum" element={<MemberRoute><ForumView /></MemberRoute>} />
           <Route path="/church/forum/posts/:postId" element={<MemberRoute><ForumPostView /></MemberRoute>} />
           <Route
@@ -383,7 +389,7 @@ const AppRoutes = ({ churchGroupId = '', churchGroupLoading = false }: AppRoutes
             }
           />
           <Route
-            path="/admin/visit-requests"
+            path="/church/visit-requests"
             element={
               <AdminRoute permission="admin.visitRequests.receive">
                 <AdminView />
@@ -391,13 +397,15 @@ const AppRoutes = ({ churchGroupId = '', churchGroupLoading = false }: AppRoutes
             }
           />
           <Route
-            path="/admin/page-review"
+            path="/church/homepage"
             element={
               <PageReviewRoute>
                 <PageReviewView />
               </PageReviewRoute>
             }
           />
+          <Route path="/admin/visit-requests" element={<LegacyChurchToolRoute to="/church/visit-requests" />} />
+          <Route path="/admin/page-review" element={<LegacyChurchToolRoute to="/church/homepage" />} />
           <Route
             path="/admin/event-templates"
             element={

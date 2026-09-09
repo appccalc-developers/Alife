@@ -1,23 +1,23 @@
 # Sunday bulletins
 
-Church Life includes **Sunday Bulletins / 主日周报 / 主日週報** immediately below Sunday Sermons. The member screen `/church/bulletins` lists every Sunday from three calendar months before today through the upcoming Sunday, inclusive. On Sunday, the current day is included without adding the following week. Dates use `Pacific/Auckland` and appear newest first. The list includes dates without an upload, supports status filtering, date sorting and eight rows per page, and expands each date to show View followed by Upload for managers.
+**Sunday Bulletins / 主日周报 / 主日週報** are integrated into the [Church Life](church-life-site.md) Sunday Sermons screen. Every video card has its corresponding bulletin action at the bottom right for authorized church members; managers also get an Upload bulletin PDF control. Cards use the video's normalized sermon date, with no three-month limit. Videos on the same date share one PDF. Missing files show a disabled pending-upload action; loading, failure/retry and upload status stay on the card. A replacement upload updates all loaded cards for that date. The former `/church/bulletins` screen redirects to `/sermons`, and the separate sidebar entry is removed.
 
-简体：主日周报仅教会成员可见，列出最近三个月及来临主日的日期。展开后可查看 PDF；教会管理者可上传，重复上传会替换该日期的文件。
+简体：主日周报合并到证道视频卡片右下角，日期与视频的讲道日期完全对应，不再限制最近三个月。同日视频共用一份 PDF；教会成员可查看，管理者可上传或替换。未上传时显示待上传状态，原周报入口跳转到主日证道。
 
-繁體：主日週報僅教會成員可見，列出最近三個月及來臨主日的日期。展開後可查看 PDF；教會管理者可上傳，重複上傳會替換該日期的檔案。
+繁體：主日週報合併到證道影片卡片右下角，日期與影片的講道日期完全對應，不再限制最近三個月。同日影片共用一份 PDF；教會成員可查看，管理者可上傳或替換。未上傳時顯示待上傳狀態，原週報入口跳轉到主日證道。
 
 ## API and access
 
-- `GET /api/church-life/bulletins` returns `{ canManage, items: [{ date: "yyyy-MM-dd", hasFile }] }`.
+- `GET /api/church-life/bulletins` returns `{ canManage, items: [{ date: "yyyy-MM-dd", hasFile }] }` for distinct dates of non-deleted sermon videos, newest first. Optional repeated `dates=yyyy-MM-dd` parameters restrict the response to at most 100 requested dates per request; each must match a video. The response shape is unchanged. No date is synthesized for an upcoming week without a video.
 - `GET /api/church-life/bulletins/{date}/open` checks access again and redirects to a five-minute signed R2 Worker URL.
-- `PUT /api/church-life/bulletins/{date}` accepts multipart field `file`. Only listed Sundays and PDFs up to 20 MiB are accepted; extension and `%PDF-` header are checked. This is format validation, not malware scanning.
+- `PUT /api/church-life/bulletins/{date}` accepts multipart field `file`. The date must belong to an existing non-deleted sermon video, without an age cutoff. PDFs up to 20 MiB are accepted; extension and `%PDF-` header are checked. This is format validation, not malware scanning.
 - All endpoints require authentication and a registered member. Read requires approved root church membership; upload requires root church leader/co-leader permission. Existing platform administrator overrides in `IGroupAuthorizationService` apply. Membership of a descendant group alone does not grant access.
-- List, open redirects, and signed file responses are `private, no-store`. Client query state is viewer-specific, is discarded when unmounted, and refreshes after upload. Language switching does not change the query key.
+- List, open redirects, and signed file responses are `private, no-store`. Client query state includes viewer and requested dates, is discarded when unmounted, and all date variants for that viewer refresh after upload. No bulletin response is persisted in the public sermon cache. Language switching does not change the query key. Backend permission checks remain authoritative for every read/upload.
 - Missing signing/upload configuration, storage HTTP failures and upstream timeouts return `503` with a safe storage-unavailable message. The UI distinguishes this from a rejected PDF. These failures do not update FileAssets metadata; logs contain only the exception type and upstream status, never credentials, URLs or file names. Caller cancellation still propagates instead of becoming a storage error.
 
 ## Storage and deployment
 
-Existing `FileAssets` rows store `purpose: sundayBulletin` (enum value 10), `visibility: groupVisible`, no public URL, and the fixed object key `private/sunday-bulletins/{churchId}/{yyyy-MM-dd}.pdf`. No schema migration is needed. Upload replaces the R2 object and updates the row only after storage succeeds; old dates are retained in storage when they leave the list. Storage and SQL are not one transaction: a database failure after the R2 write may require retrying the upload to reconcile metadata.
+Existing `FileAssets` rows store `purpose: sundayBulletin` (enum value 10), `visibility: groupVisible`, no public URL, and the fixed object key `private/sunday-bulletins/{churchId}/{yyyy-MM-dd}.pdf`. Bulletin storage is unchanged. Apply the [sermon metadata migration and backfill](sermon-metadata.md) before using video dates. Upload replaces the R2 object and updates the row only after storage succeeds. Existing files remain available through authorized direct links even if their video later leaves the list. Storage and SQL are not one transaction: a database failure after the R2 write may require retrying the upload to reconcile metadata.
 
 Deploy the images Worker, backend and frontend together. The Worker now handles backend-only `PUT /api/admin/sunday-bulletins/{objectKey}` and signed `GET|HEAD /api/private-files/{objectKey}` for bulletin keys. Public media read, list, upload and deletion routes exclude the reserved bulletin namespace and its `private` parent.
 
@@ -51,5 +51,5 @@ When diagnosing pairing, use only non-writing probes: an invalid PDF body at a s
 - Anonymous, unregistered and non-church users cannot read; ordinary church members cannot upload; church managers can upload and replace.
 - Missing dates show a disabled View action; successful upload enables View; replacement opens the new PDF.
 - Non-PDF and oversized uploads preserve existing content. Unauthorized public aliases and unsigned/expired signed reads fail.
-- Verify month-end, leap-year and Sunday date boundaries; English/Chinese layouts at mobile and desktop widths; keyboard expansion and file selection.
+- Verify title dates, invalid-title fallback to the previous Sunday, historic dates beyond three months, duplicate video dates, and rejection of dates without a video. Check English/Chinese layouts at mobile and desktop widths and keyboard PDF controls; opening/uploading a PDF must not open the video.
 - Before release, exercise a real R2 upload, replacement and signed PDF open with member and manager accounts, including a revoked membership.

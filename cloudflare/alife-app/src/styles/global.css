@@ -31,6 +31,10 @@ html {
   background: #f3efe6;
 }
 
+html:has(.alife-workspace) {
+  scrollbar-gutter: stable;
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -195,10 +199,6 @@ select {
 
   .alife-titlebar-subtitle {
     color: var(--alife-titlebar-subtitle);
-  }
-
-  .alife-titlebar-controls-slot {
-    border-color: var(--alife-titlebar-divider);
   }
 
   .alife-titlebar-controls {

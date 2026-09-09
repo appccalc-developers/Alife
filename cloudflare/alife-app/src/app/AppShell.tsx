@@ -21,6 +21,10 @@ import { usePublicPagesQuery } from '../hooks/usePublicPageQueries'
 import { workspaceResumeService } from '../services/workspaceResumeService'
 import { isHomeLocation, isPublicArticlePath, isPublicPageLocation, usesPublicHomeLayout } from './routing/publicRoutePolicy'
 import { getWorkspaceArea } from './routing/workspaceArea'
+import ChurchSiteLayout from '../components/church-life/ChurchSiteLayout'
+import { getChurchSiteSection } from './navigation/churchSiteNavigation'
+import { getGroupSiteRoute } from './navigation/groupSiteNavigation'
+import GroupSiteLayout from '../components/group/GroupSiteLayout'
 
 const readSidebarCollapsedPreference = () => {
   try {
@@ -70,6 +74,10 @@ const WorkspaceShell = () => {
 
   const headerGroupContextId = !context.isIdentityScreen ? groupLifeGroupId : ''
   const workspaceArea = getWorkspaceArea(context.location.pathname)
+  const churchSite = getChurchSiteSection(context.location.pathname, context.location.search) !== null
+  const groupSite = getGroupSiteRoute(context.location.pathname, context.location.search)
+  const groupSiteId = groupSite?.groupId || groupLifeGroupId
+  const routeContent = <AppRoutes churchGroupId={context.churchGroup?.id || ''} churchGroupLoading={context.churchGroupLoading} />
 
   useEffect(() => {
     if (auth.isGuest) return
@@ -125,7 +133,8 @@ const WorkspaceShell = () => {
             : 'mx-auto max-w-[94rem] px-4 pb-36 pt-5 sm:px-6 sm:pt-7 desktop:px-8 desktop:pb-14'}
         >
           {auth.loading && !auth.initialized ? <AppRouteLoading /> : null}
-          <AppRoutes churchGroupId={context.churchGroup?.id || ''} churchGroupLoading={context.churchGroupLoading} />
+          {churchSite ? <ChurchSiteLayout key={auth.me?.id ?? 'guest'}>{routeContent}</ChurchSiteLayout>
+            : groupSite && groupSiteId ? <GroupSiteLayout key={`${auth.me?.id ?? 'guest'}:${groupSiteId}`} groupId={groupSiteId}>{routeContent}</GroupSiteLayout> : routeContent}
         </main>
       </div>
 

@@ -29,6 +29,7 @@ public sealed class SundayBulletinServiceTests
         await using var db = CreateDb();
         var church = new Group { Id = Guid.NewGuid(), IsChurch = true, NameJson = "{}" };
         db.Groups.Add(church);
+        db.Sermons.Add(new Sermon { Id = Guid.NewGuid(), PreachedAtUtc = new DateTime(2022, 6, 26, 0, 0, 0, DateTimeKind.Utc) });
         await db.SaveChangesAsync();
         var member = Guid.NewGuid();
         var auth = Substitute.For<IGroupAuthorizationService>();
@@ -71,6 +72,7 @@ public sealed class SundayBulletinServiceTests
         using var cancellation = new CancellationTokenSource();
         var church = new Group { Id = Guid.NewGuid(), IsChurch = true, NameJson = "{}" };
         db.Groups.Add(church);
+        db.Sermons.Add(new Sermon { Id = Guid.NewGuid(), PreachedAtUtc = new DateTime(2022, 6, 26, 0, 0, 0, DateTimeKind.Utc) });
         await db.SaveChangesAsync();
         var member = Guid.NewGuid();
         var auth = Substitute.For<IGroupAuthorizationService>();
@@ -129,20 +131,6 @@ public sealed class SundayBulletinServiceTests
     }
 
     [Theory]
-    [InlineData("2026-09-05", "2026-09-06", "2026-06-07")]
-    [InlineData("2026-09-06", "2026-09-06", "2026-06-07")]
-    [InlineData("2026-09-07", "2026-09-13", "2026-06-07")]
-    [InlineData("2024-05-31", "2024-06-02", "2024-03-03")]
-    public void DatesIncludeUpcomingSundayAndThreeCalendarMonths(string today, string first, string last)
-    {
-        var dates = SundayBulletinService.Dates(DateOnly.Parse(today));
-        Assert.Equal(DateOnly.Parse(first), dates[0]);
-        Assert.Equal(DateOnly.Parse(last), dates[^1]);
-        Assert.All(dates, date => Assert.Equal(DayOfWeek.Sunday, date.DayOfWeek));
-        Assert.Equal(dates.Count, dates.Distinct().Count());
-    }
-
-    [Theory]
     [InlineData(false, false, false)]
     [InlineData(true, false, false)]
     [InlineData(true, true, false)]
@@ -152,6 +140,8 @@ public sealed class SundayBulletinServiceTests
         await using var db = CreateDb();
         var church = new Group { Id = Guid.NewGuid(), IsChurch = true, NameJson = "{}" };
         db.Groups.Add(church);
+        var date = new DateOnly(2022, 6, 26);
+        db.Sermons.Add(new Sermon { Id = Guid.NewGuid(), PreachedAtUtc = date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc) });
         await db.SaveChangesAsync();
         var member = Guid.NewGuid();
         var auth = Substitute.For<IGroupAuthorizationService>();
@@ -168,8 +158,6 @@ public sealed class SundayBulletinServiceTests
         var service = new SundayBulletinService(db, auth, providers, signer, storage);
         var list = await service.ListAsync(member, default);
         Assert.Equal(registered && approved, list.IsSuccess);
-        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("Pacific/Auckland")));
-        var date = SundayBulletinService.Dates(today)[0];
         var result = await service.UploadAsync(member, date, "bulletin.pdf", "%PDF-first"u8.ToArray(), default);
         Assert.Equal(registered && manager, result.IsSuccess);
         if (!result.IsSuccess)
@@ -187,6 +175,12 @@ public sealed class SundayBulletinServiceTests
         Assert.Null(file.PublicUrl);
         Assert.Equal(FileAssetVisibility.GroupVisible, file.Visibility);
         Assert.Equal("replacement.pdf", file.OriginalFileName);
+        var historicList = await service.ListAsync(member, default, [date]);
+        Assert.True(historicList.IsSuccess);
+        Assert.Equal(date, Assert.Single(historicList.Value!.Items).Date);
+        Assert.True(historicList.Value.Items[0].HasFile);
+        Assert.Equal(AppResultStatus.ValidationError, (await service.ListAsync(member, default, [date.AddDays(7)])).Status);
+        Assert.Equal(AppResultStatus.ValidationError, (await service.ListAsync(member, default, Enumerable.Repeat(date, 101).ToArray())).Status);
         Assert.True((await service.OpenAsync(member, date, default)).IsSuccess);
         Assert.Equal(AppResultStatus.ValidationError, (await service.UploadAsync(member, date, "bad.pdf", "invalid"u8.ToArray(), default)).Status);
         Assert.Equal(AppResultStatus.ValidationError, (await service.UploadAsync(member, date.AddDays(1), "ok.pdf", "%PDF-test"u8.ToArray(), default)).Status);
@@ -198,6 +192,7 @@ public sealed class SundayBulletinServiceTests
         Assert.Equal(AppResultStatus.ServiceUnavailable, (await service.OpenAsync(member, date, default)).Status);
         auth.IsApprovedMemberAsync(church.Id, member, default).Returns(false);
         Assert.Equal(AppResultStatus.Forbidden, (await service.OpenAsync(member, date, default)).Status);
+        Assert.Equal(AppResultStatus.Forbidden, (await service.ListAsync(member, default, [date])).Status);
     }
 
     private static AlifeDbContext CreateDb() => new(new DbContextOptionsBuilder<AlifeDbContext>()

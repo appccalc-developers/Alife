@@ -6,4 +6,5 @@ public sealed record SermonDto(
     string SpeakerName,
     string? ThumbnailUrl,
     string? VideoUrl,
-    DateTime? PreachedAt);
+    DateTime? PreachedAt,
+    int MetadataVersion = 0);

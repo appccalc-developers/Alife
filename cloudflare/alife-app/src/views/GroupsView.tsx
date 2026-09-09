@@ -13,6 +13,7 @@ import { useAuthStore } from '../stores/auth'
 import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
 import type { GroupMembershipDto, GroupSummaryDto, PageDetailDto } from '../types'
 import { localizeText } from '../utils/localizedText'
+import { groupMembershipLabel as membershipLabel } from '../utils/groupMembershipPresentation'
 import {
   buildGroupHierarchy,
   findGroupHierarchyNode,
@@ -37,14 +38,6 @@ const readSectionImage = (page: PageDetailDto) => {
     if (typeof candidate === 'string' && candidate.trim()) return candidate
   }
   return ''
-}
-
-const membershipLabel = (membership: GroupMembershipDto | undefined, language: string, isGuest = false) => {
-  if (isGuest) return language === 'zh' ? '登录后可申请' : 'Sign in to apply'
-  if (membership?.status === 'approved') return language === 'zh' ? '已加入' : 'Joined'
-  if (membership?.status === 'requested') return language === 'zh' ? '申请审核中' : 'Request pending'
-  if (membership?.status === 'invited') return language === 'zh' ? '收到邀请' : 'Invited'
-  return language === 'zh' ? '可以申请加入' : 'Available to join'
 }
 
 const membershipVariant = (membership: GroupMembershipDto | undefined) => {
@@ -195,28 +188,23 @@ const HierarchyRow = ({
                       ))}
                     </div>
                   ) : null}
+                  <div className="mt-4 flex justify-end">
+                    <button type="button" className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-full bg-[#176b5a] px-4 py-2 text-sm font-black text-white shadow-[0_10px_22px_rgba(23,107,90,0.18)] transition hover:bg-[#125b4d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/55" onClick={() => onOpen(node.group)}>
+                      {isGuest
+                        ? (language === 'zh' ? '登录或注册' : 'Sign in or register')
+                        : active
+                          ? (language === 'zh' ? '进入当前小组' : 'Open current group')
+                          : membership?.status === 'approved'
+                            ? (language === 'zh' ? '切换并进入' : 'Switch and enter')
+                            : membership?.status === 'requested'
+                              ? (language === 'zh' ? '查看申请状态' : 'View request')
+                              : membership?.status === 'invited'
+                                ? (language === 'zh' ? '查看邀请' : 'Review invitation')
+                                : (language === 'zh' ? '查看并申请加入' : 'View and request to join')}
+                      <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  </div>
                 </div>
-              </div>
-              <div className="flex flex-col gap-3 border-t border-[#2f4b42]/10 bg-[#fbfcfa] px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-                <p className="text-xs leading-5 text-[#75837e]">
-                  {isGuest
-                    ? (language === 'zh' ? '您正以访客身份浏览；登录或注册后可申请加入这个小组。' : "You're browsing as a guest. Sign in or register to apply to this group.")
-                    : (language === 'zh' ? '只有使用进入按钮后才会切换当前小组。' : 'Your current group changes only after using the enter action.')}
-                </p>
-                <button type="button" className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-full bg-[#176b5a] px-4 py-2 text-sm font-black text-white shadow-[0_10px_22px_rgba(23,107,90,0.18)] transition hover:bg-[#125b4d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/55" onClick={() => onOpen(node.group)}>
-                  {isGuest
-                    ? (language === 'zh' ? '登录或注册' : 'Sign in or register')
-                    : active
-                      ? (language === 'zh' ? '进入当前小组' : 'Open current group')
-                      : membership?.status === 'approved'
-                        ? (language === 'zh' ? '切换并进入' : 'Switch and enter')
-                        : membership?.status === 'requested'
-                          ? (language === 'zh' ? '查看申请状态' : 'View request')
-                          : membership?.status === 'invited'
-                            ? (language === 'zh' ? '查看邀请' : 'Review invitation')
-                            : (language === 'zh' ? '查看并申请加入' : 'View and request to join')}
-                  <ChevronRight className="h-4 w-4" aria-hidden="true" />
-                </button>
               </div>
             </div>
           </motion.div>
@@ -388,7 +376,7 @@ const GroupsView = () => {
       context={language === 'zh' ? '小组生活 / 小组列表' : 'Group Life / Group list'}
       subtitle={auth.isGuest
         ? (language === 'zh' ? '浏览公开小组；登录或注册后可申请加入。' : 'Browse public groups, then sign in or register to apply.')
-        : (language === 'zh' ? '查看小组层级并选择要进入的小组。预览不会改变当前小组。' : 'Explore the hierarchy and choose a group to enter. Previewing does not switch groups.')}
+        : (language === 'zh' ? '查看小组层级并选择要进入的小组。' : 'Explore the hierarchy and choose a group to enter.')}
       status={<AppBadge variant={auth.isGuest || !currentGroup ? 'neutral' : 'success'}>{auth.isGuest ? (language === 'zh' ? '访客' : 'Guest') : currentGroup ? localizeText(currentGroup.name, language) : (language === 'zh' ? '未选择' : 'Not selected')}</AppBadge>}
       controls={(
         <nav aria-label={language === 'zh' ? '小组选择视图' : 'Group selection views'} className="inline-flex rounded-xl border border-[#173f36] bg-[#173f36] p-1">

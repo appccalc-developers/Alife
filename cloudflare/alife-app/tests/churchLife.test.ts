@@ -5,6 +5,53 @@ import { churchLifeQueryKeys, forumQueryKeys } from '../src/services/contentQuer
 import { invalidateForumPostQueries } from '../src/services/forumCache.ts'
 import { queryClient } from '../src/db/queryClient.ts'
 import { churchGroupPath, updateChurchLifeOwnerFilter } from '../src/utils/churchLifeGroups.ts'
+import { getChurchSiteMenu, getChurchSiteSection, withChurchSiteOwnerFilter } from '../src/app/navigation/churchSiteNavigation.ts'
+
+test('church site tabs retain the selected owner without carrying another tab category or pagination', () => {
+  const source = '?ownerGroupId=team%2Fone&categoryId=category&page=3'
+  const destinations = ['/church', ...getChurchSiteMenu('en', { isMember: true }).map(item => item.to)]
+  for (const to of destinations) {
+    const target = new URL(withChurchSiteOwnerFilter(to, source), 'https://example.test')
+    assert.equal(target.searchParams.get('ownerGroupId'), 'team/one')
+    assert.equal(target.searchParams.has('categoryId'), false)
+    assert.equal(target.searchParams.has('page'), false)
+    if (to.includes('announcements')) assert.equal(target.searchParams.get('section'), 'announcements')
+    if (to.includes('events')) assert.equal(target.searchParams.get('section'), 'events')
+  }
+  assert.equal(withChurchSiteOwnerFilter('/church/forum', '?ownerGroupId=%20'), '/church/forum')
+  assert.equal(withChurchSiteOwnerFilter('/church/forum', ''), '/church/forum')
+})
+
+test('forum owner changes preserve the selected category, clear pagination, and isolate cached results', () => {
+  const next = updateChurchLifeOwnerFilter(new URLSearchParams('categoryId=prayer&ownerGroupId=church&page=4'), 'team')
+  assert.equal(next.get('ownerGroupId'), 'team')
+  assert.equal(next.get('categoryId'), 'prayer')
+  assert.equal(next.has('page'), false)
+  assert.equal(updateChurchLifeOwnerFilter(next, '').has('ownerGroupId'), false)
+  assert.notDeepEqual(churchLifeQueryKeys.forum('viewer', 'church', 'prayer', 1, 30), churchLifeQueryKeys.forum('viewer', 'team', 'prayer', 1, 30))
+})
+
+test('church site navigation follows sections, filters, and content details', () => {
+  assert.equal(getChurchSiteSection('/church'), 'home')
+  assert.equal(getChurchSiteSection('/church', '?ownerGroupId=team&section=announcements'), 'announcements')
+  assert.equal(getChurchSiteSection('/church', '?section=events'), 'events')
+  assert.equal(getChurchSiteSection('/sermons/sermon-id'), 'sermons')
+  assert.equal(getChurchSiteSection('/church/bulletins'), 'bulletins')
+  assert.equal(getChurchSiteSection('/church/albums'), 'albums')
+  assert.equal(getChurchSiteSection('/church/groups/team/albums/album-id'), 'albums')
+  assert.equal(getChurchSiteSection('/church/forum/posts/post-id'), 'forum')
+  for (const path of ['/church/manage', '/church/manage/edit', '/groups/team/albums/album-id', '/admin', '/sermons-other', '/']) {
+    assert.equal(getChurchSiteSection(path), null, path)
+  }
+})
+
+test('church site menus start with sermons and put events after forum', () => {
+  const keys = (isMember: boolean) => getChurchSiteMenu('en', { isMember }).map(item => item.key)
+  assert.deepEqual(keys(false), ['sermons'])
+  assert.deepEqual(keys(true), ['sermons', 'announcements', 'albums', 'forum', 'events'])
+  const access = { isMember: true }
+  assert.deepEqual(getChurchSiteMenu('zh', access).map(item => item.to), getChurchSiteMenu('en', access).map(item => item.to))
+})
 
 const groups: ChurchLifeGroup[] = [
   { id: 'church', parentGroupId: null, name: { en: 'Church', zh: '教会' }, pathIds: ['church'], canManage: false, isSelectable: true },

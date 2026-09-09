@@ -5,13 +5,13 @@ import AppActionButton from '../components/layout/AppActionButton'
 import AppEmptyState from '../components/layout/AppEmptyState'
 import AppPageShell from '../components/layout/AppPageShell'
 import AppSectionCard from '../components/layout/AppSectionCard'
+import AppTitleBarAction from '../components/layout/AppTitleBarAction'
 import { activeEntityService } from '../services/activeEntityService'
 import { groupService, type AdminPagePrimaryMenuDto, type AdminPageReviewDto } from '../services/groupService'
 import { normalizeApiError } from '../services/http'
 import { useAuthStore } from '../stores/auth'
 import type { PagePrimaryMenuHomePlacement } from '../types'
 import { localizeText } from '../utils/localizedText'
-import SystemManagementFrame from './admin/SystemManagementFrame'
 
 const copy = {
   title: { en: 'Homepage Management', zh: '首页管理' },
@@ -953,25 +953,19 @@ const PageReviewView = () => {
   }
 
   return (
-    <AppPageShell>
-      <SystemManagementFrame
-        title={text(language, 'title')}
-        subtitle={text(language, 'subtitle')}
-        language={language}
-        iconKey="pageReview"
-        bodyClassName="space-y-5 p-4 sm:p-5 lg:p-6"
-        actions={(
-          <button
-            type="button"
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={loading || layoutSaving || Boolean(actingPageId)}
-            onClick={() => refreshWebsite().catch(() => undefined)}
-          >
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            {text(language, 'refresh')}
-          </button>
-        )}
-      >
+    <AppPageShell
+      title={text(language, 'title')}
+      context={language === 'zh' ? '教会生活 / 首页管理' : 'Church Life / Homepage Management'}
+      subtitle={text(language, 'subtitle')}
+      primaryAction={(
+        <AppTitleBarAction
+          label={text(language, 'refresh')}
+          icon={loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+          disabled={loading || layoutSaving || Boolean(actingPageId)}
+          onClick={() => refreshWebsite().catch(() => undefined)}
+        />
+      )}
+    >
         {message ? (
           <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</p>
         ) : null}
@@ -1368,7 +1362,6 @@ const PageReviewView = () => {
           </div>
         )}
         </AppSectionCard>
-      </SystemManagementFrame>
 
       {approvingPage && approvingPage.reviewStatus !== 'approved' ? (
         <div className="fixed inset-0 z-[70] flex items-end bg-slate-950/45 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+4.5rem)] sm:items-center sm:justify-center sm:pb-4">

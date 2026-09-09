@@ -160,8 +160,8 @@ export const GroupWorkspaceView = ({ groupId, pageId = '', scope = 'group', mana
     return (
       <GroupManageView
         embeddedWorkspace
-        explicitGroupId={scope === 'church' ? groupId : undefined}
-        workspaceBasePath={scope === 'church' ? '/church' : '/groups'}
+        explicitGroupId={scope === 'church' || explicitGroupRoute ? groupId : undefined}
+        workspaceBasePath={scope === 'church' ? '/church' : explicitGroupRoute ? `/groups/${encodeURIComponent(groupId)}` : '/groups'}
       />
     )
   }

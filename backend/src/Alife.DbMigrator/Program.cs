@@ -1,5 +1,6 @@
 using Alife.Application.Pages.Services;
 using Alife.Application.IdentityAccess;
+using Alife.Application.Sermons.Services;
 using Alife.Infrastructure;
 using Alife.Infrastructure.Persistence;
 using Microsoft.Data.SqlClient;
@@ -43,10 +44,20 @@ if (recoverAdministrator)
     return;
 }
 
+if (builder.Configuration.GetValue<bool>("Sermons:NormalizeOnly"))
+{
+    var sermonDb = scope.ServiceProvider.GetRequiredService<AlifeDbContext>();
+    var count = await SermonMetadataBackfill.RunAsync(sermonDb, scope.ServiceProvider.GetRequiredService<ISermonCacheInvalidationService>());
+    Console.WriteLine($"Sermon metadata normalized: {count}.");
+    return;
+}
+
 await EnsureSqlServerDatabaseExistsAsync(connectionString);
 
 var dbContext = scope.ServiceProvider.GetRequiredService<AlifeDbContext>();
 await dbContext.Database.MigrateAsync();
+var normalizedSermons = await SermonMetadataBackfill.RunAsync(dbContext, scope.ServiceProvider.GetRequiredService<ISermonCacheInvalidationService>());
+Console.WriteLine($"Sermon metadata normalized: {normalizedSermons}.");
 var seedSummary = await SeedData.EnsureSeededAsync(dbContext, builder.Configuration);
 if (builder.Configuration.GetValue<bool>("AdministratorActivation:Enabled"))
 {

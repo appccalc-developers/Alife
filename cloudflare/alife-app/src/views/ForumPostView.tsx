@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Link, Navigate, useLocation, useParams } from 'react-router-dom'
+import { withChurchSiteOwnerFilter } from '../app/navigation/churchSiteNavigation'
 import { Eye, Lock, MessageCircle, MessageSquareReply, Pin, Send } from 'lucide-react'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
@@ -288,7 +289,7 @@ const ForumPostView = () => {
       title={postTitle}
       context={pageContext}
       subtitle={post ? `${post.author.displayName || post.author.id.slice(0, 8)} · ${formatForumDate(post.createdUtc, language)}` : undefined}
-      backLink={{ to: forumBasePath, label: text.backToForum }}
+      backLink={{ to: churchForum ? withChurchSiteOwnerFilter(forumBasePath, location.search) : forumBasePath, label: text.backToForum }}
       status={post ? (
         <AppBadge variant={post.isHidden ? 'danger' : post.isLocked ? 'warning' : isPublicVisibility(post.visibility) ? 'info' : 'neutral'}>
           {post.isLocked ? <Lock className="mr-1 h-3 w-3" aria-hidden="true" /> : <Eye className="mr-1 h-3 w-3" aria-hidden="true" />}
