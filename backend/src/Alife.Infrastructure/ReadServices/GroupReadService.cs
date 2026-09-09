@@ -308,7 +308,8 @@ public sealed class GroupReadService(
             group.IsChurch,
             group.IsClosed,
             group.CreatedUtc,
-            group.UpdatedUtc);
+            group.UpdatedUtc,
+            group.GroupType);
 
     private static GroupSummaryDto ToSummaryDto(Domain.Entities.Group group)
         => new(
@@ -318,7 +319,8 @@ public sealed class GroupReadService(
             group.ParentGroupId,
             group.AccessType,
             group.IsChurch,
-            group.IsClosed);
+            group.IsClosed,
+            group.GroupType);
 
     private static IReadOnlyDictionary<string, string> ReadTextMap(string? value)
         => string.IsNullOrWhiteSpace(value)

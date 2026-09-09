@@ -13,6 +13,7 @@ export type CreateSubgroupPayload = {
   name: LocalizedText
   description?: LocalizedText
   accessType: GroupDto['accessType']
+  groupType: NonNullable<GroupDto['groupType']>
 }
 
 export type UpdateGroupPayload = {
@@ -430,7 +431,7 @@ export const groupService = {
     return normalizeGroup(data)
   },
 
-  async updateSubgroup(_subgroupId: string, _payload: CreateSubgroupPayload) {
+  async updateSubgroup(_subgroupId: string, _payload: Omit<CreateSubgroupPayload, 'groupType'>) {
     // TODO: backend endpoint is not available yet for subgroup update.
     throw new Error('Subgroup update endpoint is not implemented on the backend.')
   },

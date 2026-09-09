@@ -4,6 +4,12 @@ Group Life combines Home, Announcements, Albums, Forum, and Events in that order
 
 The sidebar retains Group Management according to existing permissions. Announcements, albums, forum, and events appear in the website menu instead of separate sidebar entries. Group Management no longer shows a pending-review badge; membership review itself is unchanged.
 
+Group Management calls its child-group section **Ministries / 事工**, and creates only ministry groups; the backend enforces this rule. Historical child fellowships remain accessible and labelled. Its duplicate Albums entry/panel is removed; Group Life retains album functionality. Legacy management `section=albums` links return to profile. See [Group types](group-types.md) for persistence, creation compatibility, and migration requirements.
+
+简体：小组管理的“下属小组”改为“事工”，仅可新增事工组，由后端强制校验；历史下属团契保留并标明类型。移除管理页重复的相册入口及面板，小组生活相册功能保留；旧管理 `section=albums` 链接回到资料页。类型、创建兼容性和迁移要求见 [Group types](group-types.md)。
+
+繁體：小組管理的「下屬小組」改為「事工」，僅可新增事工組，由後端強制校驗；歷史下屬團契保留並標明類型。移除管理頁重複的相冊入口及面板，小組生活相冊功能保留；舊管理 `section=albums` 連結回到資料頁。類型、建立相容性和遷移要求見 [Group types](group-types.md)。
+
 **Switch group** and **Manage group** are direct actions on the right of the persistent Group Life title bar. The management action appears only for existing group managers and keeps the displayed group's scope, including explicit group URLs. Both actions stay in place when switching website tabs; they no longer appear in the overview's overflow menu. On narrow screens they use labelled icon buttons with accessible names.
 
 The group management Members view contains three independent collapsible lists: Pending, Active members, and Inactive members. Each summary always shows its count. Lists start collapsed and can be opened with a pointer, Enter, or Space; empty categories show an explanatory message. Expanding or collapsing a list does not reload memberships or change permissions. Approval, role, profile, and removal controls remain inside their existing member rows. Expansion survives language-only changes while the view remains mounted.

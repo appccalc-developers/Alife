@@ -24,7 +24,7 @@ Church leadership or `admin.access` alone does not grant homepage review or visi
 
 Homepage Management and Visitor Care use the member workspace's shared dark green title bar, with their Church Life context and descriptions. They no longer use the system administration frame or appear on its dashboard. Page-review or visitor-reception permission alone no longer exposes the system dashboard; holders of remaining system permissions retain access. Legacy `/admin/page-review` and `/admin/visit-requests` links redirect to the canonical routes while preserving query strings and hashes. Returning from the publication-copy editor opens `/church/homepage`.
 
-Church Management calls its profile leadership section **Church leader / 教会领袖** and its subgroup section **Fellowships & Ministries / 团契与事工**. Profile settings omit explanatory handover text and missing-leader messages. Handover actions appear only for the current approved leader when an approved co-leader is available; existing confirmation and server authorization still apply.
+Church Management calls its profile leadership section **Church leader / 教会领袖** and separate **Fellowships / 团契** and **Ministries / 事工** sections. Groups are filtered by persisted `groupType`: `fellowship` under `section=subgroups` and `ministry` under `section=ministries`. Each section creates its own type; empty lists show an empty state. Existing groups default to fellowship. Group management actions use **Settings / 设置**, and detail back links return to the matching category. See [Group types](group-types.md) for the API contract and required migration. The planned Pastoral Team, Deacon Board, Media Ministry, Worship Team, PA Team, and PPT Team are not automatically created locally or in production. Profile settings omit explanatory handover text and missing-leader messages. Handover actions appear only for the current approved leader when an approved co-leader is available; existing confirmation and server authorization still apply.
 
 Church Life and Church Management use a persistent body container that retains the greatest measured content height within the current workspace and width. This prevents lazy loading or shorter tabs from collapsing the document and moving its scroll position. Shorter tabs may leave space below their content; changing workspace identity or width resets the measurement. Internal workspace pages reserve scrollbar space. Headers remain outside tab content.
 
@@ -46,11 +46,11 @@ Church Life and Church Management use a persistent body container that retains t
 
 教会生活侧栏的管理入口依次为教会管理、首页管理、访客接待，分别按原有权限显示。首页管理需要页面审核角色或 `admin.pages.review`，访客接待需要 `admin.visitRequests.receive`，超级管理员保留访问权；教会管理权限或 `admin.access` 本身不授予这两项权限。两页改用教会生活的深绿色标题栏，移除系统管理中的入口。新地址为 `/church/homepage` 和 `/church/visit-requests`，旧地址保留参数后跳转，审核编辑器返回首页管理。只有这两项职能权限的用户不再进入系统管理。未授权成员在页面加载前返回教会生活，访客不能进入；后端授权、API 和访客资料的私有缓存规则不变。
 
-教会管理的资料页使用“教会领袖”，下属组织菜单改为“团契与事工”。移除职责移交说明及未找到组长的提示；只有当前已批准的领袖在存在已批准的副带领人时看到移交操作，保留确认及服务端授权。教会生活与教会管理的内容容器在同一工作区、同一宽度下保留已测得的最大高度，避免加载或较短页面导致内容收缩及滚动位置跳动；短页面下方可能留白，切换工作区身份或宽度后重新测量。内部页面预留滚动条空间，标题栏位于内容容器之外。
+教会管理的资料页使用“教会领袖”，下属组织菜单分为“团契”和“事工”。按持久化 `groupType` 分类：`fellowship` 对应 `section=subgroups`，`ministry` 对应 `section=ministries`；各页创建对应类型，空列表显示空状态。旧组默认归为团契。组管理操作由“打开”改为“设置”，详情返回对应类别。API 及必要迁移见 [Group types](group-types.md)。教牧团、执事会、媒体事工组、敬拜赞美团、PA组、PPT组不在本地或生产环境自动创建。移除职责移交说明及未找到组长的提示；只有当前已批准的领袖在存在已批准的副带领人时看到移交操作，保留确认及服务端授权。教会生活与教会管理的内容容器在同一工作区、同一宽度下保留已测得的最大高度，避免加载或较短页面导致内容收缩及滚动位置跳动；短页面下方可能留白，切换工作区身份或宽度后重新测量。内部页面预留滚动条空间，标题栏位于内容容器之外。
 
 ## 繁體中文
 
-教會管理的資料頁使用「教會領袖」，下屬組織選單改為「團契與事工」。移除職責移交說明及未找到組長的提示；只有目前已批准的領袖在存在已批准的副帶領人時看到移交操作，保留確認及伺服器授權。教會生活與教會管理的內容容器在同一工作區、同一寬度下保留已測得的最大高度，避免載入或較短頁面導致內容收縮及捲動位置跳動；短頁面下方可能留白，切換工作區身分或寬度後重新測量。內部頁面預留捲軸空間，標題欄位於內容容器之外。
+教會管理的資料頁使用「教會領袖」，下屬組織選單分為「團契」和「事工」。按持久化 `groupType` 分類：`fellowship` 對應 `section=subgroups`，`ministry` 對應 `section=ministries`；各頁建立對應類型，空列表顯示空狀態。舊組預設歸為團契。組管理操作由「打開」改為「設定」，詳情返回對應類別。API 及必要遷移見 [Group types](group-types.md)。教牧團、執事會、媒體事工組、敬拜讚美團、PA組、PPT組不在本機或正式環境自動建立。移除職責移交說明及未找到組長的提示；只有目前已批准的領袖在存在已批准的副帶領人時看到移交操作，保留確認及伺服器授權。教會生活與教會管理的內容容器在同一工作區、同一寬度下保留已測得的最大高度，避免載入或較短頁面導致內容收縮及捲動位置跳動；短頁面下方可能留白，切換工作區身分或寬度後重新測量。內部頁面預留捲軸空間，標題欄位於內容容器之外。
 
 教會生活使用常駐的深綠色標題欄，選單依次為首頁、主日證道、公告、相冊、論壇、活動。側欄不再單列證道、週報或活動，原有管理入口仍按權限顯示。各頁面說明放在標題下、選單及橫線之上，移除重複的簡介卡片。首頁不再顯示「教會內容」目錄，但儲存的頁面不刪除。
 

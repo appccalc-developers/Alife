@@ -188,8 +188,8 @@ const AdminGroupView = () => {
             <div className="absolute -right-16 -top-24 h-56 w-56 rounded-full bg-[#df9362]/25 blur-3xl" aria-hidden="true" />
             <div className="relative flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
               <div className="min-w-0">
-                <Link to="/church/manage?section=subgroups" className="inline-flex items-center gap-1.5 text-xs font-black text-emerald-200 transition hover:text-white">
-                  <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />{isZh ? '返回团契与事工' : 'Back to fellowships & ministries'}
+                <Link to={`/church/manage?section=${group?.groupType === 'ministry' ? 'ministries' : 'subgroups'}`} className="inline-flex items-center gap-1.5 text-xs font-black text-emerald-200 transition hover:text-white">
+                  <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />{group?.groupType === 'ministry' ? (isZh ? '返回事工' : 'Back to ministries') : (isZh ? '返回团契' : 'Back to fellowships')}
                 </Link>
                 <p className="mt-5 text-[10px] font-black uppercase tracking-[0.22em] text-emerald-200">{isZh ? '小组行政管理' : 'Group administration'}</p>
                 <h1 className="mt-1.5 truncate text-3xl font-black tracking-[-0.045em]">{groupName}</h1>

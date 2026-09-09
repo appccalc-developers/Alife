@@ -10,5 +10,6 @@ public sealed record CreateSubgroupCommand(
     Guid CurrentMemberId,
     IReadOnlyDictionary<string, string> Name,
     IReadOnlyDictionary<string, string>? Description,
-    AccessType AccessType)
+    AccessType AccessType,
+    GroupType GroupType = GroupType.Fellowship)
     : IRequest<AppResult<GroupDto>>;

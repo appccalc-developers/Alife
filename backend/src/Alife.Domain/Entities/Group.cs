@@ -9,6 +9,7 @@ public class Group
 	public string? DescriptionJson { get; set; }
 	public Guid? ParentGroupId { get; set; }
 	public AccessType AccessType { get; set; }
+	public GroupType GroupType { get; set; } = GroupType.Fellowship;
 	public bool IsChurch { get; set; }
 	public bool IsClosed { get; set; }
 	public DateTime CreatedUtc { get; set; }

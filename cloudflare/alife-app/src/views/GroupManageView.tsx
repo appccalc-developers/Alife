@@ -75,8 +75,9 @@ const managementCopy = (language: string, isChurch?: boolean) => {
       albums: '相册',
       albumsHint: '整理图片、子相册和页面展示',
       announcements: '公告',
-      subgroups: isChurch ? '团契与事工' : '下属小组',
-      subgroupsHint: isChurch ? '维护团契、事工及负责人' : '管理小组结构和负责人',
+      subgroups: isChurch ? '团契' : '事工',
+      subgroupsHint: isChurch ? '维护团契及负责人' : '管理事工团队和负责人',
+      ministries: '事工',
       settings: '设置',
       settingsHint: `${workspace}资料、访问规则和高级操作`,
       pending: '待审批',
@@ -118,8 +119,9 @@ const managementCopy = (language: string, isChurch?: boolean) => {
       albums: 'Albums',
       albumsHint: 'Organize photos, subalbums, and page galleries',
       announcements: 'Announcements',
-      subgroups: isChurch ? 'Fellowships & Ministries' : 'Subgroups',
-      subgroupsHint: isChurch ? 'Fellowships, ministries, and their leaders' : 'Team structure and leaders',
+      subgroups: isChurch ? 'Fellowships' : 'Ministries',
+      subgroupsHint: isChurch ? 'Fellowships and their leaders' : 'Ministry teams and their leaders',
+      ministries: 'Ministries',
       settings: 'Settings',
       settingsHint: `${workspace} profile, access rules, and advanced operations`,
       pending: 'Pending',
@@ -905,7 +907,7 @@ const GroupManageView = ({
     refreshMemberships().catch(() => undefined)
   }, [canManageGroup, group, refreshMemberships, refreshRequest])
 
-  const activeSection = resolveManageSection(searchParams.get(sectionParamName), visibleSections)
+  const activeSection = resolveManageSection(searchParams.get(sectionParamName), visibleSections, group?.isChurch)
   const copy = managementCopy(language, group?.isChurch)
   const allGroupManagementSections: Array<{ key: ManageSection; label: string; hint: string }> = [
     { key: 'group', label: language === 'zh' ? '资料与设置' : 'Profile & settings', hint: language === 'zh' ? '名称、介绍、带领团队与访问规则' : 'Name, description, leadership, and access' },
@@ -913,7 +915,7 @@ const GroupManageView = ({
     { key: 'applications', label: copy.applications, hint: copy.applicationsHint },
     { key: 'contacts', label: copy.contacts, hint: copy.contactsHint },
     { key: 'subgroups', label: copy.subgroups, hint: copy.subgroupsHint },
-    { key: 'albums', label: copy.albums, hint: copy.albumsHint },
+    ...(group?.isChurch ? [{ key: 'ministries' as const, label: copy.ministries, hint: language === 'zh' ? '教会事工团队' : 'Church ministry teams' }] : []),
     { key: 'pages', label: copy.pages, hint: copy.pagesHint },
   ]
   const groupManagementSections = visibleSections?.length
@@ -924,6 +926,14 @@ const GroupManageView = ({
     label: sectionLabels?.[section.key] || section.label,
   }))
   const showGroupManagementNavigation = activeSection !== 'events' && activeSection !== 'announcements'
+  const subgroupType = group?.isChurch && activeSection === 'subgroups' ? 'fellowship' : 'ministry'
+  const subgroupTitle = subgroupType === 'fellowship' ? copy.subgroups : copy.ministries
+  const addSubgroupLabel = language === 'zh'
+    ? (subgroupType === 'fellowship' ? '添加团契' : '添加事工')
+    : (subgroupType === 'fellowship' ? 'Add fellowship' : 'Add ministry')
+  const displayedSubgroups = group?.isChurch
+    ? subgroups.filter((subgroup) => (subgroup.groupType ?? 'fellowship') === subgroupType)
+    : subgroups
   const workspacePath = workspaceBasePath
   const groupWorkspaceTarget = (targetGroupId: string) =>
     subgroupDetailBasePath
@@ -964,7 +974,7 @@ const GroupManageView = ({
     if (!await requestConfirmation({
       title: t('manageClaimSubgroupCoLeaderTitle'),
       description: t('manageClaimSubgroupCoLeaderConfirm'),
-      confirmLabel: t('open'),
+      confirmLabel: copy.settings,
     })) return
 
     try {
@@ -1024,7 +1034,7 @@ const GroupManageView = ({
     setCreatingSubgroup(true)
     setCreateSubgroupError('')
     try {
-      const subgroup = await createSubgroup(name, 'protected')
+      const subgroup = await createSubgroup(name, 'protected', subgroupType)
       if (subgroup) {
         setCreateSubgroupOpen(false)
         if (!subgroupDetailBasePath) activeEntityService.setGroup(subgroup.id)
@@ -1137,35 +1147,39 @@ const GroupManageView = ({
                 </div>
               ) : null}
 
-              {activeSection === 'subgroups' ? (
+              {activeSection === 'subgroups' || (activeSection === 'ministries' && group.isChurch) ? (
                 <ManagementPanelShell
                   framed={false}
-                  title={t('manageSubgroups')}
-                  subtitle={t('manageSubgroupsPanelSubtitle')}
+                  title={subgroupTitle}
+                  subtitle={subgroupType === 'fellowship' ? copy.subgroupsHint : (language === 'zh' ? '管理事工团队和负责人' : 'Ministry teams and their leaders')}
                   action={
                     <AppActionButton variant="primary" onClick={() => {
                       if (!guardGroupProfileNavigation()) return
                       setCreateSubgroupError('')
                       setCreateSubgroupOpen(true)
                     }}>
-                      {t('manageAddSubgroup')}
+                      {addSubgroupLabel}
                     </AppActionButton>
                   }
                 >
-                  {subgroups.length === 0 ? (
-                    <p className="text-sm text-slate-500">{t('manageNoSubgroupsYet')}</p>
+                  {!group.isChurch && subgroups.some((subgroup) => subgroup.groupType !== 'ministry') ? (
+                    <p className="mb-3 text-sm text-slate-500">{language === 'zh' ? '已有下属团契保留原类型；此处只能新增事工组。' : 'Existing child fellowships retain their type. Only ministry groups can be added here.'}</p>
+                  ) : null}
+                  {displayedSubgroups.length === 0 ? (
+                    <p className="text-sm text-slate-500">{language === 'zh' ? `尚未创建${subgroupTitle}组` : `No ${subgroupType === 'fellowship' ? 'fellowship' : 'ministry'} groups yet`}</p>
                   ) : (
                     <div className="space-y-2">
-                      {subgroups.map((subgroup) => (
+                      {displayedSubgroups.map((subgroup) => (
                         <div key={subgroup.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 p-3">
                           <div>
                             <p className="font-medium text-slate-950">{localizeText(subgroup.name, language)}</p>
+                            <span className="mr-2 text-xs text-slate-600">{subgroup.groupType === 'ministry' ? copy.ministries : (language === 'zh' ? '团契' : 'Fellowship')}</span>
                             <AccessTypeBadge accessType={subgroup.accessType} />
                           </div>
                           <div className="flex flex-wrap gap-2">
                             <AppActionButton size="sm" variant="secondary" onClick={() => {
                               handleOpenSubgroup(subgroup.id).catch(() => setStatusMessage(t('manageClaimSubgroupCoLeaderFailed')))
-                            }}>{t('open')}</AppActionButton>
+                            }}>{copy.settings}</AppActionButton>
                           </div>
                         </div>
                       ))}
@@ -1234,17 +1248,6 @@ const GroupManageView = ({
                 />
               ) : null}
 
-              {activeSection === 'albums' ? (
-                <ManagementPanelShell
-                  framed={false}
-                  title={copy.albums}
-                  subtitle={copy.albumsHint}
-                  action={<AppActionButton variant="primary" onClick={() => navigate(currentGroupRoute ? '/albums' : `/groups/${encodeURIComponent(groupId)}/albums`)}>{copy.albums}</AppActionButton>}
-                >
-                  <p className="text-sm leading-6 text-slate-600">{copy.albumsHint}</p>
-                </ManagementPanelShell>
-              ) : null}
-
               {activeSection === 'events' ? (
                 <EventsPanel
                   framed={false}
@@ -1277,7 +1280,7 @@ const GroupManageView = ({
           context={workspaceEyebrow || (activeSection === 'group'
             ? (group?.isChurch ? (language === 'zh' ? '教会生活 / 教会管理' : 'Church Life / Church Management') : (language === 'zh' ? '小组生活 / 小组管理' : 'Group Life / Group Management'))
             : `${group?.isChurch ? (language === 'zh' ? '教会管理' : 'Church Management') : (language === 'zh' ? '小组管理' : 'Group Management')} / ${copy[activeSection]}`)}
-          subtitle={workspaceDescription || (embeddedWorkspace ? (language === 'zh' ? '在这里维护资料、成员、联系人和下属小组。' : 'Maintain profile, members, contacts, and subgroups here.') : copy.subtitle)}
+          subtitle={workspaceDescription || (embeddedWorkspace ? (language === 'zh' ? '在这里维护资料、成员、联系人和事工。' : 'Maintain profile, members, contacts, and ministries here.') : copy.subtitle)}
           status={group ? <AccessTypeBadge accessType={group.accessType} showProtected /> : undefined}
           backLink={!embeddedWorkspace ? {
             to: workspacePath,
@@ -1291,6 +1294,7 @@ const GroupManageView = ({
         </AppPageShell>
       )}
       <CreateSubgroupModal
+        title={addSubgroupLabel}
         open={createSubgroupOpen}
         busy={creatingSubgroup}
         error={createSubgroupError}

@@ -183,9 +183,9 @@ export const useGroupScreen = (groupId: string, options: GroupScreenOptions = {}
   }, [auth, groupId, t])
 
   const addSubgroup = useCallback(
-    async (name: LocalizedText, accessType: GroupDto['accessType'], description?: LocalizedText) => {
+    async (name: LocalizedText, accessType: GroupDto['accessType'], groupType: NonNullable<GroupDto['groupType']>, description?: LocalizedText) => {
       if (!groupId) return null
-      const subgroup = await groupService.createSubgroup(groupId, { name, description, accessType })
+      const subgroup = await groupService.createSubgroup(groupId, { name, description, accessType, groupType })
       await queryClient.invalidateQueries({ queryKey: ['subgroups', groupId] })
       await auth.fetchMe()
       setStatusMessage(t('subgroupAdded'))

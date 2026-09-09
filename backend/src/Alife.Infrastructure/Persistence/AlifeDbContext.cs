@@ -117,6 +117,7 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 		{
 			cfg.HasKey(x => x.Id);
 			cfg.Property(x => x.NameJson).IsRequired();
+			cfg.Property(x => x.GroupType).HasDefaultValue(GroupType.Fellowship);
 			cfg.HasOne(x => x.ParentGroup)
 				.WithMany(x => x.Subgroups)
 				.HasForeignKey(x => x.ParentGroupId)

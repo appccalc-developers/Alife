@@ -15,6 +15,7 @@ export const churchManagementSections = [
   'members',
   'contacts',
   'subgroups',
+  'ministries',
 ] as const
 
 export type ChurchManagementSection = typeof churchManagementSections[number]

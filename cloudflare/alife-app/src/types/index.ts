@@ -1,6 +1,7 @@
 export type {
   AccessType,
   GroupDto,
+  GroupType,
   GroupMembershipDto,
   GroupSummaryDto,
   LinkDto,

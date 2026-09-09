@@ -65,7 +65,8 @@ public sealed class UpdateGroupCommandHandler(
             group.IsChurch,
             group.IsClosed,
             group.CreatedUtc,
-            group.UpdatedUtc));
+            group.UpdatedUtc,
+            group.GroupType));
     }
 
     private static bool HasAnyText(IReadOnlyDictionary<string, string> value)

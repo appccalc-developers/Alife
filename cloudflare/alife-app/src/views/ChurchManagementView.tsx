@@ -2,7 +2,7 @@ import { useAuthStore } from '../stores/auth'
 import AdminView from './AdminView'
 import GroupManageView from './GroupManageView'
 
-const churchManagementSections = ['group', 'members', 'contacts', 'subgroups'] as const
+const churchManagementSections = ['group', 'members', 'contacts', 'subgroups', 'ministries'] as const
 
 const ChurchManagementView = ({ churchGroupId }: { churchGroupId: string }) => {
   const auth = useAuthStore()
@@ -19,7 +19,8 @@ const ChurchManagementView = ({ churchGroupId }: { churchGroupId: string }) => {
         group: isChinese ? '资料与设置' : 'Profile & settings',
         members: isChinese ? '成员管理' : 'Member management',
         contacts: isChinese ? '联系人' : 'Contacts',
-        subgroups: isChinese ? '团契与事工' : 'Fellowships & Ministries',
+        subgroups: isChinese ? '团契' : 'Fellowships',
+        ministries: isChinese ? '事工' : 'Ministries',
       }}
       membersContent={auth.hasAdminPermission('admin.members.view')
         ? <AdminView embedded sectionOverride="users" />

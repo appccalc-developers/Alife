@@ -29,8 +29,8 @@ public sealed class CreateSubgroupCommandHandler(
             return AppResult<GroupDto>.Forbidden("You do not have permission to create a subgroup.");
         }
 
-        var parentGroupExists = await dbContext.Groups.AnyAsync(x => x.Id == request.GroupId, cancellationToken);
-        if (!parentGroupExists)
+        var parentGroup = await dbContext.Groups.FirstOrDefaultAsync(x => x.Id == request.GroupId, cancellationToken);
+        if (parentGroup is null)
         {
             return AppResult<GroupDto>.NotFound("Parent group was not found.");
         }
@@ -38,6 +38,16 @@ public sealed class CreateSubgroupCommandHandler(
         if (!HasAnyText(request.Name))
         {
             return AppResult<GroupDto>.Validation("Group name is required.");
+        }
+
+        if (!Enum.IsDefined(request.GroupType))
+        {
+            return AppResult<GroupDto>.Validation("Group type must be fellowship or ministry.");
+        }
+
+        if (!parentGroup.IsChurch && request.GroupType != GroupType.Ministry)
+        {
+            return AppResult<GroupDto>.Validation("Only ministry groups can be created under a non-church group.");
         }
 
         var now = DateTime.UtcNow;
@@ -48,6 +58,7 @@ public sealed class CreateSubgroupCommandHandler(
             DescriptionJson = request.Description is null ? null : WriteTextMap(request.Description),
             ParentGroupId = request.GroupId,
             AccessType = request.AccessType,
+            GroupType = request.GroupType,
             IsChurch = false,
             IsClosed = false,
             CreatedUtc = now,
@@ -87,7 +98,8 @@ public sealed class CreateSubgroupCommandHandler(
             subgroup.IsChurch,
             subgroup.IsClosed,
             subgroup.CreatedUtc,
-            subgroup.UpdatedUtc));
+            subgroup.UpdatedUtc,
+            subgroup.GroupType));
     }
 
     private static bool HasAnyText(IReadOnlyDictionary<string, string> value)

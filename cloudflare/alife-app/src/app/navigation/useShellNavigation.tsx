@@ -51,7 +51,7 @@ export const useShellNavigation = ({
     {
       key: 'workspace:home',
       label: isChinese ? '小组管理' : 'Group Management',
-      description: isChinese ? '成员、联系人、下属小组、相册、页面和设置' : 'Members, contacts, subgroups, albums, pages, and settings',
+      description: isChinese ? '成员、联系人、事工、页面和设置' : 'Members, contacts, ministries, pages, and settings',
       to: '/groups?section=group',
       matchSearch: ['', '?section=group', '?section=members', '?section=contacts', '?section=subgroups', '?section=albums', '?section=pages'],
       icon: <Settings2 className="h-5 w-5" />,
