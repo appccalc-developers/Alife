@@ -9,12 +9,11 @@ import AppSectionCard from '../components/layout/AppSectionCard'
 import AppTitleBarAction from '../components/layout/AppTitleBarAction'
 import { useUiText } from '../i18n/uiText'
 import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
-import { activeEntityService } from '../services/activeEntityService'
 import { groupService } from '../services/groupService'
 import { useAuthStore } from '../stores/auth'
-import { useCurrentGroupStore } from '../stores/currentGroup'
 import type { GroupDto } from '../types'
 import { normalizeRouteGroupId } from '../utils/groupRouteIds'
+import { buildOnboardingLocation } from '../services/identityPathPolicy'
 import { localizeText } from '../utils/localizedText'
 
 const GroupJoinView = () => {
@@ -26,7 +25,6 @@ const GroupJoinView = () => {
   const t = useUiText()
   const auth = useAuthStore()
   const { language } = auth
-  const { setCurrentGroup } = useCurrentGroupStore()
   const [group, setGroup] = useState<GroupDto | null>(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -63,9 +61,6 @@ const GroupJoinView = () => {
       .then((data) => {
         if (cancelled) return
         setGroup(data)
-        if (isApproved) {
-          setCurrentGroup(data)
-        }
       })
       .catch((reason) => {
         if (!cancelled) {
@@ -81,7 +76,7 @@ const GroupJoinView = () => {
     return () => {
       cancelled = true
     }
-  }, [groupId, isApproved, setCurrentGroup, t])
+  }, [groupId])
 
   const submitJoin = async () => {
     if (!group) return
@@ -94,8 +89,7 @@ const GroupJoinView = () => {
       const result = await groupService.requestJoin(group.id, auth.me?.id)
       await auth.fetchMe()
       if (result.status === 'approved') {
-        activeEntityService.setGroup(group.id)
-        navigate('/groups?view=overview', { replace: true })
+        navigate(`/groups/${encodeURIComponent(group.id)}?view=overview`, { replace: true })
         return
       }
 
@@ -149,18 +143,18 @@ const GroupJoinView = () => {
       : group.accessType === 'protected'
         ? t('protectedJoinDescription')
         : t('privateJoinDescription')
-  const backPath = returnGroupId ? '/groups?view=overview' : '/groups/select'
+  const returnTo = searchParams.get('returnTo') ?? ''
+  const backPath = /^\/groups(?:\?[^#]*)?$/.test(returnTo) ? returnTo : returnGroupId ? `/groups/${encodeURIComponent(returnGroupId)}?view=overview` : '/groups'
   const primaryAction = isApproved ? (
     <AppTitleBarAction
       label={t('openGroup')}
       icon={<DoorOpen className="h-4 w-4" />}
       onClick={() => {
-        activeEntityService.setGroup(group.id)
-        navigate('/groups?view=overview')
+        navigate(`/groups/${encodeURIComponent(group.id)}?view=overview`)
       }}
     />
   ) : auth.isGuest ? (
-    <AppTitleBarAction label={language === 'zh' ? '登录或注册' : 'Sign in or register'} icon={<UserPlus className="h-4 w-4" />} to="/onboarding" />
+    <AppTitleBarAction label={language === 'zh' ? '登录或注册' : 'Sign in or register'} icon={<UserPlus className="h-4 w-4" />} to={buildOnboardingLocation(`/groups/${encodeURIComponent(groupId)}/join`)} />
   ) : canSubmit ? (
     <AppTitleBarAction
       label={submitting ? t('submitting') : group.accessType === 'protected' ? t('submitJoinRequest') : t('confirmJoinGroup')}
@@ -178,9 +172,8 @@ const GroupJoinView = () => {
       status={<div className="flex flex-wrap items-center gap-2"><AccessTypeBadge accessType={group.accessType} showProtected />{statusBadge}</div>}
       primaryAction={primaryAction}
       backLink={{
-        label: language === 'zh' ? '返回小组选择' : 'Back to group selection',
+        label: language === 'zh' ? '返回小组生活' : 'Back to Group Life',
         to: backPath,
-        onClick: returnGroupId ? () => activeEntityService.setGroup(returnGroupId) : undefined,
       }}
     >
       <AppSectionCard>

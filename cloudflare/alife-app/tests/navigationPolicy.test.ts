@@ -193,7 +193,8 @@ test('website content moves out of sidebars and group management has no pending 
 
   assert.doesNotMatch(source, /key: 'app:(?:sermons|bulletins)'/)
   assert.doesNotMatch(source, /key: 'church:(?:announcements|albums|forum|events)'/)
-  assert.match(groupItems, /\.\.\.workspaceHome/)
+  assert.match(groupItems, /getGroupLifeMemberships\(auth.memberships, churchGroupId\)/)
+  assert.doesNotMatch(source, /key: 'workspace:home'/)
   assert.doesNotMatch(source, /key: 'workspace:(?:announcements|albums|forum|events)'|pendingReviewCount/)
 })
 

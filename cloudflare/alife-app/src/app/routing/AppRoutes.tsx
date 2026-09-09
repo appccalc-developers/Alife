@@ -19,6 +19,7 @@ import {
 } from './churchManagementAccess'
 import { buildOnboardingLocation, normalizeIdentityReturnPath } from '../../services/identityPathPolicy'
 import { PERSONAL_CENTER_PATH, PROFILE_SETTINGS_PATH } from './personalCenterRoutes'
+import { getLegacyGroupEntryPath } from '../navigation/groupSiteNavigation'
 
 const AdminView = lazy(() => import('../../views/AdminView'))
 const AdminGroupView = lazy(() => import('../../views/AdminGroupView'))
@@ -41,7 +42,14 @@ const GroupDetailView = lazy(() => import('../../views/GroupDetailView'))
 const GroupJoinView = lazy(() => import('../../views/GroupJoinView'))
 const GroupManageView = lazy(() => import('../../views/GroupManageView'))
 const GroupsView = lazy(() => import('../../views/GroupsView'))
-const GroupTreeView = lazy(() => import('../../views/GroupTreeView'))
+
+// Keep old section bookmarks usable while the primary destination is the directory.
+const GroupLifeEntry = () => {
+  const location = useLocation()
+  const legacyPath = getLegacyGroupEntryPath(location.search, activeEntityService.getAll().groupId || '')
+  if (legacyPath) return <Navigate to={legacyPath} replace />
+  return <GroupsView />
+}
 const ForumView = lazy(() => import('../../views/ForumView'))
 const ForumPostView = lazy(() => import('../../views/ForumPostView'))
 const HomeView = lazy(() => import('../../views/HomeView'))
@@ -275,9 +283,9 @@ const AppRoutes = ({ churchGroupId = '', churchGroupLoading = false }: AppRoutes
               </ChurchManagementRoute>
             }
           />
-          <Route path="/groups" element={<GroupDetailView />} />
-          <Route path="/groups/select" element={<GroupsView />} />
-          <Route path="/groups/select/tree" element={<GroupTreeView />} />
+          <Route path="/groups" element={<GroupLifeEntry />} />
+          <Route path="/groups/select" element={<Navigate to="/groups" replace />} />
+          <Route path="/groups/select/tree" element={<Navigate to="/groups" replace />} />
           <Route path="/groups/join" element={<GroupJoinView />} />
           <Route path="/groups/manage" element={<GroupManageView />} />
           <Route path="/groups/manage/invite-members" element={<InviteMembersView />} />

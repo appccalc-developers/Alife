@@ -1,11 +1,10 @@
 import { createContext, useContext, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useLocation } from 'react-router-dom'
-import { Settings2, UsersRound } from 'lucide-react'
+import { Settings2, UserPlus } from 'lucide-react'
 import { fetchGroupForViewer } from '../../db/collections/groupCollection'
 import { getGroupSiteMenu, getGroupSiteRoute } from '../../app/navigation/groupSiteNavigation'
 import { useAuthStore } from '../../stores/auth'
-import { activeEntityService } from '../../services/activeEntityService'
 import { localizeText } from '../../utils/localizedText'
 import AppPageTitleBar from '../layout/AppPageTitleBar'
 import AppSiteNavigation from '../layout/AppSiteNavigation'
@@ -23,8 +22,10 @@ const GroupSiteLayout = ({ groupId, children }: { groupId: string; children: Rea
     queryFn: () => fetchGroupForViewer(groupId, auth.me?.id), enabled: Boolean(groupId), staleTime: 30_000 })
   const canManage = auth.hasLeaderAccess(groupId)
   const canRead = auth.isAdmin || auth.memberships.some(m => m.groupId === groupId && m.status === 'approved')
-  const items = getGroupSiteMenu(auth.language, { canManage, canRead }, route?.groupId)
+  const items = getGroupSiteMenu(auth.language, { canManage, canRead }, groupId)
   const zh = auth.language === 'zh'
+  const returnTo = new URLSearchParams(location.search).get('returnTo') ?? '/groups'
+  const backPath = /^\/groups(?:\?[^#]*)?$/.test(returnTo) ? returnTo : '/groups'
   const descriptions = {
     home: [localizeText(groupQuery.data?.description, auth.language) || '查看小组最近的活动、公告与已发布内容。', localizeText(groupQuery.data?.description, auth.language) || 'See the group’s latest events, notices, and published content.'],
     announcements: ['查看并管理小组公告。', 'Read and manage group announcements.'],
@@ -36,15 +37,15 @@ const GroupSiteLayout = ({ groupId, children }: { groupId: string; children: Rea
     <div className="mx-auto w-full max-w-6xl space-y-5 desktop:space-y-6">
       <AppPageTitleBar title={localizeText(groupQuery.data?.name, auth.language) || (zh ? '小组生活' : 'Group Life')}
         context={zh ? '小组生活' : 'Group Life'} subtitle={descriptions[route?.section ?? 'home'][zh ? 0 : 1]} showSubtitleOnMobile
-        primaryAction={<>
-          <AppTitleBarAction label={zh ? '切换小组' : 'Switch group'} icon={<UsersRound className="h-4 w-4" />} to="/groups/select" />
-          {canManage ? <AppTitleBarAction label={zh ? '管理小组' : 'Manage group'} icon={<Settings2 className="h-4 w-4" />}
-            to={route?.groupId ? `/groups/${encodeURIComponent(groupId)}?section=group` : '/groups?section=group'}
-            onClick={route?.groupId ? undefined : () => activeEntityService.setGroup(groupId, { clearPage: true })} /> : null}
-        </>}
-        navigation={<AppSiteNavigation items={items} activeSection={route?.section ?? null} label={zh ? '小组生活网站导航' : 'Group Life site navigation'}
-          idPrefix="group-site-tab" panelId="group-site-panel"
-          onNavigate={route?.groupId ? undefined : () => activeEntityService.setGroup(groupId, { clearPage: true })} />}
+        backLink={{ label: zh ? '返回小组生活' : 'Back to Group Life', to: backPath }}
+        primaryAction={canManage
+          ? <AppTitleBarAction label={zh ? '小组管理' : 'Group Management'} icon={<Settings2 className="h-4 w-4" />}
+              to={`/groups/${encodeURIComponent(groupId)}?section=group`} />
+          : !canRead ? <AppTitleBarAction label={zh ? '加入小组 / 申请状态' : 'Join / request status'} icon={<UserPlus className="h-4 w-4" />}
+              to={`/groups/${encodeURIComponent(groupId)}/join?returnTo=${encodeURIComponent(backPath)}`} /> : undefined}
+        navigation={<AppSiteNavigation items={items.map(item => ({ ...item, to: `${item.to}${item.to.includes('?') ? '&' : '?'}returnTo=${encodeURIComponent(backPath)}` }))} activeSection={route?.section ?? null} label={zh ? '小组生活网站导航' : 'Group Life site navigation'}
+          idPrefix="group-site-tab" panelId="group-site-panel" />}
+
       />
       <div id="group-site-panel" role="tabpanel" aria-labelledby={`group-site-tab-${route?.section ?? 'home'}`} tabIndex={0} className="outline-none focus-visible:ring-2 focus-visible:ring-[#176b5a]">
         <AppStableTabBody>{children}</AppStableTabBody>
