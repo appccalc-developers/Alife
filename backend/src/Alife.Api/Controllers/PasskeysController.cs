@@ -57,6 +57,7 @@ public sealed class PasskeysController(
     public async Task<IActionResult> RegistrationOptions(CancellationToken cancellationToken)
     {
         this.ApplyPrivateNoStoreHeaders();
+        if (IsWindowsRegistration()) return PhoneRegistrationRequired();
         var limited = await LimitPasskeysAsync("passkey-registration-options-ip-10m", 20, cancellationToken);
         if (limited is not null) return limited;
         var flow = await identityAccess.GetActiveFlowAsync(ReadFlowToken(), cancellationToken);
@@ -99,6 +100,7 @@ public sealed class PasskeysController(
     public async Task<IActionResult> CompleteRegistration(CompletePasskeyRequest request, CancellationToken cancellationToken)
     {
         this.ApplyPrivateNoStoreHeaders();
+        if (IsWindowsRegistration()) return PhoneRegistrationRequired();
         var activeFlow = await identityAccess.GetActiveFlowAsync(Request.Cookies["alife_onboarding"] ?? string.Empty, cancellationToken);
         var signedInMemberId = currentMemberAccessor.GetCurrentMemberId();
         if (activeFlow?.ActivationMemberId is Guid targetId && signedInMemberId is Guid actorId && targetId != actorId)
@@ -155,6 +157,21 @@ public sealed class PasskeysController(
         }
         return this.ToIdentityResult(await passkeys.RevokeAsync(memberId.Value, credentialId, cancellationToken));
     }
+
+    // Browser platform signals are a UX guard, not proof of authenticator origin.
+    // Existing authentication, authorization and WebAuthn verification remain required.
+    private bool IsWindowsRegistration()
+        => Request.Headers.UserAgent.ToString().Contains("Windows", StringComparison.OrdinalIgnoreCase) ||
+           Request.Headers["Sec-CH-UA-Platform"].ToString().Trim('"')
+               .Equals("Windows", StringComparison.OrdinalIgnoreCase);
+
+    private IActionResult PhoneRegistrationRequired()
+        => StatusCode(StatusCodes.Status403Forbidden, new ProblemDetails
+        {
+            Status = StatusCodes.Status403Forbidden,
+            Title = "Create your ALIFE passkey on your personal phone.",
+            Extensions = { ["code"] = "passkey_phone_required" }
+        });
 
     private bool HasRecentStrongAuthentication()
     {

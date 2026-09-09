@@ -23,7 +23,7 @@ Alife reduces operational friction around church community life:
 
 ### Primary Users
 
-- **Guest**: can open onboarding, leave a visitor message, activate a pre-registered identity, or apply through a group QR without an account being created automatically.
+- **Guest**: can open onboarding, leave a visitor message, activate a pre-registered identity, or apply to the church from the public phone entry or through a group QR without an account being created automatically.
 - **Member**: can view accessible groups, pages, sermons, events, notifications, and enroll in activities.
 - **Leader / CoLeader**: can manage approved groups, subgroups, memberships, pages, and events.
 - **Admin**: can access protected admin operations.

@@ -21,6 +21,39 @@ public sealed class IdentityHttpTests
     [Theory]
     [InlineData("https://alife.example", true)]
     [InlineData("https://evil.example", false)]
+    public async Task PublicChurchApplication_RequiresOriginAndUsesPrivateBrowserReceipt(string origin, bool allowed)
+    {
+        var identity = Substitute.For<IIdentityAccessService>();
+        var limiter = Substitute.For<IServerRateLimiter>();
+        limiter.TryConsumeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>())
+            .Returns(new RateLimitDecision(true, DateTime.UtcNow, 2));
+        identity.SubmitChurchApplicationAsync(Arg.Any<string>(), null, Arg.Any<SubmitGroupApplicationRequest>(), Arg.Any<CancellationToken>(), Arg.Any<string>())
+            .Returns(AppResult<MembershipApplicationDto>.Success(null!));
+        var context = new DefaultHttpContext();
+        context.Request.Scheme = "https";
+        context.Request.Headers.Origin = origin;
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Frontend:BaseUrl"] = "https://alife.example" }).Build();
+        var controller = new OnboardingController(identity, Substitute.For<ICurrentMemberAccessor>(), limiter, config) { ControllerContext = new() { HttpContext = context } };
+        var request = new SubmitGroupApplicationRequest("Alice", null, "email", "en", "Joining", "church-application-v1", true, "", 0, Sex: "Unknown", Email: "alice@example.test", NotificationConsent: true);
+        await controller.SubmitChurchApplication(request, default);
+        Assert.Equal("private, no-store", context.Response.Headers.CacheControl);
+        if (allowed)
+        {
+            await identity.Received(1).SubmitChurchApplicationAsync(Arg.Any<string>(), null, request, Arg.Any<CancellationToken>(), Arg.Is<string>(x => x.Length == 64));
+            Assert.Contains("alife_application=", context.Response.Headers.SetCookie.ToString());
+            Assert.Contains("httponly", context.Response.Headers.SetCookie.ToString());
+            Assert.Contains("secure", context.Response.Headers.SetCookie.ToString());
+        }
+        else
+        {
+            Assert.Empty(identity.ReceivedCalls());
+            Assert.Equal(0, context.Response.Headers.SetCookie.Count);
+        }
+    }
+
+    [Theory]
+    [InlineData("https://alife.example", true)]
+    [InlineData("https://evil.example", false)]
     [InlineData("https://alife.example.evil.example", false)]
     [InlineData("null", false)]
     [InlineData("", false)]
@@ -314,6 +347,49 @@ public sealed class IdentityHttpTests
             flowId,
             false,
             Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData("Windows NT 10.0; Win64; x64", "")]
+    [InlineData("Windows NT 10.0; Touch; Mobile", "")]
+    [InlineData("", "\"Windows\"")]
+    public async Task PasskeyRegistration_WindowsIsRejectedAtBothEndpoints(string userAgent, string platform)
+    {
+        var (controller, passkeys, _) = CreatePasskeysController("passkey");
+        controller.Request.Headers.UserAgent = userAgent;
+        controller.Request.Headers["Sec-CH-UA-Platform"] = platform;
+        using var response = JsonDocument.Parse("{}");
+        var results = new[]
+        {
+            await controller.RegistrationOptions(default),
+            await controller.CompleteRegistration(new(Guid.NewGuid(), response.RootElement), default)
+        };
+        foreach (var result in results)
+        {
+            var forbidden = Assert.IsType<ObjectResult>(result);
+            Assert.Equal(403, forbidden.StatusCode);
+            Assert.Equal("passkey_phone_required", Assert.IsType<ProblemDetails>(forbidden.Value).Extensions["code"]);
+        }
+        Assert.Equal("private, no-store", controller.Response.Headers.CacheControl);
+        Assert.Empty(passkeys.ReceivedCalls());
+    }
+
+    [Theory]
+    [InlineData("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0)", "\"iOS\"")]
+    [InlineData("Mozilla/5.0 (Linux; Android 15; Pixel)", "\"Android\"")]
+    public async Task PasskeyRegistration_PhoneWithRecentAuthenticationCanBeginAndComplete(string userAgent, string platform)
+    {
+        var (controller, passkeys, _) = CreatePasskeysController("passkey");
+        controller.Request.Headers.UserAgent = userAgent;
+        controller.Request.Headers["Sec-CH-UA-Platform"] = platform;
+        using var response = JsonDocument.Parse("{}");
+        passkeys.BeginRegistrationAsync(Arg.Any<Guid>(), null, false, Arg.Any<CancellationToken>())
+            .Returns(AppResult<PasskeyOptionsDto>.Success(new(Guid.NewGuid(), response.RootElement.Clone())));
+        passkeys.CompleteRegistrationAsync(Arg.Any<Guid>(), Arg.Any<JsonElement>(), null, Arg.Any<CancellationToken>())
+            .Returns(AppResult<PasskeyCompletionDto>.Success(new(null, null)));
+
+        Assert.IsType<OkObjectResult>(await controller.RegistrationOptions(default));
+        Assert.IsType<OkObjectResult>(await controller.CompleteRegistration(new(Guid.NewGuid(), response.RootElement), default));
     }
 
     private static (PasskeysController Controller, IPasskeyService Passkeys, IIdentityAccessService IdentityAccess)

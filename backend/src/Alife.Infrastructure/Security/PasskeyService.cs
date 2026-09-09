@@ -192,11 +192,12 @@ public sealed class PasskeyService(
             .Where(item => item.MemberId == member.Id && item.RevokedUtc == null)
             .Select(item => new PublicKeyCredentialDescriptor(item.CredentialId))
             .ToListAsync(cancellationToken);
+        var accountName = string.IsNullOrWhiteSpace(member.DisplayName) ? "ALIFE member" : member.DisplayName.Trim();
         var user = new Fido2User
         {
             Id = member.WebAuthnUserHandle,
-            Name = $"member-{member.Id:N}",
-            DisplayName = member.DisplayName ?? "ALIFE member"
+            Name = accountName,
+            DisplayName = accountName
         };
         var options = fido2.RequestNewCredential(new RequestNewCredentialParams
         {

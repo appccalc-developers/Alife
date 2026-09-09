@@ -16,3 +16,8 @@ test('recognizes common mobile and touch iPad user agents', () => {
 test('keeps ordinary desktop browsers out of mobile registration', () => {
   assert.equal(isLikelyMobileDevice({ userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', maxTouchPoints: 0 }), false)
 })
+
+test('Windows remains desktop with a touch screen or mobile browser hint', () => {
+  assert.equal(isLikelyMobileDevice({ userAgent: 'Windows NT 10.0; Touch', maxTouchPoints: 10 }), false)
+  assert.equal(isLikelyMobileDevice({ userAgent: 'Windows NT 10.0; Mobile', userAgentData: { mobile: true } }), false)
+})

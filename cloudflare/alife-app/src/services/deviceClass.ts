@@ -7,6 +7,9 @@ export type DeviceNavigator = {
 export const isLikelyMobileDevice = (
   value: DeviceNavigator = navigator as DeviceNavigator,
 ) => {
+  // Touch screens and mobile hints must not enable registration on Windows.
+  if (/Windows/i.test(value.userAgent ?? '')) return false
+
   if (typeof value.userAgentData?.mobile === 'boolean') {
     return value.userAgentData.mobile
   }

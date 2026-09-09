@@ -208,7 +208,7 @@ Keep route state explicit. Avoid making language switches, tab changes, or local
 
 Protected-route redirects store only validated absolute relative paths before navigating to `/onboarding`. Signed-in users skip onboarding and resume that path or `/enter`. `/activate/:selector`, `/join/:selector`, `/application/:selector`, and `/internal/alpha-login` use the identity shell, which deliberately omits member workspace navigation and floating actions.
 
-The onboarding screen uses a compact intent list rather than equal-weight cards. Passkey is primary; LINE is clearly labeled as compatibility. Activation and Profile credential creation are shown only on a likely personal mobile device, and activation no longer offers a credential-free public-device completion. Desktop authentication supplies the WebAuthn Level 3 `hybrid` hint first and explains that the browser should show a QR for approval by the phone Passkey; it never invokes credential creation. User-agent classification is an interaction guard rather than a security claim, while the server retains all WebAuthn verification. Public-device sign-in, unsupported, cancellation, expiry, replay, paused/revoked, rate-limit, and network states remain recoverable and never silently downgrade authentication. Browser credential requests are aborted after two minutes or when their view unmounts. `NotAllowedError`, abort, and timeout states use noncommittal bilingual wording because the browser does not reliably distinguish user cancellation from authenticator failure; backend verification failures show the safe Problem Details trace reference. Alpha-only tester Stephen may paste the separately issued first-Passkey setup code on the internal login screen; success redirects to Profile so registration can finish within five minutes on a phone, while leaving the field blank preserves ordinary Alpha login. All new UI copy lives in the existing bilingual `uiText` catalog.
+The onboarding screen uses a compact intent list with public phone application and explicit existing-member sign-in. Passkey remains the primary authentication method; LINE is clearly labeled as compatibility. Activation and Profile credential creation are shown only on a likely personal mobile device, and activation no longer offers a credential-free public-device completion. Desktop authentication supplies the WebAuthn Level 3 `hybrid` hint first and explains that the browser should show a QR for approval by the phone Passkey; it never invokes credential creation. User-agent classification is an interaction guard rather than a security claim, while the server retains all WebAuthn verification. Public-device sign-in, unsupported, cancellation, expiry, replay, paused/revoked, rate-limit, and network states remain recoverable and never silently downgrade authentication. Browser credential requests are aborted after two minutes or when their view unmounts. `NotAllowedError`, abort, and timeout states use noncommittal bilingual wording because the browser does not reliably distinguish user cancellation from authenticator failure; backend verification failures show the safe Problem Details trace reference. Alpha-only tester Stephen may paste the separately issued first-Passkey setup code on the internal login screen; success redirects to Profile so registration can finish within five minutes on a phone, while leaving the field blank preserves ordinary Alpha login. All new UI copy lives in the existing bilingual `uiText` catalog.
 
 ## Bilingual Content
 
@@ -394,5 +394,20 @@ Manual checks after meaningful UI changes:
 - PWA service worker does not replay `/api/*` responses.
 
 ### Application continuation and personal recovery
+
+Public onboarding separates “Would you like to join ALIFE?” from explicit existing
+Passkey sign-in. Desktop application entry shows a public phone QR. On phones,
+an existing browser receipt resumes progress before the form is mounted. Otherwise
+a live session check offers existing-account entry, or a retry if the check fails.
+Unsigned visitors choose Passkey sign-in, help for a previous application/account,
+or explicitly confirm a first application. Authentication cancellation never opens
+the form automatically; WebAuthn cannot silently disclose credential presence.
+This is duplicate-reduction UX, not a physical-device uniqueness guarantee. The phone form
+collects name, sex, optional phone, email, message, notification channel, privacy and
+notification consent. The same browser resumes its application on a rescan and can
+create its first Passkey after approval. Member Management exposes the existing
+identity-application queue as an expanded pending table with filters, sorting,
+pagination and review details. Approval displays a one-time manual SMS/email
+registration message; no automatic delivery is claimed. See the [identity contract](identity-access.md).
 
 Applicants may omit a phone number. The original browser retains an HttpOnly receipt and displays an application reference, manual status refresh, focus refresh, and approved first-Passkey setup. Re-scanning the group QR resumes that browser’s application. Member-list expanded details provide an accessible in-person verification modal and ten-minute personal recovery QR. The activation page displays the target account and asks a different signed-in member to sign out explicitly. English/Chinese state copy is paired; language changes do not restart application preparation. Secrets remain outside persistent frontend stores. See [identity access](identity-access.md).

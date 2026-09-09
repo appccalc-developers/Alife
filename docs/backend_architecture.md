@@ -278,6 +278,15 @@ Write operations should invalidate relevant backend cache entries through the ex
 
 ## Interaction With The Speed Layer
 
+Public church applications use `POST /api/onboarding/church-applications`, the
+existing application entities and church-review authorization. The server selects
+the open church, validates consent/contact fields, and creates no account before
+approval. `PublicChurchApplications` adds sex/email/notification-consent fields and
+permits a null group invitation for this source. Approval preserves phone-browser
+continuation and returns manual SMS/email activation instructions only in the
+authorized mutation response. See [identity access](identity-access.md) for the
+request, privacy, notification and migration contracts.
+
 The Cloudflare speed layer sits in front of the backend in deployed traffic. The backend remains authoritative for:
 
 - Authentication validation.

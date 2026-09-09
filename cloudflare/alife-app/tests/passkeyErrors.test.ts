@@ -6,6 +6,12 @@ import { normalizeIdentityError } from '../src/services/identityErrorPresentatio
 const translate = (key: UiTextKey, values?: Record<string, string | number>) =>
   values?.traceId ? `${key}:${values.traceId}` : key
 
+test('desktop registration rejection explains the phone requirement in UI language', () => {
+  for (const error of [new Error('passkey_phone_required'), { message: 'failed', code: 'passkey_phone_required' }]) {
+    assert.equal(normalizeIdentityError(error, 'fallback', translate), 'passkeyPhoneRequired')
+  }
+})
+
 test('browser passkey cancellation and timeout use an incomplete-state message', () => {
   assert.equal(
     normalizeIdentityError(new Error('passkey_cancelled'), 'fallback', translate),

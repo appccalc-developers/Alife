@@ -1358,6 +1358,9 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 
 		modelBuilder.Entity<ChurchPersonApplication>(cfg =>
 		{
+            cfg.Property(x => x.Sex).HasMaxLength(20);
+            cfg.Property(x => x.Email).HasMaxLength(320);
+            cfg.Property(x => x.NotificationConsentVersion).HasMaxLength(50);
 			cfg.HasKey(x => x.Id);
 			cfg.Property(x => x.DisplayName).HasMaxLength(150).IsRequired();
 			cfg.Property(x => x.PhoneE164).HasMaxLength(30);

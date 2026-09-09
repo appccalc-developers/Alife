@@ -18,6 +18,7 @@ import {
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import logo from '../assets/logo.png'
 import BrowserApplicationPanel from '../components/identity/BrowserApplicationPanel'
+import ChurchApplicationEntry from '../components/identity/ChurchApplicationEntry'
 import { useUiText } from '../i18n/uiText'
 import { identityAccessService, type OnboardingContext } from '../services/identityAccessService'
 import { normalizeIdentityError } from '../services/identityErrorPresentation'
@@ -28,7 +29,7 @@ import { visitContactService } from '../services/visitContactService'
 import { isLikelyMobileDevice } from '../services/deviceClass'
 import { useAuthStore } from '../stores/auth'
 
-type ViewMode = 'choices' | 'visitor' | 'recovery' | 'firstTime' | 'lineRegistration' | 'success'
+type ViewMode = 'choices' | 'signIn' | 'visitor' | 'recovery' | 'firstTime' | 'lineRegistration' | 'success'
 
 const getLineLoginRedirectUrl = () => {
   if (import.meta.env.DEV) return `${window.location.origin}/api/members/line/login/redirect`
@@ -108,7 +109,7 @@ const OnboardingView = () => {
         }
 
         const created = await identityAccessService.createFlow(safeReturnPath, false, 'signIn')
-        if (active) setContext(created)
+        if (active) { setContext(created); if (intent === 'churchApplication') setMode('firstTime') }
       } catch (error) {
         if (active) setStatus(normalizeIdentityError(error, textRef.current('identityLinkInvalid'), textRef.current))
       } finally {
@@ -346,7 +347,11 @@ const OnboardingView = () => {
       const groupName = auth.language === 'zh' ? context.groupNameZh || context.groupNameEn : context.groupNameEn || context.groupNameZh
       return (
         <div>
+          {searchParams.get('source') === 'church' ? (
+          <ScreenHeading icon={UserPlus} title={searchParams.get('source') === 'church' ? t('churchApplicationTitle') : t('groupApplicationTitle', { group: groupName || t('group') })} description={searchParams.get('source') === 'church' ? t('churchApplicationJourney') : t('groupApplicationDescription')} />
+          ) : (
           <ScreenHeading icon={UserPlus} title={applicationIntent === 'recovery' ? (auth.language === 'zh' ? '恢复原帐号' : 'Recover your account') : applicationIntent === 'continuation' ? (auth.language === 'zh' ? '继续原申请' : 'Continue your application') : t('groupApplicationTitle', { group: groupName || t('group') })} description={applicationIntent === 'join' ? t('groupApplicationDescription') : (auth.language === 'zh' ? '提交后，请向现场同工出示本机上的申请编号。核实并关联原帐号或原申请后，在本页继续。' : 'After submitting, show this phone’s application reference to a leader in person. Continue here after they verify and link your account or original application.')} />
+          )}
           <BrowserApplicationPanel key={searchParams.get('application') || context.groupJoinInviteId || 'application'} applicationId={searchParams.get('application') || undefined} inviteId={context.groupJoinInviteId || undefined}>
           {auth.isGuest && applicationIntent === 'join' ? (
             <div className="mt-6 rounded-2xl border border-[#176b5a]/15 bg-[#e3f0eb]/70 p-4">
@@ -392,12 +397,23 @@ const OnboardingView = () => {
       return (
         <div>
           <BackButton onClick={() => setMode('choices')} label={t('backToChoices')} />
-          <ScreenHeading icon={UserPlus} title={t('firstTimeTitle')} description={t('firstTimeDescription')} />
-          <button className="alife-secondary-button mt-6 w-full" type="button" onClick={() => setMode('visitor')}>
-            <MessageSquareText className="h-5 w-5" aria-hidden="true" /> {t('visitorMessage')}
-          </button>
+          <ScreenHeading icon={UserPlus} title={t('churchApplicationTitle')} description={t('churchApplicationDescription')} />
+          <ChurchApplicationEntry mobile={mobileDevice} language={auth.language} authenticating={busy}
+            onSignIn={() => void runPasskeyAuthentication()}
+            onRecovery={() => { formStarted.current = Date.now(); setMode('recovery'); setStatus('') }} />
         </div>
       )
+    }
+    if (mode === 'signIn') {
+      return <div>
+        <BackButton onClick={() => { setMode('choices'); setStatus('') }} label={t('backToChoices')} />
+        <ScreenHeading icon={Fingerprint} title={t('enterMyAlife')} description={t('churchApplicationSignInHint')} />
+        <button className="alife-primary-button mt-6 w-full" type="button" disabled={busy || !capabilities.passkeysEnabled} onClick={() => void runPasskeyAuthentication()}>{t('usePasskey')}</button>
+        <label className="mt-4 flex min-h-11 items-start gap-3 text-sm leading-6"><input type="checkbox" className="mt-1 h-4 w-4" checked={publicDevice} onChange={event => setPublicDevice(event.target.checked)} /><span>{t('publicDevice')}<span className="block text-xs text-[#66766f]">{t('publicDeviceHint')}</span></span></label>
+        <PasskeyPrivacy t={t} />
+        <button className="alife-secondary-button mt-5 w-full" type="button" disabled={busy} onClick={() => { setMode('firstTime'); setStatus('') }}>{t('churchApplicationTitle')}</button>
+        <button className="mt-3 min-h-11 w-full text-sm font-semibold text-[#176b5a]" type="button" disabled={busy} onClick={() => { formStarted.current = Date.now(); setMode('recovery'); setStatus('') }}>{t('lostPasskey')}</button>
+      </div>
     }
     if (mode === 'lineRegistration' && lineConfirmed) {
       return (
@@ -424,16 +440,12 @@ const OnboardingView = () => {
         <h1 className="mt-5 text-4xl font-bold tracking-[-0.045em] text-[#18332d]">{t('onboardingTitle')}</h1>
         <p className="mt-3 text-sm leading-6 text-[#66766f]">{t('onboardingSubtitle')}</p>
         <div className="mt-7 divide-y divide-[#2f4b42]/10 overflow-hidden rounded-2xl border border-[#2f4b42]/10 bg-white/75">
-          <IntentButton icon={Fingerprint} title={t('enterMyAlife')} hint={mobileDevice ? t('enterMyAlifeHint') : t('enterMyAlifeDesktopHint')} disabled={busy || !capabilities.passkeysEnabled} onClick={() => void runPasskeyAuthentication()} />
+          <IntentButton icon={UserPlus} title={t('churchApplicationTitle')} hint={t('churchApplicationDescription')} disabled={busy} onClick={() => { setStatus(''); setMode('firstTime') }} />
+          <IntentButton icon={Fingerprint} title={t('enterMyAlife')} hint={t('churchApplicationSignInHint')} disabled={busy || !capabilities.passkeysEnabled} onClick={() => { setStatus(''); setMode('signIn') }} />
           <IntentButton icon={MessageSquareText} title={t('visitorMessage')} hint={t('visitorMessageHint')} onClick={() => { formStarted.current = Date.now(); setMode('visitor') }} />
           <IntentButton icon={Church} title={t('learnAboutChurch')} hint={t('learnAboutChurchHint')} onClick={() => navigate('/')} />
         </div>
         {!capabilities.passkeysEnabled ? <p className="mt-3 text-sm text-[#915040]">{t('passkeyUnavailable')}</p> : null}
-        <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-2xl border border-[#2f4b42]/10 bg-[#f5f2eb]/75 p-4">
-          <input className="mt-1 h-4 w-4 accent-[#176b5a]" type="checkbox" checked={publicDevice} onChange={(event) => setPublicDevice(event.target.checked)} />
-          <span><strong className="block text-sm text-[#18332d]">{t('publicDevice')}</strong><span className="mt-1 block text-xs leading-5 text-[#66766f]">{t('publicDeviceHint')}</span></span>
-        </label>
-        <PasskeyPrivacy t={t} />
         <div className="mt-6 flex flex-wrap gap-x-5 gap-y-3 text-sm font-semibold text-[#176b5a]">
           <button type="button" onClick={() => setMode('firstTime')}>{t('firstTimeHere')}</button>
           <button type="button" onClick={() => { formStarted.current = Date.now(); setMode('recovery') }}>{t('lostPasskey')}</button>

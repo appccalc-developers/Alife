@@ -8,6 +8,9 @@ export const normalizeIdentityError = (
   fallback: string,
   translate: TranslateIdentityText,
 ) => {
+  if (error instanceof Error && error.message === 'passkey_phone_required') {
+    return translate('passkeyPhoneRequired')
+  }
   if (error instanceof Error && error.message === 'passkey_not_supported') {
     return translate('passkeyUnavailable')
   }
@@ -19,6 +22,7 @@ export const normalizeIdentityError = (
   }
 
   const api = normalizeApiError(error)
+  if (api.code === 'passkey_phone_required') return translate('passkeyPhoneRequired')
   if (api.code === 'passkey_unknown') {
     return translate('passkeyUnknown')
   }

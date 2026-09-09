@@ -1,4 +1,5 @@
 import { http } from './http'
+import { isLikelyMobileDevice } from './deviceClass'
 
 export type IdentityCapabilities = {
   passkeysEnabled: boolean
@@ -8,6 +9,8 @@ export type IdentityCapabilities = {
 export type ManualActivationMessage = {
   recipientPhoneE164: string
   message: string
+  recipientEmail?: string | null
+  replyPreference?: string | null
 }
 
 export type OnboardingContext = {
@@ -36,6 +39,10 @@ export type PasskeyCredential = {
 }
 
 export type MembershipApplication = {
+  sex?: string | null
+  email?: string | null
+  notificationConsentVersion?: string | null
+  notificationConsentedUtc?: string | null
   id: string
   churchPersonApplicationId: string
   groupId: string
@@ -241,6 +248,7 @@ export const identityAccessService = {
     })).data
   },
   async registerPasskey(displayName?: string, signal?: AbortSignal) {
+    if (!isLikelyMobileDevice()) throw new Error('passkey_phone_required')
     if (!window.PublicKeyCredential || !navigator.credentials) throw new Error('passkey_not_supported')
     const options = (await http.post<PasskeyOptions>('/api/auth/passkeys/registration/options')).data
     const credential = await navigator.credentials.create({ publicKey: creationOptions(options.publicKey), signal }) as PublicKeyCredential | null
@@ -268,6 +276,9 @@ export const identityAccessService = {
   },
   async submitGroupApplication(payload: Record<string, unknown>) {
     return (await http.post<MembershipApplication>('/api/onboarding/group-applications', payload)).data
+  },
+  async submitChurchApplication(payload: Record<string, unknown>) {
+    return (await http.post<MembershipApplication>('/api/onboarding/church-applications', payload)).data
   },
   async personalApplications() {
     return (await http.get<MembershipApplication[]>('/api/onboarding/personal-applications')).data

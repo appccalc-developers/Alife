@@ -66,7 +66,9 @@ public sealed record ActivationGrantDto(Guid GroupId, MembershipRole Role, Stage
 
 public sealed record ManualActivationMessageDto(
     string RecipientPhoneE164,
-    string Message);
+    string Message,
+    string? RecipientEmail = null,
+    string? ReplyPreference = null);
 
 public sealed record ActivationInvitationDto(
     Guid Id,
@@ -102,7 +104,11 @@ public sealed record SubmitGroupApplicationRequest(
     bool PrivacyConsent,
     string Honeypot,
     long FormStartedUnixMilliseconds,
-    string Intent = "join");
+    string Intent = "join",
+
+    string? Sex = null,
+    string? Email = null,
+    bool NotificationConsent = false);
 
 public sealed record ApplicationHistoryDto(
     Guid Id,
@@ -135,7 +141,11 @@ public sealed record MembershipApplicationDto(
     DateTime SubmittedUtc,
     string RowVersion,
     IReadOnlyList<ApplicationHistoryDto> History,
-    bool IsIdentityVerified = false);
+    bool IsIdentityVerified = false,
+    string? Sex = null,
+    string? Email = null,
+    string? NotificationConsentVersion = null,
+    DateTime? NotificationConsentedUtc = null);
 
 public sealed record MembershipApplicationPageDto(
     IReadOnlyList<MembershipApplicationDto> Items,
@@ -277,6 +287,7 @@ public interface IIdentityAccessService
     Task<AppResult<OnboardingFlowStart>> ResolveGroupInviteAsync(string selector, string signature, bool isPublicDevice, string? returnPath, CancellationToken cancellationToken);
     Task<AppResult<OnboardingFlowStart>> ResolveApplicationResponseAsync(string selector, string secret, CancellationToken cancellationToken);
     Task<AppResult<MembershipApplicationDto>> SubmitGroupApplicationAsync(string flowToken, Guid? applicantMemberId, SubmitGroupApplicationRequest request, CancellationToken cancellationToken, string? browserToken = null);
+    Task<AppResult<MembershipApplicationDto>> SubmitChurchApplicationAsync(string flowToken, Guid? applicantMemberId, SubmitGroupApplicationRequest request, CancellationToken cancellationToken, string browserToken);
     Task<AppResult<MembershipApplicationDto>> SupplementApplicationAsync(string flowToken, Guid? memberId, Guid? applicationId, string note, string? rowVersion, CancellationToken cancellationToken);
     Task<AppResult<MembershipApplicationPageDto>> ListGroupApplicationsAsync(Guid actorMemberId, Guid groupId, string? status, string? search, string? sort, int page, int pageSize, CancellationToken cancellationToken);
     Task<AppResult<MembershipApplicationPageDto>> ListPersonApplicationsAsync(Guid actorMemberId, string? status, string? search, string? sort, int page, int pageSize, CancellationToken cancellationToken);
