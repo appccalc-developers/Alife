@@ -41,6 +41,10 @@ public static class DependencyInjection
 		services.AddScoped<IServerRateLimiter, SqlServerRateLimiter>();
 		services.AddScoped<IIdentitySerializableExecutor, IdentitySerializableExecutor>();
 		services.AddScoped<IIdentityMessageSender, UnavailableIdentityMessageSender>();
+		services.AddHttpClient<Microsoft365IdentityEmailSender>(client => client.Timeout = TimeSpan.FromSeconds(30))
+			.RemoveAllLoggers();
+		services.AddTransient<SmtpIdentityEmailSender>();
+		services.AddTransient<IIdentityEmailSender, ConfiguredIdentityEmailSender>();
 		services.AddScoped<IPasskeyService, PasskeyService>();
 
 		services.AddHttpClient("youtube", client =>

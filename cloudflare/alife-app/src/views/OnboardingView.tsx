@@ -1,3 +1,4 @@
+import { identityWorkflowError } from '../services/identityWorkflowError'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import {
   ArrowLeft,
@@ -21,7 +22,7 @@ import { useUiText } from '../i18n/uiText'
 import { identityAccessService, type OnboardingContext } from '../services/identityAccessService'
 import { normalizeIdentityError } from '../services/identityErrorPresentation'
 import { normalizeIdentityReturnPath } from '../services/identityPathPolicy'
-import { http, normalizeApiError } from '../services/http'
+import { http } from '../services/http'
 import { createPasskeyRequestGuard, type PasskeyRequestGuard } from '../services/passkeyRequestGuard'
 import { visitContactService } from '../services/visitContactService'
 import { isLikelyMobileDevice } from '../services/deviceClass'
@@ -53,6 +54,8 @@ const OnboardingView = () => {
   const [status, setStatus] = useState('')
   const successTarget = '/'
   const [lineConfirmed, setLineConfirmed] = useState(false)
+  const [applicationIntent, setApplicationIntent] = useState('join')
+  const [invitationConsent, setInvitationConsent] = useState(false)
   const [supplement, setSupplement] = useState('')
   const [lineProfile, setLineProfile] = useState({ name: '', sex: 'Unknown', age: '', email: '' })
   const formStarted = useRef(Date.now())
@@ -228,7 +231,7 @@ const OnboardingView = () => {
       setMode('success')
       setStatus(t('visitorMessageSent'))
     } catch (error) {
-      setStatus(normalizeApiError(error).message)
+      setStatus(identityWorkflowError(error, auth.language))
     } finally {
       setBusy(false)
     }
@@ -244,6 +247,7 @@ const OnboardingView = () => {
     setStatus('')
     try {
       const submitted = await identityAccessService.submitGroupApplication({
+        intent: applicationIntent,
         ...application,
         preferredLanguage: auth.language,
         privacyConsentVersion: 'group-application-v1',
@@ -252,7 +256,7 @@ const OnboardingView = () => {
       })
       navigate(`/onboarding?application=${encodeURIComponent(submitted.id)}`, { replace: true })
     } catch (error) {
-      setStatus(normalizeApiError(error).message)
+      setStatus(identityWorkflowError(error, auth.language))
     } finally {
       setBusy(false)
     }
@@ -272,7 +276,7 @@ const OnboardingView = () => {
       setMode('success')
       setStatus(t('applicationResponseSent'))
     } catch (error) {
-      setStatus(normalizeApiError(error).message)
+      setStatus(identityWorkflowError(error, auth.language))
     } finally {
       setBusy(false)
     }
@@ -285,7 +289,7 @@ const OnboardingView = () => {
         await identityAccessService.createFlow(safeReturnPath, publicDevice, 'lineLegacy')
       } catch (error) {
         setBusy(false)
-        setStatus(normalizeApiError(error).message)
+        setStatus(identityWorkflowError(error, auth.language))
         return
       }
     }
@@ -309,7 +313,7 @@ const OnboardingView = () => {
         navigate(normalizeIdentityReturnPath(context?.returnPath) || safeReturnPath || '/enter', { replace: true })
       }
     } catch (error) {
-      setStatus(normalizeApiError(error).message)
+      setStatus(identityWorkflowError(error, auth.language))
     } finally {
       setBusy(false)
     }
@@ -323,11 +327,13 @@ const OnboardingView = () => {
       const sessionConflict = !auth.isGuest && Boolean(auth.me?.id && context.activationMemberId && auth.me.id !== context.activationMemberId)
       return (
         <div>
-          <ScreenHeading icon={KeyRound} title={t('activationTitle')} description={t('activationDescription')} />
+          <ScreenHeading icon={KeyRound} title={context.approvalRequired ? (auth.language === 'zh' ? '核对 ALIFE 邀请' : 'Review your ALIFE invitation') : t('activationTitle')} description={context.approvalRequired ? (auth.language === 'zh' ? '核对资料并同意加入。同工批准后，您才能建立 Passkey。' : 'Check your details and agree to join. You can create a Passkey after a leader approves the invitation.') : t('activationDescription')} />
           {context.displayName ? <p className="mt-4 text-lg font-bold">{context.displayName}</p> : null}
-          {sessionConflict ? <div className="mt-4"><p role="alert">{t('activationSignOutFirst')}</p><button type="button" className="alife-secondary-button mt-3" disabled={busy} onClick={() => { setBusy(true); void auth.logout().catch(error => setStatus(normalizeApiError(error).message)).finally(() => setBusy(false)) }}>{t('logout')}</button></div> : null}
+          {sessionConflict ? <div className="mt-4"><p role="alert">{t('activationSignOutFirst')}</p><button type="button" className="alife-secondary-button mt-3" disabled={busy} onClick={() => { setBusy(true); void auth.logout().catch(error => setStatus(identityWorkflowError(error, auth.language))).finally(() => setBusy(false)) }}>{t('logout')}</button></div> : null}
           {!mobileDevice ? <div className="mt-5 rounded-2xl border border-[#e37b63]/20 bg-[#fff2ed] p-4 text-sm leading-6 text-[#915040]">{t('activationMobileRequired')}</div> : <PasskeyPrivacy t={t} />}
-          <button className="alife-primary-button mt-6 w-full" type="button" disabled={busy || !mobileDevice || sessionConflict} onClick={() => void completeActivation()}>
+          <label className="mt-4 flex min-h-11 items-start gap-3 text-sm"><input type="checkbox" checked={invitationConsent} onChange={event => setInvitationConsent(event.target.checked)} />{auth.language === 'zh' ? '我确认这是我的帐号，同意加入并设置 Passkey。' : 'I confirm this is my account and agree to join and set up a Passkey.'}</label>
+          {context.approvalRequired ? <div className="mt-4 space-y-3"><p role="status">{auth.language === 'zh' ? '邀请仍待同工审核。接受邀请不会立即激活帐号。' : 'This invitation awaits approval. Accepting it does not activate the account.'}</p><button className="alife-primary-button w-full" disabled={busy || !invitationConsent || sessionConflict || context.accepted} onClick={() => { setBusy(true); void identityAccessService.acceptInvitation().then(setContext).catch(error => setStatus(identityWorkflowError(error, auth.language))).finally(() => setBusy(false)) }}>{auth.language === 'zh' ? (context.accepted ? '已接受，等待审核' : '接受邀请') : (context.accepted ? 'Accepted; awaiting approval' : 'Accept invitation')}</button><button className="alife-secondary-button w-full" disabled={busy} onClick={() => { setBusy(true); void identityAccessService.resume().then(setContext).catch(error => setStatus(identityWorkflowError(error, auth.language))).finally(() => setBusy(false)) }}>{t('applicationCheck')}</button></div> : null}
+          <button className="alife-primary-button mt-6 w-full" type="button" disabled={busy || !mobileDevice || sessionConflict || context.approvalRequired || !invitationConsent} onClick={() => void completeActivation()}>
             {busy ? t('checkingPasskey') : t('activateWithPasskey')}
           </button>
           <button className="mt-4 min-h-11 w-full text-sm font-semibold text-[#915040] underline-offset-4 hover:underline" type="button" disabled={busy} onClick={() => void markNotMe()}>
@@ -340,9 +346,9 @@ const OnboardingView = () => {
       const groupName = auth.language === 'zh' ? context.groupNameZh || context.groupNameEn : context.groupNameEn || context.groupNameZh
       return (
         <div>
-          <ScreenHeading icon={UserPlus} title={t('groupApplicationTitle', { group: groupName || t('group') })} description={t('groupApplicationDescription')} />
+          <ScreenHeading icon={UserPlus} title={applicationIntent === 'recovery' ? (auth.language === 'zh' ? '恢复原帐号' : 'Recover your account') : applicationIntent === 'continuation' ? (auth.language === 'zh' ? '继续原申请' : 'Continue your application') : t('groupApplicationTitle', { group: groupName || t('group') })} description={applicationIntent === 'join' ? t('groupApplicationDescription') : (auth.language === 'zh' ? '提交后，请向现场同工出示本机上的申请编号。核实并关联原帐号或原申请后，在本页继续。' : 'After submitting, show this phone’s application reference to a leader in person. Continue here after they verify and link your account or original application.')} />
           <BrowserApplicationPanel key={searchParams.get('application') || context.groupJoinInviteId || 'application'} applicationId={searchParams.get('application') || undefined} inviteId={context.groupJoinInviteId || undefined}>
-          {auth.isGuest ? (
+          {auth.isGuest && applicationIntent === 'join' ? (
             <div className="mt-6 rounded-2xl border border-[#176b5a]/15 bg-[#e3f0eb]/70 p-4">
               <p className="text-sm leading-6 text-[#314b43]">{t('existingMemberSignInFirst')}</p>
               <button className="alife-primary-button mt-4 w-full" type="button" disabled={busy} onClick={() => void runPasskeyAuthentication()}>
@@ -351,7 +357,8 @@ const OnboardingView = () => {
               {capabilities.lineLegacyEnabled ? <button className="alife-secondary-button mt-3 w-full" type="button" disabled={busy} onClick={() => void startLine(true)}>{t('continueWithLine')}</button> : null}
             </div>
           ) : null}
-          <ApplicationForm value={application} onChange={setApplication} onSubmit={submitApplication} busy={busy} t={t} />
+          {auth.isGuest ? <label className="mt-5 block text-sm font-semibold">{auth.language === 'zh' ? '办理事项' : 'What would you like to do?'}<select className="alife-input mt-2" value={applicationIntent} onChange={event => setApplicationIntent(event.target.value)}><option value="join">{auth.language === 'zh' ? '申请加入' : 'Apply to join'}</option><option value="recovery">{auth.language === 'zh' ? '恢复原帐号（无需联系方式）' : 'Recover my account (no contact details required)'}</option><option value="continuation">{auth.language === 'zh' ? '换了浏览器，继续原申请' : 'Continue an application from another browser'}</option></select></label> : null}
+          <ApplicationForm declarationLabel={applicationIntent === 'join' ? undefined : (auth.language === 'zh' ? '请简述需要恢复或继续办理的事项' : 'Briefly describe what you need to recover or continue')} value={application} onChange={setApplication} onSubmit={submitApplication} busy={busy} t={t} />
           </BrowserApplicationPanel>
         </div>
       )
@@ -499,12 +506,12 @@ const ContactForm = ({ value, onChange, onSubmit, busy, t }: { value: ContactSta
 )
 
 type ApplicationState = { displayName: string; phoneE164: string; replyPreference: string; declaration: string; privacyConsent: boolean; website: string }
-const ApplicationForm = ({ value, onChange, onSubmit, busy, t }: { value: ApplicationState; onChange: (value: ApplicationState) => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; busy: boolean; t: ReturnType<typeof useUiText> }) => (
+const ApplicationForm = ({ value, onChange, onSubmit, busy, t, declarationLabel }: { declarationLabel?: string; value: ApplicationState; onChange: (value: ApplicationState) => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; busy: boolean; t: ReturnType<typeof useUiText> }) => (
   <form className="mt-6 space-y-4" onSubmit={onSubmit}>
     <input className="alife-input" aria-label={t('displayName')} value={value.displayName} onChange={(event) => onChange({ ...value, displayName: event.target.value })} placeholder={t('displayName')} autoComplete="name" />
     <input className="alife-input" aria-label={t('phoneOptional')} value={value.phoneE164} onChange={(event) => onChange({ ...value, phoneE164: event.target.value })} placeholder={t('phoneOptional')} autoComplete="tel" />
     <select className="alife-input" aria-label={t('replyPreference')} value={value.replyPreference} onChange={(event) => onChange({ ...value, replyPreference: event.target.value })}><option value="sms">{t('textMessage')}</option><option value="phone">{t('phoneCall')}</option><option value="line">LINE</option></select>
-    <textarea className="alife-input min-h-28 resize-y" aria-label={t('applicantDeclaration')} value={value.declaration} onChange={(event) => onChange({ ...value, declaration: event.target.value })} placeholder={t('applicantDeclaration')} />
+    <textarea className="alife-input min-h-28 resize-y" aria-label={declarationLabel ?? t('applicantDeclaration')} value={value.declaration} onChange={(event) => onChange({ ...value, declaration: event.target.value })} placeholder={declarationLabel ?? t('applicantDeclaration')} />
     <input className="hidden" tabIndex={-1} autoComplete="off" value={value.website} onChange={(event) => onChange({ ...value, website: event.target.value })} aria-hidden="true" />
     <label className="flex items-start gap-3 text-xs leading-5 text-[#66766f]"><input className="mt-1 h-4 w-4 accent-[#176b5a]" type="checkbox" checked={value.privacyConsent} onChange={(event) => onChange({ ...value, privacyConsent: event.target.checked })} />{t('privacyConsent')}</label>
     <button className="alife-primary-button w-full" type="submit" disabled={busy}>{t('submitApplication')}</button>

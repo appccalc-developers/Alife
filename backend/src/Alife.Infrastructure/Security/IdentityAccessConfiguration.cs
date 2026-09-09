@@ -11,6 +11,8 @@ public sealed class IdentityAccessConfiguration : IIdentityAccessConfiguration
     public IdentityAccessConfiguration(IConfiguration configuration, IHostEnvironment environment)
     {
         IsProduction = environment.IsProduction();
+        DeploymentAdministratorId = Guid.TryParse(configuration["AdministratorActivation:MemberId"], out var adminId) ? adminId : null;
+        DeploymentAdministratorEmail = configuration["AdministratorActivation:Email"]?.Trim();
         PasskeysEnabled = configuration.GetValue("Passkeys:Enabled", false);
         LineLegacyEnabled = configuration.GetValue("LineLogin:Enabled", true);
         AlphaLoginEnabled = configuration.GetValue("AlphaLogin:Enabled", false);
@@ -36,6 +38,8 @@ public sealed class IdentityAccessConfiguration : IIdentityAccessConfiguration
     public bool LineLegacyEnabled { get; }
     public bool AlphaLoginEnabled { get; }
     public bool IsProduction { get; }
+    public Guid? DeploymentAdministratorId { get; }
+    public string? DeploymentAdministratorEmail { get; }
     public string FrontendBaseUrl { get; }
     public IReadOnlyList<AlphaAccountConfiguration> AlphaAccounts { get; }
 
