@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { ArrowUpRight, Bell, CalendarDays, FileText, Settings2 } from 'lucide-react'
+import { ArrowUpRight, Bell, CalendarDays, Settings2 } from 'lucide-react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import ChurchGroupFilter from '../components/church-life/ChurchGroupFilter'
+import { useChurchSiteGroups } from '../components/church-life/ChurchSiteLayout'
 import ChurchLifeResultsRegion from '../components/church-life/ChurchLifeResultsRegion'
 import AppEmptyState from '../components/layout/AppEmptyState'
 import AppOverflowMenu from '../components/layout/AppOverflowMenu'
@@ -14,10 +14,9 @@ import { normalizeApiError } from '../services/http'
 import { useAuthStore } from '../stores/auth'
 import type { AnnouncementDto } from '../types/announcement'
 import type { GroupEventRecord } from '../types/event'
-import type { PageSummaryDto } from '../types'
 import { buildScopedEventDetailPath } from '../utils/eventRoutes'
 import { localizeText } from '../utils/localizedText'
-import { churchGroupPath, updateChurchLifeOwnerFilter } from '../utils/churchLifeGroups'
+import { churchGroupPath } from '../utils/churchLifeGroups'
 
 const GroupPathBadge = ({ groupId, groups, language }: { groupId: string; groups: ChurchLifeGroup[]; language: string }) => (
   <span className="inline-flex max-w-full rounded-full bg-[#e7f2ed] px-2.5 py-1 text-[0.65rem] font-black text-[#176b5a]">
@@ -111,32 +110,11 @@ const AnnouncementCards = ({ announcements, groups, language }: { announcements:
   )
 }
 
-const PageCards = ({ pages, groups, language }: { pages: PageSummaryDto[]; groups: ChurchLifeGroup[]; language: string }) => {
-  if (!pages.length) {
-    return <AppEmptyState title={language === 'zh' ? '没有符合条件的页面' : 'No matching pages'} description={language === 'zh' ? '更换所属组筛选，或稍后再来查看。' : 'Choose another owning group or check again later.'} />
-  }
-  return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-      {pages.map((page) => (
-        <article key={page.id} className="flex min-h-40 flex-col rounded-2xl border border-[var(--alife-line)] bg-[var(--alife-surface-strong)] p-5 shadow-[var(--alife-shadow-soft)]">
-          <GroupPathBadge groupId={page.ownerGroupId} groups={groups} language={language} />
-          <Link to={`/groups/${encodeURIComponent(page.ownerGroupId)}?page=${encodeURIComponent(page.id)}`} className="group mt-4 flex items-start gap-2">
-            <h2 className="min-w-0 flex-1 text-lg font-black text-[#27473f] group-hover:text-[#176b5a]">{localizeText(page.title, language)}</h2>
-            <ArrowUpRight className="mt-1 h-4 w-4 shrink-0 text-[#91a29b] group-hover:text-[#176b5a]" aria-hidden="true" />
-          </Link>
-          <p className="mt-2 line-clamp-2 text-sm leading-6 text-[#718079]">{localizeText(page.description, language)}</p>
-          <div className="mt-auto flex justify-end pt-4"><ManageOwnerMenu groupId={page.ownerGroupId} groups={groups} section="pages" language={language} /></div>
-        </article>
-      ))}
-    </div>
-  )
-}
-
 const ChurchLifeView = () => {
   const auth = useAuthStore()
   const language = auth.language
   const viewerId = auth.me?.id ?? 'member'
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const section = searchParams.get('section')?.trim() ?? ''
   const ownerGroupId = searchParams.get('ownerGroupId')?.trim() ?? ''
@@ -147,7 +125,7 @@ const ChurchLifeView = () => {
   const pagesQuery = useQuery({
     queryKey: churchLifeQueryKeys.content('pages', viewerId, ownerGroupId || undefined),
     queryFn: () => churchLifeService.listPages(ownerGroupId || undefined),
-    enabled: overview,
+    enabled: overview && Boolean(selectedPageId),
     placeholderData: keepPreviousData,
     staleTime: 30_000,
   })
@@ -172,6 +150,7 @@ const ChurchLifeView = () => {
       .forEach((items) => items?.forEach((group) => byId.set(group.id, group)))
     return [...byId.values()]
   }, [announcementsQuery.data?.groups, eventsQuery.data?.groups, pagesQuery.data?.groups])
+  useChurchSiteGroups(pagesQuery.data || eventsQuery.data || announcementsQuery.data ? queriedGroups : undefined)
   const [retainedGroups, setRetainedGroups] = useState<ChurchLifeGroup[]>([])
   const groups = queriedGroups.length ? queriedGroups : retainedGroups
 
@@ -185,9 +164,6 @@ const ChurchLifeView = () => {
     if (page) navigate(`/groups/${encodeURIComponent(page.ownerGroupId)}?page=${encodeURIComponent(page.id)}`, { replace: true })
   }, [navigate, pagesQuery.data, selectedPageId])
 
-  const selectOwnerGroup = (nextOwnerGroupId: string) => {
-    setSearchParams(updateChurchLifeOwnerFilter(searchParams, nextOwnerGroupId), { preventScrollReset: true })
-  }
 
   if (churchQuery.isPending) return <AppPageShell title={language === 'zh' ? '教会生活' : 'Church Life'} context={language === 'zh' ? '教会生活 / 总览' : 'Church Life / Overview'}><LoadingBlock language={language} /></AppPageShell>
   if (churchQuery.error || !churchQuery.data) return <AppPageShell title={language === 'zh' ? '教会生活' : 'Church Life'} context={language === 'zh' ? '教会生活 / 总览' : 'Church Life / Overview'}><QueryError error={churchQuery.error} language={language} retry={() => void churchQuery.refetch()} /></AppPageShell>
@@ -207,8 +183,7 @@ const ChurchLifeView = () => {
     <AppPageShell
       title={title}
       context={context}
-      subtitle={language === 'zh' ? '汇集教会及开放下属事工已经发布的内容；所有权仍归实际所属组。' : 'Published content from the church and its open ministries, while ownership remains with the actual group.'}
-      controls={<ChurchGroupFilter groups={groups} value={ownerGroupId} language={language} onChange={selectOwnerGroup} />}
+      subtitle={language === 'zh' ? '一起聆听主日信息，关注教会近况，分享生活中的点滴。' : 'Listen to Sunday messages, catch up on church news, and share in everyday life together.'}
     >
       <div className="space-y-7 pb-4">
         {section === 'events' ? (
@@ -238,13 +213,6 @@ const ChurchLifeView = () => {
               <div className="flex items-end justify-between gap-4"><div className="flex items-center gap-3"><Bell className="h-5 w-5 text-[#176b5a]" /><h2 id="church-announcements-heading" className="text-2xl font-black text-[#18332d]">{language === 'zh' ? '最新公告' : 'Latest announcements'}</h2></div><Link className="text-sm font-black text-[#176b5a]" to={`/church?section=announcements${ownerGroupId ? `&ownerGroupId=${encodeURIComponent(ownerGroupId)}` : ''}`}>{language === 'zh' ? '查看全部' : 'View all'}</Link></div>
               <ChurchLifeResultsRegion busy={announcementsQuery.isFetching && !announcementsQuery.isPending} language={language}>
                 {announcementsQuery.isPending ? <LoadingBlock language={language} /> : announcementsQuery.error ? <QueryError error={announcementsQuery.error} language={language} retry={() => void announcementsQuery.refetch()} /> : <AnnouncementCards announcements={(announcementsQuery.data?.items ?? []).slice(0, 4)} groups={groups} language={language} />}
-              </ChurchLifeResultsRegion>
-            </section>
-
-            <section aria-labelledby="church-pages-heading" className="space-y-4">
-              <div className="flex items-center gap-3"><FileText className="h-5 w-5 text-[#176b5a]" /><h2 id="church-pages-heading" className="text-2xl font-black text-[#18332d]">{language === 'zh' ? '教会内容' : 'Church content'}</h2></div>
-              <ChurchLifeResultsRegion busy={pagesQuery.isFetching && !pagesQuery.isPending} language={language}>
-                {pagesQuery.isPending ? <LoadingBlock language={language} /> : pagesQuery.error ? <QueryError error={pagesQuery.error} language={language} retry={() => void pagesQuery.refetch()} /> : <PageCards pages={pagesQuery.data?.items ?? []} groups={groups} language={language} />}
               </ChurchLifeResultsRegion>
             </section>
           </>

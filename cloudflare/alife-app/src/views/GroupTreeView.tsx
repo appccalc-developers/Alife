@@ -19,6 +19,7 @@ import {
   type GroupHierarchyNode,
 } from '../utils/groupHierarchy'
 import { localizeText } from '../utils/localizedText'
+import { groupMembershipLabel as membershipLabel } from '../utils/groupMembershipPresentation'
 
 const NODE_WIDTH = 224
 const NODE_HEIGHT = 108
@@ -94,14 +95,6 @@ const buildTreeLayout = (roots: GroupHierarchyNode[], expandedIds: Set<string>) 
     width: Math.max(920, CANVAS_PADDING * 2 + NODE_WIDTH + (leafCount - 1) * (NODE_WIDTH + X_GAP)),
     height: CANVAS_PADDING * 2 + (maxDepth + 1) * NODE_HEIGHT + maxDepth * Y_GAP,
   }
-}
-
-const membershipLabel = (membership: GroupMembershipDto | undefined, language: string, isGuest = false) => {
-  if (isGuest) return language === 'zh' ? '登录后可申请' : 'Sign in to apply'
-  if (membership?.status === 'approved') return language === 'zh' ? '已加入' : 'Joined'
-  if (membership?.status === 'requested') return language === 'zh' ? '审核中' : 'Pending'
-  if (membership?.status === 'invited') return language === 'zh' ? '已邀请' : 'Invited'
-  return language === 'zh' ? '可申请' : 'Available'
 }
 
 const membershipVariant = (membership: GroupMembershipDto | undefined) => {
@@ -492,17 +485,8 @@ const GroupTreeView = () => {
                     </div>
                   ) : null}
 
-                  <div className="mt-6 border-t border-[#e3e7e4] pt-5">
-                    <p className="text-xs leading-5 text-[#75837e]">
-                      {focusedGroup.isChurch
-                        ? auth.isGuest
-                          ? (language === 'zh' ? '根节点代表教会生活，可直接进入浏览。' : 'The root represents Church Life and can be opened directly.')
-                          : (language === 'zh' ? '根节点代表教会生活，不属于小组切换范围。' : 'The root represents Church Life and is not a selectable group.')
-                        : auth.isGuest
-                          ? (language === 'zh' ? '您正以访客身份浏览；登录或注册后可申请加入这个小组。' : "You're browsing as a guest. Sign in or register to apply to this group.")
-                          : (language === 'zh' ? '预览不会改变当前小组，只有确认进入后才会切换。' : 'Previewing does not change your current group. Switching occurs only after confirmation.')}
-                    </p>
-                    <button type="button" onClick={() => openGroup(focusedGroup)} className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-[#176b5a] px-5 py-3 text-sm font-black text-white shadow-[0_12px_24px_rgba(23,107,90,0.20)] transition hover:-translate-y-0.5 hover:bg-[#125b4d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/55">
+                  <div className="mt-5">
+                    <button type="button" onClick={() => openGroup(focusedGroup)} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-[#176b5a] px-5 py-3 text-sm font-black text-white shadow-[0_12px_24px_rgba(23,107,90,0.20)] transition hover:-translate-y-0.5 hover:bg-[#125b4d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/55">
                       {focusedGroup.isChurch
                         ? (language === 'zh' ? '进入教会生活' : 'Open Church Life')
                         : auth.isGuest

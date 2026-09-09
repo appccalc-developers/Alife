@@ -11,6 +11,7 @@ import { matchesRequiredSearch } from './searchMatch'
 import type { NavigationCopy, ShellNavBadge, ShellNavItem, ShellNavSection } from './types'
 
 const isItemActive = (item: ShellNavItem, pathname: string, search: string) => {
+  if (item.activePathPrefixes?.some(prefix => pathname === prefix || pathname.startsWith(`${prefix}/`))) return true
   if (item.children?.some((child) => isItemActive(child, pathname, search))) return true
   let target: URL
   try {
@@ -233,6 +234,7 @@ const NestedSidebarItem = ({ item, onItemClick }: { item: ShellNavItem; onItemCl
 }
 
 const isSectionActive = (section: ShellNavSection, pathname: string, search: string) => {
+  if (section.activePathPrefixes?.some(prefix => pathname === prefix || pathname.startsWith(`${prefix}/`))) return true
   const sectionTargetPath = section.to?.split('?')[0] || ''
   const sectionDestinationActive = Boolean(sectionTargetPath) && (
     pathname === sectionTargetPath ||
@@ -329,6 +331,7 @@ const NavigationSection = ({
           <SidebarLink
             item={{
               key: `${section.key}:home`,
+              activePathPrefixes: section.activePathPrefixes,
               label: section.label,
               description: section.description,
               to: section.to,
@@ -558,6 +561,10 @@ export const BottomNavigation = ({
   }, [openSectionKey])
 
   const handleSectionClick = (event: MouseEvent<HTMLButtonElement>, section: ShellNavSection) => {
+    if (section.mobileNavigateFirst && section.to && !isSectionActive(section, location.pathname, location.search)) {
+      guardNavigationClick(event, section.to, () => navigate(section.to || '/'))
+      return
+    }
     if (section.items.length > 0) {
       setOpenSectionKey((current) => current === section.key ? null : section.key)
       return

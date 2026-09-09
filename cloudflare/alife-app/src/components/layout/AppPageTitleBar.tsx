@@ -13,24 +13,28 @@ type Props = {
   title: string
   context?: ReactNode
   subtitle?: string
+  showSubtitleOnMobile?: boolean
   status?: ReactNode
   primaryAction?: ReactNode
   overflowActions?: AppOverflowAction[]
   overflowLabel?: string
   controls?: ReactNode
   backLink?: BackLink
+  navigation?: ReactNode
 }
 
 const AppPageTitleBar = ({
   title,
   context,
   subtitle,
+  showSubtitleOnMobile = false,
   status,
   primaryAction,
   overflowActions = [],
   overflowLabel = 'More actions',
   controls,
   backLink,
+  navigation,
 }: Props) => (
   <header className="alife-titlebar relative z-20 rounded-[var(--alife-radius-card)] px-4 py-3 sm:px-5 sm:py-4 desktop:px-6 desktop:py-5">
     <span className="alife-titlebar-accent absolute bottom-3 left-0 top-3 w-1 rounded-r-full" aria-hidden="true" />
@@ -63,15 +67,14 @@ const AppPageTitleBar = ({
         </div>
       ) : null}
 
-      {subtitle ? <p className="alife-titlebar-subtitle col-span-2 row-start-3 hidden max-w-3xl pl-1 text-sm leading-6 sm:line-clamp-2 sm:block desktop:col-span-1">{subtitle}</p> : null}
+      {subtitle ? <p className={`alife-titlebar-subtitle col-span-2 row-start-3 max-w-3xl pl-1 text-sm leading-6 sm:line-clamp-2 sm:block desktop:col-span-1 ${showSubtitleOnMobile ? '' : 'hidden'} ${navigation ? 'min-h-12 line-clamp-2' : ''}`}>{subtitle}</p> : null}
       {controls ? (
-        <div className={`alife-titlebar-controls-slot col-span-2 min-w-0 border-t pt-3 desktop:col-span-1 desktop:col-start-2 desktop:border-0 desktop:pt-0 ${primaryAction || overflowActions.length ? 'desktop:row-start-3' : 'desktop:row-start-2'}`}>
-          <div className="alife-titlebar-controls rounded-xl p-2.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.48),0_8px_20px_rgba(7,42,35,0.12)] desktop:p-2">
-            {controls}
-          </div>
+        <div className={`alife-titlebar-controls col-span-2 min-w-0 rounded-xl p-2.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.48),0_8px_20px_rgba(7,42,35,0.12)] desktop:col-span-1 desktop:col-start-2 desktop:p-2 ${primaryAction || overflowActions.length ? 'desktop:row-start-3' : 'desktop:row-start-2'}`}>
+          {controls}
         </div>
       ) : null}
     </div>
+    {navigation}
   </header>
 )
 

@@ -19,7 +19,7 @@ const ChurchManagementView = ({ churchGroupId }: { churchGroupId: string }) => {
         group: isChinese ? '资料与设置' : 'Profile & settings',
         members: isChinese ? '成员管理' : 'Member management',
         contacts: isChinese ? '联系人' : 'Contacts',
-        subgroups: isChinese ? '组织架构' : 'Organization',
+        subgroups: isChinese ? '团契与事工' : 'Fellowships & Ministries',
       }}
       membersContent={auth.hasAdminPermission('admin.members.view')
         ? <AdminView embedded sectionOverride="users" />
@@ -31,8 +31,8 @@ const ChurchManagementView = ({ churchGroupId }: { churchGroupId: string }) => {
         </>
       )}
       workspaceDescription={isChinese
-        ? '在同一页面维护教会资料、成员、联系人和组织架构。'
-        : 'Manage church profile, members, contacts, and organization in one place.'}
+        ? '在同一页面维护教会资料、成员、联系人、团契与事工。'
+        : 'Manage church profile, members, contacts, fellowships, and ministries in one place.'}
       subgroupDetailBasePath={auth.isAdmin ? '/admin/groups' : undefined}
     />
   )

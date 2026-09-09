@@ -50,6 +50,8 @@ test('system management access recognizes every system dashboard permission', ()
     assert.equal(hasSystemManagementAdminPermission((permission) => permission === grantedPermission), true)
   }
   assert.equal(hasSystemManagementAdminPermission((permission) => permission === 'admin.members.view'), false)
+  assert.equal(hasSystemManagementAdminPermission((permission) => permission === 'admin.pages.review'), false)
+  assert.equal(hasSystemManagementAdminPermission((permission) => permission === 'admin.visitRequests.receive'), false)
   assert.equal(hasSystemManagementAdminPermission(() => false), false)
 })
 
@@ -182,30 +184,17 @@ test('navigation section matching tolerates Church Life owner filters', () => {
   assert.equal(matchesRequiredSearch('?ownerGroupId=ministry', ''), false)
 })
 
-test('Church Life and Group Life place announcements before albums and forums after events', async () => {
+test('website content moves out of sidebars and group management has no pending badge', async () => {
   const source = await readSource('../src/app/navigation/useShellNavigation.tsx')
-  const churchItems = source.slice(
-    source.indexOf('const churchContentItems'),
-    source.indexOf('const activeEventId'),
-  )
   const groupItems = source.slice(
     source.indexOf('const groupContentItems'),
     source.indexOf('const workspaceVisible'),
   )
 
-  const churchOrder = [
-    "key: 'church:announcements'",
-    "key: 'church:albums'",
-    "key: 'church:events'",
-    "key: 'church:forum'",
-  ].map((key) => churchItems.indexOf(key))
-
-  assert.ok(churchOrder.every((position) => position >= 0))
-  assert.deepEqual(churchOrder, [...churchOrder].sort((left, right) => left - right))
-  assert.match(
-    groupItems,
-    /\.\.\.workspaceAnnouncementItems[\s\S]*\.\.\.groupAlbumItems[\s\S]*\.\.\.workspaceEventItems[\s\S]*\.\.\.groupForumItems/,
-  )
+  assert.doesNotMatch(source, /key: 'app:(?:sermons|bulletins)'/)
+  assert.doesNotMatch(source, /key: 'church:(?:announcements|albums|forum|events)'/)
+  assert.match(groupItems, /\.\.\.workspaceHome/)
+  assert.doesNotMatch(source, /key: 'workspace:(?:announcements|albums|forum|events)'|pendingReviewCount/)
 })
 
 test('standalone group management sections remain distinct from the default group section', () => {

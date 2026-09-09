@@ -26,6 +26,7 @@ import { LogsSection } from './admin/LogsSection'
 import { PlatformFilesSection } from './admin/FilesSection'
 import MembersSection from './admin/MembersSection'
 import SystemManagementFrame, { systemManagementIcons, type SystemManagementIconKey } from './admin/SystemManagementFrame'
+import AppPageShell from '../components/layout/AppPageShell'
 import type { GroupDto } from '../types'
 
 type AdminSection = 'overview' | 'users' | 'roles' | 'logs' | 'messages' | 'visitRequests' | 'files'
@@ -682,14 +683,12 @@ const AdminView = ({ embedded = false, sectionOverride }: AdminViewProps = {}) =
         ? { title: l('logs'), subtitle: l('logsDescription'), iconKey: 'logs' }
         : section === 'messages'
           ? { title: l('messages'), subtitle: l('messagesDescription'), iconKey: 'messages' }
-          : section === 'visitRequests'
-            ? { title: l('visitRequests'), subtitle: l('visitRequestsDescription'), iconKey: 'visitRequests' }
-            : section === 'files'
-              ? { title: l('files'), subtitle: l('filesDescription'), iconKey: 'files' }
-              : null
+          : section === 'files'
+            ? { title: l('files'), subtitle: l('filesDescription'), iconKey: 'files' }
+            : null
 
   return (
-    <section className={embedded ? 'w-full space-y-5' : 'mx-auto w-full max-w-7xl space-y-5 px-2 py-3 sm:px-4'}>
+    <section className={embedded || section === 'visitRequests' ? 'w-full space-y-5' : 'mx-auto w-full max-w-7xl space-y-5 px-2 py-3 sm:px-4'}>
       {message || error ? (
         <div className="fixed inset-0 z-[100] flex items-start justify-center bg-slate-950/25 px-4 py-[calc(env(safe-area-inset-top)+1rem)] backdrop-blur-sm sm:items-center">
           <div className={`w-full max-w-md overflow-hidden rounded-3xl border bg-white shadow-2xl ${error ? 'border-rose-200' : 'border-emerald-200'}`} role="alertdialog" aria-modal="true">
@@ -734,13 +733,24 @@ const AdminView = ({ embedded = false, sectionOverride }: AdminViewProps = {}) =
         />
       ) : null}
       {section === 'users' ? <MembersSection embedded={embedded} roles={roleOptions} groups={groups} isSuperAdmin={isSuperAdmin} canAssignPlatformRoles={hasAdminPermission('admin.members.assignPlatformRoles')} canManageMemberProfiles={hasAdminPermission('admin.members.manageProfiles')} canManageMembership={Boolean(church && canManageGroup(church.id))} updatingMemberId={updatingMemberId} updatingMemberProfileId={updatingMemberProfileId} updatingMembershipId={updatingMembershipId} updateMemberRoles={updateMemberRoles} updateMemberProfile={updateMemberProfile} updateMembership={updateChurchMembership} language={language} currentMemberId={me?.id || ''} /> : null}
+      {section === 'visitRequests' ? (
+        <AppPageShell
+          title={l('visitRequests')}
+          context={language === 'zh' ? '教会生活 / 访客接待' : 'Church Life / Visitor Care'}
+          subtitle={l('visitRequestsDescription')}
+        >
+          <div className="overflow-hidden rounded-[var(--alife-radius-card)] border border-[var(--alife-line)]">
+            <VisitRequestsSection l={l} loading={loading} page={visitRequests} filters={visitRequestFilters} setFilters={setVisitRequestFilters} apply={() => loadVisitRequests(1)} goToPage={loadVisitRequests} updateStatus={updateVisitRequestStatus} updatingId={updatingVisitRequestId} language={language} connected />
+          </div>
+        </AppPageShell>
+      ) : null}
       {managementPage ? (
         <SystemManagementFrame
           title={managementPage.title}
           subtitle={managementPage.subtitle}
           language={language}
           iconKey={managementPage.iconKey}
-          bodyClassName={section === 'visitRequests' || section === 'logs' || section === 'files' ? '' : 'p-4 sm:p-5 lg:p-6'}
+          bodyClassName={section === 'logs' || section === 'files' ? '' : 'p-4 sm:p-5 lg:p-6'}
           actions={section === 'messages' ? (
             <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60" disabled={loading} type="button" onClick={() => refreshCurrent().catch(() => undefined)}>
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
@@ -751,7 +761,6 @@ const AdminView = ({ embedded = false, sectionOverride }: AdminViewProps = {}) =
           {section === 'roles' ? <RolesSection l={l} roles={roleOptions} roleForm={roleForm} setRoleForm={setRoleForm} creatingRole={creatingRole} deletingRoleId={deletingRoleId} updatingRolePermissionId={updatingRolePermissionId} roleCodeValidation={roleCodeValidation} roleCodeFeedback={roleCodeFeedback} canSubmitCreateRole={canSubmitCreateRole} createRole={createRole} deleteRole={deleteRole} updateRolePermissions={updateRolePermissions} refresh={refreshCurrent} loading={loading} language={language} /> : null}
           {section === 'logs' ? <LogsSection l={l} loading={loading} page={logs} filters={logFilters} setFilters={setLogFilters} apply={() => loadLogs(1, 25)} goToPage={(page) => loadLogs(page, 25)} language={language} connected /> : null}
           {section === 'messages' ? <MessagesSection l={l} loading={loading} page={messages} filters={messageFilters} setFilters={setMessageFilters} apply={() => loadMessages(1)} goToPage={loadMessages} groups={groups} roles={roleOptions} members={members.items} sendForm={sendForm} setSendForm={setSendForm} sendMessage={sendMessage} translateMessage={translateMessage} aiTranslating={messageAiDirection} language={language} /> : null}
-          {section === 'visitRequests' ? <VisitRequestsSection l={l} loading={loading} page={visitRequests} filters={visitRequestFilters} setFilters={setVisitRequestFilters} apply={() => loadVisitRequests(1)} goToPage={loadVisitRequests} updateStatus={updateVisitRequestStatus} updatingId={updatingVisitRequestId} language={language} connected /> : null}
           {section === 'files' ? <PlatformFilesSection l={l} language={language} groups={groups} connected /> : null}
         </SystemManagementFrame>
       ) : null}
@@ -775,8 +784,6 @@ const SystemManagementDashboard = ({ messages, syncing, loading, syncSermons, re
   const sections: SystemManagementAreaConfig[] = [
     ...(auth.hasAdminPermission('admin.roles.managePermissions') ? [{ key: 'roles', label: isChinese ? '角色管理' : 'Role management', description: isChinese ? '平台角色、权限范围与功能访问' : 'Platform roles, permissions, and feature access', iconKey: 'roles' as const, to: '/admin/roles' }] : []),
     ...(showMessageMetric ? [{ key: 'notices', label: isChinese ? '通知管理' : 'Notification management', description: isChinese ? '发送通知并查看阅读与回复状态' : 'Send notifications and review read and reply status', iconKey: 'messages' as const, to: '/admin/messages' }] : []),
-    ...(auth.hasAdminPermission('admin.visitRequests.receive') ? [{ key: 'visitors', label: isChinese ? '访客接待' : 'Visitor care', description: isChinese ? '处理参观联系请求和跟进状态' : 'Handle visit requests and follow-up status', iconKey: 'visitRequests' as const, to: '/admin/visit-requests' }] : []),
-    ...(auth.canReviewPages ? [{ key: 'homepage', label: isChinese ? '首页管理' : 'Homepage management', description: isChinese ? '管理首页内容、公开导航与页面发布审核' : 'Manage homepage content, public navigation, and page publication review', iconKey: 'pageReview' as const, to: '/admin/page-review' }] : []),
     ...(auth.hasAdminPermission('admin.events.manageTemplates') ? [{ key: 'event-templates', label: isChinese ? '活动模板' : 'Event templates', description: isChinese ? '管理四个固定活动分类下的创建模板' : 'Manage creation templates within the four fixed event categories', iconKey: 'eventTemplates' as const, to: '/admin/event-templates' }] : []),
     ...(auth.hasAdminPermission('admin.events.managePackagePolicies') ? [{ key: 'event-package-policies', label: isChinese ? '活动方案政策' : 'Event Package policies', description: isChinese ? '管理审批等级、有效期、委派和渐进启用' : 'Manage approval tiers, validity, delegation, and rollout', iconKey: 'eventPackagePolicies' as const, to: '/admin/event-package-policies' }] : []),
     ...(auth.hasAdminPermission('admin.files.view') ? [{ key: 'files', label: isChinese ? '文件管理' : 'File management', description: isChinese ? '查看上传文件、可见范围和归属' : 'Review uploads, visibility, and ownership', iconKey: 'files' as const, to: '/admin/files' }] : []),

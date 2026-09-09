@@ -184,8 +184,9 @@ npx wrangler deploy
 - Group membership workflows: request, invite, accept, decline, approve, reject, co-leader assignment, kick, subgroup creation, and subgroup co-leader claim.
 - Bilingual group and page content using JSON-shaped localized text.
 - Page builder with group-owned working pages, draft/group/public visibility, structured sections, and separate submitted and published snapshots.
-- Sermon listing and admin-triggered YouTube sermon synchronization.
-- [Church-only Sunday bulletins](docs/sunday-bulletins.md) below Sunday Sermons, with a rolling three-month date list, signed PDF viewing, and manager upload/replacement.
+- [Church Life](docs/church-life-site.md) and [Group Life](docs/group-life-site.md) websites with persistent title bars and section menus.
+- Sermon listing and admin-triggered YouTube synchronization with [normalized titles, speakers, and sermon dates](docs/sermon-metadata.md).
+- [Church-only Sunday bulletins](docs/sunday-bulletins.md) on matching sermon cards without an age limit, with signed PDF viewing and manager upload/replacement.
 - Group events with enrollment and review APIs.
 - Notification messages with read and reply workflows.
 - AI-assisted event planning, enrollment, and review sessions through Cloudflare Durable Objects.

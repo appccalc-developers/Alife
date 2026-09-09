@@ -1,12 +1,13 @@
 import PersonalPasskeyRecovery from '../components/identity/PersonalPasskeyRecovery'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowRightLeft, CalendarDays, Crown, Loader2, Pencil, ShieldCheck, UserPlus, UserMinus, UsersRound, X } from 'lucide-react'
+import { ArrowRightLeft, CalendarDays, ChevronDown, Crown, Loader2, Pencil, ShieldCheck, UserPlus, UserMinus, UsersRound, X } from 'lucide-react'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
 import AppEmptyState from '../components/layout/AppEmptyState'
 import AppPageShell from '../components/layout/AppPageShell'
 import AppSectionCard from '../components/layout/AppSectionCard'
+import AppStableTabBody from '../components/layout/AppStableTabBody'
 import AccessTypeBadge from '../components/group/AccessTypeBadge'
 import GroupOverviewPanel from '../components/group/GroupOverviewPanel'
 import MembershipStatusBadge from '../components/group/MembershipStatusBadge'
@@ -74,8 +75,8 @@ const managementCopy = (language: string, isChurch?: boolean) => {
       albums: '相册',
       albumsHint: '整理图片、子相册和页面展示',
       announcements: '公告',
-      subgroups: '下属小组',
-      subgroupsHint: '管理小组结构和负责人',
+      subgroups: isChurch ? '团契与事工' : '下属小组',
+      subgroupsHint: isChurch ? '维护团契、事工及负责人' : '管理小组结构和负责人',
       settings: '设置',
       settingsHint: `${workspace}资料、访问规则和高级操作`,
       pending: '待审批',
@@ -117,8 +118,8 @@ const managementCopy = (language: string, isChurch?: boolean) => {
       albums: 'Albums',
       albumsHint: 'Organize photos, subalbums, and page galleries',
       announcements: 'Announcements',
-      subgroups: 'Subgroups',
-      subgroupsHint: 'Team structure and leaders',
+      subgroups: isChurch ? 'Fellowships & Ministries' : 'Subgroups',
+      subgroupsHint: isChurch ? 'Fellowships, ministries, and their leaders' : 'Team structure and leaders',
       settings: 'Settings',
       settingsHint: `${workspace} profile, access rules, and advanced operations`,
       pending: 'Pending',
@@ -143,41 +144,6 @@ const managementCopy = (language: string, isChurch?: boolean) => {
       noEnrollment: 'No enrolment needed',
       noEventsInSection: 'No events in this section.',
     }
-}
-
-type MetricListItem = {
-  label: string
-  value: number | string
-  icon: ReactNode
-}
-
-const MetricList = ({ items, ariaLabel }: { items: MetricListItem[]; ariaLabel: string }) => {
-  return (
-    <div
-      className="overflow-hidden rounded-lg border border-[#2f4b42]/10 bg-white/75 shadow-sm"
-      role="list"
-      aria-label={ariaLabel}
-    >
-      {items.map((item, index) => (
-        <div
-          key={`${item.label}-${index}`}
-          className={[
-            'flex min-h-12 items-center justify-between gap-3 px-3 py-2.5',
-            index > 0 ? 'border-t border-[#2f4b42]/10' : '',
-          ].join(' ')}
-          role="listitem"
-        >
-          <div className="flex min-w-0 items-center gap-2.5">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#e3f0eb] text-[#176b5a]">
-              {item.icon}
-            </span>
-            <span className="truncate text-xs font-bold uppercase tracking-wide text-[#6e7c76]">{item.label}</span>
-          </div>
-          <span className="shrink-0 text-lg font-black tabular-nums text-[#18332d]">{item.value}</span>
-        </div>
-      ))}
-    </div>
-  )
 }
 
 type ManagementPanelShellProps = {
@@ -220,9 +186,11 @@ const ManagementPanelShell = ({ title, subtitle, action, framed = true, children
 const ManagementContentCard = ({
   children,
   labelledBy,
+  workspaceKey,
 }: {
   children: ReactNode
   labelledBy?: string
+  workspaceKey: string
 }) => (
   <section
     id={labelledBy ? 'group-management-panel' : undefined}
@@ -232,7 +200,7 @@ const ManagementContentCard = ({
     className="alife-panel overflow-hidden rounded-2xl p-0 outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/45"
   >
     <div className="p-4 sm:p-5">
-      {children}
+      <AppStableTabBody key={workspaceKey}>{children}</AppStableTabBody>
     </div>
   </section>
 )
@@ -254,18 +222,19 @@ type MembersPanelProps = {
 const iconButtonClass = 'h-8 w-8 p-0'
 
 type LeadershipPanelProps = {
+  isChurch?: boolean
   memberships: GroupMemberToolRow[]
   currentMemberId?: string
   onTransferLeadership: (memberId: string) => void
   framed?: boolean
 }
 
-const LeadershipPanel = ({ memberships, currentMemberId, onTransferLeadership, framed = true }: LeadershipPanelProps) => {
+const LeadershipPanel = ({ memberships, currentMemberId, onTransferLeadership, framed = true, isChurch = false }: LeadershipPanelProps) => {
   const t = useUiText()
   const { requestConfirmation, confirmationModal } = useConfirmation()
   const { language } = useAuthStore()
-  const groupLeadLabel = language === 'zh' ? '组长' : 'Group lead'
-  const assistantLeadLabel = language === 'zh' ? '副组长' : 'Assistant lead'
+  const groupLeadLabel = isChurch ? (language === 'zh' ? '教会领袖' : 'Church leader') : (language === 'zh' ? '组长' : 'Group lead')
+  const assistantLeadLabel = isChurch ? (language === 'zh' ? '副带领人' : 'Co-leader') : (language === 'zh' ? '副组长' : 'Assistant lead')
   const approvedMembers = memberships.filter((member) => member.status === 'approved')
   const leader = approvedMembers.find((member) => member.role === 'leader')
   const coLeaderCandidates = approvedMembers.filter(
@@ -273,13 +242,15 @@ const LeadershipPanel = ({ memberships, currentMemberId, onTransferLeadership, f
   )
   const canTransferLeadership = Boolean(leader && currentMemberId && leader.memberId === currentMemberId)
   const getDisplayName = (member: GroupMemberToolRow) => member.displayName || t('memberShort', { id: shortId(member.memberId) })
+  const transferLabel = isChurch ? (language === 'zh' ? '移交教会带领职责' : 'Transfer church leadership') : t('transferLeadership')
+
+  if (!leader) return null
 
   return (
     <>
     <ManagementPanelShell
       framed={framed}
       title={groupLeadLabel}
-      subtitle={t('leadershipPanelSubtitle')}
     >
       {leader ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
@@ -288,17 +259,15 @@ const LeadershipPanel = ({ memberships, currentMemberId, onTransferLeadership, f
               <Crown size={18} aria-hidden="true" />
             </span>
             <div className="min-w-0">
-              <p className="text-xs font-medium uppercase text-slate-500">{language === 'zh' ? '当前组长' : 'Current group lead'}</p>
+              <p className="text-xs font-medium uppercase text-slate-500">{isChurch ? (language === 'zh' ? '当前教会领袖' : 'Current church leader') : (language === 'zh' ? '当前组长' : 'Current group lead')}</p>
               <p className="truncate font-medium text-slate-950">{getDisplayName(leader)}</p>
             </div>
           </div>
           <AppBadge variant="info">{groupLeadLabel}</AppBadge>
         </div>
-      ) : (
-        <p className="text-sm text-slate-500">{t('noGroupLeader')}</p>
-      )}
+      ) : null}
 
-      {canTransferLeadership ? (
+      {canTransferLeadership && coLeaderCandidates.length > 0 ? (
         <div className="mt-4 space-y-2">
           {coLeaderCandidates.length > 0 ? (
             coLeaderCandidates.map((member) => {
@@ -314,32 +283,42 @@ const LeadershipPanel = ({ memberships, currentMemberId, onTransferLeadership, f
                     variant="primary"
                     onClick={() => {
                       requestConfirmation({
-                        title: t('transferLeadership'),
-                        description: t('transferLeadershipConfirm', { name: displayName }),
-                        confirmLabel: t('transferLeadership'),
+                        title: transferLabel,
+                        description: isChurch
+                          ? (language === 'zh' ? `确定将教会带领职责移交给 ${displayName} 吗？你会成为副带领人。` : `Transfer church leadership to ${displayName}? You will become a co-leader.`)
+                          : t('transferLeadershipConfirm', { name: displayName }),
+                        confirmLabel: transferLabel,
                       }).then((confirmed) => {
                         if (confirmed) onTransferLeadership(member.memberId)
                       }).catch(() => undefined)
                     }}
                   >
                     <ArrowRightLeft size={14} aria-hidden="true" className="mr-1.5" />
-                    {t('transferLeadershipTo', { name: displayName })}
+                    {isChurch ? (language === 'zh' ? `将 ${displayName} 设为教会领袖` : `Make ${displayName} church leader`) : t('transferLeadershipTo', { name: displayName })}
                   </AppActionButton>
                 </div>
               )
             })
-          ) : (
-            <p className="text-sm text-slate-500">{t('transferLeadershipNoCandidates')}</p>
-          )}
+          ) : null}
         </div>
-      ) : (
-        <p className="mt-3 text-sm text-slate-500">{t('transferLeadershipHelp')}</p>
-      )}
+      ) : null}
     </ManagementPanelShell>
     {confirmationModal}
     </>
   )
 }
+
+const MemberCategory = ({ title, count, icon, children }: { title: string; count: number; icon: ReactNode; children: ReactNode }) => (
+  <details className="group/member-category mb-3 overflow-hidden rounded-xl border border-[var(--alife-line)] bg-[var(--alife-surface-strong)] last:mb-0">
+    <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 py-3 text-[#18332d] transition hover:bg-[#edf5f1] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#176b5a] [&::-webkit-details-marker]:hidden">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#e3f0eb] text-[#176b5a]" aria-hidden="true">{icon}</span>
+      <span className="min-w-0 flex-1 text-sm font-bold">{title}</span>
+      <span className="rounded-full bg-[#e3f0eb] px-2.5 py-1 text-xs font-bold tabular-nums text-[#176b5a]">{count}</span>
+      <ChevronDown className="h-4 w-4 shrink-0 text-[#66766f] group-open/member-category:rotate-180" aria-hidden="true" />
+    </summary>
+    <div className="space-y-2 border-t border-[var(--alife-line)] p-3 sm:p-4">{children}</div>
+  </details>
+)
 
 const MembersPanel = ({ groupId, memberships, copy, onInviteMember, onApproveMember, onRejectMember, onKickMember, onSetCoLeader, onProfileUpdated, allowInvite = true, framed = true }: MembersPanelProps) => {
   const t = useUiText()
@@ -448,17 +427,6 @@ const MembersPanel = ({ groupId, memberships, copy, onInviteMember, onApproveMem
         </AppActionButton>
       ) : null}
     >
-      <div className="mb-5">
-        <MetricList
-          ariaLabel={copy.members}
-          items={[
-            { label: copy.pending, value: requestedMembers.length, icon: <UserPlus className="h-4 w-4" /> },
-            { label: copy.approved, value: approvedMembers.length, icon: <UsersRound className="h-4 w-4" /> },
-            { label: copy.inactive, value: inactiveMembers.length, icon: <UserMinus className="h-4 w-4" /> },
-          ]}
-        />
-      </div>
-
       {memberships.length === 0 ? (
         <AppEmptyState
           title={copy.emptyMembersTitle}
@@ -468,9 +436,8 @@ const MembersPanel = ({ groupId, memberships, copy, onInviteMember, onApproveMem
         />
       ) : null}
 
-      {requestedMembers.length > 0 ? (
-        <div className="mb-5 space-y-2">
-          <h3 className="text-sm font-semibold text-slate-900">{copy.pending}</h3>
+      <MemberCategory title={copy.pending} count={requestedMembers.length} icon={<UserPlus className="h-4 w-4" />}>
+          {requestedMembers.length === 0 ? <p className="text-sm text-slate-500">{auth.language === 'zh' ? '目前没有待审批的成员。' : 'There are no pending member requests.'}</p> : null}
           {requestedMembers.map((member) => (
             <div key={member.memberId} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50/60 p-3">
               <div>
@@ -486,11 +453,9 @@ const MembersPanel = ({ groupId, memberships, copy, onInviteMember, onApproveMem
               </div>
             </div>
           ))}
-        </div>
-      ) : null}
+      </MemberCategory>
 
-      <div className="space-y-2">
-        <h3 className="text-sm font-semibold text-slate-900">{t('activeMembers')}</h3>
+      <MemberCategory title={t('activeMembers')} count={approvedMembers.length} icon={<UsersRound className="h-4 w-4" />}>
         {approvedMembers.length === 0 ? (
           <p className="text-sm text-slate-500">{t('noApprovedMembers')}</p>
         ) : (
@@ -545,7 +510,7 @@ const MembersPanel = ({ groupId, memberships, copy, onInviteMember, onApproveMem
             </div>
           ))
         )}
-      </div>
+      </MemberCategory>
 
       {roleTarget ? (
         <div className="fixed inset-0 z-[60] flex items-end bg-slate-950/45 px-4 py-6 desktop:items-center desktop:justify-center">
@@ -615,8 +580,7 @@ const MembersPanel = ({ groupId, memberships, copy, onInviteMember, onApproveMem
         </div>
       ) : null}
 
-      <div className="mt-5 space-y-2">
-        <h3 className="text-sm font-semibold text-slate-900">{t('inactiveMembers')}</h3>
+      <MemberCategory title={t('inactiveMembers')} count={inactiveMembers.length} icon={<UserMinus className="h-4 w-4" />}>
         {inactiveMembers.length === 0 ? (
           <p className="text-sm text-slate-500">{t('noInactiveMembers')}</p>
         ) : (
@@ -633,7 +597,7 @@ const MembersPanel = ({ groupId, memberships, copy, onInviteMember, onApproveMem
             </div>
           ))
         )}
-      </div>
+      </MemberCategory>
     </ManagementPanelShell>
   )
 }
@@ -1102,6 +1066,7 @@ const GroupManageView = ({
                     role="tab"
                     aria-selected={active}
                     aria-controls="group-management-panel"
+                    preventScrollReset
                     className={[
                       'relative flex min-h-11 items-center whitespace-nowrap border-b-2 px-3.5 py-2 text-sm font-black transition focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#de6c4d]/45',
                       active
@@ -1120,7 +1085,7 @@ const GroupManageView = ({
           </nav>
         ) : null}
 
-        <ManagementContentCard labelledBy={showGroupManagementNavigation && !integrated ? `group-management-tab-${activeSection}` : undefined}>
+        <ManagementContentCard workspaceKey={`${auth.me?.id ?? 'guest'}:${groupId}`} labelledBy={showGroupManagementNavigation && !integrated ? `group-management-tab-${activeSection}` : undefined}>
           {loading ? (
             <p className="text-sm text-slate-600">{t('loadingManagementWorkspace')}</p>
           ) : null}
@@ -1140,6 +1105,7 @@ const GroupManageView = ({
               {activeSection === 'group' ? (
                 <div className="space-y-5">
                   <LeadershipPanel
+                    isChurch={group.isChurch}
                     framed={false}
                     memberships={memberships}
                     currentMemberId={auth.me?.id}
@@ -1311,7 +1277,7 @@ const GroupManageView = ({
           context={workspaceEyebrow || (activeSection === 'group'
             ? (group?.isChurch ? (language === 'zh' ? '教会生活 / 教会管理' : 'Church Life / Church Management') : (language === 'zh' ? '小组生活 / 小组管理' : 'Group Life / Group Management'))
             : `${group?.isChurch ? (language === 'zh' ? '教会管理' : 'Church Management') : (language === 'zh' ? '小组管理' : 'Group Management')} / ${copy[activeSection]}`)}
-          subtitle={workspaceDescription || (embeddedWorkspace ? (language === 'zh' ? '在这里维护资料、成员、联系人和组织架构。' : 'Maintain profile, members, contacts, and organization here.') : copy.subtitle)}
+          subtitle={workspaceDescription || (embeddedWorkspace ? (language === 'zh' ? '在这里维护资料、成员、联系人和下属小组。' : 'Maintain profile, members, contacts, and subgroups here.') : copy.subtitle)}
           status={group ? <AccessTypeBadge accessType={group.accessType} showProtected /> : undefined}
           backLink={!embeddedWorkspace ? {
             to: workspacePath,

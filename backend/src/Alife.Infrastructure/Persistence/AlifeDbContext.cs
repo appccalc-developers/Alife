@@ -410,6 +410,7 @@ public class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : DbContex
 			cfg.Property(x => x.YoutubeVideoId).HasMaxLength(50).IsRequired();
 			cfg.Property(x => x.Title).HasMaxLength(400).IsRequired();
 			cfg.Property(x => x.SpeakerName).HasMaxLength(200).IsRequired();
+			cfg.Property(x => x.SourceTitle).HasMaxLength(400);
 			cfg.Property(x => x.ThumbnailUrl).HasMaxLength(1000);
 			cfg.Property(x => x.VideoUrl).HasMaxLength(1000);
 			cfg.HasIndex(x => x.YoutubeVideoId).IsUnique();

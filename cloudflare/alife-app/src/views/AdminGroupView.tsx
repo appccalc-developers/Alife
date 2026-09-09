@@ -189,7 +189,7 @@ const AdminGroupView = () => {
             <div className="relative flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
               <div className="min-w-0">
                 <Link to="/church/manage?section=subgroups" className="inline-flex items-center gap-1.5 text-xs font-black text-emerald-200 transition hover:text-white">
-                  <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />{isZh ? '返回组织架构' : 'Back to organization'}
+                  <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />{isZh ? '返回团契与事工' : 'Back to fellowships & ministries'}
                 </Link>
                 <p className="mt-5 text-[10px] font-black uppercase tracking-[0.22em] text-emerald-200">{isZh ? '小组行政管理' : 'Group administration'}</p>
                 <h1 className="mt-1.5 truncate text-3xl font-black tracking-[-0.045em]">{groupName}</h1>

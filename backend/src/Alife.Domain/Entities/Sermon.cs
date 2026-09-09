@@ -6,6 +6,9 @@ public class Sermon
     public string YoutubeVideoId { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public string SpeakerName { get; set; } = string.Empty;
+    public string? SourceTitle { get; set; }
+    public DateTime? PublishedAtUtc { get; set; }
+    public int MetadataVersion { get; set; }
     public string? ThumbnailUrl { get; set; }
     public string? VideoUrl { get; set; }
     public DateTime? PreachedAtUtc { get; set; }

@@ -13,6 +13,7 @@ import { normalizeRouteGroupId } from '../../utils/groupRouteIds'
 import { confirmUnsavedChangesNavigation } from '../../utils/unsavedChangesGuard'
 import { eventService } from '../../services/eventService'
 import type { GroupEventRecord } from '../../types/event'
+import { getChurchSiteSection } from '../navigation/churchSiteNavigation'
 
 export const useShellContext = () => {
   const auth = useAuthStore()
@@ -112,7 +113,7 @@ export const useShellContext = () => {
     /^\/(activate|join|application)\/[^/]+$/.test(path)
   const isGroupSelectScreen = path === '/groups/select' || path === '/groups/select/tree'
   const isGroupJoinScreen = path === '/groups/join' || Boolean(groupJoinMatch)
-  const isChurchLifeScreen = path === '/church' || path.startsWith('/church/forum')
+  const isChurchLifeScreen = getChurchSiteSection(path, location.search) !== null
   const contextualGroupId = isGroupSelectScreen || isGroupJoinScreen || isChurchLifeScreen
     ? ''
     : routeGroupIds.find(Boolean) ||

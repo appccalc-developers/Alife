@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronDown, ChevronRight, ChevronUp, FolderPlus, Images, Pencil, Plus, Trash2, Upload } from 'lucide-react'
-import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppBadge from '../components/layout/AppBadge'
 import AppEmptyState from '../components/layout/AppEmptyState'
@@ -51,6 +51,7 @@ const AlbumView = () => {
   const { groupId: routeGroupId, albumId } = useParams<{ groupId?: string; albumId?: string }>()
   const { groupId } = useActiveEntityIds({ groupId: routeGroupId })
   const navigate = useNavigate()
+  const churchSite = useLocation().pathname.startsWith('/church/')
   const auth = useAuthStore()
   const { requestConfirmation, confirmationModal } = useConfirmation()
   const isZh = auth.language === 'zh'
@@ -70,7 +71,7 @@ const AlbumView = () => {
     staleTime: 5 * 60_000,
   })
   const albumBasePath = routeGroupId
-    ? `/groups/${encodeURIComponent(routeGroupId)}/albums`
+    ? `${churchSite ? '/church' : ''}/groups/${encodeURIComponent(routeGroupId)}/albums`
     : '/albums'
 
   const load = async () => {
@@ -177,7 +178,7 @@ const AlbumView = () => {
   const albums = detail?.children ?? roots
   const pageTitle = detail ? localizeText(detail.album.name, auth.language) : (isZh ? '相册' : 'Albums')
   const ownerGroupName = localizeText(ownerGroupQuery.data?.name, auth.language)
-  const albumContext = ownerGroupName ? (
+  const albumContext = churchSite ? (isZh ? '教会生活 / 相册' : 'Church Life / Albums') : ownerGroupName ? (
     <>
       <span className="desktop:hidden">{ownerGroupName} / {isZh ? '相册' : 'Albums'}</span>
       <span className="hidden desktop:inline">{ownerGroupQuery.data?.isChurch ? (isZh ? '教会生活' : 'Church Life') : (isZh ? '小组生活' : 'Group Life')} / {ownerGroupName} / {isZh ? '相册' : 'Albums'}</span>
@@ -198,6 +199,7 @@ const AlbumView = () => {
     <AppPageShell
       title={pageTitle}
       context={albumContext}
+      backLink={churchSite ? { to: '/church/albums', label: isZh ? '返回教会相册' : 'Back to church albums' } : undefined}
       subtitle={detail ? localizeText(detail.album.description, auth.language) : (isZh ? '用相册和子相册整理小组图片。' : 'Organize group images with albums and subalbums.')}
       status={detail ? <AppBadge variant={detail.album.visibility === 'public' ? 'info' : 'neutral'}>{detail.album.visibility === 'public' ? (isZh ? '公开' : 'Public') : (isZh ? '小组可见' : 'Group visible')}</AppBadge> : undefined}
       primaryAction={canManage && !editorMode ? (

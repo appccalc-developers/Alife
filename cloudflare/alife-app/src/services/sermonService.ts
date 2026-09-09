@@ -8,6 +8,7 @@ export type SermonDto = {
   thumbnailUrl?: string | null
   videoUrl?: string | null
   preachedAt?: string | null
+  metadataVersion?: number
 }
 
 export type SermonPagedResult = {

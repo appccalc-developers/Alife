@@ -27,7 +27,7 @@ public sealed class SermonReadService(
                     : !string.IsNullOrEmpty(x.YoutubeVideoId)
                         ? "https://www.youtube.com/watch?v=" + x.YoutubeVideoId
                         : null,
-                x.PreachedAtUtc))
+                x.PreachedAtUtc, x.MetadataVersion))
             .FirstOrDefaultAsync(cancellationToken);
 
     public Task<PagedResult<SermonDto>> GetSermonsAsync(int page, int pageSize, CancellationToken cancellationToken)
@@ -60,7 +60,7 @@ public sealed class SermonReadService(
                     : !string.IsNullOrEmpty(x.YoutubeVideoId)
                         ? "https://www.youtube.com/watch?v=" + x.YoutubeVideoId
                         : null,
-                x.PreachedAtUtc))
+                x.PreachedAtUtc, x.MetadataVersion))
             .ToListAsync(cancellationToken);
 
         return new PagedResult<SermonDto>(sermons, page, pageSize, totalCount);
@@ -86,7 +86,7 @@ public sealed class SermonReadService(
                             : !string.IsNullOrEmpty(x.YoutubeVideoId)
                                 ? "https://www.youtube.com/watch?v=" + x.YoutubeVideoId
                                 : null,
-                        x.PreachedAtUtc))
+                        x.PreachedAtUtc, x.MetadataVersion))
                     .ToListAsync(token);
 
                 return (IReadOnlyList<SermonDto>)sermons;

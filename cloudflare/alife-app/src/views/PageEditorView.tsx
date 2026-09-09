@@ -135,7 +135,7 @@ const PageEditorView = () => {
   const selectedPreset: PagePresetId | null = isPagePresetId(requestedPreset) ? requestedPreset : null
   const isHomeTemplate = selectedPreset === 'home'
   const fromPageReview = searchParams.get('fromReview') === 'true'
-  const reviewReturnPath = '/admin/page-review'
+  const reviewReturnPath = '/church/homepage'
 
   const activeIds = useActiveEntityIds({
     groupId: routeCreateGroupId || queryGroupId || undefined,

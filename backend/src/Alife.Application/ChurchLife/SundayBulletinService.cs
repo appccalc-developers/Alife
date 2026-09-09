@@ -35,16 +35,10 @@ public sealed class SundayBulletinService(IAlifeDbContext db, IGroupAuthorizatio
         return true;
     }
 
-    public static IReadOnlyList<DateOnly> Dates(DateOnly today)
-    {
-        var upcoming = today.AddDays((7 - (int)today.DayOfWeek) % 7);
-        var dates = new List<DateOnly>();
-        for (var date = upcoming; date >= today.AddMonths(-3); date = date.AddDays(-7)) dates.Add(date);
-        return dates;
-    }
-
-    private static IReadOnlyList<DateOnly> CurrentDates() => Dates(DateOnly.FromDateTime(
-        TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("Pacific/Auckland"))));
+    private async Task<IReadOnlyList<DateOnly>> SermonDatesAsync(CancellationToken token) =>
+        (await db.Sermons.AsNoTracking().Where(sermon => !sermon.IsDeleted && sermon.PreachedAtUtc.HasValue)
+            .Select(sermon => sermon.PreachedAtUtc!.Value.Date).Distinct().OrderDescending().ToListAsync(token))
+        .Select(DateOnly.FromDateTime).ToArray();
 
     private async Task<Guid?> ChurchAsync(Guid memberId, bool manage, CancellationToken token)
     {
@@ -59,11 +53,16 @@ public sealed class SundayBulletinService(IAlifeDbContext db, IGroupAuthorizatio
 
     private static string Key(Guid churchId, DateOnly date) => $"{KeyPrefix}{churchId:D}/{date:yyyy-MM-dd}.pdf";
 
-    public async Task<AppResult<SundayBulletinList>> ListAsync(Guid memberId, CancellationToken token)
+    public async Task<AppResult<SundayBulletinList>> ListAsync(Guid memberId, CancellationToken token, IReadOnlyList<DateOnly>? requestedDates = null)
     {
         var church = await ChurchAsync(memberId, false, token);
         if (!church.HasValue) return AppResult<SundayBulletinList>.Forbidden("Church membership is required.");
-        var dates = CurrentDates();
+        if (requestedDates?.Count > 100)
+            return AppResult<SundayBulletinList>.Validation("Request up to 100 sermon dates at a time.");
+        var sermonDates = await SermonDatesAsync(token);
+        var dates = requestedDates is { Count: > 0 } ? requestedDates.Distinct().OrderDescending().ToArray() : sermonDates;
+        if (dates.Any(date => !sermonDates.Contains(date)))
+            return AppResult<SundayBulletinList>.Validation("Choose a date associated with a sermon video.");
         var keys = dates.Select(date => Key(church.Value, date)).ToList();
         var existing = await db.FileAssets.AsNoTracking()
             .Where(x => !x.IsDeleted && x.GroupId == church && x.Purpose == FileAssetPurpose.SundayBulletin && keys.Contains(x.ObjectKey))
@@ -95,7 +94,10 @@ public sealed class SundayBulletinService(IAlifeDbContext db, IGroupAuthorizatio
     {
         var church = await ChurchAsync(memberId, true, token);
         if (!church.HasValue) return AppResult<bool>.Forbidden("Church management permission is required.");
-        if (!CurrentDates().Contains(date)) return AppResult<bool>.Validation("Choose a Sunday in the displayed three-month period.");
+        var dateStart = date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+        if (!await db.Sermons.AsNoTracking().AnyAsync(sermon => !sermon.IsDeleted && sermon.PreachedAtUtc.HasValue &&
+                sermon.PreachedAtUtc.Value.Date == dateStart, token))
+            return AppResult<bool>.Validation("Choose a date associated with a sermon video.");
         if (Path.GetFileName(fileName).Length > 260 || !fileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) || pdf.Length < 5 || pdf.Length > MaxPdfBytes ||
             !pdf.AsSpan(0, 5).SequenceEqual("%PDF-"u8))
             return AppResult<bool>.Validation("Upload a PDF file up to 20 MB.");

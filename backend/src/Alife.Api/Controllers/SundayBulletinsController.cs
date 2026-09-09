@@ -13,12 +13,12 @@ namespace Alife.Api.Controllers;
 public sealed class SundayBulletinsController(SundayBulletinService bulletins, ICurrentMemberAccessor member) : ControllerBase
 {
     [HttpGet]
-    public async Task<IActionResult> List(CancellationToken token)
+    public async Task<IActionResult> List(CancellationToken token, [FromQuery] DateOnly[]? dates = null)
     {
         this.ApplyNoStoreHeaders();
         Response.Headers.CacheControl = "private, no-store";
         if (member.GetCurrentMemberId() is not Guid id) return Unauthorized();
-        return this.ToActionResult(await bulletins.ListAsync(id, token));
+        return this.ToActionResult(await bulletins.ListAsync(id, token, dates));
     }
 
     [HttpGet("{date}/open")]
