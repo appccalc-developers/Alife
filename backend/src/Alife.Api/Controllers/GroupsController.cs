@@ -6,6 +6,7 @@ using Alife.Application.Groups.Commands.ApproveGroupMember;
 using Alife.Application.Groups.Commands.AppointGroupLeader;
 using Alife.Application.Groups.Commands.ClaimSubgroupCoLeader;
 using Alife.Application.Groups.Commands.CloseGroup;
+using Alife.Application.Groups.Commands.DissolveGroup;
 using Alife.Application.Groups.Commands.CreateSubgroup;
 using Alife.Application.Groups.Commands.DeclineGroupInvite;
 using Alife.Application.Groups.Commands.InviteGroupMember;
@@ -173,6 +174,26 @@ public class GroupsController(
 
         var result = await mediator.Send(new CloseGroupCommand(id, currentMemberId.Value), cancellationToken);
         return this.ToActionResult(result);
+    }
+
+    [HttpGet("{id:guid}/dissolution")]
+    public async Task<IActionResult> GetDissolution(Guid id, CancellationToken cancellationToken)
+    {
+        this.ApplyPrivateNoCacheHeaders();
+        Response.Headers.CacheControl = "private, no-store";
+        var memberId = currentMemberAccessor.GetCurrentMemberId();
+        if (memberId is null) return Unauthorized();
+        return this.ToActionResult(await mediator.Send(new GetGroupDissolutionQuery(id, memberId.Value), cancellationToken));
+    }
+
+    [HttpPost("{id:guid}/dissolve")]
+    public async Task<IActionResult> Dissolve(Guid id, CancellationToken cancellationToken)
+    {
+        this.ApplyPrivateNoCacheHeaders();
+        Response.Headers.CacheControl = "private, no-store";
+        var memberId = currentMemberAccessor.GetCurrentMemberId();
+        if (memberId is null) return Unauthorized();
+        return this.ToActionResult(await mediator.Send(new DissolveGroupCommand(id, memberId.Value), cancellationToken));
     }
 
     [HttpGet("{id:guid}/memberships")]

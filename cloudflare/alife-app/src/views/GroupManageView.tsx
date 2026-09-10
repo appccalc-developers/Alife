@@ -10,6 +10,7 @@ import AppSectionCard from '../components/layout/AppSectionCard'
 import AppStableTabBody from '../components/layout/AppStableTabBody'
 import AccessTypeBadge from '../components/group/AccessTypeBadge'
 import GroupOverviewPanel from '../components/group/GroupOverviewPanel'
+import GroupDissolutionPanel from '../components/group/GroupDissolutionPanel'
 import MembershipStatusBadge from '../components/group/MembershipStatusBadge'
 import { useGroupScreen, type GroupMemberToolRow } from '../hooks/useGroupScreen'
 import { useActiveEntityIds } from '../hooks/useActiveEntityIds'
@@ -1145,6 +1146,26 @@ const GroupManageView = ({
                     }}
                   />
                 </div>
+              ) : null}
+
+              {activeSection === 'group' && !group.isChurch && auth.memberships.some(m =>
+                m.groupId === groupId && m.status === 'approved' && m.role === 'leader') ? (
+                <GroupDissolutionPanel
+                  key={`${auth.me?.id}:${groupId}`}
+                  groupId={groupId}
+                  groupName={localizeText(group.name, language)}
+                  language={language}
+                  beforeDissolve={guardGroupProfileNavigation}
+                  onDissolved={async () => {
+                    await groupService.refreshAfterDissolution(groupId, group.parentGroupId, auth.me!.id)
+                    if (activeEntityService.getAll().groupId === groupId) {
+                      activeEntityService.setGroup('', { clearPage: true, clearEvent: true })
+                      setCurrentGroup(null)
+                    }
+                    await auth.fetchMe()
+                    navigate('/groups', { replace: true })
+                  }}
+                />
               ) : null}
 
               {activeSection === 'subgroups' || (activeSection === 'ministries' && group.isChurch) ? (
