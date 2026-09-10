@@ -429,6 +429,7 @@ export const groupService = {
 
   async updateGroup(groupId: string, payload: UpdateGroupPayload) {
     const { data } = await http.put<GroupDto>(`/api/groups/${groupId}`, payload)
+    await queryClient.invalidateQueries({ queryKey: ['group-life-directory'] })
     await invalidateChurchLifeQueries()
     return normalizeGroup(data)
   },
@@ -440,11 +441,13 @@ export const groupService = {
 
   async deleteSubgroup(subgroupId: string) {
     await http.post(`/api/groups/${subgroupId}/close`)
+    await queryClient.invalidateQueries({ queryKey: ['group-life-directory'] })
     await invalidateChurchLifeQueries()
   },
 
   async closeGroup(groupId: string) {
     await http.post(`/api/groups/${groupId}/close`)
+    await queryClient.invalidateQueries({ queryKey: ['group-life-directory'] })
     await invalidateChurchLifeQueries()
   },
 

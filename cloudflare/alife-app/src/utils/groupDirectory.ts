@@ -1,4 +1,10 @@
-import type { GroupSummaryDto, GroupType, PageDetailDto } from '../types/models'
+import type { GroupMembershipDto, GroupSummaryDto, GroupType, PageDetailDto } from '../types/models'
+
+export const isGroupLifeVisible = (
+  group: Pick<GroupSummaryDto, 'id' | 'isChurch' | 'isClosed'>,
+  memberships: GroupMembershipDto[],
+) => !group.isChurch && !group.isClosed &&
+  !memberships.some(m => m.groupId === group.id && m.status === 'removed')
 
 export const isDirectoryGroupType = (group: Pick<GroupSummaryDto, 'isChurch' | 'groupType'>, type: GroupType) =>
   !group.isChurch && (group.groupType ?? 'fellowship') === type

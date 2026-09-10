@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useGroupLifeDirectory } from '../hooks/useGroupLifeDirectory'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ChevronDown, UsersRound } from 'lucide-react'
 import AppPageShell from '../components/layout/AppPageShell'
@@ -6,10 +6,9 @@ import AppEmptyState from '../components/layout/AppEmptyState'
 import AppPageTitleBar from '../components/layout/AppPageTitleBar'
 import AppSiteNavigation from '../components/layout/AppSiteNavigation'
 import GroupDirectoryImage from '../components/group/GroupDirectoryImage'
-import { isDirectoryGroupType } from '../utils/groupDirectory'
+import { isDirectoryGroupType, isGroupLifeVisible } from '../utils/groupDirectory'
 import AppBadge from '../components/layout/AppBadge'
 import AccessTypeBadge from '../components/group/AccessTypeBadge'
-import { groupService } from '../services/groupService'
 import { useAuthStore } from '../stores/auth'
 import { localizeText } from '../utils/localizedText'
 import { groupMembershipLabel } from '../utils/groupMembershipPresentation'
@@ -20,19 +19,14 @@ const GroupsView = () => {
   const auth = useAuthStore()
   const zh = auth.language === 'zh'
   const [params, setParams] = useSearchParams()
-  const query = useQuery({
-    queryKey: ['group-life-directory', auth.me?.id ?? 'guest'],
-    queryFn: () => groupService.getVisibleGroups(auth.me?.id),
-    enabled: auth.initialized,
-    staleTime: 30_000,
-  })
+  const query = useGroupLifeDirectory()
   const groupType = params.get('type') === 'ministry' ? 'ministry' : 'fellowship'
   const expandedId = params.get('expanded') ?? ''
   const search = params.get('q') ?? ''
   const filter = params.get('membership') ?? 'all'
   const sort = params.get('sort') ?? 'name'
   const groups = (query.data ?? []).filter(group => {
-    if (!isDirectoryGroupType(group, groupType)) return false
+    if (!isGroupLifeVisible(group, auth.memberships) || !isDirectoryGroupType(group, groupType)) return false
     const joined = auth.memberships.some(m => m.groupId === group.id && m.status === 'approved')
     return (filter === 'all' || (filter === 'joined' ? joined : !joined)) &&
       `${localizeText(group.name, auth.language)} ${localizeText(group.description, auth.language)}`.toLocaleLowerCase().includes(search.toLocaleLowerCase())
