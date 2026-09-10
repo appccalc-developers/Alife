@@ -3749,9 +3749,27 @@
       "mutation": false
     },
     {
+      "method": "GET",
+      "path": "/api/admin/event-package-policies/defaults",
+      "request": "none",
+      "response": "PolicyEditorDefaults with rules and bilingual fact, known template and module choices; no publication",
+      "auth": "admin.events.managePackagePolicies",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/event-package-policies/preview",
+      "request": "PublishEventPackagePolicyRequest",
+      "response": "PolicyImpact: currentPolicyId, affectedEventCount, affectedApprovalCount, impactToken",
+      "auth": "admin.events.managePackagePolicies",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
+    },
+    {
       "method": "POST",
       "path": "/api/admin/event-package-policies/publish",
-      "request": "complete PublishEventPackagePolicyRequest; actor omitted",
+      "request": "complete PublishEventPackagePolicyRequest; optional expectedCurrentPolicyId (empty GUID means no current version), sourcePolicyId and impactToken; actor omitted",
       "response": "new immutable immediately effective policy version",
       "auth": "admin.events.managePackagePolicies",
       "cache": "no-store",

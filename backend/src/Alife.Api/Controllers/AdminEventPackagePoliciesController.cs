@@ -33,6 +33,24 @@ public sealed class AdminEventPackagePoliciesController(IMediator mediator, ICur
             memberId.Value, request, Request.Headers["Idempotency-Key"].ToString()), ct));
     }
 
+    [HttpGet("defaults")]
+    public async Task<IActionResult> Defaults(CancellationToken ct)
+    {
+        this.ApplyPrivateNoStoreHeaders();
+        var memberId = currentMemberAccessor.GetCurrentMemberId();
+        if (!memberId.HasValue) return Unauthorized();
+        return this.ToActionResult(await mediator.Send(new GetPolicyEditorDefaultsQuery(memberId.Value), ct));
+    }
+
+    [HttpPost("preview")]
+    public async Task<IActionResult> Preview(PublishEventPackagePolicyRequest request, CancellationToken ct)
+    {
+        this.ApplyPrivateNoStoreHeaders();
+        var memberId = currentMemberAccessor.GetCurrentMemberId();
+        if (!memberId.HasValue) return Unauthorized();
+        return this.ToActionResult(await mediator.Send(new PreviewPolicyQuery(memberId.Value, request), ct));
+    }
+
     [HttpGet("rollout-report")]
     public async Task<IActionResult> RolloutReport([FromQuery] int windowDays = 30, CancellationToken ct = default)
     {

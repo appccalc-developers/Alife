@@ -92,6 +92,109 @@ public sealed class EventPackagePolicyAdminTests
     private static PublishEventPackagePolicyCommandHandler Handler(AlifeDbContext db)
         => new(db, new EventPackageInvalidationService(db), Substitute.For<IEventCacheInvalidationService>());
 
+    [Fact]
+    public async Task Defaults_AreValidAndNeverPublishOnRead()
+    {
+        await using var db = CreateDb();
+        var actor = await SeedActor(db, [AdminPermissionCatalog.ManageEventPackagePolicies]);
+        var catalog = new EventActivityTemplateCatalog(db);
+        var result = await new GetPolicyEditorDefaultsHandler(db, catalog).Handle(new(actor), default);
+        Assert.True(result.IsSuccess, result.Message);
+        Assert.Empty(db.EventPackageGovernancePolicyVersions);
+        var request = Request(result.Value!.Rules.GetRawText()) with { ExpectedCurrentPolicyId = Guid.Empty, EnforcementMode = EventPackageEnforcementMode.DryRun };
+        var preview = await new PreviewPolicyHandler(db, catalog).Handle(new(actor, request), default);
+        Assert.True(preview.IsSuccess, preview.Message);
+        Assert.Empty(db.EventPackageGovernancePolicyVersions);
+        var published = await Handler(db).Handle(new(actor, request with { ImpactToken = preview.Value!.ImpactToken }, "init"), default);
+        Assert.True(published.IsSuccess, published.Message);
+        Assert.Equal(EventPackageEnforcementMode.DryRun, published.Value!.EnforcementMode);
+        Assert.True(published.Value.EffectiveFromUtc <= DateTime.UtcNow);
+    }
+
+    [Fact]
+    public async Task Initialization_RejectsStaleCurrentVersionAndReplaysOriginalRequest()
+    {
+        await using var db = CreateDb();
+        var actor = await SeedActor(db, [AdminPermissionCatalog.ManageEventPackagePolicies]);
+        var handler = Handler(db);
+        var request = Request(Rules()) with { ExpectedCurrentPolicyId = Guid.Empty };
+        var first = await handler.Handle(new(actor, request, "first"), default);
+        var stale = await handler.Handle(new(actor, request with { Version = "another" }, "another"), default);
+        var replay = await handler.Handle(new(actor, request, "first"), default);
+        Assert.True(first.IsSuccess, first.Message);
+        Assert.Equal(AppResultStatus.Conflict, stale.Status);
+        Assert.Equal(first.Value!.Id, replay.Value!.Id);
+        Assert.Single(db.EventPackageGovernancePolicyVersions);
+        Assert.Null((await db.EventPackageGovernancePolicyVersions.SingleAsync()).RetiredUtc);
+    }
+
+    [Theory]
+    [InlineData("P30D", "P0D")]
+    [InlineData("P30D", "tomorrow")]
+    [InlineData("P30D", "P999999999999D")]
+    [InlineData("\"tier\":\"standard\"", "\"tier\":\"light\"")]
+    [InlineData("\"whenAnyModuleCodes\":[]", "\"whenAnyModuleCodes\":[\"UNKNOWN\"]")]
+    [InlineData("2026-12-01", "2026-08-01")]
+    [InlineData("\"enabled\":false", "\"enabled\":true")]
+    [InlineData("\"minimumApproverCount\":1", "\"minimumApproverCount\":6")]
+    [InlineData("\"schemaVersion\":\"1\"", "\"schemaVersion\":123")]
+    public async Task Publish_RejectsMalformedRulesWithoutWriting(string before, string after)
+    {
+        await using var db = CreateDb();
+        var actor = await SeedActor(db, [AdminPermissionCatalog.ManageEventPackagePolicies]);
+        var result = await Handler(db).Handle(new(actor, Request(Rules().Replace(before, after)), "invalid"), default);
+        Assert.Equal(AppResultStatus.ValidationError, result.Status);
+        Assert.Empty(db.EventPackageGovernancePolicyVersions);
+    }
+
+    [Fact]
+    public async Task Restore_PreservesHistoryInvalidatesApprovalsAndSkipsGroupOverrides()
+    {
+        await using var db = CreateDb();
+        var actor = await SeedActor(db, [AdminPermissionCatalog.ManageEventPackagePolicies]);
+        var handler = Handler(db);
+        var first = await handler.Handle(new(actor, Request(Rules()), "first"), default);
+        var second = await handler.Handle(new(actor, Request(Rules()) with { Version = "second" }, "second"), default);
+        var globalEvent = new GroupEvent { Id = Guid.NewGuid(), GroupId = Guid.NewGuid() };
+        var scopedEvent = new GroupEvent { Id = Guid.NewGuid(), GroupId = Guid.NewGuid() };
+        db.GroupEvents.AddRange(globalEvent, scopedEvent);
+        db.EventPackageGovernancePolicyVersions.Add(new EventPackageGovernancePolicyVersion {
+            Id = Guid.NewGuid(), OrganisationId = scopedEvent.GroupId, Version = "scoped", RulesJson = Rules(),
+            IsPublished = true, PublishedUtc = DateTime.UtcNow, EffectiveFromUtc = DateTime.UtcNow.AddDays(-1), PublishedByMemberId = actor });
+        var affected = new EventPackage { Id = Guid.NewGuid(), EventId = globalEvent.Id, ApprovalValidityStatus = EventPackageApprovalValidity.Active };
+        var unaffected = new EventPackage { Id = Guid.NewGuid(), EventId = scopedEvent.Id, ApprovalValidityStatus = EventPackageApprovalValidity.Active };
+        db.EventPackages.AddRange(affected, unaffected);
+        await db.SaveChangesAsync();
+        var request = Request(Rules()) with { Version = "restored", SourcePolicyId = first.Value!.Id, ExpectedCurrentPolicyId = second.Value!.Id };
+        var impact = await new PreviewPolicyHandler(db, new EventActivityTemplateCatalog(db)).Handle(new(actor, request), default);
+        Assert.True(impact.IsSuccess, impact.Message);
+        Assert.Equal(1, impact.Value!.AffectedApprovalCount);
+        Assert.Equal(1, impact.Value.AffectedEventCount);
+        var restored = await handler.Handle(new(actor, request with { ImpactToken = impact.Value.ImpactToken }, "restore"), default);
+        Assert.True(restored.IsSuccess, restored.Message);
+        Assert.NotEqual(first.Value.Id, restored.Value!.Id);
+        Assert.NotEqual(EventPackageApprovalValidity.Active, affected.ApprovalValidityStatus);
+        Assert.Equal(EventPackageApprovalValidity.Active, unaffected.ApprovalValidityStatus);
+        Assert.Equal(first.Value.Rules.GetRawText(), (await db.EventPackageGovernancePolicyVersions.SingleAsync(x => x.Id == first.Value.Id)).RulesJson);
+        Assert.Contains(first.Value.Id.ToString(), (await db.AuditLogs.SingleAsync(x => x.EntityId == restored.Value.Id)).MetadataJson);
+    }
+
+    [Fact]
+    public async Task Preview_RequiresPermissionAndPublishRejectsChangedImpact()
+    {
+        await using var db = CreateDb();
+        var actor = await SeedActor(db, [AdminPermissionCatalog.ManageEventPackagePolicies]);
+        var preview = new PreviewPolicyHandler(db, new EventActivityTemplateCatalog(db));
+        Assert.Equal(AppResultStatus.Forbidden, (await preview.Handle(new(Guid.NewGuid(), Request(Rules())), default)).Status);
+        var request = Request(Rules()) with { ExpectedCurrentPolicyId = Guid.Empty };
+        var impact = await preview.Handle(new(actor, request), default);
+        db.GroupEvents.Add(new GroupEvent { Id = Guid.NewGuid(), GroupId = Guid.NewGuid() });
+        await db.SaveChangesAsync();
+        var result = await Handler(db).Handle(new(actor, request with { ImpactToken = impact.Value!.ImpactToken }, "stale"), default);
+        Assert.Equal(AppResultStatus.Conflict, result.Status);
+        Assert.Empty(db.EventPackageGovernancePolicyVersions);
+    }
+
     private static PublishEventPackagePolicyRequest Request(string rules)
     {
         using var document = JsonDocument.Parse(rules);

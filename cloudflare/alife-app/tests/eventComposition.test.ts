@@ -15,7 +15,6 @@ import { buildCreationComposition } from '../src/utils/eventCreationComposition.
 import type { EventDto } from '../src/types/event.ts'
 import type { EventArchetype } from '../src/types/eventComposition.ts'
 import {
-  applyActivityTypePreset,
   applyAiCopyDraft,
   deriveAiCandidateFacts,
   proposalIsCurrent,
@@ -128,23 +127,6 @@ test('four-archetype catalogue filters sixteen unique activity types and unknown
   assert.equal(resolveActivityType(archetypes, 'camp-retreat', 'type-1-2')?.archetypeCode, 'camp-retreat')
   assert.equal(resolveActivityType(archetypes, 'simple-social', 'type-1-2'), null)
   assert.equal(resolveActivityType(archetypes, 'simple-social', '../../unknown'), null)
-})
-
-test('activity type switch reapplies controlled module and service-slot presets', () => {
-  const preset = applyActivityTypePreset({
-    code: 'church-camp', version: 1, archetypeCode: 'camp-retreat',
-    name: { en: 'Church camp', zh: '全教会营会' }, description: { en: '', zh: '' }, iconKey: 'camp',
-    defaults: { visibility: 'churchVisible', registrationMode: 'required', capacityUnit: 'People' },
-    preselectedModules: ['PEOPLE.REGISTRATION', 'SAFETY.RAM', 'SERVICE.ROSTER', 'COMMS.FOLLOWUP'],
-    recommendedWorkflowTemplateCode: 'camp',
-    presetServiceSlots: [{ roleCode: 'camp.director', label: { en: 'Camp director', zh: '营会总召' }, requiredCount: 1, eligibilityCode: 'approvedGroupMember' }],
-  })
-
-  assert.deepEqual(preset.selectedModules, ['TEAM.WORK', 'PEOPLE.REGISTRATION', 'SAFETY.RAM', 'SERVICE.ROSTER', 'COMMS.FOLLOWUP'])
-  assert.equal(preset.visibility, 'churchVisible')
-  assert.equal(preset.registrationMode, 'required')
-  assert.equal(preset.useRecommendedWorkflow, true)
-  assert.equal(preset.selectedModules.includes('MONEY.FINANCE'), false)
 })
 
 test('AI adoption is limited to bilingual copy and safety-derived values remain candidates', () => {

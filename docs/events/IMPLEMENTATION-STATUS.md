@@ -22,6 +22,20 @@ The current branch contains:
 - the existing `EventWorkflowRun` / Step / Artifact engine as the single general workflow engine;
 - server-side visibility controls and private/no-store handling for protected workspaces.
 
+## Event creation workspace
+
+The creation flow now uses four steps: **Template → Details → Arrangements → Review** (`选择模板 → 活动资料 → 活动安排 → 确认创建`). Categories and their active templates share one compact selection screen; selection stays on that screen until the user continues. Bilingual copy, dates, visibility, registration and capacity are entered together. Weekly recurrence retains its existing 12-week window.
+
+Arrangements group factual questions with the server-composed management tools and readable reasons. Template defaults, explicit user overrides and confirmed/candidate/unknown facts remain separate. Only actual tool overrides are sent as `humanSelections`; required server decisions cannot be disabled. Optional tools live in an expandable adjustment area, preparation checklists are optional, and role presets appear only when the current proposal includes rosters. Finance, hospitality and festival operations are labelled as planning support rather than complete operational tools.
+
+Template changes preserve entered copy, facts and explicit overrides; untouched defaults follow the new template. Composition previews debounce changes by 400ms, discard outdated responses and block review while loading, stale or failed. Copy-only edits do not refetch composition. Entering review validates details and recomposes; creation requires the exact reviewed input and explicit human submission. Duplicate requests are guarded and retries reuse an idempotency key only for identical input, including the proposal hash. Creation does not publish an Event.
+
+New local drafts use format version 2 and keys scoped to both member and owning group. No legacy draft is read or migrated. The existing independent poster workspace remains in the Event edit flow, including upload, generation, preview and explicit adoption; it is not part of creation. No API, database schema, approval policy or shared-cache contract changed in this UI slice.
+
+Verification for this slice (2026-09-10): `npm run test:event-composition` passes 44 tests, including draft/override/candidate semantics, stale-request sequencing, duplicate-submission/retry handling and the retained poster edit entry. `dotnet test backend/tests/Alife.Tests.Unit/Alife.Tests.Unit.csproj -c Release --no-restore --filter FullyQualifiedName~EventCompositionArchitectureTests` passes 26 tests. Release output was used because the running local API locks Debug assemblies. `npm run build` passes TypeScript and the Vite/PWA production build; existing NuGet package-pruning and `idb-keyval` mixed-import warnings remain.
+
+Signed-in local browser checks exercised category/template selection without automatic navigation, draft recovery, bilingual language switching, preserving edited copy and visibility through a recurring-template switch, server-required hospitality locking, and entering/leaving final review. English/Chinese layout samples were inspected at 320px, 768px and 1280px; the new screens use the configured `md`/`desktop` breakpoints instead of the previously undefined `tablet` variant. No Event was submitted or published during browser checks. Live AI/poster generation, creation persistence and navigation after a successful create, and injected network/conflict failures were not exercised end-to-end. Documentation generation and `--check` pass, including the three-language overview structure validation.
+
 ## Event Package Approval status
 
 **Usable M0–M4 approval backbone implemented in the current source; operational rollout verification remains.** The normative human and machine contracts describe an immutable, version-bound Event Package, explicit Event/occurrence coverage, three governance tiers, independent decisions and conditions, material-change invalidation, lifecycle gates, privacy-minimised module contributions, and compatible `off` / `dryRun` / `enforced` rollout. The detailed Chinese [execution goal](EVENT-PACKAGE-APPROVAL-EXECUTION-GOAL.zh-CN.md) is a non-normative delivery brief and explicitly excludes Plan B.
@@ -148,3 +162,17 @@ The long-form template retains historical verification prose for presentation co
 3. Complete signed-in browser verification in English and Chinese at 320px, tablet and desktop widths, including occurrence switching, conflict/retry, condition and history controls.
 4. Verify the condition evidence retention boundary with a disposable evidence record in the development database and review any jurisdiction-specific change to the default 90-day policy before production rollout.
 5. Resume the existing module roadmap after the approval backbone is hardened: registration capacity/waitlist, versioned RAM evidence, audited communication delivery, then finance core.
+
+
+## Governance policy editor (2026-09-10 local worktree)
+
+The global policy administration page now uses bilingual business fields, a version dropdown, read-only history, restoration into a new publication, server-owned initialization defaults and an explicit impact-review dialog. It exposes only supported controls, labels software recommendations separately from the SOP draft, and retains group overrides. Publication uses the existing permission and idempotency contract with serializable transaction protection, optional expected-current/impact preconditions and source-version audit metadata. No migration or actual policy publication was performed.
+
+Verification: 50 Event Composition frontend tests and 47 policy/Foundation backend tests passed; TypeScript and production build passed. The isolated Playwright scenario covers Chinese/English at 320, 768 and 1280 pixels, initial load failure/retry/loading, no automatic publication, preview failure/retry, modal keyboard focus, stable publication retry keys, read-only history, unsaved-change confirmation and restore lineage. Browser APIs are fixtures: this does not establish live database publication or multi-connection SQL concurrency. Production build retains the existing idb-keyval chunk warning; backend build retains NU1510 dependency warnings.
+
+See [policy editor verification](POLICY-EDITOR-VERIFICATION.md) for commands, constraints and administrator initialization steps. The creation wizard and independent poster workspace were not changed by this policy-editor slice.
+
+
+### Approval decision tabs
+
+The policy form presents one shared tier editor in descending decision order: **If enhanced → Else if standard → Else light**. Enhanced is selected initially; each tier retains independent draft values when tabs change. Light is the unconditional fallback and has no trigger-option table, while its approver count and validity remain available. Historical policies permit tab navigation with all policy fields read-only. Tabs support arrows/Home/End and remain on one horizontally scrollable row on mobile. This is a presentation change; server highest-tier matching and stored policy payloads are unchanged.
