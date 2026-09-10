@@ -4,7 +4,7 @@ const encoder = new TextEncoder();
 
 const reply = (status) => new Response(null, { status, headers: { 'cache-control': 'private, no-store' } });
 
-async function sameSecret(actual, expected) {
+export async function sameSecret(actual, expected) {
   if (!actual || !expected) return false;
   const [a, b] = await Promise.all([actual, expected].map(value => crypto.subtle.digest('SHA-256', encoder.encode(value))));
   const left = new Uint8Array(a), right = new Uint8Array(b);

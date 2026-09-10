@@ -12,6 +12,7 @@ public class Group
 	public GroupType GroupType { get; set; } = GroupType.Fellowship;
 	public bool IsChurch { get; set; }
 	public bool IsClosed { get; set; }
+	public bool IsDissolved { get; set; }
 	public DateTime CreatedUtc { get; set; }
 	public DateTime UpdatedUtc { get; set; }
 

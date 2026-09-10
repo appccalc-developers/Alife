@@ -1,4 +1,5 @@
 import { handleSundayBulletin, isBulletinPath } from './sunday-bulletins.js';
+import { handleDeleteObject } from './delete-object.js';
 
 const IMAGE_EXTENSIONS = new Set([
   "jpg",
@@ -505,6 +506,8 @@ export default {
     const method = request.method;
 
     try {
+      const deletionResponse = await handleDeleteObject(request, env);
+      if (deletionResponse) return deletionResponse;
       const bulletinResponse = await handleSundayBulletin(request, env);
       if (bulletinResponse) return bulletinResponse;
       // CORS preflight

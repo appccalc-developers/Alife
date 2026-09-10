@@ -48,6 +48,7 @@ public sealed class GroupAuthorizationService(AlifeDbContext dbContext) : IGroup
 
     public async Task<bool> IsApprovedMemberAsync(Guid groupId, Guid memberId, CancellationToken cancellationToken)
     {
+        if (await dbContext.Groups.IgnoreQueryFilters().AnyAsync(x => x.Id == groupId && x.IsDissolved, cancellationToken)) return false;
         if (await IsAdminAsync(memberId, cancellationToken))
         {
             return true;
@@ -64,6 +65,7 @@ public sealed class GroupAuthorizationService(AlifeDbContext dbContext) : IGroup
 
     public async Task<bool> IsLeaderOrCoLeaderAsync(Guid groupId, Guid memberId, CancellationToken cancellationToken)
     {
+        if (await dbContext.Groups.IgnoreQueryFilters().AnyAsync(x => x.Id == groupId && x.IsDissolved, cancellationToken)) return false;
         if (await IsAdminAsync(memberId, cancellationToken))
         {
             return true;
@@ -81,6 +83,7 @@ public sealed class GroupAuthorizationService(AlifeDbContext dbContext) : IGroup
 
     public async Task<bool> IsLeaderAsync(Guid groupId, Guid memberId, CancellationToken cancellationToken)
     {
+        if (await dbContext.Groups.IgnoreQueryFilters().AnyAsync(x => x.Id == groupId && x.IsDissolved, cancellationToken)) return false;
         if (await IsAdminAsync(memberId, cancellationToken))
         {
             return true;
