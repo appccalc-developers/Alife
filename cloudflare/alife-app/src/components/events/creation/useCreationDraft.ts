@@ -20,7 +20,7 @@ export const useCreationDraft = (key: string, archetypes: EventArchetype[], cata
   }, [archetypes, catalogueReady, hydrated, key])
   useEffect(() => {
     if (!hydrated) return
-    try { localStorage.setItem(key, JSON.stringify({ version: 2, draft })) }
+    try { localStorage.setItem(key, JSON.stringify({ version: 3, draft })) }
     catch { setStorageWarning(true) }
   }, [draft, hydrated, key])
   return { draft, setDraft, hydrated, storageWarning }

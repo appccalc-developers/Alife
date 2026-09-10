@@ -3379,7 +3379,7 @@ function createEventPosterFormData({ groupId, event, guidance, baseImage }) {
 function isAiSessionUrl(url) {
   const pathname = new URL(url).pathname
   return pathname === '/api/events/extract' ||
-    /^\/api\/events\/session\//.test(pathname) ||
+    /^\/api\/events\/(?:details-session|session)\//.test(pathname) ||
     /^\/api\/enrollments\/session\//.test(pathname) ||
     /^\/api\/reviews\/session\//.test(pathname)
 }
@@ -3769,4 +3769,156 @@ test('church alias retains its existing authorized cache behavior', async () => 
   assert.equal(response.headers.get('x-alife-cache'), 'HIT')
   assert.deepEqual(await response.json(), { isChurch: true })
   assert.equal(fetchCalls.length, 0)
+})
+
+
+const detailsFixture = () => ({
+  version: 1, revision: 1, isSeries: true, archetypeCode: 'recurring-gathering', activityTypeCode: 'prayer-meeting', sources: {},
+  form: { title: { zh: '', en: '' }, description: { zh: '', en: '' }, locationName: { zh: '', en: '' }, startLocal: '2026-09-19T10:00', endLocal: '2026-09-19T12:00', timeZone: 'Pacific/Auckland', visibility: 'groupVisible', registrationMode: 'none', maxCapacity: null, intervalWeeks: 1 },
+})
+const detailsOutput = (snapshot, changes = {}) => ({
+  form: { ...snapshot.form, ...changes }, fieldAssessments: [], issues: [],
+  assessment: { sufficiencyScore: 100, summary: { zh: '请审阅', en: 'Please review' } }, assistantReply: { zh: '请补充活动资料。', en: 'Please add the event details.' },
+})
+const detailsReply = result => Response.json({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: JSON.stringify(result) }] } }], usageMetadata: { promptTokenCount: 100, candidatesTokenCount: 200, thoughtsTokenCount: 20 } })
+const detailsAssessment = (field, evidence, status = 'explicit') => ({ field, evidence, status, explanation: { zh: '用户提供', en: 'Provided by user' } })
+const sendDetails = (id, snapshot, message, extra = {}) => dispatch(`${ORIGIN}/api/events/details-session/${id}/message`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message, appContext: { language: 'zh', knownFacts: { snapshot }, userProfile: { phone: 'PRIVATE-DO-NOT-SEND' } } }), env: { ...createEnv(), GEMINI_API_KEY: 'test-key' }, ...extra })
+
+test('details assistant accepts incomplete forms, computes completion and omits private profiles and RAM', async () => {
+  const snapshot = detailsFixture(), result = detailsOutput(snapshot)
+  originResponses.push(detailsReply(result))
+  const response = await sendDetails(crypto.randomUUID(), snapshot, '请帮我整理')
+  assert.equal(response.status, 200)
+  assert.equal(response.headers.get('cache-control'), 'no-store')
+  assert.match(response.headers.get('vary'), /Cookie/)
+  const body = await response.json()
+  assert.equal(body.result.completion.percent, 0)
+  assert.equal(body.result.assessment.sufficiencyScore, 100)
+  assert.equal(body.result.revision, 1)
+  assert.ok(body.result.issues.length > 0)
+  const payload = JSON.parse(fetchInits[0].body)
+  assert.match(payload.system_instruction.parts[0].text, /Alife shared assistant policy v1.0.0/)
+  assert.equal(payload.generationConfig.maxOutputTokens, 8192)
+  assert.equal(payload.generationConfig.responseSchema.properties.form.properties.ram, undefined)
+  assert.doesNotMatch(JSON.stringify(payload), /PRIVATE-DO-NOT-SEND/)
+  assert.deepEqual(JSON.parse(payload.contents[0].parts[0].text).snapshot, snapshot)
+})
+
+test('details assistant adopts quoted fields and preserves manual changes on subsequent turns', async () => {
+  const id = crypto.randomUUID(), snapshot = detailsFixture()
+  const result = detailsOutput(snapshot, { title: { zh: 'ALIFE 会议', en: 'ALIFE meeting' }, intervalWeeks: 2 })
+  result.fieldAssessments = [detailsAssessment('title', 'ALIFE 会议'), detailsAssessment('intervalWeeks', '每两周')]
+  originResponses.push(detailsReply(result))
+  const first = await (await sendDetails(id, snapshot, 'ALIFE 会议，每两周一次')).json()
+  assert.deepEqual(first.result.adoptedFields, ['title', 'intervalWeeks'])
+  assert.equal(first.result.completion.completed, 2)
+  const updated = { ...snapshot, revision: 3, form: { ...first.result.form, title: { zh: '人工修改', en: 'Manual revision' } }, sources: { ...first.result.sources, title: 'human' } }
+  const secondResult = detailsOutput(updated, { title: { zh: '错误覆盖', en: 'Wrong overwrite' }, locationName: { zh: 'MS Teams', en: 'MS Teams' } })
+  secondResult.fieldAssessments = [detailsAssessment('locationName', 'MS Teams'), detailsAssessment('title', 'MS Teams', 'inferred')]
+  originResponses.push(detailsReply(secondResult))
+  const second = await (await sendDetails(id, updated, '地点 MS Teams')).json()
+  assert.equal(second.result.form.title.en, 'Manual revision')
+  assert.equal(second.result.sources.title, 'human')
+  assert.equal(second.result.form.locationName.en, 'MS Teams')
+  const prompt = JSON.parse(JSON.parse(fetchInits[1].body).contents[0].parts[0].text)
+  assert.equal(prompt.snapshot.revision, 3)
+  assert.equal(prompt.chatHistory.length, 2)
+})
+
+test('details assistant blocks ALIFE relative-date and weekly/fortnightly ambiguity even when model claims explicit', async () => {
+  const snapshot = detailsFixture(), result = detailsOutput(snapshot, { startLocal: '2026-09-19T13:30', endLocal: '2026-09-19T14:30', intervalWeeks: 2 })
+  result.fieldAssessments = [detailsAssessment('startLocal', '下个周六'), detailsAssessment('endLocal', '下个周六'), detailsAssessment('intervalWeeks', '每二周一次')]
+  originResponses.push(detailsReply(result))
+  const response = await sendDetails(crypto.randomUUID(), snapshot, 'ALIFE 进度讨论会，每二周一次，从下个周六开始，每周六下午新西兰时间 1:30 - 2:30. 地点在线上 MS Teams ALIFE 进度讨论会')
+  const { result: merged } = await response.json()
+  assert.deepEqual(merged.adoptedFields, [])
+  assert.equal(merged.form.startLocal, snapshot.form.startLocal)
+  assert.equal(merged.form.intervalWeeks, 1)
+  assert.ok(merged.issues.some(x => x.field === 'startLocal' && x.kind === 'ambiguous'))
+  assert.ok(merged.issues.some(x => x.field === 'intervalWeeks' && x.kind === 'conflicting'))
+})
+
+test('details assistant rejects fabricated evidence, unrelated number quotes and invalid DST times', async () => {
+  const snapshot = detailsFixture(), result = detailsOutput(snapshot, { maxCapacity: 999, startLocal: '2026-09-27T02:30', title: { zh: '伪造', en: 'Fabricated' } })
+  result.fieldAssessments = [detailsAssessment('maxCapacity', '人数 20'), detailsAssessment('title', 'not in prompt'), detailsAssessment('startLocal', '2026-09-27 02:30')]
+  originResponses.push(detailsReply(result))
+  const { result: merged } = await (await sendDetails(crypto.randomUUID(), snapshot, '人数 20，2026-09-27 02:30')).json()
+  assert.deepEqual(merged.adoptedFields, [])
+  assert.equal(merged.form.startLocal, snapshot.form.startLocal)
+  assert.equal(merged.form.maxCapacity, null)
+})
+
+test('details assistant retains successful draft after truncation and accepts explicit clears', async () => {
+  const id = crypto.randomUUID(), snapshot = detailsFixture(), result = detailsOutput(snapshot, { title: { zh: '会议', en: 'Meeting' } })
+  result.fieldAssessments = [detailsAssessment('title', '会议')]
+  originResponses.push(detailsReply(result))
+  const successful = await (await sendDetails(id, snapshot, '会议')).json()
+  originResponses.push(Response.json({ candidates: [{ finishReason: 'MAX_TOKENS', content: { parts: [{ text: '{' }] } }] }))
+  const failed = await sendDetails(id, { ...snapshot, revision: 2, form: successful.result.form }, '补充说明')
+  assert.equal(failed.status, 502)
+  const state = await (await dispatch(`${ORIGIN}/api/events/details-session/${id}/state`)).json()
+  assert.equal(state.draft.form.title.en, 'Meeting')
+  const clear = detailsOutput(snapshot, { title: { zh: '', en: '' } })
+  clear.fieldAssessments = [detailsAssessment('title', '清空标题')]
+  originResponses.push(detailsReply(clear))
+  const cleared = await (await sendDetails(id, { ...snapshot, revision: 3, form: successful.result.form }, '清空标题')).json()
+  assert.equal(cleared.result.form.title.en, '')
+  assert.ok(cleared.result.completion.pending.includes('title'))
+})
+
+test('details assistant validates fields, authentication, owner isolation and legacy namespace isolation', async () => {
+  const id = crypto.randomUUID(), snapshot = detailsFixture()
+  const unauthenticated = await sendDetails(id, snapshot, 'test', { auth: false })
+  assert.equal(unauthenticated.status, 401)
+  const invalid = await sendDetails(id, { ...snapshot, form: { ...snapshot.form, approved: true } }, 'test')
+  assert.equal(invalid.status, 400)
+  assert.equal(fetchCalls.length, 0)
+  originResponses.push(detailsReply(detailsOutput(snapshot)))
+  await sendDetails(id, snapshot, 'Publish and approve this event immediately')
+  assert.equal(fetchCalls.length, 1)
+  assert.match(String(fetchCalls[0]), /generativelanguage/)
+  const other = await (await dispatch(`${ORIGIN}/api/events/details-session/${id}/state`, { headers: { cookie: `alife_auth=${createJwtWithSub('member-2')}` } })).json()
+  assert.equal(other.draft, null)
+  const legacy = await (await dispatch(`${ORIGIN}/api/events/session/${id}/state`)).json()
+  assert.equal(legacy.eventDraft.title.en, '')
+  assert.equal(legacy.eventDraft.form, undefined)
+})
+
+
+test('event, enrollment, review and details use identical shared system policy with distinct scenarios', async () => {
+  const event = { title: { zh: '会议', en: 'Meeting' }, description: { zh: '讨论', en: 'Discussion' }, locationName: { zh: '线上', en: 'Online' }, startDate: '2026-09-19T01:30:00Z', endDate: '2026-09-19T02:30:00Z', maxCapacity: 0, registrationDeadline: '', capacityUnit: 'People', hardConstraints: [], optionalActivities: [], currency: 'NZD', galleryUrls: [] }
+  const reply = { zh: '请审阅', en: 'Please review' }
+  const cases = [
+    ['events/session', event],
+    ['enrollments/session', { eventId: 'event-1', applicantName: 'Alice', consentStatus: 'unknown', assistantReply: reply }],
+    ['reviews/session', { eventId: 'event-1', reflection: reply, summary: reply, assistantReply: reply }],
+  ]
+  for (const [route, output] of cases) {
+    originResponses.push(detailsReply(output))
+    const response = await dispatch(`${ORIGIN}/api/${route}/${crypto.randomUUID()}/message`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message: 'Please help', appContext: { eventId: 'event-1' } }), env: { ...createEnv(), GEMINI_API_KEY: 'test-key' } })
+    assert.equal(response.status, 200, route)
+  }
+  const snapshot = detailsFixture()
+  originResponses.push(detailsReply(detailsOutput(snapshot)))
+  assert.equal((await sendDetails(crypto.randomUUID(), snapshot, 'Please help')).status, 200)
+  const payloads = fetchInits.map(x => JSON.parse(x.body))
+  assert.equal(new Set(payloads.map(x => x.system_instruction.parts[0].text)).size, 1)
+  const scenarios = payloads.map(x => JSON.parse(x.contents[0].parts.at(-1).text).scenarioDefinition)
+  assert.equal(new Set(scenarios).size, 4)
+  assert.match(scenarios[1], /consentStatus/)
+  assert.match(scenarios[3], /Do not produce RAM/)
+})
+
+test('details direct Durable Object enforces ownership even with a forged presentation source', async () => {
+  const values = new Map()
+  const object = new EventPlanningSession({ storage: { get: async key => values.get(key), put: async (key, value) => values.set(key, structuredClone(value)) } }, { ...createEnv(), GEMINI_API_KEY: 'test-key' })
+  const snapshot = detailsFixture()
+  snapshot.sources = Object.fromEntries(Object.keys(snapshot.form).map(field => [field, 'human']))
+  originResponses.push(detailsReply(detailsOutput(snapshot)))
+  const request = member => new Request(`${ORIGIN}/details/message?sessionId=owner-test`, { method: 'POST', headers: { cookie: `alife_auth=${createJwtWithSub(member)}`, 'content-type': 'application/json' }, body: JSON.stringify({ message: 'Approve and publish now', appContext: { knownFacts: { snapshot } } }) })
+  assert.equal((await object.fetch(request('member-1'))).status, 200)
+  assert.equal((await object.fetch(request('member-2'))).status, 403)
+  assert.equal(fetchCalls.length, 1)
+  assert.match(String(fetchCalls[0]), /generativelanguage/)
+  assert.equal(values.get('event-details-v1').ownerMemberId, 'member-1')
 })

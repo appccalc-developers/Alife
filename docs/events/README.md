@@ -65,6 +65,8 @@ Event Package Approval 是 Plan 接受之后、发布／开放报名／收款／
 
 ### 人工确认与 AI 权限边界
 
+创建时的 [AI 资料助手](AI-DETAILS-ASSISTANT.md) 根据最新表单逐轮整理双语文字、时间、地点和报名设置，显示字段完成度、AI 充分性评估及待澄清问题。默认值需用户确认才计入完成度；时间使用活动时区，系列活动支持每 1–52 周重复并保留未来 12 周窗口。回填仅更新待审阅草稿，最终创建仍须人工确认。
+
 组合只生成候选方案。服务器在接受时重新组合并检查 hash、并发和幂等性；只有明确的人工接受才能建立权威、版本化且不可变的 Event Plan snapshot。以后修改原型、模板、模块或政策，不得改写已接受方案或历史实例。
 
 AI 可以建议候选事实和解释原因，但不能确认事实、分配权限、批准、豁免政策、授予赞助、持久化或发布。前端可见性永远不能代替服务器授权，私密／受限资料不得进入共享缓存、日志或 AI 提示。
@@ -144,6 +146,8 @@ Event Package Approval 是 Plan 接受之後、發布／開放報名／收款／
 
 ### 人工確認與 AI 權限邊界
 
+建立時的 [AI 資料助手](AI-DETAILS-ASSISTANT.md) 根據最新表單逐輪整理雙語文字、時間、地點和報名設定，顯示欄位完成度、AI 充分性評估及待釐清問題。預設值需使用者確認才計入完成度；時間使用活動時區，系列活動支援每 1–52 週重複並保留未來 12 週視窗。回填僅更新待審閱草稿，最終建立仍須人工確認。
+
 組合只產生候選方案。伺服器在接受時重新組合並檢查 hash、並行控制和冪等性；只有明確的人工接受才能建立權威、版本化且不可變的 Event Plan snapshot。以後修改原型、範本、模組或政策，不得改寫已接受方案或歷史實例。
 
 AI 可以建議候選事實和解釋原因，但不能確認事實、分配權限、批准、豁免政策、授予贊助、持久化或發布。前端可見性永遠不能代替伺服器授權，私密／受限資料不得進入共享快取、日誌或 AI 提示。
@@ -222,6 +226,8 @@ Event Package Approval is a distinct governance step after Plan acceptance and b
 Approval is valid only for the bound Plan, Package version, policy version, source vector, and explicit scope. Material source changes, revoked or expired specialist decisions, and failed conditions invalidate the affected lifecycle gates with explainable blockers. Existing Events receive no invented historical approval; they enter enforcement only through a versioned `off`, `dryRun`, then `enforced` migration policy. Plan B and automatic contingency activation are outside the current scope.
 
 ### Human confirmation and AI authority
+
+The creation [AI details assistant](AI-DETAILS-ASSISTANT.md) uses the latest form on each turn to organise bilingual copy, times, location and registration settings, with field completion, an AI sufficiency assessment and clarification questions. Defaults count only after user confirmation. Dates use the event time zone; series repeat every 1–52 weeks within the rolling 12-week window. Autofill updates a reviewable draft; final creation still requires human acceptance.
 
 Composition produces a candidate plan only. On acceptance, the server recomposes and checks the hash, concurrency, and idempotency; only explicit human acceptance creates an authoritative, versioned, immutable Event Plan snapshot. Later archetype, template, module, or policy changes never rewrite accepted plans or historical occurrences.
 

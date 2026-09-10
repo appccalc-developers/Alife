@@ -1,3 +1,4 @@
+import { AI_SYSTEM_INSTRUCTION } from './systemInstruction'
 import type { Env } from '../../index'
 import { extractMemberIdFromRequest } from '../../middlewares/authCache'
 
@@ -99,12 +100,12 @@ type ExtractRequest = {
 type AiChatSessionConfig<TDraft, TContext> = {
   storageKey: string
   routeNotFoundMessage: string
-  systemInstruction: string | ((today: string) => string)
+  scenarioDefinition: string | ((today: string) => string)
   responseSchema: unknown
   normalizeDraft: (value: unknown) => TDraft
   validateDraft: (draft: TDraft) => string[]
   onStart?: (draft: TDraft, payload: any) => TDraft
-  mergeDraft?: (previousDraft: TDraft | null, nextDraft: TDraft, state: AiSessionState<TDraft, TContext>) => TDraft
+  mergeDraft?: (previousDraft: TDraft | null, nextDraft: TDraft, state: AiSessionState<TDraft, TContext>, userMessage: string) => TDraft
   buildGeminiContext: (args: {
     state: AiSessionState<TDraft, TContext>
     userMessage: string
@@ -313,7 +314,7 @@ export class AiChatSession<TDraft, TContext = unknown> {
     }
 
     const mergedDraft = this.config.mergeDraft
-      ? this.config.mergeDraft(state.draft, nextDraft, state)
+      ? this.config.mergeDraft(state.draft, nextDraft, state, userMessage)
       : nextDraft
     const validationErrors = this.config.validateDraft(mergedDraft)
     if (validationErrors.length > 0) {
@@ -414,9 +415,9 @@ export class AiChatSession<TDraft, TContext = unknown> {
     attachments: AiSessionAttachment[],
   ): Promise<TDraft> {
     const today = new Date().toISOString().slice(0, 10)
-    const systemText = typeof this.config.systemInstruction === 'function'
-      ? this.config.systemInstruction(today)
-      : this.config.systemInstruction
+    const scenarioText = typeof this.config.scenarioDefinition === 'function'
+      ? this.config.scenarioDefinition(today)
+      : this.config.scenarioDefinition
     const model = this.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL
     const userParts = [
       {
@@ -438,8 +439,8 @@ export class AiChatSession<TDraft, TContext = unknown> {
         })),
     ]
     const geminiPayload = {
-      system_instruction: { parts: [{ text: systemText }] },
-      contents: [{ role: 'user', parts: userParts }],
+      system_instruction: { parts: [{ text: AI_SYSTEM_INSTRUCTION }] },
+      contents: [{ role: 'user', parts: [...userParts, { text: JSON.stringify({ scenarioDefinition: scenarioText, referenceInstant: new Date().toISOString() }) }] }],
       generationConfig: {
         responseMimeType: 'application/json',
         responseSchema: this.config.responseSchema,
@@ -459,8 +460,7 @@ export class AiChatSession<TDraft, TContext = unknown> {
     )
 
     if (!geminiRes.ok) {
-      const errorText = await geminiRes.text()
-      console.error('Gemini API error', geminiRes.status, errorText)
+      console.error('Gemini API error', { model, status: geminiRes.status })
       throw new Error('AI extraction failed. Please try again.')
     }
 
@@ -470,6 +470,7 @@ export class AiChatSession<TDraft, TContext = unknown> {
         content?: { parts?: Array<{ text?: string; thought?: boolean }> }
       }>
       promptFeedback?: { blockReason?: string }
+      usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number; totalTokenCount?: number }
     }
     const candidate = geminiData.candidates?.[0]
     const parts = candidate?.content?.parts ?? []
@@ -479,6 +480,9 @@ export class AiChatSession<TDraft, TContext = unknown> {
       .join('')
       .trim()
     const finishReason = candidate?.finishReason ?? ''
+
+    const usage = geminiData.usageMetadata
+    console.info('Gemini session usage', { model, finishReason, promptTokens: usage?.promptTokenCount, outputTokens: usage?.candidatesTokenCount, thoughtTokens: usage?.thoughtsTokenCount, totalTokens: usage?.totalTokenCount })
 
     if (finishReason === 'MAX_TOKENS') {
       console.error('Gemini structured response was truncated', {
@@ -526,7 +530,7 @@ export class AiChatSession<TDraft, TContext = unknown> {
     return normalized
   }
 
-  private async ensureState(sessionIdHint: string, memberId: string) {
+  private async ensureState(sessionIdHint: string, memberId: string): Promise<AiSessionState<TDraft, TContext>> {
     const current = normalizeSessionState<TDraft, TContext>(await this.statePromise)
     if (isExpiredSessionState(current)) {
       await this.clearStoredState()

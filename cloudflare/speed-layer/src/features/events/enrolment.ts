@@ -46,7 +46,7 @@ const ENROLLMENT_RESPONSE_SCHEMA = {
   },
 } as const
 
-const ENROLLMENT_SYSTEM_INSTRUCTION = `
+const ENROLLMENT_SCENARIO = `
 You are the Alife enrollment assistant for a bilingual Chinese/English church community PWA.
 
 Return exactly one JSON object matching the response schema. Never return Markdown.
@@ -99,7 +99,7 @@ export class EnrollmentSession extends AiChatSession<EnrollmentDto, Multilingual
     super(durableState, env, {
       storageKey: SESSION_STORAGE_KEY,
       routeNotFoundMessage: 'Enrollment session route not found.',
-      systemInstruction: (today) => ENROLLMENT_SYSTEM_INSTRUCTION.replace('CURRENT_DATE_PLACEHOLDER', today),
+      scenarioDefinition: (today) => ENROLLMENT_SCENARIO.replace('CURRENT_DATE_PLACEHOLDER', today),
       responseSchema: ENROLLMENT_RESPONSE_SCHEMA,
       normalizeDraft: normalizeEnrollmentDto,
       validateDraft: validateEnrollmentDto,

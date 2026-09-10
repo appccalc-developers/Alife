@@ -1,3 +1,4 @@
+import { EventDetailsSession } from './details'
 import type { Env } from '../../index'
 import {
   AiChatSession,
@@ -254,7 +255,7 @@ const EVENT_DTO_RESPONSE_SCHEMA = {
   },
 } as const
 
-const GEMINI_SYSTEM_INSTRUCTION = `
+const EVENT_PLANNING_SCENARIO = `
 You are the secure event-planning brain for Alife, a bilingual Chinese/English church community PWA.
 
 Return exactly one JSON object that conforms to the provided EventDto response schema. Never return Markdown.
@@ -296,20 +297,21 @@ export default {
     }
 
     const url = new URL(request.url)
-    const sessionId = getSessionId(request)
+    const details = url.pathname.startsWith('/api/events/details-session/')
+    const sessionId = details ? getSessionIdFromPath(request, '/api/events/details-session') : getSessionId(request)
     const targetPath = resolveAiSessionObjectPath(url, request, {
       messageAliasPaths: ['/api/events/extract'],
       extraRoutes: ['/close'],
     })
 
     if (env.EVENT_SESSIONS) {
-      const objectId = env.EVENT_SESSIONS.idFromName(createAiSessionObjectName(request, sessionId))
+      const objectId = env.EVENT_SESSIONS.idFromName(`${details ? 'details-v1:' : ''}${createAiSessionObjectName(request, sessionId)}`)
       const object = env.EVENT_SESSIONS.get(objectId)
-      return object.fetch(createAiSessionObjectRequest(targetPath, url, request, sessionId))
+      return object.fetch(createAiSessionObjectRequest(details ? `/details${targetPath}` : targetPath, url, request, sessionId))
     }
 
-    const fallbackObject = new EventPlanningSession(getFallbackState(createAiSessionObjectName(request, sessionId)), env)
-    return fallbackObject.fetch(createAiSessionObjectRequest(targetPath, url, request, sessionId))
+    const fallbackObject = new EventPlanningSession(getFallbackState(`${details ? 'details-v1:' : ''}${createAiSessionObjectName(request, sessionId)}`), env)
+    return fallbackObject.fetch(createAiSessionObjectRequest(details ? `/details${targetPath}` : targetPath, url, request, sessionId))
   },
 }
 
@@ -318,7 +320,7 @@ export class EventPlanningSession extends AiChatSession<EventDto, MultilingualSt
     super(durableState, env, {
       storageKey: SESSION_STORAGE_KEY,
       routeNotFoundMessage: 'Event planning session route not found.',
-      systemInstruction: (today) => GEMINI_SYSTEM_INSTRUCTION.replace('CURRENT_DATE_PLACEHOLDER', today),
+      scenarioDefinition: (today) => EVENT_PLANNING_SCENARIO.replace('CURRENT_DATE_PLACEHOLDER', today),
       responseSchema: EVENT_DTO_RESPONSE_SCHEMA,
       normalizeDraft: normalizeEventDto,
       validateDraft: validateEventDto,
@@ -418,7 +420,22 @@ export class EventPlanningSession extends AiChatSession<EventDto, MultilingualSt
     })
   }
 
+  private detailsSession?: EventDetailsSession
+  private detailsQueue: Promise<unknown> = Promise.resolve()
+
+  private getDetails() { return this.detailsSession ??= new EventDetailsSession(this.durableState, this.env) }
+
+  override async alarm() {
+    if (await this.durableState.storage.get('event-details-v1')) return this.getDetails().alarm()
+    return super.alarm()
+  }
+
   async fetch(request: Request): Promise<Response> {
+    if (new URL(request.url).pathname.startsWith('/details/')) {
+      const response = this.detailsQueue.then(() => this.getDetails().fetch(request))
+      this.detailsQueue = response.catch(() => undefined)
+      return response
+    }
     return this.handleRequest(request, getSessionId(request))
   }
 }

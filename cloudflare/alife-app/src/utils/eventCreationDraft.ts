@@ -1,3 +1,4 @@
+import { detailFields, localTimeToUtc, type DetailSources } from '../../../shared/eventDetails.ts'
 import type { EventDto, EventVisibility, MultilingualString } from '../types/event'
 import type { EventActivityType, EventArchetype, EventFactInput, EventPlanComposeRequest, EventSeriesSetup, ModuleDecision } from '../types/eventComposition'
 import { createEmptyEventRamDraft } from './eventRam.ts'
@@ -29,6 +30,8 @@ export type CreationDraft = {
   endLocal: string
   maxCapacity: string
   timeZone: string
+  intervalWeeks?: string
+  detailSources?: DetailSources
 }
 
 export const initialCreationDraft = (): CreationDraft => {
@@ -43,12 +46,14 @@ export const initialCreationDraft = (): CreationDraft => {
     factValues: Object.fromEntries(creationFacts.map(([code]) => [code, 'unknown'])),
     title: { en: '', zh: '' }, description: { en: '', zh: '' }, locationName: { en: '', zh: '' },
     startLocal: local(10), endLocal: local(12), maxCapacity: '',
+    intervalWeeks: '1', detailSources: {},
     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Pacific/Auckland',
   }
 }
 
 export const selectCreationTemplate = (draft: CreationDraft, type: EventActivityType): CreationDraft => ({
   ...draft, archetypeCode: type.archetypeCode, activityTypeCode: type.code,
+  detailSources: { ...draft.detailSources, ...(draft.overrides.visibility === undefined ? { visibility: 'default' as const } : {}), ...(draft.overrides.registrationMode === undefined ? { registrationMode: 'default' as const } : {}) },
 })
 
 export const creationSettings = (draft: CreationDraft, type: EventActivityType | null) => ({
@@ -84,10 +89,13 @@ export const changeOptionalModule = (draft: CreationDraft, decision: ModuleDecis
 export const validateCreationDraft = (draft: CreationDraft, type: EventActivityType, archetype: EventArchetype, zh: boolean): string => {
   if (!draft.title.en.trim() && !draft.title.zh.trim()) return zh ? '请填写活动名称。' : 'Enter an event title.'
   if (!draft.description.en.trim() && !draft.description.zh.trim()) return zh ? '请填写活动说明。' : 'Enter an event description.'
-  const start = new Date(draft.startLocal).getTime(), end = new Date(draft.endLocal).getTime()
+  let start: number, end: number
+  try { start = Date.parse(localTimeToUtc(draft.startLocal, draft.timeZone)); end = Date.parse(localTimeToUtc(draft.endLocal, draft.timeZone)) }
+  catch { return zh ? '请检查活动时区和日期时间；夏令时跳过或重复的时间须重新选择。' : 'Check the event time zone and dates; choose a different time for a daylight-saving gap or overlap.' }
   if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return zh ? '请输入有效时间，结束时间须晚于开始时间。' : 'Enter valid dates with the end after the start.'
   if (creationSettings(draft, type).registrationMode === 'required' && (!Number.isInteger(Number(draft.maxCapacity)) || Number(draft.maxCapacity) < 1)) return zh ? '请填写大于零的整数容量。' : 'Enter a whole-number capacity greater than zero.'
   if (archetype.isSeries) {
+    if (!Number.isInteger(Number(draft.intervalWeeks ?? '1')) || Number(draft.intervalWeeks ?? '1') < 1 || Number(draft.intervalWeeks ?? '1') > 52) return zh ? '重复间隔须为 1–52 周。' : 'Repeat interval must be 1–52 weeks.'
     try { new Intl.DateTimeFormat('en', { timeZone: draft.timeZone }).format() }
     catch { return zh ? '请选择有效的时区。' : 'Enter a valid time zone.' }
     if (!draft.timeZone.trim()) return zh ? '请填写时区。' : 'Enter a time zone.'
@@ -97,12 +105,13 @@ export const validateCreationDraft = (draft: CreationDraft, type: EventActivityT
 
 export const creationEvent = (draft: CreationDraft, type: EventActivityType, displayName: string): EventDto => {
   const settings = creationSettings(draft, type)
+  const startUtc = localTimeToUtc(draft.startLocal, draft.timeZone), endUtc = localTimeToUtc(draft.endLocal, draft.timeZone)
   return {
     organizerDisplayName: displayName, personResponsible: displayName, purpose: { en: '', zh: '' },
     title: draft.title, description: draft.description, locationName: draft.locationName,
-    startDate: new Date(draft.startLocal).toISOString(), endDate: new Date(draft.endLocal).toISOString(),
+    startDate: startUtc, endDate: endUtc,
     visibility: settings.visibility,
-    registrationDeadline: new Date(new Date(draft.startLocal).getTime() - (settings.registrationMode === 'required' ? 86_400_000 : 0)).toISOString(),
+    registrationDeadline: new Date(Date.parse(startUtc) - (settings.registrationMode === 'required' ? 86_400_000 : 0)).toISOString(),
     maxCapacity: settings.registrationMode === 'required' ? Number(draft.maxCapacity) : 0,
     capacityUnit: 'People', hardConstraints: [], optionalActivities: [], baseFeePerAdult: null, baseFeePerChild: null,
     currency: 'NZD', posterImageUrl: null, galleryUrls: [], legacySummary: null, contactProfileIds: [], ram: createEmptyEventRamDraft(),
@@ -111,9 +120,9 @@ export const creationEvent = (draft: CreationDraft, type: EventActivityType, dis
 
 export const creationSeries = (draft: CreationDraft, archetype: EventArchetype): EventSeriesSetup | null => archetype.isSeries ? {
   name: { en: draft.title.en || draft.title.zh, zh: draft.title.zh || draft.title.en },
-  recurrenceRule: `FREQ=WEEKLY;INTERVAL=1;BYDAY=${['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'][new Date(draft.startLocal).getDay()]}`,
+  recurrenceRule: `FREQ=WEEKLY;INTERVAL=${draft.intervalWeeks ?? '1'};BYDAY=${['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'][new Date(`${draft.startLocal}:00Z`).getUTCDay()]}`,
   timeZone: draft.timeZone, firstStartLocal: draft.startLocal,
-  durationMinutes: Math.round((new Date(draft.endLocal).getTime() - new Date(draft.startLocal).getTime()) / 60_000),
+  durationMinutes: Math.round((Date.parse(localTimeToUtc(draft.endLocal, draft.timeZone)) - Date.parse(localTimeToUtc(draft.startLocal, draft.timeZone))) / 60_000),
   exceptionDates: [], rollingOccurrenceWeeks: 12,
 } : null
 
@@ -123,7 +132,7 @@ export const creationDraftKey = (memberId: string, groupId: string) => `alife:ev
 export const restoreCreationDraft = (raw: string, archetypes: EventArchetype[]): CreationDraft | null => {
   try {
     const value = JSON.parse(raw)
-    if (!value || value.version !== 2 || !value.draft) return null
+    if (!value || ![2, 3].includes(value.version) || !value.draft) return null
     const draft = value.draft as CreationDraft
     if (!['archetypeCode', 'activityTypeCode', 'startLocal', 'endLocal', 'maxCapacity', 'timeZone'].every(key => typeof (draft as unknown as Record<string, unknown>)[key] === 'string')) return null
     if (![draft.title, draft.description, draft.locationName].every(x => x && typeof x.en === 'string' && typeof x.zh === 'string')) return null
@@ -137,7 +146,8 @@ export const restoreCreationDraft = (raw: string, archetypes: EventArchetype[]):
     if (!Object.entries(draft.moduleOverrides).every(([key, x]) => creationModuleCodes.some(code => code === key) && key !== 'TEAM.WORK' && typeof x === 'boolean')) return null
     if (!creationFacts.every(([code]) => ['unknown', 'yes', 'no'].includes(draft.factValues[code]))) return null
     if (!Object.entries(draft.aiCandidateFacts).every(([key, x]) => creationFacts.some(([code]) => code === key) && typeof x === 'boolean')) return null
-    return draft
+    if (value.version === 3 && (typeof draft.intervalWeeks !== 'string' || !draft.detailSources || Object.entries(draft.detailSources).some(([key, source]) => !detailFields.includes(key as typeof detailFields[number]) || !['default', 'human', 'explicit', 'unresolved'].includes(source)))) return null
+    return value.version === 2 ? { ...draft, intervalWeeks: '1', detailSources: {} } : draft
   } catch { return null }
 }
 

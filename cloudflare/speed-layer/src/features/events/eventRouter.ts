@@ -15,6 +15,8 @@ eventRouter.all('/api/events/session/*', async (req, env) => {
   return planner.fetch(req, env)
 })
 
+eventRouter.all('/api/events/details-session/*', async (req, env) => planner.fetch(req, env))
+
 // Route enrollment sessions
 eventRouter.all('/api/enrollments/session/*', async (req, env) => {
   return enrolment.fetch(req, env)
