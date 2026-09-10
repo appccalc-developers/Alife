@@ -1,3 +1,4 @@
+import type { DetailField } from '../../../../../shared/eventDetails'
 import { creationMessage } from '../../../utils/eventCreationCopy'
 import type { Dispatch, ReactNode, SetStateAction } from 'react'
 import AppSectionCard from '../../layout/AppSectionCard'
@@ -30,14 +31,16 @@ function BilingualField({ label, value, onChange, multiline }: { label: string; 
 
 export function DetailsStep({ draft, setDraft, zh, type, archetype, ai }: DraftProps & { type: EventActivityType; archetype: EventArchetype; ai: ReactNode }) {
   const settings = creationSettings(draft, type)
-  const textField = (key: 'startLocal' | 'endLocal' | 'maxCapacity' | 'timeZone', label: string, inputType = 'text') => <Field label={label}><input className={creationInput} type={inputType} value={draft[key]} min={inputType === 'number' ? 1 : undefined} step={inputType === 'number' ? 1 : undefined} onChange={e => setDraft(current => ({ ...current, [key]: e.target.value }))} /></Field>
+  const mark = (current: CreationDraft, field: DetailField) => ({ ...current.detailSources, [field]: 'human' as const })
+  const textField = (key: 'startLocal' | 'endLocal' | 'maxCapacity' | 'timeZone' | 'intervalWeeks', label: string, inputType = 'text') => <Field label={label}><input className={creationInput} type={inputType} value={draft[key] ?? ''} min={inputType === 'number' ? 1 : undefined} max={key === 'intervalWeeks' ? 52 : undefined} step={inputType === 'number' ? 1 : undefined} onChange={e => setDraft(current => ({ ...current, [key]: e.target.value, detailSources: mark(current, key) }))} /></Field>
   return <div className="space-y-4"><AppSectionCard title={zh ? '活动资料' : 'Event details'}><div className="grid gap-4 md:grid-cols-2">
-    {(['title', 'description', 'locationName'] as const).map(key => <BilingualField key={key} label={key === 'title' ? (zh ? '活动名称' : 'Event title') : key === 'description' ? (zh ? '活动说明' : 'Description') : (zh ? '地点说明' : 'Location')} value={draft[key]} multiline={key === 'description'} onChange={value => setDraft(current => ({ ...current, [key]: value }))} />)}
+    {(['title', 'description', 'locationName'] as const).map(key => <BilingualField key={key} label={key === 'title' ? (zh ? '活动名称' : 'Event title') : key === 'description' ? (zh ? '活动说明' : 'Description') : (zh ? '地点说明' : 'Location')} value={draft[key]} multiline={key === 'description'} onChange={value => setDraft(current => ({ ...current, [key]: value, detailSources: mark(current, key) }))} />)}
     {textField('startLocal', zh ? '开始时间' : 'Start time', 'datetime-local')}{textField('endLocal', zh ? '结束时间' : 'End time', 'datetime-local')}
-    <Field label={zh ? '可见范围' : 'Visibility'}><select className={creationInput} value={settings.visibility} onChange={e => { const value = e.target.value as typeof settings.visibility; setDraft(current => ({ ...current, overrides: { ...current.overrides, visibility: value } })) }}>{['groupVisible', 'churchVisible', 'public'].map(value => <option key={value} value={value}>{visibilityText(value, zh)}</option>)}</select></Field>
-    <Field label={zh ? '报名方式' : 'Registration'}><select className={creationInput} value={settings.registrationMode} onChange={e => { const value = e.target.value as 'none' | 'required'; setDraft(current => ({ ...current, overrides: { ...current.overrides, registrationMode: value } })) }}><option value="none">{zh ? '无需报名' : 'No registration'}</option><option value="required">{zh ? '需要报名' : 'Registration required'}</option></select></Field>
+    <Field label={zh ? '可见范围' : 'Visibility'}><select className={creationInput} value={settings.visibility} onChange={e => { const value = e.target.value as typeof settings.visibility; setDraft(current => ({ ...current, overrides: { ...current.overrides, visibility: value }, detailSources: mark(current, 'visibility') })) }}>{['groupVisible', 'churchVisible', 'public'].map(value => <option key={value} value={value}>{visibilityText(value, zh)}</option>)}</select></Field>
+    <Field label={zh ? '报名方式' : 'Registration'}><select className={creationInput} value={settings.registrationMode} onChange={e => { const value = e.target.value as 'none' | 'required'; setDraft(current => ({ ...current, overrides: { ...current.overrides, registrationMode: value }, detailSources: mark(current, 'registrationMode') })) }}><option value="none">{zh ? '无需报名' : 'No registration'}</option><option value="required">{zh ? '需要报名' : 'Registration required'}</option></select></Field>
     {settings.registrationMode === 'required' ? <>{textField('maxCapacity', zh ? '最多参加人数' : 'Capacity', 'number')}<p className="self-center text-sm text-[#66766f]">{zh ? '报名默认在活动开始前一天截止。' : 'Registration closes one day before the event starts.'}</p></> : null}
-    {archetype.isSeries ? <>{textField('timeZone', zh ? '活动时区' : 'Event time zone')}<p className="self-center text-sm text-[#66766f]">{zh ? '每周同一时间举行，预先安排未来 12 周。' : 'Repeats at the same local time each week, scheduling the next 12 weeks.'}</p></> : null}
+    {textField('timeZone', zh ? '活动时区' : 'Event time zone')}
+    {archetype.isSeries ? <>{textField('intervalWeeks', zh ? '每隔几周举行' : 'Repeat every N weeks', 'number')}<p className="self-center text-sm text-[#66766f]">{zh ? `每 ${draft.intervalWeeks || '1'} 周同一时间举行，预先安排未来 12 周。` : `Repeats every ${draft.intervalWeeks || '1'} week(s), scheduling the next 12 weeks.`}</p></> : null}
   </div></AppSectionCard>{ai}</div>
 }
 
@@ -88,9 +91,9 @@ export function ReviewStep({ draft, zh, type, archetype, proposal }: { draft: Cr
   const pending = creationFacts.filter(([code]) => draft.factValues[code] === 'unknown')
   return <div className="space-y-4"><AppSectionCard title={zh ? '确认活动方案' : 'Review event plan'} subtitle={zh ? '创建后进入活动工作区继续筹备；本次操作不会发布活动。' : 'Continue preparation in the event workspace after creation. This action does not publish the event.'}><h2 className="text-lg font-bold">{localText(draft.title, zh)}</h2><p className="mt-2 whitespace-pre-wrap text-sm">{localText(draft.description, zh)}</p><dl className="mt-3 grid gap-3 text-sm md:grid-cols-2">{[
     [zh ? '模板' : 'Template', localText(type.name, zh)], [zh ? '地点' : 'Location', localText(draft.locationName, zh) || (zh ? '待确认' : 'Pending')],
-    [zh ? '开始时间' : 'Starts', draft.startLocal.replace('T', ' ')], [zh ? '结束时间' : 'Ends', draft.endLocal.replace('T', ' ')],
+    [zh ? '活动时区' : 'Time zone', draft.timeZone], [zh ? '开始时间' : 'Starts', draft.startLocal.replace('T', ' ')], [zh ? '结束时间' : 'Ends', draft.endLocal.replace('T', ' ')],
     [zh ? '可见范围' : 'Visibility', visibilityText(settings.visibility, zh)], [zh ? '报名' : 'Registration', settings.registrationMode === 'required' ? `${zh ? '容量：' : 'Capacity: '}${draft.maxCapacity}` : (zh ? '无需报名' : 'Not required')],
-    ...(archetype.isSeries ? [[zh ? '重复安排' : 'Repeat', `${zh ? '每周，未来 12 周' : 'Weekly, next 12 weeks'} · ${draft.timeZone}`]] : []),
+    ...(archetype.isSeries ? [[zh ? '重复安排' : 'Repeat', `${zh ? `每 ${draft.intervalWeeks || '1'} 周，未来 12 周` : `Every ${draft.intervalWeeks || '1'} week(s), next 12 weeks`} · ${draft.timeZone}`]] : []),
   ].map(([label, value]) => <div key={label}><dt className="text-[#66766f]">{label}</dt><dd className="mt-1 break-words font-semibold">{value}</dd></div>)}</dl></AppSectionCard>
     <AppSectionCard title={zh ? '管理功能及来源' : 'Tools and reasons'}><div className="grid gap-2 md:grid-cols-2">{proposal.moduleDecisions.filter(x => x.status !== 'inactive').map(item => <ModuleResult key={item.moduleCode} decision={item} zh={zh} />)}</div></AppSectionCard>
     {pending.length ? <AppSectionCard title={zh ? '仍待确认的安排' : 'Arrangements still pending'}><ul className="list-disc space-y-1 pl-5 text-sm">{pending.map(([code, en, cn]) => <li key={code}>{zh ? cn : en}</li>)}</ul></AppSectionCard> : null}

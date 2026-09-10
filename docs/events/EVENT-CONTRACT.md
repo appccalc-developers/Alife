@@ -320,6 +320,8 @@ AI may not:
 - persist an Event Plan or operational decision;
 - publish an Event or generated content.
 
+The creation [AI details assistant](AI-DETAILS-ASSISTANT.md) may populate reviewable form fields from explicit input and report presentation completeness separately from AI sufficiency. Neither client-provided provenance nor either score confirms a domain fact, changes permissions or satisfies a governance gate. Final Event Plan acceptance remains explicit and server-validated.
+
 Human confirmation must be explicit, attributable, and auditable. AI prompts contain only the minimum necessary data and never include restricted child, financial, approval, contact, or health information.
 
 ## Authorisation, privacy, and caching invariants

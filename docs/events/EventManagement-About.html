@@ -83,6 +83,7 @@
 <p>Event Package Approval 是 Plan 接受之后、发布／开放报名／收款／确认执行之前的独立治理环节。系统从当前 Plan、版本化治理政策、活动范围和各模块的最小必要摘要生成不可变 Package；提交后，由服务器确认有资格且与提交人适当分离的审批人作出批准、附条件批准或拒绝决定。Package 审批不取代 RAM、儿童保护、财务等专业审批，也不会自动触发后续动作。</p>
 <p>审批只对绑定的 Plan、Package 版本、政策版本、来源向量和明确范围有效。重要来源变更、专业审批撤销或过期、条件失效会使相关生命周期门禁失效，并向操作者返回可解释的阻断原因。已有活动不会被补造历史批准；它们只按版本化迁移政策从 <code>off</code>、<code>dryRun</code> 进入 <code>enforced</code>。Plan B 和自动后备方案启用不在当前范围内。</p>
 <h3>人工确认与 AI 权限边界</h3>
+<p>创建时的 <a href="AI-DETAILS-ASSISTANT.md">AI 资料助手</a> 根据最新表单逐轮整理双语文字、时间、地点和报名设置，显示字段完成度、AI 充分性评估及待澄清问题。默认值需用户确认才计入完成度；时间使用活动时区，系列活动支持每 1–52 周重复并保留未来 12 周窗口。回填仅更新待审阅草稿，最终创建仍须人工确认。</p>
 <p>组合只生成候选方案。服务器在接受时重新组合并检查 hash、并发和幂等性；只有明确的人工接受才能建立权威、版本化且不可变的 Event Plan snapshot。以后修改原型、模板、模块或政策，不得改写已接受方案或历史实例。</p>
 <p>AI 可以建议候选事实和解释原因，但不能确认事实、分配权限、批准、豁免政策、授予赞助、持久化或发布。前端可见性永远不能代替服务器授权，私密／受限资料不得进入共享缓存、日志或 AI 提示。</p>
 <h3>一个工作流引擎</h3>
@@ -114,6 +115,7 @@
 <p>Event Package Approval 是 Plan 接受之後、發布／開放報名／收款／確認執行之前的獨立治理環節。系統從當前 Plan、版本化治理政策、活動範圍和各模組的最小必要摘要產生不可變 Package；提交後，由伺服器確認有資格且與提交人適當分離的審批人作出批准、附條件批准或拒絕決定。Package 審批不取代 RAM、兒童保護、財務等專業審批，也不會自動觸發後續動作。</p>
 <p>審批只對綁定的 Plan、Package 版本、政策版本、來源向量和明確範圍有效。重要來源變更、專業審批撤銷或過期、條件失效會使相關生命週期門禁失效，並向操作者回傳可解釋的阻斷原因。既有活動不會被補造歷史批准；它們只按版本化遷移政策從 <code>off</code>、<code>dryRun</code> 進入 <code>enforced</code>。Plan B 和自動後備方案啟用不在目前範圍內。</p>
 <h3>人工確認與 AI 權限邊界</h3>
+<p>建立時的 <a href="AI-DETAILS-ASSISTANT.md">AI 資料助手</a> 根據最新表單逐輪整理雙語文字、時間、地點和報名設定，顯示欄位完成度、AI 充分性評估及待釐清問題。預設值需使用者確認才計入完成度；時間使用活動時區，系列活動支援每 1–52 週重複並保留未來 12 週視窗。回填僅更新待審閱草稿，最終建立仍須人工確認。</p>
 <p>組合只產生候選方案。伺服器在接受時重新組合並檢查 hash、並行控制和冪等性；只有明確的人工接受才能建立權威、版本化且不可變的 Event Plan snapshot。以後修改原型、範本、模組或政策，不得改寫已接受方案或歷史實例。</p>
 <p>AI 可以建議候選事實和解釋原因，但不能確認事實、分配權限、批准、豁免政策、授予贊助、持久化或發布。前端可見性永遠不能代替伺服器授權，私密／受限資料不得進入共享快取、日誌或 AI 提示。</p>
 <h3>一個工作流引擎</h3>
@@ -145,6 +147,7 @@
 <p>Event Package Approval is a distinct governance step after Plan acceptance and before publication, registration opening, payment acceptance, or execution confirmation. The system generates an immutable Package from the current Plan, versioned governance policy, explicit scope, and each module's minimum necessary summary. After submission, a server-verified eligible approver with appropriate separation from the submitter records approval, conditional approval, or rejection. Package approval neither replaces specialist RAM, safeguarding, or finance decisions nor performs a downstream action automatically.</p>
 <p>Approval is valid only for the bound Plan, Package version, policy version, source vector, and explicit scope. Material source changes, revoked or expired specialist decisions, and failed conditions invalidate the affected lifecycle gates with explainable blockers. Existing Events receive no invented historical approval; they enter enforcement only through a versioned <code>off</code>, <code>dryRun</code>, then <code>enforced</code> migration policy. Plan B and automatic contingency activation are outside the current scope.</p>
 <h3>Human confirmation and AI authority</h3>
+<p>The creation <a href="AI-DETAILS-ASSISTANT.md">AI details assistant</a> uses the latest form on each turn to organise bilingual copy, times, location and registration settings, with field completion, an AI sufficiency assessment and clarification questions. Defaults count only after user confirmation. Dates use the event time zone; series repeat every 1–52 weeks within the rolling 12-week window. Autofill updates a reviewable draft; final creation still requires human acceptance.</p>
 <p>Composition produces a candidate plan only. On acceptance, the server recomposes and checks the hash, concurrency, and idempotency; only explicit human acceptance creates an authoritative, versioned, immutable Event Plan snapshot. Later archetype, template, module, or policy changes never rewrite accepted plans or historical occurrences.</p>
 <p>AI may propose candidate facts and explain recommendations. It cannot confirm facts, assign authority, approve, waive policy, grant sponsorship, persist, or publish. Frontend visibility never replaces server authorisation, and private or restricted data never enters shared cache, logs, or AI prompts.</p>
 <h3>One workflow engine</h3>

@@ -122,7 +122,7 @@ const REVIEW_RESPONSE_SCHEMA = {
   },
 } as const
 
-const REVIEW_SYSTEM_INSTRUCTION = `
+const REVIEW_SCENARIO = `
 You are the Alife event review assistant for a bilingual Chinese/English church community PWA.
 
 Return exactly one JSON object matching the ReviewDraft response schema. Never return Markdown.
@@ -171,7 +171,7 @@ export class ReviewSession extends AiChatSession<ReviewDraft, MultilingualString
     super(durableState, env, {
       storageKey: SESSION_STORAGE_KEY,
       routeNotFoundMessage: 'Review session route not found.',
-      systemInstruction: (today) => REVIEW_SYSTEM_INSTRUCTION.replace('CURRENT_DATE_PLACEHOLDER', today),
+      scenarioDefinition: (today) => REVIEW_SCENARIO.replace('CURRENT_DATE_PLACEHOLDER', today),
       responseSchema: REVIEW_RESPONSE_SCHEMA,
       normalizeDraft: normalizeReviewDraft,
       validateDraft: validateReviewDraft,

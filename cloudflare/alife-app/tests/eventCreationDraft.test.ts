@@ -92,7 +92,7 @@ test('duplicate submissions are blocked, retries reuse keys and changed proposal
 
 test('new drafts roundtrip, isolate viewers and groups, and reject legacy or invalid persisted values', () => {
   const value = draft(), catalogue = [category(type)]
-  assert.deepEqual(restoreCreationDraft(JSON.stringify({ version: 2, draft: value }), catalogue), value)
+  assert.deepEqual(restoreCreationDraft(JSON.stringify({ version: 3, draft: value }), catalogue), value)
   assert.equal(restoreCreationDraft(JSON.stringify(value), catalogue), null)
   assert.equal(restoreCreationDraft(JSON.stringify({ version: 1, draft: value }), catalogue), null)
   assert.equal(restoreCreationDraft(JSON.stringify({ version: 2, draft: { ...value, title: {} } }), catalogue), null)

@@ -11,6 +11,59 @@
     "event-contract.json exact codes, enums and references",
     "Explanatory examples"
   ],
+  "eventDetailsAssistant": {
+    "contractVersion": 1,
+    "documentation": "AI-DETAILS-ASSISTANT.md",
+    "routePrefix": "/api/events/details-session/{id}",
+    "operations": [
+      "POST message",
+      "GET state",
+      "POST close"
+    ],
+    "formFields": [
+      "title",
+      "description",
+      "locationName",
+      "startLocal",
+      "endLocal",
+      "timeZone",
+      "visibility",
+      "registrationMode",
+      "maxCapacity",
+      "intervalWeeks"
+    ],
+    "fieldSources": [
+      "default",
+      "human",
+      "explicit",
+      "unresolved"
+    ],
+    "fieldAssessmentStatuses": [
+      "explicit",
+      "inferred",
+      "missing",
+      "ambiguous",
+      "conflicting"
+    ],
+    "issueKinds": [
+      "missing",
+      "confirmationNeeded",
+      "ambiguous",
+      "conflicting",
+      "unsupported"
+    ],
+    "completionAuthority": "Presentation completeness only; neither client provenance nor AI scores grant business confirmation, permission or approval.",
+    "sharedAssistantPolicyVersion": "1.0.0",
+    "localDraftVersion": 3,
+    "acceptedLocalDraftVersions": [
+      2,
+      3
+    ],
+    "recurrenceIntervalWeeks": {
+      "minimum": 1,
+      "maximum": 52
+    }
+  },
   "enums": {
     "governanceMode": [
       "private",

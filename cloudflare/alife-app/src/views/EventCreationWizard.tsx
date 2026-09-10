@@ -1,10 +1,10 @@
+import EventDetailsAssistant from '../components/events/creation/EventDetailsAssistant'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom'
 import AppActionButton from '../components/layout/AppActionButton'
 import AppEmptyState from '../components/layout/AppEmptyState'
 import AppPageShell from '../components/layout/AppPageShell'
-import AppSectionCard from '../components/layout/AppSectionCard'
-import { ArrangementsStep, creationInput, DetailsStep, ReviewStep, TemplateStep } from '../components/events/creation/CreationSteps'
+import { ArrangementsStep, DetailsStep, ReviewStep, TemplateStep } from '../components/events/creation/CreationSteps'
 import { useCreationDraft } from '../components/events/creation/useCreationDraft'
 import { eventCompositionService } from '../services/eventCompositionService'
 import { eventService } from '../services/eventService'
@@ -12,7 +12,7 @@ import { normalizeApiError } from '../services/http'
 import { useAuthStore } from '../stores/auth'
 import { useCurrentGroupStore } from '../stores/currentGroup'
 import type { EventArchetype, EventPlanProposal } from '../types/eventComposition'
-import { applyAiCopyDraft, deriveAiCandidateFacts, resolveActivityType } from '../utils/eventCreationWizard'
+import { resolveActivityType } from '../utils/eventCreationWizard'
 import { composeCreationDraft, createRequestSequence, createSubmissionGuard, creationDraftKey, creationEvent, creationSeries, validateCreationDraft } from '../utils/eventCreationDraft'
 
 type Step = 1 | 2 | 3 | 4
@@ -47,12 +47,7 @@ function CreationFlow({ groupId, memberId }: { groupId: string; memberId: string
   const [error, setError] = useState('')
   const submission = useRef(createSubmissionGuard())
   const currentPreview = previewState === 'ready' && preview?.signature === compositionSignature
-  const [aiPrompt, setAiPrompt] = useState('')
-  const [aiReply, setAiReply] = useState('')
   const [aiBusy, setAiBusy] = useState(false)
-  const aiSequence = useRef(createRequestSequence())
-  const aiSessionId = useRef(crypto.randomUUID())
-  const aiStarted = useRef(false)
 
   useEffect(() => {
     let active = true
@@ -64,7 +59,7 @@ function CreationFlow({ groupId, memberId }: { groupId: string; memberId: string
     })
     return () => { active = false }
   }, [groupId, catalogueAttempt])
-  useEffect(() => () => { sequence.current.invalidate(); aiSequence.current.invalidate() }, [])
+  useEffect(() => () => { sequence.current.invalidate() }, [])
 
   // Copy and language changes do not refetch the composition.
   useEffect(() => {
@@ -124,7 +119,7 @@ function CreationFlow({ groupId, memberId }: { groupId: string; memberId: string
     setBusy(true)
     setError('')
     try {
-      const created = await eventService.createGroupEvent(groupId, creationEvent(draft, type, me?.displayName || ''), aiStarted.current ? aiSessionId.current : undefined, undefined, null, {
+      const created = await eventService.createGroupEvent(groupId, creationEvent(draft, type, me?.displayName || ''), undefined, undefined, null, {
         composition, proposalHash: preview.proposal.proposalHash, idempotencyKey, seriesSetup: creationSeries(draft, archetype),
       })
       submission.current.finish(true)
@@ -141,34 +136,9 @@ function CreationFlow({ groupId, memberId }: { groupId: string; memberId: string
     } finally { actionLock.current = false; setBusy(false) }
   }
 
-  const runAi = async () => {
-    if (aiBusy || !aiPrompt.trim() || !type || !archetype) return
-    if (!Number.isFinite(new Date(draft.startLocal).getTime()) || !Number.isFinite(new Date(draft.endLocal).getTime())) { setError(zh ? '请先填写有效时间。' : 'Enter valid dates first.'); return }
-    const id = aiSequence.current.next()
-    const signature = creationSignature
-    setAiBusy(true); setError('')
-    try {
-      const appContext = { language, userId: me?.id, memberId: me?.id, groupId, knownFacts: { archetypeCode: draft.archetypeCode, activityTypeCode: type.code } }
-      if (!aiStarted.current) {
-        await eventService.startSession(aiSessionId.current, creationEvent(draft, type, me?.displayName || ''), appContext)
-        aiStarted.current = true
-      }
-      const response = await eventService.extractFromChat(aiPrompt.trim(), aiSessionId.current, 'text', appContext)
-      if (!aiSequence.current.isCurrent(id)) return
-      if (latest.current.creationSignature !== signature) { setAiReply(zh ? '资料已修改，未覆盖你的输入。请按最新资料重新生成。' : 'Details changed. Your edits were preserved; generate again using the latest details.'); return }
-      setAiReply(response.markdown || (zh ? '请审阅生成的双语草稿。' : 'Review the generated bilingual draft.'))
-      if (response.result) {
-        const result = response.result
-        setDraft(current => ({ ...current, ...applyAiCopyDraft(current, result), aiCandidateFacts: { ...current.aiCandidateFacts, ...deriveAiCandidateFacts(result) } }))
-      }
-      setAiPrompt('')
-    } catch (reason) { if (aiSequence.current.isCurrent(id)) setError(normalizeApiError(reason).message) }
-    finally { if (aiSequence.current.isCurrent(id)) setAiBusy(false) }
-  }
-
   const labels = zh ? ['选择模板', '活动资料', '活动安排', '确认创建'] : ['Template', 'Details', 'Arrange', 'Review']
   const previewStatus = <div aria-live="polite" className="rounded-xl border border-[#2f4b42]/15 bg-white p-3 text-sm">{currentPreview ? (zh ? '已根据当前安排更新管理功能。' : 'Tools updated for the current arrangements.') : previewState === 'error' ? <><p role="alert">{previewError}</p><AppActionButton className="mt-2" onClick={() => setPreviewAttempt(value => value + 1)}>{zh ? '重新计算' : 'Retry'}</AppActionButton></> : (zh ? '正在根据活动安排更新功能，请稍候……' : 'Updating tools from event arrangements…')}</div>
-  const ai = <AppSectionCard><details><summary className="min-h-11 cursor-pointer py-2 font-semibold">{zh ? 'AI 资料助手（可选）' : 'AI details assistant (optional)'}</summary><p className="mb-2 text-sm text-[#66766f]">{zh ? '协助整理双语文字，请审阅后再创建。AI 建议的活动安排仍需你确认。' : 'Draft bilingual copy for review. Suggested arrangements still need your confirmation.'}</p><label className="text-sm">{zh ? '需要整理的资料' : 'Notes to organise'}<textarea className={`${creationInput} py-2`} rows={3} value={aiPrompt} onChange={e => setAiPrompt(e.target.value)} /></label>{aiReply ? <p className="mt-2 whitespace-pre-wrap text-sm">{aiReply}</p> : null}<AppActionButton className="mt-3" disabled={aiBusy || !aiPrompt.trim()} onClick={() => void runAi()}>{aiBusy ? (zh ? '整理中……' : 'Drafting…') : (zh ? '生成文字草稿' : 'Draft event copy')}</AppActionButton></details></AppSectionCard>
+
 
   return <AppPageShell title={zh ? '建立活动' : 'Create event'} context={zh ? '小组生活 / 活动' : 'Group Life / Events'}>
     <Link className="text-sm font-semibold text-[#176b5a]" to={`/groups/${encodeURIComponent(groupId)}?section=events`}>{zh ? '← 返回活动' : '← Back to events'}</Link>
@@ -180,7 +150,8 @@ function CreationFlow({ groupId, memberId }: { groupId: string; memberId: string
     {catalogue === 'ready' && hydrated ? <>
       <fieldset ref={stepRegion} tabIndex={-1} aria-label={labels[step - 1]} disabled={busy} className="min-w-0 space-y-4 outline-none" aria-busy={busy}>
         {step === 1 ? <TemplateStep draft={draft} setDraft={setDraft} zh={zh} archetypes={archetypes} type={type} /> : null}
-        {step === 2 && type && archetype ? <DetailsStep draft={draft} setDraft={setDraft} zh={zh} type={type} archetype={archetype} ai={ai} /> : null}
+        {step === 2 && type && archetype ? <DetailsStep draft={draft} setDraft={setDraft} zh={zh} type={type} archetype={archetype} ai={null} /> : null}
+        {type && archetype ? <div hidden={step !== 2}><EventDetailsAssistant draft={draft} setDraft={setDraft} type={type} isSeries={archetype.isSeries} zh={zh} onBusy={setAiBusy} /></div> : null}
         {step === 3 && type ? <ArrangementsStep draft={draft} setDraft={setDraft} zh={zh} type={type} proposal={preview?.proposal ?? null} current={Boolean(currentPreview)} status={previewStatus} /> : null}
         {step === 4 && type && archetype && preview ? <ReviewStep draft={draft} zh={zh} type={type} archetype={archetype} proposal={preview.proposal} /> : null}
       </fieldset>
