@@ -1,3 +1,4 @@
+import { HttpStatusError } from './httpError'
 import { cacheDiagnosticStore } from '../stores/cacheDiagnosticStore'
 import { clear, createStore, get, set } from 'idb-keyval'
 
@@ -210,7 +211,7 @@ const executeConditionalGet = async <TData>({ queryKey, path, parser }: Conditio
       networkMs,
       sqlSkipped,
     })
-    throw new Error(`GET ${path} failed with status ${response.status}`)
+    throw new HttpStatusError(path, response.status)
   }
 
   // Extract ETag from response headers

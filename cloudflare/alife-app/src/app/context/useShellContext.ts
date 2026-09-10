@@ -137,7 +137,7 @@ export const useShellContext = () => {
   const isEventDetailScreen = Boolean(contextualEventRouteId)
 
   useEffect(() => {
-    if (!contextualGroupId) {
+    if (!auth.initialized || !contextualGroupId) {
       setCurrentSubgroups([])
       setContextualGroup(null)
       groupDataIdRef.current = ''
@@ -152,25 +152,22 @@ export const useShellContext = () => {
 
     let cancelled = false
     fetchGroupForViewer(contextualGroupId, auth.me?.id)
-      .then((group) => {
-        if (!cancelled) setContextualGroup(normalizeGroup(group))
-      })
-      .catch(() => undefined)
-
-    if (auth.isGuest) {
-      setCurrentSubgroups([])
-    } else {
-      conditionalGet<GroupSummaryDto[]>({ queryKey: subgroupsQueryKey(contextualGroupId), path: `/api/groups/${contextualGroupId}/subgroups` })
-        .then((groups) => {
+      .then(async (group) => {
+        if (cancelled) return
+        setContextualGroup(normalizeGroup(group))
+        if (auth.isGuest) {
+          setCurrentSubgroups([])
+        } else {
+          const groups = await conditionalGet<GroupSummaryDto[]>({ queryKey: subgroupsQueryKey(contextualGroupId), path: `/api/groups/${contextualGroupId}/subgroups` })
           if (!cancelled) setCurrentSubgroups(groups.map(normalizeGroup))
-        })
-        .catch(() => undefined)
-    }
+        }
+      })
+      .catch(() => { if (!cancelled) { setContextualGroup(null); setCurrentSubgroups([]) } })
     return () => { cancelled = true }
-  }, [auth.isGuest, auth.me?.id, contextualGroupId])
+  }, [auth.initialized, auth.isGuest, auth.me?.id, contextualGroupId])
 
   useEffect(() => {
-    if (!contextualGroupId || !contextualEventRouteId) {
+    if (!contextualGroupId || contextualGroup?.id !== contextualGroupId || !contextualEventRouteId) {
       setContextualEvent(null)
       return
     }
@@ -185,7 +182,7 @@ export const useShellContext = () => {
       })
 
     return () => { cancelled = true }
-  }, [auth.me?.id, contextualEventRouteId, contextualGroupId])
+  }, [auth.me?.id, contextualEventRouteId, contextualGroupId, contextualGroup?.id])
 
   useEffect(() => {
     let cancelled = false

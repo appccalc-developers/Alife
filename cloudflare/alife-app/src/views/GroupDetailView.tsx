@@ -1,3 +1,4 @@
+import GroupLoadError from '../components/group/GroupLoadError'
 import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Pencil, Settings2 } from 'lucide-react'
@@ -179,7 +180,7 @@ const GroupDetailView = () => {
   const routeGroupQuery = useQuery({
     queryKey: ['group-route-scope', routeGroupId ?? '', auth.me?.id ?? 'guest'],
     queryFn: () => ensureGroupForViewer(routeGroupId || '', auth.me?.id),
-    enabled: Boolean(routeGroupId),
+    enabled: auth.initialized && Boolean(routeGroupId),
     staleTime: 1_000,
   })
   const isChurchRoute = routeGroupQuery.data?.isChurch === true
@@ -196,6 +197,10 @@ const GroupDetailView = () => {
         </section>
       </AppPageShell>
     )
+  }
+
+  if (routeGroupId && routeGroupQuery.isError) {
+    return <GroupLoadError error={routeGroupQuery.error} retry={() => void routeGroupQuery.refetch()} />
   }
 
   if (isChurchRoute) {

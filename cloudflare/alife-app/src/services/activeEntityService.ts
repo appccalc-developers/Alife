@@ -83,6 +83,7 @@ const emitChanged = () => {
 }
 
 export const activeEntityService = {
+  getViewerId: () => activeViewerId,
   setViewer(viewerId?: string | null) {
     const nextViewerId = normalizeId(viewerId)
     removeLegacyStorage()

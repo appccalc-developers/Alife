@@ -1,3 +1,5 @@
+import { activeEntityService } from '../../services/activeEntityService'
+import { isNotFound } from '../httpError'
 import { createCollection } from '@tanstack/react-db'
 import { queryCollectionOptions } from '@tanstack/query-db-collection'
 import type { GroupDto, GroupMembershipDto, GroupSummaryDto, PageSummaryDto } from '../../types'
@@ -18,7 +20,7 @@ export const getCachedChurch = async () => {
 // ---------- Publicly visible groups ----------
 
 export const visibleGroupsQueryKey = (viewerId?: string) =>
-  ['visibleGroups', 'viewer', viewerId?.trim() || 'anonymous'] as const
+  ['visibleGroups', 'v2', 'viewer', viewerId?.trim() || 'anonymous'] as const
 const legacyVisibleGroupsQueryKey = ['visibleGroups'] as const
 
 const visibleGroupsQueryOptions = (viewerId?: string) => ({
@@ -27,6 +29,7 @@ const visibleGroupsQueryOptions = (viewerId?: string) => ({
     // The legacy key was shared by every signed-in user in the same browser.
     // Remove it before using the viewer-scoped cache so private group names cannot linger there.
     await removeCachedRecord(legacyVisibleGroupsQueryKey)
+    await removeCachedRecord(['visibleGroups', 'viewer', viewerId?.trim() || 'anonymous'])
     const groups = await conditionalGet<GroupSummaryDto[]>({
       queryKey: visibleGroupsQueryKey(viewerId),
       path: '/api/groups/visible',
@@ -45,7 +48,7 @@ export const getCachedVisibleGroups = async (viewerId?: string) =>
   ((await getCachedRecord<GroupSummaryDto[]>(visibleGroupsQueryKey(viewerId)))?.data ?? []).map(normalizeGroup)
 
 export const invalidateVisibleGroupsForViewers = async (...viewerIds: Array<string | null | undefined>) => {
-  const normalizedViewerIds = Array.from(new Set(viewerIds.map((viewerId) => viewerId?.trim()).filter(Boolean))) as string[]
+  const normalizedViewerIds = Array.from(new Set([activeEntityService.getViewerId(), ...viewerIds].map((viewerId) => viewerId?.trim() || ''))) as string[]
   const queryKeys = normalizedViewerIds.map((viewerId) => visibleGroupsQueryKey(viewerId))
 
   await Promise.all([
@@ -55,6 +58,7 @@ export const invalidateVisibleGroupsForViewers = async (...viewerIds: Array<stri
   queryClient.removeQueries({ queryKey: legacyVisibleGroupsQueryKey, exact: true })
   queryKeys.forEach((queryKey) => queryClient.removeQueries({ queryKey, exact: true }))
   await queryClient.invalidateQueries({ queryKey: ['group-life-directory'] })
+  window.dispatchEvent(new Event('alife-group-memberships-changed'))
 }
 
 // ---------- Group by id (single object, cached only and not exposed as a collection) ----------
@@ -64,12 +68,40 @@ export const groupQueryKey = (groupId: string) => ['group', groupId] as const
 const groupViewerQueryKey = (groupId: string, viewerId?: string) =>
   [...groupQueryKey(groupId), 'viewer', viewerId?.trim() || 'guest'] as const
 
+export const GROUP_NOT_FOUND_EVENT = 'alife-group-not-found'
+const missingGroups = new Map<string, { error: Error; until: number }>()
+
+const readGroup = async (groupId: string, viewerId?: string) => {
+  const key = JSON.stringify(groupViewerQueryKey(groupId, viewerId))
+  for (const [cachedKey, entry] of missingGroups) if (entry.until <= Date.now()) missingGroups.delete(cachedKey)
+  const missing = missingGroups.get(key)
+  if (missing && missing.until > Date.now()) throw missing.error
+  missingGroups.delete(key)
+  try {
+    return await conditionalGet<GroupDto>({ queryKey: groupQueryKey(groupId), path: `/api/groups/${groupId}` })
+  } catch (error) {
+    if (isNotFound(error) && !missingGroups.has(key)) {
+      missingGroups.set(key, { error, until: Date.now() + 30_000 })
+      const keys = [...['group', 'groupPages', 'groupEvents', 'groupMemberships', 'subgroups'].map(kind => [kind, groupId]), ['groupMemberships', groupId, 'members-only'], ['groupMemberships', groupId, 'line-candidates']]
+      // Do not delete this in-flight query: all consumers must observe its 404.
+      await Promise.all(keys.map(queryKey => removeCachedRecord(queryKey)))
+      for (const queryKey of keys.filter(key => key[0] !== 'group')) queryClient.removeQueries({ queryKey })
+      if (activeEntityService.getViewerId() === (viewerId ?? '')) {
+        window.dispatchEvent(new CustomEvent(GROUP_NOT_FOUND_EVENT, { detail: groupId }))
+        if (activeEntityService.getAll().groupId === groupId) {
+          activeEntityService.setGroup('', { clearPage: true, clearEvent: true })
+        }
+        // A failed recovery must not turn the original 404 into another error.
+        void invalidateVisibleGroupsForViewers(viewerId).catch(() => undefined)
+      }
+    }
+    throw error
+  }
+}
+
 const groupViewerQueryOptions = (groupId: string, viewerId?: string) => ({
   queryKey: groupViewerQueryKey(groupId, viewerId),
-  queryFn: () => conditionalGet<GroupDto>({
-    queryKey: groupQueryKey(groupId),
-    path: `/api/groups/${groupId}`,
-  }),
+  queryFn: () => readGroup(groupId, viewerId),
   // Coalesce sequential StrictMode/shell startup reads without becoming a navigation cache.
   staleTime: 1_000,
 })
@@ -77,8 +109,11 @@ const groupViewerQueryOptions = (groupId: string, viewerId?: string) => ({
 export const fetchGroupForViewer = (groupId: string, viewerId?: string) =>
   queryClient.fetchQuery(groupViewerQueryOptions(groupId, viewerId))
 
-export const ensureGroupForViewer = (groupId: string, viewerId?: string) =>
-  queryClient.ensureQueryData(groupViewerQueryOptions(groupId, viewerId))
+export const ensureGroupForViewer = (groupId: string, viewerId?: string) => {
+  const missing = missingGroups.get(JSON.stringify(groupViewerQueryKey(groupId, viewerId)))
+  if (missing && missing.until > Date.now()) return Promise.reject(missing.error)
+  return queryClient.ensureQueryData(groupViewerQueryOptions(groupId, viewerId))
+}
 
 export const getCachedGroup = async (groupId: string) =>
   normalizeNullableGroup((await getCachedRecord<GroupDto>(groupQueryKey(groupId)))?.data)

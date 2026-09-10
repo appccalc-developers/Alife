@@ -1,6 +1,7 @@
+import { activeEntityService } from './activeEntityService'
 import { http } from './http'
 import { conditionalGet, removeCachedRecord } from '../db/httpCache'
-import { churchQueryKey, fetchVisibleGroupsForViewer, invalidateVisibleGroupsForViewers, subgroupsQueryKey } from '../db/collections/groupCollection'
+import { churchQueryKey, fetchGroupForViewer, fetchVisibleGroupsForViewer, invalidateVisibleGroupsForViewers, subgroupsQueryKey } from '../db/collections/groupCollection'
 import { sermonsQueryKey } from '../db/collections/sermonsCollection'
 import { queryClient } from '../db/queryClient'
 import { publicPagesQueryKey } from './pageService'
@@ -380,7 +381,7 @@ export const groupService = {
   },
 
   async getGroup(groupId: string) {
-    const { data } = await http.get<GroupDto>(`/api/groups/${groupId}`)
+    const data = await fetchGroupForViewer(groupId, activeEntityService.getViewerId())
     return normalizeGroup(data)
   },
 
@@ -418,18 +419,20 @@ export const groupService = {
 
   async createSubgroup(groupId: string, payload: CreateSubgroupPayload) {
     const { data } = await http.post<GroupSummaryDto>(`/api/groups/${groupId}/subgroups`, payload)
+    await invalidateVisibleGroupsForViewers()
     await invalidateChurchLifeQueries()
     return normalizeGroup(data)
   },
 
   async claimSubgroupCoLeader(groupId: string, subgroupId: string) {
     await http.post(`/api/groups/${groupId}/subgroups/${subgroupId}/claim-coleader`)
+    await invalidateVisibleGroupsForViewers()
     await invalidateChurchLifeQueries()
   },
 
   async updateGroup(groupId: string, payload: UpdateGroupPayload) {
     const { data } = await http.put<GroupDto>(`/api/groups/${groupId}`, payload)
-    await queryClient.invalidateQueries({ queryKey: ['group-life-directory'] })
+    await invalidateVisibleGroupsForViewers()
     await invalidateChurchLifeQueries()
     return normalizeGroup(data)
   },
@@ -441,13 +444,13 @@ export const groupService = {
 
   async deleteSubgroup(subgroupId: string) {
     await http.post(`/api/groups/${subgroupId}/close`)
-    await queryClient.invalidateQueries({ queryKey: ['group-life-directory'] })
+    await invalidateVisibleGroupsForViewers()
     await invalidateChurchLifeQueries()
   },
 
   async closeGroup(groupId: string) {
     await http.post(`/api/groups/${groupId}/close`)
-    await queryClient.invalidateQueries({ queryKey: ['group-life-directory'] })
+    await invalidateVisibleGroupsForViewers()
     await invalidateChurchLifeQueries()
   },
 
@@ -458,6 +461,7 @@ export const groupService = {
 
   async dissolveGroup(groupId: string) {
     await http.post(`/api/groups/${groupId}/dissolve`)
+    await invalidateVisibleGroupsForViewers()
   },
 
   async refreshAfterDissolution(groupId: string, parentGroupId: string | null | undefined, viewerId: string) {

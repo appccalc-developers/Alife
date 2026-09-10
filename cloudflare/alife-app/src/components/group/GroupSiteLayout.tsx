@@ -1,3 +1,4 @@
+import GroupLoadError from './GroupLoadError'
 import { createContext, useContext, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useLocation } from 'react-router-dom'
@@ -19,7 +20,7 @@ const GroupSiteLayout = ({ groupId, children }: { groupId: string; children: Rea
   const location = useLocation()
   const route = getGroupSiteRoute(location.pathname, location.search)
   const groupQuery = useQuery({ queryKey: ['group-site', groupId, auth.me?.id ?? 'guest'],
-    queryFn: () => fetchGroupForViewer(groupId, auth.me?.id), enabled: Boolean(groupId), staleTime: 30_000 })
+    queryFn: () => fetchGroupForViewer(groupId, auth.me?.id), enabled: auth.initialized && Boolean(groupId), staleTime: 30_000 })
   const canManage = auth.hasLeaderAccess(groupId)
   const canRead = auth.isAdmin || auth.memberships.some(m => m.groupId === groupId && m.status === 'approved')
   const items = getGroupSiteMenu(auth.language, { canManage, canRead }, groupId)
@@ -33,6 +34,8 @@ const GroupSiteLayout = ({ groupId, children }: { groupId: string; children: Rea
     forum: ['在小组内分享近况、交流问题与资源。', 'Share updates, questions, and resources with your group.'],
     events: ['查看活动安排，管理报名与回顾。', 'Explore events, manage enrollment, and revisit past gatherings.'],
   }
+  if (groupQuery.isError) return <GroupLoadError error={groupQuery.error} retry={() => void groupQuery.refetch()} />
+  if (groupQuery.isPending) return <p role="status">{zh ? '正在加载小组…' : 'Loading group…'}</p>
   return <GroupSiteContext.Provider value>
     <div className="mx-auto w-full max-w-6xl space-y-5 desktop:space-y-6">
       <AppPageTitleBar title={localizeText(groupQuery.data?.name, auth.language) || (zh ? '小组生活' : 'Group Life')}

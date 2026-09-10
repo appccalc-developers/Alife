@@ -49,13 +49,15 @@ export const authMiddleware = async (
   next: () => Promise<Response>
 ) => {
   const url = new URL(req.url)
-  const sharedContext = await getSharedCacheContext(req, env)
+  const sharedContext = url.pathname === '/api/groups/visible' ? null : await getSharedCacheContext(req, env)
   req.sharedContext = sharedContext
   req.bypassEdgeCache = shouldBypassEdgeCache(url.pathname, sharedContext)
   return next()
 }
 
 export function shouldBypassEdgeCache(pathname: string, sharedContext?: SharedCacheContext | null) {
+  if (pathname === '/api/groups/visible') return true
+
   if (pathname === '/images' || pathname.startsWith('/images/')) {
     return false
   }
@@ -88,6 +90,7 @@ export async function getSharedCacheContext(request: Request, env: Env): Promise
   }
 
   const url = new URL(request.url)
+  if (url.pathname === '/api/groups/visible') return null
   const pageDetailId = getPageDetailId(url.pathname)
   const pageMeta = pageDetailId
     ? await readPageMeta(env, pageDetailId)
@@ -264,7 +267,9 @@ export function getPageDetailId(pathname: string) {
 }
 
 export function getGroupDetailId(pathname: string) {
-  return pathname.match(/^\/api\/groups\/([^/]+)$/)?.[1] ?? ''
+  // The church alias retains its existing dedicated cache behavior.
+  if (pathname === '/api/groups/church') return 'church'
+  return pathname.match(/^\/api\/groups\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i)?.[1] ?? ''
 }
 
 export function getGroupSubresource(pathname: string) {

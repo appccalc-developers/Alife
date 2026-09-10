@@ -72,6 +72,13 @@ export const apiCacheMiddleware = async (
   next: () => Promise<Response>
 ) => {
   const url = new URL(req.url)
+  if (req.method === 'GET' && url.pathname === '/api/groups/visible') {
+    const response = withBrowserCacheControl(await next(), url.pathname)
+    if (response.status !== 200 && response.status !== 304) {
+      response.headers.set('cache-control', 'private, no-store')
+    }
+    return addCorsHeaders(req, withCacheHeader(response, 'BYPASS'), env)
+  }
   const sharedContext = req.sharedContext
   const bypassEdgeCache = req.bypassEdgeCache
   const authorizedGroupCache = getAuthorizedGroupCachePolicy(url.pathname)
@@ -1073,7 +1080,9 @@ export function isPublicContentPostPath(pathname: string) {
 }
 
 export function getGroupDetailId(pathname: string) {
-  return pathname.match(/^\/api\/groups\/([^/]+)$/)?.[1] ?? ''
+  // The church alias retains its existing dedicated cache behavior.
+  if (pathname === '/api/groups/church') return 'church'
+  return pathname.match(/^\/api\/groups\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i)?.[1] ?? ''
 }
 
 

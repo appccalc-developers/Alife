@@ -141,7 +141,7 @@ test('missing non-API resources return an uncacheable plain-text 404', async () 
 })
 
 test('approved group member can read shared group detail cache', async () => {
-  const groupId = 'group-1'
+  const groupId = '22222222-2222-2222-2222-222222222222'
   const url = `https://ccalc.live/api/groups/${groupId}`
   authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved' }))
   apiCacheStore.set(createApiCacheKey(url), createStoredResponse({ id: groupId, name: 'Shared group' }))
@@ -158,7 +158,7 @@ test('approved group member can read shared group detail cache', async () => {
 })
 
 test('group detail cache is gated by Cache API authorization mirror before cache hit', async () => {
-  const groupId = 'group-1'
+  const groupId = '22222222-2222-2222-2222-222222222222'
   const url = `https://ccalc.live/api/groups/${groupId}`
   cacheStore.set(cacheKey(new Request(url)), Response.json({ id: groupId, name: 'Cached group' }))
   originResponses.push(Response.json({ id: groupId, name: 'Origin group' }))
@@ -178,7 +178,7 @@ test('group detail cache is gated by Cache API authorization mirror before cache
 })
 
 test('approved members share group detail edge cache entry', async () => {
-  const groupId = 'group-1'
+  const groupId = '22222222-2222-2222-2222-222222222222'
   const url = `https://ccalc.live/api/groups/${groupId}`
   authzStore.set(`membership:${groupId}:member-2`, JSON.stringify({ status: 'approved' }))
   originResponses.push(Response.json({ id: groupId, name: 'Origin group' }))
@@ -200,7 +200,7 @@ test('approved members share group detail edge cache entry', async () => {
 })
 
 test('approved group member reads shared group pages and memberships from Cache API', async () => {
-  const groupId = 'group-1'
+  const groupId = '22222222-2222-2222-2222-222222222222'
   authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved' }))
   apiCacheStore.set(
     `group:${groupId}:pages`,
@@ -221,7 +221,7 @@ test('approved group member reads shared group pages and memberships from Cache 
 })
 
 test('approved group member reads shared group subgroups from Cache API', async () => {
-  const groupId = 'group-1'
+  const groupId = '22222222-2222-2222-2222-222222222222'
   const url = `https://ccalc.live/api/groups/${groupId}/subgroups`
   authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved' }))
   apiCacheStore.set(`group:${groupId}:subgroups`, createStoredResponse([{ id: 'child-1', parentGroupId: groupId }]))
@@ -236,7 +236,7 @@ test('approved group member reads shared group subgroups from Cache API', async 
 })
 
 test('approved group member reads non-draft page detail from shared Cache API', async () => {
-  const groupId = 'group-1'
+  const groupId = '22222222-2222-2222-2222-222222222222'
   const pageId = 'page-1'
   const url = `https://ccalc.live/api/pages/${pageId}`
   authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved', role: 'Member' }))
@@ -268,7 +268,7 @@ test('approved group member reads non-draft page detail from shared Cache API', 
 })
 
 test('matching If-None-Match for page detail reuses preloaded shared cache with 304', async () => {
-  const groupId = 'group-1'
+  const groupId = '22222222-2222-2222-2222-222222222222'
   const pageId = 'page-1'
   const url = `https://ccalc.live/api/pages/${pageId}`
   let cachedBodyReads = 0
@@ -305,7 +305,7 @@ test('matching If-None-Match for page detail reuses preloaded shared cache with 
 })
 
 test('draft page detail shared cache is available to leader and author only', async () => {
-  const groupId = 'group-1'
+  const groupId = '22222222-2222-2222-2222-222222222222'
   const pageId = 'page-1'
   const url = `https://ccalc.live/api/pages/${pageId}`
   apiCacheStore.set(`map:page:${pageId}:meta`, JSON.stringify({
@@ -330,7 +330,7 @@ test('draft page detail shared cache is available to leader and author only', as
 })
 
 test('draft page detail shared cache is bypassed for approved non-author members', async () => {
-  const groupId = 'group-1'
+  const groupId = '22222222-2222-2222-2222-222222222222'
   const pageId = 'page-1'
   const url = `https://ccalc.live/api/pages/${pageId}`
   authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved', role: 'Member' }))
@@ -352,7 +352,7 @@ test('draft page detail shared cache is bypassed for approved non-author members
 })
 
 test('page detail missing metadata falls back to origin and records metadata and content cache', async () => {
-  const groupId = 'group-1'
+  const groupId = '22222222-2222-2222-2222-222222222222'
   const pageId = 'page-1'
   const url = `https://ccalc.live/api/pages/${pageId}`
   authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved', role: 'Member' }))
@@ -388,7 +388,7 @@ test('page detail missing metadata falls back to origin and records metadata and
 })
 
 test('anonymous church page list reads use separate public cache', async () => {
-  const groupId = 'church-1'
+  const groupId = '11111111-1111-1111-1111-111111111111'
   const url = `https://ccalc.live/api/groups/${groupId}/pages`
   apiCacheStore.set(`group:${groupId}:pages`, createStoredResponse([
     { id: 'private-page', ownerGroupId: groupId, visibility: 'Draft' },
@@ -419,9 +419,9 @@ test('anonymous church page list reads use separate public cache', async () => {
 })
 
 test('missing membership returns 403 before shared subgroup cache is read', async () => {
-  const groupId = 'group-1'
+  const groupId = '22222222-2222-2222-2222-222222222222'
   const url = `https://ccalc.live/api/groups/${groupId}/subgroups`
-  apiCacheStore.set(`group:${groupId}:subgroups`, createStoredResponse([{ id: 'subgroup-1', parentGroupId: groupId }]))
+  apiCacheStore.set(`group:${groupId}:subgroups`, createStoredResponse([{ id: 'sub22222222-2222-2222-2222-222222222222', parentGroupId: groupId }]))
 
   const response = await dispatch(url)
 
@@ -434,7 +434,7 @@ test('missing membership returns 403 before shared subgroup cache is read', asyn
 })
 
 test('group administration without membership is authorized by origin and never shares its response', async () => {
-  const groupId = 'group-admin-target'
+  const groupId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
   const key = `group:${groupId}:members`
   apiCacheStore.set(key, createStoredResponse([{ memberId: 'shared-member' }]))
   originResponses.push(Response.json([{ memberId: 'admin-visible-member' }]))
@@ -474,7 +474,7 @@ test('a revoked or stale group membership does not bypass origin denial', async 
 })
 
 test('anonymous group events reach the origin without reading the member cache', async () => {
-  const groupId = 'group-1'
+  const groupId = '22222222-2222-2222-2222-222222222222'
   const url = `https://ccalc.live/api/groups/${groupId}/events`
   apiCacheStore.set(`group:${groupId}:events`, createStoredResponse([
     { id: 'member-only-event', groupId },
@@ -495,7 +495,7 @@ test('anonymous group events reach the origin without reading the member cache',
 })
 
 test('non-group member event reads reach origin for church visibility checks', async () => {
-  const groupId = 'group-1'
+  const groupId = '22222222-2222-2222-2222-222222222222'
   const url = `https://ccalc.live/api/groups/${groupId}/events`
   authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'pending' }))
   apiCacheStore.set(`group:${groupId}:events`, createStoredResponse([{ id: 'event-1', groupId }]))
@@ -514,7 +514,7 @@ test('non-group member event reads reach origin for church visibility checks', a
 })
 
 test('event enrollments bypass shared cache because the response is viewer-specific', async () => {
-  const groupId = 'group-1'
+  const groupId = '22222222-2222-2222-2222-222222222222'
   const eventId = 'event-1'
   const url = `https://ccalc.live/api/events/${eventId}/enrollments`
   authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved' }))
@@ -755,7 +755,7 @@ test('public pages fall back to global KV after a new edge location misses L1', 
   const env = createEnvWithGlobalApiCache()
   originResponses.push(Response.json([{
     id: 'public-page-1',
-    ownerGroupId: 'church-1',
+    ownerGroupId: '11111111-1111-1111-1111-111111111111',
     visibility: 'Public',
   }]))
 
@@ -775,7 +775,7 @@ test('public pages fall back to global KV after a new edge location misses L1', 
 
 test('anonymous visitors can read confirmed public page detail from global KV', async () => {
   const pageId = 'public-page-1'
-  const groupId = 'church-1'
+  const groupId = '11111111-1111-1111-1111-111111111111'
   const url = `https://ccalc.live/api/pages/public/${pageId}`
   const env = createEnvWithGlobalApiCache()
   apiCacheRawStore.set(`map:page:${pageId}:meta`, JSON.stringify({
@@ -801,7 +801,7 @@ test('anonymous visitors can read confirmed public page detail from global KV', 
 
 test('internal public pages invalidation warms list and public details into global KV', async () => {
   const pageId = 'public-page-1'
-  const groupId = 'church-1'
+  const groupId = '11111111-1111-1111-1111-111111111111'
   const env = createEnvWithGlobalApiCache()
   originResponses.push(
     Response.json([{ id: pageId, ownerGroupId: groupId, visibility: 'Public' }]),
@@ -901,7 +901,7 @@ test('public pages cache is invalidated after page visibility publish', async ()
   originResponses.push(Response.json({
     id: pageId,
     scope: 'group',
-    ownerGroupId: 'church-group-1',
+    ownerGroupId: '11111111-1111-1111-1111-111111111111',
     visibility: 'public',
   }))
   originResponses.push(Response.json([{ id: pageId, scope: 'group', visibility: 'public' }]))
@@ -931,7 +931,7 @@ test('public pages cache is invalidated after page visibility publish', async ()
 
 test('page publication approval evicts public and group pages caches', async () => {
   const pageId = 'group-page-1'
-  const groupId = 'group-1'
+  const groupId = '22222222-2222-2222-2222-222222222222'
   const publicUrl = 'https://ccalc.live/api/pages/public'
   const groupPagesUrl = `https://ccalc.live/api/groups/${groupId}/pages`
   cacheStore.set(cacheKey(new Request(publicUrl)), Response.json([{ id: pageId, ownerGroupId: groupId, visibility: 'public' }]))
@@ -970,7 +970,7 @@ test('page publication approval evicts public and group pages caches', async () 
 
 test('page publication return evicts public and group pages caches', async () => {
   const pageId = 'group-page-1'
-  const groupId = 'group-1'
+  const groupId = '22222222-2222-2222-2222-222222222222'
   const publicUrl = 'https://ccalc.live/api/pages/public'
   const groupPagesUrl = `https://ccalc.live/api/groups/${groupId}/pages`
   cacheStore.set(cacheKey(new Request(publicUrl)), Response.json([{ id: pageId, ownerGroupId: groupId, visibility: 'public' }]))
@@ -1005,7 +1005,7 @@ test('page publication return evicts public and group pages caches', async () =>
 
 test('approved publication copy update evicts every published page projection', async () => {
   const pageId = 'group-page-1'
-  const groupId = 'group-1'
+  const groupId = '22222222-2222-2222-2222-222222222222'
   const publicUrl = 'https://ccalc.live/api/pages/public'
   const publicDetailUrl = `https://ccalc.live/api/pages/public/${pageId}`
   const legacyDetailUrl = `https://ccalc.live/api/pages/${pageId}`
@@ -1157,7 +1157,7 @@ test('GET /api/me is never response-cached and mirrors only group authorization'
     isGuest: false,
     isRegistered: true,
     isAdmin: false,
-    memberships: [{ groupId: 'group-1', status: 'approved', role: 'CoLeader' }],
+    memberships: [{ groupId: '22222222-2222-2222-2222-222222222222', status: 'approved', role: 'CoLeader' }],
   }))
 
   const headers = { cookie: `alife_auth=${createJwtWithSub('member-1')}` }
@@ -1169,7 +1169,7 @@ test('GET /api/me is never response-cached and mirrors only group authorization'
     isGuest: false,
     isRegistered: true,
     isAdmin: false,
-    memberships: [{ groupId: 'group-1', status: 'approved', role: 'CoLeader' }],
+    memberships: [{ groupId: '22222222-2222-2222-2222-222222222222', status: 'approved', role: 'CoLeader' }],
   }))
   const second = await dispatch('https://ccalc.live/api/me', { headers })
   await flushWaitUntil()
@@ -1185,16 +1185,16 @@ test('GET /api/me is never response-cached and mirrors only group authorization'
     isGuest: false,
     isRegistered: true,
     isAdmin: false,
-    memberships: [{ groupId: 'group-1', status: 'approved', role: 'CoLeader' }],
+    memberships: [{ groupId: '22222222-2222-2222-2222-222222222222', status: 'approved', role: 'CoLeader' }],
   })
   assert.equal(fetchCalls.length, 2)
   assert.equal(apiCacheStore.has('member:member-1:me'), false)
   assert.equal(authzStore.has('member:member-1:profile'), false)
-  assert.deepEqual(JSON.parse(authzStore.get('membership:group-1:member-1')), {
+  assert.deepEqual(JSON.parse(authzStore.get('membership:22222222-2222-2222-2222-222222222222:member-1')), {
     status: 'approved',
     role: 'CoLeader',
     source: 'api-me',
-    updatedUtc: JSON.parse(authzStore.get('membership:group-1:member-1')).updatedUtc,
+    updatedUtc: JSON.parse(authzStore.get('membership:22222222-2222-2222-2222-222222222222:member-1')).updatedUtc,
   })
 })
 
@@ -1243,11 +1243,11 @@ test('identity and personal task API families are always no-store and never repl
   const paths = [
     '/api/onboarding/capabilities',
     '/api/onboarding/browser-applications/status',
-    '/api/groups/group-1/members/member-1/passkey-recovery',
+    '/api/groups/22222222-2222-2222-2222-222222222222/members/member-1/passkey-recovery',
     '/api/me/passkeys',
     '/api/notifications/current',
     '/api/internal/alpha-login/accounts',
-    '/api/groups/group-1/membership-applications',
+    '/api/groups/22222222-2222-2222-2222-222222222222/membership-applications',
   ]
   const headers = { cookie: `alife_auth=${createJwtWithSub('member-1')}` }
 
@@ -1270,7 +1270,7 @@ test('identity and personal task API families are always no-store and never repl
 
 test('Church Life responses are never reused across viewers', async () => {
   const paths = [
-    '/api/church-life/pages?ownerGroupId=group-1',
+    '/api/church-life/pages?ownerGroupId=22222222-2222-2222-2222-222222222222',
     '/api/church-life/events',
     '/api/church-life/announcements',
     '/api/church-life/albums',
@@ -1331,7 +1331,7 @@ test('failed writes do not evict cache', async () => {
 })
 
 test('successful POST to group pages evicts the group pages list cache', async () => {
-  const groupId = 'group-1'
+  const groupId = '22222222-2222-2222-2222-222222222222'
   const listUrl = `https://ccalc.live/api/groups/${groupId}/pages`
   cacheStore.set(cacheKey(new Request(listUrl)), Response.json([{ id: 'page-1', ownerGroupId: groupId }]))
   apiCacheStore.set(`group:${groupId}:pages`, createStoredResponse([{ id: 'page-1', ownerGroupId: groupId }]))
@@ -1348,8 +1348,8 @@ test('successful POST to group pages evicts the group pages list cache', async (
 })
 
 test('successful member action evicts only that group membership list cache', async () => {
-  const groupId = 'group-1'
-  const otherGroupId = 'group-2'
+  const groupId = '22222222-2222-2222-2222-222222222222'
+  const otherGroupId = '33333333-3333-3333-3333-333333333333'
   const listUrl = `https://ccalc.live/api/groups/${groupId}/memberships`
   const otherListUrl = `https://ccalc.live/api/groups/${otherGroupId}/memberships`
   cacheStore.set(cacheKey(new Request(listUrl)), Response.json([{ memberId: 'member-1' }]))
@@ -1375,7 +1375,7 @@ test('successful member action evicts only that group membership list cache', as
 })
 
 test('admin leader appointment evicts the group member list and appointed member authorization caches', async () => {
-  const groupId = 'group-1'
+  const groupId = '22222222-2222-2222-2222-222222222222'
   const targetMemberId = 'member-2'
   const membershipsUrl = `https://ccalc.live/api/groups/${groupId}/memberships`
   apiCacheStore.set(createApiCacheKey(membershipsUrl), createStoredResponse([{ memberId: 'member-1', role: 'Leader' }]))
@@ -1399,7 +1399,7 @@ test('admin leader appointment evicts the group member list and appointed member
 })
 
 test('ordinary invite uses the response member id to evict the invited member profile', async () => {
-  const groupId = 'group-1'
+  const groupId = '22222222-2222-2222-2222-222222222222'
   apiCacheStore.set('member:member-2:me', createStoredResponse({ id: 'member-2', memberships: [] }))
   authzStore.set('member:member-2:profile', JSON.stringify({ status: 'cached', memberId: 'member-2' }))
   authzStore.set(`membership:${groupId}:member-2`, JSON.stringify({ status: 'none' }))
@@ -1419,7 +1419,7 @@ test('ordinary invite uses the response member id to evict the invited member pr
 })
 
 test('batch membership mutations evict every member id in the request', async () => {
-  const groupId = 'group-1'
+  const groupId = '22222222-2222-2222-2222-222222222222'
   for (const memberId of ['member-2', 'member-3']) {
     apiCacheStore.set(`member:${memberId}:me`, createStoredResponse({ id: memberId, memberships: [] }))
     authzStore.set(`member:${memberId}:profile`, JSON.stringify({ status: 'cached', memberId }))
@@ -1443,7 +1443,7 @@ test('batch membership mutations evict every member id in the request', async ()
 })
 
 test('declining an invitation evicts the current member profile', async () => {
-  const groupId = 'group-1'
+  const groupId = '22222222-2222-2222-2222-222222222222'
   apiCacheStore.set('member:member-1:me', createStoredResponse({ id: 'member-1', memberships: [] }))
   authzStore.set('member:member-1:profile', JSON.stringify({ status: 'cached', memberId: 'member-1' }))
   authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'invited' }))
@@ -1462,8 +1462,8 @@ test('declining an invitation evicts the current member profile', async () => {
 })
 
 test('successful subgroup creation refreshes creator membership authorization mirror', async () => {
-  const parentGroupId = 'group-1'
-  const subgroupId = 'subgroup-1'
+  const parentGroupId = '22222222-2222-2222-2222-222222222222'
+  const subgroupId = 'sub22222222-2222-2222-2222-222222222222'
   const parentSubgroupsUrl = `https://ccalc.live/api/groups/${parentGroupId}/subgroups`
   const subgroupMembersUrl = `https://ccalc.live/api/groups/${subgroupId}/memberships`
 
@@ -1495,8 +1495,8 @@ test('successful subgroup creation refreshes creator membership authorization mi
 })
 
 test('successful subgroup co-leader claim refreshes requester membership authorization mirror', async () => {
-  const parentGroupId = 'group-1'
-  const subgroupId = 'subgroup-1'
+  const parentGroupId = '22222222-2222-2222-2222-222222222222'
+  const subgroupId = 'sub22222222-2222-2222-2222-222222222222'
   const parentSubgroupsUrl = `https://ccalc.live/api/groups/${parentGroupId}/subgroups`
   const subgroupMembersUrl = `https://ccalc.live/api/groups/${subgroupId}/memberships`
 
@@ -1524,7 +1524,7 @@ test('successful subgroup co-leader claim refreshes requester membership authori
 })
 
 test('successful event update evicts the group events list cache', async () => {
-  const groupId = 'group-1'
+  const groupId = '22222222-2222-2222-2222-222222222222'
   const eventId = 'event-1'
   const listUrl = `https://ccalc.live/api/groups/${groupId}/events`
   const publicListUrl = 'https://ccalc.live/api/events/public/upcoming'
@@ -1545,7 +1545,7 @@ test('successful event update evicts the group events list cache', async () => {
 
 test('public upcoming events use the queryless public cache', async () => {
   const url = 'https://ccalc.live/api/events/public/upcoming'
-  originResponses.push(Response.json([{ id: 'public-event', groupId: 'group-1', visibility: 'public' }]))
+  originResponses.push(Response.json([{ id: 'public-event', groupId: '22222222-2222-2222-2222-222222222222', visibility: 'public' }]))
 
   const first = await dispatch(url)
   await flushWaitUntil()
@@ -1553,12 +1553,12 @@ test('public upcoming events use the queryless public cache', async () => {
 
   assert.equal(first.headers.get('x-alife-cache'), 'MISS')
   assert.equal(second.headers.get('x-alife-cache'), 'HIT')
-  assert.deepEqual(await second.json(), [{ id: 'public-event', groupId: 'group-1', visibility: 'public' }])
+  assert.deepEqual(await second.json(), [{ id: 'public-event', groupId: '22222222-2222-2222-2222-222222222222', visibility: 'public' }])
   assert.equal(fetchCalls.length, 1)
 })
 
 test('approved group event reads bypass shared cache because manager and member views differ', async () => {
-  const groupId = 'group-1'
+  const groupId = '22222222-2222-2222-2222-222222222222'
   const listUrl = `https://ccalc.live/api/groups/${groupId}/events`
   authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved' }))
   originResponses.push(Response.json([{ id: 'event-1', groupId }]))
@@ -1583,7 +1583,7 @@ test('approved group event reads bypass shared cache because manager and member 
 })
 
 test('approved members in the same group share the same group pages cache key', async () => {
-  const groupId = 'group-1'
+  const groupId = '22222222-2222-2222-2222-222222222222'
   const url = `https://ccalc.live/api/groups/${groupId}/pages`
   authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved' }))
   authzStore.set(`membership:${groupId}:member-2`, JSON.stringify({ status: 'approved' }))
@@ -1605,7 +1605,7 @@ test('approved members in the same group share the same group pages cache key', 
 })
 
 test('matching If-None-Match for group pages is answered from shared Cache API with 304', async () => {
-  const groupId = 'group-1'
+  const groupId = '22222222-2222-2222-2222-222222222222'
   const url = `https://ccalc.live/api/groups/${groupId}/pages`
   authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved' }))
   apiCacheStore.set(
@@ -1656,8 +1656,8 @@ test('same-origin group pages 304 without Origin still includes CORS allow origi
 })
 
 test('closing a subgroup invalidates the parent subgroup list cache', async () => {
-  const parentId = 'parent-group-1'
-  const childId = 'child-group-1'
+  const parentId = 'parent-22222222-2222-2222-2222-222222222222'
+  const childId = 'child-22222222-2222-2222-2222-222222222222'
   apiCacheStore.set(
     `group:${parentId}:subgroups`,
     createStoredResponse([{ id: childId, parentGroupId: parentId }], { etag: '"subgroups-v1"' }),
@@ -1709,8 +1709,8 @@ test('dissolution eligibility is never served from shared cache', async () => {
 })
 
 test('updating a subgroup invalidates the parent subgroup list from edge and KV caches', async () => {
-  const parentId = 'parent-group-1'
-  const childId = 'child-group-1'
+  const parentId = 'parent-22222222-2222-2222-2222-222222222222'
+  const childId = 'child-22222222-2222-2222-2222-222222222222'
   const parentSubgroupsUrl = `https://ccalc.live/api/groups/${parentId}/subgroups`
   cacheStore.set(
     parentSubgroupsUrl,
@@ -1746,7 +1746,7 @@ test('updating a subgroup invalidates the parent subgroup list from edge and KV 
 })
 
 test('updating a root group leaves unrelated subgroup list caches intact', async () => {
-  const churchId = 'church-group-1'
+  const churchId = '11111111-1111-1111-1111-111111111111'
   const unrelatedParentId = 'unrelated-parent-1'
   const unrelatedSubgroupsUrl = `https://ccalc.live/api/groups/${unrelatedParentId}/subgroups`
   cacheStore.set(unrelatedSubgroupsUrl, Response.json([{ id: 'unrelated-child-1' }]))
@@ -1780,7 +1780,7 @@ test('updating a root group leaves unrelated subgroup list caches intact', async
 })
 
 test('shareable group subresources use 24 hour TTLs while event lists remain private', async () => {
-  const groupId = 'group-1'
+  const groupId = '22222222-2222-2222-2222-222222222222'
   authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved' }))
   originResponses.push(Response.json([{ id: 'page-1', ownerGroupId: groupId }]))
   originResponses.push(Response.json([{ id: 'child-1', parentGroupId: groupId }]))
@@ -1906,7 +1906,7 @@ test('POST /api/ai/translate-text-fields rejects empty fields array', async () =
 })
 
 test('POST /api/ai/translate-text-fields returns deterministic translated fields', async () => {
-  const groupId = 'group-1'
+  const groupId = '22222222-2222-2222-2222-222222222222'
   authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved', role: 'CoLeader' }))
   originResponses.push(Response.json({
     candidates: [{
@@ -1968,7 +1968,7 @@ test('POST /api/ai/translate-text-fields returns deterministic translated fields
 })
 
 test('POST /api/ai/translate-text-fields accepts announcement and contact fields', async () => {
-  const groupId = 'group-1'
+  const groupId = '22222222-2222-2222-2222-222222222222'
   authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved', role: 'Leader' }))
   originResponses.push(Response.json({
     candidates: [{
@@ -2010,7 +2010,7 @@ test('POST /api/ai/translate-text-fields accepts announcement and contact fields
 })
 
 test('POST /api/ai/translate-text-fields accepts page editor field paths', async () => {
-  const groupId = 'group-1'
+  const groupId = '22222222-2222-2222-2222-222222222222'
   authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved', role: 'CoLeader' }))
   originResponses.push(Response.json({
     candidates: [{
@@ -2108,7 +2108,7 @@ test('POST /api/ai/translate-text-fields accepts page editor field paths', async
 })
 
 test('POST /api/ai/translate-text-fields reports an invalid Gemini key as configuration error', async () => {
-  const groupId = 'group-1'
+  const groupId = '22222222-2222-2222-2222-222222222222'
   authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'approved', role: 'CoLeader' }))
   originResponses.push(Response.json({
     error: { code: 400, status: 'INVALID_ARGUMENT', message: 'API key not valid. Please pass a valid API key.' },
@@ -2525,7 +2525,7 @@ test('POST /api/events/session/:id/start initializes a new event planning sessio
       appContext: {
         language: 'en',
         userId: 'member-1',
-        groupId: 'group-1',
+        groupId: '22222222-2222-2222-2222-222222222222',
       },
     }),
     headers: { 'content-type': 'application/json' },
@@ -2537,9 +2537,9 @@ test('POST /api/events/session/:id/start initializes a new event planning sessio
   assert.equal(state.sessionId, sessionId)
   assert.equal(state.draft.personResponsible, 'Alice Chen')
   assert.equal(state.draft.purpose.en, 'Build relationships')
-  assert.equal(state.draft.groupId, 'group-1')
+  assert.equal(state.draft.groupId, '22222222-2222-2222-2222-222222222222')
   assert.equal(state.appContext.memberId, 'member-1')
-  assert.equal(state.appContext.groupId, 'group-1')
+  assert.equal(state.appContext.groupId, '22222222-2222-2222-2222-222222222222')
 })
 
 test('POST /api/events/session/:id/start binds edit and RAM context to the current event', async () => {
@@ -2578,7 +2578,7 @@ test('POST /api/events/session/:id/start binds edit and RAM context to the curre
       },
       appContext: {
         language: 'en',
-        groupId: 'group-1',
+        groupId: '22222222-2222-2222-2222-222222222222',
         eventId,
         eventData: { id: eventId, title: { zh: '家庭营', en: 'Family Camp' } },
         eventContext: {
@@ -2731,7 +2731,7 @@ test('POST /api/events/session/:id/message forwards known app context to Gemini'
     language: 'en',
     userId: 'user-1',
     userProfile: JSON.stringify({ displayName: 'Alice' }),
-    groupId: 'group-1',
+    groupId: '22222222-2222-2222-2222-222222222222',
     groupProfile: JSON.stringify({ name: 'West Auckland Families' }),
   })
   const response = await dispatch(`https://ccalc.live/api/events/session/${sessionId}/message?${appContextParams}`, {
@@ -2747,7 +2747,7 @@ test('POST /api/events/session/:id/message forwards known app context to Gemini'
   const geminiBody = JSON.parse(fetchInits[0].body)
   const prompt = JSON.parse(geminiBody.contents[0].parts[0].text)
   assert.equal(prompt.appContext.userId, 'user-1')
-  assert.equal(prompt.appContext.groupId, 'group-1')
+  assert.equal(prompt.appContext.groupId, '22222222-2222-2222-2222-222222222222')
   assert.equal(prompt.knownContextPolicy.includes('do not ask'), true)
 })
 
@@ -2876,7 +2876,7 @@ test('POST /api/enrollments/session/:id/message returns enrollment draft', async
 
   const appContextParams = new URLSearchParams({
     memberId: 'member-1',
-    groupId: 'group-1',
+    groupId: '22222222-2222-2222-2222-222222222222',
     userProfile: JSON.stringify({ displayName: 'Alice C', name: 'Alice' }),
     eventData: JSON.stringify({ id: eventId, titleEn: 'Family Camp' }),
   })
@@ -2891,7 +2891,7 @@ test('POST /api/enrollments/session/:id/message returns enrollment draft', async
   const body = await response.json()
   assert.equal(body.responseMode, 'result')
   assert.equal(body.result.applicantName, 'Alice')
-  assert.equal(body.result.groupId, 'group-1')
+  assert.equal(body.result.groupId, '22222222-2222-2222-2222-222222222222')
   assert.equal(body.result.memberId, 'member-1')
   assert.equal(body.result.applicantDisplayName, 'Alice C')
   assert.equal(body.result.consentStatus, 'granted')
@@ -2922,7 +2922,7 @@ test('POST /api/enrollments/session/:id/message uses provided eventId when AI om
     }],
   }))
 
-  const response = await dispatch(`https://ccalc.live/api/enrollments/session/manual-enrollment/message?eventId=${encodeURIComponent(eventId)}&groupId=group-1`, {
+  const response = await dispatch(`https://ccalc.live/api/enrollments/session/manual-enrollment/message?eventId=${encodeURIComponent(eventId)}&groupId=22222222-2222-2222-2222-222222222222`, {
     method: 'POST',
     body: JSON.stringify({ message: 'My name is Alice.' }),
     headers: { 'content-type': 'application/json' },
@@ -2933,7 +2933,7 @@ test('POST /api/enrollments/session/:id/message uses provided eventId when AI om
   const body = await response.json()
   assert.equal(body.responseMode, 'result')
   assert.equal(body.result.eventId, eventId)
-  assert.equal(body.result.groupId, 'group-1')
+  assert.equal(body.result.groupId, '22222222-2222-2222-2222-222222222222')
 })
 
 test('POST /api/enrollments/session/:id/message preserves non-uuid eventId from session id', async () => {
@@ -3120,7 +3120,7 @@ test('GET /api/reviews/session/:id/state keeps query-string app context compatib
   const appContextParams = new URLSearchParams({
     language: 'en',
     memberId: 'member-1',
-    groupId: 'group-1',
+    groupId: '22222222-2222-2222-2222-222222222222',
     eventId,
     eventData: JSON.stringify({ id: eventId, titleEn: 'Family Camp' }),
     knownFacts: JSON.stringify({
@@ -3136,7 +3136,7 @@ test('GET /api/reviews/session/:id/state keeps query-string app context compatib
   const state = await response.json()
   assert.equal(state.appContext.language, 'en')
   assert.equal(state.appContext.memberId, 'member-1')
-  assert.equal(state.appContext.groupId, 'group-1')
+  assert.equal(state.appContext.groupId, '22222222-2222-2222-2222-222222222222')
   assert.equal(state.appContext.eventId, eventId)
   assert.equal(state.appContext.eventData.titleEn, 'Family Camp')
   assert.equal(state.appContext.knownFacts.enrollments[0].applicantName, 'Alice')
@@ -3151,7 +3151,7 @@ test('POST /api/reviews/session/:id/state accepts app context JSON body', async 
     body: JSON.stringify({
       language: 'en',
       memberId: 'member-1',
-      groupId: 'group-1',
+      groupId: '22222222-2222-2222-2222-222222222222',
       eventId,
       eventData: { id: eventId, titleEn: 'Family Camp' },
       knownFacts: {
@@ -3167,7 +3167,7 @@ test('POST /api/reviews/session/:id/state accepts app context JSON body', async 
   assert.equal(state.sessionId, sessionId)
   assert.equal(state.appContext.language, 'en')
   assert.equal(state.appContext.memberId, 'member-1')
-  assert.equal(state.appContext.groupId, 'group-1')
+  assert.equal(state.appContext.groupId, '22222222-2222-2222-2222-222222222222')
   assert.equal(state.appContext.eventId, eventId)
   assert.equal(state.appContext.eventData.titleEn, 'Family Camp')
   assert.equal(state.appContext.knownFacts.enrollments[0].applicantName, 'Alice')
@@ -3216,7 +3216,7 @@ test('POST /api/reviews/session/:id/message returns review draft and preserves a
 
   const appContextParams = new URLSearchParams({
     memberId: 'member-1',
-    groupId: 'group-1',
+    groupId: '22222222-2222-2222-2222-222222222222',
     eventId,
     eventData: JSON.stringify({ id: eventId, titleEn: 'Family Camp' }),
     knownFacts: JSON.stringify({
@@ -3234,7 +3234,7 @@ test('POST /api/reviews/session/:id/message returns review draft and preserves a
   const body = await response.json()
   assert.equal(body.responseMode, 'result')
   assert.equal(body.result.eventId, eventId)
-  assert.equal(body.result.groupId, 'group-1')
+  assert.equal(body.result.groupId, '22222222-2222-2222-2222-222222222222')
   assert.equal(body.result.memberId, 'member-1')
   assert.match(body.result.reviewId, /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)
   assert.equal(body.result.summary.en, 'A warm time of fellowship.')
@@ -3256,7 +3256,7 @@ test('POST /api/reviews/session/:id/message sends review photo as Gemini inline 
           text: JSON.stringify({
             reviewId: '',
             eventId,
-            groupId: 'group-1',
+            groupId: '22222222-2222-2222-2222-222222222222',
             memberId: 'member-1',
             reflection: {
               zh: '照片顯示大家一起用餐和分享。',
@@ -3290,7 +3290,7 @@ test('POST /api/reviews/session/:id/message sends review photo as Gemini inline 
   formData.set('message', 'Please analyze these event photos.')
   formData.append('attachments', new File(['fake-image'], 'review.png', { type: 'image/png' }))
 
-  const response = await dispatch(`https://ccalc.live/api/reviews/session/${sessionId}/message?groupId=group-1&memberId=member-1`, {
+  const response = await dispatch(`https://ccalc.live/api/reviews/session/${sessionId}/message?groupId=22222222-2222-2222-2222-222222222222&memberId=member-1`, {
     method: 'POST',
     body: formData,
     env: { GEMINI_API_KEY: 'test-key', API_PROXY_TARGET: 'https://api.ccalc.live' },
@@ -3707,3 +3707,66 @@ function toBase64Url(value) {
     .replace(/\//g, '_')
     .replace(/=+$/g, '')
 }
+
+
+test('visible directory ignores historical shared responses and fake group mirrors for every viewer', async () => {
+  const old = [{ id: '41693332-fb4e-4226-8a33-62c96506c082' }, { id: '06e3be9c-1f30-4ef0-80ce-a7ce6afd74ce' }]
+  for (const suffix of ['', '?type=ministry']) {
+    const url = `${ORIGIN}/api/groups/visible${suffix}`
+    apiCacheStore.set(createApiCacheKey(url), createStoredResponse(old, { etag: 'W/"old"' }))
+    for (const viewer of ['', 'member-1', 'member-2', 'admin-1']) {
+      if (viewer) authzStore.set(`membership:visible:${viewer}`, JSON.stringify({ status: 'approved' }))
+      const expected = [{ id: 'public-ministry', groupType: 'ministry' }, ...(viewer ? [{ id: `private-${viewer}` }] : [])]
+      originResponses.push(Response.json(expected, { headers: { etag: `W/"${viewer || 'guest'}"` } }))
+      const cachedBefore = apiCacheRawStore.get(createApiCacheKey(url))
+      const before = fetchCalls.length
+      const response = await dispatch(url, { headers: { 'if-none-match': 'W/"old"', ...(viewer ? { cookie: `alife_auth=${createJwtWithSub(viewer)}` } : {}) } })
+      await flushWaitUntil()
+      assert.equal(fetchCalls.length, before + 1)
+      assert.equal(response.status, 200)
+      assert.equal(response.headers.get('x-alife-cache'), 'BYPASS')
+      assert.equal(response.headers.get('cache-control'), 'private, no-cache')
+      for (const header of ['Cookie', 'Authorization', 'Accept-Encoding']) assert.ok(response.headers.get('vary').includes(header))
+      assert.deepEqual(await response.json(), expected)
+      assert.equal(apiCacheRawStore.get(createApiCacheKey(url)), cachedBefore)
+      assert.equal(apiCachePutOptions.has(createApiCacheKey(url)), false)
+    }
+  }
+})
+
+test('visible directory passes origin 304 and errors without creating cache or authorization records', async () => {
+  for (const status of [304, 403, 404, 500]) {
+    originResponses.push(new Response(null, { status, headers: { etag: 'W/"origin"' } }))
+    const response = await dispatch(`${ORIGIN}/api/groups/visible`, { headers: { cookie: `alife_auth=${createJwtWithSub('member-1')}`, 'if-none-match': 'W/"origin"' } })
+    await flushWaitUntil()
+    assert.equal(response.status, status)
+    assert.equal(response.headers.get('etag'), 'W/"origin"')
+    assert.equal(response.headers.get('x-alife-cache'), 'BYPASS')
+    assert.equal(response.headers.get('cache-control'), status === 304 ? 'private, no-cache' : 'private, no-store')
+    assert.equal(authzStore.get('membership:visible:member-1'), undefined)
+    assert.equal(apiCacheStore.get('api:/api/groups/visible'), undefined)
+  }
+  assert.equal(fetchCalls.length, 4)
+})
+
+
+test('non-GUID group detail names cannot create group shared cache identities', async () => {
+  const url = `${ORIGIN}/api/groups/not-a-guid`
+  authzStore.set('membership:not-a-guid:member-1', JSON.stringify({ status: 'approved' }))
+  apiCacheStore.set(createApiCacheKey(url), createStoredResponse({ stale: true }))
+  originResponses.push(new Response(null, { status: 404 }))
+  const response = await dispatch(url, { headers: { cookie: `alife_auth=${createJwtWithSub('member-1')}` } })
+  assert.equal(response.status, 404)
+  assert.equal(response.headers.get('x-alife-cache'), 'BYPASS')
+  assert.equal(fetchCalls.length, 1)
+})
+
+test('church alias retains its existing authorized cache behavior', async () => {
+  const url = `${ORIGIN}/api/groups/church`
+  authzStore.set('membership:church:member-1', JSON.stringify({ status: 'approved' }))
+  apiCacheStore.set(createApiCacheKey(url), createStoredResponse({ isChurch: true }))
+  const response = await dispatch(url, { headers: { cookie: `alife_auth=${createJwtWithSub('member-1')}` } })
+  assert.equal(response.headers.get('x-alife-cache'), 'HIT')
+  assert.deepEqual(await response.json(), { isChurch: true })
+  assert.equal(fetchCalls.length, 0)
+})

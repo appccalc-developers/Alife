@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
 import { isAuthOptionalLocation } from '../app/routing/publicRoutePolicy'
-import { fetchFreshVisibleGroupsForViewer, fetchGroupForViewer } from '../db/collections/groupCollection'
+import { GROUP_NOT_FOUND_EVENT, fetchFreshVisibleGroupsForViewer, fetchGroupForViewer } from '../db/collections/groupCollection'
 import { useUiText } from '../i18n/uiText'
 import { ACTIVE_ENTITY_CHANGED_EVENT, activeEntityService } from '../services/activeEntityService'
 import { useAuthStore } from './auth'
@@ -28,6 +28,15 @@ export const CurrentGroupProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const tRef = useRef(t)
+  const suppressFallback = useRef(false)
+  useEffect(() => {
+    suppressFallback.current = false
+    const missing = (event: Event) => {
+      if (activeEntityService.getAll().groupId === (event as CustomEvent<string>).detail) suppressFallback.current = true
+    }
+    window.addEventListener(GROUP_NOT_FOUND_EVENT, missing)
+    return () => window.removeEventListener(GROUP_NOT_FOUND_EVENT, missing)
+  }, [auth.me?.id])
 
   useEffect(() => {
     tRef.current = t
@@ -72,6 +81,11 @@ export const CurrentGroupProvider = ({ children }: { children: ReactNode }) => {
       if (activeGroupId) {
         setLoading(true)
         activeEntityService.setGroup('', { clearPage: true, clearEvent: true })
+        return
+      }
+
+      if (suppressFallback.current) {
+        setLoading(false)
         return
       }
 
