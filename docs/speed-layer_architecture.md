@@ -187,7 +187,11 @@ The mirror status can be:
 - `no-principal`
 - `not-applicable`
 
-If a group-shared cache path needs authorization and the mirror is missing or not approved, the Worker does not serve the shared cache. For certain authorized group cache paths it returns `403` until origin-backed authorization has been seeded.
+If a group-shared cache path needs authorization and the mirror is missing or not approved, the Worker does not read or populate the shared cache. When a token subject is present, it forwards the request to the origin with a `private, no-store` response and `x-alife-cache: BYPASS`. The origin validates credentials and permissions: platform administrators can manage groups they have not joined, while unauthorized viewers remain denied. An extracted token subject only selects this forwarding path; it is not proof of authentication or an approved membership. Requests without a principal retain the existing `403` behavior, except for explicitly public routes.
+
+简体：平台管理员无需加入小组即可按后台权限规则管理该组。缺少有效成员缓存时，请求交由后台验证身份和权限，响应不进入共享缓存，也不自动建立成员资格。
+
+繁體：平台管理員無需加入小組即可按後台權限規則管理該組。缺少有效成員快取時，請求交由後台驗證身分和權限，回應不進入共享快取，也不自動建立成員資格。
 
 ## Cache Headers
 

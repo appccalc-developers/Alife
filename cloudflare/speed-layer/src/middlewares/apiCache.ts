@@ -164,6 +164,16 @@ export const apiCacheMiddleware = async (
     }
 
     if (sharedContext.authzStatus !== 'hit') {
+      if (sharedContext.memberId) {
+        // A membership mirror miss is not an authorization denial: platform
+        // administrators can manage groups they have not joined. Let the origin
+        // validate credentials and current permissions, without using or filling
+        // the group-shared cache or synthesizing an approved membership.
+        const response = withNoStore(await next())
+        response.headers.set('cache-control', 'private, no-store')
+        response.headers.set('x-alife-authz', sharedContext.authzStatus)
+        return addCorsHeaders(req, withCacheHeader(response, 'BYPASS'), env)
+      }
       return addCorsHeaders(
         req,
         withCacheHeader(

@@ -433,6 +433,46 @@ test('missing membership returns 403 before shared subgroup cache is read', asyn
   assert.equal(apiCacheGetKeys.includes(`group:${groupId}:subgroups`), false)
 })
 
+test('group administration without membership is authorized by origin and never shares its response', async () => {
+  const groupId = 'group-admin-target'
+  const key = `group:${groupId}:members`
+  apiCacheStore.set(key, createStoredResponse([{ memberId: 'shared-member' }]))
+  originResponses.push(Response.json([{ memberId: 'admin-visible-member' }]))
+  const response = await dispatch(`https://ccalc.live/api/groups/${groupId}/memberships`, {
+    headers: { cookie: `alife_auth=${createJwtWithSub('admin-actor')}` },
+  })
+  await flushWaitUntil()
+  assert.equal(response.status, 200)
+  assert.deepEqual(await response.json(), [{ memberId: 'admin-visible-member' }])
+  assert.equal(response.headers.get('cache-control'), 'private, no-store')
+  assert.equal(response.headers.get('x-alife-cache'), 'BYPASS')
+  assert.equal(fetchCalls.length, 1)
+  assert.equal(apiCacheGetKeys.includes(key), false)
+  assert.equal(authzStore.has(`membership:${groupId}:admin-actor`), false)
+
+  // A second viewer must go back to origin, even after the administrator succeeds.
+  originResponses.push(Response.json({ message: 'Forbidden' }, { status: 403 }))
+  const denied = await dispatch(`https://ccalc.live/api/groups/${groupId}/memberships`, {
+    headers: { cookie: `alife_auth=${createJwtWithSub('ordinary-actor')}` },
+  })
+  assert.equal(denied.status, 403)
+  assert.equal(denied.headers.get('cache-control'), 'private, no-store')
+  assert.equal(fetchCalls.length, 2)
+  assert.equal(apiCacheGetKeys.includes(key), false)
+})
+
+test('a revoked or stale group membership does not bypass origin denial', async () => {
+  const groupId = 'revoked-group'
+  authzStore.set(`membership:${groupId}:member-1`, JSON.stringify({ status: 'removed' }))
+  originResponses.push(Response.json({ message: 'Forbidden' }, { status: 403 }))
+  const response = await dispatch(`https://ccalc.live/api/groups/${groupId}/subgroups`, {
+    headers: { cookie: `alife_auth=${createJwtWithSub('member-1')}` },
+  })
+  assert.equal(response.status, 403)
+  assert.equal(fetchCalls.length, 1)
+  assert.equal(response.headers.get('cache-control'), 'private, no-store')
+})
+
 test('anonymous group events reach the origin without reading the member cache', async () => {
   const groupId = 'group-1'
   const url = `https://ccalc.live/api/groups/${groupId}/events`
