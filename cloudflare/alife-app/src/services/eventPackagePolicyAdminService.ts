@@ -1,16 +1,18 @@
 import { http } from './http'
-import type { EventPackagePolicyAdmin, EventPackageRolloutReport, PublishEventPackagePolicyRequest } from '../types/eventPackagePolicyAdmin'
+import type { EventPackagePolicyAdmin, EventPackageRolloutReport, PublishEventPackagePolicyRequest, PolicyEditorDefaults, PolicyImpact } from '../types/eventPackagePolicyAdmin'
 
 export const eventPackagePolicyAdminService = {
+  defaults: async (): Promise<PolicyEditorDefaults> => (await http.get<PolicyEditorDefaults>('/api/admin/event-package-policies/defaults')).data,
+  preview: async (request: PublishEventPackagePolicyRequest): Promise<PolicyImpact> => (await http.post<PolicyImpact>('/api/admin/event-package-policies/preview', request)).data,
   list: async (organisationId?: string): Promise<EventPackagePolicyAdmin[]> => {
     const { data } = await http.get<EventPackagePolicyAdmin[]>('/api/admin/event-package-policies', {
       params: organisationId ? { organisationId } : undefined,
     })
     return data
   },
-  publish: async (request: PublishEventPackagePolicyRequest): Promise<EventPackagePolicyAdmin> => {
+  publish: async (request: PublishEventPackagePolicyRequest, idempotencyKey: string): Promise<EventPackagePolicyAdmin> => {
     const { data } = await http.post<EventPackagePolicyAdmin>('/api/admin/event-package-policies/publish', request, {
-      headers: { 'Idempotency-Key': crypto.randomUUID() },
+      headers: { 'Idempotency-Key': idempotencyKey },
     })
     return data
   },

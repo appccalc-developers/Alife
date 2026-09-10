@@ -1,113 +1,134 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import AppActionButton from '../components/layout/AppActionButton'
-import AppBadge from '../components/layout/AppBadge'
 import AppPageShell from '../components/layout/AppPageShell'
 import AppSectionCard from '../components/layout/AppSectionCard'
-import { eventPackagePolicyAdminService } from '../services/eventPackagePolicyAdminService'
+import AppModal from '../components/layout/AppModal'
+import AppConfirmationModal from '../components/layout/AppConfirmationModal'
+import EventPolicyForm, { modeLabel, policyFieldClass, sectionLabel, policySummary } from '../components/events/EventPolicyForm'
+import { eventPackagePolicyAdminService as service } from '../services/eventPackagePolicyAdminService'
 import { normalizeApiError } from '../services/http'
 import { useAuthStore } from '../stores/auth'
-import type { EventPackagePolicyAdmin, EventPackageRolloutReport } from '../types/eventPackagePolicyAdmin'
+import type { EventPackagePolicyAdmin, EventPackageRolloutReport, PolicyEditorDefaults, PolicyImpact, PolicyRules, PublishEventPackagePolicyRequest } from '../types/eventPackagePolicyAdmin'
+import { changedPolicySections, createPolicyDraft, isCurrentPolicy, readPolicyRules } from '../utils/eventPackagePolicyEditor'
+import { setUnsavedChangesGuard, confirmUnsavedChangesNavigation } from '../utils/unsavedChangesGuard'
 import SystemManagementFrame from './admin/SystemManagementFrame'
 
-const defaultRules = JSON.stringify({
-  schemaVersion: '1',
-  preEventConfirmationWindowHours: 72,
-  tierRules: [
-    { tier: 'light', whenAnyConfirmedFactCodes: [], whenAnyActivityTypeCodes: [], whenAnyModuleCodes: [] },
-    { tier: 'standard', whenAnyConfirmedFactCodes: ['money.hasMoneyFlow'], whenAnyActivityTypeCodes: [], whenAnyModuleCodes: ['PEOPLE.REGISTRATION'] },
-    { tier: 'enhanced', whenAnyConfirmedFactCodes: ['people.childrenPresent', 'move.transportRequired'], whenAnyActivityTypeCodes: ['outdoor-activity'], whenAnyModuleCodes: ['SAFEGUARDING.CHILD', 'FESTIVAL.OPERATIONS'] },
-  ],
-  authorityByTier: { light: { minimumApproverCount: 1 }, standard: { minimumApproverCount: 1 }, enhanced: { minimumApproverCount: 1 } },
-  approvalValidityByTier: { light: 'P30D', standard: 'P14D', enhanced: 'P7D' },
-  materialChangeRules: [],
-  conditionWaiverAllowed: false,
-  delegationRules: { enabled: false, allowedTiers: [] },
-  legacyRollout: {
-    effectiveFromUtc: new Date().toISOString(), transitionDeadlineUtc: new Date(Date.now() + 90 * 86400000).toISOString(),
-    cohortRule: 'new-events-first', safetyCriticalModuleCodes: ['SAFETY.RAM', 'SAFEGUARDING.CHILD'],
-    transitionByMode: { off: 'legacyReadOnlyPackage', dryRun: 'timeLimitedCompatibility', enforced: 'formalPackageRequired' },
-  },
-}, null, 2)
-
-const fieldClass = 'mt-1 min-h-11 w-full rounded-xl border border-[#2f4b42]/20 bg-white px-3 py-2 text-sm text-[#18332d] outline-none focus:border-[#176b5a] focus:ring-2 focus:ring-[#176b5a]/15'
-
-const EventPackagePolicyAdminView = () => {
-  const auth = useAuthStore()
-  const language = auth.language
-  const zh = language === 'zh'
-  const [policies, setPolicies] = useState<EventPackagePolicyAdmin[]>([])
-  const [rollout, setRollout] = useState<EventPackageRolloutReport | null>(null)
-  const [version, setVersion] = useState('')
-  const [mode, setMode] = useState<EventPackagePolicyAdmin['enforcementMode']>('dryRun')
-  const [rulesText, setRulesText] = useState(defaultRules)
-  const [confirmed, setConfirmed] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
-
-  const load = useCallback(async () => {
-    setError('')
-    try {
-      const [nextPolicies, nextRollout] = await Promise.all([
-        eventPackagePolicyAdminService.list(), eventPackagePolicyAdminService.rolloutReport(),
-      ])
-      setPolicies(nextPolicies); setRollout(nextRollout)
-    }
-    catch (reason) { setError(normalizeApiError(reason).message) }
-  }, [])
-  useEffect(() => { void load() }, [load])
-
-  const publish = async (event: FormEvent) => {
-    event.preventDefault(); setError(''); setSuccess('')
-    let rules: Record<string, unknown>
-    try { rules = JSON.parse(rulesText) as Record<string, unknown> }
-    catch { setError(zh ? '政策规则不是有效 JSON。' : 'Policy rules are not valid JSON.'); return }
-    setBusy(true)
-    try {
-      await eventPackagePolicyAdminService.publish({ version: version.trim(), schemaVersion: '1', rules,
-        enforcementMode: mode, effectiveFromUtc: new Date().toISOString() })
-      setConfirmed(false); setVersion(''); setSuccess(zh ? '新政策版本已发布；旧版本及审批历史仍保留。' : 'The new policy version is published; prior versions and approval history remain retained.')
-      await load()
-    } catch (reason) { setError(normalizeApiError(reason).message) }
-    finally { setBusy(false) }
-  }
-
-  return <AppPageShell>
-    <SystemManagementFrame
-      title={zh ? '活动方案治理政策' : 'Event Package governance policies'}
-      subtitle={zh ? '发布不可变政策版本，控制审批等级、有效期、委派和渐进启用。' : 'Publish immutable policy versions controlling approval tiers, validity, delegation, and rollout.'}
-      language={language}
-      iconKey="eventPackagePolicies"
-      bodyClassName="space-y-5 p-4 sm:p-5 lg:p-6"
-    >
-      {rollout ? <AppSectionCard title={zh ? `近 ${rollout.windowDays} 天 Dry Run` : `${rollout.windowDays}-day dry-run evidence`}>
-      <div className="grid gap-3 text-sm tablet:grid-cols-3">
-        <div className="rounded-xl bg-[#f4f8f6] p-3"><strong className="block text-2xl text-[#18332d]">{rollout.evaluatedOperationCount}</strong>{zh ? '已评估生命周期操作' : 'lifecycle operations evaluated'}</div>
-        <div className="rounded-xl bg-amber-50 p-3 text-amber-950"><strong className="block text-2xl">{rollout.wouldBlockOperationCount}</strong>{zh ? '启用后会被阻止' : 'would be blocked when enforced'}</div>
-        <div className="rounded-xl bg-[#f4f8f6] p-3"><strong className="block text-2xl text-[#18332d]">{rollout.affectedEventCount}</strong>{zh ? '受影响活动' : 'affected events'}</div>
-      </div>
-      {rollout.reasons.length ? <ul className="mt-3 space-y-1 text-xs text-[#52665f]">{rollout.reasons.map((reason) => <li key={reason.reasonCode}><strong>{reason.count}</strong> · {reason.reasonCode}</li>)}</ul> : <p className="mt-3 text-sm text-[#66766f]">{zh ? '窗口内没有观测到会阻止操作的原因。' : 'No would-block reasons were observed in this window.'}</p>}
-    </AppSectionCard> : null}
-    <div className="grid gap-5 desktop:grid-cols-[minmax(0,1fr)_minmax(22rem,0.8fr)]">
-      <AppSectionCard title={zh ? '已发布版本' : 'Published versions'}>
-        <div className="space-y-3">{policies.map((policy) => <article key={policy.id} className="rounded-xl border border-[#2f4b42]/10 p-3 text-sm">
-          <div className="flex flex-wrap items-center gap-2"><strong>{policy.version}</strong><AppBadge variant={policy.retiredUtc ? 'neutral' : 'info'}>{policy.enforcementMode}</AppBadge>{policy.retiredUtc ? <span>{zh ? '已退役' : 'retired'}</span> : <span>{zh ? '当前' : 'current'}</span>}</div>
-          <p className="mt-1 text-xs text-[#66766f]">{new Date(policy.effectiveFromUtc).toLocaleString()} · schema {policy.schemaVersion}</p>
-        </article>)}{!policies.length ? <p className="text-sm text-[#66766f]">{zh ? '尚无全局政策版本。' : 'No global policy version exists.'}</p> : null}</div>
-      </AppSectionCard>
-      <AppSectionCard title={zh ? '发布新版本' : 'Publish a new version'}>
-        <form className="space-y-4" onSubmit={publish}>
-          <label className="block text-xs font-black text-[#52665f]">{zh ? '版本' : 'Version'}<input className={fieldClass} value={version} onChange={(event) => setVersion(event.target.value)} required maxLength={40} /></label>
-          <label className="block text-xs font-black text-[#52665f]">{zh ? '启用模式' : 'Enforcement mode'}<select className={fieldClass} value={mode} onChange={(event) => setMode(event.target.value as EventPackagePolicyAdmin['enforcementMode'])}><option value="off">off</option><option value="dryRun">dryRun</option><option value="enforced">enforced</option></select></label>
-          <label className="block text-xs font-black text-[#52665f]">{zh ? '政策规则 JSON' : 'Policy rules JSON'}<textarea className={`${fieldClass} min-h-96 font-mono text-xs`} value={rulesText} onChange={(event) => setRulesText(event.target.value)} spellCheck={false} required /></label>
-          <label className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950"><input className="mt-1" type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} /><span>{zh ? '我确认：发布会退役当前版本，并使受影响的现有批准安全失效；不会自动重新批准。' : 'I confirm publishing retires the current version and safely invalidates affected approvals; it never auto-approves them.'}</span></label>
-          {error ? <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm text-rose-800">{error}</p> : null}{success ? <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900">{success}</p> : null}
-          <AppActionButton type="submit" variant="primary" disabled={busy || !confirmed || !version.trim()}>{busy ? (zh ? '正在发布…' : 'Publishing…') : (zh ? '发布不可变政策版本' : 'Publish immutable policy version')}</AppActionButton>
-        </form>
-      </AppSectionCard>
-      </div>
-    </SystemManagementFrame>
-  </AppPageShell>
+const policyError = (reason: unknown, zh: boolean) => {
+  const failure = normalizeApiError(reason)
+  if (failure.status === 403) return zh ? '你没有管理活动方案政策的权限。' : 'You do not have permission to manage Event Package policies.'
+  if (failure.status === 409) return zh ? '当前政策或受影响的审批已变化，或版本名称已被使用。请刷新并重新审阅。' : 'The current policy or affected approvals changed, or the version name is already used. Refresh and review again.'
+  if (failure.status === 400 || failure.status === 422) return zh ? '规则未通过校验。请核对审批人数、有效期、委托级别、触发条件和过渡日期。' : 'The rules did not pass validation. Check approver counts, validity, delegation tiers, triggers and transition dates.'
+  return zh ? '暂时无法完成请求。你的草稿仍然保留，请重试。' : 'The request could not be completed. Your draft is retained; please retry.'
 }
 
-export default EventPackagePolicyAdminView
+export default function EventPackagePolicyAdminView() {
+  const { language } = useAuthStore()
+  const navigate = useNavigate()
+  const zh = language === 'zh'
+  const [policies, setPolicies] = useState<EventPackagePolicyAdmin[]>([])
+  const [catalog, setCatalog] = useState<PolicyEditorDefaults | null>(null)
+  const [rollout, setRollout] = useState<EventPackageRolloutReport | null>(null)
+  const [selectedId, setSelectedId] = useState('')
+  const [draft, setDraft] = useState<PublishEventPackagePolicyRequest | null>(null)
+  const [preview, setPreview] = useState<PolicyImpact | null>(null)
+  const [pendingSelect, setPendingSelect] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [failureReason, setFailureReason] = useState<unknown>(null)
+  const error = failureReason ? policyError(failureReason, zh) : ''
+  const setError = (value: unknown) => setFailureReason(value)
+  const [reportError, setReportError] = useState(false)
+  const [success, setSuccess] = useState(false)
+  const lock = useRef(false)
+  const attempt = useRef<{ request: PublishEventPackagePolicyRequest; key: string } | null>(null)
+  const current = policies.find(p => isCurrentPolicy(p))
+  const selected = policies.find(p => p.id === selectedId)
+  const selectedRules = useMemo(() => {
+    if (!selected || !catalog) return null
+    try { return readPolicyRules(selected.rules, catalog) } catch { return null }
+  }, [selected, catalog])
+
+  const loadReport = useCallback(async () => {
+    try { setRollout(await service.rolloutReport()); setReportError(false) } catch { setReportError(true) }
+  }, [])
+  const load = useCallback(async () => {
+    setLoading(true); setError('')
+    try {
+      const [list, defaults] = await Promise.all([service.list(), service.defaults()])
+      setPolicies(list); setCatalog(defaults); setSelectedId((list.find(p => isCurrentPolicy(p)) ?? list[0])?.id ?? '')
+    } catch (reason) { setError(reason) }
+    finally { setLoading(false) }
+  }, [])
+  useEffect(() => { void load(); void loadReport() }, [load, loadReport])
+  useEffect(() => {
+    setUnsavedChangesGuard(!!draft, zh ? '政策草稿尚未发布，离开将丢失修改。' : 'The policy draft is not published. Leaving will discard changes.', 'confirm')
+    return () => setUnsavedChangesGuard(false)
+  }, [draft, zh])
+  const discard = (id: string) => { setDraft(null); setPreview(null); attempt.current = null; setSelectedId(id); setError('') }
+  const start = (source?: EventPackagePolicyAdmin) => {
+    if (!catalog) return
+    try { setDraft(createPolicyDraft(catalog, source, current)); setPreview(null); attempt.current = null; setError(''); setSuccess(false) }
+    catch { setError(zh ? '此版本包含不支持的规则，无法安全恢复。' : 'This version contains unsupported rules and cannot be safely restored.') }
+  }
+  const edit = (patch: Partial<PublishEventPackagePolicyRequest>) => { setDraft(d => d ? { ...d, ...patch } : d); setPreview(null); attempt.current = null }
+  const review = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!draft || lock.current) return
+    lock.current = true; setBusy(true); setError('')
+    try {
+      const impact = await service.preview(draft)
+      attempt.current = { request: { ...draft, impactToken: impact.impactToken }, key: crypto.randomUUID() }
+      setPreview(impact)
+    } catch (reason) { setError(reason) }
+    finally { lock.current = false; setBusy(false) }
+  }
+  const publish = async () => {
+    if (!attempt.current || lock.current) return
+    lock.current = true; setBusy(true); setError('')
+    try {
+      await service.publish(attempt.current.request, attempt.current.key)
+      setDraft(null); setPreview(null); attempt.current = null; setSuccess(true)
+      await load(); void loadReport()
+    } catch (reason) {
+      const failure = normalizeApiError(reason)
+      setError(reason)
+      if (failure.status === 409) { setPreview(null); attempt.current = null }
+    } finally { lock.current = false; setBusy(false) }
+  }
+  const displayedRules = draft?.rules as PolicyRules | undefined ?? selectedRules
+  const currentRules = useMemo(() => { if (!current || !catalog) return null; try { return readPolicyRules(current.rules, catalog) } catch { return null } }, [current, catalog])
+  const changes = draft ? changedPolicySections(current?.rules, draft.rules as PolicyRules) : []
+  const choose = (id: string) => { if (draft) setPendingSelect(id); else discard(id) }
+  return <AppPageShell><div onClickCapture={event => {
+    const link = (event.target as HTMLElement).closest('a[href]') as HTMLAnchorElement | null
+    if (!draft || !link || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return
+    if (!confirmUnsavedChangesNavigation(link.href, () => { setUnsavedChangesGuard(false); navigate(link.pathname + link.search + link.hash) })) event.preventDefault()
+  }}><SystemManagementFrame title={zh ? '活动方案治理政策' : 'Event Package governance policies'} subtitle={zh ? '用清楚的规则管理审批；每次发布保留完整版本历史。' : 'Manage approval with clear rules and a retained publication history.'} language={language} iconKey="eventPackagePolicies" bodyClassName="space-y-5 p-4 sm:p-5 lg:p-6">
+    {success && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900">{zh ? '政策已发布并生效。历史版本和审批记录已保留。' : 'The policy is published and effective. Version and approval history are retained.'}</p>}
+    {error && !preview && <div role="alert" className="space-y-2 rounded-xl bg-rose-50 p-3 text-sm text-rose-800"><p>{error}</p><AppActionButton disabled={busy || loading} onClick={() => draft ? setPendingSelect(selectedId) : void load()}>{zh ? '刷新政策列表' : 'Refresh policies'}</AppActionButton></div>}
+    {loading ? <p role="status">{zh ? '正在读取政策…' : 'Loading policies…'}</p> : catalog && <>
+      <AppSectionCard title={zh ? '政策版本' : 'Policy version'}>
+        <label className="block text-sm">{zh ? '选择查看的版本' : 'Select a version'}<select aria-label={zh ? '选择查看的版本' : 'Select a version'} className={policyFieldClass} disabled={busy || !policies.length} value={selectedId} onChange={e => choose(e.target.value)}>{!policies.length && <option value="">{zh ? '尚无已发布版本' : 'No published versions'}</option>}{policies.map(p => <option key={p.id} value={p.id}>{p.version} · {isCurrentPolicy(p) ? (zh ? '当前生效' : 'Current') : (zh ? '历史版本' : 'Historical')} · {modeLabel(p.enforcementMode, zh)} · {new Date(p.publishedUtc).toLocaleString(zh ? 'zh-CN' : 'en-AU')}</option>)}</select></label>
+        {selected && <p className="mt-3 text-sm text-[#66766f]">{zh ? '发布时间：' : 'Published: '}{new Date(selected.publishedUtc).toLocaleString(zh ? 'zh-CN' : 'en-AU')}{zh ? ' · 发布人：' : ' · Publisher: '}{selected.publishedByDisplayName || (zh ? '身份保留在审计记录中' : 'Identity retained in audit history')}</p>}
+        {!current && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-950">{zh ? '尚无有效的全局政策。生成审批包前，请初始化政策或恢复历史版本。' : 'No effective global policy exists. Initialize a policy or restore a version before generating packages.'}</p>}
+        {!draft && <div className="mt-4 flex flex-wrap gap-3">{!current && <AppActionButton variant="primary" onClick={() => start()}>{zh ? '初始化试运行政策' : 'Initialize a dry-run policy'}</AppActionButton>}{selected && <AppActionButton disabled={!selectedRules} variant={current ? 'primary' : 'secondary'} onClick={() => start(selected)}>{isCurrentPolicy(selected) ? (zh ? '基于当前版本编辑' : 'Edit from current version') : (zh ? '以此版本恢复' : 'Restore from this version')}</AppActionButton>}</div>}
+      </AppSectionCard>
+      {displayedRules && <AppSectionCard title={draft ? (zh ? '新版本草稿' : 'New version draft') : (zh ? '已发布规则（只读）' : 'Published rules (read-only)')}>
+        <form onSubmit={review} className="space-y-5">
+          {draft && <><label className="block text-sm">{zh ? '新版本名称' : 'New version name'}<input required maxLength={40} className={policyFieldClass} disabled={busy} value={draft.version} onChange={e => edit({ version: e.target.value })} /></label><p className="text-sm text-[#66766f]">{draft.sourcePolicyId ? (zh ? '从所选版本复制规则。生效时间已更新，过渡期限重置为 90 天后，请核对后发布。恢复不会重新激活旧审批。' : 'Rules are copied from the selected version. Effective time is renewed and the transition deadline reset to 90 days; review before publishing. Restoration never reactivates old approvals.') : (zh ? '默认值来自服务器。只有明确确认发布后才会生效。' : 'Defaults come from the server. They become effective only after explicit publication.')}</p></>}
+          <EventPolicyForm rules={displayedRules} mode={draft?.enforcementMode ?? selected!.enforcementMode} catalog={catalog} zh={zh} disabled={!draft || busy} onRules={rules => edit({ rules })} onMode={enforcementMode => edit({ enforcementMode })} />
+          {draft && <div className="flex flex-wrap gap-3"><AppActionButton type="submit" variant="primary" disabled={busy}>{busy ? (zh ? '正在处理…' : 'Working…') : (zh ? '预览变更与审批影响' : 'Preview changes and approval impact')}</AppActionButton><AppActionButton disabled={busy} onClick={() => setPendingSelect(selectedId)}>{zh ? '放弃草稿' : 'Discard draft'}</AppActionButton></div>}
+        </form>
+      </AppSectionCard>}
+      {selected && !selectedRules && !draft && <p role="alert">{zh ? '此历史版本包含不可编辑的规则或已停用条件。已保留原始记录，不会自动转换。' : 'This version contains unsupported rules or retired conditions. Its original record is retained without automatic conversion.'}</p>}
+    </>}
+    <AppSectionCard title={zh ? '近 30 天试运行记录' : 'Dry-run observations over 30 days'}>
+      {reportError ? <div role="alert"><p>{zh ? '试运行记录读取失败。' : 'Could not load dry-run observations.'}</p><AppActionButton onClick={() => void loadReport()}>{zh ? '重试' : 'Retry'}</AppActionButton></div> : rollout ? <><div className="grid gap-3 text-sm md:grid-cols-3">{[[rollout.evaluatedOperationCount, zh ? '已观测操作' : 'Observed operations'], [rollout.wouldBlockOperationCount, zh ? '正式执行时将被拦截' : 'Would be blocked'], [rollout.affectedEventCount, zh ? '涉及活动' : 'Affected events']].map(([count, label]) => <div key={label} className="rounded-xl bg-[#f4f8f6] p-3"><strong className="block text-2xl">{count}</strong>{label}</div>)}</div><p className="mt-3 text-sm text-[#66766f]">{zh ? '仅反映已记录的生命周期操作；零次记录不表示所有活动均已符合规则。' : 'Only recorded lifecycle operations are represented; zero observations do not prove that all events comply.'}</p></> : <p role="status">{zh ? '正在读取记录…' : 'Loading observations…'}</p>}
+    </AppSectionCard>
+    <AppConfirmationModal open={pendingSelect !== null} title={zh ? '放弃未发布的修改？' : 'Discard unpublished changes?'} description={zh ? '草稿修改将丢失，已发布政策不受影响。' : 'Draft changes will be lost. Published policies are unaffected.'} confirmLabel={zh ? '放弃并继续' : 'Discard and continue'} cancelLabel={zh ? '继续编辑' : 'Keep editing'} closeLabel={zh ? '关闭' : 'Close'} onCancel={() => setPendingSelect(null)} onConfirm={() => { const id = pendingSelect!; discard(id); setPendingSelect(null); if (error) void load() }} />
+    <AppModal open={!!preview} title={zh ? '确认政策变更' : 'Confirm policy changes'} closeLabel={zh ? '关闭' : 'Close'} onClose={() => { if (!busy) { setPreview(null); attempt.current = null } }} closeDisabled={busy} closeOnEscape={!busy} closeOnBackdrop={!busy} footer={<><AppActionButton disabled={busy} onClick={() => { setPreview(null); attempt.current = null }}>{zh ? '返回修改' : 'Back to edit'}</AppActionButton><AppActionButton variant="primary" disabled={busy} onClick={() => void publish()}>{busy ? (zh ? '正在发布…' : 'Publishing…') : (zh ? '确认发布并生效' : 'Confirm and publish')}</AppActionButton></>}>
+      {preview && draft && <div className="space-y-4 text-sm"><p>{zh ? '新版本：' : 'New version: '}{draft.version} · {modeLabel(draft.enforcementMode, zh)}</p><p>{zh ? '执行方式：' : 'Enforcement: '}{current ? modeLabel(current.enforcementMode, zh) : (zh ? '无有效政策' : 'No current policy')} → {modeLabel(draft.enforcementMode, zh)}</p><ul className="list-disc space-y-1 pl-5">{changes.map(key => <li key={key} className="space-y-1"><strong>{sectionLabel(key, zh)}</strong><p className="text-[#66766f]">{zh ? '之前：' : 'Before: '}{policySummary(currentRules, key, catalog!, zh)}</p><p>{zh ? '之后：' : 'After: '}{policySummary(draft.rules as PolicyRules, key, catalog!, zh)}</p></li>)}</ul><p>{zh ? `涉及 ${preview.affectedEventCount} 个活动；${preview.affectedApprovalCount} 份有效审批将失效并需要重新审阅。` : `${preview.affectedEventCount} events are affected; ${preview.affectedApprovalCount} active approvals will be invalidated and require review.`}</p><p className="rounded-xl bg-amber-50 p-3 text-amber-950">{zh ? '发布立即生效并替换当前版本，包括试运行模式。历史记录保留，任何旧审批都不会自动恢复。' : 'Publishing immediately replaces the current version, including in dry-run mode. History is retained; old approvals are never automatically restored.'}</p>{error && <p role="alert" className="text-rose-800">{error}</p>}</div>}
+    </AppModal>
+  </SystemManagementFrame></div></AppPageShell>
+}

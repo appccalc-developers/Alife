@@ -1,4 +1,4 @@
-import type { EventDto, EventVisibility, MultilingualString } from '../types/event'
+import type { EventDto, MultilingualString } from '../types/event'
 import type { EventActivityType, EventArchetype } from '../types/eventComposition'
 
 export type CreationDetails = {
@@ -15,18 +15,6 @@ export const resolveActivityType = (
   const archetype = archetypes.find((item) => item.code === archetypeCode)
   return archetype?.activityTypes.find((item) => item.code === activityTypeCode) ?? null
 }
-
-export const applyActivityTypePreset = (type: EventActivityType): {
-  selectedModules: string[]
-  visibility: EventVisibility
-  registrationMode: 'none' | 'required'
-  useRecommendedWorkflow: boolean
-} => ({
-  selectedModules: ['TEAM.WORK', ...type.preselectedModules],
-  visibility: type.defaults.visibility,
-  registrationMode: type.defaults.registrationMode,
-  useRecommendedWorkflow: Boolean(type.recommendedWorkflowTemplateCode),
-})
 
 // AI output is deliberately narrowed to presentation copy. It cannot mutate
 // archetype/type/module/workflow choices or any confirmed composition fact.

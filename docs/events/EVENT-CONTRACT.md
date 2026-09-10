@@ -232,6 +232,16 @@ Each Package records `eventId`, `scopeType`, optional `scopeId`, `coverageMode`,
 - An Event-level governance-critical change invalidates every affected occurrence coverage.
 - A Child Event owns its own Package. A parent Package may reference the child's status but cannot approve it.
 
+### Governance policy administration
+
+The System Management policy editor manages global policies through bilingual business fields and an immutable-version selector. Reading server defaults or previewing impact is non-mutating. Initialization requires explicit administrator publication and defaults to `dryRun`; software suggestions (30/14/7-day validity, 72-hour confirmation window, 90-day transition) are not a claim that the SOP prescribes these values. Existing group-specific policies retain precedence.
+
+Restoration copies an understood historical version into a new draft, renews effective/transition dates for review, and publishes a new version with its source ID in the audit. It never rewrites history or reactivates previous approvals. Unrecognized structures cannot be silently converted. Only rules evaluated by the current engine have editable controls; approval counts do not implement a sequential pastoral/deacons approval chain, and recorded transition dates do not schedule an automatic mode change.
+
+`GET /api/admin/event-package-policies/defaults` returns validated-schema defaults and known bilingual trigger choices (including known template codes still needed by existing Events). `POST /api/admin/event-package-policies/preview` validates proposed rules and returns the current policy ID, affected Event and active-approval counts, and an impact token. Both require `admin.events.managePackagePolicies` and private/no-store responses. Preview covers only Events whose effective policy changes; a global replacement excludes Events with an effective group override.
+
+The editor supplies `expectedCurrentPolicyId` (`Guid.Empty` for initialization), optional `sourcePolicyId`, and the preview's `impactToken` to the existing publish endpoint. These additive fields preserve existing clients. The server serializes scope publication in a database transaction, rechecks current policy and impact, retires preceding versions, saves the new immediately effective version, invalidates affected approvals and records audit/idempotency state atomically. Stale editor requests return conflict and require fresh review. Retries retain the same request and idempotency key. Permissions and policy versions are never inferred from frontend controls.
+
 ### Canonical generation and submission
 
 The server validates `If-Match` for the current Event Plan, reads only system-defined module contribution contracts, orders source references deterministically, canonicalises JSON, and calculates `sourceVectorHash` and `contentHash`. The Package schema, policy, Plan, source vector, scope, and content all participate in the hash contract. Before commit, every required source version is revalidated. A changed source returns `event.package.sourceChanged`; a retry with the same idempotency key and request hash returns the same result, while key reuse with different input is rejected.

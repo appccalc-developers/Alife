@@ -20,7 +20,8 @@ public sealed record EventPackagePolicyAdminDto(
     DateTime? RetiredUtc,
     bool IsPublished,
     Guid PublishedByMemberId,
-    DateTime PublishedUtc);
+    DateTime PublishedUtc,
+    string? PublishedByDisplayName = null);
 
 public sealed record PublishEventPackagePolicyRequest(
     Guid? OrganisationId,
@@ -28,7 +29,10 @@ public sealed record PublishEventPackagePolicyRequest(
     string SchemaVersion,
     JsonElement Rules,
     EventPackageEnforcementMode EnforcementMode,
-    DateTime EffectiveFromUtc);
+    DateTime EffectiveFromUtc,
+    Guid? ExpectedCurrentPolicyId = null,
+    Guid? SourcePolicyId = null,
+    string? ImpactToken = null);
 
 public sealed record EventPackageRolloutReasonDto(string ReasonCode, int Count);
 
@@ -104,7 +108,7 @@ public sealed class ListEventPackagePoliciesQueryHandler(IAlifeDbContext db)
     {
         if (!await CanManage(db, request.CurrentMemberId, ct))
             return AppResult<IReadOnlyList<EventPackagePolicyAdminDto>>.Forbidden("Event Package policy administration permission is required.");
-        var policies = await db.EventPackageGovernancePolicyVersions.AsNoTracking()
+        var policies = await db.EventPackageGovernancePolicyVersions.AsNoTracking().Include(x => x.PublishedByMember)
             .Where(x => x.OrganisationId == request.OrganisationId)
             .OrderByDescending(x => x.EffectiveFromUtc).ThenByDescending(x => x.PublishedUtc)
             .ToListAsync(ct);
@@ -119,14 +123,15 @@ public sealed class ListEventPackagePoliciesQueryHandler(IAlifeDbContext db)
         using var document = JsonDocument.Parse(policy.RulesJson);
         return new(policy.Id, policy.OrganisationId, policy.Version, policy.SchemaVersion,
             document.RootElement.Clone(), policy.EnforcementMode, policy.EffectiveFromUtc, policy.RetiredUtc,
-            policy.IsPublished, policy.PublishedByMemberId, policy.PublishedUtc);
+            policy.IsPublished, policy.PublishedByMemberId, policy.PublishedUtc, policy.PublishedByMember?.DisplayName);
     }
 }
 
 public sealed class PublishEventPackagePolicyCommandHandler(
     IAlifeDbContext db,
     IEventPackageInvalidationService invalidation,
-    IEventCacheInvalidationService cacheInvalidation)
+    IEventCacheInvalidationService cacheInvalidation,
+    IEventActivityTemplateCatalog? templates = null)
     : IRequestHandler<PublishEventPackagePolicyCommand, AppResult<EventPackagePolicyAdminDto>>
 {
     public async Task<AppResult<EventPackagePolicyAdminDto>> Handle(PublishEventPackagePolicyCommand command, CancellationToken ct)
@@ -137,11 +142,13 @@ public sealed class PublishEventPackagePolicyCommandHandler(
         var key = command.IdempotencyKey?.Trim();
         if (string.IsNullOrWhiteSpace(key) || key.Length > 120)
             return AppResult<EventPackagePolicyAdminDto>.Validation("Idempotency-Key is required and must be at most 120 characters.");
-        var validationError = EventPackagePolicyRules.Validate(request);
+        var validationError = EventPackagePolicyRules.Validate(request, templates is null ? null :
+            (await templates.ListAsync(true, ct)).Select(x => x.Definition.Code).ToHashSet());
         if (validationError is not null) return AppResult<EventPackagePolicyAdminDto>.Validation(validationError);
         if (request.OrganisationId.HasValue && !await db.Groups.AsNoTracking().AnyAsync(x => x.Id == request.OrganisationId, ct))
             return AppResult<EventPackagePolicyAdminDto>.Validation("The policy organisation does not exist.");
 
+        await using var transaction = await db.BeginSerializableTransactionAsync(ct);
         var scopeId = request.OrganisationId ?? Guid.Empty;
         var requestHash = EventPackageCanonicalizer.HashCanonical(new { command.CurrentMemberId, request });
         var replay = await db.EventIdempotencyRecords.AsNoTracking().FirstOrDefaultAsync(x =>
@@ -157,11 +164,24 @@ public sealed class PublishEventPackagePolicyCommandHandler(
         }
 
         var now = DateTime.UtcNow;
-        var effectiveFrom = AsUtc(request.EffectiveFromUtc);
-        if (effectiveFrom > now.AddMinutes(5))
+        var effectiveFrom = now;
+        if (AsUtc(request.EffectiveFromUtc) > now.AddMinutes(5))
             return AppResult<EventPackagePolicyAdminDto>.Validation("This endpoint publishes an immediately effective policy; effectiveFromUtc cannot be in the future.");
         var currentPolicies = await db.EventPackageGovernancePolicyVersions.Where(x => x.OrganisationId == request.OrganisationId &&
-            x.IsPublished && x.EffectiveFromUtc <= now && (!x.RetiredUtc.HasValue || x.RetiredUtc > now)).ToListAsync(ct);
+            x.IsPublished && (!x.RetiredUtc.HasValue || x.RetiredUtc > now)).ToListAsync(ct);
+        var impact = await EventPackagePolicyEditor.Impact(db, request.OrganisationId, ct);
+        if (request.ExpectedCurrentPolicyId.HasValue && request.ExpectedCurrentPolicyId != (impact.CurrentPolicyId ?? Guid.Empty))
+            return AppResult<EventPackagePolicyAdminDto>.Conflict("The current policy changed. Refresh and review again.");
+        if (request.ImpactToken is not null && request.ImpactToken != impact.ImpactToken)
+            return AppResult<EventPackagePolicyAdminDto>.Conflict("Affected approvals changed. Preview and review again.");
+        if (request.SourcePolicyId.HasValue)
+        {
+            var source = await db.EventPackageGovernancePolicyVersions.AsNoTracking().FirstOrDefaultAsync(x =>
+                x.Id == request.SourcePolicyId && x.OrganisationId == request.OrganisationId && x.IsPublished, ct);
+            if (source is null || source.SchemaVersion != request.SchemaVersion)
+                return AppResult<EventPackagePolicyAdminDto>.Validation("The source policy is unavailable or incompatible.");
+        }
+        var previous = currentPolicies.Select(x => new { x.Id, x.Version, x.RetiredUtc }).ToArray();
         foreach (var current in currentPolicies) current.RetiredUtc = now;
 
         var policy = new EventPackageGovernancePolicyVersion
@@ -173,8 +193,7 @@ public sealed class PublishEventPackagePolicyCommandHandler(
         };
         db.EventPackageGovernancePolicyVersions.Add(policy);
 
-        var affectedEvents = await db.GroupEvents.Where(x => !x.IsDeleted &&
-            (!request.OrganisationId.HasValue || x.GroupId == request.OrganisationId.Value)).ToListAsync(ct);
+        var affectedEvents = await EventPackagePolicyEditor.AffectedEvents(db, request.OrganisationId, now).ToListAsync(ct);
         foreach (var groupEvent in affectedEvents)
             await invalidation.InvalidateForMaterialChangeAsync(groupEvent, command.CurrentMemberId,
                 "event.package.policyChanged", "governanceCritical", ct);
@@ -188,12 +207,12 @@ public sealed class PublishEventPackagePolicyCommandHandler(
         {
             Id = Guid.NewGuid(), ActorMemberId = command.CurrentMemberId, Action = "event.package.policy.published",
             EntityType = "EventPackageGovernancePolicyVersion", EntityId = policy.Id, GroupId = request.OrganisationId,
-            BeforeJson = EventPackageCanonicalizer.Serialize(currentPolicies.Select(x => new { x.Id, x.Version, x.RetiredUtc })),
+            BeforeJson = EventPackageCanonicalizer.Serialize(previous),
             AfterJson = EventPackageCanonicalizer.Serialize(new { policy.Id, policy.Version, policy.SchemaVersion, policy.EnforcementMode, policy.EffectiveFromUtc }),
-            MetadataJson = EventPackageCanonicalizer.Serialize(new { affectedEventCount = affectedEvents.Count, activeApprovalsFailClosed = true }),
+            MetadataJson = EventPackageCanonicalizer.Serialize(new { affectedEventCount = affectedEvents.Count, affectedApprovalCount = impact.AffectedApprovalCount, request.SourcePolicyId, activeApprovalsFailClosed = true }),
             OccurredUtc = now
         });
-        try { await db.SaveChangesAsync(ct); }
+        try { await db.SaveChangesAsync(ct); if (transaction is not null) await transaction.CommitAsync(ct); }
         catch (DbUpdateException) { return AppResult<EventPackagePolicyAdminDto>.Conflict("The policy version or idempotency key already exists."); }
         foreach (var groupId in affectedEvents.Select(x => x.GroupId).Distinct())
             await cacheInvalidation.RemoveGroupEventsAsync(groupId, ct);
@@ -205,51 +224,70 @@ public sealed class PublishEventPackagePolicyCommandHandler(
 
 internal static class EventPackagePolicyRules
 {
-    private static readonly HashSet<string> AllowedProperties = new(StringComparer.Ordinal)
+    private static readonly string[] Tiers = ["light", "standard", "enhanced"];
+    public static string? Validate(PublishEventPackagePolicyRequest request, IReadOnlySet<string>? activityTypes = null)
     {
-        "schemaVersion", "tierRules", "authorityByTier", "preEventConfirmationWindowHours", "approvalValidityByTier",
-        "materialChangeRules", "conditionWaiverAllowed", "delegationRules", "legacyRollout"
-    };
+        try { return ValidateCore(request, activityTypes ?? EventCompositionDefinitions.ActivityTypesByCode.Keys.ToHashSet()); }
+        catch (Exception ex) when (ex is InvalidOperationException or FormatException or OverflowException or KeyNotFoundException)
+        { return "Policy rules contain an invalid value or unsupported structure."; }
+    }
 
-    public static string? Validate(PublishEventPackagePolicyRequest request)
+    private static string? ValidateCore(PublishEventPackagePolicyRequest request, IReadOnlySet<string> activityTypes)
     {
         if (string.IsNullOrWhiteSpace(request.Version) || request.Version.Trim().Length > 40) return "Policy version is required and must be at most 40 characters.";
-        if (request.SchemaVersion != "1") return "Only governance policy schemaVersion 1 is supported.";
-        if (request.Rules.ValueKind != JsonValueKind.Object) return "Policy rules must be a JSON object.";
-        if (request.Rules.EnumerateObject().Any(x => !AllowedProperties.Contains(x.Name))) return "Policy rules contain an unknown property and must fail closed.";
-        if (!request.Rules.TryGetProperty("schemaVersion", out var schema) || schema.GetString() != "1") return "rules.schemaVersion must be 1.";
-        if (!request.Rules.TryGetProperty("preEventConfirmationWindowHours", out var window) || !window.TryGetInt32(out var hours) || hours <= 0) return "A positive preEventConfirmationWindowHours is required.";
-        if (!request.Rules.TryGetProperty("tierRules", out var tiers) || tiers.ValueKind != JsonValueKind.Array) return "tierRules is required.";
-        var tierEntries = tiers.EnumerateArray().ToArray();
-        var tierNames = tierEntries.Select(x => x.TryGetProperty("tier", out var tier) ? tier.GetString() : null).ToHashSet(StringComparer.Ordinal);
-        if (!new[] { "light", "standard", "enhanced" }.All(tierNames.Contains)) return "tierRules must define light, standard and enhanced.";
-        if (tierEntries.Any(x => !HasArray(x, "whenAnyConfirmedFactCodes") ||
-            !HasArray(x, "whenAnyActivityTypeCodes") || !HasArray(x, "whenAnyModuleCodes")))
-            return "Every tier rule must include all three trigger-code arrays.";
-        if (!request.Rules.TryGetProperty("authorityByTier", out var authority) || authority.ValueKind != JsonValueKind.Object ||
-            new[] { "light", "standard", "enhanced" }.Any(x => !authority.TryGetProperty(x, out var rule) ||
-                !rule.TryGetProperty("minimumApproverCount", out var count) || !count.TryGetInt32(out var number) || number is < 1 or > 5))
-            return "authorityByTier must define minimumApproverCount 1-5 for every tier.";
-        if (!request.Rules.TryGetProperty("approvalValidityByTier", out var validity) || validity.ValueKind != JsonValueKind.Object) return "approvalValidityByTier is required.";
-        if (new[] { "light", "standard", "enhanced" }.Any(x => !validity.TryGetProperty(x, out var value) ||
-            value.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(value.GetString())))
-            return "approvalValidityByTier must define a non-empty validity for every tier.";
-        if (!request.Rules.TryGetProperty("materialChangeRules", out var changes) || changes.ValueKind != JsonValueKind.Array) return "materialChangeRules is required.";
-        if (!request.Rules.TryGetProperty("conditionWaiverAllowed", out var waiver) || waiver.ValueKind is not (JsonValueKind.True or JsonValueKind.False)) return "conditionWaiverAllowed must be boolean.";
-        if (!request.Rules.TryGetProperty("delegationRules", out var delegation) || delegation.ValueKind != JsonValueKind.Object) return "delegationRules is required, even when delegation is disabled.";
-        if (!delegation.TryGetProperty("enabled", out var delegationEnabled) || delegationEnabled.ValueKind is not (JsonValueKind.True or JsonValueKind.False)) return "delegationRules.enabled must be boolean.";
-        if (delegationEnabled.ValueKind == JsonValueKind.True &&
-            (!HasArray(delegation, "allowedTiers") || delegation.GetProperty("allowedTiers").EnumerateArray().Any(x =>
-                x.ValueKind != JsonValueKind.String || x.GetString() is not ("light" or "standard" or "enhanced"))))
-            return "Enabled delegationRules require known allowedTiers.";
-        if (!request.Rules.TryGetProperty("legacyRollout", out var rollout) || rollout.ValueKind != JsonValueKind.Object) return "legacyRollout is required.";
-        if (!rollout.TryGetProperty("effectiveFromUtc", out _) || !rollout.TryGetProperty("transitionDeadlineUtc", out _) ||
-            !rollout.TryGetProperty("cohortRule", out _) || !HasArray(rollout, "safetyCriticalModuleCodes") ||
-            !rollout.TryGetProperty("transitionByMode", out var transitions) || transitions.ValueKind != JsonValueKind.Object)
-            return "legacyRollout is incomplete.";
+        if (request.SchemaVersion != "1" || !Enum.IsDefined(request.EnforcementMode)) return "Unsupported policy schema or enforcement mode.";
+        var r = request.Rules;
+        if (!Shape(r, ["schemaVersion", "tierRules", "authorityByTier", "preEventConfirmationWindowHours", "approvalValidityByTier", "materialChangeRules", "conditionWaiverAllowed", "delegationRules", "legacyRollout"])) return "Policy rules contain missing or unknown properties.";
+        if (r.GetProperty("schemaVersion").GetString() != "1") return "rules.schemaVersion must be 1.";
+        if (!r.GetProperty("preEventConfirmationWindowHours").TryGetInt32(out var hours) || hours <= 0) return "A positive confirmation window is required.";
+        var tiers = r.GetProperty("tierRules").EnumerateArray().ToArray();
+        if (tiers.Length != 3 || !tiers.Select(x => x.GetProperty("tier").GetString()).ToHashSet().SetEquals(Tiers)) return "Define each approval tier exactly once.";
+        foreach (var tier in tiers)
+        {
+            if (!Shape(tier, ["tier", "whenAnyConfirmedFactCodes", "whenAnyActivityTypeCodes", "whenAnyModuleCodes"]) ||
+                !Codes(tier.GetProperty("whenAnyConfirmedFactCodes"), EventPackagePolicyEditor.Facts.Select(x => x.Code).ToHashSet()) ||
+                !Codes(tier.GetProperty("whenAnyActivityTypeCodes"), activityTypes) ||
+                !Codes(tier.GetProperty("whenAnyModuleCodes"), EventCompositionDefinitions.ModulesByCode.Keys.ToHashSet())) return "Select known, distinct policy triggers.";
+        }
+        var authority = r.GetProperty("authorityByTier");
+        var validity = r.GetProperty("approvalValidityByTier");
+        if (!Shape(authority, Tiers) || !Shape(validity, Tiers)) return "Define authority and validity for every tier.";
+        foreach (var tier in Tiers)
+        {
+            var rule = authority.GetProperty(tier);
+            if (!Shape(rule, ["minimumApproverCount"]) || !rule.GetProperty("minimumApproverCount").TryGetInt32(out var count) || count is < 1 or > 5) return "Approval count must be between 1 and 5.";
+            var value = validity.GetProperty(tier);
+            if (value.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(value.GetString())) return "Approval validity is required for every tier.";
+            var duration = System.Xml.XmlConvert.ToTimeSpan(value.GetString()!);
+            if (duration <= TimeSpan.Zero || duration.TotalDays > 3650) return "Approval validity must be positive and at most 3650 days.";
+        }
+        if (r.GetProperty("materialChangeRules").ValueKind != JsonValueKind.Array) return "Material change rules must be an array.";
+        if (r.GetProperty("conditionWaiverAllowed").ValueKind is not (JsonValueKind.True or JsonValueKind.False)) return "Condition waiver must be boolean.";
+        var delegation = r.GetProperty("delegationRules");
+        if (!Shape(delegation, ["enabled"], ["allowedTiers"]) || delegation.GetProperty("enabled").ValueKind is not (JsonValueKind.True or JsonValueKind.False)) return "Invalid delegation rules.";
+        if (delegation.TryGetProperty("allowedTiers", out var allowed) && !Codes(allowed, Tiers.ToHashSet())) return "Unknown delegation tier.";
+        if (delegation.GetProperty("enabled").GetBoolean() && (allowed.ValueKind != JsonValueKind.Array || allowed.GetArrayLength() == 0)) return "Select at least one delegation tier.";
+        var rollout = r.GetProperty("legacyRollout");
+        if (!Shape(rollout, ["effectiveFromUtc", "transitionDeadlineUtc", "cohortRule", "safetyCriticalModuleCodes", "transitionByMode"])) return "Invalid rollout structure.";
+        if (!rollout.GetProperty("effectiveFromUtc").TryGetDateTimeOffset(out var start) ||
+            !rollout.GetProperty("transitionDeadlineUtc").TryGetDateTimeOffset(out var end) || end <= start) return "Transition deadline must follow its start.";
+        if (rollout.GetProperty("cohortRule").GetString() != "new-events-first" ||
+            !Codes(rollout.GetProperty("safetyCriticalModuleCodes"), EventCompositionDefinitions.ModulesByCode.Keys.ToHashSet())) return "Unknown rollout rules.";
+        var transitions = rollout.GetProperty("transitionByMode");
+        if (!Shape(transitions, [], ["off", "dryRun", "enforced"]) || transitions.EnumerateObject().Any(x => x.Value.GetString() != (x.Name switch { "off" => "legacyReadOnlyPackage", "dryRun" => "timeLimitedCompatibility", _ => "formalPackageRequired" }))) return "Unknown rollout transition.";
         return null;
     }
 
-    private static bool HasArray(JsonElement value, string propertyName)
-        => value.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.Array;
+    private static bool Shape(JsonElement value, string[] required, string[]? optional = null)
+    {
+        if (value.ValueKind != JsonValueKind.Object) return false;
+        var names = value.EnumerateObject().Select(x => x.Name).ToArray();
+        return names.Length == names.Distinct().Count() && required.All(x => names.Contains(x)) && names.All(x => required.Contains(x) || (optional?.Contains(x) ?? false));
+    }
+    private static bool Codes(JsonElement value, IReadOnlySet<string> known)
+    {
+        if (value.ValueKind != JsonValueKind.Array) return false;
+        var values = value.EnumerateArray().Select(x => x.GetString()).ToArray();
+        return values.All(x => x is not null && known.Contains(x)) && values.Distinct().Count() == values.Length;
+    }
 }
