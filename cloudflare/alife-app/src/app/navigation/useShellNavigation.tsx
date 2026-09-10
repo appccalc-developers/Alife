@@ -13,6 +13,7 @@ import { countCurrentTasks, formatTaskCount } from '../../utils/currentTasks'
 import { PERSONAL_CENTER_PATH, PROFILE_SETTINGS_PATH } from '../routing/personalCenterRoutes'
 import { getGroupLifeMemberships } from './groupLifeMemberships'
 import { localizeText } from '../../utils/localizedText'
+import { useGroupLifeDirectory } from '../../hooks/useGroupLifeDirectory'
 
 type Args = {
   contextualGroupId: string
@@ -35,12 +36,13 @@ export const useShellNavigation = ({
   workspaceEnabled,
 }: Args) => {
   const auth = useAuthStore()
+  const groupDirectory = useGroupLifeDirectory()
   const currentTasksQuery = useCurrentTasks()
   const isChinese = auth.language === 'zh'
   const memberAccountLabel = isChinese ? '成员账号' : 'Member account'
   const personalCenterLabel = isChinese ? '个人中心' : 'Personal Center'
   const contextualWorkspaceGroupId = currentGroupIsChurch ? '' : contextualGroupId
-  const groupContentItems: ShellNavItem[] = getGroupLifeMemberships(auth.memberships, churchGroupId)
+  const groupContentItems: ShellNavItem[] = getGroupLifeMemberships(auth.memberships, churchGroupId, groupDirectory.data ?? [])
     .map((membership) => ({
       key: `group-life:${membership.groupId}`,
       label: localizeText(membership.groupName, auth.language) || (isChinese ? '未命名小组' : 'Unnamed group'),

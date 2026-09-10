@@ -54,6 +54,7 @@ export const invalidateVisibleGroupsForViewers = async (...viewerIds: Array<stri
   ])
   queryClient.removeQueries({ queryKey: legacyVisibleGroupsQueryKey, exact: true })
   queryKeys.forEach((queryKey) => queryClient.removeQueries({ queryKey, exact: true }))
+  await queryClient.invalidateQueries({ queryKey: ['group-life-directory'] })
 }
 
 // ---------- Group by id (single object, cached only and not exposed as a collection) ----------
