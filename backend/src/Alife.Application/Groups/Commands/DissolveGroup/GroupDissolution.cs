@@ -3,6 +3,7 @@ using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
 using Alife.Application.Groups.Dtos;
 using Alife.Application.Groups.Services;
+using Alife.Application.ContentPosts.Services;
 using Alife.Domain.Entities;
 using Alife.Domain.Enums;
 using MediatR;
@@ -30,36 +31,15 @@ internal static class GroupDissolutionRules
         if (group is null) return AppResult<GroupDissolutionDto>.NotFound("Group was not found.");
         var blockers = new List<string>();
         if (group.IsChurch) blockers.Add("church");
-        // Pending, invited and historical memberships also prevent destructive removal.
-        if (await db.GroupMemberships.CountAsync(x => x.GroupId == groupId, ct) != 1) blockers.Add("members");
+        // Active means approved membership, consistent with Group Life.
+        if (await db.GroupMemberships.CountAsync(x => x.GroupId == groupId
+            && x.Status == MembershipStatus.Approved, ct) != 1) blockers.Add("members");
         if (await db.Groups.AnyAsync(x => x.ParentGroupId == groupId, ct)) blockers.Add("subgroups");
         if (await db.Pages.AnyAsync(x => x.OwnerGroupId == groupId, ct)) blockers.Add("pages");
         if (await db.GroupEvents.AnyAsync(x => x.GroupId == groupId, ct)
             || await db.EventSeries.AnyAsync(x => x.OwningGroupId == groupId, ct)) blockers.Add("events");
         if (await db.Albums.AnyAsync(x => x.GroupId == groupId, ct)) blockers.Add("albums");
         if (await db.Announcements.AnyAsync(x => x.GroupId == groupId, ct)) blockers.Add("announcements");
-
-        // Never cascade-delete other community data merely because the six primary lists are empty.
-        if (await db.ContactProfiles.AnyAsync(x => x.OwnerGroupId == groupId, ct)
-            || await db.ContactInquiries.AnyAsync(x => x.OwnerGroupId == groupId, ct)
-            || await db.ForumPosts.AnyAsync(x => x.GroupId == groupId, ct)
-            || await db.ContentPosts.AnyAsync(x => x.OwnerGroupId == groupId, ct)
-            || await db.FileAssets.AnyAsync(x => x.GroupId == groupId, ct)
-            || await db.Links.AnyAsync(x => x.TargetGroupId == groupId, ct)
-            || await db.NotificationMessages.AnyAsync(x => x.GroupId == groupId, ct)
-            || await db.AuditLogs.AnyAsync(x => x.GroupId == groupId, ct)
-            || await db.GroupJoinInvites.AnyAsync(x => x.GroupId == groupId, ct)
-            || await db.GroupMembershipApplications.AnyAsync(x => x.GroupId == groupId, ct)
-            || await db.ActivationGroupGrants.AnyAsync(x => x.GroupId == groupId, ct)
-            || await db.MemberActivationInvitations.AnyAsync(x => x.RecoveryGroupId == groupId, ct)
-            || await db.EventEnrollments.AnyAsync(x => x.GroupId == groupId, ct)
-            || await db.EventReviews.AnyAsync(x => x.GroupId == groupId, ct)
-            || await db.EventWorkflowTemplates.AnyAsync(x => x.OwnerGroupId == groupId, ct)
-            || await db.EventVenues.AnyAsync(x => x.ManagingGroupId == groupId, ct)
-            || await db.EventSafeguardingPolicyVersions.AnyAsync(x => x.GroupId == groupId, ct)
-            || await db.EventPackageGovernancePolicyVersions.AnyAsync(x => x.OrganisationId == groupId, ct)
-            || await db.EventPackageApprovalDelegations.AnyAsync(x => x.OrganisationId == groupId, ct))
-            blockers.Add("relatedRecords");
 
         return AppResult<GroupDissolutionDto>.Success(new(blockers.Count == 0, blockers));
     }
@@ -73,12 +53,15 @@ public sealed class GetGroupDissolutionQueryHandler(IAlifeDbContext db)
 }
 
 public sealed class DissolveGroupCommandHandler(
-    IAlifeDbContext db, IGroupCacheInvalidationService cache, ICloudflareKvCacheService kv)
+    IAlifeDbContext db, IGroupCacheInvalidationService cache, ICloudflareKvCacheService kv,
+    IContentPostCacheInvalidationService contentCache)
     : IRequestHandler<DissolveGroupCommand, AppResult<GroupActionResultDto>>
 {
     public async Task<AppResult<GroupActionResultDto>> Handle(DissolveGroupCommand request, CancellationToken ct)
     {
         Guid? parentId;
+        List<Guid> affectedMemberIds;
+        List<string> contentSlugs;
         // Check and delete in one transaction. SQL range locks protect against new children/content/members.
         await using (var transaction = await db.BeginSerializableTransactionAsync(ct))
         {
@@ -91,7 +74,9 @@ public sealed class DissolveGroupCommandHandler(
                 return AppResult<GroupActionResultDto>.Conflict("This group is not empty. Refresh its dissolution requirements.");
 
             var group = await db.Groups.SingleAsync(x => x.Id == request.GroupId, ct);
-            var membership = await db.GroupMemberships.SingleAsync(x => x.GroupId == request.GroupId, ct);
+            affectedMemberIds = await db.GroupMemberships.Where(x => x.GroupId == request.GroupId).Select(x => x.MemberId).Distinct().ToListAsync(ct);
+            contentSlugs = await db.ContentPosts.Where(x => x.OwnerGroupId == request.GroupId).Select(x => x.Slug).ToListAsync(ct);
+            var auditIds = await db.AuditLogs.Where(x => x.GroupId == request.GroupId).Select(x => x.Id).ToListAsync(ct);
             parentId = group.ParentGroupId;
             db.AuditLogs.Add(new AuditLog
             {
@@ -99,10 +84,10 @@ public sealed class DissolveGroupCommandHandler(
                 Action = "group.dissolved", EntityType = "Group", EntityId = group.Id,
                 // EntityId retains the deleted identity without a foreign key to the removed group.
                 BeforeJson = JsonSerializer.Serialize(new { group.NameJson, group.ParentGroupId, group.GroupType }),
+                MetadataJson = JsonSerializer.Serialize(new { retainedAuditIds = auditIds }),
                 OccurredUtc = DateTime.UtcNow
             });
-            db.GroupMemberships.Remove(membership);
-            db.Groups.Remove(group);
+            await db.StageGroupDissolutionAsync(request.GroupId, request.CurrentMemberId, ct);
             try
             {
                 await db.SaveChangesAsync(ct);
@@ -114,10 +99,14 @@ public sealed class DissolveGroupCommandHandler(
             }
         }
 
-        await kv.RemoveMembershipAsync(request.GroupId, request.CurrentMemberId, ct);
-        await kv.RemoveApiCacheKeyAsync($"member:{request.CurrentMemberId}:me", ct);
-        await kv.RemoveMemberProfileAsync(request.CurrentMemberId, ct);
+        foreach (var memberId in affectedMemberIds)
+        {
+            await kv.RemoveMembershipAsync(request.GroupId, memberId, ct);
+            await kv.RemoveApiCacheKeyAsync($"member:{memberId}:me", ct);
+            await kv.RemoveMemberProfileAsync(memberId, ct);
+        }
         await cache.RemoveMembershipsAsync(request.GroupId, ct);
+        await contentCache.RemovePublicBatchAsync(request.GroupId, contentSlugs, ct);
         await cache.RemoveGroupAsync(request.GroupId, ct);
         if (parentId.HasValue) await cache.RemoveSubgroupsAsync(parentId.Value, ct);
         return AppResult<GroupActionResultDto>.Success(new GroupActionResultDto(true, request.GroupId, parentId));

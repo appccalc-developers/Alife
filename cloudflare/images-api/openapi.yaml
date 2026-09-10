@@ -9,6 +9,31 @@ info:
 servers:
   - url: https://images.ccalc.live
 paths:
+  /api/admin/file-objects/delete:
+    post:
+      summary: Permanently delete one registered file object (backend only)
+      description: Used by dissolved-group cleanup. Requires the existing file admin secret and matching bucket name. Exact object keys only; no recursive prefix deletion. Missing objects also return 204 for safe retries. Responses are private, no-store.
+      parameters:
+        - in: header
+          name: x-alife-file-admin-secret
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [objectKey, bucketName, groupId]
+              properties:
+                objectKey: { type: string, maxLength: 1024 }
+                bucketName: { type: string }
+                groupId: { type: string, format: uuid, description: "Object key must be under groups/{groupId}/ or private/groups/{groupId}/" }
+      responses:
+        "204": { description: Object deleted or already absent }
+        "400": { description: Invalid key or mismatched bucket }
+        "403": { description: Missing or invalid server secret }
+        "405": { description: Method not allowed }
   /api/admin/sunday-bulletins/{objectKey}:
     put:
       summary: Replace a church bulletin PDF (backend only)

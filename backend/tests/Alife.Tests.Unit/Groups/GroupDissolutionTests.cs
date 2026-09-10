@@ -36,7 +36,7 @@ public class GroupDissolutionTests
         return db;
     }
     private Task<AppResult<Alife.Application.Groups.Dtos.GroupActionResultDto>> Dissolve(AlifeDbContext db, Guid? actor = null)
-        => new DissolveGroupCommandHandler(db, cache, kv).Handle(new(groupId, actor ?? leaderId), default);
+        => new DissolveGroupCommandHandler(db, cache, kv, Substitute.For<Alife.Application.ContentPosts.Services.IContentPostCacheInvalidationService>()).Handle(new(groupId, actor ?? leaderId), default);
 
     [Theory]
     [InlineData(GroupType.Fellowship, false)]
@@ -102,14 +102,14 @@ public class GroupDissolutionTests
     [InlineData(MembershipStatus.Requested)]
     [InlineData(MembershipStatus.Rejected)]
     [InlineData(MembershipStatus.Removed)]
-    public async Task AdditionalMembershipInAnyStateBlocksDissolution(MembershipStatus status)
+    public async Task OnlyAdditionalApprovedMembershipBlocksDissolution(MembershipStatus status)
     {
         await using var db = await CreateDb();
         db.GroupMemberships.Add(new GroupMembership { Id = Guid.NewGuid(), GroupId = groupId, MemberId = Guid.NewGuid(), Status = status });
         await db.SaveChangesAsync();
         var check = await new GetGroupDissolutionQueryHandler(db).Handle(new(groupId, leaderId), default);
-        Assert.Contains("members", check.Value!.Blockers);
-        Assert.Equal(AppResultStatus.Conflict, (await Dissolve(db)).Status);
+        Assert.Equal(status == MembershipStatus.Approved, check.Value!.Blockers.Contains("members"));
+        Assert.Equal(status != MembershipStatus.Approved, (await Dissolve(db)).IsSuccess);
     }
 
     [Theory]
@@ -120,11 +120,6 @@ public class GroupDissolutionTests
     [InlineData("series")]
     [InlineData("albums")]
     [InlineData("announcements")]
-    [InlineData("contacts")]
-    [InlineData("forum")]
-    [InlineData("invites")]
-    [InlineData("files")]
-    [InlineData("audit")]
     public async Task ContentAddedAfterPreviewIsNotDeleted(string kind)
     {
         await using var db = await CreateDb();
@@ -150,6 +145,82 @@ public class GroupDissolutionTests
         Assert.Equal(count, db.ChangeTracker.Entries().Count());
         Assert.True(await db.Groups.AnyAsync(x => x.Id == groupId));
         await kv.DidNotReceive().RemoveMembershipAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task OtherInformationIsDeletedAndAuditAndOtherGroupsSurvive()
+    {
+        await using var db = await CreateDb();
+        var contactId = Guid.NewGuid();
+        var postId = Guid.NewGuid();
+        var fileId = Guid.NewGuid();
+        var auditId = Guid.NewGuid();
+        db.ContactProfiles.Add(new ContactProfile { Id = contactId, OwnerGroupId = groupId, MemberId = leaderId });
+        db.ContactInquiries.Add(new ContactInquiry { Id = Guid.NewGuid(), OwnerGroupId = groupId, ContactProfileId = contactId });
+        db.ForumPosts.Add(new ForumPost { Id = postId, GroupId = groupId, AuthorMemberId = leaderId });
+        db.ForumComments.Add(new ForumComment { Id = Guid.NewGuid(), PostId = postId, AuthorMemberId = leaderId });
+        db.ForumPosts.Add(new ForumPost { Id = Guid.NewGuid(), GroupId = parentId, AuthorMemberId = leaderId });
+        db.GroupJoinInvites.Add(new GroupJoinInvite { Id = Guid.NewGuid(), GroupId = groupId });
+        db.FileAssets.Add(new FileAsset { Id = fileId, GroupId = groupId, ObjectKey = "groups/file.png", OwnerMemberId = leaderId });
+        db.AuditLogs.Add(new AuditLog { Id = auditId, GroupId = groupId, Action = "original", EntityId = groupId });
+        db.NotificationMessages.Add(new NotificationMessage { Id = Guid.NewGuid(), GroupId = groupId });
+        await db.SaveChangesAsync();
+        Assert.True((await new GetGroupDissolutionQueryHandler(db).Handle(new(groupId, leaderId), default)).Value!.CanDissolve);
+        Assert.True((await Dissolve(db)).IsSuccess);
+        Assert.Empty(await db.ContactProfiles.ToListAsync());
+        Assert.Empty(await db.ContactInquiries.ToListAsync());
+        Assert.Empty(await db.ForumComments.ToListAsync());
+        Assert.Empty(await db.GroupJoinInvites.ToListAsync());
+        Assert.Empty(await db.NotificationMessages.ToListAsync());
+        Assert.Equal(parentId, (await db.ForumPosts.SingleAsync()).GroupId);
+        var audit = await db.AuditLogs.SingleAsync(x => x.Id == auditId);
+        Assert.Null(audit.GroupId);
+        Assert.Equal("original", audit.Action);
+        var file = await db.FileAssets.IgnoreQueryFilters().SingleAsync();
+        Assert.True(file.IsDeleted);
+        Assert.Null(file.GroupId);
+        Assert.Equal("DissolvedGroup", file.RelatedEntityType);
+        Assert.True(await db.Members.AnyAsync(x => x.Id == leaderId));
+    }
+
+    [Fact]
+    public async Task SharedFileAndAnotherGroupsAlbumPhotoAreNotDeleted()
+    {
+        await using var db = await CreateDb();
+        var album = new Album { Id = Guid.NewGuid(), GroupId = parentId };
+        var file = new FileAsset { Id = Guid.NewGuid(), GroupId = groupId, ObjectKey = "shared.png" };
+        db.Albums.Add(album);
+        db.FileAssets.Add(file);
+        db.AlbumPhotos.Add(new AlbumPhoto { Id = Guid.NewGuid(), AlbumId = album.Id, FileAssetId = file.Id });
+        await db.SaveChangesAsync();
+        Assert.True((await Dissolve(db)).IsSuccess);
+        Assert.Single(await db.AlbumPhotos.ToListAsync());
+        Assert.False((await db.FileAssets.SingleAsync()).IsDeleted);
+        Assert.Null((await db.FileAssets.SingleAsync()).GroupId);
+    }
+
+    [Fact]
+    public async Task ReferencedApprovalEvidenceSurvivesWithoutKeepingTheGroupAvailable()
+    {
+        await using var db = await CreateDb();
+        var policy = new EventPackageGovernancePolicyVersion { Id = Guid.NewGuid(), OrganisationId = groupId, RulesJson = "{\"version\":1}" };
+        var otherEvent = new GroupEvent { Id = Guid.NewGuid(), GroupId = parentId };
+        var package = new EventPackage { Id = Guid.NewGuid(), EventId = otherEvent.Id, GovernancePolicyVersionId = policy.Id };
+        db.EventPackageGovernancePolicyVersions.Add(policy);
+        db.GroupEvents.Add(otherEvent);
+        db.EventPackages.Add(package);
+        await db.SaveChangesAsync();
+        Assert.True((await Dissolve(db)).IsSuccess);
+        db.ChangeTracker.Clear();
+        Assert.False(await db.Groups.AnyAsync(x => x.Id == groupId));
+        Assert.True((await db.Groups.IgnoreQueryFilters().SingleAsync(x => x.Id == groupId)).IsDissolved);
+        Assert.Equal(policy.Id, (await db.EventPackages.SingleAsync()).GovernancePolicyVersionId);
+        Assert.Equal("{\"version\":1}", (await db.EventPackageGovernancePolicyVersions.SingleAsync()).RulesJson);
+        Assert.Equal(otherEvent.Id, (await db.GroupEvents.SingleAsync()).Id);
+        Assert.False(await db.GroupMemberships.AnyAsync(x => x.GroupId == groupId));
+        Assert.False((await Dissolve(db)).IsSuccess);
+        db.GroupMemberships.Add(new GroupMembership { Id = Guid.NewGuid(), GroupId = groupId, MemberId = leaderId });
+        await Assert.ThrowsAsync<InvalidOperationException>(() => db.SaveChangesAsync());
     }
 
     [Fact]

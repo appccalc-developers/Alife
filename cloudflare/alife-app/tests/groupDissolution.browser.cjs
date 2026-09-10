@@ -69,7 +69,7 @@ const { chromium } = require(process.env.ALIFE_PLAYWRIGHT_MODULE || 'playwright'
       }
     }
     await page.evaluate(() => localStorage.setItem('alife.language', 'zh')); await page.reload();
-    blockers = ['members', 'subgroups', 'pages', 'events', 'albums', 'announcements', 'relatedRecords'];
+    blockers = ['members', 'subgroups', 'pages', 'events', 'albums', 'announcements'];
     await panel.getByRole('button', { name: '重新检查' }).click();
     await panel.getByText('还有页面（包括草稿）。', { exact: true }).waitFor();
     assert.equal(await panel.getByRole('button', { name: '解散小组', exact: true }).isEnabled(), false);

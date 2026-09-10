@@ -34,6 +34,8 @@ public static class DependencyInjection
 				.UseSqlServer(configuration.GetConnectionString("Default"))
 				.UseSnakeCaseNamingConvention());
 		services.AddScoped<IAlifeDbContext>(sp => sp.GetRequiredService<AlifeDbContext>());
+		services.AddHttpClient<DissolvedGroupFilePurger>(client => client.Timeout = TimeSpan.FromSeconds(30));
+		services.AddHostedService<DissolvedGroupFilePurgeHostedService>();
 
 		services.AddScoped<IJwtTokenService, JwtTokenService>();
 		services.AddSingleton<IIdentityAccessConfiguration, IdentityAccessConfiguration>();

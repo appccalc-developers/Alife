@@ -59,6 +59,8 @@ public sealed class RegisterFileAssetCommandHandler(
 
         if (existing is not null)
         {
+            if (existing.IsDeleted && existing.RelatedEntityType == "DissolvedGroup")
+                return AppResult<FileAssetDto>.Conflict("This object is pending permanent deletion. Upload using a new object key.");
             if (existing.IsDeleted)
             {
                 existing.IsDeleted = false;

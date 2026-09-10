@@ -92,6 +92,7 @@ public interface IAlifeDbContext
     DbSet<ForumComment> ForumComments { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+    Task StageGroupDissolutionAsync(Guid groupId, Guid actorId, CancellationToken cancellationToken = default);
     Task<IAlifeTransaction?> BeginSerializableTransactionAsync(CancellationToken cancellationToken = default);
 }
 
