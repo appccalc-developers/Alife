@@ -1,3 +1,5 @@
+import GroupLoadError from '../components/group/GroupLoadError'
+import { isNotFound } from '../db/httpError'
 import { useEffect, useMemo, useState } from 'react'
 import { DoorOpen, UserPlus } from 'lucide-react'
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
@@ -29,6 +31,7 @@ const GroupJoinView = () => {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [loadError, setLoadError] = useState<unknown>(null)
   const [statusMessage, setStatusMessage] = useState('')
 
   const membership = useMemo(
@@ -51,10 +54,12 @@ const GroupJoinView = () => {
   )
 
   useEffect(() => {
-    if (!groupId) return
+    if (!auth.initialized || !groupId) return
     let cancelled = false
     setLoading(true)
     setError('')
+    setLoadError(null)
+    setGroup(null)
 
     groupService
       .getGroup(groupId)
@@ -64,6 +69,7 @@ const GroupJoinView = () => {
       })
       .catch((reason) => {
         if (!cancelled) {
+          setLoadError(reason)
           setError(reason instanceof Error ? reason.message : t('loadGroupFailed'))
         }
       })
@@ -76,7 +82,7 @@ const GroupJoinView = () => {
     return () => {
       cancelled = true
     }
-  }, [groupId])
+  }, [auth.initialized, auth.me?.id, groupId])
 
   const submitJoin = async () => {
     if (!group) return
@@ -108,6 +114,8 @@ const GroupJoinView = () => {
       setSubmitting(false)
     }
   }
+
+  if (isNotFound(loadError)) return <GroupLoadError error={loadError} />
 
   if (!groupId) {
     return <Navigate to="/groups/select" replace />

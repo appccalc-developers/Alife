@@ -43,3 +43,13 @@ Also verify header action placement, manager/member visibility, the explicit-gro
 简体：`/groups` 和旧总览入口显示目录，`/groups/select` 跳转至目录；旧 `section` 或 `page` 书签可将保存的小组转换为指定网址以保持兼容，其他旧范围路由仍保留兼容支持。浏览目录不会改变保存值。
 
 繁體：`/groups` 和舊總覽入口顯示目錄，`/groups/select` 跳轉至目錄；舊 `section` 或 `page` 書籤可將儲存的小組轉換為指定網址以保持相容，其他舊範圍路由仍保留相容支援。瀏覽目錄不會改變儲存值。
+
+## Directory freshness and missing groups
+
+The viewer-scoped directory uses version 2 query/IndexedDB keys. Its first read discards legacy directory keys and does not send their ETags. Directory and sidebar share a 30-second freshness window and revalidate stale data on mount, focus and reconnect without polling or language-triggered reloads. Group and membership mutations invalidate the current viewer's directory and refresh their profile. The directory retains existing discoverability and removed-membership filtering; it is not an administrative list.
+
+Group reads wait for identity initialization. A detail 404 is not retried: concurrent consumers share recovery, clear that group's cached resources, refresh the directory/profile, and clear saved group/page/event selections only when the saved group matches. A 30-second missing-result window prevents repeated recovery during rerenders. An explicit unavailable group displays “Group not found or dissolved / 小组不存在或已解散” with a directory action and does not start child-resource reads. Recovery does not select a different group. 403, network failures and 5xx retain the saved selection and show a retry state. Deploy the Worker isolation before or together with the client cache upgrade; production verification remains a separate authorized step.
+
+简体：目录缓存升级为按用户隔离的第二版，删除旧目录键，首次不发送旧 ETag；目录与导航共享查询，过期数据在进入、窗口重新获焦或网络恢复时重新验证。小组及成员变更后刷新目录与个人资料。小组 404 合并恢复，不重试，不加载子资源；仅清除匹配的已保存选择，不自动切换其他小组。403、断网和 5xx 保留选择并允许重试。源站可见性规则保持不变；先发布速度层隔离或与前端一起发布。
+
+繁體：目錄快取升級為按使用者隔離的第二版，刪除舊目錄鍵，首次不傳送舊 ETag；目錄與導航共用查詢，過期資料在進入、視窗重新獲焦或網路恢復時重新驗證。小組及成員變更後更新目錄與個人資料。小組 404 合併恢復，不重試，不載入子資源；僅清除匹配的已儲存選擇，不自動切換其他小組。403、斷網和 5xx 保留選擇並允許重試。源站可見性規則保持不變；先發布速度層隔離或與前端一起發布。

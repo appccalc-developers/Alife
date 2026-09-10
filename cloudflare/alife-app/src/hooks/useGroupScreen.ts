@@ -49,9 +49,11 @@ export const useGroupScreen = (groupId: string, options: GroupScreenOptions = {}
 
   // The shell validates the active group; the screen shares that viewer-scoped result.
   useEffect(() => {
-    if (!groupId) return
+    if (!auth.initialized || !groupId) return
     let cancelled = false
     setGroupLoading(true)
+    setLoadedGroup(null)
+    setError('')
     ensureGroupForViewer(groupId, auth.me?.id)
       .then((data) => {
         if (!cancelled) setLoadedGroup(normalizeGroup(data))
@@ -63,12 +65,12 @@ export const useGroupScreen = (groupId: string, options: GroupScreenOptions = {}
         if (!cancelled) setGroupLoading(false)
       })
     return () => { cancelled = true }
-  }, [auth.me?.id, groupId])
+  }, [auth.initialized, auth.me?.id, groupId])
 
   const canPubliclyBrowseGroup = group?.isChurch || group?.accessType === 'public'
 
   // Load subgroups as a live collection.
-  const canLoadSubgroups = !auth.isGuest || Boolean(canPubliclyBrowseGroup)
+  const canLoadSubgroups = Boolean(group) && (!auth.isGuest || Boolean(canPubliclyBrowseGroup))
   const subCollection = useMemo(() => (groupId ? subgroupsCollection(groupId, canLoadSubgroups) : null), [canLoadSubgroups, groupId])
   const { data: subgroups = [] } = useLiveQuery(
     () => subCollection ?? undefined,
@@ -76,14 +78,14 @@ export const useGroupScreen = (groupId: string, options: GroupScreenOptions = {}
   )
 
   // Load pages as a live collection.
-  const pagesColl = useMemo(() => (groupId ? groupPagesCollection(groupId) : null), [groupId])
+  const pagesColl = useMemo(() => (group ? groupPagesCollection(groupId) : null), [group, groupId])
   const { data: pages = [] } = useLiveQuery(
     () => pagesColl ?? undefined,
     [pagesColl],
   )
 
   // Load memberships as a live collection.
-  const canLoadMemberships = !auth.isGuest && auth.canManageGroup(groupId)
+  const canLoadMemberships = Boolean(group) && !auth.isGuest && auth.canManageGroup(groupId)
   // Root-church membership is managed from existing church records; invitation
   // candidates belong to subgroup invitation workflows and must not appear here.
   const includeLineCandidates = false
@@ -117,7 +119,7 @@ export const useGroupScreen = (groupId: string, options: GroupScreenOptions = {}
   const canCreatePage = isPlatformAdmin || membership?.status === 'approved'
   const canEditAllPages = canManageGroup
   const canPublishPages = canManageGroup
-  const canLoadEvents = shouldLoadEvents && Boolean(groupId) && (membership?.status === 'approved' || Boolean(canPubliclyBrowseGroup))
+  const canLoadEvents = shouldLoadEvents && Boolean(group) && (membership?.status === 'approved' || Boolean(canPubliclyBrowseGroup))
   const eventViewerId = auth.me?.id || 'guest'
 
   // Fetch events for approved members and for public group access.

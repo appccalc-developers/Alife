@@ -43,6 +43,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return profile
   }, [])
 
+  useEffect(() => {
+    const refresh = () => { if (me?.id) void fetchMe().catch(() => undefined) }
+    window.addEventListener('alife-group-memberships-changed', refresh)
+    return () => window.removeEventListener('alife-group-memberships-changed', refresh)
+  }, [fetchMe, me?.id])
+
   const bootstrap = useCallback(async () => {
     if (me) {
       setInitialized(true)

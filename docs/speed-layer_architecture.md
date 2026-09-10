@@ -387,3 +387,11 @@ For protected routes, inspect:
 ### Browser continuation and recovery
 
 Browser-application status, supplement, activation, and member-specific `passkey-recovery` routes bypass response caching. New cookies and recovery QR secrets never enter shared cache entries. Existing JWT sessions and group authorization mirrors are unchanged: this release revokes lost Passkey credentials, not already-issued sessions. See [identity access](identity-access.md).
+
+### Viewer-specific group directory
+
+`GET /api/groups/visible` (including query variants) bypasses shared response caches and group authorization mirrors before route classification. Only the origin evaluates its conditional request: 200/304 responses retain the origin ETag and private/no-cache with Cookie, Authorization and Accept-Encoding variance; errors are private/no-store. The Worker always reports BYPASS. Historical `api:/api/groups/visible` entries and synthetic `visible` membership mirrors are unreachable and expire naturally; rollout does not require global cache deletion. Group detail classifiers accept GUIDs, with the existing church alias handled explicitly. Other safe group caches remain unchanged.
+
+简体：小组发现目录按访问者返回，明确绕过共享响应缓存及小组授权镜像。200／304 保留源站 ETag 与私人重新验证头，错误不缓存。旧目录及误建的授权镜像不再读取，自然过期；无需全局清缓存。小组详情仅识别 GUID，教会别名单独处理。
+
+繁體：小組發現目錄按訪問者返回，明確繞過共享回應快取及小組授權鏡像。200／304 保留源站 ETag 與私人重新驗證標頭，錯誤不快取。舊目錄及誤建的授權鏡像不再讀取，自然過期；無需全域清快取。小組詳情僅識別 GUID，教會別名單獨處理。
