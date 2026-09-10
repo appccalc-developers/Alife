@@ -38,6 +38,8 @@ export type GroupActionResultDto = {
   memberId?: string | null
 }
 
+export type GroupDissolutionDto = { canDissolve: boolean; blockers: string[] }
+
 export type MemberSummaryDto = {
   id: string
   displayName: string | null
@@ -443,6 +445,28 @@ export const groupService = {
 
   async closeGroup(groupId: string) {
     await http.post(`/api/groups/${groupId}/close`)
+    await invalidateChurchLifeQueries()
+  },
+
+  async getDissolution(groupId: string) {
+    const { data } = await http.get<GroupDissolutionDto>(`/api/groups/${groupId}/dissolution`)
+    return data
+  },
+
+  async dissolveGroup(groupId: string) {
+    await http.post(`/api/groups/${groupId}/dissolve`)
+  },
+
+  async refreshAfterDissolution(groupId: string, parentGroupId: string | null | undefined, viewerId: string) {
+    const keys = [
+      ['group', groupId], ['groupMemberships', groupId], ['groupPages', groupId],
+      ['groupMemberships', groupId, 'members-only'], ['groupMemberships', groupId, 'line-candidates'],
+      ['groupEvents', groupId],
+      ['subgroups', groupId], ...(parentGroupId ? [['subgroups', parentGroupId]] : []),
+    ]
+    await Promise.all(keys.map(key => removeCachedRecord(key)))
+    keys.forEach(queryKey => queryClient.removeQueries({ queryKey }))
+    await invalidateVisibleGroupsForViewers(viewerId)
     await invalidateChurchLifeQueries()
   },
 

@@ -1634,6 +1634,40 @@ test('closing a subgroup invalidates the parent subgroup list cache', async () =
   assert.equal(apiCacheStore.has(`group:${parentId}:subgroups`), false)
 })
 
+test('dissolving a group clears the group, parent list and leader authorization mirrors', async () => {
+  const childId = 'empty-group'
+  const parentId = 'parent-group'
+  apiCacheStore.set(createApiCacheKey(`https://ccalc.live/api/groups/${childId}`), createStoredResponse({ id: childId }))
+  apiCacheStore.set(`group:${parentId}:subgroups`, createStoredResponse([{ id: childId }]))
+  authzStore.set(`membership:${childId}:member-1`, JSON.stringify({ status: 'approved', role: 'Leader' }))
+  authzStore.set('member:member-1:profile', JSON.stringify({ isAdmin: false }))
+  originResponses.push(Response.json({ ok: true, groupId: childId, parentGroupId: parentId }))
+  const response = await dispatch(`https://ccalc.live/api/groups/${childId}/dissolve`, {
+    method: 'POST', headers: { cookie: `alife_auth=${createJwtWithSub('member-1')}` },
+  })
+  await flushWaitUntil()
+  assert.equal(response.status, 200)
+  assert.equal(apiCacheStore.has(createApiCacheKey(`https://ccalc.live/api/groups/${childId}`)), false)
+  assert.equal(apiCacheStore.has(`group:${parentId}:subgroups`), false)
+  assert.equal(authzStore.has(`membership:${childId}:member-1`), false)
+  assert.equal(authzStore.has('member:member-1:profile'), false)
+})
+
+test('dissolution eligibility is never served from shared cache', async () => {
+  const url = 'https://ccalc.live/api/groups/empty-group/dissolution'
+  const headers = { cookie: `alife_auth=${createJwtWithSub('member-1')}` }
+  originResponses.push(Response.json({ canDissolve: true, blockers: [] }, { headers: { 'cache-control': 'private, no-store' } }))
+  const first = await dispatch(url, { headers })
+  await flushWaitUntil()
+  originResponses.push(Response.json({ canDissolve: false, blockers: ['pages'] }, { headers: { 'cache-control': 'private, no-store' } }))
+  const second = await dispatch(url, { headers })
+  await flushWaitUntil()
+  assert.equal((await first.json()).canDissolve, true)
+  assert.equal((await second.json()).canDissolve, false)
+  assert.match(second.headers.get('cache-control'), /no-store/)
+  assert.equal(fetchCalls.length, 2)
+})
+
 test('updating a subgroup invalidates the parent subgroup list from edge and KV caches', async () => {
   const parentId = 'parent-group-1'
   const childId = 'child-group-1'

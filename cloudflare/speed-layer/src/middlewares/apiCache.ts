@@ -598,13 +598,13 @@ export async function getInvalidationPaths(env: Env, request: Request, response:
     paths.add(`/api/groups/${claimSubgroupCoLeaderMatch[2]}`)
   }
 
-  const groupActionMatch = path.match(/^\/api\/groups\/([^/]+)\/(join-request|invite|invite-by-id|invite\/(?:accept|decline)|approve|reject|set-coleader|appoint-leader|transfer-leadership|kick)$/)
+  const groupActionMatch = path.match(/^\/api\/groups\/([^/]+)\/(join-request|invite|invite-by-id|invite\/(?:accept|decline)|approve|reject|set-coleader|appoint-leader|transfer-leadership|kick|dissolve)$/)
   if (groupActionMatch) {
     paths.add(`/api/groups/${groupActionMatch[1]}/memberships`)
     paths.add(`/api/groups/${groupActionMatch[1]}/members`)
   }
 
-  const groupCloseMatch = path.match(/^\/api\/groups\/([^/]+)\/close$/)
+  const groupCloseMatch = path.match(/^\/api\/groups\/([^/]+)\/(?:close|dissolve)$/)
   if (groupCloseMatch) {
     const closedGroupId = groupCloseMatch[1]
     paths.add(`/api/groups/${closedGroupId}`)
@@ -785,7 +785,7 @@ export function getInvalidationKeys(request: Request, targetMemberIds: string | 
 
   const currentMemberId = extractMemberIdFromRequest(request)
 
-  const groupActionMatch = path.match(/^\/api\/groups\/([^/]+)\/(join-request|invite|invite-by-id|invite\/(?:accept|decline)|approve|reject|set-coleader|appoint-leader|transfer-leadership|kick)$/)
+  const groupActionMatch = path.match(/^\/api\/groups\/([^/]+)\/(join-request|invite|invite-by-id|invite\/(?:accept|decline)|approve|reject|set-coleader|appoint-leader|transfer-leadership|kick|dissolve)$/)
   if (groupActionMatch) {
     const affectedMemberIds = new Set<string>()
     const explicitTargetMemberIds = typeof targetMemberIds === 'string' ? [targetMemberIds] : targetMemberIds
