@@ -416,7 +416,7 @@ public sealed class EventTravelService(
         if (packageInvalidation is not null)
             await packageInvalidation.InvalidateForModuleChangeAsync(groupEvent, actorMemberId, ModuleCode,
                 "event.travel.changed", "governanceCritical", ct);
-        try { await db.SaveChangesAsync(ct); }
+        try { if (!await EventPreparationPolicy.SaveEditableAsync(db, groupEvent.Id, ct)) return AppResult<EventTravelWorkspaceDto>.Conflict(EventPreparationPolicy.FrozenMessage); }
         catch (DbUpdateConcurrencyException) { return AppResult<EventTravelWorkspaceDto>.PreconditionFailed(conflictMessage); }
         catch (DbUpdateException) { return AppResult<EventTravelWorkspaceDto>.Conflict(conflictMessage); }
         return AppResult<EventTravelWorkspaceDto>.Success(await BuildWorkspace(groupEvent, ct));

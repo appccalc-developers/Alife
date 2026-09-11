@@ -62,7 +62,8 @@ public sealed class InitializeEventWorkflowCommandHandler(
             request.CurrentMemberId,
             DateTime.UtcNow);
         dbContext.EventWorkflowRuns.Add(run);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        if (!await EventPreparationPolicy.SaveEditableAsync(dbContext, request.EventId, cancellationToken))
+            return AppResult<EventWorkflowDto>.Conflict(EventPreparationPolicy.FrozenMessage);
         return AppResult<EventWorkflowDto>.Success(EventWorkflowDefinition.ToDto(run));
     }
 }

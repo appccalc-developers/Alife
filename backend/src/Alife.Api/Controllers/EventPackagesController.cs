@@ -28,6 +28,11 @@ public sealed class EventPackagesController(
         [FromQuery] Guid? scopeId, CancellationToken ct)
         => Run(member => packages.GetCurrentAsync(eventId, member, scopeType, scopeId, ct), value => value.ETag);
 
+    [HttpGet("assessment")]
+    public Task<IActionResult> Assessment(Guid eventId, [FromQuery] EventPackageScopeType scopeType,
+        [FromQuery] Guid? scopeId, CancellationToken ct)
+        => Run(member => packages.GetApprovalAssessmentAsync(eventId, member, scopeType, scopeId, ct));
+
     [HttpGet("{packageId:guid}")]
     public Task<IActionResult> Get(Guid eventId, Guid packageId, CancellationToken ct)
         => Run(member => packages.GetAsync(eventId, packageId, member, ct), value => value.ETag);

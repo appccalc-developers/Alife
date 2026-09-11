@@ -60,6 +60,7 @@ public sealed class UpdateEventWorkflowStepCommandHandler(
         }
 
         var now = DateTime.UtcNow;
+        var changesPreparation = step.AssignedMemberId != request.AssignedMemberId || step.DueUtc != request.DueUtc;
         step.Status = request.Status;
         step.AssignedMemberId = request.AssignedMemberId;
         step.DueUtc = request.DueUtc;
@@ -67,7 +68,12 @@ public sealed class UpdateEventWorkflowStepCommandHandler(
         step.CompletedUtc = request.Status == EventWorkflowStepStatus.Completed ? now : null;
         step.UpdatedUtc = now;
         EventWorkflowDefinition.RecalculateRun(run, now);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        if (changesPreparation)
+        {
+            if (!await EventPreparationPolicy.SaveEditableAsync(dbContext, request.EventId, cancellationToken))
+                return AppResult<EventWorkflowDto>.Conflict(EventPreparationPolicy.FrozenMessage);
+        }
+        else await dbContext.SaveChangesAsync(cancellationToken);
         return AppResult<EventWorkflowDto>.Success(EventWorkflowDefinition.ToDto(run));
     }
 }

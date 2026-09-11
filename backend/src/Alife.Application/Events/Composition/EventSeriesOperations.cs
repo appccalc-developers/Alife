@@ -227,7 +227,9 @@ public sealed record UpdateEventSeriesCommand(
     Guid SeriesId,
     Guid CurrentMemberId,
     UpdateEventSeriesRequest Request,
-    string? IfMatch)
+    string? IfMatch,
+    bool TransactionAlreadyStarted = false,
+    Guid? PreparationEventId = null)
     : IRequest<AppResult<EventSeriesDto>>;
 
 public sealed class UpdateEventSeriesCommandHandler(
@@ -239,6 +241,8 @@ public sealed class UpdateEventSeriesCommandHandler(
         UpdateEventSeriesCommand request,
         CancellationToken cancellationToken)
     {
+        await using var transaction = request.TransactionAlreadyStarted ? null :
+            await dbContext.BeginSerializableTransactionAsync(cancellationToken);
         var series = await dbContext.EventSeries
             .Include(x => x.Events)
                 .ThenInclude(x => x.Occurrences)
@@ -247,12 +251,20 @@ public sealed class UpdateEventSeriesCommandHandler(
         {
             return AppResult<EventSeriesDto>.NotFound("Event series not found.");
         }
-        if (!await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
+        var ownPreparation = request.PreparationEventId is { } eventId && series.Events.Count == 1 &&
+            series.Events.Single().Id == eventId && await EventCompositionPersistence.CanManageEventAsync(
+                dbContext, groupAuthorizationService, series.Events.Single(), request.CurrentMemberId, cancellationToken);
+        if (!ownPreparation && !await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
                 series.OwningGroupId, request.CurrentMemberId, cancellationToken))
         {
             return AppResult<EventSeriesDto>.Forbidden(
                 "Only owning-group leaders and co-leaders can update event series.");
         }
+        if (request.PreparationEventId.HasValue && series.Events.Count != 1)
+            return AppResult<EventSeriesDto>.Conflict("A shared series must be updated through series management. / 共用系列须通过系列管理修改。");
+        foreach (var groupEvent in series.Events)
+            if (await EventPreparationPolicy.IsFrozenAsync(dbContext, groupEvent.Id, cancellationToken))
+                return AppResult<EventSeriesDto>.Conflict(EventPreparationPolicy.FrozenMessage);
         if (string.IsNullOrWhiteSpace(request.IfMatch) ||
             !string.Equals(request.IfMatch.Trim(), ListEventSeriesQueryHandler.CreateETag(series), StringComparison.Ordinal))
         {
@@ -304,6 +316,7 @@ public sealed class UpdateEventSeriesCommandHandler(
                 now));
         }
         await dbContext.SaveChangesAsync(cancellationToken);
+        if (transaction is not null) await transaction.CommitAsync(cancellationToken);
         return AppResult<EventSeriesDto>.Success(ListEventSeriesQueryHandler.ToDto(series));
     }
 }

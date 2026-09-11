@@ -44,6 +44,8 @@ Contributes transport/accommodation requirement, occurrence journey coverage, dr
 
 Coordinators manage bilingual stops, vehicle capacity, and restricted passengers with ETag/idempotency protection. Participants see only their own journey. Accommodation will use the same minimum-disclosure pattern.
 
+Preparation configuration follows the [formal-approval freeze and reopening contract](../EVENT-SETUP-FLOW.md). Approved preparation cannot be edited until reopening is authorised. Operational responses, consent and safety records retain their existing controls.
+
 ## Current implementation
 
 Current transport slice. Driver/vehicle evidence, occurrence pickup journeys, ordered stops, history-preserving passenger assignment, capacity validation, exact coordinator authorisation, restricted/full and personal/minimum projections, ETags/idempotency, RAM/readiness integration, private APIs, and reachable `EventTravelWorkspace` exist.

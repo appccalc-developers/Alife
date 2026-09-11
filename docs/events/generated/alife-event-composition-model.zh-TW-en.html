@@ -2517,6 +2517,10 @@ public sealed record AcceptEventPlanRequest(
     "recurrenceIntervalWeeks": {
       "minimum": 1,
       "maximum": 52
+    },
+    "inputLabel": {
+      "en": "Explicit details fill the draft; uncertain details prompt a follow-up. Review before creating.",
+      "zh": "明确提供的资料会填入草稿；不确定之处会继续询问。请在创建前审阅。"
     }
   },
   "enums": {
@@ -2969,13 +2973,13 @@ public sealed record AcceptEventPlanRequest(
     "The event-template catalogue starts with sixteen system presets at version 2. Template code and archetypeCode are immutable; edit, activate and deactivate create an audited next version.",
     "Only the current active template version is accepted for schema 1.1 compose, recompose and create. Deactivation never rewrites an existing Event or EventPlanSnapshot.",
     "Activity-type presets never confirm child, RAM, transport, money, venue or capacity facts, and MONEY.FINANCE is never type-preselected.",
-    "Every initial system-preset activity type version 2 preselects SERVICE.ROSTER and supplies a non-empty, bilingual, editable presetServiceSlots list. Any later template that preselects SERVICE.ROSTER must do the same; accepting a plan creates unassigned slots per occurrence with that occurrence's start/end, while declining SERVICE.ROSTER creates none.",
+    "Every initial system-preset activity type version 2 preselects SERVICE.ROSTER and supplies a non-empty, bilingual, editable presetServiceSlots list. Any later template that preselects SERVICE.ROSTER must do the same; accepting a plan creates unassigned slots per occurrence with that occurrence's start/end, while declining SERVICE.ROSTER creates none. Explicit reviewed creation serviceSlots replace those defaults; an omitted array preserves them.",
     "Preset service-slot counts are planning defaults only: they never establish safeguarding policy, worker-to-child ratios, eligibility policy or member assignment.",
     "Missing or candidate facts never satisfy a confirmed false condition.",
     "Compose and recompose never mutate persisted event state.",
     "Only explicit human acceptance creates an immutable EventPlanSnapshot.",
     "An accepted snapshot retains every referenced archetype, module and policy version.",
-    "A module with persisted operational data cannot be removed silently.",
+    "A module with persisted operational data cannot be removed silently. Explicit saved-draft tool deselection retains its records and snapshots; it is not data retirement.",
     "EventWorkflowRun, Step and Artifact remain the single general workflow engine.",
     "AI cannot confirm facts, assign authority, approve, waive, sponsor, persist or publish.",
     "Unknown modules, policies, enum values and surface keys fail closed.",
@@ -4469,7 +4473,7 @@ public sealed record AcceptEventPlanRequest(
       ],
       "eventPackageContribution": {
         "summaryFields": [
-          "publicCopyAndPosterDraftVersions",
+          "publicCopyDraftVersions",
           "audienceCategoryAndCount",
           "channelPlan",
           "privacyAndRetentionPurpose",
@@ -6378,8 +6382,8 @@ public sealed record AcceptEventPlanRequest(
     {
       "method": "POST",
       "path": "/api/groups/{groupId}/events",
-      "request": "existing CreateGroupEventRequest plus optional composition and SeriesSetup; schema 1.1 forbids arbitrary workflowTemplateCode",
-      "response": "existing GroupEventSummaryDto plus optional plan metadata",
+      "request": "existing CreateGroupEventRequest plus optional composition, SeriesSetup and arrangements (CREATION-ARRANGEMENTS.md); schema 1.1 forbids arbitrary workflowTemplateCode",
+      "response": "GroupEventSummaryDto with optional plan metadata and current publication projection; composition-backed creation starts draft with registration closed; legacy clients remain compatible",
       "auth": "existing group management",
       "cache": "no-store",
       "mutation": true,
@@ -6408,7 +6412,7 @@ public sealed record AcceptEventPlanRequest(
     {
       "method": "POST",
       "path": "/api/events/{id}/plan/accept",
-      "request": "AcceptEventPlanRequest",
+      "request": "AcceptEventPlanRequest; optional arrangements: { occurrenceId, eTag, serviceSlots?, sessions?, venueBookings? }; nullable persisted row IDs + creation details; session itemIds; Plan/arrangements committed atomically",
       "response": "EventPlanSnapshotDto",
       "auth": "event.plan.accept",
       "cache": "no-store",
@@ -7346,6 +7350,74 @@ public sealed record AcceptEventPlanRequest(
       "mutation": true,
       "ifMatch": true,
       "idempotency": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{eventId}/poster",
+      "request": null,
+      "response": "EventPosterWorkspaceDto: minimal bilingual brief, poster URL, visibility, registration mode, ETag and canManage; no contact/team/RAM/task data",
+      "auth": "event manager or accepted Event team/role member",
+      "cache": "private, no-store; Vary Cookie, Authorization",
+      "mutation": false
+    },
+    {
+      "method": "PUT",
+      "path": "/api/events/{eventId}/poster",
+      "request": "{ posterImageUrl: HTTPS URL without user information, maximum 2048 characters, or null }; If-Match; Idempotency-Key",
+      "response": "EventPosterWorkspaceDto",
+      "auth": "event manager with active formal approval",
+      "cache": "private, no-store; Vary Cookie, Authorization; invalidate group Event cache and client Event/Church Life queries",
+      "mutation": true,
+      "ifMatch": true,
+      "idempotency": true
+    },
+    {
+      "response": "EventPreparationStateDto: isFrozen, isApproved, canManage, canEdit, approvedPackageId, latest reopening request and reviewer capability",
+      "cache": "private, no-store; Vary Cookie, Authorization",
+      "method": "GET",
+      "path": "/api/events/{eventId}/preparation",
+      "request": null,
+      "auth": "Event manager, authorised approver or accepted Event team/role access",
+      "mutation": false
+    },
+    {
+      "response": "EventPreparationStateDto: isFrozen, isApproved, canManage, canEdit, approvedPackageId, latest reopening request and reviewer capability",
+      "cache": "private, no-store; Vary Cookie, Authorization",
+      "method": "POST",
+      "path": "/api/events/{eventId}/preparation/reopen-requests",
+      "request": "{ reason: { en, zh } }; 1–2000 characters per language; Idempotency-Key",
+      "auth": "Event manager; frozen Event approval; at most one pending request",
+      "mutation": true,
+      "idempotency": true
+    },
+    {
+      "response": "EventPreparationStateDto: isFrozen, isApproved, canManage, canEdit, approvedPackageId, latest reopening request and reviewer capability",
+      "cache": "private, no-store; Vary Cookie, Authorization",
+      "method": "POST",
+      "path": "/api/events/{eventId}/preparation/reopen-requests/{requestId}/review",
+      "request": "{ approve: boolean, reason: { en, zh } }; If-Match; Idempotency-Key",
+      "auth": "existing Package tier-authorised reviewer; independent of requester outside Light; current approval target",
+      "mutation": true,
+      "ifMatch": true,
+      "idempotency": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{eventId}/preparation/arrangements",
+      "request": "occurrenceId? query",
+      "response": "PreparationArrangementsDto: occurrence dates, aggregate ETag, saved creation-shaped rows with IDs, current venue name/address/capacity, and optional Series metadata/ETag",
+      "auth": "Event manager",
+      "cache": "private, no-store; Vary Cookie, Authorization",
+      "mutation": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{eventId}/packages/assessment",
+      "request": "scopeType=event|occurrence; scopeId?",
+      "response": "EventApprovalAssessmentDto: tier, policyVersion, approvalDeadlineUtc, finalConfirmationWindowHours, tiers[{tier,applies,selected,reasons}]",
+      "auth": "same Event Package view authorization",
+      "cache": "private, no-store; Vary Cookie, Authorization",
+      "mutation": false
     }
   ],
   "acceptanceScenarios": [
@@ -7534,8 +7606,128 @@ public sealed record AcceptEventPlanRequest(
         "rollback preserves all Package records and never reactivates an invalid Package",
         "existing public Events and registrations do not disappear without an explainable policy outcome"
       ]
+    },
+    {
+      "code": "preparation-approval-boundary",
+      "expected": [
+        "revisit details, arrangements and team configuration before approval, including submitted or returned/rejected states",
+        "freeze preparation only after approval; block direct URL/API edits",
+        "poster outside approval, follows approval; publication requires active approval",
+        "pending/rejected reopening remains frozen; approved reopening restores edits, withdraws publication, closes new registration and preserves enrollments/history",
+        "stale request cannot revoke a newer approval; authorisation, ETags, idempotency and private no-store remain enforced"
+      ]
     }
-  ]
+  ],
+  "eventCreationArrangements": {
+    "contractVersion": 1,
+    "documentation": "CREATION-ARRANGEMENTS.md",
+    "requestField": "arrangements",
+    "moduleFields": {
+      "SERVICE.ROSTER": "serviceSlots",
+      "PROGRAM.PRODUCTION": "sessions",
+      "PLACE.RESOURCE": "venueBookings"
+    },
+    "limits": {
+      "serviceSlots": 50,
+      "sessions": 20,
+      "itemsPerSession": 50,
+      "venueBookings": 20,
+      "roleCharacters": 100,
+      "titleCharactersPerLanguage": 240,
+      "programmeNoteCharactersPerLanguage": 2000,
+      "addressCharactersPerLanguage": 1000,
+      "requiredCount": 10000,
+      "capacity": 1000000,
+      "minOffsetMinutes": -10080,
+      "maxOffsetMinutes": 44640
+    },
+    "timeBasis": "whole-minute offsets from each materialized occurrence UTC start; item offsets from session start",
+    "commit": "existing Event creation authority, accepted composition and idempotency; one database save with operational rows and venue concurrency updates",
+    "seriesScope": "initial rolling-window occurrences only; not a recurring operational template",
+    "venueValidation": [
+      "exactly one existing venue or new venue",
+      "active owning-group venue",
+      "current venue ETag for existing venues",
+      "positive attendance within capacity",
+      "no confirmed half-open booking overlap"
+    ],
+    "compatibility": "optional field; omitted slots preserve template demand; explicit arrays replace demand; omitted arrangements retain original creation hash",
+    "privacy": "existing private operational tables and module APIs; exclude from public EventDataJson, Plan snapshot and AI prompts"
+  },
+  "eventSetupFlow": {
+    "documentation": "EVENT-SETUP-FLOW.md",
+    "stages": [
+      "template",
+      "details",
+      "arrangements",
+      "create",
+      "setup",
+      "approval",
+      "poster",
+      "publish"
+    ],
+    "postCreateRoute": "/groups/{groupId}/events/{eventId}/workspace?flow=setup&stage={stage}",
+    "postCreateStages": [
+      "details",
+      "arrangements",
+      "review",
+      "setup",
+      "approval",
+      "poster",
+      "publish"
+    ],
+    "persistence": "Continue on the same Event and accepted Plan; navigation is presentation, not a separate business-state machine.",
+    "initialPublicationStatus": "draft",
+    "initialRegistrationStatus": "closed",
+    "compatibility": "Initial draft/closed applies to composition-backed creation. Existing records and clients omitting composition retain legacyImplicit and existing enforcement rollout modes.",
+    "posterAdoption": "After active formal approval, explicit human adoption only. Poster artwork is excluded from the Package and preserves other Event data and approvals.",
+    "publication": "Explicit confirmation after active current Package approval, server capability and satisfied publish requirements. Explicit lifecycle Events require approval even under off/dryRun; legacyImplicit retains rollout compatibility. No automatic publication or registration opening.",
+    "audience": {
+      "public": "public website and applicable Church Life/Group Life",
+      "churchVisible": "authorized church and owning-group members",
+      "groupVisible": "authorized owning-group members"
+    },
+    "preparationToolSelections": {
+      "serverPhase": "publicationStatus=draft and preparation not frozen; never a client-supplied exemption",
+      "controls": "Yes/No for every module, including previously required TEAM.WORK, PEOPLE.REGISTRATION, SERVICE.ROSTER, SAFETY.RAM and SAFEGUARDING.CHILD",
+      "precedence": "Explicit No controls the enabled tool list after activation and dependency closure during saved preparation only",
+      "persistence": "Human preview/acceptance with Plan ETag and idempotency; new immutable snapshot; retain saved module records, facts, owner and permissions",
+      "formalSubmission": "Recompute required activation and dependency closure; missing required tools are bilingual manifest blockers enforced at submission and approval",
+      "compatibility": "No request schema, database or creation-composition change; non-draft retirement remains protected"
+    },
+    "approvalBoundary": {
+      "editableStepsBeforeApproval": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "alwaysReachableStep": 6,
+      "stepsAfterActiveApproval": [
+        7,
+        8
+      ],
+      "submission": "Immutable approval snapshot; source preparation remains editable until approved. Changes require a new submission.",
+      "freeze": "Approved Event-scope preparation stays frozen until approval revocation, including after expiry/invalidation. Server-checked serializable configuration commits.",
+      "reopening": "Manager request with bilingual reason; eligible tier reviewer with requester separation outside Light. Pending/rejected stays frozen. Approval revokes Event approval, invalidates occurrence coverage/execution, withdraws publication and closes new registration. Preserve enrollments and audit history; require new approval."
+    },
+    "detailChanges": "Whole-Event detail saves rotate Package source evidence. Recomposition/acceptance use saved visibility and registration facts; mismatch with existing confirmed Plan facts requires Arrangements review before generation/decision. Older plans without confirmed brief facts remain compatible.",
+    "sharedPreparationForm": "Creation DetailsStep/ArrangementsStep/ReviewStep reused for saved Events; legacy edit routes redirect; no alternate Plan editor; template code/category cannot change after creation",
+    "savedArrangements": "Scoped occurrence rows with stable IDs; optional AcceptEventPlanRequest.arrangements uses aggregate ETag and Plan transaction/idempotency. Omitted arrays retain data, member responses and advanced metadata are preserved; linked deletions and foreign IDs rejected; existing venue conflict checks retained. Read projections include current venue metadata. New rows use the selected occurrence dates; successful acceptance invalidates client Event/Church Life caches and reloads Event concurrency; incomplete post-save reads require reload before more edits.",
+    "approvalAssessment": {
+      "source": "Current effective published group policy before global fallback; accepted Plan; read-only authorized assessment and optional manifest snapshot",
+      "matching": "Confirmed-true facts, selected/required modules and template codes; explain Enhanced/Standard/Light reasons; strictest matching tier; Light baseline",
+      "expectedLatestReply": "Event or selected occurrence start minus preEventConfirmationWindowHours; exact final-confirmation opening instant",
+      "display": "Exact date/time/timezone, policy version and hours; overdue follow-up notice",
+      "semantics": "Expected reply, not a new hard gate; separate from approvalValidityByTier; actual approval still required for publication"
+    },
+    "savedDetailsRequest": {
+      "route": "PUT /api/events/{id}",
+      "compatibility": "UpdateGroupEventRequest accepts optional seriesUpdate: { eTag, details: UpdateEventSeriesRequest }; optional Event If-Match timestamp remains compatible with existing callers",
+      "authority": "Existing Event manager; existing single-Event Series in same serializable transaction; direct Series updates also reject frozen preparation",
+      "schedule": "Preserve exception dates and rolling horizon in shared form; materialize additional future occurrences, retain existing occurrence identity and history"
+    }
+  }
 }
   </script>
 

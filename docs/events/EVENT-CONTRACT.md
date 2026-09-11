@@ -46,9 +46,11 @@ Composition uses this precedence, defined exactly in the machine contract:
 6. explainable recommendations;
 7. dependency closure and conflict resolution.
 
-For the same confirmed facts, definition versions, and valid human selections, composition produces the same proposal and `proposalHash`. Compose and recompose never mutate stored Event state. On acceptance the server recomputes, validates the proposal hash and `If-Match`, applies idempotency, and writes a new immutable snapshot.
+For the same confirmed facts, definition versions, server-derived preparation phase and valid human selections, composition produces the same proposal and `proposalHash`. Compose and recompose never mutate stored Event state. On acceptance the server recomputes, validates the proposal hash and `If-Match`, applies idempotency, and writes a new immutable snapshot.
 
-A module with operational data, money, files, roles, submissions, or approvals cannot disappear silently. Its removal enters a blocking retirement workflow with preservation, cancellation, or transfer decisions and explicit human confirmation.
+Saved, unfrozen Events with `publicationStatus = draft` allow explicit Yes/No choices for every preparation tool, including TEAM.WORK, PEOPLE.REGISTRATION, SERVICE.ROSTER, SAFETY.RAM and SAFEGUARDING.CHILD. In this phase, an explicit No takes precedence over activation/default/dependency choices for the enabled tool list. It never changes confirmed facts, ownership or permissions. Formal Package submission and approval revalidate mandatory activation and dependency closure; disabled required tools appear as bilingual manifest blockers. Existing creation composition and non-draft retirement rules remain unchanged. See [the preparation flow](EVENT-SETUP-FLOW.md).
+
+A module with operational data, money, files, roles, submissions, or approvals cannot disappear silently. Its removal enters a blocking retirement workflow with preservation, cancellation, or transfer decisions and explicit human confirmation. Explicitly disabling a tool in saved draft preparation only changes the new Plan's enabled tools: all underlying records and prior snapshots remain, and re-enabling restores access through the existing authorised tools. This is not operational data retirement.
 
 ## Structural model
 
@@ -242,6 +244,8 @@ Restoration copies an understood historical version into a new draft, renews eff
 
 The editor supplies `expectedCurrentPolicyId` (`Guid.Empty` for initialization), optional `sourcePolicyId`, and the preview's `impactToken` to the existing publish endpoint. These additive fields preserve existing clients. The server serializes scope publication in a database transaction, rechecks current policy and impact, retires preceding versions, saves the new immediately effective version, invalidates affected approvals and records audit/idempotency state atomically. Stale editor requests return conflict and require fresh review. Retries retain the same request and idempotency key. Permissions and policy versions are never inferred from frontend controls.
 
+Formal preparation explains the matching Enhanced/Standard/Light policy conditions and selects the strictest matching tier. Its read-only assessment uses the current effective published group policy before global fallback. The expected latest approval reply is `scope start − preEventConfirmationWindowHours`, exactly when final confirmation opens; display the date, time, time zone and policy hours. Approval validity durations are separate. Passing the expected reply time prompts follow-up without adding a rejection gate. See [EVENT-SETUP-FLOW.md](EVENT-SETUP-FLOW.md) for the shared create/edit form, fixed saved template, arrangement identity and API contracts.
+
 ### Canonical generation and submission
 
 The server validates `If-Match` for the current Event Plan, reads only system-defined module contribution contracts, orders source references deterministically, canonicalises JSON, and calculates `sourceVectorHash` and `contentHash`. The Package schema, policy, Plan, source vector, scope, and content all participate in the hash contract. Before commit, every required source version is revalidated. A changed source returns `event.package.sourceChanged`; a retry with the same idempotency key and request hash returns the same result, while key reuse with different input is rejected.
@@ -339,6 +343,8 @@ Human confirmation must be explicit, attributable, and auditable. AI prompts con
 The exact authorisation rules, cache policies, data classifications, and surface registry are in [event-contract.json](event-contract.json).
 
 ## Interface composition
+
+Creation and preparation form one continuous presentation flow: template, details, arrangements, explicit creation, team/tools, formal approval, independent poster preparation, then explicit publication. Before approval, submitted/returned/rejected preparation remains editable in steps 2–5; source changes, including copy edits, require a new Package submission. Recomposition derives visibility/registration from the saved brief, and changed confirmed brief facts require plan review before approval. Approval freezes preparation until an eligible reviewer grants a manager's reopening request, which revokes Event approvals, withdraws publication and closes new registration while retaining history. Posters are outside formal approval and remain editable afterward. After creation every stage addresses the same persisted Event. Navigation never grants authority or commits a draft. New composition-backed creations start unpublished with registration closed; legacy creations and existing rollout modes remain compatible. See [EVENT-SETUP-FLOW.md](EVENT-SETUP-FLOW.md).
 
 The accepted Event Plan determines which controlled surfaces are reachable. The frontend resolves `surfaceKey` through a compile-time registry. API or AI data may never supply an import path, component name, executable definition, URL, or arbitrary route.
 

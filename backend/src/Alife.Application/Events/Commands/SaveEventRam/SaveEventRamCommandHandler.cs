@@ -61,7 +61,8 @@ public sealed class SaveEventRamCommandHandler(
         await packageInvalidationService.InvalidateForMaterialChangeAsync(
             groupEvent, request.CurrentMemberId, "event.ram.changed", "governanceCritical", cancellationToken);
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        if (!await EventPreparationPolicy.SaveEditableAsync(dbContext, request.EventId, cancellationToken))
+            return AppResult<EventRamAssessmentDto>.Conflict(EventPreparationPolicy.FrozenMessage);
         await eventCacheInvalidationService.RemoveGroupEventsAsync(groupEvent.GroupId, cancellationToken);
         return AppResult<EventRamAssessmentDto>.Success(EventRamPolicy.ToDto(ram, groupEvent.GroupId));
     }

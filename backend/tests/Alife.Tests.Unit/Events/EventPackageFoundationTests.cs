@@ -18,7 +18,7 @@ using NSubstitute;
 
 namespace Alife.Tests.Unit.Events;
 
-public sealed class EventPackageFoundationTests
+public sealed partial class EventPackageFoundationTests
 {
     [Fact]
     public void Canonicalizer_SortsPropertiesAndProducesStableHash()
@@ -466,6 +466,13 @@ public sealed class EventPackageFoundationTests
             new(EventPackageDecisionType.Approve, new("Delegated approval", "委派审批通过")), submitted.Value!.ETag, "delegated-decide", default);
         Assert.True(approved.IsSuccess, approved.Message);
         Assert.NotNull(approved.Value!.Decisions.Single().ExpiresUtc);
+
+        var reopen = await packages.RequestPreparationReopenAsync(seeded.Event.Id, seeded.Owner,
+            new(new("Revise arrangements", "修改安排")), "delegation-reopen", default);
+        Assert.True(reopen.IsSuccess, reopen.Message);
+        var reopened = await packages.ReviewPreparationReopenAsync(seeded.Event.Id, reopen.Value!.ReopenRequest!.Id, leader,
+            new(true, new("Allow revision", "允许修改")), reopen.Value.ReopenRequest.ETag, "delegation-reopen-approve", default);
+        Assert.True(reopened.IsSuccess, reopened.Message);
 
         var delegationEntity = await db.EventPackageApprovalDelegations.SingleAsync();
         delegationEntity.ExpiresUtc = DateTime.UtcNow.AddMinutes(-1);
@@ -1136,7 +1143,7 @@ public sealed class EventPackageFoundationTests
     }
 
     [Fact]
-    public async Task RequiredTaskMutation_UsesTeamModuleInvalidationHookAndPreservesHistory()
+    public async Task RequiredTaskMutation_IsBlockedWhilePreparationIsFrozenAndPreservesHistory()
     {
         await using var db = CreateDb();
         var seeded = await SeedAsync(db, series: false, modules: ["TEAM.WORK"]);
@@ -1159,11 +1166,12 @@ public sealed class EventPackageFoundationTests
             new(new("Confirm emergency contact", "确认紧急联系人"), null, seeded.Owner,
                 DateTime.UtcNow.AddDays(1), IsRequired: true), default);
 
-        Assert.True(result.IsSuccess, result.Message);
-        Assert.Equal(EventPackageApprovalValidity.Invalidated,
+        Assert.Equal(AppResultStatus.Conflict, result.Status);
+        db.ChangeTracker.Clear();
+        Assert.Equal(EventPackageApprovalValidity.Active,
             (await db.EventPackages.SingleAsync()).ApprovalValidityStatus);
-        Assert.Equal(2, await db.EventTasks.CountAsync());
-        Assert.Contains(await db.AuditLogs.ToListAsync(), x => x.Action == "event.package.invalidated");
+        Assert.Empty(await db.EventTasks.ToListAsync());
+        Assert.DoesNotContain(await db.AuditLogs.ToListAsync(), x => x.Action == "event.package.invalidated");
     }
 
     [Fact]

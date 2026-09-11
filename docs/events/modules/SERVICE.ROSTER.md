@@ -12,6 +12,8 @@ Turn service demand into eligible, confirmed occurrence-level assignments while 
 
 Required when `people.volunteersRequired == true` (`service-slots-required`). Activity Type slot presets are editable defaults, not confirmed assignments or policy.
 
+During saved, unfrozen draft preparation this tool remains a Yes/No choice, including when the rule above applies. Disabling retains facts, ownership and saved records. Formal submission revalidates activation and dependencies and blocks missing required tools; see [optional preparation tools](../EVENT-SETUP-FLOW.md#optional-tools-during-saved-preparation).
+
 ### Dependencies
 
 `TEAM.WORK`.
@@ -44,6 +46,10 @@ Contributes occurrence-scoped counts for required, eligible, accepted, confirmed
 
 The coordinator workspace is occurrence-first. Members see only their own requests and responses. Time editing uses the occurrence's resolved time boundary and preserves history during substitution.
 
+During [event creation](../CREATION-ARRANGEMENTS.md), the Arrangements page supports inline Yes/No activation and collapsible editing of template slot demand, counts and shift times. Required activation stays locked; reviewed demand is saved atomically with the Event, without assigning members.
+
+Preparation configuration follows the [formal-approval freeze and reopening contract](../EVENT-SETUP-FLOW.md). Approved preparation cannot be edited until reopening is authorised. Operational responses, consent and safety records retain their existing controls.
+
 ## Current implementation
 
 Current core flow. Occurrence ServiceSlot CRUD, Session/ProgramItem links, self availability, coordinator assignment, confirm/decline, history-preserving substitution, eligibility checks, x-of-y readiness, ETags, no-store APIs, and reachable `EventRosterWorkspace` exist.
@@ -55,3 +61,7 @@ Fair-rotation suggestions, leave windows, versioned eligibility evidence, invita
 ## Next useful vertical slice
 
 `roster-rotation-evidence`: provide an explainable rotation suggestion and versioned eligibility evidence, with the coordinator retaining final confirmation.
+
+### Shared preparation editor
+
+Saved creation-form edits preserve slot IDs, programme links and member responses; slots with responses cannot be removed. The occurrence-scoped read and atomic Plan/arrangement save are specified in [EVENT-SETUP-FLOW.md](../EVENT-SETUP-FLOW.md).

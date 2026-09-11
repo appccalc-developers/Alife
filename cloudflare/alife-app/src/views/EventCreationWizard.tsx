@@ -1,3 +1,5 @@
+import EventFlowRail from '../components/events/EventFlowRail'
+import { setupPath } from '../utils/eventSetupFlow'
 import EventDetailsAssistant from '../components/events/creation/EventDetailsAssistant'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom'
@@ -14,6 +16,7 @@ import { useCurrentGroupStore } from '../stores/currentGroup'
 import type { EventArchetype, EventPlanProposal } from '../types/eventComposition'
 import { resolveActivityType } from '../utils/eventCreationWizard'
 import { composeCreationDraft, createRequestSequence, createSubmissionGuard, creationDraftKey, creationEvent, creationSeries, validateCreationDraft } from '../utils/eventCreationDraft'
+import { creationArrangements, validateCreationArrangements } from '../utils/eventCreationArrangements'
 
 type Step = 1 | 2 | 3 | 4
 function CreationFlow({ groupId, memberId }: { groupId: string; memberId: string }) {
@@ -22,6 +25,10 @@ function CreationFlow({ groupId, memberId }: { groupId: string; memberId: string
   const navigate = useNavigate()
   const [step, setStep] = useState<Step>(1)
   const stepRegion = useRef<HTMLFieldSetElement>(null)
+  const returnToDetailsForm = () => {
+    stepRegion.current?.focus({ preventScroll: true })
+    stepRegion.current?.scrollIntoView({ block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' })
+  }
   const [archetypes, setArchetypes] = useState<EventArchetype[]>([])
   const [catalogue, setCatalogue] = useState<'loading' | 'ready' | 'error'>('loading')
   const [catalogueError, setCatalogueError] = useState('')
@@ -99,6 +106,8 @@ function CreationFlow({ groupId, memberId }: { groupId: string; memberId: string
       if (!sequence.current.isCurrent(id) || latest.current.creationSignature !== signature) return
       setPreview({ proposal, signature: compositionSignature })
       setPreviewState('ready')
+      const arrangementIssue = validateCreationArrangements(draft, type, proposal, zh)
+      if (arrangementIssue) { setError(arrangementIssue); return }
       setReviewSignature(signature)
       setStep(4)
     } catch (reason) {
@@ -113,6 +122,8 @@ function CreationFlow({ groupId, memberId }: { groupId: string; memberId: string
     }
     const issue = validateCreationDraft(draft, type, archetype, zh)
     if (issue) { setError(issue); setStep(2); return }
+    const arrangementIssue = validateCreationArrangements(draft, type, preview.proposal, zh)
+    if (arrangementIssue) { setError(arrangementIssue); setStep(3); return }
     const idempotencyKey = submission.current.begin(JSON.stringify([creationSignature, preview.proposal.proposalHash]))
     if (!idempotencyKey) return
     actionLock.current = true
@@ -121,17 +132,18 @@ function CreationFlow({ groupId, memberId }: { groupId: string; memberId: string
     try {
       const created = await eventService.createGroupEvent(groupId, creationEvent(draft, type, me?.displayName || ''), undefined, undefined, null, {
         composition, proposalHash: preview.proposal.proposalHash, idempotencyKey, seriesSetup: creationSeries(draft, archetype),
+        arrangements: creationArrangements(draft, type, preview.proposal),
       })
       submission.current.finish(true)
       // Storage failure must not turn a successful creation into a retry.
       try { localStorage.removeItem(storageKey) } catch { /* Best effort. */ }
-      navigate(`/groups/${encodeURIComponent(groupId)}/events/${encodeURIComponent(created.id)}/workspace`, { replace: true, state: { created: true } })
+      navigate(setupPath(`/groups/${encodeURIComponent(groupId)}/events/${encodeURIComponent(created.id)}`, 'setup'), { replace: true, state: { created: true } })
     } catch (reason) {
       submission.current.finish(false)
       const failure = normalizeApiError(reason)
       if (failure.status === 412 || failure.status === 409) {
         setReviewSignature(''); setPreviewState('idle'); setStep(3)
-        setError(zh ? '服务器检测到方案冲突，请重新检查活动安排和方案。' : 'The server detected a plan conflict. Review arrangements and the plan again.')
+        setError(zh ? '方案或场地预订发生冲突，请检查活动安排；场地有更新时请刷新场地列表后重试。' : 'The plan or a venue booking has a conflict. Review arrangements and refresh venues if their details changed.')
       } else setError(failure.message)
     } finally { actionLock.current = false; setBusy(false) }
   }
@@ -142,20 +154,20 @@ function CreationFlow({ groupId, memberId }: { groupId: string; memberId: string
 
   return <AppPageShell title={zh ? '建立活动' : 'Create event'} context={zh ? '小组生活 / 活动' : 'Group Life / Events'}>
     <Link className="text-sm font-semibold text-[#176b5a]" to={`/groups/${encodeURIComponent(groupId)}?section=events`}>{zh ? '← 返回活动' : '← Back to events'}</Link>
-    <nav aria-label={zh ? '创建活动进度' : 'Event creation progress'}><ol className="grid grid-cols-4 gap-1">{labels.map((label, index) => <li key={index}><button type="button" aria-current={step === index + 1 ? 'step' : undefined} disabled={index + 1 > step || busy || aiBusy} onClick={() => { setError(''); setStep((index + 1) as Step) }} className={`min-h-11 w-full rounded-xl px-1 py-2 text-xs font-semibold md:text-sm ${step === index + 1 ? 'bg-[#176b5a] text-white' : 'bg-[#e3f0eb] text-[#40554e]'} disabled:opacity-60`}><span className="block">{index + 1}</span><span className="block break-words">{label}</span></button></li>)}</ol></nav>
+    <EventFlowRail current={step} zh={zh} disabled={busy || aiBusy} onSelect={value => { setError(''); setStep(value as Step) }} />
     {catalogue === 'loading' ? <p role="status">{zh ? '正在载入活动模板……' : 'Loading event templates…'}</p> : null}
     {catalogue === 'error' ? <AppEmptyState title={zh ? '活动模板无法载入' : 'Event templates unavailable'} description={catalogueError} actionLabel={zh ? '重试' : 'Retry'} onAction={() => setCatalogueAttempt(value => value + 1)} /> : null}
     {error ? <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm text-rose-800">{error}</p> : null}
     {storageWarning ? <p role="status" className="text-sm text-amber-800">{zh ? '本地草稿无法恢复或保存；仍可继续填写，请勿关闭页面。' : 'Local draft recovery or saving is unavailable. You can continue; keep this page open.'}</p> : null}
     {catalogue === 'ready' && hydrated ? <>
-      <fieldset ref={stepRegion} tabIndex={-1} aria-label={labels[step - 1]} disabled={busy} className="min-w-0 space-y-4 outline-none" aria-busy={busy}>
+      <fieldset ref={stepRegion} tabIndex={-1} aria-label={labels[step - 1]} disabled={busy} className="min-w-0 scroll-mt-24 space-y-4 outline-none" aria-busy={busy}>
         {step === 1 ? <TemplateStep draft={draft} setDraft={setDraft} zh={zh} archetypes={archetypes} type={type} /> : null}
         {step === 2 && type && archetype ? <DetailsStep draft={draft} setDraft={setDraft} zh={zh} type={type} archetype={archetype} ai={null} /> : null}
-        {type && archetype ? <div hidden={step !== 2}><EventDetailsAssistant draft={draft} setDraft={setDraft} type={type} isSeries={archetype.isSeries} zh={zh} onBusy={setAiBusy} /></div> : null}
-        {step === 3 && type ? <ArrangementsStep draft={draft} setDraft={setDraft} zh={zh} type={type} proposal={preview?.proposal ?? null} current={Boolean(currentPreview)} status={previewStatus} /> : null}
+        {type && archetype ? <div hidden={step !== 2}><EventDetailsAssistant draft={draft} setDraft={setDraft} type={type} isSeries={archetype.isSeries} zh={zh} active={step === 2} onBusy={setAiBusy} onReturnToForm={returnToDetailsForm} /></div> : null}
+        {step === 3 && type ? <ArrangementsStep draft={draft} setDraft={setDraft} zh={zh} type={type} groupId={groupId} proposal={preview?.proposal ?? null} current={Boolean(currentPreview)} status={previewStatus} /> : null}
         {step === 4 && type && archetype && preview ? <ReviewStep draft={draft} zh={zh} type={type} archetype={archetype} proposal={preview.proposal} /> : null}
       </fieldset>
-      <footer className="flex flex-wrap items-center justify-between gap-3"><AppActionButton variant="ghost" disabled={step === 1 || busy || aiBusy} onClick={() => { setError(''); setStep((step - 1) as Step) }}>{zh ? '上一步' : 'Back'}</AppActionButton>{step < 4 ? <AppActionButton variant="primary" disabled={busy || aiBusy || (step === 3 && !currentPreview)} onClick={() => void next()}>{busy ? (zh ? '检查中……' : 'Checking…') : (zh ? '继续' : 'Continue')}</AppActionButton> : <AppActionButton variant="primary" disabled={busy || !currentPreview || reviewSignature !== creationSignature} onClick={() => void accept()}>{busy ? (zh ? '正在创建……' : 'Creating…') : (zh ? '确认创建活动' : 'Confirm and create event')}</AppActionButton>}</footer>
+      <footer className="flex flex-wrap items-center justify-between gap-3 pb-24"><AppActionButton variant="ghost" disabled={step === 1 || busy || aiBusy} onClick={() => { setError(''); setStep((step - 1) as Step) }}>{zh ? '上一步' : 'Back'}</AppActionButton>{step < 4 ? <AppActionButton variant="primary" disabled={busy || aiBusy || (step === 3 && !currentPreview)} onClick={() => void next()}>{busy ? (zh ? '检查中……' : 'Checking…') : (zh ? '继续' : 'Continue')}</AppActionButton> : <AppActionButton variant="primary" disabled={busy || !currentPreview || reviewSignature !== creationSignature} onClick={() => void accept()}>{busy ? (zh ? '正在创建……' : 'Creating…') : (zh ? '确认创建活动' : 'Confirm and create event')}</AppActionButton>}</footer>
     </> : null}
   </AppPageShell>
 }

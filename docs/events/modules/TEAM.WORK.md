@@ -12,6 +12,8 @@ Provide the accountable team, roles, tasks, artifacts, blockers, deadlines, and 
 
 Required whenever `event.exists == true` (`accountable-owner-required`).
 
+During saved, unfrozen draft preparation this tool remains a Yes/No choice, including when the rule above applies. Disabling retains facts, ownership and saved records. Formal submission revalidates activation and dependencies and blocks missing required tools; see [optional preparation tools](../EVENT-SETUP-FLOW.md#optional-tools-during-saved-preparation).
+
 ### Dependencies
 
 None. Other modules depend on this foundation.
@@ -43,6 +45,8 @@ Contributes the accountable owner, accepted key-role coverage, required task/blo
 ### User experience
 
 The Event workspace exposes team membership, invitation state, tasks, dependencies, blockers, and role-aware actions with explicit loading, empty, conflict, and retry states.
+
+The [continuous preparation flow](../EVENT-SETUP-FLOW.md) enters team/tool settings immediately after creation, reusing the saved Event and arrangements before formal approval, poster preparation and explicit publication. Details, arrangements and team configuration can be revised repeatedly before approval. Approved preparation is frozen; a reviewed reopening request restores editing and requires fresh approval. Operational progress and member responses retain their existing authority. Existing workspace editors remain the operational authority.
 
 ## Current implementation
 

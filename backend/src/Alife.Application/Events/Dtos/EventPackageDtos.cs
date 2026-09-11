@@ -35,6 +35,11 @@ public sealed record EventPackageModuleSummaryDto(
 
 public sealed record EventPackageReasonDto(string Code, LocalizedTextDto Message);
 
+public sealed record EventApprovalTierAssessmentDto(EventGovernanceTier Tier, bool Applies, bool Selected,
+    IReadOnlyList<EventPackageReasonDto> Reasons);
+public sealed record EventApprovalAssessmentDto(EventGovernanceTier Tier, string PolicyVersion,
+    DateTime ApprovalDeadlineUtc, int FinalConfirmationWindowHours, IReadOnlyList<EventApprovalTierAssessmentDto> Tiers);
+
 public sealed record EventPackageSectionDto(
     string Code,
     LocalizedTextDto Title,
@@ -61,6 +66,7 @@ public sealed record EventPackageManifestDto(
     IReadOnlyList<LocalizedTextDto> Blockers)
 {
     public IReadOnlyList<EventPackageReasonDto> TriggerReasons { get; init; } = [];
+    public EventApprovalAssessmentDto? ApprovalAssessment { get; init; }
     public IReadOnlyList<string> RequiredSpecialistDecisions { get; init; } = [];
     public IReadOnlyList<EventPackageSectionDto> Sections { get; init; } = [];
     public IReadOnlyList<LocalizedTextDto> Warnings { get; init; } = [];

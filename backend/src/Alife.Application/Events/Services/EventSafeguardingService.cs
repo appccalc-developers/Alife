@@ -52,6 +52,9 @@ public sealed class EventSafeguardingService(
     {
         var access = await RequireLead(eventId, memberId, ct);
         if (!access.IsSuccess) return Failure<EventSafeguardingWorkspaceDto, GroupEvent>(access);
+        await using var preparationTransaction = await db.BeginSerializableTransactionAsync(ct);
+        if (await EventPreparationPolicy.IsFrozenAsync(db, eventId, ct))
+            return AppResult<EventSafeguardingWorkspaceDto>.Conflict(EventPreparationPolicy.FrozenMessage);
         var retry = await BeginIdempotent("safeguarding.policy.configure", eventId, memberId, request, idempotencyKey, ct);
         if (!retry.IsSuccess) return Failure<EventSafeguardingWorkspaceDto, EventIdempotencyRecord?>(retry);
         if (retry.Value is not null) return AppResult<EventSafeguardingWorkspaceDto>.Success(await BuildWorkspace(access.Value!, null, true, ct));
@@ -79,7 +82,9 @@ public sealed class EventSafeguardingService(
         }
         AddAudit("safeguarding.policy.configure", access.Value!, memberId, null, now);
         db.EventIdempotencyRecords.Add(NewIdempotency("safeguarding.policy.configure", eventId, idempotencyKey, memberId, request, configuration.Id, now));
-        return await SaveWorkspace(access.Value!, memberId, null, true, true, "The safeguarding policy changed concurrently; reload and try again.", ct);
+        var saved = await SaveWorkspace(access.Value!, memberId, null, true, true, "The safeguarding policy changed concurrently; reload and try again.", ct);
+        if (saved.IsSuccess && preparationTransaction is not null) await preparationTransaction.CommitAsync(ct);
+        return saved;
     }
 
     public async Task<AppResult<EventSafeguardingWorkspaceDto>> RegisterChildAsync(Guid eventId, Guid memberId, CreateEventChildRegistrationRequest request, string idempotencyKey, CancellationToken ct)

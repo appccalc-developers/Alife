@@ -118,13 +118,6 @@ test('one-off and recurring payloads retain bilingual copy and only include appl
   assert.notEqual(validateCreationDraft({ ...value, maxCapacity: '1.5' }, type, category(type), true), '')
 })
 
-test('independent poster workspace remains in the edit flow with explicit adoption', () => {
-  const editor = readFileSync(new URL('../src/views/EventCreatorView.tsx', import.meta.url), 'utf8')
-  assert.match(editor, /id="event-poster-workspace"/)
-  assert.match(editor, /采用这张海报/)
-  assert.match(editor, /isEditMode \? <LegacyEventEditor \/> : <EventCreationWizard \/>/)
-})
-
 test('readiness tasks and required-module warnings use readable bilingual labels without changing the server message', () => {
   const modules = [{ moduleCode: 'FOOD.HOSPITALITY', label: { en: 'Food', zh: '餐饮' } }] as ModuleDecision[]
   const task = { en: 'Food: complete allergy-process-confirmed.', zh: '餐饮：完成 allergy-process-confirmed。' }

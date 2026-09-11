@@ -78,7 +78,7 @@ public sealed class EventOperationsService(
         var entity = new EventTeamMember { Id = Guid.NewGuid(), EventId = eventId, MemberId = request.MemberId,
             InvitedByMemberId = memberId, Status = EventTeamMemberStatus.Invited, CreatedUtc = now, UpdatedUtc = now };
         db.EventTeamMembers.Add(entity);
-        try { await db.SaveChangesAsync(ct); }
+        try { if (!await EventPreparationPolicy.SaveEditableAsync(db, eventId, ct)) return AppResult<EventTeamMemberDto>.Conflict(EventPreparationPolicy.FrozenMessage); }
         catch (DbUpdateException) { return AppResult<EventTeamMemberDto>.Conflict("The member already has an active team invitation or membership."); }
         var name = await db.Members.AsNoTracking().Where(x => x.Id == entity.MemberId).Select(x => x.DisplayName).FirstAsync(ct);
         return AppResult<EventTeamMemberDto>.Success(ToTeamMemberDto(entity, name));
@@ -112,7 +112,7 @@ public sealed class EventOperationsService(
         if (!entity.EndedUtc.HasValue)
         {
             entity.Status = EventTeamMemberStatus.Ended; entity.EndedUtc = DateTime.UtcNow; entity.UpdatedUtc = entity.EndedUtc.Value;
-            try { await db.SaveChangesAsync(ct); }
+            try { if (!await EventPreparationPolicy.SaveEditableAsync(db, eventId, ct)) return AppResult<EventTeamMemberDto>.Conflict(EventPreparationPolicy.FrozenMessage); }
             catch (DbUpdateConcurrencyException) { return AppResult<EventTeamMemberDto>.Conflict("Team membership changed while it was being ended; reload and try again."); }
         }
         return AppResult<EventTeamMemberDto>.Success(ToTeamMemberDto(entity));
@@ -134,7 +134,7 @@ public sealed class EventOperationsService(
         if ((entity.IsRequired || entity.RequiresApproval) && packageInvalidation is not null)
             await packageInvalidation.InvalidateForModuleChangeAsync(
                 access.Value!, memberId, "TEAM.WORK", "event.task.created", "operational", ct);
-        try { await db.SaveChangesAsync(ct); }
+        try { if (!await EventPreparationPolicy.SaveEditableAsync(db, eventId, ct)) return AppResult<EventTaskDto>.Conflict(EventPreparationPolicy.FrozenMessage); }
         catch (DbUpdateException) { return AppResult<EventTaskDto>.Conflict("The task could not be created because related data changed; reload and try again."); }
         return AppResult<EventTaskDto>.Success(ToTaskDto(entity));
     }
@@ -164,6 +164,10 @@ public sealed class EventOperationsService(
         var changesReadiness = task.AssignedMemberId != request.AssignedMemberId || task.DueUtc != request.DueUtc ||
             task.Status != request.Status || task.IsRequired != request.IsRequired ||
             task.RequiresApproval != request.RequiresApproval || task.IsRestricted != request.IsRestricted;
+        var changesPreparation = task.AssignedMemberId != request.AssignedMemberId || task.DueUtc != request.DueUtc ||
+            task.IsRequired != request.IsRequired || task.RequiresApproval != request.RequiresApproval || task.IsRestricted != request.IsRestricted ||
+            request.Status == EventTaskStatus.Cancelled || task.TitleEn != request.Title.En.Trim() || task.TitleZh != request.Title.Zh.Trim() ||
+            task.DescriptionEn != (request.Description?.En.Trim() ?? "") || task.DescriptionZh != (request.Description?.Zh.Trim() ?? "");
         task.TitleEn = request.Title.En.Trim(); task.TitleZh = request.Title.Zh.Trim();
         task.DescriptionEn = request.Description?.En.Trim() ?? ""; task.DescriptionZh = request.Description?.Zh.Trim() ?? "";
         task.AssignedMemberId = request.AssignedMemberId; task.DueUtc = request.DueUtc; task.Status = request.Status;
@@ -174,7 +178,14 @@ public sealed class EventOperationsService(
         if (changesReadiness && packageInvalidation is not null)
             await packageInvalidation.InvalidateForModuleChangeAsync(
                 task.Event, memberId, "TEAM.WORK", "event.task.readinessChanged", "operational", ct);
-        try { await db.SaveChangesAsync(ct); }
+        try
+        {
+            if (changesPreparation)
+            {
+                if (!await EventPreparationPolicy.SaveEditableAsync(db, eventId, ct)) return AppResult<EventTaskDto>.Conflict(EventPreparationPolicy.FrozenMessage);
+            }
+            else await db.SaveChangesAsync(ct);
+        }
         catch (DbUpdateConcurrencyException) { return AppResult<EventTaskDto>.PreconditionFailed("The task changed while saving; reload and try again."); }
         return AppResult<EventTaskDto>.Success(ToTaskDto(task));
     }
@@ -192,7 +203,7 @@ public sealed class EventOperationsService(
         if ((task.IsRequired || task.RequiresApproval) && packageInvalidation is not null)
             await packageInvalidation.InvalidateForModuleChangeAsync(
                 task.Event, memberId, "TEAM.WORK", "event.task.cancelled", "governanceCritical", ct);
-        try { await db.SaveChangesAsync(ct); }
+        try { if (!await EventPreparationPolicy.SaveEditableAsync(db, eventId, ct)) return AppResult<EventTaskDto>.Conflict(EventPreparationPolicy.FrozenMessage); }
         catch (DbUpdateConcurrencyException) { return AppResult<EventTaskDto>.PreconditionFailed("The task changed while cancelling; reload and try again."); }
         return AppResult<EventTaskDto>.Success(ToTaskDto(task));
     }
@@ -213,7 +224,7 @@ public sealed class EventOperationsService(
         if (packageInvalidation is not null)
             await packageInvalidation.InvalidateForModuleChangeAsync(
                 access.Value!, memberId, "TEAM.WORK", "event.task.dependencyAdded", "operational", ct);
-        try { await db.SaveChangesAsync(ct); }
+        try { if (!await EventPreparationPolicy.SaveEditableAsync(db, eventId, ct)) return AppResult<EventTaskDto>.Conflict(EventPreparationPolicy.FrozenMessage); }
         catch (DbUpdateConcurrencyException) { return AppResult<EventTaskDto>.PreconditionFailed("The task changed while adding the dependency; reload and try again."); }
         catch (DbUpdateException) { return AppResult<EventTaskDto>.Conflict("The dependency already exists or related task data changed."); }
         return await ReloadTask(eventId, taskId, ct);
@@ -230,7 +241,7 @@ public sealed class EventOperationsService(
         if (packageInvalidation is not null)
             await packageInvalidation.InvalidateForModuleChangeAsync(
                 task.Event, memberId, "TEAM.WORK", "event.task.dependencyRemoved", "operational", ct);
-        try { await db.SaveChangesAsync(ct); }
+        try { if (!await EventPreparationPolicy.SaveEditableAsync(db, eventId, ct)) return AppResult<EventTaskDto>.Conflict(EventPreparationPolicy.FrozenMessage); }
         catch (DbUpdateConcurrencyException) { return AppResult<EventTaskDto>.PreconditionFailed("The task changed while removing the dependency; reload and try again."); }
         return await ReloadTask(eventId, taskId, ct);
     }
@@ -533,7 +544,7 @@ public sealed class EventOperationsService(
         if (packageInvalidation is not null)
             await packageInvalidation.InvalidateForModuleChangeAsync(
                 occurrence.Event, memberId, "PROGRAM.PRODUCTION", "event.programme.changed", "operational", ct);
-        try { await db.SaveChangesAsync(ct); }
+        try { if (!await EventPreparationPolicy.SaveEditableAsync(db, eventId, ct)) return AppResult<EventProgrammeDto>.Conflict(EventPreparationPolicy.FrozenMessage); }
         catch (DbUpdateConcurrencyException exception) { return AppResult<EventProgrammeDto>.PreconditionFailed($"The programme changed while saving ({exception.Entries.FirstOrDefault()?.Metadata.ClrType.Name ?? "unknown"})."); }
         catch (DbUpdateException) { return AppResult<EventProgrammeDto>.Conflict("The programme could not be saved because related data changed; reload and try again."); }
         var refreshed = await ProgrammeQuery(eventId, occurrenceId).AsNoTracking().FirstAsync(ct);
@@ -558,7 +569,7 @@ public sealed class EventOperationsService(
         if (packageInvalidation is not null)
             await packageInvalidation.InvalidateForModuleChangeAsync(
                 occurrence.Event, memberId, "SERVICE.ROSTER", "event.roster.changed", "operational", ct);
-        try { await db.SaveChangesAsync(ct); }
+        try { if (!await EventPreparationPolicy.SaveEditableAsync(db, eventId, ct)) return AppResult<EventRosterDto>.Conflict(EventPreparationPolicy.FrozenMessage); }
         catch (DbUpdateConcurrencyException exception) { return AppResult<EventRosterDto>.PreconditionFailed($"The roster changed while saving ({exception.Entries.FirstOrDefault()?.Metadata.ClrType.Name ?? "unknown"})."); }
         catch (DbUpdateException) { return AppResult<EventRosterDto>.Conflict("The roster could not be saved because related data changed; reload and try again."); }
         var refreshed = await RosterQuery(eventId, occurrenceId).AsNoTracking().FirstAsync(ct);

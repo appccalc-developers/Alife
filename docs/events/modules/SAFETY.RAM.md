@@ -12,6 +12,8 @@ Identify Event hazards, record controls and emergency planning, enforce independ
 
 Required when `safety.requiresRam == true` (`ram-policy-triggered`). Unknown or candidate risk facts cannot deactivate RAM.
 
+During saved, unfrozen draft preparation this tool remains a Yes/No choice, including when the rule above applies. Disabling retains facts, ownership and saved records. Formal submission revalidates activation and dependencies and blocks missing required tools; see [optional preparation tools](../EVENT-SETUP-FLOW.md#optional-tools-during-saved-preparation).
+
 ### Dependencies
 
 `TEAM.WORK`.

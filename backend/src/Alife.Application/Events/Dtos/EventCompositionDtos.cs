@@ -112,7 +112,8 @@ public sealed record EventWorkflowRecommendationDto(
 public sealed record AcceptEventPlanRequest(
     string ProposalHash,
     IReadOnlyList<HumanDecisionInput> HumanDecisions,
-    EventPlanComposeRequest? Composition = null);
+    EventPlanComposeRequest? Composition = null,
+    SavePreparationArrangementsRequest? Arrangements = null);
 
 public sealed record EventPlanSnapshotDto(
     Guid EventId,

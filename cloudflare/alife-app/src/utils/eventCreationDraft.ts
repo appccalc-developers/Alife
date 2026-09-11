@@ -2,6 +2,7 @@ import { detailFields, localTimeToUtc, type DetailSources } from '../../../share
 import type { EventDto, EventVisibility, MultilingualString } from '../types/event'
 import type { EventActivityType, EventArchetype, EventFactInput, EventPlanComposeRequest, EventSeriesSetup, ModuleDecision } from '../types/eventComposition'
 import { createEmptyEventRamDraft } from './eventRam.ts'
+import { validStoredArrangements, type CreationArrangements } from './eventCreationArrangements.ts'
 
 export type FactAnswer = 'unknown' | 'yes' | 'no'
 export const arrangementGroups = [
@@ -32,6 +33,7 @@ export type CreationDraft = {
   timeZone: string
   intervalWeeks?: string
   detailSources?: DetailSources
+  arrangements?: CreationArrangements
 }
 
 export const initialCreationDraft = (): CreationDraft => {
@@ -110,6 +112,7 @@ export const creationEvent = (draft: CreationDraft, type: EventActivityType, dis
     organizerDisplayName: displayName, personResponsible: displayName, purpose: { en: '', zh: '' },
     title: draft.title, description: draft.description, locationName: draft.locationName,
     startDate: startUtc, endDate: endUtc,
+    timeZone: draft.timeZone,
     visibility: settings.visibility,
     registrationDeadline: new Date(Date.parse(startUtc) - (settings.registrationMode === 'required' ? 86_400_000 : 0)).toISOString(),
     maxCapacity: settings.registrationMode === 'required' ? Number(draft.maxCapacity) : 0,
@@ -140,6 +143,7 @@ export const restoreCreationDraft = (raw: string, archetypes: EventArchetype[]):
     if (draft.archetypeCode && !archetype) return null
     if (draft.activityTypeCode && !archetype?.activityTypes.some(x => x.code === draft.activityTypeCode)) return null
     if (!draft.overrides || !draft.moduleOverrides || !draft.factValues || !draft.aiCandidateFacts) return null
+    if (draft.arrangements !== undefined && !validStoredArrangements(draft.arrangements)) return null
     if (draft.overrides.visibility !== undefined && !['groupVisible', 'churchVisible', 'public'].includes(draft.overrides.visibility)) return null
     if (draft.overrides.registrationMode !== undefined && !['none', 'required'].includes(draft.overrides.registrationMode)) return null
     if (draft.overrides.useRecommendedWorkflow !== undefined && typeof draft.overrides.useRecommendedWorkflow !== 'boolean') return null

@@ -44,6 +44,7 @@ public partial class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : 
 	public DbSet<EventPlanSnapshot> EventPlanSnapshots => Set<EventPlanSnapshot>();
 	public DbSet<EventPackageGovernancePolicyVersion> EventPackageGovernancePolicyVersions => Set<EventPackageGovernancePolicyVersion>();
 	public DbSet<EventPackage> EventPackages => Set<EventPackage>();
+	public DbSet<EventPreparationReopenRequest> EventPreparationReopenRequests => Set<EventPreparationReopenRequest>();
 	public DbSet<EventPackageSourceReference> EventPackageSourceReferences => Set<EventPackageSourceReference>();
 	public DbSet<EventPackageDecision> EventPackageDecisions => Set<EventPackageDecision>();
 	public DbSet<EventPackageCondition> EventPackageConditions => Set<EventPackageCondition>();
@@ -690,6 +691,22 @@ public partial class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : 
 			cfg.HasOne(x => x.RevokedByMember).WithMany().HasForeignKey(x => x.RevokedByMemberId).OnDelete(DeleteBehavior.Restrict);
 			cfg.HasIndex(x => new { x.OrganisationId, x.ScopeType, x.ScopeId, x.DelegatedToMemberId, x.PermissionCode, x.ExpiresUtc });
 			cfg.HasIndex(x => new { x.DelegatedToMemberId, x.StartsUtc, x.ExpiresUtc, x.RevokedUtc });
+		});
+
+		modelBuilder.Entity<EventPreparationReopenRequest>(cfg =>
+		{
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.ReasonEn).HasMaxLength(2000).IsRequired();
+			cfg.Property(x => x.ReasonZh).HasMaxLength(2000).IsRequired();
+			cfg.Property(x => x.ReviewReasonEn).HasMaxLength(2000);
+			cfg.Property(x => x.ReviewReasonZh).HasMaxLength(2000);
+			cfg.Property(x => x.ConcurrencyToken).IsConcurrencyToken();
+			cfg.HasOne(x => x.Event).WithMany().HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne(x => x.EventPackage).WithMany().HasForeignKey(x => x.EventPackageId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne<Member>().WithMany().HasForeignKey(x => x.RequestedByMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasOne<Member>().WithMany().HasForeignKey(x => x.ReviewedByMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => new { x.EventId, x.RequestedUtc });
+			cfg.HasIndex(x => x.EventId).IsUnique().HasFilter("[status] = 0");
 		});
 
 		modelBuilder.Entity<EventPackageDecision>(cfg =>

@@ -3,6 +3,10 @@ import type { LocalizedText } from './eventComposition'
 export type EventPackageScopeType = 'event' | 'occurrence'
 export type EventPackageCoverageMode = 'explicitOccurrences' | 'planBoundSeriesWindow'
 export type EventGovernanceTier = 'light' | 'standard' | 'enhanced'
+export type EventApprovalAssessment = {
+  tier: EventGovernanceTier; policyVersion: string; approvalDeadlineUtc: string; finalConfirmationWindowHours: number
+  tiers: { tier: EventGovernanceTier; applies: boolean; selected: boolean; reasons: { code: string; message: LocalizedText }[] }[]
+}
 export type EventPackageStatus = 'draft' | 'submitted' | 'returnedForAmendment' | 'rejected' | 'approvedWithConditions' | 'approved' | 'withdrawn' | 'superseded'
 export type EventPackageApprovalValidity = 'notDecided' | 'active' | 'invalidated' | 'expired' | 'revoked'
 export type LegacyEventPackageTransition = 'formalPackageRequired' | 'legacyReadOnlyPackage' | 'timeLimitedCompatibility' | 'safetyCriticalBlocked'
@@ -19,6 +23,7 @@ export type EventPackageModuleSummary = {
 }
 
 export type EventPackageManifest = {
+  approvalAssessment?: EventApprovalAssessment | null
   packageSchemaVersion: string
   eventId: string
   scopeType: EventPackageScopeType

@@ -24,6 +24,31 @@ public static class EventPackageGateEvaluator
         EventPackage? package,
         DateTime utcNow)
     {
+        var reasons = ApprovalReasons(gate, package, utcNow);
+        if (package is not null)
+        {
+            var unresolvedConditions = package.Conditions.Where(x => x.AppliesToGate == gate &&
+                x.Status is not (EventPackageConditionStatus.Verified or EventPackageConditionStatus.Waived)).ToArray();
+            if (unresolvedConditions.Any(x => x.Status == EventPackageConditionStatus.Expired || x.DueUtc <= utcNow))
+                reasons.Add(Reason(gate, "conditionExpired"));
+            if (unresolvedConditions.Any(x => x.Status != EventPackageConditionStatus.Expired && x.DueUtc > utcNow))
+                reasons.Add(Reason(gate, "conditionOpen"));
+            if (HasApplicableReadinessBlocker(package, gate))
+                reasons.Add(Reason(gate, "readinessBlocked"));
+        }
+
+        var distinctReasons = reasons.Distinct(StringComparer.Ordinal).ToArray();
+        return new(gate, enforcementMode,
+            enforcementMode != EventPackageEnforcementMode.Enforced || distinctReasons.Length == 0,
+            distinctReasons.Length == 0,
+            distinctReasons);
+    }
+
+    public static bool HasValidApproval(EventPackage? package, DateTime utcNow)
+        => ApprovalReasons(EventLifecycleGate.Publish, package, utcNow).Count == 0;
+
+    private static List<string> ApprovalReasons(EventLifecycleGate gate, EventPackage? package, DateTime utcNow)
+    {
         var reasons = new List<string>();
         if (package is null)
         {
@@ -54,21 +79,8 @@ public static class EventPackageGateEvaluator
                     reasons.Add(Reason(gate, "approvalQuorumMissing"));
             }
 
-            var unresolvedConditions = package.Conditions.Where(x => x.AppliesToGate == gate &&
-                x.Status is not (EventPackageConditionStatus.Verified or EventPackageConditionStatus.Waived)).ToArray();
-            if (unresolvedConditions.Any(x => x.Status == EventPackageConditionStatus.Expired || x.DueUtc <= utcNow))
-                reasons.Add(Reason(gate, "conditionExpired"));
-            if (unresolvedConditions.Any(x => x.Status != EventPackageConditionStatus.Expired && x.DueUtc > utcNow))
-                reasons.Add(Reason(gate, "conditionOpen"));
-            if (HasApplicableReadinessBlocker(package, gate))
-                reasons.Add(Reason(gate, "readinessBlocked"));
         }
-
-        var distinctReasons = reasons.Distinct(StringComparer.Ordinal).ToArray();
-        return new(gate, enforcementMode,
-            enforcementMode != EventPackageEnforcementMode.Enforced || distinctReasons.Length == 0,
-            distinctReasons.Length == 0,
-            distinctReasons);
+        return reasons;
     }
 
     public static string Reason(EventLifecycleGate gate, string suffix)

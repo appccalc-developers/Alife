@@ -178,7 +178,9 @@ public sealed class RecomposeEventPlanCommandHandler(
 
         var protectedModules = await EventCompositionPersistence.GetProtectedModuleCodesAsync(
             dbContext, groupEvent, cancellationToken);
-        var composition = request.Composition with { BasePlanVersion = groupEvent.ActivePlanVersion };
+        if (EventPreparationPolicy.ChangesTemplate(basePlan, request.Composition))
+            return AppResult<EventPlanProposalDto>.Conflict(EventPreparationPolicy.TemplateLockedMessage);
+        var composition = EventPreparationPolicy.WithSavedDetails(groupEvent, request.Composition with { BasePlanVersion = groupEvent.ActivePlanVersion });
         var activityTypesByCode = activityTemplateCatalog is null
             ? EventCompositionDefinitions.ActivityTypesByCode
             : await activityTemplateCatalog.ActiveDefinitionsByCodeAsync(cancellationToken);
@@ -193,7 +195,8 @@ public sealed class RecomposeEventPlanCommandHandler(
             groupEvent.GovernanceMode,
             groupEvent.SponsorshipStatus,
             WorkflowRecommendation: workflowRecommendation,
-            ActivityTypesByCode: activityTypesByCode));
+            ActivityTypesByCode: activityTypesByCode,
+            IsPreparationDraft: groupEvent.PublicationStatus == EventPublicationStatus.Draft));
     }
 }
 
@@ -268,6 +271,9 @@ public sealed class AcceptEventPlanCommandHandler(
                 : AppResult<EventPlanSnapshotDto>.Success(EventCompositionPersistence.ToSnapshotDto(retrySnapshot));
         }
 
+        await using var transaction = await dbContext.BeginSerializableTransactionAsync(cancellationToken);
+        if (await EventPreparationPolicy.IsFrozenAsync(dbContext, request.EventId, cancellationToken))
+            return AppResult<EventPlanSnapshotDto>.Conflict(EventPreparationPolicy.FrozenMessage);
         var activeSnapshot = await dbContext.EventPlanSnapshots
             .Where(x => x.EventId == groupEvent.Id && x.IsActive)
             .OrderByDescending(x => x.Version)
@@ -301,7 +307,9 @@ public sealed class AcceptEventPlanCommandHandler(
 
         var protectedModules = await EventCompositionPersistence.GetProtectedModuleCodesAsync(
             dbContext, groupEvent, cancellationToken);
-        var composition = request.Request.Composition with { BasePlanVersion = groupEvent.ActivePlanVersion };
+        if (EventPreparationPolicy.ChangesTemplate(basePlan, request.Request.Composition))
+            return AppResult<EventPlanSnapshotDto>.Conflict(EventPreparationPolicy.TemplateLockedMessage);
+        var composition = EventPreparationPolicy.WithSavedDetails(groupEvent, request.Request.Composition with { BasePlanVersion = groupEvent.ActivePlanVersion });
         var activityTypesByCode = activityTemplateCatalog is null
             ? EventCompositionDefinitions.ActivityTypesByCode
             : await activityTemplateCatalog.ActiveDefinitionsByCodeAsync(cancellationToken);
@@ -316,7 +324,8 @@ public sealed class AcceptEventPlanCommandHandler(
             groupEvent.GovernanceMode,
             groupEvent.SponsorshipStatus,
             WorkflowRecommendation: workflowRecommendation,
-            ActivityTypesByCode: activityTypesByCode));
+            ActivityTypesByCode: activityTypesByCode,
+            IsPreparationDraft: groupEvent.PublicationStatus == EventPublicationStatus.Draft));
         if (!proposalResult.IsSuccess)
         {
             return CopyFailure<EventPlanProposalDto, EventPlanSnapshotDto>(proposalResult);
@@ -336,6 +345,12 @@ public sealed class AcceptEventPlanCommandHandler(
         }
 
         var now = DateTime.UtcNow;
+        if (request.Request.Arrangements is { } arrangements)
+        {
+            var savedArrangements = await EventPreparationArrangements.ApplyAsync(dbContext, groupEvent,
+                request.CurrentMemberId, proposal, arrangements, now, cancellationToken);
+            if (!savedArrangements.IsSuccess) return CopyFailure<bool, EventPlanSnapshotDto>(savedArrangements);
+        }
         var factVersion = (await dbContext.EventFactSets
             .Where(x => x.EventId == groupEvent.Id)
             .MaxAsync(x => (int?)x.Version, cancellationToken) ?? 0) + 1;
@@ -406,7 +421,8 @@ public sealed class AcceptEventPlanCommandHandler(
 
         try
         {
-            await dbContext.SaveChangesAsync(cancellationToken);
+            if (!await EventPreparationPolicy.SaveEditableAsync(dbContext, request.EventId, cancellationToken, transactionAlreadyStarted: true)) return AppResult<EventPlanSnapshotDto>.Conflict(EventPreparationPolicy.FrozenMessage);
+            if (transaction is not null) await transaction.CommitAsync(cancellationToken);
         }
         catch (DbUpdateConcurrencyException)
         {

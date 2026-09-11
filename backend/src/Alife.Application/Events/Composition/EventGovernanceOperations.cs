@@ -196,7 +196,7 @@ public sealed class CreateEventRoleAssignmentCommandHandler(
             await packageInvalidationService.InvalidateForModuleChangeAsync(
                 groupEvent, request.CurrentMemberId, ModuleForRole(requirement.RequirementKey),
                 "event.role.assignmentCreated", "operational", cancellationToken);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        if (!await EventPreparationPolicy.SaveEditableAsync(dbContext, request.EventId, cancellationToken)) return AppResult<EventRoleAssignmentDto>.Conflict(EventPreparationPolicy.FrozenMessage);
         return AppResult<EventRoleAssignmentDto>.Success(EventCompositionPersistence.ToDto(assignment));
     }
 
@@ -284,7 +284,7 @@ public sealed class EndEventRoleAssignmentCommandHandler(
                 "event.role.assignmentEnded", "governanceCritical", cancellationToken);
         try
         {
-            await dbContext.SaveChangesAsync(cancellationToken);
+            if (!await EventPreparationPolicy.SaveEditableAsync(dbContext, request.EventId, cancellationToken)) return AppResult<bool>.Conflict(EventPreparationPolicy.FrozenMessage);
         }
         catch (DbUpdateConcurrencyException)
         {
@@ -438,7 +438,8 @@ public sealed class SubmitEventSponsorshipCommandHandler(
         dbContext.EventApprovalDecisions.Add(decision);
         AddIdempotency(dbContext, "event.sponsorship.submit", groupEvent.Id, key,
             EventCompositionEngine.Hash(request.Request), decision.Id, now);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        if (!await EventPreparationPolicy.SaveEditableAsync(dbContext, groupEvent.Id, cancellationToken))
+            return AppResult<EventSponsorshipDto>.Conflict(EventPreparationPolicy.FrozenMessage);
         await eventCacheInvalidationService.RemoveGroupEventsAsync(groupEvent.GroupId, cancellationToken);
         return AppResult<EventSponsorshipDto>.Success(ToSponsorshipDto(groupEvent, decision));
     }

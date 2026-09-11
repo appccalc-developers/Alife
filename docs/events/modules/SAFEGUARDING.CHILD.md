@@ -12,6 +12,8 @@ Protect children through explicit relationships, versioned consent, controlled c
 
 Required when confirmed `people.childrenPresent == true` (`children-present`). Child or guardian status is never inferred from age, surname, contact data, or enrollment JSON.
 
+During saved, unfrozen draft preparation this tool remains a Yes/No choice, including when the rule above applies. Disabling retains facts, ownership and saved records. Formal submission revalidates activation and dependencies and blocks missing required tools; see [optional preparation tools](../EVENT-SETUP-FLOW.md#optional-tools-during-saved-preparation).
+
 ### Dependencies
 
 `TEAM.WORK` and `PEOPLE.REGISTRATION`.
@@ -43,6 +45,8 @@ Contributes only policy version, configuration/consent completeness, eligible-wo
 ### User experience
 
 Leads receive the minimum full operational workspace; assigned check-in workers receive only duty-essential identity, consent, collector, and occurrence state; guardians and participants receive only explicitly related self context.
+
+Preparation configuration follows the [formal-approval freeze and reopening contract](../EVENT-SETUP-FLOW.md). Approved preparation cannot be edited until reopening is authorised. Operational responses, consent and safety records retain their existing controls.
 
 ## Current implementation
 
