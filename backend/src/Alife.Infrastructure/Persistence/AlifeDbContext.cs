@@ -430,7 +430,9 @@ public partial class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : 
 			// event_series_id column used by the earlier event-planning lineage.
 			cfg.Property(x => x.EventSeriesId).HasColumnName("composition_series_id");
 			cfg.Property(x => x.TitleZh).HasMaxLength(300).IsRequired();
-			cfg.Property(x => x.GovernanceMode).HasDefaultValue(EventGovernanceMode.MemberLed);
+			cfg.Property(x => x.GovernanceMode)
+				.HasDefaultValue(EventGovernanceMode.MemberLed)
+				.HasSentinel(EventGovernanceMode.MemberLed);
 			cfg.Property(x => x.PlanConcurrencyToken).HasDefaultValueSql("NEWSEQUENTIALID()").IsConcurrencyToken();
 
 			cfg.HasOne(x => x.Group)
