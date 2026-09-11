@@ -75,6 +75,8 @@ public sealed class CreateGroupEventCommandHandler(
         }
 
         var idempotencyKey = request.IdempotencyKey?.Trim();
+        if (request.Arrangements is not null && request.Composition is null)
+            return AppResult<GroupEventSummaryDto>.Validation("Creation arrangements require an accepted composition proposal.");
         string? createRequestHash = null;
         if (request.Composition is not null)
         {
@@ -100,7 +102,7 @@ public sealed class CreateGroupEventCommandHandler(
                     "A valid Idempotency-Key header is required when creating from a proposal.");
             }
 
-            createRequestHash = EventCompositionEngine.Hash(new
+            var originalCreatePayload = new
             {
                 request.GroupId,
                 request.CurrentMemberId,
@@ -118,7 +120,11 @@ public sealed class CreateGroupEventCommandHandler(
                 governanceMode = request.GovernanceMode ?? EventGovernanceMode.MemberLed,
                 request.ParentEventId,
                 request.SeriesSetup
-            });
+            };
+            // Preserve hashes for clients retrying a creation from before arrangements existed.
+            createRequestHash = request.Arrangements is null
+                ? EventCompositionEngine.Hash(originalCreatePayload)
+                : EventCompositionEngine.Hash(new { creation = originalCreatePayload, request.Arrangements });
             var existingRetry = await dbContext.EventIdempotencyRecords.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Operation == "event.create.plan" &&
                     x.ScopeId == request.GroupId && x.Key == idempotencyKey,
@@ -132,6 +138,8 @@ public sealed class CreateGroupEventCommandHandler(
                 }
 
                 var existingEvent = await dbContext.GroupEvents.AsNoTracking()
+                    .Include(x => x.PublishedPackage).ThenInclude(x => x!.Conditions)
+                    .Include(x => x.PublishedPackage).ThenInclude(x => x!.Decisions)
                     .FirstOrDefaultAsync(x => x.Id == existingRetry.ResultEntityId, cancellationToken);
                 if (existingEvent is null)
                 {
@@ -230,6 +238,8 @@ public sealed class CreateGroupEventCommandHandler(
             AccountableOwnerMemberId = accountableOwnerMemberId,
             ParentEventId = request.ParentEventId,
             GovernanceMode = request.GovernanceMode ?? EventGovernanceMode.MemberLed,
+            PublicationStatus = request.Composition is null ? EventPublicationStatus.LegacyImplicit : EventPublicationStatus.Draft,
+            RegistrationStatus = request.Composition is null ? EventRegistrationStatus.LegacyImplicit : EventRegistrationStatus.Closed,
             TitleEn = request.TitleEn,
             TitleZh = request.TitleZh,
             StartDate = request.StartDate,
@@ -425,6 +435,25 @@ public sealed class CreateGroupEventCommandHandler(
                 })).ToArray();
         }
 
+        PreparedEventArrangements? arrangements = null;
+        if (request.Arrangements is not null)
+        {
+            var prepared = await EventCreationArrangements.PrepareAsync(dbContext, groupEvent, request.CurrentMemberId,
+                acceptedProposal!, occurrences, request.Arrangements, now, cancellationToken);
+            if (!prepared.IsSuccess) return CopyFailure<PreparedEventArrangements, GroupEventSummaryDto>(prepared);
+            arrangements = prepared.Value!;
+            if (request.Arrangements.ServiceSlots is not null) presetServiceSlots = arrangements.Slots;
+            dbContext.EventSessions.AddRange(arrangements.Sessions);
+            dbContext.EventVenues.AddRange(arrangements.NewVenues);
+            dbContext.EventVenueReservations.AddRange(arrangements.Bookings);
+            foreach (var venue in arrangements.ReservedVenues)
+            {
+                // Same concurrency boundary as the venue workspace: concurrent reservations
+                // update this token, so the whole event creation loses rather than double-books.
+                venue.ConcurrencyToken = Guid.NewGuid(); venue.UpdatedUtc = now;
+            }
+        }
+
         dbContext.GroupEvents.Add(groupEvent);
         dbContext.EventRamAssessments.Add(ramAssessment);
         if (eventSeries is not null)
@@ -472,7 +501,15 @@ public sealed class CreateGroupEventCommandHandler(
 
         // One SaveChanges call keeps event creation, RAM initialization and the
         // selected workflow snapshot atomic for relational database providers.
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try { await dbContext.SaveChangesAsync(cancellationToken); }
+        catch (DbUpdateConcurrencyException) when (arrangements is not null)
+        {
+            return AppResult<GroupEventSummaryDto>.PreconditionFailed("A venue changed while creating the event. Refresh venues in Arrangements and try again.");
+        }
+        catch (DbUpdateException) when (arrangements is not null)
+        {
+            return AppResult<GroupEventSummaryDto>.Conflict("The event or its arrangements changed concurrently. Review and retry with the same request.");
+        }
         await eventCacheInvalidationService.RemoveGroupEventsAsync(request.GroupId, cancellationToken);
 
         return AppResult<GroupEventSummaryDto>.Success(ToDto(groupEvent, contactProfileIds, ramAssessment.Status, visibility));
@@ -481,7 +518,11 @@ public sealed class CreateGroupEventCommandHandler(
     private static GroupEventSummaryDto ToDto(GroupEvent e, IReadOnlyList<Guid> contactProfileIds, EventRamStatus ramStatus, string visibility) =>
         new(e.Id, e.GroupId, e.CreatedByMemberId, e.TitleEn, e.TitleZh,
             e.StartDate, e.EndDate, e.EventDataJson, e.CreatedUtc, e.UpdatedUtc, contactProfileIds, ramStatus, visibility,
-            e.AccountableOwnerMemberId, e.GovernanceMode, e.SponsorshipStatus, e.ActivePlanVersion);
+            e.AccountableOwnerMemberId, e.GovernanceMode, e.SponsorshipStatus, e.ActivePlanVersion,
+            e.PublicationStatus, e.PublicationStatus == EventPublicationStatus.LegacyImplicit ||
+                e.PublicationStatus == EventPublicationStatus.Published && EventPackageGateEvaluator.Evaluate(
+                    EventLifecycleGate.Publish, e.PublicationGateMode, e.PublishedPackage, DateTime.UtcNow).Allowed,
+            e.PublishedPackageId, e.PublishedUtc);
 
     private static AppResult<TTarget> CopyFailure<TSource, TTarget>(AppResult<TSource> source)
         => source.Status switch

@@ -6,6 +6,13 @@ namespace Alife.Application.Events.Services;
 
 public interface IEventPackageService
 {
+    Task<AppResult<EventApprovalAssessmentDto>> GetApprovalAssessmentAsync(Guid eventId, Guid memberId,
+        EventPackageScopeType scopeType, Guid? scopeId, CancellationToken ct);
+    Task<AppResult<EventPreparationStateDto>> GetPreparationAsync(Guid eventId, Guid memberId, CancellationToken ct);
+    Task<AppResult<EventPreparationStateDto>> RequestPreparationReopenAsync(Guid eventId, Guid memberId,
+        RequestEventPreparationReopen request, string? idempotencyKey, CancellationToken ct);
+    Task<AppResult<EventPreparationStateDto>> ReviewPreparationReopenAsync(Guid eventId, Guid requestId, Guid memberId,
+        ReviewEventPreparationReopen request, string? ifMatch, string? idempotencyKey, CancellationToken ct);
     Task<AppResult<EventPackagePageDto>> ListAsync(Guid eventId, Guid memberId,
         ListEventPackagesRequest request, CancellationToken ct);
     Task<AppResult<EventPackageDto>> GetCurrentAsync(Guid eventId, Guid memberId,

@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
+import EventApprovalAssessmentPanel, { approvalTierLabel } from './EventApprovalAssessment'
+import type { EventApprovalAssessment } from '../../types/eventPackage'
 import type { Language } from '../../i18n/locale'
 import { eventPackageService } from '../../services/eventPackageService'
 import { eventPackageDelegationService } from '../../services/eventPackageDelegationService'
@@ -16,6 +18,9 @@ type Props = {
   planETag?: string
   canManage: boolean
   language: Language
+  showPublicationActions?: boolean
+  onBusyChange?: (busy: boolean) => void
+  onChanged?: () => Promise<void>
 }
 
 type State = 'loading' | 'ready' | 'generating' | 'mutating' | 'error' | 'conflict'
@@ -25,7 +30,7 @@ const labelClass = 'block text-xs font-bold text-[#40554e]'
 
 const localize = (value: { en: string; zh: string }, language: Language) => value[language] || value.en || value.zh
 
-export const EventPackageFoundationPanel = ({ eventId, groupId, planETag, canManage, language }: Props) => {
+export const EventPackageFoundationPanel = ({ eventId, groupId, planETag, canManage, language, showPublicationActions = true, onBusyChange, onChanged }: Props) => {
   const zh = language === 'zh'
   const [state, setState] = useState<State>('loading')
   const [history, setHistory] = useState<EventPackage[]>([])
@@ -34,6 +39,7 @@ export const EventPackageFoundationPanel = ({ eventId, groupId, planETag, canMan
   const [historyStatus, setHistoryStatus] = useState<EventPackageStatus | 'all'>('all')
   const [historySort, setHistorySort] = useState<'versionDesc' | 'versionAsc' | 'generatedDesc' | 'generatedAsc'>('versionDesc')
   const [current, setCurrent] = useState<EventPackage | undefined>()
+  const [assessment, setAssessment] = useState<EventApprovalAssessment | null>(null), [assessmentError, setAssessmentError] = useState('')
   const [eventBaseline, setEventBaseline] = useState<EventPackage | undefined>()
   const [scopeType, setScopeType] = useState<EventPackageScopeType>('event')
   const [scopeId, setScopeId] = useState('')
@@ -72,12 +78,15 @@ export const EventPackageFoundationPanel = ({ eventId, groupId, planETag, canMan
     setState('loading'); setError('')
     try {
       const selectedScope = { scopeType, ...(scopeType === 'occurrence' && scopeId ? { scopeId } : {}) }
-      const [baselinePage, latestPage, historyResult, nextLifecycle] = await Promise.all([
+      const [baselinePage, latestPage, historyResult, nextLifecycle, assessmentResult] = await Promise.all([
         eventPackageService.listPage(eventId, { page: 1, pageSize: 1, scopeType: 'event', sort: 'versionDesc' }),
         eventPackageService.listPage(eventId, { page: 1, pageSize: 2, sort: 'versionDesc', ...selectedScope }),
         eventPackageService.listPage(eventId, { page: historyPage, pageSize: 10, sort: historySort, ...selectedScope, ...(historyStatus === 'all' ? {} : { status: historyStatus }) }),
         eventPackageService.getLifecycle(eventId, scopeType === 'occurrence' ? scopeId : undefined),
+        eventPackageService.getAssessment(eventId, scopeType, scopeType === 'occurrence' ? scopeId : undefined)
+          .then(value => ({ value, error: '' })).catch(reason => ({ value: null, error: normalizeApiError(reason).message })),
       ])
+      setAssessment(assessmentResult.value); setAssessmentError(assessmentResult.error)
       const baseline = baselinePage.items[0]
       const selectedPackages = latestPage.items.filter((item) => item.scopeType === scopeType &&
         (scopeType === 'event' ? !item.scopeId : item.scopeId === scopeId))
@@ -103,7 +112,7 @@ export const EventPackageFoundationPanel = ({ eventId, groupId, planETag, canMan
   const generate = async () => {
     if (!planETag) return
     setState('generating'); setError(''); setNotice('')
-    try { await eventPackageService.generate(eventId, planETag, scopeType, scopeType === 'occurrence' ? scopeId : undefined); await load(); setNotice(zh ? '已从当前权威资料生成新的审批包版本。' : 'A new Package version was generated from current authoritative sources.') }
+    try { await eventPackageService.generate(eventId, planETag, scopeType, scopeType === 'occurrence' ? scopeId : undefined); await load(); await onChanged?.(); setNotice(zh ? '已从当前权威资料生成新的审批包版本。' : 'A new Package version was generated from current authoritative sources.') }
     catch (reason) {
       const apiError = normalizeApiError(reason)
       setError(apiError.message)
@@ -113,7 +122,7 @@ export const EventPackageFoundationPanel = ({ eventId, groupId, planETag, canMan
 
   const mutate = async (action: () => Promise<unknown>) => {
     setState('mutating'); setError(''); setNotice('')
-    try { await action(); await load(); setNotice(zh ? '操作已保存，门禁和权限已重新计算。' : 'Saved. Gates and permissions were recalculated.') }
+    try { await action(); await load(); await onChanged?.(); setNotice(zh ? '操作已保存，门禁和权限已重新计算。' : 'Saved. Gates and permissions were recalculated.') }
     catch (reason) {
       const apiError = normalizeApiError(reason)
       setError(apiError.message)
@@ -148,9 +157,9 @@ export const EventPackageFoundationPanel = ({ eventId, groupId, planETag, canMan
     const confirmed = await requestConfirmation({
       title: zh ? '确认提交正式审批' : 'Submit for formal approval?',
       description: zh
-        ? `将冻结 ${current.scopeType} 范围、Plan v${current.eventPlanVersion}、Policy ${current.governancePolicyVersion} 和当前来源版本；提交后不能原地编辑。`
-        : `This freezes the ${current.scopeType} scope, Plan v${current.eventPlanVersion}, Policy ${current.governancePolicyVersion}, and current source versions. Submitted content cannot be edited in place.`,
-      confirmLabel: zh ? '冻结并提交' : 'Freeze and submit',
+        ? `提交 ${current.scopeType} 范围、Plan v${current.eventPlanVersion} 的审批快照。批准之前仍可修改筹备资料；修改后须生成并提交新版本。批准后筹备资料才会冻结，海报不在本次审批内。`
+        : `Submit the approval snapshot for ${current.scopeType}, Plan v${current.eventPlanVersion}. Preparation remains editable until approved; changes require a new submission. Approval freezes preparation. The poster is excluded.`,
+      confirmLabel: zh ? '提交正式审批' : 'Submit for approval',
     })
     if (confirmed) await mutate(() => eventPackageService.submit(eventId, current.id, current.eTag))
   }
@@ -163,6 +172,7 @@ export const EventPackageFoundationPanel = ({ eventId, groupId, planETag, canMan
   const hasPrimaryActions = mayGenerate || capabilities?.canSubmit || capabilities?.canWithdraw ||
     capabilities?.canPublish || capabilities?.canOpenRegistration || capabilities?.canConfirmExecution
   const busy = state === 'generating' || state === 'mutating'
+  useEffect(() => { onBusyChange?.(busy); return () => onBusyChange?.(false) }, [busy, onBusyChange])
   const conditionalComplete = decisionType !== 'approveWithConditions' ||
     Boolean(conditionEn.trim() && conditionZh.trim() && conditionOwner.trim() && conditionDue)
   const gateLabel = (gate: EventLifecycleGate) => ({
@@ -178,8 +188,10 @@ export const EventPackageFoundationPanel = ({ eventId, groupId, planETag, canMan
       subtitle={zh
         ? '将当前权威资料冻结为可审计版本，再提交给符合治理等级的审批人；批准不会自动发布活动。'
         : 'Freeze current authoritative sources into an auditable version, then submit it to the tier-authorised approver. Approval never publishes the event automatically.'}
-      action={current ? <AppBadge variant="info">{current.governanceTier} · v{current.version}</AppBadge> : undefined}
+      action={current ? <AppBadge variant="info">{approvalTierLabel(current.governanceTier, zh)} · v{current.version}</AppBadge> : undefined}
     >
+      {assessment ? <EventApprovalAssessmentPanel assessment={assessment} zh={zh} approved={Boolean(current && ['approved', 'approvedWithConditions'].includes(current.status) && current.approvalValidityStatus === 'active')} /> : null}
+      {assessmentError ? <p role="alert" className="my-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{zh ? '暂时无法核对审批等级与时间：' : 'Approval tier and reply time are unavailable: '}{assessmentError}</p> : null}
       {eventBaseline && eventBaseline.coveredOccurrenceIds.length > 1 ? <label className={`${labelClass} mb-4`}>{zh ? '审批范围' : 'Approval scope'}<select className={fieldClass} value={scopeType === 'event' ? 'event' : scopeId} onChange={(event) => { const value = event.target.value; setHistoryPage(1); setScopeType(value === 'event' ? 'event' : 'occurrence'); setScopeId(value === 'event' ? '' : value) }}><option value="event">{zh ? '整个活动系列' : 'Whole Event series'}</option>{eventBaseline.coveredOccurrenceIds.map((occurrenceId, index) => <option key={occurrenceId} value={occurrenceId}>{zh ? `场次 ${index + 1}` : `Occurrence ${index + 1}`} · {occurrenceId.slice(0, 8)}</option>)}</select><span className="mt-1 block font-normal text-[#66766f]">{scopeType === 'occurrence' ? (zh ? '此范围用于单场次例外的生成、复审、条件和执行确认。' : 'Use this scope to generate, review, condition, and confirm one occurrence exception.') : (zh ? '系列基线审批覆盖所列场次；单场次例外必须切换到对应场次复审。' : 'The series baseline covers the listed occurrences; select an occurrence for a local exception review.')}</span></label> : null}
       {state === 'loading' ? <p className="text-sm text-[#66766f]" role="status">{zh ? '正在读取审批包…' : 'Loading Event Packages…'}</p> : null}
       {state !== 'loading' && !current ? (
@@ -220,7 +232,7 @@ export const EventPackageFoundationPanel = ({ eventId, groupId, planETag, canMan
         {mayGenerate ? <AppActionButton variant="primary" disabled={!planETag || busy || (scopeType === 'occurrence' && !scopeId)} onClick={() => void generate()}>{state === 'generating' ? (zh ? '正在生成…' : 'Generating…') : (current ? (zh ? '从当前资料生成新版本' : 'Generate a new version') : scopeType === 'occurrence' ? (zh ? '生成此场次审批包' : 'Generate occurrence Package') : (zh ? '生成审批包' : 'Generate Package'))}</AppActionButton> : null}
         {current && capabilities?.canSubmit ? <AppActionButton disabled={busy || current.manifest.blockers.length > 0} onClick={() => void submit()}>{zh ? '提交正式审批' : 'Submit for approval'}</AppActionButton> : null}
         {current && capabilities?.canWithdraw ? <AppActionButton variant="danger" disabled={busy} onClick={() => void mutate(() => eventPackageService.withdraw(eventId, current.id, current.eTag))}>{zh ? '撤回此版本' : 'Withdraw version'}</AppActionButton> : null}
-        {current && lifecycle && capabilities?.canPublish ? <AppActionButton variant="primary" disabled={busy || (current.status === 'approvedWithConditions' && current.conditions.some((condition) => condition.appliesToGate === 'publish' && condition.status !== 'verified' && condition.status !== 'waived'))} onClick={() => void mutate(() => eventPackageService.publish(eventId, lifecycle.eTag, current))}>{zh ? '通过门禁并发布' : 'Pass gate and publish'}</AppActionButton> : null}
+        {showPublicationActions && current && lifecycle && capabilities?.canPublish ? <AppActionButton variant="primary" disabled={busy || (current.status === 'approvedWithConditions' && current.conditions.some((condition) => condition.appliesToGate === 'publish' && condition.status !== 'verified' && condition.status !== 'waived'))} onClick={() => void mutate(() => eventPackageService.publish(eventId, lifecycle.eTag, current))}>{zh ? '通过门禁并发布' : 'Pass gate and publish'}</AppActionButton> : null}
         {current && lifecycle && capabilities?.canOpenRegistration ? <AppActionButton disabled={busy || (current.status === 'approvedWithConditions' && current.conditions.some((condition) => condition.appliesToGate === 'registration' && condition.status !== 'verified' && condition.status !== 'waived'))} onClick={() => void mutate(() => eventPackageService.openRegistration(eventId, lifecycle, current))}>{zh ? '通过门禁并开放报名' : 'Pass gate and open registration'}</AppActionButton> : null}
         {current && lifecycle && capabilities?.canConfirmExecution ? <AppActionButton disabled={busy || (current.status === 'approvedWithConditions' && current.conditions.some((condition) => condition.appliesToGate === 'execute' && condition.status !== 'verified' && condition.status !== 'waived'))} onClick={() => void mutate(() => eventPackageService.confirmExecution(eventId, lifecycle, current))}>{zh ? '确认进入执行' : 'Confirm execution'}</AppActionButton> : null}
       </div> : null}

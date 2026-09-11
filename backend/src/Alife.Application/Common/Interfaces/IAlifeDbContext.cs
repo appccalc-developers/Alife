@@ -34,6 +34,7 @@ public interface IAlifeDbContext
     DbSet<EventPlanSnapshot> EventPlanSnapshots { get; }
     DbSet<EventPackageGovernancePolicyVersion> EventPackageGovernancePolicyVersions { get; }
     DbSet<EventPackage> EventPackages { get; }
+    DbSet<EventPreparationReopenRequest> EventPreparationReopenRequests { get; }
     DbSet<EventPackageSourceReference> EventPackageSourceReferences { get; }
     DbSet<EventPackageDecision> EventPackageDecisions { get; }
     DbSet<EventPackageCondition> EventPackageConditions { get; }

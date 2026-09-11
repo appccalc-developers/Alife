@@ -177,7 +177,7 @@ public sealed class EventVenueService(
                 await packageInvalidation.InvalidateForModuleChangeAsync(groupEvent, memberId, ModuleCode,
                     "event.venue.reservationChanged", "governanceCritical", ct);
         }
-        try { await db.SaveChangesAsync(ct); }
+        try { if (!await EventPreparationPolicy.SaveEditableAsync(db, eventId, ct)) return AppResult<EventVenueWorkspaceDto>.Conflict(EventPreparationPolicy.FrozenMessage); }
         catch (DbUpdateConcurrencyException) { return AppResult<EventVenueWorkspaceDto>.PreconditionFailed("The venue changed while reserving; reload to see the winning reservation."); }
         catch (DbUpdateException) { return AppResult<EventVenueWorkspaceDto>.Conflict("The reservation or idempotency key was changed by another request; reload and try again."); }
         return AppResult<EventVenueWorkspaceDto>.Success(await BuildWorkspace(groupEvent, memberId, ct));
@@ -219,7 +219,7 @@ public sealed class EventVenueService(
                 await packageInvalidation.InvalidateForModuleChangeAsync(reservation.Event, memberId, ModuleCode,
                     "event.venue.reservationChanged", "governanceCritical", ct);
         }
-        try { await db.SaveChangesAsync(ct); }
+        try { if (!await EventPreparationPolicy.SaveEditableAsync(db, eventId, ct)) return AppResult<EventVenueWorkspaceDto>.Conflict(EventPreparationPolicy.FrozenMessage); }
         catch (DbUpdateConcurrencyException) { return AppResult<EventVenueWorkspaceDto>.PreconditionFailed("The venue or reservation changed while releasing; reload and try again."); }
         catch (DbUpdateException) { return AppResult<EventVenueWorkspaceDto>.Conflict("The release or idempotency key was changed by another request; reload and try again."); }
         return AppResult<EventVenueWorkspaceDto>.Success(await BuildWorkspace(reservation.Event, memberId, ct));

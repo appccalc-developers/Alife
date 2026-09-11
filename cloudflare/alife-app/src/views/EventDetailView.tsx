@@ -775,13 +775,15 @@ const EventDetailView = () => {
       title={eventTitle || (language === 'zh' ? '活动' : 'Events')}
       context={eventContext}
       subtitle={eventSubtitle}
-      backLink={{ to: backToEventsPath, label: text.backToEvents }}
+      backLink={searchParams.get('flow') === 'setup'
+        ? { to: `${eventBasePath}/workspace?flow=setup&stage=setup&module=people.registration`, label: language === 'zh' ? '返回活动筹备' : 'Back to event preparation' }
+        : { to: backToEventsPath, label: text.backToEvents }}
       status={lifecycle ? <AppBadge variant={lifecycle === 'upcoming' ? 'success' : lifecycle === 'planning' ? 'warning' : 'neutral'}>{lifecycleLabel}</AppBadge> : undefined}
       primaryAction={!isGuest && event ? (
         <AppTitleBarAction
-          label={language === 'zh' ? '活动工作区' : 'Event workspace'}
+          label={canManage ? (language === 'zh' ? '继续活动筹备' : 'Continue event preparation') : (language === 'zh' ? '活动工作区' : 'Event workspace')}
           icon={<LayoutDashboard className="h-4 w-4" />}
-          to={`${eventBasePath}/workspace`}
+          to={`${eventBasePath}/workspace${canManage ? '?flow=setup&stage=setup' : ''}`}
         />
       ) : undefined}
       overflowLabel={language === 'zh' ? '更多操作' : 'More actions'}

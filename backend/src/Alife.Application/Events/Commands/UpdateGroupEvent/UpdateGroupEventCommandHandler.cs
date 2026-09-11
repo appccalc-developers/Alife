@@ -1,6 +1,7 @@
 using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
 using Alife.Application.Events.Dtos;
+using Alife.Application.Events.Composition;
 using Alife.Application.Events.Services;
 using Alife.Application.Groups.Services;
 using MediatR;
@@ -17,6 +18,7 @@ public sealed class UpdateGroupEventCommandHandler(
 {
     public async Task<AppResult<GroupEventSummaryDto>> Handle(UpdateGroupEventCommand request, CancellationToken cancellationToken)
     {
+        await using var transaction = await dbContext.BeginSerializableTransactionAsync(cancellationToken);
         var groupEvent = await dbContext.GroupEvents
             .Include(e => e.RamAssessment)
             .FirstOrDefaultAsync(e => e.Id == request.EventId, cancellationToken);
@@ -26,14 +28,33 @@ public sealed class UpdateGroupEventCommandHandler(
             return AppResult<GroupEventSummaryDto>.NotFound("Event not found.");
         }
 
-        var canManage = await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
-            groupEvent.GroupId,
-            request.CurrentMemberId,
-            cancellationToken);
+        var canManage = await EventCompositionPersistence.CanManageEventAsync(dbContext,
+            groupAuthorizationService, groupEvent, request.CurrentMemberId, cancellationToken);
 
         if (!canManage)
         {
-            return AppResult<GroupEventSummaryDto>.Forbidden("Only group leaders and co-leaders can update events.");
+            return AppResult<GroupEventSummaryDto>.Forbidden("Only the accountable owner or group leadership can update events.");
+        }
+
+        if (request.IfMatch is not null && (!DateTime.TryParse(request.IfMatch.Trim('"'), null,
+            System.Globalization.DateTimeStyles.RoundtripKind, out var expectedUpdate) || expectedUpdate != groupEvent.UpdatedUtc))
+            return AppResult<GroupEventSummaryDto>.PreconditionFailed("Event details changed. Refresh and review before saving. / 活动资料已更新，请刷新核对后再保存。");
+
+        if (await EventPreparationPolicy.IsFrozenAsync(dbContext, groupEvent.Id, cancellationToken))
+            return AppResult<GroupEventSummaryDto>.Conflict(EventPreparationPolicy.FrozenMessage);
+        if (request.SeriesUpdate is { } seriesUpdate)
+        {
+            if (groupEvent.EventSeriesId is not { } seriesId || seriesUpdate.Details is null)
+                return AppResult<GroupEventSummaryDto>.Validation("This event has no editable recurring schedule. / 此活动没有可编辑的重复安排。");
+            var updated = await new UpdateEventSeriesCommandHandler(dbContext, groupAuthorizationService).Handle(
+                new(seriesId, request.CurrentMemberId, seriesUpdate.Details, seriesUpdate.ETag,
+                    TransactionAlreadyStarted: true, PreparationEventId: groupEvent.Id), cancellationToken);
+            if (!updated.IsSuccess) return updated.Status switch {
+                AppResultStatus.PreconditionFailed => AppResult<GroupEventSummaryDto>.PreconditionFailed(updated.Message!),
+                AppResultStatus.Forbidden => AppResult<GroupEventSummaryDto>.Forbidden(updated.Message!),
+                AppResultStatus.Conflict => AppResult<GroupEventSummaryDto>.Conflict(updated.Message!),
+                _ => AppResult<GroupEventSummaryDto>.Validation(updated.Message!)
+            };
         }
 
         if (!EventVisibilityPolicy.TryReadVisibility(request.EventDataJson, out var visibility))
@@ -72,6 +93,10 @@ public sealed class UpdateGroupEventCommandHandler(
         groupEvent.EventDataJson = request.EventDataJson;
         var now = DateTime.UtcNow;
         groupEvent.UpdatedUtc = now;
+        // A submitted snapshot must be regenerated after any preparation edit,
+        // including copy changes. The separate post-approval poster operation
+        // deliberately preserves this source-evidence token.
+        groupEvent.PlanConcurrencyToken = Guid.NewGuid();
 
         if (request.RamDataJson is not null)
         {
@@ -111,7 +136,8 @@ public sealed class UpdateGroupEventCommandHandler(
                 "governanceCritical",
                 cancellationToken);
         }
-        await dbContext.SaveChangesAsync(cancellationToken);
+        if (!await EventPreparationPolicy.SaveEditableAsync(dbContext, request.EventId, cancellationToken, transactionAlreadyStarted: true)) return AppResult<GroupEventSummaryDto>.Conflict(EventPreparationPolicy.FrozenMessage);
+        if (transaction is not null) await transaction.CommitAsync(cancellationToken);
         await eventCacheInvalidationService.RemoveGroupEventsAsync(groupEvent.GroupId, cancellationToken);
         await eventCacheInvalidationService.RemoveEventEnrollmentsAsync(groupEvent.Id, cancellationToken);
         await eventCacheInvalidationService.RemoveEventReviewsAsync(groupEvent.Id, cancellationToken);

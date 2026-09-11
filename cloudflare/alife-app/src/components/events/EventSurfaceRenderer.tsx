@@ -18,6 +18,7 @@ export type EventSurfaceProps = {
   eventId: string
   groupId: string
   canManage: boolean
+  setupFlow?: boolean
 }
 
 const localize = (item: EventWorkspaceItem, language: Language) =>
@@ -60,7 +61,7 @@ const RegistrationSurface = (props: EventSurfaceProps) => (
     subtitle={props.language === 'zh' ? '沿用现有报名、容量与参与者隐私控制。' : 'Uses the existing enrollment, capacity and participant privacy controls.'}
     action={<AppBadge variant={props.item.readiness === 'ready' ? 'success' : 'warning'}>{props.item.readiness}</AppBadge>}
   >
-    <Link className="text-sm font-bold text-[#176b5a] underline-offset-4 hover:underline" to={`${props.eventBasePath}?section=enrollments`}>
+    <Link className="text-sm font-bold text-[#176b5a] underline-offset-4 hover:underline" to={`${props.eventBasePath}?section=enrollments${props.setupFlow ? '&flow=setup' : ''}`}>
       {props.language === 'zh' ? '打开报名管理' : 'Open enrollment management'}
     </Link>
   </AppSectionCard>
@@ -72,7 +73,7 @@ const RamSurface = (props: EventSurfaceProps) => (
     subtitle={props.language === 'zh' ? '沿用既有 RAM 草稿、提交与独立批准流程。' : 'Uses the existing RAM draft, submission and independent approval flow.'}
     action={<AppBadge variant={props.item.readiness === 'ready' ? 'success' : 'warning'}>{props.item.readiness}</AppBadge>}
   >
-    <Link className="text-sm font-bold text-[#176b5a] underline-offset-4 hover:underline" to={`${props.eventBasePath}/edit?step=ram`}>
+    <Link className="text-sm font-bold text-[#176b5a] underline-offset-4 hover:underline" to={`${props.eventBasePath}/edit?step=ram${props.setupFlow ? '&flow=setup' : ''}`}>
       {props.language === 'zh' ? '打开 RAM 工作区' : 'Open RAM workspace'}
     </Link>
   </AppSectionCard>

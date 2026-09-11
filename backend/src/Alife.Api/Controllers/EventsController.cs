@@ -83,7 +83,8 @@ public class EventsController(
                 request.GovernanceMode,
                 request.ParentEventId,
                 Request.Headers["Idempotency-Key"].FirstOrDefault(),
-                request.SeriesSetup),
+                request.SeriesSetup,
+                request.Arrangements),
             cancellationToken);
 
         this.ApplyNoStoreHeaders();
@@ -109,7 +110,8 @@ public class EventsController(
                 request.EndDate,
                 request.EventDataJson,
                 request.ContactProfileIds ?? [],
-                request.RamDataJson),
+                request.RamDataJson,
+                Request.Headers.IfMatch.FirstOrDefault(), request.SeriesUpdate),
             cancellationToken);
 
         return this.ToActionResult(result);
@@ -278,7 +280,8 @@ public class EventsController(
         Guid? AccountableOwnerMemberId = null,
         EventGovernanceMode? GovernanceMode = null,
         Guid? ParentEventId = null,
-        Alife.Application.Events.Dtos.CreateEventSeriesSetupRequest? SeriesSetup = null);
+        Alife.Application.Events.Dtos.CreateEventSeriesSetupRequest? SeriesSetup = null,
+        Alife.Application.Events.Dtos.EventCreationArrangementsRequest? Arrangements = null);
 
     public record UpdateGroupEventRequest(
         string TitleEn,
@@ -287,7 +290,8 @@ public class EventsController(
         DateTime EndDate,
         string EventDataJson,
         IReadOnlyList<Guid>? ContactProfileIds,
-        string? RamDataJson);
+        string? RamDataJson,
+        Alife.Application.Events.Dtos.PreparationSeriesUpdate? SeriesUpdate = null);
 
     public record SaveEventRamRequest(string RamDataJson);
 

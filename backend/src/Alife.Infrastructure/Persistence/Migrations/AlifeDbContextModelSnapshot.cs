@@ -2802,6 +2802,91 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.ToTable("event_plan_snapshots", (string)null);
                 });
 
+            modelBuilder.Entity("Alife.Domain.Entities.EventPreparationReopenRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("concurrency_token");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("event_id");
+
+                    b.Property<Guid>("EventPackageId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("event_package_id");
+
+                    b.Property<string>("ReasonEn")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasColumnName("reason_en");
+
+                    b.Property<string>("ReasonZh")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasColumnName("reason_zh");
+
+                    b.Property<Guid>("RequestedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("requested_by_member_id");
+
+                    b.Property<DateTime>("RequestedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("requested_utc");
+
+                    b.Property<string>("ReviewReasonEn")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasColumnName("review_reason_en");
+
+                    b.Property<string>("ReviewReasonZh")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasColumnName("review_reason_zh");
+
+                    b.Property<Guid?>("ReviewedByMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("reviewed_by_member_id");
+
+                    b.Property<DateTime?>("ReviewedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("reviewed_utc");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_preparation_reopen_requests");
+
+                    b.HasIndex("EventId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_event_preparation_reopen_requests_event_id")
+                        .HasFilter("[status] = 0");
+
+                    b.HasIndex("EventPackageId")
+                        .HasDatabaseName("ix_event_preparation_reopen_requests_event_package_id");
+
+                    b.HasIndex("RequestedByMemberId")
+                        .HasDatabaseName("ix_event_preparation_reopen_requests_requested_by_member_id");
+
+                    b.HasIndex("ReviewedByMemberId")
+                        .HasDatabaseName("ix_event_preparation_reopen_requests_reviewed_by_member_id");
+
+                    b.HasIndex("EventId", "RequestedUtc")
+                        .HasDatabaseName("ix_event_preparation_reopen_requests_event_id_requested_utc");
+
+                    b.ToTable("event_preparation_reopen_requests", (string)null);
+                });
+
             modelBuilder.Entity("Alife.Domain.Entities.EventProgramItem", b =>
                 {
                     b.Property<Guid>("Id")
@@ -7567,6 +7652,40 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.Navigation("Event");
 
                     b.Navigation("SourceFactSet");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventPreparationReopenRequest", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.GroupEvent", "Event")
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_preparation_reopen_requests_group_events_event_id");
+
+                    b.HasOne("Alife.Domain.Entities.EventPackage", "EventPackage")
+                        .WithMany()
+                        .HasForeignKey("EventPackageId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_preparation_reopen_requests_event_packages_event_package_id");
+
+                    b.HasOne("Alife.Domain.Entities.Member", null)
+                        .WithMany()
+                        .HasForeignKey("RequestedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_preparation_reopen_requests_members_requested_by_member_id");
+
+                    b.HasOne("Alife.Domain.Entities.Member", null)
+                        .WithMany()
+                        .HasForeignKey("ReviewedByMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_preparation_reopen_requests_members_reviewed_by_member_id");
+
+                    b.Navigation("Event");
+
+                    b.Navigation("EventPackage");
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.EventProgramItem", b =>

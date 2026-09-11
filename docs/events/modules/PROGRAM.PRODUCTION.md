@@ -44,6 +44,10 @@ Contributes occurrence/session structure, programme version, owner coverage, req
 
 An occurrence-first editor supports ordered Sessions and minute-level ProgramItems, explicit ownership, conflict-safe updates, print/run-sheet output, and bilingual display.
 
+During [event creation](../CREATION-ARRANGEMENTS.md), the Arrangements page supports inline Yes/No activation and collapsible bilingual session/item editing with times, ordering, duration and notes. Required activation stays locked; reviewed initial sessions and items are saved atomically with the Event.
+
+Preparation configuration follows the [formal-approval freeze and reopening contract](../EVENT-SETUP-FLOW.md). Approved preparation cannot be edited until reopening is authorised. Operational responses, consent and safety records retain their existing controls.
+
 ## Current implementation
 
 Current core flow. Occurrence Session and ProgramItem CRUD, owners, reordering, occurrence ETags/If-Match, print run sheet, series-occurrence isolation, protected APIs, and reachable `EventProgrammePanel` exist.
@@ -55,3 +59,7 @@ Typed speakers/performers, content approval, rehearsals, technical cues, livestr
 ## Next useful vertical slice
 
 `programme-cue-approval`: content confirmation, technical cues, rehearsal checklist, and contributions to the existing Event workflow.
+
+### Shared preparation editor
+
+Saved creation-form edits preserve session/item IDs, lead/owner assignments and advanced content; retained service-slot references prevent removal. The occurrence-scoped read and atomic Plan/arrangement save are specified in [EVENT-SETUP-FLOW.md](../EVENT-SETUP-FLOW.md).

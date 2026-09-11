@@ -18,6 +18,26 @@ Each applicable field has equal weight. Bilingual fields count once and require 
 
 Sources and revision metadata supplied by the client are presentation claims, never authorization credentials. AI output does not change module facts, template choices, approvals or persistence. Creation still requires the existing deterministic validation, server recomposition and explicit human acceptance. A 100% score neither approves nor publishes an event.
 
+## Details-step presentation
+
+The assistant's existing explanation now labels the input instead of the generic material prompt: **Explicit details fill the draft; uncertain details prompt a follow-up. Review before creating.** 简体：**明确提供的资料会填入草稿；不确定之处会继续询问。请在创建前审阅。** 繁體：**明確提供的資料會填入草稿；不確定之處會繼續詢問。請在建立前審閱。** The voice control stays beside this label.
+
+The Details step displays the selected template above the form and beside the **AI details assistant** heading, without an “optional” suffix. The message input and send actions precede the conversation, whose newest reply appears first, followed by its user message and earlier turns. Each successful reply returns the conversation scroll position to the newest message. **Back to event details form** sits at the right of the send-action row (wrapping on narrow screens); it scrolls to and focuses the form region without clearing the draft or conversation, and respects reduced-motion preferences. Template labels and controls follow the current UI language without restarting the session.
+
+简体中文：活动资料表单上方和 **AI 资料助手** 标题旁均显示已选模板，标题不再标注「可选」。输入框与发送操作位于会话记录上方；最新回复排在最前，接着是对应的用户消息和更早的记录，每次成功回复后会话滚动到最新消息。发送操作行右侧提供「回到活动资料表单」，窄屏可换行；点击后滚动并聚焦到表单，保留草稿和对话，并遵循减少动态效果的设置。切换界面语言会更新模板名称和操作文字，不会重启会话。
+
+繁體中文：活動資料表單上方和 **AI 資料助手** 標題旁均顯示已選範本，標題不再標註「可選」。輸入框與傳送操作位於對話記錄上方；最新回覆排在最前，接著是對應的使用者訊息和更早的記錄，每次成功回覆後對話捲動到最新訊息。傳送操作列右側提供「回到活動資料表單」，窄螢幕可換行；點擊後捲動並聚焦到表單，保留草稿和對話，並遵循減少動態效果的設定。切換介面語言會更新範本名稱和操作文字，不會重新啟動對話。
+
+## Voice dictation
+
+The input label includes an explicit **Voice input / Stop voice input** control backed by the browser's `SpeechRecognition` or `webkitSpeechRecognition`, in a secure context. It follows the UI language (`zh-CN` / `en-NZ`). Final results append once to the current editable message; interim results are a separate preview. Stopping waits for the final result/end event, with a three-second cleanup fallback. Sending remains disabled until recognition ends; transcription never sends a message or changes Event fields automatically. The existing 8,000-character limit applies, with a visible warning when excess dictated text is omitted.
+
+Leaving the Details step, collapsing the assistant, switching language, hiding/leaving the browser page or unmounting closes recognition and ignores late results. Already appended text remains. Microphone/service permission denial, unavailable audio capture, no speech, unsupported language, network/start failures and unsupported browsers offer readable guidance while preserving typing. There is no automatic restart or microphone request on load. Alife does not upload or persist audio; the browser may use an online recognition service, as disclosed beside the input. Only user-reviewed text enters the existing details-session request, still using `inputMode: text`. See [SpeechRecognition browser behavior](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognition).
+
+简体中文：输入标签旁提供「语音输入／停止语音输入」，按界面语言识别中文或英文。最终识别文字追加到现有输入，临时结果单独预览；停止后等最后一段识别完成，再由用户核对并发送。达到 8,000 字符会停止并提示超出部分未填入。离开资料步骤、收起助手、切换语言、隐藏或离开页面时关闭识别，保留已填入的文字。浏览器不支持或权限、设备、网络等出现问题时仍可打字。麦克风仅由用户点击启动；浏览器可能使用在线语音服务，Alife 不上传或保存音频。
+
+繁體中文：輸入標籤旁提供「語音輸入／停止語音輸入」，按介面語言辨識中文或英文。最終辨識文字追加到現有輸入，暫時結果單獨預覽；停止後等最後一段辨識完成，再由使用者核對並傳送。達到 8,000 字元會停止並提示超出部分未填入。離開資料步驟、收合助手、切換語言、隱藏或離開頁面時關閉辨識，保留已填入的文字。瀏覽器不支援或權限、裝置、網路等出現問題時仍可打字。麥克風僅由使用者點擊啟動；瀏覽器可能使用線上語音服務，Alife 不上傳或儲存音訊。
+
 ## Dates, recurrence and continuity
 
 All creation dates are interpreted in the visible event time zone, including one-off events. Local-to-UTC conversion rejects invalid dates and DST gaps/folds. Relative phrases such as “next Saturday” require confirmation of a concrete date; conflicting weekly/fortnightly instructions are surfaced. Weekly intervals from 1–52 map to the existing `FREQ=WEEKLY;INTERVAL=N;BYDAY=...` contract and rolling 12-week materialization window. Monthly and multiple-weekday rules are not introduced.

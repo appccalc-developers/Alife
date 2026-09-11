@@ -6,13 +6,15 @@ import { conditionalGet, removeCachedRecord } from '../db/httpCache'
 import { queryClient } from '../db/queryClient'
 import type { AiContentContext } from '../utils/aiContentContext'
 import type { EventPlanComposeRequest, EventSeriesSetup } from '../types/eventComposition'
+import type { PreparationSeriesUpdate } from '../utils/eventSavedPreparation'
+import type { EventCreationArrangementsRequest } from '../utils/eventCreationArrangements'
 import { http } from './http'
 import { createAiSessionService } from './aiSessionService'
 import { invalidateChurchLifeQueries } from './churchLifeService'
 
 const eventSessionService = createAiSessionService<EventDto, EventDto['legacySummary']>('/api/events/session')
 
-const invalidateGroupEventsCache = async (groupId: string) => {
+export const invalidateGroupEventsCache = async (groupId: string) => {
   const queryKey = groupEventsQueryKey(groupId)
   await removeCachedRecord(queryKey)
   await queryClient.invalidateQueries({ queryKey })
@@ -44,6 +46,7 @@ export type EventCreationPlan = {
   proposalHash: string
   idempotencyKey: string
   seriesSetup?: EventSeriesSetup | null
+  arrangements?: EventCreationArrangementsRequest
 }
 
 export const eventService = {
@@ -143,6 +146,7 @@ export const eventService = {
       composition: creationPlan?.composition ?? null,
       compositionProposalHash: creationPlan?.proposalHash ?? null,
       seriesSetup: creationPlan?.seriesSetup ?? null,
+      ...(creationPlan?.arrangements ? { arrangements: creationPlan.arrangements } : {}),
       missionStatements: aiContext?.missionStatements ?? [],
       eventContext: aiContext?.eventContext ?? { eventDataJson, eventData: eventDto },
     }, creationPlan ? { headers: { 'Idempotency-Key': creationPlan.idempotencyKey } } : undefined)
@@ -159,6 +163,8 @@ export const eventService = {
     eventDto: EventDto,
     sessionId?: string,
     aiContext?: AiContentContext,
+    expectedUpdatedUtc?: string,
+    seriesUpdate?: PreparationSeriesUpdate,
   ): Promise<GroupEventRecord> => {
     const titleEn = eventDto.title.en || eventDto.title.zh || ''
     const titleZh = eventDto.title.zh || eventDto.title.en || ''
@@ -173,7 +179,8 @@ export const eventService = {
       contactProfileIds: eventDto.contactProfileIds ?? [],
       missionStatements: aiContext?.missionStatements ?? [],
       eventContext: aiContext?.eventContext ?? { eventDataJson, eventData: eventDto },
-    })
+      ...(seriesUpdate ? { seriesUpdate } : {}),
+    }, expectedUpdatedUtc ? { headers: { 'If-Match': `"${expectedUpdatedUtc}"` } } : undefined)
     try {
       await invalidateGroupEventsCache(data.groupId)
     } finally {

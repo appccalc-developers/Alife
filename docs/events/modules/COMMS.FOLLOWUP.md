@@ -38,7 +38,7 @@ At least one `comms.owner` who is an Event team member. Public copy requires the
 
 ### Event Package contribution
 
-Contributes public-copy/poster draft versions, audience category and count, channel plan, privacy/retention purpose, human approval state, and blockers. It never copies recipient identities into the Package. Approval can unlock publication eligibility but never sends content; invalidation creates a human-reviewed change/cancellation draft and delivery work without automatically notifying anyone.
+Contributes public-copy draft versions, audience category and count, channel plan, privacy/retention purpose, human approval state, and blockers. Poster artwork is created after formal approval and is excluded from the Package. It never copies recipient identities into the Package. Approval can unlock publication eligibility but never sends content; invalidation creates a human-reviewed change/cancellation draft and delivery work without automatically notifying anyone.
 
 ### User experience
 
@@ -47,6 +47,8 @@ Owners review bilingual content and an immutable audience snapshot before send. 
 ## Current implementation
 
 Partial. Bilingual Event content, public/group projections, in-app notification foundations, Event Review CRUD, Workflow/Artifact support, and a generic controlled surface exist. They do not form a complete Event communications workspace or audited broadcast lifecycle.
+
+The [continuous preparation flow](../EVENT-SETUP-FLOW.md) provides a separate post-creation poster studio after formal approval. It reuses the existing AI/image services, requires human preview/adoption, and saves only the poster association through an authorized, no-store, ETag/idempotency-protected API. Poster drafts remain local until adopted. Explicit publication after active approval uses existing audience-filtered projections. Poster artwork is outside formal approval by product contract; adoption preserves Package validity. Audited broadcasts remain incomplete.
 
 ## Open contract gaps
 

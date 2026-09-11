@@ -49,11 +49,13 @@ export const eventCompositionService = {
     composition: EventPlanComposeRequest,
     eTag: string,
     idempotencyKey: string,
+    arrangements?: import('../utils/eventSavedPreparation').SavePreparationArrangements,
   ): Promise<EventPlanSnapshot> => {
     const { data } = await http.post<EventPlanSnapshot>(`/api/events/${eventId}/plan/accept`, {
       proposalHash: proposal.proposalHash,
       humanDecisions: [],
       composition,
+      ...(arrangements ? { arrangements } : {}),
     }, {
       headers: { 'If-Match': eTag, 'Idempotency-Key': idempotencyKey },
     })

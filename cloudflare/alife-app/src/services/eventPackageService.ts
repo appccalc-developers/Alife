@@ -2,6 +2,8 @@ import type { EventLifecycle, EventPackage, EventPackageActorCapabilities, Event
 import { http } from './http'
 
 export const eventPackageService = {
+  getAssessment: async (eventId: string, scopeType: EventPackageScopeType = 'event', scopeId?: string) =>
+    (await http.get<import('../types/eventPackage').EventApprovalAssessment>(`/api/events/${eventId}/packages/assessment`, { params: { scopeType, scopeId } })).data,
   listPage: async (eventId: string, query: {
     page?: number
     pageSize?: number

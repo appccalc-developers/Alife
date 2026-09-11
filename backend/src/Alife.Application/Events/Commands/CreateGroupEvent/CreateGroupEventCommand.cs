@@ -22,4 +22,5 @@ public sealed record CreateGroupEventCommand(
     EventGovernanceMode? GovernanceMode = null,
     Guid? ParentEventId = null,
     string? IdempotencyKey = null,
-    CreateEventSeriesSetupRequest? SeriesSetup = null) : IRequest<AppResult<GroupEventSummaryDto>>;
+    CreateEventSeriesSetupRequest? SeriesSetup = null,
+    EventCreationArrangementsRequest? Arrangements = null) : IRequest<AppResult<GroupEventSummaryDto>>;

@@ -9,6 +9,8 @@ const mutationHeaders = (eTag?: string) => ({
 })
 
 export const eventVenueService = {
+  listCatalogue: async (groupId: string) =>
+    (await http.get<{ managingGroupId: string; venues: EventVenue[]; canManage: boolean }>(`/api/groups/${groupId}/venues`)).data,
   getWorkspace: async (eventId: string) =>
     (await http.get<EventVenueWorkspace>(`/api/events/${eventId}/venue-reservations`)).data,
   createVenue: async (groupId: string, request: SaveEventVenueRequest) =>

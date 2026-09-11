@@ -81,6 +81,7 @@ export type EventRamAssessmentRecord = {
 }
 
 export type EventDto = {
+  timeZone?: string
   id?: string
   organizerId?: string
   organizerDisplayName?: string

@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Alife.Application.Events.Services;
 
-public sealed class EventPackageService(
+public sealed partial class EventPackageService(
     IAlifeDbContext db,
     IGroupAuthorizationService authorization,
     IEventCacheInvalidationService? cacheInvalidation = null) : IEventPackageService
@@ -149,6 +149,7 @@ public sealed class EventPackageService(
         var now = DateTime.UtcNow;
         var canManageEvent = await EventCompositionPersistence.CanManageEventAsync(
             db, authorization, groupEvent, memberId, ct);
+        var preparationFrozen = await EventPreparationPolicy.IsFrozenAsync(db, eventId, ct);
         var canSubmitAuthority = await CanSubmitAsync(groupEvent, memberId, ct);
         var decisionAuthority = await ResolveDecisionAuthorityAsync(groupEvent, package, memberId, ct);
         var canOpenRegistrationAuthority = await CanManageRegistrationAsync(
@@ -193,7 +194,7 @@ public sealed class EventPackageService(
         return AppResult<EventPackageActorCapabilitiesDto>.Success(new(
             eventId,
             packageId,
-            canManageEvent,
+            canManageEvent && !preparationFrozen,
             package.Status == EventPackageStatus.Draft && canSubmitAuthority,
             package.Status is EventPackageStatus.Draft or EventPackageStatus.Submitted &&
                 (package.GeneratedByMemberId == memberId || package.SubmittedByMemberId == memberId || canManageEvent),
@@ -242,6 +243,8 @@ public sealed class EventPackageService(
 
         await using var transaction = await db.BeginSerializableTransactionAsync(ct);
         var first = await CaptureAsync(groupEvent.Id, request, ct);
+        if (request.ScopeType == EventPackageScopeType.Event && await EventPreparationPolicy.IsFrozenAsync(db, eventId, ct))
+            return AppResult<EventPackageDto>.Conflict(EventPreparationPolicy.FrozenMessage);
         if (!first.IsSuccess) return Failure<EventPackageDto, PackageCapture>(first);
         if (!Matches(ifMatch, first.Value!.Plan.ETag))
             return AppResult<EventPackageDto>.PreconditionFailed("The accepted Event Plan changed; reload before generating the Package.");
@@ -346,6 +349,8 @@ public sealed class EventPackageService(
         if (!string.Equals(current.Value!.SourceVectorHash, package.SourceVectorHash, StringComparison.Ordinal) ||
             current.Value.Plan.PlanVersion != package.EventPlanVersion || current.Value.Policy.Id != package.GovernancePolicyVersionId)
             return AppResult<EventPackageDto>.Conflict("event.package.sourceChanged");
+        if (current.Value.Manifest.Blockers.Count > 0)
+            return AppResult<EventPackageDto>.Conflict("event.package.submissionBlocked");
 
         var now = DateTime.UtcNow;
         package.Status = EventPackageStatus.Submitted;
@@ -425,6 +430,10 @@ public sealed class EventPackageService(
 
         var authority = await ResolveDecisionAuthorityAsync(groupEvent, package, memberId, ct);
         if (!authority.Allowed) return AppResult<EventPackageDto>.Forbidden(authority.DenialReason!);
+        if (package.ScopeType == EventPackageScopeType.Event &&
+            request.DecisionType is EventPackageDecisionType.Approve or EventPackageDecisionType.ApproveWithConditions &&
+            await EventPreparationPolicy.FrozenPackages(db, eventId).AnyAsync(x => x.Id != packageId, ct))
+            return AppResult<EventPackageDto>.Conflict(EventPreparationPolicy.FrozenMessage);
         var current = await CaptureAsync(eventId,
             new GenerateEventPackageRequest(package.ScopeType, package.ScopeId, package.PackageSchemaVersion), ct);
         if (!current.IsSuccess) return Failure<EventPackageDto, PackageCapture>(current);
@@ -436,6 +445,8 @@ public sealed class EventPackageService(
         DateTime? decisionExpiresUtc = request.ExpiresUtc.HasValue ? AsUtc(request.ExpiresUtc.Value) : null;
         if (request.DecisionType is EventPackageDecisionType.Approve or EventPackageDecisionType.ApproveWithConditions)
         {
+            if (current.Value.Manifest.Blockers.Count > 0)
+                return AppResult<EventPackageDto>.Conflict("event.package.submissionBlocked");
             var policyExpiry = ResolveApprovalExpiry(current.Value.Policy.RulesJson, package.GovernanceTier, now);
             if (!policyExpiry.HasValue)
                 return AppResult<EventPackageDto>.Conflict("The Package policy does not define a valid approval duration for this tier.");
@@ -880,7 +891,8 @@ public sealed class EventPackageService(
             gateReasons.AddRange(await EvaluatePublishPackageAsync(groupEvent, package, request.PackageETag, policy, now, ct));
         }
         else gateReasons.Add("event.publish.packageMissing");
-        if (mode == EventPackageEnforcementMode.Enforced && gateReasons.Count > 0)
+        // New explicit-publication Events require formal approval even during a legacy policy rollout.
+        if ((mode == EventPackageEnforcementMode.Enforced || groupEvent.PublicationStatus != EventPublicationStatus.LegacyImplicit) && gateReasons.Count > 0)
             return AppResult<EventLifecycleDto>.Conflict(gateReasons[0]);
 
         var previous = new { groupEvent.PublicationStatus, groupEvent.PublishedPackageId, groupEvent.PublishedUtc };
@@ -889,7 +901,7 @@ public sealed class EventPackageService(
         groupEvent.PublishedPackage = package;
         groupEvent.PublishedByMemberId = memberId;
         groupEvent.PublishedUtc = now;
-        groupEvent.PublicationGateMode = mode;
+        groupEvent.PublicationGateMode = previous.PublicationStatus == EventPublicationStatus.LegacyImplicit ? mode : EventPackageEnforcementMode.Enforced;
         groupEvent.PublicationConcurrencyToken = Guid.NewGuid();
         AddLifecycleAudit("event.published", groupEvent, memberId, now, previous,
             new { groupEvent.PublicationStatus, groupEvent.PublishedPackageId, groupEvent.PublishedUtc, mode, dryRunReasonCodes = gateReasons });
@@ -1195,6 +1207,8 @@ public sealed class EventPackageService(
             .Where(x => x.EventId == groupEvent.Id && x.IsActive).OrderByDescending(x => x.Version).FirstOrDefaultAsync(ct);
         if (planEntity is null) return AppResult<PackageCapture>.Conflict("An accepted Event Plan is required before Package generation.");
         var plan = EventCompositionPersistence.ToSnapshotDto(planEntity);
+        if (EventPreparationPolicy.NeedsPlanReview(groupEvent, plan.Plan))
+            return AppResult<PackageCapture>.Conflict(EventPreparationPolicy.PlanReviewMessage);
         var now = DateTime.UtcNow;
         var currentPlan = EventCompositionPersistence.RefreshReadiness(plan.Plan, groupEvent, now);
         currentPlan = await EventCompositionPersistence.ApplyOperationalReadinessAsync(
@@ -1244,6 +1258,7 @@ public sealed class EventPackageService(
         };
         var modules = new List<EventPackageModuleSummaryDto>();
         var blockers = new List<LocalizedTextDto>();
+        blockers.AddRange(EventCompositionEngine.FormalSubmissionModuleBlockers(plan.Plan));
         foreach (var decision in selected)
         {
             var available = !UnavailableModules.Contains(decision.ModuleCode);
@@ -1283,11 +1298,18 @@ public sealed class EventPackageService(
                 available ? "available" : "unavailable", sourceVersion, moduleBlockers.Distinct().ToArray()));
         }
         var distinctBlockers = blockers.Distinct().ToArray();
+        var approvalDeadline = request.ScopeType == EventPackageScopeType.Occurrence
+            ? AsUtc(await db.EventOccurrences.Where(x => x.Id == request.ScopeId && x.EventId == eventId).Select(x => x.StartUtc).SingleAsync(ct))
+            : AsUtc(groupEvent.StartDate);
+        if (rules.PreEventConfirmationWindowHours > (approvalDeadline - DateTime.MinValue).TotalHours)
+            return AppResult<PackageCapture>.Conflict("The policy confirmation window is outside the supported date range. / 政策的最终确认窗口超出可计算的日期范围。");
+        var assessment = BuildApprovalAssessment(plan.Plan, rules, selected, tier, policy.Version, approvalDeadline);
         var manifest = new EventPackageManifestDto(PackageSchemaVersion, groupEvent.Id, request.ScopeType, request.ScopeId,
             scope.Value!.CoverageMode, scope.Value.CoveredOccurrenceIds, plan.PlanVersion, policy.Version, tier, legacyTransition,
             new(groupEvent.TitleEn, groupEvent.TitleZh), AsUtc(groupEvent.StartDate), AsUtc(groupEvent.EndDate), modules, distinctBlockers)
         {
-            TriggerReasons = BuildTriggerReasons(tier, policy.Version, selected),
+            ApprovalAssessment = assessment,
+            TriggerReasons = BuildTriggerReasons(tier, policy.Version, selected).Concat(assessment.Tiers.Where(x => x.Applies).SelectMany(x => x.Reasons)).DistinctBy(x => x.Code).ToArray(),
             RequiredSpecialistDecisions = RequiredSpecialistDecisions(selected),
             Sections = BuildPackageSections(groupEvent, scope.Value.CoveredOccurrenceIds, modules),
             Warnings = modules.SelectMany(x => x.Blockers).Distinct().ToArray()

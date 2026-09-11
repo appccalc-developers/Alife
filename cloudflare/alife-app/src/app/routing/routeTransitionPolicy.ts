@@ -32,6 +32,10 @@ export const getRouteTransitionKey = ({
   isManagedPublicPage: boolean
 }) => {
   if (isManagedPublicPage) return 'managed-public-page'
+  // Stage changes belong to one saved preparation form; remounting loses local
+  // details, tool selections and poster candidates before the user saves them.
+  if (/^\/(?:groups\/[^/]+\/)?events\/[^/]+\/workspace$/.test(pathname) &&
+    new URLSearchParams(search).get('flow') === 'setup') return `${pathname}?flow=setup`
   const churchLifeTransitionKey = getChurchLifeTransitionKey(pathname, search)
   if (churchLifeTransitionKey) return churchLifeTransitionKey
   if (

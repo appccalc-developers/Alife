@@ -18,7 +18,8 @@ public sealed record EventCompositionContext(
     EventSponsorshipStatus SponsorshipStatus = EventSponsorshipStatus.NotRequested,
     DateTime? CheckedUtc = null,
     EventWorkflowRecommendationDto? WorkflowRecommendation = null,
-    IReadOnlyDictionary<string, EventActivityTypeDefinition>? ActivityTypesByCode = null);
+    IReadOnlyDictionary<string, EventActivityTypeDefinition>? ActivityTypesByCode = null,
+    bool IsPreparationDraft = false);
 
 public interface IEventCompositionEngine
 {
@@ -78,8 +79,8 @@ public sealed class EventCompositionEngine : IEventCompositionEngine
             }
         }
 
-        // Policy invariant: every event has one accountable owner and therefore
-        // always uses TEAM.WORK. No client or archetype can turn it off.
+        // Accountability is required for formal submission. Saved preparation
+        // may temporarily disable the tool without removing its owner.
         Promote(states["TEAM.WORK"], EventModuleDecisionStatus.Required, "policy-accountable-owner");
 
         foreach (var selection in selections.Values.Where(x => x.Selected))
@@ -125,6 +126,18 @@ public sealed class EventCompositionEngine : IEventCompositionEngine
         }
 
         CloseDependencies(states);
+
+        // A saved preparation choice controls the enabled tools, not the underlying
+        // facts or ownership. Formal submission validates requirements separately.
+        if (context.IsPreparationDraft)
+        {
+            foreach (var code in explicitDeselections)
+            {
+                states[code].Status = EventModuleDecisionStatus.Inactive;
+                states[code].Reasons.Clear();
+                states[code].Reasons.Add("preparation-deselected");
+            }
+        }
 
         var decisions = EventCompositionDefinitions.Modules
             .OrderBy(x => x.NavigationOrder)
@@ -177,7 +190,9 @@ public sealed class EventCompositionEngine : IEventCompositionEngine
             warnings,
             context.CheckedUtc ?? DateTime.UtcNow);
         var navigation = BuildNavigation(decisions, moduleBlockers, readiness.Status);
-        var diff = BuildDiff(decisions, context.BaseModuleDecisions, context.ProtectedModuleCodes);
+        // Disabling a preparation tool preserves its saved records for re-enabling.
+        var diff = BuildDiff(decisions, context.BaseModuleDecisions,
+            context.IsPreparationDraft ? null : context.ProtectedModuleCodes);
         var factSet = new EventFactSetDto(null, facts, Hash(facts));
 
         var proposal = new EventPlanProposalDto(
@@ -221,6 +236,29 @@ public sealed class EventCompositionEngine : IEventCompositionEngine
                 proposal.Warnings
             })
         });
+    }
+
+    public static IReadOnlyList<LocalizedTextDto> FormalSubmissionModuleBlockers(EventPlanProposalDto plan)
+    {
+        var confirmedFacts = plan.Facts.Items.Where(x => x.Certainty == EventFactCertainty.Confirmed)
+            .ToDictionary(x => x.Code, StringComparer.Ordinal);
+        var enabled = plan.ModuleDecisions
+            .Where(x => x.Status is EventModuleDecisionStatus.Required or EventModuleDecisionStatus.Selected)
+            .Select(x => x.ModuleCode).ToHashSet(StringComparer.Ordinal);
+        var states = EventCompositionDefinitions.Modules.ToDictionary(x => x.Code,
+            x => new DecisionState(enabled.Contains(x.Code) ? EventModuleDecisionStatus.Selected : EventModuleDecisionStatus.Inactive),
+            StringComparer.Ordinal);
+        foreach (var module in EventCompositionDefinitions.Modules)
+            foreach (var rule in module.ActivationRules.Where(x => x.Decision == EventModuleDecisionStatus.Required))
+                if (Matches(rule, confirmedFacts)) Promote(states[module.Code], EventModuleDecisionStatus.Required, rule.ReasonCode);
+        Promote(states["TEAM.WORK"], EventModuleDecisionStatus.Required, "policy-accountable-owner");
+        CloseDependencies(states);
+        return EventCompositionDefinitions.Modules
+            .Where(x => states[x.Code].Status == EventModuleDecisionStatus.Required && !enabled.Contains(x.Code))
+            .Select(x => Text(
+                $"Before formal submission, enable {x.Name.En} in Arrangements or review the facts that require it.",
+                $"正式提交审批前，请在活动安排中启用「{x.Name.Zh}」，或重新核对需要此功能的活动资料。"))
+            .ToArray();
     }
 
     private static string? Validate(

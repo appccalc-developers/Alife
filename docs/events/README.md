@@ -65,7 +65,11 @@ Event Package Approval 是 Plan 接受之后、发布／开放报名／收款／
 
 ### 人工确认与 AI 权限边界
 
-创建时的 [AI 资料助手](AI-DETAILS-ASSISTANT.md) 根据最新表单逐轮整理双语文字、时间、地点和报名设置，显示字段完成度、AI 充分性评估及待澄清问题。默认值需用户确认才计入完成度；时间使用活动时区，系列活动支持每 1–52 周重复并保留未来 12 周窗口。回填仅更新待审阅草稿，最终创建仍须人工确认。
+活动筹备使用[连续八步流程](EVENT-SETUP-FLOW.md)：选择模板 → 活动资料 → 活动安排 → 确认创建 → 团队与功能 → 正式审批 → 海报制作 → 发布活动。创建与修改共用创建时的表单，创建后不能再选择模板。正式审批显示各等级命中的政策条件；最晚预期批复时间为活动开始时间减去政策的最终确认提前开放小时数。创建成功后继续编辑同一个活动；新方案活动从未发布、报名关闭状态开始。批准前可反复修改资料、安排与团队功能；审批退回后可修改重提。保存后的筹备阶段，每项功能均可选是或否；关闭会保留资料，正式提交时再核对必要条件。批准后筹备资料冻结，可申请撤销审批，获准后恢复修改并重新审批。海报不在审批内容内，放在正式审批之后制作并由人工核对采用。批准后仍须确认发布，公共网站、教会生活和小组生活按既定可见范围展示；旧活动的兼容规则保持不变。
+
+在[活动安排](CREATION-ARRANGEMENTS.md)页，可选功能通过“是／否”启用，必需功能保持锁定。岗位与轮班、节目与制作、场地与资源可直接展开填写人数、时段、节目顺序及场地预订，并在同页查看安排一览。关闭功能保留草稿；最终人工确认时，安排与活动一起保存。系列安排应用于本次创建的未来 12 周场次，场地冲突在创建时再次检查。
+
+创建时的 [AI 资料助手](AI-DETAILS-ASSISTANT.md) 根据最新表单逐轮整理双语文字、时间、地点和报名设置，显示字段完成度、AI 充分性评估及待澄清问题。支持的浏览器可用中英文语音输入，识别文字追加到输入框，由用户核对后发送；不支持时仍可打字。默认值需用户确认才计入完成度；时间使用活动时区，系列活动支持每 1–52 周重复并保留未来 12 周窗口。回填仅更新待审阅草稿，最终创建仍须人工确认。
 
 组合只生成候选方案。服务器在接受时重新组合并检查 hash、并发和幂等性；只有明确的人工接受才能建立权威、版本化且不可变的 Event Plan snapshot。以后修改原型、模板、模块或政策，不得改写已接受方案或历史实例。
 
@@ -146,7 +150,11 @@ Event Package Approval 是 Plan 接受之後、發布／開放報名／收款／
 
 ### 人工確認與 AI 權限邊界
 
-建立時的 [AI 資料助手](AI-DETAILS-ASSISTANT.md) 根據最新表單逐輪整理雙語文字、時間、地點和報名設定，顯示欄位完成度、AI 充分性評估及待釐清問題。預設值需使用者確認才計入完成度；時間使用活動時區，系列活動支援每 1–52 週重複並保留未來 12 週視窗。回填僅更新待審閱草稿，最終建立仍須人工確認。
+活動籌備使用[連續八步流程](EVENT-SETUP-FLOW.md)：選擇範本 → 活動資料 → 活動安排 → 確認建立 → 團隊與功能 → 正式審批 → 海報製作 → 發布活動。建立與修改共用建立時的表單，建立後不能再選擇範本。正式審批顯示各等級命中的政策條件；最晚預期批覆時間為活動開始時間減去政策的最終確認提前開放小時數。建立成功後繼續編輯同一個活動；新方案活動從未發布、報名關閉狀態開始。批准前可反覆修改資料、安排與團隊功能；審批退回後可修改重提。儲存後的籌備階段，每項功能均可選是或否；關閉會保留資料，正式提交時再核對必要條件。批准後籌備資料凍結，可申請撤銷審批，獲准後恢復修改並重新審批。海報不在審批內容內，放在正式審批之後製作並由人工核對採用。批准後仍須確認發布，公共網站、教會生活和小組生活按既定可見範圍顯示；既有活動的相容規則保持不變。
+
+在[活動安排](CREATION-ARRANGEMENTS.md)頁，可選功能透過「是／否」啟用，必需功能保持鎖定。崗位與輪班、節目與製作、場地與資源可直接展開填寫人數、時段、節目順序及場地預訂，並在同頁查看安排一覽。關閉功能保留草稿；最終人工確認時，安排與活動一起儲存。系列安排套用於本次建立的未來 12 週場次，場地衝突在建立時再次檢查。
+
+建立時的 [AI 資料助手](AI-DETAILS-ASSISTANT.md) 根據最新表單逐輪整理雙語文字、時間、地點和報名設定，顯示欄位完成度、AI 充分性評估及待釐清問題。支援的瀏覽器可用中英文語音輸入，辨識文字追加到輸入框，由使用者核對後傳送；不支援時仍可打字。預設值需使用者確認才計入完成度；時間使用活動時區，系列活動支援每 1–52 週重複並保留未來 12 週視窗。回填僅更新待審閱草稿，最終建立仍須人工確認。
 
 組合只產生候選方案。伺服器在接受時重新組合並檢查 hash、並行控制和冪等性；只有明確的人工接受才能建立權威、版本化且不可變的 Event Plan snapshot。以後修改原型、範本、模組或政策，不得改寫已接受方案或歷史實例。
 
@@ -227,7 +235,11 @@ Approval is valid only for the bound Plan, Package version, policy version, sour
 
 ### Human confirmation and AI authority
 
-The creation [AI details assistant](AI-DETAILS-ASSISTANT.md) uses the latest form on each turn to organise bilingual copy, times, location and registration settings, with field completion, an AI sufficiency assessment and clarification questions. Defaults count only after user confirmation. Dates use the event time zone; series repeat every 1–52 weeks within the rolling 12-week window. Autofill updates a reviewable draft; final creation still requires human acceptance.
+Event preparation uses a [continuous eight-step flow](EVENT-SETUP-FLOW.md): Template → Details → Arrangements → Confirm creation → Team and tools → Formal approval → Poster → Publish. Creation and editing share the creation form; the template cannot be reselected after creation. Formal approval explains each tier’s matching policy conditions; the expected latest reply is Event start minus the policy’s final-confirmation opening hours. Successful creation continues editing the same Event; new composition-backed Events begin unpublished with registration closed. Details, arrangements and team configuration can be revised repeatedly before approval, including after return. Every tool remains a Yes/No choice during saved preparation; disabling preserves its data, and formal submission checks required conditions. Approval freezes preparation; an authorised reopening request restores editing and requires fresh approval. Posters are excluded from formal approval and are produced and adopted afterward. Approval still requires a separate publication confirmation, after which the public website, Church Life and Group Life apply the configured audience. Existing Event compatibility remains unchanged.
+
+On [Arrangements](CREATION-ARRANGEMENTS.md), optional tools have Yes/No choices while required tools stay locked. Roles and shifts, programme and production, and venue and resources expand inline for counts, times, programme order and bookings, with a same-page summary. Turning a tool off preserves its draft. Final human confirmation saves arrangements with the Event. Series arrangements apply to occurrences created in the initial 12-week window; venue conflicts are rechecked at creation.
+
+The creation [AI details assistant](AI-DETAILS-ASSISTANT.md) uses the latest form on each turn to organise bilingual copy, times, location and registration settings, with field completion, an AI sufficiency assessment and clarification questions. Supported browsers offer Chinese/English voice input that appends text for human review and sending; typing remains available when unsupported. Defaults count only after user confirmation. Dates use the event time zone; series repeat every 1–52 weeks within the rolling 12-week window. Autofill updates a reviewable draft; final creation still requires human acceptance.
 
 Composition produces a candidate plan only. On acceptance, the server recomposes and checks the hash, concurrency, and idempotency; only explicit human acceptance creates an authoritative, versioned, immutable Event Plan snapshot. Later archetype, template, module, or policy changes never rewrite accepted plans or historical occurrences.
 
