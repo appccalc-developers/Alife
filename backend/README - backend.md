@@ -142,6 +142,13 @@ dotnet test backend/tests/Alife.Tests.Unit/Alife.Tests.Unit.csproj -c Debug
 dotnet publish backend/src/Alife.Api/Alife.Api.csproj -c Release -r linux-x64 -p:PublishAot=true -p:SelfContained=true
 ```
 
+### Build warning guard (quick check)
+
+```bash
+cd backend
+pwsh ./check-build-warnings.ps1
+```
+
 ## Docker
 
 - Build image: `mcr.microsoft.com/dotnet/sdk:10.0`
