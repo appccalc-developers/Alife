@@ -401,7 +401,7 @@ Material content/personnel changes revoke current confirmation and approval elig
 All RAM/policy/history/print responses are private/no-store. Package and general workflow projections carry minimal references/status, not private RAM details. The RAM assistant accepts only activity/category/language enums after origin authorization; output is question guidance and cannot score or replace human assessments. External factual queries, a separate incident system and automatic expiry are not part of this slice.
 
 
-Arrangement section review uses optional, versioned `arrangementConfirmations` in composition and Plan JSON. It is an organizer review marker separate from authoritative readiness, consent and approval. Current reads invalidate affected markers after audited operational changes while accepted history remains immutable. Module role requirements render in their own tools; Event accountable ownership is global and retains its legacy requirement key. See [creation arrangements](CREATION-ARRANGEMENTS.md#section-confirmation-and-module-roles).
+Arrangement review uses independent default-false `moduleConfirmations` for all twelve module codes. Current Plan reads revoke only audited affected modules and RAM dependencies; accepted history is immutable. Legacy `arrangementConfirmations` remains a derived section summary and never automatically confirms modules. Upgraded Plans reject clients omitting module flags. This review remains separate from duties, safety signatures and formal approval. See [creation arrangements](CREATION-ARRANGEMENTS.md#module-confirmation-and-module-roles).
 
 ## Creator ownership and role-based staffing
 
@@ -412,3 +412,5 @@ New Events bind accountable ownership to the authenticated creator. The optional
 Roster roles have explicit, ordered Event candidate groups, each attached to one module. Every new assignment or substitution checks candidate membership, existing eligibility and availability on the server. Being a candidate is neither acceptance nor authority. There is no implicit whole-group candidate list or automatic rotation. Existing assignments remain historical evidence. Candidate-list changes use concurrency checks and invalidate affected preparation/Package evidence without rewriting history.
 
 Series creation also requires ownership of its linked Event. Updating a series requires ownership of every affected Event; an empty series is editable only by its creator. Group leadership alone cannot use recurrence changes to bypass Event ownership.
+
+Event details is the first full-row Arrangements card, with retained form/AI child work areas and creator summary. It does not add a policy module or confirmation. The visible preparation rail omits the separate Details step; legacy stage identifiers remain compatible. The Arrangements footer only returns to the top; explicit save/create actions retain their existing validation.

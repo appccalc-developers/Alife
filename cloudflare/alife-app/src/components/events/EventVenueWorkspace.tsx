@@ -10,7 +10,7 @@ import { venueCapacityLabel, venueReadinessItems } from '../../utils/eventVenueS
 import AppActionButton from '../layout/AppActionButton'
 import AppBadge from '../layout/AppBadge'
 import AppEmptyState from '../layout/AppEmptyState'
-import AppSectionCard from '../layout/AppSectionCard'
+import { EventToolSection as AppSectionCard, useArrangementDraft, useArrangementFormDraft } from './ArrangementTileDeck'
 import type { EventSurfaceProps } from './EventSurfaceRenderer'
 
 type LoadState = 'loading' | 'ready' | 'empty' | 'error' | 'permission-denied'
@@ -43,6 +43,7 @@ export const EventVenueWorkspaceSurface = ({ eventId, groupId, item, language, o
   const [start, setStart] = useState('')
   const [end, setEnd] = useState('')
 
+  useArrangementDraft(Boolean(nameEn || nameZh || addressEn || addressZh || capacity !== 1))
   const load = useCallback(async () => {
     setLoadState('loading'); setMessage('')
     try {
@@ -60,7 +61,7 @@ export const EventVenueWorkspaceSurface = ({ eventId, groupId, item, language, o
       setLoadState(workspace.venues.length || workspace.reservations.length ? 'ready' : 'empty')
     } catch (reason) {
       const error = normalizeApiError(reason)
-      setLoadState(error.status === 403 ? 'permission-denied' : 'error'); setMessage(error.message)
+      setLoadState(error.status === 403 ? 'permission-denied' : 'error'); setMessage(error.message); return false
     }
   }, [eventId])
 
@@ -73,11 +74,11 @@ export const EventVenueWorkspaceSurface = ({ eventId, groupId, item, language, o
       const result = await action()
       if ('reservations' in result) setData(result)
       else await load()
-      await onSaved?.(); setMutationState('success'); setMessage(success)
+      await onSaved?.(); setMutationState('success'); setMessage(success); return true
     } catch (reason) {
       const error = normalizeApiError(reason)
       setMutationState(error.status === 409 ? 'conflict' : error.status === 412 ? 'stale' : 'error')
-      setMessage(error.message)
+      setMessage(error.message); return false
     }
   }
 
@@ -86,7 +87,8 @@ export const EventVenueWorkspaceSurface = ({ eventId, groupId, item, language, o
     void mutate(() => eventVenueService.createVenue(groupId, {
       name: { en: nameEn.trim(), zh: nameZh.trim() }, address: { en: addressEn.trim(), zh: addressZh.trim() },
       capacity, isActive: true,
-    }), language === 'zh' ? '場地已加入目錄。' : 'Venue added to the catalogue.').then(() => {
+    }), language === 'zh' ? '場地已加入目錄。' : 'Venue added to the catalogue.').then(saved => {
+      if (!saved) return
       setNameEn(''); setNameZh(''); setAddressEn(''); setAddressZh(''); setCapacity(1)
     })
   }
@@ -97,13 +99,14 @@ export const EventVenueWorkspaceSurface = ({ eventId, groupId, item, language, o
     if (occurrence) { setStart(toLocalInput(occurrence.startUtc)); setEnd(toLocalInput(occurrence.endUtc)) }
   }
 
+  const reservationSaved = useArrangementFormDraft([venueId, requiredCapacity, start, end], loadState === 'ready' || loadState === 'empty')
   const reserve = (event: FormEvent) => {
     event.preventDefault()
     const venue = data?.venues.find((candidate) => candidate.id === venueId)
     if (!venue || !start || !end) return
     void mutate(() => eventVenueService.reserve(eventId, venue.eTag, {
       venueId, eventOccurrenceId: occurrenceId || null, startUtc: toUtc(start), endUtc: toUtc(end), requiredCapacity,
-    }), language === 'zh' ? '場地預訂已確認。' : 'Venue reservation confirmed.')
+    }).then(reservationSaved), language === 'zh' ? '場地預訂已確認。' : 'Venue reservation confirmed.')
   }
 
   if (loadState === 'loading') return <AppSectionCard dense><p className="text-sm text-[#66766f]" role="status">{language === 'zh' ? '正在載入場地與預訂…' : 'Loading venues and reservations…'}</p></AppSectionCard>
@@ -144,9 +147,10 @@ export const EventVenueWorkspaceSurface = ({ eventId, groupId, item, language, o
   )
 }
 
-const VenueCard = ({ venue, groupId, language, busy, onMutate }: { venue: EventVenue; groupId: string; language: 'en' | 'zh'; busy: boolean; onMutate: (action: () => Promise<EventVenue>, success: string) => Promise<void> }) => {
+const VenueCard = ({ venue, groupId, language, busy, onMutate }: { venue: EventVenue; groupId: string; language: 'en' | 'zh'; busy: boolean; onMutate: (action: () => Promise<EventVenue>, success: string) => Promise<unknown> }) => {
   const [capacity, setCapacity] = useState(venue.capacity)
   const [active, setActive] = useState(venue.isActive)
+  useArrangementDraft(capacity !== venue.capacity || active !== venue.isActive)
   useEffect(() => { setCapacity(venue.capacity); setActive(venue.isActive) }, [venue.capacity, venue.isActive])
   const address = localize(venue.address, language)
   return <article className={`rounded-2xl border border-[#2f4b42]/10 bg-[#fbfcf8] p-4 ${venue.isActive ? '' : 'opacity-65'}`}><div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><h3 className="break-words font-black text-[#18332d]">{localize(venue.name, language)}</h3>{address ? <p className="mt-1 flex items-start gap-1.5 text-sm text-[#66766f]"><MapPin className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />{address}</p> : null}</div><AppBadge variant={venue.isActive ? 'success' : 'neutral'}>{venue.isActive ? (language === 'zh' ? '可預訂' : 'Active') : (language === 'zh' ? '停用' : 'Inactive')}</AppBadge></div><div className="mt-4 grid gap-3 tablet:grid-cols-[1fr_auto_auto]"><label className={labelClass}>{language === 'zh' ? '容量' : 'Capacity'}<input className={fieldClass} type="number" min="1" value={capacity} onChange={(event) => setCapacity(Number(event.target.value))} /></label><label className="flex min-h-11 items-center gap-2 self-end text-sm font-bold text-[#40554e]"><input type="checkbox" checked={active} onChange={(event) => setActive(event.target.checked)} />{language === 'zh' ? '啟用' : 'Active'}</label><AppActionButton className="self-end" size="sm" disabled={busy || (capacity === venue.capacity && active === venue.isActive)} onClick={() => void onMutate(() => eventVenueService.updateVenue(groupId, venue.id, venue.eTag, { name: venue.name, address: venue.address, capacity, isActive: active }), language === 'zh' ? '場地已更新。' : 'Venue updated.')}>{language === 'zh' ? '儲存' : 'Save'}</AppActionButton></div></article>

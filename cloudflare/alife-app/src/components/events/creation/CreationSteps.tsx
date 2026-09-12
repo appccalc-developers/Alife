@@ -1,17 +1,18 @@
 import type { DetailField } from '../../../../../shared/eventDetails'
 import { creationMessage } from '../../../utils/eventCreationCopy'
-import { useEffect, useId, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
+import { useCallback, useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import AppSectionCard from '../../layout/AppSectionCard'
 import AppBadge from '../../layout/AppBadge'
 import type { EventActivityType, EventArchetype, EventPlanProposal, ModuleDecision } from '../../../types/eventComposition'
 import { BilingualField, Field, creationInput, localText } from './CreationFields'
 import { CreationProgrammeEditor, CreationRosterEditor, CreationVenueEditor } from './CreationArrangementEditors'
-import ArrangementDisclosure, { ArrangementToggle } from './ArrangementDisclosure'
+import { TileButtons, ModuleDraftBoundary, ToolTileDeck, ToolTileGroup, EventToolSection, focusTilePanel } from '../ArrangementTileDeck'
+import { Users, UserRoundCheck, CalendarCheck, ShieldCheck, Baby, Music, MapPin, Tent, Bus, Utensils, Wallet, MessagesSquare, ArrowLeft } from 'lucide-react'
 import CreationArrangementSummary from './CreationArrangementSummary'
 import { validateCreationArrangements } from '../../../utils/eventCreationArrangements'
 export { creationInput, localText } from './CreationFields'
 import { ArrangementRoles } from '../EventArrangementRoles'
-import { arrangementGroups, confirmArrangementGroup, invalidateArrangementConfirmation, selectArrangementModule, creationSettings, selectCreationTemplate, type CreationDraft } from '../../../utils/eventCreationDraft'
+import { arrangementGroups, creationModuleCodes, confirmArrangementModule, invalidateArrangementConfirmation, selectArrangementModule, creationSettings, selectCreationTemplate, type CreationDraft } from '../../../utils/eventCreationDraft'
 
 const choice = (selected: boolean) => `min-h-11 rounded-xl border px-3 py-2 text-sm text-left focus:outline-none focus:ring-2 focus:ring-[#176b5a]/40 ${selected ? 'border-[#176b5a] bg-[#e3f0eb] text-[#0d4f43]' : 'border-[#2f4b42]/20 bg-white text-[#40554e]'}`
 type DraftProps = { draft: CreationDraft; setDraft: Dispatch<SetStateAction<CreationDraft>>; zh: boolean }
@@ -30,19 +31,46 @@ export function TemplateStep({ draft, setDraft, zh, archetypes, type }: DraftPro
 
 export function DetailsStep({ draft, setDraft: updateDraft, zh, type, archetype, ai, saved = false }: DraftProps & { type: EventActivityType; archetype: EventArchetype; ai: ReactNode; saved?: boolean }) {
   const settings = creationSettings(draft, type)
-  const setDraft: typeof updateDraft = action => updateDraft(previous => invalidateArrangementConfirmation(typeof action === 'function' ? action(previous) : action))
+  const setDraft: typeof updateDraft = action => updateDraft(previous => {
+    const next = typeof action === 'function' ? action(previous) : action
+    const conditions = (value: CreationDraft) => JSON.stringify([value.startLocal, value.endLocal, value.timeZone, value.intervalWeeks, value.maxCapacity, value.locationName])
+    if (conditions(previous) !== conditions(next)) return invalidateArrangementConfirmation(next)
+    if (JSON.stringify(previous.overrides) !== JSON.stringify(next.overrides)) return invalidateArrangementConfirmation(invalidateArrangementConfirmation(next, 'PEOPLE.REGISTRATION'), 'COMMS.FOLLOWUP')
+    return next
+  })
   const mark = (current: CreationDraft, field: DetailField) => ({ ...current.detailSources, [field]: 'human' as const })
   const textField = (key: 'startLocal' | 'endLocal' | 'maxCapacity' | 'timeZone' | 'intervalWeeks', label: string, inputType = 'text') => <Field label={label}><input className={creationInput} type={inputType} value={draft[key] ?? ''} min={inputType === 'number' ? 1 : undefined} max={key === 'intervalWeeks' ? 52 : undefined} step={inputType === 'number' ? 1 : undefined} onChange={e => setDraft(current => ({ ...current, [key]: e.target.value, detailSources: mark(current, key) }))} /></Field>
-  return <div className="space-y-4"><AppSectionCard title={zh ? '活动资料' : 'Event details'} subtitle={`${zh ? '已选模板：' : 'Selected template: '}${localText(type.name, zh)}`}><div className="grid gap-4 md:grid-cols-2">
-    {(['title', 'description', 'locationName'] as const).map(key => <BilingualField key={key} label={key === 'title' ? (zh ? '活动名称' : 'Event title') : key === 'description' ? (zh ? '活动说明' : 'Description') : (zh ? '地点说明' : 'Location')} value={draft[key]} multiline={key === 'description'} onChange={value => setDraft(current => ({ ...current, [key]: value, detailSources: mark(current, key) }))} />)}
-    <p className="col-span-full text-sm text-[#66766f]">{zh ? `开始和结束时间均为 ${draft.timeZone || '所选活动时区'} 的当地时间，不是设备时区。` : `Start and end use local time in ${draft.timeZone || 'the selected event time zone'}, not the device time zone.`}{(!draft.detailSources?.startLocal || !draft.detailSources?.endLocal) ? (zh ? ' 预填时间尚未确认，请填写或让助手按您提供的时间更新。' : ' Prefilled times are unconfirmed; edit them or supply your times to the assistant.') : ''}</p>
-    {textField('startLocal', zh ? '开始时间' : 'Start time', 'datetime-local')}{textField('endLocal', zh ? '结束时间' : 'End time', 'datetime-local')}
-    <Field label={zh ? '可见范围' : 'Visibility'}><select className={creationInput} value={settings.visibility} onChange={e => { const value = e.target.value as typeof settings.visibility; setDraft(current => ({ ...current, overrides: { ...current.overrides, visibility: value }, detailSources: mark(current, 'visibility') })) }}>{['groupVisible', 'churchVisible', 'public'].map(value => <option key={value} value={value}>{visibilityText(value, zh)}</option>)}</select></Field>
-    <Field label={zh ? '报名方式' : 'Registration'}><select className={creationInput} value={settings.registrationMode} onChange={e => { const value = e.target.value as 'none' | 'required'; setDraft(current => ({ ...current, overrides: { ...current.overrides, registrationMode: value }, detailSources: mark(current, 'registrationMode') })) }}><option value="none">{zh ? '无需报名' : 'No registration'}</option><option value="required">{zh ? '需要报名' : 'Registration required'}</option></select></Field>
-    {settings.registrationMode === 'required' ? <>{textField('maxCapacity', zh ? '最多参加人数' : 'Capacity', 'number')}<p className="self-center text-sm text-[#66766f]">{zh ? '报名默认在活动开始前一天截止。' : 'Registration closes one day before the event starts.'}</p></> : null}
-    {textField('timeZone', zh ? '活动时区' : 'Event time zone')}
-    {archetype.isSeries ? <>{textField('intervalWeeks', zh ? '每隔几周举行' : 'Repeat every N weeks', 'number')}<p hidden={saved} className="self-center text-sm text-[#66766f]">{zh ? `每 ${draft.intervalWeeks || '1'} 周同一时间举行，预先安排未来 12 周。` : `Repeats every ${draft.intervalWeeks || '1'} week(s), scheduling the next 12 weeks.`}</p></> : null}
-  </div></AppSectionCard>{ai}</div>
+  return <div className="space-y-4">
+    <div className="rounded-2xl border border-[#2f4b42]/20 bg-[#e3f0eb] p-3">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <p className="text-sm text-[#66766f]">{zh ? '活动资料' : 'Event details'}</p>
+        <AppBadge>{zh ? '活动模板：' : 'Template: '}{localText(type.name, zh)}</AppBadge>
+      </div>
+    </div>
+    <div className="grid gap-4 md:grid-cols-2">
+      {(['title', 'description', 'locationName'] as const).map(key => <BilingualField key={key} label={key === 'title' ? (zh ? '活动名称' : 'Event title') : key === 'description' ? (zh ? '活动说明' : 'Description') : (zh ? '地点说明' : 'Location')} value={draft[key]} multiline={key === 'description'} onChange={value => setDraft(current => ({ ...current, [key]: value, detailSources: mark(current, key) }))} />)}
+      <p className="col-span-full text-sm text-[#66766f]">{zh ? `开始和结束时间均为 ${draft.timeZone || '所选活动时区'} 的当地时间，不是设备时区。` : `Start and end use local time in ${draft.timeZone || 'the selected event time zone'}, not the device time zone.`}{(!draft.detailSources?.startLocal || !draft.detailSources?.endLocal) ? (zh ? ' 预填时间尚未确认，请填写或让助手按您提供的时间更新。' : ' Prefilled times are unconfirmed; edit them or supply your times to the assistant.') : ''}</p>
+      {textField('startLocal', zh ? '开始时间' : 'Start time', 'datetime-local')}{textField('endLocal', zh ? '结束时间' : 'End time', 'datetime-local')}
+      <Field label={zh ? '可见范围' : 'Visibility'}><select className={creationInput} value={settings.visibility} onChange={e => { const value = e.target.value as typeof settings.visibility; setDraft(current => ({ ...current, overrides: { ...current.overrides, visibility: value }, detailSources: mark(current, 'visibility') })) }}>{['groupVisible', 'churchVisible', 'public'].map(value => <option key={value} value={value}>{visibilityText(value, zh)}</option>)}</select></Field>
+      <Field label={zh ? '报名方式' : 'Registration'}><select className={creationInput} value={settings.registrationMode} onChange={e => { const value = e.target.value as 'none' | 'required'; setDraft(current => ({ ...current, overrides: { ...current.overrides, registrationMode: value }, detailSources: mark(current, 'registrationMode') })) }}><option value="none">{zh ? '无需报名' : 'No registration'}</option><option value="required">{zh ? '需要报名' : 'Registration required'}</option></select></Field>
+      {settings.registrationMode === 'required' ? <>{textField('maxCapacity', zh ? '最多参加人数' : 'Capacity', 'number')}<p className="self-center text-sm text-[#66766f]">{zh ? '报名默认在活动开始前一天截止。' : 'Registration closes one day before the event starts.'}</p></> : null}
+      {textField('timeZone', zh ? '活动时区' : 'Event time zone')}
+      {archetype.isSeries ? <>{textField('intervalWeeks', zh ? '每隔几周举行' : 'Repeat every N weeks', 'number')}<p hidden={saved} className="self-center text-sm text-[#66766f]">{zh ? `每 ${draft.intervalWeeks || '1'} 周同一时间举行，预先安排未来 12 周。` : `Repeats every ${draft.intervalWeeks || '1'} week(s), scheduling the next 12 weeks.`}</p></> : null}
+    </div>
+    {ai}
+  </div>
+}
+
+export function DetailsWorkspace({ zh, active, form, assistant }: { zh: boolean; active: boolean; form: ReactNode; assistant: (active: boolean) => ReactNode }) {
+  const [aiOpen, setAiOpen] = useState(false)
+  return <div className="space-y-3">
+    {form}
+    <button type="button" className="flex min-h-11 w-full items-center justify-between rounded-xl border border-[#2f4b42]/20 bg-white px-3 py-2 text-left text-sm font-semibold" onClick={() => setAiOpen(value => !value)} aria-expanded={aiOpen}>
+      <span>{zh ? 'AI 资料助手' : 'AI details assistant'}</span>
+      <span className="text-xs text-[#66766f]">{aiOpen ? (zh ? '收起' : 'Collapse') : (zh ? '展开' : 'Expand')}</span>
+    </button>
+    {aiOpen ? <div>{assistant(active && aiOpen)}</div> : null}
+  </div>
 }
 
 const reasonCopy: Record<string, [string, string]> = {
@@ -77,43 +105,95 @@ function ModuleResult({ decision, zh }: { decision: ModuleDecision; zh: boolean 
   return <div className="rounded-xl bg-[#f5f2eb] p-3 text-sm"><div className="flex flex-wrap items-center justify-between gap-2"><strong>{localText(decision.label, zh)}</strong><AppBadge variant={decision.status === 'required' ? 'warning' : 'neutral'}>{decision.status === 'required' ? (zh ? '必需' : 'Required') : (zh ? '已启用' : 'Enabled')}</AppBadge></div><p className="mt-1 text-[#66766f]">{moduleReason(decision, zh)}</p>{planningOnly ? <p className="mt-1 text-xs text-amber-800">{zh ? '目前支持规划，完整业务工具尚未提供。' : 'Planning support only; full operational tools are not available yet.'}</p> : null}</div>
 }
 
-function ArrangementModule({ draft, setDraft, zh, decision, current, type, groupId, saved = false, ramPanel, ramDirty = false, modulePanels, rolePanels, focusModule, activeModules = [] }: DraftProps & { activeModules?: string[]; decision: ModuleDecision; current: boolean; type: EventActivityType; groupId: string; saved?: boolean; ramPanel?: ReactNode; ramDirty?: boolean; modulePanels?: Record<string, ReactNode>; rolePanels?: Record<string, ReactNode>; focusModule?: string | null }) {
-  const [expanded, setExpanded] = useState(true), panelId = useId()
-  useEffect(() => { if (focusModule === decision.moduleCode.toLowerCase()) setExpanded(true) }, [focusModule, decision.moduleCode])
+const tileMeta: Record<string, { en: string; zh: string; color: string; icon: ReactNode }> = {
+  'TEAM.WORK': { en: 'Team & tasks', zh: '团队任务', color: '#e3f0eb', icon: <Users size={20} /> },
+  'PEOPLE.REGISTRATION': { en: 'Registration', zh: '邀请报名', color: '#e3f0eb', icon: <UserRoundCheck size={20} /> },
+  'SERVICE.ROSTER': { en: 'Roles & shifts', zh: '岗位轮班', color: '#e3f0eb', icon: <CalendarCheck size={20} /> },
+  'SAFETY.RAM': { en: 'RAM & safety', zh: 'RAM 安全', color: '#f6e5df', icon: <ShieldCheck size={20} /> },
+  'SAFEGUARDING.CHILD': { en: 'Safeguarding', zh: '儿童保护', color: '#f6e5df', icon: <Baby size={20} /> },
+  'PROGRAM.PRODUCTION': { en: 'Programme', zh: '节目安排', color: '#e7e9f5', icon: <Music size={20} /> },
+  'PLACE.RESOURCE': { en: 'Venues', zh: '场地资源', color: '#e7e9f5', icon: <MapPin size={20} /> },
+  'FESTIVAL.OPERATIONS': { en: 'Operations', zh: '现场运营', color: '#e7e9f5', icon: <Tent size={20} /> },
+  'MOVE.STAY': { en: 'Travel & stay', zh: '交通住宿', color: '#deedf1', icon: <Bus size={20} /> },
+  'FOOD.HOSPITALITY': { en: 'Food', zh: '餐饮接待', color: '#f3ead5', icon: <Utensils size={20} /> },
+  'MONEY.FINANCE': { en: 'Finance', zh: '费用财务', color: '#e8ecd9', icon: <Wallet size={20} /> },
+  'COMMS.FOLLOWUP': { en: 'Follow-up', zh: '沟通跟进', color: '#eedfeb', icon: <MessagesSquare size={20} /> },
+}
+function ArrangementModule({ draft, setDraft, zh, decision, current, type, groupId, saved = false, ramPanel, ramDirty = false, readOnly = false, modulePanels, rolePanels, activeModules = [] }: DraftProps & { activeModules?: string[]; decision: ModuleDecision; current: boolean; type: EventActivityType; groupId: string; saved?: boolean; ramPanel?: ReactNode; ramDirty?: boolean; readOnly?: boolean; modulePanels?: Record<string, ReactNode>; rolePanels?: Record<string, ReactNode> }) {
   const required = !saved && decision.status === 'required'
   const selected = required || (draft.moduleOverrides[decision.moduleCode] ?? decision.status !== 'inactive')
   const editorProps = { draft, setDraft, zh, type, groupId }
-  const editor = decision.moduleCode === 'PROGRAM.PRODUCTION' ? <CreationProgrammeEditor {...editorProps} /> : decision.moduleCode === 'PLACE.RESOURCE' ? <CreationVenueEditor {...editorProps} /> : null
   const planningOnly = ['MONEY.FINANCE', 'FOOD.HOSPITALITY', 'FESTIVAL.OPERATIONS'].includes(decision.moduleCode)
-  return <section id={`arrangement-${decision.moduleCode.toLowerCase()}`} aria-label={localText(decision.label, zh)} className="rounded-xl bg-[#f5f2eb] p-3 text-sm">
-    <div className="flex items-start justify-between gap-3"><div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-3"><h3 className="font-semibold">{localText(decision.label, zh)}</h3>{required ? <AppBadge variant="warning">{zh ? '必需' : 'Required'}</AppBadge> : <div role="group" aria-label={`${localText(decision.label, zh)} · ${zh ? '是否启用' : 'Enable'}`} className="flex gap-2">{[true, false].map(value => <button key={String(value)} type="button" disabled={!current || (decision.moduleCode === 'SAFETY.RAM' && ramDirty)} aria-pressed={selected === value} className={`${choice(selected === value)} min-w-16 disabled:opacity-50`} onClick={() => { setDraft(previous => selectArrangementModule(previous, decision.moduleCode, value)); if (value) setExpanded(true) }}>{value ? (zh ? '是' : 'Yes') : (zh ? '否' : 'No')}</button>)}</div>}</div><ArrangementToggle open={expanded} title={localText(decision.label, zh)} controls={panelId} zh={zh} onToggle={() => setExpanded(value => !value)} /></div>
-    <div id={panelId} hidden={!expanded}>
-    <p className="mt-2 text-xs leading-5 text-[#66766f]">{decision.status === 'inactive' ? (zh ? '可按本次活动需要启用。' : 'Enable when needed for this event.') : moduleReason(decision, zh)}</p>
-    {planningOnly ? <p className="mt-1 text-xs text-amber-800">{zh ? '目前支持规划，完整业务工具尚未提供。' : 'Planning support only; full operational tools are not available yet.'}</p> : null}
-    {selected && rolePanels?.[decision.moduleCode] ? <div className="mt-3">{rolePanels[decision.moduleCode]}</div> : null}
-    {decision.moduleCode === 'SAFETY.RAM' ? <div className="mt-3 space-y-3">
-      {selected ? ramPanel : <p className="text-sm text-[#66766f]">{zh ? '选择“是”后在此填写 RAM。关闭功能会保留已保存的评估及本次填写内容。' : 'Choose Yes to fill in RAM here. Disabling keeps saved assessments and this draft.'}</p>}
-    </div> : null}
-    {saved && decision.moduleCode !== 'SAFETY.RAM' ? <div hidden={!selected} className="mt-3 min-w-0 [&_.alife-panel]:min-w-0 [&_.alife-panel]:p-3 sm:[&_.alife-panel]:p-4">{modulePanels?.[decision.moduleCode] ?? (selected && !planningOnly ? <p className="text-[#66766f]">{zh ? '确认保存活动安排后，即可在此配置已启用且有权限的功能。' : 'Confirm event arrangements to configure enabled tools available to your role here.'}</p> : null)}</div> : selected && editor ? <div className="mt-3">{editor}</div> : null}
-    {!saved && selected && activeModules.includes('SERVICE.ROSTER') ? <div className="mt-3"><CreationRosterEditor {...editorProps} moduleCode={decision.moduleCode} activeModules={activeModules} /></div> : null}
-    </div>
-  </section>
+  return <ToolTileDeck zh={zh}>
+    <EventToolSection title={zh ? '设置与职责' : 'Settings and responsibilities'} summary={selected ? (zh ? '已启用' : 'Enabled') : (zh ? '未启用' : 'Not enabled')}>
+      <fieldset disabled={!current} className="space-y-3"><div className="flex flex-wrap items-center gap-3"><span className="text-sm font-semibold">{zh ? '本次活动需要此功能吗？' : 'Does this event need this tool?'}</span>{required ? <AppBadge variant="warning">{zh ? '必需' : 'Required'}</AppBadge> : <div role="group" aria-label={`${localText(decision.label, zh)} · ${zh ? '是否启用' : 'Enable'}`} className="flex gap-2">{[true, false].map(value => <button key={String(value)} type="button" disabled={!current || (saved && decision.moduleCode === 'SAFETY.RAM' && ramDirty)} aria-pressed={selected === value} className={choice(selected === value)} onClick={() => setDraft(previous => selectArrangementModule(previous, decision.moduleCode, value))}>{value ? (zh ? '是' : 'Yes') : (zh ? '否' : 'No')}</button>)}</div>}</div>
+      <p className="text-sm text-[#66766f]">{moduleReason(decision, zh)}</p>{planningOnly ? <p className="text-sm text-amber-800">{zh ? '目前支持规划，完整业务工具尚未提供。' : 'Planning support only; full operational tools are not available yet.'}</p> : null}
+      <div hidden={!selected}>{rolePanels?.[decision.moduleCode]}</div></fieldset>
+    </EventToolSection>
+    <ToolTileGroup enabled={selected}><fieldset disabled={readOnly} className="min-w-0">
+      {decision.moduleCode === 'SAFETY.RAM' ? ramPanel : saved ? modulePanels?.[decision.moduleCode] ?? (!planningOnly ? <p className="text-sm text-[#66766f]">{zh ? '保存活动安排后，可配置有权限的功能。' : 'Save arrangements to configure tools available to your role.'}</p> : null) : decision.moduleCode === 'PROGRAM.PRODUCTION' ? <EventToolSection title={zh ? '节目安排' : 'Programme plan'} summary={`${draft.arrangements?.sessions?.length || 0}`}><CreationProgrammeEditor {...editorProps} /></EventToolSection> : decision.moduleCode === 'PLACE.RESOURCE' ? <EventToolSection title={zh ? '场地安排' : 'Venue plan'} summary={`${draft.arrangements?.venues?.length || 0}`}><CreationVenueEditor {...editorProps} /></EventToolSection> : null}
+      {!saved && activeModules.includes('SERVICE.ROSTER') ? <EventToolSection title={zh ? '岗位轮班' : 'Role shifts'}><CreationRosterEditor {...editorProps} moduleCode={decision.moduleCode} activeModules={activeModules} /></EventToolSection> : null}
+    </fieldset></ToolTileGroup>
+  </ToolTileDeck>
 }
 
-export function ArrangementsStep({ draft, setDraft, zh, type, proposal, current, status, groupId, saved = false, ramPanel, ramDirty = false, modulePanels, rolePanels, ownerPanel, focusModule }: DraftProps & { type: EventActivityType; ownerPanel?: ReactNode; proposal: EventPlanProposal | null; current: boolean; status: ReactNode; groupId: string; saved?: boolean; ramPanel?: ReactNode; ramDirty?: boolean; modulePanels?: Record<string, ReactNode>; rolePanels?: Record<string, ReactNode>; focusModule?: string | null }) {
+export function ArrangementsStep({ draft, setDraft, readOnly = false, zh, type, proposal, current, status, groupId, saved = false, ramPanel, ramDirty = false, modulePanels, rolePanels, ownerPanel, detailsPanel, detailsDraft = draft, detailsDirty = false, focusModule, savedModules = {}, onUnsavedTools }: DraftProps & { onUnsavedTools?: (dirty: boolean) => void; savedModules?: Record<string, number>; type: EventActivityType; ownerPanel?: ReactNode; detailsPanel?: (active: boolean) => ReactNode; detailsDraft?: CreationDraft; detailsDirty?: boolean; proposal: EventPlanProposal | null; current: boolean; status: ReactNode; groupId: string; saved?: boolean; ramPanel?: ReactNode; ramDirty?: boolean; readOnly?: boolean; modulePanels?: Record<string, ReactNode>; rolePanels?: Record<string, ReactNode>; focusModule?: string | null }) {
+  const [active, setActive] = useState<string | null>(null), [visited, setVisited] = useState<string[]>([])
+  const [showAllModules, setShowAllModules] = useState(false)
+  const [toolDrafts, setToolDrafts] = useState<Record<string, Record<string, boolean>>>({})
+  const reportDraft = useCallback((code: string, id: string, dirty: boolean) => {
+    setToolDrafts(previous => previous[code]?.[id] === dirty ? previous : ({ ...previous, [code]: { ...previous[code], [id]: dirty } }))
+    if (dirty) setDraft(previous => invalidateArrangementConfirmation(previous, code))
+  }, [setDraft])
+  const unsavedTools = Object.values(toolDrafts).some(group => Object.values(group).some(Boolean))
+  useEffect(() => { onUnsavedTools?.(unsavedTools) }, [onUnsavedTools, unsavedTools])
+  const [confirmationError, setConfirmationError] = useState('')
+  const grid = useRef<HTMLDivElement>(null), panelsRef = useRef<HTMLDivElement>(null), savedRef = useRef(savedModules)
+  const decisions = proposal?.moduleDecisions ?? []
+  const relevantModules = decisions.filter(item => item.status !== 'inactive')
+  const moduleChoices = showAllModules ? decisions : relevantModules
+  const relatedCount = relevantModules.length
+  const totalCount = decisions.length || creationModuleCodes.length
+  const visibleIds = new Set(moduleChoices.map(item => item.moduleCode))
+  const moduleSignature = (code: string) => JSON.stringify([draft.moduleOverrides[code], draft.moduleConfirmations?.[code] ?? false,
+    code === 'PROGRAM.PRODUCTION' ? draft.arrangements?.sessions : code === 'PLACE.RESOURCE' ? draft.arrangements?.venues : code === 'SERVICE.ROSTER' ? draft.arrangements?.slots : null])
+  const [baseline, setBaseline] = useState<Record<string, string>>(() => Object.fromEntries(creationModuleCodes.map(code => [code, moduleSignature(code)])))
+  const edited = Object.fromEntries(decisions.map(item => [item.moduleCode, baseline[item.moduleCode] !== moduleSignature(item.moduleCode)]))
+  const choose = (code: string) => { const next = active === code ? null : code; setActive(next); setVisited(previous => previous.includes(code) ? previous : [...previous, code]); setConfirmationError(''); requestAnimationFrame(() => next ? focusTilePanel(document.getElementById(`module-heading-${code}`)) : focusTilePanel(grid.current?.querySelector<HTMLButtonElement>(`[data-arrangement-tile="${code}"]`) ?? null)) }
+  const focusedLink = useRef<string | null>(null)
+  const target = focusModule === 'EVENT.DETAILS' ? focusModule : decisions.find(item => item.moduleCode === focusModule?.toUpperCase())?.moduleCode
+  useEffect(() => { if (!target) { focusedLink.current = null; return }; if (focusedLink.current === target) return; focusedLink.current = target; setActive(target); setVisited(previous => previous.includes(target) ? previous : [...previous, target]); requestAnimationFrame(() => focusTilePanel(document.getElementById(`module-heading-${target}`))) }, [target])
+  useEffect(() => { if (active && active !== 'EVENT.DETAILS' && !visibleIds.has(active)) setActive(null) }, [active, visibleIds])
+  useEffect(() => { const changed = Object.keys(savedModules).filter(code => savedModules[code] !== savedRef.current[code]); savedRef.current = savedModules; if (changed.length) setBaseline(previous => ({ ...previous, ...Object.fromEntries(changed.map(code => [code, moduleSignature(code)])) })) }, [savedModules, draft])
   const issue = !saved && current && proposal ? validateCreationArrangements(draft, type, proposal, zh) : ''
-  return <div className="space-y-4">{status}<p className="text-sm text-[#66766f]">{zh ? '模板预选所需功能，可在各模块选择是或否。核对整个分区后勾选“已确认”；未勾选的分区会在确认创建时标为待确认。' : 'Start with template choices and choose Yes or No for each tool. Check Confirmed after reviewing a whole section; unchecked sections remain pending in the creation review.'}</p>
-    {!saved && type.archetypeCode === 'recurring-gathering' ? <p className="rounded-xl bg-[#e3f0eb] p-3 text-sm">{zh ? '以下安排会按每次活动的开始时间，重复应用到本次创建的未来 12 周场次；各场次之后可独立调整。' : 'These arrangements repeat relative to each occurrence’s start across the next 12 weeks created now. Each occurrence can be adjusted independently.'}</p> : null}
-    <AppSectionCard title={zh ? '活动总负责人' : 'Event accountable owner'} subtitle={zh ? '此职责属于整个活动，不随功能模块关闭。' : 'This responsibility belongs to the whole event and remains when tools are disabled.'}>{ownerPanel ?? <p className="text-sm">{zh ? '创建人担任活动总负责人；创建后可按权限调整。' : 'The creator is the event accountable owner; authorized changes are available after creation.'}</p>}</AppSectionCard>
-    {arrangementGroups.map(group => {
-      const panels = rolePanels ?? Object.fromEntries((proposal?.moduleDecisions ?? []).map(decision => [decision.moduleCode, <ArrangementRoles key={decision.moduleCode} roles={proposal?.roleRequirements.filter(role => role.moduleCode === decision.moduleCode && role.roleCode !== 'event.accountableOwner') ?? []} zh={zh} />]))
-      return <ArrangementDisclosure key={group.key} title={zh ? group.zh : group.en} zh={zh} confirmed={draft.arrangementConfirmations?.[group.key] === true} disabled={!current || (group.key === 'safety' && ramDirty)} onConfirm={confirmed => setDraft(previous => confirmArrangementGroup(previous, group.key, confirmed, proposal?.moduleDecisions ?? []))} forceOpen={Boolean(focusModule && group.modules.some(code => code.toLowerCase() === focusModule))}>
-        <div className="space-y-3" onChangeCapture={() => setDraft(previous => previous.arrangementConfirmations?.[group.key] ? invalidateArrangementConfirmation(previous, group.modules[0]) : previous)}>{proposal?.moduleDecisions.filter(item => group.modules.some(code => code === item.moduleCode)).map(decision => <div key={decision.moduleCode} data-safety-part={group.key === 'safety' ? (decision.moduleCode === 'SAFETY.RAM' ? 'ram' : 'children') : undefined}><ArrangementModule {...{ draft, zh, type, decision, current, groupId, saved, ramPanel, ramDirty, modulePanels, focusModule }} setDraft={setDraft} rolePanels={panels} activeModules={proposal.moduleDecisions.filter(item => item.status === 'required' || item.status === 'selected').map(item => item.moduleCode)} /></div>)}</div>
-        {draft.arrangementConfirmations?.[group.key] && current && proposal ? <p role="status" className="mt-3 text-xs text-[#66766f]">{zh ? '已核对本区安排。系统已重新检查功能依赖；本人接受职责、资料准备和安全审批仍需分别完成。' : 'Section reviewed. Tool dependencies have been checked; personal role acceptance, preparation and safety approvals remain separate requirements.'}</p> : null}
-      </ArrangementDisclosure>
-    })}
-    {type.recommendedWorkflowTemplateCode ? <AppSectionCard title={zh ? '筹备任务清单' : 'Preparation checklist'}><label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" checked={creationSettings(draft, type).useRecommendedWorkflow} onChange={e => { const checked = e.target.checked; setDraft(value => ({ ...value, overrides: { ...value.overrides, useRecommendedWorkflow: checked } })) }} />{zh ? '使用此模板建议的筹备任务清单' : 'Use the preparation checklist suggested by this template'}</label>{current && proposal?.workflowRecommendation?.status === 'unavailable' ? <p className="mt-2 text-sm text-amber-800">{zh ? '建议的任务清单暂不可用，可以继续创建活动。' : 'The suggested checklist is unavailable. You can still create the event.'}</p> : null}</AppSectionCard> : null}
-    {!saved && current && proposal ? <><CreationArrangementSummary {...{ draft, type, proposal, zh }} />{issue ? <p role="status" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{issue}</p> : <p role="status" className="text-sm text-[#176b5a]">{zh ? '岗位、节目及场地安排已填写，可以继续确认。' : 'Roles, programme and venue details are complete and ready for review.'}</p>}</> : null}
+  const confirm = (code: string, checked: boolean) => {
+    if (checked && proposal) {
+      const error = !saved ? validateCreationArrangements(draft, type, proposal, zh, code) : ''
+      if (error) { setConfirmationError(error); return }
+      const controls = panelsRef.current?.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>('input,select,textarea')
+      const invalid = Array.from(controls || []).find(control => !control.disabled && !control.closest('[hidden]') && !control.checkValidity())
+      if (!saved && invalid) { invalid.reportValidity(); return }
+    }
+    setConfirmationError(''); setDraft(previous => confirmArrangementModule(previous, code, checked, decisions))
+  }
+  const defaultRoles = Object.fromEntries(decisions.map(decision => [decision.moduleCode, <ArrangementRoles key={decision.moduleCode} roles={proposal?.roleRequirements.filter(role => role.moduleCode === decision.moduleCode && role.roleCode !== 'event.accountableOwner') ?? []} zh={zh} />]))
+  const modeToggleLabel = showAllModules ? (zh ? `显示相关模块（${relatedCount}/${totalCount}）` : `Show related modules (${relatedCount}/${totalCount})`) : (zh ? `显示所有模块（${totalCount}）` : `Show all modules (${totalCount})`)
+  return <div className="space-y-4" data-arrangement-overview>{status}
+    <div className="flex flex-wrap items-center justify-end gap-2 text-sm"><button type="button" className="inline-flex min-h-11 items-center rounded-xl border border-[#2f4b42]/25 bg-[#f9f9f9] px-3 py-2 text-sm font-semibold" aria-pressed={showAllModules} onClick={() => setShowAllModules(value => !value)}>{modeToggleLabel}</button></div>
+    <div ref={grid} className="space-y-3">{detailsPanel ? <div className="rounded-2xl border-2 border-[#14564f] bg-[#e3f0eb] p-4 text-[#0d4f43] shadow-sm">
+      <button type="button" data-arrangement-tile="EVENT.DETAILS" aria-expanded={active === 'EVENT.DETAILS'} aria-controls="tile-panel-EVENT.DETAILS" onClick={() => choose('EVENT.DETAILS')} className="w-full min-h-11 text-left focus-visible:outline focus-visible:outline-2">
+        <span className="mb-2 flex items-start justify-between gap-2"><span className="flex items-center gap-2 font-semibold"><CalendarCheck size={20} />{zh ? '活动资料' : 'Event details'}</span>{detailsDirty ? <span className="text-xs">{zh ? '未保存' : 'Unsaved'}</span> : null}</span>
+        <strong className="mt-2 block break-words text-xl">{localText(detailsDraft.title, zh) || (zh ? '尚未填写活动名称' : 'Add an event title')}</strong>
+        <span className="mt-2 block text-sm">{detailsDraft.startLocal.replace('T', ' ')} – {detailsDraft.endLocal.replace('T', ' ')} · {detailsDraft.timeZone}</span>
+        <p className="mt-2 text-xs font-semibold text-[#334b42]">{zh ? '所选模板：' : 'Selected template: '}{localText(type.name, zh)}</p>
+      </button><div className="mt-3 text-sm"><strong>{zh ? '活动总负责人（创建者）' : 'Accountable owner (creator)'}</strong>{ownerPanel}</div>
+    </div> : null}<TileButtons label={zh ? '活动模块总览' : 'Event module overview'} active={active} onSelect={choose} items={moduleChoices.map(decision => { const meta = tileMeta[decision.moduleCode]; const selected = draft.moduleOverrides[decision.moduleCode] ?? decision.status !== 'inactive'; return { id: decision.moduleCode, title: localText(decision.label, zh), shortTitle: meta ? (zh ? meta.zh : meta.en) : undefined, icon: meta?.icon, color: meta?.color, confirmed: draft.moduleConfirmations?.[decision.moduleCode] === true, dirty: Object.values(toolDrafts[decision.moduleCode] || {}).some(Boolean) || edited[decision.moduleCode] || ( decision.moduleCode === 'SAFETY.RAM' && ramDirty), status: selected ? (zh ? '已启用' : 'Enabled') : (zh ? '未启用' : 'Off'), faded: showAllModules && decision.status === 'inactive' } })} /></div>
+    <div ref={panelsRef}>{detailsPanel && visited.includes('EVENT.DETAILS') ? <section hidden={active !== 'EVENT.DETAILS'} id="tile-panel-EVENT.DETAILS" data-module-editor="EVENT.DETAILS" className="arrangement-editor min-w-0 border-t-2 border-[#176b5a] pt-3"><button type="button" className="min-h-11 text-sm font-semibold" onClick={() => choose('EVENT.DETAILS')}>{zh ? '返回模块总览' : 'Back to modules'}</button><h2 id="module-heading-EVENT.DETAILS" tabIndex={-1} className="scroll-mt-24 text-xl font-bold outline-none">{zh ? '活动资料' : 'Event details'}</h2>{detailsPanel(active === 'EVENT.DETAILS')}</section> : null}{decisions.filter(decision => visited.includes(decision.moduleCode)).map(decision => <section key={decision.moduleCode} hidden={active !== decision.moduleCode} id={`tile-panel-${decision.moduleCode}`} aria-label={localText(decision.label, zh)} data-module-editor={decision.moduleCode} className="arrangement-editor min-w-0 border-t-2 border-[#176b5a] pt-3">
+      <header className="mb-4 space-y-2"><p className="text-xs text-[#66766f]">{arrangementGroups.find(group => group.modules.some(code => code === decision.moduleCode))?.[zh ? 'zh' : 'en']}</p><button type="button" onClick={() => choose(decision.moduleCode)} className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-[#176b5a]"><ArrowLeft size={16} />{zh ? '返回模块总览' : 'Back to modules'}</button><div className="flex flex-wrap items-center justify-between gap-3"><h2 id={`module-heading-${decision.moduleCode}`} tabIndex={-1} className="scroll-mt-24 text-xl font-bold outline-none">{localText(decision.label, zh)}</h2><label data-module-confirmation className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" disabled={!current || Object.values(toolDrafts[decision.moduleCode] || {}).some(Boolean) || (saved && decision.moduleCode === 'SAFETY.RAM' && ramDirty)} checked={draft.moduleConfirmations?.[decision.moduleCode] === true} onChange={event => confirm(decision.moduleCode, event.target.checked)} />{zh ? '填写已确认' : 'Details confirmed'}</label></div><p className="text-xs text-[#66766f]">{zh ? '填写确认不代表本人接受职责、RAM 签署或安全审批。' : 'Details confirmation does not accept a role, sign RAM or grant safety approval.'}</p></header>
+      {confirmationError ? <p role="alert" className="mb-3 text-sm text-rose-800">{confirmationError}</p> : null}
+      <ModuleDraftBoundary code={decision.moduleCode} onChange={reportDraft}><ArrangementModule {...{ draft, setDraft, zh, type, decision, current, groupId, saved, ramPanel, ramDirty, readOnly, modulePanels }} rolePanels={rolePanels ?? defaultRoles} activeModules={decisions.filter(item => item.status === 'required' || item.status === 'selected').map(item => item.moduleCode)} /></ModuleDraftBoundary>
+    </section>)}</div>
+    <div className="border-t-2 border-[#14564f] pt-3 text-sm">{type.recommendedWorkflowTemplateCode ? <label className="flex min-h-11 items-center gap-2"><input type="checkbox" disabled={readOnly} checked={creationSettings(draft, type).useRecommendedWorkflow} onChange={event => { const checked = event.target.checked; setDraft(previous => invalidateArrangementConfirmation({ ...previous, overrides: { ...previous.overrides, useRecommendedWorkflow: checked } })) }} />{zh ? '使用模板建议的筹备任务清单' : 'Use the template preparation checklist'}</label> : null}{issue ? <p role="status" className="text-amber-900">{issue}</p> : null}{!saved && proposal ? <details><summary className="min-h-11 cursor-pointer py-3 font-semibold">{zh ? '查看整体安排摘要' : 'Review arrangement summary'}</summary><CreationArrangementSummary {...{ draft, type, proposal, zh }} /></details> : null}</div>
   </div>
 }
 
@@ -127,7 +207,7 @@ export function ReviewStep({ draft, zh, type, archetype, proposal, saved = false
   ].map(([label, value]) => <div key={label}><dt className="text-[#66766f]">{label}</dt><dd className="mt-1 break-words font-semibold">{value}</dd></div>)}</dl></AppSectionCard>
     <CreationArrangementSummary {...{ draft, type, proposal, zh }} />
     <AppSectionCard title={zh ? '管理功能及来源' : 'Tools and reasons'}><div className="grid gap-2 md:grid-cols-2">{proposal.moduleDecisions.filter(x => x.status !== 'inactive').map(item => <ModuleResult key={item.moduleCode} decision={item} zh={zh} />)}</div></AppSectionCard>
-    <AppSectionCard title={zh ? '分区确认与负责人' : 'Section confirmation and responsible roles'}><div className="space-y-2">{arrangementGroups.map(group => <div key={group.key} className="flex items-center justify-between gap-3 text-sm"><span>{zh ? group.zh : group.en}</span><AppBadge variant={draft.arrangementConfirmations?.[group.key] ? 'success' : 'warning'}>{draft.arrangementConfirmations?.[group.key] ? (zh ? '已确认' : 'Confirmed') : (zh ? '待确认' : 'Pending')}</AppBadge></div>)}</div><div className="mt-4">{roleSummary ?? <ArrangementRoles roles={proposal.roleRequirements} zh={zh} summary moduleLabels={Object.fromEntries(proposal.moduleDecisions.map(item => [item.moduleCode, localText(item.label, zh)]))} />}</div></AppSectionCard>
+    <AppSectionCard title={zh ? '模块确认与负责人' : 'Module confirmation and responsible roles'}><div className="space-y-2">{proposal.moduleDecisions.map(module => <div key={module.moduleCode} className="flex items-center justify-between gap-3 text-sm"><span>{localText(module.label, zh)}</span><AppBadge variant={draft.moduleConfirmations?.[module.moduleCode] ? 'success' : 'warning'}>{draft.moduleConfirmations?.[module.moduleCode] ? (zh ? '填写已确认' : 'Details confirmed') : (zh ? '待确认' : 'Pending')}</AppBadge></div>)}</div><div className="mt-4">{roleSummary ?? <ArrangementRoles roles={proposal.roleRequirements} zh={zh} summary moduleLabels={Object.fromEntries(proposal.moduleDecisions.map(item => [item.moduleCode, localText(item.label, zh)]))} />}</div></AppSectionCard>
 
     {proposal.readiness.blockers.length ? <AppSectionCard title={zh ? '创建后的准备任务' : 'Preparation after creation'}><ul className="list-disc space-y-1 pl-5 text-sm">{proposal.readiness.blockers.map((item, index) => <li key={index}>{creationMessage(item, zh, proposal.moduleDecisions)}</li>)}</ul></AppSectionCard> : null}
     {proposal.warnings.length ? <AppSectionCard title={zh ? '需要留意' : 'Please note'}><ul className="list-disc space-y-1 pl-5 text-sm">{proposal.warnings.map((item, index) => <li key={index}>{creationMessage(item, zh, proposal.moduleDecisions)}</li>)}</ul></AppSectionCard> : null}

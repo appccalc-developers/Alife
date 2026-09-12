@@ -18,6 +18,29 @@ namespace Alife.Tests.Unit.Events;
 public sealed class EventOperationsCoreTests
 {
     [Fact]
+    public async Task RosterChanges_AuditOwningModule_AndBothSidesOfCandidateGroupMove()
+    {
+        await using var db = CreateDb();
+        var owner = Guid.NewGuid(); var e = SeedEvent(db, Guid.NewGuid(), owner); var occurrence = SeedOccurrence(db, e);
+        db.Members.Add(Member(owner, "Owner"));
+        SeedPlan(db, e, Fact("people.volunteersRequired", true), Fact("programme.productionRequired", true), Fact("place.resourcesRequired", true));
+        await db.SaveChangesAsync();
+        var service = new EventOperationsService(db, Authorization(owner), new EventPackageInvalidationService(db));
+        var initial = (await service.GetRosterAsync(e.Id, occurrence.Id, owner, default)).Value!;
+        var created = await service.CreateSlotAsync(e.Id, occurrence.Id, owner,
+            new(null, null, null, "programme.team", occurrence.StartUtc, occurrence.EndUtc, 1, "approvedGroupMember"), initial.ETag, default);
+        Assert.True(created.IsSuccess, created.Message);
+        Assert.Contains(await db.AuditLogs.Where(x => x.Action == EventArrangementConfirmationPolicy.ChangeAction).Select(x => x.AfterJson).ToListAsync(), json => json!.Contains("PROGRAM.PRODUCTION"));
+        var group = await service.SaveRosterGroupAsync(e.Id, owner, new("programme.team", "PROGRAM.PRODUCTION", [owner]), "\"new\"", default);
+        Assert.True(group.IsSuccess, group.Message);
+        var moved = await service.SaveRosterGroupAsync(e.Id, owner, new("programme.team", "PLACE.RESOURCE", [owner]), group.Value!.ETag, default);
+        Assert.True(moved.IsSuccess, moved.Message);
+        var changes = await db.AuditLogs.Where(x => x.Action == EventArrangementConfirmationPolicy.ChangeAction).Select(x => x.AfterJson).ToListAsync();
+        Assert.Contains(changes, json => json!.Contains("PROGRAM.PRODUCTION") && json.Contains("event.roster.groupMoved"));
+        Assert.Contains(changes, json => json!.Contains("PLACE.RESOURCE") && json.Contains("event.roster.groupSaved"));
+    }
+
+    [Fact]
     public async Task RosterEndpoint_IsPrivateNoStoreAndReturnsItsConcurrencyETag()
     {
         var eventId = Guid.NewGuid(); var occurrenceId = Guid.NewGuid(); var memberId = Guid.NewGuid();

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import EventEnrollmentPanel from './EventEnrollmentPanel'
 import AppActionButton from '../layout/AppActionButton'
-import AppSectionCard from '../layout/AppSectionCard'
+import { EventToolSection as AppSectionCard } from './ArrangementTileDeck'
 import { enrollmentSessionService } from '../../services/enrollmentSessionService'
 import { eventService } from '../../services/eventService'
 import { normalizeApiError } from '../../services/http'

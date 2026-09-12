@@ -23,7 +23,7 @@ export const localPreparationDate = (date: string, timeZone: string) => {
 export function savedCreationDraft(record: GroupEventRecord, plan: EventPlanSnapshot | null): CreationDraft {
   const data = JSON.parse(record.eventDataJson) as EventDto, draft = initialCreationDraft()
   const timeZone = data.timeZone || draft.timeZone
-  return { ...draft, arrangementConfirmations: plan?.plan.arrangementConfirmations ?? {}, timeZone, archetypeCode: plan?.plan.archetypeCode || '', activityTypeCode: plan?.plan.activityTypeCode || '',
+  return { ...draft, arrangementConfirmations: plan?.plan.arrangementConfirmations ?? {}, moduleConfirmations: plan?.plan.moduleConfirmations ?? {}, timeZone, archetypeCode: plan?.plan.archetypeCode || '', activityTypeCode: plan?.plan.activityTypeCode || '',
     title: { en: record.titleEn, zh: record.titleZh }, description: data.description ?? { en: '', zh: '' }, locationName: data.locationName ?? { en: '', zh: '' },
     startLocal: localPreparationDate(record.startDate, timeZone), endLocal: localPreparationDate(record.endDate, timeZone), maxCapacity: String(data.maxCapacity || ''),
     overrides: { visibility: record.visibility || data.visibility || 'groupVisible', registrationMode: data.maxCapacity > 0 ? 'required' : 'none', useRecommendedWorkflow: plan?.plan.workflowRecommendation?.status === 'selected' },
@@ -48,4 +48,4 @@ export function savedArrangementDraft(data: SavedArrangements, timeZone: string)
   }
 }
 export const detailSignature = (draft: CreationDraft) => JSON.stringify([draft.title, draft.description, draft.locationName, draft.startLocal, draft.endLocal, draft.timeZone, draft.intervalWeeks, draft.maxCapacity, draft.overrides.visibility, draft.overrides.registrationMode])
-export const arrangementSignature = (draft: CreationDraft) => JSON.stringify([draft.arrangementConfirmations, draft.factValues, draft.moduleOverrides, draft.aiCandidateFacts, draft.overrides.useRecommendedWorkflow, draft.arrangements && { ...draft.arrangements, venues: draft.arrangements.venues?.map(({ venueETag: _tag, capacity: _capacity, name: _name, address: _address, ...row }) => ({ ...row, ...(row.venueId ? {} : { capacity: _capacity, name: _name, address: _address }) })) }])
+export const arrangementSignature = (draft: CreationDraft) => JSON.stringify([draft.moduleConfirmations, draft.arrangementConfirmations, draft.factValues, draft.moduleOverrides, draft.aiCandidateFacts, draft.overrides.useRecommendedWorkflow, draft.arrangements && { ...draft.arrangements, venues: draft.arrangements.venues?.map(({ venueETag: _tag, capacity: _capacity, name: _name, address: _address, ...row }) => ({ ...row, ...(row.venueId ? {} : { capacity: _capacity, name: _name, address: _address }) })) }])

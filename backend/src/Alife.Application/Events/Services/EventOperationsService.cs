@@ -392,7 +392,7 @@ public sealed partial class EventOperationsService(
                 SessionId = request.SessionId, ProgramItemId = request.ProgramItemId, ZoneId = request.ZoneId,
                 RoleCode = request.RoleCode.Trim(), StartUtc = request.StartUtc, EndUtc = request.EndUtc,
                 RequiredCount = request.RequiredCount, EligibilityCode = request.EligibilityCode.Trim(),
-                CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow }); await Task.CompletedTask; return null;
+                CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow }); await InvalidateRosterRoleModuleAsync(occurrence, memberId, request.RoleCode.Trim(), ct); return null;
         }, ct);
 
     public Task<AppResult<EventRosterDto>> UpdateSlotAsync(Guid eventId, Guid occurrenceId, Guid slotId, Guid memberId, SaveEventServiceSlotRequest request, string? ifMatch, CancellationToken ct)
@@ -400,10 +400,13 @@ public sealed partial class EventOperationsService(
             var slot = occurrence.ServiceSlots.FirstOrDefault(x => x.Id == slotId); if (slot is null) return "Service slot not found.";
             var error = ValidateSlot(occurrence, request); if (error is not null) return error;
             if (slot.RoleCode != request.RoleCode.Trim() && slot.Assignments.Count > 0) return "A role with assignment history cannot be renamed; create a separate slot.";
+            var previousRole = slot.RoleCode;
             slot.SessionId = request.SessionId; slot.ProgramItemId = request.ProgramItemId; slot.ZoneId = request.ZoneId;
             slot.RoleCode = request.RoleCode.Trim(); slot.StartUtc = request.StartUtc; slot.EndUtc = request.EndUtc;
             slot.RequiredCount = request.RequiredCount; slot.EligibilityCode = request.EligibilityCode.Trim(); slot.UpdatedUtc = DateTime.UtcNow;
-            await Task.CompletedTask; return null;
+            await InvalidateRosterRoleModuleAsync(occurrence, memberId, previousRole, ct);
+            if (previousRole != slot.RoleCode) await InvalidateRosterRoleModuleAsync(occurrence, memberId, slot.RoleCode, ct);
+            return null;
         }, ct);
 
     public Task<AppResult<EventRosterDto>> DeleteSlotAsync(Guid eventId, Guid occurrenceId, Guid slotId, Guid memberId, string? ifMatch, CancellationToken ct)
@@ -411,7 +414,7 @@ public sealed partial class EventOperationsService(
             var slot = occurrence.ServiceSlots.FirstOrDefault(x => x.Id == slotId); if (slot is null) return "Service slot not found.";
             if (slot.Assignments.Any(x => x.EndedUtc == null)) return "End active roster assignments before deleting the service slot.";
             db.EventRosterAvailability.RemoveRange(slot.Availability); db.EventRosterAssignments.RemoveRange(slot.Assignments); db.EventServiceSlots.Remove(slot);
-            await Task.CompletedTask; return null;
+            await InvalidateRosterRoleModuleAsync(occurrence, memberId, slot.RoleCode, ct); return null;
         }, ct);
 
     public async Task<AppResult<EventRosterDto>> SetAvailabilityAsync(Guid eventId, Guid occurrenceId, Guid slotId, Guid memberId, SetEventAvailabilityRequest request, CancellationToken ct)
@@ -454,7 +457,8 @@ public sealed partial class EventOperationsService(
             group.ConcurrencyToken = Guid.NewGuid();
             db.EventRosterAssignments.Add(new EventRosterAssignment { Id = Guid.NewGuid(), ServiceSlotId = slot.Id, MemberId = request.MemberId,
                 AssignedByMemberId = memberId, Status = EventRosterAssignmentStatus.Invited, ReplacesAssignmentId = request.ReplacesAssignmentId,
-                CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow }); return null;
+                CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow });
+            await InvalidateRosterRoleModuleAsync(occurrence, memberId, slot.RoleCode, ct); return null;
         }, ct);
 
     public async Task<AppResult<EventRosterDto>> RespondToRosterAssignmentAsync(Guid eventId, Guid occurrenceId, Guid assignmentId, Guid memberId, bool confirm, CancellationToken ct)
@@ -472,6 +476,7 @@ public sealed partial class EventOperationsService(
         if (packageInvalidation is not null)
             await packageInvalidation.InvalidateForModuleChangeAsync(
                 occurrence.Event, memberId, "SERVICE.ROSTER", "event.roster.assignmentResponded", "operational", ct);
+        await InvalidateRosterRoleModuleAsync(occurrence, memberId, occurrence.ServiceSlots.Single(x => x.Assignments.Contains(assignment)).RoleCode, ct);
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateConcurrencyException) { return AppResult<EventRosterDto>.PreconditionFailed("This assignment was already answered or changed; reload before trying again."); }
         return AppResult<EventRosterDto>.Success(await RosterDtoAsync(occurrence, memberId, false, ct));

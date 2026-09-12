@@ -1,6 +1,23 @@
 # Event Management Implementation Status
 
+## 2026-09-12 — Event details inside Arrangements
+
+New and saved preparation now place Event details first as a full-row card with title, event-local times/time zone and the fixed creator/accountable owner. Details form and AI assistant are retained child work areas. Twelve policy confirmations remain unchanged; legacy Details URLs open the card. Footer navigation is reduced to Back to top, with rail validation and explicit save/create actions preserved. No backend or database change in this follow-up.
+
+Verification: frontend composition suite (71 tests), production build, and fixture browser regressions for new/saved flows in English and Chinese at 320/1280 px. Provider calls, deployment and shared migrations were not performed.
+
+
 > Documentation class: **Operational**. Captured from the current worktree on 2026-09-02 at branch baseline `eb1a4b9`. This file describes repository delivery state, not timeless architecture. The target contract remains [EVENT-CONTRACT.md](EVENT-CONTRACT.md).
+
+## Arrangement module overview and independent confirmation — 2026-09-12
+
+Implemented locally: creation and saved preparation share twelve category-coloured tiles, 3/4/6 responsive columns, initially collapsed, and one visible module editor. Independent work areas use the same pattern with mounted drafts and focus return. Settings include responsibilities; RAM exposes conditions, risk details/scoring, questions, personal review, history and applicable shifts. Repeated form cards use compact dividers. The owner is a compact global row, and Review reports all twelve module confirmations and responsible people.
+
+Optional `moduleConfirmations` participates in compose/Plan JSON, hashes, ETags and saves without a table or migration. Legacy section flags remain derived summaries; old flags never confirm modules. Omission by an old client is rejected after upgrade; absent fields retain legacy serialization/hash behavior. Operational audit records identify the owning module, including role shifts and both sides of candidate-group moves. Scoped and RAM-dependent reviews invalidate; unknown legacy audit scopes fail closed. Historical snapshots, formal approval, authorization and private caches remain authoritative. RAM remains in controlled memory and outside browser draft persistence.
+
+Verification: 245 backend Event tests and 71 frontend composition tests pass; TypeScript/Vite/PWA production build passes (existing idb-keyval chunk warning). Creation and full saved-preparation browser fixtures pass English/Chinese at 320/375/768/1280 pixels. Additional saved-tile checks at 320/1280 in both languages cover candidate ordering, retained RAM/programme/venue drafts and isolated RAM/Programme printing. Standalone RAM policy/assessment fixtures pass both languages at 375/1280, including manual save, AI outage, personal confirmation and draft PDF. Desktop/mobile screenshots were inspected. Documentation generation/check reports twelve modules, 129 API contracts and three equivalent overview structures.
+
+Limits: browser APIs are fixtures; persistence tests use EF InMemory. Live accounts, SQL Server concurrency and deployment remain unverified. No deployment, shared database migration, policy publication or Git publishing performed for this slice.
 
 ## Creator ownership and module role staffing — Issue #752 (2026-09-12)
 

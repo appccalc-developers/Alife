@@ -14,9 +14,9 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
 (async () => {
   const browser = await chromium.launch({ headless: true });
   try {
-    for (const language of (process.env.ALIFE_QA_LANGUAGES || 'zh,en').split(',')) for (const width of (process.env.ALIFE_QA_WIDTHS || '320,768,1280').split(',').map(Number)) {
+    for (const language of (process.env.ALIFE_QA_LANGUAGES || 'zh,en').split(',')) for (const width of (process.env.ALIFE_QA_WIDTHS || '320,375,768,1280').split(',').map(Number)) {
       const zh = language === 'zh', t = (en, cn) => zh ? cn : en;
-      const context = await browser.newContext({ viewport: { width, height: 900 } });
+      const context = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: 'reduce' });
       await context.addInitScript(language => localStorage.setItem('alife.language', language), language);
       const page = await context.newPage(); page.setDefaultTimeout(15000);
       const errors = [], creates = [], posterSaves = [], publishes = [], uploads = [], ai = [], detailSaves = [], acceptedPlans = [], taskSaves = [];
@@ -28,18 +28,19 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
       let arrangements = { occurrenceId: 'qa-occurrence', startUtc: '2026-10-04T10:00:00Z', endUtc: '2026-10-04T12:00:00Z', eTag: '"arrangements-1"', serviceSlots: [{ id: 'qa-slot', details: { roleCode: 'welcome', requiredCount: 3, eligibilityCode: 'approvedGroupMember', startOffsetMinutes: -15, endOffsetMinutes: 120 } }], sessions: [{ id: 'qa-session', details: { title: text('Opening', '开场'), startOffsetMinutes: 0, endOffsetMinutes: 120, items: [{ title: text('Welcome', '欢迎'), description: text('Opening remarks', '开场介绍'), startOffsetMinutes: 0, durationMinutes: 15 }] }, itemIds: ['qa-item'] }], venueBookings: [{ id: 'qa-booking', details: { venueId: 'qa-venue', venueETag: venue.eTag, requiredCapacity: 20, startOffsetMinutes: 0, endOffsetMinutes: 120 }, venue }] };
       const assessment = { tier: 'standard', policyVersion: 'qa-policy-custom', approvalDeadlineUtc: '2026-09-30T10:00:00Z', finalConfirmationWindowHours: 96, tiers: ['enhanced', 'standard', 'light'].map(tier => ({ tier, applies: tier !== 'enhanced', selected: tier === 'standard', reasons: tier === 'standard' ? [{ code: 'registration', message: text('Enabled tool: registration.', '已启用功能：报名。') }] : [] })) };
       for (const [moduleCode, en, cn] of [['PROGRAM.PRODUCTION', 'Programme and production', '节目与制作'], ['PLACE.RESOURCE', 'Venue and resources', '场地与资源'], ['MOVE.STAY', 'Travel and stay', '交通与住宿']]) savedPlan.moduleDecisions.push({ ...structuredClone(proposal.moduleDecisions[0]), moduleCode, label: text(en, cn), status: 'selected', surfaceKey: moduleCode.toLowerCase() });
+      for (const code of ['FOOD.HOSPITALITY','MONEY.FINANCE','FESTIVAL.OPERATIONS']) savedPlan.moduleDecisions.push({ ...structuredClone(proposal.moduleDecisions[0]), moduleCode: code, label: text(code, code), status: 'inactive', surfaceKey: code.toLowerCase() });
       const roleRequirements = input => [['TEAM.WORK', 'event.accountableOwner'], ['TEAM.WORK', 'event.lead'], ['SERVICE.ROSTER', 'roster.coordinator'], ['SAFETY.RAM', 'ram.author'], ['SAFETY.RAM', 'ram.approver']].filter(([module, code]) => code === 'event.accountableOwner' || (input?.humanSelections.find(x => x.moduleCode === module)?.selected ?? savedPlan.moduleDecisions.find(x => x.moduleCode === module)?.status !== 'inactive')).map(([moduleCode, roleCode]) => ({ moduleCode, roleCode, requirementKey: `${moduleCode}:${roleCode}`, minimum: 1, recommended: 1, eligibility: [], separationFrom: [] }));
       savedPlan.roleRequirements = roleRequirements();
       const roleAssignments = [{ id: 'owner-role', roleRequirementKey: 'TEAM.WORK:event.accountableOwner', memberId: 'qa', status: 'accepted' }];
       const roleInvites = []; let rosterGroups = []; const rosterAssignments = []; let rosterRevision = 1;
-      const applySelections = input => ({ ...savedPlan, arrangementConfirmations: input.arrangementConfirmations, roleRequirements: roleRequirements(input), moduleDecisions: savedPlan.moduleDecisions.map(item => {
+      const applySelections = input => ({ ...savedPlan, arrangementConfirmations: input.arrangementConfirmations, moduleConfirmations: input.moduleConfirmations, roleRequirements: roleRequirements(input), moduleDecisions: savedPlan.moduleDecisions.map(item => {
         const selected = input.humanSelections.find(selection => selection.moduleCode === item.moduleCode)?.selected;
-        return selected === undefined ? item : { ...item, status: selected ? 'selected' : 'inactive' };
+        return selected === undefined || (selected && item.status === 'required') ? item : { ...item, status: selected ? 'selected' : 'inactive' };
       }) });
       savedPlan.moduleDecisions.push({ moduleCode: 'COMMS.FOLLOWUP', label: text('Communications', '活动沟通'), status: 'inactive', reasonCodes: [], dependencies: [], dataClasses: [], integrationKey: '', surfaceKey: 'comms.followup', navigationOrder: 2 });
       let reads = 0, approved = false, submitted = false, returned = false, reopen = null, published = false, conflict = width === 1280;
       let info = { eventId: 'qa-event', groupId: 'qa-group', brief: { title: text('Community meal', '社区聚餐'), description: text('A meal together', '一同聚餐'), purpose: text('', ''), locationName: text('Hall', '礼堂'), startDate: '2026-10-04T10:00:00Z', endDate: '2026-10-04T12:00:00Z' }, posterImageUrl: null, visibility: width === 320 ? 'groupVisible' : width === 768 ? 'churchVisible' : 'public', registrationMode: 'none', eTag: '"poster-v1"', canManage: true };
-      let ramAssessment = null;
+      let ramAssessment = null; const ramRevision = { id: 'ram-version', version: 1, schemaVersion: 2, policyVersionId: null, contentHash: 'fixture-hash', residualLevel: 'Incomplete', authorMemberId: 'qa', onsiteMemberId: null, createdUtc: '2026-09-12T00:00:00Z' };
       let updatedUtc = '2026-09-11T00:00:00Z';
       const record = () => ({ id: 'qa-event', groupId: 'qa-group', accountableOwnerMemberId: 'qa', titleEn: info.brief.title.en, titleZh: info.brief.title.zh, startDate: info.brief.startDate, endDate: info.brief.endDate, updatedUtc, visibility: info.visibility, contactProfileIds: [], eventDataJson: JSON.stringify({ ...info.brief, maxCapacity: 0, visibility: info.visibility, capacityUnit: 'People', currency: 'NZD', hardConstraints: [], optionalActivities: [], galleryUrls: [], privateContact: 'preserved' }) });
       const preparation = () => ({ eventId: 'qa-event', isFrozen: approved, isApproved: approved, canManage: true, canEdit: !approved, approvedPackageId: approved ? 'qa-package' : null, reopenRequest: reopen });
@@ -52,7 +53,7 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
         if (req.method() === 'GET') reads++;
         if (pathname === '/api/me') data = { id: 'qa', displayName: 'QA Leader', isGuest: false, isRegistered: true, platformRole: 'superadmin', permissions: ['admin.access'], memberships: [] };
         else if (pathname === '/api/event-archetypes') data = catalogue;
-        else if (pathname.endsWith('/compose')) data = proposal;
+        else if (pathname.endsWith('/compose') && !pathname.endsWith('/plan/recompose')) data = proposal;
         else if (pathname === '/api/groups/qa-group/events' && req.method() === 'POST') { creates.push(req.postDataJSON()); data = { id: 'qa-event', groupId: 'qa-group' }; }
         else if (pathname === '/api/groups/qa-group/events' && req.method() === 'GET') data = [record()];
         else if (pathname === '/api/events/qa-event' && req.method() === 'PUT') { assert.equal(req.headers()['if-match'], `"${updatedUtc}"`); updatedUtc = new Date(Date.parse(updatedUtc) + 1000).toISOString(); detailSaves.push({ body: req.postDataJSON(), headers: req.headers() }); const body = req.postDataJSON(); info.brief = { ...info.brief, ...JSON.parse(body.eventDataJson), title: text(body.titleEn, body.titleZh) }; data = record(); }
@@ -75,13 +76,14 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
         else if (pathname.endsWith('/reopen-requests')) { reopen = { id: 'qa-reopen', eventPackageId: 'qa-package', status: 'pending', reason: req.postDataJSON().reason, eTag: '"reopen-v1"', canReview: true }; data = preparation(); }
         else if (pathname.endsWith('/qa-reopen/review')) { assert.equal(req.headers()['if-match'], '"reopen-v1"'); assert.ok(req.headers()['idempotency-key']); approved = false; published = false; submitted = false; reopen = { ...reopen, status: 'approved', canReview: false, reviewReason: req.postDataJSON().reason }; data = preparation(); }
         else if (pathname.endsWith('/ram') && req.method() === 'PUT') { const body = req.postDataJSON(); assert.equal(body.schemaVersion, 2); updatedUtc = new Date(Date.parse(updatedUtc) + 1000).toISOString(); ramAssessment = { eventId: 'qa-event', groupId: 'qa-group', schemaVersion: 2, eTag: 'ram-saved', validity: 'Draft', status: 'draft', residualLevel: 'Incomplete', ramDataJson: body.ramDataJson, policyVersionId: null }; data = ramAssessment; }
-        else if (pathname.endsWith('/ram/workspace')) data = { assessment: ramAssessment, policy: null, history: [], actions: [], onsiteCandidates: [], canEdit: true, canAudit: false, currentMemberId: 'qa', isRequired: true };
+        else if (pathname.endsWith('/ram/versions/ram-version')) data = { revision: ramRevision, ramDataJson: ramAssessment.ramDataJson, policy: null, actions: [], isCurrent: true, validity: 'Draft', isDraft: true };
+        else if (pathname.endsWith('/ram/workspace')) data = { assessment: ramAssessment, policy: null, history: [ramRevision], actions: [], onsiteCandidates: [], canEdit: true, canAudit: false, currentMemberId: 'qa', isRequired: true };
         else if (pathname.endsWith('/workspace')) data = { eventId: 'qa-event', owningGroupId: 'qa-group', title: info.brief.title, canManage: true, items: savedPlan.moduleDecisions.filter(x => x.status !== 'inactive').map(x => ({ surfaceKey: x.surfaceKey, moduleCode: x.moduleCode, label: x.label, order: x.navigationOrder, readiness: 'notReady', presentation: 'page', blockers: [] })) };
         else if (pathname.endsWith('/plan')) data = { eventId: 'qa-event', planVersion: planRevision, eTag: `"plan-v${planRevision}"`, plan: savedPlan };
         else if (pathname.endsWith('/plan/recompose')) data = applySelections(req.postDataJSON());
         else if (pathname.endsWith('/plan/accept')) { acceptedPlans.push({ body: req.postDataJSON(), headers: req.headers() }); updatedUtc = new Date(Date.parse(updatedUtc) + 1000).toISOString(); if (req.postDataJSON().arrangements) arrangements = { ...arrangements, ...req.postDataJSON().arrangements, eTag: `"arrangements-${planRevision + 1}"` }; arrangements.venueBookings = arrangements.venueBookings.map(row => ({ ...row, venue })); planRevision++; savedPlan = applySelections(req.postDataJSON().composition); data = { eventId: 'qa-event', planVersion: planRevision, eTag: `"plan-v${planRevision}"`, plan: savedPlan }; }
         else if (pathname.endsWith('/tasks') && req.method() === 'POST') { taskSaves.push(req.postDataJSON()); updatedUtc = new Date(Date.parse(updatedUtc) + 1000).toISOString(); data = { id: 'qa-task' }; }
-        else if (pathname.endsWith('/memberships')) data = [{ memberId: 'qa', displayName: 'QA Leader', status: 'approved' }];
+        else if (pathname.endsWith('/memberships')) data = [{ memberId: 'qa', displayName: 'QA Leader', status: 'approved' }, { memberId: 'qa2', displayName: 'QA Helper', status: 'approved' }];
         else if (pathname.endsWith('/role-assignments') && req.method() === 'POST') { const body = req.postDataJSON(); roleInvites.push(body); const assignment = { ...body, id: 'roster-role', status: 'invited' }; roleAssignments.push(assignment); data = assignment; }
         else if (pathname.endsWith('/role-assignments/roster-role/accept')) { roleAssignments.find(x => x.id === 'roster-role').status = 'accepted'; data = roleAssignments.find(x => x.id === 'roster-role'); }
         else if (pathname.endsWith('/team')) data = { members: [{ id: 'team-qa', memberId: 'qa', displayName: 'QA Leader', status: 'accepted' }], roles: roleAssignments, tasks: [], roleRequirements: savedPlan.roleRequirements, readinessBlockers: [], canManage: true };
@@ -103,55 +105,94 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
         else if (pathname.endsWith('/publish')) { publishes.push(req.postDataJSON()); published = true; data = lifecycle(); }
         await route.fulfill({ status, json: data });
       });
+      const tile = code => page.locator(`[data-arrangement-tile="${code}"]`);
+      const open = async code => { if (!await tile(code).isVisible()) await page.getByRole('button', { name: /Show all modules|显示所有模块/ }).click(); await tile(code).waitFor(); if (await tile(code).getAttribute('aria-expanded') !== 'true') await tile(code).click(); return page.locator(`[data-module-editor="${code}"]`); };
+      const work = async (root, en, cn) => { const button = root.getByRole('button', { name: t(en,cn), exact: true }); const heading = root.locator('[data-tool-panel]:not([hidden])').getByRole('heading', { name: t(en,cn), exact: true }); await button.or(heading).first().waitFor(); if (await button.isVisible() && await button.getAttribute('aria-expanded') !== 'true') await button.click(); };
+
+      const settings = async code => { const root = await open(code); await work(root,'Settings and responsibilities','设置与职责'); return root; };
       const click = (en, cn) => page.getByRole('button', { name: t(en, cn), exact: true }).click();
+      const waitForDetailsAutosave = async () => {
+        const before = detailSaves.length;
+        const response = page.waitForResponse(response => response.url().endsWith('/api/events/qa-event') && response.request().method() === 'PUT' && response.ok());
+        await page.waitForTimeout(1100);
+        await response;
+        assert.equal(detailSaves.length, before + 1);
+        await page.getByRole('status').filter({ hasText: /Event details saved|活动资料已保存/ }).waitFor();
+      };
       const flow = () => page.getByRole('navigation', { name: t('Event preparation flow', '活动筹备流程'), exact: true });
-      const stage = name => flow().getByRole('link', { name }).click();
+      const stage = async name => { if (name.source === 'Details|活动资料') { if (!await tile('EVENT.DETAILS').isVisible()) await flow().getByRole('link', { name: /Arrangements|活动安排/ }).click(); await open('EVENT.DETAILS'); return }; await flow().getByRole('link', { name }).click(); };
       const checkLayout = async name => { await page.evaluate(() => window.scrollTo(0, 0)); assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), name); await page.screenshot({ path: path.join(os.tmpdir(), `alife-flow-${name}-${language}-${width}.png`) }); };
       await page.goto(`${base}/events/new?groupId=qa-group`, { waitUntil: 'domcontentloaded', timeout: 45000 });
       await page.getByRole('button', { name: /轻松相聚|Simple social/ }).click();
-      await page.getByRole('button', { name: /团契聚餐|Fellowship meal/ }).click(); await click('Continue', '继续');
+      await page.getByRole('button', { name: /团契聚餐|Fellowship meal/ }).click(); await click('Start arranging', '开始安排'); await open('EVENT.DETAILS');
       for (const [label, en, cn] of [[t('Event title', '活动名称'), 'Community meal', '社区聚餐'], [t('Description', '活动说明'), 'A meal together', '一同聚餐']]) {
         const group = page.getByRole('group', { name: label, exact: true }); await group.getByLabel('English', { exact: true }).fill(en); await group.getByLabel('中文', { exact: true }).fill(cn);
       }
       await page.getByLabel(t('Start time', '开始时间'), { exact: true }).fill('2026-10-04T18:00');
-      await page.getByLabel(t('End time', '结束时间'), { exact: true }).fill('2026-10-04T20:00'); await click('Continue', '继续'); await click('Continue', '继续');
+      await page.getByLabel(t('End time', '结束时间'), { exact: true }).fill('2026-10-04T20:00'); await flow().getByRole('button', { name: /Create|确认创建/ }).click();
       await click('Confirm and create event', '确认创建活动');
       await page.waitForURL('**/qa-event/workspace?flow=setup&stage=arrangements');
-      await page.getByRole('group', { name: /Team and tasks.*Enable|团队与任务.*是否启用/ }).waitFor(); assert.equal(await flow().locator('li').count(), 7); assert.equal(await page.getByLabel(t('Choose a tool to configure', '选择要设置的功能')).count(), 0); assert.equal(creates.length, 1);
+      await tile('TEAM.WORK').waitFor(); assert.equal(await flow().locator('li').count(), 6); assert.equal(await page.getByLabel(t('Choose a tool to configure', '选择要设置的功能')).count(), 0); assert.equal(creates.length, 1);
       assert.equal(await flow().getByRole('button', { disabled: true }).count(), 3); await checkLayout('setup');
+      if (process.env.ALIFE_QA_DETAILS_ONLY === '1') {
+        const card = tile('EVENT.DETAILS');
+        assert.ok((await card.innerText()).includes('2026-10-04'));
+        const details = await open('EVENT.DETAILS');
+        const title = details.getByRole('group', { name: t('Event title', '活动名称'), exact: true }).getByLabel('English', { exact: true });
+        await title.fill('Retained event title');
+        await details.getByRole('button', { name: t('AI details assistant', 'AI 资料助手'), exact: true }).click();
+        await open('TEAM.WORK'); await open('EVENT.DETAILS');
+        await details.getByRole('button', { name: t('Event details form', '活动资料表单'), exact: true }).click();
+        assert.equal(await title.inputValue(), 'Retained event title');
+        assert.equal(await page.locator('[data-module-editor]:visible').count(), 1);
+        await waitForDetailsAutosave();
+        await click('Back to top', '回到开头');
+        assert.equal(await page.locator('footer').last().getByRole('button').count(), 1);
+        await checkLayout('details-card');
+        await page.goto(`${base}/groups/qa-group/events/qa-event/workspace?flow=setup&stage=details`);
+        await page.locator('[data-module-editor="EVENT.DETAILS"]:visible').waitFor();
+        assert.deepEqual(errors, []);
+        console.log(`PASS ${language} ${width}: merged details, retained edits/AI child, save, legacy detail link, sole footer action, layout`);
+        await context.close(); continue;
+      }
       await page.goto(`${base}/groups/qa-group/events/qa-event/workspace?flow=setup&stage=setup&module=team.work`);
-      await page.getByText(t('Collaborators and historical assignments', '协作成员与历史分工'), { exact: true }).waitFor();
+      await settings('TEAM.WORK');
       assert.equal(await page.getByRole('heading', { name: /Team members|团队成员/, exact: true }).isVisible(), false);
-      assert.equal(await page.getByRole('region', { name: t('Event accountable owner', '活动总负责人'), exact: true }).getByRole('combobox').count(), 0);
+      assert.equal(await tile('EVENT.DETAILS').locator('select').count(), 0);
       await page.getByRole('region', { name: t('On-site event lead', '现场活动领队'), exact: true }).waitFor();
       assert.equal(await flow().getByRole('link', { name: /Arrangements|活动安排/ }).getAttribute('aria-current'), 'step');
       const team = page.getByRole('region', { name: t('Team and tasks', '团队与任务'), exact: true });
       const rosterModule = page.getByRole('region', { name: t('Roles and shifts', '岗位与轮班'), exact: true });
+      await open('SERVICE.ROSTER'); await work(rosterModule, 'Role shifts', '岗位轮班');
       const groupEditor = rosterModule.locator('[data-roster-candidate-group]');
       await groupEditor.locator('summary').click();
 
       await groupEditor.getByLabel(t('Add to this role group', '加入此岗位候选组'), { exact: true }).selectOption('qa');
       await groupEditor.getByRole('button', { name: t('Add candidate', '加入候选组'), exact: true }).click();
+      await groupEditor.getByLabel(t('Add to this role group', '加入此岗位候选组'), { exact: true }).selectOption('qa2');
+      await groupEditor.getByRole('button', { name: t('Add candidate','加入候选组'), exact: true }).click();
+      await groupEditor.getByRole('button', { name: t('Move up QA Helper','上移 QA Helper'), exact: true }).click();
       await groupEditor.getByLabel(t('Owning module', '所属模块'), { exact: true }).selectOption('PEOPLE.REGISTRATION');
+      await open('TEAM.WORK'); await open('SERVICE.ROSTER');
+      assert.equal(await groupEditor.getByLabel(t('Owning module','所属模块'), { exact: true }).inputValue(), 'PEOPLE.REGISTRATION');
       await groupEditor.getByRole('button', { name: t('Save role candidate group', '保存岗位候选组'), exact: true }).click();
       const registration = page.getByRole('region', { name: t('Invitations and registration', '邀请与报名'), exact: true });
+      await open('PEOPLE.REGISTRATION'); await work(registration, 'Role shifts', '岗位轮班');
       await registration.locator('[data-roster-candidate-group]').waitFor();
       assert.equal(await rosterModule.locator('[data-roster-candidate-group]').count(), 0);
-      assert.deepEqual(rosterGroups[0].memberIds, ['qa']);
+      assert.deepEqual(rosterGroups[0].memberIds, ['qa2','qa']);
       await registration.screenshot({ path: path.join(os.tmpdir(), `alife-role-roster-${language}-${width}.png`) });
       if (process.env.ALIFE_QA_ROSTER_ONLY === '1') { assert.deepEqual(errors, []); console.log(`PASS role roster ${language} ${width}`); await context.close(); continue; }
+      await open('TEAM.WORK'); await work(team, 'Tasks & readiness', '任務與準備度');
       await team.getByLabel(t('English title', '英文標題'), { exact: true }).fill('Prepare tables');
-      await team.getByRole('button', { name: `${t('Collapse', '收起')} ${t('Team and tasks', '团队与任务')}`, exact: true }).click();
-      await team.getByRole('button', { name: `${t('Expand', '展开')} ${t('Team and tasks', '团队与任务')}`, exact: true }).click();
-      assert.equal(await team.getByLabel(t('English title', '英文標題'), { exact: true }).inputValue(), 'Prepare tables');
-      await stage(/Details|活动资料/); await stage(/Arrangements|活动安排/);
-      assert.equal(await team.getByLabel(t('English title', '英文標題'), { exact: true }).inputValue(), 'Prepare tables');
+      await tile('TEAM.WORK').click(); await open('TEAM.WORK');
+      assert.equal(await team.getByLabel(t('English title','英文標題'), { exact: true }).inputValue(), 'Prepare tables');
       await team.getByLabel(t('Chinese title', '中文標題'), { exact: true }).fill('安排桌椅');
       await Promise.all([page.waitForResponse(response => response.url().endsWith('/tasks') && response.request().method() === 'POST' && response.ok()), team.getByRole('button', { name: t('Add task', '新增任務'), exact: true }).click()]);
-      await page.waitForFunction(() => !document.querySelector('fieldset:disabled'));
+      await page.waitForFunction(() => !document.querySelector('[data-module-editor]:not([hidden])')?.closest('fieldset:disabled'));
       assert.equal(taskSaves.length, 1); assert.equal(taskSaves[0].title.en, 'Prepare tables');
       assert.deepEqual(errors, []);
-      if (width === 1280) { await page.getByRole('heading', { name: t('Child consent, check-in & safe collection', '儿童同意、签到与安全交接'), exact: true }).waitFor(); await page.getByRole('heading', { name: t('Pickup journeys & passenger manifests', '接送行程与乘车名单'), exact: true }).waitFor(); }
+
       assert.deepEqual(await team.locator('input,select,textarea').evaluateAll(nodes => nodes.filter(node => { const r = node.getBoundingClientRect(); return r.width && (r.left < 0 || r.right > innerWidth + 1); }).map(node => node.outerHTML.slice(0, 120))), [], 'embedded team fields fit the mobile viewport');
       await team.screenshot({ path: path.join(os.tmpdir(), `alife-integrated-team-${language}-${width}.png`) });
       await page.goto(`${base}/groups/qa-group/events/qa-event/edit`);
@@ -159,65 +200,84 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
       assert.equal(await flow().getByRole('link', { name: /Template|选择模板/ }).count(), 0);
       const titleGroup = () => page.getByRole('group', { name: t('Event title', '活动名称'), exact: true });
       await titleGroup().getByLabel('English', { exact: true }).fill('Revised meal');
-      assert.equal(await flow().getByRole('link', { name: /5.*Approval|5.*正式审批/ }).count(), 0);
-      await stage(/Arrangements|活动安排/); await page.getByRole('group', { name: /Team and tasks.*Enable|团队与任务.*是否启用/ }).waitFor();
+      assert.equal(await flow().getByRole('link', { name: /4.*Approval|4.*正式审批/ }).count(), 0);
+      await stage(/Arrangements|活动安排/); await tile('TEAM.WORK').waitFor(); await waitForDetailsAutosave();
       assert.equal(await page.getByRole('button', { name: t('Open RAM assessment', '打开 RAM 评估表'), exact: true }).count(), 0);
       const ram = page.getByRole('region', { name: t('RAM and safety', 'RAM与安全'), exact: true });
-      await ram.getByLabel(t('Participant count', '参与人数'), { exact: true }).fill('14');
-      await ram.getByRole('button', { name: `${t('Collapse','收起')} ${t('RAM and safety','RAM与安全')}`, exact: true }).click();
-      assert.equal(await ram.getByLabel(t('Participant count', '参与人数'), { exact: true }).isVisible(), false);
-      await ram.getByRole('button', { name: `${t('Expand','展开')} ${t('RAM and safety','RAM与安全')}`, exact: true }).click();
-      assert.equal(await ram.getByLabel(t('Participant count', '参与人数'), { exact: true }).inputValue(), '14');
+      await open('SAFETY.RAM'); await work(ram, 'Activities and conditions','活动项目与条件');
+      await ram.getByLabel(t('Participant count','参与人数'), { exact: true }).fill('14');
+      await open('TEAM.WORK'); await open('SAFETY.RAM');
+      assert.equal(await ram.getByLabel(t('Participant count','参与人数'), { exact: true }).inputValue(), '14');
       await ram.getByRole('button', { name: t('Save RAM draft', '保存 RAM 草稿'), exact: true }).click();
       await ram.getByRole('status').filter({ hasText: /Action completed|操作已完成/ }).waitFor();
+      await work(ram, 'Version and signature history', '版本与签署历史');
+      await ram.locator('summary').filter({ hasText: /v1/ }).click();
+      await ram.getByRole('button', { name: t('View version / print','查看此版本／打印'), exact: true }).click();
+      const ramPrint = page.getByRole('dialog').filter({ hasText: t('DRAFT — NOT APPROVED','草稿 — 未经批准') });
+      await ramPrint.waitFor(); await page.emulateMedia({ media: 'print' });
+      assert.equal(await page.locator('#root').isVisible(), false); assert.equal(await ramPrint.isVisible(), true);
+      await page.pdf({ path: path.join(os.tmpdir(), `alife-embedded-ram-${language}-${width}.pdf`), format: 'A4', printBackground: true });
+      await page.emulateMedia({ media: 'screen' }); await ramPrint.getByRole('button', { name: t('Close preview','关闭预览'), exact: true }).click();
+      await work(ram, 'Activities and conditions', '活动项目与条件');
       await stage(/Details|活动资料/); assert.equal(await titleGroup().getByLabel('English', { exact: true }).inputValue(), 'Revised meal');
-      await click('Save event details', '保存活动资料'); await page.getByRole('status').filter({ hasText: /Event details saved|活动资料已保存/ }).waitFor();
       await stage(/Arrangements|活动安排/);
       assert.equal(new URLSearchParams(new URL(page.url()).search).get('stage'), 'arrangements');
-      await page.getByRole('heading', { name: t('Risk Assessment and Management', '风险评估与管理'), exact: true }).waitFor();
-      await page.getByRole('heading', { name: t('Risk details', '风险明细'), exact: true }).waitFor();
-      assert.equal(await page.getByLabel(t('Participant count', '参与人数'), { exact: true }).isEnabled(), true);
+      await open('SAFETY.RAM'); await page.getByRole('heading', { name: t('Risk Assessment and Management', '风险评估与管理'), exact: true }).waitFor();
+      await work(ram, 'Risk details', '风险明细');
+      assert.equal(await ram.getByLabel(t('Participant count','参与人数'), { exact: true }).count(), 1);
       await page.getByRole('button', { name: t('Add risk', '添加风险'), exact: true }).waitFor();
       await checkLayout('ram-entry');
       const toolGroup = item => page.getByRole('group', { name: `${item.label[language]} · ${t('Enable', '是否启用')}`, exact: true });
       const programme = page.getByRole('region', { name: t('Programme and production', '节目与制作'), exact: true });
       const sessionForm = programme.locator('form').filter({ has: page.getByLabel('Session English title', { exact: true }) });
-      const programmeConfirmed = page.getByRole('checkbox', { name: t('Programme and venue · Confirmed', '节目与场地 · 已确认'), exact: true });
+      const programmeConfirmed = programme.getByRole('checkbox', { name: t('Details confirmed', '填写已确认'), exact: true });
+      await open('PROGRAM.PRODUCTION'); await work(programme, 'Programme sessions', '节目环节');
+      await page.waitForFunction(() => !document.querySelector('[data-module-editor="PROGRAM.PRODUCTION"] [data-module-confirmation] input')?.disabled);
       await programmeConfirmed.check();
       await sessionForm.getByLabel('Session English title', { exact: true }).fill('Revised opening');
       assert.equal(await programmeConfirmed.isChecked(), false, 'unsaved inline edits also reset section review');
+      const venueModule = await open('PLACE.RESOURCE');
+      await work(venueModule, 'Venue catalogue', '場地目錄');
+      const venueForm = venueModule.locator('form').filter({ has: page.getByRole('button', { name: t('Add venue','加入目錄'), exact: true }) });
+      await venueForm.getByLabel('English', { exact: true }).fill('Unsaved hall');
+      await open('PROGRAM.PRODUCTION'); assert.equal(await sessionForm.getByLabel('Session English title', { exact: true }).inputValue(), 'Revised opening');
+      await open('PLACE.RESOURCE'); assert.equal(await venueForm.getByLabel('English', { exact: true }).inputValue(), 'Unsaved hall');
+      await venueForm.getByLabel('English', { exact: true }).fill(''); await open('PROGRAM.PRODUCTION');
+
       await Promise.all([page.waitForResponse(response => response.url().endsWith('/programme/sessions/qa-session') && response.ok()), sessionForm.getByRole('button', { name: t('Save', '儲存'), exact: true }).click()]);
-      await page.waitForFunction(() => !document.querySelector('fieldset:disabled'));
+      await page.waitForFunction(() => !document.querySelector('[data-module-editor]:not([hidden])')?.closest('fieldset:disabled'));
       assert.equal(arrangements.sessions[0].details.title.en, 'Revised opening');
+      await work(programme, 'Programme and production', '节目与制作');
       await programme.getByRole('button', { name: t('Print run sheet', '列印流程表'), exact: true }).click();
       const printPreview = page.getByRole('dialog', { name: t('Programme print preview', '节目流程打印预览'), exact: true });
       await printPreview.waitFor(); assert.equal(await printPreview.getByRole('heading', { name: t('Revised opening', '开场'), exact: true }).count(), 1);
       await page.emulateMedia({ media: 'print' }); assert.equal(await page.locator('#root').isVisible(), false); assert.equal(await printPreview.isVisible(), true);
       await page.emulateMedia({ media: 'screen' }); await printPreview.getByRole('button', { name: t('Close preview', '关闭预览'), exact: true }).click();
 
+      if (process.env.ALIFE_QA_TILES_ONLY === '1') { assert.deepEqual(errors, []); console.log(`PASS saved tiles ${language} ${width}: ordered candidates, module/RAM/programme/venue drafts, confirmations, print isolation`); await context.close(); continue; }
       const originallyRequired = savedPlan.moduleDecisions.filter(item => item.status === 'required');
       assert.equal(originallyRequired.length, 5);
       for (const item of originallyRequired) {
-        const group = toolGroup(item);
+        await settings(item.moduleCode); const group = toolGroup(item);
         assert.equal(await group.getByRole('button', { name: t('Yes', '是'), exact: true }).getAttribute('aria-pressed'), 'true');
         await group.getByRole('button', { name: t('No', '否'), exact: true }).click();
       }
-      await toolGroup(savedPlan.moduleDecisions.find(item => item.moduleCode === 'COMMS.FOLLOWUP')).getByRole('button', { name: t('Yes', '是'), exact: true }).click();
+      await settings('COMMS.FOLLOWUP'); await toolGroup(savedPlan.moduleDecisions.find(item => item.moduleCode === 'COMMS.FOLLOWUP')).getByRole('button', { name: t('Yes', '是'), exact: true }).click();
       await click('Review tool changes', '查看功能变更');
       await Promise.all([page.waitForResponse(response => response.url().endsWith('/plan/accept') && response.ok()), click('Confirm event arrangements', '确认保存活动安排')]);
       await page.getByRole('status').filter({ hasText: /Event arrangements saved|活动安排已保存/ }).waitFor();
+      assert.equal(Object.keys(acceptedPlans[0].body.composition.moduleConfirmations).length, 12);
       assert.equal(acceptedPlans[0].body.arrangements, undefined, 'selection save must preserve operational rows'); assert.equal(arrangements.sessions[0].details.title.en, 'Revised opening');
       assert.equal(acceptedPlans.length, 1); assert.ok(acceptedPlans[0].headers['if-match']); assert.ok(acceptedPlans[0].headers['idempotency-key']);
       for (const item of originallyRequired) {
         assert.equal(acceptedPlans[0].body.composition.humanSelections.find(selection => selection.moduleCode === item.moduleCode).selected, false);
-        assert.equal(await toolGroup(item).getByRole('button', { name: t('No', '否'), exact: true }).getAttribute('aria-pressed'), 'true');
+        await settings(item.moduleCode); assert.equal(await toolGroup(item).getByRole('button', { name: t('No', '否'), exact: true }).getAttribute('aria-pressed'), 'true');
       }
       await stage(/Details|活动资料/); assert.equal(await titleGroup().getByLabel('English', { exact: true }).inputValue(), 'Revised meal');
-      await click('Save event details', '保存活动资料'); await page.getByRole('status').filter({ hasText: /Event details saved|活动资料已保存/ }).waitFor();
-      assert.equal(detailSaves.length, 2); assert.ok(detailSaves[0].headers['if-match']); assert.equal(JSON.parse(detailSaves[0].body.eventDataJson).privateContact, 'preserved');
+      assert.equal(detailSaves.length, 1); assert.ok(detailSaves[0].headers['if-match']); assert.equal(JSON.parse(detailSaves[0].body.eventDataJson).privateContact, 'preserved');
       await page.goto(`${base}/groups/qa-group/events/qa-event/workspace?flow=setup&stage=arrangements`);
       for (const item of originallyRequired) {
-        const group = toolGroup(item);
+        await settings(item.moduleCode); const group = toolGroup(item);
         await group.waitFor();
         assert.equal(await group.getByRole('button', { name: t('No', '否'), exact: true }).getAttribute('aria-pressed'), 'true');
         await group.getByRole('button', { name: t('Yes', '是'), exact: true }).click();
@@ -230,31 +290,31 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
       for (const item of originallyRequired) assert.equal(acceptedPlans[1].body.composition.humanSelections.find(selection => selection.moduleCode === item.moduleCode).selected, true);
       assert.equal(await page.getByRole('button', { name: t('Pending', '待确认'), exact: true }).count(), 0);
       assert.equal(await team.getByRole('heading', { name: /RAM author|RAM 填表人|Roster coordinator|同工排班协调人/ }).count(), 0);
-      assert.equal(await ram.getByRole('heading', { name: t('RAM author', 'RAM 填表人'), exact: true }).count(), 1);
+      await settings('SAFETY.RAM'); assert.equal(await ram.getByRole('heading', { name: t('RAM author', 'RAM 填表人'), exact: true }).count(), 1);
       assert.equal(await ram.getByRole('heading', { name: t('RAM approver', 'RAM 审核人'), exact: true }).count(), 1);
-      const rosterRole = page.getByRole('region', { name: t('Roster coordinator', '同工排班协调人'), exact: true });
+      await settings('SERVICE.ROSTER'); const rosterRole = page.getByRole('region', { name: t('Roster coordinator', '同工排班协调人'), exact: true });
       await rosterRole.getByRole('combobox').selectOption('qa');
       await rosterRole.getByRole('button', { name: t('Invite', '邀请'), exact: true }).click();
       await rosterRole.getByRole('button', { name: t('Accept role', '接受角色'), exact: true }).click();
       await rosterRole.getByText(t('Accepted', '已接受'), { exact: true }).waitFor();
       assert.equal(roleInvites[0].roleRequirementKey, 'SERVICE.ROSTER:roster.coordinator');
-      const confirmed = page.getByRole('checkbox', { name: t('Safety · Confirmed', '安全 · 已确认'), exact: true });
+      await settings('SAFETY.RAM'); const confirmed = ram.getByRole('checkbox', { name: t('Details confirmed','填写已确认'), exact: true });
       assert.equal(await confirmed.isChecked(), false);
       await confirmed.check();
       await click('Confirm event arrangements', '确认保存活动安排');
       await page.getByRole('status').filter({ hasText: /Event arrangements saved|活动安排已保存/ }).waitFor();
-      assert.equal(acceptedPlans.at(-1).body.composition.arrangementConfirmations.safety, true);
-      await page.reload(); await confirmed.waitFor(); assert.equal(await confirmed.isChecked(), true);
+      assert.equal(acceptedPlans.at(-1).body.composition.moduleConfirmations['SAFETY.RAM'], true);
+      await page.reload(); await settings('SAFETY.RAM'); await confirmed.waitFor(); assert.equal(await confirmed.isChecked(), true);
       await ram.getByRole('button', { name: t('No', '否'), exact: true }).click();
       assert.equal(await confirmed.isChecked(), false);
       assert.equal(await ram.getByRole('heading', { name: t('RAM author', 'RAM 填表人'), exact: true }).count(), 0);
       await ram.getByRole('button', { name: t('Yes', '是'), exact: true }).click();
       await confirmed.check();
-      await click('Continue', '继续');
-      await page.getByRole('heading', { name: t('Section confirmation and responsible roles', '分区确认与负责人'), exact: true }).waitFor();
+      await click('Confirm event arrangements', '确认保存活动安排'); await stage(/Create|确认创建/);
+      await page.getByRole('heading', { name: t('Module confirmation and responsible roles', '模块确认与负责人'), exact: true }).waitFor();
       await page.getByRole('region', { name: t('Roster coordinator', '同工排班协调人'), exact: true }).getByText('QA Leader', { exact: true }).waitFor();
       await checkLayout('arrangement-confirmation-review');
-      await page.locator('article').filter({ has: page.getByRole('heading', { name: t('Section confirmation and responsible roles', '分区确认与负责人'), exact: true }) }).screenshot({ path: path.join(os.tmpdir(), `alife-arrangement-role-summary-${language}-${width}.png`) });
+      await page.locator('article').filter({ has: page.getByRole('heading', { name: t('Module confirmation and responsible roles', '模块确认与负责人'), exact: true }) }).screenshot({ path: path.join(os.tmpdir(), `alife-arrangement-role-summary-${language}-${width}.png`) });
       if (process.env.ALIFE_QA_STOP_AFTER_ARRANGEMENTS === '1') { console.log(`PASS ${language} ${width}: integrated tools, task/programme writes, row preservation, refreshed concurrency, collapse/navigation and responsive inputs`); await context.close(); continue; }
       await page.goto(`${base}/groups/qa-group/events/qa-event/workspace?flow=setup&stage=publish`);
       await page.getByRole('heading', { name: t('This step is currently unavailable', '此步骤暂不可进入'), exact: true }).waitFor(); assert.equal(publishes.length, 0);
@@ -270,9 +330,8 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
         await page.getByText(returned ? 'returnedForAmendment · notDecided' : 'approved · active', { exact: true }).waitFor();
       };
       await submit(); await decide(true);
-      await stage(/Details|活动资料/); await titleGroup().getByLabel('English', { exact: true }).fill('Amended meal'); await click('Save event details', '保存活动资料');
-      await page.getByRole('status').filter({ hasText: /Event details saved|活动资料已保存/ }).waitFor();
-      await stage(/5.*Approval|5.*正式审批/); await click('Generate a new version', '从当前资料生成新版本'); await submit(); await decide(false);
+      await stage(/Details|活动资料/); await titleGroup().getByLabel('English', { exact: true }).fill('Amended meal'); await waitForDetailsAutosave();
+      await stage(/4.*Approval|4.*正式审批/); await click('Generate a new version', '从当前资料生成新版本'); await submit(); await decide(false);
       assert.equal(publishes.length, 0); await checkLayout('approval');
       assert.equal(await flow().getByRole('link', { name: /Details|活动资料|Arrangements|活动安排|Team and tools|团队与功能/ }).count(), 0);
       await page.goto(`${base}/groups/qa-group/events/qa-event/workspace?flow=setup&stage=details`);
@@ -285,9 +344,9 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
       await page.getByLabel(t('Design guidance', '设计要求')).fill('Warm bilingual poster');
       await click('Generate poster draft', '生成海报草案');
       await page.getByRole('button', { name: t('Generate poster draft', '生成海报草案'), exact: true }).waitFor();
-      await page.waitForFunction(() => !document.querySelector('fieldset:disabled'));
+      await page.waitForFunction(() => !document.querySelector('[data-module-editor]:not([hidden])')?.closest('fieldset:disabled'));
       assert.equal(ai.length, 1); assert.equal(posterSaves.length, 0); await checkLayout('poster');
-      await stage(/5.*Approval|5.*正式审批/); await stage(/6.*Poster|6.*海报制作/);
+      await stage(/4.*Approval|4.*正式审批/); await stage(/5.*Poster|5.*海报制作/);
       assert.equal(await page.getByLabel(t('Design guidance', '设计要求')).inputValue(), 'Warm bilingual poster');
       await click('Adopt and save poster', '采用并保存海报');
       if (width === 1280) {
@@ -309,7 +368,7 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
       await click('Confirm and publish event', '确认并发布活动'); await page.getByRole('alertdialog').getByRole('button', { name: t('Publish', '确认发布'), exact: true }).click();
       await page.getByRole('status').filter({ hasText: /Event published|活动已发布/ }).waitFor(); assert.equal(publishes.length, 1); assert.equal(publishes[0].packageId, 'qa-package');
       await page.reload(); await page.getByRole('status').filter({ hasText: /Event published|活动已发布/ }).waitFor(); assert.ok(page.url().includes('stage=publish')); assert.equal(creates.length, 1); assert.deepEqual(errors, []);
-      await stage(/5.*Approval|5.*正式审批/);
+      await stage(/4.*Approval|4.*正式审批/);
       const requestReason = page.getByRole('group', { name: t('Changes needed and reason', '需要修改的内容及原因'), exact: true });
       await requestReason.getByLabel('English', { exact: true }).fill('Need to revise'); await requestReason.getByLabel('中文', { exact: true }).fill('需要再修改');
       await click('Request reopening for changes', '申请撤销审批并修改'); await page.getByRole('alertdialog').getByRole('button', { name: t('Confirm', '确认'), exact: true }).click();
@@ -320,7 +379,7 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
       await click('Approve reopening', '同意撤销并解冻'); await page.getByRole('alertdialog').getByRole('button', { name: t('Confirm', '确认'), exact: true }).click();
       await page.getByText(t('Reopening approved; preparation is editable', '已同意撤销，活动可重新筹备'), { exact: true }).waitFor();
       assert.equal(published, false); assert.equal(await flow().getByRole('link', { name: /6.*Poster|6.*海报制作|7.*Publish|7.*发布活动/ }).count(), 0);
-      await stage(/Details|活动资料/); await titleGroup().waitFor(); await stage(/5.*Approval|5.*正式审批/); await submit(); await decide(false);
+      await stage(/Details|活动资料/); await titleGroup().waitFor(); await stage(/4.*Approval|4.*正式审批/); await submit(); await decide(false);
       assert.equal(published, false); assert.equal(creates.length, 1); assert.deepEqual(errors, []); await checkLayout('reapproved');
       console.log(`PASS ${language} ${width}: repeated edits, return/amend/approve, frozen routes, post-approval poster, publication, reopen/reapprove, same event, language and layout`);
       await context.close();

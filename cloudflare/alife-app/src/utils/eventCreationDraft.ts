@@ -22,6 +22,7 @@ export type CreationDraft = {
   activityTypeCode: string
   overrides: { visibility?: EventVisibility; registrationMode?: 'none' | 'required'; useRecommendedWorkflow?: boolean }
   arrangementConfirmations?: Record<string, boolean>
+  moduleConfirmations?: Record<string, boolean>
   moduleOverrides: Record<string, boolean>
   factValues: Record<string, FactAnswer>
   aiCandidateFacts: Record<string, boolean>
@@ -45,7 +46,7 @@ export const initialCreationDraft = (): CreationDraft => {
     return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16)
   }
   return {
-    archetypeCode: '', activityTypeCode: '', overrides: {}, arrangementConfirmations: {}, moduleOverrides: {}, aiCandidateFacts: {},
+    archetypeCode: '', activityTypeCode: '', overrides: {}, arrangementConfirmations: {}, moduleConfirmations: {}, moduleOverrides: {}, aiCandidateFacts: {},
     factValues: Object.fromEntries(creationFacts.map(([code]) => [code, 'unknown'])),
     title: { en: '', zh: '' }, description: { en: '', zh: '' }, locationName: { en: '', zh: '' },
     startLocal: local(10), endLocal: local(12), maxCapacity: '',
@@ -55,7 +56,7 @@ export const initialCreationDraft = (): CreationDraft => {
 }
 
 export const selectCreationTemplate = (draft: CreationDraft, type: EventActivityType): CreationDraft => ({
-  ...draft, arrangementConfirmations: {}, archetypeCode: type.archetypeCode, activityTypeCode: type.code,
+  ...draft, arrangementConfirmations: {}, moduleConfirmations: {}, archetypeCode: type.archetypeCode, activityTypeCode: type.code,
   detailSources: { ...draft.detailSources, ...(draft.overrides.visibility === undefined ? { visibility: 'default' as const } : {}), ...(draft.overrides.registrationMode === undefined ? { registrationMode: 'default' as const } : {}) },
 })
 
@@ -74,7 +75,8 @@ export const composeCreationDraft = (draft: CreationDraft, type: EventActivityTy
     return { code, value: null, certainty: 'unknown', source: 'human' }
   })
   return {
-    arrangementConfirmations: Object.fromEntries(arrangementGroups.map(group => [group.key, draft.arrangementConfirmations?.[group.key] === true])),
+    arrangementConfirmations: moduleConfirmationSummary(draft.moduleConfirmations),
+    moduleConfirmations: Object.fromEntries(creationModuleCodes.map(code => [code, draft.moduleConfirmations?.[code] === true])),
     schemaVersion: '1.1.0', archetypeCode: draft.archetypeCode, activityTypeCode: type.code,
     useRecommendedWorkflow: settings.useRecommendedWorkflow, basePlanVersion: null,
     facts: { items: [
@@ -145,6 +147,7 @@ export const restoreCreationDraft = (raw: string, archetypes: EventArchetype[]):
     if (draft.archetypeCode && !archetype) return null
     if (draft.activityTypeCode && !archetype?.activityTypes.some(x => x.code === draft.activityTypeCode)) return null
     if (!draft.overrides || !draft.moduleOverrides || !draft.factValues || !draft.aiCandidateFacts) return null
+    if (draft.moduleConfirmations && !Object.entries(draft.moduleConfirmations).every(([key, value]) => creationModuleCodes.some(code => code === key) && typeof value === 'boolean')) return null
     if (draft.arrangementConfirmations && !Object.entries(draft.arrangementConfirmations).every(([key, value]) => arrangementGroups.some(group => group.key === key) && typeof value === 'boolean')) return null
     if (draft.arrangements !== undefined && !validStoredArrangements(draft.arrangements)) return null
     if (draft.overrides.visibility !== undefined && !['groupVisible', 'churchVisible', 'public'].includes(draft.overrides.visibility)) return null
@@ -182,23 +185,26 @@ export const createSubmissionGuard = () => {
 
 // Section review and tool selection are separate from factual evidence and approval.
 // Disabling a tool during preparation must not erase facts requiring it at submission.
+export const moduleConfirmationSummary = (values?: Record<string, boolean> | null) => Object.fromEntries(arrangementGroups.map(group => [group.key, group.modules.every(code => values?.[code] === true)]))
+
 export function invalidateArrangementConfirmation(draft: CreationDraft, moduleCode?: string): CreationDraft {
   const groups = arrangementGroups.filter(group => !moduleCode || group.modules.some(code => code === moduleCode))
-  return { ...draft, arrangementConfirmations: { ...draft.arrangementConfirmations, ...Object.fromEntries(groups.map(group => [group.key, false])) } }
+  const affected = moduleCode ? [moduleCode, ...(['PLACE.RESOURCE', 'MOVE.STAY', 'TEAM.WORK', 'PROGRAM.PRODUCTION', 'PEOPLE.REGISTRATION', 'SAFEGUARDING.CHILD'].includes(moduleCode) ? ['SAFETY.RAM'] : [])] : creationModuleCodes
+  const values = { ...draft.moduleConfirmations, ...Object.fromEntries(affected.map(code => [code, false])) }
+  return { ...draft, moduleConfirmations: values, arrangementConfirmations: draft.moduleConfirmations ? moduleConfirmationSummary(values) : { ...draft.arrangementConfirmations, ...Object.fromEntries(groups.map(group => [group.key, false])) } }
 }
 export function selectArrangementModule(draft: CreationDraft, moduleCode: string, selected: boolean): CreationDraft {
   const next = invalidateArrangementConfirmation(draft, moduleCode)
   return { ...next, moduleOverrides: { ...next.moduleOverrides, [moduleCode]: selected } }
 }
-
-export function confirmArrangementGroup(draft: CreationDraft, groupKey: string, confirmed: boolean, decisions: ModuleDecision[]): CreationDraft {
-  const group = arrangementGroups.find(value => value.key === groupKey)
+export function confirmArrangementModule(draft: CreationDraft, moduleCode: string, confirmed: boolean, decisions: ModuleDecision[]): CreationDraft {
   let next = draft
-  if (confirmed && group) for (const module of decisions.filter(value => group.modules.some(code => code === value.moduleCode))) {
-    // Keep the historical TEAM.WORK creation contract: the owner is supplied separately.
-    if (module.moduleCode === 'TEAM.WORK') continue
-    const selected = draft.moduleOverrides[module.moduleCode] ?? module.status !== 'inactive'
-    next = selectArrangementModule(next, module.moduleCode, selected)
-  }
-  return { ...next, arrangementConfirmations: { ...next.arrangementConfirmations, [groupKey]: confirmed } }
+  const decision = decisions.find(value => value.moduleCode === moduleCode)
+  if (confirmed && decision && moduleCode !== 'TEAM.WORK') next = { ...next, moduleOverrides: { ...next.moduleOverrides, [moduleCode]: draft.moduleOverrides[moduleCode] ?? decision.status !== 'inactive' } }
+  const values = { ...next.moduleConfirmations, [moduleCode]: confirmed }
+  return { ...next, moduleConfirmations: values, arrangementConfirmations: moduleConfirmationSummary(values) }
+}
+// Retained for callers editing legacy section metadata.
+export function confirmArrangementGroup(draft: CreationDraft, groupKey: string, confirmed: boolean, decisions: ModuleDecision[]): CreationDraft {
+  return arrangementGroups.find(group => group.key === groupKey)?.modules.reduce((next, code) => confirmArrangementModule(next, code, confirmed, decisions), draft) ?? draft
 }

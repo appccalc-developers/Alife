@@ -450,3 +450,26 @@ select {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Event arrangements: compact overview, one editor at each level. */
+.arrangement-tile-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem; }
+.arrangement-tile { aspect-ratio: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .125rem; padding: .25rem; border: 1px solid #18332d18; border-radius: 1rem; color: #18332d; text-align: center; position: relative; transition: border-color 120ms ease, box-shadow 120ms ease; }
+.arrangement-tile strong { font-size: .75rem; line-height: 1.15; overflow-wrap: anywhere; }
+.arrangement-tile-status { display: flex; align-items: center; justify-content: center; gap: .2rem; font-size: .625rem; line-height: 1.15; }
+.arrangement-tile-dirty { display: flex; align-items: center; gap: .2rem; font-size: .625rem; line-height: 1; }
+.arrangement-tile:hover, .arrangement-tile.is-active { border-color: #176b5a; box-shadow: inset 0 0 0 1px #176b5a; }
+.arrangement-tile.is-faded { opacity: 0.52; }
+.arrangement-tile:focus-visible { outline: 3px solid #176b5a; outline-offset: 3px; }
+.arrangement-editor .alife-panel { padding: .75rem 0; background: transparent; border: 0; border-radius: 0; box-shadow: none; }
+.arrangement-editor .alife-panel > header { padding-bottom: .5rem; margin-bottom: .75rem; }
+.arrangement-tool-panel { min-width: 0; padding-top: .75rem; }
+.arrangement-owner .alife-panel { padding: 0; border: 0; box-shadow: none; background: transparent; }
+@media (min-width: 768px) { .arrangement-tile-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .75rem; } .arrangement-tile strong { font-size: .875rem; } .arrangement-tile-status, .arrangement-tile-dirty { font-size: .75rem; } }
+@media (min-width: 1024px) { .arrangement-tile-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+@media (prefers-reduced-motion: reduce) { .arrangement-tile { transition: none; } }
+
+.arrangement-tile-icon { display: flex; align-items: center; justify-content: center; min-height: 20px; }
+.arrangement-editor article[class*="rounded"],
+.arrangement-editor fieldset[class*="rounded"],
+.arrangement-editor details[class*="rounded"],
+.arrangement-editor form[class*="rounded"] { border: 0; border-bottom: 1px solid #18332d18; border-radius: 0; padding: .75rem 0; background: transparent; box-shadow: none; }

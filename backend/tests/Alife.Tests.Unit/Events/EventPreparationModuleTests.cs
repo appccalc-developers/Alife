@@ -140,4 +140,73 @@ public sealed partial class EventPackageFoundationTests
         Assert.Equal(AppResultStatus.Conflict, oldClient.Status);
     }
 
+    [Fact]
+    public void ModuleConfirmation_IsIndependent_Hashed_AndSummarizesLegacySections()
+    {
+        var engine = new EventCompositionEngine();
+        var input = PreparationComposition(false, 1) with { ModuleConfirmations = new Dictionary<string, bool> { ["SAFETY.RAM"] = true } };
+        var first = engine.Compose(input, new("baseline", IsPreparationDraft: true));
+        Assert.True(first.IsSuccess, first.Message);
+        Assert.DoesNotContain("moduleConfirmations", EventPackageCanonicalizer.Serialize(input with { ModuleConfirmations = null }));
+        Assert.Equal(12, first.Value!.ModuleConfirmations!.Count);
+        Assert.True(first.Value.ModuleConfirmations["SAFETY.RAM"]);
+        Assert.False(first.Value.ModuleConfirmations["SAFEGUARDING.CHILD"]);
+        Assert.False(first.Value.ArrangementConfirmations!["safety"]);
+        var second = engine.Compose(input with { ModuleConfirmations = new Dictionary<string, bool> { ["SAFETY.RAM"] = true, ["SAFEGUARDING.CHILD"] = true } }, new("baseline", IsPreparationDraft: true));
+        Assert.True(second.Value!.ArrangementConfirmations!["safety"]);
+        Assert.NotEqual(first.Value.ProposalHash, second.Value.ProposalHash);
+        Assert.False(engine.Compose(input with { ModuleConfirmations = new Dictionary<string, bool> { ["unknown"] = true } }, new("baseline")).IsSuccess);
+        Assert.Equal(first.Value.Readiness.Status, second.Value.Readiness.Status);
+    }
+
+    [Fact]
+    public async Task ModuleConfirmation_RefreshIsPrecise_HistoryImmutable_AndOldClientCannotOverwrite()
+    {
+        await using var db = CreateDb();
+        var seeded = await SeedAsync(db, false, PreparationModules);
+        seeded.Event.PublicationStatus = EventPublicationStatus.Draft; await db.SaveChangesAsync();
+        var input = PreparationComposition(true, seeded.Plan.PlanVersion) with
+        { ModuleConfirmations = EventCompositionDefinitions.Modules.ToDictionary(x => x.Code, _ => true), ArrangementConfirmations = new Dictionary<string, bool>() };
+        var engine = new EventCompositionEngine(); var auth = Authorization();
+        var preview = await new RecomposeEventPlanCommandHandler(db, auth, engine).Handle(new(seeded.Event.Id, seeded.Owner, input, seeded.Plan.ETag), default);
+        var handler = new AcceptEventPlanCommandHandler(db, auth, engine, Substitute.For<IEventCacheInvalidationService>(), new EventPackageInvalidationService(db));
+        var accepted = await handler.Handle(new(seeded.Event.Id, seeded.Owner, new(preview.Value!.ProposalHash, [], input), seeded.Plan.ETag, "module-confirmation"), default);
+        Assert.True(accepted.IsSuccess, accepted.Message);
+        await new EventPackageInvalidationService(db).InvalidateForModuleChangeAsync(seeded.Event, seeded.Owner, "SAFETY.RAM", "event.ram.saved", "operational");
+        await db.SaveChangesAsync();
+        var refreshed = await new GetEventPlanQueryHandler(db, auth).Handle(new(seeded.Event.Id, seeded.Owner), default);
+        Assert.False(refreshed.Value!.Plan.ModuleConfirmations!["SAFETY.RAM"]);
+        Assert.True(refreshed.Value.Plan.ModuleConfirmations["SAFEGUARDING.CHILD"]);
+        Assert.True(EventCompositionPersistence.ToSnapshotDto(await db.EventPlanSnapshots.SingleAsync(x => x.IsActive)).Plan.ModuleConfirmations!["SAFETY.RAM"]);
+        var old = input with { BasePlanVersion = refreshed.Value.PlanVersion, ModuleConfirmations = null };
+        Assert.Equal(AppResultStatus.Conflict, (await new RecomposeEventPlanCommandHandler(db, auth, engine).Handle(new(seeded.Event.Id, seeded.Owner, old, refreshed.Value.ETag), default)).Status);
+        Assert.Equal(AppResultStatus.Conflict, (await handler.Handle(new(seeded.Event.Id, seeded.Owner, new("ignored", [], old), refreshed.Value.ETag, "old-module-client"), default)).Status);
+        db.AuditLogs.Add(new() { Id = Guid.NewGuid(), ActorMemberId = seeded.Owner, EventId = seeded.Event.Id, GroupId = seeded.Event.GroupId, Action = EventArrangementConfirmationPolicy.ChangeAction, EntityType = "GroupEvent", EntityId = seeded.Event.Id, AfterJson = "{\"section\":\"people\"}", MetadataJson = "{}", OccurredUtc = DateTime.UtcNow.AddSeconds(1) });
+        await db.SaveChangesAsync();
+        refreshed = await new GetEventPlanQueryHandler(db, auth).Handle(new(seeded.Event.Id, seeded.Owner), default);
+        Assert.False(refreshed.Value!.Plan.ModuleConfirmations!["TEAM.WORK"]);
+        Assert.False(refreshed.Value.Plan.ModuleConfirmations["SERVICE.ROSTER"]);
+        Assert.True(refreshed.Value.Plan.ModuleConfirmations["FOOD.HOSPITALITY"]);
+    }
+
+    [Theory]
+    [InlineData("{\"moduleCode\":\"PLACE.RESOURCE\",\"section\":\"programme\",\"invalidatesRam\":true}", false)]
+    [InlineData("{\"section\":\"unrecognized\"}", true)]
+    [InlineData("[]", true)]
+    [InlineData("{\"section\":42}", true)]
+    public async Task ModuleConfirmation_DependencyAndUnknownAuditFailClosed(string audit, bool revokeAll)
+    {
+        await using var db = CreateDb();
+        var seeded = await SeedAsync(db, false, PreparationModules);
+        var snapshot = seeded.Plan;
+        snapshot = snapshot with { Plan = snapshot.Plan with { ModuleConfirmations = EventCompositionDefinitions.Modules.ToDictionary(x => x.Code, _ => true) } };
+        db.AuditLogs.Add(new() { Id = Guid.NewGuid(), ActorMemberId = seeded.Owner, EventId = seeded.Event.Id, GroupId = seeded.Event.GroupId, Action = EventArrangementConfirmationPolicy.ChangeAction, EntityType = "GroupEvent", EntityId = seeded.Event.Id, AfterJson = audit, MetadataJson = "{}", OccurredUtc = DateTime.UtcNow.AddSeconds(1) });
+        await db.SaveChangesAsync();
+        var current = await EventArrangementConfirmationPolicy.RefreshAsync(db, snapshot, default);
+        Assert.False(current.Plan.ModuleConfirmations!["SAFETY.RAM"]);
+        Assert.False(current.Plan.ModuleConfirmations["PLACE.RESOURCE"]);
+        Assert.Equal(!revokeAll, current.Plan.ModuleConfirmations["PROGRAM.PRODUCTION"]);
+        Assert.Equal(!revokeAll, current.Plan.ModuleConfirmations["FOOD.HOSPITALITY"]);
+    }
+
 }

@@ -213,11 +213,10 @@ public sealed class EventCompositionEngine : IEventCompositionEngine
             activityType?.Code,
             activityType?.Version,
             workflowRecommendation,
-            request.ArrangementConfirmations?.OrderBy(x => x.Key, StringComparer.Ordinal).ToDictionary(x => x.Key, x => x.Value));
+            EventArrangementConfirmationPolicy.LegacySummary(request.ModuleConfirmations) ?? request.ArrangementConfirmations?.OrderBy(x => x.Key, StringComparer.Ordinal).ToDictionary(x => x.Key, x => x.Value),
+            EventArrangementConfirmationPolicy.NormalizeModules(request.ModuleConfirmations));
 
-        return AppResult<EventPlanProposalDto>.Success(proposal with
-        {
-            ProposalHash = Hash(new
+        var legacyHashInput = new
             {
                 proposal.SchemaVersion,
                 proposal.BaselineETag,
@@ -236,7 +235,10 @@ public sealed class EventCompositionEngine : IEventCompositionEngine
                 proposal.Navigation,
                 proposal.Diff,
                 proposal.Warnings
-            })
+            };
+        return AppResult<EventPlanProposalDto>.Success(proposal with
+        {
+            ProposalHash = proposal.ModuleConfirmations is null ? Hash(legacyHashInput) : Hash(new { legacyHashInput, proposal.ModuleConfirmations })
         });
     }
 
@@ -267,6 +269,8 @@ public sealed class EventCompositionEngine : IEventCompositionEngine
         EventPlanComposeRequest request,
         IReadOnlyDictionary<string, EventActivityTypeDefinition> activityTypesByCode)
     {
+        if (request.ModuleConfirmations?.Keys.Any(key => !EventCompositionDefinitions.ModulesByCode.ContainsKey(key)) == true)
+            return "Unknown module confirmation code.";
         if (request.ArrangementConfirmations?.Keys.Any(key =>
                 key is not ("people" or "safety" or "programme" or "travel" or "food" or "money" or "followup")) == true)
             return "Unknown arrangement confirmation section.";

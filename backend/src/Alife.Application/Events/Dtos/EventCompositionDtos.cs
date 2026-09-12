@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Alife.Domain.Enums;
 
 namespace Alife.Application.Events.Dtos;
@@ -27,7 +28,8 @@ public sealed record EventPlanComposeRequest(
     int? BasePlanVersion = null,
     string? ActivityTypeCode = null,
     bool UseRecommendedWorkflow = false,
-    IReadOnlyDictionary<string, bool>? ArrangementConfirmations = null);
+    IReadOnlyDictionary<string, bool>? ArrangementConfirmations = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, bool>? ModuleConfirmations = null);
 
 public sealed record EventFactSetDto(
     int? Version,
@@ -103,7 +105,8 @@ public sealed record EventPlanProposalDto(
     string? ActivityTypeCode = null,
     int? ActivityTypeVersion = null,
     EventWorkflowRecommendationDto? WorkflowRecommendation = null,
-    IReadOnlyDictionary<string, bool>? ArrangementConfirmations = null);
+    IReadOnlyDictionary<string, bool>? ArrangementConfirmations = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, bool>? ModuleConfirmations = null);
 
 public sealed record EventWorkflowRecommendationDto(
     string Code,
