@@ -35,6 +35,30 @@ export const ramActivityTypes = ['generic', 'hiking', 'water', 'sport', 'transpo
 export const ramActivityLabels: Record<string, RamText> = {
   generic: { en: 'General activity', zh: '通用活动' }, hiking: { en: 'Hiking', zh: '徒步' }, water: { en: 'Water activity', zh: '水上活动' }, sport: { en: 'Sport', zh: '运动' }, transport: { en: 'Transport', zh: '交通' }, camp: { en: 'Camp / overnight', zh: '营会／过夜' }, meal: { en: 'Shared meal', zh: '聚餐' }, outdoor: { en: 'Other outdoor activity', zh: '其他户外活动' }, other: { en: 'Other (general questions)', zh: '其他（通用题集）' },
 }
+export const ramDefaultScales: Pick<RamPolicyData, 'likelihood' | 'impact'> = {
+  likelihood: [
+    { value: 1, label: { en: 'Rare', zh: '极少' }, description: { en: 'Less than 5% chance of occurring.', zh: '发生机会低于 5%。' } },
+    { value: 2, label: { en: 'Unlikely', zh: '不太可能' }, description: { en: '5–29% chance of occurring.', zh: '发生机会为 5–29%。' } },
+    { value: 3, label: { en: 'Moderate', zh: '中等' }, description: { en: '30–59% chance of occurring.', zh: '发生机会为 30–59%。' } },
+    { value: 4, label: { en: 'Likely', zh: '很可能' }, description: { en: '60–79% chance of occurring.', zh: '发生机会为 60–79%。' } },
+    { value: 5, label: { en: 'Almost certain', zh: '几乎肯定' }, description: { en: '80% or greater chance of occurring.', zh: '发生机会为 80% 或以上。' } },
+  ],
+  impact: [
+    { value: 1, label: { en: 'Negligible', zh: '可忽略' }, description: { en: 'Minor discomfort or negligible injury.', zh: '轻微不适或可忽略的伤害。' } },
+    { value: 2, label: { en: 'Minor', zh: '轻微' }, description: { en: 'Basic first aid; recovery in less than one week.', zh: '基本急救；恢复时间少于一周。' } },
+    { value: 3, label: { en: 'Moderate', zh: '中等' }, description: { en: 'Advanced first aid or medical visit; recovery in 1–6 weeks.', zh: '进阶急救或就医；恢复时间为 1–6 周。' } },
+    { value: 4, label: { en: 'Major', zh: '严重' }, description: { en: 'Hospital or emergency treatment; recovery longer than six weeks.', zh: '医院或急诊治疗；恢复时间超过六周。' } },
+    { value: 5, label: { en: 'Catastrophic', zh: '灾难性' }, description: { en: 'Immediate emergency response; permanent disability or death, or hospitalisation longer than six weeks.', zh: '需立即紧急救援；永久残疾、死亡或住院超过六周。' } },
+  ],
+}
+export const ramAlphaDemoLevel = (likelihood: number, impact: number): Exclude<RamLevel, 'Incomplete'> => {
+  const score = likelihood * impact
+  return score >= 20 ? 'Red' : score >= 6 ? 'Yellow' : 'Green'
+}
+export const applyRamAlphaDemoMatrix = (policy: RamPolicyData): RamPolicyData => ({
+  ...policy,
+  matrix: policy.matrix.map(cell => ({ ...cell, level: ramAlphaDemoLevel(cell.likelihood, cell.impact) })),
+})
 export const ramText = (): RamText => ({ en: '', zh: '' })
 export const displayRamText = (text: RamText | undefined, zh: boolean) => text?.[zh ? 'zh' : 'en'] || text?.[zh ? 'en' : 'zh'] || ''
 export const ramQuestionKey = (question: RamQuestion) => `${question.activityType}:${question.code}`

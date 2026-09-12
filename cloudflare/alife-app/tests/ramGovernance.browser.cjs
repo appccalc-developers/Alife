@@ -8,9 +8,23 @@ const text = (en, zh) => ({ en, zh });
 const eventId = '11111111-1111-1111-1111-111111111111';
 const churchId = '22222222-2222-2222-2222-222222222222';
 const categories = ['environment', 'activity', 'participants', 'transport', 'emergency'];
+const likelihood = [
+  ['Rare', '极少', 'Less than 5% chance of occurring.', '发生机会低于 5%。'],
+  ['Unlikely', '不太可能', '5–29% chance of occurring.', '发生机会为 5–29%。'],
+  ['Moderate', '中等', '30–59% chance of occurring.', '发生机会为 30–59%。'],
+  ['Likely', '很可能', '60–79% chance of occurring.', '发生机会为 60–79%。'],
+  ['Almost certain', '几乎肯定', '80% or greater chance of occurring.', '发生机会为 80% 或以上。'],
+];
+const impact = [
+  ['Negligible', '可忽略', 'Minor discomfort or negligible injury.', '轻微不适或可忽略的伤害。'],
+  ['Minor', '轻微', 'Basic first aid; recovery in less than one week.', '基本急救；恢复时间少于一周。'],
+  ['Moderate', '中等', 'Advanced first aid or medical visit; recovery in 1–6 weeks.', '进阶急救或就医；恢复时间为 1–6 周。'],
+  ['Major', '严重', 'Hospital or emergency treatment; recovery longer than six weeks.', '医院或急诊治疗；恢复时间超过六周。'],
+  ['Catastrophic', '灾难性', 'Immediate emergency response; permanent disability or death, or hospitalisation longer than six weeks.', '需立即紧急救援；永久残疾、死亡或住院超过六周。'],
+];
 const makePolicy = () => ({ id: 'policy-1', churchId, version: 1, isPublished: false, eTag: 'policy-etag-1', data: {
-  likelihood: [1,2,3,4,5].map(value => ({ value, label: text(`Likelihood ${value}`, `可能性 ${value}`), description: text(`Definition ${value}`, `定义 ${value}`) })),
-  impact: [1,2,3,4,5].map(value => ({ value, label: text(`Impact ${value}`, `影响 ${value}`), description: text(`Definition ${value}`, `定义 ${value}`) })),
+  likelihood: likelihood.map(([en, zh, descriptionEn, descriptionZh], index) => ({ value: index + 1, label: text(en, zh), description: text(descriptionEn, descriptionZh) })),
+  impact: impact.map(([en, zh, descriptionEn, descriptionZh], index) => ({ value: index + 1, label: text(en, zh), description: text(descriptionEn, descriptionZh) })),
   matrix: [1,2,3,4,5].flatMap(likelihood => [1,2,3,4,5].map(impact => ({ likelihood, impact, level: null }))),
   categories: categories.map(code => ({ code, name: text(code, code), guidance: text('Consider people, equipment and task factors.', '考虑人员、设备和任务因素。') })),
   questions: Array.from({ length: 8 }, (_, i) => ({ code: `q${i}`, activityType: 'generic', categoryCode: categories[i % 5], text: text(`Question ${i}`, `问题 ${i}`), guidance: text('Who checks this and what remains unknown?', '由谁核查，还有哪些未知事项？') })),
@@ -57,7 +71,14 @@ const makePolicy = () => ({ id: 'policy-1', churchId, version: 1, isPublished: f
       await page.getByLabel('1 × 1', { exact: true }).waitFor();
       assert.equal(await page.getByRole('tablist').count(), 1);
       assert.equal(await page.getByRole('button', { name: t('Preview and publish','预览并发布'), exact: true }).isDisabled(), true);
-      for (let l=1;l<=5;l++) for (let i=1;i<=5;i++) await page.getByLabel(`${l} × ${i}`, { exact: true }).selectOption((l+i)%3 === 0 ? 'Red' : 'Green');
+      const writesBeforePreset = writes.length;
+      await page.getByRole('button', { name: t('Load preset into all 25 cells','载入预设到全部 25 格'), exact: true }).click();
+      await page.getByRole('alertdialog').getByRole('button', { name: t('Load and continue editing','载入并继续编辑'), exact: true }).click();
+      assert.equal(writes.length, writesBeforePreset);
+      assert.equal(await page.getByLabel('1 × 1', { exact: true }).inputValue(), 'Green');
+      assert.equal(await page.getByLabel('2 × 3', { exact: true }).inputValue(), 'Yellow');
+      assert.equal(await page.getByLabel('4 × 5', { exact: true }).inputValue(), 'Red');
+      await page.getByLabel('1 × 5', { exact: true }).selectOption('Yellow');
       await page.getByRole('tab', { name: t('Questions','活动题库'), exact: true }).click();
       await page.getByLabel(t('Search questions','搜索题目'), { exact: true }).fill('q7');
       await page.locator('summary').filter({ hasText: t('Question 7','问题 7') }).waitFor();
@@ -79,6 +100,13 @@ const makePolicy = () => ({ id: 'policy-1', churchId, version: 1, isPublished: f
       const area = async (en, cn) => { if (!await page.locator('[data-module-editor="SAFETY.RAM"]').count()) return; const button = page.locator('[data-module-editor="SAFETY.RAM"]').getByRole('button', { name: t(en, cn), exact: true }); if (await button.getAttribute('aria-expanded') !== 'true') await button.click(); };
       await area('Activities and conditions', '活动项目与条件');
       await page.getByLabel(t('Participant count','参与人数'), { exact: true }).waitFor();
+      const riskSelects = page.locator('[data-ram-risk]').first().getByRole('combobox');
+      const likelihoodOption = await riskSelects.nth(2).locator('option:checked').textContent();
+      assert.ok(likelihoodOption.includes('Unlikely') && likelihoodOption.includes('不太可能'));
+      assert.ok(likelihoodOption.includes('5–29% chance of occurring.') && likelihoodOption.includes('发生机会为 5–29%。'));
+      const impactOption = await riskSelects.nth(3).locator('option:checked').textContent();
+      assert.ok(impactOption.includes('Moderate') && impactOption.includes('中等'));
+      assert.ok(impactOption.includes('Advanced first aid or medical visit') && impactOption.includes('进阶急救或就医'));
       await page.getByLabel(t('Participant count','参与人数'), { exact: true }).fill('13');
       await page.getByRole('button', { name: t('Save RAM draft','保存 RAM 草稿'), exact: true }).click();
       await page.getByRole('status').filter({ hasText: t('Action completed.','操作已完成。') }).waitFor();
@@ -114,7 +142,7 @@ const makePolicy = () => ({ id: 'policy-1', churchId, version: 1, isPublished: f
       await page.screenshot({ path: path.join(os.tmpdir(), `alife-ram-workspace-${language}-${width}.png`), fullPage: true });
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 2), false);
       assert.deepEqual(errors, []); assert.ok(workspaceReads >= 2);
-      console.log(`PASS RAM ${language} ${width}: Workspace safety navigation, language stability, 25-cell policy, question pagination, explicit publication, manual save, AI outage isolation, personal version confirmation, protected draft print/PDF`);
+      console.log(`PASS RAM ${language} ${width}: Workspace safety navigation, language stability, Alpha Demo 25-cell preset, bilingual scale definitions, question pagination, explicit publication, manual save, AI outage isolation, personal version confirmation, protected draft print/PDF`);
       await context.close();
     }
   } finally { await browser.close(); }
