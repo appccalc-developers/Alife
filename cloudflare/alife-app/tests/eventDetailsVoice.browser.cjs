@@ -60,7 +60,7 @@ async function setup(browser, language, width, speech = 'standard') {
   await page.getByRole('button', { name: zh ? '继续' : 'Continue', exact: true }).click();
   return {
     context, page, errors, messages,
-    prompt: page.getByLabel(zh ? '明确提供的资料会填入草稿；不确定之处会继续询问。请在创建前审阅。' : 'Explicit details fill the draft; uncertain details prompt a follow-up. Review before creating.', { exact: true }),
+    prompt: page.getByLabel(zh ? '可直接继续补充活动信息，AI 会据你提供内容更新草稿。' : 'Continue entering event details; AI will update the draft from what you provide.', { exact: true }),
     start: page.getByRole('button', { name: zh ? '语音输入' : 'Voice input', exact: true }),
     stop: page.getByRole('button', { name: zh ? '停止语音输入' : 'Stop voice input', exact: true }),
     send: page.getByRole('button', { name: zh ? '发送并整理资料' : 'Send and organise details', exact: true }),
@@ -177,7 +177,7 @@ const waitText = (page, text) => page.waitForFunction(text => document.querySele
     await page.getByRole('button', { name: '语音输入', exact: true }).waitFor();
     assert.equal(await page.evaluate(() => window.__voice.instances.length), recognitionCount);
     await page.waitForFunction(() => window.__voice.instances.at(-1).aborts > 0);
-    assert.equal(await page.getByLabel('明确提供的资料会填入草稿；不确定之处会继续询问。请在创建前审阅。', { exact: true }).inputValue(), 'Preserved');
+    assert.equal(await page.getByLabel('可直接继续补充活动信息，AI 会据你提供内容更新草稿。', { exact: true }).inputValue(), 'Preserved');
     await page.getByRole('button', { name: '选择语言，当前语言：中文', exact: true }).click();
     await page.getByRole('menuitemradio', { name: 'English', exact: true }).click();
     await start.click();

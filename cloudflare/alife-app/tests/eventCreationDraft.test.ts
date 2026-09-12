@@ -3,7 +3,7 @@ import test from 'node:test'
 import { readFileSync } from 'node:fs'
 import { creationMessage } from '../src/utils/eventCreationCopy.ts'
 import type { EventActivityType, EventArchetype, ModuleDecision } from '../src/types/eventComposition.ts'
-import { confirmArrangementGroup, invalidateArrangementConfirmation, selectArrangementModule, changeOptionalModule, composeCreationDraft, createRequestSequence, createSubmissionGuard, creationDraftKey, creationEvent, creationSeries, creationSettings, initialCreationDraft, restoreCreationDraft, selectCreationTemplate, validateCreationDraft } from '../src/utils/eventCreationDraft.ts'
+import { confirmArrangementModule, moduleConfirmationSummary, confirmArrangementGroup, invalidateArrangementConfirmation, selectArrangementModule, changeOptionalModule, composeCreationDraft, createRequestSequence, createSubmissionGuard, creationDraftKey, creationEvent, creationSeries, creationSettings, initialCreationDraft, restoreCreationDraft, selectCreationTemplate, validateCreationDraft } from '../src/utils/eventCreationDraft.ts'
 
 const type: EventActivityType = {
   code: 'shared-meal', archetypeCode: 'simple-social', version: 2,
@@ -128,9 +128,10 @@ test('readiness tasks and required-module warnings use readable bilingual labels
 })
 
 
-test('section confirmation defaults false and module choices invalidate only their group', () => {
+test('legacy section metadata remains readable until explicitly reviewed as modules', () => {
   let value = draft()
   assert.ok(Object.values(composeCreationDraft(value, type).arrangementConfirmations!).every(x => x === false))
+  value.moduleConfirmations = undefined
   value.arrangementConfirmations = { people: true, safety: true, food: true }
   value.factValues['safety.requiresRam'] = 'yes'
   value = selectArrangementModule(value, 'SAFETY.RAM', false)
@@ -153,4 +154,30 @@ test('travel confirmation does not invent transport or accommodation facts, and 
   assert.equal(value.factValues['move.accommodationRequired'], 'unknown')
   assert.equal(value.arrangementConfirmations!.travel, true)
   assert.equal(restoreCreationDraft(JSON.stringify({ version: 3, draft: { ...value, arrangementConfirmations: { travel: 'yes' } } }), [category(type)]), null)
+})
+
+
+test('module confirmation is independent, invalidates precisely and never infers old section confirmation', () => {
+  const draft = initialCreationDraft()
+  const ram = confirmArrangementModule(draft, 'SAFETY.RAM', true, [])
+  assert.equal(ram.moduleConfirmations?.['SAFETY.RAM'], true)
+  assert.equal(moduleConfirmationSummary(ram.moduleConfirmations).safety, false)
+  const both = confirmArrangementModule(ram, 'SAFEGUARDING.CHILD', true, [])
+  assert.equal(moduleConfirmationSummary(both.moduleConfirmations).safety, true)
+  const changed = invalidateArrangementConfirmation(both, 'SAFETY.RAM')
+  assert.equal(changed.moduleConfirmations?.['SAFETY.RAM'], false)
+  assert.equal(changed.moduleConfirmations?.['SAFEGUARDING.CHILD'], true)
+  const old = { ...draft, moduleConfirmations: undefined, arrangementConfirmations: { safety: true } }
+  assert.equal(moduleConfirmationSummary(old.moduleConfirmations).safety, false)
+})
+
+
+test('operational dependencies revoke RAM review but preserve unrelated module confirmations', () => {
+  const value = { ...initialCreationDraft(), moduleConfirmations: { 'SAFETY.RAM': true, 'PLACE.RESOURCE': true, 'FOOD.HOSPITALITY': true } }
+  const changed = invalidateArrangementConfirmation(value, 'PLACE.RESOURCE')
+  assert.equal(changed.moduleConfirmations?.['SAFETY.RAM'], false)
+  assert.equal(changed.moduleConfirmations?.['PLACE.RESOURCE'], false)
+  assert.equal(changed.moduleConfirmations?.['FOOD.HOSPITALITY'], true)
+  const reviewed = confirmArrangementModule(value, 'SAFEGUARDING.CHILD', true, [{ moduleCode: 'SAFEGUARDING.CHILD', status: 'selected' } as ModuleDecision])
+  assert.equal(reviewed.moduleConfirmations?.['SAFETY.RAM'], true, 'reviewing a selection is not a safety content mutation')
 })

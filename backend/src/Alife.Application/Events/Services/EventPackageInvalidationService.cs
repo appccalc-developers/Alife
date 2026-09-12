@@ -56,13 +56,15 @@ public sealed class EventPackageInvalidationService(
                 Action = EventArrangementConfirmationPolicy.ChangeAction, EntityType = "GroupEvent", EntityId = groupEvent.Id,
                 BeforeJson = "{}", AfterJson = EventPackageCanonicalizer.Serialize(new
                 {
-                    section = EventArrangementConfirmationPolicy.GroupForModule(affectedModuleCode), changeCode
+                    section = EventArrangementConfirmationPolicy.GroupForModule(affectedModuleCode), moduleCode = affectedModuleCode, changeCode,
+                    invalidatesRam = !changeCode.StartsWith("event.ram.", StringComparison.Ordinal) &&
+                        (affectedModuleCode is null or "PLACE.RESOURCE" or "MOVE.STAY" or "TEAM.WORK" or "PROGRAM.PRODUCTION" or "PEOPLE.REGISTRATION" or "SAFEGUARDING.CHILD" or "SAFETY.RAM")
                 }), MetadataJson = "{}", OccurredUtc = now
             });
         // Changes to safety inputs invalidate the RAM signature as well as Package eligibility.
         // RAM transitions have already set their own state and must not invalidate themselves.
         if (!changeCode.StartsWith("event.ram.", StringComparison.Ordinal) &&
-            (affectedModuleCode is null or "PLACE.RESOURCE" or "MOVE.STAY" or "TEAM.WORK" or "PROGRAM.PRODUCTION" or "PEOPLE.REGISTRATION" or "SAFEGUARDING.CHILD"))
+            (affectedModuleCode is null or "PLACE.RESOURCE" or "MOVE.STAY" or "TEAM.WORK" or "PROGRAM.PRODUCTION" or "PEOPLE.REGISTRATION" or "SAFEGUARDING.CHILD" or "SAFETY.RAM"))
         {
             var ram = groupEvent.RamAssessment ?? await db.EventRamAssessments.FirstOrDefaultAsync(x => x.EventId == groupEvent.Id, cancellationToken);
             if (ram is not null)

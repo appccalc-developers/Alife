@@ -1,6 +1,5 @@
 import { useEffect, useId, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import { MessageCircle, Mic, Send, Square } from 'lucide-react'
-import AppSectionCard from '../../layout/AppSectionCard'
 import AppActionButton from '../../layout/AppActionButton'
 import AppBadge from '../../layout/AppBadge'
 import { createAiSessionService } from '../../../services/aiSessionService'
@@ -14,8 +13,8 @@ import { useDetailsVoiceInput } from './useDetailsVoiceInput'
 
 const service = createAiSessionService<DetailsResult>('/api/events/details-session')
 type Turn = { id: string; role: 'user' | 'assistant'; text: string | Bilingual }
-export default function EventDetailsAssistant({ draft, setDraft, type, isSeries, zh, active, onBusy, onReturnToForm }: {
-  draft: CreationDraft; setDraft: Dispatch<SetStateAction<CreationDraft>>; type: EventActivityType; isSeries: boolean; zh: boolean; active: boolean; onBusy: (busy: boolean) => void; onReturnToForm: () => void
+export default function EventDetailsAssistant({ draft, setDraft, type, isSeries, zh, active, onBusy }: {
+  draft: CreationDraft; setDraft: Dispatch<SetStateAction<CreationDraft>>; type: EventActivityType; isSeries: boolean; zh: boolean; active: boolean; onBusy: (busy: boolean) => void
 }) {
   const [prompt, setPrompt] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState('')
   const promptId = useId()
@@ -85,7 +84,8 @@ export default function EventDetailsAssistant({ draft, setDraft, type, isSeries,
   })
   const currentResult = resultSignature === signature ? result : null
   const defaultsPending = completion.pending.filter(field => (snapshot.sources[field] ?? 'default') === 'default' && validDetail(field, snapshot.form))
-  return <AppSectionCard><details open onToggle={event => { if (!event.currentTarget.open) voice.cancel() }}><summary className="min-h-11 cursor-pointer py-2 font-semibold">{zh ? 'AI 资料助手' : 'AI details assistant'}<AppBadge className="ml-2 max-w-full break-words align-middle">{zh ? '已选模板：' : 'Selected template: '}{localText(type.name, zh)}</AppBadge></summary>
+  return <section className="space-y-3">
+    <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-[#176b5a]/15 pb-3"><span className="min-h-11 font-semibold">{zh ? 'AI 资料助手' : 'AI details assistant'}</span><AppBadge className="max-w-full break-words align-middle">{zh ? '已选模板：' : 'Selected template: '}{localText(type.name, zh)}</AppBadge></div>
     <div ref={conversation} role="log" tabIndex={0} aria-label={zh ? '资料助手对话（按时间顺序）' : 'Details assistant conversation (chronological)'} className="mt-3 max-h-80 min-h-40 space-y-4 overflow-y-auto overscroll-contain rounded-2xl border border-[#2f4b42]/10 bg-[#f5f2eb] px-3 py-4 sm:px-5" style={{ backgroundImage: 'radial-gradient(rgba(47,75,66,0.08) 0.75px, transparent 0.75px)', backgroundSize: '16px 16px' }}>
       {turns.length ? turns.map(turn => <div key={turn.id} className={`flex ${turn.role === 'user' ? 'justify-end' : 'justify-start'}`}>
         <div className={`relative w-fit min-w-0 max-w-[88%] rounded-2xl px-4 py-3 text-sm shadow-sm sm:max-w-[80%] ${turn.role === 'user' ? 'rounded-tr-sm bg-[#e3f0eb]' : 'rounded-tl-sm bg-white'}`}>
@@ -95,19 +95,18 @@ export default function EventDetailsAssistant({ draft, setDraft, type, isSeries,
         </div>
       </div>) : <div className="flex min-h-32 flex-col items-center justify-center gap-2 px-2 text-center text-sm text-[#66766f]">
         <MessageCircle className="text-[#176b5a]" size={28} aria-hidden="true" />
-        <span>{zh ? '从你的活动想法聊起吧。' : 'Start with your idea for the event.'}</span>
-        <span className="text-xs">{zh ? '可以打字，也可以用语音输入。' : 'Type a message or use voice input.'}</span>
+        <span>{zh ? '请提供：活动名称、活动说明、地点说明、开始时间、结束时间、可见范围、报名方式、（如需报名）最少参加人数、活动时区。AI 会根据你提供的信息自动填写表单。' : 'Please provide: event title, event description, location, start time, end time, visibility, registration method, minimum attendees (if registration is required), and event time zone. AI will auto-fill the form from your input.'}</span>
       </div>}
     </div>
     <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-      <label htmlFor={promptId} className="min-w-[12rem] flex-1 text-sm leading-6 text-[#66766f]">{zh ? '明确提供的资料会填入草稿；不确定之处会继续询问。请在创建前审阅。' : 'Explicit details fill the draft; uncertain details prompt a follow-up. Review before creating.'}</label>
+      <label htmlFor={promptId} className="min-w-[12rem] flex-1 text-sm leading-6 text-[#66766f]">{zh ? '可直接继续补充活动信息，AI 会据你提供内容更新草稿。' : 'Continue entering event details; AI will update the draft from what you provide.'}</label>
       <AppActionButton className="ml-auto min-h-11 gap-2" variant={voice.active ? 'primary' : 'secondary'} aria-controls={promptId} aria-pressed={voice.active} aria-describedby={`${promptId}-voice-help`} disabled={busy || !voice.supported || voice.phase === 'stopping'} onClick={voice.active ? voice.stop : voice.start}>
         {voice.active ? <Square size={16} aria-hidden="true" /> : <Mic size={16} aria-hidden="true" />}
         {voice.phase === 'stopping' ? (zh ? '正在停止……' : 'Stopping…') : voice.active ? (zh ? '停止语音输入' : 'Stop voice input') : (zh ? '语音输入' : 'Voice input')}
       </AppActionButton>
     </div>
     <textarea id={promptId} aria-describedby={`${promptId}-voice-help`} className={`${creationInput} py-2`} rows={3} maxLength={8000} value={prompt} disabled={busy} onChange={e => setPrompt(e.target.value)} />
-    <p id={`${promptId}-voice-help`} className="mt-2 text-xs leading-5 text-[#66766f]">{voice.supported ? (zh ? '语音文字会追加到输入框；请核对后发送。浏览器可能通过在线服务识别语音。' : 'Dictated text is added to your message for review before sending. Your browser may use an online speech service.') : voiceError}</p>
+    <p id={`${promptId}-voice-help`} className="mt-2 text-xs leading-5 text-[#66766f]">{voice.supported ? (zh ? '语音和打字都可以直接补充内容。' : 'You can add details by voice or typing.') : voiceError}</p>
     <div role="status" className="mt-2 text-sm text-[#176b5a]">
       {voice.active ? <p>{voice.phase === 'starting' ? (zh ? '正在启动麦克风，请允许浏览器使用麦克风。' : 'Starting the microphone. Allow microphone access in your browser.') : voice.phase === 'stopping' ? (zh ? '正在完成最后的识别……' : 'Finishing the last transcription…') : (zh ? '正在聆听（中文）……' : 'Listening (English)…')}</p> : null}
       {voice.interim ? <p className="mt-1 whitespace-pre-wrap break-words">{zh ? '正在识别：' : 'Recognising: '}{voice.interim}</p> : null}
@@ -120,17 +119,14 @@ export default function EventDetailsAssistant({ draft, setDraft, type, isSeries,
     <div className="my-4 rounded-2xl border border-[#176b5a]/15 bg-[#e3f0eb]/50 p-4 text-sm" aria-live="polite">
       <p className="font-semibold">{zh ? '字段完成度' : 'Field completion'}：{completion.percent}% ({completion.completed}/{completion.total})</p>
       <progress className="mt-2 w-full accent-[#176b5a]" aria-label={zh ? '字段完成度' : 'Field completion'} value={completion.percent} max={100} />
-      <p>{zh ? '100% 表示资料完整，不表示已批准或发布。' : '100% means complete details, not approval or publication.'}</p>
+      <p>{zh ? '该进度仅反映表单填写完整度。' : 'This score reflects only form completion.'}</p>
       {completion.pending.length ? <p className="mt-2">{zh ? '待填写或确认：' : 'Pending: '}{completion.pending.map(field => text(detailLabels[field])).join('、')}</p> : null}
       {defaultsPending.length ? <><p className="mt-2">{zh ? '请核对表单中的默认设置：' : 'Review the defaults in the form: '}{defaultsPending.map(field => text(detailLabels[field])).join('、')}</p><AppActionButton className="mt-2" disabled={busy} onClick={confirmDefaults}>{zh ? '确认当前默认设置' : 'Confirm current defaults'}</AppActionButton></> : null}
-      <div className="mt-3 flex justify-end border-t border-[#176b5a]/15 pt-3">
-      <AppActionButton variant="ghost" className="ml-auto" onClick={onReturnToForm}>{zh ? '↑ 回到活动资料表单' : '↑ Back to event details form'}</AppActionButton>
-      </div>
     </div>
     {currentResult ? <div className="my-3 text-sm" aria-live="polite"><p>{zh ? 'AI 充分性评估' : 'AI sufficiency assessment'}：{currentResult.assessment.sufficiencyScore}/100 · {text(currentResult.assessment.summary)}</p>
       {currentResult.adoptedFields.length ? <p className="mt-2">{zh ? '本轮更新：' : 'Updated: '}{currentResult.adoptedFields.map(field => text(detailLabels[field])).join('、')}</p> : null}
       {currentResult.issues.length ? <ul className="mt-2 list-disc space-y-1 pl-5">{currentResult.issues.slice(0, 2).map((issue, index) => <li key={index}>{text(detailLabels[issue.field])}：{text(issue.question)}</li>)}</ul> : null}
     </div> : result ? <p className="my-2 text-sm text-[#66766f]">{zh ? '表单已更新；上轮 AI 评估已过期，请继续补充。' : 'The form changed; the previous AI assessment is out of date. Continue with the latest details.'}</p> : null}
 
-  </details></AppSectionCard>
+  </section>
 }

@@ -16,11 +16,11 @@ const rowClass = 'space-y-3 rounded-xl border border-[#2f4b42]/15 bg-white p-3'
 function Times({ row, zh, onChange }: { row: TimedArrangement; zh: boolean; onChange: (row: TimedArrangement) => void }) {
   return <>{(['startLocal', 'endLocal'] as const).map(key => <Field key={key} label={key === 'startLocal' ? (zh ? '开始时间' : 'Start time') : (zh ? '结束时间' : 'End time')}><input className={creationInput} type="datetime-local" value={row[key]} onChange={e => onChange({ ...row, [key]: e.target.value })} /></Field>)}</>
 }
-function useArrangementChange(setDraft: Props['setDraft']) {
-  return <K extends keyof CreationArrangements>(key: K, value: CreationArrangements[K]) => setDraft(current => invalidateArrangementConfirmation({ ...current, arrangements: { ...current.arrangements, [key]: value } }, key === 'slots' ? 'SERVICE.ROSTER' : key === 'sessions' ? 'PROGRAM.PRODUCTION' : 'PLACE.RESOURCE'))
+function useArrangementChange(setDraft: Props['setDraft'], moduleCode?: string) {
+  return <K extends keyof CreationArrangements>(key: K, value: CreationArrangements[K]) => setDraft(current => invalidateArrangementConfirmation({ ...current, arrangements: { ...current.arrangements, [key]: value } }, key === 'slots' ? (moduleCode || 'SERVICE.ROSTER') : key === 'sessions' ? 'PROGRAM.PRODUCTION' : 'PLACE.RESOURCE'))
 }
 export function CreationRosterEditor({ draft, setDraft, zh, type, moduleCode = 'SERVICE.ROSTER', activeModules }: Props & { moduleCode?: string; activeModules?: string[] }) {
-  const slots = creationSlots(draft, type), change = useArrangementChange(setDraft)
+  const slots = creationSlots(draft, type), change = useArrangementChange(setDraft, moduleCode)
   return <div className="space-y-3"><p className="text-sm text-[#66766f]">{zh ? '在这里确定岗位、人数和轮班时间。岗位需求不会自动指派成员或确认资格。' : 'Set roles, counts and shift times here. Slot demand does not assign members or confirm eligibility.'}</p>
     {slots.filter(slot => { const target = defaultRosterModule(slot.roleCode); return !activeModules || (activeModules.includes(target) ? target : 'SERVICE.ROSTER') === moduleCode }).map((slot, index) => {
       const preset = type.presetServiceSlots.find(x => x.roleCode === slot.roleCode)

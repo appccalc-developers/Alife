@@ -35,6 +35,7 @@ public sealed partial class EventOperationsService
         foreach (var candidate in request.MemberIds)
             if (!await authorization.IsApprovedMemberAsync(e.GroupId, candidate, ct))
                 return AppResult<EventRosterGroupDto>.Validation("Every candidate must be an approved member of this Event's owning group.");
+        var previousModule = group?.ModuleCode;
         var before = group is null ? "{}" : JsonSerializer.Serialize(GroupDto(group));
         if (group is null) { group = new() { Id = Guid.NewGuid(), EventId = eventId, RoleCode = request.RoleCode }; db.EventRosterGroups.Add(group); }
         group.ModuleCode = request.ModuleCode; group.MemberIdsJson = JsonSerializer.Serialize(request.MemberIds);
@@ -48,6 +49,8 @@ public sealed partial class EventOperationsService
         if (packageInvalidation is not null)
         {
             await packageInvalidation.InvalidateForModuleChangeAsync(e, memberId, "SERVICE.ROSTER", "event.roster.groupSaved", "operational", ct);
+            if (previousModule is not null && previousModule != "SERVICE.ROSTER" && previousModule != request.ModuleCode)
+                await packageInvalidation.InvalidateForModuleChangeAsync(e, memberId, previousModule, "event.roster.groupMoved", "operational", ct);
             if (request.ModuleCode != "SERVICE.ROSTER")
                 await packageInvalidation.InvalidateForModuleChangeAsync(e, memberId, request.ModuleCode, "event.roster.groupSaved", "operational", ct);
         }
@@ -55,6 +58,15 @@ public sealed partial class EventOperationsService
         catch (DbUpdateConcurrencyException) { return AppResult<EventRosterGroupDto>.PreconditionFailed("The candidate group changed while saving."); }
         catch (DbUpdateException) { return AppResult<EventRosterGroupDto>.Conflict("The candidate group was concurrently created or changed; reload."); }
         return AppResult<EventRosterGroupDto>.Success(GroupDto(group));
+    }
+
+    private async Task InvalidateRosterRoleModuleAsync(EventOccurrence occurrence, Guid memberId, string role, CancellationToken ct)
+    {
+        if (packageInvalidation is null) return;
+        var module = await db.EventRosterGroups.Where(x => x.EventId == occurrence.EventId && x.RoleCode == role)
+            .Select(x => x.ModuleCode).FirstOrDefaultAsync(ct) ?? RosterModuleForRole(role);
+        if (module != "SERVICE.ROSTER" && await IsModuleEnabled(occurrence.EventId, module, ct))
+            await packageInvalidation.InvalidateForModuleChangeAsync(occurrence.Event, memberId, module, "event.roster.moduleChanged", "operational", ct);
     }
 
     private static Guid[] GroupMembers(EventRosterGroup group) => JsonSerializer.Deserialize<Guid[]>(group.MemberIdsJson) ?? [];

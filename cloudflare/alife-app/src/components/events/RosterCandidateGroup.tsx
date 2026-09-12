@@ -1,3 +1,4 @@
+import { useArrangementDraft } from './ArrangementTileDeck'
 import { useEffect, useState } from 'react'
 import AppActionButton from '../layout/AppActionButton'
 import type { EventRosterGroup } from '../../types/eventOperations'
@@ -20,6 +21,7 @@ export function RosterCandidateGroup({ roleCode, moduleCode, group, candidates, 
   const [search, setSearch] = useState(''), [selected, setSelected] = useState(''), [page, setPage] = useState(0)
   const [order, setOrder] = useState('name')
   useEffect(() => { setIds(group?.memberIds || []); setModule(group?.moduleCode || moduleCode); setPage(0) }, [group?.eTag, moduleCode])
+  useArrangementDraft(JSON.stringify(ids) !== JSON.stringify(group?.memberIds || []) || module !== (group?.moduleCode || moduleCode))
   const name = (id: string) => candidates.find(x => x.id === id)?.displayName || id
   const available = candidates.filter(x => !ids.includes(x.id) && (x.displayName || x.id).toLowerCase().includes(search.toLowerCase())).sort((a, b) => order === 'name' ? name(a.id).localeCompare(name(b.id)) : name(b.id).localeCompare(name(a.id)))
   const move = (index: number, delta: number) => { const next = [...ids], target = index + delta; if (target < 0 || target >= ids.length) return; [next[index], next[target]] = [next[target], next[index]]; setIds(next) }

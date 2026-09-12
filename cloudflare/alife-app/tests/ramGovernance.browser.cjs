@@ -76,6 +76,8 @@ const makePolicy = () => ({ id: 'policy-1', churchId, version: 1, isPublished: f
       await page.getByRole('link', { name: /RAM and safety|RAM 与安全/ }).click();
       assert.equal(new URL(page.url()).pathname, `${workspacePath}/ram`);
       assert.equal(await page.locator('#event-editor-panel-ram').count(), 0);
+      const area = async (en, cn) => { if (!await page.locator('[data-module-editor="SAFETY.RAM"]').count()) return; const button = page.locator('[data-module-editor="SAFETY.RAM"]').getByRole('button', { name: t(en, cn), exact: true }); if (await button.getAttribute('aria-expanded') !== 'true') await button.click(); };
+      await area('Activities and conditions', '活动项目与条件');
       await page.getByLabel(t('Participant count','参与人数'), { exact: true }).waitFor();
       await page.getByLabel(t('Participant count','参与人数'), { exact: true }).fill('13');
       await page.getByRole('button', { name: t('Save RAM draft','保存 RAM 草稿'), exact: true }).click();
@@ -90,16 +92,19 @@ const makePolicy = () => ({ id: 'policy-1', churchId, version: 1, isPublished: f
       await page.getByRole('menuitemradio', { name: zh ? '中文' : 'English', exact: true }).click();
       await page.getByLabel(t('Participant count','参与人数'), { exact: true }).waitFor();
       assert.equal(workspaceReads, readsBeforeLanguage);
+      await area('Required questions', '适用必答题');
       const guidance = page.getByText(t('Explanation and follow-up prompts','解释与追问提示'), { exact: true }).first(); await guidance.click();
       await page.getByRole('button', { name: t('Ask AI to explain this risk category','请 AI 解释此类风险'), exact: true }).first().click();
       await page.getByText(t('AI is unavailable. Use the guidance above and continue answering manually.','AI 暂不可用。仍可查看上述提示并继续人工作答。'), { exact: true }).waitFor();
       const before = JSON.stringify(draft.hazards); assert.equal(before, JSON.stringify(JSON.parse(assessment.ramDataJson).hazards));
+      await area('Personal confirmation and independent review', '本人确认与独立审核');
       const freeze = t('Freeze version and request personal confirmation','固定版本并请求本人确认');
       await page.getByRole('button', { name: freeze, exact: true }).click(); await page.getByRole('alertdialog').getByRole('button', { name: freeze, exact: true }).click();
       const confirm = t('I confirm I will attend and lead this version','本人确认出席并领导此版本活动');
       await page.getByRole('button', { name: confirm, exact: true }).click(); await page.getByRole('alertdialog').getByRole('button', { name: confirm, exact: true }).click();
       await page.getByText(t('Personally confirmed','本人已确认'), { exact: true }).waitFor();
       await page.locator('summary').filter({ hasText: 'v1 ·' }).click();
+      await area('Version and signature history', '版本与签署历史');
       await page.getByRole('button', { name: t('View version / print','查看此版本／打印'), exact: true }).click();
       await page.getByText(t('DRAFT — NOT APPROVED','草稿 — 未经批准'), { exact: true }).waitFor();
       await page.emulateMedia({ media: 'print' });

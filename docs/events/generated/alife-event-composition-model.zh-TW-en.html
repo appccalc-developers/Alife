@@ -3391,6 +3391,7 @@ public sealed record AcceptEventPlanRequest(
         "roles",
         "workflowRecommendationAndResolvedVersion",
         "arrangementConfirmations",
+        "moduleConfirmations",
         "readiness",
         "navigation",
         "humanDecisions"
@@ -6395,7 +6396,7 @@ public sealed record AcceptEventPlanRequest(
     {
       "method": "POST",
       "path": "/api/groups/{groupId}/event-plans/compose",
-      "request": "EventPlanComposeRequest; optional arrangementConfirmations maps the seven arrangement section keys to review booleans",
+      "request": "EventPlanComposeRequest; optional moduleConfirmations maps twelve module codes to independent review booleans; arrangementConfirmations retained as derived legacy section summary",
       "response": "EventPlanProposalDto",
       "auth": "event.compose",
       "cache": "private, no-store",
@@ -6415,7 +6416,7 @@ public sealed record AcceptEventPlanRequest(
       "method": "GET",
       "path": "/api/events/{id}/plan",
       "request": null,
-      "response": "EventPlanSnapshotDto; current arrangementConfirmations project subsequent audited section changes as false; accepted historical snapshot remains immutable",
+      "response": "EventPlanSnapshotDto; current moduleConfirmations and legacy section summary project audited changes as false; accepted historical snapshots remain immutable",
       "auth": "viewer filtered by event and data class",
       "cache": "private, no-store",
       "mutation": false,
@@ -6424,7 +6425,7 @@ public sealed record AcceptEventPlanRequest(
     {
       "method": "POST",
       "path": "/api/events/{id}/plan/recompose",
-      "request": "EventPlanComposeRequest; optional arrangementConfirmations maps the seven arrangement section keys to review booleans",
+      "request": "EventPlanComposeRequest; optional moduleConfirmations maps twelve module codes to independent review booleans; arrangementConfirmations retained as derived legacy section summary",
       "response": "EventPlanProposalDto",
       "auth": "event.compose",
       "cache": "private, no-store",
@@ -7852,7 +7853,7 @@ public sealed record AcceptEventPlanRequest(
       "reopening": "Manager request with bilingual reason; eligible tier reviewer with requester separation outside Light. Pending/rejected stays frozen. Approval revokes Event approval, invalidates occurrence coverage/execution, withdraws publication and closes new registration. Preserve enrollments and audit history; require new approval."
     },
     "detailChanges": "Whole-Event detail saves rotate Package source evidence. Recomposition/acceptance use saved visibility and registration facts; mismatch with existing confirmed Plan facts requires Arrangements review before generation/decision. Older plans without confirmed brief facts remain compatible.",
-    "arrangementPresentation": "all groups and modules have top-right expand/collapse; safety pairs children fact with Child safeguarding, then RAM fact with inline assessment; collapsing retains inputs",
+    "arrangementPresentation": "Full-row Event details card first (title, event-local times/time zone, fixed creator/owner; form and AI assistant child areas). Footer only Back to top; rail navigation and explicit saves/create. Legacy Details stage opens this card. Twelve policy module tiles, 3/4/6 columns; seven category colours; default collapsed; one mounted visible editor with restored focus and deep links. Nested independent work areas use matching tiles; single work area renders directly. Unsaved status and independent module confirmation; no expansion state in API.",
     "sharedPreparationForm": "Creation DetailsStep/ArrangementsStep/ReviewStep reused for saved Events in Workspace; safety.ram directly renders versioned assessment, personal confirmation, independent review and printing; retired AI saved-event edit routes redirect to Workspace RAM for step=ram or saved Details otherwise; flow=setup preserves preparation return; server authorization and approval freezes remain authoritative",
     "savedArrangements": "Scoped occurrence rows with stable IDs; optional AcceptEventPlanRequest.arrangements uses aggregate ETag and Plan transaction/idempotency. Omitted arrays retain data, member responses and advanced metadata are preserved; linked deletions and foreign IDs rejected; existing venue conflict checks retained. Read projections include current venue metadata. New rows use the selected occurrence dates; successful acceptance invalidates client Event/Church Life caches and reloads Event concurrency; incomplete post-save reads require reload before more edits.",
     "approvalAssessment": {
@@ -7886,11 +7887,32 @@ public sealed record AcceptEventPlanRequest(
           "followup"
         ],
         "default": false,
-        "meaning": "Organizer review marker; pending regardless of tool choices when unchecked; not a role acceptance, RAM signature or approval gate",
+        "meaning": "Legacy derived section summary; no inference into independent module confirmations",
         "persistence": "Optional compose/Plan JSON, proposal hash and ETag/idempotency; reject omission by older clients after upgrade; audited operational changes project current flags false without rewriting history",
         "controls": "One module Yes/No choice; no duplicate three-choice questionnaire; module choices preserve existing confirmed facts and never fabricate missing evidence, including transport/lodging"
       },
-      "rolePlacement": "Fixed creator-owner is global; optional event.lead is on-site only. Roles and their ordered candidate groups/shifts live within owning modules; Team primarily shows cross-module tasks with collaboration history collapsed. Shared in-memory roster state avoids per-module duplicate reads."
+      "rolePlacement": "Fixed creator-owner is global; optional event.lead is on-site only. Roles and their ordered candidate groups/shifts live within owning modules; Team primarily shows cross-module tasks with collaboration history collapsed. Shared in-memory roster state avoids per-module duplicate reads.",
+      "moduleConfirmation": {
+        "field": "moduleConfirmations",
+        "keys": [
+          "TEAM.WORK",
+          "PEOPLE.REGISTRATION",
+          "SERVICE.ROSTER",
+          "SAFETY.RAM",
+          "SAFEGUARDING.CHILD",
+          "PROGRAM.PRODUCTION",
+          "PLACE.RESOURCE",
+          "FESTIVAL.OPERATIONS",
+          "MOVE.STAY",
+          "FOOD.HOSPITALITY",
+          "MONEY.FINANCE",
+          "COMMS.FOLLOWUP"
+        ],
+        "default": false,
+        "meaning": "Independent organizer review; no role acceptance, RAM signature or approval authority",
+        "persistence": "Optional compose/Plan JSON; normalized false for missing keys; proposal hash/ETag/idempotency; no new table; reject old client omission after upgrade; old snapshots preserved",
+        "invalidation": "Audited moduleCode and RAM dependency; old section audit invalidates its modules; unknown scope invalidates all"
+      }
     }
   },
   "ramGovernance": {

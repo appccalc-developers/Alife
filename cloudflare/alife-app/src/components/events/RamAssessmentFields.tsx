@@ -1,7 +1,7 @@
 import type { RamDraft, RamPolicyData, RamRisk } from '../../types/ramGovernance'
 import { displayRamText as text, ramActivityLabels, ramActivityTypes, ramText } from '../../types/ramGovernance'
 import { RamLevelBadge, RamMatrix, RamTextField, ramInput } from './RamFields'
-import AppSectionCard from '../layout/AppSectionCard'
+import { EventToolSection as AppSectionCard } from './ArrangementTileDeck'
 import AppActionButton from '../layout/AppActionButton'
 
 export default function RamAssessmentFields({ draft, update, policy, editable, dirty, zh }: {
@@ -9,7 +9,7 @@ export default function RamAssessmentFields({ draft, update, policy, editable, d
 }) {
   const editRisk = (id: string, fields: Partial<RamRisk>) => update({ hazards: draft.hazards.map(h => h.id === id ? { ...h, ...fields } : h) })
   return <div className="space-y-4">
-    <AppSectionCard title={zh ? '活动项目与条件' : 'Activities and conditions'}>
+    <AppSectionCard summary={`${draft.activities.length}`} title={zh ? '活动项目与条件' : 'Activities and conditions'}>
       <fieldset disabled={!editable} className="space-y-4"><label className="block text-sm font-semibold">{zh ? '参与人数' : 'Participant count'}<input className={ramInput} type="number" min={1} value={draft.participantCount ?? ''} onChange={e => update({ participantCount: e.target.value ? Number(e.target.value) : null })} /></label>
         <div className="flex flex-wrap gap-4">{([['isOuting', zh ? '室外／场外' : 'Outdoor / off-site'], ['isOvernight', zh ? '过夜' : 'Overnight'], ['isHighRisk', zh ? '高风险活动' : 'High-risk activity']] as const).map(([key, label]) => <label key={key} className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={!!draft[key]} onChange={e => update({ [key]: e.target.checked })} />{label}</label>)}</div>
         {draft.activities.map((activity, index) => <article key={activity.id} className="space-y-3 rounded-xl border border-[#d9e5df] p-4"><h3 className="font-bold">{zh ? '活动项目' : 'Activity'} {index + 1}</h3><label className="block text-sm">{zh ? '题集' : 'Question set'}<select className={ramInput} value={activity.type} onChange={e => update({ activities: draft.activities.map(a => a.id === activity.id ? { ...a, type: e.target.value } : a) })}>{ramActivityTypes.map(t => <option key={t} value={t}>{text(ramActivityLabels[t], zh)}</option>)}</select></label>
@@ -22,8 +22,9 @@ export default function RamAssessmentFields({ draft, update, policy, editable, d
         <RamTextField label={zh ? '交通安排' : 'Transport arrangements'} value={draft.transport} onChange={transport => update({ transport })} />
       </fieldset>
     </AppSectionCard>
+
+    <AppSectionCard summary={`${draft.hazards.length}`} title={zh ? '风险明细' : 'Risk details'} subtitle={zh ? '请填写所有初始及剩余评分。缺项不会被视为低风险。' : 'Complete both initial and residual ratings. Missing information is never treated as low risk.'}>
     {policy ? <AppSectionCard title={zh ? '评分定义与矩阵' : 'Scoring definitions and matrix'}><details><summary className="cursor-pointer py-3 font-semibold">{zh ? '查看 1–5 定义和完整矩阵' : 'View 1–5 definitions and full matrix'}</summary><RamMatrix policy={policy} zh={zh} />{(['likelihood', 'impact'] as const).map(kind => <div key={kind} className="mt-4"><h3 className="font-bold">{kind === 'likelihood' ? (zh ? '可能性' : 'Likelihood') : (zh ? '影响程度' : 'Impact')}</h3>{policy[kind].map(s => <p key={s.value} className="py-1 text-sm">{s.value}. {text(s.label, zh)} — {text(s.description, zh)}</p>)}</div>)}</details></AppSectionCard> : null}
-    <AppSectionCard title={zh ? '风险明细' : 'Risk details'} subtitle={zh ? '请填写所有初始及剩余评分。缺项不会被视为低风险。' : 'Complete both initial and residual ratings. Missing information is never treated as low risk.'}>
       <fieldset disabled={!editable} className="space-y-5">{draft.hazards.map((risk, index) => <article key={risk.id} className="space-y-4 rounded-xl border border-[#d9e5df] p-4" data-ram-risk>
         <h3 className="font-bold">{zh ? '风险' : 'Risk'} {index + 1}</h3><div className="grid gap-3 sm:grid-cols-2"><label className="text-sm">{zh ? '所属项目' : 'Activity'}<select className={ramInput} value={risk.activityId} onChange={e => editRisk(risk.id, { activityId: e.target.value })}><option value="">—</option>{draft.activities.map(a => <option key={a.id} value={a.id}>{text(a.name, zh) || (zh ? '未命名项目' : 'Unnamed activity')}</option>)}</select></label>
           <label className="text-sm">{zh ? '风险类别' : 'Risk category'}<select className={ramInput} value={risk.categoryCode} onChange={e => editRisk(risk.id, { categoryCode: e.target.value })}><option value="">—</option>{(policy?.categories || [{ code: 'environment', name: { en: 'Environment', zh: '环境' } }, { code: 'activity', name: { en: 'Activity', zh: '活动' } }, { code: 'participants', name: { en: 'Participants', zh: '参与者' } }, { code: 'transport', name: { en: 'Transport', zh: '交通' } }, { code: 'emergency', name: { en: 'Emergency', zh: '应急准备' } }]).map(c => <option key={c.code} value={c.code}>{text(c.name, zh)}</option>)}</select></label></div>

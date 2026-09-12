@@ -48,26 +48,26 @@ export function creationArrangements(draft: CreationDraft, type: EventActivityTy
 
 const bilingual = (value: LocalizedText, limit: number) => Boolean(value.en.trim() && value.zh.trim() && value.en.length <= limit && value.zh.length <= limit)
 const positive = (value: string, max: number) => /^\d+$/.test(value) && Number(value) >= 1 && Number(value) <= max
-export function validateCreationArrangements(draft: CreationDraft, type: EventActivityType, proposal: EventPlanProposal, zh: boolean): string {
+export function validateCreationArrangements(draft: CreationDraft, type: EventActivityType, proposal: EventPlanProposal, zh: boolean, moduleCode?: string): string {
   const validTime = (row: TimedArrangement) => {
     try {
       const timing = arrangementTiming(draft, row)
       return Number.isInteger(timing.startOffsetMinutes) && Number.isInteger(timing.endOffsetMinutes) && timing.startOffsetMinutes >= -10080 && timing.endOffsetMinutes <= 44640 && timing.endOffsetMinutes > timing.startOffsetMinutes
     } catch { return false }
   }
-  if (arrangementEnabled(proposal, 'SERVICE.ROSTER')) {
+  if ((!moduleCode || moduleCode === 'SERVICE.ROSTER') && arrangementEnabled(proposal, 'SERVICE.ROSTER')) {
     const slots = creationSlots(draft, type)
     if (!slots.length || slots.length > 50 || slots.some(slot => !slot.roleCode.trim() || slot.roleCode.length > 100 || !positive(slot.requiredCount, 10000) || !validTime(slot)))
       return zh ? '请展开「岗位与轮班」，填写岗位、人数及有效起止时间（最多 50 个岗位）。' : 'Open Roles and shifts and enter roles, counts and valid times (up to 50 slots).'
   }
-  if (arrangementEnabled(proposal, 'PROGRAM.PRODUCTION')) {
+  if ((!moduleCode || moduleCode === 'PROGRAM.PRODUCTION') && arrangementEnabled(proposal, 'PROGRAM.PRODUCTION')) {
     const sessions = draft.arrangements?.sessions ?? []
     if (!sessions.length || sessions.length > 20 || sessions.some(session => !bilingual(session.title, 240) || !validTime(session) || !session.items.length || session.items.length > 50))
       return zh ? '请展开「节目与制作」，填写双语环节名称、有效时间和至少一个节目。' : 'Open Programme and production and enter bilingual session titles, valid times and at least one programme item.'
     if (sessions.some(session => session.items.some(item => !bilingual(item.title, 240) || !/^\d+$/.test(item.startOffsetMinutes) || !positive(item.durationMinutes, 54720) || item.description.en.length > 2000 || item.description.zh.length > 2000 || Number(item.startOffsetMinutes) + Number(item.durationMinutes) > arrangementTiming(draft, session).endOffsetMinutes - arrangementTiming(draft, session).startOffsetMinutes)))
       return zh ? '请检查节目双语名称、开始分钟和时长；节目须在所属环节时间内。' : 'Check bilingual programme titles, offsets and durations. Each item must fit inside its session.'
   }
-  if (arrangementEnabled(proposal, 'PLACE.RESOURCE')) {
+  if ((!moduleCode || moduleCode === 'PLACE.RESOURCE') && arrangementEnabled(proposal, 'PLACE.RESOURCE')) {
     const venues = draft.arrangements?.venues ?? []
     if (!venues.length || venues.length > 20 || venues.some(venue => !validTime(venue) || !positive(venue.requiredCapacity, 1000000) || !positive(venue.capacity, 1000000) || Number(venue.requiredCapacity) > Number(venue.capacity) || (venue.venueId ? !venue.venueETag : !bilingual(venue.name, 240) || venue.address.en.length > 1000 || venue.address.zh.length > 1000)))
       return zh ? '请展开「场地与资源」，选择或填写场地、容量和预订时间；所需人数不可超过场地容量。' : 'Open Venue and resources and choose or enter venues, capacity and booking times. Attendance must fit the venue capacity.'
