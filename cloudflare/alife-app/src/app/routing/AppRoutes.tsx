@@ -31,12 +31,15 @@ const ChurchLifeView = lazy(() => import('../../views/ChurchLifeView'))
 const ChurchAlbumsView = lazy(() => import('../../views/ChurchAlbumsView'))
 const ChurchManagementView = lazy(() => import('../../views/ChurchManagementView'))
 const ContactDetailView = lazy(() => import('../../views/ContactDetailView'))
+const EventEditRedirect = lazy(() => import('../../views/EventEditRedirect'))
 const EventCreatorView = lazy(() => import('../../views/EventCreatorView'))
 const EventDetailView = lazy(() => import('../../views/EventDetailView'))
 const EventEnrollmentView = lazy(() => import('../../views/EventEnrollmentView'))
 const EventReviewView = lazy(() => import('../../views/EventReviewView'))
 const EventTemplateAdminView = lazy(() => import('../../views/EventTemplateAdminView'))
 const EventPackagePolicyAdminView = lazy(() => import('../../views/EventPackagePolicyAdminView'))
+const RamPolicyAdminView = lazy(() => import('../../views/RamPolicyAdminView'))
+const EventRamView = lazy(() => import('../../views/EventRamView'))
 const EventWorkspaceView = lazy(() => import('../../views/EventWorkspaceView'))
 const GroupDetailView = lazy(() => import('../../views/GroupDetailView'))
 const GroupJoinView = lazy(() => import('../../views/GroupJoinView'))
@@ -323,8 +326,8 @@ const AppRoutes = ({ churchGroupId = '', churchGroupLoading = false }: AppRoutes
             }
           />
           <Route path="/events/new" element={<EventCreatorView />} />
-          <Route path="/events/edit" element={<EventCreatorView />} />
-          <Route path="/events/:eventId/edit" element={<EventCreatorView />} />
+          <Route path="/events/edit" element={<EventEditRedirect />} />
+          <Route path="/events/:eventId/edit" element={<EventEditRedirect />} />
           <Route path="/events" element={<EventDetailView />} />
           <Route path="/events/:eventId" element={<EventDetailView />} />
           <Route path="/events/enroll" element={<EventEnrollmentView />} />
@@ -334,7 +337,7 @@ const AppRoutes = ({ churchGroupId = '', churchGroupLoading = false }: AppRoutes
           <Route path="/events/:eventId/workspace" element={<MemberRoute><EventWorkspaceView /></MemberRoute>} />
           <Route path="/events/:eventId/workspace/:surfacePath" element={<MemberRoute><EventWorkspaceView /></MemberRoute>} />
           <Route path="/groups/:groupId/events/new" element={<EventCreatorView />} />
-          <Route path="/groups/:groupId/events/:eventId/edit" element={<EventCreatorView />} />
+          <Route path="/groups/:groupId/events/:eventId/edit" element={<EventEditRedirect />} />
           <Route path="/groups/:groupId/events/:eventId" element={<EventDetailView />} />
           <Route path="/groups/:groupId/events/:eventId/enroll" element={<EventEnrollmentView />} />
           <Route path="/groups/:groupId/events/:eventId/review" element={<EventReviewView />} />
@@ -438,6 +441,8 @@ const AppRoutes = ({ churchGroupId = '', churchGroupLoading = false }: AppRoutes
               </AdminRoute>
             }
           />
+          <Route path="/admin/ram-policies" element={<AdminRoute permission="admin.events.manageRamPolicies"><RamPolicyAdminView /></AdminRoute>} />
+          <Route path="/events/:eventId/ram" element={<EventRamView />} />
           <Route path="*" element={<WorkspaceFallbackRoute />} />
             </Routes>
           </Suspense>

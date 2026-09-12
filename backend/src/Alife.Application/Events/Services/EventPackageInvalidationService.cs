@@ -49,6 +49,29 @@ public sealed class EventPackageInvalidationService(
             return new(0, false, false, false);
 
         var now = DateTime.UtcNow;
+        if (changeCode != "event.plan.accepted")
+            db.AuditLogs.Add(new AuditLog
+            {
+                Id = Guid.NewGuid(), ActorMemberId = actorMemberId, EventId = groupEvent.Id, GroupId = groupEvent.GroupId,
+                Action = EventArrangementConfirmationPolicy.ChangeAction, EntityType = "GroupEvent", EntityId = groupEvent.Id,
+                BeforeJson = "{}", AfterJson = EventPackageCanonicalizer.Serialize(new
+                {
+                    section = EventArrangementConfirmationPolicy.GroupForModule(affectedModuleCode), changeCode
+                }), MetadataJson = "{}", OccurredUtc = now
+            });
+        // Changes to safety inputs invalidate the RAM signature as well as Package eligibility.
+        // RAM transitions have already set their own state and must not invalidate themselves.
+        if (!changeCode.StartsWith("event.ram.", StringComparison.Ordinal) &&
+            (affectedModuleCode is null or "PLACE.RESOURCE" or "MOVE.STAY" or "TEAM.WORK" or "PROGRAM.PRODUCTION" or "PEOPLE.REGISTRATION" or "SAFEGUARDING.CHILD"))
+        {
+            var ram = groupEvent.RamAssessment ?? await db.EventRamAssessments.FirstOrDefaultAsync(x => x.EventId == groupEvent.Id, cancellationToken);
+            if (ram is not null)
+            {
+                await EventRamGovernanceService.ArchiveLegacyAsync(db, ram, actorMemberId, cancellationToken);
+                EventRamGovernanceService.Invalidate(ram);
+                await EventWorkflowIntegration.SyncRamAsync(db, groupEvent.Id, ram.Status, ram.RamDataJson, actorMemberId, now, cancellationToken);
+            }
+        }
         var candidates = await db.EventPackages
             .Include(x => x.Decisions)
             .Include(x => x.SourceReferences)

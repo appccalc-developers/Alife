@@ -42,6 +42,55 @@ public partial class EventCreationArrangementsTests
     }
 
     [Fact]
+    public async Task InlineRam_IsSavedAtomically_RecalculatesScores_AndRemainsPrivateDraftOnRetry()
+    {
+        await using var db = Database(); var handler = Handler(db);
+        var command = Command(Details()) with { RamDataJson = """
+            {"schemaVersion":2,"activities":[{"id":"walk","type":"hiking","name":{"en":"Walk","zh":"步行"}}],
+             "hazards":[{"id":"slip","activityId":"walk","categoryCode":"environment","hazard":{"en":"Private hazard","zh":"私人风险"},
+             "likelihood":2,"impact":3,"riskScore":1,"initialLevel":"Green","residualLikelihood":1,"residualImpact":2,"residualScore":1,"residualLevel":"Green"}],"answers":[]}
+            """ };
+        var result = await handler.Handle(command, default);
+        Assert.True(result.IsSuccess);
+        var retry = await handler.Handle(command, default);
+        Assert.Equal(result.Value!.Id, retry.Value!.Id);
+        Assert.Single(await db.GroupEvents.ToListAsync());
+        var ram = await db.EventRamAssessments.SingleAsync();
+        Assert.Equal(2, ram.SchemaVersion); Assert.Equal("Draft", ram.Validity);
+        Assert.Equal(actorId, ram.AuthorMemberId); Assert.Null(ram.PolicyVersionId);
+        Assert.Equal(EventRamStatus.Draft, ram.Status); Assert.Null(ram.ApprovedUtc); Assert.Null(ram.CurrentRevisionId);
+        Assert.Equal("Incomplete", ram.ResidualLevel);
+        var draft = RamEvaluator.Parse(ram.RamDataJson);
+        Assert.Equal(6, draft.Hazards[0].RiskScore); Assert.Equal(2, draft.Hazards[0].ResidualScore);
+        Assert.DoesNotContain("Private hazard", (await db.GroupEvents.SingleAsync()).EventDataJson);
+        Assert.Empty(await db.EventRamRevisions.ToListAsync());
+        var changed = command with { RamDataJson = command.RamDataJson.Replace("Private hazard", "Different hazard") };
+        Assert.Equal(AppResultStatus.Conflict, (await handler.Handle(changed, default)).Status);
+    }
+
+    [Fact]
+    public async Task VersionedRamWithoutComposition_DoesNotUseImplicitPublication()
+    {
+        await using var db = Database();
+        var command = Command(null) with { Composition = null, CompositionProposalHash = null, IdempotencyKey = null, RamDataJson = "{\"schemaVersion\":2}" };
+        Assert.True((await Handler(db).Handle(command, default)).IsSuccess);
+        var item = await db.GroupEvents.SingleAsync();
+        Assert.Equal(EventPublicationStatus.Draft, item.PublicationStatus);
+        Assert.Equal(EventRegistrationStatus.Closed, item.RegistrationStatus);
+    }
+
+    [Theory]
+    [InlineData("{\"schemaVersion\":2,\"activities\":null}")]
+    [InlineData("{\"schemaVersion\":3}")]
+    public async Task InvalidInlineRam_LeavesNoPartialEvent(string json)
+    {
+        await using var db = Database();
+        var result = await Handler(db).Handle(Command(Details()) with { RamDataJson = json }, default);
+        Assert.Equal(AppResultStatus.ValidationError, result.Status);
+        Assert.Empty(await db.GroupEvents.ToListAsync()); Assert.Empty(await db.EventRamAssessments.ToListAsync());
+    }
+
+    [Fact]
     public async Task Create_PersistsAllDetailsOnce_OverridesPresets_AndKeepsPrivateNotesOutOfPublicJson()
     {
         await using var db = Database(); var handler = Handler(db); var command = Command(Details());

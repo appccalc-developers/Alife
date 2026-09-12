@@ -21,7 +21,7 @@ import CustomEventWorkflowTemplateEditor from './CustomEventWorkflowTemplateEdit
 type Props = {
   eventId: string
   groupId: string
-  editPath: string
+  ramPath: string
   language: string
   canManage: boolean
 }
@@ -37,7 +37,7 @@ const labels = {
     title: 'Event workflow', outputs: 'Outputs', required: 'Required', optional: 'Optional',
     loading: 'Loading workflow...', noWorkflow: 'No workflow has been selected for this event.',
     choose: 'Choose a workflow template', initialize: 'Use this workflow', initializing: 'Initializing...',
-    progress: 'required steps completed', managed: 'Managed in event RAM', openRam: 'Open event / RAM editor',
+    progress: 'required steps completed', managed: 'Managed in event RAM', openRam: 'Open RAM workspace',
     start: 'Start', submit: 'Request approval', complete: 'Complete step', reopen: 'Reopen',
     markReady: 'Mark submitted', approve: 'Approve', returnDraft: 'Return to draft', openFile: 'Open file',
     public: 'Public', groupVisible: 'Group members', memberPrivate: 'Restricted/private',
@@ -49,7 +49,7 @@ const labels = {
     title: '活动工作流', outputs: '产出物', required: '必需', optional: '可选',
     loading: '正在加载工作流……', noWorkflow: '这个活动尚未选择工作流。',
     choose: '选择工作流模板', initialize: '采用此工作流', initializing: '正在初始化……',
-    progress: '个必需步骤已完成', managed: '由活动 RAM 流程管理', openRam: '打开活动 / RAM 编辑器',
+    progress: '个必需步骤已完成', managed: '由活动 RAM 流程管理', openRam: '打开 RAM 工作区',
     start: '开始', submit: '提交审批', complete: '完成步骤', reopen: '重新打开',
     markReady: '标记为已提交', approve: '批准', returnDraft: '退回草稿', openFile: '打开文件',
     public: '公开', groupVisible: '小组成员可见', memberPrivate: '受限／私密',
@@ -62,7 +62,7 @@ const labels = {
 const localize = (value: WorkflowText, language: string) =>
   (language === 'zh' ? value.zh : value.en) || value.en || value.zh
 
-const EventWorkflowPanel = ({ eventId, groupId, editPath, language, canManage }: Props) => {
+const EventWorkflowPanel = ({ eventId, groupId, ramPath, language, canManage }: Props) => {
   const text = language === 'zh' ? labels.zh : labels.en
   const [workflow, setWorkflow] = useState<EventWorkflow | null>(null)
   const [templates, setTemplates] = useState<EventWorkflowTemplate[]>([])
@@ -75,18 +75,20 @@ const EventWorkflowPanel = ({ eventId, groupId, editPath, language, canManage }:
     setLoading(true)
     setError('')
     try {
-      const [nextWorkflow, nextTemplates] = await Promise.all([
+      const [nextWorkflow, nextTemplates] = await Promise.allSettled([
         eventWorkflowService.get(eventId),
-        canManage ? eventWorkflowService.listTemplates() : Promise.resolve([]),
+        canManage ? eventWorkflowService.listTemplates(groupId) : Promise.resolve([]),
       ])
-      setWorkflow(nextWorkflow)
-      setTemplates(nextTemplates)
+      if (nextWorkflow.status === 'rejected') throw nextWorkflow.reason
+      setWorkflow(nextWorkflow.value)
+      setTemplates(nextTemplates.status === 'fulfilled' ? nextTemplates.value : [])
+      if (nextTemplates.status === 'rejected') setError(normalizeApiError(nextTemplates.reason).message)
     } catch (reason) {
       setError(normalizeApiError(reason).message)
     } finally {
       setLoading(false)
     }
-  }, [canManage, eventId])
+  }, [canManage, eventId, groupId])
 
   useEffect(() => { void load() }, [load])
 
@@ -258,7 +260,7 @@ const EventWorkflowPanel = ({ eventId, groupId, editPath, language, canManage }:
             {step.integrationKey === 'ram' ? (
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
                 <span>{text.managed}</span>
-                {canManage ? <Link className="font-bold underline" to={editPath}>{text.openRam}</Link> : null}
+                {canManage ? <Link className="font-bold underline" to={ramPath}>{text.openRam}</Link> : null}
               </div>
             ) : null}
 

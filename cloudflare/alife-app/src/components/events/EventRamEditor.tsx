@@ -131,10 +131,8 @@ const commonRiskPresets: Array<{
 
 const riskTone = (score: number | null) => {
   if (score === null) return 'bg-slate-100 text-slate-600'
-  if (score >= 20) return 'bg-red-100 text-red-800'
-  if (score >= 12) return 'bg-orange-100 text-orange-800'
-  if (score >= 6) return 'bg-amber-100 text-amber-800'
-  return 'bg-emerald-100 text-emerald-800'
+  // Legacy scores have no published policy matrix and therefore no implied colour.
+  return 'bg-slate-100 text-slate-800'
 }
 
 type RamSectionId = 'basic' | 'risks' | 'contacts' | 'confirmation'

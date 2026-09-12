@@ -167,6 +167,7 @@ const EventWorkspaceView = () => {
   const tabItems = resolvedItems.filter((item) => item.presentation === 'tab')
   const pageItems = resolvedItems.filter((item) => item.presentation === 'page')
   const selectedSection = searchParams.get('tab') || 'overview'
+  const returnToRamSetup = surfacePath === 'ram' && searchParams.get('flow') === 'setup'
   const selectedTab = tabItems.find((item) => item.sectionKey === selectedSection) ?? tabItems[0]
   const selectedPageDefinition = surfacePath ? resolveEventSurfacePath(surfacePath) : null
   const selectedPageItem = selectedPageDefinition
@@ -193,7 +194,7 @@ const EventWorkspaceView = () => {
 
   if (surfacePath && (!selectedPageDefinition || !selectedPageItem)) {
     return (
-      <AppPageShell title={text.unknownSurface} subtitle={text.unknownSurfaceDescription} actions={<Link className="text-sm font-bold text-[#176b5a]" to={workspaceBasePath}>{text.backWorkspace}</Link>}>
+      <AppPageShell title={text.unknownSurface} subtitle={text.unknownSurfaceDescription} actions={<Link className="text-sm font-bold text-[#176b5a]" to={returnToRamSetup ? `${workspaceBasePath}?flow=setup&stage=arrangements&module=safety.ram` : workspaceBasePath}>{returnToRamSetup ? (language === 'zh' ? '返回活动筹备' : 'Back to event preparation') : text.backWorkspace}</Link>}>
         <AppEmptyState title={text.unknownSurface} description={text.unknownSurfaceDescription} />
       </AppPageShell>
     )
@@ -204,7 +205,7 @@ const EventWorkspaceView = () => {
       <AppPageShell
         title={localize(selectedPageItem.label, language)}
         subtitle={text.independentPage}
-        actions={<Link className="text-sm font-bold text-[#176b5a]" to={workspaceBasePath}>{text.backWorkspace}</Link>}
+        actions={<Link className="text-sm font-bold text-[#176b5a]" to={returnToRamSetup ? `${workspaceBasePath}?flow=setup&stage=arrangements&module=safety.ram` : workspaceBasePath}>{returnToRamSetup ? (language === 'zh' ? '返回活动筹备' : 'Back to event preparation') : text.backWorkspace}</Link>}
       >
         <EventSurfaceRenderer item={selectedPageItem} language={language} eventBasePath={eventBasePath} eventId={eventId} groupId={groupId} canManage={workspace.canManage} />
       </AppPageShell>
@@ -217,7 +218,7 @@ const EventWorkspaceView = () => {
       subtitle={text.subtitle}
       actions={<Link className="text-sm font-bold text-[#176b5a]" to={eventBasePath}>{text.back}</Link>}
     >
-      <Link className="text-sm font-semibold text-[#176b5a]" to={`${workspaceBasePath}?flow=setup&stage=setup`}>{language === 'zh' ? '继续活动筹备流程 →' : 'Continue event preparation →'}</Link>
+      <Link className="text-sm font-semibold text-[#176b5a]" to={`${workspaceBasePath}?flow=setup&stage=arrangements`}>{language === 'zh' ? '继续活动筹备流程 →' : 'Continue event preparation →'}</Link>
 
       <div className="flex gap-2 overflow-x-auto border-b border-[#2f4b42]/10 pb-2" role="tablist" aria-label={text.title}>
         {tabItems.map((item) => (

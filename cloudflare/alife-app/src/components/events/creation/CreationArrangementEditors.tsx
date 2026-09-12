@@ -1,3 +1,4 @@
+import { invalidateArrangementConfirmation } from '../../../utils/eventCreationDraft'
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react'
 import AppActionButton from '../../layout/AppActionButton'
 import type { EventActivityType } from '../../../types/eventComposition'
@@ -15,7 +16,7 @@ function Times({ row, zh, onChange }: { row: TimedArrangement; zh: boolean; onCh
   return <>{(['startLocal', 'endLocal'] as const).map(key => <Field key={key} label={key === 'startLocal' ? (zh ? '开始时间' : 'Start time') : (zh ? '结束时间' : 'End time')}><input className={creationInput} type="datetime-local" value={row[key]} onChange={e => onChange({ ...row, [key]: e.target.value })} /></Field>)}</>
 }
 function useArrangementChange(setDraft: Props['setDraft']) {
-  return <K extends keyof CreationArrangements>(key: K, value: CreationArrangements[K]) => setDraft(current => ({ ...current, arrangements: { ...current.arrangements, [key]: value } }))
+  return <K extends keyof CreationArrangements>(key: K, value: CreationArrangements[K]) => setDraft(current => invalidateArrangementConfirmation({ ...current, arrangements: { ...current.arrangements, [key]: value } }, key === 'slots' ? 'SERVICE.ROSTER' : key === 'sessions' ? 'PROGRAM.PRODUCTION' : 'PLACE.RESOURCE'))
 }
 export function CreationRosterEditor({ draft, setDraft, zh, type }: Props) {
   const slots = creationSlots(draft, type), change = useArrangementChange(setDraft)

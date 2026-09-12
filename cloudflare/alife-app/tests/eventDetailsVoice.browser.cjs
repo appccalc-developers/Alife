@@ -17,7 +17,7 @@ const catalogue = [{
 }];
 
 async function setup(browser, language, width, speech = 'standard') {
-  const context = await browser.newContext({ viewport: { width, height: 900 } });
+  const context = await browser.newContext({ viewport: { width, height: 900 }, timezoneId: language === 'zh' ? 'America/Los_Angeles' : 'Australia/Perth' });
   await context.addInitScript(({ language, speech }) => {
     localStorage.setItem('alife.language', language);
     window.__voice = { instances: [], failStart: false };
@@ -47,7 +47,9 @@ async function setup(browser, language, width, speech = 'standard') {
     else if (pathname.includes('/details-session/') && pathname.endsWith('/message')) {
       const payload = route.request().postDataJSON(); messages.push(payload);
       const snapshot = payload.appContext.knownFacts.snapshot;
-      data = { responseMode: 'result', result: { ...snapshot, adoptedFields: [], issues: [], assessment: { sufficiencyScore: 20, summary: { zh: '请继续补充', en: 'Please add details' } }, assistantReply: { zh: '已整理', en: 'Organised' } } };
+      const timed = payload.message.includes('9月19');
+      const resultForm = timed ? { ...snapshot.form, startLocal: '2026-09-19T13:00', endLocal: '2026-09-19T16:00' } : snapshot.form;
+      data = { responseMode: 'result', result: { ...snapshot, form: resultForm, adoptedFields: timed ? ['startLocal', 'endLocal'] : [], sources: timed ? { ...snapshot.sources, startLocal: 'explicit', endLocal: 'explicit' } : snapshot.sources, issues: [], assessment: { sufficiencyScore: 20, summary: { zh: '请继续补充', en: 'Please add details' } }, assistantReply: { zh: '已整理', en: 'Organised' } } };
     }
     await route.fulfill({ status: 200, json: data });
   });
@@ -101,8 +103,37 @@ const waitText = (page, text) => page.waitForFunction(text => document.querySele
       assert.equal(messages[0].inputMode, 'text');
       assert.equal(messages[0].message, 'Manually corrected Second Last Another session');
       assert.equal(await prompt.inputValue(), '');
+      const zone = page.getByLabel(language === 'zh' ? '活动时区' : 'Event time zone', { exact: true });
+      await zone.fill('Pacific/Auckland');
+      await prompt.fill('2026年9月19日下午1点到下午4点'); await send.click();
+      const begins = page.getByLabel(language === 'zh' ? '开始时间' : 'Start time', { exact: true });
+      const ends = page.getByLabel(language === 'zh' ? '结束时间' : 'End time', { exact: true });
+      await page.waitForFunction(() => Array.from(document.querySelectorAll('input[type="datetime-local"]')).some(x => x.value === '2026-09-19T13:00'));
+      assert.equal(await begins.inputValue(), '2026-09-19T13:00'); assert.equal(await ends.inputValue(), '2026-09-19T16:00');
+      assert.equal(await zone.inputValue(), 'Pacific/Auckland');
+      const history = page.getByRole('log');
+      const reply = language === 'zh' ? '已整理' : 'Organised';
+      assert.deepEqual(await history.locator('p').allTextContents(), ['Manually corrected Second Last Another session', reply, '2026年9月19日下午1点到下午4点', reply]);
+      await history.evaluate(element => { element.scrollTop = 0; });
+      await prompt.fill('Next question'); await send.click();
+      await page.waitForFunction(() => document.querySelector('[role="log"]')?.children.length === 6);
+      await page.waitForFunction(() => { const log = document.querySelector('[role="log"]'); return log.scrollHeight > log.clientHeight && Math.abs(log.scrollHeight - log.clientHeight - log.scrollTop) <= 1; });
+      assert.deepEqual((await history.locator('p').allTextContents()).slice(-2), ['Next question', reply]);
+      const log = await page.getByRole('log').boundingBox(), input = await prompt.boundingBox();
+      assert.ok(log.y + log.height <= input.y, 'AI reply must be above the message input');
+      const bubbles = await history.locator(':scope > div > div').evaluateAll(nodes => nodes.map(node => { const r = node.getBoundingClientRect(); return { left: r.left, right: r.right, width: r.width }; }));
+      assert.ok(bubbles[0].right > bubbles[1].right && bubbles[0].left > bubbles[1].left, 'user bubbles right, assistant bubbles left');
+      const progress = await page.getByRole('progressbar').boundingBox(), sendBox = await send.boundingBox();
+      const back = await page.getByRole('button', { name: /↑.*(?:回到活动资料表单|Back to event details form)/ }).boundingBox();
+      assert.ok(progress.y > sendBox.y + sendBox.height && back.y > progress.y, 'completion follows send and return follows completion');
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'chat must not overflow');
+      await prompt.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: path.join(os.tmpdir(), `alife-details-reply-above-${language}-${width}.png`) });
+      await page.getByRole('progressbar').scrollIntoViewIfNeeded();
+      await page.getByRole('button', { name: /↑.*(?:回到活动资料表单|Back to event details form)/ }).scrollIntoViewIfNeeded();
+      await page.screenshot({ path: path.join(os.tmpdir(), `alife-details-completion-${language}-${width}.png`) });
       assert.deepEqual(errors, []);
-      console.log(`PASS ${language} ${width}: explicit start, locale, interim/final deduplication, manual edits, stop flush, append/restart, explicit send, layout`);
+      console.log(`PASS ${language} ${width}: event-zone wall clocks, left/right chat bubbles, completion below send, chronological replies with automatic bottom scroll, explicit start, locale, interim/final deduplication, manual edits, stop flush, append/restart, explicit send, layout`);
       await context.close();
     }
 

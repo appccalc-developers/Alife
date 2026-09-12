@@ -6,13 +6,13 @@ import { validStoredArrangements, type CreationArrangements } from './eventCreat
 
 export type FactAnswer = 'unknown' | 'yes' | 'no'
 export const arrangementGroups = [
-  { en: 'People and volunteers', zh: '人员与同工', modules: ['TEAM.WORK', 'PEOPLE.REGISTRATION', 'SERVICE.ROSTER'], facts: [['people.volunteersRequired', 'Will volunteers be needed?', '需要志愿同工吗？']] },
-  { en: 'Safety', zh: '安全', modules: ['SAFETY.RAM', 'SAFEGUARDING.CHILD'], facts: [['people.childrenPresent', 'Will children participate?', '有未成年人参与吗？'], ['safety.requiresRam', 'Is a RAM review required?', '需要 RAM 风险检视吗？']] },
-  { en: 'Programme and venue', zh: '节目与场地', modules: ['PROGRAM.PRODUCTION', 'PLACE.RESOURCE', 'FESTIVAL.OPERATIONS'], facts: [['programme.productionRequired', 'Does the programme need coordination?', '需要统筹节目流程吗？'], ['place.resourcesRequired', 'Do venues or resources need managing?', '需要管理场地或资源吗？'], ['scale.multiZone', 'Will multiple areas operate at the same time?', '需要同时管理多个现场区域吗？']] },
-  { en: 'Travel and accommodation', zh: '交通与住宿', modules: ['MOVE.STAY'], facts: [['move.transportRequired', 'Will transport be arranged?', '本次安排交通吗？'], ['move.accommodationRequired', 'Will accommodation be arranged?', '本次安排住宿吗？']] },
-  { en: 'Food', zh: '餐饮', modules: ['FOOD.HOSPITALITY'], facts: [['food.serviceRequired', 'Will food service be arranged?', '需要安排餐饮服务吗？']] },
-  { en: 'Money', zh: '费用', modules: ['MONEY.FINANCE'], facts: [['money.hasMoneyFlow', 'Will money be collected or spent?', '本次有收费或支出吗？']] },
-  { en: 'Follow-up', zh: '跟进', modules: ['COMMS.FOLLOWUP'], facts: [['comms.followupRequired', 'Will organised follow-up be needed?', '需要安排活动后的跟进吗？']] },
+  { key: 'people', en: 'People and volunteers', zh: '人员与同工', modules: ['TEAM.WORK', 'PEOPLE.REGISTRATION', 'SERVICE.ROSTER'], facts: [['people.volunteersRequired', 'Will volunteers be needed?', '需要志愿同工吗？']] },
+  { key: 'safety', en: 'Safety', zh: '安全', modules: ['SAFETY.RAM', 'SAFEGUARDING.CHILD'], facts: [['people.childrenPresent', 'Will children participate?', '有未成年人参与吗？'], ['safety.requiresRam', 'Is a RAM review required?', '需要 RAM 风险检视吗？']] },
+  { key: 'programme', en: 'Programme and venue', zh: '节目与场地', modules: ['PROGRAM.PRODUCTION', 'PLACE.RESOURCE', 'FESTIVAL.OPERATIONS'], facts: [['programme.productionRequired', 'Does the programme need coordination?', '需要统筹节目流程吗？'], ['place.resourcesRequired', 'Do venues or resources need managing?', '需要管理场地或资源吗？'], ['scale.multiZone', 'Will multiple areas operate at the same time?', '需要同时管理多个现场区域吗？']] },
+  { key: 'travel', en: 'Travel and accommodation', zh: '交通与住宿', modules: ['MOVE.STAY'], facts: [['move.transportRequired', 'Will transport be arranged?', '本次安排交通吗？'], ['move.accommodationRequired', 'Will accommodation be arranged?', '本次安排住宿吗？']] },
+  { key: 'food', en: 'Food', zh: '餐饮', modules: ['FOOD.HOSPITALITY'], facts: [['food.serviceRequired', 'Will food service be arranged?', '需要安排餐饮服务吗？']] },
+  { key: 'money', en: 'Money', zh: '费用', modules: ['MONEY.FINANCE'], facts: [['money.hasMoneyFlow', 'Will money be collected or spent?', '本次有收费或支出吗？']] },
+  { key: 'followup', en: 'Follow-up', zh: '跟进', modules: ['COMMS.FOLLOWUP'], facts: [['comms.followupRequired', 'Will organised follow-up be needed?', '需要安排活动后的跟进吗？']] },
 ] as const
 export const creationFacts = arrangementGroups.flatMap(group => [...group.facts])
 export const creationModuleCodes = arrangementGroups.flatMap(group => [...group.modules])
@@ -21,6 +21,7 @@ export type CreationDraft = {
   archetypeCode: string
   activityTypeCode: string
   overrides: { visibility?: EventVisibility; registrationMode?: 'none' | 'required'; useRecommendedWorkflow?: boolean }
+  arrangementConfirmations?: Record<string, boolean>
   moduleOverrides: Record<string, boolean>
   factValues: Record<string, FactAnswer>
   aiCandidateFacts: Record<string, boolean>
@@ -44,7 +45,7 @@ export const initialCreationDraft = (): CreationDraft => {
     return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16)
   }
   return {
-    archetypeCode: '', activityTypeCode: '', overrides: {}, moduleOverrides: {}, aiCandidateFacts: {},
+    archetypeCode: '', activityTypeCode: '', overrides: {}, arrangementConfirmations: {}, moduleOverrides: {}, aiCandidateFacts: {},
     factValues: Object.fromEntries(creationFacts.map(([code]) => [code, 'unknown'])),
     title: { en: '', zh: '' }, description: { en: '', zh: '' }, locationName: { en: '', zh: '' },
     startLocal: local(10), endLocal: local(12), maxCapacity: '',
@@ -54,7 +55,7 @@ export const initialCreationDraft = (): CreationDraft => {
 }
 
 export const selectCreationTemplate = (draft: CreationDraft, type: EventActivityType): CreationDraft => ({
-  ...draft, archetypeCode: type.archetypeCode, activityTypeCode: type.code,
+  ...draft, arrangementConfirmations: {}, archetypeCode: type.archetypeCode, activityTypeCode: type.code,
   detailSources: { ...draft.detailSources, ...(draft.overrides.visibility === undefined ? { visibility: 'default' as const } : {}), ...(draft.overrides.registrationMode === undefined ? { registrationMode: 'default' as const } : {}) },
 })
 
@@ -73,6 +74,7 @@ export const composeCreationDraft = (draft: CreationDraft, type: EventActivityTy
     return { code, value: null, certainty: 'unknown', source: 'human' }
   })
   return {
+    arrangementConfirmations: Object.fromEntries(arrangementGroups.map(group => [group.key, draft.arrangementConfirmations?.[group.key] === true])),
     schemaVersion: '1.1.0', archetypeCode: draft.archetypeCode, activityTypeCode: type.code,
     useRecommendedWorkflow: settings.useRecommendedWorkflow, basePlanVersion: null,
     facts: { items: [
@@ -143,6 +145,7 @@ export const restoreCreationDraft = (raw: string, archetypes: EventArchetype[]):
     if (draft.archetypeCode && !archetype) return null
     if (draft.activityTypeCode && !archetype?.activityTypes.some(x => x.code === draft.activityTypeCode)) return null
     if (!draft.overrides || !draft.moduleOverrides || !draft.factValues || !draft.aiCandidateFacts) return null
+    if (draft.arrangementConfirmations && !Object.entries(draft.arrangementConfirmations).every(([key, value]) => arrangementGroups.some(group => group.key === key) && typeof value === 'boolean')) return null
     if (draft.arrangements !== undefined && !validStoredArrangements(draft.arrangements)) return null
     if (draft.overrides.visibility !== undefined && !['groupVisible', 'churchVisible', 'public'].includes(draft.overrides.visibility)) return null
     if (draft.overrides.registrationMode !== undefined && !['none', 'required'].includes(draft.overrides.registrationMode)) return null
@@ -175,4 +178,27 @@ export const createSubmissionGuard = () => {
     },
     finish(success: boolean) { pending = false; completed = success },
   }
+}
+
+// Section review and tool selection are separate from factual evidence and approval.
+// Disabling a tool during preparation must not erase facts requiring it at submission.
+export function invalidateArrangementConfirmation(draft: CreationDraft, moduleCode?: string): CreationDraft {
+  const groups = arrangementGroups.filter(group => !moduleCode || group.modules.some(code => code === moduleCode))
+  return { ...draft, arrangementConfirmations: { ...draft.arrangementConfirmations, ...Object.fromEntries(groups.map(group => [group.key, false])) } }
+}
+export function selectArrangementModule(draft: CreationDraft, moduleCode: string, selected: boolean): CreationDraft {
+  const next = invalidateArrangementConfirmation(draft, moduleCode)
+  return { ...next, moduleOverrides: { ...next.moduleOverrides, [moduleCode]: selected } }
+}
+
+export function confirmArrangementGroup(draft: CreationDraft, groupKey: string, confirmed: boolean, decisions: ModuleDecision[]): CreationDraft {
+  const group = arrangementGroups.find(value => value.key === groupKey)
+  let next = draft
+  if (confirmed && group) for (const module of decisions.filter(value => group.modules.some(code => code === value.moduleCode))) {
+    // Keep the historical TEAM.WORK creation contract: the owner is supplied separately.
+    if (module.moduleCode === 'TEAM.WORK') continue
+    const selected = draft.moduleOverrides[module.moduleCode] ?? module.status !== 'inactive'
+    next = selectArrangementModule(next, module.moduleCode, selected)
+  }
+  return { ...next, arrangementConfirmations: { ...next.arrangementConfirmations, [groupKey]: confirmed } }
 }

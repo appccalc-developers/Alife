@@ -35,7 +35,7 @@ const toInput = (value: string) => {
 const toUtc = (value: string) => new Date(value).toISOString()
 const formatDateTime = (value: string, language: Language) => new Date(value).toLocaleString(language === 'zh' ? 'zh-TW' : 'en-NZ', { dateStyle: 'medium', timeStyle: 'short' })
 
-export const EventTravelWorkspace = ({ eventId, eventBasePath, language }: EventSurfaceProps) => {
+export const EventTravelWorkspace = ({ eventId, eventBasePath, language, setupFlow, onBusyChange, onSaved }: EventSurfaceProps) => {
   const [loadState, setLoadState] = useState<LoadState>('loading')
   const [mutationState, setMutationState] = useState<MutationState>('idle')
   const [data, setData] = useState<EventTravelWorkspaceData | null>(null)
@@ -64,11 +64,12 @@ export const EventTravelWorkspace = ({ eventId, eventBasePath, language }: Event
   }, [eventId])
 
   useEffect(() => { void load() }, [load])
+  useEffect(() => { onBusyChange?.(mutationState === 'saving') }, [mutationState, onBusyChange])
 
   const mutate = async (action: () => Promise<EventTravelWorkspaceData>, message: string) => {
     setMutationState('saving'); setError(''); setSuccess('')
     try {
-      setData(await action()); setMutationState('success'); setSuccess(message)
+      setData(await action()); await onSaved?.(); setMutationState('success'); setSuccess(message)
     } catch (caught) {
       const failure = normalizeApiError(caught)
       setError(failure.message)
@@ -94,7 +95,7 @@ export const EventTravelWorkspace = ({ eventId, eventBasePath, language }: Event
       {error ? <div role="alert" className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm ${mutationState === 'stale' ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-rose-200 bg-rose-50 text-rose-900'}`}><p className="min-w-0 flex-1">{mutationState === 'stale' ? (language === 'zh' ? '资料已被其他人修改，请重新载入。 ' : 'This data changed elsewhere; reload before trying again. ') : ''}{error}</p>{mutationState === 'stale' || mutationState === 'conflict' ? <AppActionButton size="sm" onClick={() => void load()}>{language === 'zh' ? '重新载入' : 'Reload'}</AppActionButton> : null}</div> : null}
       {success ? <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{success}</p> : null}
 
-      <ReadinessPanel data={data} language={language} ramPath={`${eventBasePath}/edit?step=ram`} />
+      <ReadinessPanel data={data} language={language} ramPath={setupFlow ? `${eventBasePath}/workspace?flow=setup&stage=arrangements&module=safety.ram` : `${eventBasePath}/workspace/ram`} />
       <div className="grid min-w-0 gap-5 desktop:grid-cols-2">
         <DriverPanel data={data} language={language} busy={mutationState === 'saving'} mutate={mutate} />
         <VehiclePanel data={data} language={language} busy={mutationState === 'saving'} mutate={mutate} />

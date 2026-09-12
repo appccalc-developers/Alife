@@ -1,5 +1,8 @@
 import EventFlowRail from '../components/events/EventFlowRail'
 import { setupPath } from '../utils/eventSetupFlow'
+import RamAssessmentFields from '../components/events/RamAssessmentFields'
+import { upgradeRam, type RamDraft } from '../types/ramGovernance'
+import { setUnsavedChangesGuard } from '../utils/unsavedChangesGuard'
 import EventDetailsAssistant from '../components/events/creation/EventDetailsAssistant'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom'
@@ -38,9 +41,11 @@ function CreationFlow({ groupId, memberId }: { groupId: string; memberId: string
   useEffect(() => { stepRegion.current?.focus() }, [step, hydrated])
   const type = useMemo(() => resolveActivityType(archetypes, draft.archetypeCode, draft.activityTypeCode), [archetypes, draft.archetypeCode, draft.activityTypeCode])
   const archetype = archetypes.find(item => item.code === draft.archetypeCode) ?? null
+  const [ramDraft, setRamDraft] = useState<RamDraft>(() => upgradeRam(undefined)), [ramTouched, setRamTouched] = useState(false)
+  useEffect(() => { setUnsavedChangesGuard(ramTouched, zh ? 'RAM 草稿尚未随活动创建保存。离开将丢失此 RAM 草稿。' : 'The RAM draft has not been saved with the Event. Leaving will discard it.', 'confirm'); return () => setUnsavedChangesGuard(false) }, [ramTouched, zh])
   const composition = type ? composeCreationDraft(draft, type) : null
   const compositionSignature = JSON.stringify(composition)
-  const creationSignature = JSON.stringify({ draft, composition })
+  const creationSignature = JSON.stringify({ draft, composition, ram: ramTouched ? ramDraft : null })
   const latest = useRef({ compositionSignature, creationSignature })
   latest.current = { compositionSignature, creationSignature }
   const [preview, setPreview] = useState<{ proposal: EventPlanProposal; signature: string } | null>(null)
@@ -133,11 +138,13 @@ function CreationFlow({ groupId, memberId }: { groupId: string; memberId: string
       const created = await eventService.createGroupEvent(groupId, creationEvent(draft, type, me?.displayName || ''), undefined, undefined, null, {
         composition, proposalHash: preview.proposal.proposalHash, idempotencyKey, seriesSetup: creationSeries(draft, archetype),
         arrangements: creationArrangements(draft, type, preview.proposal),
+        initialRamDraft: ramTouched ? ramDraft : undefined,
       })
       submission.current.finish(true)
+      setUnsavedChangesGuard(false)
       // Storage failure must not turn a successful creation into a retry.
       try { localStorage.removeItem(storageKey) } catch { /* Best effort. */ }
-      navigate(setupPath(`/groups/${encodeURIComponent(groupId)}/events/${encodeURIComponent(created.id)}`, 'setup'), { replace: true, state: { created: true } })
+      navigate(setupPath(`/groups/${encodeURIComponent(groupId)}/events/${encodeURIComponent(created.id)}`, 'arrangements'), { replace: true, state: { created: true } })
     } catch (reason) {
       submission.current.finish(false)
       const failure = normalizeApiError(reason)
@@ -164,7 +171,7 @@ function CreationFlow({ groupId, memberId }: { groupId: string; memberId: string
         {step === 1 ? <TemplateStep draft={draft} setDraft={setDraft} zh={zh} archetypes={archetypes} type={type} /> : null}
         {step === 2 && type && archetype ? <DetailsStep draft={draft} setDraft={setDraft} zh={zh} type={type} archetype={archetype} ai={null} /> : null}
         {type && archetype ? <div hidden={step !== 2}><EventDetailsAssistant draft={draft} setDraft={setDraft} type={type} isSeries={archetype.isSeries} zh={zh} active={step === 2} onBusy={setAiBusy} onReturnToForm={returnToDetailsForm} /></div> : null}
-        {step === 3 && type ? <ArrangementsStep draft={draft} setDraft={setDraft} zh={zh} type={type} groupId={groupId} proposal={preview?.proposal ?? null} current={Boolean(currentPreview)} status={previewStatus} /> : null}
+        {step === 3 && type ? <ArrangementsStep draft={draft} setDraft={setDraft} zh={zh} type={type} groupId={groupId} proposal={preview?.proposal ?? null} current={Boolean(currentPreview)} status={previewStatus} ramPanel={<div className="space-y-4"><p className="rounded-xl bg-[#e3f0eb] p-3 text-sm">{zh ? '可直接填写风险，确认创建时随活动保存。创建前 RAM 仅保留在当前页面，不写入本机草稿。创建后继续核对教会题库、本人确认及审核。' : 'Fill in risks here; they are saved with the Event when you confirm creation. Until then RAM stays only in this page, outside local draft storage. Continue with church questions, personal confirmation and review after creation.'}</p><RamAssessmentFields draft={ramDraft} update={change => { setRamDraft(value => ({ ...value, ...change })); setRamTouched(true); setDraft(previous => ({ ...previous, arrangementConfirmations: { ...previous.arrangementConfirmations, safety: false } })) }} editable={!busy} dirty zh={zh} /></div>} /> : null}
         {step === 4 && type && archetype && preview ? <ReviewStep draft={draft} zh={zh} type={type} archetype={archetype} proposal={preview.proposal} /> : null}
       </fieldset>
       <footer className="flex flex-wrap items-center justify-between gap-3 pb-24"><AppActionButton variant="ghost" disabled={step === 1 || busy || aiBusy} onClick={() => { setError(''); setStep((step - 1) as Step) }}>{zh ? '上一步' : 'Back'}</AppActionButton>{step < 4 ? <AppActionButton variant="primary" disabled={busy || aiBusy || (step === 3 && !currentPreview)} onClick={() => void next()}>{busy ? (zh ? '检查中……' : 'Checking…') : (zh ? '继续' : 'Continue')}</AppActionButton> : <AppActionButton variant="primary" disabled={busy || !currentPreview || reviewSignature !== creationSignature} onClick={() => void accept()}>{busy ? (zh ? '正在创建……' : 'Creating…') : (zh ? '确认创建活动' : 'Confirm and create event')}</AppActionButton>}</footer>

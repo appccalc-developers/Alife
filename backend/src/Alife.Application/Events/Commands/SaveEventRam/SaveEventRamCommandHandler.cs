@@ -39,6 +39,9 @@ public sealed class SaveEventRamCommandHandler(
 
         var now = DateTime.UtcNow;
         var ram = groupEvent.RamAssessment;
+        if (ram?.SchemaVersion >= 2)
+            return AppResult<EventRamAssessmentDto>.Conflict(EventRamGovernanceService.UpgradeMessage);
+        if (ram is not null) await EventRamGovernanceService.ArchiveLegacyAsync(dbContext, ram, request.CurrentMemberId, cancellationToken);
         if (ram is null)
         {
             ram = new EventRamAssessment { EventId = groupEvent.Id, CreatedUtc = now };
@@ -46,11 +49,7 @@ public sealed class SaveEventRamCommandHandler(
         }
 
         ram.RamDataJson = request.RamDataJson;
-        ram.Status = EventRamStatus.Draft;
-        ram.SubmittedByMemberId = null;
-        ram.SubmittedUtc = null;
-        ram.ApprovedByMemberId = null;
-        ram.ApprovedUtc = null;
+        EventRamGovernanceService.Invalidate(ram);
         ram.UpdatedUtc = now;
         groupEvent.UpdatedUtc = now;
 

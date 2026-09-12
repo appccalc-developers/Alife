@@ -891,6 +891,9 @@ public sealed partial class EventPackageService(
             gateReasons.AddRange(await EvaluatePublishPackageAsync(groupEvent, package, request.PackageETag, policy, now, ct));
         }
         else gateReasons.Add("event.publish.packageMissing");
+        if(groupEvent.RamAssessment is {SchemaVersion:2,ResidualLevel:"Red"} &&
+            (package?.GovernanceTier!=EventGovernanceTier.Enhanced || gateReasons.Count>0))
+            return AppResult<EventLifecycleDto>.Conflict("event.publish.redRamRequiresEnhancedApproval");
         // New explicit-publication Events require formal approval even during a legacy policy rollout.
         if ((mode == EventPackageEnforcementMode.Enforced || groupEvent.PublicationStatus != EventPublicationStatus.LegacyImplicit) && gateReasons.Count > 0)
             return AppResult<EventLifecycleDto>.Conflict(gateReasons[0]);
@@ -1238,6 +1241,9 @@ public sealed partial class EventPackageService(
         var selected = plan.Plan.ModuleDecisions.Where(x => x.Status is EventModuleDecisionStatus.Required or EventModuleDecisionStatus.Selected)
             .OrderBy(x => x.ModuleCode, StringComparer.Ordinal).ToArray();
         var tier = ResolveTier(plan.Plan, rules, selected);
+        var ramEvidence = await db.EventRamAssessments.AsNoTracking().FirstOrDefaultAsync(x => x.EventId == groupEvent.Id, ct);
+        groupEvent.RamAssessment = ramEvidence;
+        if (ramEvidence?.SchemaVersion == 2 && ramEvidence.ResidualLevel == "Red") tier = EventGovernanceTier.Enhanced;
         var legacyTransition = ResolveLegacyTransition(plan, policy.EnforcementMode, rules.LegacyRollout, selected);
         var sources = new List<SourceCapture>
         {
@@ -1259,6 +1265,11 @@ public sealed partial class EventPackageService(
         var modules = new List<EventPackageModuleSummaryDto>();
         var blockers = new List<LocalizedTextDto>();
         blockers.AddRange(EventCompositionEngine.FormalSubmissionModuleBlockers(plan.Plan));
+        if ((EventRamGovernanceService.IsRequired(groupEvent, plan.Plan) || ramEvidence?.SchemaVersion == 2) &&
+            (ramEvidence?.Status != EventRamStatus.Approved || (ramEvidence.SchemaVersion == 2 && ramEvidence.Validity != "Valid")))
+            blockers.Add(new("A current, independently approved RAM is required, even if the preparation tool is disabled.", "必须提供当前有效且经独立审核的 RAM；关闭筹备工具不能免除此要求。"));
+        if (ramEvidence is not null && !selected.Any(x=>x.ModuleCode=="SAFETY.RAM"))
+            sources.Add(new("SAFETY.RAM","moduleAggregate",groupEvent.Id,await ModuleSourceVersionAsync(groupEvent.Id,"SAFETY.RAM",null,ct),null,null,"approvalEvidence",true));
         foreach (var decision in selected)
         {
             var available = !UnavailableModules.Contains(decision.ModuleCode);
@@ -1373,7 +1384,8 @@ public sealed partial class EventPackageService(
                 .OrderBy(x => x.Id).Select(x => new { x.Id, x.OccurrenceId, x.RequiredCount, x.UpdatedUtc,
                     accepted = x.Assignments.Count(a => a.Status == EventRosterAssignmentStatus.Confirmed && a.EndedUtc == null) }).ToListAsync(ct),
             "SAFETY.RAM" => await db.EventRamAssessments.AsNoTracking().Where(x => x.EventId == eventId)
-                .Select(x => new { x.EventId, x.Status, x.SubmittedUtc, x.ApprovedUtc, x.UpdatedUtc }).ToListAsync(ct),
+                .Select(x => new { x.EventId, x.Status, x.CurrentRevisionId, x.PolicyVersionId, x.ResidualLevel, x.Validity,
+                    x.SubmittedByMemberId, x.SubmittedUtc, x.ApprovedByMemberId, x.ApprovedUtc, x.UpdatedUtc }).ToListAsync(ct),
             "SAFEGUARDING.CHILD" => new
             {
                 configuration = await db.EventSafeguardingConfigurations.AsNoTracking().Where(x => x.EventId == eventId)
@@ -2002,8 +2014,11 @@ public sealed partial class EventPackageService(
         catch (JsonException) { return true; }
         if (manifest is null) return true;
         var modules = manifest.Modules.Select(x => x.ModuleCode).ToHashSet(StringComparer.Ordinal);
-        if (modules.Contains("SAFETY.RAM") && await db.EventRamAssessments.AsNoTracking().AnyAsync(x => x.EventId == eventId &&
-            (x.SubmittedByMemberId == memberId || x.ApprovedByMemberId == memberId), ct)) return true;
+        if (await db.EventRamAssessments.AsNoTracking().AnyAsync(x => x.EventId == eventId &&
+            (modules.Contains("SAFETY.RAM") || (x.SchemaVersion >= 2 && x.ResidualLevel == "Red")) &&
+            (x.AuthorMemberId == memberId || x.SubmittedByMemberId == memberId || x.ApprovedByMemberId == memberId), ct)) return true;
+        if (await db.EventRamRevisions.AsNoTracking().AnyAsync(x => x.EventId == eventId && x.OnsiteMemberId == memberId &&
+            db.EventRamAssessments.Any(r => r.EventId == eventId && r.CurrentRevisionId == x.Id), ct)) return true;
         if (modules.Contains("SAFEGUARDING.CHILD") && await db.EventSafeguardingConfigurations.AsNoTracking()
             .AnyAsync(x => x.EventId == eventId && x.ConfiguredByMemberId == memberId, ct)) return true;
         return await db.EventApprovalDecisions.AsNoTracking().AnyAsync(x => x.EventId == eventId && x.ActorMemberId == memberId, ct);

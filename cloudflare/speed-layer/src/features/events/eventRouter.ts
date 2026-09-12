@@ -2,8 +2,10 @@ import { Router } from '../../shared/router'
 import planner from './planner'
 import enrolment from './enrolment'
 import reviewer from './reviewer'
+import { handleRamGuidance } from './ramGuidance'
 
 const eventRouter = new Router()
+eventRouter.post('/api/events/ram-guidance', (request, env) => handleRamGuidance(request, env))
 
 // Route extract endpoint
 eventRouter.post('/api/events/extract', async (req, env) => {

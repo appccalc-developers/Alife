@@ -2521,7 +2521,11 @@ public sealed record AcceptEventPlanRequest(
     "inputLabel": {
       "en": "Explicit details fill the draft; uncertain details prompt a follow-up. Review before creating.",
       "zh": "明确提供的资料会填入草稿；不确定之处会继续询问。请在创建前审阅。"
-    }
+    },
+    "completionPlacement": "below send action; pending fields and default confirmation in the same panel; return-to-form action at panel bottom",
+    "conversationPlacement": "above message input; left white assistant bubbles and right soft-green user bubbles; chronological user/assistant exchanges from top to bottom; automatically scroll to bottom on new messages; no session restart on language change",
+    "dateAdoption": "explicit calendar date and unambiguous clock range use selected IANA zone wall-clock values, superseding stale defaults/UTC-shaped model values; unclear or DST-ambiguous times require clarification",
+    "timeInputPresentation": "show Event time zone and unconfirmed prefilled-time notice"
   },
   "enums": {
     "governanceMode": [
@@ -3383,6 +3387,7 @@ public sealed record AcceptEventPlanRequest(
         "policies",
         "roles",
         "workflowRecommendationAndResolvedVersion",
+        "arrangementConfirmations",
         "readiness",
         "navigation",
         "humanDecisions"
@@ -3912,7 +3917,7 @@ public sealed record AcceptEventPlanRequest(
     },
     {
       "code": "SAFETY.RAM",
-      "version": 1,
+      "version": 2,
       "name": {
         "en": "RAM and safety",
         "zh": "RAM 與安全"
@@ -3924,6 +3929,13 @@ public sealed record AcceptEventPlanRequest(
           "value": true,
           "decision": "required",
           "reasonCode": "ram-policy-triggered"
+        },
+        {
+          "fact": "move.accommodationRequired",
+          "operator": "eq",
+          "value": true,
+          "decision": "required",
+          "reasonCode": "ram-overnight-triggered"
         }
       ],
       "dependencies": [
@@ -3973,18 +3985,21 @@ public sealed record AcceptEventPlanRequest(
       ],
       "eventPackageContribution": {
         "summaryFields": [
-          "ramAndPolicyVersion",
-          "statusAndDecisionReference",
-          "residualRiskSummary",
-          "expiry",
-          "emergencyWeatherTransportCheckSummary",
+          "ramVersion",
+          "policyVersion",
+          "status",
+          "residualLevel",
+          "validity",
+          "signingReferences",
           "blockers"
         ],
         "prohibitedContent": [
           "restrictedHazardEvidence",
-          "personalIncidentDetail"
+          "privateContacts",
+          "medicalDetails",
+          "fullRamJson"
         ],
-        "sourceValidityImpact": "revocation, expiry or RAM-relevant material change invalidates affected gates and requires policy-driven RAM re-review"
+        "sourceValidityImpact": "material changes and revocation invalidate confirmation, review and dependent gates; publishing a policy alone preserves previous approvals"
       },
       "integrationKey": "ram",
       "surfaceKey": "safety.ram",
@@ -6373,7 +6388,7 @@ public sealed record AcceptEventPlanRequest(
     {
       "method": "POST",
       "path": "/api/groups/{groupId}/event-plans/compose",
-      "request": "EventPlanComposeRequest",
+      "request": "EventPlanComposeRequest; optional arrangementConfirmations maps the seven arrangement section keys to review booleans",
       "response": "EventPlanProposalDto",
       "auth": "event.compose",
       "cache": "private, no-store",
@@ -6393,7 +6408,7 @@ public sealed record AcceptEventPlanRequest(
       "method": "GET",
       "path": "/api/events/{id}/plan",
       "request": null,
-      "response": "EventPlanSnapshotDto",
+      "response": "EventPlanSnapshotDto; current arrangementConfirmations project subsequent audited section changes as false; accepted historical snapshot remains immutable",
       "auth": "viewer filtered by event and data class",
       "cache": "private, no-store",
       "mutation": false,
@@ -6402,7 +6417,7 @@ public sealed record AcceptEventPlanRequest(
     {
       "method": "POST",
       "path": "/api/events/{id}/plan/recompose",
-      "request": "EventPlanComposeRequest",
+      "request": "EventPlanComposeRequest; optional arrangementConfirmations maps the seven arrangement section keys to review booleans",
       "response": "EventPlanProposalDto",
       "auth": "event.compose",
       "cache": "private, no-store",
@@ -7418,6 +7433,105 @@ public sealed record AcceptEventPlanRequest(
       "auth": "same Event Package view authorization",
       "cache": "private, no-store; Vary Cookie, Authorization",
       "mutation": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{eventId}/ram",
+      "request": "none",
+      "response": "EventRamAssessmentDto, legacy fields plus version/validity/ETag",
+      "auth": "RAM reader",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
+    },
+    {
+      "method": "PUT",
+      "path": "/api/events/{eventId}/ram",
+      "request": "RamDataJson; SchemaVersion=2, PolicyVersionId, ExpectedETag for v2",
+      "response": "server-calculated EventRamAssessmentDto; legacy overwrite rejected for v2",
+      "auth": "Event manager or accepted ram.author",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{eventId}/ram/submit",
+      "request": "RamActionRequest and Idempotency-Key; old empty requests require upgrade",
+      "response": "confirmed immutable revision submitted for independent review",
+      "auth": "RAM editor",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{eventId}/ram/approve",
+      "request": "RamActionRequest and Idempotency-Key; red requires healthSafetySigned and reason",
+      "response": "review decision; no Event publication",
+      "auth": "admin.events.audit plus church membership and independent actor",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{eventId}/ram/workspace",
+      "request": "none",
+      "response": "assessment, referenced/latest published policy, allowed history/actions, accepted on-site candidates and capabilities",
+      "auth": "RAM reader",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{eventId}/ram/versions/{revisionId}",
+      "request": "none",
+      "response": "RamPrintDto: immutable original data, policy, actions, draft/current/historical status",
+      "auth": "RAM reader for specified revision",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{eventId}/ram/actions/{action}",
+      "request": "RamActionRequest {revisionId,expectedETag,reason,healthSafetySigned}; Idempotency-Key",
+      "response": "EventRamAssessmentDto; action-specific authority; 409 conflict, 412 stale",
+      "auth": "editor, named on-site signer or independent church safety reviewer according to action",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/churches/{churchId}/ram-policies",
+      "request": "none",
+      "response": "immutable published history and editable draft; virtual unconfirmed defaults if none",
+      "auth": "admin.events.manageRamPolicies plus approved membership of selected root church",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/churches/{churchId}/ram-policies",
+      "request": "RamPolicySaveRequest {data,draftId,expectedETag}",
+      "response": "RamPolicyDto; one editable draft per church; immutable published records",
+      "auth": "admin.events.manageRamPolicies plus approved root-church membership",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/churches/{churchId}/ram-policies/{policyId}/publish",
+      "request": "RamPolicyPublishRequest {expectedETag,confirmEveryCell}",
+      "response": "immutable policy with source/publisher/time; all 25 cells confirmed",
+      "auth": "admin.events.manageRamPolicies plus approved root-church membership",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/ram-guidance",
+      "request": "only eventId, activityType, category, language; <=1024 bytes",
+      "response": "explanation and up to three questions; 503 preserves manual path; scores/hazards ignored",
+      "auth": "origin RAM reading authorization verified before model request",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
     }
   ],
   "acceptanceScenarios": [
@@ -7661,7 +7775,6 @@ public sealed record AcceptEventPlanRequest(
       "details",
       "arrangements",
       "create",
-      "setup",
       "approval",
       "poster",
       "publish"
@@ -7671,7 +7784,6 @@ public sealed record AcceptEventPlanRequest(
       "details",
       "arrangements",
       "review",
-      "setup",
       "approval",
       "poster",
       "publish"
@@ -7699,20 +7811,20 @@ public sealed record AcceptEventPlanRequest(
       "editableStepsBeforeApproval": [
         2,
         3,
-        4,
-        5
+        4
       ],
-      "alwaysReachableStep": 6,
+      "alwaysReachableStep": 5,
       "stepsAfterActiveApproval": [
-        7,
-        8
+        6,
+        7
       ],
       "submission": "Immutable approval snapshot; source preparation remains editable until approved. Changes require a new submission.",
       "freeze": "Approved Event-scope preparation stays frozen until approval revocation, including after expiry/invalidation. Server-checked serializable configuration commits.",
       "reopening": "Manager request with bilingual reason; eligible tier reviewer with requester separation outside Light. Pending/rejected stays frozen. Approval revokes Event approval, invalidates occurrence coverage/execution, withdraws publication and closes new registration. Preserve enrollments and audit history; require new approval."
     },
     "detailChanges": "Whole-Event detail saves rotate Package source evidence. Recomposition/acceptance use saved visibility and registration facts; mismatch with existing confirmed Plan facts requires Arrangements review before generation/decision. Older plans without confirmed brief facts remain compatible.",
-    "sharedPreparationForm": "Creation DetailsStep/ArrangementsStep/ReviewStep reused for saved Events; legacy edit routes redirect; no alternate Plan editor; template code/category cannot change after creation",
+    "arrangementPresentation": "all groups and modules have top-right expand/collapse; safety pairs children fact with Child safeguarding, then RAM fact with inline assessment; collapsing retains inputs",
+    "sharedPreparationForm": "Creation DetailsStep/ArrangementsStep/ReviewStep reused for saved Events in Workspace; safety.ram directly renders versioned assessment, personal confirmation, independent review and printing; retired AI saved-event edit routes redirect to Workspace RAM for step=ram or saved Details otherwise; flow=setup preserves preparation return; server authorization and approval freezes remain authoritative",
     "savedArrangements": "Scoped occurrence rows with stable IDs; optional AcceptEventPlanRequest.arrangements uses aggregate ETag and Plan transaction/idempotency. Omitted arrays retain data, member responses and advanced metadata are preserved; linked deletions and foreign IDs rejected; existing venue conflict checks retained. Read projections include current venue metadata. New rows use the selected occurrence dates; successful acceptance invalidates client Event/Church Life caches and reloads Event concurrency; incomplete post-save reads require reload before more edits.",
     "approvalAssessment": {
       "source": "Current effective published group policy before global fallback; accepted Plan; read-only authorized assessment and optional manifest snapshot",
@@ -7726,6 +7838,134 @@ public sealed record AcceptEventPlanRequest(
       "compatibility": "UpdateGroupEventRequest accepts optional seriesUpdate: { eTag, details: UpdateEventSeriesRequest }; optional Event If-Match timestamp remains compatible with existing callers",
       "authority": "Existing Event manager; existing single-Event Series in same serializable transaction; direct Series updates also reject frozen preparation",
       "schedule": "Preserve exception dates and rolling horizon in shared form; materialize additional future occurrences, retain existing occurrence identity and history"
+    },
+    "postCreateStage": "arrangements",
+    "legacySetupStage": "arrangements; retain known module as expanded section focus",
+    "integratedArrangements": {
+      "surfaces": "Existing authorized team, enrollment, roster, programme, venue, child safeguarding, travel and RAM render directly in the corresponding Arrangements group; planning-only modules retain their existing readiness surface.",
+      "writes": "Saved operational editors retain their APIs, permissions and ETags; module/fact acceptance omits operational arrays. Successful tool writes refresh Event concurrency and summary without replacing pending brief/fact edits.",
+      "drafts": "Keep editors mounted on collapse and saved-stage navigation; new tools load after explicit module acceptance; explicit creation precedes Event-ID-dependent actions. Programme printing isolates saved session/item data from the other embedded tools.",
+      "sectionConfirmation": {
+        "field": "arrangementConfirmations",
+        "keys": [
+          "people",
+          "safety",
+          "programme",
+          "travel",
+          "food",
+          "money",
+          "followup"
+        ],
+        "default": false,
+        "meaning": "Organizer review marker; pending regardless of tool choices when unchecked; not a role acceptance, RAM signature or approval gate",
+        "persistence": "Optional compose/Plan JSON, proposal hash and ETag/idempotency; reject omission by older clients after upgrade; audited operational changes project current flags false without rewriting history",
+        "controls": "One module Yes/No choice; no duplicate three-choice questionnaire; module choices preserve existing confirmed facts and never fabricate missing evidence, including transport/lodging"
+      },
+      "rolePlacement": "Server-derived enabled-module requirements and invitations live in their owning tools; global accountable owner retains legacy TEAM.WORK requirement key; Review summarizes assignments and personal acceptance."
+    }
+  },
+  "ramGovernance": {
+    "schemaVersion": 2,
+    "sources": [
+      "RAM Induction Manual Final Copy, likelihood/impact definitions",
+      "Event Planning Approval and Risk Assessment SOP v2 draft, sections 11–15 and Module 5 corrections"
+    ],
+    "policyScope": "rootChurchOnly; approved church membership plus admin.events.manageRamPolicies; no group overrides or cross-church fallback",
+    "formula": "likelihood * impact",
+    "scaleValues": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "colourSource": "complete immutable 25-cell published policy; no score thresholds",
+    "initialMatrix": "25 unconfirmed cells; explicit administrator publication required",
+    "categories": [
+      "environment",
+      "activity",
+      "participants",
+      "transport",
+      "emergency"
+    ],
+    "activityQuestionSets": [
+      "generic",
+      "hiking",
+      "water",
+      "sport",
+      "transport",
+      "camp",
+      "meal",
+      "outdoor",
+      "other"
+    ],
+    "answerIdentity": [
+      "activityId",
+      "activityType:questionCode"
+    ],
+    "questionCompleteness": "every applicable question has an answer or notApplicable with reason",
+    "overallLevel": "highest residual colour; Incomplete if any required assessment input is missing",
+    "validityStates": [
+      "Legacy",
+      "Draft",
+      "AwaitingConfirmation",
+      "Confirmed",
+      "AwaitingReview",
+      "Valid",
+      "Returned",
+      "ReviewRequired"
+    ],
+    "snapshotTriggers": [
+      "request-confirmation",
+      "snapshot-draft"
+    ],
+    "actions": [
+      "snapshot-draft",
+      "request-confirmation",
+      "confirm",
+      "submit",
+      "approve",
+      "return",
+      "request-review"
+    ],
+    "personalConfirmation": "named on-site member signs exact revision; accepted Event duty required when author does not attend; no proxy",
+    "reviewSeparation": [
+      "revisionAuthor",
+      "submitter",
+      "onSiteSigner"
+    ],
+    "yellowRule": "additionalAction required for initial or residual Yellow",
+    "redRule": "explicit healthSafetySigned and rationale plus independent Enhanced Event Package approval; never automatic publication",
+    "concurrency": "ExpectedETag; stale 412; Idempotency-Key for actions; conflicting key reuse 409",
+    "materialChange": "venue, date/duration, activity, attendance, weather confirmation, accommodation, transport, personnel or risk edits invalidate current authority; history retained; frozen preparation uses existing reopening",
+    "compatibility": "legacy GET/PUT/submit/approve routes and fields retained; legacy scores are initial only; old writes cannot overwrite v2; existing approved history preserved; new submission requires v2",
+    "aiContextAllowlist": [
+      "activityType",
+      "category",
+      "language"
+    ],
+    "aiOutputAllowlist": [
+      "explanation",
+      "questions"
+    ],
+    "privacy": "private, no-store; Vary Cookie, Authorization; no full RAM in Package, shared workflow artifacts, AI context or shared caches",
+    "outOfScope": [
+      "external venue/trail/weather/tide queries",
+      "independent incident register",
+      "automatic expiry",
+      "other SOP module expansion"
+    ],
+    "workspaceEntry": {
+      "surfaceKey": "safety.ram",
+      "componentContract": "EventRamWorkspace",
+      "paths": [
+        "/events/{eventId}/workspace/ram",
+        "/groups/{groupId}/events/{eventId}/workspace/ram"
+      ],
+      "creation": "private ramDataJson schemaVersion=2 saved atomically with Event; authenticated author; server scores and church policy only; always Draft and unpublished; uncreated RAM remains memory-only outside AI and localStorage",
+      "preparation": "embedded directly in Arrangements safety/RAM subsection with legacy stage=setup&module=safety.ram resolving here; top-right collapse retains mounted draft; new creation embeds private memory-only activities/risk fields saved atomically through ramDataJson",
+      "legacySavedEdit": "redirect to Workspace without mounting retired AI event editor",
+      "languageSwitch": "no RAM refetch or draft reset"
     }
   }
 }

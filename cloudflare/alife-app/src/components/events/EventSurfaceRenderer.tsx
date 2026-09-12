@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react'
-import { Link } from 'react-router-dom'
+import EventRegistrationWorkspace from './EventRegistrationWorkspace'
 import type { Language } from '../../i18n/locale'
 import type { EventSurfaceKey, EventWorkspaceItem } from '../../types/eventComposition'
 import AppBadge from '../layout/AppBadge'
@@ -9,6 +9,7 @@ import { resolveEventSurface } from './eventSurfaceRegistry'
 import { EventProgrammePanel, EventRosterWorkspace, EventTeamPanel } from './EventOperationsSurfaces'
 import { EventVenueWorkspaceSurface } from './EventVenueWorkspace'
 import { EventTravelWorkspaceSurface } from './EventTravelWorkspace'
+import EventRamWorkspace from './EventRamWorkspace'
 import { EventSafeguardingWorkspaceSurface } from './EventSafeguardingWorkspace'
 
 export type EventSurfaceProps = {
@@ -18,6 +19,8 @@ export type EventSurfaceProps = {
   eventId: string
   groupId: string
   canManage: boolean
+  onBusyChange?: (busy: boolean) => void
+  onSaved?: () => Promise<void>
   setupFlow?: boolean
 }
 
@@ -31,8 +34,8 @@ const GenericSurface = ({ item, language }: EventSurfaceProps) => {
     <AppSectionCard
       title={title}
       subtitle={zh
-        ? '此工作区由已接受的方案启用。只有注册表中的本地组件可以显示。'
-        : 'This workspace is enabled by the accepted plan. Only locally registered components can render.'}
+        ? '此功能已纳入活动安排，可在这里核对准备情况。'
+        : 'This tool is included in event arrangements. Review its readiness here.'}
       action={<AppBadge variant={item.readiness === 'ready' ? 'success' : 'warning'}>{item.readiness}</AppBadge>}
     >
       {item.blockers.length ? (
@@ -55,28 +58,8 @@ const GenericSurface = ({ item, language }: EventSurfaceProps) => {
   )
 }
 
-const RegistrationSurface = (props: EventSurfaceProps) => (
-  <AppSectionCard
-    title={localize(props.item, props.language)}
-    subtitle={props.language === 'zh' ? '沿用现有报名、容量与参与者隐私控制。' : 'Uses the existing enrollment, capacity and participant privacy controls.'}
-    action={<AppBadge variant={props.item.readiness === 'ready' ? 'success' : 'warning'}>{props.item.readiness}</AppBadge>}
-  >
-    <Link className="text-sm font-bold text-[#176b5a] underline-offset-4 hover:underline" to={`${props.eventBasePath}?section=enrollments${props.setupFlow ? '&flow=setup' : ''}`}>
-      {props.language === 'zh' ? '打开报名管理' : 'Open enrollment management'}
-    </Link>
-  </AppSectionCard>
-)
-
-const RamSurface = (props: EventSurfaceProps) => (
-  <AppSectionCard
-    title={localize(props.item, props.language)}
-    subtitle={props.language === 'zh' ? '沿用既有 RAM 草稿、提交与独立批准流程。' : 'Uses the existing RAM draft, submission and independent approval flow.'}
-    action={<AppBadge variant={props.item.readiness === 'ready' ? 'success' : 'warning'}>{props.item.readiness}</AppBadge>}
-  >
-    <Link className="text-sm font-bold text-[#176b5a] underline-offset-4 hover:underline" to={`${props.eventBasePath}/edit?step=ram${props.setupFlow ? '&flow=setup' : ''}`}>
-      {props.language === 'zh' ? '打开 RAM 工作区' : 'Open RAM workspace'}
-    </Link>
-  </AppSectionCard>
+const RamSurface = ({ eventId, language }: EventSurfaceProps) => (
+  <EventRamWorkspace key={eventId} eventId={eventId} language={language} />
 )
 
 // This map is deliberately closed at build time. Neither API data nor AI output
@@ -85,7 +68,7 @@ const surfaceComponentRegistry: Readonly<Record<EventSurfaceKey, ComponentType<E
   'workspace.overview': GenericSurface,
   'workspace.governance': GenericSurface,
   'team.work': EventTeamPanel,
-  'people.registration': RegistrationSurface,
+  'people.registration': EventRegistrationWorkspace,
   'service.roster': EventRosterWorkspace,
   'money.finance': GenericSurface,
   'safety.ram': RamSurface,

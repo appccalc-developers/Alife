@@ -112,7 +112,7 @@ public static class EventWorkflowDefinition
         artifact.Status,
         artifact.Visibility,
         artifact.FileAssetId,
-        artifact.DataJson,
+        artifact.ArtifactType == "ram" ? "{}" : artifact.DataJson,
         artifact.CreatedByMemberId,
         artifact.ApprovedByMemberId,
         artifact.ApprovedUtc,

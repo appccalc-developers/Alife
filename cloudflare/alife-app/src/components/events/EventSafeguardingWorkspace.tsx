@@ -33,7 +33,7 @@ const labelClass = 'grid min-w-0 gap-1.5 text-xs font-bold text-[#40554e]'
 const localize = (value: { en: string; zh: string }, language: Language) => value[language] || value.en || value.zh
 const formatDateTime = (value: string, language: Language) => new Date(value).toLocaleString(language === 'zh' ? 'zh-TW' : 'en-NZ', { dateStyle: 'medium', timeStyle: 'short' })
 
-export const EventSafeguardingWorkspace = ({ eventId, language }: EventSurfaceProps) => {
+export const EventSafeguardingWorkspace = ({ eventId, language, onBusyChange, onSaved }: EventSurfaceProps) => {
   const [loadState, setLoadState] = useState<LoadState>('loading')
   const [mutationState, setMutationState] = useState<MutationState>('idle')
   const [data, setData] = useState<WorkspaceData | null>(null)
@@ -60,11 +60,12 @@ export const EventSafeguardingWorkspace = ({ eventId, language }: EventSurfacePr
   }, [eventId])
 
   useEffect(() => { void load() }, [load])
+  useEffect(() => { onBusyChange?.(mutationState === 'saving') }, [mutationState, onBusyChange])
 
   const mutate: Mutate = async (action, message) => {
     setMutationState('saving'); setError(''); setSuccess('')
     try {
-      setData(await action()); setMutationState('success'); setSuccess(message)
+      setData(await action()); await onSaved?.(); setMutationState('success'); setSuccess(message)
     } catch (caught) {
       const failure = normalizeApiError(caught)
       setError(failure.message); setMutationState(resolveSafeguardingMutationFailure(failure.status))

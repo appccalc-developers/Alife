@@ -1,17 +1,17 @@
-export const setupStages = ['details', 'arrangements', 'review', 'setup', 'approval', 'poster', 'publish'] as const
+export const setupStages = ['details', 'arrangements', 'review', 'approval', 'poster', 'publish'] as const
 export type SetupStage = typeof setupStages[number]
 import type { EventLifecycle, EventPackage, EventPackageActorCapabilities } from '../types/eventPackage'
 export const canPublishFromFlow = (item: EventPackage | null, lifecycle: EventLifecycle | null, capabilities: EventPackageActorCapabilities | null) =>
   Boolean(item && (item.status === 'approved' || item.status === 'approvedWithConditions') && item.approvalValidityStatus === 'active' &&
     capabilities?.canPublish && lifecycle?.gates.some(gate => gate.gate === 'publish' && gate.allowed && gate.requirementsSatisfied))
-export const resolveSetupStage = (value: string | null): SetupStage => setupStages.includes(value as SetupStage) ? value as SetupStage : 'setup'
-export const setupPath = (eventBasePath: string, stage: SetupStage, module?: string) =>
-  `${eventBasePath}/workspace?flow=setup&stage=${stage}${module ? `&module=${encodeURIComponent(module)}` : ''}`
+export const resolveSetupStage = (value: string | null): SetupStage => setupStages.includes(value as SetupStage) ? value as SetupStage : 'arrangements'
+export const setupPath = (eventBasePath: string, stage: SetupStage | 'setup', module?: string) =>
+  `${eventBasePath}/workspace?flow=setup&stage=${resolveSetupStage(stage)}${module ? `&module=${encodeURIComponent(module)}` : ''}`
 export const eventFlowLabels = (zh: boolean) => zh
-  ? ['选择模板', '活动资料', '活动安排', '确认创建', '团队与功能', '正式审批', '海报制作', '发布活动']
-  : ['Template', 'Details', 'Arrangements', 'Create', 'Team and tools', 'Approval', 'Poster', 'Publish']
+  ? ['选择模板', '活动资料', '活动安排', '确认创建', '正式审批', '海报制作', '发布活动']
+  : ['Template', 'Details', 'Arrangements', 'Create', 'Approval', 'Poster', 'Publish']
 export const canVisitSetupStep = (step: number, frozen: boolean, approved: boolean) =>
-  step === 6 || (step >= 2 && step <= 5 && !frozen) || (step >= 7 && approved)
+  step === 5 || (step >= 2 && step <= 4 && !frozen) || (step >= 6 && step <= 7 && approved)
 export const publicationAudience = (visibility: string, zh: boolean) => visibility === 'public'
   ? (zh ? '公共网站，以及符合范围的教会生活和小组生活。' : 'The public website, and applicable Church Life and Group Life views.')
   : visibility === 'churchVisible'

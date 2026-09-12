@@ -41,7 +41,8 @@ public static class EventWorkflowIntegration
                 EventRamStatus.AwaitingReview => EventArtifactStatus.Submitted,
                 _ => EventArtifactStatus.Draft
             };
-            artifact.DataJson = ramDataJson;
+            // The workflow is a summary projection, never another store of private RAM details.
+            artifact.DataJson = System.Text.Json.JsonSerializer.Serialize(new { eventId, status = ramStatus.ToString(), authoritativePath = $"/api/events/{eventId}/ram" });
             artifact.ApprovedByMemberId = ramStatus == EventRamStatus.Approved ? actorMemberId : null;
             artifact.ApprovedUtc = ramStatus == EventRamStatus.Approved ? now : null;
             artifact.UpdatedUtc = now;

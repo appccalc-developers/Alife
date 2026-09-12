@@ -158,7 +158,7 @@ public sealed class EventCompositionEngine : IEventCompositionEngine
             .Where(IsActive)
             .Select(x => EventCompositionDefinitions.ModulesByCode[x.ModuleCode])
             .ToArray();
-        var roles = activeModules
+        var roles = activeModules.Append(EventCompositionDefinitions.ModulesByCode["TEAM.WORK"]).DistinctBy(module => module.Code)
             .SelectMany(module => module.RoleRequirements.Select(role => new RoleRequirementDto(
                 $"{module.Code}:{role.RoleCode}", module.Code, role.RoleCode,
                 role.Minimum, role.Recommended, role.Maximum, role.Eligibility, role.SeparationFrom)))
@@ -212,7 +212,8 @@ public sealed class EventCompositionEngine : IEventCompositionEngine
             warnings,
             activityType?.Code,
             activityType?.Version,
-            workflowRecommendation);
+            workflowRecommendation,
+            request.ArrangementConfirmations?.OrderBy(x => x.Key, StringComparer.Ordinal).ToDictionary(x => x.Key, x => x.Value));
 
         return AppResult<EventPlanProposalDto>.Success(proposal with
         {
@@ -226,6 +227,7 @@ public sealed class EventCompositionEngine : IEventCompositionEngine
                 proposal.ActivityTypeCode,
                 proposal.ActivityTypeVersion,
                 proposal.WorkflowRecommendation,
+                proposal.ArrangementConfirmations,
                 proposal.Facts,
                 proposal.ModuleDecisions,
                 proposal.RoleRequirements,
@@ -265,6 +267,9 @@ public sealed class EventCompositionEngine : IEventCompositionEngine
         EventPlanComposeRequest request,
         IReadOnlyDictionary<string, EventActivityTypeDefinition> activityTypesByCode)
     {
+        if (request.ArrangementConfirmations?.Keys.Any(key =>
+                key is not ("people" or "safety" or "programme" or "travel" or "food" or "money" or "followup")) == true)
+            return "Unknown arrangement confirmation section.";
         var isCurrent = string.Equals(
             request.SchemaVersion, EventCompositionDefinitions.SchemaVersion, StringComparison.Ordinal);
         var isLegacy = string.Equals(

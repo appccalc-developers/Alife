@@ -221,11 +221,42 @@ public sealed class CreateGroupEventCommandHandler(
             }
         }
 
+        RamEvaluation? initialRam = null;
+        EventRamPolicyVersion? initialRamPolicy = null;
+        if (request.RamDataJson is not null)
+        {
+            using var json = JsonDocument.Parse(request.RamDataJson);
+            if (json.RootElement.TryGetProperty("schemaVersion", out var schema))
+            {
+                if (schema.ValueKind != JsonValueKind.Number || !schema.TryGetInt32(out var version) || version is not (1 or 2))
+                    return AppResult<GroupEventSummaryDto>.Validation("Unsupported RAM schema version.");
+                if (version == 2)
+                {
+                    var churchId = await EventCompositionPersistence.FindChurchRootIdAsync(dbContext, request.GroupId, cancellationToken);
+                    initialRamPolicy = await dbContext.EventRamPolicyVersions.AsNoTracking()
+                        .Where(x => x.ChurchId == churchId && x.IsPublished).OrderByDescending(x => x.Version).FirstOrDefaultAsync(cancellationToken);
+                    try
+                    {
+                        initialRam = RamEvaluator.Evaluate(RamEvaluator.Parse(request.RamDataJson), initialRamPolicy is null ? null
+                            : JsonSerializer.Deserialize<RamPolicyData>(initialRamPolicy.PolicyJson, RamEvaluator.Json));
+                    }
+                    catch (JsonException)
+                    {
+                        return AppResult<GroupEventSummaryDto>.Validation("RAM must be a valid version 2 draft.");
+                    }
+                }
+            }
+        }
         var now = DateTime.UtcNow;
         var ramAssessment = new EventRamAssessment
         {
             EventId = Guid.Empty,
-            RamDataJson = request.RamDataJson ?? "{}",
+            RamDataJson = initialRam is null ? request.RamDataJson ?? "{}" : RamEvaluator.Serialize(initialRam.Draft),
+            SchemaVersion = initialRam is null ? 1 : 2,
+            Validity = initialRam is null ? "Legacy" : "Draft",
+            AuthorMemberId = initialRam is null ? null : request.CurrentMemberId,
+            PolicyVersionId = initialRamPolicy?.Id,
+            ResidualLevel = initialRam?.ResidualLevel ?? "Incomplete",
             Status = EventRamStatus.Draft,
             CreatedUtc = now,
             UpdatedUtc = now
@@ -238,8 +269,8 @@ public sealed class CreateGroupEventCommandHandler(
             AccountableOwnerMemberId = accountableOwnerMemberId,
             ParentEventId = request.ParentEventId,
             GovernanceMode = request.GovernanceMode ?? EventGovernanceMode.MemberLed,
-            PublicationStatus = request.Composition is null ? EventPublicationStatus.LegacyImplicit : EventPublicationStatus.Draft,
-            RegistrationStatus = request.Composition is null ? EventRegistrationStatus.LegacyImplicit : EventRegistrationStatus.Closed,
+            PublicationStatus = request.Composition is null && initialRam is null ? EventPublicationStatus.LegacyImplicit : EventPublicationStatus.Draft,
+            RegistrationStatus = request.Composition is null && initialRam is null ? EventRegistrationStatus.LegacyImplicit : EventRegistrationStatus.Closed,
             TitleEn = request.TitleEn,
             TitleZh = request.TitleZh,
             StartDate = request.StartDate,

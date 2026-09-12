@@ -1,3 +1,5 @@
+import type { RamDraft } from '../types/ramGovernance'
+import { eventAiContext, publicEventAiFacts } from '../../../shared/eventAiPrivacy'
 import type { ExtractEventFromChatResponse, EventSessionState, EventDto, EventRamAssessmentRecord, EventRamDraft, GroupEventRecord } from '../types/event'
 import type { AiSessionAppContext } from '../types/aiSession'
 import type { AiSessionAttachment } from '../types/aiSession'
@@ -56,8 +58,8 @@ export const eventService = {
     appContext: AiSessionAppContext,
   ): Promise<void> => {
     await eventSessionService.start(sessionId, {
-      appContext,
-      draft: eventDto,
+      appContext: eventAiContext(appContext),
+      draft: publicEventAiFacts(eventDto),
     })
   },
 
@@ -68,7 +70,7 @@ export const eventService = {
     appContext?: AiSessionAppContext,
     attachments: AiSessionAttachment[] = [],
   ): Promise<ExtractEventFromChatResponse> => {
-    const response = await eventSessionService.sendMessage(sessionId, message, { inputMode, appContext, attachments })
+    const response = await eventSessionService.sendMessage(sessionId, message, { inputMode, appContext: eventAiContext(appContext), attachments })
     return {
       responseMode: response.responseMode,
       sessionId: response.sessionId,
@@ -129,7 +131,7 @@ export const eventService = {
     sessionId?: string,
     aiContext?: AiContentContext,
     workflowTemplateCode?: string | null,
-    creationPlan?: EventCreationPlan,
+    creationPlan?: EventCreationPlan & { initialRamDraft?: RamDraft },
   ): Promise<GroupEventRecord> => {
     const titleEn = eventDto.title.en || eventDto.title.zh || ''
     const titleZh = eventDto.title.zh || eventDto.title.en || ''
@@ -140,7 +142,7 @@ export const eventService = {
       startDate: eventDto.startDate,
       endDate: eventDto.endDate,
       eventDataJson,
-      ramDataJson,
+      ramDataJson: creationPlan?.initialRamDraft ? JSON.stringify(creationPlan.initialRamDraft) : ramDataJson,
       contactProfileIds: eventDto.contactProfileIds ?? [],
       workflowTemplateCode: workflowTemplateCode || null,
       composition: creationPlan?.composition ?? null,
@@ -168,14 +170,13 @@ export const eventService = {
   ): Promise<GroupEventRecord> => {
     const titleEn = eventDto.title.en || eventDto.title.zh || ''
     const titleZh = eventDto.title.zh || eventDto.title.en || ''
-    const { eventDataJson, ramDataJson } = createPersistencePayload(eventDto)
+    const { eventDataJson } = createPersistencePayload(eventDto)
     const { data } = await http.put<GroupEventRecord>(`/api/events/${eventId}`, {
       titleEn,
       titleZh,
       startDate: eventDto.startDate,
       endDate: eventDto.endDate,
       eventDataJson,
-      ramDataJson,
       contactProfileIds: eventDto.contactProfileIds ?? [],
       missionStatements: aiContext?.missionStatements ?? [],
       eventContext: aiContext?.eventContext ?? { eventDataJson, eventData: eventDto },

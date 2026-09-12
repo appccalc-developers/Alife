@@ -11,7 +11,7 @@ namespace Alife.Application.Events.Queries.GetEventRam;
 
 public sealed class GetEventRamQueryHandler(
     IAlifeDbContext dbContext,
-    IGroupAuthorizationService groupAuthorizationService)
+    EventRamGovernanceService ramGovernance)
     : IRequestHandler<GetEventRamQuery, AppResult<EventRamAssessmentDto>>
 {
     public async Task<AppResult<EventRamAssessmentDto>> Handle(GetEventRamQuery request, CancellationToken cancellationToken)
@@ -25,11 +25,7 @@ public sealed class GetEventRamQueryHandler(
             return AppResult<EventRamAssessmentDto>.NotFound("RAM draft not found.");
         }
 
-        var canManage = await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
-            groupEvent.GroupId, request.CurrentMemberId, cancellationToken);
-        var canAudit = await AdminPlatformRoleHelpers.HasPermissionAsync(
-            dbContext, request.CurrentMemberId, AdminPermissionCatalog.AuditEvents, cancellationToken);
-        if (!canManage && !canAudit)
+        if (!await ramGovernance.CanReadAsync(groupEvent, request.CurrentMemberId, cancellationToken))
         {
             return AppResult<EventRamAssessmentDto>.Forbidden("RAM details are restricted to group leaders and event auditors.");
         }

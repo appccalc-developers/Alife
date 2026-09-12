@@ -26,7 +26,8 @@ public sealed record EventPlanComposeRequest(
     IReadOnlyList<ModuleSelectionInput> HumanSelections,
     int? BasePlanVersion = null,
     string? ActivityTypeCode = null,
-    bool UseRecommendedWorkflow = false);
+    bool UseRecommendedWorkflow = false,
+    IReadOnlyDictionary<string, bool>? ArrangementConfirmations = null);
 
 public sealed record EventFactSetDto(
     int? Version,
@@ -101,7 +102,8 @@ public sealed record EventPlanProposalDto(
     IReadOnlyList<LocalizedTextDto> Warnings,
     string? ActivityTypeCode = null,
     int? ActivityTypeVersion = null,
-    EventWorkflowRecommendationDto? WorkflowRecommendation = null);
+    EventWorkflowRecommendationDto? WorkflowRecommendation = null,
+    IReadOnlyDictionary<string, bool>? ArrangementConfirmations = null);
 
 public sealed record EventWorkflowRecommendationDto(
     string Code,

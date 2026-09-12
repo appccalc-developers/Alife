@@ -22,6 +22,7 @@ export type ModuleSelectionInput = {
 }
 
 export type EventPlanComposeRequest = {
+  arrangementConfirmations?: Record<string, boolean> | null
   schemaVersion: '1.0.0' | '1.1.0'
   archetypeCode?: string | null
   activityTypeCode?: string | null
@@ -72,6 +73,7 @@ export type EventPlanDiff = {
 }
 
 export type EventPlanProposal = {
+  arrangementConfirmations?: Record<string, boolean> | null
   schemaVersion: string
   proposalHash: string
   baselineETag: string
