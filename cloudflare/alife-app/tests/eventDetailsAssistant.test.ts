@@ -1,3 +1,4 @@
+import { explicitLocalRange } from '../../shared/eventDetailsTime.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { detailCompletion, detailFields, localTimeToUtc, type EventDetailsForm, type DetailsResult } from '../../shared/eventDetails.ts'
@@ -56,4 +57,17 @@ test('v2 drafts preserve data with unconfirmed sources; v3 preserves explicit cl
   const cleared = applyDetailsResult(draft, { form: { ...form, title: { zh: '', en: '' }, startLocal: null }, sources: {}, adoptedFields: ['title', 'startLocal'] } as DetailsResult)
   assert.equal(cleared.startLocal, '')
   assert.deepEqual(cleared.title, { zh: '', en: '' })
+})
+
+test('explicit Auckland September afternoon range replaces defaults without device-zone conversion', () => {
+  for (const message of ['9月19日下午的1点到下午4点', '九月十九日下午一点到四点', '2026-09-19 13:00 to 16:00']) {
+    const range = explicitLocalRange(message, 'Pacific/Auckland', new Date('2026-09-11T23:30:00Z'))!
+    assert.equal(range.startLocal, '2026-09-19T13:00')
+    assert.equal(range.endLocal, '2026-09-19T16:00')
+    assert.equal(localTimeToUtc(range.startLocal, 'Pacific/Auckland'), '2026-09-19T01:00:00.000Z')
+    assert.equal(localTimeToUtc(range.endLocal, 'Pacific/Auckland'), '2026-09-19T04:00:00.000Z')
+  }
+  for (const message of ['9月19日1点到4点', '如果9月19日下午1点到4点', '不是9月19日下午1点到4点', '2026-09-27 02:30 to 04:00', '2026-04-05 02:30 to 04:00', '下个周六下午1点到4点']) {
+    assert.equal(explicitLocalRange(message, 'Pacific/Auckland'), null, message)
+  }
 })

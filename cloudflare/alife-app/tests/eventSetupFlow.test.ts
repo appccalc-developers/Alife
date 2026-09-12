@@ -13,29 +13,31 @@ test('saved preparation stages share one mounted route while event identity chan
   }
 })
 
-test('one eight-step flow preserves the saved event identity and resolves only known stages', () => {
-  assert.equal(eventFlowLabels(true).length, 8)
-  assert.equal(eventFlowLabels(false).length, 8)
+test('one seven-step flow preserves the saved event identity and resolves only known stages', () => {
+  assert.equal(eventFlowLabels(true).length, 7)
+  assert.equal(eventFlowLabels(false).length, 7)
   assert.equal(setupPath('/groups/g/events/e', 'poster'), '/groups/g/events/e/workspace?flow=setup&stage=poster')
   assert.equal(resolveSetupStage('approval'), 'approval')
-  assert.equal(resolveSetupStage('https://untrusted.test'), 'setup')
-  assert.equal(resolveSetupStage(null), 'setup')
-  assert.deepEqual(setupStages, ['details', 'arrangements', 'review', 'setup', 'approval', 'poster', 'publish'])
+  assert.equal(resolveSetupStage('https://untrusted.test'), 'arrangements')
+  assert.equal(resolveSetupStage(null), 'arrangements')
+  assert.equal(resolveSetupStage('setup'), 'arrangements')
+  assert.equal(setupPath('/events/e', 'setup', 'team.work'), '/events/e/workspace?flow=setup&stage=arrangements&module=team.work')
+  assert.deepEqual(setupStages, ['details', 'arrangements', 'review', 'approval', 'poster', 'publish'])
 })
 
 test('approval divides repeatable preparation from poster and publication', () => {
-  for (const step of [2, 3, 4, 5]) {
+  for (const step of [2, 3, 4]) {
     assert.equal(canVisitSetupStep(step, false, false), true)
     assert.equal(canVisitSetupStep(step, true, true), false)
     assert.equal(canVisitSetupStep(step, true, false), false)
   }
-  for (const step of [7, 8]) {
+  for (const step of [6, 7]) {
     assert.equal(canVisitSetupStep(step, false, false), false)
     assert.equal(canVisitSetupStep(step, true, true), true)
     assert.equal(canVisitSetupStep(step, true, false), false)
   }
-  assert.equal(canVisitSetupStep(6, false, false), true)
-  assert.equal(canVisitSetupStep(6, true, true), true)
+  assert.equal(canVisitSetupStep(5, false, false), true)
+  assert.equal(canVisitSetupStep(5, true, true), true)
   assert.equal(canVisitSetupStep(1, false, false), false)
 })
 

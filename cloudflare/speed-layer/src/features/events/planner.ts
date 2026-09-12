@@ -1,3 +1,4 @@
+import { eventAiContext, publicEventAiFacts } from '../../../../shared/eventAiPrivacy'
 import { EventDetailsSession } from './details'
 import type { Env } from '../../index'
 import {
@@ -277,16 +278,14 @@ Critical extraction rules:
 7. Treat natural voice transcripts the same as typed text. Clean up filler words, but do not erase meaningful uncertainty.
 8. Extract hard constraints from non-negotiable language such as "must", "no", "deadline", "only", "required", and "not allowed".
 9. Do not fabricate precise dates, prices, capacities, or venue facts. If the user gives only a month, set the date fields to the first day and include the ambiguity in legacySummary.
-10. Reuse shared facts consistently across both deliverables. In particular, keep purpose, title/activity name, description, participant count, participant age range, location, schedule, activities, people responsible, and contacts aligned between the public EventDto fields and ram fields whenever the same fact is used. Do not ask for a fact that is already present in the draft or trusted app context.
+10. Reuse shared facts consistently across both deliverables. In particular, keep public event facts consistent; never populate the private RAM form. Do not ask for a fact that is already present in the draft or trusted app context.
 11. Registration semantics are explicit. If the user says registration, RSVP, or enrolment is not required, set maxCapacity to 0 and registrationDeadline to an empty string. A zero capacity means "no registration required", not missing information. If registration is required, use a positive maxCapacity and a valid ISO-8601 registrationDeadline.
 12. The current reference date is CURRENT_DATE_PLACEHOLDER.
 
-RAM safety rules derived from the church Risk Assessment Manual:
-13. Produce a RAM draft together with every event draft. Use bilingual activity name/description, participant count and age range, hazards, controls, responsible person, emergency contacts, and outing checks.
-14. Score each hazard with likelihood 1-5 and impact 1-5. Likelihood: 1 rare (<5%), 2 unlikely (5-29%), 3 moderate (30-59%), 4 likely (60-79%), 5 almost certain (80%+). Impact: 1 insignificant, 2 minor/basic first aid, 3 moderate/medical visit, 4 major/hospitalisation, 5 catastrophic/permanent disability or death. riskScore must equal likelihood multiplied by impact.
-15. Never invent or infer a responsible person's name, phone number, first-aid qualification, driver licence, vehicle registration, WOF, or vehicle safety status. Only copy an exact fact explicitly supplied by the user or trusted app context. Otherwise leave the field blank or null and add a bilingual missingInformation item with its fieldPath.
-16. For outings, explicitly consider transport safety, venue risk, first-aid kit and a trained first aider, participant health needs, and weather. Unknown confirmations remain null and are marked missing.
-17. leaderConfirmed is always false in AI output. Human confirmation happens only in the editor.
+RAM assistance rules:
+13. RAM is a separate human-owned form. Do not generate risk ratings, hazards, control measures, emergency contacts or confirmations. Return an empty ram placeholder for compatibility.
+14. Offer only question explanations, follow-up questions and missing-information prompts. Never treat AI output as safety evidence or approval.
+15. Do not ask for personal contacts or medical details. Formal RAM has its own policy, signature and independent review workflow.
 
 `
 
@@ -370,13 +369,10 @@ export class EventPlanningSession extends AiChatSession<EventDto, MultilingualSt
         task: 'event-planning',
         inputMode,
         language: appContext.language ?? 'bilingual',
-        appContext,
-        missionStatements: appContext.missionStatements ?? [],
-        eventContext: appContext.eventContext ?? appContext.eventData ?? null,
+        appContext: eventAiContext(appContext),
+        eventContext: publicEventAiFacts(appContext.eventData),
         knownContextPolicy: 'Treat appContext fields as already known by the application; do not ask the user to repeat them.',
-        currentDraft: state.draft,
-        currentLegacySummary: state.context,
-        chatHistory: state.chatHistory.slice(-12),
+        currentDraft: publicEventAiFacts(state.draft),
         attachments: attachments.map(({ name, contentType, size, source, url }) => ({
           name,
           contentType,
@@ -468,7 +464,7 @@ function mergeEventDraft(
       ? nextDraft.purpose
       : previousDraft?.purpose ?? eventData?.purpose ?? { zh: '', en: '' },
     ram: {
-      ...(hasRamContent(nextDraft.ram) ? nextDraft.ram : previousDraft?.ram ?? createEmptyRamDraft()),
+      ...(previousDraft?.ram ?? createEmptyRamDraft()),
       leaderConfirmed: false,
     },
   }
@@ -543,7 +539,7 @@ function normalizeEventDto(value: unknown): EventDto {
     posterImageUrl: typeof candidate.posterImageUrl === 'string' ? candidate.posterImageUrl : null,
     galleryUrls: Array.isArray(candidate.galleryUrls) ? candidate.galleryUrls.filter((url) => typeof url === 'string') : [],
     legacySummary: candidate.legacySummary ? normalizeMultilingualString(candidate.legacySummary) : null,
-    ram: normalizeRamDraft(candidate.ram),
+    ram: createEmptyRamDraft(),
   }
 }
 
@@ -579,55 +575,6 @@ function normalizeNullableBoolean(value: unknown): boolean | null {
 
 function normalizeScore(value: unknown): number | null {
   return Number.isInteger(value) && Number(value) >= 1 && Number(value) <= 5 ? Number(value) : null
-}
-
-function normalizeRamDraft(value: unknown): EventRamDraft {
-  const candidate = value as Partial<EventRamDraft> | null | undefined
-  const empty = createEmptyRamDraft()
-  const outingSafety = candidate?.outingSafety ?? empty.outingSafety
-  return {
-    activityName: normalizeMultilingualString(candidate?.activityName),
-    activityDescription: normalizeMultilingualString(candidate?.activityDescription),
-    participantCount: Number.isInteger(candidate?.participantCount) && Number(candidate?.participantCount) > 0 ? Number(candidate?.participantCount) : null,
-    participantAgeRange: normalizeMultilingualString(candidate?.participantAgeRange),
-    isOuting: normalizeNullableBoolean(candidate?.isOuting),
-    hazards: Array.isArray(candidate?.hazards) ? candidate.hazards.map((hazard) => {
-      const likelihood = normalizeScore(hazard?.likelihood)
-      const impact = normalizeScore(hazard?.impact)
-      return {
-        id: typeof hazard?.id === 'string' ? hazard.id : '',
-        hazard: normalizeMultilingualString(hazard?.hazard),
-        likelihood,
-        impact,
-        riskScore: likelihood !== null && impact !== null ? likelihood * impact : null,
-        controlMeasures: normalizeMultilingualString(hazard?.controlMeasures),
-        personResponsible: typeof hazard?.personResponsible === 'string' ? hazard.personResponsible : '',
-      }
-    }) : [],
-    emergencyContacts: Array.isArray(candidate?.emergencyContacts) ? candidate.emergencyContacts.map((contact) => ({
-      role: normalizeMultilingualString(contact?.role),
-      name: typeof contact?.name === 'string' ? contact.name : '',
-      phone: typeof contact?.phone === 'string' ? contact.phone : '',
-    })) : [],
-    outingSafety: {
-      transportRequired: normalizeNullableBoolean(outingSafety.transportRequired),
-      licensedDriverConfirmed: normalizeNullableBoolean(outingSafety.licensedDriverConfirmed),
-      vehicleRegistrationConfirmed: normalizeNullableBoolean(outingSafety.vehicleRegistrationConfirmed),
-      vehicleWofConfirmed: normalizeNullableBoolean(outingSafety.vehicleWofConfirmed),
-      venueRiskAssessed: normalizeNullableBoolean(outingSafety.venueRiskAssessed),
-      firstAidKitAvailable: normalizeNullableBoolean(outingSafety.firstAidKitAvailable),
-      trainedFirstAiderName: typeof outingSafety.trainedFirstAiderName === 'string' ? outingSafety.trainedFirstAiderName : '',
-      trainedFirstAiderQualificationConfirmed: normalizeNullableBoolean(outingSafety.trainedFirstAiderQualificationConfirmed),
-      participantHealthNeedsReviewed: normalizeNullableBoolean(outingSafety.participantHealthNeedsReviewed),
-      weatherPlanReviewed: normalizeNullableBoolean(outingSafety.weatherPlanReviewed),
-    },
-    missingInformation: Array.isArray(candidate?.missingInformation) ? candidate.missingInformation.map((item) => ({
-      code: typeof item?.code === 'string' ? item.code : '',
-      fieldPath: typeof item?.fieldPath === 'string' ? item.fieldPath : '',
-      message: normalizeMultilingualString(item?.message),
-    })) : [],
-    leaderConfirmed: false,
-  }
 }
 
 function normalizeMultilingualString(value: unknown): MultilingualString {

@@ -10,6 +10,7 @@ export const systemManagementIcons = {
   pageReview: Globe2,
   eventTemplates: CalendarRange,
   eventPackagePolicies: ShieldCheck,
+  ramPolicies: ShieldCheck,
   files: FileImage,
   logs: Activity,
 } as const

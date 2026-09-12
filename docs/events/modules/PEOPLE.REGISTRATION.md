@@ -46,6 +46,8 @@ Contributes registration mode, scope, opening/deadline state, capacity/waitlist 
 
 Participants see their own registration state and safe actions. Managers receive an authorised list and explicit capacity/waitlist controls. The bilingual wire shape remains `{ en, zh }`.
 
+During saved preparation, the existing authorized tool is embedded directly in **Arrangements → People and volunteers → Invitations and registration**. It shares its operational API and permissions with the independent workspace route; there is no separate Team and tools preparation step. See [integrated preparation](../EVENT-SETUP-FLOW.md).
+
 ## Current implementation
 
 Current core flow. `EventEnrollment` persistence, CRUD APIs, self-versus-manager visibility, lifecycle and RAM gates, bilingual enrollment JSON, and reachable `EventEnrollmentView` exist.

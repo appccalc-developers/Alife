@@ -1,3 +1,4 @@
+import { publicEventAiFacts } from '../../../shared/eventAiPrivacy'
 import { groupService } from '../services/groupService'
 import type { GroupDto, LocalizedText } from '../types'
 import type { EventDto, GroupEventRecord } from '../types/event'
@@ -44,7 +45,7 @@ const parseJsonObject = (value: string): Record<string, unknown> | null => {
 }
 
 export const createEventContextFromDto = (eventDto: EventDto): EventContext => {
-  const eventDataJson = JSON.stringify(eventDto)
+  const eventDataJson = JSON.stringify(publicEventAiFacts(eventDto))
   return {
     eventDataJson,
     eventData: parseJsonObject(eventDataJson),

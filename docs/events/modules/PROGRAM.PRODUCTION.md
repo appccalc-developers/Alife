@@ -48,6 +48,8 @@ During [event creation](../CREATION-ARRANGEMENTS.md), the Arrangements page supp
 
 Preparation configuration follows the [formal-approval freeze and reopening contract](../EVENT-SETUP-FLOW.md). Approved preparation cannot be edited until reopening is authorised. Operational responses, consent and safety records retain their existing controls.
 
+During saved preparation, the existing authorized tool is embedded directly in **Arrangements → Programme and venue → Programme and production**. It shares its operational API and permissions with the independent workspace route; there is no separate Team and tools preparation step. Printing uses an isolated programme preview and excludes other embedded module data. See [integrated preparation](../EVENT-SETUP-FLOW.md).
+
 ## Current implementation
 
 Current core flow. Occurrence Session and ProgramItem CRUD, owners, reordering, occurrence ETags/If-Match, print run sheet, series-occurrence isolation, protected APIs, and reachable `EventProgrammePanel` exist.

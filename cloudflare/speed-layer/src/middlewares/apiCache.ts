@@ -47,7 +47,7 @@ const GROUP_SHARED_CACHE_TTLS = {
 } as const
 const STORED_RESPONSE_CACHE_URL_PREFIX = 'https://alife.local/cache-v2/'
 export const CORS_ALLOWED_METHODS = 'GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS'
-export const CORS_ALLOWED_HEADERS = 'Content-Type, Authorization, X-Requested-With, If-None-Match'
+export const CORS_ALLOWED_HEADERS = 'Content-Type, Authorization, X-Requested-With, If-None-Match, Idempotency-Key, Cache-Control'
 export const CORS_PREFLIGHT_MAX_AGE_SECONDS = '86400'
 
 export type AuthorizedGroupCacheKind = keyof typeof GROUP_SHARED_CACHE_TTLS
@@ -722,7 +722,7 @@ export async function getInvalidationPaths(env: Env, request: Request, response:
     }
   }
 
-  const eventRamMatch = path.match(/^\/api\/events\/([^/]+)\/ram(?:\/(?:submit|approve))?$/)
+  const eventRamMatch = path.match(/^\/api\/events\/([^/]+)\/ram(?:\/.*)?$/)
   if (eventRamMatch) {
     paths.add('/api/events/public/upcoming')
     const body = await readJsonObject(response)
@@ -1299,7 +1299,7 @@ export function withBrowserCacheControl(response: Response, pathname: string, gr
 
 export function withNoStore(response: Response) {
   const headers = new Headers(response.headers)
-  headers.set('cache-control', 'no-store')
+  headers.set('cache-control', /(?:^|,)\s*private(?:\s*,|$)/i.test(headers.get('cache-control') || '') ? 'private, no-store' : 'no-store')
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,

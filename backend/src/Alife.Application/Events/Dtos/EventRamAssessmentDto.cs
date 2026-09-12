@@ -12,4 +12,12 @@ public sealed record EventRamAssessmentDto(
     Guid? ApprovedByMemberId,
     DateTime? ApprovedUtc,
     DateTime CreatedUtc,
-    DateTime UpdatedUtc);
+    DateTime UpdatedUtc,
+    int SchemaVersion = 1,
+    string ETag = "",
+    Guid? PolicyVersionId = null,
+    Guid? CurrentRevisionId = null,
+    string Validity = "Legacy",
+    string ResidualLevel = "Incomplete",
+    Guid? AuthorMemberId = null,
+    bool ReviewRequested = false);

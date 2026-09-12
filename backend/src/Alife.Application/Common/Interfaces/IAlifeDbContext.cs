@@ -64,6 +64,9 @@ public interface IAlifeDbContext
     DbSet<EventApprovalDecision> EventApprovalDecisions { get; }
     DbSet<EventIdempotencyRecord> EventIdempotencyRecords { get; }
     DbSet<EventRamAssessment> EventRamAssessments { get; }
+    DbSet<EventRamPolicyVersion> EventRamPolicyVersions { get; }
+    DbSet<EventRamRevision> EventRamRevisions { get; }
+    DbSet<EventRamAction> EventRamActions { get; }
     DbSet<EventEnrollment> EventEnrollments { get; }
     DbSet<EventReview> EventReviews { get; }
     DbSet<EventWorkflowTemplate> EventWorkflowTemplates { get; }

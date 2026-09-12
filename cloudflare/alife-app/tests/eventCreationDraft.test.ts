@@ -3,7 +3,7 @@ import test from 'node:test'
 import { readFileSync } from 'node:fs'
 import { creationMessage } from '../src/utils/eventCreationCopy.ts'
 import type { EventActivityType, EventArchetype, ModuleDecision } from '../src/types/eventComposition.ts'
-import { changeOptionalModule, composeCreationDraft, createRequestSequence, createSubmissionGuard, creationDraftKey, creationEvent, creationSeries, creationSettings, initialCreationDraft, restoreCreationDraft, selectCreationTemplate, validateCreationDraft } from '../src/utils/eventCreationDraft.ts'
+import { confirmArrangementGroup, invalidateArrangementConfirmation, selectArrangementModule, changeOptionalModule, composeCreationDraft, createRequestSequence, createSubmissionGuard, creationDraftKey, creationEvent, creationSeries, creationSettings, initialCreationDraft, restoreCreationDraft, selectCreationTemplate, validateCreationDraft } from '../src/utils/eventCreationDraft.ts'
 
 const type: EventActivityType = {
   code: 'shared-meal', archetypeCode: 'simple-social', version: 2,
@@ -125,4 +125,32 @@ test('readiness tasks and required-module warnings use readable bilingual labels
   assert.equal(creationMessage(task, false, modules), 'Food: Confirm allergy handling arrangements')
   assert.match(task.en, /allergy-process-confirmed/)
   assert.equal(creationMessage({ en: 'FOOD.HOSPITALITY remains required.', zh: 'FOOD.HOSPITALITY 仍为必需。' }, true, modules), '餐饮 仍为必需。')
+})
+
+
+test('section confirmation defaults false and module choices invalidate only their group', () => {
+  let value = draft()
+  assert.ok(Object.values(composeCreationDraft(value, type).arrangementConfirmations!).every(x => x === false))
+  value.arrangementConfirmations = { people: true, safety: true, food: true }
+  value.factValues['safety.requiresRam'] = 'yes'
+  value = selectArrangementModule(value, 'SAFETY.RAM', false)
+  assert.equal(value.arrangementConfirmations!.safety, false)
+  assert.equal(value.arrangementConfirmations!.people, true)
+  assert.equal(value.moduleOverrides['SAFETY.RAM'], false)
+  assert.equal(value.factValues['safety.requiresRam'], 'yes')
+  value = confirmArrangementGroup(value, 'food', true, [{ moduleCode: 'FOOD.HOSPITALITY', status: 'selected' } as ModuleDecision])
+  assert.equal(value.arrangementConfirmations!.food, true)
+  assert.equal(value.factValues['food.serviceRequired'], 'unknown')
+  const restored = restoreCreationDraft(JSON.stringify({ version: 3, draft: value }), [category(type)])!
+  assert.equal(restored.arrangementConfirmations!.food, true)
+  assert.equal(composeCreationDraft(restored, type).arrangementConfirmations!.safety, false)
+  assert.ok(Object.values(invalidateArrangementConfirmation(restored).arrangementConfirmations!).every(x => x === false))
+})
+
+test('travel confirmation does not invent transport or accommodation facts, and invalid stored flags fail closed', () => {
+  const value = confirmArrangementGroup(draft(), 'travel', true, [{ moduleCode: 'MOVE.STAY', status: 'selected' } as ModuleDecision])
+  assert.equal(value.factValues['move.transportRequired'], 'unknown')
+  assert.equal(value.factValues['move.accommodationRequired'], 'unknown')
+  assert.equal(value.arrangementConfirmations!.travel, true)
+  assert.equal(restoreCreationDraft(JSON.stringify({ version: 3, draft: { ...value, arrangementConfirmations: { travel: 'yes' } } }), [category(type)]), null)
 })

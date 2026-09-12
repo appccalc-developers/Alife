@@ -21,6 +21,7 @@ public static class AdminPermissionCatalog
     public const string SponsorEvents = "admin.events.sponsor";
     public const string ApproveEventPackages = "admin.events.approvePackages";
     public const string ManageEventPackagePolicies = "admin.events.managePackagePolicies";
+    public const string ManageRamPolicies = "admin.events.manageRamPolicies";
     public const string ManageEventTemplates = "admin.events.manageTemplates";
     public const string SyncSermons = "admin.sermons.sync";
     public const string RefreshCloudflareCache = "admin.cloudflareCache.refresh";
@@ -44,6 +45,7 @@ public static class AdminPermissionCatalog
         Permission(SponsorEvents, "Decide church event sponsorship", "决定教会活动赞助", "Approve or reject formal root-church sponsorship for an event without granting unrelated administration access.", "批准或拒绝活动的根教会正式赞助，但不授予其他管理权限。"),
         Permission(ApproveEventPackages, "Approve enhanced Event Packages", "审批增强级活动方案", "Make formal whole-package decisions for enhanced-governance events, subject to separation-of-duties checks.", "在职责分离检查通过后，对增强治理等级的活动方案作出正式整体决定。"),
         Permission(ManageEventPackagePolicies, "Manage Event Package policies", "管理活动方案政策", "Publish immutable governance-policy versions and controlled rollout modes for Event Package approval.", "发布不可变的活动方案治理政策版本及受控上线模式。"),
+        Permission(ManageRamPolicies, "Manage RAM policies and questions", "管理 RAM 政策与题库", "Manage and publish RAM policy versions within the member's church.", "在成员所属教会范围内管理及发布 RAM 政策版本。"),
         Permission(ManageEventTemplates, "Manage event templates", "管理活动模板", "Create, edit, activate, and deactivate the platform event templates available under the four fixed event categories.", "在四个固定活动分类下创建、编辑、启用及停用平台活动模板。"),
         Permission(SyncSermons, "Synchronize sermons", "同步讲道", "Run a manual synchronization from configured sermon sources.", "从已配置的讲道来源执行手动同步。"),
         Permission(RefreshCloudflareCache, "Refresh shared edge caches", "刷新共享边缘缓存", "Invalidate shared Cloudflare caches for an approved church or group scope.", "使获准教会或小组范围内的 Cloudflare 共享缓存失效。"),

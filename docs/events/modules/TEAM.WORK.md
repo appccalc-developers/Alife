@@ -8,6 +8,10 @@ Provide the accountable team, roles, tasks, artifacts, blockers, deadlines, and 
 
 ## Target contract
 
+### Workspace placement
+
+During preparation, team invitations, accepted roles and tasks render directly in Arrangements → People and volunteers → Team and tasks. Creation and the legacy `stage=setup&module=team.work` entry return to that section; no separate Team and tools step remains. Invitations still require a saved Event and personal acceptance. Existing direct operational routes remain available.
+
 ### Activation
 
 Required whenever `event.exists == true` (`accountable-owner-required`).
@@ -59,3 +63,6 @@ Handoff audit, reusable task templates, invitation notifications, and complete a
 ## Next useful vertical slice
 
 `team-approval-handoff`: add workflow/task approval evidence, handoff history, invitation notification, and a non-destructive notification retry path.
+
+
+In the integrated Arrangements flow, Team shows team members and tasks. Module role invitations appear in their owning modules; the global accountable owner remains outside optional tools, using its existing requirement key even if TEAM.WORK is disabled in preparation. Review summarizes responsible people and personal acceptance states. Section confirmation never accepts roles on someone’s behalf. See [section review](../CREATION-ARRANGEMENTS.md#section-confirmation-and-module-roles).

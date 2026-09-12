@@ -36,6 +36,9 @@ public sealed class UpdateGroupEventCommandHandler(
             return AppResult<GroupEventSummaryDto>.Forbidden("Only the accountable owner or group leadership can update events.");
         }
 
+        if (request.RamDataJson is not null && groupEvent.RamAssessment?.SchemaVersion >= 2)
+            return AppResult<GroupEventSummaryDto>.Conflict(EventRamGovernanceService.UpgradeMessage);
+
         if (request.IfMatch is not null && (!DateTime.TryParse(request.IfMatch.Trim('"'), null,
             System.Globalization.DateTimeStyles.RoundtripKind, out var expectedUpdate) || expectedUpdate != groupEvent.UpdatedUtc))
             return AppResult<GroupEventSummaryDto>.PreconditionFailed("Event details changed. Refresh and review before saving. / 活动资料已更新，请刷新核对后再保存。");
@@ -100,6 +103,8 @@ public sealed class UpdateGroupEventCommandHandler(
 
         if (request.RamDataJson is not null)
         {
+            if (groupEvent.RamAssessment is not null)
+                await EventRamGovernanceService.ArchiveLegacyAsync(dbContext, groupEvent.RamAssessment, request.CurrentMemberId, cancellationToken);
             if (!EventRamPolicy.IsValidJson(request.RamDataJson))
             {
                 return AppResult<GroupEventSummaryDto>.Validation("RAM data must be a JSON object.");
@@ -120,6 +125,8 @@ public sealed class UpdateGroupEventCommandHandler(
 
         if (groupEvent.RamAssessment is not null && materialChange)
         {
+            await EventRamGovernanceService.ArchiveLegacyAsync(dbContext, groupEvent.RamAssessment, request.CurrentMemberId, cancellationToken);
+            EventRamGovernanceService.Invalidate(groupEvent.RamAssessment);
             groupEvent.RamAssessment.Status = Alife.Domain.Enums.EventRamStatus.Draft;
             groupEvent.RamAssessment.SubmittedByMemberId = null;
             groupEvent.RamAssessment.SubmittedUtc = null;

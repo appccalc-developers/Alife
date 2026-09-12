@@ -125,7 +125,8 @@ public static class EventRamPolicy
             ram.ApprovedByMemberId,
             ram.ApprovedUtc,
             ram.CreatedUtc,
-            ram.UpdatedUtc);
+            ram.UpdatedUtc, ram.SchemaVersion, ram.ConcurrencyToken.ToString("D"), ram.PolicyVersionId,
+            ram.CurrentRevisionId, ram.Validity, ram.ResidualLevel, ram.AuthorMemberId, ram.ReviewRequested);
 
     private static void ValidateOutingSafety(JsonElement root, List<string> errors)
     {

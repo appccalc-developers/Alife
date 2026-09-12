@@ -26,7 +26,7 @@ const toUtc = (value: string) => new Date(value).toISOString()
 const formatInterval = (start: string, end: string, language: 'en' | 'zh') =>
   `${new Date(start).toLocaleString(language === 'zh' ? 'zh-TW' : 'en-NZ')} – ${new Date(end).toLocaleString(language === 'zh' ? 'zh-TW' : 'en-NZ')}`
 
-export const EventVenueWorkspaceSurface = ({ eventId, groupId, item, language }: EventSurfaceProps) => {
+export const EventVenueWorkspaceSurface = ({ eventId, groupId, item, language, onBusyChange, onSaved }: EventSurfaceProps) => {
   const [data, setData] = useState<EventVenueWorkspace | null>(null)
   const [occurrences, setOccurrences] = useState<EventOccurrence[]>([])
   const [loadState, setLoadState] = useState<LoadState>('loading')
@@ -65,6 +65,7 @@ export const EventVenueWorkspaceSurface = ({ eventId, groupId, item, language }:
   }, [eventId])
 
   useEffect(() => { void load() }, [load])
+  useEffect(() => { onBusyChange?.(mutationState === 'saving') }, [mutationState, onBusyChange])
 
   const mutate = async (action: () => Promise<EventVenueWorkspace | EventVenue>, success: string) => {
     setMutationState('saving'); setMessage('')
@@ -72,7 +73,7 @@ export const EventVenueWorkspaceSurface = ({ eventId, groupId, item, language }:
       const result = await action()
       if ('reservations' in result) setData(result)
       else await load()
-      setMutationState('success'); setMessage(success)
+      await onSaved?.(); setMutationState('success'); setMessage(success)
     } catch (reason) {
       const error = normalizeApiError(reason)
       setMutationState(error.status === 409 ? 'conflict' : error.status === 412 ? 'stale' : 'error')

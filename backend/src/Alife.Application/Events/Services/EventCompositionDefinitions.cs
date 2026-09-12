@@ -114,7 +114,8 @@ public static class EventCompositionDefinitions
             "finance", "money.finance", 50),
         Module(
             "SAFETY.RAM", "RAM and safety", "RAM 與安全",
-            [Rule("safety.requiresRam", "eq", true, EventModuleDecisionStatus.Required, "ram-policy-triggered")],
+            [Rule("safety.requiresRam", "eq", true, EventModuleDecisionStatus.Required, "ram-policy-triggered"),
+             Rule("move.accommodationRequired", "eq", true, EventModuleDecisionStatus.Required, "ram-overnight-triggered")],
             ["TEAM.WORK"],
             [
                 Role("ram.author", 1, 1, null, ["eventTeamMember"], ["ram.approver"]),
@@ -123,7 +124,7 @@ public static class EventCompositionDefinitions
             ["ram.draft", "ram.submit", "ram.approve", "incident.record"],
             ["roleRestricted", "approvalEvidence"],
             ["ram-complete", "ram-submitted", "ram-approved"],
-            "ram", "safety.ram", 60),
+            "ram", "safety.ram", 60, version: 2),
         Module(
             "SAFEGUARDING.CHILD", "Child safeguarding", "兒童保護",
             [Rule("people.childrenPresent", "eq", true, EventModuleDecisionStatus.Required, "children-present")],
@@ -334,8 +335,9 @@ public static class EventCompositionDefinitions
         IReadOnlyList<string> readiness,
         string integrationKey,
         string surfaceKey,
-        int order)
-        => new(code, 1, Text(en, zh), rules, dependencies, [], roles, workflow, dataClasses, readiness,
+        int order,
+        int version = 1)
+        => new(code, version, Text(en, zh), rules, dependencies, [], roles, workflow, dataClasses, readiness,
             integrationKey, surfaceKey, order);
 
     private static EventActivityTypeDefinition ActivityType(

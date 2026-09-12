@@ -1,3 +1,4 @@
+import { explicitLocalRange } from '../../../../shared/eventDetailsTime'
 import type { Env } from '../../index'
 import { AiChatSession, type DurableObjectStateLike, multilingualSchema } from '../ai/aiSession'
 import { detailFields, applicableDetails, detailCompletion, validDetail, type DetailsSnapshot, type DetailsResult, type DetailField, type DetailIssue, type EventDetailsAiResult, type EventDetailsForm } from '../../../../shared/eventDetails'
@@ -6,7 +7,7 @@ const text = (description: string) => ({ type: 'string', description })
 const bilingual = multilingualSchema('Equivalent Chinese and English; concise, at most 400 characters per language.')
 const formProperties = {
   title: bilingual, description: bilingual, locationName: bilingual,
-  startLocal: { ...text('Local YYYY-MM-DDTHH:mm; null if unknown.'), nullable: true }, endLocal: { ...text('Local YYYY-MM-DDTHH:mm; null if unknown.'), nullable: true },
+  startLocal: { ...text('Wall-clock YYYY-MM-DDTHH:mm in form.timeZone, never UTC or browser time; null if unknown.'), nullable: true }, endLocal: { ...text('Wall-clock YYYY-MM-DDTHH:mm in form.timeZone, never UTC or browser time; null if unknown.'), nullable: true },
   timeZone: { ...text('IANA time zone, e.g. Pacific/Auckland; null if unknown.'), nullable: true },
   visibility: { type: 'string', enum: ['groupVisible', 'churchVisible', 'public'], nullable: true },
   registrationMode: { type: 'string', enum: ['none', 'required'], nullable: true },
@@ -30,7 +31,7 @@ export const DETAILS_RESPONSE_SCHEMA = {
 const SCENARIO = `Event details form assistant v1. Return the complete target form, fieldAssessments, assessment, issues and assistantReply. Do not produce RAM, fees, contacts, module decisions or any legacy EventDto fields.
 The supplied snapshot is the latest user-visible form, including manual edits. Preserve all fields not explicitly corrected or cleared. Sources default/unresolved mean unconfirmed; never count a default as user intent. human/explicit are presentation provenance only, not business authority.
 Only mark a field explicit when the user directly supplied/corrected/cleared it, or you faithfully translate existing supplied text. evidence must be an exact short quotation of that information. Do not reuse an unrelated quote to justify another field. Use missing, inferred, ambiguous or conflicting otherwise. Unknown scalar values are null; unknown bilingual text is empty. Never invent optional details to fill blanks.
-Use the activity's IANA timeZone and referenceInstant for date reasoning. Bare relative dates such as next Saturday / 下个周六 require a proposed concrete date and confirmation before adoption. Conflicting weekly and fortnightly instructions require clarification. Never silently resolve a DST gap or fold. New Zealand time means Pacific/Auckland unless a different NZ zone is explicitly requested.
+Use the activity's IANA timeZone and referenceInstant for date reasoning. startLocal/endLocal are wall-clock times in that zone, with no offset conversion. For an explicit date and time range, cite the full date plus range as evidence for BOTH fields; do not quote the hour alone. Keep an existing timeZone unless the user explicitly changes it. Bare relative dates such as next Saturday / 下个周六 require a proposed concrete date and confirmation before adoption. Conflicting weekly and fortnightly instructions require clarification. Never silently resolve a DST gap or fold. New Zealand time means Pacific/Auckland unless a different NZ zone is explicitly requested.
 Only weekly series with an interval from 1 to 52 and the single weekday of startLocal are supported. Monthly/multiple-weekday recurrence is unsupported. Never change archetypeCode or activityTypeCode: explain a mismatch and ask the user to select a matching template.
 All ten fields are described by target schema. Capacity applies only to required registration; interval applies only to series. Visibility/registration/time defaults require explicit confirmation. A missing registration choice is not no-registration. A clear request to clear a field is allowed and leaves it incomplete.
 Return an AI sufficiency score, separate from deterministic completion. List issues by importance. assistantReply must briefly reflect what was captured and ask at most two useful questions. Never claim submission or approval. Keep descriptions under 400 characters per language and every reply concise. Do not repeat already resolved questions. All explanatory and question text is bilingual.`
@@ -85,6 +86,13 @@ export function readDetailsAiResult(x: unknown): DetailsResult {
 }
 
 export function mergeDetails(snapshot: DetailsSnapshot, result: DetailsResult, message: string): DetailsResult {
+  // Exact date/range text is stronger evidence than a model returning stale
+  // defaults or UTC in a local-time field. Do not take a zone invented by AI.
+  const explicit = explicitLocalRange(message, snapshot.form.timeZone)
+  if (explicit) result = { ...result, form: { ...result.form, startLocal: explicit.startLocal, endLocal: explicit.endLocal },
+    issues: result.issues.filter(x => x.field !== 'startLocal' && x.field !== 'endLocal'),
+    fieldAssessments: [...result.fieldAssessments.filter(x => x.field !== 'startLocal' && x.field !== 'endLocal'),
+      ...(['startLocal', 'endLocal'] as const).map(field => ({ field, status: 'explicit' as const, evidence: explicit.evidence, explanation: { zh: '按活动时区采用用户明确提供的日期和时间。', en: 'Explicit calendar date and wall-clock range in the event time zone.' } }))] }
   const form = structuredClone(snapshot.form), sources = { ...snapshot.sources }, adoptedFields: DetailField[] = []
   const issues = [...result.issues]
   const blocked = new Set(issues.filter(x => ['ambiguous', 'conflicting', 'unsupported'].includes(x.kind)).map(x => x.field))
@@ -113,7 +121,7 @@ export function mergeDetails(snapshot: DetailsSnapshot, result: DetailsResult, m
     if (isClear && !/清空|删除|移除|清除|取消|clear|remove|delete|unset/i.test(a.evidence)) continue
     const confirmingCurrent = JSON.stringify(proposed) === JSON.stringify(snapshot.form[field]) && /确认|就按|没错|是的|同意|confirm|correct|yes|use (?:these|the current)/i.test(a.evidence)
     if (proposed !== null && !confirmingCurrent) {
-      if ((field === 'startLocal' || field === 'endLocal') && !/\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}月\d{1,2}|today|tomorrow|今天|明天|确认|confirm|yes/i.test(a.evidence)) continue
+      if ((field === 'startLocal' || field === 'endLocal') && !explicit && !/\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}月\d{1,2}|today|tomorrow|今天|明天|确认|confirm|yes/i.test(a.evidence)) continue
       if (field === 'maxCapacity' && !a.evidence.match(/\d+/g)?.includes(String(proposed))) continue
       if (field === 'intervalWeeks' && !a.evidence.match(/\d+/g)?.includes(String(proposed)) && !(proposed === 2 ? /二|两|隔周|fortnight|biweekly|two/i : proposed === 1 ? /每周|weekly|one/i : /(?!)/).test(a.evidence)) continue
       if (field === 'visibility' && !(proposed === 'public' ? /公开|public/i : proposed === 'churchVisible' ? /教会|church/i : /小组|group/i).test(a.evidence)) continue

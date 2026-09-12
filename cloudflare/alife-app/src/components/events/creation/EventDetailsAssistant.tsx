@@ -1,12 +1,12 @@
 import { useEffect, useId, useRef, useState, type Dispatch, type SetStateAction } from 'react'
-import { Mic, Square } from 'lucide-react'
+import { MessageCircle, Mic, Send, Square } from 'lucide-react'
 import AppSectionCard from '../../layout/AppSectionCard'
 import AppActionButton from '../../layout/AppActionButton'
 import AppBadge from '../../layout/AppBadge'
 import { createAiSessionService } from '../../../services/aiSessionService'
 import { normalizeApiError } from '../../../services/http'
 import type { EventActivityType } from '../../../types/eventComposition'
-import type { CreationDraft } from '../../../utils/eventCreationDraft'
+import { invalidateArrangementConfirmation, type CreationDraft } from '../../../utils/eventCreationDraft'
 import { applyDetailsResult, detailsSnapshot } from '../../../utils/eventDetailsAssistant'
 import { applicableDetails, detailCompletion, detailLabels, validDetail, type Bilingual, type DetailsResult } from '../../../../../shared/eventDetails'
 import { creationInput, localText } from './CreationSteps'
@@ -46,7 +46,7 @@ export default function EventDetailsAssistant({ draft, setDraft, type, isSeries,
   const snapshot = detailsSnapshot(draft, type, isSeries, revision.current)
   const completion = detailCompletion(snapshot.form, snapshot.sources, isSeries)
   const text = (value: Bilingual) => (zh ? value.zh : value.en) || value.en || value.zh
-  useEffect(() => { if (conversation.current) conversation.current.scrollTop = 0 }, [turns])
+  useEffect(() => { if (conversation.current) conversation.current.scrollTop = conversation.current.scrollHeight }, [turns, active, zh])
   useEffect(() => {
     alive.current = true
     return () => { alive.current = false; if (started.current) void service.close(sessionId.current).catch(() => undefined) }
@@ -63,10 +63,10 @@ export default function EventDetailsAssistant({ draft, setDraft, type, isSeries,
       }
       if (!response.result) throw new Error(zh ? 'AI 未返回资料草稿。' : 'AI returned no details draft.')
       const next = response.result
-      const nextDraft = applyDetailsResult(draft, next)
-      setDraft(current => JSON.stringify({ draft: current, type: type.code, isSeries }) === sentSignature ? applyDetailsResult(current, next) : current)
+      const nextDraft = invalidateArrangementConfirmation(applyDetailsResult(draft, next))
+      setDraft(current => JSON.stringify({ draft: current, type: type.code, isSeries }) === sentSignature ? invalidateArrangementConfirmation(applyDetailsResult(current, next)) : current)
       setResult(next); setResultSignature(JSON.stringify({ draft: nextDraft, type: type.code, isSeries }))
-      setTurns(current => [{ id: crypto.randomUUID(), role: 'assistant', text: next.assistantReply }, { id: crypto.randomUUID(), role: 'user', text: submitted }, ...current].slice(0, 24) as Turn[])
+      setTurns(current => [...current, { id: crypto.randomUUID(), role: 'user', text: submitted }, { id: crypto.randomUUID(), role: 'assistant', text: next.assistantReply }].slice(-24) as Turn[])
       setPrompt('')
     } catch (reason) {
       if (alive.current) {
@@ -86,12 +86,18 @@ export default function EventDetailsAssistant({ draft, setDraft, type, isSeries,
   const currentResult = resultSignature === signature ? result : null
   const defaultsPending = completion.pending.filter(field => (snapshot.sources[field] ?? 'default') === 'default' && validDetail(field, snapshot.form))
   return <AppSectionCard><details open onToggle={event => { if (!event.currentTarget.open) voice.cancel() }}><summary className="min-h-11 cursor-pointer py-2 font-semibold">{zh ? 'AI 资料助手' : 'AI details assistant'}<AppBadge className="ml-2 max-w-full break-words align-middle">{zh ? '已选模板：' : 'Selected template: '}{localText(type.name, zh)}</AppBadge></summary>
-    <div className="my-3 rounded-xl bg-[#e3f0eb] p-3 text-sm" aria-live="polite">
-      <p className="font-semibold">{zh ? '字段完成度' : 'Field completion'}：{completion.percent}% ({completion.completed}/{completion.total})</p>
-      <progress className="mt-2 w-full accent-[#176b5a]" aria-label={zh ? '字段完成度' : 'Field completion'} value={completion.percent} max={100} />
-      <p>{zh ? '100% 表示资料完整，不表示已批准或发布。' : '100% means complete details, not approval or publication.'}</p>
-      {completion.pending.length ? <p className="mt-2">{zh ? '待填写或确认：' : 'Pending: '}{completion.pending.map(field => text(detailLabels[field])).join('、')}</p> : null}
-      {defaultsPending.length ? <><p className="mt-2">{zh ? '请核对表单中的默认设置：' : 'Review the defaults in the form: '}{defaultsPending.map(field => text(detailLabels[field])).join('、')}</p><AppActionButton className="mt-2" disabled={busy} onClick={confirmDefaults}>{zh ? '确认当前默认设置' : 'Confirm current defaults'}</AppActionButton></> : null}
+    <div ref={conversation} role="log" tabIndex={0} aria-label={zh ? '资料助手对话（按时间顺序）' : 'Details assistant conversation (chronological)'} className="mt-3 max-h-80 min-h-40 space-y-4 overflow-y-auto overscroll-contain rounded-2xl border border-[#2f4b42]/10 bg-[#f5f2eb] px-3 py-4 sm:px-5" style={{ backgroundImage: 'radial-gradient(rgba(47,75,66,0.08) 0.75px, transparent 0.75px)', backgroundSize: '16px 16px' }}>
+      {turns.length ? turns.map(turn => <div key={turn.id} className={`flex ${turn.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+        <div className={`relative w-fit min-w-0 max-w-[88%] rounded-2xl px-4 py-3 text-sm shadow-sm sm:max-w-[80%] ${turn.role === 'user' ? 'rounded-tr-sm bg-[#e3f0eb]' : 'rounded-tl-sm bg-white'}`}>
+          <span aria-hidden="true" className={`absolute top-0 h-2.5 w-2.5 ${turn.role === 'user' ? '-right-1.5 bg-[#e3f0eb] [clip-path:polygon(0_0,100%_0,0_100%)]' : '-left-1.5 bg-white [clip-path:polygon(0_0,100%_0,100%_100%)]'}`} />
+          <strong className="text-xs font-semibold text-[#176b5a]">{turn.role === 'user' ? (zh ? '你' : 'You') : (zh ? 'AI 助手' : 'AI assistant')}</strong>
+          <p className="mt-1 whitespace-pre-wrap break-words leading-6 text-[#18332d] [overflow-wrap:anywhere]">{typeof turn.text === 'string' ? turn.text : text(turn.text)}</p>
+        </div>
+      </div>) : <div className="flex min-h-32 flex-col items-center justify-center gap-2 px-2 text-center text-sm text-[#66766f]">
+        <MessageCircle className="text-[#176b5a]" size={28} aria-hidden="true" />
+        <span>{zh ? '从你的活动想法聊起吧。' : 'Start with your idea for the event.'}</span>
+        <span className="text-xs">{zh ? '可以打字，也可以用语音输入。' : 'Type a message or use voice input.'}</span>
+      </div>}
     </div>
     <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
       <label htmlFor={promptId} className="min-w-[12rem] flex-1 text-sm leading-6 text-[#66766f]">{zh ? '明确提供的资料会填入草稿；不确定之处会继续询问。请在创建前审阅。' : 'Explicit details fill the draft; uncertain details prompt a follow-up. Review before creating.'}</label>
@@ -109,15 +115,22 @@ export default function EventDetailsAssistant({ draft, setDraft, type, isSeries,
     {voice.supported && voiceError ? <p role="alert" className="mt-2 text-sm text-rose-800">{voiceError}</p> : null}
     {error ? <p role="alert" className="mt-2 text-sm text-rose-800">{error}</p> : null}
     <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-      <AppActionButton disabled={busy || voice.active || !prompt.trim()} onClick={() => void send()}>{busy ? (zh ? '整理中……' : 'Organising…') : (zh ? '发送并整理资料' : 'Send and organise details')}</AppActionButton>
+      <AppActionButton variant="primary" className="min-h-11 gap-2" disabled={busy || voice.active || !prompt.trim()} onClick={() => void send()}><Send size={16} aria-hidden="true" />{busy ? (zh ? '整理中……' : 'Organising…') : (zh ? '发送并整理资料' : 'Send and organise details')}</AppActionButton>
+    </div>
+    <div className="my-4 rounded-2xl border border-[#176b5a]/15 bg-[#e3f0eb]/50 p-4 text-sm" aria-live="polite">
+      <p className="font-semibold">{zh ? '字段完成度' : 'Field completion'}：{completion.percent}% ({completion.completed}/{completion.total})</p>
+      <progress className="mt-2 w-full accent-[#176b5a]" aria-label={zh ? '字段完成度' : 'Field completion'} value={completion.percent} max={100} />
+      <p>{zh ? '100% 表示资料完整，不表示已批准或发布。' : '100% means complete details, not approval or publication.'}</p>
+      {completion.pending.length ? <p className="mt-2">{zh ? '待填写或确认：' : 'Pending: '}{completion.pending.map(field => text(detailLabels[field])).join('、')}</p> : null}
+      {defaultsPending.length ? <><p className="mt-2">{zh ? '请核对表单中的默认设置：' : 'Review the defaults in the form: '}{defaultsPending.map(field => text(detailLabels[field])).join('、')}</p><AppActionButton className="mt-2" disabled={busy} onClick={confirmDefaults}>{zh ? '确认当前默认设置' : 'Confirm current defaults'}</AppActionButton></> : null}
+      <div className="mt-3 flex justify-end border-t border-[#176b5a]/15 pt-3">
       <AppActionButton variant="ghost" className="ml-auto" onClick={onReturnToForm}>{zh ? '↑ 回到活动资料表单' : '↑ Back to event details form'}</AppActionButton>
+      </div>
     </div>
     {currentResult ? <div className="my-3 text-sm" aria-live="polite"><p>{zh ? 'AI 充分性评估' : 'AI sufficiency assessment'}：{currentResult.assessment.sufficiencyScore}/100 · {text(currentResult.assessment.summary)}</p>
       {currentResult.adoptedFields.length ? <p className="mt-2">{zh ? '本轮更新：' : 'Updated: '}{currentResult.adoptedFields.map(field => text(detailLabels[field])).join('、')}</p> : null}
       {currentResult.issues.length ? <ul className="mt-2 list-disc space-y-1 pl-5">{currentResult.issues.slice(0, 2).map((issue, index) => <li key={index}>{text(detailLabels[issue.field])}：{text(issue.question)}</li>)}</ul> : null}
     </div> : result ? <p className="my-2 text-sm text-[#66766f]">{zh ? '表单已更新；上轮 AI 评估已过期，请继续补充。' : 'The form changed; the previous AI assessment is out of date. Continue with the latest details.'}</p> : null}
-    <div ref={conversation} role="log" aria-label={zh ? '资料助手对话（最新优先）' : 'Details assistant conversation (latest first)'} className="mt-3 max-h-80 space-y-3 overflow-y-auto">
-      {turns.map(turn => <div key={turn.id} className={`rounded-xl p-3 text-sm ${turn.role === 'user' ? 'bg-[#f5f2eb]' : 'border border-[#2f4b42]/15'}`}><strong>{turn.role === 'user' ? (zh ? '你' : 'You') : (zh ? 'AI 助手' : 'AI assistant')}</strong><p className="mt-1 whitespace-pre-wrap break-words">{typeof turn.text === 'string' ? turn.text : text(turn.text)}</p></div>)}
-    </div>
+
   </details></AppSectionCard>
 }

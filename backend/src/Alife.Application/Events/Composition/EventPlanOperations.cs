@@ -103,7 +103,8 @@ public sealed class GetEventPlanQueryHandler(
 
         try
         {
-            return AppResult<EventPlanSnapshotDto>.Success(EventCompositionPersistence.ToSnapshotDto(snapshot));
+            return AppResult<EventPlanSnapshotDto>.Success(await EventArrangementConfirmationPolicy.RefreshAsync(
+                dbContext, EventCompositionPersistence.ToSnapshotDto(snapshot), cancellationToken));
         }
         catch (JsonException)
         {
@@ -176,6 +177,8 @@ public sealed class RecomposeEventPlanCommandHandler(
             }
         }
 
+        if (basePlan?.Plan.ArrangementConfirmations is not null && request.Composition.ArrangementConfirmations is null)
+            return AppResult<EventPlanProposalDto>.Conflict("Upgrade this client to preserve arrangement confirmations. / 请升级客户端以保留分区确认状态。");
         var protectedModules = await EventCompositionPersistence.GetProtectedModuleCodesAsync(
             dbContext, groupEvent, cancellationToken);
         if (EventPreparationPolicy.ChangesTemplate(basePlan, request.Composition))
@@ -307,6 +310,8 @@ public sealed class AcceptEventPlanCommandHandler(
 
         var protectedModules = await EventCompositionPersistence.GetProtectedModuleCodesAsync(
             dbContext, groupEvent, cancellationToken);
+        if (basePlan?.Plan.ArrangementConfirmations is not null && request.Request.Composition.ArrangementConfirmations is null)
+            return AppResult<EventPlanSnapshotDto>.Conflict("Upgrade this client to preserve arrangement confirmations. / 请升级客户端以保留分区确认状态。");
         if (EventPreparationPolicy.ChangesTemplate(basePlan, request.Request.Composition))
             return AppResult<EventPlanSnapshotDto>.Conflict(EventPreparationPolicy.TemplateLockedMessage);
         var composition = EventPreparationPolicy.WithSavedDetails(groupEvent, request.Request.Composition with { BasePlanVersion = groupEvent.ActivePlanVersion });

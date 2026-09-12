@@ -48,6 +48,8 @@ Leads receive the minimum full operational workspace; assigned check-in workers 
 
 Preparation configuration follows the [formal-approval freeze and reopening contract](../EVENT-SETUP-FLOW.md). Approved preparation cannot be edited until reopening is authorised. Operational responses, consent and safety records retain their existing controls.
 
+During saved preparation, the existing authorized tool is embedded directly in **Arrangements → Safety → Children participation / Child safeguarding**. It shares its operational API and permissions with the independent workspace route; there is no separate Team and tools preparation step. See [integrated preparation](../EVENT-SETUP-FLOW.md).
+
 ## Current implementation
 
 Current core flow. Explicit Enrollment-linked child records, confirmed guardian relationships, policy-bound consent, guardian-managed collectors, occurrence check-in/verified check-out, worker evidence, policy-backed readiness, ETag/idempotency, append-only minimal audit, exact server authorisation, minimum projections, private APIs, and reachable `EventSafeguardingWorkspace` exist.

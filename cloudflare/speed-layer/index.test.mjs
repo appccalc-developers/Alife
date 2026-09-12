@@ -1124,7 +1124,7 @@ test('304 edge cache response includes complete CORS allow headers', async () =>
   assert.equal(response.headers.get('access-control-allow-origin'), ORIGIN)
   assert.equal(response.headers.get('access-control-allow-credentials'), 'true')
   assert.equal(response.headers.get('access-control-allow-methods'), 'GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS')
-  assert.equal(response.headers.get('access-control-allow-headers'), 'Content-Type, Authorization, X-Requested-With, If-None-Match')
+  assert.equal(response.headers.get('access-control-allow-headers'), 'Content-Type, Authorization, X-Requested-With, If-None-Match, Idempotency-Key, Cache-Control')
   assert.equal(response.headers.get('access-control-max-age'), '86400')
 })
 
@@ -1648,7 +1648,7 @@ test('same-origin group pages 304 without Origin still includes CORS allow origi
   assert.equal(response.headers.get('access-control-allow-origin'), 'https://ccalc.live')
   assert.equal(response.headers.get('access-control-allow-credentials'), 'true')
   assert.equal(response.headers.get('access-control-allow-methods'), 'GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS')
-  assert.equal(response.headers.get('access-control-allow-headers'), 'Content-Type, Authorization, X-Requested-With, If-None-Match')
+  assert.equal(response.headers.get('access-control-allow-headers'), 'Content-Type, Authorization, X-Requested-With, If-None-Match, Idempotency-Key, Cache-Control')
   assert.equal(response.headers.get('access-control-max-age'), '86400')
   assert.equal(response.headers.get('x-alife-cache'), 'REVALIDATED')
   assert.equal(await response.text(), '')
@@ -2595,7 +2595,7 @@ test('POST /api/events/session/:id/start binds edit and RAM context to the curre
   const state = await response.json()
   assert.equal(state.draft.id, eventId)
   assert.equal(state.draft.title.en, 'Family Camp')
-  assert.equal(state.draft.ram.activityName.en, 'Family Camp')
+  assert.equal(state.draft.ram.activityName.en, '') // RAM is no longer seeded or rewritten by AI.
   assert.equal(state.draft.ram.leaderConfirmed, false)
   assert.equal(state.appContext.eventId, eventId)
   assert.equal(state.appContext.eventData.id, eventId)
@@ -2746,7 +2746,7 @@ test('POST /api/events/session/:id/message forwards known app context to Gemini'
   assert.equal(response.status, 200)
   const geminiBody = JSON.parse(fetchInits[0].body)
   const prompt = JSON.parse(geminiBody.contents[0].parts[0].text)
-  assert.equal(prompt.appContext.userId, 'user-1')
+  assert.equal(prompt.appContext.userId, undefined) // Account profiles and private RAM are excluded.
   assert.equal(prompt.appContext.groupId, '22222222-2222-2222-2222-222222222222')
   assert.equal(prompt.knownContextPolicy.includes('do not ask'), true)
 })
@@ -3922,3 +3922,56 @@ test('details direct Durable Object enforces ownership even with a forged presen
   assert.match(String(fetchCalls[0]), /generativelanguage/)
   assert.equal(values.get('event-details-v1').ownerMemberId, 'member-1')
 })
+
+
+test('RAM AI guidance rejects private payloads and requires origin RAM authorization', async () => {
+  const body = { eventId: '11111111-1111-1111-1111-111111111111', activityType: 'hiking', category: 'environment', language: 'en' }
+  const env = { API_PROXY_TARGET: 'https://api.ccalc.live', GEMINI_API_KEY: 'fixture-key' }
+  let response = await dispatch('https://ccalc.live/api/events/ram-guidance', { method: 'POST', body: JSON.stringify({ ...body, ram: { medical: 'PRIVATE' } }), headers: { 'content-type': 'application/json' }, env })
+  assert.equal(response.status, 400)
+  assert.equal(fetchCalls.length, 0)
+  originResponses.push(Response.json({ message: 'Forbidden' }, { status: 403 }))
+  response = await dispatch('https://ccalc.live/api/events/ram-guidance', { method: 'POST', body: JSON.stringify(body), headers: { 'content-type': 'application/json' }, env })
+  assert.equal(response.status, 403)
+  assert.equal(fetchCalls.length, 1)
+  assert.equal(response.headers.get('cache-control'), 'private, no-store')
+})
+
+test('RAM AI guidance sends only enums and cannot return scores or replace manual RAM', async () => {
+  originResponses.push(Response.json({ privateRam: 'MUST-NOT-FORWARD' }))
+  originResponses.push(Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ explanation: 'Check what is known.', questions: ['Who verifies this?'], hazards: ['Do not copy'], riskScore: 25 }) }] } }] }))
+  const response = await dispatch('https://ccalc.live/api/events/ram-guidance', { method: 'POST', headers: { 'content-type': 'application/json', cookie: 'alife_auth=fixture' }, body: JSON.stringify({ eventId: '11111111-1111-1111-1111-111111111111', activityType: 'hiking', category: 'environment', language: 'en' }), env: { API_PROXY_TARGET: 'https://api.ccalc.live', GEMINI_API_KEY: 'fixture-key' } })
+  assert.equal(response.status, 200)
+  const payload = JSON.parse(fetchInits[1].body)
+  assert.deepEqual(JSON.parse(payload.contents[0].parts[0].text), { activityType: 'hiking', category: 'environment', language: 'en' })
+  assert.equal(fetchInits[1].body.includes('MUST-NOT-FORWARD'), false)
+  assert.deepEqual(await response.json(), { explanation: 'Check what is known.', questions: ['Who verifies this?'] })
+  assert.equal(response.headers.get('cache-control'), 'private, no-store')
+})
+
+test('RAM version and policy responses cannot enter shared caches across users', async () => {
+  for (const path of ['/api/events/event-1/ram/workspace', '/api/events/event-1/ram/versions/revision-1', '/api/admin/churches/church-1/ram-policies']) {
+    for (const viewer of ['alice', 'bob']) {
+      originResponses.push(Response.json({ viewer }, { headers: { 'cache-control': 'private, no-store' } }))
+      const response = await dispatch(`https://ccalc.live${path}`, { headers: { cookie: `alife_auth=${createJwtWithSub(viewer)}` } })
+      assert.equal((await response.json()).viewer, viewer)
+      assert.equal(response.headers.get('cache-control'), 'private, no-store')
+    }
+  }
+  assert.equal(fetchCalls.length, 6)
+})
+
+test('details adopts explicit event-zone date/range even when AI quotes hours only or repeats defaults', async () => {
+  for (const mode of ['hours-only', 'stale', 'utc', 'chinese-numerals']) {
+    const snapshot = detailsFixture(); snapshot.form.startLocal = '2026-09-18T10:00'; snapshot.form.endLocal = '2026-09-18T12:00';
+    const result = detailsOutput(snapshot, mode === 'utc' ? { startLocal: '2026-09-19T01:00', endLocal: '2026-09-19T04:00' } : {});
+    result.fieldAssessments = mode === 'stale' ? [] : [detailsAssessment('startLocal', '下午1点'), detailsAssessment('endLocal', '下午4点')];
+    originResponses.push(detailsReply(result));
+    const response = await sendDetails(crypto.randomUUID(), snapshot, mode === 'chinese-numerals' ? '九月十九日下午一点到四点' : '2026年9月19日下午1点到下午4点');
+    assert.equal(response.status, 200);
+    const { result: merged } = await response.json();
+    assert.equal(merged.form.startLocal, '2026-09-19T13:00'); assert.equal(merged.form.endLocal, '2026-09-19T16:00');
+    assert.equal(merged.form.timeZone, 'Pacific/Auckland');
+    assert.ok(merged.adoptedFields.includes('startLocal')); assert.ok(merged.adoptedFields.includes('endLocal'));
+  }
+});

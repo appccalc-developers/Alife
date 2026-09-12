@@ -71,6 +71,7 @@ public class EventRamWorkflowTests
         var groupId = Guid.NewGuid();
         var leaderId = Guid.NewGuid();
         var groupEvent = CreateEvent(groupId, leaderId, EventRamStatus.Approved);
+        groupEvent.RamAssessment!.CurrentRevisionId = Guid.NewGuid();
         dbContext.GroupEvents.Add(groupEvent);
         await dbContext.SaveChangesAsync();
         var authorization = Substitute.For<IGroupAuthorizationService>();
@@ -84,6 +85,8 @@ public class EventRamWorkflowTests
         Assert.True(result.IsSuccess);
         Assert.Equal(EventRamStatus.Draft, result.Value!.Status);
         Assert.Null(result.Value.ApprovedByMemberId);
+        Assert.Null(result.Value.CurrentRevisionId);
+        Assert.Equal("ReviewRequired", result.Value.Validity);
     }
 
     [Fact]
@@ -122,18 +125,17 @@ public class EventRamWorkflowTests
         authorization.IsLeaderOrCoLeaderAsync(groupId, leaderId, Arg.Any<CancellationToken>()).Returns(true);
         var cache = Substitute.For<IEventCacheInvalidationService>();
         var invalidation = new EventPackageInvalidationService(dbContext);
-        var submitHandler = new SubmitEventRamCommandHandler(dbContext, authorization, cache, invalidation);
-        var approveHandler = new ApproveEventRamCommandHandler(dbContext, cache, invalidation);
+        var submitHandler = new SubmitEventRamCommandHandler(dbContext, authorization);
+        var approveHandler = new ApproveEventRamCommandHandler(dbContext);
 
         var submitted = await submitHandler.Handle(new SubmitEventRamCommand(groupEvent.Id, leaderId), CancellationToken.None);
         var approved = await approveHandler.Handle(new ApproveEventRamCommand(groupEvent.Id, auditorId), CancellationToken.None);
 
-        Assert.True(submitted.IsSuccess);
-        Assert.Equal(EventRamStatus.AwaitingReview, submitted.Value!.Status);
-        Assert.True(approved.IsSuccess);
-        Assert.Equal(EventRamStatus.Approved, approved.Value!.Status);
-        Assert.Equal(auditorId, approved.Value.ApprovedByMemberId);
-        Assert.Equal(2, await dbContext.NotificationMessages.CountAsync());
+        Assert.False(submitted.IsSuccess);
+        Assert.Contains("upgradeRequired", submitted.Message);
+        Assert.False(approved.IsSuccess);
+        Assert.Equal(EventRamStatus.Draft, groupEvent.RamAssessment!.Status);
+        Assert.Empty(await dbContext.NotificationMessages.ToListAsync());
     }
 
     private static AlifeDbContext CreateDbContext()

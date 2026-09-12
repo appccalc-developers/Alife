@@ -18,6 +18,8 @@ using Alife.Application.Events.Commands.UpdateEventWorkflowStep;
 using Alife.Application.Events.Commands.CreateEventArtifact;
 using Alife.Application.Events.Commands.UpdateEventArtifact;
 using Alife.Domain.Enums;
+using Alife.Application.Events.Services;
+using Alife.Application.Events.Dtos;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -29,7 +31,8 @@ namespace Alife.Api.Controllers;
 [Authorize]
 public class EventsController(
     IMediator mediator,
-    ICurrentMemberAccessor currentMemberAccessor) : ControllerBase
+    ICurrentMemberAccessor currentMemberAccessor,
+    EventRamGovernanceService ramGovernance) : ControllerBase
 {
     [HttpGet("events/public/upcoming")]
     [AllowAnonymous]
@@ -133,36 +136,46 @@ public class EventsController(
     [HttpGet("events/{id:guid}/ram")]
     public async Task<IActionResult> GetRam(Guid id, CancellationToken cancellationToken)
     {
+        this.ApplyPrivateNoStoreHeaders();
         var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
         if (currentMemberId is null) return Unauthorized();
         var result = await mediator.Send(new GetEventRamQuery(id, currentMemberId.Value), cancellationToken);
-        this.ApplyPrivateNoCacheHeaders();
         return this.ToActionResult(result);
     }
 
     [HttpPut("events/{id:guid}/ram")]
     public async Task<IActionResult> SaveRam(Guid id, [FromBody] SaveEventRamRequest request, CancellationToken cancellationToken)
     {
+        this.ApplyPrivateNoStoreHeaders();
         var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
         if (currentMemberId is null) return Unauthorized();
+        if (request.SchemaVersion == 2)
+            return this.ToActionResult(await ramGovernance.SaveAsync(id, currentMemberId.Value,
+                new(request.RamDataJson, request.PolicyVersionId, request.ExpectedETag ?? ""), cancellationToken));
         var result = await mediator.Send(new SaveEventRamCommand(id, currentMemberId.Value, request.RamDataJson), cancellationToken);
         return this.ToActionResult(result);
     }
 
     [HttpPost("events/{id:guid}/ram/submit")]
-    public async Task<IActionResult> SubmitRam(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> SubmitRam(Guid id, CancellationToken cancellationToken,
+        [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] RamActionRequest? request = null)
     {
+        this.ApplyPrivateNoStoreHeaders();
         var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
         if (currentMemberId is null) return Unauthorized();
+        if (request is not null) return this.ToActionResult(await ramGovernance.ActAsync(id,currentMemberId.Value,"submit",request,Request.Headers["Idempotency-Key"].ToString(),cancellationToken));
         var result = await mediator.Send(new SubmitEventRamCommand(id, currentMemberId.Value), cancellationToken);
         return this.ToActionResult(result);
     }
 
     [HttpPost("events/{id:guid}/ram/approve")]
-    public async Task<IActionResult> ApproveRam(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> ApproveRam(Guid id, CancellationToken cancellationToken,
+        [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] RamActionRequest? request = null)
     {
+        this.ApplyPrivateNoStoreHeaders();
         var currentMemberId = currentMemberAccessor.GetCurrentMemberId();
         if (currentMemberId is null) return Unauthorized();
+        if (request is not null) return this.ToActionResult(await ramGovernance.ActAsync(id,currentMemberId.Value,"approve",request,Request.Headers["Idempotency-Key"].ToString(),cancellationToken));
         var result = await mediator.Send(new ApproveEventRamCommand(id, currentMemberId.Value), cancellationToken);
         return this.ToActionResult(result);
     }
@@ -293,7 +306,7 @@ public class EventsController(
         string? RamDataJson,
         Alife.Application.Events.Dtos.PreparationSeriesUpdate? SeriesUpdate = null);
 
-    public record SaveEventRamRequest(string RamDataJson);
+    public record SaveEventRamRequest(string RamDataJson, int SchemaVersion = 1, Guid? PolicyVersionId = null, string? ExpectedETag = null);
 
     public record InitializeEventWorkflowRequest(string TemplateCode);
 

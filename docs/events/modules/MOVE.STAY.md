@@ -46,6 +46,8 @@ Coordinators manage bilingual stops, vehicle capacity, and restricted passengers
 
 Preparation configuration follows the [formal-approval freeze and reopening contract](../EVENT-SETUP-FLOW.md). Approved preparation cannot be edited until reopening is authorised. Operational responses, consent and safety records retain their existing controls.
 
+During saved preparation, the existing authorized tool is embedded directly in **Arrangements → Travel and accommodation → Travel and stay**. It shares its operational API and permissions with the independent workspace route; there is no separate Team and tools preparation step. See [integrated preparation](../EVENT-SETUP-FLOW.md).
+
 ## Current implementation
 
 Current transport slice. Driver/vehicle evidence, occurrence pickup journeys, ordered stops, history-preserving passenger assignment, capacity validation, exact coordinator authorisation, restricted/full and personal/minimum projections, ETags/idempotency, RAM/readiness integration, private APIs, and reachable `EventTravelWorkspace` exist.

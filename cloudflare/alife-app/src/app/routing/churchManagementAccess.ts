@@ -4,6 +4,7 @@ export const systemManagementAdminPermissions = [
   'admin.messages.manage',
   'admin.events.manageTemplates',
   'admin.events.managePackagePolicies',
+  'admin.events.manageRamPolicies',
   'admin.files.view',
   'admin.auditLogs.view',
   'admin.sermons.sync',

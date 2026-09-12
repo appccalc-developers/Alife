@@ -23,6 +23,7 @@ public static class DependencyInjection
         services.AddScoped<IEventTravelService, EventTravelService>();
         services.AddScoped<IEventSafeguardingService, EventSafeguardingService>();
         services.AddScoped<IEventPackageService, EventPackageService>();
+        services.AddScoped<EventRamGovernanceService>();
         services.AddScoped<IEventPackageInvalidationService, EventPackageInvalidationService>();
         services.AddScoped<IEventPackageDelegationService, EventPackageDelegationService>();
         services.AddScoped<IIdentityAccessService, IdentityAccessService>();
