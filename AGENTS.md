@@ -2,364 +2,151 @@
 
 ## Authority and scope
 
-This tracked file is the canonical instruction source for Codex and other coding agents working in the Alife repository.
+This tracked file is the canonical repository-wide instruction source for coding agents working in Alife. Apply it to every task in this repository.
 
-- Apply these rules to every task started in this repository.
-- Keep repository-specific behavior here rather than in a contributor's global `~/.codex/AGENTS.md`.
-- Add a nested `AGENTS.md` only when a subtree has genuinely different requirements. A nested file may refine these rules for its subtree but must not weaken repository-wide security, privacy, compatibility, or traceability requirements.
-- Keep `.github/copilot-instructions.md` as a thin compatibility pointer to this file. Do not duplicate the full workflow there.
-- When instructions conflict, follow the higher-priority user or system instruction and report the conflict when it affects the requested outcome.
+- Keep repository-specific behavior in tracked instructions rather than a contributor's global configuration.
+- A nested `AGENTS.md` may add subtree-specific requirements but must not weaken repository-wide security, privacy, compatibility, or traceability rules.
+- Keep `.github/copilot-instructions.md` as a thin compatibility pointer to this file.
+- Higher-priority user or system instructions win; report conflicts that affect the requested outcome.
 
-## Project identity
+## Product and priorities
 
 Alife is an alpha-stage community/church group platform for overseas Chinese Christian communities. It manages groups, members, pages, sermons, events, bilingual content, and AI-assisted event workflows.
 
-Alife is maintained collaboratively by a team. Stability, maintainability, architecture clarity, shared understanding, and demonstrable product value matter.
+Prioritize, in order:
 
-## Primary goals
+1. Alpha stability and real user value for group leaders and members.
+2. Authentication, authorization, privacy, and cache correctness.
+3. Existing architecture and public-contract compatibility.
+4. Small, reviewable changes with clear tests and documentation.
+5. Consistent English/Chinese behavior and maintainable handover.
 
-Prioritize:
+Do not introduce a framework, library, paid service, or architectural pattern without explicit approval. Do not rewrite working modules solely for style.
 
-1. Keep Alife stable for alpha testing.
-2. Improve real user experience for group leaders and members.
-3. Preserve the current architecture unless a change is explicitly requested.
-4. Prefer small, reviewable, incremental changes over broad rewrites.
-5. Keep the codebase easy to understand, review, maintain, hand over, and explain to new team members.
-6. Support bilingual English/Chinese usage consistently.
-7. Protect authentication, authorization, privacy, and cache correctness.
+## Context and token discipline
 
-## Operating model
+- Read the affected implementation and nearby tests before editing, but avoid broad repository scans when a focused search answers the question.
+- Load only the instructions and references relevant to the files in scope. Do not read generated handbooks or whole directories when an authoritative module source is available.
+- Keep shell and tool output focused with path filters and sensible limits. Do not print whole large files when a matching section or line range is enough.
+- Do not rerun successful builds, tests, searches, or reads unless a later change or unresolved failure justifies it.
+- For routine work, use the lowest reasoning effort that provides credible results when the setting is under your control; reserve high effort for genuinely complex or high-risk work.
+- Keep one task to one coherent scope. Recommend a new task when the user changes to unrelated work after a long session.
+
+## Working safely
 
 Before changing files:
 
-- Read the relevant implementation and nearby tests first.
 - Inspect the current branch and working tree. Existing changes belong to the user unless proven otherwise.
 - Resolve discoverable facts from the repository instead of asking the user.
 - Identify the smallest safe change and preserve unrelated behavior.
-- For a complex task, briefly state the intended change before editing.
-- Do not introduce a framework, library, paid service, or architectural pattern without explicit approval.
-- Do not rewrite a working module solely for style preference.
+- For complex work, briefly state the intended change before editing.
 
 While implementing:
 
-- Keep each change within one coherent scope. When an Issue exists, keep the change within that Issue.
-- Preserve layer boundaries and existing public contracts.
-- Use focused patches and explicit file scope.
-- Do not delete, overwrite, stage, or publish unrelated user work.
-- Treat tests, documentation, migrations, configuration, and cache behavior as part of the feature when applicable.
+- Preserve layer boundaries, public contracts, existing state/routing conventions, and unrelated user work.
+- Use focused patches. Never delete, overwrite, stage, or publish unrelated changes.
+- Treat tests, documentation, migrations, configuration, and cache behavior as part of a feature when applicable.
 
 After implementing:
 
-- Review the final diff against the requested scope and, when applicable, the linked Issue and its acceptance criteria.
-- Perform the documentation-impact review described below and update only affected authoritative sources.
-- Run focused checks proportional to the risk.
-- Report what changed, files changed, verification performed, anything not verified, risks, and the next useful step.
+- Review the final diff against the request and any linked Issue acceptance criteria.
+- Review documentation impact and update only affected authoritative sources.
+- Run the narrowest checks that credibly cover the risk, expanding only when needed.
+- Report changes, verification, unverified behavior, risks, and the next useful step.
 
-## Architecture principles
+## Architecture and API contracts
 
-Alife uses a layered architecture designed around cost, availability, scalability, and edge performance. Preserve the separation between:
+Preserve separation between the frontend/PWA, backend application logic, Cloudflare speed/cache layer, authentication and authorization, persistent storage, and AI workflows. Do not move responsibility across layers without a documented reason and explicit approval.
 
-- Frontend / PWA UI
-- API / backend application logic
-- Cloudflare speed layer / cache behavior
-- Authentication and authorization
-- Persistent data storage
-- AI-assisted workflows
+For API changes, explicitly consider authentication, role/group visibility, backend and client caching, backward compatibility, and bilingual data shapes.
 
-When changing APIs, explicitly consider:
+- Prefer readable enum names in API/frontend payloads; storage may remain integer-based.
+- Keep DTO parsing robust and do not expose persistence details to clients.
+- Make schema changes backward-compatible and migration-friendly.
+- Review migrations and generated snapshots. Apply migrations only to an approved disposable/local database, never a shared or production database without explicit approval.
 
-- Authentication requirements
-- Authorization and group membership visibility
-- Cache headers and Cloudflare behavior
-- TanStack/PWA client cache behavior
-- Backward compatibility with existing frontend payloads
-- Bilingual data shapes
+## Authentication, privacy, and caching
 
-Do not move responsibilities across layers without a documented reason and explicit approval for an architectural change.
-
-## Authentication, authorization, privacy, and caching
-
-Alife uses JWT and Http-only Cookie based authentication and intentionally uses backend, Cloudflare edge, and PWA/client cache layers.
-
-For protected or cached APIs:
-
-- Enforce authentication and authorization on the server; never rely on frontend-only checks.
+- Enforce authentication and authorization on the server; frontend checks are never sufficient.
 - Validate group membership, role, ownership, visibility, and platform permissions explicitly.
-- Classify every response as public, group-visible, member-visible, or user-specific.
-- Use shared caching only when every authorized viewer receives exactly the same representation.
-- Never place user-specific or private member data in a shared cache.
+- Classify responses as public, group-visible, member-visible, or user-specific.
+- Use shared caching only when every authorized viewer receives the same representation.
+- Never place private or user-specific data in a shared cache, logs, AI prompts, or public endpoints.
 - Check `Cache-Control`, `ETag`, `Vary`, cache keys, TTLs, authorization behavior, and invalidation paths.
-- Include every visibility dimension in the cache key, or bypass shared caching when a safe shared key is not possible.
-- Prefer a short TTL for member-related shared data when staleness has authorization or privacy impact.
-- Preserve existing safe cache behavior; do not disable or bypass caching casually.
-- Prevent private data from leaking through public endpoints, shared responses, logs, AI prompts, or stale cache entries.
+- Include every visibility dimension in a shared key or use private/no-store behavior. Prefer short member-data TTLs when stale authorization has privacy impact.
+- Preserve safe cache behavior; do not bypass caching casually.
 
-## Bilingual and i18n rules
+## Bilingual behavior
 
-Alife supports English and Chinese. Many text fields use:
+Preserve established bilingual shapes such as:
 
 ```json
-{
-  "en": "English text",
-  "zh": "中文内容"
-}
+{ "en": "English text", "zh": "中文内容" }
 ```
 
-When changing content:
-
-- Preserve bilingual structures where they already exist.
 - Do not replace bilingual fields with plain strings unless explicitly requested.
-- Support bilingual user-facing forms and clear fallback behavior.
+- Support bilingual forms and clear fallbacks.
 - Keep translation helpers stable.
-- Avoid API refetches or component remounts for language-only UI switches unless the underlying data changes.
+- Avoid refetching or remounting for a language-only UI switch unless underlying data changes.
 
-## Documentation impact and Event Management sources
+## Frontend and content builders
 
-Before completing an implementation task, and always before completing `/shipit`, review the complete diff and determine whether changed behaviour affects:
+Changes under `cloudflare/alife-app/` must also follow `cloudflare/alife-app/AGENTS.md`.
 
-- normative architecture or ADRs;
-- domain or public contracts;
-- the machine-readable contract;
-- a module specification;
-- implementation or migration status;
-- APIs or DTOs;
-- authorisation, privacy, or cache behaviour;
-- user-visible behaviour or acceptance scenarios;
-- `README.md`, `EventManagement-About.html`, or generated documentation;
-- Simplified Chinese, Traditional Chinese, and English content parity.
+At repository level: preserve the current UI framework, state patterns, routing, accessibility, responsive PWA behavior, saved JSON compatibility, and the separation between editor preview and published rendering.
 
-Update all affected authoritative documentation in the same change, but do not mechanically edit unrelated documents. Regenerate derived documentation whenever its authoritative input changes. When `docs/events/README.md` changes, run `node docs/events/scripts/generate-event-docs.mjs` in the same change and verify the Simplified Chinese, Traditional Chinese, and English `EventManagement-About.html` sections remain substantively equivalent. Do not edit generated Event HTML directly.
-
-Do not change normative architecture merely to match an implementation shortcut. If implementation and a normative contract disagree, stop and report the conflict unless the task explicitly authorises the architecture or product decision. Do not claim tests, migrations, deployment, generation, or browser verification that was not actually performed.
-
-For an ordinary Event module implementation, normally read only:
-
-- this `AGENTS.md`;
-- `docs/events/EVENT-CONTRACT.md`;
-- the affected `docs/events/modules/<MODULE>.md`;
-- the relevant portion of `docs/events/event-contract.json`;
-- `docs/events/IMPLEMENTATION-STATUS.md`.
-
-The generated long-form handbook is for people and broad architecture review; it is not required context for an ordinary module slice. Overview or onboarding work may also read `docs/events/README.md` and `docs/events/EventManagement-About.html`.
-
-## Frontend principles
-
-- Preserve the existing UI framework, state patterns, routing conventions, and design language.
-- Prefer accessible, responsive, mobile-first PWA behavior.
-- Avoid unnecessary fetching, remounting, and state duplication.
-- Provide clear loading, empty, error, success, and disabled states.
-- Keep list, detail, and management views understandable for non-technical group leaders.
-- Use semantic controls, usable focus behavior, and meaningful labels.
-
-For images:
-
-- Use `<img>` or the established optimized image component for meaningful content images that need alt text, loading behavior, SEO, or responsive sizing.
-- Use background images only for decorative effects.
-- Preserve dimensions or aspect ratios to avoid layout shift.
-
-## Page, section, and content builder principles
-
-- Preserve existing page and section JSON structures where possible.
-- Make schema evolution explicit, backward-compatible, and migration-friendly.
-- Do not break existing saved or published pages.
-- Keep editor UX understandable for non-technical group leaders.
-- Treat editor preview and published rendering as separate behaviors that both require verification.
-
-## AI-assisted feature principles
+## AI-assisted features
 
 AI is an assistant, not an authority.
 
-- Keep human review, correction, and explicit commit or publication in the workflow.
-- Never automatically publish AI-generated content without user confirmation.
-- Do not let AI invent safety facts, permissions, identities, contact details, or authoritative church claims.
-- Preserve consent and privacy boundaries for photos, personal information, prompts, and generated content.
-- Keep prompts, outputs, and user edits auditable where practical.
-- Prefer small, understandable AI workflow steps with clear loading and failure states.
-- Provide a non-destructive failure path when an AI provider is unavailable or misconfigured.
-- Consider provider cost and do not add a paid service without explicit approval.
+- Keep human review, correction, and explicit commit/publication in the workflow.
+- Never auto-publish AI-generated content.
+- Do not invent safety facts, permissions, identities, contact details, or authoritative church claims.
+- Minimize personal information in prompts and preserve consent/privacy boundaries.
+- Keep outputs and edits auditable where practical and provide non-destructive failure paths.
+- Consider provider cost; adding a paid service requires explicit approval.
 
-## Database and API payload conventions
+## Event documentation
 
-- Prefer readable enum names in frontend/API payloads; database storage may remain integer-based.
-- Keep backend parsing robust and DTO usage consistent with the existing application layer.
-- Do not leak persistence implementation details into frontend contracts.
-- Preserve existing clients when changing payloads or routes.
-- Make migrations reversible where practical, review generated snapshots, and document required migration or seed steps.
-- Do not apply a migration to a shared or production database without explicit approval.
+Every Event module task, including Event code outside `docs/events/`, must follow `docs/events/AGENTS.md`. Read that file before changing Event contracts, module specifications, implementation status, or generated documentation. Never edit generated Event HTML directly.
+
+For non-Event work, update authoritative documentation only when behavior, architecture, contracts, APIs/DTOs, authorization/privacy/cache behavior, migrations, user-visible acceptance scenarios, or language parity changes.
 
 ## Testing and verification
 
-Run the narrowest checks that give credible coverage, then expand when risk warrants it.
+Choose checks proportional to risk: focused unit/API tests, affected project builds, TypeScript/lint checks, cache and role matrices, bilingual switching, UI rendering, or approved local migration tests.
 
-Examples:
+- Verify protected behavior with positive and negative roles.
+- Verify cross-viewer isolation and invalidation for cache changes.
+- Verify saved payload compatibility for schemas and builders.
+- Render/exercise UI changes when layout or interaction matters.
+- State explicitly when browser, provider, database, or deployment verification was unavailable.
+- Never claim a check, generation, migration, or deployment that was not actually run against the current source or rebuilt artifact.
 
-- Build the affected frontend or backend project.
-- Run focused unit or API tests.
-- Run TypeScript type checks and relevant lint checks.
-- Verify cache headers, viewer-specific responses, and invalidation behavior for cache work.
-- Verify authentication and role matrices for protected workflows.
-- Verify language switching and bilingual payload preservation for i18n work.
-- Render or exercise the UI when layout or interaction changes.
-- Apply migrations only to an approved disposable/local database when database verification is required.
+## Git and GitHub mutations
 
-If browser, provider, database, or deployment verification is unavailable, say so explicitly. Never claim a check passed unless it was run against the current source or rebuilt artifact.
+Local implementation and verification are the default. Do not create/update Issues, switch/create branches, stage, commit, push, open/ready/merge PRs, or close Issues unless the user explicitly requests that specific action, invokes `/shipit`, or requests the complete publish flow.
 
-## GitHub Issue authoring standard
+Before any Issue, PR, commit, push, or `/shipit` work, read `docs/agent-guides/GITHUB-WORKFLOW.md` and follow it. Keep single-action authorization scoped to that action. Never stage the whole worktree, force-push, rewrite published history, or perform destructive Git recovery without explicit approval.
 
-GitHub Issue and PR prose defaults to English. User-facing product content remains bilingual where required.
+## Review invariants
 
-These standards apply only when the user explicitly requests an Issue or a user-authorized publish workflow requires one. Local implementation and verification may begin and finish without an Issue. Reuse an existing Issue when it already covers the work; do not create duplicates to satisfy process mechanically.
+Report consequential defects rather than style preferences. In particular, flag:
 
-### Feature Issues
-
-A meaningful feature Issue must contain:
-
-- `Context`: the problem, user need, or current limitation.
-- `Goal`: the outcome, not the implementation steps.
-- `Scope`: the behaviors and systems included.
-- `Acceptance Criteria`: observable, testable outcomes written as checkboxes.
-- `Out of Scope`: boundaries that prevent accidental expansion.
-- `Test Plan`: how implementation and review will verify completion.
-
-Add API/data changes, authorization/privacy/caching, bilingual behavior, AI human review, deployment/migration, rollout, or rollback sections when applicable. Small low-risk Issues may omit inapplicable sections, but they must still state the problem or goal and testable completion criteria.
-
-### Bug Issues
-
-A bug Issue must contain:
-
-- `Problem and Impact`
-- `Steps to Reproduce`
-- `Actual Behavior`
-- `Expected Behavior`
-- `Scope`
-- `Acceptance Criteria`
-- `Regression Test`
-
-Document affected roles, visibility, environments, data, and cache state when they influence reproduction or risk.
-
-### Branch-derived Issues
-
-When an Issue is reconstructed or updated from an existing branch:
-
-- Resolve the merge base and inspect `main...HEAD`, commit history, file status, migrations, configuration, and relevant tests.
-- Separate original intent, delivered implementation, and verified results.
-- Do not present inferred intent as a confirmed requirement.
-- Identify mismatches among the Issue, branch name, commits, implementation, and current architecture.
-- Put branch statistics and detailed verification primarily in the PR; keep the Issue focused on why, what, and done.
-
-Before any GitHub Issue write, restate the target repository, title, and intended mutation. Do not create or update an Issue unless the user has authorized that external write or invoked `/shipit`.
-
-## Pull Request authoring standard
-
-These standards apply only when the user explicitly requests a PR, invokes `/shipit`, or explicitly requests the complete publish flow.
-
-An Issue defines why the change is needed, what is in scope, and how completion is judged. A PR explains how it was implemented, what actually changed, and what evidence supports review.
-
-Every meaningful PR must:
-
-- Target `main`.
-- Link its Issue with `Closes #<issue-number>` unless closure must be deferred for a documented reason.
-- Summarize user/developer impact and the implementation by capability, not merely by file.
-- Map acceptance criteria to implementation or verification evidence.
-- List exact checks run and their outcomes.
-- Disclose risks, limitations, unverified behavior, migrations, configuration, screenshots, and deployment notes when applicable.
-- Call out any deviation from the Issue and update the Issue when the agreed requirement changed.
-- Default to Draft until implementation and focused verification are complete and a human is ready to begin formal review.
-
-Do not mix unrelated changes into one PR. Do not mark a PR ready, merge it, or close its Issue unless the user explicitly authorizes that action.
-
-## Branch, commit, and publishing conventions
-
-Local implementation and verification are the default. Do not create or update an Issue, create or switch branches, stage, commit, push, or open a PR merely because work is meaningful. Perform Git and GitHub mutations only when the user explicitly requests the specific action, invokes `/shipit`, or explicitly requests the complete publish flow.
-
-Keep a request for a single action scoped to that action:
-
-- A request to create or update an Issue does not authorize a branch, commit, push, or PR.
-- A request to create or switch branches does not authorize an Issue, commit, push, or PR.
-- A request to commit authorizes staging only explicit in-scope paths and creating the local commit. It does not authorize an Issue, push, or PR.
-- A request to push authorizes pushing the requested branch. It does not authorize an Issue or PR.
-- A request to open a PR authorizes the Issue, branch, focused verification, commit, and push prerequisites required to create that PR, but no unrelated GitHub mutation.
-- `/shipit` or an explicit request for the complete publish flow authorizes the full workflow below.
-
-Use common conventional types such as `feat`, `fix`, `docs`, `test`, `refactor`, `chore`, or `ci`. Keep subjects concise, imperative, clear to reviewers, and easy to trace. Use `type(scope): summary (#<issue-number>)` when the work is linked to an Issue; otherwise use `type(scope): summary`.
-
-If `main` already contains uncommitted work when a branch, commit, or publish action is requested:
-
-- Inspect every modified and untracked path before acting.
-- If all changes form one coherent task, preserve the worktree while performing only the requested Git action. Under `/shipit` or a complete publish request, create or reuse the Issue before switching to `agent/<issue-number>-<short-slug>`.
-- If the worktree is mixed or ownership is unclear, stop and request direction. Do not stash, discard, stage, or publish unrelated work.
-
-Prefer the GitHub app for Issue and PR metadata and writes. If repository write permission is unavailable there, use the authenticated `gh` CLI without repeating failed connector writes. If `gh` is missing, install it once only when installation is authorized.
-
-## `/shipit` workflow
-
-Run this workflow only when the user explicitly types `/shipit` or otherwise explicitly requests the complete publish flow.
-
-1. Inspect the repository, current branch, remote, worktree, diff, and any existing Issue or PR.
-2. Confirm that the changes form one coherent scope and do not include unrelated user work.
-3. Reuse the linked Issue when present; otherwise create a standards-compliant Issue.
-4. If currently on `main`, create `agent/<issue-number>-<short-slug>` before staging or committing. A coherent dirty worktree may move with the branch.
-5. Implement any remaining required work and run relevant checks.
-6. Review the complete diff for documentation impact, update every affected authoritative source, regenerate derived documentation, and verify language parity where applicable.
-7. Stage only explicit in-scope file paths. Never stage the whole worktree through a blanket staging command.
-8. Inspect the staged diff and confirm that it satisfies the Issue and leaves documentation sources internally consistent.
-9. Commit with `type(scope): summary (#<issue-number>)`.
-10. Push with upstream tracking.
-11. Open a Draft PR against `main` using the PR standard and include `Closes #<issue-number>`.
-
-Stop instead of shipping when authentication fails, the target repository is ambiguous, tests reveal an unresolved defect, destructive recovery would be required, or the worktree contains inseparable unrelated changes.
-
-## Code Review Rules
-
-Review for consequential defects, regressions, and violations of these invariants. Do not report style-only findings unless they create a real maintenance or correctness risk.
-
-### Authorization and privacy
-
-- Flag protected behavior enforced only in the frontend, missing group/role/ownership validation, or responses that reveal data beyond the viewer's authorization.
-- Safe path: enforce the rule in backend/application logic and add positive and negative role tests.
-
-### Shared caching
-
-- Flag user-specific or member-private responses that can enter a shared cache, cache keys missing a visibility dimension, or writes that leave sensitive shared entries stale.
-- Safe path: use a correctly dimensioned shared key only for identical representations; otherwise use private/no-store behavior and test cache headers and cross-viewer isolation.
-
-### API and persistence compatibility
-
-- Flag silent contract changes, persistence details exposed to clients, unsafe enum changes, or migrations that break existing data and saved JSON.
-- Safe path: preserve the existing contract, add backward-compatible parsing or explicit versioning, and document migration behavior.
-
-### Bilingual content
-
-- Flag replacement of established `{ en, zh }` fields with single-language strings or language switches that trigger unnecessary data reloads.
-- Safe path: preserve the bilingual shape and localize presentation without changing the underlying entity identity.
-
-### AI human control
-
-- Flag AI output that is automatically persisted/published, prompts that include unnecessary personal data, or generated safety/identity facts treated as authoritative.
-- Safe path: return a reviewable draft, minimize prompt data, and require an explicit human commit.
-
-### Architecture boundaries
-
-- Flag frontend authorization used as the only control, Cloudflare code becoming the persistent business authority, or broad framework/state-management replacements without approval.
-- Safe path: keep UI, application logic, edge/cache behavior, authorization, storage, and AI orchestration in their established layers.
+- frontend-only authorization or missing group/role/ownership checks;
+- private responses entering shared caches or unsafe invalidation;
+- silent API/persistence incompatibility or broken saved JSON;
+- loss of established bilingual structures;
+- AI content persisted/published without explicit human review;
+- responsibility moved across architecture layers without approval.
 
 ## Actions requiring explicit approval
 
-Do not:
-
-- Replace the existing architecture, UI framework, or state-management library.
-- Remove safe Cloudflare cache behavior or make private/member data publicly cacheable.
-- Weaken authentication or authorization.
-- Convert bilingual fields to a single-language contract.
-- Silently change an API contract.
-- Delete features or user data to simplify implementation.
-- Add paid external services.
-- Apply migrations to a shared/production database.
-- Merge a PR, force-push, rewrite published history, or perform destructive Git recovery.
+Do not replace the architecture, UI framework, or state library; weaken authentication/authorization; make private data publicly cacheable; convert bilingual contracts to one language; silently change an API; delete features or user data; add paid services; apply shared/production migrations; merge PRs; force-push; or rewrite published history without explicit approval.
 
 ## Preferred final response
 
-At the end of a task, respond with:
+Keep the response concise and practical:
 
 1. Summary
 2. Files changed
@@ -367,16 +154,16 @@ At the end of a task, respond with:
 4. Risks or limitations
 5. Suggested next step
 
-Keep it practical and concise. Include Issue, branch, commit, and PR links when publishing occurred.
+Include Issue, branch, commit, and PR links only when publishing occurred.
 
 ## Local development shortcuts
 
-When the user types `/localdev` or `/dev`, start the local stack from the repository root with:
+For `/localdev` or `/dev`, run from the repository root:
 
 ```powershell
 .\alife-dev.cmd -SkipSql
 ```
 
-- If the user mentions migrations, database refresh, seed data, or DbMigrator, include `-ApplyMigrations`.
-- If the user explicitly asks Codex to start the Docker SQL Server container, omit `-SkipSql`.
-- Azurite and scheduled Functions are not part of the default shortcut. Use `-UseAzurite -EnableScheduledJobs` only when asked to test TimerTrigger or scheduled behavior.
+- Add `-ApplyMigrations` when migrations, database refresh, seed data, or DbMigrator are requested.
+- Omit `-SkipSql` only when the user explicitly asks Codex to start Docker SQL Server.
+- Add `-UseAzurite -EnableScheduledJobs` only for requested TimerTrigger or scheduled-job testing.
