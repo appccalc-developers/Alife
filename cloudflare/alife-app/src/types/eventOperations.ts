@@ -14,5 +14,7 @@ export type EventProgramme = { eventId: string; occurrenceId: string; eTag: stri
 
 export type EventAvailabilityStatus = 'unknown' | 'available' | 'unavailable' | 'preferNot'
 export type EventRosterAssignment = { id: string; serviceSlotId: string; memberId: string; status: 'invited' | 'confirmed' | 'declined' | 'ended'; replacesAssignmentId?: string | null }
-export type EventServiceSlot = { id: string; occurrenceId: string; sessionId?: string | null; programItemId?: string | null; zoneId?: string | null; roleCode: string; roleLabel?: LocalizedText | null; startUtc: string; endUtc: string; requiredCount: number; eligibilityCode: string; confirmedCount: number; assignments: EventRosterAssignment[]; myAvailability?: EventAvailabilityStatus | null }
+export type EventServiceSlot = { id: string; occurrenceId: string; sessionId?: string | null; programItemId?: string | null; zoneId?: string | null; roleCode: string; roleLabel?: LocalizedText | null; startUtc: string; endUtc: string; requiredCount: number; eligibilityCode: string; confirmedCount: number; assignments: EventRosterAssignment[]; myAvailability?: EventAvailabilityStatus | null; moduleCode?: string; candidateMemberIds?: string[]; isRosterCandidate?: boolean }
 export type EventRoster = { eventId: string; occurrenceId: string; eTag: string; slots: EventServiceSlot[]; readinessBlockers: LocalizedText[]; canManage: boolean }
+
+export type EventRosterGroup = { roleCode: string; moduleCode: string; memberIds: string[]; eTag: string }

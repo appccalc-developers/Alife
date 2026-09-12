@@ -42,7 +42,8 @@ public sealed record ReorderEventProgramItemsRequest(IReadOnlyList<Guid> ItemIds
 public sealed record EventServiceSlotDto(Guid Id, Guid OccurrenceId, Guid? SessionId, Guid? ProgramItemId,
     Guid? ZoneId, string RoleCode, DateTime StartUtc, DateTime EndUtc, int RequiredCount,
     string EligibilityCode, int ConfirmedCount, IReadOnlyList<EventRosterAssignmentDto> Assignments,
-    EventAvailabilityStatus? MyAvailability, LocalizedTextDto? RoleLabel = null);
+    EventAvailabilityStatus? MyAvailability, LocalizedTextDto? RoleLabel = null, string ModuleCode = "SERVICE.ROSTER",
+    IReadOnlyList<Guid>? CandidateMemberIds = null, bool IsRosterCandidate = false);
 public sealed record EventRosterAssignmentDto(Guid Id, Guid ServiceSlotId, Guid MemberId,
     EventRosterAssignmentStatus Status, Guid? ReplacesAssignmentId, DateTime? ConfirmedUtc,
     DateTime? DeclinedUtc, DateTime? EndedUtc);
@@ -52,3 +53,6 @@ public sealed record SaveEventServiceSlotRequest(Guid? SessionId, Guid? ProgramI
     string RoleCode, DateTime StartUtc, DateTime EndUtc, int RequiredCount, string EligibilityCode);
 public sealed record SetEventAvailabilityRequest(EventAvailabilityStatus Status);
 public sealed record AssignEventRosterMemberRequest(Guid MemberId, Guid? ReplacesAssignmentId = null);
+
+public sealed record EventRosterGroupDto(string RoleCode, string ModuleCode, IReadOnlyList<Guid> MemberIds, string ETag);
+public sealed record SaveEventRosterGroupRequest(string RoleCode, string ModuleCode, IReadOnlyList<Guid> MemberIds);

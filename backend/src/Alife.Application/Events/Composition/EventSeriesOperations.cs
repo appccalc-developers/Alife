@@ -116,6 +116,15 @@ public sealed class CreateEventSeriesCommandHandler(
             return AppResult<EventSeriesDto>.Forbidden(
                 "Only owning-group leaders and co-leaders can create event series.");
         }
+        var groupEvent = await dbContext.GroupEvents
+            .Include(x => x.Occurrences)
+            .FirstOrDefaultAsync(x => x.Id == request.Request.EventId, cancellationToken);
+        if (groupEvent is null || groupEvent.GroupId != request.GroupId)
+        {
+            return AppResult<EventSeriesDto>.NotFound("Event not found in the owning group.");
+        }
+        if (!await EventCompositionPersistence.CanManageEventAsync(dbContext, groupAuthorizationService, groupEvent, request.CurrentMemberId, cancellationToken))
+            return AppResult<EventSeriesDto>.Forbidden("Only the Event's accountable owner can configure its series.");
         var key = request.IdempotencyKey?.Trim();
         if (string.IsNullOrWhiteSpace(key) || key.Length > 200)
         {
@@ -140,13 +149,6 @@ public sealed class CreateEventSeriesCommandHandler(
                 : AppResult<EventSeriesDto>.Success(ListEventSeriesQueryHandler.ToDto(existing));
         }
 
-        var groupEvent = await dbContext.GroupEvents
-            .Include(x => x.Occurrences)
-            .FirstOrDefaultAsync(x => x.Id == request.Request.EventId, cancellationToken);
-        if (groupEvent is null || groupEvent.GroupId != request.GroupId)
-        {
-            return AppResult<EventSeriesDto>.NotFound("Event not found in the owning group.");
-        }
         if (groupEvent.EventSeriesId.HasValue)
         {
             return AppResult<EventSeriesDto>.Conflict("The event already belongs to an event series.");
@@ -251,15 +253,11 @@ public sealed class UpdateEventSeriesCommandHandler(
         {
             return AppResult<EventSeriesDto>.NotFound("Event series not found.");
         }
-        var ownPreparation = request.PreparationEventId is { } eventId && series.Events.Count == 1 &&
-            series.Events.Single().Id == eventId && await EventCompositionPersistence.CanManageEventAsync(
-                dbContext, groupAuthorizationService, series.Events.Single(), request.CurrentMemberId, cancellationToken);
-        if (!ownPreparation && !await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
-                series.OwningGroupId, request.CurrentMemberId, cancellationToken))
-        {
-            return AppResult<EventSeriesDto>.Forbidden(
-                "Only owning-group leaders and co-leaders can update event series.");
-        }
+        if (series.Events.Count == 0 && series.CreatedByMemberId != request.CurrentMemberId)
+            return AppResult<EventSeriesDto>.Forbidden("Only the series creator can edit an empty series.");
+        foreach (var seriesEvent in series.Events)
+            if (!await EventCompositionPersistence.CanManageEventAsync(dbContext, groupAuthorizationService, seriesEvent, request.CurrentMemberId, cancellationToken))
+                return AppResult<EventSeriesDto>.Forbidden("Only the accountable owner of every affected Event can update its series.");
         if (request.PreparationEventId.HasValue && series.Events.Count != 1)
             return AppResult<EventSeriesDto>.Conflict("A shared series must be updated through series management. / 共用系列须通过系列管理修改。");
         foreach (var groupEvent in series.Events)

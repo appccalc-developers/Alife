@@ -26,9 +26,9 @@ public sealed class UpdateEventWorkflowStepCommandHandler(
         {
             return AppResult<EventWorkflowDto>.NotFound("Event workflow not found.");
         }
-        if (!await groupAuthorizationService.IsLeaderOrCoLeaderAsync(run.Event.GroupId, request.CurrentMemberId, cancellationToken))
+        if (!await EventCompositionPersistence.CanManageEventAsync(dbContext, groupAuthorizationService, run.Event, request.CurrentMemberId, cancellationToken))
         {
-            return AppResult<EventWorkflowDto>.Forbidden("Only group leaders and co-leaders can update workflow steps.");
+            return AppResult<EventWorkflowDto>.Forbidden("Only the accountable owner can update workflow steps.");
         }
 
         var step = run.Steps.FirstOrDefault(x => x.Id == request.StepId);

@@ -144,7 +144,7 @@ public sealed class RecomposeEventPlanCommandHandler(
                 dbContext, groupAuthorizationService, groupEvent, request.CurrentMemberId, cancellationToken))
         {
             return AppResult<EventPlanProposalDto>.Forbidden(
-                "The accountable owner or owning-group leaders can recompose the event plan.");
+                "Only the accountable owner can recompose the event plan.");
         }
         var activeSnapshot = await dbContext.EventPlanSnapshots.AsNoTracking()
             .Where(x => x.EventId == groupEvent.Id && x.IsActive)
@@ -237,7 +237,7 @@ public sealed class AcceptEventPlanCommandHandler(
                 dbContext, groupAuthorizationService, groupEvent, request.CurrentMemberId, cancellationToken))
         {
             return AppResult<EventPlanSnapshotDto>.Forbidden(
-                "The accountable owner or owning-group leaders can accept event plans.");
+                "Only the accountable owner can accept event plans.");
         }
         if (request.Request.Composition is null)
         {

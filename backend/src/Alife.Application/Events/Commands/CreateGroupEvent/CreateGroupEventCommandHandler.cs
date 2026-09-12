@@ -41,20 +41,10 @@ public sealed class CreateGroupEventCommandHandler(
             return AppResult<GroupEventSummaryDto>.Validation("Event data must be a JSON object with a supported visibility.");
         }
 
-        var accountableOwnerMemberId = request.AccountableOwnerMemberId ?? request.CurrentMemberId;
-        if (accountableOwnerMemberId != request.CurrentMemberId)
-        {
-            var ownerIsApprovedMember = await dbContext.GroupMemberships.AsNoTracking().AnyAsync(
-                x => x.GroupId == request.GroupId &&
-                    x.MemberId == accountableOwnerMemberId &&
-                    x.Status == MembershipStatus.Approved,
-                cancellationToken);
-            if (!ownerIsApprovedMember)
-            {
-                return AppResult<GroupEventSummaryDto>.Validation(
-                    "The accountable owner must be an approved member of the owning group.");
-            }
-        }
+        // Keep the optional legacy field, but never delegate ownership through it.
+        if (request.AccountableOwnerMemberId.HasValue && request.AccountableOwnerMemberId != request.CurrentMemberId)
+            return AppResult<GroupEventSummaryDto>.Validation("The event creator must be its accountable owner. / 活动创建者必须是活动总负责人。");
+        var accountableOwnerMemberId = request.CurrentMemberId;
 
         if (request.ParentEventId.HasValue)
         {

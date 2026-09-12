@@ -1,3 +1,4 @@
+import { defaultRosterModule } from '../../../utils/eventRosterRoles'
 import { invalidateArrangementConfirmation } from '../../../utils/eventCreationDraft'
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react'
 import AppActionButton from '../../layout/AppActionButton'
@@ -18,10 +19,10 @@ function Times({ row, zh, onChange }: { row: TimedArrangement; zh: boolean; onCh
 function useArrangementChange(setDraft: Props['setDraft']) {
   return <K extends keyof CreationArrangements>(key: K, value: CreationArrangements[K]) => setDraft(current => invalidateArrangementConfirmation({ ...current, arrangements: { ...current.arrangements, [key]: value } }, key === 'slots' ? 'SERVICE.ROSTER' : key === 'sessions' ? 'PROGRAM.PRODUCTION' : 'PLACE.RESOURCE'))
 }
-export function CreationRosterEditor({ draft, setDraft, zh, type }: Props) {
+export function CreationRosterEditor({ draft, setDraft, zh, type, moduleCode = 'SERVICE.ROSTER', activeModules }: Props & { moduleCode?: string; activeModules?: string[] }) {
   const slots = creationSlots(draft, type), change = useArrangementChange(setDraft)
   return <div className="space-y-3"><p className="text-sm text-[#66766f]">{zh ? '在这里确定岗位、人数和轮班时间。岗位需求不会自动指派成员或确认资格。' : 'Set roles, counts and shift times here. Slot demand does not assign members or confirm eligibility.'}</p>
-    {slots.map((slot, index) => {
+    {slots.filter(slot => { const target = defaultRosterModule(slot.roleCode); return !activeModules || (activeModules.includes(target) ? target : 'SERVICE.ROSTER') === moduleCode }).map((slot, index) => {
       const preset = type.presetServiceSlots.find(x => x.roleCode === slot.roleCode)
       const update = (next: typeof slot) => change('slots', slots.map(x => x.id === slot.id ? next : x))
       return <fieldset key={slot.id} className={rowClass}><legend className="px-1 text-sm font-semibold">{preset ? localText(preset.label, zh) : slot.roleCode || (zh ? `岗位 ${index + 1}` : `Role ${index + 1}`)}</legend>
@@ -34,8 +35,8 @@ export function CreationRosterEditor({ draft, setDraft, zh, type }: Props) {
         <AppActionButton variant="ghost" onClick={() => change('slots', slots.filter(x => x.id !== slot.id))}>{zh ? '移除此岗位' : 'Remove this slot'}</AppActionButton>
       </fieldset>
     })}
-    {!slots.length ? <p className="text-sm">{zh ? '尚未安排岗位，请添加至少一个岗位。' : 'No roles yet. Add at least one slot.'}</p> : null}
-    <AppActionButton disabled={slots.length >= 50} onClick={() => change('slots', [...slots, { id: crypto.randomUUID(), roleCode: '', requiredCount: '1', eligibilityCode: 'acceptedEventTeamMember', startLocal: draft.startLocal, endLocal: draft.endLocal }])}>{zh ? '添加岗位／轮班' : 'Add role / shift'}</AppActionButton>
+    {moduleCode === 'SERVICE.ROSTER' && !slots.length ? <p className="text-sm">{zh ? '尚未安排岗位，请添加至少一个岗位。' : 'No roles yet. Add at least one slot.'}</p> : null}
+    {moduleCode === 'SERVICE.ROSTER' ? <AppActionButton disabled={slots.length >= 50} onClick={() => change('slots', [...slots, { id: crypto.randomUUID(), roleCode: '', requiredCount: '1', eligibilityCode: 'acceptedEventTeamMember', startLocal: draft.startLocal, endLocal: draft.endLocal }])}>{zh ? '添加岗位／轮班' : 'Add role / shift'}</AppActionButton> : null}
   </div>
 }
 

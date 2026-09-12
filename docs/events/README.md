@@ -89,6 +89,9 @@ AI 可以建议候选事实和解释原因，但不能确认事实、分配权�
 - [模块文档](modules/TEAM.WORK.md) — 每个能力模块的目标、现况与缺口
 - [EventManagement-About.html](EventManagement-About.html) — 由本 README 生成的三语概览
 - [完整活动管理手册](generated/alife-event-composition-model.zh-TW-en.html) — 生成的繁中／英文长篇展示
+
+新活动由创建者固定担任总负责人；现场领队、RAM 作者和审核人不会因此获得活动计划编辑权。岗位候选组和轮班放在所属模块内，只从该岗位候选组安排人员，轮流由人决定。团队区主要保留跨模块协调任务，成员及历史分工收起。
+
 <!-- overview:zh-CN:end -->
 
 <!-- overview:zh-TW:start -->
@@ -176,6 +179,9 @@ AI 可以建議候選事實和解釋原因，但不能確認事實、分配權�
 - [模組文件](modules/TEAM.WORK.md) — 每個能力模組的目標、現況與缺口
 - [EventManagement-About.html](EventManagement-About.html) — 由本 README 產生的三語概覽
 - [完整活動管理手冊](generated/alife-event-composition-model.zh-TW-en.html) — 產生的繁中／英文長篇展示
+
+新活動由建立者固定擔任總負責人；現場領隊、RAM 作者和審核人不會因此獲得活動計劃編輯權。崗位候選組和輪班放在所屬模組內，只從該崗位候選組安排人員，輪流由人決定。團隊區主要保留跨模組協調任務，成員及歷史分工收起。
+
 <!-- overview:zh-TW:end -->
 
 <!-- overview:en:start -->
@@ -263,6 +269,9 @@ The existing `EventWorkflowRun` / Step / Artifact model remains the single gener
 - [Module documents](modules/TEAM.WORK.md) — each capability module's target, current state, and gaps
 - [EventManagement-About.html](EventManagement-About.html) — generated three-language version of this README
 - [Full Event Management handbook](generated/alife-event-composition-model.zh-TW-en.html) — generated Traditional Chinese / English long-form presentation
+
+The creator is the fixed accountable owner for new Events. On-site lead, RAM author and reviewer duties grant no Event-plan editing access. Candidate groups and shifts belong to their modules; assignment draws only from the role group and rotation remains a human decision. Team primarily presents cross-module tasks, with collaborators and historical assignments collapsed.
+
 <!-- overview:en:end -->
 
 ## Generation

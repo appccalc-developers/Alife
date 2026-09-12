@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Alife.Application.Events.Services;
 
-public sealed class EventOperationsService(
+public sealed partial class EventOperationsService(
     IAlifeDbContext db,
     IGroupAuthorizationService authorization,
     IEventPackageInvalidationService? packageInvalidation = null) : IEventOperationsService
@@ -374,9 +374,15 @@ public sealed class EventOperationsService(
         var canManage = await CanCoordinate(occurrence.Event, memberId, "roster.coordinator", ct);
         var canViewTeam = await EventCompositionPersistence.CanViewEventTeamAsync(db, authorization, occurrence.Event, memberId, ct);
         var isParticipant = occurrence.ServiceSlots.SelectMany(x => x.Assignments).Any(x => x.MemberId == memberId && x.EndedUtc == null);
-        if (!canManage && !canViewTeam && !isParticipant) return AppResult<EventRosterDto>.Forbidden("Roster access is limited to the event team and assigned members.");
+        var isCandidate = false;
+        if (!canManage && !canViewTeam && !isParticipant && await authorization.IsApprovedMemberAsync(occurrence.Event.GroupId, memberId, ct))
+        {
+            var groups = await db.EventRosterGroups.AsNoTracking().Where(x => x.EventId == eventId).ToListAsync(ct);
+            isCandidate = groups.Any(x => GroupMembers(x).Contains(memberId) && occurrence.ServiceSlots.Any(s => s.RoleCode == x.RoleCode));
+        }
+        if (!canManage && !canViewTeam && !isParticipant && !isCandidate) return AppResult<EventRosterDto>.Forbidden("Roster access is limited to the event team, role candidates and assigned members.");
         if (!await IsModuleEnabled(eventId, "SERVICE.ROSTER", ct)) return AppResult<EventRosterDto>.Conflict("SERVICE.ROSTER is not enabled by the accepted plan.");
-        return AppResult<EventRosterDto>.Success(ToRosterDto(occurrence, memberId, canManage));
+        return AppResult<EventRosterDto>.Success(await RosterDtoAsync(occurrence, memberId, canManage, ct));
     }
 
     public Task<AppResult<EventRosterDto>> CreateSlotAsync(Guid eventId, Guid occurrenceId, Guid memberId, SaveEventServiceSlotRequest request, string? ifMatch, CancellationToken ct)
@@ -393,6 +399,7 @@ public sealed class EventOperationsService(
         => MutateRoster(eventId, occurrenceId, memberId, ifMatch, async occurrence => {
             var slot = occurrence.ServiceSlots.FirstOrDefault(x => x.Id == slotId); if (slot is null) return "Service slot not found.";
             var error = ValidateSlot(occurrence, request); if (error is not null) return error;
+            if (slot.RoleCode != request.RoleCode.Trim() && slot.Assignments.Count > 0) return "A role with assignment history cannot be renamed; create a separate slot.";
             slot.SessionId = request.SessionId; slot.ProgramItemId = request.ProgramItemId; slot.ZoneId = request.ZoneId;
             slot.RoleCode = request.RoleCode.Trim(); slot.StartUtc = request.StartUtc; slot.EndUtc = request.EndUtc;
             slot.RequiredCount = request.RequiredCount; slot.EligibilityCode = request.EligibilityCode.Trim(); slot.UpdatedUtc = DateTime.UtcNow;
@@ -415,6 +422,8 @@ public sealed class EventOperationsService(
         if (slot is null) return AppResult<EventRosterDto>.NotFound("Service slot not found.");
         if (!await authorization.IsApprovedMemberAsync(occurrence.Event.GroupId, memberId, ct)) return AppResult<EventRosterDto>.Forbidden("Approved group membership is required.");
         if (!await IsModuleEnabled(eventId, "SERVICE.ROSTER", ct)) return AppResult<EventRosterDto>.Conflict("SERVICE.ROSTER is not enabled by the accepted plan.");
+        var candidateGroup = await db.EventRosterGroups.AsNoTracking().FirstOrDefaultAsync(x => x.EventId == eventId && x.RoleCode == slot.RoleCode, ct);
+        if (candidateGroup is null || !GroupMembers(candidateGroup).Contains(memberId)) return AppResult<EventRosterDto>.Forbidden("Only this role's candidates may record availability.");
         var value = slot.Availability.FirstOrDefault(x => x.MemberId == memberId);
         if (value is null) db.EventRosterAvailability.Add(new EventRosterAvailability { Id = Guid.NewGuid(), ServiceSlotId = slotId, MemberId = memberId, Status = request.Status, UpdatedUtc = DateTime.UtcNow });
         else { value.Status = request.Status; value.UpdatedUtc = DateTime.UtcNow; }
@@ -422,13 +431,16 @@ public sealed class EventOperationsService(
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateConcurrencyException) { return AppResult<EventRosterDto>.PreconditionFailed("Availability changed while saving; reload and try again."); }
         catch (DbUpdateException) { return AppResult<EventRosterDto>.Conflict("Availability was updated by another request; reload and try again."); }
-        return AppResult<EventRosterDto>.Success(ToRosterDto(occurrence, memberId, await CanCoordinate(occurrence.Event, memberId, "roster.coordinator", ct)));
+        return AppResult<EventRosterDto>.Success(await RosterDtoAsync(occurrence, memberId, await CanCoordinate(occurrence.Event, memberId, "roster.coordinator", ct), ct));
     }
 
     public Task<AppResult<EventRosterDto>> AssignRosterMemberAsync(Guid eventId, Guid occurrenceId, Guid slotId, Guid memberId, AssignEventRosterMemberRequest request, string? ifMatch, CancellationToken ct)
         => MutateRoster(eventId, occurrenceId, memberId, ifMatch, async occurrence => {
             var slot = occurrence.ServiceSlots.FirstOrDefault(x => x.Id == slotId); if (slot is null) return "Service slot not found.";
             if (!await authorization.IsApprovedMemberAsync(occurrence.Event.GroupId, request.MemberId, ct)) return "The assignee must be an approved member of the owning group.";
+            var group = await db.EventRosterGroups.FirstOrDefaultAsync(x => x.EventId == eventId && x.RoleCode == slot.RoleCode, ct);
+            if (group is null || !GroupMembers(group).Contains(request.MemberId)) return "Choose a member from this role's candidate group. / 只能从此岗位的候选组中安排人员。";
+            if (!await IsModuleEnabled(eventId, group.ModuleCode, ct)) return "The role's owning module is disabled.";
             if (!await IsEligibleForSlot(occurrence.Event, slot, request.MemberId, ct)) return "The member does not satisfy this slot's eligibility rule.";
             var availability = slot.Availability.FirstOrDefault(x => x.MemberId == request.MemberId)?.Status ?? EventAvailabilityStatus.Unknown;
             if (availability == EventAvailabilityStatus.Unavailable) return "The member marked this slot unavailable.";
@@ -438,6 +450,8 @@ public sealed class EventOperationsService(
                 if (replaced is null) return "The replaced assignment is not active.";
                 replaced.Status = EventRosterAssignmentStatus.Ended; replaced.EndedUtc = DateTime.UtcNow; replaced.UpdatedUtc = DateTime.UtcNow;
             }
+            // Conflict with concurrent candidate removal, including another occurrence.
+            group.ConcurrencyToken = Guid.NewGuid();
             db.EventRosterAssignments.Add(new EventRosterAssignment { Id = Guid.NewGuid(), ServiceSlotId = slot.Id, MemberId = request.MemberId,
                 AssignedByMemberId = memberId, Status = EventRosterAssignmentStatus.Invited, ReplacesAssignmentId = request.ReplacesAssignmentId,
                 CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow }); return null;
@@ -460,7 +474,7 @@ public sealed class EventOperationsService(
                 occurrence.Event, memberId, "SERVICE.ROSTER", "event.roster.assignmentResponded", "operational", ct);
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateConcurrencyException) { return AppResult<EventRosterDto>.PreconditionFailed("This assignment was already answered or changed; reload before trying again."); }
-        return AppResult<EventRosterDto>.Success(ToRosterDto(occurrence, memberId, false));
+        return AppResult<EventRosterDto>.Success(await RosterDtoAsync(occurrence, memberId, false, ct));
     }
 
     private async Task<AppResult<GroupEvent>> RequireManager(Guid eventId, Guid memberId, CancellationToken ct)
@@ -483,7 +497,8 @@ public sealed class EventOperationsService(
         if (slot.EligibilityCode == "approvedGroupMember") return true;
         if (slot.EligibilityCode == "acceptedEventTeamMember")
             return groupEvent.AccountableOwnerMemberId == memberId || await db.EventTeamMembers.AsNoTracking().AnyAsync(x =>
-                x.EventId == groupEvent.Id && x.MemberId == memberId && x.Status == EventTeamMemberStatus.Accepted && x.EndedUtc == null, ct);
+                x.EventId == groupEvent.Id && x.MemberId == memberId && x.Status == EventTeamMemberStatus.Accepted && x.EndedUtc == null, ct) ||
+                await db.EventRoleAssignments.AsNoTracking().AnyAsync(x => x.EventId == groupEvent.Id && x.MemberId == memberId && x.Status == EventRoleAssignmentStatus.Accepted && x.EndedUtc == null, ct);
         const string prefix = "acceptedRole:";
         if (slot.EligibilityCode.StartsWith(prefix, StringComparison.Ordinal))
         {
@@ -573,7 +588,7 @@ public sealed class EventOperationsService(
         catch (DbUpdateConcurrencyException exception) { return AppResult<EventRosterDto>.PreconditionFailed($"The roster changed while saving ({exception.Entries.FirstOrDefault()?.Metadata.ClrType.Name ?? "unknown"})."); }
         catch (DbUpdateException) { return AppResult<EventRosterDto>.Conflict("The roster could not be saved because related data changed; reload and try again."); }
         var refreshed = await RosterQuery(eventId, occurrenceId).AsNoTracking().FirstAsync(ct);
-        return AppResult<EventRosterDto>.Success(ToRosterDto(refreshed, memberId, true));
+        return AppResult<EventRosterDto>.Success(await RosterDtoAsync(refreshed, memberId, true, ct));
     }
 
     private static EventTeamMemberDto ToTeamMemberDto(EventTeamMember x, string? displayName = null) => new(x.Id, x.EventId, x.MemberId,

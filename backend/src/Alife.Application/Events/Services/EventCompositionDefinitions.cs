@@ -76,9 +76,9 @@ public static class EventCompositionDefinitions
             "TEAM.WORK", "Team and work", "團隊與任務",
             [Rule("event.exists", "eq", true, EventModuleDecisionStatus.Required, "accountable-owner-required")],
             [],
-            [Role("event.accountableOwner", 1, 1, 1, ["owningGroupLeaderOrDelegate"])],
+            [Role("event.accountableOwner", 1, 1, 1, ["eventCreator"]), Role("event.lead", 0, 1, 1, ["approvedGroupMember"])],
             ["event.prepare", "event.deliver", "event.close"],
-            ["eventTeam"], ["accountable-owner-assigned"], "workflow", "team.work", 20),
+            ["eventTeam"], ["accountable-owner-assigned"], "workflow", "team.work", 20, version: 2),
         Module(
             "PEOPLE.REGISTRATION", "Invitation and registration", "邀請與報名",
             [
@@ -99,7 +99,7 @@ public static class EventCompositionDefinitions
             ["roster.define-demand", "roster.collect-availability", "roster.confirm", "roster.handle-substitutes"],
             ["eventTeam", "userSpecific"],
             ["required-slots-filled", "assignees-eligible", "assignees-confirmed"],
-            "roster", "service.roster", 40),
+            "roster", "service.roster", 40, version: 2),
         Module(
             "MONEY.FINANCE", "Finance", "財務",
             [Rule("money.hasMoneyFlow", "eq", true, EventModuleDecisionStatus.Required, "money-flow-present")],
@@ -118,13 +118,13 @@ public static class EventCompositionDefinitions
              Rule("move.accommodationRequired", "eq", true, EventModuleDecisionStatus.Required, "ram-overnight-triggered")],
             ["TEAM.WORK"],
             [
-                Role("ram.author", 1, 1, null, ["eventTeamMember"], ["ram.approver"]),
+                Role("ram.author", 1, 1, null, ["approvedGroupMember"], ["ram.approver"]),
                 Role("ram.approver", 1, 1, null, ["admin.events.audit"], ["ram.author"])
             ],
             ["ram.draft", "ram.submit", "ram.approve", "incident.record"],
             ["roleRestricted", "approvalEvidence"],
             ["ram-complete", "ram-submitted", "ram-approved"],
-            "ram", "safety.ram", 60, version: 2),
+            "ram", "safety.ram", 60, version: 3),
         Module(
             "SAFEGUARDING.CHILD", "Child safeguarding", "兒童保護",
             [Rule("people.childrenPresent", "eq", true, EventModuleDecisionStatus.Required, "children-present")],

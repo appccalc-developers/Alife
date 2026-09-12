@@ -1,10 +1,12 @@
 import { http } from './http'
 import type { LocalizedText } from '../types/eventComposition'
-import type { EventAvailabilityStatus, EventOccurrence, EventProgramme, EventRoster, EventTask, EventTaskStatus, EventTeamMember, EventTeamWorkspace } from '../types/eventOperations'
+import type { EventRosterGroup, EventAvailabilityStatus, EventOccurrence, EventProgramme, EventRoster, EventTask, EventTaskStatus, EventTeamMember, EventTeamWorkspace } from '../types/eventOperations'
 
 const ifMatch = (eTag: string) => ({ headers: { 'If-Match': eTag } })
 
 export const eventOperationsService = {
+  getRosterGroups: async (eventId: string) => (await http.get<EventRosterGroup[]>(`/api/events/${eventId}/roster/groups`)).data,
+  saveRosterGroup: async (eventId: string, request: Omit<EventRosterGroup, 'eTag'>, eTag: string) => (await http.put<EventRosterGroup>(`/api/events/${eventId}/roster/groups`, request, ifMatch(eTag))).data,
   listOccurrences: async (eventId: string) => (await http.get<EventOccurrence[]>(`/api/events/${eventId}/occurrences`)).data,
   getTeam: async (eventId: string) => (await http.get<EventTeamWorkspace>(`/api/events/${eventId}/team`)).data,
   inviteTeamMember: async (eventId: string, memberId: string) => (await http.post<EventTeamMember>(`/api/events/${eventId}/team/members`, { memberId })).data,

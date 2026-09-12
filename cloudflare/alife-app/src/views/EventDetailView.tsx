@@ -334,6 +334,7 @@ const EventDetailView = () => {
   const canAuditRam = hasAdminPermission('admin.events.audit')
   const text = getLabels(language)
   const [event, setEvent] = useState<GroupEventRecord | null>(null)
+  const canEditPlan = Boolean(me?.id && event?.accountableOwnerMemberId === me.id)
   const [enrollments, setEnrollments] = useState<EventEnrollmentRecord[]>([])
   const [reviews, setReviews] = useState<EventReviewRecord[]>([])
   const [contacts, setContacts] = useState<ContactProfileDto[]>([])
@@ -454,9 +455,9 @@ const EventDetailView = () => {
       status={lifecycle ? <AppBadge variant={lifecycle === 'upcoming' ? 'success' : lifecycle === 'planning' ? 'warning' : 'neutral'}>{lifecycleLabel}</AppBadge> : undefined}
       primaryAction={!isGuest && event ? (
         <AppTitleBarAction
-          label={canManage ? (language === 'zh' ? '继续活动筹备' : 'Continue event preparation') : (language === 'zh' ? '活动工作区' : 'Event workspace')}
+          label={canEditPlan ? (language === 'zh' ? '继续活动筹备' : 'Continue event preparation') : (language === 'zh' ? '活动工作区' : 'Event workspace')}
           icon={<LayoutDashboard className="h-4 w-4" />}
-          to={`${eventBasePath}/workspace${canManage ? '?flow=setup&stage=arrangements' : ''}`}
+          to={`${eventBasePath}/workspace${canEditPlan ? '?flow=setup&stage=arrangements' : ''}`}
         />
       ) : undefined}
       overflowLabel={language === 'zh' ? '更多操作' : 'More actions'}
@@ -492,7 +493,7 @@ const EventDetailView = () => {
       {!loading && !error && event && eventDto ? (
         <>
           {activeSection === 'workflow' ? (
-            <EventWorkflowPanel eventId={eventId} groupId={groupId} ramPath={`${eventBasePath}/workspace/ram`} language={language} canManage={canManage} />
+            <EventWorkflowPanel eventId={eventId} groupId={groupId} ramPath={`${eventBasePath}/workspace/ram`} language={language} canManage={canEditPlan} />
           ) : activeSection === 'enrollments' ? (
             <EnrollmentPanel
               event={event}

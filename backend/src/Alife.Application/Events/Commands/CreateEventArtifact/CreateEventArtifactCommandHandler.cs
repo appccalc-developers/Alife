@@ -18,20 +18,19 @@ public sealed class CreateEventArtifactCommandHandler(
 {
     public async Task<AppResult<EventArtifactDto>> Handle(CreateEventArtifactCommand request, CancellationToken cancellationToken)
     {
-        var groupId = await dbContext.GroupEvents.AsNoTracking()
+        var groupEvent = await dbContext.GroupEvents.AsNoTracking()
             .Where(x => x.Id == request.EventId)
-            .Select(x => (Guid?)x.GroupId)
             .FirstOrDefaultAsync(cancellationToken);
-        if (groupId is null) return AppResult<EventArtifactDto>.NotFound("Event not found.");
-        if (!await groupAuthorizationService.IsLeaderOrCoLeaderAsync(groupId.Value, request.CurrentMemberId, cancellationToken))
-            return AppResult<EventArtifactDto>.Forbidden("Only group leaders and co-leaders can add event outputs.");
+        if (groupEvent is null) return AppResult<EventArtifactDto>.NotFound("Event not found.");
+        if (!await EventCompositionPersistence.CanManageEventAsync(dbContext, groupAuthorizationService, groupEvent, request.CurrentMemberId, cancellationToken))
+            return AppResult<EventArtifactDto>.Forbidden("Only the accountable owner can add event outputs.");
         if (string.IsNullOrWhiteSpace(request.ArtifactType) || string.IsNullOrWhiteSpace(request.TitleEn) || string.IsNullOrWhiteSpace(request.TitleZh))
             return AppResult<EventArtifactDto>.Validation("Output type and bilingual title are required.");
         if (!IsValidJson(request.DataJson)) return AppResult<EventArtifactDto>.Validation("Output data must be valid JSON.");
         if (request.WorkflowStepId.HasValue && !await dbContext.EventWorkflowSteps.AsNoTracking()
                 .AnyAsync(x => x.Id == request.WorkflowStepId && x.WorkflowRun.EventId == request.EventId, cancellationToken))
             return AppResult<EventArtifactDto>.NotFound("Workflow step not found.");
-        var fileError = await ValidateFileAsync(request.FileAssetId, groupId.Value, request.Visibility, cancellationToken);
+        var fileError = await ValidateFileAsync(request.FileAssetId, groupEvent.GroupId, request.Visibility, cancellationToken);
         if (fileError is not null) return fileError;
 
         var now = DateTime.UtcNow;

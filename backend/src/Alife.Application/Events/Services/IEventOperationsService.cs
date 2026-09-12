@@ -25,6 +25,8 @@ public interface IEventOperationsService
     Task<AppResult<EventProgrammeDto>> UpdateProgramItemAsync(Guid eventId, Guid occurrenceId, Guid itemId, Guid memberId, SaveEventProgramItemRequest request, string? ifMatch, CancellationToken ct);
     Task<AppResult<EventProgrammeDto>> DeleteProgramItemAsync(Guid eventId, Guid occurrenceId, Guid itemId, Guid memberId, string? ifMatch, CancellationToken ct);
     Task<AppResult<EventProgrammeDto>> ReorderProgramItemsAsync(Guid eventId, Guid occurrenceId, Guid sessionId, Guid memberId, ReorderEventProgramItemsRequest request, string? ifMatch, CancellationToken ct);
+    Task<AppResult<IReadOnlyList<EventRosterGroupDto>>> GetRosterGroupsAsync(Guid eventId, Guid memberId, CancellationToken ct);
+    Task<AppResult<EventRosterGroupDto>> SaveRosterGroupAsync(Guid eventId, Guid memberId, SaveEventRosterGroupRequest request, string? ifMatch, CancellationToken ct);
     Task<AppResult<EventRosterDto>> GetRosterAsync(Guid eventId, Guid occurrenceId, Guid memberId, CancellationToken ct);
     Task<AppResult<EventRosterDto>> CreateSlotAsync(Guid eventId, Guid occurrenceId, Guid memberId, SaveEventServiceSlotRequest request, string? ifMatch, CancellationToken ct);
     Task<AppResult<EventRosterDto>> UpdateSlotAsync(Guid eventId, Guid occurrenceId, Guid slotId, Guid memberId, SaveEventServiceSlotRequest request, string? ifMatch, CancellationToken ct);

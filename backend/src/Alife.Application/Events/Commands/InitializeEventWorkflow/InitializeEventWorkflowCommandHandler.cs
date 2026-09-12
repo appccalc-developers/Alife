@@ -25,9 +25,9 @@ public sealed class InitializeEventWorkflowCommandHandler(
         {
             return AppResult<EventWorkflowDto>.NotFound("Event not found.");
         }
-        if (!await groupAuthorizationService.IsLeaderOrCoLeaderAsync(groupEvent.GroupId, request.CurrentMemberId, cancellationToken))
+        if (!await EventCompositionPersistence.CanManageEventAsync(dbContext, groupAuthorizationService, groupEvent, request.CurrentMemberId, cancellationToken))
         {
-            return AppResult<EventWorkflowDto>.Forbidden("Only group leaders and co-leaders can initialize an event workflow.");
+            return AppResult<EventWorkflowDto>.Forbidden("Only the accountable owner can initialize an event workflow.");
         }
         if (await dbContext.EventWorkflowRuns.AnyAsync(x => x.EventId == request.EventId, cancellationToken))
         {

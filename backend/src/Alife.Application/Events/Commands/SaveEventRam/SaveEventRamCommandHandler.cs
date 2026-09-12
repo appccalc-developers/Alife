@@ -19,6 +19,7 @@ public sealed class SaveEventRamCommandHandler(
 {
     public async Task<AppResult<EventRamAssessmentDto>> Handle(SaveEventRamCommand request, CancellationToken cancellationToken)
     {
+        _ = groupAuthorizationService; // Preserve the handler constructor for existing callers; authority is event scoped.
         var groupEvent = await dbContext.GroupEvents
             .Include(x => x.RamAssessment)
             .FirstOrDefaultAsync(x => x.Id == request.EventId, cancellationToken);
@@ -27,9 +28,9 @@ public sealed class SaveEventRamCommandHandler(
             return AppResult<EventRamAssessmentDto>.NotFound("Event not found.");
         }
 
-        if (!await groupAuthorizationService.IsLeaderOrCoLeaderAsync(groupEvent.GroupId, request.CurrentMemberId, cancellationToken))
+        if (!await EventCompositionPersistence.CanAuthorRamAsync(dbContext, groupEvent, request.CurrentMemberId, cancellationToken))
         {
-            return AppResult<EventRamAssessmentDto>.Forbidden("Only group leaders and co-leaders can edit RAM drafts.");
+            return AppResult<EventRamAssessmentDto>.Forbidden("Only the accountable owner or an accepted RAM author can edit RAM drafts.");
         }
 
         if (!EventRamPolicy.IsValidJson(request.RamDataJson))

@@ -1,10 +1,11 @@
-﻿using Alife.Domain.Entities;
+using Alife.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace Alife.Application.Common.Interfaces;
 
 public interface IAlifeDbContext
 {
+    DbSet<EventRosterGroup> EventRosterGroups { get; }
     DbSet<Group> Groups { get; }
     DbSet<Member> Members { get; }
     DbSet<BibleReadingProgress> BibleReadingProgresses { get; }
