@@ -21,8 +21,8 @@ public sealed class UpdateEventArtifactCommandHandler(
             .Include(x => x.Event)
             .FirstOrDefaultAsync(x => x.Id == request.ArtifactId && x.EventId == request.EventId, cancellationToken);
         if (artifact is null) return AppResult<EventArtifactDto>.NotFound("Event output not found.");
-        if (!await groupAuthorizationService.IsLeaderOrCoLeaderAsync(artifact.Event.GroupId, request.CurrentMemberId, cancellationToken))
-            return AppResult<EventArtifactDto>.Forbidden("Only group leaders and co-leaders can update event outputs.");
+        if (!await EventCompositionPersistence.CanManageEventAsync(dbContext, groupAuthorizationService, artifact.Event, request.CurrentMemberId, cancellationToken))
+            return AppResult<EventArtifactDto>.Forbidden("Only the accountable owner can update event outputs.");
         if (artifact.ArtifactType == "ram")
             return AppResult<EventArtifactDto>.Conflict("RAM output is managed by the dedicated RAM workflow.");
         if (string.IsNullOrWhiteSpace(request.TitleEn) || string.IsNullOrWhiteSpace(request.TitleZh))

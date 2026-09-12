@@ -853,7 +853,7 @@ public sealed partial class EventPackageService(
         var access = await LoadViewableEvent(eventId, memberId, ct);
         if (!access.IsSuccess) return Failure<EventLifecycleDto, GroupEvent>(access);
         if (!await EventCompositionPersistence.CanManageEventAsync(db, authorization, access.Value!, memberId, ct))
-            return AppResult<EventLifecycleDto>.Forbidden("The accountable owner or owning-group leadership is required to publish this Event.");
+            return AppResult<EventLifecycleDto>.Forbidden("The accountable owner is required to publish this Event.");
         var keyError = ValidateIdempotencyKey(idempotencyKey);
         if (keyError is not null) return AppResult<EventLifecycleDto>.Validation(keyError);
         if (string.IsNullOrWhiteSpace(request.EventETag))
@@ -866,7 +866,7 @@ public sealed partial class EventPackageService(
         var groupEvent = await LifecycleEventQuery().FirstOrDefaultAsync(x => x.Id == eventId, ct);
         if (groupEvent is null) return AppResult<EventLifecycleDto>.NotFound("Event not found.");
         if (!await EventCompositionPersistence.CanManageEventAsync(db, authorization, groupEvent, memberId, ct))
-            return AppResult<EventLifecycleDto>.Forbidden("The accountable owner or owning-group leadership is required to publish this Event.");
+            return AppResult<EventLifecycleDto>.Forbidden("The accountable owner is required to publish this Event.");
         if (!Matches(request.EventETag, LifecycleETag(groupEvent)))
             return AppResult<EventLifecycleDto>.PreconditionFailed("The Event lifecycle changed; reload before publishing.");
         if (groupEvent.RamAssessment?.Status != EventRamStatus.Approved)
@@ -1166,7 +1166,7 @@ public sealed partial class EventPackageService(
         var access = await LoadViewableEvent(eventId, memberId, ct);
         if (!access.IsSuccess) return Failure<EventLifecycleDto, GroupEvent>(access);
         if (!await EventCompositionPersistence.CanManageEventAsync(db, authorization, access.Value!, memberId, ct))
-            return AppResult<EventLifecycleDto>.Forbidden("The accountable owner or owning-group leadership is required to unpublish this Event.");
+            return AppResult<EventLifecycleDto>.Forbidden("The accountable owner is required to unpublish this Event.");
         var keyError = ValidateIdempotencyKey(idempotencyKey);
         if (keyError is not null) return AppResult<EventLifecycleDto>.Validation(keyError);
         if (string.IsNullOrWhiteSpace(request.Reason.En) || string.IsNullOrWhiteSpace(request.Reason.Zh))
@@ -1181,7 +1181,7 @@ public sealed partial class EventPackageService(
         var groupEvent = await LifecycleEventQuery().FirstOrDefaultAsync(x => x.Id == eventId, ct);
         if (groupEvent is null) return AppResult<EventLifecycleDto>.NotFound("Event not found.");
         if (!await EventCompositionPersistence.CanManageEventAsync(db, authorization, groupEvent, memberId, ct))
-            return AppResult<EventLifecycleDto>.Forbidden("The accountable owner or owning-group leadership is required to unpublish this Event.");
+            return AppResult<EventLifecycleDto>.Forbidden("The accountable owner is required to unpublish this Event.");
         if (!Matches(request.EventETag, LifecycleETag(groupEvent)))
             return AppResult<EventLifecycleDto>.PreconditionFailed("The Event lifecycle changed; reload before unpublishing.");
         if (groupEvent.PublicationStatus != EventPublicationStatus.Published &&
@@ -1379,10 +1379,7 @@ public sealed partial class EventPackageService(
                         x.RoleRequirementKey.EndsWith(":registration.manager"))
                     .OrderBy(x => x.Id).Select(x => new { x.Id, x.MemberId, x.Status, x.EndedUtc }).ToListAsync(ct)
             },
-            "SERVICE.ROSTER" => await db.EventServiceSlots.AsNoTracking().Where(x => x.Occurrence.EventId == eventId &&
-                    (!occurrenceId.HasValue || x.OccurrenceId == occurrenceId.Value))
-                .OrderBy(x => x.Id).Select(x => new { x.Id, x.OccurrenceId, x.RequiredCount, x.UpdatedUtc,
-                    accepted = x.Assignments.Count(a => a.Status == EventRosterAssignmentStatus.Confirmed && a.EndedUtc == null) }).ToListAsync(ct),
+            "SERVICE.ROSTER" => await RosterSourceDataAsync(eventId, occurrenceId, ct),
             "SAFETY.RAM" => await db.EventRamAssessments.AsNoTracking().Where(x => x.EventId == eventId)
                 .Select(x => new { x.EventId, x.Status, x.CurrentRevisionId, x.PolicyVersionId, x.ResidualLevel, x.Validity,
                     x.SubmittedByMemberId, x.SubmittedUtc, x.ApprovedByMemberId, x.ApprovedUtc, x.UpdatedUtc }).ToListAsync(ct),
@@ -1966,6 +1963,18 @@ public sealed partial class EventPackageService(
                 groupEvent.PublishedPackageId, groupEvent.PublicationGateMode
             }), OccurredUtc = now
         });
+
+    private async Task<object> RosterSourceDataAsync(Guid eventId, Guid? occurrenceId, CancellationToken ct)
+    {
+        var slots = await db.EventServiceSlots.AsNoTracking().Where(x => x.Occurrence.EventId == eventId &&
+                (!occurrenceId.HasValue || x.OccurrenceId == occurrenceId.Value))
+            .OrderBy(x => x.Id).Select(x => new { x.Id, x.OccurrenceId, x.RequiredCount, x.UpdatedUtc,
+                accepted = x.Assignments.Count(a => a.Status == EventRosterAssignmentStatus.Confirmed && a.EndedUtc == null) }).ToListAsync(ct);
+        var groups = await db.EventRosterGroups.AsNoTracking().Where(x => x.EventId == eventId).OrderBy(x => x.Id)
+            .Select(x => new { x.Id, x.RoleCode, x.ModuleCode, x.ConcurrencyToken }).ToListAsync(ct);
+        // Preserve legacy source hashes until a group is explicitly configured; never copy candidates into a Package.
+        return groups.Count == 0 ? slots : new { slots, groups };
+    }
 
     private async Task<bool> CanSubmitAsync(GroupEvent groupEvent, Guid memberId, CancellationToken ct)
         => await EventCompositionPersistence.CanManageEventAsync(db, authorization, groupEvent, memberId, ct) ||

@@ -402,3 +402,13 @@ All RAM/policy/history/print responses are private/no-store. Package and general
 
 
 Arrangement section review uses optional, versioned `arrangementConfirmations` in composition and Plan JSON. It is an organizer review marker separate from authoritative readiness, consent and approval. Current reads invalidate affected markers after audited operational changes while accepted history remains immutable. Module role requirements render in their own tools; Event accountable ownership is global and retains its legacy requirement key. See [creation arrangements](CREATION-ARRANGEMENTS.md#section-confirmation-and-module-roles).
+
+## Creator ownership and role-based staffing
+
+New Events bind accountable ownership to the authenticated creator. The optional legacy owner field accepts only that same account; all owner-transfer invitations are rejected, including old pending invitations. Existing stored owners and immutable approvals are preserved; when a legacy owner field is empty, only its creator is the fallback. Owning-group leadership does not grant editing of another owner's Event details, Plan, workflow configuration or poster.
+
+`event.lead` is an optional, personally accepted on-site duty and may be held by the owner. It grants no Event-plan editing. RAM authors edit RAM, and independent RAM reviewers decide rather than alter the report; neither duty grants Event-plan editing. Specialist operations continue to use their own controlled permissions.
+
+Roster roles have explicit, ordered Event candidate groups, each attached to one module. Every new assignment or substitution checks candidate membership, existing eligibility and availability on the server. Being a candidate is neither acceptance nor authority. There is no implicit whole-group candidate list or automatic rotation. Existing assignments remain historical evidence. Candidate-list changes use concurrency checks and invalidate affected preparation/Package evidence without rewriting history.
+
+Series creation also requires ownership of its linked Event. Updating a series requires ownership of every affected Event; an empty series is editable only by its creator. Group leadership alone cannot use recurrence changes to bypass Event ownership.

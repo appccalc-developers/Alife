@@ -864,6 +864,12 @@ public sealed partial class EventPackageFoundationTests
         await using var db = CreateDb();
         var seeded = await SeedAsync(db, series: false, modules: ["TEAM.WORK"]);
         (await db.EventPackageGovernancePolicyVersions.SingleAsync()).EnforcementMode = EventPackageEnforcementMode.Enforced;
+        // Keep this approval-gate test independent of the fixed historical seed date.
+        seeded.Event.StartDate = DateTime.UtcNow.AddDays(6);
+        seeded.Event.EndDate = seeded.Event.StartDate.AddHours(2);
+        seeded.Occurrences[0].StartUtc = seeded.Event.StartDate;
+        seeded.Occurrences[0].EndUtc = seeded.Event.EndDate;
+        seeded.Occurrences[0].LocalDate = DateOnly.FromDateTime(seeded.Event.StartDate);
         seeded.Event.EventDataJson = JsonSerializer.Serialize(new
         {
             maxCapacity = 40,

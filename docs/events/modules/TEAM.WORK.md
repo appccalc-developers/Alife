@@ -28,7 +28,7 @@ Owning and contributing teams, accepted Event roles, task/dependency/blocker sta
 
 ### Roles and authority
 
-`event.accountableOwner` requires exactly one owning-group leader or approved delegate. Team membership alone does not grant module or approval authority. Managers assign roles and work on the server; invited members accept or decline their own assignment.
+`event.accountableOwner` is fixed to the authenticated creator for new Events. Existing stored owners remain; ownership cannot be transferred through role invitations. Optional `event.lead` is a personally accepted on-site duty and grants no plan-editing authority. Team membership alone does not grant module or approval authority. Managers assign roles and work on the server; invited members accept or decline their own assignment.
 
 ### Data classification
 
@@ -65,4 +65,4 @@ Handoff audit, reusable task templates, invitation notifications, and complete a
 `team-approval-handoff`: add workflow/task approval evidence, handoff history, invitation notification, and a non-destructive notification retry path.
 
 
-In the integrated Arrangements flow, Team shows team members and tasks. Module role invitations appear in their owning modules; the global accountable owner remains outside optional tools, using its existing requirement key even if TEAM.WORK is disabled in preparation. Review summarizes responsible people and personal acceptance states. Section confirmation never accepts roles on someone’s behalf. See [section review](../CREATION-ARRANGEMENTS.md#section-confirmation-and-module-roles).
+In the integrated Arrangements flow, Team primarily shows cross-module tasks; collaboration membership and historical assignments are collapsed. Module role invitations appear in their owning modules; the global accountable owner remains outside optional tools, using its existing requirement key even if TEAM.WORK is disabled in preparation. Review summarizes responsible people and personal acceptance states. Section confirmation never accepts roles on someone’s behalf. See [section review](../CREATION-ARRANGEMENTS.md#section-confirmation-and-module-roles).

@@ -72,7 +72,7 @@ public sealed class CreateEventRoleAssignmentCommandHandler(
                 dbContext, groupAuthorizationService, groupEvent, request.CurrentMemberId, cancellationToken))
         {
             return AppResult<EventRoleAssignmentDto>.Forbidden(
-                "The accountable owner or owning-group leaders can assign event roles.");
+                "Only the accountable owner can assign event roles.");
         }
         var key = request.IdempotencyKey?.Trim();
         if (string.IsNullOrWhiteSpace(key) || key.Length > 200)
@@ -127,6 +127,8 @@ public sealed class CreateEventRoleAssignmentCommandHandler(
             return AppResult<EventRoleAssignmentDto>.Validation(
                 "roleRequirementKey is not active in the accepted plan.");
         }
+        if (requirement.RoleCode == "event.accountableOwner")
+            return AppResult<EventRoleAssignmentDto>.Validation("The accountable owner is fixed and cannot be reassigned. / 活动总负责人固定，不能转交。");
         if (requirement.Eligibility.Contains("eventTeamMember", StringComparer.Ordinal) &&
             groupEvent.AccountableOwnerMemberId != request.Request.MemberId &&
             !await dbContext.EventTeamMembers.AsNoTracking().AnyAsync(x => x.EventId == groupEvent.Id &&
@@ -263,7 +265,7 @@ public sealed class EndEventRoleAssignmentCommandHandler(
                 dbContext, groupAuthorizationService, assignment.Event, request.CurrentMemberId, cancellationToken))
         {
             return AppResult<bool>.Forbidden(
-                "The accountable owner or owning-group leaders can end event roles.");
+                "Only the accountable owner can end event roles.");
         }
         if (assignment.EndedUtc.HasValue)
         {
@@ -330,6 +332,9 @@ public sealed class RespondToEventRoleAssignmentCommandHandler(
             return AppResult<EventRoleAssignmentDto>.Conflict("This role invitation is no longer pending.");
         }
 
+        if (assignment.RoleRequirementKey.EndsWith(":event.accountableOwner", StringComparison.Ordinal))
+            return AppResult<EventRoleAssignmentDto>.Conflict("The accountable owner is fixed; legacy transfer invitations cannot be accepted.");
+
         var now = DateTime.UtcNow;
         assignment.Status = request.Accept
             ? EventRoleAssignmentStatus.Accepted
@@ -338,20 +343,6 @@ public sealed class RespondToEventRoleAssignmentCommandHandler(
         assignment.DeclinedUtc = request.Accept ? null : now;
         assignment.EndedUtc = request.Accept ? null : now;
         assignment.UpdatedUtc = now;
-        if (request.Accept && assignment.RoleRequirementKey.EndsWith(":event.accountableOwner", StringComparison.Ordinal))
-        {
-            var previousOwners = await dbContext.EventRoleAssignments.Where(x => x.EventId == assignment.EventId &&
-                x.Id != assignment.Id && x.RoleRequirementKey == assignment.RoleRequirementKey && x.EndedUtc == null).ToListAsync(cancellationToken);
-            foreach (var previous in previousOwners)
-            {
-                previous.Status = EventRoleAssignmentStatus.Ended;
-                previous.EndedUtc = now;
-                previous.UpdatedUtc = now;
-            }
-            assignment.Event.AccountableOwnerMemberId = assignment.MemberId;
-            assignment.Event.PlanConcurrencyToken = Guid.NewGuid();
-            assignment.Event.UpdatedUtc = now;
-        }
         if (packageInvalidationService is not null)
         {
             var separator = assignment.RoleRequirementKey.IndexOf(':');

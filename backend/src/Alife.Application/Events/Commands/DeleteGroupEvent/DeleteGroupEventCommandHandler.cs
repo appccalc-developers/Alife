@@ -23,14 +23,14 @@ public sealed class DeleteGroupEventCommandHandler(
             return AppResult<bool>.NotFound("Event not found.");
         }
 
-        var canManage = await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
-            groupEvent.GroupId,
+        var canManage = await EventCompositionPersistence.CanManageEventAsync(
+            dbContext, groupAuthorizationService, groupEvent,
             request.CurrentMemberId,
             cancellationToken);
 
         if (!canManage)
         {
-            return AppResult<bool>.Forbidden("Only group leaders and co-leaders can delete events.");
+            return AppResult<bool>.Forbidden("Only the accountable owner can delete this event.");
         }
 
         groupEvent.IsDeleted = true;

@@ -98,6 +98,14 @@ public sealed class EventOperationsController(
     public Task<IActionResult> ReorderProgramItems(Guid eventId, Guid occurrenceId, Guid sessionId, ReorderEventProgramItemsRequest request, CancellationToken ct)
         => Run(member => operations.ReorderProgramItemsAsync(eventId, occurrenceId, sessionId, member, request, Request.Headers.IfMatch.ToString(), ct), value => value.ETag);
 
+    [HttpGet("roster/groups")]
+    public Task<IActionResult> GetRosterGroups(Guid eventId, CancellationToken ct)
+        => Run(member => operations.GetRosterGroupsAsync(eventId, member, ct), privateResponse: true);
+
+    [HttpPut("roster/groups")]
+    public Task<IActionResult> SaveRosterGroup(Guid eventId, SaveEventRosterGroupRequest request, CancellationToken ct)
+        => Run(member => operations.SaveRosterGroupAsync(eventId, member, request, Request.Headers.IfMatch.ToString(), ct), value => value.ETag, privateResponse: true);
+
     [HttpGet("occurrences/{occurrenceId:guid}/roster")]
     public Task<IActionResult> GetRoster(Guid eventId, Guid occurrenceId, CancellationToken ct)
         => Run(member => operations.GetRosterAsync(eventId, occurrenceId, member, ct), value => value.ETag);
@@ -130,9 +138,10 @@ public sealed class EventOperationsController(
     public Task<IActionResult> DeclineRosterAssignment(Guid eventId, Guid occurrenceId, Guid assignmentId, CancellationToken ct)
         => Run(member => operations.RespondToRosterAssignmentAsync(eventId, occurrenceId, assignmentId, member, false, ct), value => value.ETag);
 
-    private async Task<IActionResult> Run<T>(Func<Guid, Task<Alife.Application.Common.Models.AppResult<T>>> action, Func<T, string>? eTag = null)
+    private async Task<IActionResult> Run<T>(Func<Guid, Task<Alife.Application.Common.Models.AppResult<T>>> action, Func<T, string>? eTag = null, bool privateResponse = false)
     {
         this.ApplyNoStoreHeaders();
+        if (privateResponse) Response.Headers.CacheControl = "private, no-store";
         var memberId = currentMemberAccessor.GetCurrentMemberId();
         if (!memberId.HasValue) return Unauthorized();
         var result = await action(memberId.Value);

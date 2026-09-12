@@ -35,6 +35,18 @@ public sealed class EventOperationsCoreTests
     }
 
     [Fact]
+    public async Task CandidateGroupApi_IsPrivateNoStore()
+    {
+        var operations = Substitute.For<IEventOperationsService>(); var current = Substitute.For<ICurrentMemberAccessor>();
+        var eventId = Guid.NewGuid(); var memberId = Guid.NewGuid(); current.GetCurrentMemberId().Returns(memberId);
+        operations.GetRosterGroupsAsync(eventId, memberId, Arg.Any<CancellationToken>())
+            .Returns(AppResult<IReadOnlyList<EventRosterGroupDto>>.Success([]));
+        var controller = new EventOperationsController(operations, current) { ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() } };
+        Assert.IsType<OkObjectResult>(await controller.GetRosterGroups(eventId, default));
+        Assert.Equal("private, no-store", controller.Response.Headers.CacheControl.ToString());
+    }
+
+    [Fact]
     public async Task TeamAndRoleInvitations_RequireTheInviteeAndNeverAutoAccept()
     {
         await using var db = CreateDb();
@@ -142,6 +154,8 @@ public sealed class EventOperationsCoreTests
         Assert.Equal(AppResultStatus.PreconditionFailed, stale.Status);
 
         db.ChangeTracker.Clear();
+        Assert.True((await service.SaveRosterGroupAsync(groupEvent.Id, owner,
+            new(slot.RoleCode, "SERVICE.ROSTER", [volunteer]), "\"new\"", default)).IsSuccess);
         await service.SetAvailabilityAsync(groupEvent.Id, occurrence.Id, slot.Id, volunteer,
             new(EventAvailabilityStatus.Unavailable), default);
         db.ChangeTracker.Clear();
@@ -151,6 +165,104 @@ public sealed class EventOperationsCoreTests
             new(volunteer), current.Value!.ETag, default);
         Assert.Equal(AppResultStatus.ValidationError, rejected.Status);
         Assert.Contains("unavailable", rejected.Message!, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task CandidateGroups_RejectOutsideMembers_KeepOrder_AndPreserveAssignmentHistory()
+    {
+        await using var db = CreateDb();
+        var owner = Guid.NewGuid(); var a = Guid.NewGuid(); var b = Guid.NewGuid(); var outsider = Guid.NewGuid();
+        var e = SeedEvent(db, Guid.NewGuid(), owner); var occurrence = SeedOccurrence(db, e);
+        db.Members.AddRange(Member(owner, "Owner"), Member(a, "A"), Member(b, "B"), Member(outsider, "Other"));
+        SeedPlan(db, e, Fact("people.volunteersRequired", true)); await db.SaveChangesAsync();
+        var auth = Authorization(owner); var service = new EventOperationsService(db, auth);
+        var initial = (await service.GetRosterAsync(e.Id, occurrence.Id, owner, default)).Value!;
+        var roster = (await service.CreateSlotAsync(e.Id, occurrence.Id, owner,
+            new(null, null, null, "welcome", occurrence.StartUtc, occurrence.EndUtc, 1, "approvedGroupMember"), initial.ETag, default)).Value!;
+        var slot = Assert.Single(roster.Slots);
+        Assert.Equal(AppResultStatus.ValidationError, (await service.AssignRosterMemberAsync(e.Id, occurrence.Id, slot.Id, owner, new(a), roster.ETag, default)).Status);
+        var group = await service.SaveRosterGroupAsync(e.Id, owner, new("welcome", "SERVICE.ROSTER", [b, a]), "\"new\"", default);
+        Assert.True(group.IsSuccess, group.Message); Assert.Equal(new[] { b, a }, group.Value!.MemberIds);
+        var candidateView = await service.GetRosterAsync(e.Id, occurrence.Id, a, default);
+        Assert.True(candidateView.IsSuccess, candidateView.Message);
+        Assert.False(candidateView.Value!.CanManage);
+        Assert.True(Assert.Single(candidateView.Value.Slots).IsRosterCandidate);
+        Assert.All(candidateView.Value.Slots, x => { Assert.Empty(x.CandidateMemberIds!); Assert.Empty(x.Assignments); });
+        Assert.Equal(AppResultStatus.Forbidden, (await service.GetRosterAsync(e.Id, occurrence.Id, outsider, default)).Status);
+        var foreignMember = Guid.NewGuid();
+        auth.IsApprovedMemberAsync(e.GroupId, foreignMember, Arg.Any<CancellationToken>()).Returns(false);
+        Assert.Equal(AppResultStatus.ValidationError, (await service.SaveRosterGroupAsync(e.Id, owner, new("welcome", "SERVICE.ROSTER", [foreignMember]), group.Value.ETag, default)).Status);
+        Assert.Equal(AppResultStatus.Forbidden, (await service.SaveRosterGroupAsync(e.Id, outsider, new("welcome", "SERVICE.ROSTER", [a]), group.Value.ETag, default)).Status);
+        Assert.Equal(AppResultStatus.PreconditionFailed, (await service.SaveRosterGroupAsync(e.Id, owner, new("welcome", "SERVICE.ROSTER", [a]), "\"new\"", default)).Status);
+        Assert.Equal(AppResultStatus.Forbidden, (await service.GetRosterGroupsAsync(e.Id, outsider, default)).Status);
+        roster = (await service.GetRosterAsync(e.Id, occurrence.Id, owner, default)).Value!;
+        Assert.Equal(AppResultStatus.ValidationError, (await service.AssignRosterMemberAsync(e.Id, occurrence.Id, slot.Id, owner, new(outsider), roster.ETag, default)).Status);
+        var assigned = await service.AssignRosterMemberAsync(e.Id, occurrence.Id, slot.Id, owner, new(a), roster.ETag, default);
+        Assert.True(assigned.IsSuccess, assigned.Message);
+        var assignment = Assert.Single(Assert.Single(assigned.Value!.Slots).Assignments);
+        Assert.Equal(AppResultStatus.Forbidden, (await service.RespondToRosterAssignmentAsync(e.Id, occurrence.Id, assignment.Id, owner, true, default)).Status);
+        Assert.True((await service.RespondToRosterAssignmentAsync(e.Id, occurrence.Id, assignment.Id, a, true, default)).IsSuccess);
+        roster = (await service.GetRosterAsync(e.Id, occurrence.Id, owner, default)).Value!;
+        Assert.Equal(AppResultStatus.ValidationError, (await service.AssignRosterMemberAsync(e.Id, occurrence.Id, slot.Id, owner, new(outsider, assignment.Id), roster.ETag, default)).Status);
+        Assert.True((await service.AssignRosterMemberAsync(e.Id, occurrence.Id, slot.Id, owner, new(b, assignment.Id), roster.ETag, default)).IsSuccess);
+        Assert.Equal(2, await db.EventRosterAssignments.CountAsync());
+        Assert.Equal(EventRosterAssignmentStatus.Ended, (await db.EventRosterAssignments.SingleAsync(x => x.Id == assignment.Id)).Status);
+        var personal = (await service.GetRosterAsync(e.Id, occurrence.Id, b, default)).Value!;
+        // Candidate lists are not exposed by a member-specific roster response.
+        Assert.NotNull(personal); Assert.All(personal.Slots, x => Assert.Empty(x.CandidateMemberIds!));
+    }
+
+    [Fact]
+    public async Task LeadersAndSpecialists_CannotEditAnotherOwnersPlan_OrTransferOwnership()
+    {
+        await using var db = CreateDb();
+        var owner = Guid.NewGuid(); var other = Guid.NewGuid();
+        var e = SeedEvent(db, Guid.NewGuid(), owner); SeedPlan(db, e, Fact("safety.requiresRam", true));
+        db.Members.AddRange(Member(owner, "Owner"), Member(other, "Lead"));
+        var roles = new[] { "TEAM.WORK:event.lead", "SAFETY.RAM:ram.author", "SAFETY.RAM:ram.approver" };
+        var auth = Authorization(other); // The other actor is also a group leader.
+        foreach (var role in roles)
+        {
+            db.EventRoleAssignments.RemoveRange(db.EventRoleAssignments);
+            db.EventRoleAssignments.Add(new() { Id = Guid.NewGuid(), EventId = e.Id, MemberId = other,
+                RoleRequirementKey = role, Status = EventRoleAssignmentStatus.Accepted, AssignedByMemberId = owner, CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow });
+            await db.SaveChangesAsync();
+            Assert.False(await EventCompositionPersistence.CanManageEventAsync(db, auth, e, other, default));
+            Assert.Equal(role.EndsWith(":ram.author"), await EventCompositionPersistence.CanAuthorRamAsync(db, e, other, default));
+        }
+        var update = new Alife.Application.Events.Commands.UpdateGroupEvent.UpdateGroupEventCommandHandler(db, auth,
+            Substitute.For<IEventCacheInvalidationService>(), new EventPackageInvalidationService(db));
+        var result = await update.Handle(new(e.Id, other, "Changed", "修改", e.StartDate, e.EndDate, "{}"), default);
+        Assert.Equal(AppResultStatus.Forbidden, result.Status); Assert.Equal("Event", e.TitleEn);
+        var create = new Alife.Application.Events.Commands.CreateGroupEvent.CreateGroupEventCommandHandler(db, auth, Substitute.For<IEventCacheInvalidationService>());
+        Assert.Equal(AppResultStatus.ValidationError, (await create.Handle(new(e.GroupId, other, "New", "新活动", e.StartDate, e.EndDate, "{}", AccountableOwnerMemberId: owner), default)).Status);
+        var invite = new Alife.Application.Events.Composition.CreateEventRoleAssignmentCommandHandler(db, auth);
+        Assert.Equal(AppResultStatus.ValidationError, (await invite.Handle(new(e.Id, owner, new("TEAM.WORK:event.accountableOwner", other), "no-transfer"), default)).Status);
+        var pending = new EventRoleAssignment { Id = Guid.NewGuid(), EventId = e.Id, MemberId = other, RoleRequirementKey = "TEAM.WORK:event.accountableOwner",
+            Status = EventRoleAssignmentStatus.Invited, AssignedByMemberId = owner, CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow };
+        db.EventRoleAssignments.Add(pending); await db.SaveChangesAsync();
+        var respond = new Alife.Application.Events.Composition.RespondToEventRoleAssignmentCommandHandler(db);
+        Assert.Equal(AppResultStatus.Conflict, (await respond.Handle(new(e.Id, pending.Id, other, true), default)).Status);
+        Assert.Equal(owner, e.AccountableOwnerMemberId);
+    }
+
+    [Fact]
+    public async Task SeriesEdits_CannotBypassEventOwnership()
+    {
+        await using var db = CreateDb();
+        var owner = Guid.NewGuid(); var leader = Guid.NewGuid();
+        var e = SeedEvent(db, Guid.NewGuid(), owner); await db.SaveChangesAsync();
+        var auth = Authorization(leader);
+        var create = new Alife.Application.Events.Composition.CreateEventSeriesCommandHandler(db, auth);
+        Assert.Equal(AppResultStatus.Forbidden, (await create.Handle(new(e.GroupId, leader,
+            new(e.Id, new("Series", "系列"), "FREQ=WEEKLY", "UTC", new DateTime(2026, 10, 1, 10, 0, 0), 60), "foreign-series"), default)).Status);
+        var series = new EventSeries { Id = Guid.NewGuid(), OwningGroupId = e.GroupId, CreatedByMemberId = leader,
+            NameEn = "Series", NameZh = "系列", Events = [e], UpdatedUtc = DateTime.UtcNow };
+        db.EventSeries.Add(series); await db.SaveChangesAsync();
+        var update = new Alife.Application.Events.Composition.UpdateEventSeriesCommandHandler(db, auth);
+        Assert.Equal(AppResultStatus.Forbidden, (await update.Handle(new(series.Id, leader,
+            new(new("Changed", "修改"), "FREQ=WEEKLY", "UTC", new DateTime(2026, 10, 1, 10, 0, 0), 60), null), default)).Status);
+        Assert.Equal("Series", series.NameEn);
     }
 
     private static AlifeDbContext CreateDb() => new(new DbContextOptionsBuilder<AlifeDbContext>()

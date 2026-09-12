@@ -159,7 +159,7 @@ public sealed class EventCompositionEngine : IEventCompositionEngine
             .Select(x => EventCompositionDefinitions.ModulesByCode[x.ModuleCode])
             .ToArray();
         var roles = activeModules.Append(EventCompositionDefinitions.ModulesByCode["TEAM.WORK"]).DistinctBy(module => module.Code)
-            .SelectMany(module => module.RoleRequirements.Select(role => new RoleRequirementDto(
+            .SelectMany(module => module.RoleRequirements.Where(role => role.RoleCode == "event.accountableOwner" || activeModules.Any(active => active.Code == module.Code)).Select(role => new RoleRequirementDto(
                 $"{module.Code}:{role.RoleCode}", module.Code, role.RoleCode,
                 role.Minimum, role.Recommended, role.Maximum, role.Eligibility, role.SeparationFrom)))
             .OrderBy(x => x.RequirementKey, StringComparer.Ordinal)

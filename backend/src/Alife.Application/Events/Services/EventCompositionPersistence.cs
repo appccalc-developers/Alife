@@ -74,15 +74,18 @@ public static class EventCompositionPersistence
             request.UseRecommendedWorkflow ? "selected" : "declined");
     }
 
-    public static async Task<bool> CanManageEventAsync(
+    public static Task<bool> CanManageEventAsync(
         IAlifeDbContext dbContext,
         IGroupAuthorizationService groupAuthorizationService,
         GroupEvent groupEvent,
         Guid memberId,
         CancellationToken cancellationToken)
-        => groupEvent.AccountableOwnerMemberId == memberId ||
-           await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
-               groupEvent.GroupId, memberId, cancellationToken);
+        => Task.FromResult(memberId != Guid.Empty && (groupEvent.AccountableOwnerMemberId == Guid.Empty ? groupEvent.CreatedByMemberId : groupEvent.AccountableOwnerMemberId) == memberId);
+
+    public static async Task<bool> CanAuthorRamAsync(IAlifeDbContext db, GroupEvent e, Guid actor, CancellationToken ct)
+        => actor != Guid.Empty && (e.AccountableOwnerMemberId == Guid.Empty ? e.CreatedByMemberId : e.AccountableOwnerMemberId) == actor || await db.EventRoleAssignments.AsNoTracking().AnyAsync(x =>
+            x.EventId == e.Id && x.MemberId == actor && x.RoleRequirementKey == "SAFETY.RAM:ram.author" &&
+            x.Status == EventRoleAssignmentStatus.Accepted && x.EndedUtc == null, ct);
 
     public static async Task<bool> CanViewEventTeamAsync(
         IAlifeDbContext dbContext,
@@ -91,7 +94,8 @@ public static class EventCompositionPersistence
         Guid memberId,
         CancellationToken cancellationToken)
     {
-        if (await CanManageEventAsync(dbContext, groupAuthorizationService, groupEvent, memberId, cancellationToken))
+        if (await CanManageEventAsync(dbContext, groupAuthorizationService, groupEvent, memberId, cancellationToken) ||
+            await groupAuthorizationService.IsLeaderOrCoLeaderAsync(groupEvent.GroupId, memberId, cancellationToken))
         {
             return true;
         }

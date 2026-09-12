@@ -2997,7 +2997,10 @@ public sealed record AcceptEventPlanRequest(
     "A Package for a Child Event is independent; Series state and parent approval never approve it.",
     "Package generation and submission fail on any changed required source rather than persisting mixed-time evidence.",
     "Existing Events receive no invented Package approval and enter enforcement only through an audited rollout policy.",
-    "Plan B and automated contingency activation remain deferred."
+    "Plan B and automated contingency activation remain deferred.",
+    "New Events fix accountableOwnerMemberId to the authenticated creator; a different legacy request value is rejected. Ownership invitations, including pending legacy transfers, cannot change ownership. Existing stored owners and decisions are preserved; a missing legacy owner resolves only to the creator.",
+    "Only the accountable owner edits Event details, Plan and preparation configuration. Group leadership and accepted event.lead, ram.author or ram.approver do not grant Event-plan editing; specialist module actions and independent review retain their own authority.",
+    "Each Event role has one explicit ordered candidate group in one enabled module. Assignments and substitutions require group membership plus existing eligibility and availability; no whole-group fallback or automatic rotation. Candidate status grants neither module authority nor acceptance."
   ],
   "architectureDecisions": [
     {
@@ -3616,6 +3619,17 @@ public sealed record AcceptEventPlanRequest(
         "checkedUtc"
       ],
       "implementedAs": "server projection; snapshot stores accepted inputs and rules"
+    },
+    {
+      "code": "EventRosterGroup",
+      "cardinality": "0..1 per Event and roleCode; each group belongs to one module",
+      "owns": [
+        "moduleCode",
+        "orderedMemberIds",
+        "concurrencyToken",
+        "updatedUtc"
+      ],
+      "implementedAs": "event_roster_groups; candidate membership is separate from roles, invitations and assignments"
     }
   ],
   "composition": {
@@ -3636,7 +3650,7 @@ public sealed record AcceptEventPlanRequest(
   "modules": [
     {
       "code": "TEAM.WORK",
-      "version": 1,
+      "version": 2,
       "name": {
         "en": "Team and work",
         "zh": "團隊與任務"
@@ -3659,7 +3673,17 @@ public sealed record AcceptEventPlanRequest(
           "recommended": 1,
           "maximum": 1,
           "eligibility": [
-            "owningGroupLeaderOrDelegate"
+            "eventCreator"
+          ],
+          "separationFrom": []
+        },
+        {
+          "code": "event.lead",
+          "minimum": 0,
+          "recommended": 1,
+          "maximum": 1,
+          "eligibility": [
+            "approvedGroupMember"
           ],
           "separationFrom": []
         }
@@ -3769,7 +3793,7 @@ public sealed record AcceptEventPlanRequest(
     },
     {
       "code": "SERVICE.ROSTER",
-      "version": 1,
+      "version": 2,
       "name": {
         "en": "Service and rosters",
         "zh": "崗位與輪班"
@@ -3917,7 +3941,7 @@ public sealed record AcceptEventPlanRequest(
     },
     {
       "code": "SAFETY.RAM",
-      "version": 2,
+      "version": 3,
       "name": {
         "en": "RAM and safety",
         "zh": "RAM 與安全"
@@ -3949,7 +3973,7 @@ public sealed record AcceptEventPlanRequest(
           "recommended": 1,
           "maximum": null,
           "eligibility": [
-            "eventTeamMember"
+            "approvedGroupMember"
           ],
           "separationFrom": [
             "ram.approver"
@@ -5856,20 +5880,14 @@ public sealed record AcceptEventPlanRequest(
     {
       "code": "event.plan.accept",
       "actors": [
-        "event.accountableOwner",
-        "owningGroup.leader",
-        "owningGroup.coLeader",
-        "platform.admin"
+        "event.accountableOwner"
       ],
       "scope": "event"
     },
     {
       "code": "event.role.assign",
       "actors": [
-        "event.accountableOwner",
-        "owningGroup.leader",
-        "owningGroup.coLeader",
-        "platform.admin"
+        "event.accountableOwner"
       ],
       "scope": "event"
     },
@@ -5883,9 +5901,7 @@ public sealed record AcceptEventPlanRequest(
     {
       "code": "event.team.manage",
       "actors": [
-        "event.accountableOwner",
-        "owningGroup.leader",
-        "owningGroup.coLeader"
+        "event.accountableOwner"
       ],
       "scope": "event"
     },
@@ -5918,7 +5934,7 @@ public sealed record AcceptEventPlanRequest(
       "actors": [
         "assignedMember"
       ],
-      "scope": "own availability and assignment"
+      "scope": "own assignment; only role-group candidates may record availability"
     },
     {
       "code": "resource.catalogue.manage",
@@ -5934,9 +5950,7 @@ public sealed record AcceptEventPlanRequest(
       "code": "resource.reservation.manage",
       "actors": [
         "resource.coordinator accepted",
-        "event.accountableOwner",
-        "owningGroup.leader",
-        "owningGroup.coLeader"
+        "event.accountableOwner"
       ],
       "scope": "event"
     },
@@ -5944,9 +5958,7 @@ public sealed record AcceptEventPlanRequest(
       "code": "travel.manage",
       "actors": [
         "travel.coordinator accepted",
-        "event.accountableOwner",
-        "owningGroup.leader",
-        "owningGroup.coLeader"
+        "event.accountableOwner"
       ],
       "scope": "event; includes roleRestricted manifest"
     },
@@ -6020,10 +6032,7 @@ public sealed record AcceptEventPlanRequest(
     {
       "code": "event.package.generate",
       "actors": [
-        "event.accountableOwner",
-        "accepted event.lead",
-        "owningGroup.leader",
-        "owningGroup.coLeader"
+        "event.accountableOwner"
       ],
       "scope": "managed Event or occurrence; server derives actor and requires current Plan If-Match"
     },
@@ -6031,9 +6040,7 @@ public sealed record AcceptEventPlanRequest(
       "code": "event.package.submit",
       "actors": [
         "event.accountableOwner",
-        "accepted event.lead",
-        "owningGroup.leader",
-        "owningGroup.coLeader"
+        "accepted event.lead"
       ],
       "scope": "current draft Package for managed Event or occurrence; actor cannot be supplied by client"
     },
@@ -6670,7 +6677,7 @@ public sealed record AcceptEventPlanRequest(
       "path": "/api/groups/{groupId}/event-series",
       "request": "CreateEventSeriesRequest",
       "response": "EventSeriesDto",
-      "auth": "event.compose",
+      "auth": "event.compose plus accountable ownership of linked Event",
       "cache": "no-store",
       "mutation": true,
       "idempotency": true
@@ -6690,7 +6697,7 @@ public sealed record AcceptEventPlanRequest(
       "path": "/api/event-series/{seriesId}",
       "request": "UpdateEventSeriesRequest",
       "response": "EventSeriesDto",
-      "auth": "event.compose",
+      "auth": "accountable owner of all affected Events; creator for empty series",
       "cache": "no-store",
       "mutation": true,
       "ifMatch": true
@@ -7532,6 +7539,25 @@ public sealed record AcceptEventPlanRequest(
       "auth": "origin RAM reading authorization verified before model request",
       "cache": "private, no-store; Vary Cookie and Authorization",
       "mutation": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{id}/roster/groups",
+      "request": null,
+      "response": "EventRosterGroupDto[]",
+      "auth": "roster.manage",
+      "cache": "private, no-store",
+      "mutation": false
+    },
+    {
+      "method": "PUT",
+      "path": "/api/events/{id}/roster/groups",
+      "request": "SaveEventRosterGroupRequest",
+      "response": "EventRosterGroupDto",
+      "auth": "roster.manage",
+      "cache": "private, no-store",
+      "mutation": true,
+      "ifMatch": true
     }
   ],
   "acceptanceScenarios": [
@@ -7730,7 +7756,10 @@ public sealed record AcceptEventPlanRequest(
         "pending/rejected reopening remains frozen; approved reopening restores edits, withdraws publication, closes new registration and preserves enrollments/history",
         "stale request cannot revoke a newer approval; authorisation, ETags, idempotency and private no-store remain enforced"
       ]
-    }
+    },
+    "Creating for another accountable owner and accepting an old ownership-transfer invitation are rejected.",
+    "A group leader, event lead, RAM author and RAM reviewer cannot edit another owner's Event Plan; RAM author retains RAM-only editing.",
+    "Roster candidates save in manual order; outside candidates and cross-group members are rejected for assignment/substitution; stale group writes fail; personal confirmation and historical substitutions remain intact."
   ],
   "eventCreationArrangements": {
     "contractVersion": 1,
@@ -7861,7 +7890,7 @@ public sealed record AcceptEventPlanRequest(
         "persistence": "Optional compose/Plan JSON, proposal hash and ETag/idempotency; reject omission by older clients after upgrade; audited operational changes project current flags false without rewriting history",
         "controls": "One module Yes/No choice; no duplicate three-choice questionnaire; module choices preserve existing confirmed facts and never fabricate missing evidence, including transport/lodging"
       },
-      "rolePlacement": "Server-derived enabled-module requirements and invitations live in their owning tools; global accountable owner retains legacy TEAM.WORK requirement key; Review summarizes assignments and personal acceptance."
+      "rolePlacement": "Fixed creator-owner is global; optional event.lead is on-site only. Roles and their ordered candidate groups/shifts live within owning modules; Team primarily shows cross-module tasks with collaboration history collapsed. Shared in-memory roster state avoids per-module duplicate reads."
     }
   },
   "ramGovernance": {
@@ -7967,6 +7996,19 @@ public sealed record AcceptEventPlanRequest(
       "legacySavedEdit": "redirect to Workspace without mounting retired AI event editor",
       "languageSwitch": "no RAM refetch or draft reset"
     }
+  },
+  "roleRosterGroups": {
+    "key": [
+      "eventId",
+      "roleCode"
+    ],
+    "module": "one enabled module per role group",
+    "candidateLimit": 200,
+    "creationETag": "\"new\"",
+    "privacy": "only owner/roster coordinator reads full groups; roster responses expose candidate IDs only to managers and a self-candidate flag to others; approved role candidates can read personal roster state and record only their own availability",
+    "mutations": "If-Match, unique Event/role index, concurrency token and audit; group edits renew every occurrence roster ETag; assignment checks group concurrency; frozen preparation rejects configuration",
+    "compatibility": "legacy assignments/history retained; candidate groups are never inferred from group membership or prior assignments; new assignment/replacement requires explicit group setup",
+    "rotation": "ordered manual list only; no automatic scheduling"
   }
 }
   </script>

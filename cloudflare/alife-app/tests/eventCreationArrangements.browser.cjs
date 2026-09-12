@@ -5,7 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const base = process.env.ALIFE_BROWSER_BASE_URL || 'http://127.0.0.1:5173';
 const label = (en, zh) => ({ en, zh });
-const template = { code: 'shared-meal', archetypeCode: 'simple-social', version: 2, name: label('Fellowship meal', '团契聚餐'), description: label('Share a meal', '一起用餐'), iconKey: 'meal', defaults: { visibility: 'groupVisible', registrationMode: 'none', capacityUnit: 'People' }, preselectedModules: ['SERVICE.ROSTER'], presetServiceSlots: [{ roleCode: 'welcome', label: label('Welcome team', '接待同工'), requiredCount: 2, eligibilityCode: 'approvedGroupMember' }] };
+const template = { code: 'shared-meal', archetypeCode: 'simple-social', version: 2, name: label('Fellowship meal', '团契聚餐'), description: label('Share a meal', '一起用餐'), iconKey: 'meal', defaults: { visibility: 'groupVisible', registrationMode: 'none', capacityUnit: 'People' }, preselectedModules: ['SERVICE.ROSTER'], presetServiceSlots: [{ roleCode: 'programme.team', label: label('Welcome team', '接待同工'), requiredCount: 2, eligibilityCode: 'approvedGroupMember' }] };
 const catalogue = [{ code: 'simple-social', version: 1, name: label('Simple social', '轻松相聚'), isSeries: false, occurrenceCount: 1, hasSessions: false, hasZones: false, requiredModules: [], recommendedModules: [], conditionalModules: [], workflowTemplateRecommendations: [], activityTypes: [template] }];
 const modules = [ ['SAFEGUARDING.CHILD', 'Child safeguarding', '儿童保护'], ['SAFETY.RAM', 'RAM and safety', 'RAM 与安全'], ['TEAM.WORK', 'Team and tasks', '团队与任务'], ['SERVICE.ROSTER', 'Roles and shifts', '岗位与轮班'], ['PROGRAM.PRODUCTION', 'Programme and production', '节目与制作'], ['PLACE.RESOURCE', 'Venue and resources', '场地与资源'] ];
 const venue = { id: 'venue-1', managingGroupId: 'qa-group', name: label('Main hall', '主礼堂'), address: label('10 Main Road', '主路10号'), capacity: 50, isActive: true, eTag: '"venue-v1"' };
@@ -90,6 +90,9 @@ const venue = { id: 'venue-1', managingGroupId: 'qa-group', name: label('Main ha
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
       await page.screenshot({ path: path.join(os.tmpdir(), `alife-arrangements-roster-${language}-${width}.png`) });
       await programme.getByRole('button', { name: t('Yes', '是'), exact: true }).click();
+      await programme.getByLabel(t('People needed', '所需人数'), { exact: true }).waitFor();
+      assert.equal(await programme.getByLabel(t('People needed', '所需人数'), { exact: true }).inputValue(), '4');
+      assert.equal(await roster.getByLabel(t('People needed', '所需人数'), { exact: true }).count(), 0);
       await next(); await page.getByRole('alert').filter({ hasText: /节目|programme/ }).waitFor();
       await programme.getByRole('button', { name: t('Add session', '添加环节'), exact: true }).click();
       await programme.getByRole('button', { name: t('Add programme item', '添加节目'), exact: true }).click();
@@ -121,7 +124,7 @@ const venue = { id: 'venue-1', managingGroupId: 'qa-group', name: label('Main ha
       await page.getByText(t('Welcome and prayer', '欢迎与祷告'), { exact: false }).waitFor();
       await page.getByRole('button', { name: t('Confirm and create event', '确认创建活动'), exact: true }).click();
       await page.getByRole('alert').filter({ hasText: /conflict|冲突/ }).waitFor();
-      assert.equal(await roster.getByLabel(t('People needed', '所需人数'), { exact: true }).inputValue(), '4');
+      assert.equal(await programme.getByLabel(t('People needed', '所需人数'), { exact: true }).inputValue(), '4');
       assert.equal(creates.length, 1); const payload = creates[0].body.arrangements;
       assert.equal(payload.serviceSlots[0].requiredCount, 4); assert.equal(payload.sessions[0].items[0].title.zh, '欢迎与祷告');
       assert.equal(payload.venueBookings[0].venueETag, '"venue-v1"'); assert.equal(payload.venueBookings[0].requiredCapacity, 30);

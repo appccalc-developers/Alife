@@ -33,7 +33,7 @@ public sealed class UpdateGroupEventCommandHandler(
 
         if (!canManage)
         {
-            return AppResult<GroupEventSummaryDto>.Forbidden("Only the accountable owner or group leadership can update events.");
+            return AppResult<GroupEventSummaryDto>.Forbidden("Only the accountable owner can update events.");
         }
 
         if (request.RamDataJson is not null && groupEvent.RamAssessment?.SchemaVersion >= 2)
