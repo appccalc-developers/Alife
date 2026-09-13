@@ -109,7 +109,7 @@ Activity Types are immutable, versioned templates inside one fixed archetype. Th
 
 Only a current active version may be used for a new schema 1.1 compose, recompose, or create operation. Deactivation fails closed for new composition but never invalidates historical Events or snapshots. Templates never confirm child, RAM, transport, money, venue, or capacity facts. `MONEY.FINANCE` is never type-preselected.
 
-Workflow templates such as `camp` and `outreach` describe preparation workflows. They may be recommended by an Activity Type but are never archetypes or Activity Types.
+Legacy workflow-recommendation fields remain readable in stored Activity Types and Plan snapshots, but new composition ignores them and new templates persist no recommendation.
 
 ## Capability modules
 
@@ -135,7 +135,7 @@ Each module has an immutable versioned contract containing:
 - `ActivationRules`
 - `Dependencies`
 - `RoleRequirements`
-- `WorkflowContributions`
+- legacy `WorkflowContributions` (read-only compatibility; new Plans emit an empty list)
 - `DataClassification`
 - `ReadinessRules`
 - `Version`
@@ -150,7 +150,7 @@ Visibility and sponsorship are separate dimensions. A group leader or co-leader 
 
 ### ADR-02 — Accountability
 
-Every Event has one `owningGroupId` and one accountable owner. Other groups and ministry teams are contributors within explicit workflow scopes; they do not become co-owners.
+Every Event has one `owningGroupId` and one accountable owner. Other groups and ministry teams are contributors within explicit capability scopes; they do not become co-owners.
 
 ### ADR-03 — Child Event depth
 
@@ -162,7 +162,7 @@ The system owns capability codes, integration executors, and surface keys. Runti
 
 ### ADR-05 — Safe configuration
 
-Churches may name bilingual role and workflow templates inside controlled capability packages. Permission codes, sensitive data scopes, separation of duties, and executable behaviour remain system-controlled.
+Churches may name bilingual role templates inside controlled capability packages. Permission codes, sensitive data scopes, separation of duties, and executable behaviour remain system-controlled.
 
 ### ADR-06 — Policy exceptions
 
@@ -207,7 +207,7 @@ Event Package enforcement is versioned and rollout-controlled. Existing Events n
 - Specialist approval: a RAM, safeguarding, finance, sponsorship, or exception decision owned by its domain.
 - Readiness: a projection of current evidence and blockers, never a human decision.
 - Ready to Proceed: a lifecycle-gate result derived from active Package approval, specialist decisions, conditions, and pre-event confirmation; clients cannot set it directly.
-- Workflow task or artifact: a discoverability and coordination record that links to the Package; completing it cannot create or change the authoritative decision.
+- Duty notification: a discoverability record that links to an authoritative specialist action; reading or dismissing it cannot create or change the decision.
 
 AI may propose text or candidate facts but cannot generate an authoritative Package, submit, decide, satisfy or verify conditions, publish, open registration, accept payment, or confirm execution.
 
@@ -279,7 +279,7 @@ Governance policies are immutable published versions managed through the dedicat
 
 ### Material change and re-approval
 
-Change evaluation is policy-versioned and produces field-level differences, classification, affected scopes/modules/specialist decisions, Package validity impact, gate actions, Workflow responsibilities, and whether a human-reviewed participant notification is required.
+Change evaluation is policy-versioned and produces field-level differences, classification, affected scopes/modules/specialist decisions, Package validity impact, gate actions, responsible duties, and whether a human-reviewed participant notification is required.
 
 - `cosmetic`: presentation-only changes that do not alter meaning; record history without overall re-approval.
 - `operational`: non-governance-critical programme, staffing, or resource changes; revalidate only affected modules or occurrence scope.
@@ -299,14 +299,14 @@ An occurrence-scoped execution confirmation is persisted on that `EventOccurrenc
 
 Enforcement modes are `off`, `dryRun`, and `enforced`. Existing Events start as `legacyUnassessed`; they keep current RAM, sponsorship, visibility, and registration behaviour during `dryRun`, while the new evaluator records only non-sensitive differences. A versioned rollout policy classifies each Event as `formalPackageRequired`, `legacyReadOnlyPackage`, `timeLimitedCompatibility`, or `safetyCriticalBlocked`. No classification invents missing facts or approval. Transition deadlines, exceptions, and changes of mode are audited. Rollback changes enforcement behaviour but never deletes Package records or makes a previously invalid Package active.
 
-## Roles, policy, workflow, and readiness
+## Roles, policy, duties, and readiness
 
 - Event roles are explicit assignments with scope, state, and version. A title or group membership alone does not grant module authority.
 - Controlled permission packages constrain what templates may express. Server-side handlers enforce every permission, group, owner, role, and purpose boundary.
 - Policy evaluations record the policy version, evidence, result, exception capability, and decisions. Unknown or unsupported policy values fail closed.
 - Readiness is a projection over the accepted plan and current evidence. A blocked or unknown requirement cannot be displayed as ready.
-- Module workflows compile into the existing `EventWorkflowRun`, `EventWorkflowStep`, and `EventArtifact` engine. That remains the single general Event workflow engine.
-- Dedicated flows such as RAM keep their authoritative handlers and synchronise with the general workflow rather than being duplicated.
+- Generic `EventWorkflowRun`, `EventWorkflowStep`, template and artifact creation is retired from the active product and APIs. Historical tables and stored Plan fields remain untouched for non-destructive compatibility.
+- Dedicated flows such as RAM remain authoritative and expose current work through narrowly scoped Church Life lists and Personal Center duty notifications; they do not synchronise to a generic workflow engine.
 
 ## Human and AI authority boundary
 
@@ -348,7 +348,7 @@ Creation and preparation form one continuous presentation flow: template, detail
 
 The accepted Event Plan determines which controlled surfaces are reachable. The frontend resolves `surfaceKey` through a compile-time registry. API or AI data may never supply an import path, component name, executable definition, URL, or arbitrary route.
 
-Event Workspace is the sole Event-management surface after creation. Its fixed `workspace.workflow` tab hosts workflow steps, artifacts, and template management for current, no-plan, and legacy-snapshot Events without rewriting stored Plan JSON. Event Detail remains a member-facing view for enrollment, review, memories, and permitted personal actions; legacy edit and Detail workflow bookmarks redirect into Workspace.
+Event Workspace is the sole Event-management surface after creation. The generic `workspace.workflow` surface and workflow-template/artifact APIs are retired; old `?section=workflow` Detail bookmarks redirect to Workspace Overview without rewriting stored Plan JSON. Event Detail remains a member-facing view for enrollment, review, memories, and permitted personal actions; legacy edit and RAM bookmarks redirect into the corresponding Workspace surface.
 
 Every reachable surface provides appropriate loading, empty, error, success, blocked, and disabled states. Language switching changes presentation without changing entity identity or triggering avoidable refetches. Product wire text remains `{ "en": "...", "zh": "..." }`; a Traditional Chinese document locale does not change the wire key.
 
@@ -357,7 +357,7 @@ Every reachable surface provides appropriate loading, empty, error, success, blo
 Migration is additive:
 
 - `GroupEvent` remains the compatible persistence root until a separately authorised cutover.
-- Supported Event creation/update routes, DTO fields, readable enum names, enrollment, review, RAM, workflow, and public projection behaviour remain compatible. The Alife-app-only `/api/events/session/*` and `/api/events/extract` planning endpoints are retired; `/api/events/details-session/*` remains the Event details assistant contract.
+- Supported Event creation/update routes, DTO fields, readable enum names, enrollment, review, RAM, and public projection behaviour remain compatible. The generic Event workflow/template/artifact API is retired while historical persistence is left unchanged. The Alife-app-only `/api/events/session/*` and `/api/events/extract` planning endpoints are retired; `/api/events/details-session/*` remains the Event details assistant contract.
 - `EventDataJson` remains readable and must not disappear silently.
 - Typed facts, snapshots, occurrences, structures, and module records are introduced alongside legacy structures, with dual-write only where explicitly implemented.
 - Backfill marks its source and never invents child, transport, safety, money, capacity, or sponsorship facts. Unknown remains unknown.
@@ -396,18 +396,18 @@ The exact scenario assertions are in [event-contract.json](event-contract.json).
 
 The [SAFETY.RAM module](modules/SAFETY.RAM.md) defines version 2 policy and assessment authority. Its controlled `safety.ram` surface renders the full assessment directly in Event Workspace and saved preparation; retired AI saved-event edit URLs redirect to Workspace. Policies are immutable root-church versions, managed with a separate permission plus approved church membership, with no group override or cross-church fallback. Likelihood × impact uses five manual-defined levels; colours require all 25 explicitly confirmed matrix cells. Initial defaults are unconfirmed and remain unpublished until a human administrator publishes them. For Alpha demonstration, an explicit draft-only preset maps scores 1–5 to Green, 6–19 to Yellow and 20–25 to Red, combining the legacy editor's Amber/Orange bands as the current Yellow. Loading it overwrites only the editable 25-cell draft, performs no save or publication, and does not replace church safety-authority review. Drafts may be saved before policy publication.
 
-Personal on-site confirmation binds to an immutable content/policy revision. Authors, submitters and on-site signers cannot review that revision. Yellow requires additional controls; Red residual risk requires explicit health/safety sign-off and independent Enhanced Package approval even when ordinary legacy Package rollout would not enforce it. RAM approval does not publish. Disabling a preparation tool cannot bypass required RAM at formal submission.
+Personal on-site confirmation binds to an immutable content/policy revision. Authors, submitters and on-site signers cannot review that revision. On submission, every eligible same-church reviewer with `admin.events.audit` receives one current duty, and the revision appears in Church Life / Independent RAM review; both open a read-only view of the complete accepted Event Plan together with the restricted RAM report and decision controls, then disappear when the exact revision is approved, returned, invalidated, or the reviewer loses eligibility. Yellow requires additional controls; Red residual risk requires explicit health/safety sign-off and independent Enhanced Package approval even when ordinary legacy Package rollout would not enforce it. RAM approval does not publish. When the accepted Plan enables RAM or safety facts/policy make it mandatory, RAM must pass independent review before Event Package submission. An explicit No remains valid when no higher-priority RAM trigger applies.
 
 Material content/personnel changes revoke current confirmation and approval eligibility, preserving historical evidence; cosmetic edits and policy publication alone do not revoke an existing approval. Frozen preparation follows existing reopening. Legacy scores are initial only, legacy approved history remains, and new submissions use version 2. Old client writes cannot overwrite version 2.
 
-All RAM/policy/history/print responses are private/no-store. Package and general workflow projections carry minimal references/status, not private RAM details. The RAM assistant accepts only activity/category/language enums after origin authorization; output is question guidance and cannot score or replace human assessments. External factual queries, a separate incident system and automatic expiry are not part of this slice.
+All RAM/policy/history/print responses are private/no-store. Church Life review discovery and duty notifications carry only event/revision identity, title, owning group, submission time and residual level, never private hazards, contacts or medical details. The RAM assistant accepts only activity/category/language enums after origin authorization; output is question guidance and cannot score or replace human assessments. External factual queries, a separate incident system and automatic expiry are not part of this slice.
 
 
 Arrangement review uses independent default-false `moduleConfirmations` for all twelve module codes. Current Plan reads revoke only audited affected modules and RAM dependencies; accepted history is immutable. Legacy `arrangementConfirmations` remains a derived section summary and never automatically confirms modules. Upgraded Plans reject clients omitting module flags. This review remains separate from duties, safety signatures and formal approval. See [creation arrangements](CREATION-ARRANGEMENTS.md#module-confirmation-and-module-roles).
 
 ## Creator ownership and role-based staffing
 
-New Events bind accountable ownership to the authenticated creator. The optional legacy owner field accepts only that same account; all owner-transfer invitations are rejected, including old pending invitations. Existing stored owners and immutable approvals are preserved; when a legacy owner field is empty, only its creator is the fallback. Owning-group leadership does not grant editing of another owner's Event details, Plan, workflow configuration or poster.
+New Events bind accountable ownership to the authenticated creator. The optional legacy owner field accepts only that same account; all owner-transfer invitations are rejected, including old pending invitations. Existing stored owners and immutable approvals are preserved; when a legacy owner field is empty, only its creator is the fallback. Owning-group leadership does not grant editing of another owner's Event details, Plan, preparation configuration or poster.
 
 `event.lead` is an optional, personally accepted on-site duty and may be held by the owner. It grants no Event-plan editing. RAM authors edit RAM, and independent RAM reviewers decide rather than alter the report; neither duty grants Event-plan editing. Specialist operations continue to use their own controlled permissions.
 

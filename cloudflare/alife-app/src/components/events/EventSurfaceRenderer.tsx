@@ -11,7 +11,6 @@ import { EventVenueWorkspaceSurface } from './EventVenueWorkspace'
 import { EventTravelWorkspaceSurface } from './EventTravelWorkspace'
 import EventRamWorkspace from './EventRamWorkspace'
 import { EventSafeguardingWorkspaceSurface } from './EventSafeguardingWorkspace'
-import EventWorkflowPanel from './EventWorkflowPanel'
 
 export type EventSurfaceProps = {
   item: EventWorkspaceItem
@@ -51,8 +50,8 @@ const GenericSurface = ({ item, language }: EventSurfaceProps) => {
         <AppEmptyState
           title={zh ? '模块已启用' : 'Module enabled'}
           description={zh
-            ? '目前没有阻塞项。后续资料由现有工作流步骤与该模块的兼容整合逐步补齐。'
-            : 'There are no current blockers. Existing workflow steps and the compatible module integration hold subsequent work.'}
+            ? '目前没有阻塞项。后续资料在对应活动功能中逐步补齐。'
+            : 'There are no current blockers. Continue the remaining work in the corresponding event capability.'}
         />
       )}
     </AppSectionCard>
@@ -63,22 +62,11 @@ const RamSurface = ({ eventId, language }: EventSurfaceProps) => (
   <EventRamWorkspace key={eventId} eventId={eventId} language={language} />
 )
 
-const WorkflowSurface = ({ eventId, groupId, eventBasePath, language, canManage }: EventSurfaceProps) => (
-  <EventWorkflowPanel
-    eventId={eventId}
-    groupId={groupId}
-    ramPath={`${eventBasePath}/workspace/ram`}
-    language={language}
-    canManage={canManage}
-  />
-)
-
 // This map is deliberately closed at build time. Neither API data nor AI output
 // can supply an import path, component name, URL or executable definition.
 const surfaceComponentRegistry: Readonly<Record<EventSurfaceKey, ComponentType<EventSurfaceProps>>> = Object.freeze({
   'workspace.overview': GenericSurface,
   'workspace.governance': GenericSurface,
-  'workspace.workflow': WorkflowSurface,
   'team.work': EventTeamPanel,
   'people.registration': EventRegistrationWorkspace,
   'service.roster': EventRosterWorkspace,

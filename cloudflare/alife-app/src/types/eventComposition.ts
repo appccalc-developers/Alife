@@ -184,7 +184,6 @@ export type EventWorkspace = {
 export const eventSurfaceKeys = [
   'workspace.overview',
   'workspace.governance',
-  'workspace.workflow',
   'team.work',
   'people.registration',
   'service.roster',

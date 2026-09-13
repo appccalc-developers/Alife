@@ -71,7 +71,6 @@ public sealed class EventPackageInvalidationService(
             {
                 await EventRamGovernanceService.ArchiveLegacyAsync(db, ram, actorMemberId, cancellationToken);
                 EventRamGovernanceService.Invalidate(ram);
-                await EventWorkflowIntegration.SyncRamAsync(db, groupEvent.Id, ram.Status, ram.RamDataJson, actorMemberId, now, cancellationToken);
             }
         }
         var candidates = await db.EventPackages

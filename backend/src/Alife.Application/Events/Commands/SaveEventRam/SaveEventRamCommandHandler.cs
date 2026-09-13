@@ -54,10 +54,6 @@ public sealed class SaveEventRamCommandHandler(
         ram.UpdatedUtc = now;
         groupEvent.UpdatedUtc = now;
 
-        await EventWorkflowIntegration.SyncRamAsync(
-            dbContext, groupEvent.Id, EventRamStatus.Draft, ram.RamDataJson,
-            request.CurrentMemberId, now, cancellationToken);
-
         await packageInvalidationService.InvalidateForMaterialChangeAsync(
             groupEvent, request.CurrentMemberId, "event.ram.changed", "governanceCritical", cancellationToken);
 

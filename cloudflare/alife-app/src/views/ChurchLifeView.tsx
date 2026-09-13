@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { ArrowUpRight, Bell, CalendarDays, Settings2 } from 'lucide-react'
+import { ArrowUpRight, Bell, CalendarDays, ClipboardCheck, Settings2 } from 'lucide-react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useChurchSiteGroups } from '../components/church-life/ChurchSiteLayout'
 import ChurchLifeResultsRegion from '../components/church-life/ChurchLifeResultsRegion'
@@ -8,7 +8,7 @@ import AppEmptyState from '../components/layout/AppEmptyState'
 import AppOverflowMenu from '../components/layout/AppOverflowMenu'
 import AppPageShell from '../components/layout/AppPageShell'
 import { churchQueryKey } from '../db/collections/groupCollection'
-import { churchLifeQueryKeys, churchLifeService, type ChurchLifeGroup } from '../services/churchLifeService'
+import { churchLifeQueryKeys, churchLifeService, type ChurchLifeGroup, type ChurchLifeRamReview } from '../services/churchLifeService'
 import { groupService } from '../services/groupService'
 import { normalizeApiError } from '../services/http'
 import { useAuthStore } from '../stores/auth'
@@ -110,6 +110,35 @@ const AnnouncementCards = ({ announcements, groups, language }: { announcements:
   )
 }
 
+const RamReviewCards = ({ reviews, groups, language }: { reviews: ChurchLifeRamReview[]; groups: ChurchLifeGroup[]; language: string }) => {
+  if (!reviews.length) {
+    return <AppEmptyState title={language === 'zh' ? '目前没有待独立审核的 RAM' : 'No independent RAM reviews are waiting'} description={language === 'zh' ? '活动组织方申请 RAM 独立审核后，会出现在这里。' : 'A RAM appears here after an event organiser requests independent review.'} />
+  }
+  const locale = language === 'zh' ? 'zh-CN' : 'en-NZ'
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      {reviews.map((review) => (
+        <article key={review.revisionId} className="rounded-2xl border border-[#e1cdbd] bg-[#fffaf4] p-5 shadow-[var(--alife-shadow-soft)]">
+          <div className="flex flex-wrap items-center gap-2">
+            <GroupPathBadge groupId={review.groupId} groups={groups} language={language} />
+            <span className="rounded-full bg-[#f8e7db] px-2.5 py-1 text-[0.62rem] font-black text-[#9b583c]">
+              {language === 'zh' ? `剩余风险 ${review.residualLevel}` : `Residual risk ${review.residualLevel}`}
+            </span>
+          </div>
+          <h2 className="mt-3 text-lg font-black text-[#27473f]">{localizeText(review.title, language)}</h2>
+          <p className="mt-2 text-xs font-semibold text-[#718079]">
+            {language === 'zh' ? `RAM 版本 ${review.revisionVersion} · 提交于 ` : `RAM version ${review.revisionVersion} · Submitted `}
+            {new Date(review.submittedUtc).toLocaleString(locale)}
+          </p>
+          <Link to={`/events/${encodeURIComponent(review.eventId)}/ram?from=church`} className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#176b5a] px-4 text-sm font-black text-white transition hover:bg-[#105849]">
+            {language === 'zh' ? '打开方案并独立审核' : 'Open plan and review'}<ArrowUpRight className="h-4 w-4" />
+          </Link>
+        </article>
+      ))}
+    </div>
+  )
+}
+
 const ChurchLifeView = () => {
   const auth = useAuthStore()
   const language = auth.language
@@ -119,7 +148,7 @@ const ChurchLifeView = () => {
   const section = searchParams.get('section')?.trim() ?? ''
   const ownerGroupId = searchParams.get('ownerGroupId')?.trim() ?? ''
   const selectedPageId = searchParams.get('page')?.trim() ?? ''
-  const overview = section !== 'events' && section !== 'announcements'
+  const overview = section !== 'events' && section !== 'announcements' && section !== 'ram-reviews'
 
   const churchQuery = useQuery({ queryKey: churchQueryKey, queryFn: groupService.getChurch, staleTime: 5 * 60_000 })
   const pagesQuery = useQuery({
@@ -143,14 +172,21 @@ const ChurchLifeView = () => {
     placeholderData: keepPreviousData,
     staleTime: 30_000,
   })
+  const ramReviewsQuery = useQuery({
+    queryKey: churchLifeQueryKeys.content('ram-reviews', viewerId, ownerGroupId || undefined),
+    queryFn: () => churchLifeService.listRamReviews(ownerGroupId || undefined),
+    enabled: section === 'ram-reviews',
+    placeholderData: keepPreviousData,
+    staleTime: 15_000,
+  })
 
   const queriedGroups = useMemo(() => {
     const byId = new Map<string, ChurchLifeGroup>()
-    ;[pagesQuery.data?.groups, eventsQuery.data?.groups, announcementsQuery.data?.groups]
+    ;[pagesQuery.data?.groups, eventsQuery.data?.groups, announcementsQuery.data?.groups, ramReviewsQuery.data?.groups]
       .forEach((items) => items?.forEach((group) => byId.set(group.id, group)))
     return [...byId.values()]
-  }, [announcementsQuery.data?.groups, eventsQuery.data?.groups, pagesQuery.data?.groups])
-  useChurchSiteGroups(pagesQuery.data || eventsQuery.data || announcementsQuery.data ? queriedGroups : undefined)
+  }, [announcementsQuery.data?.groups, eventsQuery.data?.groups, pagesQuery.data?.groups, ramReviewsQuery.data?.groups])
+  useChurchSiteGroups(pagesQuery.data || eventsQuery.data || announcementsQuery.data || ramReviewsQuery.data ? queriedGroups : undefined)
   const [retainedGroups, setRetainedGroups] = useState<ChurchLifeGroup[]>([])
   const groups = queriedGroups.length ? queriedGroups : retainedGroups
 
@@ -172,18 +208,24 @@ const ChurchLifeView = () => {
     ? (language === 'zh' ? '教会活动' : 'Church events')
     : section === 'announcements'
       ? (language === 'zh' ? '教会公告' : 'Church announcements')
+      : section === 'ram-reviews'
+        ? (language === 'zh' ? 'RAM 独立审核' : 'Independent RAM review')
       : localizeText(churchQuery.data.name, language)
   const context = section === 'events'
     ? (language === 'zh' ? '教会生活 / 活动' : 'Church Life / Events')
     : section === 'announcements'
       ? (language === 'zh' ? '教会生活 / 公告' : 'Church Life / Announcements')
+      : section === 'ram-reviews'
+        ? (language === 'zh' ? '教会生活 / RAM 独立审核' : 'Church Life / Independent RAM review')
       : (language === 'zh' ? '教会生活 / 总览' : 'Church Life / Overview')
 
   return (
     <AppPageShell
       title={title}
       context={context}
-      subtitle={language === 'zh' ? '一起聆听主日信息，关注教会近况，分享生活中的点滴。' : 'Listen to Sunday messages, catch up on church news, and share in everyday life together.'}
+      subtitle={section === 'ram-reviews'
+        ? (language === 'zh' ? '核对完整活动方案及 RAM 报告，并处理你的独立审核职务。' : 'Review the complete Event Plan and RAM report, then handle your independent-review duty.')
+        : (language === 'zh' ? '一起聆听主日信息，关注教会近况，分享生活中的点滴。' : 'Listen to Sunday messages, catch up on church news, and share in everyday life together.')}
     >
       <div className="space-y-7 pb-4">
         {section === 'events' ? (
@@ -198,6 +240,13 @@ const ChurchLifeView = () => {
             <div className="flex items-center gap-3"><Bell className="h-5 w-5 text-[#176b5a]" /><h2 id="church-announcements-heading" className="text-2xl font-black text-[#18332d]">{language === 'zh' ? '当前有效公告' : 'Active announcements'}</h2></div>
             <ChurchLifeResultsRegion busy={announcementsQuery.isFetching && !announcementsQuery.isPending} language={language}>
               {announcementsQuery.isPending ? <LoadingBlock language={language} /> : announcementsQuery.error ? <QueryError error={announcementsQuery.error} language={language} retry={() => void announcementsQuery.refetch()} /> : <AnnouncementCards announcements={announcementsQuery.data?.items ?? []} groups={groups} language={language} />}
+            </ChurchLifeResultsRegion>
+          </section>
+        ) : section === 'ram-reviews' ? (
+          <section aria-labelledby="church-ram-reviews-heading" className="space-y-4">
+            <div className="flex items-center gap-3"><ClipboardCheck className="h-5 w-5 text-[#9b583c]" /><h2 id="church-ram-reviews-heading" className="text-2xl font-black text-[#18332d]">{language === 'zh' ? '等待你的 RAM 独立审核' : 'Waiting for your independent RAM review'}</h2></div>
+            <ChurchLifeResultsRegion busy={ramReviewsQuery.isFetching && !ramReviewsQuery.isPending} language={language}>
+              {ramReviewsQuery.isPending ? <LoadingBlock language={language} /> : ramReviewsQuery.error ? <QueryError error={ramReviewsQuery.error} language={language} retry={() => void ramReviewsQuery.refetch()} /> : <RamReviewCards reviews={ramReviewsQuery.data?.items ?? []} groups={groups} language={language} />}
             </ChurchLifeResultsRegion>
           </section>
         ) : (

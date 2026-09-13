@@ -67,8 +67,11 @@ public sealed record RamRevisionDto(Guid Id, int Version, int SchemaVersion, Gui
     string ContentHash, string ResidualLevel, Guid AuthorMemberId, Guid? OnsiteMemberId, DateTime CreatedUtc);
 public sealed record RamActionDto(Guid Id, Guid RevisionId, Guid ActorMemberId, string Action, string Reason,
     bool HealthSafetySigned, DateTime CreatedUtc);
+public sealed record RamEventPlanContextDto(Guid EventId, Guid GroupId, RamText Title, DateTime StartUtc,
+    DateTime EndUtc, EventPlanSnapshotDto? AcceptedPlan);
 public sealed record RamWorkspaceDto(EventRamAssessmentDto? Assessment, RamPolicyDto? Policy,
     IReadOnlyList<RamRevisionDto> History, IReadOnlyList<RamActionDto> Actions, IReadOnlyList<RamPerson> OnsiteCandidates,
-    bool CanEdit, bool CanAudit, Guid CurrentMemberId, bool IsRequired, RamPolicyDto? LatestPolicy = null);
+    bool CanEdit, bool CanAudit, Guid CurrentMemberId, bool IsRequired, RamPolicyDto? LatestPolicy = null,
+    RamEventPlanContextDto? EventPlanContext = null);
 public sealed record RamPrintDto(RamRevisionDto Revision, string RamDataJson, RamPolicyDto? Policy,
     IReadOnlyList<RamActionDto> Actions, bool IsCurrent, string Validity, bool IsDraft);

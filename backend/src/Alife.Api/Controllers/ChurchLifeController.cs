@@ -26,6 +26,12 @@ public sealed class ChurchLifeController(
             (memberId, token) => churchLife.ListEventsAsync(memberId, ownerGroupId, token),
             cancellationToken);
 
+    [HttpGet("ram-reviews")]
+    public async Task<IActionResult> RamReviews([FromQuery] Guid? ownerGroupId, CancellationToken cancellationToken)
+        => await ExecuteAsync(
+            (memberId, token) => churchLife.ListRamReviewsAsync(memberId, ownerGroupId, token),
+            cancellationToken);
+
     [HttpGet("announcements")]
     public async Task<IActionResult> Announcements([FromQuery] Guid? ownerGroupId, CancellationToken cancellationToken)
         => await ExecuteAsync(

@@ -31,21 +31,23 @@ test('personal center primary action follows task and reading priority', () => {
   assert.equal(getPersonalCenterPrimaryAction({ urgentCount: 0, generalCount: 0, hasReadingProgress: false }), 'start-study')
 })
 
-test('personal center shows at most three tasks with urgent work first', () => {
-  const task = (id: string, category: 'urgent' | 'general', createdUtc: string): AppNotification => ({
+test('personal center shows at most three tasks with RAM duties before other urgent work', () => {
+  const task = (id: string, category: 'urgent' | 'general', createdUtc: string, actionType?: string): AppNotification => ({
     id,
     title: id,
     category,
     completionMode: 'read',
     createdUtc,
+    actionType,
   })
   const selected = selectPersonalCenterTasks([
     task('general-new', 'general', '2026-09-04T10:00:00Z'),
     task('urgent-old', 'urgent', '2026-09-01T10:00:00Z'),
     task('urgent-new', 'urgent', '2026-09-03T10:00:00Z'),
+    task('ram-duty', 'urgent', '2026-08-30T10:00:00Z', 'event.ram.reviewRequested'),
     task('general-old', 'general', '2026-08-01T10:00:00Z'),
   ])
 
   assert.equal(selected.length, PERSONAL_CENTER_TASK_LIMIT)
-  assert.deepEqual(selected.map((item) => item.id), ['urgent-new', 'urgent-old', 'general-new'])
+  assert.deepEqual(selected.map((item) => item.id), ['ram-duty', 'urgent-new', 'urgent-old'])
 })

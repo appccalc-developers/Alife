@@ -4,6 +4,7 @@ using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
 using Alife.Application.Events.Dtos;
 using Alife.Application.Groups.Services;
+using Alife.Application.Notifications.Services;
 using Alife.Domain.Entities;
 using Alife.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
@@ -114,8 +115,13 @@ public sealed class EventRamGovernanceService(IAlifeDbContext db, IGroupAuthoriz
             join m in db.Members.AsNoTracking() on role.MemberId equals m.Id
             where role.EventId==eventId && role.Status==EventRoleAssignmentStatus.Accepted && role.EndedUtc==null
             select new RamPerson(m.Id,m.DisplayName ?? "Member")).Distinct().ToListAsync(ct) : [];
+        var planEntity=await db.EventPlanSnapshots.AsNoTracking().Where(x=>x.EventId==eventId && x.IsActive)
+            .OrderByDescending(x=>x.Version).FirstOrDefaultAsync(ct);
+        var acceptedPlan=planEntity is null?null:EventCompositionPersistence.ToSnapshotDto(planEntity);
+        var planContext=new RamEventPlanContextDto(e.Id,e.GroupId,new(e.TitleEn,e.TitleZh),e.StartDate,e.EndDate,
+            acceptedPlan);
         return AppResult<RamWorkspaceDto>.Success(new(e.RamAssessment is null?null:EventRamPolicy.ToDto(e.RamAssessment,e.GroupId),
-            policy is null?null:PolicyDto(policy),history.Select(RevisionDto).ToArray(),actions.Select(ActionDto).ToArray(),candidates,edit,audit,actor,IsRequired(e),latestPolicy is null?null:PolicyDto(latestPolicy)));
+            policy is null?null:PolicyDto(policy),history.Select(RevisionDto).ToArray(),actions.Select(ActionDto).ToArray(),candidates,edit,audit,actor,IsRequired(e,acceptedPlan?.Plan),latestPolicy is null?null:PolicyDto(latestPolicy),planContext));
     }
 
     public async Task<AppResult<EventRamAssessmentDto>> SaveAsync(Guid eventId,Guid actor,RamSaveRequest request,CancellationToken ct)
@@ -149,7 +155,6 @@ public sealed class EventRamGovernanceService(IAlifeDbContext db, IGroupAuthoriz
             e.PublicationConcurrencyToken=Guid.NewGuid();
         }
         await packages.InvalidateForMaterialChangeAsync(e,actor,"event.ram.changed","governanceCritical",ct);
-        await EventWorkflowIntegration.SyncRamAsync(db,eventId,ram.Status,ram.RamDataJson,actor,ram.UpdatedUtc,ct);
         try { await db.SaveChangesAsync(ct); if(tx is not null) await tx.CommitAsync(ct); }
         catch(DbUpdateConcurrencyException) { return AppResult<EventRamAssessmentDto>.PreconditionFailed("RAM changed concurrently; reload."); }
         await cache.RemoveGroupEventsAsync(e.GroupId,ct);
@@ -217,6 +222,7 @@ public sealed class EventRamGovernanceService(IAlifeDbContext db, IGroupAuthoriz
                 var validation=await EvaluateCurrent(e,ct);
                 if(validation.Errors.Count>0) return AppResult<EventRamAssessmentDto>.Validation(string.Join("\n",validation.Errors));
                 ram.Status=EventRamStatus.AwaitingReview; ram.Validity="AwaitingReview"; ram.SubmittedByMemberId=actor; ram.SubmittedUtc=DateTime.UtcNow;
+                await NotifyRamReviewersAsync(e, ram, revision, actor, ct);
             }
             else if(action is "approve" or "return")
             {
@@ -250,7 +256,6 @@ public sealed class EventRamGovernanceService(IAlifeDbContext db, IGroupAuthoriz
         ram.ConcurrencyToken=Guid.NewGuid(); ram.UpdatedUtc=DateTime.UtcNow; e.UpdatedUtc=ram.UpdatedUtc;
         if(action!="snapshot-draft")
         {
-            await EventWorkflowIntegration.SyncRamAsync(db,eventId,ram.Status,ram.RamDataJson,actor,ram.UpdatedUtc,ct);
             await packages.InvalidateForMaterialChangeAsync(e,actor,$"event.ram.{action}","governanceCritical",ct);
         }
         try { await db.SaveChangesAsync(ct); if(tx is not null) await tx.CommitAsync(ct); }
@@ -266,6 +271,77 @@ public sealed class EventRamGovernanceService(IAlifeDbContext db, IGroupAuthoriz
         var church=await EventCompositionPersistence.FindChurchRootIdAsync(db,e.GroupId,ct);
         var policy=await db.EventRamPolicyVersions.AsNoTracking().FirstOrDefaultAsync(x=>x.Id==ram.PolicyVersionId && x.IsPublished && x.ChurchId==church,ct);
         return RamEvaluator.Evaluate(RamEvaluator.Parse(ram.RamDataJson),policy is null?null:PolicyDto(policy).Data);
+    }
+
+    private async Task NotifyRamReviewersAsync(
+        GroupEvent groupEvent,
+        EventRamAssessment ram,
+        EventRamRevision revision,
+        Guid actor,
+        CancellationToken ct)
+    {
+        var churchId = await EventCompositionPersistence.FindChurchRootIdAsync(db, groupEvent.GroupId, ct);
+        if (!churchId.HasValue)
+        {
+            return;
+        }
+
+        var roleRows = await (
+                from membership in db.GroupMemberships.AsNoTracking()
+                join memberRole in db.MemberPlatformRoles.AsNoTracking()
+                    on membership.MemberId equals memberRole.MemberId
+                join role in db.PlatformRoles.AsNoTracking()
+                    on memberRole.RoleId equals role.Id
+                where membership.GroupId == churchId.Value &&
+                      membership.Status == MembershipStatus.Approved &&
+                      memberRole.RevokedUtc == null
+                select new { membership.MemberId, role.Code, role.PermissionsJson })
+            .ToListAsync(ct);
+        var disqualified = new[]
+            {
+                actor,
+                revision.AuthorMemberId,
+                revision.OnsiteMemberId ?? Guid.Empty,
+                ram.SubmittedByMemberId ?? Guid.Empty
+            }
+            .ToHashSet();
+        var reviewers = roleRows
+            .Where(row => row.Code == "superadmin" ||
+                AdminPermissionCatalog.ReadPermissions(row.Code, row.PermissionsJson)
+                    .Contains(AdminPermissionCatalog.AuditEvents))
+            .Select(row => row.MemberId)
+            .Where(memberId => !disqualified.Contains(memberId))
+            .Distinct()
+            .ToArray();
+        var now = DateTime.UtcNow;
+        foreach (var reviewerId in reviewers)
+        {
+            db.NotificationMessages.Add(new NotificationMessage
+            {
+                Id = Guid.NewGuid(),
+                RecipientMemberId = reviewerId,
+                CreatedByMemberId = actor,
+                GroupId = groupEvent.GroupId,
+                EventId = groupEvent.Id,
+                ActionType = CurrentNotificationTaskPolicy.RamReviewRequestedActionType,
+                ActionDataJson = RamEvaluator.Serialize(new
+                {
+                    churchId,
+                    eventId = groupEvent.Id,
+                    revisionId = revision.Id,
+                    actionUrl = $"/events/{groupEvent.Id}/ram?from=profile",
+                    sourceType = "eventRamRevision",
+                    sourceId = revision.Id,
+                    title = new RamText($"Independent RAM review: {groupEvent.TitleEn}", $"RAM 独立审核：{groupEvent.TitleZh}"),
+                    body = new RamText(
+                        "An event organiser submitted a confirmed RAM version. Review the full Event Plan and make the independent RAM decision.",
+                        "活动组织方已提交经本人确认的 RAM 版本。请核对完整活动方案并作出 RAM 独立审核决定。")
+                }),
+                OccurredUtc = now,
+                CreatedUtc = now,
+                UpdatedUtc = now
+            });
+        }
     }
     private async Task<EventRamRevision> Snapshot(EventRamAssessment ram,Guid? onsite,CancellationToken ct)
     {
@@ -307,6 +383,8 @@ public sealed class EventRamGovernanceService(IAlifeDbContext db, IGroupAuthoriz
     public static bool IsRequired(GroupEvent e, EventPlanProposalDto? plan = null)
     {
         if(e.RamAssessment?.ReviewRequested==true) return true;
+        if(plan?.ModuleDecisions.Any(x=>x.ModuleCode=="SAFETY.RAM" &&
+            x.Status is EventModuleDecisionStatus.Required or EventModuleDecisionStatus.Selected)==true) return true;
         if(plan?.ActivityTypeCode=="outdoor-activity" || plan?.ArchetypeCode=="camp-retreat") return true;
         if(plan?.Facts.Items.Any(f=>f.Certainty==EventFactCertainty.Confirmed &&
             f.Code is "safety.requiresRam" or "safety.highRisk" or "place.offsite" or "place.outdoor" or "move.accommodationRequired" &&

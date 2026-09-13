@@ -442,7 +442,7 @@ const AppRoutes = ({ churchGroupId = '', churchGroupLoading = false }: AppRoutes
             }
           />
           <Route path="/admin/ram-policies" element={<AdminRoute permission="admin.events.manageRamPolicies"><RamPolicyAdminView /></AdminRoute>} />
-          <Route path="/events/:eventId/ram" element={<EventRamView />} />
+          <Route path="/events/:eventId/ram" element={<MemberRoute><EventRamView /></MemberRoute>} />
           <Route path="*" element={<WorkspaceFallbackRoute />} />
             </Routes>
           </Suspense>

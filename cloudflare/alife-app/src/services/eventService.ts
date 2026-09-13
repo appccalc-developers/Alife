@@ -75,7 +75,6 @@ export const eventService = {
       eventDataJson,
       ramDataJson: creationPlan?.initialRamDraft ? JSON.stringify(creationPlan.initialRamDraft) : ramDataJson,
       contactProfileIds: eventDto.contactProfileIds ?? [],
-      workflowTemplateCode: null,
       composition: creationPlan?.composition ?? null,
       compositionProposalHash: creationPlan?.proposalHash ?? null,
       seriesSetup: creationPlan?.seriesSetup ?? null,

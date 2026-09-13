@@ -10,6 +10,7 @@ internal static class CurrentNotificationTaskPolicy
     public const string WorkflowCompletionMode = "workflow";
     public const string ReadCompletionMode = "read";
     public const string VisitorContactRequestedActionType = "visitor.contact.requested";
+    public const string RamReviewRequestedActionType = "event.ram.reviewRequested";
     public const string LegacyGroupJoinRequestedActionType = "group.join.requested";
 
     public static bool IsMembershipReview(string actionType)
@@ -31,6 +32,9 @@ internal static class CurrentNotificationTaskPolicy
                 ReadGuid(root, "groupId"),
                 ReadGuid(root, "memberId"),
                 ReadGuid(root, "visitContactRequestId"),
+                ReadGuid(root, "eventId"),
+                ReadGuid(root, "churchId"),
+                ReadGuid(root, "revisionId"),
                 ReadString(root, "actionUrl"),
                 ReadString(root, "scope"),
                 ReadStringArray(root, "roleCodes"));
@@ -90,11 +94,17 @@ internal static class CurrentNotificationTaskPolicy
         Guid? GroupId,
         Guid? MemberId,
         Guid? VisitContactRequestId,
+        Guid? EventId,
+        Guid? ChurchId,
+        Guid? RevisionId,
         string? ActionUrl,
         string? Scope,
         IReadOnlySet<string> RoleCodes)
     {
         public static ParsedActionData Empty { get; } = new(
+            null,
+            null,
+            null,
             null,
             null,
             null,

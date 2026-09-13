@@ -161,6 +161,75 @@ public class CurrentNotificationTaskQueryTests
     }
 
     [Fact]
+    public async Task RamReviewDutyRemainsCurrentUntilTheSubmittedRevisionIsResolved()
+    {
+        using var dbContext = CreateInMemoryDbContext();
+        var now = DateTime.UtcNow;
+        var reviewerId = Guid.NewGuid();
+        var authorId = Guid.NewGuid();
+        var churchId = Guid.NewGuid();
+        var groupId = Guid.NewGuid();
+        var eventId = Guid.NewGuid();
+        var revisionId = Guid.NewGuid();
+        dbContext.Members.AddRange(CreateMember(reviewerId), CreateMember(authorId));
+        dbContext.Groups.AddRange(
+            new Group { Id = churchId, NameJson = "{}", IsChurch = true, CreatedUtc = now, UpdatedUtc = now },
+            new Group { Id = groupId, ParentGroupId = churchId, NameJson = "{}", CreatedUtc = now, UpdatedUtc = now });
+        dbContext.GroupMemberships.Add(CreateMembership(
+            churchId, reviewerId, MembershipStatus.Approved, MembershipRole.Member, now));
+        var auditRole = new PlatformRole
+        {
+            Id = 902, Code = "event-auditor", NameJson = "{}", Level = 1,
+            PermissionsJson = AdminPermissionCatalog.WritePermissions([AdminPermissionCatalog.AuditEvents])
+        };
+        dbContext.PlatformRoles.Add(auditRole);
+        dbContext.MemberPlatformRoles.Add(new MemberPlatformRole
+        {
+            Id = Guid.NewGuid(), MemberId = reviewerId, RoleId = auditRole.Id, AssignedUtc = now
+        });
+        dbContext.GroupEvents.Add(new GroupEvent
+        {
+            Id = eventId, GroupId = groupId, CreatedByMemberId = authorId,
+            AccountableOwnerMemberId = authorId, TitleEn = "Event", TitleZh = "活动",
+            StartDate = now.AddDays(1), EndDate = now.AddDays(1).AddHours(2), EventDataJson = "{}",
+            CreatedUtc = now, UpdatedUtc = now
+        });
+        dbContext.EventRamRevisions.Add(new EventRamRevision
+        {
+            Id = revisionId, EventId = eventId, Version = 1, SchemaVersion = 2,
+            AuthorMemberId = authorId, ResidualLevel = "Yellow", CreatedUtc = now
+        });
+        var assessment = new EventRamAssessment
+        {
+            EventId = eventId, CurrentRevisionId = revisionId, AuthorMemberId = authorId,
+            SubmittedByMemberId = authorId, SubmittedUtc = now, Status = EventRamStatus.AwaitingReview,
+            Validity = "AwaitingReview", ResidualLevel = "Yellow", CreatedUtc = now, UpdatedUtc = now
+        };
+        dbContext.EventRamAssessments.Add(assessment);
+        dbContext.NotificationMessages.Add(new NotificationMessage
+        {
+            Id = Guid.NewGuid(), RecipientMemberId = reviewerId, CreatedByMemberId = authorId,
+            GroupId = groupId, EventId = eventId, ActionType = "event.ram.reviewRequested",
+            ActionDataJson = JsonSerializer.Serialize(new { eventId, churchId, revisionId }),
+            OccurredUtc = now, ReadUtc = now, CreatedUtc = now, UpdatedUtc = now
+        });
+        await dbContext.SaveChangesAsync();
+        var handler = new ListCurrentNotificationTasksQueryHandler(dbContext);
+
+        var current = await handler.Handle(new ListCurrentNotificationTasksQuery(reviewerId), CancellationToken.None);
+
+        var task = Assert.Single(current.Value!);
+        Assert.Equal("urgent", task.Category);
+        Assert.Equal("workflow", task.CompletionMode);
+        Assert.Equal($"/events/{eventId}/ram?from=profile", task.ActionUrl);
+
+        assessment.Status = EventRamStatus.Approved;
+        assessment.Validity = "Valid";
+        await dbContext.SaveChangesAsync();
+        Assert.Empty((await handler.Handle(new ListCurrentNotificationTasksQuery(reviewerId), CancellationToken.None)).Value!);
+    }
+
+    [Fact]
     public async Task RoleScopedMessage_RequiresCurrentTargetRoleAndUnreadState()
     {
         using var dbContext = CreateInMemoryDbContext();

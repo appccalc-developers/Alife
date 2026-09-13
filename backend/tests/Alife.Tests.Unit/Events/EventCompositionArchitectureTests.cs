@@ -170,25 +170,24 @@ public class EventCompositionArchitectureTests
 
         Assert.Equal(first.Value!.ProposalHash, second.Value!.ProposalHash);
         Assert.Equal(12, EventCompositionDefinitions.Modules.Count);
-        Assert.Equal(15, EventCompositionDefinitions.Surfaces.Count);
-        Assert.Equal(15, EventCompositionDefinitions.Surfaces.Select(x => x.SurfaceKey).Distinct().Count());
+        Assert.Equal(14, EventCompositionDefinitions.Surfaces.Count);
+        Assert.Equal(14, EventCompositionDefinitions.Surfaces.Select(x => x.SurfaceKey).Distinct().Count());
         Assert.Equal("EventPackageGovernanceWorkspace",
             EventCompositionDefinitions.SurfacesByKey["workspace.governance"].ComponentContract);
-        Assert.Equal("EventWorkflowWorkspace",
-            EventCompositionDefinitions.SurfacesByKey["workspace.workflow"].ComponentContract);
+        Assert.DoesNotContain("workspace.workflow", EventCompositionDefinitions.SurfacesByKey.Keys);
         Assert.All(EventCompositionDefinitions.Modules, module =>
             Assert.True(EventCompositionDefinitions.SurfacesByKey.ContainsKey(module.SurfaceKey)));
     }
 
     [Fact]
-    public async Task WorkflowSurface_IsAvailableForNewNoPlanAndLegacySnapshotEvents()
+    public async Task RetiredWorkflowSurface_IsExcludedForCurrentNoPlanAndLegacySnapshotEvents()
     {
         var currentProposal = new EventCompositionEngine().Compose(
             CurrentRequest("simple-social", "shared-meal"),
             new EventCompositionContext("\"current\"", CheckedUtc: DateTime.UnixEpoch));
         var legacyProposal = Compose(null);
-        Assert.Contains(currentProposal.Value!.Navigation, item => item.SurfaceKey == "workspace.workflow");
-        Assert.Contains(legacyProposal.Value!.Navigation, item => item.SurfaceKey == "workspace.workflow");
+        Assert.DoesNotContain(currentProposal.Value!.Navigation, item => item.SurfaceKey == "workspace.workflow");
+        Assert.DoesNotContain(legacyProposal.Value!.Navigation, item => item.SurfaceKey == "workspace.workflow");
 
         await using var dbContext = CreateDbContext();
         var groupId = Guid.NewGuid();
@@ -204,9 +203,10 @@ public class EventCompositionArchitectureTests
         };
         var storedLegacyPlan = legacyProposal.Value with
         {
-            Navigation = legacyProposal.Value.Navigation
-                .Where(item => item.SurfaceKey != "workspace.workflow")
-                .ToArray()
+            Navigation = legacyProposal.Value.Navigation.Append(new EventWorkspaceItemDto(
+                "workspace.workflow", null, "tab", "workflow", null,
+                new LocalizedTextDto("Workflow & outputs", "流程與產出物"), 18,
+                EventReadinessStatus.NotReady, [], ["workflow.view", "workflow.manage"])).ToArray()
         };
         dbContext.GroupEvents.AddRange(noPlanEvent, legacyEvent);
         dbContext.EventFactSets.Add(factSet);
@@ -228,10 +228,8 @@ public class EventCompositionArchitectureTests
         var legacyWorkspace = await handler.Handle(
             new GetEventWorkspaceQuery(legacyEvent.Id, ownerId), CancellationToken.None);
 
-        Assert.Equal(["workflow.view", "workflow.manage"],
-            Assert.Single(noPlanWorkspace.Value!.Items, item => item.SurfaceKey == "workspace.workflow").AllowedActions);
-        Assert.Equal(["workflow.view", "workflow.manage"],
-            Assert.Single(legacyWorkspace.Value!.Items, item => item.SurfaceKey == "workspace.workflow").AllowedActions);
+        Assert.DoesNotContain(noPlanWorkspace.Value!.Items, item => item.SurfaceKey == "workspace.workflow");
+        Assert.DoesNotContain(legacyWorkspace.Value!.Items, item => item.SurfaceKey == "workspace.workflow");
     }
 
     [Fact]
@@ -305,52 +303,18 @@ public class EventCompositionArchitectureTests
     }
 
     [Fact]
-    public void WorkflowDecisionAndActivityVersion_AreCoveredByProposalHash()
+    public void RetiredWorkflowMetadata_IsNotProjectedIntoNewPlans()
     {
         var request = CurrentRequest("camp-retreat", "church-camp", useRecommendedWorkflow: true);
-        var selected = new EventWorkflowRecommendationDto(
-            "camp", 3, new LocalizedTextDto("Camp", "营会"), "selected");
-        var declined = selected with { Status = "declined" };
         var engine = new EventCompositionEngine();
-        var selectedProposal = engine.Compose(request, new EventCompositionContext(
-            "\"workflow\"", CheckedUtc: DateTime.UnixEpoch, WorkflowRecommendation: selected));
-        var declinedProposal = engine.Compose(request with { UseRecommendedWorkflow = false }, new EventCompositionContext(
-            "\"workflow\"", CheckedUtc: DateTime.UnixEpoch, WorkflowRecommendation: declined));
+        var proposal = engine.Compose(request, new EventCompositionContext(
+            "\"workflow\"", CheckedUtc: DateTime.UnixEpoch));
 
-        Assert.True(selectedProposal.IsSuccess);
-        Assert.Equal(2, selectedProposal.Value!.ActivityTypeVersion);
-        Assert.Equal("selected", selectedProposal.Value.WorkflowRecommendation!.Status);
-        Assert.Equal(3, selectedProposal.Value.WorkflowRecommendation.ResolvedVersion);
-        Assert.NotEqual(selectedProposal.Value.ProposalHash, declinedProposal.Value!.ProposalHash);
-    }
-
-    [Fact]
-    public async Task WorkflowRecommendation_ResolvesSelectedDeclinedAndUnavailableWithoutCreatingRun()
-    {
-        await using var dbContext = CreateDbContext();
-        var groupId = Guid.NewGuid();
-        dbContext.EventWorkflowTemplates.Add(new EventWorkflowTemplate
-        {
-            Id = Guid.NewGuid(), Code = "camp", Version = 2, NameEn = "Camp", NameZh = "营会",
-            DescriptionEn = "", DescriptionZh = "", DefinitionJson = WorkflowDefinition,
-            IsActive = true, CreatedUtc = DateTime.UtcNow, UpdatedUtc = DateTime.UtcNow
-        });
-        await dbContext.SaveChangesAsync();
-
-        var selected = await EventCompositionPersistence.ResolveWorkflowRecommendationAsync(
-            dbContext, groupId, CurrentRequest("camp-retreat", "church-camp", useRecommendedWorkflow: true),
-            CancellationToken.None);
-        var declined = await EventCompositionPersistence.ResolveWorkflowRecommendationAsync(
-            dbContext, groupId, CurrentRequest("camp-retreat", "church-camp"), CancellationToken.None);
-        var unavailable = await EventCompositionPersistence.ResolveWorkflowRecommendationAsync(
-            dbContext, groupId, CurrentRequest("festival-celebration", "public-outreach", useRecommendedWorkflow: true),
-            CancellationToken.None);
-
-        Assert.Equal("selected", selected!.Status);
-        Assert.Equal(2, selected.ResolvedVersion);
-        Assert.Equal("declined", declined!.Status);
-        Assert.Equal("unavailable", unavailable!.Status);
-        Assert.Empty(await dbContext.EventWorkflowRuns.ToListAsync());
+        Assert.True(proposal.IsSuccess);
+        Assert.Equal(2, proposal.Value!.ActivityTypeVersion);
+        Assert.Null(proposal.Value.WorkflowRecommendation);
+        Assert.Empty(proposal.Value.WorkflowContributions);
+        Assert.DoesNotContain(proposal.Value.Navigation, item => item.SurfaceKey == "workspace.workflow");
     }
 
     [Fact]
@@ -683,7 +647,7 @@ public class EventCompositionArchitectureTests
             groupId, leaderId, "Meal", "聚餐",
             new DateTime(2026, 9, 1, 8, 0, 0, DateTimeKind.Utc),
             new DateTime(2026, 9, 1, 10, 0, 0, DateTimeKind.Utc),
-            "{\"visibility\":\"groupVisible\"}", [], null, null,
+            "{\"visibility\":\"groupVisible\"}", [], null,
             composition, proposal.Value!.ProposalHash, IdempotencyKey: "create-once");
 
         var created = await handler.Handle(command, CancellationToken.None);
@@ -755,7 +719,7 @@ public class EventCompositionArchitectureTests
         var memberId = Guid.NewGuid();
         var authorization = Substitute.For<IGroupAuthorizationService>();
         authorization.IsLeaderOrCoLeaderAsync(groupId, memberId, Arg.Any<CancellationToken>()).Returns(false);
-        var handler = new ComposeEventPlanCommandHandler(dbContext, authorization, new EventCompositionEngine());
+        var handler = new ComposeEventPlanCommandHandler(authorization, new EventCompositionEngine());
 
         var result = await handler.Handle(new ComposeEventPlanCommand(
             groupId, memberId, CurrentRequest("simple-social", "shared-meal")), CancellationToken.None);
@@ -832,9 +796,4 @@ public class EventCompositionArchitectureTests
             DateTime.UtcNow, DateTime.UtcNow, [], ram, EventVisibilityPolicy.Public,
             Guid.NewGuid(), EventGovernanceMode.ChurchSponsored, sponsorship);
 
-    private const string WorkflowDefinition = """
-        {"stages":[
-          {"key":"prepare","name":{"en":"Prepare","zh":"准备"},"required":true,"requiresApproval":false,"integrationKey":null,"artifacts":[]}
-        ]}
-        """;
 }

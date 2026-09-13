@@ -63,7 +63,7 @@ export const selectCreationTemplate = (draft: CreationDraft, type: EventActivity
 export const creationSettings = (draft: CreationDraft, type: EventActivityType | null) => ({
   visibility: draft.overrides.visibility ?? type?.defaults.visibility ?? 'groupVisible',
   registrationMode: draft.overrides.registrationMode ?? type?.defaults.registrationMode ?? 'none',
-  useRecommendedWorkflow: Boolean(type?.recommendedWorkflowTemplateCode) && (draft.overrides.useRecommendedWorkflow ?? true),
+  useRecommendedWorkflow: false,
 })
 
 export const composeCreationDraft = (draft: CreationDraft, type: EventActivityType): EventPlanComposeRequest => {
@@ -78,7 +78,7 @@ export const composeCreationDraft = (draft: CreationDraft, type: EventActivityTy
     arrangementConfirmations: moduleConfirmationSummary(draft.moduleConfirmations),
     moduleConfirmations: Object.fromEntries(creationModuleCodes.map(code => [code, draft.moduleConfirmations?.[code] === true])),
     schemaVersion: '1.1.0', archetypeCode: draft.archetypeCode, activityTypeCode: type.code,
-    useRecommendedWorkflow: settings.useRecommendedWorkflow, basePlanVersion: null,
+    useRecommendedWorkflow: false, basePlanVersion: null,
     facts: { items: [
       { code: 'visibility', value: settings.visibility, certainty: 'confirmed', source: 'human' },
       { code: 'people.registrationMode', value: settings.registrationMode, certainty: 'confirmed', source: 'human' },
