@@ -318,6 +318,9 @@ public static class SeedData
 		sectionsInserted += await EnsureDemoHomePageAsync(dbContext, fellowship.Id, admin.Id, now, cancellationToken);
 		sectionsInserted += await EnsureDemoHomePageAsync(dbContext, serviceTeam.Id, admin.Id, now, cancellationToken);
 
+    // Save all members, groups, and memberships first
+		await dbContext.SaveChangesAsync(cancellationToken);
+
 		var picnic = await EnsureEventAsync(
 			dbContext,
 			Guid.Parse("ffffffff-ffff-ffff-ffff-fffffffffff1"),
