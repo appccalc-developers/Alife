@@ -6,6 +6,14 @@ The deployment seeder created new Event fixtures with `CreatedByMemberId` but om
 
 New seeded Events now assign their creator as accountable owner; reseeding preserves existing owners. The existing EF InMemory test missed the relational constraint. Added owner/real-member assertions first reproduced the empty GUID, then both the seed/idempotency and existing-owner preservation regressions passed after the fix. No database schema or production data change is required for this correction. Production was queried only; seeding, migrations and deployment were not rerun there.
 
+## 2026-09-13 — Controller route initialization repair
+
+The constrained task-action route used MVC's reserved `action` route parameter. Building the shared controller endpoint table threw an `InvalidOperationException`, causing unrelated requests, including `GET /api/onboarding/capabilities`, to return 500. The task, RAM governance and group join-invite operation parameters now use non-reserved names. Existing operation URLs, request bodies, GUID/action constraints, authorization, ETags, idempotency and private/no-store behavior remain unchanged. Tracked in [Issue #772](https://github.com/appccalc-developers/Alife/issues/772).
+
+Regression coverage exercises MVC discovery and route matching across the API controller assembly, including onboarding, all ordinary task/RAM/invite operation URLs, rejected task operations/invalid IDs, and protected endpoint metadata. These checks do not invoke business mutations or require a database.
+
+Verification: the onboarding route regression first reproduced the same initialization exception as the local Functions log. After repair, the task/identity/routing selection passed 56/56; the final expanded routing/RAM selection passed 58/58, including 19 routing cases. The rebuilt local API returns 200 for onboarding capabilities directly and through the speed layer and frontend, retaining private/no-store headers. Anonymous task, RAM and invite operations return 401; an unsupported task operation returns 404. The browser loads the authenticated Event preparation/approval page after refresh. No authenticated business mutation, database migration or deployment was performed.
+
 ## 2026-09-13 — Event duties and ordinary task approval
 
 [Event duties and personal handoffs](EVENT-DUTIES.md) now projects existing invitations, roster, ordinary task execution/review, RAM preparation/confirmation/review, Package approval/conditions, sponsorship, reopening and owner progression into the current-notifications response. No notification record or new generic workflow runtime is required. Stable actor/source/version keys, private restricted handlers, account-isolated refresh and exact-version checks drive handoffs. Personal Center keeps three cards and a filtered/sorted 20-item full list; direct actions return to the original filters.

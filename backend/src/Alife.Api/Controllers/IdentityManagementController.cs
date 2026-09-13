@@ -78,17 +78,17 @@ public sealed class IdentityManagementController(
             : this.ToIdentityResult(await identityAccess.GetGroupInviteAsync(actor.Value, groupId, cancellationToken));
     }
 
-    [HttpPost("api/groups/{groupId:guid}/join-invite/{action}")]
+    [HttpPost("api/groups/{groupId:guid}/join-invite/{inviteAction}")]
     public async Task<IActionResult> ChangeJoinInvite(
         Guid groupId,
-        string action,
+        string inviteAction,
         CancellationToken cancellationToken)
     {
         this.ApplyPrivateNoStoreHeaders();
         var actor = currentMemberAccessor.GetCurrentMemberId();
         return actor is null
             ? Unauthorized()
-            : this.ToIdentityResult(await identityAccess.ChangeGroupInviteStatusAsync(actor.Value, groupId, action, cancellationToken));
+            : this.ToIdentityResult(await identityAccess.ChangeGroupInviteStatusAsync(actor.Value, groupId, inviteAction, cancellationToken));
     }
 
     [HttpGet("api/groups/{groupId:guid}/membership-applications")]
