@@ -354,7 +354,12 @@ public class EventCompositionArchitectureTests
         Assert.True(result.IsSuccess);
         Assert.True(retry.IsSuccess);
         Assert.Single(await dbContext.EventSeries.ToListAsync());
-        Assert.Equal(11, await dbContext.EventOccurrences.CountAsync());
+        // The local and UTC dates can differ near midnight. Verify weekly spacing and
+        // the bounded horizon rather than an assumed count relative to the test machine's zone.
+        var generatedDates = await dbContext.EventOccurrences.OrderBy(x => x.LocalDate).Select(x => x.LocalDate).ToListAsync();
+        Assert.InRange(generatedDates.Count, 11, 12);
+        Assert.Equal(generatedDates.Count, generatedDates.Distinct().Count());
+        Assert.All(generatedDates.Zip(generatedDates.Skip(1)), pair => Assert.Equal(7, pair.Second.DayNumber - pair.First.DayNumber));
         Assert.Single(await dbContext.EventRamAssessments.ToListAsync());
         var snapshot = await dbContext.EventPlanSnapshots.SingleAsync();
         Assert.Equal("small-group-fellowship", snapshot.ActivityTypeCode);

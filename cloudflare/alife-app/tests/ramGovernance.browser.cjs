@@ -33,7 +33,7 @@ const makePolicy = () => ({ id: 'policy-1', churchId, version: 1, isPublished: f
 (async () => {
   const browser = await chromium.launch({ headless: true });
   try {
-    for (const language of ['zh','en']) for (const width of [375,1280]) {
+    for (const language of ['zh','en']) for (const width of [320,1280]) {
       const zh = language === 'zh', t = (en, cn) => zh ? cn : en;
       const context = await browser.newContext({ viewport: { width, height: 950 } });
       await context.addInitScript(language => localStorage.setItem('alife.language', language), language);
@@ -54,6 +54,13 @@ const makePolicy = () => ({ id: 'policy-1', churchId, version: 1, isPublished: f
         else if (p.endsWith('/ram-policies') && req.method() === 'PUT') { policy = { ...policy, data: body.data, eTag: 'policy-etag-2' }; data = policy; }
         else if (p.endsWith('/publish')) { assert.equal(body.confirmEveryCell, true); assert.ok(policy.data.matrix.every(c => c.level)); policy = { ...policy, isPublished: true, eTag: 'policy-etag-3', publishedByMemberId: 'qa', publishedUtc: '2026-09-11T12:00:00Z' }; data = policy; }
         else if (p.endsWith('/workspace') && !p.endsWith('/ram/workspace')) data = { eventId, owningGroupId: churchId, title: text('QA Event','测试活动'), canManage: false, planVersion: 1, sponsorshipStatus: 'none', readiness: { status: 'notReady' }, nextSteps: [], items: [{ surfaceKey: 'workspace.overview', presentation: 'tab', sectionKey: 'overview', label: text('Overview','总览'), order: 0, blockers: [] }, { surfaceKey: 'safety.ram', moduleCode: 'SAFETY.RAM', presentation: 'page', pathSegment: 'ram', label: text('RAM and safety','RAM 与安全'), order: 1, readiness: 'notReady', blockers: [] }] };
+        else if (p === '/api/events/ram-authoring/context') data = { policy, sourceVersion: assessment.eTag, title: text('Event', '活动') };
+        else if (p === '/api/events/ram-authoring/check') data = { draft: JSON.parse(body.ramDataJson), residualLevel: 'Yellow', issues: [{ field: 'ram.risk.slip.controlMeasures', message: text('Risk 1: verify the control measures.', '风险 1：请核实控制措施。') }], policy };
+        else if (p === '/api/events/ram-assistance') {
+          assert.deepEqual(Object.keys(body).sort(), ['activityType','brief','category','eventId','language','mode','selectedText','sourceVersion']);
+          assert.ok(!JSON.stringify(body).includes('personResponsible'));
+          data = { sourceVersion: assessment.eTag, suggestions: { controlMeasures: t('Check and mark wet surfaces', '检查并标示湿滑路面'), additionalAction: t('Review before starting', '出发前复查') }, questions: [t('Who will verify the surface?', '由谁核实路面情况？')] };
+        }
         else if (p.endsWith('/ram/workspace')) { workspaceReads++; data = { assessment, policy: policy.isPublished ? policy : null, history, actions, onsiteCandidates: [], canEdit: true, canAudit: true, currentMemberId: 'qa', isRequired: true }; }
         else if (p.endsWith('/ram') && req.method() === 'PUT') { assert.equal(body.schemaVersion, 2); assert.equal(body.expectedETag, assessment.eTag); draft = JSON.parse(body.ramDataJson); assessment = { ...assessment, eTag: `ram-${++version}`, ramDataJson: JSON.stringify(draft), status: 'draft', validity: 'Draft', currentRevisionId: null }; data = assessment; }
         else if (p.includes('/ram/actions/')) {
@@ -100,6 +107,7 @@ const makePolicy = () => ({ id: 'policy-1', churchId, version: 1, isPublished: f
       const area = async (en, cn) => { if (!await page.locator('[data-module-editor="SAFETY.RAM"]').count()) return; const button = page.locator('[data-module-editor="SAFETY.RAM"]').getByRole('button', { name: t(en, cn), exact: true }); if (await button.getAttribute('aria-expanded') !== 'true') await button.click(); };
       await area('Activities and conditions', '活动项目与条件');
       await page.getByLabel(t('Participant count','参与人数'), { exact: true }).waitFor();
+      await page.locator('[data-ram-risk]').first().locator('summary').first().click();
       const riskSelects = page.locator('[data-ram-risk]').first().getByRole('combobox');
       const likelihoodOption = await riskSelects.nth(2).locator('option:checked').textContent();
       assert.ok(likelihoodOption.includes('Unlikely') && likelihoodOption.includes('不太可能'));
@@ -120,6 +128,24 @@ const makePolicy = () => ({ id: 'policy-1', churchId, version: 1, isPublished: f
       await page.getByRole('menuitemradio', { name: zh ? '中文' : 'English', exact: true }).click();
       await page.getByLabel(t('Participant count','参与人数'), { exact: true }).waitFor();
       assert.equal(workspaceReads, readsBeforeLanguage);
+      await page.getByRole('button', { name: t('Check draft and ratings', '检查草稿及评分'), exact: true }).click();
+      await page.getByRole('button', { name: t('Risk 1: verify the control measures.', '风险 1：请核实控制措施。'), exact: true }).click();
+      assert.equal(await page.locator('[data-ram-field="ram.risk.slip"]').getAttribute('open'), '');
+      await page.locator('summary').filter({ hasText: t('AI drafting / rewriting', 'AI 协助起草／改写') }).click();
+      await page.getByLabel(t('Working on', '处理内容'), { exact: false }).selectOption('slip');
+      await page.getByLabel(t('Non-sensitive activity brief to send', '将发送的非敏感活动概要'), { exact: true }).fill(t('A small group walk on a public path.', '小组在公共步道步行。'));
+      await page.getByLabel(t('This is the sending preview. I removed names, contacts, health and confidential information. The full RAM is not sent.', '以上为发送预览。我已移除姓名、联系方式、健康和保密信息；不会发送整份 RAM。'), { exact: true }).check();
+      await page.getByRole('button', { name: t('Send preview and generate suggestions', '发送预览并生成建议'), exact: true }).click();
+      await page.getByText(t('Suggestions requiring human verification', '待人工核实的建议'), { exact: true }).waitFor();
+      const savedBeforeAdoption = assessment.ramDataJson;
+      await page.getByRole('button', { name: t('Adopt this suggestion into draft', '采纳此项到草稿'), exact: true }).first().click();
+      assert.equal(assessment.ramDataJson, savedBeforeAdoption);
+      await page.getByLabel(t('Participant count','参与人数'), { exact: true }).fill('14');
+      assert.equal(await page.getByRole('button', { name: t('Adopt this suggestion into draft', '采纳此项到草稿'), exact: true }).isDisabled(), true);
+      await page.getByRole('button', { name: t('Save RAM draft','保存 RAM 草稿'), exact: true }).click();
+      await page.getByRole('status').filter({ hasText: t('Action completed.','操作已完成。') }).waitFor();
+      assert.equal(draft.hazards[0].controlMeasures[language], t('Check and mark wet surfaces', '检查并标示湿滑路面'));
+      assert.equal(draft.hazards[0].controlMeasures[zh ? 'en' : 'zh'], zh ? 'Check the surface' : '检查路面');
       await area('Required questions', '适用必答题');
       const guidance = page.getByText(t('Explanation and follow-up prompts','解释与追问提示'), { exact: true }).first(); await guidance.click();
       await page.getByRole('button', { name: t('Ask AI to explain this risk category','请 AI 解释此类风险'), exact: true }).first().click();

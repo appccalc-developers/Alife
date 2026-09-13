@@ -1218,6 +1218,8 @@ public sealed partial class EventPackageFoundationTests
         seeded.Event.PublicationStatus = EventPublicationStatus.Published;
         seeded.Event.PublicationGateMode = EventPackageEnforcementMode.Enforced;
         seeded.Event.PublishedPackageId = package.Id;
+        seeded.Event.StartDate = DateTime.UtcNow.AddDays(2);
+        seeded.Event.EndDate = DateTime.UtcNow.AddDays(2).AddHours(2);
         await db.SaveChangesAsync();
         var registrations = new ServiceCollection();
         registrations.AddHybridCache();

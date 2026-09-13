@@ -17,7 +17,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Alife.Tests.Unit.Events;
 
-public sealed class RamGovernanceTests
+public sealed partial class RamGovernanceTests
 {
     private static RamText Text(string value="confirmed") => new(value,value);
     private static RamPolicyData Policy() => RamPolicyDefaults.Create() with { Matrix=Enumerable.Range(1,5).SelectMany(l=>Enumerable.Range(1,5).Select(i=>new RamCell(l,i,((l+i)%3) switch{0=>"Red",1=>"Green",_=>"Yellow"}))).ToArray() };

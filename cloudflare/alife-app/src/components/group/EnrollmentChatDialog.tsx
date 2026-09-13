@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { translateUi, type UiTextKey } from '../../i18n/uiText'
 import type { GroupEventRecord } from '../../types/event'
-import type { EnrollmentDraft } from '../../types/enrollment'
+import type { EnrollmentDraft, EnrollmentCapacity } from '../../types/enrollment'
 import { enrollmentSessionService } from '../../services/enrollmentSessionService'
 import { normalizeApiError } from '../../services/http'
 
@@ -34,8 +34,19 @@ const EnrollmentChatDialog = ({
   const [paymentFiles, setPaymentFiles] = useState<File[]>([])
   const [commitStatus, setCommitStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [commitError, setCommitError] = useState('')
+  const [acceptWaitlist, setAcceptWaitlist] = useState(false)
+  const [capacity, setCapacity] = useState<EnrollmentCapacity | null>(null)
+  const [savedWaitlistPosition, setSavedWaitlistPosition] = useState<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const nameTouchedRef = useRef(false)
+
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    setCapacity(null)
+    void enrollmentSessionService.capacity(event.id).then(value => { if (!cancelled) setCapacity(value) }).catch(() => { /* The server still checks eligibility on submission. */ })
+    return () => { cancelled = true }
+  }, [event.id, open])
 
   useEffect(() => {
     nameTouchedRef.current = false
@@ -44,6 +55,8 @@ const EnrollmentChatDialog = ({
     setPaymentFiles([])
     setCommitStatus('idle')
     setCommitError('')
+    setAcceptWaitlist(false)
+    setSavedWaitlistPosition(null)
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
@@ -95,14 +108,18 @@ const EnrollmentChatDialog = ({
     }
 
     try {
-      await enrollmentSessionService.createEnrollment({
+      const result = await enrollmentSessionService.createEnrollment({
         eventId: event.id,
         groupId,
         draft,
         paymentFiles,
+        acceptWaitlist,
       })
       setCommitStatus('saved')
-      onSuccess(t('registeredSuccessfully'))
+      setSavedWaitlistPosition(result.enrollment.status === 'waitlisted' ? result.enrollment.waitlistPosition ?? 0 : null)
+      onSuccess(result.enrollment.status === 'waitlisted'
+        ? (language === 'zh' ? `已加入候补，当前位置：${result.enrollment.waitlistPosition ?? '—'}。获得名额后会收到站内通知。` : `Joined the waitlist at position ${result.enrollment.waitlistPosition ?? '—'}. You will receive an in-app notification when a place is confirmed.`)
+        : t('registeredSuccessfully'))
     } catch (reason) {
       const apiError = normalizeApiError(reason)
       setCommitStatus('error')
@@ -197,6 +214,11 @@ const EnrollmentChatDialog = ({
             </label>
           </fieldset>
 
+          <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <label className="flex items-start gap-2 text-sm text-slate-700"><input type="checkbox" checked={acceptWaitlist} disabled={commitStatus === 'saving'} onChange={e => setAcceptWaitlist(e.target.checked)} className="mt-1" /><span>{language === 'zh' ? '如果名额已满，我同意加入候补并按顺序等待递补。' : 'If the event is full, I agree to join the waitlist and wait for a place in queue order.'}</span></label>
+              {capacity && capacity.confirmed >= capacity.capacity ? <p role="status" className="text-sm text-amber-800">{language === 'zh' ? '正式名额已满。勾选上方选项后可加入候补。' : 'All places are filled. Select the option above to join the waitlist.'}</p> : null}
+          </div>
+
           <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -246,7 +268,9 @@ const EnrollmentChatDialog = ({
 
           {commitStatus === 'saved' ? (
             <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-              {t('registeredSuccessfully')}
+              {savedWaitlistPosition !== null
+                ? (language === 'zh' ? `已加入候补，第 ${savedWaitlistPosition || '—'} 位；尚未获得正式名额。` : `Joined the waitlist at position ${savedWaitlistPosition || '—'}; a place is not yet confirmed.`)
+                : t('registeredSuccessfully')}
             </p>
           ) : null}
 

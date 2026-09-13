@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Alife.Application.Events.Services;
 
-public sealed class EventRamGovernanceService(IAlifeDbContext db, IGroupAuthorizationService authorization,
+public sealed partial class EventRamGovernanceService(IAlifeDbContext db, IGroupAuthorizationService authorization,
     IEventCacheInvalidationService cache, IEventPackageInvalidationService packages)
 {
     public const string UpgradeMessage = "ram.client.upgradeRequired: Open the current RAM editor; versioned RAM cannot be submitted or overwritten by a legacy client. / 请打开新版 RAM 编辑器。";

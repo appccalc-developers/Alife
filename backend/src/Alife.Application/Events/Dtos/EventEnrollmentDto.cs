@@ -7,4 +7,9 @@ public sealed record EventEnrollmentDto(
     Guid MemberId,
     string EnrollmentJson,
     DateTime CreatedUtc,
-    DateTime UpdatedUtc);
+    DateTime UpdatedUtc,
+    string Status = "confirmed",
+    DateTime? QueuedUtc = null,
+    DateTime? StatusChangedUtc = null,
+    int? WaitlistPosition = null,
+    string? ETag = null);

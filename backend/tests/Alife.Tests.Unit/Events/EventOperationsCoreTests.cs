@@ -53,7 +53,7 @@ public sealed partial class EventOperationsCoreTests
         var response = await controller.GetRoster(eventId, occurrenceId, default);
 
         Assert.IsType<OkObjectResult>(response);
-        Assert.Equal("no-store", controller.Response.Headers.CacheControl.ToString());
+        Assert.Equal("private, no-store", controller.Response.Headers.CacheControl.ToString());
         Assert.Equal("\"roster-token\"", controller.Response.Headers.ETag.ToString());
     }
 

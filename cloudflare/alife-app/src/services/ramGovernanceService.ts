@@ -11,6 +11,9 @@ const changed = async (record: RamAssessment) => {
   return record
 }
 export const ramService = {
+  authoringContext: async (scope: { eventId?: string; groupId?: string }) => (await http.get<{ policy: RamPolicy | null; sourceVersion: string; title: { en: string; zh: string } }>('/api/events/ram-authoring/context', { params: scope })).data,
+  check: async (scope: { eventId?: string; groupId?: string }, draft: RamDraft, policyVersionId?: string | null) => (await http.post<{ draft: RamDraft; residualLevel: import('../types/ramGovernance').RamLevel; issues: { field: string; message: { en: string; zh: string } }[]; policy: RamPolicy | null }>('/api/events/ram-authoring/check', { ...scope, ramDataJson: JSON.stringify(draft), policyVersionId })).data,
+  assist: async (input: unknown) => (await sameOriginHttp.post<{ suggestions: Partial<Record<'hazard' | 'consequence' | 'controlMeasures' | 'additionalAction', string>>; questions: string[]; sourceVersion: string }>('/api/events/ram-assistance', input)).data,
   guidance: async (eventId: string, activityType: string, category: string, language: string) => (await sameOriginHttp.post<{ explanation: string; questions: string[] }>('/api/events/ram-guidance', { eventId, activityType, category, language })).data,
   workspace: async (id: string) => (await http.get<RamWorkspace>(`/api/events/${id}/ram/workspace`, { headers: { 'Cache-Control': 'no-store' } })).data,
   version: async (id: string, version: string) => (await http.get<RamPrint>(`/api/events/${id}/ram/versions/${version}`, { headers: { 'Cache-Control': 'no-store' } })).data,

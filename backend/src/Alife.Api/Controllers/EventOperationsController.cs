@@ -111,41 +111,54 @@ public sealed class EventOperationsController(
     public Task<IActionResult> GetRosterGroups(Guid eventId, CancellationToken ct)
         => Run(member => operations.GetRosterGroupsAsync(eventId, member, ct), privateResponse: true);
 
+    [HttpGet("roster/page")]
+    public Task<IActionResult> RosterPage(Guid eventId, CancellationToken ct, int page = 1, Guid? focusOccurrenceId = null)
+        => Run(member => operations.GetRosterPageAsync(eventId, member, page, ct, focusOccurrenceId), privateResponse: true);
+    [HttpPost("roster/batch")]
+    public Task<IActionResult> RosterBatch(Guid eventId, EventRosterBatchRequest request, CancellationToken ct)
+        => Run(member => operations.ApplyRosterBatchAsync(eventId, member, request, Request.Headers["Idempotency-Key"], ct), privateResponse: true);
+    [HttpPost("roster/defaults")]
+    public Task<IActionResult> AdoptDefaults(Guid eventId, AdoptEventRosterDefaultsRequest request, CancellationToken ct)
+        => Run(member => operations.AdoptRosterDefaultsAsync(eventId, member, request, ct), privateResponse: true);
+    [HttpPost("roster/extend")]
+    public Task<IActionResult> ExtendRoster(Guid eventId, CancellationToken ct)
+        => Run(member => operations.ExtendRosterAsync(eventId, member, Request.Headers.IfMatch, ct), privateResponse: true);
+
     [HttpPut("roster/groups")]
     public Task<IActionResult> SaveRosterGroup(Guid eventId, SaveEventRosterGroupRequest request, CancellationToken ct)
         => Run(member => operations.SaveRosterGroupAsync(eventId, member, request, Request.Headers.IfMatch.ToString(), ct), value => value.ETag, privateResponse: true);
 
     [HttpGet("occurrences/{occurrenceId:guid}/roster")]
     public Task<IActionResult> GetRoster(Guid eventId, Guid occurrenceId, CancellationToken ct)
-        => Run(member => operations.GetRosterAsync(eventId, occurrenceId, member, ct), value => value.ETag);
+        => Run(member => operations.GetRosterAsync(eventId, occurrenceId, member, ct), value => value.ETag, privateResponse: true);
 
     [HttpPost("occurrences/{occurrenceId:guid}/roster/slots")]
     public Task<IActionResult> CreateSlot(Guid eventId, Guid occurrenceId, SaveEventServiceSlotRequest request, CancellationToken ct)
-        => Run(member => operations.CreateSlotAsync(eventId, occurrenceId, member, request, Request.Headers.IfMatch.ToString(), ct), value => value.ETag);
+        => Run(member => operations.CreateSlotAsync(eventId, occurrenceId, member, request, Request.Headers.IfMatch.ToString(), ct), value => value.ETag, privateResponse: true);
 
     [HttpPut("occurrences/{occurrenceId:guid}/roster/slots/{slotId:guid}")]
     public Task<IActionResult> UpdateSlot(Guid eventId, Guid occurrenceId, Guid slotId, SaveEventServiceSlotRequest request, CancellationToken ct)
-        => Run(member => operations.UpdateSlotAsync(eventId, occurrenceId, slotId, member, request, Request.Headers.IfMatch.ToString(), ct), value => value.ETag);
+        => Run(member => operations.UpdateSlotAsync(eventId, occurrenceId, slotId, member, request, Request.Headers.IfMatch.ToString(), ct), value => value.ETag, privateResponse: true);
 
     [HttpDelete("occurrences/{occurrenceId:guid}/roster/slots/{slotId:guid}")]
     public Task<IActionResult> DeleteSlot(Guid eventId, Guid occurrenceId, Guid slotId, CancellationToken ct)
-        => Run(member => operations.DeleteSlotAsync(eventId, occurrenceId, slotId, member, Request.Headers.IfMatch.ToString(), ct), value => value.ETag);
+        => Run(member => operations.DeleteSlotAsync(eventId, occurrenceId, slotId, member, Request.Headers.IfMatch.ToString(), ct), value => value.ETag, privateResponse: true);
 
     [HttpPut("occurrences/{occurrenceId:guid}/roster/slots/{slotId:guid}/availability/me")]
     public Task<IActionResult> SetAvailability(Guid eventId, Guid occurrenceId, Guid slotId, SetEventAvailabilityRequest request, CancellationToken ct)
-        => Run(member => operations.SetAvailabilityAsync(eventId, occurrenceId, slotId, member, request, ct), value => value.ETag);
+        => Run(member => operations.SetAvailabilityAsync(eventId, occurrenceId, slotId, member, request, ct), value => value.ETag, privateResponse: true);
 
     [HttpPost("occurrences/{occurrenceId:guid}/roster/slots/{slotId:guid}/assignments")]
     public Task<IActionResult> AssignRosterMember(Guid eventId, Guid occurrenceId, Guid slotId, AssignEventRosterMemberRequest request, CancellationToken ct)
-        => Run(member => operations.AssignRosterMemberAsync(eventId, occurrenceId, slotId, member, request, Request.Headers.IfMatch.ToString(), ct), value => value.ETag);
+        => Run(member => operations.AssignRosterMemberAsync(eventId, occurrenceId, slotId, member, request, Request.Headers.IfMatch.ToString(), ct), value => value.ETag, privateResponse: true);
 
     [HttpPost("occurrences/{occurrenceId:guid}/roster/assignments/{assignmentId:guid}/confirm")]
     public Task<IActionResult> ConfirmRosterAssignment(Guid eventId, Guid occurrenceId, Guid assignmentId, CancellationToken ct)
-        => Run(member => operations.RespondToRosterAssignmentAsync(eventId, occurrenceId, assignmentId, member, true, ct), value => value.ETag);
+        => Run(member => operations.RespondToRosterAssignmentAsync(eventId, occurrenceId, assignmentId, member, true, ct), value => value.ETag, privateResponse: true);
 
     [HttpPost("occurrences/{occurrenceId:guid}/roster/assignments/{assignmentId:guid}/decline")]
     public Task<IActionResult> DeclineRosterAssignment(Guid eventId, Guid occurrenceId, Guid assignmentId, CancellationToken ct)
-        => Run(member => operations.RespondToRosterAssignmentAsync(eventId, occurrenceId, assignmentId, member, false, ct), value => value.ETag);
+        => Run(member => operations.RespondToRosterAssignmentAsync(eventId, occurrenceId, assignmentId, member, false, ct), value => value.ETag, privateResponse: true);
 
     private async Task<IActionResult> Run<T>(Func<Guid, Task<Alife.Application.Common.Models.AppResult<T>>> action, Func<T, string>? eTag = null, bool privateResponse = false)
     {

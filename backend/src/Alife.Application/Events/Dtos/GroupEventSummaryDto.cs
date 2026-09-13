@@ -24,4 +24,5 @@ public record GroupEventSummaryDto(
     EventPublicationStatus PublicationStatus = EventPublicationStatus.LegacyImplicit,
     bool PublicationGateSatisfied = true,
     Guid? PublishedPackageId = null,
-    DateTime? PublishedUtc = null);
+    DateTime? PublishedUtc = null,
+    bool? RamRequired = null);

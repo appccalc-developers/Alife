@@ -46,7 +46,7 @@ Owners review bilingual content and an immutable audience snapshot before send. 
 
 ## Current implementation
 
-Partial. Bilingual Event content, public/group projections, in-app notification foundations, Event Review CRUD, Workflow/Artifact support, and a generic controlled surface exist. They do not form a complete Event communications workspace or audited broadcast lifecycle.
+Partial. Bilingual Event content, public/group projections, poster preparation/publication, in-app notification foundations and Event Review CRUD exist. They do not form a complete Event communications workspace or audited broadcast lifecycle. The retired generic workflow surface is not a current communications capability.
 
 The [continuous preparation flow](../EVENT-SETUP-FLOW.md) provides a separate post-creation poster studio after formal approval. It reuses the existing AI/image services, requires human preview/adoption, and saves only the poster association through an authorized, no-store, ETag/idempotency-protected API. Poster drafts remain local until adopted. Explicit publication after active approval uses existing audience-filtered projections. Poster artwork is outside formal approval by product contract; adoption preserves Package validity. Audited broadcasts remain incomplete.
 
@@ -57,3 +57,7 @@ Audience snapshot, approved publish/change broadcast, delivery state, newcomer/p
 ## Next useful vertical slice
 
 `audited-event-change-broadcast`: explicit human confirmation, in-app delivery, audience snapshot, message version, delivery result, non-destructive retry, and withdrawal audit.
+
+## Availability presentation — 2026-09-13
+
+Current catalogue status is `partial` (**部分提供 / Partly available**) at all preparation and direct entries. The UI names existing Event content, poster and publication tools and links to the post-approval poster/publish stages. It explicitly identifies missing broadcast/audience/delivery/follow-up workflows and provides no fictional broadcast action. Enabled/details-confirmed/readiness states remain separate.

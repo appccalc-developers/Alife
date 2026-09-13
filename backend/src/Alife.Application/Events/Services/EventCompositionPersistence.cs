@@ -246,7 +246,8 @@ public static class EventCompositionPersistence
         EventPlanProposalDto plan,
         GroupEvent groupEvent,
         DateTime checkedUtc,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        int rosterRulesVersion = 1)
     {
         var additions = new Dictionary<string, List<LocalizedTextDto>>(StringComparer.Ordinal);
         void Add(string module, LocalizedTextDto blocker)
@@ -285,11 +286,12 @@ public static class EventCompositionPersistence
             x.Status is EventModuleDecisionStatus.Required or EventModuleDecisionStatus.Selected))
         {
             var slots = await dbContext.EventServiceSlots.AsNoTracking().Where(x => x.Occurrence.EventId == groupEvent.Id)
-                .Select(x => new { x.RoleCode, x.RequiredCount,
+                .Select(x => new { x.RoleCode, x.RequiredCount, x.EligibilityCode,
                     Confirmed = x.Assignments.Count(a => a.Status == EventRosterAssignmentStatus.Confirmed && a.EndedUtc == null) })
                 .ToListAsync(cancellationToken);
             if (slots.Count == 0) Add("SERVICE.ROSTER", new("Define required service slots.", "請定義必要崗位。"));
-            foreach (var slot in slots.Where(x => x.Confirmed < x.RequiredCount))
+            var rosterGroups = await dbContext.EventRosterGroups.AsNoTracking().Where(x => x.EventId == groupEvent.Id).ToListAsync(cancellationToken);
+            foreach (var slot in slots.Where(x => x.Confirmed < x.RequiredCount && (rosterRulesVersion < 2 || EventRosterPolicy.IsCritical(x.RoleCode, x.EligibilityCode, rosterGroups.FirstOrDefault(g => g.RoleCode == x.RoleCode)?.ModuleCode))))
                 Add("SERVICE.ROSTER", new($"{slot.RoleCode}: {slot.Confirmed}/{slot.RequiredCount} confirmed.",
                     $"{slot.RoleCode}：已確認 {slot.Confirmed}/{slot.RequiredCount}。"));
         }

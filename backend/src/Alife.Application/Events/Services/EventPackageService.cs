@@ -273,6 +273,7 @@ public sealed partial class EventPackageService(
         var package = new EventPackage
         {
             Id = packageId,
+            RosterRulesVersion = EventRosterPolicy.CurrentVersion,
             EventId = eventId,
             ScopeType = request.ScopeType,
             ScopeId = request.ScopeId,
@@ -343,8 +344,7 @@ public sealed partial class EventPackageService(
         // to approvers and lifecycle gates, because specialist work may continue while a Package is under review.
         if (manifest is null || manifest.Blockers.Count > 0)
             return AppResult<EventPackageDto>.Conflict("event.package.submissionBlocked");
-        var current = await CaptureAsync(eventId,
-            new GenerateEventPackageRequest(package.ScopeType, package.ScopeId, package.PackageSchemaVersion), ct);
+        var current = await CapturePackageAsync(package, ct);
         if (!current.IsSuccess) return Failure<EventPackageDto, PackageCapture>(current);
         if (!string.Equals(current.Value!.SourceVectorHash, package.SourceVectorHash, StringComparison.Ordinal) ||
             current.Value.Plan.PlanVersion != package.EventPlanVersion || current.Value.Policy.Id != package.GovernancePolicyVersionId)
@@ -434,8 +434,7 @@ public sealed partial class EventPackageService(
             request.DecisionType is EventPackageDecisionType.Approve or EventPackageDecisionType.ApproveWithConditions &&
             await EventPreparationPolicy.FrozenPackages(db, eventId).AnyAsync(x => x.Id != packageId, ct))
             return AppResult<EventPackageDto>.Conflict(EventPreparationPolicy.FrozenMessage);
-        var current = await CaptureAsync(eventId,
-            new GenerateEventPackageRequest(package.ScopeType, package.ScopeId, package.PackageSchemaVersion), ct);
+        var current = await CapturePackageAsync(package, ct);
         if (!current.IsSuccess) return Failure<EventPackageDto, PackageCapture>(current);
         if (!string.Equals(current.Value!.SourceVectorHash, package.SourceVectorHash, StringComparison.Ordinal) ||
             current.Value.Plan.PlanVersion != package.EventPlanVersion || current.Value.Policy.Id != package.GovernancePolicyVersionId)
@@ -876,7 +875,7 @@ public sealed partial class EventPackageService(
             return AppResult<EventLifecycleDto>.Forbidden("The accountable owner is required to publish this Event.");
         if (!Matches(request.EventETag, LifecycleETag(groupEvent)))
             return AppResult<EventLifecycleDto>.PreconditionFailed("The Event lifecycle changed; reload before publishing.");
-        if (groupEvent.RamAssessment?.Status != EventRamStatus.Approved)
+        if (!EventLifecyclePolicy.HasRequiredRamApproval(groupEvent))
             return AppResult<EventLifecycleDto>.Conflict("event.publish.ramNotApproved");
         if (groupEvent.GovernanceMode == EventGovernanceMode.ChurchSponsored &&
             groupEvent.SponsorshipStatus != EventSponsorshipStatus.Approved)
@@ -936,6 +935,7 @@ public sealed partial class EventPackageService(
         if (replay is not null) return replay;
 
         await using var transaction = await db.BeginSerializableTransactionAsync(ct);
+        await db.LockEventRegistrationAsync(eventId, ct);
         var groupEvent = await LifecycleEventQuery().FirstAsync(x => x.Id == eventId, ct);
         if (!Matches(request.RegistrationETag, RegistrationETag(groupEvent)))
             return AppResult<EventLifecycleDto>.PreconditionFailed("The registration lifecycle changed; reload before opening registration.");
@@ -967,6 +967,7 @@ public sealed partial class EventPackageService(
         AddLifecycleAudit("event.registration.opened", groupEvent, memberId, now, previous,
             new { groupEvent.RegistrationStatus, groupEvent.RegistrationPackageId, mode, dryRunReasonCodes = reasons });
         AddIdempotency(OpenRegistrationOperation, eventId, idempotencyKey!, requestHash, eventId, now);
+        await new EventEnrollmentCapacityService(db, authorization, cacheInvalidation).ReconcileAsync(groupEvent, memberId, ct);
         var saved = await SaveLifecycleAsync(groupEvent, transaction, ct);
         if (saved.IsSuccess && cacheInvalidation is not null)
         {
@@ -992,6 +993,7 @@ public sealed partial class EventPackageService(
         if (replay is not null) return replay;
 
         await using var transaction = await db.BeginSerializableTransactionAsync(ct);
+        await db.LockEventRegistrationAsync(eventId, ct);
         var groupEvent = await LifecycleEventQuery().FirstAsync(x => x.Id == eventId, ct);
         if (!Matches(request.RegistrationETag, RegistrationETag(groupEvent)))
             return AppResult<EventLifecycleDto>.PreconditionFailed("The registration lifecycle changed; reload before closing registration.");
@@ -1028,6 +1030,7 @@ public sealed partial class EventPackageService(
         if (replay is not null) return replay;
 
         await using var transaction = await db.BeginSerializableTransactionAsync(ct);
+        await db.LockEventRegistrationAsync(eventId, ct);
         var groupEvent = await LifecycleEventQuery().FirstAsync(x => x.Id == eventId, ct);
         EventOccurrence? executionOccurrence = null;
         if (request.ScopeType == EventPackageScopeType.Occurrence)
@@ -1095,6 +1098,10 @@ public sealed partial class EventPackageService(
         if (policy.EnforcementMode == EventPackageEnforcementMode.Enforced && reasons.Count > 0)
             return AppResult<EventLifecycleDto>.Conflict(reasons[0]);
 
+        if (package.RosterRulesVersion >= 2 && groupEvent.EventSeriesId.HasValue && executionOccurrence is null)
+            return AppResult<EventLifecycleDto>.Validation("Confirm execution for a specific recurring date. / 请为重复活动选择具体执行场次。");
+        if (package.RosterRulesVersion >= 2 && !await EventRosterPolicy.IsReadyForExecutionAsync(db, groupEvent, executionOccurrence?.Id, ct))
+            return AppResult<EventLifecycleDto>.Conflict("event.execute.rosterIncomplete: Every required position needs enough currently eligible, personally confirmed members. / 执行前每个必需岗位必须有足够的当前合资格、本人已确认的成员。");
         object previous;
         if (executionOccurrence is null)
         {
@@ -1136,7 +1143,7 @@ public sealed partial class EventPackageService(
             requestedScopeType == EventPackageScopeType.Occurrence
                 ? new GenerateEventPackageRequest(EventPackageScopeType.Occurrence, requestedScopeId, package.PackageSchemaVersion)
                 : new GenerateEventPackageRequest(package.ScopeType, package.ScopeId, package.PackageSchemaVersion);
-        var capture = await CaptureAsync(package.EventId, captureScope, ct);
+        var capture = await CaptureAsync(package.EventId, captureScope, ct, package.RosterRulesVersion, captureScope.ScopeType == package.ScopeType ? package : null);
         if (!capture.IsSuccess || capture.Value!.Plan.PlanVersion != package.EventPlanVersion ||
             capture.Value.Policy.Id != package.GovernancePolicyVersionId)
             return false;
@@ -1208,7 +1215,11 @@ public sealed partial class EventPackageService(
         return saved;
     }
 
-    private async Task<AppResult<PackageCapture>> CaptureAsync(Guid eventId, GenerateEventPackageRequest request, CancellationToken ct)
+    private Task<AppResult<PackageCapture>> CapturePackageAsync(EventPackage package, CancellationToken ct)
+        => CaptureAsync(package.EventId, new(package.ScopeType, package.ScopeId, package.PackageSchemaVersion), ct, package.RosterRulesVersion, package);
+
+    private async Task<AppResult<PackageCapture>> CaptureAsync(Guid eventId, GenerateEventPackageRequest request, CancellationToken ct,
+        int rosterRulesVersion = EventRosterPolicy.CurrentVersion, EventPackage? frozenCoverage = null)
     {
         var groupEvent = await db.GroupEvents.AsNoTracking().Include(x => x.RamAssessment)
             .FirstOrDefaultAsync(x => x.Id == eventId, ct);
@@ -1222,7 +1233,7 @@ public sealed partial class EventPackageService(
         var now = DateTime.UtcNow;
         var currentPlan = EventCompositionPersistence.RefreshReadiness(plan.Plan, groupEvent, now);
         currentPlan = await EventCompositionPersistence.ApplyOperationalReadinessAsync(
-            db, currentPlan, groupEvent, now, ct);
+            db, currentPlan, groupEvent, now, ct, rosterRulesVersion);
         var policy = await db.EventPackageGovernancePolicyVersions.AsNoTracking()
             .Where(x => x.IsPublished && x.EffectiveFromUtc <= now && (!x.RetiredUtc.HasValue || x.RetiredUtc > now) &&
                 (x.OrganisationId == groupEvent.GroupId || x.OrganisationId == null))
@@ -1245,6 +1256,18 @@ public sealed partial class EventPackageService(
 
         var scope = await ResolveScope(groupEvent, request, ct);
         if (!scope.IsSuccess) return Failure<PackageCapture, ScopeCapture>(scope);
+        // A v2 package retains its explicit approved window when later dates are materialized.
+        // Those extra dates need their own covered approval before execution; they cannot invalidate
+        // or silently broaden the already reviewed window.
+        if (rosterRulesVersion >= EventRosterPolicy.CurrentVersion && frozenCoverage?.ScopeType == EventPackageScopeType.Event)
+        {
+            Guid[] covered;
+            try { covered = JsonSerializer.Deserialize<Guid[]>(frozenCoverage.CoveredOccurrenceIdsJson, JsonOptions) ?? []; }
+            catch (JsonException) { return AppResult<PackageCapture>.Conflict("Invalid approved occurrence coverage."); }
+            if (covered.Length == 0 || covered.Any(id => !scope.Value!.CoveredOccurrenceIds.Contains(id)))
+                return AppResult<PackageCapture>.Conflict("An approved occurrence was cancelled or removed. Review the changed scope.");
+            scope = AppResult<ScopeCapture>.Success(new(scope.Value!.CoverageMode, covered));
+        }
         var selected = plan.Plan.ModuleDecisions.Where(x => x.Status is EventModuleDecisionStatus.Required or EventModuleDecisionStatus.Selected)
             .OrderBy(x => x.ModuleCode, StringComparer.Ordinal).ToArray();
         var tier = ResolveTier(plan.Plan, rules, selected);
@@ -1277,7 +1300,7 @@ public sealed partial class EventPackageService(
             (ramEvidence.SchemaVersion == 2 && ramEvidence.Validity != "Valid")))
             blockers.Add(new("This Event Plan requires the current RAM to pass independent review before the Event Package can be submitted.", "此活动方案需要 RAM；当前 RAM 必须先通过独立审核，才能提交整个活动方案审批包。"));
         if (ramEvidence is not null && !selected.Any(x=>x.ModuleCode=="SAFETY.RAM"))
-            sources.Add(new("SAFETY.RAM","moduleAggregate",groupEvent.Id,await ModuleSourceVersionAsync(groupEvent.Id,"SAFETY.RAM",null,ct),null,null,"approvalEvidence",true));
+            sources.Add(new("SAFETY.RAM","moduleAggregate",groupEvent.Id,await ModuleSourceVersionAsync(groupEvent.Id,"SAFETY.RAM",null,ct,rosterRulesVersion),null,null,"approvalEvidence",true));
         foreach (var decision in selected)
         {
             var available = !UnavailableModules.Contains(decision.ModuleCode);
@@ -1288,7 +1311,7 @@ public sealed partial class EventPackageService(
                 foreach (var occurrenceId in scope.Value!.CoveredOccurrenceIds.Order())
                 {
                     var occurrenceVersion = await ModuleSourceVersionAsync(
-                        groupEvent.Id, decision.ModuleCode, occurrenceId, ct);
+                        groupEvent.Id, decision.ModuleCode, occurrenceId, ct, rosterRulesVersion);
                     occurrenceVersions.Add(new { occurrenceId, sourceVersion = occurrenceVersion });
                     sources.Add(new(decision.ModuleCode, "moduleOccurrence", occurrenceId, occurrenceVersion,
                         null, null, DataClass(decision.ModuleCode), true));
@@ -1297,7 +1320,7 @@ public sealed partial class EventPackageService(
             }
             else
             {
-                sourceVersion = await ModuleSourceVersionAsync(groupEvent.Id, decision.ModuleCode, null, ct);
+                sourceVersion = await ModuleSourceVersionAsync(groupEvent.Id, decision.ModuleCode, null, ct, rosterRulesVersion);
                 sources.Add(new(decision.ModuleCode, "moduleAggregate", groupEvent.Id, sourceVersion, null, null,
                     DataClass(decision.ModuleCode), true));
             }
@@ -1327,6 +1350,7 @@ public sealed partial class EventPackageService(
             scope.Value!.CoverageMode, scope.Value.CoveredOccurrenceIds, plan.PlanVersion, policy.Version, tier, legacyTransition,
             new(groupEvent.TitleEn, groupEvent.TitleZh), AsUtc(groupEvent.StartDate), AsUtc(groupEvent.EndDate), modules, distinctBlockers)
         {
+            RosterRulesVersion = rosterRulesVersion >= 2 ? rosterRulesVersion : null,
             ApprovalAssessment = assessment,
             TriggerReasons = BuildTriggerReasons(tier, policy.Version, selected).Concat(assessment.Tiers.Where(x => x.Applies).SelectMany(x => x.Reasons)).DistinctBy(x => x.Code).ToArray(),
             RequiredSpecialistDecisions = RequiredSpecialistDecisions(selected),
@@ -1364,7 +1388,7 @@ public sealed partial class EventPackageService(
     }
 
     private async Task<string> ModuleSourceVersionAsync(
-        Guid eventId, string moduleCode, Guid? occurrenceId, CancellationToken ct)
+        Guid eventId, string moduleCode, Guid? occurrenceId, CancellationToken ct, int rosterRulesVersion = 1)
     {
         object source = moduleCode switch
         {
@@ -1387,7 +1411,7 @@ public sealed partial class EventPackageService(
                         x.RoleRequirementKey.EndsWith(":registration.manager"))
                     .OrderBy(x => x.Id).Select(x => new { x.Id, x.MemberId, x.Status, x.EndedUtc }).ToListAsync(ct)
             },
-            "SERVICE.ROSTER" => await RosterSourceDataAsync(eventId, occurrenceId, ct),
+            "SERVICE.ROSTER" => await RosterSourceDataAsync(eventId, occurrenceId, ct, rosterRulesVersion),
             "SAFETY.RAM" => await db.EventRamAssessments.AsNoTracking().Where(x => x.EventId == eventId)
                 .Select(x => new { x.EventId, x.Status, x.CurrentRevisionId, x.PolicyVersionId, x.ResidualLevel, x.Validity,
                     x.SubmittedByMemberId, x.SubmittedUtc, x.ApprovedByMemberId, x.ApprovedUtc, x.UpdatedUtc }).ToListAsync(ct),
@@ -1648,7 +1672,7 @@ public sealed partial class EventPackageService(
     {
         IQueryable<GroupEvent> query = db.GroupEvents;
         if (asNoTracking) query = query.AsNoTracking();
-        return query.Include(x => x.RamAssessment)
+        return query.Include(x => x.RamAssessment).Include(x => x.PlanSnapshots)
             .Include(x => x.PublishedPackage).ThenInclude(x => x!.Conditions)
             .Include(x => x.PublishedPackage).ThenInclude(x => x!.Decisions)
             .Include(x => x.RegistrationPackage).ThenInclude(x => x!.Conditions)
@@ -1670,8 +1694,7 @@ public sealed partial class EventPackageService(
             reasons.Add("event.publish.policyChanged");
         if (reasons.Count == 0)
         {
-            var capture = await CaptureAsync(groupEvent.Id,
-                new GenerateEventPackageRequest(package.ScopeType, package.ScopeId, package.PackageSchemaVersion), ct);
+            var capture = await CapturePackageAsync(package, ct);
             if (!capture.IsSuccess || !string.Equals(capture.Value!.SourceVectorHash, package.SourceVectorHash, StringComparison.Ordinal) ||
                 capture.Value.Plan.PlanVersion != package.EventPlanVersion || capture.Value.Policy.Id != package.GovernancePolicyVersionId)
                 reasons.Add("event.publish.packageSourceChanged");
@@ -1692,8 +1715,7 @@ public sealed partial class EventPackageService(
             reasons.Add("event.registration.policyChanged");
         if (reasons.Count == 0)
         {
-            var capture = await CaptureAsync(groupEvent.Id,
-                new GenerateEventPackageRequest(package.ScopeType, package.ScopeId, package.PackageSchemaVersion), ct);
+            var capture = await CapturePackageAsync(package, ct);
             if (!capture.IsSuccess || !string.Equals(capture.Value!.SourceVectorHash, package.SourceVectorHash, StringComparison.Ordinal) ||
                 capture.Value.Plan.PlanVersion != package.EventPlanVersion || capture.Value.Policy.Id != package.GovernancePolicyVersionId)
                 reasons.Add("event.registration.packageSourceChanged");
@@ -1975,9 +1997,21 @@ public sealed partial class EventPackageService(
             }), OccurredUtc = now
         });
 
-    private async Task<object> RosterSourceDataAsync(Guid eventId, Guid? occurrenceId, CancellationToken ct)
+    private async Task<object> RosterSourceDataAsync(Guid eventId, Guid? occurrenceId, CancellationToken ct, int rosterRulesVersion)
     {
-        var slots = await db.EventServiceSlots.AsNoTracking().Where(x => x.Occurrence.EventId == eventId &&
+        if (rosterRulesVersion >= 2)
+        {
+            var requirements = await db.EventServiceSlots.AsNoTracking().Include(x => x.Assignments)
+                .Where(x => x.Occurrence.EventId == eventId && (!occurrenceId.HasValue || x.OccurrenceId == occurrenceId)).OrderBy(x => x.Id).ToListAsync(ct);
+            var candidates = await db.EventRosterGroups.AsNoTracking().Where(x => x.EventId == eventId).OrderBy(x => x.Id).ToListAsync(ct);
+            var defaults = await db.EventRosterDefaults.AsNoTracking().Where(x => x.EventId == eventId).OrderByDescending(x => x.Version).FirstOrDefaultAsync(ct);
+            return new { rosterRulesVersion, defaults = defaults is null ? null : EventPackageCanonicalizer.HashCanonical(new { defaults.Id, defaults.Version, defaults.RequirementsJson }),
+                requirements = requirements.Select(x => new { x.Id, x.OccurrenceId, x.RoleCode, x.RequiredCount, x.EligibilityCode, x.StartUtc, x.EndUtc, x.SessionId, x.ProgramItemId, x.ZoneId,
+                    x.RosterDefaultsId, x.DefaultRequirementIndex,
+                    criticalAccepted = EventRosterPolicy.IsCritical(x.RoleCode, x.EligibilityCode, candidates.FirstOrDefault(g => g.RoleCode == x.RoleCode)?.ModuleCode)
+                        ? x.Assignments.Count(a => a.Status == EventRosterAssignmentStatus.Confirmed && a.EndedUtc == null) : (int?)null }),
+                groups = candidates.Select(x => new { x.Id, x.RoleCode, x.ModuleCode, candidatesHash = EventPackageCanonicalizer.HashCanonical(x.MemberIdsJson) }) };
+        }        var slots = await db.EventServiceSlots.AsNoTracking().Where(x => x.Occurrence.EventId == eventId &&
                 (!occurrenceId.HasValue || x.OccurrenceId == occurrenceId.Value))
             .OrderBy(x => x.Id).Select(x => new { x.Id, x.OccurrenceId, x.RequiredCount, x.UpdatedUtc,
                 accepted = x.Assignments.Count(a => a.Status == EventRosterAssignmentStatus.Confirmed && a.EndedUtc == null) }).ToListAsync(ct);

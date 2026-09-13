@@ -5,6 +5,7 @@ using Alife.Application.Events.Dtos;
 using Alife.Application.Events.Queries.ListEventEnrollments;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Http;
 using NSubstitute;
 
 namespace Alife.Tests.Unit.Events;
@@ -25,13 +26,14 @@ public class EventEnrollmentsControllerTests
                 CreateEnrollment(eventId, memberId),
                 CreateEnrollment(eventId, Guid.NewGuid())
             ]));
-        var controller = new EventEnrollmentsController(mediator, currentMemberAccessor);
+        var controller = new EventEnrollmentsController(mediator, currentMemberAccessor) { ControllerContext = new() { HttpContext = new DefaultHttpContext() } };
 
         var result = await controller.List(eventId, CancellationToken.None);
 
         var ok = Assert.IsType<OkObjectResult>(result);
         var enrollments = Assert.IsAssignableFrom<IEnumerable<EventEnrollmentDto>>(ok.Value).ToList();
         Assert.Equal(2, enrollments.Count);
+        Assert.Equal("private, no-store", controller.Response.Headers.CacheControl.ToString());
     }
 
     [Fact]
@@ -45,12 +47,13 @@ public class EventEnrollmentsControllerTests
         mediator
             .Send(Arg.Any<ListEventEnrollmentsQuery>(), Arg.Any<CancellationToken>())
             .Returns(AppResult<IReadOnlyList<EventEnrollmentDto>>.Forbidden("You must be an approved member to view enrollments."));
-        var controller = new EventEnrollmentsController(mediator, currentMemberAccessor);
+        var controller = new EventEnrollmentsController(mediator, currentMemberAccessor) { ControllerContext = new() { HttpContext = new DefaultHttpContext() } };
 
         var result = await controller.List(eventId, CancellationToken.None);
 
         var forbidden = Assert.IsType<ObjectResult>(result);
         Assert.Equal(403, forbidden.StatusCode);
+        Assert.Equal("private, no-store", controller.Response.Headers.CacheControl.ToString());
     }
 
     private static EventEnrollmentDto CreateEnrollment(Guid eventId, Guid memberId)

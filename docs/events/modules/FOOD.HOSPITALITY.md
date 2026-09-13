@@ -55,3 +55,7 @@ Menu, headcount, dietary/allergy summary, purchasing, kitchen shifts, food-safet
 ## Next useful vertical slice
 
 `dietary-menu-safety`: registration-derived dietary needs, an authorised minimum allergy summary, menu/servings, food-lead safety sign-off, and no health-record duplication.
+
+## Availability presentation — 2026-09-13
+
+Current catalogue status is `unavailable` (**尚未提供 / Not yet available**) at all preparation and direct entries. Catering remains deferred. Enabled/details-confirmed/readiness states are distinct; required unavailable food capability still blocks formal approval. Historical selections are retained.

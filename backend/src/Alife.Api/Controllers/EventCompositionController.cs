@@ -17,6 +17,14 @@ public sealed class EventCompositionController(
     IMediator mediator,
     ICurrentMemberAccessor currentMemberAccessor) : ControllerBase
 {
+    [HttpGet("event-capabilities")]
+    public IActionResult Capabilities()
+    {
+        this.ApplyPrivateNoStoreHeaders();
+        return currentMemberAccessor.GetCurrentMemberId().HasValue
+            ? Ok(Alife.Application.Events.Services.EventCapabilityAvailability.All) : Unauthorized();
+    }
+
     [HttpGet("event-archetypes")]
     public async Task<IActionResult> ListArchetypes(
         [FromQuery] Guid? groupId,

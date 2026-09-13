@@ -8,5 +8,6 @@ public sealed record CreateEventEnrollmentCommand(
     Guid EventId,
     Guid CurrentMemberId,
     string EnrollmentJson,
-    Guid? RequestedId)
+    Guid? RequestedId,
+    bool AcceptWaitlist = false)
     : IRequest<AppResult<EventEnrollmentDto>>;

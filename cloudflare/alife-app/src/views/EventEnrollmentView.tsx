@@ -20,7 +20,7 @@ const EventEnrollmentView = () => {
   const { language, me } = useAuthStore()
   const [event, setEvent] = useState<GroupEventRecord | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [error, setError] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
   const eventBasePath = buildScopedEventDetailPath(groupId, eventId, Boolean(routeGroupId))
   const eventTitle = event ? (language === 'zh' ? event.titleZh || event.titleEn : event.titleEn || event.titleZh) : ''
@@ -32,7 +32,7 @@ const EventEnrollmentView = () => {
 
     let cancelled = false
     setLoading(true)
-    setError('')
+    setError(false)
     setSuccessMessage('')
 
     eventService
@@ -43,7 +43,7 @@ const EventEnrollmentView = () => {
       })
       .catch(() => {
         if (!cancelled) {
-          setError(t('eventLoadFailed'))
+          setError(true)
         }
       })
       .finally(() => {
@@ -55,7 +55,7 @@ const EventEnrollmentView = () => {
     return () => {
       cancelled = true
     }
-  }, [eventId, groupId, t])
+  }, [eventId, groupId])
 
   if (!groupId || !eventId) {
     return <Navigate to="/" replace />
@@ -81,7 +81,7 @@ const EventEnrollmentView = () => {
 
       {!loading && error ? (
         <AppSectionCard dense>
-          <p className="text-sm text-rose-700">{error}</p>
+          <p className="text-sm text-rose-700">{t('eventLoadFailed')}</p>
         </AppSectionCard>
       ) : null}
 
