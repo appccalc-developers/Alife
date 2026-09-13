@@ -107,10 +107,18 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
       });
       const tile = code => page.locator(`[data-arrangement-tile="${code}"]`);
       const open = async code => { if (!await tile(code).isVisible()) await page.getByRole('button', { name: /Show all modules|显示所有模块/ }).click(); await tile(code).waitFor(); if (await tile(code).getAttribute('aria-expanded') !== 'true') await tile(code).click(); return page.locator(`[data-module-editor="${code}"]`); };
-      const work = async (root, en, cn) => { const button = root.getByRole('button', { name: t(en,cn), exact: true }); const heading = root.locator('[data-tool-panel]:not([hidden])').getByRole('heading', { name: t(en,cn), exact: true }); await button.or(heading).first().waitFor(); if (await button.isVisible() && await button.getAttribute('aria-expanded') !== 'true') await button.click(); };
+      const work = async (root, en, cn) => { const button = root.getByRole('button', { name: t(en,cn), exact: true }); const heading = root.locator('[data-tool-panel]:not([hidden])').getByRole('heading', { name: t(en,cn), exact: true }).first(); await button.or(heading).first().waitFor(); if (!await heading.isVisible()) await button.click({ force: true }); await heading.waitFor({ state: 'visible' }); };
 
       const settings = async code => { const root = await open(code); await work(root,'Settings and responsibilities','设置与职责'); return root; };
       const click = (en, cn) => page.getByRole('button', { name: t(en, cn), exact: true }).click();
+      const clickWhenEnabled = async button => {
+        await button.waitFor({ state: 'visible' });
+        for (let attempt = 0; attempt < 150; attempt += 1) {
+          if (await button.isEnabled()) { await button.click({ force: true }); return; }
+          await page.waitForTimeout(100);
+        }
+        throw new Error('Timed out waiting for arrangement recomposition to finish.');
+      };
       const waitForDetailsAutosave = async () => {
         const before = detailSaves.length;
         const response = page.waitForResponse(response => response.url().endsWith('/api/events/qa-event') && response.request().method() === 'PUT' && response.ok());
@@ -118,6 +126,13 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
         await response;
         assert.equal(detailSaves.length, before + 1);
         await page.getByRole('status').filter({ hasText: /Event details saved|活动资料已保存/ }).waitFor();
+      };
+      const waitForArrangementAutosave = async before => {
+        for (let attempt = 0; attempt < 200 && acceptedPlans.length <= before; attempt += 1) await page.waitForTimeout(100);
+        assert.ok(acceptedPlans.length > before, 'arrangement changes must be accepted automatically');
+        await page.waitForTimeout(1600);
+        await page.getByRole('status').filter({ hasText: /Event arrangements saved|活动安排已保存/ }).waitFor();
+        return acceptedPlans.at(-1);
       };
       const flow = () => page.getByRole('navigation', { name: t('Event preparation flow', '活动筹备流程'), exact: true });
       const stage = async name => { if (name.source === 'Details|活动资料') { if (!await tile('EVENT.DETAILS').isVisible()) await flow().getByRole('link', { name: /Arrangements|活动安排/ }).click(); await open('EVENT.DETAILS'); return }; await flow().getByRole('link', { name }).click(); };
@@ -235,6 +250,7 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
       await page.waitForFunction(() => !document.querySelector('[data-module-editor="PROGRAM.PRODUCTION"] [data-module-confirmation] input')?.disabled);
       await programmeConfirmed.check();
       await sessionForm.getByLabel('Session English title', { exact: true }).fill('Revised opening');
+      await page.waitForFunction(() => document.querySelector('[data-module-editor="PROGRAM.PRODUCTION"] [data-module-confirmation] input')?.checked === false);
       assert.equal(await programmeConfirmed.isChecked(), false, 'unsaved inline edits also reset section review');
       const venueModule = await open('PLACE.RESOURCE');
       await work(venueModule, 'Venue catalogue', '場地目錄');
@@ -255,39 +271,37 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
       await page.emulateMedia({ media: 'screen' }); await printPreview.getByRole('button', { name: t('Close preview', '关闭预览'), exact: true }).click();
 
       if (process.env.ALIFE_QA_TILES_ONLY === '1') { assert.deepEqual(errors, []); console.log(`PASS saved tiles ${language} ${width}: ordered candidates, module/RAM/programme/venue drafts, confirmations, print isolation`); await context.close(); continue; }
+      const firstSaveCount = acceptedPlans.length;
       const originallyRequired = savedPlan.moduleDecisions.filter(item => item.status === 'required');
       assert.equal(originallyRequired.length, 5);
       for (const item of originallyRequired) {
         await settings(item.moduleCode); const group = toolGroup(item);
         assert.equal(await group.getByRole('button', { name: t('Yes', '是'), exact: true }).getAttribute('aria-pressed'), 'true');
-        await group.getByRole('button', { name: t('No', '否'), exact: true }).click();
+        await clickWhenEnabled(group.getByRole('button', { name: t('No', '否'), exact: true }));
       }
-      await settings('COMMS.FOLLOWUP'); await toolGroup(savedPlan.moduleDecisions.find(item => item.moduleCode === 'COMMS.FOLLOWUP')).getByRole('button', { name: t('Yes', '是'), exact: true }).click();
-      await click('Review tool changes', '查看功能变更');
-      await Promise.all([page.waitForResponse(response => response.url().endsWith('/plan/accept') && response.ok()), click('Confirm event arrangements', '确认保存活动安排')]);
-      await page.getByRole('status').filter({ hasText: /Event arrangements saved|活动安排已保存/ }).waitFor();
-      assert.equal(Object.keys(acceptedPlans[0].body.composition.moduleConfirmations).length, 12);
-      assert.equal(acceptedPlans[0].body.arrangements, undefined, 'selection save must preserve operational rows'); assert.equal(arrangements.sessions[0].details.title.en, 'Revised opening');
-      assert.equal(acceptedPlans.length, 1); assert.ok(acceptedPlans[0].headers['if-match']); assert.ok(acceptedPlans[0].headers['idempotency-key']);
+      await settings('COMMS.FOLLOWUP'); await clickWhenEnabled(toolGroup(savedPlan.moduleDecisions.find(item => item.moduleCode === 'COMMS.FOLLOWUP')).getByRole('button', { name: t('Yes', '是'), exact: true }));
+      const firstAccepted = await waitForArrangementAutosave(firstSaveCount);
+      assert.equal(Object.keys(firstAccepted.body.composition.moduleConfirmations).length, 12);
+      assert.equal(firstAccepted.body.arrangements, undefined, 'selection save must preserve operational rows'); assert.equal(arrangements.sessions[0].details.title.en, 'Revised opening');
+      assert.ok(firstAccepted.headers['if-match']); assert.ok(firstAccepted.headers['idempotency-key']);
       for (const item of originallyRequired) {
-        assert.equal(acceptedPlans[0].body.composition.humanSelections.find(selection => selection.moduleCode === item.moduleCode).selected, false);
+        assert.equal(firstAccepted.body.composition.humanSelections.find(selection => selection.moduleCode === item.moduleCode).selected, false);
         await settings(item.moduleCode); assert.equal(await toolGroup(item).getByRole('button', { name: t('No', '否'), exact: true }).getAttribute('aria-pressed'), 'true');
       }
       await stage(/Details|活动资料/); assert.equal(await titleGroup().getByLabel('English', { exact: true }).inputValue(), 'Revised meal');
       assert.equal(detailSaves.length, 1); assert.ok(detailSaves[0].headers['if-match']); assert.equal(JSON.parse(detailSaves[0].body.eventDataJson).privateContact, 'preserved');
+      const secondSaveCount = acceptedPlans.length;
       await page.goto(`${base}/groups/qa-group/events/qa-event/workspace?flow=setup&stage=arrangements`);
       for (const item of originallyRequired) {
         await settings(item.moduleCode); const group = toolGroup(item);
         await group.waitFor();
         assert.equal(await group.getByRole('button', { name: t('No', '否'), exact: true }).getAttribute('aria-pressed'), 'true');
-        await group.getByRole('button', { name: t('Yes', '是'), exact: true }).click();
+        await clickWhenEnabled(group.getByRole('button', { name: t('Yes', '是'), exact: true }));
       }
       await checkLayout('optional-tools');
-      await click('Review tool changes', '查看功能变更');
-      await Promise.all([page.waitForResponse(response => response.url().endsWith('/plan/accept') && response.ok()), click('Confirm event arrangements', '确认保存活动安排')]);
-      await page.getByRole('status').filter({ hasText: /Event arrangements saved|活动安排已保存/ }).waitFor();
-      assert.equal(acceptedPlans.length, 2); assert.equal(acceptedPlans[1].body.arrangements, undefined); assert.equal(arrangements.serviceSlots[0].details.requiredCount, 3);
-      for (const item of originallyRequired) assert.equal(acceptedPlans[1].body.composition.humanSelections.find(selection => selection.moduleCode === item.moduleCode).selected, true);
+      const secondAccepted = await waitForArrangementAutosave(secondSaveCount);
+      assert.equal(secondAccepted.body.arrangements, undefined); assert.equal(arrangements.serviceSlots[0].details.requiredCount, 3);
+      for (const item of originallyRequired) assert.equal(secondAccepted.body.composition.humanSelections.find(selection => selection.moduleCode === item.moduleCode).selected, true);
       assert.equal(await page.getByRole('button', { name: t('Pending', '待确认'), exact: true }).count(), 0);
       assert.equal(await team.getByRole('heading', { name: /RAM author|RAM 填表人|Roster coordinator|同工排班协调人/ }).count(), 0);
       await settings('SAFETY.RAM'); assert.equal(await ram.getByRole('heading', { name: t('RAM author', 'RAM 填表人'), exact: true }).count(), 1);
@@ -300,17 +314,20 @@ const proposal = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', baselineETag
       assert.equal(roleInvites[0].roleRequirementKey, 'SERVICE.ROSTER:roster.coordinator');
       await settings('SAFETY.RAM'); const confirmed = ram.getByRole('checkbox', { name: t('Details confirmed','填写已确认'), exact: true });
       assert.equal(await confirmed.isChecked(), false);
-      await confirmed.check();
-      await click('Confirm event arrangements', '确认保存活动安排');
-      await page.getByRole('status').filter({ hasText: /Event arrangements saved|活动安排已保存/ }).waitFor();
+      const confirmationSaveCount = acceptedPlans.length;
+      await confirmed.check({ force: true });
+      await waitForArrangementAutosave(confirmationSaveCount);
       assert.equal(acceptedPlans.at(-1).body.composition.moduleConfirmations['SAFETY.RAM'], true);
       await page.reload(); await settings('SAFETY.RAM'); await confirmed.waitFor(); assert.equal(await confirmed.isChecked(), true);
-      await ram.getByRole('button', { name: t('No', '否'), exact: true }).click();
+      await clickWhenEnabled(ram.getByRole('button', { name: t('No', '否'), exact: true }));
       assert.equal(await confirmed.isChecked(), false);
       assert.equal(await ram.getByRole('heading', { name: t('RAM author', 'RAM 填表人'), exact: true }).count(), 0);
-      await ram.getByRole('button', { name: t('Yes', '是'), exact: true }).click();
-      await confirmed.check();
-      await click('Confirm event arrangements', '确认保存活动安排'); await stage(/Create|确认创建/);
+      await clickWhenEnabled(ram.getByRole('button', { name: t('Yes', '是'), exact: true }));
+      for (let attempt = 0; attempt < 150 && !await confirmed.isEnabled(); attempt += 1) await page.waitForTimeout(100);
+      assert.equal(await confirmed.isEnabled(), true);
+      assert.equal(await confirmed.isChecked(), false);
+      await confirmed.check({ force: true });
+      await stage(/Create|确认创建/);
       await page.getByRole('heading', { name: t('Module confirmation and responsible roles', '模块确认与负责人'), exact: true }).waitFor();
       await page.getByRole('region', { name: t('Roster coordinator', '同工排班协调人'), exact: true }).getByText('QA Leader', { exact: true }).waitFor();
       await checkLayout('arrangement-confirmation-review');

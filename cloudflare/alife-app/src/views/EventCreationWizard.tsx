@@ -131,7 +131,7 @@ function CreationFlow({ groupId, memberId }: { groupId: string; memberId: string
     setBusy(true)
     setError('')
     try {
-      const created = await eventService.createGroupEvent(groupId, creationEvent(draft, type, me?.displayName || ''), undefined, undefined, null, {
+      const created = await eventService.createGroupEvent(groupId, creationEvent(draft, type, me?.displayName || ''), {
         composition, proposalHash: preview.proposal.proposalHash, idempotencyKey, seriesSetup: creationSeries(draft, archetype),
         arrangements: creationArrangements(draft, type, preview.proposal),
         initialRamDraft: ramTouched ? ramDraft : undefined,
@@ -155,7 +155,7 @@ function CreationFlow({ groupId, memberId }: { groupId: string; memberId: string
   const previewStatus = <div aria-live="polite" className="rounded-xl border border-[#2f4b42]/15 bg-white p-3 text-sm">{currentPreview ? (zh ? '已根据当前安排更新管理功能。' : 'Tools updated for the current arrangements.') : previewState === 'error' ? <><p role="alert">{previewError}</p><AppActionButton className="mt-2" onClick={() => setPreviewAttempt(value => value + 1)}>{zh ? '重新计算' : 'Retry'}</AppActionButton></> : (zh ? '正在根据活动安排更新功能，请稍候……' : 'Updating tools from event arrangements…')}</div>
 
 
-  return <AppPageShell title={zh ? '建立活动' : 'Create event'} context={zh ? '小组生活 / 活动' : 'Group Life / Events'}>
+  return <AppPageShell title={zh ? '活动工作区 · 建立活动' : 'Event Workspace · Create event'} context={zh ? '小组生活 / 活动' : 'Group Life / Events'}>
     <Link className="text-sm font-semibold text-[#176b5a]" to={`/groups/${encodeURIComponent(groupId)}?section=events`}>{zh ? '← 返回活动' : '← Back to events'}</Link>
     <EventFlowRail current={step} zh={zh} disabled={busy || aiBusy || (step === 3 && !currentPreview)} onSelect={value => { if (value === 4 && step === 3) { void next(); return }; setError(''); setStep(value as Step) }} />
     {catalogue === 'loading' ? <p role="status">{zh ? '正在载入活动模板……' : 'Loading event templates…'}</p> : null}
@@ -181,6 +181,6 @@ export default function EventCreationWizard() {
   const { groupId: routeGroupId } = useParams<{ groupId?: string }>()
   const [searchParams] = useSearchParams()
   const groupId = routeGroupId || searchParams.get('groupId') || CurrentGroup?.id || ''
-  if (!groupId || !me?.id || !canManageGroup(groupId)) return <AppPageShell title={language === 'zh' ? '建立活动' : 'Create event'}><AppEmptyState title={language === 'zh' ? '需要所属小组的管理权限' : 'Owning-group management permission required'} description={language === 'zh' ? '请登录并选择你可以管理的小组。' : 'Sign in and select a group you can manage.'} /></AppPageShell>
+  if (!groupId || !me?.id || !canManageGroup(groupId)) return <AppPageShell title={language === 'zh' ? '活动工作区 · 建立活动' : 'Event Workspace · Create event'}><AppEmptyState title={language === 'zh' ? '需要所属小组的管理权限' : 'Owning-group management permission required'} description={language === 'zh' ? '请登录并选择你可以管理的小组。' : 'Sign in and select a group you can manage.'} /></AppPageShell>
   return <CreationFlow key={`${me.id}:${groupId}`} groupId={groupId} memberId={me.id} />
 }

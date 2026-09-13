@@ -1,38 +1,19 @@
 import type { RamDraft } from '../types/ramGovernance'
-import { eventAiContext, publicEventAiFacts } from '../../../shared/eventAiPrivacy'
-import type { ExtractEventFromChatResponse, EventSessionState, EventDto, EventRamAssessmentRecord, EventRamDraft, GroupEventRecord } from '../types/event'
-import type { AiSessionAppContext } from '../types/aiSession'
-import type { AiSessionAttachment } from '../types/aiSession'
+import type { EventDto, EventRamAssessmentRecord, EventRamDraft, GroupEventRecord } from '../types/event'
 import { groupEventsQueryKey } from '../db/collections/groupCollection'
 import { conditionalGet, removeCachedRecord } from '../db/httpCache'
 import { queryClient } from '../db/queryClient'
-import type { AiContentContext } from '../utils/aiContentContext'
 import type { EventPlanComposeRequest, EventSeriesSetup } from '../types/eventComposition'
 import type { PreparationSeriesUpdate } from '../utils/eventSavedPreparation'
 import type { EventCreationArrangementsRequest } from '../utils/eventCreationArrangements'
 import { http } from './http'
-import { createAiSessionService } from './aiSessionService'
 import { invalidateChurchLifeQueries } from './churchLifeService'
-
-const eventSessionService = createAiSessionService<EventDto, EventDto['legacySummary']>('/api/events/session')
 
 export const invalidateGroupEventsCache = async (groupId: string) => {
   const queryKey = groupEventsQueryKey(groupId)
   await removeCachedRecord(queryKey)
   await queryClient.invalidateQueries({ queryKey })
   await invalidateChurchLifeQueries()
-}
-
-const closeEventSession = async (sessionId?: string) => {
-  if (!sessionId) {
-    return
-  }
-
-  try {
-    await eventSessionService.close(sessionId)
-  } catch (error) {
-    console.warn('Failed to close event planning session after API success.', error)
-  }
 }
 
 const createPersistencePayload = (eventDto: EventDto) => {
@@ -52,53 +33,6 @@ export type EventCreationPlan = {
 }
 
 export const eventService = {
-  startSession: async (
-    sessionId: string,
-    eventDto: EventDto,
-    appContext: AiSessionAppContext,
-  ): Promise<void> => {
-    await eventSessionService.start(sessionId, {
-      appContext: eventAiContext(appContext),
-      draft: publicEventAiFacts(eventDto),
-    })
-  },
-
-  extractFromChat: async (
-    message: string,
-    sessionId: string,
-    inputMode: 'text' | 'voice' = 'text',
-    appContext?: AiSessionAppContext,
-    attachments: AiSessionAttachment[] = [],
-  ): Promise<ExtractEventFromChatResponse> => {
-    const response = await eventSessionService.sendMessage(sessionId, message, { inputMode, appContext: eventAiContext(appContext), attachments })
-    return {
-      responseMode: response.responseMode,
-      sessionId: response.sessionId,
-      markdown: response.markdown,
-      result: response.result,
-      context: response.context ?? null,
-      legacySummary: response.context ?? null,
-    }
-  },
-
-  getSessionState: async (sessionId: string): Promise<EventSessionState> => {
-    const state = await eventSessionService.getState(sessionId)
-    return {
-      sessionId: state.sessionId,
-      eventDraft: state.draft,
-      legacySummary: state.context ?? null,
-      chatHistory: state.chatHistory,
-      updatedAt: state.updatedAt,
-    }
-  },
-
-  createSessionStream: (sessionId: string): EventSource =>
-    eventSessionService.createStream(sessionId),
-
-  closeSession: async (sessionId: string): Promise<void> => {
-    await eventSessionService.close(sessionId)
-  },
-
   getGroupEvents: async (groupId: string, viewerId?: string): Promise<GroupEventRecord[]> => {
     const baseQueryKey = groupEventsQueryKey(groupId)
     const queryKey = viewerId ? [...baseQueryKey, 'viewer', viewerId] : baseQueryKey
@@ -128,9 +62,6 @@ export const eventService = {
   createGroupEvent: async (
     groupId: string,
     eventDto: EventDto,
-    sessionId?: string,
-    aiContext?: AiContentContext,
-    workflowTemplateCode?: string | null,
     creationPlan?: EventCreationPlan & { initialRamDraft?: RamDraft },
   ): Promise<GroupEventRecord> => {
     const titleEn = eventDto.title.en || eventDto.title.zh || ''
@@ -144,27 +75,19 @@ export const eventService = {
       eventDataJson,
       ramDataJson: creationPlan?.initialRamDraft ? JSON.stringify(creationPlan.initialRamDraft) : ramDataJson,
       contactProfileIds: eventDto.contactProfileIds ?? [],
-      workflowTemplateCode: workflowTemplateCode || null,
+      workflowTemplateCode: null,
       composition: creationPlan?.composition ?? null,
       compositionProposalHash: creationPlan?.proposalHash ?? null,
       seriesSetup: creationPlan?.seriesSetup ?? null,
       ...(creationPlan?.arrangements ? { arrangements: creationPlan.arrangements } : {}),
-      missionStatements: aiContext?.missionStatements ?? [],
-      eventContext: aiContext?.eventContext ?? { eventDataJson, eventData: eventDto },
     }, creationPlan ? { headers: { 'Idempotency-Key': creationPlan.idempotencyKey } } : undefined)
-    try {
-      await invalidateGroupEventsCache(groupId)
-    } finally {
-      await closeEventSession(sessionId)
-    }
+    await invalidateGroupEventsCache(groupId)
     return data
   },
 
   updateGroupEvent: async (
     eventId: string,
     eventDto: EventDto,
-    sessionId?: string,
-    aiContext?: AiContentContext,
     expectedUpdatedUtc?: string,
     seriesUpdate?: PreparationSeriesUpdate,
   ): Promise<GroupEventRecord> => {
@@ -178,15 +101,9 @@ export const eventService = {
       endDate: eventDto.endDate,
       eventDataJson,
       contactProfileIds: eventDto.contactProfileIds ?? [],
-      missionStatements: aiContext?.missionStatements ?? [],
-      eventContext: aiContext?.eventContext ?? { eventDataJson, eventData: eventDto },
       ...(seriesUpdate ? { seriesUpdate } : {}),
     }, expectedUpdatedUtc ? { headers: { 'If-Match': `"${expectedUpdatedUtc}"` } } : undefined)
-    try {
-      await invalidateGroupEventsCache(data.groupId)
-    } finally {
-      await closeEventSession(sessionId)
-    }
+    await invalidateGroupEventsCache(data.groupId)
     return data
   },
 

@@ -24,7 +24,6 @@ import { contactService } from '../services/contactService'
 import type { ContactProfileDto } from '../types/contact'
 import { getEventLifecycle, readEventLifecycleData } from '../utils/eventLifecycle'
 import { buildScopedEventDetailPath } from '../utils/eventRoutes'
-import EventWorkflowPanel from '../components/events/EventWorkflowPanel'
 import useConfirmation from '../hooks/useConfirmation'
 
 type EventDetailSection = 'notice' | 'workflow' | 'enrollments' | 'memories'
@@ -414,9 +413,7 @@ const EventDetailView = () => {
       : lifecycle === 'upcoming'
         ? (language === 'zh' ? '即将举行' : 'Upcoming')
         : ''
-  const sectionContext = activeSection === 'workflow'
-    ? (language === 'zh' ? '流程与产出物' : 'Workflow & outputs')
-    : activeSection === 'enrollments'
+  const sectionContext = activeSection === 'enrollments'
       ? (language === 'zh' ? '报名' : 'Enrollment')
       : activeSection === 'memories'
         ? (language === 'zh' ? '回顾' : 'Memories')
@@ -434,6 +431,10 @@ const EventDetailView = () => {
 
   if (!groupId || !eventId) {
     return <Navigate to="/" replace />
+  }
+
+  if (activeSection === 'workflow') {
+    return <Navigate to={`${eventBasePath}/workspace?tab=workflow`} replace />
   }
 
   if (
@@ -462,11 +463,9 @@ const EventDetailView = () => {
       ) : undefined}
       overflowLabel={language === 'zh' ? '更多操作' : 'More actions'}
       overflowActions={event ? [{
-        label: activeSection === 'workflow'
-          ? (language === 'zh' ? '活动通知' : 'Event notice')
-          : (language === 'zh' ? '流程与产出物' : 'Workflow & outputs'),
+        label: language === 'zh' ? '流程与产出物' : 'Workflow & outputs',
         icon: <Workflow className="h-4 w-4" />,
-        to: `${eventBasePath}${activeSection === 'workflow' ? '' : '?section=workflow'}`,
+        to: `${eventBasePath}/workspace?tab=workflow`,
       }, ...((canManage || canAuditRam) ? [{
         label: language === 'zh' ? (canAuditRam ? '检查 / 批准 RAM' : '活动工作区') : (canAuditRam ? 'Review / approve RAM' : 'Event workspace'),
         icon: <Pencil className="h-4 w-4" />,
@@ -492,9 +491,7 @@ const EventDetailView = () => {
 
       {!loading && !error && event && eventDto ? (
         <>
-          {activeSection === 'workflow' ? (
-            <EventWorkflowPanel eventId={eventId} groupId={groupId} ramPath={`${eventBasePath}/workspace/ram`} language={language} canManage={canEditPlan} />
-          ) : activeSection === 'enrollments' ? (
+          {activeSection === 'enrollments' ? (
             <EnrollmentPanel
               event={event}
               eventDto={eventDto}

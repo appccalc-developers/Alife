@@ -524,7 +524,10 @@ public sealed class EventCompositionEngine : IEventCompositionEngine
                 Text("Overview", "總覽"), 10, overallReadiness, [], []),
             new(
                 "workspace.governance", null, "tab", "governance", null,
-                Text("Governance", "審批治理"), 15, overallReadiness, [], [])
+                Text("Governance", "審批治理"), 15, overallReadiness, [], []),
+            new(
+                "workspace.workflow", null, "tab", "workflow", null,
+                Text("Workflow & outputs", "工作流與產出物"), 18, overallReadiness, [], [])
         };
 
         foreach (var decision in decisions.Where(IsActive))

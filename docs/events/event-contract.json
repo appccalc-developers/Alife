@@ -3298,6 +3298,15 @@
       "componentContract": "EventPackageGovernanceWorkspace"
     },
     {
+      "surfaceKey": "workspace.workflow",
+      "moduleCode": null,
+      "presentation": "tab",
+      "sectionKey": "workflow",
+      "pathSegment": null,
+      "order": 18,
+      "componentContract": "EventWorkflowWorkspace"
+    },
+    {
       "surfaceKey": "team.work",
       "moduleCode": "TEAM.WORK",
       "presentation": "tab",

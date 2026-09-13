@@ -266,8 +266,7 @@ Routes:
 |---|---|
 | `GET /api/ai/status` | AI feature status |
 | `POST /api/ai/translate-text-fields` | Bilingual text field translation helper |
-| `POST /api/events/extract` | Event extraction helper |
-| `/api/events/session/*` | Event planning session |
+| `/api/events/details-session/*` | Event Details Assistant session |
 | `/api/enrollments/session/*` | Enrollment session |
 | `/api/reviews/session/*` | Review session |
 
@@ -277,7 +276,7 @@ Durable Object classes:
 - `EnrollmentSession`
 - `ReviewSession`
 
-Durable Objects store temporary conversation and draft state. Final event, enrollment, and review records are committed by the frontend to the backend API after human review.
+Durable Objects store temporary conversation and draft state. The configured `EventPlanningSession` class name remains as a thin adapter for Details Assistant state; the retired Event planning/extraction routes are not mounted. Final event, enrollment, and review records are committed by the frontend to the backend API after human review.
 
 ## Configuration
 

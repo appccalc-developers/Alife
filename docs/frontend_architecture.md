@@ -96,8 +96,9 @@ React StrictMode
 | `PageEditorView` | Page metadata and section editor |
 | `SermonsView` | Sermon listing |
 | `SermonVideoView` | Sermon playback/detail |
-| `EventDetailView` | Event detail |
-| `EventCreatorView` | Event planning and creation |
+| `EventDetailView` | Member-facing Event detail, enrollment, review, memories, and permitted personal actions |
+| `EventCreationWizard` | Event Workspace creation mode before an Event ID exists |
+| `EventWorkspaceView` | Saved Event management, including Workflow & outputs |
 | `EventEnrollmentView` | Enrollment workflow |
 | `EventReviewView` | Review/reflection workflow |
 | `ProfileView` | Current member profile and Passkey add/view/revoke controls |
@@ -142,7 +143,6 @@ Important services:
 - `imageWorkerApi`
 - `cloudflareImageService`
 - `aiSessionService`
-- `eventPlanningSessionService`
 - `enrollmentSessionService`
 - `reviewSessionService`
 - `aiTranslationService`
@@ -289,11 +289,11 @@ Event-related flows include:
 
 AI session services communicate with the speed-layer Durable Object routes:
 
-- `/api/events/session/*`
+- `/api/events/details-session/*`
 - `/api/enrollments/session/*`
 - `/api/reviews/session/*`
 
-The AI session should produce drafts and structured suggestions. The user must review and commit final data through backend REST APIs.
+The Event Details Assistant and enrollment/review assistants produce drafts and structured suggestions. The user must review and commit final data through backend REST APIs. Event creation and management use Event Workspace; the retired `/api/events/session/*` and `/api/events/extract` routes are not frontend contracts.
 
 Do not automatically publish or persist AI-generated content without user confirmation.
 

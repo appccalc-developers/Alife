@@ -7,16 +7,6 @@ import { handleRamGuidance } from './ramGuidance'
 const eventRouter = new Router()
 eventRouter.post('/api/events/ram-guidance', (request, env) => handleRamGuidance(request, env))
 
-// Route extract endpoint
-eventRouter.post('/api/events/extract', async (req, env) => {
-  return planner.fetch(req, env)
-})
-
-// Route event planning sessions
-eventRouter.all('/api/events/session/*', async (req, env) => {
-  return planner.fetch(req, env)
-})
-
 eventRouter.all('/api/events/details-session/*', async (req, env) => planner.fetch(req, env))
 
 // Route enrollment sessions

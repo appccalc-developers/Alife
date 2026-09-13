@@ -143,7 +143,7 @@ export default function EventSavedPreparationSteps({ eventId, groupId, eventBase
       if (!required) next.registrationDeadline = startDate
       else if (!original.maxCapacity) next.registrationDeadline = new Date(Date.parse(startDate) - 86400000).toISOString()
       const seriesDetails = data?.series && seriesBase !== seriesSignature(draft) ? creationSeries(draft, { ...archetype, isSeries: true }) : null
-      const result = await eventService.updateGroupEvent(eventId, next, undefined, undefined, record.updatedUtc,
+      const result = await eventService.updateGroupEvent(eventId, next, record.updatedUtc,
         seriesDetails && data?.series ? { eTag: data.series.eTag, details: { ...seriesDetails, exceptionDates: data.series.exceptionDates, rollingOccurrenceWeeks: data.series.rollingOccurrenceWeeks } } : undefined)
       if (live.current) {
         setRecord(result); setDetailsBase(detailSignature(draft)); setSeriesBase(seriesSignature(draft))
