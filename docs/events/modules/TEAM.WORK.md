@@ -36,7 +36,7 @@ Owning and contributing teams, accepted Event roles, task/dependency/blocker sta
 
 ### Workflow contribution
 
-`event.prepare`, `event.deliver`, `event.close`, compiled into the existing Event workflow engine.
+Preparation, delivery and closure are handled by existing domain services. The retired generic Workflow Run/Step/Artifact engine is not restored. Current responsibilities project into Personal Center; see [Event duties](../EVENT-DUTIES.md).
 
 ### Readiness
 
@@ -54,15 +54,15 @@ The [continuous preparation flow](../EVENT-SETUP-FLOW.md) enters team/tool setti
 
 ## Current implementation
 
-Current. The worktree contains Event team members, accepted role assignments, tasks, dependencies, blockers, server authorisation, task ETags, operational readiness, `EventTeamPanel`, plus the existing Workflow Run/Step/Artifact flow.
+Current. Event team invitations, accepted roles, dependencies, blockers and deadlines retain their domain APIs. Ordinary tasks now have a named independent reviewer, approval status and immutable submission/action rounds; ETags, idempotency, current membership and specialist-source guards enforce handoff. Personal Center discovers live duties without notification records and opens restricted task details. Approved configuration remains frozen.
 
 ## Open contract gaps
 
-Handoff audit, reusable task templates, invitation notifications, and complete approval/artifact UX remain incomplete.
+Reusable task templates and a general artifact repository remain outside this slice. In-site invitation discovery, ordinary task approval history and current duty handoffs are implemented; external delivery is not included.
 
 ## Next useful vertical slice
 
-`team-approval-handoff`: add workflow/task approval evidence, handoff history, invitation notification, and a non-destructive notification retry path.
+Apply the additive task-approval migration to an approved environment, then exercise multi-account business handoffs against that database. See [Event duties](../EVENT-DUTIES.md) for the complete current contract.
 
 
 In the integrated Arrangements flow, Team primarily shows cross-module tasks; collaboration membership and historical assignments are collapsed. Module role invitations appear in their owning modules; the global accountable owner remains outside optional tools, using its existing requirement key even if TEAM.WORK is disabled in preparation. Review summarizes responsible people and personal acceptance states. Section confirmation never accepts roles on someone’s behalf. See [section review](../CREATION-ARRANGEMENTS.md#section-confirmation-and-module-roles).

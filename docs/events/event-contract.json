@@ -5113,6 +5113,69 @@
       "cache": "private, no-store",
       "mutation": true,
       "ifMatch": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/notifications/current",
+      "request": "current authenticated account",
+      "response": "existing CurrentNotificationTaskDto[] plus read-only Event business duties",
+      "auth": "current recipient and source-specific current authority",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{id}/duties/{sourceType}/{sourceId}",
+      "request": "taskKey identifying actor, action and current source version",
+      "response": "restricted EventDuty or explicit 409 unavailable/stale",
+      "auth": "source belongs to Event and current viewer is the responsible actor",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{id}/tasks/{taskId}",
+      "request": "none",
+      "response": "EventTaskDetailDto with immutable history, actor capabilities and manager-only eligible participants",
+      "auth": "eligible current assignee/reviewer or owner",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/tasks/{taskId}/submit-completion",
+      "request": "If-Match; Idempotency-Key; reason (required for return)",
+      "response": "EventTaskDetailDto with current task, immutable submission/action history and capabilities",
+      "auth": "current approved Event participant; executor submits/withdraws; named independent reviewer approves/returns; no specialist-source tasks",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/tasks/{taskId}/withdraw-completion",
+      "request": "If-Match; Idempotency-Key; reason (required for return)",
+      "response": "EventTaskDetailDto with current task, immutable submission/action history and capabilities",
+      "auth": "current approved Event participant; executor submits/withdraws; named independent reviewer approves/returns; no specialist-source tasks",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/tasks/{taskId}/approve",
+      "request": "If-Match; Idempotency-Key; reason (required for return)",
+      "response": "EventTaskDetailDto with current task, immutable submission/action history and capabilities",
+      "auth": "current approved Event participant; executor submits/withdraws; named independent reviewer approves/returns; no specialist-source tasks",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{id}/tasks/{taskId}/return",
+      "request": "If-Match; Idempotency-Key; reason (required for return)",
+      "response": "EventTaskDetailDto with current task, immutable submission/action history and capabilities",
+      "auth": "current approved Event participant; executor submits/withdraws; named independent reviewer approves/returns; no specialist-source tasks",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": true
     }
   ],
   "acceptanceScenarios": [
@@ -5589,5 +5652,97 @@
     "mutations": "If-Match, unique Event/role index, concurrency token and audit; group edits renew every occurrence roster ETag; assignment checks group concurrency; frozen preparation rejects configuration",
     "compatibility": "legacy assignments/history retained; candidate groups are never inferred from group membership or prior assignments; new assignment/replacement requires explicit group setup",
     "rotation": "ordered manual list only; no automatic scheduling"
+  },
+  "eventDuties": {
+    "documentation": "EVENT-DUTIES.md",
+    "projection": "readOnlyBusinessState",
+    "notificationHistoryRequired": false,
+    "completionMode": "workflow",
+    "deduplication": [
+      "sourceType",
+      "sourceId",
+      "actionType",
+      "sourceVersion",
+      "recipientMemberId"
+    ],
+    "additionalFields": [
+      "taskKey",
+      "sourceVersion",
+      "occurrenceId",
+      "dueUtc",
+      "actionLabel"
+    ],
+    "sourceTypes": [
+      "teamInvitation",
+      "roleInvitation",
+      "rosterAssignment",
+      "rosterCoordination",
+      "eventTask",
+      "ramAssessment",
+      "ramRevision",
+      "eventPackage",
+      "packageCondition",
+      "sponsorship",
+      "preparationReopen",
+      "eventNextStep",
+      "execution"
+    ],
+    "ownerMaximumPrimaryStepsPerEvent": 1,
+    "ownerProgressionOrder": [
+      "repairInvalidOrReturned",
+      "completePreparationAndResponsibilities",
+      "generateAndSubmit",
+      "publish",
+      "openRegistration",
+      "confirmExecution"
+    ],
+    "respectManualLifecycleClosure": true,
+    "afterEvent": "retain actionable tasks and approvals; stop publication, registration opening, onsite and execution reminders",
+    "cache": "private, no-store; Vary Cookie and Authorization; account-specific client memory keys",
+    "refresh": {
+      "afterOwnEventMutation": "immediate",
+      "otherActors": "focus and 60-second polling",
+      "languageChange": "no refetch"
+    },
+    "list": {
+      "homeMaximum": 3,
+      "pageSize": 20,
+      "filters": [
+        "event",
+        "sourceType"
+      ],
+      "sort": [
+        "due",
+        "newest",
+        "oldest"
+      ]
+    },
+    "summaryExclusions": [
+      "ramHazards",
+      "childData",
+      "contacts",
+      "conditionEvidence"
+    ],
+    "ordinaryTaskApproval": {
+      "states": [
+        "notRequired",
+        "notSubmitted",
+        "pendingReview",
+        "approved",
+        "returned"
+      ],
+      "progressEnumChanged": false,
+      "reviewer": "owner by default when independent, or approved owning-group member with accepted Event team/role",
+      "selfApproval": false,
+      "submission": "immutable round snapshot and append-only actions",
+      "concurrency": [
+        "If-Match",
+        "Idempotency-Key",
+        "serializable transaction"
+      ],
+      "configuration": "owner only, preparation freeze applies; clearReviewer explicitly removes assignment",
+      "specialistTasks": "sourceType/sourceId/sourceVersion; domain actions only",
+      "legacy": "preserve Done and existing history; backfill source only from condition FK or explicit occurrence reviewTaskId"
+    }
   }
 }

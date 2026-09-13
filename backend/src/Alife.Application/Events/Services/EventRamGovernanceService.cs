@@ -32,12 +32,14 @@ public sealed class EventRamGovernanceService(IAlifeDbContext db, IGroupAuthoriz
             await AdminPlatformRoleHelpers.HasPermissionAsync(db,actor,AdminPermissionCatalog.AuditEvents,ct);
     }
     private async Task<bool> CanEdit(GroupEvent e,Guid actor,CancellationToken ct) =>
-        await EventCompositionPersistence.CanManageEventAsync(db,authorization,e,actor,ct) ||
+        await authorization.IsApprovedMemberAsync(e.GroupId,actor,ct) &&
+        (await EventCompositionPersistence.CanManageEventAsync(db,authorization,e,actor,ct) ||
         await db.EventRoleAssignments.AsNoTracking().AnyAsync(x=>x.EventId==e.Id && x.MemberId==actor &&
             x.Status==EventRoleAssignmentStatus.Accepted && x.EndedUtc==null &&
-            (x.RoleRequirementKey=="ram.author" || x.RoleRequirementKey.EndsWith(":ram.author")),ct);
+            (x.RoleRequirementKey=="ram.author" || x.RoleRequirementKey.EndsWith(":ram.author")),ct));
     private Task<bool> AcceptedDuty(Guid eventId,Guid actor,CancellationToken ct) => db.EventRoleAssignments.AsNoTracking()
-        .AnyAsync(x => x.EventId == eventId && x.MemberId == actor && x.Status == EventRoleAssignmentStatus.Accepted && x.EndedUtc == null,ct);
+        .AnyAsync(x => x.EventId == eventId && x.MemberId == actor && x.Status == EventRoleAssignmentStatus.Accepted && x.EndedUtc == null &&
+            db.GroupMemberships.Any(m => m.MemberId == actor && m.GroupId == x.Event.GroupId && m.Status == MembershipStatus.Approved),ct);
     public async Task<bool> CanReadAsync(GroupEvent e, Guid actor, CancellationToken ct)
     {
         if (await CanEdit(e,actor,ct) || await CanAuditAsync(e,actor,ct)) return true;
@@ -148,6 +150,8 @@ public sealed class EventRamGovernanceService(IAlifeDbContext db, IGroupAuthoriz
         ram.SchemaVersion=2; ram.AuthorMemberId=actor; ram.PolicyVersionId=policy?.Id;
         ram.RamDataJson=RamEvaluator.Serialize(evaluation.Draft); ram.ResidualLevel=evaluation.ResidualLevel;
         Invalidate(ram,wasReviewed?"ReviewRequired":"Draft");
+        var authorTasks = await db.EventTasks.Where(x => x.EventId == eventId && x.SourceType == "ramAssessment" && x.SourceId == eventId && x.Status != EventTaskStatus.Done && x.Status != EventTaskStatus.Cancelled).ToListAsync(ct);
+        foreach(var task in authorTasks) { task.AssignedMemberId = actor; task.UpdatedUtc = DateTime.UtcNow; task.ConcurrencyToken = Guid.NewGuid(); }
         e.UpdatedUtc=DateTime.UtcNow;
         if(e.PublicationStatus==EventPublicationStatus.LegacyImplicit)
         {
@@ -227,7 +231,7 @@ public sealed class EventRamGovernanceService(IAlifeDbContext db, IGroupAuthoriz
             else if(action is "approve" or "return")
             {
                 if(!audit) return AppResult<EventRamAssessmentDto>.Forbidden("A safety reviewer in this church is required.");
-                if(actor==revision.AuthorMemberId || actor==revision.OnsiteMemberId || actor==ram.SubmittedByMemberId) return AppResult<EventRamAssessmentDto>.Forbidden("Authors, submitters and on-site signers cannot review their own version.");
+                if(!EventDutyAccess.IsIndependentRamReviewer(actor,revision.AuthorMemberId,revision.OnsiteMemberId,ram.SubmittedByMemberId)) return AppResult<EventRamAssessmentDto>.Forbidden("Authors, submitters and on-site signers cannot review their own version.");
                 if(ram.Status!=EventRamStatus.AwaitingReview || ram.Validity!="AwaitingReview") return AppResult<EventRamAssessmentDto>.Conflict("Only the current submitted RAM version can be reviewed.");
                 if(action=="return")
                 {
@@ -245,11 +249,17 @@ public sealed class EventRamGovernanceService(IAlifeDbContext db, IGroupAuthoriz
             else return AppResult<EventRamAssessmentDto>.Validation("Unknown RAM action.");
         }
         db.EventRamActions.Add(new(){Id=Guid.NewGuid(),EventId=eventId,RevisionId=revision!.Id,ActorMemberId=actor,Action=action,Reason=request.Reason ?? "",HealthSafetySigned=request.HealthSafetySigned,IdempotencyKey=key,RequestHash=hash,CreatedUtc=DateTime.UtcNow});
+        if(action is "request-confirmation" or "submit" or "approve" or "request-review" or "return")
+        {
+            var linked = await db.EventTasks.Where(x => x.EventId == eventId && x.SourceType == "ramAssessment" && x.SourceId == eventId && x.Status != EventTaskStatus.Done && x.Status != EventTaskStatus.Cancelled).ToListAsync(ct);
+            foreach(var task in linked) { task.Status = action is "request-review" or "return" ? EventTaskStatus.Cancelled : EventTaskStatus.Done; task.CompletedUtc = task.Status == EventTaskStatus.Done ? DateTime.UtcNow : null; task.UpdatedUtc = DateTime.UtcNow; task.ConcurrencyToken = Guid.NewGuid(); }
+        }
         if(action is "request-review" or "return")
         {
             var policy=await db.EventRamPolicyVersions.AsNoTracking().FirstOrDefaultAsync(x=>x.Id==ram.PolicyVersionId,ct);
             var days=policy is null?7:PolicyDto(policy).Data.ReviewRules.ReviewReminderDays;
-            db.EventTasks.Add(new(){Id=Guid.NewGuid(),EventId=eventId,AssignedMemberId=ram.AuthorMemberId??e.AccountableOwnerMemberId,
+            db.EventTasks.Add(new(){Id=Guid.NewGuid(),EventId=eventId,AssignedMemberId=ram.AuthorMemberId??EventDutyAccess.OwnerId(e),
+                SourceType="ramAssessment",SourceId=eventId,SourceVersion=revision.Id.ToString("N"),
                 TitleEn="Review and resubmit the RAM",TitleZh="复查并重新提交 RAM",DescriptionEn="Open the restricted RAM workspace to review the requested changes.",DescriptionZh="请进入受限 RAM 工作区查看所需修改。",
                 IsRequired=true,IsRestricted=true,DueUtc=DateTime.UtcNow.AddDays(days),CreatedUtc=DateTime.UtcNow,UpdatedUtc=DateTime.UtcNow});
         }

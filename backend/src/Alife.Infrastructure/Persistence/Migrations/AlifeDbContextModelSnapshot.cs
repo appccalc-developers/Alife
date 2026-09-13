@@ -3944,6 +3944,14 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("id");
 
+                    b.Property<int>("ApprovalRound")
+                        .HasColumnType("int")
+                        .HasColumnName("approval_round");
+
+                    b.Property<int>("ApprovalStatus")
+                        .HasColumnType("int")
+                        .HasColumnName("approval_status");
+
                     b.Property<Guid?>("AssignedMemberId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("assigned_member_id");
@@ -3993,6 +4001,24 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .HasColumnType("bit")
                         .HasColumnName("requires_approval");
 
+                    b.Property<Guid?>("ReviewerMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("reviewer_member_id");
+
+                    b.Property<Guid?>("SourceId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("source_id");
+
+                    b.Property<string>("SourceType")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)")
+                        .HasColumnName("source_type");
+
+                    b.Property<string>("SourceVersion")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)")
+                        .HasColumnName("source_version");
+
                     b.Property<int>("Status")
                         .HasColumnType("int")
                         .HasColumnName("status");
@@ -4020,16 +4046,76 @@ namespace Alife.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_event_operations_tasks");
 
-                    b.HasIndex("AssignedMemberId")
-                        .HasDatabaseName("ix_event_operations_tasks_assigned_member_id");
-
                     b.HasIndex("WorkflowStepId")
                         .HasDatabaseName("ix_event_operations_tasks_workflow_step_id");
+
+                    b.HasIndex("AssignedMemberId", "Status")
+                        .HasDatabaseName("ix_event_operations_tasks_assigned_member_id_status");
+
+                    b.HasIndex("ReviewerMemberId", "ApprovalStatus")
+                        .HasDatabaseName("ix_event_operations_tasks_reviewer_member_id_approval_status");
+
+                    b.HasIndex("SourceType", "SourceId")
+                        .HasDatabaseName("ix_event_operations_tasks_source_type_source_id");
 
                     b.HasIndex("EventId", "Status", "DueUtc")
                         .HasDatabaseName("ix_event_operations_tasks_event_id_status_due_utc");
 
                     b.ToTable("event_operations_tasks", (string)null);
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventTaskApprovalAction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)")
+                        .HasColumnName("action");
+
+                    b.Property<Guid>("ActorMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("actor_member_id");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<Guid>("EventTaskId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("event_task_id");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasColumnName("reason");
+
+                    b.Property<Guid?>("ReviewerMemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("reviewer_member_id");
+
+                    b.Property<int>("Round")
+                        .HasColumnType("int")
+                        .HasColumnName("round");
+
+                    b.Property<string>("SnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("snapshot_json");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_task_approval_actions");
+
+                    b.HasIndex("EventTaskId", "Round", "Action")
+                        .IsUnique()
+                        .HasDatabaseName("ix_event_task_approval_actions_event_task_id_round_action");
+
+                    b.ToTable("event_task_approval_actions", (string)null);
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.EventTaskBlocker", b =>
@@ -8356,6 +8442,12 @@ namespace Alife.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_event_operations_tasks_group_events_event_id");
 
+                    b.HasOne("Alife.Domain.Entities.Member", "ReviewerMember")
+                        .WithMany()
+                        .HasForeignKey("ReviewerMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_operations_tasks_members_reviewer_member_id");
+
                     b.HasOne("Alife.Domain.Entities.EventWorkflowStep", "WorkflowStep")
                         .WithMany()
                         .HasForeignKey("WorkflowStepId")
@@ -8366,7 +8458,21 @@ namespace Alife.Infrastructure.Persistence.Migrations
 
                     b.Navigation("Event");
 
+                    b.Navigation("ReviewerMember");
+
                     b.Navigation("WorkflowStep");
+                });
+
+            modelBuilder.Entity("Alife.Domain.Entities.EventTaskApprovalAction", b =>
+                {
+                    b.HasOne("Alife.Domain.Entities.EventTask", "EventTask")
+                        .WithMany("ApprovalActions")
+                        .HasForeignKey("EventTaskId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_task_approval_actions_event_tasks_event_task_id");
+
+                    b.Navigation("EventTask");
                 });
 
             modelBuilder.Entity("Alife.Domain.Entities.EventTaskBlocker", b =>
@@ -9378,6 +9484,8 @@ namespace Alife.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Alife.Domain.Entities.EventTask", b =>
                 {
+                    b.Navigation("ApprovalActions");
+
                     b.Navigation("Blockers");
 
                     b.Navigation("Dependants");

@@ -52,6 +52,7 @@ public partial class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : 
 	public DbSet<EventRoleAssignment> EventRoleAssignments => Set<EventRoleAssignment>();
 	public DbSet<EventTeamMember> EventTeamMembers => Set<EventTeamMember>();
 	public DbSet<EventTask> EventTasks => Set<EventTask>();
+	public DbSet<EventTaskApprovalAction> EventTaskApprovalActions => Set<EventTaskApprovalAction>();
 	public DbSet<EventTaskDependency> EventTaskDependencies => Set<EventTaskDependency>();
 	public DbSet<EventTaskBlocker> EventTaskBlockers => Set<EventTaskBlocker>();
 	public DbSet<EventRosterAvailability> EventRosterAvailability => Set<EventRosterAvailability>();
@@ -783,6 +784,23 @@ public partial class AlifeDbContext(DbContextOptions<AlifeDbContext> options) : 
 			cfg.HasOne(x => x.WorkflowStep).WithMany().HasForeignKey(x => x.WorkflowStepId).OnDelete(DeleteBehavior.Restrict);
 			cfg.HasOne(x => x.AssignedMember).WithMany().HasForeignKey(x => x.AssignedMemberId).OnDelete(DeleteBehavior.Restrict);
 			cfg.HasIndex(x => new { x.EventId, x.Status, x.DueUtc });
+			cfg.HasOne(x => x.ReviewerMember).WithMany().HasForeignKey(x => x.ReviewerMemberId).OnDelete(DeleteBehavior.Restrict);
+			cfg.Property(x => x.SourceType).HasMaxLength(80);
+			cfg.Property(x => x.SourceVersion).HasMaxLength(120);
+			cfg.HasIndex(x => new { x.AssignedMemberId, x.Status });
+			cfg.HasIndex(x => new { x.ReviewerMemberId, x.ApprovalStatus });
+			cfg.HasIndex(x => new { x.SourceType, x.SourceId });
+		});
+
+		modelBuilder.Entity<EventTaskApprovalAction>(cfg =>
+		{
+			cfg.ToTable("event_task_approval_actions");
+			cfg.HasKey(x => x.Id);
+			cfg.Property(x => x.Action).HasMaxLength(30).IsRequired();
+			cfg.Property(x => x.Reason).HasMaxLength(2000).IsRequired();
+			cfg.Property(x => x.SnapshotJson).IsRequired();
+			cfg.HasOne(x => x.EventTask).WithMany(x => x.ApprovalActions).HasForeignKey(x => x.EventTaskId).OnDelete(DeleteBehavior.Restrict);
+			cfg.HasIndex(x => new { x.EventTaskId, x.Round, x.Action }).IsUnique();
 		});
 
 		modelBuilder.Entity<EventTaskDependency>(cfg =>

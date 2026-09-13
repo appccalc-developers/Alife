@@ -16,6 +16,7 @@
     "test:navigation-policy": "node --test --experimental-strip-types tests/navigationPolicy.test.ts",
     "test:route-chunk-recovery": "node --test --experimental-strip-types tests/routeChunkRecovery.test.ts",
     "test:current-tasks": "node --test --experimental-strip-types tests/currentTasks.test.ts",
+    "test:event-duties": "node --test --experimental-strip-types tests/currentTasks.test.ts tests/eventDuties.test.ts",
     "test:current-group-selection": "node --test --experimental-strip-types tests/currentGroupSelection.test.ts",
     "test:visit-contact": "node --test --experimental-strip-types tests/visitContactValidation.test.ts",
     "test:identity": "node --test --experimental-strip-types tests/identityPathPolicy.test.ts tests/currentTasks.test.ts tests/passkeyErrors.test.ts tests/churchApplicationValidation.test.ts tests/passkeyRequestGuard.test.ts tests/deviceClass.test.ts tests/manualActivationClipboard.test.ts",

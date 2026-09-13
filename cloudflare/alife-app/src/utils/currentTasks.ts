@@ -83,6 +83,14 @@ export const normalizeCurrentTask = (value: unknown): AppNotification | null => 
 
   return {
     id,
+    taskKey: firstString(value.taskKey),
+    sourceVersion: firstString(value.sourceVersion),
+    eventTitle: toNotificationText(value.eventTitle ?? actionData?.eventTitle),
+    eventId,
+    groupId,
+    occurrenceId: firstString(value.occurrenceId),
+    dueUtc: firstString(value.dueUtc),
+    actionLabel: toNotificationText(value.actionLabel),
     actionType,
     title:
       toNotificationText(value.title) ??

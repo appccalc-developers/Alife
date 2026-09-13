@@ -19,4 +19,9 @@ public sealed record CurrentNotificationTaskDto(
     string CompletionMode,
     string? ActionUrl,
     string? SourceType = null,
-    Guid? SourceId = null);
+    Guid? SourceId = null,
+    string? TaskKey = null,
+    string? SourceVersion = null,
+    Guid? OccurrenceId = null,
+    DateTime? DueUtc = null,
+    Alife.Application.Events.Dtos.LocalizedTextDto? ActionLabel = null);

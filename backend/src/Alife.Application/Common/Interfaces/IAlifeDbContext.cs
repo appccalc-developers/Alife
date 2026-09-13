@@ -43,6 +43,7 @@ public interface IAlifeDbContext
     DbSet<EventRoleAssignment> EventRoleAssignments { get; }
     DbSet<EventTeamMember> EventTeamMembers { get; }
     DbSet<EventTask> EventTasks { get; }
+    DbSet<EventTaskApprovalAction> EventTaskApprovalActions { get; }
     DbSet<EventTaskDependency> EventTaskDependencies { get; }
     DbSet<EventTaskBlocker> EventTaskBlockers { get; }
     DbSet<EventRosterAvailability> EventRosterAvailability { get; }

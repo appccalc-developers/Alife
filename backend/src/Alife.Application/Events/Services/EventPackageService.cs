@@ -496,7 +496,7 @@ public sealed partial class EventPackageService(
                 var conditionId = Guid.NewGuid();
                 var task = new EventTask
                 {
-                    Id = Guid.NewGuid(), EventId = eventId,
+                    Id = Guid.NewGuid(), EventId = eventId, SourceType = "packageCondition", SourceId = conditionId, SourceVersion = package.Id.ToString("N"),
                     TitleEn = $"Resolve {input.AppliesToGate} approval condition",
                     TitleZh = $"落实 {input.AppliesToGate} 审批条件",
                     DescriptionEn = $"Open Event Package v{package.Version} and submit evidence through its authoritative condition.",
@@ -529,6 +529,12 @@ public sealed partial class EventPackageService(
         package.ApprovalValidityStatus = request.DecisionType is EventPackageDecisionType.Approve or EventPackageDecisionType.ApproveWithConditions && quorumReached
             ? EventPackageApprovalValidity.Active : EventPackageApprovalValidity.NotDecided;
         package.ConcurrencyToken = Guid.NewGuid();
+        if (package.ApprovalValidityStatus == EventPackageApprovalValidity.Active)
+        {
+            var sourceId = package.ScopeId ?? eventId;
+            var linkedTasks = await db.EventTasks.Where(x => x.EventId == eventId && x.SourceType == "packageReview" && x.SourceId == sourceId && x.Status != EventTaskStatus.Done && x.Status != EventTaskStatus.Cancelled).ToListAsync(ct);
+            foreach (var task in linkedTasks) { task.Status = EventTaskStatus.Done; task.CompletedUtc = now; task.UpdatedUtc = now; task.ConcurrencyToken = Guid.NewGuid(); }
+        }
         if (package.ScopeType == EventPackageScopeType.Occurrence && package.ScopeId.HasValue &&
             package.ApprovalValidityStatus == EventPackageApprovalValidity.Active)
         {
@@ -544,6 +550,7 @@ public sealed partial class EventPackageService(
                     var reviewTasks = await db.EventTasks.Where(x => reviewTaskIds.Contains(x.Id)).ToListAsync(ct);
                     foreach (var task in reviewTasks)
                     {
+                        task.SourceType = "packageReview"; task.SourceId = occurrence.Id; task.SourceVersion = package.Id.ToString("N");
                         task.Status = EventTaskStatus.Done;
                         task.CompletedUtc = now;
                         task.UpdatedUtc = now;
@@ -1367,7 +1374,7 @@ public sealed partial class EventPackageService(
                     .OrderBy(x => x.RoleRequirementKey).ThenBy(x => x.Id).Select(x => new { x.Id, x.RoleRequirementKey, x.ScopeType, x.ScopeId, x.Status, x.EndedUtc }).ToListAsync(ct),
                 // Package-condition tasks are projections of the Package itself. Including them would
                 // make a decision invalidate its own frozen source vector.
-                tasks = await db.EventTasks.AsNoTracking().Where(x => x.EventId == eventId &&
+                tasks = await db.EventTasks.AsNoTracking().Where(x => x.EventId == eventId && x.SourceType == null &&
                         !db.EventPackageConditions.Any(condition => condition.ReadinessTaskId == x.Id))
                     .OrderBy(x => x.Id).Select(x => new { x.Id, x.Status, x.IsRequired, x.RequiresApproval, x.DueUtc, x.CompletedUtc, x.ConcurrencyToken }).ToListAsync(ct)
             },
@@ -1916,7 +1923,10 @@ public sealed partial class EventPackageService(
         var data = EventPackageCanonicalizer.Serialize(new
         {
             eventId = groupEvent.Id, packageId = package.Id, package.Version,
-            package.GovernanceTier, actionData
+            package.GovernanceTier, actionData,
+            title = new LocalizedTextDto($"Event approval updated: {groupEvent.TitleEn}", $"活动审批已更新：{groupEvent.TitleZh}"),
+            body = new LocalizedTextDto($"Approval record v{package.Version} was updated. Open the record to see the decision.", $"第 {package.Version} 版审批记录已更新，请打开记录查看处理决定。"),
+            actionUrl = $"/events/{groupEvent.Id}/workspace?tab=governance&packageId={package.Id}"
         });
         db.NotificationMessages.AddRange(recipientMemberIds.Where(x => x != actorMemberId).Distinct().Select(recipient =>
             new NotificationMessage
@@ -2141,6 +2151,7 @@ public sealed partial class EventPackageService(
         if (!condition.ReadinessTaskId.HasValue) return;
         var task = await db.EventTasks.FirstOrDefaultAsync(x => x.Id == condition.ReadinessTaskId.Value, ct);
         if (task is null) return;
+        task.SourceType = "packageCondition"; task.SourceId = condition.Id; task.SourceVersion = condition.EventPackageId.ToString("N");
         task.Status = condition.Status switch
         {
             EventPackageConditionStatus.Open => EventTaskStatus.Todo,

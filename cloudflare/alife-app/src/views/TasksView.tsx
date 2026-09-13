@@ -1,6 +1,6 @@
 import { AlertCircle, ArrowRight, BellRing, Check, ChevronDown, LoaderCircle, RefreshCw } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import AppPageShell from '../components/layout/AppPageShell'
 import { markCurrentTaskRead, useCurrentTasks } from '../hooks/useCurrentTasks'
 import { useAuthStore } from '../stores/auth'
@@ -16,6 +16,8 @@ import { activateNotificationTarget } from '../utils/notificationRoutes'
 import { confirmUnsavedChangesNavigation } from '../utils/unsavedChangesGuard'
 import { identityAccessService, type MembershipApplication } from '../services/identityAccessService'
 import { normalizeApiError } from '../services/http'
+import { withDutyReturn } from '../utils/eventDutyNavigation'
+import { selectTaskPage, taskSourceLabel } from '../utils/taskList'
 
 const detailOrder: Array<keyof NotificationTaskDetails> = [
   'displayName',
@@ -29,13 +31,16 @@ const detailOrder: Array<keyof NotificationTaskDetails> = [
 const TasksView = () => {
   const auth = useAuthStore()
   const navigate = useNavigate()
-  const [selectedCategory, setSelectedCategory] = useState<NotificationTaskCategory>(() => (
-    new URLSearchParams(window.location.search).get('type') === 'general' ? 'general' : 'urgent'
-  ))
+  const [params, setParams] = useSearchParams()
+  const selectedCategory: NotificationTaskCategory = params.get('type') === 'general' ? 'general' : 'urgent'
   const tasksQuery = useCurrentTasks()
   const tasks = tasksQuery.data ?? []
   const counts = countCurrentTasks(tasks)
-  const visibleTasks = tasks.filter((task) => task.category === selectedCategory)
+  const selectedEvent = params.get('event') ?? '', selectedSource = params.get('source') ?? '', sort = params.get('sort') ?? 'due'
+  const { items: visibleTasks, page, pages, total } = selectTaskPage(tasks, { category: selectedCategory, eventId: selectedEvent, sourceType: selectedSource, sort, page: Number(params.get('page') || 1) })
+  const updateFilter = (key: string, value: string) => setParams(current => { const next = new URLSearchParams(current); if (value) next.set(key, value); else next.delete(key); if (key !== 'page') next.delete('page'); return next }, { replace: true })
+  const eventOptions = [...new Map(tasks.filter(t => t.eventId).map(t => [t.eventId!, t])).values()]
+  const sourceOptions = [...new Set(tasks.filter(t => t.category === selectedCategory).map(t => t.sourceType).filter(Boolean))] as string[]
   const [pendingId, setPendingId] = useState('')
   const [actionError, setActionError] = useState('')
   const [applications, setApplications] = useState<MembershipApplication[]>([])
@@ -118,21 +123,13 @@ const TasksView = () => {
     }
   }
 
-  const chooseCategory = (category: NotificationTaskCategory) => {
-    if (category === selectedCategory) return
-
-    setSelectedCategory(category)
-
-    const url = new URL(window.location.href)
-    url.searchParams.set('type', category)
-    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`)
-  }
+  const chooseCategory = (category: NotificationTaskCategory) => updateFilter('type', category)
 
   const handleTaskAction = (task: AppNotification) => {
     if (pendingId || !auth.me?.id) return
     const target = task.actionUrl ? normalizeNotificationActionUrl(task.actionUrl) : ''
     const externalTarget = /^https?:\/\//i.test(target)
-    const internalTarget = target && !externalTarget ? activateNotificationTarget(target) : ''
+    const internalTarget = target && !externalTarget ? activateNotificationTarget(task.taskKey ? withDutyReturn(target, `/tasks?${params.toString()}`) : target) : ''
 
     const continueAction = async () => {
       setPendingId(task.id)
@@ -175,11 +172,11 @@ const TasksView = () => {
                 onClick={() => chooseCategory(category)}
                 className={[
                   'flex min-h-9 items-center gap-2 rounded-lg px-2.5 text-xs font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/45 sm:px-3',
-                  active ? 'bg-white text-[#173f36] shadow-sm' : 'text-white/78 hover:bg-white/10 hover:text-white',
+                  active ? 'bg-white text-[#173f36] shadow-sm' : 'text-white/80 hover:bg-white/10 hover:text-white',
                 ].join(' ')}
               >
                 <span>{label}</span>
-                <span className={['inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] leading-5', active ? urgent ? 'bg-[#fbe8e2] text-[#9b3d29]' : 'bg-[#dceee7] text-[#155345]' : 'bg-white/12 text-white'].join(' ')}>{formatTaskCount(count)}</span>
+                <span className={['inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] leading-5', active ? urgent ? 'bg-[#fbe8e2] text-[#9b3d29]' : 'bg-[#dceee7] text-[#155345]' : 'bg-white/10 text-white'].join(' ')}>{formatTaskCount(count)}</span>
               </button>
             )
           })}
@@ -193,6 +190,11 @@ const TasksView = () => {
         disabled: tasksQuery.isFetching,
       }]}
     >
+      <div className="grid gap-3 sm:grid-cols-3">
+        <label className="grid min-w-0 gap-1 text-xs font-bold">{zh ? '活动' : 'Event'}<select className="alife-input min-h-11 w-full" value={selectedEvent} onChange={e => updateFilter('event', e.target.value)}><option value="">{zh ? '全部活动' : 'All Events'}</option>{eventOptions.map(t => <option key={t.eventId} value={t.eventId}>{localizeNotificationText(t.eventTitle, auth.language) || t.eventId}</option>)}</select></label>
+        <label className="grid min-w-0 gap-1 text-xs font-bold">{zh ? '事项类型' : 'Responsibility'}<select className="alife-input min-h-11 w-full" value={selectedSource} onChange={e => updateFilter('source', e.target.value)}><option value="">{zh ? '全部类型' : 'All types'}</option>{sourceOptions.map(source => <option key={source} value={source}>{taskSourceLabel(source, zh)}</option>)}</select></label>
+        <label className="grid min-w-0 gap-1 text-xs font-bold">{zh ? '排序' : 'Sort'}<select className="alife-input min-h-11 w-full" value={sort} onChange={e => updateFilter('sort', e.target.value)}><option value="due">{zh ? '最早期限优先' : 'Due soonest'}</option><option value="newest">{zh ? '最近更新优先' : 'Newest first'}</option><option value="oldest">{zh ? '最早收到优先' : 'Oldest first'}</option></select></label>
+      </div>
       {selectedApplication ? (
         <section className="rounded-[1.5rem] border border-[#b9cec5] bg-white p-4 shadow-[0_16px_38px_rgba(30,54,48,0.07)] sm:p-5" aria-labelledby="selected-application-heading">
           <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 id="selected-application-heading" className="font-black text-[#18332d]">{copy.applicationTitle}</h2><p className="mt-1 text-xs text-[#718079]">{copy.applicationId}: {selectedApplication.id}</p></div><span className="rounded-full bg-[#e3f0eb] px-3 py-1 text-xs font-black text-[#176b5a]">{selectedApplication.status}</span></div>
@@ -227,10 +229,10 @@ const TasksView = () => {
             const urgent = task.category === 'urgent'
             const hasTarget = Boolean(task.actionUrl)
             const isPending = pendingId === task.id
-            const actionLabel = hasTarget ? copy.open : task.category === 'urgent' ? copy.acknowledge : copy.markRead
+            const actionLabel = hasTarget ? localizeNotificationText(task.actionLabel, auth.language) || copy.open : task.category === 'urgent' ? copy.acknowledge : copy.markRead
 
             return (
-              <details key={task.id} className="group relative overflow-hidden rounded-[1.35rem] border border-[#d8e1dc] bg-white shadow-[0_12px_30px_rgba(30,54,48,0.06)] open:border-[#b9cec5]">
+              <details key={task.taskKey || task.id} className="group relative overflow-hidden rounded-[1.35rem] border border-[#d8e1dc] bg-white shadow-[0_12px_30px_rgba(30,54,48,0.06)] open:border-[#b9cec5]">
                 <span className={['absolute inset-y-0 left-0 w-1.5', urgent ? 'bg-[#de6c4d]' : 'bg-[#176b5a]'].join(' ')} aria-hidden="true" />
                 <summary className="flex cursor-pointer list-none items-start gap-3 py-4 pl-5 pr-4 outline-none transition hover:bg-[#f7faf8] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#176b5a]/30 [&::-webkit-details-marker]:hidden sm:items-center sm:px-6">
                   <span className={['mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl sm:mt-0', urgent ? 'bg-[#fbe8e2] text-[#ad482f]' : 'bg-[#dceee7] text-[#155345]'].join(' ')}>
@@ -238,6 +240,8 @@ const TasksView = () => {
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-black leading-5 text-[#18332d]">{title}</span>
+                    {task.occurrenceId ? <span className="mt-1 block break-all text-xs text-[#60716a]">{zh ? '场次' : 'Occurrence'} · {task.occurrenceId.slice(0, 8)}</span> : null}
+                    {task.dueUtc ? <span className={`mt-1 block text-xs font-semibold ${new Date(task.dueUtc).getTime() < Date.now() ? 'text-red-700' : 'text-[#60716a]'}`}>{new Date(task.dueUtc).getTime() < Date.now() ? (zh ? '已逾期 · ' : 'Overdue · ') : (zh ? '期限 · ' : 'Due · ')}{formatNotificationDate(task.dueUtc, auth.language)}</span> : null}
                     {dateLabel ? <span className="mt-1 block text-xs font-semibold text-[#7a8983]">{dateLabel}</span> : null}
                   </span>
                   <ChevronDown className="mt-2 h-4 w-4 shrink-0 text-[#718079] transition group-open:rotate-180 sm:mt-0" aria-hidden="true" />
@@ -268,6 +272,7 @@ const TasksView = () => {
           })}
         </div>
       )}
+      {!tasksQuery.isLoading && !tasksQuery.isError && total > 0 ? <nav aria-label={zh ? '事务分页' : 'Task pagination'} className="flex flex-wrap items-center justify-between gap-3 text-sm"><button className="min-h-11 rounded-xl border bg-white px-4 disabled:opacity-40" disabled={page <= 1} onClick={() => updateFilter('page', String(page - 1))}>{zh ? '上一页' : 'Previous'}</button><span>{zh ? `第 ${page} / ${pages} 页 · ${total} 项` : `Page ${page} / ${pages} · ${total} tasks`}</span><button className="min-h-11 rounded-xl border bg-white px-4 disabled:opacity-40" disabled={page >= pages} onClick={() => updateFilter('page', String(page + 1))}>{zh ? '下一页' : 'Next'}</button></nav> : null}
     </AppPageShell>
   )
 }

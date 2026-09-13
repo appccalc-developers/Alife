@@ -16,7 +16,7 @@ import RamAssessmentFields from './RamAssessmentFields'
 import { useAuthStore } from '../../stores/auth'
 import RamEventPlanContext from './RamEventPlanContext'
 
-export default function EventRamWorkspace({ eventId, language, onDirtyChange, onBusyChange, onSaved, pendingEventChanges = false, showEventPlan = false }: { eventId: string; language: string; onDirtyChange?: (dirty: boolean) => void; onBusyChange?: (busy: boolean) => void; onSaved?: () => Promise<void>; pendingEventChanges?: boolean; showEventPlan?: boolean }) {
+export default function EventRamWorkspace({ eventId, language, onDirtyChange, onBusyChange, onSaved, beforeAction, pendingEventChanges = false, showEventPlan = false }: { eventId: string; language: string; onDirtyChange?: (dirty: boolean) => void; onBusyChange?: (busy: boolean) => void; onSaved?: () => Promise<void>; beforeAction?: () => Promise<void>; pendingEventChanges?: boolean; showEventPlan?: boolean }) {
   const zh = language === 'zh'
   const viewerId = useAuthStore().me?.id
   const loadSequence = useRef(0)
@@ -53,16 +53,18 @@ export default function EventRamWorkspace({ eventId, language, onDirtyChange, on
   const update = (change: Partial<RamDraft>) => { setDraft(d => d ? { ...d, ...change } : d); setDirty(true); setSuccess(false) }
   const save = () => run(async () => {
     if (!draft) return
+    await beforeAction?.()
     const record = await ramService.save(eventId, draft, policyId, workspace?.assessment?.eTag || 'new')
     setWorkspace(w => w ? { ...w, assessment: record } : w); setDraft(upgradeRam(record.ramDataJson)); setDirty(false); await onSaved?.()
   })
   const act = (action: string) => run(async () => {
     const ram = workspace?.assessment
     if (!ram) return
+    await beforeAction?.()
     const signature = JSON.stringify([action, ram.eTag, ram.currentRevisionId, reason, signed])
     if (attempt.current?.signature !== signature) attempt.current = { signature, key: crypto.randomUUID() }
     await ramService.action(eventId, action, ram.eTag, ram.currentRevisionId, reason, signed, attempt.current.key)
-    attempt.current = null; setPending(null); await load()
+    attempt.current = null; setPending(null); await load(); await onSaved?.()
   })
   if (!workspace || !draft) return <AppSectionCard title="RAM"><p role={error ? 'alert' : 'status'}>{error || (zh ? '正在载入 RAM…' : 'Loading RAM…')}</p>{error ? <AppActionButton onClick={() => void run(load)}>{zh ? '重试' : 'Retry'}</AppActionButton> : null}</AppSectionCard>
   const ram = workspace.assessment

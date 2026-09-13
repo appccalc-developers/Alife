@@ -42,6 +42,15 @@ public sealed class EventOperationsController(
     public Task<IActionResult> CreateTask(Guid eventId, CreateEventTaskRequest request, CancellationToken ct)
         => Run(member => operations.CreateTaskAsync(eventId, member, request, ct), value => value.ETag);
 
+    [HttpGet("tasks/{taskId:guid}")]
+    public Task<IActionResult> GetTask(Guid eventId, Guid taskId, CancellationToken ct)
+        => Run(member => operations.GetTaskAsync(eventId, taskId, member, ct), value => value.Task.ETag, privateResponse: true);
+
+    [HttpPost("tasks/{taskId:guid}/{action:regex(^(submit-completion|withdraw-completion|approve|return)$)}")]
+    public Task<IActionResult> ActOnTask(Guid eventId, Guid taskId, string action, EventTaskApprovalRequest request, CancellationToken ct)
+        => Run(member => operations.ActOnTaskAsync(eventId, taskId, member, action, request,
+            Request.Headers.IfMatch.ToString(), Request.Headers["Idempotency-Key"].ToString(), ct), value => value.Task.ETag, privateResponse: true);
+
     [HttpPut("tasks/{taskId:guid}")]
     public Task<IActionResult> UpdateTask(Guid eventId, Guid taskId, UpdateEventTaskRequest request, CancellationToken ct)
         => Run(member => operations.UpdateTaskAsync(eventId, taskId, member, request, Request.Headers.IfMatch.ToString(), ct), value => value.ETag);

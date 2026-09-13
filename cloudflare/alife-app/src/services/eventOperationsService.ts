@@ -1,10 +1,13 @@
 import { http } from './http'
 import type { LocalizedText } from '../types/eventComposition'
-import type { EventRosterGroup, EventAvailabilityStatus, EventOccurrence, EventProgramme, EventRoster, EventTask, EventTaskStatus, EventTeamMember, EventTeamWorkspace } from '../types/eventOperations'
+import type { EventRosterGroup, EventAvailabilityStatus, EventOccurrence, EventProgramme, EventRoster, EventTask, EventTaskDetail, EventTaskStatus, EventTeamMember, EventTeamWorkspace } from '../types/eventOperations'
 
 const ifMatch = (eTag: string) => ({ headers: { 'If-Match': eTag } })
 
 export const eventOperationsService = {
+  setTaskResponsibility: async (eventId: string, task: EventTask, assignedMemberId: string | null, reviewerMemberId: string | null) => (await http.put<EventTask>(`/api/events/${eventId}/tasks/${task.id}`, { ...task, assignedMemberId, reviewerMemberId, clearReviewer: !reviewerMemberId }, ifMatch(task.eTag))).data,
+  getTask: async (eventId: string, taskId: string) => (await http.get<EventTaskDetail>(`/api/events/${eventId}/tasks/${taskId}`)).data,
+  actOnTask: async (eventId: string, task: EventTask, action: string, reason: string, key: string) => (await http.post<EventTaskDetail>(`/api/events/${eventId}/tasks/${task.id}/${action}`, { reason }, { headers: { 'If-Match': task.eTag, 'Idempotency-Key': key } })).data,
   getRosterGroups: async (eventId: string) => (await http.get<EventRosterGroup[]>(`/api/events/${eventId}/roster/groups`)).data,
   saveRosterGroup: async (eventId: string, request: Omit<EventRosterGroup, 'eTag'>, eTag: string) => (await http.put<EventRosterGroup>(`/api/events/${eventId}/roster/groups`, request, ifMatch(eTag))).data,
   listOccurrences: async (eventId: string) => (await http.get<EventOccurrence[]>(`/api/events/${eventId}/occurrences`)).data,
@@ -13,10 +16,10 @@ export const eventOperationsService = {
   respondToTeamInvite: async (eventId: string, teamMemberId: string, accept: boolean) => (await http.post<EventTeamMember>(`/api/events/${eventId}/team/members/${teamMemberId}/${accept ? 'accept' : 'decline'}`)).data,
   respondToRoleInvitation: async (eventId: string, assignmentId: string, accept: boolean) => (await http.post(`/api/events/${eventId}/role-assignments/${assignmentId}/${accept ? 'accept' : 'decline'}`)).data,
   createRoleInvitation: async (eventId: string, roleRequirementKey: string, memberId: string) => (await http.post(`/api/events/${eventId}/role-assignments`, { roleRequirementKey, memberId, scopeType: 'event' }, { headers: { 'Idempotency-Key': crypto.randomUUID() } })).data,
-  createTask: async (eventId: string, request: { title: LocalizedText; description: LocalizedText; assignedMemberId?: string | null; dueUtc?: string | null; isRequired: boolean; requiresApproval: boolean; isRestricted: boolean }) => (await http.post<EventTask>(`/api/events/${eventId}/tasks`, request)).data,
+  createTask: async (eventId: string, request: { reviewerMemberId?: string | null; title: LocalizedText; description: LocalizedText; assignedMemberId?: string | null; dueUtc?: string | null; isRequired: boolean; requiresApproval: boolean; isRestricted: boolean }) => (await http.post<EventTask>(`/api/events/${eventId}/tasks`, request)).data,
   updateTask: async (eventId: string, task: EventTask, status: EventTaskStatus) => (await http.put<EventTask>(`/api/events/${eventId}/tasks/${task.id}`, {
     title: task.title, description: task.description, assignedMemberId: task.assignedMemberId, dueUtc: task.dueUtc,
-    status, isRequired: task.isRequired, requiresApproval: task.requiresApproval, isRestricted: task.isRestricted,
+    status, reviewerMemberId: task.reviewerMemberId, isRequired: task.isRequired, requiresApproval: task.requiresApproval, isRestricted: task.isRestricted,
   }, ifMatch(task.eTag))).data,
   addTaskDependency: async (eventId: string, taskId: string, dependsOnEventTaskId: string) => (await http.post<EventTask>(`/api/events/${eventId}/tasks/${taskId}/dependencies`, { dependsOnEventTaskId, dependencyType: 'finishToStart' })).data,
   addTaskBlocker: async (eventId: string, taskId: string, reason: string) => (await http.post<EventTask>(`/api/events/${eventId}/tasks/${taskId}/blockers`, { reason })).data,

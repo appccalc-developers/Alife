@@ -69,6 +69,8 @@ const ProfileView = lazy(() => import('../../views/ProfileView'))
 const SermonsView = lazy(() => import('../../views/SermonsView'))
 const SermonVideoView = lazy(() => import('../../views/SermonVideoView'))
 const TasksView = lazy(() => import('../../views/TasksView'))
+const EventDutyView = lazy(() => import('../../views/EventDutyView'))
+const EventTaskView = lazy(() => import('../../views/EventTaskView'))
 
 const AdminRoute = ({ children, permission }: { children: ReactElement; permission?: string }) => {
   const auth = useAuthStore()
@@ -314,6 +316,8 @@ const AppRoutes = ({ churchGroupId = '', churchGroupLoading = false }: AppRoutes
           <Route path={PERSONAL_CENTER_PATH} element={<MemberRoute><PersonalCenterView /></MemberRoute>} />
           <Route path={PROFILE_SETTINGS_PATH} element={<MemberRoute><ProfileView /></MemberRoute>} />
           <Route path="/tasks" element={<MemberRoute><TasksView /></MemberRoute>} />
+          <Route path="/events/:eventId/duties/:sourceType/:sourceId" element={<MemberRoute><EventDutyView /></MemberRoute>} />
+          <Route path="/events/:eventId/tasks/:taskId" element={<MemberRoute><EventTaskView /></MemberRoute>} />
           <Route path="/sermons" element={<SermonsView />} />
           <Route path="/sermons/:sermonId" element={<SermonVideoView />} />
           <Route path="/sermons/watch" element={<SermonVideoView />} />

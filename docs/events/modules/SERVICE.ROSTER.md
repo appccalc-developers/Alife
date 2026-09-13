@@ -58,7 +58,7 @@ Current core flow. Occurrence ServiceSlot CRUD, Session/ProgramItem links, self 
 
 ## Open contract gaps
 
-Leave windows, versioned eligibility evidence, invitation notifications, and safe cross-occurrence copy remain open.
+Leave windows, versioned eligibility evidence and safe cross-occurrence copy remain open. In-site invitations are discovered directly from current assignment state.
 
 ## Next useful vertical slice
 
@@ -73,3 +73,7 @@ Saved creation-form edits preserve slot IDs, programme links and member response
 `GET/PUT /api/events/{id}/roster/groups` manages an ordered, at-most-200-member candidate list per role and its owning module. Only the accountable owner or accepted roster coordinator can manage/read full groups. PUT requires `If-Match` (`"new"` for first creation); all candidates must be approved members of the Event's owning group. Lists do not grant module permissions or accept invitations. New assignments and substitutes must belong to the explicit role group and pass eligibility/availability checks; no group means no new assignment. Existing assignments remain intact. Full candidate IDs appear only in manager roster responses; other viewers receive a self-candidate flag. Approved candidate members may read their personal roster state before assignment and record their own availability, without receiving other members’ assignments or candidate identities.
 
 The new migration creates candidate-group storage only and invents no groups or members. Review and apply it only to an authorized environment. Configuration respects preparation freezing, audits changes, renews occurrence ETags and uses group concurrency during assignment. Candidate ordering is manual and does not implement rotation.
+
+## Personal Center handoff
+
+Current approved invited assignees see live non-cancelled slot responsibilities through [Event duties](../EVENT-DUTIES.md), including occurrence and deadline. Response, replacement, ending and loss of group membership or slot qualification remove the previous duty. Uncovered required positions without a qualified pending invite surface coordinator/owner arrangement work; a confirmed member who leaves or loses the required role no longer fills the position. Responses revalidate current membership, slot eligibility and cancellation on the server using the same eligibility predicate as the projection. General task completion cannot replace roster consent. No email or external push channel is introduced.

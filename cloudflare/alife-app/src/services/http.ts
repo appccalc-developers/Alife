@@ -71,7 +71,14 @@ const baseURL = import.meta.env?.DEV ? '' : productionBaseUrl
 
 const attachErrorNormalization = (client: ReturnType<typeof axios.create>) => {
   client.interceptors.response.use(
-    (response) => response,
+    (response) => {
+      if (typeof window !== 'undefined' && response.config.method &&
+          !['get', 'head', 'options'].includes(response.config.method.toLowerCase()) &&
+          /^\/api\/(?:events\/|groups\/[^/]+\/events)/.test(response.config.url ?? '')) {
+        window.dispatchEvent(new Event('alife:event-duty-changed'))
+      }
+      return response
+    },
     (error) => Promise.reject(normalizeApiError(error)),
   )
 

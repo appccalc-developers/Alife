@@ -5,6 +5,9 @@ namespace Alife.Application.Events.Services;
 
 public interface IEventOperationsService
 {
+    Task<AppResult<EventTaskDetailDto>> GetTaskAsync(Guid eventId, Guid taskId, Guid member, CancellationToken ct);
+    Task<AppResult<EventTaskDetailDto>> ActOnTaskAsync(Guid eventId, Guid taskId, Guid member, string action,
+        EventTaskApprovalRequest request, string? ifMatch, string? key, CancellationToken ct);
     Task<AppResult<IReadOnlyList<EventOccurrenceDto>>> ListOccurrencesAsync(Guid eventId, Guid memberId, CancellationToken ct);
     Task<AppResult<EventTeamWorkspaceDto>> GetTeamAsync(Guid eventId, Guid memberId, CancellationToken ct);
     Task<AppResult<EventTeamMemberDto>> InviteTeamMemberAsync(Guid eventId, Guid memberId, InviteEventTeamMemberRequest request, CancellationToken ct);

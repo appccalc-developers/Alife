@@ -238,11 +238,13 @@ public sealed class RamGovernanceTests
             var role=new PlatformRole{Id=850,Code="ram-test",NameJson="{}",PermissionsJson=AdminPermissionCatalog.WritePermissions([AdminPermissionCatalog.ManageRamPolicies,AdminPermissionCatalog.AuditEvents])};f.Db.PlatformRoles.Add(role);
             foreach(var actor in new[]{f.Author,f.Onsite,f.Auditor,f.Other})
             {
+                if(actor != f.Other) f.Db.GroupMemberships.Add(new(){Id=Guid.NewGuid(),GroupId=f.Group,MemberId=actor,Status=MembershipStatus.Approved,Role=MembershipRole.Member});
                 f.Db.Members.Add(new(){Id=actor,DisplayName="Member",IsRegistered=true});
                 f.Db.MemberPlatformRoles.Add(new(){Id=Guid.NewGuid(),MemberId=actor,RoleId=850});
                 f.Db.GroupMemberships.Add(new(){Id=Guid.NewGuid(),GroupId=actor==f.Other?f.OtherChurch:f.Church,MemberId=actor,Status=MembershipStatus.Approved,Role=MembershipRole.Member});
             }
             f.Db.GroupEvents.Add(new(){Id=f.Event,GroupId=f.Group,CreatedByMemberId=f.Author,AccountableOwnerMemberId=f.Author,EventDataJson="{}",TitleEn="Activity",TitleZh="活动",StartDate=DateTime.UtcNow,EndDate=DateTime.UtcNow.AddHours(2)});
+            f.Auth.IsApprovedMemberAsync(f.Group,Arg.Any<Guid>(),Arg.Any<CancellationToken>()).Returns(call => f.Db.GroupMemberships.Any(x => x.GroupId == f.Group && x.MemberId == call.ArgAt<Guid>(1) && x.Status == MembershipStatus.Approved));
             f.Auth.IsLeaderOrCoLeaderAsync(f.Group,f.Author,Arg.Any<CancellationToken>()).Returns(true);
             await f.Db.SaveChangesAsync();return f;
         }

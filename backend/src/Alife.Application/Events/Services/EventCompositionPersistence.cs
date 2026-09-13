@@ -273,7 +273,7 @@ public static class EventCompositionPersistence
             }
         }
 
-        var tasks = await dbContext.EventTasks.AsNoTracking().Where(x => x.EventId == groupEvent.Id).ToListAsync(cancellationToken);
+        var tasks = await dbContext.EventTasks.AsNoTracking().Where(x => x.EventId == groupEvent.Id && x.SourceType == null && x.Status != EventTaskStatus.Cancelled && !dbContext.EventPackageConditions.Any(c => c.ReadinessTaskId == x.Id)).ToListAsync(cancellationToken);
         foreach (var task in tasks.Where(x => x.IsRequired && (x.Status == EventTaskStatus.Blocked ||
             (x.DueUtc < checkedUtc && x.Status != EventTaskStatus.Done) || (x.RequiresApproval && x.Status != EventTaskStatus.Done))))
         {
