@@ -16,9 +16,9 @@ public sealed class EventRamGovernanceController(EventRamGovernanceService ram, 
     public Task<IActionResult> Get(Guid eventId,CancellationToken ct) => Run(actor=>ram.GetAsync(eventId,actor,ct));
     [HttpGet("versions/{revisionId:guid}")]
     public Task<IActionResult> Print(Guid eventId,Guid revisionId,CancellationToken ct) => Run(actor=>ram.PrintAsync(eventId,revisionId,actor,ct));
-    [HttpPost("actions/{action}")]
-    public Task<IActionResult> Act(Guid eventId,string action,RamActionRequest request,CancellationToken ct) =>
-        Run(actor=>ram.ActAsync(eventId,actor,action,request,Request.Headers["Idempotency-Key"].ToString(),ct));
+    [HttpPost("actions/{ramAction}")]
+    public Task<IActionResult> Act(Guid eventId,string ramAction,RamActionRequest request,CancellationToken ct) =>
+        Run(actor=>ram.ActAsync(eventId,actor,ramAction,request,Request.Headers["Idempotency-Key"].ToString(),ct));
     private async Task<IActionResult> Run<T>(Func<Guid,Task<AppResult<T>>> action)
     {
         this.ApplyPrivateNoStoreHeaders();
