@@ -172,14 +172,6 @@ export default defineConfig(({ command, mode }) => {
           target: aiProxyTarget,
           changeOrigin: true,
         },
-        '/api/events/extract': {
-          target: aiProxyTarget,
-          changeOrigin: true,
-        },
-        '/api/events/session': {
-          target: aiProxyTarget,
-          changeOrigin: true,
-        },
         '/api/events/details-session': {
           target: aiProxyTarget,
           changeOrigin: true,

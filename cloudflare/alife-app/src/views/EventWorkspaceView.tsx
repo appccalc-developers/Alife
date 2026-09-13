@@ -143,7 +143,10 @@ const EventWorkspaceView = () => {
       setWorkspace(nextWorkspace)
       if (nextWorkspace.canManage) {
         const [nextPlan, nextArchetypes] = await Promise.all([
-          eventCompositionService.getPlan(eventId),
+          eventCompositionService.getPlan(eventId).catch((reason) => {
+            if (normalizeApiError(reason).status === 404) return null
+            throw reason
+          }),
           eventCompositionService.listArchetypes(nextWorkspace.owningGroupId),
         ])
         setPlan(nextPlan)

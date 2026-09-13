@@ -11,7 +11,7 @@ npm run dev
 ```
 
 The Vite dev server runs at `http://localhost:5173` and proxies ordinary same-origin `/api/*` requests to `http://127.0.0.1:7071` by default.
-AI session requests such as `/api/events/session/*`, `/api/enrollments/session/*`, `/api/reviews/session/*`, and `/api/ai/*` are proxied to the speed-layer Worker at `http://localhost:8787` by default.
+AI session requests such as `/api/events/details-session/*`, `/api/enrollments/session/*`, `/api/reviews/session/*`, and `/api/ai/*` are proxied to the speed-layer Worker at `http://localhost:8787` by default.
 
 To point local dev at another API:
 
@@ -21,7 +21,7 @@ $env:AI_PROXY_TARGET='http://localhost:8787'
 npm run dev
 ```
 
-For AI event creation in local development, also run the Worker with a real Gemini key:
+For the Event Details Assistant in local development, also run the Worker with a real Gemini key:
 
 ```bash
 cd ../speed-layer

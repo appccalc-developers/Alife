@@ -11,7 +11,6 @@ import {
   resolveWorkspaceLoadFailure,
   resolveWorkspaceMutationFailure,
 } from '../src/utils/eventWorkspaceState.ts'
-import { buildCreationComposition } from '../src/utils/eventCreationComposition.ts'
 import type { EventDto } from '../src/types/event.ts'
 import type { EventArchetype } from '../src/types/eventComposition.ts'
 import {
@@ -23,8 +22,9 @@ import {
 
 test('controlled event surface registry resolves every contract key exactly once', () => {
   assert.deepEqual(Object.keys(eventSurfaceRegistry).sort(), [...eventSurfaceKeys].sort())
-  assert.equal(new Set(Object.values(eventSurfaceRegistry).map((entry) => entry.surfaceKey)).size, 14)
+  assert.equal(new Set(Object.values(eventSurfaceRegistry).map((entry) => entry.surfaceKey)).size, 15)
   assert.equal(resolveEventSurface('workspace.governance')?.componentContract, 'EventPackageGovernanceWorkspace')
+  assert.equal(resolveEventSurface('workspace.workflow')?.componentContract, 'EventWorkflowWorkspace')
   assert.equal(resolveEventSurface('safety.ram')?.componentContract, 'EventRamWorkspace')
   assert.equal(resolveEventSurfacePath('follow-up')?.surfaceKey, 'comms.followup')
 })
@@ -66,35 +66,6 @@ test('workspace recomposition omits server-controlled facts from legacy plans', 
 
   assert.deepEqual(requestFacts.map((fact) => fact.code), ['safety.requiresRam'])
   assert.equal(planFacts.length, 2)
-})
-
-test('creation composition keeps unavailable safety facts unknown and uses structured RAM facts', () => {
-  const event = {
-    title: { en: 'Hike', zh: '登山' }, description: { en: '', zh: '' },
-    locationName: { en: '', zh: '' }, startDate: '2026-09-01T00:00:00Z',
-    endDate: '2026-09-01T02:00:00Z', registrationDeadline: '2026-08-31T00:00:00Z',
-    maxCapacity: 20, capacityUnit: 'People', hardConstraints: [], optionalActivities: [],
-    currency: 'NZD', galleryUrls: [], visibility: 'groupVisible',
-    ram: {
-      activityName: { en: '', zh: '' }, activityDescription: { en: '', zh: '' },
-      participantCount: 20, participantAgeRange: { en: '', zh: '' }, isOuting: true,
-      hazards: [], emergencyContacts: [], leaderConfirmed: false, missingInformation: [],
-      outingSafety: {
-        transportRequired: true, licensedDriverConfirmed: null, vehicleRegistrationConfirmed: null,
-        vehicleWofConfirmed: null, venueRiskAssessed: null, firstAidKitAvailable: null,
-        trainedFirstAiderName: '', trainedFirstAiderQualificationConfirmed: null,
-        participantHealthNeedsReviewed: null, weatherPlanReviewed: null,
-      },
-    },
-  } satisfies EventDto
-
-  const composition = buildCreationComposition(event)
-  const facts = new Map(composition.facts.items.map((fact) => [fact.code, fact]))
-  assert.equal(facts.get('safety.requiresRam')?.value, true)
-  assert.equal(facts.get('move.transportRequired')?.value, true)
-  assert.equal(facts.get('people.childrenPresent')?.certainty, 'unknown')
-  assert.equal(facts.get('people.childrenPresent')?.value, null)
-  assert.ok(composition.facts.items.every((fact) => fact.source === 'human'))
 })
 
 test('four-archetype catalogue filters sixteen unique activity types and unknown codes fail closed', () => {

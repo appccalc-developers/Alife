@@ -108,28 +108,6 @@ export type EventDto = {
   ram?: EventRamDraft
 }
 
-export type ExtractEventFromChatResponse = {
-  responseMode: 'markdown' | 'result'
-  sessionId?: string
-  markdown?: string | null
-  result?: EventDto | null
-  context?: MultilingualString | null
-  legacySummary?: MultilingualString | null
-}
-
-export type EventSessionState = {
-  sessionId: string
-  eventDraft: EventDto | null
-  legacySummary: MultilingualString | null
-  chatHistory: Array<{ role: 'user' | 'model'; text: string }>
-  updatedAt: string
-}
-
-export type EventSessionSsePayload = {
-  type: 'eventDraft'
-  state: EventSessionState
-}
-
 export type GroupEventRecord = {
   id: string
   groupId: string

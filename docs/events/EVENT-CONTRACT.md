@@ -348,6 +348,8 @@ Creation and preparation form one continuous presentation flow: template, detail
 
 The accepted Event Plan determines which controlled surfaces are reachable. The frontend resolves `surfaceKey` through a compile-time registry. API or AI data may never supply an import path, component name, executable definition, URL, or arbitrary route.
 
+Event Workspace is the sole Event-management surface after creation. Its fixed `workspace.workflow` tab hosts workflow steps, artifacts, and template management for current, no-plan, and legacy-snapshot Events without rewriting stored Plan JSON. Event Detail remains a member-facing view for enrollment, review, memories, and permitted personal actions; legacy edit and Detail workflow bookmarks redirect into Workspace.
+
 Every reachable surface provides appropriate loading, empty, error, success, blocked, and disabled states. Language switching changes presentation without changing entity identity or triggering avoidable refetches. Product wire text remains `{ "en": "...", "zh": "..." }`; a Traditional Chinese document locale does not change the wire key.
 
 ## API and persistence compatibility
@@ -355,7 +357,7 @@ Every reachable surface provides appropriate loading, empty, error, success, blo
 Migration is additive:
 
 - `GroupEvent` remains the compatible persistence root until a separately authorised cutover.
-- Existing routes, DTO fields, readable enum names, enrollment, review, RAM, workflow, and public projection behaviour remain compatible.
+- Supported Event creation/update routes, DTO fields, readable enum names, enrollment, review, RAM, workflow, and public projection behaviour remain compatible. The Alife-app-only `/api/events/session/*` and `/api/events/extract` planning endpoints are retired; `/api/events/details-session/*` remains the Event details assistant contract.
 - `EventDataJson` remains readable and must not disappear silently.
 - Typed facts, snapshots, occurrences, structures, and module records are introduced alongside legacy structures, with dual-write only where explicitly implemented.
 - Backfill marks its source and never invents child, transport, safety, money, capacity, or sponsorship facts. Unknown remains unknown.

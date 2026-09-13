@@ -26,7 +26,7 @@ export type Env = {
   GEMINI_IMAGE_MODEL?: string
   /** Bearer token for backend-triggered speed-layer cache invalidation. */
   CACHE_SYNC_API_TOKEN?: string
-  /** Durable Object namespace for live event-planning sessions. */
+  /** Durable Object namespace for live event-details assistant sessions. */
   EVENT_SESSIONS?: DurableObjectNamespace
   /** Durable Object namespace for live enrollment sessions. */
   ENROLLMENT_SESSIONS?: DurableObjectNamespace

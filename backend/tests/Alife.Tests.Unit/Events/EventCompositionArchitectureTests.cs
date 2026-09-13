@@ -170,12 +170,68 @@ public class EventCompositionArchitectureTests
 
         Assert.Equal(first.Value!.ProposalHash, second.Value!.ProposalHash);
         Assert.Equal(12, EventCompositionDefinitions.Modules.Count);
-        Assert.Equal(14, EventCompositionDefinitions.Surfaces.Count);
-        Assert.Equal(14, EventCompositionDefinitions.Surfaces.Select(x => x.SurfaceKey).Distinct().Count());
+        Assert.Equal(15, EventCompositionDefinitions.Surfaces.Count);
+        Assert.Equal(15, EventCompositionDefinitions.Surfaces.Select(x => x.SurfaceKey).Distinct().Count());
         Assert.Equal("EventPackageGovernanceWorkspace",
             EventCompositionDefinitions.SurfacesByKey["workspace.governance"].ComponentContract);
+        Assert.Equal("EventWorkflowWorkspace",
+            EventCompositionDefinitions.SurfacesByKey["workspace.workflow"].ComponentContract);
         Assert.All(EventCompositionDefinitions.Modules, module =>
             Assert.True(EventCompositionDefinitions.SurfacesByKey.ContainsKey(module.SurfaceKey)));
+    }
+
+    [Fact]
+    public async Task WorkflowSurface_IsAvailableForNewNoPlanAndLegacySnapshotEvents()
+    {
+        var currentProposal = new EventCompositionEngine().Compose(
+            CurrentRequest("simple-social", "shared-meal"),
+            new EventCompositionContext("\"current\"", CheckedUtc: DateTime.UnixEpoch));
+        var legacyProposal = Compose(null);
+        Assert.Contains(currentProposal.Value!.Navigation, item => item.SurfaceKey == "workspace.workflow");
+        Assert.Contains(legacyProposal.Value!.Navigation, item => item.SurfaceKey == "workspace.workflow");
+
+        await using var dbContext = CreateDbContext();
+        var groupId = Guid.NewGuid();
+        var ownerId = Guid.NewGuid();
+        var noPlanEvent = CreateEvent(groupId, ownerId);
+        var legacyEvent = CreateEvent(groupId, ownerId);
+        legacyEvent.ActivePlanVersion = 1;
+        var factSet = new EventFactSet
+        {
+            Id = Guid.NewGuid(), EventId = legacyEvent.Id, Version = 1,
+            FactsJson = "[]", SourceHash = legacyProposal.Value.Facts.SourceHash,
+            CreatedByMemberId = ownerId, CreatedUtc = DateTime.UtcNow
+        };
+        var storedLegacyPlan = legacyProposal.Value with
+        {
+            Navigation = legacyProposal.Value.Navigation
+                .Where(item => item.SurfaceKey != "workspace.workflow")
+                .ToArray()
+        };
+        dbContext.GroupEvents.AddRange(noPlanEvent, legacyEvent);
+        dbContext.EventFactSets.Add(factSet);
+        dbContext.EventPlanSnapshots.Add(new EventPlanSnapshot
+        {
+            Id = Guid.NewGuid(), EventId = legacyEvent.Id, SourceFactSetId = factSet.Id,
+            Version = 1, ProposalHash = storedLegacyPlan.ProposalHash,
+            ETag = EventCompositionPersistence.CreatePlanETag(1, storedLegacyPlan.ProposalHash),
+            SnapshotJson = EventCompositionPersistence.SerializePlan(storedLegacyPlan, []),
+            AcceptedByMemberId = ownerId, AcceptedUtc = DateTime.UtcNow,
+            IsActive = true, CreatedUtc = DateTime.UtcNow
+        });
+        await dbContext.SaveChangesAsync();
+
+        var authorization = Substitute.For<IGroupAuthorizationService>();
+        var handler = new GetEventWorkspaceQueryHandler(dbContext, authorization);
+        var noPlanWorkspace = await handler.Handle(
+            new GetEventWorkspaceQuery(noPlanEvent.Id, ownerId), CancellationToken.None);
+        var legacyWorkspace = await handler.Handle(
+            new GetEventWorkspaceQuery(legacyEvent.Id, ownerId), CancellationToken.None);
+
+        Assert.Equal(["workflow.view", "workflow.manage"],
+            Assert.Single(noPlanWorkspace.Value!.Items, item => item.SurfaceKey == "workspace.workflow").AllowedActions);
+        Assert.Equal(["workflow.view", "workflow.manage"],
+            Assert.Single(legacyWorkspace.Value!.Items, item => item.SurfaceKey == "workspace.workflow").AllowedActions);
     }
 
     [Fact]

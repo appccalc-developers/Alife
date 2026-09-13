@@ -11,6 +11,7 @@ import { EventVenueWorkspaceSurface } from './EventVenueWorkspace'
 import { EventTravelWorkspaceSurface } from './EventTravelWorkspace'
 import EventRamWorkspace from './EventRamWorkspace'
 import { EventSafeguardingWorkspaceSurface } from './EventSafeguardingWorkspace'
+import EventWorkflowPanel from './EventWorkflowPanel'
 
 export type EventSurfaceProps = {
   item: EventWorkspaceItem
@@ -62,11 +63,22 @@ const RamSurface = ({ eventId, language }: EventSurfaceProps) => (
   <EventRamWorkspace key={eventId} eventId={eventId} language={language} />
 )
 
+const WorkflowSurface = ({ eventId, groupId, eventBasePath, language, canManage }: EventSurfaceProps) => (
+  <EventWorkflowPanel
+    eventId={eventId}
+    groupId={groupId}
+    ramPath={`${eventBasePath}/workspace/ram`}
+    language={language}
+    canManage={canManage}
+  />
+)
+
 // This map is deliberately closed at build time. Neither API data nor AI output
 // can supply an import path, component name, URL or executable definition.
 const surfaceComponentRegistry: Readonly<Record<EventSurfaceKey, ComponentType<EventSurfaceProps>>> = Object.freeze({
   'workspace.overview': GenericSurface,
   'workspace.governance': GenericSurface,
+  'workspace.workflow': WorkflowSurface,
   'team.work': EventTeamPanel,
   'people.registration': EventRegistrationWorkspace,
   'service.roster': EventRosterWorkspace,

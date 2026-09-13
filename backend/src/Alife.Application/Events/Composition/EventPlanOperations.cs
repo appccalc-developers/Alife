@@ -528,7 +528,12 @@ public sealed class GetEventWorkspaceQueryHandler(
                  new EventWorkspaceItemDto(
                     "workspace.governance", null, "tab", "governance", null,
                     new LocalizedTextDto("Governance", "審批治理"), 15,
-                    EventReadinessStatus.NotReady, [blocker], [])],
+                    EventReadinessStatus.NotReady, [blocker], []),
+                 new EventWorkspaceItemDto(
+                    "workspace.workflow", null, "tab", "workflow", null,
+                    new LocalizedTextDto("Workflow & outputs", "工作流與產出物"), 18,
+                    EventReadinessStatus.NotReady, [blocker],
+                    canManage ? ["workflow.view", "workflow.manage"] : ["workflow.view"])],
                 [blocker],
                 canManage,
                 groupEvent.SponsorshipStatus));
@@ -547,13 +552,22 @@ public sealed class GetEventWorkspaceQueryHandler(
         var currentPlan = EventCompositionPersistence.RefreshReadiness(snapshot.Plan, groupEvent, DateTime.UtcNow);
         currentPlan = await EventCompositionPersistence.ApplyOperationalReadinessAsync(
             dbContext, currentPlan, groupEvent, DateTime.UtcNow, cancellationToken);
-        var navigation = currentPlan.Navigation.Any(item => item.SurfaceKey == "workspace.governance")
-            ? currentPlan.Navigation
-            : currentPlan.Navigation.Append(new EventWorkspaceItemDto(
+        EventWorkspaceItemDto[] requiredWorkspaceItems =
+        [
+            new(
                 "workspace.governance", null, "tab", "governance", null,
                 new LocalizedTextDto("Governance", "審批治理"), 15,
-                currentPlan.Readiness.Status, [], []))
-                .OrderBy(item => item.Order).ToArray();
+                currentPlan.Readiness.Status, [], []),
+            new(
+                "workspace.workflow", null, "tab", "workflow", null,
+                new LocalizedTextDto("Workflow & outputs", "工作流與產出物"), 18,
+                currentPlan.Readiness.Status, [], [])
+        ];
+        var navigation = currentPlan.Navigation
+            .Concat(requiredWorkspaceItems.Where(required =>
+                currentPlan.Navigation.All(item => item.SurfaceKey != required.SurfaceKey)))
+            .OrderBy(item => item.Order)
+            .ToArray();
         var items = navigation
             .Where(item => CanSeeItem(item, isEventTeam, isGroupMember || isChurchMember, canAuditRam, isRosterParticipant))
             .Select(item => item with
@@ -635,6 +649,8 @@ public sealed class GetEventWorkspaceQueryHandler(
         {
             if (item.SurfaceKey == "workspace.governance")
                 return canManage ? ["event.package.view", "event.package.generate"] : ["event.package.view"];
+            if (item.SurfaceKey == "workspace.workflow")
+                return canManage ? ["workflow.view", "workflow.manage"] : ["workflow.view"];
             return canManage ? ["plan.recompose", "plan.accept", "event.role.assign"] : ["plan.view"];
         }
         if (!EventCompositionDefinitions.ModulesByCode.TryGetValue(item.ModuleCode, out var module))

@@ -1,5 +1,13 @@
 # Event Management Implementation Status
 
+## 2026-09-13 — Event management centralized in Workspace
+
+The retired Event editor and its `/api/events/session/*` and `/api/events/extract` Worker APIs are removed. Creation now identifies itself as Event Workspace creation and continues into the saved Workspace; saved Details, Arrangements, approval, poster preparation and publication remain in the existing preparation flow. Workflow steps, artifacts and template management now occupy the fixed bilingual `workspace.workflow` tab for current, no-plan and legacy-snapshot Events. Event Detail no longer embeds workflow editing, and old edit, RAM and `?section=workflow` bookmarks redirect to the matching Workspace surface.
+
+The `EventPlanningSession` Durable Object class name remains as a thin adapter for `/api/events/details-session/*`, so no Durable Object or database migration is required. Stored Event JSON and Plan v1-v4 history are not rewritten.
+
+Verification: 246 focused backend Event tests, 70 frontend Event tests, and 110 bundled Worker tests pass. The frontend TypeScript/Vite/PWA production build and Wrangler dry-run bundle pass; the existing `idb-keyval` chunk warning remains. Workflow/legacy-bookmark browser fixtures pass English/Chinese at 375/1280, and the full create/edit/approve/poster/publish/reopen fixture passes English/Chinese at 320/375/768/1280. Browser APIs, image generation, and publication are fixtures; no live provider, database migration, deployment, or production-data change was performed. Documentation generation/check validates 12 modules, 129 API contracts, and three equivalent overview structures.
+
 ## 2026-09-12 — Event details inside Arrangements
 
 New and saved preparation now place Event details first as a full-row card with title, event-local times/time zone and the fixed creator/accountable owner. Details form and AI assistant are retained child work areas. Twelve policy confirmations remain unchanged; legacy Details URLs open the card. Footer navigation is reduced to Back to top, with rail validation and explicit save/create actions preserved. No backend or database change in this follow-up.

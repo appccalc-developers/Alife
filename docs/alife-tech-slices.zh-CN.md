@@ -349,9 +349,9 @@ Axios 设定 `withCredentials: true`，表示前端不是自己存 token 再手�
 3. Worker 向 R2 bucket 取对象或列目录。
 4. 再把结果回给前端。
 
-### 一个典型流程：AI 辅助活动会话
+### 一个典型流程：活动资料助手会话
 
-1. 前端把用户输入发到 `/api/events/session/*` 或相关会话路径。
+1. 前端把经用户审阅的活动资料输入发到 `/api/events/details-session/*`。
 2. Cloudflare Worker 把请求分派给对应 Durable Object。
 3. Durable Object 维护会话状态。
 4. 完成后再把草稿或结果提交给 backend REST API 持久化。

@@ -537,6 +537,8 @@ public static class EventCompositionPersistence
                     new LocalizedTextDto("Overview", "總覽"), 10, EventReadinessStatus.Blocked, [blocker], []),
                 new EventWorkspaceItemDto("workspace.governance", null, "tab", "governance", null,
                     new LocalizedTextDto("Governance", "審批治理"), 15, EventReadinessStatus.Blocked, [blocker], []),
+                new EventWorkspaceItemDto("workspace.workflow", null, "tab", "workflow", null,
+                    new LocalizedTextDto("Workflow & outputs", "工作流與產出物"), 18, EventReadinessStatus.Blocked, [blocker], []),
                 new EventWorkspaceItemDto(team.SurfaceKey, team.Code, "tab", "team", null,
                     new LocalizedTextDto("Team", "團隊"), team.NavigationOrder, EventReadinessStatus.Blocked, [blocker], [])
             ],

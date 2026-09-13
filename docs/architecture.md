@@ -245,7 +245,7 @@ cloudflare/alife-app/src/
 - `GroupDetailView` focuses on reading visible group content.
 - `GroupManageView` owns group, subgroup, member, page, and event management.
 - `PageEditorView` edits bilingual page metadata and structured sections.
-- `EventCreatorView`, `EventEnrollmentView`, and `EventReviewView` cover event planning, enrollment, and review workflows.
+- `EventCreationWizard` and `EventWorkspaceView` cover Event creation and management; `EventEnrollmentView` and `EventReviewView` cover member enrollment and review workflows.
 - `NotificationToastHost` and notification services support action-oriented message flows.
 
 ## Page Builder And Bilingual Content
@@ -272,7 +272,7 @@ The group-owned working page, the submitted review copy, and the last approved p
 AI-assisted workflows run through the Cloudflare speed layer:
 
 - generic AI router under `/api/ai`;
-- event planning sessions under `/api/events/session/*`;
+- Event Details Assistant sessions under `/api/events/details-session/*`;
 - enrollment sessions under `/api/enrollments/session/*`;
 - review sessions under `/api/reviews/session/*`.
 
@@ -282,7 +282,7 @@ Durable Object classes:
 - `EnrollmentSession`
 - `ReviewSession`
 
-The Durable Objects keep session state and call Gemini. Completed drafts are committed to backend REST APIs by the frontend, preserving the separation between temporary AI conversation state and durable business records.
+The Durable Objects keep session state and call Gemini. `EventPlanningSession` is the historical configured class name and now delegates only to the Details Assistant. Completed drafts are committed to backend REST APIs by the frontend, preserving the separation between temporary AI conversation state and durable business records. The former `/api/events/session/*` and `/api/events/extract` planning endpoints are retired.
 
 ## Image Architecture
 

@@ -19,7 +19,7 @@ const plan = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', archetypeCode: '
       const context = await browser.newContext({ viewport: { width, height: 900 } });
       await context.addInitScript(language => localStorage.setItem('alife.language', language), language);
       const page = await context.newPage(); page.setDefaultTimeout(15000);
-      const errors = [], writes = [];
+      const errors = [], writes = [], requests = [];
       let catalogueUnavailable = false;
       let ram = { activityName: brief.title, activityDescription: brief.description, participantCount: 20, participantAgeRange: text('Adults', '成人'), isOuting: false, hazards: [], emergencyContacts: [], leaderConfirmed: false };
       const ramRecord = () => ({ id: 'qa-ram', eventId: event.id, groupId: event.groupId, schemaVersion: ram.schemaVersion || 1, eTag: 'ram-1', validity: 'Draft', residualLevel: 'Incomplete', status: 'draft', ramDataJson: JSON.stringify(ram), updatedUtc: '2026-09-11T00:00:00Z' });
@@ -27,6 +27,7 @@ const plan = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', archetypeCode: '
       await context.route('**/api/**', async route => {
         const req = route.request(), pathname = new URL(req.url()).pathname;
         let data = [];
+        requests.push(pathname);
         if (req.method() !== 'GET') writes.push({ pathname, body: req.postDataJSON() });
         if (pathname === '/api/me') data = { id: 'qa', displayName: 'QA Leader', isGuest: false, isRegistered: true, platformRole: 'superadmin', permissions: ['admin.access', 'admin.events.audit'], memberships: [] };
         else if (pathname === '/api/groups/qa-group/events') data = [event];
@@ -39,17 +40,21 @@ const plan = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', archetypeCode: '
           if (catalogueUnavailable) return route.fulfill({ status: 503, json: { message: 'Catalogue unavailable' } });
           data = [template];
         }
-        else if (pathname.endsWith('/workspace')) data = { eventId: event.id, owningGroupId: event.groupId, title: brief.title, canManage: true, items: [{ surfaceKey: 'safety.ram', moduleCode: 'SAFETY.RAM', label: text('RAM and safety', 'RAM与安全'), presentation: 'page', pathSegment: 'ram', order: 1, readiness: 'notReady', blockers: [] }] };
+        else if (pathname.endsWith('/workspace')) data = { eventId: event.id, owningGroupId: event.groupId, title: brief.title, canManage: true, items: [
+          { surfaceKey: 'workspace.workflow', moduleCode: null, label: text('Workflow & outputs', '工作流与产出物'), presentation: 'tab', sectionKey: 'workflow', order: 18, readiness: 'notReady', blockers: [], allowedActions: ['workflow.view', 'workflow.manage'] },
+          { surfaceKey: 'safety.ram', moduleCode: 'SAFETY.RAM', label: text('RAM and safety', 'RAM与安全'), presentation: 'page', pathSegment: 'ram', order: 20, readiness: 'notReady', blockers: [] },
+        ] };
         else if (pathname.endsWith('/preparation')) data = { eventId: event.id, isFrozen: false, isApproved: false, canManage: true, canEdit: true };
         else if (pathname.endsWith('/plan')) data = { eventId: event.id, planVersion: 1, eTag: '"plan-1"', plan };
         else if (pathname.endsWith('/plan/recompose')) data = plan;
-        else if (pathname.includes('/events/session/')) data = { sessionId: 'qa', draft: null, chatHistory: [], context: null };
         await route.fulfill({ status: 200, json: data });
       });
       const eventPath = '/groups/qa-group/events/qa-event';
       await page.goto(`${base}${eventPath}`, { waitUntil: 'domcontentloaded' });
       await page.getByRole('button', { name: t('More actions', '更多操作'), exact: true }).click();
       await page.getByRole('menuitem', { name: t('Workflow & outputs', '流程与产出物'), exact: true }).click();
+      assert.match(new URL(page.url()).pathname, /\/workspace$/);
+      assert.equal(new URL(page.url()).searchParams.get('tab'), 'workflow');
       await page.getByRole('heading', { name: t('Preparation checklist', '筹备清单'), exact: true }).waitFor();
       await page.getByText(t('Saved safety document', '已保存的安全文件'), { exact: true }).waitFor();
       assert.match(await page.getByRole('link', { name: t('Open file', '打开文件'), exact: true }).getAttribute('href'), /qa-file\/open$/);
@@ -84,10 +89,12 @@ const plan = { schemaVersion: '1.1.0', proposalHash: 'qa-hash', archetypeCode: '
       await page.waitForFunction(() => document.querySelector('[data-ram-workspace] input[type=number]')?.value === '21');
       catalogueUnavailable = true;
       await page.goto(`${base}${eventPath}?section=workflow`);
+      await page.waitForFunction(() => location.pathname.endsWith('/workspace') && new URLSearchParams(location.search).get('tab') === 'workflow');
       await page.getByText(t('Saved safety document', '已保存的安全文件'), { exact: true }).waitFor();
       await page.getByText(/Catalogue unavailable/).waitFor();
       assert.deepEqual(errors, []);
       assert.ok(writes.every(write => write.pathname.endsWith('/ram') || write.pathname.endsWith('/plan/recompose')), writes.map(write => write.pathname).join(', '));
+      assert.ok(requests.every(pathname => pathname !== '/api/events/extract' && !pathname.includes('/api/events/session/')), requests.join(', '));
       console.log(`PASS ${language} ${width}: workflow menu/outputs and catalogue outage, embedded RAM save, workspace/preparation navigation, legacy bookmark redirects, no retired AI session or publication`);
       await context.close();
     }

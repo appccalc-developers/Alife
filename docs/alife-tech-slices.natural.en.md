@@ -351,9 +351,9 @@ To really understand the system, it is not enough to look at frontend, backend, 
 3. The Worker reads the object or lists the relevant path from R2.
 4. The response is returned to the frontend.
 
-### A typical flow: an AI-assisted event session
+### A typical flow: an Event Details Assistant session
 
-1. The frontend sends user input to `/api/events/session/*` or a related route.
+1. The frontend sends reviewed Event-detail input to `/api/events/details-session/*`.
 2. The Cloudflare Worker sends the request to the matching Durable Object.
 3. The Durable Object manages the session state.
 4. When the flow finishes, the result or draft is submitted to the backend REST API for persistence.
