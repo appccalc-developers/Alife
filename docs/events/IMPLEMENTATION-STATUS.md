@@ -8,6 +8,14 @@ The `EventPlanningSession` Durable Object class name remains as a thin adapter f
 
 Verification: 246 focused backend Event tests, 70 frontend Event tests, and 110 bundled Worker tests pass. The frontend TypeScript/Vite/PWA production build and Wrangler dry-run bundle pass; the existing `idb-keyval` chunk warning remains. Workflow/legacy-bookmark browser fixtures pass English/Chinese at 375/1280, and the full create/edit/approve/poster/publish/reopen fixture passes English/Chinese at 320/375/768/1280. Browser APIs, image generation, and publication are fixtures; no live provider, database migration, deployment, or production-data change was performed. Documentation generation/check validates 12 modules, 129 API contracts, and three equivalent overview structures.
 
+## 2026-09-12 — Alpha Demo RAM matrix and bilingual scales — Issue #758
+
+System Management now offers an explicit Alpha Demo action that fills the editable 25-cell RAM matrix with the legacy-editor three-colour projection: scores 1–5 Green, 6–19 Yellow and 20–25 Red, combining the former Amber/Orange bands as Yellow. An application confirmation explains that the action overwrites only the current draft; it does not save, publish or replace cell-by-cell review by the church safety authority. The existing per-cell Green/Yellow/Red controls, immutable publication and server-owned matrix evaluation remain authoritative.
+
+Initial and residual likelihood/impact selectors now contain the accurate five-level English and Chinese names plus complete definitions. The selected definition is repeated in a wrapping bilingual panel for mobile readability. Published church definitions take precedence; manual-derived defaults provide guidance during pre-creation or when no policy is available and never determine server colour.
+
+Verification: all 71 frontend Event composition tests pass, including focused preset-boundary, non-mutation and bilingual-definition tests. TypeScript checking, the Vite/PWA production build, browser-fixture syntax, machine-contract JSON parsing and `git diff --check` pass. The production build retains the existing idb-keyval chunk warning. The updated English/Chinese × 375/1280 RAM browser fixture could not run because the local Playwright Node package is unavailable; its fixture APIs do not touch a live service, database or policy publication.
+
 ## 2026-09-12 — Event details inside Arrangements
 
 New and saved preparation now place Event details first as a full-row card with title, event-local times/time zone and the fixed creator/accountable owner. Details form and AI assistant are retained child work areas. Twelve policy confirmations remain unchanged; legacy Details URLs open the card. Footer navigation is reduced to Back to top, with rail validation and explicit save/create actions preserved. No backend or database change in this follow-up.

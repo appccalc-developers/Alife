@@ -1,8 +1,22 @@
-import type { RamDraft, RamPolicyData, RamRisk } from '../../types/ramGovernance'
-import { displayRamText as text, ramActivityLabels, ramActivityTypes, ramText } from '../../types/ramGovernance'
+import type { RamDraft, RamPolicyData, RamRisk, RamScale } from '../../types/ramGovernance'
+import { displayRamText as text, ramActivityLabels, ramActivityTypes, ramDefaultScales, ramText } from '../../types/ramGovernance'
 import { RamLevelBadge, RamMatrix, RamTextField, ramInput } from './RamFields'
 import { EventToolSection as AppSectionCard } from './ArrangementTileDeck'
 import AppActionButton from '../layout/AppActionButton'
+
+function scaleOptionText(scale: RamScale, zh: boolean) {
+  const primary = zh ? `${scale.label.zh} / ${scale.label.en} — ${scale.description.zh} / ${scale.description.en}` : `${scale.label.en} / ${scale.label.zh} — ${scale.description.en} / ${scale.description.zh}`
+  return `${scale.value} · ${primary}`
+}
+
+function RamScaleDefinition({ scale, zh }: { scale?: RamScale; zh: boolean }) {
+  if (!scale) return null
+  return <div className="mt-2 rounded-lg bg-[#f5f2eb] px-3 py-2 text-xs leading-5 text-[#445c54]" aria-live="polite">
+    <p><strong>{scale.value} · {zh ? scale.label.zh : scale.label.en}</strong> <span className="text-[#66766f]">/ {zh ? scale.label.en : scale.label.zh}</span></p>
+    <p><span lang={zh ? 'zh-CN' : 'en'}>{zh ? scale.description.zh : scale.description.en}</span></p>
+    <p className="text-[#66766f]" lang={zh ? 'en' : 'zh-CN'}>{zh ? scale.description.en : scale.description.zh}</p>
+  </div>
+}
 
 export default function RamAssessmentFields({ draft, update, policy, editable, dirty, zh }: {
   draft: RamDraft; update: (change: Partial<RamDraft>) => void; policy?: RamPolicyData; editable: boolean; dirty: boolean; zh: boolean
@@ -30,9 +44,11 @@ export default function RamAssessmentFields({ draft, update, policy, editable, d
           <label className="text-sm">{zh ? '风险类别' : 'Risk category'}<select className={ramInput} value={risk.categoryCode} onChange={e => editRisk(risk.id, { categoryCode: e.target.value })}><option value="">—</option>{(policy?.categories || [{ code: 'environment', name: { en: 'Environment', zh: '环境' } }, { code: 'activity', name: { en: 'Activity', zh: '活动' } }, { code: 'participants', name: { en: 'Participants', zh: '参与者' } }, { code: 'transport', name: { en: 'Transport', zh: '交通' } }, { code: 'emergency', name: { en: 'Emergency', zh: '应急准备' } }]).map(c => <option key={c.code} value={c.code}>{text(c.name, zh)}</option>)}</select></label></div>
         <RamTextField label={zh ? '危害' : 'Hazard'} value={risk.hazard} onChange={hazard => editRisk(risk.id, { hazard })} /><RamTextField label={zh ? '可能后果' : 'Possible consequence'} value={risk.consequence} onChange={consequence => editRisk(risk.id, { consequence })} />
         {(['initial', 'residual'] as const).map(stage => <section key={stage} className="space-y-3">{stage === 'residual' ? <><RamTextField label={zh ? '控制措施' : 'Control measures'} value={risk.controlMeasures} onChange={controlMeasures => editRisk(risk.id, { controlMeasures })} /><label className="block text-sm">{zh ? '负责人' : 'Responsible person'}<input className={ramInput} value={risk.personResponsible || ''} onChange={e => editRisk(risk.id, { personResponsible: e.target.value })} /></label></> : null}
-          <h4 className="font-semibold">{stage === 'initial' ? (zh ? '初始评分' : 'Initial rating') : (zh ? '剩余评分' : 'Residual rating')}</h4><div className="grid grid-cols-2 gap-3">{(['likelihood', 'impact'] as const).map(kind => {
+          <h4 className="font-semibold">{stage === 'initial' ? (zh ? '初始评分' : 'Initial rating') : (zh ? '剩余评分' : 'Residual rating')}</h4><div className="grid gap-3 md:grid-cols-2">{(['likelihood', 'impact'] as const).map(kind => {
             const key = stage === 'initial' ? kind : kind === 'likelihood' ? 'residualLikelihood' : 'residualImpact'
-            return <label key={kind} className="text-sm">{kind === 'likelihood' ? (zh ? '可能性' : 'Likelihood') : (zh ? '影响程度' : 'Impact')}<select className={ramInput} value={risk[key] ?? ''} onChange={e => editRisk(risk.id, { [key]: e.target.value ? Number(e.target.value) : null })}><option value="">{zh ? '未完成' : 'Incomplete'}</option>{[1, 2, 3, 4, 5].map(n => <option value={n} key={n}>{n} · {text(policy?.[kind].find(s => s.value === n)?.label, zh)}</option>)}</select></label>
+            const scales = policy?.[kind]?.length === 5 ? policy[kind] : ramDefaultScales[kind]
+            const selectedScale = scales.find(scale => scale.value === risk[key])
+            return <label key={kind} className="min-w-0 text-sm">{kind === 'likelihood' ? (zh ? '可能性' : 'Likelihood') : (zh ? '影响程度' : 'Impact')}<select className={ramInput} value={risk[key] ?? ''} onChange={e => editRisk(risk.id, { [key]: e.target.value ? Number(e.target.value) : null })}><option value="">{zh ? '未完成' : 'Incomplete'}</option>{scales.map(scale => <option value={scale.value} key={scale.value}>{scaleOptionText(scale, zh)}</option>)}</select><RamScaleDefinition scale={selectedScale} zh={zh} /></label>
           })}</div><p className="text-sm">{zh ? '服务器已保存评分' : 'Server-saved rating'}: {dirty ? '—' : stage === 'initial' ? risk.riskScore ?? '—' : risk.residualScore ?? '—'} <RamLevelBadge zh={zh} level={dirty ? 'Incomplete' : stage === 'initial' ? risk.initialLevel : risk.residualLevel} /></p>
         </section>)}
         <RamTextField label={zh ? '额外行动／黄色风险额外控制' : 'Additional action / extra controls for yellow risk'} value={risk.additionalAction} onChange={additionalAction => editRisk(risk.id, { additionalAction })} />
