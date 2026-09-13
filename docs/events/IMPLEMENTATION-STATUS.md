@@ -1,5 +1,11 @@
 # Event Management Implementation Status
 
+## 2026-09-13 — Seeded Event owner foreign-key failure
+
+The deployment seeder created new Event fixtures with `CreatedByMemberId` but omitted the required `AccountableOwnerMemberId`, leaving `Guid.Empty`. The production SQL foreign key `fk_group_events_members_accountable_owner_member_id` correctly rejected the insert after migrations completed. Read-only inspection confirmed the latest Event-duty migration was applied, the demo creator/participant existed, the failed picnic fixture was absent, and no existing Event had an orphaned owner. The same constraint failure appears in deployment logs preceding the duty feature; saving memberships earlier does not initialize the missing Event owner.
+
+New seeded Events now assign their creator as accountable owner; reseeding preserves existing owners. The existing EF InMemory test missed the relational constraint. Added owner/real-member assertions first reproduced the empty GUID, then both the seed/idempotency and existing-owner preservation regressions passed after the fix. No database schema or production data change is required for this correction. Production was queried only; seeding, migrations and deployment were not rerun there.
+
 ## 2026-09-13 — Event duties and ordinary task approval
 
 [Event duties and personal handoffs](EVENT-DUTIES.md) now projects existing invitations, roster, ordinary task execution/review, RAM preparation/confirmation/review, Package approval/conditions, sponsorship, reopening and owner progression into the current-notifications response. No notification record or new generic workflow runtime is required. Stable actor/source/version keys, private restricted handlers, account-isolated refresh and exact-version checks drive handoffs. Personal Center keeps three cards and a filtered/sorted 20-item full list; direct actions return to the original filters.
