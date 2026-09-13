@@ -318,7 +318,7 @@ public static class SeedData
 		sectionsInserted += await EnsureDemoHomePageAsync(dbContext, fellowship.Id, admin.Id, now, cancellationToken);
 		sectionsInserted += await EnsureDemoHomePageAsync(dbContext, serviceTeam.Id, admin.Id, now, cancellationToken);
 
-    // Save all members, groups, and memberships first
+		// Persist the participant and memberships before creating the demo enrollment.
 		await dbContext.SaveChangesAsync(cancellationToken);
 
 		var picnic = await EnsureEventAsync(
@@ -333,22 +333,13 @@ public static class SeedData
 			now,
 			cancellationToken);
 
-		var training = await EnsureEventAsync(
-			dbContext,
-			Guid.Parse("ffffffff-ffff-ffff-ffff-fffffffffff2"),
-			serviceTeam.Id,
-			leader.Id,
-			"Volunteer Training",
-			"义工培训",
-			now.Date.AddDays(14).AddHours(19),
-			now.Date.AddDays(14).AddHours(21),
-			now,
-			cancellationToken);
+		if (!await dbContext.Members.AnyAsync(x => x.Id == member.Id, cancellationToken))
+		{
+			throw new InvalidOperationException($"Demo member {member.Id} was not persisted before Event enrollment seeding.");
+		}
 
 		await EnsureEnrollmentAsync(dbContext, fellowship.Id, picnic.Id, member.Id, now, cancellationToken);
-		await EnsureEnrollmentAsync(dbContext, serviceTeam.Id, training.Id, coLeader.Id, now, cancellationToken);
 		await EnsureNotificationAsync(dbContext, member.Id, leader.Id, fellowship.Id, picnic.Id, "event.invitation", now, cancellationToken);
-		await EnsureNotificationAsync(dbContext, leader.Id, pending.Id, fellowship.Id, null, "group.join.requested", now, cancellationToken);
 
 		await dbContext.SaveChangesAsync(cancellationToken);
 		return sectionsInserted;
