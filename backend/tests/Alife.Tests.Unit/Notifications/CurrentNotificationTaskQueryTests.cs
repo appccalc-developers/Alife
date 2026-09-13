@@ -1,3 +1,5 @@
+using Alife.Application.Events.Services;
+using NSubstitute;
 using System.Text.Json;
 using Alife.Application.Admin;
 using Alife.Application.Notifications.Queries.ListCurrentNotificationTasks;
@@ -10,6 +12,13 @@ namespace Alife.Tests.Unit.Notifications;
 
 public class CurrentNotificationTaskQueryTests
 {
+    private static ListCurrentNotificationTasksQueryHandler CreateHandler(AlifeDbContext db)
+    {
+        var packages = Substitute.For<IEventPackageService>();
+        packages.ListDutiesAsync(Arg.Any<Guid>(), Arg.Any<IReadOnlyList<GroupEvent>>(), Arg.Any<CancellationToken>()).Returns(Array.Empty<EventDuty>());
+        return new(db, new EventDutyProjectionService(db, packages));
+    }
+
     [Fact]
     public async Task MembershipReview_RemainsCurrentAfterReadUntilRequestIsResolved()
     {
@@ -32,7 +41,7 @@ public class CurrentNotificationTaskQueryTests
             readUtc: now));
         await dbContext.SaveChangesAsync();
 
-        var handler = new ListCurrentNotificationTasksQueryHandler(dbContext);
+        var handler = CreateHandler(dbContext);
         var current = await handler.Handle(new ListCurrentNotificationTasksQuery(leaderId), CancellationToken.None);
 
         var task = Assert.Single(current.Value!);
@@ -69,7 +78,7 @@ public class CurrentNotificationTaskQueryTests
             JsonSerializer.Serialize(new { groupId, memberId = requesterId })));
         await dbContext.SaveChangesAsync();
 
-        var result = await new ListCurrentNotificationTasksQueryHandler(dbContext)
+        var result = await CreateHandler(dbContext)
             .Handle(new ListCurrentNotificationTasksQuery(leaderId), CancellationToken.None);
 
         var task = Assert.Single(result.Value!);
@@ -95,7 +104,7 @@ public class CurrentNotificationTaskQueryTests
             CreateNotification(memberId, requesterId, groupId, "group.join-request.received", "{}"));
         await dbContext.SaveChangesAsync();
 
-        var result = await new ListCurrentNotificationTasksQueryHandler(dbContext)
+        var result = await CreateHandler(dbContext)
             .Handle(new ListCurrentNotificationTasksQuery(memberId), CancellationToken.None);
 
         Assert.Empty(result.Value!);
@@ -148,7 +157,7 @@ public class CurrentNotificationTaskQueryTests
         }
         await dbContext.SaveChangesAsync();
 
-        var result = await new ListCurrentNotificationTasksQueryHandler(dbContext)
+        var result = await CreateHandler(dbContext)
             .Handle(new ListCurrentNotificationTasksQuery(receiverId), CancellationToken.None);
 
         Assert.Equal(2, result.Value!.Count);
@@ -214,14 +223,14 @@ public class CurrentNotificationTaskQueryTests
             OccurredUtc = now, ReadUtc = now, CreatedUtc = now, UpdatedUtc = now
         });
         await dbContext.SaveChangesAsync();
-        var handler = new ListCurrentNotificationTasksQueryHandler(dbContext);
+        var handler = CreateHandler(dbContext);
 
         var current = await handler.Handle(new ListCurrentNotificationTasksQuery(reviewerId), CancellationToken.None);
 
         var task = Assert.Single(current.Value!);
         Assert.Equal("urgent", task.Category);
         Assert.Equal("workflow", task.CompletionMode);
-        Assert.Equal($"/events/{eventId}/ram?from=profile", task.ActionUrl);
+        Assert.StartsWith($"/events/{eventId}/duties/ramRevision/{revisionId}?taskKey=", task.ActionUrl);
 
         assessment.Status = EventRamStatus.Approved;
         assessment.Validity = "Valid";
@@ -261,7 +270,7 @@ public class CurrentNotificationTaskQueryTests
             "platform.message",
             "{\"scope\":\"role\",\"roleCodes\":[\"care_duty\"],\"actionUrl\":\"/admin/messages\"}"));
         await dbContext.SaveChangesAsync();
-        var handler = new ListCurrentNotificationTasksQueryHandler(dbContext);
+        var handler = CreateHandler(dbContext);
 
         var active = await handler.Handle(new ListCurrentNotificationTasksQuery(recipientId), CancellationToken.None);
         var task = Assert.Single(active.Value!);
@@ -289,7 +298,7 @@ public class CurrentNotificationTaskQueryTests
             CreateNotification(otherRecipientId, creatorId, null, "event.created", "{}"));
         await dbContext.SaveChangesAsync();
 
-        var result = await new ListCurrentNotificationTasksQueryHandler(dbContext)
+        var result = await CreateHandler(dbContext)
             .Handle(new ListCurrentNotificationTasksQuery(recipientId), CancellationToken.None);
 
         var task = Assert.Single(result.Value!);

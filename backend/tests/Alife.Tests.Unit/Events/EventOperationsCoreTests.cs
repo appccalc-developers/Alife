@@ -15,7 +15,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Alife.Tests.Unit.Events;
 
-public sealed class EventOperationsCoreTests
+public sealed partial class EventOperationsCoreTests
 {
     [Fact]
     public async Task RosterChanges_AuditOwningModule_AndBothSidesOfCandidateGroupMove()

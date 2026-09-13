@@ -9,8 +9,8 @@ export const selectPersonalCenterTasks = (
   limit = PERSONAL_CENTER_TASK_LIMIT,
 ) => [...tasks]
   .sort((left, right) => {
-    const leftIsDuty = left.actionType === 'event.ram.reviewRequested'
-    const rightIsDuty = right.actionType === 'event.ram.reviewRequested'
+    const leftIsDuty = left.completionMode === 'workflow'
+    const rightIsDuty = right.completionMode === 'workflow'
     if (leftIsDuty !== rightIsDuty) return leftIsDuty ? -1 : 1
     if (left.category === right.category) {
       return Date.parse(right.createdUtc || '') - Date.parse(left.createdUtc || '')

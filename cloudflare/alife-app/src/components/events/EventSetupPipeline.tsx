@@ -14,6 +14,7 @@ import { eventPreparationService, type EventPreparationState } from '../../servi
 import { eventCompositionService } from '../../services/eventCompositionService'
 import { normalizeApiError } from '../../services/http'
 import type { EventArchetype, EventPlanSnapshot, EventWorkspace } from '../../types/eventComposition'
+import { dutyReturnPath, withDutyReturn } from '../../utils/eventDutyNavigation'
 
 export default function EventSetupPipeline({ workspace: initialWorkspace, plan: initialPlan, archetypes, eventBasePath, language }: {
   workspace: EventWorkspace; plan: EventPlanSnapshot | null; archetypes: EventArchetype[]; eventBasePath: string; language: 'en' | 'zh'
@@ -49,11 +50,15 @@ export default function EventSetupPipeline({ workspace: initialWorkspace, plan: 
     region.current?.focus({ preventScroll: true })
     flowTop.current?.scrollIntoView({ block: 'start', behavior: 'instant' })
   }, [stage])
-  const go = (value: typeof stage) => navigate(setupPath(eventBasePath, value, value === 'arrangements' ? moduleParam || undefined : undefined))
+  const returnTo = params.has('returnTo') ? dutyReturnPath(params.get('returnTo')) : undefined
+  const go = (value: typeof stage) => {
+    const path = setupPath(eventBasePath, value, value === 'arrangements' ? moduleParam || undefined : undefined)
+    navigate(returnTo ? withDutyReturn(path, returnTo) : path)
+  }
   const changedReopening = (value: EventPreparationState) => { setPreparation(value); setApprovalRevision(current => current + 1); void refresh() }
-  return <AppPageShell title={`${zh ? '活动筹备' : 'Event preparation'} · ${workspace.title[language] || workspace.title.en || workspace.title.zh}`} context={zh ? '小组生活 / 活动' : 'Group Life / Events'}>
+  return <AppPageShell backLink={returnTo ? { to: returnTo, label: zh ? '返回当前事务' : 'Back to current tasks' } : undefined} title={`${zh ? '活动筹备' : 'Event preparation'} · ${workspace.title[language] || workspace.title.en || workspace.title.zh}`} context={zh ? '小组生活 / 活动' : 'Group Life / Events'}>
     <div className="flex flex-wrap gap-4 text-sm font-semibold text-[#176b5a]"><Link to={eventBasePath}>{zh ? '← 返回活动' : '← Back to event'}</Link><Link to={`${eventBasePath}/workspace?view=workspace`}>{zh ? '打开活动工作区总览' : 'Open workspace overview'}</Link></div>
-    <div ref={flowTop} className="scroll-mt-24"><EventFlowRail current={step} zh={zh} eventBasePath={eventBasePath} disabled={busy || refreshing || unavailable} frozen={frozen} approved={approved} pendingChanges={dirty} /></div>
+    <div ref={flowTop} className="scroll-mt-24"><EventFlowRail current={step} zh={zh} eventBasePath={eventBasePath} returnTo={returnTo} disabled={busy || refreshing || unavailable} frozen={frozen} approved={approved} pendingChanges={dirty} /></div>
     <p className="rounded-xl bg-[#e3f0eb] p-3 text-sm">{frozen && preparation
       ? (zh ? '正式审批已通过，活动资料和安排已冻结。接下来可制作海报并发布活动；需要修改时，请在正式审批中申请撤销。' : 'Approval freezes details and arrangements. Continue to poster and publication, or request reopening in the approval step.')
       : (zh ? '活动已保存。正式审批批准前，可在活动资料和活动安排之间反复调整；满意后再提交审批。海报在审批之后制作。' : 'The event is saved. Revisit details and arrangements until satisfied, then submit for approval. Poster production follows approval.')}</p>

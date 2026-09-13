@@ -67,6 +67,7 @@ public enum EventApprovalDecisionType
 public enum EventTeamMemberStatus { Invited = 0, Accepted = 1, Declined = 2, Ended = 3 }
 public enum EventRoleAssignmentStatus { Invited = 0, Accepted = 1, Declined = 2, Ended = 3 }
 public enum EventTaskStatus { Todo = 0, InProgress = 1, Blocked = 2, Done = 3, Cancelled = 4 }
+public enum EventTaskApprovalStatus { NotRequired = 0, NotSubmitted = 1, PendingReview = 2, Approved = 3, Returned = 4 }
 public enum EventSessionStatus { Draft = 0, Confirmed = 1, Cancelled = 2 }
 public enum EventAvailabilityStatus { Unknown = 0, Available = 1, Unavailable = 2, PreferNot = 3 }
 public enum EventRosterAssignmentStatus { Invited = 0, Confirmed = 1, Declined = 2, Ended = 3 }

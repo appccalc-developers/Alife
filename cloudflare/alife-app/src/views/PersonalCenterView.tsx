@@ -1,3 +1,4 @@
+import { withDutyReturn } from '../utils/eventDutyNavigation'
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { AlertCircle, ArrowRight, BellRing, BookOpen, Pencil, ShieldCheck, UsersRound } from 'lucide-react'
@@ -90,20 +91,22 @@ const PersonalCenterView = () => {
           <div className="grid gap-3 lg:grid-cols-3">
             {overviewTasks.map((task) => {
               const urgent = task.category === 'urgent'
-              const duty = task.actionType === 'event.ram.reviewRequested'
+              const duty = task.completionMode === 'workflow'
               const title = localizeNotificationText(task.title, auth.language) || (urgent ? (zh ? '紧要事务' : 'Urgent task') : (zh ? '一般通知' : 'Notification'))
               const body = localizeNotificationText(task.body, auth.language)
               const destination = duty && task.actionUrl
-                ? normalizeNotificationActionUrl(task.actionUrl)
+                ? withDutyReturn(normalizeNotificationActionUrl(task.actionUrl), '/profile')
                 : `/tasks?type=${urgent ? 'urgent' : 'general'}`
               return (
-                <Link key={task.id} to={destination} className="group relative min-h-40 overflow-hidden rounded-[1.4rem] border border-[var(--alife-line)] bg-[var(--alife-surface-strong)] p-5 shadow-[var(--alife-shadow-soft)] transition hover:-translate-y-0.5 hover:border-[#9fc3b5]">
+                <Link key={task.taskKey ?? task.id} to={destination} className="group relative min-h-40 overflow-hidden rounded-[1.4rem] border border-[var(--alife-line)] bg-[var(--alife-surface-strong)] p-5 shadow-[var(--alife-shadow-soft)] transition hover:-translate-y-0.5 hover:border-[#9fc3b5]">
                   <span className={['absolute inset-y-0 left-0 w-1.5', urgent ? 'bg-[#f08b72]' : 'bg-[#1f6756]'].join(' ')} aria-hidden="true" />
                   <div className="flex items-center justify-between gap-3 pl-1">
                     <AppBadge variant={urgent ? 'danger' : 'info'}>{duty ? (zh ? '职务待办' : 'Duty') : urgent ? (zh ? '紧要' : 'Urgent') : (zh ? '一般' : 'General')}</AppBadge>
                     <ArrowRight className="h-4 w-4 text-[#91a099] transition group-hover:translate-x-0.5 group-hover:text-[#176b5a]" />
                   </div>
                   <h3 className="mt-4 line-clamp-2 pl-1 text-base font-black leading-6 text-[#18332d]">{title}</h3>
+                  {task.occurrenceId ? <p className="mt-2 pl-1 text-xs text-[#60716a]">{zh ? '场次' : 'Occurrence'} · {task.occurrenceId.slice(0, 8)}</p> : null}
+                  {task.dueUtc ? <p className={`mt-2 pl-1 text-xs font-semibold ${new Date(task.dueUtc).getTime() < Date.now() ? 'text-red-700' : 'text-[#60716a]'}`}>{new Date(task.dueUtc).getTime() < Date.now() ? (zh ? '已逾期 · ' : 'Overdue · ') : (zh ? '期限 · ' : 'Due · ')}{formatNotificationDate(task.dueUtc, auth.language)}</p> : null}
                   {body ? <p className="mt-2 line-clamp-2 pl-1 text-xs leading-5 text-[#718079]">{body}</p> : null}
                   <p className="mt-3 pl-1 text-[11px] font-semibold text-[#8a9792]">{formatNotificationDate(task.createdUtc, auth.language)}</p>
                 </Link>

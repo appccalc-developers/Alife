@@ -232,7 +232,7 @@ public sealed class EventPackageInvalidationService(
         db.EventTasks.Add(new EventTask
         {
             Id = localReviewCreated && localReviewTaskId.HasValue ? localReviewTaskId.Value : Guid.NewGuid(),
-            EventId = groupEvent.Id,
+            EventId = groupEvent.Id, SourceType = "packageReview", SourceId = affectedOccurrenceId ?? groupEvent.Id, SourceVersion = now.Ticks.ToString(),
             TitleEn = affectedOccurrenceId.HasValue
                 ? $"Review {affectedModuleCode} for one occurrence"
                 : affectedModuleCode is null

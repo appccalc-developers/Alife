@@ -15,6 +15,12 @@ public sealed class EventTask
     public EventTaskStatus Status { get; set; } = EventTaskStatus.Todo;
     public bool IsRequired { get; set; }
     public bool RequiresApproval { get; set; }
+    public Guid? ReviewerMemberId { get; set; }
+    public EventTaskApprovalStatus ApprovalStatus { get; set; }
+    public int ApprovalRound { get; set; }
+    public string? SourceType { get; set; }
+    public Guid? SourceId { get; set; }
+    public string? SourceVersion { get; set; }
     public bool IsRestricted { get; set; }
     public DateTime? DueUtc { get; set; }
     public DateTime? CompletedUtc { get; set; }
@@ -25,9 +31,25 @@ public sealed class EventTask
     public GroupEvent Event { get; set; } = null!;
     public EventWorkflowStep? WorkflowStep { get; set; }
     public Member? AssignedMember { get; set; }
+    public Member? ReviewerMember { get; set; }
+    public ICollection<EventTaskApprovalAction> ApprovalActions { get; set; } = [];
     public ICollection<EventTaskDependency> Dependencies { get; set; } = [];
     public ICollection<EventTaskDependency> Dependants { get; set; } = [];
     public ICollection<EventTaskBlocker> Blockers { get; set; } = [];
+}
+
+public sealed class EventTaskApprovalAction
+{
+    public Guid Id { get; set; }
+    public Guid EventTaskId { get; set; }
+    public int Round { get; set; }
+    public string Action { get; set; } = "";
+    public Guid ActorMemberId { get; set; }
+    public Guid? ReviewerMemberId { get; set; }
+    public string SnapshotJson { get; set; } = "{}";
+    public string Reason { get; set; } = "";
+    public DateTime CreatedUtc { get; set; }
+    public EventTask EventTask { get; set; } = null!;
 }
 
 public sealed class EventTaskDependency

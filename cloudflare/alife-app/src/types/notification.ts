@@ -16,6 +16,14 @@ export type NotificationTaskDetails = {
 
 export type AppNotification = {
   id: string
+  taskKey?: string
+  sourceVersion?: string
+  eventTitle?: NotificationText
+  eventId?: string
+  groupId?: string
+  occurrenceId?: string
+  dueUtc?: string
+  actionLabel?: NotificationText
   actionType?: string
   title: NotificationText
   body?: NotificationText

@@ -416,3 +416,7 @@ Roster roles have explicit, ordered Event candidate groups, each attached to one
 Series creation also requires ownership of its linked Event. Updating a series requires ownership of every affected Event; an empty series is editable only by its creator. Group leadership alone cannot use recurrence changes to bypass Event ownership.
 
 Event details is the first full-row Arrangements card, with retained form/AI child work areas and creator summary. It does not add a policy module or confirmation. The visible preparation rail omits the separate Details step; legacy stage identifiers remain compatible. The Arrangements footer only returns to the top; explicit save/create actions retain their existing validation.
+
+## Personal Center duties and task approval
+
+[Event duties and personal handoffs](EVENT-DUTIES.md) is the normative saved-Event projection contract. Current actor/source/version determines duties, independently of notification history; reading does not complete a business action. The existing current-notifications array adds stable task keys, source versions, occurrence/deadline and bilingual action metadata. Restricted direct handlers preserve exact-version authority, private/no-store and account isolation. Ordinary completion approval uses named independent reviewers and immutable rounds; specialist approvals remain authoritative. Owner progression is limited to one actionable next step, respects explicit lifecycle closure, and keeps processable post-event tasks and approvals.

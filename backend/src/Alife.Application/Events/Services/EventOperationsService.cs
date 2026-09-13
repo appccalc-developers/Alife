@@ -92,6 +92,8 @@ public sealed partial class EventOperationsService(
         if (entity.MemberId != memberId) return AppResult<EventTeamMemberDto>.Forbidden("Only the invitee can respond.");
         if (entity.Status != EventTeamMemberStatus.Invited || entity.EndedUtc.HasValue)
             return AppResult<EventTeamMemberDto>.Conflict("This team invitation is no longer pending.");
+        var invitationGroup = await db.GroupEvents.Where(x => x.Id == eventId).Select(x => x.GroupId).SingleAsync(ct);
+        if (!await authorization.IsApprovedMemberAsync(invitationGroup, memberId, ct)) return AppResult<EventTeamMemberDto>.Forbidden("Current owning-group membership is required.");
         var now = DateTime.UtcNow;
         entity.Status = accept ? EventTeamMemberStatus.Accepted : EventTeamMemberStatus.Declined;
         entity.JoinedUtc = accept ? now : null;
@@ -122,14 +124,22 @@ public sealed partial class EventOperationsService(
     {
         var access = await RequireManager(eventId, memberId, ct);
         if (!access.IsSuccess) return ConvertFailure<EventTaskDto>(access);
+        if (!await EligibleTaskMember(access.Value!, memberId, ct)) return AppResult<EventTaskDto>.Forbidden("Current Event membership is required.");
         var validation = await ValidateTaskRequest(access.Value!, request.Title, request.AssignedMemberId, ct);
         if (validation is not null) return AppResult<EventTaskDto>.Validation(validation);
+        var ownerId = EventDutyAccess.OwnerId(access.Value!);
+        var reviewer = request.ReviewerMemberId ?? (request.RequiresApproval && request.AssignedMemberId != ownerId
+            ? ownerId : (Guid?)null);
+        if (reviewer.HasValue && (reviewer == request.AssignedMemberId || !await EligibleTaskMember(access.Value!, reviewer.Value, ct)))
+            return AppResult<EventTaskDto>.Validation("Select an eligible reviewer other than the assignee.");
         var now = DateTime.UtcNow;
         var entity = new EventTask { Id = Guid.NewGuid(), EventId = eventId,
             TitleEn = request.Title.En.Trim(), TitleZh = request.Title.Zh.Trim(), DescriptionEn = request.Description?.En.Trim() ?? "",
             DescriptionZh = request.Description?.Zh.Trim() ?? "", AssignedMemberId = request.AssignedMemberId,
             DueUtc = request.DueUtc, IsRequired = request.IsRequired, RequiresApproval = request.RequiresApproval,
-            IsRestricted = request.IsRestricted, CreatedUtc = now, UpdatedUtc = now };
+            IsRestricted = request.IsRestricted, ReviewerMemberId = request.RequiresApproval ? reviewer : null,
+            ApprovalStatus = request.RequiresApproval ? EventTaskApprovalStatus.NotSubmitted : EventTaskApprovalStatus.NotRequired,
+            CreatedUtc = now, UpdatedUtc = now };
         db.EventTasks.Add(entity);
         if ((entity.IsRequired || entity.RequiresApproval) && packageInvalidation is not null)
             await packageInvalidation.InvalidateForModuleChangeAsync(
@@ -143,35 +153,53 @@ public sealed partial class EventOperationsService(
     {
         var task = await TaskQuery(eventId).FirstOrDefaultAsync(x => x.Id == taskId, ct);
         if (task is null) return AppResult<EventTaskDto>.NotFound("Task not found.");
-        if (await db.EventPackageConditions.AsNoTracking().AnyAsync(x => x.ReadinessTaskId == taskId, ct))
+        if (await IsSystemTask(task, ct))
             return AppResult<EventTaskDto>.Conflict("Package condition tasks are projections; update the authoritative Package condition instead.");
         var canManage = await CanManage(task.Event, memberId, ct);
         if (!canManage && task.AssignedMemberId != memberId) return AppResult<EventTaskDto>.Forbidden("Only event managers or the assignee can update this task.");
         if (task.IsRestricted && !canManage && task.AssignedMemberId != memberId) return AppResult<EventTaskDto>.Forbidden("This task is role-restricted.");
         if (!Matches(ifMatch, TaskETag(task))) return AppResult<EventTaskDto>.PreconditionFailed("The task changed; reload before saving.");
+        if (!await EligibleTaskMember(task.Event, memberId, ct)) return AppResult<EventTaskDto>.Forbidden("Current Event membership is required.");
+        var reviewer = request.ClearReviewer ? null : request.ReviewerMemberId ?? task.ReviewerMemberId;
+        if (task.RequiresApproval && request.Status == EventTaskStatus.Done &&
+            (task.Status != EventTaskStatus.Done || task.TitleEn != request.Title.En.Trim() || task.TitleZh != request.Title.Zh.Trim() ||
+             task.DescriptionEn != (request.Description?.En.Trim() ?? "") || task.DescriptionZh != (request.Description?.Zh.Trim() ?? "") ||
+             task.AssignedMemberId != request.AssignedMemberId || reviewer != task.ReviewerMemberId || task.DueUtc != request.DueUtc ||
+             task.IsRequired != request.IsRequired || task.IsRestricted != request.IsRestricted || !request.RequiresApproval))
+            return AppResult<EventTaskDto>.Conflict("Submit completion for independent review instead of setting an approval task to Done.");
+        if (!task.RequiresApproval && request.RequiresApproval && request.Status == EventTaskStatus.Done)
+            return AppResult<EventTaskDto>.Conflict("A new approval requirement must be submitted for review.");
+        if (task.ApprovalStatus == EventTaskApprovalStatus.PendingReview && !canManage)
+            return AppResult<EventTaskDto>.Conflict("Withdraw the submitted completion before changing progress.");
+        if (request.RequiresApproval && reviewer.HasValue && (reviewer == request.AssignedMemberId || !await EligibleTaskMember(task.Event, reviewer.Value, ct)))
+            return AppResult<EventTaskDto>.Validation("Select an eligible reviewer other than the assignee.");
         if (!canManage && (request.AssignedMemberId != task.AssignedMemberId || request.IsRequired != task.IsRequired ||
-            request.RequiresApproval != task.RequiresApproval || request.IsRestricted != task.IsRestricted ||
+            request.RequiresApproval != task.RequiresApproval || request.IsRestricted != task.IsRestricted || reviewer != task.ReviewerMemberId ||
             request.Status == EventTaskStatus.Cancelled || request.DueUtc != task.DueUtc ||
             !string.Equals(request.Title.En.Trim(), task.TitleEn, StringComparison.Ordinal) ||
             !string.Equals(request.Title.Zh.Trim(), task.TitleZh, StringComparison.Ordinal) ||
             !string.Equals(request.Description?.En.Trim() ?? "", task.DescriptionEn, StringComparison.Ordinal) ||
             !string.Equals(request.Description?.Zh.Trim() ?? "", task.DescriptionZh, StringComparison.Ordinal)))
             return AppResult<EventTaskDto>.Forbidden("Assignees can update task progress only.");
-        if (request.Status == EventTaskStatus.Done && task.Dependencies.Any(x => x.DependsOnEventTask.Status != EventTaskStatus.Done))
-            return AppResult<EventTaskDto>.Conflict("Complete prerequisite tasks first.");
+        if (request.Status == EventTaskStatus.Done && (task.Dependencies.Any(x => x.DependsOnEventTask.Status != EventTaskStatus.Done) || task.Blockers.Any(x => x.ResolvedUtc == null)))
+            return AppResult<EventTaskDto>.Conflict("Complete prerequisite tasks and resolve blockers first.");
         var validation = await ValidateTaskRequest(task.Event, request.Title, request.AssignedMemberId, ct);
         if (validation is not null) return AppResult<EventTaskDto>.Validation(validation);
         var changesReadiness = task.AssignedMemberId != request.AssignedMemberId || task.DueUtc != request.DueUtc ||
             task.Status != request.Status || task.IsRequired != request.IsRequired ||
-            task.RequiresApproval != request.RequiresApproval || task.IsRestricted != request.IsRestricted;
+            task.RequiresApproval != request.RequiresApproval || task.IsRestricted != request.IsRestricted || task.ReviewerMemberId != reviewer;
+        var changesProgress = task.Status != request.Status;
         var changesPreparation = task.AssignedMemberId != request.AssignedMemberId || task.DueUtc != request.DueUtc ||
-            task.IsRequired != request.IsRequired || task.RequiresApproval != request.RequiresApproval || task.IsRestricted != request.IsRestricted ||
+            task.IsRequired != request.IsRequired || task.RequiresApproval != request.RequiresApproval || task.IsRestricted != request.IsRestricted || task.ReviewerMemberId != reviewer ||
             request.Status == EventTaskStatus.Cancelled || task.TitleEn != request.Title.En.Trim() || task.TitleZh != request.Title.Zh.Trim() ||
             task.DescriptionEn != (request.Description?.En.Trim() ?? "") || task.DescriptionZh != (request.Description?.Zh.Trim() ?? "");
         task.TitleEn = request.Title.En.Trim(); task.TitleZh = request.Title.Zh.Trim();
         task.DescriptionEn = request.Description?.En.Trim() ?? ""; task.DescriptionZh = request.Description?.Zh.Trim() ?? "";
         task.AssignedMemberId = request.AssignedMemberId; task.DueUtc = request.DueUtc; task.Status = request.Status;
         task.IsRequired = request.IsRequired; task.RequiresApproval = request.RequiresApproval; task.IsRestricted = request.IsRestricted;
+        if (changesPreparation || (task.ApprovalStatus == EventTaskApprovalStatus.PendingReview && changesProgress) || (task.ApprovalStatus == EventTaskApprovalStatus.Approved && request.Status != EventTaskStatus.Done))
+            InvalidateTaskApproval(task, memberId);
+        task.ReviewerMemberId = request.RequiresApproval ? reviewer : null;
         task.CompletedUtc = request.Status == EventTaskStatus.Done ? DateTime.UtcNow : null;
         task.ConcurrencyToken = Guid.NewGuid(); task.UpdatedUtc = DateTime.UtcNow;
         if (changesReadiness && packageInvalidation is not null)
@@ -193,10 +221,11 @@ public sealed partial class EventOperationsService(
     {
         var task = await TaskQuery(eventId).FirstOrDefaultAsync(x => x.Id == taskId, ct);
         if (task is null) return AppResult<EventTaskDto>.NotFound("Task not found.");
-        if (await db.EventPackageConditions.AsNoTracking().AnyAsync(x => x.ReadinessTaskId == taskId, ct))
+        if (await IsSystemTask(task, ct))
             return AppResult<EventTaskDto>.Conflict("Package condition tasks are projections; update the authoritative Package condition instead.");
-        if (!await CanManage(task.Event, memberId, ct)) return AppResult<EventTaskDto>.Forbidden("Only event managers can cancel tasks.");
+        if (!await CanManage(task.Event, memberId, ct) || !await EligibleTaskMember(task.Event, memberId, ct)) return AppResult<EventTaskDto>.Forbidden("Only current event managers can cancel tasks.");
         if (!Matches(ifMatch, TaskETag(task))) return AppResult<EventTaskDto>.PreconditionFailed("The task changed; reload before cancelling.");
+        InvalidateTaskApproval(task, memberId);
         task.Status = EventTaskStatus.Cancelled; task.CompletedUtc = null; task.ConcurrencyToken = Guid.NewGuid(); task.UpdatedUtc = DateTime.UtcNow;
         if ((task.IsRequired || task.RequiresApproval) && packageInvalidation is not null)
             await packageInvalidation.InvalidateForModuleChangeAsync(
@@ -210,12 +239,15 @@ public sealed partial class EventOperationsService(
     {
         var access = await RequireManager(eventId, memberId, ct);
         if (!access.IsSuccess) return ConvertFailure<EventTaskDto>(access);
+        if (!await EligibleTaskMember(access.Value!, memberId, ct)) return AppResult<EventTaskDto>.Forbidden("Current Event membership is required.");
         if (taskId == request.DependsOnEventTaskId) return AppResult<EventTaskDto>.Validation("A task cannot depend on itself.");
         var tasks = await db.EventTasks.Where(x => x.EventId == eventId).Include(x => x.Dependencies).ToListAsync(ct);
         var task = tasks.FirstOrDefault(x => x.Id == taskId);
         if (task is null || tasks.All(x => x.Id != request.DependsOnEventTaskId)) return AppResult<EventTaskDto>.NotFound("Task not found.");
+        if (await IsSystemTask(task, ct)) return AppResult<EventTaskDto>.Conflict("Use the authoritative specialist workflow.");
         if (WouldCreateCycle(tasks, taskId, request.DependsOnEventTaskId)) return AppResult<EventTaskDto>.Conflict("The dependency would create a cycle.");
         if (task.Dependencies.Any(x => x.DependsOnEventTaskId == request.DependsOnEventTaskId)) return AppResult<EventTaskDto>.Conflict("Dependency already exists.");
+        InvalidateTaskApproval(task, memberId);
         db.EventTaskDependencies.Add(new EventTaskDependency { Id = Guid.NewGuid(), EventTaskId = taskId,
             DependsOnEventTaskId = request.DependsOnEventTaskId, DependencyType = NormalizeDependency(request.DependencyType), CreatedUtc = DateTime.UtcNow });
         task.ConcurrencyToken = Guid.NewGuid(); task.UpdatedUtc = DateTime.UtcNow;
@@ -231,10 +263,13 @@ public sealed partial class EventOperationsService(
     public async Task<AppResult<EventTaskDto>> RemoveTaskDependencyAsync(Guid eventId, Guid taskId, Guid dependencyId, Guid memberId, CancellationToken ct)
     {
         var access = await RequireManager(eventId, memberId, ct); if (!access.IsSuccess) return ConvertFailure<EventTaskDto>(access);
+        if (!await EligibleTaskMember(access.Value!, memberId, ct)) return AppResult<EventTaskDto>.Forbidden("Current Event membership is required.");
         var task = await TaskQuery(eventId).FirstOrDefaultAsync(x => x.Id == taskId, ct);
         if (task is null) return AppResult<EventTaskDto>.NotFound("Task not found.");
         var dependency = task.Dependencies.FirstOrDefault(x => x.Id == dependencyId);
         if (dependency is null) return AppResult<EventTaskDto>.NotFound("Task dependency not found.");
+        if (await IsSystemTask(task, ct)) return AppResult<EventTaskDto>.Conflict("Use the authoritative specialist workflow.");
+        InvalidateTaskApproval(task, memberId);
         db.EventTaskDependencies.Remove(dependency); task.ConcurrencyToken = Guid.NewGuid(); task.UpdatedUtc = DateTime.UtcNow;
         if (packageInvalidation is not null)
             await packageInvalidation.InvalidateForModuleChangeAsync(
@@ -248,9 +283,11 @@ public sealed partial class EventOperationsService(
     {
         var task = await TaskQuery(eventId).FirstOrDefaultAsync(x => x.Id == taskId, ct);
         if (task is null) return AppResult<EventTaskDto>.NotFound("Task not found.");
-        if (!await CanManage(task.Event, memberId, ct) && task.AssignedMemberId != memberId)
+        if (!await EligibleTaskMember(task.Event, memberId, ct) || (!await CanManage(task.Event, memberId, ct) && task.AssignedMemberId != memberId))
             return AppResult<EventTaskDto>.Forbidden("Only event managers or the assignee can block this task.");
         if (string.IsNullOrWhiteSpace(request.Reason)) return AppResult<EventTaskDto>.Validation("A blocker reason is required.");
+        if (await IsSystemTask(task, ct)) return AppResult<EventTaskDto>.Conflict("Use the authoritative specialist workflow.");
+        InvalidateTaskApproval(task, memberId);
         db.EventTaskBlockers.Add(new EventTaskBlocker { Id = Guid.NewGuid(), EventTaskId = task.Id, Reason = request.Reason.Trim(),
             CreatedByMemberId = memberId, CreatedUtc = DateTime.UtcNow });
         task.Status = EventTaskStatus.Blocked; task.ConcurrencyToken = Guid.NewGuid(); task.UpdatedUtc = DateTime.UtcNow;
@@ -266,12 +303,14 @@ public sealed partial class EventOperationsService(
     {
         var task = await TaskQuery(eventId).FirstOrDefaultAsync(x => x.Id == taskId, ct);
         if (task is null) return AppResult<EventTaskDto>.NotFound("Task not found.");
-        if (!await CanManage(task.Event, memberId, ct) && task.AssignedMemberId != memberId)
+        if (!await EligibleTaskMember(task.Event, memberId, ct) || (!await CanManage(task.Event, memberId, ct) && task.AssignedMemberId != memberId))
             return AppResult<EventTaskDto>.Forbidden("Only event managers or the assignee can resolve this blocker.");
         var blocker = task.Blockers.FirstOrDefault(x => x.Id == blockerId);
         if (blocker is null) return AppResult<EventTaskDto>.NotFound("Task blocker not found.");
         if (blocker.ResolvedUtc.HasValue) return AppResult<EventTaskDto>.Conflict("The blocker is already resolved.");
         if (string.IsNullOrWhiteSpace(request.Resolution)) return AppResult<EventTaskDto>.Validation("A resolution is required.");
+        if (await IsSystemTask(task, ct)) return AppResult<EventTaskDto>.Conflict("Use the authoritative specialist workflow.");
+        InvalidateTaskApproval(task, memberId);
         blocker.Resolution = request.Resolution.Trim(); blocker.ResolvedByMemberId = memberId; blocker.ResolvedUtc = DateTime.UtcNow;
         if (task.Blockers.All(x => x.ResolvedUtc.HasValue)) task.Status = EventTaskStatus.InProgress;
         task.ConcurrencyToken = Guid.NewGuid(); task.UpdatedUtc = DateTime.UtcNow;
@@ -466,7 +505,11 @@ public sealed partial class EventOperationsService(
         var assignment = occurrence.ServiceSlots.SelectMany(x => x.Assignments).FirstOrDefault(x => x.Id == assignmentId);
         if (assignment is null) return AppResult<EventRosterDto>.NotFound("Roster assignment not found.");
         if (assignment.MemberId != memberId) return AppResult<EventRosterDto>.Forbidden("Only the assignee can respond.");
+        if (!await authorization.IsApprovedMemberAsync(occurrence.Event.GroupId, memberId, ct)) return AppResult<EventRosterDto>.Forbidden("Current owning-group membership is required.");
+        if (occurrence.Status == EventOccurrenceStatus.Cancelled) return AppResult<EventRosterDto>.Conflict("This occurrence has been cancelled.");
         if (assignment.Status != EventRosterAssignmentStatus.Invited || assignment.EndedUtc.HasValue) return AppResult<EventRosterDto>.Conflict("This assignment is no longer pending.");
+        var slot = occurrence.ServiceSlots.Single(x => x.Assignments.Contains(assignment));
+        if (confirm && !await IsEligibleForSlot(occurrence.Event, slot, memberId, ct)) return AppResult<EventRosterDto>.Forbidden("You no longer satisfy this position's eligibility rule.");
         assignment.Status = confirm ? EventRosterAssignmentStatus.Confirmed : EventRosterAssignmentStatus.Declined;
         assignment.ConfirmedUtc = confirm ? DateTime.UtcNow : null; assignment.DeclinedUtc = confirm ? null : DateTime.UtcNow;
         assignment.EndedUtc = confirm ? null : assignment.DeclinedUtc; assignment.UpdatedUtc = DateTime.UtcNow;
@@ -497,20 +540,10 @@ public sealed partial class EventOperationsService(
 
     private async Task<bool> IsEligibleForSlot(GroupEvent groupEvent, EventServiceSlot slot, Guid memberId, CancellationToken ct)
     {
-        if (slot.EligibilityCode == "approvedGroupMember") return true;
-        if (slot.EligibilityCode == "acceptedEventTeamMember")
-            return groupEvent.AccountableOwnerMemberId == memberId || await db.EventTeamMembers.AsNoTracking().AnyAsync(x =>
-                x.EventId == groupEvent.Id && x.MemberId == memberId && x.Status == EventTeamMemberStatus.Accepted && x.EndedUtc == null, ct) ||
-                await db.EventRoleAssignments.AsNoTracking().AnyAsync(x => x.EventId == groupEvent.Id && x.MemberId == memberId && x.Status == EventRoleAssignmentStatus.Accepted && x.EndedUtc == null, ct);
-        const string prefix = "acceptedRole:";
-        if (slot.EligibilityCode.StartsWith(prefix, StringComparison.Ordinal))
-        {
-            var role = slot.EligibilityCode[prefix.Length..];
-            return role.Length is > 0 and <= 120 && await db.EventRoleAssignments.AsNoTracking().AnyAsync(x =>
-                x.EventId == groupEvent.Id && x.MemberId == memberId && x.Status == EventRoleAssignmentStatus.Accepted &&
-                x.EndedUtc == null && x.RoleRequirementKey.EndsWith($":{role}"), ct);
-        }
-        return false;
+        var approved = await authorization.IsApprovedMemberAsync(groupEvent.GroupId, memberId, ct);
+        var roles = await db.EventRoleAssignments.AsNoTracking().Where(x => x.EventId == groupEvent.Id && x.MemberId == memberId && x.Status == EventRoleAssignmentStatus.Accepted && x.EndedUtc == null).Select(x => x.RoleRequirementKey).ToListAsync(ct);
+        var team = await db.EventTeamMembers.AsNoTracking().AnyAsync(x => x.EventId == groupEvent.Id && x.MemberId == memberId && x.Status == EventTeamMemberStatus.Accepted && x.EndedUtc == null, ct);
+        return EventDutyAccess.IsRosterEligible(slot.EligibilityCode, approved, EventDutyAccess.IsTaskParticipant(approved, EventDutyAccess.OwnerId(groupEvent) == memberId, team, roles.Count > 0), roles);
     }
 
     private async Task<bool> IsModuleEnabled(Guid eventId, string moduleCode, CancellationToken ct)
@@ -530,7 +563,9 @@ public sealed partial class EventOperationsService(
     private async Task<string?> ValidateTaskRequest(GroupEvent groupEvent, LocalizedTextDto title, Guid? assignedMemberId, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(title.En) || string.IsNullOrWhiteSpace(title.Zh)) return "Bilingual task titles are required.";
-        if (assignedMemberId.HasValue && assignedMemberId != groupEvent.AccountableOwnerMemberId &&
+        if (assignedMemberId.HasValue && !await authorization.IsApprovedMemberAsync(groupEvent.GroupId, assignedMemberId.Value, ct))
+            return "The assignee must be a current approved member of the owning group.";
+        if (assignedMemberId.HasValue && assignedMemberId != EventDutyAccess.OwnerId(groupEvent) &&
             !await db.EventTeamMembers.AsNoTracking().AnyAsync(x => x.EventId == groupEvent.Id && x.MemberId == assignedMemberId && x.Status == EventTeamMemberStatus.Accepted && x.EndedUtc == null, ct) &&
             !await db.EventRoleAssignments.AsNoTracking().AnyAsync(x => x.EventId == groupEvent.Id && x.MemberId == assignedMemberId && x.Status == EventRoleAssignmentStatus.Accepted && x.EndedUtc == null, ct))
             return "The assignee must be the accountable owner or an accepted event-team member.";
@@ -597,7 +632,8 @@ public sealed partial class EventOperationsService(
     private static EventTaskDto ToTaskDto(EventTask x) => new(x.Id, x.EventId, x.WorkflowStepId, new(x.TitleEn, x.TitleZh),
         new(x.DescriptionEn, x.DescriptionZh), x.AssignedMemberId, x.Status, x.IsRequired, x.RequiresApproval, x.IsRestricted,
         x.DueUtc, x.CompletedUtc, TaskETag(x), x.Dependencies.Select(d => new EventTaskDependencyDto(d.Id, d.DependsOnEventTaskId, d.DependencyType)).ToArray(),
-        x.Blockers.Select(b => new EventTaskBlockerDto(b.Id, b.Reason, b.CreatedByMemberId, b.CreatedUtc, b.ResolvedByMemberId, b.Resolution, b.ResolvedUtc)).ToArray());
+        x.Blockers.Select(b => new EventTaskBlockerDto(b.Id, b.Reason, b.CreatedByMemberId, b.CreatedUtc, b.ResolvedByMemberId, b.Resolution, b.ResolvedUtc)).ToArray(),
+        x.ReviewerMemberId, x.ApprovalStatus, x.ApprovalRound, x.SourceType, x.SourceId);
     private static EventProgrammeDto ToProgrammeDto(EventOccurrence x, bool canManage) => new(x.EventId, x.Id, ProgrammeETag(x),
         x.Sessions.OrderBy(s => s.StartUtc).Select(s => new EventSessionDto(s.Id, s.OccurrenceId, new(s.TitleEn, s.TitleZh), s.StartUtc, s.EndUtc,
             s.PlaceJson, s.LeadMemberId, s.Status, s.ProgramItems.OrderBy(i => i.SortOrder).Select(i => new EventProgramItemDto(i.Id, i.SessionId,

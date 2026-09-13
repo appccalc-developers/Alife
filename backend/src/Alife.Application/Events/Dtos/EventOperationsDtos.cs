@@ -12,13 +12,22 @@ public sealed record EventTaskBlockerDto(Guid Id, string Reason, Guid CreatedByM
 public sealed record EventTaskDto(Guid Id, Guid EventId, Guid? WorkflowStepId, LocalizedTextDto Title,
     LocalizedTextDto Description, Guid? AssignedMemberId, EventTaskStatus Status, bool IsRequired,
     bool RequiresApproval, bool IsRestricted, DateTime? DueUtc, DateTime? CompletedUtc, string ETag,
-    IReadOnlyList<EventTaskDependencyDto> Dependencies, IReadOnlyList<EventTaskBlockerDto> Blockers);
+    IReadOnlyList<EventTaskDependencyDto> Dependencies, IReadOnlyList<EventTaskBlockerDto> Blockers,
+    Guid? ReviewerMemberId = null, EventTaskApprovalStatus ApprovalStatus = EventTaskApprovalStatus.NotRequired,
+    int ApprovalRound = 0, string? SourceType = null, Guid? SourceId = null);
 public sealed record CreateEventTaskRequest(LocalizedTextDto Title, LocalizedTextDto? Description,
     Guid? AssignedMemberId, DateTime? DueUtc, bool IsRequired = false, bool RequiresApproval = false,
-    bool IsRestricted = false, Guid? WorkflowStepId = null);
+    bool IsRestricted = false, Guid? WorkflowStepId = null, Guid? ReviewerMemberId = null);
 public sealed record UpdateEventTaskRequest(LocalizedTextDto Title, LocalizedTextDto? Description,
     Guid? AssignedMemberId, DateTime? DueUtc, EventTaskStatus Status, bool IsRequired,
-    bool RequiresApproval, bool IsRestricted);
+    bool RequiresApproval, bool IsRestricted, Guid? ReviewerMemberId = null, bool ClearReviewer = false);
+public sealed record EventTaskApprovalRequest(string Reason = "");
+public sealed record EventTaskApprovalActionDto(Guid Id, int Round, string Action, Guid ActorMemberId,
+    Guid? ReviewerMemberId, string SnapshotJson, string Reason, DateTime CreatedUtc);
+public sealed record EventTaskDetailDto(EventTaskDto Task, IReadOnlyList<EventTaskApprovalActionDto> History,
+    bool CanManage, bool CanSubmit, bool CanWithdraw, bool CanReview,
+    IReadOnlyList<EventTaskParticipantDto>? Participants = null);
+public sealed record EventTaskParticipantDto(Guid Id, string Name);
 public sealed record AddEventTaskDependencyRequest(Guid DependsOnEventTaskId, string DependencyType = "finishToStart");
 public sealed record AddEventTaskBlockerRequest(string Reason);
 public sealed record ResolveEventTaskBlockerRequest(string Resolution);

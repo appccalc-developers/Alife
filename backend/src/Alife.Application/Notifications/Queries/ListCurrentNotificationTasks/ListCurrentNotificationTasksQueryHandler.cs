@@ -4,13 +4,14 @@ using Alife.Application.Common.Models;
 using Alife.Application.Notifications.Dtos;
 using Alife.Application.Notifications.Services;
 using Alife.Domain.Enums;
+using Alife.Application.Events.Services;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 
 namespace Alife.Application.Notifications.Queries.ListCurrentNotificationTasks;
 
-public sealed class ListCurrentNotificationTasksQueryHandler(IAlifeDbContext dbContext)
+public sealed class ListCurrentNotificationTasksQueryHandler(IAlifeDbContext dbContext, EventDutyProjectionService eventDuties)
     : IRequestHandler<ListCurrentNotificationTasksQuery, AppResult<IReadOnlyList<CurrentNotificationTaskDto>>>
 {
     private static readonly string[] WorkflowActionTypes =
@@ -18,8 +19,7 @@ public sealed class ListCurrentNotificationTasksQueryHandler(IAlifeDbContext dbC
         MembershipNotificationActionData.ChurchLineMemberWaitingActionType,
         MembershipNotificationActionData.GroupJoinRequestReceivedActionType,
         CurrentNotificationTaskPolicy.LegacyGroupJoinRequestedActionType,
-        CurrentNotificationTaskPolicy.VisitorContactRequestedActionType,
-        CurrentNotificationTaskPolicy.RamReviewRequestedActionType
+        CurrentNotificationTaskPolicy.VisitorContactRequestedActionType
     ];
 
     public async Task<AppResult<IReadOnlyList<CurrentNotificationTaskDto>>> Handle(
@@ -30,6 +30,7 @@ public sealed class ListCurrentNotificationTasksQueryHandler(IAlifeDbContext dbC
             .AsNoTracking()
             .Where(notification =>
                 notification.RecipientMemberId == request.CurrentMemberId &&
+                !EventDutyFactory.ReplacedNotificationTypes.Contains(notification.ActionType) &&
                 (!notification.ReadUtc.HasValue || WorkflowActionTypes.Contains(notification.ActionType)))
             .OrderByDescending(notification => notification.OccurredUtc)
             .Select(notification => new CandidateNotification(
@@ -124,55 +125,6 @@ public sealed class ListCurrentNotificationTasksQueryHandler(IAlifeDbContext dbC
                 AdminPermissionCatalog.ReceiveVisitorContactRequests,
                 cancellationToken);
 
-        var ramReviewNotifications = parsedNotifications
-            .Where(item => item.Notification.ActionType == CurrentNotificationTaskPolicy.RamReviewRequestedActionType)
-            .ToArray();
-        var ramReviewEventIds = ramReviewNotifications
-            .Select(item => item.Notification.EventId ?? item.ActionData.EventId)
-            .Where(id => id.HasValue)
-            .Select(id => id!.Value)
-            .Distinct()
-            .ToArray();
-        var ramReviewStates = ramReviewEventIds.Length == 0
-            ? new Dictionary<Guid, RamReviewState>()
-            : await (
-                    from ram in dbContext.EventRamAssessments.AsNoTracking()
-                    join revision in dbContext.EventRamRevisions.AsNoTracking()
-                        on ram.CurrentRevisionId equals (Guid?)revision.Id
-                    where ramReviewEventIds.Contains(ram.EventId)
-                    select new RamReviewState(
-                        ram.EventId,
-                        revision.Id,
-                        revision.AuthorMemberId,
-                        revision.OnsiteMemberId,
-                        ram.SubmittedByMemberId,
-                        ram.Status,
-                        ram.Validity))
-                .ToDictionaryAsync(state => state.EventId, cancellationToken);
-        var canAuditRam = ramReviewEventIds.Length > 0 &&
-            await AdminPlatformRoleHelpers.HasPermissionAsync(
-                dbContext,
-                request.CurrentMemberId,
-                AdminPermissionCatalog.AuditEvents,
-                cancellationToken);
-        var ramChurchIds = ramReviewNotifications
-            .Select(item => item.ActionData.ChurchId)
-            .Where(id => id.HasValue)
-            .Select(id => id!.Value)
-            .Distinct()
-            .ToArray();
-        var approvedRamChurchIds = ramChurchIds.Length == 0
-            ? new HashSet<Guid>()
-            : (await dbContext.GroupMemberships
-                .AsNoTracking()
-                .Where(membership =>
-                    membership.MemberId == request.CurrentMemberId &&
-                    membership.Status == MembershipStatus.Approved &&
-                    ramChurchIds.Contains(membership.GroupId))
-                .Select(membership => membership.GroupId)
-                .ToListAsync(cancellationToken))
-                .ToHashSet();
-
         var activeRoleCodes = parsedNotifications.Any(item => item.ActionData.IsRoleScoped)
             ? (await dbContext.MemberPlatformRoles
                 .AsNoTracking()
@@ -226,30 +178,6 @@ public sealed class ListCurrentNotificationTasksQueryHandler(IAlifeDbContext dbC
                 category = CurrentNotificationTaskPolicy.UrgentCategory;
                 completionMode = CurrentNotificationTaskPolicy.WorkflowCompletionMode;
             }
-            else if (notification.ActionType == CurrentNotificationTaskPolicy.RamReviewRequestedActionType)
-            {
-                var eventId = notification.EventId ?? item.ActionData.EventId;
-                var revisionId = item.ActionData.RevisionId;
-                var churchId = item.ActionData.ChurchId;
-                if (!canAuditRam || !eventId.HasValue || !revisionId.HasValue || !churchId.HasValue ||
-                    !approvedRamChurchIds.Contains(churchId.Value) ||
-                    !ramReviewStates.TryGetValue(eventId.Value, out var review) ||
-                    review.RevisionId != revisionId.Value ||
-                    review.Status != EventRamStatus.AwaitingReview ||
-                    review.Validity != "AwaitingReview" ||
-                    request.CurrentMemberId == review.AuthorMemberId ||
-                    request.CurrentMemberId == review.OnsiteMemberId ||
-                    request.CurrentMemberId == review.SubmittedByMemberId)
-                {
-                    continue;
-                }
-
-                actionDataJson = CurrentNotificationTaskPolicy.WithActionUrl(
-                    actionDataJson,
-                    $"/events/{eventId.Value}/ram?from=profile");
-                category = CurrentNotificationTaskPolicy.UrgentCategory;
-                completionMode = CurrentNotificationTaskPolicy.WorkflowCompletionMode;
-            }
             else if (notification.ActionType is "identity.activation.grant_conflict" or "identity.activation.identity_mismatch")
             {
                 category = CurrentNotificationTaskPolicy.UrgentCategory;
@@ -277,6 +205,16 @@ public sealed class ListCurrentNotificationTasksQueryHandler(IAlifeDbContext dbC
                 completionMode = CurrentNotificationTaskPolicy.ReadCompletionMode;
             }
 
+            if (notification.EventId.HasValue && (notification.ActionType.StartsWith("event.package.") || notification.ActionType.StartsWith("event.preparation.reopen.")))
+            {
+                System.Text.Json.Nodes.JsonObject data;
+                try { data = System.Text.Json.Nodes.JsonNode.Parse(actionDataJson) as System.Text.Json.Nodes.JsonObject ?? new(); }
+                catch (JsonException) { data = new(); }
+                data["title"] ??= JsonSerializer.SerializeToNode(new { en = "Event approval updated", zh = "活动审批已更新" });
+                data["body"] ??= JsonSerializer.SerializeToNode(new { en = "Open the approval record to see the result.", zh = "请打开审批记录查看处理结果。" });
+                data["actionUrl"] ??= $"/events/{notification.EventId}/workspace?tab=governance";
+                actionDataJson = data.ToJsonString();
+            }
             var parsedActionData = CurrentNotificationTaskPolicy.Parse(actionDataJson);
             var actionUrl = parsedActionData.ActionUrl;
             if (string.IsNullOrWhiteSpace(actionUrl) &&
@@ -372,6 +310,7 @@ public sealed class ListCurrentNotificationTasksQueryHandler(IAlifeDbContext dbC
                 application.Id));
         }
 
+        currentTasks.AddRange((await eventDuties.ListAsync(request.CurrentMemberId, cancellationToken)).Select(x => x.Task));
         return AppResult<IReadOnlyList<CurrentNotificationTaskDto>>.Success(
             currentTasks.OrderByDescending(item => item.UpdatedUtc).ToArray());
     }
@@ -396,12 +335,4 @@ public sealed class ListCurrentNotificationTasksQueryHandler(IAlifeDbContext dbC
         CandidateNotification Notification,
         CurrentNotificationTaskPolicy.ParsedActionData ActionData);
 
-    private sealed record RamReviewState(
-        Guid EventId,
-        Guid RevisionId,
-        Guid AuthorMemberId,
-        Guid? OnsiteMemberId,
-        Guid? SubmittedByMemberId,
-        EventRamStatus Status,
-        string Validity);
 }

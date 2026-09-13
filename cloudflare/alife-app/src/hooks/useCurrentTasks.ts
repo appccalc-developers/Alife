@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useEffect } from 'react'
 import { queryClient } from '../db/queryClient'
 import { notificationService } from '../services/notificationService'
 import { useAuthStore } from '../stores/auth'
@@ -9,6 +10,11 @@ export const currentTasksQueryKey = (memberId: string) => ['notifications', 'cur
 export const useCurrentTasks = () => {
   const auth = useAuthStore()
   const memberId = auth.me?.id || ''
+  useEffect(() => {
+    const refresh = () => { void invalidateCurrentTasks(memberId) }
+    window.addEventListener('alife:event-duty-changed', refresh)
+    return () => window.removeEventListener('alife:event-duty-changed', refresh)
+  }, [memberId])
 
   return useQuery({
     queryKey: currentTasksQueryKey(memberId),
@@ -28,6 +34,6 @@ export const invalidateCurrentTasks = async (memberId: string | undefined) => {
 export const markCurrentTaskRead = async (memberId: string, notificationId: string) => {
   await notificationService.openNotification(notificationId)
   queryClient.setQueryData<AppNotification[]>(currentTasksQueryKey(memberId), (current) =>
-    current?.filter((task) => task.id !== notificationId) ?? [])
+    current?.filter((task) => task.id !== notificationId || task.completionMode === 'workflow') ?? [])
   await invalidateCurrentTasks(memberId)
 }

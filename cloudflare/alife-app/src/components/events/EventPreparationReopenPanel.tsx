@@ -6,8 +6,8 @@ import { eventPreparationService, type EventPreparationState } from '../../servi
 import { normalizeApiError } from '../../services/http'
 import useConfirmation from '../../hooks/useConfirmation'
 
-export default function EventPreparationReopenPanel({ state, groupId, zh, onChanged, onBusy }: {
-  state: EventPreparationState; groupId: string; zh: boolean; onChanged: (value: EventPreparationState) => void; onBusy: (busy: boolean) => void
+export default function EventPreparationReopenPanel({ state, groupId, zh, onChanged, onBusy, beforeAction }: {
+  beforeAction?: () => Promise<void>; state: EventPreparationState; groupId: string; zh: boolean; onChanged: (value: EventPreparationState) => void; onBusy: (busy: boolean) => void
 }) {
   const [reason, setReason] = useState({ en: '', zh: '' }), [reviewReason, setReviewReason] = useState({ en: '', zh: '' })
   const [busy, setBusy] = useState(false), [error, setError] = useState('')
@@ -26,6 +26,7 @@ export default function EventPreparationReopenPanel({ state, groupId, zh, onChan
     if (!confirmed) { lock.current = false; return }
     setBusy(true); onBusy(true); setError('')
     try {
+      await beforeAction?.()
       const signature = JSON.stringify({ approve, reason, reviewReason, request: state.reopenRequest?.id, eTag: state.reopenRequest?.eTag })
       if (retry.current?.signature !== signature) retry.current = { signature, key: crypto.randomUUID() }
       const value = approve === undefined ? await eventPreparationService.requestReopen(state.eventId, reason, retry.current.key)

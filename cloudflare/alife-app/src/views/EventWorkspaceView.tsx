@@ -1,3 +1,4 @@
+import { dutyReturnPath } from '../utils/eventDutyNavigation'
 import EventSetupPipeline from '../components/events/EventSetupPipeline'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
@@ -206,6 +207,7 @@ const EventWorkspaceView = () => {
   if (surfacePath && selectedPageItem) {
     return (
       <AppPageShell
+        backLink={searchParams.has('returnTo') ? { to: dutyReturnPath(searchParams.get('returnTo')), label: language === 'zh' ? '返回当前事务' : 'Back to current tasks' } : undefined}
         title={localize(selectedPageItem.label, language)}
         subtitle={text.independentPage}
         actions={<Link className="text-sm font-bold text-[#176b5a]" to={returnToRamSetup ? `${workspaceBasePath}?flow=setup&stage=arrangements&module=safety.ram` : workspaceBasePath}>{returnToRamSetup ? (language === 'zh' ? '返回活动筹备' : 'Back to event preparation') : text.backWorkspace}</Link>}
@@ -217,6 +219,7 @@ const EventWorkspaceView = () => {
 
   return (
     <AppPageShell
+        backLink={searchParams.has('returnTo') ? { to: dutyReturnPath(searchParams.get('returnTo')), label: language === 'zh' ? '返回当前事务' : 'Back to current tasks' } : undefined}
       title={`${text.title} · ${localize(workspace.title, language)}`}
       subtitle={text.subtitle}
       actions={<Link className="text-sm font-bold text-[#176b5a]" to={eventBasePath}>{text.back}</Link>}
@@ -275,6 +278,8 @@ const EventWorkspaceView = () => {
         <EventPackageFoundationPanel
           eventId={eventId}
           groupId={groupId}
+          packageId={searchParams.get('packageId') || undefined}
+          occurrenceId={searchParams.get('occurrenceId') || undefined}
           planETag={plan?.eTag}
           canManage={workspace.canManage}
           language={language}

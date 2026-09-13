@@ -1165,8 +1165,10 @@ public sealed partial class EventPackageFoundationTests
         };
         db.EventPackages.Add(package);
         await db.SaveChangesAsync();
+        var taskAuthorization = Authorization();
+        taskAuthorization.IsApprovedMemberAsync(seeded.Event.GroupId, seeded.Owner, Arg.Any<CancellationToken>()).Returns(true);
         var operations = new EventOperationsService(
-            db, Authorization(), new EventPackageInvalidationService(db));
+            db, taskAuthorization, new EventPackageInvalidationService(db));
 
         var result = await operations.CreateTaskAsync(seeded.Event.Id, seeded.Owner,
             new(new("Confirm emergency contact", "确认紧急联系人"), null, seeded.Owner,
