@@ -80,12 +80,6 @@ public sealed class CreateGroupEventCommandHandler(
                 return AppResult<GroupEventSummaryDto>.Conflict(
                     "Event composition is unavailable.");
             }
-            if (string.Equals(request.Composition.SchemaVersion, EventCompositionDefinitions.SchemaVersion, StringComparison.Ordinal) &&
-                !string.IsNullOrWhiteSpace(request.WorkflowTemplateCode))
-            {
-                return AppResult<GroupEventSummaryDto>.Validation(
-                    "schemaVersion 1.1.0 does not accept workflowTemplateCode; use the activity type workflow decision.");
-            }
             if (string.IsNullOrWhiteSpace(idempotencyKey) || idempotencyKey.Length > 200)
             {
                 return AppResult<GroupEventSummaryDto>.Validation(
@@ -103,7 +97,7 @@ public sealed class CreateGroupEventCommandHandler(
                 request.EventDataJson,
                 request.ContactProfileIds,
                 request.RamDataJson,
-                request.WorkflowTemplateCode,
+                workflowTemplateCode = (string?)null,
                 request.Composition,
                 request.CompositionProposalHash,
                 accountableOwnerMemberId,
@@ -161,56 +155,6 @@ public sealed class CreateGroupEventCommandHandler(
         var activityTypesByCode = activityTemplateCatalog is null
             ? EventCompositionDefinitions.ActivityTypesByCode
             : await activityTemplateCatalog.ActiveDefinitionsByCodeAsync(cancellationToken);
-        var workflowRecommendation = request.Composition is null
-            ? null
-            : await EventCompositionPersistence.ResolveWorkflowRecommendationAsync(
-                dbContext, request.GroupId, request.Composition, cancellationToken, activityTypesByCode);
-        EventWorkflowTemplate? workflowTemplate = null;
-        IReadOnlyList<EventWorkflowStageDefinitionDto>? workflowStages = null;
-        if (string.Equals(request.Composition?.SchemaVersion, EventCompositionDefinitions.SchemaVersion, StringComparison.Ordinal))
-        {
-            if (workflowRecommendation?.Status == "selected" && workflowRecommendation.ResolvedVersion.HasValue)
-            {
-                workflowTemplate = await dbContext.EventWorkflowTemplates
-                    .Where(x => x.IsActive && x.Code == workflowRecommendation.Code &&
-                        x.Version == workflowRecommendation.ResolvedVersion.Value &&
-                        (x.OwnerGroupId == null || x.OwnerGroupId == request.GroupId))
-                    .OrderByDescending(x => x.OwnerGroupId == request.GroupId)
-                    .FirstOrDefaultAsync(cancellationToken);
-                if (workflowTemplate is null)
-                {
-                    return AppResult<GroupEventSummaryDto>.PreconditionFailed(
-                        "The recommended workflow changed after proposal review. Compose the plan again.");
-                }
-            }
-        }
-        else if (!string.IsNullOrWhiteSpace(request.WorkflowTemplateCode))
-        {
-            var templateCode = request.WorkflowTemplateCode.Trim().ToLowerInvariant();
-            workflowTemplate = await dbContext.EventWorkflowTemplates
-                .Where(x => x.IsActive && x.Code == templateCode &&
-                    (x.OwnerGroupId == null || x.OwnerGroupId == request.GroupId))
-                .OrderByDescending(x => x.Version)
-                .FirstOrDefaultAsync(cancellationToken);
-            if (workflowTemplate is null)
-            {
-                return AppResult<GroupEventSummaryDto>.NotFound("Workflow template not found.");
-            }
-
-        }
-
-        if (workflowTemplate is not null)
-        {
-            try
-            {
-                workflowStages = EventWorkflowDefinition.Parse(workflowTemplate.DefinitionJson);
-            }
-            catch (JsonException)
-            {
-                return AppResult<GroupEventSummaryDto>.Validation("The selected workflow template is invalid.");
-            }
-        }
-
         RamEvaluation? initialRam = null;
         EventRamPolicyVersion? initialRamPolicy = null;
         if (request.RamDataJson is not null)
@@ -282,7 +226,6 @@ public sealed class CreateGroupEventCommandHandler(
                 "\"plan-new\"",
                 HasAccountableOwner: true,
                 CheckedUtc: now,
-                WorkflowRecommendation: workflowRecommendation,
                 ActivityTypesByCode: activityTypesByCode));
             if (!proposalResult.IsSuccess)
             {
@@ -504,24 +447,8 @@ public sealed class CreateGroupEventCommandHandler(
             EventId = groupEvent.Id,
             ContactProfileId = contactProfileId
         }));
-        if (workflowTemplate is not null && workflowStages is not null)
-        {
-            var workflowRun = EventWorkflowRunFactory.Create(
-                groupEvent,
-                workflowTemplate,
-                workflowStages,
-                request.CurrentMemberId,
-                now);
-            groupEvent.WorkflowRun = workflowRun;
-            if (acceptedProposal is not null)
-            {
-                EventCompositionPersistence.SyncWorkflowContributions(workflowRun, acceptedProposal, now);
-            }
-            dbContext.EventWorkflowRuns.Add(workflowRun);
-        }
-
-        // One SaveChanges call keeps event creation, RAM initialization and the
-        // selected workflow snapshot atomic for relational database providers.
+        // One SaveChanges call keeps event creation and RAM initialization atomic
+        // for relational database providers.
         try { await dbContext.SaveChangesAsync(cancellationToken); }
         catch (DbUpdateConcurrencyException) when (arrangements is not null)
         {

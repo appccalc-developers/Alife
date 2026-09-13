@@ -35,6 +35,7 @@ test('church site navigation follows sections, filters, and content details', ()
   assert.equal(getChurchSiteSection('/church'), 'home')
   assert.equal(getChurchSiteSection('/church', '?ownerGroupId=team&section=announcements'), 'announcements')
   assert.equal(getChurchSiteSection('/church', '?section=events'), 'events')
+  assert.equal(getChurchSiteSection('/church', '?section=ram-reviews'), 'ram-reviews')
   assert.equal(getChurchSiteSection('/sermons/sermon-id'), 'sermons')
   assert.equal(getChurchSiteSection('/church/bulletins'), 'bulletins')
   assert.equal(getChurchSiteSection('/church/albums'), 'albums')
@@ -49,8 +50,11 @@ test('church site menus start with sermons and put events after forum', () => {
   const keys = (isMember: boolean) => getChurchSiteMenu('en', { isMember }).map(item => item.key)
   assert.deepEqual(keys(false), ['sermons'])
   assert.deepEqual(keys(true), ['sermons', 'announcements', 'albums', 'forum', 'events'])
-  const access = { isMember: true }
+  assert.deepEqual(getChurchSiteMenu('en', { isMember: true, canReviewRam: true }).map(item => item.key), ['sermons', 'announcements', 'albums', 'forum', 'events', 'ram-reviews'])
+  const access = { isMember: true, canReviewRam: true }
   assert.deepEqual(getChurchSiteMenu('zh', access).map(item => item.to), getChurchSiteMenu('en', access).map(item => item.to))
+  assert.equal(getChurchSiteMenu('en', access).at(-1)?.label, 'Independent RAM review')
+  assert.equal(getChurchSiteMenu('zh', access).at(-1)?.label, 'RAM 独立审核')
 })
 
 const groups: ChurchLifeGroup[] = [

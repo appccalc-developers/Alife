@@ -42,7 +42,7 @@ export default function EventPublishStep({ eventId, eventBasePath, zh, onBusy }:
     } catch (reason) {
       if (active.current) {
         const failure = normalizeApiError(reason)
-        setError(failure.message.includes('ramNotApproved') ? (zh ? '风险评估尚未批准，请先完成 RAM 审批。' : 'The risk assessment is not approved. Complete RAM approval first.')
+        setError(failure.message.includes('ramNotApproved') ? (zh ? '风险评估尚未通过，请先完成 RAM 独立审核。' : 'The risk assessment has not passed independent RAM review.')
           : failure.message.includes('sponsorshipNotApproved') ? (zh ? '教会身份尚未批准，请先完成身份审批。' : 'Church sponsorship is not approved yet.')
           : failure.status === 409 || failure.status === 412 ? (zh ? '审批或活动资料已变化，请刷新并检查审批状态后再发布。' : 'Approval or event details changed. Refresh and review approval before publishing.') : failure.message)
       }

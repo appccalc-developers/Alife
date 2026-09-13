@@ -48,12 +48,29 @@ test('current task payloads preserve backend category and safe detail fields', (
       sourceType: 'membershipApplication',
       sourceId: 'application-id',
     },
+    {
+      id: 'ram-duty-id',
+      actionType: 'event.ram.reviewRequested',
+      actionDataJson: JSON.stringify({
+        title: { en: 'Independent RAM review required', zh: 'RAM 待独立审核' },
+        eventId: 'event-id',
+        revisionId: 'revision-id',
+      }),
+      occurredUtc: '2026-08-20T10:00:00Z',
+      category: 'urgent',
+      completionMode: 'workflow',
+      actionUrl: '/events/event-id/ram?from=profile',
+      sourceType: 'eventRamRevision',
+      sourceId: 'revision-id',
+    },
   ])
 
-  assert.equal(tasks.length, 3)
-  assert.equal(tasks[0].id, 'application-id')
-  assert.equal(tasks[0].sourceType, 'membershipApplication')
-  assert.equal(tasks[0].sourceId, 'application-id')
+  assert.equal(tasks.length, 4)
+  assert.equal(tasks[0].id, 'ram-duty-id')
+  assert.equal(tasks[0].actionUrl, '/events/event-id/ram?from=profile')
+  const applicationTask = tasks.find((task) => task.id === 'application-id')
+  assert.equal(applicationTask?.sourceType, 'membershipApplication')
+  assert.equal(applicationTask?.sourceId, 'application-id')
   const visitorTask = tasks.find((task) => task.id === 'urgent-id')
   assert.equal(visitorTask?.category, 'urgent')
   assert.deepEqual(visitorTask?.details, {
@@ -62,7 +79,7 @@ test('current task payloads preserve backend category and safe detail fields', (
     message: 'I would like to visit.',
   })
   assert.equal('ipAddress' in (visitorTask?.details ?? {}), false)
-  assert.deepEqual(countCurrentTasks(tasks), { urgent: 2, general: 1 })
+  assert.deepEqual(countCurrentTasks(tasks), { urgent: 3, general: 1 })
 })
 
 test('current task normalization never infers a missing category in the browser', () => {

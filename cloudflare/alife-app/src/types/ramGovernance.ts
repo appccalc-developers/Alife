@@ -1,4 +1,5 @@
 import type { EventRamAssessmentRecord, MultilingualString } from './event'
+import type { EventPlanSnapshot } from './eventComposition'
 export type RamText = MultilingualString
 export type RamLevel = 'Green' | 'Yellow' | 'Red' | 'Incomplete'
 export type RamScale = { value: number; label: RamText; description: RamText }
@@ -29,7 +30,8 @@ export type RamDraft = {
 export type RamAssessment = EventRamAssessmentRecord & { schemaVersion: number; eTag: string; policyVersionId: string | null; currentRevisionId: string | null; validity: string; residualLevel: RamLevel; authorMemberId: string | null; reviewRequested: boolean }
 export type RamRevision = { id: string; version: number; schemaVersion: number; policyVersionId: string | null; contentHash: string; residualLevel: RamLevel; authorMemberId: string; onsiteMemberId: string | null; createdUtc: string }
 export type RamAction = { id: string; revisionId: string; actorMemberId: string; action: string; reason: string; healthSafetySigned: boolean; createdUtc: string }
-export type RamWorkspace = { assessment: RamAssessment | null; policy: RamPolicy | null; latestPolicy?: RamPolicy | null; history: RamRevision[]; actions: RamAction[]; onsiteCandidates: { memberId: string; name: string }[]; canEdit: boolean; canAudit: boolean; currentMemberId: string; isRequired: boolean }
+export type RamEventPlanContext = { eventId: string; groupId: string; title: RamText; startUtc: string; endUtc: string; acceptedPlan: EventPlanSnapshot | null }
+export type RamWorkspace = { assessment: RamAssessment | null; policy: RamPolicy | null; latestPolicy?: RamPolicy | null; history: RamRevision[]; actions: RamAction[]; onsiteCandidates: { memberId: string; name: string }[]; canEdit: boolean; canAudit: boolean; currentMemberId: string; isRequired: boolean; eventPlanContext?: RamEventPlanContext | null }
 export type RamPrint = { revision: RamRevision; ramDataJson: string; policy: RamPolicy | null; actions: RamAction[]; isCurrent: boolean; validity: string; isDraft: boolean }
 export const ramActivityTypes = ['generic', 'hiking', 'water', 'sport', 'transport', 'camp', 'meal', 'outdoor', 'other'] as const
 export const ramActivityLabels: Record<string, RamText> = {
@@ -75,13 +77,13 @@ export function upgradeRam(raw: string | undefined): RamDraft {
 
 export const ramActionLabels: Record<string, RamText> = {
   'snapshot-draft': { en: 'Draft snapshot saved', zh: '已保存草稿快照' }, 'request-confirmation': { en: 'Personal confirmation requested', zh: '已请求本人确认' },
-  confirm: { en: 'Personally confirmed', zh: '本人已确认' }, submit: { en: 'Submitted for review', zh: '已提交审核' }, approve: { en: 'Approved', zh: '已批准' },
+  confirm: { en: 'Personally confirmed', zh: '本人已确认' }, submit: { en: 'Submitted for independent RAM review', zh: '已提交 RAM 独立审核' }, approve: { en: 'Independent RAM review approved', zh: 'RAM 独立审核已通过' },
   return: { en: 'Returned for changes', zh: '退回修改' }, 'request-review': { en: 'Re-review requested', zh: '已请求重审' },
   'legacy-submitted': { en: 'Historical submission', zh: '历史提交' }, 'legacy-approved': { en: 'Historical approval', zh: '历史批准' },
 }
 export const ramValidityLabels: Record<string, RamText> = {
   Legacy: { en: 'Legacy record', zh: '旧版记录' }, Draft: { en: 'Draft', zh: '草稿' }, ReviewRequired: { en: 'Re-review required', zh: '需重审' },
   AwaitingConfirmation: { en: 'Awaiting personal confirmation', zh: '等待本人确认' }, Confirmed: { en: 'Personally confirmed', zh: '本人已确认' },
-  AwaitingReview: { en: 'Awaiting independent review', zh: '等待独立审核' }, Valid: { en: 'Approved and valid', zh: '已批准且有效' },
+  AwaitingReview: { en: 'Awaiting independent RAM review', zh: '等待 RAM 独立审核' }, Valid: { en: 'Independently reviewed and valid', zh: '已通过独立审核且有效' },
   Returned: { en: 'Returned for changes', zh: '退回修改' }, Historical: { en: 'Historical evidence', zh: '历史记录' },
 }

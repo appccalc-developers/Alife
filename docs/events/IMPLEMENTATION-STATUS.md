@@ -1,12 +1,14 @@
 # Event Management Implementation Status
 
-## 2026-09-13 — Event management centralized in Workspace
+## 2026-09-13 — Generic workflow retired; independent RAM review duties surfaced
 
-The retired Event editor and its `/api/events/session/*` and `/api/events/extract` Worker APIs are removed. Creation now identifies itself as Event Workspace creation and continues into the saved Workspace; saved Details, Arrangements, approval, poster preparation and publication remain in the existing preparation flow. Workflow steps, artifacts and template management now occupy the fixed bilingual `workspace.workflow` tab for current, no-plan and legacy-snapshot Events. Event Detail no longer embeds workflow editing, and old edit, RAM and `?section=workflow` bookmarks redirect to the matching Workspace surface.
+The generic Workflow & outputs surface was not reliably reachable because Workspace management visibility and workflow-template catalogue authorisation used different viewer rules. The feature is now retired instead of widening access: `workspace.workflow`, its frontend components/services, active Event workflow/template/artifact endpoints, creation binding, runtime synchronisation and seed templates are removed. Old `?section=workflow` bookmarks redirect to Workspace Overview. Historical workflow tables, migrations and stored Plan fields remain untouched for non-destructive compatibility, but new Events do not create or synchronise generic workflow records.
 
-The `EventPlanningSession` Durable Object class name remains as a thin adapter for `/api/events/details-session/*`, so no Durable Object or database migration is required. Stored Event JSON and Plan v1-v4 history are not rewritten.
+When an organiser requests independent review of a confirmed RAM revision, every eligible reviewer in the same root church receives one `event.ram.reviewRequested` notification. Pending revisions appear in Church Life / Independent RAM review and as a Personal Center Duty. The direct action page presents the complete accepted Event Plan as private, read-only decision context above the restricted RAM report and independent-review controls; it grants no Event editing authority. The current-duty query revalidates the exact revision, `admin.events.audit`, approved church membership and author/submitter/on-site separation on every read; resolved or no-longer-eligible work disappears without deleting notification history. Discovery responses remain minimal authenticated `no-store` projections. Event Package submission waits for independent review only when the accepted Plan enables RAM or safety facts/policy make it mandatory; an explicit No is allowed when no higher-priority trigger applies.
 
-Verification: 246 focused backend Event tests, 70 frontend Event tests, and 110 bundled Worker tests pass. The frontend TypeScript/Vite/PWA production build and Wrangler dry-run bundle pass; the existing `idb-keyval` chunk warning remains. Workflow/legacy-bookmark browser fixtures pass English/Chinese at 375/1280, and the full create/edit/approve/poster/publish/reopen fixture passes English/Chinese at 320/375/768/1280. Browser APIs, image generation, and publication are fixtures; no live provider, database migration, deployment, or production-data change was performed. Documentation generation/check validates 12 modules, 129 API contracts, and three equivalent overview structures.
+The `EventPlanningSession` Durable Object class name remains as the existing thin adapter for `/api/events/details-session/*`. Stored Event JSON, Plan v1-v4 history, database schema, migrations and production data are not rewritten.
+
+Current-source verification: the focused backend composition, Event CRUD, RAM governance, Church Life and current-duty filters pass 96 tests; the frontend Event composition suite passes 72 tests, current-task suite passes 3 tests, and workspace-layout suite passes 4 tests. The backend solution and frontend TypeScript/Vite/PWA production build pass with the existing `idb-keyval` mixed-import warning. Documentation generation/check validates 12 modules, 130 API contracts and three equivalent overview structures. The Church Life Node test command is blocked before test discovery by its pre-existing extensionless `src/db/httpError` import under Node 24; the production TypeScript build covers the changed navigation and view. The full backend suite passes 756 tests with one skipped and one unrelated date-sensitive public-projection failure: its fixed event starts at `2026-09-12T00:00Z`, which is already earlier than the test's moving cutoff on 2026-09-13. Browser-fixture syntax passes, but no browser fixture, live provider, database migration, deployment or production-data change was performed in this slice.
 
 ## 2026-09-12 — Alpha Demo RAM matrix and bilingual scales — Issue #758
 
@@ -96,7 +98,7 @@ Verification: `npm run build` passes TypeScript, Vite and PWA generation; `npm r
 
 ## Workspace RAM entry correction (2026-09-11)
 
-The user's decision supersedes the interim saved-editor restoration below: saved Events use Event Workspace, and the old AI event editor is retired. The `safety.ram` renderer now embeds the complete versioned assessment instead of linking out to the old editor. Saved preparation embeds the same component. Workflow, travel, publication and detail RAM links use Workspace; old saved-edit bookmarks redirect to Workspace RAM or saved Details without starting an AI planning session. Personal-signature links remain independent, and server RAM authority is unchanged.
+The user's decision supersedes the interim saved-editor restoration below: saved Events use Event Workspace, and the old AI event editor is retired. The `safety.ram` renderer now embeds the complete versioned assessment instead of linking out to the old editor. Saved preparation embeds the same component. Travel, publication and detail RAM links use Workspace; old saved-edit bookmarks redirect to Workspace RAM or saved Details without starting an AI planning session. Personal-signature links remain independent, and server RAM authority is unchanged.
 
 Verification: frontend production build and 66 Event composition tests pass. `ramGovernance.browser.cjs` and `eventEditorRecovery.browser.cjs` each pass English/Chinese at 375/1280 px, including navigation from Workspace into RAM, no language-triggered RAM refetch, saving, personal confirmation, printing, preparation embedding, legacy redirects and no retired AI session calls. Saved preparation also passes English/Chinese at 375/1280 px, including ordinary saved-edit redirection to Details. An initial concurrent run failed a tool-selection assertion once; the isolated rerun passed. Browser APIs are fixtures. This entry correction adds no backend or database migration.
 
@@ -127,7 +129,7 @@ The current branch contains:
 - an authorised, audited Event-template catalogue UI and API;
 - governance, sponsorship, Event roles, readiness, ETag, and idempotency foundations;
 - a compile-time controlled frontend Surface Registry and role-aware Event workspace;
-- the existing `EventWorkflowRun` / Step / Artifact engine as the single general workflow engine;
+- dormant historical `EventWorkflowRun` / Step / Artifact persistence, with no active UI, API, seeding, creation or synchronisation;
 - server-side visibility controls and private/no-store handling for protected workspaces.
 
 ## Event creation workspace
@@ -229,7 +231,7 @@ The remaining verification work is operational rollout/backfill evidence, broade
 
 | Status | Modules | Repository evidence summary |
 | --- | --- | --- |
-| Current | `TEAM.WORK` | Event team, accepted roles, tasks/dependencies/blockers, workflow artifacts, protected APIs, ETags, readiness, and reachable team UI |
+| Current | `TEAM.WORK` | Event team, accepted roles, cross-module tasks/dependencies/blockers, protected APIs, ETags, readiness, and reachable team UI |
 | Current | `PEOPLE.REGISTRATION` | Enrollment persistence and CRUD, self/manager projections, lifecycle/RAM gates, and reachable enrollment UI |
 | Current | `SERVICE.ROSTER` | Occurrence slots, availability, assignment/response/substitution, eligibility/readiness, protected APIs, and reachable roster UI |
 | Current | `SAFETY.RAM` | Church policy/matrix/question versions, dual assessment, personal confirmation, independent review, re-review, minimal Package evidence and protected version printing |
@@ -237,7 +239,7 @@ The remaining verification work is operational rollout/backfill evidence, broade
 | Current | `PROGRAM.PRODUCTION` | Occurrence Sessions and ProgramItems, ordering, run sheet, concurrency, protected APIs, and reachable programme UI |
 | Current | `PLACE.RESOURCE` | Venue catalogue/capacity, Event/Occurrence reservations, overlap checks, release history, private APIs, and reachable resource UI |
 | Current | `MOVE.STAY` | Driver/vehicle evidence, occurrence journeys and stops, restricted manifest, self projection, capacity/readiness, private APIs, and reachable travel UI |
-| Partial | `COMMS.FOLLOWUP` | Bilingual Event content, public/group projections, notification foundation, Event review CRUD, workflow/artifact contribution; no complete module workspace or delivery audit |
+| Partial | `COMMS.FOLLOWUP` | Bilingual Event content, public/group projections, notification foundation and Event review CRUD; no complete module workspace or delivery audit |
 | Target only | `MONEY.FINANCE` | Composition definition, separation-of-duty contract, classification, readiness, and generic controlled surface only |
 | Target only | `FOOD.HOSPITALITY` | Composition definition, role/classification/readiness contract, and generic controlled surface only |
 | Target only | `FESTIVAL.OPERATIONS` | Zone/ServiceSlot structural foundation, composition dependencies, command role contract, and generic controlled surface only |

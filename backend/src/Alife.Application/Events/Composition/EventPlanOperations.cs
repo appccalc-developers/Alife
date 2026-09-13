@@ -34,7 +34,6 @@ public sealed record ComposeEventPlanCommand(
     : IRequest<AppResult<EventPlanProposalDto>>;
 
 public sealed class ComposeEventPlanCommandHandler(
-    IAlifeDbContext dbContext,
     IGroupAuthorizationService groupAuthorizationService,
     IEventCompositionEngine compositionEngine,
     IEventActivityTemplateCatalog? activityTemplateCatalog = null)
@@ -55,14 +54,11 @@ public sealed class ComposeEventPlanCommandHandler(
         var activityTypesByCode = activityTemplateCatalog is null
             ? EventCompositionDefinitions.ActivityTypesByCode
             : await activityTemplateCatalog.ActiveDefinitionsByCodeAsync(cancellationToken);
-        var workflowRecommendation = await EventCompositionPersistence.ResolveWorkflowRecommendationAsync(
-            dbContext, request.GroupId, normalized, cancellationToken, activityTypesByCode);
         return compositionEngine.Compose(
             normalized,
             new EventCompositionContext(
                 "\"plan-new\"",
                 HasAccountableOwner: true,
-                WorkflowRecommendation: workflowRecommendation,
                 ActivityTypesByCode: activityTypesByCode));
     }
 }
@@ -134,7 +130,6 @@ public sealed class RecomposeEventPlanCommandHandler(
         var groupEvent = await dbContext.GroupEvents
             .AsNoTracking()
             .Include(x => x.RamAssessment)
-            .Include(x => x.WorkflowRun)
             .FirstOrDefaultAsync(x => x.Id == request.EventId, cancellationToken);
         if (groupEvent is null)
         {
@@ -189,8 +184,6 @@ public sealed class RecomposeEventPlanCommandHandler(
         var activityTypesByCode = activityTemplateCatalog is null
             ? EventCompositionDefinitions.ActivityTypesByCode
             : await activityTemplateCatalog.ActiveDefinitionsByCodeAsync(cancellationToken);
-        var workflowRecommendation = await EventCompositionPersistence.ResolveWorkflowRecommendationAsync(
-            dbContext, groupEvent.GroupId, composition, cancellationToken, activityTypesByCode);
         return compositionEngine.Compose(composition, new EventCompositionContext(
             currentETag,
             basePlan?.Plan.ModuleDecisions,
@@ -199,7 +192,6 @@ public sealed class RecomposeEventPlanCommandHandler(
             groupEvent.AccountableOwnerMemberId != Guid.Empty,
             groupEvent.GovernanceMode,
             groupEvent.SponsorshipStatus,
-            WorkflowRecommendation: workflowRecommendation,
             ActivityTypesByCode: activityTypesByCode,
             IsPreparationDraft: groupEvent.PublicationStatus == EventPublicationStatus.Draft));
     }
@@ -228,8 +220,6 @@ public sealed class AcceptEventPlanCommandHandler(
     {
         var groupEvent = await dbContext.GroupEvents
             .Include(x => x.RamAssessment)
-            .Include(x => x.WorkflowRun)
-                .ThenInclude(x => x!.Steps)
             .FirstOrDefaultAsync(x => x.Id == request.EventId, cancellationToken);
         if (groupEvent is null)
         {
@@ -322,8 +312,6 @@ public sealed class AcceptEventPlanCommandHandler(
         var activityTypesByCode = activityTemplateCatalog is null
             ? EventCompositionDefinitions.ActivityTypesByCode
             : await activityTemplateCatalog.ActiveDefinitionsByCodeAsync(cancellationToken);
-        var workflowRecommendation = await EventCompositionPersistence.ResolveWorkflowRecommendationAsync(
-            dbContext, groupEvent.GroupId, composition, cancellationToken, activityTypesByCode);
         var proposalResult = compositionEngine.Compose(composition, new EventCompositionContext(
             currentETag,
             basePlan?.Plan.ModuleDecisions,
@@ -332,7 +320,6 @@ public sealed class AcceptEventPlanCommandHandler(
             groupEvent.AccountableOwnerMemberId != Guid.Empty,
             groupEvent.GovernanceMode,
             groupEvent.SponsorshipStatus,
-            WorkflowRecommendation: workflowRecommendation,
             ActivityTypesByCode: activityTypesByCode,
             IsPreparationDraft: groupEvent.PublicationStatus == EventPublicationStatus.Draft));
         if (!proposalResult.IsSuccess)
@@ -420,7 +407,6 @@ public sealed class AcceptEventPlanCommandHandler(
         groupEvent.ActivePlanVersion = planVersion;
         groupEvent.PlanConcurrencyToken = Guid.NewGuid();
         groupEvent.UpdatedUtc = now;
-        EventCompositionPersistence.SyncWorkflowContributions(groupEvent.WorkflowRun, acceptedProposal, now);
         await packageInvalidationService.InvalidateForMaterialChangeAsync(
             groupEvent,
             request.CurrentMemberId,
@@ -525,15 +511,10 @@ public sealed class GetEventWorkspaceQueryHandler(
                     new LocalizedTextDto("Overview", "總覽"), 10,
                     EventReadinessStatus.NotReady, [blocker],
                     canManage ? ["plan.recompose", "plan.accept"] : []),
-                 new EventWorkspaceItemDto(
-                    "workspace.governance", null, "tab", "governance", null,
-                    new LocalizedTextDto("Governance", "審批治理"), 15,
-                    EventReadinessStatus.NotReady, [blocker], []),
-                 new EventWorkspaceItemDto(
-                    "workspace.workflow", null, "tab", "workflow", null,
-                    new LocalizedTextDto("Workflow & outputs", "工作流與產出物"), 18,
-                    EventReadinessStatus.NotReady, [blocker],
-                    canManage ? ["workflow.view", "workflow.manage"] : ["workflow.view"])],
+                  new EventWorkspaceItemDto(
+                     "workspace.governance", null, "tab", "governance", null,
+                     new LocalizedTextDto("Governance", "審批治理"), 15,
+                     EventReadinessStatus.NotReady, [blocker], [])],
                 [blocker],
                 canManage,
                 groupEvent.SponsorshipStatus));
@@ -557,13 +538,10 @@ public sealed class GetEventWorkspaceQueryHandler(
             new(
                 "workspace.governance", null, "tab", "governance", null,
                 new LocalizedTextDto("Governance", "審批治理"), 15,
-                currentPlan.Readiness.Status, [], []),
-            new(
-                "workspace.workflow", null, "tab", "workflow", null,
-                new LocalizedTextDto("Workflow & outputs", "工作流與產出物"), 18,
                 currentPlan.Readiness.Status, [], [])
         ];
         var navigation = currentPlan.Navigation
+            .Where(item => EventCompositionDefinitions.SurfacesByKey.ContainsKey(item.SurfaceKey))
             .Concat(requiredWorkspaceItems.Where(required =>
                 currentPlan.Navigation.All(item => item.SurfaceKey != required.SurfaceKey)))
             .OrderBy(item => item.Order)
@@ -582,8 +560,8 @@ public sealed class GetEventWorkspaceQueryHandler(
             nextSteps =
             [
                 new LocalizedTextDto(
-                    "Review the next required workflow step.",
-                    "檢查下一個必需的流程步驟。")
+                    "Review the next required event action.",
+                    "检查下一项必需的活动事务。")
             ];
         }
 
@@ -649,8 +627,6 @@ public sealed class GetEventWorkspaceQueryHandler(
         {
             if (item.SurfaceKey == "workspace.governance")
                 return canManage ? ["event.package.view", "event.package.generate"] : ["event.package.view"];
-            if (item.SurfaceKey == "workspace.workflow")
-                return canManage ? ["workflow.view", "workflow.manage"] : ["workflow.view"];
             return canManage ? ["plan.recompose", "plan.accept", "event.role.assign"] : ["plan.view"];
         }
         if (!EventCompositionDefinitions.ModulesByCode.TryGetValue(item.ModuleCode, out var module))

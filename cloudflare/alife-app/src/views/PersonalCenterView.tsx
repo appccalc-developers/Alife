@@ -11,7 +11,7 @@ import { bibleReadingProgressService } from '../services/bibleReadingProgressSer
 import { useAuthStore } from '../stores/auth'
 import { bibleBooks } from '../utils/bibleBooks'
 import { normalizeReadingPosition, readSavedReadingPosition } from '../utils/bibleReadingProgress'
-import { countCurrentTasks, formatNotificationDate, localizeNotificationText } from '../utils/currentTasks'
+import { countCurrentTasks, formatNotificationDate, localizeNotificationText, normalizeNotificationActionUrl } from '../utils/currentTasks'
 import { getPersonalCenterPrimaryAction, selectPersonalCenterTasks } from '../utils/personalCenter'
 import { localizeText } from '../utils/localizedText'
 
@@ -90,13 +90,17 @@ const PersonalCenterView = () => {
           <div className="grid gap-3 lg:grid-cols-3">
             {overviewTasks.map((task) => {
               const urgent = task.category === 'urgent'
+              const duty = task.actionType === 'event.ram.reviewRequested'
               const title = localizeNotificationText(task.title, auth.language) || (urgent ? (zh ? '紧要事务' : 'Urgent task') : (zh ? '一般通知' : 'Notification'))
               const body = localizeNotificationText(task.body, auth.language)
+              const destination = duty && task.actionUrl
+                ? normalizeNotificationActionUrl(task.actionUrl)
+                : `/tasks?type=${urgent ? 'urgent' : 'general'}`
               return (
-                <Link key={task.id} to={`/tasks?type=${urgent ? 'urgent' : 'general'}`} className="group relative min-h-40 overflow-hidden rounded-[1.4rem] border border-[var(--alife-line)] bg-[var(--alife-surface-strong)] p-5 shadow-[var(--alife-shadow-soft)] transition hover:-translate-y-0.5 hover:border-[#9fc3b5]">
+                <Link key={task.id} to={destination} className="group relative min-h-40 overflow-hidden rounded-[1.4rem] border border-[var(--alife-line)] bg-[var(--alife-surface-strong)] p-5 shadow-[var(--alife-shadow-soft)] transition hover:-translate-y-0.5 hover:border-[#9fc3b5]">
                   <span className={['absolute inset-y-0 left-0 w-1.5', urgent ? 'bg-[#f08b72]' : 'bg-[#1f6756]'].join(' ')} aria-hidden="true" />
                   <div className="flex items-center justify-between gap-3 pl-1">
-                    <AppBadge variant={urgent ? 'danger' : 'info'}>{urgent ? (zh ? '紧要' : 'Urgent') : (zh ? '一般' : 'General')}</AppBadge>
+                    <AppBadge variant={urgent ? 'danger' : 'info'}>{duty ? (zh ? '职务待办' : 'Duty') : urgent ? (zh ? '紧要' : 'Urgent') : (zh ? '一般' : 'General')}</AppBadge>
                     <ArrowRight className="h-4 w-4 text-[#91a099] transition group-hover:translate-x-0.5 group-hover:text-[#176b5a]" />
                   </div>
                   <h3 className="mt-4 line-clamp-2 pl-1 text-base font-black leading-6 text-[#18332d]">{title}</h3>

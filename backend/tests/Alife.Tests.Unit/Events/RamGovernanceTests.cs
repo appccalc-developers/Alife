@@ -1,6 +1,7 @@
 using Alife.Application.Admin;
 using Alife.Application.Common.Models;
 using Alife.Application.Events.Commands.SaveEventRam;
+using Alife.Application.Events.Composition;
 using Alife.Application.Events.Dtos;
 using Alife.Application.Events.Services;
 using Alife.Application.Groups.Services;
@@ -99,10 +100,31 @@ public sealed class RamGovernanceTests
         var workspace=await f.Service.GetAsync(f.Event,f.Onsite,default);Assert.True(workspace.IsSuccess);Assert.False(workspace.Value!.CanEdit);
         Assert.True((await f.Act("confirm",f.Onsite)).IsSuccess);
         Assert.True((await f.Act("submit",f.Author)).IsSuccess);
+        var reviewNotification=Assert.Single(f.Db.NotificationMessages.Where(x=>x.ActionType=="event.ram.reviewRequested"));
+        Assert.Equal(f.Auditor,reviewNotification.RecipientMemberId);
+        Assert.Equal(f.Event,reviewNotification.EventId);
         Assert.Equal(AppResultStatus.Forbidden,(await f.Act("approve",f.Author)).Status);
         Assert.Equal(AppResultStatus.Forbidden,(await f.Act("approve",f.Onsite)).Status);
         Assert.True((await f.Act("approve",f.Auditor)).IsSuccess);
         Assert.Equal("Valid",f.Ram.Validity);Assert.Equal(EventPublicationStatus.Unpublished,f.Db.GroupEvents.Single().PublicationStatus);
+    }
+    [Fact]
+    public async Task IndependentReviewerWorkspaceIncludesTheCompleteAcceptedEventPlanAsReadOnlyContext()
+    {
+        using var f=await Fixture.Create();await f.AddAcceptedPlan();
+
+        var workspace=await f.Service.GetAsync(f.Event,f.Auditor,default);
+
+        Assert.True(workspace.IsSuccess,workspace.Message);
+        Assert.True(workspace.Value!.CanAudit);
+        Assert.False(workspace.Value.CanEdit);
+        Assert.True(workspace.Value.IsRequired);
+        Assert.Equal(f.Event,workspace.Value.EventPlanContext!.EventId);
+        Assert.Equal("Activity",workspace.Value.EventPlanContext.Title.En);
+        Assert.Equal(1,workspace.Value.EventPlanContext.AcceptedPlan!.PlanVersion);
+        Assert.Equal("shared-meal",workspace.Value.EventPlanContext.AcceptedPlan.Plan.ActivityTypeCode);
+        Assert.NotEmpty(workspace.Value.EventPlanContext.AcceptedPlan.Plan.ModuleDecisions);
+        Assert.Equal(AppResultStatus.Forbidden,(await f.Service.GetAsync(f.Event,f.Other,default)).Status);
     }
     [Fact]
     public async Task ConfirmAndAuditAreIdempotentButDifferentRequestsCannotReuseKey()
@@ -232,6 +254,22 @@ public sealed class RamGovernanceTests
         public Task<AppResult<EventRamAssessmentDto>> Save(Guid? policy,RamV2Draft? draft=null) => Service.SaveAsync(Event,Author,new(RamEvaluator.Serialize(draft??Draft(Policy())),policy,Db.EventRamAssessments.Local.FirstOrDefault()?.ConcurrencyToken.ToString()??"new"),default);
         public Task<AppResult<EventRamAssessmentDto>> Act(string action,Guid actor,string reason="",bool signed=false) => Service.ActAsync(Event,actor,action,new(Ram.CurrentRevisionId,Ram.ConcurrencyToken.ToString(),reason,signed),Guid.NewGuid().ToString(),default);
         public async Task AcceptDuty() { Db.EventRoleAssignments.Add(new(){Id=Guid.NewGuid(),EventId=Event,MemberId=Onsite,RoleRequirementKey="SAFETY.RAM:ram.onsite",Status=EventRoleAssignmentStatus.Accepted,AcceptedUtc=DateTime.UtcNow});await Db.SaveChangesAsync(); }
+        public async Task AddAcceptedPlan()
+        {
+            var now=DateTime.UtcNow;
+            var proposal=new EventCompositionEngine().Compose(new(EventCompositionDefinitions.SchemaVersion,
+                "simple-social",new([]),[new("SAFETY.RAM",true)],null,"shared-meal"),new("\"ram-review-plan\"",CheckedUtc:now)).Value!;
+            var factSet=new EventFactSet{Id=Guid.NewGuid(),EventId=Event,Version=1,SchemaVersion=EventCompositionDefinitions.SchemaVersion,
+                FactsJson="[]",SourceHash=new string('a',64),CreatedByMemberId=Author,CreatedUtc=now};
+            Db.EventFactSets.Add(factSet);
+            Db.EventPlanSnapshots.Add(new(){Id=Guid.NewGuid(),EventId=Event,SourceFactSetId=factSet.Id,Version=1,
+                SchemaVersion=EventCompositionDefinitions.SchemaVersion,ProposalHash=proposal.ProposalHash,ETag="\"ram-plan-1\"",
+                ArchetypeCode="simple-social",ArchetypeVersion=1,ActivityTypeCode="shared-meal",ActivityTypeVersion=2,
+                SnapshotJson=EventCompositionPersistence.SerializePlan(proposal,[]),AcceptedByMemberId=Author,AcceptedUtc=now,
+                IsActive=true,CreatedUtc=now});
+            Db.GroupEvents.Single().ActivePlanVersion=1;
+            await Db.SaveChangesAsync();
+        }
         public void Dispose()=>Db.Dispose();
     }
 }

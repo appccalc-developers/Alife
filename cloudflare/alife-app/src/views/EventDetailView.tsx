@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
-import { LayoutDashboard, Pencil, Workflow } from 'lucide-react'
+import { LayoutDashboard, Pencil } from 'lucide-react'
 import EnrollmentPanel from '../components/events/EventEnrollmentPanel'
 import { getLabels, localized, formatDateTime, parseEventDto, isBeforeDeadline } from '../utils/eventDetailPresentation'
 import AppActionButton from '../components/layout/AppActionButton'
@@ -434,7 +434,7 @@ const EventDetailView = () => {
   }
 
   if (activeSection === 'workflow') {
-    return <Navigate to={`${eventBasePath}/workspace?tab=workflow`} replace />
+    return <Navigate to={`${eventBasePath}/workspace`} replace />
   }
 
   if (
@@ -462,12 +462,8 @@ const EventDetailView = () => {
         />
       ) : undefined}
       overflowLabel={language === 'zh' ? '更多操作' : 'More actions'}
-      overflowActions={event ? [{
-        label: language === 'zh' ? '流程与产出物' : 'Workflow & outputs',
-        icon: <Workflow className="h-4 w-4" />,
-        to: `${eventBasePath}/workspace?tab=workflow`,
-      }, ...((canManage || canAuditRam) ? [{
-        label: language === 'zh' ? (canAuditRam ? '检查 / 批准 RAM' : '活动工作区') : (canAuditRam ? 'Review / approve RAM' : 'Event workspace'),
+      overflowActions={event ? [...((canManage || canAuditRam) ? [{
+        label: language === 'zh' ? (canAuditRam ? 'RAM 独立审核' : '活动工作区') : (canAuditRam ? 'Independent RAM review' : 'Event workspace'),
         icon: <Pencil className="h-4 w-4" />,
         to: `${eventBasePath}/workspace${canAuditRam ? '/ram' : ''}`,
         onSelect: () => activeEntityService.setEvent(eventId),

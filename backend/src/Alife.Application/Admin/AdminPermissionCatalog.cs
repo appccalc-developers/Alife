@@ -41,7 +41,7 @@ public static class AdminPermissionCatalog
         Permission(BackfillPrivateFiles, "Migrate member-private file storage", "迁移成员私有文件存储", "Run the sensitive migration that moves legacy member-private files into private storage.", "执行敏感迁移，将旧的成员私有文件移入私有存储。"),
         Permission(ViewAuditLogs, "View administrative audit logs", "查看管理审计日志", "Review recorded platform-level administrative changes and actors.", "查看已记录的平台级管理变更和操作人员。"),
         Permission(ReviewPages, "Review homepage publication", "审核首页内容发布", "Review public page submissions and manage homepage navigation and publication metadata.", "审核公开页面提交，并管理首页导航和发布信息。"),
-        Permission(AuditEvents, "Review event risk assessments", "审核活动风险评估", "View restricted event RAM details and approve submitted assessments.", "查看受限的活动 RAM 详情并批准已提交的评估。"),
+        Permission(AuditEvents, "Perform independent RAM reviews", "执行 RAM 独立审核", "Review the complete Event Plan and restricted RAM report, then approve or return the submitted RAM revision.", "查看完整活动方案及受限 RAM 报告，并通过或退回所提交的 RAM 版本。"),
         Permission(SponsorEvents, "Decide church event sponsorship", "决定教会活动赞助", "Approve or reject formal root-church sponsorship for an event without granting unrelated administration access.", "批准或拒绝活动的根教会正式赞助，但不授予其他管理权限。"),
         Permission(ApproveEventPackages, "Approve enhanced Event Packages", "审批增强级活动方案", "Make formal whole-package decisions for enhanced-governance events, subject to separation-of-duties checks.", "在职责分离检查通过后，对增强治理等级的活动方案作出正式整体决定。"),
         Permission(ManageEventPackagePolicies, "Manage Event Package policies", "管理活动方案政策", "Publish immutable governance-policy versions and controlled rollout modes for Event Package approval.", "发布不可变的活动方案治理政策版本及受控上线模式。"),

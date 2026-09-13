@@ -15,7 +15,6 @@ public sealed record CreateGroupEventCommand(
     string EventDataJson,
     IReadOnlyList<Guid>? ContactProfileIds = null,
     string? RamDataJson = null,
-    string? WorkflowTemplateCode = null,
     EventPlanComposeRequest? Composition = null,
     string? CompositionProposalHash = null,
     Guid? AccountableOwnerMemberId = null,

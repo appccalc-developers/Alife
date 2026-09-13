@@ -13,7 +13,6 @@ import {
 const archetypes = new Set(['simple-social', 'camp-retreat', 'recurring-gathering', 'festival-celebration'])
 const modules = new Set(['PEOPLE.REGISTRATION', 'SERVICE.ROSTER', 'COMMS.FOLLOWUP'])
 const icons = new Set(['people', 'outdoors'])
-const workflows = new Set(['camp', 'outreach'])
 
 const validForm = () => ({
   ...emptyEventTemplateAdminForm(),
@@ -26,23 +25,22 @@ const validForm = () => ({
 })
 
 test('template admin validates a complete bilingual template in a fixed category', () => {
-  assert.equal(validateEventTemplateAdminForm(validForm(), archetypes, modules, icons, workflows), null)
+  assert.equal(validateEventTemplateAdminForm(validForm(), archetypes, modules, icons), null)
   assert.equal(normalizeEventTemplateCode('  COMMUNITY-PICNIC  '), 'community-picnic')
 })
 
-test('unknown categories, capabilities, icons and workflows fail closed', () => {
-  assert.equal(validateEventTemplateAdminForm({ ...validForm(), archetypeCode: 'custom-category' }, archetypes, modules, icons, workflows), 'archetype')
-  assert.equal(validateEventTemplateAdminForm({ ...validForm(), preselectedModules: ['MONEY.FINANCE'] }, archetypes, modules, icons, workflows), 'modules')
-  assert.equal(validateEventTemplateAdminForm({ ...validForm(), iconKey: 'remote-script' }, archetypes, modules, icons, workflows), 'icon')
-  assert.equal(validateEventTemplateAdminForm({ ...validForm(), recommendedWorkflowTemplateCode: 'dynamic-workflow' }, archetypes, modules, icons, workflows), 'workflow')
+test('unknown categories, capabilities and icons fail closed', () => {
+  assert.equal(validateEventTemplateAdminForm({ ...validForm(), archetypeCode: 'custom-category' }, archetypes, modules, icons), 'archetype')
+  assert.equal(validateEventTemplateAdminForm({ ...validForm(), preselectedModules: ['MONEY.FINANCE'] }, archetypes, modules, icons), 'modules')
+  assert.equal(validateEventTemplateAdminForm({ ...validForm(), iconKey: 'remote-script' }, archetypes, modules, icons), 'icon')
 })
 
 test('roster presets require SERVICE.ROSTER and valid unique bilingual slots', () => {
   const slot = { roleCode: 'event.host', label: { en: 'Host', zh: '接待' }, requiredCount: 2, eligibilityCode: 'approvedGroupMember' as const }
-  assert.equal(validateEventTemplateAdminForm({ ...validForm(), presetServiceSlots: [slot] }, archetypes, modules, icons, workflows), 'roster-module')
-  assert.equal(validateEventTemplateAdminForm({ ...validForm(), preselectedModules: [...validForm().preselectedModules, 'SERVICE.ROSTER'] }, archetypes, modules, icons, workflows), 'roster-slots')
-  assert.equal(validateEventTemplateAdminForm({ ...validForm(), preselectedModules: [...validForm().preselectedModules, 'SERVICE.ROSTER'], presetServiceSlots: [slot, { ...slot }] }, archetypes, modules, icons, workflows), 'slot-code')
-  assert.equal(validateEventTemplateAdminForm({ ...validForm(), preselectedModules: [...validForm().preselectedModules, 'SERVICE.ROSTER'], presetServiceSlots: [slot] }, archetypes, modules, icons, workflows), null)
+  assert.equal(validateEventTemplateAdminForm({ ...validForm(), presetServiceSlots: [slot] }, archetypes, modules, icons), 'roster-module')
+  assert.equal(validateEventTemplateAdminForm({ ...validForm(), preselectedModules: [...validForm().preselectedModules, 'SERVICE.ROSTER'] }, archetypes, modules, icons), 'roster-slots')
+  assert.equal(validateEventTemplateAdminForm({ ...validForm(), preselectedModules: [...validForm().preselectedModules, 'SERVICE.ROSTER'], presetServiceSlots: [slot, { ...slot }] }, archetypes, modules, icons), 'slot-code')
+  assert.equal(validateEventTemplateAdminForm({ ...validForm(), preselectedModules: [...validForm().preselectedModules, 'SERVICE.ROSTER'], presetServiceSlots: [slot] }, archetypes, modules, icons), null)
 })
 
 test('request mapping trims bilingual fields, normalizes code and fixes capacity unit', () => {
@@ -53,6 +51,7 @@ test('request mapping trims bilingual fields, normalizes code and fixes capacity
   assert.deepEqual(request.description, { en: 'A local gathering.', zh: '本地聚会。' })
   assert.deepEqual(request.preselectedModules, ['COMMS.FOLLOWUP', 'PEOPLE.REGISTRATION'])
   assert.equal(request.defaults.capacityUnit, 'People')
+  assert.equal(request.recommendedWorkflowTemplateCode, null)
   assert.equal('archetypeCode' in toUpdateEventTemplateRequest(validForm()), false)
   assert.equal('code' in toUpdateEventTemplateRequest(validForm()), false)
 })

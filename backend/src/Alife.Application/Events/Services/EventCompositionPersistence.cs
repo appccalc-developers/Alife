@@ -41,39 +41,6 @@ public static class EventCompositionPersistence
     public static string CreateEmptyPlanETag(GroupEvent groupEvent)
         => $"\"plan-{groupEvent.ActivePlanVersion ?? 0}-{groupEvent.PlanConcurrencyToken:N}\"";
 
-    public static async Task<EventWorkflowRecommendationDto?> ResolveWorkflowRecommendationAsync(
-        IAlifeDbContext dbContext,
-        Guid groupId,
-        EventPlanComposeRequest request,
-        CancellationToken cancellationToken,
-        IReadOnlyDictionary<string, EventActivityTypeDefinition>? activityTypesByCode = null)
-    {
-        activityTypesByCode ??= EventCompositionDefinitions.ActivityTypesByCode;
-        if (string.IsNullOrWhiteSpace(request.ActivityTypeCode) ||
-            !activityTypesByCode.TryGetValue(request.ActivityTypeCode, out var activityType) ||
-            string.IsNullOrWhiteSpace(activityType.RecommendedWorkflowTemplateCode))
-        {
-            return null;
-        }
-
-        var code = activityType.RecommendedWorkflowTemplateCode;
-        var template = await dbContext.EventWorkflowTemplates.AsNoTracking()
-            .Where(x => x.IsActive && x.Code == code &&
-                (x.OwnerGroupId == null || x.OwnerGroupId == groupId))
-            .OrderByDescending(x => x.OwnerGroupId == groupId)
-            .ThenByDescending(x => x.Version)
-            .FirstOrDefaultAsync(cancellationToken);
-        if (template is null)
-        {
-            return new EventWorkflowRecommendationDto(code, null, null, "unavailable");
-        }
-        return new EventWorkflowRecommendationDto(
-            code,
-            template.Version,
-            new LocalizedTextDto(template.NameEn, template.NameZh),
-            request.UseRecommendedWorkflow ? "selected" : "declined");
-    }
-
     public static Task<bool> CanManageEventAsync(
         IAlifeDbContext dbContext,
         IGroupAuthorizationService groupAuthorizationService,
@@ -167,11 +134,6 @@ public static class EventCompositionPersistence
              groupEvent.RamAssessment.Status != EventRamStatus.Draft))
         {
             protectedCodes.Add("SAFETY.RAM");
-        }
-        if (groupEvent.WorkflowRun is not null ||
-            await dbContext.EventArtifacts.AsNoTracking().AnyAsync(x => x.EventId == groupEvent.Id, cancellationToken))
-        {
-            protectedCodes.Add("TEAM.WORK");
         }
         if (await dbContext.EventVenueReservations.AsNoTracking().AnyAsync(x => x.EventId == groupEvent.Id, cancellationToken))
         {
@@ -456,50 +418,6 @@ public static class EventCompositionPersistence
             assignment.CreatedUtc,
             assignment.UpdatedUtc);
 
-    public static void SyncWorkflowContributions(
-        EventWorkflowRun? run,
-        EventPlanProposalDto proposal,
-        DateTime now)
-    {
-        if (run is null)
-        {
-            return;
-        }
-
-        var existing = run.Steps.Select(x => x.StepKey).ToHashSet(StringComparer.Ordinal);
-        var sortOrder = run.Steps.Count == 0 ? 10 : run.Steps.Max(x => x.SortOrder) + 10;
-        var requiredModules = proposal.ModuleDecisions
-            .Where(x => x.Status == EventModuleDecisionStatus.Required)
-            .Select(x => x.ModuleCode)
-            .ToHashSet(StringComparer.Ordinal);
-        foreach (var contribution in proposal.WorkflowContributions)
-        {
-            var stepKey = $"module.{contribution.StepKey}";
-            if (!existing.Add(stepKey))
-            {
-                continue;
-            }
-            var label = contribution.StepKey.Replace('.', ' ').Replace('-', ' ');
-            run.Steps.Add(new EventWorkflowStep
-            {
-                Id = Guid.NewGuid(),
-                WorkflowRunId = run.Id,
-                StepKey = stepKey,
-                SortOrder = sortOrder,
-                NameEn = label,
-                NameZh = label,
-                IsRequired = requiredModules.Contains(contribution.ModuleCode),
-                RequiresApproval = false,
-                IntegrationKey = contribution.IntegrationKey,
-                Status = EventWorkflowStepStatus.NotStarted,
-                CreatedUtc = now,
-                UpdatedUtc = now
-            });
-            sortOrder += 10;
-        }
-        EventWorkflowDefinition.RecalculateRun(run, now);
-    }
-
     private static EventPlanSnapshotDto CreateLegacySnapshot(EventPlanSnapshot snapshot)
     {
         var exists = new EventFactInputDto(
@@ -537,8 +455,6 @@ public static class EventCompositionPersistence
                     new LocalizedTextDto("Overview", "總覽"), 10, EventReadinessStatus.Blocked, [blocker], []),
                 new EventWorkspaceItemDto("workspace.governance", null, "tab", "governance", null,
                     new LocalizedTextDto("Governance", "審批治理"), 15, EventReadinessStatus.Blocked, [blocker], []),
-                new EventWorkspaceItemDto("workspace.workflow", null, "tab", "workflow", null,
-                    new LocalizedTextDto("Workflow & outputs", "工作流與產出物"), 18, EventReadinessStatus.Blocked, [blocker], []),
                 new EventWorkspaceItemDto(team.SurfaceKey, team.Code, "tab", "team", null,
                     new LocalizedTextDto("Team", "團隊"), team.NavigationOrder, EventReadinessStatus.Blocked, [blocker], [])
             ],

@@ -22,9 +22,9 @@ import {
 
 test('controlled event surface registry resolves every contract key exactly once', () => {
   assert.deepEqual(Object.keys(eventSurfaceRegistry).sort(), [...eventSurfaceKeys].sort())
-  assert.equal(new Set(Object.values(eventSurfaceRegistry).map((entry) => entry.surfaceKey)).size, 15)
+  assert.equal(new Set(Object.values(eventSurfaceRegistry).map((entry) => entry.surfaceKey)).size, 14)
   assert.equal(resolveEventSurface('workspace.governance')?.componentContract, 'EventPackageGovernanceWorkspace')
-  assert.equal(resolveEventSurface('workspace.workflow')?.componentContract, 'EventWorkflowWorkspace')
+  assert.equal(resolveEventSurface('workspace.workflow'), null)
   assert.equal(resolveEventSurface('safety.ram')?.componentContract, 'EventRamWorkspace')
   assert.equal(resolveEventSurfacePath('follow-up')?.surfaceKey, 'comms.followup')
 })

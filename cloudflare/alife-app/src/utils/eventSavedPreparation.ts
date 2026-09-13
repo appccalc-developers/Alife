@@ -26,7 +26,7 @@ export function savedCreationDraft(record: GroupEventRecord, plan: EventPlanSnap
   return { ...draft, arrangementConfirmations: plan?.plan.arrangementConfirmations ?? {}, moduleConfirmations: plan?.plan.moduleConfirmations ?? {}, timeZone, archetypeCode: plan?.plan.archetypeCode || '', activityTypeCode: plan?.plan.activityTypeCode || '',
     title: { en: record.titleEn, zh: record.titleZh }, description: data.description ?? { en: '', zh: '' }, locationName: data.locationName ?? { en: '', zh: '' },
     startLocal: localPreparationDate(record.startDate, timeZone), endLocal: localPreparationDate(record.endDate, timeZone), maxCapacity: String(data.maxCapacity || ''),
-    overrides: { visibility: record.visibility || data.visibility || 'groupVisible', registrationMode: data.maxCapacity > 0 ? 'required' : 'none', useRecommendedWorkflow: plan?.plan.workflowRecommendation?.status === 'selected' },
+    overrides: { visibility: record.visibility || data.visibility || 'groupVisible', registrationMode: data.maxCapacity > 0 ? 'required' : 'none', useRecommendedWorkflow: false },
     moduleOverrides: Object.fromEntries((plan?.plan.moduleDecisions ?? []).map(x => [x.moduleCode, ['required', 'selected', 'recommended'].includes(x.status)])),
     factValues: Object.fromEntries(creationFacts.map(([code]) => { const fact = plan?.plan.facts.items.find(x => x.code === code); return [code, fact?.certainty === 'confirmed' && typeof fact.value === 'boolean' ? (fact.value ? 'yes' : 'no') : 'unknown'] })),
     aiCandidateFacts: Object.fromEntries((plan?.plan.facts.items ?? []).filter(x => x.certainty === 'candidate' && typeof x.value === 'boolean').map(x => [x.code, x.value as boolean])),

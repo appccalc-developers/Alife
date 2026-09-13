@@ -65,11 +65,11 @@ Event Package Approval 是 Plan 接受之后、发布／开放报名／收款／
 
 ### 人工确认与 AI 权限边界
 
-RAM 按教会发布不可变政策与题库；管理员须逐格确认完整 25 格矩阵，未发布时仍可保存草稿。新版 RAM 分别记录初始／剩余风险，合并各活动适用题目，由本人确认指定版本，再由独立审核人审核；红色剩余风险须安全签署及加强 Package 审批。重要变更触发重审，历史保留；AI 只解释及追问，不覆盖人工评估，RAM 批准不会自动发布活动。参见 [RAM 模块规范](modules/SAFETY.RAM.md)及[管理员初始化](RAM-INITIALIZATION.md)。
+RAM 按教会发布不可变政策与题库；管理员须逐格确认完整 25 格矩阵，未发布时仍可保存草稿。新版 RAM 分别记录初始／剩余风险，合并各活动适用题目，由本人确认指定版本，再申请 RAM 独立审核；红色剩余风险须安全签署及加强 Package 审批。申请后，待审核 RAM 会出现在同一教会合资格审核人的“教会生活 / RAM 独立审核”和个人中心“职务待办”中；链接把只读的完整活动方案与受限 RAM 报告放在同一审核画面，并在通过、退回或版本失效后自动消失。活动方案启用 RAM 或安全事实／政策强制要求时，必须先通过独立审核才能提交 Event Package；明确选择“不需要 RAM”且没有更高优先级触发器时不会受阻。重要变更触发重审，历史保留；AI 只解释及追问，不覆盖人工评估，RAM 独立审核不会自动发布活动。参见 [RAM 模块规范](modules/SAFETY.RAM.md)及[管理员初始化](RAM-INITIALIZATION.md)。
 
 活动筹备使用[连续六步流程](EVENT-SETUP-FLOW.md)：选择模板 → 活动安排 → 确认创建 → 正式审批 → 海报制作 → 发布活动。新建与筹备修改共用创建时的表单，创建后不能再选择模板。已保存活动使用 Event Workspace；“安全／RAM 与安全”直接提供完整评估、本人确认、审核与打印流程。“活动安排”的安全区将未成年人／儿童保护与 RAM 要求／评估表分开排列，RAM 直接内嵌；新建时先填风险并随确认创建保存，创建后继续题库与签署审核。团队职责、报名、排班、节目、场地、儿童保护与交通工具均直接放在活动安排的对应分区，不再另设“团队与功能”步骤。创建后回到活动安排；旧入口也进入此页。活动资料作为首个整行卡片，显示名称、活动时区的时间及创建者／总负责人；资料表单和 AI 资料助手作为内部子工作区。页底仅保留“回到开头”，通过顶部流程导航切换阶段；保存和确认创建仍须明确操作。活动安排以 12 个彩色模块方块总览呈现，手机／平板／桌面为 3／4／6 列，默认全部收起；同时只打开一个编辑区，内部工作区也使用方块切换，保留未保存内容。每个模块有默认未勾选的“填写已确认”；关闭功能也需明确确认，修改撤销受影响模块的确认。填写确认不替代 RAM 签署和审批。模块角色在各自模块分配，总负责人独立于模块；确认创建汇总 12 个模块状态与负责人，职责仍须本人接受。旧编辑链接转入 Workspace，不再打开已停用的 AI 活动编辑器；服务器权限与审批冻结规则继续生效。正式审批显示各等级命中的政策条件；最晚预期批复时间为活动开始时间减去政策的最终确认提前开放小时数。创建成功后继续编辑同一个活动；新方案活动从未发布、报名关闭状态开始。批准前可反复修改资料和安排；审批退回后可修改重提。保存后的筹备阶段，每项功能均可选是或否；关闭会保留资料，正式提交时再核对必要条件。批准后筹备资料冻结，可申请撤销审批，获准后恢复修改并重新审批。海报不在审批内容内，放在正式审批之后制作并由人工核对采用。批准后仍须确认发布，公共网站、教会生活和小组生活按既定可见范围展示；旧活动的兼容规则保持不变。
 
-Event Workspace 是创建后唯一的活动管理界面。固定的“工作流与产出物”标签管理工作流步骤、产出物和模板；活动详情仅保留查看、报名、回顾和获准的个人操作。旧编辑、RAM 和详情 Workflow 书签会转入相应的 Workspace 页面。
+Event Workspace 是创建后唯一的活动管理界面；活动详情仅保留查看、报名、回顾和获准的个人操作。通用“工作流与产出物”界面、模板和活动 API 已停用；旧 `?section=workflow` 书签转入 Workspace 总览，旧编辑和 RAM 书签仍转入相应的 Workspace 页面。
 
 在[活动安排](CREATION-ARRANGEMENTS.md)页，可选功能通过“是／否”启用，必需功能保持锁定。岗位与轮班、节目与制作、场地与资源可直接展开填写人数、时段、节目顺序及场地预订，并在同页查看安排一览。关闭功能保留草稿；最终人工确认时，安排与活动一起保存。系列安排应用于本次创建的未来 12 周场次，场地冲突在创建时再次检查。
 
@@ -79,9 +79,9 @@ Event Workspace 是创建后唯一的活动管理界面。固定的“工作流�
 
 AI 可以建议候选事实和解释原因，但不能确认事实、分配权限、批准、豁免政策、授予赞助、持久化或发布。前端可见性永远不能代替服务器授权，私密／受限资料不得进入共享缓存、日志或 AI 提示。
 
-### 一个工作流引擎
+### 专业流程与历史兼容
 
-现有 `EventWorkflowRun`／Step／Artifact 保持为唯一通用活动工作流引擎。模块向它贡献步骤和产出物；RAM 等专用领域流程继续由自己的权威处理程序管理，不引入第二个流程引擎。
+RAM、Package、报名、排班等专业流程由各自的权威处理程序和职务待办管理。历史 `EventWorkflowRun`／Step／Artifact 数据结构及旧 Plan 字段只为既有记录的非破坏性读取而保留；新活动不再创建或同步通用工作流记录。
 
 ### 继续阅读
 
@@ -157,11 +157,11 @@ Event Package Approval 是 Plan 接受之後、發布／開放報名／收款／
 
 ### 人工確認與 AI 權限邊界
 
-RAM 按教會發布不可變政策與題庫；管理員須逐格確認完整 25 格矩陣，未發布時仍可儲存草稿。新版 RAM 分別記錄初始／剩餘風險，合併各活動適用題目，由本人確認指定版本，再由獨立審核人審核；紅色剩餘風險須安全簽署及加強 Package 審批。重要變更觸發重審，歷史保留；AI 只解釋及追問，不覆蓋人工評估，RAM 批准不會自動發布活動。參見 [RAM 模組規範](modules/SAFETY.RAM.md)及[管理員初始化](RAM-INITIALIZATION.md)。
+RAM 按教會發布不可變政策與題庫；管理員須逐格確認完整 25 格矩陣，未發布時仍可儲存草稿。新版 RAM 分別記錄初始／剩餘風險，合併各活動適用題目，由本人確認指定版本，再申請 RAM 獨立審核；紅色剩餘風險須安全簽署及加強 Package 審批。申請後，待審核 RAM 會出現在同一教會合資格審核人的「教會生活 / RAM 獨立審核」和個人中心「職務待辦」中；連結把唯讀的完整活動方案與受限 RAM 報告放在同一審核畫面，並在通過、退回或版本失效後自動消失。活動方案啟用 RAM 或安全事實／政策強制要求時，必須先通過獨立審核才能提交 Event Package；明確選擇「不需要 RAM」且沒有更高優先級觸發器時不會受阻。重要變更觸發重審，歷史保留；AI 只解釋及追問，不覆蓋人工評估，RAM 獨立審核不會自動發布活動。參見 [RAM 模組規範](modules/SAFETY.RAM.md)及[管理員初始化](RAM-INITIALIZATION.md)。
 
 活動籌備使用[連續六步流程](EVENT-SETUP-FLOW.md)：選擇範本 → 活動安排 → 確認建立 → 正式審批 → 海報製作 → 發布活動。新建與籌備修改共用建立時的表單，建立後不能再選擇範本。已儲存活動使用 Event Workspace；「安全／RAM 與安全」直接提供完整評估、本人確認、審核與列印流程。「活動安排」的安全區將未成年人／兒童保護與 RAM 要求／評估表分開排列，RAM 直接內嵌；新建時先填風險並隨確認建立儲存，建立後繼續題庫與簽署審核。團隊職責、報名、排班、節目、場地、兒童保護與交通工具均直接放在活動安排的對應分區，不再另設「團隊與功能」步驟。建立後回到活動安排；舊入口也進入此頁。活動資料作為首個整行卡片，顯示名稱、活動時區的時間及建立者／總負責人；資料表單和 AI 資料助手作為內部子工作區。頁底僅保留「回到開頭」，透過頂部流程導覽切換階段；儲存和確認建立仍須明確操作。活動安排以 12 個彩色模組方塊總覽呈現，手機／平板／桌面為 3／4／6 欄，預設全部收起；同時只開啟一個編輯區，內部工作區也使用方塊切換，保留未儲存內容。每個模組有預設未勾選的「填寫已確認」；關閉功能也需明確確認，修改撤銷受影響模組的確認。填寫確認不替代 RAM 簽署和審批。模組角色在各自模組分配，總負責人獨立於模組；確認建立彙總 12 個模組狀態與負責人，職責仍須本人接受。舊編輯連結轉入 Workspace，不再開啟已停用的 AI 活動編輯器；伺服器權限與審批凍結規則繼續生效。正式審批顯示各等級命中的政策條件；最晚預期批覆時間為活動開始時間減去政策的最終確認提前開放小時數。建立成功後繼續編輯同一個活動；新方案活動從未發布、報名關閉狀態開始。批准前可反覆修改資料和安排；審批退回後可修改重提。儲存後的籌備階段，每項功能均可選是或否；關閉會保留資料，正式提交時再核對必要條件。批准後籌備資料凍結，可申請撤銷審批，獲准後恢復修改並重新審批。海報不在審批內容內，放在正式審批之後製作並由人工核對採用。批准後仍須確認發布，公共網站、教會生活和小組生活按既定可見範圍顯示；既有活動的相容規則保持不變。
 
-Event Workspace 是建立後唯一的活動管理介面。固定的「工作流與產出物」標籤管理工作流步驟、產出物和範本；活動詳情僅保留檢視、報名、回顧和獲准的個人操作。舊編輯、RAM 和詳情 Workflow 書籤會轉入相應的 Workspace 頁面。
+Event Workspace 是建立後唯一的活動管理介面；活動詳情僅保留檢視、報名、回顧和獲准的個人操作。通用「工作流與產出物」介面、範本和活動 API 已停用；舊 `?section=workflow` 書籤轉入 Workspace 總覽，舊編輯和 RAM 書籤仍轉入相應的 Workspace 頁面。
 
 在[活動安排](CREATION-ARRANGEMENTS.md)頁，可選功能透過「是／否」啟用，必需功能保持鎖定。崗位與輪班、節目與製作、場地與資源可直接展開填寫人數、時段、節目順序及場地預訂，並在同頁查看安排一覽。關閉功能保留草稿；最終人工確認時，安排與活動一起儲存。系列安排套用於本次建立的未來 12 週場次，場地衝突在建立時再次檢查。
 
@@ -171,9 +171,9 @@ Event Workspace 是建立後唯一的活動管理介面。固定的「工作流�
 
 AI 可以建議候選事實和解釋原因，但不能確認事實、分配權限、批准、豁免政策、授予贊助、持久化或發布。前端可見性永遠不能代替伺服器授權，私密／受限資料不得進入共享快取、日誌或 AI 提示。
 
-### 一個工作流引擎
+### 專業流程與歷史相容
 
-現有 `EventWorkflowRun`／Step／Artifact 保持為唯一通用活動工作流引擎。模組向它貢獻步驟和產出物；RAM 等專用領域流程繼續由自己的權威處理程序管理，不引入第二個流程引擎。
+RAM、Package、報名、排班等專業流程由各自的權威處理程序和職務待辦管理。歷史 `EventWorkflowRun`／Step／Artifact 資料結構及舊 Plan 欄位只為既有記錄的非破壞性讀取而保留；新活動不再建立或同步通用工作流記錄。
 
 ### 繼續閱讀
 
@@ -249,11 +249,11 @@ Approval is valid only for the bound Plan, Package version, policy version, sour
 
 ### Human confirmation and AI authority
 
-RAM policies and question libraries are published as immutable church versions. Administrators explicitly confirm all 25 matrix cells; drafts remain saveable before publication. Version 2 records initial and residual risk, combines questions per activity, obtains personal confirmation of the specified version and independent review; Red residual risk requires safety sign-off and Enhanced Package approval. Material changes require re-review while preserving history. AI only explains and asks questions, never overwrites human assessment, and RAM approval never publishes an Event. See the [RAM module contract](modules/SAFETY.RAM.md) and [administrator initialization](RAM-INITIALIZATION.md).
+RAM policies and question libraries are published as immutable church versions. Administrators explicitly confirm all 25 matrix cells; drafts remain saveable before publication. Version 2 records initial and residual risk, combines questions per activity, obtains personal confirmation of the specified version, then requests Independent RAM review; Red residual risk requires safety sign-off and Enhanced Package approval. The request appears in eligible same-church reviewers' Church Life / Independent RAM review section and as a Personal Center duty. Its link places the read-only complete Event Plan and restricted RAM report on one decision screen, then disappears after approval, return, or revision invalidation. When the Event Plan enables RAM or safety facts/policy require it, RAM must pass independent review before Event Package submission; an explicit No is accepted when no higher-priority trigger applies. Material changes require re-review while preserving history. AI only explains and asks questions, never overwrites human assessment, and Independent RAM review never publishes an Event. See the [RAM module contract](modules/SAFETY.RAM.md) and [administrator initialization](RAM-INITIALIZATION.md).
 
 Event preparation uses a [continuous six-step flow](EVENT-SETUP-FLOW.md): Template → Arrangements → Confirm creation → Formal approval → Poster → Publish. Creation and preparation editing share the creation form; the template cannot be reselected after creation. Saved Events use Event Workspace. Safety / RAM and safety directly provides assessment, personal confirmation, review and printing. Arrangements pairs children participation with safeguarding, then the RAM requirement with an inline assessment. New Events can record risks and save them with explicit Create, then continue with questions and signed review. Team responsibilities, enrollment, roster, programme, venue, safeguarding and travel tools are embedded in their Arrangements groups; there is no separate Team and tools step. Creation and legacy setup links lead to Arrangements. A full-row Event details card comes first, showing the title, event-local times/time zone and creator/accountable owner, with the form and AI assistant as child work areas. The footer only offers Back to top; the top rail changes stages while saves and creation remain explicit actions. Arrangements presents twelve coloured module tiles in 3/4/6 columns on mobile/tablet/desktop, initially collapsed. One editor opens at a time, with matching work-area tiles and retained unsaved inputs. Each module has a default-false Details confirmed checkbox, including an explicit review of disabled tools; edits revoke affected confirmations. Review lists all twelve modules and their responsible people. Details confirmation never replaces RAM signatures or approval. Legacy edit links redirect to Workspace without opening the retired AI event editor; server authorization and approval freezes remain authoritative. Formal approval explains each tier’s matching policy conditions; the expected latest reply is Event start minus the policy’s final-confirmation opening hours. Successful creation continues editing the same Event; new composition-backed Events begin unpublished with registration closed. Details and arrangements can be revised repeatedly before approval, including after return. Every tool remains a Yes/No choice during saved preparation; disabling preserves its data, and formal submission checks required conditions. Approval freezes preparation; an authorised reopening request restores editing and requires fresh approval. Posters are excluded from formal approval and are produced and adopted afterward. Approval still requires a separate publication confirmation, after which the public website, Church Life and Group Life apply the configured audience. Existing Event compatibility remains unchanged. Each section has an initially unchecked Confirmed marker, replacing duplicate three-choice questions; edits make it pending again. Roles are assigned in their modules, with a global accountable owner. Creation review summarizes section status and responsible people; roles still require personal acceptance.
 
-Event Workspace is the only Event-management surface after creation. Its fixed Workflow & outputs tab manages workflow steps, artifacts, and templates; Event Detail is limited to viewing, enrollment, review, memories, and permitted personal actions. Legacy edit, RAM, and Detail Workflow bookmarks redirect to the corresponding Workspace surface.
+Event Workspace is the only Event-management surface after creation; Event Detail is limited to viewing, enrollment, review, memories, and permitted personal actions. The general Workflow & outputs UI, templates, and Event APIs are retired. Old `?section=workflow` bookmarks redirect to Workspace Overview; legacy edit and RAM bookmarks still redirect to the corresponding Workspace surface.
 
 On [Arrangements](CREATION-ARRANGEMENTS.md), optional tools have Yes/No choices while required tools stay locked. Roles and shifts, programme and production, and venue and resources expand inline for counts, times, programme order and bookings, with a same-page summary. Turning a tool off preserves its draft. Final human confirmation saves arrangements with the Event. Series arrangements apply to occurrences created in the initial 12-week window; venue conflicts are rechecked at creation.
 
@@ -263,9 +263,9 @@ Composition produces a candidate plan only. On acceptance, the server recomposes
 
 AI may propose candidate facts and explain recommendations. It cannot confirm facts, assign authority, approve, waive policy, grant sponsorship, persist, or publish. Frontend visibility never replaces server authorisation, and private or restricted data never enters shared cache, logs, or AI prompts.
 
-### One workflow engine
+### Specialist flows and historical compatibility
 
-The existing `EventWorkflowRun` / Step / Artifact model remains the single general Event workflow engine. Modules contribute steps and artifacts to it; dedicated domain flows such as RAM retain their authoritative handlers without introducing a second workflow engine.
+RAM, Package, enrollment, roster, and other specialist processes use their authoritative handlers and duty tasks. Historical `EventWorkflowRun` / Step / Artifact storage and old Plan fields remain only for non-destructive reading of existing records; new Events no longer create or synchronise general workflow records.
 
 ### Continue reading
 

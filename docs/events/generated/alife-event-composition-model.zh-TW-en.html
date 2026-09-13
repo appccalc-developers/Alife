@@ -2984,14 +2984,14 @@ public sealed record AcceptEventPlanRequest(
     "Only explicit human acceptance creates an immutable EventPlanSnapshot.",
     "An accepted snapshot retains every referenced archetype, module and policy version.",
     "A module with persisted operational data cannot be removed silently. Explicit saved-draft tool deselection retains its records and snapshots; it is not data retirement.",
-    "EventWorkflowRun, Step and Artifact remain the single general workflow engine.",
+    "Generic EventWorkflowRun, Step, Artifact and template APIs are retired. Historical tables and stored Plan fields remain untouched, and new Events create no generic workflow records.",
     "AI cannot confirm facts, assign authority, approve, waive, sponsor, persist or publish.",
     "Unknown modules, policies, enum values and surface keys fail closed.",
     "Product wire text remains { en, zh }; document locale zh-Hant does not change the key.",
     "Only an approved sanitised public projection may enter shared cache.",
     "Plan acceptance, Event Package Approval, specialist approvals, sponsorship, Readiness and Ready to Proceed remain distinct.",
     "A Package is immutable after submission and binds one Plan version, Package schema, governance policy, scope, source vector and content hash.",
-    "EventWorkflow task or artifact state never creates, changes or replaces an Event Package decision.",
+    "Reading or dismissing a duty notification never creates, changes or replaces an Event Package or specialist decision.",
     "Only an active approval for the current Package scope can satisfy an approval-required lifecycle gate.",
     "Approval never automatically publishes, opens registration, accepts payment or confirms execution.",
     "A Package for a Child Event is independent; Series state and parent approval never approve it.",
@@ -5753,15 +5753,6 @@ public sealed record AcceptEventPlanRequest(
       "componentContract": "EventPackageGovernanceWorkspace"
     },
     {
-      "surfaceKey": "workspace.workflow",
-      "moduleCode": null,
-      "presentation": "tab",
-      "sectionKey": "workflow",
-      "pathSegment": null,
-      "order": 18,
-      "componentContract": "EventWorkflowWorkspace"
-    },
-    {
       "surfaceKey": "team.work",
       "moduleCode": "TEAM.WORK",
       "presentation": "tab",
@@ -6414,7 +6405,7 @@ public sealed record AcceptEventPlanRequest(
     {
       "method": "POST",
       "path": "/api/groups/{groupId}/events",
-      "request": "existing CreateGroupEventRequest plus optional composition, SeriesSetup and arrangements (CREATION-ARRANGEMENTS.md); schema 1.1 forbids arbitrary workflowTemplateCode",
+      "request": "existing CreateGroupEventRequest plus optional composition, SeriesSetup and arrangements (CREATION-ARRANGEMENTS.md); workflowTemplateCode is no longer accepted",
       "response": "GroupEventSummaryDto with optional plan metadata and current publication projection; composition-backed creation starts draft with registration closed; legacy clients remain compatible",
       "auth": "existing group management",
       "cache": "no-store",
@@ -7491,9 +7482,18 @@ public sealed record AcceptEventPlanRequest(
       "method": "GET",
       "path": "/api/events/{eventId}/ram/workspace",
       "request": "none",
-      "response": "assessment, referenced/latest published policy, allowed history/actions, accepted on-site candidates and capabilities",
+      "response": "assessment, referenced/latest published policy, allowed history/actions, accepted on-site candidates, capabilities and private read-only complete accepted Event Plan context",
       "auth": "RAM reader",
       "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/church-life/ram-reviews",
+      "request": "optional ownerGroupId query",
+      "response": "ChurchLifeListDto<ChurchLifeRamReviewDto>; event/revision identity, bilingual title, group, residual level and submission time only",
+      "auth": "authenticated; approved root-church membership plus admin.events.audit; author, submitter and on-site signer excluded",
+      "cache": "no-store",
       "mutation": false
     },
     {
@@ -8001,6 +8001,8 @@ public sealed record AcceptEventPlanRequest(
     "concurrency": "ExpectedETag; stale 412; Idempotency-Key for actions; conflicting key reuse 409",
     "materialChange": "venue, date/duration, activity, attendance, weather confirmation, accommodation, transport, personnel or risk edits invalidate current authority; history retained; frozen preparation uses existing reopening",
     "compatibility": "legacy GET/PUT/submit/approve routes and fields retained; legacy scores are initial only; old writes cannot overwrite v2; existing approved history preserved; new submission requires v2",
+    "packageSubmissionGate": "RAM must pass independent review before Event Package submission when the accepted Plan enables SAFETY.RAM or activity/safety facts/policy require it. Explicit No is accepted when no higher-priority RAM trigger applies.",
+    "reviewDiscovery": "On submit, one event.ram.reviewRequested notification is created per eligible same-root-church auditor after author/submitter/on-site separation. Church Life / Independent RAM review and Personal Center duties revalidate the exact pending revision, permission and membership on every read and disappear when no longer current. Their direct action opens the complete accepted Event Plan as private read-only context together with the restricted RAM report and review controls.",
     "aiContextAllowlist": [
       "activityType",
       "category",
@@ -8010,7 +8012,7 @@ public sealed record AcceptEventPlanRequest(
       "explanation",
       "questions"
     ],
-    "privacy": "private, no-store; Vary Cookie, Authorization; no full RAM in Package, shared workflow artifacts, AI context or shared caches",
+    "privacy": "private, no-store; Vary Cookie, Authorization; no full RAM in Package, review-discovery/duty projections, AI context or shared caches",
     "outOfScope": [
       "external venue/trail/weather/tide queries",
       "independent incident register",

@@ -1,4 +1,5 @@
 using Alife.Application.Albums;
+using Alife.Application.Admin;
 using Alife.Application.ChurchLife;
 using Alife.Application.Common.Models;
 using Alife.Application.Events.Dtos;
@@ -165,6 +166,68 @@ public sealed class ChurchLifeServiceTests
         var result = await service.ListAnnouncementsAsync(memberId, Guid.NewGuid(), CancellationToken.None);
 
         Assert.Equal(AppResultStatus.ValidationError, result.Status);
+    }
+
+    [Fact]
+    public async Task RamReviewsListsOnlyOpenChurchWorkForEligibleIndependentAuditors()
+    {
+        await using var db = CreateDb();
+        var now = DateTime.UtcNow;
+        var reviewerId = Guid.NewGuid();
+        var authorId = Guid.NewGuid();
+        var ordinaryMemberId = Guid.NewGuid();
+        var root = Group("Church", isChurch: true);
+        var child = Group("Ministry", parentId: root.Id);
+        var eventId = Guid.NewGuid();
+        var revisionId = Guid.NewGuid();
+        db.Members.AddRange(Member(reviewerId), Member(authorId), Member(ordinaryMemberId));
+        db.Groups.AddRange(root, child);
+        db.GroupMemberships.AddRange(
+            Membership(root.Id, reviewerId),
+            Membership(root.Id, authorId),
+            Membership(root.Id, ordinaryMemberId));
+        var auditRole = new PlatformRole
+        {
+            Id = 901,
+            Code = "event-auditor",
+            NameJson = "{}",
+            PermissionsJson = AdminPermissionCatalog.WritePermissions([AdminPermissionCatalog.AuditEvents]),
+            Level = 1
+        };
+        db.PlatformRoles.Add(auditRole);
+        db.MemberPlatformRoles.Add(new MemberPlatformRole
+        {
+            Id = Guid.NewGuid(), MemberId = reviewerId, RoleId = auditRole.Id, AssignedUtc = now
+        });
+        db.GroupEvents.Add(new GroupEvent
+        {
+            Id = eventId, GroupId = child.Id, CreatedByMemberId = authorId,
+            AccountableOwnerMemberId = authorId, TitleEn = "Community outing", TitleZh = "社区出行",
+            StartDate = now.AddDays(7), EndDate = now.AddDays(7).AddHours(2),
+            EventDataJson = "{}", CreatedUtc = now, UpdatedUtc = now
+        });
+        db.EventRamRevisions.Add(new EventRamRevision
+        {
+            Id = revisionId, EventId = eventId, Version = 2, SchemaVersion = 2,
+            AuthorMemberId = authorId, ResidualLevel = "Yellow", CreatedUtc = now
+        });
+        db.EventRamAssessments.Add(new EventRamAssessment
+        {
+            EventId = eventId, CurrentRevisionId = revisionId, AuthorMemberId = authorId,
+            SubmittedByMemberId = authorId, SubmittedUtc = now, Status = EventRamStatus.AwaitingReview,
+            Validity = "AwaitingReview", ResidualLevel = "Yellow", CreatedUtc = now, UpdatedUtc = now
+        });
+        await db.SaveChangesAsync();
+        var service = ChurchLifeService(db, Substitute.For<ISender>());
+
+        var eligible = await service.ListRamReviewsAsync(reviewerId, null, CancellationToken.None);
+        var ordinary = await service.ListRamReviewsAsync(ordinaryMemberId, null, CancellationToken.None);
+
+        var review = Assert.Single(eligible.Value!.Items);
+        Assert.Equal(eventId, review.EventId);
+        Assert.Equal(revisionId, review.RevisionId);
+        Assert.Equal("Community outing", review.Title["en"]);
+        Assert.Empty(ordinary.Value!.Items);
     }
 
     [Fact]

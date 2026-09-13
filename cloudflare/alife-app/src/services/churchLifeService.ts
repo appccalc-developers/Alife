@@ -22,6 +22,16 @@ export type ChurchLifeList<T> = {
   groups: ChurchLifeGroup[]
 }
 
+export type ChurchLifeRamReview = {
+  eventId: string
+  groupId: string
+  title: LocalizedText
+  revisionId: string
+  revisionVersion: number
+  residualLevel: string
+  submittedUtc: string
+}
+
 export type ChurchLifePagedList<T> = ChurchLifeList<T> & {
   page: number
   pageSize: number
@@ -49,6 +59,9 @@ export const churchLifeService = {
 
   listEvents: (ownerGroupId?: string) =>
     list<GroupEventRecord>('/api/church-life/events', ownerGroupId),
+
+  listRamReviews: (ownerGroupId?: string) =>
+    list<ChurchLifeRamReview>('/api/church-life/ram-reviews', ownerGroupId),
 
   listAnnouncements: (ownerGroupId?: string) =>
     list<AnnouncementDto>('/api/church-life/announcements', ownerGroupId),

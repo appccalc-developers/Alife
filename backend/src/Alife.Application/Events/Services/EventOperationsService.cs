@@ -122,10 +122,10 @@ public sealed partial class EventOperationsService(
     {
         var access = await RequireManager(eventId, memberId, ct);
         if (!access.IsSuccess) return ConvertFailure<EventTaskDto>(access);
-        var validation = await ValidateTaskRequest(access.Value!, request.Title, request.AssignedMemberId, request.WorkflowStepId, ct);
+        var validation = await ValidateTaskRequest(access.Value!, request.Title, request.AssignedMemberId, ct);
         if (validation is not null) return AppResult<EventTaskDto>.Validation(validation);
         var now = DateTime.UtcNow;
-        var entity = new EventTask { Id = Guid.NewGuid(), EventId = eventId, WorkflowStepId = request.WorkflowStepId,
+        var entity = new EventTask { Id = Guid.NewGuid(), EventId = eventId,
             TitleEn = request.Title.En.Trim(), TitleZh = request.Title.Zh.Trim(), DescriptionEn = request.Description?.En.Trim() ?? "",
             DescriptionZh = request.Description?.Zh.Trim() ?? "", AssignedMemberId = request.AssignedMemberId,
             DueUtc = request.DueUtc, IsRequired = request.IsRequired, RequiresApproval = request.RequiresApproval,
@@ -159,7 +159,7 @@ public sealed partial class EventOperationsService(
             return AppResult<EventTaskDto>.Forbidden("Assignees can update task progress only.");
         if (request.Status == EventTaskStatus.Done && task.Dependencies.Any(x => x.DependsOnEventTask.Status != EventTaskStatus.Done))
             return AppResult<EventTaskDto>.Conflict("Complete prerequisite tasks first.");
-        var validation = await ValidateTaskRequest(task.Event, request.Title, request.AssignedMemberId, task.WorkflowStepId, ct);
+        var validation = await ValidateTaskRequest(task.Event, request.Title, request.AssignedMemberId, ct);
         if (validation is not null) return AppResult<EventTaskDto>.Validation(validation);
         var changesReadiness = task.AssignedMemberId != request.AssignedMemberId || task.DueUtc != request.DueUtc ||
             task.Status != request.Status || task.IsRequired != request.IsRequired ||
@@ -174,7 +174,6 @@ public sealed partial class EventOperationsService(
         task.IsRequired = request.IsRequired; task.RequiresApproval = request.RequiresApproval; task.IsRestricted = request.IsRestricted;
         task.CompletedUtc = request.Status == EventTaskStatus.Done ? DateTime.UtcNow : null;
         task.ConcurrencyToken = Guid.NewGuid(); task.UpdatedUtc = DateTime.UtcNow;
-        SyncWorkflowStep(task, memberId);
         if (changesReadiness && packageInvalidation is not null)
             await packageInvalidation.InvalidateForModuleChangeAsync(
                 task.Event, memberId, "TEAM.WORK", "event.task.readinessChanged", "operational", ct);
@@ -199,7 +198,6 @@ public sealed partial class EventOperationsService(
         if (!await CanManage(task.Event, memberId, ct)) return AppResult<EventTaskDto>.Forbidden("Only event managers can cancel tasks.");
         if (!Matches(ifMatch, TaskETag(task))) return AppResult<EventTaskDto>.PreconditionFailed("The task changed; reload before cancelling.");
         task.Status = EventTaskStatus.Cancelled; task.CompletedUtc = null; task.ConcurrencyToken = Guid.NewGuid(); task.UpdatedUtc = DateTime.UtcNow;
-        SyncWorkflowStep(task, memberId);
         if ((task.IsRequired || task.RequiresApproval) && packageInvalidation is not null)
             await packageInvalidation.InvalidateForModuleChangeAsync(
                 task.Event, memberId, "TEAM.WORK", "event.task.cancelled", "governanceCritical", ct);
@@ -526,18 +524,16 @@ public sealed partial class EventOperationsService(
     }
 
     private IQueryable<EventTask> TaskQuery(Guid eventId) => db.EventTasks.Where(x => x.EventId == eventId)
-        .Include(x => x.Event).Include(x => x.WorkflowStep).Include(x => x.Dependencies).ThenInclude(x => x.DependsOnEventTask)
+        .Include(x => x.Event).Include(x => x.Dependencies).ThenInclude(x => x.DependsOnEventTask)
         .Include(x => x.Blockers);
 
-    private async Task<string?> ValidateTaskRequest(GroupEvent groupEvent, LocalizedTextDto title, Guid? assignedMemberId, Guid? workflowStepId, CancellationToken ct)
+    private async Task<string?> ValidateTaskRequest(GroupEvent groupEvent, LocalizedTextDto title, Guid? assignedMemberId, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(title.En) || string.IsNullOrWhiteSpace(title.Zh)) return "Bilingual task titles are required.";
         if (assignedMemberId.HasValue && assignedMemberId != groupEvent.AccountableOwnerMemberId &&
             !await db.EventTeamMembers.AsNoTracking().AnyAsync(x => x.EventId == groupEvent.Id && x.MemberId == assignedMemberId && x.Status == EventTeamMemberStatus.Accepted && x.EndedUtc == null, ct) &&
             !await db.EventRoleAssignments.AsNoTracking().AnyAsync(x => x.EventId == groupEvent.Id && x.MemberId == assignedMemberId && x.Status == EventRoleAssignmentStatus.Accepted && x.EndedUtc == null, ct))
             return "The assignee must be the accountable owner or an accepted event-team member.";
-        if (workflowStepId.HasValue && !await db.EventWorkflowSteps.AsNoTracking().AnyAsync(x => x.Id == workflowStepId && x.WorkflowRun.EventId == groupEvent.Id, ct))
-            return "The workflow step does not belong to this event.";
         return null;
     }
 
@@ -659,16 +655,6 @@ public sealed partial class EventOperationsService(
         if (x.EligibilityCode != "approvedGroupMember" && x.EligibilityCode != "acceptedEventTeamMember" &&
             !x.EligibilityCode.StartsWith("acceptedRole:", StringComparison.Ordinal)) return "Unknown eligibilityCode.";
         return null;
-    }
-    private static void SyncWorkflowStep(EventTask task, Guid actorId)
-    {
-        if (task.WorkflowStep is null) return;
-        task.WorkflowStep.Status = task.Status switch { EventTaskStatus.Todo => EventWorkflowStepStatus.NotStarted,
-            EventTaskStatus.InProgress or EventTaskStatus.Blocked => EventWorkflowStepStatus.InProgress,
-            EventTaskStatus.Done => EventWorkflowStepStatus.Completed, EventTaskStatus.Cancelled => EventWorkflowStepStatus.Skipped, _ => task.WorkflowStep.Status };
-        task.WorkflowStep.AssignedMemberId = task.AssignedMemberId; task.WorkflowStep.DueUtc = task.DueUtc;
-        task.WorkflowStep.CompletedByMemberId = task.Status == EventTaskStatus.Done ? actorId : null;
-        task.WorkflowStep.CompletedUtc = task.CompletedUtc; task.WorkflowStep.UpdatedUtc = DateTime.UtcNow;
     }
     private static string TaskETag(EventTask x) => $"\"task-{x.ConcurrencyToken:N}\"";
     private static string ProgrammeETag(EventOccurrence x) => $"\"programme-{x.ProgrammeConcurrencyToken:N}\"";

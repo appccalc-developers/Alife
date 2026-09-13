@@ -1265,9 +1265,10 @@ public sealed partial class EventPackageService(
         var modules = new List<EventPackageModuleSummaryDto>();
         var blockers = new List<LocalizedTextDto>();
         blockers.AddRange(EventCompositionEngine.FormalSubmissionModuleBlockers(plan.Plan));
-        if ((EventRamGovernanceService.IsRequired(groupEvent, plan.Plan) || ramEvidence?.SchemaVersion == 2) &&
-            (ramEvidence?.Status != EventRamStatus.Approved || (ramEvidence.SchemaVersion == 2 && ramEvidence.Validity != "Valid")))
-            blockers.Add(new("A current, independently approved RAM is required, even if the preparation tool is disabled.", "必须提供当前有效且经独立审核的 RAM；关闭筹备工具不能免除此要求。"));
+        var ramRequiredForPackage = EventRamGovernanceService.IsRequired(groupEvent, plan.Plan);
+        if (ramRequiredForPackage && (ramEvidence?.Status != EventRamStatus.Approved ||
+            (ramEvidence.SchemaVersion == 2 && ramEvidence.Validity != "Valid")))
+            blockers.Add(new("This Event Plan requires the current RAM to pass independent review before the Event Package can be submitted.", "此活动方案需要 RAM；当前 RAM 必须先通过独立审核，才能提交整个活动方案审批包。"));
         if (ramEvidence is not null && !selected.Any(x=>x.ModuleCode=="SAFETY.RAM"))
             sources.Add(new("SAFETY.RAM","moduleAggregate",groupEvent.Id,await ModuleSourceVersionAsync(groupEvent.Id,"SAFETY.RAM",null,ct),null,null,"approvalEvidence",true));
         foreach (var decision in selected)

@@ -26,7 +26,7 @@ export const eventTemplateToAdminForm = (value: AdminEventActivityTemplate): Eve
   iconKey: value.template.iconKey,
   defaults: { ...value.template.defaults },
   preselectedModules: [...value.template.preselectedModules],
-  recommendedWorkflowTemplateCode: value.template.recommendedWorkflowTemplateCode ?? null,
+  recommendedWorkflowTemplateCode: null,
   presetServiceSlots: value.template.presetServiceSlots.map((slot) => ({
     ...slot,
     label: { ...slot.label },
@@ -41,7 +41,6 @@ export const validateEventTemplateAdminForm = (
   allowedArchetypes: ReadonlySet<string>,
   allowedModules: ReadonlySet<string>,
   allowedIcons: ReadonlySet<string>,
-  allowedWorkflows: ReadonlySet<string>,
 ): string | null => {
   if (!/^[a-z][a-z0-9-]{2,79}$/.test(normalizeEventTemplateCode(form.code))) return 'code'
   if (!allowedArchetypes.has(form.archetypeCode)) return 'archetype'
@@ -50,7 +49,6 @@ export const validateEventTemplateAdminForm = (
   if (!allowedIcons.has(form.iconKey)) return 'icon'
   if (form.preselectedModules.some((code) => !allowedModules.has(code))) return 'modules'
   if (new Set(form.preselectedModules).size !== form.preselectedModules.length) return 'modules'
-  if (form.recommendedWorkflowTemplateCode && !allowedWorkflows.has(form.recommendedWorkflowTemplateCode)) return 'workflow'
   if (form.presetServiceSlots.length && !form.preselectedModules.includes('SERVICE.ROSTER')) return 'roster-module'
   if (form.preselectedModules.includes('SERVICE.ROSTER') && !form.presetServiceSlots.length) return 'roster-slots'
   const roleCodes = form.presetServiceSlots.map((slot) => slot.roleCode.trim())
@@ -71,7 +69,7 @@ export const toUpdateEventTemplateRequest = (form: EventTemplateAdminForm): Admi
   iconKey: form.iconKey,
   defaults: { ...form.defaults, capacityUnit: 'People' },
   preselectedModules: [...new Set(form.preselectedModules)].sort(),
-  recommendedWorkflowTemplateCode: form.recommendedWorkflowTemplateCode || null,
+  recommendedWorkflowTemplateCode: null,
   presetServiceSlots: form.presetServiceSlots.map((slot) => ({
     roleCode: slot.roleCode.trim(),
     label: { en: slot.label.en.trim(), zh: slot.label.zh.trim() },

@@ -66,11 +66,41 @@ public sealed partial class EventPackageFoundationTests
             new(EventPackageScopeType.Event, null, "1.0"), snapshot.ETag, "draft-disabled-tools", default);
         Assert.True(package.IsSuccess, package.Message);
         Assert.Equal(6, package.Value!.Manifest.Blockers.Count);
-        Assert.Contains(package.Value.Manifest.Blockers, b => b.En.Contains("independently approved RAM"));
+        Assert.Contains(package.Value.Manifest.Blockers, b => b.En.Contains("pass independent review"));
         var submitted = await service.SubmitAsync(seeded.Event.Id, package.Value.Id, seeded.Owner,
             package.Value.ETag, "cannot-submit-disabled-requirements", default);
         Assert.Equal(AppResultStatus.Conflict, submitted.Status);
         Assert.Equal(EventPackageStatus.Draft, (await db.EventPackages.SingleAsync()).Status);
+    }
+
+    [Fact]
+    public async Task PackageSubmission_RequiresIndependentRamReviewOnlyWhenThePlanRequiresRam()
+    {
+        await using var optionalDb = CreateDb();
+        var optional = await SeedAsync(optionalDb, false, ["TEAM.WORK"]);
+        var optionalService = new EventPackageService(optionalDb, Authorization());
+        var optionalPackage = await optionalService.GenerateAsync(optional.Event.Id, optional.Owner,
+            new(), optional.Plan.ETag, "optional-ram-package", default);
+
+        Assert.True(optionalPackage.IsSuccess, optionalPackage.Message);
+        Assert.DoesNotContain(optionalPackage.Value!.Manifest.Blockers,
+            blocker => blocker.En.Contains("independent review", StringComparison.OrdinalIgnoreCase));
+        Assert.True((await optionalService.SubmitAsync(optional.Event.Id, optionalPackage.Value.Id,
+            optional.Owner, optionalPackage.Value.ETag, "optional-ram-submit", default)).IsSuccess);
+
+        await using var requiredDb = CreateDb();
+        var required = await SeedAsync(requiredDb, false, ["TEAM.WORK", "SAFETY.RAM"]);
+        var requiredService = new EventPackageService(requiredDb, Authorization());
+        var requiredPackage = await requiredService.GenerateAsync(required.Event.Id, required.Owner,
+            new(), required.Plan.ETag, "required-ram-package", default);
+
+        Assert.True(requiredPackage.IsSuccess, requiredPackage.Message);
+        Assert.Contains(requiredPackage.Value!.Manifest.Blockers,
+            blocker => blocker.En.Contains("pass independent review", StringComparison.OrdinalIgnoreCase));
+        var blocked = await requiredService.SubmitAsync(required.Event.Id, requiredPackage.Value.Id,
+            required.Owner, requiredPackage.Value.ETag, "required-ram-submit", default);
+        Assert.Equal(AppResultStatus.Conflict, blocked.Status);
+        Assert.Equal("event.package.submissionBlocked", blocked.Message);
     }
 
     [Fact]

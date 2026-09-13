@@ -17,7 +17,6 @@ public sealed record EventCompositionContext(
     EventGovernanceMode GovernanceMode = EventGovernanceMode.MemberLed,
     EventSponsorshipStatus SponsorshipStatus = EventSponsorshipStatus.NotRequested,
     DateTime? CheckedUtc = null,
-    EventWorkflowRecommendationDto? WorkflowRecommendation = null,
     IReadOnlyDictionary<string, EventActivityTypeDefinition>? ActivityTypesByCode = null,
     bool IsPreparationDraft = false);
 
@@ -164,12 +163,7 @@ public sealed class EventCompositionEngine : IEventCompositionEngine
                 role.Minimum, role.Recommended, role.Maximum, role.Eligibility, role.SeparationFrom)))
             .OrderBy(x => x.RequirementKey, StringComparer.Ordinal)
             .ToArray();
-        var workflow = activeModules
-            .SelectMany(module => module.WorkflowContributions.Select(step =>
-                new WorkflowContributionDto(module.Code, step, module.IntegrationKey)))
-            .OrderBy(x => x.ModuleCode, StringComparer.Ordinal)
-            .ThenBy(x => x.StepKey, StringComparer.Ordinal)
-            .ToArray();
+        IReadOnlyList<WorkflowContributionDto> workflow = [];
 
         var satisfiedRules = context.SatisfiedReadinessRules ?? new HashSet<string>(StringComparer.Ordinal);
         var moduleBlockers = BuildModuleBlockers(decisions, satisfiedRules, context.HasAccountableOwner);
@@ -182,8 +176,7 @@ public sealed class EventCompositionEngine : IEventCompositionEngine
                 "公開發布前必須取得根教會 sponsorship 批准。"));
         }
 
-        var workflowRecommendation = BuildWorkflowRecommendation(request, activityType, context.WorkflowRecommendation);
-        var warnings = BuildWarnings(facts, explicitDeselections, states, workflowRecommendation);
+        var warnings = BuildWarnings(facts, explicitDeselections, states);
         var readiness = new ReadinessDto(
             blockers.Count > 0 ? EventReadinessStatus.Blocked : EventReadinessStatus.Ready,
             blockers,
@@ -212,7 +205,7 @@ public sealed class EventCompositionEngine : IEventCompositionEngine
             warnings,
             activityType?.Code,
             activityType?.Version,
-            workflowRecommendation,
+            null,
             EventArrangementConfirmationPolicy.LegacySummary(request.ModuleConfirmations) ?? request.ArrangementConfirmations?.OrderBy(x => x.Key, StringComparer.Ordinal).ToDictionary(x => x.Key, x => x.Value),
             EventArrangementConfirmationPolicy.NormalizeModules(request.ModuleConfirmations));
 
@@ -467,8 +460,7 @@ public sealed class EventCompositionEngine : IEventCompositionEngine
     private static IReadOnlyList<LocalizedTextDto> BuildWarnings(
         IReadOnlyList<EventFactInputDto> facts,
         IReadOnlySet<string> explicitDeselections,
-        IReadOnlyDictionary<string, DecisionState> states,
-        EventWorkflowRecommendationDto? workflowRecommendation)
+        IReadOnlyDictionary<string, DecisionState> states)
     {
         var warnings = new List<LocalizedTextDto>();
         if (facts.Any(x => x.Certainty == EventFactCertainty.Candidate))
@@ -483,33 +475,7 @@ public sealed class EventCompositionEngine : IEventCompositionEngine
                 $"{code} remains required because a confirmed fact or policy overrides the manual deselection.",
                 $"{code} 因已確認事實或政策仍為必需，人工取消未生效。"));
         }
-        if (workflowRecommendation?.Status == "unavailable")
-        {
-            warnings.Add(Text(
-                $"The recommended {workflowRecommendation.Code} workflow is unavailable. The event can be created without a workflow.",
-                $"建議的 {workflowRecommendation.Code} 工作流目前不可用；活動仍可在沒有工作流的情況下建立。"));
-        }
         return warnings;
-    }
-
-    private static EventWorkflowRecommendationDto? BuildWorkflowRecommendation(
-        EventPlanComposeRequest request,
-        EventActivityTypeDefinition? activityType,
-        EventWorkflowRecommendationDto? resolved)
-    {
-        if (activityType?.RecommendedWorkflowTemplateCode is not { Length: > 0 } code)
-        {
-            return null;
-        }
-        if (resolved is not null)
-        {
-            return resolved;
-        }
-        return new EventWorkflowRecommendationDto(
-            code,
-            null,
-            null,
-            request.UseRecommendedWorkflow ? "unavailable" : "declined");
     }
 
     private static IReadOnlyList<EventWorkspaceItemDto> BuildNavigation(
@@ -525,9 +491,6 @@ public sealed class EventCompositionEngine : IEventCompositionEngine
             new(
                 "workspace.governance", null, "tab", "governance", null,
                 Text("Governance", "審批治理"), 15, overallReadiness, [], []),
-            new(
-                "workspace.workflow", null, "tab", "workflow", null,
-                Text("Workflow & outputs", "工作流與產出物"), 18, overallReadiness, [], [])
         };
 
         foreach (var decision in decisions.Where(IsActive))

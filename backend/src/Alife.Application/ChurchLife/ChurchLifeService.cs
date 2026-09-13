@@ -1,4 +1,5 @@
 using Alife.Application.Albums;
+using Alife.Application.Admin;
 using Alife.Application.Announcements;
 using Alife.Application.Announcements.Dtos;
 using Alife.Application.Common.Interfaces;
@@ -151,6 +152,79 @@ public sealed class ChurchLifeService(
 
         return AppResult<ChurchLifeListDto<GroupEventSummaryDto>>.Success(
             new ChurchLifeListDto<GroupEventSummaryDto>(visibleEvents, groups));
+    }
+
+    public async Task<AppResult<ChurchLifeListDto<ChurchLifeRamReviewDto>>> ListRamReviewsAsync(
+        Guid memberId,
+        Guid? ownerGroupId,
+        CancellationToken cancellationToken)
+    {
+        var scopeResult = await scopeService.GetScopeAsync(memberId, cancellationToken);
+        if (!scopeResult.IsSuccess)
+        {
+            return CopyFailure<ChurchLifeListDto<ChurchLifeRamReviewDto>>(scopeResult);
+        }
+
+        var scope = scopeResult.Value!;
+        var ownerValidation = ValidateOwnerGroup(scope, ownerGroupId);
+        if (ownerValidation is not null)
+        {
+            return AppResult<ChurchLifeListDto<ChurchLifeRamReviewDto>>.Validation(ownerValidation);
+        }
+
+        var canAudit = scope.ApprovedGroupIds.Contains(scope.ChurchGroupId) &&
+            await AdminPlatformRoleHelpers.HasPermissionAsync(
+                db,
+                memberId,
+                AdminPermissionCatalog.AuditEvents,
+                cancellationToken);
+        if (!canAudit)
+        {
+            return AppResult<ChurchLifeListDto<ChurchLifeRamReviewDto>>.Success(
+                new ChurchLifeListDto<ChurchLifeRamReviewDto>([], BuildGroups(scope, [])));
+        }
+
+        var scopeIds = scope.Groups.Select(x => x.Id).ToList();
+        var rows = await (
+                from groupEvent in db.GroupEvents.AsNoTracking()
+                join ram in db.EventRamAssessments.AsNoTracking() on groupEvent.Id equals ram.EventId
+                join revision in db.EventRamRevisions.AsNoTracking()
+                    on ram.CurrentRevisionId equals (Guid?)revision.Id
+                where scopeIds.Contains(groupEvent.GroupId) &&
+                      !groupEvent.IsDeleted &&
+                      ram.Status == EventRamStatus.AwaitingReview &&
+                      ram.Validity == "AwaitingReview" &&
+                      ram.SubmittedUtc.HasValue &&
+                      revision.AuthorMemberId != memberId &&
+                      revision.OnsiteMemberId != memberId &&
+                      ram.SubmittedByMemberId != memberId
+                orderby ram.SubmittedUtc, groupEvent.Id
+                select new RamReviewRow(
+                    groupEvent.Id,
+                    groupEvent.GroupId,
+                    groupEvent.TitleEn,
+                    groupEvent.TitleZh,
+                    revision.Id,
+                    revision.Version,
+                    ram.ResidualLevel,
+                    ram.SubmittedUtc!.Value))
+            .ToListAsync(cancellationToken);
+        var groups = BuildGroups(scope, rows.Select(x => x.GroupId));
+        if (ownerGroupId.HasValue)
+        {
+            rows = rows.Where(x => x.GroupId == ownerGroupId.Value).ToList();
+        }
+
+        var reviews = rows.Select(x => new ChurchLifeRamReviewDto(
+            x.EventId,
+            x.GroupId,
+            new Dictionary<string, string> { ["en"] = x.TitleEn, ["zh"] = x.TitleZh },
+            x.RevisionId,
+            x.RevisionVersion,
+            x.ResidualLevel,
+            x.SubmittedUtc)).ToArray();
+        return AppResult<ChurchLifeListDto<ChurchLifeRamReviewDto>>.Success(
+            new ChurchLifeListDto<ChurchLifeRamReviewDto>(reviews, groups));
     }
 
     public async Task<AppResult<ChurchLifeListDto<AnnouncementDto>>> ListAnnouncementsAsync(
@@ -398,6 +472,16 @@ public sealed class ChurchLifeService(
             EventVisibilityPolicy.ChurchVisible => isChurchMember,
             _ => isOwnerGroupMember
         };
+
+    private sealed record RamReviewRow(
+        Guid EventId,
+        Guid GroupId,
+        string TitleEn,
+        string TitleZh,
+        Guid RevisionId,
+        int RevisionVersion,
+        string ResidualLevel,
+        DateTime SubmittedUtc);
 
     private static string? ValidateOwnerGroup(ChurchLifeScope scope, Guid? ownerGroupId)
         => ownerGroupId.HasValue && scope.Groups.All(x => x.Id != ownerGroupId.Value)

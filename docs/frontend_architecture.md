@@ -98,7 +98,8 @@ React StrictMode
 | `SermonVideoView` | Sermon playback/detail |
 | `EventDetailView` | Member-facing Event detail, enrollment, review, memories, and permitted personal actions |
 | `EventCreationWizard` | Event Workspace creation mode before an Event ID exists |
-| `EventWorkspaceView` | Saved Event management, including Workflow & outputs |
+| `EventWorkspaceView` | Saved Event management through controlled plan, governance, RAM, and operational-module surfaces; the generic Workflow & outputs surface is retired |
+| `EventRamView` | Private independent RAM review action page with read-only accepted Event Plan context, restricted RAM report, and server-authorised decision controls |
 | `EventEnrollmentView` | Enrollment workflow |
 | `EventReviewView` | Review/reflection workflow |
 | `ProfileView` | Current member profile and Passkey add/view/revoke controls |

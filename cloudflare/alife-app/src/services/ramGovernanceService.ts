@@ -7,6 +7,7 @@ import type { RamAssessment, RamDraft, RamPolicy, RamPolicyData, RamPrint, RamWo
 const changed = async (record: RamAssessment) => {
   await invalidateGroupEventsCache(record.groupId)
   await queryClient.invalidateQueries({ predicate: query => query.queryKey.some(key => key === record.eventId) })
+  await queryClient.invalidateQueries({ queryKey: ['notifications', 'current'] })
   return record
 }
 export const ramService = {

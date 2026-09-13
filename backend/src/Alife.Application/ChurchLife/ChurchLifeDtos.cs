@@ -26,6 +26,15 @@ public sealed record ChurchLifePagedDto<T>(
     int PageSize,
     int TotalCount);
 
+public sealed record ChurchLifeRamReviewDto(
+    Guid EventId,
+    Guid GroupId,
+    IReadOnlyDictionary<string, string> Title,
+    Guid RevisionId,
+    int RevisionVersion,
+    string ResidualLevel,
+    DateTime SubmittedUtc);
+
 public sealed record ChurchLifeScopeGroup(
     Guid Id,
     Guid? ParentGroupId,
@@ -48,6 +57,7 @@ public interface IChurchLifeService
 {
     Task<Common.Models.AppResult<ChurchLifeListDto<PageDto>>> ListPagesAsync(Guid memberId, Guid? ownerGroupId, CancellationToken cancellationToken);
     Task<Common.Models.AppResult<ChurchLifeListDto<GroupEventSummaryDto>>> ListEventsAsync(Guid memberId, Guid? ownerGroupId, CancellationToken cancellationToken);
+    Task<Common.Models.AppResult<ChurchLifeListDto<ChurchLifeRamReviewDto>>> ListRamReviewsAsync(Guid memberId, Guid? ownerGroupId, CancellationToken cancellationToken);
     Task<Common.Models.AppResult<ChurchLifeListDto<AnnouncementDto>>> ListAnnouncementsAsync(Guid memberId, Guid? ownerGroupId, CancellationToken cancellationToken);
     Task<Common.Models.AppResult<ChurchLifeListDto<AlbumSummaryDto>>> ListAlbumsAsync(Guid memberId, Guid? ownerGroupId, CancellationToken cancellationToken);
     Task<Common.Models.AppResult<ChurchLifePagedDto<ForumPostSummaryDto>>> ListForumPostsAsync(
