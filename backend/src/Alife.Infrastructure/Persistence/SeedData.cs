@@ -714,6 +714,7 @@ public static class SeedData
 			Id = id,
 			GroupId = groupId,
 			CreatedByMemberId = createdByMemberId,
+			AccountableOwnerMemberId = createdByMemberId,
 			TitleEn = titleEn,
 			TitleZh = titleZh,
 			StartDate = startDate,
