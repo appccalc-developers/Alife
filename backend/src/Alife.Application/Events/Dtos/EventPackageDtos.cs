@@ -65,6 +65,8 @@ public sealed record EventPackageManifestDto(
     IReadOnlyList<EventPackageModuleSummaryDto> Modules,
     IReadOnlyList<LocalizedTextDto> Blockers)
 {
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public int? RosterRulesVersion { get; init; }
     public IReadOnlyList<EventPackageReasonDto> TriggerReasons { get; init; } = [];
     public EventApprovalAssessmentDto? ApprovalAssessment { get; init; }
     public IReadOnlyList<string> RequiredSpecialistDecisions { get; init; } = [];

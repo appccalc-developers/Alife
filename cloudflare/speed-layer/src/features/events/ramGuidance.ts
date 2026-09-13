@@ -3,7 +3,7 @@ import type { Env } from '../../index'
 const categories = ['environment', 'activity', 'participants', 'transport', 'emergency']
 const activityTypes = ['generic', 'hiking', 'water', 'sport', 'transport', 'camp', 'meal', 'outdoor', 'other']
 const json = (data: unknown, status = 200) => Response.json(data, { status, headers: { 'cache-control': 'private, no-store', vary: 'Cookie, Authorization' } })
-async function readBounded(body: ReadableStream<Uint8Array> | null, limit: number) {
+export async function readBounded(body: ReadableStream<Uint8Array> | null, limit: number) {
   if (!body) return ''
   const reader = body.getReader(), chunks: Uint8Array[] = []; let length = 0
   try {

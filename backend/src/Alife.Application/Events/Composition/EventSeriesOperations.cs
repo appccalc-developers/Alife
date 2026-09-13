@@ -168,6 +168,8 @@ public sealed class CreateEventSeriesCommandHandler(
             NameZh = request.Request.Name.Zh.Trim(),
             RecurrenceRule = request.Request.RecurrenceRule.Trim().ToUpperInvariant(),
             TimeZone = request.Request.TimeZone.Trim(),
+            FirstStartLocal = request.Request.FirstStartLocal,
+            DurationMinutes = request.Request.DurationMinutes,
             ExceptionDatesJson = JsonSerializer.Serialize(request.Request.ExceptionDates ?? []),
             RollingOccurrenceWeeks = request.Request.RollingOccurrenceWeeks,
             CreatedUtc = now,
@@ -295,6 +297,8 @@ public sealed class UpdateEventSeriesCommandHandler(
         series.NameZh = request.Request.Name.Zh.Trim();
         series.RecurrenceRule = request.Request.RecurrenceRule.Trim().ToUpperInvariant();
         series.TimeZone = request.Request.TimeZone.Trim();
+        series.FirstStartLocal = request.Request.FirstStartLocal;
+        series.DurationMinutes = request.Request.DurationMinutes;
         series.ExceptionDatesJson = JsonSerializer.Serialize(request.Request.ExceptionDates ?? []);
         series.RollingOccurrenceWeeks = request.Request.RollingOccurrenceWeeks;
         series.UpdatedUtc = now;
@@ -302,7 +306,7 @@ public sealed class UpdateEventSeriesCommandHandler(
         foreach (var groupEvent in series.Events)
         {
             var starts = groupEvent.Occurrences.Select(x => x.StartUtc).ToHashSet();
-            dbContext.EventOccurrences.AddRange(EventSeriesMaterializer.Materialize(
+            var added = EventSeriesMaterializer.Materialize(
                 groupEvent.Id,
                 request.Request.FirstStartLocal,
                 request.Request.DurationMinutes,
@@ -311,7 +315,10 @@ public sealed class UpdateEventSeriesCommandHandler(
                 zone!,
                 exceptions,
                 starts,
-                now));
+                now);
+            var defaults = await dbContext.EventRosterDefaults.AsNoTracking().Where(x => x.EventId == groupEvent.Id).OrderByDescending(x => x.Version).FirstOrDefaultAsync(cancellationToken);
+            if (defaults is not null) EventOperationsService.ApplyRosterDefaults(defaults, added, now);
+            dbContext.EventOccurrences.AddRange(added);
         }
         await dbContext.SaveChangesAsync(cancellationToken);
         if (transaction is not null) await transaction.CommitAsync(cancellationToken);

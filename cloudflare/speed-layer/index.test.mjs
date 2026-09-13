@@ -3421,3 +3421,31 @@ test('details adopts explicit event-zone date/range even when AI quotes hours on
     assert.ok(merged.adoptedFields.includes('startLocal')); assert.ok(merged.adoptedFields.includes('endLocal'));
   }
 });
+
+test('RAM authoring authorizes both scopes and sends only the reviewed allowlist', async () => {
+  for (const scope of [{ groupId: '11111111-1111-1111-1111-111111111111' }, { eventId: '22222222-2222-2222-2222-222222222222' }]) {
+    const before = fetchCalls.length;
+    originResponses.push(Response.json({ sourceVersion: 'source-1' }));
+    originResponses.push(Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ suggestions: { hazard: 'Possible slippery surface', controlMeasures: 'Ask a person to check the surface before use.' }, questions: ['Has the surface been checked?'] }) }] } }] }));
+    const body = { ...scope, language: 'en', mode: 'rewrite', activityType: 'hiking', category: 'environment', brief: 'A short group walk.', selectedText: { hazard: 'Slip' }, sourceVersion: 'source-1' };
+    const response = await dispatch('https://ccalc.live/api/events/ram-assistance', { method: 'POST', headers: { 'content-type': 'application/json', cookie: 'alife_auth=fixture' }, body: JSON.stringify(body), env: { API_PROXY_TARGET: 'https://api.ccalc.live', GEMINI_API_KEY: 'fixture' } });
+    assert.equal(response.status, 200); assert.equal(response.headers.get('cache-control'), 'private, no-store');
+    const sent = JSON.parse(JSON.parse(fetchInits[before + 1].body).contents[0].parts[0].text);
+    assert.deepEqual(sent, { language: 'en', mode: 'rewrite', activityType: 'hiking', category: 'environment', brief: 'A short group walk.', selectedText: { hazard: 'Slip' } });
+    assert.equal((await response.json()).sourceVersion, 'source-1');
+  }
+});
+test('RAM authoring rejects private fields, stale sources, forbidden output and provider failures', async () => {
+  const env = { API_PROXY_TARGET: 'https://api.ccalc.live', GEMINI_API_KEY: 'fixture' };
+  const body = { eventId: '11111111-1111-1111-1111-111111111111', language: 'zh', mode: 'draft', activityType: 'generic', category: 'environment', brief: '室内活动', selectedText: {}, sourceVersion: '1' };
+  const send = value => dispatch('https://ccalc.live/api/events/ram-assistance', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(value), env });
+  for (const value of [{ ...body, members: ['private'] }, { ...body, selectedText: { personResponsible: 'private' } }, { ...body, brief: 'Contact private@example.com' }]) assert.equal((await send(value)).status, 400);
+  assert.equal(fetchCalls.length, 0);
+  originResponses.push(Response.json({}, { status: 403 })); assert.equal((await send(body)).status, 403);
+  originResponses.push(Response.json({ sourceVersion: '2' })); assert.equal((await send(body)).status, 412);
+  originResponses.push(Response.json({ sourceVersion: '1' }));
+  originResponses.push(Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ suggestions: { riskScore: 1 }, questions: [] }) }] } }] }));
+  assert.equal((await send(body)).status, 503);
+  originResponses.push(Response.json({ sourceVersion: '1' })); originResponses.push(new Response('failure', { status: 503 }));
+  assert.equal((await send(body)).status, 503);
+});

@@ -46,7 +46,7 @@ export const readEventLifecycleData = (event: GroupEventRecord) => {
 }
 
 export const getEventLifecycle = (event: GroupEventRecord, now = Date.now()): EventLifecycle => {
-  if (event.ramStatus !== 'approved') return 'planning'
+  if (event.ramRequired !== false && event.ramStatus !== 'approved') return 'planning'
 
   const startTime = validTime(event.startDate)
   const endTime = validTime(event.endDate) ?? startTime

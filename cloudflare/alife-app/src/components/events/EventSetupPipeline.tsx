@@ -7,6 +7,7 @@ import EventFlowRail from './EventFlowRail'
 import EventPosterStep from './EventPosterStep'
 import EventPublishStep from './EventPublishStep'
 import EventSavedPreparationSteps from './EventSavedPreparationSteps'
+import EventRosterBatchWorkspace from './EventRosterBatchWorkspace'
 import EventPreparationReopenPanel from './EventPreparationReopenPanel'
 import { EventPackageFoundationPanel } from './EventPackageFoundationPanel'
 import { canVisitSetupStep, resolveSetupStage, setupPath, setupStages } from '../../utils/eventSetupFlow'
@@ -60,11 +61,12 @@ export default function EventSetupPipeline({ workspace: initialWorkspace, plan: 
     <div className="flex flex-wrap gap-4 text-sm font-semibold text-[#176b5a]"><Link to={eventBasePath}>{zh ? '← 返回活动' : '← Back to event'}</Link><Link to={`${eventBasePath}/workspace?view=workspace`}>{zh ? '打开活动工作区总览' : 'Open workspace overview'}</Link></div>
     <div ref={flowTop} className="scroll-mt-24"><EventFlowRail current={step} zh={zh} eventBasePath={eventBasePath} returnTo={returnTo} disabled={busy || refreshing || unavailable} frozen={frozen} approved={approved} pendingChanges={dirty} /></div>
     <p className="rounded-xl bg-[#e3f0eb] p-3 text-sm">{frozen && preparation
-      ? (zh ? '正式审批已通过，活动资料和安排已冻结。接下来可制作海报并发布活动；需要修改时，请在正式审批中申请撤销。' : 'Approval freezes details and arrangements. Continue to poster and publication, or request reopening in the approval step.')
+      ? (zh ? '活动方案和岗位要求已冻结。采用新版排班规则的普通岗位仍可选人、邀请和替补；其他修改请先申请重开筹备。' : 'The event plan and position requirements are frozen. Under the new roster rules, ordinary positions still allow invitations and replacements. Request reopening for other changes.')
       : (zh ? '活动已保存。正式审批批准前，可在活动资料和活动安排之间反复调整；满意后再提交审批。海报在审批之后制作。' : 'The event is saved. Revisit details and arrangements until satisfied, then submit for approval. Poster production follows approval.')}</p>
     {dirty ? <p role="status" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{zh ? '还有未保存的活动资料或功能选择。请先保存或放弃这些修改，再进入正式审批。' : 'Details or tool selections have unsaved changes. Save or discard them before formal approval.'}</p> : null}
     {error ? <div role="alert" className="space-y-2 text-sm text-rose-800"><p>{error}</p><AppActionButton disabled={refreshing} onClick={() => void refresh()}>{zh ? '重新读取筹备状态' : 'Reload preparation status'}</AppActionButton></div> : null}
     <div ref={region} tabIndex={-1} className="scroll-mt-24 space-y-4 outline-none">
+      {frozen && workspace.items.some(x => x.surfaceKey === 'service.roster') ? <EventRosterBatchWorkspace eventId={workspace.eventId} language={language} onSaved={refresh} onBusyChange={setBusy} /> : null}
       {!preparation && !error ? <p role="status">{zh ? '正在读取筹备状态……' : 'Loading preparation status…'}</p> : null}
       {preparation && !allowed && !error ? <AppSectionCard title={zh ? '此步骤暂不可进入' : 'This step is currently unavailable'} subtitle={dirty ? (zh ? '请返回并保存未完成的修改。' : 'Return and save your pending changes.') : frozen && step < 5 ? (zh ? '审批通过后筹备资料已冻结，请先申请撤销审批。' : 'Approved preparation is frozen. Request reopening before editing.') : (zh ? '正式审批批准后，才可以制作海报和发布活动。' : 'Formal approval is required before poster production and publication.')}><AppActionButton onClick={() => go(dirty ? (detailsDirty ? 'details' : 'arrangements') : 'approval')}>{dirty ? (zh ? '返回修改' : 'Return to changes') : (zh ? '前往正式审批' : 'Go to formal approval')}</AppActionButton></AppSectionCard> : null}
       {!frozen && !unavailable && (['details', 'arrangements', 'review'].some(value => visited.has(value)) || ['details', 'arrangements', 'review'].includes(stage)) ? <EventSavedPreparationSteps eventId={workspace.eventId} groupId={workspace.owningGroupId} eventBasePath={eventBasePath} workspaceItems={workspace.items} focusModule={moduleParam} plan={plan} archetypes={archetypes} stage={stage} zh={zh} readOnly={!canEdit} onBusy={setBusy} onDirty={setDetailsDirty} onSaved={refresh} go={go} /> : null}

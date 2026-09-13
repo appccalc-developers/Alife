@@ -54,15 +54,15 @@ During saved preparation, role candidate groups and shifts appear inside each ow
 
 ## Current implementation
 
-Current core flow. Occurrence ServiceSlot CRUD, Session/ProgramItem links, self availability, coordinator assignment, confirm/decline, history-preserving substitution, eligibility checks, x-of-y readiness, ETags, no-store APIs, and reachable `EventRosterWorkspace` exist.
+Current core flow includes four-date pages, role/response filters, desktop date/position tables and mobile date groups. Managers stage assignments/replacements/cancellations in memory, review a summary and send one atomic idempotent batch with occurrence and candidate-group versions. Pending and confirmed assignments together cannot exceed demand; all selections must pass current group/qualification/availability checks. Any conflict retains the draft and commits no assignments or notifications. Single-date compatibility APIs use the same batch service. Invitations, self responses, replacement-end and manager-result notices use in-app notifications and current personal duties; all reads/writes are private/no-store.
 
 ## Open contract gaps
 
-Leave windows, versioned eligibility evidence and safe cross-occurrence copy remain open. In-site invitations are discovered directly from current assignment state.
+Leave windows and separately versioned external eligibility evidence remain open. Automatic rotation/recommendations, email and device push are outside this round.
 
 ## Next useful vertical slice
 
-Versioned eligibility evidence and safe cross-occurrence copy; automatic rotation is outside the product scope.
+Versioned external eligibility evidence after validating manual staffing in an authorized environment.
 
 ### Shared preparation editor
 
@@ -77,3 +77,11 @@ The new migration creates candidate-group storage only and invents no groups or 
 ## Personal Center handoff
 
 Current approved invited assignees see live non-cancelled slot responsibilities through [Event duties](../EVENT-DUTIES.md), including occurrence and deadline. Response, replacement, ending and loss of group membership or slot qualification remove the previous duty. Uncovered required positions without a qualified pending invite surface coordinator/owner arrangement work; a confirmed member who leaves or loses the required role no longer fills the position. Responses revalidate current membership, slot eligibility and cancellation on the server using the same eligibility predicate as the projection. General task completion cannot replace roster consent. No email or external push channel is introduced.
+
+## Rule 2 and default positions — 2026-09-13
+
+Versioned Event defaults contain only role, count, start/end offsets and eligibility. Adopt a reviewed creation arrangement or explicitly choose a saved occurrence; legacy records are never inferred. Extend creates only missing occurrences/empty positions for the next 12 weeks, preserves existing IDs/times/answers, and respects exceptions/time zones/daylight saving. Repeated extension is harmless.
+
+New Packages freeze default/configuration/candidate-group versions, excluding ordinary assignments and response timestamps. After approval, ordinary invitations/cancellations/replacements remain available within approved demand and candidates. Vacancies are an execution concern for the corresponding date, not a Plan-approval blocker. RAM, safeguarding, transport, command/on-site/qualified roles and unknown qualifications remain critical. Their changes retain specialist invalidation; this API cannot change signers or professional authorizations. Candidate/demand changes require reopening. Legacy frozen Packages keep rule 1 until reopening and reapproval.
+
+Existing explicit approval coverage is retained when dates are extended; newly uncovered dates require covering occurrence approval before execution. Execution reads current qualification, candidate membership, availability and personal confirmation. Recurring execution must identify a date. See [the contract extension](../EVENT-CONTRACT.md#preparation-first-round-contract-extension--2026-09-13).

@@ -178,7 +178,8 @@ public sealed record EventWorkspaceDto(
     IReadOnlyList<EventWorkspaceItemDto> Items,
     IReadOnlyList<LocalizedTextDto> NextSteps,
     bool CanManage,
-    EventSponsorshipStatus SponsorshipStatus);
+    EventSponsorshipStatus SponsorshipStatus,
+    IReadOnlyList<Alife.Application.Events.Services.EventCapabilityAvailabilityDto>? Capabilities = null);
 
 public sealed record EventSeriesDto(
     Guid Id,

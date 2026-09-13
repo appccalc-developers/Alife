@@ -1,5 +1,6 @@
 import { dutyReturnPath } from '../utils/eventDutyNavigation'
 import EventSetupPipeline from '../components/events/EventSetupPipeline'
+import EventCapabilityNotice, { capabilityFallback } from '../components/events/EventCapabilityNotice'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
 import { EventSurfaceRenderer } from '../components/events/EventSurfaceRenderer'
@@ -261,6 +262,13 @@ const EventWorkspaceView = () => {
             </Link>
           </AppSectionCard> : null}
 
+          {tabItems.some(item => capabilityFallback.some(capability => capability.moduleCode === item.moduleCode)) ? <AppSectionCard title={language === 'zh' ? '功能提供状态' : 'Capability availability'}>
+            {tabItems.filter(item => capabilityFallback.some(capability => capability.moduleCode === item.moduleCode)).map(item => <div key={item.surfaceKey}>
+              <h3 className="font-semibold">{localize(item.label, language)}</h3>
+              <EventCapabilityNotice code={item.moduleCode!} zh={language === 'zh'} />
+            </div>)}
+          </AppSectionCard> : null}
+
           <AppSectionCard title={text.enabledPages}>
             {pageItems.length ? (
               <div className="grid gap-3 tablet:grid-cols-2 desktop:grid-cols-3">
@@ -268,6 +276,7 @@ const EventWorkspaceView = () => {
                   <Link key={item.surfaceKey} to={`${workspaceBasePath}/${encodeURIComponent(item.pathSegment ?? '')}`} className="rounded-2xl border border-[#2f4b42]/10 bg-white p-4 transition hover:-translate-y-0.5 hover:border-[#176b5a]/30">
                     <span className="font-black text-[#18332d]">{localize(item.label, language)}</span>
                     <span className="mt-2 block text-xs text-[#66766f]">{item.moduleCode} · {item.readiness}</span>
+                    {item.moduleCode ? <EventCapabilityNotice code={item.moduleCode} zh={language === 'zh'} /> : null}
                   </Link>
                 ))}
               </div>

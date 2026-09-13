@@ -21,7 +21,7 @@ public sealed class EventReadService(
                 var events = await dbContext.GroupEvents
                     .AsNoTracking()
                     .Include(e => e.ContactProfiles)
-                    .Include(e => e.RamAssessment)
+                    .Include(e => e.RamAssessment).Include(e => e.PlanSnapshots)
                     .Include(e => e.PublishedPackage).ThenInclude(package => package!.Conditions)
                     .Include(e => e.PublishedPackage).ThenInclude(package => package!.Decisions)
                     .Where(e => e.GroupId == groupId)
@@ -62,7 +62,7 @@ public sealed class EventReadService(
         // dimensions that decide whether downstream church-life views may expose the Event.
         var ids = cached.Select(x => x.Id).ToArray();
         var current = await dbContext.GroupEvents.AsNoTracking()
-            .Include(e => e.RamAssessment)
+            .Include(e => e.RamAssessment).Include(e => e.PlanSnapshots)
             .Include(e => e.PublishedPackage).ThenInclude(package => package!.Conditions)
             .Include(e => e.PublishedPackage).ThenInclude(package => package!.Decisions)
             .Where(e => ids.Contains(e.Id)).ToDictionaryAsync(e => e.Id, cancellationToken);
@@ -73,6 +73,7 @@ public sealed class EventReadService(
             return value with
             {
                 RamStatus = entity.RamAssessment?.Status ?? Alife.Domain.Enums.EventRamStatus.Draft,
+                RamRequired = EventRamGovernanceService.IsRequired(entity, entity.PlanSnapshots.FirstOrDefault(x => x.IsActive) is { } plan ? EventCompositionPersistence.ToSnapshotDto(plan).Plan : null),
                 GovernanceMode = entity.GovernanceMode,
                 SponsorshipStatus = entity.SponsorshipStatus,
                 PublicationStatus = entity.PublicationStatus,
@@ -94,17 +95,18 @@ public sealed class EventReadService(
             {
                 var candidates = await dbContext.GroupEvents
                     .AsNoTracking()
-                    .Include(e => e.RamAssessment)
+                    .Include(e => e.RamAssessment).Include(e => e.PlanSnapshots)
                     .Include(e => e.PublishedPackage).ThenInclude(package => package!.Conditions)
                     .Include(e => e.PublishedPackage).ThenInclude(package => package!.Decisions)
                     .Where(e => e.EndDate >= fromUtc &&
-                        e.RamAssessment != null &&
-                        e.RamAssessment.Status == Alife.Domain.Enums.EventRamStatus.Approved)
+                        (e.PublicationStatus == Alife.Domain.Enums.EventPublicationStatus.Published ||
+                        e.RamAssessment != null && e.RamAssessment.Status == Alife.Domain.Enums.EventRamStatus.Approved))
                     .OrderBy(e => e.StartDate)
                     .Take(200)
                     .ToListAsync(token);
 
                 return candidates
+                    .Where(PublicRamSatisfied)
                     .Where(e => Alife.Application.Events.Services.EventVisibilityPolicy.ReadVisibility(e.EventDataJson) ==
                         Alife.Application.Events.Services.EventVisibilityPolicy.Public)
                     .Where(e => e.GovernanceMode != Alife.Domain.Enums.EventGovernanceMode.ChurchSponsored ||
@@ -132,13 +134,13 @@ public sealed class EventReadService(
         // expired, revoked, unpublished, or sponsorship-blocked Event public.
         var candidateIds = events.Select(x => x.Id).ToArray();
         var currentStates = await dbContext.GroupEvents.AsNoTracking()
-            .Include(e => e.RamAssessment)
+            .Include(e => e.RamAssessment).Include(e => e.PlanSnapshots)
             .Include(e => e.PublishedPackage).ThenInclude(package => package!.Conditions)
             .Include(e => e.PublishedPackage).ThenInclude(package => package!.Decisions)
             .Where(e => candidateIds.Contains(e.Id)).ToListAsync(cancellationToken);
         var now = DateTime.UtcNow;
         var currentlyPublic = currentStates.Where(e =>
-                e.RamAssessment?.Status == Alife.Domain.Enums.EventRamStatus.Approved &&
+                PublicRamSatisfied(e) &&
                 (e.GovernanceMode != Alife.Domain.Enums.EventGovernanceMode.ChurchSponsored ||
                  e.SponsorshipStatus == Alife.Domain.Enums.EventSponsorshipStatus.Approved) &&
                 (e.PublicationStatus == Alife.Domain.Enums.EventPublicationStatus.LegacyImplicit ||
@@ -155,6 +157,13 @@ public sealed class EventReadService(
         return EventPackageGateEvaluator.Evaluate(Alife.Domain.Enums.EventLifecycleGate.Publish,
             groupEvent.PublicationGateMode, groupEvent.PublishedPackage, now).Allowed;
     }
+
+    private static bool PublicRamSatisfied(Alife.Domain.Entities.GroupEvent e) =>
+        // Preserve legacy implicit-publication qualification. Explicit publication follows
+        // the current accepted Plan and still passes its independent Package gate.
+        e.PublicationStatus == Alife.Domain.Enums.EventPublicationStatus.LegacyImplicit
+            ? e.RamAssessment?.Status == Alife.Domain.Enums.EventRamStatus.Approved
+            : EventLifecyclePolicy.HasRequiredRamApproval(e);
 
     private async Task<T> GetOrCreateAsync<T>(
         string cacheKey,

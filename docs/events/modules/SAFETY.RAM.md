@@ -42,7 +42,7 @@ Existing RAM GET/PUT/submit/approve paths and old fields remain. Version 2 adds 
 
 ## AI boundary and remaining scope
 
-RAM AI returns explanations, follow-up questions and missing-information prompts only. Model context contains activity/category/language enums after server access verification; no full RAM, private contact or medical details. AI scores/hazards/controls cannot overwrite human assessments. Manual completion remains available if AI fails.
+Category guidance remains enum-only. The authorized authoring extension adds draft/rewrite of selected risk text using a user-reviewed non-sensitive brief and selected hazard/consequence/controls/additional-action strings. The origin verifies pre-creation group authority or saved RAM editing authority; the existing Cloudflare/Gemini path checks scope/version, bounds input/output, restricts returned fields and enforces timeouts. AI can propose text and questions, never ratings, identities, signatures or approval state. Per-field review/adoption changes only the in-memory draft; Save/Create remains explicit. Full RAM, names, contacts, health and confidential details are excluded; prompts and unadopted results are not persisted or logged. Changed conditions/source invalidate suggestions, and failure preserves manual input.
 
 Current delivery includes persistence, protected APIs, direct Event Workspace Safety / RAM integration, signer route, system page, independent review, Church Life review discovery, Personal Center duties, Package gates and printing. External venue/trail/weather/tide queries, a separate incident register, automatic expiry and broader close-out processes remain outside delivery. `incident.record` metadata is not an implemented incident system.
 
@@ -59,3 +59,7 @@ RAM authors may be invited directly from approved owning-group members, then acc
 ## Personal Center projection
 
 Saved drafts, returned/re-review preparation, personal confirmation, author submission and independent review project from current RAM/business state, without requiring an existing notification. Exact revision and current permissions are revalidated through [Event duties](../EVENT-DUTIES.md). Current owning-group membership is required for author/onsite roles; independent review retains same-church qualification and separation. Linked author follow-up tasks hand off/close through RAM actions and do not duplicate ordinary task duties or participate in their own Package source vector. No hazard, contact or health details enter the duty summary.
+
+## Shared RAM authoring — 2026-09-13
+
+Creation and saved preparation use the same conditions, expandable/filterable risk cards, required questions, copy/delete-confirm/discard controls, primary-language editing with optional other-language fields, and server-only draft checks with field jump targets. Saved and unsaved ratings are labeled separately. Compare against the latest saved draft, previous submitted revision, or selected history, with return reasons alongside differences. The pre-creation context/check/AI calls never create RAM records: only explicit Event creation persists the private draft in its existing transaction. The complete input/authority boundary is in [EVENT-CONTRACT.md](../EVENT-CONTRACT.md#preparation-first-round-contract-extension--2026-09-13).

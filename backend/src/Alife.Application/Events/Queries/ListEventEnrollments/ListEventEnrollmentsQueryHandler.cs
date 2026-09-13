@@ -1,6 +1,7 @@
 using Alife.Application.Common.Interfaces;
 using Alife.Application.Common.Models;
 using Alife.Application.Events.Dtos;
+using Alife.Application.Events.Services;
 using Alife.Application.Groups.Services;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -35,33 +36,12 @@ public sealed class ListEventEnrollmentsQueryHandler(
             return AppResult<IReadOnlyList<EventEnrollmentDto>>.Forbidden("You must be an approved member to view enrollments.");
         }
 
-        var canViewAllEnrollments = groupEvent.CreatedByMemberId == request.CurrentMemberId ||
-            await groupAuthorizationService.IsLeaderOrCoLeaderAsync(
-                groupEvent.GroupId,
-                request.CurrentMemberId,
-                cancellationToken);
-
-        var enrollmentQuery = dbContext.EventEnrollments
-            .AsNoTracking()
-            .Where(x => x.EventId == request.EventId);
-
-        if (!canViewAllEnrollments)
-        {
-            enrollmentQuery = enrollmentQuery.Where(x => x.MemberId == request.CurrentMemberId);
-        }
-
-        var enrollments = await enrollmentQuery
-            .OrderByDescending(x => x.UpdatedUtc)
-            .Select(x => new EventEnrollmentDto(
-                x.Id,
-                x.GroupId,
-                x.EventId,
-                x.MemberId,
-                x.EnrollmentJson,
-                x.CreatedUtc,
-                x.UpdatedUtc))
-            .ToListAsync(cancellationToken);
-
+        var canViewAllEnrollments = await new EventEnrollmentCapacityService(dbContext, groupAuthorizationService)
+            .CanManageAsync(groupEvent, request.CurrentMemberId, cancellationToken);
+        var rows = await dbContext.EventEnrollments.AsNoTracking().Where(x => x.EventId == request.EventId).ToListAsync(cancellationToken);
+        var enrollments = rows.Where(x => canViewAllEnrollments || x.MemberId == request.CurrentMemberId)
+            .OrderBy(x => x.QueuedUtc ?? x.CreatedUtc).ThenBy(x => x.Id)
+            .Select(x => EventEnrollmentCapacityService.ToDto(x, rows)).ToArray();
         return AppResult<IReadOnlyList<EventEnrollmentDto>>.Success(enrollments);
     }
 }

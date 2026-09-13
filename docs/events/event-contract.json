@@ -510,7 +510,8 @@
         "purpose": "explain publication, registration, payment and execution blockers without exposing restricted evidence"
       }
     ],
-    "planB": "deferred"
+    "planB": "deferred",
+    "rosterRulesVersion": "New Package version 2; historical default 1; ordinary staffing excluded from approved configuration and checked live before per-date execution"
   },
   "invariants": [
     "One Event has exactly one owningGroupId and one accountable owner.",
@@ -4508,7 +4509,7 @@
       "request": null,
       "response": "EventRosterDto with viewer-filtered assignments",
       "auth": "accepted event team or assigned member",
-      "cache": "private, no-store",
+      "cache": "private, no-store; Vary Cookie and Authorization",
       "mutation": false,
       "etag": true
     },
@@ -4518,7 +4519,7 @@
       "request": "SaveEventServiceSlotRequest",
       "response": "EventRosterDto",
       "auth": "roster.manage",
-      "cache": "no-store",
+      "cache": "private, no-store; Vary Cookie and Authorization",
       "mutation": true,
       "ifMatch": true
     },
@@ -4528,7 +4529,7 @@
       "request": "SaveEventServiceSlotRequest",
       "response": "EventRosterDto",
       "auth": "roster.manage",
-      "cache": "no-store",
+      "cache": "private, no-store; Vary Cookie and Authorization",
       "mutation": true,
       "ifMatch": true
     },
@@ -4538,7 +4539,7 @@
       "request": null,
       "response": "EventRosterDto",
       "auth": "roster.manage",
-      "cache": "no-store",
+      "cache": "private, no-store; Vary Cookie and Authorization",
       "mutation": true,
       "ifMatch": true
     },
@@ -4548,7 +4549,7 @@
       "request": "SetEventAvailabilityRequest",
       "response": "EventRosterDto",
       "auth": "roster.respond",
-      "cache": "no-store",
+      "cache": "private, no-store; Vary Cookie and Authorization",
       "mutation": true
     },
     {
@@ -4557,7 +4558,7 @@
       "request": "AssignEventRosterMemberRequest",
       "response": "EventRosterDto",
       "auth": "roster.manage",
-      "cache": "no-store",
+      "cache": "private, no-store; Vary Cookie and Authorization",
       "mutation": true,
       "ifMatch": true
     },
@@ -4567,7 +4568,7 @@
       "request": null,
       "response": "EventRosterDto",
       "auth": "assigned member only",
-      "cache": "no-store",
+      "cache": "private, no-store; Vary Cookie and Authorization",
       "mutation": true
     },
     {
@@ -4576,7 +4577,7 @@
       "request": null,
       "response": "EventRosterDto",
       "auth": "assigned member only",
-      "cache": "no-store",
+      "cache": "private, no-store; Vary Cookie and Authorization",
       "mutation": true
     },
     {
@@ -5101,7 +5102,7 @@
       "request": null,
       "response": "EventRosterGroupDto[]",
       "auth": "roster.manage",
-      "cache": "private, no-store",
+      "cache": "private, no-store; Vary Cookie and Authorization",
       "mutation": false
     },
     {
@@ -5110,7 +5111,7 @@
       "request": "SaveEventRosterGroupRequest",
       "response": "EventRosterGroupDto",
       "auth": "roster.manage",
-      "cache": "private, no-store",
+      "cache": "private, no-store; Vary Cookie and Authorization",
       "mutation": true,
       "ifMatch": true
     },
@@ -5174,6 +5175,96 @@
       "request": "If-Match; Idempotency-Key; reason (required for return)",
       "response": "EventTaskDetailDto with current task, immutable submission/action history and capabilities",
       "auth": "current approved Event participant; executor submits/withdraws; named independent reviewer approves/returns; no specialist-source tasks",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/event-capabilities",
+      "request": "none",
+      "response": "current capability availability and bilingual descriptions",
+      "auth": "authenticated",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/ram-authoring/context",
+      "request": "eventId OR groupId",
+      "response": "policy and sourceVersion, no private RAM contents",
+      "auth": "creation-group authority OR saved RAM editor",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/ram-authoring/access",
+      "request": "eventId OR groupId",
+      "response": "minimal sourceVersion for Worker authorization",
+      "auth": "creation-group authority OR saved RAM editor",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/ram-authoring/check",
+      "request": "RamDraftCheckRequest",
+      "response": "server-evaluated draft, residualLevel and field issues; never save",
+      "auth": "creation-group authority OR saved RAM editor",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/ram-assistance",
+      "request": "reviewed allowlisted brief/snippet and authorized scope/sourceVersion",
+      "response": "text suggestions/questions/sourceVersion; never save",
+      "auth": "Worker verifies origin creation/RAM edit authority",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{eventId}/enrollments/capacity",
+      "request": "none",
+      "response": "capacity, confirmed, waitlisted, overCapacity, isOpen, canManage",
+      "auth": "current approved group member",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{eventId}/roster/page",
+      "request": "page (four future occurrences), optional focusOccurrenceId to resolve an invitation link to its future page",
+      "response": "EventRosterPageDto",
+      "auth": "current coordinator/candidate/assignee; private projection",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{eventId}/roster/batch",
+      "request": "EventRosterBatchRequest + Idempotency-Key",
+      "response": "EventRosterDto[] or atomic conflict",
+      "auth": "current roster coordinator/owner; frozen/critical rules",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{eventId}/roster/defaults",
+      "request": "explicit occurrenceId, occurrenceETag, defaultsETag",
+      "response": "EventRosterPageDto",
+      "auth": "current roster coordinator/owner; unfrozen",
+      "cache": "private, no-store; Vary Cookie and Authorization",
+      "mutation": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{eventId}/roster/extend",
+      "request": "If-Match defaultsETag; no people",
+      "response": "EventRosterPageDto",
+      "auth": "current roster coordinator/owner; default version and legacy freeze checks",
       "cache": "private, no-store; Vary Cookie and Authorization",
       "mutation": true
     }
@@ -5638,6 +5729,51 @@
       "preparation": "embedded directly in Arrangements safety/RAM subsection with legacy stage=setup&module=safety.ram resolving here; top-right collapse retains mounted draft; new creation embeds private memory-only activities/risk fields saved atomically through ramDataJson",
       "legacySavedEdit": "redirect to Workspace without mounting retired AI event editor",
       "languageSwitch": "no RAM refetch or draft reset"
+    },
+    "authoring": {
+      "version": 1,
+      "access": "exactly one of creation group (current leader/co-leader) or saved Event (current RAM editor, unfrozen)",
+      "storage": "controlled component memory until explicit Save/Create; checks/AI have no persistence side effect",
+      "inputAllowlist": [
+        "activityType",
+        "category",
+        "language",
+        "reviewed non-sensitive brief",
+        "selectedText.hazard",
+        "selectedText.consequence",
+        "selectedText.controlMeasures",
+        "selectedText.additionalAction"
+      ],
+      "outputAllowlist": [
+        "suggestions.hazard",
+        "suggestions.consequence",
+        "suggestions.controlMeasures",
+        "suggestions.additionalAction",
+        "questions"
+      ],
+      "forbidden": [
+        "full RAM",
+        "identities",
+        "contacts",
+        "health/confidential records",
+        "ratings",
+        "signatures",
+        "approval fields"
+      ],
+      "requestMaxBytes": 24000,
+      "responseMaxBytes": 32000,
+      "providerTimeoutMs": 20000,
+      "adoption": "per-field difference review into draft then explicit save; changed draft/conditions/context blocks stale adoption",
+      "failure": "preserve all manual input; no raw prompt/unadopted output logs, shared caches or browser persistence",
+      "editor": [
+        "conditions",
+        "activity/category/completeness risk filters",
+        "expand/copy/delete confirmation/discard",
+        "primary UI language plus optional other language",
+        "server draft checks and field jumps",
+        "separate saved/draft ratings",
+        "saved/previous-submitted/selected-history comparison and return reasons"
+      ]
     }
   },
   "roleRosterGroups": {
@@ -5744,5 +5880,74 @@
       "specialistTasks": "sourceType/sourceId/sourceVersion; domain actions only",
       "legacy": "preserve Done and existing history; backfill source only from condition FK or explicit occurrence reviewTaskId"
     }
+  },
+  "capabilityAvailability": {
+    "states": [
+      "coreAvailable",
+      "partial",
+      "unavailable"
+    ],
+    "unavailable": [
+      "MONEY.FINANCE",
+      "FOOD.HOSPITALITY",
+      "FESTIVAL.OPERATIONS"
+    ],
+    "partial": [
+      "COMMS.FOLLOWUP"
+    ],
+    "communications": "content, posters and publication exist; confirmed-audience broadcasts, delivery and follow-up do not",
+    "projection": "current catalogue and Workspace; bilingual explanation at creation/overview/detail/direct entry, independent of enabled/confirmed/readiness",
+    "compatibility": "never rewrite historical Plan snapshots or mix delivery status into proposal hashes; required unavailable modules still block formal approval"
+  },
+  "enrollmentCapacity": {
+    "version": 1,
+    "scope": "one account, one Event seat",
+    "states": [
+      "confirmed",
+      "waitlisted",
+      "cancelled"
+    ],
+    "queue": "queuedUtc then id; skip currently ineligible members; existing eligible waiters precede new requests",
+    "transaction": "serializable transaction with UPDLOCK/HOLDLOCK on Event before eligibility, seat/queue reads, mutation and notification; all writers share service",
+    "reconcile": [
+      "cancellation",
+      "registration reopening",
+      "approved capacity increase"
+    ],
+    "gate": "current membership and Event registration lifecycle, deadline, current Plan/safety RAM requirement and applicable approval conditions",
+    "closed": "retain queue without promotion",
+    "cancellation": "retain enrollment ID/JSON and linked child evidence; archive prior JSON/status; rejoining gets fresh queue time",
+    "capacity": "reject decreases below confirmed count; preserve/report legacy excess",
+    "compatibility": "legacy confirmed; null queue/status-change timestamps; no fabricated notices; full old clients without explicit X-Enrollment-Waitlist: 1 receive event.enrollment.waitlistUpgradeRequired",
+    "privacy": "private, no-store; participants see only own record/queue position; current managers see lists and capacity; client cannot submit effective status"
+  },
+  "manualRoster": {
+    "rulesVersion": 2,
+    "pageSize": 4,
+    "extensionWeeks": 12,
+    "batchLimit": 200,
+    "selection": "only current eligible role candidates and available members; no duplicate member per slot; invited+confirmed <= requiredCount",
+    "batch": "memory draft -> explicit summary -> atomic Idempotency-Key + occurrenceETag + candidateGroupETag batch; any conflict saves/notifies nothing and preserves draft",
+    "response": "assignee only; invited until explicit acceptance/decline; replacement ends old assignment and requests new consent; preserve history",
+    "notification": "in-app only; same transaction; deduplicated replay; results to still-authorized assigning coordinator and current owner; existing duties revalidate old links",
+    "defaults": "immutable Event version with role/count/relative start/end/eligibility, no people; explicit creation adoption or saved source selection; missing dates and empty slots only",
+    "approval": "v2 freezes demand/defaults/candidate configuration, excludes ordinary real-time assignment responses; ordinary future vacancies do not block Plan approval; per-date execution requires current eligible available personally confirmed staff",
+    "critical": [
+      "RAM",
+      "child safeguarding",
+      "transport",
+      "command",
+      "on-site leader",
+      "specialist-qualified roles",
+      "unknown qualification"
+    ],
+    "criticalAuthority": "existing specialist invalidation; cannot change RAM signers or professional authorization; demand/candidate changes need reopening",
+    "compatibility": "historical Packages keep version 1 until reopening and fresh approval; immutable explicit date coverage is not broadened by extension; uncovered dates need covering occurrence approval",
+    "excluded": [
+      "automatic rotation",
+      "recommendations",
+      "email",
+      "device push"
+    ]
   }
 }

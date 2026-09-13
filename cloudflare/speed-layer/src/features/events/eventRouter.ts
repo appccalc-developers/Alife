@@ -3,9 +3,11 @@ import planner from './planner'
 import enrolment from './enrolment'
 import reviewer from './reviewer'
 import { handleRamGuidance } from './ramGuidance'
+import { handleRamAssistance } from './ramAssistance'
 
 const eventRouter = new Router()
 eventRouter.post('/api/events/ram-guidance', (request, env) => handleRamGuidance(request, env))
+eventRouter.post('/api/events/ram-assistance', (request, env) => handleRamAssistance(request, env))
 
 eventRouter.all('/api/events/details-session/*', async (req, env) => planner.fetch(req, env))
 

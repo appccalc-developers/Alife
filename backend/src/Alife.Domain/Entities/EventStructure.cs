@@ -62,6 +62,8 @@ public sealed class EventZone
 
 public sealed class EventServiceSlot
 {
+    public Guid? RosterDefaultsId { get; set; }
+    public int? DefaultRequirementIndex { get; set; }
     public Guid Id { get; set; }
     public Guid OccurrenceId { get; set; }
     public Guid? SessionId { get; set; }

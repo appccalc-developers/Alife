@@ -59,6 +59,7 @@ export const enrollmentSessionService = {
     const { data } = await http.get<EventEnrollmentRecord[]>(`/api/events/${eventId}/enrollments`)
     return data
   },
+  capacity: async (eventId: string) => (await http.get<import('../types/enrollment').EnrollmentCapacity>(`/api/events/${eventId}/enrollments/capacity`)).data,
 
   createEnrollment: async (payload: {
     eventId: string
@@ -66,6 +67,7 @@ export const enrollmentSessionService = {
     sessionId?: string
     draft: EnrollmentDraft
     paymentFiles: File[]
+    acceptWaitlist?: boolean
   }): Promise<EnrollmentCommitResponse> => {
     const enrollmentId = createEnrollmentId()
     const paymentFiles = await Promise.all(
@@ -86,6 +88,7 @@ export const enrollmentSessionService = {
     const { data } = await http.post<EventEnrollmentRecord>(
       `/api/events/${payload.eventId}/enrollments`,
       enrollmentPayload,
+      { headers: payload.acceptWaitlist ? { 'X-Enrollment-Waitlist': '1' } : {} },
     )
     await closeEnrollmentSession(payload.sessionId)
 

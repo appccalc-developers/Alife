@@ -19,6 +19,7 @@ public sealed class UpdateGroupEventCommandHandler(
     public async Task<AppResult<GroupEventSummaryDto>> Handle(UpdateGroupEventCommand request, CancellationToken cancellationToken)
     {
         await using var transaction = await dbContext.BeginSerializableTransactionAsync(cancellationToken);
+        await dbContext.LockEventRegistrationAsync(request.EventId, cancellationToken);
         var groupEvent = await dbContext.GroupEvents
             .Include(e => e.RamAssessment)
             .FirstOrDefaultAsync(e => e.Id == request.EventId, cancellationToken);
@@ -66,6 +67,10 @@ public sealed class UpdateGroupEventCommandHandler(
         }
 
         var contactProfileIds = (request.ContactProfileIds ?? []).Distinct().ToArray();
+        var previousCapacity = EventEnrollmentCapacityService.Capacity(groupEvent.EventDataJson);
+        var nextCapacity = EventEnrollmentCapacityService.Capacity(request.EventDataJson);
+        if (nextCapacity < previousCapacity && nextCapacity < await dbContext.EventEnrollments.CountAsync(x => x.EventId == groupEvent.Id && x.Status == "confirmed", cancellationToken))
+            return AppResult<GroupEventSummaryDto>.Conflict("Capacity cannot be reduced below confirmed registrations. / 容量不得降至现有正式报名人数以下。");
         var validContactCount = await dbContext.ContactProfiles.AsNoTracking().CountAsync(
             x => x.OwnerGroupId == groupEvent.GroupId && contactProfileIds.Contains(x.Id), cancellationToken);
         if (validContactCount != contactProfileIds.Length)
@@ -142,6 +147,12 @@ public sealed class UpdateGroupEventCommandHandler(
                 "event.core.materialChange",
                 "governanceCritical",
                 cancellationToken);
+        }
+        if (nextCapacity > previousCapacity)
+        {
+            if (groupEvent.RegistrationPackageId.HasValue)
+                groupEvent.RegistrationPackage = await dbContext.EventPackages.Include(x => x.Conditions).Include(x => x.Decisions).FirstOrDefaultAsync(x => x.Id == groupEvent.RegistrationPackageId, cancellationToken);
+            await new EventEnrollmentCapacityService(dbContext, groupAuthorizationService).ReconcileAsync(groupEvent, request.CurrentMemberId, cancellationToken);
         }
         if (!await EventPreparationPolicy.SaveEditableAsync(dbContext, request.EventId, cancellationToken, transactionAlreadyStarted: true)) return AppResult<GroupEventSummaryDto>.Conflict(EventPreparationPolicy.FrozenMessage);
         if (transaction is not null) await transaction.CommitAsync(cancellationToken);
