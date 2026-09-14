@@ -2524,7 +2524,7 @@ public sealed record AcceptEventPlanRequest(
     },
     "completionPlacement": "below send action; pending fields and default confirmation in the same panel; return-to-form action at panel bottom",
     "conversationPlacement": "above message input; left white assistant bubbles and right soft-green user bubbles; chronological user/assistant exchanges from top to bottom; automatically scroll to bottom on new messages; no session restart on language change",
-    "dateAdoption": "explicit calendar date and unambiguous clock range use selected IANA zone wall-clock values, superseding stale defaults/UTC-shaped model values; unclear or DST-ambiguous times require clarification",
+    "dateAdoption": "explicit calendar date and unambiguous clock range use selected IANA zone wall-clock values; time-only corrections retain the existing start date or ask for a date when missing. Deterministic ranges supersede stale/UTC-shaped model times and missing/inconsistent model zones. Other unbound times are rejected. Zone changes require explicit user evidence. Start/end/zone validate atomically at server merge and client adoption; invalid or DST-ambiguous tuples preserve the draft. Local strings stay offsetless with a separate IANA zone; saving converts once to explicit UTC.",
     "timeInputPresentation": "show Event time zone and unconfirmed prefilled-time notice"
   },
   "enums": {

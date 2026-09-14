@@ -1,4 +1,4 @@
-import { explicitLocalRange } from '../../../../shared/eventDetailsTime'
+import { explicitLocalRange, explicitTimeZone } from '../../../../shared/eventDetailsTime'
 import type { Env } from '../../index'
 import { AiChatSession, type DurableObjectStateLike, multilingualSchema } from '../ai/aiSession'
 import { detailFields, applicableDetails, detailCompletion, validDetail, type DetailsSnapshot, type DetailsResult, type DetailField, type DetailIssue, type EventDetailsAiResult, type EventDetailsForm } from '../../../../shared/eventDetails'
@@ -31,7 +31,7 @@ export const DETAILS_RESPONSE_SCHEMA = {
 const SCENARIO = `Event details form assistant v1. Return the complete target form, fieldAssessments, assessment, issues and assistantReply. Do not produce RAM, fees, contacts, module decisions or any legacy EventDto fields.
 The supplied snapshot is the latest user-visible form, including manual edits. Preserve all fields not explicitly corrected or cleared. Sources default/unresolved mean unconfirmed; never count a default as user intent. human/explicit are presentation provenance only, not business authority.
 Only mark a field explicit when the user directly supplied/corrected/cleared it, or you faithfully translate existing supplied text. evidence must be an exact short quotation of that information. Do not reuse an unrelated quote to justify another field. Use missing, inferred, ambiguous or conflicting otherwise. Unknown scalar values are null; unknown bilingual text is empty. Never invent optional details to fill blanks.
-Use the activity's IANA timeZone and referenceInstant for date reasoning. startLocal/endLocal are wall-clock times in that zone, with no offset conversion. For an explicit date and time range, cite the full date plus range as evidence for BOTH fields; do not quote the hour alone. Keep an existing timeZone unless the user explicitly changes it. Bare relative dates such as next Saturday / 下个周六 require a proposed concrete date and confirmation before adoption. Conflicting weekly and fortnightly instructions require clarification. Never silently resolve a DST gap or fold. New Zealand time means Pacific/Auckland unless a different NZ zone is explicitly requested.
+Use the activity's IANA timeZone and referenceInstant for date reasoning. startLocal/endLocal are wall-clock times in that zone, with no offset conversion. For an explicit date and time range, cite the full date plus range as evidence for BOTH fields; do not quote the hour alone. Keep an existing timeZone unless the user explicitly changes it. A time-only correction retains the current startLocal calendar date; if no date is set, ask for the date. Always return the effective IANA timeZone with local times; do not pre-convert them to UTC. Bare relative dates such as next Saturday / 下个周六 require a proposed concrete date and confirmation before adoption. Conflicting weekly and fortnightly instructions require clarification. Never silently resolve a DST gap or fold. New Zealand time means Pacific/Auckland unless a different NZ zone is explicitly requested.
 Only weekly series with an interval from 1 to 52 and the single weekday of startLocal are supported. Monthly/multiple-weekday recurrence is unsupported. Never change archetypeCode or activityTypeCode: explain a mismatch and ask the user to select a matching template.
 All ten fields are described by target schema. Capacity applies only to required registration; interval applies only to series. Visibility/registration/time defaults require explicit confirmation. A missing registration choice is not no-registration. A clear request to clear a field is allowed and leaves it incomplete.
 Return an AI sufficiency score, separate from deterministic completion. List issues by importance. assistantReply must briefly reflect what was captured and ask at most two useful questions. Never claim submission or approval. Keep descriptions under 400 characters per language and every reply concise. Do not repeat already resolved questions. All explanatory and question text is bilingual.`
@@ -88,8 +88,10 @@ export function readDetailsAiResult(x: unknown): DetailsResult {
 export function mergeDetails(snapshot: DetailsSnapshot, result: DetailsResult, message: string): DetailsResult {
   // Exact date/range text is stronger evidence than a model returning stale
   // defaults or UTC in a local-time field. Do not take a zone invented by AI.
-  const explicit = explicitLocalRange(message, snapshot.form.timeZone)
-  if (explicit) result = { ...result, form: { ...result.form, startLocal: explicit.startLocal, endLocal: explicit.endLocal },
+  const requestedZone = explicitTimeZone(result, message)
+  const timeZone = requestedZone ?? snapshot.form.timeZone
+  const explicit = explicitLocalRange(message, timeZone, new Date(), snapshot.form.startLocal)
+  if (explicit) result = { ...result, form: { ...result.form, startLocal: explicit.startLocal, endLocal: explicit.endLocal, timeZone },
     issues: result.issues.filter(x => x.field !== 'startLocal' && x.field !== 'endLocal'),
     fieldAssessments: [...result.fieldAssessments.filter(x => x.field !== 'startLocal' && x.field !== 'endLocal'),
       ...(['startLocal', 'endLocal'] as const).map(field => ({ field, status: 'explicit' as const, evidence: explicit.evidence, explanation: { zh: '按活动时区采用用户明确提供的日期和时间。', en: 'Explicit calendar date and wall-clock range in the event time zone.' } }))] }
@@ -100,11 +102,20 @@ export function mergeDetails(snapshot: DetailsSnapshot, result: DetailsResult, m
     blocked.add(field)
     if (!issues.some(x => x.field === field)) issues.push({ field, kind, question: { zh, en } })
   }
+  if (!explicit && (!timeZone || result.form.timeZone !== timeZone)) {
+    for (const field of ['startLocal', 'endLocal', 'timeZone'] as const) addIssue(field, 'ambiguous', 'AI 时间的时区缺失或不一致，已保留原时间。请确认活动时区和时间。', 'The AI time zone is missing or inconsistent. Original times were kept; confirm the event time zone and times.')
+  }
+  if (!explicit && !snapshot.form.startLocal && explicitLocalRange(message, timeZone, new Date(), '2000-01-01T00:00')) {
+    for (const field of ['startLocal', 'endLocal'] as const) addIssue(field, 'missing', '请先提供活动日期，再应用这个时间范围。', 'Please provide the event date before applying this time range.')
+  }
   if (/下(?:一)?个?周|下星期|next\s+(?:mon|tues|wednes|thurs|fri|satur|sun)day/i.test(message) && !/\d{4}[-/]\d{1,2}[-/]\d{1,2}/.test(message)) {
     for (const field of ['startLocal', 'endLocal'] as const) addIssue(field, 'ambiguous', `请确认具体日期（AI 建议：${result.form[field] ?? '待确定'}）。`, `Please confirm the exact date (AI suggestion: ${result.form[field] ?? 'unknown'}).`)
   }
   if (/(每[二两2]周|隔周|fortnight|biweekly|every (?:two|2) weeks)/i.test(message) && /(每周[一二三四五六日天]|every saturday|weekly)/i.test(message.replace(/biweekly/ig, ''))) addIssue('intervalWeeks', 'conflicting', '请确认是每周还是每两周一次？', 'Should this repeat every week or every two weeks?')
   for (const a of result.fieldAssessments) if (['ambiguous', 'conflicting'].includes(a.status)) blocked.add(a.field)
+  if (['startLocal', 'endLocal', 'timeZone'].some(field => blocked.has(field as DetailField))) {
+    for (const field of ['startLocal', 'endLocal', 'timeZone'] as const) blocked.add(field)
+  }
   for (const a of result.fieldAssessments) {
     const field = a.field
     if (blocked.has(field)) { sources[field] = 'unresolved'; continue }
@@ -130,7 +141,7 @@ export function mergeDetails(snapshot: DetailsSnapshot, result: DetailsResult, m
         const noRegistration = /无需|不用|不需|不报名|不登记|no |not |without/i.test(a.evidence)
         if ((proposed === 'none') !== noRegistration) continue
       }
-      if (field === 'timeZone' && !a.evidence.includes(String(proposed)) && !(proposed === 'Pacific/Auckland' && /新西兰|new zealand|auckland|奥克兰|\bNZ\b/i.test(a.evidence))) continue
+      if (field === 'timeZone' && !requestedZone) continue
     }
     if (!snapshot.isSeries && field === 'intervalWeeks') continue
     const value = result.form[field]
@@ -140,6 +151,7 @@ export function mergeDetails(snapshot: DetailsSnapshot, result: DetailsResult, m
     if (JSON.stringify(value) !== JSON.stringify(snapshot.form[field])) adoptedFields.push(field)
   }
   for (const field of [...adoptedFields]) {
+    if (['startLocal', 'endLocal', 'timeZone'].includes(field)) continue
     const value = form[field]
     const cleared = value === null || (typeof value === 'object' && !value.zh && !value.en)
     if (!cleared && !validDetail(field, form)) {
@@ -148,7 +160,9 @@ export function mergeDetails(snapshot: DetailsSnapshot, result: DetailsResult, m
       addIssue(field, 'ambiguous', '此字段无效或时间存在夏令时歧义，请检查后重新填写。', 'This value is invalid or its time has a daylight-saving ambiguity. Please revise it.')
     }
   }
-  if (adoptedFields.some(field => ['startLocal', 'endLocal', 'timeZone'].includes(field)) && form.startLocal && form.endLocal && !validDetail('endLocal', form)) {
+  if (adoptedFields.some(field => ['startLocal', 'endLocal', 'timeZone'].includes(field)) &&
+    (!validDetail('timeZone', form) || (form.startLocal && !validDetail('startLocal', form)) ||
+      (form.endLocal && !validDetail('startLocal', { ...form, startLocal: form.endLocal })) || (form.endLocal && form.startLocal && !validDetail('endLocal', form)))) {
     for (const field of ['startLocal', 'endLocal', 'timeZone'] as const) {
       if (!adoptedFields.includes(field)) continue
       form[field] = snapshot.form[field]; sources[field] = 'unresolved'; adoptedFields.splice(adoptedFields.indexOf(field), 1)

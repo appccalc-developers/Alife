@@ -30,7 +30,7 @@ test('Auckland wall-clock resolution is independent of browser zone and rejects 
   assert.throws(() => localTimeToUtc('2026-09-19T13:30', 'made-up'), /Invalid/)
 })
 test('newest snapshot and complete field adoption preserve composition choices', () => {
-  const draft = { ...initialCreationDraft(), archetypeCode: type.archetypeCode, activityTypeCode: type.code, factValues: { 'safety.requiresRam': 'no' as const } }
+  const draft = { ...initialCreationDraft(), timeZone: form.timeZone!, archetypeCode: type.archetypeCode, activityTypeCode: type.code, factValues: { 'safety.requiresRam': 'no' as const } }
   const result = { form, sources: { title: 'explicit', startLocal: 'explicit' }, adoptedFields: [...detailFields] } as DetailsResult
   const filled = applyDetailsResult(draft, result)
   assert.equal(filled.startLocal, '2026-09-19T13:30')
@@ -47,7 +47,7 @@ test('newest snapshot and complete field adoption preserve composition choices',
   assert.equal(creationSeries(filled, category)?.durationMinutes, 60)
 })
 test('v2 drafts preserve data with unconfirmed sources; v3 preserves explicit clears', () => {
-  const draft = { ...initialCreationDraft(), title: form.title, startLocal: form.startLocal!, intervalWeeks: '2', detailSources: { title: 'human' as const } }
+  const draft = { ...initialCreationDraft(), timeZone: form.timeZone!, title: form.title, startLocal: form.startLocal!, intervalWeeks: '2', detailSources: { title: 'human' as const } }
   const restored = restoreCreationDraft(JSON.stringify({ version: 2, draft }), [])!
   assert.deepEqual(restored.title, draft.title)
   assert.equal(restored.startLocal, draft.startLocal)
@@ -69,5 +69,35 @@ test('explicit Auckland September afternoon range replaces defaults without devi
   }
   for (const message of ['9月19日1点到4点', '如果9月19日下午1点到4点', '不是9月19日下午1点到4点', '2026-09-27 02:30 to 04:00', '2026-04-05 02:30 to 04:00', '下个周六下午1点到4点']) {
     assert.equal(explicitLocalRange(message, 'Pacific/Auckland'), null, message)
+  }
+})
+
+test('time-only corrections retain the event date and explicit local clock, without guessing a date', () => {
+  for (const message of ['改为早上八点到下午四点', 'Change to 8am to 4pm', 'Change to 08:00 to 16:00']) {
+    assert.deepEqual(explicitLocalRange(message, 'Australia/Perth', undefined, '2026-12-06T10:00'), {
+      startLocal: '2026-12-06T08:00', endLocal: '2026-12-06T16:00', evidence: message,
+    })
+    assert.equal(explicitLocalRange(message, 'Australia/Perth'), null)
+  }
+  for (const message of ['明天早上八点到下午四点', 'next Sunday 8am to 4pm', '八点到四点'])
+    assert.equal(explicitLocalRange(message, 'Australia/Perth', undefined, '2026-12-06T10:00'), null)
+})
+
+test('AI time adoption validates the entire tuple before mutating any draft fields', () => {
+  const draft = { ...initialCreationDraft(), timeZone: 'Australia/Perth', startLocal: '2026-12-06T10:00', endLocal: '2026-12-06T20:00' }
+  const result = { form: { ...form, timeZone: draft.timeZone, startLocal: '2026-12-06T08:00', endLocal: '2026-12-06T16:00' }, sources: {}, adoptedFields: ['startLocal', 'endLocal'] } as DetailsResult
+  const original = structuredClone(draft)
+  const applied = applyDetailsResult(draft, result)
+  assert.equal(creationEvent(applied, type, 'Leader').startDate, '2026-12-06T00:00:00.000Z')
+  assert.equal(creationEvent(applied, type, 'Leader').endDate, '2026-12-06T08:00:00.000Z')
+  for (const changes of [{ timeZone: null }, { timeZone: 'UTC' }, { timeZone: 'bad-zone' }, { startLocal: '2026-12-06T08:00+08:00' }, { endLocal: '2026-12-06T07:00' }]) {
+    assert.throws(() => applyDetailsResult(draft, { ...result, form: { ...result.form, ...changes } }), /Invalid AI time/)
+    assert.deepEqual(draft, original)
+  }
+  const zoned = { ...result, form: { ...result.form, timeZone: 'Pacific/Auckland' }, adoptedFields: [...result.adoptedFields, 'timeZone'], fieldAssessments: [{ field: 'timeZone', status: 'explicit', evidence: 'Pacific/Auckland' }] } as DetailsResult
+  assert.throws(() => applyDetailsResult(draft, zoned), /Invalid AI time/)
+  assert.equal(applyDetailsResult(draft, zoned, 'Use Pacific/Auckland').timeZone, 'Pacific/Auckland')
+  for (const startLocal of ['2026-09-27T02:30', '2026-04-05T02:30']) {
+    assert.throws(() => applyDetailsResult(draft, { ...zoned, form: { ...zoned.form, startLocal, endLocal: `${startLocal.slice(0, 10)}T04:00` } }, 'Use Pacific/Auckland'), /Invalid AI time/)
   }
 })

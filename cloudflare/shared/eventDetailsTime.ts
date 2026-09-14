@@ -1,8 +1,15 @@
-import { isTimeZone, localTimeToUtc } from './eventDetails.ts'
+import { isTimeZone, localTimeToUtc, type DetailsResult } from './eventDetails.ts'
+
+export function explicitTimeZone(result: DetailsResult, message: string) {
+  const zone = result.form.timeZone
+  const evidence = result.fieldAssessments?.find(x => x.field === 'timeZone' && x.status === 'explicit')?.evidence
+  if (!isTimeZone(zone) || !evidence?.trim() || !message.includes(evidence) || /不要|不是|如果|假如|[?？]|\b(?:not|if|maybe)\b/i.test(message)) return null
+  return evidence.includes(zone) || (zone === 'Pacific/Auckland' && /新西兰|new zealand|auckland|奥克兰|\bNZ\b/i.test(evidence)) ? zone : null
+}
 
 // Deliberately bounded: one explicit calendar date and one clock range. Other
 // phrases still use the assistant's clarification flow; never infer DST/AM/PM.
-export function explicitLocalRange(message: string, timeZone: string | null, reference = new Date()) {
+export function explicitLocalRange(message: string, timeZone: string | null, reference = new Date(), existingStart?: string | null): { startLocal: string; endLocal: string; evidence: string } | null {
   if (message.length > 400 || !isTimeZone(timeZone) || /不要|不是|取消|如果|假如|是否|要不要|[?？]|\b(?:not|if|maybe)\b/i.test(message)) return null
   const number = (token: string) => {
     const digits = '零一二三四五六七八九'
@@ -12,12 +19,17 @@ export function explicitLocalRange(message: string, timeZone: string | null, ref
   }
   const input = message.replace(/[零〇一二三四五六七八九十]{1,3}(?=月|日|号|点|时|分)/g, number)
   const dates = [...input.matchAll(/(?:(\d{4})年\s*)?(\d{1,2})月\s*(\d{1,2})[日号]?|(\d{4})-(\d{2})-(\d{2})/g)]
+  if (dates.length === 0 && existingStart && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(existingStart)
+    && !/今天|明天|后天|昨天|周|星期|月|年|日|号|\d\s*\/|\b(?:today|tomorrow|yesterday|next|week|day|month|year|mon|tue|wed|thu|fri|sat|sun|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\b/i.test(input)) {
+    const range = explicitLocalRange(`${existingStart.slice(0, 10)} ${message}`, timeZone, reference)
+    return range ? { ...range, evidence: message } : null
+  }
   if (dates.length !== 1) return null
   const date = dates[0]
   const year = date[1] || date[4] || new Intl.DateTimeFormat('en', { timeZone, year: 'numeric' }).format(reference)
   const day = `${year}-${(date[2] || date[5]).padStart(2, '0')}-${(date[3] || date[6]).padStart(2, '0')}`
   const rest = input.slice(date.index! + date[0].length)
-  const ranges = [...rest.matchAll(/(上午|早上|下午|晚上|中午)?\s*的?\s*(\d{1,2})(?:点|时|:)(?:(\d{1,2})分?|(半))?\s*(am|pm)?\s*(?:到|至|[-–]|to)\s*(上午|早上|下午|晚上|中午)?\s*的?\s*(\d{1,2})(?:点|时|:)(?:(\d{1,2})分?|(半))?\s*(am|pm)?/gi)]
+  const ranges = [...rest.matchAll(/(上午|早上|下午|晚上|中午)?\s*的?\s*(\d{1,2})(?:点|时|:|(?=\s*(?:am|pm)))(?:(\d{1,2})分?|(半))?\s*(am|pm)?\s*(?:到|至|[-–]|to)\s*(上午|早上|下午|晚上|中午)?\s*的?\s*(\d{1,2})(?:点|时|:|(?=\s*(?:am|pm)))(?:(\d{1,2})分?|(半))?\s*(am|pm)?/gi)]
   if (ranges.length !== 1) return null
   const r = ranges[0]
   const clock = (hour: string, minute: string, half: string, period: string, colon: boolean) => {
