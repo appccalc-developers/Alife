@@ -67,7 +67,7 @@ const EnrollmentPanel = ({
   return (
     <>
     <div className="space-y-5">
-      {capacity ? <AppSectionCard title={zh ? '报名容量' : 'Registration capacity'}><p className="text-sm">{zh ? `容量 ${capacity.capacity} · 正式报名 ${capacity.confirmed} · 候补 ${capacity.waitlisted}` : `Capacity ${capacity.capacity} · Confirmed ${capacity.confirmed} · Waitlisted ${capacity.waitlisted}`}</p>{!capacity.isOpen ? <p className="mt-2 text-sm text-amber-800">{zh ? '报名当前未开放或条件未满足；候补队列保留，暂不递补。' : 'Registration is closed or its conditions are not met. The waitlist is retained without promotion.'}</p> : null}{capacity.overCapacity ? <p role="alert" className="mt-2 text-sm text-amber-800">{zh ? '历史正式报名已超过当前容量，现有名额保留。请由负责人复核容量。' : 'Existing confirmed registrations exceed capacity. Their places are retained; an organiser should review capacity.'}</p> : null}</AppSectionCard> : null}
+      {capacity ? <AppSectionCard title={zh ? '报名容量' : 'Registration capacity'} summary={zh ? `${capacity.confirmed} 人正式报名 · ${capacity.waitlisted} 人候补 · 容量 ${capacity.capacity}` : `${capacity.confirmed} people confirmed · ${capacity.waitlisted} waitlisted · Capacity ${capacity.capacity}`}><p className="text-sm">{zh ? `容量 ${capacity.capacity} · 正式报名 ${capacity.confirmed} · 候补 ${capacity.waitlisted}` : `Capacity ${capacity.capacity} · Confirmed ${capacity.confirmed} · Waitlisted ${capacity.waitlisted}`}</p>{!capacity.isOpen ? <p className="mt-2 text-sm text-amber-800">{zh ? '报名当前未开放或条件未满足；候补队列保留，暂不递补。' : 'Registration is closed or its conditions are not met. The waitlist is retained without promotion.'}</p> : null}{capacity.overCapacity ? <p role="alert" className="mt-2 text-sm text-amber-800">{zh ? '历史正式报名已超过当前容量，现有名额保留。请由负责人复核容量。' : 'Existing confirmed registrations exceed capacity. Their places are retained; an organiser should review capacity.'}</p> : null}</AppSectionCard> : null}
       {message ? (
         <AppSectionCard dense>
           <p className={message === text.withdrawSuccess ? 'text-sm text-emerald-700' : 'text-sm text-rose-700'}>{message}</p>
@@ -77,7 +77,7 @@ const EnrollmentPanel = ({
       {currentEnrollment ? (
         <AppSectionCard
           dense
-          title={statusText(currentEnrollment)}
+          title={statusText(currentEnrollment)} summary={statusText(currentEnrollment)}
           action={
             canWithdraw ? (
               <AppActionButton variant="danger" disabled={Boolean(deletingId)} onClick={() => void withdraw()}>
@@ -114,7 +114,7 @@ const EnrollmentPanel = ({
         </AppSectionCard>
       )}
 
-      <AppSectionCard dense title={`${text.enrollments} (${enrollments.length})`}>
+      <AppSectionCard dense title={`${text.enrollments} (${enrollments.length})`} summary={loading ? text.loading : (language === 'zh' ? `${enrollments.length} 项报名` : `${enrollments.length} enrollments`)}>
         {loading ? <p className="text-sm text-slate-500">{text.loading}</p> : null}
         {!loading && enrollments.length === 0 ? <p className="text-sm text-slate-500">{text.noEnrollments}</p> : null}
         <div className="space-y-2">

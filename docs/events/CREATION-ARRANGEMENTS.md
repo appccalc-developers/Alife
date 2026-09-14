@@ -4,7 +4,7 @@
 
 ## User flow
 
-The Arrangements step gives modules an explicit Yes/No choice; server dependencies remain enforced. Module choices replace the former duplicate fact questionnaires, as described below. SERVICE.ROSTER, PROGRAM.PRODUCTION, PLACE.RESOURCE and RAM risk fields render inline when enabled. All groups and module headers expose a top-right expand/collapse button with aria-expanded/aria-controls; hiding retains mounted content. Safety contains Child safeguarding and the inline RAM assessment.
+The Arrangements step gives modules an explicit Yes/No choice; server dependencies remain enforced. Module choices replace the former duplicate fact questionnaires, as described below. SERVICE.ROSTER, PROGRAM.PRODUCTION, PLACE.RESOURCE and RAM risk fields render inline when enabled. The outer overview selects one module editor. Inside each module, full-width summary/detail cards expand independently in place; Settings and responsibilities opens initially and other cards start closed. Summary rows show current configuration, labelled counts or loading/error states. Returning to a module preserves expansion and mounted drafts; a page reload restores the default expansion. Repeated form rows remain ordinary content. Native disclosure controls remain keyboard-operable in read-only mode; invalid enabled fields reveal their containing cards before focus. Expansion and language changes perform no saves or additional fetches. Safety contains Child safeguarding and the inline RAM assessment.
 
 - Roles and shifts: start with template slot demand; edit role, required count and shift times, add or remove slots. These are unassigned slots, not evidence of eligibility or staffing readiness.
 - Programme and production: add bilingual sessions, start/end times, ordered bilingual programme items, session-relative start minutes, duration and optional bilingual notes.
@@ -53,7 +53,7 @@ The client retains all drafts after a failed create, including the memory-only R
 ## Acceptance scenarios
 
 1. Required Team and tasks cannot be turned off; optional tools expose Yes/No beside their title.
-2. Choosing Yes opens the relevant editor on Arrangements. Collapse, No→Yes, back navigation and scoped draft recovery retain entered data.
+2. Choosing Yes makes the relevant configuration cards available on Arrangements; newly available cards start collapsed. Collapse, No→Yes, back navigation and scoped draft recovery retain entered data.
 3. Incomplete enabled roles, programme or venue details block leaving Arrangements; the summary reflects the corrected values before Review.
 4. Human confirmation stores all valid rows together, and retrying produces no duplicate operational rows.
 5. Inactive/foreign venues, stale ETags, insufficient capacity, invalid programme durations and overlapping reservations fail without partial creation; adjacent booking intervals succeed.

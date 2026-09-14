@@ -11,6 +11,10 @@ import { creationSlots, type CreationArrangements, type TimedArrangement } from 
 import { BilingualField, Field, creationInput, localText } from './CreationFields'
 
 type Props = { draft: CreationDraft; setDraft: Dispatch<SetStateAction<CreationDraft>>; zh: boolean; type: EventActivityType; groupId: string }
+export const creationRosterModule = (roleCode: string, activeModules?: string[]) => {
+  const target = defaultRosterModule(roleCode)
+  return !activeModules || activeModules.includes(target) ? target : 'SERVICE.ROSTER'
+}
 const blankText = () => ({ en: '', zh: '' })
 const rowClass = 'space-y-3 rounded-xl border border-[#2f4b42]/15 bg-white p-3'
 function Times({ row, zh, onChange }: { row: TimedArrangement; zh: boolean; onChange: (row: TimedArrangement) => void }) {
@@ -22,7 +26,7 @@ function useArrangementChange(setDraft: Props['setDraft'], moduleCode?: string) 
 export function CreationRosterEditor({ draft, setDraft, zh, type, moduleCode = 'SERVICE.ROSTER', activeModules }: Props & { moduleCode?: string; activeModules?: string[] }) {
   const slots = creationSlots(draft, type), change = useArrangementChange(setDraft, moduleCode)
   return <div className="space-y-3"><p className="text-sm text-[#66766f]">{zh ? '在这里确定岗位、人数和轮班时间。岗位需求不会自动指派成员或确认资格。' : 'Set roles, counts and shift times here. Slot demand does not assign members or confirm eligibility.'}</p>
-    {slots.filter(slot => { const target = defaultRosterModule(slot.roleCode); return !activeModules || (activeModules.includes(target) ? target : 'SERVICE.ROSTER') === moduleCode }).map((slot, index) => {
+    {slots.filter(slot => !activeModules || creationRosterModule(slot.roleCode, activeModules) === moduleCode).map((slot, index) => {
       const preset = type.presetServiceSlots.find(x => x.roleCode === slot.roleCode)
       const update = (next: typeof slot) => change('slots', slots.map(x => x.id === slot.id ? next : x))
       return <fieldset key={slot.id} className={rowClass}><legend className="px-1 text-sm font-semibold">{preset ? localText(preset.label, zh) : slot.roleCode || (zh ? `岗位 ${index + 1}` : `Role ${index + 1}`)}</legend>
